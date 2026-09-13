@@ -78,3 +78,82 @@ findings:
     detail: |
       architecture.md:200 — drop "every"; the atlas paragraph states the load/residue split without the universal claim.
 ```
+
+---
+
+## Re-review — 2026-09-12T18:48:48-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 224 — ARCH-FUNERAL: everything created names its end — a funeral plan is part of the design |
+| repo | ariadne |
+| issue file | workshop/issues/000224-arch-funeral-everything-created-names-its-end-a-funeral-plan-is-part-of-the-design.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 84aba3d50ae0a16d4431575fab6df33be13ff45e..0383e50f252edebe1b3d25b94165db38b09c6d69 |
+| command | sdlc close --issue 224 |
+| reviewer | claude |
+| timestamp | 2026-09-12T18:48:48-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Round 2 confirms the round-1 fixes. The prompt this review was dispatched with enumerates eight markers ending in `ARCH-FUNERAL`, the stale `$TMPDIR/sdlc` copy no longer exists, only the symlinked `~/.local/bin/sdlc → bin/sdlc` is on PATH, and that binary renders eight entries. The "every constraint" overclaim at `architecture.md:200` is gone and the four goldens were re-captured in lockstep (six lines each, nothing else moved; the judge package is green). Registry, tripwire, goldens, atlas: all four enumeration sites carry the entry, and the shadow-sweep finds no remaining hand-maintained marker list. Nothing blocks the boundary.
+
+**1. Strengths**
+
+- `cmd/sdlc/internal/judge/architecture.md:199-206` — the BR-2 rewrite is better than the original: naming what ARCH-CONSTRAINTS budgets (latency, memory, concurrency, over-budget behaviour) carries the load/residue boundary without a universal claim about that entry's list.
+- Golden discipline held across two rounds: filtering the milestone-review golden diff leaves only the `7 → 8 entries` header and the `{{ARCH_STAR}}` expansion as non-entry lines.
+- `atlas/workflow/architecture-principles.md:128-134` — the entry names its own funeral (deactivation is the same MOVE as activation, into `architecture-deferred.md`, pinned by `architecturedeferred_test.go`). An entry about ends that stated no end would have been self-refuting.
+- The round-1 fix commit did not add a new lessons.md rule for a mistake `lessons.md:1046` (#171) already covers, per the standing feedback that lessons only go in when tooling doesn't enforce them.
+
+**2. Critical findings**
+
+None.
+
+**3. Important findings**
+
+None.
+
+**4. Minor findings**
+
+- `workshop/issues/000224-…md` `## Log` has no line recording the round-1 verdict (FIX-THEN-SHIP, BR-1/BR-2 addressed) or the re-dispatch through the symlinked binary. AGENTS.md §3 says the verdict outcome is logged in `## Log`; add it at close.
+- `cmd/sdlc/internal/judge/judge_test.go:358` — comment still says "adding a seventh entry touches …"; it is now the eighth. Cosmetic; the sentence reads fine as an example either way.
+- Pre-existing, out of window: `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` fails on base and on main because `dfeba9c` archived `workshop/plans/000200-…-plan.md` to history and the test still reads it from `workshop/plans/`. Not this issue's; worth a side-quest.
+
+**5. Test coverage notes**
+
+- `TestArchitectureMarkers` (hand-written tripwire) plus `TestBuildPrompt_Golden` pin the entry's presence, label shape, and rendered position. `go test ./cmd/sdlc/internal/judge` passes.
+- BR-1 is an environment property with no unit-testable oracle; the evidence is the dispatched prompt itself, which now shows eight entries. BR-2 is pinned by the goldens, which would fail if the registry and captured prompts diverged.
+
+**6. Architectural notes**
+
+- ARCH-DRY: pass. One source, every consumer derives except the deliberate tripwire.
+- ARCH-PURE: pass. Content-only change; `markersIn` and the templating are unchanged and pure.
+- ARCH-PURPOSE: pass. Shadow-sweep of enumeration sites (registry, tripwire, goldens, atlas, `{{ARCH_STAR}}` in code-review.md, `ArchitectureBlock` in start-plan, README, AGENTS.md) finds no hand-maintained restatement. Deferring pair#239's design to pair's tracker is legitimate: it consumes this text, it is not this text.
+- ARCH-MOCK: N/A, no external calls in the diff.
+- ARCH-CONSTRAINTS: pass. Prompt budget grows by 32 lines per gate prompt; the atlas names the cost and the retirement route.
+- ARCH-SECURE: N/A, no untrusted input or secrets touched.
+- ARCH-ORDER: N/A, no state carried between events.
+- ARCH-FUNERAL: pass. The only new durable artifacts in the window are the close-gate ledger and close-review file, which belong to existing families archived to `workshop/history/` at close. The registry entry names its own removal path. The `$TMPDIR` binary that motivated BR-1 was itself a FUNERAL instance, now collected.
+
+**7. Plan revision recommendations**
+
+None. The plan matches the code. Only the `## Log` line noted above is outstanding.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      $TMPDIR/sdlc is gone, only ~/.local/bin/sdlc (symlink to bin/sdlc, mtime 18:44) is on PATH, it renders 8 entries, and this round's dispatched prompt enumerates ARCH-FUNERAL.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      architecture.md:199-206 now names what ARCH-CONSTRAINTS budgets instead of claiming "every constraint"; goldens re-captured 1:1 and the judge package passes.
+```

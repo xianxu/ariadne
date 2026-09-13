@@ -20,6 +20,19 @@ rounds:
           family: neighbour-boundary-overclaim
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-09-12T18:48:48-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: $TMPDIR/sdlc is gone, only ~/.local/bin/sdlc (symlink to bin/sdlc, mtime 18:44) is on PATH, it renders 8 entries, and this round's dispatched prompt enumerates ARCH-FUNERAL.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: architecture.md:199-206 now names what ARCH-CONSTRAINTS budgets instead of claiming "every constraint"; goldens re-captured 1:1 and the judge package passes.
+          round: 2
+      blocked: false
 ---
 
 # Gate ledger — ariadne#224 (boundary-review)
@@ -36,7 +49,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Minor] `neighbour-boundary-overclaim` principle clause says every ARCH-CONSTRAINTS constraint is felt at the time, but that entry lists "scale and growth"
   architecture.md:200 — drop "every"; the atlas paragraph states the load/residue split without the universal claim.
 
+## Round 2 — 2026-09-12T18:48:48-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — $TMPDIR/sdlc is gone, only ~/.local/bin/sdlc (symlink to bin/sdlc, mtime 18:44) is on PATH, it renders 8 entries, and this round's dispatched prompt enumerates ARCH-FUNERAL.
+- BR-2 — addressed — architecture.md:199-206 now names what ARCH-CONSTRAINTS budgets instead of claiming "every constraint"; goldens re-captured 1:1 and the judge package passes.
+
 ## Open findings
 
-- **BR-1** [Important] `stale-binary-evidence` Close review dispatched from stale /tmp/claude-501/sdlc (7 entries); delivery Done-when for boundary-review prompts not evidenced
-- **BR-2** [Minor] `neighbour-boundary-overclaim` principle clause says every ARCH-CONSTRAINTS constraint is felt at the time, but that entry lists "scale and growth"
+(none — every finding has been disposed)

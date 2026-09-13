@@ -1,12 +1,13 @@
 ---
 id: 000224
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-12
 updated: 2026-09-12
 estimate_hours: 0.89
 started: 2026-09-12T18:26:36-07:00
+actual_hours: 0.30
 ---
 
 # ARCH-FUNERAL: everything created names its end — a funeral plan is part of the design
@@ -162,6 +163,7 @@ the site that, before #208, could keep passing while covering nothing.
 ## Log
 
 ### 2026-09-12
+- 2026-09-12: closed — sdlc arch-principles renders 8 entries ending in ARCH-FUNERAL, verified from pair cwd against the rebuilt shared binary (gates now dispatched from ~/.local/bin/sdlc, not a private build); golden diff reconciles 1:1 with the registry; entry mutation-verified 3 ways; atlas maps with 0 shared 12-word spans; review verdict: SHIP
 
 - Filed from the pair session that fixed pair#237 and measured pair's
   13 GB store. The operator named it: ARCH-FUNERAL, "more sentimental" than
@@ -267,3 +269,16 @@ revision above for why the Plan originally said otherwise.
 against its `at-plan` text") is work in pair's tracker against an issue that
 declares a dependency on this one. This issue delivers the text pair#239 consumes;
 it cannot close that issue's design.
+
+**Calibration: 0.89 est / 0.30 actual, 3.0× over — and the third in a row.**
+#208 closed 1.72 against 1.13 (under), #215 1.49 against 0.61 (2.4× over), this
+one 3.0× over. Two consecutive over-estimates on registry-content issues say the
+correction #215 applied to itself has now over-shot in the same direction twice,
+and the rows say where: `issue-spec design=0.35` was priced for design attention
+that had already happened before the window opened — the estimate-quality judge
+said so at the time ("expect the row to read over") and it read over. The signal
+for the next entry, which is now backed by two closes rather than one: for a
+registry-content issue arriving with its clause text already drafted, `issue-spec
+design` belongs at the table floor (~0.15–0.2), not in the 0.3–0.5 band #215
+recommended for the case where the window contains the authoring. The band is
+right; this issue was not in it.
