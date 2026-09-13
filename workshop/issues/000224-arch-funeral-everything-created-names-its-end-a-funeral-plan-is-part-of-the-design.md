@@ -98,10 +98,25 @@ so nothing changes there beyond whatever the base-layer propagation carries.
 
 ## Plan
 
-- [ ] Add the section to `architecture.md`; extend the judge test's expected list
-- [ ] Atlas narrative paragraph in `atlas/workflow/architecture-principles.md`
-- [ ] Propagate; confirm from pair with `sdlc arch-principles`
-- [ ] Close; pair#239 picks up the text
+`atlas/workflow/architecture-principles.md` "Adding an entry" says a new entry
+touches FOUR things, and the goldens were the one this Plan originally missed —
+the site that, before #208, could keep passing while covering nothing.
+
+- [ ] Add the section to `cmd/sdlc/internal/judge/architecture.md`, with the
+      ARCH-CONSTRAINTS boundary as revised below
+- [ ] Extend `TestArchitectureMarkers`' hand-written `want` list — the one
+      deliberate non-derived site, kept as the registry tripwire
+- [ ] Re-capture the four goldens
+      (`go test ./cmd/sdlc/internal/judge -run TestBuildPrompt_Golden -update-golden`)
+      and read the diff: each must gain exactly this entry and nothing else
+- [ ] Map-level paragraph in `atlas/workflow/architecture-principles.md` —
+      boundaries, shaping choices, provenance. Never a copy of the clauses
+      (#215 BR-1)
+- [ ] Verify delivery from the binary: `sdlc arch-principles` renders it, and
+      `sdlc start-plan` / the gate prompts carry it via the existing embedding test
+- [ ] Propagate to dependents (`sdlc propagate-base`, run outside the sandbox);
+      confirm from pair with `sdlc arch-principles`
+- [ ] Close; pair#239 picks up the `at-plan` text
 
 ## Log
 
@@ -110,3 +125,44 @@ so nothing changes there beyond whatever the base-layer propagation carries.
 - Filed from the pair session that fixed pair#237 and measured pair's
   13 GB store. The operator named it: ARCH-FUNERAL, "more sentimental" than
   ARCH-LIFECYCLE — and more memorable, which is the point of a marker.
+
+## Revisions
+
+### 2026-09-12 — the neighbour boundary, and the missing fourth site
+
+**Boundary sentence replaced.** The draft closed the `principle:` clause with:
+
+> The lens is the *end* of a thing's life where ARCH-CONSTRAINTS is its *rate*
+> and ARCH-ORDER its states in between.
+
+The triad is tidy but wrong about ARCH-ORDER, which governs state a **component**
+carries between externally-arriving events — not the life stages of an artifact.
+Writing a wrong neighbour boundary into the registry is the specific thing
+`atlas/workflow/architecture-principles.md` tells future editors to watch for,
+and ARCH-ORDER's own entry had to be fenced against ARCH-PURE and ARCH-SECURE for
+the same reason.
+
+It also leaves the ARCH-CONSTRAINTS boundary weaker than the field evidence
+supports. "Rate" makes this sound like a member of that entry's list — which is
+the test #215 used to reject folding ARCH-ORDER into ARCH-PURE ("that entry's IO
+list enumerates *members*, and this is a difference in *kind*"). The difference
+in kind is available and it is sharper: **ARCH-CONSTRAINTS budgets a component
+while it is working; this one governs what is left behind once it has stopped.**
+Pair's 13 GB store was not produced by load — it was produced by a year of
+ordinary operation in which every individual write sat comfortably inside any
+envelope anyone would have written down. That is a defect ARCH-CONSTRAINTS'
+`at-review` clause cannot flag, which is the bar for a separate entry rather than
+a new bullet.
+
+pair#237 makes the same point from the other side: the 8 MiB read cap **was** the
+declared constraint, and declaring it is what turned unbounded growth into a
+cliff. ARCH-CONSTRAINTS has no vocabulary for "who is the last to need this",
+which is the question that would have caught it.
+
+So the clause now reads as a load/residue split, and drops ARCH-ORDER.
+
+**Plan gained the goldens.** The Spec enumerated three sites; the atlas documents
+four. `cmd/sdlc/internal/judge/testdata/golden/*.prompt` was the missing one —
+and per the atlas it is precisely the site that used to pass while covering
+nothing. Derived the real set from what #215 actually touched rather than from
+the Spec's list.
