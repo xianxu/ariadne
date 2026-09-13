@@ -18,7 +18,7 @@ The operator approved the parley.nvim#208 plan including this prerequisite on 20
 |---|---|---|---|
 | applySeed | cmd/weave/internal/plan/apply.go | modified | Materialize upstream bytes without following destination links |
 | removeDestinationSymlink | cmd/weave/internal/plan/apply.go | new integration | Shared Lstat/remove guard for seed and composed writes |
-| workflow include selection | Makefile | modified pure Make expression | Prefer local overlay, otherwise sibling ariadne, otherwise no overlay |
+| workflow include selection | Makefile | modified integration | Prefer local overlay, otherwise sibling ariadne, otherwise no overlay |
 | portable bootstrap chain | Makefile.workflow | modified integration | Resolve pre-weave helpers and order peer setup before weave before downstream tooling |
 | CI setup and runner selection | .github/workflows/merge-check.yml | modified integration | Run optional consumer setup and locate generic runner after cloning |
 
@@ -27,7 +27,7 @@ No new domain noun. Filesystem seam remains weavefs.FS; tests use OSFS rooted at
 ## Decisions and architecture
 
 - ARCH-DRY: share symlink unlink guard with applyWriteFile; keep one root template and one CI workflow. Local help extensibility stays ordinary Make targets.
-- ARCH-PURE: no new policy layer; path expressions are Make values, filesystem effects remain FS-injected apply functions.
+- ARCH-PURE: no new policy layer; workflow wildcard discovery reads the filesystem and is an integration seam; filesystem mutation remains in FS-injected apply functions.
 - ARCH-PURPOSE: cover linked and already-seeded consumers, absent helper links, product targets, effective CI after repeat weave; not merely optional include parsing.
 - ARCH-MOCK: fault FS retains real files; bootstrap fixture tools persist call log/materialized helpers. Conformance uses real make/git/weave in scratch; no network cloning is needed because the upstream scratch peer already exists.
 - ARCH-CONSTRAINTS: operator-triggered batch setup, one synchronous process chain; no UI budget. Existing peer-depth limits remain. Tests bounded to temporary trees; standard GNU Make on macOS/Linux. Source sizes remain manifest-controlled small text files; no new cache or scan.
@@ -54,7 +54,7 @@ Files: Makefile, Makefile.workflow, bootstrap.sh comments; construct/scripts/tes
 
 ### 3. Portable generic CI and documentation
 
-Files: .github/workflows/merge-check.yml; scripts/test/portable-ci.test.sh; atlas/workflow/base-layer.md and relevant atlas CI page/index; workshop/lessons.md.
+Files: .github/workflows/merge-check.yml; scripts/test/portable-ci.test.sh; atlas/workflow/base-layer.md and relevant atlas CI page/index; README.md; workshop/lessons.md.
 
 - [x] portable-ci.test.sh executes extracted actual workflow run blocks against a stateful scratch repository; assert runner precedence, effective setup before checks and failure propagation through seed refresh. Confirm red.
 - [x] Invoke optional executable scripts/ci-setup.sh after peer clone and before checks; select local runner or ../ariadne/scripts/run-merge-checks.sh, fail clearly if neither. Make Go setup use a conditional go.mod lookup compatible with products lacking a root Go module (clone first, select local go.mod else bootstrapped ariadne/go.mod). Run workflow regression green.
@@ -76,3 +76,11 @@ Reason: full real bootstrap revealed an implicit Make rule. Delta: public
 bootstrap is explicitly phony, covered with the real bootstrap.sh in the fixture.
 Post-weave tools finish before installation to avoid overlapping binary builds.
 Verification recorded in issue Log; close/ship remain SDLC gate actions.
+
+### 2026-09-13 — BR-1/BR-2 contract sweep
+
+Reason: boundary review found a classification contradiction and missing public
+setup documentation. Delta: workflow/helper wildcard discovery is explicitly
+INTEGRATION (not pure); inspected every concept row for the same mistake.
+README now covers seeded ownership, product overrides, bootstrap, and CI hook
+ordering/failure behavior alongside both atlas pages. No runtime changes.

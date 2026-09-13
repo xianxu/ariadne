@@ -1493,3 +1493,10 @@ with no local links. Mark prerequisite-only command targets phony: real Make
 otherwise applies its implicit `.sh` rule and creates a stray executable even
 though every explicit prerequisite passed. Keep the real entrypoint in fixtures
 so that behavior remains covered.
+
+## Purity follows dependencies, not expression syntax (#225 BR-1/BR-2)
+
+Make `wildcard` looks like an expression but observes filesystem state. Classify
+such discovery as integration and test it with a scratch filesystem. New consumer
+setup surfaces also need public README instructions in addition to architecture
+maps; sweep both destinations when documenting ownership and bootstrap changes.

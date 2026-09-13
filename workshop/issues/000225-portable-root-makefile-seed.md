@@ -114,3 +114,10 @@ item: milestone-review design=0.02 impl=0.16
 design-buffer: 0.15
 total: 1.03
 ```
+
+### 2026-09-13 — boundary round 1 repairs
+
+Review returned REWORK: BR-1 incorrectly classified filesystem wildcard discovery
+as pure; BR-2 lacked README guidance for the new consumer setup surface. Corrected
+the classification across the plan and added README ownership/bootstrap/hook
+instructions. No runtime defect identified; code evidence remains unchanged.

@@ -4,13 +4,34 @@
 
 *"Life takes 42 shots."*
 
-AI runs the loops. Humans steer. AI learns. `Ariadne` forms a base of all my tinkering, it represents a paradigm of working. To adapt it to a new repo (cloned as a sibling of `ariadne`), run `./bootstrap.sh` then `make bootstrap` — that clones the ancestor layers, builds the tooling, and invokes `weave` (the layer-composition compiler that replaced `construct/setup.sh` in #95) to compose the repo's context. Thereafter `make weave` recomposes on demand. 
+AI runs the loops. Humans steer. AI learns. `Ariadne` forms a base of all my tinkering, it represents a paradigm of working. To adapt it to a new repo (cloned as a sibling of `ariadne`), run `./bootstrap.sh` (which hands off to `make bootstrap`) — that clones the ancestor layers, builds the tooling, and invokes `weave` (the layer-composition compiler that replaced `construct/setup.sh` in #95) to compose the repo's context. Thereafter `make weave` recomposes on demand. 
 
 Check `atlas/workflow/index.md` for how to use it (TODO).
 
 For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
+
+## Standalone consumers and maintainer setup
+
+A consumer's root `Makefile` is an upstream-owned **seed**: a real file that
+weave refreshes from ariadne. Put product targets and local help in
+`Makefile.local`; these work without maintainer peers. Avoid editing the seeded
+root, since the next weave replaces its contents. Old root symlinks are safely
+replaced without changing their ancestor's bytes or permissions.
+
+Run `./bootstrap.sh` in the consumer to clone its peer chain and restore the
+maintainer workflow. Bootstrap finds the sibling overlay even when local helper
+links are missing, then orders peer setup, weave, tool builds, and installation.
+Afterward `make weave` refreshes the substrate on demand.
+
+The generic CI workflow is also upstream-seeded. Put consumer-specific tool
+provisioning in an executable `scripts/ci-setup.sh` (`chmod +x scripts/ci-setup.sh`)
+and commit it with the product. CI clones peers and sets up the declared Go
+version first, then runs this hook before merge checks. A missing or
+non-executable hook is skipped; a failing hook stops the job. The runner falls
+back to bootstrapped `../ariadne/scripts/run-merge-checks.sh` when the local helper
+link is absent. Repeated weave preserves the repo-owned hook.
 
 ## Fleet queries
 
