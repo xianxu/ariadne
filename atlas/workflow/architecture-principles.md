@@ -90,6 +90,49 @@ outcomes, each with its own recovery) while four separate defects there were
 ordering defects found late, and `go test -race` was recorded as close evidence
 from a single run of a test that fails 3 in 10.
 
+`ARCH-FUNERAL` (#224) is the retention lens: it fires on anything a component
+creates and leaves behind, and asks who is the last to need it and what removes
+it. The clauses live in the registry; what belongs here is the one boundary it is
+confusable across, the shaping choice its draft got wrong, and where it came from.
+
+- **ARCH-CONSTRAINTS** is the neighbour, and the split is **load vs. residue**.
+  That entry's list already names "workload/input scale and growth" and "disk IO",
+  so the tempting read is that this is a member of it — which is exactly the test
+  #215 used to reject folding `ARCH-ORDER` into `ARCH-PURE`: a list that
+  enumerates members does not absorb a difference in kind. The difference here is
+  *when the cost accrues*. ARCH-CONSTRAINTS budgets a component while it is
+  working, and each of its budgets is something an operator can feel at the time.
+  Residue accrues while nothing is happening, out of writes that were each
+  comfortably inside any envelope anyone would have written down, and its failure
+  is a cliff rather than a slope. A design can satisfy every declared constraint
+  and still have no answer to "who deletes this", which is the bar for a separate
+  entry.
+- **The declared cap is not the bound.** `pair#237` is the cleanest case and the
+  one to keep in mind when editing: the 8 MiB read cap *was* the constraint,
+  correctly declared — and declaring it is what converted unbounded growth into a
+  thread that stopped resuming on its 14th relaunch. The `at-review` clause about
+  a cap on the reader with no bound on the writer is that defect generalised, so
+  do not soften it into "name a limit".
+
+One shaping choice to know before editing, because it reads well enough to get
+reintroduced: the draft closed the `principle:` clause with a three-way lens triad
+— ARCH-CONSTRAINTS as *rate*, ARCH-ORDER as *states in between*, this as the
+*end*. It was cut. `ARCH-ORDER` governs state a **component** carries between
+externally-arriving events; it is not the middle act of an artifact's life, and
+putting it there writes a wrong neighbour boundary into the registry, which is the
+one thing this page tells editors to watch for.
+
+Provenance is `pair#237`/`#238`/`#239`, measured the day before filing: a 13 GB
+store, one 4.8 GB event log, and 143 per-thread ledgers that were 99% superseded
+launch snapshots with nothing in the tree pruning any family.
+
+**The entry's own funeral.** A registry entry is itself a durable artifact that
+grows a shared cost: one of this size lands roughly thirty lines in every prompt
+that embeds the registry, paid on every gate run forever. What removes one is
+`cmd/sdlc/internal/judge/architecture-deferred.md` — deactivation is the same MOVE
+as activation, in the other direction, and `architecturedeferred_test.go` pins
+that what lands there reaches no gate.
+
 ## Deferred principles (documented, not gated)
 
 `cmd/sdlc/internal/judge/architecture-deferred.md` holds principles written down

@@ -109,7 +109,7 @@ The boundary should update user-facing docs for any new surface introduced:
 
 ## Architecture (the at-review backstop — these matter most long-term)
 
-Work through each of ARCH-DRY, ARCH-PURE, ARCH-PURPOSE, ARCH-MOCK, ARCH-CONSTRAINTS, ARCH-SECURE, ARCH-ORDER explicitly, applying its at-review lens. The
+Work through each of ARCH-DRY, ARCH-PURE, ARCH-PURPOSE, ARCH-MOCK, ARCH-CONSTRAINTS, ARCH-SECURE, ARCH-ORDER, ARCH-FUNERAL explicitly, applying its at-review lens. The
 full principle definitions are delivered in the ARCHITECTURE PRINCIPLES block
 right after this prompt — for EACH marker, state pass or flag, and cite the
 marker (e.g. ARCH-DRY) in any finding. Architecture is where review has the
@@ -148,7 +148,7 @@ it isn't — followed by:
      needs (empty if the plan still matches the code).
 
 
-ARCHITECTURE PRINCIPLES — work through each of the 7 entries below explicitly, applying its `at-review` lens; cite the marker (e.g. ARCH-DRY) in any finding.
+ARCHITECTURE PRINCIPLES — work through each of the 8 entries below explicitly, applying its `at-review` lens; cite the marker (e.g. ARCH-DRY) in any finding.
 
 # Architecture principles (ARCH-*)
 
@@ -340,6 +340,38 @@ Principles"; this is its machine-delivered companion.
   still running at return; ARCH-CONSTRAINTS' "unbounded concurrency" is capacity
   — how many run at once. Flag an error or cancellation path that unwinds the
   sequencing but drops the in-flight effect.
+
+## ARCH-FUNERAL — Everything created names its end
+
+- **principle:** A thing that is created has a lifecycle, and its end is part of
+  the design, not an operational afterthought. For every durable artifact,
+  record, cache, or handle a component produces, the design says when it stops
+  being needed and what removes it: a time-bound sweep, a superseding
+  generation, an owner whose death collects it, or an explicit growth bound with
+  the consequences of reaching it stated. "Append-only" is a durability
+  property, not an exemption — an append-only store still names its bound and
+  what happens at it. The boundary against ARCH-CONSTRAINTS is **load versus
+  residue**: that entry budgets a component while it is working — latency,
+  memory, concurrency, what happens when a budget is exceeded. This one governs
+  what is left behind once the work is done, where the cost accrues while
+  nothing is happening and every individual write sat comfortably inside its
+  envelope. A perfectly budgeted component with no removal path passes
+  ARCH-CONSTRAINTS and reaches a cliff anyway.
+- **at-plan:** For each new artifact family, record, or growing structure, write
+  one line: who creates it, who is the last to need it, what removes it, and how
+  big it can get before that. If the answer is "forever", say what forever costs
+  per unit of use (per launch, per session, per keystroke) and where it is
+  measured. Target rather than sweep: an in-memory value dies with its scope and
+  needs no entry; a file, a row, a persisted cache, or a background process
+  does. `N/A` is a claim that can be wrong: write it as "creates nothing durable
+  because X", never as a bare marker.
+- **at-review:** Flag any new file family, log, ledger row, cache, or sidecar
+  with no removal path in the diff or in an existing routine, and any writer to
+  an existing family whose growth per event is larger than before (a row that
+  embeds a snapshot; a log that gains a field). Flag a size or age cap on the
+  *reader* of a growing artifact with no matching bound on its *writer* — that
+  is a cliff, not a bound. Flag a cleanup that only the operator can trigger
+  when the growth is per-launch or per-session.
 
 
 ## Prior rounds — dispose of these BEFORE raising anything new
