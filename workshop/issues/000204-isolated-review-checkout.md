@@ -93,3 +93,18 @@ voluntary containment practice left its own debris:
   "owned, discoverable cleanup path" this Spec asks for.
 - Workaround on the parley side meanwhile: snapshot the operator's WIP with
   `git stash create` before each dispatch (parley `workshop/lessons.md`).
+
+### 2026-09-12 — a review round that backgrounded its own work (parley.nvim#237 M2)
+
+The M2 boundary's second round ended without a verdict. The claude reviewer
+started its revert checks and the full suite as background tasks, then ended
+its turn "waiting for those before writing the verdict". A headless review
+cannot be woken by their completion, so the round recorded `unknown` and
+carried no findings. When the session ended, its background suite was killed
+mid-run, which orphaned a plenary child nvim and a `fake_cliproxy` in the
+operator's live worktree. The round before had left two stuck nvims whose
+scratch worktrees (`~/.cache/parley-review-wt*`) it had already deleted.
+
+For the Spec: the reviewer must run its checks in the foreground, or the
+harness must refuse background tasks in a review invocation. And the review's
+process tree must be owned and reaped when it ends, with a verdict or without.
