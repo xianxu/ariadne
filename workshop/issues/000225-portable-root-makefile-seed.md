@@ -1,11 +1,12 @@
 ---
 id: 000225
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-13
 updated: 2026-09-13
 estimate_hours:
+started: 2026-09-13T12:29:20-07:00
 ---
 
 # Publish a portable root Makefile as a safe seed
