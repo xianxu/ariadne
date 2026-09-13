@@ -91,8 +91,9 @@ so nothing changes there beyond whatever the base-layer propagation carries.
   places it against ARCH-CONSTRAINTS and ARCH-ORDER as above.
 - `sdlc start-plan` and the plan-quality / boundary-review prompts deliver
   it (they embed the same file — assert with the existing embedding test).
-- Propagated to dependents via `sdlc propagate-base`; pair's `sdlc
-  arch-principles` shows it.
+- The shared binary is rebuilt (`make sdlc-build` in ariadne) and `sdlc
+  arch-principles` run from pair's cwd renders eight entries including
+  `ARCH-FUNERAL`.
 - pair#239 is designed against its `at-plan` text (that issue depends on
   this one).
 
@@ -111,11 +112,13 @@ the site that, before #208, could keep passing while covering nothing.
       and read the diff: each must gain exactly this entry and nothing else
 - [ ] Map-level paragraph in `atlas/workflow/architecture-principles.md` —
       boundaries, shaping choices, provenance. Never a copy of the clauses
-      (#215 BR-1)
+      (#215 BR-1). Include the entry's own funeral: a registry entry costs
+      ~50 lines in each of four gate prompts, and `architecture-deferred.md`
+      is where one goes when it stops earning that (PQ-2)
 - [ ] Verify delivery from the binary: `sdlc arch-principles` renders it, and
       `sdlc start-plan` / the gate prompts carry it via the existing embedding test
-- [ ] Propagate to dependents (`sdlc propagate-base`, run outside the sandbox);
-      confirm from pair with `sdlc arch-principles`
+- [ ] Deliver by rebuilding the shared binary: `make sdlc-build` in ariadne,
+      then `sdlc arch-principles` from pair's cwd shows eight entries
 - [ ] Close; pair#239 picks up the `at-plan` text
 
 ## Log
@@ -166,3 +169,32 @@ four. `cmd/sdlc/internal/judge/testdata/golden/*.prompt` was the missing one —
 and per the atlas it is precisely the site that used to pass while covering
 nothing. Derived the real set from what #215 actually touched rather than from
 the Spec's list.
+
+### 2026-09-12 — plan-quality round 1: the delivery step named a mechanism that carries nothing
+
+**PQ-1 (Important), addressed.** The Plan and the fourth Done-when both said the
+entry reaches pair via `sdlc propagate-base`. Verified against the tree rather
+than taken on report: `construct/base.manifest` has 52 rows and none of them is
+`cmd/sdlc/internal/judge/architecture.md`. The registry is `go:embed`'ed
+(`architecture.go:47`) into one binary, and `~/.local/bin/sdlc` is a symlink to
+`/Users/xianxu/workspace/ariadne/bin/sdlc` — so every repo on this machine runs
+ariadne's build. Delivery is `make sdlc-build` (`Makefile.workflow:796`,
+build-in-owner), and propagate-base would have committed into every dependent for
+no effect.
+
+Worth recording alongside it, because it makes the manifest look more relevant
+than it is: the manifest DOES carry `symlink atlas/workflow` (row 219), so the
+atlas page reaches dependents — but as a live symlink into ariadne, which means
+it too needs no propagation step. Both halves of this issue's output are shared
+by reference, one through a symlink and one through a binary. Nothing here is
+copied, so nothing here is propagated.
+
+This is the same shape as the family #207's review kept naming: a step written
+from a plausible memory of how delivery works instead of from the manifest that
+decides it.
+
+**PQ-2 (Minor), folded in rather than carried.** An entry whose subject is "name
+what removes this" should say what removes a registry entry. Each one costs
+roughly fifty lines in four gate prompts, and `architecture-deferred.md` already
+exists as the retirement route — one sentence in the atlas map paragraph, now a
+Plan step.
