@@ -30,6 +30,12 @@ Fresh clones also lack ignored Makefile.workflow, so bootstrap's handoff to
 - Materializing a seed unlinks a destination symlink before writing or chmod,
   including identical-content links; never change its old target's bytes/mode.
   Reuse the safe regular-file materialization pattern already in applyWriteFile.
+- Preserve generic CI ownership too: its seeded merge-check workflow discovers
+  the bootstrapped upstream runner when the local helper link is absent and
+  invokes an optional executable repo-owned scripts/ci-setup.sh before checks.
+  Consumer-specific tool provisioning lives in that hook; a repeated weave
+  must not erase the effective CI setup. Parley needs Go/CUE/vocabulary for
+  its generated-runtime-data drift check.
 - No local restoration script or copy-after-weave workaround. Migration is
   idempotent for linked and already-seeded consumers.
 
@@ -57,3 +63,11 @@ Fresh clones also lack ignored Makefile.workflow, so bootstrap's handoff to
 Discovered during fresh-eyes review of parley.nvim#208's deployment plan.
 This is a prerequisite for its maintainer-link cleanup, not a runtime package
 dependency. No implementation or estimate yet; plan approval comes first.
+
+## Revisions
+
+### 2026-09-13 — CI ownership sweep
+
+Reason: the generic merge-check workflow is also upstream-seeded. Delta: add
+runner discovery and a repo-owned setup hook to the portable-maintainer boundary
+so the consumer does not fork a workflow that weave would overwrite.
