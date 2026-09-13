@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-12
 updated: 2026-09-12
-estimate_hours:
+estimate_hours: 0.97
 started: 2026-09-12T18:26:36-07:00
 ---
 
@@ -96,6 +96,38 @@ so nothing changes there beyond whatever the base-layer propagation carries.
   `ARCH-FUNERAL`.
 - pair#239 is designed against its `at-plan` text (that issue depends on
   this one).
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec           design=0.35 impl=0.05
+item: smaller-go-module    design=0.05 impl=0.12
+item: atlas-docs           design=0.05 impl=0.10
+item: milestone-review     design=0.0  impl=0.18
+design-buffer: 0.15
+total: 0.97
+```
+
+Anchored on #215, the same change one entry earlier: est 1.49, **actual 0.61**.
+Two rows are priced directly off that overrun.
+
+`issue-spec` is the row that moved. #215 priced it 0.8 because its window
+genuinely contained the original authoring — nothing pre-resolved that design, it
+*was* the design. Here the spec and the draft clause text arrived already written
+from a pair session, so this row covers only what this window adds: reading the
+registry and its two confusable neighbours, the ARCH-CONSTRAINTS boundary
+critique that replaced the draft's closing sentence, correcting the delivery step,
+and two plan-quality rounds. That is a smaller job than authoring the principle,
+and pricing it at 0.8 again would repeat exactly the error #215's own revision
+diagnosed.
+
+`smaller-go-module` impl stays at #215's corrected 0.12 — the `want` line is
+typing, the four golden diffs are attention. `atlas-docs` goes 0.05 → 0.10
+because this paragraph carries one thing #215's did not: the entry's own
+retirement route (PQ-2). `milestone-review` holds at the 0.18 ceiling the #208
+and #215 precedents both settled on.
 
 ## Plan
 
