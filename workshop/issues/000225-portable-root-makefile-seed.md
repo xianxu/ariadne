@@ -1,12 +1,13 @@
 ---
 id: 000225
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-13
 updated: 2026-09-13
 estimate_hours: 1.03
 started: 2026-09-13T12:29:20-07:00
+actual_hours: 0.10
 ---
 
 # Publish a portable root Makefile as a safe seed
@@ -60,6 +61,7 @@ Fresh clones also lack ignored Makefile.workflow, so bootstrap's handoff to
 ## Log
 
 ### 2026-09-13
+- 2026-09-13: closed — Full weave/Make/CI/bootstrap verification passes. Narrow review policy repair c3c46d39 preserves behavior regressions and allows pinned prose evidence; rendered contract red-green, full judge suite, targeted sdlc Boundary/CloseReview/ReviewWindow tests pass. Owner binary vcs.revision=c3c46d39 vcs.modified=false. Full-window diff check clean.; review verdict: SHIP
 
 Discovered during fresh-eyes review of parley.nvim#208's deployment plan.
 This is a prerequisite for its maintainer-link cleanup, not a runtime package

@@ -225,3 +225,71 @@ dispose:
 
 7. **Plan revision recommendations**
    - Reconcile [the documentation-only verification revision](/Users/xianxu/workspace/ariadne/workshop/plans/000225-portable-root-makefile-seed-plan.md:88) with this gate’s explicit regression-evidence requirement. The prose repairs are present; the remaining blocker is the conflicting evidence contract.
+
+---
+
+## Re-review — 2026-09-13T12:52:18-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 225 — Publish a portable root Makefile as a safe seed |
+| repo | ariadne |
+| issue file | workshop/issues/000225-portable-root-makefile-seed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | fa8746eb8127d18e1329cc8465c4504c5adc209c..c3c46d39ecf09514ebab6f8da8dd3a3306016453 |
+| command | sdlc close --issue 225 |
+| reviewer | codex |
+| timestamp | 2026-09-13T12:52:18-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: medium
+```
+
+The pinned implementation matches the issue’s portability and safe migration contracts. Both prior findings are addressed; no new blocking defects found. Confidence is limited by the read-only environment: runtime suites and mutation checks were inspected, not rerun.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The plan's Core concepts table now classifies workflow discovery as integration and records the correction under Revisions. This matches Makefile:11 filesystem wildcard discovery and the scratch-filesystem Make tests.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md:15-34 documents seed ownership, Makefile.local, bootstrap, and hook ordering/skipping/failure behavior. These match construct/base.manifest, Makefile:11-13, Makefile.workflow's bootstrap phases, and .github/workflows/merge-check.yml:28-77.
+```
+
+1. **Strengths**
+
+   - `applySeed` reads source bytes before unlinking; shared destination inspection fails closed before writing or changing permissions.
+   - Filesystem tests cover matching, differing, dangling links, ancestor preservation, injected failures, and retry convergence.
+   - Bootstrap explicitly sequences weave before dependent tooling, including parallel Make execution.
+   - CI tests execute actual workflow shell blocks against the real generic runner; README and atlas explain the new surface.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Required stat, name-status, and targeted pinned diffs inspected successfully. `bash -n` and `git diff --check` passed. Runtime tests require temporary writes unavailable here. The prompt-policy regression reaches `BuildPrompt`; its required clauses are absent from the base implementation, and the golden captures the complete changed policy.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared symlink guard and helper resolution.
+   - **ARCH-PURE — pass:** filesystem behavior remains behind integration seams.
+   - **ARCH-PURPOSE — pass:** addresses migration, standalone targets, first bootstrap, and durable CI customization.
+   - **ARCH-MOCK — pass:** portable filesystem backing, stateful fixture tools, and real-runner/weave conformance coverage.
+   - **ARCH-CONSTRAINTS — pass:** bounded setup work; no new unbounded workload.
+   - **ARCH-SECURE — pass:** ancestor preservation and inspection failures handled; repository hooks retain repository-code authority.
+   - **ARCH-ORDER — pass:** explicit synchronous phases and failure propagation.
+   - **ARCH-FUNERAL — pass:** fixed output slots and automatic fixture cleanup; no new accumulating artifacts.
+
+7. **Plan revision recommendations:** None.

@@ -46,6 +46,19 @@ rounds:
           note: README lines 15–34 document seed ownership, Makefile.local, bootstrap, and hook ordering/failure behavior. No test pins this documentation correction, so the requested fails-without-the-fix condition remains unmet.
           round: 3
       blocked: true
+    - "n": 4
+      timestamp: "2026-09-13T12:52:18-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The plan's Core concepts table now classifies workflow discovery as integration and records the correction under Revisions. This matches Makefile:11 filesystem wildcard discovery and the scratch-filesystem Make tests.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: README.md:15-34 documents seed ownership, Makefile.local, bootstrap, and hook ordering/skipping/failure behavior. These match construct/base.manifest, Makefile:11-13, Makefile.workflow's bootstrap phases, and .github/workflows/merge-check.yml:28-77.
+          round: 4
+      blocked: false
 ---
 
 # Gate ledger — ariadne#225 (boundary-review)
@@ -76,7 +89,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-1 — not-addressed — The plan correctly classifies workflow discovery as INTEGRATION and records the correction. No test pins that correction; plan lines 88–93 explicitly decline that evidence. The requested fails-without-the-fix condition remains unmet.
 - BR-2 — not-addressed — README lines 15–34 document seed ownership, Makefile.local, bootstrap, and hook ordering/failure behavior. No test pins this documentation correction, so the requested fails-without-the-fix condition remains unmet.
 
+## Round 4 — 2026-09-13T12:52:18-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The plan's Core concepts table now classifies workflow discovery as integration and records the correction under Revisions. This matches Makefile:11 filesystem wildcard discovery and the scratch-filesystem Make tests.
+- BR-2 — addressed — README.md:15-34 documents seed ownership, Makefile.local, bootstrap, and hook ordering/skipping/failure behavior. These match construct/base.manifest, Makefile:11-13, Makefile.workflow's bootstrap phases, and .github/workflows/merge-check.yml:28-77.
+
 ## Open findings
 
-- **BR-1** [Critical] `core-concept-classification` Workflow discovery is classified PURE despite filesystem-dependent behavior
-- **BR-2** [Important] `user-surface-documentation` README update is missing for portable consumer setup
+(none — every finding has been disposed)
