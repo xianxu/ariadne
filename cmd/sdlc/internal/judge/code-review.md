@@ -60,21 +60,29 @@ Production readiness
 
 ## Claimed fixes (ariadne#194)
 
-For each prior finding this round disposes `addressed`, check the claim rather than the
-commit message. A fix is complete only when a test FAILS WITHOUT IT.
+For each prior finding this round disposes `addressed`, verify evidence appropriate
+to the correction; a commit message alone is never evidence.
 
-  - Locate the test the fix is supposed to be pinned by. If there is none, the
-    disposition is `not-addressed`, however plausible the diff looks.
-  - Check the fix is reachable — a field set at zero call sites, an assertion nested in a
-    runtime guard that never fires, a branch no fixture enters. These pass every test
-    suite while doing nothing, and read as protection.
-  - Where cheap, verify by reverting: undo the fix in a scratch copy and confirm the test
-    goes red. A test written from the same mental model as the fix will happily assert
-    whatever the fix happens to do, including nothing.
+For executable behavior changes, a fix is complete only when a test FAILS WITHOUT IT.
 
-This check exists because the rule was written down and then violated by the very commit
-that closed the findings which produced it. A reviewer that takes "fixed in <sha>" at face
-value cannot catch that; one that looks for the failing test can.
+  - Locate the regression test. Without one, a behavior-changing disposition is
+    `not-addressed`, however plausible the diff looks.
+  - Check the fix is reachable — no field with zero consumers, unreachable guard,
+    or branch that no fixture enters. Where cheap, revert the fix in a scratch
+    copy and confirm the regression goes red.
+  - Prompts, schemas, configuration, and scripts that drive behavior are executable contracts
+    even when stored as Markdown or other text. Do not classify them as prose-only
+    to waive meaningful regression evidence.
+
+For prose-only corrections, inspect the pinned before/after diff and the concrete
+referent it describes. Cite the corrected passage and supporting source in the
+disposition note. A README omission or a plan classification can be `addressed`
+when that inspection establishes correctness without a runtime change.
+Do not require wording-presence tests for README text or plan classifications.
+Existing behavioral tests remain evidence for the behavior being documented.
+
+The distinction preserves regression evidence for actual behavior while preventing
+an already-correct documentation repair from deadlocking on a test of its wording.
 
 ## Core concepts cross-check (if the plan has a Core concepts table)
 

@@ -108,8 +108,10 @@ internal  skill construct/skill
 # ── Makefile system ───────────────────────────────────────────────────────────
 # Root Makefile is a thin generic template (workflow + local + help).
 # Per-repo concerns (Makefile.nous chain, UPSTREAM_NAME overrides, etc.)
-# belong in the consumer's Makefile.local, NOT in this vendored root.
-symlink   Makefile
+# belong in the consumer's Makefile.local, NOT in this upstream-owned root.
+# Seeded so standalone product targets work before the maintainer peer exists;
+# safe materialization replaces old links without changing their targets.
+seed      Makefile
 symlink   Makefile.workflow
 symlink   scripts/lib.sh
 symlink   scripts/parallel-checks.sh

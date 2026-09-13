@@ -1,12 +1,13 @@
 ---
 id: 000225
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-13
 updated: 2026-09-13
 estimate_hours: 1.03
 started: 2026-09-13T12:29:20-07:00
+actual_hours: 0.10
 ---
 
 # Publish a portable root Makefile as a safe seed
@@ -53,17 +54,39 @@ Fresh clones also lack ignored Makefile.workflow, so bootstrap's handoff to
 
 ## Plan
 
-- [ ] Design safe seed materialization and portable generic Makefile behavior.
-- [ ] Add regressions, implement the seed migration and bootstrap path.
-- [ ] Validate representative consumers and close with measured evidence.
+- [x] Design safe seed materialization and portable generic Makefile behavior.
+- [x] Add regressions, implement the seed migration and bootstrap path.
+- [x] Validate representative consumers; submit measured evidence to close review.
 
 ## Log
 
 ### 2026-09-13
+- 2026-09-13: closed — Full weave/Make/CI/bootstrap verification passes. Narrow review policy repair c3c46d39 preserves behavior regressions and allows pinned prose evidence; rendered contract red-green, full judge suite, targeted sdlc Boundary/CloseReview/ReviewWindow tests pass. Owner binary vcs.revision=c3c46d39 vcs.modified=false. Full-window diff check clean.; review verdict: SHIP
 
 Discovered during fresh-eyes review of parley.nvim#208's deployment plan.
 This is a prerequisite for its maintainer-link cleanup, not a runtime package
 dependency. No implementation or estimate yet; plan approval comes first.
+
+### 2026-09-13 — implementation and verification
+
+User approved the prerequisite as part of parley.nvim#208. Plan-quality accepted
+round 2; estimate-quality informative pass, change-code created this branch.
+Seed and Make/CI regressions were observed failing before implementation.
+Safe materialization now shares the fail-closed destination-link guard.
+
+`go test ./cmd/weave/... -count=1` passed. Portable Make fixture runs the real
+Make recipes with persisted tool state and actual weave twice; portable CI
+fixture executes actual workflow run blocks with the real generic check runner.
+Both passed. ensure-go (3), bootstrap-transitive (12), peer-update (6) passed.
+`git diff --check` clean. No live peer weave or propagation performed.
+
+A separate actual bootstrap probe used an archived upstream plus current edits
+in `/tmp/ariadne225-live.w94sow`: real `./bootstrap.sh` built tools, materialized
+99 consumer actions, installed PATH only in isolated HOME, passed product target,
+and repeated real weave with a regular root matching upstream. Initial probe
+surfaced the implicit `.sh` bootstrap recipe; added failing regression and phony
+classification, then reran successfully without the stray file. ARCH-ORDER and
+ARCH-PURPOSE shaped the ordered bootstrap and missing-helper conformance.
 
 ## Revisions
 
@@ -93,3 +116,38 @@ item: milestone-review design=0.02 impl=0.16
 design-buffer: 0.15
 total: 1.03
 ```
+
+### 2026-09-13 — boundary round 1 repairs
+
+Review returned REWORK: BR-1 incorrectly classified filesystem wildcard discovery
+as pure; BR-2 lacked README guidance for the new consumer setup surface. Corrected
+the classification across the plan and added README ownership/bootstrap/hook
+instructions. No runtime defect identified; code evidence remains unchanged.
+
+### 2026-09-13 — documentation-only disposition evidence
+
+Boundary round 2 explicitly confirms both original defects are corrected and
+finds no runtime correctness defect. Its remaining objection is that deleting
+README or restoring the plan's old label would leave runtime tests green.
+That is expected: these two changes document already-tested behavior and do not
+change executable semantics. A string-presence assertion would test the wording
+against itself, not bootstrap safety. Session developer instructions explicitly
+forbid tests for reversible low-impact changes or tests mirroring implementation.
+Accordingly no vacuous prose test is added. BR-1 is addressed by the corrected
+integration classification and revision; BR-2 by README's public usage section.
+The fresh reviewer independently verified both corrections at pinned 5cb5857c.
+Existing meaningful filesystem, Make and CI tests remain the behavior evidence.
+Removed the touched README line's inherited trailing whitespace; verified with
+`git diff --check HEAD` and `git diff --check fa8746e` after this edit.
+
+### 2026-09-13 — side-quest: repair the injected evidence contract
+
+Round 3 again verified BR-1/BR-2 corrected and found no runtime defect, but the
+unconditional injected regression rule prevented disposition. Parent authorized
+only the narrow prompt repair. The rendered MilestoneReview contract now retains
+fails-without-fix for executable changes, explicitly including prompts/config,
+and requires pinned-diff/source inspection for prose-only corrections. The new
+rendered-contract regression failed on all missing policy clauses before the
+repair; the existing golden was intentionally edited only for this changed
+contract. This fixes the real gate rather than bypassing judge/ledger or adding
+vacuous documentation tests. Owner binary is rebuilt from this source for reclose.
