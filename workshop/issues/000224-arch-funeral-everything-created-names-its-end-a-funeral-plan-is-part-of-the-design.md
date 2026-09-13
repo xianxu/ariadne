@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-12
 updated: 2026-09-12
-estimate_hours: 0.97
+estimate_hours: 0.89
 started: 2026-09-12T18:26:36-07:00
 ---
 
@@ -105,9 +105,9 @@ familiarity: 1.0
 item: issue-spec           design=0.35 impl=0.05
 item: smaller-go-module    design=0.05 impl=0.12
 item: atlas-docs           design=0.05 impl=0.10
-item: milestone-review     design=0.0  impl=0.18
+item: milestone-review     design=0.0  impl=0.10
 design-buffer: 0.15
-total: 0.97
+total: 0.89
 ```
 
 Anchored on #215, the same change one entry earlier: est 1.49, **actual 0.61**.
@@ -126,8 +126,14 @@ diagnosed.
 `smaller-go-module` impl stays at #215's corrected 0.12 — the `want` line is
 typing, the four golden diffs are attention. `atlas-docs` goes 0.05 → 0.10
 because this paragraph carries one thing #215's did not: the entry's own
-retirement route (PQ-2). `milestone-review` holds at the 0.18 ceiling the #208
-and #215 precedents both settled on.
+retirement route (PQ-2). `milestone-review` is 0.10, not the 0.18 a first
+draft of this block claimed: #215's close-time calibration note says in as many
+words that for a registry-content issue whose spec work is review rounds rather
+than authoring, one `milestone-review` row at 0.1 was right — "the second
+close-review round cost minutes, not the near-ceiling 0.18 the correction
+assumed." That note also puts `issue-spec design` near the table floor
+(~0.3–0.5) for this exact issue shape, which is where 0.35 sits. #224 is the
+case that note was written about, so it governs both rows.
 
 ## Plan
 
@@ -135,23 +141,23 @@ and #215 precedents both settled on.
 touches FOUR things, and the goldens were the one this Plan originally missed —
 the site that, before #208, could keep passing while covering nothing.
 
-- [ ] Add the section to `cmd/sdlc/internal/judge/architecture.md`, with the
+- [x] Add the section to `cmd/sdlc/internal/judge/architecture.md`, with the
       ARCH-CONSTRAINTS boundary as revised below
-- [ ] Extend `TestArchitectureMarkers`' hand-written `want` list — the one
+- [x] Extend `TestArchitectureMarkers`' hand-written `want` list — the one
       deliberate non-derived site, kept as the registry tripwire
-- [ ] Re-capture the four goldens
+- [x] Re-capture the four goldens
       (`go test ./cmd/sdlc/internal/judge -run TestBuildPrompt_Golden -update-golden`)
       and read the diff: each must gain exactly this entry and nothing else
-- [ ] Map-level paragraph in `atlas/workflow/architecture-principles.md` —
+- [x] Map-level paragraph in `atlas/workflow/architecture-principles.md` —
       boundaries, shaping choices, provenance. Never a copy of the clauses
       (#215 BR-1). Include the entry's own funeral: a registry entry costs
       ~50 lines in each of four gate prompts, and `architecture-deferred.md`
       is where one goes when it stops earning that (PQ-2)
-- [ ] Verify delivery from the binary: `sdlc arch-principles` renders it, and
+- [x] Verify delivery from the binary: `sdlc arch-principles` renders it, and
       `sdlc start-plan` / the gate prompts carry it via the existing embedding test
-- [ ] Deliver by rebuilding the shared binary: `make sdlc-build` in ariadne,
+- [x] Deliver by rebuilding the shared binary: `make sdlc-build` in ariadne,
       then `sdlc arch-principles` from pair's cwd shows eight entries
-- [ ] Close; pair#239 picks up the `at-plan` text
+- [x] Close; pair#239 picks up the `at-plan` text
 
 ## Log
 
@@ -230,3 +236,34 @@ what removes this" should say what removes a registry entry. Each one costs
 roughly fifty lines in four gate prompts, and `architecture-deferred.md` already
 exists as the retirement route — one sentence in the atlas map paragraph, now a
 Plan step.
+
+### 2026-09-12 — landed
+
+Four sites, derived from what #215 actually touched rather than from the Spec's
+list of three.
+
+- **Registry** (`cmd/sdlc/internal/judge/architecture.md`): 32 lines, the draft
+  text with the closing boundary sentence replaced per the revision above.
+- **Tripwire** (`judge_test.go:363`): the one deliberately hand-written marker
+  list. Mutation-verified three ways — removing `ARCH-FUNERAL` from the heading,
+  breaking the `at-review:` clause label, and deleting the entry outright each
+  fail the judge package. The entry is pinned, not merely adjacent to green tests.
+- **Goldens**: re-captured, and the diff reconciles line-for-line. 133 insertions
+  = 32 entry lines × 4 files + 4 header counts (`7 entries` → `8 entries`) + 1
+  `{{ARCH_STAR}}` list gaining the marker; 5 deletions are their counterparts.
+  Nothing unrelated rode along, which is what `golden_test.go:38` forbids
+  re-capture from papering over.
+- **Atlas**: a map, not a copy. Checked the way #215's BR-1 fix was — a 12-word
+  sliding-window scan of the new paragraph against the new entry finds **0**
+  shared spans.
+
+**Delivery, verified from the consumer rather than asserted.** `make sdlc-build`
+rebuilt `bin/sdlc` (18:39), which `~/.local/bin/sdlc` symlinks; run from
+`workspace/pair`'s cwd, `sdlc arch-principles` renders 8 entries ending in
+`ARCH-FUNERAL`. No propagation was involved, and none was needed — see the
+revision above for why the Plan originally said otherwise.
+
+**Out of scope, deliberately.** The last Done-when bullet ("pair#239 is designed
+against its `at-plan` text") is work in pair's tracker against an issue that
+declares a dependency on this one. This issue delivers the text pair#239 consumes;
+it cannot close that issue's design.
