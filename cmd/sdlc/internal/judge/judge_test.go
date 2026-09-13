@@ -1232,3 +1232,23 @@ func TestBoundaryReviewIsAskedToDisposePriorFindings(t *testing.T) {
 		}
 	}
 }
+
+// The injected disposition policy is executable reviewer behavior, not product
+// documentation. Pin both evidence paths so a prose repair cannot deadlock a
+// boundary and a runtime repair cannot evade regression evidence as "docs".
+func TestBuildPrompt_ClaimedFixEvidenceByChangeKind(t *testing.T) {
+	p := BuildPrompt(MilestoneReview, PromptInput{})
+	for _, requirement := range []string{
+		"For executable behavior changes, a fix is complete only when a test FAILS WITHOUT IT.",
+		"For prose-only corrections, inspect the pinned before/after diff",
+		"Do not require wording-presence tests for README text or plan classifications.",
+		"Prompts, schemas, configuration, and scripts that drive behavior are executable contracts",
+	} {
+		if !strings.Contains(p, requirement) {
+			t.Errorf("missing reviewer evidence policy: %s", requirement)
+		}
+	}
+	if strings.Contains(p, "If there is none, the\n    disposition is `not-addressed`, however plausible the diff looks.") {
+		t.Error("unconditional test requirement still overrides prose evidence")
+	}
+}

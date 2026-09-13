@@ -91,3 +91,15 @@ Reason: round 2 requests runtime regressions for prose-only corrections while
 confirming their correctness. Delta: use pinned-diff review for those corrections
 and retain behavioral tests for executable contracts; no wording-presence tests
 are added. The issue Log records the session instruction and evidence.
+
+### 2026-09-13 — narrow boundary-contract side-quest
+
+Reason: three fresh reviewers confirmed corrected prose but the injected rule
+unconditionally prohibited disposing a finding without a runtime regression.
+Delta: refine only `cmd/sdlc/internal/judge/code-review.md`'s evidence policy:
+behavior changes still require fails-without-fix tests; prose-only corrections
+use inspected pinned diffs and source referents. Explicitly retain prompts,
+schemas, config and scripts as executable contracts. Existing rendered-prompt
+contract/golden coverage verifies this behavioral interface; no README/plan
+wording test is added. Parent approved this narrow repair. Rebuild owner sdlc
+before rerunning the gate so the embedded prompt matches committed source.

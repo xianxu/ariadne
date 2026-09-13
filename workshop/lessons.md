@@ -1500,3 +1500,11 @@ Make `wildcard` looks like an expression but observes filesystem state. Classify
 such discovery as integration and test it with a scratch filesystem. New consumer
 setup surfaces also need public README instructions in addition to architecture
 maps; sweep both destinations when documenting ownership and bootstrap changes.
+
+## Match review evidence to the corrected contract (#225)
+
+An unconditional "all findings need runtime regression tests" disposition rule
+can leave three reviewers reporting correct documentation but refusing to close.
+Require regressions for executable behavior, including injected prompts and
+configuration; verify prose-only corrections against pinned diffs and their
+source referents. Do not test documentation by duplicating its words in an assert.

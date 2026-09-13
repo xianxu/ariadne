@@ -137,3 +137,15 @@ The fresh reviewer independently verified both corrections at pinned 5cb5857c.
 Existing meaningful filesystem, Make and CI tests remain the behavior evidence.
 Removed the touched README line's inherited trailing whitespace; verified with
 `git diff --check HEAD` and `git diff --check fa8746e` after this edit.
+
+### 2026-09-13 — side-quest: repair the injected evidence contract
+
+Round 3 again verified BR-1/BR-2 corrected and found no runtime defect, but the
+unconditional injected regression rule prevented disposition. Parent authorized
+only the narrow prompt repair. The rendered MilestoneReview contract now retains
+fails-without-fix for executable changes, explicitly including prompts/config,
+and requires pinned-diff/source inspection for prose-only corrections. The new
+rendered-contract regression failed on all missing policy clauses before the
+repair; the existing golden was intentionally edited only for this changed
+contract. This fixes the real gate rather than bypassing judge/ledger or adding
+vacuous documentation tests. Owner binary is rebuilt from this source for reclose.

@@ -106,3 +106,9 @@ It always runs the consuming repository's checks from that repository's cwd.
 `bash scripts/test/portable-ci.test.sh` executes the workflow's actual run
 blocks against a scratch Git repository and real runner, including hook failure
 and local/fallback resolution. No credentials or hosted runner are required.
+
+The SDLC boundary reviewer distinguishes executable fixes from prose-only repairs
+when disposing prior findings. Executable changes retain fails-without-fix
+regressions; README/plan wording uses inspected pinned diffs and the referenced
+source. Markdown prompts themselves remain executable contracts. The rendered
+review prompt and its golden pin this distinction (`cmd/sdlc/internal/judge`).

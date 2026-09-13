@@ -153,3 +153,75 @@ dispose:
 7. **Plan revision recommendations**
 
    Append a `## Revisions` entry identifying the BR-1/BR-2 regression checks and their mutation evidence once implemented. No runtime redesign is needed.
+
+---
+
+## Re-review — 2026-09-13T12:47:19-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 225 — Publish a portable root Makefile as a safe seed |
+| repo | ariadne |
+| issue file | workshop/issues/000225-portable-root-makefile-seed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | fa8746eb8127d18e1329cc8465c4504c5adc209c..41bf6affc137d545c5f5175ad751ac73489b98b6 |
+| command | sdlc close --issue 225 |
+| reviewer | codex |
+| timestamp | 2026-09-13T12:47:19-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: medium
+```
+
+The pinned implementation matches the portable Makefile, safe seed migration, and CI setup design. Both prior defects are corrected in the prose, but neither has the regression evidence explicitly required by this review’s disposition contract. They therefore remain open; no new runtime correctness defect was found.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      The plan correctly classifies workflow discovery as INTEGRATION and records the correction. No test pins that correction; plan lines 88–93 explicitly decline that evidence. The requested fails-without-the-fix condition remains unmet.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      README lines 15–34 document seed ownership, Makefile.local, bootstrap, and hook ordering/failure behavior. No test pins this documentation correction, so the requested fails-without-the-fix condition remains unmet.
+```
+
+1. **Strengths**
+   - `applySeed` reads the source before unlinking the destination; the shared guard rejects inspection/removal errors before writing through a link.
+   - Seed tests cover matching, differing, dangling, and missing-source states, checking ancestor bytes and permissions.
+   - Bootstrap uses sequential recursive Make phases; its fixture checks parallel execution ordering and stops after weave failure.
+   - CI tests execute the actual workflow shell blocks with the real check runner, covering hook failure and runner precedence.
+
+2. **Critical findings**
+   - **BR-1 remains open under the supplied evidence rule.** The classification itself is corrected at [plan line 21](/Users/xianxu/workspace/ariadne/workshop/plans/000225-portable-root-makefile-seed-plan.md:21). This is the existing finding, not another classification defect.
+
+3. **Important findings**
+   - **BR-2 remains open under the supplied evidence rule.** The requested public documentation exists at [README line 15](/Users/xianxu/workspace/ariadne/README.md:15). This is the existing finding, not another documentation omission.
+
+4. **Minor findings**
+   - None.
+
+5. **Test coverage notes**
+   - Required stat, name-status, and targeted patch inspections succeeded; checkout HEAD matches the pinned head.
+   - Bash syntax validation and range whitespace checks passed.
+   - Behavioral suites and mutation checks were not executed: they require temporary filesystem writes prohibited by this session. Implementor test results were not treated as independently verified.
+   - Existing tests exercise runtime behavior; they cannot detect reverting either prose correction.
+
+6. **Architectural notes**
+   - **ARCH-DRY — pass:** shared destination-link guard and reusable helper resolution.
+   - **ARCH-PURE — pass structurally:** filesystem operations remain behind the FS seam; discovery is now classified as integration. BR-1 evidence remains open.
+   - **ARCH-PURPOSE — pass structurally:** covers migration, missing helpers, standalone targets, and preserved consumer CI setup.
+   - **ARCH-MOCK — pass by inspection:** stateful scratch fixtures and production entry points; real-weave conformance is included.
+   - **ARCH-CONSTRAINTS — pass:** bounded synchronous setup fits the declared batch workload.
+   - **ARCH-SECURE — pass:** source-first handling protects old link targets; destination inspection fails closed.
+   - **ARCH-ORDER — pass:** explicit bootstrap phases and retry coverage.
+   - **ARCH-FUNERAL — pass:** fixed output slots; fixture cleanup is defined.
+
+7. **Plan revision recommendations**
+   - Reconcile [the documentation-only verification revision](/Users/xianxu/workspace/ariadne/workshop/plans/000225-portable-root-makefile-seed-plan.md:88) with this gate’s explicit regression-evidence requirement. The prose repairs are present; the remaining blocker is the conflicting evidence contract.

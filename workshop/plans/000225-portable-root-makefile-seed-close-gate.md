@@ -33,6 +33,19 @@ rounds:
           note: README now documents seed ownership, Makefile.local, bootstrap, and CI hook ordering and failure behavior. Neither portable test reads README, so removing this documentation leaves those tests unchanged. The required failing-without-fix evidence is missing.
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-13T12:47:19-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: not-addressed
+          note: The plan correctly classifies workflow discovery as INTEGRATION and records the correction. No test pins that correction; plan lines 88–93 explicitly decline that evidence. The requested fails-without-the-fix condition remains unmet.
+          round: 3
+        - id: BR-2
+          disposition: not-addressed
+          note: README lines 15–34 document seed ownership, Makefile.local, bootstrap, and hook ordering/failure behavior. No test pins this documentation correction, so the requested fails-without-the-fix condition remains unmet.
+          round: 3
+      blocked: true
 ---
 
 # Gate ledger — ariadne#225 (boundary-review)
@@ -55,6 +68,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-1 — not-addressed — The plan now correctly classifies workflow discovery as integration and includes a revision. No regression test pins that classification; reverting the documentation correction leaves the existing runtime tests unchanged. The required failing-without-fix evidence is missing.
 - BR-2 — not-addressed — README now documents seed ownership, Makefile.local, bootstrap, and CI hook ordering and failure behavior. Neither portable test reads README, so removing this documentation leaves those tests unchanged. The required failing-without-fix evidence is missing.
+
+## Round 3 — 2026-09-13T12:47:19-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — not-addressed — The plan correctly classifies workflow discovery as INTEGRATION and records the correction. No test pins that correction; plan lines 88–93 explicitly decline that evidence. The requested fails-without-the-fix condition remains unmet.
+- BR-2 — not-addressed — README lines 15–34 document seed ownership, Makefile.local, bootstrap, and hook ordering/failure behavior. No test pins this documentation correction, so the requested fails-without-the-fix condition remains unmet.
 
 ## Open findings
 
