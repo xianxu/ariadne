@@ -204,12 +204,12 @@ Principles"; this is its machine-delivered companion.
   the consequences of reaching it stated. "Append-only" is a durability
   property, not an exemption — an append-only store still names its bound and
   what happens at it. The boundary against ARCH-CONSTRAINTS is **load versus
-  residue**: that entry budgets a component while it is working, and every
-  constraint in it is a rate or a level someone can feel. This one governs what
-  is left behind once the work is done, where the cost accrues while nothing is
-  happening and every individual write sat comfortably inside its envelope. A
-  perfectly budgeted component with no removal path passes ARCH-CONSTRAINTS and
-  reaches a cliff anyway.
+  residue**: that entry budgets a component while it is working — latency,
+  memory, concurrency, what happens when a budget is exceeded. This one governs
+  what is left behind once the work is done, where the cost accrues while
+  nothing is happening and every individual write sat comfortably inside its
+  envelope. A perfectly budgeted component with no removal path passes
+  ARCH-CONSTRAINTS and reaches a cliff anyway.
 - **at-plan:** For each new artifact family, record, or growing structure, write
   one line: who creates it, who is the last to need it, what removes it, and how
   big it can get before that. If the answer is "forever", say what forever costs
