@@ -34,12 +34,26 @@ This is a bounded policy change to the existing embedded registry, not implement
 
 ## Plan
 
-- [ ] Update the canonical ARCH-ORDER entry, preserving existing ordering guidance.
-- [ ] Run judge architecture tests and CLI architecture/start-plan delivery tests; compare built CLI output with the source; run git diff --check.
-- [ ] Commit, close with mandatory boundary review and measured actuals, then publish via SDLC.
+- [x] Update the canonical ARCH-ORDER entry, preserving existing ordering guidance.
+- [x] Run judge architecture tests and CLI architecture/start-plan delivery tests; compare built CLI output with the source; run git diff --check.
+After implementation verification: commit, close with mandatory boundary review and measured actuals, then publish via SDLC.
 
 ## Log
 
 ### 2026-09-14
 
 User approved the proposed enforcement wording and requested an ariadne ticket first. Created and claimed #226 before editing policy. Single-pass policy update; issue-local plan is sufficient. Existing full-registry delivery tests cover propagation; avoid duplicating prose in new assertions.
+
+Plan-quality passed (INFO). Its minor named-test-surface finding is addressed by the revision below. Estimate gates explicitly waived for this bounded, user-approved policy wording change; no implementation estimate is being fabricated.
+
+## Revisions
+
+### 2026-09-14 — Verification clarification after plan review
+
+The verification step covers `BuildPrompt`, `runArchPrinciples`, and `runStartPlan`: existing full-registry assertions detect missing or partial policy delivery. Compare freshly built CLI output against the canonical registry as an additional executable check. No new functions or independent policy copies are introduced.
+
+### 2026-09-14 — Separate lifecycle actions from acceptance checklist
+
+Converted the close/publish row into a subsequent lifecycle instruction: close requires the implementation checklist complete before running, so closing itself cannot be a pre-close acceptance checkbox. Scope unchanged.
+
+Verification: `go test ./cmd/sdlc/internal/judge -run 'TestArchitecture|TestDeferred' -count=1` passed; `go test ./cmd/sdlc -run 'TestRunArchPrinciples|TestArchPrinciplesCmd|TestRunStartPlan|TestStartPlanCmd' -count=1` passed. `go build -o bin/sdlc ./cmd/sdlc` passed; a Python subprocess assertion confirmed the entire source registry is contained in `bin/sdlc arch-principles` output. `git diff --check` passed.
