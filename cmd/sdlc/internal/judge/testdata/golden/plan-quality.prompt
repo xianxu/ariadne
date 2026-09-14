@@ -247,6 +247,17 @@ Principles"; this is its machine-delivered companion.
   directly. Use types, encapsulation, and dependency checks to enforce this
   boundary. The IO shell executes declared effects and returns their outcomes
   as events.
+- **knowledge and uncertainty:** Model what the component knows about an
+  external entity, distinguishing desired state, observed state, and operation
+  outcome where relevant. External operations define confirmed success,
+  confirmed failure, and unconfirmed outcome; each has permitted actions and a
+  reconciliation policy. A timeout, missing acknowledgment, or failed probe does
+  not prove that an effect failed or an entity is absent. Preserve known partial
+  progress even when the operation fails; rollback of local state cannot undo
+  external effects. Pure transitions make decisions deterministic, not the
+  external world: probes and retries are effects whose outcomes return as
+  events, including further uncertainty. An observation is evidence about an
+  exact entity at a point in time, not permanent authority to act on it.
 - **behavioral enforcement:** Specify invariants and test them across event
   sequences, including applicable failure, cancellation, retry, duplicate, and
   out-of-order events. Tests must exercise the production transition function
@@ -256,7 +267,11 @@ Principles"; this is its machine-delivered companion.
 - **at-plan:** For a component with durable state and external events, enumerate
   states x events -> (state, effects), including the interrupting ones. Name the
   state-machine component, state/event model, invariants, structural enforcement
-  mechanism, and sequence-testing strategy. Do not
+  mechanism, and sequence-testing strategy. For uncertain external outcomes,
+  name the evidence that confirms completion, actions safe while unconfirmed,
+  and bounded reconciliation or escalation. Explain how retries avoid duplicate
+  effects and how identity, ownership, or version checks guard actions when an
+  earlier observation can become stale. Do not
   re-litigate what conventional UX already settles (block input, show a spinner)
   — that policy is advisory and UI-local. Spend the enumeration on the events the
   caller **cannot** block: process death mid-transition, connection loss,
@@ -275,6 +290,9 @@ Principles"; this is its machine-delivered companion.
   bypasses are prevented, and tests assert independently stated invariants
   rather than merely restating the transition implementation. A diagram or an
   unused state-machine component does not satisfy this contract.
+  Flag uncertainty collapsed into success, failure, or absence without evidence;
+  retry or rollback that ignores possibly completed effects; and tests omitting
+  applicable late completions, failed probes, or partial-progress recovery.
   Flag tests that can only observe one interleaving — no seam to
   inject ordering, no way to reproduce a reported failure. A green run of such a
   test is a sample of size one that reports no coverage, so it confirms whichever

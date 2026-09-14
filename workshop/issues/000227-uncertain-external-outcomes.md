@@ -29,9 +29,9 @@ Make planning name evidence and bounded reconciliation/safe retry rules. Make re
 
 ## Plan
 
-- [ ] Add uncertainty guidance and relevant at-plan/at-review checks to ARCH-ORDER.
-- [ ] Update derived prompt snapshots and verify their only change is the registry replacement; check atlas references for contradictory descriptions.
-- [ ] Run full judge tests, CLI delivery tests, built CLI/source comparison and git diff --check.
+- [x] Add uncertainty guidance and relevant at-plan/at-review checks to ARCH-ORDER.
+- [x] Update derived prompt snapshots and verify their only change is the registry replacement; check atlas references for contradictory descriptions.
+- [x] Run full judge tests, CLI delivery tests, built CLI/source comparison and git diff --check.
 
 After verification, commit and close through SDLC, then publish via PR and merge.
 
@@ -40,3 +40,5 @@ After verification, commit and close through SDLC, then publish via PR and merge
 ### 2026-09-14
 
 User approved adding the uncertainty/reconciliation guidance following the Pair audit. Created and claimed #227 first. Bounded policy wording update with an issue-local plan; separate planning review and estimate gates waived using their precise flags because the design was just approved in conversation. Mandatory close review remains enabled. Verification exercises BuildPrompt, runArchPrinciples and runStartPlan; full-registry assertions and exact snapshot replacement detect missing, partial or unintended delivery changes. No new tests that merely duplicate prose.
+
+Verification: `go test ./cmd/sdlc/internal/judge -count=1` and `go test ./cmd/sdlc -run 'TestRunArchPrinciples|TestArchPrinciplesCmd|TestRunStartPlan|TestStartPlanCmd' -count=1` passed. All four golden files changed only by exact replacement of the old embedded registry with the new one. `go build -o bin/sdlc ./cmd/sdlc` passed and a subprocess assertion verified the complete registry in `bin/sdlc arch-principles`. `git diff --check` passed. Atlas ordering/ownership descriptions remain consistent and point to the registry; no duplicate clause needed.
