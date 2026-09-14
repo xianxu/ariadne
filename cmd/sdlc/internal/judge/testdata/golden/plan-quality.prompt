@@ -241,8 +241,22 @@ Principles"; this is its machine-delivered companion.
   events**. Concurrency does not need a new effect abstraction — it needs the
   interleaving space written down where a reader, a type checker, and a test
   generator can all see it.
+- **structural enforcement:** Represent states, events, and transitions
+  explicitly in a component owned by the pure core. State changes must pass
+  through its transition function; callers cannot mutate authoritative state
+  directly. Use types, encapsulation, and dependency checks to enforce this
+  boundary. The IO shell executes declared effects and returns their outcomes
+  as events.
+- **behavioral enforcement:** Specify invariants and test them across event
+  sequences, including applicable failure, cancellation, retry, duplicate, and
+  out-of-order events. Tests must exercise the production transition function
+  with controllable ordering and reproducible failures. Verify both permitted
+  transitions and rejected or ignored events; transition coverage alone does
+  not establish correctness.
 - **at-plan:** For a component with durable state and external events, enumerate
-  states x events -> (state, effects), including the interrupting ones. Do not
+  states x events -> (state, effects), including the interrupting ones. Name the
+  state-machine component, state/event model, invariants, structural enforcement
+  mechanism, and sequence-testing strategy. Do not
   re-litigate what conventional UX already settles (block input, show a spinner)
   — that policy is advisory and UI-local. Spend the enumeration on the events the
   caller **cannot** block: process death mid-transition, connection loss,
@@ -257,7 +271,11 @@ Principles"; this is its machine-delivered companion.
   failing ordering is reproduced. `N/A` is a claim that can be wrong: write it as
   "holds no state between events because X", never as a bare marker — a bare one
   is exactly what the author who cannot see the ordering will write.
-- **at-review:** Flag tests that can only observe one interleaving — no seam to
+- **at-review:** Verify that production state changes go through the model,
+  bypasses are prevented, and tests assert independently stated invariants
+  rather than merely restating the transition implementation. A diagram or an
+  unused state-machine component does not satisfy this contract.
+  Flag tests that can only observe one interleaving — no seam to
   inject ordering, no way to reproduce a reported failure. A green run of such a
   test is a sample of size one that reports no coverage, so it confirms whichever
   ordering the author happened to get; this is the highest-leverage flag in the
