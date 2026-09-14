@@ -1,12 +1,13 @@
 ---
 id: 000226
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-14
 updated: 2026-09-14
 estimate_hours:
 started: 2026-09-14T15:37:11-07:00
+actual_hours: 0.18
 ---
 
 # Enforce state-machine ownership and behavioral invariants in ARCH-ORDER
@@ -41,6 +42,7 @@ After implementation verification: commit, close with mandatory boundary review 
 ## Log
 
 ### 2026-09-14
+- 2026-09-14: closed — Complete judge package and architecture/start-plan CLI tests pass; all four prompt snapshots exactly replace the old registry; built arch-principles emits the entire registry; git diff --check passes.; review verdict: SHIP
 
 User approved the proposed enforcement wording and requested an ariadne ticket first. Created and claimed #226 before editing policy. Single-pass policy update; issue-local plan is sufficient. Existing full-registry delivery tests cover propagation; avoid duplicating prose in new assertions.
 
