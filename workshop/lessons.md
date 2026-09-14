@@ -1508,3 +1508,15 @@ can leave three reviewers reporting correct documentation but refusing to close.
 Require regressions for executable behavior, including injected prompts and
 configuration; verify prose-only corrections against pinned diffs and their
 source referents. Do not test documentation by duplicating its words in an assert.
+
+## Embedded prompt edits require the complete owning suite
+
+**Pattern (#226):** architecture delivery tests passed after an intentional
+registry change, but the filtered run omitted `TestBuildPrompt_Golden`, leaving
+four generated prompt snapshots stale. The atlas also retained an obsolete
+ordering claim.
+
+**Rule:** for embedded prompt or registry edits, run the complete owning package
+suite, regenerate and inspect deliberately changed snapshots, and check the
+atlas's shaping decisions against the revised source. Delivery tests prove
+propagation, not snapshot consistency (ARCH-PURPOSE, ARCH-DRY).

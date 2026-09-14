@@ -77,11 +77,13 @@ neighbours it is easy to confuse with, and where it came from.
   synchronous state with no external events — has no registry home on purpose
   (YAGNI); coin an entry if it recurs.
 
-Two shaping choices to know before editing the entry, both deliberate and both
-easy to undo by accident: `at-plan` **targets rather than sweeps** (it rules
-conventional UX out of scope and asks which unblockable events apply here, not
-for a filled-in matrix), and `at-review` **leads with the oracle clause** rather
-than with a code-shape one. The entry itself carries the reasoning for both.
+Two shaping choices to know before editing the entry: `at-plan` **targets
+rather than sweeps** (it rules conventional UX out of scope and asks which
+unblockable events apply here, not for a filled-in matrix). In #226, `at-review`
+places the executable-model contract before the existing oracle critique: the
+model must govern production before its tests can establish useful evidence.
+The registry owns the enforcement clauses; the earlier oracle guidance remains
+part of that review lens.
 
 Like `ARCH-SECURE`, its clauses are grounded in defects this fleet shipped rather
 than a generic checklist — `pair#182`/`#185`, where couch's park-then-resume was

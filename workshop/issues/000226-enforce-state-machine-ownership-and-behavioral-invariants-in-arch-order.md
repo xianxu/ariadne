@@ -57,3 +57,20 @@ The verification step covers `BuildPrompt`, `runArchPrinciples`, and `runStartPl
 Converted the close/publish row into a subsequent lifecycle instruction: close requires the implementation checklist complete before running, so closing itself cannot be a pre-close acceptance checkbox. Scope unchanged.
 
 Verification: `go test ./cmd/sdlc/internal/judge -run 'TestArchitecture|TestDeferred' -count=1` passed; `go test ./cmd/sdlc -run 'TestRunArchPrinciples|TestArchPrinciplesCmd|TestRunStartPlan|TestStartPlanCmd' -count=1` passed. `go build -o bin/sdlc ./cmd/sdlc` passed; a Python subprocess assertion confirmed the entire source registry is contained in `bin/sdlc arch-principles` output. `git diff --check` passed.
+
+### 2026-09-14 — Complete registry consumer consistency after boundary review
+
+The first close returned REWORK: the intentional registry change also requires
+regenerating and inspecting all affected prompt goldens and correcting the
+atlas's obsolete oracle-first explanation. These consistency fixes expand the
+original two-file scope to its derived snapshots, atlas map, and lessons; the
+approved registry wording remains unchanged. Verification now runs the complete
+owning judge package (including `TestBuildPrompt_Golden`) plus the architecture
+and start-plan CLI suites. ARCH-PURPOSE covers the full consumer class; ARCH-DRY
+keeps policy clauses in the registry and only maps their relationship in atlas.
+
+Consistency verification passed: `go test ./cmd/sdlc/internal/judge -count=1`;
+`go test ./cmd/sdlc -run 'TestRunArchPrinciples|TestArchPrinciplesCmd|TestRunStartPlan|TestStartPlanCmd' -count=1`;
+`git diff --check`. An exact comparison confirmed each of the four regenerated
+prompts differs only by replacement of the base registry with the approved
+registry, and the built CLI emits the complete current registry.
