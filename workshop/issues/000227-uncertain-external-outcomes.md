@@ -1,12 +1,13 @@
 ---
 id: 000227
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-14
 updated: 2026-09-14
 estimate_hours:
 started: 2026-09-14T15:54:50-07:00
+actual_hours: 0.02
 ---
 
 # Model uncertain external outcomes
@@ -38,6 +39,7 @@ After verification, commit and close through SDLC, then publish via PR and merge
 ## Log
 
 ### 2026-09-14
+- 2026-09-14: closed — Full judge suite and CLI architecture/start-plan tests passed; four goldens contain only exact registry replacement; rebuilt CLI delivers full registry; git diff --check passed. No new architectural surface: policy expansion only, and existing atlas references remain consistent; --no-atlas acknowledges generated prompt files classified as code.; review verdict: SHIP
 
 User approved adding the uncertainty/reconciliation guidance following the Pair audit. Created and claimed #227 first. Bounded policy wording update with an issue-local plan; separate planning review and estimate gates waived using their precise flags because the design was just approved in conversation. Mandatory close review remains enabled. Verification exercises BuildPrompt, runArchPrinciples and runStartPlan; full-registry assertions and exact snapshot replacement detect missing, partial or unintended delivery changes. No new tests that merely duplicate prose.
 
