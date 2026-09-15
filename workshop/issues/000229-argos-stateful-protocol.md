@@ -69,9 +69,15 @@ LLM normally does not need full `sdlc --help`; Argos returns the exact
 Argos owns a session state distinct from each issue's SDLC state:
 
 ```text
-selecting → selected → executing → reporting → complete
-                          ↘ paused / blocked / aborted
+triaging → ready → executing → reporting → complete
+    ↘ awaiting-operator       ↘ paused / blocked / aborted
 ```
+
+`ready` means the session has the requested number of execution-ready tasks; it
+does not merely mean that the LLM has named that many issue IDs. A session asking
+for ten tasks may inspect many candidates and wait for operator decisions before
+it can admit ten. `awaiting-operator` is a normal durable state, not an execution
+failure.
 
 Each admitted task has its own dispatch state (`proposed`, `admitted`, `active`,
 `done`, `failed`, `blocked`, `skipped`). A session manifest records repository,
@@ -97,9 +103,27 @@ argos next   # session is created; candidate triage is requested
 Argos returns a compact candidate inventory and a quantified rubric: repository,
 issue identity/title, current status, dependencies, estimate when present, and
 small-task constraints. The LLM reads relevant issue context, checks dependency
-and correlation evidence, and writes a selection proposal with reasons. Argos
-validates and locks the proposal; it does not pretend that untriaged issues are
-already classified.
+and correlation evidence, and classifies each candidate as suitable, unsuitable,
+or needing an operator decision. For the last category, the LLM produces a
+clarification queue covering behavior, scope, acceptance, dependencies, risk, and
+other choices that would otherwise interrupt execution. The operator resolves
+those questions; the LLM records the answers in the issue Spec/decision artifact,
+and Argos validates that no required decision remains open.
+
+Each candidate has a separate readiness lifecycle:
+
+```text
+unreviewed → inspected → rejected
+                    ↘ clarification-needed → clarified → execution-ready → admitted
+```
+
+The session target is `ready_count >= requested_count`, not “requested count issue
+IDs selected.” Argos locks the proposal only after the selected tasks satisfy the
+readiness contract. The contract includes a stated outcome, scope/non-goals,
+acceptance evidence, dependency disposition, verification path, and no unresolved
+operator decision. The LLM supplies semantic judgment; Argos enforces the shape
+and the explicit operator acknowledgement. It must never invent an answer to
+move a task into `execution-ready`.
 
 Groups are hypotheses recorded in the session, not merges of issue identity. A
 group contains member issues, proposed root-cause relationship, confidence, and
@@ -161,8 +185,13 @@ the sole source of session truth.
 - `done` and `fail --kind failed|blocked` record explicit outcomes, validate
   current ownership/evidence, and return the next action without requiring a
   second advancement call.
-- Candidate triage is an LLM judgment step with a quantified Argos rubric;
-  selection proposals and grouping rationale are durable and validated.
+- Candidate triage is a first-class state machine: the LLM inspects candidates,
+  surfaces quantified readiness questions, the operator resolves material product
+  decisions, and Argos admits only execution-ready tasks. A request for ten means
+  ten ready tasks, not ten unreviewed selections.
+- Clarification questions, operator answers, readiness decisions, selection
+  proposals, and grouping rationale are durable and validated; unanswered
+  decisions keep a task in `awaiting-operator`/`clarification-needed`.
 - Argos never duplicates or overrides `sdlc` issue lifecycle semantics; admitted
   execution returns an exact `sdlc quick` packet and reconciliation checks the
   repository's evidence.
@@ -185,16 +214,15 @@ the sole source of session truth.
   vocabulary in CUE, including legal states and rejected transitions.
 - [ ] Design the `next`/`done`/`fail` protocol and human/JSON response envelopes,
   including idempotent replay and context-loss recovery.
-- [ ] Design candidate inventory, LLM selection proposal, grouping, and validation
-  rules for small unblocked single-repository work.
+- [ ] Design the candidate/readiness state machine, quantified rubric, clarification
+  queue, operator-answer record, and ten-ready-tasks admission rule for small
+  unblocked single-repository work.
 - [ ] Specify the session artifact locations, event log, evidence reconciliation,
   stable worktree/Couch-slot lease, and final report phase.
 - [ ] Implement the smallest protocol slice and stateful fakes/tests before adding
   task execution integration; then connect the execution packet to `sdlc quick`.
 - [ ] Add restart, stale-lease, failed/blocked, partial-batch, and evidence-mismatch
   tests; update atlas/help and verify through the SDLC review gates.
-
-- [ ]
 
 ## Log
 
@@ -207,4 +235,22 @@ the normal loop does not need a separate submit-then-advance call. Durable issue
 and repository artifacts ground the session, while Argos owns session leases,
 ordering, reconciliation, and reporting. No implementation changes made.
 
-### 2026-09-15
+### 2026-09-15 — triage refinement
+
+Refined the session design: triage is a first-class state machine before execution.
+Argos must produce execution-ready tasks, not merely select issue IDs. The LLM
+surfaces unresolved product decisions, the operator answers them, and the answers
+become durable issue/decision context before Argos admits the task. The session
+may remain `awaiting-operator` while it prepares the requested ready-task count.
+
+## Revisions
+
+### 2026-09-15 — Human-in-the-loop readiness triage
+
+Reason: “pick ten tasks” should shift operator attention into a deliberate
+preflight rather than interrupting execution later.
+
+Delta: replaced the loose selecting/selected phase with `triaging → ready`, added
+per-candidate readiness states and an `awaiting-operator` session state, and made
+the admission target ten execution-ready tasks. Added clarification queues,
+operator-confirmed decisions, and readiness invariants. No implementation changes.
