@@ -92,12 +92,12 @@ session selected it, whether an attempt is active, and what happened in this
 session. CUE should validate Argos manifests/events and any durable triage
 metadata. Do not duplicate the issue lifecycle in Argos (ARCH-DRY).
 
-### Candidate triage and grouping
+### `argos triage`: Argos-specific readiness workflow
 
 The human starts a session with a repository/worktree and a limit, for example:
 
 ```text
-argos next   # session is created; candidate triage is requested
+argos triage next   # inspect the backlog for Argos-ready work
 ```
 
 Argos returns a compact candidate inventory and a quantified rubric: repository,
@@ -129,6 +129,27 @@ Groups are hypotheses recorded in the session, not merges of issue identity. A
 group contains member issues, proposed root-cause relationship, confidence, and
 execution order. Argos may split a group when implementation evidence disproves
 the correlation.
+
+The recommendation vocabulary is intentionally scoped to this workflow:
+
+```text
+ready-for-argos | clarify | research | defer | blocked |
+retire | split | consolidate | promote-to-project
+```
+
+`ready-for-argos` is the classification that hands a task to the normal Argos
+execution queue; it is not itself an execution transition. `retire` carries a
+reason such as `moot`, `duplicate`, `wontfix`, or `unreproducible`. `blocked`
+names the dependency. `promote-to-project` routes work that is too large,
+architectural, risky, or strategic for manually supervised project planning.
+Other
+consumers may eventually justify a generic triage binary, but the first protocol
+is deliberately `argos triage` because its readiness contract is specific to
+Argos's interruption-free small-task promise.
+
+`argos triage next` is idempotent and may return an operator question. A decision
+submission records the operator-confirmed answer and returns the next candidate;
+it must not silently turn an unresolved recommendation into `ready-for-argos`.
 
 ### Execution and reconciliation
 
@@ -192,6 +213,9 @@ the sole source of session truth.
 - Clarification questions, operator answers, readiness decisions, selection
   proposals, and grouping rationale are durable and validated; unanswered
   decisions keep a task in `awaiting-operator`/`clarification-needed`.
+- `argos triage` owns the Argos-specific recommendation vocabulary and makes
+  `ready-for-argos` the only recommendation that can feed execution; generic
+  backlog triage remains a future extraction only if another consumer requires it.
 - Argos never duplicates or overrides `sdlc` issue lifecycle semantics; admitted
   execution returns an exact `sdlc quick` packet and reconciliation checks the
   repository's evidence.
@@ -204,8 +228,6 @@ the sole source of session truth.
   outcomes, stale ownership, evidence mismatch, partial batches, and restart
   recovery through the production binary seam (ARCH-MOCK).
 
--
-
 ## Plan
 
 - [ ] Map the existing issue/sdlc state and durable artifact conventions; define
@@ -214,9 +236,9 @@ the sole source of session truth.
   vocabulary in CUE, including legal states and rejected transitions.
 - [ ] Design the `next`/`done`/`fail` protocol and human/JSON response envelopes,
   including idempotent replay and context-loss recovery.
-- [ ] Design the candidate/readiness state machine, quantified rubric, clarification
-  queue, operator-answer record, and ten-ready-tasks admission rule for small
-  unblocked single-repository work.
+- [ ] Design the `argos triage` candidate/readiness state machine, quantified
+  rubric, recommendation enum, clarification queue, operator-answer record, and
+  ten-ready-task admission rule for small unblocked single-repository work.
 - [ ] Specify the session artifact locations, event log, evidence reconciliation,
   stable worktree/Couch-slot lease, and final report phase.
 - [ ] Implement the smallest protocol slice and stateful fakes/tests before adding
