@@ -135,16 +135,44 @@ the controlled-proxy row. That distinction is what pair#262 turns on.
 - **`unknown` as a first-class state with an escape transition** — the missing
   piece in pair#207.
 
+**C. Vocabulary constraint — do NOT use the word "authority" in this clause.**
+It is taken, by a principle that may be activated. `architecture-deferred.md`
+holds **ARCH-AUTHORITY — keep authority proportional to the instruction's
+source**, where authority means PRIVILEGE: filesystem/network/credential/subprocess
+rights, the confused-deputy risk, *"scope authority to a deliberate act rather
+than making it ambient."* That is a different sense from "who may write this
+field", and one registry cannot carry both without the marker names lying about
+which is which.
+
+The deferral note makes this live rather than hypothetical: *"Activate this when a
+second instance of the pattern appears somewhere parley.nvim#129 does not cover."*
+A promotion would put ARCH-AUTHORITY and an authority/provenance pair in ARCH-ORDER
+into the same gate prompt, in one LLM run (the gate embeds the whole registry into
+a single dispatch — `prompts.go:60` → `ArchitectureBlock` → `Dispatch`), where the
+collision is precisely the kind of ambiguity a single-pass reviewer resolves
+silently and wrongly.
+
+Suggested substitute, to be settled at design time: **ownership** (who may change
+it) paired with **provenance** (what makes it true); or frame the two kinds of
+state directly as **authored vs observed**, which has the advantage of naming the
+`spec`/`status` split the reconciliation technique already rests on. The operator's
+original framing used "authority"; renaming is deliberate and this is the reason.
+
 **Out of scope.** No new ARCH-* marker. No change to ARCH-SECURE beyond whatever
-cross-reference keeps the two provenances legible from both sides.
+cross-reference keeps the two provenances legible from both sides. No activation
+of ARCH-AUTHORITY — that has its own trigger condition and owner.
 
 ## Done when
 
 - ARCH-ORDER no longer disclaims the axis its own knowledge clause governs; a
   reader arriving with "this state proxies an external system" is answered in
   place, not redirected to ARCH-SECURE.
-- The entry states the authority/provenance distinction and names local-authority
-  + remote-truth as the quadrant requiring a reconciliation policy.
+- The entry states the ownership/provenance distinction (NOT "authority" — see
+  Spec C) and names local-ownership + remote-truth as the quadrant requiring a
+  reconciliation policy.
+- The word "authority" retains exactly one meaning across the registry, gated and
+  deferred files together — checked against `architecture-deferred.md`'s
+  ARCH-AUTHORITY, not just against the eight gated entries.
 - An extent clause exists carrying the taxonomy, with the "do not model it" row
   explicit and the async-confirm case distinguished from the controlled proxy.
 - The at-plan lens asks, per modeled external attribute, which row it is in and
@@ -186,3 +214,22 @@ Hence a touch-up, not a new principle — the operator's call and the right one.
 pair#262 is the live worked example and the reason this is worth doing now rather
 than as tidy-up: that investigation was actively heading toward the over-modeling
 the extent rule forbids, and nothing in the current registry would have stopped it.
+
+Follow-up in the same discussion: the architecture gate is **one LLM run carrying
+all eight gated principles**, not one run per principle — `prompts.go:60`
+substitutes `{{ARCH_BLOCK}}` with the whole registry verbatim (`architecture.go:55`,
+header: *"work through each of the 8 entries below explicitly"*) and `Dispatch`
+(`dispatch.go:164`) is a single agent invocation. The registry is embedded whole
+rather than by marker because *"a marker alone would be a dangling pointer in a
+fresh-context subagent"* (`architecture.go:44`).
+
+That is what surfaced the vocabulary collision as a real risk rather than a
+pedantic one: both senses of "authority" would land in the same prompt, for one
+reviewer to disambiguate in one pass.
+
+It also raises a separate question this issue does NOT take on: whether eight
+lenses in one pass dilutes each, versus fanning out one run per lens. The gate
+ledgers record a `family:` slug per finding, so the fleet already has the corpus to
+measure whether findings cluster within a principle (fan-out loses nothing) or span
+several (the single pass is earning its keep). Worth its own issue if anyone wants
+it.
