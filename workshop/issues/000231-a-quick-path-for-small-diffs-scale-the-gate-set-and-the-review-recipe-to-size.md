@@ -412,6 +412,27 @@ derived; v3.1 has no "sunk, already measured" primitive. A tooling observation
 worth its own issue: pre-claim `issue sync` checkpoints (#206) move the
 active-time window earlier than #113 intends. The branch was created in place.
 
+### 2026-09-17 — M1 built; boundary review round 1
+
+M1 is committed across five commits: the milestone parser, the flow package,
+`#Flow` in cue, change-code inference, and the reachable-path surfaces. The
+boundary review returned FIX-THEN-SHIP with two Important findings, both fixed
+as classes. BR-4: the guard now derives every caller of `MilestonesInPlanOrder`
+instead of trusting a hand list. BR-5: the flow record is written only after
+change-code's gates pass, so a refused run leaves no sticky `full` behind.
+
+Two notes for later:
+
+- M1's docs describe close-time behaviour in the present tense: the small-diff
+  review, the upgrade and the Done-when refusals. M2 builds it. That is correct
+  only because M2 lands before this branch merges; the branch is not merged.
+- Known limitation of the contract hash: it covers everything from `## Revisions`
+  to the next `##` heading. A Log entry hand-appended at the end of a file whose
+  last section is Revisions therefore moves the `spec` hash, and the freshness
+  check refuses falsely. `--no-done-when-fresh` covers it. `sdlc close` inserts
+  Log lines into `## Log`, never at end of file, so the gate's own writes don't
+  trigger it.
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
