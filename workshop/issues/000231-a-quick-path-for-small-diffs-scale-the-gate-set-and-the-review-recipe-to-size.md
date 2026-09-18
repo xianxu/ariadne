@@ -181,9 +181,12 @@ before its review:
 
 - `## Done when` is non-empty. The structural gate that used to guarantee this
   is gone (§2), and it is the review's only oracle.
-- If the issue body changed after `claim`, `## Done when` must have changed too,
-  or the agent acknowledges it did not need to. Cheap, and it protects the one
-  oracle left.
+- If `## Spec` changed after `change-code`, `## Done when` must have changed
+  too, or the agent acknowledges it did not need to (`--no-done-when-fresh`).
+  Cheap, and it protects the one oracle left. The anchor is `change-code`, not
+  `claim`: a claim can come before the Spec exists (#113), while `change-code`
+  is where the contract is fixed, and the commit that first records `flow:`
+  marks it.
 
 ### 4. The review recipe — the heart of this issue
 
@@ -431,5 +434,7 @@ family-enumeration rule; the ledger columns, the drift exclusion and a trailing
 quick row not disabling drift — and state that the outcomes are judged after
 adoption. §1 now defines changed lines as insertions in code files, names
 `.sdlc/shared-surfaces` as the declaration, and says the upgrade is recorded at
-finalize. `## Plan` became three milestones pointing at the durable plan.
+finalize. §3's freshness check now anchors at `change-code` instead of `claim`,
+and names its skip flag. `## Plan` became three milestones pointing at the
+durable plan.
 
