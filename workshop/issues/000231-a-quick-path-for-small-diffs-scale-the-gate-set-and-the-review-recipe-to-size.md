@@ -1,11 +1,12 @@
 ---
 id: 000231
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-16
-updated: 2026-09-16
+updated: 2026-09-17
 estimate_hours:
+started: 2026-09-17T18:59:16-07:00
 ---
 
 # A quick path for small diffs: scale the gate set and the review recipe to size
