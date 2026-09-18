@@ -156,3 +156,18 @@ func TestSetFieldRoundTripsFlowMap(t *testing.T) {
 		t.Errorf("neighbouring empty field disturbed: estimate_hours = %q", got)
 	}
 }
+
+// TestSetFieldReplacesBlockValue: frontmatter is hand-editable, so a field may
+// arrive in block form (`flow:` followed by indented `kind:`/`provenance:`
+// lines, or a `related:` block list). Replacing only the key line used to leave
+// the indented children orphaned under the new value — invalid YAML written by
+// the very rewrite meant to repair it (#231 M1 review). The whole block goes.
+func TestSetFieldReplacesBlockValue(t *testing.T) {
+	fm := "id: 000001\nflow:\n  kind: quick\n  provenance: inferred\nstatus: working\nrelated:\n  - a.md\n  - b.md"
+	fm = SetField(fm, "flow", "{kind: full, provenance: inferred}")
+	fm = SetField(fm, "related", "[a.md]")
+	want := "id: 000001\nflow: {kind: full, provenance: inferred}\nstatus: working\nrelated: [a.md]"
+	if fm != want {
+		t.Errorf("SetField left the block behind:\n got %q\nwant %q", fm, want)
+	}
+}

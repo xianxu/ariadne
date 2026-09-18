@@ -84,8 +84,8 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 
 - **change-code flow step** — runs after the issue and plan are read (`changecode.go:130`) and before the gate loop.
   - Inputs: `issue.MilestonesInPlanOrder(PlanItemsBody)`, and `planContent != ""`, which is the plan lookup plan-quality uses.
-  - It writes `flow:` (plus the hashes for quick) with `Parse → SetField → Compose` unless `--dry-run`, and prints one info line.
-  - Each gate closure skips on `quick`: structural, plan-quality, estimate, estimate-recon, estimate-quality. `changeCodeGateOrder()` still returns all five.
+  - `reportChangeCodeFlow` decides and prints the flow before the gates. `recordChangeCodeFlow` writes `flow:` (plus the hashes for quick) with `Parse → SetField → Compose` only after the gates pass and past the dry-run return, right before the sync commit. A refused run leaves the issue untouched (BR-5).
+  - On `quick` the gate loop iterates `activeChangeCodeGates`, which is empty, rather than a skip in each closure. `changeCodeGates` stays the complete declaration, and `changeCodeGateOrder()` still returns all five.
   - `planGateContent` strips `flow:` alongside `estimate_hours:`.
 - **start-plan guidance** — `planPointer` and `estimateNudge` become conditional on the shell. The pointer says to write a durable plan only for work outside the shell, and that change-code infers quick otherwise. The nudge says there is no estimate on the quick flow.
 - **close shell + Done-when step** — runs inside `computeClose` after the atlas block (~`close.go:530`), on the window already computed there (`windowBase`, `windowHead`, `diffFiles`).
@@ -360,4 +360,26 @@ Delta:
   against the diff. Collapsing them to one-line strategies would move that oracle
   into the implementer's head. The two hand-edited parsers get fuzz targets, which
   was the substantive half of the finding.
+
+### 2026-09-17 — M1 boundary review round 1 (BR-4..BR-10)
+
+- **BR-4.** The guard now derives callers of `issue.MilestonesInPlanOrder` by
+  listing it in `planItemMatchers`, replacing the hand-kept
+  `planItemBodySources` that missed change-code. There is also a fenced-Mx case
+  that must stay quick.
+- **BR-5.** The record is decided before the gates and written after them
+  (`reportChangeCodeFlow` / `recordChangeCodeFlow`), pinned by
+  `TestRunChangeCodeRecordsFlowAfterGates`.
+- **BR-6.** The M1 docs describe close behaviour that M2 builds. That holds
+  because M2 lands before any merge; logged.
+- **BR-7.** `Decide` returns the `Rule` that fired, and `flowReason` is gone.
+- **BR-8.** `SetField` replaces a block-form value whole. It is also literal now,
+  so there is no `$` expansion.
+- **BR-9.** The fuzz oracle asserts that error paths resolve to full.
+- **BR-10.** The `cue fmt` churn in `issue.cue` is reverted.
+- **Test names as built:** `TestDecideChangeCodeFlow`,
+  `TestRecordChangeCodeFlowWritesUnlessDryRun`, `TestActiveChangeCodeGates` and
+  `TestRunChangeCodeRecordsFlowAfterGates`, replacing `TestChangeCodeFlowStep`
+  and `TestChangeCodeGatesSkipOnQuick`. `flow.WithContract` lives in
+  `donewhen.go`.
 

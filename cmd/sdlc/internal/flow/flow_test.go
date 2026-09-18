@@ -95,6 +95,9 @@ func FuzzFromFrontmatter(f *testing.F) {
 	f.Fuzz(func(t *testing.T, fm string) {
 		fl, _, err := FromFrontmatter(fm)
 		if err != nil {
+			if fl.Kind != Full {
+				t.Fatalf("error path returned kind %q, want full (the stricter flow), from %q", fl.Kind, fm)
+			}
 			return
 		}
 		if fl.Kind != Full && fl.Kind != Quick {
@@ -123,31 +126,32 @@ func TestDecide(t *testing.T) {
 		name string
 		in   DecideInput
 		want Flow
+		rule Rule
 	}{
-		{"absent, no plan, no Mx → quick", DecideInput{}, Flow{Quick, Inferred, "", ""}},
-		{"absent, durable plan → full", DecideInput{HasPlan: true}, Flow{Full, Inferred, "", ""}},
-		{"absent, Mx rows → full", DecideInput{HasMilestones: true}, Flow{Full, Inferred, "", ""}},
-		{"absent, pin full", DecideInput{Pin: "full"}, Flow{Full, Operator, "", ""}},
-		{"absent, pin quick", DecideInput{Pin: "quick"}, Flow{Quick, Operator, "", ""}},
-		{"quick/inferred, plan appeared → full", DecideInput{Recorded: qi, HasPlan: true}, Flow{Full, Inferred, "", ""}},
-		{"quick/inferred, unchanged → quick", DecideInput{Recorded: qi}, Flow{Quick, Inferred, "", ""}},
-		{"quick/inferred, Mx appeared → full", DecideInput{Recorded: qi, HasMilestones: true}, Flow{Full, Inferred, "", ""}},
-		{"quick/operator stays even with a plan", DecideInput{Recorded: qo, HasPlan: true}, Flow{Quick, Operator, "", ""}},
-		{"quick/operator, Mx appeared → full", DecideInput{Recorded: qo, HasMilestones: true}, Flow{Full, Inferred, "", ""}},
-		{"full/inferred never downgrades", DecideInput{Recorded: fi}, Flow{Full, Inferred, "", ""}},
-		{"full/operator stays", DecideInput{Recorded: fo}, Flow{Full, Operator, "", ""}},
-		{"full/inferred, pin quick", DecideInput{Recorded: fi, Pin: "quick"}, Flow{Quick, Operator, "", ""}},
-		{"quick/operator, pin full", DecideInput{Recorded: qo, Pin: "full"}, Flow{Full, Operator, "", ""}},
-		{"full/operator, Mx → stays full/operator", DecideInput{Recorded: fo, HasMilestones: true}, Flow{Full, Operator, "", ""}},
+		{"absent, no plan, no Mx → quick", DecideInput{}, Flow{Quick, Inferred, "", ""}, RuleNoPlan},
+		{"absent, durable plan → full", DecideInput{HasPlan: true}, Flow{Full, Inferred, "", ""}, RulePlan},
+		{"absent, Mx rows → full", DecideInput{HasMilestones: true}, Flow{Full, Inferred, "", ""}, RuleMilestones},
+		{"absent, pin full", DecideInput{Pin: "full"}, Flow{Full, Operator, "", ""}, RulePinned},
+		{"absent, pin quick", DecideInput{Pin: "quick"}, Flow{Quick, Operator, "", ""}, RulePinned},
+		{"quick/inferred, plan appeared → full", DecideInput{Recorded: qi, HasPlan: true}, Flow{Full, Inferred, "", ""}, RulePlan},
+		{"quick/inferred, unchanged → quick", DecideInput{Recorded: qi}, Flow{Quick, Inferred, "", ""}, RuleNoPlan},
+		{"quick/inferred, Mx appeared → full", DecideInput{Recorded: qi, HasMilestones: true}, Flow{Full, Inferred, "", ""}, RuleMilestones},
+		{"quick/operator stays even with a plan", DecideInput{Recorded: qo, HasPlan: true}, Flow{Quick, Operator, "", ""}, RuleOperatorStands},
+		{"quick/operator, Mx appeared → full", DecideInput{Recorded: qo, HasMilestones: true}, Flow{Full, Inferred, "", ""}, RuleMilestones},
+		{"full/inferred never downgrades", DecideInput{Recorded: fi}, Flow{Full, Inferred, "", ""}, RuleNoDowngrade},
+		{"full/operator stays", DecideInput{Recorded: fo}, Flow{Full, Operator, "", ""}, RuleOperatorStands},
+		{"full/inferred, pin quick", DecideInput{Recorded: fi, Pin: "quick"}, Flow{Quick, Operator, "", ""}, RulePinned},
+		{"quick/operator, pin full", DecideInput{Recorded: qo, Pin: "full"}, Flow{Full, Operator, "", ""}, RulePinned},
+		{"full/operator, Mx → stays full/operator", DecideInput{Recorded: fo, HasMilestones: true}, Flow{Full, Operator, "", ""}, RuleOperatorStands},
 	}
 	for _, c := range cases {
-		got, err := Decide(c.in)
+		got, rule, err := Decide(c.in)
 		if err != nil {
 			t.Errorf("%s: unexpected error %v", c.name, err)
 			continue
 		}
-		if got != c.want {
-			t.Errorf("%s: got %+v, want %+v", c.name, got, c.want)
+		if got != c.want || rule != c.rule {
+			t.Errorf("%s: got %+v by %q, want %+v by %q", c.name, got, rule, c.want, c.rule)
 		}
 	}
 	for _, bad := range []DecideInput{
@@ -155,7 +159,7 @@ func TestDecide(t *testing.T) {
 		{Recorded: fi, Pin: "quick", HasMilestones: true},
 		{Pin: "fast"},
 	} {
-		if got, err := Decide(bad); err == nil {
+		if got, _, err := Decide(bad); err == nil {
 			t.Errorf("Decide(%+v) = %+v, want an error", bad, got)
 		}
 	}

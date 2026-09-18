@@ -8,6 +8,9 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"go/ast"
+	"go/parser"
+	"go/token"
 )
 
 const flowIssue = "---\nid: 000231\nstatus: working\nestimate_hours:\n---\n\n# T\n\n## Spec\n\nthe contract\n\n" +
@@ -60,9 +63,16 @@ func TestDecideChangeCodeFlow(t *testing.T) {
 		if (got.Spec != "") != (c.kind == flow.Quick) {
 			t.Errorf("%s: contract hashes present=%v, want them exactly on quick", c.name, got.Spec != "")
 		}
-		if d.reason == "" {
-			t.Errorf("%s: no reason given for the flow", c.name)
+		if d.rule == "" {
+			t.Errorf("%s: no rule reported for the flow", c.name)
 		}
+	}
+
+	// A milestone row quoted inside a fenced example is not a milestone: the
+	// inference must read the fence-filtered Plan (#231 BR-4).
+	fenced := withPlanRows(flowIssue, "- [ ] do it\n\n```markdown\n- [ ] M1 — example row\n```\n")
+	if d, err := decideChangeCodeFlow(fenced, "", ""); err != nil || d.flow.Kind != flow.Quick {
+		t.Errorf("fenced Mx example: got %+v (err %v), want quick — a quoted row is not a milestone", d.flow, err)
 	}
 
 	if _, err := decideChangeCodeFlow(mx, "", "quick"); err == nil {
@@ -94,16 +104,21 @@ func TestDecideChangeCodeFlow(t *testing.T) {
 	_ = recordedFlow(t, d.content) // and it now parses
 }
 
-// TestApplyChangeCodeFlowWritesUnlessDryRun: the IO shell writes the record,
-// and --dry-run writes nothing.
-func TestApplyChangeCodeFlowWritesUnlessDryRun(t *testing.T) {
+// TestRecordChangeCodeFlowWritesUnlessDryRun: reporting writes nothing, the
+// record step writes the record, and --dry-run writes nothing.
+func TestRecordChangeCodeFlowWritesUnlessDryRun(t *testing.T) {
 	for _, dry := range []bool{false, true} {
 		path := filepath.Join(t.TempDir(), "000231-x.md")
 		if err := os.WriteFile(path, []byte(flowIssue), 0o644); err != nil {
 			t.Fatal(err)
 		}
 		f := &changeCodeFlags{DryRun: dry}
-		fl, _ := applyChangeCodeFlow(ioDiscard(), f, path, flowIssue, "")
+		d := reportChangeCodeFlow(ioDiscard(), f, flowIssue, "")
+		if on, _ := os.ReadFile(path); string(on) != flowIssue {
+			t.Fatalf("dry-run=%v: reporting the flow wrote the issue", dry)
+		}
+		recordChangeCodeFlow(ioDiscard(), f, path, flowIssue, d)
+		fl := d.flow
 		on, _ := os.ReadFile(path)
 		wrote := string(on) != flowIssue
 		if wrote == dry {
@@ -150,15 +165,17 @@ func TestPlanGateContentIgnoresFlow(t *testing.T) {
 // read as a gate bypass or refusal to the friction instrument (#172).
 func TestFlowInfoLineNoGatesigCollision(t *testing.T) {
 	for _, fl := range []flow.Flow{{Kind: flow.Quick, Provenance: flow.Inferred}, {Kind: flow.Full, Provenance: flow.Operator}} {
-		assertNoGatesigCollision(t, "\x1b[1;36m==>\x1b[0m "+flowInfoLine(fl, "a reason"))
+		assertNoGatesigCollision(t, "\x1b[1;36m==>\x1b[0m "+flowInfoLine(fl, flow.RuleNoPlan))
 	}
 }
 
 // flowWirings: runChangeCode is not in-process drivable (#191), so the two
 // call sites that make the flow real are asserted at the source.
 var flowWirings = []wiring{
-	{"changecode.go", "runChangeCode", "applyChangeCodeFlow",
-		"the flow is inferred and recorded before the gates run (#231)"},
+	{"changecode.go", "runChangeCode", "reportChangeCodeFlow",
+		"the flow is decided before the gates run, which it decides between (#231)"},
+	{"changecode.go", "runChangeCode", "recordChangeCodeFlow",
+		"the decided flow is written to the issue (#231)"},
 	{"changecode.go", "runChangeCode", "activeChangeCodeGates",
 		"the gate loop iterates the flow-aware list, so quick runs no change-code gate (#231)"},
 }
@@ -172,5 +189,61 @@ func TestChangeCodeWiresTheFlow(t *testing.T) {
 func TestChangeCodeHelpShowsTheShell(t *testing.T) {
 	if got := renderLong("change-code"); !strings.Contains(got, flow.ShellSummary()) {
 		t.Errorf("change-code help does not carry flow.ShellSummary():\n%s", got)
+	}
+}
+
+// TestRunChangeCodeRecordsFlowAfterGates pins the ORDER the wiring test cannot:
+// in runChangeCode the flow is recorded after the gate loop, after the dry-run
+// return, and before the sync commit. A refused or dry run therefore leaves the
+// issue byte-identical, and the record lands in the same commit as the design
+// (#231 BR-5). runChangeCode is not in-process drivable (#191), so the order is
+// asserted at the source.
+func TestRunChangeCodeRecordsFlowAfterGates(t *testing.T) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "changecode.go", nil, 0)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var run *ast.FuncDecl
+	for _, d := range file.Decls {
+		if fn, ok := d.(*ast.FuncDecl); ok && fn.Name.Name == "runChangeCode" {
+			run = fn
+		}
+	}
+	if run == nil {
+		t.Fatal("runChangeCode not found")
+	}
+	pos := map[string]token.Pos{}
+	var dryRunIf token.Pos
+	ast.Inspect(run.Body, func(n ast.Node) bool {
+		switch x := n.(type) {
+		case *ast.CallExpr:
+			if id, ok := x.Fun.(*ast.Ident); ok && pos[id.Name] == 0 {
+				pos[id.Name] = x.Pos()
+			}
+		case *ast.IfStmt:
+			if sel, ok := x.Cond.(*ast.SelectorExpr); ok && sel.Sel.Name == "DryRun" && dryRunIf == 0 {
+				dryRunIf = x.End()
+			}
+		}
+		return true
+	})
+	order := []struct {
+		name string
+		at   token.Pos
+	}{
+		{"activeChangeCodeGates", pos["activeChangeCodeGates"]},
+		{"the dry-run return", dryRunIf},
+		{"recordChangeCodeFlow", pos["recordChangeCodeFlow"]},
+		{"syncIssue", pos["syncIssue"]},
+	}
+	for i, o := range order {
+		if o.at == 0 {
+			t.Fatalf("%s not found in runChangeCode", o.name)
+		}
+		if i > 0 && o.at <= order[i-1].at {
+			t.Errorf("%s comes before %s in runChangeCode — the flow record must be written after the gates pass "+
+				"and past the dry-run return, and before the sync commit", o.name, order[i-1].name)
+		}
 	}
 }

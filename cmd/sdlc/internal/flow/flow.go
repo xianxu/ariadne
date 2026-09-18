@@ -152,7 +152,22 @@ type DecideInput struct {
 	HasPlan       bool   // a durable plan exists (the file plan-quality would judge)
 }
 
-// Decide computes the flow change-code records. The rules, in order:
+// Rule names which of Decide's rules fired — returned rather than re-derived by
+// callers, so the reason a flow is reported with cannot drift from the order the
+// rules are actually checked in.
+type Rule string
+
+const (
+	RulePinned         Rule = "pinned with --flow"
+	RuleMilestones     Rule = "the Plan has Mx milestones"
+	RuleOperatorStands Rule = "the operator's pin stands"
+	RuleNoDowngrade    Rule = "already full — gates never downgrade"
+	RulePlan           Rule = "a durable plan exists"
+	RuleNoPlan         Rule = "no Mx milestones and no durable plan"
+)
+
+// Decide computes the flow change-code records, and the rule that decided it.
+// The rules, in order:
 //
 //  1. An unknown pin, or a quick pin on a Plan with Mx rows, is an error: a pin
 //     that cannot be honoured says so while the operator is there.
@@ -165,28 +180,31 @@ type DecideInput struct {
 // The invariant (ARCH-ORDER): only an operator pin produces quick from full, and
 // nothing produces quick while Mx rows exist. The contract hashes are not
 // Decide's business; change-code adds them with WithContract.
-func Decide(in DecideInput) (Flow, error) {
+func Decide(in DecideInput) (Flow, Rule, error) {
 	switch in.Pin {
 	case "":
 	case string(Quick):
 		if in.HasMilestones {
-			return Flow{}, fmt.Errorf("--flow quick: the Plan has Mx milestone rows, and the quick flow has a single boundary — drop the milestones or keep the full flow")
+			return Flow{}, "", fmt.Errorf("--flow quick: the Plan has Mx milestone rows, and the quick flow has a single boundary — drop the milestones or keep the full flow")
 		}
-		return Flow{Kind: Quick, Provenance: Operator}, nil
+		return Flow{Kind: Quick, Provenance: Operator}, RulePinned, nil
 	case string(Full):
-		return Flow{Kind: Full, Provenance: Operator}, nil
+		return Flow{Kind: Full, Provenance: Operator}, RulePinned, nil
 	default:
-		return Flow{}, fmt.Errorf("--flow %q: want %s or %s", in.Pin, Quick, Full)
+		return Flow{}, "", fmt.Errorf("--flow %q: want %s or %s", in.Pin, Quick, Full)
 	}
 	r := in.Recorded
 	if in.HasMilestones && (r == nil || r.Kind != Full) {
-		return Flow{Kind: Full, Provenance: Inferred}, nil
+		return Flow{Kind: Full, Provenance: Inferred}, RuleMilestones, nil
 	}
-	if r != nil && (r.Provenance == Operator || r.Kind == Full) {
-		return Flow{Kind: r.Kind, Provenance: r.Provenance}, nil
+	if r != nil && r.Provenance == Operator {
+		return Flow{Kind: r.Kind, Provenance: r.Provenance}, RuleOperatorStands, nil
+	}
+	if r != nil && r.Kind == Full {
+		return Flow{Kind: r.Kind, Provenance: r.Provenance}, RuleNoDowngrade, nil
 	}
 	if in.HasPlan {
-		return Flow{Kind: Full, Provenance: Inferred}, nil
+		return Flow{Kind: Full, Provenance: Inferred}, RulePlan, nil
 	}
-	return Flow{Kind: Quick, Provenance: Inferred}, nil
+	return Flow{Kind: Quick, Provenance: Inferred}, RuleNoPlan, nil
 }

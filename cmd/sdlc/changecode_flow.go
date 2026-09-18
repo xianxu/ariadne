@@ -13,14 +13,15 @@ import (
 // changeCodeFlow is change-code's flow decision over one issue (#231).
 type changeCodeFlow struct {
 	flow    flow.Flow
-	reason  string // why this kind, for the info line
-	content string // the issue text with the record written
-	warning string // a malformed prior record, resolved to full
+	rule    flow.Rule // which of Decide's rules decided it, for the info line
+	content string    // the issue text with the record written
+	warning string    // a malformed prior record, resolved to full
 }
 
 // decideChangeCodeFlow infers (or takes the operator's pin for) the issue's
 // flow and returns the issue text with the one-line record written. Pure over
-// the issue and plan text (ARCH-PURE); applyChangeCodeFlow is the IO shell.
+// the issue and plan text (ARCH-PURE); reportChangeCodeFlow and
+// recordChangeCodeFlow are the IO shell.
 //
 // The inference inputs are the two artifacts the agent already produces under
 // the constitution: Mx milestone rows in the Plan (read through the ONE
@@ -34,7 +35,7 @@ func decideChangeCodeFlow(issueContent, planContent, pin string) (changeCodeFlow
 	if err != nil {
 		// No frontmatter: nothing to record, and the structural gate refuses the
 		// issue on the full flow anyway.
-		return changeCodeFlow{flow: flow.Flow{Kind: flow.Full}, reason: "the issue has no frontmatter", content: issueContent}, nil
+		return changeCodeFlow{flow: flow.Flow{Kind: flow.Full}, rule: "the issue has no frontmatter", content: issueContent}, nil
 	}
 	var out changeCodeFlow
 	var recorded *flow.Flow
@@ -49,7 +50,7 @@ func decideChangeCodeFlow(issueContent, planContent, pin string) (changeCodeFlow
 	plan, _ := issue.PlanItemsBody(body)
 	hasMx := len(issue.MilestonesInPlanOrder(plan)) > 0
 	hasPlan := planContent != ""
-	fl, err := flow.Decide(flow.DecideInput{Recorded: recorded, Pin: pin, HasMilestones: hasMx, HasPlan: hasPlan})
+	fl, rule, err := flow.Decide(flow.DecideInput{Recorded: recorded, Pin: pin, HasMilestones: hasMx, HasPlan: hasPlan})
 	if err != nil {
 		return changeCodeFlow{}, err
 	}
@@ -57,43 +58,27 @@ func decideChangeCodeFlow(issueContent, planContent, pin string) (changeCodeFlow
 		fl = flow.WithContract(fl, body)
 	}
 	out.flow = fl
-	out.reason = flowReason(fl, recorded, pin, hasMx, hasPlan)
+	out.rule = rule
 	out.content = issue.Compose(issue.SetField(fm, flow.Field, flow.Format(fl)), body)
 	return out, nil
 }
 
-// flowReason names why Decide landed where it did, in the order Decide checks.
-func flowReason(fl flow.Flow, recorded *flow.Flow, pin string, hasMx, hasPlan bool) string {
-	switch {
-	case pin != "":
-		return "pinned with --flow"
-	case hasMx && fl.Provenance == flow.Inferred:
-		return "the Plan has Mx milestones"
-	case recorded != nil && recorded.Provenance == flow.Operator:
-		return "the operator's pin stands"
-	case recorded != nil && recorded.Kind == flow.Full:
-		return "already full — gates never downgrade"
-	case hasPlan:
-		return "a durable plan exists"
-	default:
-		return "no Mx milestones and no durable plan"
-	}
-}
-
 // flowInfoLine is the one line change-code prints about the flow. The skipped
 // gate names are derived from the gate declaration, not restated.
-func flowInfoLine(fl flow.Flow, reason string) string {
+func flowInfoLine(fl flow.Flow, rule flow.Rule) string {
 	if fl.Kind == flow.Quick {
 		return fmt.Sprintf("flow: quick (%s: %s) — change-code runs none of %s; close runs the small-diff "+
 			"review, or the full one if the diff leaves the shell: %s",
-			fl.Provenance, reason, strings.Join(changeCodeGateOrder(), ", "), flow.ShellSummary())
+			fl.Provenance, rule, strings.Join(changeCodeGateOrder(), ", "), flow.ShellSummary())
 	}
-	return fmt.Sprintf("flow: full (%s: %s)", fl.Provenance, reason)
+	return fmt.Sprintf("flow: full (%s: %s)", fl.Provenance, rule)
 }
 
-// applyChangeCodeFlow is the IO shell: decide, report, and write the record
-// unless --dry-run. It returns the flow and the issue text the gates should see.
-func applyChangeCodeFlow(stderr io.Writer, f *changeCodeFlags, issuePath, issueContent, planContent string) (flow.Flow, string) {
+// reportChangeCodeFlow decides the flow and prints it — BEFORE the gates, which
+// it decides between. It writes nothing: a gate refusal must leave the issue
+// exactly as it was, because Decide treats a recorded full as permanent (no
+// downgrade), so a record left behind by a refused run would stick (#231 BR-5).
+func reportChangeCodeFlow(stderr io.Writer, f *changeCodeFlags, issueContent, planContent string) changeCodeFlow {
 	d, err := decideChangeCodeFlow(issueContent, planContent, f.Flow)
 	if err != nil {
 		die(stderr, err.Error())
@@ -101,14 +86,22 @@ func applyChangeCodeFlow(stderr io.Writer, f *changeCodeFlags, issuePath, issueC
 	if d.warning != "" {
 		cwarn(stderr, d.warning)
 	}
-	cinfo(stderr, flowInfoLine(d.flow, d.reason))
+	cinfo(stderr, flowInfoLine(d.flow, d.rule))
+	return d
+}
+
+// recordChangeCodeFlow writes the decided record to the issue. runChangeCode
+// calls it only after every gate passed and past the dry-run return, right
+// before the sync commit that lands it (pinned by
+// TestRunChangeCodeRecordsFlowAfterGates); the DryRun check here is the same
+// guarantee held locally.
+func recordChangeCodeFlow(stderr io.Writer, f *changeCodeFlags, issuePath, issueContent string, d changeCodeFlow) {
 	if f.DryRun || d.content == issueContent {
-		return d.flow, issueContent
+		return
 	}
 	if err := os.WriteFile(issuePath, []byte(d.content), 0o644); err != nil {
 		die(stderr, fmt.Sprintf("record flow in %s: %v", issuePath, err))
 	}
-	return d.flow, d.content
 }
 
 // activeChangeCodeGates is the gate list this run executes: every gate on the

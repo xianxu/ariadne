@@ -11,14 +11,14 @@ import "list"
 // or(), so there is nothing to keep in sync. Only `categories` (concrete data)
 // reaches the exported JSON — CUE definitions (#) do not export.
 categories: {
-	open: ["open"] // created, not yet started
-	active: ["working", "blocked", "codecomplete"] // started, not yet closed
-	terminal: ["done", "wontfix", "punt"] // closed
+	open:     ["open"]                                    // created, not yet started
+	active:   ["working", "blocked", "codecomplete"]      // started, not yet closed
+	terminal: ["done", "wontfix", "punt"]                 // closed
 }
 
 #Active:   or(categories.active)
 #Terminal: or(categories.terminal)
-#Status: or(list.Concat([categories.open, categories.active, categories.terminal]))
+#Status:   or(list.Concat([categories.open, categories.active, categories.terminal]))
 
 // actual_hours can be explicitly marked not applicable when a close has no
 // measured time to feed velocity calibration. Keep the accepted spelling closed.
@@ -117,7 +117,6 @@ scaffold: sections: [...#ScaffoldSection] & [
 	if status == "done" || status == "codecomplete" {
 		actual_hours!: (number & >0) | #ActualNotApplicable
 	}
-
 	// OPEN (#124): allow organically-growing frontmatter (target/references/
 	// related/created/… and future fields) so instance-conformance vetting at the
 	// fail-closed merge gate doesn't false-positive on a valid-but-unmodeled field.
@@ -130,9 +129,9 @@ scaffold: sections: [...#ScaffoldSection] & [
 // ── lifecycle: the transition table (the verbs). Guards are NAMED here; their
 // effectful implementations live in sdlc (the close gates). ──
 #Transition: {
-	from:  #Status
-	to:    #Status
-	event: string
+	from:   #Status
+	to:     #Status
+	event:  string
 	guards: [...string]
 }
 

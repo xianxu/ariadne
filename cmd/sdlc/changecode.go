@@ -132,9 +132,10 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 
 	planContent := readOptionalPlanFile(f.PlansDir, name)
 
-	// 2b. Infer (or take the operator's pin for) the flow and record it on the
-	//     issue (#231). It decides which gates run below: none on quick.
-	issueFlow, issueContent := applyChangeCodeFlow(stderr, f, issuePath, issueContent, planContent)
+	// 2b. Infer (or take the operator's pin for) the flow (#231). It decides which
+	//     gates run below — none on quick — and is RECORDED only after they pass
+	//     (step 7), so a refused run leaves the issue untouched.
+	issueFlow := reportChangeCodeFlow(stderr, f, issueContent, planContent)
 
 	// 3. Run the gate sequence. RUNNING the declaration (rather than hand-sequencing
 	//    blocks that happen to match it) is what makes changeCodeGateOrder a real guard:
@@ -144,7 +145,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		f: f, stdout: stdout, stderr: stderr,
 		name: name, issuePath: issuePath,
 		issueContent: issueContent, planContent: planContent,
-		flow: issueFlow,
+		flow: issueFlow.flow,
 	}
 	for _, g := range activeChangeCodeGates(ctx) {
 		if err := g.run(); err != nil {
@@ -193,6 +194,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	//    commit+push of the issue file: a second implementation of this, and one
 	//    that only ever handled the UNTRACKED case, leaving a tracked-but-edited
 	//    issue file dirty at branch creation.
+	recordChangeCodeFlow(stderr, f, issuePath, issueContent, issueFlow)
 	syncIssue(stderr, f, issuePath)
 
 	// 8. Create branch.
