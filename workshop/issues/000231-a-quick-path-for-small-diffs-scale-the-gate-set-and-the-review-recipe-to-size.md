@@ -496,6 +496,25 @@ declaration rather than narrow it to the shell's defining files, as not worth
 the extra rule and risk. So sdlc work in ariadne always takes the full flow, and
 the quick flow's trial runs in other repos.
 
+### 2026-09-18 — first trial reading: pair#283, and what to watch
+
+pair#283 was the first real task under the branch: 7 code files, 30 added lines,
+a 427-line durable plan, and inferred full because of that plan. By the shell it
+is not quick: the file limit catches a change that is tiny but spread along a
+pipeline (vt → endpoint → frame → renderer) and renumbers a state enum, which is
+ARCH-ORDER territory, and the quick recipe does not check that. The review it got
+was right. The plan is where the cost went unearned (plan-quality passed in round
+1 with two Minors).
+
+Observation for the trial: **quick-then-upgrade already yields "no plan, full
+review"**. With no durable plan, #283 would have been inferred quick at
+change-code and upgraded at close by its file count. The constitution's
+plan threshold says to write a plan outside the shell, so spread-but-tiny
+changes currently pay for one. Two questions to settle on trial data, not
+yet: should spread-but-tiny work skip the durable plan? And should a
+substantial in-issue `## Plan` count toward full, via the plan-item count
+`issue.ComputeSizingFromContent` already computes?
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
