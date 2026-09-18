@@ -233,6 +233,13 @@ func TestValidateInstance_RejectsMalformations(t *testing.T) {
 		{"statuss typo (status absent)", "id: \"000001\"\nstatuss: working\n", "", "required field is missing"},
 		{"done missing actual_hours", "id: \"000001\"\nstatus: done\n", "actual_hours", "required field is missing"},
 		{"done invalid actual string", "id: \"000001\"\nstatus: done\nactual_hours: unknown\n", "actual_hours", "not valid"},
+		// #231: flow is modeled, so a typo'd value fails instead of slipping through
+		// the open #Issue — and an unquoted all-digit hash is an int, not a string.
+		{"flow bad kind", "id: \"000001\"\nstatus: working\nflow: {kind: quikc, provenance: inferred}\n", "flow.kind", ""},
+		{"flow bad provenance", "id: \"000001\"\nstatus: working\nflow: {kind: quick, provenance: guessed}\n", "flow.provenance", ""},
+		{"flow unquoted numeric hash", "id: \"000001\"\nstatus: working\nflow: {kind: quick, provenance: inferred, spec: 12345678, done: \"5e6f7a8b\"}\n", "", "flow.spec"},
+		{"flow short hash", "id: \"000001\"\nstatus: working\nflow: {kind: quick, provenance: inferred, spec: \"abc\"}\n", "", "flow.spec"},
+		{"flow unknown key", "id: \"000001\"\nstatus: working\nflow: {kind: quick, provenance: inferred, color: blue}\n", "", ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -271,6 +278,8 @@ func TestValidateInstance_ValidPasses(t *testing.T) {
 		{"working issue", "id: \"000001\"\nstatus: working\nestimate_hours: 2.0\ntarget: foo\n"},
 		{"done numeric actual", "id: \"000001\"\nstatus: done\nactual_hours: 1.25\n"},
 		{"done not applicable actual", "id: \"000001\"\nstatus: done\nactual_hours: N/A\n"},
+		{"flow full inferred", "id: \"000001\"\nstatus: working\nflow: {kind: full, provenance: inferred}\n"},
+		{"flow quick with quoted all-digit hash", "id: \"000001\"\nstatus: working\nflow: {kind: quick, provenance: operator, spec: \"12345678\", done: \"5e6f7a8b\"}\n"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
