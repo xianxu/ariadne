@@ -201,10 +201,11 @@ milestone-review; it is aimed at a different distribution:
   a hoist separating a doc block from its function; and whether any block in the
   diff already exists elsewhere in the tree.
 - **Architecture: exactly ARCH-DRY, ARCH-PURE and ARCH-PURPOSE.** Every other
-  ARCH-\* lens is off, with no tripwires. The three are *selected by marker* from
-  the single-source registry `cmd/sdlc/internal/judge/architecture.md` (a subset
-  selector beside `ArchitectureBlock`), never restated in the recipe; restating
-  them would be the very ARCH-DRY defect the recipe hunts.
+  ARCH-\* lens is off, with no tripwires. Which principles apply is a field on
+  each entry of the single-source registry
+  `cmd/sdlc/internal/judge/architecture.md` — `quick: yes|no`, beside the entry's
+  `at-plan`/`at-review` lenses — so changing the set means flipping a field there,
+  and the recipe never restates the list.
 - **Cap the tail.** #263's four rounds were mostly *repeat families* caused by
   fixing the site a finding named. The recipe should require, on the **first**
   finding in a family, the enumeration of that family before any fix. A small
@@ -248,10 +249,10 @@ extends `#Flow`.
   the Done-when-freshness check deterministically.
 - `small-diff-review.md` exists as its own recipe, and `sdlc close` selects the
   recipe from `flow.kind`.
-- The recipe's architecture section is ARCH-DRY, ARCH-PURE and ARCH-PURPOSE,
-  selected by marker from `judge/architecture.md`. A test asserts the rendered
-  recipe carries exactly those three markers, so a registry edit cannot silently
-  widen or drift it.
+- Every entry in `judge/architecture.md` declares `quick: yes|no`, and a test
+  refuses an entry that doesn't, so a new principle cannot be added without
+  deciding. Today DRY, PURE and PURPOSE say yes. A test asserts the rendered
+  recipe carries exactly the markers marked yes.
 - The recipe requires every finding to enumerate its family across the window.
   Whether repeat families actually drop is judged after adoption, from the
   close-gate ledgers, not at this issue's close.
@@ -437,4 +438,13 @@ adoption. §1 now defines changed lines as insertions in code files, names
 finalize. §3's freshness check now anchors at `change-code` instead of `claim`,
 and names its skip flag. `## Plan` became three milestones pointing at the
 durable plan.
+
+### 2026-09-17 — the quick principles are a registry field
+
+Reason: the operator chose to set which principles the quick flow checks in the
+ARCH registry rather than in a Go list.
+
+Delta: §4 and the matching Done-when bullet now say each registry entry declares
+`quick: yes|no`, every entry must declare it, and the recipe carries exactly the
+markers marked yes.
 
