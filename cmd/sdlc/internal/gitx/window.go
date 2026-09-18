@@ -446,8 +446,8 @@ func DiscoverWindowIssues(sinceISO, untilISO, primary, selfRepo string) ([]strin
 // destination. Empty slice + nil error if there are no changes; non-nil error
 // only on hard git failures. -z keeps paths as the bytes they are: without it
 // git QUOTES a non-ASCII path ("docs/caf\303\251.md"), and every classifier
-// downstream (the atlas gate's docs rule, the quick-flow shell's code files)
-// then misreads it (#231; lessons: git's porcelain answers a human's question).
+// downstream (the atlas gate's docs rule) then misreads it (#231; lessons: git's
+// porcelain answers a human's question).
 func DiffNames(sinceRef, untilRef string) ([]string, error) {
 	cmd := exec.Command("git", "diff", "--name-only", "-z", sinceRef, untilRef)
 	out, err := cmd.Output()

@@ -67,7 +67,7 @@ func e2eFlow(t *testing.T, text string) flow.Flow {
 // TestQuickAndFullFlowsSameVerbSequence is #231's acceptance test: the agent's
 // sequence of verbs is identical on both flows, and the gates decide. A small
 // issue (one code file, no plan) stays quick and is reviewed with the
-// small-diff recipe; a large one (three code files) is inferred quick at
+// small-diff recipe; a large one (over the line limit) is inferred quick at
 // change-code — nothing about it said otherwise — and upgraded to full at close,
 // where the diff exists, and gets the full review.
 func TestQuickAndFullFlowsSameVerbSequence(t *testing.T) {
@@ -79,8 +79,7 @@ func TestQuickAndFullFlowsSameVerbSequence(t *testing.T) {
 		t.Error("small issue was not reviewed with the small-diff recipe")
 	}
 
-	prompt, text = runVerbSequence(t, 302, map[string]string{
-		"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
+	prompt, text = runVerbSequence(t, 302, overLineLimit())
 	if f := e2eFlow(t, text); f.Kind() != flow.Full || f.Provenance() != flow.Inferred {
 		t.Errorf("large issue ended %+v, want full/inferred", f)
 	}

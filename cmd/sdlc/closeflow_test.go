@@ -92,10 +92,16 @@ func TestCloseQuickWithinShellSelectsSmallDiff(t *testing.T) {
 	}
 }
 
-// TestCloseQuickCrossingShellUpgrades: three code files leave the shell — the
+// overLineLimit is a window that leaves the shell by its added lines alone,
+// spread over two files so neither file is over the limit by itself.
+func overLineLimit() map[string]string {
+	return map[string]string{"cmd/a.go": goLines(60), "cmd/b.go": goLines(60)}
+}
+
+// TestCloseQuickCrossingShellUpgrades: 120 added lines leave the shell — the
 // close records full/inferred with the measured reason and runs the full review.
 func TestCloseQuickCrossingShellUpgrades(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
+	dir := quickCloseRepo(t, 231, "", overLineLimit())
 	calls, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
@@ -107,15 +113,54 @@ func TestCloseQuickCrossingShellUpgrades(t *testing.T) {
 	if f.Kind() != flow.Full || f.Provenance() != flow.Inferred {
 		t.Errorf("flow after close = %+v, want full/inferred", f)
 	}
-	if !strings.Contains(text, "flow upgraded quick → full") || !strings.Contains(text, "3 code files") {
+	if !strings.Contains(text, "flow upgraded quick → full") || !strings.Contains(text, "120 added lines") {
 		t.Errorf("the Log does not carry the measured reason:\n%s", text)
+	}
+}
+
+// TestCloseSpreadButTinyAtTheLimit pins the shell's edge at close, on a diff
+// spread across many code files (pair#283's shape): exactly MaxAddedLines stays
+// quick however many files carry them, one line more upgrades. The file count
+// is not a limit (operator, 2026-09-18).
+func TestCloseSpreadButTinyAtTheLimit(t *testing.T) {
+	const nFiles = 7
+	spread := func(total int) map[string]string {
+		code := map[string]string{}
+		for i := 0; i < nFiles; i++ {
+			n := total / nFiles
+			if i == 0 {
+				n += total % nFiles
+			}
+			code[fmt.Sprintf("cmd/f%d.go", i)] = goLines(n)
+		}
+		return code
+	}
+	for _, c := range []struct {
+		name  string
+		total int
+		want  flow.Kind
+	}{
+		{"exactly at the limit", flow.MaxAddedLines, flow.Quick},
+		{"one line past it", flow.MaxAddedLines + 1, flow.Full},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := quickCloseRepo(t, 231, "", spread(c.total))
+			_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+			if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
+				t.Fatal(err)
+			}
+			f, text := issueFlowAfterClose(t, dir)
+			if f.Kind() != c.want || strings.Contains(*prompt, smallDiffMarker) != (c.want == flow.Quick) {
+				t.Errorf("%d lines over %d code files: flow %+v, want %s with its recipe:\n%s", c.total, nFiles, f, c.want, text)
+			}
+		})
 	}
 }
 
 // TestCloseOperatorQuickStillUpgrades: the shell is hard — an operator pin to
 // quick does not exempt a diff that leaves it.
 func TestCloseOperatorQuickStillUpgrades(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "quick", map[string]string{"cmd/a.go": goLines(flow.MaxChangedLines + 1)})
+	dir := quickCloseRepo(t, 231, "quick", map[string]string{"cmd/a.go": goLines(flow.MaxAddedLines + 1)})
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
@@ -129,7 +174,7 @@ func TestCloseOperatorQuickStillUpgrades(t *testing.T) {
 // stays quick on disk — and the re-close upgrades it (from the same window here;
 // TestCloseQuickReworkShrinkThenReclose covers a fix that shrinks it).
 func TestCloseQuickReworkThenReclose(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
+	dir := quickCloseRepo(t, 231, "", overLineLimit())
 	before := readQuick(t, dir)
 	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err == nil {
@@ -214,8 +259,8 @@ func TestMilestoneCloseUpgradesQuick(t *testing.T) {
 // TestCloseFlowLinesNoGatesigCollision: the flow lines close prints must not
 // read as gate bypasses or refusals to the friction instrument (#172).
 func TestCloseFlowLinesNoGatesigCollision(t *testing.T) {
-	quick := closeFlowOutcome{flow: mustFlow(t, "{kind: quick, provenance: inferred}"), size: flow.Size{CodeFiles: []string{"a.go"}, AddedLines: 3}}
-	up := closeFlowOutcome{flow: flow.Upgrade(quick.flow), crossings: []string{"3 code files changed (limit 2): a, b, c"}}
+	quick := closeFlowOutcome{flow: mustFlow(t, "{kind: quick, provenance: inferred}"), size: flow.Size{AddedLines: 3}}
+	up := closeFlowOutcome{flow: flow.Upgrade(quick.flow), crossings: flow.Size{AddedLines: flow.MaxAddedLines + 1}.Crossings()}
 	for _, o := range []closeFlowOutcome{quick, up} {
 		assertNoGatesigCollision(t, "\x1b[1;36m==>\x1b[0m "+closeFlowLine(o))
 	}
@@ -231,14 +276,14 @@ func readQuick(t *testing.T, issuesDir string) string {
 	return string(b)
 }
 
-// TestCloseQuickReworkShrinkThenReclose is #231 BR-18's reproduction: three code
-// files get the full review; it returns REWORK; the fix DELETES a file, so the
-// net diff is back inside the shell. The next round must still be the full
-// review — the earlier full round is recorded in the boundary ledger, and a
-// quick issue that already needed the full review does not get easier to close
-// by shrinking.
+// TestCloseQuickReworkShrinkThenReclose is #231 BR-18's reproduction: a window
+// over the line limit gets the full review; it returns REWORK; the fix DELETES a
+// file, so the net diff is back inside the shell. The next round must still be
+// the full review — the earlier full round is recorded in the boundary ledger,
+// and a quick issue that already needed the full review does not get easier to
+// close by shrinking.
 func TestCloseQuickReworkShrinkThenReclose(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
+	dir := quickCloseRepo(t, 231, "", overLineLimit())
 	_, first := stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err == nil {
 		t.Fatal("a REWORK verdict should not finalize")
@@ -246,9 +291,9 @@ func TestCloseQuickReworkShrinkThenReclose(t *testing.T) {
 	if strings.Contains(*first, smallDiffMarker) {
 		t.Fatal("precondition: the first round must be the full review")
 	}
-	os.Remove("cmd/c.go")
+	os.Remove("cmd/b.go")
 	testfixGit(t, "add", "-A")
-	testfixGit(t, "commit", "-q", "-m", "#231: drop c")
+	testfixGit(t, "commit", "-q", "-m", "#231: drop b")
 
 	_, second := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
@@ -310,10 +355,11 @@ func TestCloseQuickSmallDiffReworkStaysQuick(t *testing.T) {
 
 // TestCloseNonASCIIPathsClassifyAsThemselves: git quotes non-ASCII paths unless
 // told not to, and a quoted "docs/caf\303\251.md" is not a doc to the classifier.
-// Two such docs beside one code file must stay inside the shell.
+// Docs and a test with such names, each over the line limit by itself, beside
+// one small code file must stay inside the shell.
 func TestCloseNonASCIIPathsClassifyAsThemselves(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "", map[string]string{
-		"cmd/a.go": goLines(5), "docs/café.md": "x\n", "docs/naïve.md": "y\n", "tests/überprüfung_spec.lua": goLines(300)})
+		"cmd/a.go": goLines(5), "docs/café.md": goLines(150), "docs/naïve.md": goLines(150), "tests/überprüfung_spec.lua": goLines(300)})
 	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
@@ -327,7 +373,7 @@ func TestCloseNonASCIIPathsClassifyAsThemselves(t *testing.T) {
 // without -z (a double quote in it) must still have its lines counted — over
 // the limit, it upgrades.
 func TestCloseQuotedNameCodeFileLinesCount(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a\"b.go": goLines(flow.MaxChangedLines + 50)})
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a\"b.go": goLines(flow.MaxAddedLines + 50)})
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)

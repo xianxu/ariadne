@@ -287,17 +287,18 @@ documented in prose by `sdlc issue --help`.
 ## The quick flow at close (#231)
 
 `internal/flow` is the pure core: the one-line `flow:` record codec, `Decide`
-(change-code's inference), the hard-shell limits (`MaxCodeFiles`,
-`MaxChangedLines`, rendered by `ShellSummary` into help via `{{QUICK_SHELL}}`),
+(change-code's inference), the hard-shell limit (`MaxAddedLines`, rendered with
+the Mx rule by `ShellSummary` into help via `{{QUICK_SHELL}}`),
 `Measure`/`Crossings`, the contract hashes and the Done-when checks. On a quick
 issue, `computeClose` (`closeflow.go`) measures the window the atlas gate and the
-review already use — code files via `churn.IsCodeFile`, added lines via numstat,
+review already use — added lines in code files (`churn.IsCodeFile`) via numstat,
 and the Plan's Mx rows. Outside the shell it composes an upgrade to
 full/inferred (written at finalize); inside, the dispatch runs the
-`small-diff-review` recipe. The shell measures size only, not where a change
-lands: there is no shared-surface declaration (removed after the first trial
-reading, 2026-09-18 — for a diff this small, tests and the one close review
-are the guard).
+`small-diff-review` recipe. The shell measures size only: neither how many
+files a change spreads across nor where it lands counts (the file-count limit
+and the shared-surface declaration were removed after the first trial reading,
+2026-09-18 — for a diff this small, tests and the one close review are the
+guard).
 
 ## Fleet inventory and policy (`sdlc fleet`, #200)
 

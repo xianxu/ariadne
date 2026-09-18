@@ -9,8 +9,7 @@ import (
 
 // Size is what the close-time shell check measures of a review window (#231).
 type Size struct {
-	CodeFiles  []string // changed code files (churn.IsCodeFile), in diff order
-	AddedLines int      // insertions in those files — git's `+` count, as churn reports it
+	AddedLines int      // insertions in code files (churn.IsCodeFile) — git's `+` count, as churn reports it
 	Milestones []string // Mx rows in the Plan
 	// EarlierFullReview: an earlier round of this close already ran the full
 	// review (a REWORK). Sticky, so a fix that shrinks the diff cannot send the
@@ -19,22 +18,12 @@ type Size struct {
 	LedgerErr         error // the boundary ledger could not be read
 }
 
-// Measure sizes a window. files is the window's changed paths as git reports
-// them with rename detection on — a rename is its destination — which is what
-// the window CHANGED, so code files are counted over it (a binary, which numstat
-// cannot count, still counts as a file). stats are the numstat rows, summed over
-// code files only. Pure.
-func Measure(files []string, stats []churn.FileStat, milestones []string) Size {
+// Measure sizes a window from its numstat rows — a rename is its destination —
+// summing the insertions of code files only. Pure.
+func Measure(stats []churn.FileStat, milestones []string) Size {
 	size := Size{Milestones: milestones}
-	code := map[string]bool{}
-	for _, f := range files {
-		if churn.IsCodeFile(f) {
-			size.CodeFiles = append(size.CodeFiles, f)
-			code[f] = true
-		}
-	}
 	for _, st := range stats {
-		if code[st.Path] {
+		if churn.IsCodeFile(st.Path) {
 			size.AddedLines += st.Insertions
 		}
 	}
@@ -46,11 +35,8 @@ func Measure(files []string, stats []churn.FileStat, milestones []string) Size {
 // too: it fails toward the full flow rather than past it.
 func (s Size) Crossings() []string {
 	var out []string
-	if n := len(s.CodeFiles); n > MaxCodeFiles {
-		out = append(out, fmt.Sprintf("%d code files changed (limit %d): %s", n, MaxCodeFiles, capList(s.CodeFiles)))
-	}
-	if s.AddedLines > MaxChangedLines {
-		out = append(out, fmt.Sprintf("%d added lines in code files (limit %d)", s.AddedLines, MaxChangedLines))
+	if s.AddedLines > MaxAddedLines {
+		out = append(out, fmt.Sprintf("%d added lines in code files (limit %d)", s.AddedLines, MaxAddedLines))
 	}
 	if len(s.Milestones) > 0 {
 		out = append(out, "the Plan has Mx milestones: "+strings.Join(s.Milestones, ", "))
@@ -69,14 +55,3 @@ func (s Size) Crossings() []string {
 // since only the quick flow uses them. The only way a gate moves a flow; there
 // is no downgrade.
 func Upgrade(Flow) Flow { return Flow{kind: Full, provenance: Inferred} }
-
-// listCap bounds how many paths a crossing names: the reason lands on one Log
-// line, and a hundred-file diff needs its count, not its inventory.
-const listCap = 5
-
-func capList(paths []string) string {
-	if len(paths) <= listCap {
-		return strings.Join(paths, ", ")
-	}
-	return fmt.Sprintf("%s, and %d more", strings.Join(paths[:listCap], ", "), len(paths)-listCap)
-}

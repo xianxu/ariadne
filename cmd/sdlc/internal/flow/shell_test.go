@@ -8,11 +8,10 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
 )
 
-// TestMeasure: code files come from the file list (so a binary, which numstat
-// cannot count, still counts as a file), lines from the numstat rows of code
-// files only; tests and docs are neither.
+// TestMeasure: lines come from the numstat rows of code files only — tests and
+// docs never count — and however many code files a window spreads across, only
+// their added lines are summed (pair#283's shape: seven files, a few lines each).
 func TestMeasure(t *testing.T) {
-	files := []string{"cmd/a.go", "cmd/a_test.go", "README.md", "assets/logo.png", "tests/x_spec.lua", "construct/vocabulary/issue.cue"}
 	stats := []churn.FileStat{
 		{Path: "cmd/a.go", Insertions: 30},
 		{Path: "cmd/a_test.go", Insertions: 400},
@@ -20,24 +19,16 @@ func TestMeasure(t *testing.T) {
 		{Path: "tests/x_spec.lua", Insertions: 70},
 		{Path: "construct/vocabulary/issue.cue", Insertions: 5},
 	}
-	got := Measure(files, stats, []string{"M1"})
-	if strings.Join(got.CodeFiles, ",") != "cmd/a.go,assets/logo.png,construct/vocabulary/issue.cue" {
-		t.Errorf("CodeFiles = %v", got.CodeFiles)
+	for i := 0; i < 7; i++ {
+		stats = append(stats, churn.FileStat{Path: "internal/f" + string(rune('a'+i)) + ".go", Insertions: 4})
 	}
-	if got.AddedLines != 35 {
-		t.Errorf("AddedLines = %d, want 35 (tests and docs excluded)", got.AddedLines)
+	got := Measure(stats, []string{"M1"})
+	if got.AddedLines != 63 {
+		t.Errorf("AddedLines = %d, want 63 (30 + 5 + 7×4; tests and docs excluded)", got.AddedLines)
 	}
 	if strings.Join(got.Milestones, ",") != "M1" {
 		t.Errorf("Milestones = %v", got.Milestones)
 	}
-}
-
-func files(n int) []string {
-	var out []string
-	for i := 0; i < n; i++ {
-		out = append(out, "cmd/f"+string(rune('a'+i))+".go")
-	}
-	return out
 }
 
 // TestCrossings pins each limit at its edge: exactly at the limit stays inside
@@ -48,16 +39,15 @@ func TestCrossings(t *testing.T) {
 		size Size
 		want []string // substrings, one per expected reason
 	}{
-		{"at both limits", Size{CodeFiles: files(MaxCodeFiles), AddedLines: MaxChangedLines}, nil},
+		{"at the line limit", Size{AddedLines: MaxAddedLines}, nil},
 		{"empty", Size{}, nil},
-		{"one file too many", Size{CodeFiles: files(MaxCodeFiles + 1)}, []string{"code files"}},
-		{"one line too many", Size{AddedLines: MaxChangedLines + 1}, []string{"added lines"}},
+		{"one line too many", Size{AddedLines: MaxAddedLines + 1}, []string{"added lines"}},
 		{"Mx milestones", Size{Milestones: []string{"M1"}}, []string{"milestones"}},
 		{"an earlier full round", Size{EarlierFullReview: true}, []string{"earlier round"}},
 		{"unreadable ledger", Size{LedgerErr: errors.New("corrupt")}, []string{"ledger"}},
-		{"everything", Size{CodeFiles: files(3), AddedLines: 500, Milestones: []string{"M1"},
+		{"everything", Size{AddedLines: 500, Milestones: []string{"M1"},
 			EarlierFullReview: true, LedgerErr: errors.New("e")},
-			[]string{"code files", "added lines", "milestones", "earlier round", "ledger"}},
+			[]string{"added lines", "milestones", "earlier round", "ledger"}},
 	}
 	for _, c := range cases {
 		got := c.size.Crossings()
@@ -82,14 +72,5 @@ func TestUpgrade(t *testing.T) {
 	}
 	if got := Upgrade(q); got != (Flow{kind: Full, provenance: Inferred}) {
 		t.Errorf("Upgrade = %+v, want full/inferred with no hashes", got)
-	}
-}
-
-// TestCrossingsCapTheFileList: a crossing's reason lands on one Log line, so a
-// large diff names a bounded sample and the count, not every path.
-func TestCrossingsCapTheFileList(t *testing.T) {
-	got := Size{CodeFiles: files(12)}.Crossings()
-	if len(got) != 1 || !strings.Contains(got[0], "12 code files") || !strings.Contains(got[0], "and 7 more") {
-		t.Errorf("Crossings = %v, want the count and a capped list", got)
 	}
 }

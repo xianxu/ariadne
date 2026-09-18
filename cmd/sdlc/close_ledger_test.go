@@ -178,7 +178,7 @@ func TestAppendCalibrationRow_DriftWarns(t *testing.T) {
 // with no record reads as full (#231).
 func TestAppendCalibrationRow_FlowColumns(t *testing.T) {
 	quick := closeFlowOutcome{flow: mustFlow(t, "{kind: quick, provenance: inferred}")}
-	upgraded := closeFlowOutcome{flow: flow.Upgrade(quick.flow), crossings: []string{"3 code files changed"}}
+	upgraded := closeFlowOutcome{flow: flow.Upgrade(quick.flow), crossings: []string{"101 added lines in code files (limit 100)"}}
 	for _, c := range []struct {
 		name string
 		fl   closeFlowOutcome
