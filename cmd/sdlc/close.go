@@ -1667,19 +1667,6 @@ func explainNoAtlas(stderr io.Writer, windowBaseShort string, nonAtlas []string)
 
 // ── milestone-verdict guard ──────────────────────────────────────────────────
 
-// milestonePlanRE matches a ticked-or-unticked milestone bullet at the
-// start of a plan-section line:
-//
-//   - [x] **M1 — scaffold …
-//   - [ ] **M4b — port milestone-close
-//   - [.] **M5 — wip
-//
-// Captures the milestone tag (group 1, e.g. "M1" or "M4b"). The bold
-// asterisks are typical but not strictly required — we accept both the
-// emphasized and plain forms so the regex doesn't drift away from
-// existing issue files that vary the formatting.
-var milestonePlanRE = regexp.MustCompile(`(?m)^- \[[ x.]\] \*{0,2}(M\d+[a-z]?)\b`)
-
 // partitionMissingVerdicts splits the missing-verdict milestones by plan
 // position relative to the LAST verdict-carrying milestone (#175). Missing
 // rows before it are "midstream" — a later boundary was crossed with no
@@ -1712,27 +1699,6 @@ func partitionMissingVerdicts(ordered, missing []string) (midstream, trailing []
 	return midstream, trailing
 }
 
-// milestonesInPlanOrder enumerates the milestone tags in a Plan body, in plan
-// order, de-duplicated (a milestone may appear twice if the plan was revised).
-//
-// PURE, and split out for that reason (#211 close review): the enumeration is
-// what "a fenced heading no longer hides M2" is about, and folding it into
-// findMilestonesMissingVerdict meant testing it required `git log` — so the
-// issue's central regression failed outside a git worktree, on an error raised
-// after the fact under test was already decided. Same ARCH-PURE shape as
-// TickMilestone's extraction on the write side.
-func milestonesInPlanOrder(planBody string) []string {
-	var ordered []string
-	seen := map[string]bool{}
-	for _, mm := range milestonePlanRE.FindAllStringSubmatch(planBody, -1) {
-		if tag := mm[1]; !seen[tag] {
-			seen[tag] = true
-			ordered = append(ordered, tag)
-		}
-	}
-	return ordered
-}
-
 // findMilestonesMissingVerdict enumerates milestones in the issue body's
 // `## Plan` section and returns them in plan order (ordered), plus the
 // tags of any whose close commit lacks a `Review-Verdict:` trailer
@@ -1756,7 +1722,7 @@ func findMilestonesMissingVerdict(body, issueStr, issuePath string) (ordered, mi
 		// the operator may be closing an issue that never had milestones.
 		return nil, nil, nil
 	}
-	ordered = milestonesInPlanOrder(planBody)
+	ordered = issue.MilestonesInPlanOrder(planBody)
 	if len(ordered) == 0 {
 		return nil, nil, nil
 	}

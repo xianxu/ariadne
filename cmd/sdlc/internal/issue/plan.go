@@ -80,3 +80,43 @@ func TickMilestone(body, milestone string) (string, int) {
 	}
 	return body[:start] + strings.Join(lines, "\n") + body[end:], n
 }
+
+// milestonePlanRE matches a ticked-or-unticked milestone bullet at the
+// start of a plan-section line:
+//
+//   - [x] **M1 — scaffold …
+//   - [ ] M4b: port milestone-close
+//   - [.] **M5 — wip
+//
+// Captures the milestone tag (group 1, e.g. "M1" or "M4b"). The bold
+// asterisks are typical but not strictly required, and the tag may be followed
+// by any separator (em dash, colon, space) — accepting every form existing issue
+// files use is the point: #231 retired a colon-only sibling in sizing.go that
+// reported zero milestones for the dominant em-dash form.
+var milestonePlanRE = regexp.MustCompile(`(?m)^- \[[ x.]\] \*{0,2}(M\d+[a-z]?)\b`)
+
+// MilestonesInPlanOrder enumerates the milestone tags in a Plan body, in plan
+// order, de-duplicated (a milestone may appear twice if the plan was revised).
+// It is the ONE milestone enumeration: close's verdict gate, the worktree sizing
+// hint and change-code's flow inference all read milestones through it (#231).
+//
+// PURE, and split out for that reason (#211 close review): the enumeration is
+// what "a fenced heading no longer hides M2" is about, and folding it into
+// findMilestonesMissingVerdict meant testing it required `git log` — so the
+// issue's central regression failed outside a git worktree, on an error raised
+// after the fact under test was already decided. Same ARCH-PURE shape as
+// TickMilestone's extraction on the write side.
+//
+// Callers must pass the fence-filtered body from PlanItemsBody; the raw section
+// would surface milestones quoted inside a fenced example.
+func MilestonesInPlanOrder(planBody string) []string {
+	var ordered []string
+	seen := map[string]bool{}
+	for _, mm := range milestonePlanRE.FindAllStringSubmatch(planBody, -1) {
+		if tag := mm[1]; !seen[tag] {
+			seen[tag] = true
+			ordered = append(ordered, tag)
+		}
+	}
+	return ordered
+}

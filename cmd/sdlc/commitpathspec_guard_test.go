@@ -312,7 +312,7 @@ var guardScanDirs = []string{".", "internal/issue"}
 // the #208 rule: a hand-maintained restatement of the model stops covering the
 // sixth member the day someone adds it, and says nothing while it does.
 var planItemMatchers = []string{
-	"PlanUncheckedRE", "PlanItemRE", "nonEmptyPlanItemRE", "milestonePlanRE", "milestoneLabelRE",
+	"PlanUncheckedRE", "PlanItemRE", "nonEmptyPlanItemRE", "milestonePlanRE",
 }
 
 // planItemReaderExemptions holds a function that uses one of the counting
@@ -324,7 +324,7 @@ var planItemMatchers = []string{
 // derivation never classes it as a reader. An entry added for it was rejected by
 // the stale check on exactly that ground.
 var planItemReaderExemptions = map[string]string{
-	"close.go:milestonesInPlanOrder": "a PURE helper that RECEIVES an already-filtered plan body. " +
+	"internal/issue/plan.go:MilestonesInPlanOrder": "a PURE helper that RECEIVES an already-filtered plan body. " +
 		"Exempt here and covered by planItemBodySources instead: extracting the regex into this " +
 		"helper moved milestonePlanRE out of its caller, which silently dropped that caller from " +
 		"this derivation — so the edge is named explicitly rather than assumed",
@@ -340,7 +340,7 @@ var planItemReaderExemptions = map[string]string{
 // guard", then reverted that caller and nothing fired. The rationale was false.
 var planItemBodySources = []wiring{
 	{"close.go", "findMilestonesMissingVerdict", "PlanItemsBody",
-		"obtains the plan body for milestonesInPlanOrder; the raw section would " +
+		"obtains the plan body for issue.MilestonesInPlanOrder; the raw section would " +
 			"surface milestones quoted inside a fenced example and demand review evidence for them"},
 }
 

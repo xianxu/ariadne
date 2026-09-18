@@ -2,7 +2,6 @@ package issue
 
 import (
 	"fmt"
-	"regexp"
 	"strconv"
 	"strings"
 )
@@ -62,7 +61,7 @@ func ComputeSizingFromContent(text string) Sizing {
 
 	if section, ok := PlanItemsBody(body); ok {
 		s.PlanItems = len(PlanItemRE.FindAllStringIndex(section, -1))
-		s.Milestones = len(milestoneLabelRE.FindAllStringIndex(section, -1))
+		s.Milestones = len(MilestonesInPlanOrder(section))
 	}
 
 	if sec, ok := SectionBody(body, "Spec"); ok {
@@ -90,11 +89,6 @@ func bucketFor(s Sizing) Bucket {
 	}
 	return BucketMedium
 }
-
-// milestoneLabelRE matches plan items that start with a milestone tag
-// like `M1:`, `M4b:`, `M12c:`. Anchored against the plan-item bullet
-// shape so a stray "M5" elsewhere doesn't count.
-var milestoneLabelRE = regexp.MustCompile(`(?m)^- \[[ x.]\] (?:\*\*)?M\d+[a-z]?:`)
 
 // countFrontmatterList counts comma-separated items inside a YAML
 // inline list like `[a, b, c]`. Returns 0 for `[]` or unparseable

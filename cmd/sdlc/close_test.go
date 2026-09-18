@@ -422,8 +422,8 @@ func TestRunClose_NoActualWritesNotApplicableSentinel(t *testing.T) {
 
 // TestMilestonePlanRE_Enumerates verifies the plan-section milestone
 // regex picks up the tags whether or not the milestone label is
-// emphasized with `**`. Drives findMilestonesMissingVerdict via the
-// shared milestonePlanRE.
+// emphasized with `**`. Drives the one enumeration findMilestonesMissingVerdict
+// uses, issue.MilestonesInPlanOrder (#231 moved it into internal/issue).
 func TestMilestonePlanRE_Enumerates(t *testing.T) {
 	body := `## Plan
 
@@ -441,11 +441,7 @@ func TestMilestonePlanRE_Enumerates(t *testing.T) {
 	if !ok {
 		t.Fatal("plan section not found")
 	}
-	matches := milestonePlanRE.FindAllStringSubmatch(planBody, -1)
-	got := make([]string, 0, len(matches))
-	for _, m := range matches {
-		got = append(got, m[1])
-	}
+	got := issue.MilestonesInPlanOrder(planBody)
 	want := []string{"M1", "M2", "M3", "M4b", "M10"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("milestones = %v, want %v", got, want)
