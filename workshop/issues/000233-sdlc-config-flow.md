@@ -143,6 +143,18 @@ One consequence of the split: failing the authority-surface criterion now routes
 to the full flow, not to `sdlc quick`, because #231's quick recipe no longer
 checks ARCH-SECURE.
 
+### 2026-09-18
+
+#231 removed its shared-surface declaration (`.sdlc/shared-surfaces`), ariadne's
+included, on the operator's call after the first trial reading. A surface
+measures blast radius, not bug profile, so the quick shell now measures size
+alone. Spec criteria (1) and (3) planned to reuse that declaration's format and
+mechanism, and the Plan's first decision asks whether the declarative set is a
+facet of it. None of that exists any more. When #233 is designed, criterion (1),
+the declarative set, and criterion (3), "no declared authority surface moved",
+each need their own answer. The operator's stance that the declaration is not
+worth its rule is part of what that answer weighs.
+
 ## Revisions
 
 ### 2026-09-17 — flows are frontmatter, set by existing verbs

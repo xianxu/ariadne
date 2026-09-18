@@ -120,21 +120,21 @@ there.
 
 **The hard shell.** "Is this small?" is exactly the call that gets made wrong
 (#263 looked like one keybinding), so the inference at entry is not trusted
-either. A quick issue must stay inside all four limits, whatever its provenance:
+either. A quick issue must stay inside both limits, whatever its provenance:
 
-- At most 2 code files changed.
-- At most 100 changed lines, counted as insertions in code files — the number
-  the churn report and calibration ledger already use.
-- No declared shared surface touched. A repo declares its shared surfaces in
-  `.sdlc/shared-surfaces`, one path pattern per line (for
-  parley: the keybinding registry, `config.lua`'s option schema,
-  `construct/vocabulary/*.cue`, any cross-module seam). This is the criterion
-  that would have caught #263 — the *feature* was one chord, but it touched the
-  registry, and registry-shaped work grows guard generalizations and
-  cross-module extractions whatever its headline size.
+- At most 100 added lines in code files, counted as insertions — the number the
+  churn report and calibration ledger already use. Deleted lines do not count,
+  and neither does how many files the lines spread across.
 - No `Mx` milestones.
 
-Crossing any one limit crosses the shell. Code files exclude tests, docs and the
+The shell measures size, not reach. How many files a change spreads across and
+where in the tree it lands both shape its blast radius, not its bug profile, and
+under 100 lines the tests (plus a smoke test where needed) and the one close
+review are the guard. In ariadne, where sdlc runs from the branch under review,
+a quick change to sdlc is closed by the binary it just changed; that review sees
+the diff.
+
+Crossing either limit crosses the shell. Code files exclude tests, docs and the
 process trees (`workshop/`, `atlas/`) — except markdown under `cmd/`, which ships
 in the binary and counts — so writing a test never pushes a change out of the
 quick flow. (`churn.CodeFileRule` states it where the classifier lives.) The limits are single-sourced in the binary: the
@@ -227,8 +227,7 @@ full review with no special case.
 
 The declarative tier — a config change admitted on mechanical facts, with no
 close review at all — is now its own flow, `kind: config`, tracked in #233. This
-issue does not depend on it. #233 builds on §1's shared-surface declaration and
-extends `#Flow`.
+issue does not depend on it. #233 extends `#Flow`.
 
 ## Done when
 
@@ -244,12 +243,11 @@ extends `#Flow`.
   `--flow quick` is refused on a Plan with `Mx` rows.
 - On the quick flow, no durable plan, plan-quality judge, structured estimate or
   `change-code` structural gate runs. `sdlc close` is the only review gate.
-- A repo can declare its shared surfaces.
-- A quick issue that crosses the hard shell — more than 2 code files, more than
-  100 changed lines, a declared shared surface, or an `Mx` row — is upgraded to
-  `{kind: full, provenance: inferred}` by the gate that finds it, whatever its
-  provenance, with the measured reason in the Log, and gets the full review at
-  close. No gate downgrades. Tests pin each limit: exactly at it stays quick,
+- A quick issue that crosses the hard shell — more than 100 added lines in code
+  files, or an `Mx` row — is upgraded to `{kind: full, provenance: inferred}` by
+  the gate that finds it, whatever its provenance, with the measured reason in
+  the Log, and gets the full review at close. No gate downgrades. Tests pin the
+  line limit: exactly at it stays quick however many files carry the lines, and
   one past it upgrades.
 - An end-to-end test drives the same verb sequence (claim → change-code → close)
   through a small issue and a large one, and each lands on the right flow and
@@ -515,6 +513,44 @@ yet: should spread-but-tiny work skip the durable plan? And should a
 substantial in-issue `## Plan` count toward full, via the plan-item count
 `issue.ComputeSizingFromContent` already computes?
 
+### 2026-09-18 — trial reading, and the shell narrowed to lines
+
+The trial evidence, from every fleet repo with work since the branch went live
+(9/17, about 20:40):
+
+- **No issue has taken the quick flow yet** in pair, parley.nvim or tools. None
+  stayed quick, none was upgraded at close, none was pinned.
+- **pair#283** closed full because of its durable plan. Its first change-code
+  inferred **quick**, because the plan's file name missed #235's exact-name
+  lookup. The agent noticed, renamed the plan and re-ran, and got full. So #235
+  is an admission bug, not a nit: a plan-bearing issue can silently skip
+  plan-quality and get the small-diff review.
+- **tools#70** is full through its Mx rows and its plan. It is still open.
+- **pair#262 and pair#280 are not trial data.** At 20:30 on 9/17 ariadne's tree
+  failed to compile mid-edit. The pair session built sdlc from ariadne's
+  committed HEAD (main's sdlc) in its scratchpad and used that binary for the
+  rest of the session. Every repo's `sdlc` builds from ariadne's working tree, so
+  trial fixes are now made in a worktree and land on the branch only when
+  green.
+- **pair#283 is a case the quick flow could have sped up:** 7 code files, 30
+  added lines, and a 427-line plan that plan-quality passed in round 1. Its
+  review was right, but the plan was not earned.
+- The operator's first pick for a quick trial was pair#282, which turned out
+  more involved. tools#76, a deletion, is now in progress.
+
+The operator's decisions on this reading, recorded under Revisions:
+
+- Spread-but-tiny work is simple work. The shell drops the file-count limit and
+  keeps 100 added lines in code files, plus the Mx rule.
+- Shared surfaces are gone, ariadne's build-closure declaration included. That
+  reverses the entry above ("ariadne keeps its full build-closure
+  declaration"): a surface measures blast radius, not bug profile, and under the
+  line limit the tests and the one close review are the guard.
+- A sizeable in-issue `## Plan` stays out of inference.
+
+Keep watching the trial for quick issues, and for an issue in the quick flow
+that a file-count or location rule would have caught.
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
@@ -654,4 +690,26 @@ declared shared surface (`cmd/sdlc/`, `pkg/`, `go.mod`, `go.sum`), because sdlc
 runs from the branch under review. Consequence to know: code changes to sdlc in
 ariadne always take the full flow. The quick flow in ariadne covers everything
 else, and in every other repo the shell is as specified.
+
+### 2026-09-18 — the shell is 100 added lines and Mx rows; shared surfaces removed
+
+Reason: the operator's decisions after the first trial reading (Log,
+2026-09-18). Spread-but-tiny changes such as pair#283 are simple work. A shared
+surface measures blast radius, not bug profile, and for a change under 100 lines
+the operator relies on tests (plus a smoke test where needed) and the one close
+review.
+
+Delta:
+
+- §1's shell is two limits, 100 added lines in code files and no `Mx` rows. The
+  2-code-file limit is gone, and so is the shared-surface criterion with its
+  `.sdlc/shared-surfaces` declaration, ariadne's build-closure declaration
+  included. That supersedes the previous revision's ariadne consequence: sdlc
+  code changes in ariadne can now take the quick flow, and are then closed by
+  the binary they changed. §1 says why the shell measures size, not reach.
+- §5 no longer says #233 builds on the declaration.
+- Done when: dropped "A repo can declare its shared surfaces". The upgrade
+  bullet lists the two limits, and its tests pin the line limit at 100 and 101,
+  across many files.
+- An in-issue `## Plan` stays out of inference; unchanged.
 

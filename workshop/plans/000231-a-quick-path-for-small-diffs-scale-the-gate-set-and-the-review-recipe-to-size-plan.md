@@ -21,11 +21,10 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 | `Flow`, `Kind`, `Provenance` | `cmd/sdlc/internal/flow/flow.go` | new |
 | `flow.Parse` / `flow.Format` / `flow.FromFrontmatter` | `cmd/sdlc/internal/flow/flow.go` | new |
 | `flow.Decide` | `cmd/sdlc/internal/flow/flow.go` | new |
-| `flow.MaxCodeFiles`, `flow.MaxChangedLines`, `flow.ShellSummary` | `cmd/sdlc/internal/flow/limits.go` | new |
+| `flow.MaxAddedLines`, `flow.ShellSummary` | `cmd/sdlc/internal/flow/limits.go` | new |
 | `flow.ContractHashes` | `cmd/sdlc/internal/flow/donewhen.go` | new |
 | `flow.DoneWhenPresent`, `flow.DoneWhenFresh` | `cmd/sdlc/internal/flow/donewhen.go` | new |
 | `flow.Measure`, `flow.Crossings` | `cmd/sdlc/internal/flow/shell.go` | new |
-| `flow.Surfaces`, `flow.ParseSurfaces` | `cmd/sdlc/internal/flow/surfaces.go` | new |
 | `issue.MilestonesInPlanOrder` | `cmd/sdlc/internal/issue/plan.go` | modified (moved from `close.go`) |
 | `issue.HasDoneWhenBullet` | `cmd/sdlc/internal/issue/structural.go` | new (factored out of `checkDoneWhen`) |
 | `churn.IsDoc`, `churn.IsEmbedded`, `churn.IsCodeFile` | `cmd/sdlc/internal/churn/classify.go` | new |
@@ -51,17 +50,14 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
   4. A recorded operator flow stands.
   5. A recorded `full` stands, because gates never downgrade.
   6. Otherwise the result is `{full if HasPlan else quick, inferred}`.
-- **Limits** — `MaxCodeFiles = 2`, `MaxChangedLines = 100`. `ShellSummary()` renders the one sentence that start-plan, the help tokens and error text all use.
+- **Limits** — `MaxAddedLines = 100`, plus the Mx rule; no file-count limit (2026-09-18 revision). `ShellSummary()` renders the one sentence that start-plan, the help tokens and error text all use.
   - **DRY rationale:** the numbers live once. The constitution points at `sdlc change-code --help` instead of restating them.
 - **ContractHashes / DoneWhenPresent / DoneWhenFresh** — the Done-when checks are pure over the issue, with no git archaeology.
   - `ContractHashes(body) (spec, done string)` hashes the fence-aware section bodies. `spec` covers `## Spec` + `## Revisions`, because the constitution records a mid-stream reframe by appending Revisions (PQ-2). `done` covers `## Done when`. Each hash is the 8-hex prefix of sha256 over whitespace-trimmed text.
   - change-code writes both into the quick record on every run, so the anchor moves whenever the contract is re-fixed (PQ-6).
   - `DoneWhenPresent(body) error` requires a Done-when bullet; `related:` does not count, because this is the review's oracle.
   - `DoneWhenFresh(rec Flow, body) error` refuses when the recorded `spec` differs from the current one and `done` does not. A record without hashes means "no anchor" and refuses with the fix named: re-run `sdlc change-code`, or pass `--no-done-when-fresh`.
-- **Measure / Crossings** — `Measure(files []string, stats []churn.FileStat, s Surfaces, milestones []string) Size` counts code files (via `churn.IsCodeFile`), the insertions in those files, the shared surfaces touched and the Mx rows. `Crossings(Size) []string` returns one reason per crossed limit, or nil.
-- **Surfaces** — parsed from `.sdlc/shared-surfaces`: one `path.Match` pattern per line, `#` comments, and a trailing `/` meaning "anything under". The declaration file always matches itself.
-  - Close parses the committed file at the window base and at HEAD and takes the union. A branch can add a surface but cannot remove one from its own shell, and an uncommitted edit is never read (PQ-5).
-  - A malformed line is an error, which close turns into a crossing, so it fails toward `full`.
+- **Measure / Crossings** — `Measure(stats []churn.FileStat, milestones []string) Size` sums the insertions of code files (via `churn.IsCodeFile`) from the window's numstat rows, and carries the Mx rows. `Crossings(Size) []string` returns one reason per crossed limit, or nil.
 - **churn classifiers** — `IsDoc` is #177's per-path docs rule and `IsEmbedded` is #174's `cmd/` rule. `IsCodeFile(p) = ClassifyPath(p) == CodeProd && (!IsDoc(p) || IsEmbedded(p))`. `hasCodePath` and `publishGateHasCodeSurface` become `any()` loops over these, giving one per-path rule with three readings.
   - `isTestPath` widens to the non-Go layouts the fleet uses: `*_spec.lua`, `*_test.lua`, `*_test.py`, `test_*.py`, `*.test.*`, `*.spec.*`, and path segments `test`, `tests`, `spec`, `__tests__`, `testdata`.
   - That shifts what `churn_prod`/`churn_test` mean for non-Go repos from this issue onward. `ledger-landscape.md` and the Log record the cut-over (PQ-7).
@@ -77,7 +73,7 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 |------|----------|--------|-------|
 | change-code flow step | `cmd/sdlc/changecode.go` | modified | issue file read/write, plan-file lookup |
 | start-plan guidance | `cmd/sdlc/startplan.go` | modified | stdout |
-| close shell + Done-when step | `cmd/sdlc/close.go` (`computeClose`) | modified | `git diff --numstat`, `git show <rev>:.sdlc/shared-surfaces` |
+| close shell + Done-when step | `cmd/sdlc/close.go` (`computeClose`) | modified | `git diff --numstat -z` |
 | recipe selection | `cmd/sdlc/milestoneclose.go` (`boundaryReviewParams`, `boundaryReviewDispatchOptions`) | modified | judge subprocess (`judge.Run` seam) |
 | calibration row | `cmd/sdlc/close.go` (`appendCalibrationRow`) | modified | brain TSV append |
 | help tokens | `cmd/sdlc/main.go` (`renderLong`) | modified | embedded helptext |
@@ -97,7 +93,7 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 
 ## Decisions and architecture
 
-- **Changed lines** are insertions in code files — git's `+` count, the same number the churn report and ledger use. Files are counted from `--name-only`, so a binary change still counts as a file.
+- **Added lines** are insertions in code files — git's `+` count, the same number the churn report and ledger use. Deleted lines do not count, and neither does the number of files the lines spread across (2026-09-18 revision).
 - **The upgrade is recorded at finalize.** `computeClose` writes nothing, and a REWORK leaves the issue unwritten (#139). Stickiness across rounds comes from the boundary ledger instead: each round records the `Recipe` it ran, and an earlier full-review round is a crossing (`Size.EarlierFullReview`). A fix that shrinks the diff after a full-review REWORK therefore stays full (BR-18). An unstamped round predates #231 and reads as full; a small-diff round does not.
 - **Every surface that routes work into a durable plan becomes flow-conditional (PQ-1).**
   - The directive surfaces were derived with `git grep -n -E 'superpowers-writing-plans|durable plan|writing-plans skill|plan-quality|estimate_hours'`, over agent-facing files outside `workshop/`:
@@ -111,21 +107,20 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
     - `construct/adapted/superpowers-brainstorming/SKILL.md:43,60,76,149` (with a Conversation entry in `construct/intents/superpowers.md`, per lessons)
   - The descriptive atlas mentions (`artifact-hierarchy.md:12,21`, `issue-lifecycle.md:6,35`, `sdlc-binary.md:35,1092`) go with each milestone's docs step.
   - This moves into M1: the quick flow must be reachable on the documented path before the trial.
-- **In ariadne, sdlc's build closure is a shared surface** (`cmd/sdlc/`, `pkg/`, `go.mod`, `go.sum`), derived and pinned by `TestRepoDeclarationCoversTheShell` from `go list -deps`. sdlc runs from the branch under review, and the gates must not change under the gate. So code changes to sdlc in ariadne always take the full flow; other repos build sdlc from ariadne, so their branches cannot touch it (BR-19, BR-25).
-- **The shared-surface declaration** is a plain line file, `.sdlc/shared-surfaces`. It is repo-owned like `.sdlc/fleet.json` and is not woven. ariadne gets a starter declaration; parley.nvim's is peer follow-up work.
+- **No shared surfaces (2026-09-18 revision).** The shell measures size only. The shared-surface declaration, and ariadne's build-closure self-guard with it, were removed after the first trial reading: a surface measures blast radius, not bug profile, and under the line limit the tests and the one close review are the guard. Accepted cost: in ariadne a quick change to sdlc is closed by the binary it just changed; that review sees the diff.
 - **Refusals the quick flow keeps:** `change-code --flow quick` on a Plan with Mx rows, and at close an empty Done-when and a stale Done-when (skip with `--no-done-when-fresh`). Crossing the shell never refuses.
 - **ARCH-DRY:**
   - Which principles the quick flow checks is a registry field beside each principle's lenses, not a Go list.
   - One flow codec; one milestone parser (the colon-only `milestoneLabelRE` retires); one per-path classifier set; one review body parametrized by markers; one shared boundary-review tail (`{{BOUNDARY_TAIL}}`, expanded at template load).
   - One set of limits, read by start-plan, help, error text and the constitution's pointer.
   - Plan lookup reuses `readOptionalPlanFile`, the window reuses `boundaryWindowBase`, and numstat is shared with `churnForWindow`.
-- **ARCH-PURE:** every decision lives in `internal/flow`, `internal/churn` and `internal/judge`, and is tested on strings. The IO is four thin sites: the change-code step, start-plan output, the close measurement (git + `git show` of the declaration) and the ledger append.
+- **ARCH-PURE:** every decision lives in `internal/flow`, `internal/churn` and `internal/judge`, and is tested on strings. The IO is four thin sites: the change-code step, start-plan output, the close measurement (the window's numstat) and the ledger append.
 - **ARCH-PURPOSE:** every consumer derives from the record and the limits: change-code, start-plan, the constitution and skills, close, milestone-close, recipe selection, calibration, help and atlas. Test detection widens to non-Go layouts because the motivating case is Lua.
 - **ARCH-MOCK:** no new external dependency. git runs for real in temp repos, and the judge is faked at `judge.Run`.
-- **ARCH-CONSTRAINTS:** a CLI batch step at close. It adds one `git diff --numstat` over a window already diffed by `--name-only`, plus two `git show`s of one small file. Cost scales with the window, which the shell keeps small on the quick path. There is no UI path.
+- **ARCH-CONSTRAINTS:** a CLI batch step at close. It adds one `git diff --numstat` over a window already diffed by `--name-only`. Cost scales with the window, which the shell keeps small on the quick path. There is no UI path.
 - **ARCH-SECURE:**
   - Frontmatter is hand-editable, so `flow:` is parsed to a typed value. Malformed resolves to full, and cue validation at push/merge catches typos.
-  - The surfaces file is read only as committed, at base ∪ head, and matched on both sides of every rename, so a branch cannot loosen its shell through the declaration. In ariadne the shell's own code is declared too (the build-closure bullet above).
+  - The shell reads only the committed window, never the working tree. A branch can loosen the shell only by editing the gate's own code, which in ariadne runs from the branch; that is the accepted cost in the no-shared-surfaces bullet above.
   - The `--flow` pin is agent-attested and bounded by the shell.
   - The contract hashes are integrity hints, not security. Hand-editing them only weakens the agent's own freshness check, and the full review still runs if the shell is crossed.
   - No credentials are involved.
@@ -145,7 +140,6 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 - **ARCH-FUNERAL:**
   - The `flow:` line lives and archives with its issue.
   - The ledger columns widen existing per-close rows.
-  - `.sdlc/shared-surfaces` is one repo-owned file.
   - The prompt file is static.
   - Nothing grows per launch or per session.
 
@@ -311,7 +305,6 @@ Files:
 
 ## Follow-ups (not this issue)
 
-- parley.nvim `.sdlc/shared-surfaces`: peer work in parley's tree.
 - `sdlc propagate-base` to carry the `AGENTS.base.md` change to downstream repos: the operator's call.
 - #233 adds `kind: config`.
 
@@ -511,4 +504,43 @@ Delta:
   `FuzzParseSurfaces` asserts the property: an accepted literal matches itself,
   and a directory entry matches a child. A glob never covers a subtree, which is
   documented in `SurfaceForms`.
+
+### 2026-09-18 — the shell is added lines and Mx rows; shared surfaces removed
+
+Reason: the operator's decisions after the first trial reading (the issue's Log,
+2026-09-18). pair#283, seven code files and 30 added lines, showed the file limit
+catching changes that are spread out but tiny, and sending them into a durable
+plan through the constitution's plan rule. A shared surface measures blast
+radius, not bug profile. Under the line limit the operator relies on tests (plus
+a smoke test where needed) and the one close review.
+
+Delta:
+
+- The shell is `MaxAddedLines = 100` (renamed from `MaxChangedLines`, since
+  deletions never counted) and no Mx rows. `MaxCodeFiles` is gone, and
+  `Size.CodeFiles` and the capped file list in a crossing's reason went with it.
+  `Measure` reads code paths straight from the numstat rows, so close no longer
+  passes the name diff to the shell.
+- Shared surfaces are removed entirely: `.sdlc/shared-surfaces`, `flow.Surfaces`,
+  `ParseSurfaces`, `Union`, `SurfaceForms` and `{{SURFACE_FORMS}}`, close's
+  base/head/rename-side reads (`gitx.DiffPathsBothSides`), and ariadne's
+  build-closure guard, `TestRepoDeclarationCoversTheShell`. The fixes made for
+  BR-19, BR-21, BR-24–BR-26, BR-28, BR-29, BR-31 and BR-33 go with the
+  mechanism they guarded. Accepted cost: in ariadne a quick change to sdlc is
+  closed by the binary it just changed.
+- `gitx.DiffNames` keeps `-z`, which the atlas gate's docs rule still reads. It
+  lost its guard when the shell stopped reading it, so it now has its own test,
+  `TestDiffNamesKeepsNonASCIIPathsUnquoted`, mutation-checked.
+- Tests: `TestCrossings` pins the line limit at 100 and 101. `TestMeasure` sums
+  seven small code files, pair#283's shape. `TestCloseSpreadButTinyAtTheLimit`
+  pins the same edge at close across seven files. The fixtures that crossed the
+  shell by file count now cross it by lines. Each was mutation-checked:
+  - `>=` for `>` sends "exactly at" red;
+  - `> limit+1` sends "one past" red;
+  - a re-added two-file limit sends the spread test red;
+  - quoted non-ASCII paths send `TestCloseNonASCIIPathsClassifyAsThemselves`
+    red.
+- This plan's Core concepts, Decisions and Follow-ups were edited in place to
+  describe the current design. That table is the one the boundary judge checks
+  against the diff. The M2 task list keeps its historical record.
 
