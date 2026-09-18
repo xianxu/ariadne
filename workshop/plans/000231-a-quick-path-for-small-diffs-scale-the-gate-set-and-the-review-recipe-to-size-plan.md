@@ -30,7 +30,8 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 | `churn.IsDoc`, `churn.IsEmbedded`, `churn.IsCodeFile` | `cmd/sdlc/internal/churn/classify.go` | new |
 | `churn.isTestPath` | `cmd/sdlc/internal/churn/classify.go` | modified (non-Go test layouts) |
 | `judge.ArchitectureBlockFor`, `judge.ArchitectureSection` | `cmd/sdlc/internal/judge/architecture.go` | new (`ArchitectureBlock` delegates) |
-| `judge.ReviewMarkers`, `judge.SmallDiffMarkers` | `cmd/sdlc/internal/judge/prompts.go` | new |
+| `judge.QuickMarkers`, `judge.ReviewMarkers` | `cmd/sdlc/internal/judge/architecture.go`, `prompts.go` | new |
+| ARCH registry `quick:` field | `cmd/sdlc/internal/judge/architecture.md` | modified (every entry declares `quick: yes|no`) |
 | `judge.SmallDiffReview` category | `cmd/sdlc/internal/judge/prompts.go` + `prompts/small-diff-review.md` | new |
 | `judge.CodeReviewBody` | `cmd/sdlc/internal/judge/review.go` | modified (takes the marker set) |
 | `estimate.LedgerRow` flow columns | `cmd/sdlc/internal/estimate/ledger.go` | modified |
@@ -52,7 +53,8 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 - **DoneWhenPresent / DoneWhenFresh** — `DoneWhenPresent(body) error` requires a Done-when bullet; `related:` does not count, because this is the review's oracle. `DoneWhenFresh(anchorBody, body string) error` refuses when `## Spec` differs from the anchor and `## Done when` does not.
 - **churn classifiers** — `IsDoc` is #177's per-path docs rule and `IsEmbedded` is the `cmd/` rule from #174. `IsCodeFile(p) = ClassifyPath(p) == CodeProd && (!IsDoc(p) || IsEmbedded(p))`. `hasCodePath` and `publishGateHasCodeSurface` become thin `any()` loops over these, so there is one per-path rule and three readings.
   - `isTestPath` widens to the non-Go layouts the fleet uses: `*_spec.lua`, `*_test.lua`, `*_test.py`, `test_*.py`, `*.test.*`, `*.spec.*`, and path segments `test`, `tests`, `spec`, `__tests__`, `testdata`. The motivating repo (parley.nvim) keeps its tests under `tests/**/*_spec.lua`.
-- **ArchitectureSection / ArchitectureBlockFor** — a production slicer (promoted from the `architectureEntry` test helper) that splits the registry losslessly into a preamble and per-marker sections. `ArchitectureBlockFor(lens, markers)` renders the header, the preamble and the selected sections. `ArchitectureBlock(lens)` equals `ArchitectureBlockFor(lens, ArchitectureMarkers())` byte for byte, which the goldens pin.
+- **ArchitectureSection / ArchitectureBlockFor** — a production slicer (promoted from the `architectureEntry` test helper) that splits the registry losslessly into a preamble and per-marker sections. `ArchitectureBlockFor(lens, markers)` renders the header, the preamble and the selected sections, dropping each entry's `- **quick:**` line (routing data, not guidance for the judge). `ArchitectureBlock(lens)` equals `ArchitectureBlockFor(lens, ArchitectureMarkers())`, and every existing golden stays byte-identical, which pins the strip.
+- **QuickMarkers** — `QuickMarkers() []string` returns, in registry order, the markers whose entry declares `- **quick:** yes`. This is where the quick flow's principles are chosen: flip an entry's field in `architecture.md` and rebuild. `ArchitectureSection` reports an entry with no `quick:` field, or with a value other than `yes`/`no`, as an error, so a new principle cannot be added without deciding. `ReviewMarkers(c)` returns `QuickMarkers()` for `SmallDiffReview` and `ArchitectureMarkers()` otherwise.
 
 ### Integration points
 
@@ -83,7 +85,7 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 - **The flow upgrade is recorded at finalize, not before the review.** `computeClose` writes nothing, and #139's invariant is that a REWORK leaves the issue unwritten. The rule "no gate downgrades" is therefore about the *recorded* flow. The measurement is a pure function of the review window, so a REWORK followed by a re-close re-derives the same upgrade. It can only differ if the rework itself deleted code back inside the shell, and then the small-diff review correctly reviews what exists.
 - **The shared-surface declaration is a plain line file**, `.sdlc/shared-surfaces`, not a vocabulary noun. It is repo-owned, like `.sdlc/fleet.json`, and not woven. `path.Match` plus a trailing-`/` prefix covers depth without a `**` dependency. ariadne gets a starter declaration in M2; parley.nvim's declaration is peer work, listed as a follow-up and not deferred purpose (the mechanism is the deliverable).
 - **Refusals the quick flow keeps:** `change-code --flow quick` on a Plan with Mx rows, and at close an empty Done-when and a stale Done-when (skip with `--no-done-when-fresh`). Crossing the shell never refuses.
-- **ARCH-DRY:** one flow record codec, one milestone parser (the colon-requiring `milestoneLabelRE` in `sizing.go` is retired onto it), one per-path classifier set in `churn`, one review body parametrized by markers, and one shared boundary-review tail (`{{BOUNDARY_TAIL}}`, expanded at template load so `milestone-review.md` renders byte-identically). Plan lookup reuses `readOptionalPlanFile`, the window reuses `boundaryWindowBase`, and the numstat call is shared with `churnForWindow`.
+- **ARCH-DRY:** which principles the quick flow checks is a field on each registry entry, beside the principle's `at-plan`/`at-review` lenses, not a list kept in Go. Also: one flow record codec, one milestone parser (the colon-requiring `milestoneLabelRE` in `sizing.go` is retired onto it), one per-path classifier set in `churn`, one review body parametrized by markers, and one shared boundary-review tail (`{{BOUNDARY_TAIL}}`, expanded at template load so `milestone-review.md` renders byte-identically). Plan lookup reuses `readOptionalPlanFile`, the window reuses `boundaryWindowBase`, and the numstat call is shared with `churnForWindow`.
 - **ARCH-PURE:** all decisions live in `internal/flow`, `internal/churn` and `internal/judge` and are tested on strings. The IO is three thin sites: the change-code flow step, the close measurement (git + file read) and the ledger append.
 - **ARCH-PURPOSE:** every consumer derives from the record — change-code, close, milestone-close, recipe selection, calibration, help text, constitution and atlas. Test detection widens to non-Go layouts because the motivating case is a Lua repo.
 - **ARCH-MOCK:** no new external dependency. git runs for real in temp repos (the established pattern), and the judge is faked at `judge.Run`.
@@ -209,14 +211,18 @@ Files:
     - Dry-run printing.
   - Run `go test ./cmd/sdlc/... -run 'Close|Milestone|GateCatalog|Skip' -count=1`.
 - [ ] **The recipe.**
+  - Add `- **quick:** yes` to ARCH-DRY, ARCH-PURE and ARCH-PURPOSE, and `- **quick:** no` to the other five entries in `architecture.md`.
   - Tests first:
     - `TestArchitectureSectionsLossless`: preamble + sections re-join to the registry.
-    - `TestArchitectureBlockForSubset`.
-    - `TestSmallDiffRecipeCarriesExactlyThreeMarkers`: `markersIn(BuildPrompt(SmallDiffReview, in))` equals `SmallDiffMarkers`, and each marker exists in the registry.
+    - `TestEveryPrincipleDeclaresQuick`: every registry entry carries `quick: yes|no`; a fixture registry missing it, or saying `maybe`, errors.
+    - `TestQuickMarkers`: today it returns exactly DRY, PURE and PURPOSE, in registry order.
+    - `TestArchitectureBlockForSubset`, including that no `quick:` line reaches the rendered block.
+    - `TestSmallDiffRecipeCarriesExactlyQuickMarkers`: `markersIn(BuildPrompt(SmallDiffReview, in))` equals `QuickMarkers()`.
+    - The existing goldens for every other category stay byte-identical.
     - `TestMilestoneReviewUnchanged`: the golden is byte-identical after `{{BOUNDARY_TAIL}}`.
     - `TestSmallDiffRecipeHasFocusAndContract`: family enumeration, the two-mode clause, doc-claim checks and `BoundaryReviewContract`.
   - Add `SmallDiffReview` to `AllInjectedCategories()` but not `AllCategories()`, since it is not a standalone `sdlc judge` check. Add its golden with `go test ./cmd/sdlc/internal/judge -run Golden -update` (confirm the flag name in `golden_test.go`), and extend `processmanual/collect_test.go`.
-  - Implement `ArchitectureSection`, `ArchitectureBlockFor`, `ReviewMarkers`, `CodeReviewBody(in, markers)`, the `{{BOUNDARY_TAIL}}` include and `small-diff-review.md`.
+  - Implement `ArchitectureSection`, `QuickMarkers`, `ArchitectureBlockFor`, `ReviewMarkers`, `CodeReviewBody(in, markers)`, the `{{BOUNDARY_TAIL}}` include and `small-diff-review.md`.
   - Wire `boundaryReviewParams.Category`.
   - Run `go test ./cmd/sdlc/internal/judge/... ./cmd/sdlc/internal/processmanual/... -count=1`.
 - [ ] **End to end.**
@@ -226,7 +232,7 @@ Files:
 - [ ] **Help tokens + docs for M2.**
   - Add `{{QUICK_MAX_CODE_FILES}}` / `{{QUICK_MAX_CHANGED_LINES}}` to `renderLong`, used in `change-code.md` and `close.md`. `TestNoCommandLongHasSurvivingPlaceholder` pins the substitution.
   - `close.md` and `milestone-close.md` gain the shell, the upgrade, the Done-when checks and the recipe choice.
-  - Atlas: `gate-state.md`, `pre-merge-checks.md`, `architecture-principles.md` (the subset recipe), `sdlc-binary.md` (close + `.sdlc/shared-surfaces`).
+  - Atlas: `gate-state.md`, `pre-merge-checks.md`, `architecture-principles.md` (the `quick:` field and the subset recipe), `sdlc-binary.md` (close + `.sdlc/shared-surfaces`).
   - Regenerate the process manual with `sdlc process-manual`. Run `go test ./... -count=1` and `git diff --check`.
 - [ ] M2 — tick, then run `sdlc milestone-close --issue 231 --milestone M2 --verified '<test output>'`.
 
@@ -266,3 +272,17 @@ Files:
 - parley.nvim `.sdlc/shared-surfaces` (the keybinding registry, `config.lua` option schema): peer work in parley's tree.
 - #191 (`exitWithCode` seam) is not needed here: the end-to-end test runs the gates' happy paths.
 - #233 adds `kind: config`.
+
+## Revisions
+
+### 2026-09-17 — the quick principles live in the registry
+
+Reason: the operator asked where to change which principles the quick flow
+checks, and chose the registry over a Go list.
+
+Delta: `judge.SmallDiffMarkers` (a Go var) is replaced by a `quick: yes|no` field
+on every entry of `judge/architecture.md`, read by `QuickMarkers()`. A missing or
+invalid field is an error, and the renderer strips the field so existing goldens
+stay byte-identical. M2's recipe tests follow the registry instead of a fixed
+list of three.
+
