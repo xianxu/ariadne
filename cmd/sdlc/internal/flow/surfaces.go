@@ -10,6 +10,19 @@ import (
 // repo-owned file, like .sdlc/fleet.json, not woven from the base layer.
 const DeclarationPath = ".sdlc/shared-surfaces"
 
+// SurfaceForms is the declaration grammar in the words every surface prints —
+// rendered into `sdlc close --help` ({{SURFACE_FORMS}}), pointed at by the
+// declaration's own header and the atlas, and pinned example by example against
+// ParseSurfaces/Match by TestSurfaceFormsDescribesTheParser (#231 BR-31). The
+// one statement of the grammar; nothing else restates it.
+const SurfaceForms = `one pattern per line; blank lines and # comments are skipped.
+    pkg/vocab       a literal path: that path, and everything under it
+    pkg/vocab/      a directory entry: everything under it
+    cmd/*.go        a path.Match glob: exactly the paths it matches — * does
+                    not cross /, and a glob never covers a subtree
+  Refused (so a declaration cannot guard nothing): **, a leading !, a glob in a
+  directory entry, and any non-canonical path (leading / or ./, ../, //).`
+
 // Surfaces is a repo's declared shared surfaces: path patterns whose change
 // takes a diff out of the quick flow whatever its size — a keybinding registry,
 // an option schema, a cross-module seam.
@@ -36,9 +49,14 @@ func ParseSurfaces(text string) (Surfaces, error) {
 		if p == "" || strings.HasPrefix(p, "#") {
 			continue
 		}
-		p = strings.TrimPrefix(strings.TrimPrefix(p, "./"), "/")
 		refuse := func(why string) (Surfaces, error) {
 			return Surfaces{}, fmt.Errorf("%s line %d: %q: %s", DeclarationPath, i+1, p, why)
+		}
+		// Only CANONICAL patterns: repo-relative, no `.`/`..`/`//` segments, not
+		// empty — the forms a path from git can ever equal, so an accepted pattern
+		// can always match something (#231 BR-33).
+		if body := strings.TrimSuffix(p, "/"); body == "" || body == "." || path.Clean(body) != body || strings.HasPrefix(body, "/") || strings.HasPrefix(body, "../") {
+			return refuse("not a canonical repo-relative path (no leading /, no ./, ../, // or trailing /. segments)")
 		}
 		switch {
 		case strings.HasPrefix(p, "!"):

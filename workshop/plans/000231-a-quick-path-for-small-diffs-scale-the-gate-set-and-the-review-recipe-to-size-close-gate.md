@@ -193,6 +193,188 @@ rounds:
           round: 4
       boundary: M1
       blocked: false
+    - "n": 5
+      timestamp: "2026-09-17T21:51:13-07:00"
+      agent: claude
+      findings:
+        - id: BR-18
+          severity: Important
+          title: 'A full-recipe REWORK is not sticky: a fix that shrinks the net diff sends the next round back to the small-diff recipe, and the issue stays recorded quick'
+          detail: 'closeFlowStep/decideCloseFlow (cmd/sdlc/closeflow.go:36,60) re-measure only the current base..HEAD net diff. A REWORK persists its round to the ledger, but gatestate.Round records nothing about which recipe ran. Reproduced in a scratch copy of 60962e2: 3 code files -> full review -> REWORK -> a commit deleting cmd/c.go -> the re-close dispatches the small-diff recipe, and the record stays {kind: quick}. The Spec/plan claim that the re-close "re-derives the upgrade from the same window" holds only when no commit lands between rounds. That is the one ordering TestCloseQuickReworkThenReclose exercises (ARCH-ORDER: one observable interleaving). Effects: the round after a deletion is judged under 3 principles, not 8. Open full-recipe findings go to a judge told to raise nothing outside those 3. M3 will count the issue as a pure quick row. Fix: stamp the recipe on each boundary round. Make "a prior round of this boundary ran the full recipe" a crossing, recorded at finalize like the others. Add a test for REWORK -> shrinking fix -> re-close. If the operator keeps today''s behaviour, record that as a Revision and correct the "same window" claim in the Spec, the plan Decisions and close.md.'
+          family: round-decision-not-sticky
+          round: 5
+        - id: BR-19
+          severity: Important
+          title: .sdlc/shared-surfaces guards the declaration but not the code that enforces the shell, and ariadne's sdlc is rebuilt from the working tree, so a quick branch can loosen its own shell
+          detail: 'This is the 2nd finding in family hand-listed-guard-incomplete. Rule: a guard that claims "the change cannot loosen X" must cover every artifact that defines X, and a test must derive that set rather than trust a list. Here X is the shell. Only the declaration is covered (base union head). Undeclared: flow/limits.go (MaxCodeFiles, MaxChangedLines), flow/shell.go and surfaces.go, churn/classify.go (IsCodeFile, isTestPath) and cmd/sdlc/closeflow.go. The operator''s sdlc shell function runs go build ./cmd/sdlc from the checkout, where the default in-place branch lives. So a one-line quick edit raising MaxChangedLines closes under the binary it just changed. This contradicts close.md:210, .sdlc/shared-surfaces:8 and the plan''s ARCH-SECURE bullet. The header''s own criterion ("what the judges are told ... the boundary-review procedure") also omits boundary-tail.md, which this diff created and which carries the boundary contract, and judge/prompts/. Fix: declare cmd/sdlc/internal/flow/, cmd/sdlc/internal/churn/classify.go and cmd/sdlc/closeflow.go, and decide on the judge prompt files. Extend TestRepoDeclarationParses to glob the shell''s implementation files and require Match for each.'
+          family: hand-listed-guard-incomplete
+          round: 5
+        - id: BR-20
+          severity: Minor
+          title: The shell's prose says "tests and docs excluded" and "docs are never code", but IsCodeFile counts cmd/**/*.md, which IsDoc itself classifies as docs
+          detail: 'This is the 4th finding in family doc-claim-contradicts-code. Rule: prose restating what a classifier or gate does must be rendered from the owning package, or pinned by a test against that classifier''s own exemplars. It must not be hand-written, and a test must not pin the wording alone. Instances: ShellSummary (flow/limits.go:20), rendered into start-plan, change-code help, close help and flowInfoLine; close.md:207-208; the limits.go:11 comment; and TestShellSummaryReadsTheConstants (flow_test.go:152), which pins the inaccurate "tests and docs". TestIsDoc marks cmd/sdlc/helptext/close.md as a doc, while TestIsCodeFile counts cmd/**/*.md as code. The plan''s Core concepts table drift is the same class (see plan revisions). Fix: own the exclusion clause in churn beside IsCodeFile, with a test checking each clause against IsCodeFile exemplars, including the embedded-markdown exception. ShellSummary should use it, and close.md should use QUICK_SHELL instead of restating it.'
+          family: doc-claim-contradicts-code
+          round: 5
+        - id: BR-21
+          severity: Minor
+          title: A trailing-slash surface pattern containing a glob (lua/parley/*/) passes ParseSurfaces but Match compares it as a literal prefix, so it never matches
+          detail: 'surfaces.go validates the pattern with path.Match, but Match uses strings.HasPrefix for the trailing-slash form, so the declared guard silently guards nothing. Verified: "lua/*/" validates without error, and HasPrefix of lua/parley/x.lua is false. Reject glob metacharacters in the directory form at parse time (that becomes a crossing, failing toward full), or match the directory form segment-wise.'
+          family: accepted-input-never-effective
+          round: 5
+        - id: BR-22
+          severity: Minor
+          title: declarationAt re-implements the ls-tree presence plus blob read that already exists (gitx TrunkFile.entryOf/readFrom, pathTrackedAtHEAD)
+          detail: ARCH-DRY. closeflow.go:160 is the third copy of the question "is ref:path present, absent, or unknown" (gitx/trunkfile.go:255-287, synctrunk.go:319). It is also the only copy without --end-of-options. Extract gitx.FileAt(ref, path) and route all three through it.
+          family: existing-helper-not-reused
+          round: 5
+        - id: BR-23
+          severity: Minor
+          title: checkQuickDoneWhen calls f.skip("done-when"), a key closeFlags.skip has no case for, so it means "--force only" by silently falling through
+          detail: closeflow.go:85 against close.go:111-137. The behaviour is intended, but it rests on the switch default, so a reader takes done-when for a real gate key, and a typo'd key elsewhere fails the same way. Write f.Force explicitly, or add a case so TestCloseFlags_Skip covers it.
+          family: gate-key-undeclared
+          round: 5
+      boundary: M2
+      blocked: true
+    - "n": 6
+      timestamp: "2026-09-17T22:12:00-07:00"
+      agent: claude
+      dispose:
+        - id: BR-18
+          disposition: addressed
+          note: Recipe stamp (boundaryledger.go:182) + EarlierFullReview crossing (closeflow.go:80); dropping the crossing reddens TestCloseQuickReworkShrinkThenReclose, dropping the stamp reddens TestCloseQuickSmallDiffReworkStaysQuick; Spec/plan/close.md corrected.
+          round: 6
+        - id: BR-19
+          disposition: addressed
+          note: cmd/sdlc/ declared (covers flow, churn, closeflow, judge prompts, boundary-tail.md); narrowing it reddens TestRepoDeclarationCoversTheShell. The build closure outside cmd/sdlc is raised as a new finding.
+          round: 6
+        - id: BR-20
+          disposition: addressed
+          note: churn.CodeFileRule beside IsCodeFile, TestCodeFileRule checks exemplars incl. cmd/**/*.md; ShellSummary renders it; close.md no longer restates it.
+          round: 6
+        - id: BR-21
+          disposition: addressed
+          note: surfaces.go refuses a glob in a directory entry; removing the check reddens TestParseSurfacesRejectsGlobInDirectory.
+          round: 6
+        - id: BR-22
+          disposition: not-addressed
+          note: entryOf and declarationAt now share EntryAt, but TrunkFile.readFrom (trunkfile.go:283) still issues its own cat-file blob, identical to the new BlobAt; route it through BlobAt.
+          round: 6
+        - id: BR-23
+          disposition: addressed
+          note: closeflow.go:92 checks f.Force explicitly; behaviour unchanged and still pinned by TestCloseQuickEmptyDoneWhenRefuses.
+          round: 6
+      findings:
+        - id: BR-24
+          severity: Important
+          title: The shell's shared-surface check sees only rename destinations, so moving a file out of a surface, or renaming .sdlc/shared-surfaces itself, stays quick
+          detail: 'Measure matches Surfaces against gitx.DiffNames (git diff --name-only), which lists a rename''s destination only. Reproduced at sdlc close: git mv pkg/vocab/x.go other/x.go under a pkg/vocab/ declaration, and git mv of the declaration to .sdlc/shared-surfaces.old, both close {kind: quick} with the small-diff recipe. The second defeats the declaration self-match that Surfaces.Match, the file header and close.md promise, and disables the shell for later branches once merged. Enumeration in this window: Measure is the only DiffNames consumer the diff adds; code-file counting by destination is right, surface matching needs both sides (the atlas gate''s atlas/ split has the same class, pre-existing). Fix: match surfaces over both sides of renames/copies (--no-renames name list, or name-status with old and new paths), keep destination-only counting, add rename-out and rename-declaration fixtures.'
+          family: diff-paths-drop-rename-source
+          round: 6
+        - id: BR-25
+          severity: Important
+          title: The gate-machinery declaration stops at cmd/sdlc/, but sdlc's build closure also includes pkg/frontmatter and go.mod/go.sum, and the covering test only walks cmd/sdlc
+          detail: 'This is the 3rd finding in family hand-listed-guard-incomplete. Rule: the set a guard protects must be derived from the protected artifact''s real dependency graph, never from a directory the author picked. For the gate binary that is go list -deps ./cmd/sdlc restricted to this module, plus go.mod and go.sum. pkg/frontmatter (Split, used by internal/issue/frontmatter.go to read the frontmatter holding flow:) is compiled into sdlc and undeclared, so a quick branch editing it closes under the binary it changed, which contradicts the declaration header and close.md. Fix: declare pkg/frontmatter/ (or pkg/), go.mod, go.sum, and make TestRepoDeclarationCoversTheShell derive its set from go list -deps instead of WalkDir over cmd/sdlc.'
+          family: hand-listed-guard-incomplete
+          round: 6
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
+    - "n": 7
+      timestamp: "2026-09-17T22:29:42-07:00"
+      agent: claude
+      dispose:
+        - id: BR-22
+          disposition: addressed
+          note: gitx.EntryAt/BlobAt (with --end-of-options) now serve TrunkFile.entryOf, TrunkFile.readFrom and close's declarationAt; pathTrackedAtHEAD keeps its injected gitRunner seam by design (plan Revisions). Residual EntryAt-then-BlobAt composition is a nit.
+          round: 7
+        - id: BR-24
+          disposition: addressed
+          note: Measure matches surfaces over gitx.DiffPathsBothSides (--no-renames -z) and counts code over destinations; reverting to diffFiles reddens TestCloseRenameOutOfASurfaceUpgrades and TestCloseRenamingTheDeclarationUpgrades.
+          round: 7
+        - id: BR-25
+          disposition: addressed
+          note: Declaration adds pkg/, go.mod, go.sum; TestRepoDeclarationCoversTheShell derives from go list -deps (Go + embed files) plus go.mod/go.sum; dropping pkg/ or go.mod reddens it. Residuals (Skip on go-list failure, go.work/vendor) raised separately as Minor.
+          round: 7
+      findings:
+        - id: BR-26
+          severity: Important
+          title: ParseSurfaces accepts a bare directory, a double-star glob and a leading-bang pattern, none of which Match ever honours, so a declaration can guard nothing
+          detail: 'Probed at head: "pkg/vocab" parses but Match("pkg/vocab/x.go") is false; "lua/parley/**" matches one level only (lua/parley/a/b.lua false); "!pkg/x.go" parses and never matches. Fail-open on exactly the #263 case, for the next declaration (parley). 2nd in family after BR-21. Rule: every form the parser accepts must take the effect its reader expects, or be refused at parse. Fix: refuse double-star and a leading bang, let a glob-free literal match itself or anything under it, optionally treat a pattern matching no tracked path at base or head as a crossing, and pin the forms with a Match table test (the fuzz oracle only checks no-panic).'
+          family: accepted-input-never-effective
+          round: 7
+        - id: BR-27
+          severity: Important
+          title: Prose hand-restates the declared build-closure scope and the close gate-flag set, and this window changed both without sweeping them
+          detail: '5th in family. Instances in this window: helptext/close.md:210-213 says ariadne declares cmd/sdlc/ as the shell''s own code (BR-25 made it the whole build closure); AGENTS.base.md:52 lists close guards and flags without --no-done-when-fresh (added here) or --no-ledger; atlas/workflow/sdlc-binary.md:891-895 says close has 8 gates, with a stale flag list. Rule: prose never restates a set, count or scope that code owns. It renders from the owner (a help token, e.g. from processmanual.GateCatalog) or points at it without restating, and any fix that changes such a fact sweeps restatements keyed on the old fact in the same round.'
+          family: doc-claim-contradicts-code
+          round: 7
+        - id: BR-28
+          severity: Minor
+          title: TestRepoDeclarationCoversTheShell skips when go list fails, so the BR-25 guard can silently turn off
+          detail: '3rd in family. Rule: a guard test fails when the derivation it rests on fails; replace t.Skipf with t.Fatalf. The plan says the closure is derived and pinned by this test, and a skip is neither.'
+          family: test-oracle-weaker-than-plan
+          round: 7
+        - id: BR-29
+          severity: Minor
+          title: go.work, go.work.sum and vendor/ change what go build compiles but are not declared shared surfaces
+          detail: '4th in family. go list -deps can only see inputs that exist today; a branch that adds go.work with a replace directive, or a vendor/ tree, changes sdlc''s binary without touching go.mod, go.sum or a package directory. Rule: the protected set is every input the go command reads in module mode, including files that do not exist yet. Declare go.work* and vendor/.'
+          family: hand-listed-guard-incomplete
+          round: 7
+        - id: BR-30
+          severity: Minor
+          title: Measure gets code-file paths from quoted DiffNames output but surface paths from -z output, so non-ASCII doc and test paths count as code
+          detail: git diff --name-only (and --numstat) quote non-ASCII paths ("docs/caf\303\251.md"), which IsDoc and isTestPath then fail to recognise, so they count as code and can upgrade a quick issue for nothing. The error is on the safe side (toward full), but the -z lesson cited on DiffPathsBothSides was applied to only one of the two listings Measure pairs. Use -z (or core.quotePath=false) for the code-file list too.
+          family: porcelain-output-parsed-as-data
+          round: 7
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
+    - "n": 8
+      timestamp: "2026-09-17T22:50:41-07:00"
+      agent: claude
+      dispose:
+        - id: BR-26
+          disposition: addressed
+          note: Literal-or-subtree branch and the refusals of a leading bang, double-star and globbed dir entries are pinned by TestSurfaceForms and the extended rejection table; reverting either reddens its test (verified in a scratch export). Residual degenerate forms raised separately.
+          round: 8
+        - id: BR-27
+          disposition: not-addressed
+          note: 'Named sites fixed, class not: the new test is page-granular. close.md FLAGS (262-276) and milestone-close.md FLAGS (78-81, written this round) both omit --no-ledger and pass because it appears elsewhere on each page; atlas sdlc-binary.md:893-894 claims every list is pinned complete; sdlc-binary.md:754 still restates "12 gates / 16 sigs" against a 20-row GateCatalog. Render per-command gate-flag lists from GateCatalog via a help token, or make the oracle list-granular.'
+          round: 8
+        - id: BR-28
+          disposition: addressed
+          note: surfaces_test.go:125 now t.Fatalf on a go list failure.
+          round: 8
+        - id: BR-29
+          disposition: addressed
+          note: go.work, go.work.sum and vendor/ declared and in the test's shell list; removing go.work and vendor/ from the declaration reddens TestRepoDeclarationCoversTheShell.
+          round: 8
+        - id: BR-30
+          disposition: addressed
+          note: DiffNames uses -z; reverting it reddens TestCloseNonASCIIPathsClassifyAsThemselves. The numstat half is untested and raised separately.
+          round: 8
+      findings:
+        - id: BR-31
+          severity: Important
+          title: BR-26 changed the shared-surface grammar, but the declaration header and the atlas still describe the old two-form grammar
+          detail: 'This is the 6th finding in family doc-claim-contradicts-code. .sdlc/shared-surfaces:5-6 says every non-directory line is a path.Match glob, so pkg/vocab would mean exactly that path, and it omits the refusals; atlas/workflow/sdlc-binary.md:299 says the same. The code (surfaces.go:18-31,68-84) now treats a glob-free literal as path-or-subtree and refuses the double-star and leading-bang forms. The rule BR-27 stated (a fix that changes a fact sweeps restatements keyed on it in the same round) was violated by the same commit. Rule-level fix: give the grammar one owner, e.g. a flow.SurfaceForms string rendered into sdlc close --help via a token and pinned clause-by-clause against TestSurfaceForms (the churn.CodeFileRule / TestCodeFileRule pattern). Point the declaration header and atlas at it, and sweep in the same round with git grep for path.Match, trailing-slash and for-a-subtree phrasing.'
+          family: doc-claim-contradicts-code
+          round: 8
+        - id: BR-32
+          severity: Minor
+          title: 'The window numstat is still parsed as quoted output: its BR-30 change has no red test, and core.quotePath=false still quotes some paths'
+          detail: 'This is the 2nd finding in family porcelain-output-parsed-as-data. Reverting the quotePath change in windowFileStats (closeflow.go:142) leaves the whole suite green; a probe with cmd/über.go at 150 lines then closes quick. The plan''s "mutation-checked" claim covers only DiffNames. At HEAD, cmd/a"b.go at 150 lines closes quick, because quotePath=false still quotes a double-quote, a backslash and control characters, and the quoted row never joins the -z code-file list. Rule: every git listing a gate reads as data uses -z. Use diff --numstat -z (renames arrive as separate NUL fields) with a -z parse, and add a close test with a git-quoted code-file name over the line limit.'
+          family: porcelain-output-parsed-as-data
+          round: 8
+        - id: BR-33
+          severity: Minor
+          title: ParseSurfaces still accepts root and non-canonical patterns (/, ./, ., pkg/./vocab, pkg//vocab/) that match nothing
+          detail: 'This is the 3rd finding in family accepted-input-never-effective. Probed at head: each parses without error and matches no path. The forms are refused by hand-enumeration while the fuzz oracle still checks only no-panic, so the next form slips too. Rule: accept only canonical, non-empty patterns (path.Clean(p) == p and p is not "."). Make the oracle a property instead of a table: FuzzParseSurfaces asserts that an accepted glob-free pattern matches itself, and a directory entry matches pattern + "x". Also decide whether a glob naming a directory (pkg/v*) covers its subtree the way the literal form now does, or document the asymmetry.'
+          family: accepted-input-never-effective
+          round: 8
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#231 (boundary-review)
@@ -276,8 +458,87 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-17** [Minor] `record-roundtrips-every-reader` The shared flow corpus dropped Parse's duplicate-key reject branch when it replaced TestParseRejects
   This is the 3rd finding in record-roundtrips-every-reader. Deleting the seen[k] duplicate check in a scratch copy leaves every flow test green; Go would then read {kind: full, kind: quick, provenance: operator} as quick/operator while cue rejects it (both reject at HEAD, probed). Rule: the corpus enumerates Parse's reject branches; give each error return a reason code, tag reject rows with it, and assert every code has at least one row, so no branch can exist unpinned. Prevalence: 8 reject branches, 6 in the corpus; the unparseable-YAML branch is backstopped by the non-map check, so duplicate-key is the one real gap.
 
+## Round 5 — 2026-09-17T21:51:13-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-18** [Important] `round-decision-not-sticky` A full-recipe REWORK is not sticky: a fix that shrinks the net diff sends the next round back to the small-diff recipe, and the issue stays recorded quick
+  closeFlowStep/decideCloseFlow (cmd/sdlc/closeflow.go:36,60) re-measure only the current base..HEAD net diff. A REWORK persists its round to the ledger, but gatestate.Round records nothing about which recipe ran. Reproduced in a scratch copy of 60962e2: 3 code files -> full review -> REWORK -> a commit deleting cmd/c.go -> the re-close dispatches the small-diff recipe, and the record stays {kind: quick}. The Spec/plan claim that the re-close "re-derives the upgrade from the same window" holds only when no commit lands between rounds. That is the one ordering TestCloseQuickReworkThenReclose exercises (ARCH-ORDER: one observable interleaving). Effects: the round after a deletion is judged under 3 principles, not 8. Open full-recipe findings go to a judge told to raise nothing outside those 3. M3 will count the issue as a pure quick row. Fix: stamp the recipe on each boundary round. Make "a prior round of this boundary ran the full recipe" a crossing, recorded at finalize like the others. Add a test for REWORK -> shrinking fix -> re-close. If the operator keeps today's behaviour, record that as a Revision and correct the "same window" claim in the Spec, the plan Decisions and close.md.
+- **BR-19** [Important] `hand-listed-guard-incomplete` .sdlc/shared-surfaces guards the declaration but not the code that enforces the shell, and ariadne's sdlc is rebuilt from the working tree, so a quick branch can loosen its own shell
+  This is the 2nd finding in family hand-listed-guard-incomplete. Rule: a guard that claims "the change cannot loosen X" must cover every artifact that defines X, and a test must derive that set rather than trust a list. Here X is the shell. Only the declaration is covered (base union head). Undeclared: flow/limits.go (MaxCodeFiles, MaxChangedLines), flow/shell.go and surfaces.go, churn/classify.go (IsCodeFile, isTestPath) and cmd/sdlc/closeflow.go. The operator's sdlc shell function runs go build ./cmd/sdlc from the checkout, where the default in-place branch lives. So a one-line quick edit raising MaxChangedLines closes under the binary it just changed. This contradicts close.md:210, .sdlc/shared-surfaces:8 and the plan's ARCH-SECURE bullet. The header's own criterion ("what the judges are told ... the boundary-review procedure") also omits boundary-tail.md, which this diff created and which carries the boundary contract, and judge/prompts/. Fix: declare cmd/sdlc/internal/flow/, cmd/sdlc/internal/churn/classify.go and cmd/sdlc/closeflow.go, and decide on the judge prompt files. Extend TestRepoDeclarationParses to glob the shell's implementation files and require Match for each.
+- **BR-20** [Minor] `doc-claim-contradicts-code` The shell's prose says "tests and docs excluded" and "docs are never code", but IsCodeFile counts cmd/**/*.md, which IsDoc itself classifies as docs
+  This is the 4th finding in family doc-claim-contradicts-code. Rule: prose restating what a classifier or gate does must be rendered from the owning package, or pinned by a test against that classifier's own exemplars. It must not be hand-written, and a test must not pin the wording alone. Instances: ShellSummary (flow/limits.go:20), rendered into start-plan, change-code help, close help and flowInfoLine; close.md:207-208; the limits.go:11 comment; and TestShellSummaryReadsTheConstants (flow_test.go:152), which pins the inaccurate "tests and docs". TestIsDoc marks cmd/sdlc/helptext/close.md as a doc, while TestIsCodeFile counts cmd/**/*.md as code. The plan's Core concepts table drift is the same class (see plan revisions). Fix: own the exclusion clause in churn beside IsCodeFile, with a test checking each clause against IsCodeFile exemplars, including the embedded-markdown exception. ShellSummary should use it, and close.md should use QUICK_SHELL instead of restating it.
+- **BR-21** [Minor] `accepted-input-never-effective` A trailing-slash surface pattern containing a glob (lua/parley/*/) passes ParseSurfaces but Match compares it as a literal prefix, so it never matches
+  surfaces.go validates the pattern with path.Match, but Match uses strings.HasPrefix for the trailing-slash form, so the declared guard silently guards nothing. Verified: "lua/*/" validates without error, and HasPrefix of lua/parley/x.lua is false. Reject glob metacharacters in the directory form at parse time (that becomes a crossing, failing toward full), or match the directory form segment-wise.
+- **BR-22** [Minor] `existing-helper-not-reused` declarationAt re-implements the ls-tree presence plus blob read that already exists (gitx TrunkFile.entryOf/readFrom, pathTrackedAtHEAD)
+  ARCH-DRY. closeflow.go:160 is the third copy of the question "is ref:path present, absent, or unknown" (gitx/trunkfile.go:255-287, synctrunk.go:319). It is also the only copy without --end-of-options. Extract gitx.FileAt(ref, path) and route all three through it.
+- **BR-23** [Minor] `gate-key-undeclared` checkQuickDoneWhen calls f.skip("done-when"), a key closeFlags.skip has no case for, so it means "--force only" by silently falling through
+  closeflow.go:85 against close.go:111-137. The behaviour is intended, but it rests on the switch default, so a reader takes done-when for a real gate key, and a typo'd key elsewhere fails the same way. Write f.Force explicitly, or add a case so TestCloseFlags_Skip covers it.
+
+## Round 6 — 2026-09-17T22:12:00-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-18 — addressed — Recipe stamp (boundaryledger.go:182) + EarlierFullReview crossing (closeflow.go:80); dropping the crossing reddens TestCloseQuickReworkShrinkThenReclose, dropping the stamp reddens TestCloseQuickSmallDiffReworkStaysQuick; Spec/plan/close.md corrected.
+- BR-19 — addressed — cmd/sdlc/ declared (covers flow, churn, closeflow, judge prompts, boundary-tail.md); narrowing it reddens TestRepoDeclarationCoversTheShell. The build closure outside cmd/sdlc is raised as a new finding.
+- BR-20 — addressed — churn.CodeFileRule beside IsCodeFile, TestCodeFileRule checks exemplars incl. cmd/**/*.md; ShellSummary renders it; close.md no longer restates it.
+- BR-21 — addressed — surfaces.go refuses a glob in a directory entry; removing the check reddens TestParseSurfacesRejectsGlobInDirectory.
+- BR-22 — not-addressed — entryOf and declarationAt now share EntryAt, but TrunkFile.readFrom (trunkfile.go:283) still issues its own cat-file blob, identical to the new BlobAt; route it through BlobAt.
+- BR-23 — addressed — closeflow.go:92 checks f.Force explicitly; behaviour unchanged and still pinned by TestCloseQuickEmptyDoneWhenRefuses.
+
+### Raised
+
+- **BR-24** [Important] `diff-paths-drop-rename-source` The shell's shared-surface check sees only rename destinations, so moving a file out of a surface, or renaming .sdlc/shared-surfaces itself, stays quick
+  Measure matches Surfaces against gitx.DiffNames (git diff --name-only), which lists a rename's destination only. Reproduced at sdlc close: git mv pkg/vocab/x.go other/x.go under a pkg/vocab/ declaration, and git mv of the declaration to .sdlc/shared-surfaces.old, both close {kind: quick} with the small-diff recipe. The second defeats the declaration self-match that Surfaces.Match, the file header and close.md promise, and disables the shell for later branches once merged. Enumeration in this window: Measure is the only DiffNames consumer the diff adds; code-file counting by destination is right, surface matching needs both sides (the atlas gate's atlas/ split has the same class, pre-existing). Fix: match surfaces over both sides of renames/copies (--no-renames name list, or name-status with old and new paths), keep destination-only counting, add rename-out and rename-declaration fixtures.
+- **BR-25** [Important] `hand-listed-guard-incomplete` The gate-machinery declaration stops at cmd/sdlc/, but sdlc's build closure also includes pkg/frontmatter and go.mod/go.sum, and the covering test only walks cmd/sdlc
+  This is the 3rd finding in family hand-listed-guard-incomplete. Rule: the set a guard protects must be derived from the protected artifact's real dependency graph, never from a directory the author picked. For the gate binary that is go list -deps ./cmd/sdlc restricted to this module, plus go.mod and go.sum. pkg/frontmatter (Split, used by internal/issue/frontmatter.go to read the frontmatter holding flow:) is compiled into sdlc and undeclared, so a quick branch editing it closes under the binary it changed, which contradicts the declaration header and close.md. Fix: declare pkg/frontmatter/ (or pkg/), go.mod, go.sum, and make TestRepoDeclarationCoversTheShell derive its set from go list -deps instead of WalkDir over cmd/sdlc.
+
+## Round 7 — 2026-09-17T22:29:42-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-22 — addressed — gitx.EntryAt/BlobAt (with --end-of-options) now serve TrunkFile.entryOf, TrunkFile.readFrom and close's declarationAt; pathTrackedAtHEAD keeps its injected gitRunner seam by design (plan Revisions). Residual EntryAt-then-BlobAt composition is a nit.
+- BR-24 — addressed — Measure matches surfaces over gitx.DiffPathsBothSides (--no-renames -z) and counts code over destinations; reverting to diffFiles reddens TestCloseRenameOutOfASurfaceUpgrades and TestCloseRenamingTheDeclarationUpgrades.
+- BR-25 — addressed — Declaration adds pkg/, go.mod, go.sum; TestRepoDeclarationCoversTheShell derives from go list -deps (Go + embed files) plus go.mod/go.sum; dropping pkg/ or go.mod reddens it. Residuals (Skip on go-list failure, go.work/vendor) raised separately as Minor.
+
+### Raised
+
+- **BR-26** [Important] `accepted-input-never-effective` ParseSurfaces accepts a bare directory, a double-star glob and a leading-bang pattern, none of which Match ever honours, so a declaration can guard nothing
+  Probed at head: "pkg/vocab" parses but Match("pkg/vocab/x.go") is false; "lua/parley/**" matches one level only (lua/parley/a/b.lua false); "!pkg/x.go" parses and never matches. Fail-open on exactly the #263 case, for the next declaration (parley). 2nd in family after BR-21. Rule: every form the parser accepts must take the effect its reader expects, or be refused at parse. Fix: refuse double-star and a leading bang, let a glob-free literal match itself or anything under it, optionally treat a pattern matching no tracked path at base or head as a crossing, and pin the forms with a Match table test (the fuzz oracle only checks no-panic).
+- **BR-27** [Important] `doc-claim-contradicts-code` Prose hand-restates the declared build-closure scope and the close gate-flag set, and this window changed both without sweeping them
+  5th in family. Instances in this window: helptext/close.md:210-213 says ariadne declares cmd/sdlc/ as the shell's own code (BR-25 made it the whole build closure); AGENTS.base.md:52 lists close guards and flags without --no-done-when-fresh (added here) or --no-ledger; atlas/workflow/sdlc-binary.md:891-895 says close has 8 gates, with a stale flag list. Rule: prose never restates a set, count or scope that code owns. It renders from the owner (a help token, e.g. from processmanual.GateCatalog) or points at it without restating, and any fix that changes such a fact sweeps restatements keyed on the old fact in the same round.
+- **BR-28** [Minor] `test-oracle-weaker-than-plan` TestRepoDeclarationCoversTheShell skips when go list fails, so the BR-25 guard can silently turn off
+  3rd in family. Rule: a guard test fails when the derivation it rests on fails; replace t.Skipf with t.Fatalf. The plan says the closure is derived and pinned by this test, and a skip is neither.
+- **BR-29** [Minor] `hand-listed-guard-incomplete` go.work, go.work.sum and vendor/ change what go build compiles but are not declared shared surfaces
+  4th in family. go list -deps can only see inputs that exist today; a branch that adds go.work with a replace directive, or a vendor/ tree, changes sdlc's binary without touching go.mod, go.sum or a package directory. Rule: the protected set is every input the go command reads in module mode, including files that do not exist yet. Declare go.work* and vendor/.
+- **BR-30** [Minor] `porcelain-output-parsed-as-data` Measure gets code-file paths from quoted DiffNames output but surface paths from -z output, so non-ASCII doc and test paths count as code
+  git diff --name-only (and --numstat) quote non-ASCII paths ("docs/caf\303\251.md"), which IsDoc and isTestPath then fail to recognise, so they count as code and can upgrade a quick issue for nothing. The error is on the safe side (toward full), but the -z lesson cited on DiffPathsBothSides was applied to only one of the two listings Measure pairs. Use -z (or core.quotePath=false) for the code-file list too.
+
+## Round 8 — 2026-09-17T22:50:41-07:00 (claude) — passed
+
+### Disposed
+
+- BR-26 — addressed — Literal-or-subtree branch and the refusals of a leading bang, double-star and globbed dir entries are pinned by TestSurfaceForms and the extended rejection table; reverting either reddens its test (verified in a scratch export). Residual degenerate forms raised separately.
+- BR-27 — not-addressed — Named sites fixed, class not: the new test is page-granular. close.md FLAGS (262-276) and milestone-close.md FLAGS (78-81, written this round) both omit --no-ledger and pass because it appears elsewhere on each page; atlas sdlc-binary.md:893-894 claims every list is pinned complete; sdlc-binary.md:754 still restates "12 gates / 16 sigs" against a 20-row GateCatalog. Render per-command gate-flag lists from GateCatalog via a help token, or make the oracle list-granular.
+- BR-28 — addressed — surfaces_test.go:125 now t.Fatalf on a go list failure.
+- BR-29 — addressed — go.work, go.work.sum and vendor/ declared and in the test's shell list; removing go.work and vendor/ from the declaration reddens TestRepoDeclarationCoversTheShell.
+- BR-30 — addressed — DiffNames uses -z; reverting it reddens TestCloseNonASCIIPathsClassifyAsThemselves. The numstat half is untested and raised separately.
+
+### Raised
+
+- **BR-31** [Important] `doc-claim-contradicts-code` BR-26 changed the shared-surface grammar, but the declaration header and the atlas still describe the old two-form grammar
+  This is the 6th finding in family doc-claim-contradicts-code. .sdlc/shared-surfaces:5-6 says every non-directory line is a path.Match glob, so pkg/vocab would mean exactly that path, and it omits the refusals; atlas/workflow/sdlc-binary.md:299 says the same. The code (surfaces.go:18-31,68-84) now treats a glob-free literal as path-or-subtree and refuses the double-star and leading-bang forms. The rule BR-27 stated (a fix that changes a fact sweeps restatements keyed on it in the same round) was violated by the same commit. Rule-level fix: give the grammar one owner, e.g. a flow.SurfaceForms string rendered into sdlc close --help via a token and pinned clause-by-clause against TestSurfaceForms (the churn.CodeFileRule / TestCodeFileRule pattern). Point the declaration header and atlas at it, and sweep in the same round with git grep for path.Match, trailing-slash and for-a-subtree phrasing.
+- **BR-32** [Minor] `porcelain-output-parsed-as-data` The window numstat is still parsed as quoted output: its BR-30 change has no red test, and core.quotePath=false still quotes some paths
+  This is the 2nd finding in family porcelain-output-parsed-as-data. Reverting the quotePath change in windowFileStats (closeflow.go:142) leaves the whole suite green; a probe with cmd/über.go at 150 lines then closes quick. The plan's "mutation-checked" claim covers only DiffNames. At HEAD, cmd/a"b.go at 150 lines closes quick, because quotePath=false still quotes a double-quote, a backslash and control characters, and the quoted row never joins the -z code-file list. Rule: every git listing a gate reads as data uses -z. Use diff --numstat -z (renames arrive as separate NUL fields) with a -z parse, and add a close test with a git-quoted code-file name over the line limit.
+- **BR-33** [Minor] `accepted-input-never-effective` ParseSurfaces still accepts root and non-canonical patterns (/, ./, ., pkg/./vocab, pkg//vocab/) that match nothing
+  This is the 3rd finding in family accepted-input-never-effective. Probed at head: each parses without error and matches no path. The forms are refused by hand-enumeration while the fuzz oracle still checks only no-panic, so the next form slips too. Rule: accept only canonical, non-empty patterns (path.Clean(p) == p and p is not "."). Make the oracle a property instead of a table: FuzzParseSurfaces asserts that an accepted glob-free pattern matches itself, and a directory entry matches pattern + "x". Also decide whether a glob naming a directory (pkg/v*) covers its subtree the way the literal form now does, or document the asymmetry.
+
 ## Open findings
 
 - **BR-15** [Minor] `doc-claim-contradicts-code` change-code help and two atlas pages say the flow is recorded first, but since BR-5 it is written after the gates
 - **BR-16** [Minor] `test-oracle-weaker-than-plan` TestOnlyFlowPackageBuildsFlowValues misses field assignment and untyped Rule strings, so BR-14's own defect passes it
 - **BR-17** [Minor] `record-roundtrips-every-reader` The shared flow corpus dropped Parse's duplicate-key reject branch when it replaced TestParseRejects
+- **BR-27** [Important] `doc-claim-contradicts-code` Prose hand-restates the declared build-closure scope and the close gate-flag set, and this window changed both without sweeping them
+- **BR-31** [Important] `doc-claim-contradicts-code` BR-26 changed the shared-surface grammar, but the declaration header and the atlas still describe the old two-form grammar
+- **BR-32** [Minor] `porcelain-output-parsed-as-data` The window numstat is still parsed as quoted output: its BR-30 change has no red test, and core.quotePath=false still quotes some paths
+- **BR-33** [Minor] `accepted-input-never-effective` ParseSurfaces still accepts root and non-canonical patterns (/, ./, ., pkg/./vocab, pkg//vocab/) that match nothing

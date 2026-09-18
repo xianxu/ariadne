@@ -376,3 +376,17 @@ func TestCloseNonASCIIPathsClassifyAsThemselves(t *testing.T) {
 		t.Errorf("non-ASCII docs/tests counted as code: flow %+v\n%s", f, text)
 	}
 }
+
+// TestCloseQuotedNameCodeFileLinesCount: a code file whose name git quotes
+// without -z (a double quote in it) must still have its lines counted — over
+// the limit, it upgrades.
+func TestCloseQuotedNameCodeFileLinesCount(t *testing.T) {
+	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a\"b.go": goLines(flow.MaxChangedLines + 50)})
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
+		t.Fatal(err)
+	}
+	if f, text := issueFlowAfterClose(t, dir); f.Kind() != flow.Full || !strings.Contains(text, "added lines") {
+		t.Errorf("a quoted-name code file over the line limit stayed %+v:\n%s", f, text)
+	}
+}

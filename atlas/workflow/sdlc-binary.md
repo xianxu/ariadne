@@ -296,8 +296,8 @@ the Plan's Mx rows, and shared surfaces from `.sdlc/shared-surfaces` read as
 committed at base ∪ head. Outside the shell it composes an upgrade to
 full/inferred (written at finalize); inside, the dispatch runs the
 `small-diff-review` recipe. `.sdlc/shared-surfaces` is repo-owned, like
-`.sdlc/fleet.json`: one pattern per line (`path.Match`, or `dir/` for a subtree),
-and the file always matches itself.
+`.sdlc/fleet.json`; its pattern grammar is stated once, by `flow.SurfaceForms`,
+which `sdlc close --help` renders (the file always matches itself).
 
 ## Fleet inventory and policy (`sdlc fleet`, #200)
 
@@ -750,8 +750,9 @@ The core problem is **discrimination, not capture**: this repo *develops* sdlc, 
 output. So the instrument (1) **anchors to `Bash(sdlc <verb>)` invocations** (drops
 the source/edit/log-read noise — the dominant contamination), joined to their
 `tool_use_id`-linked tool_result content-block; (2) classifies each output line
-against a **per-gate signature catalog** (`internal/processmanual/gatesig.go` —
-12 gates / 16 sigs / 3 ACK grammars: G1 close·mclose `--no-X (or --force): …`,
+against a **per-gate signature catalog** (`internal/processmanual/gatesig.go`,
+`GateCatalog` — the one owner of each command's bypass set, whose `Gate` field
+help pages render via `{{GATE_FLAGS}}`; ACK grammars: G1 close·mclose `--no-X (or --force): …`,
 cinfo no-judge, G2 change-code `X gate bypassed (--force: …)` (silent alone), G3
 merge/push `--no-X: …`), requiring the runtime `\x1b[0m` reset for a bypass ACK and
 grammar+digit-anchored patterns for refusals (so the `printSemanticWarmup` success
@@ -889,9 +890,9 @@ the estimate nudge; `change-code`'s missing-block error points at the command)
 warn-and-continue so a brain-less downstream repo never breaks the gates.
 
 **Per-gate bypass (#67).** Each `close` gate has its own `--no-<gate>` flag.
-The set is owned by `processmanual.GateCatalog` (pinned to the registered flags,
-and every help page that lists them is pinned complete by
-`TestGateFlagListsInHelpAreComplete`); `sdlc close --help` prints it.
+The set is owned by `processmanual.GateCatalog` (pinned to the registered flags);
+help pages render it with `{{GATE_FLAGS}}` rather than keep a copy, and
+`TestGateFlagListsAreRenderedFromTheCatalog` refuses a hand-listed gate flag.
 `closeFlags.skip(gate)` is the single arbiter (`Force || the field`). A
 per-gate flag is an *acknowledgment* that one guard doesn't apply (e.g. a
 pure bugfix → `--no-atlas`); it logs an audit `[!]` line and only fires

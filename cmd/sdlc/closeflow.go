@@ -136,14 +136,15 @@ func measureCloseWindow(stderr io.Writer, windowBase, windowHead string, diffFil
 // with the churn report (churnForWindow), which reads the same final diff.
 func windowFileStats(base, head string) ([]churn.FileStat, error) {
 	span := base + ".." + head
-	// core.quotePath=false: numstat rows must name paths exactly as DiffNames
-	// does, or a non-ASCII code file's lines would never be counted — the unsafe
-	// direction, toward quick (#231 M2 review).
-	out, err := gitx.RunGit("-c", "core.quotePath=false", "diff", "--numstat", span)
+	// -z: numstat rows must name paths exactly as DiffNames (-z) does, or a code
+	// file whose name git would quote (non-ASCII, a double quote, a backslash)
+	// never has its lines counted — the unsafe direction, toward quick. Every git
+	// listing a gate reads as data uses -z (#231 M2 review).
+	out, err := gitx.RunGit("diff", "--numstat", "-z", span)
 	if err != nil {
-		return nil, fmt.Errorf("git diff --numstat %s: %w", span, err)
+		return nil, fmt.Errorf("git diff --numstat -z %s: %w", span, err)
 	}
-	return churn.ParseNumstat(string(out)), nil
+	return churn.ParseNumstatZ(string(out)), nil
 }
 
 // committedSurfaces is the union of the shared-surface declaration as committed

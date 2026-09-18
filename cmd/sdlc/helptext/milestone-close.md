@@ -74,11 +74,9 @@ FLAGS
   --verified '<line>'   one-line behavior evidence
   --force               bypass close's guards (record reason in --verified)
   --dry-run             plan only; skip both close mutation and judge dispatch
-  --no-judge            run the close but skip the auto-dispatched judge
-  --no-actual, --no-verified, --no-reclose-guard, --no-atlas, --no-verdict,
-  --no-plan-check, --no-project
-                        the per-gate bypasses of the mechanical close it runs;
-                        each waives one gate — see `sdlc close --help`
+  --no-<gate>           the per-gate bypasses (the review, and the mechanical
+                        close's gates), each waiving exactly one:
+{{GATE_FLAGS}}
   --agent <name>        agent CLI for the judge: claude | codex | gemini.
                         Default: explicit --agent, then AGENT_CMD, then
                         PAIR_AGENT/current known agent signals, then claude.

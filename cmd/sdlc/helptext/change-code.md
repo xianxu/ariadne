@@ -20,9 +20,9 @@ between planning (which happens on `main`) and code-changing work:
                            v2-lineage primitives whose design/impl hours sum to
                            estimate_hours (no unitemized estimate). Derive
                            it AFTER the plan clears plan-quality — nothing
-                           above this point mentions the estimate.
-                           --no-estimate / --no-estimate-recon bypass the
-                           two halves; the block grammar + vocabulary live
+                           above this point mentions the estimate. The two
+                           halves each have a bypass (--no-estimate,
+                           --no-estimate-recon); the block grammar + vocabulary live
                            in helptext/estimate.md. Then estimate-quality
                            (#117: was the derivation actually applied, or
                            back-fitted to a predetermined total?).
@@ -115,10 +115,8 @@ FLAGS
                       harness to handle.
   --force <reason>    bypass gate refusals; the rationale is logged
                       to stderr and recorded in the audit trail.
-  --no-judge          skip the plan-quality LLM judge.
-  --no-structural     skip the deterministic structural checks.
-  --no-estimate       skip the estimate_hours gate (#113).
-  --no-estimate-recon skip the `## Estimate` reconciliation gate (#117).
+  --no-<gate>         the per-gate bypasses, each waiving exactly one:
+{{GATE_FLAGS}}
   --flow <kind>       pin the flow: quick | full — the operator's decision
                       (provenance: operator). Default: inferred (#231).
   --dry-run           print would-be operations; do nothing.

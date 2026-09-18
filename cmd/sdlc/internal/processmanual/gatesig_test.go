@@ -3,6 +3,7 @@ package processmanual
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -52,5 +53,18 @@ func TestNoJudgeCloseHasNoRefusal(t *testing.T) {
 				t.Errorf("close no-judge should have HasRefusal=false (auto-dispatch skip)")
 			}
 		}
+	}
+}
+
+// TestEveryGateIsDescribed: help pages render gate tables from the catalog,
+// so every row must say which gate its flag waives.
+func TestEveryGateIsDescribed(t *testing.T) {
+	for _, g := range GateCatalog {
+		if strings.TrimSpace(g.Gate) == "" {
+			t.Errorf("%v --%s has no Gate description", g.Commands, g.Flag)
+		}
+	}
+	if !strings.Contains(GateTable("close"), "--no-done-when-fresh") || strings.Contains(GateTable("close"), "--no-validate") {
+		t.Errorf("GateTable(close) is not close's gate set:\n%s", GateTable("close"))
 	}
 }

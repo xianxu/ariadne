@@ -165,17 +165,7 @@ WHAT THE GUARD DEFENDS
   can waive exactly the one that doesn't apply (and acknowledge it) instead
   of reaching for the blanket --force:
 
-    gate                          flag
-    actual-hours required         --no-actual
-    verified-evidence required    --no-verified
-    already-done refusal          --no-reclose-guard
-    atlas/ changed in window      --no-atlas
-    milestone Review-Verdict      --no-verdict
-    ## Plan has no unchecked       --no-plan-check
-    project detail-block updated  --no-project
-    issue boundary review (#69)   --no-judge
-    gate ledger open findings     --no-ledger
-    quick-flow Done-when fresh    --no-done-when-fresh
+{{GATE_FLAGS}}
 
   Each bypass logs an audit "[!] --no-X: skipping ..." line (it's an
   explicit acknowledgment, not a silent skip) and the rationale belongs in
@@ -206,7 +196,9 @@ THE QUICK FLOW (#231)
     {{QUICK_SHELL}}
 
   Code files and added lines come from the window's diff, classified as the
-  shell above states. Shared surfaces come from `.sdlc/shared-surfaces`, read as
+  shell above states. Shared surfaces come from `.sdlc/shared-surfaces` —
+  {{SURFACE_FORMS}}
+  The declaration is read as
   COMMITTED at the window's base and head and unioned — never the working tree —
   so a branch cannot loosen its shell by editing the declaration, and editing
   that file is itself a shared-surface change. (Where sdlc is built from the
@@ -226,8 +218,8 @@ THE QUICK FLOW (#231)
   Before that one review, two deterministic checks (issue close only):
     - `## Done when` has a bullet — it is the review's only oracle.
     - If `## Spec` or `## Revisions` changed since change-code but `## Done when`
-      did not, close refuses: restate the acceptance criteria, or pass
-      --no-done-when-fresh with the reason in --verified.
+      did not, close refuses: restate the acceptance criteria, or pass the
+      Done-when freshness bypass (BYPASSING A GATE) with the reason in --verified.
 
   An issue with no `flow:` line (every issue before #231) closes exactly as before.
 
@@ -265,16 +257,9 @@ FLAGS
   --actual <hours>      focused dev-hours (required unless --no-actual/--force)
   --verified '<line>'   one-line behavior evidence (required unless --no-verified/--force)
   --force               bypass ALL gates (≡ every --no-* flag); reason in --verified
-  --no-actual           record actual_hours: N/A; skip velocity calibration
-  --no-verified         bypass the VERIFIED-evidence requirement
-  --no-reclose-guard    re-close an already-done issue (skip the refusal)
-  --no-atlas            skip the atlas/ change check (code changed, but no NEW
-                        architectural surface; docs-only windows auto-satisfy, #177)
-  --no-verdict          skip the milestone Review-Verdict trailer check
-  --no-plan-check       close despite unchecked ## Plan items
-  --no-project          skip the project detail-block update requirement
-  --no-judge            skip the issue boundary review on full-issue close (#69)
-  --no-done-when-fresh  quick flow: skip the Done-when freshness check (#231)
+  --no-<gate>           one flag per gate, each waiving exactly that gate — the
+                        table under BYPASSING A GATE; docs-only windows
+                        auto-satisfy the atlas gate (#177)
   --agent <cli>         agent CLI for the boundary review (claude | codex | gemini)
                         Default: explicit --agent, then AGENT_CMD, then
                         PAIR_AGENT/current known agent signals, then claude.

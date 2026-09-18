@@ -2,11 +2,11 @@
 # the quick flow at close, whatever its size — these are the seams other repos,
 # issues and gates read, where a small edit has a large blast radius.
 #
-# One pattern per line: a path.Match glob (`*` does not cross `/`), or a
-# directory with a trailing `/`, meaning anything under it. This file itself is
-# always a shared surface, and close reads it as committed at the review window's
-# base AND head, so a branch cannot loosen its shell by editing it. `sdlc
-# change-code --help` prints the rest of the shell.
+# The pattern forms (and the ones refused) are printed by `sdlc close --help`,
+# under THE QUICK FLOW — that is their one statement. This file itself is always
+# a shared surface, and close reads it as committed at the review window's base
+# AND head, and on both sides of a rename, so a branch cannot loosen its shell by
+# editing it. `sdlc change-code --help` prints the rest of the shell.
 
 # The gate machinery itself. ariadne's sdlc is built from the checkout the branch
 # lives in, so a quick branch that edited anything compiled into it — the shell's

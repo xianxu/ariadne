@@ -492,3 +492,23 @@ Delta:
   non-ASCII code file's added lines were otherwise uncounted, erring toward quick
   (`TestCloseNonASCIIPathsClassifyAsThemselves`, mutation-checked).
 
+### 2026-09-17 — M2 closed (FIX-THEN-SHIP at the round cap); BR-27, BR-31..BR-33 fixed in its close commit
+
+- **BR-27** (a doc claim contradicted the code; page-granular before, a rule now).
+  `GateCatalog` rows carry a `Gate` description. Help pages render their bypass
+  table with `{{GATE_FLAGS}}` (`processmanual.GateTable`), and
+  `TestGateFlagListsAreRenderedFromTheCatalog` refuses any hand-written line that
+  lists a gate flag. Close's table picked up the `--no-ledger` row it had been
+  missing, and the atlas's catalog counts are gone.
+- **BR-31.** `flow.SurfaceForms` is the one statement of the declaration
+  grammar, rendered as `{{SURFACE_FORMS}}` and pinned example by example
+  (`TestSurfaceFormsDescribesTheParser`). The declaration header and the atlas
+  point at it.
+- **BR-32.** The numstat reads `-z` (`churn.ParseNumstatZ`). A code file with a
+  double quote in its name over the line limit now upgrades, and the test
+  reddens without `-z`.
+- **BR-33.** Only canonical, non-empty patterns are accepted.
+  `FuzzParseSurfaces` asserts the property: an accepted literal matches itself,
+  and a directory entry matches a child. A glob never covers a subtree, which is
+  documented in `SurfaceForms`.
+

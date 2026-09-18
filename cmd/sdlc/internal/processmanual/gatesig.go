@@ -1,8 +1,10 @@
 package processmanual
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
+	"strings"
 )
 
 // Gate bypass/refusal signature catalog (#172 friction audit).
@@ -33,7 +35,11 @@ const (
 type GateSig struct {
 	Commands []string // sdlc verbs this signature applies to
 	Flag     string   // e.g. "no-actual" (the registered --<flag> name, without "--")
-	Grammar  ackGrammar
+	// Gate says, in a few words, which gate the flag waives. Help pages render
+	// their gate-flag lists from this catalog ({{GATE_FLAGS}} → GateTable), so a
+	// list cannot go stale or partial by hand (#231 M2 review BR-27).
+	Gate    string
+	Grammar ackGrammar
 
 	// SilentAlone: change-code gates used WITHOUT --force skip silently (no ACK) —
 	// a bypass is observable only when --force was used.
@@ -77,78 +83,78 @@ var GateCatalog = []GateSig{
 	// close / milestone-close — G1 (shared computeClose emits these). ACK = the
 	// paren+colon form; refusal = the exact per-gate tail (NOT the shared prefix —
 	// the printSemanticWarmup `only if there's genuinely nothing` must not match).
-	{Commands: closeMclose, Flag: "no-actual", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: closeMclose, Flag: "no-actual", Gate: "actual-hours required", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-actual \(or --force\): closing with actual_hours`,
 		RefusalPat: `Pass --no-actual \(or --force\) only when measurement is not applicable`},
-	{Commands: closeMclose, Flag: "no-verified", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: closeMclose, Flag: "no-verified", Gate: "verified-evidence required", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-verified \(or --force\): closing with NO verification evidence`,
 		RefusalPat: `Pass --no-verified \(or --force\) only if there's genuinely no behavior`},
-	{Commands: closeMclose, Flag: "no-reclose-guard", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: closeMclose, Flag: "no-reclose-guard", Gate: "already-done refusal", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-reclose-guard \(or --force\): re-closing`,
 		RefusalPat: `is already status: done — pass --no-reclose-guard \(or --force\) to re-close`},
-	{Commands: closeMclose, Flag: "no-atlas", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: closeMclose, Flag: "no-atlas", Gate: "atlas/ changed in window", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-atlas \(or --force\): skipping atlas/ change check`,
 		RefusalPat: `pass --no-atlas \(or --force\) with the rationale`},
-	{Commands: closeMclose, Flag: "no-verdict", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: closeMclose, Flag: "no-verdict", Gate: "milestone Review-Verdict", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-verdict \(or --force\): skipping Review-Verdict check`,
 		RefusalPat: `Or pass --no-verdict \(or --force\); record`},
-	{Commands: closeMclose, Flag: "no-plan-check", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: closeMclose, Flag: "no-plan-check", Gate: "## Plan has no unchecked items", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-plan-check \(or --force\): closing .* with \d+ unchecked`,
 		RefusalPat: `pass --no-plan-check, or --force, to close anyway`},
-	{Commands: closeMclose, Flag: "no-project", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: closeMclose, Flag: "no-project", Gate: "project detail-block updated", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-project \(or --force\): skipping detail-block`,
 		RefusalPat: `--no-project, or --force, if it's`},
 	// #194: the boundary gate ledger's open-findings refusal. It can refuse on a PASSING
 	// verdict (verdict AND ledger must both clear), which is the surprising case an
 	// operator needs a precise flag for rather than reaching for --no-judge.
-	{Commands: closeMclose, Flag: "no-ledger", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: closeMclose, Flag: "no-ledger", Gate: "gate ledger open findings", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-ledger \(or --force\): skipping the gate-ledger open-findings refusal`,
 		RefusalPat: `Or pass --no-ledger \(or --force\); record`},
 	// #231: the quick flow's Done-when freshness check — close only (milestone-close
 	// never runs the Done-when checks; they guard the final acceptance review).
-	{Commands: []string{"close"}, Flag: "no-done-when-fresh", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: []string{"close"}, Flag: "no-done-when-fresh", Gate: "quick-flow Done-when fresh (#231)", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-done-when-fresh \(or --force\): skipping the Done-when freshness check`,
 		RefusalPat: `pass --no-done-when-fresh \(or --force\) with the reason in --verified`},
-	{Commands: closeMclose, Flag: "no-judge", Grammar: grammarCinfo, HasRefusal: false,
+	{Commands: closeMclose, Flag: "no-judge", Gate: "the boundary review (#69)", Grammar: grammarCinfo, HasRefusal: false,
 		AckPat: `skipping (issue boundary review|milestone-review) per --no-judge \(or --force\)`},
 
 	// project close — G1. Nested commands remain full catalog keys so transcript
 	// attribution cannot conflate this boundary with issue close.
-	{Commands: []string{"project close"}, Flag: "no-retro", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: []string{"project close"}, Flag: "no-retro", Gate: "project retro recorded", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-retro \(or --force\): closing without a recorded project retro`,
 		RefusalPat: `run .*project retro.*, or pass --no-retro \(or --force\)`},
-	{Commands: []string{"project close"}, Flag: "no-ledger", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: []string{"project close"}, Flag: "no-ledger", Gate: "fog-factor ledger row", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-ledger \(or --force\): skipping fog-factor ledger`,
 		RefusalPat: `or pass --no-ledger \(or --force\)`},
 
 	// change-code — G2, silent unless --force. ACK = "<base> gate[s] bypassed (--force:";
 	// the base differs from the flag (no-judge → plan-quality/estimate-quality).
-	{Commands: []string{"change-code"}, Flag: "no-judge", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: []string{"change-code"}, Flag: "no-judge", Gate: "plan-quality + estimate-quality judges", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `(plan-quality|estimate-quality) gate bypassed \(--force:`,
 		RefusalPat: `(plan-quality|estimate-quality): findings reported`},
-	{Commands: []string{"change-code"}, Flag: "no-structural", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: []string{"change-code"}, Flag: "no-structural", Gate: "structural sanity", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `structural gate bypassed \(--force:`,
 		RefusalPat: `structural-sanity gates failed:`},
-	{Commands: []string{"change-code"}, Flag: "no-estimate", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: []string{"change-code"}, Flag: "no-estimate", Gate: "estimate_hours present (#113)", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `estimate gate bypassed \(--force:`,
 		RefusalPat: `estimate gate failed:`},
-	{Commands: []string{"change-code"}, Flag: "no-estimate-recon", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: []string{"change-code"}, Flag: "no-estimate-recon", Gate: "## Estimate reconciles (#117)", Grammar: grammarG2, SilentAlone: true, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `estimate-recon gate bypassed \(--force:`,
 		RefusalPat: `estimate-reconciliation gate failed:`},
 
 	// merge / push — G3, colon, no "(or --force)". no-validate ACK carries a ⚠️ +
 	// double space (tolerated by not anchoring to line start). publish-gate refusals
 	// never name the flag (RefusalNamesFlag=false) → best-effort attribution.
-	{Commands: []string{"merge"}, Flag: "no-judge", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: false,
+	{Commands: []string{"merge"}, Flag: "no-judge", Gate: "publish gate (#160)", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: false,
 		AckPat:     `--no-judge: skipping the pre-merge publish gate`,
 		RefusalPat: `publish gate: \d+ commit\(s\) landed after`},
-	{Commands: []string{"merge"}, Flag: "no-validate", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: []string{"merge"}, Flag: "no-validate", Gate: "instance conformance (#124)", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-validate: SKIPPING the instance-conformance gate`,
 		RefusalPat: `instance-conformance gate: \d+ nonconforming`},
-	{Commands: []string{"push"}, Flag: "no-judge", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: false,
+	{Commands: []string{"push"}, Flag: "no-judge", Gate: "publish gate (#160)", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: false,
 		AckPat:     `--no-judge: skipping the pre-push publish gate`,
 		RefusalPat: `publish gate: \d+ commit\(s\) landed after`},
-	{Commands: []string{"push"}, Flag: "no-validate", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: true,
+	{Commands: []string{"push"}, Flag: "no-validate", Gate: "instance conformance (#124)", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-validate: SKIPPING the instance-conformance gate`,
 		RefusalPat: `instance-conformance gate: \d+ nonconforming`},
 }
@@ -182,4 +188,23 @@ func GateFlagsFor(command string) []string {
 		}
 	}
 	return out
+}
+
+// GateTable renders a help page's gate flags as "gate  --flag" rows, for every
+// catalog row whose command lives on that page ("project close" lives on
+// "project"). The one rendering of a command's bypass set: help pages carry
+// {{GATE_FLAGS}} instead of a hand-kept list. "" when the page has no gates.
+func GateTable(page string) string {
+	var rows []string
+	seen := map[string]bool{}
+	for _, g := range GateCatalog {
+		for _, c := range g.Commands {
+			if p, _, _ := strings.Cut(c, " "); p == page && !seen[g.Flag] {
+				seen[g.Flag] = true
+				rows = append(rows, fmt.Sprintf("    %-38s --%s", g.Gate, g.Flag))
+				break
+			}
+		}
+	}
+	return strings.Join(rows, "\n")
 }

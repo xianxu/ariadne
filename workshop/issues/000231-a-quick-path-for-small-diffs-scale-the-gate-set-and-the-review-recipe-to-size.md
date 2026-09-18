@@ -328,7 +328,7 @@ Durable plan: `workshop/plans/000231-a-quick-path-for-small-diffs-scale-the-gate
       one milestone parser, inference + `--flow` pin + gate skips, and a reachable
       quick path (start-plan, the constitution and skills made flow-conditional),
       docs.
-- [ ] M2 — the shell, the Done-when checks and the small-diff review at close:
+- [x] M2 — the shell, the Done-when checks and the small-diff review at close:
       one path classifier, shared surfaces, the upgrade, the recipe, the
       end-to-end test, help tokens, docs.
 - [ ] M3 — calibration columns and drift exclusion, and the parley.nvim#263
@@ -356,6 +356,7 @@ the family-enumeration rule is part of this issue rather than a separate one,
 and why the Done-when criterion above is the acceptance test that matters.
 
 ### 2026-09-17 — second use case: the declarative change, and a third tier
+- 2026-09-17: closed M2 — round 4 after BR-26..BR-30 fixed as rules: go test ./... green except TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory (pre-existing, #210, red on main); TestSurfaceForms pins every accepted surface form, refused forms tested; TestGateFlagListsInHelpAreComplete pins help gate-flag lists to GateCatalog (completed merge/push/milestone-close); build-closure guard now fails on go list error and covers go.work*/vendor; TestCloseNonASCIIPathsClassifyAsThemselves red with DiffNames unquoted; git diff --check clean; review verdict: FIX-THEN-SHIP
 - 2026-09-17: closed M1 — round 3 after BR-11..BR-14 fixed as rules: go test ./... green except TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory (pre-existing, #210, red on main); round-2 mutations each red (stale content written -> TestRecordChangeCodeFlowKeepsConcurrentEdit; drift check off -> ...RefusesFlowChangingEdit; empty-hash check relaxed -> TestFlowRecordCorpus); flow corpus asserted by both Go (TestFlowRecordCorpus) and cue (TestValidateInstance_FlowRecordCorpus); BR-13 verb sweep command recorded in the plan (26 hits, 3 qualified); git diff --check clean; review verdict: SHIP
 
 Added §5 from an operator observation (quoted there): a small config change is

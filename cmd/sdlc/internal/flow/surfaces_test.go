@@ -57,17 +57,32 @@ func TestSurfacesUnion(t *testing.T) {
 }
 
 // FuzzParseSurfaces: the declaration is repo-authored text. Parsing never
-// panics, and a declaration that parses never panics when matched.
+// panics, and — the property that keeps the parser honest about every form it
+// accepts, not just the ones a table enumerated (#231 BR-33) — each accepted
+// pattern takes effect: a glob-free pattern matches itself, and a directory
+// entry matches a path beneath it.
 func FuzzParseSurfaces(f *testing.F) {
-	for _, seed := range []string{"pkg/vocab/\n", "a/*.go\n# c\n", "[\n", "\\\n", "a/**/b\n", "/abs/path\n"} {
+	for _, seed := range []string{"pkg/vocab/\n", "a/*.go\n# c\n", "[\n", "\\\n", "a/**/b\n", "/abs/path\n", "pkg/vocab\n", "pkg/./x\n", ".\n"} {
 		f.Add(seed, "pkg/vocab/x.go")
 	}
-	f.Fuzz(func(t *testing.T, text, path string) {
+	f.Fuzz(func(t *testing.T, text, p string) {
 		s, err := ParseSurfaces(text)
 		if err != nil {
 			return
 		}
-		_ = s.Match(path)
+		_ = s.Match(p)
+		for _, pat := range s.patterns {
+			switch {
+			case strings.HasSuffix(pat, "/"):
+				if !s.Match(pat + "x") {
+					t.Fatalf("accepted directory entry %q does not match %q", pat, pat+"x")
+				}
+			case !isGlob(pat):
+				if !s.Match(pat) {
+					t.Fatalf("accepted literal %q does not match itself", pat)
+				}
+			}
+		}
 	})
 }
 
@@ -90,7 +105,8 @@ func TestRepoDeclarationParses(t *testing.T) {
 // TestParseSurfacesRejectsGlobInDirectory: `lua/*/` would pass a glob check and
 // then, compared as a literal prefix, match nothing — so it is refused.
 func TestParseSurfacesRejectsGlobInDirectory(t *testing.T) {
-	for _, bad := range []string{"lua/*/\n", "a/[bc]/\n", "x/?/\n", "lua/parley/**\n", "**/x.go\n", "!pkg/x.go\n"} {
+	for _, bad := range []string{"lua/*/\n", "a/[bc]/\n", "x/?/\n", "lua/parley/**\n", "**/x.go\n", "!pkg/x.go\n",
+		"/\n", "./\n", ".\n", "/pkg/vocab\n", "./pkg/vocab\n", "pkg/./vocab\n", "pkg//vocab/\n", "pkg/../x\n", "../x\n"} {
 		if _, err := ParseSurfaces(bad); err == nil {
 			t.Errorf("ParseSurfaces(%q): want an error", bad)
 		}
@@ -173,6 +189,46 @@ func TestSurfaceForms(t *testing.T) {
 			if got := s.Match(p); got != want {
 				t.Errorf("%q.Match(%q) = %v, want %v", c.pattern, p, got, want)
 			}
+		}
+	}
+}
+
+// TestSurfaceFormsDescribesTheParser: every example SurfaceForms prints behaves
+// as the printed line says, and every refused form it names is refused — so the
+// rendered grammar cannot drift from the parser (#231 BR-31).
+func TestSurfaceFormsDescribesTheParser(t *testing.T) {
+	for _, c := range []struct {
+		pattern     string
+		in, notIn   []string
+	}{
+		{"pkg/vocab", []string{"pkg/vocab", "pkg/vocab/x.go", "pkg/vocab/a/b.go"}, []string{"pkg/vocabulary/x.go"}},
+		{"pkg/vocab/", []string{"pkg/vocab/x.go", "pkg/vocab/a/b.go"}, []string{"pkg/vocabulary/x.go"}},
+		{"cmd/*.go", []string{"cmd/a.go"}, []string{"cmd/a/b.go", "cmd/a.md"}},
+	} {
+		if !strings.Contains(SurfaceForms, c.pattern+" ") {
+			t.Errorf("SurfaceForms does not show the %q example", c.pattern)
+		}
+		s, err := ParseSurfaces(c.pattern + "\n")
+		if err != nil {
+			t.Fatalf("%q: %v", c.pattern, err)
+		}
+		for _, p := range c.in {
+			if !s.Match(p) {
+				t.Errorf("SurfaceForms says %q covers %q; Match disagrees", c.pattern, p)
+			}
+		}
+		for _, p := range c.notIn {
+			if s.Match(p) {
+				t.Errorf("%q matched %q, which SurfaceForms says it does not", c.pattern, p)
+			}
+		}
+	}
+	for form, example := range map[string]string{"**": "a/**", "a leading !": "!a", "a glob in a\n  directory entry": "a/*/", "leading /": "/a", "./": "./a", "../": "../a", "//": "a//b"} {
+		if !strings.Contains(SurfaceForms, form) {
+			t.Errorf("SurfaceForms does not name the refused form %q", form)
+		}
+		if _, err := ParseSurfaces(example + "\n"); err == nil {
+			t.Errorf("SurfaceForms says %q is refused; ParseSurfaces accepted %q", form, example)
 		}
 	}
 }
