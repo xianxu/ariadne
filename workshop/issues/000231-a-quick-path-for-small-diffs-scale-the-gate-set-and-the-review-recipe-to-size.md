@@ -93,7 +93,8 @@ flow: {kind: quick, provenance: inferred}
 ```
 
 `kind` is `full` or `quick` (#233 adds `config`). `provenance` is `inferred` when
-a gate decided, `operator` when the operator pinned it. An issue with no `flow:`
+a gate decided, `operator` when the operator pinned it. A quick record also
+carries the contract hashes §3 uses (`spec:`, `done:`). An issue with no `flow:`
 (every issue filed before this one) reads as `full`.
 
 **Inference at `change-code`.** Two facts about the issue, both artifacts the
@@ -181,12 +182,15 @@ before its review:
 
 - `## Done when` is non-empty. The structural gate that used to guarantee this
   is gone (§2), and it is the review's only oracle.
-- If `## Spec` changed after `change-code`, `## Done when` must have changed
-  too, or the agent acknowledges it did not need to (`--no-done-when-fresh`).
-  Cheap, and it protects the one oracle left. The anchor is `change-code`, not
-  `claim`: a claim can come before the Spec exists (#113), while `change-code`
-  is where the contract is fixed, and the commit that first records `flow:`
-  marks it.
+- If `## Spec` or `## Revisions` changed after `change-code`, `## Done when` must
+  have changed too, or the agent acknowledges it did not need to
+  (`--no-done-when-fresh`). Revisions counts because the constitution records a
+  mid-stream reframe by appending there. Cheap, and it protects the one oracle
+  left. The anchor is `change-code`, not `claim`: a claim can come before the Spec
+  exists (#113), while `change-code` is where the contract is fixed. change-code
+  records short hashes of both sides in the quick flow record on every run, so
+  the check needs no git history and the anchor moves when the contract is
+  re-fixed.
 
 ### 4. The review recipe — the heart of this issue
 
@@ -275,12 +279,14 @@ Durable plan: `workshop/plans/000231-a-quick-path-for-small-diffs-scale-the-gate
 - [x] Decide the shared-surface declaration format: `.sdlc/shared-surfaces`, a
       repo-owned line file (see the durable plan).
 - [ ] M1 — the flow record and change-code: `#Flow` in cue, the `flow` package,
-      one milestone parser, inference + `--flow` pin + gate skips, docs.
+      one milestone parser, inference + `--flow` pin + gate skips, and a reachable
+      quick path (start-plan, the constitution and skills made flow-conditional),
+      docs.
 - [ ] M2 — the shell, the Done-when checks and the small-diff review at close:
       one path classifier, shared surfaces, the upgrade, the recipe, the
       end-to-end test, help tokens, docs.
-- [ ] M3 — calibration columns and drift exclusion, the constitution, and the
-      parley.nvim#263 fixture run.
+- [ ] M3 — calibration columns and drift exclusion, and the parley.nvim#263
+      fixture run.
 
 ## Log
 
@@ -342,6 +348,15 @@ changed lines are insertions, as churn counts them; the three disagreeing path
 classifiers collapse into one per-path set in `churn`, whose test detection widens
 to non-Go layouts because parley.nvim is Lua; and the colon-only milestone regex in
 `sizing.go` retires onto the one `close.go` uses.
+
+### 2026-09-17 — plan-quality round lost to the sandbox
+
+The first `change-code` run's plan-quality judge never reached the API: the
+`claude` subprocess got `403 Connection blocked by network allowlist` from the
+session sandbox, and the gate recorded a BLOCKED round with a protocol error and
+no findings. No review happened, so the untracked ledger file it created was
+removed rather than letting an environment failure spend one of the three
+rounds. Re-ran outside the sandbox.
 
 ## Revisions
 
@@ -447,4 +462,16 @@ ARCH registry rather than in a Go list.
 Delta: §4 and the matching Done-when bullet now say each registry entry declares
 `quick: yes|no`, every entry must declare it, and the recipe carries exactly the
 markers marked yes.
+
+### 2026-09-17 — plan-quality round 1
+
+Reason: the plan-quality gate found that the quick flow was unreachable on the
+documented path (start-plan, the constitution and the brainstorming skill send
+every issue into a durable plan, which infers full), and that a reframe recorded
+under `## Revisions` would slip past the freshness check.
+
+Delta: §3's freshness check watches Spec + Revisions, anchored by hashes that
+change-code records in the quick flow record (§1 notes the extra fields). M1 now
+makes every surface that routes work into a durable plan flow-conditional, and the
+constitution work moves there from M3.
 
