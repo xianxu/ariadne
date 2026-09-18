@@ -434,6 +434,22 @@ Two notes for later:
   Log lines into `## Log`, never at end of file, so the gate's own writes don't
   trigger it.
 
+### 2026-09-17 — M2 built
+
+The close side landed in seven commits: one per-path classifier set in `churn`;
+the pure shell (`Measure`, `Crossings`, shared surfaces, `Upgrade`); the
+small-diff recipe, with its principles chosen by the registry's new
+`quick-flow:` field; close's measurement, upgrade, Done-when checks and recipe
+selection; and the end-to-end test that drives the same verbs through a small
+issue and a large one. Each wire was mutation-checked red.
+
+A measurement cut-over to know about: `isTestPath` now recognises non-Go test
+layouts (Lua `*_spec.lua`, Python, JS/TS, shell `*.test.sh`, and
+`test/`/`tests/`/`spec/` directories). From #231 on, calibration-ledger rows for
+non-Go repos count those as `churn_test`, where earlier rows counted them as
+`churn_prod`, so compare #187 cost metrics across the cut-over with that in
+mind. ariadne's own `scripts/test/*.test.sh` moves the same way.
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
