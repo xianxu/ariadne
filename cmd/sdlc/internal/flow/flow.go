@@ -46,17 +46,69 @@ const (
 // Field is the frontmatter key the record lives under.
 const Field = "flow"
 
-// Flow is one issue's flow record. Spec and Done are the contract hashes
-// change-code records on the quick flow (see ContractHashes); empty otherwise.
+// Flow is one issue's flow record. Its fields are UNEXPORTED, so outside this
+// package a Flow can only come from Parse/FromFrontmatter/Recorded (reading a
+// record) or Decide/WithContract (making a decision): the compiler, not a source
+// scan, enforces that no caller decides a flow on its own (#231 BR-14, BR-16).
+// The zero Flow reads as Full, the stricter flow.
 type Flow struct {
-	Kind       Kind
-	Provenance Provenance
-	Spec       string
-	Done       string
+	kind       Kind
+	provenance Provenance
+	spec, done string // the contract hashes on the quick flow (see ContractHashes)
 }
+
+// Kind is the gate set; the zero Flow reads as Full.
+func (f Flow) Kind() Kind {
+	if f.kind == "" {
+		return Full
+	}
+	return f.kind
+}
+
+// Provenance is who decided the kind; empty for an unrecorded (zero) Flow.
+func (f Flow) Provenance() Provenance { return f.provenance }
+
+// Spec is the Spec+Revisions contract hash recorded at change-code, or "".
+func (f Flow) Spec() string { return f.spec }
+
+// Done is the Done-when contract hash recorded at change-code, or "".
+func (f Flow) Done() string { return f.done }
 
 // hashRE is the shape of a contract hash: the 8-hex prefix of a sha256.
 var hashRE = regexp.MustCompile(`^[0-9a-f]{8}$`)
+
+// Reason names which of Parse's reject branches refused a record — one per
+// branch, so the shared corpus can prove every branch is pinned by at least one
+// row (#231 BR-17): a branch the corpus never exercises is a branch the two
+// readers could silently disagree on.
+type Reason string
+
+const (
+	ReasonYAML          Reason = "yaml"           // not parseable as YAML at all
+	ReasonNotMap        Reason = "not-map"        // parses, but not a one-line map
+	ReasonDuplicateKey  Reason = "duplicate-key"  // a key repeated
+	ReasonNotString     Reason = "not-string"     // a value YAML types as other than a string
+	ReasonUnknownKey    Reason = "unknown-key"    // a key the record does not have
+	ReasonBadKind       Reason = "bad-kind"       // kind missing or outside its set
+	ReasonBadProvenance Reason = "bad-provenance" // provenance missing or outside its set
+	ReasonBadHash       Reason = "bad-hash"       // a present hash that is not 8 lowercase hex
+)
+
+// Reasons is every reject branch, for the corpus coverage check.
+var Reasons = []Reason{ReasonYAML, ReasonNotMap, ReasonDuplicateKey, ReasonNotString,
+	ReasonUnknownKey, ReasonBadKind, ReasonBadProvenance, ReasonBadHash}
+
+// ParseError is Parse's refusal, tagged with the branch that refused.
+type ParseError struct {
+	Reason Reason
+	msg    string
+}
+
+func (e *ParseError) Error() string { return e.msg }
+
+func reject(r Reason, format string, a ...any) error {
+	return &ParseError{Reason: r, msg: fmt.Sprintf(format, a...)}
+}
 
 // Format renders the one-line record. The hashes are always QUOTED: an
 // unquoted all-digit hash is an int to both cue and yaml.v3, so the same bytes
@@ -65,12 +117,12 @@ var hashRE = regexp.MustCompile(`^[0-9a-f]{8}$`)
 // both readers — the shared corpus in construct/vocabulary/testdata pins that.)
 func Format(f Flow) string {
 	var b strings.Builder
-	fmt.Fprintf(&b, "{kind: %s, provenance: %s", f.Kind, f.Provenance)
-	if f.Spec != "" {
-		fmt.Fprintf(&b, ", spec: %q", f.Spec)
+	fmt.Fprintf(&b, "{kind: %s, provenance: %s", f.Kind(), f.provenance)
+	if f.spec != "" {
+		fmt.Fprintf(&b, ", spec: %q", f.spec)
 	}
-	if f.Done != "" {
-		fmt.Fprintf(&b, ", done: %q", f.Done)
+	if f.done != "" {
+		fmt.Fprintf(&b, ", done: %q", f.done)
 	}
 	b.WriteString("}")
 	return b.String()
@@ -84,10 +136,10 @@ func Format(f Flow) string {
 func Parse(value string) (Flow, error) {
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(value), &doc); err != nil {
-		return Flow{}, fmt.Errorf("flow record %q does not parse: %v", value, err)
+		return Flow{}, reject(ReasonYAML, "flow record %q does not parse: %v", value, err)
 	}
 	if doc.Kind != yaml.DocumentNode || len(doc.Content) != 1 || doc.Content[0].Kind != yaml.MappingNode {
-		return Flow{}, fmt.Errorf("flow record %q is not a one-line map like %s", value, Format(Flow{Kind: Quick, Provenance: Inferred}))
+		return Flow{}, reject(ReasonNotMap, "flow record %q is not a one-line map like %s", value, Format(Flow{kind: Quick, provenance: Inferred}))
 	}
 	var f Flow
 	m := doc.Content[0]
@@ -95,36 +147,36 @@ func Parse(value string) (Flow, error) {
 	for i := 0; i+1 < len(m.Content); i += 2 {
 		k, v := m.Content[i].Value, m.Content[i+1]
 		if seen[k] {
-			return Flow{}, fmt.Errorf("flow record %q repeats %q", value, k)
+			return Flow{}, reject(ReasonDuplicateKey, "flow record %q repeats %q", value, k)
 		}
 		seen[k] = true
 		if v.Kind != yaml.ScalarNode || v.ShortTag() != "!!str" {
-			return Flow{}, fmt.Errorf("flow record %q: %s must be a string (quote it)", value, k)
+			return Flow{}, reject(ReasonNotString, "flow record %q: %s must be a string (quote it)", value, k)
 		}
 		switch k {
 		case "kind":
-			f.Kind = Kind(v.Value)
+			f.kind = Kind(v.Value)
 		case "provenance":
-			f.Provenance = Provenance(v.Value)
+			f.provenance = Provenance(v.Value)
 		case "spec":
-			f.Spec = v.Value
+			f.spec = v.Value
 		case "done":
-			f.Done = v.Value
+			f.done = v.Value
 		default:
-			return Flow{}, fmt.Errorf("flow record %q has unknown key %q", value, k)
+			return Flow{}, reject(ReasonUnknownKey, "flow record %q has unknown key %q", value, k)
 		}
 	}
-	if f.Kind != Full && f.Kind != Quick {
-		return Flow{}, fmt.Errorf("flow record %q: kind must be %s or %s", value, Full, Quick)
+	if f.kind != Full && f.kind != Quick {
+		return Flow{}, reject(ReasonBadKind, "flow record %q: kind must be %s or %s", value, Full, Quick)
 	}
-	if f.Provenance != Inferred && f.Provenance != Operator {
-		return Flow{}, fmt.Errorf("flow record %q: provenance must be %s or %s", value, Inferred, Operator)
+	if f.provenance != Inferred && f.provenance != Operator {
+		return Flow{}, reject(ReasonBadProvenance, "flow record %q: provenance must be %s or %s", value, Inferred, Operator)
 	}
 	// A hash key that is PRESENT must hold a hash — `spec: ""` is rejected, as the
 	// cue model rejects it; absent and empty are not the same record (#231 BR-12).
-	for key, h := range map[string]string{"spec": f.Spec, "done": f.Done} {
+	for key, h := range map[string]string{"spec": f.spec, "done": f.done} {
 		if seen[key] && !hashRE.MatchString(h) {
-			return Flow{}, fmt.Errorf("flow record %q: contract hash %s %q is not 8 lowercase hex", value, key, h)
+			return Flow{}, reject(ReasonBadHash, "flow record %q: contract hash %s %q is not 8 lowercase hex", value, key, h)
 		}
 	}
 	return f, nil
@@ -138,11 +190,11 @@ func Parse(value string) (Flow, error) {
 func FromFrontmatter(fm string) (f Flow, recorded bool, err error) {
 	v, ok := issue.GetField(fm, Field)
 	if !ok {
-		return Flow{Kind: Full}, false, nil
+		return Flow{kind: Full}, false, nil
 	}
 	f, err = Parse(v)
 	if err != nil {
-		return Flow{Kind: Full, Provenance: Inferred}, true, err
+		return Flow{kind: Full, provenance: Inferred}, true, err
 	}
 	return f, true, nil
 }
@@ -170,16 +222,19 @@ type DecideInput struct {
 
 // Rule names which of Decide's rules fired — returned rather than re-derived by
 // callers, so the reason a flow is reported with cannot drift from the order the
-// rules are actually checked in.
-type Rule string
+// rules are actually checked in. Opaque, with unexported values: outside this
+// package a Rule can only come from Decide (#231 BR-16).
+type Rule struct{ text string }
 
-const (
-	RulePinned         Rule = "pinned with --flow"
-	RuleMilestones     Rule = "the Plan has Mx milestones"
-	RuleOperatorStands Rule = "the operator's pin stands"
-	RuleNoDowngrade    Rule = "already full — gates never downgrade"
-	RulePlan           Rule = "a durable plan exists"
-	RuleNoPlan         Rule = "no Mx milestones and no durable plan"
+func (r Rule) String() string { return r.text }
+
+var (
+	rulePinned         = Rule{"pinned with --flow"}
+	ruleMilestones     = Rule{"the Plan has Mx milestones"}
+	ruleOperatorStands = Rule{"the operator's pin stands"}
+	ruleNoDowngrade    = Rule{"already full — gates never downgrade"}
+	rulePlan           = Rule{"a durable plan exists"}
+	ruleNoPlan         = Rule{"no Mx milestones and no durable plan"}
 )
 
 // Decide computes the flow change-code records, and the rule that decided it.
@@ -201,26 +256,26 @@ func Decide(in DecideInput) (Flow, Rule, error) {
 	case "":
 	case string(Quick):
 		if in.HasMilestones {
-			return Flow{}, "", fmt.Errorf("--flow quick: the Plan has Mx milestone rows, and the quick flow has a single boundary — drop the milestones or keep the full flow")
+			return Flow{}, Rule{}, fmt.Errorf("--flow quick: the Plan has Mx milestone rows, and the quick flow has a single boundary — drop the milestones or keep the full flow")
 		}
-		return Flow{Kind: Quick, Provenance: Operator}, RulePinned, nil
+		return Flow{kind: Quick, provenance: Operator}, rulePinned, nil
 	case string(Full):
-		return Flow{Kind: Full, Provenance: Operator}, RulePinned, nil
+		return Flow{kind: Full, provenance: Operator}, rulePinned, nil
 	default:
-		return Flow{}, "", fmt.Errorf("--flow %q: want %s or %s", in.Pin, Quick, Full)
+		return Flow{}, Rule{}, fmt.Errorf("--flow %q: want %s or %s", in.Pin, Quick, Full)
 	}
 	r := in.Recorded
-	if in.HasMilestones && (r == nil || r.Kind != Full) {
-		return Flow{Kind: Full, Provenance: Inferred}, RuleMilestones, nil
+	if in.HasMilestones && (r == nil || r.Kind() != Full) {
+		return Flow{kind: Full, provenance: Inferred}, ruleMilestones, nil
 	}
-	if r != nil && r.Provenance == Operator {
-		return Flow{Kind: r.Kind, Provenance: r.Provenance}, RuleOperatorStands, nil
+	if r != nil && r.provenance == Operator {
+		return Flow{kind: r.Kind(), provenance: r.provenance}, ruleOperatorStands, nil
 	}
-	if r != nil && r.Kind == Full {
-		return Flow{Kind: r.Kind, Provenance: r.Provenance}, RuleNoDowngrade, nil
+	if r != nil && r.Kind() == Full {
+		return Flow{kind: r.Kind(), provenance: r.provenance}, ruleNoDowngrade, nil
 	}
 	if in.HasPlan {
-		return Flow{Kind: Full, Provenance: Inferred}, RulePlan, nil
+		return Flow{kind: Full, provenance: Inferred}, rulePlan, nil
 	}
-	return Flow{Kind: Quick, Provenance: Inferred}, RuleNoPlan, nil
+	return Flow{kind: Quick, provenance: Inferred}, ruleNoPlan, nil
 }

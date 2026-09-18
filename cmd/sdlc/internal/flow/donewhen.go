@@ -36,7 +36,7 @@ func ContractHashes(body string) (spec, done string) {
 
 // WithContract returns f carrying the body's current contract hashes.
 func WithContract(f Flow, body string) Flow {
-	f.Spec, f.Done = ContractHashes(body)
+	f.spec, f.done = ContractHashes(body)
 	return f
 }
 
@@ -57,12 +57,12 @@ func DoneWhenPresent(body string) error {
 // when hash does not. A record without hashes has no anchor and refuses with
 // both fixes named.
 func DoneWhenFresh(rec Flow, body string) error {
-	if rec.Spec == "" || rec.Done == "" {
+	if rec.spec == "" || rec.done == "" {
 		return fmt.Errorf("quick flow: no contract anchor in the flow record — re-run " +
 			"`sdlc change-code` to record one, or pass --no-done-when-fresh if Done-when is current")
 	}
 	spec, done := ContractHashes(body)
-	if spec != rec.Spec && done == rec.Done {
+	if spec != rec.spec && done == rec.done {
 		return fmt.Errorf("quick flow: `## Spec` or `## Revisions` changed since change-code but " +
 			"`## Done when` did not — restate the acceptance criteria for what is being built now, " +
 			"or pass --no-done-when-fresh with the reason in --verified")

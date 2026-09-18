@@ -355,8 +355,11 @@ func TestValidateInstance_FlowRecordCorpus(t *testing.T) {
 			continue
 		}
 		verdict, value, ok := strings.Cut(line, "\t")
+		if strings.HasPrefix(verdict, "reject:") {
+			verdict = "reject" // the reason tag is the Go codec's; cue checks accept vs reject
+		}
 		if !ok || (verdict != "accept" && verdict != "reject") {
-			t.Fatalf("corpus line %q is not <accept|reject><TAB><value>", line)
+			t.Fatalf("corpus line %q is not accept<TAB>value or reject:<reason><TAB>value", line)
 		}
 		n++
 		md := filepath.Join(t.TempDir(), "x.md")

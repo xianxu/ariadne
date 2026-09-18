@@ -1,9 +1,12 @@
 Enter the implementation phase for an issue. Composes the gates
 between planning (which happens on `main`) and code-changing work:
 
-  0. Flow                — infers the issue's flow and records it in the
-                           frontmatter (#231; see THE FLOW below). On the
-                           quick flow, gates 1–3 do not run.
+  0. Flow                — infers the issue's flow (#231; see THE FLOW
+                           below). On the quick flow, gates 1–3 do not run.
+                           The flow is RECORDED in the frontmatter only
+                           after the gates pass, just before the sync
+                           commit, so a refused run leaves the issue as it
+                           was.
   1. Structural sanity   — does the issue have a filled-in Spec, a
                            non-empty Plan, and Done-when criteria?
   2. Plan-quality judge  — fresh-context LLM review (skip with
@@ -58,6 +61,11 @@ THE FLOW (#231)
   The operator can pin the flow with `--flow quick|full` (provenance:
   operator). A pin to quick is refused on a Plan with Mx rows. Gates never
   downgrade full to quick; only a pin does.
+
+  The record is re-derived from the issue as it is when written, so an edit
+  made while the gates ran survives. If that edit changed the flow itself (say,
+  Mx rows appeared), the gates ran for the wrong flow: change-code refuses and
+  asks for a re-run.
 
 THE PLAN GATE (stateful since #187)
 

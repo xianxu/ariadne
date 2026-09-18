@@ -11,7 +11,6 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
-	"io/fs"
 )
 
 const flowIssue = "---\nid: 000231\nstatus: working\nestimate_hours:\n---\n\n# T\n\n## Spec\n\nthe contract\n\n" +
@@ -58,13 +57,13 @@ func TestDecideChangeCodeFlow(t *testing.T) {
 			continue
 		}
 		got := recordedFlow(t, d.content)
-		if got.Kind != c.kind || got.Provenance != c.provenance || d.flow != got {
+		if got.Kind() != c.kind || got.Provenance() != c.provenance || d.flow != got {
 			t.Errorf("%s: wrote %+v (returned %+v), want %s/%s", c.name, got, d.flow, c.kind, c.provenance)
 		}
-		if (got.Spec != "") != (c.kind == flow.Quick) {
-			t.Errorf("%s: contract hashes present=%v, want them exactly on quick", c.name, got.Spec != "")
+		if (got.Spec() != "") != (c.kind == flow.Quick) {
+			t.Errorf("%s: contract hashes present=%v, want them exactly on quick", c.name, got.Spec() != "")
 		}
-		if d.rule == "" {
+		if d.rule.String() == "" {
 			t.Errorf("%s: no rule reported for the flow", c.name)
 		}
 	}
@@ -72,7 +71,7 @@ func TestDecideChangeCodeFlow(t *testing.T) {
 	// A milestone row quoted inside a fenced example is not a milestone: the
 	// inference must read the fence-filtered Plan (#231 BR-4).
 	fenced := withPlanRows(flowIssue, "- [ ] do it\n\n```markdown\n- [ ] M1 — example row\n```\n")
-	if d, err := decideChangeCodeFlow(fenced, "", ""); err != nil || d.flow.Kind != flow.Quick {
+	if d, err := decideChangeCodeFlow(fenced, "", ""); err != nil || d.flow.Kind() != flow.Quick {
 		t.Errorf("fenced Mx example: got %+v (err %v), want quick — a quoted row is not a milestone", d.flow, err)
 	}
 
@@ -84,15 +83,15 @@ func TestDecideChangeCodeFlow(t *testing.T) {
 	first, _ := decideChangeCodeFlow(flowIssue, "", "")
 	reframed := strings.Replace(first.content, "the contract", "a reframed contract", 1)
 	second, err := decideChangeCodeFlow(reframed, "", "")
-	if err != nil || second.flow.Spec == first.flow.Spec {
-		t.Errorf("re-run after a reframe kept spec %q (err %v) — the anchor must move", second.flow.Spec, err)
+	if err != nil || second.flow.Spec() == first.flow.Spec() {
+		t.Errorf("re-run after a reframe kept spec %q (err %v) — the anchor must move", second.flow.Spec(), err)
 	}
 
 	// quick/operator gains an Mx row → full/inferred (a crossed shell beats a pin).
 	pinned, _ := decideChangeCodeFlow(flowIssue, "", "quick")
 	grown := withPlanRows(pinned.content, "- [ ] M1 — a\n")
 	d, err := decideChangeCodeFlow(grown, "", "")
-	if err != nil || d.flow.Kind != flow.Full || d.flow.Provenance != flow.Inferred {
+	if err != nil || d.flow.Kind() != flow.Full || d.flow.Provenance() != flow.Inferred {
 		t.Errorf("quick/operator + Mx row: got %+v (err %v), want full/inferred", d.flow, err)
 	}
 
@@ -105,7 +104,7 @@ func TestDecideChangeCodeFlow(t *testing.T) {
 	// A malformed record resolves to full and is rewritten well-formed, with a warning.
 	bad := strings.Replace(flowIssue, "estimate_hours:", "estimate_hours:\nflow: {kind: quikc}", 1)
 	d, err = decideChangeCodeFlow(bad, "", "")
-	if err != nil || d.flow.Kind != flow.Full || d.warning == "" {
+	if err != nil || d.flow.Kind() != flow.Full || d.warning == "" {
 		t.Errorf("malformed record: got %+v warning=%q err=%v, want full with a warning", d.flow, d.warning, err)
 	}
 	_ = recordedFlow(t, d.content) // and it now parses
@@ -131,7 +130,7 @@ func TestRecordChangeCodeFlowWritesUnlessDryRun(t *testing.T) {
 		if wrote == dry {
 			t.Errorf("dry-run=%v: file written=%v", dry, wrote)
 		}
-		if fl.Kind != flow.Quick {
+		if fl.Kind() != flow.Quick {
 			t.Errorf("dry-run=%v: flow %+v, want quick", dry, fl)
 		}
 	}
@@ -141,11 +140,11 @@ func TestRecordChangeCodeFlowWritesUnlessDryRun(t *testing.T) {
 // gates; on full, all of them in declaration order. changeCodeGateOrder keeps
 // returning all five either way, so the ordering guards keep their strength.
 func TestActiveChangeCodeGates(t *testing.T) {
-	quick := &changeCodeCtx{f: &changeCodeFlags{}, flow: flow.Flow{Kind: flow.Quick, Provenance: flow.Inferred}}
+	quick := &changeCodeCtx{f: &changeCodeFlags{}, flow: mustFlow(t, "{kind: quick, provenance: inferred}")}
 	if gs := activeChangeCodeGates(quick); len(gs) != 0 {
 		t.Errorf("quick runs %d gates, want 0", len(gs))
 	}
-	full := &changeCodeCtx{f: &changeCodeFlags{}, flow: flow.Flow{Kind: flow.Full, Provenance: flow.Inferred}}
+	full := &changeCodeCtx{f: &changeCodeFlags{}, flow: mustFlow(t, "{kind: full, provenance: inferred}")}
 	var names []string
 	for _, g := range activeChangeCodeGates(full) {
 		names = append(names, g.name)
@@ -171,8 +170,9 @@ func TestPlanGateContentIgnoresFlow(t *testing.T) {
 // TestFlowInfoLineNoGatesigCollision: the flow line change-code prints must not
 // read as a gate bypass or refusal to the friction instrument (#172).
 func TestFlowInfoLineNoGatesigCollision(t *testing.T) {
-	for _, fl := range []flow.Flow{{Kind: flow.Quick, Provenance: flow.Inferred}, {Kind: flow.Full, Provenance: flow.Operator}} {
-		assertNoGatesigCollision(t, "\x1b[1;36m==>\x1b[0m "+flowInfoLine(fl, flow.RuleNoPlan))
+	for _, rec := range []string{"{kind: quick, provenance: inferred}", "{kind: full, provenance: operator}"} {
+		_, rule, _ := flow.Decide(flow.DecideInput{})
+		assertNoGatesigCollision(t, "\x1b[1;36m==>\x1b[0m "+flowInfoLine(mustFlow(t, rec), rule))
 	}
 }
 
@@ -275,8 +275,8 @@ func TestRecordChangeCodeFlowKeepsConcurrentEdit(t *testing.T) {
 	}
 	_, body, _ := issue.Parse(string(on))
 	spec, done := flow.ContractHashes(body)
-	if got := recordedFlow(t, string(on)); got.Spec != spec || got.Done != done {
-		t.Errorf("recorded hashes %s/%s describe the stale text, want %s/%s", got.Spec, got.Done, spec, done)
+	if got := recordedFlow(t, string(on)); got.Spec() != spec || got.Done() != done {
+		t.Errorf("recorded hashes %s/%s describe the stale text, want %s/%s", got.Spec(), got.Done(), spec, done)
 	}
 }
 
@@ -289,7 +289,7 @@ func TestRecordChangeCodeFlowRefusesFlowChangingEdit(t *testing.T) {
 	os.WriteFile(path, []byte(flowIssue), 0o644)
 	f := &changeCodeFlags{PlansDir: t.TempDir()}
 	d := reportChangeCodeFlow(ioDiscard(), f, flowIssue, "")
-	if d.flow.Kind != flow.Quick {
+	if d.flow.Kind() != flow.Quick {
 		t.Fatalf("precondition: %+v, want quick", d.flow)
 	}
 
@@ -304,55 +304,13 @@ func TestRecordChangeCodeFlowRefusesFlowChangingEdit(t *testing.T) {
 	}
 }
 
-// TestOnlyFlowPackageBuildsFlowValues: Decide is the only producer of a flow
-// decision, and Parse the only reader of a record. A flow.Flow literal or a
-// flow.Kind / flow.Provenance / flow.Rule conversion anywhere else in cmd/sdlc
-// is a decision made outside them — the #231 BR-7/BR-14 family, fixed as a rule.
-func TestOnlyFlowPackageBuildsFlowValues(t *testing.T) {
-	fset := token.NewFileSet()
-	err := filepath.WalkDir(".", func(path string, de fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if de.IsDir() {
-			if path == filepath.Join("internal", "flow") || de.Name() == "testdata" {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
-			return nil
-		}
-		file, perr := parser.ParseFile(fset, path, nil, 0)
-		if perr != nil {
-			return perr
-		}
-		ast.Inspect(file, func(n ast.Node) bool {
-			var typ ast.Expr
-			switch x := n.(type) {
-			case *ast.CompositeLit:
-				typ = x.Type
-			case *ast.CallExpr:
-				typ = x.Fun
-			default:
-				return true
-			}
-			sel, ok := typ.(*ast.SelectorExpr)
-			if !ok {
-				return true
-			}
-			if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "flow" {
-				switch sel.Sel.Name {
-				case "Flow", "Kind", "Provenance", "Rule":
-					t.Errorf("%s: builds a flow.%s outside package flow — decide through flow.Decide "+
-						"(or read through flow.Parse) instead", fset.Position(n.Pos()), sel.Sel.Name)
-				}
-			}
-			return true
-		})
-		return nil
-	})
+// mustFlow builds a Flow for a test the only way code outside package flow can:
+// through the codec. Flow's fields are unexported (#231 BR-16).
+func mustFlow(t *testing.T, record string) flow.Flow {
+	t.Helper()
+	f, err := flow.Parse(record)
 	if err != nil {
 		t.Fatal(err)
 	}
+	return f
 }

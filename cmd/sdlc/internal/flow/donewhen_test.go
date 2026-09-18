@@ -82,7 +82,7 @@ func TestDoneWhenPresent(t *testing.T) {
 // TestDoneWhenFresh: a contract that moved without its acceptance criteria is
 // refused — including a reframe recorded only under ## Revisions (#231 PQ-2).
 func TestDoneWhenFresh(t *testing.T) {
-	rec := WithContract(Flow{Kind: Quick, Provenance: Inferred}, baseBody)
+	rec := WithContract(Flow{kind: Quick, provenance: Inferred}, baseBody)
 	cases := []struct {
 		name    string
 		body    string
@@ -101,7 +101,7 @@ func TestDoneWhenFresh(t *testing.T) {
 			t.Errorf("%s: err=%v, want refuses=%v", c.name, err, c.refuses)
 		}
 	}
-	err := DoneWhenFresh(Flow{Kind: Quick, Provenance: Inferred}, baseBody)
+	err := DoneWhenFresh(Flow{kind: Quick, provenance: Inferred}, baseBody)
 	if err == nil || !strings.Contains(err.Error(), "sdlc change-code") || !strings.Contains(err.Error(), "--no-done-when-fresh") {
 		t.Errorf("no anchor: err=%v, want a refusal naming both fixes", err)
 	}

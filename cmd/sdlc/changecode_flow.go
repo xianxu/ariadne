@@ -49,7 +49,7 @@ func decideChangeCodeFlow(issueContent, planContent, pin string) (changeCodeFlow
 	if err != nil {
 		return changeCodeFlow{}, err
 	}
-	if fl.Kind == flow.Quick {
+	if fl.Kind() == flow.Quick {
 		fl = flow.WithContract(fl, body)
 	}
 	out.flow = fl
@@ -61,12 +61,12 @@ func decideChangeCodeFlow(issueContent, planContent, pin string) (changeCodeFlow
 // flowInfoLine is the one line change-code prints about the flow. The skipped
 // gate names are derived from the gate declaration, not restated.
 func flowInfoLine(fl flow.Flow, rule flow.Rule) string {
-	if fl.Kind == flow.Quick {
+	if fl.Kind() == flow.Quick {
 		return fmt.Sprintf("flow: quick (%s: %s) — change-code runs none of %s; close runs the small-diff "+
 			"review, or the full one if the diff leaves the shell: %s",
-			fl.Provenance, rule, strings.Join(changeCodeGateOrder(), ", "), flow.ShellSummary())
+			fl.Provenance(), rule, strings.Join(changeCodeGateOrder(), ", "), flow.ShellSummary())
 	}
-	return fmt.Sprintf("flow: full (%s: %s)", fl.Provenance, rule)
+	return fmt.Sprintf("flow: full (%s: %s)", fl.Provenance(), rule)
 }
 
 // reportChangeCodeFlow decides the flow and prints it — BEFORE the gates, which
@@ -123,11 +123,11 @@ func recordChangeCodeFlow(stderr io.Writer, f *changeCodeFlags, issuePath, name 
 // flowDrift refuses when the issue as it is now infers a different flow than the
 // one the gates ran under. Pure.
 func flowDrift(ran, now changeCodeFlow) error {
-	if ran.flow.Kind == now.flow.Kind && ran.flow.Provenance == now.flow.Provenance {
+	if ran.flow.Kind() == now.flow.Kind() && ran.flow.Provenance() == now.flow.Provenance() {
 		return nil
 	}
 	return fmt.Errorf("the issue changed while change-code ran: it now infers flow %s (%s), but the gates ran "+
-		"for %s (%s) — re-run `sdlc change-code`", now.flow.Kind, now.rule, ran.flow.Kind, ran.rule)
+		"for %s (%s) — re-run `sdlc change-code`", now.flow.Kind(), now.rule, ran.flow.Kind(), ran.rule)
 }
 
 // activeChangeCodeGates is the gate list this run executes: every gate on the
@@ -136,7 +136,7 @@ func flowDrift(ran, now changeCodeFlow) error {
 // in each closure, keeps changeCodeGates the complete declaration its ordering
 // guards test.
 func activeChangeCodeGates(c *changeCodeCtx) []gate {
-	if c.flow.Kind == flow.Quick {
+	if c.flow.Kind() == flow.Quick {
 		return nil
 	}
 	return changeCodeGates(c)

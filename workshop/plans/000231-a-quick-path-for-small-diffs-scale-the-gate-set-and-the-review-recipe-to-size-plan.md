@@ -403,3 +403,20 @@ Delta:
   pinned by `TestOnlyFlowPackageBuildsFlowValues`. A missing frontmatter
   refuses, and a malformed record is resolved by `flow.Recorded`.
 
+### 2026-09-17 — M1 closed (SHIP); round-3 advisories BR-15..BR-17 fixed as rules
+
+- **BR-16.** `Flow`'s fields are now unexported, with accessors (`Kind()`,
+  `Provenance()`, `Spec()`, `Done()`), and the zero `Flow` reads as full. `Rule`
+  is an opaque struct with unexported values. The compiler now enforces that a
+  flow is made only by `Parse`/`Decide`/`WithContract`, so
+  `TestOnlyFlowPackageBuildsFlowValues` is retired, as the review advised.
+- **BR-17.** `Parse` rejects through `ParseError{Reason}`, one reason per branch.
+  Corpus reject rows carry their reason (`reject:<reason>`), and
+  `TestFlowRecordCorpus` requires every reason in `flow.Reasons` to have a row.
+  The corpus gained duplicate-key and unparseable-YAML rows.
+- **BR-15.** Sweep keyed on the effect, `git grep -n -i -E
+  '(record|writ)[a-z]*.{0,50}flow|flow.{0,50}(record|writ)[a-z]*'`. Three
+  sentences claimed the record is written first (`change-code.md:4`,
+  `issue-lifecycle.md:54`, `sdlc-binary.md:36`), and all three are corrected.
+  The drift refusal is now documented in change-code's help.
+

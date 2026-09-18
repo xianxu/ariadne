@@ -51,7 +51,7 @@ of the current working directory (i.e., the repo folder name).
     └── 000051-fix-bug/        ← branch: 000051-fix-bug
 ```
 
-**Branching decision** (#51): `sdlc change-code --issue N` first records the issue's flow (#231 — on the quick flow none of the following gates run), then runs structural checks,
+**Branching decision** (#51): `sdlc change-code --issue N` first infers the issue's flow (#231 — on the quick flow none of the following gates run; the flow is recorded on the issue only after the gates pass), then runs structural checks,
 the `estimate_hours` gate (#113 — relocated here from `claim`; `--no-estimate`
 bypasses), the **estimate-reconciliation** gate + **estimate-quality** judge
 (#117 — estimate_hours must reconcile with an itemized `## Estimate` block;
