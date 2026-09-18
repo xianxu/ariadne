@@ -40,7 +40,7 @@ You MUST create a task for each of these items and complete them in order:
 7. **Write design doc** — save to the `## Spec` section of the issue file (`workshop/issues/<slug>.md`) and commit
 8. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
 9. **User reviews written spec** — ask user to review the spec before proceeding
-10. **Transition to implementation** — size the work against the quick-flow shell (`sdlc change-code --help` prints the limits). Outside it, invoke writing-plans skill to create implementation plan. Inside it, write no durable plan: make `## Done when` concrete and run `sdlc change-code`, which infers the quick flow
+10. **Transition to implementation** — size the work against the quick-flow shell (`sdlc change-code --help` prints the limits). Outside it, invoke writing-plans skill to create implementation plan. Inside it, make `## Done when` concrete and run `sdlc change-code`, which infers the quick flow; a plan is optional there — a very small task writes none, and a short one keeps the design inside the shell's design limit
 
 ## Process Flow
 
@@ -59,7 +59,7 @@ digraph brainstorming {
     "User reviews spec?" [shape=diamond];
     "Inside the quick-flow shell?" [shape=diamond];
     "Invoke writing-plans skill" [shape=doublecircle];
-    "Run sdlc change-code\n(quick flow, no durable plan)" [shape=doublecircle];
+    "Run sdlc change-code\n(quick flow, plan optional)" [shape=doublecircle];
 
     "Explore project context" -> "Visual questions ahead?";
     "Visual questions ahead?" -> "Offer Visual Companion\n(own message, no other content)" [label="yes"];
@@ -77,11 +77,11 @@ digraph brainstorming {
     "User reviews spec?" -> "Write design doc" [label="changes requested"];
     "User reviews spec?" -> "Inside the quick-flow shell?" [label="approved"];
     "Inside the quick-flow shell?" -> "Invoke writing-plans skill" [label="no"];
-    "Inside the quick-flow shell?" -> "Run sdlc change-code\n(quick flow, no durable plan)" [label="yes"];
+    "Inside the quick-flow shell?" -> "Run sdlc change-code\n(quick flow, plan optional)" [label="yes"];
 }
 ```
 
-**The terminal state is invoking writing-plans** — or, for work inside the quick-flow shell, running `sdlc change-code` with no durable plan (a durable plan makes change-code infer the full flow). Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
+**The terminal state is invoking writing-plans** — or, for work inside the quick-flow shell, running `sdlc change-code`, with a plan only if the design needs one (a design past the shell's design limit makes change-code infer the full flow). Do NOT invoke frontend-design, mcp-builder, or any other implementation skill. The ONLY skill you invoke after brainstorming is writing-plans.
 
 ## The Process
 
@@ -152,7 +152,7 @@ Wait for the user's response. If they request changes, make them and re-run the 
 
 - Size the work against the quick-flow shell (`sdlc change-code --help` prints the limits)
 - Outside it: invoke the writing-plans skill to create a detailed implementation plan
-- Inside it: no durable plan — run `sdlc change-code`, which infers the quick flow
+- Inside it: run `sdlc change-code`, which infers the quick flow; a plan is optional — none for a very small task, a short one when the design needs working out
 - Do NOT invoke any other skill. writing-plans (or, inside the shell, change-code) is the next step.
 
 ## Key Principles

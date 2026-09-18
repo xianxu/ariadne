@@ -27,9 +27,10 @@ OUTPUT
   A framing line + each `ARCH-*` principle's `at-plan` lens (what to check while
   designing). Cite the marker (e.g. `ARCH-DRY`) in your plan where a principle
   shaped a decision. Then the durable-plan pointer, which sizes first (#231):
-  inside the quick-flow shell (`sdlc change-code --help` prints the limits) write
-  no durable plan, and change-code infers the quick flow; outside it, author the
-  plan via the `superpowers-writing-plans` skill into
+  inside the quick-flow shell (`sdlc change-code --help` prints the limits) a
+  plan is optional — none for a very small task, a short one kept inside the
+  shell's design limit — and change-code infers the quick flow; outside it,
+  author the plan via the `superpowers-writing-plans` skill into
   `workshop/plans/NNNNNN-slug-plan.md` (version-controlled), not the harness
   builtin's ephemeral `~/.claude/plans/` file (#72). Then the durability trigger (#206): `sdlc issue sync --issue N`
   commits the issue body locally as the design lands — where planPointer says

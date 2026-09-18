@@ -21,10 +21,10 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 | `Flow`, `Kind`, `Provenance` | `cmd/sdlc/internal/flow/flow.go` | new |
 | `flow.Parse` / `flow.Format` / `flow.FromFrontmatter` | `cmd/sdlc/internal/flow/flow.go` | new |
 | `flow.Decide` | `cmd/sdlc/internal/flow/flow.go` | new |
-| `flow.MaxAddedLines`, `flow.ShellSummary` | `cmd/sdlc/internal/flow/limits.go` | new |
+| `flow.MaxAddedLines`, `flow.MaxDesignLines`, `flow.DesignRule`, `flow.ShellSummary` | `cmd/sdlc/internal/flow/limits.go` | new |
 | `flow.ContractHashes` | `cmd/sdlc/internal/flow/donewhen.go` | new |
 | `flow.DoneWhenPresent`, `flow.DoneWhenFresh` | `cmd/sdlc/internal/flow/donewhen.go` | new |
-| `flow.Measure`, `flow.Crossings` | `cmd/sdlc/internal/flow/shell.go` | new |
+| `flow.Measure`, `flow.Crossings`, `flow.DesignLines` | `cmd/sdlc/internal/flow/shell.go` | new |
 | `issue.MilestonesInPlanOrder` | `cmd/sdlc/internal/issue/plan.go` | modified (moved from `close.go`) |
 | `issue.HasDoneWhenBullet` | `cmd/sdlc/internal/issue/structural.go` | new (factored out of `checkDoneWhen`) |
 | `churn.IsDoc`, `churn.IsEmbedded`, `churn.IsCodeFile` | `cmd/sdlc/internal/churn/classify.go` | new |
@@ -43,21 +43,21 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
   - **Relationships:** 1:1 with an issue. It is written by change-code and by the close finalize.
   - **DRY rationale:** one codec for every reader (change-code, start-plan, close, milestone-close, calibration). It reuses yaml/v3 as `project.DecodeMetadata` does.
   - **Future extensions:** #233 adds `Kind` `config`.
-- **Decide** — `Decide(in DecideInput) (Flow, error)`, with `DecideInput{Recorded *Flow; Pin string; HasMilestones, HasPlan bool}`. Rules, in order:
-  1. An unknown pin, or a `quick` pin with milestones, is an error.
+- **Decide** — `Decide(in DecideInput) (Flow, Rule, error)`, with `DecideInput{Recorded *Flow; Pin string; Entry Size}`. `Entry` is `Measure` with no diff stats: the design's length and the Mx rows, so change-code and close judge the shell through one `Crossings` (2026-09-18 revision; it replaced `HasMilestones, HasPlan bool`). Rules, in order:
+  1. An unknown pin, or a `quick` pin on an issue already outside the shell, is an error.
   2. A pin sets `{pin, operator}`.
-  3. With milestones the result is `{full, inferred}` whatever was recorded — unless the record is already full, which stays as it is (matching the ARCH-ORDER table) — because Mx rows cross the shell and a gate that finds the shell crossed upgrades regardless of provenance (PQ-4).
+  3. Outside the shell — Mx rows, or a design past its limit — the result is `{full, inferred}` whatever was recorded, unless the record is already full, which stays as it is (matching the ARCH-ORDER table), because a gate that finds the shell crossed upgrades regardless of provenance (PQ-4).
   4. A recorded operator flow stands.
   5. A recorded `full` stands, because gates never downgrade.
-  6. Otherwise the result is `{full if HasPlan else quick, inferred}`.
-- **Limits** — `MaxAddedLines = 100`, plus the Mx rule; no file-count limit (2026-09-18 revision). `ShellSummary()` renders the one sentence that start-plan, the help tokens and error text all use.
+  6. Otherwise the result is `{quick, inferred}`.
+- **Limits** — `MaxAddedLines = 100` and `MaxDesignLines = 500` (`DesignRule`: `## Spec`, `## Plan` and the durable plan, in lines), plus the Mx rule; no file-count limit (2026-09-18 revisions). `ShellSummary()` renders the one sentence that start-plan, the help tokens and error text all use.
   - **DRY rationale:** the numbers live once. The constitution points at `sdlc change-code --help` instead of restating them.
 - **ContractHashes / DoneWhenPresent / DoneWhenFresh** — the Done-when checks are pure over the issue, with no git archaeology.
   - `ContractHashes(body) (spec, done string)` hashes the fence-aware section bodies. `spec` covers `## Spec` + `## Revisions`, because the constitution records a mid-stream reframe by appending Revisions (PQ-2). `done` covers `## Done when`. Each hash is the 8-hex prefix of sha256 over whitespace-trimmed text.
   - change-code writes both into the quick record on every run, so the anchor moves whenever the contract is re-fixed (PQ-6).
   - `DoneWhenPresent(body) error` requires a Done-when bullet; `related:` does not count, because this is the review's oracle.
   - `DoneWhenFresh(rec Flow, body) error` refuses when the recorded `spec` differs from the current one and `done` does not. A record without hashes means "no anchor" and refuses with the fix named: re-run `sdlc change-code`, or pass `--no-done-when-fresh`.
-- **Measure / Crossings** — `Measure(stats []churn.FileStat, milestones []string) Size` sums the insertions of code files (via `churn.IsCodeFile`) from the window's numstat rows, and carries the Mx rows. `Crossings(Size) []string` returns one reason per crossed limit, or nil.
+- **Measure / Crossings / DesignLines** — `Measure(stats []churn.FileStat, designLines int, milestones []string) Size` sums the insertions of code files (via `churn.IsCodeFile`) from the window's numstat rows, and carries the design's length and the Mx rows; change-code calls it with no stats. `DesignLines(body, plan) int` counts `## Spec` and `## Plan` (fence-aware) plus the durable plan, each trimmed of surrounding blank lines. `Crossings(Size) []string` returns one reason per crossed limit, or nil.
 - **churn classifiers** — `IsDoc` is #177's per-path docs rule and `IsEmbedded` is #174's `cmd/` rule. `IsCodeFile(p) = ClassifyPath(p) == CodeProd && (!IsDoc(p) || IsEmbedded(p))`. `hasCodePath` and `publishGateHasCodeSurface` become `any()` loops over these, giving one per-path rule with three readings.
   - `isTestPath` widens to the non-Go layouts the fleet uses: `*_spec.lua`, `*_test.lua`, `*_test.py`, `test_*.py`, `*.test.*`, `*.spec.*`, and path segments `test`, `tests`, `spec`, `__tests__`, `testdata`.
   - That shifts what `churn_prod`/`churn_test` mean for non-Go repos from this issue onward. `ledger-landscape.md` and the Log record the cut-over (PQ-7).
@@ -79,13 +79,13 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 | help tokens | `cmd/sdlc/main.go` (`renderLong`) | modified | embedded helptext |
 
 - **change-code flow step** — runs after the issue and plan are read (`changecode.go:130`) and before the gate loop.
-  - Inputs: `issue.MilestonesInPlanOrder(PlanItemsBody)`, and `planContent != ""`, which is the plan lookup plan-quality uses.
+  - Inputs: `flow.Measure(nil, flow.DesignLines(body, planContent), issue.MilestonesInPlanOrder(PlanItemsBody))`, where `planContent` is the plan lookup plan-quality uses.
   - `reportChangeCodeFlow` decides and prints the flow before the gates. `recordChangeCodeFlow` writes `flow:` (plus the hashes for quick) with `Parse → SetField → Compose` only after the gates pass and past the dry-run return, right before the sync commit. A refused run leaves the issue untouched (BR-5).
   - On `quick` the gate loop iterates `activeChangeCodeGates`, which is empty, rather than a skip in each closure. `changeCodeGates` stays the complete declaration, and `changeCodeGateOrder()` still returns all five.
   - `planGateContent` strips `flow:` alongside `estimate_hours:`.
-- **start-plan guidance** — `planPointer` and `estimateNudge` become conditional on the shell. The pointer says to write a durable plan only for work outside the shell, and that change-code infers quick otherwise. The nudge says there is no estimate on the quick flow.
+- **start-plan guidance** — `planPointer` and `estimateNudge` become conditional on the shell. The pointer says to write a durable plan for work outside the shell, and that inside it a plan is optional — none for a very small task — and change-code infers quick. The nudge says there is no estimate on the quick flow.
 - **close shell + Done-when step** — runs inside `computeClose` after the atlas block (~`close.go:530`), on the window already computed there (`windowBase`, `windowHead`, `diffFiles`).
-  - Lines come from `churn.ParseNumstat(git diff --numstat base..head)`, via `windowFileStats(base, head)`, which `churnForWindow` then reuses.
+  - Lines come from `churn.ParseNumstat(git diff --numstat base..head)`, via `windowFileStats(base, head)`, which `churnForWindow` then reuses. The design is measured as it stands at close: the issue body plus the durable plan (`readOptionalPlanFile`), so a plan that grew during the work crosses.
   - On a crossing, the upgrade goes into `newFM` plus a Log reason, and `applyClose` writes it at finalize.
   - The Done-when checks run when the recorded kind is `quick`, including when this close upgrades it.
 - **recipe selection** — `boundaryReviewParams.Category` is set from `closeResult.flow` at `close.go:1024/:1037/:1078`. milestone-close always passes `MilestoneReview`.
@@ -544,3 +544,29 @@ Delta:
   describe the current design. That table is the one the boundary judge checks
   against the diff. The M2 task list keeps its historical record.
 
+### 2026-09-18 — the design limit replaces "a durable plan exists"
+
+Reason: the operator's follow-up to the trial reading (issue Log, 2026-09-18). A
+plan runs longer than the code it describes, so a short plan should not force the
+full flow, and a very small task needs none. `## Spec` counts beside `## Plan`
+and the durable plan, because brainstorming lands the design there.
+
+Delta (the tree now matches; the tables above were edited in place so the
+boundary review's table-vs-diff check reads the current entities):
+
+- `flow.MaxDesignLines = 500`, `flow.DesignRule` and `flow.DesignLines` are new;
+  `Size` gains `DesignLines`, `Measure` takes it, and `Crossings` reports a
+  design past the limit.
+- `DecideInput` is `{Recorded, Pin, Entry Size}`. `Decide` asks `Entry.Crossings()`,
+  the same check close runs, instead of `HasMilestones`/`HasPlan`; a quick pin is
+  refused on any entry-time crossing. The rules `rulePlan`/`ruleNoPlan`/
+  `ruleMilestones` became `shellRule(crossings)` and `ruleInside`.
+- close measures the design at close from the issue body and the durable plan.
+- Docs: AGENTS.base.md §1/§2, the brainstorming skill (with its intent log,
+  Conversation 11), start-plan's pointer and help, change-code's and issue's
+  help, the atlas, and the small-diff recipe's opening line now say a plan is
+  optional inside the shell and name the design limit.
+- Tests: `TestDesignLines`; the design limit at 500/501 in `TestCrossings`,
+  `TestDecide`, `TestDecideChangeCodeFlow` and `TestCloseDesignGrewPastTheLimit`;
+  `TestScaffoldPlanSeedIsNotAnItem` pins that an empty Plan passes close. Each was
+  mutation-checked red.

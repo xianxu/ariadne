@@ -196,10 +196,12 @@ THE QUICK FLOW (#231)
     {{QUICK_SHELL}}
 
   Added lines come from the window's diff, over code files as the shell above
-  classifies them. Neither how many files a change spreads across nor where in
-  the tree it lands counts, only its size: for a diff this small, the tests and
-  the one close review are the guard. (In ariadne, a quick change to sdlc itself is closed by the binary it
-  just changed; that review sees the diff.)
+  classifies them. The design is measured as it stands at close, so a plan that
+  grew during the work crosses too. Neither how many files a change spreads
+  across nor where in the tree it lands counts, only its size: for a diff this
+  small, the tests and the one close review are the guard. (In ariadne, a quick
+  change to sdlc itself is closed by the binary it just changed; that review
+  sees the diff.)
 
   Inside the shell, the boundary review runs the small-diff recipe: the full
   procedure, aimed at the bug classes small diffs ship, over only the ARCH-*

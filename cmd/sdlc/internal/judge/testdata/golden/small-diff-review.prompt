@@ -158,7 +158,7 @@ it isn't — followed by:
 
 ## Small-diff focus — this window is inside the quick-flow shell (#231)
 
-This issue took the quick flow: no durable plan, no plan-quality review, and this
+This issue took the quick flow: at most a short plan, no plan-quality review, and this
 review is its ONLY one. The window is small, so the bug classes worth hunting are
 the local ones — as likely in 100 lines as in 1000, and likelier to be skipped,
 because a small change is where the sweep gets skipped. Weight your attention:

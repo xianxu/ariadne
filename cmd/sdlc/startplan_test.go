@@ -244,13 +244,13 @@ func TestSubstrateChain(t *testing.T) {
 	}
 }
 
-// TestPlanPointerConditionalOnShell: a durable plan makes change-code infer the
-// full flow, so a pointer that told every issue to write one made the quick flow
-// unreachable on the documented path (#231 PQ-1). The pointer now sizes first,
-// naming the shell from its single source.
+// TestPlanPointerConditionalOnShell: a pointer that told every issue to write a
+// durable plan made the quick flow unreachable on the documented path (#231
+// PQ-1). The pointer now sizes first, naming the shell from its single source,
+// and says a plan inside it is optional.
 func TestPlanPointerConditionalOnShell(t *testing.T) {
 	got := planPointer(72)
-	for _, want := range []string{flow.ShellSummary(), "don't write a durable plan", "quick flow", "superpowers-writing-plans"} {
+	for _, want := range []string{flow.ShellSummary(), "a plan is optional", "writes none", "quick flow", "superpowers-writing-plans"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("planPointer(72) missing %q:\n%s", want, got)
 		}

@@ -195,17 +195,19 @@ func baseContentionSummary(c baseContention) string {
 // skill + repo location, never teaching the binary the Claude-specific path.
 // Continuation lines indent 4 to align under cinfo's `==> ` prefix.
 //
-// Sizes FIRST (#231 PQ-1): a durable plan makes change-code infer the full flow,
-// so telling every issue to write one made the quick flow unreachable on the
-// documented path. The shell is named from its single source.
+// Sizes FIRST (#231 PQ-1): telling every issue to write a durable plan made the
+// quick flow unreachable on the documented path. Inside the shell a plan is
+// optional — none for a very small task — and only a design past the shell's
+// design limit infers the full flow. The shell is named from its single source.
 func planPointer(issue int) string {
 	slug := "NNNNNN-slug"
 	if issue > 0 {
 		slug = fmt.Sprintf("%06d-slug", issue)
 	}
 	return fmt.Sprintf("Size the work first. Inside the quick-flow shell — %s —\n"+
-		"    don't write a durable plan: change-code infers the quick flow (no plan, no\n"+
-		"    estimate, one small-diff review at close). Outside it, capture the plan via\n"+
+		"    a plan is optional: a very small task writes none, and a short one stays\n"+
+		"    inside the design limit. change-code infers the quick flow (no plan review,\n"+
+		"    no estimate, one small-diff review at close). Outside it, capture the plan via\n"+
 		"    the superpowers-writing-plans skill → workshop/plans/%s-plan.md\n"+
 		"    (version-controlled). The builtin plan-mode file (~/.claude/plans/…) is\n"+
 		"    ephemeral — NOT the record.", flow.ShellSummary(), slug)

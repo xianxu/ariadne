@@ -39,8 +39,9 @@ THE FLOW (#231)
   the gates decide what applies. change-code infers the flow from what the
   design produced:
 
-    Mx milestone rows in `## Plan`, or a durable plan
-    (workshop/plans/<issue>-plan.md)                        → full
+    Mx milestone rows in `## Plan`, or a design past the
+    shell's design limit (## Spec, ## Plan and the durable
+    plan workshop/plans/<issue>-plan.md, in lines)          → full
     neither                                                  → quick
 
   and records it on the issue as one line,
@@ -48,7 +49,7 @@ THE FLOW (#231)
 
   full   today's gates: structural, plan-quality, the estimate gates, and the
          full boundary review at close.
-  quick  none of change-code's gates, no durable plan, no estimate — and one
+  quick  none of change-code's gates, no plan review, no estimate — and one
          review, at close, with the small-diff recipe. The hard shell is
 
            {{QUICK_SHELL}}
@@ -59,8 +60,9 @@ THE FLOW (#231)
          without its `## Done when`.
 
   The operator can pin the flow with `--flow quick|full` (provenance:
-  operator). A pin to quick is refused on a Plan with Mx rows. Gates never
-  downgrade full to quick; only a pin does.
+  operator). A pin to quick is refused on an issue already outside the shell
+  (Mx rows, or a design past its limit). Gates never downgrade full to quick;
+  only a pin does.
 
   The record is re-derived from the issue as it is when written, so an edit
   made while the gates ran survives. If that edit changed the flow itself (say,

@@ -225,3 +225,21 @@ that sent every issue into a durable plan.
 - The limits are referenced via `sdlc change-code --help`, never restated as numbers
 - writing-plans remains the only skill invoked after brainstorming
 - All previous verify clauses (Conv 1-9) still hold
+
+## Conversation 11 (2026-09-18): brainstorming — inside the shell, a plan is optional
+
+User: Trial reading of the quick flow (ariadne#231). A plan runs longer than the code it
+describes, so the design side of the shell became a length limit on `## Spec`, `## Plan` and
+the durable plan together, replacing "a durable plan exists → full". For very small tasks it
+is fine to write no plan at all.
+
+AI: Step 10, the graph's quick-flow terminal, the terminal-state rule and the Implementation
+paragraph now say a plan is optional inside the shell: a very small task writes none, a short
+one stays inside the shell's design limit. Outside the shell the skill still invokes
+writing-plans exactly as before. The limits are still referenced via `sdlc change-code --help`.
+
+### Verify
+- Inside the shell, a plan is optional — none for a very small task — and never required
+- A design past the shell's design limit is what makes change-code infer the full flow
+- The limits are referenced via `sdlc change-code --help`, never restated as numbers
+- All previous verify clauses (Conv 1-10) still hold

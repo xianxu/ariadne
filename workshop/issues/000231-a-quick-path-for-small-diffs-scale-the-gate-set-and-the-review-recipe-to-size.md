@@ -98,33 +98,39 @@ carries the contract hashes §3 uses (`spec:`, `done:`), always quoted: an
 all-digit hex hash would otherwise read as a YAML number. An issue with no `flow:`
 (every issue filed before this one) reads as `full`.
 
-**Inference at `change-code`.** Two facts about the issue, both artifacts the
-agent already produces under the constitution:
+**Inference at `change-code`.** The shell below, as far as it can be measured
+before any code exists — two facts about artifacts the agent already produces:
 
 - `Mx` milestone rows in `## Plan` → `full`.
-- A durable plan for the issue in `workshop/plans/` → `full`. The constitution
-  already requires one for non-trivial work.
+- A design past its limit → `full`. The design is `## Spec`, `## Plan` and the
+  durable plan in `workshop/plans/`, counted in lines. A plan runs longer than
+  the code it describes, since it cites code and justifies it, so it gets its
+  own limit rather than a multiple of the code limit.
 
 Neither → `quick`. Having no milestones is necessary for quick, not sufficient;
-the durable plan is the second signal. `full` runs the plan-quality and estimate
-gates as today; `quick` skips both.
+the design's length is the second signal. A plan's mere existence is not: a
+short one stays quick. `full` runs the plan-quality and estimate gates as
+today; `quick` skips both. change-code and close measure through the same
+`flow.Measure` and `Crossings`, so they cannot disagree about a limit both see.
 
 **Operator pin.** The operator can set the flow ("use sdlc quick path", or
 `full` for a small change that should get the whole process). The agent passes
 `sdlc change-code --flow quick|full`, which writes `provenance: operator`. The
 flag attests that the operator asked, in the spirit of the `--no-<gate>` flags.
 Gates never re-infer an operator pin, except through the hard shell below, so a
-misused pin cannot escape it. `change-code` refuses `--flow quick` on a Plan
-with `Mx` rows: a pin it cannot honour should say so while the operator is
-there.
+misused pin cannot escape it. `change-code` refuses `--flow quick` on an issue
+already outside the shell (`Mx` rows, or a design past its limit): a pin it
+cannot honour should say so while the operator is there.
 
 **The hard shell.** "Is this small?" is exactly the call that gets made wrong
 (#263 looked like one keybinding), so the inference at entry is not trusted
-either. A quick issue must stay inside both limits, whatever its provenance:
+either. A quick issue must stay inside all three limits, whatever its
+provenance:
 
 - At most 100 added lines in code files, counted as insertions — the number the
   churn report and calibration ledger already use. Deleted lines do not count,
   and neither does how many files the lines spread across.
+- A design of at most 500 lines: `## Spec`, `## Plan` and the durable plan.
 - No `Mx` milestones.
 
 The shell measures size, not reach. How many files a change spreads across and
@@ -134,7 +140,7 @@ review are the guard. In ariadne, where sdlc runs from the branch under review,
 a quick change to sdlc is closed by the binary it just changed; that review sees
 the diff.
 
-Crossing either limit crosses the shell. Code files exclude tests, docs and the
+Crossing any limit crosses the shell. Code files exclude tests, docs and the
 process trees (`workshop/`, `atlas/`) — except markdown under `cmd/`, which ships
 in the binary and counts — so writing a test never pushes a change out of the
 quick flow. (`churn.CodeFileRule` states it where the classifier lives.) The limits are single-sourced in the binary: the
@@ -160,7 +166,9 @@ afterwards is not a prediction, so the issue enters no est/actual calibration.
 
 ### 2. What the quick flow drops
 
-- The durable plan and the plan-quality judge.
+- The plan-quality judge, and the requirement to plan. A plan is optional: a
+  very small task writes none (`## Plan` may stay empty), and a short one stays
+  inside the design limit.
 - The structured estimate: `estimate_hours` and the `## Estimate` block.
   `actual_hours` is still measured at close, because measuring it costs nothing.
   With no estimate to pair it with, though, quick-flow rows leave est/actual
@@ -237,18 +245,23 @@ issue does not depend on it. #233 extends `#Flow`.
   mistyped value fails validation. The one-line form round-trips through the
   line-based frontmatter helpers, an absent field reads as `full`, and `sdlc
   issue --help` documents the field.
-- `sdlc change-code` infers the kind — `full` if the Plan has `Mx` rows or a
-  durable plan exists, otherwise `quick` — and writes `flow:` with `provenance:
-  inferred`. `--flow quick|full` pins it with `provenance: operator`, and
-  `--flow quick` is refused on a Plan with `Mx` rows.
-- On the quick flow, no durable plan, plan-quality judge, structured estimate or
-  `change-code` structural gate runs. `sdlc close` is the only review gate.
+- `sdlc change-code` infers the kind — `full` if the Plan has `Mx` rows or the
+  design (`## Spec` + `## Plan` + the durable plan) runs past its limit,
+  otherwise `quick` — and writes `flow:` with `provenance: inferred`. `--flow
+  quick|full` pins it with `provenance: operator`, and `--flow quick` is refused
+  on an issue already outside the shell.
+- On the quick flow, no plan-quality judge, structured estimate or
+  `change-code` structural gate runs, and no plan is required. `sdlc close` is
+  the only review gate. The constitution, the brainstorming skill and
+  start-plan say a plan is optional inside the shell, and a blank issue's
+  `## Plan` seed is not a plan item, so an empty Plan passes close.
 - A quick issue that crosses the hard shell — more than 100 added lines in code
-  files, or an `Mx` row — is upgraded to `{kind: full, provenance: inferred}` by
-  the gate that finds it, whatever its provenance, with the measured reason in
-  the Log, and gets the full review at close. No gate downgrades. Tests pin the
-  line limit: exactly at it stays quick however many files carry the lines, and
-  one past it upgrades.
+  files, a design past 500 lines, or an `Mx` row — is upgraded to `{kind: full,
+  provenance: inferred}` by the gate that finds it, whatever its provenance,
+  with the measured reason in the Log, and gets the full review at close. No
+  gate downgrades. Tests pin both size limits at change-code and at close:
+  exactly at a limit stays quick (however many files carry the lines), and one
+  past it upgrades.
 - An end-to-end test drives the same verb sequence (claim → change-code → close)
   through a small issue and a large one, and each lands on the right flow and
   review recipe without the agent choosing either.
@@ -551,6 +564,34 @@ The operator's decisions on this reading, recorded under Revisions:
 Keep watching the trial for quick issues, and for an issue in the quick flow
 that a file-count or location rule would have caught.
 
+### 2026-09-18 — the design limit, and why the other repos saw none of it
+
+The operator's follow-up on the same reading: a plan runs longer than the code it
+describes, because it cites code and justifies it. So the design side of the
+shell is now a length — `## Spec`, `## Plan` and the durable plan together, at
+most 500 lines — rather than "a durable plan exists". That reverses the entry
+above on the in-issue `## Plan`: it now counts. For very small tasks the
+constitution now says a plan is optional, down to none at all.
+
+Measured before choosing the number, over the calibration ledger's 190 issues
+with churn and an issue file: 29 added at most 100 code lines. Their durable
+plans ran 414 lines at the 90th percentile, and only one passed 500
+(ariadne#205, 522 lines for 22 lines of code, 3 review rounds). So the limit
+rarely binds; it is a backstop for a design-heavy small diff, and pair#283's
+427-line plan would now have stayed quick. Only about 15% of past issues were
+under 100 code lines at all, which sets the trial's expected volume.
+
+Why no trial issue went quick: pair, tools and parley.nvim read a composed
+`AGENTS.md` that only `make weave` refreshes, and theirs still said
+"Non-trivial task (>3 files or >100 lines) → durable plan". Their skills link
+to ariadne's working tree, so the brainstorming change reached them; the
+constitution did not. tools#76, a deletion, was writing a 20 KB plan under that
+rule. `make weave` in each repo is part of landing this revision.
+
+A blank issue's `## Plan` seed (`- [ ]`, no text) was already not a plan item,
+so an empty Plan never tripped close's unchecked-plan gate. It is now pinned by
+`TestScaffoldPlanSeedIsNotAnItem`, since the new guidance relies on it.
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
@@ -713,3 +754,25 @@ Delta:
   across many files.
 - An in-issue `## Plan` stays out of inference; unchanged.
 
+### 2026-09-18 — the design limit replaces "a durable plan exists"
+
+Reason: the operator's follow-up to the trial reading (Log, 2026-09-18). A plan
+runs longer than the code it describes, so a small change with a short plan
+should stay quick, and a very small task needs no plan at all. `## Spec` counts
+too, because brainstorming lands the design there; counting only the Plan would
+move design text out of the measure.
+
+Delta:
+
+- §1's inference: `Mx` rows or a design past its limit → full, otherwise quick.
+  A durable plan's existence is no longer a signal. change-code measures the
+  shell through the same `flow.Measure` and `Crossings` close uses, and a quick
+  pin is refused on an issue already outside the shell.
+- §1's shell gains a third limit: a design of at most 500 lines (`## Spec` +
+  `## Plan` + the durable plan). Close checks it on the design as it stands, so
+  a plan that grew during the work upgrades the issue.
+- §2: the quick flow drops the requirement to plan, not the plan itself.
+- Done when: the inference, quick-flow and upgrade bullets name the design
+  limit; the tests pin it at 500 and 501 at change-code and at close.
+- This supersedes the previous revision's last line: an in-issue `## Plan` now
+  counts, as part of the design.

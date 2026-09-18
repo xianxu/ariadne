@@ -39,9 +39,10 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
     flow           the issue's SDLC flow, one line (#231):
                    {kind: full|quick, provenance: inferred|operator} — plus, on
                    quick, the quoted contract hashes `spec`/`done`. Written by
-                   `sdlc change-code` (inferred: Mx milestones or a durable plan
-                   → full, neither → quick; `--flow` pins it) and by `sdlc close`
-                   (a quick diff outside the shell → full). Never hand-edited;
+                   `sdlc change-code` (inferred: Mx milestones or a design past
+                   the shell's design limit → full, neither → quick; `--flow`
+                   pins it) and by `sdlc close` (a quick issue outside the shell
+                   → full). Never hand-edited;
                    absent reads as full.
     actual_hours   (added at close) required when status → done: number or N/A
 
