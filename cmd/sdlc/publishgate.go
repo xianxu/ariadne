@@ -14,6 +14,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
@@ -173,11 +174,8 @@ func publishCodecompleteIssues(issuesDir string) ([]string, error) {
 // gate keeps plain hasCodePath (there, embedded docs SHOULD satisfy a docs
 // demand); only the publish decision needs the stricter read. Pure.
 func publishGateHasCodeSurface(paths []string) bool {
-	if hasCodePath(paths) {
-		return true
-	}
 	for _, p := range paths {
-		if strings.HasPrefix(p, "cmd/") {
+		if !churn.IsDoc(p) || churn.IsEmbedded(p) {
 			return true
 		}
 	}

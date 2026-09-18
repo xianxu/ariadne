@@ -35,6 +35,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -1582,20 +1583,16 @@ func explainVerified(stderr io.Writer, issueStr, mode, milestone, actual string)
 	fmt.Fprintln(stderr, strings.Join(lines, "\n"))
 }
 
-// hasCodePath reports whether any window path is code surface — the single
-// docs classifier (#177, aligned with the #172 windowstat study): *.md anywhere,
+// hasCodePath reports whether any window path is code surface — the #177 docs
+// rule, read per path by churn.IsDoc (aligned with the #172 windowstat study): *.md anywhere,
 // or anything under workshop/, atlas/, docs/, is documentation; EVERYTHING else
 // (Makefile, .gitignore, extensionless files) conservatively counts as code —
 // build files are architectural surface, so they keep the atlas refusal.
 func hasCodePath(paths []string) bool {
 	for _, p := range paths {
-		if strings.HasSuffix(p, ".md") ||
-			strings.HasPrefix(p, "workshop/") ||
-			strings.HasPrefix(p, "atlas/") ||
-			strings.HasPrefix(p, "docs/") {
-			continue
+		if !churn.IsDoc(p) {
+			return true
 		}
-		return true
 	}
 	return false
 }
