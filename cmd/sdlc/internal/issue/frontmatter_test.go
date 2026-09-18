@@ -131,3 +131,28 @@ func TestSetField_UpsertChain(t *testing.T) {
 		t.Errorf("upsert chain mismatch:\n  want %q\n  got  %q", want, fm)
 	}
 }
+
+// TestSetFieldRoundTripsFlowMap: the #231 flow record is a one-line YAML map
+// precisely so these line-based helpers can carry it. Setting it twice must
+// replace the line in place (no duplicate, no orphaned child lines), and the
+// quoted hashes and braces must come back byte-identical — `$` and `\` are the
+// only ReplaceAllString hazards, and the record never contains them.
+func TestSetFieldRoundTripsFlowMap(t *testing.T) {
+	const v1 = `{kind: quick, provenance: inferred, spec: "12345678", done: "5e6f7a8b"}`
+	const v2 = `{kind: full, provenance: inferred}`
+	fm := "id: 000001\nstatus: working\nestimate_hours:"
+	fm = SetField(fm, "flow", v1)
+	if got, ok := GetField(fm, "flow"); !ok || got != v1 {
+		t.Fatalf("after first set: GetField = %q, %v; want %q", got, ok, v1)
+	}
+	fm = SetField(fm, "flow", v2)
+	if got, _ := GetField(fm, "flow"); got != v2 {
+		t.Errorf("after second set: GetField = %q, want %q", got, v2)
+	}
+	if n := strings.Count(fm, "\nflow:"); n != 1 {
+		t.Errorf("flow: appears %d times after two sets, want 1:\n%s", n, fm)
+	}
+	if got, _ := GetField(fm, "estimate_hours"); got != "" {
+		t.Errorf("neighbouring empty field disturbed: estimate_hours = %q", got)
+	}
+}

@@ -175,12 +175,19 @@ func checkPlan(body string) *StructuralFailure {
 
 var bulletRE = regexp.MustCompile(`(?m)^[-*]\s+\S`)
 
+// HasDoneWhenBullet reports whether the body's `## Done when` section holds at
+// least one non-empty bullet — the acceptance oracle. Shared by the structural
+// gate (which also accepts `related:`) and the quick flow's close check (which
+// does not, #231).
+func HasDoneWhenBullet(body string) bool {
+	sec, ok := SectionBody(body, secDoneWhen)
+	return ok && bulletRE.MatchString(sec)
+}
+
 func checkDoneWhen(fm, body string) *StructuralFailure {
 	// First try: ## Done when section with at least one non-empty bullet.
-	if sec, ok := SectionBody(body, secDoneWhen); ok {
-		if bulletRE.MatchString(sec) {
-			return nil
-		}
+	if HasDoneWhenBullet(body) {
+		return nil
 	}
 	// Fallback: related: frontmatter populated.
 	if v, ok := GetField(fm, "related"); ok {
