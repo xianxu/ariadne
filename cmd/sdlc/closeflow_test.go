@@ -157,6 +157,44 @@ func TestCloseSpreadButTinyAtTheLimit(t *testing.T) {
 	}
 }
 
+// TestCloseDesignGrewPastTheLimit: the design limit holds at close too. A quick
+// issue whose durable plan grew during the work is measured as it stands at
+// close — exactly at the limit stays quick, one line past upgrades — with the
+// same Crossings change-code used at entry.
+func TestCloseDesignGrewPastTheLimit(t *testing.T) {
+	// quickIssueTmpl's design is 2 lines: one of Spec, one of Plan.
+	for _, c := range []struct {
+		name      string
+		planLines int
+		want      flow.Kind
+	}{
+		{"exactly at the limit", flow.MaxDesignLines - 2, flow.Quick},
+		{"one line past it", flow.MaxDesignLines - 1, flow.Full},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(3)})
+			plan := filepath.Join("workshop/plans", "000231-x-plan.md")
+			os.MkdirAll(filepath.Dir(plan), 0o755)
+			if err := os.WriteFile(plan, []byte(strings.Repeat("step\n", c.planLines)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			testfix.Git(t, ".", "add", ".")
+			testfix.Git(t, ".", "commit", "-q", "-m", "#231: plan")
+			_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+			if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
+				t.Fatal(err)
+			}
+			f, text := issueFlowAfterClose(t, dir)
+			if f.Kind() != c.want || strings.Contains(*prompt, smallDiffMarker) != (c.want == flow.Quick) {
+				t.Errorf("a %d-line plan: flow %+v, want %s with its recipe:\n%s", c.planLines, f, c.want, text)
+			}
+			if c.want == flow.Full && !strings.Contains(text, "a design of") {
+				t.Errorf("upgrade without the design reason in the Log:\n%s", text)
+			}
+		})
+	}
+}
+
 // TestCloseOperatorQuickStillUpgrades: the shell is hard — an operator pin to
 // quick does not exempt a diff that leaves it.
 func TestCloseOperatorQuickStillUpgrades(t *testing.T) {

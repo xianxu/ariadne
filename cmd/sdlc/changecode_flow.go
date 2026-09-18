@@ -23,11 +23,11 @@ type changeCodeFlow struct {
 // the issue and plan text (ARCH-PURE); reportChangeCodeFlow and
 // recordChangeCodeFlow are the IO shell.
 //
-// The inference inputs are the two artifacts the agent already produces under
-// the constitution: Mx milestone rows in the Plan (read through the ONE
-// enumeration close's verdict gate uses), and a durable plan — planContent is
-// the same lookup plan-quality judges, so "a plan exists" means exactly "a plan
-// plan-quality would have reviewed". On quick, the record also carries the
+// The inference input is the shell as far as change-code can see it, measured
+// by the same flow.Measure close uses: Mx milestone rows in the Plan (read
+// through the ONE enumeration close's verdict gate uses), and the design's
+// length — the issue's Spec and Plan plus the durable plan, where planContent is
+// the same lookup plan-quality judges. On quick, the record also carries the
 // contract hashes the close-time freshness check compares against, refreshed on
 // every run so the anchor moves when the contract is re-fixed.
 func decideChangeCodeFlow(issueContent, planContent, pin string) (changeCodeFlow, error) {
@@ -43,9 +43,8 @@ func decideChangeCodeFlow(issueContent, planContent, pin string) (changeCodeFlow
 		out.warning = fmt.Sprintf("flow record unreadable (%v) — treating it as full and rewriting it", perr)
 	}
 	plan, _ := issue.PlanItemsBody(body)
-	hasMx := len(issue.MilestonesInPlanOrder(plan)) > 0
-	hasPlan := planContent != ""
-	fl, rule, err := flow.Decide(flow.DecideInput{Recorded: recorded, Pin: pin, HasMilestones: hasMx, HasPlan: hasPlan})
+	entry := flow.Measure(nil, flow.DesignLines(body, planContent), issue.MilestonesInPlanOrder(plan))
+	fl, rule, err := flow.Decide(flow.DecideInput{Recorded: recorded, Pin: pin, Entry: entry})
 	if err != nil {
 		return changeCodeFlow{}, err
 	}

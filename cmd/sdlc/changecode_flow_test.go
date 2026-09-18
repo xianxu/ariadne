@@ -37,6 +37,10 @@ func recordedFlow(t *testing.T, content string) flow.Flow {
 // what it infers, what it writes, and what it refuses (#231).
 func TestDecideChangeCodeFlow(t *testing.T) {
 	mx := withPlanRows(flowIssue, "- [ ] M1 — a\n- [ ] M2 — b\n")
+	// flowIssue's design is 2 lines (one of Spec, one of Plan), so a plan of
+	// limit-2 lines puts the design exactly at the limit, and one more past it.
+	atLimit := strings.Repeat("step\n", flow.MaxDesignLines-2)
+	past := atLimit + "one more\n"
 	cases := []struct {
 		name       string
 		content    string
@@ -46,9 +50,11 @@ func TestDecideChangeCodeFlow(t *testing.T) {
 	}{
 		{"no plan, no Mx → quick", flowIssue, "", "", flow.Quick, flow.Inferred},
 		{"Mx rows → full", mx, "", "", flow.Full, flow.Inferred},
-		{"durable plan → full", flowIssue, "# the plan", "", flow.Full, flow.Inferred},
+		{"a short durable plan stays quick (pair#283's shape)", flowIssue, "# the plan", "", flow.Quick, flow.Inferred},
+		{"design exactly at the limit → quick", flowIssue, atLimit, "", flow.Quick, flow.Inferred},
+		{"design one line past the limit → full", flowIssue, past, "", flow.Full, flow.Inferred},
 		{"pin full on a small issue", flowIssue, "", "full", flow.Full, flow.Operator},
-		{"pin quick despite a plan", flowIssue, "# the plan", "quick", flow.Quick, flow.Operator},
+		{"pin quick with a short plan", flowIssue, "# the plan", "quick", flow.Quick, flow.Operator},
 	}
 	for _, c := range cases {
 		d, err := decideChangeCodeFlow(c.content, c.plan, c.pin)
@@ -77,6 +83,9 @@ func TestDecideChangeCodeFlow(t *testing.T) {
 
 	if _, err := decideChangeCodeFlow(mx, "", "quick"); err == nil {
 		t.Error("--flow quick on a Plan with Mx rows: want a refusal")
+	}
+	if _, err := decideChangeCodeFlow(flowIssue, past, "quick"); err == nil {
+		t.Error("--flow quick on a design past its limit: want a refusal")
 	}
 
 	// A re-run refreshes the anchor: the contract moved, the hashes follow.

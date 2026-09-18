@@ -212,12 +212,15 @@ func Recorded(fm string) (*Flow, error) {
 }
 
 // DecideInput is what change-code knows when it infers the flow. Recorded comes
-// from Recorded.
+// from Recorded; Entry from Measure with no diff stats.
 type DecideInput struct {
-	Recorded      *Flow  // the record already on the issue, nil if none
-	Pin           string // --flow value: "", "quick" or "full"
-	HasMilestones bool   // the Plan has Mx rows
-	HasPlan       bool   // a durable plan exists (the file plan-quality would judge)
+	Recorded *Flow  // the record already on the issue, nil if none
+	Pin      string // --flow value: "", "quick" or "full"
+	// Entry is the shell as change-code can measure it: the design's length and
+	// the Plan's Mx rows. There is no diff yet, so AddedLines is 0 — close
+	// measures that, with the SAME Crossings, so entry and close cannot disagree
+	// about a limit both can see.
+	Entry Size
 }
 
 // Rule names which of Decide's rules fired — returned rather than re-derived by
@@ -230,33 +233,40 @@ func (r Rule) String() string { return r.text }
 
 var (
 	rulePinned         = Rule{"pinned with --flow"}
-	ruleMilestones     = Rule{"the Plan has Mx milestones"}
 	ruleOperatorStands = Rule{"the operator's pin stands"}
 	ruleNoDowngrade    = Rule{"already full — gates never downgrade"}
-	rulePlan           = Rule{"a durable plan exists"}
-	ruleNoPlan         = Rule{"no Mx milestones and no durable plan"}
+	ruleInside         = Rule{"inside the shell so far — no Mx milestones, and the design within its limit"}
 )
+
+// shellRule is the rule for an entry-time crossing, naming what crossed.
+func shellRule(crossings []string) Rule {
+	return Rule{"outside the quick-flow shell: " + strings.Join(crossings, "; ")}
+}
 
 // Decide computes the flow change-code records, and the rule that decided it.
 // The rules, in order:
 //
-//  1. An unknown pin, or a quick pin on a Plan with Mx rows, is an error: a pin
-//     that cannot be honoured says so while the operator is there.
+//  1. An unknown pin, or a quick pin on an issue already outside the shell, is
+//     an error: a pin that cannot be honoured says so while the operator is
+//     there.
 //  2. A pin sets {pin, operator}.
-//  3. Mx rows cross the shell, so they make the flow {full, inferred} whatever
-//     was recorded — unless it is already full, which stays as it is.
+//  3. Outside the shell — Mx rows, or a design past its limit — the flow is
+//     {full, inferred} whatever was recorded, unless it is already full, which
+//     stays as it is.
 //  4. A recorded operator flow stands; a recorded full stands (no downgrade).
-//  5. Otherwise infer: a durable plan means full, its absence means quick.
+//  5. Otherwise quick: close measures the rest of the shell on the real diff.
 //
 // The invariant (ARCH-ORDER): only an operator pin produces quick from full, and
-// nothing produces quick while Mx rows exist. The contract hashes are not
-// Decide's business; change-code adds them with WithContract.
+// nothing produces quick while the issue is outside the shell. The contract
+// hashes are not Decide's business; change-code adds them with WithContract.
 func Decide(in DecideInput) (Flow, Rule, error) {
+	crossed := in.Entry.Crossings()
 	switch in.Pin {
 	case "":
 	case string(Quick):
-		if in.HasMilestones {
-			return Flow{}, Rule{}, fmt.Errorf("--flow quick: the Plan has Mx milestone rows, and the quick flow has a single boundary — drop the milestones or keep the full flow")
+		if len(crossed) > 0 {
+			return Flow{}, Rule{}, fmt.Errorf("--flow quick: the issue is outside the quick-flow shell (%s), so close would upgrade it — "+
+				"drop the milestones or shorten the design, or keep the full flow", strings.Join(crossed, "; "))
 		}
 		return Flow{kind: Quick, provenance: Operator}, rulePinned, nil
 	case string(Full):
@@ -265,8 +275,8 @@ func Decide(in DecideInput) (Flow, Rule, error) {
 		return Flow{}, Rule{}, fmt.Errorf("--flow %q: want %s or %s", in.Pin, Quick, Full)
 	}
 	r := in.Recorded
-	if in.HasMilestones && (r == nil || r.Kind() != Full) {
-		return Flow{kind: Full, provenance: Inferred}, ruleMilestones, nil
+	if len(crossed) > 0 && (r == nil || r.Kind() != Full) {
+		return Flow{kind: Full, provenance: Inferred}, shellRule(crossed), nil
 	}
 	if r != nil && r.provenance == Operator {
 		return Flow{kind: r.Kind(), provenance: r.provenance}, ruleOperatorStands, nil
@@ -274,8 +284,5 @@ func Decide(in DecideInput) (Flow, Rule, error) {
 	if r != nil && r.Kind() == Full {
 		return Flow{kind: r.Kind(), provenance: r.provenance}, ruleNoDowngrade, nil
 	}
-	if in.HasPlan {
-		return Flow{kind: Full, provenance: Inferred}, rulePlan, nil
-	}
-	return Flow{kind: Quick, provenance: Inferred}, ruleNoPlan, nil
+	return Flow{kind: Quick, provenance: Inferred}, ruleInside, nil
 }

@@ -98,33 +98,41 @@ func FuzzFromFrontmatter(f *testing.F) {
 
 // TestDecide: one case per cell of the plan's ARCH-ORDER table, plus the pin
 // refusals. The invariant: only an operator pin produces quick from full, and
-// nothing produces quick while Mx rows exist.
+// nothing produces quick while the issue is outside the shell — Mx rows, or a
+// design past its limit. A durable plan inside the limit is no longer a signal.
 func TestDecide(t *testing.T) {
 	qi := &Flow{kind: Quick, provenance: Inferred}
 	qo := &Flow{kind: Quick, provenance: Operator}
 	fi := &Flow{kind: Full, provenance: Inferred}
 	fo := &Flow{kind: Full, provenance: Operator}
+	mx := Measure(nil, 0, []string{"M1"})
+	long := Measure(nil, MaxDesignLines+1, nil)
+	atLimit := Measure(nil, MaxDesignLines, nil)
+	mxRule, longRule := shellRule(mx.Crossings()), shellRule(long.Crossings())
 	cases := []struct {
 		name string
 		in   DecideInput
 		want Flow
 		rule Rule
 	}{
-		{"absent, no plan, no Mx → quick", DecideInput{}, Flow{Quick, Inferred, "", ""}, ruleNoPlan},
-		{"absent, durable plan → full", DecideInput{HasPlan: true}, Flow{Full, Inferred, "", ""}, rulePlan},
-		{"absent, Mx rows → full", DecideInput{HasMilestones: true}, Flow{Full, Inferred, "", ""}, ruleMilestones},
+		{"absent, nothing → quick", DecideInput{}, Flow{Quick, Inferred, "", ""}, ruleInside},
+		{"absent, design exactly at the limit → quick", DecideInput{Entry: atLimit}, Flow{Quick, Inferred, "", ""}, ruleInside},
+		{"absent, design one line past → full", DecideInput{Entry: long}, Flow{Full, Inferred, "", ""}, longRule},
+		{"absent, Mx rows → full", DecideInput{Entry: mx}, Flow{Full, Inferred, "", ""}, mxRule},
 		{"absent, pin full", DecideInput{Pin: "full"}, Flow{Full, Operator, "", ""}, rulePinned},
 		{"absent, pin quick", DecideInput{Pin: "quick"}, Flow{Quick, Operator, "", ""}, rulePinned},
-		{"quick/inferred, plan appeared → full", DecideInput{Recorded: qi, HasPlan: true}, Flow{Full, Inferred, "", ""}, rulePlan},
-		{"quick/inferred, unchanged → quick", DecideInput{Recorded: qi}, Flow{Quick, Inferred, "", ""}, ruleNoPlan},
-		{"quick/inferred, Mx appeared → full", DecideInput{Recorded: qi, HasMilestones: true}, Flow{Full, Inferred, "", ""}, ruleMilestones},
-		{"quick/operator stays even with a plan", DecideInput{Recorded: qo, HasPlan: true}, Flow{Quick, Operator, "", ""}, ruleOperatorStands},
-		{"quick/operator, Mx appeared → full", DecideInput{Recorded: qo, HasMilestones: true}, Flow{Full, Inferred, "", ""}, ruleMilestones},
+		{"absent, pin quick at the design limit", DecideInput{Pin: "quick", Entry: atLimit}, Flow{Quick, Operator, "", ""}, rulePinned},
+		{"quick/inferred, design grew past → full", DecideInput{Recorded: qi, Entry: long}, Flow{Full, Inferred, "", ""}, longRule},
+		{"quick/inferred, unchanged → quick", DecideInput{Recorded: qi}, Flow{Quick, Inferred, "", ""}, ruleInside},
+		{"quick/inferred, Mx appeared → full", DecideInput{Recorded: qi, Entry: mx}, Flow{Full, Inferred, "", ""}, mxRule},
+		{"quick/operator stays with a design inside the limit", DecideInput{Recorded: qo, Entry: atLimit}, Flow{Quick, Operator, "", ""}, ruleOperatorStands},
+		{"quick/operator, design grew past → full", DecideInput{Recorded: qo, Entry: long}, Flow{Full, Inferred, "", ""}, longRule},
+		{"quick/operator, Mx appeared → full", DecideInput{Recorded: qo, Entry: mx}, Flow{Full, Inferred, "", ""}, mxRule},
 		{"full/inferred never downgrades", DecideInput{Recorded: fi}, Flow{Full, Inferred, "", ""}, ruleNoDowngrade},
 		{"full/operator stays", DecideInput{Recorded: fo}, Flow{Full, Operator, "", ""}, ruleOperatorStands},
 		{"full/inferred, pin quick", DecideInput{Recorded: fi, Pin: "quick"}, Flow{Quick, Operator, "", ""}, rulePinned},
 		{"quick/operator, pin full", DecideInput{Recorded: qo, Pin: "full"}, Flow{Full, Operator, "", ""}, rulePinned},
-		{"full/operator, Mx → stays full/operator", DecideInput{Recorded: fo, HasMilestones: true}, Flow{Full, Operator, "", ""}, ruleOperatorStands},
+		{"full/operator, Mx → stays full/operator", DecideInput{Recorded: fo, Entry: mx}, Flow{Full, Operator, "", ""}, ruleOperatorStands},
 	}
 	for _, c := range cases {
 		got, rule, err := Decide(c.in)
@@ -137,8 +145,9 @@ func TestDecide(t *testing.T) {
 		}
 	}
 	for _, bad := range []DecideInput{
-		{Pin: "quick", HasMilestones: true},
-		{Recorded: fi, Pin: "quick", HasMilestones: true},
+		{Pin: "quick", Entry: mx},
+		{Recorded: fi, Pin: "quick", Entry: mx},
+		{Pin: "quick", Entry: long},
 		{Pin: "fast"},
 	} {
 		if got, _, err := Decide(bad); err == nil {
@@ -151,7 +160,8 @@ func TestDecide(t *testing.T) {
 // derived from the limits, so changing a limit cannot leave the prose behind.
 func TestShellSummaryReadsTheConstants(t *testing.T) {
 	s := ShellSummary()
-	for _, want := range []string{strconv.Itoa(MaxAddedLines) + " added lines", churn.CodeFileRule, "milestones"} {
+	for _, want := range []string{strconv.Itoa(MaxAddedLines) + " added lines", churn.CodeFileRule,
+		strconv.Itoa(MaxDesignLines) + " lines", DesignRule, "milestones"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("ShellSummary() = %q, missing %q", s, want)
 		}

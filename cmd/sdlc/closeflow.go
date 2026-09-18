@@ -48,8 +48,8 @@ func closeFlowLine(o closeFlowOutcome) string {
 		return "flow: quick → full — outside the quick-flow shell (" + strings.Join(o.crossings, "; ") +
 			"); this close runs the full boundary review"
 	}
-	return fmt.Sprintf("flow: quick — inside the shell (%d added lines in code files); this close runs the small-diff review",
-		o.size.AddedLines)
+	return fmt.Sprintf("flow: quick — inside the shell (%d added lines in code files, a design of %d lines); "+
+		"this close runs the small-diff review", o.size.AddedLines, o.size.DesignLines)
 }
 
 // closeFlowStep is close's flow step, run inside computeClose on the window the
@@ -76,7 +76,8 @@ func closeFlowStep(stderr io.Writer, f *closeFlags, mode, issuePath, fm, body, w
 	if mode == "issue" {
 		checkQuickDoneWhen(stderr, f, *rec, body)
 	}
-	size := measureCloseWindow(stderr, windowBase, windowHead, body)
+	plan := readOptionalPlanFile(f.plansDir(), strings.TrimSuffix(filepath.Base(issuePath), filepath.Ext(issuePath)))
+	size := measureCloseWindow(stderr, windowBase, windowHead, body, plan)
 	size.EarlierFullReview, size.LedgerErr = earlierFullReview(f.plansDir(), filepath.Base(issuePath), f.Issue, f.Milestone)
 	o := decideCloseFlow(*rec, size)
 	cinfo(stderr, closeFlowLine(o))
@@ -102,9 +103,11 @@ func checkQuickDoneWhen(stderr io.Writer, f *closeFlags, rec flow.Flow, body str
 	}
 }
 
-// measureCloseWindow gathers the shell's facts: the numstat of the window and the
-// Plan's Mx rows (through the fence-filtered body, like every plan-item reader).
-func measureCloseWindow(stderr io.Writer, windowBase, windowHead, body string) flow.Size {
+// measureCloseWindow gathers the shell's facts: the numstat of the window, the
+// design's length as it stands now (the issue body and the durable plan — a
+// design that grew past its limit during the work crosses here), and the Plan's
+// Mx rows (through the fence-filtered body, like every plan-item reader).
+func measureCloseWindow(stderr io.Writer, windowBase, windowHead, body, plan string) flow.Size {
 	var stats []churn.FileStat
 	if windowBase != "" {
 		st, err := windowFileStats(windowBase, windowHead)
@@ -119,7 +122,7 @@ func measureCloseWindow(stderr io.Writer, windowBase, windowHead, body string) f
 	if plan, ok := issue.PlanItemsBody(body); ok {
 		milestones = issue.MilestonesInPlanOrder(plan)
 	}
-	return flow.Measure(stats, milestones)
+	return flow.Measure(stats, flow.DesignLines(body, plan), milestones)
 }
 
 // windowFileStats is the numstat of a window, one row per changed file. Shared
