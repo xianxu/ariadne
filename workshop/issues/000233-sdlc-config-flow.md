@@ -12,10 +12,12 @@ estimate_hours:
 
 ## Problem
 
-The third of three SDLC flows. `sdlc` is the full flow; `sdlc quick` (#231)
-drops the plan, the plan-quality judge and the structured estimate and keeps one
-close gate with a small-diff review. `sdlc config` asks whether even that close
-review can go. Split out of #231 §5 at the operator's review on 2026-09-17.
+The third of three SDLC flows. `full` is today's flow; `quick` (#231) drops the
+plan, the plan-quality judge and the structured estimate and keeps one close gate
+with a small-diff review. `config` asks whether even that close review can go.
+As in #231, a flow is a frontmatter field (`flow: config`) set by `sdlc
+change-code --flow`, not a verb. Split out of #231 §5 at the operator's review on
+2026-09-17.
 
 Operator, 2026-09-17:
 
@@ -65,13 +67,15 @@ low-risk:
    ARCH-SECURE's concern as an admission criterion, because on this flow there is
    no reviewer left to raise it.
 
-Meeting all three, the close review is skipped and `sdlc close` records which
-criteria admitted it.
+Like #231's hard shell, all three are facts about the diff, so `sdlc close`
+checks them. Meeting all three, the close review is skipped and `sdlc close`
+records which criteria admitted it.
 
-Failing (1) or (2) routes UP to `sdlc quick` with the failing criterion named —
-not to the full flow, and not a refusal. Failing (3) routes to the **full** flow
-instead: #231 narrowed the quick recipe to ARCH-DRY, ARCH-PURE and ARCH-PURPOSE,
-so a moved authority surface would get no security lens on the quick path.
+Failing one makes `sdlc close` refuse, naming the criterion and the re-route.
+For (1) or (2) the re-route is `sdlc change-code --flow quick`, one flow up, not
+to the full flow. For (3) it is `--flow full` instead: #231 narrowed the quick
+recipe to ARCH-DRY, ARCH-PURE and ARCH-PURPOSE, so a moved authority surface
+would get no security lens on the quick flow.
 
 There is precedent for content-scaled gating: #177 already auto-satisfies the
 atlas gate on docs-only windows. This is the same move, one step further, with
@@ -79,10 +83,12 @@ the predicate written down.
 
 ## Done when
 
-- `sdlc config` exists, admits only on all three criteria, and records which
-  ones admitted it.
-- Failing criterion (1) or (2) routes to `sdlc quick`, and failing (3) routes to
-  the full flow; each names the failing criterion rather than refusing.
+- `#Flow` in `construct/vocabulary/issue.cue` gains `config`, and `sdlc
+  change-code --flow config` sets it.
+- `sdlc close` accepts a config-flow issue without a review only when all three
+  criteria hold, and records which ones admitted it.
+- Failing a criterion makes `sdlc close` refuse, naming it and the re-route:
+  `--flow quick` for (1) or (2), `--flow full` for (3).
 - The assertion criterion is mechanical, not attested: the flow verifies that
   reverting the changed value fails the suite.
 - A diff that moves a declared authority surface is refused this flow, with a
@@ -97,13 +103,15 @@ the predicate written down.
       shared-surface declaration.
 - [ ] Decide whether this ships with #231 or after calibration evidence from it
       (the Log below argues for after).
-- [ ] Decide whether #231's operator route ("use sdlc quick path") has a
-      counterpart here. With no reviewer, the three criteria are this flow's
-      only backstop, which argues against an override that skips them.
+- [ ] Confirm that the operator can declare `flow: config` the way they can
+      declare `quick` (#231), with the three criteria still binding at close,
+      as #231's hard shell does.
 - [ ] Implement admission: declarative-only diff, the revert-must-fail mutation
       check, and the authority-surface check.
-- [ ] Wire `sdlc close` to skip the review for admitted issues and record the
-      admitting criteria.
+- [ ] Add `config` to `#Flow`; let `change-code --flow config` set it.
+- [ ] Wire `sdlc close` to check the criteria on `flow: config`, skip the review
+      when they hold, record the admitting criteria, and refuse with the
+      re-route when one fails.
 - [ ] Tag config-flow rows in the ledger.
 
 ## Log
@@ -132,3 +140,17 @@ argues for sequencing it second.
 One consequence of the split: failing the authority-surface criterion now routes
 to the full flow, not to `sdlc quick`, because #231's quick recipe no longer
 checks ARCH-SECURE.
+
+## Revisions
+
+### 2026-09-17 — flows are frontmatter, set by existing verbs
+
+Reason: #231 decided that a flow is a `flow:` frontmatter field set by `sdlc
+change-code --flow`, modeled in the cue schema and read by every later gate,
+with no new verbs.
+
+Delta: `sdlc config` is now `flow: config`, extending #231's `#Flow`. Admission
+is checked at close, like #231's hard shell. A failed criterion makes `close`
+refuse with a re-route (`--flow quick` or `--flow full`) instead of routing
+silently. Replaced the operator-override question with the matching #231 rule:
+the operator may declare the flow, and the criteria still bind at close.
