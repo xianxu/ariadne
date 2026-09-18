@@ -58,6 +58,7 @@ they are no longer auto-dispatched at merge/push:
 | plan | folded into the close boundary review (requirements traceability) + the #124 conformance gate |
 | specs | folded into the close boundary review's Docs update gate (atlas + README) |
 | lessons | the no-LLM reminder ping, emitted at `sdlc close` (#160 Q4) |
+| small-diff-review | close-time only (#231): the quick flow's one review, dispatched by `sdlc close` for a quick issue inside the shell — not a standalone `sdlc judge` check |
 
 ## Complementary tier: the CI merge-check
 

@@ -196,6 +196,36 @@ WHAT IT DOES
   - Prints the COST REPORT (#187) — see below
   - Does NOT git-commit, does NOT move the file to workshop/history/
 
+THE QUICK FLOW (#231)
+
+  An issue whose frontmatter records `flow: {kind: quick, …}` (written by
+  `sdlc change-code`, see its THE FLOW) closes with ONE review, and close first
+  measures the review window against the hard shell:
+
+    {{QUICK_SHELL}}
+
+  Code files and added lines come from the window's diff (tests and docs are
+  never code). Shared surfaces come from `.sdlc/shared-surfaces`, read as
+  COMMITTED at the window's base and head and unioned — never the working tree —
+  so a branch cannot loosen its own shell; editing that file is itself a
+  shared-surface change.
+
+  Inside the shell, the boundary review runs the small-diff recipe: the full
+  procedure, aimed at the bug classes small diffs ship, over only the ARCH-*
+  principles the registry marks `quick-flow: yes`. Outside it — whoever chose
+  quick — the issue is upgraded to `flow: {kind: full, provenance: inferred}`,
+  the measured reason goes to ## Log, and the full review runs. Crossing the
+  shell never refuses. The upgrade is written with the close's other edits at
+  finalize, so a REWORK leaves the issue unwritten and the re-close re-derives it.
+
+  Before that one review, two deterministic checks (issue close only):
+    - `## Done when` has a bullet — it is the review's only oracle.
+    - If `## Spec` or `## Revisions` changed since change-code but `## Done when`
+      did not, close refuses: restate the acceptance criteria, or pass
+      --no-done-when-fresh with the reason in --verified.
+
+  An issue with no `flow:` line (every issue before #231) closes exactly as before.
+
 THE COST REPORT (#187)
 
   Two lines, over the same window the boundary review saw:
@@ -239,6 +269,7 @@ FLAGS
   --no-plan-check       close despite unchecked ## Plan items
   --no-project          skip the project detail-block update requirement
   --no-judge            skip the issue boundary review on full-issue close (#69)
+  --no-done-when-fresh  quick flow: skip the Done-when freshness check (#231)
   --agent <cli>         agent CLI for the boundary review (claude | codex | gemini)
                         Default: explicit --agent, then AGENT_CMD, then
                         PAIR_AGENT/current known agent signals, then claude.

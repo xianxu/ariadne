@@ -20,7 +20,7 @@ addressed says "ship" on round 2.
 ## Where it lives
 
 `workshop/plans/NNNNNN-slug-plan-gate.md` (plan-quality) and
-`workshop/plans/NNNNNN-slug-close-gate.md` (the boundary review, #194) — beside the durable plan and the boundary-review
+`workshop/plans/NNNNNN-slug-close-gate.md` (the boundary review, #194 — on a quick-flow issue that review is the small-diff recipe, #231, same ledger) — beside the durable plan and the boundary-review
 sidecars, archived with them by `sdlc push`/`sdlc merge` (the `<id>-*` glob).
 
 Deliberately **not** `*-plan-review.md`: `construct/vocabulary/verdict.cue` claims the

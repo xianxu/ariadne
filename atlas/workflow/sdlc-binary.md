@@ -284,6 +284,21 @@ CRUD/authoring surface for the issue *record* — the noun-grouped home for
 template lives in one place: the `Render` function in `internal/issue/scaffold.go`,
 documented in prose by `sdlc issue --help`.
 
+## The quick flow at close (#231)
+
+`internal/flow` is the pure core: the one-line `flow:` record codec, `Decide`
+(change-code's inference), the hard-shell limits (`MaxCodeFiles`,
+`MaxChangedLines`, rendered by `ShellSummary` into help via `{{QUICK_SHELL}}`),
+`Measure`/`Crossings`, the contract hashes and the Done-when checks. On a quick
+issue, `computeClose` (`closeflow.go`) measures the window the atlas gate and the
+review already use — code files via `churn.IsCodeFile`, added lines via numstat,
+the Plan's Mx rows, and shared surfaces from `.sdlc/shared-surfaces` read as
+committed at base ∪ head. Outside the shell it composes an upgrade to
+full/inferred (written at finalize); inside, the dispatch runs the
+`small-diff-review` recipe. `.sdlc/shared-surfaces` is repo-owned, like
+`.sdlc/fleet.json`: one pattern per line (`path.Match`, or `dir/` for a subtree),
+and the file always matches itself.
+
 ## Fleet inventory and policy (`sdlc fleet`, #200)
 
 The read-only `sdlc fleet inventory` command owns assembly of canonical

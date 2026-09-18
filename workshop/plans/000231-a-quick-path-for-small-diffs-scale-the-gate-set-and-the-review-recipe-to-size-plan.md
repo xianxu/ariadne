@@ -223,7 +223,7 @@ Files:
 - `atlas/workflow/{gate-state,pre-merge-checks,architecture-principles,sdlc-binary}.md`
 - `atlas/process-manual.md`, `atlas/workflow/process-manual.md` (regenerated)
 
-- [ ] **One per-path classifier.**
+- [x] **One per-path classifier.**
   - Tests first:
     - `TestIsDoc`.
     - `TestIsEmbedded`.
@@ -232,7 +232,7 @@ Files:
   - `TestHasCodePath` and the publish-gate tests must stay green unchanged.
   - Implement the classifiers and reduce the two old classifiers to loops over them.
   - Run `go test ./cmd/sdlc/internal/churn/... ./cmd/sdlc/... -run 'Classify|CodePath|PublishGate|Churn' -count=1`.
-- [ ] **Shell + surfaces.**
+- [x] **Shell + surfaces.**
   - Tests first:
     - `TestCrossings`: 2 files / 100 lines stay quick; 3 files, 101 lines, one surface and one Mx row each cross; several crossings give several reasons.
     - `TestMeasure`: tests and docs excluded, a binary counts as a file, lines summed over code files only.
@@ -243,7 +243,7 @@ Files:
     - `construct/vocabulary/*.cue`, `pkg/vocab/`, `construct/base.manifest`, `AGENTS.base.md`
     - `cmd/sdlc/internal/judge/architecture.md`, `cmd/sdlc/internal/judge/code-review.md`
     - `cmd/sdlc/internal/gatestate/`, `cmd/sdlc/internal/estimate/ledger.go`
-- [ ] **close measures, upgrades, checks.**
+- [x] **close measures, upgrades, checks.**
   - Integration tests first in `closereview_test.go`, on `closeRepo` fixtures that carry `flow:` and `## Done when`:
     - `TestCloseQuickWithinShellSelectsSmallDiff`.
     - `TestCloseQuickCrossingShellUpgrades`.
@@ -261,7 +261,7 @@ Files:
     - The milestone-mode upgrade.
     - Dry-run printing.
   - Run `go test ./cmd/sdlc/... -run 'Close|Milestone|GateCatalog|Skip' -count=1`.
-- [ ] **The recipe.**
+- [x] **The recipe.**
   - Add `- **quick-flow:** yes` to ARCH-DRY, ARCH-PURE and ARCH-PURPOSE, and `- **quick-flow:** no` to the other five.
   - Tests first:
     - `TestArchitectureSectionsLossless`.
@@ -274,11 +274,11 @@ Files:
   - Add `SmallDiffReview` to `AllInjectedCategories()` only. Regenerate goldens with `go test ./cmd/sdlc/internal/judge -run Golden -update-golden` and review the diff: only the new `quick-flow:` lines and the new category should change. Extend `processmanual/collect_test.go`.
   - Implement the registry functions, `CodeReviewBody(in, markers)`, the `{{BOUNDARY_TAIL}}` include, `small-diff-review.md` and `boundaryReviewParams.Category`.
   - Run `go test ./cmd/sdlc/internal/judge/... ./cmd/sdlc/internal/processmanual/... ./cmd/sdlc/... -run 'Arch|Prompt|Golden|StartPlan|Collect' -count=1`.
-- [ ] **End to end.**
+- [x] **End to end.**
   - `TestQuickAndFullFlowsSameVerbSequence` uses `syncRepo`, `stubJudgeSeq` and a stubbed actual, and runs `executeSDLCTestCommand` for `claim`, `change-code --worktree=no` and `close --verified x` on two issues.
   - The small issue (1 code file, 20 lines, no plan) ends quick with the small-diff review. The large one (3 code files) ends upgraded with milestone-review.
   - Neither passes a flow flag.
-- [ ] **Help tokens + docs for M2.**
+- [x] **Help tokens + docs for M2.**
   - `{{QUICK_SHELL}}` in `renderLong`, reading `flow.ShellSummary()`, used in `change-code.md` and `close.md`. `TestNoCommandLongHasSurvivingPlaceholder` pins it.
   - `close.md` and `milestone-close.md` gain the shell, upgrade, Done-when checks and recipe choice.
   - Atlas: `gate-state.md`, `pre-merge-checks.md`, `architecture-principles.md` (the `quick-flow:` field), `sdlc-binary.md` (close + `.sdlc/shared-surfaces`).

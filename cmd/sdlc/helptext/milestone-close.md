@@ -12,6 +12,10 @@ WHAT IT DOES
      - refuses without --actual / --verified (unless --force)
      - refuses if atlas/ wasn't touched in the window (unless --force);
        auto-satisfied when the window has no code surface (#177)
+     - upgrades a quick-flow issue to `flow: {kind: full, provenance:
+       inferred}` (#231): the quick flow has a single boundary, so an Mx row
+       is outside its shell. Written at finalize, with the reason in ## Log.
+       The milestone review is always the full recipe.
 
   2. Auto-dispatches `sdlc judge milestone-review`:
      - Review window: the PREVIOUS review boundary..the reviewed commit — the prior

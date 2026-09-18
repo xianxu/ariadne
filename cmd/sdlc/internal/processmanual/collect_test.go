@@ -215,3 +215,11 @@ func mustWrite(t *testing.T, path, content string) {
 		t.Fatal(err)
 	}
 }
+
+// TestWhenForSmallDiffReview: the small-diff recipe is not a standalone
+// `sdlc judge` check — the manual must say where it actually fires (#231).
+func TestWhenForSmallDiffReview(t *testing.T) {
+	if got := whenForCategory(judge.SmallDiffReview); strings.Contains(got, "sdlc judge") || !strings.Contains(got, "sdlc close") {
+		t.Errorf("whenForCategory(small-diff-review) = %q", got)
+	}
+}

@@ -11,7 +11,7 @@ import (
 func TestGateFlagNames(t *testing.T) {
 	got := GateFlagNames()
 	want := []string{
-		"no-actual", "no-atlas", "no-estimate", "no-estimate-recon",
+		"no-actual", "no-atlas", "no-done-when-fresh", "no-estimate", "no-estimate-recon",
 		"no-judge", "no-ledger", "no-plan-check", "no-project", "no-reclose-guard", "no-retro",
 		"no-structural", "no-validate", "no-verdict", "no-verified",
 	}
@@ -24,7 +24,7 @@ func TestGateFlagNames(t *testing.T) {
 // which gate (drift guard in package main asserts this vs the registered flags).
 func TestGateFlagsForCommand(t *testing.T) {
 	cases := map[string][]string{
-		"close": {"no-actual", "no-atlas", "no-judge", "no-ledger", "no-plan-check",
+		"close": {"no-actual", "no-atlas", "no-done-when-fresh", "no-judge", "no-ledger", "no-plan-check",
 			"no-project", "no-reclose-guard", "no-verdict", "no-verified"},
 		"milestone-close": {"no-actual", "no-atlas", "no-judge", "no-ledger", "no-plan-check",
 			"no-project", "no-reclose-guard", "no-verdict", "no-verified"},

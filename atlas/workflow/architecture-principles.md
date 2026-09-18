@@ -5,6 +5,13 @@ The canonical `ARCH-*` registry lives in
 boundary-review prompts, `sdlc start-plan` pushes it into planning sessions, and
 `go run ./cmd/sdlc arch-principles` renders it for non-gate design work.
 
+Every entry declares **`quick-flow: yes|no`** (#231): whether the quick flow's
+small-diff review applies it. `QuickMarkers()` reads the field (today DRY, PURE,
+PURPOSE), `ArchitectureBlockFor` renders that subset, and a missing or invalid
+field fails the build — so choosing the quick flow's principles is a one-word
+edit to the registry, and a new principle cannot land undecided. The full flow's
+reviews still embed every entry verbatim.
+
 Key consumers:
 
 - `cmd/sdlc/internal/judge/architecture.go` extracts markers and renders the

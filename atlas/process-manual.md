@@ -53,6 +53,14 @@ Issue: <unknown>
 You are a code reviewer checking the diff for ARCH-PURE violations.
 The principle is authored once in the registry below (#75):
 
+### [small-diff-review](../cmd/sdlc/internal/judge/prompts/small-diff-review.md)
+
+**When:** boundary review at `sdlc close`, on a quick-flow issue inside the shell (#231)
+
+~~~
+# Code review — the one SDLC boundary review
+~~~
+
 ### [specs](../cmd/sdlc/internal/judge/prompts/specs.md)
 
 **When:** `sdlc judge specs`
@@ -132,6 +140,30 @@ memory. The estimate-side counterpart to `sdlc arch-principles`.
 DEPRECATED (#56 M2): use `sdlc issue new --from-github N`. This alias
 delegates to it and is kept for one cycle; it retains the `--github-issue`
 flag name.
+
+### [fleet](../cmd/sdlc/helptext/fleet.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Inspect the repository fleet from one caller path.
+
+### [fleet-inventory](../cmd/sdlc/helptext/fleet-inventory.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Collect every eligible sibling repository and canonical Git worktree from the
+fleet containing the caller. `--path` selects the caller vantage and defaults to `.`.
+Nested directories, linked worktrees, and symlinked vantages normalize to
+the same fleet identity.
+
+### [fleet-policy](../cmd/sdlc/helptext/fleet-policy.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Resolve the normalized admission key and tagged capacity for one prospective
+path. `--path` selects that target and defaults to `.`. The path may be a file or
+directory that does not exist yet: its deepest existing ancestor is resolved
+through symlinks before the missing suffix is preserved.
 
 ### [issue](../cmd/sdlc/helptext/issue.md)
 

@@ -76,6 +76,8 @@ func whenForCategory(c judge.Category) string {
 		return "plan-quality gate at `sdlc change-code`"
 	case judge.MilestoneReview:
 		return "boundary review at `sdlc close` / `sdlc milestone-close`"
+	case judge.SmallDiffReview:
+		return "boundary review at `sdlc close`, on a quick-flow issue inside the shell (#231)"
 	case judge.Lessons:
 		return "lessons reminder emitted at the review boundary"
 	default:
