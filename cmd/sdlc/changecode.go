@@ -47,6 +47,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -68,6 +69,7 @@ type changeCodeFlags struct {
 	Agent           string
 	AgentExplicit   bool
 	Sandbox         bool
+	Flow            string // --flow pin: "" (infer) | quick | full (#231)
 }
 
 func NewChangeCodeCmd() *cobra.Command {
@@ -97,6 +99,7 @@ func NewChangeCodeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do nothing")
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for plan-quality judge: claude | codex | gemini (default AGENT_CMD, PAIR_AGENT/current agent, or claude)")
 	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", isSandbox(), "pass auto-approve flags to codex/gemini")
+	cmd.Flags().StringVar(&f.Flow, "flow", "", "pin the flow: quick | full — the operator's decision; default: inferred (#231)")
 	return cmd
 }
 
@@ -129,6 +132,10 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 
 	planContent := readOptionalPlanFile(f.PlansDir, name)
 
+	// 2b. Infer (or take the operator's pin for) the flow and record it on the
+	//     issue (#231). It decides which gates run below: none on quick.
+	issueFlow, issueContent := applyChangeCodeFlow(stderr, f, issuePath, issueContent, planContent)
+
 	// 3. Run the gate sequence. RUNNING the declaration (rather than hand-sequencing
 	//    blocks that happen to match it) is what makes changeCodeGateOrder a real guard:
 	//    reordering the literal reorders execution, so the B1 ordering test fails on the
@@ -137,8 +144,9 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		f: f, stdout: stdout, stderr: stderr,
 		name: name, issuePath: issuePath,
 		issueContent: issueContent, planContent: planContent,
+		flow: issueFlow,
 	}
-	for _, g := range changeCodeGates(ctx) {
+	for _, g := range activeChangeCodeGates(ctx) {
 		if err := g.run(); err != nil {
 			// Each gate has already printed its specifics; this is the one shared
 			// --force decision, previously copy-pasted across five blocks.
@@ -304,6 +312,7 @@ type changeCodeCtx struct {
 	issuePath      string
 	issueContent   string
 	planContent    string
+	flow           flow.Flow // #231: decides which of the gates run
 }
 
 // gate is one named step in change-code's sequence. Declaring the gates as data and
@@ -726,7 +735,9 @@ func planGateContent(issueContent string) string {
 	}
 	var keptFM []string
 	for _, line := range strings.Split(fm, "\n") {
-		if strings.HasPrefix(strings.TrimSpace(line), "estimate_hours:") {
+		// The flow record (#231) is excluded for the same reason: change-code writes
+		// it on every run, and a re-pin cannot change what plan-quality concludes.
+		if t := strings.TrimSpace(line); strings.HasPrefix(t, "estimate_hours:") || strings.HasPrefix(t, flow.Field+":") {
 			continue
 		}
 		keptFM = append(keptFM, line)
