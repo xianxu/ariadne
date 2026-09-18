@@ -89,12 +89,13 @@ one line, because the issue frontmatter helpers are line-based
 (`cmd/sdlc/internal/issue/frontmatter.go`):
 
 ```yaml
-flow: {kind: quick, provenance: inferred}
+flow: {kind: quick, provenance: inferred, spec: "1a2b3c4d", done: "5e6f7a8b"}
 ```
 
 `kind` is `full` or `quick` (#233 adds `config`). `provenance` is `inferred` when
 a gate decided, `operator` when the operator pinned it. A quick record also
-carries the contract hashes §3 uses (`spec:`, `done:`). An issue with no `flow:`
+carries the contract hashes §3 uses (`spec:`, `done:`), always quoted: an
+all-digit hex hash would otherwise read as a YAML number. An issue with no `flow:`
 (every issue filed before this one) reads as `full`.
 
 **Inference at `change-code`.** Two facts about the issue, both artifacts the
@@ -207,7 +208,7 @@ milestone-review; it is aimed at a different distribution:
 - **Architecture: exactly ARCH-DRY, ARCH-PURE and ARCH-PURPOSE.** Every other
   ARCH-\* lens is off, with no tripwires. Which principles apply is a field on
   each entry of the single-source registry
-  `cmd/sdlc/internal/judge/architecture.md` — `quick: yes|no`, beside the entry's
+  `cmd/sdlc/internal/judge/architecture.md` — `quick-flow: yes|no`, beside the entry's
   `at-plan`/`at-review` lenses — so changing the set means flipping a field there,
   and the recipe never restates the list.
 - **Cap the tail.** #263's four rounds were mostly *repeat families* caused by
@@ -229,7 +230,8 @@ extends `#Flow`.
 ## Done when
 
 - `construct/vocabulary/issue.cue` models `flow?: #Flow` with
-  `#Flow: {kind: "full" | "quick", provenance: "inferred" | "operator"}`, so a
+  `#Flow: {kind: "full" | "quick", provenance: "inferred" | "operator", spec?:
+  string, done?: string}` (the hashes 8 lowercase hex), so a
   mistyped value fails validation. The one-line form round-trips through the
   line-based frontmatter helpers, an absent field reads as `full`, and `sdlc
   issue --help` documents the field.
@@ -253,7 +255,7 @@ extends `#Flow`.
   the Done-when-freshness check deterministically.
 - `small-diff-review.md` exists as its own recipe, and `sdlc close` selects the
   recipe from `flow.kind`.
-- Every entry in `judge/architecture.md` declares `quick: yes|no`, and a test
+- Every entry in `judge/architecture.md` declares `quick-flow: yes|no`, and a test
   refuses an entry that doesn't, so a new principle cannot be added without
   deciding. Today DRY, PURE and PURPOSE say yes. A test asserts the rendered
   recipe carries exactly the markers marked yes.
@@ -399,6 +401,17 @@ no findings. No review happened, so the untracked ledger file it created was
 removed rather than letting an environment failure spend one of the three
 rounds. Re-ran outside the sandbox.
 
+### 2026-09-17 — change-code passed; branch created
+
+Plan-quality passed on round 2, with three advisory findings (PQ-8..PQ-10),
+folded in below. The estimate-quality verdict was INFO, and its main finding
+stands: `sdlc actual` already measures about 5.4h before any code, because the
+window opens at the first `#231:` commit (a pre-claim `issue sync` on 09-16), not
+at `claim`. The 6.33h estimate will come in low, ratio about 0.7. It stays as
+derived; v3.1 has no "sunk, already measured" primitive. A tooling observation
+worth its own issue: pre-claim `issue sync` checkpoints (#206) move the
+active-time window earlier than #113 intends. The branch was created in place.
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
@@ -515,4 +528,15 @@ Delta: §3's freshness check watches Spec + Revisions, anchored by hashes that
 change-code records in the quick flow record (§1 notes the extra fields). M1 now
 makes every surface that routes work into a durable plan flow-conditional, and the
 constitution work moves there from M3.
+
+### 2026-09-17 — advisory plan findings PQ-9, PQ-10
+
+Reason: plan-quality found that an all-digit hash parses as a YAML int, which
+cue then rejects (PQ-9), and that §4 and Done-when still named `quick:` and a
+hash-less `#Flow` after the plan renamed and reshaped them (PQ-10).
+
+Delta: §1's example record carries quoted hashes, and says why. §4 and Done-when
+say `quick-flow:`, and the `#Flow` bullet includes the optional hashes. Swept
+every name Done-when uses against the plan; the only remaining mentions of the
+old names are in dated Revisions entries.
 
