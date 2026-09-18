@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
@@ -35,7 +36,7 @@ func TestAppendCalibrationRow_Happy(t *testing.T) {
 	f := &closeFlags{Actual: "1.7", Mode: "supervised"}
 	fm := "id: 1\nstatus: working\nestimate_hours: 3.4\n"
 
-	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", closeCostMetrics{})
+	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", closeCostMetrics{}, closeFlowOutcome{})
 
 	data, err := os.ReadFile(path)
 	if err != nil {
@@ -63,7 +64,7 @@ func TestAppendCalibrationRow_TrustedWithStarted(t *testing.T) {
 	f := &closeFlags{Actual: "2.0"}
 	fm := "estimate_hours: 3.4\nstarted: 2026-06-17T10:00:00Z\n"
 
-	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", closeCostMetrics{})
+	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", closeCostMetrics{}, closeFlowOutcome{})
 
 	data, _ := os.ReadFile(path)
 	if !strings.Contains(string(data), "\tyes\t") {
@@ -79,7 +80,7 @@ func TestAppendCalibrationRow_BrainAbsentSkips(t *testing.T) {
 	var errb bytes.Buffer
 	f := &closeFlags{Actual: "1.0", BrainDir: "/no/such/brain/dir"}
 
-	appendCalibrationRow(&errb, f, "estimate_hours: 1\n", "# T\n", "ariadne", "117", "2026-06-17", closeCostMetrics{})
+	appendCalibrationRow(&errb, f, "estimate_hours: 1\n", "# T\n", "ariadne", "117", "2026-06-17", closeCostMetrics{}, closeFlowOutcome{})
 
 	if !strings.Contains(errb.String(), "skipped") {
 		t.Errorf("expected a skip warning, got %q", errb.String())
@@ -165,9 +166,36 @@ func TestAppendCalibrationRow_DriftWarns(t *testing.T) {
 	var errb bytes.Buffer
 	f := &closeFlags{Actual: "0.3"}
 	fm := "estimate_hours: 3.4\nstarted: 2026-06-17T10:00:00Z\n"
-	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", closeCostMetrics{})
+	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", closeCostMetrics{}, closeFlowOutcome{})
 
 	if !strings.Contains(errb.String(), "drift") {
 		t.Errorf("expected a drift warning, got %q", errb.String())
+	}
+}
+
+// TestAppendCalibrationRow_FlowColumns: the row records the flow the issue
+// closed under — quick stays quick, an upgrade is full + upgraded, and an issue
+// with no record reads as full (#231).
+func TestAppendCalibrationRow_FlowColumns(t *testing.T) {
+	quick := closeFlowOutcome{flow: mustFlow(t, "{kind: quick, provenance: inferred}")}
+	upgraded := closeFlowOutcome{flow: flow.Upgrade(quick.flow), crossings: []string{"3 code files changed"}}
+	for _, c := range []struct {
+		name string
+		fl   closeFlowOutcome
+		want string
+	}{
+		{"quick", quick, "\tquick\tinferred\tno"},
+		{"upgraded", upgraded, "\tfull\tinferred\tyes"},
+		{"no record", closeFlowOutcome{}, "\tfull\t-\tno"},
+	} {
+		path := t.TempDir() + "/ledger.tsv"
+		t.Setenv("WF_CALIB_LEDGER", path)
+		var errb bytes.Buffer
+		appendCalibrationRow(&errb, &closeFlags{Actual: "1.0"}, "id: 1\n", "# T\n", "ariadne", "231", "2026-09-17", closeCostMetrics{}, c.fl)
+		data, _ := os.ReadFile(path)
+		lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
+		if row := lines[len(lines)-1]; !strings.HasSuffix(row, c.want) {
+			t.Errorf("%s: row %q does not end with %q", c.name, row, c.want)
+		}
 	}
 }

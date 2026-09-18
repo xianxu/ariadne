@@ -65,8 +65,16 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 **"Did the plan-quality gate earn its cost on this issue?"** (#187)
 - *Authoritative:* the calibration ledger's appended columns — `gate_rounds`, `gate_forced`,
   `gate_addressed`, `gate_withdrawn`, `gate_open`, beside `churn_prod` / `churn_test` /
-  `churn_atlas` / `churn_workshop` / `rework`. Twenty columns total; the #187 block is
-  indices 10–19.
+  `churn_atlas` / `churn_workshop` / `rework`. The #187 block is indices 10–19.
+- *#231 appended block (indices 20–22):* `flow_kind`, `flow_provenance`, `flow_upgraded` —
+  the flow the issue closed under. Quick and upgraded rows carry no estimate, so drift
+  excludes them (`LedgerRow.ExcludedFromCalibration`, read by the one `calibratable`
+  test), while throughput keeps their hours. Each appended block is parsed by its OWN
+  width (`costCols` for #187), so widening the header never zeroes an older row's metrics.
+- *Cut-over (#231):* `churn_test` now also counts the fleet's non-Go test layouts (Lua
+  `*_spec.lua`, Python, JS/TS, shell `*.test.sh`, `test/` / `tests/` / `spec/` dirs).
+  Rows before and after #231 are not comparable on `churn_prod` / `churn_test` for
+  non-Go repos. The build-vs-converge split of actuals is #234.
 - *Schema contract:* columns are **APPENDED, never reordered or inserted.** `ParseRows`
   indexes positionally and live ledgers are full of rows written by older binaries, so an
   insertion would not fail — it would silently re-interpret every historical row. Rows

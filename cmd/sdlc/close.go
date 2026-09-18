@@ -850,7 +850,7 @@ func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeR
 	// window that could disagree would make the ledger unauditable against the
 	// line the operator just read.
 	if shouldLogCalibration(f) {
-		appendCalibrationRow(stderr, f, res.fm, res.body, res.repoName, res.issueStr, res.today, m)
+		appendCalibrationRow(stderr, f, res.fm, res.body, res.repoName, res.issueStr, res.today, m, res.flow)
 	}
 	cok(stderr, "done — review with `git diff`, then commit")
 }
@@ -889,7 +889,7 @@ func shouldLogCalibration(f *closeFlags) bool {
 // propagates to downstream repos that may have no sibling brain/. When
 // WF_CALIB_LEDGER is unset AND the resolved ledger dir is absent, it skips with a
 // warning and returns — a missing ledger must NEVER break `sdlc close`.
-func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, issueStr, today string, m closeCostMetrics) {
+func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, issueStr, today string, m closeCostMetrics, fl closeFlowOutcome) {
 	ledgerPath := os.Getenv("WF_CALIB_LEDGER")
 	usingOverride := ledgerPath != ""
 	if !usingOverride {
@@ -952,6 +952,12 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		GateAddressed: m.Addressed,
 		GateWithdrawn: m.Withdrawn,
 		GateOpen:      m.Open,
+
+		// #231: the flow the issue closed under — quick and upgraded rows carry no
+		// estimate, so drift skips them; throughput keeps their hours.
+		FlowKind:       string(fl.flow.Kind()),
+		FlowProvenance: string(fl.flow.Provenance()),
+		FlowUpgraded:   fl.upgraded(),
 	}
 
 	existing, rerr := os.ReadFile(ledgerPath)
