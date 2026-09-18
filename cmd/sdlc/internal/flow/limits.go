@@ -22,5 +22,5 @@ const (
 // ShellSummary is the one sentence every surface prints for the shell.
 func ShellSummary() string {
 	return fmt.Sprintf("at most %d code files and %d added lines (%s), "+
-		"no declared shared surface touched, and no Mx milestones", MaxCodeFiles, MaxChangedLines, churn.CodeFileRule)
+		"and no Mx milestones", MaxCodeFiles, MaxChangedLines, churn.CodeFileRule)
 }

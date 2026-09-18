@@ -102,9 +102,8 @@ func checkQuickDoneWhen(stderr io.Writer, f *closeFlags, rec flow.Flow, body str
 	}
 }
 
-// measureCloseWindow gathers the shell's facts: the numstat of the window, the
-// shared-surface declaration as committed at its base and head, and the Plan's
-// Mx rows (through the fence-filtered body, like every plan-item reader).
+// measureCloseWindow gathers the shell's facts: the numstat of the window and the
+// Plan's Mx rows (through the fence-filtered body, like every plan-item reader).
 func measureCloseWindow(stderr io.Writer, windowBase, windowHead string, diffFiles []string, body string) flow.Size {
 	var stats []churn.FileStat
 	if windowBase != "" {
@@ -116,20 +115,11 @@ func measureCloseWindow(stderr io.Writer, windowBase, windowHead string, diffFil
 		}
 		stats = st
 	}
-	var touched []string
-	if windowBase != "" {
-		both, err := gitx.DiffPathsBothSides(windowBase, windowHead)
-		if err != nil {
-			die(stderr, fmt.Sprintf("window path list %s..%s failed: %v", shortSHA(windowBase), abbrevSHA(windowHead), err))
-		}
-		touched = both
-	}
-	surfaces, serr := committedSurfaces(windowBase, windowHead)
 	var milestones []string
 	if plan, ok := issue.PlanItemsBody(body); ok {
 		milestones = issue.MilestonesInPlanOrder(plan)
 	}
-	return flow.Measure(diffFiles, touched, stats, surfaces, serr, milestones)
+	return flow.Measure(diffFiles, stats, milestones)
 }
 
 // windowFileStats is the numstat of a window, one row per changed file. Shared
@@ -145,47 +135,6 @@ func windowFileStats(base, head string) ([]churn.FileStat, error) {
 		return nil, fmt.Errorf("git diff --numstat -z %s: %w", span, err)
 	}
 	return churn.ParseNumstatZ(string(out)), nil
-}
-
-// committedSurfaces is the union of the shared-surface declaration as committed
-// at the window's base and at its head. Never the working tree: an uncommitted
-// edit cannot loosen the shell, and a branch that deletes a pattern still sees
-// it through the base (#231 PQ-5). An absent declaration is simply no surfaces;
-// an unreadable one is an error the shell turns into a crossing.
-func committedSurfaces(base, head string) (flow.Surfaces, error) {
-	var all flow.Surfaces
-	for _, rev := range []string{base, head} {
-		if rev == "" {
-			continue
-		}
-		text, ok, err := declarationAt(rev)
-		if err != nil {
-			return all, err
-		}
-		if !ok {
-			continue
-		}
-		s, err := flow.ParseSurfaces(text)
-		if err != nil {
-			return all, err
-		}
-		all = flow.Union(all, s)
-	}
-	return all, nil
-}
-
-// declarationAt reads the declaration at a revision, through the one
-// "present, absent, or could not tell" helper (gitx.EntryAt).
-func declarationAt(rev string) (string, bool, error) {
-	_, present, err := gitx.EntryAt("", rev, flow.DeclarationPath)
-	if err != nil || !present {
-		return "", false, err
-	}
-	b, err := gitx.BlobAt("", rev, flow.DeclarationPath)
-	if err != nil {
-		return "", false, err
-	}
-	return string(b), true, nil
 }
 
 // earlierFullReview reports whether an earlier round of this boundary already

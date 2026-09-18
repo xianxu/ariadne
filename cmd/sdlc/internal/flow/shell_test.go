@@ -20,16 +20,12 @@ func TestMeasure(t *testing.T) {
 		{Path: "tests/x_spec.lua", Insertions: 70},
 		{Path: "construct/vocabulary/issue.cue", Insertions: 5},
 	}
-	s, _ := ParseSurfaces("construct/vocabulary/*.cue\n")
-	got := Measure(files, files, stats, s, nil, []string{"M1"})
+	got := Measure(files, stats, []string{"M1"})
 	if strings.Join(got.CodeFiles, ",") != "cmd/a.go,assets/logo.png,construct/vocabulary/issue.cue" {
 		t.Errorf("CodeFiles = %v", got.CodeFiles)
 	}
 	if got.AddedLines != 35 {
 		t.Errorf("AddedLines = %d, want 35 (tests and docs excluded)", got.AddedLines)
-	}
-	if strings.Join(got.Surfaces, ",") != "construct/vocabulary/issue.cue" {
-		t.Errorf("Surfaces = %v", got.Surfaces)
 	}
 	if strings.Join(got.Milestones, ",") != "M1" {
 		t.Errorf("Milestones = %v", got.Milestones)
@@ -56,14 +52,12 @@ func TestCrossings(t *testing.T) {
 		{"empty", Size{}, nil},
 		{"one file too many", Size{CodeFiles: files(MaxCodeFiles + 1)}, []string{"code files"}},
 		{"one line too many", Size{AddedLines: MaxChangedLines + 1}, []string{"added lines"}},
-		{"a shared surface", Size{Surfaces: []string{"pkg/vocab/x.go"}}, []string{"shared surface"}},
 		{"Mx milestones", Size{Milestones: []string{"M1"}}, []string{"milestones"}},
-		{"unreadable declaration", Size{SurfacesErr: errors.New("line 3: bad pattern")}, []string{"declaration"}},
 		{"an earlier full round", Size{EarlierFullReview: true}, []string{"earlier round"}},
 		{"unreadable ledger", Size{LedgerErr: errors.New("corrupt")}, []string{"ledger"}},
-		{"everything", Size{CodeFiles: files(3), AddedLines: 500, Surfaces: []string{"x"}, Milestones: []string{"M1"}, SurfacesErr: errors.New("e"),
+		{"everything", Size{CodeFiles: files(3), AddedLines: 500, Milestones: []string{"M1"},
 			EarlierFullReview: true, LedgerErr: errors.New("e")},
-			[]string{"code files", "added lines", "shared surface", "milestones", "declaration", "earlier round", "ledger"}},
+			[]string{"code files", "added lines", "milestones", "earlier round", "ledger"}},
 	}
 	for _, c := range cases {
 		got := c.size.Crossings()
@@ -97,21 +91,5 @@ func TestCrossingsCapTheFileList(t *testing.T) {
 	got := Size{CodeFiles: files(12)}.Crossings()
 	if len(got) != 1 || !strings.Contains(got[0], "12 code files") || !strings.Contains(got[0], "and 7 more") {
 		t.Errorf("Crossings = %v, want the count and a capped list", got)
-	}
-}
-
-// TestMeasureMatchesSurfacesOnBothSidesOfARename: a rename is counted once, by
-// its destination, but touches both paths — so moving a file OUT of a shared
-// surface, or renaming the declaration away, is a shared-surface change (#231 BR-24).
-func TestMeasureMatchesSurfacesOnBothSidesOfARename(t *testing.T) {
-	s, _ := ParseSurfaces("pkg/vocab/\n")
-	files := []string{"other/x.go", ".sdlc/shared-surfaces.old"}                                      // destinations
-	touched := []string{"other/x.go", "pkg/vocab/x.go", ".sdlc/shared-surfaces.old", DeclarationPath} // both sides
-	got := Measure(files, touched, nil, s, nil, nil)
-	if strings.Join(got.CodeFiles, ",") != "other/x.go,.sdlc/shared-surfaces.old" {
-		t.Errorf("CodeFiles = %v, want the destinations only", got.CodeFiles)
-	}
-	if strings.Join(got.Surfaces, ",") != "pkg/vocab/x.go,"+DeclarationPath {
-		t.Errorf("Surfaces = %v, want the rename sources that were shared surfaces", got.Surfaces)
 	}
 }

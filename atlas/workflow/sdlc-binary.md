@@ -292,12 +292,12 @@ documented in prose by `sdlc issue --help`.
 `Measure`/`Crossings`, the contract hashes and the Done-when checks. On a quick
 issue, `computeClose` (`closeflow.go`) measures the window the atlas gate and the
 review already use — code files via `churn.IsCodeFile`, added lines via numstat,
-the Plan's Mx rows, and shared surfaces from `.sdlc/shared-surfaces` read as
-committed at base ∪ head. Outside the shell it composes an upgrade to
+and the Plan's Mx rows. Outside the shell it composes an upgrade to
 full/inferred (written at finalize); inside, the dispatch runs the
-`small-diff-review` recipe. `.sdlc/shared-surfaces` is repo-owned, like
-`.sdlc/fleet.json`; its pattern grammar is stated once, by `flow.SurfaceForms`,
-which `sdlc close --help` renders (the file always matches itself).
+`small-diff-review` recipe. The shell measures size only, not where a change
+lands: there is no shared-surface declaration (removed after the first trial
+reading, 2026-09-18 — for a diff this small, tests and the one close review
+are the guard).
 
 ## Fleet inventory and policy (`sdlc fleet`, #200)
 

@@ -20,9 +20,8 @@ const quickIssueTmpl = "---\nid: %s\nstatus: working\nestimate_hours:\n---\n\n# 
 
 // quickCloseRepo builds a temp repo whose issue carries a flow record written
 // the way change-code writes it (decideChangeCodeFlow, so the contract hashes
-// are real), then commits code under the issue. pre is committed BEFORE the
-// issue — part of the review window's base. Returns the issues dir.
-func quickCloseRepo(t *testing.T, issueNum int, pin string, pre, code map[string]string) string {
+// are real), then commits code under the issue. Returns the issues dir.
+func quickCloseRepo(t *testing.T, issueNum int, pin string, code map[string]string) string {
 	t.Helper()
 	dir := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
 	git := func(args ...string) { t.Helper(); testfix.Git(t, dir, args...) }
@@ -33,11 +32,6 @@ func quickCloseRepo(t *testing.T, issueNum int, pin string, pre, code map[string
 				t.Fatal(err)
 			}
 		}
-	}
-	if len(pre) > 0 {
-		write(pre)
-		git("add", ".")
-		git("commit", "-q", "-m", "base: before the issue")
 	}
 	padded := fmt.Sprintf("%06d", issueNum)
 	d, err := decideChangeCodeFlow(fmt.Sprintf(quickIssueTmpl, padded), "", pin)
@@ -84,7 +78,7 @@ const smallDiffMarker = "## Small-diff focus"
 // TestCloseQuickWithinShellSelectsSmallDiff: a quick issue whose diff stays in
 // the shell is reviewed with the small-diff recipe, and its record stays quick.
 func TestCloseQuickWithinShellSelectsSmallDiff(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(20), "cmd/a_test.go": goLines(300)})
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(20), "cmd/a_test.go": goLines(300)})
 	calls, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
@@ -101,7 +95,7 @@ func TestCloseQuickWithinShellSelectsSmallDiff(t *testing.T) {
 // TestCloseQuickCrossingShellUpgrades: three code files leave the shell — the
 // close records full/inferred with the measured reason and runs the full review.
 func TestCloseQuickCrossingShellUpgrades(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
 	calls, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
@@ -121,7 +115,7 @@ func TestCloseQuickCrossingShellUpgrades(t *testing.T) {
 // TestCloseOperatorQuickStillUpgrades: the shell is hard — an operator pin to
 // quick does not exempt a diff that leaves it.
 func TestCloseOperatorQuickStillUpgrades(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "quick", nil, map[string]string{"cmd/a.go": goLines(flow.MaxChangedLines + 1)})
+	dir := quickCloseRepo(t, 231, "quick", map[string]string{"cmd/a.go": goLines(flow.MaxChangedLines + 1)})
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
@@ -135,7 +129,7 @@ func TestCloseOperatorQuickStillUpgrades(t *testing.T) {
 // stays quick on disk — and the re-close upgrades it (from the same window here;
 // TestCloseQuickReworkShrinkThenReclose covers a fix that shrinks it).
 func TestCloseQuickReworkThenReclose(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
 	before := readQuick(t, dir)
 	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err == nil {
@@ -156,7 +150,7 @@ func TestCloseQuickReworkThenReclose(t *testing.T) {
 // TestCloseQuickEmptyDoneWhenRefuses: on the quick flow Done-when is the only
 // oracle, so close refuses without a bullet.
 func TestCloseQuickEmptyDoneWhenRefuses(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(5)})
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5)})
 	path := filepath.Join(dir, "000231-x.md")
 	text := readQuick(t, dir)
 	os.WriteFile(path, []byte(strings.Replace(text, "- it works", "-", 1)), 0o644)
@@ -170,7 +164,7 @@ func TestCloseQuickEmptyDoneWhenRefuses(t *testing.T) {
 // TestCloseQuickStaleDoneWhenRefuses: the contract moved (a Spec reframe) but
 // Done-when did not — refused, with the skip flag named; the skip lets it through.
 func TestCloseQuickStaleDoneWhenRefuses(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(5)})
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5)})
 	path := filepath.Join(dir, "000231-x.md")
 	os.WriteFile(path, []byte(strings.Replace(readQuick(t, dir), "Thing.", "A reframed thing.", 1)), 0o644)
 	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n")
@@ -182,21 +176,6 @@ func TestCloseQuickStaleDoneWhenRefuses(t *testing.T) {
 	f.NoDoneWhenFresh = true
 	if err := runCloseWithReview(io.Discard, io.Discard, f); err != nil || *calls != 1 {
 		t.Errorf("with --no-done-when-fresh: err=%v calls=%d, want the review to run", err, *calls)
-	}
-}
-
-// TestCloseSurfacesUncommittedEditIgnored: a surface declared at the window
-// base still binds when the working tree drops it — close reads only committed
-// declarations, base ∪ head.
-func TestCloseSurfacesUncommittedEditIgnored(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", map[string]string{flow.DeclarationPath: "cmd/\n"}, map[string]string{"cmd/a.go": goLines(5)})
-	os.WriteFile(flow.DeclarationPath, []byte("# nothing shared any more\n"), 0o644)
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
-	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
-		t.Fatal(err)
-	}
-	if f, text := issueFlowAfterClose(t, dir); f.Kind() != flow.Full || !strings.Contains(text, "shared surface") {
-		t.Errorf("flow %+v; the committed declaration must still bind:\n%s", f, text)
 	}
 }
 
@@ -219,7 +198,7 @@ func TestCloseNoFlowUnchanged(t *testing.T) {
 // TestMilestoneCloseUpgradesQuick: an Mx row on a quick issue crosses the shell
 // (a single boundary is part of what quick means) — milestone-close upgrades it.
 func TestMilestoneCloseUpgradesQuick(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(5)})
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5)})
 	path := filepath.Join(dir, "000231-x.md")
 	os.WriteFile(path, []byte(strings.Replace(readQuick(t, dir), "- [x] do it", "- [x] do it\n- [ ] M1 — first boundary", 1)), 0o644)
 	f := &milestoneCloseFlags{Issue: 231, Milestone: "M1", Actual: "1", Verified: "ok", NoAtlas: true, NoJudge: true,
@@ -259,7 +238,7 @@ func readQuick(t *testing.T, issuesDir string) string {
 // quick issue that already needed the full review does not get easier to close
 // by shrinking.
 func TestCloseQuickReworkShrinkThenReclose(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
 	_, first := stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err == nil {
 		t.Fatal("a REWORK verdict should not finalize")
@@ -312,7 +291,7 @@ func testfixGit(t *testing.T, args ...string) {
 // REWORK from the SMALL-DIFF review must not read as a full round, or every
 // quick issue that needed one fix would be upgraded for nothing.
 func TestCloseQuickSmallDiffReworkStaysQuick(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(5)})
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5)})
 	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err == nil {
 		t.Fatal("a REWORK verdict should not finalize")
@@ -329,44 +308,11 @@ func TestCloseQuickSmallDiffReworkStaysQuick(t *testing.T) {
 	}
 }
 
-// TestCloseRenameOutOfASurfaceUpgrades: moving a file OUT of a declared
-// surface touches that surface — rename detection must not hide the source
-// (#231 BR-24, lessons: git's porcelain answers a human's question).
-func TestCloseRenameOutOfASurfaceUpgrades(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", map[string]string{flow.DeclarationPath: "pkg/vocab/\n", "pkg/vocab/x.go": goLines(5)}, nil)
-	os.MkdirAll("other", 0o755)
-	testfixGit(t, "mv", "pkg/vocab/x.go", "other/x.go")
-	testfixGit(t, "commit", "-q", "-m", "#231: move x out")
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
-	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
-		t.Fatal(err)
-	}
-	if f, text := issueFlowAfterClose(t, dir); f.Kind() != flow.Full || !strings.Contains(text, "pkg/vocab/x.go") {
-		t.Errorf("rename out of a surface: flow %+v, want full naming the source:\n%s", f, text)
-	}
-}
-
-// TestCloseRenamingTheDeclarationUpgrades: renaming the declaration away would
-// disable the shell for every later branch once merged — it is itself a
-// shared-surface change.
-func TestCloseRenamingTheDeclarationUpgrades(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", map[string]string{flow.DeclarationPath: "pkg/vocab/\n"}, nil)
-	testfixGit(t, "mv", flow.DeclarationPath, flow.DeclarationPath+".old")
-	testfixGit(t, "commit", "-q", "-m", "#231: retire the declaration")
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
-	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
-		t.Fatal(err)
-	}
-	if f, _ := issueFlowAfterClose(t, dir); f.Kind() != flow.Full {
-		t.Errorf("renaming the declaration: flow %+v, want full", f)
-	}
-}
-
 // TestCloseNonASCIIPathsClassifyAsThemselves: git quotes non-ASCII paths unless
 // told not to, and a quoted "docs/caf\303\251.md" is not a doc to the classifier.
 // Two such docs beside one code file must stay inside the shell.
 func TestCloseNonASCIIPathsClassifyAsThemselves(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", nil, map[string]string{
+	dir := quickCloseRepo(t, 231, "", map[string]string{
 		"cmd/a.go": goLines(5), "docs/café.md": "x\n", "docs/naïve.md": "y\n", "tests/überprüfung_spec.lua": goLines(300)})
 	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
@@ -381,7 +327,7 @@ func TestCloseNonASCIIPathsClassifyAsThemselves(t *testing.T) {
 // without -z (a double quote in it) must still have its lines counted — over
 // the limit, it upgrades.
 func TestCloseQuotedNameCodeFileLinesCount(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a\"b.go": goLines(flow.MaxChangedLines + 50)})
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a\"b.go": goLines(flow.MaxChangedLines + 50)})
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)

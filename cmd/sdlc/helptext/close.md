@@ -196,14 +196,10 @@ THE QUICK FLOW (#231)
     {{QUICK_SHELL}}
 
   Code files and added lines come from the window's diff, classified as the
-  shell above states. Shared surfaces come from `.sdlc/shared-surfaces` —
-  {{SURFACE_FORMS}}
-  The declaration is read as
-  COMMITTED at the window's base and head and unioned — never the working tree —
-  so a branch cannot loosen its shell by editing the declaration, and editing
-  that file is itself a shared-surface change. (Where sdlc is built from the
-  branch under review — ariadne itself — the shell's own code must be declared
-  too; ariadne's `.sdlc/shared-surfaces` says how, and a test pins it.)
+  shell above states. Where in the tree a change lands does not matter, only
+  its size: for a diff this small, the tests and the one close review are the
+  guard. (In ariadne, a quick change to sdlc itself is closed by the binary it
+  just changed; that review sees the diff.)
 
   Inside the shell, the boundary review runs the small-diff recipe: the full
   procedure, aimed at the bug classes small diffs ship, over only the ARCH-*
