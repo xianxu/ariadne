@@ -47,7 +47,7 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 - **Decide** — `Decide(in DecideInput) (Flow, error)`, with `DecideInput{Recorded *Flow; Pin string; HasMilestones, HasPlan bool}`. Rules, in order:
   1. An unknown pin, or a `quick` pin with milestones, is an error.
   2. A pin sets `{pin, operator}`.
-  3. With milestones the result is `{full, inferred}` whatever was recorded, because Mx rows cross the shell and a gate that finds the shell crossed upgrades regardless of provenance (PQ-4).
+  3. With milestones the result is `{full, inferred}` whatever was recorded — unless the record is already full, which stays as it is (matching the ARCH-ORDER table) — because Mx rows cross the shell and a gate that finds the shell crossed upgrades regardless of provenance (PQ-4).
   4. A recorded operator flow stands.
   5. A recorded `full` stands, because gates never downgrade.
   6. Otherwise the result is `{full if HasPlan else quick, inferred}`.
@@ -163,14 +163,14 @@ Files:
 - `construct/adapted/superpowers-brainstorming/SKILL.md`, `construct/intents/superpowers.md`
 - `atlas/workflow/{issue-lifecycle,sdlc-binary,vocabulary,artifact-hierarchy}.md`
 
-- [ ] **One milestone parser.**
+- [x] **One milestone parser.**
   - Tests first, in `internal/issue`:
     - `TestMilestonesInPlanOrder` covers the em-dash, colon, bold, ticked, fenced and duplicate forms.
     - `TestComputeSizingCountsEmDashMilestones` goes red on today's colon-only regex.
   - Move `milestonePlanRE` and `milestonesInPlanOrder` into `internal/issue`, and point `close.go` and `ComputeSizingFromContent` at them. Delete `milestoneLabelRE`.
   - Update the references in `planfence_test.go:79,411`, `close_test.go:444` and `commitpathspec_guard_test.go` (`planItemMatchers`, `planItemBodySources`).
   - Run `go test ./cmd/sdlc/... -run 'Milestone|Sizing|PlanItem|Guard|PlanFence' -count=1`.
-- [ ] **Flow codec, limits, Decide, contract hashes.**
+- [x] **Flow codec, limits, Decide, contract hashes.**
   - Tests first:
     - `TestFlowRoundTrip`, seeded with an all-digit hash and an `NNeNNNNN` hash (PQ-9).
     - `TestFromFrontmatter`: absent, valid, and a malformed kind.
@@ -182,11 +182,11 @@ Files:
     - `TestSetFieldRoundTripsFlowMap`.
   - Implement `flow.go`, `limits.go`, `donewhen.go`, and factor out `issue.HasDoneWhenBullet`.
   - Run `go test ./cmd/sdlc/internal/flow/... ./cmd/sdlc/internal/issue/... -count=1`, and `go test ./cmd/sdlc/internal/flow -fuzz FuzzFromFrontmatter -fuzztime 20s`.
-- [ ] **Model it in cue.**
+- [x] **Model it in cue.**
   - Add `#Flow: {kind: "full" | "quick", provenance: "inferred" | "operator", spec?: =~"^[0-9a-f]{8}$", done?: =~"^[0-9a-f]{8}$"}` and `flow?: #Flow`.
   - Tests first in `cmd/vocabulary/validate_test.go`: a valid flow with a quoted all-digit hash passes; a bad kind fails on `flow.kind`; a bad hash fails.
   - Run `go test ./cmd/vocabulary/... -count=1` and `make vocab-embed`, expecting no `issue.json` diff.
-- [ ] **change-code infers, pins, records, skips.**
+- [x] **change-code infers, pins, records, skips.**
   - Tests first:
     - `TestChangeCodeFlowStep`: inferred quick writes hashes; full via Mx; full via plan; operator pin; quick pin refused with Mx; quick/operator plus a new Mx row becomes full; dry-run doesn't write.
     - `TestChangeCodeGatesSkipOnQuick`.
@@ -194,14 +194,14 @@ Files:
     - `TestFlowInfoLineNoGatesigCollision`.
   - Implement the `--flow` flag, `changeCodeCtx.flow`, the step after `changecode.go:130`, the closure guards and the `planGateContent` strip.
   - Run `go test ./cmd/sdlc/... -run 'ChangeCode|PlanGate|GateOrder|ForceAck|Gatesig' -count=1`.
-- [ ] **Make the quick flow reachable (PQ-1).**
+- [x] **Make the quick flow reachable (PQ-1).**
   - Tests first in `startplan_test.go`:
     - `TestPlanPointerConditionalOnShell`: names `flow.ShellSummary()`, says to write a durable plan only outside it, and still names `superpowers-writing-plans` for that case.
     - `TestEstimateNudgeMentionsQuick`.
   - Update `startplan.go` and every directive surface in the Decisions list, including `AGENTS.base.md` §2 ("Non-trivial task (outside the quick-flow shell; `sdlc change-code --help` prints the limits)"), plus one flow sentence.
   - The brainstorming skill's "invoke writing-plans" step becomes conditional, with a Conversation entry and Verify clauses in `construct/intents/superpowers.md`.
   - Run `make weave`, then `go test ./cmd/sdlc/... -run 'StartPlan|EstimateTiming' -count=1`. `estimatetiming_test.go` forbids "estimate" within 80 chars of "start-plan".
-- [ ] **Docs for M1.**
+- [x] **Docs for M1.**
   - `helptext/change-code.md` (flow step, `--flow`, skipped gates) and `helptext/issue.md` (the `flow` field).
   - Atlas: `issue-lifecycle.md`, `sdlc-binary.md`, `vocabulary.md`, `artifact-hierarchy.md`.
   - Run `go test ./... -count=1`, then `git diff --check`.

@@ -1,6 +1,9 @@
 Enter the implementation phase for an issue. Composes the gates
 between planning (which happens on `main`) and code-changing work:
 
+  0. Flow                — infers the issue's flow and records it in the
+                           frontmatter (#231; see THE FLOW below). On the
+                           quick flow, gates 1–3 do not run.
   1. Structural sanity   — does the issue have a filled-in Spec, a
                            non-empty Plan, and Done-when criteria?
   2. Plan-quality judge  — fresh-context LLM review (skip with
@@ -26,6 +29,35 @@ between planning (which happens on `main`) and code-changing work:
                            worktree; `--worktree=ask` to be prompted
                            (with a sizing hint) or, headless, get the
                            agent sentinel.
+
+THE FLOW (#231)
+
+  Every issue runs one of two flows, and you run the same verbs either way —
+  the gates decide what applies. change-code infers the flow from what the
+  design produced:
+
+    Mx milestone rows in `## Plan`, or a durable plan
+    (workshop/plans/<issue>-plan.md)                        → full
+    neither                                                  → quick
+
+  and records it on the issue as one line,
+  `flow: {kind: quick, provenance: inferred, spec: "…", done: "…"}`.
+
+  full   today's gates: structural, plan-quality, the estimate gates, and the
+         full boundary review at close.
+  quick  none of change-code's gates, no durable plan, no estimate — and one
+         review, at close, with the small-diff recipe. The hard shell is
+
+           {{QUICK_SHELL}}
+
+         `sdlc close` measures the real diff, and a quick issue outside the
+         shell is upgraded to full and gets the full review, whoever chose
+         quick. The `spec`/`done` hashes let close refuse a contract that moved
+         without its `## Done when`.
+
+  The operator can pin the flow with `--flow quick|full` (provenance:
+  operator). A pin to quick is refused on a Plan with Mx rows. Gates never
+  downgrade full to quick; only a pin does.
 
 THE PLAN GATE (stateful since #187)
 
@@ -79,6 +111,8 @@ FLAGS
   --no-structural     skip the deterministic structural checks.
   --no-estimate       skip the estimate_hours gate (#113).
   --no-estimate-recon skip the `## Estimate` reconciliation gate (#117).
+  --flow <kind>       pin the flow: quick | full — the operator's decision
+                      (provenance: operator). Default: inferred (#231).
   --dry-run           print would-be operations; do nothing.
   --agent <cli>       agent for the plan-quality judge.
                       Default: explicit --agent, then AGENT_CMD, then

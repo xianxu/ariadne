@@ -22,6 +22,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -68,9 +69,9 @@ func runStartPlan(stdout io.Writer, issue int) {
 		label = fmt.Sprintf("#%d", issue)
 	}
 	cinfo(stdout, fmt.Sprintf("Entering planning for %s. Design with these architectural", label))
-	fmt.Fprintln(stdout, "    principles in mind — the plan-quality gate (`sdlc change-code`) checks the")
-	fmt.Fprintln(stdout, "    plan against them, and the boundary review checks the code. Cite ARCH-* in")
-	fmt.Fprintln(stdout, "    your plan where a principle shaped a decision.")
+	fmt.Fprintln(stdout, "    principles in mind — on the full flow the plan-quality gate (`sdlc change-code`)")
+	fmt.Fprintln(stdout, "    checks the plan against them; on every flow the boundary review checks the code.")
+	fmt.Fprintln(stdout, "    Cite ARCH-* in your plan where a principle shaped a decision.")
 	fmt.Fprintln(stdout)
 	fmt.Fprintln(stdout, judge.ArchitectureBlock("at-plan"))
 
@@ -192,15 +193,22 @@ func baseContentionSummary(c baseContention) string {
 // ~/.claude/plans/ file. Pure: the only input is the issue id (for the slug), so
 // the wording is table-testable without IO. Stays agent-agnostic — it names the
 // skill + repo location, never teaching the binary the Claude-specific path.
-// The two continuation lines indent 4 to align under cinfo's `==> ` prefix.
+// Continuation lines indent 4 to align under cinfo's `==> ` prefix.
+//
+// Sizes FIRST (#231 PQ-1): a durable plan makes change-code infer the full flow,
+// so telling every issue to write one made the quick flow unreachable on the
+// documented path. The shell is named from its single source.
 func planPointer(issue int) string {
 	slug := "NNNNNN-slug"
 	if issue > 0 {
 		slug = fmt.Sprintf("%06d-slug", issue)
 	}
-	return fmt.Sprintf("Capture the plan via the superpowers-writing-plans skill →\n"+
-		"    workshop/plans/%s-plan.md (version-controlled). The builtin plan-mode\n"+
-		"    file (~/.claude/plans/…) is ephemeral — NOT the record.", slug)
+	return fmt.Sprintf("Size the work first. Inside the quick-flow shell — %s —\n"+
+		"    don't write a durable plan: change-code infers the quick flow (no plan, no\n"+
+		"    estimate, one small-diff review at close). Outside it, capture the plan via\n"+
+		"    the superpowers-writing-plans skill → workshop/plans/%s-plan.md\n"+
+		"    (version-controlled). The builtin plan-mode file (~/.claude/plans/…) is\n"+
+		"    ephemeral — NOT the record.", flow.ShellSummary(), slug)
 }
 
 // syncPointer renders the mid-planning durability trigger (#206). Pure — the
@@ -226,9 +234,10 @@ func syncPointer(issue int) string {
 func estimateNudge(estimate string) string {
 	est := strings.TrimSpace(estimate)
 	if est == "" {
-		return "Don't derive `estimate_hours:` yet — `sdlc change-code` runs plan-quality\n" +
-			"    FIRST and asks for the estimate only after the plan clears (#187). Costing a\n" +
-			"    plan nobody has accepted just gets recomputed on the next revision."
+		return "Don't derive `estimate_hours:` yet — on the full flow `sdlc change-code` runs\n" +
+			"    plan-quality FIRST and asks for the estimate only after the plan clears (#187);\n" +
+			"    on the quick flow there is no estimate at all (#231). Costing a plan nobody\n" +
+			"    has accepted just gets recomputed on the next revision."
 	}
 	return fmt.Sprintf("estimate_hours: %s already set — change-code's estimate gate will pass.", est)
 }

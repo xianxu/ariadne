@@ -166,3 +166,11 @@ var flowWirings = []wiring{
 func TestChangeCodeWiresTheFlow(t *testing.T) {
 	assertWiring(t, flowWirings)
 }
+
+// TestChangeCodeHelpShowsTheShell: the help prints the shell from its single
+// source, so changing a limit cannot leave the help behind.
+func TestChangeCodeHelpShowsTheShell(t *testing.T) {
+	if got := renderLong("change-code"); !strings.Contains(got, flow.ShellSummary()) {
+		t.Errorf("change-code help does not carry flow.ShellSummary():\n%s", got)
+	}
+}

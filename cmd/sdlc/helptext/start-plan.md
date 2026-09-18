@@ -1,7 +1,8 @@
 Enter planning — deliver the architectural principles to design against (#75).
 
-The SDLC workflow has `claim` (start work) and `change-code` (the plan-quality
-review gate), but nothing marked the moment you start *designing* — which is the
+The SDLC workflow has `claim` (start work) and `change-code` (the gate into
+implementation: it infers the flow and, on the full flow, runs the plan-quality
+review), but nothing marked the moment you start *designing* — which is the
 highest-leverage point to surface architecture, because the design is still
 changeable. `start-plan` fills that gap.
 
@@ -10,8 +11,9 @@ WHAT IT DOES
   Prints the `at-plan` lens of the architecture registry
   (`internal/judge/architecture.md`, the `ARCH-*` principles) to your context, so
   the plan accounts for them from the start. It's the *forward* counterpart to
-  `change-code`'s plan-quality judge (the *backward* check) — both consume the one
-  registry, so what you design against is what gets reviewed.
+  `change-code`'s plan-quality judge (the *backward* check, full flow only) and
+  the close-time boundary review — all consume the one registry, so what you
+  design against is what gets reviewed.
 
 WHEN TO RUN
 
@@ -24,17 +26,20 @@ OUTPUT
 
   A framing line + each `ARCH-*` principle's `at-plan` lens (what to check while
   designing). Cite the marker (e.g. `ARCH-DRY`) in your plan where a principle
-  shaped a decision. Then a durable-plan pointer — author the plan via the
-  `superpowers-writing-plans` skill into `workshop/plans/NNNNNN-slug-plan.md`
-  (version-controlled), not the harness builtin's ephemeral `~/.claude/plans/`
-  file (#72). Then the durability trigger (#206): `sdlc issue sync --issue N`
+  shaped a decision. Then the durable-plan pointer, which sizes first (#231):
+  inside the quick-flow shell (`sdlc change-code --help` prints the limits) write
+  no durable plan, and change-code infers the quick flow; outside it, author the
+  plan via the `superpowers-writing-plans` skill into
+  `workshop/plans/NNNNNN-slug-plan.md` (version-controlled), not the harness
+  builtin's ephemeral `~/.claude/plans/` file (#72). Then the durability trigger (#206): `sdlc issue sync --issue N`
   commits the issue body locally as the design lands — where planPointer says
   WHERE to author, this says HOW OFTEN to save, because nothing else commits the
   body until `change-code` and a compaction in between loses it. Then a
   non-blocking `estimate_hours` note (#113, retimed by #187):
-  do NOT derive the estimate here. `change-code` runs plan-quality FIRST and asks
-  for the estimate only after the plan clears — costing a plan nobody has accepted
-  just gets recomputed on the next revision. Closes with the non-blocking
+  do NOT derive the estimate here. On the full flow `change-code` runs
+  plan-quality FIRST and asks for the estimate only after the plan clears —
+  costing a plan nobody has accepted just gets recomputed on the next revision.
+  The quick flow has no estimate. Closes with the non-blocking
   dependency-path contention heads-up.
 
 FLAGS
@@ -43,6 +48,7 @@ FLAGS
 
 RELATED
 
-  sdlc change-code   the plan-quality gate that checks the plan against the same
-                     principles (the backward review)
+  sdlc change-code   infers the flow; on the full flow, the plan-quality gate that
+                     checks the plan against the same principles (the backward
+                     review)
   sdlc issue sync    checkpoint the design mid-planning (local commit, no push)

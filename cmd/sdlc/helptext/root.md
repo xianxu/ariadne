@@ -13,10 +13,13 @@ BEFORE WORK
     set-status` own that transition (it carries the reopen/`→ done` guards).
 
 ENTER IMPLEMENTATION
-  - After plan approval, before editing code, run `sdlc change-code`. It owns the
+  - Before editing code, run `sdlc change-code` — after plan approval on work
+    that needed a durable plan. It infers the issue's flow (#231) and owns the
     branching decision (in-place branch by default; `--worktree=yes` for an
-    isolated worktree), the plan-quality check, and the `estimate_hours` gate
-    (relocated here from claim, #113). Don't start coding without it.
+    isolated worktree). On the full flow it also runs the plan-quality check and
+    the `estimate_hours` gate (relocated here from claim, #113); the quick flow
+    skips both and gets one small-diff review at close. Don't start coding
+    without it.
 
 PUBLISH
   - Publishing goes through a PR: `sdlc pr` → `sdlc merge`. Direct `sdlc push`

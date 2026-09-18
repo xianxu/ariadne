@@ -204,3 +204,24 @@ fourteen adapted skills carry fixer-facing directives, and both are now named he
 - Routes to `ARCH-PURPOSE` / `sdlc arch-principles`; does not restate the principle
 - Push-back and Minor-deferral guidance are preserved
 - All previous verify clauses (Conv 1-8) still hold
+
+## Conversation 10 (2026-09-17): brainstorming — size before invoking writing-plans
+
+User: The quick flow (ariadne#231) runs claim → change-code → close with no durable plan,
+no estimate and one small-diff review; change-code infers it when the issue has no Mx
+milestones and no durable plan. The brainstorming skill ended every design by invoking
+writing-plans, which writes a durable plan and so routes every issue to the full flow.
+
+AI: The transition step, the process graph, the terminal-state rule and the Implementation
+paragraph now size the work first against the quick-flow shell, pointing at `sdlc
+change-code --help` for the limits rather than restating them. Outside the shell the skill
+still invokes writing-plans exactly as before; inside it, it writes no durable plan and runs
+`sdlc change-code`. Found by the #231 plan-quality gate (PQ-1) as one of several surfaces
+that sent every issue into a durable plan.
+
+### Verify
+- Step 10 sizes against the quick-flow shell before invoking writing-plans
+- The graph has an "Inside the quick-flow shell?" diamond with both terminal states
+- The limits are referenced via `sdlc change-code --help`, never restated as numbers
+- writing-plans remains the only skill invoked after brainstorming
+- All previous verify clauses (Conv 1-9) still hold

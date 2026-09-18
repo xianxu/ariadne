@@ -3,7 +3,7 @@
 ## Flow
 
 ```
-Issue created (sdlc issue new "<title>", or sdlc issue new --from-github 42) → workshop/issues/NNNNNN-slug.md → sdlc claim → sdlc start-plan → design (complex → durable plan via superpowers-writing-plans → workshop/plans/NNNNNN-slug-plan.md) → sdlc change-code (in-place branch by default) → work → sdlc close (local acceptance review → codecomplete) → sdlc pr → sdlc merge (deterministic publish → done)   [direct sdlc push on main still available, but not the default]
+Issue created (sdlc issue new "<title>", or sdlc issue new --from-github 42) → workshop/issues/NNNNNN-slug.md → sdlc claim → sdlc start-plan → design (outside the quick-flow shell → durable plan via superpowers-writing-plans → workshop/plans/NNNNNN-slug-plan.md; inside it → no plan) → sdlc change-code (infers the flow, #231; in-place branch by default) → work → sdlc close (local acceptance review → codecomplete) → sdlc pr → sdlc merge (deterministic publish → done)   [direct sdlc push on main still available, but not the default]
 ```
 
 ## States
@@ -32,10 +32,11 @@ So `done` now means "reviewed AND published," not "an agent thinks it's finished
 
 1. **Create**: `sdlc issue new "<title>"` allocates the next ID and writes the canonical template (the no-GitHub entry path); `sdlc issue new --from-github <num>` (or the older `sdlc fetch`) seeds it from a GitHub issue. See `sdlc issue --help` for the canonical issue-file contract.
 2. **Claim**: `sdlc claim --issue N` flips an open issue to `working` and publishes the issue-state claim to main in one step (`--no-start` to skip the flip). A **cheap lock** — no estimate demanded (#113), so claim early (at brainstorm start). The flip stamps an explicit `started:` timestamp (#116) that anchors the active-time window at engagement start, so `sdlc actual` measures design attention instead of dropping it (superseding the older `WorkingTransitionISO` git-log heuristic; gap-truncation keeps a dormant claim→work gap from inflating the actual).
-3. **Plan**: `sdlc start-plan` marks the design entry — it delivers the `at-plan` architecture lens, points at the durable-plan path, and tells you NOT to derive `estimate_hours` yet — `change-code` asks for it only after the plan clears plan-quality (#187). For complex work, author the plan via the **`superpowers-writing-plans`** skill into `workshop/plans/NNNNNN-slug-plan.md` (version-controlled — never the harness builtin's ephemeral `~/.claude/plans/`, #72).
+3. **Plan**: `sdlc start-plan` marks the design entry — it delivers the `at-plan` architecture lens, sizes the work against the quick-flow shell, points at the durable-plan path, and tells you NOT to derive `estimate_hours` yet — `change-code` asks for it only after the plan clears plan-quality (#187), and only on the full flow. For work outside the shell, author the plan via the **`superpowers-writing-plans`** skill into `workshop/plans/NNNNNN-slug-plan.md` (version-controlled — never the harness builtin's ephemeral `~/.claude/plans/`, #72).
 4. **Work**: Agent works within the issue file — updates Plan, Log, Spec sections
 5. **Default — branch + PR**: `sdlc change-code` creates an **in-place branch** (a branch in the current checkout) after the gates; `sdlc pr` opens the pull request; `sdlc merge` merges it server-side, archives done issues, and switches back to main. `--worktree=yes` gets an isolated worktree instead (parallel work).
-6. **Shortcut — direct on main**: `sdlc push` (auto-commit, pre-merge checks, push, archive, close GH issues) still exists for quick one-liners, but is no longer the default (#51).
+6. **Flows (#231)**: `change-code` records `flow: {kind, provenance}` on the issue. Mx milestones or a durable plan → **full** (every gate below). Neither → **quick**: none of change-code's gates, no estimate, and one review at close with the small-diff recipe. The hard shell (`sdlc change-code --help`) is enforced at close on the real diff: a quick issue outside it is upgraded to full. The operator pins with `--flow`. The agent's verb sequence is the same on both — the gates branch, not the agent.
+7. **Shortcut — direct on main**: `sdlc push` (auto-commit, pre-merge checks, push, archive, close GH issues) still exists for quick one-liners, but is no longer the default (#51).
 
 ## Worktree layout
 
@@ -50,7 +51,7 @@ of the current working directory (i.e., the repo folder name).
     └── 000051-fix-bug/        ← branch: 000051-fix-bug
 ```
 
-**Branching decision** (#51): `sdlc change-code --issue N` runs structural checks,
+**Branching decision** (#51): `sdlc change-code --issue N` first records the issue's flow (#231 — on the quick flow none of the following gates run), then runs structural checks,
 the `estimate_hours` gate (#113 — relocated here from `claim`; `--no-estimate`
 bypasses), the **estimate-reconciliation** gate + **estimate-quality** judge
 (#117 — estimate_hours must reconcile with an itemized `## Estimate` block;
@@ -90,7 +91,8 @@ github_issue: 42
 target:            # optional; a workshop/targets/ slug
 created: 2026-04-20
 updated: 2026-04-20
-estimate_hours:    # derived after the plan clears plan-quality; required by change-code, not claim (#113, #187)
+estimate_hours:    # derived after the plan clears plan-quality; required by change-code, not claim (#113, #187) — full flow only
+                   # flow: {kind: full|quick, provenance: inferred|operator} — written by change-code/close, never by hand (#231)
                    # actual_hours: added at close; number or N/A when status=done
 ---
 
