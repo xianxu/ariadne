@@ -78,3 +78,8 @@ runs from the branch under review, so a quick branch could otherwise change the
 gate it closes under. As a result every sdlc fix in ariadne, this one included,
 is upgraded to full at close. Whether that declaration should be narrower is
 the operator's call, and #231's trial is the place to decide it.
+
+Decided the same day: the operator keeps the full-closure declaration ("not worth
+additional rule/risk"). This issue takes the full flow in ariadne. It remains a
+fair example of the class the quick flow targets, just not a candidate for it here.
+
