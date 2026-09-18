@@ -130,9 +130,11 @@ either. A quick issue must stay inside all four limits, whatever its provenance:
   cross-module extractions whatever its headline size.
 - No `Mx` milestones.
 
-Crossing any one limit crosses the shell. Code files exclude docs and the
-process trees (`workshop/`, `atlas/`, `*.md`). The limits are single-sourced in
-the binary: the check and the help text read the same constants.
+Crossing any one limit crosses the shell. Code files exclude docs, the process
+trees (`workshop/`, `atlas/`, `*.md`) and tests, so writing a test never pushes a
+change out of the quick flow. The limits are single-sourced in the binary: the
+check, the help text and the constitution's durable-plan rule all read the same
+constants.
 
 **Gates only upgrade.** A gate that finds the shell crossed rewrites the issue to
 `{kind: full, provenance: inferred}`, logs the measured reason, and carries on as
@@ -253,12 +255,14 @@ extends `#Flow`.
 
 ## Plan
 
-- [ ] Decide whether test files count toward the shell's file and line limits.
+- [x] Decide whether test files count toward the shell's file and line limits.
+      Decided 2026-09-17: they do not.
 - [ ] Single-source the threshold. The constitution's "non-trivial (>3 files or
       >100 lines) → durable plan" (`AGENTS.base.md` §2) and the shell's "2 code
-      files, 100 lines" are one threshold stated twice. The binary owns the
-      constants and the constitution cites them. `AGENTS.base.md` is base-layer,
-      so this propagates downstream.
+      files, 100 lines" are one threshold stated twice. Decided 2026-09-17: the
+      shell's numbers win, so the constitution's rule becomes >2 files and cites
+      the binary's constants. `AGENTS.base.md` is base-layer, so this propagates
+      downstream.
 - [ ] Add `#Flow` and `flow?:` to `construct/vocabulary/issue.cue`; document the
       field in `sdlc issue --help`; test the one-line form round-trips through
       `GetField`/`SetField`.
@@ -316,6 +320,13 @@ failing to qualify is the correct incentive rather than an obstacle.
 Open, and deliberately not decided here: whether this tier ships with §1-4 or
 waits for calibration evidence from the direct path. A tier with no review has
 only the ledger as a backstop, which argues for sequencing it second.
+
+### 2026-09-17 — claimed; two shell decisions
+
+Claimed and entered planning. The operator settled two open questions: test
+files do not count toward the shell's limits, and the constitution's durable-plan
+threshold moves from >3 files to the shell's >2, so the two are one number owned
+by the binary. The durable plan goes to `workshop/plans/000231-quick-flow-plan.md`.
 
 ## Revisions
 
