@@ -85,3 +85,66 @@ func TestRepoDeclarationParses(t *testing.T) {
 		t.Error("the declaration no longer covers the vocabulary")
 	}
 }
+
+// TestParseSurfacesRejectsGlobInDirectory: `lua/*/` would pass a glob check and
+// then, compared as a literal prefix, match nothing — so it is refused.
+func TestParseSurfacesRejectsGlobInDirectory(t *testing.T) {
+	for _, bad := range []string{"lua/*/\n", "a/[bc]/\n", "x/?/\n"} {
+		if _, err := ParseSurfaces(bad); err == nil {
+			t.Errorf("ParseSurfaces(%q): want an error", bad)
+		}
+	}
+}
+
+// TestRepoDeclarationCoversTheShell: a guard that claims a branch cannot loosen
+// its own shell must cover every file that DEFINES the shell — and the set is
+// derived here, not listed (#231 BR-19). In ariadne sdlc is built from the
+// branch's own checkout, so the shell's definition is: every production file
+// that imports this package, and the packages that decide what it measures and
+// how it reviews (flow, churn, judge).
+func TestRepoDeclarationCoversTheShell(t *testing.T) {
+	root := filepath.Join("..", "..", "..", "..")
+	b, err := os.ReadFile(filepath.Join(root, DeclarationPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s, err := ParseSurfaces(string(b))
+	if err != nil {
+		t.Fatal(err)
+	}
+	const importPath = `"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"`
+	var shell []string
+	sdlc := filepath.Join(root, "cmd", "sdlc")
+	err = filepath.WalkDir(sdlc, func(p string, d os.DirEntry, err error) error {
+		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+			return err
+		}
+		rel, _ := filepath.Rel(root, p)
+		rel = filepath.ToSlash(rel)
+		src, rerr := os.ReadFile(p)
+		if rerr != nil {
+			return rerr
+		}
+		for _, pkg := range []string{"cmd/sdlc/internal/flow/", "cmd/sdlc/internal/churn/", "cmd/sdlc/internal/judge/"} {
+			if strings.HasPrefix(rel, pkg) {
+				shell = append(shell, rel)
+				return nil
+			}
+		}
+		if strings.Contains(string(src), importPath) {
+			shell = append(shell, rel)
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(shell) < 10 {
+		t.Fatalf("derived only %d shell files — the derivation is broken, not the declaration", len(shell))
+	}
+	for _, f := range shell {
+		if !s.Match(f) {
+			t.Errorf("%s defines the quick-flow shell but is not a declared shared surface", f)
+		}
+	}
+}

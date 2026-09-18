@@ -14,6 +14,11 @@ type Size struct {
 	Surfaces    []string // changed paths that match a declared shared surface
 	Milestones  []string // Mx rows in the Plan
 	SurfacesErr error    // the shared-surface declaration could not be read
+	// EarlierFullReview: an earlier round of this close already ran the full
+	// review (a REWORK). Sticky, so a fix that shrinks the diff cannot send the
+	// next round back to the small-diff recipe (#231 BR-18).
+	EarlierFullReview bool
+	LedgerErr         error // the boundary ledger could not be read
 }
 
 // Measure sizes a window. files is the window's changed paths (so a binary,
@@ -45,19 +50,25 @@ func Measure(files []string, stats []churn.FileStat, s Surfaces, surfacesErr err
 func (s Size) Crossings() []string {
 	var out []string
 	if n := len(s.CodeFiles); n > MaxCodeFiles {
-		out = append(out, fmt.Sprintf("%d code files changed (limit %d): %s", n, MaxCodeFiles, strings.Join(s.CodeFiles, ", ")))
+		out = append(out, fmt.Sprintf("%d code files changed (limit %d): %s", n, MaxCodeFiles, capList(s.CodeFiles)))
 	}
 	if s.AddedLines > MaxChangedLines {
 		out = append(out, fmt.Sprintf("%d added lines in code files (limit %d)", s.AddedLines, MaxChangedLines))
 	}
 	if len(s.Surfaces) > 0 {
-		out = append(out, "declared shared surface touched: "+strings.Join(s.Surfaces, ", "))
+		out = append(out, "declared shared surface touched: "+capList(s.Surfaces))
 	}
 	if len(s.Milestones) > 0 {
 		out = append(out, "the Plan has Mx milestones: "+strings.Join(s.Milestones, ", "))
 	}
 	if s.SurfacesErr != nil {
 		out = append(out, fmt.Sprintf("the shared-surface declaration is unreadable (%v)", s.SurfacesErr))
+	}
+	if s.EarlierFullReview {
+		out = append(out, "an earlier round of this close already ran the full review")
+	}
+	if s.LedgerErr != nil {
+		out = append(out, fmt.Sprintf("the boundary ledger is unreadable (%v)", s.LedgerErr))
 	}
 	return out
 }
@@ -67,3 +78,14 @@ func (s Size) Crossings() []string {
 // since only the quick flow uses them. The only way a gate moves a flow; there
 // is no downgrade.
 func Upgrade(Flow) Flow { return Flow{kind: Full, provenance: Inferred} }
+
+// listCap bounds how many paths a crossing names: the reason lands on one Log
+// line, and a hundred-file diff needs its count, not its inventory.
+const listCap = 5
+
+func capList(paths []string) string {
+	if len(paths) <= listCap {
+		return strings.Join(paths, ", ")
+	}
+	return fmt.Sprintf("%s, and %d more", strings.Join(paths[:listCap], ", "), len(paths)-listCap)
+}

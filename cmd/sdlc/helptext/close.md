@@ -204,11 +204,13 @@ THE QUICK FLOW (#231)
 
     {{QUICK_SHELL}}
 
-  Code files and added lines come from the window's diff (tests and docs are
-  never code). Shared surfaces come from `.sdlc/shared-surfaces`, read as
+  Code files and added lines come from the window's diff, classified as the
+  shell above states. Shared surfaces come from `.sdlc/shared-surfaces`, read as
   COMMITTED at the window's base and head and unioned — never the working tree —
-  so a branch cannot loosen its own shell; editing that file is itself a
-  shared-surface change.
+  so a branch cannot loosen its shell by editing the declaration, and editing
+  that file is itself a shared-surface change. (Where sdlc is built from the
+  branch under review — ariadne itself — the shell's own code must be declared
+  too; ariadne declares `cmd/sdlc/`.)
 
   Inside the shell, the boundary review runs the small-diff recipe: the full
   procedure, aimed at the bug classes small diffs ship, over only the ARCH-*
@@ -216,7 +218,9 @@ THE QUICK FLOW (#231)
   quick — the issue is upgraded to `flow: {kind: full, provenance: inferred}`,
   the measured reason goes to ## Log, and the full review runs. Crossing the
   shell never refuses. The upgrade is written with the close's other edits at
-  finalize, so a REWORK leaves the issue unwritten and the re-close re-derives it.
+  finalize, so a REWORK leaves the issue unwritten — but each boundary round
+  records its recipe in the boundary ledger, and a round that already ran the
+  full review keeps the issue on it, even if the fix shrinks the diff.
 
   Before that one review, two deterministic checks (issue close only):
     - `## Done when` has a bullet — it is the review's only oracle.

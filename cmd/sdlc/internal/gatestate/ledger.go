@@ -77,6 +77,14 @@ type Round struct {
 	// open set per boundary via FilterBoundary is what keeps that from silently
 	// demoting the whole-issue close's first-round findings.
 	Boundary string `yaml:"boundary,omitempty"`
+	// Recipe is the boundary-review recipe the round ran (#231): "milestone-review"
+	// (the full review) or "small-diff-review" (the quick flow's). It is what makes a
+	// quick issue's upgrade STICKY across a REWORK: the issue file is not written on
+	// REWORK (#139), so without this a fix that shrinks the diff back inside the shell
+	// would send the next round to the small-diff recipe. Empty on plan-quality rounds
+	// and on every boundary round before #231 — when milestone-review was the only
+	// recipe, so an empty value on a boundary round reads as the full review.
+	Recipe string `yaml:"recipe,omitempty"`
 	// NoCap marks a round that did NOT consume a review cycle, so it does not count
 	// toward the round cap (ariadne#194 M2). Exactly TWO kinds qualify, and both are
 	// cases where no reviewer was invoked at all:

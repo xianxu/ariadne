@@ -1,6 +1,9 @@
 package churn
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestClassifyPath(t *testing.T) {
 	cases := map[string]Bucket{
@@ -152,6 +155,31 @@ func TestClassifyPathNonGoTestLayouts(t *testing.T) {
 	for _, path := range []string{"lua/parley/test_helpers_config.lua", "cmd/sdlc/internal/testfix/testfix.go", "latest/x.go"} {
 		if got := ClassifyPath(path); got != CodeProd {
 			t.Errorf("ClassifyPath(%q) = %v, want %v — not a test layout", path, got, CodeProd)
+		}
+	}
+}
+
+// TestCodeFileRule: every clause of the printed rule holds for IsCodeFile, and
+// every class the classifier separates is named by the rule.
+func TestCodeFileRule(t *testing.T) {
+	for _, c := range []struct {
+		clause   string
+		examples []string
+		code     bool
+	}{
+		{"tests", []string{"cmd/x_test.go", "tests/a_spec.lua"}, false},
+		{"docs", []string{"README.md", "docs/guide.md"}, false},
+		{"workshop/", []string{"workshop/issues/000231-x.md"}, false},
+		{"atlas/", []string{"atlas/index.md"}, false},
+		{"cmd/", []string{"cmd/sdlc/internal/judge/prompts/plan.md", "cmd/sdlc/helptext/close.md"}, true},
+	} {
+		if !strings.Contains(CodeFileRule, c.clause) {
+			t.Errorf("CodeFileRule does not name %q", c.clause)
+		}
+		for _, ex := range c.examples {
+			if IsCodeFile(ex) != c.code {
+				t.Errorf("IsCodeFile(%q) = %v, but CodeFileRule's %q clause says %v", ex, !c.code, c.clause, c.code)
+			}
 		}
 	}
 }

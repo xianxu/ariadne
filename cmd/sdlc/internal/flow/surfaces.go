@@ -28,6 +28,12 @@ func ParseSurfaces(text string) (Surfaces, error) {
 			continue
 		}
 		p = strings.TrimPrefix(strings.TrimPrefix(p, "./"), "/")
+		// The directory form is a literal prefix, so a glob inside it would be
+		// accepted and then never match anything — a guard that guards nothing.
+		// Refuse it here, where the error becomes a crossing (fail toward full).
+		if strings.HasSuffix(p, "/") && strings.ContainsAny(p, `*?[\`) {
+			return Surfaces{}, fmt.Errorf("%s line %d: %q: a directory entry (trailing /) is a literal prefix and cannot hold a glob", DeclarationPath, i+1, p)
+		}
 		if _, err := path.Match(strings.TrimSuffix(p, "/"), ""); err != nil {
 			return Surfaces{}, fmt.Errorf("%s line %d: %q: %v", DeclarationPath, i+1, p, err)
 		}

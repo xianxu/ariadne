@@ -3,10 +3,12 @@ package main
 import (
 	"fmt"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -56,8 +58,10 @@ func closeFlowLine(o closeFlowOutcome) string {
 // Done-when checks (issue close only — they guard the final acceptance review)
 // and measures the window against the shell. It WRITES NOTHING: an upgrade is
 // composed into the issue text and recorded by applyClose at finalize, so a
-// REWORK leaves the issue as it was (#139) and the re-close re-derives it.
-func closeFlowStep(stderr io.Writer, f *closeFlags, mode, fm, body, windowBase, windowHead string, diffFiles []string) closeFlowOutcome {
+// REWORK leaves the issue as it was (#139); what keeps the upgrade across rounds
+// is the boundary ledger, whose rounds record the recipe they ran — an earlier
+// full-review round is a crossing (earlierFullReview, #231 BR-18).
+func closeFlowStep(stderr io.Writer, f *closeFlags, mode, issuePath, fm, body, windowBase, windowHead string, diffFiles []string) closeFlowOutcome {
 	rec, err := flow.Recorded(fm)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("flow record unreadable (%v) — closing as the full flow", err))
@@ -72,7 +76,9 @@ func closeFlowStep(stderr io.Writer, f *closeFlags, mode, fm, body, windowBase, 
 	if mode == "issue" {
 		checkQuickDoneWhen(stderr, f, *rec, body)
 	}
-	o := decideCloseFlow(*rec, measureCloseWindow(stderr, windowBase, windowHead, diffFiles, body))
+	size := measureCloseWindow(stderr, windowBase, windowHead, diffFiles, body)
+	size.EarlierFullReview, size.LedgerErr = earlierFullReview(f.plansDir(), filepath.Base(issuePath), f.Issue, f.Milestone)
+	o := decideCloseFlow(*rec, size)
 	cinfo(stderr, closeFlowLine(o))
 	return o
 }
@@ -82,7 +88,8 @@ func closeFlowStep(stderr io.Writer, f *closeFlags, mode, fm, body, windowBase, 
 // must have moved if the contract did since change-code.
 func checkQuickDoneWhen(stderr io.Writer, f *closeFlags, rec flow.Flow, body string) {
 	if err := flow.DoneWhenPresent(body); err != nil {
-		if !f.skip("done-when") {
+		// No --no-<gate> flag: only --force waives the review's missing oracle.
+		if !f.Force {
 			die(stderr, err.Error())
 		}
 		cwarn(stderr, "--force: closing a quick-flow issue with no `## Done when` bullet")
@@ -155,19 +162,39 @@ func committedSurfaces(base, head string) (flow.Surfaces, error) {
 	return all, nil
 }
 
-// declarationAt reads the declaration at a revision. ls-tree separates "absent"
-// from "unreadable" — the distinction a failed `git show` alone cannot make.
+// declarationAt reads the declaration at a revision, through the one
+// "present, absent, or could not tell" helper (gitx.EntryAt).
 func declarationAt(rev string) (string, bool, error) {
-	out, err := gitx.RunGit("ls-tree", "--full-tree", "--name-only", rev, "--", flow.DeclarationPath)
-	if err != nil {
-		return "", false, fmt.Errorf("ls-tree %s: %w", rev, err)
+	_, present, err := gitx.EntryAt("", rev, flow.DeclarationPath)
+	if err != nil || !present {
+		return "", false, err
 	}
-	if strings.TrimSpace(string(out)) == "" {
-		return "", false, nil
-	}
-	b, err := gitx.RunGit("show", rev+":"+flow.DeclarationPath)
+	b, err := gitx.BlobAt("", rev, flow.DeclarationPath)
 	if err != nil {
-		return "", false, fmt.Errorf("show %s:%s: %w", rev, flow.DeclarationPath, err)
+		return "", false, err
 	}
 	return string(b), true, nil
+}
+
+// earlierFullReview reports whether an earlier round of this boundary already
+// ran the full review — read from the boundary ledger, which every round
+// persists, REWORK included. Pure over the ledger (fullRoundIn); this is its IO.
+func earlierFullReview(plansDir, issueFileName string, issueNum int, boundary string) (bool, error) {
+	l, err := readBoundaryGateLedger(plansDir, issueFileName, issueNum)
+	if err != nil {
+		return false, err
+	}
+	return fullRoundIn(gatestate.FilterBoundary(l, boundary).Rounds), nil
+}
+
+// fullRoundIn: did any of these boundary rounds run the full review? A round
+// that never ran (NoCap) ran nothing; an unstamped round predates #231, when
+// milestone-review was the only boundary recipe, so it was the full review.
+func fullRoundIn(rounds []gatestate.Round) bool {
+	for _, r := range rounds {
+		if !r.NoCap && r.Recipe != string(judge.SmallDiffReview) {
+			return true
+		}
+	}
+	return false
 }

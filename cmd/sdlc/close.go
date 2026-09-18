@@ -544,7 +544,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// ── Flow: the quick flow's hard shell + Done-when checks (#231) ──────────
 	// Same window as the atlas gate and the review. Writes nothing: an upgrade is
 	// composed into newFM below and recorded by applyClose at finalize.
-	flowOutcome := closeFlowStep(stderr, f, mode, fm, body, windowBase, windowHead, diffFiles)
+	flowOutcome := closeFlowStep(stderr, f, mode, issuePath, fm, body, windowBase, windowHead, diffFiles)
 
 	// ── Milestone-review verdict check (issue close only) ──────────────────
 	//

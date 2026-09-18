@@ -59,8 +59,11 @@ func TestCrossings(t *testing.T) {
 		{"a shared surface", Size{Surfaces: []string{"pkg/vocab/x.go"}}, []string{"shared surface"}},
 		{"Mx milestones", Size{Milestones: []string{"M1"}}, []string{"milestones"}},
 		{"unreadable declaration", Size{SurfacesErr: errors.New("line 3: bad pattern")}, []string{"declaration"}},
-		{"everything", Size{CodeFiles: files(3), AddedLines: 500, Surfaces: []string{"x"}, Milestones: []string{"M1"}, SurfacesErr: errors.New("e")},
-			[]string{"code files", "added lines", "shared surface", "milestones", "declaration"}},
+		{"an earlier full round", Size{EarlierFullReview: true}, []string{"earlier round"}},
+		{"unreadable ledger", Size{LedgerErr: errors.New("corrupt")}, []string{"ledger"}},
+		{"everything", Size{CodeFiles: files(3), AddedLines: 500, Surfaces: []string{"x"}, Milestones: []string{"M1"}, SurfacesErr: errors.New("e"),
+			EarlierFullReview: true, LedgerErr: errors.New("e")},
+			[]string{"code files", "added lines", "shared surface", "milestones", "declaration", "earlier round", "ledger"}},
 	}
 	for _, c := range cases {
 		got := c.size.Crossings()
@@ -85,5 +88,14 @@ func TestUpgrade(t *testing.T) {
 	}
 	if got := Upgrade(q); got != (Flow{kind: Full, provenance: Inferred}) {
 		t.Errorf("Upgrade = %+v, want full/inferred with no hashes", got)
+	}
+}
+
+// TestCrossingsCapTheFileList: a crossing's reason lands on one Log line, so a
+// large diff names a bounded sample and the count, not every path.
+func TestCrossingsCapTheFileList(t *testing.T) {
+	got := Size{CodeFiles: files(12)}.Crossings()
+	if len(got) != 1 || !strings.Contains(got[0], "12 code files") || !strings.Contains(got[0], "and 7 more") {
+		t.Errorf("Crossings = %v, want the count and a capped list", got)
 	}
 }

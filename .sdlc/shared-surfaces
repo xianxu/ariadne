@@ -5,8 +5,15 @@
 # One pattern per line: a path.Match glob (`*` does not cross `/`), or a
 # directory with a trailing `/`, meaning anything under it. This file itself is
 # always a shared surface, and close reads it as committed at the review window's
-# base AND head, so a branch cannot loosen its own shell. `sdlc change-code
-# --help` prints the rest of the shell.
+# base AND head, so a branch cannot loosen its shell by editing it. `sdlc
+# change-code --help` prints the rest of the shell.
+
+# The gate machinery itself. ariadne's sdlc is built from the checkout the branch
+# lives in, so a quick branch that edited the shell's limits, its classifier, the
+# close step or the review recipes would close under the binary it just changed.
+# The gates do not change under the gate: every sdlc change takes the full flow
+# (TestRepoDeclarationCoversTheShell derives the shell's files and pins this).
+cmd/sdlc/
 
 # The vocabulary models and their Go embedding — every consumer derives from them.
 construct/vocabulary/*.cue
@@ -15,11 +22,3 @@ pkg/vocab/
 # The base layer propagated to every downstream repo.
 construct/base.manifest
 AGENTS.base.md
-
-# What the judges are told: the ARCH registry and the boundary-review procedure.
-cmd/sdlc/internal/judge/architecture.md
-cmd/sdlc/internal/judge/code-review.md
-
-# Persisted gate state and the calibration ledger schema.
-cmd/sdlc/internal/gatestate/
-cmd/sdlc/internal/estimate/ledger.go

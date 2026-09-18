@@ -98,7 +98,7 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 ## Decisions and architecture
 
 - **Changed lines** are insertions in code files — git's `+` count, the same number the churn report and ledger use. Files are counted from `--name-only`, so a binary change still counts as a file.
-- **The upgrade is recorded at finalize.** `computeClose` writes nothing, and a REWORK leaves the issue unwritten (#139). So "no gate downgrades" is about the *recorded* flow. The measurement is a pure function of the window, so a re-close after REWORK re-derives it.
+- **The upgrade is recorded at finalize.** `computeClose` writes nothing, and a REWORK leaves the issue unwritten (#139). Stickiness across rounds comes from the boundary ledger instead: each round records the `Recipe` it ran, and an earlier full-review round is a crossing (`Size.EarlierFullReview`). A fix that shrinks the diff after a full-review REWORK therefore stays full (BR-18). An unstamped round predates #231 and reads as full; a small-diff round does not.
 - **Every surface that routes work into a durable plan becomes flow-conditional (PQ-1).**
   - The directive surfaces were derived with `git grep -n -E 'superpowers-writing-plans|durable plan|writing-plans skill|plan-quality|estimate_hours'`, over agent-facing files outside `workshop/`:
     - `AGENTS.base.md:11,23,24,25`
@@ -419,4 +419,38 @@ Delta:
   sentences claimed the record is written first (`change-code.md:4`,
   `issue-lifecycle.md:54`, `sdlc-binary.md:36`), and all three are corrected.
   The drift refusal is now documented in change-code's help.
+
+### 2026-09-17 — M2 boundary review round 1 (BR-18..BR-23)
+
+- **BR-18** (a round's decision was not sticky). `gatestate.Round.Recipe` stamps
+  each boundary round with the recipe it ran, once for both persist branches. An
+  earlier full-review round is a crossing (`Size.EarlierFullReview`), and an
+  unreadable ledger is a crossing (`Size.LedgerErr`). Tests cover REWORK → a fix
+  that shrinks the diff → still full, and a small-diff REWORK → still quick; both
+  directions are mutation-checked.
+- **BR-19** (a hand-listed guard was incomplete). ariadne declares `cmd/sdlc/` a
+  shared surface: sdlc is built from the branch's own checkout, so the gates must
+  not change under the gate. `TestRepoDeclarationCoversTheShell` derives the
+  shell's files (every production file importing `internal/flow`, plus the flow,
+  churn and judge packages; 22 files today) and requires each to match. The
+  claim in close's help is scoped to match.
+- **BR-20** (a doc claim contradicted the code). `churn.CodeFileRule` states the
+  classifier in one clause beside it, and `TestCodeFileRule` checks each clause
+  against `IsCodeFile`'s exemplars, embedded markdown included. `ShellSummary`
+  renders it, and close's help no longer restates it.
+- **BR-21** (accepted input that never took effect). A directory entry with a glob
+  is rejected at parse time.
+- **BR-22** (an existing helper was not reused). `gitx.EntryAt`/`BlobAt` are the
+  one "present, absent, or could not tell" read, used by `TrunkFile.entryOf` and
+  close's declaration read. `pathTrackedAtHEAD` keeps its injected `gitRunner`
+  seam, which its tests fake, so it stays separate by design.
+- **BR-23** (an undeclared gate key). The empty-Done-when refusal checks `f.Force`
+  explicitly.
+- **Also:** crossing reasons cap their path lists, so the upgrade's Log line stays
+  bounded.
+- **Plan text as built:** `architectureSections` is unexported (behind
+  `mustArchitectureSections`); `Crossings` is `Size.Crossings()`; `Measure` takes
+  `surfacesErr`. The package also exports `flow.Upgrade`, `flow.Union` and
+  `flow.DeclarationPath`. The close step lives in `cmd/sdlc/closeflow.go`, and
+  its tests in `closeflow_test.go`.
 

@@ -711,10 +711,7 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 		IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
 		PriorFindings: p.PriorFindings,
 	}
-	cat := p.Category
-	if cat == "" {
-		cat = judge.MilestoneReview
-	}
+	cat := p.recipe()
 	prompt := judge.BuildPrompt(cat, in)
 
 	return judge.DispatchOptions{
@@ -725,4 +722,14 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 		Stdout:       stdout,
 		Stderr:       stderr,
 	}, true, ""
+}
+
+// recipe is the review recipe these params dispatch: Category, defaulting to the
+// full milestone-review. The one resolution both the dispatch and the ledger's
+// per-round stamp read (#231).
+func (p boundaryReviewParams) recipe() judge.Category {
+	if p.Category == "" {
+		return judge.MilestoneReview
+	}
+	return p.Category
 }

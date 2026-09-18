@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
 )
 
 // TestFlowRoundTrip: Format then Parse is the identity, including for a hash
@@ -149,7 +151,7 @@ func TestDecide(t *testing.T) {
 // derived from the limits, so changing a limit cannot leave the prose behind.
 func TestShellSummaryReadsTheConstants(t *testing.T) {
 	s := ShellSummary()
-	for _, want := range []string{strconv.Itoa(MaxCodeFiles) + " code files", strconv.Itoa(MaxChangedLines) + " added lines", "tests and docs", "shared surface", "milestones"} {
+	for _, want := range []string{strconv.Itoa(MaxCodeFiles) + " code files", strconv.Itoa(MaxChangedLines) + " added lines", churn.CodeFileRule, "shared surface", "milestones"} {
 		if !strings.Contains(s, want) {
 			t.Errorf("ShellSummary() = %q, missing %q", s, want)
 		}

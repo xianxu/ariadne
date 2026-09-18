@@ -123,6 +123,12 @@ func IsDoc(p string) bool {
 // so an edit there is code even when it is *.md (#174). Pure.
 func IsEmbedded(p string) bool { return hasSegmentPrefix(p, "cmd") }
 
+// CodeFileRule is IsCodeFile in one clause, for every surface that prints the
+// quick-flow shell. It lives HERE, beside the classifier it describes, and
+// TestCodeFileRule pins each part of it against IsCodeFile's own exemplars — so
+// the prose cannot claim "docs never count" while embedded markdown does (#231).
+const CodeFileRule = "tests, docs and the process trees (workshop/, atlas/) do not count; markdown under cmd/ does, since it ships in the binary"
+
 // IsCodeFile is the quick-flow shell's code file (#231): production code surface
 // — embedded prompts included — and not docs, the process trees, or tests, so
 // writing a test or a doc never pushes a change out of the shell. It composes the

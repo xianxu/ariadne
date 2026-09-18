@@ -9,7 +9,9 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -130,8 +132,8 @@ func TestCloseOperatorQuickStillUpgrades(t *testing.T) {
 }
 
 // TestCloseQuickReworkThenReclose: a REWORK writes nothing (#139) — the record
-// stays quick on disk — and the re-close re-derives the same upgrade from the
-// same window.
+// stays quick on disk — and the re-close upgrades it (from the same window here;
+// TestCloseQuickReworkShrinkThenReclose covers a fix that shrinks it).
 func TestCloseQuickReworkThenReclose(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
 	before := readQuick(t, dir)
@@ -248,4 +250,81 @@ func readQuick(t *testing.T, issuesDir string) string {
 		t.Fatal(err)
 	}
 	return string(b)
+}
+
+// TestCloseQuickReworkShrinkThenReclose is #231 BR-18's reproduction: three code
+// files get the full review; it returns REWORK; the fix DELETES a file, so the
+// net diff is back inside the shell. The next round must still be the full
+// review — the earlier full round is recorded in the boundary ledger, and a
+// quick issue that already needed the full review does not get easier to close
+// by shrinking.
+func TestCloseQuickReworkShrinkThenReclose(t *testing.T) {
+	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(5), "cmd/b.go": goLines(5), "cmd/c.go": goLines(5)})
+	_, first := stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n")
+	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err == nil {
+		t.Fatal("a REWORK verdict should not finalize")
+	}
+	if strings.Contains(*first, smallDiffMarker) {
+		t.Fatal("precondition: the first round must be the full review")
+	}
+	os.Remove("cmd/c.go")
+	testfixGit(t, "add", "-A")
+	testfixGit(t, "commit", "-q", "-m", "#231: drop c")
+
+	_, second := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(*second, smallDiffMarker) {
+		t.Error("after a full-review REWORK, the shrunk re-close got the small-diff recipe")
+	}
+	if f, text := issueFlowAfterClose(t, dir); f.Kind() != flow.Full || !strings.Contains(text, "earlier round") {
+		t.Errorf("flow %+v; want full with the earlier-round reason:\n%s", f, text)
+	}
+}
+
+// TestFullRoundIn: which recorded rounds count as the full review.
+func TestFullRoundIn(t *testing.T) {
+	for _, c := range []struct {
+		name   string
+		rounds []gatestate.Round
+		want   bool
+	}{
+		{"no rounds", nil, false},
+		{"a small-diff round", []gatestate.Round{{Recipe: string(judge.SmallDiffReview)}}, false},
+		{"a full round", []gatestate.Round{{Recipe: string(judge.MilestoneReview)}}, true},
+		{"an unstamped round predates #231: full", []gatestate.Round{{}}, true},
+		{"a round that never ran", []gatestate.Round{{NoCap: true}}, false},
+	} {
+		if got := fullRoundIn(c.rounds); got != c.want {
+			t.Errorf("%s: fullRoundIn = %v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+func testfixGit(t *testing.T, args ...string) {
+	t.Helper()
+	wd, _ := os.Getwd()
+	testfix.Git(t, wd, args...)
+}
+
+// TestCloseQuickSmallDiffReworkStaysQuick: the other half of the stamp — a
+// REWORK from the SMALL-DIFF review must not read as a full round, or every
+// quick issue that needed one fix would be upgraded for nothing.
+func TestCloseQuickSmallDiffReworkStaysQuick(t *testing.T) {
+	dir := quickCloseRepo(t, 231, "", nil, map[string]string{"cmd/a.go": goLines(5)})
+	stubJudge(t, "VERDICT: REWORK (confidence: high)\n\nno\n")
+	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err == nil {
+		t.Fatal("a REWORK verdict should not finalize")
+	}
+	_, second := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(*second, smallDiffMarker) {
+		t.Error("a small-diff REWORK sent the re-close to the full review")
+	}
+	if f, _ := issueFlowAfterClose(t, dir); f.Kind() != flow.Quick {
+		t.Errorf("flow %+v, want quick", f)
+	}
 }
