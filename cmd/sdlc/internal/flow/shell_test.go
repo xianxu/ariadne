@@ -1,0 +1,89 @@
+package flow
+
+import (
+	"errors"
+	"strings"
+	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
+)
+
+// TestMeasure: code files come from the file list (so a binary, which numstat
+// cannot count, still counts as a file), lines from the numstat rows of code
+// files only; tests and docs are neither.
+func TestMeasure(t *testing.T) {
+	files := []string{"cmd/a.go", "cmd/a_test.go", "README.md", "assets/logo.png", "tests/x_spec.lua", "construct/vocabulary/issue.cue"}
+	stats := []churn.FileStat{
+		{Path: "cmd/a.go", Insertions: 30},
+		{Path: "cmd/a_test.go", Insertions: 400},
+		{Path: "README.md", Insertions: 90},
+		{Path: "tests/x_spec.lua", Insertions: 70},
+		{Path: "construct/vocabulary/issue.cue", Insertions: 5},
+	}
+	s, _ := ParseSurfaces("construct/vocabulary/*.cue\n")
+	got := Measure(files, stats, s, nil, []string{"M1"})
+	if strings.Join(got.CodeFiles, ",") != "cmd/a.go,assets/logo.png,construct/vocabulary/issue.cue" {
+		t.Errorf("CodeFiles = %v", got.CodeFiles)
+	}
+	if got.AddedLines != 35 {
+		t.Errorf("AddedLines = %d, want 35 (tests and docs excluded)", got.AddedLines)
+	}
+	if strings.Join(got.Surfaces, ",") != "construct/vocabulary/issue.cue" {
+		t.Errorf("Surfaces = %v", got.Surfaces)
+	}
+	if strings.Join(got.Milestones, ",") != "M1" {
+		t.Errorf("Milestones = %v", got.Milestones)
+	}
+}
+
+func files(n int) []string {
+	var out []string
+	for i := 0; i < n; i++ {
+		out = append(out, "cmd/f"+string(rune('a'+i))+".go")
+	}
+	return out
+}
+
+// TestCrossings pins each limit at its edge: exactly at the limit stays inside
+// the shell, one past it crosses — and every crossing names itself.
+func TestCrossings(t *testing.T) {
+	cases := []struct {
+		name string
+		size Size
+		want []string // substrings, one per expected reason
+	}{
+		{"at both limits", Size{CodeFiles: files(MaxCodeFiles), AddedLines: MaxChangedLines}, nil},
+		{"empty", Size{}, nil},
+		{"one file too many", Size{CodeFiles: files(MaxCodeFiles + 1)}, []string{"code files"}},
+		{"one line too many", Size{AddedLines: MaxChangedLines + 1}, []string{"added lines"}},
+		{"a shared surface", Size{Surfaces: []string{"pkg/vocab/x.go"}}, []string{"shared surface"}},
+		{"Mx milestones", Size{Milestones: []string{"M1"}}, []string{"milestones"}},
+		{"unreadable declaration", Size{SurfacesErr: errors.New("line 3: bad pattern")}, []string{"declaration"}},
+		{"everything", Size{CodeFiles: files(3), AddedLines: 500, Surfaces: []string{"x"}, Milestones: []string{"M1"}, SurfacesErr: errors.New("e")},
+			[]string{"code files", "added lines", "shared surface", "milestones", "declaration"}},
+	}
+	for _, c := range cases {
+		got := c.size.Crossings()
+		if len(got) != len(c.want) {
+			t.Errorf("%s: %d crossings %v, want %d", c.name, len(got), got, len(c.want))
+			continue
+		}
+		for i, w := range c.want {
+			if !strings.Contains(got[i], w) {
+				t.Errorf("%s: crossing %d = %q, want it to name %q", c.name, i, got[i], w)
+			}
+		}
+	}
+}
+
+// TestUpgrade: crossing the shell makes the record full/inferred — whoever
+// declared quick — and drops the contract hashes, which only the quick flow uses.
+func TestUpgrade(t *testing.T) {
+	q, err := Parse(`{kind: quick, provenance: operator, spec: "1a2b3c4d", done: "5e6f7a8b"}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := Upgrade(q); got != (Flow{kind: Full, provenance: Inferred}) {
+		t.Errorf("Upgrade = %+v, want full/inferred with no hashes", got)
+	}
+}

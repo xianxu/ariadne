@@ -1,0 +1,25 @@
+# Shared surfaces (#231): a change to any path matched here takes a diff out of
+# the quick flow at close, whatever its size — these are the seams other repos,
+# issues and gates read, where a small edit has a large blast radius.
+#
+# One pattern per line: a path.Match glob (`*` does not cross `/`), or a
+# directory with a trailing `/`, meaning anything under it. This file itself is
+# always a shared surface, and close reads it as committed at the review window's
+# base AND head, so a branch cannot loosen its own shell. `sdlc change-code
+# --help` prints the rest of the shell.
+
+# The vocabulary models and their Go embedding — every consumer derives from them.
+construct/vocabulary/*.cue
+pkg/vocab/
+
+# The base layer propagated to every downstream repo.
+construct/base.manifest
+AGENTS.base.md
+
+# What the judges are told: the ARCH registry and the boundary-review procedure.
+cmd/sdlc/internal/judge/architecture.md
+cmd/sdlc/internal/judge/code-review.md
+
+# Persisted gate state and the calibration ledger schema.
+cmd/sdlc/internal/gatestate/
+cmd/sdlc/internal/estimate/ledger.go
