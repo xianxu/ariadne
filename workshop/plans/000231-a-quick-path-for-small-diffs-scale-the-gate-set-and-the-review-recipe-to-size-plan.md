@@ -39,7 +39,7 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 | `estimate.LedgerRow` flow columns | `cmd/sdlc/internal/estimate/ledger.go` | modified |
 | `estimate.driftSample` | `cmd/sdlc/internal/estimate/drift.go` | modified (excludes quick/upgraded) |
 
-- **Flow** — `{Kind: full|quick, Provenance: inferred|operator, Spec, Done string}`, serialized on one line, e.g. `{kind: quick, provenance: inferred, spec: 1a2b3c4d, done: 5e6f7a8b}`. It stays on one line because the issue frontmatter helpers are line-based. `Spec`/`Done` are optional, and change-code writes them for `quick` (see ContractHashes).
+- **Flow** — `{Kind: full|quick, Provenance: inferred|operator, Spec, Done string}`, serialized on one line, e.g. `{kind: quick, provenance: inferred, spec: "1a2b3c4d", done: "5e6f7a8b"}`. `Format` always quotes the hashes: an unquoted all-digit hash is a YAML int to cue and yaml.v3, and a hash like `12e45678` is a float (PQ-9). It stays on one line because the issue frontmatter helpers are line-based. `Spec`/`Done` are optional, and change-code writes them for `quick` (see ContractHashes).
   - `FromFrontmatter(fm)` returns `(Flow, recorded bool, err)`. An absent field reads as full and not recorded. A malformed value is an error, which every caller resolves to `full`, the stricter flow.
   - **Relationships:** 1:1 with an issue. It is written by change-code and by the close finalize.
   - **DRY rationale:** one codec for every reader (change-code, start-plan, close, milestone-close, calibration). It reuses yaml/v3 as `project.DecodeMetadata` does.
@@ -172,7 +172,7 @@ Files:
   - Run `go test ./cmd/sdlc/... -run 'Milestone|Sizing|PlanItem|Guard|PlanFence' -count=1`.
 - [ ] **Flow codec, limits, Decide, contract hashes.**
   - Tests first:
-    - `TestFlowRoundTrip`.
+    - `TestFlowRoundTrip`, seeded with an all-digit hash and an `NNeNNNNN` hash (PQ-9).
     - `TestFromFrontmatter`: absent, valid, and a malformed kind.
     - `FuzzFromFrontmatter`: seeded with nested, duplicate-key, quoted and truncated maps. It never panics, and every error path resolves to full.
     - `TestDecide`: one case per ARCH-ORDER cell, plus the pin refusals.
@@ -184,7 +184,7 @@ Files:
   - Run `go test ./cmd/sdlc/internal/flow/... ./cmd/sdlc/internal/issue/... -count=1`, and `go test ./cmd/sdlc/internal/flow -fuzz FuzzFromFrontmatter -fuzztime 20s`.
 - [ ] **Model it in cue.**
   - Add `#Flow: {kind: "full" | "quick", provenance: "inferred" | "operator", spec?: =~"^[0-9a-f]{8}$", done?: =~"^[0-9a-f]{8}$"}` and `flow?: #Flow`.
-  - Tests first in `cmd/vocabulary/validate_test.go`: a valid flow passes; a bad kind fails on `flow.kind`; a bad hash fails.
+  - Tests first in `cmd/vocabulary/validate_test.go`: a valid flow with a quoted all-digit hash passes; a bad kind fails on `flow.kind`; a bad hash fails.
   - Run `go test ./cmd/vocabulary/... -count=1` and `make vocab-embed`, expecting no `issue.json` diff.
 - [ ] **change-code infers, pins, records, skips.**
   - Tests first:
@@ -348,3 +348,16 @@ Delta:
 - **PQ-7.** The churn cut-over is documented.
 - **PQ-8.** Every test is named, and fuzz targets cover the two hand-edited
   parsers.
+
+### 2026-09-17 — advisory findings PQ-8, PQ-9, PQ-10
+
+- **PQ-9.** `Format` quotes the hashes, and the round-trip, fuzz and cue tests
+  are seeded with all-digit and exponent-shaped hashes. The rule: a persisted
+  value must parse to the same type under every reader.
+- **PQ-10.** The issue's §4 and Done-when were restated in the same edit.
+- **PQ-8** is kept deliberately. The per-test case lists are the red-first
+  oracle the implementer writes against, and the boundary review checks them
+  against the diff. Collapsing them to one-line strategies would move that oracle
+  into the implementer's head. The two hand-edited parsers get fuzz targets, which
+  was the substantive half of the finding.
+
