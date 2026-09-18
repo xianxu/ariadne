@@ -73,44 +73,76 @@ review found everything that mattered about the code.
 
 ## Spec
 
-Add a **direct path** to `sdlc change-code`, and give the close boundary a
-review recipe matched to small diffs.
+Add a **quick path**, `sdlc quick`, and give its one gate a review recipe matched
+to small diffs. It is one of three flows: `sdlc` (the full flow), `sdlc quick`
+(this issue), and `sdlc config` for declarative changes (#233).
 
-### 1. Admission — objective, not judgment
+### 1. Admission — objective facts, or the operator's word
 
-"Is this small?" is exactly the call that gets made wrong (#263 looked like one
-keybinding). Gate on facts the binary can check:
+There are two ways onto the quick path.
 
-- The issue has a `## Spec` and `## Done when` a fresh reader could test against
-  — the structural check `change-code` already runs.
+**Automated.** "Is this small?" is exactly the call that gets made wrong (#263
+looked like one keybinding), so the automated route gates on facts the binary can
+check. Two are facts about the issue, checked at entry:
+
+- The issue has a `## Spec` and `## Done when` a fresh reader could test against.
 - No `Mx` milestones (single boundary).
-- Estimate below a threshold.
-- **No shared-surface change.** A repo declares its shared surfaces (for
-  parley: the keybinding registry, `config.lua`'s option schema,
+
+Two are facts about the diff, which does not exist at entry, so `sdlc close`
+checks them against the real diff:
+
+- **No shared-surface change.** A repo declares its shared surfaces (for parley:
+  the keybinding registry, `config.lua`'s option schema,
   `construct/vocabulary/*.cue`, any cross-module seam). This is the criterion
   that would have refused #263 — the *feature* was one chord, but it touched the
   registry, and registry-shaped work grows guard generalizations and
   cross-module extractions whatever its headline size.
+- **Diff within a size budget.** This replaces an estimate threshold, which the
+  quick path cannot use because it no longer estimates (§2).
 
-Failing admission is not a refusal, it is a routing decision: take the full path.
+Failing either check is a routing decision, not a refusal. At entry, the issue
+takes the full path. At close, the review escalates from the quick recipe (§4)
+to the full one.
 
-### 2. What the direct path drops
+**Operator instruction.** The operator can put an issue on the quick path
+directly ("use sdlc quick path"). That is a decision, not a guess for the binary
+to second-guess: entry skips the automated checks, and at close the diff checks
+still run but only *name* a touched shared surface or an exceeded budget in the
+close output. They do not escalate.
 
-The durable plan and the plan-quality judge. Not the estimate (calibration needs
-every row), not the structural checks, not the close gates.
+Either way, the issue records that it took the quick path and which route
+admitted it (`criteria` or `operator`), so the ledger can tell the two apart.
+
+### 2. What the quick path drops
+
+- The durable plan and the plan-quality judge.
+- The structured estimate: `estimate_hours` and the `## Estimate` block.
+  `actual_hours` is still measured at close, because measuring it costs nothing.
+  With no estimate to pair it with, though, quick-path rows leave est/actual
+  velocity calibration rather than entering it half-filled.
+- `change-code`'s structural and plan-quality gates. Whatever verb enters the
+  quick path still owns the branching decision `change-code` owns today.
+
+What remains is **one gate: `sdlc close`**, with its evidence (`--verified`, the
+measured actual) and the quick review recipe (§4).
 
 ### 3. What must survive — the part that is not optional
 
-**The acceptance contract.** On the direct path the close review is the *only*
+**The acceptance contract.** On the quick path the close review is the *only*
 review, and `sdlc close` judges the diff against `## Done when`. In #263 the one
 blocking plan-gate finding was that a mid-stream reframe changed what got built
 without restating Done-when — three of five clauses became unsatisfiable *by
-design*. On the full path the plan gate caught that. On a direct path nothing
+design*. On the full path the plan gate caught that. On the quick path nothing
 would, and the single remaining review would judge against stale criteria.
 
-So the direct path keeps a **deterministic** (no-LLM) check: if the issue body
-changed after `claim`, `## Done when` must have changed too, or the agent
-acknowledges it did not need to. Cheap, and it protects the one oracle left.
+So `sdlc close` runs two **deterministic** (no-LLM) checks on a quick-path issue
+before its review:
+
+- `## Done when` is non-empty. The structural gate that used to guarantee this
+  is gone (§2), and it is the review's only oracle.
+- If the issue body changed after `claim`, `## Done when` must have changed too,
+  or the agent acknowledges it did not need to. Cheap, and it protects the one
+  oracle left.
 
 ### 4. The review recipe — the heart of this issue
 
@@ -124,108 +156,70 @@ milestone-review; it is aimed at a different distribution:
   immediate neighbourhood — the arch-spec classes a small edit disturbs, such as
   a hoist separating a doc block from its function; and whether any block in the
   diff already exists elsewhere in the tree.
-- **Attenuate:** the full ARCH-\* sweep. Keep SECURE and ORDER as tripwires with
-  a stated escalation ("if this diff crosses a trust or state boundary, stop and
-  request the full recipe"); drop the rest to a one-line N/A unless the diff
-  adds a module or a seam.
+- **Architecture: exactly ARCH-DRY, ARCH-PURE and ARCH-PURPOSE.** Every other
+  ARCH-\* lens is off, with no tripwires. The three are *selected by marker* from
+  the single-source registry `cmd/sdlc/internal/judge/architecture.md` (a subset
+  selector beside `ArchitectureBlock`), never restated in the recipe; restating
+  them would be the very ARCH-DRY defect the recipe hunts.
 - **Cap the tail.** #263's four rounds were mostly *repeat families* caused by
   fixing the site a finding named. The recipe should require, on the **first**
   finding in a family, the enumeration of that family before any fix. A small
   diff has a small enumeration — this is cheap exactly where it is most often
   skipped.
 
-### 5. A second tier below the direct path: the declarative change
+When the close-time diff checks (§1) escalate an automatically admitted issue,
+`sdlc close` runs the full recipe instead.
 
-Operator, 2026-09-17:
+### 5. Split out: the declarative change
 
-> small config change involves: 1/ update config; 2/ run test; 3/ update docs.
-> really no need for even closing gate as structure of program didn't change and
-> config is not Turing complete language typically, and thus much lower risk
-
-This is a THIRD tier — the direct path in §1-4 still keeps the close gates; this
-one questions them. The structural half of the argument holds cleanly: with no
-control flow and no new state carried between events, ARCH-PURE, ARCH-ORDER and
-the structural half of ARCH-DRY have nothing to bite on. Nothing was added that
-could drift. §3's Done-when-freshness check is also usually trivially satisfied,
-because a declarative change rarely reframes mid-stream.
-
-**But "config" must not be the criterion, for this issue's own stated reason.**
-§1 gates on facts rather than judgment precisely because "is this small?" gets
-answered wrong — #263 *looked like* one keybinding. "Is this just config?" fails
-the same way, and worse, because a config line's consequence is uncorrelated with
-its size. Three counterexamples that are all config and none low-risk:
-
-- **A moved external or authority surface.** A re-pointed remote, a widened
-  permission, a path reaching outside the repo, a credential source. brain's own
-  charter carries one as a standing prohibition — *"The gcrypt+GPG remote is not
-  to be switched or re-pointed"* — and that is a single config line. Non-Turing-
-  complete bounds STRUCTURAL risk; it says nothing about operational blast radius.
-- **A value nothing asserts.** Step 2 ("run test") is the step carrying all the
-  weight here, and it is the one most likely to be vacuous: a config value read
-  once at startup and never asserted passes the suite whatever you set it to.
-- **A restated single source.** Config is the classic ARCH-PURPOSE shadow-sweep
-  case — the value changed in one file while a sibling still restates it. weave's
-  settings-merge machinery exists because this keeps happening.
-
-**So the admission predicate, in the same objective spirit as §1:**
-
-1. **No structural delta** — the diff touches only files in a repo-declared
-   declarative set. Reuses §1's shared-surface declaration format rather than
-   inventing a second one.
-2. **The changed value is asserted.** Reverting it must fail the suite — a
-   one-value mutation check, cheap for a single knob. This is the criterion that
-   turns step 2 from an unverified ritual into the thing that earns the tier, and
-   it puts the incentive in the right place: an unasserted knob does not qualify,
-   which is a reason to assert it.
-3. **No declared authority surface moved** — remotes, credentials, permissions,
-   paths escaping the repo. Repo-declared, same mechanism as (1). This is the
-   ARCH-SECURE tripwire from §4 promoted to an admission criterion, because on
-   this tier there is no reviewer left to trip it.
-
-Meeting all three, the close review is skipped and `sdlc close` records which
-criteria admitted it. Failing any one routes UP to the direct path (not to the
-full path) with the failing criterion named.
-
-There is precedent for content-scaled gating: #177 already auto-satisfies the
-atlas gate on docs-only windows. This is the same move, one tier further, with
-the predicate written down.
+The declarative tier — a config change admitted on mechanical facts, with no
+close review at all — is now its own flow, `sdlc config`, tracked in #233. This
+issue does not depend on it. #233 builds on §1's shared-surface declaration.
 
 ## Done when
 
-- `sdlc change-code --direct` exists, admits only on the objective criteria
-  above, and records in the issue that the direct path was taken and why it
-  qualified.
-- Admission failure routes to the full path with the failing criterion named.
-- A repo can declare its shared surfaces; a diff touching one is refused the
-  direct path.
-- The Done-when-freshness check runs deterministically on the direct path.
+- `sdlc quick` exists and can be entered two ways: automatically, when the
+  issue passes §1's entry checks, or by operator instruction, which skips them.
+  The issue records that it took the quick path and which route admitted it.
+- On the quick path, no durable plan, plan-quality judge, structured estimate or
+  `change-code` structural gate runs; `sdlc close` is the only gate.
+- A failed automated entry check routes to the full path, naming the failing
+  criterion.
+- A repo can declare its shared surfaces. At close, a quick-path diff that
+  touched one or exceeded the size budget escalates to the full review recipe if
+  it was admitted automatically, or is named in the close output if the
+  operator admitted it.
+- `sdlc close` refuses a quick-path issue with an empty `## Done when`, and runs
+  the Done-when-freshness check deterministically.
 - `small-diff-review.md` exists as its own recipe, and `sdlc close` selects it
-  when the issue was admitted to the direct path.
+  for quick-path issues.
+- The recipe's architecture section is ARCH-DRY, ARCH-PURE and ARCH-PURPOSE,
+  selected by marker from `judge/architecture.md`. A test asserts the rendered
+  recipe carries exactly those three markers, so a registry edit cannot silently
+  widen or drift it.
 - The recipe requires family enumeration on the first finding, and the gate
-  ledger shows repeat families dropping on direct-path issues.
-- A **declarative tier** exists below `--direct`, admitting only on all three
-  §5 criteria, recording which ones admitted it, and routing UP to `--direct`
-  (naming the failing criterion) rather than refusing.
-- The assertion criterion is mechanical, not attested: the tier verifies that
-  reverting the changed value fails the suite.
-- A declarative-tier diff that moves a declared authority surface is refused,
-  with a test fixture per surface kind (remote, credential, permission, escaping
-  path).
-- Declarative-tier rows are tagged in the ledger alongside direct-path rows, and
-  are the FIRST thing reverted if escaped-defect rate rises on them — a tier with
-  no review has no backstop but the ledger.
-- Calibration: direct-path rows are tagged in the ledger so their est/actual
-  ratio can be compared against full-path rows. If the ratio does not improve,
-  the trade-off was wrong and this gets reverted on evidence.
+  ledger shows repeat families dropping on quick-path issues.
+- Calibration: quick-path rows are tagged in the ledger and excluded from
+  est/actual calibration, since they carry no estimate. The trade-off is judged
+  on what they do carry — gate rounds per issue, measured actual hours, and
+  escaped defects (follow-up fixes citing a quick-path issue) — against
+  comparable full-path rows. If those do not improve, the trade-off was wrong
+  and this gets reverted on evidence.
 
 ## Plan
 
-- [ ] Decide the admission predicate and the shared-surface declaration format
-      (§1), and whether the declarative set (§5) is a second list or a facet of it.
-- [ ] Decide whether the declarative tier ships with §1-4 or after evidence from it.
-- [ ] Implement `--direct` + the deterministic Done-when-freshness check.
-- [ ] Write `small-diff-review.md`; wire recipe selection at close.
-- [ ] Tag direct-path rows in the calibration ledger.
+- [ ] Decide the entry surface for `sdlc quick`: its own verb, or a mode on
+      `claim`/`change-code`. Either way it owns the branching decision.
+- [ ] Decide where the quick-path marker and admitting route live: a Log line or
+      frontmatter. Frontmatter is a `construct/vocabulary/issue.cue` change.
+- [ ] Decide the shared-surface declaration format and the diff size budget (§1).
+- [ ] Implement quick-path entry (automated checks + operator route) and the
+      close-time diff checks with their escalation.
+- [ ] Implement the two deterministic Done-when checks at close (§3).
+- [ ] Add a marker-subset selector beside `ArchitectureBlock`; write
+      `small-diff-review.md` on it; wire recipe selection at close.
+- [ ] Tag quick-path rows in the calibration ledger and exclude them from
+      est/actual calibration.
 - [ ] Re-run the recipe against parley.nvim#263's actual diff as a fixture: it
       should surface BR-1, BR-2 and BR-9 (the classes it is built for) without
       four rounds of ARCH-\* passes.
@@ -271,3 +265,33 @@ failing to qualify is the correct incentive rather than an obstacle.
 Open, and deliberately not decided here: whether this tier ships with §1-4 or
 waits for calibration evidence from the direct path. A tier with no review has
 only the ledger as a backstop, which argues for sequencing it second.
+
+## Revisions
+
+### 2026-09-17 — operator review: three flows, a narrower quick path
+
+Reason: the operator reviewed the Spec. Their decisions: the quick path skips the
+structured estimate too; its only gate is `sdlc close`; that review checks
+ARCH-DRY, ARCH-PURE and ARCH-PURPOSE and nothing else; the operator can route an
+issue onto the quick path by instruction, beside the automated admission; and
+the declarative tier becomes its own flow in a separate issue. That makes three
+flows: `sdlc`, `sdlc quick`, `sdlc config`.
+
+Delta:
+
+- Renamed the "direct path" (`change-code --direct`) to the quick path,
+  `sdlc quick`.
+- §1: added the operator route. Replaced "estimate below a threshold" with a diff
+  size budget, and moved both diff facts (shared surface, size) to close, where
+  the diff exists. Failing them there escalates the review recipe for
+  automatically admitted issues, and only warns for operator-admitted ones.
+- §2: the quick path now also drops the structured estimate and `change-code`'s
+  structural gate. This reverses the earlier "not the estimate (calibration needs
+  every row)": quick-path rows leave est/actual calibration instead.
+- §3: close now also refuses an empty `## Done when`, since the structural gate
+  that guaranteed one is gone.
+- §4: the architecture section is exactly DRY, PURE and PURPOSE, selected from
+  the registry. Dropped the SECURE/ORDER tripwires and their escalation.
+- §5, its Done-when bullets and its two Plan items moved to #233.
+- Done when and Plan rewritten to match. The calibration criterion now judges
+  gate rounds, actual hours and escaped defects instead of the est/actual ratio.
