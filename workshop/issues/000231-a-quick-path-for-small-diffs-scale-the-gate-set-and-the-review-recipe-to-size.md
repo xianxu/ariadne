@@ -486,6 +486,16 @@ its first round. Two limits: a single run per window is an LLM sample, not a
 benchmark; and #263 would not actually have been quick (it touched a
 keybinding registry), so this tests the recipe's aim rather than the admission.
 
+### 2026-09-18 — ariadne keeps its full build-closure declaration
+
+Reading pair#283 (7 code files, 30 added lines; inferred full because it has a
+durable plan) surfaced #235: plan lookup is by exact name. That raised whether
+#235 could be a quick-flow example in ariadne. It cannot while sdlc's whole build
+closure is a declared shared surface. The operator decided to keep the
+declaration rather than narrow it to the shell's defining files, as not worth
+the extra rule and risk. So sdlc work in ariadne always takes the full flow, and
+the quick flow's trial runs in other repos.
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
