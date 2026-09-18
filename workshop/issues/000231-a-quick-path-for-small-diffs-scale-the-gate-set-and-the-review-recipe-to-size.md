@@ -134,9 +134,10 @@ either. A quick issue must stay inside all four limits, whatever its provenance:
   cross-module extractions whatever its headline size.
 - No `Mx` milestones.
 
-Crossing any one limit crosses the shell. Code files exclude docs, the process
-trees (`workshop/`, `atlas/`, `*.md`) and tests, so writing a test never pushes a
-change out of the quick flow. The limits are single-sourced in the binary: the
+Crossing any one limit crosses the shell. Code files exclude tests, docs and the
+process trees (`workshop/`, `atlas/`) — except markdown under `cmd/`, which ships
+in the binary and counts — so writing a test never pushes a change out of the
+quick flow. (`churn.CodeFileRule` states it where the classifier lives.) The limits are single-sourced in the binary: the
 check, the help text and the constitution's durable-plan rule all read the same
 constants.
 
@@ -579,4 +580,16 @@ Delta: §1's example record carries quoted hashes, and says why. §4 and Done-wh
 say `quick-flow:`, and the `#Flow` bullet includes the optional hashes. Swept
 every name Done-when uses against the plan; the only remaining mentions of the
 old names are in dated Revisions entries.
+
+### 2026-09-17 — M2 review: code files, shared surfaces, and ariadne's own flow
+
+Reason: M2's boundary review found that §1's code-file sentence contradicted the
+classifier, and that ariadne's own shell could be loosened from a branch.
+
+Delta: §1 now says markdown under `cmd/` counts as code. A shared surface is
+matched on both sides of a rename. In ariadne, sdlc's whole build closure is a
+declared shared surface (`cmd/sdlc/`, `pkg/`, `go.mod`, `go.sum`), because sdlc
+runs from the branch under review. Consequence to know: code changes to sdlc in
+ariadne always take the full flow. The quick flow in ariadne covers everything
+else, and in every other repo the shell is as specified.
 
