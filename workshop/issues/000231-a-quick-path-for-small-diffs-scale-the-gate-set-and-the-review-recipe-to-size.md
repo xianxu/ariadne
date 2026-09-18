@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-16
 updated: 2026-09-17
-estimate_hours:
+estimate_hours: 6.33
 started: 2026-09-17T18:59:16-07:00
 ---
 
@@ -267,6 +267,47 @@ extends `#Flow`.
   adoption on gate rounds per issue, measured actual hours and escaped defects
   (follow-up fixes citing a quick-flow issue) against comparable full-flow rows.
   If those do not improve, this gets reverted on evidence.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.* Design hours are taken without Step 3's ×0.2
+spec discount: the durable plan was written after `claim`, so its design time is
+inside the measured window. `impl` is 40% of the v2 table (v3.1), and the design
+buffer is +15% because a thorough plan doc exists.
+
+Items in order:
+
+- M1: the flow package; one milestone parser; `#Flow` in cue; the change-code
+  step; the flow-conditional surfaces; docs; review.
+- M2: the classifiers; shell + surfaces; the close integration; the registry
+  field + recipe; the end-to-end test; docs; review.
+- M3: ledger + drift; the #263 fixture run; docs; the final close review.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module    design=0.8  impl=0.24
+item: smaller-go-module       design=0.0  impl=0.12
+item: smaller-go-module       design=0.05 impl=0.12
+item: smaller-go-module       design=0.15 impl=0.2
+item: cross-cutting-refactor  design=0.4  impl=0.16
+item: atlas-docs              design=0.1  impl=0.06
+item: milestone-review        design=0.0  impl=0.14
+item: smaller-go-module       design=0.05 impl=0.12
+item: smaller-go-module       design=0.2  impl=0.16
+item: greenfield-go-module    design=0.8  impl=0.32
+item: smaller-go-module       design=0.2  impl=0.2
+item: smaller-go-module       design=0.1  impl=0.2
+item: atlas-docs              design=0.1  impl=0.08
+item: milestone-review        design=0.0  impl=0.14
+item: smaller-go-module       design=0.1  impl=0.16
+item: milestone-review        design=0.0  impl=0.14
+item: atlas-docs              design=0.05 impl=0.06
+item: milestone-review        design=0.0  impl=0.14
+design-buffer: 0.15
+total: 6.33
+```
 
 ## Plan
 
