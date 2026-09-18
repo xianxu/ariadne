@@ -442,19 +442,25 @@ func DiscoverWindowIssues(sinceISO, untilISO, primary, selfRepo string) ([]strin
 }
 
 // DiffNames returns the list of file paths changed between sinceRef and
-// untilRef (`git diff --name-only sinceRef untilRef`). Empty slice + nil
-// error if there are no changes; non-nil error only on hard git failures.
+// untilRef (`git diff --name-only sinceRef untilRef`), a rename as its
+// destination. Empty slice + nil error if there are no changes; non-nil error
+// only on hard git failures. -z keeps paths as the bytes they are: without it
+// git QUOTES a non-ASCII path ("docs/caf\303\251.md"), and every classifier
+// downstream (the atlas gate's docs rule, the quick-flow shell's code files)
+// then misreads it (#231; lessons: git's porcelain answers a human's question).
 func DiffNames(sinceRef, untilRef string) ([]string, error) {
-	cmd := exec.Command("git", "diff", "--name-only", sinceRef, untilRef)
+	cmd := exec.Command("git", "diff", "--name-only", "-z", sinceRef, untilRef)
 	out, err := cmd.Output()
 	if err != nil {
 		return nil, fmt.Errorf("git diff --name-only %s %s: %w", sinceRef, untilRef, err)
 	}
-	text := strings.TrimSpace(string(out))
-	if text == "" {
-		return nil, nil
+	var names []string
+	for _, n := range strings.Split(string(out), "\x00") {
+		if n != "" {
+			names = append(names, n)
+		}
 	}
-	return strings.Split(text, "\n"), nil
+	return names, nil
 }
 
 // FileChange is one entry of `git diff --name-status`: a single-letter status

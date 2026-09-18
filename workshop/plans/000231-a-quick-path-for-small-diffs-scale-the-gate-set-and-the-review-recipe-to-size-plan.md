@@ -469,3 +469,26 @@ Delta:
   `pkg/` reddens the test with 12 uncovered files.
 - **BR-22.** `TrunkFile.readFrom` also routes through `gitx.BlobAt`.
 
+### 2026-09-17 — M2 boundary review round 3 (BR-26..BR-30)
+
+- **BR-26** (accepted input that never took effect, second in its family). Every
+  form `ParseSurfaces` accepts now takes effect. A glob-free literal matches
+  itself or anything under it, `dir/` matches the subtree, and a glob is
+  path.Match. `**`, a leading `!`, and a glob in a directory entry are refused.
+  `TestSurfaceForms` pins each form against paths inside, beside and beyond it.
+- **BR-27** (a doc claim contradicted the code, fifth in its family). Prose no
+  longer restates close's gate set: the constitution and the atlas point at `sdlc
+  close --help` and the gate catalog. Where help pages list gate flags,
+  `TestGateFlagListsInHelpAreComplete` pins them complete against
+  `processmanual.GateCatalog`. It found three older partial lists (merge, push,
+  milestone-close), and all three are completed. Close's help points at the
+  declaration rather than naming its scope.
+- **BR-28.** The build-closure guard fails, rather than skips, when `go list`
+  fails.
+- **BR-29.** `go.work`, `go.work.sum` and `vendor/` are declared and pinned as
+  module-mode inputs that may not exist yet.
+- **BR-30.** `gitx.DiffNames` uses `-z` and the numstat uses
+  `core.quotePath=false`, so non-ASCII paths classify as themselves. A
+  non-ASCII code file's added lines were otherwise uncounted, erring toward quick
+  (`TestCloseNonASCIIPathsClassifyAsThemselves`, mutation-checked).
+

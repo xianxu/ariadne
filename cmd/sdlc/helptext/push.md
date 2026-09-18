@@ -50,6 +50,8 @@ FLAGS
 
   --yes                 skip the not-done-issue warn prompt
   --no-judge            skip the pre-push publish gate (#160; emergency only)
+  --no-validate         skip the fail-closed instance-conformance gate over
+                        changed issue frontmatter (#124; emergency only)
   --dry-run             print would-be operations; do nothing
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
   --history-dir <path>  override $WF_HISTORY_DIR / workshop/history

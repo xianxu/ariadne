@@ -361,3 +361,18 @@ func TestCloseRenamingTheDeclarationUpgrades(t *testing.T) {
 		t.Errorf("renaming the declaration: flow %+v, want full", f)
 	}
 }
+
+// TestCloseNonASCIIPathsClassifyAsThemselves: git quotes non-ASCII paths unless
+// told not to, and a quoted "docs/caf\303\251.md" is not a doc to the classifier.
+// Two such docs beside one code file must stay inside the shell.
+func TestCloseNonASCIIPathsClassifyAsThemselves(t *testing.T) {
+	dir := quickCloseRepo(t, 231, "", nil, map[string]string{
+		"cmd/a.go": goLines(5), "docs/café.md": "x\n", "docs/naïve.md": "y\n", "tests/überprüfung_spec.lua": goLines(300)})
+	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
+		t.Fatal(err)
+	}
+	if f, text := issueFlowAfterClose(t, dir); f.Kind() != flow.Quick || !strings.Contains(*prompt, smallDiffMarker) {
+		t.Errorf("non-ASCII docs/tests counted as code: flow %+v\n%s", f, text)
+	}
+}

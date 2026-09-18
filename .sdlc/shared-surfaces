@@ -14,12 +14,15 @@
 # reader — would close under the binary it just changed. The gates do not change
 # under the gate: every change to sdlc's build closure takes the full flow.
 # TestRepoDeclarationCoversTheShell derives that closure (`go list -deps
-# ./cmd/sdlc` within this module, embedded files included, plus go.mod/go.sum)
-# and requires every file of it to match below.
+# ./cmd/sdlc` within this module, embedded files included, plus every module-mode
+# input: go.mod, go.sum, go.work*, vendor/) and requires every file to match.
 cmd/sdlc/
 pkg/
 go.mod
 go.sum
+go.work
+go.work.sum
+vendor/
 
 # The vocabulary models — every consumer derives from them (their Go embedding,
 # pkg/vocab/, is in the build closure above).

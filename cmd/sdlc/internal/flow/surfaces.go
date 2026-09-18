@@ -15,11 +15,20 @@ const DeclarationPath = ".sdlc/shared-surfaces"
 // an option schema, a cross-module seam.
 type Surfaces struct{ patterns []string }
 
-// ParseSurfaces reads a declaration: one pattern per line, blank lines and
-// `#` comments skipped. A pattern is a path.Match glob (`*` does not cross a
-// `/`), or a directory with a trailing `/`, meaning anything under it. A
-// malformed pattern is an error naming its line; the caller treats that as a
-// crossing, so a broken declaration fails toward the full flow.
+// ParseSurfaces reads a declaration: one pattern per line, blank lines and `#`
+// comments skipped. Every form it ACCEPTS takes effect in Match — a form that
+// parsed but never matched would be a guard guarding nothing (#231 BR-21,
+// BR-26) — so the forms are few and each has one meaning:
+//
+//   - a literal path, `pkg/vocab` or `AGENTS.base.md`: that path, and anything
+//     under it if it is a directory;
+//   - a directory with a trailing `/`, `pkg/vocab/`: anything under it;
+//   - a path.Match glob, `construct/vocabulary/*.cue` (`*` does not cross `/`).
+//
+// Refused, as an error naming the line: `**` (path.Match has no recursive
+// glob), a leading `!` (there is no negation), a glob inside a directory entry,
+// and a malformed glob. The caller treats the error as a crossing, so a broken
+// declaration fails toward the full flow.
 func ParseSurfaces(text string) (Surfaces, error) {
 	var s Surfaces
 	for i, line := range strings.Split(text, "\n") {
@@ -28,19 +37,26 @@ func ParseSurfaces(text string) (Surfaces, error) {
 			continue
 		}
 		p = strings.TrimPrefix(strings.TrimPrefix(p, "./"), "/")
-		// The directory form is a literal prefix, so a glob inside it would be
-		// accepted and then never match anything — a guard that guards nothing.
-		// Refuse it here, where the error becomes a crossing (fail toward full).
-		if strings.HasSuffix(p, "/") && strings.ContainsAny(p, `*?[\`) {
-			return Surfaces{}, fmt.Errorf("%s line %d: %q: a directory entry (trailing /) is a literal prefix and cannot hold a glob", DeclarationPath, i+1, p)
+		refuse := func(why string) (Surfaces, error) {
+			return Surfaces{}, fmt.Errorf("%s line %d: %q: %s", DeclarationPath, i+1, p, why)
+		}
+		switch {
+		case strings.HasPrefix(p, "!"):
+			return refuse("there is no negation — declare only what IS a shared surface")
+		case strings.Contains(p, "**"):
+			return refuse("`**` is not supported — use a directory entry (`dir/`) for a subtree")
+		case strings.HasSuffix(p, "/") && isGlob(p):
+			return refuse("a directory entry (trailing /) is a literal prefix and cannot hold a glob")
 		}
 		if _, err := path.Match(strings.TrimSuffix(p, "/"), ""); err != nil {
-			return Surfaces{}, fmt.Errorf("%s line %d: %q: %v", DeclarationPath, i+1, p, err)
+			return refuse(err.Error())
 		}
 		s.patterns = append(s.patterns, p)
 	}
 	return s, nil
 }
+
+func isGlob(p string) bool { return strings.ContainsAny(p, `*?[\`) }
 
 // Match reports whether a repo-relative path is a shared surface. The
 // declaration file always is: a branch that edits its own shell away is
@@ -50,14 +66,19 @@ func (s Surfaces) Match(p string) bool {
 		return true
 	}
 	for _, pat := range s.patterns {
-		if strings.HasSuffix(pat, "/") {
+		switch {
+		case strings.HasSuffix(pat, "/"):
 			if strings.HasPrefix(p, pat) {
 				return true
 			}
-			continue
-		}
-		if ok, _ := path.Match(pat, p); ok {
-			return true
+		case !isGlob(pat):
+			if p == pat || strings.HasPrefix(p, pat+"/") {
+				return true
+			}
+		default:
+			if ok, _ := path.Match(pat, p); ok {
+				return true
+			}
 		}
 	}
 	return false

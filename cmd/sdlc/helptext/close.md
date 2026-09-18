@@ -175,6 +175,7 @@ WHAT THE GUARD DEFENDS
     project detail-block updated  --no-project
     issue boundary review (#69)   --no-judge
     gate ledger open findings     --no-ledger
+    quick-flow Done-when fresh    --no-done-when-fresh
 
   Each bypass logs an audit "[!] --no-X: skipping ..." line (it's an
   explicit acknowledgment, not a silent skip) and the rationale belongs in
@@ -210,7 +211,7 @@ THE QUICK FLOW (#231)
   so a branch cannot loosen its shell by editing the declaration, and editing
   that file is itself a shared-surface change. (Where sdlc is built from the
   branch under review — ariadne itself — the shell's own code must be declared
-  too; ariadne declares `cmd/sdlc/`.)
+  too; ariadne's `.sdlc/shared-surfaces` says how, and a test pins it.)
 
   Inside the shell, the boundary review runs the small-diff recipe: the full
   procedure, aimed at the bug classes small diffs ship, over only the ARCH-*

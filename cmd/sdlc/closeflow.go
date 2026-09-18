@@ -136,7 +136,10 @@ func measureCloseWindow(stderr io.Writer, windowBase, windowHead string, diffFil
 // with the churn report (churnForWindow), which reads the same final diff.
 func windowFileStats(base, head string) ([]churn.FileStat, error) {
 	span := base + ".." + head
-	out, err := gitx.RunGit("diff", "--numstat", span)
+	// core.quotePath=false: numstat rows must name paths exactly as DiffNames
+	// does, or a non-ASCII code file's lines would never be counted — the unsafe
+	// direction, toward quick (#231 M2 review).
+	out, err := gitx.RunGit("-c", "core.quotePath=false", "diff", "--numstat", span)
 	if err != nil {
 		return nil, fmt.Errorf("git diff --numstat %s: %w", span, err)
 	}

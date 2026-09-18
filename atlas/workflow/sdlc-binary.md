@@ -888,11 +888,10 @@ when the source is missing, while the PUSHes (`start-plan` emits `SourceLine` af
 the estimate nudge; `change-code`'s missing-block error points at the command)
 warn-and-continue so a brain-less downstream repo never breaks the gates.
 
-**Per-gate bypass (#67).** `close` has 8 gates (actual, verified, atlas,
-milestone-verdict, plan-unchecked, project, re-close, and the #69 boundary
-review), each with its own `--no-<gate>` flag (`--no-actual`, `--no-verified`,
-`--no-atlas`, `--no-verdict`, `--no-plan-check`, `--no-project`,
-`--no-reclose-guard`, `--no-judge`);
+**Per-gate bypass (#67).** Each `close` gate has its own `--no-<gate>` flag.
+The set is owned by `processmanual.GateCatalog` (pinned to the registered flags,
+and every help page that lists them is pinned complete by
+`TestGateFlagListsInHelpAreComplete`); `sdlc close --help` prints it.
 `closeFlags.skip(gate)` is the single arbiter (`Force || the field`). A
 per-gate flag is an *acknowledgment* that one guard doesn't apply (e.g. a
 pure bugfix → `--no-atlas`); it logs an audit `[!]` line and only fires

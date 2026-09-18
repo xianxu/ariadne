@@ -90,7 +90,7 @@ func TestRepoDeclarationParses(t *testing.T) {
 // TestParseSurfacesRejectsGlobInDirectory: `lua/*/` would pass a glob check and
 // then, compared as a literal prefix, match nothing — so it is refused.
 func TestParseSurfacesRejectsGlobInDirectory(t *testing.T) {
-	for _, bad := range []string{"lua/*/\n", "a/[bc]/\n", "x/?/\n"} {
+	for _, bad := range []string{"lua/*/\n", "a/[bc]/\n", "x/?/\n", "lua/parley/**\n", "**/x.go\n", "!pkg/x.go\n"} {
 		if _, err := ParseSurfaces(bad); err == nil {
 			t.Errorf("ParseSurfaces(%q): want an error", bad)
 		}
@@ -120,10 +120,15 @@ func TestRepoDeclarationCoversTheShell(t *testing.T) {
 	cmd.Dir = root
 	out, err := cmd.Output()
 	if err != nil {
-		t.Skipf("go list unavailable: %v", err)
+		// A guard fails when the derivation it rests on fails — a skip would
+		// silently switch the guard off (#231 M2 review).
+		t.Fatalf("go list -deps ./cmd/sdlc: %v", err)
 	}
 	absRoot, _ := filepath.Abs(root)
-	shell := []string{"go.mod", "go.sum"}
+	// Every input the go command reads in module mode, including ones that do
+	// not exist yet: a branch that ADDS go.work with a replace, or a vendor/
+	// tree, changes the binary without touching a package directory.
+	shell := []string{"go.mod", "go.sum", "go.work", "go.work.sum", "vendor/modules.txt"}
 	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
 		if line == "" {
 			continue
@@ -143,6 +148,31 @@ func TestRepoDeclarationCoversTheShell(t *testing.T) {
 	for _, f := range shell {
 		if !s.Match(f) {
 			t.Errorf("%s is compiled into sdlc but is not a declared shared surface", f)
+		}
+	}
+}
+
+// TestSurfaceForms: every form ParseSurfaces accepts takes effect in Match — a
+// table of each form against paths inside, beside and beyond it (#231 BR-26).
+func TestSurfaceForms(t *testing.T) {
+	for _, c := range []struct {
+		pattern string
+		match   map[string]bool
+	}{
+		{"pkg/vocab", map[string]bool{"pkg/vocab": true, "pkg/vocab/x.go": true, "pkg/vocab/a/b.go": true, "pkg/vocabulary/x.go": false, "pkg/x.go": false}},
+		{"pkg/vocab/", map[string]bool{"pkg/vocab/x.go": true, "pkg/vocab/a/b.go": true, "pkg/vocabulary/x.go": false}},
+		{"AGENTS.base.md", map[string]bool{"AGENTS.base.md": true, "AGENTS.base.md.bak": false, "x/AGENTS.base.md": false}},
+		{"construct/vocabulary/*.cue", map[string]bool{"construct/vocabulary/issue.cue": true, "construct/vocabulary/a/b.cue": false, "construct/vocabulary/x.go": false}},
+		{"lua/parley/*.lua", map[string]bool{"lua/parley/keys.lua": true, "lua/parley/a/keys.lua": false}},
+	} {
+		s, err := ParseSurfaces(c.pattern + "\n")
+		if err != nil {
+			t.Fatalf("%q: %v", c.pattern, err)
+		}
+		for p, want := range c.match {
+			if got := s.Match(p); got != want {
+				t.Errorf("%q.Match(%q) = %v, want %v", c.pattern, p, got, want)
+			}
 		}
 	}
 }
