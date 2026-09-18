@@ -454,6 +454,38 @@ non-Go repos count those as `churn_test`, where earlier rows counted them as
 `churn_prod`, so compare #187 cost metrics across the cut-over with that in
 mind. ariadne's own `scripts/test/*.test.sh` moves the same way.
 
+### 2026-09-17 — M3: ledger columns, and the #263 fixture run
+
+The calibration ledger gained `flow_kind`, `flow_provenance` and `flow_upgraded`
+(indices 20–22). Drift skips quick and upgraded rows, and a trailing quick row no
+longer switches the drift check off.
+
+The fixture ran with a real judge through `smalldiffreplay_test.go`, a manual-tagged
+harness that builds close's own dispatch with the small-diff category. It replayed
+parley.nvim#263 in two windows, from clones checked out at each reviewed head.
+
+- **`bbe05eef..ac60a055`** (what #263's first close review read) → REWORK:
+  - "the one place the `<C-g>` spelling leads" is false; `outline` and
+    `chat_drill_in` lead too. This is **BR-2** exactly.
+  - The insert-mode press of the chord leaves insert mode (Critical). This is
+    **BR-1's class**: a two-mode contract exercised in one mode.
+  - The repeated command preamble, #263's `duplicated-command-preamble` family.
+  - A streaming race the original first round did not raise (Critical).
+  - Test oracles that observe the mechanism rather than the behaviour.
+- **`bbe05eef..62c7f292`** (after #263's round-2 fix) → REWORK:
+  - `get_paste_line`'s doc comment now sits above `exchange_index_at`. This is
+    **BR-9** exactly.
+  - The insert-mode Critical again, a restated-scan duplication, and the missing
+    README.
+
+Architecture lenses: markers cited were ARCH-DRY 5, PURE 2 and PURPOSE 1 in the
+first run, and DRY 4, PURE 2 and PURPOSE 4 in the second. No round went to the
+five principles marked `quick-flow: no`. The recipe's aim holds: it surfaces the
+local-correctness, doc-truth and duplication classes #263's review found, in
+its first round. Two limits: a single run per window is an LLM sample, not a
+benchmark; and #263 would not actually have been quick (it touched a
+keybinding registry), so this tests the recipe's aim rather than the admission.
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
