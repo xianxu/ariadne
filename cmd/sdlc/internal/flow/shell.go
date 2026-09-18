@@ -21,10 +21,15 @@ type Size struct {
 	LedgerErr         error // the boundary ledger could not be read
 }
 
-// Measure sizes a window. files is the window's changed paths (so a binary,
-// which numstat cannot count, still counts as a file); stats are its numstat
-// rows, summed over code files only. Pure.
-func Measure(files []string, stats []churn.FileStat, s Surfaces, surfacesErr error, milestones []string) Size {
+// Measure sizes a window. files is the window's changed paths as git reports
+// them with rename detection on — a rename is its destination — which is what
+// the window CHANGED, so code files are counted over it (a binary, which numstat
+// cannot count, still counts as a file). touched is every path on either side of
+// the window with rename detection off, which is what the window TOUCHED: moving
+// a file out of a shared surface, or renaming the declaration itself, touches it,
+// so surfaces are matched over touched (#231 BR-24). stats are the numstat rows,
+// summed over code files only. Pure.
+func Measure(files, touched []string, stats []churn.FileStat, s Surfaces, surfacesErr error, milestones []string) Size {
 	size := Size{Milestones: milestones, SurfacesErr: surfacesErr}
 	code := map[string]bool{}
 	for _, f := range files {
@@ -32,6 +37,8 @@ func Measure(files []string, stats []churn.FileStat, s Surfaces, surfacesErr err
 			size.CodeFiles = append(size.CodeFiles, f)
 			code[f] = true
 		}
+	}
+	for _, f := range touched {
 		if s.Match(f) {
 			size.Surfaces = append(size.Surfaces, f)
 		}

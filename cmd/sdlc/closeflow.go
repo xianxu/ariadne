@@ -116,12 +116,20 @@ func measureCloseWindow(stderr io.Writer, windowBase, windowHead string, diffFil
 		}
 		stats = st
 	}
+	var touched []string
+	if windowBase != "" {
+		both, err := gitx.DiffPathsBothSides(windowBase, windowHead)
+		if err != nil {
+			die(stderr, fmt.Sprintf("window path list %s..%s failed: %v", shortSHA(windowBase), abbrevSHA(windowHead), err))
+		}
+		touched = both
+	}
 	surfaces, serr := committedSurfaces(windowBase, windowHead)
 	var milestones []string
 	if plan, ok := issue.PlanItemsBody(body); ok {
 		milestones = issue.MilestonesInPlanOrder(plan)
 	}
-	return flow.Measure(diffFiles, stats, surfaces, serr, milestones)
+	return flow.Measure(diffFiles, touched, stats, surfaces, serr, milestones)
 }
 
 // windowFileStats is the numstat of a window, one row per changed file. Shared

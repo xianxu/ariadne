@@ -2,6 +2,7 @@ package flow
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -96,12 +97,12 @@ func TestParseSurfacesRejectsGlobInDirectory(t *testing.T) {
 	}
 }
 
-// TestRepoDeclarationCoversTheShell: a guard that claims a branch cannot loosen
-// its own shell must cover every file that DEFINES the shell — and the set is
-// derived here, not listed (#231 BR-19). In ariadne sdlc is built from the
-// branch's own checkout, so the shell's definition is: every production file
-// that imports this package, and the packages that decide what it measures and
-// how it reviews (flow, churn, judge).
+// TestRepoDeclarationCoversTheShell: a guard that claims a branch cannot
+// loosen its own shell must cover every file that DEFINES the shell. In ariadne
+// sdlc is built from the branch's own checkout, so that set is sdlc's real build
+// closure — derived here from `go list -deps` within this module (every Go file
+// and every //go:embed'ed file of each package) plus go.mod and go.sum — never a
+// directory someone picked (#231 BR-19, BR-25).
 func TestRepoDeclarationCoversTheShell(t *testing.T) {
 	root := filepath.Join("..", "..", "..", "..")
 	b, err := os.ReadFile(filepath.Join(root, DeclarationPath))
@@ -112,39 +113,36 @@ func TestRepoDeclarationCoversTheShell(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	const importPath = `"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"`
-	var shell []string
-	sdlc := filepath.Join(root, "cmd", "sdlc")
-	err = filepath.WalkDir(sdlc, func(p string, d os.DirEntry, err error) error {
-		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
-			return err
-		}
-		rel, _ := filepath.Rel(root, p)
-		rel = filepath.ToSlash(rel)
-		src, rerr := os.ReadFile(p)
-		if rerr != nil {
-			return rerr
-		}
-		for _, pkg := range []string{"cmd/sdlc/internal/flow/", "cmd/sdlc/internal/churn/", "cmd/sdlc/internal/judge/"} {
-			if strings.HasPrefix(rel, pkg) {
-				shell = append(shell, rel)
-				return nil
-			}
-		}
-		if strings.Contains(string(src), importPath) {
-			shell = append(shell, rel)
-		}
-		return nil
-	})
+	const mod = "github.com/xianxu/ariadne"
+	cmd := exec.Command("go", "list", "-deps", "-f",
+		`{{if and .Module (eq .Module.Path "`+mod+`")}}{{.Dir}}{{range .GoFiles}}|{{.}}{{end}}{{range .EmbedFiles}}|{{.}}{{end}}{{end}}`,
+		"./cmd/sdlc")
+	cmd.Dir = root
+	out, err := cmd.Output()
 	if err != nil {
-		t.Fatal(err)
+		t.Skipf("go list unavailable: %v", err)
 	}
-	if len(shell) < 10 {
-		t.Fatalf("derived only %d shell files — the derivation is broken, not the declaration", len(shell))
+	absRoot, _ := filepath.Abs(root)
+	shell := []string{"go.mod", "go.sum"}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		if line == "" {
+			continue
+		}
+		parts := strings.Split(line, "|")
+		dir, err := filepath.Rel(absRoot, parts[0])
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, f := range parts[1:] {
+			shell = append(shell, filepath.ToSlash(filepath.Join(dir, f)))
+		}
+	}
+	if len(shell) < 50 {
+		t.Fatalf("derived only %d files from sdlc's build closure — the derivation is broken, not the declaration", len(shell))
 	}
 	for _, f := range shell {
 		if !s.Match(f) {
-			t.Errorf("%s defines the quick-flow shell but is not a declared shared surface", f)
+			t.Errorf("%s is compiled into sdlc but is not a declared shared surface", f)
 		}
 	}
 }

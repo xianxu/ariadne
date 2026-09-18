@@ -9,15 +9,21 @@
 # change-code --help` prints the rest of the shell.
 
 # The gate machinery itself. ariadne's sdlc is built from the checkout the branch
-# lives in, so a quick branch that edited the shell's limits, its classifier, the
-# close step or the review recipes would close under the binary it just changed.
-# The gates do not change under the gate: every sdlc change takes the full flow
-# (TestRepoDeclarationCoversTheShell derives the shell's files and pins this).
+# lives in, so a quick branch that edited anything compiled into it — the shell's
+# limits, its classifier, the close step, the review recipes, the frontmatter
+# reader — would close under the binary it just changed. The gates do not change
+# under the gate: every change to sdlc's build closure takes the full flow.
+# TestRepoDeclarationCoversTheShell derives that closure (`go list -deps
+# ./cmd/sdlc` within this module, embedded files included, plus go.mod/go.sum)
+# and requires every file of it to match below.
 cmd/sdlc/
+pkg/
+go.mod
+go.sum
 
-# The vocabulary models and their Go embedding — every consumer derives from them.
+# The vocabulary models — every consumer derives from them (their Go embedding,
+# pkg/vocab/, is in the build closure above).
 construct/vocabulary/*.cue
-pkg/vocab/
 
 # The base layer propagated to every downstream repo.
 construct/base.manifest

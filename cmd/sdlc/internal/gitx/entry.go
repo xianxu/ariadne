@@ -33,3 +33,23 @@ func BlobAt(dir, ref, path string) ([]byte, error) {
 	}
 	return out, nil
 }
+
+// DiffPathsBothSides lists every path a window touches with rename detection
+// OFF, so a rename contributes its source AND its destination (#231 BR-24).
+// DiffNames reports a rename's destination only, which is right for counting
+// what the window changed and wrong for asking what it touched: moving a file
+// out of a protected directory must count as touching that directory. -z keeps
+// non-ASCII paths unquoted (lessons: git's porcelain answers a human's question).
+func DiffPathsBothSides(since, until string) ([]string, error) {
+	out, errOut, err := runGitIn("", nil, "diff", "--name-only", "--no-renames", "-z", since+".."+until)
+	if err != nil {
+		return nil, fmt.Errorf("diff --name-only --no-renames %s..%s: %v\n%s", since, until, err, errOut)
+	}
+	var paths []string
+	for _, p := range strings.Split(string(out), "\x00") {
+		if p != "" {
+			paths = append(paths, p)
+		}
+	}
+	return paths, nil
+}

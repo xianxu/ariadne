@@ -21,7 +21,7 @@ func TestMeasure(t *testing.T) {
 		{Path: "construct/vocabulary/issue.cue", Insertions: 5},
 	}
 	s, _ := ParseSurfaces("construct/vocabulary/*.cue\n")
-	got := Measure(files, stats, s, nil, []string{"M1"})
+	got := Measure(files, files, stats, s, nil, []string{"M1"})
 	if strings.Join(got.CodeFiles, ",") != "cmd/a.go,assets/logo.png,construct/vocabulary/issue.cue" {
 		t.Errorf("CodeFiles = %v", got.CodeFiles)
 	}
@@ -97,5 +97,21 @@ func TestCrossingsCapTheFileList(t *testing.T) {
 	got := Size{CodeFiles: files(12)}.Crossings()
 	if len(got) != 1 || !strings.Contains(got[0], "12 code files") || !strings.Contains(got[0], "and 7 more") {
 		t.Errorf("Crossings = %v, want the count and a capped list", got)
+	}
+}
+
+// TestMeasureMatchesSurfacesOnBothSidesOfARename: a rename is counted once, by
+// its destination, but touches both paths — so moving a file OUT of a shared
+// surface, or renaming the declaration away, is a shared-surface change (#231 BR-24).
+func TestMeasureMatchesSurfacesOnBothSidesOfARename(t *testing.T) {
+	s, _ := ParseSurfaces("pkg/vocab/\n")
+	files := []string{"other/x.go", ".sdlc/shared-surfaces.old"}                                      // destinations
+	touched := []string{"other/x.go", "pkg/vocab/x.go", ".sdlc/shared-surfaces.old", DeclarationPath} // both sides
+	got := Measure(files, touched, nil, s, nil, nil)
+	if strings.Join(got.CodeFiles, ",") != "other/x.go,.sdlc/shared-surfaces.old" {
+		t.Errorf("CodeFiles = %v, want the destinations only", got.CodeFiles)
+	}
+	if strings.Join(got.Surfaces, ",") != "pkg/vocab/x.go,"+DeclarationPath {
+		t.Errorf("Surfaces = %v, want the rename sources that were shared surfaces", got.Surfaces)
 	}
 }

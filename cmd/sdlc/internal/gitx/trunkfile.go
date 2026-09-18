@@ -280,11 +280,7 @@ func (t *TrunkFile) readFrom(ref, path string) ([]byte, error) {
 	if !present {
 		return nil, nil // absent reads as empty: a first write needs no special case
 	}
-	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", ref+":"+path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, ref, err, errOut)
-	}
-	return out, nil
+	return BlobAt(t.dir, ref, path)
 }
 
 // tempIndexPath returns an ABSOLUTE path for GIT_INDEX_FILE, inside a private

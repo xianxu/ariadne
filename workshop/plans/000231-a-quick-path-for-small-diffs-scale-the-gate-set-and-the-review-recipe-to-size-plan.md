@@ -111,6 +111,7 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
     - `construct/adapted/superpowers-brainstorming/SKILL.md:43,60,76,149` (with a Conversation entry in `construct/intents/superpowers.md`, per lessons)
   - The descriptive atlas mentions (`artifact-hierarchy.md:12,21`, `issue-lifecycle.md:6,35`, `sdlc-binary.md:35,1092`) go with each milestone's docs step.
   - This moves into M1: the quick flow must be reachable on the documented path before the trial.
+- **In ariadne, sdlc's build closure is a shared surface** (`cmd/sdlc/`, `pkg/`, `go.mod`, `go.sum`), derived and pinned by `TestRepoDeclarationCoversTheShell` from `go list -deps`. sdlc runs from the branch under review, and the gates must not change under the gate. So code changes to sdlc in ariadne always take the full flow; other repos build sdlc from ariadne, so their branches cannot touch it (BR-19, BR-25).
 - **The shared-surface declaration** is a plain line file, `.sdlc/shared-surfaces`. It is repo-owned like `.sdlc/fleet.json` and is not woven. ariadne gets a starter declaration; parley.nvim's is peer follow-up work.
 - **Refusals the quick flow keeps:** `change-code --flow quick` on a Plan with Mx rows, and at close an empty Done-when and a stale Done-when (skip with `--no-done-when-fresh`). Crossing the shell never refuses.
 - **ARCH-DRY:**
@@ -124,7 +125,7 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 - **ARCH-CONSTRAINTS:** a CLI batch step at close. It adds one `git diff --numstat` over a window already diffed by `--name-only`, plus two `git show`s of one small file. Cost scales with the window, which the shell keeps small on the quick path. There is no UI path.
 - **ARCH-SECURE:**
   - Frontmatter is hand-editable, so `flow:` is parsed to a typed value. Malformed resolves to full, and cue validation at push/merge catches typos.
-  - The surfaces file is read only as committed, at base ∪ head, so a branch cannot loosen its own shell.
+  - The surfaces file is read only as committed, at base ∪ head, and matched on both sides of every rename, so a branch cannot loosen its shell through the declaration. In ariadne the shell's own code is declared too (the build-closure bullet above).
   - The `--flow` pin is agent-attested and bounded by the shell.
   - The contract hashes are integrity hints, not security. Hand-editing them only weakens the agent's own freshness check, and the full review still runs if the shell is crossed.
   - No credentials are involved.
@@ -453,4 +454,18 @@ Delta:
   `surfacesErr`. The package also exports `flow.Upgrade`, `flow.Union` and
   `flow.DeclarationPath`. The close step lives in `cmd/sdlc/closeflow.go`, and
   its tests in `closeflow_test.go`.
+
+### 2026-09-17 — M2 boundary review round 2 (BR-22, BR-24, BR-25)
+
+- **BR-24** (diff paths drop the rename source). `gitx.DiffPathsBothSides`
+  (`--no-renames -z`) feeds surface matching, while code files are still counted
+  over destinations. Fixtures cover a rename out of a surface and a rename of the
+  declaration; both are mutation-checked. The atlas gate's destination-only
+  `atlas/` split is a pre-existing sibling that this window does not touch.
+- **BR-25** (a hand-listed guard was incomplete, third in its family). The
+  protected set is now DERIVED from sdlc's build closure (`go list -deps
+  ./cmd/sdlc`, in-module Go and embedded files, plus `go.mod`/`go.sum`), not from
+  a directory. The declaration adds `pkg/`, `go.mod` and `go.sum`, and dropping
+  `pkg/` reddens the test with 12 uncovered files.
+- **BR-22.** `TrunkFile.readFrom` also routes through `gitx.BlobAt`.
 

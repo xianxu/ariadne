@@ -328,3 +328,36 @@ func TestCloseQuickSmallDiffReworkStaysQuick(t *testing.T) {
 		t.Errorf("flow %+v, want quick", f)
 	}
 }
+
+// TestCloseRenameOutOfASurfaceUpgrades: moving a file OUT of a declared
+// surface touches that surface — rename detection must not hide the source
+// (#231 BR-24, lessons: git's porcelain answers a human's question).
+func TestCloseRenameOutOfASurfaceUpgrades(t *testing.T) {
+	dir := quickCloseRepo(t, 231, "", map[string]string{flow.DeclarationPath: "pkg/vocab/\n", "pkg/vocab/x.go": goLines(5)}, nil)
+	os.MkdirAll("other", 0o755)
+	testfixGit(t, "mv", "pkg/vocab/x.go", "other/x.go")
+	testfixGit(t, "commit", "-q", "-m", "#231: move x out")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
+		t.Fatal(err)
+	}
+	if f, text := issueFlowAfterClose(t, dir); f.Kind() != flow.Full || !strings.Contains(text, "pkg/vocab/x.go") {
+		t.Errorf("rename out of a surface: flow %+v, want full naming the source:\n%s", f, text)
+	}
+}
+
+// TestCloseRenamingTheDeclarationUpgrades: renaming the declaration away would
+// disable the shell for every later branch once merged — it is itself a
+// shared-surface change.
+func TestCloseRenamingTheDeclarationUpgrades(t *testing.T) {
+	dir := quickCloseRepo(t, 231, "", map[string]string{flow.DeclarationPath: "pkg/vocab/\n"}, nil)
+	testfixGit(t, "mv", flow.DeclarationPath, flow.DeclarationPath+".old")
+	testfixGit(t, "commit", "-q", "-m", "#231: retire the declaration")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
+		t.Fatal(err)
+	}
+	if f, _ := issueFlowAfterClose(t, dir); f.Kind() != flow.Full {
+		t.Errorf("renaming the declaration: flow %+v, want full", f)
+	}
+}
