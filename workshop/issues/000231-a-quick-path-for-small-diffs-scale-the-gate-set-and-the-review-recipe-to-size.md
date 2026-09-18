@@ -148,8 +148,10 @@ finds one when an `Mx` row appears mid-work. Crossing the shell neither refuses
 nor warns, so from the agent's side the flow looks the same.
 
 The upgrade is recorded with the close's other writes at finalize. A REWORK
-writes nothing (#139), and the next close re-derives the upgrade from the same
-window, so "no gate downgrades" holds for the recorded flow.
+writes nothing to the issue (#139), but every boundary round is stamped with the
+recipe it ran in the boundary ledger, and an earlier full-review round is itself a
+crossing. So a quick issue that once needed the full review stays full, even if
+the fix shrinks the diff back inside the shell.
 
 An upgraded issue gets the full review at close, but not the plan or estimate
 it skipped. A plan written after the code has no value, and an estimate made
