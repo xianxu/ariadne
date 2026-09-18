@@ -15,8 +15,8 @@ estimate_hours:
 The third of three SDLC flows. `full` is today's flow; `quick` (#231) drops the
 plan, the plan-quality judge and the structured estimate and keeps one close gate
 with a small-diff review. `config` asks whether even that close review can go.
-As in #231, a flow is a frontmatter field (`flow: config`) set by `sdlc
-change-code --flow`, not a verb. Split out of #231 §5 at the operator's review on
+As in #231, a flow is recorded in frontmatter (`flow: {kind: config,
+provenance: …}`) and acted on by the gates; it is not a verb. Split out of #231 §5 at the operator's review on
 2026-09-17.
 
 Operator, 2026-09-17:
@@ -71,11 +71,11 @@ Like #231's hard shell, all three are facts about the diff, so `sdlc close`
 checks them. Meeting all three, the close review is skipped and `sdlc close`
 records which criteria admitted it.
 
-Failing one makes `sdlc close` refuse, naming the criterion and the re-route.
-For (1) or (2) the re-route is `sdlc change-code --flow quick`, one flow up, not
-to the full flow. For (3) it is `--flow full` instead: #231 narrowed the quick
-recipe to ARCH-DRY, ARCH-PURE and ARCH-PURPOSE, so a moved authority surface
-would get no security lens on the quick flow.
+Failing one upgrades the issue, as #231's gates do, naming the criterion in the
+Log; `sdlc close` then runs that flow's review. For (1) or (2) the upgrade is to
+`quick`, one flow up, not to the full flow. For (3) it is to `full` instead: #231
+narrowed the quick recipe to ARCH-DRY, ARCH-PURE and ARCH-PURPOSE, so a moved
+authority surface would get no security lens on the quick flow.
 
 There is precedent for content-scaled gating: #177 already auto-satisfies the
 atlas gate on docs-only windows. This is the same move, one step further, with
@@ -83,12 +83,12 @@ the predicate written down.
 
 ## Done when
 
-- `#Flow` in `construct/vocabulary/issue.cue` gains `config`, and `sdlc
-  change-code --flow config` sets it.
+- `#Flow.kind` in `construct/vocabulary/issue.cue` gains `config`, and `sdlc
+  change-code --flow config` pins it (`provenance: operator`).
 - `sdlc close` accepts a config-flow issue without a review only when all three
   criteria hold, and records which ones admitted it.
-- Failing a criterion makes `sdlc close` refuse, naming it and the re-route:
-  `--flow quick` for (1) or (2), `--flow full` for (3).
+- Failing a criterion upgrades the issue — to `quick` for (1) or (2), to `full`
+  for (3) — naming the criterion, and `sdlc close` runs that flow's review.
 - The assertion criterion is mechanical, not attested: the flow verifies that
   reverting the changed value fails the suite.
 - A diff that moves a declared authority surface is refused this flow, with a
@@ -103,15 +103,17 @@ the predicate written down.
       shared-surface declaration.
 - [ ] Decide whether this ships with #231 or after calibration evidence from it
       (the Log below argues for after).
-- [ ] Confirm that the operator can declare `flow: config` the way they can
-      declare `quick` (#231), with the three criteria still binding at close,
-      as #231's hard shell does.
+- [ ] Decide whether `config` can be inferred. #231 infers at `change-code`,
+      before the diff exists, and its gates only ever upgrade, so inferring
+      `config` from the diff at close would be the one downward move. Until
+      decided, `config` is operator-pinned only, and the three criteria still
+      bind at close.
 - [ ] Implement admission: declarative-only diff, the revert-must-fail mutation
       check, and the authority-surface check.
-- [ ] Add `config` to `#Flow`; let `change-code --flow config` set it.
-- [ ] Wire `sdlc close` to check the criteria on `flow: config`, skip the review
-      when they hold, record the admitting criteria, and refuse with the
-      re-route when one fails.
+- [ ] Add `config` to `#Flow.kind`; let `change-code --flow config` pin it.
+- [ ] Wire `sdlc close` to check the criteria on `kind: config`, skip the review
+      when they hold, record the admitting criteria, and upgrade the issue when
+      one fails.
 - [ ] Tag config-flow rows in the ledger.
 
 ## Log
@@ -154,3 +156,13 @@ is checked at close, like #231's hard shell. A failed criterion makes `close`
 refuse with a re-route (`--flow quick` or `--flow full`) instead of routing
 silently. Replaced the operator-override question with the matching #231 rule:
 the operator may declare the flow, and the criteria still bind at close.
+
+### 2026-09-17 — the gates infer the flow; config is pinned
+
+Reason: #231 now has the gates infer the flow, record it as `{kind,
+provenance}`, and only ever upgrade it, with no refusals on crossing a limit.
+
+Delta: `flow: config` is now `kind: config`, pinned by the operator. A failed
+criterion upgrades the issue (to `quick` or `full`) instead of refusing. Whether
+`config` can be inferred at all is open (Plan): it would be the one downward
+move against #231's upgrade-only rule.
