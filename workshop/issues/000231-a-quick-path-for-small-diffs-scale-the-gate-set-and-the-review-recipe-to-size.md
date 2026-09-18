@@ -73,69 +73,82 @@ review found everything that mattered about the code.
 
 ## Spec
 
-Add a **quick path**, `sdlc quick`, and give its one gate a review recipe matched
-to small diffs. It is one of three flows: `sdlc` (the full flow), `sdlc quick`
-(this issue), and `sdlc config` for declarative changes (#233).
+Add a **quick flow** and give its one gate a review recipe matched to small
+diffs. It is one of three flows: `full` (today's), `quick` (this issue), and
+`config` for declarative changes (#233).
 
-### 1. Admission — objective facts, or the operator's word
+A flow is not a verb. It is a frontmatter field, `flow:`, set by an existing
+verb. Every later gate reads it and acts on it.
 
-There are two ways onto the quick path.
+### 1. Declared at entry, enforced at close
 
-**Automated.** "Is this small?" is exactly the call that gets made wrong (#263
-looked like one keybinding), so the automated route gates on facts the binary can
-check. Two are facts about the issue, checked at entry:
+**Declaration.** `sdlc change-code --flow quick` sets `flow: quick`. The flows
+diverge at `change-code`: the full flow's plan-quality and estimate gates live
+there, and it already owns branching, so no new verb is needed. `claim` is too
+early — claiming happens before the design exists (#113), when size is not yet
+knowable. `change-code` always writes the field, with `full` as the default, so
+from implementation onward every issue states its flow. An issue with no `flow:`
+(every issue filed before this one) reads as `full`.
 
-- The issue has a `## Spec` and `## Done when` a fresh reader could test against.
-- No `Mx` milestones (single boundary).
+The agent may declare quick on its own judgment, or the operator can instruct it
+("use sdlc quick path"). Both take the same verb and face the same checks.
+`change-code --flow quick` refuses a Plan with `Mx` milestones, because the
+quick flow has a single boundary.
 
-Two are facts about the diff, which does not exist at entry, so `sdlc close`
-checks them against the real diff:
+**The hard shell.** "Is this small?" is exactly the call that gets made wrong
+(#263 looked like one keybinding), so the declaration is not trusted. `sdlc
+close` measures the real diff. A quick-flow issue must stay inside all three
+limits:
 
-- **No shared-surface change.** A repo declares its shared surfaces (for parley:
-  the keybinding registry, `config.lua`'s option schema,
+- **At most 2 code files changed.**
+- **At most 100 changed lines.**
+- **No declared shared surface touched.** A repo declares its shared surfaces
+  (for parley: the keybinding registry, `config.lua`'s option schema,
   `construct/vocabulary/*.cue`, any cross-module seam). This is the criterion
   that would have refused #263 — the *feature* was one chord, but it touched the
   registry, and registry-shaped work grows guard generalizations and
   cross-module extractions whatever its headline size.
-- **Diff within a size budget.** This replaces an estimate threshold, which the
-  quick path cannot use because it no longer estimates (§2).
 
-Failing either check is a routing decision, not a refusal. At entry, the issue
-takes the full path. At close, the review escalates from the quick recipe (§4)
-to the full one.
+Code files exclude docs and the process trees (`workshop/`, `atlas/`, `*.md`).
+The limits are single-sourced in the binary: the check and the help text read
+the same constants.
 
-**Operator instruction.** The operator can put an issue on the quick path
-directly ("use sdlc quick path"). That is a decision, not a guess for the binary
-to second-guess: entry skips the automated checks, and at close the diff checks
-still run but only *name* a touched shared surface or an exceeded budget in the
-close output. They do not escalate.
+Crossing the shell means the work is not quick, whoever declared it. `sdlc
+close` refuses, naming the limit crossed, and the refusal is the next-action
+spec: `sdlc change-code --flow full` re-routes the issue through the full flow's
+gates (plan-quality, estimate), and the close then runs the full review. The
+shell is checked where the diff exists, it cannot be crossed silently, and the
+operator route does not bypass it.
 
-Either way, the issue records that it took the quick path and which route
-admitted it (`criteria` or `operator`), so the ledger can tell the two apart.
+The shell should rarely be discovered at close. `sdlc state` reports a
+quick-flow issue whose diff has already crossed it, so the re-route usually
+happens mid-work, while a plan and an estimate can still cover most of it.
 
-### 2. What the quick path drops
+### 2. What the quick flow drops
 
 - The durable plan and the plan-quality judge.
 - The structured estimate: `estimate_hours` and the `## Estimate` block.
   `actual_hours` is still measured at close, because measuring it costs nothing.
-  With no estimate to pair it with, though, quick-path rows leave est/actual
+  With no estimate to pair it with, though, quick-flow rows leave est/actual
   velocity calibration rather than entering it half-filled.
-- `change-code`'s structural and plan-quality gates. Whatever verb enters the
-  quick path still owns the branching decision `change-code` owns today.
+- `change-code`'s structural gate.
+- Milestones: `milestone-close` refuses a quick-flow issue.
 
-What remains is **one gate: `sdlc close`**, with its evidence (`--verified`, the
-measured actual) and the quick review recipe (§4).
+What remains is **one review gate: `sdlc close`**, with its evidence
+(`--verified`, the measured actual), the hard shell (§1) and the quick review
+recipe (§4). `merge` and `push` keep their deterministic publish gate (#160),
+which only checks that nothing changed after that review.
 
 ### 3. What must survive — the part that is not optional
 
-**The acceptance contract.** On the quick path the close review is the *only*
+**The acceptance contract.** On the quick flow the close review is the *only*
 review, and `sdlc close` judges the diff against `## Done when`. In #263 the one
 blocking plan-gate finding was that a mid-stream reframe changed what got built
 without restating Done-when — three of five clauses became unsatisfiable *by
-design*. On the full path the plan gate caught that. On the quick path nothing
+design*. On the full flow the plan gate caught that. On the quick flow nothing
 would, and the single remaining review would judge against stale criteria.
 
-So `sdlc close` runs two **deterministic** (no-LLM) checks on a quick-path issue
+So `sdlc close` runs two **deterministic** (no-LLM) checks on a quick-flow issue
 before its review:
 
 - `## Done when` is non-empty. The structural gate that used to guarantee this
@@ -167,59 +180,69 @@ milestone-review; it is aimed at a different distribution:
   diff has a small enumeration — this is cheap exactly where it is most often
   skipped.
 
-When the close-time diff checks (§1) escalate an automatically admitted issue,
-`sdlc close` runs the full recipe instead.
+`sdlc close` selects the recipe from `flow:`, so an issue re-routed to `full`
+gets the full review with no special case.
 
 ### 5. Split out: the declarative change
 
 The declarative tier — a config change admitted on mechanical facts, with no
-close review at all — is now its own flow, `sdlc config`, tracked in #233. This
-issue does not depend on it. #233 builds on §1's shared-surface declaration.
+close review at all — is now its own flow, `flow: config`, tracked in #233. This
+issue does not depend on it. #233 builds on §1's shared-surface declaration and
+extends `#Flow`.
 
 ## Done when
 
-- `sdlc quick` exists and can be entered two ways: automatically, when the
-  issue passes §1's entry checks, or by operator instruction, which skips them.
-  The issue records that it took the quick path and which route admitted it.
-- On the quick path, no durable plan, plan-quality judge, structured estimate or
-  `change-code` structural gate runs; `sdlc close` is the only gate.
-- A failed automated entry check routes to the full path, naming the failing
-  criterion.
-- A repo can declare its shared surfaces. At close, a quick-path diff that
-  touched one or exceeded the size budget escalates to the full review recipe if
-  it was admitted automatically, or is named in the close output if the
-  operator admitted it.
-- `sdlc close` refuses a quick-path issue with an empty `## Done when`, and runs
+- `construct/vocabulary/issue.cue` models `flow?: #Flow` with
+  `#Flow: "full" | "quick"`, so a mistyped value fails validation. An absent
+  field reads as `full`, and `sdlc issue --help` documents the field.
+- `sdlc change-code --flow quick|full` writes `flow:` (default `full`), refuses
+  `quick` for a Plan with `Mx` milestones, and works as a re-route on an issue
+  already mid-implementation.
+- On the quick flow, no durable plan, plan-quality judge, structured estimate or
+  `change-code` structural gate runs, and `milestone-close` refuses. `sdlc close`
+  is the only review gate.
+- A repo can declare its shared surfaces.
+- `sdlc close` refuses a quick-flow issue whose diff crosses the hard shell (more
+  than 2 code files, more than 100 changed lines, or a declared shared surface),
+  naming the limit crossed and pointing at `sdlc change-code --flow full`. Tests
+  pin each limit: exactly at it passes, one past it refuses.
+- `sdlc state` reports a quick-flow issue whose diff has crossed the shell.
+- `sdlc close` refuses a quick-flow issue with an empty `## Done when`, and runs
   the Done-when-freshness check deterministically.
-- `small-diff-review.md` exists as its own recipe, and `sdlc close` selects it
-  for quick-path issues.
+- `small-diff-review.md` exists as its own recipe, and `sdlc close` selects the
+  recipe from `flow:`.
 - The recipe's architecture section is ARCH-DRY, ARCH-PURE and ARCH-PURPOSE,
   selected by marker from `judge/architecture.md`. A test asserts the rendered
   recipe carries exactly those three markers, so a registry edit cannot silently
   widen or drift it.
 - The recipe requires family enumeration on the first finding, and the gate
-  ledger shows repeat families dropping on quick-path issues.
-- Calibration: quick-path rows are tagged in the ledger and excluded from
+  ledger shows repeat families dropping on quick-flow issues.
+- Calibration: quick-flow rows are tagged in the ledger and excluded from
   est/actual calibration, since they carry no estimate. The trade-off is judged
   on what they do carry — gate rounds per issue, measured actual hours, and
-  escaped defects (follow-up fixes citing a quick-path issue) — against
-  comparable full-path rows. If those do not improve, the trade-off was wrong
+  escaped defects (follow-up fixes citing a quick-flow issue) — against
+  comparable full-flow rows. If those do not improve, the trade-off was wrong
   and this gets reverted on evidence.
 
 ## Plan
 
-- [ ] Decide the entry surface for `sdlc quick`: its own verb, or a mode on
-      `claim`/`change-code`. Either way it owns the branching decision.
-- [ ] Decide where the quick-path marker and admitting route live: a Log line or
-      frontmatter. Frontmatter is a `construct/vocabulary/issue.cue` change.
-- [ ] Decide the shared-surface declaration format and the diff size budget (§1).
-- [ ] Implement quick-path entry (automated checks + operator route) and the
-      close-time diff checks with their escalation.
+- [ ] Confirm the shell's combinator: this Spec reads the operator's "> 2 files
+      and > 100 lines" as *crossing either limit* leaves the shell. Also decide
+      whether test files count toward the file and line limits.
+- [ ] Add `#Flow` and `flow?:` to `construct/vocabulary/issue.cue`; document the
+      field in `sdlc issue --help`.
+- [ ] `change-code --flow`: write the field; for `quick`, skip the plan-quality,
+      estimate and structural gates and refuse `Mx` milestones; support the
+      mid-implementation re-route. Make `milestone-close` refuse `quick`.
+- [ ] Decide the shared-surface declaration format.
+- [ ] Implement the hard shell at close with its re-route refusal, and the
+      `sdlc state` drift line.
 - [ ] Implement the two deterministic Done-when checks at close (§3).
 - [ ] Add a marker-subset selector beside `ArchitectureBlock`; write
-      `small-diff-review.md` on it; wire recipe selection at close.
-- [ ] Tag quick-path rows in the calibration ledger and exclude them from
-      est/actual calibration.
+      `small-diff-review.md` on it; select the recipe at close from `flow:`.
+- [ ] Tag quick-flow rows in the calibration ledger and exclude them from
+      est/actual calibration. Decide whether a row re-routed to `full` mid-work
+      enters calibration, given its estimate postdates the first code commit.
 - [ ] Re-run the recipe against parley.nvim#263's actual diff as a fixture: it
       should surface BR-1, BR-2 and BR-9 (the classes it is built for) without
       four rounds of ARCH-\* passes.
@@ -295,3 +318,29 @@ Delta:
 - §5, its Done-when bullets and its two Plan items moved to #233.
 - Done when and Plan rewritten to match. The calibration criterion now judges
   gate rounds, actual hours and escaped defects instead of the est/actual ratio.
+
+### 2026-09-17 — the flow lives in frontmatter; a hard shell at close
+
+Reason: the operator decided on a hard shell — past 2 code files or 100 changed
+lines, the normal flow runs — and on keeping the existing verbs, with the
+issue's frontmatter recording its flow for later gates to act on, modeled in
+the cue schema.
+
+Delta:
+
+- The quick path is now the quick *flow*: `flow: quick`, set by `sdlc
+  change-code --flow quick`. No `sdlc quick` verb.
+- §1 rewritten as declaration at entry and enforcement at close. The hard shell
+  (2 code files, 100 changed lines, no shared surface) replaces the separate
+  size budget and shared-surface escalation. It binds the operator route too,
+  which supersedes the previous revision's "operator-admitted issues only warn".
+  Crossing it makes `close` refuse and point at the re-route, rather than
+  silently switching recipes. The admitting route is no longer recorded: both
+  routes now face identical checks, so nothing would read it.
+- Added the `sdlc state` drift line, so crossing the shell usually surfaces
+  mid-work.
+- §2: `milestone-close` refuses quick-flow issues; `merge`/`push` keep their
+  deterministic publish gate.
+- §4: the recipe is selected from `flow:`.
+- Done when and Plan updated to match: the cue field, `change-code --flow`,
+  tests at each shell limit, the drift line, and the re-route.
