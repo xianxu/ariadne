@@ -592,6 +592,19 @@ A blank issue's `## Plan` seed (`- [ ]`, no text) was already not a plan item,
 so an empty Plan never tripped close's unchecked-plan gate. It is now pinned by
 `TestScaffoldPlanSeedIsNotAnItem`, since the new guidance relies on it.
 
+### 2026-09-18 — trial: tools#76, a "deletion" that was not small
+
+tools#76 (delete #66's orphaned source-provenance chain) closed full: inferred
+from its durable plan under the old rule, estimate 1.92h, actual 1.32h, 3 gate
+rounds. Before it started it looked like the best quick candidate — a deletion,
+so almost no added lines. It was not: keeping the one live piece
+(`projectLanguageText`) moved it into a new `language_text.go`, and the window
+added 129 code lines (461 deleted). Under the new shell it would have entered
+quick (a 264-line plan is inside the design limit) and been upgraded at close
+on its added lines. That is the shell doing its job: the entry-time judgment
+("it's a deletion") was wrong, and only the close-time measurement knew. Still
+no issue has stayed quick.
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
