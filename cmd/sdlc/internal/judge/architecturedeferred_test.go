@@ -187,7 +187,7 @@ func gateFacingTexts(t *testing.T) []gateText {
 		{"ArchitectureBlock(at-plan)", ArchitectureBlock("at-plan")},
 		{"ArchitectureBlock(at-review)", ArchitectureBlock("at-review")},
 		{"ArchitectureRegistry", ArchitectureRegistry},
-		{"CodeReviewBody", CodeReviewBody(PromptInput{})},
+		{"CodeReviewBody", CodeReviewBody(PromptInput{}, ArchitectureMarkers())},
 	}
 	entries, err := fs.ReadDir(promptFS, "prompts")
 	if err != nil {

@@ -117,7 +117,7 @@ The boundary should update user-facing docs for any new surface introduced:
 
 ## Architecture (the at-review backstop — these matter most long-term)
 
-Work through each of ARCH-DRY, ARCH-PURE, ARCH-PURPOSE, ARCH-MOCK, ARCH-CONSTRAINTS, ARCH-SECURE, ARCH-ORDER, ARCH-FUNERAL explicitly, applying its at-review lens. The
+Work through each of ARCH-DRY, ARCH-PURE, ARCH-PURPOSE explicitly, applying its at-review lens. The
 full principle definitions are delivered in the ARCHITECTURE PRINCIPLES block
 right after this prompt — for EACH marker, state pass or flag, and cite the
 marker (e.g. ARCH-DRY) in any finding. Architecture is where review has the
@@ -156,7 +156,35 @@ it isn't — followed by:
      needs (empty if the plan still matches the code).
 
 
-ARCHITECTURE PRINCIPLES — work through each of the 8 entries below explicitly, applying its `at-review` lens; cite the marker (e.g. ARCH-DRY) in any finding.
+## Small-diff focus — this window is inside the quick-flow shell (#231)
+
+This issue took the quick flow: no durable plan, no plan-quality review, and this
+review is its ONLY one. The window is small, so the bug classes worth hunting are
+the local ones — as likely in 100 lines as in 1000, and likelier to be skipped,
+because a small change is where the sweep gets skipped. Weight your attention:
+
+- **Boundaries.** Off-by-one and edge conditions: empty, first and last, exactly
+  at a limit, one past it.
+- **Every clause of `## Done when`.** A clause that names two states or modes
+  (on/off, present/absent, one mode and the other) must be exercised in BOTH; a
+  clause asserted in only one is a finding.
+- **Doc and comment claims.** Check every count, "the only", "always" and "never"
+  against the code it describes. A claim written from memory is a finding.
+- **The diff's neighbourhood.** What a small edit disturbs next to it: a hoist
+  that separated a doc comment from its function, a moved guard, a caller the
+  change did not update.
+- **Duplication.** Whether any block in the diff already exists elsewhere in the
+  tree.
+
+**Enumerate the family on the first finding.** A finding names one instance; the
+class is the deliverable. For EVERY finding, list every instance of its family in
+this window in the finding's detail — the window is small, so the enumeration is
+cheap — so the fix sweeps the class in one round instead of one site per round.
+
+**Architecture.** Apply only the principles in the block below; the registry marks
+them for the quick flow. Raise no finding under any other principle.
+
+ARCHITECTURE PRINCIPLES — work through each of the 3 entries below explicitly, applying its `at-review` lens; cite the marker (e.g. ARCH-DRY) in any finding.
 
 # Architecture principles (ARCH-*)
 
@@ -235,201 +263,6 @@ checks is a one-word edit here.
   prior finding named while enumerable siblings of the same class remain in the
   tree: that is the instance, not the class, and it is a finding.
 
-## ARCH-MOCK — Stateful external doubles
-
-- **quick-flow:** no
-- **principle:** Every external binary or service dependency the system relies on
-  has a stateful fake behind the same seam, modeling our current understanding of
-  the dependency's behavior across calls. For libraries, services, and binaries we
-  own, the storage/backend layer is backed by a portable folder of files and/or
-  database configuration, so the component can be spun up without depending on
-  production configuration or production databases. Integration and end-to-end
-  tests run against the fake; scheduled/live conformance checks compare the
-  fake's modeled behavior with the real binary or service so drift is detected
-  and corrected.
-- **at-plan:** Flag a design that shells out to, or calls, an external binary or
-  service without naming the seam and stateful fake. For owned libraries, services,
-  and binaries, also flag any design whose storage/backend depends on production
-  configuration or databases instead of a portable file folder and/or database
-  configuration. The plan should identify the dependency surface consumed, the
-  fake's persisted state model, the owned component's portable backend shape,
-  the integration or end-to-end tests that run against it, and the live
-  conformance check cadence.
-  Examples include `git`, GitHub/`gh`, and Google OAuth.
-- **at-review:** Flag direct external calls outside the seam, stateless mocks for
-  stateful interactions, tests that cannot run the stack against the fake, owned
-  components that cannot boot from portable non-production storage/backend
-  configuration, or a missing live conformance check for behavior we depend on. A
-  fake satisfies this only when production flow and test flow share the same
-  boundary.
-
-## ARCH-CONSTRAINTS — Design to an explicit operating envelope
-
-- **quick-flow:** no
-- **principle:** Runtime behavior is part of the architecture. Before choosing a
-  mechanism, identify the small set of external constraints that can materially
-  shape it: latency, workload/input scale and growth, CPU, memory, disk/network IO,
-  concurrency, target environment and co-tenancy, and overload behavior. Make
-  consequential expectations explicit instead of leaving them as hidden
-  assumptions.
-- **at-plan:** Classify the workload and interaction path (for example keystroke,
-  UI response, startup/shutdown, online request, batch, or training/inference),
-  then give each relevant constraint a budget/range, basis (measured fact,
-  requirement, domain-informed assumption, or operator choice), and bounded
-  behavior when exceeded. Mark irrelevant categories `N/A`; do not fill a
-  ceremonial checklist or invent universal defaults. Make an educated initial
-  estimate when useful, but confirm material uncertainty with the operator.
-- **at-review:** Check that the implementation enforces the declared operating
-  envelope and that representative measurements or tests exercise the relevant
-  environment and workload. Flag blocking optional work on a critical UI path,
-  unbounded concurrency or fan-out, repeated expensive work that should be
-  cached or incremental, resource monopolization, unsupported performance
-  claims, and behavior that silently operates outside the stated bounds.
-
-## ARCH-SECURE — Name what is trusted
-
-- **quick-flow:** no
-- **principle:** Every component has inputs it did not produce and secrets it
-  must not leak. Trust is a property of provenance, not of location: an input
-  crossing a process, session, or version boundary is untrusted even when this
-  same program wrote it, and a credential is a credential whether it reaches
-  disk, a log line, a subprocess argument, or a test fixture. Prefer making
-  invalid state unrepresentable — parse input into a typed value at the boundary
-  — over checking for bad values downstream, and prefer structural separation
-  (parameterised queries, argv arrays, escaped contexts) over sanitising strings.
-- **at-plan:** Name the boundaries this design crosses and what it assumes on
-  each side. For every persisted artifact or external response it reads, say what
-  happens when that input is truncated, hand-edited, or written by an older
-  version — and where it is turned into a typed value. For every credential it
-  touches, say where it is created, who can read it, and whether anything creates
-  it as a side effect of an unrelated action. Flag a design that widens blast
-  radius for convenience: a test that can reach real user or system state, a
-  component that mints a secret on a path whose purpose is something else, an
-  artifact trusted because this program produced it. Mark `N/A` when the work
-  touches neither untrusted input nor secrets; do not fill a ceremonial checklist.
-- **at-review:** Flag input from outside the process treated as well-formed
-  (persisted caches, external API bodies, files under a shared directory);
-  credentials reaching a log, an error message, an argument list, or a fixture;
-  tests able to write real user or system state; and secrets created as a side
-  effect of an unrelated call. Where the diff parses untrusted data, check the
-  failure path degrades visibly rather than crashing or substituting a fabricated
-  value that downstream code will read as evidence.
-
-## ARCH-ORDER — Make the ordering explicit
-
-- **quick-flow:** no
-- **principle:** When a component holds state across events arriving from
-  outside it, the legal states and the transitions between them are part of the
-  design, not an emergent property of the code. Model it as an explicit
-  `(state, event) -> (state, effects)` enumeration rather than a constellation
-  of independent flags whose legal combinations are unwritten. Where ARCH-PURE
-  separates logic from IO, this separates **legal** state from **representable**
-  state: N boolean/nullable fields carried across events declare 2^N states and
-  usually mean about five, and the bugs live in the difference. The lens is
-  *temporal*, not provenance-based — ARCH-SECURE makes invalid state
-  unrepresentable at a single-shot parse of input the component did not produce;
-  this makes it unrepresentable in the state a component carries **between
-  events**. Concurrency does not need a new effect abstraction — it needs the
-  interleaving space written down where a reader, a type checker, and a test
-  generator can all see it.
-- **structural enforcement:** Represent states, events, and transitions
-  explicitly in a component owned by the pure core. State changes must pass
-  through its transition function; callers cannot mutate authoritative state
-  directly. Use types, encapsulation, and dependency checks to enforce this
-  boundary. The IO shell executes declared effects and returns their outcomes
-  as events.
-- **knowledge and uncertainty:** Model what the component knows about an
-  external entity, distinguishing desired state, observed state, and operation
-  outcome where relevant. External operations define confirmed success,
-  confirmed failure, and unconfirmed outcome; each has permitted actions and a
-  reconciliation policy. A timeout, missing acknowledgment, or failed probe does
-  not prove that an effect failed or an entity is absent. Preserve known partial
-  progress even when the operation fails; rollback of local state cannot undo
-  external effects. Pure transitions make decisions deterministic, not the
-  external world: probes and retries are effects whose outcomes return as
-  events, including further uncertainty. An observation is evidence about an
-  exact entity at a point in time, not permanent authority to act on it.
-- **behavioral enforcement:** Specify invariants and test them across event
-  sequences, including applicable failure, cancellation, retry, duplicate, and
-  out-of-order events. Tests must exercise the production transition function
-  with controllable ordering and reproducible failures. Verify both permitted
-  transitions and rejected or ignored events; transition coverage alone does
-  not establish correctness.
-- **at-plan:** For a component with durable state and external events, enumerate
-  states x events -> (state, effects), including the interrupting ones. Name the
-  state-machine component, state/event model, invariants, structural enforcement
-  mechanism, and sequence-testing strategy. For uncertain external outcomes,
-  name the evidence that confirms completion, actions safe while unconfirmed,
-  and bounded reconciliation or escalation. Explain how retries avoid duplicate
-  effects and how identity, ownership, or version checks guard actions when an
-  earlier observation can become stale. Do not
-  re-litigate what conventional UX already settles (block input, show a spinner)
-  — that policy is advisory and UI-local. Spend the enumeration on the events the
-  caller **cannot** block: process death mid-transition, connection loss,
-  session/tab close, retry of an already-applied step, a second actor on the same
-  state, completions arriving out of order. Target rather than sweep — name which
-  of those apply here and why the rest do not, and for each that applies say
-  which of cancel / queue / preempt / ignore governs it and whether state rolls
-  back. One sentence naming the event most likely to be mishandled beats six
-  cells filled in. Name the extent of any concurrent work — who is still running
-  when this returns, who is cancelled when this fails — where nondeterminism
-  enters (clock, scheduler, IO completion order, arrival order), and how a
-  failing ordering is reproduced. `N/A` is a claim that can be wrong: write it as
-  "holds no state between events because X", never as a bare marker — a bare one
-  is exactly what the author who cannot see the ordering will write.
-- **at-review:** Verify that production state changes go through the model,
-  bypasses are prevented, and tests assert independently stated invariants
-  rather than merely restating the transition implementation. A diagram or an
-  unused state-machine component does not satisfy this contract.
-  Flag uncertainty collapsed into success, failure, or absence without evidence;
-  retry or rollback that ignores possibly completed effects; and tests omitting
-  applicable late completions, failed probes, or partial-progress recovery.
-  Flag tests that can only observe one interleaving — no seam to
-  inject ordering, no way to reproduce a reported failure. A green run of such a
-  test is a sample of size one that reports no coverage, so it confirms whichever
-  ordering the author happened to get; this is the highest-leverage flag in the
-  entry, because it attacks the oracle rather than the code. Flag state whose
-  transition set cannot be read off the code — boolean/nullable constellations
-  with unwritten legal combinations, where `isLoading && err != nil && data !=
-  nil` is reachable and undefined; name the tagged enum they should collapse
-  into. Flag concurrent work whose **extent** is not lexically bounded: a spawned
-  task outliving its scope, no cancellation path. Extent is lifetime — who is
-  still running at return; ARCH-CONSTRAINTS' "unbounded concurrency" is capacity
-  — how many run at once. Flag an error or cancellation path that unwinds the
-  sequencing but drops the in-flight effect.
-
-## ARCH-FUNERAL — Everything created names its end
-
-- **quick-flow:** no
-- **principle:** A thing that is created has a lifecycle, and its end is part of
-  the design, not an operational afterthought. For every durable artifact,
-  record, cache, or handle a component produces, the design says when it stops
-  being needed and what removes it: a time-bound sweep, a superseding
-  generation, an owner whose death collects it, or an explicit growth bound with
-  the consequences of reaching it stated. "Append-only" is a durability
-  property, not an exemption — an append-only store still names its bound and
-  what happens at it. The boundary against ARCH-CONSTRAINTS is **load versus
-  residue**: that entry budgets a component while it is working — latency,
-  memory, concurrency, what happens when a budget is exceeded. This one governs
-  what is left behind once the work is done, where the cost accrues while
-  nothing is happening and every individual write sat comfortably inside its
-  envelope. A perfectly budgeted component with no removal path passes
-  ARCH-CONSTRAINTS and reaches a cliff anyway.
-- **at-plan:** For each new artifact family, record, or growing structure, write
-  one line: who creates it, who is the last to need it, what removes it, and how
-  big it can get before that. If the answer is "forever", say what forever costs
-  per unit of use (per launch, per session, per keystroke) and where it is
-  measured. Target rather than sweep: an in-memory value dies with its scope and
-  needs no entry; a file, a row, a persisted cache, or a background process
-  does. `N/A` is a claim that can be wrong: write it as "creates nothing durable
-  because X", never as a bare marker.
-- **at-review:** Flag any new file family, log, ledger row, cache, or sidecar
-  with no removal path in the diff or in an existing routine, and any writer to
-  an existing family whose growth per event is larger than before (a row that
-  embeds a snapshot; a log that gains a field). Flag a size or age cap on the
-  *reader* of a growing artifact with no matching bound on its *writer* — that
-  is a cliff, not a bound. Flag a cleanup that only the operator can trigger
-  when the growth is per-launch or per-session.
 
 
 ## Prior rounds — dispose of these BEFORE raising anything new
@@ -492,3 +325,4 @@ is advisory: a non-blocking verdict WITH findings still PASSES the gate. A bare
 
 Review window:
 PINNED-REVIEW-WINDOW
+

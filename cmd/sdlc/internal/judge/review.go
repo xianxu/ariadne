@@ -29,7 +29,10 @@ var codeReviewTemplate string
 // ArchitectureMarkers — so the enumerated checklist tracks the registry with no
 // hardcoding). Pure string templating (ARCH-PURE); the architecture block + output
 // contract + diff are appended by the caller (BuildPrompt).
-func CodeReviewBody(in PromptInput) string {
+//
+// markers is the ARCH-* set this review applies ({{ARCH_STAR}}): every marker on
+// the full flow, the registry's quick-flow set on the small-diff review (#231).
+func CodeReviewBody(in PromptInput, markers []string) string {
 	ref := orDefault(in.IssueRef, "<unknown>")
 	r := strings.NewReplacer(
 		"{{ISSUE_REF}}", ref,
@@ -41,7 +44,7 @@ func CodeReviewBody(in PromptInput) string {
 		"{{BOUNDARY}}", orDefault(in.Boundary, "a development boundary"),
 		"{{REPO_NOTE}}", in.RepoNote,
 		"{{VERDICT_BLOCK}}", vocab.Verdict().RenderBlockInstruction(),
-		"{{ARCH_STAR}}", strings.Join(ArchitectureMarkers(), ", "),
+		"{{ARCH_STAR}}", strings.Join(markers, ", "),
 	)
 	return r.Replace(codeReviewTemplate)
 }

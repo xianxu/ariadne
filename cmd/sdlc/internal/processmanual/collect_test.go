@@ -25,6 +25,7 @@ func TestJudgeSources_CoversEveryCategoryIncludingEstimate(t *testing.T) {
 	want := []judge.Category{
 		judge.DRY, judge.PURE, judge.Plan, judge.PlanQuality,
 		judge.EstimateQuality, judge.Specs, judge.Lessons, judge.MilestoneReview,
+		judge.SmallDiffReview, // #231: the quick flow's review, dispatched by close
 	}
 	for _, c := range want {
 		s, ok := titles[string(c)]

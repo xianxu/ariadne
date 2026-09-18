@@ -10,8 +10,15 @@ This file is the single source; it is embedded into the planning, plan-quality,
 and code-review prompts. The human narrative lives in AGENTS.md "Core Design
 Principles"; this is its machine-delivered companion.
 
+Each entry's **quick-flow** field says whether the quick flow's small-diff review
+checks it (#231: small diffs rarely carry the architectural bug classes, so that
+review applies only the entries marked `yes`). The full flow checks every entry.
+Every entry must declare the field; changing which principles the quick flow
+checks is a one-word edit here.
+
 ## ARCH-DRY — Don't Repeat Yourself
 
+- **quick-flow:** yes
 - **principle:** Reuse before adding. One source of truth per fact/behavior; no
   duplicated logic, copy-pasted blocks, or parallel functions that should be one
   shared helper.
@@ -24,6 +31,7 @@ Principles"; this is its machine-delivered companion.
 
 ## ARCH-PURE — Pure core, thin IO shell
 
+- **quick-flow:** yes
 - **principle:** The majority of code is pure functions (deterministic, no side
   effects); a thin "glue" layer at the boundary touches IO/UI/network/clock. Pure
   functions are unit-tested directly; the glue is kept small and injected.
@@ -36,6 +44,7 @@ Principles"; this is its machine-delivered companion.
 
 ## ARCH-PURPOSE — Serve the issue's actual purpose
 
+- **quick-flow:** yes
 - **principle:** Deliver the issue's stated purpose, not the easy subset of it. A
   single-source / "compiled to consumers" change is not done until **every
   consumer derives** from the source — the source is *enforced*, not just
@@ -68,6 +77,7 @@ Principles"; this is its machine-delivered companion.
 
 ## ARCH-MOCK — Stateful external doubles
 
+- **quick-flow:** no
 - **principle:** Every external binary or service dependency the system relies on
   has a stateful fake behind the same seam, modeling our current understanding of
   the dependency's behavior across calls. For libraries, services, and binaries we
@@ -95,6 +105,7 @@ Principles"; this is its machine-delivered companion.
 
 ## ARCH-CONSTRAINTS — Design to an explicit operating envelope
 
+- **quick-flow:** no
 - **principle:** Runtime behavior is part of the architecture. Before choosing a
   mechanism, identify the small set of external constraints that can materially
   shape it: latency, workload/input scale and growth, CPU, memory, disk/network IO,
@@ -117,6 +128,7 @@ Principles"; this is its machine-delivered companion.
 
 ## ARCH-SECURE — Name what is trusted
 
+- **quick-flow:** no
 - **principle:** Every component has inputs it did not produce and secrets it
   must not leak. Trust is a property of provenance, not of location: an input
   crossing a process, session, or version boundary is untrusted even when this
@@ -145,6 +157,7 @@ Principles"; this is its machine-delivered companion.
 
 ## ARCH-ORDER — Make the ordering explicit
 
+- **quick-flow:** no
 - **principle:** When a component holds state across events arriving from
   outside it, the legal states and the transitions between them are part of the
   design, not an emergent property of the code. Model it as an explicit
@@ -227,6 +240,7 @@ Principles"; this is its machine-delivered companion.
 
 ## ARCH-FUNERAL — Everything created names its end
 
+- **quick-flow:** no
 - **principle:** A thing that is created has a lifecycle, and its end is part of
   the design, not an operational afterthought. For every durable artifact,
   record, cache, or handle a component produces, the design says when it stops

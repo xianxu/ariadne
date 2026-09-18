@@ -43,8 +43,17 @@ func promptTemplate(c Category) string {
 	if err != nil {
 		panic("judge: prompt template missing: " + string(c) + ".md")
 	}
-	return string(b)
+	// {{BOUNDARY_TAIL}} is an INCLUDE, expanded before substitution: it carries
+	// tokens of its own, and the Replacer is single-pass. It is the one copy of
+	// the prior-rounds / findings / contract / review-window tail both boundary
+	// recipes end with (#231 — milestone-review and small-diff-review).
+	return strings.ReplaceAll(string(b), "{{BOUNDARY_TAIL}}", boundaryTail)
 }
+
+// boundaryTail is the shared ending of the boundary-review recipes.
+//
+//go:embed boundary-tail.md
+var boundaryTail string
 
 // promptSubstitutions builds the single Replacer mapping every {{TOKEN}} to its
 // value. {{ARCH_BLOCK}} resolves to the at-plan lens for plan-quality, at-review
@@ -56,11 +65,12 @@ func promptSubstitutions(c Category, in PromptInput) *strings.Replacer {
 	if c == PlanQuality {
 		archLens = "at-plan"
 	}
+	markers := ReviewMarkers(c)
 	return strings.NewReplacer(
-		"{{ARCH_BLOCK}}", ArchitectureBlock(archLens),
+		"{{ARCH_BLOCK}}", ArchitectureBlockFor(archLens, markers),
 		"{{CONTRACT}}", ContractPreamble,
 		"{{BOUNDARY_CONTRACT}}", BoundaryReviewContract,
-		"{{CODE_REVIEW_BODY}}", CodeReviewBody(in),
+		"{{CODE_REVIEW_BODY}}", CodeReviewBody(in, markers),
 		"{{DIFF}}", in.Diff,
 		"{{REVIEW_WINDOW}}", in.ReviewWindow,
 		"{{CHANGED_ISSUES}}", strings.Join(in.ChangedIssues, "\n"),
@@ -87,7 +97,20 @@ const (
 	Specs           Category = "specs"
 	Lessons         Category = "lessons"
 	MilestoneReview Category = "milestone-review"
+	// SmallDiffReview is the quick flow's one review (#231): the boundary review
+	// re-aimed at the bug classes small diffs ship, over the registry's quick-flow
+	// principles only. Dispatched by close; not a standalone `sdlc judge` check.
+	SmallDiffReview Category = "small-diff-review"
 )
+
+// ReviewMarkers is the ARCH-* set a category's review applies: the registry's
+// quick-flow set for the small-diff review, every principle otherwise.
+func ReviewMarkers(c Category) []string {
+	if c == SmallDiffReview {
+		return QuickMarkers()
+	}
+	return ArchitectureMarkers()
+}
 
 // AllCategories returns every supported category in stable order. Used
 // for --help enumeration and bulk-dispatch from push/merge in M5/M6.
@@ -106,7 +129,7 @@ func AllCategories() []Category {
 // source it here so a future change-code-only category can't silently drop from
 // the manual (#153 M2 boundary-review Minor).
 func AllInjectedCategories() []Category {
-	return append(append([]Category{}, AllCategories()...), EstimateQuality)
+	return append(append([]Category{}, AllCategories()...), EstimateQuality, SmallDiffReview)
 }
 
 // IsValid reports whether s names a known category.
@@ -139,6 +162,8 @@ func (c Category) Label() string {
 		return "Check for lessons to capture"
 	case MilestoneReview:
 		return "Post-milestone code review (AGENTS.md §3)"
+	case SmallDiffReview:
+		return "Quick-flow small-diff review at close (#231)"
 	}
 	return string(c)
 }
