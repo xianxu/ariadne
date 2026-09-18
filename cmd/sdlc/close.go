@@ -37,6 +37,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -81,6 +82,8 @@ type closeFlags struct {
 	NoPlanCheck bool
 	NoProject   bool
 	NoJudge     bool // skip the issue boundary review (#69)
+	// NoDoneWhenFresh skips the quick flow's Done-when freshness check (#231).
+	NoDoneWhenFresh bool
 }
 
 // resolvePlansDir is the SINGLE resolution of the durable-plans directory: the explicit
@@ -128,6 +131,8 @@ func (f *closeFlags) skip(gate string) bool {
 		return f.NoProject
 	case "judge":
 		return f.NoJudge
+	case "done-when-fresh":
+		return f.NoDoneWhenFresh
 	}
 	return false
 }
@@ -177,6 +182,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict trailer check")
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
+	cmd.Flags().BoolVar(&f.NoDoneWhenFresh, "no-done-when-fresh", false, "quick flow: skip the Done-when freshness check (#231); say why in --verified")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the issue boundary review auto-dispatched on full-issue close (#69)")
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for the boundary-review dispatch (claude | codex | gemini)")
 	// Don't use MarkFlagRequired("issue"): cobra emits an uncolored,
@@ -377,6 +383,9 @@ type closeResult struct {
 	// success messages that describe WRITES — emitted by applyClose (post-finalize),
 	// so a REWORK never prints "flipped → codecomplete" for a write that didn't happen.
 	appliedMsgs []string
+	// flow is what this close does with the issue's flow (#231): the review
+	// recipe it selects, and whether it upgraded a quick issue.
+	flow closeFlowOutcome
 }
 
 // computeClose runs every close gate and composes the new issue/project text in
@@ -496,8 +505,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		cwarn(stderr, fmt.Sprintf("no commits reference '#%s' on this branch", issueStr))
 	}
 
+	var diffFiles []string
 	if windowBase != "" {
-		diffFiles, derr := gitx.DiffNames(windowBase, windowHead)
+		var derr error
+		diffFiles, derr = gitx.DiffNames(windowBase, windowHead)
 		if derr != nil {
 			// #177 review Important #1: a swallowed diff error used to inherit the
 			// refusal (fail-closed); with the auto-satisfy arm, nil files would
@@ -530,6 +541,11 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		}
 	}
 
+	// ── Flow: the quick flow's hard shell + Done-when checks (#231) ──────────
+	// Same window as the atlas gate and the review. Writes nothing: an upgrade is
+	// composed into newFM below and recorded by applyClose at finalize.
+	flowOutcome := closeFlowStep(stderr, f, mode, fm, body, windowBase, windowHead, diffFiles)
+
 	// ── Milestone-review verdict check (issue close only) ──────────────────
 	//
 	// Every milestone in the plan must carry a Review-Verdict: trailer on
@@ -561,6 +577,12 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 
 	// ── Edit issue file ─────────────────────────────────────────────────────
 	newFM, newBody := fm, body
+
+	if flowOutcome.upgraded() {
+		newFM = issue.SetField(newFM, flow.Field, flow.Format(flowOutcome.flow))
+		newBody = insertLogLine(newBody, fmt.Sprintf("- %s: flow upgraded quick → full — %s", today, strings.Join(flowOutcome.crossings, "; ")))
+		applied = append(applied, "recorded flow quick → full (outside the quick-flow shell)")
+	}
 
 	if mode == "milestone" {
 		// Fence-aware and scoped to the real Plan section — see issue.TickMilestone,
@@ -727,6 +749,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		issueStr:     issueStr,
 		today:        today,
 		appliedMsgs:  applied,
+		flow:         flowOutcome,
 	}
 }
 
@@ -1032,6 +1055,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 			AgentExplicit: f.AgentExplicit,
 			IssueNum:      f.Issue, // #137: the dry-run prompt orientation needs this too
 			Milestone:     "",
+			Category:      r.flow.category(),
 		})
 	}
 
@@ -1045,6 +1069,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		AgentExplicit: f.AgentExplicit,
 		IssueNum:      f.Issue,
 		Milestone:     "",
+		Category:      r.flow.category(),
 		PlansDir:      f.plansDir(),
 	})
 }
@@ -1088,6 +1113,7 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 		Milestone:     "",
 		PlansDir:      f.plansDir(),
 		PriorFindings: prior,
+		Category:      r.flow.category(),
 	}, snapshot)
 }
 

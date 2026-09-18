@@ -59,13 +59,13 @@ func DoneWhenPresent(body string) error {
 func DoneWhenFresh(rec Flow, body string) error {
 	if rec.spec == "" || rec.done == "" {
 		return fmt.Errorf("quick flow: no contract anchor in the flow record — re-run " +
-			"`sdlc change-code` to record one, or pass --no-done-when-fresh if Done-when is current")
+			"`sdlc change-code` to record one, or pass --no-done-when-fresh (or --force) with the reason in --verified")
 	}
 	spec, done := ContractHashes(body)
 	if spec != rec.spec && done == rec.done {
 		return fmt.Errorf("quick flow: `## Spec` or `## Revisions` changed since change-code but " +
 			"`## Done when` did not — restate the acceptance criteria for what is being built now, " +
-			"or pass --no-done-when-fresh with the reason in --verified")
+			"or pass --no-done-when-fresh (or --force) with the reason in --verified")
 	}
 	return nil
 }

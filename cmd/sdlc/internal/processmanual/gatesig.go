@@ -104,6 +104,11 @@ var GateCatalog = []GateSig{
 	{Commands: closeMclose, Flag: "no-ledger", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-ledger \(or --force\): skipping the gate-ledger open-findings refusal`,
 		RefusalPat: `Or pass --no-ledger \(or --force\); record`},
+	// #231: the quick flow's Done-when freshness check — close only (milestone-close
+	// never runs the Done-when checks; they guard the final acceptance review).
+	{Commands: []string{"close"}, Flag: "no-done-when-fresh", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+		AckPat:     `--no-done-when-fresh \(or --force\): skipping the Done-when freshness check`,
+		RefusalPat: `pass --no-done-when-fresh \(or --force\) with the reason in --verified`},
 	{Commands: closeMclose, Flag: "no-judge", Grammar: grammarCinfo, HasRefusal: false,
 		AckPat: `skipping (issue boundary review|milestone-review) per --no-judge \(or --force\)`},
 
