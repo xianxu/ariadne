@@ -121,8 +121,10 @@ there.
 either. A quick issue must stay inside all four limits, whatever its provenance:
 
 - At most 2 code files changed.
-- At most 100 changed lines.
-- No declared shared surface touched. A repo declares its shared surfaces (for
+- At most 100 changed lines, counted as insertions in code files — the number
+  the churn report and calibration ledger already use.
+- No declared shared surface touched. A repo declares its shared surfaces in
+  `.sdlc/shared-surfaces`, one path pattern per line (for
   parley: the keybinding registry, `config.lua`'s option schema,
   `construct/vocabulary/*.cue`, any cross-module seam). This is the criterion
   that would have caught #263 — the *feature* was one chord, but it touched the
@@ -142,6 +144,10 @@ the full flow. No gate ever moves an issue from `full` to `quick`. `sdlc close`
 measures the diff, so it is where a crossing is usually found; `milestone-close`
 finds one when an `Mx` row appears mid-work. Crossing the shell neither refuses
 nor warns, so from the agent's side the flow looks the same.
+
+The upgrade is recorded with the close's other writes at finalize. A REWORK
+writes nothing (#139), and the next close re-derives the upgrade from the same
+window, so "no gate downgrades" holds for the recorded flow.
 
 An upgraded issue gets the full review at close, but not the plan or estimate
 it skipped. A plan written after the code has no value, and an estimate made
@@ -243,41 +249,34 @@ extends `#Flow`.
   selected by marker from `judge/architecture.md`. A test asserts the rendered
   recipe carries exactly those three markers, so a registry edit cannot silently
   widen or drift it.
-- The recipe requires family enumeration on the first finding, and the gate
-  ledger shows repeat families dropping on quick-flow issues.
+- The recipe requires every finding to enumerate its family across the window.
+  Whether repeat families actually drop is judged after adoption, from the
+  close-gate ledgers, not at this issue's close.
 - Calibration: the ledger tags rows with `kind`, `provenance` and whether the
-  issue was upgraded. Quick and upgraded rows are excluded from est/actual
-  calibration, since they carry no estimate. The trade-off is judged on what they
-  do carry — gate rounds per issue, measured actual hours, and escaped defects
-  (follow-up fixes citing a quick-flow issue) — against comparable full-flow
-  rows. If those do not improve, the trade-off was wrong and this gets reverted
-  on evidence.
+  issue was upgraded. Est/actual drift excludes quick and upgraded rows, since
+  they carry no estimate, and a trailing quick row does not switch the drift
+  check off; throughput keeps their hours. The trade-off itself is judged after
+  adoption on gate rounds per issue, measured actual hours and escaped defects
+  (follow-up fixes citing a quick-flow issue) against comparable full-flow rows.
+  If those do not improve, this gets reverted on evidence.
 
 ## Plan
 
-- [x] Decide whether test files count toward the shell's file and line limits.
-      Decided 2026-09-17: they do not.
-- [ ] Single-source the threshold. The constitution's "non-trivial (>3 files or
-      >100 lines) → durable plan" (`AGENTS.base.md` §2) and the shell's "2 code
-      files, 100 lines" are one threshold stated twice. Decided 2026-09-17: the
-      shell's numbers win, so the constitution's rule becomes >2 files and cites
-      the binary's constants. `AGENTS.base.md` is base-layer, so this propagates
-      downstream.
-- [ ] Add `#Flow` and `flow?:` to `construct/vocabulary/issue.cue`; document the
-      field in `sdlc issue --help`; test the one-line form round-trips through
-      `GetField`/`SetField`.
-- [ ] `change-code`: infer and write `flow:`; add the `--flow` pin and its `Mx`
-      refusal; skip the plan-quality, estimate and structural gates on `quick`.
-- [ ] Decide the shared-surface declaration format.
-- [ ] Implement the hard shell and the upgrade in `close` and `milestone-close`.
-- [ ] Implement the two deterministic Done-when checks at close (§3).
-- [ ] Add a marker-subset selector beside `ArchitectureBlock`; write
-      `small-diff-review.md` on it; select the recipe at close from `flow.kind`.
-- [ ] Tag rows in the calibration ledger with `kind`, `provenance` and upgrade,
-      and exclude quick and upgraded rows from est/actual calibration.
-- [ ] Re-run the recipe against parley.nvim#263's actual diff as a fixture: it
-      should surface BR-1, BR-2 and BR-9 (the classes it is built for) without
-      four rounds of ARCH-\* passes.
+Durable plan: `workshop/plans/000231-a-quick-path-for-small-diffs-scale-the-gate-set-and-the-review-recipe-to-size-plan.md`.
+
+- [x] Decide whether test files count toward the shell's limits. Decided
+      2026-09-17: they do not.
+- [x] Decide the shell/constitution threshold. Decided 2026-09-17: the shell's
+      2 code files, 100 lines; the constitution cites the binary.
+- [x] Decide the shared-surface declaration format: `.sdlc/shared-surfaces`, a
+      repo-owned line file (see the durable plan).
+- [ ] M1 — the flow record and change-code: `#Flow` in cue, the `flow` package,
+      one milestone parser, inference + `--flow` pin + gate skips, docs.
+- [ ] M2 — the shell, the Done-when checks and the small-diff review at close:
+      one path classifier, shared surfaces, the upgrade, the recipe, the
+      end-to-end test, help tokens, docs.
+- [ ] M3 — calibration columns and drift exclusion, the constitution, and the
+      parley.nvim#263 fixture run.
 
 ## Log
 
@@ -326,7 +325,19 @@ only the ledger as a backstop, which argues for sequencing it second.
 Claimed and entered planning. The operator settled two open questions: test
 files do not count toward the shell's limits, and the constitution's durable-plan
 threshold moves from >3 files to the shell's >2, so the two are one number owned
-by the binary. The durable plan goes to `workshop/plans/000231-quick-flow-plan.md`.
+by the binary.
+
+### 2026-09-17 — durable plan written
+
+Wrote the durable plan after three read-only code surveys: `change-code`, the
+close/judge path, and the ledgers/config. Three milestones: record +
+change-code, close, calibration. The surveys changed the design in four places,
+recorded in the plan's Decisions: the upgrade is recorded at finalize because
+`computeClose` writes nothing and a REWORK must leave the issue unwritten (#139);
+changed lines are insertions, as churn counts them; the three disagreeing path
+classifiers collapse into one per-path set in `churn`, whose test detection widens
+to non-Go layouts because parley.nvim is Lua; and the colon-only milestone regex in
+`sizing.go` retires onto the one `close.go` uses.
 
 ## Revisions
 
@@ -408,3 +419,17 @@ Delta:
 - §2: dropped the separate `milestone-close` refusal; the `Mx` limit covers it.
 - Done when and Plan updated to match, including an end-to-end test that the
   agent's verb sequence is identical on both flows.
+
+### 2026-09-17 — Done-when made checkable at close; plan decisions folded in
+
+Reason: two Done-when bullets described adoption outcomes (repeat families
+dropping, the est/actual trade-off paying off) that no gate can observe when this
+issue closes. Planning also settled details the Spec left open.
+
+Delta: those two bullets now name what is checkable at close — the recipe's
+family-enumeration rule; the ledger columns, the drift exclusion and a trailing
+quick row not disabling drift — and state that the outcomes are judged after
+adoption. §1 now defines changed lines as insertions in code files, names
+`.sdlc/shared-surfaces` as the declaration, and says the upgrade is recorded at
+finalize. `## Plan` became three milestones pointing at the durable plan.
+
