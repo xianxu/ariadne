@@ -321,7 +321,7 @@ Durable plan: `workshop/plans/000231-a-quick-path-for-small-diffs-scale-the-gate
       2 code files, 100 lines; the constitution cites the binary.
 - [x] Decide the shared-surface declaration format: `.sdlc/shared-surfaces`, a
       repo-owned line file (see the durable plan).
-- [ ] M1 — the flow record and change-code: `#Flow` in cue, the `flow` package,
+- [x] M1 — the flow record and change-code: `#Flow` in cue, the `flow` package,
       one milestone parser, inference + `--flow` pin + gate skips, and a reachable
       quick path (start-plan, the constitution and skills made flow-conditional),
       docs.
@@ -353,6 +353,7 @@ the family-enumeration rule is part of this issue rather than a separate one,
 and why the Done-when criterion above is the acceptance test that matters.
 
 ### 2026-09-17 — second use case: the declarative change, and a third tier
+- 2026-09-17: closed M1 — round 3 after BR-11..BR-14 fixed as rules: go test ./... green except TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory (pre-existing, #210, red on main); round-2 mutations each red (stale content written -> TestRecordChangeCodeFlowKeepsConcurrentEdit; drift check off -> ...RefusesFlowChangingEdit; empty-hash check relaxed -> TestFlowRecordCorpus); flow corpus asserted by both Go (TestFlowRecordCorpus) and cue (TestValidateInstance_FlowRecordCorpus); BR-13 verb sweep command recorded in the plan (26 hits, 3 qualified); git diff --check clean; review verdict: SHIP
 
 Added §5 from an operator observation (quoted there): a small config change is
 update-config / run-test / update-docs, with no structural change and therefore,
