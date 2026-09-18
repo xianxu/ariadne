@@ -77,52 +77,72 @@ Add a **quick flow** and give its one gate a review recipe matched to small
 diffs. It is one of three flows: `full` (today's), `quick` (this issue), and
 `config` for declarative changes (#233).
 
-A flow is not a verb. It is a frontmatter field, `flow:`, set by an existing
-verb. Every later gate reads it and acts on it.
+A flow is not a verb, and the agent does not choose it. The agent runs the same
+verbs in the same order on every issue — claim, change-code, implement, close —
+and the gates infer the flow and behave accordingly.
 
-### 1. Declared at entry, enforced at close
+### 1. Inferred by the gates, pinned by the operator
 
-**Declaration.** `sdlc change-code --flow quick` sets `flow: quick`. The flows
-diverge at `change-code`: the full flow's plan-quality and estimate gates live
-there, and it already owns branching, so no new verb is needed. `claim` is too
-early — claiming happens before the design exists (#113), when size is not yet
-knowable. `change-code` always writes the field, with `full` as the default, so
-from implementation onward every issue states its flow. An issue with no `flow:`
+**The record.** The issue's frontmatter carries the flow and who decided it, on
+one line, because the issue frontmatter helpers are line-based
+(`cmd/sdlc/internal/issue/frontmatter.go`):
+
+```yaml
+flow: {kind: quick, provenance: inferred}
+```
+
+`kind` is `full` or `quick` (#233 adds `config`). `provenance` is `inferred` when
+a gate decided, `operator` when the operator pinned it. An issue with no `flow:`
 (every issue filed before this one) reads as `full`.
 
-The agent may declare quick on its own judgment, or the operator can instruct it
-("use sdlc quick path"). Both take the same verb and face the same checks.
-`change-code --flow quick` refuses a Plan with `Mx` milestones, because the
-quick flow has a single boundary.
+**Inference at `change-code`.** Two facts about the issue, both artifacts the
+agent already produces under the constitution:
+
+- `Mx` milestone rows in `## Plan` → `full`.
+- A durable plan for the issue in `workshop/plans/` → `full`. The constitution
+  already requires one for non-trivial work.
+
+Neither → `quick`. Having no milestones is necessary for quick, not sufficient;
+the durable plan is the second signal. `full` runs the plan-quality and estimate
+gates as today; `quick` skips both.
+
+**Operator pin.** The operator can set the flow ("use sdlc quick path", or
+`full` for a small change that should get the whole process). The agent passes
+`sdlc change-code --flow quick|full`, which writes `provenance: operator`. The
+flag attests that the operator asked, in the spirit of the `--no-<gate>` flags.
+Gates never re-infer an operator pin, except through the hard shell below, so a
+misused pin cannot escape it. `change-code` refuses `--flow quick` on a Plan
+with `Mx` rows: a pin it cannot honour should say so while the operator is
+there.
 
 **The hard shell.** "Is this small?" is exactly the call that gets made wrong
-(#263 looked like one keybinding), so the declaration is not trusted. `sdlc
-close` measures the real diff. A quick-flow issue must stay inside all three
-limits:
+(#263 looked like one keybinding), so the inference at entry is not trusted
+either. A quick issue must stay inside all four limits, whatever its provenance:
 
-- **At most 2 code files changed.**
-- **At most 100 changed lines.**
-- **No declared shared surface touched.** A repo declares its shared surfaces
-  (for parley: the keybinding registry, `config.lua`'s option schema,
+- At most 2 code files changed.
+- At most 100 changed lines.
+- No declared shared surface touched. A repo declares its shared surfaces (for
+  parley: the keybinding registry, `config.lua`'s option schema,
   `construct/vocabulary/*.cue`, any cross-module seam). This is the criterion
-  that would have refused #263 — the *feature* was one chord, but it touched the
+  that would have caught #263 — the *feature* was one chord, but it touched the
   registry, and registry-shaped work grows guard generalizations and
   cross-module extractions whatever its headline size.
+- No `Mx` milestones.
 
-Code files exclude docs and the process trees (`workshop/`, `atlas/`, `*.md`).
-The limits are single-sourced in the binary: the check and the help text read
-the same constants.
+Crossing any one limit crosses the shell. Code files exclude docs and the
+process trees (`workshop/`, `atlas/`, `*.md`). The limits are single-sourced in
+the binary: the check and the help text read the same constants.
 
-Crossing the shell means the work is not quick, whoever declared it. `sdlc
-close` refuses, naming the limit crossed, and the refusal is the next-action
-spec: `sdlc change-code --flow full` re-routes the issue through the full flow's
-gates (plan-quality, estimate), and the close then runs the full review. The
-shell is checked where the diff exists, it cannot be crossed silently, and the
-operator route does not bypass it.
+**Gates only upgrade.** A gate that finds the shell crossed rewrites the issue to
+`{kind: full, provenance: inferred}`, logs the measured reason, and carries on as
+the full flow. No gate ever moves an issue from `full` to `quick`. `sdlc close`
+measures the diff, so it is where a crossing is usually found; `milestone-close`
+finds one when an `Mx` row appears mid-work. Crossing the shell neither refuses
+nor warns, so from the agent's side the flow looks the same.
 
-The shell should rarely be discovered at close. `sdlc state` reports a
-quick-flow issue whose diff has already crossed it, so the re-route usually
-happens mid-work, while a plan and an estimate can still cover most of it.
+An upgraded issue gets the full review at close, but not the plan or estimate
+it skipped. A plan written after the code has no value, and an estimate made
+afterwards is not a prediction, so the issue enters no est/actual calibration.
 
 ### 2. What the quick flow drops
 
@@ -132,7 +152,6 @@ happens mid-work, while a plan and an estimate can still cover most of it.
   With no estimate to pair it with, though, quick-flow rows leave est/actual
   velocity calibration rather than entering it half-filled.
 - `change-code`'s structural gate.
-- Milestones: `milestone-close` refuses a quick-flow issue.
 
 What remains is **one review gate: `sdlc close`**, with its evidence
 (`--verified`, the measured actual), the hard shell (§1) and the quick review
@@ -180,69 +199,77 @@ milestone-review; it is aimed at a different distribution:
   diff has a small enumeration — this is cheap exactly where it is most often
   skipped.
 
-`sdlc close` selects the recipe from `flow:`, so an issue re-routed to `full`
-gets the full review with no special case.
+`sdlc close` selects the recipe from `flow.kind`, so an upgraded issue gets the
+full review with no special case.
 
 ### 5. Split out: the declarative change
 
 The declarative tier — a config change admitted on mechanical facts, with no
-close review at all — is now its own flow, `flow: config`, tracked in #233. This
+close review at all — is now its own flow, `kind: config`, tracked in #233. This
 issue does not depend on it. #233 builds on §1's shared-surface declaration and
 extends `#Flow`.
 
 ## Done when
 
 - `construct/vocabulary/issue.cue` models `flow?: #Flow` with
-  `#Flow: "full" | "quick"`, so a mistyped value fails validation. An absent
-  field reads as `full`, and `sdlc issue --help` documents the field.
-- `sdlc change-code --flow quick|full` writes `flow:` (default `full`), refuses
-  `quick` for a Plan with `Mx` milestones, and works as a re-route on an issue
-  already mid-implementation.
+  `#Flow: {kind: "full" | "quick", provenance: "inferred" | "operator"}`, so a
+  mistyped value fails validation. The one-line form round-trips through the
+  line-based frontmatter helpers, an absent field reads as `full`, and `sdlc
+  issue --help` documents the field.
+- `sdlc change-code` infers the kind — `full` if the Plan has `Mx` rows or a
+  durable plan exists, otherwise `quick` — and writes `flow:` with `provenance:
+  inferred`. `--flow quick|full` pins it with `provenance: operator`, and
+  `--flow quick` is refused on a Plan with `Mx` rows.
 - On the quick flow, no durable plan, plan-quality judge, structured estimate or
-  `change-code` structural gate runs, and `milestone-close` refuses. `sdlc close`
-  is the only review gate.
+  `change-code` structural gate runs. `sdlc close` is the only review gate.
 - A repo can declare its shared surfaces.
-- `sdlc close` refuses a quick-flow issue whose diff crosses the hard shell (more
-  than 2 code files, more than 100 changed lines, or a declared shared surface),
-  naming the limit crossed and pointing at `sdlc change-code --flow full`. Tests
-  pin each limit: exactly at it passes, one past it refuses.
-- `sdlc state` reports a quick-flow issue whose diff has crossed the shell.
+- A quick issue that crosses the hard shell — more than 2 code files, more than
+  100 changed lines, a declared shared surface, or an `Mx` row — is upgraded to
+  `{kind: full, provenance: inferred}` by the gate that finds it, whatever its
+  provenance, with the measured reason in the Log, and gets the full review at
+  close. No gate downgrades. Tests pin each limit: exactly at it stays quick,
+  one past it upgrades.
+- An end-to-end test drives the same verb sequence (claim → change-code → close)
+  through a small issue and a large one, and each lands on the right flow and
+  review recipe without the agent choosing either.
 - `sdlc close` refuses a quick-flow issue with an empty `## Done when`, and runs
   the Done-when-freshness check deterministically.
 - `small-diff-review.md` exists as its own recipe, and `sdlc close` selects the
-  recipe from `flow:`.
+  recipe from `flow.kind`.
 - The recipe's architecture section is ARCH-DRY, ARCH-PURE and ARCH-PURPOSE,
   selected by marker from `judge/architecture.md`. A test asserts the rendered
   recipe carries exactly those three markers, so a registry edit cannot silently
   widen or drift it.
 - The recipe requires family enumeration on the first finding, and the gate
   ledger shows repeat families dropping on quick-flow issues.
-- Calibration: quick-flow rows are tagged in the ledger and excluded from
-  est/actual calibration, since they carry no estimate. The trade-off is judged
-  on what they do carry — gate rounds per issue, measured actual hours, and
-  escaped defects (follow-up fixes citing a quick-flow issue) — against
-  comparable full-flow rows. If those do not improve, the trade-off was wrong
-  and this gets reverted on evidence.
+- Calibration: the ledger tags rows with `kind`, `provenance` and whether the
+  issue was upgraded. Quick and upgraded rows are excluded from est/actual
+  calibration, since they carry no estimate. The trade-off is judged on what they
+  do carry — gate rounds per issue, measured actual hours, and escaped defects
+  (follow-up fixes citing a quick-flow issue) — against comparable full-flow
+  rows. If those do not improve, the trade-off was wrong and this gets reverted
+  on evidence.
 
 ## Plan
 
-- [ ] Confirm the shell's combinator: this Spec reads the operator's "> 2 files
-      and > 100 lines" as *crossing either limit* leaves the shell. Also decide
-      whether test files count toward the file and line limits.
+- [ ] Decide whether test files count toward the shell's file and line limits.
+- [ ] Single-source the threshold. The constitution's "non-trivial (>3 files or
+      >100 lines) → durable plan" (`AGENTS.base.md` §2) and the shell's "2 code
+      files, 100 lines" are one threshold stated twice. The binary owns the
+      constants and the constitution cites them. `AGENTS.base.md` is base-layer,
+      so this propagates downstream.
 - [ ] Add `#Flow` and `flow?:` to `construct/vocabulary/issue.cue`; document the
-      field in `sdlc issue --help`.
-- [ ] `change-code --flow`: write the field; for `quick`, skip the plan-quality,
-      estimate and structural gates and refuse `Mx` milestones; support the
-      mid-implementation re-route. Make `milestone-close` refuse `quick`.
+      field in `sdlc issue --help`; test the one-line form round-trips through
+      `GetField`/`SetField`.
+- [ ] `change-code`: infer and write `flow:`; add the `--flow` pin and its `Mx`
+      refusal; skip the plan-quality, estimate and structural gates on `quick`.
 - [ ] Decide the shared-surface declaration format.
-- [ ] Implement the hard shell at close with its re-route refusal, and the
-      `sdlc state` drift line.
+- [ ] Implement the hard shell and the upgrade in `close` and `milestone-close`.
 - [ ] Implement the two deterministic Done-when checks at close (§3).
 - [ ] Add a marker-subset selector beside `ArchitectureBlock`; write
-      `small-diff-review.md` on it; select the recipe at close from `flow:`.
-- [ ] Tag quick-flow rows in the calibration ledger and exclude them from
-      est/actual calibration. Decide whether a row re-routed to `full` mid-work
-      enters calibration, given its estimate postdates the first code commit.
+      `small-diff-review.md` on it; select the recipe at close from `flow.kind`.
+- [ ] Tag rows in the calibration ledger with `kind`, `provenance` and upgrade,
+      and exclude quick and upgraded rows from est/actual calibration.
 - [ ] Re-run the recipe against parley.nvim#263's actual diff as a fixture: it
       should surface BR-1, BR-2 and BR-9 (the classes it is built for) without
       four rounds of ARCH-\* passes.
@@ -344,3 +371,28 @@ Delta:
 - §4: the recipe is selected from `flow:`.
 - Done when and Plan updated to match: the cue field, `change-code --flow`,
   tests at each shell limit, the drift line, and the re-route.
+
+### 2026-09-17 — the gates infer the flow; the operator can pin it
+
+Reason: the operator decided that the agent should not choose a flow. From its
+side the flow is the same; the gates behave differently by flow, and nothing
+warns. The record carries `kind` and `provenance` (`inferred | operator`). Having
+no milestones is necessary for quick, not sufficient.
+
+Delta:
+
+- `flow:` is now `{kind, provenance}`, kept on one line because the frontmatter
+  helpers are line-based.
+- §1 rewritten. `change-code` infers the kind from `Mx` rows and the presence of
+  a durable plan; `--flow` is now an operator pin. The hard shell gains `Mx` rows
+  as a fourth limit and no longer refuses: a gate that finds it crossed upgrades
+  the issue to `full` and carries on. Gates only upgrade. This replaces the
+  previous revision's refusal at close, its re-route through `change-code`, and
+  the `sdlc state` drift line.
+- An upgraded issue gets the full review but no retroactive plan or estimate,
+  and stays out of est/actual calibration.
+- The shell reads as "crossing any one limit", matching the constitution's own
+  "or". Single-sourcing the two thresholds is a Plan item.
+- §2: dropped the separate `milestone-close` refusal; the `Mx` limit covers it.
+- Done when and Plan updated to match, including an end-to-end test that the
+  agent's verb sequence is identical on both flows.
