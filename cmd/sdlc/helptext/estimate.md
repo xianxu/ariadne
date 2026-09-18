@@ -1,8 +1,9 @@
 The `## Estimate` block — the contract behind `estimate_hours` (#117).
 
 `estimate_hours` is meant to be DERIVED, not guessed. An issue's `## Estimate`
-section carries a fenced ```estimate block that itemizes the derivation; `sdlc
-change-code` parses it and refuses to proceed unless it reconciles. This is the
+section carries a fenced ```estimate block that itemizes the derivation; on the
+full flow `sdlc change-code` parses it and refuses to proceed unless it
+reconciles (the quick flow has no estimate at all, #231). This is the
 deterministic shell around estimation — the form gate (the estimate-quality judge
 is the essence gate; the close-time calibration ledger closes the loop).
 

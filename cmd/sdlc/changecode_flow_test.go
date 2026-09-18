@@ -11,6 +11,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"io/fs"
 )
 
 const flowIssue = "---\nid: 000231\nstatus: working\nestimate_hours:\n---\n\n# T\n\n## Spec\n\nthe contract\n\n" +
@@ -95,6 +96,12 @@ func TestDecideChangeCodeFlow(t *testing.T) {
 		t.Errorf("quick/operator + Mx row: got %+v (err %v), want full/inferred", d.flow, err)
 	}
 
+	// No frontmatter: nowhere to record a flow, so change-code refuses rather than
+	// deciding one itself outside Decide (#231 BR-14).
+	if _, err := decideChangeCodeFlow("# T\n\n## Spec\n\nx\n", "", ""); err == nil {
+		t.Error("no frontmatter: want a refusal")
+	}
+
 	// A malformed record resolves to full and is rewritten well-formed, with a warning.
 	bad := strings.Replace(flowIssue, "estimate_hours:", "estimate_hours:\nflow: {kind: quikc}", 1)
 	d, err = decideChangeCodeFlow(bad, "", "")
@@ -112,12 +119,12 @@ func TestRecordChangeCodeFlowWritesUnlessDryRun(t *testing.T) {
 		if err := os.WriteFile(path, []byte(flowIssue), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		f := &changeCodeFlags{DryRun: dry}
+		f := &changeCodeFlags{DryRun: dry, PlansDir: t.TempDir()}
 		d := reportChangeCodeFlow(ioDiscard(), f, flowIssue, "")
 		if on, _ := os.ReadFile(path); string(on) != flowIssue {
 			t.Fatalf("dry-run=%v: reporting the flow wrote the issue", dry)
 		}
-		recordChangeCodeFlow(ioDiscard(), f, path, flowIssue, d)
+		recordChangeCodeFlow(ioDiscard(), f, path, "000231-x", d)
 		fl := d.flow
 		on, _ := os.ReadFile(path)
 		wrote := string(on) != flowIssue
@@ -245,5 +252,107 @@ func TestRunChangeCodeRecordsFlowAfterGates(t *testing.T) {
 			t.Errorf("%s comes before %s in runChangeCode — the flow record must be written after the gates pass "+
 				"and past the dry-run return, and before the sync commit", o.name, order[i-1].name)
 		}
+	}
+}
+
+// TestRecordChangeCodeFlowKeepsConcurrentEdit: the gates can run for minutes,
+// and the issue may be edited meanwhile (an editor, the agent). The record is
+// re-derived from the file as it is at record time, so the edit survives and
+// the contract hashes describe the edited text (#231 BR-11).
+func TestRecordChangeCodeFlowKeepsConcurrentEdit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "000231-x.md")
+	os.WriteFile(path, []byte(flowIssue), 0o644)
+	f := &changeCodeFlags{PlansDir: t.TempDir()}
+	d := reportChangeCodeFlow(ioDiscard(), f, flowIssue, "")
+
+	edited := strings.Replace(flowIssue, "the contract", "the contract, sharpened while the gates ran", 1)
+	os.WriteFile(path, []byte(edited), 0o644)
+	recordChangeCodeFlow(ioDiscard(), f, path, "000231-x", d)
+
+	on, _ := os.ReadFile(path)
+	if !strings.Contains(string(on), "sharpened while the gates ran") {
+		t.Fatalf("the concurrent edit was clobbered:\n%s", on)
+	}
+	_, body, _ := issue.Parse(string(on))
+	spec, done := flow.ContractHashes(body)
+	if got := recordedFlow(t, string(on)); got.Spec != spec || got.Done != done {
+		t.Errorf("recorded hashes %s/%s describe the stale text, want %s/%s", got.Spec, got.Done, spec, done)
+	}
+}
+
+// TestRecordChangeCodeFlowRefusesFlowChangingEdit: an edit during the gates
+// that changes the flow itself (here, Mx rows appear) means the gates ran for
+// the wrong flow. Recording either answer would be wrong, so it refuses and the
+// file is left as the editor left it.
+func TestRecordChangeCodeFlowRefusesFlowChangingEdit(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "000231-x.md")
+	os.WriteFile(path, []byte(flowIssue), 0o644)
+	f := &changeCodeFlags{PlansDir: t.TempDir()}
+	d := reportChangeCodeFlow(ioDiscard(), f, flowIssue, "")
+	if d.flow.Kind != flow.Quick {
+		t.Fatalf("precondition: %+v, want quick", d.flow)
+	}
+
+	grown := withPlanRows(flowIssue, "- [ ] M1 — a\n- [ ] M2 — b\n")
+	os.WriteFile(path, []byte(grown), 0o644)
+	msg, died := expectDie(t, func() { recordChangeCodeFlow(ioDiscard(), f, path, "000231-x", d) })
+	if !died || !strings.Contains(msg, "re-run") {
+		t.Errorf("flow-changing edit: died=%v msg=%q, want a refusal naming the re-run", died, msg)
+	}
+	if on, _ := os.ReadFile(path); string(on) != grown {
+		t.Errorf("the refused record still wrote the file:\n%s", on)
+	}
+}
+
+// TestOnlyFlowPackageBuildsFlowValues: Decide is the only producer of a flow
+// decision, and Parse the only reader of a record. A flow.Flow literal or a
+// flow.Kind / flow.Provenance / flow.Rule conversion anywhere else in cmd/sdlc
+// is a decision made outside them — the #231 BR-7/BR-14 family, fixed as a rule.
+func TestOnlyFlowPackageBuildsFlowValues(t *testing.T) {
+	fset := token.NewFileSet()
+	err := filepath.WalkDir(".", func(path string, de fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if de.IsDir() {
+			if path == filepath.Join("internal", "flow") || de.Name() == "testdata" {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		file, perr := parser.ParseFile(fset, path, nil, 0)
+		if perr != nil {
+			return perr
+		}
+		ast.Inspect(file, func(n ast.Node) bool {
+			var typ ast.Expr
+			switch x := n.(type) {
+			case *ast.CompositeLit:
+				typ = x.Type
+			case *ast.CallExpr:
+				typ = x.Fun
+			default:
+				return true
+			}
+			sel, ok := typ.(*ast.SelectorExpr)
+			if !ok {
+				return true
+			}
+			if pkg, ok := sel.X.(*ast.Ident); ok && pkg.Name == "flow" {
+				switch sel.Sel.Name {
+				case "Flow", "Kind", "Provenance", "Rule":
+					t.Errorf("%s: builds a flow.%s outside package flow — decide through flow.Decide "+
+						"(or read through flow.Parse) instead", fset.Position(n.Pos()), sel.Sel.Name)
+				}
+			}
+			return true
+		})
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
 	}
 }

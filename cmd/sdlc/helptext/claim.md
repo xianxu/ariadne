@@ -14,7 +14,8 @@ Claim is a CHEAP LOCK: it demands NO estimate (#113). Claim the moment an
 idea crystallizes into an issue — the early lock reserves it against peer
 collision, and the claim commit's timestamp anchors the active-time window
 at engagement start (so `sdlc actual` captures design attention). The
-estimate gate lives at `sdlc change-code`, not here.
+estimate gate lives at `sdlc change-code`, not here — and only on the full
+flow; the quick flow has none (#231).
 
 Only the open→working transition is automatic. Claim doubles as the
 generic issue-file re-sync primitive, so an issue already in any state

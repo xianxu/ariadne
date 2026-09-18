@@ -1,14 +1,17 @@
 package flow
 
 import (
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 )
 
-// TestFlowRoundTrip: Format then Parse is the identity, including for hashes
-// that an unquoted YAML reader would retype — all digits read as an int and an
-// `NNeNNNNN` shape reads as a float (#231 PQ-9). Format must quote them.
+// TestFlowRoundTrip: Format then Parse is the identity, including for a hash
+// that an unquoted YAML reader would retype — all digits read as an int (#231
+// PQ-9) — so Format must quote it. The `NNeNNNNN` case stays as a shape worth
+// round-tripping, though both readers were measured to read it as a string.
 func TestFlowRoundTrip(t *testing.T) {
 	cases := []Flow{
 		{Kind: Full, Provenance: Inferred},
@@ -29,30 +32,6 @@ func TestFlowRoundTrip(t *testing.T) {
 		}
 		if got != want {
 			t.Errorf("round trip: got %+v, want %+v (via %q)", got, want, text)
-		}
-	}
-}
-
-// TestParseRejects: every malformed shape is an error, never a silently
-// defaulted value — callers resolve an error to full, the stricter flow.
-func TestParseRejects(t *testing.T) {
-	for _, bad := range []string{
-		"",
-		"quick",
-		"[quick, inferred]",
-		"{kind: quikc, provenance: inferred}",
-		"{kind: quick, provenance: guessed}",
-		"{kind: quick}",
-		"{provenance: inferred}",
-		"{kind: quick, provenance: inferred, spec: 12345678}", // unquoted: an int to cue
-		"{kind: quick, provenance: inferred, spec: \"1A2B3C4D\"}",
-		"{kind: quick, provenance: inferred, spec: \"abc\"}",
-		"{kind: quick, provenance: inferred, color: blue}",
-		"{kind: quick, kind: full, provenance: inferred}",
-		"{kind: {nested: map}, provenance: inferred}",
-	} {
-		if f, err := Parse(bad); err == nil {
-			t.Errorf("Parse(%q) = %+v, want an error", bad, f)
 		}
 	}
 }
@@ -173,5 +152,64 @@ func TestShellSummaryReadsTheConstants(t *testing.T) {
 		if !strings.Contains(s, want) {
 			t.Errorf("ShellSummary() = %q, missing %q", s, want)
 		}
+	}
+}
+
+// flowRecordCorpus reads the shared accept/reject corpus both readers of the
+// record assert (construct/vocabulary/testdata/flow_records.txt).
+func flowRecordCorpus(t *testing.T) (accept, reject []string) {
+	t.Helper()
+	b, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "construct", "vocabulary", "testdata", "flow_records.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range strings.Split(string(b), "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		verdict, value, ok := strings.Cut(line, "\t")
+		switch {
+		case ok && verdict == "accept":
+			accept = append(accept, value)
+		case ok && verdict == "reject":
+			reject = append(reject, value)
+		default:
+			t.Fatalf("corpus line %q is not <accept|reject><TAB><value>", line)
+		}
+	}
+	return accept, reject
+}
+
+// TestFlowRecordCorpus: the Go codec accepts exactly the corpus's accepts and
+// rejects exactly its rejects. cmd/vocabulary asserts the same corpus against
+// the cue model, so the two readers agree value for value (#231 BR-12).
+func TestFlowRecordCorpus(t *testing.T) {
+	accept, reject := flowRecordCorpus(t)
+	if len(accept) == 0 || len(reject) == 0 {
+		t.Fatal("corpus has no accepts or no rejects")
+	}
+	for _, v := range accept {
+		if _, err := Parse(v); err != nil {
+			t.Errorf("Parse(%q) rejected a value the corpus accepts: %v", v, err)
+		}
+	}
+	for _, v := range reject {
+		if f, err := Parse(v); err == nil {
+			t.Errorf("Parse(%q) = %+v, but the corpus rejects it", v, f)
+		}
+	}
+}
+
+// TestRecorded: the decision input from frontmatter — nil when absent, the
+// record when valid, and full/inferred plus the error when malformed.
+func TestRecorded(t *testing.T) {
+	if r, err := Recorded("id: 000001"); r != nil || err != nil {
+		t.Errorf("absent: got %+v, %v; want nil, nil", r, err)
+	}
+	if r, err := Recorded("flow: {kind: quick, provenance: operator}"); err != nil || r == nil || *r != (Flow{Kind: Quick, Provenance: Operator}) {
+		t.Errorf("valid: got %+v, %v", r, err)
+	}
+	if r, err := Recorded("flow: {kind: quikc}"); err == nil || r == nil || *r != (Flow{Kind: Full, Provenance: Inferred}) {
+		t.Errorf("malformed: got %+v, %v; want full/inferred with an error", r, err)
 	}
 }

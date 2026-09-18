@@ -39,7 +39,7 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 | `estimate.LedgerRow` flow columns | `cmd/sdlc/internal/estimate/ledger.go` | modified |
 | `estimate.driftSample` | `cmd/sdlc/internal/estimate/drift.go` | modified (excludes quick/upgraded) |
 
-- **Flow** — `{Kind: full|quick, Provenance: inferred|operator, Spec, Done string}`, serialized on one line, e.g. `{kind: quick, provenance: inferred, spec: "1a2b3c4d", done: "5e6f7a8b"}`. `Format` always quotes the hashes: an unquoted all-digit hash is a YAML int to cue and yaml.v3, and a hash like `12e45678` is a float (PQ-9). It stays on one line because the issue frontmatter helpers are line-based. `Spec`/`Done` are optional, and change-code writes them for `quick` (see ContractHashes).
+- **Flow** — `{Kind: full|quick, Provenance: inferred|operator, Spec, Done string}`, serialized on one line, e.g. `{kind: quick, provenance: inferred, spec: "1a2b3c4d", done: "5e6f7a8b"}`. `Format` always quotes the hashes: an unquoted all-digit hash is a YAML int to cue and yaml.v3 (PQ-9). Other unquoted hex shapes were measured to read as strings under both readers; the shared corpus pins the exact set (BR-12). It stays on one line because the issue frontmatter helpers are line-based. `Spec`/`Done` are optional, and change-code writes them for `quick` (see ContractHashes).
   - `FromFrontmatter(fm)` returns `(Flow, recorded bool, err)`. An absent field reads as full and not recorded. A malformed value is an error, which every caller resolves to `full`, the stricter flow.
   - **Relationships:** 1:1 with an issue. It is written by change-code and by the close finalize.
   - **DRY rationale:** one codec for every reader (change-code, start-plan, close, milestone-close, calibration). It reuses yaml/v3 as `project.DecodeMetadata` does.
@@ -382,4 +382,24 @@ Delta:
   `TestRunChangeCodeRecordsFlowAfterGates`, replacing `TestChangeCodeFlowStep`
   and `TestChangeCodeGatesSkipOnQuick`. `flow.WithContract` lives in
   `donewhen.go`.
+
+### 2026-09-17 — M1 boundary review round 2 (BR-11..BR-14), fixed as rules
+
+- **BR-11** (write from a stale snapshot). `recordChangeCodeFlow` re-derives
+  the record from a fresh read at write time. It refuses if the edit changed the
+  flow itself (`flowDrift`). Both paths are tested with a second writer.
+- **BR-12** (a record round-trips through every reader). One corpus,
+  `construct/vocabulary/testdata/flow_records.txt`, is asserted by the Go codec
+  (`TestFlowRecordCorpus`) and by cue (`TestValidateInstance_FlowRecordCorpus`).
+  `Parse` rejects a present-but-empty hash. The corpus also corrected a claim:
+  unquoted `12e45678` reads as a string under both readers, not a float.
+- **BR-13** (a doc claim contradicts the code). A verb sweep over the gates'
+  action words, `git grep -n -i -E
+  'change-code.{0,60}(refus|requir|demand|parses|asks? for|runs)|(refus|requir|demand).{0,60}change-code|estimate gate|plan-quality gate'`
+  over helptext, atlas, `AGENTS.base.md` and construct, found 26 hits. Three
+  were unqualified (`estimate.md:5`, `claim.md:17`, `issue.md:93`), and all three
+  are now qualified.
+- **BR-14** (decision logic restated). Only `package flow` builds flow values,
+  pinned by `TestOnlyFlowPackageBuildsFlowValues`. A missing frontmatter
+  refuses, and a malformed record is resolved by `flow.Recorded`.
 

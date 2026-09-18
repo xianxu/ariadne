@@ -90,8 +90,9 @@ publishes whatever main carries, this body included. "Not pushed" means "this
 command did not push", not "this content can never reach origin by any route".
 
 Publication stays with the verbs that already own an external boundary; `sdlc
-change-code` runs the same sync WITH the push once plan-quality has accepted the
-design, and `--push` is there for other milestone callers — including to finish
+change-code` runs the same sync WITH the push once its gates pass (plan-quality
+has accepted the design on the full flow; the quick flow has no plan gate), and
+`--push` is there for other milestone callers — including to finish
 a publish whose commit already landed.
 
 For depth:

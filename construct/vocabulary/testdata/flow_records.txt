@@ -1,0 +1,30 @@
+# The #231 flow record corpus: ONE set of values, read by BOTH readers of the
+# record — the Go codec (cmd/sdlc/internal/flow TestFlowRecordCorpus) and the
+# cue model (cmd/vocabulary TestValidateInstance_FlowRecordCorpus). A value one
+# reader accepts and the other rejects fails a build, so the two cannot drift
+# apart value by value (#231 BR-12). A new kind (#233's config) is added here,
+# and both readers must learn it.
+#
+# Format: <accept|reject><TAB><the value after `flow:`>
+accept	{kind: full, provenance: inferred}
+accept	{kind: full, provenance: operator}
+accept	{kind: quick, provenance: inferred}
+accept	{kind: quick, provenance: operator, spec: "1a2b3c4d", done: "5e6f7a8b"}
+accept	{kind: quick, provenance: inferred, spec: "12345678", done: "00000000"}
+accept	{kind: quick, provenance: inferred, spec: "12e45678"}
+reject	{kind: quikc, provenance: inferred}
+reject	{kind: quick, provenance: guessed}
+reject	{kind: quick}
+reject	{provenance: inferred}
+reject	{kind: quick, provenance: inferred, spec: 12345678}
+accept	{kind: quick, provenance: inferred, spec: 12e45678}
+accept	{kind: quick, provenance: inferred, spec: 1a2b3c4d}
+reject	{kind: quick, provenance: inferred, spec: ""}
+reject	{kind: quick, provenance: inferred, done: ""}
+reject	{kind: quick, provenance: inferred, spec: "1A2B3C4D"}
+reject	{kind: quick, provenance: inferred, spec: "abc"}
+reject	{kind: quick, provenance: inferred, color: blue}
+reject	{kind: {nested: map}, provenance: inferred}
+reject	quick
+reject	[quick, inferred]
+reject	""

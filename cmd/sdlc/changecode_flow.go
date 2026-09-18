@@ -33,19 +33,14 @@ type changeCodeFlow struct {
 func decideChangeCodeFlow(issueContent, planContent, pin string) (changeCodeFlow, error) {
 	fm, body, err := issue.Parse(issueContent)
 	if err != nil {
-		// No frontmatter: nothing to record, and the structural gate refuses the
-		// issue on the full flow anyway.
-		return changeCodeFlow{flow: flow.Flow{Kind: flow.Full}, rule: "the issue has no frontmatter", content: issueContent}, nil
+		// Nowhere to record a flow. Refuse rather than decide one here, outside
+		// Decide: an issue without frontmatter is malformed on either flow (#231 BR-14).
+		return changeCodeFlow{}, fmt.Errorf("the issue has no YAML frontmatter, so its flow cannot be recorded — fix the issue file (see `sdlc issue --help`)")
 	}
 	var out changeCodeFlow
-	var recorded *flow.Flow
-	rec, isRecorded, perr := flow.FromFrontmatter(fm)
-	switch {
-	case perr != nil:
+	recorded, perr := flow.Recorded(fm)
+	if perr != nil {
 		out.warning = fmt.Sprintf("flow record unreadable (%v) — treating it as full and rewriting it", perr)
-		recorded = &flow.Flow{Kind: flow.Full, Provenance: flow.Inferred}
-	case isRecorded:
-		recorded = &rec
 	}
 	plan, _ := issue.PlanItemsBody(body)
 	hasMx := len(issue.MilestonesInPlanOrder(plan)) > 0
@@ -95,13 +90,44 @@ func reportChangeCodeFlow(stderr io.Writer, f *changeCodeFlags, issueContent, pl
 // before the sync commit that lands it (pinned by
 // TestRunChangeCodeRecordsFlowAfterGates); the DryRun check here is the same
 // guarantee held locally.
-func recordChangeCodeFlow(stderr io.Writer, f *changeCodeFlags, issuePath, issueContent string, d changeCodeFlow) {
-	if f.DryRun || d.content == issueContent {
+//
+// The gates can run for minutes, and the issue may be edited meanwhile, so the
+// record is RE-DERIVED from the file as it is now rather than written from the
+// text read before the gates (#231 BR-11): the edit survives, and a quick
+// record's contract hashes describe the edited text. If the edit changed the
+// flow itself, the gates ran for the wrong one — it refuses, and the file is
+// left as the editor left it.
+func recordChangeCodeFlow(stderr io.Writer, f *changeCodeFlags, issuePath, name string, ran changeCodeFlow) {
+	if f.DryRun {
 		return
 	}
-	if err := os.WriteFile(issuePath, []byte(d.content), 0o644); err != nil {
+	fresh, err := os.ReadFile(issuePath)
+	if err != nil {
+		die(stderr, fmt.Sprintf("re-read %s to record its flow: %v", issuePath, err))
+	}
+	now, err := decideChangeCodeFlow(string(fresh), readOptionalPlanFile(f.PlansDir, name), f.Flow)
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	if err := flowDrift(ran, now); err != nil {
+		die(stderr, err.Error())
+	}
+	if now.content == string(fresh) {
+		return
+	}
+	if err := os.WriteFile(issuePath, []byte(now.content), 0o644); err != nil {
 		die(stderr, fmt.Sprintf("record flow in %s: %v", issuePath, err))
 	}
+}
+
+// flowDrift refuses when the issue as it is now infers a different flow than the
+// one the gates ran under. Pure.
+func flowDrift(ran, now changeCodeFlow) error {
+	if ran.flow.Kind == now.flow.Kind && ran.flow.Provenance == now.flow.Provenance {
+		return nil
+	}
+	return fmt.Errorf("the issue changed while change-code ran: it now infers flow %s (%s), but the gates ran "+
+		"for %s (%s) — re-run `sdlc change-code`", now.flow.Kind, now.rule, ran.flow.Kind, ran.rule)
 }
 
 // activeChangeCodeGates is the gate list this run executes: every gate on the

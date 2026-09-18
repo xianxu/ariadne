@@ -59,9 +59,10 @@ type Flow struct {
 var hashRE = regexp.MustCompile(`^[0-9a-f]{8}$`)
 
 // Format renders the one-line record. The hashes are always QUOTED: an
-// unquoted all-digit hash is an int to both cue and yaml.v3, and a hash like
-// `12e45678` is a float, so the same bytes would parse to different types under
-// different readers (#231 PQ-9).
+// unquoted all-digit hash is an int to both cue and yaml.v3, so the same bytes
+// would not parse as the string the record holds (#231 PQ-9). (Measured: other
+// unquoted hex shapes, `1a2b3c4d` and even `12e45678`, read as strings under
+// both readers — the shared corpus in construct/vocabulary/testdata pins that.)
 func Format(f Flow) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "{kind: %s, provenance: %s", f.Kind, f.Provenance)
@@ -119,9 +120,11 @@ func Parse(value string) (Flow, error) {
 	if f.Provenance != Inferred && f.Provenance != Operator {
 		return Flow{}, fmt.Errorf("flow record %q: provenance must be %s or %s", value, Inferred, Operator)
 	}
-	for _, h := range []string{f.Spec, f.Done} {
-		if h != "" && !hashRE.MatchString(h) {
-			return Flow{}, fmt.Errorf("flow record %q: contract hash %q is not 8 lowercase hex", value, h)
+	// A hash key that is PRESENT must hold a hash — `spec: ""` is rejected, as the
+	// cue model rejects it; absent and empty are not the same record (#231 BR-12).
+	for key, h := range map[string]string{"spec": f.Spec, "done": f.Done} {
+		if seen[key] && !hashRE.MatchString(h) {
+			return Flow{}, fmt.Errorf("flow record %q: contract hash %s %q is not 8 lowercase hex", value, key, h)
 		}
 	}
 	return f, nil
@@ -139,12 +142,25 @@ func FromFrontmatter(fm string) (f Flow, recorded bool, err error) {
 	}
 	f, err = Parse(v)
 	if err != nil {
-		return Flow{Kind: Full}, true, err
+		return Flow{Kind: Full, Provenance: Inferred}, true, err
 	}
 	return f, true, nil
 }
 
-// DecideInput is what change-code knows when it infers the flow.
+// Recorded reads the record as a decision input: nil when there is none, the
+// record when it is valid, and full/inferred when it is malformed — the stricter
+// flow, which Decide then never downgrades — together with the parse error for
+// the caller to report. The one place a malformed record is resolved.
+func Recorded(fm string) (*Flow, error) {
+	f, recorded, err := FromFrontmatter(fm)
+	if !recorded {
+		return nil, nil
+	}
+	return &f, err
+}
+
+// DecideInput is what change-code knows when it infers the flow. Recorded comes
+// from Recorded.
 type DecideInput struct {
 	Recorded      *Flow  // the record already on the issue, nil if none
 	Pin           string // --flow value: "", "quick" or "full"

@@ -234,12 +234,10 @@ func TestValidateInstance_RejectsMalformations(t *testing.T) {
 		{"done missing actual_hours", "id: \"000001\"\nstatus: done\n", "actual_hours", "required field is missing"},
 		{"done invalid actual string", "id: \"000001\"\nstatus: done\nactual_hours: unknown\n", "actual_hours", "not valid"},
 		// #231: flow is modeled, so a typo'd value fails instead of slipping through
-		// the open #Issue — and an unquoted all-digit hash is an int, not a string.
+		// the open #Issue, and the diagnostic names the field. Accept/reject over the
+		// whole value space is TestValidateInstance_FlowRecordCorpus's job.
 		{"flow bad kind", "id: \"000001\"\nstatus: working\nflow: {kind: quikc, provenance: inferred}\n", "flow.kind", ""},
 		{"flow bad provenance", "id: \"000001\"\nstatus: working\nflow: {kind: quick, provenance: guessed}\n", "flow.provenance", ""},
-		{"flow unquoted numeric hash", "id: \"000001\"\nstatus: working\nflow: {kind: quick, provenance: inferred, spec: 12345678, done: \"5e6f7a8b\"}\n", "", "flow.spec"},
-		{"flow short hash", "id: \"000001\"\nstatus: working\nflow: {kind: quick, provenance: inferred, spec: \"abc\"}\n", "", "flow.spec"},
-		{"flow unknown key", "id: \"000001\"\nstatus: working\nflow: {kind: quick, provenance: inferred, color: blue}\n", "", ""},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -278,8 +276,6 @@ func TestValidateInstance_ValidPasses(t *testing.T) {
 		{"working issue", "id: \"000001\"\nstatus: working\nestimate_hours: 2.0\ntarget: foo\n"},
 		{"done numeric actual", "id: \"000001\"\nstatus: done\nactual_hours: 1.25\n"},
 		{"done not applicable actual", "id: \"000001\"\nstatus: done\nactual_hours: N/A\n"},
-		{"flow full inferred", "id: \"000001\"\nstatus: working\nflow: {kind: full, provenance: inferred}\n"},
-		{"flow quick with quoted all-digit hash", "id: \"000001\"\nstatus: working\nflow: {kind: quick, provenance: operator, spec: \"12345678\", done: \"5e6f7a8b\"}\n"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -337,5 +333,43 @@ func TestValidateInstance_PensiveGeneralizes(t *testing.T) {
 	}
 	if !rejectedMode {
 		t.Errorf("expected a `mode` rejection for mode: musing, got %v", diags)
+	}
+}
+
+// TestValidateInstance_FlowRecordCorpus asserts the cue model against the SAME
+// accept/reject corpus the Go codec is tested against (internal/flow
+// TestFlowRecordCorpus), so the two readers of the #231 flow record agree value
+// for value — including which unquoted hash shapes YAML retypes (#231 BR-12).
+func TestValidateInstance_FlowRecordCorpus(t *testing.T) {
+	if _, err := exec.LookPath("cue"); err != nil {
+		t.Skip("cue not on PATH")
+	}
+	schema := schemaT(t, "issue")
+	b, err := os.ReadFile(filepath.Join(repoRootT(t), "construct", "vocabulary", "testdata", "flow_records.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, line := range strings.Split(string(b), "\n") {
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		verdict, value, ok := strings.Cut(line, "\t")
+		if !ok || (verdict != "accept" && verdict != "reject") {
+			t.Fatalf("corpus line %q is not <accept|reject><TAB><value>", line)
+		}
+		n++
+		md := filepath.Join(t.TempDir(), "x.md")
+		os.WriteFile(md, []byte("---\nid: \"000001\"\nstatus: working\nflow: "+value+"\n---\n# T\n"), 0o644)
+		diags, err := validateInstanceFile(osCue{}, md, schema, "issue")
+		if err != nil {
+			t.Fatalf("%s: %v", value, err)
+		}
+		if accepted := len(diags) == 0; accepted != (verdict == "accept") {
+			t.Errorf("cue %s %q, but the corpus says %s (diags %v)", map[bool]string{true: "accepts", false: "rejects"}[accepted], value, verdict, diags)
+		}
+	}
+	if n == 0 {
+		t.Fatal("empty corpus")
 	}
 }

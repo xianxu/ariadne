@@ -194,7 +194,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	//    commit+push of the issue file: a second implementation of this, and one
 	//    that only ever handled the UNTRACKED case, leaving a tracked-but-edited
 	//    issue file dirty at branch creation.
-	recordChangeCodeFlow(stderr, f, issuePath, issueContent, issueFlow)
+	recordChangeCodeFlow(stderr, f, issuePath, name, issueFlow)
 	syncIssue(stderr, f, issuePath)
 
 	// 8. Create branch.

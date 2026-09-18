@@ -2,6 +2,32 @@
 
 *(Record patterns of what went wrong and rules to prevent repeating them)*
 
+## A write computed before a long step must be re-derived when it lands
+
+**Pattern (#231 BR-11).** `change-code` built the flow record from the issue text
+it read at step 2, then wrote it after the gate loop, which can run a multi-minute
+plan-quality judge. An edit made meanwhile (by an editor or the agent) was
+silently overwritten, then committed and pushed by the sync that follows. The
+repo lock does not help: it serializes sdlc verbs, not editors.
+
+**Rule:** when a verb reads state, runs something long, then writes, the write
+either re-derives from a fresh read or refuses if the state moved. Snapshot
+validation is the refusing form, and `close` already does it (#194). Test it with
+a second actor: edit the file between the read and the write.
+
+## Making a gate conditional means re-qualifying every sentence that asserts it
+
+**Pattern (#231 PQ-1, BR-6, BR-13).** Three rounds each found another surface
+still saying "change-code requires the estimate" or "write a durable plan" after
+the quick flow made those conditional. Each sweep was a hand-copied list of
+surfaces, and each missed one. `helptext/estimate.md` even matched the sweep's
+own regex and was dropped from the list.
+
+**Rule:** the enumeration comes from grepping the gate's ACTION verbs (refuses,
+requires, demands, parses, asks for, runs) next to its name, not from a list of
+the files you remember. Record the command beside the result so the next
+reviewer can re-run it.
+
 ## A search that keys on content cannot see the content that describes it
 
 **Pattern (#218 BR-10, and three self-inflicted splices in #207/#218).** Two
