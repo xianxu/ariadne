@@ -295,18 +295,18 @@ Files:
 - `atlas/workflow/ledger-landscape.md`
 - brain `data/life/42shots/velocity/SKILL.md` (peer)
 
-- [ ] **Ledger columns.**
+- [x] **Ledger columns.**
   - Tests first:
     - `TestRoundTripFlowColumns`.
     - `TestParseRowsKeepsChurnOnTwentyColumnRow`: split the width check per block at `ledger.go:129`.
     - `TestUpgradeHeaderAddsFlowColumns`.
     - `close_ledger_test.go` quick and upgraded rows.
   - Implement the `LedgerRow` fields `FlowKind`, `FlowProvenance` and `FlowUpgraded`, the header, `FormatRow`/`ParseRows`, and `appendCalibrationRow`.
-- [ ] **Drift excludes quick and upgraded rows.**
+- [x] **Drift excludes quick and upgraded rows.**
   - Tests first: `TestDriftSampleExcludesQuickAndUpgraded` and `TestDriftQuickRowLastDoesNotDisable`.
   - Filter in `driftSample` and in the latest-row selection. `SpanThroughput` keeps quick hours.
-- [ ] **#263 fixture run (manual, recorded in the Log).** Render the small-diff prompt against parley.nvim#263's shipped range and run it once. Record whether it surfaces the BR-1, BR-2 and BR-9 families, and how many ARCH lenses it spends.
-- [ ] **Docs for M3.** `ledger-landscape.md` gets the three columns, the drift exclusion and the churn cut-over. The brain `velocity/SKILL.md` gets a filtering note.
+- [x] **#263 fixture run (manual, recorded in the Log).** Render the small-diff prompt against parley.nvim#263's shipped range and run it once. Record whether it surfaces the BR-1, BR-2 and BR-9 families, and how many ARCH lenses it spends.
+- [x] **Docs for M3.** `ledger-landscape.md` gets the three columns, the drift exclusion and the churn cut-over. The brain `velocity/SKILL.md` gets a filtering note.
 - [ ] M3 — tick, then run `sdlc close --issue 231 --verified '<evidence>'`.
 
 ## Follow-ups (not this issue)
