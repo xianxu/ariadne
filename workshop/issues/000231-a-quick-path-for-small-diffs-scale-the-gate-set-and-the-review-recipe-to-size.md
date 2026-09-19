@@ -634,6 +634,27 @@ Here they took the diff from 91 to 96 added lines — still inside, but unmeasur
 A larger fix could carry a quick issue past the shell with only the small-diff
 review behind it.
 
+### 2026-09-18 — trial: pair#289, the second quick issue
+
+pair#289 (retire hostty's test-only control surface), filed from pair#279's
+close review, closed quick/inferred: 0.48h, one close round, SHIP with four
+Minors. change-code inferred quick; close measured "45 added lines in code
+files, a design of 44 lines" and ran the small-diff review. BR-1 enumerated
+"all instances in window". All four Minors were fixed in the round, one of
+which surfaced another orphan (`joinArgs`, fake-only) and moved it.
+
+It sharpens the gap above: the fixes after a **SHIP** verdict are unmeasured
+too, not only FIX-THEN-SHIP's. They took the diff from 45 to 50 added lines and
+from 4 to 6 code files. Any post-verdict change bundled into the close commit
+skips the shell.
+
+Friction outside the flow: `sdlc merge` refuses on dirty tracked files, and
+pair (and tools) carry uncommitted base-layer drift — `Makefile` changed from
+its committed symlink into a regular file, plus `bootstrap.sh`,
+`merge-check.yml` and `scripts/` from ariadne#213. The session backed them up,
+stashed, merged, popped, and verified them by checksum. That was safe, but every
+merge in those repos pays for it until the drift is committed or discarded.
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
