@@ -201,7 +201,7 @@ Files:
   - `helptext/change-code.md` (flow step, `--flow`, skipped gates) and `helptext/issue.md` (the `flow` field).
   - Atlas: `issue-lifecycle.md`, `sdlc-binary.md`, `vocabulary.md`, `artifact-hierarchy.md`.
   - Run `go test ./... -count=1`, then `git diff --check`.
-- [ ] M1 — tick, then run `sdlc milestone-close --issue 231 --milestone M1 --verified '<test output>'`.
+- [x] M1 — tick, then run `sdlc milestone-close --issue 231 --milestone M1 --verified '<test output>'`.
 
 ### M2 — the shell, the Done-when checks, and the small-diff review at close
 
@@ -280,7 +280,7 @@ Files:
   - Atlas: `gate-state.md`, `pre-merge-checks.md`, `architecture-principles.md` (the `quick-flow:` field), `sdlc-binary.md` (close + `.sdlc/shared-surfaces`).
   - Record the churn test-bucket cut-over in the issue Log.
   - Regenerate the process manual. Run `go test ./... -count=1` and `git diff --check`.
-- [ ] M2 — tick, then run `sdlc milestone-close --issue 231 --milestone M2 --verified '<test output>'`.
+- [x] M2 — tick, then run `sdlc milestone-close --issue 231 --milestone M2 --verified '<test output>'`.
 
 ### M3 — calibration and the #263 fixture
 
@@ -302,7 +302,7 @@ Files:
   - Filter in `driftSample` and in the latest-row selection. `SpanThroughput` keeps quick hours.
 - [x] **#263 fixture run (manual, recorded in the Log).** Render the small-diff prompt against parley.nvim#263's shipped range and run it once. Record whether it surfaces the BR-1, BR-2 and BR-9 families, and how many ARCH lenses it spends.
 - [x] **Docs for M3.** `ledger-landscape.md` gets the three columns, the drift exclusion and the churn cut-over. The brain `velocity/SKILL.md` gets a filtering note.
-- [ ] M3 — tick, then run `sdlc close --issue 231 --verified '<evidence>'`.
+- [x] M3 — tick, then run `sdlc close --issue 231 --verified '<evidence>'`.
 
 ## Follow-ups (not this issue)
 

@@ -357,8 +357,8 @@ Durable plan: `workshop/plans/000231-a-quick-path-for-small-diffs-scale-the-gate
 - [x] M2 — the shell, the Done-when checks and the small-diff review at close:
       one path classifier, shared surfaces, the upgrade, the recipe, the
       end-to-end test, help tokens, docs.
-- [ ] M3 — calibration columns and drift exclusion, and the parley.nvim#263
-      fixture run.
+- [x] M3 — calibration columns and drift exclusion, and the parley.nvim#263
+      fixture run. Closed with the issue (its boundary review covers M3, #175).
 
 ## Log
 
