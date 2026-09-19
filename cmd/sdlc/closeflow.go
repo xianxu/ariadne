@@ -129,9 +129,10 @@ func measureCloseWindow(stderr io.Writer, windowBase, windowHead, body, plan str
 // with the churn report (churnForWindow), which reads the same final diff.
 func windowFileStats(base, head string) ([]churn.FileStat, error) {
 	span := base + ".." + head
-	// -z: numstat rows must name paths exactly as DiffNames (-z) does, or a code
-	// file whose name git would quote (non-ASCII, a double quote, a backslash)
-	// never has its lines counted — the unsafe direction, toward quick. Every git
+	// -z: without it git quotes a path holding non-ASCII, a double quote or a
+	// backslash, and the quoted path no longer reads as the doc or test it is —
+	// its lines count as code, upgrading a small change for lines that do not
+	// count (pinned by TestCloseQuotedDocAndTestNamesDoNotCount). Every git
 	// listing a gate reads as data uses -z (#231 M2 review).
 	out, err := gitx.RunGit("diff", "--numstat", "-z", span)
 	if err != nil {

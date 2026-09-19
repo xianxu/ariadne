@@ -375,6 +375,53 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 9
+      timestamp: "2026-09-18T19:07:07-07:00"
+      agent: claude
+      dispose:
+        - id: BR-15
+          disposition: addressed
+          note: change-code.md step 0, issue-lifecycle.md:54 and sdlc-binary.md:36 now say the record is written after the gates; the flowDrift refusal is documented under THE FLOW.
+          round: 9
+        - id: BR-16
+          disposition: addressed
+          note: Flow fields are unexported with accessors (flow.go:52-56) and Rule is opaque (flow.go:219-225), so the compiler enforces the single producer; the source-scan guard is gone.
+          round: 9
+        - id: BR-17
+          disposition: addressed
+          note: 'Reason codes plus the every-reason-has-a-row assertion (flow_test.go:205-233). Probed: disabling the seen[k] check turns TestFlowRecordCorpus red on both assertions.'
+          round: 9
+        - id: BR-27
+          disposition: addressed
+          note: 'AGENTS.base.md:52 points at the catalog; help pages render the gate flags; the build-closure prose went with shared surfaces. Probed: hand-listing a gate flag in close.md turns TestGateFlagListsAreRenderedFromTheCatalog red.'
+          round: 9
+        - id: BR-31
+          disposition: withdrawn
+          note: 'Overtaken by design: f0141e0 removed shared surfaces and their declaration, so no grammar is left to describe.'
+          round: 9
+        - id: BR-32
+          disposition: not-addressed
+          note: '-z is in place (closeflow.go:141), but TestCloseQuotedNameCodeFileLinesCount cannot fail. It uses a code file, and IsCodeFile''s CodeProd default counts the quoted path as code either way; once f0141e0 dropped the -z name-list intersection, the test lost its teeth. Probed: restoring `-c core.quotePath=false diff --numstat` with ParseNumstat leaves it green. The discriminating fixture goes red: docs/a"b.md and tests/x"y_spec.lua at 150 lines beside a 5-line cmd/a.go, expecting quick. Plan:503''s "the test reddens without -z" is false at HEAD.'
+          round: 9
+        - id: BR-33
+          disposition: withdrawn
+          note: 'Overtaken by design: ParseSurfaces and the fuzz target were removed with shared surfaces (f0141e0).'
+          round: 9
+      findings:
+        - id: BR-34
+          severity: Minor
+          title: 'Two runtime messages and the publish gate''s atlas page restate rules this window changed: FIX-THEN-SHIP''s unconditional "do not re-run close", and the "#187 column set" header message'
+          detail: 'This is the 7th finding in doc-claim-contradicts-code. Instances: close.go:1871-1873 says "Do NOT re-run sdlc close — this verdict already sanctions shipping after the fixes", yet publishgate.go:176 now refuses a quick issue past MaxAddedLinesAfterReview and sends it back to close; atlas/workflow/pre-merge-checks.md:24-46 (the publish gate''s page) lists its refusals and that protocol without the quick re-measure; close.go:981 prints "header upgraded to the #187 column set", and the only upgrade left to fire is #187 to #231. Enumeration: 7 surfaces describe what the publish gate refuses or what the verdict sanctions (close.md:222, merge.md:35, push.md:10, sdlc-binary.md:303 and publishgate.go:6 derive; close.go:1871 and pre-merge-checks.md do not). 4 surfaces name the ledger''s column set, and close.go:981 is wrong. Prevalence is 3 of 11. Why earlier sweeps missed these: they keyed on the new mechanism''s name, while these sentences state the old conclusion. Rule: a runtime string that states a policy renders it from the policy''s owner, never a literal. formatFixThenShipProtocol takes the flow and renders flow.AfterReviewSummary() on quick; the header message states no version. When a change adds a policy function, the sweep greps for the old policy''s conclusion ("do not re-run", "landed after", "#187"), not the new gate''s name (ARCH-PURPOSE shadow sweep).'
+          family: doc-claim-contradicts-code
+          round: 9
+        - id: BR-35
+          severity: Minor
+          title: The publish check's new quick-growth refusal matches no GateCatalog RefusalPat, so the friction instrument never counts it
+          detail: 'This is the 2nd finding in gate-key-undeclared. The merge/push no-judge RefusalPat is `publish gate: \d+ commit\(s\) landed after` (gatesig.go:150,156). "publish gate: #N is on the quick flow, and its diff grew…" (publishgate.go:180) is unattributed by classifyOutputLine, although --no-judge waives it. Enumeration of refusals added in this window that a catalogued flag waives: DoneWhenFresh (catalogued) and the publish quick-growth refusal (not catalogued), so 1 of 2. Rule: every refusal a catalogued flag waives must be attributable by the catalog. The tests that produce a refusal assert that their (command, flag) RefusalPat matches it, the inverse of assertNoGatesigCollision. Fix: widen the two patterns to `publish gate: (\d+ commit\(s\) landed after|#\d+ is on the quick flow)` and add that assertion to TestRunPublishGate_QuickGrewPastReview.'
+          family: gate-key-undeclared
+          round: 9
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#231 (boundary-review)
@@ -533,12 +580,27 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-33** [Minor] `accepted-input-never-effective` ParseSurfaces still accepts root and non-canonical patterns (/, ./, ., pkg/./vocab, pkg//vocab/) that match nothing
   This is the 3rd finding in family accepted-input-never-effective. Probed at head: each parses without error and matches no path. The forms are refused by hand-enumeration while the fuzz oracle still checks only no-panic, so the next form slips too. Rule: accept only canonical, non-empty patterns (path.Clean(p) == p and p is not "."). Make the oracle a property instead of a table: FuzzParseSurfaces asserts that an accepted glob-free pattern matches itself, and a directory entry matches pattern + "x". Also decide whether a glob naming a directory (pkg/v*) covers its subtree the way the literal form now does, or document the asymmetry.
 
+## Round 9 — 2026-09-18T19:07:07-07:00 (claude) — passed
+
+### Disposed
+
+- BR-15 — addressed — change-code.md step 0, issue-lifecycle.md:54 and sdlc-binary.md:36 now say the record is written after the gates; the flowDrift refusal is documented under THE FLOW.
+- BR-16 — addressed — Flow fields are unexported with accessors (flow.go:52-56) and Rule is opaque (flow.go:219-225), so the compiler enforces the single producer; the source-scan guard is gone.
+- BR-17 — addressed — Reason codes plus the every-reason-has-a-row assertion (flow_test.go:205-233). Probed: disabling the seen[k] check turns TestFlowRecordCorpus red on both assertions.
+- BR-27 — addressed — AGENTS.base.md:52 points at the catalog; help pages render the gate flags; the build-closure prose went with shared surfaces. Probed: hand-listing a gate flag in close.md turns TestGateFlagListsAreRenderedFromTheCatalog red.
+- BR-31 — withdrawn — Overtaken by design: f0141e0 removed shared surfaces and their declaration, so no grammar is left to describe.
+- BR-32 — not-addressed — -z is in place (closeflow.go:141), but TestCloseQuotedNameCodeFileLinesCount cannot fail. It uses a code file, and IsCodeFile's CodeProd default counts the quoted path as code either way; once f0141e0 dropped the -z name-list intersection, the test lost its teeth. Probed: restoring `-c core.quotePath=false diff --numstat` with ParseNumstat leaves it green. The discriminating fixture goes red: docs/a"b.md and tests/x"y_spec.lua at 150 lines beside a 5-line cmd/a.go, expecting quick. Plan:503's "the test reddens without -z" is false at HEAD.
+- BR-33 — withdrawn — Overtaken by design: ParseSurfaces and the fuzz target were removed with shared surfaces (f0141e0).
+
+### Raised
+
+- **BR-34** [Minor] `doc-claim-contradicts-code` Two runtime messages and the publish gate's atlas page restate rules this window changed: FIX-THEN-SHIP's unconditional "do not re-run close", and the "#187 column set" header message
+  This is the 7th finding in doc-claim-contradicts-code. Instances: close.go:1871-1873 says "Do NOT re-run sdlc close — this verdict already sanctions shipping after the fixes", yet publishgate.go:176 now refuses a quick issue past MaxAddedLinesAfterReview and sends it back to close; atlas/workflow/pre-merge-checks.md:24-46 (the publish gate's page) lists its refusals and that protocol without the quick re-measure; close.go:981 prints "header upgraded to the #187 column set", and the only upgrade left to fire is #187 to #231. Enumeration: 7 surfaces describe what the publish gate refuses or what the verdict sanctions (close.md:222, merge.md:35, push.md:10, sdlc-binary.md:303 and publishgate.go:6 derive; close.go:1871 and pre-merge-checks.md do not). 4 surfaces name the ledger's column set, and close.go:981 is wrong. Prevalence is 3 of 11. Why earlier sweeps missed these: they keyed on the new mechanism's name, while these sentences state the old conclusion. Rule: a runtime string that states a policy renders it from the policy's owner, never a literal. formatFixThenShipProtocol takes the flow and renders flow.AfterReviewSummary() on quick; the header message states no version. When a change adds a policy function, the sweep greps for the old policy's conclusion ("do not re-run", "landed after", "#187"), not the new gate's name (ARCH-PURPOSE shadow sweep).
+- **BR-35** [Minor] `gate-key-undeclared` The publish check's new quick-growth refusal matches no GateCatalog RefusalPat, so the friction instrument never counts it
+  This is the 2nd finding in gate-key-undeclared. The merge/push no-judge RefusalPat is `publish gate: \d+ commit\(s\) landed after` (gatesig.go:150,156). "publish gate: #N is on the quick flow, and its diff grew…" (publishgate.go:180) is unattributed by classifyOutputLine, although --no-judge waives it. Enumeration of refusals added in this window that a catalogued flag waives: DoneWhenFresh (catalogued) and the publish quick-growth refusal (not catalogued), so 1 of 2. Rule: every refusal a catalogued flag waives must be attributable by the catalog. The tests that produce a refusal assert that their (command, flag) RefusalPat matches it, the inverse of assertNoGatesigCollision. Fix: widen the two patterns to `publish gate: (\d+ commit\(s\) landed after|#\d+ is on the quick flow)` and add that assertion to TestRunPublishGate_QuickGrewPastReview.
+
 ## Open findings
 
-- **BR-15** [Minor] `doc-claim-contradicts-code` change-code help and two atlas pages say the flow is recorded first, but since BR-5 it is written after the gates
-- **BR-16** [Minor] `test-oracle-weaker-than-plan` TestOnlyFlowPackageBuildsFlowValues misses field assignment and untyped Rule strings, so BR-14's own defect passes it
-- **BR-17** [Minor] `record-roundtrips-every-reader` The shared flow corpus dropped Parse's duplicate-key reject branch when it replaced TestParseRejects
-- **BR-27** [Important] `doc-claim-contradicts-code` Prose hand-restates the declared build-closure scope and the close gate-flag set, and this window changed both without sweeping them
-- **BR-31** [Important] `doc-claim-contradicts-code` BR-26 changed the shared-surface grammar, but the declaration header and the atlas still describe the old two-form grammar
 - **BR-32** [Minor] `porcelain-output-parsed-as-data` The window numstat is still parsed as quoted output: its BR-30 change has no red test, and core.quotePath=false still quotes some paths
-- **BR-33** [Minor] `accepted-input-never-effective` ParseSurfaces still accepts root and non-canonical patterns (/, ./, ., pkg/./vocab, pkg//vocab/) that match nothing
+- **BR-34** [Minor] `doc-claim-contradicts-code` Two runtime messages and the publish gate's atlas page restate rules this window changed: FIX-THEN-SHIP's unconditional "do not re-run close", and the "#187 column set" header message
+- **BR-35** [Minor] `gate-key-undeclared` The publish check's new quick-growth refusal matches no GateCatalog RefusalPat, so the friction instrument never counts it

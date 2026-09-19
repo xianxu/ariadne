@@ -42,9 +42,20 @@ info line instead of refusing — post-close bookkeeping
 publish-gate refusals, and docs don't weaken the review's claims about code
 behavior. Code deltas still refuse. The sanctioned protocol after a
 FIX-THEN-SHIP verdict is printed by close itself (#174): fix findings before
-committing, bundle everything into the one close commit, don't re-run close;
+committing, bundle everything into the one close commit, don't re-run close
+(the quick flow's one exception is below);
 the reclose guard (fires at `done` only) points post-publish follow-ups at a
 new issue.
+
+**Quick-flow re-measure (#231).** Those bundled fixes are never measured by
+close, which sized the head its small-diff review saw. So for a codecomplete
+issue on the quick flow the gate measures the final diff over close's own window
+(`boundaryWindowBase` → HEAD) and, past `flow.MaxAddedLinesAfterReview` (twice
+the shell's line limit), refuses and sends the issue back to `sdlc close` —
+which finds the shell crossed, upgrades the issue and runs the full review. It
+runs on both pass paths (HEAD at the anchor, and the doc-only delta) and stays
+LLM-free; the FIX-THEN-SHIP protocol close prints names the exception on the
+quick flow.
 
 ## The judge categories (now ad-hoc / close-time)
 

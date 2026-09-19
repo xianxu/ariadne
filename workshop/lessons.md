@@ -2,6 +2,19 @@
 
 *(Record patterns of what went wrong and rules to prevent repeating them)*
 
+## A refusal a catalogued flag waives must be attributable by the catalog
+
+**Pattern (#231 close review, 2nd in `gate-key-undeclared`).** The publish
+check gained a second refusal ("#N is on the quick flow…"), waived by the same
+`--no-judge`, but the gate catalog's `RefusalPat` for merge/push matched only the
+first ("N commit(s) landed after"). The friction audit would never have counted
+it. The collision test (`assertNoGatesigCollision`) only guards the opposite
+direction: a line matching a pattern it should not.
+
+**Rule:** every test that produces a refusal waived by a catalogued flag asserts
+the flag's `RefusalPat` attributes it, on every command it is catalogued for —
+`assertGatesigAttributes(t, err.Error(), flag, commands...)`.
+
 ## A write computed before a long step must be re-derived when it lands
 
 **Pattern (#231 BR-11).** `change-code` built the flow record from the issue text
@@ -27,6 +40,14 @@ own regex and was dropped from the list.
 requires, demands, parses, asks for, runs) next to its name, not from a list of
 the files you remember. Record the command beside the result so the next
 reviewer can re-run it.
+
+**Also grep the old rule's conclusion (#231 close review, 7th in
+`doc-claim-contradicts-code`).** The sweep for the publish check's new limit keyed
+on its name and missed three sentences stating the old conclusion — close's
+FIX-THEN-SHIP protocol ("Do NOT re-run close"), the publish gate's atlas page,
+and a "#187 column set" message — because none of them names the new gate. A
+runtime string stating a policy renders it from the policy's owner, never a
+literal (`formatFixThenShipProtocol` renders `flow.AfterReviewSummary()`).
 
 ## A search that keys on content cannot see the content that describes it
 
@@ -441,6 +462,13 @@ the harness legitimately echoes its input there.
 **Rule:** When a test exists to defend a specific guard/branch, **mutation-check it once**: disable the guard, confirm the test fails, restore. A test that stays green when the code it guards is removed defends nothing. Cheap to do (one throwaway edit — use `$TMPDIR` for the backup under sandbox, restore immediately), and it's the difference between "the test passes" and "the test would catch the regression." Pair with assertions that pin the *specific* failure (e.g. a 9b-unique message substring + `PRMerge` call-count == 0), so a refusal at the wrong gate can't masquerade as success.
 
 **Corollary — testing a verb that `os.Exit`s or shells out directly.** `runMerge` resisted in-process testing because `die()` → `os.Exit(1)` kills the test and `detectRepo`/`RepoTopLevel` call `exec.Command("git")` directly. The unlock was a trio of minimal `func`→`var` seams (`die`, `detectRepo`, `runPreflightJudgesFn`) — callers unchanged — plus a real throwaway repo (`git init` + local **bare** origin) so switch/pull/archive/branch-delete run for real instead of being mocked. `expectDie` swaps `die` for `panic(&dieSignal)`+recover, preserving halt semantics in-process. Prefer a real temp repo over stubbing a dozen git calls when the cleanup *is* what you're testing. Note: process-global var swaps + `os.Chdir` forbid `t.Parallel()`; the panic-based `die` runs deferred funcs that prod's `os.Exit` would not (keep refusal paths defer-free).
+
+**A test's teeth can be pulled by a later refactor (#231 BR-32).** The `-z` test
+went red without `-z` when written, because the shell intersected numstat with a
+name list. When that intersection was removed, a quoted CODE path defaulted to
+code either way and the test went green without `-z` — still passing, proving
+nothing. After refactoring the path a guard test discriminates through, re-run
+its mutation, and re-pick the fixture if it no longer goes red.
 
 **Origin:** #63 M1 (e2e harness for `runMerge`), milestone-review SHIP. The reusable kit (`expectDie`/`tempRepo`/`swapMergeDeps`) is meant for any future `run*` verb's refusal-path test.
 

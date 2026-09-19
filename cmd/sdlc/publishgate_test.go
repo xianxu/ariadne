@@ -125,8 +125,9 @@ func TestRunPublishGate(t *testing.T) {
 		commitCode(t, git, "late.go")
 		err := runPublishGate(base, "workshop/issues", io.Discard)
 		if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
-			t.Errorf("post-close drift should refuse with a re-run-close message, got: %v", err)
+			t.Fatalf("post-close drift should refuse with a re-run-close message, got: %v", err)
 		}
+		assertGatesigAttributes(t, err.Error(), "no-judge", "merge", "push")
 	})
 
 	t.Run("multi-issue: latest anchor, no false drift", func(t *testing.T) {
@@ -377,6 +378,7 @@ func TestRunPublishGate_QuickGrewPastReview(t *testing.T) {
 					t.Errorf("refusal missing %q:\n%v", want, err)
 				}
 			}
+			assertGatesigAttributes(t, err.Error(), "no-judge", "merge", "push")
 		})
 	}
 }

@@ -588,3 +588,17 @@ docs-only delta): for each codecomplete issue whose record is quick, it measures
 and past the limit refuses with a pointer to `sdlc close`. Tests:
 `TestGrewPastReview`, `TestRunPublishGate_QuickGrewPastReview` (200/201, test
 lines, a full issue, the docs-only path); each wire mutation-checked red.
+
+### 2026-09-18 — close review (FIX-THEN-SHIP); BR-32's claim corrected
+
+Reason: the whole-issue review found three Minors. One is a false claim in this
+plan: the M2 entry above says BR-32's test "reddens without `-z`". It did when
+written; after f0141e0 dropped the name-list intersection, a quoted code path
+counted as code either way and the test stayed green.
+
+Delta: `TestCloseQuotedNameCodeFileLinesCount` is replaced by
+`TestCloseQuotedDocAndTestNamesDoNotCount`, which goes red without `-z`.
+`formatFixThenShipProtocol(verb, quick)` renders `flow.AfterReviewSummary()` on
+the quick flow. The gate catalog's merge/push `--no-judge` `RefusalPat` matches
+both publish refusals, asserted by `assertGatesigAttributes` in the tests that
+produce them. The ledger header message states no column-set version.

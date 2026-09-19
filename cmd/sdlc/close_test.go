@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
@@ -731,7 +732,7 @@ func TestFormatTrailingNeedsJudge_ContractElements(t *testing.T) {
 // hatch (re-run the boundary verb). Verb-parameterized so a milestone close
 // names `sdlc milestone-close` (same closeVerb threading as the REWORK arm).
 func TestFormatFixThenShipProtocol_ContractElements(t *testing.T) {
-	msg := formatFixThenShipProtocol("sdlc close")
+	msg := formatFixThenShipProtocol("sdlc close", false)
 	for _, w := range []string{
 		"FIX-THEN-SHIP",
 		"before committing",   // fix NOW, pre-commit
@@ -747,7 +748,7 @@ func TestFormatFixThenShipProtocol_ContractElements(t *testing.T) {
 	// Milestone variant: verb threaded into the anti-loop line, and the
 	// escape hatch speaks next-boundary coverage, NOT issue-close anchor
 	// semantics (which don't apply — no codecomplete anchor at a milestone).
-	ms := formatFixThenShipProtocol("sdlc milestone-close")
+	ms := formatFixThenShipProtocol("sdlc milestone-close", false)
 	if !strings.Contains(ms, "re-run `sdlc milestone-close`") {
 		t.Errorf("milestone verb not threaded into the anti-loop line:\n%s", ms)
 	}
@@ -759,4 +760,16 @@ func TestFormatFixThenShipProtocol_ContractElements(t *testing.T) {
 	}
 	assertNoGatesigCollision(t, msg)
 	assertNoGatesigCollision(t, ms)
+
+	// #231: on the quick flow "do not re-run" has one exception, the publish
+	// check's limit on fixes after the verdict — rendered from its owner, and
+	// absent from a full issue's protocol.
+	q := formatFixThenShipProtocol("sdlc close", true)
+	if !strings.Contains(q, flow.AfterReviewSummary()) {
+		t.Errorf("quick protocol does not render flow.AfterReviewSummary():\n%s", q)
+	}
+	if strings.Contains(msg, flow.AfterReviewSummary()) {
+		t.Errorf("a full issue's protocol carries the quick-flow exception:\n%s", msg)
+	}
+	assertNoGatesigCollision(t, q)
 }

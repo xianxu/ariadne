@@ -978,7 +978,7 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		text := string(existing)
 		if upgraded, changed := estimate.UpgradeHeader(text); changed {
 			text = upgraded
-			cok(stderr, "calibration ledger: header upgraded to the #187 column set")
+			cok(stderr, "calibration ledger: header upgraded to the current column set")
 		}
 		buf.WriteString(text)
 		if !strings.HasSuffix(text, "\n") {
@@ -1278,7 +1278,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			// #174: state the post-FIX-THEN-SHIP protocol at the moment of
 			// ambiguity — before the lessons reminder, so bookkeeping lands
 			// inside the same pre-commit window the protocol describes.
-			cwarn(stderr, formatFixThenShipProtocol(verb))
+			cwarn(stderr, formatFixThenShipProtocol(verb, r.flow.flow.Kind() == flow.Quick))
 		}
 		if f.Milestone == "" { // #160 Q4: lessons ping only at the whole-issue close boundary
 			emitLessonsReminder(stdout)
@@ -1857,8 +1857,11 @@ func formatMissingVerdicts(issueStr string, missing []string) string {
 // fixing — and nothing else states what to do with them, which is how the
 // re-close loop and the publish-gate --no-judge bypasses started (#172).
 // verb is closeVerb(f.Milestone) — the escape hatch names the boundary verb
-// that was actually run (same threading as the REWORK arm). Pure.
-func formatFixThenShipProtocol(verb string) string {
+// that was actually run (same threading as the REWORK arm). quick is whether
+// the issue closed on the quick flow: there "do not re-run" has one exception,
+// the publish check's limit on fixes made after the verdict (#231), rendered
+// from its owner rather than restated. Pure.
+func formatFixThenShipProtocol(verb string, quick bool) string {
 	var lines []string
 	lines = append(lines, "FIX-THEN-SHIP protocol (#174):")
 	// One append, not two: the routing line must share a statement with the
@@ -1870,6 +1873,9 @@ func formatFixThenShipProtocol(verb string) string {
 	lines = append(lines, "         into ONE commit (or amend), so the publish gate's reviewed anchor is HEAD.")
 	lines = append(lines, fmt.Sprintf("      3. Do NOT re-run `%s` — this verdict already sanctions shipping after", verb))
 	lines = append(lines, "         the fixes; a second review of the same boundary is the #172 re-close loop.")
+	if quick {
+		lines = append(lines, "      On the quick flow, one exception: "+flow.AfterReviewSummary()+".")
+	}
 	if verb == "sdlc close" {
 		// Anchor semantics are issue-close/publish-gate territory; a milestone
 		// close writes no codecomplete anchor (close review #174 M-finding).

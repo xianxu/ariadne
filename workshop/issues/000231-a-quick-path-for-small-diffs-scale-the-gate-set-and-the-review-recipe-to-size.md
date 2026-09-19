@@ -1,12 +1,13 @@
 ---
 id: 000231
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-16
-updated: 2026-09-17
+updated: 2026-09-18
 estimate_hours: 6.33
 started: 2026-09-17T18:59:16-07:00
+actual_hours: 18.79
 ---
 
 # A quick path for small diffs: scale the gate set and the review recipe to size
@@ -513,6 +514,7 @@ benchmark; and #263 would not actually have been quick (it touched a
 keybinding registry), so this tests the recipe's aim rather than the admission.
 
 ### 2026-09-18 — ariadne keeps its full build-closure declaration
+- 2026-09-18: closed — go test ./... green except TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory (pre-existing #210, red on main): 29 packages ok in an ariadne-named checkout at efb3713; every trial-fix rule mutation-checked red (line-only shell at 100/101 across files, design limit 500/501 at change-code and at close, quick-pin refusal past the shell, Spec counted in the design, empty Plan seed not an item, publish re-measure 200/201 incl. the docs-only path and a full issue skipped); live trial: pair#279 and pair#289 closed on the quick flow (small-diff recipe, stayed quick, 91 and 45 added lines), tools#76 and pair#283 full; help renders the shell and the after-review limit from flow constants; M1 SHIP, M2 FIX-THEN-SHIP, M3 closes with the issue (#175); review verdict: FIX-THEN-SHIP
 
 Reading pair#283 (7 code files, 30 added lines; inferred full because it has a
 durable plan) surfaced #235: plan lookup is by exact name. That raised whether
@@ -680,6 +682,32 @@ check re-measures and, past it, routes through close rather than running the
 review itself: close owns the upgrade record, the Log reason, the review-ledger
 round and the calibration row, and the publish check stays LLM-free. Neither
 trial issue came near it (96 and 50 lines against 200).
+
+### 2026-09-18 — close review: FIX-THEN-SHIP, three Minors fixed in the round
+
+The whole-issue review found no correctness bug and ran the suite itself. Its
+three Minors, each fixed as its rule:
+
+- **doc-claim-contradicts-code (7th).** Three surfaces stated a rule this issue
+  changed: close's FIX-THEN-SHIP protocol ("Do NOT re-run close"), the publish
+  gate's atlas page, and a "#187 column set" message. The protocol now takes
+  the flow and renders `flow.AfterReviewSummary()` on quick; close's help and
+  the atlas page name the exception; the message states no version. The sweep
+  that missed them keyed on the new gate's name; the lesson now says to grep the
+  old rule's conclusion too.
+- **gate-key-undeclared (2nd).** The catalog's merge/push `--no-judge`
+  `RefusalPat` did not attribute the new publish refusal. It now matches both
+  refusals, and `assertGatesigAttributes` (the inverse of the collision check)
+  asserts it in both publish-refusal tests.
+- **BR-32, open from M2.** The `-z` test could not fail once the shell stopped
+  intersecting name lists. It is replaced by
+  `TestCloseQuotedDocAndTestNamesDoNotCount` (quoted doc and test names beside a
+  small code file must stay quick), which goes red without `-z`; the numstat
+  comment now says which direction `-z` protects.
+
+Each fix was mutation-checked red, and `go test ./...` is green except #210.
+Lessons added for the first two classes and for a test losing its teeth to a
+later refactor.
 
 ## Revisions
 

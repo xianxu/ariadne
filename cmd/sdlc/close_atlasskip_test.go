@@ -2,6 +2,7 @@ package main
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -21,6 +22,30 @@ func assertNoGatesigCollision(t *testing.T, renderedLine string) {
 		}
 		if g.RefusalPat != "" && regexp.MustCompile(g.RefusalPat).MatchString(stripped) {
 			t.Errorf("line matches %s/%s RefusalPat: %q", g.Commands, g.Flag, stripped)
+		}
+	}
+}
+
+// assertGatesigAttributes is assertNoGatesigCollision's inverse: a refusal a
+// catalogued flag waives must be attributable by that flag's RefusalPat, for
+// every command the flag is catalogued on — or the friction instrument never
+// counts it (#231 close review, gate-key-undeclared).
+func assertGatesigAttributes(t *testing.T, refusal, flag string, commands ...string) {
+	t.Helper()
+	stripped := regexp.MustCompile(`\x1b\[[0-9;]*m`).ReplaceAllString(refusal, "")
+	for _, cmd := range commands {
+		found := false
+		for _, g := range processmanual.GateCatalog {
+			if g.Flag != flag || !slices.Contains(g.Commands, cmd) {
+				continue
+			}
+			found = true
+			if g.RefusalPat == "" || !regexp.MustCompile(g.RefusalPat).MatchString(stripped) {
+				t.Errorf("%s --%s: RefusalPat %q does not attribute %q", cmd, flag, g.RefusalPat, stripped)
+			}
+		}
+		if !found {
+			t.Errorf("%s --%s is not in the gate catalog", cmd, flag)
 		}
 	}
 }

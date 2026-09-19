@@ -407,16 +407,23 @@ func TestCloseNonASCIIPathsClassifyAsThemselves(t *testing.T) {
 	}
 }
 
-// TestCloseQuotedNameCodeFileLinesCount: a code file whose name git quotes
-// without -z (a double quote in it) must still have its lines counted — over
-// the limit, it upgrades.
-func TestCloseQuotedNameCodeFileLinesCount(t *testing.T) {
-	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a\"b.go": goLines(flow.MaxAddedLines + 50)})
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
+// TestCloseQuotedDocAndTestNamesDoNotCount pins numstat's -z (#231 BR-32).
+// Without it git quotes a name holding a double quote, the quoted path no longer
+// reads as a doc or a test, and its lines count as code. Here 300 such lines
+// sit beside a 5-line code file, so a lost -z upgrades a change that is quick.
+// (The earlier fixture, a quoted CODE file, could not fail once the shell
+// stopped intersecting names: a quoted code path still defaults to code.)
+func TestCloseQuotedDocAndTestNamesDoNotCount(t *testing.T) {
+	dir := quickCloseRepo(t, 231, "", map[string]string{
+		"cmd/a.go":            goLines(5),
+		"docs/a\"b.md":        goLines(150),
+		"tests/x\"y_spec.lua": goLines(150),
+	})
+	_, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nok\n")
 	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
 		t.Fatal(err)
 	}
-	if f, text := issueFlowAfterClose(t, dir); f.Kind() != flow.Full || !strings.Contains(text, "added lines") {
-		t.Errorf("a quoted-name code file over the line limit stayed %+v:\n%s", f, text)
+	if f, text := issueFlowAfterClose(t, dir); f.Kind() != flow.Quick || !strings.Contains(*prompt, smallDiffMarker) {
+		t.Errorf("quoted doc and test names counted as code: flow %+v\n%s", f, text)
 	}
 }
