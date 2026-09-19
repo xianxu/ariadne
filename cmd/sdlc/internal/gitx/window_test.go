@@ -371,6 +371,29 @@ func TestDiffNameStatus(t *testing.T) {
 	}
 }
 
+// TestDiffNamesKeepsNonASCIIPathsUnquoted: without -z git QUOTES a non-ASCII
+// path ("docs/caf\303\251.md"), and the atlas gate's docs rule then reads it as
+// code (#231). DiffNames returns every path as its bytes.
+func TestDiffNamesKeepsNonASCIIPathsUnquoted(t *testing.T) {
+	dir := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
+	base := strings.TrimSpace(testfix.Git(t, dir, "rev-parse", "HEAD"))
+	if err := os.MkdirAll(filepath.Join(dir, "docs"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "docs", "café.md"), []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, dir, "add", ".")
+	testfix.Git(t, dir, "commit", "-q", "-m", "a doc")
+	got, err := DiffNames(base, "HEAD")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, []string{"docs/café.md"}) {
+		t.Errorf("DiffNames = %q, want [docs/café.md], unquoted", got)
+	}
+}
+
 // TestDiffNameStatus_Empty: no changes → empty slice + nil (not an error).
 func TestDiffNameStatus_Empty(t *testing.T) {
 	orig := run

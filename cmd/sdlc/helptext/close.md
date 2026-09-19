@@ -13,7 +13,8 @@ carrying it a trustworthy anchor for that reviewed-HEAD-unchanged invariant.
 POST-VERDICT PROTOCOL (#174): on FIX-THEN-SHIP, close prints it — fix the
 findings NOW (before committing), bundle fixes + the issue-file mutations +
 bookkeeping (lessons, plan ticks) into ONE commit so the publish anchor is
-HEAD, and do NOT re-run close. Fixes that must land after the close commit:
+HEAD, and do NOT re-run close. On the quick flow, one exception:
+{{QUICK_AFTER_REVIEW}}. Fixes that must land after the close commit:
 re-run close (re-reviews the delta, advances the anchor — no bypass flag
 needed at codecomplete). Doc-only post-close commits pass the publish gate
 on their own. "Fix the findings" means the CLASS each one names, not only the
@@ -165,16 +166,7 @@ WHAT THE GUARD DEFENDS
   can waive exactly the one that doesn't apply (and acknowledge it) instead
   of reaching for the blanket --force:
 
-    gate                          flag
-    actual-hours required         --no-actual
-    verified-evidence required    --no-verified
-    already-done refusal          --no-reclose-guard
-    atlas/ changed in window      --no-atlas
-    milestone Review-Verdict      --no-verdict
-    ## Plan has no unchecked       --no-plan-check
-    project detail-block updated  --no-project
-    issue boundary review (#69)   --no-judge
-    gate ledger open findings     --no-ledger
+{{GATE_FLAGS}}
 
   Each bypass logs an audit "[!] --no-X: skipping ..." line (it's an
   explicit acknowledgment, not a silent skip) and the rationale belongs in
@@ -195,6 +187,45 @@ WHAT IT DOES
     detail block
   - Prints the COST REPORT (#187) — see below
   - Does NOT git-commit, does NOT move the file to workshop/history/
+
+THE QUICK FLOW (#231)
+
+  An issue whose frontmatter records `flow: {kind: quick, …}` (written by
+  `sdlc change-code`, see its THE FLOW) closes with ONE review, and close first
+  measures the review window against the hard shell:
+
+    {{QUICK_SHELL}}
+
+  Added lines come from the window's diff, over code files as the shell above
+  classifies them. The design is measured as it stands at close, so a plan that
+  grew during the work crosses too. Neither how many files a change spreads
+  across nor where in the tree it lands counts, only its size: for a diff this
+  small, the tests and the one close review are the guard. (In ariadne, a quick
+  change to sdlc itself is closed by the binary it just changed; that review
+  sees the diff.)
+
+  Inside the shell, the boundary review runs the small-diff recipe: the full
+  procedure, aimed at the bug classes small diffs ship, over only the ARCH-*
+  principles the registry marks `quick-flow: yes`. Outside it — whoever chose
+  quick — the issue is upgraded to `flow: {kind: full, provenance: inferred}`,
+  the measured reason goes to ## Log, and the full review runs. Crossing the
+  shell never refuses. The upgrade is written with the close's other edits at
+  finalize, so a REWORK leaves the issue unwritten — but each boundary round
+  records its recipe in the boundary ledger, and a round that already ran the
+  full review keeps the issue on it, even if the fix shrinks the diff.
+
+  Before that one review, two deterministic checks (issue close only):
+    - `## Done when` has a bullet — it is the review's only oracle.
+    - If `## Spec` or `## Revisions` changed since change-code but `## Done when`
+      did not, close refuses: restate the acceptance criteria, or pass the
+      Done-when freshness bypass (BYPASSING A GATE) with the reason in --verified.
+
+  Fixes made after the verdict ride into the close commit, which close does
+  not measure, so the publish check (`sdlc merge`/`push`) re-measures over
+  close's own window: {{QUICK_AFTER_REVIEW}}. That close finds the shell
+  crossed, upgrades the issue and runs the full review.
+
+  An issue with no `flow:` line (every issue before #231) closes exactly as before.
 
 THE COST REPORT (#187)
 
@@ -230,15 +261,9 @@ FLAGS
   --actual <hours>      focused dev-hours (required unless --no-actual/--force)
   --verified '<line>'   one-line behavior evidence (required unless --no-verified/--force)
   --force               bypass ALL gates (≡ every --no-* flag); reason in --verified
-  --no-actual           record actual_hours: N/A; skip velocity calibration
-  --no-verified         bypass the VERIFIED-evidence requirement
-  --no-reclose-guard    re-close an already-done issue (skip the refusal)
-  --no-atlas            skip the atlas/ change check (code changed, but no NEW
-                        architectural surface; docs-only windows auto-satisfy, #177)
-  --no-verdict          skip the milestone Review-Verdict trailer check
-  --no-plan-check       close despite unchecked ## Plan items
-  --no-project          skip the project detail-block update requirement
-  --no-judge            skip the issue boundary review on full-issue close (#69)
+  --no-<gate>           one flag per gate, each waiving exactly that gate — the
+                        table under BYPASSING A GATE; docs-only windows
+                        auto-satisfy the atlas gate (#177)
   --agent <cli>         agent CLI for the boundary review (claude | codex | gemini)
                         Default: explicit --agent, then AGENT_CMD, then
                         PAIR_AGENT/current known agent signals, then claude.

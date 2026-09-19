@@ -382,7 +382,7 @@ func TestCodeReviewBody_Renders(t *testing.T) {
 		Repo: "pair", RepoRoot: "/w/pair", IssueFile: "workshop/issues/000072-x.md",
 		Boundary: "milestone M1 close",
 		RepoNote: "a downstream repo built on the ariadne base layer",
-	})
+	}, ArchitectureMarkers())
 	for _, want := range []string{
 		"pair#72 M1",                  // {{ISSUE_REF}} — repo-prefixed, not hardcoded ariadne (#137)
 		"Base: BASE_SHA",              // {{BASE}}
@@ -1146,7 +1146,7 @@ func realExec(name string) (ProcessOutput, error) {
 // before crossing the boundary)"), so this fails on a rename rather than merely on the
 // word appearing somewhere in the prose.
 func TestCodeReviewSeveritiesMatchModel(t *testing.T) {
-	body := CodeReviewBody(PromptInput{})
+	body := CodeReviewBody(PromptInput{}, ArchitectureMarkers())
 	for _, s := range vocab.Finding().Severities() {
 		if !strings.Contains(body, s+" (") {
 			t.Errorf("code-review.md does not name severity %q from the finding model", s)

@@ -46,7 +46,7 @@ func driftSample(rows []LedgerRow, n int) []LedgerRow {
 	eligible := make([]LedgerRow, 0, latest+1)
 	for i := 0; i <= latest; i++ {
 		r := rows[i]
-		if !r.WindowTrusted || r.Actual <= 0 || r.Model != model {
+		if !calibratable(r) || r.Model != model {
 			continue
 		}
 		eligible = append(eligible, r)
@@ -64,9 +64,17 @@ func driftSample(rows []LedgerRow, n int) []LedgerRow {
 
 func latestTrustedActual(rows []LedgerRow) int {
 	for i := len(rows) - 1; i >= 0; i-- {
-		if rows[i].WindowTrusted && rows[i].Actual > 0 {
+		if calibratable(rows[i]) {
 			return i
 		}
 	}
 	return -1
+}
+
+// calibratable is the one test for "an estimate↔actual data point": a trusted,
+// positive actual on a row that is not quick-flow or upgraded (#231). Both the
+// sample filter and the latest-row selection read it — a trailing quick row
+// (no estimate, so no model) must not become the "latest" and switch drift off.
+func calibratable(r LedgerRow) bool {
+	return r.WindowTrusted && r.Actual > 0 && !r.ExcludedFromCalibration()
 }

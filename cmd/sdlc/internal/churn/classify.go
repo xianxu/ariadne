@@ -36,7 +36,7 @@ const (
 //
 //  1. a leading `atlas/` segment    → Atlas
 //  2. a leading `workshop/` segment → Workshop
-//  3. `*_test.go`, or any `testdata/` segment → CodeTest
+//  3. a test path (isTestPath: Go, Lua, Python, JS/TS and shell layouts) → CodeTest
 //  4. everything else → CodeProd
 //
 // Order is observable and pinned by test: a test file under `workshop/` is workshop
@@ -75,16 +75,66 @@ func hasSegmentPrefix(path, seg string) bool {
 	return path == seg || strings.HasPrefix(path, seg+"/")
 }
 
-// isTestPath reports whether a path is test material: a Go test file, or anything under
-// a `testdata/` directory at any depth (fixtures and fuzz corpora included).
-func isTestPath(path string) bool {
-	if strings.HasSuffix(path, "_test.go") {
+// isTestPath reports whether a path is test material. The fleet is not all Go,
+// so beside Go's `*_test.go` it knows the test layouts of the other languages the
+// fleet writes (#231 — parley.nvim keeps its tests under tests/**/*_spec.lua):
+//
+//   - by file name: *_test.go, *_test.lua, *_spec.lua, *_test.py, test_*.py, and
+//     any *.test.* / *.spec.* (JS/TS, shell);
+//   - by directory: any testdata/, test/, tests/, spec/ or __tests__/ segment.
+//
+// Widening it changed what churn_test and churn_prod mean for non-Go repos from
+// #231 onward — rows before and after that cut-over are not comparable there.
+func isTestPath(p string) bool {
+	segs := strings.Split(p, "/")
+	base := segs[len(segs)-1]
+	for _, suf := range []string{"_test.go", "_test.lua", "_spec.lua", "_test.py"} {
+		if strings.HasSuffix(base, suf) {
+			return true
+		}
+	}
+	if strings.HasPrefix(base, "test_") && strings.HasSuffix(base, ".py") {
 		return true
 	}
-	for _, seg := range strings.Split(path, "/") {
-		if seg == "testdata" {
+	if strings.Contains(base, ".test.") || strings.Contains(base, ".spec.") {
+		return true
+	}
+	for _, seg := range segs[:len(segs)-1] {
+		switch seg {
+		case "testdata", "test", "tests", "spec", "__tests__":
 			return true
 		}
 	}
 	return false
+}
+
+// IsDoc is the per-path documentation rule (#177): *.md anywhere, or anything
+// under workshop/, atlas/ or docs/. The atlas gate reads it as "no code surface";
+// see IsEmbedded for the one class of *.md that is nonetheless code. Pure.
+func IsDoc(p string) bool {
+	return strings.HasSuffix(p, ".md") ||
+		hasSegmentPrefix(p, "workshop") ||
+		hasSegmentPrefix(p, "atlas") ||
+		hasSegmentPrefix(p, "docs")
+}
+
+// IsEmbedded reports whether a path lives under cmd/, where markdown is
+// //go:embed'ed into the binary — helptext and judge prompts ship as behaviour,
+// so an edit there is code even when it is *.md (#174). Pure.
+func IsEmbedded(p string) bool { return hasSegmentPrefix(p, "cmd") }
+
+// CodeFileRule is IsCodeFile in one clause, for every surface that prints the
+// quick-flow shell. It lives HERE, beside the classifier it describes, and
+// TestCodeFileRule pins each part of it against IsCodeFile's own exemplars — so
+// the prose cannot claim "docs never count" while embedded markdown does (#231).
+const CodeFileRule = "tests, docs and the process trees (workshop/, atlas/) do not count; markdown under cmd/ does, since it ships in the binary"
+
+// IsCodeFile is the quick-flow shell's code file (#231): production code surface
+// — embedded prompts included — and not docs, the process trees, or tests, so
+// writing a test or a doc never pushes a change out of the shell. It composes the
+// rules above rather than restating them: one per-path rule set, three readings
+// (the atlas gate's hasCodePath, the publish gate's publishGateHasCodeSurface,
+// and this). Pure.
+func IsCodeFile(p string) bool {
+	return ClassifyPath(p) == CodeProd && (!IsDoc(p) || IsEmbedded(p))
 }

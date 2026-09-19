@@ -35,7 +35,15 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
                    active-time window anchor — set by the verb, never
                    hand-edited
     estimate_hours derived after the plan clears plan-quality; required by change-code — not at
-                   claim (#113). Optional at create.
+                   claim (#113) — on the full flow only. Optional at create.
+    flow           the issue's SDLC flow, one line (#231):
+                   {kind: full|quick, provenance: inferred|operator} — plus, on
+                   quick, the quoted contract hashes `spec`/`done`. Written by
+                   `sdlc change-code` (inferred: Mx milestones or a design past
+                   the shell's design limit → full, neither → quick; `--flow`
+                   pins it) and by `sdlc close` (a quick issue outside the shell
+                   → full). Never hand-edited;
+                   absent reads as full.
     actual_hours   (added at close) required when status → done: number or N/A
 
   Body sections (in order):
@@ -45,7 +53,8 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
     ## Done when    acceptance criteria (≥1 non-empty bullet)
     ## Estimate     fenced ```estimate block deriving estimate_hours by
                     v2-lineage primitive; change-code reconciles it (#117 —
-                    see `sdlc change-code --help` / helptext/estimate.md)
+                    see `sdlc change-code --help` / helptext/estimate.md).
+                    Full flow only; the quick flow has none
     ## Plan         checkable steps; `## Plan` milestones gate reviews
     ## Log          dated session notes (### YYYY-MM-DD)
     ## Side quests  (optional) unplanned work that landed
@@ -82,8 +91,9 @@ publishes whatever main carries, this body included. "Not pushed" means "this
 command did not push", not "this content can never reach origin by any route".
 
 Publication stays with the verbs that already own an external boundary; `sdlc
-change-code` runs the same sync WITH the push once plan-quality has accepted the
-design, and `--push` is there for other milestone callers — including to finish
+change-code` runs the same sync WITH the push once its gates pass (plan-quality
+has accepted the design on the full flow; the quick flow has no plan gate), and
+`--push` is there for other milestone callers — including to finish
 a publish whose commit already landed.
 
 For depth:

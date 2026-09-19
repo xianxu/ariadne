@@ -65,14 +65,35 @@ func GetField(fm, name string) (value string, ok bool) {
 // it's appended at the end of the frontmatter block (after any trailing
 // whitespace is trimmed, then a newline + the new field added).
 //
-// Mirrors close-issue.py's fm_set semantics exactly.
+// Mirrors close-issue.py's fm_set semantics, with one deliberate difference
+// (#231): a field that arrives in BLOCK form — the key line followed by
+// indented continuation lines, as a hand-edited `flow:` map or `related:` list
+// would be — is replaced whole. Rewriting only the key line orphaned those
+// children under the new one-line value, turning a repair into invalid YAML.
 func SetField(fm, name, value string) string {
 	re, err := regexp.Compile(`(?m)^` + regexp.QuoteMeta(name) + `:.*$`)
 	if err != nil {
 		return fm
 	}
 	if re.MatchString(fm) {
-		return re.ReplaceAllString(fm, name+": "+value)
+		fm = re.ReplaceAllLiteralString(fm, name+": "+value)
+		return dropBlockContinuation(fm, name)
 	}
 	return strings.TrimRight(fm, "\n\r\t ") + "\n" + name + ": " + value
+}
+
+// dropBlockContinuation removes the indented lines directly beneath the
+// `name:` key line — its block-form value. Pure.
+func dropBlockContinuation(fm, name string) string {
+	lines := strings.Split(fm, "\n")
+	out := make([]string, 0, len(lines))
+	inBlock := false
+	for _, line := range lines {
+		if inBlock && (strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")) {
+			continue
+		}
+		inBlock = strings.HasPrefix(line, name+":")
+		out = append(out, line)
+	}
+	return strings.Join(out, "\n")
 }

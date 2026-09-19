@@ -1,0 +1,35 @@
+# The #231 flow record corpus: ONE set of values, read by BOTH readers of the
+# record — the Go codec (cmd/sdlc/internal/flow TestFlowRecordCorpus) and the
+# cue model (cmd/vocabulary TestValidateInstance_FlowRecordCorpus). A value one
+# reader accepts and the other rejects fails a build, so the two cannot drift
+# apart value by value (#231 BR-12). A new kind (#233's config) is added here,
+# and both readers must learn it.
+#
+# Format: accept<TAB><value>  or  reject:<reason><TAB><value>, where <value> is
+# the text after `flow:` and <reason> is the Parse branch that must refuse it
+# (flow.Reasons). The Go test also requires every reason to have a row, so no
+# reject branch exists unpinned (#231 BR-17); cue checks accept vs reject only.
+accept	{kind: full, provenance: inferred}
+accept	{kind: full, provenance: operator}
+accept	{kind: quick, provenance: inferred}
+accept	{kind: quick, provenance: operator, spec: "1a2b3c4d", done: "5e6f7a8b"}
+accept	{kind: quick, provenance: inferred, spec: "12345678", done: "00000000"}
+accept	{kind: quick, provenance: inferred, spec: "12e45678"}
+reject:bad-kind	{kind: quikc, provenance: inferred}
+reject:bad-provenance	{kind: quick, provenance: guessed}
+reject:bad-provenance	{kind: quick}
+reject:bad-kind	{provenance: inferred}
+reject:not-string	{kind: quick, provenance: inferred, spec: 12345678}
+accept	{kind: quick, provenance: inferred, spec: 12e45678}
+accept	{kind: quick, provenance: inferred, spec: 1a2b3c4d}
+reject:bad-hash	{kind: quick, provenance: inferred, spec: ""}
+reject:bad-hash	{kind: quick, provenance: inferred, done: ""}
+reject:bad-hash	{kind: quick, provenance: inferred, spec: "1A2B3C4D"}
+reject:bad-hash	{kind: quick, provenance: inferred, spec: "abc"}
+reject:unknown-key	{kind: quick, provenance: inferred, color: blue}
+reject:not-string	{kind: {nested: map}, provenance: inferred}
+reject:not-map	quick
+reject:not-map	[quick, inferred]
+reject:not-map	""
+reject:duplicate-key	{kind: full, kind: quick, provenance: operator}
+reject:yaml	{kind: quick, provenance: inferred

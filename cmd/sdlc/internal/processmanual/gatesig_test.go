@@ -3,6 +3,7 @@ package processmanual
 import (
 	"reflect"
 	"sort"
+	"strings"
 	"testing"
 )
 
@@ -11,7 +12,7 @@ import (
 func TestGateFlagNames(t *testing.T) {
 	got := GateFlagNames()
 	want := []string{
-		"no-actual", "no-atlas", "no-estimate", "no-estimate-recon",
+		"no-actual", "no-atlas", "no-done-when-fresh", "no-estimate", "no-estimate-recon",
 		"no-judge", "no-ledger", "no-plan-check", "no-project", "no-reclose-guard", "no-retro",
 		"no-structural", "no-validate", "no-verdict", "no-verified",
 	}
@@ -24,7 +25,7 @@ func TestGateFlagNames(t *testing.T) {
 // which gate (drift guard in package main asserts this vs the registered flags).
 func TestGateFlagsForCommand(t *testing.T) {
 	cases := map[string][]string{
-		"close": {"no-actual", "no-atlas", "no-judge", "no-ledger", "no-plan-check",
+		"close": {"no-actual", "no-atlas", "no-done-when-fresh", "no-judge", "no-ledger", "no-plan-check",
 			"no-project", "no-reclose-guard", "no-verdict", "no-verified"},
 		"milestone-close": {"no-actual", "no-atlas", "no-judge", "no-ledger", "no-plan-check",
 			"no-project", "no-reclose-guard", "no-verdict", "no-verified"},
@@ -52,5 +53,18 @@ func TestNoJudgeCloseHasNoRefusal(t *testing.T) {
 				t.Errorf("close no-judge should have HasRefusal=false (auto-dispatch skip)")
 			}
 		}
+	}
+}
+
+// TestEveryGateIsDescribed: help pages render gate tables from the catalog,
+// so every row must say which gate its flag waives.
+func TestEveryGateIsDescribed(t *testing.T) {
+	for _, g := range GateCatalog {
+		if strings.TrimSpace(g.Gate) == "" {
+			t.Errorf("%v --%s has no Gate description", g.Commands, g.Flag)
+		}
+	}
+	if !strings.Contains(GateTable("close"), "--no-done-when-fresh") || strings.Contains(GateTable("close"), "--no-validate") {
+		t.Errorf("GateTable(close) is not close's gate set:\n%s", GateTable("close"))
 	}
 }

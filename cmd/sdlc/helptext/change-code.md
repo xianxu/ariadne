@@ -1,6 +1,12 @@
 Enter the implementation phase for an issue. Composes the gates
 between planning (which happens on `main`) and code-changing work:
 
+  0. Flow                — infers the issue's flow (#231; see THE FLOW
+                           below). On the quick flow, gates 1–3 do not run.
+                           The flow is RECORDED in the frontmatter only
+                           after the gates pass, just before the sync
+                           commit, so a refused run leaves the issue as it
+                           was.
   1. Structural sanity   — does the issue have a filled-in Spec, a
                            non-empty Plan, and Done-when criteria?
   2. Plan-quality judge  — fresh-context LLM review (skip with
@@ -14,9 +20,9 @@ between planning (which happens on `main`) and code-changing work:
                            v2-lineage primitives whose design/impl hours sum to
                            estimate_hours (no unitemized estimate). Derive
                            it AFTER the plan clears plan-quality — nothing
-                           above this point mentions the estimate.
-                           --no-estimate / --no-estimate-recon bypass the
-                           two halves; the block grammar + vocabulary live
+                           above this point mentions the estimate. The two
+                           halves each have a bypass (--no-estimate,
+                           --no-estimate-recon); the block grammar + vocabulary live
                            in helptext/estimate.md. Then estimate-quality
                            (#117: was the derivation actually applied, or
                            back-fitted to a predetermined total?).
@@ -26,6 +32,42 @@ between planning (which happens on `main`) and code-changing work:
                            worktree; `--worktree=ask` to be prompted
                            (with a sizing hint) or, headless, get the
                            agent sentinel.
+
+THE FLOW (#231)
+
+  Every issue runs one of two flows, and you run the same verbs either way —
+  the gates decide what applies. change-code infers the flow from what the
+  design produced:
+
+    Mx milestone rows in `## Plan`, or a design past the
+    shell's design limit (## Spec, ## Plan and the durable
+    plan workshop/plans/<issue>-plan.md, in lines)          → full
+    neither                                                  → quick
+
+  and records it on the issue as one line,
+  `flow: {kind: quick, provenance: inferred, spec: "…", done: "…"}`.
+
+  full   today's gates: structural, plan-quality, the estimate gates, and the
+         full boundary review at close.
+  quick  none of change-code's gates, no plan review, no estimate — and one
+         review, at close, with the small-diff recipe. The hard shell is
+
+           {{QUICK_SHELL}}
+
+         `sdlc close` measures the real diff, and a quick issue outside the
+         shell is upgraded to full and gets the full review, whoever chose
+         quick. The `spec`/`done` hashes let close refuse a contract that moved
+         without its `## Done when`.
+
+  The operator can pin the flow with `--flow quick|full` (provenance:
+  operator). A pin to quick is refused on an issue already outside the shell
+  (Mx rows, or a design past its limit). Gates never downgrade full to quick;
+  only a pin does.
+
+  The record is re-derived from the issue as it is when written, so an edit
+  made while the gates ran survives. If that edit changed the flow itself (say,
+  Mx rows appeared), the gates ran for the wrong flow: change-code refuses and
+  asks for a re-run.
 
 THE PLAN GATE (stateful since #187)
 
@@ -75,10 +117,10 @@ FLAGS
                       harness to handle.
   --force <reason>    bypass gate refusals; the rationale is logged
                       to stderr and recorded in the audit trail.
-  --no-judge          skip the plan-quality LLM judge.
-  --no-structural     skip the deterministic structural checks.
-  --no-estimate       skip the estimate_hours gate (#113).
-  --no-estimate-recon skip the `## Estimate` reconciliation gate (#117).
+  --no-<gate>         the per-gate bypasses, each waiving exactly one:
+{{GATE_FLAGS}}
+  --flow <kind>       pin the flow: quick | full — the operator's decision
+                      (provenance: operator). Default: inferred (#231).
   --dry-run           print would-be operations; do nothing.
   --agent <cli>       agent for the plan-quality judge.
                       Default: explicit --agent, then AGENT_CMD, then

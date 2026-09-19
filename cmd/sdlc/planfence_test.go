@@ -64,7 +64,7 @@ func TestClosePlanGate_SeesItemsAfterAFencedHeading(t *testing.T) {
 // the same body: a milestone hidden behind a quoted heading is never asked for
 // review evidence, so `sdlc close` finalizes without it.
 func TestMilestoneScan_SeesMilestonesAfterAFencedHeading(t *testing.T) {
-	// Drives the PRODUCTION enumeration — milestonesInPlanOrder, which
+	// Drives the PRODUCTION enumeration — issue.MilestonesInPlanOrder, which
 	// findMilestonesMissingVerdict calls — rather than re-running its regex over
 	// a body this test extracted itself (close review BR-21).
 	//
@@ -76,7 +76,7 @@ func TestMilestoneScan_SeesMilestonesAfterAFencedHeading(t *testing.T) {
 	if !ok {
 		t.Fatal("## Plan not found")
 	}
-	ordered := milestonesInPlanOrder(planBody)
+	ordered := issue.MilestonesInPlanOrder(planBody)
 	want := []string{"M1", "M2"}
 	if strings.Join(ordered, ",") != strings.Join(want, ",") {
 		t.Errorf("sees %v, want %v — M2 is behind a fenced heading, so its review evidence would never be demanded", ordered, want)
@@ -407,10 +407,7 @@ An example of the format:
 	if n := len(issue.PlanUncheckedRE.FindAllString(planBody, -1)); n != 1 {
 		t.Errorf("close's unchecked guard sees %d, want 1 — it disagrees with CountPlanItems", n)
 	}
-	var ms []string
-	for _, m := range milestonePlanRE.FindAllStringSubmatch(planBody, -1) {
-		ms = append(ms, m[1])
-	}
+	ms := issue.MilestonesInPlanOrder(planBody)
 	if strings.Join(ms, ",") != "M1,M2" {
 		t.Errorf("milestone scan sees %v, want [M1 M2] — a quoted row would demand review evidence", ms)
 	}

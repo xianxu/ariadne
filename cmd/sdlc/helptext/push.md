@@ -7,7 +7,8 @@ main). `push` is the **direct-on-main shortcut**, kept for quick
 one-liners small enough to commit straight onto main without a PR.
 Both paths run the same deterministic pre-publish gate (#160 — the
 reviewed-HEAD-unchanged invariant, no LLM; doc-only post-close deltas
-pass with an info line, #174); the difference is whether
+pass with an info line, #174; and #231: {{QUICK_AFTER_REVIEW}}); the
+difference is whether
 the change goes through a reviewable PR (`merge`) or lands directly
 (`push`). All LLM review is close-time (the `sdlc close` boundary review).
 
@@ -49,7 +50,8 @@ WHAT IT DOES
 FLAGS
 
   --yes                 skip the not-done-issue warn prompt
-  --no-judge            skip the pre-push publish gate (#160; emergency only)
+  --no-<gate>           the per-gate bypasses (emergency only), each waiving one:
+{{GATE_FLAGS}}
   --dry-run             print would-be operations; do nothing
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
   --history-dir <path>  override $WF_HISTORY_DIR / workshop/history

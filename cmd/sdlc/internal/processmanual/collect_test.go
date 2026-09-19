@@ -25,6 +25,7 @@ func TestJudgeSources_CoversEveryCategoryIncludingEstimate(t *testing.T) {
 	want := []judge.Category{
 		judge.DRY, judge.PURE, judge.Plan, judge.PlanQuality,
 		judge.EstimateQuality, judge.Specs, judge.Lessons, judge.MilestoneReview,
+		judge.SmallDiffReview, // #231: the quick flow's review, dispatched by close
 	}
 	for _, c := range want {
 		s, ok := titles[string(c)]
@@ -212,5 +213,13 @@ func mustWrite(t *testing.T, path, content string) {
 	t.Helper()
 	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
 		t.Fatal(err)
+	}
+}
+
+// TestWhenForSmallDiffReview: the small-diff recipe is not a standalone
+// `sdlc judge` check — the manual must say where it actually fires (#231).
+func TestWhenForSmallDiffReview(t *testing.T) {
+	if got := whenForCategory(judge.SmallDiffReview); strings.Contains(got, "sdlc judge") || !strings.Contains(got, "sdlc close") {
+		t.Errorf("whenForCategory(small-diff-review) = %q", got)
 	}
 }

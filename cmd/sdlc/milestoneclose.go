@@ -559,6 +559,9 @@ type boundaryReviewParams struct {
 	// ReviewPlansDir carries the read-only plan discovery root across the unlocked
 	// dispatch while PlansDir is blanked to defer sidecar writes until relock.
 	ReviewPlansDir string
+	// Category is the review recipe (#231): the small-diff review for a quick
+	// issue inside the shell, milestone-review otherwise (the zero value).
+	Category judge.Category
 	// ForcedRationale records a bypass of the ledger's refusal (--no-ledger / --force),
 	// stamped onto the round so the durable record does not read a waived refusal as a
 	// clean pass (#194 close review BR-17/BR-39). NOT the gate_forced metric — that reads
@@ -708,14 +711,25 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 		IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
 		PriorFindings: p.PriorFindings,
 	}
-	prompt := judge.BuildPrompt(judge.MilestoneReview, in)
+	cat := p.recipe()
+	prompt := judge.BuildPrompt(cat, in)
 
 	return judge.DispatchOptions{
 		Agent:        judge.ResolveAgentCLI(p.Agent, p.AgentExplicit, judge.CurrentAgentDefaultEnv()),
 		Prompt:       prompt,
-		AllowedTools: judge.MilestoneReview.AllowedTools(),
+		AllowedTools: cat.AllowedTools(),
 		IsSandbox:    isSandbox(),
 		Stdout:       stdout,
 		Stderr:       stderr,
 	}, true, ""
+}
+
+// recipe is the review recipe these params dispatch: Category, defaulting to the
+// full milestone-review. The one resolution both the dispatch and the ledger's
+// per-round stamp read (#231).
+func (p boundaryReviewParams) recipe() judge.Category {
+	if p.Category == "" {
+		return judge.MilestoneReview
+	}
+	return p.Category
 }

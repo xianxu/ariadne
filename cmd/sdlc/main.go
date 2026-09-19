@@ -24,6 +24,8 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -43,6 +45,11 @@ func renderLong(name string) string {
 		"{{STATUS_GLOSS}}", m.StatusGloss(),
 		"{{PROJECT_LIFECYCLE}}", p.RenderLifecycleHelp(),
 		"{{PROJECT_STATUS_NAMES}}", p.StatusNames(" | "),
+		// #231: the quick flow's hard shell, from its single source (flow/limits.go).
+		"{{QUICK_SHELL}}", flow.ShellSummary(),
+		"{{QUICK_AFTER_REVIEW}}", flow.AfterReviewSummary(),
+		// #231 BR-27: a page's gate-flag list, rendered from the gate catalog.
+		"{{GATE_FLAGS}}", processmanual.GateTable(name),
 	).Replace(helptext.MustGet(name))
 }
 

@@ -168,6 +168,11 @@ against the model: `artifact → extract frontmatter → cue vet against #<Type>
   `(number & >0) | null` on estimates and number-or-`N/A` on actuals (empty values parse
   as null). The done-guard requires either a positive numeric `actual_hours` or the exact
   not-applicable sentinel `N/A`.
+- **`#Flow` is CLOSED** (#231), and `flow?: #Flow` is modeled even though `#Issue` is open,
+  because an unmodeled optional field lets a typo'd *value* (`kind: quikc`) through every
+  gate. `kind` and `provenance` are enums, and the contract hashes are quoted 8-hex strings;
+  an unquoted all-digit hash is an int to cue. The Go side reads the same record through
+  `internal/flow.Parse`, which enforces the same string typing.
 
 **The gate (#124 M2, generalized by #180 M2).** `cmd/sdlc/validategate.go` —
 `validateChangedInstances(base, head, nounGates, …)`

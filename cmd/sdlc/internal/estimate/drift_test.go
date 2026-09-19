@@ -105,3 +105,40 @@ func TestDrift_LatestUnknownModelDoesNotTrigger(t *testing.T) {
 		t.Error("latest row with no recognized model should not trigger a model drift warning")
 	}
 }
+
+// TestDriftSampleExcludesQuickAndUpgraded: quick-flow rows carry no estimate,
+// and an upgraded row's estimate never existed (it started quick) — neither is
+// an estimate↔actual data point (#231). Three over-estimates plus two such rows
+// is still a verdict over the three, not a dilution.
+func TestDriftSampleExcludesQuickAndUpgraded(t *testing.T) {
+	quick := trustedModelRow("r#10", "estimate-logic-v2", 0, 1)
+	quick.FlowKind = "quick"
+	upgraded := trustedModelRow("r#11", "estimate-logic-v2", 0, 3)
+	upgraded.FlowKind, upgraded.FlowUpgraded = "full", true
+	rows := []LedgerRow{
+		trustedModelRow("r#1", "estimate-logic-v2", 5, 0.9),
+		quick,
+		trustedModelRow("r#2", "estimate-logic-v2", 7, 0.35),
+		upgraded,
+		trustedModelRow("r#3", "estimate-logic-v2", 3, 0.5),
+	}
+	if warn, _ := DriftVerdict(rows, 3); !warn {
+		t.Error("quick/upgraded rows must not dilute the sample")
+	}
+	for _, r := range driftSample(rows, 5) {
+		if r.FlowKind == "quick" || r.FlowUpgraded {
+			t.Errorf("driftSample kept an excluded row: %+v", r)
+		}
+	}
+}
+
+// TestDriftQuickRowLastDoesNotDisable: a quick row has no estimate block, so no
+// model — appended LAST it used to become the "latest trusted" row, whose
+// unknown model switched the drift check off at the next close (#231 survey).
+func TestDriftQuickRowLastDoesNotDisable(t *testing.T) {
+	quick := LedgerRow{Issue: "r#9", Actual: 0.5, WindowTrusted: true, FlowKind: "quick"}
+	rows := []LedgerRow{trustedRow(5, 0.9), trustedRow(7, 0.35), trustedRow(3, 0.5), quick}
+	if warn, _ := DriftVerdict(rows, 3); !warn {
+		t.Error("a trailing quick row disabled the drift check")
+	}
+}

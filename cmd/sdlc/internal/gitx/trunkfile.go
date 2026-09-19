@@ -253,15 +253,7 @@ func (t *TrunkFile) pathPresent(ref, path string) (bool, error) {
 // in which field of one answer they keep are one function (ARCH-DRY), and the
 // split also doubled the git calls on the hot path (ARCH-CONSTRAINTS).
 func (t *TrunkFile) entryOf(ref, path string) (mode string, present bool, err error) {
-	out, errOut, err := runGitIn(t.dir, nil, "ls-tree", "--end-of-options", ref, "--", path)
-	if err != nil {
-		return "", false, fmt.Errorf("ls-tree %s -- %s: %v\n%s", ref, path, err, errOut)
-	}
-	f := strings.Fields(strings.TrimSpace(string(out)))
-	if len(f) == 0 {
-		return "", false, nil
-	}
-	return f[0], true, nil
+	return EntryAt(t.dir, ref, path)
 }
 
 // readFrom reads <ref>:<path>, answering empty for a ref or path that is simply
@@ -288,11 +280,7 @@ func (t *TrunkFile) readFrom(ref, path string) ([]byte, error) {
 	if !present {
 		return nil, nil // absent reads as empty: a first write needs no special case
 	}
-	out, errOut, err := runGitIn(t.dir, nil, "cat-file", "blob", ref+":"+path)
-	if err != nil {
-		return nil, fmt.Errorf("read %s from %s: %v\n%s", path, ref, err, errOut)
-	}
-	return out, nil
+	return BlobAt(t.dir, ref, path)
 }
 
 // tempIndexPath returns an ABSOLUTE path for GIT_INDEX_FILE, inside a private

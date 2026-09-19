@@ -320,3 +320,22 @@ func TestNextID_SubfolderLayout(t *testing.T) {
 		t.Errorf("NextID = %q, want 000042 (max id in history/issues/)", got)
 	}
 }
+
+// TestScaffoldPlanSeedIsNotAnItem: the blank template's `## Plan` seed is a
+// placeholder, not a step. A small task may leave `## Plan` empty (#231: on the
+// quick flow a plan is optional), so the seed must not count as an item or as an
+// unchecked one — else close's unchecked-plan gate would refuse an issue whose
+// author, rightly, wrote no plan.
+func TestScaffoldPlanSeedIsNotAnItem(t *testing.T) {
+	body := Render(ScaffoldSpec{ID: "000057", Title: "x", Today: "2026-05-31"})
+	plan, ok := PlanItemsBody(body)
+	if !ok || strings.TrimSpace(plan) == "" {
+		t.Fatalf("the template has no seeded Plan section to test:\n%s", body)
+	}
+	if total, _ := CountPlanItems(body); total != 0 {
+		t.Errorf("the Plan seed %q counts as %d item(s), want 0", strings.TrimSpace(plan), total)
+	}
+	if m := PlanUncheckedRE.FindString(plan); m != "" {
+		t.Errorf("the Plan seed matches PlanUncheckedRE as %q; close would refuse an empty Plan", m)
+	}
+}

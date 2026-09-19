@@ -131,3 +131,23 @@ func TestRenameOutOfAtlasStillBucketsByDestination(t *testing.T) {
 		t.Errorf("a rename INTO atlas/ is atlas churn, not prod: %+v", r2.Final)
 	}
 }
+
+// TestParseNumstatZ: plain rows, a rename (destination wins), a binary row
+// (skipped), and a path git would quote without -z — all read as themselves.
+func TestParseNumstatZ(t *testing.T) {
+	out := "3\t1\tcmd/a.go\x00" +
+		"5\t0\t\x00old/x.go\x00new/x.go\x00" +
+		"-\t-\tassets/logo.png\x00" +
+		"150\t0\tcmd/a\"b.go\x00" +
+		"2\t2\tdocs/café.md\x00"
+	got := ParseNumstatZ(out)
+	want := []FileStat{{"cmd/a.go", 3}, {"new/x.go", 5}, {"cmd/a\"b.go", 150}, {"docs/café.md", 2}}
+	if len(got) != len(want) {
+		t.Fatalf("ParseNumstatZ = %+v, want %+v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Errorf("row %d = %+v, want %+v", i, got[i], want[i])
+		}
+	}
+}

@@ -46,16 +46,15 @@ func churnForWindow(baseLong string) (churn.Report, error) {
 	}
 	span := baseLong + "..HEAD"
 
-	finalOut, err := gitx.RunGit("diff", "--numstat", span)
+	final, err := windowFileStats(baseLong, "HEAD")
 	if err != nil {
-		return churn.Report{}, fmt.Errorf("git diff --numstat %s: %w", span, err)
+		return churn.Report{}, err
 	}
 	commitOut, err := gitx.RunGit("log", "--numstat", "--format=", span)
 	if err != nil {
 		return churn.Report{}, fmt.Errorf("git log --numstat %s: %w", span, err)
 	}
 
-	final := churn.ParseNumstat(string(finalOut))
 	commitTotal := churn.TotalInsertions(churn.ParseNumstat(string(commitOut)))
 	return churn.Summarize(final, commitTotal), nil
 }

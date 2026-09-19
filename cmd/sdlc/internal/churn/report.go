@@ -138,3 +138,35 @@ func resolveRenamePath(field string) string {
 	rebuilt := field[:openBrace] + strings.TrimSpace(inner[i+len(arrow):]) + field[closeBrace+1:]
 	return strings.ReplaceAll(rebuilt, "//", "/")
 }
+
+// ParseNumstatZ parses `git diff --numstat -z` — the form a gate must read,
+// because without -z git QUOTES any path with a double quote, a backslash, a
+// control character or (unless core.quotePath is off) non-ASCII, and a quoted
+// row never matches the path the -z name list reports (#231 M2 review). Each
+// record is "ins<TAB>del<TAB>path<NUL>", or, for a rename, "ins<TAB>del<TAB><NUL>
+// old<NUL>new<NUL>" — the destination is the path, matching ParseNumstat's
+// rename resolution. Binary rows ("-") are skipped, as in ParseNumstat. Pure.
+func ParseNumstatZ(out string) []FileStat {
+	var stats []FileStat
+	tok := strings.Split(out, "\x00")
+	for i := 0; i < len(tok); i++ {
+		f := strings.SplitN(tok[i], "\t", 3)
+		if len(f) != 3 {
+			continue
+		}
+		p := f[2]
+		if p == "" { // a rename: old and new follow as their own fields
+			if i+2 >= len(tok) {
+				break
+			}
+			p = tok[i+2]
+			i += 2
+		}
+		ins, err := strconv.Atoi(f[0])
+		if err != nil {
+			continue // "-" on a binary row
+		}
+		stats = append(stats, FileStat{Path: p, Insertions: ins})
+	}
+	return stats
+}

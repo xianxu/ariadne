@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
@@ -51,7 +52,7 @@ func TestRerunCmd(t *testing.T) {
 // each --no-<gate> waives ONLY its own. A typo'd field would let one flag leak
 // into another gate (or none), which this catches.
 func TestCloseFlags_Skip(t *testing.T) {
-	gates := []string{"actual", "verified", "reclose", "atlas", "verdict", "plan", "project"}
+	gates := []string{"actual", "verified", "reclose", "atlas", "verdict", "plan", "project", "done-when-fresh"}
 
 	// --force ⇒ all gates skipped.
 	force := &closeFlags{Force: true}
@@ -73,6 +74,7 @@ func TestCloseFlags_Skip(t *testing.T) {
 		{"verdict", func(f *closeFlags) { f.NoVerdict = true }},
 		{"plan", func(f *closeFlags) { f.NoPlanCheck = true }},
 		{"project", func(f *closeFlags) { f.NoProject = true }},
+		{"done-when-fresh", func(f *closeFlags) { f.NoDoneWhenFresh = true }},
 	}
 	for _, c := range cases {
 		f := &closeFlags{}
@@ -422,8 +424,8 @@ func TestRunClose_NoActualWritesNotApplicableSentinel(t *testing.T) {
 
 // TestMilestonePlanRE_Enumerates verifies the plan-section milestone
 // regex picks up the tags whether or not the milestone label is
-// emphasized with `**`. Drives findMilestonesMissingVerdict via the
-// shared milestonePlanRE.
+// emphasized with `**`. Drives the one enumeration findMilestonesMissingVerdict
+// uses, issue.MilestonesInPlanOrder (#231 moved it into internal/issue).
 func TestMilestonePlanRE_Enumerates(t *testing.T) {
 	body := `## Plan
 
@@ -441,11 +443,7 @@ func TestMilestonePlanRE_Enumerates(t *testing.T) {
 	if !ok {
 		t.Fatal("plan section not found")
 	}
-	matches := milestonePlanRE.FindAllStringSubmatch(planBody, -1)
-	got := make([]string, 0, len(matches))
-	for _, m := range matches {
-		got = append(got, m[1])
-	}
+	got := issue.MilestonesInPlanOrder(planBody)
 	want := []string{"M1", "M2", "M3", "M4b", "M10"}
 	if strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("milestones = %v, want %v", got, want)
@@ -734,7 +732,7 @@ func TestFormatTrailingNeedsJudge_ContractElements(t *testing.T) {
 // hatch (re-run the boundary verb). Verb-parameterized so a milestone close
 // names `sdlc milestone-close` (same closeVerb threading as the REWORK arm).
 func TestFormatFixThenShipProtocol_ContractElements(t *testing.T) {
-	msg := formatFixThenShipProtocol("sdlc close")
+	msg := formatFixThenShipProtocol("sdlc close", false)
 	for _, w := range []string{
 		"FIX-THEN-SHIP",
 		"before committing",   // fix NOW, pre-commit
@@ -750,7 +748,7 @@ func TestFormatFixThenShipProtocol_ContractElements(t *testing.T) {
 	// Milestone variant: verb threaded into the anti-loop line, and the
 	// escape hatch speaks next-boundary coverage, NOT issue-close anchor
 	// semantics (which don't apply — no codecomplete anchor at a milestone).
-	ms := formatFixThenShipProtocol("sdlc milestone-close")
+	ms := formatFixThenShipProtocol("sdlc milestone-close", false)
 	if !strings.Contains(ms, "re-run `sdlc milestone-close`") {
 		t.Errorf("milestone verb not threaded into the anti-loop line:\n%s", ms)
 	}
@@ -762,4 +760,16 @@ func TestFormatFixThenShipProtocol_ContractElements(t *testing.T) {
 	}
 	assertNoGatesigCollision(t, msg)
 	assertNoGatesigCollision(t, ms)
+
+	// #231: on the quick flow "do not re-run" has one exception, the publish
+	// check's limit on fixes after the verdict — rendered from its owner, and
+	// absent from a full issue's protocol.
+	q := formatFixThenShipProtocol("sdlc close", true)
+	if !strings.Contains(q, flow.AfterReviewSummary()) {
+		t.Errorf("quick protocol does not render flow.AfterReviewSummary():\n%s", q)
+	}
+	if strings.Contains(msg, flow.AfterReviewSummary()) {
+		t.Errorf("a full issue's protocol carries the quick-flow exception:\n%s", msg)
+	}
+	assertNoGatesigCollision(t, q)
 }

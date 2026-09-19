@@ -311,8 +311,14 @@ var guardScanDirs = []string{".", "internal/issue"}
 // Deriving the reader set from these, rather than listing readers by hand, is
 // the #208 rule: a hand-maintained restatement of the model stops covering the
 // sixth member the day someone adds it, and says nothing while it does.
+//
+// MilestonesInPlanOrder is listed although it is a function, not a regex: it is
+// the pure helper that COUNTS milestones in a body it is handed, so every caller
+// is a plan-item reader by the same definition. Listing it here derives the
+// caller set — the hand-kept planItemBodySources list it replaces missed
+// change-code's flow inference the day that caller was added (#231 BR-4).
 var planItemMatchers = []string{
-	"PlanUncheckedRE", "PlanItemRE", "nonEmptyPlanItemRE", "milestonePlanRE", "milestoneLabelRE",
+	"PlanUncheckedRE", "PlanItemRE", "nonEmptyPlanItemRE", "milestonePlanRE", "MilestonesInPlanOrder",
 }
 
 // planItemReaderExemptions holds a function that uses one of the counting
@@ -324,29 +330,9 @@ var planItemMatchers = []string{
 // derivation never classes it as a reader. An entry added for it was rejected by
 // the stale check on exactly that ground.
 var planItemReaderExemptions = map[string]string{
-	"close.go:milestonesInPlanOrder": "a PURE helper that RECEIVES an already-filtered plan body. " +
-		"Exempt here and covered by planItemBodySources instead: extracting the regex into this " +
-		"helper moved milestonePlanRE out of its caller, which silently dropped that caller from " +
-		"this derivation — so the edge is named explicitly rather than assumed",
-}
-
-// planItemBodySources are the functions that OBTAIN a plan body to hand to a
-// pure helper. The derivation above finds regex users; it cannot find a caller
-// that fetches the body and delegates the counting, and extracting a helper is
-// exactly what turns the second kind into the first.
-//
-// Found by probing my own exemption (#211 close review): I wrote that
-// milestonesInPlanOrder was safe because "its caller is itself checked by this
-// guard", then reverted that caller and nothing fired. The rationale was false.
-var planItemBodySources = []wiring{
-	{"close.go", "findMilestonesMissingVerdict", "PlanItemsBody",
-		"obtains the plan body for milestonesInPlanOrder; the raw section would " +
-			"surface milestones quoted inside a fenced example and demand review evidence for them"},
-}
-
-// TestPlanItemBodySourcesUsePlanItemsBody covers the delegating callers.
-func TestPlanItemBodySourcesUsePlanItemsBody(t *testing.T) {
-	assertWiring(t, planItemBodySources)
+	"internal/issue/plan.go:MilestonesInPlanOrder": "a PURE helper that RECEIVES an already-filtered plan body. " +
+		"Exempt here; its callers are derived readers instead, because MilestonesInPlanOrder is itself " +
+		"in planItemMatchers (#231 BR-4) — so each must obtain its body from PlanItemsBody",
 }
 
 // planItemWriters are the call sites that REWRITE plan rows. The reader guard

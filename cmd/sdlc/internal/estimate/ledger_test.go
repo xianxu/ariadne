@@ -281,3 +281,46 @@ func TestNewestPerIssue_EmptyAndSingle(t *testing.T) {
 		t.Errorf("single row → %+v, want it back unchanged", got)
 	}
 }
+
+// TestRoundTripFlowColumns: #231's flow columns (kind, provenance, upgraded)
+// survive FormatRow → ParseRows beside the #187 block.
+func TestRoundTripFlowColumns(t *testing.T) {
+	in := LedgerRow{Issue: "ariadne#231", Estimate: 0, Actual: 1.5, Model: "estimate-logic-v3.1", Date: "2026-09-17",
+		ChurnProd: 40, GateRounds: 2, FlowKind: "full", FlowProvenance: "inferred", FlowUpgraded: true}
+	rows := ParseRows(Header() + "\n" + FormatRow(in) + "\n")
+	if len(rows) != 1 {
+		t.Fatalf("got %d rows", len(rows))
+	}
+	got := rows[0]
+	if got.FlowKind != "full" || got.FlowProvenance != "inferred" || !got.FlowUpgraded || got.ChurnProd != 40 || got.GateRounds != 2 {
+		t.Errorf("round trip lost data: %+v", got)
+	}
+}
+
+// TestParseRowsKeepsChurnOnTwentyColumnRow: widening the header must not zero
+// the #187 metrics of every row written before #231 — each appended block is
+// read by its OWN width, not the full header's.
+func TestParseRowsKeepsChurnOnTwentyColumnRow(t *testing.T) {
+	old := "pair#1\t2.00\t1.00\t1.00\t3.00\t0.67\testimate-logic-v3.1\t-\tyes\t2026-09-01" +
+		"\t120\t80\t5\t30\t1.20\t2\t0\t3\t1\t0"
+	rows := ParseRows(old + "\n")
+	if len(rows) != 1 || rows[0].ChurnProd != 120 || rows[0].GateRounds != 2 {
+		t.Fatalf("a 20-column row lost its #187 block: %+v", rows)
+	}
+	if rows[0].FlowKind != "" || rows[0].FlowUpgraded {
+		t.Errorf("a pre-#231 row grew flow values: %+v", rows[0])
+	}
+}
+
+// TestUpgradeHeaderAddsFlowColumns: a ledger whose header is the #187 one is
+// upgraded in place to the #231 header (a prefix-compatible append).
+func TestUpgradeHeaderAddsFlowColumns(t *testing.T) {
+	old := strings.TrimSuffix(Header(), "\tflow_kind\tflow_provenance\tflow_upgraded")
+	if old == Header() {
+		t.Fatal("the header does not end with the flow columns")
+	}
+	got, changed := UpgradeHeader(old + "\nrow\n")
+	if !changed || !strings.HasPrefix(got, Header()+"\n") {
+		t.Errorf("UpgradeHeader did not append the flow columns:\n%s", got)
+	}
+}

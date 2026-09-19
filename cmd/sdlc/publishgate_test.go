@@ -7,10 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
@@ -123,8 +125,9 @@ func TestRunPublishGate(t *testing.T) {
 		commitCode(t, git, "late.go")
 		err := runPublishGate(base, "workshop/issues", io.Discard)
 		if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
-			t.Errorf("post-close drift should refuse with a re-run-close message, got: %v", err)
+			t.Fatalf("post-close drift should refuse with a re-run-close message, got: %v", err)
 		}
+		assertGatesigAttributes(t, err.Error(), "no-judge", "merge", "push")
 	})
 
 	t.Run("multi-issue: latest anchor, no false drift", func(t *testing.T) {
@@ -296,5 +299,86 @@ func TestPublishGateHasCodeSurface(t *testing.T) {
 		if got := publishGateHasCodeSurface(tc.paths); got != tc.want {
 			t.Errorf("%s: publishGateHasCodeSurface(%v) = %v, want %v", tc.name, tc.paths, got, tc.want)
 		}
+	}
+}
+
+// publishFlowIssue commits a #69 history the way the quick flow leaves it: the
+// issue at working with its flow record, code under the issue (files → added
+// lines), then the close commit that writes codecomplete and is the publish
+// anchor. record is the frontmatter flow value.
+func publishFlowIssue(t *testing.T, git func(...string), record string, code map[string]int) {
+	t.Helper()
+	write := func(status string) {
+		body := fmt.Sprintf("---\nid: 000069\nstatus: %s\nactual_hours: 1\nflow: %s\n---\n# T\n\n%s\n", status, record, status)
+		if err := os.WriteFile(issuePathFor(69), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write("working")
+	git("add", ".")
+	git("commit", "-q", "-m", "#69: issue-sync: spec/plan at change-code")
+	for path, n := range code {
+		os.MkdirAll(filepath.Dir(path), 0o755)
+		if err := os.WriteFile(path, []byte(strings.Repeat("var _ = 1\n", n)), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	git("add", ".")
+	git("commit", "-q", "-m", "#69: implement, fixes after the verdict included")
+	write("codecomplete")
+	git("add", ".")
+	git("commit", "-q", "-m", "#69: close")
+}
+
+const (
+	quickRecord = `{kind: quick, provenance: inferred, spec: "1a2b3c4d", done: "5e6f7a8b"}`
+	fullRecord  = `{kind: full, provenance: inferred}`
+)
+
+// TestRunPublishGate_QuickGrewPastReview (#231): close measures the head its
+// small-diff review saw, and fixes made after the verdict ride into the close
+// commit unmeasured. The publish check re-measures a quick issue's final diff
+// over close's own window: up to flow.MaxAddedLinesAfterReview it publishes, one
+// line past it sends the issue back to close. Only quick issues and only code
+// lines count, and the docs-only pass path checks it too.
+func TestRunPublishGate_QuickGrewPastReview(t *testing.T) {
+	limit := flow.MaxAddedLinesAfterReview
+	cases := []struct {
+		name    string
+		record  string
+		code    map[string]int
+		docs    bool // a docs-only commit after the close (the #174 pass path)
+		refuses bool
+	}{
+		{"quick at the limit publishes", quickRecord, map[string]int{"cmd/a.go": limit - 20, "cmd/b.go": 20}, false, false},
+		{"quick one line past refuses", quickRecord, map[string]int{"cmd/a.go": limit - 20, "cmd/b.go": 21}, false, true},
+		{"quick past it via the docs-only path refuses", quickRecord, map[string]int{"cmd/a.go": limit + 1}, true, true},
+		{"test lines never count", quickRecord, map[string]int{"cmd/a.go": 10, "cmd/a_test.go": 5 * limit}, false, false},
+		{"a full issue is not the quick flow's to re-measure", fullRecord, map[string]int{"cmd/a.go": 5 * limit}, false, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			git, base := publishRepo(t)
+			publishFlowIssue(t, git, c.record, c.code)
+			if c.docs {
+				commitDocs(t, git, "lessons.md")
+			}
+			err := runPublishGate(base, "workshop/issues", io.Discard)
+			if !c.refuses {
+				if err != nil {
+					t.Errorf("want a publish, got: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("want a refusal sending the issue back to close, got a publish")
+			}
+			for _, want := range []string{"quick flow", "sdlc close --issue 69", strconv.Itoa(limit+1) + " added lines"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("refusal missing %q:\n%v", want, err)
+				}
+			}
+			assertGatesigAttributes(t, err.Error(), "no-judge", "merge", "push")
+		})
 	}
 }

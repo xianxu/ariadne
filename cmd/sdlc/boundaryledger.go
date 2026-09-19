@@ -157,11 +157,11 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	}
 
 	n := len(l.Rounds) + 1
+	// A review that never STARTED did not consume a cycle; one that ran and emitted
+	// no fence did (that is the case #187's persist rule exists to bound).
+	neverRan := review.Round == nil && strings.HasPrefix(review.ProtocolError, "review did not run:")
 	if review.Round == nil {
 		cwarn(stderr, "boundary review: no valid ```findings block — this round carries NO findings, so the gate cannot converge on it")
-		// A review that never STARTED did not consume a cycle; one that ran and emitted
-		// no fence did (that is the case #187's persist rule exists to bound).
-		neverRan := strings.HasPrefix(review.ProtocolError, "review did not run:")
 		l = gatestate.Apply(l, gatestate.Round{
 			N: n, Timestamp: timestamp, Agent: review.Agent, Boundary: p.Milestone,
 			ProtocolError: review.ProtocolError, Blocked: true, NoCap: neverRan,
@@ -174,6 +174,12 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 			cwarn(stderr, "boundary review: "+aerr.Error())
 			l.Rounds[len(l.Rounds)-1].ProtocolError = aerr.Error()
 		}
+	}
+
+	// The recipe this round ran (#231), stamped once for both branches: a round that
+	// ran — fence or not — ran under it; one that never started ran nothing.
+	if !neverRan {
+		l.Rounds[len(l.Rounds)-1].Recipe = string(p.recipe())
 	}
 
 	// Cap per boundary; open findings from the WHOLE issue at the final boundary (BR-37).

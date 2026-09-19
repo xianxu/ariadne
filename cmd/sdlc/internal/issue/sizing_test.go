@@ -151,3 +151,13 @@ func TestSizing_Format_ContainsKeyFields(t *testing.T) {
 		}
 	}
 }
+
+// TestComputeSizingCountsEmDashMilestones: the sizing hint used a colon-only
+// milestone regex and so reported zero milestones for the dominant `M1 —` form,
+// leaning every multi-milestone issue toward "small" (#231).
+func TestComputeSizingCountsEmDashMilestones(t *testing.T) {
+	text := "---\nid: 000001\nstatus: open\n---\n\n# T\n\n## Plan\n\n- [ ] M1 — a\n- [ ] M2 — b\n- [ ] M3 — c\n\n## Log\n"
+	if got := ComputeSizingFromContent(text).Milestones; got != 3 {
+		t.Errorf("Milestones = %d, want 3", got)
+	}
+}

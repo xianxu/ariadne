@@ -3,7 +3,9 @@
 // all LLM review is now close-time (the boundary review), so the publish gate
 // carries no LLM. It enforces the reviewed-HEAD-unchanged invariant
 // (codecomplete ⟹ the close boundary review covered HEAD) and flips the merged
-// codecomplete issues to done.
+// codecomplete issues to done. For a quick-flow issue it also re-measures the
+// final diff (#231): fixes made after the small-diff verdict are unmeasured by
+// close, and past flow.MaxAddedLinesAfterReview the issue goes back to close.
 package main
 
 import (
@@ -14,6 +16,8 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
@@ -123,7 +127,7 @@ func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
 		}
 		if !publishGateHasCodeSurface(paths) {
 			cinfo(stderr, formatPublishGateDocsOnly(minAhead, shortSHA(newestAnchor)))
-			return nil
+			return quickGrewPastReview(issues)
 		}
 		return fmt.Errorf(
 			"publish gate: %d commit(s) landed after `sdlc close` (anchor %s) — the boundary review no longer covers HEAD.\n"+
@@ -131,7 +135,53 @@ func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
 				"  (Next time: bundle post-close bookkeeping into the close commit — doc-only deltas pass on their own, #174.)",
 			minAhead, shortSHA(newestAnchor))
 	}
+	if err := quickGrewPastReview(issues); err != nil {
+		return err
+	}
 	cok(stderr, fmt.Sprintf("publish gate: HEAD unchanged since close (anchor %s) — reviewed-HEAD-unchanged ✓", shortSHA(newestAnchor)))
+	return nil
+}
+
+// quickGrewPastReview refuses the publish of a quick-flow issue whose final diff
+// grew past flow.MaxAddedLinesAfterReview (#231). Close measured the head its
+// small-diff review saw; the fixes made after the verdict ride into the close
+// commit, which is the anchor above, so nothing else measures them. The window
+// is close's own (boundaryWindowBase), extended to HEAD, so the publish check
+// and the close it sends the issue back to measure the same diff — and that
+// close finds the shell crossed, upgrades the issue and runs the full review.
+// Deterministic, like the rest of the gate: the review runs in close. A full
+// issue (or one without a readable quick record) is not the quick flow's to
+// re-measure.
+func quickGrewPastReview(issues []string) error {
+	for _, p := range issues {
+		content, err := os.ReadFile(p)
+		if err != nil {
+			return fmt.Errorf("publish gate: read %s to check its flow: %v", p, err)
+		}
+		fm, _, perr := issue.Parse(string(content))
+		if perr != nil {
+			continue
+		}
+		rec, rerr := flow.Recorded(fm)
+		if rerr != nil || rec == nil || rec.Kind() != flow.Quick {
+			continue
+		}
+		n := issueIDFromPath(p)
+		base := boundaryWindowBase(strconv.Itoa(n), "", "")
+		if base == "" {
+			continue // no #N commit anchors a window: nothing was measured at close either
+		}
+		stats, err := windowFileStats(base, "HEAD")
+		if err != nil {
+			return fmt.Errorf("publish gate: could not measure #%d's diff %s..HEAD (%v) — refusing to publish unverified", n, shortSHA(base), err)
+		}
+		if why := flow.Measure(stats, 0, nil).GrewPastReview(); why != "" {
+			return fmt.Errorf(
+				"publish gate: #%d is on the quick flow, and its diff grew to %s.\n"+
+					"  Re-run `sdlc close --issue %d --verified '<evidence>'`: close measures the crossing, upgrades the issue\n"+
+					"  to the full flow and runs the full review. Then retry the publish.", n, why, n)
+		}
+	}
 	return nil
 }
 
@@ -173,11 +223,8 @@ func publishCodecompleteIssues(issuesDir string) ([]string, error) {
 // gate keeps plain hasCodePath (there, embedded docs SHOULD satisfy a docs
 // demand); only the publish decision needs the stricter read. Pure.
 func publishGateHasCodeSurface(paths []string) bool {
-	if hasCodePath(paths) {
-		return true
-	}
 	for _, p := range paths {
-		if strings.HasPrefix(p, "cmd/") {
+		if !churn.IsDoc(p) || churn.IsEmbedded(p) {
 			return true
 		}
 	}

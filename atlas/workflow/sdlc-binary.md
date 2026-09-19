@@ -32,8 +32,8 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
 | `fetch`           | `make fetch N`              | **Hidden deprecated alias** for `sdlc issue new --from-github` since #56 M2 (keeps `--github-issue`) |
 | `claim`           | `make issue-sync`           | Issue-file workstream-claim onto main (formerly `lock`, #39) |
-| `start-plan`      | (new #75)                   | Planning-entry transition: delivers the `at-plan` architecture lens + the durable-plan pointer (`superpowers-writing-plans` → `workshop/plans/`, #72) to design against |
-| `change-code`     | `make worktree` (partial)   | Planning → implementation gate, in this order (#187 B1): structural + **plan-quality (stateful, #187)** + estimate (#113) + estimate-reconciliation + estimate-quality (#117) + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
+| `start-plan`      | (new #75)                   | Planning-entry transition: delivers the `at-plan` architecture lens + the durable-plan pointer (`superpowers-writing-plans` → `workshop/plans/`, #72), sized against the quick-flow shell (#231) to design against |
+| `change-code`     | `make worktree` (partial)   | Planning → implementation gate. First it infers the issue's flow (#231: Mx rows or a design past the shell's design limit → full; neither → quick, which runs none of the gates that follow; `--flow` pins it); the flow is recorded after the gates pass, re-derived from the issue as it is then. Then, in this order (#187 B1): structural + **plan-quality (stateful, #187)** + estimate (#113) + estimate-reconciliation + estimate-quality (#117) + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
 | `set-status`      | (new)                       | Status-transition guards. Moved under `sdlc issue set-status` (#56 M2); **hidden deprecated flat alias** kept one cycle |
 | `push`            | `make push`                 | Direct-on-main ship + the #124 instance-conformance gate (`--no-validate`) + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
@@ -283,6 +283,30 @@ CRUD/authoring surface for the issue *record* — the noun-grouped home for
 `new` (and, post-#56-M2, `set-status`/`list`/`show`). The canonical issue-file
 template lives in one place: the `Render` function in `internal/issue/scaffold.go`,
 documented in prose by `sdlc issue --help`.
+
+## The quick flow at close (#231)
+
+`internal/flow` is the pure core: the one-line `flow:` record codec, `Decide`
+(change-code's inference), the hard-shell limits (`MaxAddedLines` and
+`MaxDesignLines`, rendered with the Mx rule by `ShellSummary` into help via
+`{{QUICK_SHELL}}`), `Measure`/`Crossings`/`DesignLines`, the contract hashes and
+the Done-when checks. change-code and close size the shell through the same
+`Measure`/`Crossings` — change-code before any diff exists, on the design
+(`## Spec` + `## Plan` + the durable plan, in lines) and the Mx rows. On a quick
+issue, `computeClose` (`closeflow.go`) measures the window the atlas gate and the
+review already use — added lines in code files (`churn.IsCodeFile`) via numstat,
+the design as it stands, and the Plan's Mx rows. Outside the shell it composes an upgrade to
+full/inferred (written at finalize); inside, the dispatch runs the
+`small-diff-review` recipe. The shell measures size only: neither how many
+files a change spreads across nor where it lands counts (the file-count limit
+and the shared-surface declaration were removed after the first trial reading,
+2026-09-18 — for a diff this small, tests and the one close review are the
+guard). Fixes made after the verdict ride into the close commit unmeasured, so
+the publish gate (`publishgate.go`, `quickGrewPastReview`) re-measures a quick
+issue's final diff over close's own window (`boundaryWindowBase` → HEAD):
+past `flow.MaxAddedLinesAfterReview` (twice the line limit) it refuses and
+sends the issue back to close, which upgrades it and runs the full review. The
+gate itself stays LLM-free.
 
 ## Fleet inventory and policy (`sdlc fleet`, #200)
 
@@ -735,8 +759,9 @@ The core problem is **discrimination, not capture**: this repo *develops* sdlc, 
 output. So the instrument (1) **anchors to `Bash(sdlc <verb>)` invocations** (drops
 the source/edit/log-read noise — the dominant contamination), joined to their
 `tool_use_id`-linked tool_result content-block; (2) classifies each output line
-against a **per-gate signature catalog** (`internal/processmanual/gatesig.go` —
-12 gates / 16 sigs / 3 ACK grammars: G1 close·mclose `--no-X (or --force): …`,
+against a **per-gate signature catalog** (`internal/processmanual/gatesig.go`,
+`GateCatalog` — the one owner of each command's bypass set, whose `Gate` field
+help pages render via `{{GATE_FLAGS}}`; ACK grammars: G1 close·mclose `--no-X (or --force): …`,
 cinfo no-judge, G2 change-code `X gate bypassed (--force: …)` (silent alone), G3
 merge/push `--no-X: …`), requiring the runtime `\x1b[0m` reset for a bypass ACK and
 grammar+digit-anchored patterns for refusals (so the `printSemanticWarmup` success
@@ -873,11 +898,10 @@ when the source is missing, while the PUSHes (`start-plan` emits `SourceLine` af
 the estimate nudge; `change-code`'s missing-block error points at the command)
 warn-and-continue so a brain-less downstream repo never breaks the gates.
 
-**Per-gate bypass (#67).** `close` has 8 gates (actual, verified, atlas,
-milestone-verdict, plan-unchecked, project, re-close, and the #69 boundary
-review), each with its own `--no-<gate>` flag (`--no-actual`, `--no-verified`,
-`--no-atlas`, `--no-verdict`, `--no-plan-check`, `--no-project`,
-`--no-reclose-guard`, `--no-judge`);
+**Per-gate bypass (#67).** Each `close` gate has its own `--no-<gate>` flag.
+The set is owned by `processmanual.GateCatalog` (pinned to the registered flags);
+help pages render it with `{{GATE_FLAGS}}` rather than keep a copy, and
+`TestGateFlagListsAreRenderedFromTheCatalog` refuses a hand-listed gate flag.
 `closeFlags.skip(gate)` is the single arbiter (`Force || the field`). A
 per-gate flag is an *acknowledgment* that one guard doesn't apply (e.g. a
 pure bugfix → `--no-atlas`); it logs an audit `[!]` line and only fires

@@ -48,6 +48,25 @@ type LedgerRow struct {
 	GateAddressed int
 	GateWithdrawn int
 	GateOpen      int
+
+	// ── #231: which flow the issue closed under (indices 20–22) ─────────────────
+	// FlowKind is "full" or "quick" (empty on a row written before #231);
+	// FlowProvenance "inferred" or "operator" (empty when the issue had no flow
+	// record); FlowUpgraded marks a quick issue the close moved to full. Quick and
+	// upgraded rows carry no estimate, so they are not estimate↔actual data points
+	// (see ExcludedFromCalibration) — but their hours are real hours, and
+	// throughput keeps them.
+	FlowKind       string
+	FlowProvenance string
+	FlowUpgraded   bool
+}
+
+// ExcludedFromCalibration reports a row that is no estimate↔actual data point:
+// a quick-flow close (no estimate at all) or one upgraded from quick (it started
+// without one). Drift and any future est/actual reader skip it; throughput
+// (SpanThroughput) does not (#231).
+func (r LedgerRow) ExcludedFromCalibration() bool {
+	return r.FlowKind == "quick" || r.FlowUpgraded
 }
 
 // Ratio is estimate/actual (0 when actual is 0, to avoid div-by-zero).
@@ -65,11 +84,18 @@ func (r LedgerRow) Ratio() float64 {
 // occupies indices 10–19.
 const ledgerHeader = "issue\testimate\test_design\test_impl\tactual\tratio\tmodel\tmode\twindow_trusted\tdate" +
 	"\tchurn_prod\tchurn_test\tchurn_atlas\tchurn_workshop\trework" +
-	"\tgate_rounds\tgate_forced\tgate_addressed\tgate_withdrawn\tgate_open"
+	"\tgate_rounds\tgate_forced\tgate_addressed\tgate_withdrawn\tgate_open" +
+	"\tflow_kind\tflow_provenance\tflow_upgraded"
 
 // legacyCols is the column count before #187's append — the boundary between "row from an
 // older binary" and "row carrying cost metrics".
 const legacyCols = 10
+
+// costCols is the column count through #187's block (indices 10–19): a row this
+// wide carries the cost metrics, whether or not it also carries #231's flow block.
+// Each appended block is read by its OWN width — reading by the full header width
+// would zero every older row's metrics the day a new block is appended.
+const costCols = 20
 
 // Header returns the ledger's TSV header line (written when the file is created).
 func Header() string { return ledgerHeader }
@@ -82,6 +108,7 @@ func FormatRow(r LedgerRow) string {
 		r.Model, dash(r.Mode), yesno(r.WindowTrusted), r.Date,
 		itoa(r.ChurnProd), itoa(r.ChurnTest), itoa(r.ChurnAtlas), itoa(r.ChurnWorkshop), ftoa(r.Rework),
 		itoa(r.GateRounds), itoa(r.GateForced), itoa(r.GateAddressed), itoa(r.GateWithdrawn), itoa(r.GateOpen),
+		dash(r.FlowKind), dash(r.FlowProvenance), yesno(r.FlowUpgraded),
 	}, "\t")
 }
 
@@ -130,7 +157,7 @@ func ParseRows(text string) []LedgerRow {
 		// looser bound and then panic on c[19]. A short row keeps its estimate↔actual data
 		// point and simply carries no metrics — losing the row entirely would throw away
 		// the calibration history this ledger exists for.
-		if len(c) >= len(strings.Split(ledgerHeader, "\t")) {
+		if len(c) >= costCols {
 			row.ChurnProd = atoiOrZero(c[10])
 			row.ChurnTest = atoiOrZero(c[11])
 			row.ChurnAtlas = atoiOrZero(c[12])
@@ -141,6 +168,11 @@ func ParseRows(text string) []LedgerRow {
 			row.GateAddressed = atoiOrZero(c[17])
 			row.GateWithdrawn = atoiOrZero(c[18])
 			row.GateOpen = atoiOrZero(c[19])
+		}
+		if len(c) >= len(strings.Split(ledgerHeader, "\t")) { // #231's flow block
+			row.FlowKind = undash(c[20])
+			row.FlowProvenance = undash(c[21])
+			row.FlowUpgraded = c[22] == "yes"
 		}
 		rows = append(rows, row)
 	}

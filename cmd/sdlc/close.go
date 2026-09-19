@@ -35,7 +35,9 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/churn"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -80,6 +82,8 @@ type closeFlags struct {
 	NoPlanCheck bool
 	NoProject   bool
 	NoJudge     bool // skip the issue boundary review (#69)
+	// NoDoneWhenFresh skips the quick flow's Done-when freshness check (#231).
+	NoDoneWhenFresh bool
 }
 
 // resolvePlansDir is the SINGLE resolution of the durable-plans directory: the explicit
@@ -127,6 +131,8 @@ func (f *closeFlags) skip(gate string) bool {
 		return f.NoProject
 	case "judge":
 		return f.NoJudge
+	case "done-when-fresh":
+		return f.NoDoneWhenFresh
 	}
 	return false
 }
@@ -176,6 +182,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict trailer check")
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
+	cmd.Flags().BoolVar(&f.NoDoneWhenFresh, "no-done-when-fresh", false, "quick flow: skip the Done-when freshness check (#231); say why in --verified")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the issue boundary review auto-dispatched on full-issue close (#69)")
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for the boundary-review dispatch (claude | codex | gemini)")
 	// Don't use MarkFlagRequired("issue"): cobra emits an uncolored,
@@ -376,6 +383,9 @@ type closeResult struct {
 	// success messages that describe WRITES — emitted by applyClose (post-finalize),
 	// so a REWORK never prints "flipped → codecomplete" for a write that didn't happen.
 	appliedMsgs []string
+	// flow is what this close does with the issue's flow (#231): the review
+	// recipe it selects, and whether it upgraded a quick issue.
+	flow closeFlowOutcome
 }
 
 // computeClose runs every close gate and composes the new issue/project text in
@@ -495,8 +505,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		cwarn(stderr, fmt.Sprintf("no commits reference '#%s' on this branch", issueStr))
 	}
 
+	var diffFiles []string
 	if windowBase != "" {
-		diffFiles, derr := gitx.DiffNames(windowBase, windowHead)
+		var derr error
+		diffFiles, derr = gitx.DiffNames(windowBase, windowHead)
 		if derr != nil {
 			// #177 review Important #1: a swallowed diff error used to inherit the
 			// refusal (fail-closed); with the auto-satisfy arm, nil files would
@@ -529,6 +541,11 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		}
 	}
 
+	// ── Flow: the quick flow's hard shell + Done-when checks (#231) ──────────
+	// Same window as the atlas gate and the review. Writes nothing: an upgrade is
+	// composed into newFM below and recorded by applyClose at finalize.
+	flowOutcome := closeFlowStep(stderr, f, mode, issuePath, fm, body, windowBase, windowHead)
+
 	// ── Milestone-review verdict check (issue close only) ──────────────────
 	//
 	// Every milestone in the plan must carry a Review-Verdict: trailer on
@@ -560,6 +577,12 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 
 	// ── Edit issue file ─────────────────────────────────────────────────────
 	newFM, newBody := fm, body
+
+	if flowOutcome.upgraded() {
+		newFM = issue.SetField(newFM, flow.Field, flow.Format(flowOutcome.flow))
+		newBody = insertLogLine(newBody, fmt.Sprintf("- %s: flow upgraded quick → full — %s", today, strings.Join(flowOutcome.crossings, "; ")))
+		applied = append(applied, "recorded flow quick → full (outside the quick-flow shell)")
+	}
 
 	if mode == "milestone" {
 		// Fence-aware and scoped to the real Plan section — see issue.TickMilestone,
@@ -726,6 +749,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		issueStr:     issueStr,
 		today:        today,
 		appliedMsgs:  applied,
+		flow:         flowOutcome,
 	}
 }
 
@@ -826,7 +850,7 @@ func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeR
 	// window that could disagree would make the ledger unauditable against the
 	// line the operator just read.
 	if shouldLogCalibration(f) {
-		appendCalibrationRow(stderr, f, res.fm, res.body, res.repoName, res.issueStr, res.today, m)
+		appendCalibrationRow(stderr, f, res.fm, res.body, res.repoName, res.issueStr, res.today, m, res.flow)
 	}
 	cok(stderr, "done — review with `git diff`, then commit")
 }
@@ -865,7 +889,7 @@ func shouldLogCalibration(f *closeFlags) bool {
 // propagates to downstream repos that may have no sibling brain/. When
 // WF_CALIB_LEDGER is unset AND the resolved ledger dir is absent, it skips with a
 // warning and returns — a missing ledger must NEVER break `sdlc close`.
-func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, issueStr, today string, m closeCostMetrics) {
+func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, issueStr, today string, m closeCostMetrics, fl closeFlowOutcome) {
 	ledgerPath := os.Getenv("WF_CALIB_LEDGER")
 	usingOverride := ledgerPath != ""
 	if !usingOverride {
@@ -928,6 +952,12 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		GateAddressed: m.Addressed,
 		GateWithdrawn: m.Withdrawn,
 		GateOpen:      m.Open,
+
+		// #231: the flow the issue closed under — quick and upgraded rows carry no
+		// estimate, so drift skips them; throughput keeps their hours.
+		FlowKind:       string(fl.flow.Kind()),
+		FlowProvenance: string(fl.flow.Provenance()),
+		FlowUpgraded:   fl.upgraded(),
 	}
 
 	existing, rerr := os.ReadFile(ledgerPath)
@@ -948,7 +978,7 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		text := string(existing)
 		if upgraded, changed := estimate.UpgradeHeader(text); changed {
 			text = upgraded
-			cok(stderr, "calibration ledger: header upgraded to the #187 column set")
+			cok(stderr, "calibration ledger: header upgraded to the current column set")
 		}
 		buf.WriteString(text)
 		if !strings.HasSuffix(text, "\n") {
@@ -1031,6 +1061,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 			AgentExplicit: f.AgentExplicit,
 			IssueNum:      f.Issue, // #137: the dry-run prompt orientation needs this too
 			Milestone:     "",
+			Category:      r.flow.category(),
 		})
 	}
 
@@ -1044,6 +1075,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		AgentExplicit: f.AgentExplicit,
 		IssueNum:      f.Issue,
 		Milestone:     "",
+		Category:      r.flow.category(),
 		PlansDir:      f.plansDir(),
 	})
 }
@@ -1087,6 +1119,7 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 		Milestone:     "",
 		PlansDir:      f.plansDir(),
 		PriorFindings: prior,
+		Category:      r.flow.category(),
 	}, snapshot)
 }
 
@@ -1245,7 +1278,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			// #174: state the post-FIX-THEN-SHIP protocol at the moment of
 			// ambiguity — before the lessons reminder, so bookkeeping lands
 			// inside the same pre-commit window the protocol describes.
-			cwarn(stderr, formatFixThenShipProtocol(verb))
+			cwarn(stderr, formatFixThenShipProtocol(verb, r.flow.flow.Kind() == flow.Quick))
 		}
 		if f.Milestone == "" { // #160 Q4: lessons ping only at the whole-issue close boundary
 			emitLessonsReminder(stdout)
@@ -1582,20 +1615,16 @@ func explainVerified(stderr io.Writer, issueStr, mode, milestone, actual string)
 	fmt.Fprintln(stderr, strings.Join(lines, "\n"))
 }
 
-// hasCodePath reports whether any window path is code surface — the single
-// docs classifier (#177, aligned with the #172 windowstat study): *.md anywhere,
+// hasCodePath reports whether any window path is code surface — the #177 docs
+// rule, read per path by churn.IsDoc (aligned with the #172 windowstat study): *.md anywhere,
 // or anything under workshop/, atlas/, docs/, is documentation; EVERYTHING else
 // (Makefile, .gitignore, extensionless files) conservatively counts as code —
 // build files are architectural surface, so they keep the atlas refusal.
 func hasCodePath(paths []string) bool {
 	for _, p := range paths {
-		if strings.HasSuffix(p, ".md") ||
-			strings.HasPrefix(p, "workshop/") ||
-			strings.HasPrefix(p, "atlas/") ||
-			strings.HasPrefix(p, "docs/") {
-			continue
+		if !churn.IsDoc(p) {
+			return true
 		}
-		return true
 	}
 	return false
 }
@@ -1667,19 +1696,6 @@ func explainNoAtlas(stderr io.Writer, windowBaseShort string, nonAtlas []string)
 
 // ── milestone-verdict guard ──────────────────────────────────────────────────
 
-// milestonePlanRE matches a ticked-or-unticked milestone bullet at the
-// start of a plan-section line:
-//
-//   - [x] **M1 — scaffold …
-//   - [ ] **M4b — port milestone-close
-//   - [.] **M5 — wip
-//
-// Captures the milestone tag (group 1, e.g. "M1" or "M4b"). The bold
-// asterisks are typical but not strictly required — we accept both the
-// emphasized and plain forms so the regex doesn't drift away from
-// existing issue files that vary the formatting.
-var milestonePlanRE = regexp.MustCompile(`(?m)^- \[[ x.]\] \*{0,2}(M\d+[a-z]?)\b`)
-
 // partitionMissingVerdicts splits the missing-verdict milestones by plan
 // position relative to the LAST verdict-carrying milestone (#175). Missing
 // rows before it are "midstream" — a later boundary was crossed with no
@@ -1712,27 +1728,6 @@ func partitionMissingVerdicts(ordered, missing []string) (midstream, trailing []
 	return midstream, trailing
 }
 
-// milestonesInPlanOrder enumerates the milestone tags in a Plan body, in plan
-// order, de-duplicated (a milestone may appear twice if the plan was revised).
-//
-// PURE, and split out for that reason (#211 close review): the enumeration is
-// what "a fenced heading no longer hides M2" is about, and folding it into
-// findMilestonesMissingVerdict meant testing it required `git log` — so the
-// issue's central regression failed outside a git worktree, on an error raised
-// after the fact under test was already decided. Same ARCH-PURE shape as
-// TickMilestone's extraction on the write side.
-func milestonesInPlanOrder(planBody string) []string {
-	var ordered []string
-	seen := map[string]bool{}
-	for _, mm := range milestonePlanRE.FindAllStringSubmatch(planBody, -1) {
-		if tag := mm[1]; !seen[tag] {
-			seen[tag] = true
-			ordered = append(ordered, tag)
-		}
-	}
-	return ordered
-}
-
 // findMilestonesMissingVerdict enumerates milestones in the issue body's
 // `## Plan` section and returns them in plan order (ordered), plus the
 // tags of any whose close commit lacks a `Review-Verdict:` trailer
@@ -1756,7 +1751,7 @@ func findMilestonesMissingVerdict(body, issueStr, issuePath string) (ordered, mi
 		// the operator may be closing an issue that never had milestones.
 		return nil, nil, nil
 	}
-	ordered = milestonesInPlanOrder(planBody)
+	ordered = issue.MilestonesInPlanOrder(planBody)
 	if len(ordered) == 0 {
 		return nil, nil, nil
 	}
@@ -1862,8 +1857,11 @@ func formatMissingVerdicts(issueStr string, missing []string) string {
 // fixing — and nothing else states what to do with them, which is how the
 // re-close loop and the publish-gate --no-judge bypasses started (#172).
 // verb is closeVerb(f.Milestone) — the escape hatch names the boundary verb
-// that was actually run (same threading as the REWORK arm). Pure.
-func formatFixThenShipProtocol(verb string) string {
+// that was actually run (same threading as the REWORK arm). quick is whether
+// the issue closed on the quick flow: there "do not re-run" has one exception,
+// the publish check's limit on fixes made after the verdict (#231), rendered
+// from its owner rather than restated. Pure.
+func formatFixThenShipProtocol(verb string, quick bool) string {
 	var lines []string
 	lines = append(lines, "FIX-THEN-SHIP protocol (#174):")
 	// One append, not two: the routing line must share a statement with the
@@ -1875,6 +1873,9 @@ func formatFixThenShipProtocol(verb string) string {
 	lines = append(lines, "         into ONE commit (or amend), so the publish gate's reviewed anchor is HEAD.")
 	lines = append(lines, fmt.Sprintf("      3. Do NOT re-run `%s` — this verdict already sanctions shipping after", verb))
 	lines = append(lines, "         the fixes; a second review of the same boundary is the #172 re-close loop.")
+	if quick {
+		lines = append(lines, "      On the quick flow, one exception: "+flow.AfterReviewSummary()+".")
+	}
 	if verb == "sdlc close" {
 		// Anchor semantics are issue-close/publish-gate territory; a milestone
 		// close writes no codecomplete anchor (close review #174 M-finding).

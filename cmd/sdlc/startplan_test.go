@@ -8,6 +8,8 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 )
 
 func TestStartPlanCmd_Registered(t *testing.T) {
@@ -239,5 +241,25 @@ func TestSubstrateChain(t *testing.T) {
 	lonely := mk("Lonely", "substrate ../DoesNotExist\n")
 	if c := substrateChain(lonely); len(c) != 0 {
 		t.Errorf("chain(Lonely) = %v, want empty (absent peer skipped)", c)
+	}
+}
+
+// TestPlanPointerConditionalOnShell: a pointer that told every issue to write a
+// durable plan made the quick flow unreachable on the documented path (#231
+// PQ-1). The pointer now sizes first, naming the shell from its single source,
+// and says a plan inside it is optional.
+func TestPlanPointerConditionalOnShell(t *testing.T) {
+	got := planPointer(72)
+	for _, want := range []string{flow.ShellSummary(), "a plan is optional", "writes none", "quick flow", "superpowers-writing-plans"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("planPointer(72) missing %q:\n%s", want, got)
+		}
+	}
+}
+
+// TestEstimateNudgeMentionsQuick: on the quick flow there is no estimate at all.
+func TestEstimateNudgeMentionsQuick(t *testing.T) {
+	if got := estimateNudge(""); !strings.Contains(got, "quick flow") {
+		t.Errorf("estimateNudge(\"\") does not mention the quick flow:\n%s", got)
 	}
 }
