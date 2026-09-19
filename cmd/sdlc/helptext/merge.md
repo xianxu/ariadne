@@ -32,6 +32,8 @@ WHAT IT DOES
      Doc-only post-close deltas (workshop/, atlas/, docs/, *.md — #177's "no
      code surface", except cmd/ which is embedded binary surface) pass with
      an info line (#174); code deltas refuse.
+     For a quick-flow issue it also checks what close could not measure, the
+     fixes made after the verdict (#231): {{QUICK_AFTER_REVIEW}}.
      On refusal, re-run `sdlc close --issue N --verified '...'` to re-review the
      delta, then retry. Skip with `--no-judge` (emergency only).
      PUSH IS NOT OPTIONAL: merge is server-side — it merges *origin's* branch tip

@@ -47,6 +47,7 @@ func renderLong(name string) string {
 		"{{PROJECT_STATUS_NAMES}}", p.StatusNames(" | "),
 		// #231: the quick flow's hard shell, from its single source (flow/limits.go).
 		"{{QUICK_SHELL}}", flow.ShellSummary(),
+		"{{QUICK_AFTER_REVIEW}}", flow.AfterReviewSummary(),
 		// #231 BR-27: a page's gate-flag list, rendered from the gate catalog.
 		"{{GATE_FLAGS}}", processmanual.GateTable(name),
 	).Replace(helptext.MustGet(name))

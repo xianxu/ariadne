@@ -59,6 +59,18 @@ func (s Size) Crossings() []string {
 	return out
 }
 
+// GrewPastReview says why a quick issue's final diff can no longer ship on its
+// small-diff review — "" while its added lines stay within
+// MaxAddedLinesAfterReview. The publish check asks it of the diff as published,
+// fixes made after the verdict included. Pure.
+func (s Size) GrewPastReview() string {
+	if s.AddedLines <= MaxAddedLinesAfterReview {
+		return ""
+	}
+	return fmt.Sprintf("%d added lines in code files since its small-diff review ran (limit %d, twice the shell's %d)",
+		s.AddedLines, MaxAddedLinesAfterReview, MaxAddedLines)
+}
+
 // designSections are the issue sections DesignRule counts, beside the durable
 // plan: where brainstorming lands the design (Spec) and where its steps go
 // (Plan). Problem, Log and Revisions grow with the work, not the design.

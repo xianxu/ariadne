@@ -21,10 +21,10 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 | `Flow`, `Kind`, `Provenance` | `cmd/sdlc/internal/flow/flow.go` | new |
 | `flow.Parse` / `flow.Format` / `flow.FromFrontmatter` | `cmd/sdlc/internal/flow/flow.go` | new |
 | `flow.Decide` | `cmd/sdlc/internal/flow/flow.go` | new |
-| `flow.MaxAddedLines`, `flow.MaxDesignLines`, `flow.DesignRule`, `flow.ShellSummary` | `cmd/sdlc/internal/flow/limits.go` | new |
+| `flow.MaxAddedLines`, `flow.MaxDesignLines`, `flow.MaxAddedLinesAfterReview`, `flow.DesignRule`, `flow.ShellSummary`, `flow.AfterReviewSummary` | `cmd/sdlc/internal/flow/limits.go` | new |
 | `flow.ContractHashes` | `cmd/sdlc/internal/flow/donewhen.go` | new |
 | `flow.DoneWhenPresent`, `flow.DoneWhenFresh` | `cmd/sdlc/internal/flow/donewhen.go` | new |
-| `flow.Measure`, `flow.Crossings`, `flow.DesignLines` | `cmd/sdlc/internal/flow/shell.go` | new |
+| `flow.Measure`, `flow.Crossings`, `flow.DesignLines`, `flow.Size.GrewPastReview` | `cmd/sdlc/internal/flow/shell.go` | new |
 | `issue.MilestonesInPlanOrder` | `cmd/sdlc/internal/issue/plan.go` | modified (moved from `close.go`) |
 | `issue.HasDoneWhenBullet` | `cmd/sdlc/internal/issue/structural.go` | new (factored out of `checkDoneWhen`) |
 | `churn.IsDoc`, `churn.IsEmbedded`, `churn.IsCodeFile` | `cmd/sdlc/internal/churn/classify.go` | new |
@@ -77,6 +77,7 @@ Spec: `workshop/issues/000231-a-quick-path-for-small-diffs-scale-the-gate-set-an
 | recipe selection | `cmd/sdlc/milestoneclose.go` (`boundaryReviewParams`, `boundaryReviewDispatchOptions`) | modified | judge subprocess (`judge.Run` seam) |
 | calibration row | `cmd/sdlc/close.go` (`appendCalibrationRow`) | modified | brain TSV append |
 | help tokens | `cmd/sdlc/main.go` (`renderLong`) | modified | embedded helptext |
+| publish gate quick re-measure | `cmd/sdlc/publishgate.go` (`quickGrewPastReview`) | modified | `git diff --numstat -z` over close's window |
 
 - **change-code flow step** — runs after the issue and plan are read (`changecode.go:130`) and before the gate loop.
   - Inputs: `flow.Measure(nil, flow.DesignLines(body, planContent), issue.MilestonesInPlanOrder(PlanItemsBody))`, where `planContent` is the plan lookup plan-quality uses.
@@ -570,3 +571,20 @@ boundary review's table-vs-diff check reads the current entities):
   `TestDecide`, `TestDecideChangeCodeFlow` and `TestCloseDesignGrewPastTheLimit`;
   `TestScaffoldPlanSeedIsNotAnItem` pins that an empty Plan passes close. Each was
   mutation-checked red.
+
+### 2026-09-18 — the publish gate re-measures a quick diff
+
+Reason: fixes made after the close verdict ride into the close commit (the
+publish anchor) unmeasured — pair#279 91 → 96, pair#289 45 → 50 added lines.
+The operator set the tolerance at twice the line limit and chose to route a
+crossing through close.
+
+Delta: `flow.MaxAddedLinesAfterReview = 2 * MaxAddedLines`,
+`flow.AfterReviewSummary` (rendered via `{{QUICK_AFTER_REVIEW}}` in close,
+merge and push help) and `Size.GrewPastReview` are new. `runPublishGate` calls
+`quickGrewPastReview` on both of its pass paths (HEAD at the anchor, and the
+docs-only delta): for each codecomplete issue whose record is quick, it measures
+`boundaryWindowBase(N, "", "")..HEAD` through `windowFileStats` and `Measure`,
+and past the limit refuses with a pointer to `sdlc close`. Tests:
+`TestGrewPastReview`, `TestRunPublishGate_QuickGrewPastReview` (200/201, test
+lines, a full issue, the docs-only path); each wire mutation-checked red.

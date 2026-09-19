@@ -160,6 +160,16 @@ recipe it ran in the boundary ledger, and an earlier full-review round is itself
 crossing. So a quick issue that once needed the full review stays full, even if
 the fix shrinks the diff back inside the shell.
 
+**Fixes after the verdict.** Close measures the head its review saw. The fixes
+a SHIP or FIX-THEN-SHIP verdict leads to ride into the close commit, which is
+also the publish anchor, so close never measures them. The publish check
+(`merge`/`push`) therefore re-measures a quick issue's final diff over close's
+own window. Up to twice the line limit (200 added code lines) it publishes: the
+fixes answer the review's own findings, and the margin keeps a re-review rare.
+Past it, the check refuses and sends the issue back to `sdlc close`, which finds
+the shell crossed, upgrades the issue and runs the full review. The publish
+check stays LLM-free; the review runs in close.
+
 An upgraded issue gets the full review at close, but not the plan or estimate
 it skipped. A plan written after the code has no value, and an estimate made
 afterwards is not a prediction, so the issue enters no est/actual calibration.
@@ -262,6 +272,11 @@ issue does not depend on it. #233 extends `#Flow`.
   gate downgrades. Tests pin both size limits at change-code and at close:
   exactly at a limit stays quick (however many files carry the lines), and one
   past it upgrades.
+- The publish check re-measures a quick issue's final diff, fixes after the
+  verdict included, over close's own window. Past twice the line limit it
+  refuses and names `sdlc close`; a full issue is not re-measured. Tests pin
+  200 and 201 added code lines, test lines not counting, and the docs-only pass
+  path.
 - An end-to-end test drives the same verb sequence (claim → change-code → close)
   through a small issue and a large one, and each lands on the right flow and
   review recipe without the agent choosing either.
@@ -655,6 +670,17 @@ its committed symlink into a regular file, plus `bootstrap.sh`,
 stashed, merged, popped, and verified them by checksum. That was safe, but every
 merge in those repos pays for it until the drift is committed or discarded.
 
+### 2026-09-18 — the publish check re-measures a quick diff
+
+Built what the pair#279 and pair#289 readings asked for. The operator's first
+idea was for sdlc to switch the review prompt, and it does that already for
+every round; the gap is that fixes after the verdict get no round. Their
+threshold, twice the line limit, keeps the extra review rare. So the publish
+check re-measures and, past it, routes through close rather than running the
+review itself: close owns the upgrade record, the Log reason, the review-ledger
+round and the calibration row, and the publish check stays LLM-free. Neither
+trial issue came near it (96 and 50 lines against 200).
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
@@ -839,3 +865,14 @@ Delta:
   limit; the tests pin it at 500 and 501 at change-code and at close.
 - This supersedes the previous revision's last line: an in-issue `## Plan` now
   counts, as part of the design.
+
+### 2026-09-18 — fixes after the verdict are re-measured at publish
+
+Reason: pair#279 and pair#289 showed that fixes made after a SHIP or
+FIX-THEN-SHIP verdict ride into the close commit unmeasured. The operator set
+the tolerance at twice the line limit and agreed to route a crossing through
+close.
+
+Delta: §1 gains "Fixes after the verdict": the publish check re-measures a
+quick issue's final diff over close's window and, past twice the line limit,
+refuses and sends it back to close. Done when gains the matching bullet.

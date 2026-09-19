@@ -26,10 +26,27 @@ const (
 	// of MaxAddedLines. It replaced "a durable plan exists" as the design-side
 	// signal (operator, 2026-09-18): a short plan no longer forces the full flow.
 	MaxDesignLines = 500
+	// MaxAddedLinesAfterReview is how far a quick issue's final diff may grow
+	// once its small-diff close review has run. Close measures the head the
+	// review saw; fixes made after the verdict ride into the close commit
+	// unmeasured, so the publish check measures the final diff and, past this,
+	// sends the issue back to close — which upgrades it and runs the full
+	// review. Twice the line limit (operator, 2026-09-18): fixes answering the
+	// review's own findings are accepted up to there, which keeps the re-review
+	// rare.
+	MaxAddedLinesAfterReview = 2 * MaxAddedLines
 )
 
 // DesignRule is the one statement of what the design limit counts.
 const DesignRule = "## Spec, ## Plan and the durable plan, in lines"
+
+// AfterReviewSummary is the one sentence every surface prints for the limit on
+// fixes made after a quick issue's close review.
+func AfterReviewSummary() string {
+	return fmt.Sprintf("a quick issue's final diff, fixes made after its close review included, may add at most "+
+		"%d lines in code files (twice the shell's %d) before the publish check sends it back to "+
+		"`sdlc close` for the full review", MaxAddedLinesAfterReview, MaxAddedLines)
+}
 
 // ShellSummary is the one sentence every surface prints for the shell.
 func ShellSummary() string {

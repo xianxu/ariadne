@@ -219,6 +219,11 @@ THE QUICK FLOW (#231)
       did not, close refuses: restate the acceptance criteria, or pass the
       Done-when freshness bypass (BYPASSING A GATE) with the reason in --verified.
 
+  Fixes made after the verdict ride into the close commit, which close does
+  not measure, so the publish check (`sdlc merge`/`push`) re-measures over
+  close's own window: {{QUICK_AFTER_REVIEW}}. That close finds the shell
+  crossed, upgrades the issue and runs the full review.
+
   An issue with no `flow:` line (every issue before #231) closes exactly as before.
 
 THE COST REPORT (#187)

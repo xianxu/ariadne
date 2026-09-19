@@ -2,6 +2,7 @@ package flow
 
 import (
 	"errors"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -65,6 +66,23 @@ func TestCrossings(t *testing.T) {
 				t.Errorf("%s: crossing %d = %q, want it to name %q", c.name, i, got[i], w)
 			}
 		}
+	}
+}
+
+// TestGrewPastReview pins the limit on fixes made after the verdict at its
+// edge: exactly twice the line limit still ships on the small-diff review, one
+// more line sends the issue back to close. Only added code lines count, and the
+// limit is derived from MaxAddedLines, not a second number.
+func TestGrewPastReview(t *testing.T) {
+	if MaxAddedLinesAfterReview != 2*MaxAddedLines {
+		t.Fatalf("MaxAddedLinesAfterReview = %d, want twice MaxAddedLines (%d)", MaxAddedLinesAfterReview, MaxAddedLines)
+	}
+	if why := (Size{AddedLines: MaxAddedLinesAfterReview, DesignLines: 10 * MaxDesignLines}).GrewPastReview(); why != "" {
+		t.Errorf("at the limit (with a long design, which it ignores): %q, want \"\"", why)
+	}
+	why := Size{AddedLines: MaxAddedLinesAfterReview + 1}.GrewPastReview()
+	if !strings.Contains(why, strconv.Itoa(MaxAddedLinesAfterReview+1)+" added lines") {
+		t.Errorf("one line past: %q, want it to name the measured lines", why)
 	}
 }
 

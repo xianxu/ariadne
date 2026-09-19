@@ -301,7 +301,12 @@ full/inferred (written at finalize); inside, the dispatch runs the
 files a change spreads across nor where it lands counts (the file-count limit
 and the shared-surface declaration were removed after the first trial reading,
 2026-09-18 — for a diff this small, tests and the one close review are the
-guard).
+guard). Fixes made after the verdict ride into the close commit unmeasured, so
+the publish gate (`publishgate.go`, `quickGrewPastReview`) re-measures a quick
+issue's final diff over close's own window (`boundaryWindowBase` → HEAD):
+past `flow.MaxAddedLinesAfterReview` (twice the line limit) it refuses and
+sends the issue back to close, which upgrades it and runs the full review. The
+gate itself stays LLM-free.
 
 ## Fleet inventory and policy (`sdlc fleet`, #200)
 
