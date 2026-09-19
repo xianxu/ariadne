@@ -605,6 +605,35 @@ on its added lines. That is the shell doing its job: the entry-time judgment
 ("it's a deletion") was wrong, and only the close-time measurement knew. Still
 no issue has stayed quick.
 
+### 2026-09-18 — trial: pair#279, the first issue to stay quick
+
+pair#279 (alt+d dead in the switcher) closed quick/inferred, not upgraded:
+0.85h actual, one close round, FIX-THEN-SHIP with six Minors. What the flow did:
+
+- The same verbs as ever — claim, start-plan, change-code (a dry run first),
+  close, pr, merge — with no bypass flag and no `--flow` pin. change-code printed
+  the quick line and ran none of its gates. No durable plan; the in-issue Plan
+  was five plain checkboxes.
+- The issue had been misfiled: it asked for detaching the selected row, while
+  #170's contract (and #282's key help) is detach-all-and-leave. The agent traced
+  it, asked the operator, and restated Spec and Done-when with a Revisions entry
+  before change-code, so the contract hashes anchor the corrected contract.
+- The root cause was elsewhere than the issue guessed: kitty keyboard flags are
+  per-screen, and the presenter pushed once (`f32bb4cf`), so on the alternate
+  screen alt+d arrived as legacy `ESC d`.
+- The small-diff review cited only ARCH-DRY, PURE and PURPOSE, and its findings
+  enumerated their families. Four were fixed; one (re-using vt's kitty model in
+  a test) was declined with a reason (an independent oracle); one family's
+  pre-existing remainder, beyond this window, was filed as pair#289.
+- Size: 91 added code lines at the reviewed head, across 4 code files. The old
+  2-file limit would have upgraded it; the line-only shell kept it quick.
+
+**Gap found: FIX-THEN-SHIP fixes are not measured.** The shell measures the
+review window's head; the fixes land after the verdict, in the close commit.
+Here they took the diff from 91 to 96 added lines — still inside, but unmeasured.
+A larger fix could carry a quick issue past the shell with only the small-diff
+review behind it.
+
 ## Revisions
 
 ### 2026-09-17 — operator review: three flows, a narrower quick path
