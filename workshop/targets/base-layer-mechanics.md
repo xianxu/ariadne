@@ -87,6 +87,35 @@ deepMerge(b,l): dicts recurse · $merge_keys arrays union (b, then new l) · $re
 ```
 Today only a two-input merge (ariadne-base + repo-local) ships; the DAG fold is ariadne#97.
 
+### The committed surface — clarity: HIGH (built + test-bound, ariadne#239)
+
+> A derivative commits **only its bootstrap core plus its own source**. Every
+> path `make weave` RE-DERIVES is gitignored.
+
+The rule is the verb's **ownership class**, not "did weave create it" — that
+framing is wrong, because `scaffold workshop/issues` and `touch
+workshop/lessons.md` are weave-created and ignoring them would untrack every
+issue file and the lessons log:
+
+| weave… | verbs | consequence |
+|---|---|---|
+| **re-derives** the bytes every compile | `symlink`, `prose`, `merge`, the lowered skill links | **ignore** — reproducible from the substrate |
+| merely **provisions** the slot, then someone else owns it | `scaffold`, `touch`, `seed`, `seed-once` | **track** |
+
+The **bootstrap core follows from the rule** rather than being listed: both seed
+verbs mean "must work before any substrate exists", which is the same thing as
+"must be committed". `construct/deps` is written by the `weave link` operator
+verb and is not a weave action at all.
+
+The ignore list is **derived from the planned actions** (`plan.IgnoreEntries`)
+and maintained inside a weave-owned `.gitignore` block, so no artifact enters the
+*ignore* surface by a second channel either — the same invariant this target's
+spine states for the composition. **Per-path, never a directory glob**:
+`scripts/`, `construct/scripts/`, `.claude/` and `scripts/merge-checks.d/` all
+mix weave-created and repo-owned files.
+
+Test-bound by `construct/scripts/test/gitignore-surface.test.sh`.
+
 ### file-ops (the provisioning verbs — `intent.kindByVerb` is the set) — clarity: MEDIUM (collision-accumulation DESIGNED, not built — ariadne#104 F1)
 Provisioning ops keyed by target path, with the self-reference filter (a layer never provisions a file onto its own canonical source). **Intended** (NOT yet implemented — `grep` finds no collision/warning logic in `plan/`; today it is silent last-writer-wins): composition should be **conflict-accumulating**, NOT silent last-writer-wins — when two layers provision the same target path from *different* sources, weave should not quietly pick a winner but **accumulate every such collision across the whole compile and surface them as warnings** (an error-monad / `Validation` shape: collect, don't fail-fast, report all), while still choosing a deterministic winner (later layer / specific-over-general) so the compile proceeds. Collisions are rare (namespaces `xx-`/`nous-`/`metis-`) — which is exactly why they must be loud when they happen. (Build tracked as ariadne#104 F1.)
 ```

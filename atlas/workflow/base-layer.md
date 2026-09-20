@@ -44,6 +44,15 @@ Defined in `construct/base.manifest` (in ariadne):
 
     Resolve-then-`-include`, never a bare `include`: pre-weave `Makefile.workflow` is a symlink that does not exist, and a hard `include` aborts every target — including the `make weave` that would create it (#239 M1 BR-8, verified live).
 
+    **What your repo commits.** Only the bootstrap core plus your own source:
+    `bootstrap.sh` and `.github/workflows/merge-check.yml` (`seed` — they must
+    run before any substrate exists), your root `Makefile` (`seed-once` — yours
+    after the first write), `construct/deps` and `construct/base.manifest` (yours,
+    not weave actions), plus the `scaffold` dirs and `touch` files whose CONTENT
+    is yours. Everything weave re-derives — every `symlink`, the composed entry
+    files, the merged settings, the lowered skill links — is gitignored inside
+    weave's managed block. See [weave.md](weave.md).
+
     Per-repo layout policy goes in that root Makefile **above the include**, where `Makefile.workflow`'s `?=` defaults can still see it (they are `workshop/issues` / `workshop/history`; a repo wanting the plain top-level layout sets `WF_ISSUES_DIR = issues` there). Before #239 the source was ariadne's OWN root Makefile, so the "generic" template hardcoded ariadne's layout and any per-repo override was clobbered on the next weave — one file with two owners.
   - `Makefile.workflow` — issue lifecycle targets + auto-includes of `.openshell/Makefile`, `.tart/Makefile`, and `.colima/Makefile`.
   - `scripts/` — issue-sync, pre-merge-checks, close-issue.py, lib.sh
