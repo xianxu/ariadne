@@ -137,3 +137,77 @@ findings:
     detail: |
       cmd/weave/internal/startup/tools.go:31 supplies tools: without suppressing implicit rules. Public compile reproduction creates an unmanaged executable from tools.sh, or invokes cc on tools.c and fails despite no declared tools target. Make the command target explicitly phony while preserving authored recipes/prerequisites, and add real-Make regressions for implicit candidates and existing target-named files. ARCH-PURPOSE and ARCH-FUNERAL.
 ```
+
+---
+
+## Re-review — 2026-09-20T15:53:01-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ca9ae7f6d71d48e02ae6c23895c05b0d47f35c17..ce63180e6528676c380465384f18f1509b9afb3e |
+| command | sdlc close --issue 239 |
+| reviewer | codex |
+| timestamp | 2026-09-20T15:53:01-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-15’s implicit-build fix is verified by a failing-without-fix regression. One related compatibility defect still blocks shipping: valid authored `tools::` rules fail through `weave compile`. The inspected ownership, publication, and recovery changes passed their tests.
+
+```findings
+dispose:
+  - id: BR-15
+    disposition: addressed
+    note: |
+      Removing only .PHONY through a temporary Go overlay makes the regression fail for shell/C implicit candidates and an existing tools file suppressing an authored recipe. The pinned implementation passes.
+findings:
+  - id: new
+    severity: Critical
+    family: optional-target-noop
+    title: |
+      Supplemental single-colon target rejects authored double-colon tools rules
+    detail: |
+      cmd/weave/internal/startup/tools.go:31 appends tools:, which conflicts with valid tools:: declarations. A scratch fixture succeeds with make tools but public weave compile exits before executing either authored recipe. This is the 2nd finding in family optional-target-noop: enforce the rule that optional-command augmentation suppresses implicit builds without imposing a rule flavor on authored targets. Use the phony declaration alone, which passed this reproduction, and sweep absent, single-colon, double-colon, prerequisite, existing-file, and failure cases with real Make regressions. ARCH-PURPOSE.
+```
+
+1. **Strengths**
+   - BR-15 tests exercise real Make behavior, including unintended output creation.
+   - Compilation and migration share ownership validation through `pkg/weaveownership`.
+   - Publication and staging tests cover partial writes, permissions, interrupted producers, and recovery.
+   - README and atlas document the new startup and generator contracts.
+
+2. **Critical findings**
+   - [tools.go:31](/Users/xianxu/workspace/ariadne/cmd/weave/internal/startup/tools.go:31): the injected `tools:` conflicts with `tools::`. Two authored double-colon recipes produced `firstsecond` with ordinary Make; public compile failed with “target file `tools` has both : and :: entries.” Remove the supplemental concrete rule and retain `.PHONY: tools`; add the regression.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage**
+   - Passed: complete weave, layergraph, and weaveownership Go suites; targeted SDLC propagation tests; bootstrap, portable Makefile, and CI shell fixtures.
+   - BR-15 mutation failed as expected.
+   - Missing coverage: authored double-colon command rules.
+   - Native Linux and full release packaging were not rerun in this review. Repository files remained unchanged.
+
+6. **Architecture**
+   - **ARCH-DRY — pass:** shared ownership and staging helpers.
+   - **ARCH-PURE — pass:** pure parsing, identity, and PATH logic separated from IO.
+   - **ARCH-PURPOSE — flag:** valid owner-local Make commands are rejected.
+   - **ARCH-MOCK — pass:** stateful process/index fixtures and real-binary checks.
+   - **ARCH-CONSTRAINTS — pass:** sequential setup matches the documented operating scope.
+   - **ARCH-SECURE — pass:** inventory validation and parent-path checks protect publication.
+   - **ARCH-ORDER — pass:** inspected failure paths preserve partial-progress evidence.
+   - **ARCH-FUNERAL — pass:** shared producer leases govern staging reclamation.
+
+7. **Plan revision**
+   - Append a `## Revisions` entry stating that optional-target augmentation must preserve authored rule flavor; specify phony-only augmentation and the complete real-Make case matrix.

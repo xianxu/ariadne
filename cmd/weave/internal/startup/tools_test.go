@@ -62,7 +62,7 @@ type toolProcessState struct {
 }
 
 func (s *toolProcessState) RunInput(dir string, argv []string, input string) error {
-	if input != ".PHONY: tools\ntools:\n" || strings.Join(argv, " ") != "make --no-print-directory -f Makefile -f - tools" {
+	if input != ".PHONY: tools\n" || strings.Join(argv, " ") != "make --no-print-directory -f Makefile -f - tools" {
 		return fmt.Errorf("invalid make invocation")
 	}
 	if len(s.order) > 0 && !s.built[s.order[len(s.order)-1]] {
@@ -80,7 +80,7 @@ func TestToolsInjectedProcessStateStopsOnFailure(t *testing.T) {
 	dirs := []string{filepath.Join(root, "base"), filepath.Join(root, "mid"), filepath.Join(root, "leaf")}
 	for _, dir := range dirs {
 		os.MkdirAll(dir, 0755)
-		os.WriteFile(filepath.Join(dir, "Makefile"), []byte(".PHONY: tools\ntools:\n"), 0644)
+		os.WriteFile(filepath.Join(dir, "Makefile"), []byte(".PHONY: tools\n"), 0644)
 	}
 	state := &toolProcessState{built: map[string]bool{}, fail: dirs[1]}
 	var out bytes.Buffer
@@ -109,6 +109,8 @@ func TestToolsDoesNotInferBuildsAndAlwaysRunsAuthoredCommand(t *testing.T) {
 		{"C implicit candidate", "other:\n", "tools.c", "invalid C\n", false},
 		{"existing target omitted", "other:\n", "tools", "authored\n", false},
 		{"existing target with recipe", "tools:\n\tprintf built > built\n", "tools", "authored\n", true},
+		{"double colon recipes", "tools::\n\tprintf bu > built\ntools::\n\tprintf ilt >> built\n", "tools", "authored\n", true},
+		{"double colon prerequisites", "tools:: dependency\ndependency:\n\tprintf built > built\n", "tools", "authored\n", true},
 		{"authored prerequisites", "tools: dependency\ndependency:\n\tprintf built > built\n", "tools", "authored\n", true},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -140,5 +142,20 @@ func TestToolsDoesNotInferBuildsAndAlwaysRunsAuthoredCommand(t *testing.T) {
 				t.Fatalf("unexpected build: %q, %v", got, err)
 			}
 		})
+	}
+}
+
+func TestToolsDoubleColonFailurePropagates(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "Makefile"), []byte("tools::\n\tfalse\ntools::\n\ttouch unexpected\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	err := Tools(weavefs.OSFS{}, []string{dir}, weavefs.ExecRunner{Stdout: &out, Stderr: &out}, false, &out)
+	if err == nil || !strings.Contains(out.String(), "false") {
+		t.Fatalf("authored failure not executed: %v\n%s", err, &out)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "unexpected")); !os.IsNotExist(err) {
+		t.Fatalf("later recipe ran: %v", err)
 	}
 }

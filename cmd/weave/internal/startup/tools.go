@@ -28,7 +28,7 @@ func Tools(fs weavefs.FS, layers []string, runner weavefs.InputRunner, dryRun bo
 		if dryRun {
 			continue
 		}
-		if err := runner.RunInput(dir, []string{"make", "--no-print-directory", "-f", "Makefile", "-f", "-", "tools"}, ".PHONY: tools\ntools:\n"); err != nil {
+		if err := runner.RunInput(dir, []string{"make", "--no-print-directory", "-f", "Makefile", "-f", "-", "tools"}, ".PHONY: tools\n"); err != nil {
 			return fmt.Errorf("build tools for %s: %w", dir, err)
 		}
 	}

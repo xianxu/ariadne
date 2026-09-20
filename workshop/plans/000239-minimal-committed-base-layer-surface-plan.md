@@ -266,6 +266,16 @@ are never updated/deleted; packages are never automatically uninstalled.
 
 ## Revisions
 
+### 2026-09-20 — preserve authored Make rule forms
+
+Reason: BR-16 found the extra single-colon rule conflicts with valid double-colon
+commands. Delta: inject only `.PHONY: tools`, with no concrete rule at all.
+The owner retains its rule form, recipes, and prerequisites; omission is still
+a no-op and target-named files cannot suppress commands. The real-Make matrix
+now covers absent targets, shell/C implicit candidates, existing files, single-
+and double-colon recipes/prerequisites, and both kinds of authored failure.
+This supersedes the earlier explicit-empty-target correction (ARCH-PURPOSE).
+
 ### 2026-09-20 — optional owner command must suppress implicit rules
 
 Reason: whole-issue review BR-15 reproduced implicit shell/C builds when tools

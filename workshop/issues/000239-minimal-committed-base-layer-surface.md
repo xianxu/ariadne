@@ -202,6 +202,16 @@ total: 4.151
 
 ## Log
 
+### 2026-09-20 — whole-issue BR-16 corrected
+
+Re-review disposed BR-15 but reproduced a related rule-form conflict: injecting
+tools: rejects authored tools::. The common augmentation now supplies only
+.PHONY: tools, leaving all concrete rules to the owner. New double-colon recipe,
+prerequisite and failure tests fail before this correction and pass afterward.
+The complete real-Make omission/implicit/existing-file/single-/double-colon matrix
+passes on macOS and native Linux, and the full weave/layergraph/ownership suites
+pass. Logs: /tmp/ariadne-239-br16-red.log and br16-green.log.
+
 ### 2026-09-20 — whole-issue BR-15 corrected
 
 The integration review returned REWORK for optional Make targets: bare tools:

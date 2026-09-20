@@ -364,6 +364,23 @@ rounds:
           round: 11
       recipe: milestone-review
       blocked: true
+    - "n": 12
+      timestamp: "2026-09-20T15:53:01-07:00"
+      agent: codex
+      dispose:
+        - id: BR-15
+          disposition: addressed
+          note: Removing only .PHONY through a temporary Go overlay makes the regression fail for shell/C implicit candidates and an existing tools file suppressing an authored recipe. The pinned implementation passes.
+          round: 12
+      findings:
+        - id: BR-16
+          severity: Critical
+          title: Supplemental single-colon target rejects authored double-colon tools rules
+          detail: 'cmd/weave/internal/startup/tools.go:31 appends tools:, which conflicts with valid tools:: declarations. A scratch fixture succeeds with make tools but public weave compile exits before executing either authored recipe. This is the 2nd finding in family optional-target-noop: enforce the rule that optional-command augmentation suppresses implicit builds without imposing a rule flavor on authored targets. Use the phony declaration alone, which passed this reproduction, and sweep absent, single-colon, double-colon, prerequisite, existing-file, and failure cases with real Make regressions. ARCH-PURPOSE.'
+          family: optional-target-noop
+          round: 12
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -513,6 +530,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-15** [Critical] `optional-target-noop` Missing optional tools target permits unintended implicit Make builds
   cmd/weave/internal/startup/tools.go:31 supplies tools: without suppressing implicit rules. Public compile reproduction creates an unmanaged executable from tools.sh, or invokes cc on tools.c and fails despite no declared tools target. Make the command target explicitly phony while preserving authored recipes/prerequisites, and add real-Make regressions for implicit candidates and existing target-named files. ARCH-PURPOSE and ARCH-FUNERAL.
 
+## Round 12 — 2026-09-20T15:53:01-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-15 — addressed — Removing only .PHONY through a temporary Go overlay makes the regression fail for shell/C implicit candidates and an existing tools file suppressing an authored recipe. The pinned implementation passes.
+
+### Raised
+
+- **BR-16** [Critical] `optional-target-noop` Supplemental single-colon target rejects authored double-colon tools rules
+  cmd/weave/internal/startup/tools.go:31 appends tools:, which conflicts with valid tools:: declarations. A scratch fixture succeeds with make tools but public weave compile exits before executing either authored recipe. This is the 2nd finding in family optional-target-noop: enforce the rule that optional-command augmentation suppresses implicit builds without imposing a rule flavor on authored targets. Use the phony declaration alone, which passed this reproduction, and sweep absent, single-colon, double-colon, prerequisite, existing-file, and failure cases with real Make regressions. ARCH-PURPOSE.
+
 ## Open findings
 
-- **BR-15** [Critical] `optional-target-noop` Missing optional tools target permits unintended implicit Make builds
+- **BR-16** [Critical] `optional-target-noop` Supplemental single-colon target rejects authored double-colon tools rules

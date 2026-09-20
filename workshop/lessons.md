@@ -1642,3 +1642,7 @@ An empty target declaration still permits Make implicit rules and file timestamp
 semantics. Declare command targets phony when omission must be a no-op; test
 implicit source candidates and a file bearing the target name, as well as
 authored recipes, prerequisites, and failures.
+
+Optional Make augmentation must also preserve authored rule flavor. A phony
+declaration alone provides omission semantics; adding a concrete single-colon
+rule rejects double-colon recipes. Test both forms when wrapping owner commands.
