@@ -260,7 +260,16 @@ func workingTreeDirty(repoRoot string) (bool, error) {
 // PRECONDITION: the caller (runPropagateBase) verified the tree was CLEAN before
 // re-weaving (workingTreeDirty), so every change `git add -A` stages here is the
 // re-weave's OWN output — never a concurrent session's unrelated in-flight work.
-func commitConsumption(repoRoot, ref string) (bool, error) {
+func commitConsumption(repoRoot, ref string) (changed bool, err error) {
+	// A failed Git command may already have changed the index or even committed.
+	// Preserve Git's actual state; never infer rollback from an error. The public
+	// propagation precheck will reject dirty retries until the operator resolves
+	// them, while a completed commit naturally becomes a no-op on retry.
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("%w; index changes were not reset: inspect git status and git diff --cached, resolve or commit retained changes, then retry propagation", err)
+		}
+	}()
 	// Ignored does not mean generated: only current identities recorded by weave
 	// authorize untracking. Local negations remain authoritative because Git
 	// supplies the ignored set. Read and validate everything before index edits.

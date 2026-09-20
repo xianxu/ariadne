@@ -1622,3 +1622,16 @@ require foreground process groups, preserved inherited descriptors, and no
 daemonization. Test actual descendants that write after cancellation and parent
 SIGKILL, then exercise retry; a killed top-level process alone is insufficient
 evidence of safe reclamation.
+
+### 2026-09-20 — #239 release and migration failure boundaries
+
+A lifecycle rule applies to every producer of the artifact family, including
+maintainer release scripts. Reuse the owned-stage implementation for release
+builds instead of relying on language-level temporary-directory cleanup, which
+process termination can skip. Test the public launcher as well as its helper.
+
+For multi-command Git changes, inject errors both before an operation and after
+it has taken effect. A real-index-backed faulting executable can exercise the
+same process boundary without inventing a second Git model. Preserve observable
+partial progress and make dirty-retry/operator resolution explicit; an error
+must not be treated as evidence that no commit or index change happened.

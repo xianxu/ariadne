@@ -121,7 +121,11 @@ The consumption commit untracks only paths that Git ignores **and** whose curren
 contents or link target match weave's ownership inventory. Authored replacements,
 mode edits, unrelated force-tracked ignored files, and local ignore negations
 remain protected. Missing inventory authorizes no untracking; malformed inventory
-fails before index changes. Push remains separate.
+fails before index changes. A Git failure can occur after some index changes or
+even after commit; propagation preserves that state and reports inspection
+commands. Inspect `git status` and `git diff --cached`, resolve or commit retained
+changes, then retry. A dirty retry stops before compile; an already-completed
+commit becomes a no-op. No automatic index reset occurs. Push remains separate.
 
 The old `make refresh-recursive` helper only invokes peer Make targets; it does
 not provide this ownership-aware migration. #239 tests propagation in disposable

@@ -369,6 +369,16 @@ Faulting-Git tests now exercise real index effects before/after errors and
 confirm retained progress, safe retry, and the dirty-public-retry guard; error
 messages will explicitly direct inspection and resolution without automatic reset.
 
+BR-13 now reuses the shared owned-stage implementation in a private Go release
+helper. macOS/Linux archive/formula suites pass, including public launcher
+SIGTERM, relative output paths, killed helper with surviving producer, alias
+retry, and reclamation before existing-output refusal. BR-14 now exercises the
+unchanged executable/PATH Git boundary with a faulting real-index-backed test
+double for all status/ls-files/rm/add/commit phases before and after effects.
+Those tests pass natively on macOS/Linux; the initially failing missing-guidance
+assertions now pass with explicit retained-index inspection/retry instructions.
+M3 awaits re-review; no publication or actual peer migration occurred.
+
 ## Revisions`.
 
 Two corrections landed while widening:

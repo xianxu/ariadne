@@ -52,8 +52,11 @@ omits generator output and retirement from the preview.
 ## Distribution and ownership consumers
 
 `cmd/weave/version.go` defaults to `dev`; release preparation sets it from the
-validated `weave-vMAJOR.MINOR.PATCH` input. `scripts/release-weave.sh` cross-builds
-four standalone CGO-disabled archives, then derives `SHA256SUMS` and `weave.rb`
+validated `weave-vMAJOR.MINOR.PATCH` input. `scripts/release-weave.sh` invokes a private Go helper under
+`cmd/weave/internal/release`, reusing the same owned-stage and producer-lease
+boundary as clone/generation. Interruption retains recoverable ownership; retry
+reclaims stopped producers even if the previous run published before it died.
+The helper cross-builds four standalone CGO-disabled archives, then derives `SHA256SUMS` and `weave.rb`
 from those exact files. The committed formula is a template, not the published
 tap. `scripts/test/release-weave.test.sh` checks archives, metadata, checksums,
 failure cleanup, and the formula's local composition test using the native

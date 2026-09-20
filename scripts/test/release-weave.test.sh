@@ -3,13 +3,13 @@
 set -euo pipefail
 SOURCE="$(cd "$(dirname "$0")/../.." && pwd)"
 python3 - "$SOURCE" "${1:-}" "${2:-weave-v1.2.3}" <<'PY'
-import hashlib,os,pathlib,platform,re,shutil,subprocess,sys,tarfile,tempfile
+import hashlib,os,pathlib,platform,re,shutil,signal,subprocess,sys,tarfile,tempfile,time
 source=pathlib.Path(sys.argv[1]); destination=sys.argv[2]; release_tag=sys.argv[3]; release_version=release_tag.removeprefix("weave-v")
 with tempfile.TemporaryDirectory(prefix='weave-release-test.') as tmp:
-    root=pathlib.Path(tmp); release=pathlib.Path(destination).resolve() if destination else root/'release output'
+    root=pathlib.Path(tmp).resolve(); release=pathlib.Path(destination).resolve() if destination else root/'release output'
     script=source/'scripts/release-weave.sh'
     def package(tag,out,env=None,ok=True):
-        result=subprocess.run(['bash',str(script),tag,str(out)],cwd=root,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
+        result=subprocess.run(['bash',str(script),tag,os.path.relpath(out,root)],cwd=root,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         assert (result.returncode==0)==ok,(result.returncode,result.stdout)
         return result
     for tag in ['v1.2.3','weave-v1.2','weave-v01.2.3','weave-v1.2.3;touch bad','weave-v1.2.3\n']:
@@ -18,16 +18,33 @@ with tempfile.TemporaryDirectory(prefix='weave-release-test.') as tmp:
         assert not (root/'invalid').exists()
     # Real process failure through PATH must not expose completed artifacts.
     commands=root/'commands'; commands.mkdir(); fake=commands/'go'
-    fake.write_text('#!/bin/sh\necho intentional-build-failure >&2\nexit 17\n'); fake.chmod(0o755)
-    result=package('weave-v1.2.3',root/'failed',dict(os.environ,PATH=str(commands)+':'+os.environ['PATH']),ok=False)
+    fake.write_text('#!/bin/sh\nif [ "$1" = -C ] || [ "$1" = run ]; then exec "$RELEASE_TEST_GO" "$@"; fi\necho intentional-build-failure >&2\nexit 17\n'); fake.chmod(0o755)
+    result=package('weave-v1.2.3',root/'failed',dict(os.environ,PATH=str(commands)+':'+os.environ['PATH'],RELEASE_TEST_GO=shutil.which('go')),ok=False)
     assert 'intentional-build-failure' in result.stdout,result.stdout
     assert not (root/'failed').exists()
     # Fail the second target after the first archive has been prepared privately.
-    fake.write_text('#!/bin/sh\nif [ -f "$RELEASE_TEST_COUNT" ]; then echo intentional-second-build-failure >&2; exit 17; fi\ntouch "$RELEASE_TEST_COUNT"\nexec "$RELEASE_TEST_GO" "$@"\n')
+    fake.write_text('#!/bin/sh\nif [ "$1" = -C ] || [ "$1" = run ]; then exec "$RELEASE_TEST_GO" "$@"; fi\nif [ -f "$RELEASE_TEST_COUNT" ]; then echo intentional-second-build-failure >&2; exit 17; fi\ntouch "$RELEASE_TEST_COUNT"\nexec "$RELEASE_TEST_GO" "$@"\n')
     failed_env=dict(os.environ,PATH=str(commands)+':'+os.environ['PATH'],RELEASE_TEST_COUNT=str(root/'build-count'),RELEASE_TEST_GO=shutil.which('go'))
     result=package('weave-v1.2.3',root/'partial',failed_env,ok=False)
     assert 'intentional-second-build-failure' in result.stdout,result.stdout
     assert not (root/'partial').exists()
+    # Exercise the public go-run launcher under process-group cancellation too.
+    fake.write_text('#!/bin/sh\nif [ "$1" = -C ] || [ "$1" = run ]; then exec "$RELEASE_TEST_GO" "$@"; fi\ntouch "$RELEASE_TEST_STARTED"\nexec sleep 60\n')
+    cancelled=root/'cancelled'; started=root/'cancel-started'
+    cancel_env=dict(os.environ,PATH=str(commands)+':'+os.environ['PATH'],RELEASE_TEST_GO=shutil.which('go'),RELEASE_TEST_STARTED=str(started))
+    with (root/'cancel.log').open('w') as log:
+        process=subprocess.Popen(['bash',str(script),release_tag,str(cancelled)],cwd=root,env=cancel_env,stdout=log,stderr=log,start_new_session=True)
+        try:
+            deadline=time.monotonic()+20
+            while not started.exists() and time.monotonic()<deadline: time.sleep(0.02)
+            assert started.exists(), 'public launcher did not reach producer'
+            os.killpg(process.pid,signal.SIGTERM); assert process.wait(timeout=10)!=0
+            deadline=time.monotonic()+10
+            while list(root.glob('.cancelled-weave-*')) and time.monotonic()<deadline: time.sleep(0.02)
+            assert not list(root.glob('.cancelled-weave-*')), 'public cancellation leaked owned stage'
+            assert not cancelled.exists()
+        finally:
+            if process.poll() is None: os.killpg(process.pid,signal.SIGKILL); process.wait()
     package(release_tag,release)
     assert {p.name for p in release.iterdir()}=={'SHA256SUMS','weave.rb'}|{f'weave_{release_version}_{o}_{a}.tar.gz' for o in ['darwin','linux'] for a in ['arm64','amd64']}
     sums={line.split()[1]:line.split()[0] for line in (release/'SHA256SUMS').read_text().splitlines()}
@@ -93,6 +110,6 @@ formula=Weave.new(ARGV[1],ARGV[2])
 formula.instance_eval(&Weave.test_block)
 ''')
     subprocess.run(ruby+[str(harness),str(release/'weave.rb'),str(native),str(root/'formula-test')],check=True)
-    assert not list(release.parent.glob('.weave-release-*')),'leaked preparation stages'
+    assert not list(release.parent.glob('.'+release.name+'-weave-*')),'leaked preparation stages'
     print('PASS release: four real archives, targets/CGO/version/layout/checksums, formula composition, failures')
 PY
