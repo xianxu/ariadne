@@ -512,8 +512,9 @@ claims that did not survive contact. Verified each before acting.
   LLM constitution checks, no bash tests. And `portable-makefile.test.sh` is
   referenced **nowhere** in the tree: it has only ever been run by hand. That is a
   large part of why defect 2 survived #225 — the test that would have caught it
-  had no runner. Both base-layer tests now register as
-  `scripts/merge-checks.d/50-base-layer-tests.sh` (side-quest).
+  had no runner. Registering both as `scripts/merge-checks.d/50-base-layer-tests.sh`
+  is **deferred to M3** — the past-tense wording here originally read as shipped
+  CI coverage and was not (caught in the M2 review).
 - `sdlc propagate-base` takes only `--dry-run` and `--ref`, sweeps *every*
   recursive dependent in one run, and `recursiveDependents` walks into the brain
   repos. M4's pilot-then-sweep shape was impossible. Added Task 4.0: fix the verb
@@ -574,6 +575,70 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — M2 boundary review: 3 findings, and a regression I had hidden
+
+**BR-19 (Important, `verification-cannot-fail`, 4th in family) — three
+assertions nothing could falsify, one of them masking a live regression.**
+
+- The fail-closed read guard had **no fixture able to reach it**: nothing in the
+  package could fault a `ReadFile`. Extended `materializationFaultFS` with a read
+  fault and added a test that a repo's own entries survive an unreadable file.
+- **I broke de-duplication and then hid it.** The retired `ensureGitignoreText`
+  guarded against a repeated input entry; `mergeManagedBlock` did not, so
+  `("", ["/A","/A"])` emitted `/A` twice — measured. And the test *named* for
+  that property had been rewritten during translation to pass a **single** entry
+  and assert `count != 1`, i.e. a tautology. The green namesake would have hidden
+  the regression until M3. Guard restored (order-stable, first wins); the test
+  now passes the duplicate it is named for.
+- The marker docstring claimed whole-line matching means a `.gitignore` merely
+  *mentioning* a marker "cannot be mistaken for the region itself". **Measured
+  false**: a line that quotes the marker verbatim reads as a second opening
+  marker and hard-fails `make weave`. Whole-line matching does not dissolve
+  the ambiguity — the marker is the only thing identifying weave's region, so a
+  verbatim copy *is* ambiguous. Claim retracted, truth pinned by a test, and the
+  behaviour is acceptable because the failure is loud and names the repair.
+
+All three were **falsified before being trusted**: reverting the guard, the
+dedupe, and the duplicate-marker error each turns its test red.
+
+**BR-20 (Important) — four restatements describing the retired mechanism**, one
+naming `ensureGitignoreText` directly above its replacement. Swept, plus the
+BR-12 residue in `golden.go` still naming `SeedOnceSlotIsRepoOwned`. The plan's
+Task 2.2 had listed `apply.go:35-39` as a file to modify and I had not touched
+it — a plan item claimed, not delivered.
+
+**Made enforceable**: `scripts/merge-checks.d/46-removed-symbol-references.sh`
+fails a comment naming a top-level symbol the range deleted, while ALLOWING a
+deliberately historical mention ("replaced by", "retired") — those explain why
+the current shape is what it is and are the opposite of a stale restatement.
+Sibling of `45-verb-enumeration.sh`; that one guards the verb SET, this one
+guards names the package no longer defines.
+
+**The check had two bugs that made it silently pass** — found only because I
+falsified it in a scratch repo instead of trusting a green run: the removed-symbol
+extraction's receiver-stripping regex ate the function *name* (so it reported
+"nothing removed" for the very rename that motivated it), and `git grep -E` is
+POSIX ERE with **no `\b`**, so the comment pattern matched nothing. Both fixed;
+both directions now verified. Third time this session a check or test passed
+without being able to fail.
+
+**BR-21 (Important) — README.** weave is now a co-owner of every repo's
+`.gitignore`, and `make weave` — hence `make bootstrap` — hard-fails on markers
+it cannot parse. Documented under the same heading M1 used, with the practical
+consequences: put your entries outside the markers, anything inside is destroyed
+next compile, and the parse failure names its own repair.
+
+**Also corrected here:** the M1 log said the base-layer tests "now register as
+`50-base-layer-tests.sh`". They do not — that file does not exist and the work is
+M3's. The sentence read as shipped CI coverage.
+
+**Advisory, carried to M4:** `parley.nvim/.gitignore` has a four-line comment
+whose eight entries all migrate into the block at that repo's next weave,
+stranding the comment with a false "above" back-reference. The migration must be
+rehearsed against each repo's real `.gitignore`, not only ariadne's — a step for
+M4's per-repo pilot.
+
+
 ### 2026-09-19 — M2 implemented: `.gitignore` as a weave-managed block
 
 Mechanism only — the entries are still today's hardcoded nine, so a regression

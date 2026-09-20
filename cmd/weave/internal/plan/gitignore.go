@@ -19,7 +19,7 @@ import (
 // EVERY compile so derivatives get it automatically, with no per-repo hand-edit.
 //
 // The pure core stays pure (ARCH-PURE): the entry LIST + the pure
-// ensure-text transform live here as data + a string function; the actual
+// mergeManagedBlock transform live here as data + a string function; the actual
 // .gitignore read/write is the IO seam (applyEnsureGitignore, called from
 // plan.Apply). The compile lowering (main.planActions) appends exactly ONE
 // EnsureGitignore action per weave run.
@@ -54,25 +54,32 @@ var GeneratedRuntimeGitignoreEntries = []string{
 	"/" + walk.GeneratedRel + "/", // per-repo dynamic-skill materialization (#115 M3, single-sourced) — regenerated every compile
 }
 
-// EnsureGitignore ensures the repo's .gitignore contains every entry in Entries,
-// appending the absent ones (idempotent: a present entry is never duplicated,
-// existing entries/comments are preserved). It is weave's owned mechanism for
-// keeping its generated-runtime artifacts out of `git status`. The planner emits
-// one per compile carrying GeneratedRuntimeGitignoreEntries; Apply reads the
-// live .gitignore and appends what is missing (the IO seam,
-// applyEnsureGitignore). A pure Action — it carries only the entry list; the
-// read/write is the seam's.
+// EnsureGitignore makes the repo's .gitignore carry exactly Entries inside
+// weave's delimited region, REPLACING that region wholesale (#239 M2) — so an
+// entry weave no longer produces loses its line. Lines outside the markers are
+// the repo's own and are preserved. It is weave's owned mechanism for keeping
+// its generated artifacts out of `git status`. The planner emits one per
+// compile; Apply runs the pure mergeManagedBlock and writes back only on change
+// (the IO seam, applyEnsureGitignore), failing closed on an unreadable file or
+// an unparseable region. A pure Action — it carries only the entry list.
 type EnsureGitignore struct {
 	Entries []string
 }
 
 func (EnsureGitignore) isAction() {}
 
-// The managed region's delimiters. Matched as EXACT WHOLE LINES — never as a
-// substring — so a .gitignore that merely *mentions* a marker (a comment
-// explaining this mechanism) cannot be mistaken for the region itself. That is
-// the workshop/lessons.md splice lesson: a search keyed on a token is wrong
-// exactly where the token appears as content rather than as structure.
+// The managed region's delimiters, matched as EXACT WHOLE LINES — a line that
+// merely CONTAINS a marker (say, prose about this mechanism) is not a marker.
+//
+// This is NOT protection against a line that *is* the marker. A .gitignore that
+// quotes the open marker verbatim on its own line — e.g. a comment block
+// documenting the convention — reads as a second opening marker and makes
+// `make weave` fail closed. That is the workshop/lessons.md lesson in its exact
+// form ("a search that keys on content cannot see the content that describes
+// it"), and whole-line matching does not dissolve it: the marker is the only
+// thing distinguishing weave's region, so a verbatim copy IS ambiguous. Pinned
+// by TestManagedBlockTreatsAQuotedMarkerAsAMarker; the failure is loud and the
+// message says to delete the block, which is the right repair.
 const (
 	managedBlockOpen  = "# >>> weave-generated — managed by `make weave`, do not edit >>>"
 	managedBlockClose = "# <<< weave-generated <<<"
@@ -166,7 +173,20 @@ func mergeManagedBlock(current string, entries []string) (string, bool, error) {
 		outside = outside[:len(outside)-1]
 	}
 
-	block := append([]string{managedBlockOpen}, entries...)
+	// DEDUPE the entry list. The retired ensureGitignoreText guarded this
+	// explicitly ("guard against a duplicate entry in the input list") and
+	// dropping the guard regressed it silently — the test named for the property
+	// had been rewritten into a tautology and could not see it (#239 M2 BR-19).
+	// Order-stable: first occurrence wins, so the block stays deterministic.
+	block := []string{managedBlockOpen}
+	emitted := map[string]bool{}
+	for _, e := range entries {
+		if emitted[e] {
+			continue
+		}
+		emitted[e] = true
+		block = append(block, e)
+	}
 	block = append(block, managedBlockClose)
 
 	next := strings.Join(append(outside, block...), "\n") + "\n"
@@ -174,12 +194,16 @@ func mergeManagedBlock(current string, entries []string) (string, bool, error) {
 }
 
 // applyEnsureGitignore is the IO seam for EnsureGitignore: read the repo's
-// .gitignore (absent ⇒ empty), append the missing entries via the pure
-// ensureGitignoreText, and write it back ONLY when something changed (no churn
-// on a re-weave once the entries are present — running weave twice never
-// duplicates a line). gitignorePath is the absolute path to the repo's
+// .gitignore, rewrite weave's region via the pure mergeManagedBlock, and write
+// back ONLY when something changed (no churn on a re-weave — running weave twice
+// is byte-identical). gitignorePath is the absolute path to the repo's
 // .gitignore. All IO lives here (ARCH-PURE); the transform is the pure function
 // above.
+//
+// Two FAIL-CLOSED paths, both because the block is written wholesale:
+//   - an unreadable .gitignore is an ERROR, not an empty file (treating it as
+//     empty would replace every repo-owned entry with weave's block alone);
+//   - an unparseable region is an error naming the remedy.
 func applyEnsureGitignore(fs weavefs.FS, gitignorePath string, entries []string) error {
 	var current string
 	if data, err := fs.ReadFile(gitignorePath); err == nil {

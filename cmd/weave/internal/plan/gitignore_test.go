@@ -299,3 +299,58 @@ func TestManagedBlockRefusesMalformedMarkers(t *testing.T) {
 		})
 	}
 }
+
+// An UNREADABLE .gitignore must abort, never be treated as empty: the block is
+// written WHOLESALE, so "empty" would replace every repo-owned entry with
+// weave's block alone. This test exists because the guard shipped without one —
+// nothing in the package could fault a read (#239 M2 BR-19).
+func TestApplyEnsureGitignoreFailsClosedOnReadError(t *testing.T) {
+	root := t.TempDir()
+	gitignore := filepath.Join(root, ".gitignore")
+	mustWrite(t, gitignore, "bin/\n!bin/keep.sh\n")
+
+	err := Apply(materializationFaultFS{operation: "read", destination: gitignore}, root,
+		[]Action{EnsureGitignore{Entries: []string{"/CLAUDE.md"}}})
+	if err == nil {
+		t.Fatal("unreadable .gitignore was treated as empty — the repo's own entries would be destroyed")
+	}
+	if got := mustRead(t, gitignore); got != "bin/\n!bin/keep.sh\n" {
+		t.Fatalf("file mutated despite the read failure: %q", got)
+	}
+}
+
+// The entry list is de-duplicated where the block is emitted. The retired
+// ensureGitignoreText guarded this; dropping the guard regressed it silently
+// because the test named for the property had been rewritten to pass a single
+// entry (#239 M2 BR-19). This one passes the duplicate it is named for.
+func TestManagedBlockDedupsRepeatedInputEntry(t *testing.T) {
+	got, _, err := mergeManagedBlock("", []string{"/AGENTS.md", "/GEMINI.md", "/AGENTS.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if n := strings.Count(got, "/AGENTS.md"); n != 1 {
+		t.Fatalf("repeated input entry emitted %d times:\n%s", n, got)
+	}
+	// Order-stable: first occurrence wins, so the block stays deterministic.
+	want := blockOf("/AGENTS.md", "/GEMINI.md")
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+// A .gitignore that quotes the open marker verbatim on its own line IS
+// ambiguous — whole-line matching cannot tell a documenting comment from the
+// real thing. The docstring used to claim it could; this pins the truth instead,
+// and the truth is acceptable because the failure is loud and the message names
+// the repair (#239 M2 BR-19).
+func TestManagedBlockTreatsAQuotedMarkerAsAMarker(t *testing.T) {
+	current := "# our convention is:\n" + managedBlockOpen + "\nmine/\n" +
+		managedBlockOpen + "\n/CLAUDE.md\n" + managedBlockClose + "\n"
+	_, _, err := mergeManagedBlock(current, []string{"/CLAUDE.md"})
+	if err == nil {
+		t.Fatal("a verbatim marker line must be read as a marker, not as prose")
+	}
+	if !strings.Contains(err.Error(), "make weave") {
+		t.Fatalf("error must name the remedy, got: %v", err)
+	}
+}

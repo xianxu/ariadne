@@ -667,6 +667,16 @@ func (f materializationFaultFS) WriteFile(p string, b []byte) error {
 	}
 	return f.OSFS.WriteFile(p, b)
 }
+
+// ReadFile faults the READ seam. Added because the fail-closed read guard in
+// applyEnsureGitignore had no fixture able to reach it — a guard answered to a
+// finding is complete only when a test goes red without it (#239 M2 BR-19).
+func (f materializationFaultFS) ReadFile(p string) ([]byte, error) {
+	if f.operation == "read" {
+		return nil, os.ErrPermission
+	}
+	return f.OSFS.ReadFile(p)
+}
 func (f materializationFaultFS) Chmod(p string, m os.FileMode) error {
 	if f.operation == "chmod" {
 		return os.ErrPermission

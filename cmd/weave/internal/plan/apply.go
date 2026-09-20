@@ -37,10 +37,12 @@ import (
 //   - MergeSettings → settings merge: read ordered sources + optional sibling
 //     settings.local.json, run the pure settingsx.MergeChain, write the target.
 //   - EnsureGitignore → the generated-runtime ignore mechanism (gitignore.go):
-//     read the repo's .gitignore, append the missing fixed entries (idempotent
-//     whole-line append, never duplicating), write back only on change. weave
-//     OWNS this because weave generates those artifacts; emitted once per compile
-//     so every derivative gets a clean `git status` with no per-repo hand-edit.
+//     read the repo's .gitignore, replace weave's DELIMITED REGION wholesale
+//     (#239 M2 — so a retired entry loses its line), preserve everything outside
+//     it, write back only on change. Fails closed on an unreadable file or an
+//     unparseable region. weave OWNS this because weave generates those
+//     artifacts; emitted once per compile so every derivative gets a clean
+//     `git status` with no per-repo hand-edit.
 //
 // The retired `tool` verb (#95 M5) has no Action and no IO here: Go-tool
 // ownership is location-based (construct/dev-aliases.sh scans sibling cmd/X dirs)

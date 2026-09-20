@@ -219,7 +219,7 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 		//   - Target absent, source present → UNEXPECTED (weave would create it).
 		//
 		// "Presence" is NOT `dstO.Exists`: observePath sets Exists for any Lstat
-		// hit, symlinks included. The predicate is plan.SeedOnceSlotIsRepoOwned,
+		// hit, symlinks included. The predicate is plan.ClassifySlot,
 		// shared with applySeedOnce so the harness and the seam cannot drift —
 		// they disagreed on first write, and this case reported MATCH on exactly
 		// the fleet state seed-once exists to converge (#239 M1 BR-1).

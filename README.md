@@ -37,6 +37,23 @@ Per-repo layout policy goes in that root Makefile *above* the include, where
 issues` for a repo whose issues aren't under `workshop/`. Put product targets and
 local help in `Makefile.local`; these work without maintainer peers.
 
+Your `.gitignore` gets a **weave-managed region** (#239):
+
+```
+# >>> weave-generated — managed by `make weave`, do not edit >>>
+…
+# <<< weave-generated <<<
+```
+
+`make weave` replaces everything *inside* those markers on every compile, so
+weave can retire an ignore line it no longer needs. Put your own entries
+**outside** the markers — lines there are preserved verbatim, negations included.
+Two consequences worth knowing: anything you add inside is destroyed on the next
+compile, and a `.gitignore` whose markers weave cannot parse (an unterminated
+pair, or a doubled one left by a merge conflict) makes `make weave` — and
+therefore `make bootstrap` — fail rather than guess. The error says to delete the
+block and re-run, which regenerates it.
+
 Run `./bootstrap.sh` in the consumer to clone its peer chain and restore the
 maintainer workflow. Bootstrap finds the sibling overlay even when local helper
 links are missing, then orders peer setup, weave, tool builds, and installation.

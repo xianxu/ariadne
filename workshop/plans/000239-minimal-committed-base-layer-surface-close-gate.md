@@ -352,6 +352,109 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: false
+    - "n": 5
+      timestamp: "2026-09-19T22:39:54-07:00"
+      agent: claude
+      findings:
+        - id: BR-19
+          severity: Important
+          title: Three assertions added this boundary cannot fail — the fail-closed read guard, the rewritten dedup test, and the docstring's marker-as-content claim
+          detail: |-
+            This is the 4th finding in family verification-cannot-fail, so the deliverable is the
+            RULE, not these three sites. Round 3 stated half of it; the residue is the other half —
+            a claim in a comment or a Log line is not verification. Measured instances.
+            (1) gitignore.go:187's read-error guard: grep for a test FS overriding ReadFile across
+            cmd/weave returns nothing, so no fixture can enter the branch, while materializationFaultFS
+            (apply_test.go:647) already faults four other ops and would take ReadFile in four lines.
+            (2) gitignore_test.go:109 was rewritten to pass ONE entry and assert count==1 — tautological —
+            while the property it is named for regressed - measured mergeManagedBlock("", 2x "/A")
+            emits /A twice, where the retired ensureGitignoreText guarded it explicitly.
+            (3) gitignore.go:73 claims a .gitignore that merely mentions a marker "cannot be mistaken
+            for the region itself"; measured false — a quoted open-marker line returns "duplicate
+            weave-generated opening marker (line 3)" and hard-fails make weave, with a remedy pointing
+            at the wrong thing. Whole-line matching does not protect a line that IS the marker, which
+            is exactly the lessons.md lesson the comment cites. Supporting prevalence in the tracker -
+            the issue Log still states in the past tense that both base-layer tests register as
+            scripts/merge-checks.d/50-base-layer-tests.sh; the file does not exist and git log --all
+            for it is empty. Enforcement: extend materializationFaultFS to the read seam so fail-closed
+            paths are driven like materialization paths already are, and require a named test for any
+            stated safety property (ARCH-SECURE, ARCH-MOCK).
+          family: verification-cannot-fail
+          round: 5
+        - id: BR-20
+          severity: Important
+          title: Four prose restatements of the gitignore mechanism all still describe the retired append-only behaviour, one naming a function deleted in the same commit
+          detail: |-
+            This is the 3rd finding in family hand-maintained-restatement-of-model, so the deliverable
+            is the RULE. Sites - gitignore.go:21 ("the entry LIST + the pure ensure-text transform"),
+            gitignore.go:58 (EnsureGitignore's type doc, "appending the absent ones (idempotent - a
+            present entry is never duplicated)" — both halves now false), gitignore.go:177
+            (applyEnsureGitignore's own doc, "append the missing entries via the pure ensureGitignoreText",
+            naming a symbol this commit deleted and omitting both new failure modes), and apply.go:39,
+            which the plan's Task 2.2 Files list explicitly names as a file to modify while
+            git diff --name-status shows apply.go untouched in the window. 45-verb-enumeration.sh
+            already enforces this rule for the VERB set; the residual class it cannot see is a comment
+            naming a top-level identifier the package no longer defines. Measured prevalence at HEAD -
+            two live, gitignore.go:177 (ensureGitignoreText, this milestone) and golden/golden.go:222
+            (plan.SeedOnceSlotIsRepoOwned, BR-12, still open). Enforceable the same greppable way -
+            for each top-level func/var/const/type removed by the range, fail if the name still appears
+            in a non-test, non-workshop comment. Build that, then sweep all four sites in one pass
+            (ARCH-DRY, ARCH-PURPOSE).
+          family: hand-maintained-restatement-of-model
+          round: 5
+        - id: BR-21
+          severity: Important
+          title: README not updated for the managed block — weave is now a co-owner of every repo's .gitignore and make weave can hard-fail on it
+          detail: |-
+            The diff introduces an adopter-facing convention - markers a maintainer must not edit,
+            entries that must go outside them, content inside destroyed each compile, and a NEW way
+            for make weave (hence make bootstrap) to hard-fail. README.md:15-20 already carries the
+            exact sibling fact from M1 ("A consumer's root Makefile is the repo's own ... Edit it
+            freely"), so the heading and shape are settled; this is a 3-4 line addition there.
+            atlas/workflow/weave.md was updated and is good, but the atlas is the codebase map, not
+            the adopter's front door.
+          family: adopter-facing-surface-undocumented
+          round: 5
+        - id: BR-22
+          severity: Minor
+          title: Repo lines positioned after the block move above it, silently flipping git's last-match-wins in weave's favour
+          detail: |-
+            Measured - mergeManagedBlock(block + "!/CLAUDE.md\n", ...) returns !/CLAUDE.md above the
+            block. I enumerated all 18 sibling repos' .gitignore files - none currently has a pattern
+            after the weave entries that the nine entries touch, so nothing breaks today.
+            atlas/workflow/weave.md:111 says outside entries are "preserved verbatim", true of content
+            but not of position. One clause in the atlas plus a Log line so M3/M4 do not re-derive it.
+          family: block-position-changes-pattern-precedence
+          round: 5
+        - id: BR-23
+          severity: Minor
+          title: A CRLF .gitignore defeats marker matching — weave appends a second block and can never retire the first
+          detail: |-
+            \r survives strings.Split(current, "\n"), so no line equals managedBlockOpen. Measured - a
+            CRLF file gains a second LF block while the original becomes a permanent orphan the
+            wholesale-replace path can never reach, and its line numbers would also mislead M4's
+            commitConsumption provenance filter, which keys on the block's line range. No fleet repo
+            uses CRLF today; one strings.TrimRight(line, "\r") at the compare closes it.
+          family: block-position-changes-pattern-precedence
+          round: 5
+        - id: BR-24
+          severity: Minor
+          title: The one-time absorb orphans each derivative's own explanatory comment, verified in parley.nvim
+          detail: |-
+            This is the 2nd finding in family edit-splice-leaves-orphan-clause, so the deliverable is
+            the RULE, not parley.nvim. ariadne's orphan was hand-removed at .gitignore:17-24;
+            parley.nvim/.gitignore carries a four-line "# weave-generated runtime artifacts (lowered
+            by make weave, like AGENTS.md above)" comment whose eight entries all migrate into the
+            block at that repo's next weave, stranding it above .mdbg* with a false "above"
+            back-reference. The round-3 rule generalises with the actor swapped - after a splice, read
+            the RENDERED result rather than the hunk; here the splicer is code, so the migration must
+            be rehearsed against each repo's real .gitignore, not only ariadne's. M4's per-repo pilot
+            is the natural place to make that a step.
+          family: edit-splice-leaves-orphan-clause
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -562,6 +665,77 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   unchanged context. This is the same "one edit introduced a fresh error while
   fixing the old one" pattern the round-3 commit message names, recurring in round 3.
 
+## Round 5 — 2026-09-19T22:39:54-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-19** [Important] `verification-cannot-fail` Three assertions added this boundary cannot fail — the fail-closed read guard, the rewritten dedup test, and the docstring's marker-as-content claim
+  This is the 4th finding in family verification-cannot-fail, so the deliverable is the
+  RULE, not these three sites. Round 3 stated half of it; the residue is the other half —
+  a claim in a comment or a Log line is not verification. Measured instances.
+  (1) gitignore.go:187's read-error guard: grep for a test FS overriding ReadFile across
+  cmd/weave returns nothing, so no fixture can enter the branch, while materializationFaultFS
+  (apply_test.go:647) already faults four other ops and would take ReadFile in four lines.
+  (2) gitignore_test.go:109 was rewritten to pass ONE entry and assert count==1 — tautological —
+  while the property it is named for regressed - measured mergeManagedBlock("", 2x "/A")
+  emits /A twice, where the retired ensureGitignoreText guarded it explicitly.
+  (3) gitignore.go:73 claims a .gitignore that merely mentions a marker "cannot be mistaken
+  for the region itself"; measured false — a quoted open-marker line returns "duplicate
+  weave-generated opening marker (line 3)" and hard-fails make weave, with a remedy pointing
+  at the wrong thing. Whole-line matching does not protect a line that IS the marker, which
+  is exactly the lessons.md lesson the comment cites. Supporting prevalence in the tracker -
+  the issue Log still states in the past tense that both base-layer tests register as
+  scripts/merge-checks.d/50-base-layer-tests.sh; the file does not exist and git log --all
+  for it is empty. Enforcement: extend materializationFaultFS to the read seam so fail-closed
+  paths are driven like materialization paths already are, and require a named test for any
+  stated safety property (ARCH-SECURE, ARCH-MOCK).
+- **BR-20** [Important] `hand-maintained-restatement-of-model` Four prose restatements of the gitignore mechanism all still describe the retired append-only behaviour, one naming a function deleted in the same commit
+  This is the 3rd finding in family hand-maintained-restatement-of-model, so the deliverable
+  is the RULE. Sites - gitignore.go:21 ("the entry LIST + the pure ensure-text transform"),
+  gitignore.go:58 (EnsureGitignore's type doc, "appending the absent ones (idempotent - a
+  present entry is never duplicated)" — both halves now false), gitignore.go:177
+  (applyEnsureGitignore's own doc, "append the missing entries via the pure ensureGitignoreText",
+  naming a symbol this commit deleted and omitting both new failure modes), and apply.go:39,
+  which the plan's Task 2.2 Files list explicitly names as a file to modify while
+  git diff --name-status shows apply.go untouched in the window. 45-verb-enumeration.sh
+  already enforces this rule for the VERB set; the residual class it cannot see is a comment
+  naming a top-level identifier the package no longer defines. Measured prevalence at HEAD -
+  two live, gitignore.go:177 (ensureGitignoreText, this milestone) and golden/golden.go:222
+  (plan.SeedOnceSlotIsRepoOwned, BR-12, still open). Enforceable the same greppable way -
+  for each top-level func/var/const/type removed by the range, fail if the name still appears
+  in a non-test, non-workshop comment. Build that, then sweep all four sites in one pass
+  (ARCH-DRY, ARCH-PURPOSE).
+- **BR-21** [Important] `adopter-facing-surface-undocumented` README not updated for the managed block — weave is now a co-owner of every repo's .gitignore and make weave can hard-fail on it
+  The diff introduces an adopter-facing convention - markers a maintainer must not edit,
+  entries that must go outside them, content inside destroyed each compile, and a NEW way
+  for make weave (hence make bootstrap) to hard-fail. README.md:15-20 already carries the
+  exact sibling fact from M1 ("A consumer's root Makefile is the repo's own ... Edit it
+  freely"), so the heading and shape are settled; this is a 3-4 line addition there.
+  atlas/workflow/weave.md was updated and is good, but the atlas is the codebase map, not
+  the adopter's front door.
+- **BR-22** [Minor] `block-position-changes-pattern-precedence` Repo lines positioned after the block move above it, silently flipping git's last-match-wins in weave's favour
+  Measured - mergeManagedBlock(block + "!/CLAUDE.md\n", ...) returns !/CLAUDE.md above the
+  block. I enumerated all 18 sibling repos' .gitignore files - none currently has a pattern
+  after the weave entries that the nine entries touch, so nothing breaks today.
+  atlas/workflow/weave.md:111 says outside entries are "preserved verbatim", true of content
+  but not of position. One clause in the atlas plus a Log line so M3/M4 do not re-derive it.
+- **BR-23** [Minor] `block-position-changes-pattern-precedence` A CRLF .gitignore defeats marker matching — weave appends a second block and can never retire the first
+  \r survives strings.Split(current, "\n"), so no line equals managedBlockOpen. Measured - a
+  CRLF file gains a second LF block while the original becomes a permanent orphan the
+  wholesale-replace path can never reach, and its line numbers would also mislead M4's
+  commitConsumption provenance filter, which keys on the block's line range. No fleet repo
+  uses CRLF today; one strings.TrimRight(line, "\r") at the compare closes it.
+- **BR-24** [Minor] `edit-splice-leaves-orphan-clause` The one-time absorb orphans each derivative's own explanatory comment, verified in parley.nvim
+  This is the 2nd finding in family edit-splice-leaves-orphan-clause, so the deliverable is
+  the RULE, not parley.nvim. ariadne's orphan was hand-removed at .gitignore:17-24;
+  parley.nvim/.gitignore carries a four-line "# weave-generated runtime artifacts (lowered
+  by make weave, like AGENTS.md above)" comment whose eight entries all migrate into the
+  block at that repo's next weave, stranding it above .mdbg* with a false "above"
+  back-reference. The round-3 rule generalises with the actor swapped - after a splice, read
+  the RENDERED result rather than the hunk; here the splicer is code, so the migration must
+  be rehearsed against each repo's real .gitignore, not only ariadne's. M4's per-repo pilot
+  is the natural place to make that a step.
+
 ## Open findings
 
 - **BR-12** [Minor] `hand-maintained-restatement-of-model` gather.go's SeedOnce comment asserts a content comparison classifyAction deliberately does not do, and the plan's Core concepts table omits the new exported predicate
@@ -569,3 +743,9 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-16** [Important] `stale-verb-enumeration` base.manifest's own verb header documents the retired `tool` as live and omits `prose`/`skill`, and 45-verb-enumeration.sh's file scope cannot see the file
 - **BR-17** [Minor] `verification-cannot-fail` The fail-closed guards added this round have no path that demonstrably reports failure — one verified green after deletion
 - **BR-18** [Minor] `edit-splice-leaves-orphan-clause` atlas/workflow/weave.md:24-31 — the round-3 verb-list removal left the trailing clause, so the sentence no longer parses
+- **BR-19** [Important] `verification-cannot-fail` Three assertions added this boundary cannot fail — the fail-closed read guard, the rewritten dedup test, and the docstring's marker-as-content claim
+- **BR-20** [Important] `hand-maintained-restatement-of-model` Four prose restatements of the gitignore mechanism all still describe the retired append-only behaviour, one naming a function deleted in the same commit
+- **BR-21** [Important] `adopter-facing-surface-undocumented` README not updated for the managed block — weave is now a co-owner of every repo's .gitignore and make weave can hard-fail on it
+- **BR-22** [Minor] `block-position-changes-pattern-precedence` Repo lines positioned after the block move above it, silently flipping git's last-match-wins in weave's favour
+- **BR-23** [Minor] `block-position-changes-pattern-precedence` A CRLF .gitignore defeats marker matching — weave appends a second block and can never retire the first
+- **BR-24** [Minor] `edit-splice-leaves-orphan-clause` The one-time absorb orphans each derivative's own explanatory comment, verified in parley.nvim
