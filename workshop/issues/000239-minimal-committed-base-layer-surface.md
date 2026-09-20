@@ -228,9 +228,19 @@ merge check — not in ~45 tracked symlinks per repo.
   repo-owned entries outside preserved verbatim. Test: a repo `.gitignore` with
   local additions and negations (pair's `bin/*` + `!bin/*.sh`) round-trips
   unchanged across two weaves.
-- Only `bootstrap.sh`, `.github/workflows/merge-check.yml` and `construct/deps`
-  remain committed from the weave surface in a derivative; a fresh clone of a
-  derivative still bootstraps end-to-end with nothing else present.
+- Nothing weave RE-DERIVES remains committed in a derivative — no `symlink`,
+  `prose`/entry-file, `merge` or skill-link path. What weave merely PROVISIONS
+  stays tracked and is expected to: `bootstrap.sh` + `.github/workflows/
+  merge-check.yml` (`seed`), `Makefile` (`seed-once`), `workshop/lessons.md`
+  (`touch`), the `scaffold` dirs' `.gitkeep`s — plus `construct/deps` and
+  `construct/base.manifest`, which are repo-owned and not weave actions at all.
+  A fresh clone of a derivative still bootstraps end-to-end from that surface.
+- The sweep untracks ONLY what weave's own `.gitignore` block ignores. A file
+  ignored by a repo's own pattern — nested or outside the block — stays tracked
+  (`kbench` carries 1160 such files under `competition/arc-agi-3/.gitignore`).
+- CI runs a REAL check after the sweep, not a vacuous pass: `astro` and `parli`
+  track the base-layer duplicate-id check as their only one, and CI never runs
+  weave, so `run-merge-checks.sh` must resolve the owner's checks.
 - No repo-owned file is untracked by the sweep — explicitly verified for
   `parley.nvim/scripts/merge-checks.d/20-vocabulary.sh` and every repo's
   `scripts/ci-setup.sh`.
@@ -258,9 +268,14 @@ lands on machinery already proven.
       `GeneratedRuntimeGitignoreEntries`; pin the derivation to `TargetAll`; the
       `gitignore-surface.test.sh` conformance test registered as a merge check;
       target + atlas updates.
-- [ ] M4 — fleet untrack: give `sdlc propagate-base` a `--repo` selector and a
-      brain guard, pilot on `pair` (fresh-clone bootstrap + green CI), then sweep
-      the remaining derivatives.
+- [ ] M4 — fleet untrack. Three tooling fixes land BEFORE anything irreversible:
+      (a) scope `commitConsumption`'s untrack to weave's own `.gitignore` block
+      by pattern provenance — unscoped it would `git rm --cached` 1160
+      deliberately-committed files in `kbench`; (b) give `run-merge-checks.sh`
+      the owner fallback its runner already has, or the sweep leaves `astro` and
+      `parli` with a vacuously green CI; (c) give `sdlc propagate-base` a
+      `--repo` selector + brain guard so the sweep can be piloted. Then pilot on
+      `pair` (fresh-clone bootstrap + green CI) and sweep the rest.
 
 **M2 must precede M3.** Appending the full derived list through today's
 append-only `ensureGitignoreText` is exactly the "actively dangerous" case in the
@@ -458,6 +473,39 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — Done-when 7 restated; two Criticals from the plan-quality gate
+
+**Reason:** `sdlc change-code`'s plan-quality judge returned two Critical
+findings, and one of them exposed that Done-when 7 was written against the
+superseded framing. Both verified against the live fleet before acting.
+
+**Delta — Done-when:**
+- Criterion 7 ("Only `bootstrap.sh`, `merge-check.yml` and `construct/deps`
+  remain committed") restated in ownership terms. It was already false under the
+  design the Spec adopted: `Makefile` (`seed-once`), `workshop/lessons.md`
+  (`touch`) and the scaffold `.gitkeep`s are deliberately tracked too. Read
+  literally at close it would have scored as failed. The line now names the
+  re-derived/provisioned split instead of enumerating three paths.
+- Two criteria ADDED, one per Critical (10 → 12): the sweep's scope, and a
+  non-vacuous CI.
+
+**Delta — Spec (Piece D):** "Must be done per repo with the mixed-directory
+hazard in mind" understated the hazard. The mixed-directory argument protects
+the *block*; the *sweep* (`git ls-files -i -c`) reads the whole ignore config,
+including nested repo-owned `.gitignore`s. `kbench` would have lost 1160
+deliberately-committed files. Pattern provenance is now the guard — see the
+plan's Task 4.0a.
+
+**Delta — Spec (new, Piece D prerequisite):** CI never runs weave
+(`merge-check.yml:38` uses `BOOTSTRAP_CLONE_ONLY=1`; `bootstrap.sh:34-36` exits
+before the handoff), so every path CI reads is whatever is committed. Untracking
+the weave surface must therefore clear the *pre-weave consumer* class. Eight of
+its nine members already have an owner fallback; the ninth,
+`scripts/merge-checks.d/*`, has none — and `astro`/`parli` track the base-layer
+check as their ONLY check, so the sweep would have left them with a green
+pipeline running nothing.
+
+
 
 ### 2026-09-19 — scope: single fix → committed-surface invariant
 
