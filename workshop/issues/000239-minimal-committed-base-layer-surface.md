@@ -245,6 +245,23 @@ round 5; estimate-quality INFO passed. Branch selection was deferred because the
 binary cannot combine --issue with the user-requested branch override; retained
 000239-standalone-weave-restart and synced the gate record manually.
 
+### 2026-09-20 — M1 review fixes
+
+BR-1/BR-2: local relative origins resolve at their owner before recording;
+confirmed missing origin is distinct from malformed config, missing Git and
+other probe failures. Regressions prove restoration after moving the checkout
+away and no deps mutation on inspection errors. BR-3: README documents delivered
+commands, strict row syntax, platform limits and incomplete dry-run behavior.
+BR-4: shared GitRunner/Client seam supports stateful probe/clone/publication
+failure tests alongside real Git conformance. BR-5: interrupted clone stages
+carry destination/host/PID ownership outside their checkout; retry reclaims only
+proven dead same-host stages, preserving live/unrecognized directories.
+
+Validation: go test ./cmd/weave/... ./pkg/layergraph/... ./cmd/datatype/...
+./cmd/vocabulary/... -count=1 passed; git diff --check passed. A separate temporary
+tracked-source-only build produced datatype, vocabulary, sdlc and doc-review,
+confirming M2's tools-before-composition order. Review lessons recorded.
+
 ## Revisions`.
 
 Two corrections landed while widening:

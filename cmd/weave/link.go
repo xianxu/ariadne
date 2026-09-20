@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -32,16 +31,20 @@ func linkRepository(ctx context.Context, root, input string, out io.Writer) erro
 		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
 			return fmt.Errorf("link: local base %s is not a directory", dir)
 		}
-		c := exec.CommandContext(ctx, "git", "-C", dir, "config", "--get", "remote.origin.url")
-		raw, err := c.Output()
-		if err == nil {
-			src, err := acquire.NormalizeSource(strings.TrimSpace(string(raw)))
+		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
+			origin, err := acquire.Origin(ctx, dir)
 			if err != nil {
-				return err
+				return fmt.Errorf("link: inspect origin of %s: %w", dir, err)
 			}
-			source = src.URL
-		} else if ctx.Err() != nil {
-			return ctx.Err()
+			if origin != "" {
+				src, err := acquire.ResolveSource(origin, dir)
+				if err != nil {
+					return err
+				}
+				source = src.URL
+			}
+		} else if !os.IsNotExist(err) {
+			return err
 		}
 	}
 	if err := acquire.Ensure(ctx, dir, source, true); err != nil {
@@ -56,7 +59,7 @@ func recordLink(fs weavefs.FS, root, path, source string, out io.Writer) error {
 	if source != "" {
 		row += " " + source
 	}
-	if len(strings.Fields(path)) != 1 || strings.ContainsAny(path, "#\r\n") {
+	if len(strings.Fields(path)) != 1 || strings.ContainsAny(path, " #\t\r\n\v\f") {
 		return fmt.Errorf("link: dependency path cannot contain whitespace or #: %q", path)
 	}
 	if _, err := layergraph.ParseDeps(row); err != nil {
@@ -66,6 +69,9 @@ func recordLink(fs weavefs.FS, root, path, source string, out io.Writer) error {
 	content, err := fs.ReadFile(deps)
 	if err != nil && !os.IsNotExist(err) {
 		return fmt.Errorf("read %s: %w", deps, err)
+	}
+	if _, err := layergraph.ParseRows(string(content)); err != nil {
+		return err
 	}
 	lines := strings.Split(string(content), "\n")
 	found := false

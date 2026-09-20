@@ -211,3 +211,16 @@ func TestEnsureLocalOnlyLayer(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestEnsureEquivalentGitHubOriginWithoutNetwork(t *testing.T) {
+	base := t.TempDir()
+	src := origin(t, base, "base", "", true)
+	dest := filepath.Join(base, "clone")
+	if err := Ensure(context.Background(), dest, src, true); err != nil {
+		t.Fatal(err)
+	}
+	gitFixture(t, dest, "remote", "set-url", "origin", "git@github.com:Org/base.git")
+	if err := Ensure(context.Background(), dest, "https://github.com/org/base.git", true); err != nil {
+		t.Fatal(err)
+	}
+}

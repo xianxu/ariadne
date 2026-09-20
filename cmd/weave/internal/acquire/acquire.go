@@ -4,22 +4,14 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
 	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
-func git(ctx context.Context, dir string, args ...string) (string, error) {
-	c := exec.CommandContext(ctx, "git", args...)
-	c.Dir = dir
-	b, err := c.CombinedOutput()
-	if err != nil {
-		return "", fmt.Errorf("git %v in %s: %w: %s", args, dir, err, strings.TrimSpace(string(b)))
-	}
-	return strings.TrimSpace(string(b)), nil
-}
+// ResolveSource resolves a local source relative to the checkout that owns its declaration.
+func ResolveSource(raw, ownerDir string) (Source, error) { return sourceAt(raw, ownerDir) }
 
 func sourceAt(raw, dir string) (Source, error) {
 	s, err := NormalizeSource(raw)
@@ -66,6 +58,10 @@ func manifest(dir string) error {
 // Ensure clones into a temporary sibling, validates, and publishes only complete
 // checkouts. Existing matching checkouts are reused without fetch/pull/reset.
 func Ensure(ctx context.Context, dir, source string, requireLayer bool) error {
+	return (Client{}).Ensure(ctx, dir, source, requireLayer)
+}
+
+func (c Client) Ensure(ctx context.Context, dir, source string, requireLayer bool) error {
 	dir = canonical(dir)
 	if source == "" {
 		if _, err := os.Stat(dir); err != nil {
@@ -80,22 +76,26 @@ func Ensure(ctx context.Context, dir, source string, requireLayer bool) error {
 	if err != nil {
 		return err
 	}
+	if err := reclaimStages(dir); err != nil {
+		return err
+	}
 	if _, err := os.Lstat(dir); err == nil {
-		return checkExisting(ctx, dir, s, requireLayer)
+		return c.checkExisting(ctx, dir, s, requireLayer)
 	} else if !os.IsNotExist(err) {
 		return err
 	}
 	parent := filepath.Dir(dir)
-	tmp, err := os.MkdirTemp(parent, "."+filepath.Base(dir)+"-weave-")
+	tmp, err := newStage(dir)
 	if err != nil {
 		return err
 	}
 	defer os.RemoveAll(tmp)
-	if _, err = git(ctx, parent, "clone", "--", s.URL, tmp); err != nil {
+	checkout := filepath.Join(tmp, "checkout")
+	if _, err = c.git(ctx, parent, "clone", "--", s.URL, checkout); err != nil {
 		return err
 	}
 	if requireLayer {
-		if err = manifest(tmp); err != nil {
+		if err = manifest(checkout); err != nil {
 			return err
 		}
 	}
@@ -105,20 +105,26 @@ func Ensure(ctx context.Context, dir, source string, requireLayer bool) error {
 	} else if !os.IsNotExist(err) {
 		return err
 	}
-	if err = os.Rename(tmp, dir); err != nil {
+	if err = os.Rename(checkout, dir); err != nil {
 		return fmt.Errorf("publish clone %s: %w", dir, err)
 	}
 	return nil
 }
 
-func checkExisting(ctx context.Context, dir string, s Source, requireLayer bool) error {
-	top, err := git(ctx, dir, "rev-parse", "--show-toplevel")
-	if err != nil || canonical(top) != dir {
+func (c Client) checkExisting(ctx context.Context, dir string, s Source, requireLayer bool) error {
+	top, err := c.git(ctx, dir, "rev-parse", "--show-toplevel")
+	if err != nil {
+		return fmt.Errorf("inspect destination %s: %w", dir, err)
+	}
+	if canonical(top) != dir {
 		return fmt.Errorf("destination %s is not a repository checkout; move it or choose another path", dir)
 	}
-	origin, err := git(ctx, dir, "remote", "get-url", "origin")
+	origin, err := c.Origin(ctx, dir)
 	if err != nil {
 		return fmt.Errorf("destination %s has no origin matching %s: %w", dir, s.URL, err)
+	}
+	if origin == "" {
+		return fmt.Errorf("destination %s has no origin matching %s", dir, s.URL)
 	}
 	actual, err := sourceAt(origin, dir)
 	if err != nil {
@@ -145,6 +151,10 @@ type Result struct {
 // composition owner creates them. Dry runs never clone and report an incomplete
 // graph instead of pretending absent repositories have no dependencies.
 func Restore(ctx context.Context, root string, dryRun bool) (Result, error) {
+	return (Client{}).Restore(ctx, root, dryRun)
+}
+
+func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, error) {
 	root = canonical(root)
 	var result Result
 	edges := map[string][]string{}
@@ -219,13 +229,13 @@ func Restore(ctx context.Context, root string, dryRun bool) (Result, error) {
 					result.Missing = append(result.Missing, fmt.Sprintf("%s from %s", dest, src.URL))
 					continue
 				}
-				if err := Ensure(ctx, dest, src.URL, row.Kind == "substrate"); err != nil {
+				if err := c.Ensure(ctx, dest, src.URL, row.Kind == "substrate"); err != nil {
 					return result, err
 				}
 			} else if statErr != nil {
 				return result, statErr
 			} else if row.Source != "" {
-				if err := checkExisting(ctx, dest, src, row.Kind == "substrate"); err != nil {
+				if err := c.checkExisting(ctx, dest, src, row.Kind == "substrate"); err != nil {
 					return result, err
 				}
 			} else if err := manifest(dest); err != nil {

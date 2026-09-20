@@ -1574,3 +1574,13 @@ ordering claim.
 suite, regenerate and inspect deliberately changed snapshots, and check the
 atlas's shaping decisions against the revised source. Delivery tests prove
 propagation, not snapshot consistency (ARCH-PURPOSE, ARCH-DRY).
+
+
+### 2026-09-20 — #239 source provenance and failed probes
+
+Resolve a relative repository origin against the checkout that owns it before
+passing it across APIs or recording it in another repo. A failed external probe
+is not evidence of absence: distinguish the documented absent result from
+configuration/spawn errors. Exercise failure injection through the same process
+boundary as real-Git conformance, and document a new CLI surface at its delivery
+boundary rather than waiting for the whole issue.

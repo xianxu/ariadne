@@ -289,6 +289,17 @@ Linux CI currently installs Go only; full compilation also needs CUE. Operator
 choice requested between the same Brewfiles on CI and explicit Linux job tools.
 That choice blocks CI editing, not source acquisition/dependency implementation.
 
+### 2026-09-20 — M1 review corrections
+
+Reason: boundary review reproduced relative-origin resolution and failed-probe
+bugs. Delta: resolve origins at their owning checkout, distinguish confirmed
+absence from Git failure through a shared injectable Git boundary, document the
+new commands now, and reclaim abandoned owned clone staging on retry while
+preserving live/unrecognized directories. Dependency implementation lives in
+startup/dependencies.go; the earlier plan/environment types remain M2 proposals.
+Concurrent setup remains unsupported; cleanup protection is not a new locking
+service. Add regression tests before each correction.
+
 ## Historical revisions
 
 Everything below is historical. It is preserved verbatim and is not part of the

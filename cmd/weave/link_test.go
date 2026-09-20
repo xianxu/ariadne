@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/xianxu/ariadne/cmd/weave/internal/acquire"
+	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,5 +98,80 @@ func TestLinkRepositoryLocalWithoutOrigin(t *testing.T) {
 	}
 	if string(data) != "substrate ../base\n" {
 		t.Fatal(string(data))
+	}
+}
+
+func TestLinkRelativeOriginCanRestore(t *testing.T) {
+	workspace := t.TempDir()
+	base, leaf := filepath.Join(workspace, "base"), filepath.Join(workspace, "leaf")
+	mkfile(t, filepath.Join(base, "construct", "base.manifest"), "# layer\n")
+	os.MkdirAll(leaf, 0755)
+	for _, args := range [][]string{{"init", "-q"}, {"add", "."}, {"-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "-qm", "base"}} {
+		c := exec.Command("git", args...)
+		c.Dir = base
+		if b, e := c.CombinedOutput(); e != nil {
+			t.Fatalf("%s: %v", b, e)
+		}
+	}
+	origin := filepath.Join(workspace, "origins", "base.git")
+	c := exec.Command("git", "clone", "--bare", base, origin)
+	if b, e := c.CombinedOutput(); e != nil {
+		t.Fatalf("%s: %v", b, e)
+	}
+	c = exec.Command("git", "remote", "add", "origin", "../origins/base.git")
+	c.Dir = base
+	if e := c.Run(); e != nil {
+		t.Fatal(e)
+	}
+	if err := linkRepository(context.Background(), leaf, "../base", &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(base, base+"-saved"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := acquire.Restore(context.Background(), leaf, false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(base, "construct", "base.manifest")); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestLinkOriginInspectionErrorsPreserveDeps(t *testing.T) {
+	for _, broken := range []string{"config", "missing-git"} {
+		t.Run(broken, func(t *testing.T) {
+			workspace := t.TempDir()
+			base, leaf := filepath.Join(workspace, "base"), filepath.Join(workspace, "leaf")
+			mkfile(t, filepath.Join(base, "construct", "base.manifest"), "# layer\n")
+			os.MkdirAll(leaf, 0755)
+			c := exec.Command("git", "init", "-q", base)
+			if e := c.Run(); e != nil {
+				t.Fatal(e)
+			}
+			if broken == "config" {
+				mkfile(t, filepath.Join(base, ".git", "config"), "[invalid\n")
+			} else {
+				t.Setenv("PATH", t.TempDir())
+			}
+			if err := linkRepository(context.Background(), leaf, "../base", &bytes.Buffer{}); err == nil {
+				t.Fatal("origin inspection error treated as absent origin")
+			}
+			if _, err := os.Stat(filepath.Join(leaf, "construct", "deps")); !os.IsNotExist(err) {
+				t.Fatalf("deps changed: %v", err)
+			}
+		})
+	}
+}
+
+func TestRecordLinkRejectsMalformedExistingDeps(t *testing.T) {
+	root := t.TempDir()
+	bad := "substrate ../base extra unexpected\n"
+	mkfile(t, filepath.Join(root, "construct", "deps"), bad)
+	if err := runLink(weavefs.OSFS{}, root, "../other", &bytes.Buffer{}); err == nil {
+		t.Fatal("accepted malformed dependency file")
+	}
+	data, _ := os.ReadFile(filepath.Join(root, "construct", "deps"))
+	if string(data) != bad {
+		t.Fatal("modified malformed file")
 	}
 }

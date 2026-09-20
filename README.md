@@ -12,6 +12,48 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
+## Standalone weave startup (in progress)
+
+The first part of #239 adds source-aware links and dependency installation.
+Until #241 publishes the Homebrew formula, build the CLI from this checkout:
+
+```sh
+go build -o bin/weave ./cmd/weave
+# Run from the repository adopting the base:
+/path/to/ariadne/bin/weave link github.com/xianxu/ariadne
+/path/to/ariadne/bin/weave dependencies
+```
+
+`weave link ../ariadne` also accepts an existing local base. Address links clone
+into a sibling directory and record the source; local links record the checkout's
+origin when available. Matching existing checkouts, including dirty ones, are
+reused without pulling or resetting them.
+
+Dependencies are declared in `construct/deps`:
+
+```text
+substrate ../ariadne https://github.com/xianxu/ariadne.git
+data https://github.com/example/content.git data/content
+```
+
+A substrate row takes a path and optional source; a data row takes a source and
+mount. Blank lines and `#` comments are supported. Other row kinds and malformed
+column counts fail with a line number. Existing two-column substrate rows remain
+valid while the local checkout exists; record a source to restore a missing one.
+Paths/sources cannot contain whitespace or `#` in this format.
+
+On macOS with Homebrew on PATH, `weave dependencies` restores transitive sources
+and runs each layer's committed root `Brewfile` through `brew bundle install
+--no-upgrade --file=Brewfile`, foundation-first. Homebrew manages package state;
+weave does not build tools, mount data or generate artifacts in this command.
+Other platforms' automatic package setup is not delivered in this first slice.
+`weave dependencies --dry-run` makes no changes. If a missing source prevents
+reading its declarations, the preview reports that it is incomplete and exits
+nonzero rather than claiming a complete dependency list.
+
+The next slice integrates owner-local `make tools`, compile and bootstrap. The
+legacy startup described below still applies until that integration lands.
+
 ## Standalone consumers and maintainer setup
 
 A consumer's root `Makefile` is an upstream-owned **seed**: a real file that
