@@ -80,3 +80,18 @@ in a separate ticket. Fresh-context plan review identified the close/ship cycle;
 this dependent delivery issue makes the sequence explicit. #239 prepares/tests
 startup and release/migration tools, closes and merges; #241 publishes and
 verifies delivery afterward. No release or consumer mutation has started.
+
+
+## Revisions
+
+### 2026-09-20 — tap repository and command availability confirmed
+
+**Reason:** operator accepted the conventional backing repo and clarified that
+shell integration belongs to the user/layer, not generic bootstrap.
+
+**Delta:** `xianxu/homebrew-ariadne` is the agreed tap backing repository, not a
+pending option. Distribution exposes the gateway `weave`; layer binaries remain
+in their owners' bin directories and users explicitly add those directories to
+PATH. Verify that documented step and that bootstrap does not edit shell profiles
+or perform sdlc-specific installation. No `weave exec` or `weave env` command is
+part of the delivery contract.
