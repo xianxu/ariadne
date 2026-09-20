@@ -131,3 +131,15 @@ instances of the sweep hazard the gap creates.
 Related: **#222** (same-issue concurrent trunk edits are last-writer-wins) is the
 collision half of the same area; **#207** built the no-checkout CAS trunk push
 this issue would reuse.
+
+**This issue demonstrated its own bug while being filed.** `sdlc issue new`
+published the stub to the trunk; the very next `sdlc issue sync --issue 240`,
+carrying the spec above, reported *"committed locally (not pushed)"* and landed
+on the **#239 feature branch**. So the body of the issue describing the
+stranding was itself stranded.
+
+The workaround that got it to the trunk — and a hint at the smallest fix — is
+`sdlc claim --issue 240 --no-start`: `claim` already publishes an issue file to
+`refs/heads/main` by commit-tree + CAS with no checkout (#207), and `--no-start`
+suppresses the status flip. `issue sync` has that machinery available to it and
+simply does not use it.
