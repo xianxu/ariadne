@@ -278,3 +278,96 @@ dispose:
 7. **Plan revision recommendation**
 
    Append a `## Revisions` entry specifying producer-tree lifetime, cancellation/death recovery, and the invariant that stage cleanup requires evidence that all writers have stopped. Add deterministic late-writer regressions to M2’s recovery contract.
+
+---
+
+## Re-review — 2026-09-20T15:13:54-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | a0939beeec126ec717ec94889107c93f0f3f76dd..8e3d90548f1ee937c2d3dd06a5616ea2f24cb443 |
+| command | sdlc milestone-close --issue 239 --milestone M2 |
+| reviewer | codex |
+| timestamp | 2026-09-20T15:13:54-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned M2 range delivers unified startup, generated-output ownership, and managed ignores. BR-8 is addressed: generators write into owned staging, inherited leases protect stages while descendants remain alive, and retry reclaims stopped producers. The relevant Go suites and all three shell fixtures passed. No blocking findings remain.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Staging ownership precedes generator execution; inherited leases prevent cleanup while descendants can write. Passing production-path tests cover failed generation followed by retry/retirement, parent death, cancellation, and late writers. The assertions directly reject the former premature-cleanup behavior.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Generators publish through StagedActions and ApplyManaged ownership checks. Tests cover edited files, replaced links, and cold authored destinations.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      The current plan names ToolEnvironment as the pure setup entity and classifies discovery, execution, and sequential setup as integrations; those implementations exist at the documented paths.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      Tools consumes InputRunner. Production Make and the stateful failure/retry double share that interface; real Make fixtures also pass.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      Publish writes into an owned stage before atomic rename. Partial-write and killed-writer tests verify preservation, recovery, and retirement.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      Staged permissions travel through WriteFile and ownership identities. Publication applies permissions before rename; executable-permission and legacy-inventory tests pass.
+```
+
+1. **Strengths**
+
+   - Generator failure cannot publish partial output; regression coverage includes successful retry followed by retirement (`cmd/weave/dynamic_test.go:314`).
+   - Parent-death coverage controls child readiness and release explicitly, checking that ownership survives until the writer exits (`cmd/weave/generator_lifetime_test.go:104`).
+   - Clone and generator producers reuse the staging and process-lifetime mechanisms.
+   - README and atlas document the changed startup sequence, marker migration, and trusted-generator constraints.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - `go test ./cmd/weave/... ./pkg/layergraph/... -count=1`
+   - `bash construct/scripts/test/bootstrap-transitive.test.sh`
+   - `bash construct/scripts/test/portable-makefile.test.sh`
+   - `bash scripts/test/portable-ci.test.sh`
+
+   Regression reachability was checked against production callers and assertions. I did not perform scratch mutation testing or live package installation. The repository remains unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared staging, publication, and subprocess boundaries replace duplicated recovery behavior.
+   - **ARCH-PURE — pass:** planning, ignore transformation, and environment composition remain separated from filesystem/process integration.
+   - **ARCH-PURPOSE — pass:** actual ownership drives managed ignores and retirement; bootstrap and CI use the unified compiler.
+   - **ARCH-MOCK — pass:** stateful process doubles share production interfaces, supplemented by real Make/Git fixtures.
+   - **ARCH-CONSTRAINTS — pass:** startup remains sequential; descendant pipe waits and producer shutdown checks are bounded.
+   - **ARCH-SECURE — pass:** inventory validation, reserved-path checks, and parent-symlink checks protect publication and retirement. Generator trust requirements are explicit.
+   - **ARCH-ORDER — pass:** ownership precedes writes; publication follows producer completion; uncertain writer lifetime preserves staging.
+   - **ARCH-FUNERAL — pass:** normal cleanup and retry reclamation cover producer/publication stages; identity checks govern output retirement.
+
+   Release packaging and actual consumer migration remain M3/#241 work, consistent with the active plan.
+
+7. **Plan revision recommendations:** None; the producer-lifetime revision describes the implemented correction.

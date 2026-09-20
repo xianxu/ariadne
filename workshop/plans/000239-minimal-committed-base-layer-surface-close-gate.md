@@ -230,6 +230,37 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 8
+      timestamp: "2026-09-20T15:13:54-07:00"
+      agent: codex
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: Staging ownership precedes generator execution; inherited leases prevent cleanup while descendants can write. Passing production-path tests cover failed generation followed by retry/retirement, parent death, cancellation, and late writers. The assertions directly reject the former premature-cleanup behavior.
+          round: 8
+        - id: BR-7
+          disposition: addressed
+          note: Generators publish through StagedActions and ApplyManaged ownership checks. Tests cover edited files, replaced links, and cold authored destinations.
+          round: 8
+        - id: BR-9
+          disposition: addressed
+          note: The current plan names ToolEnvironment as the pure setup entity and classifies discovery, execution, and sequential setup as integrations; those implementations exist at the documented paths.
+          round: 8
+        - id: BR-10
+          disposition: addressed
+          note: Tools consumes InputRunner. Production Make and the stateful failure/retry double share that interface; real Make fixtures also pass.
+          round: 8
+        - id: BR-11
+          disposition: addressed
+          note: Publish writes into an owned stage before atomic rename. Partial-write and killed-writer tests verify preservation, recovery, and retirement.
+          round: 8
+        - id: BR-12
+          disposition: addressed
+          note: Staged permissions travel through WriteFile and ownership identities. Publication applies permissions before rename; executable-permission and legacy-inventory tests pass.
+          round: 8
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -328,6 +359,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-9 — addressed — The revised active concept table identifies ToolEnvironment as pure and discovery/execution as integration, consistent with the implementation.
 - BR-10 — addressed — Tools accepts InputRunner; production Make and the stateful failure/retry test double share that interface, with real Make conformance tests.
 
+## Round 8 — 2026-09-20T15:13:54-07:00 (codex) — passed
+
+### Disposed
+
+- BR-8 — addressed — Staging ownership precedes generator execution; inherited leases prevent cleanup while descendants can write. Passing production-path tests cover failed generation followed by retry/retirement, parent death, cancellation, and late writers. The assertions directly reject the former premature-cleanup behavior.
+- BR-7 — addressed — Generators publish through StagedActions and ApplyManaged ownership checks. Tests cover edited files, replaced links, and cold authored destinations.
+- BR-9 — addressed — The current plan names ToolEnvironment as the pure setup entity and classifies discovery, execution, and sequential setup as integrations; those implementations exist at the documented paths.
+- BR-10 — addressed — Tools consumes InputRunner. Production Make and the stateful failure/retry double share that interface; real Make fixtures also pass.
+- BR-11 — addressed — Publish writes into an owned stage before atomic rename. Partial-write and killed-writer tests verify preservation, recovery, and retirement.
+- BR-12 — addressed — Staged permissions travel through WriteFile and ownership identities. Publication applies permissions before rename; executable-permission and legacy-inventory tests pass.
+
 ## Open findings
 
-- **BR-8** [Critical] `durable-staging-reclamation` Failed generation leaves outputs outside durable ownership recovery
+(none — every finding has been disposed)
