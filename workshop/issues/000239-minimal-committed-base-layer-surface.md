@@ -868,3 +868,15 @@ the installed gateway's path if its directory is not already on PATH. The
 command-activation question is resolved; the draft plan's earlier exec/env
 proposal and pending-decision notes are superseded. #241 publishes via the
 accepted tap repository after the implementation merges.
+
+
+### 2026-09-20 — manual-PATH completeness
+
+**Reason:** review of the narrowed PATH design identified user-local dependency
+installs as another path the developer must be able to reach after compile exits.
+
+**Delta:** completion instructions list the actual required additions: layer bin
+directories, any user-local dependency bin directory, and the standalone gateway
+directory when needed. Test a fresh developer/CI process after only those
+additions; successful generator execution inside compile alone is insufficient.
+This keeps the operator's manual shell setup and adds no exec/env commands.
