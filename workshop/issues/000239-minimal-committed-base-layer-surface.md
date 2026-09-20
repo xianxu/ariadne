@@ -911,3 +911,26 @@ custom installer-neutral package recipe schema. Nous already has a Brewfile;
 Homebrew documents bundle support on macOS/Linux and `--no-upgrade`. A scratch
 read-only bundle check returned unmet dependencies; nothing was installed. That
 choice remains pending, and no package-install implementation has started.
+
+
+### 2026-09-20 — agreed Brewfile and make tools contract
+
+**Reason:** operator requested that the simplified Homebrew/Make design be saved
+as the plan.
+
+**Delta:** each layer commits its external macOS dependencies in root `Brewfile`
+and builds its own necessary binaries through `make tools`, into owner `bin/`.
+`weave dependencies` restores the graph and runs each bundle with `--no-upgrade`;
+`weave compile` then builds owner tools before generation and artifact repair.
+This replaces custom package/install and per-binary JSON recipes, private tool
+stores and the macOS bootstrap downloader. Bootstrap uses Homebrew to obtain
+weave and calls compile; a machine missing Homebrew receives prerequisite
+instructions. Only weave is published through our tap. Shell PATH remains a
+manual user step. No implementation or package installation occurred.
+
+The canonical plan's [current contract](../plans/000239-minimal-committed-base-layer-surface-plan.md#current-contract-brewfiles-and-make-tools)
+contains the replacement tasks and supersedes conflicting earlier draft text.
+Before implementation, verify real tools can build before composition; present
+any cycle requiring a contract change. Linux package setup remains a concrete CI
+question, not approval for a generic installer. Source/artifact cleanup and the
+#239 implementation / #241 publication split remain unchanged.
