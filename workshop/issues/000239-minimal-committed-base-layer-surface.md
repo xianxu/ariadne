@@ -202,6 +202,17 @@ total: 4.151
 
 ## Log
 
+### 2026-09-20 — whole-issue BR-15 corrected
+
+The integration review returned REWORK for optional Make targets: bare tools:
+permits implicit builds and can skip authored commands when a tools file exists.
+Real-Make regressions failed before the fix for shell/C candidates and the
+existing-file recipe. The supplemental target now explicitly declares tools
+phony, preserving authored recipes/prerequisites and existing failure behavior.
+Full weave/layergraph/ownership suites pass on macOS; native Linux startup
+tests pass. Evidence: /tmp/ariadne-239-br15-red.log and
+/tmp/ariadne-239-br15-green.log. Awaiting whole-issue re-review.
+
 ### 2026-09-19
 
 Found while investigating post-`make weave` `git status` churn in pair

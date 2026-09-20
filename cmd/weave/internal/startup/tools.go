@@ -11,7 +11,7 @@ import (
 )
 
 // Tools builds each owner's optional tools target in foundation-first order.
-// An empty supplemental target handles omission without hiding Makefile errors.
+// A phony supplemental target handles omission without implicit builds or hiding Makefile errors.
 func Tools(fs weavefs.FS, layers []string, runner weavefs.InputRunner, dryRun bool, out io.Writer) error {
 	for _, dir := range layers {
 		info, err := fs.Stat(filepath.Join(dir, "Makefile"))
@@ -28,7 +28,7 @@ func Tools(fs weavefs.FS, layers []string, runner weavefs.InputRunner, dryRun bo
 		if dryRun {
 			continue
 		}
-		if err := runner.RunInput(dir, []string{"make", "--no-print-directory", "-f", "Makefile", "-f", "-", "tools"}, "tools:\n"); err != nil {
+		if err := runner.RunInput(dir, []string{"make", "--no-print-directory", "-f", "Makefile", "-f", "-", "tools"}, ".PHONY: tools\ntools:\n"); err != nil {
 			return fmt.Errorf("build tools for %s: %w", dir, err)
 		}
 	}

@@ -1635,3 +1635,10 @@ it has taken effect. A real-index-backed faulting executable can exercise the
 same process boundary without inventing a second Git model. Preserve observable
 partial progress and make dirty-retry/operator resolution explicit; an error
 must not be treated as evidence that no commit or index change happened.
+
+### 2026-09-20 — #239 optional Make commands
+
+An empty target declaration still permits Make implicit rules and file timestamp
+semantics. Declare command targets phony when omission must be a no-op; test
+implicit source candidates and a file bearing the target name, as well as
+authored recipes, prerequisites, and failures.

@@ -295,6 +295,75 @@ rounds:
       boundary: M3
       recipe: milestone-review
       blocked: false
+    - "n": 11
+      timestamp: "2026-09-20T15:48:36-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Relative-origin restoration and recorded-source comparisons resolve paths at their owning checkout; acquisition/link regressions cover these paths.
+          round: 11
+        - id: BR-2
+          disposition: addressed
+          note: Origin inspection distinguishes missing configuration from Git failures; malformed-config and dependency-preservation regressions exercise the distinction.
+          round: 11
+        - id: BR-3
+          disposition: addressed
+          note: README.md now documents link sources, construct/deps syntax, dependencies, and dry-run behavior, consistent with the inspected command implementations.
+          round: 11
+        - id: BR-4
+          disposition: addressed
+          note: The injected Git boundary supports clone failure and competing-publication tests through the production acquisition path.
+          round: 11
+        - id: BR-5
+          disposition: addressed
+          note: Acquisition tests cover dead-stage reclamation, live/foreign preservation, warm restoration after publication, and nonmutating dry-run.
+          round: 11
+        - id: BR-6
+          disposition: addressed
+          note: Source identity tests preserve endpoint distinctions; TestEnsureRejectsDifferentSourcePorts exercises actual checkout rejection.
+          round: 11
+        - id: BR-7
+          disposition: addressed
+          note: Compile regressions preserve edited and cold authored generator destinations through staged generation and managed publication.
+          round: 11
+        - id: BR-8
+          disposition: addressed
+          note: Failed-generation, process-death, cancellation, and live-descendant regressions exercise durable recovery and producer leases.
+          round: 11
+        - id: BR-9
+          disposition: addressed
+          note: The active plan identifies ToolEnvironment as pure and discovery/execution as integration; tools.go implements that separation.
+          round: 11
+        - id: BR-10
+          disposition: addressed
+          note: Tools accepts InputRunner; TestToolsInjectedProcessStateStopsOnFailure exercises failure and retry through that production boundary.
+          round: 11
+        - id: BR-11
+          disposition: addressed
+          note: Partial-write and killed-publication regressions exercise staged atomic publication, retry, and retirement.
+          round: 11
+        - id: BR-12
+          disposition: addressed
+          note: Staged-file and compile-level executable-permission regressions exercise permission preservation and ownership.
+          round: 11
+        - id: BR-13
+          disposition: addressed
+          note: Release preparation reuses owned staging; cancellation, killed-owner/live-producer, retry, and public launcher tests pass.
+          round: 11
+        - id: BR-14
+          disposition: addressed
+          note: Migration tests inject Git failures before and after persistent effects, verify retained index state, and exercise operator-resolved retry.
+          round: 11
+      findings:
+        - id: BR-15
+          severity: Critical
+          title: Missing optional tools target permits unintended implicit Make builds
+          detail: 'cmd/weave/internal/startup/tools.go:31 supplies tools: without suppressing implicit rules. Public compile reproduction creates an unmanaged executable from tools.sh, or invokes cc on tools.c and fails despite no declared tools target. Make the command target explicitly phony while preserving authored recipes/prerequisites, and add real-Make regressions for implicit candidates and existing target-named files. ARCH-PURPOSE and ARCH-FUNERAL.'
+          family: optional-target-noop
+          round: 11
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -420,6 +489,30 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-13 — addressed — cmd/weave/internal/release/main.go:65 reclaims before existing-output refusal and uses shared staging ownership and RunOwned producer leases. Cancellation, owner-death/live-producer, and public-launcher tests pass. Removing reclamation in a scratch copy fails the recovery regression with “dead producer stage not reclaimed.”
 - BR-14 — addressed — cmd/sdlc/propagatebase_failure_test.go exercises status, ls-files, rm, add, and commit through the production PATH boundary with a persistent real-index-backed faulting executable. Tests verify partial effects, commit-success-before-error, retained files, dirty public retry, and operator-resolved recovery. Removing the remediation wrapper fails all 11 failure-matrix cases.
 
+## Round 11 — 2026-09-20T15:48:36-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Relative-origin restoration and recorded-source comparisons resolve paths at their owning checkout; acquisition/link regressions cover these paths.
+- BR-2 — addressed — Origin inspection distinguishes missing configuration from Git failures; malformed-config and dependency-preservation regressions exercise the distinction.
+- BR-3 — addressed — README.md now documents link sources, construct/deps syntax, dependencies, and dry-run behavior, consistent with the inspected command implementations.
+- BR-4 — addressed — The injected Git boundary supports clone failure and competing-publication tests through the production acquisition path.
+- BR-5 — addressed — Acquisition tests cover dead-stage reclamation, live/foreign preservation, warm restoration after publication, and nonmutating dry-run.
+- BR-6 — addressed — Source identity tests preserve endpoint distinctions; TestEnsureRejectsDifferentSourcePorts exercises actual checkout rejection.
+- BR-7 — addressed — Compile regressions preserve edited and cold authored generator destinations through staged generation and managed publication.
+- BR-8 — addressed — Failed-generation, process-death, cancellation, and live-descendant regressions exercise durable recovery and producer leases.
+- BR-9 — addressed — The active plan identifies ToolEnvironment as pure and discovery/execution as integration; tools.go implements that separation.
+- BR-10 — addressed — Tools accepts InputRunner; TestToolsInjectedProcessStateStopsOnFailure exercises failure and retry through that production boundary.
+- BR-11 — addressed — Partial-write and killed-publication regressions exercise staged atomic publication, retry, and retirement.
+- BR-12 — addressed — Staged-file and compile-level executable-permission regressions exercise permission preservation and ownership.
+- BR-13 — addressed — Release preparation reuses owned staging; cancellation, killed-owner/live-producer, retry, and public launcher tests pass.
+- BR-14 — addressed — Migration tests inject Git failures before and after persistent effects, verify retained index state, and exercise operator-resolved retry.
+
+### Raised
+
+- **BR-15** [Critical] `optional-target-noop` Missing optional tools target permits unintended implicit Make builds
+  cmd/weave/internal/startup/tools.go:31 supplies tools: without suppressing implicit rules. Public compile reproduction creates an unmanaged executable from tools.sh, or invokes cc on tools.c and fails despite no declared tools target. Make the command target explicitly phony while preserving authored recipes/prerequisites, and add real-Make regressions for implicit candidates and existing target-named files. ARCH-PURPOSE and ARCH-FUNERAL.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-15** [Critical] `optional-target-noop` Missing optional tools target permits unintended implicit Make builds

@@ -266,6 +266,16 @@ are never updated/deleted; packages are never automatically uninstalled.
 
 ## Revisions
 
+### 2026-09-20 — optional owner command must suppress implicit rules
+
+Reason: whole-issue review BR-15 reproduced implicit shell/C builds when tools
+is omitted, and an existing file named tools can suppress an authored recipe.
+Delta: the supplemental Make input declares `.PHONY: tools` as well as the
+empty target. Preserve authored recipes and prerequisites, propagate failures,
+and never infer a tools executable from implicit candidates. Real-Make tests
+cover each case (ARCH-PURPOSE, ARCH-FUNERAL). This corrects earlier prose claiming
+a bare empty target was a sufficient fallback.
+
 ### 2026-09-20 — implementation authorization and consolidated active plan
 
 Reason: the operator authorized implementation of the agreed simplification.

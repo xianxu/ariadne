@@ -62,7 +62,7 @@ type toolProcessState struct {
 }
 
 func (s *toolProcessState) RunInput(dir string, argv []string, input string) error {
-	if input != "tools:\n" || strings.Join(argv, " ") != "make --no-print-directory -f Makefile -f - tools" {
+	if input != ".PHONY: tools\ntools:\n" || strings.Join(argv, " ") != "make --no-print-directory -f Makefile -f - tools" {
 		return fmt.Errorf("invalid make invocation")
 	}
 	if len(s.order) > 0 && !s.built[s.order[len(s.order)-1]] {
@@ -80,7 +80,7 @@ func TestToolsInjectedProcessStateStopsOnFailure(t *testing.T) {
 	dirs := []string{filepath.Join(root, "base"), filepath.Join(root, "mid"), filepath.Join(root, "leaf")}
 	for _, dir := range dirs {
 		os.MkdirAll(dir, 0755)
-		os.WriteFile(filepath.Join(dir, "Makefile"), []byte("tools:\n"), 0644)
+		os.WriteFile(filepath.Join(dir, "Makefile"), []byte(".PHONY: tools\ntools:\n"), 0644)
 	}
 	state := &toolProcessState{built: map[string]bool{}, fail: dirs[1]}
 	var out bytes.Buffer
@@ -97,5 +97,48 @@ func TestToolsInjectedProcessStateStopsOnFailure(t *testing.T) {
 	}
 	if !state.built[dirs[2]] {
 		t.Fatal("retry did not build leaf")
+	}
+}
+
+func TestToolsDoesNotInferBuildsAndAlwaysRunsAuthoredCommand(t *testing.T) {
+	for _, tc := range []struct {
+		name, makefile, candidate, contents string
+		wantBuilt                           bool
+	}{
+		{"shell implicit candidate", "other:\n", "tools.sh", "#!/bin/sh\nexit 0\n", false},
+		{"C implicit candidate", "other:\n", "tools.c", "invalid C\n", false},
+		{"existing target omitted", "other:\n", "tools", "authored\n", false},
+		{"existing target with recipe", "tools:\n\tprintf built > built\n", "tools", "authored\n", true},
+		{"authored prerequisites", "tools: dependency\ndependency:\n\tprintf built > built\n", "tools", "authored\n", true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			for name, content := range map[string]string{"Makefile": tc.makefile, tc.candidate: tc.contents} {
+				if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			var out bytes.Buffer
+			if err := Tools(weavefs.OSFS{}, []string{dir}, weavefs.ExecRunner{Stdout: &out, Stderr: &out}, false, &out); err != nil {
+				t.Fatalf("optional command: %v\n%s", err, &out)
+			}
+			got, err := os.ReadFile(filepath.Join(dir, tc.candidate))
+			if err != nil || string(got) != tc.contents {
+				t.Fatalf("authored candidate changed: %q, %v", got, err)
+			}
+			if tc.candidate != "tools" {
+				if _, err := os.Stat(filepath.Join(dir, "tools")); !os.IsNotExist(err) {
+					t.Fatalf("implicit tools output created: %v", err)
+				}
+			}
+			got, err = os.ReadFile(filepath.Join(dir, "built"))
+			if tc.wantBuilt {
+				if err != nil || string(got) != "built" {
+					t.Fatalf("authored build skipped: %q, %v", got, err)
+				}
+			} else if !os.IsNotExist(err) {
+				t.Fatalf("unexpected build: %q, %v", got, err)
+			}
+		})
 	}
 }
