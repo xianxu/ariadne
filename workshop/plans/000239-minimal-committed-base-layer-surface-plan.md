@@ -1679,16 +1679,52 @@ Replace the unconditional `git rm --cached` loop with: for each candidate from `
 
 Read the block markers from one place. `cmd/weave/internal/plan` owns them; either export them (`plan.ManagedBlockOpen`/`Close`) and import from sdlc, or lift them to a tiny shared package. Do **not** re-type the marker strings in sdlc — that is a second declaration channel, the exact defect this issue is about (ARCH-DRY).
 
-- [ ] **Step 4: Run the tests, then verify against the real fleet**
+- [ ] **Step 4: Make `--dry-run` actually exercise the classifier**
+
+**Without this the whole pre-sweep safety story is unfalsifiable.** `runPropagateBase` prints the dependent list and returns at `propagatebase.go:135`:
+
+```go
+	if dryRun {
+		fmt.Fprintln(out, "(dry-run: would `make weave` + verify-complete + commit each, in order)")
+		return nil
+	}
+```
+
+It never weaves and never reaches `commitConsumption`, so it cannot name a single path it would untrack. Every "verify with `--dry-run` before sweeping" step in this plan would read that empty output as a pass — a check that cannot fail, guarding the one irreversible action in the issue.
+
+Extend `--dry-run` to run the **classify pass** (never the mutate pass): for each selected dependent, enumerate `git ls-files -i -c --exclude-standard`, resolve each candidate's pattern provenance, and print the split, changing nothing.
+
+```
+propagate-base: 1 dependent(s), foundation-first:
+  1. kbench
+kbench: 1160 tracked-but-ignored candidate(s)
+  would-untrack (weave block):  0
+  left-tracked  (repo-owned):   1160
+    competition/arc-agi-3/.gitignore:24  runs/20*/  (1160 paths)
+(dry-run: no repo was modified)
+```
+
+Classification runs against the managed block **as it currently stands in the repo**, which is the honest thing a non-mutating pass can do; when the repo has no block yet, say so rather than implying zero. That is sufficient for the question being asked — kbench's 1160 are matched by a *nested* `.gitignore`, so their provenance is independent of how current the block is.
+
+```go
+// A --dry-run that cannot name a path it would untrack is not a dry run of the
+// destructive step — it is a dry run of the repo LIST. The sweep's one
+// irreversible action is `git rm --cached`, so the preview has to exercise the
+// same classification that decides it (#239 PQ-6).
+```
+
+- [ ] **Step 5: Run the tests, then verify against the real fleet**
 
 ```bash
 go test ./cmd/sdlc/...
 go build -o bin/sdlc ./cmd/sdlc
-cd ../kbench && git status --short | head   # MUST still be clean afterwards
+./bin/sdlc propagate-base --repo kbench --dry-run
+cd ../kbench && git status --short | head   # still clean — dry-run mutates nothing
 ```
-Expected: tests pass. Then the decisive check — after Task 4.0b and before any real sweep, `./bin/sdlc propagate-base --repo kbench --dry-run` must report **0** paths to untrack, not 1160.
 
-- [ ] **Step 5: Commit**
+Expected: `would-untrack (weave block): 0` and `left-tracked (repo-owned): 1160` for `kbench`. A run that prints **no** candidate counts means Step 4 was not done and the check is still vacuous — treat that as a failure, not a pass.
+
+- [ ] **Step 6: Commit**
 
 ```bash
 git add cmd/sdlc/
@@ -1719,9 +1755,21 @@ A scratch repo with an empty `scripts/merge-checks.d/` and an owner beside it ca
 mkdir -p "$SCRATCH/leaf/scripts/merge-checks.d" "$SCRATCH/ariadne/scripts/merge-checks.d"
 printf '#!/bin/sh\necho base-check-ran\nexit 0\n' > "$SCRATCH/ariadne/scripts/merge-checks.d/40-dup.sh"
 chmod +x "$SCRATCH/ariadne/scripts/merge-checks.d/40-dup.sh"
+# The owner ALSO holds a local-only check. The manifest symlinks 40-dup and not
+# this one, so the fallback must not import it — over-propagation passes the
+# positive assertion just as well as a correct fallback does.
+printf '#!/bin/sh\necho OWNER-LOCAL-LEAKED\nexit 0\n' > "$SCRATCH/ariadne/scripts/merge-checks.d/30-owner-local.sh"
+chmod +x "$SCRATCH/ariadne/scripts/merge-checks.d/30-owner-local.sh"
+mkdir -p "$SCRATCH/ariadne/construct"
+printf 'scaffold  scripts/merge-checks.d\nsymlink   scripts/merge-checks.d/40-dup.sh\n' \
+  > "$SCRATCH/ariadne/construct/base.manifest"
+printf 'substrate ../ariadne\n' > "$SCRATCH/leaf/construct/deps"
+: > "$SCRATCH/leaf/construct/base.manifest"
+
 (cd "$SCRATCH/leaf" && git init -q . && bash "$SOURCE/scripts/run-merge-checks.sh" HEAD HEAD) > "$SCRATCH/out" 2>&1
-grep -q base-check-ran "$SCRATCH/out" || { echo "FAIL: base-layer check did not run"; exit 1; }
+grep -q base-check-ran  "$SCRATCH/out" || { echo "FAIL: base-layer check did not run"; exit 1; }
 ! grep -q 'none defined' "$SCRATCH/out" || { echo "FAIL: vacuous pass"; exit 1; }
+! grep -q OWNER-LOCAL-LEAKED "$SCRATCH/out" || { echo "FAIL: fallback imported an unsymlinked owner check"; exit 1; }
 ```
 
 - [ ] **Step 2: Run it and watch it fail**
@@ -1729,11 +1777,24 @@ grep -q base-check-ran "$SCRATCH/out" || { echo "FAIL: base-layer check did not 
 Run: `bash construct/scripts/test/merge-checks-fallback.test.sh`
 Expected: FAIL — `✓ merge-checks: none defined in scripts/merge-checks.d/ — pass (no-op)`. That output *is* the bug.
 
-- [ ] **Step 3: Add the owner fallback to the collector**
+- [ ] **Step 3: Add the owner fallback — selected by the MANIFEST, not by the owner's directory**
 
-`run-merge-checks.sh:26-27` builds `checks` from `$ROOT/scripts/merge-checks.d` only. Also collect the owner's, resolved the same way `merge-check.yml:71` resolves the runner (`../ariadne/scripts/merge-checks.d`, or via `construct/deps`). Dedupe by basename with the **repo's own winning**, so a derivative can still override a base-layer check by name. Keep the existing "none defined" message for the genuinely-empty case.
+`run-merge-checks.sh:26-27` builds `checks` from `$ROOT/scripts/merge-checks.d` only. Add the owner's — but **not the whole directory**. ariadne's holds:
 
-This is the symmetric completion of a fallback that already exists for the runner, and it makes `base.manifest:138`'s symlink row redundant rather than load-bearing — note that in the commit, since #213 added that row precisely because a scaffolded dir left derivatives empty.
+```
+30-weave-drift.sh          ← ariadne-local, never propagated
+40-duplicate-issue-id.sh   ← the ONE row base.manifest:138 symlinks
+50-base-layer-tests.sh     ← added by Task 3.3, deliberately ariadne-local
+README.md
+```
+
+`base.manifest:132-138` is explicit that `scaffold scripts/merge-checks.d` **plus the single symlink row** *is* the propagation selection (#213). Resolving the fallback to `../ariadne/scripts/merge-checks.d` wholesale discards that selection: every derivative's PR would then run `30-weave-drift.sh` and `50-base-layer-tests.sh` — the latter `go build`s `./cmd/weave` against ariadne's sources. That is a strictly worse failure than the one being fixed, because it is silent and fleet-wide.
+
+**The selection is already declared, so read it:** parse the layer manifests (the leaf's `construct/base.manifest` and each ancestor's, both committed and present after `bootstrap.sh` clones peers) for rows matching `^\s*(export\s+)?symlink\s+scripts/merge-checks\.d/`, and resolve **only those basenames** from the owning layer. Everything else in the owner's dir stays the owner's. The manifest remains the single declaration channel — resolving from the directory instead would be a second one, the exact defect this issue exists to close (ARCH-DRY).
+
+Dedupe by basename with the **repo's own winning**, so a derivative can still override a base-layer check by name. Keep the existing "none defined" message for the genuinely-empty case.
+
+This is the symmetric completion of a fallback that already exists for the runner. It does **not** make `base.manifest:138` redundant — that row is what the fallback reads.
 
 - [ ] **Step 4: Verify the three at-risk repos**
 
@@ -1741,10 +1802,12 @@ This is the symmetric completion of a fallback that already exists for the runne
 bash construct/scripts/test/merge-checks-fallback.test.sh
 for d in ../astro ../parli ../tools; do
   echo "--- $(basename "$d")"
-  (cd "$d" && bash ../ariadne/scripts/run-merge-checks.sh HEAD HEAD 2>&1 | tail -3)
+  (cd "$d" && bash ../ariadne/scripts/run-merge-checks.sh HEAD HEAD 2>&1 | tail -5)
 done
 ```
-Expected: the test passes; each repo runs at least the duplicate-id check and none reports `none defined`.
+Expected: the test passes; each repo runs the duplicate-id check and none reports `none defined`. **And the negative half:** no repo runs `30-weave-drift` or `50-base-layer-tests` — grep the output for both and fail if either appears. A fallback that over-propagates passes the positive assertion just as well as a correct one, so the negative assertion is the one that distinguishes them.
+
+Add both directions to the test script, not just this manual loop.
 
 - [ ] **Step 5: Commit**
 
@@ -1794,9 +1857,9 @@ Add `--repo <name>` (repeatable, matched against the dependent's basename; unkno
 ```bash
 go test ./cmd/sdlc/...
 go build -o bin/sdlc ./cmd/sdlc && ./bin/sdlc propagate-base --dry-run
-./bin/sdlc propagate-base --repo kbench --dry-run   # the 4.0a proof: 0 untracks, not 1160
+./bin/sdlc propagate-base --repo kbench --dry-run
 ```
-Expected: tests pass; the dry-run lists the dependents, names no brain repo, and reports nothing to untrack in `kbench`.
+Expected: tests pass; the dry-run lists the dependents and names no brain repo. For `kbench` it must print the classify split from Task 4.0a Step 4 — `would-untrack (weave block): 0`, `left-tracked (repo-owned): 1160`. **Absence of output is not a pass**: before 4.0a Step 4 this command returned at `propagatebase.go:135` without reaching any untrack logic, so "it printed nothing alarming" was exactly the failure mode.
 
 - [ ] **Step 5: Commit**
 
@@ -1875,6 +1938,11 @@ Whether it passed or failed, plus the exact untrack set — this is the evidence
 ```bash
 cd /Users/xianxu/workspace/pair && git status --short   # MUST be clean — commitConsumption's precondition
 cd /Users/xianxu/workspace/ariadne && ./bin/sdlc propagate-base --repo pair --dry-run
+```
+
+**Read the dry-run before running the real thing.** It must print the classify split (Task 4.0a Step 4) and every path under `would-untrack` must be one weave produces; anything under `left-tracked` is repo-owned and is *supposed* to stay. A dry-run that prints only the repo list means the classifier was never wired and this gate is vacuous — stop and finish Task 4.0a. Only then:
+
+```bash
 ./bin/sdlc propagate-base --repo pair
 ```
 
@@ -1999,6 +2067,8 @@ Omit `--actual` — close measures and adopts the hours itself (#178).
 | A blanket ignore untracks a repo-owned file (pair#64, parley.nvim's `20-vocabulary.sh`) | Per-path derivation keeps it out of the **block**: a path weave never produces can never enter it. Tested in `IgnoreEntries` unit tests, asserted with the real `git ls-files -i -c` in the conformance test, and verified per repo in M4. |
 | **The sweep untracks files the block never ignored** (kbench's 1160 committed run artifacts, under its own nested `.gitignore`) | The block guard does **not** cover this — `git ls-files -i -c` reads the whole ignore config. Task 4.0a filters by pattern *provenance* (`git check-ignore -v`), untracking only what the managed block's own line range matches, and reports the rest instead of dropping it silently. |
 | **Untracking the symlinked merge-check voids CI in `astro`/`parli`** — a *vacuous* green that Done-when cannot detect, and the `pair` pilot is blind to | CI never runs weave (`BOOTSTRAP_CLONE_ONLY`), so committed-only paths are a class, enumerated in *Pre-weave consumers*. Its one unresolved member gets the symmetric owner fallback in Task 4.0b, with a test whose failure mode is the `none defined` message itself. |
+| **The pre-sweep `--dry-run` checks cannot fail** — `runPropagateBase` returns at `propagatebase.go:135` before any untrack logic | Task 4.0a Step 4 makes `--dry-run` run the classify pass and print the would-untrack / left-tracked split. All three call sites now state that empty output is a *failure*, not a pass. |
+| **The owner fallback over-propagates**, importing `30-weave-drift.sh` and `50-base-layer-tests.sh` into every derivative's CI | The fallback resolves only basenames the layer manifests declare with a `symlink scripts/merge-checks.d/…` row — the selection #213 established. The conformance test asserts the negative direction with a local-only owner check that must not leak. |
 | Ignoring `workshop/issues/` or `lessons.md` | The ownership rule puts `scaffold`/`touch` in the tracked class. Tested directly. |
 | A lean `--target` shrinks the wholesale-replaced block | `planActions` always derives from `TargetAll`. A hazard M2 *creates*; Task 3.2 closes it with a test. |
 | Derivatives keep their legacy blanket ignores forever (they never run the M2 binary) | `legacyBlanketEntries` absorbs the three superseded lines, tested in Task 2.1, and Task 4.3 Step 5 checks the list can then be deleted. |
@@ -2012,6 +2082,12 @@ Omit `--actual` — close measures and adopts the hours itself (#178).
 ---
 
 ## Revisions
+
+### 2026-09-19 — plan-quality gate round 2: 1 Critical, 1 Important
+
+**PQ-6 — the pre-sweep verification cannot fail.** Three steps told the operator to run `sdlc propagate-base --dry-run` and confirm it reports nothing dangerous. But `runPropagateBase` prints the dependent list and returns at `propagatebase.go:135` — it never weaves and never reaches `commitConsumption`, so it cannot name a path it would untrack. All three checks would have read empty output as a pass and proceeded into the one irreversible action in the issue with the Task 4.0a provenance filter never exercised end to end. **Delta:** Task 4.0a Step 4 extends `--dry-run` to run the classify pass and print the `would-untrack` / `left-tracked` split per repo, mutating nothing; all three call sites (4.0a, 4.0c, 4.2) now state explicitly that absence of output is a **failure**, not a pass. The class is *a check whose passing state is indistinguishable from its not running*, which is why the fix is one mechanism rather than three reworded steps.
+
+**PQ-7 — the owner fallback would over-propagate.** Task 4.0b resolved the fallback to `../ariadne/scripts/merge-checks.d` wholesale. That directory also holds `30-weave-drift.sh` and (after Task 3.3) `50-base-layer-tests.sh`, which `go build`s `./cmd/weave` against ariadne's sources — so every derivative's PR would have run ariadne's own conformance tests. It also discards the selection `base.manifest:132-138` establishes: the `scaffold` plus the **single** `symlink` row *is* how #213 chose what propagates. **Delta:** the fallback now resolves only basenames the layer manifests declare with a `symlink scripts/merge-checks.d/…` row, keeping the manifest as the single declaration channel (ARCH-DRY); the conformance test gains a local-only owner check that must **not** leak, because over-propagation satisfies the positive assertion exactly as well as a correct fallback does.
 
 ### 2026-09-19 — plan-quality gate round 1 (`sdlc change-code`): 2 Critical
 

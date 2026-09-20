@@ -104,6 +104,61 @@ rounds:
           note: Task 4.2 Step 1 says discard, with the freeze-ariadne's-Makefile reason stated.
           round: 3
       blocked: false
+    - "n": 4
+      timestamp: "2026-09-19T20:57:02-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Task 4.0a adds the check-ignore -v provenance filter; kbench's 1160 nested-gitignore files stay tracked.
+          round: 4
+        - id: PQ-2
+          disposition: addressed
+          note: Pre-weave consumers table enumerates the class; Task 4.0b adds the one missing owner fallback.
+          round: 4
+        - id: PQ-3
+          disposition: addressed
+          note: Issue Revisions restates Done-when 7 as the re-derived/provisioned split.
+          round: 4
+        - id: PQ-4
+          disposition: addressed
+          note: IgnoreEntries returns an error naming the type; planActions propagates it.
+          round: 4
+        - id: PQ-5
+          disposition: addressed
+          note: Task 4.2 Step 1 now says discard, with the two-owners reason stated.
+          round: 4
+      findings:
+        - id: PQ-6
+          severity: Critical
+          title: propagate-base --dry-run returns before any untrack logic, so all three pre-sweep safety checks prove nothing
+          detail: |-
+            runPropagateBase prints the dependent list and returns at propagatebase.go:135 —
+            it never weaves and never reaches commitConsumption, so it cannot name a path it
+            would untrack. Task 4.0a Step 4 ("must report 0 paths to untrack, not 1160"),
+            Task 4.0c Step 4, and Task 4.2 Step 1 all read that empty output as a pass and
+            proceed into the irreversible sweep with the provenance filter never exercised
+            end-to-end. The class is those three sites plus 4.0a Step 4's kbench git status,
+            and the single fix is to make Task 4.0a extend --dry-run to run the classify pass
+            and print, per repo, candidates split into would-untrack (inside the managed
+            block's line range) versus left-tracked (repo-owned provenance), mutating nothing.
+          family: verification-cannot-fail
+          round: 4
+        - id: PQ-7
+          severity: Important
+          title: Task 4.0b's checks-dir fallback collects the owner's whole merge-checks.d, importing ariadne-local checks into every derivative
+          detail: |-
+            base.manifest:133-137 states that scaffold scripts/merge-checks.d plus the single
+            symlink row for 40-duplicate-issue-id.sh IS the propagation selection (#213).
+            Resolving the fallback to ../ariadne/scripts/merge-checks.d discards it: ariadne's
+            dir also holds 30-weave-drift.sh and, after Task 3.3 Step 3 which deliberately
+            keeps it ariadne-local, 50-base-layer-tests.sh — so every derivative PR would run
+            ariadne's portable-makefile and gitignore-surface conformance tests, which go build
+            ./cmd/weave against ariadne's sources. State the rule in 4.0b: the fallback resolves
+            only checks the leaf's manifest walk produces a Symlink for; the rest stay the owner's.
+          family: owner-fallback-widens-propagation-set
+          round: 4
+      blocked: true
 content_hash: 74bed94b92d65dc31fad16a4e05b6eee2b86d8b2b016c358cc71f72822d407e2
 ---
 
@@ -172,6 +227,39 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-4 — addressed — IgnoreEntries returns an error naming the type; only the risks-table row still says "panics" — stale prose, fix in passing.
 - PQ-5 — addressed — Task 4.2 Step 1 says discard, with the freeze-ariadne's-Makefile reason stated.
 
+## Round 4 — 2026-09-19T20:57:02-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- PQ-1 — addressed — Task 4.0a adds the check-ignore -v provenance filter; kbench's 1160 nested-gitignore files stay tracked.
+- PQ-2 — addressed — Pre-weave consumers table enumerates the class; Task 4.0b adds the one missing owner fallback.
+- PQ-3 — addressed — Issue Revisions restates Done-when 7 as the re-derived/provisioned split.
+- PQ-4 — addressed — IgnoreEntries returns an error naming the type; planActions propagates it.
+- PQ-5 — addressed — Task 4.2 Step 1 now says discard, with the two-owners reason stated.
+
+### Raised
+
+- **PQ-6** [Critical] `verification-cannot-fail` propagate-base --dry-run returns before any untrack logic, so all three pre-sweep safety checks prove nothing
+  runPropagateBase prints the dependent list and returns at propagatebase.go:135 —
+  it never weaves and never reaches commitConsumption, so it cannot name a path it
+  would untrack. Task 4.0a Step 4 ("must report 0 paths to untrack, not 1160"),
+  Task 4.0c Step 4, and Task 4.2 Step 1 all read that empty output as a pass and
+  proceed into the irreversible sweep with the provenance filter never exercised
+  end-to-end. The class is those three sites plus 4.0a Step 4's kbench git status,
+  and the single fix is to make Task 4.0a extend --dry-run to run the classify pass
+  and print, per repo, candidates split into would-untrack (inside the managed
+  block's line range) versus left-tracked (repo-owned provenance), mutating nothing.
+- **PQ-7** [Important] `owner-fallback-widens-propagation-set` Task 4.0b's checks-dir fallback collects the owner's whole merge-checks.d, importing ariadne-local checks into every derivative
+  base.manifest:133-137 states that scaffold scripts/merge-checks.d plus the single
+  symlink row for 40-duplicate-issue-id.sh IS the propagation selection (#213).
+  Resolving the fallback to ../ariadne/scripts/merge-checks.d discards it: ariadne's
+  dir also holds 30-weave-drift.sh and, after Task 3.3 Step 3 which deliberately
+  keeps it ariadne-local, 50-base-layer-tests.sh — so every derivative PR would run
+  ariadne's portable-makefile and gitignore-surface conformance tests, which go build
+  ./cmd/weave against ariadne's sources. State the rule in 4.0b: the fallback resolves
+  only checks the leaf's manifest walk produces a Symlink for; the rest stay the owner's.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **PQ-6** [Critical] `verification-cannot-fail` propagate-base --dry-run returns before any untrack logic, so all three pre-sweep safety checks prove nothing
+- **PQ-7** [Important] `owner-fallback-widens-propagation-set` Task 4.0b's checks-dir fallback collects the owner's whole merge-checks.d, importing ariadne-local checks into every derivative
