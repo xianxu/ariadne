@@ -224,3 +224,13 @@ func TestEnsureEquivalentGitHubOriginWithoutNetwork(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestEnsureRejectsDifferentSourcePorts(t *testing.T) {
+	root := t.TempDir()
+	put(t, filepath.Join(root, "construct/base.manifest"), "# layer\n")
+	gitFixture(t, root, "init", "-q")
+	gitFixture(t, root, "remote", "add", "origin", "ssh://git@example.com:2222/team/base.git")
+	if err := Ensure(context.Background(), root, "ssh://git@example.com:3333/team/base.git", true); err == nil {
+		t.Fatal("reused checkout from different endpoint")
+	}
+}

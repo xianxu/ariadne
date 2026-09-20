@@ -186,3 +186,95 @@ dispose:
 7. **Plan revision recommendations**
    - Append a `## Revisions` entry enumerating all source-identity comparison sites and their owning directories.
    - Append the post-publication interruption case and require cleanup verification through normal restoration, alongside existing missing-destination recovery tests.
+
+---
+
+## Re-review — 2026-09-20T14:07:42-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | ca9ae7f6d71d48e02ae6c23895c05b0d47f35c17..71fa3ef7524d7f8c208fce8a66dfcc89c766e791 |
+| command | sdlc milestone-close --issue 239 --milestone M1 |
+| reviewer | codex |
+| timestamp | 2026-09-20T14:07:42-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-1 and BR-5 are addressed, with regression tests that fail when their fixes are removed. The existing suites pass. One additional correctness bug blocks M1: source normalization discards ports, allowing a checkout from a different Git endpoint to satisfy the declared source. Repository files remain unchanged.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Origins and recorded sources resolve at their owning directories. TestLinkRelativeOriginCanRestore passes; removing owner-aware recorded-source comparison in a temporary Go overlay makes it fail.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Cold and warm restoration reclaim dead-owned stages while preserving live, foreign and unrecognized stages. Both reclamation regressions fail when recovery is removed in a temporary overlay.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Origin distinguishes confirmed missing configuration from inspection failure; passing tests cover malformed configuration, missing Git and unchanged declarations on failure.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README documents link, dependencies, strict declaration syntax and incomplete dry-run behavior, matching the delivered command implementations.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Client.Git drives production acquisition and injected failure/publication tests; real local-Git fixtures exercise the same acquisition flow.
+findings:
+  - id: new
+    severity: Critical
+    family: source-resolution-provenance
+    title: |
+      Source identity discards ports and accepts a different repository endpoint
+    detail: |
+      cmd/weave/internal/acquire/source.go:45 uses URL.Hostname(), dropping the port before identity construction at lines 67–69. A supplemental regression through Ensure reused a checkout whose origin was ssh://git@example.com:2222/team/base.git for a declaration naming port 3333. This is the 2nd finding in family source-resolution-provenance. State and enforce the rule across supported source forms: preserve endpoint distinctions unless equivalence is explicitly established; enumerate URI authorities, SCP-style sources and local paths, then test both valid equivalences and required conflicts. ARCH-PURPOSE, ARCH-SECURE.
+```
+
+1. **Strengths**
+   - `ParseDeps` derives from `ParseRows`, keeping graph consumers on one declaration parser.
+   - Acquisition preserves dirty matching checkouts and tests failed clones, publication conflicts and offline reuse.
+   - Stage ownership metadata and warm-retry tests cover interrupted publication.
+   - README and atlas describe the delivered M1 surface separately from upcoming compile/bootstrap work.
+
+2. **Critical findings**
+   - [source.go:45](/Users/xianxu/workspace/ariadne/cmd/weave/internal/acquire/source.go:45): preserve meaningful authority differences in source identity. The false equality reaches checkout validation, declaration comparison and data-source deduplication. Add pure normalization cases and an acquisition regression rejecting different ports.
+
+3. **Important findings**
+   - None.
+
+4. **Minor findings**
+   - None.
+
+5. **Test coverage**
+   - Passed: `go test ./cmd/weave/... ./pkg/layergraph/... -count=1`.
+   - Temporary overlays confirmed BR-1 and BR-5 regressions fail without their fixes.
+   - Supplemental `TestReviewDifferentPortsMustConflict` failed against the pinned implementation, reproducing the new finding without network access.
+   - Range whitespace inspection reported an extra blank line at the issue file’s EOF.
+
+6. **Architecture**
+   - **ARCH-DRY — pass:** shared declaration parser and source-normalization consumer paths.
+   - **ARCH-PURE — pass:** parsing/normalization remain pure; acquisition and package execution are integration code.
+   - **ARCH-PURPOSE — flag:** destination-conflict protection accepts distinct endpoints as identical.
+   - **ARCH-MOCK — pass for M1:** injectable Git boundary, stateful package fixture and local-Git conformance; real Bundle conformance remains a release prerequisite.
+   - **ARCH-CONSTRAINTS — pass:** serial setup matches the declared operating model.
+   - **ARCH-SECURE — flag:** lossy identity becomes authority to reuse the wrong checkout.
+   - **ARCH-ORDER — pass:** synchronous failure propagation and retry tests cover the delivered acquisition sequence.
+   - **ARCH-FUNERAL — pass:** recognized abandoned stages have ownership-aware reclamation on cold and warm retries.
+
+7. **Plan revision recommendation**
+   - Append a `## Revisions` entry defining source equivalence across supported address forms, preserving endpoint distinctions and explicitly limiting transport equivalence to established cases. Include the normalization matrix and checkout-conflict regression in M1 acceptance.

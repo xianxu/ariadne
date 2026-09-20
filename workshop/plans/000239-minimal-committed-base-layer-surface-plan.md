@@ -312,6 +312,16 @@ Warm and cold mutating restoration both go through Ensure, including abandoned
 stage recovery; dry-run only probes and never reclaims. Regressions exercise
 existing relative-source declarations and interruption after publication.
 
+### 2026-09-20 — endpoint identity correction
+
+Reason: review found ports were discarded during source comparison. Delta:
+only standard GitHub HTTPS (default/443) and git-user SSH (default/22, including
+SCP syntax) share an identity. Other URI and SCP sources preserve their endpoint,
+scheme, path and query; local paths/file URLs resolve against their owner.
+Normalization and actual checkout-reuse tests require different ports/schemes/
+queries and nonstandard GitHub authorities to conflict. No broader equivalence
+is inferred from a matching repository basename.
+
 ## Historical revisions
 
 Everything below is historical. It is preserved verbatim and is not part of the

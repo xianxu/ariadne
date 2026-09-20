@@ -270,6 +270,14 @@ BR-1 remaining comparison now resolves recorded relative sources at their
 owning root. BR-5 warm Restore now shares Ensure's stage recovery, while dry-run
 preserves stages. Both reproduced failures have regression tests.
 
+### 2026-09-20 — M1 endpoint identity regression
+
+BR-1 through BR-5 cleared in review. New BR-6 reproduced lossy port comparison;
+normalization now aliases only standard GitHub SSH/HTTPS, retaining meaningful
+endpoint differences elsewhere. Tests cover ports, schemes, query distinctions,
+SCP versus URI paths, standard GitHub equivalence and actual wrong-port checkout
+rejection. Full weave/layergraph suites passed after the fix.
+
 ## Revisions`.
 
 Two corrections landed while widening:

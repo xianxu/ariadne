@@ -67,6 +67,40 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-20T14:07:42-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Origins and recorded sources resolve at their owning directories. TestLinkRelativeOriginCanRestore passes; removing owner-aware recorded-source comparison in a temporary Go overlay makes it fail.
+          round: 3
+        - id: BR-5
+          disposition: addressed
+          note: Cold and warm restoration reclaim dead-owned stages while preserving live, foreign and unrecognized stages. Both reclamation regressions fail when recovery is removed in a temporary overlay.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: Origin distinguishes confirmed missing configuration from inspection failure; passing tests cover malformed configuration, missing Git and unchanged declarations on failure.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: README documents link, dependencies, strict declaration syntax and incomplete dry-run behavior, matching the delivered command implementations.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: Client.Git drives production acquisition and injected failure/publication tests; real local-Git fixtures exercise the same acquisition flow.
+          round: 3
+      findings:
+        - id: BR-6
+          severity: Critical
+          title: Source identity discards ports and accepts a different repository endpoint
+          detail: 'cmd/weave/internal/acquire/source.go:45 uses URL.Hostname(), dropping the port before identity construction at lines 67–69. A supplemental regression through Ensure reused a checkout whose origin was ssh://git@example.com:2222/team/base.git for a declaration naming port 3333. This is the 2nd finding in family source-resolution-provenance. State and enforce the rule across supported source forms: preserve endpoint distinctions unless equivalence is explicitly established; enumerate URI authorities, SCP-style sources and local paths, then test both valid equivalences and required conflicts. ARCH-PURPOSE, ARCH-SECURE.'
+          family: source-resolution-provenance
+          round: 3
+      boundary: M1
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -99,7 +133,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-4 — addressed — Client.Git provides the shared acquisition/probe boundary. Fixtures inject clone failure and destination creation before publication, while local-Git tests retain conformance coverage. Disabling the publication conflict rejection via a scratch overlay makes TestEnsurePublicationConflictAfterClone fail.
 - BR-5 — not-addressed — Ensure reclaims dead-owned stages, but Restore bypasses Ensure for existing destinations at acquire.go:237–238. After publication followed by process death before deferred cleanup, ordinary dependencies retries never reclaim the stage. A scratch CLI fixture with a matching checkout and dead-owned stage exits successfully while retaining that stage.
 
+## Round 3 — 2026-09-20T14:07:42-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Origins and recorded sources resolve at their owning directories. TestLinkRelativeOriginCanRestore passes; removing owner-aware recorded-source comparison in a temporary Go overlay makes it fail.
+- BR-5 — addressed — Cold and warm restoration reclaim dead-owned stages while preserving live, foreign and unrecognized stages. Both reclamation regressions fail when recovery is removed in a temporary overlay.
+- BR-2 — addressed — Origin distinguishes confirmed missing configuration from inspection failure; passing tests cover malformed configuration, missing Git and unchanged declarations on failure.
+- BR-3 — addressed — README documents link, dependencies, strict declaration syntax and incomplete dry-run behavior, matching the delivered command implementations.
+- BR-4 — addressed — Client.Git drives production acquisition and injected failure/publication tests; real local-Git fixtures exercise the same acquisition flow.
+
+### Raised
+
+- **BR-6** [Critical] `source-resolution-provenance` Source identity discards ports and accepts a different repository endpoint
+  cmd/weave/internal/acquire/source.go:45 uses URL.Hostname(), dropping the port before identity construction at lines 67–69. A supplemental regression through Ensure reused a checkout whose origin was ssh://git@example.com:2222/team/base.git for a declaration naming port 3333. This is the 2nd finding in family source-resolution-provenance. State and enforce the rule across supported source forms: preserve endpoint distinctions unless equivalence is explicitly established; enumerate URI authorities, SCP-style sources and local paths, then test both valid equivalences and required conflicts. ARCH-PURPOSE, ARCH-SECURE.
+
 ## Open findings
 
-- **BR-1** [Critical] `source-resolution-provenance` Local links resolve relative origins against the wrong directory
-- **BR-5** [Important] `durable-staging-reclamation` Process death leaves clone staging directories without cleanup
+- **BR-6** [Critical] `source-resolution-provenance` Source identity discards ports and accepts a different repository endpoint

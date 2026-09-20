@@ -1589,3 +1589,7 @@ For source provenance, enumerate both newly inspected origins and already
 recorded declarations. For recovery, exercise the public retry operation in both
 missing-destination and already-published states; a cleanup helper passing alone
 does not prove its caller reaches it.
+
+Source identity is an explicit equivalence rule, not a prettified URL. Preserve
+scheme, authority/port, path and query unless the host's semantics establish an
+alias; test required conflicts as well as accepted equivalent forms.
