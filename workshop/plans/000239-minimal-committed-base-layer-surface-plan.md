@@ -2157,7 +2157,9 @@ plan-quality verdict carries over. No implementation has started.
 **Status:** investigation complete enough for a first implementation draft;
 proposal awaiting operator design review. Concrete choices below are proposals
 unless identified as already agreed. No release, peer migration, or machine
-package installation has been performed during investigation.
+package installation has been performed during investigation. #239 delivers and
+tests startup plus release/migration tooling; dependent #241 publishes the release
+and cuts consumers over after #239 merges, avoiding a close/ship dependency cycle.
 
 **Goal:** start developing either a new ariadne-style repo or a freshly cloned
 derivative with one shared setup operation, provided by a distributed weave.
@@ -2317,11 +2319,16 @@ weave is not an instruction to install fonts, log into accounts or start service
 Always provide `weave exec <name> [args...]`: resolve the current repo's declared
 command, preserve caller cwd, and run with the selected command/tool directories
 on PATH. It does not compile implicitly; absent outputs name `weave compile`.
-This is usable immediately after bootstrap without modifying a parent shell.
+This is usable immediately after bootstrap without modifying a parent shell,
+using the absolute installed gateway path when `weave` is not on the parent PATH.
 
-Provide `weave env` to print shell-escaped PATH exports from the same declaration
-set for users who want bare commands (`eval "$(weave env)"`). Bootstrap/compile
-print this once when needed. CI invokes checks through the same prepared process
+Provide `weave env` to print shell-escaped PATH exports, including the stable
+gateway install directory as well as the selected command/tool directories, for users who want bare commands (`eval "$(weave env)"`). Bootstrap installs to `${WEAVE_INSTALL_DIR:-$HOME/.local/bin}/weave` when no
+compatible gateway is present. It prints the shell-quoted absolute gateway path
+and an activation command using that path when the install directory is absent
+from the parent PATH; never print an unusable bare `weave` instruction. An already
+installed Homebrew gateway keeps its stable prefix path, not a versioned Cellar
+path. Bootstrap/compile print activation once when needed. CI invokes checks through the same prepared process
 environment rather than depending on a shell rc file. No global same-name binary
 symlinks or silent shell-profile edits. This replaces startup's sdlc-install
 behavior; existing optional development aliases are not the resolver for setup.
@@ -2363,6 +2370,7 @@ old branch are not carried into the restart.
 | Requirements document and selected package/binary plan | `cmd/weave/internal/requirements/model.go`, `compose.go` | new |
 | Setup phase/outcome transition | `cmd/weave/internal/startup/sequence.go` | new |
 | Generated output/ignore ownership | `cmd/weave/internal/plan/gitignore.go` | modified |
+| Output ownership checkpoint (confirmed + pending identities) | `cmd/weave/internal/plan/ownership.go` | new |
 | Declared command environment | `cmd/weave/internal/requirements/environment.go` | new |
 
 Dependency rows feed acquisition and the existing graph projection. Requirements
@@ -2424,12 +2432,20 @@ Clone/install failures are failures, never equivalent to an absent optional laye
 deleted/pulled by compile. Package removals are not automatic uninstalls. Temporary
 clone/download/build staging is removed on completion/cancel and recognizable
 abandoned staging is reclaimed on the next operation for that destination.
-Generated artifacts/links have an ownership record (path, kind, source/content
-identity) under `construct/generated/weave/`; after a successful run it replaces
-the previous record. Retirement removes only previously recorded outputs whose
-identity still matches, never authored replacements. Include that directory in
-the existing generated-prune keep set. Stale managed ignores are removed along
-with the corresponding generated ownership; all unrelated ignore rules remain.
+Generated artifacts/links have an atomic ownership checkpoint (path, kind,
+source/content identity) under `construct/generated/weave/`. Before materializing,
+write the pending intended identities alongside the last confirmed set; confirm
+materialization immediately after that phase, before later command builds. On
+retry, observe pending paths: adopt matching produced identities, retain previous
+confirmed identities where still present, and preserve/report other content rather
+than claiming it. Thus death during materialization or a later build failure does
+not lose ownership; retirement before a retry still finds the generated outputs.
+Do not infer an empty checkpoint from unreadable/corrupt state. Retirement removes
+only recorded outputs whose identity still matches, never authored replacements.
+Include that directory in the existing generated-prune keep set. Stale managed
+ignores are removed along with the corresponding generated ownership; all
+unrelated ignore rules remain. Test partial materialization, then changed/removed
+declarations, then retry, as well as full materialization followed by build failure.
 
 **ARCH-CONSTRAINTS:** no nested bootstrap invocation, no implicit repo update,
 no unbounded fan-out. Tests exercise depth-three/diamond graphs, cancellation
@@ -2488,9 +2504,10 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
 - [ ] Create a real temporary base → middle → leaf graph with distinct package
   requirements, a generator, a normal exposed binary, local content to preserve,
   and a data source mounted twice. Use local bare origins and an isolated HOME.
-- [ ] Add failing cold-start assertions: no base/helper links/Go/CUE/weave on
-  fixture PATH; installed gateway plus link/compile reaches ready. The current
-  CLI must fail because remote link/dependencies/preparation are absent.
+- [ ] Add failing R1 cold-start assertions for remote link and independently
+  callable dependencies: absent checkouts are restored and distinct package
+  requirements become satisfied with no generated helpers/Makefile. Full
+  compile-to-ready assertions belong to R2, not this boundary's acceptance.
 - [ ] Execute a native macOS and Ubuntu installer probe against throwaway user
   directories: validate Go/CUE/uv recipes, environment activation, and generator
   build order. Record commands and timings in the issue Log. Turn each surfaced
@@ -2532,6 +2549,9 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
 `cmd/weave/internal/weavefs/runner{,_test}.go`, `cmd/weave/{main,compile,exec}.go`,
 `construct/requirements.json`, `construct/install/{go,cue,uv}.sh`.
 
+- [ ] Add the full cold-start regression: with no base/helper links/Go/CUE on
+  fixture PATH, the staged gateway plus link/compile reaches ready. Reuse R1's
+  graph/acquisition/package fixture and assert generated artifacts and commands.
 - [ ] Drive production phase transitions with the scratch backend: no generation
   before generator build, no command build after materialization failure, no
   later phase after cancel, retry probes installed state, lock release on death.
@@ -2550,13 +2570,15 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
 ### R2.2 — artifacts, thin bootstrap, CI and legacy removal
 
 **Files:** `bootstrap.sh`, `construct/base.manifest`, `Makefile.workflow`,
-`cmd/weave/internal/plan/{gitignore,prune,apply}{,_test}.go`,
+`cmd/weave/internal/plan/{gitignore,prune,apply,ownership}{,_test}.go`,
 `.github/workflows/merge-check.yml`, `scripts/test/portable-ci.test.sh`,
 `construct/scripts/test/{portable-makefile,bootstrap-transitive,clone-data-deps}.test.sh`.
 
 - [ ] Add regressions for existing authored Makefile/settings/ignore negations;
   retired managed outputs versus authored replacements; multiple data mounts;
-  generated helpers absent from the committed fixture; setup failure aborting CI.
+  generated helpers absent from the committed fixture; setup failure aborting CI;
+  partial materialization and later build failure both followed by declaration
+  retirement before retry (ownership recovery must remove only matching outputs).
 - [ ] Remove the root Makefile seed. Derive ignores and the managed-output record
   from the actual plan (including data mounts), preserve ownership on retirement,
   and integrate record retention with generated-directory pruning.
@@ -2574,7 +2596,7 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
   `atlas/workflow/{weave,base-layer,setup-and-replication}.md` and the target's
   new setup/ownership rules. Commit and SDLC-close this boundary with evidence.
 
-## Chunk R3: distribution and consumer cutover
+## Chunk R3: release and cutover tooling; delivery tracked by #241
 
 ### R3.1 — publishable standalone artifacts
 
@@ -2583,7 +2605,8 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
 
 - [ ] Add version/platform/archive/checksum/installer tests: compatible binary
   reuse, failed download, corrupt checksum, unsupported platform, binary-path
-  spaces, external cwd, and preservation of the previous executable on failure.
+  spaces, external cwd, parent PATH missing the gateway install directory, and
+  preservation of the previous executable on failure.
 - [ ] Build/package all four targets; run native macOS and Linux fixture tests
   from the archive with ariadne/Go/CUE absent before setup. Formula test performs
   a tiny composition fixture as well as version reporting.
@@ -2591,10 +2614,12 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
   isolated test installation, and prepare the conventional tap checkout. Keep
   publication credentials out of generated files; no broad new token is needed
   for local packaging and review.
-- [ ] Publish the tested release assets to ariadne and the corresponding formula
-  to `xianxu/homebrew-ariadne` after the implementation/ship gates. Verify the
-  public `brew tap xianxu/ariadne` and `brew install xianxu/ariadne/weave` path
-  from a clean machine; local archive tests alone do not satisfy publication.
+- [ ] Checkpoint the tested release candidate, packaging commands, generated
+  formula and installation evidence for dependent #241. #239 closes on implemented
+  behavior and local/native conformance evidence, then `sdlc pr` / `sdlc merge`
+  puts the reviewed implementation on main. #241 then tags that merged commit,
+  publishes the release and tap, and verifies the public install path. No release
+  or consumer rollout is claimed complete merely because #239's code is merged.
 
 ### R3.2 — migrate inputs and remove committed generated wiring
 
@@ -2615,13 +2640,17 @@ peer issue records created when their mutations start.
   proven generated-owned paths. Add regression: a tracked file ignored by an
   unrelated nested rule stays tracked. Add a per-repo pilot selector if needed;
   don't run the current broad untracking path first and repair afterward.
-- [ ] Publish the pilot consumer changes via their workflows, prove fresh clone
-  and real CI, then migrate remaining applicable coding consumers. Brain/data
-  repos retain their own capture/commit rhythm; never use SDLC spine writes there.
-- [ ] Record measured cold/warm setup results, produced command availability,
-  generated surface and preserved local files. Remove transitional aliases only
-  after caller searches show no remaining startup use. Run required suites,
-  update atlas, then close #239 through SDLC with the release and migration evidence.
+- [ ] Prepare concrete pilot migration patches and demonstrate fresh-clone/CI
+  behavior with the candidate binary in scratch checkouts. #241 applies/publishes
+  pilots against the released binary, proves real CI, then rolls out remaining
+  applicable consumers. Brain/data repos retain their capture/commit rhythm;
+  never use SDLC spine writes there.
+- [ ] Record measured cold/warm fixture results, produced command availability,
+  generated surface and preserved local files. Startup aliases may remain thin
+  delegates through consumer cutover; remove only when actual callers are gone.
+  Run required suites and update atlas, then close/PR/merge #239 with tested code,
+  packaging and migration-tool evidence. #241 owns the public release and actual
+  consumer migration evidence, and cannot close until those outcomes are proven.
 
 ### Review scope and remaining design decisions
 
@@ -2637,3 +2666,30 @@ this proposed declaration schema and release/tap layout. Record decisions as a
 revision rather than silently presenting a proposal as accepted. Before publishing
 license metadata, obtain the operator's license choice. No code or publication
 work is authorized by the existence of this draft alone.
+
+
+### 2026-09-20 — fresh-context draft review, round 1
+
+**Reason:** the reviewer found four real sequencing/recovery gaps in the draft.
+**Delta:** gateway activation now includes the installed weave path and prints
+absolute-path instructions when needed; output ownership is checkpointed before
+materialization and confirmed before command builds, with interrupted-run
+recovery tests; R1 acceptance covers acquisition/dependencies while R2 owns full
+ready-state assertions; #241 owns publication/cutover after #239's reviewed code
+is merged, eliminating the release-before-close cycle. These are draft-plan
+corrections, not implemented behavior. Existing old-plan text is unchanged.
+
+
+### 2026-09-20 — review disposition and startup probe
+
+Fresh-context reviewer: **approved for operator review** after the round-1
+corrections; no new serious issues. #241's contract was populated immediately
+alongside that review. Native installer recipes and command activation remain
+explicit design decisions, not proven implementation.
+
+Additional observed evidence: a current standalone weave binary, built into a
+temporary directory, successfully linked and compiled a prose-only fixture with
+Go/CUE absent from PATH. Compiling the actual ariadne layer under the same
+isolated environment failed at the datatype generator (missing command, exit
+127). Keep that real startup case in R2's regression matrix; a version/help-only
+release test would miss it. Details are in the issue Log.
