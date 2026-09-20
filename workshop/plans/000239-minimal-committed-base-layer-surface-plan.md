@@ -2383,14 +2383,14 @@ old branch are not carried into the restart.
 | Dependency row: kind, local path/source, optional mount | `pkg/layergraph/deps.go` | modified |
 | Normalized clone identity and destination decision | `cmd/weave/internal/acquire/source.go` | new |
 | Requirements document and selected package/binary plan | `cmd/weave/internal/requirements/model.go`, `compose.go` | new |
-| Setup phase/outcome transition | `cmd/weave/internal/startup/sequence.go` | new |
 | Generated output/ignore ownership | `cmd/weave/internal/plan/gitignore.go` | modified |
-| Output ownership checkpoint (confirmed + pending identities) | `cmd/weave/internal/plan/ownership.go` | new |
+| Generated-output inventory and identity matching | `cmd/weave/internal/plan/ownership.go` | new |
 | Setup subprocess environment / bin-directory report | `cmd/weave/internal/requirements/environment.go` | new |
 
 Dependency rows feed acquisition and the existing graph projection. Requirements
 are many-to-one with a layer, selected once and reused by install/build/generator execution and the bin-directory report.
-The startup sequence owns ordering, not another layer-resolution algorithm.
+The startup function calls each step sequentially and returns immediately on
+failure; no separate phase state machine or second graph algorithm is needed.
 New pure entities receive colocated unit tests without subprocess mocks.
 
 | Integration | Lives in | Status | Wraps |
@@ -2418,22 +2418,20 @@ and must say so in its recipe errors. Do not promise nous Linux support from its
 macOS bootstrap. Package checks reuse satisfied installations; builds use the
 owner's incremental tooling. Run steps serially initially, with streamed progress.
 
-**ARCH-ORDER:** `resolve → dependencies → generators → materialize → commands →
-ready`. A pure phase enum/transition accepts success only from the active phase;
-failure/cancellation ends the run with no later phases. No detached work. A new
-invocation re-observes the filesystem/package checks instead of resuming from a
-possibly stale success flag. Installation may have succeeded before interruption;
-probe it on retry, never attempt to uninstall/roll back user tools.
+**ARCH-ORDER:** ordinary synchronous calls enforce `resolve → dependencies →
+generators → materialize → commands → ready`; return immediately on any error.
+Pass cancellation to child processes and wait for them; no detached work or
+persisted phase cursor. A retry rechecks actual packages/files. Installations
+that succeeded before interruption are reused, never rolled back by uninstall.
+Tests exercise failure/cancellation at the boundaries and prove later steps did
+not run. No separate phase/event subsystem is required for this serial path.
 
-Use a per-user advisory setup lock for mutating CLI operations, with the existing
-lock holder reported and cancellation supported. Serializing shared dependency
-installs/builds avoids concurrent setup of different repos racing in one owner.
-The OS releases advisory locks when the process dies; avoid copying SDLC's
-workflow-specific lock/recovery machinery. Real Git clone runs into an owned
-staging directory and publishes by rename after source/manifest validation. Never
-remove a pre-existing destination. Cancelled clone staging is cleaned up; a retry
-rechecks the destination. Recipe failure preserves prior working binaries where
-possible by owner recipe staging and atomic replacement.
+Do not add a global setup lock: concurrent setup against the same shared owners
+is outside this task's supported execution model. Keep destination-conflict
+checks. Git clones into a temporary sibling and publishes only after validating
+source/manifest; never remove a pre-existing destination. Failed clone staging
+is cleaned up and retry checks the destination again. Recipe failure preserves
+prior working binaries through the owner's normal staging/atomic replacement.
 
 **ARCH-SECURE:** local/remote declarations parse into typed values with source
 locations; malformed/newer-schema data errors before install. No shell string
@@ -2447,20 +2445,17 @@ Clone/install failures are failures, never equivalent to an absent optional laye
 deleted/pulled by compile. Package removals are not automatic uninstalls. Temporary
 clone/download/build staging is removed on completion/cancel and recognizable
 abandoned staging is reclaimed on the next operation for that destination.
-Generated artifacts/links have an atomic ownership checkpoint (path, kind,
-source/content identity) under `construct/generated/weave/`. Before materializing,
-write the pending intended identities alongside the last confirmed set; confirm
-materialization immediately after that phase, before later command builds. On
-retry, observe pending paths: adopt matching produced identities, retain previous
-confirmed identities where still present, and preserve/report other content rather
-than claiming it. Thus death during materialization or a later build failure does
-not lose ownership; retirement before a retry still finds the generated outputs.
-Do not infer an empty checkpoint from unreadable/corrupt state. Retirement removes
-only recorded outputs whose identity still matches, never authored replacements.
-Include that directory in the existing generated-prune keep set. Stale managed
-ignores are removed along with the corresponding generated ownership; all
-unrelated ignore rules remain. Test partial materialization, then changed/removed
-declarations, then retry, as well as full materialization followed by build failure.
+Generated artifacts/links have one small inventory (path, kind, source/content
+identity) under `construct/generated/weave/`. Before Apply, atomically save the
+union of previously matching generated identities and the intended new ones.
+After Apply, compact it against actual files. This is a list of possible cleanup
+candidates, not a transaction journal or record of completed phases. On every
+retry/retirement, inspect the file: only an identity match proves ownership;
+changed authored content is preserved. This covers a partial Apply and a later
+build failure even if declarations change before retry. Corrupt/unreadable
+inventory fails without treating it as empty. Keep this directory in generated
+pruning's keep set; reuse existing symlink/generated-dir cleanup for the rest.
+Managed ignores follow the current generated set, preserving unrelated rules.
 
 **ARCH-CONSTRAINTS:** no nested bootstrap invocation, no implicit repo update,
 no unbounded fan-out. Tests exercise depth-three/diamond graphs, cancellation
@@ -2557,7 +2552,7 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
 
 ### R2.1 — orchestrate declared setup and subprocess environments
 
-**Files:** `cmd/weave/internal/startup/{sequence,run}{,_test}.go`,
+**Files:** `cmd/weave/internal/startup/run{,_test}.go`,
 `cmd/weave/internal/requirements/environment{,_test}.go`,
 `cmd/weave/internal/weavefs/runner{,_test}.go`, `cmd/weave/{main,compile}.go`,
 `construct/requirements.json`, `construct/install/{go,cue,uv}.sh`.
@@ -2565,9 +2560,9 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
 - [ ] Add the full cold-start regression: with no base/helper links/Go/CUE on
   fixture PATH, the staged gateway plus link/compile reaches ready. Reuse R1's
   graph/acquisition/package fixture and assert generated artifacts and commands.
-- [ ] Drive production phase transitions with the scratch backend: no generation
-  before generator build, no command build after materialization failure, no
-  later phase after cancel, retry probes installed state, lock release on death.
+- [ ] Exercise the production serial runner with the scratch backend: no
+  generation before generator build, no command build after materialization
+  failure, no later step after cancellation, retry rechecks installed state.
 - [ ] Extract the existing compile/generate/apply body behind the startup runner;
   add cwd/env/exit/context support to the existing subprocess seam. Do not route
   through Make or invoke another repo's bootstrap.
@@ -2755,3 +2750,25 @@ the concrete need and obtaining operator approval. Supporting implementation
 should be the smallest needed for the agreed behavior, not a new extensibility
 project. The rest of this implementation draft remains a proposal for review;
 its presence does not expand the user-approved feature scope.
+
+
+### 2026-09-20 — simplify internal startup machinery
+
+**Reason:** operator requested the smallest implementation of the agreed flow;
+a fresh-context simplification audit identified unnecessary control machinery.
+
+**Delta:** remove the proposed phase state machine and per-user setup lock.
+Startup is a serial function with immediate error returns and child cancellation.
+Replace pending/confirmed ownership states with one conservative inventory of
+possible generated identities, verified against the filesystem whenever cleaned.
+Keep the inventory because current pruning cannot find outputs after their last
+manifest declaration/base disappears. No transaction journal, parallel setup
+support, new CLI feature or extra workflow mechanism is introduced. Historical
+review notes above describe the superseded draft, not the current design.
+
+Dependency-install simplification under operator review: per-layer Brewfiles
+and Homebrew can replace the custom package-check/install schema. The read-only
+probe `brew bundle check --no-upgrade --file <scratch Brewfile>` ran successfully
+as a check and returned exit 1 for unmet dependencies; no package was installed
+or upgraded. Nous already owns a Brewfile. The package-install choice is pending
+and no implementation depends on an assumed answer.
