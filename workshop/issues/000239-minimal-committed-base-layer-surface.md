@@ -5,13 +5,19 @@ deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-09-19
-updated: 2026-09-19
+updated: 2026-09-20
 estimate_hours: 5.28
 started: 2026-09-19T18:21:15-07:00
 flow: {kind: full, provenance: inferred}
 ---
 
 # Minimal committed base-layer surface
+
+> **Restart contract (2026-09-20):** The latest entry in [Revisions](#revisions),
+> “Standalone weave and minimal derivative setup”, supersedes the earlier Spec,
+> Done when, Plan, and Estimate below. They remain as historical context, not
+> implementation instructions. The old branch and durable plan are not approved
+> for continuation; implementation requires a revised plan reviewed with the operator.
 
 ## Problem
 
@@ -532,6 +538,24 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 `## Revisions`.
 
 
+
+### 2026-09-20 — restart claimed on a fresh in-place branch
+
+Operator authorized restarting work on #239 in a new in-place branch, with no
+use of `000239-minimal-committed-base-layer-surface`. Ran `sdlc claim --issue
+239` (already working; no status flip) and `sdlc start-plan --issue 239`.
+Created `000239-standalone-weave-restart` from current main, carrying the
+contract-capture commit `ca9ae7f`; the old branch is untouched. This early
+planning branch is the operator's explicit choice; `sdlc change-code` still
+owns entry into implementation after the revised plan is reviewed.
+
+Planning starts from the 2026-09-20 contract below. Inspect current graph and
+build/dependency declarations, propose the smallest shared setup model, then
+write the revised durable plan for operator review. The old estimate is not an
+estimate for this restart and must be replaced after plan-quality acceptance.
+No code changes or fleet migration have started.
+
+
 ## Revisions
 ### 2026-09-19 — Done-when 7 restated; two Criticals from the plan-quality gate
 
@@ -587,3 +611,124 @@ the churn and the hand-maintained ignore list in place.
   added Piece B (manifest-derived ignore list), Piece C (weave-managed
   `.gitignore` block), Piece D (fleet untrack).
 - Done when: 6 criteria → 10.
+
+
+### 2026-09-20 — Standalone weave and minimal derivative setup
+
+**Reason:** operator restarted #239 after reviewing
+[restart findings](../parley/000239-restart-findings.md). The old approach treated
+historical wiring as requirements and accumulated workarounds. The agreed
+contract starts from minimal work for a derivative, with standalone weave as
+the gateway into ariadne-style repos.
+
+**Delta:** this revision replaces the earlier Spec and Done when as the current
+contract. The earlier Plan, its linked durable plan, and estimate describe the
+abandoned approach and must be revised before implementation. Work on
+`000239-minimal-committed-base-layer-surface` is reference material only; no
+previous milestone completion demonstrates this new contract is fulfilled.
+This update records the agreed behavior, not a new implementation plan.
+
+#### Current spec
+
+**Principle:** a derivative declares its direct dependencies and its own
+contributions. Weave derives the inherited setup transitively. Each layer owns
+its declarations; consumers do not repeat them (ARCH-DRY, ARCH-PURPOSE).
+
+**Standalone gateway.** Distribute weave as an independently installable command
+(e.g. `brew install weave`; the exact package/tap is to be designed). Running the
+gateway must not require an ariadne checkout, inherited Makefile, Go toolchain,
+or CUE already installed. Layer-specific prerequisites come afterward.
+
+**Two entry paths, one setup operation:**
+
+- Existing derivative: clone the repo, then run `./bootstrap.sh`. The script
+  ensures weave is available and delegates to `weave compile`, using dependency
+  declarations already committed in the repo. It does not duplicate graph
+  resolution, package installation, or artifact composition logic.
+- New derivative: install weave, then run the following from the new repo:
+  ```sh
+  weave link github.com/xianxu/ariadne
+  weave compile
+  ```
+  Any ariadne-style base layer can replace ariadne in that example. No additional
+  `make weave` step or inherited Makefile is required.
+
+**`weave link` keeps its existing name.** It accepts a local path, such as
+`../ariadne`, or a repository address, such as `github.com/xianxu/ariadne`.
+For an address it clones a missing checkout into the peer directory, reuses a
+matching checkout, and reports a conflict if that directory belongs to another
+repository. It records the dependency in `construct/deps`, including enough
+source information to restore the checkout on another machine without guessing
+URLs from repo names. Existing local-path linking remains supported. The exact
+record format and source handling for local-only repos belong in the revised
+plan. Repeating a link must not duplicate the declaration.
+
+**Per-layer dependencies.** Every base layer (ariadne, nous, etc.) declares its
+own external requirements and the binaries it exposes to consumers, including
+how those binaries are built. Requirements may differ across layers. Weave
+collects them transitively; derivatives do not copy ancestor requirements into
+their own Makefiles. The declaration format, version-conflict policy, and
+supported installers are implementation-design decisions still to settle.
+
+**`weave dependencies` is an explicit, independently runnable installation
+operation.** `weave compile` may invoke it as part of preparation; installation
+is not an unrelated implementation hidden in a Make target. Already-satisfied
+requirements should not be reinstalled unnecessarily.
+
+**`weave compile` subsumes the necessary work of `make weave`:**
+
+1. Resolve the layer graph, restoring missing dependency checkouts from their
+   recorded sources.
+2. Collect layer requirements and invoke the dependency installation operation.
+3. Prepare generator binaries needed for artifact compilation.
+4. Generate the composed artifacts, reconcile symlinks, merge settings, maintain
+   managed ignores, and remove obsolete managed outputs.
+5. Build the binaries each layer exposes to consumers. Generator prerequisites
+   necessarily build before generation; other exposed binaries can build after.
+
+Build outputs can remain in their owning checkout. The revised design must
+provide a consistent way to make exposed commands available on PATH. The
+standalone weave executable comes from distribution; consumer setup does not
+require rebuilding weave itself. `make weave`, if retained, is a convenience
+alias for `weave compile` with no unique preparation behavior.
+
+**Minimal committed surface.** Preserve the original purpose of #239: inherited,
+reproducible outputs are ignored and regenerated; a derivative commits its own
+source/declarations and the small entrypoints needed to start setup and CI.
+Repo-owned Makefiles and other local contributions survive compilation. Creating
+an empty scaffold or initially provisioning a repo-owned file does not make its
+future contents disposable. Ignore ownership derives from the composition,
+without hiding or untracking unrelated repo-owned content. CI must perform the
+shared setup before consuming generated helpers; today's clone-only behavior
+is not a constraint to preserve. The exact bootstrap/CI files and migration
+mechanics will follow from the revised design, not the old tracked-path list.
+
+#### Current done when
+
+- A distributed weave command runs before any layer checkout or layer toolchain
+  exists; installation and supported platforms are documented and exercised.
+- A new repo can adopt a remote base with `weave link <address>` followed by
+  `weave compile`, with no separate `make weave` or manual ancestor setup.
+- A fresh clone of an existing derivative reaches the same usable development
+  setup through `./bootstrap.sh` alone.
+- A transitive fixture with different requirements and exposed binaries in two
+  base layers proves each declaration is inherited without consumer duplication.
+- Local and remote linking are repeatable; missing checkouts are restored and
+  conflicting peer directories are reported without overwriting them.
+- `weave dependencies` works independently and through compile preparation;
+  generator prerequisites are ready before generation, and exposed binaries
+  are built and usable through the documented command-discovery mechanism.
+- Compile generates and reconciles artifacts and links; repeated runs preserve
+  repo-owned files and avoid unnecessary reinstallations or artifact churn.
+- Generated inherited outputs need not be committed. A clean derivative clone
+  and its CI both regenerate the required surface before using it. Any migration
+  leaves unrelated tracked files and repo-owned ignore rules intact.
+- `make weave`, if retained, adds no behavior beyond delegating to compile.
+
+#### Restart boundary
+
+Do not continue the old milestones or assume their proposed helpers must survive.
+Reuse code only where the revised design calls for it. The propagation untracking
+bug identified in the restart findings must not be exercised by a fleet sweep;
+its disposition belongs in the migration design. No fleet mutation, code change,
+or implementation-plan approval is part of this contract-capture update.
