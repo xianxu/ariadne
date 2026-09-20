@@ -159,7 +159,20 @@ rounds:
           family: owner-fallback-widens-propagation-set
           round: 4
       blocked: true
-content_hash: 74bed94b92d65dc31fad16a4e05b6eee2b86d8b2b016c358cc71f72822d407e2
+    - "n": 5
+      timestamp: "2026-09-20T13:46:12-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-6
+          disposition: withdrawn
+          note: 'Overtaken by the restart: the active plan removes the dry-run-gated fleet sweep, requires scoped migration regressions and disposable pilots, and assigns actual rollout to #241.'
+          round: 5
+        - id: PQ-7
+          disposition: withdrawn
+          note: 'Overtaken by compile-before-consumption CI: the active plan does not introduce an owner-directory fallback, so manifest selection continues to govern inherited checks.'
+          round: 5
+      blocked: false
+content_hash: e4a3ba5c0f520a409aca05d21dc6812c3a2605b5e27ad6eb5df221c2f5258224
 ---
 
 # Gate ledger — ariadne#239 (plan-quality)
@@ -259,7 +272,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   ./cmd/weave against ariadne's sources. State the rule in 4.0b: the fallback resolves
   only checks the leaf's manifest walk produces a Symlink for; the rest stay the owner's.
 
+## Round 5 — 2026-09-20T13:46:12-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-6 — withdrawn — Overtaken by the restart: the active plan removes the dry-run-gated fleet sweep, requires scoped migration regressions and disposable pilots, and assigns actual rollout to #241.
+- PQ-7 — withdrawn — Overtaken by compile-before-consumption CI: the active plan does not introduce an owner-directory fallback, so manifest selection continues to govern inherited checks.
+
 ## Open findings
 
-- **PQ-6** [Critical] `verification-cannot-fail` propagate-base --dry-run returns before any untrack logic, so all three pre-sweep safety checks prove nothing
-- **PQ-7** [Important] `owner-fallback-widens-propagation-set` Task 4.0b's checks-dir fallback collects the owner's whole merge-checks.d, importing ariadne-local checks into every derivative
+(none — every finding has been disposed)
