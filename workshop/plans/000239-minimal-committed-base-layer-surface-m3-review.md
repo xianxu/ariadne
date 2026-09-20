@@ -90,3 +90,93 @@ findings:
     detail: |
       cmd/sdlc/propagatebase.go:285 adds sequential index removals through direct exec calls, but propagation tests inject only weave failures and do not exercise partial Git index progress. This is the 3rd finding in family external-interaction-test-seam. State the shared-boundary rule and enumerate migration's status, ls-files, rm, add, and commit interactions; exercise them through a stateful Git fake with failures after earlier effects succeed, retaining real-Git conformance tests. Specify and test recovery or explicit operator remediation without losing partial-progress evidence. ARCH-MOCK and ARCH-ORDER.
 ```
+
+---
+
+## Re-review — 2026-09-20T15:42:34-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | milestone M3 |
+| milestone | M3 |
+| window | 0af48033a0a25a4d2b60d4f77c86c63905f60843..4dee350994fa380b57ffb440dea4a464659b0802 |
+| command | sdlc milestone-close --issue 239 --milestone M3 |
+| reviewer | codex |
+| timestamp | 2026-09-20T15:42:34-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both prior findings are addressed. Release preparation shares the existing staging ownership and producer-lifetime machinery; migration now has stateful Git failure coverage and explicit partial-progress remediation. The pinned range matches M3’s packaging and migration scope, with public release and consumer rollout reserved for #241. No new blocking findings.
+
+1. **Strengths**
+
+   - Compiler and migration share ownership validation through `pkg/weaveownership`, preserving existing schema and permission semantics.
+   - Migration tests verify ownership/ignore intersection, literal pathspecs, authored replacements, local negations, and retained working files.
+   - Release tests verify four real archives, target metadata, CGO settings, checksums, executable permissions, version, and formula composition.
+   - README and atlas describe release preparation, scoped migration, recovery, and rollout limitations.
+
+2. **Critical findings**
+
+   None.
+
+3. **Important findings**
+
+   None. BR-13 and BR-14 are addressed below.
+
+4. **Minor findings**
+
+   None.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - `go test ./cmd/weave/... ./pkg/weaveownership/... ./pkg/layergraph/... -count=1`
+   - Focused SDLC propagation, migration, ownership, discovery, ordering, and dirty-tree tests.
+   - `bash scripts/test/release-weave.test.sh`
+   - Pinned-range `git diff --check`.
+
+   Scratch mutation checks confirmed:
+   
+   - Removing release reclamation fails `TestKilledOwnerPreservesProducerLeaseAndReclaimsBeforeExistingOutputCheck`.
+   - Removing migration remediation guidance fails all 11 cases in `TestMigrationGitFailureRetainsEffectsAndCanRetry`.
+
+   Repository files remained unchanged. Full SDLC tests, Linux-native execution, and consumer pilots were not independently rerun.
+
+6. **Architectural notes**
+
+   | Marker | Assessment |
+   |---|---|
+   | ARCH-DRY | Pass: ownership schema/proof and staging machinery are shared. |
+   | ARCH-PURE | Pass: deterministic predicates remain separate from filesystem observation through `Reader`. |
+   | ARCH-PURPOSE | Pass: both ownership consumers derive from the shared implementation; M3 delivers packaging and scoped migration. |
+   | ARCH-MOCK | Pass: Git’s production executable boundary supports persistent-index failure injection, with real-Git conformance coverage. |
+   | ARCH-CONSTRAINTS | Pass: release builds are sequential and bounded to four targets. |
+   | ARCH-SECURE | Pass: strict tags, argv-based execution, inventory validation, parent-link checks, and literal pathspecs protect relevant boundaries. |
+   | ARCH-ORDER | Pass: tests cover cancellation, owner death, surviving producers, partial index progress, and commit-success-before-error. |
+   | ARCH-FUNERAL | Pass: clone, generator, publication, and release stages share reclamation rules; retry preserves live producers and removes proven abandoned stages. |
+
+7. **Plan revision recommendations**
+
+   None required. The appended M3 correction records state the common staging rule and enumerate Git failure/recovery behavior.
+
+```findings
+dispose:
+  - id: BR-13
+    disposition: addressed
+    note: |
+      cmd/weave/internal/release/main.go:65 reclaims before existing-output refusal and uses shared staging ownership and RunOwned producer leases. Cancellation, owner-death/live-producer, and public-launcher tests pass. Removing reclamation in a scratch copy fails the recovery regression with “dead producer stage not reclaimed.”
+  - id: BR-14
+    disposition: addressed
+    note: |
+      cmd/sdlc/propagatebase_failure_test.go exercises status, ls-files, rm, add, and commit through the production PATH boundary with a persistent real-index-backed faulting executable. Tests verify partial effects, commit-success-before-error, retained files, dirty public retry, and operator-resolved recovery. Removing the remediation wrapper fails all 11 failure-matrix cases.
+```

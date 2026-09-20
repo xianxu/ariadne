@@ -159,7 +159,7 @@ cycle that changes the agreed sequence. No new features without operator approva
   remote/local link, graph acquisition and independent dependencies; fixture tests.
 - [x] M2 — owner tools and unified compile/bootstrap/CI; generated-artifact
   ownership and ignores; remove duplicate startup helpers; cold/warm validation.
-- [ ] M3 — standalone packaging and scoped migration tooling; scratch pilots,
+- [x] M3 — standalone packaging and scoped migration tooling; scratch pilots,
   documentation and release handoff to #241; native/fixture verification.
 
 Detailed tasks are the durable plan's current contract and R1–R3 tasks as amended.
@@ -234,6 +234,7 @@ and preserved old text in Revisions. Linux CI package choice requested separatel
 no code changed before change-code. ARCH-ORDER/ARCH-DRY guide the serial sequence.
 
 ### 2026-09-20 — M1 implementation verified
+- 2026-09-20: closed M3 — BR13 release now reuses staging/lease/owned-runner implementation; native Mac/Linux tests cover public SIGTERM, killed owner/live producer, alias retry and existing-output cleanup plus real four-target packaging/formula. BR14 uses faulting Git executable backed by real index at production PATH boundary, covering every status/ls-files/rm/add/commit before/after effect and explicit dirty-retry remediation. Full weave suites and updated migration suites pass; earlier full SDLC suite passed excluding known #210. Main tracker updates merged with no tree change; no publication or peer migration.; review verdict: SHIP
 - 2026-09-20: closed M2 — Full weave/layergraph suites and bootstrap/Make/CI fixtures pass. BR8 now has failing-before/passing-after production cancellation and parent-SIGKILL late-writer regressions. Native Linux repeats both ten times and buffered descendant proof three times. Shared inherited leases protect clone/generation staging until writers stop; scratch mutation removing descendant cleanup fails positive kernel lease proof.; review verdict: SHIP
 - 2026-09-20: closed M1 — BR-6 endpoint identity fixed with pure equivalence/conflict matrix and real existing-checkout port-conflict regression; BR-1 through BR-5 previously cleared; all weave/layergraph tests and git diff --check passed; README and atlas document delivered surfaces; review verdict: SHIP
 

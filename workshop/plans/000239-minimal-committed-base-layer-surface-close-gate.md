@@ -280,6 +280,21 @@ rounds:
       boundary: M3
       recipe: milestone-review
       blocked: true
+    - "n": 10
+      timestamp: "2026-09-20T15:42:34-07:00"
+      agent: codex
+      dispose:
+        - id: BR-13
+          disposition: addressed
+          note: cmd/weave/internal/release/main.go:65 reclaims before existing-output refusal and uses shared staging ownership and RunOwned producer leases. Cancellation, owner-death/live-producer, and public-launcher tests pass. Removing reclamation in a scratch copy fails the recovery regression with “dead producer stage not reclaimed.”
+          round: 10
+        - id: BR-14
+          disposition: addressed
+          note: cmd/sdlc/propagatebase_failure_test.go exercises status, ls-files, rm, add, and commit through the production PATH boundary with a persistent real-index-backed faulting executable. Tests verify partial effects, commit-success-before-error, retained files, dirty public retry, and operator-resolved recovery. Removing the remediation wrapper fails all 11 failure-matrix cases.
+          round: 10
+      boundary: M3
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -398,7 +413,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-14** [Important] `external-interaction-test-seam` Scoped migration lacks stateful Git index failure coverage
   cmd/sdlc/propagatebase.go:285 adds sequential index removals through direct exec calls, but propagation tests inject only weave failures and do not exercise partial Git index progress. This is the 3rd finding in family external-interaction-test-seam. State the shared-boundary rule and enumerate migration's status, ls-files, rm, add, and commit interactions; exercise them through a stateful Git fake with failures after earlier effects succeed, retaining real-Git conformance tests. Specify and test recovery or explicit operator remediation without losing partial-progress evidence. ARCH-MOCK and ARCH-ORDER.
 
+## Round 10 — 2026-09-20T15:42:34-07:00 (codex) — passed
+
+### Disposed
+
+- BR-13 — addressed — cmd/weave/internal/release/main.go:65 reclaims before existing-output refusal and uses shared staging ownership and RunOwned producer leases. Cancellation, owner-death/live-producer, and public-launcher tests pass. Removing reclamation in a scratch copy fails the recovery regression with “dead producer stage not reclaimed.”
+- BR-14 — addressed — cmd/sdlc/propagatebase_failure_test.go exercises status, ls-files, rm, add, and commit through the production PATH boundary with a persistent real-index-backed faulting executable. Tests verify partial effects, commit-success-before-error, retained files, dirty public retry, and operator-resolved recovery. Removing the remediation wrapper fails all 11 failure-matrix cases.
+
 ## Open findings
 
-- **BR-13** [Important] `durable-staging-reclamation` Interrupted release preparation leaves staging directories without reclamation
-- **BR-14** [Important] `external-interaction-test-seam` Scoped migration lacks stateful Git index failure coverage
+(none — every finding has been disposed)
