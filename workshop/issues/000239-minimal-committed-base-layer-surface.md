@@ -573,6 +573,68 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — M1 implemented
+
+`seed-once` exists end to end: verb → intent → action → seam, with the seed
+source split out of ariadne's own root Makefile.
+
+**Enumeration re-run, not recalled** (the lessons.md derived-sweep rule):
+
+```
+grep -rn "intent\.Seed\b\|case Seed:\|plan\.Seed\b" --include="*.go" cmd/ | grep -v _test
+```
+
+Seven live switch sites, matching the corrected plan list. Two would have been
+missed by the first draft: `main.go:781` (`formatActions` — `--dry-run` would
+have printed `unknown plan.SeedOnce`) and `golden/gather.go:100` (`classifyAction`
+would have read a zero-valued `Observed`). Plus `actionIndex.seedOnceDsts`, which
+`coverIntent` reads from — it cannot be covered without the index field.
+
+**`classifyAction` deliberately does NOT copy `Seed`'s semantics.** Seed
+content-TRACKS upstream, so drift is a divergence; `seed-once` hands the slot to
+the repo, so a present target with different content is the INTENDED end state.
+Classifying it as drift would re-assert the two-owners claim the verb retires.
+
+**The regression test was falsified before being trusted.** Reverting the
+manifest row to the old content-tracking verb (same paths, so the test's `awk`
+filter still matches) makes the adopter assertion fail:
+
+```
+/…/adopter-before /…/adopter/Makefile differ: char 1, line 1
+```
+
+With `seed-once` it passes, and the later-edit half passes too. This matters
+because the plan-quality gate had just caught a planned test that could not fail
+(`coverIntent` has no `default`, so an unhandled kind reports "covered" — the red
+test had to be the *uncovered* direction).
+
+**One self-inflicted regression, caught by the suite.**
+`TestIssueSyncMakeFallbackBuildsAtSourceRunsInConsumer` builds a consumer with
+`issues/` and inherited `Makefile.workflow`'s default for the directory, so the
+`workshop/issues` flip broke it. Fixed by having the test name the layout it
+wants (`make`'s `?=` yields to the environment) rather than riding a default it
+is not about. Blast radius of the flip: exactly one test, no live repo — all 16
+fleet repos already use `workshop/`.
+
+**Verification:**
+
+- `go test ./cmd/...` — green except `TestFleetPlanHasAuthoritativeCorrected…`,
+  which is **pre-existing and tracked as #210** (a hardcoded `workshop/plans`
+  path that archiving broke; "red ever since").
+- `portable-makefile.test.sh` — PASS, including the two new `seed-once` cases.
+- `bootstrap-transitive.test.sh` — 12 passed, 0 failed.
+- `weave compile --dry-run` renders `seed-once Makefile -> construct/Makefile.seed`.
+- ariadne's own root `Makefile` is **byte-identical** after a weave — `seed-once`
+  no-ops on a regular file, which is the whole point.
+
+**Environment note:** `weave compile` cannot complete inside this session's
+sandbox — writing `.claude/settings.json` is denied (it is a protected settings
+path). Confirmed **pre-existing**: with the #239 manifest changes stashed, a
+pristine tree fails identically. Everything M1 touches was verified through
+`--dry-run` plus the real-weave conformance tests, which run against scratch
+trees and are unaffected.
+
+
 ### 2026-09-19 — Done-when 7 restated; two Criticals from the plan-quality gate
 
 **Reason:** `sdlc change-code`'s plan-quality judge returned two Critical
