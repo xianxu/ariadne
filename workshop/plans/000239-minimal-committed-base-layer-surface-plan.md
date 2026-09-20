@@ -1,5 +1,12 @@
 # Minimal Committed Base-Layer Surface — Implementation Plan
 
+> **Restart, 2026-09-20:** The original plan below is superseded. Read
+> [Restart: standalone weave startup](#restart-standalone-weave-startup) for the
+> current investigation and proposed implementation plan. The operator requested
+> a new in-place branch, `000239-standalone-weave-restart`; do not use the old
+> branch or treat its milestones/reviews as evidence for this design. This draft
+> is for design review, not authorization to implement.
+
 > **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** A derivative commits only its bootstrap core plus its own source; every path `make weave` re-derives is gitignored, from a list weave computes from the manifest walk and maintains inside a delimited block it owns.
@@ -2130,3 +2137,503 @@ Omit `--actual` — close measures and adopts the hours itself (#178).
 **Delta:** `Makefile.workflow:33-34` flips from `?= issues`/`?= history` to `?= workshop/issues`/`?= workshop/history`, inside M1 and before the manifest row changes. Zero per-repo edits, no breakage window.
 
 **Deviation from the issue's Spec**, stated plainly: Piece A says *"`Makefile.workflow` keeps the generic `?=` defaults."* The `?=` defaults stay and remain overridable — the *values* change, so the default is no longer the layout-neutral `issues/`. The justification is that the neutral value matched **no** repo in the graph and was only ever supplied by the seeded root Makefile, which is exactly the two-owners defect this issue removes. A repo wanting the plain top-level layout now says so in its own root Makefile above the include, which finally works because `seed-once` hands it ownership.
+
+
+### 2026-09-20 — restart from the two startup journeys
+
+**Reason:** the operator rejected the previous approach and explicitly directed
+that divergent startup code be changed to the desired contract, rather than
+preserved as a constraint. See the issue's 2026-09-20 standalone-weave revision
+and `workshop/parley/000239-restart-findings.md`.
+
+**Delta:** replace the old seed/ignore/fleet implementation sequence with the
+startup design below. Distribution is included in #239: the operator named
+`xianxu/ariadne` as the Homebrew tap and `xianxu/ariadne/weave` as its formula.
+The earlier text is retained as provenance only. No old estimate or accepted
+plan-quality verdict carries over. No implementation has started.
+
+## Restart: standalone weave startup
+
+**Status:** investigation complete enough for a first implementation draft;
+proposal awaiting operator design review. Concrete choices below are proposals
+unless identified as already agreed. No release, peer migration, or machine
+package installation has been performed during investigation.
+
+**Goal:** start developing either a new ariadne-style repo or a freshly cloned
+derivative with one shared setup operation, provided by a distributed weave.
+
+**Architecture:** `weave link` declares/restores a direct base; `weave compile`
+resolves the graph, installs layer requirements, prepares generators, composes
+artifacts and builds exposed commands. `bootstrap.sh` installs a compatible
+weave if needed and invokes compile. Make and CI delegate to the same operation.
+The compiler and layer graph are retained; competing startup implementations
+are removed. Package recipes belong to layers, not to the weave executable.
+
+**Tech stack:** existing Go CLI/Cobra, `pkg/layergraph`, typed JSON declarations,
+Git CLI and owner-provided argv recipes; prebuilt Go release binaries, a small
+Bash bootstrap, GitHub Releases, Homebrew formula.
+
+### What the investigation established
+
+| Evidence | Consequence for this plan |
+|---|---|
+| `go test ./cmd/weave/... ./pkg/layergraph/... -count=1` passed on this restart branch | Preserve working composition semantics while replacing startup around them. |
+| `pkg/layergraph/deps.go` reads substrate paths; the walker silently skips absent peers | Add source-aware acquisition before composition; a missing base cannot mean successful partial setup. |
+| Root `bootstrap.sh` and `construct/scripts/bootstrap-peers.sh` both walk peers; the latter also pulls peers and recursively runs their bootstrap | One acquisition owner in weave. Reuse present checkouts; no implicit revision updates or recursive Make bootstrap. |
+| `make weave` builds datatype/vocabulary and exposes PATH before generators run | Model generator preparation explicitly. Merely packaging weave does not remove generator prerequisites. |
+| `construct/setup.sh` is already absent | Remove stale startup instructions, not unrelated VM scripts also named setup.sh. |
+| `clone-data-deps.sh` reads existing `data` rows from `construct/deps` | Reuse the same clone engine for data; mounting is separate from clone deduplication. |
+| `dev-aliases.sh --list` scans unrelated siblings as well as the graph | Explicit exposed-command declarations replace scanning as startup ownership. |
+| Nous has its own Brewfile and custom build/signing/service behavior; parley is a Lua plugin | Do not infer Go binaries from go.mod, run whole product bootstraps, or overwrite a production-signed executable during development setup. |
+| CI uses CLONE_ONLY and runner fallbacks | Compile before consuming helpers; no permanent class of pre-compile helper exceptions. |
+| No weave tags/release distribution or root license file found; tap repository lookup did not resolve | Build and test distribution, then publish its first release/tap. Do not invent license metadata. |
+
+### User journeys and command contract
+
+New repo, with Homebrew available:
+
+```sh
+brew tap xianxu/ariadne
+brew install xianxu/ariadne/weave
+mkdir my-project
+cd my-project
+weave link github.com/xianxu/ariadne
+weave compile
+```
+
+Existing derivative on a new machine:
+
+```sh
+git clone <derivative-url>
+cd <derivative>
+./bootstrap.sh
+```
+
+The generated setup must not require a root Makefile or a second `make weave`.
+Keep the existing local-path form, `weave link ../ariadne`. `weave dependencies`
+is independently callable and is the same operation compile uses. It restores
+sources needed to discover requirements, then checks/installs selected packages;
+it does not generate artifacts or build the layer's exposed commands.
+
+`weave compile --dry-run` remains read-only: report missing sources and known
+operations, explicitly mark the plan incomplete when an absent source prevents
+reading its declarations, and never clone/install/generate to produce a preview.
+Read-only skill/list/verification commands never start installation implicitly.
+
+### Proposed declaration model
+
+Keep two existing responsibilities: `construct/deps` describes repository
+relationships; `construct/base.manifest` selects a layer's contributions.
+
+Extend substrate rows with the actual clone source:
+
+```text
+substrate ../ariadne https://github.com/xianxu/ariadne.git
+```
+
+The second column remains the local path, so existing present-peer consumers can
+still read it. `link <address>` computes the peer path and records the normalized
+source. `link <local-path>` records that checkout's origin when one exists; a
+local-only edge is valid while present and reports that no clone source exists
+when absent. Never infer a URL by replacing repository names. Matching existing
+checkouts may be dirty or on another branch: reuse them without fetch/pull/reset.
+Different source identity in the destination is a conflict, not a reason to
+replace the checkout. Normalize equivalent GitHub HTTPS/SSH addresses for identity
+while preserving the transport used for authentication.
+
+Retain existing `data <url> <mount>` rows. Clone once per identity/destination,
+apply every distinct mount. Non-layer build-source peers are declared explicitly
+as `checkout <path> <url>` rather than guessed from go.mod. During migration,
+record actual origins for local Go replacements that startup still needs. These
+checkouts/data repos never contribute layer artifacts or requirements. No Go
+module parser or language-specific source-URL inference is needed in weave.
+
+Select typed package/build declarations through the manifest:
+
+```text
+export requirements construct/requirements.json
+```
+
+Example shape (the small Go recipe is illustrative; final installer recipes
+and versions must be exercised by the native-platform investigation below):
+
+```json
+{
+  "schema": 1,
+  "packages": [
+    {
+      "name": "go",
+      "check": ["sh", "construct/install/go.sh", "check"],
+      "install": {
+        "darwin": ["sh", "construct/install/go.sh", "install"],
+        "linux": ["sh", "construct/install/go.sh", "install"]
+      }
+    }
+  ],
+  "binaries": [
+    {
+      "name": "datatype",
+      "stage": "generator",
+      "output": "bin/datatype",
+      "build": ["go", "build", "-o", "bin/datatype", "./cmd/datatype"]
+    },
+    {
+      "name": "sdlc",
+      "stage": "command",
+      "output": "bin/sdlc",
+      "build": ["go", "build", "-o", "bin/sdlc", "./cmd/sdlc"]
+    }
+  ]
+}
+```
+
+JSON keeps argv/env/platform data out of the whitespace manifest grammar. No
+implicit scan of requirements files: export/internal selection uses the existing
+manifest rule. A layer may reference an existing package bundle through an owner
+recipe, but migrate broad convenience bundles to intentional development needs;
+weave is not an instruction to install fonts, log into accounts or start services.
+
+- Package checks: exit 0 = satisfied, exit 1 = missing/outdated; other exits and
+  execution errors are failures. Missing check executables are unsatisfied.
+  Installation runs once, then the check must pass. Commands use argv, owner cwd,
+  and an explicit environment map; an owner script handles compound checks.
+- Install in foundation-first layer order, then declaration order within a layer
+  (e.g. Go before CUE's Go-based installer). Duplicate equivalent requirements
+  run once; conflicting same-name declarations report both origins before any
+  package install. No version solver or arbitrary build dependency graph.
+- Recipes receive a dedicated user-local `WEAVE_TOOLS_DIR` and its `bin` on PATH;
+  they may use an existing package manager or install user-locally when absent.
+  Go's required version derives from the owning module; owners pin downloadable
+  artifacts and checksums. The weave engine has no hardcoded Go/CUE/uv list.
+- `generator` binaries build before `.dynamic-skill`; `command` binaries build
+  after composition. Both are available by declared name, with collisions rejected
+  before build. No inherited recipe builds the distributed weave itself.
+- Recipes are small owner operations. A custom nous development output must not
+  overwrite its signed/service executable. Explicit signing/service operations
+  stay product commands, not compile side effects.
+
+### Command availability proposal
+
+Always provide `weave exec <name> [args...]`: resolve the current repo's declared
+command, preserve caller cwd, and run with the selected command/tool directories
+on PATH. It does not compile implicitly; absent outputs name `weave compile`.
+This is usable immediately after bootstrap without modifying a parent shell.
+
+Provide `weave env` to print shell-escaped PATH exports from the same declaration
+set for users who want bare commands (`eval "$(weave env)"`). Bootstrap/compile
+print this once when needed. CI invokes checks through the same prepared process
+environment rather than depending on a shell rc file. No global same-name binary
+symlinks or silent shell-profile edits. This replaces startup's sdlc-install
+behavior; existing optional development aliases are not the resolver for setup.
+
+**Operator review point:** this provides one-command bootstrap and immediately
+usable `weave exec`, but bare commands in an already-running shell need activation.
+If bare `sdlc` immediately after `./bootstrap.sh` is required, decide shell
+integration explicitly before implementation; a child process cannot set its
+parent's PATH. Do not hide this distinction in a success message.
+
+### Keep, replace, remove
+
+| Surface | End state |
+|---|---|
+| `pkg/layergraph`, intent selection, settings/prose/skill composition | Reused; source acquisition calls the same topology model. |
+| `Makefile.workflow` weave/bootstrap recipes | Thin CLI delegates; no clone/install/build orchestration remains here. Local weave developer-build target stays explicitly local. |
+| Root `bootstrap.sh` | One committed ensure-weave + compile launcher; it contains no layer parser or Make handoff. |
+| `construct/scripts/bootstrap-peers.sh`, `clone-data-deps.sh` | Operations move into weave; remove scripts and their manifest rows after caller migration. |
+| `scripts/sdlc-install.sh` | Retire as a startup owner; command environment is owned by weave. |
+| `construct/dev-aliases.sh` | Not used for compile ownership. Preserve optional dev convenience only where actual callers remain. |
+| `lib-deps.sh`, `list-peers.sh` | Retain only present-peer/environment consumers; remove bootstrap duplication. Do not casually delete VM helpers. |
+| `seed Makefile` | Remove. Startup needs no root Makefile, so #239 does not need to introduce seed-once merely to retain this seed. Preserve existing repo-owned roots. |
+| `Makefile.workflow` optional include | Product choice, not adoption requirement. |
+| Ignore list | Derived from actual generated outputs with a managed region; local rules/content preserved. |
+| CI CLONE_ONLY and upstream runner fallback | Remove; run actual compile before local generated helpers and product checks. |
+| Whole-directory ignores and untrack-every-ignored-file sweep | Replace with proven generated-path ownership; no unrelated tracked files touched. |
+
+The existing `--target` interface is not expanded or removed by this work. Startup
+always has the same requirement/build preparation; targeted artifact selection
+remains the existing compiler concern. Unrelated comment-policing checks from the
+old branch are not carried into the restart.
+
+### Core concepts (ARCH-PURE / ARCH-DRY)
+
+| Pure entity | Lives in | Status |
+|---|---|---|
+| Dependency row: kind, local path/source, optional mount | `pkg/layergraph/deps.go` | modified |
+| Normalized clone identity and destination decision | `cmd/weave/internal/acquire/source.go` | new |
+| Requirements document and selected package/binary plan | `cmd/weave/internal/requirements/model.go`, `compose.go` | new |
+| Setup phase/outcome transition | `cmd/weave/internal/startup/sequence.go` | new |
+| Generated output/ignore ownership | `cmd/weave/internal/plan/gitignore.go` | modified |
+| Declared command environment | `cmd/weave/internal/requirements/environment.go` | new |
+
+Dependency rows feed acquisition and the existing graph projection. Requirements
+are many-to-one with a layer, selected once and reused by install/build/exec/env.
+The startup sequence owns ordering, not another layer-resolution algorithm.
+New pure entities receive colocated unit tests without subprocess mocks.
+
+| Integration | Lives in | Status | Wraps |
+|---|---|---|---|
+| Source acquisition | `cmd/weave/internal/acquire/acquire.go` | new | FS + Git processes |
+| Recipe execution | `cmd/weave/internal/weavefs/runner.go` | modified | context, argv, cwd, env, exit outcomes |
+| Dependency/build orchestration | `cmd/weave/internal/startup/run.go` | new | acquisition, requirements, existing generation/Apply |
+| Startup entrypoints | `cmd/weave/compile.go`, `link.go`, `dependencies.go`, `exec.go` | new | Cobra handlers extracted from main.go |
+| Distribution launcher | `bootstrap.sh` | modified | release download/checksum/install/exec |
+| Release packaging | `scripts/release-weave.sh`, `.github/workflows/weave-release.yml` | new | Go builds, archives, GitHub release assets |
+| Generated-output migration | `cmd/sdlc/propagatebase.go` | modified | compile result + scoped Git index edits |
+
+The subprocess seam has a stateful scratch backend (available commands, installed
+packages, cloned repos, built outputs, ordered events and injected failure).
+Integration fixtures run the real production sequence with that backend; real
+local bare Git repositories and a local HTTP release server provide conformance
+checks. No fake package operation touches the operator's package manager/HOME.
+
+### Operating and failure model
+
+This is a synchronous setup command, not an interactive latency path. Support
+macOS and Linux for standalone weave (arm64/amd64); initially exercise ariadne
+installation on macOS and Ubuntu Linux. A layer may have a narrower support set
+and must say so in its recipe errors. Do not promise nous Linux support from its
+macOS bootstrap. Package checks reuse satisfied installations; builds use the
+owner's incremental tooling. Run steps serially initially, with streamed progress.
+
+**ARCH-ORDER:** `resolve → dependencies → generators → materialize → commands →
+ready`. A pure phase enum/transition accepts success only from the active phase;
+failure/cancellation ends the run with no later phases. No detached work. A new
+invocation re-observes the filesystem/package checks instead of resuming from a
+possibly stale success flag. Installation may have succeeded before interruption;
+probe it on retry, never attempt to uninstall/roll back user tools.
+
+Use a per-user advisory setup lock for mutating CLI operations, with the existing
+lock holder reported and cancellation supported. Serializing shared dependency
+installs/builds avoids concurrent setup of different repos racing in one owner.
+The OS releases advisory locks when the process dies; avoid copying SDLC's
+workflow-specific lock/recovery machinery. Real Git clone runs into an owned
+staging directory and publishes by rename after source/manifest validation. Never
+remove a pre-existing destination. Cancelled clone staging is cleaned up; a retry
+rechecks the destination. Recipe failure preserves prior working binaries where
+possible by owner recipe staging and atomic replacement.
+
+**ARCH-SECURE:** local/remote declarations parse into typed values with source
+locations; malformed/newer-schema data errors before install. No shell string
+interpolation for repo addresses or argv. Explicitly linking a layer opts into its
+exported recipes, as existing dynamic-skill execution already does. Git uses its
+normal credential helpers; do not put credentials in recorded source URLs/logs.
+Validate owner output paths and data mounts against escaping their intended roots.
+Clone/install failures are failures, never equivalent to an absent optional layer.
+
+**ARCH-FUNERAL:** repos cloned as peers are user workspaces and never automatically
+deleted/pulled by compile. Package removals are not automatic uninstalls. Temporary
+clone/download/build staging is removed on completion/cancel and recognizable
+abandoned staging is reclaimed on the next operation for that destination.
+Generated artifacts/links have an ownership record (path, kind, source/content
+identity) under `construct/generated/weave/`; after a successful run it replaces
+the previous record. Retirement removes only previously recorded outputs whose
+identity still matches, never authored replacements. Include that directory in
+the existing generated-prune keep set. Stale managed ignores are removed along
+with the corresponding generated ownership; all unrelated ignore rules remain.
+
+**ARCH-CONSTRAINTS:** no nested bootstrap invocation, no implicit repo update,
+no unbounded fan-out. Tests exercise depth-three/diamond graphs, cancellation
+between phases, and repeated setup. A malformed/cyclic graph errors with its
+path. Establish measured cold/warm native timings during the startup probe; do
+not invent a latency SLA or graph-size cap before those observations exist.
+
+### Distribution and release design
+
+Use the operator's tap/formula names. Proposed conventional backing repository:
+`xianxu/homebrew-ariadne`, containing `Formula/weave.rb`, so the ordinary
+`brew tap xianxu/ariadne` works. Keep weave source and release assets in
+`xianxu/ariadne`. An explicit-URL same-repo tap is possible but adds a special
+setup instruction; it is not needed with the conventional backing repo.
+
+- Start with release tag `weave-v0.1.0` if still unused when publishing. Add
+  `weave --version`; release metadata derives from the tag, not parallel constants.
+- Build `CGO_ENABLED=0`, four OS/arch targets, with the Go version in go.mod;
+  archive `weave` and applicable notices into
+  `weave_<version>_<os>_<arch>.tar.gz`, plus `checksums.txt`.
+- Formula consumes exact release URLs/checksums and installs the binary. It has
+  no Go/CUE dependency. Generate its version/asset/checksum fields from release
+  output into `packaging/homebrew/Formula/weave.rb`, then publish the verified
+  formula to the tap; do not hand-maintain a second asset list.
+- One root bootstrap implementation handles compatible installed weave or a
+  pinned release download. No separate committed installer library in derivatives.
+  On download: select platform, verify the archive checksum, stage/rename the
+  executable into a user-writable directory, invoke its absolute path, then
+  `weave compile` from the derivative root. No Homebrew installation is required
+  merely to obtain weave. Unsupported platforms/download/checksum failures leave
+  any existing executable intact. Test invocation from outside the repo root.
+- Bootstrap's release floor is refreshed during release preparation; schema/version
+  mismatch gives an upgrade instruction rather than silently ignoring declarations.
+  A local test override can select the staged binary without network/publication.
+- Do not fabricate a project license. Record applicable dependencies' notices and
+  obtain the operator's intended project license before adding any license grant.
+  A private-tap formula is not a reason to invent MIT metadata.
+
+Primary references: [Homebrew taps](https://docs.brew.sh/Taps),
+[formula cookbook](https://docs.brew.sh/Formula-Cookbook),
+[Go environment](https://pkg.go.dev/cmd/go#hdr-Environment_variables),
+[cgo cross compilation](https://pkg.go.dev/cmd/cgo).
+
+## Chunk R1: source and requirement preparation
+
+This and the next two chunks are the proposed three implementation review
+boundaries. The old M1–M4 are superseded; before change-code, update the issue's
+active Plan/Spec/Done-when to these tasks while preserving prior text in its
+revision history. Re-estimate only after the new plan-quality gate accepts.
+
+### R1.1 — prove startup assumptions in scratch environments
+
+**Files:** `cmd/weave/startup_test.go` (new fixture), existing
+`cmd/weave/main_test.go`, `dynamic_test.go`, `construct/scripts/test/bootstrap-transitive.test.sh`.
+
+- [ ] Create a real temporary base → middle → leaf graph with distinct package
+  requirements, a generator, a normal exposed binary, local content to preserve,
+  and a data source mounted twice. Use local bare origins and an isolated HOME.
+- [ ] Add failing cold-start assertions: no base/helper links/Go/CUE/weave on
+  fixture PATH; installed gateway plus link/compile reaches ready. The current
+  CLI must fail because remote link/dependencies/preparation are absent.
+- [ ] Execute a native macOS and Ubuntu installer probe against throwaway user
+  directories: validate Go/CUE/uv recipes, environment activation, and generator
+  build order. Record commands and timings in the issue Log. Turn each surfaced
+  problem into a regression before implementing its fix.
+- [ ] Confirm the proposed `weave exec`/optional `weave env` availability contract
+  with the operator during design review, before shell integration is implemented.
+
+### R1.2 — typed declarations and acquisition
+
+**Files:** `pkg/layergraph/deps{,_test}.go`, `walk{,_test}.go`;
+`cmd/weave/internal/acquire/{source,acquire}{,_test}.go`;
+`cmd/weave/internal/requirements/{model,compose}{,_test}.go`;
+`cmd/weave/link.go`, `dependencies.go`, and CLI tests.
+
+- [ ] Add table tests for extended substrate/local-only/checkout/data rows;
+  malformed source/escaping mount; equivalent GitHub transports; duplicate and
+  conflicting destinations; graph cycles/diamonds; old two-column path rows.
+- [ ] Implement a strict typed row parser plus the existing substrate-path
+  projection; retain valid older syntax without retaining silent bad-input skips.
+- [ ] Implement clone-stage/validate/publish and source identity checks through
+  the process seam. Test existing dirty branch stays byte/HEAD-identical; failed
+  clone leaves no usable-looking destination; repeat is idempotent.
+- [ ] Implement typed manifest-selected requirements and deterministic composition;
+  test export/internal visibility, duplicate equivalence and conflict diagnostics.
+- [ ] Wire link and independently runnable dependencies. Add install/check retry
+  tests using stateful fake package state, including success followed by lost
+  acknowledgment and post-install verification failure.
+- [ ] Run `go test ./pkg/layergraph/... ./cmd/weave/... -count=1`; all new assertions
+  above and the prior composition suite must pass before boundary review.
+- [ ] Update `atlas/workflow/weave.md` and dependency-format documentation; commit
+  and close this boundary through SDLC after implementation evidence exists.
+
+## Chunk R2: one compilation/startup path
+
+### R2.1 — orchestrate declared setup and command environments
+
+**Files:** `cmd/weave/internal/startup/{sequence,run}{,_test}.go`,
+`cmd/weave/internal/requirements/environment{,_test}.go`,
+`cmd/weave/internal/weavefs/runner{,_test}.go`, `cmd/weave/{main,compile,exec}.go`,
+`construct/requirements.json`, `construct/install/{go,cue,uv}.sh`.
+
+- [ ] Drive production phase transitions with the scratch backend: no generation
+  before generator build, no command build after materialization failure, no
+  later phase after cancel, retry probes installed state, lock release on death.
+- [ ] Extract the existing compile/generate/apply body behind the startup runner;
+  add cwd/env/exit/context support to the existing subprocess seam. Do not route
+  through Make or invoke another repo's bootstrap.
+- [ ] Declare ariadne requirements and exposed commands; implement/test owner
+  installer recipes on the two native environments. Keep owner module/build
+  logic out of the generic engine. Confirm `weave` is not rebuilt by setup.
+- [ ] Implement `exec` and `env` from the same selected declarations; preserve
+  caller cwd/arguments, prepare generator PATH, fail on collisions or missing
+  outputs, test a non-Go leaf and a custom build output.
+- [ ] Run `go test ./cmd/weave/... ./pkg/layergraph/... -count=1`; real fixture
+  generator must observe the declared command environment without host tools.
+
+### R2.2 — artifacts, thin bootstrap, CI and legacy removal
+
+**Files:** `bootstrap.sh`, `construct/base.manifest`, `Makefile.workflow`,
+`cmd/weave/internal/plan/{gitignore,prune,apply}{,_test}.go`,
+`.github/workflows/merge-check.yml`, `scripts/test/portable-ci.test.sh`,
+`construct/scripts/test/{portable-makefile,bootstrap-transitive,clone-data-deps}.test.sh`.
+
+- [ ] Add regressions for existing authored Makefile/settings/ignore negations;
+  retired managed outputs versus authored replacements; multiple data mounts;
+  generated helpers absent from the committed fixture; setup failure aborting CI.
+- [ ] Remove the root Makefile seed. Derive ignores and the managed-output record
+  from the actual plan (including data mounts), preserve ownership on retirement,
+  and integrate record retention with generated-directory pruning.
+- [ ] Replace bootstrap with ensure-weave + compile, tested against a local
+  release server/staged binary. Delete shell clone walkers and obsolete manifest
+  rows after their actual callers delegate to weave. Keep unrelated VM readers.
+- [ ] Make weave/bootstrap aliases delegate to CLI; remove startup dependency
+  on inherited Makefiles, sibling command scans and sdlc-install. Leave explicit
+  product developer targets intact where they are not duplicate startup owners.
+- [ ] Change CI to install/compile before hooks/checks; exercise the actual YAML
+  run blocks against the cold fixture with a real check observing generated state.
+  The ariadne source job must also test its just-built candidate CLI; consuming
+  only the previous public release would miss regressions in the proposed CLI.
+- [ ] Run the Go suites and actual Bash fixtures; update README,
+  `atlas/workflow/{weave,base-layer,setup-and-replication}.md` and the target's
+  new setup/ownership rules. Commit and SDLC-close this boundary with evidence.
+
+## Chunk R3: distribution and consumer cutover
+
+### R3.1 — publishable standalone artifacts
+
+**Files:** `scripts/release-weave.sh`, `.github/workflows/weave-release.yml`,
+`packaging/homebrew/Formula/weave.rb`, `cmd/weave/version.go`, bootstrap/release tests.
+
+- [ ] Add version/platform/archive/checksum/installer tests: compatible binary
+  reuse, failed download, corrupt checksum, unsupported platform, binary-path
+  spaces, external cwd, and preservation of the previous executable on failure.
+- [ ] Build/package all four targets; run native macOS and Linux fixture tests
+  from the archive with ariadne/Go/CUE absent before setup. Formula test performs
+  a tiny composition fixture as well as version reporting.
+- [ ] Generate the formula from produced checksums, verify with Homebrew in an
+  isolated test installation, and prepare the conventional tap checkout. Keep
+  publication credentials out of generated files; no broad new token is needed
+  for local packaging and review.
+- [ ] Publish the tested release assets to ariadne and the corresponding formula
+  to `xianxu/homebrew-ariadne` after the implementation/ship gates. Verify the
+  public `brew tap xianxu/ariadne` and `brew install xianxu/ariadne/weave` path
+  from a clean machine; local archive tests alone do not satisfy publication.
+
+### R3.2 — migrate inputs and remove committed generated wiring
+
+**Files:** `cmd/sdlc/propagatebase.go` and tests; peer-owned `construct/deps`,
+`construct/base.manifest`/requirements, bootstrap/CI/Makefiles and `.gitignore`;
+peer issue records created when their mutations start.
+
+- [ ] Inspect each recursive consumer before migration: actual dependency
+  origins, non-layer build/data sources, package/build exports, repo-owned
+  Makefiles, custom commands and currently tracked generated paths. Record the
+  concrete proposed diff per repo; do not use the abandoned branch's inventory
+  as a live mutation list.
+- [ ] First migrate parley.nvim and nous in disposable fresh-clone fixtures.
+  Nous gets an explicitly separate development output from its service binary;
+  package/auth/service operations are separated by purpose, not old target names.
+  Test distinct layer requirements and declared non-Go/product sources.
+- [ ] Update propagation to invoke weave directly and untrack only the compiler's
+  proven generated-owned paths. Add regression: a tracked file ignored by an
+  unrelated nested rule stays tracked. Add a per-repo pilot selector if needed;
+  don't run the current broad untracking path first and repair afterward.
+- [ ] Publish the pilot consumer changes via their workflows, prove fresh clone
+  and real CI, then migrate remaining applicable coding consumers. Brain/data
+  repos retain their own capture/commit rhythm; never use SDLC spine writes there.
+- [ ] Record measured cold/warm setup results, produced command availability,
+  generated surface and preserved local files. Remove transitional aliases only
+  after caller searches show no remaining startup use. Run required suites,
+  update atlas, then close #239 through SDLC with the release and migration evidence.
+
+### Review scope and remaining design decisions
+
+This is one startup workstream with three real boundaries, not a proposal to
+build a universal package manager or a generic build scheduler. Separate product
+authentication, production signing/services, automatic revision upgrades, and VM
+image provisioning stay outside compile. Existing source/data dependencies used
+for development remain covered through explicit declarations and shared cloning.
+
+Before implementation: settle command activation with the operator; finish the
+native installer probe and choose the exact supported recipe behavior; review
+this proposed declaration schema and release/tap layout. Record decisions as a
+revision rather than silently presenting a proposal as accepted. Before publishing
+license metadata, obtain the operator's license choice. No code or publication
+work is authorized by the existence of this draft alone.
