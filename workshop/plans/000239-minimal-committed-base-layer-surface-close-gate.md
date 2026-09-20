@@ -550,6 +550,131 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 8
+      timestamp: "2026-09-19T23:30:24-07:00"
+      agent: claude
+      dispose:
+        - id: BR-22
+          disposition: not-addressed
+          note: Measured at HEAD in a scratch clone - mergeManagedBlock(block + "!/CLAUDE.md\n", ["/CLAUDE.md"]) still returns !/CLAUDE.md ABOVE the block; atlas/workflow/weave.md:112 (text added THIS round) says "Outside is the repo's own, preserved verbatim" with no position clause, README.md:49 says the same, and there is still no issue Log line. The .gitignore comment added this round ("Add your own entries ABOVE it") is the nearest approach but never says a line placed below is relocated above and can have its precedence inverted.
+          round: 8
+        - id: BR-23
+          disposition: not-addressed
+          note: Measured at HEAD - a CRLF .gitignore carrying a block gains a second LF block (2 open markers) on pass 1, and pass 2 returns changed=false err=nil, so the original is a permanent silent orphan. gitignore.go:131 still compares raw lines with no TrimRight(line, "\r"). This also contradicts atlas/workflow/weave.md:115's new claim that the transform "fails closed on any marker shape it cannot parse".
+          round: 8
+        - id: BR-26
+          disposition: addressed
+          note: construct/scripts/test/merge-checks.test.sh exists and genuinely falsifies - I reverted the grouped-decl awk rules, the per-commit union, and the allowlist separately in a scratch clone and got 46/grouped-const-decl FAIL, 46/born-and-buried FAIL, and 3 FAILs respectively. 46's real coverage is stated as fixtures in the Revisions rather than a prose tick, and the four TestEnsureGitignoreText* functions are now TestManagedBlock*. Two residues raised as new findings (harness unrun; red assertions pass on a broken fixture).
+          round: 8
+        - id: BR-27
+          disposition: addressed
+          note: atlas/workflow/ci-merge-check.md:35 now says which checks exist is "ls scripts/merge-checks.d/" and keeps only 40-duplicate-issue-id.sh's rationale; the stale two-name list is gone and the fence opened at :31 closes at :33 (exactly two fences in the file), so the section no longer renders as code.
+          round: 8
+        - id: BR-28
+          disposition: addressed
+          note: 46-...sh:32-39 now derives merge-base(origin/main|main, HEAD) when no range is given and exits 1 if it cannot, so a bare run can no longer print a vacuous green. The exclusion-divergence rider is still open (45:52,54 excludes only workshop/history/; 46:102 excludes all workshop/*) and is re-noted as a Minor rather than re-raised.
+          round: 8
+        - id: BR-29
+          disposition: addressed
+          note: Confirmed still red at HEAD - go test ./... fails on TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory (cmd/sdlc/fleet_plan_test.go:14), out of window, and now tracked as workshop/issues/000210-fleet-plan-test-hardcoded-path.md. The Revisions record that suite-wide green is not citable at this or any later boundary and that the scoped go test ./cmd/weave/... (verified green) is what is being cited instead. Prose correction, inspected against the source.
+          round: 8
+      findings:
+        - id: BR-30
+          severity: Important
+          title: 46's declaration grammar is written twice and the halves disagree - it false-positives on a grouped-const reorder and is still blind to the grouped rename it was built for
+          detail: |-
+            This is the 5th finding in family presence-predicate-written-twice. Do NOT fix these two
+            sites - the RULE is that "line L declares symbol N" must have ONE definition applied to
+            both the removed-side extraction and the still-declared lookup, resolved against the FILE
+            at each commit (git show <c>:<path>) rather than against hunk context. Measured in
+            throwaway repos, both directions.
+            (1) FALSE POSITIVE - extract_removed (46:69-73) was made group-aware this round but
+            still_declared (46:91) greps only column-0 declarations. A pure reorder of two members
+            inside const ( ... ) removes nothing, yet the check exits 1 with "pkg/a.go:8  names removed
+            symbol alpha", failing CI on a correct comment. 45's own header calls a check that fires on
+            legitimate prose the failure mode that gets a check routed around.
+            (2) FALSE NEGATIVE - renaming member 8 of a 12-member const group prints
+            "no top-level symbols removed in range", because the const ( opener falls outside the
+            3-line diff context so ingroup is never set. That is exactly the
+            managedBlockOpen/managedBlockClose shape at gitignore.go:83-86 that motivated the fix.
+            The harness's 46/grouped-const-decl case passes only because its group has one member and
+            its opener sits inside the hunk - the fixture was built to the implementation's minimum,
+            not to the shape at real size. The harness therefore needs each grammar shape in BOTH
+            directions and at a size where context does not reach the opener.
+          family: presence-predicate-written-twice
+          round: 8
+        - id: BR-31
+          severity: Important
+          title: The falsification harness BR-26 demanded is itself unrun, and its red assertions report ok even when every fixture fails to build
+          detail: |-
+            This is the 7th finding in family verification-cannot-fail. Do NOT fix the instance - the
+            RULE has two halves and this round delivered one and a half of them. BR-26 stated it as
+            "a fixture THE RUNNER RE-EXECUTES"; add to it "and a red assertion must match the check's
+            own failure signal, not merely a non-zero exit". Two measured instances.
+            (1) NO RUNNER. grep -rn "scripts/test" over Makefile, Makefile.workflow, .github/ and
+            scripts/ finds no invocation of any of the NINE files in construct/scripts/test/. The
+            plan's Task 3.3 Step 3 still says 50-base-layer-tests.sh runs "both tests"
+            (portable-makefile + gitignore-surface), so M3 registers 2 of 9 and merge-checks.test.sh
+            is orphaned by construction. It has no Core-concepts row and no atlas mention, unlike
+            base-layer.md:214 and setup-and-replication.md:150 which inventory their siblings. The
+            class fix is to glob construct/scripts/test/*.test.sh - the same derive-don't-enumerate
+            repair BR-27 just applied to ci-merge-check.md, applied to the class this time.
+            (2) RED ASSERTIONS CANNOT FAIL FOR THE RIGHT REASON. run46 (merge-checks.test.sh:51)
+            discards stdout/stderr and treats ANY non-zero exit as "the check fired". I broke every
+            fixture build (made git commit fail) while leaving both checks untouched - the harness
+            reported "== 6 passed, 4 failed ==", every red-direction case saying ok while nothing was
+            ever checked. Only the four green-direction cases noticed. Pinning the ambient gitconfig
+            the harness inherits (-c commit.gpgsign=false, -c init.defaultBranch=main) belongs in the
+            same edit.
+          family: verification-cannot-fail
+          round: 8
+        - id: BR-32
+          severity: Minor
+          title: mergeManagedBlock does not validate entries - an empty member silently deletes every blank line outside the block
+          detail: |-
+            gitignore.go:159-165 builds the absorb set straight from entries, so an empty member makes
+            absorb[""] true and every blank line outside weave's region is dropped. Measured -
+            "# group one\nbin/\n\n# group two\ncache/\n" comes back with its separator gone, a
+            reformat of a file weave does not own. A member equal to a marker is the same class: it
+            lands inside the block and makes the NEXT run hard-fail on a duplicate marker. Unreachable
+            at M2's hardcoded nine, reachable once M3 derives entries from the action list. One guard
+            at the top of the entry loop.
+          family: degenerate-input-not-rejected
+          round: 8
+        - id: BR-33
+          severity: Minor
+          title: 46 globs '*.md' but its match regex requires a // or * line prefix, so Markdown prose is effectively uncovered
+          detail: |-
+            The pathspec at 46:119 includes '*.md' and the header speaks of "comment lines", but the
+            regex "^[[:space:]]*(//|\\*).*NAME" only matches Go comments and Markdown bullet lines. A
+            stale atlas paragraph naming a deleted symbol - the exact class BR-27 was about - passes.
+            Either drop '*.md' from the pathspec or give Markdown its own line predicate, so the
+            check's stated scope and its real scope agree.
+          family: hand-maintained-restatement-of-model
+          round: 8
+        - id: BR-34
+          severity: Minor
+          title: 45 and 46 still disagree on which paths they exclude, with no stated reason
+          detail: |-
+            45:52 and 45:54 exclude only workshop/history/; 46:102 excludes all of workshop/*. BR-28's
+            main claim is addressed (46 now derives its range) but this rider is not. Siblings
+            enforcing the same rule on the same tree should share one exclusion set, or each should
+            say why it differs.
+          family: check-invocation-modes-diverge
+          round: 8
+        - id: BR-35
+          severity: Minor
+          title: The entry dedupe landed in mergeManagedBlock but the plan still assigns it to IgnoreEntries, so M3 will implement it twice
+          detail: |-
+            gitignore.go:176-186 dedupes the entry list (the BR-19 repair). Plan Task 2.2 Step 3 says
+            "Dedupe inside IgnoreEntries (Task 3.1 dedupes and sorts anyway)" and Task 3.1's body at
+            plan line 1279 still calls sort.Strings over a deduped slice. Pick one owner and record it
+            in the plan's Revisions before M3 lands both.
+          family: presence-predicate-written-twice
+          round: 8
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -872,6 +997,83 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-29** [Minor] `archived-artifact-breaks-pinned-reference` go test ./... is red at HEAD on an out-of-window failure, so the suite-wide signal this boundary leans on is not clean
   cmd/sdlc/fleet_plan_test.go:14 (TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory) opens workshop/plans/000200-sdlc-fleet-thread-inventory-plan.md, which was archived to workshop/history at dfeba9c. Not caused by this range — the test file last changed at c1bae9b — but it means "go test ./... green" cannot be cited as evidence at this or any later boundary until the test reads the archived path or is retired.
 
+## Round 8 — 2026-09-19T23:30:24-07:00 (claude) — passed
+
+### Disposed
+
+- BR-22 — not-addressed — Measured at HEAD in a scratch clone - mergeManagedBlock(block + "!/CLAUDE.md\n", ["/CLAUDE.md"]) still returns !/CLAUDE.md ABOVE the block; atlas/workflow/weave.md:112 (text added THIS round) says "Outside is the repo's own, preserved verbatim" with no position clause, README.md:49 says the same, and there is still no issue Log line. The .gitignore comment added this round ("Add your own entries ABOVE it") is the nearest approach but never says a line placed below is relocated above and can have its precedence inverted.
+- BR-23 — not-addressed — Measured at HEAD - a CRLF .gitignore carrying a block gains a second LF block (2 open markers) on pass 1, and pass 2 returns changed=false err=nil, so the original is a permanent silent orphan. gitignore.go:131 still compares raw lines with no TrimRight(line, "\r"). This also contradicts atlas/workflow/weave.md:115's new claim that the transform "fails closed on any marker shape it cannot parse".
+- BR-26 — addressed — construct/scripts/test/merge-checks.test.sh exists and genuinely falsifies - I reverted the grouped-decl awk rules, the per-commit union, and the allowlist separately in a scratch clone and got 46/grouped-const-decl FAIL, 46/born-and-buried FAIL, and 3 FAILs respectively. 46's real coverage is stated as fixtures in the Revisions rather than a prose tick, and the four TestEnsureGitignoreText* functions are now TestManagedBlock*. Two residues raised as new findings (harness unrun; red assertions pass on a broken fixture).
+- BR-27 — addressed — atlas/workflow/ci-merge-check.md:35 now says which checks exist is "ls scripts/merge-checks.d/" and keeps only 40-duplicate-issue-id.sh's rationale; the stale two-name list is gone and the fence opened at :31 closes at :33 (exactly two fences in the file), so the section no longer renders as code.
+- BR-28 — addressed — 46-...sh:32-39 now derives merge-base(origin/main|main, HEAD) when no range is given and exits 1 if it cannot, so a bare run can no longer print a vacuous green. The exclusion-divergence rider is still open (45:52,54 excludes only workshop/history/; 46:102 excludes all workshop/*) and is re-noted as a Minor rather than re-raised.
+- BR-29 — addressed — Confirmed still red at HEAD - go test ./... fails on TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory (cmd/sdlc/fleet_plan_test.go:14), out of window, and now tracked as workshop/issues/000210-fleet-plan-test-hardcoded-path.md. The Revisions record that suite-wide green is not citable at this or any later boundary and that the scoped go test ./cmd/weave/... (verified green) is what is being cited instead. Prose correction, inspected against the source.
+
+### Raised
+
+- **BR-30** [Important] `presence-predicate-written-twice` 46's declaration grammar is written twice and the halves disagree - it false-positives on a grouped-const reorder and is still blind to the grouped rename it was built for
+  This is the 5th finding in family presence-predicate-written-twice. Do NOT fix these two
+  sites - the RULE is that "line L declares symbol N" must have ONE definition applied to
+  both the removed-side extraction and the still-declared lookup, resolved against the FILE
+  at each commit (git show <c>:<path>) rather than against hunk context. Measured in
+  throwaway repos, both directions.
+  (1) FALSE POSITIVE - extract_removed (46:69-73) was made group-aware this round but
+  still_declared (46:91) greps only column-0 declarations. A pure reorder of two members
+  inside const ( ... ) removes nothing, yet the check exits 1 with "pkg/a.go:8  names removed
+  symbol alpha", failing CI on a correct comment. 45's own header calls a check that fires on
+  legitimate prose the failure mode that gets a check routed around.
+  (2) FALSE NEGATIVE - renaming member 8 of a 12-member const group prints
+  "no top-level symbols removed in range", because the const ( opener falls outside the
+  3-line diff context so ingroup is never set. That is exactly the
+  managedBlockOpen/managedBlockClose shape at gitignore.go:83-86 that motivated the fix.
+  The harness's 46/grouped-const-decl case passes only because its group has one member and
+  its opener sits inside the hunk - the fixture was built to the implementation's minimum,
+  not to the shape at real size. The harness therefore needs each grammar shape in BOTH
+  directions and at a size where context does not reach the opener.
+- **BR-31** [Important] `verification-cannot-fail` The falsification harness BR-26 demanded is itself unrun, and its red assertions report ok even when every fixture fails to build
+  This is the 7th finding in family verification-cannot-fail. Do NOT fix the instance - the
+  RULE has two halves and this round delivered one and a half of them. BR-26 stated it as
+  "a fixture THE RUNNER RE-EXECUTES"; add to it "and a red assertion must match the check's
+  own failure signal, not merely a non-zero exit". Two measured instances.
+  (1) NO RUNNER. grep -rn "scripts/test" over Makefile, Makefile.workflow, .github/ and
+  scripts/ finds no invocation of any of the NINE files in construct/scripts/test/. The
+  plan's Task 3.3 Step 3 still says 50-base-layer-tests.sh runs "both tests"
+  (portable-makefile + gitignore-surface), so M3 registers 2 of 9 and merge-checks.test.sh
+  is orphaned by construction. It has no Core-concepts row and no atlas mention, unlike
+  base-layer.md:214 and setup-and-replication.md:150 which inventory their siblings. The
+  class fix is to glob construct/scripts/test/*.test.sh - the same derive-don't-enumerate
+  repair BR-27 just applied to ci-merge-check.md, applied to the class this time.
+  (2) RED ASSERTIONS CANNOT FAIL FOR THE RIGHT REASON. run46 (merge-checks.test.sh:51)
+  discards stdout/stderr and treats ANY non-zero exit as "the check fired". I broke every
+  fixture build (made git commit fail) while leaving both checks untouched - the harness
+  reported "== 6 passed, 4 failed ==", every red-direction case saying ok while nothing was
+  ever checked. Only the four green-direction cases noticed. Pinning the ambient gitconfig
+  the harness inherits (-c commit.gpgsign=false, -c init.defaultBranch=main) belongs in the
+  same edit.
+- **BR-32** [Minor] `degenerate-input-not-rejected` mergeManagedBlock does not validate entries - an empty member silently deletes every blank line outside the block
+  gitignore.go:159-165 builds the absorb set straight from entries, so an empty member makes
+  absorb[""] true and every blank line outside weave's region is dropped. Measured -
+  "# group one\nbin/\n\n# group two\ncache/\n" comes back with its separator gone, a
+  reformat of a file weave does not own. A member equal to a marker is the same class: it
+  lands inside the block and makes the NEXT run hard-fail on a duplicate marker. Unreachable
+  at M2's hardcoded nine, reachable once M3 derives entries from the action list. One guard
+  at the top of the entry loop.
+- **BR-33** [Minor] `hand-maintained-restatement-of-model` 46 globs '*.md' but its match regex requires a // or * line prefix, so Markdown prose is effectively uncovered
+  The pathspec at 46:119 includes '*.md' and the header speaks of "comment lines", but the
+  regex "^[[:space:]]*(//|\\*).*NAME" only matches Go comments and Markdown bullet lines. A
+  stale atlas paragraph naming a deleted symbol - the exact class BR-27 was about - passes.
+  Either drop '*.md' from the pathspec or give Markdown its own line predicate, so the
+  check's stated scope and its real scope agree.
+- **BR-34** [Minor] `check-invocation-modes-diverge` 45 and 46 still disagree on which paths they exclude, with no stated reason
+  45:52 and 45:54 exclude only workshop/history/; 46:102 excludes all of workshop/*. BR-28's
+  main claim is addressed (46 now derives its range) but this rider is not. Siblings
+  enforcing the same rule on the same tree should share one exclusion set, or each should
+  say why it differs.
+- **BR-35** [Minor] `presence-predicate-written-twice` The entry dedupe landed in mergeManagedBlock but the plan still assigns it to IgnoreEntries, so M3 will implement it twice
+  gitignore.go:176-186 dedupes the entry list (the BR-19 repair). Plan Task 2.2 Step 3 says
+  "Dedupe inside IgnoreEntries (Task 3.1 dedupes and sorts anyway)" and Task 3.1's body at
+  plan line 1279 still calls sort.Strings over a deduped slice. Pick one owner and record it
+  in the plan's Revisions before M3 lands both.
+
 ## Open findings
 
 - **BR-12** [Minor] `hand-maintained-restatement-of-model` gather.go's SeedOnce comment asserts a content comparison classifyAction deliberately does not do, and the plan's Core concepts table omits the new exported predicate
@@ -881,7 +1083,9 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-18** [Minor] `edit-splice-leaves-orphan-clause` atlas/workflow/weave.md:24-31 — the round-3 verb-list removal left the trailing clause, so the sentence no longer parses
 - **BR-22** [Minor] `block-position-changes-pattern-precedence` Repo lines positioned after the block move above it, silently flipping git's last-match-wins in weave's favour
 - **BR-23** [Minor] `block-position-changes-pattern-precedence` A CRLF .gitignore defeats marker matching — weave appends a second block and can never retire the first
-- **BR-26** [Important] `verification-cannot-fail` 46-removed-symbol-references.sh prints green on three shapes it is credited with, including one the round-6 ledger marks verified
-- **BR-27** [Important] `hand-maintained-restatement-of-model` atlas/workflow/ci-merge-check.md hand-enumerates ariadne's merge checks and is two entries stale, including the one added this round
-- **BR-28** [Minor] `check-invocation-modes-diverge` 46-…sh with no range is a silent no-op pass while its sibling 45- scans the whole tree
-- **BR-29** [Minor] `archived-artifact-breaks-pinned-reference` go test ./... is red at HEAD on an out-of-window failure, so the suite-wide signal this boundary leans on is not clean
+- **BR-30** [Important] `presence-predicate-written-twice` 46's declaration grammar is written twice and the halves disagree - it false-positives on a grouped-const reorder and is still blind to the grouped rename it was built for
+- **BR-31** [Important] `verification-cannot-fail` The falsification harness BR-26 demanded is itself unrun, and its red assertions report ok even when every fixture fails to build
+- **BR-32** [Minor] `degenerate-input-not-rejected` mergeManagedBlock does not validate entries - an empty member silently deletes every blank line outside the block
+- **BR-33** [Minor] `hand-maintained-restatement-of-model` 46 globs '*.md' but its match regex requires a // or * line prefix, so Markdown prose is effectively uncovered
+- **BR-34** [Minor] `check-invocation-modes-diverge` 45 and 46 still disagree on which paths they exclude, with no stated reason
+- **BR-35** [Minor] `presence-predicate-written-twice` The entry dedupe landed in mergeManagedBlock but the plan still assigns it to IgnoreEntries, so M3 will implement it twice

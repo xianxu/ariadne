@@ -262,7 +262,7 @@ lands on machinery already proven.
       enumerate the file-shape verbs, the seed-source split
       (`construct/Makefile.seed`) so ariadne's root Makefile stops being every
       repo's template, the `Makefile.workflow` default flip, and the atlas pass.
-- [ ] M2 — managed block: `.gitignore` becomes a delimited weave-owned region,
+- [x] M2 — managed block: `.gitignore` becomes a delimited weave-owned region,
       still carrying today's hardcoded 9 entries. Block machinery proven against a
       known-good list before the list changes.
 - [ ] M3 — derive the list: `IgnoreEntries` from the manifest walk; delete
@@ -392,6 +392,7 @@ than the doc), so the per-primitive hours are provisional.
 ## Log
 
 ### 2026-09-19
+- 2026-09-19: closed M2 — Managed .gitignore block. BR-26 fixed at the RULE: falsification now lives in construct/scripts/test/merge-checks.test.sh as 10 re-executable fixtures (written first, failed 4/10, all green after). Gaps it exposed: allowlist matched bare substrings so a symbol named *remov* could never be flagged; grouped const members invisible to a column-0 extractor (how the markers in the motivating file are declared); one prior ledger check-mark was false. BR-27: ci-merge-check.md now names scripts/merge-checks.d as the source instead of restating it. BR-28: 46 no longer prints green with no range. BR-29 accepted: go test ./... red on pre-existing #210, so scoped go test ./cmd/weave/... is what I cite.; review verdict: FIX-THEN-SHIP
 - 2026-09-19: closed M1 — seed-once end to end. BR-10 fixed at the RULE (9 restatements now name intent.kindByVerb) and made enforceable by 45-verb-enumeration.sh, falsified both ways. BR-12: partial boolean replaced by total SlotState/ClassifySlot, closing BR-11; applySeedOnce refuses on SlotUnknown. BR-14: seed-once enrolled in TestMaterializationFailures (4 fault ops). portable-makefile PASS, go test ./cmd/weave/... green.; review verdict: FIX-THEN-SHIP
 
 Found while investigating post-`make weave` `git status` churn in pair
@@ -575,6 +576,69 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — M2 CLOSED, with two known gaps carried forward
+
+Gate clean after 4 rounds (8 review rounds total across M1+M2). M2 ticked.
+Churn: prod 335 / test 353 / atlas 31 / workshop 1021, rework 1.0x.
+
+**Session stopped here on operator instruction (token budget).** M3 and M4 are
+NOT started. Two Important findings were demoted past the round cap with the
+gate warning that *no later gate picks them up* — they are recorded here rather
+than fixed, so they are not lost:
+
+**BR-30 — 46's declaration grammar is written twice and the halves disagree.**
+The column-0 extractor and the new stateful grouped-member extractor encode
+"what a declaration looks like" separately. Consequence measured by the
+reviewer: it false-positives on a grouped-const REORDER (a member moved, not
+removed, still reads as removed) and is *still* blind to the grouped rename it
+was built for. The fix is to write the grammar once and have both paths use it.
+**Do not trust 46's grouped-declaration coverage until this lands.**
+
+**BR-31 — the falsification harness is itself unfalsified, and its red
+assertions can report `ok` spuriously.** Confirmed by inspection:
+`construct/scripts/test/merge-checks.test.sh` uses
+
+```
+run46 "$r" && bad "<label>" "exited 0" || ok "<label>"
+```
+
+so ANY non-zero exit counts as "the check went red — site enforced", including a
+non-zero exit because the fixture repo failed to build, the check script path
+was wrong, or git errored. Every red case would report `ok` while testing
+nothing. This is precisely the cannot-fail shape the harness exists to prevent,
+reproduced inside the harness — the sixth member of that family and the second
+time this session a tool I wrote to catch a defect contained that same defect.
+
+The fix: assert on the check's *specific* exit status and on its output naming
+the expected site, and add a self-test that a deliberately broken fixture is
+reported as an ERROR, not as `ok`. The harness is also not registered with any
+runner (`scripts/merge-checks.d/50-base-layer-tests.sh` is still M3's work), so
+nothing runs it automatically today.
+
+**Net standing of the new tooling:** 45-verb-enumeration.sh is sound and swept
+(10/10 motivating sites enforced). 46-removed-symbol-references.sh catches the
+plain and born-and-buried shapes but its grouped-declaration handling is
+**unreliable per BR-30**. The harness's *green* cases (clean tree, historical
+mention, ordinary prose) are trustworthy; its *red* cases are not, per BR-31.
+
+## Where to resume
+
+1. Fix BR-30 + BR-31 (above) — they are the tail of M2, not M3 work.
+2. **M3** — derive the ignore list from the manifest walk. The plan's Chunk 3 is
+   current and unaffected by anything in the M2 review. Note Task 3.3 Step 3
+   registers `50-base-layer-tests.sh`, which should now also run
+   `merge-checks.test.sh`.
+3. **M4** — the fleet untrack; Tasks 4.0a/b/c are blocking prerequisites and are
+   written up in the plan.
+4. `go test ./...` is red at HEAD on pre-existing **#210** (a plan archived to
+   `workshop/history`), so cite scoped suites, not suite-wide green.
+5. Four files were dirty in the working tree at session start and are
+   **deliberately still uncommitted**: `.claude/settings.ariadne.json` (adds
+   `api.anthropic.com` to a fleet-propagated egress allowlist) and issues
+   #236/#237/#238. They are not mine; I swept them into a commit twice and
+   backed them out both times.
+
+
 ### 2026-09-19 — M2 review round 7: the falsification becomes a fixture
 
 **BR-26 (6th in `verification-cannot-fail`) — the rule, stated better than I
