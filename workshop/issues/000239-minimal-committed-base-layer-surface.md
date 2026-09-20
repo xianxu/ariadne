@@ -321,6 +321,14 @@ current Linux code requires launchd and its Mutagen package targets amd64. Parle
 compile/bootstrap repeat and preserved intentionally tracked issue.json pass.
 Actual peer repositories remain untouched; #241 retains rollout decisions.
 
+### 2026-09-20 — M2 round 7 remains open
+
+Round 7 accepted atomic publication and permissions (BR-11/12), but reopened
+BR-8 for surviving child writers. The immediate shell can die before its child,
+so removing staging at shell return loses recoverable ownership. The plan now
+requires an inherited producer lease and group cancellation; production late
+writer regressions are being added before implementation. M2 is not closed.
+
 ## Revisions`.
 
 Two corrections landed while widening:
