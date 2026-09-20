@@ -159,7 +159,20 @@ rounds:
           family: owner-fallback-widens-propagation-set
           round: 4
       blocked: true
-content_hash: 74bed94b92d65dc31fad16a4e05b6eee2b86d8b2b016c358cc71f72822d407e2
+    - "n": 5
+      timestamp: "2026-09-19T20:59:32-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-6
+          disposition: addressed
+          note: Task 4.0a Step 4 makes --dry-run run the classify pass and print the would-untrack/left-tracked split; all three call sites now treat empty output as a failure.
+          round: 5
+        - id: PQ-7
+          disposition: addressed
+          note: Task 4.0b Step 3 resolves only basenames the layer manifests declare with a symlink scripts/merge-checks.d/ row; the test adds a local-only owner check that must not leak.
+          round: 5
+      blocked: false
+content_hash: 6f6dd833cf4ce3a981155990fa2d5bc574a1922dff9f8162d8a4a87111ede509
 ---
 
 # Gate ledger — ariadne#239 (plan-quality)
@@ -259,7 +272,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   ./cmd/weave against ariadne's sources. State the rule in 4.0b: the fallback resolves
   only checks the leaf's manifest walk produces a Symlink for; the rest stay the owner's.
 
+## Round 5 — 2026-09-19T20:59:32-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-6 — addressed — Task 4.0a Step 4 makes --dry-run run the classify pass and print the would-untrack/left-tracked split; all three call sites now treat empty output as a failure.
+- PQ-7 — addressed — Task 4.0b Step 3 resolves only basenames the layer manifests declare with a symlink scripts/merge-checks.d/ row; the test adds a local-only owner check that must not leak.
+
 ## Open findings
 
-- **PQ-6** [Critical] `verification-cannot-fail` propagate-base --dry-run returns before any untrack logic, so all three pre-sweep safety checks prove nothing
-- **PQ-7** [Important] `owner-fallback-widens-propagation-set` Task 4.0b's checks-dir fallback collects the owner's whole merge-checks.d, importing ariadne-local checks into every derivative
+(none — every finding has been disposed)
