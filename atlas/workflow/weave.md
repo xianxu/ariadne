@@ -228,6 +228,10 @@ During compile, weave always supplies
 the staging argument. Marker authors update their scripts; there is no new CLI
 command or extra user setup step.
 
+File publication writes and sets permissions in an owned temporary stage, then
+renames the complete file into place. Interrupted publication leaves a complete
+old/new file or recoverable staging. Generated executable permissions survive.
+
 After successful generation and validation, staged files become actions published
 through the same identity-checking `ApplyManaged` path as other artifacts, under
 `construct/generated/<dir>/`. Generator or validation failure does not publish

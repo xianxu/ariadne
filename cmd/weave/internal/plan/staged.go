@@ -122,7 +122,8 @@ func StagedActions(fs weavefs.FS, root, stageDir, outputRel string) ([]Action, e
 				if err != nil {
 					return err
 				}
-				actions = append(actions, stagedOutput{WriteFile{Path: dest, Content: string(content)}})
+				mode := info.Mode().Perm()
+				actions = append(actions, stagedOutput{WriteFile{Path: dest, Content: string(content), Mode: &mode}})
 			default:
 				return fmt.Errorf("unsupported staged output type: %s", source)
 			}

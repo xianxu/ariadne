@@ -92,7 +92,7 @@ func writeManagedIgnore(fs weavefs.FS, root, next string) error {
 	if string(current) == next {
 		return nil
 	}
-	return fs.WriteFileAtomic(p, []byte(next))
+	return weavefs.Publish(fs, root, p, []byte(next), nil)
 }
 
 // GeneratedGitignoreEntries derives exact output paths for dry-run/planning.

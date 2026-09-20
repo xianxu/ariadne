@@ -40,6 +40,9 @@ import (
 // ownership is location-based (construct/dev-aliases.sh scans sibling cmd/X dirs)
 // and deps come from `weave link` / construct/deps, so weave never edits go.mod.
 func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
+	if err := weavefs.ReclaimPublications(fs, repoRoot); err != nil {
+		return err
+	}
 	for _, a := range actions {
 		var err error
 		switch act := a.(type) {
@@ -48,11 +51,11 @@ func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
 		case Mkdir:
 			err = applyMkdir(fs, filepath.Join(repoRoot, act.Path))
 		case Seed:
-			err = applySeed(fs, act.Src, filepath.Join(repoRoot, act.Dst))
+			err = applySeed(fs, repoRoot, act.Src, filepath.Join(repoRoot, act.Dst))
 		case Touch:
-			err = applyTouch(fs, filepath.Join(repoRoot, act.Path))
+			err = applyTouch(fs, repoRoot, filepath.Join(repoRoot, act.Path))
 		case WriteFile:
-			err = applyWriteFile(fs, filepath.Join(repoRoot, act.Path), act.Content)
+			err = applyWriteFile(fs, repoRoot, filepath.Join(repoRoot, act.Path), act.Content, act.Mode)
 		case MergeSettings:
 			err = applyMergeSettings(fs, repoRoot, act)
 		case EnsureGitignore:
@@ -109,7 +112,7 @@ func applyMergeSettings(fs weavefs.FS, repoRoot string, act MergeSettings) error
 	if err != nil {
 		return err
 	}
-	return applyWriteFile(fs, filepath.Join(repoRoot, act.Target), string(merged))
+	return applyWriteFile(fs, repoRoot, filepath.Join(repoRoot, act.Target), string(merged), nil)
 }
 
 // applySymlink ports create_symlink. src is the absolute upstream path; dst the
@@ -165,102 +168,51 @@ func applyMkdir(fs weavefs.FS, dir string) error {
 // create an EMPTY file ONLY if it does not already exist. Crucially does NOT
 // overwrite an existing file — a Touch target (e.g. workshop/lessons.md)
 // accumulates content over time and must survive a re-weave. Idempotent.
-func applyTouch(fs weavefs.FS, path string) error {
-	if err := ensureParent(fs, path); err != nil {
+func applyTouch(fs weavefs.FS, root, path string) error {
+	if _, err := fs.Lstat(path); err == nil {
+		return nil
+	} else if !os.IsNotExist(err) {
 		return err
 	}
-	if _, err := fs.Lstat(path); err == nil {
-		return nil // already exists (with any content) — no-op, never clobber
-	}
-	if err := fs.WriteFile(path, []byte{}); err != nil {
-		return fmt.Errorf("apply touch: %s: %w", path, err)
-	}
-	return nil
+	return weavefs.Publish(fs, root, path, []byte{}, nil)
 }
 
-// applySeed ports create_seed: a content-tracking real-file copy of the
-// upstream src into dst (dst already absolute). src is the absolute upstream
-// path. Behaviors, verbatim from setup.sh:
-//
-//   - Missing src → non-fatal skip (the bash `[[ ! -f "$src" ]]` warn + return
-//     0). weave can't read the source, so it leaves the target intact and does
-//     NOT error the walk. A read failure (absent or unreadable) takes this path.
-//   - Existing dst with identical content → silent no-op (the `cmp -s` guard),
-//     so a re-weave produces no churn.
-//   - Otherwise (dst absent, or drifted from src) → ensure parents, then write
-//     src's bytes to dst (created on first run, refreshed when it drifted). This
-//     is the convergence #45 added: a derivative stranded on a stale entrypoint
-//     catches up to upstream.
-//
-// NOTE on mode: setup.sh uses `cp -p` to preserve the source's mode (an
-// executable source lands executable). weavefs.FS.WriteFile writes a fixed
-// 0o644; applySeed then replicates the load-bearing part of `cp -p` by
-// OBSERVING the source's mode (fs.Stat) and chmod-ing the seeded file to match
-// its executable bits — so a seeded bootstrap.sh stays `./bootstrap.sh`-runnable
-// (a non-peer bootstrap invokes it directly, where the bit IS load-bearing). The
-// mode is read from disk in this IO seam, never carried in the pure Action
-// (ARCH-PURE). Non-exec source → the WriteFile 0o644 default stands.
-//
-// A destination symlink is removed before comparing bytes or syncing mode,
-// including matching and dangling links. Source read failure leaves it intact.
-//
-// We sync the executable bits even on a content-identical dst (a file seeded by
-// an older mode-blind weave is +x-less; a re-weave should converge its mode too,
-// like create_seed's `cp -p` would). The cmp -s content no-op still skips the
-// rewrite; only the chmod (cheap, idempotent) runs unconditionally below.
-func applySeed(fs weavefs.FS, src, dst string) error {
+// applySeed materializes an authored entrypoint with source permissions. Source
+// read failure retains the established non-fatal skip. Publication replaces any
+// destination symlink atomically, never following it into an ancestor.
+func applySeed(fs weavefs.FS, root, src, dst string) error {
 	data, err := fs.ReadFile(src)
 	if err != nil {
-		return nil // source missing/unreadable → warn-equivalent non-fatal skip
+		return nil
 	}
-	if err := removeDestinationSymlink(fs, dst); err != nil {
+	source, err := fs.Stat(src)
+	if err != nil {
 		return err
 	}
-	// Content already current → idempotent no-op on the bytes (cmp -s), but still
-	// fall through to the mode sync below so a stale-mode dst converges.
-	contentCurrent := false
-	if existing, rerr := fs.ReadFile(dst); rerr == nil && string(existing) == string(data) {
-		contentCurrent = true
+	mode := source.Mode().Perm()
+	current, err := fs.Lstat(dst)
+	if err != nil && !os.IsNotExist(err) {
+		return err
 	}
-	if !contentCurrent {
-		if err := ensureParent(fs, dst); err != nil {
+	if err == nil && current.Mode().IsRegular() && current.Mode().Perm() == mode {
+		previous, err := fs.ReadFile(dst)
+		if err != nil {
 			return err
 		}
-		if err := fs.WriteFile(dst, data); err != nil {
-			return fmt.Errorf("apply seed: write %s: %w", dst, err)
+		if string(previous) == string(data) {
+			return nil
 		}
 	}
-	// Preserve the source's executable bit (the `cp -p` mode-preservation).
-	// Observe the source mode in the IO seam; if any exec bit is set, mirror the
-	// source's full perm onto dst, else leave the 0o644 WriteFile default.
-	if fi, serr := fs.Stat(src); serr == nil && fi.Mode().Perm()&0o111 != 0 {
-		if err := fs.Chmod(dst, fi.Mode().Perm()); err != nil {
-			return fmt.Errorf("apply seed: chmod %s: %w", dst, err)
-		}
+	if err := weavefs.Publish(fs, root, dst, data, &mode); err != nil {
+		return fmt.Errorf("apply seed: write %s: %w", dst, err)
 	}
 	return nil
 }
 
-// applyWriteFile ensures parents then writes content (the composed AGENTS.md).
-// Overwrites unconditionally — the planner decides content; convergence-on-drift
-// is implicit (same content → same bytes).
-//
-// If a SYMLINK occupies the slot it is removed FIRST, so we write a fresh regular
-// file here and never follow the link to clobber its target. This is the #95
-// cutover hazard: until a derivative's first weave, its AGENTS.md is a symlink
-// into the ancestor (nous/AGENTS.md → ../ariadne/AGENTS.md), and fs.WriteFile
-// (os.WriteFile) follows a symlink — so a naive write would overwrite ariadne's
-// source constitution THROUGH the link. Mirrors applySymlink's [[ -L ]] → rm
-// guard. A regular file in the slot is fine to truncate-overwrite (WriteFile's
-// own O_TRUNC); only a symlink must be unlinked first.
-func applyWriteFile(fs weavefs.FS, path, content string) error {
-	if err := ensureParent(fs, path); err != nil {
-		return err
-	}
-	if err := removeDestinationSymlink(fs, path); err != nil {
-		return err
-	}
-	if err := fs.WriteFile(path, []byte(content)); err != nil {
+// applyWriteFile atomically replaces a composed or generated output. Explicit
+// generated permissions travel with the bytes; nil retains ordinary-file modes.
+func applyWriteFile(fs weavefs.FS, root, path, content string, mode *os.FileMode) error {
+	if err := weavefs.Publish(fs, root, path, []byte(content), mode); err != nil {
 		return fmt.Errorf("apply writefile: %s: %w", path, err)
 	}
 	return nil
@@ -270,25 +222,6 @@ func applyWriteFile(fs weavefs.FS, path, content string) error {
 func ensureParent(fs weavefs.FS, path string) error {
 	if err := fs.MkdirAll(filepath.Dir(path)); err != nil {
 		return fmt.Errorf("ensure parent of %s: %w", path, err)
-	}
-	return nil
-}
-
-// removeDestinationSymlink makes fixed output slots safe for regular-file
-// materialization. Unknown destination state fails closed; absence is safe.
-// Callers read seed source bytes before invoking this destructive step.
-func removeDestinationSymlink(fs weavefs.FS, path string) error {
-	fi, err := fs.Lstat(path)
-	if os.IsNotExist(err) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("materialize: inspect %s: %w", path, err)
-	}
-	if fi.Mode()&os.ModeSymlink != 0 {
-		if err := fs.Remove(path); err != nil {
-			return fmt.Errorf("materialize: remove stale symlink %s: %w", path, err)
-		}
 	}
 	return nil
 }

@@ -439,3 +439,36 @@ func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
 		t.Fatalf("recovered output did not retire: %v", err)
 	}
 }
+
+func TestCompilePreservesGeneratedExecutablePermissions(t *testing.T) {
+	leaf := buildSkillRepoFixture(t)
+	base := filepath.Join(filepath.Dir(leaf), "base")
+	pkg := filepath.Join(base, "construct/local/datatype")
+	realDatatypeMarker(t, pkg, "construct/generated/datatype")
+	marker := filepath.Join(pkg, ".dynamic-skill")
+	original, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	for _, mode := range []string{"755", "644"} {
+		script := string(original) + "printf '#!/bin/sh\\necho generated\\n' > \"$out/run.sh\"\nchmod " + mode + " \"$out/run.sh\"\n"
+		if err := os.WriteFile(marker, []byte(script), 0755); err != nil {
+			t.Fatal(err)
+		}
+		if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err != nil {
+			t.Fatal(err)
+		}
+		info, err := os.Stat(filepath.Join(leaf, "construct/generated/datatype/run.sh"))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := os.FileMode(0755)
+		if mode == "644" {
+			want = 0644
+		}
+		if info.Mode().Perm() != want {
+			t.Fatalf("generated file mode %o, want %o", info.Mode().Perm(), want)
+		}
+	}
+}

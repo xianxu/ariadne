@@ -163,6 +163,42 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 6
+      timestamp: "2026-09-20T14:43:06-07:00"
+      agent: codex
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: Generators now stage before ownership-checked publication. Reverting staging in scratch makes real-generator authored file/link replacement regressions fail.
+          round: 6
+        - id: BR-8
+          disposition: addressed
+          note: The reported prepublication failure is covered by shared durable stages and failure/death/retry/retirement tests. Reverting staging makes the failed-generator publication regression fail; partial final publication is a separate finding below.
+          round: 6
+        - id: BR-9
+          disposition: addressed
+          note: The active table now lists only ToolEnvironment as pure, matching its implementation; the appended M2 review revision classifies discovery and execution as integration.
+          round: 6
+        - id: BR-10
+          disposition: addressed
+          note: Tools accepts weavefs.InputRunner and passes stdin through RunInput. The injected stateful failure/retry test and retained real-Make tests pass.
+          round: 6
+      findings:
+        - id: BR-11
+          severity: Critical
+          title: Partial final-file writes escape ownership recovery
+          detail: 'apply.go:263 uses truncating WriteFile, but ownership.go:255 recognizes only complete old/new hashes. Scratch injection writing half the output before returning an error makes retry refuse it as an authored replacement; retirement cannot identify it either. This is the 3rd finding in this family: enforce atomic or durably recoverable publication across all writers, with partial-write/retry/retirement regressions. ARCH-ORDER, ARCH-FUNERAL, ARCH-PURPOSE.'
+          family: durable-staging-reclamation
+          round: 6
+        - id: BR-12
+          severity: Important
+          title: Staged publication discards executable permissions
+          detail: staged.go:125 lowers regular outputs to content-only WriteFile actions, and weavefs/fs.go:72 creates them as 0644. A scratch regression publishing a generated 0755 run.sh fails because the destination is 0644. Preserve permissions and test cold publication and warm permission changes. ARCH-PURPOSE.
+          family: generated-artifact-fidelity
+          round: 6
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -234,9 +270,23 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-10** [Important] `external-interaction-test-seam` Tools execution requires the concrete process runner
   cmd/weave/internal/startup/tools.go:15 accepts weavefs.ExecRunner and mutates its Stdin, unlike Dependencies' injectable Runner interface. Tests therefore require real Make and cannot substitute the required stateful external double. This is the 2nd finding in family external-interaction-test-seam. Apply the shared rule that production and fake execution consume the same invocation boundary, including stdin; retain real-Make conformance tests alongside the fake. ARCH-MOCK.
 
+## Round 6 — 2026-09-20T14:43:06-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-7 — addressed — Generators now stage before ownership-checked publication. Reverting staging in scratch makes real-generator authored file/link replacement regressions fail.
+- BR-8 — addressed — The reported prepublication failure is covered by shared durable stages and failure/death/retry/retirement tests. Reverting staging makes the failed-generator publication regression fail; partial final publication is a separate finding below.
+- BR-9 — addressed — The active table now lists only ToolEnvironment as pure, matching its implementation; the appended M2 review revision classifies discovery and execution as integration.
+- BR-10 — addressed — Tools accepts weavefs.InputRunner and passes stdin through RunInput. The injected stateful failure/retry test and retained real-Make tests pass.
+
+### Raised
+
+- **BR-11** [Critical] `durable-staging-reclamation` Partial final-file writes escape ownership recovery
+  apply.go:263 uses truncating WriteFile, but ownership.go:255 recognizes only complete old/new hashes. Scratch injection writing half the output before returning an error makes retry refuse it as an authored replacement; retirement cannot identify it either. This is the 3rd finding in this family: enforce atomic or durably recoverable publication across all writers, with partial-write/retry/retirement regressions. ARCH-ORDER, ARCH-FUNERAL, ARCH-PURPOSE.
+- **BR-12** [Important] `generated-artifact-fidelity` Staged publication discards executable permissions
+  staged.go:125 lowers regular outputs to content-only WriteFile actions, and weavefs/fs.go:72 creates them as 0644. A scratch regression publishing a generated 0755 run.sh fails because the destination is 0644. Preserve permissions and test cold publication and warm permission changes. ARCH-PURPOSE.
+
 ## Open findings
 
-- **BR-7** [Critical] `generated-output-write-ownership` Generators overwrite authored replacements before ownership checks
-- **BR-8** [Critical] `durable-staging-reclamation` Failed generation leaves outputs outside durable ownership recovery
-- **BR-9** [Critical] `core-concept-purity-classification` The updated PURE setup entity has no corresponding pure implementation
-- **BR-10** [Important] `external-interaction-test-seam` Tools execution requires the concrete process runner
+- **BR-11** [Critical] `durable-staging-reclamation` Partial final-file writes escape ownership recovery
+- **BR-12** [Important] `generated-artifact-fidelity` Staged publication discards executable permissions

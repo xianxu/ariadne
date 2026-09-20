@@ -600,7 +600,7 @@ func TestApplySeedDestinationStates(t *testing.T) {
 			if err := os.Symlink(victim, dst); err != nil {
 				t.Fatal(err)
 			}
-			if err := applySeed(weavefs.OSFS{}, src, dst); err != nil {
+			if err := applySeed(weavefs.OSFS{}, root, src, dst); err != nil {
 				t.Fatal(err)
 			}
 			fi, err := os.Lstat(dst)
@@ -619,7 +619,7 @@ func TestApplySeedDestinationStates(t *testing.T) {
 				if string(got) != string(source) || fi.Mode().Perm() != 0755 {
 					t.Fatalf("materialized %q mode %v", got, fi.Mode())
 				}
-				if err := applySeed(weavefs.OSFS{}, src, dst); err != nil {
+				if err := applySeed(weavefs.OSFS{}, root, src, dst); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -655,11 +655,11 @@ func (f materializationFaultFS) Lstat(p string) (os.FileInfo, error) {
 	}
 	return f.OSFS.Lstat(p)
 }
-func (f materializationFaultFS) Remove(p string) error {
-	if f.operation == "remove" {
+func (f materializationFaultFS) Rename(old, p string) error {
+	if f.operation == "rename" {
 		return os.ErrPermission
 	}
-	return f.OSFS.Remove(p)
+	return f.OSFS.Rename(old, p)
 }
 func (f materializationFaultFS) WriteFile(p string, b []byte) error {
 	if f.operation == "write" {
@@ -675,7 +675,7 @@ func (f materializationFaultFS) Chmod(p string, m os.FileMode) error {
 }
 func TestMaterializationFailures(t *testing.T) {
 	for _, kind := range []string{"seed", "writefile"} {
-		for _, operation := range []string{"lstat", "remove", "write", "chmod"} {
+		for _, operation := range []string{"lstat", "rename", "write", "chmod"} {
 			if kind == "writefile" && operation == "chmod" {
 				continue
 			}
@@ -697,9 +697,9 @@ func TestMaterializationFailures(t *testing.T) {
 				}
 				invoke := func(fs weavefs.FS) error {
 					if kind == "seed" {
-						return applySeed(fs, src, dst)
+						return applySeed(fs, root, src, dst)
 					}
-					return applyWriteFile(fs, dst, "same")
+					return applyWriteFile(fs, root, dst, "same", nil)
 				}
 				if err := invoke(materializationFaultFS{operation: operation, destination: dst}); err == nil {
 					t.Fatal("materialization failure hidden")

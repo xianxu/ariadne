@@ -10,6 +10,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
 	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
@@ -21,7 +22,7 @@ type OwnershipScope string
 const (
 	ScopeArtifacts OwnershipScope = "artifacts"
 	ScopeData      OwnershipScope = "data"
-	InventoryPath                 = "construct/generated/weave/ownership.json"
+	InventoryPath                 = staging.RootRel + "/ownership.json"
 )
 
 type outputIdentity struct {
@@ -29,6 +30,7 @@ type outputIdentity struct {
 	Scope OwnershipScope `json:"scope"`
 	Kind  string         `json:"kind"`
 	Value string         `json:"value"`
+	Mode  *os.FileMode   `json:"mode,omitempty"`
 }
 type inventory struct {
 	Version int              `json:"version"`
@@ -51,20 +53,9 @@ func safeParents(fs weavefs.FS, root, path string) error {
 	if !safeRelative(path) {
 		return fmt.Errorf("invalid owned path %q", path)
 	}
-	for dir := filepath.Dir(path); dir != "."; dir = filepath.Dir(dir) {
-		fi, e := fs.Lstat(filepath.Join(root, dir))
-		if os.IsNotExist(e) {
-			continue
-		}
-		if e != nil {
-			return e
-		}
-		if !fi.IsDir() || fi.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("owned path %s has non-directory parent %s", path, dir)
-		}
-	}
-	return nil
+	return weavefs.CheckParents(fs, root, filepath.Join(root, path))
 }
+
 func observe(fs weavefs.FS, root string, id outputIdentity) (bool, error) {
 	if e := safeParents(fs, root, id.Path); e != nil {
 		return false, e
@@ -85,6 +76,9 @@ func observe(fs weavefs.FS, root string, id outputIdentity) (bool, error) {
 		v, e := fs.Readlink(p)
 		return v == id.Value, e
 	case "file":
+		if id.Mode != nil && fi.Mode().Perm() != *id.Mode {
+			return false, nil
+		}
 		if !fi.Mode().IsRegular() {
 			return false, nil
 		}
@@ -128,6 +122,9 @@ func readInventory(fs weavefs.FS, root string) ([]outputIdentity, error) {
 		if id.Kind != "file" && id.Kind != "link" {
 			return nil, fmt.Errorf("invalid ownership identity kind %q", id.Kind)
 		}
+		if id.Mode != nil && (id.Kind != "file" || *id.Mode != id.Mode.Perm()) {
+			return nil, fmt.Errorf("invalid permission identity for %s", id.Path)
+		}
 		if id.Kind == "file" {
 			b, e := hex.DecodeString(id.Value)
 			if e != nil || len(b) != sha256.Size {
@@ -147,14 +144,17 @@ func saveInventory(fs weavefs.FS, root string, ids []outputIdentity) error {
 	if e = ensureParent(fs, p); e != nil {
 		return e
 	}
-	return fs.WriteFileAtomic(p, append(b, '\n'))
+	mode := os.FileMode(0600)
+	return weavefs.Publish(fs, root, p, append(b, '\n'), &mode)
 }
 func uniqueIdentities(ids []outputIdentity) []outputIdentity {
-	set := map[outputIdentity]bool{}
+	set := map[string]bool{}
 	out := make([]outputIdentity, 0, len(ids))
 	for _, id := range ids {
-		if !set[id] {
-			set[id] = true
+		encoded, _ := json.Marshal(id)
+		key := string(encoded)
+		if !set[key] {
+			set[key] = true
 			out = append(out, id)
 		}
 	}
@@ -169,7 +169,13 @@ func uniqueIdentities(ids []outputIdentity) []outputIdentity {
 		if a.Kind != b.Kind {
 			return a.Kind < b.Kind
 		}
-		return a.Value < b.Value
+		if a.Value != b.Value {
+			return a.Value < b.Value
+		}
+		if a.Mode == nil {
+			return b.Mode != nil
+		}
+		return b.Mode != nil && *a.Mode < *b.Mode
 	})
 	return out
 }
@@ -181,6 +187,9 @@ func uniqueIdentities(ids []outputIdentity) []outputIdentity {
 func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipScope) ([]string, error) {
 	if !validScope(scope) {
 		return nil, fmt.Errorf("invalid ownership scope %q", scope)
+	}
+	if err := weavefs.ReclaimPublications(fs, root); err != nil {
+		return nil, err
 	}
 	old, e := readInventory(fs, root)
 	if e != nil {
@@ -325,6 +334,7 @@ func actionIdentities(root string, actions []Action, scope OwnershipScope) ([]ou
 			id.Path = a.Path
 			id.Kind = "file"
 			id.Value = digest([]byte(a.Content))
+			id.Mode = a.Mode
 		default:
 			continue
 		}
@@ -341,6 +351,11 @@ func materializeManaged(fs weavefs.FS, root string, actions []Action) ([]Action,
 		switch a := a.(type) {
 		case stagedOutput:
 			out = append(out, a.Action)
+		case Seed:
+			if reservedOutput(filepath.Clean(a.Dst)) {
+				return nil, fmt.Errorf("seed targets reserved weave state: %s", a.Dst)
+			}
+			out = append(out, a)
 		case EnsureGitignore:
 			continue // managed inventory supplies the complete block
 		case MergeSettings:

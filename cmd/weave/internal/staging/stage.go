@@ -10,6 +10,9 @@ import (
 	"syscall"
 )
 
+// RootRel is weave's private durable ownership and staging storage.
+const RootRel = "construct/generated/weave"
+
 // Metadata is outside the generated/cloned payload, so it is written before a producer can leave a
 // partial output. Retries reclaim only stages whose same-host owner is dead.
 // Unknown hosts, reused/live PIDs, and missing/invalid metadata are preserved.

@@ -130,7 +130,7 @@ type managedFailFS struct {
 }
 
 func (f managedFailFS) WriteFile(p string, b []byte) error {
-	if p == f.path {
+	if f.path != "" && filepath.Base(p) == filepath.Base(f.path) {
 		return errors.New("injected write failure")
 	}
 	return f.OSFS.WriteFile(p, b)
@@ -141,11 +141,11 @@ func (f managedFailFS) ReadFile(p string) ([]byte, error) {
 	}
 	return f.OSFS.ReadFile(p)
 }
-func (f managedFailFS) WriteFileAtomic(p string, b []byte) error {
+func (f managedFailFS) Rename(old, p string) error {
 	if f.atomic {
 		return errors.New("injected atomic failure")
 	}
-	return f.OSFS.WriteFileAtomic(p, b)
+	return f.OSFS.Rename(old, p)
 }
 
 func TestManagedPartialApplyRetainsOldAndNewIdentities(t *testing.T) {
@@ -327,16 +327,16 @@ type managedAtomicStepFS struct {
 	fail  int
 }
 
-func (f *managedAtomicStepFS) WriteFileAtomic(path string, b []byte) error {
+func (f *managedAtomicStepFS) Rename(old, path string) error {
 	f.calls++
 	if f.calls == f.fail {
 		return errors.New("injected final inventory failure")
 	}
-	return f.OSFS.WriteFileAtomic(path, b)
+	return f.OSFS.Rename(old, path)
 }
 func TestManagedFinalSaveFailureLeavesRecoverableInventory(t *testing.T) {
 	root := t.TempDir()
-	fs := &managedAtomicStepFS{fail: 3}
+	fs := &managedAtomicStepFS{fail: 4}
 	if _, e := ApplyManaged(fs, root, []Action{WriteFile{Path: "out", Content: "generated"}}, ScopeArtifacts); e == nil {
 		t.Fatal("expected final save failure")
 	}

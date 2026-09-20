@@ -368,6 +368,23 @@ Make and its stateful fake; real Make conformance remains. Correct the PURE tabl
 only PATH composition is pure; conventional bundle discovery/build execution is
 an integration (ARCH-PURE, ARCH-MOCK, ARCH-ORDER, ARCH-FUNERAL).
 
+
+### 2026-09-20 — M2 re-review: atomic publication and file modes
+
+Reason: BR-11 reproduced partial final writes escaping the old/new identity
+proof; BR-12 reproduced staged executable outputs losing permissions. Delta:
+centralize file publication through a durable owned publication stage, write and
+chmod before atomic rename, and use that path for generated/composed/seed/touch,
+inventory and ignore files. Reclaim dead publication stages on every mutating
+Apply, including an empty action set. Keep raw filesystem writes injectable so
+stateful failure tests write partial stage contents before failing or dying.
+
+Carry staged file permissions through WriteFile actions and optional inventory
+mode evidence; existing mode-less identities remain readable. Test executable
+cold publication, warm permission changes, partial-write failure, killed writer,
+retry and retirement. This completes the existing preservation/recovery contract;
+no additional CLI or package mechanism is introduced.
+
 ## Historical revisions
 
 Everything below is historical. It is preserved verbatim and is not part of the

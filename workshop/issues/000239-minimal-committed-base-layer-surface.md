@@ -305,6 +305,22 @@ vocabulary SKILL.md causes refusal and preserves the original SHA-256. Tools now
 use an injectable stdin-aware boundary with a stateful fake and real Make tests;
 the plan classifies discovery/execution as integration, PATH composition as pure.
 
+### 2026-09-20 — M2 atomic publication correction
+
+Round 6 accepted BR-7–10 and identified BR-11 partial final writes plus BR-12
+lost generated executable permissions. All file publication now writes/chmods
+inside a durably owned stage and atomically renames into place, including seeds,
+composed/generated files, inventory and ignores. Empty reconciliation reclaims
+dead publication stages. Optional mode evidence preserves staged permissions;
+ordinary files keep existing modes and new defaults respect the umask.
+
+Affected Go suites pass, including partial writer failure/death recovery and
+cold/warm executable output. Nous owner tools and safe help smoke pass natively
+on macOS in scratch. Its full package/bootstrap pilot remains unverified: the
+current Linux code requires launchd and its Mutagen package targets amd64. Parley
+compile/bootstrap repeat and preserved intentionally tracked issue.json pass.
+Actual peer repositories remain untouched; #241 retains rollout decisions.
+
 ## Revisions`.
 
 Two corrections landed while widening:

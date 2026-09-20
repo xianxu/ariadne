@@ -1605,3 +1605,8 @@ Generation must publish through the same ownership boundary as other writes.
 Observing files afterward cannot protect an authored edit or prove provenance
 after process death. Stage outputs under durable ownership before running a
 writer, and test the real generator over edited destinations and killed runs.
+
+Atomicity must extend to final publication, not only the generator workspace.
+A prepared old/new hash inventory cannot recognize half a truncating write.
+Inject failures after bytes are written, and preserve file modes when replacing
+an in-place generator with staged publication.
