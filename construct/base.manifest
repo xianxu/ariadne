@@ -26,6 +26,16 @@
 #               no-op when identical. (Was write-once through #45; that left
 #               derivatives stranded on stale entrypoints — now it converges.)
 #               See #42.
+#   seed-once — the OWNERSHIP sibling of `seed` (#239): writes the target when
+#               the slot is absent (or holds weave's own prior symlink), then
+#               NEVER touches it again, whatever it later contains. Use it when
+#               upstream hands a working default OVER to the repo rather than
+#               continuing to own it — the root Makefile is a repo's own front
+#               door, so a repo adopting ariadne must keep its own, and a later
+#               edit to it must survive every weave. `seed` converges;
+#               `seed-once` hands over. Both are COMMITTED in a derivative (they
+#               exist precisely because they must work before any substrate
+#               does); everything else weave emits is gitignored.
 #
 # `copy` was retired in #38 — substrate is symlink-only. For operator-
 # divergent customization, use per-operator branches in the source repo
@@ -106,12 +116,14 @@ skill     construct/adapted
 internal  skill construct/skill
 
 # ── Makefile system ───────────────────────────────────────────────────────────
-# Root Makefile is a thin generic template (workflow + local + help).
-# Per-repo concerns (Makefile.nous chain, UPSTREAM_NAME overrides, etc.)
-# belong in the consumer's Makefile.local, NOT in this upstream-owned root.
-# Seeded so standalone product targets work before the maintainer peer exists;
-# safe materialization replaces old links without changing their targets.
-seed      Makefile
+# The root Makefile is the REPO'S OWN front door: seeded ONCE so a greenfield
+# repo gets a working root for free, then never touched again (#239). A repo that
+# already has a Makefile keeps it and adopts ariadne with one line —
+# `include Makefile.workflow`, the contract Makefile.workflow:1-2 documents.
+# The SOURCE is construct/Makefile.seed, NOT ariadne's own root Makefile: one
+# file cannot be both a generic template and one repo's layout policy, which is
+# exactly why the old template hardcoded WF_ISSUES_DIR = workshop/issues.
+seed-once construct/Makefile.seed Makefile
 symlink   Makefile.workflow
 symlink   scripts/lib.sh
 symlink   scripts/parallel-checks.sh

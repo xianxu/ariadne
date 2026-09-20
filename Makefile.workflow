@@ -27,11 +27,16 @@ ifneq ($(wildcard .colima/Makefile),)
 include .colima/Makefile
 WF_HELP_TARGETS += help-colima
 endif
-# Override WF_ISSUES_DIR / WF_HISTORY_DIR before the include if your
-# issues and history live somewhere other than issues/ and history/.
+# Override WF_ISSUES_DIR / WF_HISTORY_DIR before the include if your issues and
+# history live somewhere other than workshop/. These defaults match every repo in
+# the layer graph; before #239 the neutral `issues`/`history` matched NONE of
+# them and the real value was smuggled in by the seeded root Makefile — which is
+# exactly the two-owners defect seed-once removes. A repo that wants the plain
+# top-level layout now says so in its OWN root Makefile above the include, which
+# finally works because seed-once hands it ownership of that file.
 
-WF_ISSUES_DIR ?= issues
-WF_HISTORY_DIR ?= history
+WF_ISSUES_DIR ?= workshop/issues
+WF_HISTORY_DIR ?= workshop/history
 export WF_ISSUES_DIR WF_HISTORY_DIR
 
 # BRAIN_DIR points at the brain repo for cross-cutting state (project files,

@@ -80,10 +80,11 @@ grep -q local-overlay-ok "$SCRATCH/out"
 # twice with real weave. The fixture owns its upstream; no live peer is touched.
 PATH="$REAL_PATH" "$REAL_GO" build -o "$SCRATCH/real-weave" "$SOURCE/cmd/weave"
 cp "$SOURCE/Makefile" "$SCRATCH/ariadne/Makefile"
+cp "$SOURCE/construct/Makefile.seed" "$SCRATCH/ariadne/construct/Makefile.seed"
 cp "$SOURCE/bootstrap.sh" "$SCRATCH/ariadne/bootstrap.sh"
 mkdir -p "$SCRATCH/ariadne/.github/workflows"
 cp "$SOURCE/.github/workflows/merge-check.yml" "$SCRATCH/ariadne/.github/workflows/merge-check.yml"
-awk '$2 == "Makefile" || $2 == "Makefile.workflow" || $2 == "bootstrap.sh" || $2 == ".github/workflows/merge-check.yml"' "$SOURCE/construct/base.manifest" > "$SCRATCH/ariadne/construct/base.manifest"
+awk '$2 == "construct/Makefile.seed" || $2 == "Makefile.workflow" || $2 == "bootstrap.sh" || $2 == ".github/workflows/merge-check.yml"' "$SOURCE/construct/base.manifest" > "$SCRATCH/ariadne/construct/base.manifest"
 : > "$SCRATCH/leaf/construct/base.manifest"
 printf '#!/bin/sh\necho consumer-setup\n' > "$SCRATCH/leaf/scripts/ci-setup.sh"
 chmod +x "$SCRATCH/leaf/scripts/ci-setup.sh"
@@ -94,7 +95,7 @@ cp "$SCRATCH/ariadne/Makefile" "$SCRATCH/ancestor-before"
 (cd "$SCRATCH/leaf" && "$SCRATCH/real-weave" compile)
 [ ! -L "$SCRATCH/leaf/Makefile" ]
 cmp "$SCRATCH/ancestor-before" "$SCRATCH/ariadne/Makefile"
-cmp "$SCRATCH/ariadne/Makefile" "$SCRATCH/leaf/Makefile"
+cmp "$SCRATCH/ariadne/construct/Makefile.seed" "$SCRATCH/leaf/Makefile"
 cp "$SCRATCH/leaf/Makefile" "$SCRATCH/first-weave"
 (cd "$SCRATCH/leaf" && "$SCRATCH/real-weave" compile)
 cmp "$SCRATCH/first-weave" "$SCRATCH/leaf/Makefile"
@@ -103,4 +104,19 @@ cmp "$SCRATCH/hook-before" "$SCRATCH/leaf/scripts/ci-setup.sh"
 cmp "$SOURCE/.github/workflows/merge-check.yml" "$SCRATCH/leaf/.github/workflows/merge-check.yml"
 make -s -C "$SCRATCH/leaf" product help > "$SCRATCH/out"
 grep -q product-ok "$SCRATCH/out"
+# #239: a repo-owned root Makefile survives weave byte-for-byte, FOREVER.
+# Pre-#239 `seed Makefile` was content-tracking and silently destroyed it on the
+# first weave, and any later edit to it on EVERY subsequent weave. No test
+# covered either half — which is how the defect survived #225.
+mkdir -p "$SCRATCH/adopter/construct"
+printf 'substrate ../ariadne\n' > "$SCRATCH/adopter/construct/deps"
+: > "$SCRATCH/adopter/construct/base.manifest"
+printf 'MY OWN BUILD SYSTEM\ninclude Makefile.workflow\n' > "$SCRATCH/adopter/Makefile"
+cp "$SCRATCH/adopter/Makefile" "$SCRATCH/adopter-before"
+(cd "$SCRATCH/adopter" && "$SCRATCH/real-weave" compile)
+cmp "$SCRATCH/adopter-before" "$SCRATCH/adopter/Makefile"
+printf 'AND A LATER LOCAL EDIT\n' >> "$SCRATCH/adopter/Makefile"
+cp "$SCRATCH/adopter/Makefile" "$SCRATCH/adopter-edited"
+(cd "$SCRATCH/adopter" && "$SCRATCH/real-weave" compile)
+cmp "$SCRATCH/adopter-edited" "$SCRATCH/adopter/Makefile"
 echo 'PASS portable Make product/overlay/bootstrap ordering and real weave convergence'

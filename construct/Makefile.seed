@@ -1,0 +1,24 @@
+# Generic root Makefile, seeded ONCE into a consuming repo (`seed-once`, #239).
+# After the first weave this file belongs to YOUR repo: edit it freely, weave
+# will never overwrite it. Adopting ariadne in a repo that already has a
+# Makefile needs no seeding at all — just add the include below.
+#
+# Per-repo policy goes HERE, above the include, where the `?=` defaults in
+# Makefile.workflow can still see it — e.g. a repo whose issues live at the
+# plain top level rather than under workshop/:
+#     WF_ISSUES_DIR  = issues
+#     WF_HISTORY_DIR = history
+
+# Canonical repo name from git remote (portable across worktrees and containers)
+REPO_NAME := $(shell git remote get-url origin 2>/dev/null | sed 's|.*/||; s|\.git$$||')
+
+# Public checkouts use product targets without the maintainer overlay. After
+# bootstrap clones peers, the sibling fallback supplies the first weave.
+.DEFAULT_GOAL := help
+WF_WORKFLOW := $(firstword $(wildcard Makefile.workflow ../ariadne/Makefile.workflow))
+-include $(WF_WORKFLOW)
+-include Makefile.local
+
+.PHONY: help
+help: $(WF_HELP_TARGETS)
+	@true
