@@ -576,6 +576,53 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-20 — M3 Tasks 3.1–3.2: the derivation, and the live migration
+
+`IgnoreEntries(actions, generatedRoots)` replaces the hardcoded
+`GeneratedRuntimeGitignoreEntries`. The rule is the verb's ownership class —
+weave ignores what it RE-DERIVES (`Symlink`, `WriteFile`, `MergeSettings`) and
+tracks what it merely PROVISIONS (`Mkdir`, `Touch`, `Seed`, `SeedOnce`) — so the
+bootstrap core is derived rather than listed. A `default:` case **errors** on an
+unclassified Action, so a new verb cannot silently join the tracked class.
+
+`planActions` split into `planActions` + `planActionsCore`, with the ignore list
+derived from the **UNION** plan even on a lean `--target`. **Falsified:** removing
+the pin turns `TestIgnoreEntriesIdenticalAcrossTargets` red.
+
+Tests that used the hardcoded list now build their fixture with `sampleEntries`,
+derived from a representative action set — so they exercise the derivation
+instead of a literal that could drift.
+
+**Live migration on ariadne — 55 entries, and it fixes the bug that started this
+issue.** Removed from the block:
+
+```
+-/.claude/skills/        → 25 per-path entries
+-/.agents/skills/        → 25 per-path entries
+-/.colima/               → GONE (see below)
+-/construct/scripts/vm-log.sh → GONE
+```
+
+`/.colima/` and `/construct/scripts/vm-log.sh` disappear because those rows are
+**self-referential on ariadne's own self-walk** — `walk.loadLayer` drops them, so
+they produce no actions, so they are not ignored. That is the fix: ariadne OWNS
+`.colima/` (6 tracked files), and the blanket entry meant a *new* file there was
+silently invisible to `git add`. Verified: `git check-ignore .colima/NEWFILE`
+now exits 1 where it previously reported `.gitignore:28:/.colima/`.
+
+Verification: second apply **byte-identical**; `git status` clean apart from
+`.gitignore`; `git ls-files -i -c` reports exactly **one** tracked-but-ignored
+path, `construct/staging/.gitignore`, matched by `.gitignore:7` — a repo-owned
+pattern **outside** the managed block (which spans 25..81). That is precisely
+the case Task 4.0a's provenance filter must leave alone, now confirmed live
+rather than hypothesized.
+
+*Sandbox note:* `weave compile` still cannot finish in-session (the
+`.claude/settings.json` merge write is denied) and `EnsureGitignore` is appended
+last, so the migration was driven by applying that one action through a scratch
+test, since removed.
+
+
 ### 2026-09-20 — BR-30 + BR-31 closed (the tail of M2)
 
 **BR-31 — the harness could not fail.** It used
