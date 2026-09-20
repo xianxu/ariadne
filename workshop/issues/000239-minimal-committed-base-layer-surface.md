@@ -575,6 +575,53 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — M2 review round 6: BR-19 residue + BR-25, and the enforcement sweep
+
+**BR-19 residue — I added a real test but left the tautology beside it.**
+`TestManagedBlockDedupsRepeatedInputEntry` passes the duplicate it is named for;
+the old `TestEnsureGitignoreTextDedupsRepeatedInputEntry` was still there,
+still passing ONE entry, still green with the dedupe guard reverted, and its
+comment now asserted "de-duplication is the entry LIST's job" — which the code
+contradicts. Deleted. Keeping both re-created the tautology the finding named.
+
+**BR-25 — my check was blind to one of the two sites it was built for.** It
+derived removals from `git diff BASE HEAD`, which **collapses a symbol both born
+and buried inside the range**. `SeedOnceSlotIsRepoOwned` was introduced and
+removed on this branch, so over `merge-base..HEAD` — the range
+`merge-check.yml` actually passes — it looked as though it had never existed and
+the check printed green. Fixed by unioning per-commit removals across
+`git rev-list BASE..HEAD`. Verified on the precise shape in a controlled repo: a
+two-point diff reports **0** removed declarations; the union flags the stale
+comment.
+
+**The enforcement sweep the finding demanded, run for both checks** at CI's range
+granularity, every motivating site reverted one at a time:
+
+- **46** (BR-20's sites): `gitignore.go` header ✓, `applyEnsureGitignore` doc ✓,
+  the born-and-buried `golden.go` site ✓ (after the union fix).
+- **45** (BR-10/BR-16's sites): walk.go ✓, plan.go ✓, main.go ✓, prune.go ✓,
+  completeness.go ✓, golden.go ✓, `atlas/workflow/weave.md` ✓,
+  `base-layer-mechanics.md` ✓, `base.manifest` ✓ — and **action.go ✗**, which
+  the sweep caught: its restatement is the `Action` sum type in **CamelCase**
+  (`Symlink, Seed, SeedOnce…`), invisible to a lowercase-only match. Made
+  case-insensitive; now enforced, baseline still green.
+
+So the sweep found a real gap in each check. One falsification was a sample of
+size one, exactly as the finding said.
+
+**The rule is now recorded durably** in `workshop/lessons.md` — the reviewer
+noted no artifact captured it. It is not code-enforced (nothing checks that a
+check has been falsified), so it belongs there rather than in a gate.
+
+**A destructive mistake worth recording.** The first sweep attempt looped
+`git reset --hard HEAD~1` against the live branch; a probe whose edit was a
+no-op made no commit, so the reset ate real work — three M2 commits, recovered
+from reflog, plus a stash round-trip that swept the four unrelated in-flight
+files. All restored and verified byte-identical. The sweep was redone in a
+throwaway clone. That is now part of the lessons entry: **probe in a disposable
+copy, never the live branch.**
+
+
 ### 2026-09-19 — M2 boundary review: 3 findings, and a regression I had hidden
 
 **BR-19 (Important, `verification-cannot-fail`, 4th in family) — three

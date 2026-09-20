@@ -106,20 +106,6 @@ func TestEnsureGitignoreTextAddsTrailingNewlineBeforeAppend(t *testing.T) {
 	}
 }
 
-func TestEnsureGitignoreTextDedupsRepeatedInputEntry(t *testing.T) {
-	// A duplicate in the INPUT entry list is appended only once.
-	// NOTE: the block emits `entries` verbatim, so de-duplication is the entry
-	// LIST's job — IgnoreEntries dedupes at the source in M3. Until then this
-	// asserts the seam does not silently double an already-unique entry.
-	got, _, err := mergeManagedBlock("", []string{"/AGENTS.md"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if strings.Count(got, "/AGENTS.md") != 1 {
-		t.Fatalf("entry duplicated:\n%s", got)
-	}
-}
-
 func TestApplyEnsureGitignoreCreatesAndAppends(t *testing.T) {
 	// Apply on a repo with no .gitignore creates it carrying the fixed entries.
 	root := t.TempDir()

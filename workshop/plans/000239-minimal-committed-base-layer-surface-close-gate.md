@@ -455,6 +455,44 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 6
+      timestamp: "2026-09-19T22:57:28-07:00"
+      agent: claude
+      dispose:
+        - id: BR-19
+          disposition: not-addressed
+          note: 'Two of three sites fully addressed with red-without-fix evidence (dedupe guard and read guard each reverted in a scratch HEAD export; named test goes red). The residue is the site the finding measured by line: gitignore_test.go:109 is unchanged, still passes ONE entry, still PASSES with the dedupe guard reverted, and its comment now asserts "de-duplication is the entry LIST''s job — IgnoreEntries dedupes at the source in M3", which gitignore.go:176-186 contradicts. The rule half ("a claim in a comment is not verification") was applied to three instances but the enumeration it implies was never swept, and no durable artifact records it — workshop/lessons.md is untouched in the window and its nearest entry (line 1242, guard-nested assertions) does not cover a namesake test fed input that cannot violate its property. Fix: delete or repoint gitignore_test.go:109-121 and drop the stale comment.'
+          round: 6
+        - id: BR-20
+          disposition: addressed
+          note: 'All five sites swept (gitignore.go:21/58/177, apply.go:39 — the plan item that was claimed but undelivered — and golden.go:222), and the rule exists as scripts/merge-checks.d/46-removed-symbol-references.sh, falsified both ways by me: red at 315579a..be53a71 flagging gitignore.go:178, green at HEAD, 0.14s branch-wide. Its range blind spot is raised separately below rather than re-opening this id.'
+          round: 6
+        - id: BR-21
+          disposition: addressed
+          note: README.md:39-55 documents the managed region under the heading M1 established, with the markers, the wholesale replace, where to put your own entries, and the hard-fail path through make weave into make bootstrap. Inspected against gitignore.go's actual behaviour; the one inaccuracy ("preserved verbatim") is BR-22/BR-24's substance, noted there.
+          round: 6
+        - id: BR-22
+          disposition: not-addressed
+          note: 'Still live and now restated in a second place. Measured at HEAD: mergeManagedBlock(block + "!/CLAUDE.md\n", ["/CLAUDE.md"]) returns !/CLAUDE.md ABOVE the block. atlas/workflow/weave.md:111 still says outside lines are "preserved verbatim", and README.md:49 (added this round) now says the same — so the round''s new adopter-facing doc inherits the claim. No issue Log line either. One clause in both docs plus a Log line.'
+          round: 6
+        - id: BR-23
+          disposition: not-addressed
+          note: 'Still live and worse than described. Measured: a CRLF .gitignore carrying a block gains a second LF block on the first merge, and the SECOND pass returns changed=false, err=nil — silent and permanent, with no fail-closed path. That contradicts the new atlas claim (weave.md:115) that the transform "fails closed on any marker shape it cannot parse", and the orphaned first block is exactly what M4''s line-range-keyed commitConsumption filter would misread. One strings.TrimRight(line, "\r") at the compare, plus a CRLF test case.'
+          round: 6
+        - id: BR-24
+          disposition: not-addressed
+          note: 'Recorded in the issue''s Revisions as "advisory, carried to M4", but the durable plan is untouched in this window and M4''s tasks contain no rehearsal step — a note in the issue is not the plan step the finding asked for. The behaviour is confirmed at HEAD: mergeManagedBlock("# my own vm tree\n/.colima/\nmine/\n", ["/AGENTS.md"]) deletes /.colima/ and strands its comment. Minor, non-blocking; add the per-repo rendered-result rehearsal to the M4 pilot task.'
+          round: 6
+      findings:
+        - id: BR-25
+          severity: Important
+          title: 46-removed-symbol-references.sh misses symbols born and buried inside its own range, so it never sees BR-20's second motivating site
+          detail: 'This is the 5th finding in family verification-cannot-fail (BR-19 was the 4th). Do not fix this instance alone — the RULE is: a check is not evidence until it has been run, AT THE RANGE GRANULARITY CI WILL USE, against EVERY site that motivated it, and observed to go red on each; falsifying one site in a scratch repo is a sample of size one. The enumeration that implies is greppable and cheap: for each finding a check claims to enforce, list the finding''s measured sites and re-run the check over merge-base..head; any site it passes is an unenforced site. Sweep that enumeration this round, for 45- as well as 46-. Measured prevalence for this instance: 46-…sh:37-46 derives `removed` from `git diff "$BASE" "$HEAD"`, which collapses a symbol added and deleted inside the range. SeedOnceSlotIsRepoOwned was introduced at fd195a1 and removed at 361e00a, both on this branch, so over merge-base(main,HEAD)..382c4b9 — the range merge-check.yml passes — the extracted set is exactly {ensureGitignoreText} and the check prints green; over 361e00a^..361e00a it flags golden.go:222 and exits 1. Fix sketch: union per-commit removals across `git rev-list "$BASE".."$HEAD"`, or make it range-free by asserting every backticked or package-qualified identifier in a Go comment is declared at HEAD.'
+          family: verification-cannot-fail
+          round: 6
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -736,6 +774,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   be rehearsed against each repo's real .gitignore, not only ariadne's. M4's per-repo pilot
   is the natural place to make that a step.
 
+## Round 6 — 2026-09-19T22:57:28-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-19 — not-addressed — Two of three sites fully addressed with red-without-fix evidence (dedupe guard and read guard each reverted in a scratch HEAD export; named test goes red). The residue is the site the finding measured by line: gitignore_test.go:109 is unchanged, still passes ONE entry, still PASSES with the dedupe guard reverted, and its comment now asserts "de-duplication is the entry LIST's job — IgnoreEntries dedupes at the source in M3", which gitignore.go:176-186 contradicts. The rule half ("a claim in a comment is not verification") was applied to three instances but the enumeration it implies was never swept, and no durable artifact records it — workshop/lessons.md is untouched in the window and its nearest entry (line 1242, guard-nested assertions) does not cover a namesake test fed input that cannot violate its property. Fix: delete or repoint gitignore_test.go:109-121 and drop the stale comment.
+- BR-20 — addressed — All five sites swept (gitignore.go:21/58/177, apply.go:39 — the plan item that was claimed but undelivered — and golden.go:222), and the rule exists as scripts/merge-checks.d/46-removed-symbol-references.sh, falsified both ways by me: red at 315579a..be53a71 flagging gitignore.go:178, green at HEAD, 0.14s branch-wide. Its range blind spot is raised separately below rather than re-opening this id.
+- BR-21 — addressed — README.md:39-55 documents the managed region under the heading M1 established, with the markers, the wholesale replace, where to put your own entries, and the hard-fail path through make weave into make bootstrap. Inspected against gitignore.go's actual behaviour; the one inaccuracy ("preserved verbatim") is BR-22/BR-24's substance, noted there.
+- BR-22 — not-addressed — Still live and now restated in a second place. Measured at HEAD: mergeManagedBlock(block + "!/CLAUDE.md\n", ["/CLAUDE.md"]) returns !/CLAUDE.md ABOVE the block. atlas/workflow/weave.md:111 still says outside lines are "preserved verbatim", and README.md:49 (added this round) now says the same — so the round's new adopter-facing doc inherits the claim. No issue Log line either. One clause in both docs plus a Log line.
+- BR-23 — not-addressed — Still live and worse than described. Measured: a CRLF .gitignore carrying a block gains a second LF block on the first merge, and the SECOND pass returns changed=false, err=nil — silent and permanent, with no fail-closed path. That contradicts the new atlas claim (weave.md:115) that the transform "fails closed on any marker shape it cannot parse", and the orphaned first block is exactly what M4's line-range-keyed commitConsumption filter would misread. One strings.TrimRight(line, "\r") at the compare, plus a CRLF test case.
+- BR-24 — not-addressed — Recorded in the issue's Revisions as "advisory, carried to M4", but the durable plan is untouched in this window and M4's tasks contain no rehearsal step — a note in the issue is not the plan step the finding asked for. The behaviour is confirmed at HEAD: mergeManagedBlock("# my own vm tree\n/.colima/\nmine/\n", ["/AGENTS.md"]) deletes /.colima/ and strands its comment. Minor, non-blocking; add the per-repo rendered-result rehearsal to the M4 pilot task.
+
+### Raised
+
+- **BR-25** [Important] `verification-cannot-fail` 46-removed-symbol-references.sh misses symbols born and buried inside its own range, so it never sees BR-20's second motivating site
+  This is the 5th finding in family verification-cannot-fail (BR-19 was the 4th). Do not fix this instance alone — the RULE is: a check is not evidence until it has been run, AT THE RANGE GRANULARITY CI WILL USE, against EVERY site that motivated it, and observed to go red on each; falsifying one site in a scratch repo is a sample of size one. The enumeration that implies is greppable and cheap: for each finding a check claims to enforce, list the finding's measured sites and re-run the check over merge-base..head; any site it passes is an unenforced site. Sweep that enumeration this round, for 45- as well as 46-. Measured prevalence for this instance: 46-…sh:37-46 derives `removed` from `git diff "$BASE" "$HEAD"`, which collapses a symbol added and deleted inside the range. SeedOnceSlotIsRepoOwned was introduced at fd195a1 and removed at 361e00a, both on this branch, so over merge-base(main,HEAD)..382c4b9 — the range merge-check.yml passes — the extracted set is exactly {ensureGitignoreText} and the check prints green; over 361e00a^..361e00a it flags golden.go:222 and exits 1. Fix sketch: union per-commit removals across `git rev-list "$BASE".."$HEAD"`, or make it range-free by asserting every backticked or package-qualified identifier in a Go comment is declared at HEAD.
+
 ## Open findings
 
 - **BR-12** [Minor] `hand-maintained-restatement-of-model` gather.go's SeedOnce comment asserts a content comparison classifyAction deliberately does not do, and the plan's Core concepts table omits the new exported predicate
@@ -744,8 +798,7 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-17** [Minor] `verification-cannot-fail` The fail-closed guards added this round have no path that demonstrably reports failure — one verified green after deletion
 - **BR-18** [Minor] `edit-splice-leaves-orphan-clause` atlas/workflow/weave.md:24-31 — the round-3 verb-list removal left the trailing clause, so the sentence no longer parses
 - **BR-19** [Important] `verification-cannot-fail` Three assertions added this boundary cannot fail — the fail-closed read guard, the rewritten dedup test, and the docstring's marker-as-content claim
-- **BR-20** [Important] `hand-maintained-restatement-of-model` Four prose restatements of the gitignore mechanism all still describe the retired append-only behaviour, one naming a function deleted in the same commit
-- **BR-21** [Important] `adopter-facing-surface-undocumented` README not updated for the managed block — weave is now a co-owner of every repo's .gitignore and make weave can hard-fail on it
 - **BR-22** [Minor] `block-position-changes-pattern-precedence` Repo lines positioned after the block move above it, silently flipping git's last-match-wins in weave's favour
 - **BR-23** [Minor] `block-position-changes-pattern-precedence` A CRLF .gitignore defeats marker matching — weave appends a second block and can never retire the first
 - **BR-24** [Minor] `edit-splice-leaves-orphan-clause` The one-time absorb orphans each derivative's own explanatory comment, verified in parley.nvim
+- **BR-25** [Important] `verification-cannot-fail` 46-removed-symbol-references.sh misses symbols born and buried inside its own range, so it never sees BR-20's second motivating site

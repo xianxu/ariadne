@@ -16,7 +16,9 @@
 # The check: a COMMENT line naming >= MIN_VERBS DISTINCT verbs (word-boundary
 # matched) must also name a source. Only comments are scanned — the switches
 # themselves legitimately list every verb, and they are what prose should point
-# at. The threshold is deliberately high: prose that mentions two or three verbs
+# at. Matching is CASE-INSENSITIVE, because the Action sum type restates the
+# same set in CamelCase (Symlink, Seed, SeedOnce…) and a lowercase-only match
+# could not see it. The threshold is deliberately high: prose that mentions two or three verbs
 # is usually explaining a behaviour, while four or more is enumerating the SET.
 # A check that fires on legitimate prose gets routed around, so it errs toward
 # silence and catches the shape that actually recurred.
@@ -66,7 +68,7 @@ report=$(printf '%s\n' $FILES \
       c = 0
       for (i = 1; i <= n; i++) {
         if (V[i] == "") continue
-        if ($0 ~ "(^|[^a-zA-Z-])" V[i] "([^a-zA-Z-]|$)") c++
+        if (tolower($0) ~ "(^|[^a-zA-Z-])" V[i] "([^a-zA-Z-]|$)") c++
       }
       if (c < min) next
       if ($0 ~ /kindByVerb|Action sum type|the source|switch below/) next

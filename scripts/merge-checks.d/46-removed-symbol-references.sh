@@ -30,24 +30,37 @@ if [ -z "$BASE" ] || [ -z "$HEAD" ]; then
     exit 0
 fi
 
-# Top-level identifiers the range DELETED: a removed `func|var|const|type NAME`
-# line whose name no longer appears as a declaration at HEAD.
+# Top-level identifiers DELETED anywhere in the range.
+#
+# Computed PER COMMIT and unioned, never from a single `git diff BASE HEAD`.
+# A two-point diff collapses a symbol that was both introduced and removed
+# INSIDE the range — it never appears to have existed, so the check prints green
+# over exactly the range CI uses. That is not hypothetical: SeedOnceSlotIsRepoOwned
+# was added and removed on this branch, and it was one of the two sites this
+# check was built for (#239 M2 BR-25). A check blind to its own motivating site
+# is not evidence.
+#
 # Extraction is awk, not a chain of seds: the sed version's receiver-stripping
 # group ate the function NAME, so the check silently reported "nothing removed"
-# for the very rename that motivated it. A check that cannot see its own case is
-# the failure mode this whole family is about.
-removed=$(git diff "$BASE" "$HEAD" -- '*.go' \
-    | awk '
+# for the very rename that motivated it.
+extract_removed() {
+    awk '
         /^-func \(/      { sub(/^-func \([^)]*\) */, ""); sub(/[(<].*/, ""); print; next }
         /^-func /        { sub(/^-func */, "");            sub(/[(<].*/, ""); print; next }
         /^-(var|const|type) / { sub(/^-(var|const|type) */, ""); sub(/[ (<=].*/, ""); print; next }
-      ' \
-    | grep -E '^[A-Za-z_][A-Za-z0-9_]*$' | sort -u || true)
+      ' | grep -E '^[A-Za-z_][A-Za-z0-9_]*$' || true
+}
+
+removed=$(
+    for c in $(git rev-list "$BASE".."$HEAD"); do
+        git diff "$c^" "$c" -- '*.go' 2>/dev/null | extract_removed
+    done | sort -u
+)
 [ -n "$removed" ] || { echo "✓ removed-symbol-references: no top-level symbols removed in range"; exit 0; }
 
 # NOTE on the pattern: git grep -E is POSIX ERE, which has NO \b. Using it
-# matched nothing and the check passed silently — the same "cannot fail" shape it
-# exists to catch. Word boundaries are spelled out explicitly instead.
+# matched nothing and the check passed silently — the same "cannot fail" shape
+# this check exists to catch. Word boundaries are spelled out explicitly.
 WB_L='(^|[^A-Za-z0-9_])'
 WB_R='([^A-Za-z0-9_]|$)'
 

@@ -1574,3 +1574,40 @@ ordering claim.
 suite, regenerate and inspect deliberately changed snapshots, and check the
 atlas's shaping decisions against the revised source. Delivery tests prove
 propagation, not snapshot consistency (ARCH-PURPOSE, ARCH-DRY).
+
+## A check is not evidence until it has gone red on every site that motivated it
+
+**Pattern (ariadne#239, `verification-cannot-fail` — five findings across two
+milestones).** Each round produced a guard, and each guard shipped without a way
+to observe it failing:
+
+- A fail-closed read guard whose package had no fixture that could fault a read.
+- A test *named* for de-duplication, fed a **single** entry — while the property
+  it named had measurably regressed (`("", ["/A","/A"])` emitted `/A` twice).
+- A docstring asserting a safety property that measurement contradicted.
+- Two merge checks whose own bugs made them print green: a regex that ate the
+  symbol name it was extracting, and `git grep -E` (POSIX ERE, **no `\b`**)
+  matching nothing.
+- A check deriving removals from `git diff BASE HEAD`, which collapses a symbol
+  both **born and buried inside the range** — so it was blind to one of the two
+  sites it was built for, over exactly the range CI passes it.
+
+**Rule.** A guard or check is evidence only when it has been run **at the range
+granularity CI will use**, against **every site that motivated it**, and observed
+to go **red on each**. Falsifying one site is a sample of size one. The
+enumeration is cheap and greppable: list the finding's measured sites, revert
+each, re-run. Any site that still passes is an unenforced site.
+
+Two corollaries, both paid for here:
+- **A claim in a comment or a `## Log` line is not verification.** If a comment
+  states a safety property, either a named test pins it or the claim comes out.
+- **A namesake test must be fed input that can violate the property it names.**
+  A green tautology is worse than no test: it hides the regression it is named
+  for. Deleting the superseded namesake matters too — leaving it beside a real
+  test re-creates the tautology.
+
+**Do the sweep in a throwaway clone, never the live branch.** The first attempt
+here used `git reset --hard HEAD~1` in a loop; a probe whose edit was a no-op
+made no commit, so the reset ate real work. Three milestone commits were
+recovered from reflog, but the working tree — including unrelated in-flight files
+— went through a stash round-trip that did not need to happen.
