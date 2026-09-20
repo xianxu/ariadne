@@ -61,6 +61,13 @@ esac
 	cmd.Dir = consumer // no bin/sdlc: must exercise the fallback in a peer cwd
 	cmd.Env = append(os.Environ(),
 		"PATH="+bin+":"+os.Getenv("PATH"),
+		// This test is about the BUILD-AT-SOURCE/RUN-IN-CONSUMER fallback, not
+		// about where issues live. Name the layout explicitly (make's `?=`
+		// yields to the environment) so the assertion stops riding on whatever
+		// Makefile.workflow's default happens to be — it silently broke when
+		// #239 flipped that default from `issues` to `workshop/issues`.
+		"WF_ISSUES_DIR=issues",
+		"WF_HISTORY_DIR=history",
 		"ISSUE_SYNC_SOURCE_DIR="+root,
 		"ISSUE_SYNC_REAL_GIT="+gitPath,
 		"ISSUE_SYNC_GIT_CWDS="+gitCWDs,
