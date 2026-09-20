@@ -615,6 +615,28 @@ implementation. The operator has been asked whether to provision bare commands
 in future shells or prefer explicit `weave exec`/`weave env` activation.
 
 
+
+### 2026-09-20 — reviewed draft and standalone probe
+
+Fresh-context draft reviewer approved the revised design for operator review
+after the four findings were addressed. This is not operator approval or a
+plan-quality gate pass. #241 now has its delivery contract, not just a scaffold.
+
+A throwaway `/tmp/weave-239-probe-*` workspace built current `./cmd/weave` into
+a standalone binary, then ran it with `PATH=/usr/bin:/bin` and an isolated HOME.
+Assertions confirmed Go and CUE were absent from that PATH. Local link plus
+compile of a plain prose-only base succeeded and produced the expected AGENTS.md.
+Linking the real ariadne checkout into a second scratch leaf then compiling
+failed as expected at `.dynamic-skill`: `datatype: command not found`, exit 127.
+This establishes the separation experimentally: the gateway already runs without
+the toolchain; actual layer startup still needs declared generator preparation.
+All scratch outputs were temporary; no real layer artifacts were changed.
+
+Remaining operator review: declaration/recipe design, command activation
+(question pending), and proposed native-platform installer behavior. No source
+implementation, package installation, public release, or peer cutover has begun.
+
+
 ## Revisions
 ### 2026-09-19 — Done-when 7 restated; two Criticals from the plan-quality gate
 
@@ -809,3 +831,21 @@ canonical durable plan; the old milestone checkboxes/estimate remain historical
 and must not be used to enter implementation. Before `change-code`, promote the
 approved restart plan into the active issue sections while retaining the old
 content in revision history, so gates consume the actual current contract.
+
+
+### 2026-09-20 — split publication/cutover into dependent #241
+
+**Reason:** fresh-context review found a close/ship cycle: requiring a published
+release and consumer rollout before #239 closes would require publishing before
+its reviewed implementation merges. The operator explicitly allowed publication
+in a separate ticket.
+
+**Delta:** #239 implements and tests the standalone gateway, shared startup,
+bootstrap/CI, packaging and migration tooling, including scratch consumer pilots.
+[#241](000241-publish-weave-startup.md) depends on #239 and owns publication of
+`xianxu/ariadne/weave` plus actual consumer cutover and public install/CI evidence
+after #239 merges. This supersedes the earlier same-ticket delivery sequencing,
+not the intended end result. The startup code is not considered publicly
+available merely because #239's implementation tests pass. The draft plan now
+makes the gate sequence explicit and also repairs the review's gateway-PATH,
+partial-output ownership, and R1/R2 test-order findings.
