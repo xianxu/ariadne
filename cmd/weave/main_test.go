@@ -1081,3 +1081,25 @@ func ignoreEntriesFor(t *testing.T, fs weavefs.FS, layers []layer.Layer, target 
 	t.Fatal("no EnsureGitignore action in the plan")
 	return nil
 }
+
+// construct/generated/ is the ONE weave-generated tree that is not an Action —
+// the .dynamic-skill exec stage materializes it before planning — so it reaches
+// the ignore block only because planActions passes walk.GeneratedRel. Nothing
+// pinned that: deleting the argument left the whole suite green (#239 M3 BR-36).
+func TestCompileIgnoresTheDynamicSkillGeneratedTree(t *testing.T) {
+	fs := weavefs.OSFS{}
+	root := buildSkillRepoFixture(t)
+	layers, err := walk.Walk(fs, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := ignoreEntriesFor(t, fs, layers, plan.TargetAll)
+	want := "/" + walk.GeneratedRel + "/"
+	for _, e := range entries {
+		if e == want {
+			return
+		}
+	}
+	t.Fatalf("%q missing from the derived ignore entries — the per-repo dynamic-skill\n"+
+		"materialization would be left dirty in every derivative's git status: %v", want, entries)
+}

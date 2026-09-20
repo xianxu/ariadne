@@ -11,7 +11,7 @@ import (
 )
 
 // gitignore.go is weave's generated-runtime ignore mechanism: weave GENERATES a
-// fixed set of runtime artifacts (the composed AGENTS.md, the .claude/skills
+// DERIVED set of runtime artifacts (the composed AGENTS.md, the .claude/skills
 // symlinks, the merged .claude/settings.json, the .colima/ VM tree, the
 // vm-log.sh helper), so weave OWNS ensuring the repo's .gitignore covers them
 // (ARCH-DRY — one owner for "this artifact is weave-produced"). Without this a
@@ -110,7 +110,8 @@ func IgnoreEntries(actions []Action, generatedRoots []string) ([]string, error) 
 	return out, nil
 }
 
-// EnsureGitignore makes the repo's .gitignore carry exactly Entries inside
+// EnsureGitignore makes the repo's .gitignore carry exactly Entries — DERIVED
+// from the planned actions by IgnoreEntries since #239 M3, never a fixed list — inside
 // weave's delimited region, REPLACING that region wholesale (#239 M2) — so an
 // entry weave no longer produces loses its line. Lines outside the markers are
 // the repo's own and are preserved. It is weave's owned mechanism for keeping

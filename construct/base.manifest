@@ -168,7 +168,14 @@ symlink   scripts/merge-checks.d/40-duplicate-issue-id.sh
 # Retired by the weave cutover (#95): sync-local-skills.sh (now the `skill`
 # intent + .claude/skills lowering) and merge-settings.sh (now the `merge` intent
 # / settingsx) are no longer symlinked — their logic lives in weave.
-symlink   construct/scripts/apply-gitignore-entries.sh
+# apply-gitignore-entries.sh RETIRED (#239 M3). It was a SECOND gitignore
+# channel — an append-only writer extracted from the old setup.sh — and this
+# issue's whole thesis is that no artifact enters a surface by a second channel.
+# It was invoked nowhere (#95's close review flagged it for retirement and the
+# work was deferred), yet was still symlinked into all 17 fleet repos, where it
+# advertised exactly the append-only behaviour M2 replaced: it could add an
+# ignore line and never remove one. weave.PruneOrphans GCs the dangling symlink
+# in each derivative on its next compile.
 symlink   construct/scripts/bootstrap-peers.sh
 # Data-dependency mounter (#49) — clone content peers as siblings + symlink
 # them in. Language-agnostic; reads each repo's own construct/data-deps.

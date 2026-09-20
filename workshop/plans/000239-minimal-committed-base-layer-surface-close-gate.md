@@ -675,6 +675,146 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 9
+      timestamp: "2026-09-20T09:02:22-07:00"
+      agent: claude
+      findings:
+        - id: BR-36
+          severity: Important
+          title: /construct/generated/ is no longer pinned by any test — deleting walk.GeneratedRel from main.go:674 leaves the whole suite green
+          detail: |-
+            This is the 7th finding in family `verification-cannot-fail`. Earlier rounds fixed
+            instances; do NOT fix this instance alone. The RULE: a test whose expected value is
+            derived by calling the code under test (or by passing the fixture in itself) cannot
+            fail when the production wiring changes — every entry SOURCE needs one literal
+            assertion somewhere no refactor can satisfy tautologically. Measured: replacing
+            `[]string{walk.GeneratedRel}` with `nil` at main.go:674 in a scratch copy left
+            `go test ./cmd/weave/...` green (TestCompileEnsuresGitignore derives wantEntries from
+            the same planActions; TestGeneratedRuntimeGitignoreCoversConstructGenerated at
+            gitignore_test.go:104 asserts sampleEntries contains an argument sampleEntries passed
+            in) and `gitignore-surface.test.sh` printed PASS. 30-weave-drift.sh does not cover it
+            — weave-drift-check (Makefile.workflow:249) only tests dynamic-skill render
+            determinism. walk/dynamic.go:41-46 still asserts the gitignore entry "derives from
+            this constant" and that the consumers "MUST agree". Same rule covers
+            50-base-layer-tests.sh:24,28, whose skip-guards print a green checkmark and exit 0.
+            Cheapest application of the rule: one literal `grep -qxF '/construct/generated/'`
+            per entry source in gitignore-surface.test.sh.
+          family: verification-cannot-fail
+          round: 9
+        - id: BR-37
+          severity: Important
+          title: 46-removed-symbol-references.sh:101 still cannot see bare iota members, so a pure reorder false-positives CI
+          detail: |-
+            This is the 7th finding in family `presence-predicate-written-twice`. Do NOT patch
+            still_declared with a third regex. The RULE: `extract_removed` (:54-75) and
+            `still_declared` (:99-102) are two implementations of one grammar — "what is a Go
+            declaration of NAME" — and must be a single function parameterised by which side of
+            the diff it reads (run the same awk over `git show $HEAD:<file>`). The BR-30 comment
+            at :90-98 states exactly this rule and then implements half of it: the extractor's
+            grouped branch needs only an indented identifier, the predicate's needs an `=`.
+            Members 2..n of an iota block have no `=`. Falsified: const (Alpha Kind = iota; Beta;
+            Gamma) with Beta and Gamma swapped, plus `// Beta is lowered by the planner.` in
+            another file, exits 1 with "pkg/b.go:3 names removed symbol Beta". Live in this repo
+            — intent.Kind (intent.go:26), intent.Visibility (:68), plan.SlotState (apply.go:277)
+            are all bare-iota, and intent.go:46 records that members do get moved within them.
+            Also make merge-checks.test.sh's matrix the grammar's own enumeration so a new shape
+            cannot be taught to one half only.
+          family: presence-predicate-written-twice
+          round: 9
+        - id: BR-38
+          severity: Important
+          title: Two of M3's prose deliverables did not land; weave.md:118 and gitignore.go:38 still describe the retired fixed list
+          detail: |-
+            This is the 2nd finding in family `atlas-states-future-state-as-current` (mirror
+            direction: current state stated as future). State the RULE rather than fixing the
+            four sites: a doc or comment that names a milestone as pending, or names an artifact
+            by path, is a claim with an expiry date that nothing enforces. Two enforcements sit
+            beside 46- and reuse its allowlist — (a) fail a backticked path in atlas/**.md or
+            README.md that does not resolve in the tree; (b) fail a `#<issue> M<n>` future-tense
+            claim once that milestone is closed. Sites: atlas/workflow/weave.md:118 "still the
+            fixed set as of M2; #239 M3 derives it" — plan Task 3.4 Step 3 named this file and it
+            is absent from the diff, and it is the page the new target section links to;
+            cmd/weave/internal/plan/gitignore.go:38 "until then the fixed list below stands" and
+            :15 enumerating ".colima/ VM tree, the vm-log.sh helper" — plan Task 3.1 Step 3 named
+            this rewrite; atlas/workflow/base-layer.md:3 sends adopters to construct/setup.sh,
+            which does not exist, on the first line of the page this milestone edited;
+            cmd/weave/internal/plan/action.go:33 says WriteFile is lowered "from intent.Touch
+            (empty Content)" when plan.go:114 lowers it to Touch — a reader classifying verbs for
+            IgnoreEntries from that doc reaches the catastrophe
+            TestIgnoreEntriesNeverIgnoresScaffoldOrTouch exists to prevent.
+          family: atlas-states-future-state-as-current
+          round: 9
+        - id: BR-39
+          severity: Important
+          title: construct/scripts/apply-gitignore-entries.sh is a surviving second gitignore channel, shipped fleet-wide by base.manifest:171
+          detail: |-
+            This is the 6th finding in family `hand-maintained-restatement-of-model`. The RULE to
+            fix: a single-source change is not done until the CONSUMER ENUMERATION is written
+            down and swept — the ARCH-PURPOSE shadow-sweep found the derived consumer clean in
+            all 12 derivatives but never enumerated the non-derived writers, so this one
+            survived. The script carries a hand-maintained GITIGNORE_ENTRIES=(.goto
+            .openshell/.bootstrap/ .openshell/.base-image-digest .DS_Store bin/), appends with
+            `grep -qxF` and never removes — append-only blanket directory globs, including `bin/`,
+            the literal pair#64 pattern the Spec cites as the motivating hazard. It has zero
+            callers: `grep -rn apply-gitignore-entries` over the tree returns only base.manifest:171
+            and its own usage comment; its header says it was extracted from construct/setup.sh,
+            which weave retired. This contradicts the invariant
+            workshop/targets/base-layer-mechanics.md records in this same diff — "no artifact
+            enters the ignore surface by a second channel either". ARCH-FUNERAL: retire the
+            manifest row in M4's sweep so the symlink drops from all 12 repos in one pass.
+          family: hand-maintained-restatement-of-model
+          round: 9
+        - id: BR-40
+          severity: Minor
+          title: README.md:40-56 documents the managed block's mechanism but never what determines its contents
+          detail: |-
+            This is the 2nd finding in family `adopter-facing-surface-undocumented`. Same rule as
+            the atlas finding above: the adopter-facing surface restates the model instead of
+            deriving from it. An adopter reading README cannot learn that adding a manifest row
+            now changes their .gitignore, nor that the entries became per-path. One sentence
+            naming plan.IgnoreEntries and the ownership rule closes it.
+          family: adopter-facing-surface-undocumented
+          round: 9
+        - id: BR-41
+          severity: Minor
+          title: IgnoreEntries emits derived paths verbatim into git's glob language with no escaping
+          detail: |-
+            ARCH-SECURE's "parse into a typed value at the boundary" lens. Skill directory names
+            are discovered from the filesystem, not the manifest; one containing `[`, `*`, `?` or
+            a leading `!`/`#` yields a pattern matching something other than the literal path —
+            potentially a repo-owned file. No escaping seam exists between the derivation and the
+            .gitignore writer.
+          family: derived-value-unescaped-in-target-grammar
+          round: 9
+        - id: BR-42
+          severity: Minor
+          title: Absorbing a derivative's loose entries orphans the comment block that introduced them, in ~12 repos
+          detail: |-
+            This is the 3rd finding in family `edit-splice-leaves-orphan-clause`. The RULE here
+            resolves in weave's favour and should be recorded as such: weave correctly refuses to
+            edit repo prose outside the managed block (ARCH-SECURE), so the owner of the orphan is
+            the M4 sweep, not mergeManagedBlock. Verified live — parley.nvim/.gitignore has a
+            four-line "weave-generated runtime artifacts … skill symlinks, the merged
+            settings.json, the .colima symlinks, and the vm-log.sh symlink" comment whose eight
+            entry lines are all absorbed (five by exact match, three by legacyBlanketEntries),
+            leaving the comment heading nothing. Add it to M4's per-repo checklist.
+          family: edit-splice-leaves-orphan-clause
+          round: 9
+        - id: BR-43
+          severity: Minor
+          title: ARCH-CONSTRAINTS measurement required by plan Task 3.2 Step 5 was not recorded in the Log
+          detail: |-
+            Measured during this review, inside the declared envelope: `weave compile --dry-run`
+            and `--dry-run --target claude` both ~0.00 s warm, despite the lean path now doing
+            three full lowerings (was two); scripts/merge-checks.d/50-base-layer-tests.sh adds
+            ~11 s to CI across its three suites; ariadne's block is 56 entries (predicted ~55), a
+            derivative's 85-90 (predicted ~95). Worth writing into the Log at close so the budget
+            has a datum rather than a prediction.
+          family: verification-cannot-fail
+          round: 9
+      boundary: M3
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -1074,6 +1214,104 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   plan line 1279 still calls sort.Strings over a deduped slice. Pick one owner and record it
   in the plan's Revisions before M3 lands both.
 
+## Round 9 — 2026-09-20T09:02:22-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-36** [Important] `verification-cannot-fail` /construct/generated/ is no longer pinned by any test — deleting walk.GeneratedRel from main.go:674 leaves the whole suite green
+  This is the 7th finding in family `verification-cannot-fail`. Earlier rounds fixed
+  instances; do NOT fix this instance alone. The RULE: a test whose expected value is
+  derived by calling the code under test (or by passing the fixture in itself) cannot
+  fail when the production wiring changes — every entry SOURCE needs one literal
+  assertion somewhere no refactor can satisfy tautologically. Measured: replacing
+  `[]string{walk.GeneratedRel}` with `nil` at main.go:674 in a scratch copy left
+  `go test ./cmd/weave/...` green (TestCompileEnsuresGitignore derives wantEntries from
+  the same planActions; TestGeneratedRuntimeGitignoreCoversConstructGenerated at
+  gitignore_test.go:104 asserts sampleEntries contains an argument sampleEntries passed
+  in) and `gitignore-surface.test.sh` printed PASS. 30-weave-drift.sh does not cover it
+  — weave-drift-check (Makefile.workflow:249) only tests dynamic-skill render
+  determinism. walk/dynamic.go:41-46 still asserts the gitignore entry "derives from
+  this constant" and that the consumers "MUST agree". Same rule covers
+  50-base-layer-tests.sh:24,28, whose skip-guards print a green checkmark and exit 0.
+  Cheapest application of the rule: one literal `grep -qxF '/construct/generated/'`
+  per entry source in gitignore-surface.test.sh.
+- **BR-37** [Important] `presence-predicate-written-twice` 46-removed-symbol-references.sh:101 still cannot see bare iota members, so a pure reorder false-positives CI
+  This is the 7th finding in family `presence-predicate-written-twice`. Do NOT patch
+  still_declared with a third regex. The RULE: `extract_removed` (:54-75) and
+  `still_declared` (:99-102) are two implementations of one grammar — "what is a Go
+  declaration of NAME" — and must be a single function parameterised by which side of
+  the diff it reads (run the same awk over `git show $HEAD:<file>`). The BR-30 comment
+  at :90-98 states exactly this rule and then implements half of it: the extractor's
+  grouped branch needs only an indented identifier, the predicate's needs an `=`.
+  Members 2..n of an iota block have no `=`. Falsified: const (Alpha Kind = iota; Beta;
+  Gamma) with Beta and Gamma swapped, plus `// Beta is lowered by the planner.` in
+  another file, exits 1 with "pkg/b.go:3 names removed symbol Beta". Live in this repo
+  — intent.Kind (intent.go:26), intent.Visibility (:68), plan.SlotState (apply.go:277)
+  are all bare-iota, and intent.go:46 records that members do get moved within them.
+  Also make merge-checks.test.sh's matrix the grammar's own enumeration so a new shape
+  cannot be taught to one half only.
+- **BR-38** [Important] `atlas-states-future-state-as-current` Two of M3's prose deliverables did not land; weave.md:118 and gitignore.go:38 still describe the retired fixed list
+  This is the 2nd finding in family `atlas-states-future-state-as-current` (mirror
+  direction: current state stated as future). State the RULE rather than fixing the
+  four sites: a doc or comment that names a milestone as pending, or names an artifact
+  by path, is a claim with an expiry date that nothing enforces. Two enforcements sit
+  beside 46- and reuse its allowlist — (a) fail a backticked path in atlas/**.md or
+  README.md that does not resolve in the tree; (b) fail a `#<issue> M<n>` future-tense
+  claim once that milestone is closed. Sites: atlas/workflow/weave.md:118 "still the
+  fixed set as of M2; #239 M3 derives it" — plan Task 3.4 Step 3 named this file and it
+  is absent from the diff, and it is the page the new target section links to;
+  cmd/weave/internal/plan/gitignore.go:38 "until then the fixed list below stands" and
+  :15 enumerating ".colima/ VM tree, the vm-log.sh helper" — plan Task 3.1 Step 3 named
+  this rewrite; atlas/workflow/base-layer.md:3 sends adopters to construct/setup.sh,
+  which does not exist, on the first line of the page this milestone edited;
+  cmd/weave/internal/plan/action.go:33 says WriteFile is lowered "from intent.Touch
+  (empty Content)" when plan.go:114 lowers it to Touch — a reader classifying verbs for
+  IgnoreEntries from that doc reaches the catastrophe
+  TestIgnoreEntriesNeverIgnoresScaffoldOrTouch exists to prevent.
+- **BR-39** [Important] `hand-maintained-restatement-of-model` construct/scripts/apply-gitignore-entries.sh is a surviving second gitignore channel, shipped fleet-wide by base.manifest:171
+  This is the 6th finding in family `hand-maintained-restatement-of-model`. The RULE to
+  fix: a single-source change is not done until the CONSUMER ENUMERATION is written
+  down and swept — the ARCH-PURPOSE shadow-sweep found the derived consumer clean in
+  all 12 derivatives but never enumerated the non-derived writers, so this one
+  survived. The script carries a hand-maintained GITIGNORE_ENTRIES=(.goto
+  .openshell/.bootstrap/ .openshell/.base-image-digest .DS_Store bin/), appends with
+  `grep -qxF` and never removes — append-only blanket directory globs, including `bin/`,
+  the literal pair#64 pattern the Spec cites as the motivating hazard. It has zero
+  callers: `grep -rn apply-gitignore-entries` over the tree returns only base.manifest:171
+  and its own usage comment; its header says it was extracted from construct/setup.sh,
+  which weave retired. This contradicts the invariant
+  workshop/targets/base-layer-mechanics.md records in this same diff — "no artifact
+  enters the ignore surface by a second channel either". ARCH-FUNERAL: retire the
+  manifest row in M4's sweep so the symlink drops from all 12 repos in one pass.
+- **BR-40** [Minor] `adopter-facing-surface-undocumented` README.md:40-56 documents the managed block's mechanism but never what determines its contents
+  This is the 2nd finding in family `adopter-facing-surface-undocumented`. Same rule as
+  the atlas finding above: the adopter-facing surface restates the model instead of
+  deriving from it. An adopter reading README cannot learn that adding a manifest row
+  now changes their .gitignore, nor that the entries became per-path. One sentence
+  naming plan.IgnoreEntries and the ownership rule closes it.
+- **BR-41** [Minor] `derived-value-unescaped-in-target-grammar` IgnoreEntries emits derived paths verbatim into git's glob language with no escaping
+  ARCH-SECURE's "parse into a typed value at the boundary" lens. Skill directory names
+  are discovered from the filesystem, not the manifest; one containing `[`, `*`, `?` or
+  a leading `!`/`#` yields a pattern matching something other than the literal path —
+  potentially a repo-owned file. No escaping seam exists between the derivation and the
+  .gitignore writer.
+- **BR-42** [Minor] `edit-splice-leaves-orphan-clause` Absorbing a derivative's loose entries orphans the comment block that introduced them, in ~12 repos
+  This is the 3rd finding in family `edit-splice-leaves-orphan-clause`. The RULE here
+  resolves in weave's favour and should be recorded as such: weave correctly refuses to
+  edit repo prose outside the managed block (ARCH-SECURE), so the owner of the orphan is
+  the M4 sweep, not mergeManagedBlock. Verified live — parley.nvim/.gitignore has a
+  four-line "weave-generated runtime artifacts … skill symlinks, the merged
+  settings.json, the .colima symlinks, and the vm-log.sh symlink" comment whose eight
+  entry lines are all absorbed (five by exact match, three by legacyBlanketEntries),
+  leaving the comment heading nothing. Add it to M4's per-repo checklist.
+- **BR-43** [Minor] `verification-cannot-fail` ARCH-CONSTRAINTS measurement required by plan Task 3.2 Step 5 was not recorded in the Log
+  Measured during this review, inside the declared envelope: `weave compile --dry-run`
+  and `--dry-run --target claude` both ~0.00 s warm, despite the lean path now doing
+  three full lowerings (was two); scripts/merge-checks.d/50-base-layer-tests.sh adds
+  ~11 s to CI across its three suites; ariadne's block is 56 entries (predicted ~55), a
+  derivative's 85-90 (predicted ~95). Worth writing into the Log at close so the budget
+  has a datum rather than a prediction.
+
 ## Open findings
 
 - **BR-12** [Minor] `hand-maintained-restatement-of-model` gather.go's SeedOnce comment asserts a content comparison classifyAction deliberately does not do, and the plan's Core concepts table omits the new exported predicate
@@ -1089,3 +1327,11 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-33** [Minor] `hand-maintained-restatement-of-model` 46 globs '*.md' but its match regex requires a // or * line prefix, so Markdown prose is effectively uncovered
 - **BR-34** [Minor] `check-invocation-modes-diverge` 45 and 46 still disagree on which paths they exclude, with no stated reason
 - **BR-35** [Minor] `presence-predicate-written-twice` The entry dedupe landed in mergeManagedBlock but the plan still assigns it to IgnoreEntries, so M3 will implement it twice
+- **BR-36** [Important] `verification-cannot-fail` /construct/generated/ is no longer pinned by any test — deleting walk.GeneratedRel from main.go:674 leaves the whole suite green
+- **BR-37** [Important] `presence-predicate-written-twice` 46-removed-symbol-references.sh:101 still cannot see bare iota members, so a pure reorder false-positives CI
+- **BR-38** [Important] `atlas-states-future-state-as-current` Two of M3's prose deliverables did not land; weave.md:118 and gitignore.go:38 still describe the retired fixed list
+- **BR-39** [Important] `hand-maintained-restatement-of-model` construct/scripts/apply-gitignore-entries.sh is a surviving second gitignore channel, shipped fleet-wide by base.manifest:171
+- **BR-40** [Minor] `adopter-facing-surface-undocumented` README.md:40-56 documents the managed block's mechanism but never what determines its contents
+- **BR-41** [Minor] `derived-value-unescaped-in-target-grammar` IgnoreEntries emits derived paths verbatim into git's glob language with no escaping
+- **BR-42** [Minor] `edit-splice-leaves-orphan-clause` Absorbing a derivative's loose entries orphans the comment block that introduced them, in ~12 repos
+- **BR-43** [Minor] `verification-cannot-fail` ARCH-CONSTRAINTS measurement required by plan Task 3.2 Step 5 was not recorded in the Log

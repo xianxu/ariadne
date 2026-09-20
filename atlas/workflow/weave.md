@@ -115,8 +115,13 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
   transform and **fails closed** on any marker shape it cannot parse — an
   unterminated or duplicated pair, the latter being what a git merge conflict
   produces — with the remedy in the message, because `.gitignore` is hand-edited
-  input weave did not produce. The entry list itself is still the fixed set as of
-  M2; #239 M3 derives it from the manifest walk) · the
+  input weave did not produce. The entry list is DERIVED from the planned actions
+  by `plan.IgnoreEntries` (#239 M3): weave IGNORES what it re-derives — `symlink`,
+  `prose`, `merge`, the lowered skill links — and TRACKS what it merely
+  provisions — `scaffold`, `touch`, `seed`, `seed-once` — so the bootstrap core
+  follows from the rule instead of being listed, and adding or retiring a
+  manifest row changes every repo's `.gitignore` with no code edit. Per-path,
+  never a directory glob) · the
   **export/internal visibility axis** (#99, `intent.Selected` — `𝒜(R)` = ancestors'
   exports ⊎ leaf's internals) · the `applyWriteFile` clobber-guard (removes a
   symlink at the slot before writing, so a derivative's pre-cutover

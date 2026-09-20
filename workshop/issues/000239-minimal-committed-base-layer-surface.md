@@ -576,6 +576,40 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-20 — M3 boundary review: 4 findings, all fixed
+
+**BR-39 (Important) — a surviving SECOND gitignore channel, shipped fleet-wide.**
+`construct/scripts/apply-gitignore-entries.sh` was symlinked by
+`base.manifest:171` into **all 17** fleet repos and invoked **nowhere**. It is an
+append-only `.gitignore` writer extracted from the old `setup.sh` — i.e. it
+advertised exactly the behaviour M2 replaced (it can add an ignore line and never
+remove one), while this issue's entire thesis is that no artifact enters a
+surface by a second channel. #95's close review flagged it for retirement and the
+work was deferred; it is the best single find of this milestone because it is the
+issue's own defect 3 sitting in the tree unnoticed. Row retired and script
+deleted; `PruneOrphans` GCs the dangling symlink in each derivative on its next
+compile.
+
+**BR-37 (Important) — BR-30's two-halves failure again, in a shape its fixture
+did not cover.** `still_declared`'s grouped arm required an `=`, so every **bare
+iota member** was invisible — and `plan.SlotState` is declared exactly that way,
+so reordering my own const block would have false-positived CI. Fixture added
+first (red: *"names removed symbol SlotAbsent"* on a pure reorder), then the
+grammar widened to accept bare members. 14/14.
+
+**BR-36 (Important) — `/construct/generated/` was pinned by nothing.** It is the
+one weave-generated tree that is not an Action (the `.dynamic-skill` exec stage
+makes it), so it reaches the block only because `planActions` passes
+`walk.GeneratedRel`. Deleting that argument left the whole suite green. Now
+pinned by `TestCompileIgnoresTheDynamicSkillGeneratedTree`, **falsified** by
+dropping the argument.
+
+**BR-38 (Important) — two prose deliverables did not land.** `weave.md:118` still
+said "the entry list itself is still the fixed set as of M2", and
+`gitignore.go:14` still said "fixed set of runtime artifacts". Both now describe
+the derivation and the ownership rule.
+
+
 ### 2026-09-20 — M3 Task 3.3: conformance test + the CI registration
 
 `construct/scripts/test/gitignore-surface.test.sh` — a real two-layer scratch

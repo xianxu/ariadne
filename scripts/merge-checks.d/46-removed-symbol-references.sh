@@ -95,10 +95,17 @@ WB_R='([^A-Za-z0-9_]|$)'
 # a new declaration shape, teach the other.
 #
 #   column 0 : func|var|const|type NAME …      (incl. a method receiver)
-#   grouped  : <indent> NAME … =               (a member of a `( … )` block)
+#   grouped  : <indent> NAME …                 (a member of a `( … )` block,
+#                                               WITH or WITHOUT `=` — an iota
+#                                               block's members are bare)
+#
+# The `=` was required at first, which made every BARE iota member invisible:
+# plan.SlotState is declared exactly that way, so reordering it would have
+# false-positived CI (#239 M3 BR-37) — the same two-halves failure as BR-30, in
+# a shape its fixture did not cover.
 still_declared() {
     git grep -qE "^(func|var|const|type) (\([^)]*\) )?$1$WB_R" "$HEAD" -- '*.go' 2>/dev/null && return 0
-    git grep -qE "^[[:space:]]+$1[[:space:]]*(=|[A-Za-z_*\[][^=]*=)" "$HEAD" -- '*.go' 2>/dev/null
+    git grep -qE "^[[:space:]]+$1[[:space:]]*($|[=[:space:]])" "$HEAD" -- '*.go' 2>/dev/null
 }
 
 violations=0

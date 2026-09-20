@@ -142,6 +142,19 @@ printf 'package pkg\n\n// The region runs from managedBlockOpen to its close.\nc
 git -C "$r" add -A >/dev/null; git -C "$r" commit -qm rename
 expect_red "46/grouped-marker-rename" "$r" "managedBlockOpen"
 
+# 9. BARE members of an iota block. `SlotAbsent` in `const ( X T = iota; Y; Z )`
+#    has no `=`, so a still-declared test that requires one cannot see it — and
+#    plan.SlotState is declared exactly this way. A pure REORDER of such a block
+#    would false-positive CI (#239 M3 BR-37). Same two-halves disagreement as
+#    BR-30, in a shape that fixture did not cover.
+r="$SCRATCH/46-iota"; mkdir -p "$r/pkg" && git init -q "$r"
+git -C "$r" config user.email t@t; git -C "$r" config user.name t
+printf 'package pkg\n\ntype S int\n\nconst (\n\tSlotUnknown S = iota\n\tSlotAbsent\n\tSlotRepoOwned\n)\n' > "$r/pkg/a.go"
+git -C "$r" add -A >/dev/null; git -C "$r" commit -qm base; git -C "$r" tag base
+printf 'package pkg\n\n// SlotAbsent means nothing occupies the slot.\ntype S int\n\nconst (\n\tSlotUnknown S = iota\n\tSlotRepoOwned\n\tSlotAbsent\n)\n' > "$r/pkg/a.go"
+git -C "$r" add -A >/dev/null; git -C "$r" commit -qm reorder
+expect_green "46/iota-reorder-is-not-a-removal" "$r"
+
 # --- 45: a comment restating the manifest verb set ---------------------------
 # 45 reads the WORKING TREE, so each case is a file dropped into a copy of the
 # real repo's check inputs.
