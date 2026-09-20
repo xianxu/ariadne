@@ -30,7 +30,7 @@ func blockOf(entries ...string) string {
 	return out + managedBlockClose + "\n"
 }
 
-func TestEnsureGitignoreTextAppendsToEmpty(t *testing.T) {
+func TestManagedBlockAppendsToEmpty(t *testing.T) {
 	got, changed, err := mergeManagedBlock("", []string{"/AGENTS.md", "/GEMINI.md"})
 	if err != nil || !changed {
 		t.Fatalf("err=%v changed=%v, want nil/true on an empty .gitignore", err, changed)
@@ -41,7 +41,7 @@ func TestEnsureGitignoreTextAppendsToEmpty(t *testing.T) {
 	}
 }
 
-func TestEnsureGitignoreTextPreservesExistingAndAppendsAbsent(t *testing.T) {
+func TestManagedBlockPreservesExistingAndAbsorbsLoose(t *testing.T) {
 	// Existing entries + a comment are preserved verbatim; only the truly absent
 	// entry is appended (the present one is NOT duplicated — grep -qxF semantics).
 	// The repo's comment and its own entry survive verbatim; the loose
@@ -60,7 +60,7 @@ func TestEnsureGitignoreTextPreservesExistingAndAppendsAbsent(t *testing.T) {
 	}
 }
 
-func TestEnsureGitignoreTextIdempotentWhenAllPresent(t *testing.T) {
+func TestManagedBlockIdempotentWhenAllPresent(t *testing.T) {
 	// Every entry already present ⇒ no change, byte-identical (running weave twice
 	// never duplicates lines). Built from the canonical list so adding an entry can
 	// never silently desync this fixture.
@@ -93,7 +93,7 @@ func TestGeneratedRuntimeGitignoreCoversConstructGenerated(t *testing.T) {
 	}
 }
 
-func TestEnsureGitignoreTextAddsTrailingNewlineBeforeAppend(t *testing.T) {
+func TestManagedBlockAddsTrailingNewlineBeforeBlock(t *testing.T) {
 	// A non-empty file NOT ending in a newline gets one before the appended entry,
 	// so the new entry never glues onto the last existing line.
 	got, changed, err := mergeManagedBlock("bin/", []string{"/AGENTS.md"})

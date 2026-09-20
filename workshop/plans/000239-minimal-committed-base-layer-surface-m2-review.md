@@ -297,3 +297,148 @@ findings:
     detail: |
       This is the 5th finding in family verification-cannot-fail (BR-19 was the 4th). Do not fix this instance alone — the RULE is: a check is not evidence until it has been run, AT THE RANGE GRANULARITY CI WILL USE, against EVERY site that motivated it, and observed to go red on each; falsifying one site in a scratch repo is a sample of size one. The enumeration that implies is greppable and cheap: for each finding a check claims to enforce, list the finding's measured sites and re-run the check over merge-base..head; any site it passes is an unenforced site. Sweep that enumeration this round, for 45- as well as 46-. Measured prevalence for this instance: 46-…sh:37-46 derives `removed` from `git diff "$BASE" "$HEAD"`, which collapses a symbol added and deleted inside the range. SeedOnceSlotIsRepoOwned was introduced at fd195a1 and removed at 361e00a, both on this branch, so over merge-base(main,HEAD)..382c4b9 — the range merge-check.yml passes — the extracted set is exactly {ensureGitignoreText} and the check prints green; over 361e00a^..361e00a it flags golden.go:222 and exits 1. Fix sketch: union per-commit removals across `git rev-list "$BASE".."$HEAD"`, or make it range-free by asserting every backticked or package-qualified identifier in a Go comment is declared at HEAD.
 ```
+
+---
+
+## Re-review — 2026-09-19T23:14:57-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 315579a6c859f32d9be3ea5da144200a23ec4767..a62d20ad3f9ec88ac5adc5d035852eee0fb346f6 |
+| command | sdlc milestone-close --issue 239 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-09-19T23:14:57-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+M2's mechanism is real and I verified it against the tree rather than the commit messages: ariadne's live `.gitignore` is a true fixed point of `mergeManagedBlock` (`changed=false`, measured), and all three BR-19 guards go **red** when reverted in a scratch copy — the fail-closed read guard (`gitignore_test.go:301` fires), the input dedupe (`/AGENTS.md` emitted twice), and the quoted-marker error. BR-25's union fix is likewise measured: reintroducing the born-and-buried `SeedOnceSlotIsRepoOwned` comment at `golden.go:222` now exits 1 over `merge-base(main,HEAD)..HEAD`, the exact range `merge-check.yml` passes. Nothing blocks SHIP. What holds it back is that the *enforcement sweep the last round promised* is itself partly unmeasured: I reverted `gitignore.go:21` to its literal pre-fix text and check 46 printed green, and I found two further shapes it structurally cannot see — so the family's rule ("a check is evidence only once it has gone red on every motivating site") is written down but still executed by hand and by memory. Plus the atlas page that enumerates ariadne's merge checks is now two entries stale, including the check this round added. Three prior Minors (BR-22/23/24 position, CRLF, splice-orphan) were not touched; two are one-line fixes.
+
+## 1. Strengths
+
+- **Every BR-19 guard was falsified, not asserted.** I independently reverted each in a scratch tree: the read guard (`gitignore.go:209-217`), the dedupe (`gitignore.go:181-189`), and the duplicate-open-marker error (`gitignore.go:132-136`) each turn its named test red. The retired tautological namesake is genuinely gone, not left beside the real test.
+- **`materializationFaultFS.ReadFile`** (`apply_test.go:670-677`) is the right shape — it extends the existing fault seam rather than inventing a second one, and matches its siblings' `operation`-only convention.
+- **BR-25's union fix is correct at CI granularity.** `46-…sh:54-58` unions per-commit removals across `git rev-list`; I confirmed the two-point diff would still report zero and the union reports the stale comment. 0.6s over 20 commits — cheap enough to keep.
+- **ARCH-PURE is clean.** `mergeManagedBlock` is string-in/string-out and every unit test runs with no fake; the only IO change is confined to `applyEnsureGitignore`. The docstring at `gitignore.go:113-115` is the one restatement that *does* name the position side-effect honestly.
+- **`legacyBlanketEntries` names its own end** (`gitignore.go:96-98`, "delete once `git grep` finds no repo carrying these lines… checked at #239's close") — a textbook ARCH-FUNERAL entry for a migration aid.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+**I1 — `scripts/merge-checks.d/46-removed-symbol-references.sh`: three shapes it is credited with, all measured green** (`verification-cannot-fail`, 6th in family)
+
+Per the family protocol I am **not** asking for these three sites to be patched. The rule is: *a check's falsification must live in the repo as a fixture the runner re-executes, not as a one-time manual sweep recorded in prose.* Neither `45-` nor `46-` has a red/green fixture, so the ledger's ✓ column is produced by remembering, and one row is already wrong. Measurements:
+
+- `46-…sh` vs the ledger's "`gitignore.go` header ✓" (issue Revisions, round 6). I reverted `cmd/weave/internal/plan/gitignore.go:21` to its exact base text (`315579a:21` — `// ensure-text transform live here as data + a string function; the actual`), committed, and ran over `merge-base(main,HEAD)..HEAD`: **exit 0**. That site never named a declared symbol, so 46 cannot see it and never could.
+- `46-…sh:81-84` — the historical-mention allowlist matches bare substrings `*remov*`/`*replac*`/`*delet*`. I injected `// ensureGitignoreText appends absent entries and never removes.` — a stale restatement of precisely the append-only mechanism the check exists for — and it was **exempted** (exit 0) because the line contains "removes".
+- `46-…sh:46-52` — `extract_removed` only matches declarations at column 0. `managedBlockOpen`/`managedBlockClose` are declared inside a grouped `const ( … )` at `gitignore.go:83-86`, in the very file that motivated the check; a rename emits `-\tmanagedBlockOpen  = …` with no `-const ` prefix. Run against a synthetic hunk, the awk program extracted `legacyBlanketEntries` and `ReadFile` and **not** `managedBlockOpen`.
+
+Supporting scope note: `46-…sh:79` excludes `*_test.go`, so four functions named `TestEnsureGitignoreText*` (`gitignore_test.go:33,44,63,96`) survive at HEAD for a function this range deleted.
+
+Fix sketch (the class, not the instances): add a fixture harness — a Go test or `scripts/merge-checks.d/test/` — that builds a throwaway git repo per motivating site, asserts the check exits 1 on each and 0 on a clean tree, and registers it so CI re-runs the falsification. Then correct the round-6 ledger row to state what 46 covers (comments naming a *declared, ungrouped* symbol) and what it does not (prose describing retired behaviour without naming one) instead of a ✓. Narrowing the allowlist to adjacent retirement phrases and teaching `extract_removed` grouped declarations are the two cheap sub-fixes that fixture would drive.
+
+**I2 — `atlas/workflow/ci-merge-check.md:32` hand-enumerates ariadne's merge checks and is two entries stale** (`hand-maintained-restatement-of-model`, 4th in family)
+
+Again the rule, not the instance. `**Checks in ariadne today:** 30-weave-drift.sh … and 40-duplicate-issue-id.sh` restates the contents of `scripts/merge-checks.d/`, which now also holds `45-verb-enumeration.sh` (M1) and `46-removed-symbol-references.sh` (this round). That is #239's own thesis one level down: a hand-maintained restatement of a model is a deferred consumer, and it went stale across two consecutive boundaries without anything failing. The fix that covers the class is to stop enumerating — have the page name `scripts/merge-checks.d/` as the source and describe only the *contract* and the one check (`40-`) whose rationale is load-bearing, or generate the list. Rider while editing: the fence opened at `:31` does not close until `:47`, so this entire paragraph currently renders as a code block (pre-existing, out of window).
+
+## 4. Minor findings
+
+- `46-…sh:28-31` — invoked with no range it prints `✓ … nothing to compare` and exits 0, while its sibling `45-` falls back to scanning the whole tree. A bare local run reports success having checked nothing.
+- `46-…sh:77` — `IFS=: read -r _rev f lineno line` truncates on a path containing `:`. Harmless for `*.go`/`*.md` today.
+- `45-…sh:62` excludes `workshop/{plans,issues}` + `lessons.md`; `46-…sh:79` excludes all of `workshop/*`. The two siblings disagree on scope for no stated reason.
+- `go test ./...` is red at HEAD: `cmd/sdlc/fleet_plan_test.go:14` opens `workshop/plans/000200-sdlc-fleet-thread-inventory-plan.md`, archived to history at `dfeba9c`. Out of window and not M2's doing, but it means the suite-wide green this boundary leans on is not actually clean.
+
+## 5. Test coverage notes
+
+- The pure transform is well covered and non-tautological: `TestManagedBlockReplacesWholesaleSoRetiredEntriesDisappear` feeds a real `/RETIRED.md` and asserts both directions; `TestManagedBlockRefusesMalformedMarkers` asserts the error *names the remedy*.
+- **`TestCompileEnsuresGitignore` (`main_test.go:198`) cannot distinguish M2 from what it replaced.** It asserts entry presence (`strings.Contains(got, entry+"\n")`) and byte-idempotence — both true of the retired append-only mechanism. The milestone's headline behaviour has no end-to-end assertion; the plan predicted this test would "survive unchanged", so it is not a deviation, but one `strings.Contains(got, managedBlockOpen)` would close it.
+- No test covers a `.gitignore` whose repo-owned lines sit *below* the block, or a CRLF file — see BR-22/BR-23 below, both still measurable at HEAD.
+
+## 6. Architectural notes for upcoming work
+
+- **ARCH-DRY** — pass on the code. Flagged at I2 for the atlas enumeration. `mergeManagedBlock`'s `absorb` and `emitted` maps look similar but answer different questions; not duplication.
+- **ARCH-PURE** — pass. Pure transform, IO confined to the seam, no mocks needed to run the unit tests.
+- **ARCH-PURPOSE** — flagged at I1. The shadow-sweep over "what does weave own in `.gitignore`" finds four prose consumers (`.gitignore:17-24`, `README.md:40-56`, `atlas/workflow/weave.md:101-118`, `gitignore.go:105-125`) and they now disagree on precision: only the code docstring states the position side-effect. M3/M4's `commitConsumption` provenance filter will be the first consumer that *derives* from the block — that is the one that matters.
+- **ARCH-MOCK** — pass for the FS seam. The two merge checks shell directly to `git` with no seam or fixture; that gap is exactly what I1 asks for.
+- **ARCH-CONSTRAINTS** — pass. 46 is O(commits) git invocations, 0.6s over this 20-commit range, bounded by PR size since `merge-check.yml` passes `merge-base..head`.
+- **ARCH-SECURE** — mostly pass: `.gitignore` is correctly treated as untrusted (fail closed on unreadable, fail closed on unparseable markers, remedy named). The one hole is CRLF, where malformed-for-this-parser input is silently *accepted* into a duplicated-block state instead of failing closed — BR-23, still open.
+- **ARCH-ORDER** — the `.gitignore` is state carried across weave runs, and the CRLF path reaches a state the transform can never leave (second pass returns `changed=false` with two blocks). That is a legal-state gap, not just a formatting nit.
+- **ARCH-FUNERAL** — pass, and well done on `legacyBlanketEntries`. The one unnamed residue is the orphaned CRLF block: a durable artifact the wholesale-replace path cannot reach.
+
+## 7. Plan revision recommendations
+
+`workshop/plans/000239-…-plan.md` was not modified in this window and now over-claims in one place:
+
+- **Task 2.2, Step 3** still says `TestEnsureGitignoreTextDedupsRepeatedInputEntry` "needs a decision: … Dedupe inside `IgnoreEntries` (Task 3.1 …) and repoint this test there in M3." The dedupe instead landed in `mergeManagedBlock` (`gitignore.go:181-189`) in M2, driven by BR-19, and the namesake test was deleted rather than repointed. Add a `## Revisions` entry recording that the dedupe is now the block emitter's, so Task 3.1 does not add a second one.
+- **Task 2.1, Step 3's code listing** shows `block := append([]string{managedBlockOpen}, entries...)`, superseded by the same change. Same Revisions entry.
+- **Task 4.3 (per-repo pilot)** should gain the `parley.nvim` rehearsal as a checkable step — it currently exists only as an advisory paragraph in the issue's Revisions (BR-24).
+
+```findings
+dispose:
+  - id: BR-19
+    disposition: addressed
+    note: |
+      All three falsified in a scratch copy of a62d20a — read guard, input dedupe and quoted-marker error each go red when reverted; the tautological namesake is deleted and the issue Log's 50-base-layer-tests.sh claim now reads "deferred to M3".
+  - id: BR-22
+    disposition: not-addressed
+    note: |
+      Measured at HEAD - mergeManagedBlock(block + "!/CLAUDE.md\n", ["/CLAUDE.md"]) still returns !/CLAUDE.md above the block; atlas/workflow/weave.md still says "Outside is the repo's own, preserved verbatim" with no position clause, and this round ADDED a second restatement carrying the same gap at README.md:49 ("lines there are preserved verbatim, negations included"). No Log line. Only gitignore.go:113-115 states it.
+  - id: BR-23
+    disposition: not-addressed
+    note: |
+      Measured at HEAD - a CRLF .gitignore gains a second LF block (2 open markers in the result) and the second pass returns changed=false, so the original is a permanent orphan the wholesale-replace path can never reach. gitignore.go:131 still compares raw lines with no TrimRight(line, "\r").
+  - id: BR-24
+    disposition: addressed
+    note: |
+      The rule is recorded durably in the issue's Revisions (000239…md:683-687) with the actor swapped as the finding asked; it is not yet a checkable step in the plan's Task 4.3, which is the plan-revision recommendation above rather than an open finding.
+  - id: BR-25
+    disposition: addressed
+    note: |
+      Union fix verified at CI granularity - reintroducing the born-and-buried SeedOnceSlotIsRepoOwned comment at golden.go:222 exits 1 over merge-base(main,HEAD)..HEAD, and the sweep it demanded produced a real fix in 45- (case-insensitivity for the CamelCase Action sum type). The one overstated ledger row is raised separately below rather than re-raised here.
+findings:
+  - id: new
+    severity: Important
+    family: verification-cannot-fail
+    title: |
+      46-removed-symbol-references.sh prints green on three shapes it is credited with, including one the round-6 ledger marks verified
+    detail: |
+      This is the 6th finding in family verification-cannot-fail. Do NOT fix these three sites — the RULE is that a check's falsification must live in the repo as a fixture the runner re-executes, not as a one-time manual sweep recorded in prose; neither 45- nor 46- has a red/green fixture, which is why one ledger row is already wrong. Measured, all over merge-base(main,HEAD)..HEAD in a scratch clone.
+      (1) The ledger's "46 (BR-20's sites) - gitignore.go header ✓" - reverting gitignore.go:21 to its exact base text (315579a:21, "ensure-text transform") and re-running exits 0. That site never named a declared symbol.
+      (2) 46-…sh:81-84 exempts any line containing the bare substring "remov"/"replac"/"delet"; the injected stale restatement "ensureGitignoreText appends absent entries and never removes." exits 0.
+      (3) 46-…sh:46-52 extracts only column-0 declarations, so managedBlockOpen/managedBlockClose - grouped in const ( … ) at gitignore.go:83-86, the file that motivated the check - are invisible to a rename. Verified against a synthetic hunk - legacyBlanketEntries and ReadFile extracted, managedBlockOpen not.
+      Scope rider - 46-…sh:79 excludes *_test.go, so four TestEnsureGitignoreText* functions (gitignore_test.go:33,44,63,96) still name the function this range deleted. Fix - a fixture harness that builds a throwaway repo per motivating site and asserts exit 1 on each / 0 clean, then state 46's real coverage in the ledger instead of a ✓.
+  - id: new
+    severity: Important
+    family: hand-maintained-restatement-of-model
+    title: |
+      atlas/workflow/ci-merge-check.md hand-enumerates ariadne's merge checks and is two entries stale, including the one added this round
+    detail: |
+      This is the 4th finding in family hand-maintained-restatement-of-model. Do NOT just append the two names — the RULE is that the atlas names the source rather than restating its contents. ci-merge-check.md:32 says "Checks in ariadne today - 30-weave-drift.sh … and 40-duplicate-issue-id.sh"; scripts/merge-checks.d/ also holds 45-verb-enumeration.sh (M1) and 46-removed-symbol-references.sh (this round), so the list went stale across two consecutive boundaries with nothing failing — #239's own thesis one level down. Have the page point at the directory and keep only 40-'s load-bearing rationale, or generate the list. Rider while editing - the fence opened at :31 does not close until :47, so the whole paragraph currently renders as code (pre-existing, out of window).
+  - id: new
+    severity: Minor
+    family: check-invocation-modes-diverge
+    title: |
+      46-…sh with no range is a silent no-op pass while its sibling 45- scans the whole tree
+    detail: |
+      46-…sh:28-31 exits 0 with "no commit range given — nothing to compare", so a bare local invocation reports success having checked nothing; 45-…sh:51-55 falls back to the full tree in the same situation. The two siblings also disagree on exclusions (45- excludes workshop/{plans,issues} + lessons.md; 46- excludes all of workshop/*) with no stated reason.
+  - id: new
+    severity: Minor
+    family: archived-artifact-breaks-pinned-reference
+    title: |
+      go test ./... is red at HEAD on an out-of-window failure, so the suite-wide signal this boundary leans on is not clean
+    detail: |
+      cmd/sdlc/fleet_plan_test.go:14 (TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory) opens workshop/plans/000200-sdlc-fleet-thread-inventory-plan.md, which was archived to workshop/history at dfeba9c. Not caused by this range — the test file last changed at c1bae9b — but it means "go test ./... green" cannot be cited as evidence at this or any later boundary until the test reads the archived path or is retired.
+```

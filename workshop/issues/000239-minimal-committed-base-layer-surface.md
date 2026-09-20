@@ -575,6 +575,65 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — M2 review round 7: the falsification becomes a fixture
+
+**BR-26 (6th in `verification-cannot-fail`) — the rule, stated better than I
+had it: a check's falsification must live in the repo as a fixture the runner
+re-executes, not as a one-time manual sweep recorded in prose.** My round-6
+sweep was exactly that manual sweep, and it recorded a ✓ for a site the check
+never covered.
+
+`construct/scripts/test/merge-checks.test.sh` now builds a throwaway repo per
+motivating shape and asserts red/green. Written FIRST, it failed 4 of 10 — the
+gaps the finding named, plus one it did not:
+
+1. **`gitignore.go` header ✓ was wrong.** That site's base text read "ensure-text
+   transform" (hyphenated prose), never the declared symbol, so 46 could not
+   have caught it. The ledger row was false; 46's real coverage is stated below.
+2. **The historical allowlist matched bare substrings.** `*remov*` exempted any
+   line — including one where the **symbol's own name** contains it
+   (`removedFunc`, `removeCache`), which made those symbols permanently
+   unflaggable. Now the symbol name is stripped from the line first, and the
+   allowlist matches retirement *phrases* ("replaced", "superseded", "no longer",
+   "removed in") rather than fragments, so "…and never removes." is correctly
+   flagged as a stale restatement.
+3. **Grouped declarations were invisible.** `const ( … )` members sit off column
+   0, so a rename of `managedBlockOpen`/`Close` — declared that way in the very
+   file that motivated the check — could not be seen. Fixed statefully, after a
+   naive "indented NAME =" pattern extracted the local variable `block` and
+   flagged **every comment containing that English word**. Only lines between a
+   group opener and its `)` count now.
+4. **Rider:** four `TestEnsureGitignoreText*` functions still named the deleted
+   function. Repointed to `TestManagedBlock*`.
+
+**BR-28 (Minor) — 46 with no range was a silent green**, while its sibling 45
+scans the whole tree. A bare run that "checks nothing" and prints ✓ is the same
+cannot-fail shape. It now derives the CI range (`merge-base origin/main HEAD`)
+and errors if it cannot.
+
+**BR-27 (4th in `hand-maintained-restatement-of-model`) —
+`atlas/workflow/ci-merge-check.md` restated the check list and was two entries
+stale, across two consecutive boundaries, with nothing failing.** Not fixed by
+appending the two names: the page now says *which checks exist is
+`ls scripts/merge-checks.d/`* and keeps only the rationale a filename cannot
+carry (why `40-duplicate-issue-id.sh` exists). Also closed the fence opened at
+:31 that had been rendering the whole section as code.
+
+**BR-29 (Minor), accepted and stated rather than fixed:** `go test ./...` is red
+at HEAD on `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`, which
+reads a plan archived to `workshop/history` — **pre-existing, tracked as #210,
+outside this range**. So suite-wide green is not available as evidence here or at
+any later boundary until #210 lands. I have been citing the scoped
+`go test ./cmd/weave/...` (green) and will keep doing so; fixing #210 belongs to
+#210, not to this issue's diff.
+
+**46's real coverage**, now stated as fixtures rather than a prose ✓: plain
+removed func, born-and-buried symbol, grouped const member, retirement-substring
+non-exemption, historical-mention exemption, clean tree. **45's:** lowercase verb
+list, CamelCase Action list, ordinary prose (must stay green), source-naming
+prose (must stay green).
+
+
 ### 2026-09-19 — M2 review round 6: BR-19 residue + BR-25, and the enforcement sweep
 
 **BR-19 residue — I added a real test but left the tautology beside it.**

@@ -30,12 +30,19 @@ Phase E — showed the symlinked runner `exit 127`ing in CI.)
 
 ```
 scripts/merge-checks.d/10-foo.sh  <BASE_SHA>  <HEAD_SHA>     # exit 0 pass, non-0 fail
+```
 
-**Checks in ariadne today:** `30-weave-drift.sh` (generated skills match a fresh
-`weave compile`) and `40-duplicate-issue-id.sh` (#213 — refuse a PR reusing an
-issue id). The latter is the enforcement half of #213: the gate inside `sdlc
-merge` is operator feedback, bypassable by a GitHub-UI merge, a bare `gh pr
-merge`, `--no-validate`, or an actor who has not pulled the fix.
+**Which checks exist is `ls scripts/merge-checks.d/`** — this page deliberately
+does not restate the list. It used to, and went stale across two consecutive
+boundaries with nothing failing, which is ariadne#239's own thesis one level
+down: a hand-maintained restatement of a model derives from nothing, so it does
+not move when the model moves. Each script's header says what it does.
+
+What is worth recording here is the one piece of *rationale* that is not in a
+filename — why `40-duplicate-issue-id.sh` exists at all. It is the enforcement
+half of #213: the gate inside `sdlc merge` is operator feedback, bypassable by a
+GitHub-UI merge, a bare `gh pr merge`, `--no-validate`, or an actor who has not
+pulled the fix. CI is where it becomes non-optional.
 
 Its logic lives in `sdlc issue lint-ids`, not in the script (ARCH-DRY) — filename
 parsing, the three id-bearing directories, and the introduced-vs-pre-existing
@@ -44,7 +51,6 @@ under test rather than trusting a PATH binary, and evaluates **every skip
 condition before any side effect** (no `./cmd/sdlc`, no `go`, no writable temp
 dir), so a derivative that cannot run the check exits cleanly instead of dying in
 setup.
-```
 
 Run in filename order; `README*`/`*.md` ignored; findings to stderr. The shim passes
 `merge-base(base, head)` as `<BASE_SHA>` so a two-dot `base..head` diff is exactly the
