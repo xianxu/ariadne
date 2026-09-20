@@ -2154,6 +2154,8 @@ plan-quality verdict carries over. No implementation has started.
 
 ## Restart: standalone weave startup
 
+**Current startup contract:** see [Brewfiles and make tools](#current-contract-brewfiles-and-make-tools). This approved simplification supersedes the package/build recipe and bootstrap-install proposals below; earlier drafts are retained as revision history.
+
 **Status:** investigation complete enough for a first implementation draft;
 proposal awaiting operator design review. Concrete choices below are proposals
 unless identified as already agreed. No release, peer migration, or machine
@@ -2772,3 +2774,171 @@ probe `brew bundle check --no-upgrade --file <scratch Brewfile>` ran successfull
 as a check and returned exit 1 for unmet dependencies; no package was installed
 or upgraded. Nous already owns a Brewfile. The package-install choice is pending
 and no implementation depends on an assumed answer.
+
+
+## Current contract: Brewfiles and make tools
+
+### 2026-09-20 — agreed simplification
+
+**Reason:** the operator wants minimal setup, with Homebrew already available
+when obtaining weave on macOS, and an ordinary Make target for layer builds.
+**Delta:** use a committed root `Brewfile` per participating layer and the existing
+`make tools` name for that layer's own necessary tool builds. This section
+supersedes earlier custom package checks/install recipes, per-binary JSON,
+`WEAVE_TOOLS_DIR`, generator/command stage declarations, and a custom macOS
+release downloader in bootstrap. R1–R3 retain their source/artifact/distribution
+scope; their dependency/build tasks are replaced by the tasks below.
+
+**Goal:** each layer owns its dependencies and builds; derivatives need only
+record their bases and run the shared setup command.
+
+**Architecture:** weave uses the existing layer graph, Homebrew for external
+packages, Make for owner-local builds, and the existing compiler for artifacts.
+No second package manager or build-description language (ARCH-DRY).
+
+**Tech stack:** existing Go weave CLI, Git, Homebrew Bundle, Make, Bash bootstrap.
+
+### Layer contract
+
+| Surface | Responsibility |
+|---|---|
+| `construct/deps` | Repository links and sources; existing data declarations remain supported. |
+| Root `Brewfile` | That layer's external packages on macOS. |
+| `make tools` | Build that layer's necessary tools into its own `bin/`. |
+| `construct/base.manifest` | That layer's contributed artifacts. |
+
+Use these conventional locations in resolved layers; no JSON wrapper or new
+manifest recipe language is needed. Layers without external packages omit the
+Brewfile. A layer exposing tools supplies its owner-local `tools` target; layers
+without tools need no Makefile. Resolve how to recognize the optional target
+using the existing Make integration during implementation; never treat a failed
+build as an absent target.
+
+Initial ariadne `Brewfile` preserves the existing provisioned set:
+
+```ruby
+brew "go"
+brew "cue"
+brew "uv"
+```
+
+Weave runs, in each participating layer's directory:
+
+```sh
+brew bundle install --no-upgrade --file=Brewfile
+make tools
+```
+
+Homebrew owns package satisfaction and shared installations. Weave does not
+parse Brewfiles, deduplicate formula names, compare versions, or uninstall retired
+packages. `--no-upgrade` avoids routine package upgrades; it is not version
+pinning. See [Homebrew Bundle](https://docs.brew.sh/Brew-Bundle-and-Brewfile).
+Each layer owns its Brewfile contents; review nous's existing development versus
+personal-machine package scope before using it in a consumer fixture. Do not run
+its authentication, signing or service bootstrap as a dependency installer.
+
+`tools` explicitly lists the owner's build prerequisites. For ariadne this
+includes the datatype/vocabulary generators and exposed development tools such
+as sdlc. It must work in a clean base checkout after package installation, without
+consumer-generated Makefile links, recursive `weave compile`, sibling scans or
+building inherited tools again. The distributed weave is built separately for
+weave development/release, not rebuilt as a prerequisite of using it.
+
+### Commands and ordering
+
+- `weave link ../ariadne` links a local base; a repository address also clones
+  the missing base to a peer directory and records its source.
+- `weave dependencies` restores the graph and installs each layer's Brewfile in
+  foundation-first order. It does not build tools or generate artifacts.
+- `weave compile` restores the graph, invokes the same dependency operation,
+  runs owner-local `make tools` foundation-first, then generates artifacts and
+  reconciles symlinks, settings and managed ignores. A shared ancestor is visited
+  once. Any failure stops later work (ARCH-ORDER).
+- `make weave`, where retained, is just a delegate to `weave compile`; users do
+  not need it as a second setup step.
+- On macOS, `./bootstrap.sh` ensures weave through `xianxu/ariadne/weave`, then
+  invokes `weave compile` from the derivative root. Homebrew is the prerequisite;
+  if absent, give its installation instruction. Do not add another weave
+  downloader or silently install Homebrew in this task.
+- Report layer `bin/` paths for the user's explicit shell PATH setup. Set them
+  for weave's own build/generator children. No shell edits or sdlc-specific
+  installation. Normal product development continues through layer-owned targets.
+
+**Build-order check before implementation:** verify the actual ariadne and nous
+`tools` prerequisites can build before artifact composition. If any build needs
+newly generated artifacts, document that concrete cycle and review the adjustment
+with the operator. Do not quietly reintroduce phase declarations, JSON recipes,
+or a second public build target. The simple order above is the intended contract,
+not a claim that the existing targets already satisfy it.
+
+**Platform boundary:** this package-install decision covers macOS. It does not
+approve a custom Linux installer or require Linux users to adopt Homebrew.
+Preserve Linux CLI/composition coverage; resolve the concrete Linux CI prerequisite
+setup before changing those jobs. Do not promise unattended Linux package setup
+until that path is agreed and verified. Release assets and publication remain
+tracked by the existing #239/#241 split.
+
+### Core concepts and integration points
+
+These replace the earlier Requirements-document/package/binary-plan entities.
+The dependency graph and generated-output ownership entities remain unchanged.
+
+| Pure entity | Lives in | Status |
+|---|---|---|
+| Ordered layer setup inputs: owner directory, conventional Brewfile, optional tools entry point | `cmd/weave/internal/startup/plan.go` | new |
+| Child PATH and reported owner bin directories | `cmd/weave/internal/startup/environment.go` | new |
+
+Each resolved layer supplies at most one bundle and one tools invocation.
+Colocated unit tests cover ordering, shared ancestors, optional inputs and PATH
+composition. Homebrew and Make retain package/build semantics; no generic solver
+or scheduler is introduced.
+
+| Integration | Lives in | Status | Wraps |
+|---|---|---|---|
+| Bundle and tools execution | `cmd/weave/internal/weavefs/runner.go` | modified | Existing cwd/argv/env subprocess seam, brew and make |
+| Sequential setup | `cmd/weave/internal/startup/run.go` | new | Existing graph, bundle install, owner build, composition |
+| macOS gateway launcher | `bootstrap.sh` | modified | Installed weave or Homebrew install, then compile |
+
+Use isolated fixtures with package state, build outputs and injected failures;
+real fixture Makefiles build a tiny generator and consume its output. No test
+installs packages into the operator's environment. A macOS conformance run checks
+real Bundle behavior in a disposable environment before release.
+
+### Replacement implementation tasks
+
+- [ ] **Confirm build ordering.** Inspect `Makefile.workflow`, ariadne's root
+  `Makefile`, generator inputs, and nous's own targets in a read-only audit.
+  Record exact prerequisites/cycles; present any required contract change before
+  coding. Confirm optional `tools` discovery cannot hide a build failure.
+- [ ] **R1: dependencies.** Add root `Brewfile`; implement bundle discovery and
+  execution in `cmd/weave/dependencies.go` and `internal/startup/`. Replace the
+  earlier custom requirements parser/install-script tasks. First add failing
+  tests for distinct ancestor/leaf bundles, a diamond graph, no bundle, install
+  failure, repeat setup and dry-run with no mutations. Implement until they pass.
+- [ ] **R2: owner builds.** Make ariadne's root build declarations available on
+  a clean checkout; simplify `Makefile.workflow` startup orchestration. First
+  add a cold fixture demonstrating generator absence under today's compile,
+  then run tools before generation. Test a no-tools/non-Go leaf, real owner-local
+  build outputs, failed make stopping composition and no recursive compile.
+  Remove JSON requirements/install scripts from the proposed file list; do not
+  create them. Leave product signing/service targets explicit.
+- [ ] **R2: launcher and docs.** Replace clone/Make handoff in `bootstrap.sh`
+  with Homebrew ensure-weave plus compile. Test installed weave reuse, missing
+  Homebrew guidance, brew failure, paths with spaces and invocation outside the
+  repo directory. Update bootstrap shell fixtures, README and
+  `atlas/workflow/{weave,base-layer,setup-and-replication}.md`. Keep all artifact
+  preservation/cleanup tests from the restart plan.
+- [ ] **R3: distribution and pilots.** Keep release packaging/formula tasks and
+  #241's actual publication scope. Replace macOS custom-downloader tests with
+  Homebrew launcher tests. Use disposable parley/nous checkouts to prove the
+  bundle/tools contract and manually configured PATH; resolve Linux CI setup
+  without adding unapproved package mechanisms.
+- [ ] **Validate each implementation boundary.** Run
+  `go test ./cmd/weave/... ./pkg/layergraph/... -count=1` plus the affected
+  bootstrap/Make shell fixtures. Require cold/warm setup, generator ordering,
+  package/build failure propagation and preserved authored files to pass.
+  Commit verified work and use the existing SDLC boundary gates.
+
+This records the approved direction. Implementation still follows the existing
+plan gate after the concrete build-order and Linux CI questions are resolved;
+no code changes or machine installation are part of this planning update.
