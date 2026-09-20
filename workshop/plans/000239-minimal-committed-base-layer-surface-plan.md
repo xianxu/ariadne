@@ -2243,12 +2243,12 @@ Different source identity in the destination is a conflict, not a reason to
 replace the checkout. Normalize equivalent GitHub HTTPS/SSH addresses for identity
 while preserving the transport used for authentication.
 
-Retain existing `data <url> <mount>` rows. Clone once per identity/destination,
-apply every distinct mount. Non-layer build-source peers are declared explicitly
-as `checkout <path> <url>` rather than guessed from go.mod. During migration,
-record actual origins for local Go replacements that startup still needs. These
-checkouts/data repos never contribute layer artifacts or requirements. No Go
-module parser or language-specific source-URL inference is needed in weave.
+Retain existing `data <url> <mount>` rows; these are existing behavior, not a
+new dependency feature. Clone once per identity/destination and apply each
+mount. Do not introduce a new `checkout` row or another dependency type. If
+inspection finds a non-layer Go replacement that cannot be handled by the
+agreed startup contract, show the concrete case to the operator before adding a
+mechanism. Data repositories do not contribute layer artifacts or requirements.
 
 Select typed package/build declarations through the manifest:
 
@@ -2535,7 +2535,7 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
 `cmd/weave/internal/requirements/{model,compose}{,_test}.go`;
 `cmd/weave/link.go`, `dependencies.go`, and CLI tests.
 
-- [ ] Add table tests for extended substrate/local-only/checkout/data rows;
+- [ ] Add table tests for extended substrate/local-only/existing-data rows;
   malformed source/escaping mount; equivalent GitHub transports; duplicate and
   conflicting destinations; graph cycles/diamonds; old two-column path rows.
 - [ ] Implement a strict typed row parser plus the existing substrate-path
@@ -2652,7 +2652,8 @@ peer issue records created when their mutations start.
 - [ ] First migrate parley.nvim and nous in disposable fresh-clone fixtures.
   Nous gets an explicitly separate development output from its service binary;
   package/auth/service operations are separated by purpose, not old target names.
-  Test distinct layer requirements and declared non-Go/product sources.
+  Test distinct layer requirements and the existing non-Go product setup.
+  Escalate any need for a new dependency kind to operator design review.
 - [ ] Update propagation to invoke weave directly and untrack only the compiler's
   proven generated-owned paths. Add regression: a tracked file ignored by an
   unrelated nested rule stays tracked. Add a per-repo pilot selector if needed;
@@ -2674,8 +2675,8 @@ peer issue records created when their mutations start.
 This is one startup workstream with three real boundaries, not a proposal to
 build a universal package manager or a generic build scheduler. Separate product
 authentication, production signing/services, automatic revision upgrades, and VM
-image provisioning stay outside compile. Existing source/data dependencies used
-for development remain covered through explicit declarations and shared cloning.
+image provisioning stay outside compile. Existing data dependencies remain covered by their existing declarations and shared cloning;
+a new source-dependency feature requires a concrete case and operator approval.
 
 Command availability and the conventional tap repository are now settled by the
 operator. Before implementation: finish the native installer probe and choose
@@ -2737,3 +2738,20 @@ bin directory as well as layer/gateway bins, or compile succeeds but a later
 those commands, not R1. Both corrections are incorporated above with a
 fresh-process regression. No automatic shell setup or new command launcher was
 reintroduced.
+
+
+### 2026-09-20 — operator scope limit: no unapproved features
+
+**Reason:** operator explicitly requested simplicity and approval before any new
+feature in this task.
+
+**Delta:** the approved scope is remote/local `weave link`, per-layer dependency
+declarations and `weave dependencies`, unified `weave compile`, thin bootstrap,
+minimal generated-artifact propagation, and the agreed weave distribution. Keep
+manual PATH setup. Remove the proposed `checkout` dependency type. No additional
+CLI commands, dependency kinds, automatic update behavior, shell integrations,
+package solver, or generic build scheduler may be added without first presenting
+the concrete need and obtaining operator approval. Supporting implementation
+should be the smallest needed for the agreed behavior, not a new extensibility
+project. The rest of this implementation draft remains a proposal for review;
+its presence does not expand the user-approved feature scope.
