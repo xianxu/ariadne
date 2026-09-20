@@ -815,6 +815,84 @@ rounds:
       boundary: M3
       recipe: milestone-review
       blocked: true
+    - "n": 10
+      timestamp: "2026-09-20T09:13:59-07:00"
+      agent: claude
+      dispose:
+        - id: BR-36
+          disposition: addressed
+          note: 'Falsified at HEAD: reverting main.go:674 to `nil` turns TestCompileIgnoresTheDynamicSkillGeneratedTree red; expected value comes from walk.GeneratedRel, not from planActions. Residual (not blocking): gitignore_test.go:104 is still tautological, and 50-base-layer-tests.sh:23,28 still print a green checkmark on a skip.'
+          round: 10
+        - id: BR-37
+          disposition: not-addressed
+          note: 'The finding said do NOT patch still_declared with a third regex; 46-removed-symbol-references.sh:106-109 adds exactly that, and it REGRESSED the check. The extractor''s grouped branch is stateful (only between a group opener and its `)`); the new predicate `^[[:space:]]+NAME[[:space:]]*($|[=[:space:]])` is not, so any indented identifier satisfies it. Measured live: a repo removing top-level `func removedFunc` while `pkg/b.go` holds a struct field `removedFunc string`, with a stale comment `// removedFunc did the thing.` — the pre-patch check (450b678) exits 1 and names pkg/a.go:3; the patched check at HEAD prints "✓ no comment names a removed symbol" and exits 0. One grammar over `git show $HEAD:<file>` is still the fix, and merge-checks.test.sh''s matrix should enumerate the grammar rather than list hand-picked shapes (ARCH-DRY).'
+          round: 10
+        - id: BR-38
+          disposition: not-addressed
+          note: '2 of 5 sites, and neither enforcement. Fixed: atlas/workflow/weave.md:118, gitignore.go:14 ("fixed"→"DERIVED"). Still stale: gitignore.go:38 "until then the fixed list below stands"; gitignore.go:15-16 still enumerates ".colima/ VM tree, the vm-log.sh helper" — the two entries THIS milestone removed from the block; atlas/workflow/base-layer.md:3 still sends adopters to construct/setup.sh (absent — and the class is ~16 sites, incl. the dead link atlas/index.md:35 `[setup.sh](../construct/setup.sh)`, atlas/index.md:28, workflow/index.md:17, construct-adaptation.md:62, and all of setup-and-replication.md); action.go:33 still says WriteFile is lowered "from intent.Touch (empty Content)" when plan.go:110-114 lowers it to Touch with a comment saying explicitly NOT WriteFile. The measured 16-site spread is why the finding asked for the rule, not the sites.'
+          round: 10
+        - id: BR-39
+          disposition: addressed
+          note: Script deleted, base.manifest:171 retired with the reasoning inline; `grep -rn apply-gitignore-entries` over the tree now returns only review artifacts. ManagedLocations (prune.go:94) does mark construct/scripts managed in a derivative, so the PruneOrphans claim holds. The consumer enumeration the RULE asked for is still not written down as an artifact — see the new finding on the orphaned tracked slot.
+          round: 10
+        - id: BR-40
+          disposition: not-addressed
+          note: README.md untouched in this window (last touched at 382c4b9, M2). :40-56 still documents the marker mechanism only; nothing names plan.IgnoreEntries or tells an adopter that a manifest row now changes their .gitignore.
+          round: 10
+        - id: BR-41
+          disposition: not-addressed
+          note: IgnoreEntries (gitignore.go:88-96) still emits `"/" + filepath.Clean(dst)` verbatim; no escaping seam between the derivation and the .gitignore writer.
+          round: 10
+        - id: BR-42
+          disposition: not-addressed
+          note: No M4 per-repo checklist entry was added; the plan's only orphan-comment step is Task 2.1's ariadne-local one at plan line 1066.
+          round: 10
+        - id: BR-43
+          disposition: not-addressed
+          note: 'The Log records the 55-entry block but no timing. Re-measured this round: `weave compile --dry-run` 0.00s ×3 warm; 50-base-layer-tests.sh 10.7s standalone; full run-merge-checks.sh over the M3 range 15.0s.'
+          round: 10
+      findings:
+        - id: BR-44
+          severity: Important
+          title: The committed .gitignore managed block has no drift gate — deleting 25 entries leaves the whole suite green
+          detail: |-
+            This is the 9th finding in family `verification-cannot-fail`. Do NOT fix
+            this instance. The RULE: weave outputs that stay COMMITTED must be
+            regenerated-and-diffed in CI; every other weave output is gitignored, so
+            `30-weave-drift.sh`'s header reasons the staleness job "evaporated" — M3
+            made one output committed again and the gate was not reinstated. Measured:
+            in a scratch copy of 384190b I removed all 25 `/.agents/skills/*` lines
+            from .gitignore (55 → 30 entries); `go test ./cmd/weave/...`,
+            gitignore-surface.test.sh and merge-checks.test.sh all stayed green. The
+            enumeration the gate needs is already written: IgnoreEntries' track case at
+            gitignore.go:100 IS the set of weave targets that stay tracked, so the
+            drift check derives its own scope from the same switch rather than naming
+            .gitignore by hand. Consequence without it: a retired manifest row leaves a
+            stale ignore line in the committed tree until someone remembers to weave
+            and commit — the append-only hazard this issue exists to remove, one level up.
+          family: verification-cannot-fail
+          round: 10
+        - id: BR-45
+          severity: Minor
+          title: Retiring base.manifest:171 in M3 orphans a tracked symlink in 12 repos with no step owning the deletion
+          detail: |-
+            This is the 2nd finding in family `verb-retirement-orphans-the-slot`. The
+            RULE rather than the instance: retiring a manifest row must name the
+            TRACKED slot it orphans in every derivative and where that orphan is
+            collected — the row's removal is the funeral for ariadne's copy only.
+            Verified live: 12 sibling repos still carry
+            `construct/scripts/apply-gitignore-entries.sh` at mode 120000 in the index
+            (42shots, astro, brain, brain-family, brain-private, kaggle, kbench, metis,
+            nous, pair, parli, robotics). PruneOrphans deletes the dangling link on
+            each repo's next `make weave`, staging a deletion that M4's per-repo
+            checklist does not mention; three of the twelve are brain repos on the
+            auto-commit rhythm, so it lands unattended. BR-39 recommended doing the
+            retirement inside M4's sweep for exactly this reason.
+          family: verb-retirement-orphans-the-slot
+          round: 10
+      boundary: M3
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -1312,6 +1390,50 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   derivative's 85-90 (predicted ~95). Worth writing into the Log at close so the budget
   has a datum rather than a prediction.
 
+## Round 10 — 2026-09-20T09:13:59-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-36 — addressed — Falsified at HEAD: reverting main.go:674 to `nil` turns TestCompileIgnoresTheDynamicSkillGeneratedTree red; expected value comes from walk.GeneratedRel, not from planActions. Residual (not blocking): gitignore_test.go:104 is still tautological, and 50-base-layer-tests.sh:23,28 still print a green checkmark on a skip.
+- BR-37 — not-addressed — The finding said do NOT patch still_declared with a third regex; 46-removed-symbol-references.sh:106-109 adds exactly that, and it REGRESSED the check. The extractor's grouped branch is stateful (only between a group opener and its `)`); the new predicate `^[[:space:]]+NAME[[:space:]]*($|[=[:space:]])` is not, so any indented identifier satisfies it. Measured live: a repo removing top-level `func removedFunc` while `pkg/b.go` holds a struct field `removedFunc string`, with a stale comment `// removedFunc did the thing.` — the pre-patch check (450b678) exits 1 and names pkg/a.go:3; the patched check at HEAD prints "✓ no comment names a removed symbol" and exits 0. One grammar over `git show $HEAD:<file>` is still the fix, and merge-checks.test.sh's matrix should enumerate the grammar rather than list hand-picked shapes (ARCH-DRY).
+- BR-38 — not-addressed — 2 of 5 sites, and neither enforcement. Fixed: atlas/workflow/weave.md:118, gitignore.go:14 ("fixed"→"DERIVED"). Still stale: gitignore.go:38 "until then the fixed list below stands"; gitignore.go:15-16 still enumerates ".colima/ VM tree, the vm-log.sh helper" — the two entries THIS milestone removed from the block; atlas/workflow/base-layer.md:3 still sends adopters to construct/setup.sh (absent — and the class is ~16 sites, incl. the dead link atlas/index.md:35 `[setup.sh](../construct/setup.sh)`, atlas/index.md:28, workflow/index.md:17, construct-adaptation.md:62, and all of setup-and-replication.md); action.go:33 still says WriteFile is lowered "from intent.Touch (empty Content)" when plan.go:110-114 lowers it to Touch with a comment saying explicitly NOT WriteFile. The measured 16-site spread is why the finding asked for the rule, not the sites.
+- BR-39 — addressed — Script deleted, base.manifest:171 retired with the reasoning inline; `grep -rn apply-gitignore-entries` over the tree now returns only review artifacts. ManagedLocations (prune.go:94) does mark construct/scripts managed in a derivative, so the PruneOrphans claim holds. The consumer enumeration the RULE asked for is still not written down as an artifact — see the new finding on the orphaned tracked slot.
+- BR-40 — not-addressed — README.md untouched in this window (last touched at 382c4b9, M2). :40-56 still documents the marker mechanism only; nothing names plan.IgnoreEntries or tells an adopter that a manifest row now changes their .gitignore.
+- BR-41 — not-addressed — IgnoreEntries (gitignore.go:88-96) still emits `"/" + filepath.Clean(dst)` verbatim; no escaping seam between the derivation and the .gitignore writer.
+- BR-42 — not-addressed — No M4 per-repo checklist entry was added; the plan's only orphan-comment step is Task 2.1's ariadne-local one at plan line 1066.
+- BR-43 — not-addressed — The Log records the 55-entry block but no timing. Re-measured this round: `weave compile --dry-run` 0.00s ×3 warm; 50-base-layer-tests.sh 10.7s standalone; full run-merge-checks.sh over the M3 range 15.0s.
+
+### Raised
+
+- **BR-44** [Important] `verification-cannot-fail` The committed .gitignore managed block has no drift gate — deleting 25 entries leaves the whole suite green
+  This is the 9th finding in family `verification-cannot-fail`. Do NOT fix
+  this instance. The RULE: weave outputs that stay COMMITTED must be
+  regenerated-and-diffed in CI; every other weave output is gitignored, so
+  `30-weave-drift.sh`'s header reasons the staleness job "evaporated" — M3
+  made one output committed again and the gate was not reinstated. Measured:
+  in a scratch copy of 384190b I removed all 25 `/.agents/skills/*` lines
+  from .gitignore (55 → 30 entries); `go test ./cmd/weave/...`,
+  gitignore-surface.test.sh and merge-checks.test.sh all stayed green. The
+  enumeration the gate needs is already written: IgnoreEntries' track case at
+  gitignore.go:100 IS the set of weave targets that stay tracked, so the
+  drift check derives its own scope from the same switch rather than naming
+  .gitignore by hand. Consequence without it: a retired manifest row leaves a
+  stale ignore line in the committed tree until someone remembers to weave
+  and commit — the append-only hazard this issue exists to remove, one level up.
+- **BR-45** [Minor] `verb-retirement-orphans-the-slot` Retiring base.manifest:171 in M3 orphans a tracked symlink in 12 repos with no step owning the deletion
+  This is the 2nd finding in family `verb-retirement-orphans-the-slot`. The
+  RULE rather than the instance: retiring a manifest row must name the
+  TRACKED slot it orphans in every derivative and where that orphan is
+  collected — the row's removal is the funeral for ariadne's copy only.
+  Verified live: 12 sibling repos still carry
+  `construct/scripts/apply-gitignore-entries.sh` at mode 120000 in the index
+  (42shots, astro, brain, brain-family, brain-private, kaggle, kbench, metis,
+  nous, pair, parli, robotics). PruneOrphans deletes the dangling link on
+  each repo's next `make weave`, staging a deletion that M4's per-repo
+  checklist does not mention; three of the twelve are brain repos on the
+  auto-commit rhythm, so it lands unattended. BR-39 recommended doing the
+  retirement inside M4's sweep for exactly this reason.
+
 ## Open findings
 
 - **BR-12** [Minor] `hand-maintained-restatement-of-model` gather.go's SeedOnce comment asserts a content comparison classifyAction deliberately does not do, and the plan's Core concepts table omits the new exported predicate
@@ -1327,11 +1449,11 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-33** [Minor] `hand-maintained-restatement-of-model` 46 globs '*.md' but its match regex requires a // or * line prefix, so Markdown prose is effectively uncovered
 - **BR-34** [Minor] `check-invocation-modes-diverge` 45 and 46 still disagree on which paths they exclude, with no stated reason
 - **BR-35** [Minor] `presence-predicate-written-twice` The entry dedupe landed in mergeManagedBlock but the plan still assigns it to IgnoreEntries, so M3 will implement it twice
-- **BR-36** [Important] `verification-cannot-fail` /construct/generated/ is no longer pinned by any test — deleting walk.GeneratedRel from main.go:674 leaves the whole suite green
 - **BR-37** [Important] `presence-predicate-written-twice` 46-removed-symbol-references.sh:101 still cannot see bare iota members, so a pure reorder false-positives CI
 - **BR-38** [Important] `atlas-states-future-state-as-current` Two of M3's prose deliverables did not land; weave.md:118 and gitignore.go:38 still describe the retired fixed list
-- **BR-39** [Important] `hand-maintained-restatement-of-model` construct/scripts/apply-gitignore-entries.sh is a surviving second gitignore channel, shipped fleet-wide by base.manifest:171
 - **BR-40** [Minor] `adopter-facing-surface-undocumented` README.md:40-56 documents the managed block's mechanism but never what determines its contents
 - **BR-41** [Minor] `derived-value-unescaped-in-target-grammar` IgnoreEntries emits derived paths verbatim into git's glob language with no escaping
 - **BR-42** [Minor] `edit-splice-leaves-orphan-clause` Absorbing a derivative's loose entries orphans the comment block that introduced them, in ~12 repos
 - **BR-43** [Minor] `verification-cannot-fail` ARCH-CONSTRAINTS measurement required by plan Task 3.2 Step 5 was not recorded in the Log
+- **BR-44** [Important] `verification-cannot-fail` The committed .gitignore managed block has no drift gate — deleting 25 entries leaves the whole suite green
+- **BR-45** [Minor] `verb-retirement-orphans-the-slot` Retiring base.manifest:171 in M3 orphans a tracked symlink in 12 repos with no step owning the deletion

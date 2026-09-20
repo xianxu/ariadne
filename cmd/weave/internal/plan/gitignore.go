@@ -34,8 +34,9 @@ import (
 // manifest edits (ariadne#239 defect 1).
 //
 // The rule that replaces it: weave IGNORES WHAT IT RE-DERIVES and TRACKS WHAT IT
-// MERELY PROVISIONS. M3 makes the entry list derive from the manifest walk under
-// that rule; until then the fixed list below stands.
+// MERELY PROVISIONS. The entry list is DERIVED from the planned actions under
+// that rule — see IgnoreEntries below — so adding or retiring a manifest row
+// changes every repo's .gitignore with no code edit.
 
 // IgnoreEntries derives the paths weave's .gitignore block owns, from the
 // ACTIONS weave planned — one source of truth with the manifest, automatically

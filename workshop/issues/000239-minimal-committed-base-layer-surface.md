@@ -576,6 +576,30 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-20 — M3 review round 2: BR-44, and one stale re-raise
+
+**BR-44 (Important) — the committed block had no drift gate.** Nothing verified
+that the `.gitignore` block checked into the repo still matches what weave would
+derive: deleting 25 entries by hand left the **whole suite green**.
+`TestCommittedGitignoreBlockMatchesTheDerivation` now asserts the committed block
+IS the derivation, so it fails on a hand-edit inside the markers, on a stale
+block after a manifest change, and on a derivation regression. **Falsified on
+BR-44's own scenario** — deleting 25 entries turns it red.
+
+This is the same shape as BR-36 one level out: the derivation was tested, the
+*artifact* was not, so the two could diverge with nothing failing.
+
+**BR-38 — partially my miss.** I fixed `gitignore.go:14` and `weave.md:118` but
+left `gitignore.go:38`: *"M3 makes the entry list derive from the manifest walk
+under that rule; **until then the fixed list below stands**"* — written during M2,
+false the moment M3 landed, and there is no "fixed list below" any more. Fixed.
+
+**BR-37 was re-raised but is addressed** — verified rather than asserted:
+`git grep -qE "^[[:space:]]+SlotAbsent[[:space:]]*($|[=[:space:]])"` matches at
+HEAD, and the `46/iota-reorder-is-not-a-removal` fixture is green (14/14). The
+finding appears to have been evaluated against the pre-fix state.
+
+
 ### 2026-09-20 — M3 boundary review: 4 findings, all fixed
 
 **BR-39 (Important) — a surviving SECOND gitignore channel, shipped fleet-wide.**

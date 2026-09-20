@@ -1103,3 +1103,49 @@ func TestCompileIgnoresTheDynamicSkillGeneratedTree(t *testing.T) {
 	t.Fatalf("%q missing from the derived ignore entries — the per-repo dynamic-skill\n"+
 		"materialization would be left dirty in every derivative's git status: %v", want, entries)
 }
+
+// DRIFT GATE for the committed .gitignore block (#239 M3 BR-44). Nothing
+// verified that the block checked into this repo still matches what weave would
+// derive: deleting 25 entries by hand left the whole suite green, and the next
+// compile would silently re-add them — or not, if the manifest had moved on.
+//
+// This asserts the committed block IS the derivation. It fails on a hand-edit
+// inside the markers, on a stale block after a manifest change, and on a
+// derivation regression — the three ways the two can diverge.
+func TestCommittedGitignoreBlockMatchesTheDerivation(t *testing.T) {
+	fs := weavefs.OSFS{}
+	root, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	layers, err := walk.Walk(fs, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := ignoreEntriesFor(t, fs, layers, plan.TargetAll)
+
+	raw, err := os.ReadFile(filepath.Join(root, ".gitignore"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	inBlock := false
+	for _, line := range strings.Split(string(raw), "\n") {
+		switch {
+		case strings.HasPrefix(line, "# >>> weave-generated"):
+			inBlock = true
+		case strings.HasPrefix(line, "# <<< weave-generated"):
+			inBlock = false
+		case inBlock && line != "":
+			got = append(got, line)
+		}
+	}
+	if len(got) == 0 {
+		t.Fatal("no weave-generated block in the committed .gitignore — run `make weave`")
+	}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("committed .gitignore block has drifted from the derivation.\n"+
+			"Run `make weave` to regenerate.\ncommitted (%d):\n  %s\nderived (%d):\n  %s",
+			len(got), strings.Join(got, "\n  "), len(want), strings.Join(want, "\n  "))
+	}
+}
