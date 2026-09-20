@@ -1,0 +1,307 @@
+---
+id: 000239
+status: open
+deps: []
+github_issue:
+target: base-layer-mechanics
+created: 2026-09-19
+updated: 2026-09-19
+estimate_hours:
+---
+
+# Minimal committed base-layer surface
+
+## Problem
+
+**A derivative should commit only what it needs to bootstrap. Everything else
+`make weave` produces should be gitignored.** Today it commits ~45 weave-created
+paths, and the justification for doing so is stale.
+
+Three defects, escalating:
+
+### 1. The tracked-symlink set has no live justification
+
+`cmd/weave/internal/plan/gitignore.go:26-31` explains why the symlink class is
+NOT ignored:
+
+> *the pre-weave BOOTSTRAP scaffolding (bootstrap.sh, Makefile, Makefile.workflow,
+> construct/scripts/{...}.sh, the construct/\* dir symlinks,
+> .claude/settings.ariadne.json). A fresh clone must commit those BEFORE weave
+> can run (the bootstrap chicken-and-egg)*
+
+That was true before #225. **#225 built the owner-resolution fallbacks that
+dissolved the chicken-and-egg, and the not-ignored list was never shrunk.**
+Evidence:
+
+- `wf-bootstrap` (`Makefile.workflow:326-331`) runs `weave` **third**, before
+  `tools` / `sdlc-install` / `data-deps`. Every symlink referenced without a
+  fallback — `scripts/sdlc-install.sh`, `construct/scripts/clone-data-deps.sh`,
+  `scripts/parallel-checks.sh`, `scripts/close-issue.py`,
+  `scripts/pre-merge-checks.sh` — is consumed strictly *after* weave creates it.
+- Everything needed *before* weave already resolves from its owner:
+  `Makefile:12` (`$(wildcard Makefile.workflow ../ariadne/Makefile.workflow)`),
+  `Makefile.workflow:10` (`wf-helper`, commented *"Before first weave, helper
+  links may be absent"*), and CI's
+  `elif [ -f ../ariadne/scripts/run-merge-checks.sh ]`.
+
+Cost of the stale list: the manifest states the wiring once, then ~45 committed
+paths restate it in every leaf, drifting on every manifest edit. That churn is
+what surfaced this (pair had 5 dirty weave paths; nous + metis have the same
+#225 convergence still pending).
+
+### 2. `seed Makefile` silently destroys a repo's own Makefile
+
+`applySeed` (`cmd/weave/internal/plan/apply.go:209-241`) has no provenance
+check: read upstream source, remove any destination symlink, and if bytes
+differ, overwrite unconditionally. Returns `nil` with no log line.
+
+Pre-#225 `seed` was write-once, so this was a one-time adoption event. #225 made
+it **content-tracking** so derivatives stranded on a stale `bootstrap.sh` would
+converge — right for `bootstrap.sh`, and it swept `Makefile` along. Now a repo
+adopting ariadne loses its build system on first weave, and a repo that later
+edits its root Makefile loses that edit on **every** subsequent weave, silently.
+
+**Root cause: one verb, two ownership classes.** `bootstrap.sh` and
+`merge-check.yml` are genuinely upstream-owned — convergence is correct.
+`Makefile` is the repo's own front door — convergence is wrong.
+
+The tell: the seeded root is not generic. It hardcodes ariadne's own layout —
+
+```make
+WF_ISSUES_DIR  = workshop/issues
+WF_HISTORY_DIR = workshop/history
+```
+
+— while `Makefile.workflow:33-34` declares the generic default
+`WF_ISSUES_DIR ?= issues`. A derivative wanting plain `issues/` cannot say so in
+the obvious place: the hard `=` runs before the include, making the overlay's
+`?=` a no-op, and the edit is clobbered next weave anyway. A file encoding
+per-repo policy that upstream overwrites has two owners.
+
+No test covers it — `construct/scripts/test/portable-makefile.test.sh` (#225)
+exercises `bootstrap.sh` seeding, the pre-weave fallbacks, and "explicit local
+overlay wins" (`Makefile.local`), but never a pre-existing repo-owned root
+`Makefile`.
+
+### 3. The gitignore list is a hand-maintained second channel, and append-only
+
+`GeneratedRuntimeGitignoreEntries` is a hardcoded `[]string` of 9 paths. This
+target's spine says *"base.manifest is the single source of truth for what a
+layer contributes and to whom — no artifact enters the composition by any other
+channel."* A hand-maintained list of what weave generates **is** a second
+channel, and a hand-maintained restatement of the model is a deferred consumer,
+not a finished one (ARCH-PURPOSE, ARCH-DRY).
+
+It is also **append-only**: `ensureGitignoreText` (`gitignore.go:75-92`) appends
+absent entries and never removes. Harmless at 9 hardcoded entries; actively
+dangerous at ~45 manifest-derived ones, because a retired manifest row leaves a
+stale ignore line that can silently untrack a repo-owned file later taking that
+path.
+
+## Spec
+
+### The invariant
+
+> A derivative commits **only its bootstrap core plus its own source**.
+> Every path `make weave` creates is gitignored.
+
+The bootstrap core is three committed paths — worth stating precisely, because
+only two of them carry ariadne's content:
+
+| Path | Owner | Why it cannot be ignored |
+|---|---|---|
+| `bootstrap.sh` | ariadne (`seed`) | The thing you run on a peerless clone *to get the peers*. Cannot be generated by the tool it bootstraps. |
+| `.github/workflows/merge-check.yml` | ariadne (`seed`) | GitHub Actions enumerates workflows from the **committed tree on GitHub's servers**. Gitignored ⇒ no runner ever starts ⇒ weave never gets a chance. |
+| `construct/deps` | **repo** (`weave link`) | Read by `bootstrap.sh` before any peer exists, to know what to clone. The root of the chain. |
+
+Plus repo-owned source that was never ariadne's: `construct/base.manifest`, and
+— after this issue — the root `Makefile`.
+
+Everything else weave emits (~45 paths: every `symlink`, `scaffold`, `merge`,
+`prose`, `skill`, `touch`) becomes gitignored.
+
+### Piece A — split the seed verb
+
+Split by ownership class, not by special-casing a path (ARCH-DRY):
+
+| Verb | Semantics | Rows |
+|---|---|---|
+| `seed` | content-tracking; converges every weave | `bootstrap.sh`, `.github/workflows/merge-check.yml` |
+| `seed-once` | **write-once if absent**; never touched once present | `Makefile` |
+
+`seed-once` restores pre-#225 semantics for the one file that wanted them,
+without reverting #225's fix for `bootstrap.sh`. Consequences:
+
+1. Greenfield repo → still gets a working root for free.
+2. Repo with an existing Makefile → keeps it, and adopts ariadne by adding the
+   single line `Makefile.workflow:1-2` already documents as its contract:
+   ```make
+   # AI issue-based workflow — include from your project Makefile:
+   #   include Makefile.workflow
+   ```
+3. The root `Makefile` becomes **repo-owned and tracked** — explicitly NOT
+   gitignored. It is the repo's own front door; ignoring it would be the same
+   two-owners mistake in the other direction. This is the one exception to "all
+   weave output is ignored", and it is an exception precisely because
+   `seed-once` hands ownership over.
+4. `WF_ISSUES_DIR` / `WF_HISTORY_DIR` move into each repo's own root Makefile;
+   `Makefile.workflow` keeps the generic `?=` defaults.
+
+**Naming:** `Makefile.ariadne` was considered — it matches the
+`settings.<layer>.json` convention and would generalize if a mid layer in a
+3-deep chain ever needed its own targets (composable the way settings merge).
+Rejected for now: `Makefile.workflow` is already symlinked fleet-wide and
+already documents the include contract, so a rename buys nomenclature at the
+cost of churn in every repo (Simplicity First). Revisit if a mid layer actually
+needs targets.
+
+### Piece B — derive the ignore list from the manifest
+
+Replace the hardcoded `GeneratedRuntimeGitignoreEntries` with a list **derived
+from the planned actions** weave already computes, minus the bootstrap core.
+One source of truth, automatically correct when a manifest row is added or
+retired.
+
+**Per-path, never directory globs.** `scripts/`, `construct/scripts/`,
+`.claude/` and `scripts/merge-checks.d/` all mix weave-created and repo-owned
+files. Proven, not hypothetical:
+
+- `parley.nvim/scripts/merge-checks.d/20-vocabulary.sh` — a repo-owned check
+  living beside the weave symlink `40-duplicate-issue-id.sh`.
+- ariadne's own `scripts/merge-checks.d/` holds `30-weave-drift.sh` + `README.md`.
+- `merge-check.yml` invokes `scripts/ci-setup.sh` — a repo-owned file in a
+  directory otherwise full of weave symlinks.
+
+A blanket `scripts/merge-checks.d/` ignore would untrack parley.nvim's own
+check. This is the pair#64 pattern verbatim: a blanket `bin/` ignore made
+tracked shell scripts look disposable and a propagate-base sweep `git rm`'d
+them.
+
+### Piece C — weave maintains .gitignore as a managed block
+
+Today `applyEnsureGitignore` appends and never removes, so a retired row's
+ignore line lingers forever. Give weave a delimited region it owns:
+
+```
+# >>> weave-generated — managed by `make weave`, do not edit >>>
+/CLAUDE.md
+/.claude/skills/
+...
+# <<< weave-generated <<<
+```
+
+- **Inside the markers:** replaced wholesale every compile — so retiring a
+  manifest row removes its ignore line.
+- **Outside the markers:** the repo's own entries, preserved verbatim, in place.
+  Local additions merge cleanly and survive every weave (pair's `bin/*` block
+  with its `!bin/*.sh` negations must come through untouched).
+- **Migration:** entries currently loose in a repo's `.gitignore` that the block
+  now owns are absorbed into it, not duplicated.
+- Stays a pure string transform, so `ensureGitignoreText`'s ARCH-PURE shape and
+  its direct unit tests survive; only the IO seam changes.
+
+### Piece D — fleet untrack
+
+`git rm --cached` the now-ignored paths across derivatives. Must be done per
+repo with the mixed-directory hazard above in mind — verify each repo's own
+files in `scripts/`, `scripts/merge-checks.d/`, `construct/scripts/` survive.
+
+**Tradeoff accepted:** the leaf's git history stops recording wiring changes
+(e.g. #213 adding `40-duplicate-issue-id.sh` becomes invisible in `pair`). If
+that audit trail is wanted back, it belongs in a `weave --explain` diff or a
+merge check — not in ~45 tracked symlinks per repo.
+
+## Done when
+
+- A `seed-once` manifest verb exists, distinct from `seed`: writes when the
+  target is absent, no-ops when present whatever the content, never overwrites.
+- `Makefile` moved to `seed-once`; `bootstrap.sh` + `merge-check.yml` stay `seed`.
+- A pre-existing repo-owned root `Makefile` survives two consecutive
+  `weave compile` runs byte-for-byte — tested in
+  `construct/scripts/test/portable-makefile.test.sh`.
+- `WF_ISSUES_DIR` / `WF_HISTORY_DIR` no longer ship from the seeded root.
+- The gitignore entry list is **derived from the manifest walk**, not
+  hand-maintained; adding or retiring a manifest row changes it with no code edit.
+- `.gitignore` is maintained by `make weave` as a delimited managed block:
+  weave-owned entries inside (replaced wholesale, so retired rows disappear),
+  repo-owned entries outside preserved verbatim. Test: a repo `.gitignore` with
+  local additions and negations (pair's `bin/*` + `!bin/*.sh`) round-trips
+  unchanged across two weaves.
+- Only `bootstrap.sh`, `.github/workflows/merge-check.yml` and `construct/deps`
+  remain committed from the weave surface in a derivative; a fresh clone of a
+  derivative still bootstraps end-to-end with nothing else present.
+- No repo-owned file is untracked by the sweep — explicitly verified for
+  `parley.nvim/scripts/merge-checks.d/20-vocabulary.sh` and every repo's
+  `scripts/ci-setup.sh`.
+- CI still passes on a derivative PR (proves `merge-check.yml` + the
+  `bootstrap.sh` CLONE_ONLY path carry the whole runner resolution).
+- `workshop/targets/base-layer-mechanics.md` records the committed-surface
+  invariant; `atlas/workflow/base-layer.md` documents the adoption path for a
+  repo that already has a Makefile.
+
+## Plan
+
+- [ ] design not yet done — author via `superpowers-writing-plans` at
+      `workshop/plans/` after `sdlc claim` + `sdlc start-plan`. Pieces A–D are
+      candidate milestone boundaries; D (fleet untrack) is the irreversible one
+      and should land last, behind a green CI on one derivative.
+
+## Log
+
+### 2026-09-19
+
+Found while investigating post-`make weave` `git status` churn in pair
+(`pair` had 5 dirty weave paths; the fleet showed the same one-time #225
+convergence pending in nous + metis).
+
+Investigation notes worth keeping:
+
+- `wf-bootstrap` (`Makefile.workflow:326-331`) runs `weave` **third**, before
+  `tools` / `sdlc-install` / `data-deps`. Every symlink referenced without a
+  fallback (`scripts/sdlc-install.sh`, `construct/scripts/clone-data-deps.sh`,
+  `scripts/parallel-checks.sh`, `scripts/close-issue.py`,
+  `scripts/pre-merge-checks.sh`) is consumed strictly *after* weave creates it.
+- Everything needed *before* weave already has an owner fallback: `Makefile:12`
+  (`$(wildcard Makefile.workflow ../ariadne/Makefile.workflow)`),
+  `Makefile.workflow:10` (`wf-helper`), and CI's
+  `elif [ -f ../ariadne/scripts/run-merge-checks.sh ]`.
+
+### 2026-09-19 — scope widened to the committed surface
+
+Operator set the headline invariant: commit only the bootstrap core, gitignore
+everything else `make weave` generates, and have weave maintain `.gitignore`
+itself (merging with local additions). Retitled from *"seed-once for repo-owned
+Makefile"* — that fix is now Piece A of four. See `## Revisions`.
+
+Two corrections landed while widening:
+
+- `construct/deps` is **not** ariadne-sourced. There are no `tool` rows in the
+  fleet; it is written by the `weave link <path>` operator verb and holds the
+  repo's own substrate declaration. So the bootstrap core is 3 committed paths
+  but only 2 carry ariadne content.
+- The mixed-directory hazard is real, not theoretical —
+  `parley.nvim/scripts/merge-checks.d/20-vocabulary.sh` is a repo-owned check
+  sitting beside a weave symlink. Per-path ignores only.
+
+## Revisions
+
+### 2026-09-19 — scope: single fix → committed-surface invariant
+
+**Reason:** operator direction — the seed/Makefile defect is one symptom of a
+broader one: a derivative commits ~45 weave-created paths on a justification
+(`gitignore.go:26-31`) that #225 made obsolete. Fixing `seed` alone would leave
+the churn and the hand-maintained ignore list in place.
+
+**Delta:**
+- Title/slug: `seed-once-for-repo-owned-makefile` →
+  `minimal-committed-base-layer-surface`.
+- Added `target: base-layer-mechanics` — the hardcoded
+  `GeneratedRuntimeGitignoreEntries` is a second declaration channel, which that
+  target's spine invariant forbids.
+- Problem: added defect 1 (stale tracked-symlink justification) and defect 3
+  (hand-maintained, append-only ignore list). Original seed/Makefile problem
+  retained as defect 2.
+- Spec: added the invariant + bootstrap-core table; original spec became Piece A;
+  added Piece B (manifest-derived ignore list), Piece C (weave-managed
+  `.gitignore` block), Piece D (fleet untrack).
+- Done when: 6 criteria → 10.
