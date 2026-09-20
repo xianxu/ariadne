@@ -849,3 +849,22 @@ not the intended end result. The startup code is not considered publicly
 available merely because #239's implementation tests pass. The draft plan now
 makes the gate sequence explicit and also repairs the review's gateway-PATH,
 partial-output ownership, and R1/R2 test-order findings.
+
+
+### 2026-09-20 — layer-owned development integration; manual PATH
+
+**Reason:** operator clarified that bootstrap gets dependencies ready; how a
+layer injects itself into development is that layer's concern. They accepted the
+normal user step of adding `path/to/base/layer/bin` to shell PATH and explicitly
+approved `xianxu/homebrew-ariadne` as the conventional tap repository.
+
+**Delta:** no sdlc-specific bootstrap installation or shell-profile edits, no
+per-binary distribution requirement, and no new `weave exec` / `weave env` CLI.
+Generic declared binary builds remain in compile; weave prepares PATH for its
+own setup/generator processes and reports layer bin directories for the user's
+explicit shell configuration. Adding a layer's bin directory exposes its commands
+without installing each command separately. Non-Homebrew bootstrap also reports
+the installed gateway's path if its directory is not already on PATH. The
+command-activation question is resolved; the draft plan's earlier exec/env
+proposal and pending-decision notes are superseded. #241 publishes via the
+accepted tap repository after the implementation merges.
