@@ -1646,3 +1646,9 @@ authored recipes, prerequisites, and failures.
 Optional Make augmentation must also preserve authored rule flavor. A phony
 declaration alone provides omission semantics; adding a concrete single-colon
 rule rejects double-colon recipes. Test both forms when wrapping owner commands.
+
+### 2026-09-20 — #239 external CI action references
+
+A shell run-block fixture does not validate external action refs. Resolve the
+upstream action ref through its repository API before committing workflow changes;
+exercise the hosted workflow before calling the CI integration complete.

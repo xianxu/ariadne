@@ -39,7 +39,8 @@ with tempfile.TemporaryDirectory(prefix='portable ci ') as tmp:
     executable(hook,'exit 9\n'); run(9)
     hook.unlink(); rows=run(); assert rows[-1]=='checked'
     env['FAIL_COMPILE']='1'; (leaf/'events').write_text(''); (leaf/'scripts/run-merge-checks.sh').unlink(); rows=run(7); assert rows[-1]=='compile' and not (leaf/'scripts/run-merge-checks.sh').exists()
-assert 'Homebrew/actions/setup-homebrew@master' in workflow
+for name in ('merge-check.yml', 'weave-release.yml'):
+    assert 'Homebrew/actions/setup-homebrew@main' in (source/'.github/workflows'/name).read_text()
 assert 'actions/setup-go' not in workflow and 'BOOTSTRAP_CLONE_ONLY' not in workflow
 assert '../ariadne/scripts/run-merge-checks.sh' not in workflow
 print('PASS CI actual blocks: published/source gateway, compile before hooks/checks, failures')

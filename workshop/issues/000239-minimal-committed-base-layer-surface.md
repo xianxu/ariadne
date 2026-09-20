@@ -203,6 +203,14 @@ total: 4.151
 
 ## Log
 
+### 2026-09-20 — PR CI action ref correction
+
+PR #126's first job stopped before checkout: Homebrew/actions has no master ref.
+GitHub's repository API confirms main and resolves setup-homebrew/action.yml
+there. Both merge-check and release workflows now use main; the actual run-block
+fixture checks both declarations and passes after failing with the old refs.
+This is a post-close CI correction and requires re-close before merge.
+
 ### 2026-09-20 — whole-issue BR-16 corrected
 - 2026-09-20: closed — M1-M3 SHIP. BR15/16 corrected by phony-only Make augmentation, verified red/green with real Make across omitted targets, shell/C implicit candidates, existing tools files, single/double-colon recipes/prerequisites and failures. Current full weave/layergraph/ownership suites and native Linux startup matrix pass. Prior macOS/Linux startup and release packaging, Git failure matrix, and full SDLC excluding known #210 passed. Scratch Parley passed; Nous macOS tools passed with full bootstrap/Linux limits documented for #241. Atlas and release handoff current.; review verdict: SHIP
 

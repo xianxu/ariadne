@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: Homebrew/actions/setup-homebrew@master
+      - uses: Homebrew/actions/setup-homebrew@main
       - name: Provision the declared build tools
         run: brew bundle install --no-upgrade --file=Brewfile
       - name: Build and verify release candidate
