@@ -6,7 +6,7 @@ github_issue:
 target: base-layer-mechanics
 created: 2026-09-19
 updated: 2026-09-19
-estimate_hours: 5.28
+estimate_hours: 6.99
 started: 2026-09-19T18:21:15-07:00
 flow: {kind: full, provenance: inferred}
 ---
@@ -293,61 +293,101 @@ whole M1→M4 window. See the plan's `## Revisions`.
 ## Estimate
 
 Design hours carry Step 3's ×0.2 spec-quality discount — the plan doc
-(`workshop/plans/000239-…-plan.md`, 2056 lines) pre-resolves the decisions with
-concrete code, tests and command lines — and Step 6's **+15%** buffer for that
-same thoroughness (v2.1 calibration; +30% would double-count it). `impl=` values
-are written at **40%** of the v2/v2.1 table per v3.1. Familiarity 1.0: ariadne is
-home turf, but M4 works against 13 repos whose states differ.
+(`workshop/plans/000239-…-plan.md`) pre-resolves the decisions with concrete
+code, tests and command lines — and Step 6's **+15%** buffer for that same
+thoroughness (v2.1 calibration; +30% would double-count it). `impl=` values are
+written at **40%** of the v2/v2.1 table per v3.1. Familiarity 1.0: ariadne is
+home turf, and Step 5 scopes familiarity to stack, not to per-repo variance.
 
 ```estimate
 model: estimate-logic-v3.1
 familiarity: 1.0
 design-buffer: 0.15
-item: smaller-go-module       design=0.06 impl=0.12
-item: smaller-go-module       design=0.06 impl=0.12
-item: smaller-go-module       design=0.06 impl=0.16
-item: cross-cutting-refactor  design=0.06 impl=0.16
-item: smaller-go-module       design=0.06 impl=0.18
-item: atlas-docs              design=0.10 impl=0.06
-item: milestone-review        design=0.0  impl=0.14
-item: greenfield-go-module    design=0.20 impl=0.20
-item: smaller-go-module       design=0.04 impl=0.14
-item: milestone-review        design=0.0  impl=0.14
-item: greenfield-go-module    design=0.16 impl=0.18
-item: smaller-go-module       design=0.04 impl=0.14
-item: smaller-go-module       design=0.06 impl=0.20
-item: atlas-docs              design=0.10 impl=0.06
-item: milestone-review        design=0.0  impl=0.14
-item: smaller-go-module       design=0.08 impl=0.20
-item: smaller-go-module       design=0.06 impl=0.16
-item: smaller-go-module       design=0.04 impl=0.14
+item: smaller-go-module         design=0.06 impl=0.12
+item: smaller-go-module         design=0.06 impl=0.12
+item: smaller-go-module         design=0.06 impl=0.16
+item: cross-cutting-refactor    design=0.06 impl=0.16
+item: smaller-go-module         design=0.06 impl=0.18
+item: atlas-docs                design=0.10 impl=0.06
+item: atlas-docs                design=0.10 impl=0.06
+item: milestone-review          design=0.0  impl=0.20
+item: greenfield-go-module      design=0.20 impl=0.20
+item: smaller-go-module         design=0.04 impl=0.14
+item: milestone-review          design=0.0  impl=0.20
+item: greenfield-go-module      design=0.16 impl=0.18
+item: smaller-go-module         design=0.04 impl=0.14
+item: smaller-go-module         design=0.06 impl=0.20
+item: atlas-docs                design=0.10 impl=0.06
+item: atlas-docs                design=0.10 impl=0.06
+item: milestone-review          design=0.0  impl=0.20
+item: smaller-go-module         design=0.08 impl=0.20
+item: smaller-go-module         design=0.06 impl=0.16
+item: smaller-go-module         design=0.04 impl=0.14
+item: cross-repo-refactor-small design=0.06 impl=0.16
 item: cross-repo-refactor-large design=0.30 impl=0.60
-item: real-api-discovery      design=0.0  impl=0.20
-item: milestone-review        design=0.0  impl=0.14
-total: 5.28
+item: cross-repo-refactor-large design=0.20 impl=0.50
+item: real-api-discovery        design=0.0  impl=0.20
+item: milestone-review          design=0.0  impl=0.20
+item: milestone-review          design=0.0  impl=0.16
+total: 6.99
 ```
 
 **What each item is** (in plan order):
 
 | Milestone | Items | design | impl |
 |---|---|---|---|
-| **M1** | `intent.SeedOnce` kind+verb · `plan.SeedOnce` action+lowering · `applySeedOnce` + 4 branch tests · the 7 enumerated switches (`cross-cutting-refactor`) · seed-source split + `Makefile.workflow` flip + portable-makefile test · atlas (4 pages) · review | 0.40 | 0.94 |
-| **M2** | `mergeManagedBlock` (`greenfield` — marker parse, wholesale replace, legacy absorb, fail-closed; 6 tests) · seam wiring + fail-closed read + test translation · review | 0.24 | 0.48 |
-| **M3** | `IgnoreEntries` derivation (`greenfield`) · `planActionsCore` + `TargetAll` pin · `gitignore-surface.test.sh` (real-git conformance) · target + atlas · review | 0.36 | 0.72 |
-| **M4** | 4.0a provenance filter · 4.0b `run-merge-checks` fallback · 4.0c `--repo` + brain guard · the 13-repo sweep (`cross-repo-refactor-large`) · CI round-trip on the pilot PR (`real-api-discovery` — GitHub Actions is the external service whose behavior must be observed) · review | 0.48 | 1.44 |
-| | **Σ** | **1.48** | **3.58** |
+| **M1** | Tasks 1.1 `intent.SeedOnce` · 1.2 `plan.SeedOnce` · 1.3 `applySeedOnce` + 4 branch tests · 1.4 the 7 enumerated switches (`cross-cutting-refactor`) · 1.5 seed-source split + `Makefile.workflow` flip + portable-makefile test · 1.6 atlas **×2** (4 files, incl. rewriting `setup-and-replication.md:97-102`, wrong in both directions post-#225) · review | 0.50 | 1.06 |
+| **M2** | 2.1 `mergeManagedBlock` (`greenfield` — marker parse, wholesale replace, legacy absorb, fail-closed; 6 tests) · 2.2 seam + fail-closed read + test translation · review | 0.24 | 0.54 |
+| **M3** | 3.1 `IgnoreEntries` (`greenfield`) · 3.2 `planActionsCore` + `TargetAll` pin · 3.3 `gitignore-surface.test.sh` (real-git conformance) · 3.4 target + atlas **×2** (incl. the new adoption-path prose Done-when requires) · review | 0.46 | 0.84 |
+| **M4** | 4.0a provenance filter + classify-mode `--dry-run` · 4.0b `run-merge-checks` manifest-selected fallback · 4.0c `--repo` + brain guard · **4.1 scratch-clone proof** (`cross-repo-refactor-small` — two clones, full `./bootstrap.sh` + `make bootstrap`, the plan's stop-and-re-plan gate) · the 12-repo sweep as **2×** `cross-repo-refactor-large` · CI round-trip on the pilot PR (`real-api-discovery`) · review · **4.4 close** | 0.74 | 2.32 |
+| | **Σ** | **1.94** | **4.76** |
 
-`recomputed = 1.48 × 1.15 + 3.58 × 1.0 = 5.282` → **5.28** (tol 0.264).
+`recomputed = 1.94 × 1.15 + 4.76 = 6.991` → **6.99** (tol 0.350).
 
-The four `milestone-review` items are the four real boundaries — M1/M2/M3
-`milestone-close` plus the `close` review; the plan tags no milestone it does not
-separately close.
+### Derivation notes
+
+Revised up from 5.28 after the estimate-quality judge (INFO, non-blocking) showed
+the first pass was incomplete rather than merely optimistic. Three checkable
+gaps, all verified before changing the number:
+
+1. **Two plan tasks were itemized nowhere.** M4 had 6 items for 7 tasks plus a
+   close. Task 4.1 — the scratch-clone proof the plan itself calls *"the
+   load-bearing claim of the whole issue"*, with a stop-and-re-plan branch — and
+   Task 4.4's close (three test suites + the Done-when walk) were absorbed into
+   nothing. Both now itemized.
+2. **The sweep exceeded its bracket.** `cross-repo-refactor-large` tops out at
+   the *"5+ repos"* row; Task 4.3 is 12 repos, each with a clean-tree check,
+   weave, enumeration, verification and a human decision point allowed to stop
+   the sweep. Priced as 2 units rather than inflating one beyond its table.
+3. **Atlas was one unit for four files**, against `baseline-v2.md`'s own
+   precedent (charon#13's *"M7 (docs ×3)"* = 3 units). Two units each in M1/M3.
+
+Review items also move 0.14 → 0.20 (the ceiling of the scaled `milestone-review`
+bracket): AGENTS.md §3 requires Critical/Important be fixed before crossing a
+boundary, and the design stage alone has already produced 5 Critical findings
+across four review rounds, each needing verification against live sources.
+
+**Two data points recorded for the close-time calibration row, not folded into
+the number** (back-fitting to a target total is what the estimate-quality gate
+exists to catch):
+
+- **Design was ~62% spent at the starting line.** `sdlc actual --issue 239` read
+  **1.21h** at `change-code` — brainstorm, plan, two reviewer rounds, two
+  plan-quality rounds — against a buffered design budget of `1.94 × 1.15 = 2.23h`,
+  with all M2/M3/M4 in-flight design still ahead. The model prescribes the ×0.2
+  discount *because* the plan is thorough; the measurement says that thoroughness
+  cost 1.21h. That tension is the model's, not this block's.
+- **The ledger says this cohort undershoots.** Recent `estimate-logic-v3.1`
+  rows on large multi-milestone ariadne-family work: `ariadne#231` 6.33 → **18.79**
+  (ratio 0.34), `pair#256` 5.44 → 11.84 (0.46), `tools#70` 6.10 → 10.05 (0.61),
+  `parley.nvim#266` 13.17 → 19.79 (0.67). `#231` is the nearest comparable by
+  shape — and it had 2 milestones and no fleet sweep. Ratios >1.0 cluster on
+  sub-1h issues. If #239 lands near 0.4, the honest expectation is ~17h, and the
+  gap is the model's calibration (#127), not this derivation.
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
 `baseline-v3.1.md`. Method A only.* The source is flagged **stale** (ledger newer
-than the doc; recalibration is #127), so treat the per-primitive hours as
-provisional — recorded here so the close-time calibration row knows it.
-
+than the doc), so the per-primitive hours are provisional.
 
 ## Log
 
