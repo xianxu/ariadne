@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
 	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
@@ -207,7 +208,28 @@ func TestCompileEnsuresGitignore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read .gitignore (compile should have created it): %v", err)
 	}
-	for _, entry := range plan.GeneratedRuntimeGitignoreEntries {
+	// The expected entries are DERIVED, not a literal (#239 M3 retired the
+	// hardcoded list). Note this compile ran a LEAN --target claude, while the
+	// ignore list must be derived from the UNION — the block is replaced
+	// wholesale, so a lean derivation would delete the other harnesses' entries.
+	layers, werr := walk.Walk(weavefs.OSFS{}, derived)
+	if werr != nil {
+		t.Fatal(werr)
+	}
+	unionActions, perr := planActions(weavefs.OSFS{}, layers, plan.TargetAll)
+	if perr != nil {
+		t.Fatal(perr)
+	}
+	var wantEntries []string
+	for _, a := range unionActions {
+		if eg, ok := a.(plan.EnsureGitignore); ok {
+			wantEntries = eg.Entries
+		}
+	}
+	if len(wantEntries) == 0 {
+		t.Fatal("no EnsureGitignore entries derived — the assertion below would be vacuous")
+	}
+	for _, entry := range wantEntries {
 		if !strings.Contains(string(got), entry+"\n") {
 			t.Fatalf(".gitignore missing generated-runtime entry %q:\n%s", entry, got)
 		}
@@ -1014,4 +1036,48 @@ func TestLinkWired(t *testing.T) {
 	if !found {
 		t.Fatalf("link subcommand not wired")
 	}
+}
+
+// A lean --target must NOT shrink the ignore block. Append-only could never lose
+// an entry; wholesale replacement (#239 M2) can — so `weave compile --target
+// claude` would drop every /.agents/skills/* line and silently re-expose Codex's
+// symlinks to `git status`. The ignore list is a property of the REPO, not of
+// the face being compiled (#239 M3).
+func TestIgnoreEntriesIdenticalAcrossTargets(t *testing.T) {
+	fs := weavefs.OSFS{}
+	root := buildSkillRepoFixture(t)
+	layers, err := walk.Walk(fs, root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	union := ignoreEntriesFor(t, fs, layers, plan.TargetAll)
+	lean := ignoreEntriesFor(t, fs, layers, plan.TargetClaude)
+	if !reflect.DeepEqual(union, lean) {
+		t.Fatalf("lean target changed the ignore list:\n union=%v\n  lean=%v", union, lean)
+	}
+	var hasAgents bool
+	for _, e := range lean {
+		if strings.HasPrefix(e, "/.agents/skills/") {
+			hasAgents = true
+		}
+	}
+	if !hasAgents {
+		t.Fatalf("lean target dropped the .agents/skills entries — assertion would be vacuous: %v", lean)
+	}
+}
+
+// ignoreEntriesFor plans for target and returns the EnsureGitignore entries.
+func ignoreEntriesFor(t *testing.T, fs weavefs.FS, layers []layer.Layer, target plan.Target) []string {
+	t.Helper()
+	actions, err := planActions(fs, layers, target)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, a := range actions {
+		if eg, ok := a.(plan.EnsureGitignore); ok {
+			return eg.Entries
+		}
+	}
+	t.Fatal("no EnsureGitignore action in the plan")
+	return nil
 }

@@ -3,9 +3,10 @@ package plan
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 	"strings"
 
-	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
 
@@ -36,22 +37,77 @@ import (
 // MERELY PROVISIONS. M3 makes the entry list derive from the manifest walk under
 // that rule; until then the fixed list below stands.
 
-// GeneratedRuntimeGitignoreEntries is the FIXED set of repo-relative paths weave
-// generates and therefore ensures the repo's .gitignore covers. Order is the
-// order appended to a .gitignore missing them. Leading-slash anchored to the
-// repo root (the artifacts live at fixed top-level locations), trailing-slash on
-// directories — matching git's own .gitignore grammar and the existing
-// hand-added `/AGENTS.md` entry.
-var GeneratedRuntimeGitignoreEntries = []string{
-	"/AGENTS.md", // codex entry file (composed prose)
-	"/CLAUDE.md", // claude entry file (composed prose) — Option B #107
-	"/GEMINI.md", // gemini entry file (composed prose) — Option B #107
-	"/.claude/skills/",
-	"/.agents/skills/", // codex + gemini skill dir — Option B #107
-	"/.claude/settings.json",
-	"/.colima/",
-	"/construct/scripts/vm-log.sh",
-	"/" + walk.GeneratedRel + "/", // per-repo dynamic-skill materialization (#115 M3, single-sourced) — regenerated every compile
+// IgnoreEntries derives the paths weave's .gitignore block owns, from the
+// ACTIONS weave planned — one source of truth with the manifest, automatically
+// correct when a row is added or retired (ARCH-DRY, and the base-layer-mechanics
+// spine invariant that no artifact enters the composition by another channel).
+// It replaces a hardcoded []string, which was a hand-maintained restatement of
+// the model — a deferred consumer, not a finished one (ARCH-PURPOSE).
+//
+// The rule is the manifest verb's OWNERSHIP class, because a verb already
+// declares who owns the bytes after weave runs:
+//
+//	weave RE-DERIVES them every compile → IGNORE
+//	  Symlink (symlink rows + the lowered skill-dir links), WriteFile (the
+//	  composed per-harness entry files), MergeSettings (the settings cascade).
+//	weave merely PROVISIONS the slot, then someone else owns it → TRACK
+//	  Mkdir (scaffold: an empty container for the REPO's content — ignoring
+//	  workshop/issues would untrack every issue file), Touch (create-if-missing,
+//	  never clobbered — workshop/lessons.md accumulates real content), Seed and
+//	  SeedOnce (both mean "must work BEFORE any substrate exists", which is
+//	  exactly why they must be committed — the bootstrap core falls out of the
+//	  rule instead of being listed).
+//
+// generatedRoots carries the one weave-generated tree that is NOT an Action:
+// construct/generated/, materialized by the .dynamic-skill exec stage that runs
+// before planning. It is passed from walk.GeneratedRel, the constant that already
+// owns that path — a derivation from the owner, not a second hand-list.
+//
+// Entries are repo-root-anchored with a leading slash, deduped and sorted
+// lexicographically, so a manifest REORDER produces no .gitignore churn.
+//
+// PER-PATH, never a directory glob: scripts/, construct/scripts/, .claude/ and
+// scripts/merge-checks.d/ all mix weave-created and repo-owned files
+// (parley.nvim/scripts/merge-checks.d/20-vocabulary.sh sits beside a weave
+// symlink; every repo's scripts/ci-setup.sh sits among them). A blanket ignore
+// there is the pair#64 regression, where a `bin/` glob made tracked shell scripts
+// look disposable and a propagate-base sweep git-rm'd them.
+//
+// TRAILING SLASH only for generatedRoots. An action-derived entry gets none:
+// git's `foo/` pattern does not match a SYMLINK named foo, so `symlink
+// .tart/scripts` would silently go un-ignored with one. Pure.
+func IgnoreEntries(actions []Action, generatedRoots []string) ([]string, error) {
+	seen := map[string]bool{}
+	var out []string
+	add := func(entry string) {
+		if !seen[entry] {
+			seen[entry] = true
+			out = append(out, entry)
+		}
+	}
+	for _, a := range actions {
+		switch act := a.(type) {
+		case Symlink:
+			add("/" + filepath.Clean(act.Dst))
+		case WriteFile:
+			add("/" + filepath.Clean(act.Path))
+		case MergeSettings:
+			add("/" + filepath.Clean(act.Target))
+		case Mkdir, Touch, Seed, SeedOnce, EnsureGitignore:
+			// Provisioned once, then owned by the repo (or, for the seeds, the
+			// pre-substrate bootstrap core). Tracked — never ignored.
+		default:
+			// A new Action type must make an explicit ownership choice. Falling
+			// through to "tracked" would silently re-expose a generated artifact
+			// to `git status` in every repo, with nothing failing.
+			return nil, fmt.Errorf("IgnoreEntries: unclassified action type %T — add it to the ignore or the track case", a)
+		}
+	}
+	for _, root := range generatedRoots {
+		add("/" + filepath.Clean(root) + "/")
+	}
+	sort.Strings(out)
+	return out, nil
 }
 
 // EnsureGitignore makes the repo's .gitignore carry exactly Entries inside

@@ -41,7 +41,7 @@ const dynamicSkillRel = ".dynamic-skill"
 // <repo>/construct/generated/<dir>/SKILL.md (gitignored, regenerated every
 // compile). This is the SINGLE SOURCE for that convention — the write-path
 // (DynamicSkills.OutputRel), the read-path (scanSkillDir's BodyPath), the
-// gitignore entry (plan.GeneratedRuntimeGitignoreEntries), and the prune scope
+// gitignore entry (derived by plan.IgnoreEntries from this constant), and the prune scope
 // (plan.PruneGenerated) all derive from it. They MUST agree or the materialized
 // body and the discovered body diverge (generation writes one place, discovery
 // reads another → silent empty description + dangling symlink — M3-review #1).

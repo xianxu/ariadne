@@ -3,8 +3,11 @@ package plan
 import (
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
@@ -19,6 +22,22 @@ import (
 // asserts something true of the new mechanism (creates when absent, idempotent
 // when current, preserves the repo's own lines, no trailing-newline glue). Only
 // the layout moved — weave's entries now live between markers.
+
+// sampleEntries stands in for the former hardcoded GeneratedRuntimeGitignoreEntries
+// (retired in #239 M3): it is DERIVED from a representative action set, so these
+// tests exercise the real derivation instead of a literal that could drift.
+func sampleEntries(t *testing.T) []string {
+	t.Helper()
+	got, err := IgnoreEntries([]Action{
+		WriteFile{Path: "CLAUDE.md"}, WriteFile{Path: "AGENTS.md"}, WriteFile{Path: "GEMINI.md"},
+		Symlink{Src: "/up/x", Dst: ".claude/skills/xx-fix"},
+		MergeSettings{Sources: []string{"/up/a.json"}, Target: ".claude/settings.json"},
+	}, []string{walk.GeneratedRel})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return got
+}
 
 // blockOf is the expected rendering of a managed block carrying entries, with no
 // repo-owned lines outside it.
@@ -64,8 +83,9 @@ func TestManagedBlockIdempotentWhenAllPresent(t *testing.T) {
 	// Every entry already present ⇒ no change, byte-identical (running weave twice
 	// never duplicates lines). Built from the canonical list so adding an entry can
 	// never silently desync this fixture.
-	current := blockOf(GeneratedRuntimeGitignoreEntries...)
-	got, changed, err := mergeManagedBlock(current, GeneratedRuntimeGitignoreEntries)
+	entries := sampleEntries(t)
+	current := blockOf(entries...)
+	got, changed, err := mergeManagedBlock(current, entries)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -83,13 +103,14 @@ func TestManagedBlockIdempotentWhenAllPresent(t *testing.T) {
 // and must never be tracked; the body lived committed under construct/local before).
 func TestGeneratedRuntimeGitignoreCoversConstructGenerated(t *testing.T) {
 	found := false
-	for _, e := range GeneratedRuntimeGitignoreEntries {
+	entries := sampleEntries(t)
+	for _, e := range entries {
 		if e == "/construct/generated/" {
 			found = true
 		}
 	}
 	if !found {
-		t.Fatalf("GeneratedRuntimeGitignoreEntries missing /construct/generated/: %v", GeneratedRuntimeGitignoreEntries)
+		t.Fatalf("derived entries missing /construct/generated/: %v", entries)
 	}
 }
 
@@ -110,7 +131,7 @@ func TestApplyEnsureGitignoreCreatesAndAppends(t *testing.T) {
 	// Apply on a repo with no .gitignore creates it carrying the fixed entries.
 	root := t.TempDir()
 	if err := Apply(weavefs.OSFS{}, root, []Action{
-		EnsureGitignore{Entries: GeneratedRuntimeGitignoreEntries},
+		EnsureGitignore{Entries: sampleEntries(t)},
 	}); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
@@ -118,7 +139,7 @@ func TestApplyEnsureGitignoreCreatesAndAppends(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read .gitignore: %v", err)
 	}
-	for _, entry := range GeneratedRuntimeGitignoreEntries {
+	for _, entry := range sampleEntries(t) {
 		if !strings.Contains(string(got), entry+"\n") {
 			t.Fatalf(".gitignore missing %q:\n%s", entry, got)
 		}
@@ -129,7 +150,7 @@ func TestApplyEnsureGitignoreIdempotent(t *testing.T) {
 	// Two applies in a row leave the .gitignore byte-identical (no churn / no dup).
 	root := t.TempDir()
 	gi := filepath.Join(root, ".gitignore")
-	act := []Action{EnsureGitignore{Entries: GeneratedRuntimeGitignoreEntries}}
+	act := []Action{EnsureGitignore{Entries: sampleEntries(t)}}
 
 	if err := Apply(weavefs.OSFS{}, root, act); err != nil {
 		t.Fatalf("Apply (1st): %v", err)
@@ -158,7 +179,7 @@ func TestApplyEnsureGitignorePreservesExisting(t *testing.T) {
 		t.Fatal(err)
 	}
 	if err := Apply(weavefs.OSFS{}, root, []Action{
-		EnsureGitignore{Entries: GeneratedRuntimeGitignoreEntries},
+		EnsureGitignore{Entries: sampleEntries(t)},
 	}); err != nil {
 		t.Fatalf("Apply: %v", err)
 	}
@@ -340,3 +361,120 @@ func TestManagedBlockTreatsAQuotedMarkerAsAMarker(t *testing.T) {
 		t.Fatalf("error must name the remedy, got: %v", err)
 	}
 }
+
+// --- IgnoreEntries: the derivation (#239 M3) --------------------------------
+//
+// The rule is the manifest verb's OWNERSHIP class: weave IGNORES what it
+// RE-DERIVES and TRACKS what it merely PROVISIONS. The bootstrap core falls out
+// of that rather than being listed.
+
+func TestIgnoreEntriesIgnoresOnlyRederivedPaths(t *testing.T) {
+	got, err := IgnoreEntries([]Action{
+		Symlink{Src: "/up/scripts/lib.sh", Dst: "scripts/lib.sh"},
+		WriteFile{Path: "CLAUDE.md", Content: "x"},
+		MergeSettings{Sources: []string{"/up/a.json"}, Target: ".claude/settings.json"},
+		Mkdir{Path: "workshop/issues"},
+		Touch{Path: "workshop/lessons.md"},
+		Seed{Src: "/up/bootstrap.sh", Dst: "bootstrap.sh"},
+		SeedOnce{Src: "/up/construct/Makefile.seed", Dst: "Makefile"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"/.claude/settings.json", "/CLAUDE.md", "/scripts/lib.sh"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+// Catastrophic if wrong: scaffold + touch targets are weave-CREATED, and
+// ignoring them would untrack every issue file and the lessons log. The flat
+// "ignore what weave creates" framing gets this wrong; ownership gets it right.
+func TestIgnoreEntriesNeverIgnoresScaffoldOrTouch(t *testing.T) {
+	got, err := IgnoreEntries([]Action{
+		Mkdir{Path: "workshop/issues"}, Mkdir{Path: "atlas"}, Touch{Path: "workshop/lessons.md"},
+	}, nil)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("scaffold/touch leaked into the ignore list: %v (err=%v)", got, err)
+	}
+}
+
+// Both seed verbs mean "must work BEFORE any substrate exists", which is the
+// same thing as "must be committed" — so the bootstrap core is derived, not listed.
+func TestIgnoreEntriesNeverIgnoresTheBootstrapCore(t *testing.T) {
+	got, err := IgnoreEntries([]Action{
+		Seed{Src: "/up/bootstrap.sh", Dst: "bootstrap.sh"},
+		Seed{Src: "/up/.github/workflows/merge-check.yml", Dst: ".github/workflows/merge-check.yml"},
+		SeedOnce{Src: "/up/construct/Makefile.seed", Dst: "Makefile"},
+	}, nil)
+	if err != nil || len(got) != 0 {
+		t.Fatalf("bootstrap core ignored: %v (err=%v)", got, err)
+	}
+}
+
+// Per-path, never a directory glob. parley.nvim/scripts/merge-checks.d/
+// 20-vocabulary.sh is a repo-owned check beside the weave symlink
+// 40-duplicate-issue-id.sh; a blanket dir ignore would untrack it (pair#64).
+func TestIgnoreEntriesIsPerPathNotPerDirectory(t *testing.T) {
+	got, err := IgnoreEntries([]Action{
+		Mkdir{Path: "scripts/merge-checks.d"},
+		Symlink{Src: "/up/scripts/merge-checks.d/40-dup.sh", Dst: "scripts/merge-checks.d/40-dup.sh"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"/scripts/merge-checks.d/40-dup.sh"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+// A DIRECTORY symlink gets NO trailing slash: git's `foo/` pattern does not
+// match a symlink named foo (verified against real git), so `symlink
+// .tart/scripts` would silently go un-ignored with one. Only a real generated
+// directory gets one.
+func TestIgnoreEntriesTrailingSlashOnlyForGeneratedRoots(t *testing.T) {
+	got, err := IgnoreEntries([]Action{
+		Symlink{Src: "/up/.tart/scripts", Dst: ".tart/scripts"},
+	}, []string{"construct/generated"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"/.tart/scripts", "/construct/generated/"}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+// Deduped and sorted, so a manifest REORDER produces no .gitignore churn.
+func TestIgnoreEntriesDedupesAndSorts(t *testing.T) {
+	got, err := IgnoreEntries([]Action{
+		Symlink{Src: "/up/b", Dst: "b"},
+		Symlink{Src: "/up/a", Dst: "a"},
+		Symlink{Src: "/up/b", Dst: "b"},
+	}, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(got, []string{"/a", "/b"}) {
+		t.Fatalf("got %v, want [/a /b]", got)
+	}
+}
+
+// The doc promises "a new verb joins the ignore or the track class by adding one
+// case". Nothing enforces that the author remembers — so the default does. It
+// ERRORS rather than panicking: planActions already returns an error, so an
+// unhandled type surfaces as a diagnosable weave failure, not a stack trace.
+func TestIgnoreEntriesRejectsUnclassifiedAction(t *testing.T) {
+	_, err := IgnoreEntries([]Action{unclassifiedTestAction{}}, nil)
+	if err == nil {
+		t.Fatal("an unclassified Action must not silently land in the tracked class")
+	}
+	if !strings.Contains(err.Error(), "unclassifiedTestAction") {
+		t.Fatalf("error must name the offending type, got: %v", err)
+	}
+}
+
+type unclassifiedTestAction struct{}
+
+func (unclassifiedTestAction) isAction() {}

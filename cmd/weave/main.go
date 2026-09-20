@@ -654,6 +654,33 @@ func layerPaths(layers []layer.Layer) []string {
 // (runGolden), and verify-complete (runVerifyComplete) so all see the IDENTICAL
 // action set for a given target (ARCH-DRY).
 func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]plan.Action, error) {
+	actions, err := planActionsCore(fs, layers, target)
+	if err != nil {
+		return nil, err
+	}
+	// The ignore list is a property of the REPO, not of the face being compiled,
+	// so it is derived from the UNION plan even on a lean --target. The managed
+	// block is replaced WHOLESALE (#239 M2), so deriving it from a lean action
+	// set would DELETE the other harnesses' entries and silently re-expose their
+	// symlinks to `git status`. Append-only could not lose an entry; wholesale
+	// replacement can, so this is a hazard M2 created and M3 must close. run()
+	// already uses the same second-plan shape for scanActions (main.go:543-548).
+	ignoreActions := actions
+	if target != plan.TargetAll {
+		if ignoreActions, err = planActionsCore(fs, layers, plan.TargetAll); err != nil {
+			return nil, fmt.Errorf("plan ignore entries: %w", err)
+		}
+	}
+	entries, err := plan.IgnoreEntries(ignoreActions, []string{walk.GeneratedRel})
+	if err != nil {
+		return nil, fmt.Errorf("plan ignore entries: %w", err)
+	}
+	return append(actions, plan.EnsureGitignore{Entries: entries}), nil
+}
+
+// planActionsCore is the lowering WITHOUT the gitignore action — shared by the
+// compile path and by the TargetAll re-plan above, so neither duplicates it.
+func planActionsCore(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]plan.Action, error) {
 	// ONE skill discovery (#104): gather → SelectVisible (𝒜(R)). The compile path
 	// uses only the selected entries — NO menu (Option B, #107: every harness
 	// discovers its own skill dir natively). buildSkillIndex's index serves
@@ -676,15 +703,6 @@ func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]pla
 			actions = append(actions, l)
 		}
 	}
-	// weave OWNS ignoring its own generated-runtime artifacts (gitignore.go): the
-	// composed AGENTS.md, the .claude/skills symlinks, the merged
-	// .claude/settings.json, the .colima VM tree, vm-log.sh. Append exactly ONE
-	// EnsureGitignore per compile (target-independent — every backend produces
-	// generated artifacts) so a fresh `weave compile` on ANY derivative leaves a
-	// clean `git status` with no per-repo .gitignore hand-edit. The pure planner
-	// (plan.Plan) stays free of it — like skillSymlinks, it's appended in this
-	// compile lowering and applied through the IO seam (plan.applyEnsureGitignore).
-	actions = append(actions, plan.EnsureGitignore{Entries: plan.GeneratedRuntimeGitignoreEntries})
 	return actions, nil
 }
 
