@@ -6,6 +6,7 @@ github_issue:
 target: base-layer-mechanics
 created: 2026-09-19
 updated: 2026-09-20
+estimate_hours: 4.151
 started: 2026-09-19T18:21:15-07:00
 flow: {kind: full, provenance: inferred}
 ---
@@ -167,8 +168,37 @@ are historical only.
 
 ## Estimate
 
-The prior estimate is superseded by the restart. Derive the new itemized
-estimate after the current plan clears `sdlc change-code` plan-quality.
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md`
+against `baseline-v3.1.md`. Method A only; calibration flagged stale by
+estimate-source, so provisional. Derived after plan-quality passed.
+
+Items in order: acquisition; bundle orchestration; CLI/runner extension;
+output identity/ignore extension; compile/Make cleanup; bootstrap/CI cleanup;
+release/tap integration; disposable peer pilots; atlas/docs; three boundary
+reviews. Use upper implementation range ×0.4 (v3.1); familiarity 1.0 for the
+existing Go/shell stack. Greenfield design uses existing Git/Bundle libraries
+and CLI tools (1.0 ×0.5 library ×0.2 spec = 0.1); other design uses table upper
+range ×0.2 for the detailed plan. API integration uses lower design range 1.0
+×0.2; reviews use 0.2 ×0.2. Buffer 15% on design only.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=0.1 impl=0.32
+item: greenfield-go-module design=0.1 impl=0.32
+item: smaller-go-module design=0.06 impl=0.2
+item: smaller-go-module design=0.06 impl=0.2
+item: cross-cutting-refactor design=0.2 impl=0.2
+item: cross-cutting-refactor design=0.2 impl=0.2
+item: api-integration design=0.2 impl=0.6
+item: cross-repo-refactor-small design=0.06 impl=0.12
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0.04 impl=0.2
+item: milestone-review design=0.04 impl=0.2
+item: milestone-review design=0.04 impl=0.2
+design-buffer: 0.15
+total: 4.151
+```
 
 ## Log
 
