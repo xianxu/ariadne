@@ -574,6 +574,49 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — M2 implemented: `.gitignore` as a weave-managed block
+
+Mechanism only — the entries are still today's hardcoded nine, so a regression
+here is visible against a known-good list. That ordering is deliberate and the
+reason M2 precedes M3.
+
+**`mergeManagedBlock` replaces `ensureGitignoreText`.** Inside the markers:
+replaced wholesale, so a retired manifest row loses its ignore line. Outside:
+preserved in original order. Loose duplicates absorbed, and so are the three
+superseded `legacyBlanketEntries` — a derivative never runs the M2 binary, it
+jumps pre-M2 → post-M3, where `/.claude/skills/` matches no per-path entry and
+would sit outside the block forever.
+
+**Fails closed on three shapes**, each with the remedy in the message: an
+unterminated marker, a duplicated pair (what a git merge conflict produces), and
+inverted markers. `applyEnsureGitignore` now also fails closed on a **read**
+error — it previously treated any failure as an empty file, which was harmless
+while appending and would have replaced a repo's whole `.gitignore` with weave's
+block alone once the write became wholesale.
+
+**The old tests were translated, not deleted.** All five still assert something
+true of the new mechanism (creates when absent, idempotent when current,
+preserves the repo's lines, no trailing-newline glue); only the layout moved.
+`TestEnsureGitignoreTextDedupsRepeatedInputEntry` changed meaning honestly: the
+block emits `entries` verbatim, so de-duplication becomes the entry LIST's job
+in M3 — the test now says so rather than pretending the seam still does it.
+
+**Defect 1's stale justification is retired here**, in the milestone that edits
+the file: the paragraph claiming the symlink class must stay tracked for "the
+bootstrap chicken-and-egg" that #225 had already dissolved. Replaced by the
+ownership rule M3 implements.
+
+**Live migration verified on ariadne's own `.gitignore`.** The nine loose
+entries were absorbed into the block; `.goto`, `bin/`, `/couch` and every other
+repo-owned line preserved. A second apply writes **nothing** (byte-identical).
+
+*Sandbox note:* `weave compile` still cannot finish in-session (the
+`.claude/settings.json` merge write is denied) and `EnsureGitignore` is appended
+last, so the migration was observed by applying that one action directly through
+a scratch test, since removed. The transform is pure, so feeding it the real file
+is a complete check of what a compile would do.
+
+
 ### 2026-09-19 — M1 CLOSED (gate clean after 4 rounds)
 
 Verdict FIX-THEN-SHIP, gate clean: *"no open blocking findings after 4 round(s)"*.

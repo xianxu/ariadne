@@ -14,11 +14,15 @@ bin/
 /vocabulary
 .DS_Store
 
-# AGENTS.md is now a weave-COMPOSED artifact (#95): weave concatenates the
-# `prose` fragments (AGENTS.base.md + AGENTS.local.md) + the skill menu into it.
-# It is generated, so it is gitignored. Its SOURCES — AGENTS.base.md and
-# AGENTS.local.md — are tracked (NOT ignored): they are the constitution + the
-# per-repo extension that weave composes from.
+# Everything below the marker is maintained by `make weave` (#239): weave owns
+# the region and replaces it wholesale each compile, so a retired manifest row's
+# ignore line disappears instead of lingering. Add your own entries ABOVE it —
+# lines outside the markers are preserved verbatim.
+#
+# Note the composed entry files (AGENTS.md / CLAUDE.md / GEMINI.md) are ignored
+# but their SOURCES are tracked: AGENTS.base.md is the constitution and
+# AGENTS.local.md is this repo's extension, which weave composes from.
+# >>> weave-generated — managed by `make weave`, do not edit >>>
 /AGENTS.md
 /CLAUDE.md
 /GEMINI.md
@@ -28,3 +32,4 @@ bin/
 /.colima/
 /construct/scripts/vm-log.sh
 /construct/generated/
+# <<< weave-generated <<<

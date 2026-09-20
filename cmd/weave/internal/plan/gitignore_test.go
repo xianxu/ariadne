@@ -10,32 +10,50 @@ import (
 )
 
 // gitignore.go is weave's generated-runtime ignore mechanism. The pure transform
-// (ensureGitignoreText) is unit-tested directly; the IO seam
-// (applyEnsureGitignore, via Apply) is tested against a real t.TempDir-rooted
-// OSFS (ARCH: faithful over mocked).
+// (mergeManagedBlock) is unit-tested directly; the IO seam (applyEnsureGitignore,
+// via Apply) is tested against a real t.TempDir-rooted OSFS (ARCH: faithful over
+// mocked).
+//
+// The tests below were written against the append-only ensureGitignoreText and
+// TRANSLATED to the managed block (#239 M2) rather than deleted: each still
+// asserts something true of the new mechanism (creates when absent, idempotent
+// when current, preserves the repo's own lines, no trailing-newline glue). Only
+// the layout moved — weave's entries now live between markers.
+
+// blockOf is the expected rendering of a managed block carrying entries, with no
+// repo-owned lines outside it.
+func blockOf(entries ...string) string {
+	out := managedBlockOpen + "\n"
+	for _, e := range entries {
+		out += e + "\n"
+	}
+	return out + managedBlockClose + "\n"
+}
 
 func TestEnsureGitignoreTextAppendsToEmpty(t *testing.T) {
-	got, changed := ensureGitignoreText("", []string{"/AGENTS.md", "/.colima/"})
-	if !changed {
-		t.Fatal("changed = false on an empty .gitignore, want true")
+	got, changed, err := mergeManagedBlock("", []string{"/AGENTS.md", "/GEMINI.md"})
+	if err != nil || !changed {
+		t.Fatalf("err=%v changed=%v, want nil/true on an empty .gitignore", err, changed)
 	}
-	want := "/AGENTS.md\n/.colima/\n"
+	want := blockOf("/AGENTS.md", "/GEMINI.md")
 	if got != want {
-		t.Fatalf("ensureGitignoreText = %q, want %q", got, want)
+		t.Fatalf("mergeManagedBlock = %q, want %q", got, want)
 	}
 }
 
 func TestEnsureGitignoreTextPreservesExistingAndAppendsAbsent(t *testing.T) {
 	// Existing entries + a comment are preserved verbatim; only the truly absent
 	// entry is appended (the present one is NOT duplicated — grep -qxF semantics).
+	// The repo's comment and its own entry survive verbatim; the loose
+	// /AGENTS.md is ABSORBED into the block rather than duplicated.
 	current := "# existing comment\n/AGENTS.md\nbin/\n"
-	got, changed := ensureGitignoreText(current, []string{"/AGENTS.md", "/.claude/skills/"})
-	if !changed {
-		t.Fatal("changed = false, want true (one entry was absent)")
+	got, changed, err := mergeManagedBlock(current, []string{"/AGENTS.md", "/GEMINI.md"})
+	if err != nil || !changed {
+		t.Fatalf("err=%v changed=%v, want nil/true", err, changed)
 	}
-	want := "# existing comment\n/AGENTS.md\nbin/\n/.claude/skills/\n"
+	want := "# existing comment\nbin/\n" + blockOf("/AGENTS.md", "/GEMINI.md")
 	if got != want {
-		t.Fatalf("ensureGitignoreText = %q, want %q", got, want)
+		t.Fatalf("mergeManagedBlock = %q, want %q", got, want)
 	}
 	if strings.Count(got, "/AGENTS.md") != 1 {
 		t.Fatalf("/AGENTS.md duplicated:\n%s", got)
@@ -46,10 +64,13 @@ func TestEnsureGitignoreTextIdempotentWhenAllPresent(t *testing.T) {
 	// Every entry already present ⇒ no change, byte-identical (running weave twice
 	// never duplicates lines). Built from the canonical list so adding an entry can
 	// never silently desync this fixture.
-	current := strings.Join(GeneratedRuntimeGitignoreEntries, "\n") + "\n"
-	got, changed := ensureGitignoreText(current, GeneratedRuntimeGitignoreEntries)
+	current := blockOf(GeneratedRuntimeGitignoreEntries...)
+	got, changed, err := mergeManagedBlock(current, GeneratedRuntimeGitignoreEntries)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if changed {
-		t.Fatalf("changed = true when all entries present, want false; got:\n%s", got)
+		t.Fatalf("changed = true when the block is already current, want false; got:\n%s", got)
 	}
 	if got != current {
 		t.Fatalf("content mutated when all present:\n got %q\nwant %q", got, current)
@@ -75,21 +96,27 @@ func TestGeneratedRuntimeGitignoreCoversConstructGenerated(t *testing.T) {
 func TestEnsureGitignoreTextAddsTrailingNewlineBeforeAppend(t *testing.T) {
 	// A non-empty file NOT ending in a newline gets one before the appended entry,
 	// so the new entry never glues onto the last existing line.
-	got, changed := ensureGitignoreText("bin/", []string{"/AGENTS.md"})
-	if !changed {
-		t.Fatal("changed = false, want true")
+	got, changed, err := mergeManagedBlock("bin/", []string{"/AGENTS.md"})
+	if err != nil || !changed {
+		t.Fatalf("err=%v changed=%v, want nil/true", err, changed)
 	}
-	want := "bin/\n/AGENTS.md\n"
+	want := "bin/\n" + blockOf("/AGENTS.md")
 	if got != want {
-		t.Fatalf("ensureGitignoreText = %q, want %q", got, want)
+		t.Fatalf("mergeManagedBlock = %q, want %q", got, want)
 	}
 }
 
 func TestEnsureGitignoreTextDedupsRepeatedInputEntry(t *testing.T) {
 	// A duplicate in the INPUT entry list is appended only once.
-	got, _ := ensureGitignoreText("", []string{"/AGENTS.md", "/AGENTS.md"})
+	// NOTE: the block emits `entries` verbatim, so de-duplication is the entry
+	// LIST's job — IgnoreEntries dedupes at the source in M3. Until then this
+	// asserts the seam does not silently double an already-unique entry.
+	got, _, err := mergeManagedBlock("", []string{"/AGENTS.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if strings.Count(got, "/AGENTS.md") != 1 {
-		t.Fatalf("repeated input entry duplicated:\n%s", got)
+		t.Fatalf("entry duplicated:\n%s", got)
 	}
 }
 
@@ -160,5 +187,115 @@ func TestApplyEnsureGitignorePreservesExisting(t *testing.T) {
 	}
 	if strings.Count(string(got), "/AGENTS.md") != 1 {
 		t.Fatalf("/AGENTS.md duplicated:\n%s", got)
+	}
+}
+
+// --- the managed block (#239 M2) -------------------------------------------
+//
+// Append-only could never RETIRE an entry: a manifest row removed upstream left
+// its ignore line in every derivative forever. Harmless at 9 hardcoded entries,
+// actively dangerous once the list is manifest-derived (M3), because a stale
+// line can silently untrack a repo-owned file that later takes that path.
+
+func TestManagedBlockAppendsWhenAbsent(t *testing.T) {
+	got, changed, err := mergeManagedBlock("mine/\n", []string{"/CLAUDE.md"})
+	if err != nil || !changed {
+		t.Fatalf("err=%v changed=%v", err, changed)
+	}
+	want := "mine/\n" + managedBlockOpen + "\n/CLAUDE.md\n" + managedBlockClose + "\n"
+	if got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+}
+
+func TestManagedBlockReplacesWholesaleSoRetiredEntriesDisappear(t *testing.T) {
+	current := "mine/\n" + managedBlockOpen + "\n/CLAUDE.md\n/RETIRED.md\n" + managedBlockClose + "\ntail/\n"
+	got, changed, err := mergeManagedBlock(current, []string{"/CLAUDE.md"})
+	if err != nil || !changed {
+		t.Fatalf("err=%v changed=%v", err, changed)
+	}
+	if strings.Contains(got, "/RETIRED.md") {
+		t.Fatalf("retired entry survived: %q", got)
+	}
+	if !strings.Contains(got, "mine/") || !strings.Contains(got, "tail/") {
+		t.Fatalf("repo-owned entries lost: %q", got)
+	}
+}
+
+// pair's bin/* + !bin/*.sh must round-trip verbatim — the #64 regression where a
+// blanket ignore made tracked shell scripts look disposable and a sweep rm'd them.
+func TestManagedBlockRoundTripsRepoOwnedNegations(t *testing.T) {
+	repo := "bin/*\n!bin/*.sh\n!bin/pair-dev\ncache/\n"
+	first, _, err := mergeManagedBlock(repo, []string{"/CLAUDE.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, changed, err := mergeManagedBlock(first, []string{"/CLAUDE.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed {
+		t.Fatal("second weave rewrote an already-current .gitignore")
+	}
+	if second != first {
+		t.Fatalf("not idempotent:\n%q\n%q", first, second)
+	}
+	if !strings.HasPrefix(second, repo) {
+		t.Fatalf("repo entries moved or changed: %q", second)
+	}
+}
+
+func TestManagedBlockAbsorbsLooseDuplicates(t *testing.T) {
+	got, _, err := mergeManagedBlock("/CLAUDE.md\nmine/\n", []string{"/CLAUDE.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Count(got, "/CLAUDE.md") != 1 {
+		t.Fatalf("duplicate entry: %q", got)
+	}
+	if !strings.Contains(got, "mine/") {
+		t.Fatalf("repo entry lost: %q", got)
+	}
+}
+
+// A derivative never runs the M2 binary — it jumps pre-M2 to post-M3, where the
+// retired BLANKET entries match no per-path derived entry. Without an explicit
+// absorb they would sit outside the block FOREVER as permanent directory
+// ignores: the pair#64 hazard this issue exists to remove, left standing.
+func TestManagedBlockAbsorbsRetiredBlanketEntries(t *testing.T) {
+	current := "mine/\n/.claude/skills/\n/.agents/skills/\n/.colima/\n"
+	got, _, err := mergeManagedBlock(current, []string{"/.claude/skills/xx-fix", "/.colima/Makefile"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, legacy := range []string{"/.claude/skills/\n", "/.agents/skills/\n", "/.colima/\n"} {
+		if strings.Contains(got, legacy) {
+			t.Fatalf("legacy blanket entry %q survived: %q", legacy, got)
+		}
+	}
+	if !strings.Contains(got, "mine/") {
+		t.Fatalf("repo entry lost: %q", got)
+	}
+}
+
+// ARCH-SECURE: .gitignore is input weave did not produce — hand-edited, written
+// by older versions, merged by git. A block it cannot parse is an error naming
+// the remedy, never a guessed splice: a wrong guess deletes the repo's own
+// rules. The "doubled" case is what a git MERGE CONFLICT produces.
+func TestManagedBlockRefusesMalformedMarkers(t *testing.T) {
+	for name, current := range map[string]string{
+		"unterminated": managedBlockOpen + "\n/CLAUDE.md\n",
+		"doubled":      managedBlockOpen + "\n" + managedBlockClose + "\n" + managedBlockOpen + "\n" + managedBlockClose + "\n",
+		"close_first":  managedBlockClose + "\n" + managedBlockOpen + "\n",
+	} {
+		t.Run(name, func(t *testing.T) {
+			_, _, err := mergeManagedBlock(current, []string{"/CLAUDE.md"})
+			if err == nil {
+				t.Fatal("expected an error, got nil")
+			}
+			if !strings.Contains(err.Error(), "make weave") {
+				t.Fatalf("error must name the remedy, got: %v", err)
+			}
+		})
 	}
 }
