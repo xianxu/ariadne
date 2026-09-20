@@ -417,3 +417,144 @@ findings:
       in the issue Log so its coverage is not overestimated; M3's planned
       scripts/merge-checks.d/50-base-layer-tests.sh is the natural registration point.
 ```
+
+---
+
+## Re-review — 2026-09-19T22:04:11-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 7ffe2cc97ada126ba8b8cf355e27b3b0f9c56af6..fdec312c4760183f4ed6587d78badb5428c2d099 |
+| command | sdlc milestone-close --issue 239 --milestone M1 |
+| reviewer | claude |
+| timestamp | 2026-09-19T22:04:11-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+M1 delivers `seed-once` end to end and the delivery is sound: I falsified both load-bearing regression tests in a scratch copy (removing the presence guard turns `TestApplySeedOncePreservesExistingRegularFile` red — *"seed-once clobbered a repo-owned file"*; disabling the BR-1 classifier branch turns both symlink rows of `TestClassifySeedOnceSymlinkSlotIsNotPresence` red), the real-binary conformance test passes end to end, and `weave golden .` on the pinned tree reports **MATCH 55 / UNEXPECTED 0** once the operator's uncommitted `settings.ariadne.json` edit is set aside — confirming BR-9's weave-drift is gone from the range. What holds SHIP back is not the code: BR-10 was answered at the instance level again (six lists were *extended* rather than replaced by a pointer to `intent.kindByVerb`), and the round's own edit to `golden.go:95` is still wrong — it swapped `tool` for `touch` but the live emitted verb set includes `gitignore`. That is the third round of the same family producing a fresh instance inside the fix for it. Plus one new Important: `TestMaterializationFailures` enumerates `{"seed", "writefile"}` and was never enrolled with `seed-once`, leaving the new verb's destructive path (remove-symlink → write → chmod) without fault coverage in exactly the scenario where a slip writes through `nous`/`metis`'s link into ariadne's own `Makefile`.
+
+## 1. Strengths
+
+- **`plan.SeedOnceSlotIsRepoOwned` (apply.go:274) is the right class fix for BR-1** — one predicate, two callers, table-tested across live-symlink / dangling-symlink / regular-file / absent. Scratch-reverting the classifier branch reproduces exactly the two rows the finding named.
+- **`applySeedOnce` checks presence *before* reading `Src` (apply.go:315)** and the comment says why. A repo-owned `Makefile` is never even compared to upstream — that is the two-owners claim actually retired, not just renamed.
+- **`classifyAction` deliberately diverges from `Seed`'s semantics (golden.go:202-208)** with the reasoning inline. Treating a content-differing `seed-once` target as drift would have re-asserted upstream ownership; the code resists the obvious copy-paste.
+- **The conformance test's adopter case (portable-makefile.test.sh:107-121) covers both halves** — adoption *and* a later local edit surviving a second weave — against the real binary, and the seed-source split is verified by `cmp`ing the leaf against `construct/Makefile.seed`, not against ariadne's root.
+- **BR-8's fix lands at the source.** `Makefile.workflow:1-9` now carries the resolver form, `construct/base.manifest:120-127` *points at* that header rather than restating it, and the form is actually executed pre-weave at `portable-makefile.test.sh:15` (neither local nor sibling present) and `:61` (sibling only).
+- **BR-9 backed out cleanly.** `git diff --name-status` over the range no longer touches `.claude/settings.ariadne.json`; the egress line is uncommitted in the worktree, exactly as found.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+**I1 — `TestMaterializationFailures` never enrolled `seed-once` (cmd/weave/internal/plan/apply_test.go:673).**
+The table is `for _, kind := range []string{"seed", "writefile"}`. `applySeedOnce` runs the same destructive sequence and its invariant — *the ancestor's bytes and mode are unchanged under any partial failure* — is the one that protects ariadne's own `Makefile` from the 11 fleet repos whose slot is still a symlink into it. `TestApplySeedOnceMaterializesSymlinkWithoutFollowingIt` covers the happy path only. Fix: add `"seed-once"` to the kind list and one branch in `invoke`. I verified this in a scratch copy — all four sub-cases (`lstat`/`remove`/`write`/`chmod`) pass today, so it is a pure coverage add with no code change. (`TestFormatActions` in `cmd/weave/main_test.go:357` has the same shape of gap for the `seed-once` `--dry-run` row — one of the two sites the plan itself flagged as easily missed.)
+
+**BR-10 — re-raised as `not-addressed`, see §dispose.** Not a new id.
+
+## 4. Minor findings
+
+- **M1 — `SeedOnceSlotIsRepoOwned` models 2 of the slot's 4 states** (new finding, family `presence-predicate-written-twice`, see §findings).
+- **M2 — `weave golden`'s `Divergence.Verb` comment (golden.go:95) is wrong again after being edited this round**: it lists 7 verbs; the live set emitted by `classifyAction` is 8 (`gitignore` missing). Folded into BR-10's disposition as prevalence evidence — do not fix in isolation.
+- **M3 — BR-13 is logged under the wrong id.** The issue's `## Revisions` heads it *"BR-11 (Minor, logged) — `weave golden` gates nothing"*; BR-11 is the `Observed`→`FileMode` bridge. The content is right, the label collides with a still-open finding.
+- **M4 — the adopter fixture's first line is `MY OWN BUILD SYSTEM`** (portable-makefile.test.sh:114), which is not valid make. Harmless today because the fixture is never `make`'d, but it means the file models the advertised recipe textually rather than executably.
+
+## 5. Test coverage notes
+
+- `go test ./cmd/...` is green except `TestFleetPlanHasAuthoritativeCorrected…` (`fleet_plan_test.go:14`, missing `workshop/plans/000200-…-plan.md`) — confirmed pre-existing and tracked as #210, unrelated to this range.
+- `construct/scripts/test/portable-makefile.test.sh` — PASS, including both new `seed-once` cases.
+- Both behavior-changing fixes this round are backed by tests that go red without them (verified by scratch revert, not by reading the diff).
+- Uncovered: `applySeedOnce`'s fault paths (I1); `applySeedOnce`'s exec-bit sync through the extracted `syncExecBit` (only `applySeed` exercises it — the BR-5 refactor moved shared code with coverage on one caller only); `formatActions`' `seed-once` row.
+- `weave golden` still runs in no CI seam (grep of `scripts/`, `.github/`, `Makefile.workflow` finds no `golden`/`verify-complete`), so the harness BR-1 repaired gates nothing automatically until M3 registers `50-base-layer-tests.sh`. Correctly logged; noted so its coverage is not overestimated.
+
+## 6. Architectural notes
+
+- **ARCH-DRY — flag.** Pass on the seam (`syncExecBit`, `SeedOnceSlotIsRepoOwned` both single-sourced). Flag on the verb set: 9 hand restatements of `intent.kindByVerb` remain (walk.go:112, action.go:13, plan.go:25, main.go:651, prune.go:58, completeness.go:57-63, golden.go:95, atlas/workflow/weave.md:24, workshop/targets/base-layer-mechanics.md:90), and one of them was edited into a fresh error this round. See BR-10.
+- **ARCH-PURE — pass.** The planner records paths, the seam reads bytes (plan.go:123-126); `SeedOnceSlotIsRepoOwned` and `classifyAction` are pure and tested with no IO.
+- **ARCH-PURPOSE — pass for M1's scope.** The shadow-sweep for the issue's single-source axis is M3's job; within M1, `intent.kindByVerb` is the enforced source and `setup-and-replication.md` now derives from it by pointer. The residual restatements are the one deferred consumer (BR-10).
+- **ARCH-MOCK — pass.** The `weavefs.FS` seam carries every branch; `materializationFaultFS` is a stateful decorator over the real FS, and the bash tests are live conformance against the real binary. Note: the plan promised *"the fake filesystem drives every branch"*; the delivered tests use `weavefs.OSFS{}` + `t.TempDir()` — stronger, but a plan/code mismatch worth recording.
+- **ARCH-CONSTRAINTS — pass.** One extra type-switch case; no envelope impact.
+- **ARCH-SECURE — pass, with M1's observation.** `removeDestinationSymlink` (apply.go:357-364) fails closed on an unknown `Lstat` error, which is what makes `applySeedOnce`'s swallow of that same error safe — the guarantee is real but held by a *second* check, not by the guard that reads as authoritative. BR-9's undeclared egress widening is out of the range; verified.
+- **ARCH-ORDER — flag (Minor).** The slot's state is a 4-valued fact (absent / repo-owned / weave symlink / unknown) encoded three different ways: an `Lstat (FileInfo, error)` pair, a bool over `os.FileMode`, and `Observed{Exists, IsSymlink, IsDir}` — where `Exists:false, IsSymlink:true` is representable and undefined. Named in finding M1.
+- **ARCH-FUNERAL — pass.** `seed-once` creates exactly one durable artifact per repo and hands ownership over permanently; that hand-off *is* its removal path, and the plan's Lifecycle section says so.
+
+## 7. Plan revision recommendations
+
+`workshop/plans/000239-…-plan.md` needs a `## Revisions` entry for the M1 boundary-review rounds — it currently records only the plan-quality rounds (PQ-6/PQ-7). The entry should carry:
+
+1. **Core concepts — two new rows.** `plan.SeedOnceSlotIsRepoOwned` (`cmd/weave/internal/plan/apply.go`, new, PURE, exported cross-package) and `plan.syncExecBit` (same file, new, extracted from `applySeed`). Neither appears in the table; the first is a newly-exported API that `golden` now depends on. (This is BR-12's second instance.)
+2. **`plan.applySeedOnce`'s test strategy changed.** The table says the fake filesystem drives every branch; the shipped tests use `weavefs.OSFS{}` over `t.TempDir()` plus the `materializationFaultFS` decorator.
+3. **M1's actual file set.** The plan's Task 1.4 named seven switch sites; the delivered change touches nine enumerations once `completeness.go`'s coverage comment and `golden.go`'s `Divergence.Verb` comment are counted — the two that are still drifting.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Resolver form now at Makefile.workflow:1-9 with base.manifest pointing at it rather than restating; the identical snippet is executed pre-weave at portable-makefile.test.sh:15 and :61.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      settings.ariadne.json is absent from the range; with the committed version restored, weave golden . reports MATCH 55 EXPECTED 1 UNEXPECTED 0.
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      Six sites updated but the RULE was not applied — lists were extended, not replaced by a pointer to intent.kindByVerb; golden.go:95 was edited this round and is still wrong (omits the live gitignore verb).
+  - id: BR-11
+    disposition: not-addressed
+    note: |
+      golden.go:222-230 still reconstructs a partial dstMode from IsSymlink; Observed gained no Mode field. Nothing in the round-3 commit touches it.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      gather.go:100-102 still claims classifyAction compares source bytes for SeedOnce (it reads only Exists/IsSymlink), and the plan's Core concepts table still omits plan.SeedOnceSlotIsRepoOwned.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      Logged in the issue's Revisions with M3's 50-base-layer-tests.sh named as the registration point; confirmed no golden/verify-complete invocation exists in scripts/, .github/ or Makefile.workflow. Logged under the wrong id (BR-11).
+findings:
+  - id: new
+    severity: Important
+    family: new-kind-skips-shared-test-matrix
+    title: |
+      seed-once was never enrolled in TestMaterializationFailures, so the new verb's destructive path has no fault coverage
+    detail: |
+      cmd/weave/internal/plan/apply_test.go:673 iterates kinds {"seed", "writefile"}. applySeedOnce runs the same
+      remove-symlink then write then chmod sequence, and the invariant the table asserts — the symlink's ancestor is
+      unchanged under any partial failure — is exactly what protects ariadne's own Makefile from the 11 fleet repos
+      whose slot still links into it. Adding "seed-once" to the kind list plus one branch in invoke passes today for
+      all four operations; I verified this in a scratch copy, so it is a coverage add with no code change. The rule
+      is that a new Action kind must be enrolled in every existing cross-kind test matrix, not only given its own
+      happy-path tests. Same shape of gap at cmd/weave/main_test.go:357, where TestFormatActions omits the seed-once
+      dry-run row the plan itself flagged as easily missed.
+  - id: new
+    severity: Minor
+    family: presence-predicate-written-twice
+    title: |
+      SeedOnceSlotIsRepoOwned models 2 of the slot's 4 states, so each caller re-encodes the other two differently
+    detail: |
+      This is the 4th finding in family presence-predicate-written-twice. Earlier rounds fixed instances; do NOT fix
+      this instance. State the rule: the destination slot is a 4-valued fact (absent, repo-owned, weave symlink,
+      unknown) and the shared classifier must take the raw observation and return a tagged value, so no caller can
+      reconstruct a partial one. Measured prevalence of the re-encoding, all in this round's diff: (1)
+      apply.go:274 SeedOnceSlotIsRepoOwned(os.FileMode) bool expresses only repo-owned vs symlink — passed a zero
+      FileMode it answers "repo-owned" for an ABSENT slot, the opposite of the truth; (2) apply.go:315 maps a
+      non-NotExist Lstat error to "not repo-owned" and proceeds toward the write, safe today only because
+      removeDestinationSymlink re-Lstats and fails closed at apply.go:357-364 — the guarantee is held by a second
+      check, not by the guard that reads as authoritative; (3) golden.go:222-230 reconstructs os.ModeSymlink from
+      Observed.IsSymlink, which is BR-11. One classifier over (os.FileInfo, error) returning Absent | RepoOwned |
+      WeaveSymlink | Unknown, with Observed carrying the raw mode, collapses all three and closes BR-11 with it
+      (ARCH-ORDER, ARCH-DRY).
+```

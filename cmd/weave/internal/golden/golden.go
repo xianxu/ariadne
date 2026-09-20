@@ -28,7 +28,6 @@ package golden
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
@@ -72,6 +71,12 @@ type Observed struct {
 	IsDir      bool
 	LinkTarget string // result of Readlink, when IsSymlink
 	Content    string // file bytes, when a WriteFile target is compared
+	// Slot is the destination fact as the ONE classifier sees it
+	// (plan.ClassifySlot), computed by the gatherer from the raw Lstat. The
+	// classifier must never RECONSTRUCT this from Exists/IsSymlink: doing so is
+	// what let classifyAction and applySeedOnce disagree about what "present"
+	// means (#239 M1 BR-1/BR-11/BR-12).
+	Slot plan.SlotState
 }
 
 // Input is everything the classifier needs for one repo: weave's planned
@@ -92,7 +97,7 @@ type Input struct {
 // ledger line).
 type Divergence struct {
 	Class  Class
-	Verb   string // symlink | mkdir | writefile | seed | seed-once | merge | touch
+	Verb   string // the manifest verb, as classifyAction below labels it
 	Path   string // repo-relative target
 	Detail string
 }
@@ -220,27 +225,25 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 		// the fleet state seed-once exists to converge (#239 M1 BR-1).
 		dstO := obs[filepath.Join(root, act.Dst)]
 		srcO := obs[act.Src]
-		// Reconstruct the mode bit the seam sees, so the SAME predicate decides
-		// both. Observed carries IsSymlink rather than a FileMode; this is the
-		// one place that gap is bridged, and it is bridged here rather than
-		// re-deriving the rule, so widening the predicate updates both callers.
-		var dstMode os.FileMode
-		if dstO.IsSymlink {
-			dstMode |= os.ModeSymlink
-		}
-		switch {
-		case !srcO.Exists:
+		if !srcO.Exists {
 			return Divergence{Match, "seed-once", act.Dst,
 				"upstream template absent — weave would skip (non-fatal), nothing to diverge"}
-		case dstO.Exists && !plan.SeedOnceSlotIsRepoOwned(dstMode):
-			return Divergence{Unexpected, "seed-once", act.Dst,
-				"target is still weave's prior symlink — weave would materialize the template (#225 convergence)"}
-		case dstO.Exists:
+		}
+		// Read the classified fact; never rebuild it. Exhaustive over SlotState,
+		// so a new state cannot silently fall into a wrong branch.
+		switch dstO.Slot {
+		case plan.SlotRepoOwned:
 			return Divergence{Match, "seed-once", act.Dst,
 				"target present — repo-owned, weave would not touch it (write-once)"}
-		default:
+		case plan.SlotWeaveSymlink:
+			return Divergence{Unexpected, "seed-once", act.Dst,
+				"target is still weave's prior symlink — weave would materialize the template (#225 convergence)"}
+		case plan.SlotAbsent:
 			return Divergence{Unexpected, "seed-once", act.Dst,
 				"weave would seed the template once, but the target is absent in live"}
+		default:
+			return Divergence{Unexpected, "seed-once", act.Dst,
+				"target slot could not be classified — weave would refuse rather than write"}
 		}
 
 	case plan.WriteFile:

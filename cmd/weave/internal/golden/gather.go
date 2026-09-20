@@ -17,8 +17,8 @@ import (
 // (golden.go) does the reasoning; this seam only looks.
 
 // DeferredIntents collects, across all walked layers, the verbs weave does NOT
-// lower to a filesystem Action yet (as of #95 M5 NONE — merge lowers to a
-// MergeSettings, seed to a Seed; the `tool` verb is RETIRED, not deferred), so
+// lower to a filesystem Action yet (as of #95 M5 NONE; the `tool` verb is
+// RETIRED, not deferred — see intent.kindByVerb for the live set), so
 // the classifier can ledger each as EXPECTED rather than silently dropping it.
 // De-duplicated by target: a verb declared in multiple layers (or repeated on a
 // self-walk) ledgers once. Order-stable (first occurrence wins) so the ledger
@@ -152,9 +152,11 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 func observePath(fs weavefs.FS, abs string, readContent bool) Observed {
 	fi, err := fs.Lstat(abs)
 	if err != nil {
-		return Observed{Exists: false}
+		return Observed{Exists: false, Slot: plan.ClassifySlot(fi, err)}
 	}
-	o := Observed{Exists: true}
+	// Classify the raw observation HERE, where it is raw. Callers read
+	// Observed.Slot rather than re-deriving it from Exists/IsSymlink.
+	o := Observed{Exists: true, Slot: plan.ClassifySlot(fi, err)}
 	switch {
 	case fi.Mode()&os.ModeSymlink != 0:
 		o.IsSymlink = true

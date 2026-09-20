@@ -21,10 +21,12 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
 ## Key decisions
 - **Layer edges from `construct/deps` only** — resolved repo-root-relative for
   any path (directory-agnostic; `go.mod` is *not* a layer-discovery channel).
-- **Hybrid intent vocabulary** — ported file-op verbs (`symlink`/`seed`/
-  `seed-once`/`scaffold`/`touch`/`merge`; `seed` vs `seed-once` is the ownership
-  split — upstream keeps owning a `seed`, the repo owns a `seed-once` after the
-  first write, #239) + new semantic `prose` (composes `AGENTS.md`,
+- **Hybrid intent vocabulary** — ported file-op verbs plus the semantic ones
+  weave adds. The live set is `intent.kindByVerb`
+  (`cmd/weave/internal/intent/manifest.go`) — check there, not here. The one
+  distinction worth stating: `seed` vs `seed-once` is an OWNERSHIP split —
+  upstream keeps owning a `seed`, the repo owns a `seed-once` after the first
+  write (#239) + new semantic `prose` (composes `AGENTS.md`,
   replacing the buggy `@AGENTS.local.md` @-import) and `skill` (served via
   `weave skill`). The `tool` verb was **retired** in #95 M5 — Go-tool ownership
   is location-based (`construct/dev-aliases.sh` + build-in-owner), so weave never

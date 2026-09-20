@@ -9,13 +9,15 @@ package plan
 // op structs below. It is a closed interface (the isAction marker keeps the
 // set in this package), so a type switch in the IO seam handles every case.
 //
-// The set covers the file-ops this unit lowers (Symlink, WriteFile, Mkdir,
-// Touch, Seed, SeedOnce) and MergeSettings (M4: intent.Merge lowers to a MergeSettings,
-// applied by reading base + optional local and running the pure settingsx.Merge
-// — merge-settings.sh's port). (Skill has no Action — it feeds the M3
-// SkillIndex, not a file-op slot.) The retired `tool` verb (#95 M5) lowers to
-// no Action: Go-tool ownership is location-based (construct/dev-aliases.sh) and
-// deps come from `weave link`, so weave never edits go.mod.
+// The concrete op structs declared in THIS FILE are the set — do not restate it
+// in prose anywhere, here or elsewhere: a hand-written list derives from nothing
+// and goes stale on every new verb (which is defect 3 of ariadne#239, one level
+// down). Read the `isAction()` markers at the bottom of the file for the roster.
+//
+// Not every manifest verb has an Action: `skill` feeds the SkillIndex, not a
+// file-op slot, and the retired `tool` verb (#95 M5) lowers to nothing at all —
+// Go-tool ownership is location-based (construct/dev-aliases.sh) and deps come
+// from `weave link`, so weave never edits go.mod.
 type Action interface{ isAction() }
 
 // Symlink creates a symlink at Dst pointing to Src. Lowered from an

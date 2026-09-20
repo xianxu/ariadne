@@ -54,13 +54,10 @@ type Uncovered struct {
 // plan does NOT cover. Empty result ⇒ weave covers everything setup.sh would
 // produce (no under-production). Pure: it reads only (layers, actions).
 //
-// Coverage per verb (how a manifest row is "covered" by an Action):
-//   - symlink → a plan.Symlink with the SAME Dst (target).
-//   - seed    → a plan.Seed with the same Dst.
-//   - seed-once → a plan.SeedOnce with the same Dst (#239).
-//   - scaffold→ a plan.Mkdir with the same Path.
-//   - touch   → a plan.Touch with the same Path.
-//   - merge   → a plan.MergeSettings with the same Target.
+// Coverage per verb — coverIntent's switch below is the source; it is not
+// restated here, because a prose copy of the verb set derives from nothing and
+// goes stale on every new verb (ariadne#239). Two cases are non-obvious enough
+// to call out, since they are not a same-path match:
 //   - prose   → composed into SOME per-harness entry file (a plan.WriteFile for
 //     CLAUDE.md/AGENTS.md/GEMINI.md — idx.entryFile).
 //   - skill   → the per-harness skill-DIR symlinks (Option B, #107): ≥1

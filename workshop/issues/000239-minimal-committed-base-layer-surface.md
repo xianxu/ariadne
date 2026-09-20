@@ -573,6 +573,62 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — M1 boundary review round 3: the class fixes
+
+Round 3 said *"Not converging: fix rules, not instances"* for the third time on
+the same family, and it was right: I had been **extending** the verb lists
+instead of **replacing** them with a pointer to their source — and one of my
+round-2 edits (`golden.go:95`) introduced a *fresh* error while fixing the old
+one, swapping `tool` for `touch` while the live emitted set is eight verbs.
+
+**BR-10 — the rule, finally applied: prose names the source, it does not restate
+the set.** Nine restatements deleted and replaced by pointers to
+`intent.kindByVerb` / the `Action` sum type (`walk.go`, `action.go`, `intent.go`,
+`main.go`, `prune.go`, `completeness.go`, `golden.go`, `gather.go`,
+`atlas/workflow/weave.md`, `base-layer-mechanics.md`).
+
+**And made enforceable**, because three recurrences is evidence that discipline
+alone does not hold: `scripts/merge-checks.d/45-verb-enumeration.sh` fails any
+comment naming ≥4 distinct verbs without naming a source. It reads the
+vocabulary *from* `kindByVerb` so the check cannot become the fifteenth
+restatement. Falsified both ways — reintroducing one restatement in `prune.go`
+turns it red, removing it turns it green — and tuned twice before keeping: the
+first version matched substrings (flagging "symlinks" as the verb `symlink`) and
+the second spawned a subprocess per verb per line and took minutes. A merge
+check that is noisy or slow gets routed around, so it is one `awk` pass (0.33s)
+at a threshold high enough to catch enumeration but not ordinary prose.
+
+**BR-12 — a partial encoding replaced by a total one.** `SeedOnceSlotIsRepoOwned
+(os.FileMode) bool` could only express repo-owned-vs-symlink: handed a zero
+FileMode for an ABSENT slot it answered "repo-owned" — the opposite of the truth
+— so every caller reconstructed the missing cases itself, three different ways in
+one milestone. Now `plan.SlotState` (`Absent | RepoOwned | WeaveSymlink |
+Unknown`) with one total `ClassifySlot(os.FileInfo, error)`.
+
+Consequences worth noting:
+- `applySeedOnce` now **refuses** on `SlotUnknown` instead of falling through
+  toward a write. Previously an uninterpretable `Lstat` error mapped to "not
+  repo-owned" and proceeded, safe only because `removeDestinationSymlink`
+  re-Lstats and fails closed — the guarantee was held by a second check, not by
+  the guard that reads as authoritative.
+- `Observed` now carries the classified `Slot`, computed by the gatherer from the
+  raw `Lstat`. The harness no longer rebuilds a `FileMode` from `IsSymlink`,
+  which closes **BR-11** with the same change.
+- The zero value is deliberately `SlotUnknown`, not `SlotAbsent`: an `Observed`
+  that forgot to classify must refuse, not invite a write. Test-asserted.
+
+**BR-14 — `seed-once` had no fault coverage.** `TestMaterializationFailures`
+enumerated `{seed, writefile}` and was never enrolled with the new verb, leaving
+its destructive path (remove-symlink → write → chmod) untested in exactly the
+scenario that matters: the fixture's destination *is* a symlink to an "ancestor"
+victim, which is nous/metis's live `Makefile -> ../ariadne/Makefile`. A slip on
+any step writes through it into ariadne's own root Makefile. Now enrolled across
+all four fault operations; the `lstat` case exercises the new fail-closed branch.
+
+**M3 (Minor)** — the round-2 log entry labelled the `weave golden` note BR-11;
+BR-11 is the `Observed`→`FileMode` bridge. Relabelled BR-13.
+
+
 ### 2026-09-19 — M1 boundary review round 2: 3 findings, all fixed
 
 The gate said *"Not converging: fix rules, not instances"* — 3 repeat families.
@@ -617,7 +673,7 @@ Fixed at the **source** (`Makefile.workflow`'s header, which is what everyone
 cites) plus the three sites quoting it, and the conformance fixture now models
 the recipe we advertise instead of a broken one.
 
-**BR-11 (Minor, logged) — `weave golden` gates nothing.** The drift harness whose
+**BR-13 (Minor, logged) — `weave golden` gates nothing.** The drift harness whose
 correctness BR-1 restored is hand-run only: no `weave golden` or `verify-complete`
 invocation exists in `scripts/`, `.github/` or `Makefile.workflow`
 (`30-weave-drift.sh` is a dynamic-skill determinism check, unrelated). So BR-1's

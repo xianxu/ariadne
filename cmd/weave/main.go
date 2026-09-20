@@ -648,8 +648,8 @@ func layerPaths(layers []layer.Layer) []string {
 // emits only T's. There is NO `## Skills` menu — each harness discovers its own
 // skill dir natively.
 //
-// Every other file-op (settings merge, scaffold, touch, generic symlink, seed,
-// seed-once) is
+// Every other file-op (everything in intent.kindByVerb that is not prose or
+// skill) is
 // target-independent. Shared by the compile path (run), the golden harness
 // (runGolden), and verify-complete (runVerifyComplete) so all see the IDENTICAL
 // action set for a given target (ARCH-DRY).

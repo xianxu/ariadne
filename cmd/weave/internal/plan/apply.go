@@ -257,22 +257,67 @@ func syncExecBit(fs weavefs.FS, src, dst, verb string) error {
 	return nil
 }
 
-// SeedOnceSlotIsRepoOwned answers the ONE question seed-once turns on: given
-// what occupies the target slot, does the REPO own it (weave must not touch it)
-// or is it weave's own prior lowering (weave materializes the template)?
+// SlotState is what occupies a seed-once destination — a TOTAL classification
+// of the destination fact, not a predicate over part of it.
 //
-//	regular file, directory → repo-owned  → true
-//	symlink (live OR dangling) → weave's prior `symlink Makefile` → false
+// It exists because the boolean it replaced (`SeedOnceSlotIsRepoOwned(mode)
+// bool`) could only express repo-owned-vs-symlink: handed a zero FileMode for an
+// ABSENT slot it answered "repo-owned", the exact opposite of the truth, and
+// every caller had to reconstruct the missing cases for itself. Three callers
+// re-encoded it three different ways in one milestone (#239 M1 BR-12). A sum
+// type that the classifier alone produces makes a partial reconstruction
+// unrepresentable (ARCH-ORDER, ARCH-DRY).
+type SlotState int
+
+const (
+	// SlotUnknown — the destination could not be classified (an Lstat error
+	// that is not "not exist"). Callers must FAIL CLOSED: never write.
+	SlotUnknown SlotState = iota
+	// SlotAbsent — nothing occupies the slot; seed-once writes the template.
+	SlotAbsent
+	// SlotRepoOwned — a regular file or directory. The REPO owns it: seed-once
+	// no-ops forever, whatever it contains.
+	SlotRepoOwned
+	// SlotWeaveSymlink — a symlink, live or dangling. This is weave's OWN prior
+	// `symlink Makefile` lowering, not repo content, so seed-once removes it and
+	// materializes the template (the #225 convergence).
+	SlotWeaveSymlink
+)
+
+func (s SlotState) String() string {
+	switch s {
+	case SlotAbsent:
+		return "absent"
+	case SlotRepoOwned:
+		return "repo-owned"
+	case SlotWeaveSymlink:
+		return "weave-symlink"
+	default:
+		return "unknown"
+	}
+}
+
+// ClassifySlot is the SINGLE source of truth for "what is in this seed-once
+// destination". It takes the raw observation — exactly what Lstat returns — so
+// no caller can hand it a partial one.
 //
-// Exported because TWO callers must agree: applySeedOnce (which decides what to
-// DO) and golden.classifyAction (which predicts what weave WOULD do). They were
-// written separately at first and immediately disagreed — the classifier called
-// a symlinked slot "present" and reported MATCH on exactly the fleet state this
-// verb exists to converge (nous and metis both carry Makefile -> ../ariadne/
-// Makefile today). A drift harness that predicts the opposite of the seam is
-// worse than no harness. One predicate, one source of truth (ARCH-DRY).
-func SeedOnceSlotIsRepoOwned(mode os.FileMode) bool {
-	return mode&os.ModeSymlink == 0
+// Exported because two callers must agree and previously did not: applySeedOnce
+// (which decides what to DO) and golden.classifyAction (which predicts what
+// weave WOULD do). The classifier once called a symlinked slot "present" and
+// reported MATCH on exactly the fleet state this verb converges — nous and metis
+// both carry Makefile -> ../ariadne/Makefile today. A drift harness that predicts
+// the opposite of the seam is worse than no harness (#239 M1 BR-1).
+func ClassifySlot(fi os.FileInfo, err error) SlotState {
+	switch {
+	case os.IsNotExist(err):
+		return SlotAbsent
+	case err != nil:
+		return SlotUnknown // fail closed: an unreadable slot is never written
+	case fi.Mode()&os.ModeSymlink != 0:
+		return SlotWeaveSymlink
+	default:
+		return SlotRepoOwned
+	}
 }
 
 // applySeedOnce is the WRITE-ONCE half of the seed pair (#239). Where applySeed
@@ -299,8 +344,16 @@ func SeedOnceSlotIsRepoOwned(mode os.FileMode) bool {
 // NOTE the ordering: the presence check runs BEFORE the src read, so a
 // repo-owned file is never even compared against upstream.
 func applySeedOnce(fs weavefs.FS, src, dst string) error {
-	if fi, err := fs.Lstat(dst); err == nil && SeedOnceSlotIsRepoOwned(fi.Mode()) {
-		return nil // repo-owned — sacrosanct, never read src
+	switch state := ClassifySlot(fs.Lstat(dst)); state {
+	case SlotRepoOwned:
+		return nil // sacrosanct — the repo owns it; src is never even read
+	case SlotUnknown:
+		// An Lstat error we cannot interpret. Refuse rather than proceed toward
+		// a write: the destination may be a symlink into the ANCESTOR, and a
+		// wrong guess overwrites ariadne's own Makefile through it.
+		return fmt.Errorf("apply seed-once: cannot classify %s", dst)
+	case SlotAbsent, SlotWeaveSymlink:
+		// Fall through to the write.
 	}
 	data, err := fs.ReadFile(src)
 	if err != nil {

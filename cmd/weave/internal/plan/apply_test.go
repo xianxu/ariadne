@@ -674,7 +674,12 @@ func (f materializationFaultFS) Chmod(p string, m os.FileMode) error {
 	return f.OSFS.Chmod(p, m)
 }
 func TestMaterializationFailures(t *testing.T) {
-	for _, kind := range []string{"seed", "writefile"} {
+	// seed-once shares applySeed's destructive path (remove-symlink → write →
+	// chmod) and must carry the same fault coverage: the dst here is a SYMLINK
+	// to the "ancestor" victim, which is exactly nous/metis's live
+	// Makefile -> ../ariadne/Makefile. A slip on any step writes through that
+	// link into ariadne's own root Makefile (#239 M1 BR-14).
+	for _, kind := range []string{"seed", "seed-once", "writefile"} {
 		for _, operation := range []string{"lstat", "remove", "write", "chmod"} {
 			if kind == "writefile" && operation == "chmod" {
 				continue
@@ -696,10 +701,14 @@ func TestMaterializationFailures(t *testing.T) {
 					t.Fatal(err)
 				}
 				invoke := func(fs weavefs.FS) error {
-					if kind == "seed" {
+					switch kind {
+					case "seed":
 						return applySeed(fs, src, dst)
+					case "seed-once":
+						return applySeedOnce(fs, src, dst)
+					default:
+						return applyWriteFile(fs, dst, "same")
 					}
-					return applyWriteFile(fs, dst, "same")
 				}
 				if err := invoke(materializationFaultFS{operation: operation, destination: dst}); err == nil {
 					t.Fatal("materialization failure hidden")
@@ -811,5 +820,50 @@ func TestApplySeedOnceMaterializesDanglingSymlink(t *testing.T) {
 	}
 	if got := mustRead(t, filepath.Join(root, "Makefile")); got != "UPSTREAM\n" {
 		t.Fatalf("got %q, want the upstream template", got)
+	}
+}
+
+// ClassifySlot is TOTAL over the raw Lstat observation — that is the point of
+// replacing the boolean it supersedes, which answered "repo-owned" for an ABSENT
+// slot when handed a zero FileMode (#239 M1 BR-12).
+func TestClassifySlotIsTotal(t *testing.T) {
+	root := t.TempDir()
+	reg := filepath.Join(root, "regular")
+	mustWrite(t, reg, "x")
+	dir := filepath.Join(root, "dir")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	link := filepath.Join(root, "link")
+	if err := os.Symlink(reg, link); err != nil {
+		t.Fatal(err)
+	}
+	dangling := filepath.Join(root, "dangling")
+	if err := os.Symlink(filepath.Join(root, "gone"), dangling); err != nil {
+		t.Fatal(err)
+	}
+
+	for name, tc := range map[string]struct {
+		path string
+		want SlotState
+	}{
+		"regular file":     {reg, SlotRepoOwned},
+		"directory":        {dir, SlotRepoOwned},
+		"live symlink":     {link, SlotWeaveSymlink},
+		"dangling symlink": {dangling, SlotWeaveSymlink},
+		"absent":           {filepath.Join(root, "nothing"), SlotAbsent},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if got := ClassifySlot(os.Lstat(tc.path)); got != tc.want {
+				t.Fatalf("got %v, want %v", got, tc.want)
+			}
+		})
+	}
+
+	// The zero value must be the FAIL-CLOSED state: a SlotState nobody set must
+	// never read as "absent" (which invites a write) or "repo-owned".
+	var zero SlotState
+	if zero != SlotUnknown {
+		t.Fatalf("zero SlotState = %v, want SlotUnknown (fail closed)", zero)
 	}
 }

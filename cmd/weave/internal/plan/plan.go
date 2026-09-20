@@ -22,13 +22,14 @@ import (
 //     GEMINI.md for the Union; one for a lean --target). There is NO `## Skills`
 //     menu — every harness discovers its skill DIR natively (skills are lowered
 //     separately as <dir>/<name> symlinks). Empty prose ⇒ no entry-file Action.
-//   - Symlink/Scaffold/Touch/Seed/SeedOnce lower near-identity per intent (the
-//     dominant file-op case): Symlink → Symlink{upstream/Source, Target};
-//     Scaffold → Mkdir{Target}; Touch → empty WriteFile{Target}; Seed →
-//     Seed{upstream/Source, Target} (a content-tracking real-file copy whose
-//     bytes the IO seam reads from the upstream source — see plan.applySeed);
-//     SeedOnce → SeedOnce{...}, the same path facts with a write-ONCE seam
-//     (the repo owns the slot after the first write — see plan.applySeedOnce).
+//   - The file-op kinds lower near-identity per intent (the dominant case) —
+//     the switch below is the source for which, and for what each becomes; it
+//     is not restated here, because a prose copy of the verb set derives from
+//     nothing and goes stale on every new verb (ariadne#239). The planner
+//     records only path FACTS for all of them (ARCH-PURE); the bytes are the IO
+//     seam's business. The one pair worth naming is the OWNERSHIP split: Seed
+//     content-tracks upstream every compile (plan.applySeed), SeedOnce writes
+//     the slot at most once and hands it to the repo (plan.applySeedOnce).
 //   - Merge rows group by Target into MergeSettings{Sources, Target} — the
 //     settings cascade. Sources stay foundation-first, matching layer order.
 //     Apply reads Sources + the sibling settings.local.json off disk and runs

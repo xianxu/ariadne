@@ -4,9 +4,10 @@
 // the manifest file is read at the boundary and its content passed in.
 //
 // The Kind set is a hybrid (see workshop/plans/000095-weave-plan.md Core
-// concepts): the file-op verbs ported from setup.sh's walk_manifest
-// (Symlink|Seed|SeedOnce|Scaffold|Touch|Merge — the dominant case in the live
-// base.manifest) plus the new semantic verbs Prose|Skill that weave adds.
+// concepts): the file-op verbs ported from setup.sh's walk_manifest — the
+// dominant case in the live base.manifest — plus the semantic verbs weave adds.
+// `kindByVerb` in manifest.go is the SOURCE of that set; read it there rather
+// than trusting a list in prose (ariadne#239).
 //
 // The retired `tool` verb (#95 M5) is deliberately absent: Go-tool ownership is
 // resolved by LOCATION (construct/dev-aliases.sh scans sibling cmd/X dirs;

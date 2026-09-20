@@ -54,9 +54,8 @@ type PruneCandidate struct {
 // ProducedPathSet returns the repo-relative target path of EVERY action weave
 // produced this run — the full "weave owns this slot this run" set the orphan
 // exclusion (criterion 4) tests against. Broader than ProducedSymlinkSet (which
-// is Symlink-only, for the managed-location derivation): a path weave writes as
-// a REGULAR file (WriteFile AGENTS.md), seeds (either verb), touches, scaffolds,
-// or merges is
+// is Symlink-only, for the managed-location derivation): a path produced by ANY
+// action kind — see the switch below, which is the source — is
 // not an orphan and must never be pruned — even while it still occupies the slot
 // as the pre-cutover symlink at dry-run-preview time (before Apply rewrites it).
 // Without this, `weave compile --dry-run` on an un-woven derivative falsely

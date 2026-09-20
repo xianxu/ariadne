@@ -209,6 +209,70 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-19T22:04:11-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: Resolver form now at Makefile.workflow:1-9 with base.manifest pointing at it rather than restating; the identical snippet is executed pre-weave at portable-makefile.test.sh:15 and :61.
+          round: 3
+        - id: BR-9
+          disposition: addressed
+          note: settings.ariadne.json is absent from the range; with the committed version restored, weave golden . reports MATCH 55 EXPECTED 1 UNEXPECTED 0.
+          round: 3
+        - id: BR-10
+          disposition: not-addressed
+          note: Six sites updated but the RULE was not applied — lists were extended, not replaced by a pointer to intent.kindByVerb; golden.go:95 was edited this round and is still wrong (omits the live gitignore verb).
+          round: 3
+        - id: BR-11
+          disposition: not-addressed
+          note: golden.go:222-230 still reconstructs a partial dstMode from IsSymlink; Observed gained no Mode field. Nothing in the round-3 commit touches it.
+          round: 3
+        - id: BR-12
+          disposition: not-addressed
+          note: gather.go:100-102 still claims classifyAction compares source bytes for SeedOnce (it reads only Exists/IsSymlink), and the plan's Core concepts table still omits plan.SeedOnceSlotIsRepoOwned.
+          round: 3
+        - id: BR-13
+          disposition: addressed
+          note: Logged in the issue's Revisions with M3's 50-base-layer-tests.sh named as the registration point; confirmed no golden/verify-complete invocation exists in scripts/, .github/ or Makefile.workflow. Logged under the wrong id (BR-11).
+          round: 3
+      findings:
+        - id: BR-14
+          severity: Important
+          title: seed-once was never enrolled in TestMaterializationFailures, so the new verb's destructive path has no fault coverage
+          detail: |-
+            cmd/weave/internal/plan/apply_test.go:673 iterates kinds {"seed", "writefile"}. applySeedOnce runs the same
+            remove-symlink then write then chmod sequence, and the invariant the table asserts — the symlink's ancestor is
+            unchanged under any partial failure — is exactly what protects ariadne's own Makefile from the 11 fleet repos
+            whose slot still links into it. Adding "seed-once" to the kind list plus one branch in invoke passes today for
+            all four operations; I verified this in a scratch copy, so it is a coverage add with no code change. The rule
+            is that a new Action kind must be enrolled in every existing cross-kind test matrix, not only given its own
+            happy-path tests. Same shape of gap at cmd/weave/main_test.go:357, where TestFormatActions omits the seed-once
+            dry-run row the plan itself flagged as easily missed.
+          family: new-kind-skips-shared-test-matrix
+          round: 3
+        - id: BR-15
+          severity: Minor
+          title: SeedOnceSlotIsRepoOwned models 2 of the slot's 4 states, so each caller re-encodes the other two differently
+          detail: |-
+            This is the 4th finding in family presence-predicate-written-twice. Earlier rounds fixed instances; do NOT fix
+            this instance. State the rule: the destination slot is a 4-valued fact (absent, repo-owned, weave symlink,
+            unknown) and the shared classifier must take the raw observation and return a tagged value, so no caller can
+            reconstruct a partial one. Measured prevalence of the re-encoding, all in this round's diff: (1)
+            apply.go:274 SeedOnceSlotIsRepoOwned(os.FileMode) bool expresses only repo-owned vs symlink — passed a zero
+            FileMode it answers "repo-owned" for an ABSENT slot, the opposite of the truth; (2) apply.go:315 maps a
+            non-NotExist Lstat error to "not repo-owned" and proceeds toward the write, safe today only because
+            removeDestinationSymlink re-Lstats and fails closed at apply.go:357-364 — the guarantee is held by a second
+            check, not by the guard that reads as authoritative; (3) golden.go:222-230 reconstructs os.ModeSymlink from
+            Observed.IsSymlink, which is BR-11. One classifier over (os.FileInfo, error) returning Absent | RepoOwned |
+            WeaveSymlink | Unknown, with Observed carrying the raw mode, collapses all three and closes BR-11 with it
+            (ARCH-ORDER, ARCH-DRY).
+          family: presence-predicate-written-twice
+          round: 3
+      boundary: M1
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -334,11 +398,46 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   in the issue Log so its coverage is not overestimated; M3's planned
   scripts/merge-checks.d/50-base-layer-tests.sh is the natural registration point.
 
+## Round 3 — 2026-09-19T22:04:11-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-8 — addressed — Resolver form now at Makefile.workflow:1-9 with base.manifest pointing at it rather than restating; the identical snippet is executed pre-weave at portable-makefile.test.sh:15 and :61.
+- BR-9 — addressed — settings.ariadne.json is absent from the range; with the committed version restored, weave golden . reports MATCH 55 EXPECTED 1 UNEXPECTED 0.
+- BR-10 — not-addressed — Six sites updated but the RULE was not applied — lists were extended, not replaced by a pointer to intent.kindByVerb; golden.go:95 was edited this round and is still wrong (omits the live gitignore verb).
+- BR-11 — not-addressed — golden.go:222-230 still reconstructs a partial dstMode from IsSymlink; Observed gained no Mode field. Nothing in the round-3 commit touches it.
+- BR-12 — not-addressed — gather.go:100-102 still claims classifyAction compares source bytes for SeedOnce (it reads only Exists/IsSymlink), and the plan's Core concepts table still omits plan.SeedOnceSlotIsRepoOwned.
+- BR-13 — addressed — Logged in the issue's Revisions with M3's 50-base-layer-tests.sh named as the registration point; confirmed no golden/verify-complete invocation exists in scripts/, .github/ or Makefile.workflow. Logged under the wrong id (BR-11).
+
+### Raised
+
+- **BR-14** [Important] `new-kind-skips-shared-test-matrix` seed-once was never enrolled in TestMaterializationFailures, so the new verb's destructive path has no fault coverage
+  cmd/weave/internal/plan/apply_test.go:673 iterates kinds {"seed", "writefile"}. applySeedOnce runs the same
+  remove-symlink then write then chmod sequence, and the invariant the table asserts — the symlink's ancestor is
+  unchanged under any partial failure — is exactly what protects ariadne's own Makefile from the 11 fleet repos
+  whose slot still links into it. Adding "seed-once" to the kind list plus one branch in invoke passes today for
+  all four operations; I verified this in a scratch copy, so it is a coverage add with no code change. The rule
+  is that a new Action kind must be enrolled in every existing cross-kind test matrix, not only given its own
+  happy-path tests. Same shape of gap at cmd/weave/main_test.go:357, where TestFormatActions omits the seed-once
+  dry-run row the plan itself flagged as easily missed.
+- **BR-15** [Minor] `presence-predicate-written-twice` SeedOnceSlotIsRepoOwned models 2 of the slot's 4 states, so each caller re-encodes the other two differently
+  This is the 4th finding in family presence-predicate-written-twice. Earlier rounds fixed instances; do NOT fix
+  this instance. State the rule: the destination slot is a 4-valued fact (absent, repo-owned, weave symlink,
+  unknown) and the shared classifier must take the raw observation and return a tagged value, so no caller can
+  reconstruct a partial one. Measured prevalence of the re-encoding, all in this round's diff: (1)
+  apply.go:274 SeedOnceSlotIsRepoOwned(os.FileMode) bool expresses only repo-owned vs symlink — passed a zero
+  FileMode it answers "repo-owned" for an ABSENT slot, the opposite of the truth; (2) apply.go:315 maps a
+  non-NotExist Lstat error to "not repo-owned" and proceeds toward the write, safe today only because
+  removeDestinationSymlink re-Lstats and fails closed at apply.go:357-364 — the guarantee is held by a second
+  check, not by the guard that reads as authoritative; (3) golden.go:222-230 reconstructs os.ModeSymlink from
+  Observed.IsSymlink, which is BR-11. One classifier over (os.FileInfo, error) returning Absent | RepoOwned |
+  WeaveSymlink | Unknown, with Observed carrying the raw mode, collapses all three and closes BR-11 with it
+  (ARCH-ORDER, ARCH-DRY).
+
 ## Open findings
 
-- **BR-8** [Important] `doc-recipe-never-executed` The advertised one-line adoption `include Makefile.workflow` hard-fails make in an adopting repo until the first weave, and there is no make weave to run
-- **BR-9** [Important] `out-of-scope-change-rides-along` api.anthropic.com added to the fleet-propagated sandbox egress allowlist inside the boundary-review fix commit, mentioned nowhere
 - **BR-10** [Important] `stale-verb-enumeration` Six in-code enumerations of the verb/action set were not updated for seed-once, including the doc comment directly above the isFileShape line this diff edited
 - **BR-11** [Minor] `presence-predicate-written-twice` The Observed-to-FileMode bridge in classifyAction carries only ModeSymlink and silently drops IsDir, re-opening the BR-1 divergence for any future widening
 - **BR-12** [Minor] `hand-maintained-restatement-of-model` gather.go's SeedOnce comment asserts a content comparison classifyAction deliberately does not do, and the plan's Core concepts table omits the new exported predicate
-- **BR-13** [Minor] `verification-cannot-fail` weave golden runs in no CI seam, so the drift harness BR-1 repaired is hand-run only
+- **BR-14** [Important] `new-kind-skips-shared-test-matrix` seed-once was never enrolled in TestMaterializationFailures, so the new verb's destructive path has no fault coverage
+- **BR-15** [Minor] `presence-predicate-written-twice` SeedOnceSlotIsRepoOwned models 2 of the slot's 4 states, so each caller re-encodes the other two differently

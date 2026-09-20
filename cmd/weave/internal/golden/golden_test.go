@@ -424,14 +424,20 @@ func TestHasUnexpected(t *testing.T) {
 // Makefile -> ../ariadne/Makefile). A harness predicting the opposite of the
 // seam is worse than none (#239 M1 BR-1).
 func TestClassifySeedOnceSymlinkSlotIsNotPresence(t *testing.T) {
+	// Slot is the CLASSIFIED fact the gatherer computes via plan.ClassifySlot;
+	// the classifier reads it rather than re-deriving it from Exists/IsSymlink
+	// (BR-11/BR-12). Note the zero value is plan.SlotUnknown, not SlotAbsent —
+	// deliberately fail-closed, so an Observed that forgot to classify refuses
+	// rather than inviting a write.
 	cases := map[string]struct {
 		dst  Observed
 		want Class
 	}{
-		"live symlink — weave would materialize":     {Observed{Exists: true, IsSymlink: true, LinkTarget: "../ariadne/Makefile"}, Unexpected},
-		"dangling symlink — weave would materialize": {Observed{Exists: true, IsSymlink: true, LinkTarget: "../gone/Makefile"}, Unexpected},
-		"regular file — repo-owned, weave no-ops":    {Observed{Exists: true, IsSymlink: false, Content: "MY OWN"}, Match},
-		"absent — weave would seed once":             {Observed{Exists: false}, Unexpected},
+		"live symlink — weave would materialize":     {Observed{Exists: true, IsSymlink: true, LinkTarget: "../ariadne/Makefile", Slot: plan.SlotWeaveSymlink}, Unexpected},
+		"dangling symlink — weave would materialize": {Observed{Exists: true, IsSymlink: true, LinkTarget: "../gone/Makefile", Slot: plan.SlotWeaveSymlink}, Unexpected},
+		"regular file — repo-owned, weave no-ops":    {Observed{Exists: true, Content: "MY OWN", Slot: plan.SlotRepoOwned}, Match},
+		"absent — weave would seed once":             {Observed{Exists: false, Slot: plan.SlotAbsent}, Unexpected},
+		"unclassifiable — weave refuses":             {Observed{Exists: true, Slot: plan.SlotUnknown}, Unexpected},
 	}
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
