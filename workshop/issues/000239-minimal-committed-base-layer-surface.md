@@ -360,6 +360,15 @@ Linux passes ownership/weave plus focused propagation tests. Actual nous and
 parley.nvim working trees remain clean. Scratch pilot inputs and limitations are
 recorded in atlas/workflow/setup-and-replication.md#consumer-cutover.
 
+### 2026-09-20 — M3 review corrections in progress
+
+M3 round 1 returned REWORK: BR-13 release interruption recovery and BR-14 Git
+index failure coverage. Release preparation is moving behind the existing Go
+staging/producer boundary rather than duplicating cleanup rules in Python.
+Faulting-Git tests now exercise real index effects before/after errors and
+confirm retained progress, safe retry, and the dirty-public-retry guard; error
+messages will explicitly direct inspection and resolution without automatic reset.
+
 ## Revisions`.
 
 Two corrections landed while widening:
