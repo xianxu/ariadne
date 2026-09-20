@@ -558,3 +558,156 @@ findings:
       WeaveSymlink | Unknown, with Observed carrying the raw mode, collapses all three and closes BR-11 with it
       (ARCH-ORDER, ARCH-DRY).
 ```
+
+---
+
+## Re-review — 2026-09-19T22:23:50-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 7ffe2cc97ada126ba8b8cf355e27b3b0f9c56af6..4b473ffd63c45e18c6917e319eac1e228934b087 |
+| command | sdlc milestone-close --issue 239 --milestone M1 |
+| reviewer | claude |
+| timestamp | 2026-09-19T22:23:50-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+M1 delivers the `seed-once` verb end-to-end and the code is in good shape: the verb parses, lowers, applies, prunes, is covered by the completeness harness and the drift classifier, and the ownership guarantee is pinned by a real-`weave` conformance test I ran to green (`portable-makefile.test.sh` — the adopter's Makefile survives two compiles plus a later edit). `go build ./...` and `go test ./cmd/weave/...` are green; the one `go test ./...` failure (`TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`) is pre-existing — the plan it reads was archived by `dfeba9c`, an ancestor of the base. The round-3 class fixes are real, not cosmetic: I verified in a scratch copy that `45-verb-enumeration.sh` **exits 1 with 4 violations** against the pre-fix tree, and that `Observed.Slot` + `ClassifySlot` genuinely retire the partial-mode reconstruction. What keeps this off SHIP is that two prior findings were half-swept — the class each named was fixed at the sites the finding listed but not at the enumerable siblings — and `construct/base.manifest`'s own verb header, the surface a manifest author actually reads, is a third instance of the enumeration family that the new merge check structurally cannot see.
+
+## 1. Strengths
+
+- **`plan.SlotState` / `ClassifySlot` (`cmd/weave/internal/plan/apply.go:252-300`) is the right shape for BR-15.** Taking the raw `(os.FileInfo, error)` means no caller *can* hand it a partial observation, the zero value is the fail-closed `SlotUnknown`, and `golden.Observed` now carries the classified fact instead of rebuilding it. `TestClassifySeedOnceSymlinkSlotIsNotPresence`'s `"unclassifiable — weave refuses"` row is genuinely discriminating — revert `classifyAction` to reading `IsSymlink` and that row goes red.
+- **The blast-radius test is the right one.** `TestApplySeedOnceMaterializesSymlinkWithoutFollowingIt` (`apply_test.go:764`) asserts the *ancestor's* bytes are unchanged, which is exactly ariadne's own root `Makefile` behind the 11 fleet symlinks I confirmed live (`42shots`, `astro`, `brain*`, `kaggle`, `kbench`, `metis`, `nous`, `robotics`, `you-decide`). BR-14's `TestMaterializationFailures` enrolment extends that to all four fault points.
+- **The `Makefile.workflow` default flip is safe, and I checked rather than assumed** — all 11 symlink repos nest under `workshop/issues`, none has a top-level `issues/`, and `cmd/sdlc/*` already defaulted to `workshop/issues`, so the flip makes make and `sdlc` agree instead of diverging.
+- **`45-verb-enumeration.sh` reads its vocabulary from `kindByVerb`** rather than hardcoding it, and it demonstrably fires: run against the pre-fix sources it reports `setup-and-replication.md:90`, `walk.go:112`, `main.go:651`, `base-layer-mechanics.md:90` and exits 1. That is a real gate, not a decorative one.
+- **`syncExecBit` (`apply.go:249`) is a byte-faithful extraction** — same `Stat`-then-`Chmod`, same error-swallow on a `Stat` failure as the original inline block, so no behavior drift rode along with the DRY fix.
+
+## 2. Critical findings
+
+None.
+
+## 3. Important findings
+
+**`construct/base.manifest:9-38` — the manifest's own verb header still documents the retired `tool` verb as live and omits `prose`/`skill`, and the new enforcement cannot reach the file.**
+
+This is the 3rd finding in family `stale-verb-enumeration`. Earlier rounds fixed instances; do **not** fix this instance alone — the deliverable is the enforcement's scope. Measured: the header lists `symlink`, `scaffold`, `merge`, `touch`, `tool` (8 lines of live-sounding prose for a verb retired in #95 M5 and used by zero repos — `grep '^tool ' ../*/construct/base.manifest` is empty), `seed`, `seed-once`. It omits `prose` and `skill` — while the *same file* uses both at lines 69-70 and 115-117. That is BR-3's exact defect, wrong in both directions, in the file a manifest author reads before writing a row; a reader who trusts it writes a `tool` row that falls silently through the parser's unknown-verb skip. The rule fix: `45-verb-enumeration.sh:47-48` scopes `FILES` to `'*.go' '*.md'`, so `construct/base.manifest` — the single highest-value restatement in the tree — is structurally invisible to the check that exists to prevent exactly this. Add `construct/base.manifest` (and the fleet's, via `*/construct/base.manifest`) to the scope, then make the header pass it. Secondary blind spot worth closing in the same edit: the verb match is lowercase-only, so `Symlink|Seed|Scaffold|Touch|Merge` — the identifier spelling three of BR-10's six sites actually used — scores zero. (ARCH-DRY, ARCH-PURPOSE)
+
+## 4. Minor findings
+
+- **Guards added this round have no path that demonstrably reports failure** (`verification-cannot-fail`, 2nd in family). Three instances, one measured: (1) I deleted the `SlotUnknown` case from `applySeedOnce` (`apply.go:350-354`) in a scratch copy of the package and `go test ./cmd/weave/internal/plan/` stayed **green** — the `seed-once/lstat` row passes either way because `removeDestinationSymlink` re-`Lstat`s and errors, which is verbatim the "the guarantee is held by a second check" shape BR-15 named. A discriminating assertion is cheap: assert the error names `cannot classify`, not `materialize: inspect`. (2) `coverIntent` (`completeness.go:177-221`) still has no `default:`, so a future `intent.Kind` reports *covered*; `verbName` 20 lines below has one. (3) `applySeedOnce`'s own `switch` has no `default:` either, so a fifth `SlotState` falls through to the write — while `classifyAction` (`golden.go:246`) got a fail-closed default in the same commit. Same enum, same diff, opposite defaults. (ARCH-ORDER)
+- **`atlas/workflow/weave.md:24-31` — the round-3 edit left an orphan clause and the sentence no longer parses:** "…the repo owns a `seed-once` after the first write (#239) + new semantic `prose` (composes `AGENTS.md`, …) and `skill` (…)". The `+ new semantic …` tail belonged to the deleted verb list. This is the "one edit introduced a fresh error while fixing the old one" pattern the round-3 commit message itself names, recurring in round 3.
+- `gather.go:100-104` reads the full content of *both* SeedOnce probes; `classifyAction` consumes only `srcO.Exists`. Harmless today (a root Makefile is <10 KB) but it is what makes the comment above it false.
+- The plan's Core-concepts row `| Makefile.workflow | Makefile.workflow:33-34 | modified |` cites a stale line range — the flipped defaults now live at `Makefile.workflow:46-47`.
+
+## 5. Test coverage notes
+
+- `TestClassifySlotIsTotal` uses real `os.Lstat` over a `t.TempDir()`. I considered flagging this against the PURE-entities rule and concluded it is **correct**: `ClassifySlot` needs no mocks, and the risky assumption is the OS contract itself (a *dangling* symlink returns `ModeSymlink` with `err == nil`). Constructing a fake `os.FileInfo` there would assert our own belief instead of the platform's — this is ARCH-MOCK's live conformance check, done right.
+- Gap in that test: no row for a non-`NotExist` `Lstat` error, i.e. the `SlotUnknown` branch is never reached through `ClassifySlot` directly. Combined with the Minor above, `SlotUnknown` is currently a state nothing proves.
+- `cmd/weave/main_test.go:356-366` `TestFormatActions` covers 3 of 8 `Action` kinds. The class fix BR-14 asked for is to make it enumerate the full roster, not to append one `seed-once` row.
+- Pre-existing red, not this window: `cmd/sdlc` `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` reads `workshop/plans/000200-…-plan.md`, archived to `workshop/history/plans/` before the base commit. Worth a separate issue.
+- Live state, outside the committed range: `weave golden .` currently reports `UNEXPECTED merge .claude/settings.json` because the BR-9 `api.anthropic.com` line still sits uncommitted in the working tree. Restore or land it deliberately before the close, or the drift check is red at M4.
+
+## 6. Architectural notes for upcoming work
+
+- **ARCH-DRY** — flag, see the Important finding. Otherwise strong: `syncExecBit` and `ClassifySlot` both remove real duplication.
+- **ARCH-PURE** — pass. The planner records path facts only (`plan.go:124-127`); every byte read lives in the `Apply` seam behind `weavefs.FS`.
+- **ARCH-PURPOSE** — flag. Two half-sweeps this round (BR-12, BR-14): the site each finding *named* was fixed, the enumerable siblings were not. That is the "instance, not the class" pattern the principle calls out, and it is now the dominant cost driver on this issue — four rounds, and the families that repeat are precisely the ones where the enumeration was never written down.
+- **ARCH-MOCK** — pass. `weavefs.FS` seam, `materializationFaultFS` fault injection, real-binary conformance in `portable-makefile.test.sh`.
+- **ARCH-CONSTRAINTS** — pass. The merge check's single-`awk`-pass design (documented in its own header) is the right call; whole-tree mode returns in well under a second here.
+- **ARCH-SECURE** — pass, and better than the baseline. `applySeedOnce` removes a destination symlink rather than following it, and the guard is independently asserted against the ancestor's bytes.
+- **ARCH-ORDER** — flag (the Minor above). `SlotState` is the correct tagged collapse of the boolean constellation; the residual is that two of three switches over it fail open.
+- **ARCH-FUNERAL** — pass. The only durable artifact M1 creates is the per-repo seeded `Makefile`, whose end *is* the hand-off to the repo — that is `seed-once`'s contract, and the plan states it.
+
+For M2/M3: the `legacyBlanketEntries` list the plan describes is the next thing that will need a named end, and the plan already commits to recording its deletion trigger at M4 close. Hold that.
+
+## 7. Plan revision recommendations
+
+- **Core concepts** — correct `Makefile.workflow`'s cited range from `Makefile.workflow:33-34` to `:46-47`.
+- **`## Revisions`** — add an entry recording that M1's `seed-once` is *documented* in `construct/base.manifest` but that the manifest header's verb inventory is out of scope of `45-verb-enumeration.sh`, and name the scope extension as an M1 (not M3) deliverable. Without it the plan's `50-base-layer-tests.sh` / enforcement story claims coverage the check does not have.
+
+```findings
+dispose:
+  - id: BR-10
+    disposition: addressed
+    note: |
+      All six sites now name the source (walk.go:111, plan.go:25, action.go:12, intent.go:9, gather.go:19, golden.go:100); I ran 45-verb-enumeration.sh against a scratch tree of the pre-fix files and it reported 4 violations and exited 1, so the enforcement is not vacuous.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      Observed gained Slot plan.SlotState (golden.go:74-79), populated from the raw Lstat at gather.go:153-161; classifyAction switches on it at golden.go:232-249 and builds no FileMode — the reconstruction is gone, not patched.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      The plan-table half landed, but gather.go:101-102 still carries the false "classifyAction compares the live target against the upstream source bytes for both", and golden.go:222 now names plan.SeedOnceSlotIsRepoOwned, a symbol the same commit deleted.
+  - id: BR-14
+    disposition: not-addressed
+    note: |
+      TestMaterializationFailures now runs seed-once across all four faults (verified green), but cmd/weave/main_test.go:356 TestFormatActions is untouched and still covers 3 of 8 Action kinds.
+  - id: BR-15
+    disposition: addressed
+    note: |
+      The rule was stated and implemented: SlotState + ClassifySlot over the raw (os.FileInfo, error), zero value SlotUnknown, Observed carrying the classified fact, applySeedOnce refusing on Unknown. All three re-encodings named in the finding are gone.
+findings:
+  - id: new
+    severity: Important
+    family: stale-verb-enumeration
+    title: |
+      base.manifest's own verb header documents the retired `tool` as live and omits `prose`/`skill`, and 45-verb-enumeration.sh's file scope cannot see the file
+    detail: |
+      This is the 3rd finding in family stale-verb-enumeration. Do NOT fix this
+      instance alone — the deliverable is the enforcement's scope. base.manifest:13-20
+      gives the `tool` verb eight lines of live-sounding prose though it was retired in
+      95 M5 and no repo carries a row; the header omits `prose` and `skill` while the
+      same file uses both at lines 69-70 and 115-117. That is BR-3's defect verbatim, in
+      the surface a manifest author reads before writing a row. The class cause is that
+      45-verb-enumeration.sh:47-48 scopes FILES to '*.go' '*.md', so the manifest is
+      structurally invisible to the check built to prevent this; its verb match is also
+      lowercase-only, so the `Symlink|Seed|Scaffold|Touch` identifier spelling that three
+      of BR-10's six sites used scores zero. Extend the scope to construct/base.manifest
+      and make the match case-insensitive, then bring the header into compliance
+      (ARCH-DRY, ARCH-PURPOSE).
+  - id: new
+    severity: Minor
+    family: verification-cannot-fail
+    title: |
+      The fail-closed guards added this round have no path that demonstrably reports failure — one verified green after deletion
+    detail: |
+      This is the 2nd finding in family verification-cannot-fail. State the rule: a guard
+      added in answer to a finding is complete only when a test goes red without it, and
+      a dispatch over a closed enum must fail closed on the case it does not handle.
+      Three instances. (1) Measured: deleting the SlotUnknown case at apply.go:350-354 in
+      a scratch copy of cmd/weave/internal/plan left `go test` fully green — the
+      seed-once/lstat row passes either way because removeDestinationSymlink re-Lstats,
+      which is exactly the "second check holds the guarantee" shape BR-15 named. Assert
+      the error names "cannot classify", not "materialize: inspect". (2) coverIntent
+      (completeness.go:177-221) still has no default, so a future intent.Kind reports
+      covered; verbName twenty lines below has one. (3) applySeedOnce's switch has no
+      default either, so a fifth SlotState falls through to the write — while
+      classifyAction (golden.go:246) gained a fail-closed default in the same commit
+      (ARCH-ORDER).
+  - id: new
+    severity: Minor
+    family: edit-splice-leaves-orphan-clause
+    title: |
+      atlas/workflow/weave.md:24-31 — the round-3 verb-list removal left the trailing clause, so the sentence no longer parses
+    detail: |
+      The replacement text ends "the repo owns a `seed-once` after the first write
+      (239) + new semantic `prose` (composes `AGENTS.md`, replacing the buggy
+      `@AGENTS.local.md` @-import) and `skill` (served via `weave skill`)" — the
+      "+ new semantic ..." tail belonged to the deleted enumeration and now dangles off
+      an unrelated clause. The rule: after a prose splice, read the RENDERED sentence,
+      not the diff hunk; the hunk looks clean precisely because the orphaned text is
+      unchanged context. This is the same "one edit introduced a fresh error while
+      fixing the old one" pattern the round-3 commit message names, recurring in round 3.
+```

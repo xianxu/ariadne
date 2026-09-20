@@ -21,6 +21,11 @@
 # A check that fires on legitimate prose gets routed around, so it errs toward
 # silence and catches the shape that actually recurred.
 #
+# Scope note: base.manifest is scanned too. It is the DECLARATION SURFACE every
+# agent reads, so a stale verb list there is the costliest of all — and the first
+# version of this check could not see it, because it globbed only *.go and *.md
+# (#239 M1 BR-16).
+#
 # Usage: 45-verb-enumeration.sh <base_sha> <head_sha>   (merge-check contract)
 set -euo pipefail
 
@@ -42,9 +47,9 @@ VERBS=$(sed -n '/^var kindByVerb = map\[string\]Kind{/,/^}/p' "$MANIFEST_GO" \
 
 # Scope: changed files when given a range, else the whole tree.
 if [ -n "$BASE" ] && [ -n "$HEAD" ]; then
-    FILES=$(git diff --name-only "$BASE" "$HEAD" -- '*.go' '*.md' | grep -v '^workshop/history/' || true)
+    FILES=$(git diff --name-only "$BASE" "$HEAD" -- '*.go' '*.md' '*.manifest' | grep -v '^workshop/history/' || true)
 else
-    FILES=$(git ls-files '*.go' '*.md' | grep -v '^workshop/history/' || true)
+    FILES=$(git ls-files '*.go' '*.md' '*.manifest' | grep -v '^workshop/history/' || true)
 fi
 [ -n "$FILES" ] || { echo "✓ verb-enumeration: no Go/Markdown files in range"; exit 0; }
 

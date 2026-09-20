@@ -5,19 +5,32 @@
 # Format:
 #   <action> <source-path> [<target-path>]
 #
-# Actions (symlink-only model, per ariadne#38):
+# Actions. `intent.kindByVerb` (cmd/weave/internal/intent/manifest.go) is the
+# SOURCE of the live verb set — if this list and that map ever disagree, the map
+# is right. What follows is each verb's SEMANTICS, which the map cannot express:
+#
 #   symlink   — create symlink from target repo to upstream path
 #   scaffold  — create empty directory structure in target repo
 #   merge     — JSON merge (settings.<layer>.json layered under settings.local.json)
 #   touch     — create empty file if missing (no source needed)
-#   tool      — declare the tool's OWNER as a substrate dependency. In a
-#               derivative: idempotently writes a `substrate <rel>` row into
-#               construct/deps (#60). In the owner itself (self-walk): adds a
-#               `go mod edit -tool` directive to its root go.mod so `go tool
-#               <name>` works locally. Source path is relative to the owner
-#               module, e.g. `tool cmd/sdlc`. (Pre-#60 it stubbed a
-#               <name>-construct go.mod with require+replace+tool; build-in-owner
-#               (#60 M2) + construct/deps (#60 M1) retired that.)
+#   prose     — a prose fragment composed foundation-first into each per-harness
+#               entry file (CLAUDE.md / AGENTS.md / GEMINI.md). See #95/#107.
+#   skill     — a skill DIRECTORY lowered to per-harness skill-dir symlinks
+#               (.claude/skills for Claude, .agents/skills for Codex/Gemini).
+#
+# RETIRED (a stale row falls through the parser's unknown-verb skip, so an old
+# manifest still compiles — it just does nothing):
+#   copy      — retired in #38; substrate is symlink-only.
+#   tool      — RETIRED in #95 M5. It used to declare a Go tool's OWNER as a
+#               substrate dependency and, on the owner's own self-walk, add a
+#               `go mod edit -tool` directive to its go.mod. Ownership is now
+#               resolved by LOCATION (construct/dev-aliases.sh scans sibling
+#               cmd/X dirs; build-in-owner builds each to OWNER/bin/) and the
+#               substrate edge comes from `weave link` / construct/deps — so
+#               weave does not touch go.mod at all. Do not add new `tool` rows.
+#
+# The two copy-shaped verbs differ on OWNERSHIP, which is the whole distinction
+# between them — see #239:
 #   seed      — content-tracking real-file copy into the target (NOT a symlink),
 #               mode-preserving. For first-run entrypoints (bootstrap.sh) that
 #               must work before any substrate is present, so they can't be

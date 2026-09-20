@@ -258,7 +258,7 @@ Durable plan: `workshop/plans/000239-minimal-committed-base-layer-surface-plan.m
 `## Revisions`). Four review boundaries, ordered so the riskier change always
 lands on machinery already proven.
 
-- [ ] M1 — `seed-once`: the verb (intent/action/seam), the seven switches that
+- [x] M1 — `seed-once`: the verb (intent/action/seam), the seven switches that
       enumerate the file-shape verbs, the seed-source split
       (`construct/Makefile.seed`) so ariadne's root Makefile stops being every
       repo's template, the `Makefile.workflow` default flip, and the atlas pass.
@@ -392,6 +392,7 @@ than the doc), so the per-primitive hours are provisional.
 ## Log
 
 ### 2026-09-19
+- 2026-09-19: closed M1 — seed-once end to end. BR-10 fixed at the RULE (9 restatements now name intent.kindByVerb) and made enforceable by 45-verb-enumeration.sh, falsified both ways. BR-12: partial boolean replaced by total SlotState/ClassifySlot, closing BR-11; applySeedOnce refuses on SlotUnknown. BR-14: seed-once enrolled in TestMaterializationFailures (4 fault ops). portable-makefile PASS, go test ./cmd/weave/... green.; review verdict: FIX-THEN-SHIP
 
 Found while investigating post-`make weave` `git status` churn in pair
 (`pair` had 5 dirty weave paths; the fleet showed the same one-time #225
@@ -573,6 +574,34 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — M1 CLOSED (gate clean after 4 rounds)
+
+Verdict FIX-THEN-SHIP, gate clean: *"no open blocking findings after 4 round(s)"*.
+Churn: prod 465 / test 289 / atlas 49 / workshop 1349, rework 1.0×.
+Plan gate: 5 rounds, 0 forced, 7 findings addressed.
+
+Two Importants were **demoted past the round cap** with the gate warning that
+*no later gate picks them up* — so they were fixed before this close commit, per
+the FIX-THEN-SHIP protocol (#174), rather than left to evaporate:
+
+- **BR-14 was already addressed** and the finding was stale: `seed-once` is
+  enrolled in `TestMaterializationFailures` at `apply_test.go:682`, across all
+  four fault operations. Verified rather than assumed.
+- **BR-16 was real, and doubly so.** `base.manifest`'s own header — the
+  declaration surface every agent reads — documented the **retired** `tool` verb
+  as live and omitted `prose`/`skill`. Worse, `45-verb-enumeration.sh` globbed
+  only `*.go` and `*.md`, so **the check I wrote to prevent exactly this could
+  not see the most important file**. Both fixed: the header now names
+  `intent.kindByVerb` as the source and keeps only per-verb *semantics* (which
+  the map cannot express), with `copy`/`tool` under an explicit RETIRED heading;
+  the check now scans `*.manifest` too.
+
+The M1 arc in one line: **four rounds, and the two genuine bugs were both in the
+code I wrote to fix the previous round's finding.** BR-12 (the partial slot
+predicate) was introduced by BR-1's fix; BR-16's blind spot was introduced by
+BR-10's fix. Worth remembering that a fix is new code and gets no discount.
+
+
 ### 2026-09-19 — M1 boundary review round 3: the class fixes
 
 Round 3 said *"Not converging: fix rules, not instances"* for the third time on
