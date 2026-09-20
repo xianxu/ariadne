@@ -1,12 +1,13 @@
 ---
 id: 000239
-status: open
+status: working
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-09-19
 updated: 2026-09-19
 estimate_hours:
+started: 2026-09-19T18:21:15-07:00
 ---
 
 # Minimal committed base-layer surface
