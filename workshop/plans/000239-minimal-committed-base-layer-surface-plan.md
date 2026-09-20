@@ -266,6 +266,15 @@ are never updated/deleted; packages are never automatically uninstalled.
 
 ## Revisions
 
+### 2026-09-20 — source validation diagnostics
+
+Reason: BR-17 reproduced credentials echoed before URL parsing succeeds. Delta:
+all source-validation errors omit raw source text and nested URL parse errors.
+Keep actionable categories (invalid URL host/port/escaping, absent repository
+name, invalid GitHub shape), without returning a partially populated source on
+error. Unit and CLI regressions cover malformed ports, hosts and escapes plus
+credential rejection and other invalid source forms (ARCH-SECURE).
+
 ### 2026-09-20 — preserve authored Make rule forms
 
 Reason: BR-16 found the extra single-colon rule conflicts with valid double-colon

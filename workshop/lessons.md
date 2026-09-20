@@ -1652,3 +1652,10 @@ rule rejects double-colon recipes. Test both forms when wrapping owner commands.
 A shell run-block fixture does not validate external action refs. Resolve the
 upstream action ref through its repository API before committing workflow changes;
 exercise the hosted workflow before calling the CI integration complete.
+
+### 2026-09-20 — #239 malformed URL diagnostics
+
+URL parser errors may embed the complete input, including credentials, before
+a credential check can run. Source-validation diagnostics must avoid both raw
+input and nested URL errors; test returned errors and CLI output on malformed
+ports, hosts and escapes, not just rejection of valid credential-bearing URLs.

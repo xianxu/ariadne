@@ -282,3 +282,151 @@ dispose:
    - **ARCH-FUNERAL — Pass:** owned stages have normal cleanup and interrupted-run reclamation; unchanged retired outputs are removed through identity proof.
 
 7. **Plan revision recommendations:** None required. The existing BR-16 revision accurately describes the implemented correction.
+
+---
+
+## Re-review — 2026-09-20T16:02:38-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ca9ae7f6d71d48e02ae6c23895c05b0d47f35c17..d1cbd6e04840f7e25947d270be094bc09b648464 |
+| command | sdlc close --issue 239 |
+| reviewer | codex |
+| timestamp | 2026-09-20T16:02:38-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The implementation substantially delivers the approved contract, and the reviewed suites pass. One new Important finding blocks approval: malformed repository URLs can expose credentials in CLI diagnostics. No previously disposed finding needs reopening. Repository files remain unchanged.
+
+1. **Strengths**
+   - Compiler retirement and Git migration share the same ownership proof.
+   - Atomic publication preserves prior content and executable permissions.
+   - Producer leases and interruption tests cover surviving children and safe reclamation.
+   - README and atlas document startup, generator contracts, and the separate #241 rollout.
+
+2. **Critical findings:** None.
+
+3. **Important findings**
+
+   **Credential-bearing parse errors reach stderr** — [source.go:37](/Users/xianxu/workspace/ariadne/cmd/weave/internal/acquire/source.go:37), **ARCH-SECURE**.
+
+   Reproduced without mutation:
+   ```sh
+   go run ./cmd/weave link 'https://user:review-secret@example.com:bad/repo.git'
+   ```
+   The fictitious password appears twice: directly through `%q`, and inside the wrapped `url.Parse` error. Parsing fails before credential rejection executes.
+
+   Return sanitized diagnostics without raw input or the nested URL-bearing error. Add regressions covering malformed ports, hosts, and escapes, asserting credentials never appear in returned errors or CLI output.
+
+4. **Minor findings:** None.
+
+5. **Test coverage**
+
+   Passed:
+   - Full `cmd/weave/...`, `pkg/layergraph/...`, and `pkg/weaveownership/...` suites.
+   - Focused SDLC propagation and migration tests.
+   - Bootstrap, portable Makefile, and CI run-block fixtures.
+   - Pinned-range `git diff --check`.
+
+   Existing credential tests assert rejection, but do not check diagnostic confidentiality. The corrected Homebrew action resolves at its [upstream source](https://raw.githubusercontent.com/Homebrew/actions/main/setup-homebrew/action.yml); hosted CI and four-platform release packaging were not rerun in this review.
+
+6. **Architecture**
+   - **ARCH-DRY — pass:** shared dependency parsing, ownership proof, and staging utilities.
+   - **ARCH-PURE — pass:** pure transformations remain separate from filesystem/process integration.
+   - **ARCH-PURPOSE — pass:** startup, ownership, and scoped migration fulfill the active contract.
+   - **ARCH-MOCK — pass:** stateful process fixtures and real-Git/Make conformance exercise production seams.
+   - **ARCH-CONSTRAINTS — pass:** serial setup avoids added concurrency or fan-out.
+   - **ARCH-SECURE — flag:** credential disclosure described above.
+   - **ARCH-ORDER — pass:** tests exercise publication conflicts, partial effects, cancellation, and surviving producers.
+   - **ARCH-FUNERAL — pass:** owned stages have cleanup/reclamation paths; inventories support retirement.
+
+7. **Plan revision recommendation**
+
+   Append a `## Revisions` entry specifying credential-safe diagnostics for all source-validation failures, including failures before successful URL parsing, and the regression matrix above.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Owner-relative source resolution and TestLinkRelativeOriginCanRestore cover restoration.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Origin distinguishes confirmed absence from failed inspection; preservation regressions pass.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README documents link, dependencies, source declarations, and dry-run limitations consistently with the implementation.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      GitRunner supports injected clone failures and publication conflicts through the production acquisition path.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Dead-stage reclamation tests cover both missing destinations and already-published checkouts.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Endpoint identity tests preserve ports and transport distinctions; wrong-port checkout rejection passes.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Staged generator publication passes through ownership checks that preserve authored replacements.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Durable generation stages and producer leases have cancellation, parent-death, late-writer, and retry coverage.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      The active concept table identifies ToolEnvironment as pure and discovery/execution as integration.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      Tools accepts InputRunner; injected process-state and real-Make tests exercise the shared boundary.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      Atomic publication has partial-write and killed-writer regressions covering retry and retirement.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      Staged publication carries permissions; executable-mode ownership and preservation tests pass.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      Release preparation shares owned staging and leases; cancellation and killed-owner recovery tests pass.
+  - id: BR-14
+    disposition: addressed
+    note: |
+      Real-index-backed Git fault injection covers retained effects and operator-resolved retries.
+  - id: BR-15
+    disposition: addressed
+    note: |
+      Phony augmentation suppresses implicit builds and prevents target-named files from skipping authored commands.
+  - id: BR-16
+    disposition: addressed
+    note: |
+      Augmentation contains no concrete tools rule; double-colon execution and failure regressions pass.
+findings:
+  - id: new
+    severity: Important
+    family: credential-safe-diagnostics
+    title: |
+      Malformed repository URLs expose credentials in CLI errors
+    detail: |
+      cmd/weave/internal/acquire/source.go:35–37 echoes raw input and wraps a URL-bearing parse error before credential rejection. A link input containing fictitious userinfo and an invalid port prints its password twice. ARCH-SECURE: sanitize all source-validation diagnostics and add malformed-port, host, and escape regressions asserting credentials are absent from errors and CLI output.
+```

@@ -203,6 +203,16 @@ total: 4.151
 
 ## Log
 
+### 2026-09-20 — whole-issue BR-17 corrected
+
+The post-CI review reproduced credentials echoed by malformed URL parse errors.
+NormalizeSource now reports source-validation categories without raw input or
+nested URL-bearing errors, returning no partial source on failure. Unit and
+Cobra CLI regressions reproduce the leak before the fix for malformed ports,
+hosts and escapes; all pass afterward. Full weave/layergraph/ownership suites
+pass (/tmp/ariadne-239-br17-red.log and br17-green.log). Hosted Linux CI passed
+before this correction; the updated branch will run it again.
+
 ### 2026-09-20 — PR CI action ref correction
 
 PR #126's first job stopped before checkout: Homebrew/actions has no master ref.

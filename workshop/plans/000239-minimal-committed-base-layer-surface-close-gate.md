@@ -391,6 +391,83 @@ rounds:
           round: 13
       recipe: milestone-review
       blocked: false
+    - "n": 14
+      timestamp: "2026-09-20T16:02:38-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Owner-relative source resolution and TestLinkRelativeOriginCanRestore cover restoration.
+          round: 14
+        - id: BR-2
+          disposition: addressed
+          note: Origin distinguishes confirmed absence from failed inspection; preservation regressions pass.
+          round: 14
+        - id: BR-3
+          disposition: addressed
+          note: README documents link, dependencies, source declarations, and dry-run limitations consistently with the implementation.
+          round: 14
+        - id: BR-4
+          disposition: addressed
+          note: GitRunner supports injected clone failures and publication conflicts through the production acquisition path.
+          round: 14
+        - id: BR-5
+          disposition: addressed
+          note: Dead-stage reclamation tests cover both missing destinations and already-published checkouts.
+          round: 14
+        - id: BR-6
+          disposition: addressed
+          note: Endpoint identity tests preserve ports and transport distinctions; wrong-port checkout rejection passes.
+          round: 14
+        - id: BR-7
+          disposition: addressed
+          note: Staged generator publication passes through ownership checks that preserve authored replacements.
+          round: 14
+        - id: BR-8
+          disposition: addressed
+          note: Durable generation stages and producer leases have cancellation, parent-death, late-writer, and retry coverage.
+          round: 14
+        - id: BR-9
+          disposition: addressed
+          note: The active concept table identifies ToolEnvironment as pure and discovery/execution as integration.
+          round: 14
+        - id: BR-10
+          disposition: addressed
+          note: Tools accepts InputRunner; injected process-state and real-Make tests exercise the shared boundary.
+          round: 14
+        - id: BR-11
+          disposition: addressed
+          note: Atomic publication has partial-write and killed-writer regressions covering retry and retirement.
+          round: 14
+        - id: BR-12
+          disposition: addressed
+          note: Staged publication carries permissions; executable-mode ownership and preservation tests pass.
+          round: 14
+        - id: BR-13
+          disposition: addressed
+          note: Release preparation shares owned staging and leases; cancellation and killed-owner recovery tests pass.
+          round: 14
+        - id: BR-14
+          disposition: addressed
+          note: Real-index-backed Git fault injection covers retained effects and operator-resolved retries.
+          round: 14
+        - id: BR-15
+          disposition: addressed
+          note: Phony augmentation suppresses implicit builds and prevents target-named files from skipping authored commands.
+          round: 14
+        - id: BR-16
+          disposition: addressed
+          note: Augmentation contains no concrete tools rule; double-colon execution and failure regressions pass.
+          round: 14
+      findings:
+        - id: BR-17
+          severity: Important
+          title: Malformed repository URLs expose credentials in CLI errors
+          detail: 'cmd/weave/internal/acquire/source.go:35–37 echoes raw input and wraps a URL-bearing parse error before credential rejection. A link input containing fictitious userinfo and an invalid port prints its password twice. ARCH-SECURE: sanitize all source-validation diagnostics and add malformed-port, host, and escape regressions asserting credentials are absent from errors and CLI output.'
+          family: credential-safe-diagnostics
+          round: 14
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -557,6 +634,32 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-16 — addressed — cmd/weave/internal/startup/tools.go:31 supplies only .PHONY: tools. Real-Make tests at tools_test.go:103 and :148 cover omission, implicit candidates, existing files, single/double-colon recipes and prerequisites, and failures. Restoring tools: through a temporary Go overlay makes the double-colon regressions fail with the expected rule conflict.
 
+## Round 14 — 2026-09-20T16:02:38-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — Owner-relative source resolution and TestLinkRelativeOriginCanRestore cover restoration.
+- BR-2 — addressed — Origin distinguishes confirmed absence from failed inspection; preservation regressions pass.
+- BR-3 — addressed — README documents link, dependencies, source declarations, and dry-run limitations consistently with the implementation.
+- BR-4 — addressed — GitRunner supports injected clone failures and publication conflicts through the production acquisition path.
+- BR-5 — addressed — Dead-stage reclamation tests cover both missing destinations and already-published checkouts.
+- BR-6 — addressed — Endpoint identity tests preserve ports and transport distinctions; wrong-port checkout rejection passes.
+- BR-7 — addressed — Staged generator publication passes through ownership checks that preserve authored replacements.
+- BR-8 — addressed — Durable generation stages and producer leases have cancellation, parent-death, late-writer, and retry coverage.
+- BR-9 — addressed — The active concept table identifies ToolEnvironment as pure and discovery/execution as integration.
+- BR-10 — addressed — Tools accepts InputRunner; injected process-state and real-Make tests exercise the shared boundary.
+- BR-11 — addressed — Atomic publication has partial-write and killed-writer regressions covering retry and retirement.
+- BR-12 — addressed — Staged publication carries permissions; executable-mode ownership and preservation tests pass.
+- BR-13 — addressed — Release preparation shares owned staging and leases; cancellation and killed-owner recovery tests pass.
+- BR-14 — addressed — Real-index-backed Git fault injection covers retained effects and operator-resolved retries.
+- BR-15 — addressed — Phony augmentation suppresses implicit builds and prevents target-named files from skipping authored commands.
+- BR-16 — addressed — Augmentation contains no concrete tools rule; double-colon execution and failure regressions pass.
+
+### Raised
+
+- **BR-17** [Important] `credential-safe-diagnostics` Malformed repository URLs expose credentials in CLI errors
+  cmd/weave/internal/acquire/source.go:35–37 echoes raw input and wraps a URL-bearing parse error before credential rejection. A link input containing fictitious userinfo and an invalid port prints its password twice. ARCH-SECURE: sanitize all source-validation diagnostics and add malformed-port, host, and escape regressions asserting credentials are absent from errors and CLI output.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-17** [Important] `credential-safe-diagnostics` Malformed repository URLs expose credentials in CLI errors

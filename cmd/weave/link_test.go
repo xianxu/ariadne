@@ -176,3 +176,28 @@ func TestRecordLinkRejectsMalformedExistingDeps(t *testing.T) {
 		t.Fatal("modified malformed file")
 	}
 }
+
+func TestLinkCredentialDiagnostics(t *testing.T) {
+	for _, source := range []string{
+		"https://user:review-secret@example.com:bad/repo.git",
+		"https://user:review-secret@[invalid/repo.git",
+		"https://user:review-secret@example.com/repo%zz.git",
+		"https://user:review-secret@example.com/repo.git",
+	} {
+		t.Run(source[strings.LastIndex(source, "/")+1:], func(t *testing.T) {
+			t.Chdir(t.TempDir())
+			var out bytes.Buffer
+			cmd := buildRoot()
+			cmd.SetOut(&out)
+			cmd.SetErr(&out)
+			cmd.SetArgs([]string{"link", source})
+			err := cmd.Execute()
+			if err == nil {
+				t.Fatal("credential-bearing source accepted")
+			}
+			if strings.Contains(err.Error()+out.String(), "review-secret") {
+				t.Fatal("credential disclosed in CLI diagnostics")
+			}
+		})
+	}
+}

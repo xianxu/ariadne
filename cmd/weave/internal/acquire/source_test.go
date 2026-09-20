@@ -1,6 +1,9 @@
 package acquire
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 func TestNormalizeSource(t *testing.T) {
 	for _, raw := range []string{"github.com/Org/base", "https://github.com/Org/base.git", "git@github.com:Org/base.git", "ssh://git@github.com/Org/base.git"} {
@@ -57,6 +60,24 @@ func TestSourceIdentityPreservesEndpointDifferences(t *testing.T) {
 		s, err := NormalizeSource(raw)
 		if err != nil || s.Identity != "github.com/org/base" {
 			t.Fatalf("standard GitHub endpoint %q: %+v %v", raw, s, err)
+		}
+	}
+}
+
+func TestSourceValidationErrorsDoNotEchoInput(t *testing.T) {
+	for _, raw := range []string{
+		"https://user:review-secret@example.com:bad/repo.git",
+		"https://user:review-secret@[invalid/repo.git",
+		"https://user:review-secret@example.com/repo%zz.git",
+		"https://user:review-secret@example.com/repo.git",
+		"-review-secret", "github.com/review-secret", "git@github.com:review-secret/../",
+	} {
+		_, err := NormalizeSource(raw)
+		if err == nil {
+			t.Fatal("invalid source accepted")
+		}
+		if strings.Contains(err.Error(), "review-secret") {
+			t.Fatal("source contents disclosed in diagnostic")
 		}
 	}
 }

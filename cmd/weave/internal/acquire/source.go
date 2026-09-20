@@ -20,7 +20,7 @@ func NormalizeSource(raw string) (Source, error) {
 		return Source{}, fmt.Errorf("repository source contains whitespace or a comment marker and cannot be recorded in construct/deps")
 	}
 	if raw == "" || strings.HasPrefix(raw, "-") {
-		return s, fmt.Errorf("invalid repository source %q", raw)
+		return Source{}, fmt.Errorf("repository source must be nonempty and must not start with a dash")
 	}
 	if strings.HasPrefix(raw, "github.com/") {
 		s.URL = "https://" + strings.TrimSuffix(raw, ".git") + ".git"
@@ -34,7 +34,8 @@ func NormalizeSource(raw string) (Source, error) {
 	} else if strings.Contains(s.URL, "://") {
 		u, err := url.Parse(s.URL)
 		if err != nil {
-			return s, fmt.Errorf("invalid source %q: %w", raw, err)
+			// URL parse errors include the original input, possibly credentials.
+			return Source{}, fmt.Errorf("invalid repository URL: check its host, port, and escaping")
 		}
 		if u.User != nil && (u.Scheme != "ssh" || u.User.Username() != "git") {
 			return Source{}, fmt.Errorf("repository source must not contain credentials; use Git credential configuration")
@@ -69,12 +70,12 @@ func NormalizeSource(raw string) (Source, error) {
 	}
 	s.Name = strings.TrimSuffix(path.Base(p), ".git")
 	if s.Name == "" || s.Name == "." || s.Name == ".." || s.Name == "/" {
-		return s, fmt.Errorf("source %q has no repository name", raw)
+		return Source{}, fmt.Errorf("repository source has no repository name")
 	}
 	if githubEndpoint {
 		parts := strings.Split(strings.TrimSuffix(p, ".git"), "/")
 		if len(parts) != 2 || parts[0] == "" || parts[0] == "." || parts[0] == ".." {
-			return s, fmt.Errorf("GitHub source %q must name owner/repository", raw)
+			return Source{}, fmt.Errorf("GitHub source must name owner/repository")
 		}
 		s.Identity = strings.ToLower(host + "/" + strings.TrimSuffix(p, ".git"))
 	}
