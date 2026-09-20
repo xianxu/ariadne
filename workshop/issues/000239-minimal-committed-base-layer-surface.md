@@ -894,3 +894,20 @@ approval. Removed the draft's unapproved `checkout` dependency type. Any actual
 startup case requiring more than the agreed mechanisms must be presented
 concretely before extending scope. The detailed plan remains a review draft,
 not permission to implement every proposed mechanism.
+
+
+### 2026-09-20 — smaller implementation, package mechanism pending
+
+**Reason:** continue investigation under the operator's simplicity constraint.
+
+**Delta:** draft now uses ordinary serial startup calls instead of a phase state
+machine; removes the proposed global setup lock; and uses a single verified
+output inventory instead of pending/confirmed recovery states. Existing prune
+logic still handles its current cases. These reductions preserve the agreed
+startup and generated-artifact cleanup behavior without extra workflow features.
+
+Asked whether to reuse per-layer Brewfiles/Homebrew rather than implement a
+custom installer-neutral package recipe schema. Nous already has a Brewfile;
+Homebrew documents bundle support on macOS/Linux and `--no-upgrade`. A scratch
+read-only bundle check returned unmet dependencies; nothing was installed. That
+choice remains pending, and no package-install implementation has started.
