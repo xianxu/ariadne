@@ -98,10 +98,25 @@ unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
   `plan.PruneOrphans` (#96 — GCs orphaned lowered symlinks + the dead
   `setup.sh`/`merge-settings.sh`/`sync-local-skills.sh` cutover links; four
   conjunctive KEEP-unless safety criteria) · `plan.EnsureGitignore` (weave owns
-  ignoring its generated-runtime set: `/CLAUDE.md`, `/AGENTS.md`, `/GEMINI.md`,
-  `/.claude/skills/`, `/.agents/skills/`, `/.claude/settings.json`, `/.colima/`,
-  `/construct/scripts/vm-log.sh`, `/construct/generated/` (#115 per-repo
-  dynamic-skill materialization)) · the
+  ignoring what it generates, and since #239 M2 owns a **delimited region** of
+  the repo's `.gitignore` rather than appending to it:
+
+  ```
+  # >>> weave-generated — managed by `make weave`, do not edit >>>
+  …
+  # <<< weave-generated <<<
+  ```
+
+  Inside the markers is replaced **wholesale** every compile, so retiring a
+  manifest row removes its ignore line — the append-only predecessor could never
+  do that, and a stale line can silently untrack a repo-owned file that later
+  takes the path. Outside is the repo's own, preserved verbatim (pair's `bin/*` +
+  `!bin/*.sh` negations round-trip untouched). `mergeManagedBlock` is the pure
+  transform and **fails closed** on any marker shape it cannot parse — an
+  unterminated or duplicated pair, the latter being what a git merge conflict
+  produces — with the remedy in the message, because `.gitignore` is hand-edited
+  input weave did not produce. The entry list itself is still the fixed set as of
+  M2; #239 M3 derives it from the manifest walk) · the
   **export/internal visibility axis** (#99, `intent.Selected` — `𝒜(R)` = ancestors'
   exports ⊎ leaf's internals) · the `applyWriteFile` clobber-guard (removes a
   symlink at the slot before writing, so a derivative's pre-cutover
