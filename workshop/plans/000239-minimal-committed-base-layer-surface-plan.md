@@ -46,6 +46,9 @@ M2 **must** precede M3: appending the full derived list through today's append-o
 | `plan.mergeManagedBlock` | `cmd/weave/internal/plan/gitignore.go` | new |
 | `plan.ensureGitignoreText` | `cmd/weave/internal/plan/gitignore.go` | deleted |
 | `plan.GeneratedRuntimeGitignoreEntries` | `cmd/weave/internal/plan/gitignore.go` | deleted |
+| `plan.SlotState` + `plan.ClassifySlot` | `cmd/weave/internal/plan/apply.go` | new |
+| `plan.syncExecBit` | `cmd/weave/internal/plan/apply.go` | new |
+| `golden.Observed.Slot` | `cmd/weave/internal/golden/golden.go` | modified |
 | `golden.actionIndex` | `cmd/weave/internal/golden/completeness.go` | modified |
 | `Makefile.workflow` | `Makefile.workflow:33-34` | modified |
 
@@ -62,6 +65,14 @@ M2 **must** precede M3: appending the full derived list through today's append-o
   - **DRY rationale:** This is the root cause of defect 2, not a side-effect of it. Today `seed Makefile` means "the source *is* ariadne's own front door", which is precisely why the template hardcodes `WF_ISSUES_DIR = workshop/issues`. One file cannot be both a generic template and one repo's policy. After the split ariadne owns its root `Makefile` like every other repo, and the template holds no repo's layout.
   - **Behaviour shift worth naming:** today `seed Makefile` is dropped on ariadne's **own self-walk** by `walk.loadLayer`'s self-reference filter (`walk.go:80-92`), because source and target resolve to the same path. After the split the row no longer self-references, so it **participates on ariadne's self-walk** and ariadne's own root `Makefile` is protected solely by `applySeedOnce`'s presence guard. That is also why the `golden`/`completeness`/`--dry-run` cases in Task 1.4 are load-bearing rather than cosmetic: ariadne itself now plans a `SeedOnce`.
   - **Future extensions:** If a mid layer in a 3-deep chain ever needs its own root targets, this is the file that would gain a `Makefile.<layer>` sibling (the naming the issue's Spec considered and deferred).
+
+- **`plan.SlotState` + `plan.ClassifySlot`** — the TOTAL classification of a seed-once destination: `Absent | RepoOwned | WeaveSymlink | Unknown`, produced by one exported function over the raw `(os.FileInfo, error)`.
+  - **Relationships:** 1:N — the single producer for `applySeedOnce` (what to DO) and `golden.classifyAction` (what weave WOULD do), which previously disagreed. `golden.Observed` carries the result rather than re-deriving it.
+  - **DRY rationale:** The boolean it replaced (`SeedOnceSlotIsRepoOwned(mode) bool`) expressed only repo-owned-vs-symlink — handed a zero `FileMode` for an absent slot it answered "repo-owned", the opposite of the truth — so each caller reconstructed the missing cases differently. A sum type only the classifier produces makes a partial reconstruction unrepresentable (ARCH-ORDER).
+  - **Fail-closed by construction:** the zero value is `SlotUnknown`, so an unclassified `Observed` refuses rather than inviting a write; `applySeedOnce` errors on it instead of falling through.
+
+- **`plan.syncExecBit`** — the `cp -p` exec-bit preservation, shared by both seed verbs.
+  - **DRY rationale:** `applySeedOnce` had copy-pasted `applySeed`'s block while the plan's rationale claimed reuse. The verbs differ on *when* to write, never on how to carry the mode.
 
 - **`plan.IgnoreEntries`** — `(actions []Action, generatedRoots []string) []string`: the derivation. Maps each action to a repo-relative ignore entry **iff weave re-derives its bytes**, then dedupes and sorts.
   - **Relationships:** N:1 with the action list `planActions` already computes. Consumed by exactly one caller (`main.planActions`).
