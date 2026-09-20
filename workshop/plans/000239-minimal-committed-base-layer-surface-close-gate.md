@@ -199,6 +199,37 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 7
+      timestamp: "2026-09-20T14:58:01-07:00"
+      agent: codex
+      dispose:
+        - id: BR-11
+          disposition: addressed
+          note: Shared atomic publication protects final files. Removing it in a scratch copy makes TestManagedPartialFileWritePreservesIdentityForRetryAndRetirement fail on both cold and warm partial writes.
+          round: 7
+        - id: BR-12
+          disposition: addressed
+          note: Staged modes propagate through publication and ownership identities. Removing mode propagation makes TestStagedFileModesAreOwnedAndPreserved fail with 0644 instead of 0755; production compile also tests executable permissions.
+          round: 7
+        - id: BR-7
+          disposition: addressed
+          note: Generators write into staging before managed ownership checks; compile regressions preserve edited files, symlink replacements, and cold authored destinations.
+          round: 7
+        - id: BR-8
+          disposition: not-addressed
+          note: Cancellation terminates only the immediate marker process. A scratch production-path regression confirms its child can recreate the removed generation stage without owner.json; a subsequent compile with the marker removed leaves that residue intact. See main.go:524 and internal/weavefs/runner.go:42. ARCH-ORDER, ARCH-FUNERAL, ARCH-PURPOSE; existing family durable-staging-reclamation.
+          round: 7
+        - id: BR-9
+          disposition: addressed
+          note: The revised active concept table identifies ToolEnvironment as pure and discovery/execution as integration, consistent with the implementation.
+          round: 7
+        - id: BR-10
+          disposition: addressed
+          note: Tools accepts InputRunner; production Make and the stateful failure/retry test double share that interface, with real Make conformance tests.
+          round: 7
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -286,7 +317,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-12** [Important] `generated-artifact-fidelity` Staged publication discards executable permissions
   staged.go:125 lowers regular outputs to content-only WriteFile actions, and weavefs/fs.go:72 creates them as 0644. A scratch regression publishing a generated 0755 run.sh fails because the destination is 0644. Preserve permissions and test cold publication and warm permission changes. ARCH-PURPOSE.
 
+## Round 7 — 2026-09-20T14:58:01-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-11 — addressed — Shared atomic publication protects final files. Removing it in a scratch copy makes TestManagedPartialFileWritePreservesIdentityForRetryAndRetirement fail on both cold and warm partial writes.
+- BR-12 — addressed — Staged modes propagate through publication and ownership identities. Removing mode propagation makes TestStagedFileModesAreOwnedAndPreserved fail with 0644 instead of 0755; production compile also tests executable permissions.
+- BR-7 — addressed — Generators write into staging before managed ownership checks; compile regressions preserve edited files, symlink replacements, and cold authored destinations.
+- BR-8 — not-addressed — Cancellation terminates only the immediate marker process. A scratch production-path regression confirms its child can recreate the removed generation stage without owner.json; a subsequent compile with the marker removed leaves that residue intact. See main.go:524 and internal/weavefs/runner.go:42. ARCH-ORDER, ARCH-FUNERAL, ARCH-PURPOSE; existing family durable-staging-reclamation.
+- BR-9 — addressed — The revised active concept table identifies ToolEnvironment as pure and discovery/execution as integration, consistent with the implementation.
+- BR-10 — addressed — Tools accepts InputRunner; production Make and the stateful failure/retry test double share that interface, with real Make conformance tests.
+
 ## Open findings
 
-- **BR-11** [Critical] `durable-staging-reclamation` Partial final-file writes escape ownership recovery
-- **BR-12** [Important] `generated-artifact-fidelity` Staged publication discards executable permissions
+- **BR-8** [Critical] `durable-staging-reclamation` Failed generation leaves outputs outside durable ownership recovery

@@ -385,6 +385,27 @@ cold publication, warm permission changes, partial-write failure, killed writer,
 retry and retirement. This completes the existing preservation/recovery contract;
 no additional CLI or package mechanism is introduced.
 
+### 2026-09-20 — M2 producer lifetime correction
+
+Reason: round 7 reproduced a surviving generator child recreating a stage after
+cancellation had removed its ownership metadata. Parent PID death alone is not
+proof that all writers stopped (ARCH-ORDER, ARCH-FUNERAL).
+
+Delta: give external staged producers an inherited, OS-held stage lease before
+execution. Cleanup requires exclusive access to that lease; a live descendant
+keeps the stage and metadata intact even after weave dies. Normal cancellation
+terminates the producer process group. Publication requires writers to have
+stopped; uncertainty preserves the stage rather than publishing or deleting it.
+Apply the same rule to clone producers. This is private staging bookkeeping,
+not a global lock or a new user-facing feature. Trusted generators must keep
+the inherited descriptor and process group; deliberately detached daemons are
+outside the marker contract.
+
+Add production-path regressions with a child waiting on an explicit release:
+cancel compile, kill weave itself, retry while the child is live, permit a late
+write, and retire after it exits. Assert ownership survives every live writer,
+no late output is published, and the next retry reclaims stopped producers.
+
 ## Historical revisions
 
 Everything below is historical. It is preserved verbatim and is not part of the

@@ -187,3 +187,94 @@ findings:
     detail: |
       staged.go:125 lowers regular outputs to content-only WriteFile actions, and weavefs/fs.go:72 creates them as 0644. A scratch regression publishing a generated 0755 run.sh fails because the destination is 0644. Preserve permissions and test cold publication and warm permission changes. ARCH-PURPOSE.
 ```
+
+---
+
+## Re-review — 2026-09-20T14:58:01-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | a0939beeec126ec717ec94889107c93f0f3f76dd..f94d52c10d6d475a3c1feb4f4d2443f5f8e3853a |
+| command | sdlc milestone-close --issue 239 --milestone M2 |
+| reviewer | codex |
+| timestamp | 2026-09-20T14:58:01-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-11 and BR-12 are addressed, with regression tests that fail when their fixes are removed. The existing suites pass, and README/atlas updates cover the new startup and generator contracts. However, BR-8 remains incomplete: a generator child can survive cancellation, recreate an already-cleaned stage without ownership metadata, and escape subsequent reclamation.
+
+```findings
+dispose:
+  - id: BR-11
+    disposition: addressed
+    note: |
+      Shared atomic publication protects final files. Removing it in a scratch copy makes TestManagedPartialFileWritePreservesIdentityForRetryAndRetirement fail on both cold and warm partial writes.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      Staged modes propagate through publication and ownership identities. Removing mode propagation makes TestStagedFileModesAreOwnedAndPreserved fail with 0644 instead of 0755; production compile also tests executable permissions.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Generators write into staging before managed ownership checks; compile regressions preserve edited files, symlink replacements, and cold authored destinations.
+  - id: BR-8
+    disposition: not-addressed
+    note: |
+      Cancellation terminates only the immediate marker process. A scratch production-path regression confirms its child can recreate the removed generation stage without owner.json; a subsequent compile with the marker removed leaves that residue intact. See main.go:524 and internal/weavefs/runner.go:42. ARCH-ORDER, ARCH-FUNERAL, ARCH-PURPOSE; existing family durable-staging-reclamation.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      The revised active concept table identifies ToolEnvironment as pure and discovery/execution as integration, consistent with the implementation.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      Tools accepts InputRunner; production Make and the stateful failure/retry test double share that interface, with real Make conformance tests.
+```
+
+1. **Strengths**
+   - File publication is centralized and atomic across generated files, seeds, inventory, and ignores.
+   - Permission ownership preserves generated executables and protects subsequent authored permission edits.
+   - Startup tests exercise real Make ordering, build failures, bootstrap paths with spaces, and actual CI shell blocks.
+   - Output retirement uses recorded identities and preserves unrelated files.
+
+2. **Critical findings**
+   - **BR-8 — generator lifetime exceeds stage lifetime.** At [runner.go:42](/Users/xianxu/workspace/ariadne/cmd/weave/internal/weavefs/runner.go:42), `exec.CommandContext` cancels the immediate shell, without ensuring its descendants stop. [main.go:524](/Users/xianxu/workspace/ariadne/cmd/weave/main.go:524) then removes their stage. A surviving child can recreate it after cleanup; reclamation skips it because `owner.json` is gone.
+
+     I reproduced this with a marker invoking a child blocked on a fixture signal: cancel compile, wait for compile to return, release the child, then compile again without the marker. The child’s staged `SKILL.md` survives.
+
+     This repeats family `durable-staging-reclamation`, already carrying three findings. Apply the rule across producer lifecycles: **ownership metadata must outlive every process capable of writing the payload**. Bound and terminate descendant execution before cleanup; parent death alone must not establish that a producer has stopped. Cover cancellation, abrupt parent death, late writes, retry, and retirement. **ARCH-ORDER, ARCH-FUNERAL, ARCH-PURPOSE.**
+
+3. **Important findings:** None additional.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+   - Passed: `go test ./cmd/weave/... ./pkg/layergraph/... -count=1`, bootstrap, portable Makefile, portable CI fixtures, and diff whitespace checks.
+   - Scratch mutation tests confirmed both open fixes have effective regression coverage.
+   - Existing process-death coverage immediately exits the marker after killing its parent; it does not cover a surviving producer.
+   - Repository remains unchanged.
+
+6. **Architectural notes**
+   - **ARCH-DRY — pass:** shared publication, staging, and inventory-derived ignores.
+   - **ARCH-PURE — pass:** pure transformations remain separate from filesystem/process integration.
+   - **ARCH-PURPOSE — flag:** interrupted-producer recovery remains incomplete under BR-8.
+   - **ARCH-MOCK — pass:** injected process doubles and real Make/Git fixtures exercise shared boundaries.
+   - **ARCH-CONSTRAINTS — pass:** sequential startup introduces no unbounded fan-out.
+   - **ARCH-SECURE — pass:** inspected inventory validation and parent-path checks reject malformed or escaping state.
+   - **ARCH-ORDER — flag:** compile can return while a producer remains active.
+   - **ARCH-FUNERAL — flag:** late writes recreate stages without recoverable ownership.
+
+7. **Plan revision recommendation**
+
+   Append a `## Revisions` entry specifying producer-tree lifetime, cancellation/death recovery, and the invariant that stage cleanup requires evidence that all writers have stopped. Add deterministic late-writer regressions to M2’s recovery contract.
