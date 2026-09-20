@@ -556,6 +556,36 @@ estimate for this restart and must be replaced after plan-quality acceptance.
 No code changes or fleet migration have started.
 
 
+
+### 2026-09-20 — initial restart design investigation
+
+Read current graph/parser/compiler and received a bounded read-only consumer
+audit of nous and parley.nvim. Findings shaping the proposed design:
+
+- Reuse `pkg/layergraph` for topology and `construct/base.manifest` for selected
+  layer contributions (ARCH-DRY). Current graph walking silently skips missing
+  checkouts; setup must restore or explicitly report them before composition.
+- `construct/deps` can retain local paths while gaining clone-source metadata.
+  Do not turn root go.mod local replacements into substrate edges: bootstrap
+  currently restores both, but they are distinct dependency kinds.
+- Ariadne's generator requirements are Go/CUE plus datatype/vocabulary on PATH;
+  uv is currently provisioned for downstream use. Nous has an existing Brewfile
+  and custom build/signing behavior. Parley is a Lua plugin; having go.mod does
+  not imply it exposes a Go binary.
+- Nous bootstrap also configures authentication and services. Do not use a
+  whole-layer bootstrap invocation as the implementation of a binary build.
+- `dev-aliases.sh` searches workspace siblings, not just the selected layer
+  graph; command ownership for this design should come from declarations.
+
+Proposal for operator review: retain one contribution surface in base.manifest;
+let it declare package requirements and exposed commands with explicit build
+recipes. Reuse existing package/build metadata where possible rather than
+restating it. Compile resolves the graph, prepares requirements and generators,
+materializes artifacts, then builds/exposes commands. Keep installer details,
+recipe syntax, and command-discovery policy out of the accepted contract until
+the revised design is reviewed. No implementation changes made.
+
+
 ## Revisions
 ### 2026-09-19 — Done-when 7 restated; two Criticals from the plan-quality gate
 
