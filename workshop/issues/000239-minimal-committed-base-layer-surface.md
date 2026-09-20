@@ -576,6 +576,42 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-20 — M3 Task 3.3: conformance test + the CI registration
+
+`construct/scripts/test/gitignore-surface.test.sh` — a real two-layer scratch
+tree with a real `git init`, because the invariant is about what **git** does
+with these patterns and a fake would only test our assumption about git
+(ARCH-MOCK).
+
+Two traps the obvious version falls into, both handled:
+
+- **`git check-ignore` is index-aware.** For a TRACKED file it exits 1 whatever
+  the patterns say, so `! git check-ignore -q f` passes even when a blanket
+  pattern *does* match — the assertion that matters most would be vacuous. Every
+  "is not ignored" check uses `--no-index`, and the decisive one mirrors the real
+  sweep with `git ls-files -i -c`, which is literally what `commitConsumption`
+  runs.
+- The fixture needs a `prose` row, or `plan.Plan` emits no entry-file
+  `WriteFile` and there is no `/CLAUDE.md` to assert on.
+
+**Falsified both decisive assertions** rather than trusting a green run:
+making `Mkdir` targets ignored trips *"the sweep would untrack repo-owned
+scripts/merge-checks.d/20-vocabulary.sh"* (parley.nvim's real shape), and making
+the block append-only again trips the second-weave byte-comparison.
+
+**`scripts/merge-checks.d/50-base-layer-tests.sh` registers all three base-layer
+tests** — portable-makefile, gitignore-surface, merge-checks. This closes the gap
+found in M1: `parallel-checks.sh` is an LLM constitution-check runner that runs
+no bash tests, and `portable-makefile.test.sh` was referenced **nowhere** in the
+tree. It had only ever been run by hand, which is a large part of why defect 2
+survived #225 — the test that would have caught it existed and nothing ran it.
+
+Deliberately **ariadne-local**, not a `symlink` manifest row: these tests
+`go build ./cmd/weave` against ariadne's own sources, so running them in a
+derivative's CI would build the wrong tree. `scripts/merge-checks.d` is a
+`scaffold` row, so a derivative gets an empty dir and never sees the file.
+
+
 ### 2026-09-20 — M3 Tasks 3.1–3.2: the derivation, and the live migration
 
 `IgnoreEntries(actions, generatedRoots)` replaces the hardcoded
