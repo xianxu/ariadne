@@ -538,6 +538,24 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 `## Revisions`.
 
 
+
+### 2026-09-20 — restart claimed on a fresh in-place branch
+
+Operator authorized restarting work on #239 in a new in-place branch, with no
+use of `000239-minimal-committed-base-layer-surface`. Ran `sdlc claim --issue
+239` (already working; no status flip) and `sdlc start-plan --issue 239`.
+Created `000239-standalone-weave-restart` from current main, carrying the
+contract-capture commit `ca9ae7f`; the old branch is untouched. This early
+planning branch is the operator's explicit choice; `sdlc change-code` still
+owns entry into implementation after the revised plan is reviewed.
+
+Planning starts from the 2026-09-20 contract below. Inspect current graph and
+build/dependency declarations, propose the smallest shared setup model, then
+write the revised durable plan for operator review. The old estimate is not an
+estimate for this restart and must be replaced after plan-quality acceptance.
+No code changes or fleet migration have started.
+
+
 ## Revisions
 ### 2026-09-19 — Done-when 7 restated; two Criticals from the plan-quality gate
 
