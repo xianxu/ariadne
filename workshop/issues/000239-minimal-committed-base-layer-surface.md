@@ -586,6 +586,35 @@ recipe syntax, and command-discovery policy out of the accepted contract until
 the revised design is reviewed. No implementation changes made.
 
 
+
+### 2026-09-20 — startup investigation and draft restart plan
+
+Operator reinforced the goal: clean startup for a new repo and for a derivative
+on a new machine, changing divergent existing behavior instead of preserving it.
+Also explicitly requested publication as tap `xianxu/ariadne`, formula
+`xianxu/ariadne/weave`. Distribution is included in this ticket's proposed plan.
+
+Investigated current compiler/graph, bootstrap, CI, nous/parley requirements and
+build behavior, and standalone release options. Baseline:
+`go test ./cmd/weave/... ./pkg/layergraph/... -count=1` passed. No package
+installation, release, old-branch reuse, or implementation change was performed.
+
+The canonical durable plan now has an appended
+[Restart: standalone weave startup](../plans/000239-minimal-committed-base-layer-surface-plan.md#restart-standalone-weave-startup)
+draft and an explicit supersession notice. It covers the shared startup sequence,
+manifest-selected requirements, remote/local/data/source acquisition, exposed
+commands, thin bootstrap/CI, binary distribution and migration. Original plan
+text remains as provenance. A fresh-context reviewer is checking the draft.
+
+Proposed changes intentionally remove old assumptions: no Makefile seed or new
+seed-once verb merely to preserve it; no recursive peer bootstrap, implicit
+peer pulls, workspace-wide command owner scan, or clone-only CI. Root go.mod
+source guesses become explicit non-layer source declarations. Native installer
+behavior and command activation are named design decisions to settle before
+implementation. The operator has been asked whether to provision bare commands
+in future shells or prefer explicit `weave exec`/`weave env` activation.
+
+
 ## Revisions
 ### 2026-09-19 — Done-when 7 restated; two Criticals from the plan-quality gate
 
@@ -762,3 +791,21 @@ Reuse code only where the revised design calls for it. The propagation untrackin
 bug identified in the restart findings must not be exercised by a fleet sweep;
 its disposition belongs in the migration design. No fleet mutation, code change,
 or implementation-plan approval is part of this contract-capture update.
+
+
+### 2026-09-20 — distribution included; startup cleanup governs compatibility
+
+**Reason:** operator directed that code diverging from the discussed startup
+contract should change, and requested weave publication as ariadne's entrypoint.
+
+**Delta:** standalone distribution is part of #239's current scope, with the
+fixed public names `xianxu/ariadne` (Homebrew tap), `xianxu/ariadne/weave`
+(formula), and `weave` (installed command). The proposed implementation uses the
+conventional backing repository `xianxu/homebrew-ariadne` and release assets in
+`xianxu/ariadne`; exact release/install mechanics remain draft design for review.
+Existing startup helpers and compatibility behavior are candidates for removal,
+not requirements to recreate. Review the appended restart section in the
+canonical durable plan; the old milestone checkboxes/estimate remain historical
+and must not be used to enter implementation. Before `change-code`, promote the
+approved restart plan into the active issue sections while retaining the old
+content in revision history, so gates consume the actual current contract.
