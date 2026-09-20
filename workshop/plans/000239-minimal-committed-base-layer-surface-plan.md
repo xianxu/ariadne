@@ -88,6 +88,8 @@ M2 **must** precede M3: appending the full derived list through today's append-o
 | `plan.applyEnsureGitignore` | `cmd/weave/internal/plan/gitignore.go` | modified | filesystem (`weavefs.FS`) |
 | `main.planActionsCore` | `cmd/weave/main.go` | new | the compile lowering |
 | `sdlc propagate-base --repo` | `cmd/sdlc/propagatebase.go` | modified | `git` (fleet sweep) |
+| `commitConsumption` untrack scope | `cmd/sdlc/propagatebase.go:243-259` | modified | `git check-ignore` |
+| `run-merge-checks.sh` owner fallback | `scripts/run-merge-checks.sh:26-27` | modified | the CI check runner |
 | `portable-makefile.test.sh` | `construct/scripts/test/portable-makefile.test.sh` | modified | real `weave` over a real scratch tree |
 | `gitignore-surface.test.sh` | `construct/scripts/test/gitignore-surface.test.sh` | new | real `weave` + real `git` over a real scratch tree |
 | `50-base-layer-tests.sh` | `scripts/merge-checks.d/50-base-layer-tests.sh` | new | the CI merge-check runner |
@@ -100,6 +102,31 @@ M2 **must** precede M3: appending the full derived list through today's append-o
 - **`main.planActionsCore`** — the lowering body, extracted so both `planActions` and the ignore derivation call it without recursion. The ignore list **must derive from `plan.TargetAll`**, never from the lean `--target`. This hazard is created by M2: an append-only list could not lose an entry, but a wholesale-replaced block compiled under `--target claude` would drop every `.agents/skills/*` line and silently re-expose Codex's skill symlinks to `git status`. The `TargetAll` second-plan pattern already exists in `run()` at `main.go:543-548` (`scanActions`, the cross-target prune scan) — *not* in `runVerifyComplete`, which plans exactly once.
 
 - **`sdlc propagate-base --repo`** — a repo selector. The verb today takes only `--dry-run` and `--ref` (`propagatebase.go:299-300`) and by design sweeps *every* recursive dependent in one run, which makes M4's "pilot on one repo, prove CI, then sweep" sequencing impossible. Per the workflow contract, a verb that cannot express the need is a gap in `sdlc` to fix at the source, not to route around with hand-rolled git. The same task adds the brain guard (`test -d .brain` ⇒ skip).
+
+- **`commitConsumption`'s untrack scope** — the sweep must untrack only what **weave's managed block** ignores, not everything `git ls-files -i -c` reports.
+  - **The plan's earlier safety argument was about the wrong object.** "Per-path derivation makes the untrack set structurally safe" is a property of the *block*. The *sweep* (`propagatebase.go:248`) runs `git ls-files -i -c --exclude-standard`, which reads the **whole ignore configuration** — every nested `.gitignore`, every repo-owned blanket pattern that predates weave — and `git rm --cached`s each result with no confirmation between enumeration and destruction. Measured across the fleet: **`kbench` returns 1160 tracked-but-ignored files**, all under `competition/arc-agi-3/runs/`, matched by its own nested `competition/arc-agi-3/.gitignore:24` (`runs/20*/`) — deliberately committed research artifacts. One `propagate-base` run would commit them away. This is the pair#64 mechanism already loaded, and M4 is the first time this verb runs fleet-wide.
+  - **A blanket skip would be wrong too.** `parley.nvim` has exactly one tracked-but-ignored file, `construct/generated/vocabulary/issue.json`, matched by `/construct/generated/` — that one *is* weave's and *should* be untracked. So the filter must be **pattern provenance**, not a count or a path prefix.
+  - **The mechanism:** `git check-ignore -v --no-index <path>` reports the matching pattern's **source file and line** (`.gitignore:94:/construct/generated/`). Untrack a candidate only when that source is the repo's root `.gitignore` *and* the line falls inside the managed block's range. Everything matched by a repo-owned pattern — nested or outside the block — is left exactly as it was. No cross-tool plumbing, and it stays correct as the block changes.
+
+- **`run-merge-checks.sh`'s owner fallback** — the one member of the pre-weave-consumer class with no resolution (see below). `merge-check.yml:71` already falls back to `../ariadne/scripts/run-merge-checks.sh` for the **runner**; the checks **directory** has no such fallback (`run-merge-checks.sh:26-27` reads `$ROOT/scripts/merge-checks.d` and nothing else). Adding the symmetric fallback is what makes untracking the symlinked checks safe.
+
+### Pre-weave consumers (the class M4 must clear)
+
+CI **never runs weave**: `merge-check.yml:38` invokes `BOOTSTRAP_CLONE_ONLY=1 ./bootstrap.sh`, and `bootstrap.sh:34-36` exits before the `make bootstrap` handoff. So on a CI runner, every path is whatever is **committed**. Untracking the weave surface therefore has to clear one enumerated class: *paths read from the committed tree before weave runs*. Enumerated, not recalled:
+
+| Path | Resolution when absent | Status |
+|---|---|---|
+| `bootstrap.sh` | none needed — `seed`, stays tracked | ✅ |
+| `construct/deps` | none needed — repo-owned, stays tracked | ✅ |
+| `scripts/ci-setup.sh` | none needed — repo-owned, never a weave action | ✅ |
+| `go.mod` | `../ariadne/go.mod` (`merge-check.yml:45-47`) | ✅ |
+| `scripts/run-merge-checks.sh` | `../ariadne/scripts/run-merge-checks.sh` (`merge-check.yml:71`) | ✅ |
+| `Makefile.workflow` | `$(wildcard … ../ariadne/Makefile.workflow)` (`Makefile:11`) | ✅ |
+| `construct/dev-aliases.sh`, `construct/scripts/bootstrap-peers.sh` | `wf-helper` (`Makefile.workflow:10`) | ✅ |
+| `.openshell/`, `.tart/`, `.colima/` includes | `ifneq ($(wildcard …))` — degrade cleanly | ✅ |
+| **`scripts/merge-checks.d/*`** | **none** | ❌ **gap** |
+
+The gap is load-bearing and silent. `symlink scripts/merge-checks.d/40-duplicate-issue-id.sh` (`base.manifest:138`) lowers to a `Symlink`, so it enters the derived block and gets swept. Three repos track it as mode `120000` — **`astro`**, **`parli`**, **`tools`** — and for `astro` and `parli` it is their **only** check. After the sweep `$DIR` is absent, `checks=()`, and `run-merge-checks.sh:42` prints `✓ merge-checks: none defined — pass (no-op)` and exits 0: a **vacuously green** CI. That reverts exactly what `base.manifest:133-137` records #213 as being for. Two things make this invisible to the plan's own acceptance criteria: Done-when's *"CI still passes on a derivative PR"* cannot distinguish a real pass from a vacuous one, and the pilot (`pair`) tracks only `.gitkeep` there, so it is blind by construction.
 
 - **`gitignore-surface.test.sh`** — the stateful conformance test for the whole invariant, over a real two-layer scratch tree with a real `git init`.
   - **ARCH-MOCK:** weave's dependency surface here is the filesystem and `git`. The filesystem already has the `weavefs.FS` seam with a fake for unit tests; `git`'s behaviour with per-path patterns, negations and the index is the thing under test and **cannot** be faked without testing our own assumption — so this runs the real `git` binary. That is the live conformance check for the one external behaviour the whole issue rests on.
@@ -1132,20 +1159,26 @@ func TestIgnoreEntriesTrailingSlashOnlyForGeneratedRoots(t *testing.T) {
 }
 
 // The doc promises "a new verb joins the ignore or the track class by adding one
-// case". Nothing enforces that the author remembers — so the default does.
+// case". Nothing enforces that the author remembers — so the default does. It
+// ERRORS rather than panicking: planActions already returns an error, so an
+// unhandled type surfaces as a diagnosable weave failure instead of a stack
+// trace in every repo's `make weave`.
 func TestIgnoreEntriesRejectsUnclassifiedAction(t *testing.T) {
-	defer func() {
-		if recover() == nil {
-			t.Fatal("an unclassified Action must not silently land in the tracked class")
-		}
-	}()
-	IgnoreEntries([]Action{unclassifiedTestAction{}}, nil)
+	_, err := IgnoreEntries([]Action{unclassifiedTestAction{}}, nil)
+	if err == nil {
+		t.Fatal("an unclassified Action must not silently land in the tracked class")
+	}
+	if !strings.Contains(err.Error(), "unclassifiedTestAction") {
+		t.Fatalf("error must name the offending type, got: %v", err)
+	}
 }
 
 type unclassifiedTestAction struct{}
 
 func (unclassifiedTestAction) isAction() {}
 ```
+
+Every other `IgnoreEntries` call in these tests takes the two-value form (`got, err := …`); the samples above are written single-value for readability — add the `err` check when transcribing.
 
 - [ ] **Step 2: Run them and watch them fail**
 
@@ -1200,7 +1233,7 @@ Expected: FAIL — `undefined: IgnoreEntries`.
 // TRAILING SLASH only for generatedRoots. An action-derived entry gets none:
 // git's `foo/` pattern does not match a SYMLINK named foo, so `symlink
 // .tart/scripts` would silently go un-ignored with one. Pure.
-func IgnoreEntries(actions []Action, generatedRoots []string) []string {
+func IgnoreEntries(actions []Action, generatedRoots []string) ([]string, error) {
 	seen := map[string]bool{}
 	var out []string
 	add := func(entry string) {
@@ -1223,15 +1256,17 @@ func IgnoreEntries(actions []Action, generatedRoots []string) []string {
 		default:
 			// A new Action type must make an explicit ownership choice. Falling
 			// through to "tracked" would silently re-expose a generated artifact
-			// to `git status` in every repo, with nothing failing.
-			panic(fmt.Sprintf("IgnoreEntries: unclassified action type %T — add it to the ignore or the track case", a))
+			// to `git status` in every repo, with nothing failing. An ERROR (not
+			// a panic): planActions returns one, so this surfaces as a
+			// diagnosable weave failure rather than a stack trace.
+			return nil, fmt.Errorf("IgnoreEntries: unclassified action type %T — add it to the ignore or the track case", a)
 		}
 	}
 	for _, root := range generatedRoots {
 		add("/" + filepath.Clean(root) + "/")
 	}
 	sort.Strings(out)
-	return out
+	return out, nil
 }
 ```
 
@@ -1349,9 +1384,11 @@ func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]pla
 			return nil, fmt.Errorf("plan ignore entries: %w", err)
 		}
 	}
-	return append(actions, plan.EnsureGitignore{
-		Entries: plan.IgnoreEntries(ignoreActions, []string{walk.GeneratedRel}),
-	}), nil
+	entries, err := plan.IgnoreEntries(ignoreActions, []string{walk.GeneratedRel})
+	if err != nil {
+		return nil, fmt.Errorf("plan ignore entries: %w", err)
+	}
+	return append(actions, plan.EnsureGitignore{Entries: entries}), nil
 }
 
 // planActionsCore is the lowering WITHOUT the gitignore action — shared by the
@@ -1560,7 +1597,168 @@ sdlc milestone-close --issue 239 --milestone M3
 
 Irreversible. It lands last, behind a green CI on one derivative.
 
-### Task 4.0: give `sdlc propagate-base` a repo selector and a brain guard
+### Task 4.0a: scope `commitConsumption`'s untrack to weave's own block
+
+**This is the blocking prerequisite for every other M4 task.** The sweep as it stands would destroy repo-owned files, and it would do so on its first fleet-wide run.
+
+`commitConsumption` (`propagatebase.go:243-259`) untracks everything `git ls-files -i -c --exclude-standard` reports. That command reads the **whole ignore configuration** — every nested `.gitignore`, every repo-owned blanket pattern predating weave — not the set weave just produced. Measured, not hypothesized:
+
+| Repo | tracked-but-ignored | matched by | correct action |
+|---|---|---|---|
+| `kbench` | **1160** | `competition/arc-agi-3/.gitignore:24` (`runs/20*/`) — nested, repo-owned | **leave alone** |
+| `parley.nvim` | 1 | `.gitignore:94` (`/construct/generated/`) — weave's | untrack |
+| every other repo | 0 | — | — |
+
+So a blanket skip is as wrong as the status quo: one of these two *must* be untracked and the other *must not*. The discriminator is **pattern provenance**, which `git check-ignore -v --no-index` reports directly as `<source>:<line>:<pattern>\t<path>`.
+
+**Files:**
+- Modify: `cmd/sdlc/propagatebase.go:243-259`
+- Test: `cmd/sdlc/propagatebase_test.go`
+
+- [ ] **Step 1: Write the failing tests — both fleet shapes**
+
+```go
+// The kbench shape: 1160 deliberately-committed files under a repo's OWN nested
+// .gitignore. The sweep must not touch them — they were tracked-but-ignored
+// before weave existed and are none of weave's business.
+func TestCommitConsumptionLeavesRepoOwnedIgnoredFilesTracked(t *testing.T) {
+	repo := initScratchRepo(t)
+	writeFile(t, repo, "data/.gitignore", "runs/20*/\n")
+	writeFile(t, repo, "data/runs/2026/episode.json", "{}")
+	gitAdd(t, repo, "-A", "-f")
+	gitCommit(t, repo, "init")
+	writeManagedBlock(t, repo, []string{"/CLAUDE.md"}) // weave's block owns something else
+
+	if _, err := commitConsumption(repo, "ariadne#239"); err != nil {
+		t.Fatal(err)
+	}
+	assertTracked(t, repo, "data/runs/2026/episode.json")
+}
+
+// The parley.nvim shape: a generated file the BLOCK ignores must be untracked,
+// or `git add -A` re-tracks it (the inert-gitignore trap this code exists for).
+func TestCommitConsumptionUntracksBlockIgnoredFiles(t *testing.T) {
+	repo := initScratchRepo(t)
+	writeFile(t, repo, "construct/generated/vocabulary/issue.json", "{}")
+	gitAdd(t, repo, "-A", "-f")
+	gitCommit(t, repo, "init")
+	writeManagedBlock(t, repo, []string{"/construct/generated/"})
+
+	if _, err := commitConsumption(repo, "ariadne#239"); err != nil {
+		t.Fatal(err)
+	}
+	assertNotTracked(t, repo, "construct/generated/vocabulary/issue.json")
+}
+
+// A pattern OUTSIDE the block in the root .gitignore is still repo-owned.
+func TestCommitConsumptionLeavesRootIgnoresOutsideTheBlock(t *testing.T) {
+	repo := initScratchRepo(t)
+	writeFile(t, repo, "notes.tmp", "x")
+	gitAdd(t, repo, "-A", "-f")
+	gitCommit(t, repo, "init")
+	writeFile(t, repo, ".gitignore", "notes.tmp\n") // loose, no block
+	writeManagedBlock(t, repo, []string{"/CLAUDE.md"})
+
+	if _, err := commitConsumption(repo, "ariadne#239"); err != nil {
+		t.Fatal(err)
+	}
+	assertTracked(t, repo, "notes.tmp")
+}
+```
+
+`initScratchRepo`/`writeFile`/`gitAdd`/`gitCommit` should reuse whatever the package already has; if there is no git fixture helper, build one on `t.TempDir()` + `git init` (this is a real-`git` seam by nature — the behaviour under test *is* git's).
+
+- [ ] **Step 2: Run them and watch them fail**
+
+Run: `go test ./cmd/sdlc/ -run CommitConsumption -v`
+Expected: the kbench-shape and root-ignores tests FAIL (the file is untracked); the block-ignored test passes already — which is the point, both directions must hold.
+
+- [ ] **Step 3: Implement the provenance filter**
+
+Replace the unconditional `git rm --cached` loop with: for each candidate from `git ls-files -i -c --exclude-standard`, run `git check-ignore -v --no-index <path>`, parse `<source>:<line>:`, and untrack **only** when `source` is the repo's root `.gitignore` *and* `line` falls inside the managed block's range (found by scanning for the two markers). Anything else is repo-owned — leave it tracked, and **report it** rather than dropping it silently, so an operator seeing 1160 of them learns something.
+
+Read the block markers from one place. `cmd/weave/internal/plan` owns them; either export them (`plan.ManagedBlockOpen`/`Close`) and import from sdlc, or lift them to a tiny shared package. Do **not** re-type the marker strings in sdlc — that is a second declaration channel, the exact defect this issue is about (ARCH-DRY).
+
+- [ ] **Step 4: Run the tests, then verify against the real fleet**
+
+```bash
+go test ./cmd/sdlc/...
+go build -o bin/sdlc ./cmd/sdlc
+cd ../kbench && git status --short | head   # MUST still be clean afterwards
+```
+Expected: tests pass. Then the decisive check — after Task 4.0b and before any real sweep, `./bin/sdlc propagate-base --repo kbench --dry-run` must report **0** paths to untrack, not 1160.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add cmd/sdlc/
+git commit -m "#239 M4: propagate-base untracks only what weave's block ignores
+
+The sweep ran git ls-files -i -c over the WHOLE ignore config, so it would have
+git rm --cached'd 1160 deliberately-committed files in kbench, matched by that
+repo's own nested .gitignore. Pattern provenance (check-ignore -v) is the
+discriminator: parley.nvim's one such file IS weave's and must still go."
+```
+
+### Task 4.0b: close the pre-weave-consumer gap for `scripts/merge-checks.d/*`
+
+CI never runs weave, so untracking the symlinked check would leave `astro` and `parli` with **no checks at all** and a vacuously green pipeline (see *Pre-weave consumers* above). Done-when's "CI still passes" cannot detect it, and the `pair` pilot is blind to it. Close the gap before the sweep, not after.
+
+**Files:**
+- Modify: `scripts/run-merge-checks.sh:26-27`
+- Test: `construct/scripts/test/merge-checks-fallback.test.sh` (new), registered in `50-base-layer-tests.sh`
+
+- [ ] **Step 1: Write the failing test**
+
+A scratch repo with an empty `scripts/merge-checks.d/` and an owner beside it carrying a base-layer check; assert the check still runs.
+
+```bash
+# The symmetric fallback to merge-check.yml:71. CI has no weave, so an untracked
+# base-layer check is simply ABSENT — and an empty dir exits 0 ("none defined"),
+# which is a PASS. A vacuous pass is worse than a failure: nothing surfaces it.
+mkdir -p "$SCRATCH/leaf/scripts/merge-checks.d" "$SCRATCH/ariadne/scripts/merge-checks.d"
+printf '#!/bin/sh\necho base-check-ran\nexit 0\n' > "$SCRATCH/ariadne/scripts/merge-checks.d/40-dup.sh"
+chmod +x "$SCRATCH/ariadne/scripts/merge-checks.d/40-dup.sh"
+(cd "$SCRATCH/leaf" && git init -q . && bash "$SOURCE/scripts/run-merge-checks.sh" HEAD HEAD) > "$SCRATCH/out" 2>&1
+grep -q base-check-ran "$SCRATCH/out" || { echo "FAIL: base-layer check did not run"; exit 1; }
+! grep -q 'none defined' "$SCRATCH/out" || { echo "FAIL: vacuous pass"; exit 1; }
+```
+
+- [ ] **Step 2: Run it and watch it fail**
+
+Run: `bash construct/scripts/test/merge-checks-fallback.test.sh`
+Expected: FAIL — `✓ merge-checks: none defined in scripts/merge-checks.d/ — pass (no-op)`. That output *is* the bug.
+
+- [ ] **Step 3: Add the owner fallback to the collector**
+
+`run-merge-checks.sh:26-27` builds `checks` from `$ROOT/scripts/merge-checks.d` only. Also collect the owner's, resolved the same way `merge-check.yml:71` resolves the runner (`../ariadne/scripts/merge-checks.d`, or via `construct/deps`). Dedupe by basename with the **repo's own winning**, so a derivative can still override a base-layer check by name. Keep the existing "none defined" message for the genuinely-empty case.
+
+This is the symmetric completion of a fallback that already exists for the runner, and it makes `base.manifest:138`'s symlink row redundant rather than load-bearing — note that in the commit, since #213 added that row precisely because a scaffolded dir left derivatives empty.
+
+- [ ] **Step 4: Verify the three at-risk repos**
+
+```bash
+bash construct/scripts/test/merge-checks-fallback.test.sh
+for d in ../astro ../parli ../tools; do
+  echo "--- $(basename "$d")"
+  (cd "$d" && bash ../ariadne/scripts/run-merge-checks.sh HEAD HEAD 2>&1 | tail -3)
+done
+```
+Expected: the test passes; each repo runs at least the duplicate-id check and none reports `none defined`.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add scripts/run-merge-checks.sh construct/scripts/test/merge-checks-fallback.test.sh scripts/merge-checks.d/50-base-layer-tests.sh
+git commit -m "#239 M4: run-merge-checks resolves the owner's base-layer checks
+
+CI never runs weave (merge-check.yml uses BOOTSTRAP_CLONE_ONLY), so once the
+weave surface is untracked, astro and parli would have had NO checks and a
+vacuously green pipeline. The runner already had an owner fallback; the checks
+directory did not."
+```
+
+### Task 4.0c: give `sdlc propagate-base` a repo selector and a brain guard
 
 M4's whole shape — pilot on one repo, prove CI, then sweep — is impossible with the verb as it stands: it takes only `--dry-run` and `--ref` (`propagatebase.go:299-300`) and by design sweeps *every* recursive dependent in one run. `recursiveDependents` matches on `Makefile.workflow` + `.git`, so it will also walk into the brain repos, which are capture-only and must not be swept. Per the workflow contract, a verb that cannot express the need is a gap in `sdlc` to fix at the source — not to route around with hand-rolled git.
 
@@ -1596,8 +1794,9 @@ Add `--repo <name>` (repeatable, matched against the dependent's basename; unkno
 ```bash
 go test ./cmd/sdlc/...
 go build -o bin/sdlc ./cmd/sdlc && ./bin/sdlc propagate-base --dry-run
+./bin/sdlc propagate-base --repo kbench --dry-run   # the 4.0a proof: 0 untracks, not 1160
 ```
-Expected: tests pass; the dry-run lists the dependents and names no brain repo.
+Expected: tests pass; the dry-run lists the dependents, names no brain repo, and reports nothing to untrack in `kbench`.
 
 - [ ] **Step 5: Commit**
 
@@ -1635,7 +1834,7 @@ wc -l /tmp/untrack-set; cat /tmp/untrack-set
 
 - [ ] **Step 3: Verify no repo-owned file is in the set**
 
-The structural argument is that per-path derivation makes this impossible — a path weave never produces can never enter the block. Verify it anyway, because the argument is the thing under test. `formatActions` prints `EnsureGitignore` as a count, not its entries, so this cross-check is not circular:
+Two independent guards now stand between the enumeration and the destruction, and this step tests both: per-path derivation keeps repo-owned paths out of the **block** (M3), and Task 4.0a's provenance filter keeps everything the block does not own out of the **sweep**. Verify anyway — the arguments are the thing under test, and the first version of this plan asserted the first guard as though it covered the second. `formatActions` prints `EnsureGitignore` as a count, not its entries, so this cross-check is not circular:
 
 ```bash
 /Users/xianxu/workspace/ariadne/bin/weave compile --dry-run > /tmp/plan.txt
@@ -1679,7 +1878,7 @@ cd /Users/xianxu/workspace/ariadne && ./bin/sdlc propagate-base --repo pair --dr
 ./bin/sdlc propagate-base --repo pair
 ```
 
-Note `pair/Makefile` is a pending typechange; commit or discard that first so the tree is clean.
+**`pair/Makefile` is a pending typechange — `git checkout -- Makefile` to DISCARD it, do not commit it.** The two outcomes are not equivalent: committing the materialized regular file makes `applySeedOnce` see presence and no-op forever, freezing a copy of *ariadne's own root Makefile* (with ariadne's `WF_*` lines) as pair's front door — the exact two-owners artifact this issue removes. Discarding restores the symlink, so M1's `seed-once` materializes `construct/Makefile.seed` instead.
 
 - [ ] **Step 2: Open a PR in the pilot and watch CI**
 
@@ -1733,14 +1932,25 @@ for d in ../*/; do
   n=$(basename "$d"); case "$n" in metis.bak|brain*) continue;; esac
   ( cd "$d"
     links=$(git ls-files -s | awk '$1==120000' | wc -l | tr -d ' ')
-    stragglers=$(git ls-files -i -c --exclude-standard | wc -l | tr -d ' ')
+    # Stragglers must be counted against WEAVE'S BLOCK, not the whole ignore
+    # config: kbench legitimately keeps 1160 tracked-but-ignored files under its
+    # own nested .gitignore, and those are not this sweep's business (Task 4.0a).
+    blockfrom=$(grep -n '^# >>> weave-generated' .gitignore | cut -d: -f1)
+    blockto=$(grep -n '^# <<< weave-generated' .gitignore | cut -d: -f1)
+    stragglers=0
+    while read -r f; do
+      [ -n "$f" ] || continue
+      ln=$(git check-ignore -v --no-index "$f" | awk -F: '$1==".gitignore"{print $2}')
+      [ -n "$ln" ] && [ "$ln" -ge "${blockfrom:-0}" ] && [ "$ln" -le "${blockto:-0}" ] \
+        && stragglers=$((stragglers+1))
+    done < <(git ls-files -i -c --exclude-standard)
     git ls-files --error-unmatch bootstrap.sh .github/workflows/merge-check.yml construct/deps >/dev/null 2>&1 \
       && core=ok || core=MISSING
-    printf '%-16s symlinks=%-3s tracked-but-ignored=%-3s core=%s\n' "$n" "$links" "$stragglers" "$core" )
+    printf '%-16s symlinks=%-3s block-ignored-still-tracked=%-3s core=%s\n' "$n" "$links" "$stragglers" "$core" )
 done
 ```
 
-Expected: `symlinks=0`, `tracked-but-ignored=0`, `core=ok` for every repo (pair was 28 symlinks). Record the before/after table in `## Log` — it is the issue's headline result.
+Expected: `symlinks=0`, `block-ignored-still-tracked=0`, `core=ok` for every repo (pair was 28 symlinks). Record the before/after table in `## Log` — it is the issue's headline result.
 
 - [ ] **Step 5: Check whether `legacyBlanketEntries` can die**
 
@@ -1786,7 +1996,9 @@ Omit `--actual` — close measures and adopts the hours itself (#178).
 
 | Risk | Answer |
 |---|---|
-| A blanket ignore untracks a repo-owned file (pair#64, parley.nvim's `20-vocabulary.sh`) | Per-path derivation makes it structurally impossible: a path weave never produces can never enter the block. Tested in `IgnoreEntries` unit tests, asserted with the real `git ls-files -i -c` in the conformance test, and verified per repo in M4. |
+| A blanket ignore untracks a repo-owned file (pair#64, parley.nvim's `20-vocabulary.sh`) | Per-path derivation keeps it out of the **block**: a path weave never produces can never enter it. Tested in `IgnoreEntries` unit tests, asserted with the real `git ls-files -i -c` in the conformance test, and verified per repo in M4. |
+| **The sweep untracks files the block never ignored** (kbench's 1160 committed run artifacts, under its own nested `.gitignore`) | The block guard does **not** cover this — `git ls-files -i -c` reads the whole ignore config. Task 4.0a filters by pattern *provenance* (`git check-ignore -v`), untracking only what the managed block's own line range matches, and reports the rest instead of dropping it silently. |
+| **Untracking the symlinked merge-check voids CI in `astro`/`parli`** — a *vacuous* green that Done-when cannot detect, and the `pair` pilot is blind to | CI never runs weave (`BOOTSTRAP_CLONE_ONLY`), so committed-only paths are a class, enumerated in *Pre-weave consumers*. Its one unresolved member gets the symmetric owner fallback in Task 4.0b, with a test whose failure mode is the `none defined` message itself. |
 | Ignoring `workshop/issues/` or `lessons.md` | The ownership rule puts `scaffold`/`touch` in the tracked class. Tested directly. |
 | A lean `--target` shrinks the wholesale-replaced block | `planActions` always derives from `TargetAll`. A hazard M2 *creates*; Task 3.2 closes it with a test. |
 | Derivatives keep their legacy blanket ignores forever (they never run the M2 binary) | `legacyBlanketEntries` absorbs the three superseded lines, tested in Task 2.1, and Task 4.3 Step 5 checks the list can then be deleted. |
@@ -1800,6 +2012,19 @@ Omit `--actual` — close measures and adopts the hours itself (#178).
 ---
 
 ## Revisions
+
+### 2026-09-19 — plan-quality gate round 1 (`sdlc change-code`): 2 Critical
+
+**Reason:** the plan-quality judge found two Critical defects, both in M4, both about what happens when the *committed* surface shrinks, and both invisible to the plan's own acceptance criteria. Verified each against the live fleet before acting.
+
+**PQ-1 — the sweep is not the block.** The plan argued the untrack set was "structurally safe" because per-path derivation keeps repo-owned paths out of the managed block. True of the **block**; false of the **sweep**, which runs `git ls-files -i -c --exclude-standard` over the *whole* ignore configuration. Measured: `kbench` reports **1160** tracked-but-ignored files under its own nested `competition/arc-agi-3/.gitignore:24` — deliberately committed research artifacts that one `propagate-base` run would have `git rm --cached`'d and committed away. A blanket skip would be equally wrong: `parley.nvim`'s single such file *is* weave's and must go. **Delta:** new Task 4.0a filters by pattern provenance via `git check-ignore -v --no-index`, untracking only what the managed block's own line range matches; Task 4.3 Step 4's straggler count re-scoped to the block; risks table row added.
+
+**PQ-2 — CI never runs weave.** `merge-check.yml:38` uses `BOOTSTRAP_CLONE_ONLY=1`, and `bootstrap.sh:34-36` exits before the `make bootstrap` handoff, so on a runner every path is whatever is committed. The runner has an owner fallback (`merge-check.yml:71`); the checks **directory** has none (`run-merge-checks.sh:26-27`). `astro`, `parli` and `tools` track `40-duplicate-issue-id.sh` as mode `120000`, and for the first two it is their **only** check — after the sweep `run-merge-checks.sh:42` prints `none defined — pass (no-op)` and exits 0. A vacuous green, which "CI still passes on a derivative PR" cannot distinguish from a real one, and which the `pair` pilot (only `.gitkeep` there) cannot surface. **Delta:** new *Pre-weave consumers* section enumerating the whole class (9 members, 8 already resolved); new Task 4.0b adding the symmetric owner fallback, with a test whose failure mode is the `none defined` message itself.
+
+**Minors, fixed in the same round:**
+- `IgnoreEntries` returns an `error` instead of panicking — its caller already returns one, so an unclassified Action surfaces as a diagnosable weave failure rather than a stack trace in every repo's `make weave`. `planActions` updated to match.
+- Task 4.2 now says **discard** `pair/Makefile`, not "commit or discard". Committing the materialized file would freeze a copy of ariadne's own root Makefile as pair's front door forever — the two-owners artifact this issue removes.
+- The issue's Done-when 7 is restated in ownership terms (see the issue's own `## Revisions`): the plan's rule deliberately keeps `Makefile`, `workshop/lessons.md` and the scaffold `.gitkeep`s tracked too, so the literal "only three paths" reading would score as failed at close.
 
 ### 2026-09-19 — plan review round 1 (two fresh-context reviewers)
 
