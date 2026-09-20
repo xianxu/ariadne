@@ -242,10 +242,29 @@ merge check — not in ~45 tracked symlinks per repo.
 
 ## Plan
 
-- [ ] design not yet done — author via `superpowers-writing-plans` at
-      `workshop/plans/` after `sdlc claim` + `sdlc start-plan`. Pieces A–D are
-      candidate milestone boundaries; D (fleet untrack) is the irreversible one
-      and should land last, behind a green CI on one derivative.
+Durable plan: `workshop/plans/000239-minimal-committed-base-layer-surface-plan.md`
+(authored via `superpowers-writing-plans`). Four review boundaries, ordered so the
+riskier change always lands on machinery already proven.
+
+- [ ] M1 — `seed-once`: the verb (intent/action/seam), the walk+prune+completeness
+      switches, and the seed-source split (`construct/Makefile.seed`), so ariadne's
+      root Makefile stops being every repo's template. Regression test: a
+      repo-owned root Makefile survives two weaves, and a *later edit* to it
+      survives too.
+- [ ] M2 — managed block: `.gitignore` becomes a delimited weave-owned region,
+      still carrying today's hardcoded 9 entries. Block machinery proven against a
+      known-good list before the list changes.
+- [ ] M3 — derive the list: `IgnoreEntries` from the manifest walk; delete
+      `GeneratedRuntimeGitignoreEntries`; pin the derivation to `TargetAll`; the
+      `gitignore-surface.test.sh` conformance test; target + atlas updates.
+- [ ] M4 — fleet untrack: pilot on `pair` (fresh-clone bootstrap + green CI)
+      before sweeping the remaining derivatives via `sdlc propagate-base`.
+
+**M2 must precede M3.** Appending ~95 derived entries through today's append-only
+`ensureGitignoreText` is exactly the "actively dangerous" case in the Problem
+section: a retired manifest row would leave a permanent stale ignore line in every
+repo.
+
 
 ## Log
 
@@ -283,6 +302,76 @@ Two corrections landed while widening:
 - The mixed-directory hazard is real, not theoretical —
   `parley.nvim/scripts/merge-checks.d/20-vocabulary.sh` is a repo-owned check
   sitting beside a weave symlink. Per-path ignores only.
+
+### 2026-09-19 — design landed; durable plan authored
+
+Plan: `workshop/plans/000239-minimal-committed-base-layer-surface-plan.md`.
+
+**The four pieces collapse to one rule.** A manifest verb already declares who
+owns the bytes after weave runs, and that is exactly the commit/ignore axis:
+weave **ignores what it re-derives** (`symlink`, `prose`, `merge`, the lowered
+skill links) and **tracks what it merely provisions** (`scaffold`, `touch`,
+`seed`, `seed-once`). So the bootstrap core is *derived*, not listed — both seed
+verbs mean "must work before any substrate exists", which is the same thing as
+"must be committed". No hardcoded exclusion list (ARCH-DRY).
+
+The rule also repairs a defect the Spec's flat framing ("every path `make weave`
+creates is gitignored") would have introduced: `scaffold workshop/issues` and
+`touch workshop/lessons.md` are weave-created, and ignoring them would untrack
+every issue file and the lessons log. Ownership is the right axis, not creation.
+
+**Findings from the code read:**
+
+- **A live instance of the pair#64 hazard, in ariadne itself.** `/.colima/` in
+  ariadne's own `.gitignore:28` is a blanket dir ignore over a directory ariadne
+  OWNS — 6 tracked real files. `git check-ignore -v .colima/NEWFILE` →
+  `.gitignore:28:/.colima/`, so any *new* file there is silently invisible to
+  `git add`. Per-path derivation fixes it for free: the `.colima/*` rows are
+  self-referential on ariadne's self-walk, so `walk.loadLayer` drops them and
+  they produce no actions, hence no ignore lines.
+- **The seed source is itself the two-owners bug.** `seed Makefile` means the
+  source *is* ariadne's own root Makefile, which is exactly why the "generic"
+  template hardcodes `WF_ISSUES_DIR = workshop/issues`. Piece A therefore splits
+  the template out to `construct/Makefile.seed`; ariadne's root Makefile becomes
+  ariadne's own, like every other repo's.
+- **A symlink is not "presence" for `seed-once`.** `pair/Makefile` is a tracked
+  symlink to `../ariadne/Makefile` today. seed-once must materialize a symlink
+  (the #225 convergence) while treating a regular file as sacrosanct — and must
+  remove the link before writing, or it writes *through* it into the ancestor's
+  own Makefile. `portable-makefile.test.sh:91-97` already locks the symlink half.
+- **M2 must precede M3** (ordering the Spec's A–D lettering does not imply).
+  Appending ~95 derived entries through the append-only `ensureGitignoreText`
+  is the danger the Problem section names. The block machinery lands first
+  carrying the known-good 9 entries; only then does the list source swap.
+- **The wholesale-replaced block creates a new hazard M3 must close.** Append-only
+  could never *lose* an entry; a block derived from a lean `weave compile --target
+  claude` would drop every `/.agents/skills/*` line and silently re-expose Codex's
+  symlinks. The ignore list is a property of the repo, not of the face being
+  compiled, so it is always derived from `TargetAll` (the shape
+  `runVerifyComplete` already uses at `main.go:545`).
+- **Piece D's mechanism already exists.** `commitConsumption`
+  (`cmd/sdlc/propagatebase.go:243-259`) already runs `git ls-files -i -c` +
+  `git rm --cached` to avoid the inert-gitignore trap, so the fleet sweep rides
+  `sdlc propagate-base` rather than hand-rolled git. And per-path derivation makes
+  the untrack set *structurally* safe: a path weave never produces can never enter
+  the block, so `parley.nvim/scripts/merge-checks.d/20-vocabulary.sh` and every
+  `scripts/ci-setup.sh` cannot be swept. Verified per repo anyway.
+- **Pilot repo: `pair`.** It carries every hazard at once — the `bin/*` +
+  `!bin/*.sh` negations, 28 tracked weave symlinks, a tracked `Makefile` symlink,
+  and a retired-row orphan (`scripts/issue-sync.sh` is tracked but absent from
+  today's manifest).
+- **Sizing:** the derived block is ~95 lines (~45 action-derived + 25
+  `.claude/skills/*` + 25 `.agents/skills/*`), against 9 today. Accepted — it is
+  derived, so it self-maintains, and `.gitignore` churn inside a managed block is
+  generated content like `CLAUDE.md`.
+
+**Enumerations to re-run rather than recall** (the lessons.md derived-sweep rule):
+
+```
+grep -rn "intent\.Seed\b\|case Seed:\|plan\.Seed\b" --include="*.go" cmd/ | grep -v _test
+for d in ../*/; do [ -f "$d/construct/deps" ] && grep -q '^substrate' "$d/construct/deps" && basename "$d"; done
+```
+
 
 ## Revisions
 
