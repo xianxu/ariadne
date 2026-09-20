@@ -576,6 +576,34 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-20 — BR-30 + BR-31 closed (the tail of M2)
+
+**BR-31 — the harness could not fail.** It used
+`run46 "$r" && bad || ok`, so ANY non-zero exit counted as "went red — site
+enforced": a fixture that failed to build, a wrong check path, a git error. Every
+red case would have reported `ok` while testing nothing.
+
+Now `expect_red` requires the check to exit non-zero **and** to name the expected
+site in its output ("red for the WRONG REASON" is a distinct failure message),
+and `expect_green` requires exit 0 **plus** a ✓ line, so a check that died before
+checking cannot pass. Added a **self-test**: a deliberately broken invocation
+(missing check script) must be reported as a failure — the guard on the guard.
+Without it, every red assertion could be passing for the wrong reason silently.
+
+**BR-30 — the declaration grammar was written twice and the halves disagreed.**
+The extractor had learned about grouped `const ( … )` members; `still_declared`
+still only grepped column 0. So a member merely **REORDERED** inside its group
+read as removed-and-never-redeclared → false positive. Caught by the new fixture
+before the fix (`pkg/a.go:3 names removed symbol alpha` on a pure reorder).
+Both halves now recognise the same two shapes, with a comment saying that
+teaching one half a new shape means teaching the other.
+
+Harness: **13/13**, including the two BR-30 shapes (reorder must stay green,
+marker rename must go red) and the self-test. Both checks green on the real tree.
+
+M2's carried-forward gaps are now closed; M3 is next.
+
+
 ### 2026-09-19 — M2 CLOSED, with two known gaps carried forward
 
 Gate clean after 4 rounds (8 review rounds total across M1+M2). M2 ticked.

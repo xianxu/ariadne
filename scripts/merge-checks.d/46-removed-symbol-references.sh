@@ -87,8 +87,18 @@ removed=$(
 WB_L='(^|[^A-Za-z0-9_])'
 WB_R='([^A-Za-z0-9_]|$)'
 
+# still_declared must recognise EVERY declaration shape the extractor above
+# recognises. They were written separately and disagreed: the extractor learned
+# about grouped `const ( … )` members, this did not, so a member merely
+# REORDERED inside its group read as removed-and-never-redeclared and produced a
+# false positive (#239 M2 BR-30). One grammar, two uses — if you teach one half
+# a new declaration shape, teach the other.
+#
+#   column 0 : func|var|const|type NAME …      (incl. a method receiver)
+#   grouped  : <indent> NAME … =               (a member of a `( … )` block)
 still_declared() {
-    git grep -qE "^(func|var|const|type) (\([^)]*\) )?$1$WB_R" "$HEAD" -- '*.go' 2>/dev/null
+    git grep -qE "^(func|var|const|type) (\([^)]*\) )?$1$WB_R" "$HEAD" -- '*.go' 2>/dev/null && return 0
+    git grep -qE "^[[:space:]]+$1[[:space:]]*(=|[A-Za-z_*\[][^=]*=)" "$HEAD" -- '*.go' 2>/dev/null
 }
 
 violations=0
