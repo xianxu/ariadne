@@ -225,3 +225,31 @@ func TestRenderCompletenessVerdict(t *testing.T) {
 		t.Fatalf("dirty verdict missing under-produced line:\n%s", dirty)
 	}
 }
+
+func TestCheckCompletenessFlagsUncoveredSeedOnce(t *testing.T) {
+	// The NEGATIVE direction is the one that actually fails before the fix:
+	// coverIntent's switch has no `default`, so an unhandled Kind falls through
+	// to "covered" and a positive-only test would pass while proving nothing
+	// (#239 PQ, round 1).
+	layers := []layer.Layer{{Name: "ariadne", Path: "/ws/ariadne", Intents: []intent.Intent{
+		{Kind: intent.SeedOnce, Source: "construct/Makefile.seed", Target: "Makefile"},
+	}}}
+	got := CheckCompleteness(layers, nil) // no actions at all
+	if len(got) != 1 {
+		t.Fatalf("want 1 uncovered, got %+v", got)
+	}
+	if got[0].Verb != "seed-once" || got[0].Target != "Makefile" {
+		t.Fatalf("wrong uncovered row: %+v", got[0])
+	}
+}
+
+func TestCheckCompletenessCoversSeedOnce(t *testing.T) {
+	// …and the positive direction, which guards the actionIndex wiring.
+	layers := []layer.Layer{{Name: "ariadne", Path: "/ws/ariadne", Intents: []intent.Intent{
+		{Kind: intent.SeedOnce, Source: "construct/Makefile.seed", Target: "Makefile"},
+	}}}
+	actions := []plan.Action{plan.SeedOnce{Src: "/ws/ariadne/construct/Makefile.seed", Dst: "Makefile"}}
+	if got := CheckCompleteness(layers, actions); len(got) != 0 {
+		t.Fatalf("seed-once reported under-produced: %+v", got)
+	}
+}

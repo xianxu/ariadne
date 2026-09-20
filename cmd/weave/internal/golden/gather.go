@@ -97,6 +97,11 @@ func Gather(fs weavefs.FS, root string, actions []plan.Action, deferred []intent
 			observe(act.Dst, false)
 		case plan.Mkdir:
 			observe(act.Path, false)
+		case plan.SeedOnce:
+			// Same two probes as Seed: classifyAction compares the live
+			// target against the upstream source bytes for both.
+			observe(act.Dst, true)
+			observeAbs(act.Src)
 		case plan.Seed:
 			// Two probes (matching classifyAction's Seed case): the target (Dst,
 			// root-relative) and the upstream source (Src, absolute). Both need

@@ -114,7 +114,7 @@ func loadLayer(fs weavefs.FS, root, dir string) (layer.Layer, error) {
 // file-shape and bypass the filter — see loadLayer.
 func isFileShape(k intent.Kind) bool {
 	switch k {
-	case intent.Symlink, intent.Seed, intent.Scaffold, intent.Touch:
+	case intent.Symlink, intent.Seed, intent.SeedOnce, intent.Scaffold, intent.Touch:
 		return true
 	default:
 		return false

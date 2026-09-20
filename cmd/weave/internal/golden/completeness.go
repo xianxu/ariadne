@@ -57,6 +57,7 @@ type Uncovered struct {
 // Coverage per verb (how a manifest row is "covered" by an Action):
 //   - symlink → a plan.Symlink with the SAME Dst (target).
 //   - seed    → a plan.Seed with the same Dst.
+//   - seed-once → a plan.SeedOnce with the same Dst (#239).
 //   - scaffold→ a plan.Mkdir with the same Path.
 //   - touch   → a plan.Touch with the same Path.
 //   - merge   → a plan.MergeSettings with the same Target.
@@ -115,6 +116,7 @@ func CheckCompleteness(layers []layer.Layer, actions []plan.Action) []Uncovered 
 type actionIndex struct {
 	symlinkDsts  map[string]bool            // every plan.Symlink.Dst
 	seedDsts     map[string]bool            // every plan.Seed.Dst
+	seedOnceDsts map[string]bool            // every plan.SeedOnce.Dst (#239)
 	mkdirPaths   map[string]bool            // every plan.Mkdir.Path
 	touchPaths   map[string]bool            // every plan.Touch.Path
 	mergeSources map[string]map[string]bool // target -> every plan.MergeSettings source
@@ -126,6 +128,7 @@ func indexActions(actions []plan.Action) actionIndex {
 	idx := actionIndex{
 		symlinkDsts:  map[string]bool{},
 		seedDsts:     map[string]bool{},
+		seedOnceDsts: map[string]bool{},
 		mkdirPaths:   map[string]bool{},
 		touchPaths:   map[string]bool{},
 		mergeSources: map[string]map[string]bool{},
@@ -146,6 +149,8 @@ func indexActions(actions []plan.Action) actionIndex {
 			}
 		case plan.Seed:
 			idx.seedDsts[act.Dst] = true
+		case plan.SeedOnce:
+			idx.seedOnceDsts[act.Dst] = true
 		case plan.Mkdir:
 			idx.mkdirPaths[act.Path] = true
 		case plan.Touch:
@@ -180,6 +185,10 @@ func coverIntent(layerPath string, in intent.Intent, idx actionIndex) (Uncovered
 	case intent.Seed:
 		if !idx.seedDsts[in.Target] {
 			return mk("no plan.Seed targets this path (lowering dropped the entry?)")
+		}
+	case intent.SeedOnce:
+		if !idx.seedOnceDsts[in.Target] {
+			return mk("no plan.SeedOnce targets this path (lowering dropped the entry?)")
 		}
 	case intent.Scaffold:
 		if !idx.mkdirPaths[in.Target] {
@@ -234,6 +243,8 @@ func verbName(k intent.Kind) string {
 		return "symlink"
 	case intent.Seed:
 		return "seed"
+	case intent.SeedOnce:
+		return "seed-once"
 	case intent.Scaffold:
 		return "scaffold"
 	case intent.Touch:

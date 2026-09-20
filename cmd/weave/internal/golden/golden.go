@@ -198,6 +198,30 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 			return Divergence{Match, "seed", act.Dst, "content matches upstream source"}
 		}
 
+	case plan.SeedOnce:
+		// SeedOnce is the ownership SIBLING of Seed, and its classification is
+		// deliberately NOT Seed's (#239). Seed content-TRACKS upstream, so drift
+		// is a divergence. SeedOnce hands the slot to the repo on first write, so
+		// a present target whose content differs from the template is the
+		// INTENDED end state — flagging it would re-assert the two-owners claim
+		// this verb exists to retire.
+		//   - Absent source → nothing to seed; mirrors applySeedOnce's skip.
+		//   - Target present (any content) → MATCH. The repo owns it.
+		//   - Target absent, source present → UNEXPECTED (weave would create it).
+		dstO := obs[filepath.Join(root, act.Dst)]
+		srcO := obs[act.Src]
+		switch {
+		case !srcO.Exists:
+			return Divergence{Match, "seed-once", act.Dst,
+				"upstream template absent — weave would skip (non-fatal), nothing to diverge"}
+		case dstO.Exists:
+			return Divergence{Match, "seed-once", act.Dst,
+				"target present — repo-owned, weave would not touch it (write-once)"}
+		default:
+			return Divergence{Unexpected, "seed-once", act.Dst,
+				"weave would seed the template once, but the target is absent in live"}
+		}
+
 	case plan.WriteFile:
 		abs := filepath.Join(root, act.Path)
 		o := obs[abs]

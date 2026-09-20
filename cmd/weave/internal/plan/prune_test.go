@@ -428,3 +428,12 @@ func TestPruneGenerated_AbsentTreeIsNoOp(t *testing.T) {
 		t.Errorf("removed %v, want none (absent construct/generated)", removed)
 	}
 }
+
+func TestProducedPathSetIncludesSeedOnce(t *testing.T) {
+	// prune must never treat a seeded-once file as an orphan: SeedOnce occupies
+	// its slot as a real file weave produced this run (#239).
+	set := ProducedPathSet([]Action{SeedOnce{Src: "/up/construct/Makefile.seed", Dst: "Makefile"}})
+	if !set["Makefile"] {
+		t.Fatalf("SeedOnce target missing from the produced set: %v", set)
+	}
+}

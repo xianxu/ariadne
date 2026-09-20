@@ -780,6 +780,8 @@ func formatActions(actions []plan.Action) string {
 			b = append(b, fmt.Sprintf("mkdir     %s\n", act.Path)...)
 		case plan.Seed:
 			b = append(b, fmt.Sprintf("seed      %s -> %s\n", act.Dst, act.Src)...)
+		case plan.SeedOnce:
+			b = append(b, fmt.Sprintf("seed-once %s -> %s\n", act.Dst, act.Src)...)
 		case plan.Touch:
 			b = append(b, fmt.Sprintf("touch     %s\n", act.Path)...)
 		case plan.MergeSettings:
