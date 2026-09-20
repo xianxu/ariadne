@@ -880,3 +880,17 @@ directories, any user-local dependency bin directory, and the standalone gateway
 directory when needed. Test a fresh developer/CI process after only those
 additions; successful generator execution inside compile alone is insufficient.
 This keeps the operator's manual shell setup and adds no exec/env commands.
+
+
+### 2026-09-20 — explicit simplicity and feature-approval constraint
+
+**Reason:** operator: “keep things simple. don't add new features in this task
+without asking me.”
+
+**Delta:** implement only the agreed link/dependencies/compile/bootstrap,
+artifact-propagation and distribution contract. No additional commands,
+dependency types, automatic updates or shell integration without prior operator
+approval. Removed the draft's unapproved `checkout` dependency type. Any actual
+startup case requiring more than the agreed mechanisms must be presented
+concretely before extending scope. The detailed plan remains a review draft,
+not permission to implement every proposed mechanism.
