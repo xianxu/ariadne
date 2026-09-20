@@ -422,6 +422,32 @@ read-only repository permissions; #241 owns tagging/publication and tap writes.
 Tests exercise real native archives and the exact formula composition fixture,
 plus partial build failure and protected existing output. No license is invented.
 
+### 2026-09-20 — M3 interruption and Git partial-progress corrections
+
+Reason: BR-13 reproduced release scratch directories surviving interruption and
+retry; BR-14 found no failure-injection evidence for Git index transitions.
+
+The staging rule applies to every producer, including release preparation:
+record ownership before external writes, inherit a writer lease, publish only
+when writers stop, and remove/reclaim only with exclusive proof. Move the release
+implementation into a private Go helper so it reuses the existing staging and
+owned-process boundary; keep the public shell API and artifact layout unchanged.
+Reclaim before checking for an already-published output, covering death between
+publication and cleanup. Add controlled termination/death/live-child/retry tests.
+
+Migration uses the existing executable/PATH process boundary for every status,
+ls-files, rm, add, and commit call. A faulting Git executable backed by a real
+persistent Git index injects failure before or after the selected effect; real
+Git remains the conformance backend rather than duplicating index semantics.
+Enumerate clean → compiled changes → partial/complete staged changes → commit.
+An error does not imply no effect: keep Git's actual state and report how to
+inspect it. A dirty public retry stops before compile until the operator
+resolves/commits retained changes; an already-completed commit retries as a
+no-op. No automatic reset, rollback framework, or new command is introduced.
+Tests cover each interaction, failure after earlier removals, failed add/commit,
+commit-success-before-error, retained working files, and operator-resolved retry
+(ARCH-MOCK, ARCH-ORDER, ARCH-FUNERAL).
+
 ## Historical revisions
 
 Everything below is historical. It is preserved verbatim and is not part of the

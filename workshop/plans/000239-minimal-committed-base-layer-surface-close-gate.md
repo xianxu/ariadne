@@ -261,6 +261,25 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 9
+      timestamp: "2026-09-20T15:29:47-07:00"
+      agent: codex
+      findings:
+        - id: BR-13
+          severity: Important
+          title: Interrupted release preparation leaves staging directories without reclamation
+          detail: 'scripts/release-weave.sh:21 creates persistent sibling staging using TemporaryDirectory only. A controlled SIGTERM during the build left .weave-release-* behind, and retry preserved it. This is the 4th finding in family durable-staging-reclamation. Earlier rounds fixed instances: state and enforce the rule across clone, generator, publication, and release staging, including producer lifetime and retry reclamation, rather than adding only a signal trap here. Add interruption/retry regressions. ARCH-FUNERAL and ARCH-ORDER.'
+          family: durable-staging-reclamation
+          round: 9
+        - id: BR-14
+          severity: Important
+          title: Scoped migration lacks stateful Git index failure coverage
+          detail: cmd/sdlc/propagatebase.go:285 adds sequential index removals through direct exec calls, but propagation tests inject only weave failures and do not exercise partial Git index progress. This is the 3rd finding in family external-interaction-test-seam. State the shared-boundary rule and enumerate migration's status, ls-files, rm, add, and commit interactions; exercise them through a stateful Git fake with failures after earlier effects succeed, retaining real-Git conformance tests. Specify and test recovery or explicit operator remediation without losing partial-progress evidence. ARCH-MOCK and ARCH-ORDER.
+          family: external-interaction-test-seam
+          round: 9
+      boundary: M3
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -370,6 +389,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-11 — addressed — Publish writes into an owned stage before atomic rename. Partial-write and killed-writer tests verify preservation, recovery, and retirement.
 - BR-12 — addressed — Staged permissions travel through WriteFile and ownership identities. Publication applies permissions before rename; executable-permission and legacy-inventory tests pass.
 
+## Round 9 — 2026-09-20T15:29:47-07:00 (codex) — BLOCKED
+
+### Raised
+
+- **BR-13** [Important] `durable-staging-reclamation` Interrupted release preparation leaves staging directories without reclamation
+  scripts/release-weave.sh:21 creates persistent sibling staging using TemporaryDirectory only. A controlled SIGTERM during the build left .weave-release-* behind, and retry preserved it. This is the 4th finding in family durable-staging-reclamation. Earlier rounds fixed instances: state and enforce the rule across clone, generator, publication, and release staging, including producer lifetime and retry reclamation, rather than adding only a signal trap here. Add interruption/retry regressions. ARCH-FUNERAL and ARCH-ORDER.
+- **BR-14** [Important] `external-interaction-test-seam` Scoped migration lacks stateful Git index failure coverage
+  cmd/sdlc/propagatebase.go:285 adds sequential index removals through direct exec calls, but propagation tests inject only weave failures and do not exercise partial Git index progress. This is the 3rd finding in family external-interaction-test-seam. State the shared-boundary rule and enumerate migration's status, ls-files, rm, add, and commit interactions; exercise them through a stateful Git fake with failures after earlier effects succeed, retaining real-Git conformance tests. Specify and test recovery or explicit operator remediation without losing partial-progress evidence. ARCH-MOCK and ARCH-ORDER.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-13** [Important] `durable-staging-reclamation` Interrupted release preparation leaves staging directories without reclamation
+- **BR-14** [Important] `external-interaction-test-seam` Scoped migration lacks stateful Git index failure coverage
