@@ -29,6 +29,10 @@ import (
 //     drifted from the source, a no-op when already identical, and a non-fatal
 //     skip when the source is absent. Distinct from WriteFile (whose content the
 //     planner holds): a Seed's content is read from Src here in the IO seam.
+//   - SeedOnce → the OWNERSHIP sibling of Seed (#239): write the slot at most
+//     ONCE, then hand it to the repo permanently. Anything that is not a symlink
+//     occupying the slot is presence (no-op, src never read); a symlink — live or
+//     dangling — is weave's own prior lowering and is materialized.
 //   - WriteFile → AGENTS.md/touch: ensure parents, then write.
 //   - MergeSettings → settings merge: read ordered sources + optional sibling
 //     settings.local.json, run the pure settingsx.MergeChain, write the target.
@@ -51,6 +55,8 @@ func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
 			err = applyMkdir(fs, filepath.Join(repoRoot, act.Path))
 		case Seed:
 			err = applySeed(fs, act.Src, filepath.Join(repoRoot, act.Dst))
+		case SeedOnce:
+			err = applySeedOnce(fs, act.Src, filepath.Join(repoRoot, act.Dst))
 		case Touch:
 			err = applyTouch(fs, filepath.Join(repoRoot, act.Path))
 		case WriteFile:
@@ -234,6 +240,55 @@ func applySeed(fs weavefs.FS, src, dst string) error {
 	if fi, serr := fs.Stat(src); serr == nil && fi.Mode().Perm()&0o111 != 0 {
 		if err := fs.Chmod(dst, fi.Mode().Perm()); err != nil {
 			return fmt.Errorf("apply seed: chmod %s: %w", dst, err)
+		}
+	}
+	return nil
+}
+
+// applySeedOnce is the WRITE-ONCE half of the seed pair (#239). Where applySeed
+// converges on upstream every compile, this one writes the slot at most once and
+// then hands it to the repo permanently:
+//
+//   - ANYTHING THAT IS NOT A SYMLINK in the slot (a regular file, a directory)
+//     → no-op, with NO read of src and no comparison. The repo owns it, whatever
+//     it now contains. This is the whole point: a repo adopting ariadne keeps its
+//     own root Makefile, and a repo that later edits its root Makefile keeps that
+//     edit across every subsequent weave. (applySeed would reach WriteFile on a
+//     directory and error; no-op is the safer behavior here, and is deliberate.)
+//   - A SYMLINK in the slot → NOT presence, whether live or DANGLING (Lstat
+//     reports ModeSymlink either way). It is weave's own pre-#239 `symlink
+//     Makefile` lowering; removing it and materializing a real file is the #225
+//     convergence that nous and metis still carry. removeDestinationSymlink also
+//     guarantees we never write THROUGH it into the ancestor's own Makefile.
+//   - Absent → write src's bytes, preserving its executable bits exactly as
+//     applySeed does.
+//
+// A missing src is a non-fatal skip, matching applySeed: weave can't read the
+// template, so it leaves the slot alone rather than erroring the walk.
+//
+// NOTE the ordering: the presence check runs BEFORE the src read, so a
+// repo-owned file is never even compared against upstream.
+func applySeedOnce(fs weavefs.FS, src, dst string) error {
+	if fi, err := fs.Lstat(dst); err == nil && fi.Mode()&os.ModeSymlink == 0 {
+		return nil // repo-owned — sacrosanct, never read src
+	}
+	data, err := fs.ReadFile(src)
+	if err != nil {
+		return nil // template missing/unreadable → non-fatal skip (applySeed's contract)
+	}
+	if err := removeDestinationSymlink(fs, dst); err != nil {
+		return err
+	}
+	if err := ensureParent(fs, dst); err != nil {
+		return err
+	}
+	if err := fs.WriteFile(dst, data); err != nil {
+		return fmt.Errorf("apply seed-once: write %s: %w", dst, err)
+	}
+	// Preserve the source's executable bit, exactly as applySeed does.
+	if fi, serr := fs.Stat(src); serr == nil && fi.Mode().Perm()&0o111 != 0 {
+		if err := fs.Chmod(dst, fi.Mode().Perm()); err != nil {
+			return fmt.Errorf("apply seed-once: chmod %s: %w", dst, err)
 		}
 	}
 	return nil

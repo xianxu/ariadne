@@ -720,3 +720,96 @@ func TestMaterializationFailures(t *testing.T) {
 		}
 	}
 }
+
+// --- seed-once (#239): the ownership guard --------------------------------
+//
+// applySeed CONVERGES on upstream every compile; applySeedOnce writes the slot
+// at most once and then hands it to the repo. The four branches below are the
+// whole contract: regular file (sacrosanct), absent (write), live symlink
+// (materialize, the #225 convergence), dangling symlink (also materialize).
+
+func TestApplySeedOncePreservesExistingRegularFile(t *testing.T) {
+	// The #239 defect-2 regression guard: a repo adopting ariadne keeps its own
+	// root Makefile, and a repo that later EDITS it keeps that edit forever.
+	root := t.TempDir()
+	up := t.TempDir()
+	mustWrite(t, filepath.Join(up, "Makefile.seed"), "UPSTREAM\n")
+	mustWrite(t, filepath.Join(root, "Makefile"), "MY OWN BUILD SYSTEM\n")
+
+	act := []Action{SeedOnce{Src: filepath.Join(up, "Makefile.seed"), Dst: "Makefile"}}
+	if err := Apply(weavefs.OSFS{}, root, act); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got := mustRead(t, filepath.Join(root, "Makefile")); got != "MY OWN BUILD SYSTEM\n" {
+		t.Fatalf("seed-once clobbered a repo-owned file: %q", got)
+	}
+}
+
+func TestApplySeedOnceCreatesWhenAbsent(t *testing.T) {
+	// A greenfield repo still gets a working root for free.
+	root := t.TempDir()
+	up := t.TempDir()
+	mustWrite(t, filepath.Join(up, "Makefile.seed"), "UPSTREAM\n")
+
+	act := []Action{SeedOnce{Src: filepath.Join(up, "Makefile.seed"), Dst: "Makefile"}}
+	if err := Apply(weavefs.OSFS{}, root, act); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got := mustRead(t, filepath.Join(root, "Makefile")); got != "UPSTREAM\n" {
+		t.Fatalf("got %q, want the upstream template", got)
+	}
+}
+
+func TestApplySeedOnceMaterializesSymlinkWithoutFollowingIt(t *testing.T) {
+	// A symlink is weave's OWN prior lowering, not repo content: materialize it
+	// (the #225 convergence nous/metis still need), and never write THROUGH it
+	// into the ancestor's own Makefile.
+	root := t.TempDir()
+	up := t.TempDir()
+	src := filepath.Join(up, "Makefile.seed")
+	mustWrite(t, src, "UPSTREAM\n")
+	ancestor := filepath.Join(up, "Makefile")
+	mustWrite(t, ancestor, "ANCESTOR OWN\n")
+	if err := os.Symlink(ancestor, filepath.Join(root, "Makefile")); err != nil {
+		t.Fatal(err)
+	}
+
+	act := []Action{SeedOnce{Src: src, Dst: "Makefile"}}
+	if err := Apply(weavefs.OSFS{}, root, act); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	fi, err := os.Lstat(filepath.Join(root, "Makefile"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if fi.Mode()&os.ModeSymlink != 0 {
+		t.Fatal("still a symlink — the #225 convergence did not happen")
+	}
+	if got := mustRead(t, filepath.Join(root, "Makefile")); got != "UPSTREAM\n" {
+		t.Fatalf("got %q, want the upstream template", got)
+	}
+	if got := mustRead(t, ancestor); got != "ANCESTOR OWN\n" {
+		t.Fatalf("wrote THROUGH the symlink into the ancestor: %q", got)
+	}
+}
+
+func TestApplySeedOnceMaterializesDanglingSymlink(t *testing.T) {
+	// A DANGLING symlink is a real fleet state (the peer isn't cloned yet).
+	// Lstat reports ModeSymlink regardless of whether the target exists, so it
+	// must materialize exactly like a live link — not be mistaken for presence.
+	root := t.TempDir()
+	up := t.TempDir()
+	src := filepath.Join(up, "Makefile.seed")
+	mustWrite(t, src, "UPSTREAM\n")
+	if err := os.Symlink(filepath.Join(up, "gone", "Makefile"), filepath.Join(root, "Makefile")); err != nil {
+		t.Fatal(err)
+	}
+
+	act := []Action{SeedOnce{Src: src, Dst: "Makefile"}}
+	if err := Apply(weavefs.OSFS{}, root, act); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	if got := mustRead(t, filepath.Join(root, "Makefile")); got != "UPSTREAM\n" {
+		t.Fatalf("got %q, want the upstream template", got)
+	}
+}
