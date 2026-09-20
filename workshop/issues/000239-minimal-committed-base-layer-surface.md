@@ -113,7 +113,7 @@ supersedes abandoned designs. Keep implementation on `000239-standalone-weave-re
 - `weave link <local-path|repo-address>` records a substrate link/source and
   clones a missing remote base as a peer. Restore transitive sources from deps;
   reuse existing matching checkouts without pull/reset, including dirty ones.
-- Each layer owns a root Brewfile for external macOS packages and an optional
+- Each layer owns a root Brewfile for external macOS/Linux packages and an optional
   owner-local `make tools` entry point for necessary binaries in its bin directory.
   No per-package/per-binary JSON, custom installer, or new dependency kinds.
 - `weave dependencies` restores sources and runs layer bundles foundation-first
@@ -128,8 +128,8 @@ supersedes abandoned designs. Keep implementation on `000239-standalone-weave-re
   derived files are ignored. Preserve authored Makefiles and local ignore rules.
   Retire only outputs whose stored identity still proves weave ownership.
 - Existing data dependencies retain cloning/mount behavior. No new checkout kind.
-- CI compiles before using generated helpers. Package installation outside macOS
-  needs a concrete CI setup decision, not a generic installer framework.
+- CI sets up Homebrew and compiles before using generated helpers; macOS and
+  Linux run the same layer Brewfiles.
 - #239 supplies tested startup, package/release and scoped migration tooling.
   #241 publishes the standalone release/tap and performs actual consumer cutover
   after this implementation merges. Only weave is distributed by our tap.
@@ -278,6 +278,17 @@ normalization now aliases only standard GitHub SSH/HTTPS, retaining meaningful
 endpoint differences elsewhere. Tests cover ports, schemes, query distinctions,
 SCP versus URI paths, standard GitHub equivalence and actual wrong-port checkout
 rejection. Full weave/layergraph suites passed after the fix.
+
+### 2026-09-20 — M2 startup integration
+
+Owner build and compile wiring now use the approved order; focused Go and real
+Make/shell fixtures pass. Native Linux Homebrew installed Go/CUE/uv and reused
+them on repeat. Full source and derivative compile/bootstrap also ran; native
+status checks found omitted generated vocabulary JSON/stamp ownership, being
+corrected with before/after output snapshots. The correction now passes: all vocabulary JSON/stamp outputs are inventoried and
+ignored on cold/warm runs; an authored sibling stays visible and untouched.
+Bootstrap/Make/CI/data shell fixtures pass, and maps reflect the current flow.
+M2 remains open for the mandatory boundary review.
 
 ## Revisions`.
 

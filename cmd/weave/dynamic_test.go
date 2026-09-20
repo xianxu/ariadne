@@ -161,7 +161,7 @@ func TestCompileRunsDynamicSkills(t *testing.T) {
 	if err := os.MkdirAll(pkg, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	script := "#!/bin/sh\ntouch sentinel\n"
+	script := "#!/bin/sh\ntouch sentinel\nmkdir -p construct/generated/datatype\nprintf body > construct/generated/datatype/SKILL.md\n"
 	if err := os.WriteFile(filepath.Join(pkg, ".dynamic-skill"), []byte(script), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -247,10 +247,8 @@ func TestCompileDerivativeMaterializesAndVerifyCompleteGreen(t *testing.T) {
 	}
 }
 
-// TestCompilePrunesOrphanedGeneratedDir (#115 M3): a stale construct/generated/gone
-// (no longer produced by any marker) is GC'd by the compile, while the in-use
-// construct/generated/datatype survives.
-func TestCompilePrunesOrphanedGeneratedDir(t *testing.T) {
+// Unknown generated-looking paths have no ownership evidence and must survive.
+func TestCompilePreservesUnownedGeneratedDir(t *testing.T) {
 	derived := buildSkillRepoFixture(t)
 	base := filepath.Join(filepath.Dir(derived), "base")
 	realDatatypeMarker(t, filepath.Join(base, "construct", "local", "datatype"), "construct/generated/datatype")
@@ -267,8 +265,8 @@ func TestCompilePrunesOrphanedGeneratedDir(t *testing.T) {
 	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
 		t.Fatalf("compile: %v\n%s", err, out.String())
 	}
-	if _, err := os.Stat(goneDir); !os.IsNotExist(err) {
-		t.Errorf("orphan construct/generated/gone survived the compile (err=%v); generated-class GC failed", err)
+	if got, err := os.ReadFile(filepath.Join(goneDir, "SKILL.md")); err != nil || string(got) != "stale" {
+		t.Errorf("unowned generated file changed: %q, %v", got, err)
 	}
 	if _, err := os.Stat(filepath.Join(derived, "construct", "generated", "datatype", "SKILL.md")); err != nil {
 		t.Errorf("in-use construct/generated/datatype was destroyed: %v", err)

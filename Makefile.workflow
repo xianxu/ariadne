@@ -1,13 +1,8 @@
 # AI issue-based workflow — include from your project Makefile:
 #   include Makefile.workflow
 
-# Resolve this shared workflow's source directory before optional includes add
-# their own entries to MAKEFILE_LIST. Consumers symlink this file from ariadne;
-# the Go source lives here while commands must still run in the consumer cwd.
+# Retained for the explicit issue-sync source fallback.
 WF_WORKFLOW_SOURCE_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
-# Before first weave, helper links may be absent. Resolve the bootstrap-critical
-# tools from this loaded overlay's owner while retaining the consumer cwd.
-wf-helper = $(firstword $(wildcard $(1) $(WF_WORKFLOW_SOURCE_DIR)$(1)))
 WF_HELP_TARGETS := help-workflow
 
 # Include openshell targets if available
@@ -147,80 +142,15 @@ close-issue:
 	    scripts/close-issue.py; \
 	fi
 
-# ── Weave / bootstrap ─────────────────────────────────────────────────────────
-# Two verbs, distinct concerns (per ariadne#38):
-#
-#   make weave           Pure substrate-state sync. Verifies peers are present,
-#                        invokes construct/setup.sh to update symlinks. Does
-#                        NOT clone peers, does NOT build tools. Errors if a
-#                        peer is missing — operator should `make bootstrap`
-#                        for first-time setup.
-#
-#   make bootstrap-peers Cascade peer cloning. Reads construct/go.mod for
-#                        replace ../<name> directives; clones missing peers
-#                        (URL derived from origin convention; operator can
-#                        override). Recursively bootstraps each peer.
-#
-#   make data-deps       Clone + symlink data dependencies (content peers, not
-#                        substrate). Reads construct/data-deps; clones each repo
-#                        as a sibling and mounts it via a relative symlink.
-#                        Language-agnostic; no-op when the manifest is absent.
-#
-#   make bootstrap       Composition: bootstrap-peers + weave + tools.
-#                        Defined as prereqs-only (no recipe) so derivatives
-#                        with their own bootstrap target (e.g. nous's GPG
-#                        setup) can extend additively without recipe
-#                        collision.
-#
-# First-time bootstrap of a fresh-clone derivative whose upstreams aren't
-# yet checked out beside it: run `./bootstrap.sh` (a real committed file, not
-# a symlink — see #42). It reads construct/deps and root go.mod, clones the
-# upstream peer chain, then hands off to `make bootstrap`. The seeded root
-# Makefile keeps product targets usable without peers; maintainer workflow
-# targets become available through its sibling-overlay fallback after cloning.
-#
-# Equivalent manual path if `./bootstrap.sh` is absent: clone the upstream as
-# a sibling yourself (or run `../<upstream>/construct/setup.sh`), then
-# `make bootstrap`. Once substrate has propagated, `make bootstrap` is the
-# canonical post-clone command.
+# weave owns preparation, owner tool builds, and composition.
+.PHONY: weave bootstrap wf-bootstrap
+weave:
+	@weave compile
 
-# weave now builds + invokes the weave binary (cmd/weave), the intent-compiler
-# that replaced construct/setup.sh (#95). weave-build resolves weave's owner by
-# LOCATION (construct/dev-aliases.sh --list (with owner fallback)) and builds the binary in-owner at
-# $$owner/bin/weave — the same build-in-owner pattern sdlc-build uses, so a
-# derivative needs no go.mod replace. This target then resolves the SAME owner
-# and runs the OWNER's binary ($$owner/bin/weave) — NOT a local bin/weave, which
-# build-in-owner deliberately never produces in a consumer (#95 M5). When THIS
-# repo is the owner ($$owner is this repo's own dir), it runs its own bin/weave —
-# unchanged. The recipe runs the bare Union `weave compile`, which compiles THIS
-# repo's (the cwd's) layer composition for EVERY harness face (claude + codex +
-# gemini): the generic symlinks, the prose-only entry-file compose, the
-# settings.json merge, and the per-harness skill-dir lowerings (`.claude/skills`
-# + `.agents/skills` — each harness discovers its dir natively, no AGENTS.md menu;
-# see plan.Target). compile operates on the caller's cwd, so the owner's binary
-# composing the consumer's repo is correct. Under `make bootstrap`,
-# bootstrap-peers (clones ancestors) precedes weave, so weave's owner is present
-# by the time this runs.
-# PATH WIRING (#115 M3): the dynamic-skill marker now calls the `datatype` binary
-# by NAME (not `go run`), so datatype must be (a) BUILT and (b) on PATH when weave
-# execs the marker. So this target also depends on datatype-build, and exports the
-# datatype owner's bin/ onto PATH before running weave compile — weave execs the
-# marker via exec.Command, which inherits this PATH. This is shared Makefile.workflow:
-# in a derivative, `make weave` resolves datatype's owner = ariadne, builds + PATH-
-# exposes ariadne's bin/datatype, then weave (cwd=derivative) execs ariadne's marker
-# which writes the DERIVATIVE's construct/generated (leaf-rooted output).
-weave: weave-build datatype-build vocabulary-build ensure-cue
-	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
-	dtowner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
-	vcowner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
-	if [ -n "$$owner" ] && [ -x "$$owner/bin/weave" ]; then \
-		PATH="$$dtowner/bin:$$vcowner/bin:$$PATH" "$$owner/bin/weave" compile; \
-	else \
-		echo "Error: weave binary not built (weave-build did not produce $$owner/bin/weave)."; \
-		echo "  First-time bootstrap of a fresh derivative: run \`./bootstrap.sh\`,"; \
-		echo "  or clone the upstream ariadne beside this repo and \`make bootstrap\`."; \
-		exit 1; \
-	fi
+# Prerequisite preserves additive consumer bootstrap recipes.
+bootstrap: wf-bootstrap
+wf-bootstrap:
+	@weave compile
 
 # weave-drift-check — the dynamic-skill GENERATE-IDEMPOTENCY guard (#115 M3, plan
 # decision D2). The old #111 guard `git diff --exit-code`'d the COMMITTED
@@ -232,10 +162,10 @@ weave: weave-build datatype-build vocabulary-build ensure-cue
 # nondeterministically). This runs the datatype binary twice into two temp dirs and
 # diffs the bytes — failing if the render is non-deterministic. (The renderer's
 # byte-stable unit test in cmd/datatype is the in-process counterpart.) Run in CI
-# after `make weave`; depends on datatype-build so the binary is on disk.
-weave-drift-check: datatype-build
+# after `weave compile`, which prepares the owner binaries.
+weave-drift-check:
 	@echo "==> weave drift check (dynamic-skill render must be deterministic)"
-	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
+	@owner="$$("construct/dev-aliases.sh" --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
 	bin="$$owner/bin/datatype"; \
 	if [ ! -x "$$bin" ]; then echo "Error: datatype binary not built at $$bin" >&2; exit 1; fi; \
 	d1="$$(mktemp -d)"; d2="$$(mktemp -d)"; \
@@ -248,11 +178,6 @@ weave-drift-check: datatype-build
 	fi
 	@echo "    OK — dynamic-skill render is byte-stable across runs."
 
-bootstrap-peers:
-	@if [ -x "$(call wf-helper,construct/scripts/bootstrap-peers.sh)" ]; then \
-		bash "$(call wf-helper,construct/scripts/bootstrap-peers.sh)"; \
-	fi
-
 # Clone + symlink DATA DEPENDENCIES (content peers, not substrate). Reads
 # construct/data-deps; clones each declared repo as a sibling and mounts it via
 # a relative symlink. Language-agnostic; no-op when the manifest is absent.
@@ -260,75 +185,6 @@ data-deps:
 	@if [ -x construct/scripts/clone-data-deps.sh ]; then \
 		bash construct/scripts/clone-data-deps.sh; \
 	fi
-
-# ensure-tool — canned recipe (#161): guarantee one dependency is on PATH before
-# the step that needs it runs. Idempotent: no-op when the tool is present (won't
-# fight asdf/gvm/pipx/manual installs). Auto-installs via Homebrew on macOS;
-# elsewhere fails fast with guidance, before any costly downstream cascade. The
-# three near-identical ensure-* targets (go/cue/uv) collapsed to one parametrized
-# recipe once the rule-of-three tripped (ARCH-DRY).
-# Usage: $(call ensure-tool,<tool>,<brew-formula>,<why-needed>,<install-noun>,<url>)
-#   tool          command probed with `command -v` (e.g. go, cue, uv)
-#   brew-formula  Homebrew formula name (usually == tool)
-#   why-needed    reason clause for the fail-fast error (NO literal comma — commas
-#                 delimit $(call) args; the trailing comma is appended for you)
-#   install-noun  what the manual-install hint says to install (e.g. Go 1.26+, CUE)
-#   url           canonical install URL for the manual-install hint
-define ensure-tool
-	@if command -v $(1) >/dev/null 2>&1; then \
-	    :; \
-	elif command -v brew >/dev/null 2>&1; then \
-	    echo "==> $(1) not found — installing via Homebrew (brew install $(2))"; \
-	    brew install $(2); \
-	else \
-	    echo "Error: $(3)," >&2; \
-	    echo "  but '$(1)' is not on PATH and Homebrew isn't available to install it." >&2; \
-	    echo "  Install $(4) from $(5) and re-run." >&2; \
-	    exit 1; \
-	fi
-endef
-
-# ensure-go / ensure-cue guard hard build-deps of the base layer's OWN build:
-# ariadne ships cmd/sdlc and builds it in `tools` (go, #61), and weave compiles
-# construct/vocabulary/*.cue via the cue CLI at weave-compile time (#122).
-# Pre-sdlc, ariadne assumed only shell + python at the base and provisioned no
-# toolchain. nous keeps its own richer toolchain (GPG/gh/…) separately. ensure-uv
-# is the one that reaches PAST the base layer's own build — see its note.
-.PHONY: ensure-go
-ensure-go:
-	$(call ensure-tool,go,go,ariadne ships cmd/sdlc and needs the Go toolchain to build it,Go 1.26+,https://go.dev/dl/)
-
-.PHONY: ensure-cue
-ensure-cue:
-	$(call ensure-tool,cue,cue,the vocabulary layer (construct/vocabulary/*.cue) needs the CUE CLI,CUE,https://cuelang.org/docs/install/)
-
-# ensure-uv — uv backs the Python data plane, and unlike go/cue it is NOT an
-# ariadne build-dep: it's a downstream-CONSUMER runtime dep. metis#1 M3 ships
-# pure-Python step-types run hermetically via `uv run --project <root> python -m
-# metis.steps.<type>`; kbench + future competition workspaces inherit that
-# contract. It's provisioned here at the base anyway (operator's call, #161)
-# because uv is fast becoming the universal Python toolchain every derivative
-# with a Python surface will want — so like go/cue, provision once and every
-# consumer inherits it. uv installs its own managed Python, so it needs no system
-# python3. (The base-vs-push-down layer-placement rationale lives in #161's Log.)
-.PHONY: ensure-uv
-ensure-uv:
-	$(call ensure-tool,uv,uv,the Python data plane (metis/kbench step-types) runs via uv,uv,https://docs.astral.sh/uv/getting-started/installation/)
-
-# Prereq-only definition — no recipe. Derivatives can `bootstrap: <my-prereq>`
-# additively without colliding. Make composes the prereq list; if any
-# derivative defines its own recipe for `bootstrap` (e.g. nous's existing
-# GPG/install setup), that recipe runs after the inherited composition.
-# A separate composition prerequisite preserves consumer bootstrap extensions.
-# Recursive phases enforce ordering even under make -j: weave creates the local
-# helper links used by tools/install/data. A failed phase prevents later phases.
-.PHONY: bootstrap bootstrap-peers data-deps wf-bootstrap
-bootstrap: wf-bootstrap
-wf-bootstrap:
-	@$(MAKE) --no-print-directory ensure-go ensure-cue ensure-uv bootstrap-peers
-	@$(MAKE) --no-print-directory weave
-	@$(MAKE) --no-print-directory tools
-	@$(MAKE) --no-print-directory sdlc-install data-deps
 
 # ── Pre-merge checks ─────────────────────────────────────────────────────────
 check: pre-merge
@@ -756,11 +612,7 @@ endef
 # repos without authored binaries), so it's safe to define in the
 # shared base layer.
 .PHONY: build local-build
-# ensure-go prereq (#61): gates the go-build below so it can't race the
-# toolchain install under `make -j` (both go-build targets — sdlc-build + build —
-# share the one ensure-go node, so make runs it once, first). No-op recipe for
-# repos without go.mod regardless.
-build: ensure-go
+build:
 	@if [ -f go.mod ]; then \
 	    found=0; \
 	    skipped=0; \
@@ -795,134 +647,7 @@ build: ensure-go
 local-build:
 	@:
 
-# ── sdlc binary ──────────────────────────────────────────────────────────────
-# `sdlc` is the SDLC checkpoint binary (see workshop/issues/000031-*.md).
-# Builds from cmd/sdlc/main.go, output at cmd/sdlc/bin/sdlc, symlinked
-# into bin/sdlc. Mirrors ../nous's `nous-build` pattern.
-#
-# `make build` (the cmd/*/main.go scanner above) also picks sdlc up
-# automatically — sdlc-build is the explicit dev-flow target for
-# iterating just on the binary without scanning the whole cmd/ tree.
-.PHONY: tools sdlc-build weave-build datatype-build vocabulary-build vocab-embed sdlc-install sdlc-bootstrap
-
-# tools: compose all build targets for binaries this repo ships.
-# Workflow ships `sdlc-build` (the canonical ariadne tool) + `build`
-# (generic cmd/*/main.go scanner). Derivatives can extend additively
-# in Makefile.local / Makefile.nous, e.g. `tools: nous-build`.
-tools: sdlc-build build
-
-sdlc-build: ensure-go
-	@echo "==> building sdlc (build-in-owner)"
-	@# Build-in-owner (#60, #95 M5): sdlc's source AND binary live ONLY in its
-	@# owner (ariadne). Resolve the owner by LOCATION via dev-aliases.sh --list —
-	@# immune to whether ariadne is a direct or transitive ancestor, and needs no
-	@# go.mod replace — then build into the OWNER's bin/, NOT this repo's bin/.
-	@# So there is exactly one sdlc on disk: $$owner/bin/sdlc. A consumer's
-	@# `make tools` writes to ../ariadne/bin/ (the same place the dev-alias
-	@# functions build to — the official, gitignored path); it does NOT create a
-	@# duplicate consumer-local bin/sdlc. When THIS repo is the owner
-	@# ($$owner is this repo's own dir), the build target is unchanged — ariadne's
-	@# own bin/sdlc. Under `make bootstrap`, `bootstrap-peers` (clones ancestors) and
-	@# `weave` (materializes the construct/dev-aliases.sh symlink) both precede
-	@# `tools`, so the resolver and the owner are present by the time this runs.
-	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="sdlc"{print $$2}')"; \
-	if [ -z "$$owner" ]; then \
-	    echo "Error: sdlc owner not found beside this repo." >&2; \
-	    echo "  Run 'make bootstrap-peers' (clone ancestors) + 'make weave' first." >&2; \
-	    exit 1; \
-	fi; \
-	mkdir -p "$$owner/bin"; \
-	( cd "$$owner" && go build -o "$$owner/bin/sdlc" ./cmd/sdlc )
-
-# weave-build: mirror of sdlc-build for cmd/weave — the intent-compiler that
-# replaced construct/setup.sh (#95). weave's source AND binary live ONLY in its
-# owner (ariadne); resolve the owner by LOCATION via dev-aliases.sh --list
-# (immune to direct-vs-transitive ancestry, needs no go.mod replace), then build
-# into the OWNER's bin/ (NOT this repo's bin/) — exactly one weave on disk at
-# $$owner/bin/weave. A consumer's `make weave` builds + runs ../ariadne/bin/weave
-# and produces NO consumer-local bin/weave (#95 M5, build-in-owner). When THIS
-# repo is the owner ($$owner is this repo's own dir) the target is unchanged. The `weave`
-# target depends on this, then runs the bare Union `$$owner/bin/weave compile`
-# to compile this repo's layer composition (every harness face). Under `make bootstrap`,
-# bootstrap-peers + weave's own weave-build prereq guarantee the owner + the
-# dev-aliases.sh symlink are present by the time this runs.
-weave-build: ensure-go
-	@echo "==> building weave (build-in-owner)"
-	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="weave"{print $$2}')"; \
-	if [ -z "$$owner" ]; then \
-	    echo "Error: weave owner not found beside this repo." >&2; \
-	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
-	    exit 1; \
-	fi; \
-	mkdir -p "$$owner/bin"; \
-	( cd "$$owner" && go build -o "$$owner/bin/weave" ./cmd/weave )
-
-# datatype-build: mirror of weave-build for cmd/datatype — the DAG-aware
-# datatype subsystem (#115). datatype is a PATH binary invoked by name (the
-# .dynamic-skill marker runs it at weave compile time; agents run `datatype
-# list` / `datatype show <name>` for apply-time access). Build-in-owner like
-# weave/sdlc: resolve the owner by LOCATION (dev-aliases.sh --list, which scans
-# cmd/ dirs and already reports datatype → ariadne), then build into the OWNER's
-# bin/ — exactly one datatype on disk at $$owner/bin/datatype, no go.mod replace,
-# no consumer-local copy. When THIS repo is the owner, it builds ariadne's own
-# bin/datatype, unchanged.
-datatype-build: ensure-go
-	@echo "==> building datatype (build-in-owner)"
-	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
-	if [ -z "$$owner" ]; then \
-	    echo "Error: datatype owner not found beside this repo." >&2; \
-	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
-	    exit 1; \
-	fi; \
-	mkdir -p "$$owner/bin"; \
-	( cd "$$owner" && go build -o "$$owner/bin/datatype" ./cmd/datatype )
-
-# vocabulary-build: mirror of datatype-build for cmd/vocabulary — the DAG-aware
-# compiler for the formal vocabulary layer (#122). A PATH binary invoked by name
-# by the vocabulary .dynamic-skill at weave compile (and by vocab-embed).
-# Build-in-owner: resolve the owner by LOCATION (dev-aliases.sh --list) and build
-# into the OWNER's bin/. When THIS repo is the owner, builds ariadne's own
-# bin/vocabulary, unchanged.
-vocabulary-build: ensure-go
-	@echo "==> building vocabulary (build-in-owner)"
-	@owner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
-	if [ -z "$$owner" ]; then \
-	    echo "Error: vocabulary owner not found beside this repo." >&2; \
-	    echo "  Run 'make bootstrap-peers' (clone ancestors) first." >&2; \
-	    exit 1; \
-	fi; \
-	mkdir -p "$$owner/bin"; \
-	( cd "$$owner" && go build -o "$$owner/bin/vocabulary" ./cmd/vocabulary )
-
-# vocab-embed (#122 M3): regenerate the COMMITTED Go-binding embed inputs from the
-# vocabulary via `go generate`, then assert nothing drifted. The Go binding lives in
-# pkg/vocab — ONE shared package every Go consumer imports (the import graph is the
-# distribution; no per-consumer copy). The co-located //go:generate is the binding
-# declaration, so this target is GENERIC over nouns/consumers: adding a noun is a
-# go:generate line in pkg/vocab, never a new Make target (supersedes the per-entity
-# issue-json-gen/check). OWNER-ONLY (pkg/vocab + cmd/vocabulary live in ariadne) —
-# run from ariadne CI; deliberately NOT wired into `bootstrap`/`sdlc-build`/the
-# consumer `check` (a consumer needs neither cue nor regeneration; the json is
-# committed so a standalone `go build` works). The DIFFERENT cross-repo gate — has
-# this repo's gitignored materialization gone stale vs the merged source — remains
-# `vocabulary check --output construct/generated/vocabulary`.
-vocab-embed: vocabulary-build ensure-cue
-	@echo "==> regenerating pkg/vocab embed inputs (go generate)"
-	@vcowner="$$("$(call wf-helper,construct/dev-aliases.sh)" --list 2>/dev/null | awk -F'\t' '$$1=="vocabulary"{print $$2}')"; \
-	PATH="$$vcowner/bin:$$PATH" go generate ./pkg/vocab/...
-	@git diff --exit-code -- pkg/vocab \
-	  || { echo "Error: pkg/vocab embed inputs are STALE vs construct/vocabulary/*.cue — run 'make vocab-embed' and commit (#122)." >&2; exit 1; }
-
-# sdlc-install puts the in-tree bin/sdlc on the developer's PATH by
-# appending $REPO_DIR/bin to the shell rc (zsh/bash). Idempotent; also
-# prints the export line so the user can paste it manually as backup.
-#
-# Wired into `make bootstrap` so a single bootstrap gesture builds
-# sdlc + makes it available in new shells. Mirrors nous's PATH-append
-# convention; the old `~/bin` symlink approach was retired so all
-# repo `bin/` dirs (ariadne, nous, …) compose uniformly on PATH.
-#
-# `sdlc-bootstrap` stays as a backward-compat alias for pre-rename
-# muscle memory; will be removed once docs + downstream repos catch up.
+# Explicit shell setup remains opt-in; generic startup does not edit shell rc.
+.PHONY: sdlc-install sdlc-bootstrap
 sdlc-install sdlc-bootstrap:
 	@scripts/sdlc-install.sh

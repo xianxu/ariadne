@@ -192,7 +192,7 @@ func readJSONMap(t *testing.T, path string) map[string]any {
 
 // TestCompileEnsuresGitignore proves weave OWNS ignoring its own generated-
 // runtime artifacts: a `weave compile` on a fixture repo (which ships no
-// .gitignore) leaves a .gitignore carrying every fixed generated-runtime entry,
+// .gitignore) leaves a .gitignore carrying the actual generated outputs,
 // and a second compile is idempotent (no duplicate lines) — so a fresh compile
 // on ANY derivative leaves a clean `git status` with no per-repo hand-edit.
 func TestCompileEnsuresGitignore(t *testing.T) {
@@ -207,12 +207,15 @@ func TestCompileEnsuresGitignore(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read .gitignore (compile should have created it): %v", err)
 	}
-	for _, entry := range plan.GeneratedRuntimeGitignoreEntries {
+	for _, entry := range []string{"/CLAUDE.md", "/shared.md", "/construct/generated/weave/"} {
 		if !strings.Contains(string(got), entry+"\n") {
 			t.Fatalf(".gitignore missing generated-runtime entry %q:\n%s", entry, got)
 		}
 	}
 
+	if strings.Contains(string(got), "/AGENTS.md\n") {
+		t.Fatal("ignored unproduced target")
+	}
 	// Re-compile: idempotent, byte-identical .gitignore (no duplicated lines).
 	if err := run(weavefs.OSFS{}, derived, plan.TargetClaude, false, &out); err != nil {
 		t.Fatalf("run (2nd): %v", err)

@@ -6,7 +6,7 @@
 # independent history, surfaced into this repo's tree through a relative symlink.
 #
 # This is deliberately language-agnostic — unlike the go.mod substrate walk
-# (bootstrap-peers.sh / setup.sh), which both clones AND symlinks the peer's
+# (weave compile), which prepares and materializes the peer's
 # base-layer files in. Data deps are just "clone + symlink", nothing more, so
 # any repo (Go, TypeScript, or plain markdown like a brain) can declare them.
 #

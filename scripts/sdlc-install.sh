@@ -13,7 +13,7 @@
 # exactly as before; in a consumer it gets ../ariadne/bin (where sdlc lives) and
 # the consumer's empty bin/ never needs to be on PATH for sdlc to resolve.
 #
-# Wired into `make bootstrap` as a final step (via Makefile.workflow).
+# Explicit opt-in only; generic bootstrap never edits shell configuration.
 # Standalone invocation: `make sdlc-install`.
 #
 # Renamed from sdlc-bootstrap.sh in #41: the script no longer symlinks
@@ -33,29 +33,19 @@ REPO_DIR=$(cd "$(dirname "$0")/.." && pwd)
 cd "$REPO_DIR"
 
 # ── 1. Toolchain ────────────────────────────────────────────────────────────
-# go is provisioned by sdlc-build's `ensure-go` prereq (#61) — don't die here;
-# just report the version when it's already present. `make sdlc-build` below
-# auto-installs (brew) or fails fast with guidance if it's missing.
+# Dependencies are prepared by weave; report an available Go toolchain.
 if command -v go >/dev/null 2>&1; then
     ok "Go found: $(go version | awk '{print $3}')"
 fi
 
 # ── 2. Build ────────────────────────────────────────────────────────────────
-# sdlc-build is build-in-owner (#60, #95 M5): it builds sdlc into its OWNER's
-# bin/ (resolved by location via construct/dev-aliases.sh --list), NOT this
-# repo's bin/. So the binary lives at exactly one place — $OWNER/bin/sdlc — and
-# a consumer never gets a duplicate $REPO_DIR/bin/sdlc. When this repo IS the
-# owner (ariadne), $OWNER == $REPO_DIR, so it lands in $REPO_DIR/bin as before.
-info "building sdlc (build-in-owner)"
-make --no-print-directory sdlc-build
-
-# Resolve where sdlc actually landed — the owner's bin/, which is the dir we put
-# on PATH. In the owner's own install this is $REPO_DIR/bin (unchanged); in a
-# consumer it's ../ariadne/bin (where the one true sdlc lives).
+# Resolve the owner before invoking its authored build target.
 OWNER="$(construct/dev-aliases.sh --list 2>/dev/null | awk -F'\t' '$1=="sdlc"{print $2}')"
 if [ -z "$OWNER" ]; then
-    die "sdlc owner not found beside this repo; run 'make bootstrap-peers' + 'make weave' first"
+    die "sdlc owner not found beside this repo; run 'weave compile' first"
 fi
+info "building sdlc in $OWNER"
+make -C "$OWNER" --no-print-directory sdlc-build
 SDLC_BIN_DIR="$OWNER/bin"
 
 if [ ! -x "$SDLC_BIN_DIR/sdlc" ]; then

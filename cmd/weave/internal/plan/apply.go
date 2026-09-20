@@ -9,8 +9,8 @@ import (
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
 
-// Apply executes a []Action against fs, idempotently. It is the ONLY mutating
-// code in weave (ARCH-PURE: the planner computes Actions; this seam runs them).
+// Apply executes a []Action against fs, idempotently. ApplyManaged wraps it
+// with generated-output ownership and retirement; planning remains pure.
 // repoRoot is the consuming repo's absolute root; every Action's repo-relative
 // path (WriteFile.Path, Mkdir.Path, Symlink.Dst) is resolved against it here —
 // the planner deliberately leaves them relative (pure string joins) so this
@@ -32,11 +32,9 @@ import (
 //   - WriteFile → AGENTS.md/touch: ensure parents, then write.
 //   - MergeSettings → settings merge: read ordered sources + optional sibling
 //     settings.local.json, run the pure settingsx.MergeChain, write the target.
-//   - EnsureGitignore → the generated-runtime ignore mechanism (gitignore.go):
-//     read the repo's .gitignore, append the missing fixed entries (idempotent
-//     whole-line append, never duplicating), write back only on change. weave
-//     OWNS this because weave generates those artifacts; emitted once per compile
-//     so every derivative gets a clean `git status` with no per-repo hand-edit.
+//   - EnsureGitignore → replace the delimited generated block, preserving
+//     authored rules and their precedence. ApplyManaged derives its entries
+//     from the scoped inventory rather than this display action.
 //
 // The retired `tool` verb (#95 M5) has no Action and no IO here: Go-tool
 // ownership is location-based (construct/dev-aliases.sh scans sibling cmd/X dirs)
@@ -78,15 +76,15 @@ func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
 // correctly. A missing source is an error; a missing local takes the
 // source-only path (sources with meta stripped at the end). All IO lives here
 // (ARCH-PURE); the merge itself is pure.
-func applyMergeSettings(fs weavefs.FS, repoRoot string, act MergeSettings) error {
+func mergedSettings(fs weavefs.FS, repoRoot string, act MergeSettings) ([]byte, error) {
 	if len(act.Sources) == 0 {
-		return fmt.Errorf("apply merge: %s: no sources", act.Target)
+		return nil, fmt.Errorf("apply merge: %s: no sources", act.Target)
 	}
 	sources := make([][]byte, 0, len(act.Sources)+1)
 	for _, sourcePath := range act.Sources {
 		data, err := fs.ReadFile(sourcePath)
 		if err != nil {
-			return fmt.Errorf("apply merge: read source %s: %w", sourcePath, err)
+			return nil, fmt.Errorf("apply merge: read source %s: %w", sourcePath, err)
 		}
 		sources = append(sources, data)
 	}
@@ -95,19 +93,23 @@ func applyMergeSettings(fs weavefs.FS, repoRoot string, act MergeSettings) error
 	localPath := filepath.Join(filepath.Dir(targetPath), "settings.local.json")
 	if data, lerr := fs.ReadFile(localPath); lerr == nil {
 		sources = append(sources, data)
+	} else if !os.IsNotExist(lerr) {
+		return nil, fmt.Errorf("apply merge: read local %s: %w", localPath, lerr)
 	}
 
 	merged, err := settingsx.MergeChain(sources)
 	if err != nil {
-		return fmt.Errorf("apply merge: %s: %w", targetPath, err)
+		return nil, fmt.Errorf("apply merge: %s: %w", targetPath, err)
 	}
-	if err := ensureParent(fs, targetPath); err != nil {
+	return merged, nil
+}
+
+func applyMergeSettings(fs weavefs.FS, repoRoot string, act MergeSettings) error {
+	merged, err := mergedSettings(fs, repoRoot, act)
+	if err != nil {
 		return err
 	}
-	if err := fs.WriteFile(targetPath, merged); err != nil {
-		return fmt.Errorf("apply merge: write %s: %w", targetPath, err)
-	}
-	return nil
+	return applyWriteFile(fs, filepath.Join(repoRoot, act.Target), string(merged))
 }
 
 // applySymlink ports create_symlink. src is the absolute upstream path; dst the

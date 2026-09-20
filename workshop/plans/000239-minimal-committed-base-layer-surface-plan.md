@@ -30,7 +30,7 @@ No second package manager or build-description language (ARCH-DRY).
 | Surface | Responsibility |
 |---|---|
 | `construct/deps` | Repository links and sources; existing data declarations remain supported. |
-| Root `Brewfile` | That layer's external packages on macOS. |
+| Root `Brewfile` | That layer's external packages on macOS and Linux. |
 | `make tools` | Build that layer's necessary tools into its own `bin/`. |
 | `construct/base.manifest` | That layer's contributed artifacts. |
 
@@ -83,7 +83,7 @@ weave development/release, not rebuilt as a prerequisite of using it.
   once. Any failure stops later work (ARCH-ORDER).
 - `make weave`, where retained, is just a delegate to `weave compile`; users do
   not need it as a second setup step.
-- On macOS, `./bootstrap.sh` ensures weave through `xianxu/ariadne/weave`, then
+- `./bootstrap.sh` ensures weave through `xianxu/ariadne/weave`, then
   invokes `weave compile` from the derivative root. Homebrew is the prerequisite;
   if absent, give its installation instruction. Do not add another weave
   downloader or silently install Homebrew in this task.
@@ -98,12 +98,10 @@ with the operator. Do not quietly reintroduce phase declarations, JSON recipes,
 or a second public build target. The simple order above is the intended contract,
 not a claim that the existing targets already satisfy it.
 
-**Platform boundary:** this package-install decision covers macOS. It does not
-approve a custom Linux installer or require Linux users to adopt Homebrew.
-Preserve Linux CLI/composition coverage; resolve the concrete Linux CI prerequisite
-setup before changing those jobs. Do not promise unattended Linux package setup
-until that path is agreed and verified. Release assets and publication remain
-tracked by the existing #239/#241 split.
+**Platform boundary:** the operator approved Homebrew on Linux CI as well as
+macOS. Both use the same Brewfiles. Linux CI installs Homebrew through its official
+setup action; bootstrap never installs Homebrew itself. Native Linux conformance
+runs in a disposable official Homebrew container, with no host package changes.
 
 ### Core concepts and integration points
 
@@ -112,8 +110,8 @@ The dependency graph and generated-output ownership entities remain unchanged.
 
 | Pure entity | Lives in | Status |
 |---|---|---|
-| Ordered layer setup inputs: owner directory, conventional Brewfile, optional tools entry point | `cmd/weave/internal/startup/plan.go` | new |
-| Child PATH and reported owner bin directories | `cmd/weave/internal/startup/environment.go` | new |
+| Ordered layer setup inputs: owner directory, conventional Brewfile, optional tools entry point | `cmd/weave/internal/startup/dependencies.go` | new |
+| Child PATH and reported owner bin directories | `cmd/weave/internal/startup/tools.go` | new |
 
 Each resolved layer supplies at most one bundle and one tools invocation.
 Colocated unit tests cover ordering, shared ancestors, optional inputs and PATH
@@ -123,8 +121,8 @@ or scheduler is introduced.
 | Integration | Lives in | Status | Wraps |
 |---|---|---|---|
 | Bundle and tools execution | `cmd/weave/internal/weavefs/runner.go` | modified | Existing cwd/argv/env subprocess seam, brew and make |
-| Sequential setup | `cmd/weave/internal/startup/run.go` | new | Existing graph, bundle install, owner build, composition |
-| macOS gateway launcher | `bootstrap.sh` | modified | Installed weave or Homebrew install, then compile |
+| Sequential setup | `cmd/weave/main.go` | new | Existing graph, bundle install, owner build, composition |
+| Homebrew gateway launcher | `bootstrap.sh` | modified | Installed weave or Homebrew install, then compile |
 
 Use isolated fixtures with package state, build outputs and injected failures;
 real fixture Makefiles build a tiny generator and consume its output. No test
@@ -321,6 +319,27 @@ scheme, path and query; local paths/file URLs resolve against their owner.
 Normalization and actual checkout-reuse tests require different ports/schemes/
 queries and nonstandard GitHub authorities to conflict. No broader equivalence
 is inferred from a matching repository basename.
+
+
+### 2026-09-20 — M2 integration and native conformance
+
+Reason: implementation confirmed the approved build order and exposed incomplete
+generator ownership in native Linux testing. Delta: compile restores once, reuses
+the resolved graph for bundles/builds/manifests, mounts data by declaring owner,
+and runs generators with layer bin directories in child PATH. Optional tools use
+an empty supplemental Make target; real parse/build failures remain errors.
+
+Before/after snapshots of selected generated directories identify newly written
+or changed generator outputs; unchanged files are retained as managed only with
+prior ownership evidence. This includes vocabulary JSON and its stamp without
+adopting unrelated preexisting files. Exact identities drive retirement and the
+managed ignore block (ARCH-DRY); unknown legacy outputs are preserved. Dry-run
+prints operations but does not promise generator or deletion previews.
+
+The actual Linux Homebrew install and repeat passed in an isolated native arm64
+container. Source compile, derivative link/compile and bootstrap passed; final
+checks caught vocabulary's omitted JSON/stamp and triggered this correction.
+No host packages, existing peers or public releases were changed.
 
 ## Historical revisions
 

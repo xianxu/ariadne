@@ -1593,3 +1593,10 @@ does not prove its caller reaches it.
 Source identity is an explicit equivalence rule, not a prettified URL. Preserve
 scheme, authority/port, path and query unless the host's semantics establish an
 alias; test required conflicts as well as accepted equivalent forms.
+
+### 2026-09-20 — #239 complete generator outputs
+
+A generator's principal file does not describe its entire output set. Exercise
+real generators in a clean checkout and inspect Git status, not just the primary
+skill file. Capture new/changed outputs and prior-owned matches; do not claim
+arbitrary preexisting siblings merely because they occupy a generated directory.

@@ -1,29 +1,25 @@
 # Ariadne Base Layer
 
-Ariadne provides a portable base layer — constitution, workflow, sandbox, skills — that consuming repos adopt via `construct/setup.sh`.
+Ariadne provides a portable base layer — constitution, workflow, sandbox,
+skills — that consuming repos adopt through standalone `weave`.
 
 ## Adopting the Base Layer
 
-### Prerequisites
-- Clone ariadne as a sibling directory: `../ariadne` relative to your repo
-- Or use `--vendor` mode for repos that can't depend on ariadne as a peer
+Install Homebrew on macOS or Linux and put a compatible weave on PATH. The
+`xianxu/ariadne/weave` formula is pending publication in #241; until then build
+`go build -o bin/weave ./cmd/weave` in ariadne and use that candidate.
 
-### Setup
-
-```bash
+```sh
 cd /path/to/your-repo
-../ariadne/construct/setup.sh          # symlink mode (default)
-../ariadne/construct/setup.sh --vendor # vendor mode (copies files)
+weave link github.com/xianxu/ariadne  # or an existing ../ariadne
+weave compile
 ```
 
-Re-run to refresh after ariadne updates. Mode is recorded in `.ariadne-mode`.
-
-### Modes
-
-| Mode | How | When |
-|---|---|---|
-| **Symlink** | Files in your repo are symlinks into `../ariadne/` | Default. Requires ariadne as sibling clone. Updates automatically. |
-| **Vendor** | Files are copied from ariadne into your repo | For public repos or CI without ariadne peer. Re-run setup.sh to refresh. |
+The link records a source-aware edge in `construct/deps`. Compile restores
+missing sources, provisions root Brewfiles, builds owner-local tools, mounts
+data, and generates the leaf's context. Existing matching checkouts are reused
+without pull/reset. There is no vendor mode or go.mod substrate declaration.
+See [Setup & Replication](setup-and-replication.md) for phase and ownership rules.
 
 ## What Gets Installed
 
@@ -35,7 +31,7 @@ Defined in `construct/base.manifest` (in ariadne):
   last
 - **Skills**: per-harness skill dirs — `.claude/skills/xx-*` (claude) + `.agents/skills/xx-*` (codex/gemini), each carrying the local (`xx-*`) + adapted (`superpowers-*`) skills — weave lowers these per layer (#107 Option B; see [harness-integration.md](harness-integration.md)); derivatives pick up ariadne's local + adapted skills through the weave LAYER WALK, each `<skill-dir>/<name>` pointing straight at ariadne's source dir (NO whole-dir `construct/adapted` symlink — #104 M3 dropped those; see [Construct: Adaptation is Ariadne-Only](construct-adaptation.md))
 - **Makefile system**:
-  - `Makefile` — upstream-owned real-file seed (REPO_NAME, optional workflow + local include, available help targets). Product targets work in a standalone checkout. The workflow resolves locally or from sibling ariadne after bootstrap; per-repo concerns belong in `Makefile.local`. Seeds replace prior destination links before writing or chmod, preserving ancestor bytes and permissions.
+  - `Makefile` — consumer-authored, with an optional `-include Makefile.workflow`. Product targets remain available in a standalone checkout; ariadne does not seed or refresh this root. Each tool-owning layer declares its own `tools` target here.
   - `Makefile.workflow` — issue lifecycle targets + auto-includes of `.openshell/Makefile`, `.tart/Makefile`, and `.colima/Makefile`.
   - `scripts/` — issue-sync, pre-merge-checks, close-issue.py, lib.sh
 - **Construct system**: `construct/scripts/` — skill tooling; `construct/datatype/` — datatype prototypes, **per-layer-owned (NOT symlinked)**: each layer owns its own dir and the `datatype` binary reads the DAG-merged union across the layer graph (#115 retired the `symlink construct/datatype` manifest row). (`construct/local/` + `construct/adapted/` are ariadne's OWN skill dirs, read by derivatives through the weave layer walk — NOT installed by symlink since #104 M3.)
@@ -47,18 +43,17 @@ Defined in `construct/base.manifest` (in ariadne):
 
 ## Repo-Specific Extensions
 
-These files are **not** overwritten by setup.sh and own everything
+These local files own everything
 that doesn't generalize across consumers:
 
 - `AGENTS.local.md` — repo-specific rules (merged with `AGENTS.md`)
 - `Makefile.local` — repo-specific make targets and overrides:
-  - `UPSTREAM_NAME` / `UPSTREAM_REFRESH` for re-export layers (nous has its own `setup.sh` that re-vendors ariadne, so its `Makefile.local` points refresh through that path)
   - `-include Makefile.nous` chain for repos that consume the nous layer (brain, brain.legacy*)
   - Any genuinely one-of-a-kind target the repo needs
 - `.claude/settings.local.json` — repo-specific Claude Code settings (merged into `settings.json`)
 - `.openshell/.bootstrap/`, `.openshell/.base-image-digest` — runtime artifacts (gitignored)
 
-If you find yourself wanting to edit a vendored file directly, the
+If you find yourself wanting to edit a shared file directly, the
 right move is almost always to (a) generalize the change and push it
 into ariadne, or (b) override it in the `.local` layer. Direct edits
 get clobbered on the next `make weave`.
@@ -66,15 +61,13 @@ get clobbered on the next `make weave`.
 ## Dev binaries — ownership = location (`dev-aliases.sh`)
 
 **A Go binary is owned by the repo whose `cmd/X` source physically lives there.**
-Derivatives never copy or symlink the source; they run the built binary or
-compile in the owner (build-in-owner since #60 — `make sdlc-build` resolves the
-owner and builds its `cmd/X`, no per-derivative `construct/go.mod`). Source
-distributed through the file-symlink *substrate* channel (the old `symlink
-cmd/X` directive) is the deprecated anti-pattern — code flows through Go
-modules, not the symlink channel reserved for docs/config (#56, #57).
-nous's `symlink lib/gmail` / `cmd/gmail` / `cmd/oneshot` directives (and the
-9 resulting brain* symlinks) were retired under #57 — derivatives now obtain
-gmail/oneshot via the dev-alias (build-in-owner), not symlinked source.
+Derivatives run that owner's binaries; they do not copy its Go source through
+the manifest. `weave compile` runs each owner's root `make tools` before
+composition. The target builds explicit binaries into its own `bin/` from
+tracked sources and must not depend on weave or generated helpers. Ariadne
+builds sdlc, datatype, vocabulary, and doc-review; weave itself is distributed
+separately. Child commands receive owner bins on PATH, while the human shell
+requires an explicit PATH update (compile prints the directories).
 
 For a smooth dev loop, `construct/dev-aliases.sh` walks the active
 ariadne-styled siblings and emits a shell function per owned `cmd/X`:
@@ -93,12 +86,12 @@ Makefiles' code-signing-inode safety). The function only **builds + runs** — i
 does **not** manage services (no `launchctl bootout`); use the owner's `make
 <name>-dev` target for the stop-prod-then-serve flow. It's also a *shell
 function* — not on PATH and not reachable from cron/launchd; a derivative that
-needs one of these binaries non-interactively must add the `replace` + `tool`
-consume-wiring (the module channel), not rely on the alias. Filters: skips re-export
+needs one of these binaries non-interactively must provide the owner bin on
+PATH or use its absolute path. Filters: skips re-export
 symlinks and non-buildable dirs (so a derivative never shadows the owner), and
 `cmd/X/.private` opts a binary out. `--list` shows `binary → owner`; `--strict`
 fails on a duplicate name. The script lives at `construct/dev-aliases.sh`
-(alongside `setup.sh`/`rollback.sh`), with its hermetic test under
+with its hermetic test under
 `construct/scripts/test/dev-aliases.test.sh`. Like the other substrate scripts
 it's documented by header comment + test, not a `SKILL.md` (those are for agent
 skills, not dev-env helpers).
@@ -163,8 +156,8 @@ The sandbox is an OpenShell containerized dev environment. Base layer provides t
 
 **Critical design rule**: all scripts in `.openshell/` resolve runtime paths to the **local repo**, not to ariadne.
 
-- `.openshell/` is a real directory in every repo (created by setup.sh)
-- Its contents (sandbox.sh, overlay/, dotfiles/, etc.) are symlinks to ariadne (symlink mode) or copies (vendor mode)
+- `.openshell/` is a real directory materialized by weave
+- Its shared contents (sandbox.sh, overlay/, dotfiles/, etc.) are symlinks to ariadne
 - `sandbox.sh` derives paths from `$0` (how it was invoked), not from where the script physically lives
 - `REPO_DIR` = consuming repo root (from `dirname "$0"/..`)
 - `SCRIPT_DIR` = `$REPO_DIR/.openshell` (always local)
@@ -191,18 +184,17 @@ make sandbox-clean  # re-sync config, reconnect with fresh shell
 make sandbox-nuke   # destroy everything including bootstrap cache
 ```
 
-## Standalone product checkouts (#225)
+## Standalone product checkouts
 
-`./bootstrap.sh` clones the peer chain before handing off to `make bootstrap`.
-The workflow resolves the pre-weave owner locator and peer-bootstrap helper
-from its own source when consumer helper links are absent. Its private
-`wf-bootstrap` prerequisite orders peer setup, weave, tools, then installation
-and data dependencies, including under parallel Make. The public bootstrap
-remains prerequisite-only so local extensions compose. A failed phase stops
-later phases. `bootstrap` is phony, preventing Make's implicit `.sh` rule from
-creating an unintended executable beside bootstrap.sh.
+`./bootstrap.sh` ensures a compatible gateway via PATH or Homebrew and execs
+`weave compile` from its own root. It does not parse layers or hand off to Make.
+`make weave` and the shared `make bootstrap` prerequisite delegate to the same
+CLI; consumer bootstrap extensions remain additive. Generic startup never
+runs shell configuration installation.
 
-`construct/scripts/test/portable-makefile.test.sh` exercises real Make with a
-stateful scratch tool backend and real weave convergence for the changed
-manifest surface. No live consumer refresh is required for this test. The Go
-apply tests separately prove source/ancestor preservation and failure retry.
+The root Makefile remains authored; the workflow overlay and generated helpers
+appear during compilation. CI also compiles before accessing these helpers,
+then runs the optional repository setup hook and merge checks. The executable
+fixtures in `construct/scripts/test/{bootstrap-transitive,portable-makefile}.test.sh`
+and `scripts/test/portable-ci.test.sh` cover gateway reuse/failure, owner builds,
+and the workflow's actual run-block order without host package installation.
