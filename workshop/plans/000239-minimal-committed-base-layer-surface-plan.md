@@ -2303,7 +2303,8 @@ weave is not an instruction to install fonts, log into accounts or start service
   (e.g. Go before CUE's Go-based installer). Duplicate equivalent requirements
   run once; conflicting same-name declarations report both origins before any
   package install. No version solver or arbitrary build dependency graph.
-- Recipes receive a dedicated user-local `WEAVE_TOOLS_DIR` and its `bin` on PATH;
+- Recipes receive `WEAVE_TOOLS_DIR` (default `${XDG_DATA_HOME:-$HOME/.local/share}/weave/tools`)
+  and its `bin` on PATH;
   they may use an existing package manager or install user-locally when absent.
   Go's required version derives from the owning module; owners pin downloadable
   artifacts and checksums. The weave engine has no hardcoded Go/CUE/uv list.
@@ -2314,30 +2315,44 @@ weave is not an instruction to install fonts, log into accounts or start service
   overwrite its signed/service executable. Explicit signing/service operations
   stay product commands, not compile side effects.
 
-### Command availability proposal
+### Command availability — operator decision
 
-Always provide `weave exec <name> [args...]`: resolve the current repo's declared
-command, preserve caller cwd, and run with the selected command/tool directories
-on PATH. It does not compile implicitly; absent outputs name `weave compile`.
-This is usable immediately after bootstrap without modifying a parent shell,
-using the absolute installed gateway path when `weave` is not on the parent PATH.
+Bootstrap prepares dependencies and invokes the generic compile operation. It
+has no sdlc-specific installation, shell edits, service setup, or workflow
+injection. Compile still builds the binaries a layer explicitly declares; each
+layer owns how its tools participate in development.
 
-Provide `weave env` to print shell-escaped PATH exports, including the stable
-gateway install directory as well as the selected command/tool directories, for users who want bare commands (`eval "$(weave env)"`). Bootstrap installs to `${WEAVE_INSTALL_DIR:-$HOME/.local/bin}/weave` when no
-compatible gateway is present. It prints the shell-quoted absolute gateway path
-and an activation command using that path when the install directory is absent
-from the parent PATH; never print an unusable bare `weave` instruction. An already
-installed Homebrew gateway keeps its stable prefix path, not a versioned Cellar
-path. Bootstrap/compile print activation once when needed. CI invokes checks through the same prepared process
-environment rather than depending on a shell rc file. No global same-name binary
-symlinks or silent shell-profile edits. This replaces startup's sdlc-install
-behavior; existing optional development aliases are not the resolver for setup.
+The user adds each needed base layer's `bin` directory to their shell PATH, for
+example:
 
-**Operator review point:** this provides one-command bootstrap and immediately
-usable `weave exec`, but bare commands in an already-running shell need activation.
-If bare `sdlc` immediately after `./bootstrap.sh` is required, decide shell
-integration explicitly before implementation; a child process cannot set its
-parent's PATH. Do not hide this distinction in a success message.
+```sh
+export PATH="/path/to/ariadne/bin:/path/to/nous/bin:$PATH"
+```
+
+Persist that line in the user's chosen shell configuration and source it or
+start a new shell. Adding a new binary to an already-listed layer bin directory
+then needs no further shell changes. There is no need to publish every exposed
+binary as a package, and no new `weave exec` or `weave env` interface is needed.
+Custom builds should expose their declared development output through the layer's
+bin directory; they must not overwrite a separate signed/service executable.
+
+Weave prepares PATH only for its own installer/build/generator subprocesses.
+It reports the exact required PATH additions at completion: layer bin directories
+and, when recipes installed dependencies user-locally, `WEAVE_TOOLS_DIR/bin`.
+Tools already supplied by an existing package manager need no redundant install
+path. The same report includes the gateway directory when needed. Do not claim
+these commands are now available in the parent shell. CI explicitly adds the
+reported directories in its job environment; it never reads user shell
+configuration. Manifest-selected owners and observed installation locations feed
+this report/process environment, not a workspace-wide scan. A fresh-process test
+runs a developer command such as `go test` after only the documented additions,
+proving user-local toolchain dependencies remain accessible after compile exits.
+
+For a non-Homebrew gateway install, bootstrap uses
+`${WEAVE_INSTALL_DIR:-$HOME/.local/bin}/weave` by absolute path. If that directory
+is absent from the parent PATH, it reports the actual path and the separate PATH
+addition needed for future `weave` calls. A Homebrew-installed weave already uses
+Homebrew's normal PATH setup. Neither path edits the user's shell automatically.
 
 ### Keep, replace, remove
 
@@ -2347,7 +2362,7 @@ parent's PATH. Do not hide this distinction in a success message.
 | `Makefile.workflow` weave/bootstrap recipes | Thin CLI delegates; no clone/install/build orchestration remains here. Local weave developer-build target stays explicitly local. |
 | Root `bootstrap.sh` | One committed ensure-weave + compile launcher; it contains no layer parser or Make handoff. |
 | `construct/scripts/bootstrap-peers.sh`, `clone-data-deps.sh` | Operations move into weave; remove scripts and their manifest rows after caller migration. |
-| `scripts/sdlc-install.sh` | Retire as a startup owner; command environment is owned by weave. |
+| `scripts/sdlc-install.sh` | Retire from bootstrap; users explicitly add layer bin directories to PATH. |
 | `construct/dev-aliases.sh` | Not used for compile ownership. Preserve optional dev convenience only where actual callers remain. |
 | `lib-deps.sh`, `list-peers.sh` | Retain only present-peer/environment consumers; remove bootstrap duplication. Do not casually delete VM helpers. |
 | `seed Makefile` | Remove. Startup needs no root Makefile, so #239 does not need to introduce seed-once merely to retain this seed. Preserve existing repo-owned roots. |
@@ -2371,10 +2386,10 @@ old branch are not carried into the restart.
 | Setup phase/outcome transition | `cmd/weave/internal/startup/sequence.go` | new |
 | Generated output/ignore ownership | `cmd/weave/internal/plan/gitignore.go` | modified |
 | Output ownership checkpoint (confirmed + pending identities) | `cmd/weave/internal/plan/ownership.go` | new |
-| Declared command environment | `cmd/weave/internal/requirements/environment.go` | new |
+| Setup subprocess environment / bin-directory report | `cmd/weave/internal/requirements/environment.go` | new |
 
 Dependency rows feed acquisition and the existing graph projection. Requirements
-are many-to-one with a layer, selected once and reused by install/build/exec/env.
+are many-to-one with a layer, selected once and reused by install/build/generator execution and the bin-directory report.
 The startup sequence owns ordering, not another layer-resolution algorithm.
 New pure entities receive colocated unit tests without subprocess mocks.
 
@@ -2383,7 +2398,7 @@ New pure entities receive colocated unit tests without subprocess mocks.
 | Source acquisition | `cmd/weave/internal/acquire/acquire.go` | new | FS + Git processes |
 | Recipe execution | `cmd/weave/internal/weavefs/runner.go` | modified | context, argv, cwd, env, exit outcomes |
 | Dependency/build orchestration | `cmd/weave/internal/startup/run.go` | new | acquisition, requirements, existing generation/Apply |
-| Startup entrypoints | `cmd/weave/compile.go`, `link.go`, `dependencies.go`, `exec.go` | new | Cobra handlers extracted from main.go |
+| Startup entrypoints | `cmd/weave/compile.go`, `link.go`, `dependencies.go` | new | Cobra handlers extracted from main.go |
 | Distribution launcher | `bootstrap.sh` | modified | release download/checksum/install/exec |
 | Release packaging | `scripts/release-weave.sh`, `.github/workflows/weave-release.yml` | new | Go builds, archives, GitHub release assets |
 | Generated-output migration | `cmd/sdlc/propagatebase.go` | modified | compile result + scoped Git index edits |
@@ -2455,7 +2470,7 @@ not invent a latency SLA or graph-size cap before those observations exist.
 
 ### Distribution and release design
 
-Use the operator's tap/formula names. Proposed conventional backing repository:
+Use the operator's tap/formula names and accepted conventional backing repository:
 `xianxu/homebrew-ariadne`, containing `Formula/weave.rb`, so the ordinary
 `brew tap xianxu/ariadne` works. Keep weave source and release assets in
 `xianxu/ariadne`. An explicit-URL same-repo tap is possible but adds a special
@@ -2509,11 +2524,9 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
   requirements become satisfied with no generated helpers/Makefile. Full
   compile-to-ready assertions belong to R2, not this boundary's acceptance.
 - [ ] Execute a native macOS and Ubuntu installer probe against throwaway user
-  directories: validate Go/CUE/uv recipes, environment activation, and generator
+  directories: validate Go/CUE/uv recipes, subprocess PATH, and generator
   build order. Record commands and timings in the issue Log. Turn each surfaced
   problem into a regression before implementing its fix.
-- [ ] Confirm the proposed `weave exec`/optional `weave env` availability contract
-  with the operator during design review, before shell integration is implemented.
 
 ### R1.2 — typed declarations and acquisition
 
@@ -2542,11 +2555,11 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
 
 ## Chunk R2: one compilation/startup path
 
-### R2.1 — orchestrate declared setup and command environments
+### R2.1 — orchestrate declared setup and subprocess environments
 
 **Files:** `cmd/weave/internal/startup/{sequence,run}{,_test}.go`,
 `cmd/weave/internal/requirements/environment{,_test}.go`,
-`cmd/weave/internal/weavefs/runner{,_test}.go`, `cmd/weave/{main,compile,exec}.go`,
+`cmd/weave/internal/weavefs/runner{,_test}.go`, `cmd/weave/{main,compile}.go`,
 `construct/requirements.json`, `construct/install/{go,cue,uv}.sh`.
 
 - [ ] Add the full cold-start regression: with no base/helper links/Go/CUE on
@@ -2561,9 +2574,13 @@ revision history. Re-estimate only after the new plan-quality gate accepts.
 - [ ] Declare ariadne requirements and exposed commands; implement/test owner
   installer recipes on the two native environments. Keep owner module/build
   logic out of the generic engine. Confirm `weave` is not rebuilt by setup.
-- [ ] Implement `exec` and `env` from the same selected declarations; preserve
-  caller cwd/arguments, prepare generator PATH, fail on collisions or missing
-  outputs, test a non-Go leaf and a custom build output.
+- [ ] Prepare recipe/generator PATH and the completion bin-directory report
+  from selected declarations; fail on collisions/missing outputs. Test a non-Go
+  leaf and a custom build output. Verify bare commands after an explicit fixture
+  PATH update, and verify bootstrap never edits fixture shell configuration.
+  Exercise the user-local package path as well: a fresh process using only the
+  reported additions must find both a built layer command and the installed
+  toolchain. Include the gateway-install directory when absent from parent PATH.
 - [ ] Run `go test ./cmd/weave/... ./pkg/layergraph/... -count=1`; real fixture
   generator must observe the declared command environment without host tools.
 
@@ -2660,9 +2677,10 @@ authentication, production signing/services, automatic revision upgrades, and VM
 image provisioning stay outside compile. Existing source/data dependencies used
 for development remain covered through explicit declarations and shared cloning.
 
-Before implementation: settle command activation with the operator; finish the
-native installer probe and choose the exact supported recipe behavior; review
-this proposed declaration schema and release/tap layout. Record decisions as a
+Command availability and the conventional tap repository are now settled by the
+operator. Before implementation: finish the native installer probe and choose
+the exact supported recipe behavior; review the proposed declaration schema and
+remaining release mechanics. Record decisions as a
 revision rather than silently presenting a proposal as accepted. Before publishing
 license metadata, obtain the operator's license choice. No code or publication
 work is authorized by the existence of this draft alone.
@@ -2693,3 +2711,29 @@ Go/CUE absent from PATH. Compiling the actual ariadne layer under the same
 isolated environment failed at the datatype generator (missing command, exit
 127). Keep that real startup case in R2's regression matrix; a version/help-only
 release test would miss it. Details are in the issue Log.
+
+
+### 2026-09-20 — operator: explicit layer PATH, conventional tap accepted
+
+**Reason:** the operator separated generic dependency preparation from each
+layer's development-flow integration, accepted manually adding layer bin
+directories to PATH, and approved `xianxu/homebrew-ariadne` as the tap backing repo.
+
+**Delta:** bootstrap has no sdlc-specific installation or shell edits. Remove the
+proposed `weave exec` / `weave env` commands and their implementation tasks. Compile
+retains generic declared builds and prepares only its own subprocess environment;
+it reports layer bin paths for the user's explicit shell setup. Account for the
+gateway's own PATH when bootstrap downloads it without Homebrew. Tap layout is
+accepted, not an open choice. This supersedes the earlier draft's command-
+activation proposal and review notes describing that decision as pending.
+
+
+### 2026-09-20 — manual-PATH review follow-through
+
+The narrow fresh-context review accepted the operator's choice with two concrete
+corrections: the completion instructions must include any user-local dependency
+bin directory as well as layer/gateway bins, or compile succeeds but a later
+`go test` cannot find Go; command-discovery acceptance belongs in R2, which builds
+those commands, not R1. Both corrections are incorporated above with a
+fresh-process regression. No automatic shell setup or new command launcher was
+reintroduced.
