@@ -378,3 +378,33 @@ findings:
       auto-commit rhythm, so it lands unattended. BR-39 recommended doing the
       retirement inside M4's sweep for exactly this reason.
 ```
+
+---
+
+## Re-review — 2026-09-20T09:30:48-07:00 (unknown)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | milestone M3 |
+| milestone | M3 |
+| window | d0a92cb6da121b60d109c1af08c391901b8ceda5..61f8b8e5fa539afa6f4439d647f750588323e9b8 |
+| command | sdlc milestone-close --issue 239 --milestone M3 |
+| reviewer | claude |
+| timestamp | 2026-09-20T09:30:48-07:00 |
+| verdict | unknown |
+
+## Review
+
+The full suite finished. One correction to my test-coverage note above, since it changes what the close's `--verified` evidence can honestly claim:
+
+**`go test ./...` is red, and not on the `#210` cause the issue's M2 log cites.** The single failure is `cmd/sdlc` `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory` (`fleet_plan_test.go:14`), which opens `workshop/plans/000200-sdlc-fleet-thread-inventory-plan.md` — a path that no longer exists because `dfeba9c "archive completed issues to history"` moved it to `workshop/history/plans/`. I confirmed `dfeba9c` is an ancestor of the window base `d0a92cb`, and neither `cmd/sdlc/` nor any `000200` artifact is touched in this range, so it is **pre-existing and not attributable to M3**.
+
+It does not change the verdict — `go test ./cmd/weave/...` and `go vet ./cmd/weave/...` are green, and that is the scope M3 touches. Two consequences worth carrying forward:
+
+- The close's `--verified` should cite the scoped `./cmd/weave/...` run and name this pre-existing `cmd/sdlc` failure explicitly, rather than implying `./...` is green.
+- It is a live instance of family `archived-artifact-breaks-pinned-reference` (already 1 finding on this issue): a test pins a plan path by string, the archive sweep moves the plan, and the test goes red with nothing connecting cause to effect. It also sharpens **I-3 / BR-44's disposition** — this failure has been sitting red in `go test ./...` since before this branch and no gate noticed, which is the same fact from the other direction: the Go suite is not wired into any gate in this repo.
+
+I did not raise it as a new finding — it is outside the review window and belongs to a family already in play, so it is context for the close rather than a boundary blocker. The verdict block and findings block in my previous message stand unchanged.

@@ -893,6 +893,13 @@ rounds:
       boundary: M3
       recipe: milestone-review
       blocked: true
+    - "n": 11
+      timestamp: "2026-09-20T09:30:48-07:00"
+      agent: claude
+      boundary: M3
+      recipe: milestone-review
+      blocked: true
+      protocol_error: no valid findings block
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -1433,6 +1440,10 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   checklist does not mention; three of the twelve are brain repos on the
   auto-commit rhythm, so it lands unattended. BR-39 recommended doing the
   retirement inside M4's sweep for exactly this reason.
+
+## Round 11 — 2026-09-20T09:30:48-07:00 (claude) — BLOCKED
+
+**Protocol error:** no valid findings block — this round contributed no findings.
 
 ## Open findings
 
