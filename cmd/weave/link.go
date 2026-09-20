@@ -84,8 +84,8 @@ func recordLink(fs weavefs.FS, root, path, source string, out io.Writer) error {
 		}
 		found = true
 		if len(fields) > 2 && source != "" {
-			previous, e1 := acquire.NormalizeSource(fields[2])
-			next, e2 := acquire.NormalizeSource(source)
+			previous, e1 := acquire.ResolveSource(fields[2], root)
+			next, e2 := acquire.ResolveSource(source, root)
 			if e1 != nil || e2 != nil || previous.Identity != next.Identity {
 				return fmt.Errorf("link: conflicting source already recorded for %s", path)
 			}

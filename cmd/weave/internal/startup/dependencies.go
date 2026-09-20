@@ -12,7 +12,7 @@ import (
 
 // Dependencies delegates package state to Homebrew, in the graph's existing
 // foundation-first order. A layer with no Brewfile needs no package operation.
-func Dependencies(fs weavefs.FS, layers []string, runner weavefs.Runner, platform string, dryRun bool, out io.Writer) error {
+func Dependencies(fs weavefs.FS, layers []string, runner weavefs.Runner, dryRun bool, out io.Writer) error {
 	for _, dir := range layers {
 		bundle := filepath.Join(dir, "Brewfile")
 		info, err := fs.Stat(bundle)
@@ -24,9 +24,6 @@ func Dependencies(fs weavefs.FS, layers []string, runner weavefs.Runner, platfor
 		}
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("layer bundle %s is not a regular file", bundle)
-		}
-		if platform != "darwin" {
-			return fmt.Errorf("%s: automatic Brewfile installation is currently supported on macOS", dir)
 		}
 		fmt.Fprintf(out, "weave: %s: brew bundle install --no-upgrade --file=Brewfile\n", dir)
 		if dryRun {

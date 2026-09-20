@@ -1584,3 +1584,8 @@ is not evidence of absence: distinguish the documented absent result from
 configuration/spawn errors. Exercise failure injection through the same process
 boundary as real-Git conformance, and document a new CLI surface at its delivery
 boundary rather than waiting for the whole issue.
+
+For source provenance, enumerate both newly inspected origins and already
+recorded declarations. For recovery, exercise the public retry operation in both
+missing-destination and already-published states; a cleanup helper passing alone
+does not prove its caller reaches it.

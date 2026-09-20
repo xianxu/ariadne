@@ -42,11 +42,11 @@ column counts fail with a line number. Existing two-column substrate rows remain
 valid while the local checkout exists; record a source to restore a missing one.
 Paths/sources cannot contain whitespace or `#` in this format.
 
-On macOS with Homebrew on PATH, `weave dependencies` restores transitive sources
+With Homebrew on PATH (macOS or Linux), `weave dependencies` restores transitive sources
 and runs each layer's committed root `Brewfile` through `brew bundle install
 --no-upgrade --file=Brewfile`, foundation-first. Homebrew manages package state;
 weave does not build tools, mount data or generate artifacts in this command.
-Other platforms' automatic package setup is not delivered in this first slice.
+Linux CI uses Homebrew and the same layer Brewfiles.
 `weave dependencies --dry-run` makes no changes. If a missing source prevents
 reading its declarations, the preview reports that it is incomplete and exits
 nonzero rather than claiming a complete dependency list.

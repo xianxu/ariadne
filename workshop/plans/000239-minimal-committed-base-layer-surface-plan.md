@@ -300,6 +300,18 @@ startup/dependencies.go; the earlier plan/environment types remain M2 proposals.
 Concurrent setup remains unsupported; cleanup protection is not a new locking
 service. Add regression tests before each correction.
 
+### 2026-09-20 — shared Homebrew on Linux and complete retry coverage
+
+Operator explicitly chose Homebrew in Linux CI too. This supersedes the
+macOS-only package limit and pending CI choice: both platforms run the same
+Brewfiles; Linux CI sets up Homebrew before weave. No separate installer.
+
+M1 re-review: all identity comparisons resolve source paths at their declaring
+owner (checkout origin at checkout, deps row at root, restoration at owner).
+Warm and cold mutating restoration both go through Ensure, including abandoned
+stage recovery; dry-run only probes and never reclaims. Regressions exercise
+existing relative-source declarations and interruption after publication.
+
 ## Historical revisions
 
 Everything below is historical. It is preserved verbatim and is not part of the

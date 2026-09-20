@@ -234,6 +234,10 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 				}
 			} else if statErr != nil {
 				return result, statErr
+			} else if !dryRun {
+				if err := c.Ensure(ctx, dest, src.URL, row.Kind == "substrate"); err != nil {
+					return result, err
+				}
 			} else if row.Source != "" {
 				if err := c.checkExisting(ctx, dest, src, row.Kind == "substrate"); err != nil {
 					return result, err

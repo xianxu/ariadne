@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"runtime"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/weave/internal/acquire"
@@ -29,7 +28,7 @@ func buildDependencies() *cobra.Command {
 				return err
 			}
 			runner := weavefs.ExecRunner{Context: cmd.Context(), Stdout: cmd.OutOrStdout(), Stderr: cmd.ErrOrStderr()}
-			return startup.Dependencies(weavefs.OSFS{}, restored.Layers, runner, runtime.GOOS, dryRun, cmd.OutOrStdout())
+			return startup.Dependencies(weavefs.OSFS{}, restored.Layers, runner, dryRun, cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "report known dependency operations without cloning or installing")

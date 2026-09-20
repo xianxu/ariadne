@@ -18,7 +18,7 @@ pull/reset. A missing local-only edge requires an explicit source.
 
 `weave dependencies [--dry-run]` restores transitive sources and installs each
 layer's root Brewfile through `brew bundle install --no-upgrade --file=Brewfile`
-on macOS. Layers without a Brewfile need no package operation. Package/build
+on macOS and Linux. Layers without a Brewfile need no package operation. Package/build
 semantics belong to Homebrew/Make, not a weave-specific recipe language. The
 compile/bootstrap integration follows in the next implementation boundary.
 

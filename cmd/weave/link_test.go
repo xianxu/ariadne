@@ -123,6 +123,7 @@ func TestLinkRelativeOriginCanRestore(t *testing.T) {
 	if e := c.Run(); e != nil {
 		t.Fatal(e)
 	}
+	mkfile(t, filepath.Join(leaf, "construct", "deps"), "substrate ../base ../origins/base.git\n")
 	if err := linkRepository(context.Background(), leaf, "../base", &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}

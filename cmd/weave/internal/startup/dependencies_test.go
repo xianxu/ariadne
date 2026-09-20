@@ -35,7 +35,7 @@ printf '%s\n' "$PWD" >> "$PACKAGE_STATE/visits"
 	os.WriteFile(filepath.Join(base, "Brewfile"), []byte("go\n"), 0644)
 	os.WriteFile(filepath.Join(leaf, "Brewfile"), []byte("cue\n"), 0644)
 	for range 2 {
-		if err := Dependencies(weavefs.OSFS{}, []string{base, leaf}, weavefs.ExecRunner{}, "darwin", false, &bytes.Buffer{}); err != nil {
+		if err := Dependencies(weavefs.OSFS{}, []string{base, leaf}, weavefs.ExecRunner{}, false, &bytes.Buffer{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -49,7 +49,7 @@ printf '%s\n' "$PWD" >> "$PACKAGE_STATE/visits"
 		t.Fatalf("unexpected order %q", visits)
 	}
 	os.WriteFile(filepath.Join(base, "fail"), nil, 0644)
-	if err := Dependencies(weavefs.OSFS{}, []string{base, leaf}, weavefs.ExecRunner{}, "darwin", false, &bytes.Buffer{}); err == nil {
+	if err := Dependencies(weavefs.OSFS{}, []string{base, leaf}, weavefs.ExecRunner{}, false, &bytes.Buffer{}); err == nil {
 		t.Fatal("failed install succeeded")
 	}
 	after, _ := os.ReadFile(filepath.Join(state, "visits"))
@@ -62,13 +62,13 @@ func TestDependenciesDryRunAndNoBundle(t *testing.T) {
 	root := t.TempDir()
 	os.WriteFile(filepath.Join(root, "Brewfile"), []byte("brew \"go\"\n"), 0644)
 	var out bytes.Buffer
-	if err := Dependencies(weavefs.OSFS{}, []string{root}, nil, "darwin", true, &out); err != nil {
+	if err := Dependencies(weavefs.OSFS{}, []string{root}, nil, true, &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "brew bundle install --no-upgrade") {
 		t.Fatal(out.String())
 	}
-	if err := Dependencies(weavefs.OSFS{}, []string{t.TempDir()}, nil, "darwin", false, &out); err != nil {
+	if err := Dependencies(weavefs.OSFS{}, []string{t.TempDir()}, nil, false, &out); err != nil {
 		t.Fatal(err)
 	}
 }

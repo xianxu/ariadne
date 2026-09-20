@@ -101,3 +101,88 @@ findings:
     detail: |
       acquire.go:89–93 creates a fresh staging directory and relies solely on deferred removal. Add ownership-aware reclamation and interruption/retry tests so abandoned clones cannot accumulate indefinitely or cause active clones to be deleted (ARCH-FUNERAL).
 ```
+
+---
+
+## Re-review — 2026-09-20T14:02:47-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | ca9ae7f6d71d48e02ae6c23895c05b0d47f35c17..c8b5879bbed2a0ab307701303937597e8ddf9d0b |
+| command | sdlc milestone-close --issue 239 --milestone M1 |
+| reviewer | codex |
+| timestamp | 2026-09-20T14:02:47-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The pinned range delivers source acquisition, strict declarations, dependency installation, and appropriate README/atlas updates. The full targeted suite passes. However, scratch CLI reproductions show that BR-1 remains incomplete for existing relative-source declarations, and BR-5 misses cleanup when retrying an already-published checkout.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      The original checkout-origin resolution is fixed and covered by TestLinkRelativeOriginCanRestore. However, cmd/weave/link.go:87 compares an existing relative declaration using NormalizeSource rather than resolving it at the declaring root. A valid substrate ../base ../origins/base.git row causes weave link ../base to fail with a false source conflict. Complete the source-resolution-provenance family sweep across origin inspection, declaration comparison, and restoration.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Origin now distinguishes missing configuration values from inspection failures. TestLinkOriginInspectionErrorsPreserveDeps covers malformed configuration and missing Git through production linking; suppressing the error propagation via a scratch Go overlay makes both cases fail.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md:15–55 documents address/local links, dependencies, --dry-run, declaration grammar and compatibility limits. These match link.go, dependencies.go, ParseRows, and startup.Dependencies; atlas/workflow/weave.md also describes the delivered surface.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Client.Git provides the shared acquisition/probe boundary. Fixtures inject clone failure and destination creation before publication, while local-Git tests retain conformance coverage. Disabling the publication conflict rejection via a scratch overlay makes TestEnsurePublicationConflictAfterClone fail.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      Ensure reclaims dead-owned stages, but Restore bypasses Ensure for existing destinations at acquire.go:237–238. After publication followed by process death before deferred cleanup, ordinary dependencies retries never reclaim the stage. A scratch CLI fixture with a matching checkout and dead-owned stage exits successfully while retaining that stage.
+```
+
+1. **Strengths**
+   - `ParseDeps` derives from `ParseRows`, keeping declaration parsing shared.
+   - Existing dirty checkouts are preserved; local-Git tests verify reuse without contacting unavailable origins.
+   - Git inspection failures propagate visibly, with regression tests confirmed sensitive to the fix.
+   - README and atlas accurately distinguish delivered M1 behavior from later startup integration.
+
+2. **Critical findings**
+   - **BR-1 — incomplete source comparison**, `cmd/weave/link.go:87`. Resolve the existing declaration against `root` before comparing identities. Add a production-link regression with an existing relative-source row. **ARCH-PURPOSE, ARCH-DRY:** apply the provenance rule to every source comparison, rather than correcting only origin inspection.
+
+3. **Important findings**
+   - **BR-5 — warm retries skip reclamation**, `cmd/weave/internal/acquire/acquire.go:237`. Run ownership-aware reclamation during mutating restoration for existing as well as missing destinations; preserve dry-run behavior. Test interruption after publication and retry through `Restore` or the CLI. **ARCH-FUNERAL, ARCH-ORDER:** cleanup must cover every interruption point, including successful publication before deferred removal.
+
+4. **Minor findings**
+   - None.
+
+5. **Test coverage notes**
+   - Passed: `go test ./cmd/weave/... ./pkg/layergraph/... -count=1`.
+   - Scratch CLI reproductions confirmed both remaining defects.
+   - Scratch overlay mutations made BR-2 and publication-conflict regressions fail.
+   - Repository files remain unchanged. Real Homebrew installation was not exercised.
+
+6. **Architectural notes**
+   - **ARCH-DRY — flag:** existing declaration comparison bypasses owner-aware source resolution.
+   - **ARCH-PURE — pass:** parsing and normalization remain pure; acquisition is classified as integration.
+   - **ARCH-PURPOSE — flag:** the source-provenance correction needs the complete comparison-site sweep.
+   - **ARCH-MOCK — pass:** injected Git failure/ordering fixtures supplement real local-Git coverage.
+   - **ARCH-CONSTRAINTS — pass:** serial acquisition introduces no concurrent fan-out; concurrent setup is explicitly unsupported.
+   - **ARCH-SECURE — pass:** configuration failures remain errors; credential-bearing URL rejection and mount containment have coverage.
+   - **ARCH-ORDER — flag:** recovery misses the published-checkout/stale-stage state.
+   - **ARCH-FUNERAL — flag:** ordinary warm retries leave provably abandoned stages behind.
+
+7. **Plan revision recommendations**
+   - Append a `## Revisions` entry enumerating all source-identity comparison sites and their owning directories.
+   - Append the post-publication interruption case and require cleanup verification through normal restoration, alongside existing missing-destination recovery tests.

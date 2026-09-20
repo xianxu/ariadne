@@ -262,6 +262,14 @@ Validation: go test ./cmd/weave/... ./pkg/layergraph/... ./cmd/datatype/...
 tracked-source-only build produced datatype, vocabulary, sdlc and doc-review,
 confirming M2's tools-before-composition order. Review lessons recorded.
 
+### 2026-09-20 — Linux decision and M1 complete retry fixes
+
+Operator chose Homebrew in Linux CI too; the same Brewfiles now run without a
+platform-specific installer branch. This resolves the pending CI choice.
+BR-1 remaining comparison now resolves recorded relative sources at their
+owning root. BR-5 warm Restore now shares Ensure's stage recovery, while dry-run
+preserves stages. Both reproduced failures have regression tests.
+
 ## Revisions`.
 
 Two corrections landed while widening:
