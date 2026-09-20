@@ -234,15 +234,45 @@ func applySeed(fs weavefs.FS, src, dst string) error {
 			return fmt.Errorf("apply seed: write %s: %w", dst, err)
 		}
 	}
-	// Preserve the source's executable bit (the `cp -p` mode-preservation).
-	// Observe the source mode in the IO seam; if any exec bit is set, mirror the
-	// source's full perm onto dst, else leave the 0o644 WriteFile default.
-	if fi, serr := fs.Stat(src); serr == nil && fi.Mode().Perm()&0o111 != 0 {
-		if err := fs.Chmod(dst, fi.Mode().Perm()); err != nil {
-			return fmt.Errorf("apply seed: chmod %s: %w", dst, err)
-		}
+	return syncExecBit(fs, src, dst, "seed")
+}
+
+// syncExecBit replicates the load-bearing half of `cp -p` for both seed verbs:
+// OBSERVE the source's mode and, if any exec bit is set, mirror its full perm
+// onto dst (weavefs.FS.WriteFile writes a fixed 0o644, so a seeded bootstrap.sh
+// would otherwise land non-executable, and a non-peer bootstrap invokes it
+// directly). Non-exec source → the 0o644 default stands.
+//
+// Shared by applySeed and applySeedOnce: the two differ on WHEN to write, never
+// on how to carry the mode, so the mode logic lives once (ARCH-DRY). verb names
+// the caller for the error message.
+func syncExecBit(fs weavefs.FS, src, dst, verb string) error {
+	fi, err := fs.Stat(src)
+	if err != nil || fi.Mode().Perm()&0o111 == 0 {
+		return nil
+	}
+	if err := fs.Chmod(dst, fi.Mode().Perm()); err != nil {
+		return fmt.Errorf("apply %s: chmod %s: %w", verb, dst, err)
 	}
 	return nil
+}
+
+// SeedOnceSlotIsRepoOwned answers the ONE question seed-once turns on: given
+// what occupies the target slot, does the REPO own it (weave must not touch it)
+// or is it weave's own prior lowering (weave materializes the template)?
+//
+//	regular file, directory → repo-owned  → true
+//	symlink (live OR dangling) → weave's prior `symlink Makefile` → false
+//
+// Exported because TWO callers must agree: applySeedOnce (which decides what to
+// DO) and golden.classifyAction (which predicts what weave WOULD do). They were
+// written separately at first and immediately disagreed — the classifier called
+// a symlinked slot "present" and reported MATCH on exactly the fleet state this
+// verb exists to converge (nous and metis both carry Makefile -> ../ariadne/
+// Makefile today). A drift harness that predicts the opposite of the seam is
+// worse than no harness. One predicate, one source of truth (ARCH-DRY).
+func SeedOnceSlotIsRepoOwned(mode os.FileMode) bool {
+	return mode&os.ModeSymlink == 0
 }
 
 // applySeedOnce is the WRITE-ONCE half of the seed pair (#239). Where applySeed
@@ -269,7 +299,7 @@ func applySeed(fs weavefs.FS, src, dst string) error {
 // NOTE the ordering: the presence check runs BEFORE the src read, so a
 // repo-owned file is never even compared against upstream.
 func applySeedOnce(fs weavefs.FS, src, dst string) error {
-	if fi, err := fs.Lstat(dst); err == nil && fi.Mode()&os.ModeSymlink == 0 {
+	if fi, err := fs.Lstat(dst); err == nil && SeedOnceSlotIsRepoOwned(fi.Mode()) {
 		return nil // repo-owned — sacrosanct, never read src
 	}
 	data, err := fs.ReadFile(src)
@@ -285,13 +315,7 @@ func applySeedOnce(fs weavefs.FS, src, dst string) error {
 	if err := fs.WriteFile(dst, data); err != nil {
 		return fmt.Errorf("apply seed-once: write %s: %w", dst, err)
 	}
-	// Preserve the source's executable bit, exactly as applySeed does.
-	if fi, serr := fs.Stat(src); serr == nil && fi.Mode().Perm()&0o111 != 0 {
-		if err := fs.Chmod(dst, fi.Mode().Perm()); err != nil {
-			return fmt.Errorf("apply seed-once: chmod %s: %w", dst, err)
-		}
-	}
-	return nil
+	return syncExecBit(fs, src, dst, "seed-once")
 }
 
 // applyWriteFile ensures parents then writes content (the composed AGENTS.md).

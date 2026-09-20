@@ -573,6 +573,66 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — M1 boundary review: 7 findings, all fixed in-round
+
+Verdict FIX-THEN-SHIP. Sidecar:
+`workshop/plans/000239-minimal-committed-base-layer-surface-m1-review.md`.
+
+**BR-1 (Critical) — a real bug in the new code, confirmed against the live
+fleet.** `golden.classifyAction`'s `SeedOnce` case branched on bare
+`dstO.Exists`, but `observePath` sets `Exists` for *any* `Lstat` hit, symlinks
+included — while `applySeedOnce` requires a NON-symlink for presence. So the
+drift harness reported `MATCH … weave would not touch it` on exactly the state
+this verb exists to converge. `../nous/Makefile` and `../metis/Makefile` are
+both `-> ../ariadne/Makefile` today, so this was live, not hypothetical. A
+harness that predicts the opposite of the seam is worse than no harness.
+
+The finding's family is `presence-predicate-written-twice`, and the class fix is
+the point: the predicate is now **one exported function**,
+`plan.SeedOnceSlotIsRepoOwned(os.FileMode)`, called by both the seam and the
+classifier. `golden` bridges its `IsSymlink` bool to a mode in the one place that
+gap exists, rather than re-deriving the rule. Guarded by a four-case table test
+(live symlink, dangling symlink, regular file, absent) that goes red without the
+fix on the two symlink rows.
+
+**BR-5 (Minor, same root cause)** — `applySeedOnce` had copy-pasted
+`applySeed`'s exec-bit block while the plan's DRY rationale claimed reuse.
+Extracted to `syncExecBit(fs, src, dst, verb)`. Two findings, one lesson: I wrote
+the same fact twice in two places in one milestone.
+
+**BR-2/3/4 (Important) — documentation asserting things that are not true.**
+
+- `README.md` still said the root Makefile is "an upstream-owned seed … avoid
+  editing the seeded root, since the next weave replaces its contents" — the
+  exact contract M1 inverts, in the file a repo adopting ariadne reads first.
+  Rewritten around `seed-once`, including the one-line adoption path.
+- `setup-and-replication.md:90` — I bumped "Six manifest actions" to "Seven"
+  without fixing the list it counts: it still named the **retired** `tool` and
+  omitted `prose`/`skill`. Restating a model by hand is the very defect this
+  issue is about, so the sentence now points at `intent.kindByVerb` as the
+  source and names the retired verbs as retired.
+- The committed-surface invariant was written in the **present tense** in both
+  `setup-and-replication.md` and `base.manifest`, but it isn't true until M3/M4.
+  `atlas/` is defined as current state, so that would have misled for the whole
+  M1→M4 window. Both now marked as target state with the issue reference.
+
+**BR-7 (Minor)** — `base-layer-mechanics.md:90` still headed its section
+`file-ops (symlink / seed / scaffold / touch)`. A stale enumeration inside the
+artifact type whose job is defending an invariant from drift.
+
+**BR-6 (Minor) — logged, not fixed: a binary/manifest skew hazard.**
+A derivative that has pulled the new `base.manifest` but still runs an OLD
+`weave` binary parses `seed-once` as an unknown verb and skips it. Nothing then
+targets `Makefile`, so `PrunePlan` sees a `Makefile -> ../ariadne/Makefile`
+symlink at a managed root with no producer and **prunes it**. The window is
+narrow — `make weave` depends on `weave-build`, which rebuilds from the peer
+source first — but the loss is awkward: a repo with no `Makefile` has no `make`
+target to re-weave with. **Recovery: `./bootstrap.sh`**, which is committed
+precisely for this class of situation. Not worth a manifest-version mechanism
+for a one-release window; recorded so the next person meeting it knows the
+cause and the one-line fix.
+
+
 ### 2026-09-19 — M1 implemented
 
 `seed-once` exists end to end: verb → intent → action → seam, with the seed

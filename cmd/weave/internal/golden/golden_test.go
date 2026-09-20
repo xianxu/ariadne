@@ -416,3 +416,42 @@ func TestHasUnexpected(t *testing.T) {
 		t.Fatalf("HasUnexpected(dirty) = false, want true")
 	}
 }
+
+// The drift harness must use the SAME presence predicate as applySeedOnce.
+// It did not at first: observePath sets Exists=true for ANY Lstat hit including
+// a symlink, so a bare `dstO.Exists` check reported MATCH on precisely the fleet
+// state seed-once exists to converge (nous and metis both carry
+// Makefile -> ../ariadne/Makefile). A harness predicting the opposite of the
+// seam is worse than none (#239 M1 BR-1).
+func TestClassifySeedOnceSymlinkSlotIsNotPresence(t *testing.T) {
+	cases := map[string]struct {
+		dst  Observed
+		want Class
+	}{
+		"live symlink — weave would materialize":     {Observed{Exists: true, IsSymlink: true, LinkTarget: "../ariadne/Makefile"}, Unexpected},
+		"dangling symlink — weave would materialize": {Observed{Exists: true, IsSymlink: true, LinkTarget: "../gone/Makefile"}, Unexpected},
+		"regular file — repo-owned, weave no-ops":    {Observed{Exists: true, IsSymlink: false, Content: "MY OWN"}, Match},
+		"absent — weave would seed once":             {Observed{Exists: false}, Unexpected},
+	}
+	for name, tc := range cases {
+		t.Run(name, func(t *testing.T) {
+			in := Input{
+				RepoRoot: "/ws/nous",
+				Actions: []plan.Action{
+					plan.SeedOnce{Src: "/ws/ariadne/construct/Makefile.seed", Dst: "Makefile"},
+				},
+				Observed: map[string]Observed{
+					"/ws/nous/Makefile":                   tc.dst,
+					"/ws/ariadne/construct/Makefile.seed": {Exists: true, Content: "TEMPLATE\n"},
+				},
+			}
+			divs := Classify(in)
+			if len(divs) != 1 {
+				t.Fatalf("got %d divergences, want 1", len(divs))
+			}
+			if divs[0].Class != tc.want {
+				t.Fatalf("class = %v, want %v (detail=%s)", divs[0].Class, tc.want, divs[0].Detail)
+			}
+		})
+	}
+}

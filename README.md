@@ -14,11 +14,22 @@ current or supplied session transcript, invoke `session-retro`; see
 
 ## Standalone consumers and maintainer setup
 
-A consumer's root `Makefile` is an upstream-owned **seed**: a real file that
-weave refreshes from ariadne. Put product targets and local help in
-`Makefile.local`; these work without maintainer peers. Avoid editing the seeded
-root, since the next weave replaces its contents. Old root symlinks are safely
-replaced without changing their ancestor's bytes or permissions.
+A consumer's root `Makefile` is **the repo's own**. weave seeds it ONCE from
+`construct/Makefile.seed` (the `seed-once` action, #239) when the slot is empty
+— or still holds weave's own earlier symlink — and never touches it again. Edit
+it freely: your changes survive every weave.
+
+**Already have a Makefile?** Keep it. Adopting ariadne needs one line, the
+contract `Makefile.workflow` documents at its top:
+
+```make
+include Makefile.workflow
+```
+
+Per-repo layout policy goes in that root Makefile *above* the include, where
+`Makefile.workflow`'s `?=` defaults can still see it — e.g. `WF_ISSUES_DIR =
+issues` for a repo whose issues aren't under `workshop/`. Put product targets and
+local help in `Makefile.local`; these work without maintainer peers.
 
 Run `./bootstrap.sh` in the consumer to clone its peer chain and restore the
 maintainer workflow. Bootstrap finds the sibling overlay even when local helper

@@ -87,8 +87,12 @@ substrate text symlinks from upstream peers (sibling-checkout); Go tool
 sources resolve via `replace => ../<peer>` directives in
 `construct/go.mod`.
 
-**Seven manifest actions:** `symlink`, `tool`, `scaffold`, `touch`, `merge`,
-`seed`, `seed-once`. Earlier versions also had `copy` — retired in #38. For per-derivative
+**Eight manifest actions**, the live set in `intent.kindByVerb`
+(`cmd/weave/internal/intent/manifest.go`, the source of truth — check there, not
+here): `symlink`, `seed`, `seed-once`, `scaffold`, `touch`, `merge`, `prose`,
+`skill`. **Retired:** `copy` (#38) and `tool` (#95 M5 — Go-tool ownership is
+location-based, so weave never edits `go.mod`); both fall through the parser's
+unknown-verb skip. For per-derivative
 divergence (operator wants to customize a substrate file), the pattern is
 **per-operator branches in upstream source repos**, not per-derivative
 copies in the derivative tree. One branch per operator's preferences,
@@ -115,7 +119,12 @@ accident; making it content-tracking was right for `bootstrap.sh` and swept
 `Makefile` along, silently destroying it. One verb per ownership class (#239).
 
 Both are **committed** in a derivative — they exist precisely because they must
-work before any substrate does. Everything else weave emits is gitignored.
+work before any substrate does.
+
+> **Target state, not current state (ariadne#239).** The committed surface is
+> being narrowed so that *everything else weave emits is gitignored*. That lands
+> in #239 M3 (the manifest-derived ignore block) and M4 (the fleet untrack);
+> until then a derivative still commits ~45 weave-created paths.
 
 ### Fresh-clone first-run — `./bootstrap.sh`
 

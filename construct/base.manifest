@@ -35,7 +35,8 @@
 #               edit to it must survive every weave. `seed` converges;
 #               `seed-once` hands over. Both are COMMITTED in a derivative (they
 #               exist precisely because they must work before any substrate
-#               does); everything else weave emits is gitignored.
+#               does). Narrowing the committed surface so that everything ELSE
+#               weave emits is gitignored is #239 M3/M4 — not yet true.
 #
 # `copy` was retired in #38 — substrate is symlink-only. For operator-
 # divergent customization, use per-operator branches in the source repo

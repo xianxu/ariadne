@@ -87,7 +87,7 @@ deepMerge(b,l): dicts recurse · $merge_keys arrays union (b, then new l) · $re
 ```
 Today only a two-input merge (ariadne-base + repo-local) ships; the DAG fold is ariadne#97.
 
-### file-ops (symlink / seed / scaffold / touch) — clarity: MEDIUM (collision-accumulation DESIGNED, not built — ariadne#104 F1)
+### file-ops (symlink / seed / seed-once / scaffold / touch) — clarity: MEDIUM (collision-accumulation DESIGNED, not built — ariadne#104 F1)
 Provisioning ops keyed by target path, with the self-reference filter (a layer never provisions a file onto its own canonical source). **Intended** (NOT yet implemented — `grep` finds no collision/warning logic in `plan/`; today it is silent last-writer-wins): composition should be **conflict-accumulating**, NOT silent last-writer-wins — when two layers provision the same target path from *different* sources, weave should not quietly pick a winner but **accumulate every such collision across the whole compile and surface them as warnings** (an error-monad / `Validation` shape: collect, don't fail-fast, report all), while still choosing a deterministic winner (later layer / specific-over-general) so the compile proceeds. Collisions are rare (namespaces `xx-`/`nous-`/`metis-`) — which is exactly why they must be loud when they happen. (Build tracked as ariadne#104 F1.)
 ```
 files(R)[p] = accumulate all Lᵢ provisioning p; if ≥2 with differing source → warning(p, {sources}); resolve to the latest in order and continue

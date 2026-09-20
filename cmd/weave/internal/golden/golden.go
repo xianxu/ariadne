@@ -28,6 +28,7 @@ package golden
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/intent"
@@ -206,14 +207,34 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 		// INTENDED end state — flagging it would re-assert the two-owners claim
 		// this verb exists to retire.
 		//   - Absent source → nothing to seed; mirrors applySeedOnce's skip.
-		//   - Target present (any content) → MATCH. The repo owns it.
+		//   - Slot REPO-OWNED (a regular file or dir) → MATCH. The repo owns it.
+		//   - Slot a SYMLINK → UNEXPECTED. A symlink is weave's own prior
+		//     `symlink Makefile` lowering, NOT repo content, so weave would
+		//     remove it and materialize the template (the #225 convergence).
 		//   - Target absent, source present → UNEXPECTED (weave would create it).
+		//
+		// "Presence" is NOT `dstO.Exists`: observePath sets Exists for any Lstat
+		// hit, symlinks included. The predicate is plan.SeedOnceSlotIsRepoOwned,
+		// shared with applySeedOnce so the harness and the seam cannot drift —
+		// they disagreed on first write, and this case reported MATCH on exactly
+		// the fleet state seed-once exists to converge (#239 M1 BR-1).
 		dstO := obs[filepath.Join(root, act.Dst)]
 		srcO := obs[act.Src]
+		// Reconstruct the mode bit the seam sees, so the SAME predicate decides
+		// both. Observed carries IsSymlink rather than a FileMode; this is the
+		// one place that gap is bridged, and it is bridged here rather than
+		// re-deriving the rule, so widening the predicate updates both callers.
+		var dstMode os.FileMode
+		if dstO.IsSymlink {
+			dstMode |= os.ModeSymlink
+		}
 		switch {
 		case !srcO.Exists:
 			return Divergence{Match, "seed-once", act.Dst,
 				"upstream template absent — weave would skip (non-fatal), nothing to diverge"}
+		case dstO.Exists && !plan.SeedOnceSlotIsRepoOwned(dstMode):
+			return Divergence{Unexpected, "seed-once", act.Dst,
+				"target is still weave's prior symlink — weave would materialize the template (#225 convergence)"}
 		case dstO.Exists:
 			return Divergence{Match, "seed-once", act.Dst,
 				"target present — repo-owned, weave would not touch it (write-once)"}
