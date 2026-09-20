@@ -40,6 +40,16 @@ const (
 	// Skill — a skill directory aggregated into the agent-agnostic skill
 	// index. New in weave; serving deferred to M3.
 	Skill
+	// SeedOnce — write-once real-file copy: created when the target slot is
+	// absent, NEVER touched again whatever its content. The ownership sibling of
+	// Seed (declared at the END of this block because Kind is an iota enum —
+	// inserting beside Seed would renumber every later kind). Seed's content is
+	// upstream-owned and converges every compile (bootstrap.sh, merge-check.yml);
+	// a SeedOnce target is handed to the REPO on first write and is the repo's
+	// from then on (the root Makefile — its own front door, which upstream must
+	// not overwrite). One verb per ownership class, rather than a path
+	// special-case inside the seam (#239).
+	SeedOnce
 )
 
 // Visibility is the composition-algebra axis (workshop/targets/weave-composition-

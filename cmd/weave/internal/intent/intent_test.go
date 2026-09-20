@@ -181,3 +181,16 @@ func TestParseManifestUnknownActionSkips(t *testing.T) {
 		t.Fatalf("ParseManifest = %v, want %v (unknown `copy` skipped)", got, want)
 	}
 }
+
+func TestParseManifestSeedOnce(t *testing.T) {
+	// seed-once is seed's OWNERSHIP sibling (#239): same shape, different
+	// convergence. The verb has to parse before anything downstream can act on it.
+	got, err := ParseManifest("seed-once construct/Makefile.seed Makefile\n")
+	if err != nil {
+		t.Fatalf("ParseManifest: unexpected error: %v", err)
+	}
+	want := []Intent{{Kind: SeedOnce, Source: "construct/Makefile.seed", Target: "Makefile"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseManifest = %v, want %v", got, want)
+	}
+}
