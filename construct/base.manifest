@@ -120,7 +120,8 @@ internal  skill construct/skill
 # The root Makefile is the REPO'S OWN front door: seeded ONCE so a greenfield
 # repo gets a working root for free, then never touched again (#239). A repo that
 # already has a Makefile keeps it and adopts ariadne with one line —
-# `include Makefile.workflow`, the contract Makefile.workflow:1-2 documents.
+# the resolve-then-`-include` snippet Makefile.workflow's header documents (a
+# bare `include` aborts make pre-weave, when the symlink does not exist yet).
 # The SOURCE is construct/Makefile.seed, NOT ariadne's own root Makefile: one
 # file cannot be both a generic template and one repo's layout policy, which is
 # exactly why the old template hardcoded WF_ISSUES_DIR = workshop/issues.

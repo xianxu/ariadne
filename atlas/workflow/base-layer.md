@@ -38,8 +38,11 @@ Defined in `construct/base.manifest` (in ariadne):
   - `Makefile` — **repo-owned**, seeded ONCE from `construct/Makefile.seed` (`seed-once`, #239). weave writes it when the slot is absent (or still holds weave's own prior symlink, the #225 convergence) and never touches it again — so a repo that already has a Makefile keeps it, and a later edit to it survives every weave. Product targets work in a standalone checkout; the workflow resolves locally or from sibling ariadne after bootstrap. **Adopting ariadne in a repo that already has a Makefile needs no seeding at all** — add the one line `Makefile.workflow:1-2` documents:
 
     ```make
-    include Makefile.workflow
+    WF_WORKFLOW := $(firstword $(wildcard Makefile.workflow ../ariadne/Makefile.workflow))
+    -include $(WF_WORKFLOW)
     ```
+
+    Resolve-then-`-include`, never a bare `include`: pre-weave `Makefile.workflow` is a symlink that does not exist, and a hard `include` aborts every target — including the `make weave` that would create it (#239 M1 BR-8, verified live).
 
     Per-repo layout policy goes in that root Makefile **above the include**, where `Makefile.workflow`'s `?=` defaults can still see it (they are `workshop/issues` / `workshop/history`; a repo wanting the plain top-level layout sets `WF_ISSUES_DIR = issues` there). Before #239 the source was ariadne's OWN root Makefile, so the "generic" template hardcoded ariadne's layout and any per-repo override was clobbered on the next weave — one file with two owners.
   - `Makefile.workflow` — issue lifecycle targets + auto-includes of `.openshell/Makefile`, `.tart/Makefile`, and `.colima/Makefile`.

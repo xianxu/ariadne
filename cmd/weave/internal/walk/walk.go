@@ -109,7 +109,7 @@ func loadLayer(fs weavefs.FS, root, dir string) (layer.Layer, error) {
 }
 
 // isFileShape reports whether kind is a destructive file-shape op the
-// self-reference filter guards (symlink/seed/scaffold/touch). The semantic
+// self-reference filter guards (symlink/seed/seed-once/scaffold/touch). The semantic
 // read-only intents (prose/skill) and the rename intent (merge) are NOT
 // file-shape and bypass the filter — see loadLayer.
 func isFileShape(k intent.Kind) bool {

@@ -573,6 +573,59 @@ per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
 
 
 ## Revisions
+### 2026-09-19 — M1 boundary review round 2: 3 findings, all fixed
+
+The gate said *"Not converging: fix rules, not instances"* — 3 repeat families.
+It was right, and two of the three are my process errors rather than design ones.
+
+**BR-9 (Important) — I swept four unrelated files into a commit.** `git add -A`
+in the BR-fix commit picked up everything that was already dirty when I claimed
+the issue: three in-flight issue files (#236/#237/#238) and — worse —
+`.claude/settings.ariadne.json`, which adds `api.anthropic.com` to the sandbox
+egress allowlist. That file is **base-layer and fleet-propagated**, so an
+undeclared egress widening would have ridden a #239 commit into every repo.
+Backed all four out with `git restore --source=HEAD~1 --staged` + `--amend`, so
+they are uncommitted again exactly as I found them. **Rule: stage by path.**
+`git add -A` is only safe in a tree you started clean, and this one never was.
+
+**BR-10 (Important) — the same stale-enumeration family, third round.** I fixed
+the *prose* enumerations in round 1 and missed six *in-code* ones, including the
+doc comment directly above the `isFileShape` line the same diff edited. Fixed by
+grepping for the enumeration shape rather than recalling sites:
+`walk.go:112`, `action.go:12`, `golden.go:95` (which also still listed the
+retired `tool`), `intent.go:8`, `main.go:651`, `plan.go:25`, `prune.go:58`.
+
+**BR-8 (Important) — I documented a recipe that does not run.** BR-2 had me
+advertise "adopting ariadne needs one line: `include Makefile.workflow`", which I
+took from `Makefile.workflow`'s own header. Verified live in a scratch repo:
+
+```
+Makefile:3: Makefile.workflow: No such file or directory
+make: *** No rule to make target `Makefile.workflow'.  Stop.
+```
+
+Pre-weave that symlink does not exist, so a hard `include` aborts **every**
+target — including the `make weave` that would create it. The correct form is
+the one `construct/Makefile.seed` already uses:
+
+```make
+WF_WORKFLOW := $(firstword $(wildcard Makefile.workflow ../ariadne/Makefile.workflow))
+-include $(WF_WORKFLOW)
+```
+
+Fixed at the **source** (`Makefile.workflow`'s header, which is what everyone
+cites) plus the three sites quoting it, and the conformance fixture now models
+the recipe we advertise instead of a broken one.
+
+**BR-11 (Minor, logged) — `weave golden` gates nothing.** The drift harness whose
+correctness BR-1 restored is hand-run only: no `weave golden` or `verify-complete`
+invocation exists in `scripts/`, `.github/` or `Makefile.workflow`
+(`30-weave-drift.sh` is a dynamic-skill determinism check, unrelated). So BR-1's
+fix is real but currently guards nothing automatically. M3's planned
+`scripts/merge-checks.d/50-base-layer-tests.sh` is the natural registration
+point — noted there so its coverage is not overestimated.
+
+
 ### 2026-09-19 — M1 boundary review: 7 findings, all fixed in-round
 
 Verdict FIX-THEN-SHIP. Sidecar:

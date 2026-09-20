@@ -10,7 +10,7 @@ package plan
 // set in this package), so a type switch in the IO seam handles every case.
 //
 // The set covers the file-ops this unit lowers (Symlink, WriteFile, Mkdir,
-// Touch, Seed) and MergeSettings (M4: intent.Merge lowers to a MergeSettings,
+// Touch, Seed, SeedOnce) and MergeSettings (M4: intent.Merge lowers to a MergeSettings,
 // applied by reading base + optional local and running the pure settingsx.Merge
 // — merge-settings.sh's port). (Skill has no Action — it feeds the M3
 // SkillIndex, not a file-op slot.) The retired `tool` verb (#95 M5) lowers to

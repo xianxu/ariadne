@@ -5,7 +5,7 @@
 //
 // The Kind set is a hybrid (see workshop/plans/000095-weave-plan.md Core
 // concepts): the file-op verbs ported from setup.sh's walk_manifest
-// (Symlink|Seed|Scaffold|Touch|Merge — the dominant case in the live
+// (Symlink|Seed|SeedOnce|Scaffold|Touch|Merge — the dominant case in the live
 // base.manifest) plus the new semantic verbs Prose|Skill that weave adds.
 //
 // The retired `tool` verb (#95 M5) is deliberately absent: Go-tool ownership is

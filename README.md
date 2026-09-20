@@ -23,8 +23,14 @@ it freely: your changes survive every weave.
 contract `Makefile.workflow` documents at its top:
 
 ```make
-include Makefile.workflow
+WF_WORKFLOW := $(firstword $(wildcard Makefile.workflow ../ariadne/Makefile.workflow))
+-include $(WF_WORKFLOW)
 ```
+
+Resolve-then-`-include`, not a bare `include`: before your first weave
+`Makefile.workflow` is a symlink that does not exist yet, and a hard `include`
+aborts every target — including the `make weave` that would create it. The
+wildcard finds the sibling ariadne checkout in the meantime.
 
 Per-repo layout policy goes in that root Makefile *above* the include, where
 `Makefile.workflow`'s `?=` defaults can still see it — e.g. `WF_ISSUES_DIR =

@@ -111,7 +111,7 @@ grep -q product-ok "$SCRATCH/out"
 mkdir -p "$SCRATCH/adopter/construct"
 printf 'substrate ../ariadne\n' > "$SCRATCH/adopter/construct/deps"
 : > "$SCRATCH/adopter/construct/base.manifest"
-printf 'MY OWN BUILD SYSTEM\ninclude Makefile.workflow\n' > "$SCRATCH/adopter/Makefile"
+printf 'MY OWN BUILD SYSTEM\nWF := $(firstword $(wildcard Makefile.workflow ../ariadne/Makefile.workflow))\n-include $(WF)\n' > "$SCRATCH/adopter/Makefile"
 cp "$SCRATCH/adopter/Makefile" "$SCRATCH/adopter-before"
 (cd "$SCRATCH/adopter" && "$SCRATCH/real-weave" compile)
 cmp "$SCRATCH/adopter-before" "$SCRATCH/adopter/Makefile"

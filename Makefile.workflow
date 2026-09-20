@@ -1,5 +1,13 @@
-# AI issue-based workflow — include from your project Makefile:
-#   include Makefile.workflow
+# AI issue-based workflow — resolve and include from your project Makefile:
+#
+#   WF_WORKFLOW := $(firstword $(wildcard Makefile.workflow ../ariadne/Makefile.workflow))
+#   -include $(WF_WORKFLOW)
+#
+# NOT a bare `include Makefile.workflow`. In a repo that has not woven yet this
+# file is a symlink that does not exist, and a hard `include` aborts EVERY target
+# — including the `make weave` that would create it. The wildcard finds the
+# sibling ariadne checkout pre-weave and the local symlink after; `-include`
+# keeps make working even when neither is present yet (#239).
 
 # Resolve this shared workflow's source directory before optional includes add
 # their own entries to MAKEFILE_LIST. Consumers symlink this file from ariadne;

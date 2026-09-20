@@ -92,7 +92,7 @@ type Input struct {
 // ledger line).
 type Divergence struct {
 	Class  Class
-	Verb   string // symlink | mkdir | writefile | seed | merge | tool
+	Verb   string // symlink | mkdir | writefile | seed | seed-once | merge | touch
 	Path   string // repo-relative target
 	Detail string
 }
