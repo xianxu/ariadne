@@ -278,3 +278,88 @@ findings:
 
 7. **Plan revision recommendation**
    - Append a `## Revisions` entry defining source equivalence across supported address forms, preserving endpoint distinctions and explicitly limiting transport equivalence to established cases. Include the normalization matrix and checkout-conflict regression in M1 acceptance.
+
+---
+
+## Re-review — 2026-09-20T14:12:43-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | ca9ae7f6d71d48e02ae6c23895c05b0d47f35c17..33c8f0c38943e1a16bb5c12bca25c72a03b75616 |
+| command | sdlc milestone-close --issue 239 --milestone M1 |
+| reviewer | codex |
+| timestamp | 2026-09-20T14:12:43-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned M1 range delivers source acquisition and independent dependency installation. BR-6 is addressed: endpoint distinctions survive normalization and checkout verification. Both relevant regressions fail when the previous source-normalization implementation is substituted. No new blocking findings.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      source.go:48–65 preserves nonstandard URI authorities, schemes, paths, queries and SCP identities. Standard GitHub equivalence remains explicit. TestSourceIdentityPreservesEndpointDifferences and TestEnsureRejectsDifferentSourcePorts pass at HEAD and both fail with source.go from 71fa3ef substituted through a temporary Go overlay.
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Origins resolve against their owning checkout; recorded relative sources resolve against the declaring repository. TestLinkRelativeOriginCanRestore passes.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Origin distinguishes confirmed missing configuration from inspection failures. Malformed-config and missing-Git regressions pass without modifying deps.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md documents source-aware link, dependencies, dry-run, dependency row syntax and Brewfiles, matching the command handlers and shared parser.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Client.Git injects outcomes into production acquisition. Tests exercise publication conflicts and clone failure stopping later acquisition.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Staging recovery removes confirmed dead-owner stages while preserving live, foreign and unrecognized stages. Warm restoration and dry-run preservation regressions pass.
+```
+
+1. **Strengths**
+   - Source identity now uses conservative equivalence rules, backed by pure tests and an actual checkout-reuse regression (`cmd/weave/internal/acquire/source.go:48`).
+   - Acquisition validates staged clones before publication and preserves existing dirty checkouts.
+   - `ParseDeps` derives from `ParseRows`, keeping graph consumers on one declaration parser.
+   - README and atlas describe the delivered M1 surface and distinguish pending compile/bootstrap integration.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+   - Passed: `go test ./cmd/weave/... ./pkg/layergraph/... -count=1`.
+   - Mutation verification: substituting pre-fix `source.go` makes both endpoint regressions fail.
+   - Coverage includes diamonds, cycles, conflicting destinations, escaping mounts, cancellation, failed probes, interrupted staging and repeated bundle execution.
+   - Real Homebrew installation was not exercised; disposable live conformance remains a pre-release requirement.
+   - Tracked files remain unchanged.
+
+6. **Architectural notes**
+   - **ARCH-DRY — pass:** shared parsing, graph resolution and acquisition checks.
+   - **ARCH-PURE — pass:** declaration parsing and identity normalization have direct, IO-free tests; acquisition remains an integration component.
+   - **ARCH-PURPOSE — pass:** M1 delivers acquisition/dependencies; compile integration and generated ownership remain explicit later milestones.
+   - **ARCH-MOCK — pass:** injectable Git boundary, filesystem-backed package fixture and real local Git conformance exercise production paths.
+   - **ARCH-CONSTRAINTS — pass:** serial execution; no new concurrent fan-out or unsupported performance claims.
+   - **ARCH-SECURE — pass:** endpoint provenance, credential rejection, argv execution and mount containment are defended.
+   - **ARCH-ORDER — pass:** synchronous failure propagation stops subsequent work; tests control publication conflicts and retry recovery.
+   - **ARCH-FUNERAL — pass:** staging has completion cleanup and conservative retry reclamation; acquired repositories remain user-owned workspaces.
+
+7. **Plan revision recommendations:** None required for this boundary.

@@ -155,7 +155,7 @@ cycle that changes the agreed sequence. No new features without operator approva
 
 ## Plan
 
-- [ ] M1 — source restoration and Homebrew dependencies: strict declarations,
+- [x] M1 — source restoration and Homebrew dependencies: strict declarations,
   remote/local link, graph acquisition and independent dependencies; fixture tests.
 - [ ] M2 — owner tools and unified compile/bootstrap/CI; generated-artifact
   ownership and ignores; remove duplicate startup helpers; cold/warm validation.
@@ -234,6 +234,7 @@ and preserved old text in Revisions. Linux CI package choice requested separatel
 no code changed before change-code. ARCH-ORDER/ARCH-DRY guide the serial sequence.
 
 ### 2026-09-20 — M1 implementation verified
+- 2026-09-20: closed M1 — BR-6 endpoint identity fixed with pure equivalence/conflict matrix and real existing-checkout port-conflict regression; BR-1 through BR-5 previously cleared; all weave/layergraph tests and git diff --check passed; README and atlas document delivered surfaces; review verdict: SHIP
 
 Implemented typed dependency/source rows, staged transitive acquisition, local
 and address link with origin recording/legacy repair, and independent Homebrew

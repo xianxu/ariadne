@@ -101,6 +101,37 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: true
+    - "n": 4
+      timestamp: "2026-09-20T14:12:43-07:00"
+      agent: codex
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: source.go:48–65 preserves nonstandard URI authorities, schemes, paths, queries and SCP identities. Standard GitHub equivalence remains explicit. TestSourceIdentityPreservesEndpointDifferences and TestEnsureRejectsDifferentSourcePorts pass at HEAD and both fail with source.go from 71fa3ef substituted through a temporary Go overlay.
+          round: 4
+        - id: BR-1
+          disposition: addressed
+          note: Origins resolve against their owning checkout; recorded relative sources resolve against the declaring repository. TestLinkRelativeOriginCanRestore passes.
+          round: 4
+        - id: BR-2
+          disposition: addressed
+          note: Origin distinguishes confirmed missing configuration from inspection failures. Malformed-config and missing-Git regressions pass without modifying deps.
+          round: 4
+        - id: BR-3
+          disposition: addressed
+          note: README.md documents source-aware link, dependencies, dry-run, dependency row syntax and Brewfiles, matching the command handlers and shared parser.
+          round: 4
+        - id: BR-4
+          disposition: addressed
+          note: Client.Git injects outcomes into production acquisition. Tests exercise publication conflicts and clone failure stopping later acquisition.
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: Staging recovery removes confirmed dead-owner stages while preserving live, foreign and unrecognized stages. Warm restoration and dry-run preservation regressions pass.
+          round: 4
+      boundary: M1
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -148,6 +179,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Critical] `source-resolution-provenance` Source identity discards ports and accepts a different repository endpoint
   cmd/weave/internal/acquire/source.go:45 uses URL.Hostname(), dropping the port before identity construction at lines 67–69. A supplemental regression through Ensure reused a checkout whose origin was ssh://git@example.com:2222/team/base.git for a declaration naming port 3333. This is the 2nd finding in family source-resolution-provenance. State and enforce the rule across supported source forms: preserve endpoint distinctions unless equivalence is explicitly established; enumerate URI authorities, SCP-style sources and local paths, then test both valid equivalences and required conflicts. ARCH-PURPOSE, ARCH-SECURE.
 
+## Round 4 — 2026-09-20T14:12:43-07:00 (codex) — passed
+
+### Disposed
+
+- BR-6 — addressed — source.go:48–65 preserves nonstandard URI authorities, schemes, paths, queries and SCP identities. Standard GitHub equivalence remains explicit. TestSourceIdentityPreservesEndpointDifferences and TestEnsureRejectsDifferentSourcePorts pass at HEAD and both fail with source.go from 71fa3ef substituted through a temporary Go overlay.
+- BR-1 — addressed — Origins resolve against their owning checkout; recorded relative sources resolve against the declaring repository. TestLinkRelativeOriginCanRestore passes.
+- BR-2 — addressed — Origin distinguishes confirmed missing configuration from inspection failures. Malformed-config and missing-Git regressions pass without modifying deps.
+- BR-3 — addressed — README.md documents source-aware link, dependencies, dry-run, dependency row syntax and Brewfiles, matching the command handlers and shared parser.
+- BR-4 — addressed — Client.Git injects outcomes into production acquisition. Tests exercise publication conflicts and clone failure stopping later acquisition.
+- BR-5 — addressed — Staging recovery removes confirmed dead-owner stages while preserving live, foreign and unrecognized stages. Warm restoration and dry-run preservation regressions pass.
+
 ## Open findings
 
-- **BR-6** [Critical] `source-resolution-provenance` Source identity discards ports and accepts a different repository endpoint
+(none — every finding has been disposed)
