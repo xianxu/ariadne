@@ -79,6 +79,32 @@ rounds:
           family: ambiguous-operator-instruction
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-19T20:51:51-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Task 4.0a filters by check-ignore -v provenance; re-measured kbench (1160, nested source) and parley.nvim (1, block source) — the filter separates them correctly.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: Pre-weave-consumer class enumerated; Task 4.0b adds the owner fallback to run-merge-checks.sh:26-27, with a test keyed on the "none defined" vacuous-pass message.
+          round: 3
+        - id: PQ-3
+          disposition: addressed
+          note: Done-when 7 now states the re-derived/provisioned split instead of enumerating three paths; recorded in the issue's Revisions.
+          round: 3
+        - id: PQ-4
+          disposition: addressed
+          note: IgnoreEntries returns an error naming the type; only the risks-table row still says "panics" — stale prose, fix in passing.
+          round: 3
+        - id: PQ-5
+          disposition: addressed
+          note: Task 4.2 Step 1 says discard, with the freeze-ariadne's-Makefile reason stated.
+          round: 3
+      blocked: false
+content_hash: 74bed94b92d65dc31fad16a4e05b6eee2b86d8b2b016c358cc71f72822d407e2
 ---
 
 # Gate ledger — ariadne#239 (plan-quality)
@@ -136,10 +162,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   this issue removes. Discarding restores the symlink so M1 materializes
   construct/Makefile.seed. Say discard.
 
+## Round 3 — 2026-09-19T20:51:51-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Task 4.0a filters by check-ignore -v provenance; re-measured kbench (1160, nested source) and parley.nvim (1, block source) — the filter separates them correctly.
+- PQ-2 — addressed — Pre-weave-consumer class enumerated; Task 4.0b adds the owner fallback to run-merge-checks.sh:26-27, with a test keyed on the "none defined" vacuous-pass message.
+- PQ-3 — addressed — Done-when 7 now states the re-derived/provisioned split instead of enumerating three paths; recorded in the issue's Revisions.
+- PQ-4 — addressed — IgnoreEntries returns an error naming the type; only the risks-table row still says "panics" — stale prose, fix in passing.
+- PQ-5 — addressed — Task 4.2 Step 1 says discard, with the freeze-ariadne's-Makefile reason stated.
+
 ## Open findings
 
-- **PQ-1** [Critical] `untrack-scope-exceeds-weave-surface` M4's fleet sweep would git rm --cached 1160 repo-owned tracked files in kbench
-- **PQ-2** [Critical] `pre-weave-consumer-fallback` Untracking scripts/merge-checks.d/* silently voids CI checks in astro, parli, tools
-- **PQ-3** [Minor] `done-when-restates-superseded-framing` Done-when 7 contradicts the ownership rule the plan adopted
-- **PQ-4** [Minor] `pure-core-aborts-instead-of-erroring` IgnoreEntries panics on an unclassified Action though its caller returns error
-- **PQ-5** [Minor] `ambiguous-operator-instruction` Task 4.2's "commit or discard" on pair/Makefile picks the wrong outcome half the time
+(none — every finding has been disposed)

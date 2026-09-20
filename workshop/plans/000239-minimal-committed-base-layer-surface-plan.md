@@ -2006,7 +2006,7 @@ Omit `--actual` — close measures and adopts the hours itself (#178).
 | A derivative's fresh clone stops bootstrapping | Task 4.1 Step 4 clones the untracked pilot *beside ariadne* and runs `./bootstrap.sh` then `make bootstrap` before anything irreversible lands; a failure stops the plan. |
 | A hand-edited or merge-conflicted `.gitignore` gets spliced wrong | `mergeManagedBlock` fails closed on any marker shape it cannot parse, with a message naming the remedy; markers match as exact whole lines; `applyEnsureGitignore` fails closed on a read error. |
 | An unreadable `.gitignore` gets replaced by the block alone | Task 2.2 Step 1 distinguishes `os.IsNotExist` from every other read error. |
-| A future `Action` type silently joins the tracked class | `IgnoreEntries`' `default` panics, with a test. |
+| A future `Action` type silently joins the tracked class | `IgnoreEntries`' `default` returns an error naming the offending type — `planActions` already returns one, so it surfaces as a diagnosable weave failure, not a stack trace. Guarded by `TestIgnoreEntriesRejectsUnclassifiedAction`. |
 | The git history stops recording wiring changes in leaves | Accepted tradeoff, stated in the issue's Spec. If the audit trail is wanted back it belongs in `weave --explain` or a merge check, not in ~45 tracked symlinks per repo. |
 
 ---
