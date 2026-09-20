@@ -59,6 +59,21 @@ type Seed struct {
 	Dst string
 }
 
+// SeedOnce is a WRITE-ONCE real-file copy of an upstream Src into Dst — the
+// ownership sibling of Seed. Seed TRACKS upstream (content-tracking, converges
+// on every compile) because its content is upstream-owned; SeedOnce hands the
+// slot to the REPO on first write and never touches it again, whatever it later
+// contains. It exists for the root Makefile: a repo's own front door, which a
+// greenfield repo should get for free but an adopting repo must keep (#239).
+//
+// "Present" means anything that is NOT a symlink — a regular file, a directory.
+// A SYMLINK is NOT presence: it is weave's own pre-#239 `symlink Makefile`
+// lowering, and materializing it is the #225 convergence. See applySeedOnce.
+type SeedOnce struct {
+	Src string
+	Dst string
+}
+
 // Touch ensures an EMPTY file exists at Path, create-if-missing — it does NOT
 // overwrite an existing file. Lowered from intent.Touch, the faithful port of
 // walk_manifest's `touch` case (`if [[ ! -f ]] then touch`, setup.sh:347). This
@@ -85,5 +100,6 @@ func (Symlink) isAction()       {}
 func (WriteFile) isAction()     {}
 func (Mkdir) isAction()         {}
 func (Seed) isAction()          {}
+func (SeedOnce) isAction()      {}
 func (Touch) isAction()         {}
 func (MergeSettings) isAction() {}

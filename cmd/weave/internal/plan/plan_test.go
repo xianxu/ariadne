@@ -184,6 +184,25 @@ func TestPlanSeedLowering(t *testing.T) {
 	}
 }
 
+func TestPlanSeedOnceLowering(t *testing.T) {
+	// A `seed-once` intent lowers to SeedOnce{Src, Dst} — the SAME path facts as
+	// Seed (ARCH-PURE: the planner records paths, the seam reads bytes). Only the
+	// seam's presence guard differs, so the lowerings must stay parallel.
+	layers := []layer.Layer{
+		{Name: "ariadne", Path: "/ws/ariadne", Intents: []intent.Intent{
+			{Kind: intent.SeedOnce, Source: "construct/Makefile.seed", Target: "Makefile"},
+		}},
+	}
+	got, err := Plan(layers, []string{"AGENTS.md"})
+	if err != nil {
+		t.Fatalf("Plan: unexpected error: %v", err)
+	}
+	want := []Action{SeedOnce{Src: "/ws/ariadne/construct/Makefile.seed", Dst: "Makefile"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Plan = %#v, want %#v", got, want)
+	}
+}
+
 func TestPlanDeferredKindsAreNoOps(t *testing.T) {
 	// Skill lowering is still deferred (the M3 skill index feeds the menu, not a
 	// file-op). It must not error or emit an Action here — just skip. (Merge now
