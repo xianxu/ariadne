@@ -211,3 +211,74 @@ findings:
 
 7. **Plan revision**
    - Append a `## Revisions` entry stating that optional-target augmentation must preserve authored rule flavor; specify phony-only augmentation and the complete real-Make case matrix.
+
+---
+
+## Re-review — 2026-09-20T15:56:45-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ca9ae7f6d71d48e02ae6c23895c05b0d47f35c17..7ba85cb2e2b88c1b826386f49f6d866757972fe2 |
+| command | sdlc close --issue 239 |
+| reviewer | codex |
+| timestamp | 2026-09-20T15:56:45-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-16 is addressed with meaningful regression evidence: production adds only `.PHONY: tools`, preserving authored rule forms. Restoring the old single-colon rule through a temporary Go overlay makes the double-colon recipe, prerequisite, and failure tests fail. The pinned implementation passes the affected suites. No new blocking findings emerged.
+
+```findings
+dispose:
+  - id: BR-16
+    disposition: addressed
+    note: |
+      cmd/weave/internal/startup/tools.go:31 supplies only .PHONY: tools. Real-Make tests at tools_test.go:103 and :148 cover omission, implicit candidates, existing files, single/double-colon recipes and prerequisites, and failures. Restoring tools: through a temporary Go overlay makes the double-colon regressions fail with the expected rule conflict.
+```
+
+1. **Strengths**
+
+   - Optional owner commands preserve Make semantics without masking build failures.
+   - Compiler retirement and migration share ownership evidence through `pkg/weaveownership`, protecting authored replacements and unrelated tracked files.
+   - Publication and staging tests exercise partial writes, process death, surviving producers, and retry.
+   - README and atlas document the new startup, generator, release, and migration contracts, including publication deferred to #241.
+
+2. **Critical findings:** None.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None raised.
+
+5. **Test coverage notes**
+
+   Passed:
+
+   - `go test ./cmd/weave/... ./pkg/layergraph/... ./pkg/weaveownership/... -count=1`
+   - Focused SDLC migration and propagation tests.
+   - Bootstrap, portable Makefile, and portable CI shell fixtures.
+   - BR-16 mutation check: the previous implementation fails the new regressions.
+
+   The prescribed range’s whitespace check passes. Including the issue file reports one trailing blank line at EOF. Native Linux and full release packaging were not rerun in this review. Repository files remain unchanged.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — Pass:** shared dependency parsing, ownership matching, and staging machinery.
+   - **ARCH-PURE — Pass:** deterministic parsing, identity, ignore, and PATH transformations remain separate from filesystem/process integration.
+   - **ARCH-PURPOSE — Pass:** startup ordering and derived-output ownership fulfill the active contract; BR-16 covers the requested Make rule matrix.
+   - **ARCH-MOCK — Pass:** process seams support stateful fixtures, with real Git and Make conformance tests.
+   - **ARCH-CONSTRAINTS — Pass:** sequential layer execution avoids new concurrency growth; producer cleanup has bounded waits.
+   - **ARCH-SECURE — Pass:** source, mount, inventory, and publication validation protect the inspected boundaries.
+   - **ARCH-ORDER — Pass:** tests cover failure ordering, retained partial Git effects, and controlled producer lifetime.
+   - **ARCH-FUNERAL — Pass:** owned stages have normal cleanup and interrupted-run reclamation; unchanged retired outputs are removed through identity proof.
+
+7. **Plan revision recommendations:** None required. The existing BR-16 revision accurately describes the implemented correction.

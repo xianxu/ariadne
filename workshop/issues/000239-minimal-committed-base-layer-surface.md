@@ -1,6 +1,6 @@
 ---
 id: 000239
-status: working
+status: codecomplete
 deps: []
 github_issue:
 target: base-layer-mechanics
@@ -9,6 +9,7 @@ updated: 2026-09-20
 estimate_hours: 4.151
 started: 2026-09-19T18:21:15-07:00
 flow: {kind: full, provenance: inferred}
+actual_hours: 14.84
 ---
 
 # Minimal committed base-layer surface
@@ -203,6 +204,7 @@ total: 4.151
 ## Log
 
 ### 2026-09-20 — whole-issue BR-16 corrected
+- 2026-09-20: closed — M1-M3 SHIP. BR15/16 corrected by phony-only Make augmentation, verified red/green with real Make across omitted targets, shell/C implicit candidates, existing tools files, single/double-colon recipes/prerequisites and failures. Current full weave/layergraph/ownership suites and native Linux startup matrix pass. Prior macOS/Linux startup and release packaging, Git failure matrix, and full SDLC excluding known #210 passed. Scratch Parley passed; Nous macOS tools passed with full bootstrap/Linux limits documented for #241. Atlas and release handoff current.; review verdict: SHIP
 
 Re-review disposed BR-15 but reproduced a related rule-form conflict: injecting
 tools: rejects authored tools::. The common augmentation now supplies only
@@ -1213,5 +1215,3 @@ separately close.
 `baseline-v3.1.md`. Method A only.* The source is flagged **stale** (ledger newer
 than the doc; recalibration is #127), so treat the per-primitive hours as
 provisional — recorded here so the close-time calibration row knows it.
-
-

@@ -381,6 +381,16 @@ rounds:
           round: 12
       recipe: milestone-review
       blocked: true
+    - "n": 13
+      timestamp: "2026-09-20T15:56:45-07:00"
+      agent: codex
+      dispose:
+        - id: BR-16
+          disposition: addressed
+          note: 'cmd/weave/internal/startup/tools.go:31 supplies only .PHONY: tools. Real-Make tests at tools_test.go:103 and :148 cover omission, implicit candidates, existing files, single/double-colon recipes and prerequisites, and failures. Restoring tools: through a temporary Go overlay makes the double-colon regressions fail with the expected rule conflict.'
+          round: 13
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -541,6 +551,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-16** [Critical] `optional-target-noop` Supplemental single-colon target rejects authored double-colon tools rules
   cmd/weave/internal/startup/tools.go:31 appends tools:, which conflicts with valid tools:: declarations. A scratch fixture succeeds with make tools but public weave compile exits before executing either authored recipe. This is the 2nd finding in family optional-target-noop: enforce the rule that optional-command augmentation suppresses implicit builds without imposing a rule flavor on authored targets. Use the phony declaration alone, which passed this reproduction, and sweep absent, single-colon, double-colon, prerequisite, existing-file, and failure cases with real Make regressions. ARCH-PURPOSE.
 
+## Round 13 — 2026-09-20T15:56:45-07:00 (codex) — passed
+
+### Disposed
+
+- BR-16 — addressed — cmd/weave/internal/startup/tools.go:31 supplies only .PHONY: tools. Real-Make tests at tools_test.go:103 and :148 cover omission, implicit candidates, existing files, single/double-colon recipes and prerequisites, and failures. Restoring tools: through a temporary Go overlay makes the double-colon regressions fail with the expected rule conflict.
+
 ## Open findings
 
-- **BR-16** [Critical] `optional-target-noop` Supplemental single-colon target rejects authored double-colon tools rules
+(none — every finding has been disposed)
