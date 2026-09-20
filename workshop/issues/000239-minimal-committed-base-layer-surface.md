@@ -243,27 +243,35 @@ merge check — not in ~45 tracked symlinks per repo.
 ## Plan
 
 Durable plan: `workshop/plans/000239-minimal-committed-base-layer-surface-plan.md`
-(authored via `superpowers-writing-plans`). Four review boundaries, ordered so the
-riskier change always lands on machinery already proven.
+(authored via `superpowers-writing-plans`; revised after review round 1 — see its
+`## Revisions`). Four review boundaries, ordered so the riskier change always
+lands on machinery already proven.
 
-- [ ] M1 — `seed-once`: the verb (intent/action/seam), the walk+prune+completeness
-      switches, and the seed-source split (`construct/Makefile.seed`), so ariadne's
-      root Makefile stops being every repo's template. Regression test: a
-      repo-owned root Makefile survives two weaves, and a *later edit* to it
-      survives too.
+- [ ] M1 — `seed-once`: the verb (intent/action/seam), the seven switches that
+      enumerate the file-shape verbs, the seed-source split
+      (`construct/Makefile.seed`) so ariadne's root Makefile stops being every
+      repo's template, the `Makefile.workflow` default flip, and the atlas pass.
 - [ ] M2 — managed block: `.gitignore` becomes a delimited weave-owned region,
       still carrying today's hardcoded 9 entries. Block machinery proven against a
       known-good list before the list changes.
 - [ ] M3 — derive the list: `IgnoreEntries` from the manifest walk; delete
       `GeneratedRuntimeGitignoreEntries`; pin the derivation to `TargetAll`; the
-      `gitignore-surface.test.sh` conformance test; target + atlas updates.
-- [ ] M4 — fleet untrack: pilot on `pair` (fresh-clone bootstrap + green CI)
-      before sweeping the remaining derivatives via `sdlc propagate-base`.
+      `gitignore-surface.test.sh` conformance test registered as a merge check;
+      target + atlas updates.
+- [ ] M4 — fleet untrack: give `sdlc propagate-base` a `--repo` selector and a
+      brain guard, pilot on `pair` (fresh-clone bootstrap + green CI), then sweep
+      the remaining derivatives.
 
-**M2 must precede M3.** Appending ~95 derived entries through today's append-only
-`ensureGitignoreText` is exactly the "actively dangerous" case in the Problem
-section: a retired manifest row would leave a permanent stale ignore line in every
-repo.
+**M2 must precede M3.** Appending the full derived list through today's
+append-only `ensureGitignoreText` is exactly the "actively dangerous" case in the
+Problem section: a retired manifest row would leave a permanent stale ignore line
+in every repo.
+
+**Deviation from the Spec, operator-approved:** Piece A says `Makefile.workflow`
+keeps the generic `?=` defaults. It keeps the `?=`, but the *values* flip to
+`workshop/issues`/`workshop/history` in M1 — 11 fleet repos have no root Makefile
+of their own and would otherwise fall back to a nonexistent `issues/` for the
+whole M1→M4 window. See the plan's `## Revisions`.
 
 
 ## Log
@@ -371,6 +379,82 @@ every issue file and the lessons log. Ownership is the right axis, not creation.
 grep -rn "intent\.Seed\b\|case Seed:\|plan\.Seed\b" --include="*.go" cmd/ | grep -v _test
 for d in ../*/; do [ -f "$d/construct/deps" ] && grep -q '^substrate' "$d/construct/deps" && basename "$d"; done
 ```
+
+
+### 2026-09-19 — plan review round 1: two fresh-context reviewers
+
+Both read the real sources rather than the plan's account of them, and both found
+claims that did not survive contact. Verified each before acting.
+
+**False claims corrected:**
+
+- `pair/Makefile` is `120000` in the **index** but a regular file on disk, status
+  ` T`. It is one of the "5 dirty weave paths" that surfaced this issue — the #225
+  convergence already happened on disk, uncommitted. Neither "tracked symlink" nor
+  "not a symlink" was right. The still-a-symlink citation is `nous`/`metis`.
+- `scripts/parallel-checks.sh` runs `ALL_CHECKS=(dry pure specs plan lessons)` —
+  LLM constitution checks, no bash tests. And `portable-makefile.test.sh` is
+  referenced **nowhere** in the tree: it has only ever been run by hand. That is a
+  large part of why defect 2 survived #225 — the test that would have caught it
+  had no runner. Both base-layer tests now register as
+  `scripts/merge-checks.d/50-base-layer-tests.sh` (side-quest).
+- `sdlc propagate-base` takes only `--dry-run` and `--ref`, sweeps *every*
+  recursive dependent in one run, and `recursiveDependents` walks into the brain
+  repos. M4's pilot-then-sweep shape was impossible. Added Task 4.0: fix the verb
+  at the source (per the workflow contract), not route around it.
+- `git check-ignore` **skips tracked files** (exit 1 whatever the patterns say),
+  so the conformance test's central "repo-owned file is not ignored" assertion was
+  vacuous. Rewritten around `git ls-files -i -c --exclude-standard` — literally
+  what `commitConsumption` runs — plus `--no-index`.
+- The `TargetAll` second-plan precedent is `run()` at `main.go:543-548`, not
+  `runVerifyComplete` (which plans once).
+
+**Gaps closed:**
+
+- The seed enumeration is **7 sites, not 5**: `main.go:781` (`formatActions` —
+  `--dry-run` would print `unknown plan.SeedOnce`) and `golden/gather.go:100`
+  (`classifyAction` would read a zero-valued `Observed`) were missing, plus
+  `actionIndex.seedOnceDsts`, which `coverIntent` reads from.
+- `coverIntent` (`completeness.go:175-213`) has **no `default`**, so an unhandled
+  kind falls through to "covered" — the planned red test would have passed before
+  the fix. The red test is now the *uncovered* direction.
+- `gitignore.go` imports: add `path/filepath` + `sort`, **remove** `walk` — it is
+  used only inside the deleted var, so leaving it is a hard compile error.
+- **A derivative never runs the M2 binary.** It jumps pre-M2 → post-M3, where
+  `/.claude/skills/`, `/.agents/skills/` and `/.colima/` match no per-path derived
+  entry — so an exact-line absorb would strand them outside the block forever, as
+  permanent blanket ignores. That is the pair#64 hazard this issue exists to
+  remove, left standing. Added `legacyBlanketEntries`, with a check at M4 close
+  that ends it (ARCH-FUNERAL).
+- M1 needs its own atlas pass (`milestone-close` carries the atlas gate): four
+  pages go stale, and `setup-and-replication.md:97-102` describes `seed` as
+  "write-once … sole user bootstrap.sh" — already wrong post-#225, and now wrong
+  in both directions.
+- `applyEnsureGitignore` treats *any* read error as an empty file. Harmless while
+  appending; with wholesale replacement it would replace a repo's whole
+  `.gitignore` with weave's block. Now fails closed on anything but `IsNotExist`.
+- Scratch clones move out of `$TMPDIR`: on macOS it is under `/var/folders/…`, so
+  `Makefile:11`'s `../ariadne/Makefile.workflow` fallback cannot resolve and the
+  fresh-clone bootstrap check would fail for environmental reasons.
+- `metis.bak` appears in the fleet enumeration and must be excluded.
+- Done-when 7 was half-covered (symlink count only); now also asserts the core is
+  still tracked and `git ls-files -i -c` is empty per repo.
+
+**Fleet survey (the fact that drove the operator decision).** The naive check
+`grep WF_ISSUES_DIR "$d/Makefile"` **follows the symlink** into ariadne's file and
+reports a false all-clear for every symlinked repo:
+
+```
+42shots astro brain brain-family brain-private kaggle kbench metis metis.bak
+nous robotics you-decide   → SYMLINK, no root Makefile of their own  (11 + bak)
+pair parley.nvim parli tools xianxu.dev → regular file
+```
+
+So M1 would have materialized a `WF_*`-less template into 11 repos, silently
+pointing every workflow target at a nonexistent `issues/`. Operator chose the
+`Makefile.workflow` default flip over per-repo pre-seeding — one line, zero
+per-repo edits, no breakage window. Recorded as a Spec deviation in the plan's
+`## Revisions`.
 
 
 ## Revisions
