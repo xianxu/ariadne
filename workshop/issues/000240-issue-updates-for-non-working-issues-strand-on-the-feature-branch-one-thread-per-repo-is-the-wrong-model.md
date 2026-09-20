@@ -143,3 +143,18 @@ The workaround that got it to the trunk — and a hint at the smallest fix — i
 `refs/heads/main` by commit-tree + CAS with no checkout (#207), and `--no-start`
 suppresses the status flip. `issue sync` has that machinery available to it and
 simply does not use it.
+
+**Third live instance, 2026-09-20.** `workshop/parley/000239-restart-findings.md`
+— a document written specifically to survive a context clear — was committed to
+the `#239` feature branch because that is where the session was standing, and so
+would have been invisible to a fresh session on main. The operator caught it.
+
+Getting it to the trunk needed **no new mechanism**: `git hash-object` →
+`read-tree origin/main` → `update-index` → `commit-tree` → CAS push to
+`refs/heads/main`, i.e. exactly the no-checkout path `sdlc claim` already
+implements (#207). That is the sharpest argument for the smallest-useful-step
+above: the machinery exists and only `claim` uses it.
+
+Running tally of artifact kinds with no trunk-shaped home:
+issue bodies (`issue sync` commits them locally), parley docs, targets,
+`lessons.md`, and base-layer files like `.claude/settings.ariadne.json`.
