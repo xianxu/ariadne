@@ -54,6 +54,7 @@
         "127.0.0.1",
         "0.0.0.0",
         "host.docker.internal",
+        "api.anthropic.com",
         "api.moesif.net",
         "*.kaggle.com",
         "*.local"
