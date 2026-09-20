@@ -120,14 +120,17 @@ checks. An executable `.dynamic-skill` must declare the exact comment
 argument, and write a regular, nonempty `SKILL.md` there. Additional regular
 files are collected too. Cwd remains the leaf so generators can read its graph.
 Legacy markers lacking this declaration fail before execution; this is a trusted
-layer-code contract, not a shell sandbox.
+layer-code contract, not a shell sandbox. Markers and children must remain in
+the assigned process group, preserve inherited descriptors, and not daemonize.
 
 The tracked datatype and vocabulary markers preserve direct invocation with
 `"${1:-construct/generated/datatype}"` and
 `"${1:-construct/generated/vocabulary}"`. During compile, weave supplies the
-staging path. Generation stages use the same PID/host ownership lifecycle as
-clone stages: failures do not publish generator output, and retry reclaims dead
-stages. Marker authors migrate the script; users keep the same compile command.
+staging path. Generation and clone stages share an ownership lifecycle: cleanup
+must retain metadata until all producers stop. Parent death alone does not permit
+reclamation; cancellation and retry must account for surviving descendants.
+An inherited stage lease protects live writers, and cancellation terminates
+the assigned process group. Marker authors migrate the script; users keep the same compile command.
 
 The static sdlc skill points to `sdlc --help`, avoiding
 a duplicate generated copy of the workflow contract.

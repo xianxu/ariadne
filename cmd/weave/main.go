@@ -571,7 +571,7 @@ func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Tar
 // generateDynamicSkills keeps the leaf cwd for graph reads, but supplies an
 // isolated output directory. Markers opt in before execution; this is a trusted
 // layer-code contract, not a sandbox for arbitrary shell programs.
-func generateDynamicSkills(fs weavefs.FS, dyns []walk.DynamicSkill, leafRoot, stage string, runner weavefs.Runner) error {
+func generateDynamicSkills(fs weavefs.FS, dyns []walk.DynamicSkill, leafRoot, stage string, runner weavefs.OwnedRunner) error {
 	for _, ds := range dyns {
 		body, err := fs.ReadFile(ds.MarkerPath)
 		if err != nil {
@@ -590,7 +590,7 @@ func generateDynamicSkills(fs weavefs.FS, dyns []walk.DynamicSkill, leafRoot, st
 	}
 	for _, ds := range dyns {
 		output := filepath.Join(stage, ds.Dir)
-		if err := runner.Run(leafRoot, []string{"sh", ds.MarkerPath, output}); err != nil {
+		if err := runner.RunOwned(leafRoot, []string{"sh", ds.MarkerPath, output}, stage); err != nil {
 			return fmt.Errorf("dynamic skill %s: %w", ds.Name, err)
 		}
 	}

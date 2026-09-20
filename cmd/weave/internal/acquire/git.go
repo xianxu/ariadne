@@ -1,17 +1,21 @@
 package acquire
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
 	"os/exec"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
 
 // GitRunner is the acquisition process boundary. Its errors retain an ExitCode
 // method when Git ran, so a missing value can be distinguished from failed IO.
 type GitRunner interface {
 	Run(context.Context, string, ...string) (string, error)
+	RunOwned(context.Context, string, string, ...string) (string, error)
 }
 
 // Client holds the Git boundary for one acquisition operation. Its zero value
@@ -28,6 +32,23 @@ func (ExecGit) Run(ctx context.Context, dir string, args ...string) (string, err
 	}
 	return strings.TrimSpace(string(b)), nil
 }
+func (ExecGit) RunOwned(ctx context.Context, dir, stage string, args ...string) (string, error) {
+	var output bytes.Buffer
+	runner := weavefs.ExecRunner{Context: ctx, Stdout: &output, Stderr: &output}
+	err := runner.RunOwned(dir, append([]string{"git"}, args...), stage)
+	if err != nil {
+		return "", fmt.Errorf("git %v in %s: %w: %s", args, dir, err, strings.TrimSpace(output.String()))
+	}
+	return strings.TrimSpace(output.String()), nil
+}
+func (c Client) gitOwned(ctx context.Context, dir, stage string, args ...string) (string, error) {
+	runner := c.Git
+	if runner == nil {
+		runner = ExecGit{}
+	}
+	return runner.RunOwned(ctx, dir, stage, args...)
+}
+
 func (c Client) git(ctx context.Context, dir string, args ...string) (string, error) {
 	runner := c.Git
 	if runner == nil {

@@ -37,6 +37,9 @@ func (f *fakeRunner) Run(dir string, argv []string) error {
 
 var _ weavefs.Runner = (*fakeRunner)(nil)
 
+// The synchronous stateful fake has no background producer lifetime.
+func (f *fakeRunner) RunOwned(dir string, argv []string, stage string) error { return f.Run(dir, argv) }
+
 // writeMarker lays an executable .dynamic-skill in a skill-package dir.
 func writeMarker(t *testing.T, dir string) {
 	t.Helper()

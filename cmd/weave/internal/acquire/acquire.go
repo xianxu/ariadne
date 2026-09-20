@@ -2,11 +2,13 @@ package acquire
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
 	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
@@ -61,7 +63,7 @@ func Ensure(ctx context.Context, dir, source string, requireLayer bool) error {
 	return (Client{}).Ensure(ctx, dir, source, requireLayer)
 }
 
-func (c Client) Ensure(ctx context.Context, dir, source string, requireLayer bool) error {
+func (c Client) Ensure(ctx context.Context, dir, source string, requireLayer bool) (retErr error) {
 	dir = canonical(dir)
 	if source == "" {
 		if _, err := os.Stat(dir); err != nil {
@@ -89,9 +91,9 @@ func (c Client) Ensure(ctx context.Context, dir, source string, requireLayer boo
 	if err != nil {
 		return err
 	}
-	defer os.RemoveAll(tmp)
+	defer func() { retErr = errors.Join(retErr, staging.Remove(tmp)) }()
 	checkout := filepath.Join(tmp, "checkout")
-	if _, err = c.git(ctx, parent, "clone", "--", s.URL, checkout); err != nil {
+	if _, err = c.gitOwned(ctx, parent, tmp, "clone", "--", s.URL, checkout); err != nil {
 		return err
 	}
 	if requireLayer {

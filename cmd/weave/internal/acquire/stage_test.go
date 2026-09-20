@@ -32,6 +32,7 @@ func TestEnsureReclaimsOnlyDeadOwnedStages(t *testing.T) {
 	for _, f := range fixtures {
 		data, _ := json.Marshal(f.owner)
 		put(t, filepath.Join(base, ".clone-weave-"+f.name, "owner.json"), string(data))
+		put(t, filepath.Join(base, ".clone-weave-"+f.name, "lease"), "")
 		put(t, filepath.Join(base, ".clone-weave-"+f.name, "checkout/partial"), "partial")
 	}
 	put(t, filepath.Join(base, ".clone-weave-unowned", "mine"), "authored")
@@ -66,6 +67,7 @@ func TestRestoreReclaimsStageAfterPublication(t *testing.T) {
 	metadata, _ := json.Marshal(stageOwner{Version: 1, Destination: dest, Host: host, PID: dead.Process.Pid})
 	stage := filepath.Join(base, ".clone-weave-published")
 	put(t, filepath.Join(stage, "owner.json"), string(metadata))
+	put(t, filepath.Join(stage, "lease"), "")
 	if _, err := Restore(context.Background(), leaf, true); err != nil {
 		t.Fatal(err)
 	}

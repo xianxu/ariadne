@@ -24,6 +24,10 @@ func (s *stateGit) Run(_ context.Context, dir string, args ...string) (string, e
 	s.calls = append(s.calls, append([]string{}, args...))
 	return s.run(len(s.calls), dir, args)
 }
+func (s *stateGit) RunOwned(ctx context.Context, dir, stage string, args ...string) (string, error) {
+	return s.Run(ctx, dir, args...)
+}
+
 func TestOriginMissingVersusFailedInspection(t *testing.T) {
 	for _, tc := range []struct {
 		name      string

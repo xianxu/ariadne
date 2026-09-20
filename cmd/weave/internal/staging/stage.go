@@ -32,6 +32,15 @@ func New(destination string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	lease, err := os.OpenFile(filepath.Join(stage, "lease"), os.O_CREATE|os.O_EXCL|os.O_RDWR, 0600)
+	if err != nil {
+		os.RemoveAll(stage)
+		return "", err
+	}
+	if err = lease.Close(); err != nil {
+		os.RemoveAll(stage)
+		return "", err
+	}
 	metadata, _ := json.Marshal(Owner{Version: 1, Destination: destination, Host: host, PID: os.Getpid()})
 	if err = os.WriteFile(filepath.Join(stage, "owner.json"), metadata, 0600); err != nil {
 		os.RemoveAll(stage)
@@ -74,12 +83,31 @@ func Reclaim(destination string) error {
 		if err = syscall.Kill(owner.PID, 0); !errors.Is(err, syscall.ESRCH) {
 			continue
 		}
-		if err = os.RemoveAll(stage); err != nil {
-			return fmt.Errorf("reclaim interrupted stage %s: %w", stage, err)
+		lease, lockErr := Exclusive(stage)
+		if lockErr != nil {
+			continue
+		} // active/missing/uncertain lease: preserve ownership
+		err = os.RemoveAll(stage)
+		closeErr := lease.Close()
+		if err != nil || closeErr != nil {
+			return fmt.Errorf("reclaim interrupted stage %s: %w", stage, errors.Join(err, closeErr))
 		}
 	}
 	return nil
 }
 
-// Remove releases a stage returned by New after the producer has stopped.
-func Remove(stage string) error { return os.RemoveAll(stage) }
+// Remove releases an owned stage only when every inherited producer lease has
+// closed. A live descendant keeps both payload and ownership metadata intact.
+func Remove(stage string) error {
+	if _, err := os.Lstat(stage); os.IsNotExist(err) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	lease, err := Exclusive(stage)
+	if err != nil {
+		return err
+	}
+	defer lease.Close()
+	return os.RemoveAll(stage)
+}

@@ -210,6 +210,8 @@ A skill package's tracked executable `.dynamic-skill` declares the exact comment
 Weave checks every selected marker for this declaration before executing any of
 them. A legacy marker without it fails with migration guidance. The declaration
 is a contract for trusted layer code, not a sandbox for arbitrary shell programs.
+Markers and their children must remain in the assigned process group, preserve
+inherited descriptors, and not daemonize.
 
 Each marker receives an **absolute isolated output directory as its first
 argument** and runs with **cwd = the compiling leaf** for graph reads. It must
@@ -235,9 +237,14 @@ old/new file or recoverable staging. Generated executable permissions survive.
 After successful generation and validation, staged files become actions published
 through the same identity-checking `ApplyManaged` path as other artifacts, under
 `construct/generated/<dir>/`. Generator or validation failure does not publish
-those outputs. Staging uses the same owned PID/host lifecycle as clone staging;
-cleanup removes completed stages and retry reclaims dead owned stages. Published
-outputs remain intact until ownership-checked publication.
+those outputs. Generation and clone stages share the same ownership lifecycle.
+The cleanup contract requires retaining stage metadata until all producers stop;
+a dead parent PID alone is insufficient evidence that a stage is reclaimable.
+Each producer inherits an OS-held stage lease; cleanup requires exclusive
+access after every writer closes it. Cancellation terminates the assigned
+process group. Retry preserves a live descendant’s stage even after weave dies,
+then reclaims it after the writer exits. Published outputs remain intact until
+ownership-checked publication.
 
 The generator body remains source-owned; final output is leaf-owned and
 Git-ignored. `cmd/datatype/SKILL.md.tmpl` is datatype's authored prose source.

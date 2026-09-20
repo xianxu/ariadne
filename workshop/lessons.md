@@ -1610,3 +1610,15 @@ Atomicity must extend to final publication, not only the generator workspace.
 A prepared old/new hash inventory cannot recognize half a truncating write.
 Inject failures after bytes are written, and preserve file modes when replacing
 an in-place generator with staged publication.
+
+
+### 2026-09-20 — #239 stage ownership outlives the parent
+
+A dead parent PID does not prove a workspace has no writers. Cancellation can
+leave a shell child or grandchild running, and SIGKILL bypasses parent cleanup.
+Retain stage ownership metadata until producers stop; tie cleanup to inherited
+producer lifetime as well as parent identity. Trusted generator contracts must
+require foreground process groups, preserved inherited descriptors, and no
+daemonization. Test actual descendants that write after cancellation and parent
+SIGKILL, then exercise retry; a killed top-level process alone is insufficient
+evidence of safe reclamation.

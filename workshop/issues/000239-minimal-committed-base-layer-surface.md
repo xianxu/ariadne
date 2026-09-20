@@ -329,6 +329,13 @@ so removing staging at shell return loses recoverable ownership. The plan now
 requires an inherited producer lease and group cancellation; production late
 writer regressions are being added before implementation. M2 is not closed.
 
+The inherited-lease correction now passes the affected Go suites and real
+bootstrap/Make/CI fixtures on macOS. Native Linux passes the full weave and
+layergraph suites plus ten repetitions of both production lifetime regressions.
+The regressions were first observed failing on cancellation and parent-death
+recovery. Clone and generation use the same owned-process seam; publication and
+cleanup require proof that inherited writer descriptors have closed.
+
 ## Revisions`.
 
 Two corrections landed while widening:

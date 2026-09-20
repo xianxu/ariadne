@@ -67,7 +67,10 @@ Dynamic-skill generators declare `# weave-output: argv1` and receive an isolated
 absolute output directory as their first argument. Their working directory stays
 the leaf for graph reads. Weave validates the staged output and publishes it
 through ownership checks; generator failure leaves published outputs intact.
-Marker authors must migrate legacy scripts before they can run; see the
+Markers and children must stay in the assigned process group and preserve
+inherited descriptors rather than daemonizing. Stage cleanup must wait for all
+producers to stop; a dead parent alone is insufficient. Marker authors must
+migrate legacy scripts before they can run; see the
 [generator contract](atlas/workflow/weave.md#dynamic-skill-output-contract).
 
 ## Standalone consumers and maintainer setup
