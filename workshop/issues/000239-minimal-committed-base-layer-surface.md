@@ -6,8 +6,9 @@ github_issue:
 target: base-layer-mechanics
 created: 2026-09-19
 updated: 2026-09-19
-estimate_hours:
+estimate_hours: 5.28
 started: 2026-09-19T18:21:15-07:00
+flow: {kind: full, provenance: inferred}
 ---
 
 # Minimal committed base-layer surface
@@ -287,6 +288,65 @@ keeps the generic `?=` defaults. It keeps the `?=`, but the *values* flip to
 `workshop/issues`/`workshop/history` in M1 — 11 fleet repos have no root Makefile
 of their own and would otherwise fall back to a nonexistent `issues/` for the
 whole M1→M4 window. See the plan's `## Revisions`.
+
+
+## Estimate
+
+Design hours carry Step 3's ×0.2 spec-quality discount — the plan doc
+(`workshop/plans/000239-…-plan.md`, 2056 lines) pre-resolves the decisions with
+concrete code, tests and command lines — and Step 6's **+15%** buffer for that
+same thoroughness (v2.1 calibration; +30% would double-count it). `impl=` values
+are written at **40%** of the v2/v2.1 table per v3.1. Familiarity 1.0: ariadne is
+home turf, but M4 works against 13 repos whose states differ.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+design-buffer: 0.15
+item: smaller-go-module       design=0.06 impl=0.12
+item: smaller-go-module       design=0.06 impl=0.12
+item: smaller-go-module       design=0.06 impl=0.16
+item: cross-cutting-refactor  design=0.06 impl=0.16
+item: smaller-go-module       design=0.06 impl=0.18
+item: atlas-docs              design=0.10 impl=0.06
+item: milestone-review        design=0.0  impl=0.14
+item: greenfield-go-module    design=0.20 impl=0.20
+item: smaller-go-module       design=0.04 impl=0.14
+item: milestone-review        design=0.0  impl=0.14
+item: greenfield-go-module    design=0.16 impl=0.18
+item: smaller-go-module       design=0.04 impl=0.14
+item: smaller-go-module       design=0.06 impl=0.20
+item: atlas-docs              design=0.10 impl=0.06
+item: milestone-review        design=0.0  impl=0.14
+item: smaller-go-module       design=0.08 impl=0.20
+item: smaller-go-module       design=0.06 impl=0.16
+item: smaller-go-module       design=0.04 impl=0.14
+item: cross-repo-refactor-large design=0.30 impl=0.60
+item: real-api-discovery      design=0.0  impl=0.20
+item: milestone-review        design=0.0  impl=0.14
+total: 5.28
+```
+
+**What each item is** (in plan order):
+
+| Milestone | Items | design | impl |
+|---|---|---|---|
+| **M1** | `intent.SeedOnce` kind+verb · `plan.SeedOnce` action+lowering · `applySeedOnce` + 4 branch tests · the 7 enumerated switches (`cross-cutting-refactor`) · seed-source split + `Makefile.workflow` flip + portable-makefile test · atlas (4 pages) · review | 0.40 | 0.94 |
+| **M2** | `mergeManagedBlock` (`greenfield` — marker parse, wholesale replace, legacy absorb, fail-closed; 6 tests) · seam wiring + fail-closed read + test translation · review | 0.24 | 0.48 |
+| **M3** | `IgnoreEntries` derivation (`greenfield`) · `planActionsCore` + `TargetAll` pin · `gitignore-surface.test.sh` (real-git conformance) · target + atlas · review | 0.36 | 0.72 |
+| **M4** | 4.0a provenance filter · 4.0b `run-merge-checks` fallback · 4.0c `--repo` + brain guard · the 13-repo sweep (`cross-repo-refactor-large`) · CI round-trip on the pilot PR (`real-api-discovery` — GitHub Actions is the external service whose behavior must be observed) · review | 0.48 | 1.44 |
+| | **Σ** | **1.48** | **3.58** |
+
+`recomputed = 1.48 × 1.15 + 3.58 × 1.0 = 5.282` → **5.28** (tol 0.264).
+
+The four `milestone-review` items are the four real boundaries — M1/M2/M3
+`milestone-close` plus the `close` review; the plan tags no milestone it does not
+separately close.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.* The source is flagged **stale** (ledger newer
+than the doc; recalibration is #127), so treat the per-primitive hours as
+provisional — recorded here so the close-time calibration row knows it.
 
 
 ## Log
