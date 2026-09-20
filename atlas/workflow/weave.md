@@ -49,10 +49,29 @@ inventory, compilation does not guess historical ownership. Compile dry-run
 performs no writes, package operations, builds, or generators and explicitly
 omits generator output and retirement from the preview.
 
+## Distribution and ownership consumers
+
+`cmd/weave/version.go` defaults to `dev`; release preparation sets it from the
+validated `weave-vMAJOR.MINOR.PATCH` input. `scripts/release-weave.sh` cross-builds
+four standalone CGO-disabled archives, then derives `SHA256SUMS` and `weave.rb`
+from those exact files. The committed formula is a template, not the published
+tap. `scripts/test/release-weave.test.sh` checks archives, metadata, checksums,
+failure cleanup, and the formula's local composition test using the native
+binary. `.github/workflows/weave-release.yml` prepares/uploads candidates only.
+The current checkout is the build source; #241 publishes its reviewed commit.
+See [README release preparation](../../README.md#preparing-a-weave-release).
+
+`pkg/weaveownership` owns the inventory schema, validation, path checks, and
+read-only matching proof. Compile uses it for retirement and `sdlc propagate-base`
+uses it to select Git index removals. Propagation intersects matching owned paths
+with Git's tracked-and-ignored set, preserving local negations and unrelated
+ignored tracked files. It invokes installed `weave compile` and `verify-complete`;
+no generated Makefile is required for dependent discovery.
+
 ## Shape (ARCH-PURE)
 A pure pipeline — `read deps+manifests → Resolve → Plan → []Action → Apply` —
 wrapped by a thin injected IO seam: filesystem (`weavefs.FS`) **plus a narrow,
-injected `.dynamic-skill` exec seam** (`weavefs.Runner`, #111 — see *Dynamic
+injected `.dynamic-skill` exec seam** (`weavefs.OwnedRunner`, #111 — see *Dynamic
 skills* below). weave does not edit `go.mod` (the #95 M5 `go.mod` editor was
 retired) and its composition core remains independent of source acquisition. Startup
 adds Git, Homebrew, and owner Make execution through acquisition and process

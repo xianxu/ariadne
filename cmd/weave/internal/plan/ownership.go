@@ -1,8 +1,6 @@
 package plan
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -10,133 +8,40 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
 	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
+	"github.com/xianxu/ariadne/pkg/weaveownership"
 )
 
-// OwnershipScope distinguishes complete artifact compilation from data-only
-// reconciliation in an ancestor. Both share a single owner-local inventory.
-type OwnershipScope string
+// Compiler aliases preserve the existing internal action/ownership API while
+// the persisted schema and its proof have one owner shared with Git migration.
+type OwnershipScope = weaveownership.Scope
+type outputIdentity = weaveownership.Identity
+type inventory = weaveownership.Inventory
 
 const (
-	ScopeArtifacts OwnershipScope = "artifacts"
-	ScopeData      OwnershipScope = "data"
-	InventoryPath                 = staging.RootRel + "/ownership.json"
+	ScopeArtifacts = weaveownership.ScopeArtifacts
+	ScopeData      = weaveownership.ScopeData
+	InventoryPath  = weaveownership.InventoryPath
 )
 
-type outputIdentity struct {
-	Path  string         `json:"path"`
-	Scope OwnershipScope `json:"scope"`
-	Kind  string         `json:"kind"`
-	Value string         `json:"value"`
-	Mode  *os.FileMode   `json:"mode,omitempty"`
-}
-type inventory struct {
-	Version int              `json:"version"`
-	Outputs []outputIdentity `json:"outputs"`
-}
-
-func validScope(s OwnershipScope) bool { return s == ScopeArtifacts || s == ScopeData }
-func safeRelative(path string) bool {
-	return path != "" && path != "." && !filepath.IsAbs(path) && filepath.Clean(path) == path && path != ".." && !strings.HasPrefix(path, ".."+string(filepath.Separator)) && !strings.ContainsAny(path, "\x00\r\n")
-}
-
-// reservedOutput protects inventory storage and the separately managed ignore file.
-func reservedOutput(path string) bool {
-	return path == ".gitignore" || path == InventoryPath || strings.HasPrefix(InventoryPath, path+string(filepath.Separator)) || strings.HasPrefix(path, filepath.Dir(InventoryPath)+string(filepath.Separator))
-}
-
-// safeParents prevents a lexical path within the owner from writing/deleting
-// through an authored parent symlink into another repository.
+func validScope(scope OwnershipScope) bool { return weaveownership.ValidScope(scope) }
+func safeRelative(path string) bool        { return weaveownership.SafeRelative(path) }
+func reservedOutput(path string) bool      { return weaveownership.ReservedOutput(path) }
 func safeParents(fs weavefs.FS, root, path string) error {
-	if !safeRelative(path) {
-		return fmt.Errorf("invalid owned path %q", path)
-	}
-	return weavefs.CheckParents(fs, root, filepath.Join(root, path))
+	return weaveownership.CheckRelativeParents(fs, root, path)
+}
+func observe(fs weavefs.FS, root string, id outputIdentity) (bool, error) {
+	return weaveownership.Matches(fs, root, id)
+}
+func digest(data []byte) string { return weaveownership.Digest(data) }
+func readInventory(fs weavefs.FS, root string) ([]outputIdentity, error) {
+	return weaveownership.Read(fs, root)
 }
 
-func observe(fs weavefs.FS, root string, id outputIdentity) (bool, error) {
-	if e := safeParents(fs, root, id.Path); e != nil {
-		return false, e
-	}
-	p := filepath.Join(root, id.Path)
-	fi, e := fs.Lstat(p)
-	if os.IsNotExist(e) {
-		return false, nil
-	}
-	if e != nil {
-		return false, e
-	}
-	switch id.Kind {
-	case "link":
-		if fi.Mode()&os.ModeSymlink == 0 {
-			return false, nil
-		}
-		v, e := fs.Readlink(p)
-		return v == id.Value, e
-	case "file":
-		if id.Mode != nil && fi.Mode().Perm() != *id.Mode {
-			return false, nil
-		}
-		if !fi.Mode().IsRegular() {
-			return false, nil
-		}
-		v, e := fs.ReadFile(p)
-		if e != nil {
-			return false, e
-		}
-		return digest(v) == id.Value, nil
-	}
-	return false, fmt.Errorf("invalid identity kind %q", id.Kind)
-}
-func digest(b []byte) string { h := sha256.Sum256(b); return hex.EncodeToString(h[:]) }
-func readInventory(fs weavefs.FS, root string) ([]outputIdentity, error) {
-	if e := safeParents(fs, root, InventoryPath); e != nil {
-		return nil, e
-	}
-	p := filepath.Join(root, InventoryPath)
-	if fi, e := fs.Lstat(p); e == nil && !fi.Mode().IsRegular() {
-		return nil, fmt.Errorf("inventory is not a regular file: %s", p)
-	} else if e != nil && !os.IsNotExist(e) {
-		return nil, e
-	}
-	b, e := fs.ReadFile(p)
-	if os.IsNotExist(e) {
-		return nil, nil
-	}
-	if e != nil {
-		return nil, e
-	}
-	var inv inventory
-	if e = json.Unmarshal(b, &inv); e != nil {
-		return nil, fmt.Errorf("read ownership inventory: %w", e)
-	}
-	if inv.Version != 1 {
-		return nil, fmt.Errorf("unsupported ownership inventory version %d", inv.Version)
-	}
-	for _, id := range inv.Outputs {
-		if !safeRelative(id.Path) || reservedOutput(id.Path) || !validScope(id.Scope) {
-			return nil, fmt.Errorf("invalid ownership inventory entry %q", id.Path)
-		}
-		if id.Kind != "file" && id.Kind != "link" {
-			return nil, fmt.Errorf("invalid ownership identity kind %q", id.Kind)
-		}
-		if id.Mode != nil && (id.Kind != "file" || *id.Mode != id.Mode.Perm()) {
-			return nil, fmt.Errorf("invalid permission identity for %s", id.Path)
-		}
-		if id.Kind == "file" {
-			b, e := hex.DecodeString(id.Value)
-			if e != nil || len(b) != sha256.Size {
-				return nil, fmt.Errorf("invalid file identity for %s", id.Path)
-			}
-		}
-	}
-	return inv.Outputs, nil
-}
 func saveInventory(fs weavefs.FS, root string, ids []outputIdentity) error {
 	ids = uniqueIdentities(ids)
-	b, e := json.MarshalIndent(inventory{Version: 1, Outputs: ids}, "", "  ")
+	b, e := json.MarshalIndent(inventory{Version: weaveownership.Version, Outputs: ids}, "", "  ")
 	if e != nil {
 		return e
 	}

@@ -105,22 +105,27 @@ skills, not dev-env helpers).
 
 ## Pushing Updates to All Consumers
 
-Ariadne maintainers can propagate base-layer changes in one shot:
+After the release and consumer cutover in #241, maintainers use the installed
+weave gateway through SDLC:
 
-```bash
+```sh
 cd /path/to/ariadne
-make refresh-recursive
+sdlc propagate-base --ref ariadne#ISSUE --dry-run
+sdlc propagate-base --ref ariadne#ISSUE
 ```
 
-This iterates every peer repo in the parent directory and runs
-`make weave` in each one that has a `Makefile.workflow` (the universal
-"uses the ariadne base layer" signal — catches direct consumers via
-`.ariadne-mode`, indirect ones via `.nous-mode`, and re-export layers
-like nous itself). Failures are collected into a final summary; partial
-progress is better than aborting on the first hiccup.
+It discovers Git siblings by their declared substrate chain, orders them
+foundation-first, skips dirty working trees, and runs `weave compile` followed by
+`weave verify-complete`. Generated workflow files need not exist beforehand.
+The consumption commit untracks only paths that Git ignores **and** whose current
+contents or link target match weave's ownership inventory. Authored replacements,
+mode edits, unrelated force-tracked ignored files, and local ignore negations
+remain protected. Missing inventory authorizes no untracking; malformed inventory
+fails before index changes. Push remains separate.
 
-Defined in `ariadne/Makefile.local` — ariadne-only, not vendored
-(consumers don't push to their own peers).
+The old `make refresh-recursive` helper only invokes peer Make targets; it does
+not provide this ownership-aware migration. #239 tests propagation in disposable
+repos; actual fleet cutover belongs to #241.
 
 ## Base-as-trunk: three layers, different physics (#82)
 

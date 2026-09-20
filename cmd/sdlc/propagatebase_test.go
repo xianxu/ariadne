@@ -89,8 +89,8 @@ func TestWorkingTreeDirty(t *testing.T) {
 }
 
 // runPropagateBase SKIPS a dependent whose working tree is dirty (#109) — never
-// `make weave`s or commits it — and exits non-zero. Hermetic: the skip path is
-// reached BEFORE `make weave`, so no real weave binary is needed. Proves the
+// compiles or commits it — and exits non-zero. Hermetic: the skip path is
+// reached BEFORE compiler lookup, so no real weave binary is needed. Proves the
 // end-to-end behavior the incident exposed (a concurrent session's dirty repo).
 func TestPropagateBaseSkipsDirtyDependent(t *testing.T) {
 	parent := t.TempDir()
@@ -137,7 +137,7 @@ func TestPropagateBaseSkipsDirtyDependent(t *testing.T) {
 }
 
 // recursiveDependents walks construct/deps across present siblings: a sibling is a
-// dependent iff it's a git repo with a Makefile.workflow whose substrate chain
+// dependent iff it's a Git repo whose declared substrate chain
 // transitively includes the owner.
 func TestRecursiveDependents(t *testing.T) {
 	parent := t.TempDir()
@@ -166,7 +166,7 @@ func TestRecursiveDependents(t *testing.T) {
 	mk("brain", "substrate ../nous\n", true)              // transitive (→ nous → ariadne)
 	mk("pair", "substrate ../ariadne\n", true)            // direct dependent
 	mk("stranger", "substrate ../somewhere-else\n", true) // chain has no ariadne → excluded
-	mk("noweave", "substrate ../ariadne\n", false)        // depends but no Makefile.workflow → excluded
+	mk("noweave", "substrate ../ariadne\n", false)        // declarations suffice before generated workflow exists
 	// A sibling that depends on ariadne + has Makefile.workflow but is NOT a git repo
 	// (a setup.sh-era scratch dir) → EXCLUDED (can't commit a consumption there).
 	scratch := filepath.Join(parent, "scratch")
@@ -185,8 +185,8 @@ func TestRecursiveDependents(t *testing.T) {
 		names = append(names, filepath.Base(d.root))
 	}
 	sort.Strings(names)
-	want := []string{"brain", "nous", "pair"}
+	want := []string{"brain", "nous", "noweave", "pair"}
 	if !reflect.DeepEqual(names, want) {
-		t.Fatalf("dependents = %v, want %v (transitive incl, non-weave/non-dep excl)", names, want)
+		t.Fatalf("dependents = %v, want %v (transitive inclusion, generated workflow optional)", names, want)
 	}
 }

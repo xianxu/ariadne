@@ -95,20 +95,15 @@ unrecognized files are preserved; no inventory means no speculative cleanup.
 Managed ignore entries cover the generated outputs while preserving authored
 ignore content. Data reconciliation in an ancestor retains its artifact scope.
 
-## Per-binary build opt-out
+## Owner tool selection
 
-`Makefile.workflow build:` scans `cmd/*/main.go` and builds each. Some binaries
-shouldn't be auto-built (e.g., the nous binary is distributed signed +
-notarized — overwriting `bin/nous` with an unsigned local build invalidates
-macOS keychain ACL grants and notification capabilities).
-
-Opt out per-binary by dropping a sentinel:
-
-    cmd/<name>/.skip-make-build
-
-Contents are free-form prose explaining the rationale (future operators read
-it). Each opted-out binary owns its sentinel; the base layer doesn't carry
-derivative-specific name lists.
+Each layer's authored root `Makefile` explicitly lists the binaries its `tools`
+target builds. Startup no longer scans `cmd/*` or requires `.skip-make-build`
+sentinels. Layers without tools need no target. Keep signing, service restarts,
+and other product development actions in separate explicit targets; bootstrap
+prepares dependencies and ordinary local builds. The separate generic
+`make build` command retains its `cmd/*` scanner and `.skip-make-build` opt-out;
+it is not part of startup.
 
 ## Generated artifacts and local extensions
 
@@ -145,3 +140,36 @@ repo's manifest; see [data-deps.md](data-deps.md).
 - [weave.md](weave.md) — compiler structure and intent semantics.
 - [base-layer.md](base-layer.md) — shared surface, local extensions, and VMs.
 - `construct/base.manifest` — ariadne's exported and internal intents.
+
+## Consumer cutover
+
+#239 prepares and tests startup and migration tooling. #241 owns the actual
+release, tap publication, and consumer edits after the implementation merges.
+For each consumer, keep these inputs committed before testing a fresh clone:
+
+- A source-bearing `construct/deps` row for every missing peer that bootstrap
+  must restore. `weave link` records the checkout origin when available.
+- A layer-owned root `Brewfile`, containing its external development prerequisites.
+  Use Homebrew's platform conditionals for platform-specific packages.
+- An authored root `Makefile` with optional generated workflow includes. Add
+  `tools` only for binaries owned by this layer; keep service/signing targets
+  explicit and independent.
+- The current bootstrap launcher, manifest, local sources, and compatible dynamic
+  markers. Markers accept the supplied staging output directory; see
+  [the generator contract](weave.md#dynamic-skill-output-contract).
+
+After the gateway is published, test `./bootstrap.sh` from a fresh clone and
+repeat it. Add the reported owner `bin/` directories to the developer's PATH.
+Use `sdlc propagate-base` only with clean consumer working trees; its
+[ownership-aware index migration](base-layer.md#pushing-updates-to-all-consumers)
+preserves intentionally tracked ignored files. Do not blanket-untrack ignored
+paths. Product checks, signing, and service startup remain separate.
+
+Disposable pilots during #239 established the following boundaries:
+
+| Consumer snapshot | Migration inputs exercised | Evidence and remaining limitation |
+|---|---|---|
+| parley.nvim `c8dcd56a` | Authored root with optional local workflow include; root Brewfile for Neovim/Python; no owner tools | Linux compile and bootstrap repeat passed. Product sources and intentionally tracked vocabulary `issue.json` remained unchanged. Full product lint was not claimed. |
+| nous `2e7756d5` | Replace inherited root Makefile link with authored root and `tools: nous-build`; keep `nous-bootstrap`/`nous-dev` explicit; guard macOS packages in Brewfile | macOS ordinary owner build and safe help passed without service/signing actions. Full bootstrap remains unverified: Linux code requires launchd and the existing Mutagen tap formula targets amd64 and needs Homebrew trust handling. Resolve those consumer choices in #241 rather than porting nous in #239. |
+
+Actual peer repositories were not modified for these pilots.

@@ -66,8 +66,9 @@ func main() {
 // `weave compile` subcommand, which carries --dry-run and --target.
 func buildRoot() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "weave",
-		Short: "Compile a repo's agentic context from its layer DAG",
+		Use:     "weave",
+		Version: version,
+		Short:   "Compile a repo's agentic context from its layer DAG",
 		Long: "weave compiles a repo's agentic context from its layer DAG.\n\n" +
 			"The bare `weave` command prints this help and mutates nothing; run\n" +
 			"`weave compile` to actually compile. By default (the Union) it lowers\n" +

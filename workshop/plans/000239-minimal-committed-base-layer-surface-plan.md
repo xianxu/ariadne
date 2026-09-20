@@ -178,17 +178,17 @@ is retained history, not executable tasks.
 Files: `pkg/layergraph/deps.go`, new `cmd/weave/internal/acquire/`,
 `cmd/weave/main.go`, new `cmd/weave/link.go`, `dependencies.go` and colocated tests.
 
-- [ ] Test typed `substrate <path> [source]` and existing `data <url> <mount>`;
+- [x] Test typed `substrate <path> [source]` and existing `data <url> <mount>`;
   normalize GitHub SSH/HTTPS identities without changing authentication transport.
   Keep present local-only edges; fail missing edges without a recorded source.
-- [ ] Test address link with local bare origins and isolated HOME. Clone missing
+- [x] Test address link with local bare origins and isolated HOME. Clone missing
   sources into temporary sibling directories, validate, publish; failed clones
   must not leave a usable-looking destination. Reject destination conflicts.
-- [ ] Restore transitive sources using the existing graph topology, test cycles,
+- [x] Restore transitive sources using the existing graph topology, test cycles,
   diamonds and dirty existing peers. No pull/reset or go.mod inference.
-- [ ] Preserve every data mount while deduplicating source clones; reject escaping
+- [x] Preserve every data mount while deduplicating source clones; reject escaping
   mounts and preserve authored destinations. Include mounts in generated ownership.
-- [ ] Wire link/dependencies through tested acquisition and bundle operations.
+- [x] Wire link/dependencies through tested acquisition and bundle operations.
   Read-only commands must not clone/install. Dry-run reports missing information
   without manufacturing it. Run Go suites before closing M1.
 
@@ -198,26 +198,26 @@ Files: `cmd/weave/internal/plan/{gitignore,ownership,apply,prune}.go`,
 `cmd/weave/main.go`, `construct/base.manifest`, `Makefile.workflow`,
 `bootstrap.sh`, `.github/workflows/merge-check.yml`, affected shell tests.
 
-- [ ] First test that an authored root Makefile survives compile. Remove its
+- [x] First test that an authored root Makefile survives compile. Remove its
   seed row; do not introduce seed-once or seed a replacement Makefile.
-- [ ] Derive ignore entries from final actions: symlinks, composed files and
+- [x] Derive ignore entries from final actions: symlinks, composed files and
   merged settings are generated; seeds, touch files and scaffolds are retained
   as authored/committed entrypoints. Never ignore whole scaffold directories.
-- [ ] Replace append-only ignore writing with a delimited owned block; tests
+- [x] Replace append-only ignore writing with a delimited owned block; tests
   cover retirement, local negations, malformed blocks and read errors. Preserve
   unrelated content and remove only exact legacy entries known to weave.
-- [ ] Add one generated-output identity inventory under construct/generated/weave.
+- [x] Add one generated-output identity inventory under construct/generated/weave.
   Before Apply atomically persist existing matching plus intended identities;
   after Apply retain matches. On retirement delete only matching files/links;
   preserve edited replacements. Test interruption/partial Apply and final-base
   removal. Keep inventory outside generated-directory pruning.
-- [ ] Replace duplicate bootstrap/clone-data/peer startup scripts after migrating
+- [x] Replace duplicate bootstrap/clone-data/peer startup scripts after migrating
   actual callers. Keep unrelated VM scripts and explicit product development
   targets. `make weave`/bootstrap become thin delegates to the gateway.
-- [ ] Compile before CI helper consumption; ariadne's job tests its own candidate
+- [x] Compile before CI helper consumption; ariadne's job tests its own candidate
   CLI. Preserve Linux test capability using explicit job prerequisites, with no
   unapproved generic installer. Use real run-block shell fixtures.
-- [ ] Verify cold/warm compile, failures, target selection, settings and authored
+- [x] Verify cold/warm compile, failures, target selection, settings and authored
   source preservation. Update atlas and close M2 with measured evidence.
 
 ### M3 — packaging and migration tooling
@@ -226,15 +226,15 @@ Files: `scripts/release-weave.sh`, `.github/workflows/weave-release.yml`,
 `packaging/homebrew/Formula/weave.rb`, `cmd/weave/version.go`,
 `cmd/sdlc/propagatebase.go` and colocated tests; README/atlas.
 
-- [ ] Add version metadata derived from release tag; package standalone weave
+- [x] Add version metadata derived from release tag; package standalone weave
   with CGO_ENABLED=0 for darwin/linux arm64/amd64. Produce archives/checksums and
   generate formula asset/checksum fields from that output.
-- [ ] Test archive layout/version, Homebrew launcher failure/reuse, and a tiny
+- [x] Test archive layout/version, Homebrew launcher failure/reuse, and a tiny
   formula composition fixture. Do not invent license metadata or publish in #239.
-- [ ] Change propagation to invoke weave and untrack only proven generated-owned
+- [x] Change propagation to invoke weave and untrack only proven generated-owned
   paths. Regression: unrelated deliberately tracked-but-ignored files survive.
   No fleet-wide sweep as a test.
-- [ ] Exercise parley/nous in disposable checkouts, recording the actual migration
+- [x] Exercise parley/nous in disposable checkouts, recording the actual migration
   inputs and candidate behavior. Respect nous service/signing boundaries.
 - [ ] Run affected Go and shell suites; record native/scratch evidence and deliver
   packaging plus migration instructions to #241. Close/PR/merge #239 through SDLC;
@@ -405,6 +405,22 @@ Add production-path regressions with a child waiting on an explicit release:
 cancel compile, kill weave itself, retry while the child is live, permit a late
 write, and retire after it exits. Assert ownership survives every live writer,
 no late output is published, and the next retry reclaims stopped producers.
+
+### 2026-09-20 — M3 shared ownership proof and release preparation
+
+M1 and M2 are closed with SHIP reviews. M3 exposes the existing identity schema,
+validation, and matching through read-only `pkg/weaveownership`, so compiler
+retirement and SDLC index migration use the same proof (ARCH-DRY). Propagation
+intersects matching paths with Git's tracked-and-ignored set, uses literal
+pathspecs, and validates before mutating the index. No new CLI is added.
+
+Release preparation accepts a version tag and new output directory, builds the
+four approved CGO-disabled targets privately, and publishes a complete local
+artifact directory only after every build succeeds. The formula is generated
+from those archives and checksums. The workflow uploads candidate artifacts with
+read-only repository permissions; #241 owns tagging/publication and tap writes.
+Tests exercise real native archives and the exact formula composition fixture,
+plus partial build failure and protected existing output. No license is invented.
 
 ## Historical revisions
 

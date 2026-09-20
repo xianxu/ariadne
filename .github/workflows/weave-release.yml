@@ -1,0 +1,31 @@
+# Candidate preparation only. Publishing the reviewed release/tap is separate.
+name: prepare-weave-release
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release version tag (weave-vMAJOR.MINOR.PATCH)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Homebrew/actions/setup-homebrew@master
+      - name: Provision the declared build tools
+        run: brew bundle install --no-upgrade --file=Brewfile
+      - name: Build and verify release candidate
+        env:
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: bash scripts/test/release-weave.test.sh "$RUNNER_TEMP/weave-release" "$RELEASE_TAG"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: weave-release-candidate
+          path: ${{ runner.temp }}/weave-release/
+          if-no-files-found: error

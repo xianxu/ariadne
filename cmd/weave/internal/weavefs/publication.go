@@ -2,35 +2,16 @@ package weavefs
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
+	"github.com/xianxu/ariadne/pkg/weaveownership"
 )
 
-// CheckParents rejects traversal and existing symlink parents before any
-// staging/final directory writes. A final symlink may be atomically replaced.
-func CheckParents(fs FS, root, path string) error {
-	rel, err := filepath.Rel(root, path)
-	if err != nil || rel == "." || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
-		return fmt.Errorf("publication path %s is outside root %s", path, root)
-	}
-	for dir := filepath.Dir(rel); dir != "."; dir = filepath.Dir(dir) {
-		info, err := fs.Lstat(filepath.Join(root, dir))
-		if os.IsNotExist(err) {
-			continue
-		}
-		if err != nil {
-			return err
-		}
-		if !info.IsDir() || info.Mode()&os.ModeSymlink != 0 {
-			return fmt.Errorf("publication path %s has non-directory parent %s", path, dir)
-		}
-	}
-	return nil
-}
+// CheckParents shares the inventory's containment and parent-link checks.
+func CheckParents(fs FS, root, path string) error { return weaveownership.CheckParents(fs, root, path) }
+
 func publicationDestination(fs FS, root string) (string, error) {
 	dest := filepath.Join(root, staging.RootRel, "publication")
 	if err := CheckParents(fs, root, dest); err != nil {

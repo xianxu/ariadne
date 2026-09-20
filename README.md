@@ -95,6 +95,27 @@ executable `scripts/ci-setup.sh` runs after compilation and before merge checks;
 a missing or non-executable hook is skipped, and a failure stops the job. Checks
 use the materialized local `scripts/run-merge-checks.sh`.
 
+## Preparing a weave release
+
+Maintainers with Go, Python 3.9+, and Homebrew can build and test a candidate:
+
+```sh
+bash scripts/test/release-weave.test.sh /tmp/weave-release weave-v0.1.0
+```
+
+Use a new output directory. The test prepares standalone archives for macOS and
+Linux on arm64 and amd64, `SHA256SUMS`, and a generated `weave.rb` formula; it
+checks the native binary and runs the formula's local composition fixture.
+`scripts/release-weave.sh` prepares the same artifacts without running the test
+suite. The version comes from the supplied tag name; these commands build the
+current checkout and do not create a Git tag or publish anything.
+
+The **prepare-weave-release** workflow runs this verification and uploads the
+candidate. #241 owns publishing the reviewed commit and archives and installing
+the generated formula into `xianxu/homebrew-ariadne`. There are no runtime Go or
+Python dependencies in the packaged weave binary. See the
+[consumer migration notes](atlas/workflow/setup-and-replication.md#consumer-cutover).
+
 ## Fleet queries
 
 Inspect every Git worktree in the sibling-repository fleet from a caller path,

@@ -139,15 +139,15 @@ cycle that changes the agreed sequence. No new features without operator approva
 
 ## Done when
 
-- [ ] Local/remote link and transitive restoration work in cold fixtures; dirty
+- [x] Local/remote link and transitive restoration work in cold fixtures; dirty
   matching peers remain untouched, cycles/conflicts/errors are actionable.
-- [ ] Distinct layer Brewfiles install through Homebrew Bundle; independent
+- [x] Distinct layer Brewfiles install through Homebrew Bundle; independent
   dependencies and compile share the operation. Dry-run makes no mutations.
-- [ ] Owner make tools produces generators before composition and exposed
+- [x] Owner make tools produces generators before composition and exposed
   commands in owner bin; failed installs/builds stop setup. No startup recursion.
-- [ ] A fresh derivative bootstrap and a new repo link/compile both succeed;
+- [x] A fresh derivative bootstrap and a new repo link/compile both succeed;
   CI compiles before checks and uses the candidate CLI in ariadne's own job.
-- [ ] Generated files/links are ignored and safely retired; authored Makefile,
+- [x] Generated files/links are ignored and safely retired; authored Makefile,
   local settings/ignore rules, and unrelated deliberately tracked files survive.
 - [ ] Standalone archives/formula and scratch consumer migrations are tested;
   #241 owns public release/tap and real fleet rollout. Required suites and SDLC
@@ -336,6 +336,29 @@ layergraph suites plus ten repetitions of both production lifetime regressions.
 The regressions were first observed failing on cancellation and parent-death
 recovery. Clone and generation use the same owned-process seam; publication and
 cleanup require proof that inherited writer descriptors have closed.
+
+### 2026-09-20 — M3 packaging and scoped migration verified
+
+Release preparation emits four CGO-disabled platform archives, SHA256SUMS, and a
+formula generated from those bytes. The native macOS and Linux suites validate
+archive layout/modes/version/targets, the exact formula composition fixture,
+partial build failure, existing-output preservation, and cleanup. The workflow
+prepares/upload candidates only; public publication and real cutover remain #241.
+
+Propagation now invokes the installed gateway and discovers consumers from their
+declarations. It shares `pkg/weaveownership` with compile and untracks only the
+intersection of matching ownership and Git's tracked ignored paths. Real Git
+regressions preserve authored replacements, chmod edits, local negations,
+unrelated ignored files and metacharacter near-matches. Missing/malformed state,
+compiler/verification failure, dirty consumers, dry-run and repeat behavior pass.
+
+The full affected weave/layergraph/ownership and SDLC suites pass with only the
+known #210 hardcoded archived-plan test excluded. An initial unfiltered run
+reproduced #210; its hermeticity guard also observed concurrent documentation
+edits, so the successful rerun kept the checkout unchanged throughout. Native
+Linux passes ownership/weave plus focused propagation tests. Actual nous and
+parley.nvim working trees remain clean. Scratch pilot inputs and limitations are
+recorded in atlas/workflow/setup-and-replication.md#consumer-cutover.
 
 ## Revisions`.
 

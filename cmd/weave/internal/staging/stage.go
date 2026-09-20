@@ -8,10 +8,12 @@ import (
 	"path/filepath"
 	"strings"
 	"syscall"
+
+	"github.com/xianxu/ariadne/pkg/weaveownership"
 )
 
 // RootRel is weave's private durable ownership and staging storage.
-const RootRel = "construct/generated/weave"
+const RootRel = weaveownership.RootRel
 
 // Metadata is outside the generated/cloned payload, so it is written before a producer can leave a
 // partial output. Retries reclaim only stages whose same-host owner is dead.
