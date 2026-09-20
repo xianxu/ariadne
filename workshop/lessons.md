@@ -1606,6 +1606,14 @@ Two corollaries, both paid for here:
   for. Deleting the superseded namesake matters too — leaving it beside a real
   test re-creates the tautology.
 
+**Stage by path, never by directory, in a tree you did not start clean.**
+`git add -A` and `git add workshop/` each swept unrelated in-flight files into a
+#239 commit — twice. The first time included `.claude/settings.ariadne.json`, a
+**fleet-propagated** egress allowlist, which would have reached every repo
+undeclared. The recovery is cheap (`git restore --source=HEAD~1 --staged <paths>`
+then `--amend`), but only if you look: check `git show --stat HEAD` against what
+you meant to commit, every time, when the working tree had pre-existing changes.
+
 **Do the sweep in a throwaway clone, never the live branch.** The first attempt
 here used `git reset --hard HEAD~1` in a loop; a probe whose edit was a no-op
 made no commit, so the reset ate real work. Three milestone commits were
