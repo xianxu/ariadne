@@ -87,19 +87,35 @@ substrate text symlinks from upstream peers (sibling-checkout); Go tool
 sources resolve via `replace => ../<peer>` directives in
 `construct/go.mod`.
 
-**Six manifest actions:** `symlink`, `tool`, `scaffold`, `touch`, `merge`,
-`seed`. Earlier versions also had `copy` — retired in #38. For per-derivative
+**Seven manifest actions:** `symlink`, `tool`, `scaffold`, `touch`, `merge`,
+`seed`, `seed-once`. Earlier versions also had `copy` — retired in #38. For per-derivative
 divergence (operator wants to customize a substrate file), the pattern is
 **per-operator branches in upstream source repos**, not per-derivative
 copies in the derivative tree. One branch per operator's preferences,
 shared across all that operator's derivatives.
 
-`seed` (added #42) is the one copy-shaped action — a **write-once** copy of a
-real file into the target, mode-preserving, never overwriting. It exists for
-the single case symlinks can't serve: a **fresh-clone entrypoint that must run
-before any substrate is present**. It is not a `copy` revival — `copy` let
-operators diverge substrate (discouraged); `seed` delivers a generic,
-not-meant-to-be-edited file once. Sole user today: `bootstrap.sh`.
+`seed` and `seed-once` (added #42; split by ownership in #239) are the two
+copy-shaped actions — real-file copies into the target, mode-preserving. They
+exist for the single case symlinks can't serve: a file that must work **before
+any substrate is present**, so it cannot be a link into one. Neither is a `copy`
+revival — `copy` let operators diverge substrate (discouraged); these deliver a
+generic file that definitionally cannot be a symlink.
+
+They differ on **who owns the bytes afterwards**, which is the whole distinction:
+
+| Verb | After the first write | Users |
+|---|---|---|
+| `seed` | **upstream** keeps owning it — content-TRACKS the source, refreshed on every weave when it drifts (the convergence #45 added, so derivatives aren't stranded on a stale entrypoint) | `bootstrap.sh`, `.github/workflows/merge-check.yml` |
+| `seed-once` | **the repo** owns it — written when the slot is absent (or holds weave's own prior symlink), then never touched again, whatever it later contains | `Makefile` |
+
+`seed-once` exists because the root `Makefile` is a repo's own front door: a repo
+adopting ariadne must keep its existing one, and a later edit to it must survive
+every weave. Through #225 `seed` was write-once and served both cases by
+accident; making it content-tracking was right for `bootstrap.sh` and swept
+`Makefile` along, silently destroying it. One verb per ownership class (#239).
+
+Both are **committed** in a derivative — they exist precisely because they must
+work before any substrate does. Everything else weave emits is gitignored.
 
 ### Fresh-clone first-run — `./bootstrap.sh`
 

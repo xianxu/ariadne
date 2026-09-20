@@ -35,7 +35,13 @@ Defined in `construct/base.manifest` (in ariadne):
   last
 - **Skills**: per-harness skill dirs — `.claude/skills/xx-*` (claude) + `.agents/skills/xx-*` (codex/gemini), each carrying the local (`xx-*`) + adapted (`superpowers-*`) skills — weave lowers these per layer (#107 Option B; see [harness-integration.md](harness-integration.md)); derivatives pick up ariadne's local + adapted skills through the weave LAYER WALK, each `<skill-dir>/<name>` pointing straight at ariadne's source dir (NO whole-dir `construct/adapted` symlink — #104 M3 dropped those; see [Construct: Adaptation is Ariadne-Only](construct-adaptation.md))
 - **Makefile system**:
-  - `Makefile` — upstream-owned real-file seed (REPO_NAME, optional workflow + local include, available help targets). Product targets work in a standalone checkout. The workflow resolves locally or from sibling ariadne after bootstrap; per-repo concerns belong in `Makefile.local`. Seeds replace prior destination links before writing or chmod, preserving ancestor bytes and permissions.
+  - `Makefile` — **repo-owned**, seeded ONCE from `construct/Makefile.seed` (`seed-once`, #239). weave writes it when the slot is absent (or still holds weave's own prior symlink, the #225 convergence) and never touches it again — so a repo that already has a Makefile keeps it, and a later edit to it survives every weave. Product targets work in a standalone checkout; the workflow resolves locally or from sibling ariadne after bootstrap. **Adopting ariadne in a repo that already has a Makefile needs no seeding at all** — add the one line `Makefile.workflow:1-2` documents:
+
+    ```make
+    include Makefile.workflow
+    ```
+
+    Per-repo layout policy goes in that root Makefile **above the include**, where `Makefile.workflow`'s `?=` defaults can still see it (they are `workshop/issues` / `workshop/history`; a repo wanting the plain top-level layout sets `WF_ISSUES_DIR = issues` there). Before #239 the source was ariadne's OWN root Makefile, so the "generic" template hardcoded ariadne's layout and any per-repo override was clobbered on the next weave — one file with two owners.
   - `Makefile.workflow` — issue lifecycle targets + auto-includes of `.openshell/Makefile`, `.tart/Makefile`, and `.colima/Makefile`.
   - `scripts/` — issue-sync, pre-merge-checks, close-issue.py, lib.sh
 - **Construct system**: `construct/scripts/` — skill tooling; `construct/datatype/` — datatype prototypes, **per-layer-owned (NOT symlinked)**: each layer owns its own dir and the `datatype` binary reads the DAG-merged union across the layer graph (#115 retired the `symlink construct/datatype` manifest row). (`construct/local/` + `construct/adapted/` are ariadne's OWN skill dirs, read by derivatives through the weave layer walk — NOT installed by symlink since #104 M3.)
