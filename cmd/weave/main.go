@@ -43,7 +43,6 @@ import (
 	"github.com/xianxu/ariadne/cmd/weave/internal/skill"
 	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
-	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
 func main() {
@@ -76,6 +75,7 @@ func buildRoot() *cobra.Command {
 	cmd.AddCommand(buildSkills())
 	cmd.AddCommand(buildSkill())
 	cmd.AddCommand(buildLink())
+	cmd.AddCommand(buildDependencies())
 	return cmd
 }
 
@@ -215,7 +215,7 @@ func buildLink() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("resolve cwd: %w", err)
 			}
-			return runLink(weavefs.OSFS{}, root, args[0], cmd.OutOrStdout())
+			return linkRepository(cmd.Context(), root, args[0], cmd.OutOrStdout())
 		},
 	}
 }
@@ -229,48 +229,7 @@ func buildLink() *cobra.Command {
 // are construct/deps and construct/base.manifest — nothing else. Injecting fs +
 // out keeps it testable.
 func runLink(fs weavefs.FS, root, path string, out io.Writer) error {
-	depsPath := filepath.Join(root, "construct", "deps")
-
-	rowPresent := false
-	var existing string
-	if data, rerr := fs.ReadFile(depsPath); rerr == nil {
-		existing = string(data)
-		rows, perr := layergraph.ParseDeps(existing)
-		if perr != nil {
-			return fmt.Errorf("link: parse %s: %w", depsPath, perr)
-		}
-		for _, r := range rows {
-			if r == path {
-				rowPresent = true
-				break
-			}
-		}
-	}
-
-	if rowPresent {
-		fmt.Fprintf(out, "weave: substrate %s already present in construct/deps\n", path)
-	} else {
-		if err := fs.MkdirAll(filepath.Dir(depsPath)); err != nil {
-			return fmt.Errorf("link: mkdir %s: %w", filepath.Dir(depsPath), err)
-		}
-		next := existing
-		if next != "" && !strings.HasSuffix(next, "\n") {
-			next += "\n"
-		}
-		next += "substrate " + path + "\n"
-		if err := fs.WriteFile(depsPath, []byte(next)); err != nil {
-			return fmt.Errorf("link: write %s: %w", depsPath, err)
-		}
-		fmt.Fprintf(out, "weave: declared substrate %s in construct/deps\n", path)
-	}
-
-	// Seed a minimal construct/base.manifest so this repo is itself a valid,
-	// traversable layer for its OWN downstream consumers (#155). A fresh
-	// `mkdir foo && weave link ../bar && weave compile` otherwise leaves foo
-	// manifest-less: invisible as a layer, and — post-#155 — a hard error in a
-	// consumer's walk. Runs on every link (even when the deps row was already
-	// present, to repair a pre-#155 repo), and never clobbers an existing manifest.
-	return ensureBaseManifest(fs, root, path, out)
+	return recordLink(fs, root, path, "", out)
 }
 
 // ensureBaseManifest seeds root/construct/base.manifest when absent so the repo is

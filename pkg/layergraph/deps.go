@@ -1,42 +1,60 @@
 package layergraph
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
-// ParseDeps extracts the substrate dependency edges from the text content of a
-// construct/deps file, in file order — the sole source of layer-dependency
-// edges (the map Resolve consumes). Pure: it takes the file's content, never
-// the file (reading it is an IO-seam concern, ARCH-PURE).
-//
-// The grammar is ported verbatim from
-// construct/scripts/lib-deps.sh:deps_substrate_targets (ARCH-DRY — weave must
-// parse construct/deps identically to the shell that parses it today):
-//
-//   - Each line is truncated at the first '#' (so whole-line and trailing
-//     comments drop), then whitespace-split into positional columns.
-//   - A row needs ≥2 columns (kind + target); blank, comment-only, or
-//     otherwise short rows are skipped silently — matching the shell's
-//     `[[ $# -ge 2 ]] || continue`, which never errors on a malformed row.
-//   - Only `substrate` rows contribute an edge; `data` (and any other kind)
-//     rows are ignored.
-//
-// The returned slice is the per-layer relpath edge list; resolving each
-// relpath to an on-disk sibling is the transitive-walk concern (Walk).
-// ParseDeps returns no error today — lib-deps.sh rejects nothing — but keeps
-// the error in its signature so a future strict mode is a non-breaking change.
-func ParseDeps(content string) ([]string, error) {
-	var edges []string
-	for _, line := range strings.Split(content, "\n") {
-		if i := strings.IndexByte(line, '#'); i >= 0 {
-			line = line[:i] // strip trailing/whole-line comment (lib-deps: ${line%%#*})
+// Dependency preserves the source and mount information from a construct/deps
+// row. Substrate paths remain the only edges in the layer graph.
+type Dependency struct {
+	Kind   string
+	Path   string
+	Source string
+	Mount  string
+}
+
+// ParseRows parses the existing whitespace/comment grammar, retaining recognized
+// substrate and data rows. Malformed declarations fail with their line number.
+func ParseRows(content string) ([]Dependency, error) {
+	var rows []Dependency
+	for lineNumber, line := range strings.Split(content, "\n") {
+		line, _, _ = strings.Cut(line, "#")
+		f := strings.Fields(line)
+		if len(f) == 0 {
+			continue
 		}
-		fields := strings.Fields(line) // whitespace word-split (lib-deps: set -- $line)
-		if len(fields) < 2 {
-			continue // blank / comment-only / malformed (lib-deps: $# -ge 2)
+		if (f[0] == "substrate" && (len(f) < 2 || len(f) > 3)) || (f[0] == "data" && len(f) != 3) || (f[0] != "substrate" && f[0] != "data") {
+			return nil, fmt.Errorf("construct/deps line %d: expected substrate <path> [source] or data <source> <mount>", lineNumber+1)
 		}
-		if fields[0] != "substrate" {
-			continue // ignore data + any other kind
+		switch f[0] {
+		case "substrate":
+			row := Dependency{Kind: f[0], Path: f[1]}
+			if len(f) > 2 {
+				row.Source = f[2]
+			}
+			rows = append(rows, row)
+		case "data":
+			if len(f) >= 3 {
+				rows = append(rows, Dependency{Kind: f[0], Source: f[1], Mount: f[2]})
+			}
 		}
-		edges = append(edges, fields[1])
 	}
-	return edges, nil
+	return rows, nil
+}
+
+// ParseDeps projects substrate paths from the shared parser for existing graph
+// consumers. Source metadata and data mounts do not introduce topology edges.
+func ParseDeps(content string) ([]string, error) {
+	rows, err := ParseRows(content)
+	if err != nil {
+		return nil, err
+	}
+	var paths []string
+	for _, row := range rows {
+		if row.Kind == "substrate" {
+			paths = append(paths, row.Path)
+		}
+	}
+	return paths, nil
 }

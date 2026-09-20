@@ -1,18 +1,14 @@
 package weavefs
 
 import (
+	"context"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 )
 
-// runner.go is weave's process-exec seam — DELIBERATELY SEPARATE from FS, which
-// stays filesystem-only by documented stance (fs.go). The dynamic-skill generate
-// stage (#111) execs a package's tracked `.dynamic-skill` to regenerate its
-// committed SKILL.md at compile time; that one bounded "run a package's marker"
-// capability is the only exec weave does (#95 M5 retired the open-ended go.mod
-// editor — cmd/weave otherwise carries zero os/exec). Injecting it as an
-// interface lets the generate stage be unit-tested with a fake (no real binary).
+// Runner is the existing process seam shared by startup and generators.
 type Runner interface {
 	// Run executes argv with the working directory set to dir, streaming the
 	// child's stdout/stderr to the parent's. A non-zero exit (or a spawn failure)
@@ -21,24 +17,39 @@ type Runner interface {
 	Run(dir string, argv []string) error
 }
 
-// ExecRunner is the production Runner: it wraps os/exec, sets cmd.Dir = dir (the
-// generate stage passes the COMPILING repo's root, so a `.dynamic-skill` resolves
-// its repo-relative paths — `--output construct/generated/<dir>`, `construct/deps`
-// — from there, #115 M3), and inherits the parent's stdout/stderr (so the marker's
-// diagnostics stream through). Its zero value is ready to use.
-type ExecRunner struct{}
+// ExecRunner runs a child with optional context, environment and streams.
+// Its zero value inherits the parent environment and output.
+type ExecRunner struct {
+	Context context.Context
+	Env     []string
+	Stdin   io.Reader
+	Stdout  io.Writer
+	Stderr  io.Writer
+}
 
 // Run spawns argv[0] with argv[1:] as arguments, cwd = dir. An empty argv is a
 // programmer error (the caller always supplies the marker path). A non-zero exit
 // is wrapped so the failing dir is visible in the compile error.
-func (ExecRunner) Run(dir string, argv []string) error {
+func (r ExecRunner) Run(dir string, argv []string) error {
 	if len(argv) == 0 {
 		return fmt.Errorf("run in %s: empty argv", dir)
 	}
-	cmd := exec.Command(argv[0], argv[1:]...)
+	ctx := r.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	cmd := exec.CommandContext(ctx, argv[0], argv[1:]...)
+	cmd.Env = r.Env
+	cmd.Stdin = r.Stdin
 	cmd.Dir = dir
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	if r.Stdout != nil {
+		cmd.Stdout = r.Stdout
+	}
+	if r.Stderr != nil {
+		cmd.Stderr = r.Stderr
+	}
 	if err := cmd.Run(); err != nil {
 		return fmt.Errorf("run %v in %s: %w", argv, dir, err)
 	}

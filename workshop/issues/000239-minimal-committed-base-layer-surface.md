@@ -233,6 +233,18 @@ empty fallback Make rule without masking failure. Promoted current gate sections
 and preserved old text in Revisions. Linux CI package choice requested separately;
 no code changed before change-code. ARCH-ORDER/ARCH-DRY guide the serial sequence.
 
+### 2026-09-20 — M1 implementation verified
+
+Implemented typed dependency/source rows, staged transitive acquisition, local
+and address link with origin recording/legacy repair, and independent Homebrew
+bundle dependencies. Data acquisition returns each mount for M2 composition;
+dependencies never mounts/builds/generates. Process seam carries context and
+explicit streams/environment. Tests use local Git origins and a stateful fake
+brew, not machine installs. Go weave/layergraph suites pass. Plan-quality passed
+round 5; estimate-quality INFO passed. Branch selection was deferred because the
+binary cannot combine --issue with the user-requested branch override; retained
+000239-standalone-weave-restart and synced the gate record manually.
+
 ## Revisions`.
 
 Two corrections landed while widening:

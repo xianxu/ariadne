@@ -9,13 +9,33 @@ the `merge-settings.sh`/`sync-local-skills.sh` hooks retired. Issue
 [plan](../../workshop/plans/000095-weave-plan.md). The composition invariant lives
 in the [base-layer-mechanics](../../workshop/targets/base-layer-mechanics.md) target.
 
+## Standalone startup (#239, in progress)
+
+`weave link <local-path|repo-address>` records `substrate <path> [source]` in
+`construct/deps`. Repository addresses clone into peer checkouts; local checkouts
+record their origin when present. Existing matching peers are reused without
+pull/reset. A missing local-only edge requires an explicit source.
+
+`weave dependencies [--dry-run]` restores transitive sources and installs each
+layer's root Brewfile through `brew bundle install --no-upgrade --file=Brewfile`
+on macOS. Layers without a Brewfile need no package operation. Package/build
+semantics belong to Homebrew/Make, not a weave-specific recipe language. The
+compile/bootstrap integration follows in the next implementation boundary.
+
+`pkg/layergraph.ParseRows` retains substrate source and data mount declarations;
+`ParseDeps` projects the same rows to layer edges. Acquisition in
+`cmd/weave/internal/acquire` uses Git and temporary clone directories, then the
+existing graph resolver orders layers. It returns data mount descriptions for
+composition, without mounting during dependency preparation. Missing sources in
+a dry-run report an incomplete preview and never cause a clone or installation.
+
 ## Shape (ARCH-PURE)
 A pure pipeline — `read deps+manifests → Resolve → Plan → []Action → Apply` —
 wrapped by a thin injected IO seam: filesystem (`weavefs.FS`) **plus a narrow,
 injected `.dynamic-skill` exec seam** (`weavefs.Runner`, #111 — see *Dynamic
 skills* below). weave does not edit `go.mod` (the #95 M5 `go.mod` editor was
-retired) and does not clone (that stays in the `bootstrap.sh` shell stub), so
-weave's IO is filesystem + the one bounded exec; it is NOT git. Pure entities are
+retired) and its composition core remains independent of source acquisition. Startup
+adds Git and Homebrew execution through the acquisition and process seams. Pure entities are
 unit-tested mock-free; the exec seam is fake-tested (no real binary spawned).
 
 ## Key decisions
