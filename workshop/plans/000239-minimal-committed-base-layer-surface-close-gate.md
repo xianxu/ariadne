@@ -132,6 +132,37 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: false
+    - "n": 5
+      timestamp: "2026-09-20T14:28:53-07:00"
+      agent: codex
+      findings:
+        - id: BR-7
+          severity: Critical
+          title: Generators overwrite authored replacements before ownership checks
+          detail: cmd/weave/main.go:522 executes generators directly against final output paths before ApplyManaged at line 540. A scratch compile, authored edit to generated SKILL.md, and second compile returned success while erasing the edit. SnapshotGenerated only observes; GeneratedActions then accepts changed bytes as generated. Enforce ownership before publication for every generator output, including files and links. Add a compile-level regression that actually runs the generator over an edited destination. ARCH-SECURE, ARCH-PURPOSE.
+          family: generated-output-write-ownership
+          round: 5
+        - id: BR-8
+          severity: Critical
+          title: Failed generation leaves outputs outside durable ownership recovery
+          detail: cmd/weave/main.go:522-535 returns on generator or subsequent planning failure before recording generated identities. In a scratch fixture, a generator wrote SKILL.md then exited 1; successful retry treated its unchanged bytes as unowned at ownership.go:393, and removing the generator left the file behind. This is the 2nd finding in family durable-staging-reclamation. State and enforce one recovery rule for every pre-publication writer, including generators, rather than patching one exit path. Preserve durable provenance across failure/process death and test retry followed by retirement. ARCH-ORDER, ARCH-FUNERAL.
+          family: durable-staging-reclamation
+          round: 5
+        - id: BR-9
+          severity: Critical
+          title: The updated PURE setup entity has no corresponding pure implementation
+          detail: workshop/plans/000239-minimal-committed-base-layer-surface-plan.md:113 points its PURE setup-input entity to startup/dependencies.go. That file exposes Dependencies, which performs fs.Stat at line 18 and runner.Run at line 32; it contains no corresponding pure setup-input model. Correct the table to classify discovery/execution as INTEGRATION and append the required revision. Keep genuinely pure PATH composition separately identified. Critical under the supplied core-concepts cross-check rule. ARCH-PURE.
+          family: core-concept-purity-classification
+          round: 5
+        - id: BR-10
+          severity: Important
+          title: Tools execution requires the concrete process runner
+          detail: cmd/weave/internal/startup/tools.go:15 accepts weavefs.ExecRunner and mutates its Stdin, unlike Dependencies' injectable Runner interface. Tests therefore require real Make and cannot substitute the required stateful external double. This is the 2nd finding in family external-interaction-test-seam. Apply the shared rule that production and fake execution consume the same invocation boundary, including stdin; retain real-Make conformance tests alongside the fake. ARCH-MOCK.
+          family: external-interaction-test-seam
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -190,6 +221,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-4 — addressed — Client.Git injects outcomes into production acquisition. Tests exercise publication conflicts and clone failure stopping later acquisition.
 - BR-5 — addressed — Staging recovery removes confirmed dead-owner stages while preserving live, foreign and unrecognized stages. Warm restoration and dry-run preservation regressions pass.
 
+## Round 5 — 2026-09-20T14:28:53-07:00 (codex) — BLOCKED
+
+### Raised
+
+- **BR-7** [Critical] `generated-output-write-ownership` Generators overwrite authored replacements before ownership checks
+  cmd/weave/main.go:522 executes generators directly against final output paths before ApplyManaged at line 540. A scratch compile, authored edit to generated SKILL.md, and second compile returned success while erasing the edit. SnapshotGenerated only observes; GeneratedActions then accepts changed bytes as generated. Enforce ownership before publication for every generator output, including files and links. Add a compile-level regression that actually runs the generator over an edited destination. ARCH-SECURE, ARCH-PURPOSE.
+- **BR-8** [Critical] `durable-staging-reclamation` Failed generation leaves outputs outside durable ownership recovery
+  cmd/weave/main.go:522-535 returns on generator or subsequent planning failure before recording generated identities. In a scratch fixture, a generator wrote SKILL.md then exited 1; successful retry treated its unchanged bytes as unowned at ownership.go:393, and removing the generator left the file behind. This is the 2nd finding in family durable-staging-reclamation. State and enforce one recovery rule for every pre-publication writer, including generators, rather than patching one exit path. Preserve durable provenance across failure/process death and test retry followed by retirement. ARCH-ORDER, ARCH-FUNERAL.
+- **BR-9** [Critical] `core-concept-purity-classification` The updated PURE setup entity has no corresponding pure implementation
+  workshop/plans/000239-minimal-committed-base-layer-surface-plan.md:113 points its PURE setup-input entity to startup/dependencies.go. That file exposes Dependencies, which performs fs.Stat at line 18 and runner.Run at line 32; it contains no corresponding pure setup-input model. Correct the table to classify discovery/execution as INTEGRATION and append the required revision. Keep genuinely pure PATH composition separately identified. Critical under the supplied core-concepts cross-check rule. ARCH-PURE.
+- **BR-10** [Important] `external-interaction-test-seam` Tools execution requires the concrete process runner
+  cmd/weave/internal/startup/tools.go:15 accepts weavefs.ExecRunner and mutates its Stdin, unlike Dependencies' injectable Runner interface. Tests therefore require real Make and cannot substitute the required stateful external double. This is the 2nd finding in family external-interaction-test-seam. Apply the shared rule that production and fake execution consume the same invocation boundary, including stdin; retain real-Make conformance tests alongside the fake. ARCH-MOCK.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-7** [Critical] `generated-output-write-ownership` Generators overwrite authored replacements before ownership checks
+- **BR-8** [Critical] `durable-staging-reclamation` Failed generation leaves outputs outside durable ownership recovery
+- **BR-9** [Critical] `core-concept-purity-classification` The updated PURE setup entity has no corresponding pure implementation
+- **BR-10** [Important] `external-interaction-test-seam` Tools execution requires the concrete process runner

@@ -199,32 +199,56 @@ real temporary-repository conformance tests.
   (it's generated now). All 11 repos clean, ancestors byte-pristine,
   `make harness-check` green. **[#107 M2 produce + M3 prune + M4 propagate; tool #106]**
 
-- **Dynamic skills — the `.dynamic-skill` exec seam (#111, reshaped by #115)** — a
-  skill package may regenerate its own `SKILL.md` at compile time. The convention: a
-  tracked, **executable `.dynamic-skill`** script in the package dir (language-neutral
-  — weave never parses it). A **generate stage** runs in `weave compile`
-  **after `walk.Walk`** (so the parsed `skill <dir>` intents exist to reuse, DRY)
-  and **before `GatherSkills`/`planActions`** (so discovery reads the regenerated
-  body). The output is **materialized per-repo at `construct/generated/<dir>/SKILL.md`,
-  GITIGNORED in every repo (ariadne included)** — regenerated on every compile, never
-  committed (#115 retired the old `construct/local/datatype/SKILL.md` committed
-  codegen). Only the tracked `.dynamic-skill` marker stays in the package dir;
-  `cmd/datatype/SKILL.md.tmpl` is the authored prose source.
+## Dynamic-skill output contract
+
+A skill package's tracked executable `.dynamic-skill` declares the exact comment:
+
+```sh
+# weave-output: argv1
+```
+
+Weave checks every selected marker for this declaration before executing any of
+them. A legacy marker without it fails with migration guidance. The declaration
+is a contract for trusted layer code, not a sandbox for arbitrary shell programs.
+
+Each marker receives an **absolute isolated output directory as its first
+argument** and runs with **cwd = the compiling leaf** for graph reads. It must
+write a regular, nonempty `SKILL.md` inside that directory; additional regular
+files are collected. It must not write directly into published generated paths.
+The tracked marker can retain a fallback for explicit direct invocation:
+
+```sh
+#!/bin/sh
+# weave-output: argv1
+datatype --output "${1:-construct/generated/datatype}"
+```
+
+Vocabulary uses `vocabulary export --output "${1:-construct/generated/vocabulary}"`.
+During compile, weave always supplies
+the staging argument. Marker authors update their scripts; there is no new CLI
+command or extra user setup step.
+
+After successful generation and validation, staged files become actions published
+through the same identity-checking `ApplyManaged` path as other artifacts, under
+`construct/generated/<dir>/`. Generator or validation failure does not publish
+those outputs. Staging uses the same owned PID/host lifecycle as clone staging;
+cleanup removes completed stages and retry reclaims dead owned stages. Published
+outputs remain intact until ownership-checked publication.
+
+The generator body remains source-owned; final output is leaf-owned and
+Git-ignored. `cmd/datatype/SKILL.md.tmpl` is datatype's authored prose source.
+
   - **Marker-aware discovery.** The skill ENTRY is emitted from the TRACKED marker,
     not the generated body — so a dynamic skill is discovered even in a fresh,
     never-compiled clone (only the `description:` body is absent until first compile).
     This fixes #111's "skill vanishes in a fresh clone" failure mode.
-  - **All-layers visible-set exec, leaf-rooted output.** The stage runs the
-    visible-set markers across ALL layers (not leaf-only). For each marker — even one
-    owned by an ANCESTOR — weave execs it with **cwd = the COMPILING repo's root** and
-    a repo-relative `--output construct/generated/<dir>`, so materialization always
-    lands in THE COMPILING repo's tree. The byte-pristine guarantee now rests on
-    **leaf-rooted generator OUTPUT**: ancestors receive owner tools and their
-    declared data mounts during preparation, but no generated skill bodies. `construct/adapted` is excluded
-    (foreign-origin). The exec goes through the injected `weavefs.Runner` (production
-    `ExecRunner` wraps `os/exec`, non-zero exit FAILS the compile loudly) —
-    deliberately SEPARATE from `weavefs.FS`. The **read-only paths (`--dry-run`,
-    `golden`, `verify-complete`) skip the stage** (they must not mutate).
+  - **All-layers visible-set exec, staged output.** Selection spans visible
+    markers across all layers, with leaf cwd and isolated output as described
+    above. Ancestors receive owner tools and declared data mounts during
+    preparation, but no generated skill bodies. `construct/adapted` is excluded
+    (foreign-origin). Execution uses injected `weavefs.Runner`; nonzero exit
+    fails compilation. Read-only paths (`--dry-run`, `golden`, `verify-complete`)
+    skip generation.
   - **Lowering via BodyPath.** A dynamic skill's lowered `.claude/skills/xx-<name>`
     symlink points at **THIS repo's** `construct/generated/<dir>` (the skill entry's
     `BodyPath`); a static skill's link points at the owner layer's dir. So a

@@ -1600,3 +1600,8 @@ A generator's principal file does not describe its entire output set. Exercise
 real generators in a clean checkout and inspect Git status, not just the primary
 skill file. Capture new/changed outputs and prior-owned matches; do not claim
 arbitrary preexisting siblings merely because they occupy a generated directory.
+
+Generation must publish through the same ownership boundary as other writes.
+Observing files afterward cannot protect an authored edit or prove provenance
+after process death. Stage outputs under durable ownership before running a
+writer, and test the real generator over edited destinations and killed runs.

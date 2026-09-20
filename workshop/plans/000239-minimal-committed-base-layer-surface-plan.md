@@ -110,8 +110,7 @@ The dependency graph and generated-output ownership entities remain unchanged.
 
 | Pure entity | Lives in | Status |
 |---|---|---|
-| Ordered layer setup inputs: owner directory, conventional Brewfile, optional tools entry point | `cmd/weave/internal/startup/dependencies.go` | new |
-| Child PATH and reported owner bin directories | `cmd/weave/internal/startup/tools.go` | new |
+| Child PATH composition (`ToolEnvironment`) | `cmd/weave/internal/startup/tools.go` | new |
 
 Each resolved layer supplies at most one bundle and one tools invocation.
 Colocated unit tests cover ordering, shared ancestors, optional inputs and PATH
@@ -120,7 +119,7 @@ or scheduler is introduced.
 
 | Integration | Lives in | Status | Wraps |
 |---|---|---|---|
-| Bundle and tools execution | `cmd/weave/internal/weavefs/runner.go` | modified | Existing cwd/argv/env subprocess seam, brew and make |
+| Conventional bundle discovery and tools execution | `cmd/weave/internal/weavefs/runner.go` | modified | Existing cwd/argv/env subprocess seam, brew and make |
 | Sequential setup | `cmd/weave/main.go` | new | Existing graph, bundle install, owner build, composition |
 | Homebrew gateway launcher | `bootstrap.sh` | modified | Installed weave or Homebrew install, then compile |
 
@@ -340,6 +339,34 @@ The actual Linux Homebrew install and repeat passed in an isolated native arm64
 container. Source compile, derivative link/compile and bootstrap passed; final
 checks caught vocabulary's omitted JSON/stamp and triggered this correction.
 No host packages, existing peers or public releases were changed.
+
+
+### 2026-09-20 — M2 review: publish generator output through ownership checks
+
+Reason: real-marker regressions reproduce erased authored edits and unowned
+residue after failed generation. Before/after observation alone cannot authorize
+writes or survive process death. Delta: markers explicitly declare
+`# weave-output: argv1` and receive a temporary output directory as their first
+argument; cwd remains the leaf for graph reads. Reject unsupported markers before
+executing any. Ariadne's markers adopt this output contract, retaining a default
+for direct invocation. Markers remain trusted layer code, not sandboxed programs.
+
+Move the existing destination/host/PID owned-stage utility into a shared internal
+package and reuse it for clones and generators. Record ownership before running
+writers, publish only through managed Apply, and reclaim only dead same-host
+owned stages. Cleanup runs on normal failure/success; retry also cleans interrupted
+stages even if no generators remain. No global lock, phase cursor or additional
+public command. Require nonempty regular staged SKILL.md; map every staged output
+to its final destination, reject conflicting authored output, and never publish
+links to temporary paths. Existing inventory prepares identities before final
+writes, so planning/Apply failures and process death share durable recovery rules.
+
+Compile-level tests run real markers over edited files/links, cold authored
+outputs, failed generation, abrupt process death, retry and retirement. Preserve
+unrelated siblings. The stdin-aware process interface is shared by production
+Make and its stateful fake; real Make conformance remains. Correct the PURE table:
+only PATH composition is pure; conventional bundle discovery/build execution is
+an integration (ARCH-PURE, ARCH-MOCK, ARCH-ORDER, ARCH-FUNERAL).
 
 ## Historical revisions
 

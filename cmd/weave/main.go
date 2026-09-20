@@ -30,6 +30,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -461,7 +462,7 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 }
 
 // runCompile restores the graph, prepares each owner, then composes the leaf.
-func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer) error {
+func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer) (retErr error) {
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
 		root = resolved
 	}
@@ -509,18 +510,28 @@ func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Tar
 			return fmt.Errorf("data mounts for %s: %w", owner, err)
 		}
 	}
-	dirs := make([]string, 0, len(dyns))
-	for _, ds := range dyns {
-		dirs = append(dirs, ds.OutputRel)
-	}
-	var before plan.GeneratedSnapshot
+	var generated []plan.Action
 	if !dryRun {
-		before, err = plan.SnapshotGenerated(fs, root, dirs)
-		if err != nil {
-			return err
-		}
-		if err := generateDynamicSkills(dyns, root, runner); err != nil {
-			return err
+		if len(dyns) == 0 {
+			if err := plan.ReclaimGenerationStages(fs, root); err != nil {
+				return err
+			}
+		} else {
+			stage, err := plan.NewGenerationStage(fs, root)
+			if err != nil {
+				return err
+			}
+			defer func() { retErr = errors.Join(retErr, plan.RemoveGenerationStage(stage)) }()
+			if err := generateDynamicSkills(fs, dyns, root, stage, runner); err != nil {
+				return err
+			}
+			for _, ds := range dyns {
+				outputs, err := plan.StagedActions(fs, root, filepath.Join(stage, ds.Dir), ds.OutputRel)
+				if err != nil {
+					return fmt.Errorf("dynamic skill %s: %w", ds.Name, err)
+				}
+				generated = append(generated, outputs...)
+			}
 		}
 	}
 	actions, err := planActions(fs, layers, target)
@@ -531,10 +542,6 @@ func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Tar
 		fmt.Fprint(out, formatActions(actions))
 		fmt.Fprintln(out, "weave: generation and retirement are not previewed; dry-run changes nothing")
 		return nil
-	}
-	generated, err := plan.GeneratedActions(fs, root, dirs, before)
-	if err != nil {
-		return err
 	}
 	actions = append(actions, generated...)
 	retired, err := plan.ApplyManaged(fs, root, actions, plan.ScopeArtifacts)
@@ -561,22 +568,29 @@ func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Tar
 	return nil
 }
 
-// generateDynamicSkills is the #111/#115 generate stage: for each dynamic skill in
-// the precomputed `dyns` (walk.DynamicSkills — all-layers, visible-set,
-// adapted-excluded; selected ONCE in run() and reused by the prune, DRY), it execs
-// the (possibly ancestor-owned) marker with cwd = R's ROOT (leafRoot) through the
-// injected Runner. The marker's repo-relative `--output construct/generated/<dir>` +
-// the binary's own mkdir then land the materialized SKILL.md under R's tree — an
-// ancestor's tree is NEVER mutated by a derivative's compile (the byte-pristine
-// guarantee now rests on leaf-rooted OUTPUT, not leaf-only selection). It runs
-// before planActions/GatherSkills reads the per-repo SKILL.md. A non-zero exit
-// aborts the compile. The Runner is injected so the stage is unit-testable with a
-// fake (no real binary).
-func generateDynamicSkills(dyns []walk.DynamicSkill, leafRoot string, runner weavefs.Runner) error {
+// generateDynamicSkills keeps the leaf cwd for graph reads, but supplies an
+// isolated output directory. Markers opt in before execution; this is a trusted
+// layer-code contract, not a sandbox for arbitrary shell programs.
+func generateDynamicSkills(fs weavefs.FS, dyns []walk.DynamicSkill, leafRoot, stage string, runner weavefs.Runner) error {
 	for _, ds := range dyns {
-		// cwd = R's root: the marker's repo-relative --output + the binary's own
-		// mkdir materialize under leafRoot, regardless of which layer owns the marker.
-		if err := runner.Run(leafRoot, []string{"sh", ds.MarkerPath}); err != nil {
+		body, err := fs.ReadFile(ds.MarkerPath)
+		if err != nil {
+			return err
+		}
+		supported := false
+		for _, line := range strings.Split(string(body), "\n") {
+			if strings.TrimSpace(line) == "# weave-output: argv1" {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			return fmt.Errorf("dynamic skill %s: marker must declare '# weave-output: argv1' and write to its supplied output directory", ds.Name)
+		}
+	}
+	for _, ds := range dyns {
+		output := filepath.Join(stage, ds.Dir)
+		if err := runner.Run(leafRoot, []string{"sh", ds.MarkerPath, output}); err != nil {
 			return fmt.Errorf("dynamic skill %s: %w", ds.Name, err)
 		}
 	}

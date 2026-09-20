@@ -186,6 +186,14 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 	if e != nil {
 		return nil, e
 	}
+	strict := map[string]bool{}
+	for _, action := range actions {
+		if staged, ok := action.(stagedOutput); ok {
+			for path := range ProducedPathSet([]Action{staged.Action}) {
+				strict[path] = true
+			}
+		}
+	}
 	actions, e = materializeManaged(fs, root, actions)
 	if e != nil {
 		return nil, e
@@ -244,7 +252,7 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 		if e != nil {
 			return nil, e
 		}
-		if !own && !same && (scope == ScopeData || len(oldAt[id.Path]) > 0) {
+		if !own && !same && (scope == ScopeData || strict[id.Path] || len(oldAt[id.Path]) > 0) {
 			return nil, fmt.Errorf("preserving authored replacement at %s", p)
 		}
 	}
@@ -331,6 +339,8 @@ func materializeManaged(fs weavefs.FS, root string, actions []Action) ([]Action,
 	out := make([]Action, 0, len(actions))
 	for _, a := range actions {
 		switch a := a.(type) {
+		case stagedOutput:
+			out = append(out, a.Action)
 		case EnsureGitignore:
 			continue // managed inventory supplies the complete block
 		case MergeSettings:
@@ -342,123 +352,6 @@ func materializeManaged(fs weavefs.FS, root string, actions []Action) ([]Action,
 		default:
 			out = append(out, a)
 		}
-	}
-	return out, nil
-}
-
-// GeneratedSnapshot observes selected materialization trees before generators
-// run. Values remain private: callers pass the observation back without editing it.
-type GeneratedSnapshot struct{ files map[string]outputIdentity }
-
-func SnapshotGenerated(fs weavefs.FS, root string, dirs []string) (GeneratedSnapshot, error) {
-	actions, err := generatedFiles(fs, root, dirs)
-	if err != nil {
-		return GeneratedSnapshot{}, err
-	}
-	ids, err := actionIdentities(root, actions, ScopeArtifacts)
-	if err != nil {
-		return GeneratedSnapshot{}, err
-	}
-	snapshot := GeneratedSnapshot{files: map[string]outputIdentity{}}
-	for _, id := range ids {
-		snapshot.files[id.Path] = id
-	}
-	return snapshot, nil
-}
-
-// GeneratedActions captures new/changed generator outputs and unchanged outputs
-// whose identity is already recorded. Unchanged unowned files stay authored,
-// even if a generator happened to rewrite them with identical bytes.
-func GeneratedActions(fs weavefs.FS, root string, dirs []string, before GeneratedSnapshot) ([]Action, error) {
-	actions, err := generatedFiles(fs, root, dirs)
-	if err != nil {
-		return nil, err
-	}
-	ids, err := actionIdentities(root, actions, ScopeArtifacts)
-	if err != nil {
-		return nil, err
-	}
-	old, err := readInventory(fs, root)
-	if err != nil {
-		return nil, err
-	}
-	owned := map[outputIdentity]bool{}
-	for _, id := range old {
-		if id.Scope == ScopeArtifacts {
-			owned[id] = true
-		}
-	}
-	var out []Action
-	for i, id := range ids {
-		if before.files[id.Path] != id || owned[id] {
-			out = append(out, actions[i])
-		}
-	}
-	return out, nil
-}
-
-// generatedFiles observes regular files and links without following links into
-// other trees. The generator's selected directories bound this read-only scan.
-func generatedFiles(fs weavefs.FS, root string, dirs []string) ([]Action, error) {
-	files := map[string]Action{}
-	var visit func(string) error
-	visit = func(dir string) error {
-		if err := safeParents(fs, root, filepath.Join(dir, ".weave-observe")); err != nil {
-			return err
-		}
-		entries, err := fs.ReadDir(filepath.Join(root, dir))
-		if os.IsNotExist(err) {
-			return nil
-		}
-		if err != nil {
-			return err
-		}
-		for _, entry := range entries {
-			path := filepath.Join(dir, entry.Name())
-			info, err := fs.Lstat(filepath.Join(root, path))
-			if err != nil {
-				return err
-			}
-			switch {
-			case info.Mode()&os.ModeSymlink != 0:
-				target, err := fs.Readlink(filepath.Join(root, path))
-				if err != nil {
-					return err
-				}
-				if !filepath.IsAbs(target) {
-					target = filepath.Join(root, dir, target)
-				}
-				files[path] = Symlink{Src: target, Dst: path}
-			case info.IsDir():
-				if err := visit(path); err != nil {
-					return err
-				}
-			case info.Mode().IsRegular():
-				b, err := fs.ReadFile(filepath.Join(root, path))
-				if err != nil {
-					return err
-				}
-				files[path] = WriteFile{Path: path, Content: string(b)}
-			}
-		}
-		return nil
-	}
-	for _, dir := range dirs {
-		if !safeRelative(dir) || !strings.HasPrefix(dir, walk.GeneratedRel+string(filepath.Separator)) || reservedOutput(dir) {
-			return nil, fmt.Errorf("invalid generated skill directory %q", dir)
-		}
-		if err := visit(dir); err != nil {
-			return nil, err
-		}
-	}
-	paths := make([]string, 0, len(files))
-	for path := range files {
-		paths = append(paths, path)
-	}
-	sort.Strings(paths)
-	out := make([]Action, 0, len(paths))
-	for _, path := range paths {
-		out = append(out, files[path])
 	}
 	return out, nil
 }

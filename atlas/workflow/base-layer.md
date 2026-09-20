@@ -41,6 +41,13 @@ Defined in `construct/base.manifest` (in ariadne):
 - **Colima VMs** (`.colima/`) — `make colima` family for clean **Linux** VM testing, the tart counterpart (ariadne#93/#94); shares the colorized-step/dimmed-log helper `construct/scripts/vm-log.sh` with `.tart`. See [colima-vm.md](colima-vm.md).
 - **Directory scaffolds**: `workshop/`, `atlas/` — standard repo layout
 
+Dynamic skills generate into isolated staging directories before ownership-checked
+publication in the leaf. Their executable markers declare
+`# weave-output: argv1`, accept the absolute output directory as their first
+argument, and produce a regular nonempty `SKILL.md` there. See the
+[generator contract](weave.md#dynamic-skill-output-contract) for marker migration
+and stage recovery; ordinary bootstrap and compile commands are unchanged.
+
 ## Repo-Specific Extensions
 
 These local files own everything

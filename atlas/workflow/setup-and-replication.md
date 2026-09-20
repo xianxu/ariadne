@@ -43,7 +43,9 @@ with failure when a missing source prevents reading its declarations.
 1. Restore sources and provision layer Brewfiles.
 2. Run each participating owner's `make tools`, foundation-first.
 3. Reconcile data mounts in each declaring owner.
-4. Run the selected generators in the leaf and apply its composed artifacts.
+4. Run selected generators with leaf cwd and isolated output directories, then
+   publish their validated outputs with the composed artifacts through ownership
+   checks.
 
 A failure stops subsequent phases. Ancestor preparation does not recursively
 compile ancestor contexts. Owner `tools` targets must build from tracked sources
@@ -111,8 +113,23 @@ derivative-specific name lists.
 ## Generated artifacts and local extensions
 
 Binaries build in their source owner's `bin/`; they are not distributed as
-manifest-owned Go source. Dynamic skills materialize under the leaf's
-`construct/generated/`. The static sdlc skill points to `sdlc --help`, avoiding
+manifest-owned Go source. Dynamic skills publish under the leaf's
+`construct/generated/` only after staged output passes validation and ownership
+checks. An executable `.dynamic-skill` must declare the exact comment
+`# weave-output: argv1`, accept an absolute isolated output directory as its first
+argument, and write a regular, nonempty `SKILL.md` there. Additional regular
+files are collected too. Cwd remains the leaf so generators can read its graph.
+Legacy markers lacking this declaration fail before execution; this is a trusted
+layer-code contract, not a shell sandbox.
+
+The tracked datatype and vocabulary markers preserve direct invocation with
+`"${1:-construct/generated/datatype}"` and
+`"${1:-construct/generated/vocabulary}"`. During compile, weave supplies the
+staging path. Generation stages use the same PID/host ownership lifecycle as
+clone stages: failures do not publish generator output, and retry reclaims dead
+stages. Marker authors migrate the script; users keep the same compile command.
+
+The static sdlc skill points to `sdlc --help`, avoiding
 a duplicate generated copy of the workflow contract.
 
 Shared text is edited in its source layer; per-repository rules and settings

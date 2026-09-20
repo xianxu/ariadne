@@ -290,6 +290,21 @@ ignored on cold/warm runs; an authored sibling stays visible and untouched.
 Bootstrap/Make/CI/data shell fixtures pass, and maps reflect the current flow.
 M2 remains open for the mandatory boundary review.
 
+### 2026-09-20 — M2 review corrections
+
+Boundary round 5 returned REWORK (BR-7–10). Reproduced edited generator outputs
+being overwritten and failed generation publishing unowned residue. Generators
+now opt into an isolated argv1 output directory before execution, with shared
+clone/generator owned-stage recovery and strict managed publication. Unsupported
+markers fail before execution. The snapshot-only approach was removed.
+
+Compile regressions cover edited files/links, cold authored output, generation
+failure/retry/retirement, old markers, and an actually killed compiler process.
+Native Linux source/leaf compile and bootstrap pass with staged markers; editing
+vocabulary SKILL.md causes refusal and preserves the original SHA-256. Tools now
+use an injectable stdin-aware boundary with a stateful fake and real Make tests;
+the plan classifies discovery/execution as integration, PATH composition as pure.
+
 ## Revisions`.
 
 Two corrections landed while widening:

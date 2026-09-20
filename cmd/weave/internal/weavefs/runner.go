@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // Runner is the existing process seam shared by startup and generators.
@@ -58,3 +59,13 @@ func (r ExecRunner) Run(dir string, argv []string) error {
 
 // ensure ExecRunner satisfies Runner at compile time.
 var _ Runner = ExecRunner{}
+
+// InputRunner is the process boundary for commands that consume stdin.
+type InputRunner interface {
+	RunInput(dir string, argv []string, input string) error
+}
+
+func (r ExecRunner) RunInput(dir string, argv []string, input string) error {
+	r.Stdin = strings.NewReader(input)
+	return r.Run(dir, argv)
+}

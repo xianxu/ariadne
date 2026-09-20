@@ -63,6 +63,13 @@ shell configuration. Managed ignore entries and an output identity inventory
 allow later compiles to retire unchanged owned outputs while preserving edited
 or unrecognized files.
 
+Dynamic-skill generators declare `# weave-output: argv1` and receive an isolated
+absolute output directory as their first argument. Their working directory stays
+the leaf for graph reads. Weave validates the staged output and publishes it
+through ownership checks; generator failure leaves published outputs intact.
+Marker authors must migrate legacy scripts before they can run; see the
+[generator contract](atlas/workflow/weave.md#dynamic-skill-output-contract).
+
 ## Standalone consumers and maintainer setup
 
 A consumer authors its root `Makefile`, including its product targets and an

@@ -65,7 +65,7 @@ type PruneCandidate struct {
 func ProducedPathSet(actions []Action) map[string]bool {
 	set := map[string]bool{}
 	for _, a := range actions {
-		switch act := a.(type) {
+		switch act := outputAction(a).(type) {
 		case Symlink:
 			set[filepath.Clean(act.Dst)] = true
 		case WriteFile:

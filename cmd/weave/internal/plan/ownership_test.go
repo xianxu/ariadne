@@ -219,8 +219,9 @@ func TestManagedMergeIdentityAndDynamicFiles(t *testing.T) {
 	if e := os.WriteFile(source, []byte(`{"a":1}`), 0644); e != nil {
 		t.Fatal(e)
 	}
-	managedWrite(t, root, "construct/generated/demo/SKILL.md", "generated skill")
-	actions, e := GeneratedActions(weavefs.OSFS{}, root, []string{"construct/generated/demo"}, GeneratedSnapshot{})
+	stage := t.TempDir()
+	managedWrite(t, stage, "SKILL.md", "generated skill")
+	actions, e := StagedActions(weavefs.OSFS{}, root, stage, "construct/generated/demo")
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -305,24 +306,7 @@ func TestManagedInventoryRejectsInvalidEntries(t *testing.T) {
 		}
 	}
 }
-func TestGeneratedActionsIgnoresAuthoredSiblings(t *testing.T) {
-	root := t.TempDir()
-	managedWrite(t, root, "construct/generated/demo/authored", "mine")
-	before, err := SnapshotGenerated(weavefs.OSFS{}, root, []string{"construct/generated/demo"})
-	if err != nil {
-		t.Fatal(err)
-	}
-	managedWrite(t, root, "construct/generated/demo/SKILL.md", "generated")
-	acts, e := GeneratedActions(weavefs.OSFS{}, root, []string{"construct/generated/demo"}, before)
-	if e != nil {
-		t.Fatal(e)
-	}
-	managedApply(t, root, acts, ScopeArtifacts)
-	managedApply(t, root, nil, ScopeArtifacts)
-	if managedRead(t, root, "construct/generated/demo/authored") != "mine" {
-		t.Fatal("captured authored sibling")
-	}
-}
+
 func TestManagedGeneratedRetirementRemovesOnlyEmptyDirs(t *testing.T) {
 	root := t.TempDir()
 	managedApply(t, root, []Action{WriteFile{Path: "construct/generated/gone/SKILL.md", Content: "generated"}}, ScopeArtifacts)
@@ -372,119 +356,4 @@ func TestManagedRejectsCrossScopeClaimOfAbsentOutput(t *testing.T) {
 		t.Fatal("data claimed artifact scope output")
 	}
 	managedAbsent(t, root, "out")
-}
-
-func TestGeneratedActionsOwnsVocabularySideOutputs(t *testing.T) {
-	root := t.TempDir()
-	dir := "construct/generated/vocabulary"
-	for _, name := range []string{"SKILL.md", "issue.json", ".source-sha"} {
-		managedWrite(t, root, filepath.Join(dir, name), "generated "+name)
-	}
-	actions, err := GeneratedActions(weavefs.OSFS{}, root, []string{dir}, GeneratedSnapshot{})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(actions) != 3 {
-		t.Fatalf("owned %d outputs, want SKILL.md, issue.json and .source-sha", len(actions))
-	}
-	managedApply(t, root, actions, ScopeArtifacts)
-	for _, name := range []string{"SKILL.md", "issue.json", ".source-sha"} {
-		if !strings.Contains(managedRead(t, root, ".gitignore"), "/"+filepath.Join(dir, name)+"\n") {
-			t.Fatalf("unignored output %s", name)
-		}
-	}
-	managedApply(t, root, nil, ScopeArtifacts)
-	managedAbsent(t, root, dir)
-}
-
-func TestGeneratedSnapshotWarmAndAuthoredOwnership(t *testing.T) {
-	root := t.TempDir()
-	dir := "construct/generated/vocabulary"
-	dirs := []string{dir}
-	managedWrite(t, root, filepath.Join(dir, "authored.txt"), "mine")
-	managedWrite(t, root, filepath.Join(dir, "changed.json"), "old")
-	before, err := SnapshotGenerated(weavefs.OSFS{}, root, dirs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	managedWrite(t, root, filepath.Join(dir, "changed.json"), "new")
-	managedWrite(t, root, filepath.Join(dir, ".source-sha"), "stamp")
-	managedWrite(t, root, filepath.Join(dir, "nested/issue.json"), "generated")
-	actions, err := GeneratedActions(weavefs.OSFS{}, root, dirs, before)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(actions) != 3 {
-		t.Fatalf("got %d actions, want new/changed outputs only", len(actions))
-	}
-	managedApply(t, root, actions, ScopeArtifacts)
-	before, err = SnapshotGenerated(weavefs.OSFS{}, root, dirs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	actions, err = GeneratedActions(weavefs.OSFS{}, root, dirs, before)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(actions) != 3 {
-		t.Fatalf("warm run lost unchanged owned outputs: %d", len(actions))
-	}
-	managedApply(t, root, actions, ScopeArtifacts)
-	managedApply(t, root, nil, ScopeArtifacts)
-	for _, path := range []string{"changed.json", ".source-sha", "nested"} {
-		managedAbsent(t, root, filepath.Join(dir, path))
-	}
-	if managedRead(t, root, filepath.Join(dir, "authored.txt")) != "mine" {
-		t.Fatal("authored sibling lost")
-	}
-}
-func TestGeneratedSnapshotDoesNotReclaimEditedOwnedFile(t *testing.T) {
-	root := t.TempDir()
-	dir := "construct/generated/demo"
-	dirs := []string{dir}
-	path := filepath.Join(dir, "output.json")
-	managedApply(t, root, []Action{WriteFile{Path: path, Content: "generated"}}, ScopeArtifacts)
-	managedWrite(t, root, path, "authored edit")
-	before, err := SnapshotGenerated(weavefs.OSFS{}, root, dirs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	actions, err := GeneratedActions(weavefs.OSFS{}, root, dirs, before)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(actions) != 0 {
-		t.Fatal("reclaimed unchanged edited output")
-	}
-	managedApply(t, root, actions, ScopeArtifacts)
-	if managedRead(t, root, path) != "authored edit" {
-		t.Fatal("edited output lost")
-	}
-}
-func TestGeneratedSnapshotNewLinksAndReadErrors(t *testing.T) {
-	root := t.TempDir()
-	dir := "construct/generated/demo"
-	dirs := []string{dir}
-	source := t.TempDir()
-	before, err := SnapshotGenerated(weavefs.OSFS{}, root, dirs)
-	if err != nil {
-		t.Fatal(err)
-	}
-	managedWrite(t, root, filepath.Join(dir, "SKILL.md"), "generated")
-	if err := os.Symlink(source, filepath.Join(root, dir, "link")); err != nil {
-		t.Fatal(err)
-	}
-	actions, err := GeneratedActions(weavefs.OSFS{}, root, dirs, before)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(actions) != 2 {
-		t.Fatalf("got %d generated outputs", len(actions))
-	}
-	managedApply(t, root, actions, ScopeArtifacts)
-	if _, err := SnapshotGenerated(managedFailFS{path: filepath.Join(root, dir, "SKILL.md"), reads: true}, root, dirs); err == nil {
-		t.Fatal("ignored snapshot read failure")
-	}
-	managedApply(t, root, nil, ScopeArtifacts)
-	managedAbsent(t, root, dir)
 }

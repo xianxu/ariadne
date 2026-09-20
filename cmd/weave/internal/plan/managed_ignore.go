@@ -101,7 +101,7 @@ func GeneratedGitignoreEntries(actions []Action) []string {
 	set := map[string]bool{escapeIgnore(filepath.Dir(InventoryPath)) + "/": true}
 	for _, a := range actions {
 		var path string
-		switch a := a.(type) {
+		switch a := outputAction(a).(type) {
 		case Symlink:
 			path = a.Dst
 		case WriteFile:

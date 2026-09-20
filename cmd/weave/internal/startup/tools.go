@@ -12,7 +12,7 @@ import (
 
 // Tools builds each owner's optional tools target in foundation-first order.
 // An empty supplemental target handles omission without hiding Makefile errors.
-func Tools(fs weavefs.FS, layers []string, runner weavefs.ExecRunner, dryRun bool, out io.Writer) error {
+func Tools(fs weavefs.FS, layers []string, runner weavefs.InputRunner, dryRun bool, out io.Writer) error {
 	for _, dir := range layers {
 		info, err := fs.Stat(filepath.Join(dir, "Makefile"))
 		if os.IsNotExist(err) {
@@ -28,8 +28,7 @@ func Tools(fs weavefs.FS, layers []string, runner weavefs.ExecRunner, dryRun boo
 		if dryRun {
 			continue
 		}
-		runner.Stdin = strings.NewReader("tools:\n")
-		if err := runner.Run(dir, []string{"make", "--no-print-directory", "-f", "Makefile", "-f", "-", "tools"}); err != nil {
+		if err := runner.RunInput(dir, []string{"make", "--no-print-directory", "-f", "Makefile", "-f", "-", "tools"}, "tools:\n"); err != nil {
 			return fmt.Errorf("build tools for %s: %w", dir, err)
 		}
 	}
