@@ -146,7 +146,7 @@ Both prior findings are addressed. Release preparation shares the existing stagi
    - Pinned-range `git diff --check`.
 
    Scratch mutation checks confirmed:
-   
+
    - Removing release reclamation fails `TestKilledOwnerPreservesProducerLeaseAndReclaimsBeforeExistingOutputCheck`.
    - Removing migration remediation guidance fails all 11 cases in `TestMigrationGitFailureRetainsEffectsAndCanRetry`.
 

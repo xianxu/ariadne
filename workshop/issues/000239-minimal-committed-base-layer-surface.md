@@ -149,7 +149,7 @@ cycle that changes the agreed sequence. No new features without operator approva
   CI compiles before checks and uses the candidate CLI in ariadne's own job.
 - [x] Generated files/links are ignored and safely retired; authored Makefile,
   local settings/ignore rules, and unrelated deliberately tracked files survive.
-- [ ] Standalone archives/formula and scratch consumer migrations are tested;
+- [x] Standalone archives/formula and scratch consumer migrations are tested;
   #241 owns public release/tap and real fleet rollout. Required suites and SDLC
   reviews pass with atlas updated.
 
@@ -378,7 +378,8 @@ unchanged executable/PATH Git boundary with a faulting real-index-backed test
 double for all status/ls-files/rm/add/commit phases before and after effects.
 Those tests pass natively on macOS/Linux; the initially failing missing-guidance
 assertions now pass with explicit retained-index inspection/retry instructions.
-M3 awaits re-review; no publication or actual peer migration occurred.
+M3 re-review returned SHIP with BR-13 and BR-14 addressed and no new findings.
+No publication or actual peer migration occurred. Whole-issue acceptance follows.
 
 ## Revisions`.
 
