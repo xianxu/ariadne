@@ -35,8 +35,7 @@
 # upstream like a symlink would; it just can't BE one.)
 
 # ── Fresh-clone bootstrap entrypoint ──────────────────────────────────────────
-# Real committed file, NOT a symlink — runs before any substrate exists to
-# clone the upstream peer(s), then hands off to `make bootstrap`. See #42.
+# Real committed gateway: ensure distributed weave, then delegate compile.
 seed      bootstrap.sh
 
 # ── Constitution ──────────────────────────────────────────────────────────────
@@ -106,12 +105,9 @@ skill     construct/adapted
 internal  skill construct/skill
 
 # ── Makefile system ───────────────────────────────────────────────────────────
-# Root Makefile is a thin generic template (workflow + local + help).
-# Per-repo concerns (Makefile.nous chain, UPSTREAM_NAME overrides, etc.)
-# belong in the consumer's Makefile.local, NOT in this upstream-owned root.
-# Seeded so standalone product targets work before the maintainer peer exists;
-# safe materialization replaces old links without changing their targets.
-seed      Makefile
+# Root Makefile is consumer-owned after first adoption. Seed it only when
+# absent, and add the workflow include to an existing regular Makefile.
+seed-once construct/Makefile.seed Makefile
 symlink   Makefile.workflow
 symlink   scripts/lib.sh
 symlink   scripts/parallel-checks.sh
@@ -142,7 +138,6 @@ symlink   scripts/merge-checks.d/40-duplicate-issue-id.sh
 # intent + .claude/skills lowering) and merge-settings.sh (now the `merge` intent
 # / settingsx) are no longer symlinked — their logic lives in weave.
 symlink   construct/scripts/apply-gitignore-entries.sh
-symlink   construct/scripts/bootstrap-peers.sh
 # Data-dependency mounter (#49) — clone content peers as siblings + symlink
 # them in. Language-agnostic; reads each repo's own construct/data-deps.
 symlink   construct/scripts/clone-data-deps.sh
@@ -154,17 +149,9 @@ symlink   construct/scripts/list-peers.sh
 # output; one source of the ANSI codes, used by both .tart/Makefile and
 # .colima/colima.sh.
 symlink   construct/scripts/vm-log.sh
-# Shared construct/deps parser (#60) — sourced by list-peers, bootstrap-peers,
-# clone-data-deps, and setup.sh. bootstrap.sh keeps an inline copy (can't source
-# a symlink on a bare clone), locked by bootstrap-transitive.test.sh.
+# Shared construct/deps parser for retained VM/data peer helpers.
 symlink   construct/scripts/lib-deps.sh
-# Canonical setup.sh — RETIRED by the weave cutover (#95). weave (cmd/weave) is
-# now the compiler that materializes the layer composition; the bootstrap/refresh
-# flow builds + invokes it (Makefile.workflow:refresh → weave-build). No longer
-# symlinked.
-# Dev-binary alias generator (#57) + the owner-resolver `sdlc-build` uses to
-# build-in-owner (#60). Symlinked so derivatives can resolve sdlc's owner by
-# location (`--list`) without a construct/go.mod replace.
+# Developer aliases resolve owner binaries after weave has prepared them.
 symlink   construct/dev-aliases.sh
 # construct/{local,adapted} + config.json are NO LONGER inherited by whole-dir
 # symlink (#104 M3). weave reads ariadne's skill dirs through the LAYER walk (the

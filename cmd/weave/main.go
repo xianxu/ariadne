@@ -29,25 +29,32 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/acquire"
 	"github.com/xianxu/ariadne/cmd/weave/internal/golden"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
 	"github.com/xianxu/ariadne/cmd/weave/internal/skill"
+	"github.com/xianxu/ariadne/cmd/weave/internal/startup"
 	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
-	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
 func main() {
-	if err := buildRoot().Execute(); err != nil {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := buildRoot().ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		os.Exit(1)
 	}
@@ -59,8 +66,9 @@ func main() {
 // `weave compile` subcommand, which carries --dry-run and --target.
 func buildRoot() *cobra.Command {
 	cmd := &cobra.Command{
-		Use:   "weave",
-		Short: "Compile a repo's agentic context from its layer DAG",
+		Use:     "weave",
+		Version: version,
+		Short:   "Compile a repo's agentic context from its layer DAG",
 		Long: "weave compiles a repo's agentic context from its layer DAG.\n\n" +
 			"The bare `weave` command prints this help and mutates nothing; run\n" +
 			"`weave compile` to actually compile. By default (the Union) it lowers\n" +
@@ -76,6 +84,7 @@ func buildRoot() *cobra.Command {
 	cmd.AddCommand(buildSkills())
 	cmd.AddCommand(buildSkill())
 	cmd.AddCommand(buildLink())
+	cmd.AddCommand(buildDependencies())
 	return cmd
 }
 
@@ -91,11 +100,11 @@ func buildCompile() *cobra.Command {
 	var targetFlag string
 	cmd := &cobra.Command{
 		Use:   "compile",
-		Short: "Compile the cwd repo's agentic context for a backend target",
-		Long: "Compiles the current working directory's repo: walk the layer DAG,\n" +
-			"plan the file-ops, and apply them. Default = the Union (every harness\n" +
-			"face); `--target {claude|codex|gemini}` lowers only that harness's face\n" +
-			"(entry file + skill dir), pruning the others. `--dry-run` prints the plan.",
+		Short: "Install dependencies, build layer tools, and compile artifacts",
+		Long: "Restores base sources, installs layer Brewfiles, runs owner make tools,\n" +
+			"then generates and reconciles artifacts. Default = every harness face.\n" +
+			"`--target {claude|codex|gemini}` selects a face. `--dry-run` previews\n" +
+			"known operations without cloning, installing, building or generating.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -107,7 +116,7 @@ func buildCompile() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("resolve cwd: %w", err)
 			}
-			return run(weavefs.OSFS{}, root, target, dryRun, cmd.OutOrStdout())
+			return runCompile(cmd.Context(), weavefs.OSFS{}, root, target, dryRun, cmd.OutOrStdout())
 		},
 	}
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "print the planned actions; mutate nothing")
@@ -205,8 +214,8 @@ func runVerifyComplete(fs weavefs.FS, cwd string, args []string, target plan.Tar
 // not a hardcoded ../ariadne.
 func buildLink() *cobra.Command {
 	return &cobra.Command{
-		Use:           "link <path>",
-		Short:         "Record `substrate <path>` in construct/deps + seed base.manifest (a traversable layer)",
+		Use:           "link <local-path|repo-address>",
+		Short:         "Link a base repository, cloning a remote source as a peer when absent",
 		Args:          cobra.ExactArgs(1),
 		SilenceUsage:  true,
 		SilenceErrors: true,
@@ -215,7 +224,7 @@ func buildLink() *cobra.Command {
 			if err != nil {
 				return fmt.Errorf("resolve cwd: %w", err)
 			}
-			return runLink(weavefs.OSFS{}, root, args[0], cmd.OutOrStdout())
+			return linkRepository(cmd.Context(), root, args[0], cmd.OutOrStdout())
 		},
 	}
 }
@@ -229,48 +238,7 @@ func buildLink() *cobra.Command {
 // are construct/deps and construct/base.manifest — nothing else. Injecting fs +
 // out keeps it testable.
 func runLink(fs weavefs.FS, root, path string, out io.Writer) error {
-	depsPath := filepath.Join(root, "construct", "deps")
-
-	rowPresent := false
-	var existing string
-	if data, rerr := fs.ReadFile(depsPath); rerr == nil {
-		existing = string(data)
-		rows, perr := layergraph.ParseDeps(existing)
-		if perr != nil {
-			return fmt.Errorf("link: parse %s: %w", depsPath, perr)
-		}
-		for _, r := range rows {
-			if r == path {
-				rowPresent = true
-				break
-			}
-		}
-	}
-
-	if rowPresent {
-		fmt.Fprintf(out, "weave: substrate %s already present in construct/deps\n", path)
-	} else {
-		if err := fs.MkdirAll(filepath.Dir(depsPath)); err != nil {
-			return fmt.Errorf("link: mkdir %s: %w", filepath.Dir(depsPath), err)
-		}
-		next := existing
-		if next != "" && !strings.HasSuffix(next, "\n") {
-			next += "\n"
-		}
-		next += "substrate " + path + "\n"
-		if err := fs.WriteFile(depsPath, []byte(next)); err != nil {
-			return fmt.Errorf("link: write %s: %w", depsPath, err)
-		}
-		fmt.Fprintf(out, "weave: declared substrate %s in construct/deps\n", path)
-	}
-
-	// Seed a minimal construct/base.manifest so this repo is itself a valid,
-	// traversable layer for its OWN downstream consumers (#155). A fresh
-	// `mkdir foo && weave link ../bar && weave compile` otherwise leaves foo
-	// manifest-less: invisible as a layer, and — post-#155 — a hard error in a
-	// consumer's walk. Runs on every link (even when the deps row was already
-	// present, to repair a pre-#155 repo), and never clobbers an existing manifest.
-	return ensureBaseManifest(fs, root, path, out)
+	return recordLink(fs, root, path, "", out)
 }
 
 // ensureBaseManifest seeds root/construct/base.manifest when absent so the repo is
@@ -489,155 +457,156 @@ func dirPresent(path string) bool {
 	return err == nil && fi.IsDir()
 }
 
-// run is the compile pipeline: walk → Plan → (Apply | print). Injecting fs +
-// out keeps it testable against a t.TempDir-rooted OSFS and a buffer.
-//
-// root is canonicalized to its physical form up front (filepath.EvalSymlinks ≈
-// pwd -P) so it lives in the SAME namespace as the layer Paths the walk
-// canonicalizes — without this, on macOS (/tmp → /private/tmp) Apply would
-// compute a relative symlink target between a logical dst-dir and a physical
-// upstream src that resolves wrong when the OS follows the link (the exact bug
-// setup.sh's pwd -P guards against, lines 39-45).
+// run retains the test-friendly entry point; commands supply their cancellation context.
 func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer) error {
+	return runCompile(context.Background(), fs, root, target, dryRun, out)
+}
+
+// runCompile restores the graph, prepares each owner, then composes the leaf.
+func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer) (retErr error) {
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
 		root = resolved
 	}
-	layers, err := walk.Walk(fs, root)
-	if err != nil {
-		return fmt.Errorf("walk %s: %w", root, err)
+	restored, err := acquire.Restore(ctx, root, dryRun)
+	for _, missing := range restored.Missing {
+		fmt.Fprintf(out, "weave: missing source %s (preview incomplete)\n", missing)
 	}
-	// Dynamic-skill generate stage (#111): after walk.Walk (so the parsed `skill
-	// <dir>` intents exist to reuse, DRY) and BEFORE planActions/GatherSkills (so a
-	// regenerated SKILL.md is what skill discovery reads). Skipped in the read-only
-	// paths — only the compile-and-apply path mutates the tree; --dry-run/golden/
-	// verify-complete operate on the committed output (the CI drift guard catches
-	// staleness). A non-zero marker exit aborts the compile (returns the error).
-	// Dynamic-skill selection (#115): ONE discovery, reused by the generate stage
-	// (materialize, below) AND the generated-class prune (GC, after Apply) — ARCH-DRY,
-	// no double walk. leafRoot (R's root) is the cwd every marker runs in.
-	var dyns []walk.DynamicSkill
-	var leafRoot string
-	if len(layers) > 0 {
-		leafRoot = layers[len(layers)-1].Path
-		if dyns, err = walk.DynamicSkills(fs, layers); err != nil {
-			return fmt.Errorf("select dynamic skills: %w", err)
+	if err != nil {
+		return err
+	}
+	runner := weavefs.ExecRunner{Context: ctx, Stdout: out, Stderr: out}
+	if err := startup.Dependencies(fs, restored.Layers, runner, dryRun, out); err != nil {
+		return err
+	}
+	runner.Env = startup.ToolEnvironment(os.Environ(), restored.Layers)
+	if err := startup.Tools(fs, restored.Layers, runner, dryRun, out); err != nil {
+		return err
+	}
+	layers, err := walk.Load(fs, restored.Layers)
+	if err != nil {
+		return fmt.Errorf("load layers: %w", err)
+	}
+	dyns, err := walk.DynamicSkills(fs, layers)
+	if err != nil {
+		return fmt.Errorf("select dynamic skills: %w", err)
+	}
+	// Data belongs to each declaring owner, independently of its composed artifacts.
+	for _, owner := range restored.Layers {
+		var mounts []plan.Action
+		for _, mount := range restored.Mounts {
+			if mount.Owner != owner {
+				continue
+			}
+			dst, err := filepath.Rel(owner, mount.Target)
+			if err != nil {
+				return err
+			}
+			mounts = append(mounts, plan.Symlink{Src: mount.Source, Dst: dst})
+		}
+		if dryRun {
+			fmt.Fprint(out, formatActions(mounts))
+			continue
+		}
+		if _, err := plan.ApplyManaged(fs, owner, mounts, plan.ScopeData); err != nil {
+			return fmt.Errorf("data mounts for %s: %w", owner, err)
 		}
 	}
+	var generated []plan.Action
 	if !dryRun {
-		if err := generateDynamicSkills(dyns, leafRoot, weavefs.ExecRunner{}); err != nil {
-			return err
+		if len(dyns) == 0 {
+			if err := plan.ReclaimGenerationStages(fs, root); err != nil {
+				return err
+			}
+		} else {
+			stage, err := plan.NewGenerationStage(fs, root)
+			if err != nil {
+				return err
+			}
+			defer func() { retErr = errors.Join(retErr, plan.RemoveGenerationStage(stage)) }()
+			if err := generateDynamicSkills(fs, dyns, root, stage, runner); err != nil {
+				return err
+			}
+			for _, ds := range dyns {
+				outputs, err := plan.StagedActions(fs, root, filepath.Join(stage, ds.Dir), ds.OutputRel)
+				if err != nil {
+					return fmt.Errorf("dynamic skill %s: %w", ds.Name, err)
+				}
+				generated = append(generated, outputs...)
+			}
 		}
 	}
 	actions, err := planActions(fs, layers, target)
 	if err != nil {
 		return err
 	}
-	// The lowering source roots for the orphan-symlink prune (#96): the resolved
-	// layer roots weave lowers FROM (a weave-owned link's target resolves under
-	// one of these). Derived from the walk, never hardcoded.
-	sourceRoots := plan.SourceRootsFromPaths(layerPaths(layers))
-	// Cross-target prune scan (#107): scan the UNION's managed locations so a lean
-	// `--target X` compile prunes the OTHER faces' stale artifacts (e.g. a codex
-	// compile prunes the claude face's .claude/skills). The Union compile already
-	// covers every face, so scanActions == actions there (it prunes nothing extra).
-	scanActions := actions
-	if target != plan.TargetAll {
-		if scanActions, err = planActions(fs, layers, plan.TargetAll); err != nil {
-			return err
-		}
-	}
 	if dryRun {
 		fmt.Fprint(out, formatActions(actions))
-		// Dry-run previews the orphan-SYMLINK prune (read-only scan + the SAME pure
-		// decision the apply uses). NOTE: the generated-class GC (PruneGenerated,
-		// after Apply) is NOT previewed here — its targets are gitignored
-		// construct/generated/<dir> trees, so a missed preview never churns git status.
-		preview, perr := plan.PrunePreview(fs, root, scanActions, actions, sourceRoots)
-		if perr != nil {
-			return fmt.Errorf("prune preview: %w", perr)
-		}
-		fmt.Fprint(out, formatPrunes(preview))
+		fmt.Fprintln(out, "weave: generation and retirement are not previewed; dry-run changes nothing")
 		return nil
 	}
-	if err := plan.Apply(fs, root, actions); err != nil {
-		return fmt.Errorf("apply: %w", err)
-	}
-	// After Apply, prune ORPHANED lowered symlinks weave no longer produces (#96):
-	// renamed/re-prefixed skills + the #95 cutover's dead symlinks + (Option B #107)
-	// the OTHER harness faces a lean `--target X` compile no longer produces (scanned
-	// via the union scanActions). Safety lives in plan.shouldPrune — only a weave-owned
-	// symlink absent from this run's produced set, in a managed location, is removed;
-	// real files/dirs and non-weave links are never touched.
-	pruned, err := plan.PruneOrphans(fs, root, scanActions, actions, sourceRoots)
-	if err != nil {
-		return fmt.Errorf("prune: %w", err)
-	}
-	// Generated-class GC (#115 M3): reclaim construct/generated/<dir> trees this
-	// compile no longer produces (the owner dropped the marker, or a dynamic skill
-	// became invisible). Scoped to construct/generated by construction — never
-	// touches a non-generated path. Reuses the SAME `dyns` selection the generate
-	// stage materialized this run (computed once above — ARCH-DRY, one discovery).
-	prunedGen, err := plan.PruneGenerated(fs, root, plan.ProducedGeneratedDirs(dynamicDirs(dyns)))
-	if err != nil {
-		return fmt.Errorf("prune generated: %w", err)
-	}
-	fmt.Fprintf(out, "weave: applied %d action(s) to %s\n", len(actions), root)
-	if len(pruned) > 0 {
-		fmt.Fprintf(out, "weave: pruned %d orphaned lowered symlink(s)\n", len(pruned))
-		for _, p := range pruned {
-			fmt.Fprintf(out, "  pruned %s\n", p)
+	actions = append(actions, generated...)
+	for _, action := range actions {
+		if seed, ok := action.(plan.SeedOnce); ok {
+			instruction, err := plan.SeedOnceInstruction(fs, root, seed)
+			if err != nil {
+				return fmt.Errorf("inspect seed-once %s: %w", seed.Dst, err)
+			}
+			if instruction != "" {
+				fmt.Fprintln(out, instruction)
+			}
 		}
 	}
-	if len(prunedGen) > 0 {
-		fmt.Fprintf(out, "weave: pruned %d orphaned generated dir(s)\n", len(prunedGen))
-		for _, p := range prunedGen {
-			fmt.Fprintf(out, "  pruned %s\n", p)
+	retired, err := plan.ApplyManaged(fs, root, actions, plan.ScopeArtifacts)
+	if err != nil {
+		return fmt.Errorf("apply: %w", err)
+	}
+	fmt.Fprintf(out, "weave: applied %d action(s) to %s\n", len(actions), root)
+	for _, path := range retired {
+		fmt.Fprintf(out, "  retired %s\n", path)
+	}
+	var bins []string
+	for _, owner := range restored.Layers {
+		bin := filepath.Join(owner, "bin")
+		if info, err := fs.Stat(bin); err == nil && info.IsDir() {
+			bins = append(bins, bin)
+		}
+	}
+	if len(bins) > 0 {
+		fmt.Fprintln(out, "weave: add these layer tool directories to your shell PATH:")
+		for _, bin := range bins {
+			fmt.Fprintf(out, "  %s\n", bin)
 		}
 	}
 	return nil
 }
 
-// dynamicDirs extracts the bare package dirs of a produced DynamicSkills set — the
-// produced set the generated-class GC keeps (PruneGenerated). Pure.
-func dynamicDirs(dyns []walk.DynamicSkill) []string {
-	out := make([]string, 0, len(dyns))
+// generateDynamicSkills keeps the leaf cwd for graph reads, but supplies an
+// isolated output directory. Markers opt in before execution; this is a trusted
+// layer-code contract, not a sandbox for arbitrary shell programs.
+func generateDynamicSkills(fs weavefs.FS, dyns []walk.DynamicSkill, leafRoot, stage string, runner weavefs.OwnedRunner) error {
 	for _, ds := range dyns {
-		out = append(out, ds.Dir)
+		body, err := fs.ReadFile(ds.MarkerPath)
+		if err != nil {
+			return err
+		}
+		supported := false
+		for _, line := range strings.Split(string(body), "\n") {
+			if strings.TrimSpace(line) == "# weave-output: argv1" {
+				supported = true
+				break
+			}
+		}
+		if !supported {
+			return fmt.Errorf("dynamic skill %s: marker must declare '# weave-output: argv1' and write to its supplied output directory", ds.Name)
+		}
 	}
-	return out
-}
-
-// generateDynamicSkills is the #111/#115 generate stage: for each dynamic skill in
-// the precomputed `dyns` (walk.DynamicSkills — all-layers, visible-set,
-// adapted-excluded; selected ONCE in run() and reused by the prune, DRY), it execs
-// the (possibly ancestor-owned) marker with cwd = R's ROOT (leafRoot) through the
-// injected Runner. The marker's repo-relative `--output construct/generated/<dir>` +
-// the binary's own mkdir then land the materialized SKILL.md under R's tree — an
-// ancestor's tree is NEVER mutated by a derivative's compile (the byte-pristine
-// guarantee now rests on leaf-rooted OUTPUT, not leaf-only selection). It runs
-// before planActions/GatherSkills reads the per-repo SKILL.md. A non-zero exit
-// aborts the compile. The Runner is injected so the stage is unit-testable with a
-// fake (no real binary).
-func generateDynamicSkills(dyns []walk.DynamicSkill, leafRoot string, runner weavefs.Runner) error {
 	for _, ds := range dyns {
-		// cwd = R's root: the marker's repo-relative --output + the binary's own
-		// mkdir materialize under leafRoot, regardless of which layer owns the marker.
-		if err := runner.Run(leafRoot, []string{"sh", ds.MarkerPath}); err != nil {
+		output := filepath.Join(stage, ds.Dir)
+		if err := runner.RunOwned(leafRoot, []string{"sh", ds.MarkerPath, output}, stage); err != nil {
 			return fmt.Errorf("dynamic skill %s: %w", ds.Name, err)
 		}
 	}
 	return nil
-}
-
-// layerPaths extracts the absolute on-disk root of each resolved layer — the
-// lowering source roots the prune's weave-owned check tests target containment
-// against. Pure.
-func layerPaths(layers []layer.Layer) []string {
-	out := make([]string, 0, len(layers))
-	for _, l := range layers {
-		out = append(out, l.Path)
-	}
-	return out
 }
 
 // planActions is the full compile lowering for a set of resolved layers, for a
@@ -675,15 +644,7 @@ func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]pla
 			actions = append(actions, l)
 		}
 	}
-	// weave OWNS ignoring its own generated-runtime artifacts (gitignore.go): the
-	// composed AGENTS.md, the .claude/skills symlinks, the merged
-	// .claude/settings.json, the .colima VM tree, vm-log.sh. Append exactly ONE
-	// EnsureGitignore per compile (target-independent — every backend produces
-	// generated artifacts) so a fresh `weave compile` on ANY derivative leaves a
-	// clean `git status` with no per-repo .gitignore hand-edit. The pure planner
-	// (plan.Plan) stays free of it — like skillSymlinks, it's appended in this
-	// compile lowering and applied through the IO seam (plan.applyEnsureGitignore).
-	actions = append(actions, plan.EnsureGitignore{Entries: plan.GeneratedRuntimeGitignoreEntries})
+	actions = append(actions, plan.EnsureGitignore{Entries: plan.GeneratedGitignoreEntries(actions)})
 	return actions, nil
 }
 

@@ -57,6 +57,17 @@ touch     workshop/lessons.md
 	}
 }
 
+func TestParseManifestSeedOnce(t *testing.T) {
+	got, err := ParseManifest("seed-once Makefile.seed Makefile\n")
+	if err != nil {
+		t.Fatalf("ParseManifest: unexpected error: %v", err)
+	}
+	want := []Intent{{Kind: SeedOnce, Source: "Makefile.seed", Target: "Makefile"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("ParseManifest = %v, want %v", got, want)
+	}
+}
+
 func TestParseManifestSkipsRetiredToolVerb(t *testing.T) {
 	// `tool` was retired in #95 M5 (Go-tool ownership is location-based via
 	// construct/dev-aliases.sh, not a go.mod edit). A stale `tool` row must fall

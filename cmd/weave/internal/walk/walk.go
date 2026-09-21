@@ -37,11 +37,12 @@ func Walk(fs weavefs.FS, root string) ([]layer.Layer, error) {
 		return nil, err
 	}
 
-	// layergraph.Walk canonicalized root; loadLayer's self-reference filter
-	// compares a layer's Source against root/Target, so use the same physical
-	// root the walk resolved its layer paths against (order[len-1] is root,
-	// canonicalized + emitted last).
-	canonRoot := root
+	return Load(fs, order)
+}
+
+// Load reads manifests from an already resolved, foundation-first graph.
+func Load(fs weavefs.FS, order []string) ([]layer.Layer, error) {
+	var canonRoot string
 	if len(order) > 0 {
 		canonRoot = order[len(order)-1]
 	}

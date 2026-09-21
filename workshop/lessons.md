@@ -1574,3 +1574,88 @@ ordering claim.
 suite, regenerate and inspect deliberately changed snapshots, and check the
 atlas's shaping decisions against the revised source. Delivery tests prove
 propagation, not snapshot consistency (ARCH-PURPOSE, ARCH-DRY).
+
+
+### 2026-09-20 — #239 source provenance and failed probes
+
+Resolve a relative repository origin against the checkout that owns it before
+passing it across APIs or recording it in another repo. A failed external probe
+is not evidence of absence: distinguish the documented absent result from
+configuration/spawn errors. Exercise failure injection through the same process
+boundary as real-Git conformance, and document a new CLI surface at its delivery
+boundary rather than waiting for the whole issue.
+
+For source provenance, enumerate both newly inspected origins and already
+recorded declarations. For recovery, exercise the public retry operation in both
+missing-destination and already-published states; a cleanup helper passing alone
+does not prove its caller reaches it.
+
+Source identity is an explicit equivalence rule, not a prettified URL. Preserve
+scheme, authority/port, path and query unless the host's semantics establish an
+alias; test required conflicts as well as accepted equivalent forms.
+
+### 2026-09-20 — #239 complete generator outputs
+
+A generator's principal file does not describe its entire output set. Exercise
+real generators in a clean checkout and inspect Git status, not just the primary
+skill file. Capture new/changed outputs and prior-owned matches; do not claim
+arbitrary preexisting siblings merely because they occupy a generated directory.
+
+Generation must publish through the same ownership boundary as other writes.
+Observing files afterward cannot protect an authored edit or prove provenance
+after process death. Stage outputs under durable ownership before running a
+writer, and test the real generator over edited destinations and killed runs.
+
+Atomicity must extend to final publication, not only the generator workspace.
+A prepared old/new hash inventory cannot recognize half a truncating write.
+Inject failures after bytes are written, and preserve file modes when replacing
+an in-place generator with staged publication.
+
+
+### 2026-09-20 — #239 stage ownership outlives the parent
+
+A dead parent PID does not prove a workspace has no writers. Cancellation can
+leave a shell child or grandchild running, and SIGKILL bypasses parent cleanup.
+Retain stage ownership metadata until producers stop; tie cleanup to inherited
+producer lifetime as well as parent identity. Trusted generator contracts must
+require foreground process groups, preserved inherited descriptors, and no
+daemonization. Test actual descendants that write after cancellation and parent
+SIGKILL, then exercise retry; a killed top-level process alone is insufficient
+evidence of safe reclamation.
+
+### 2026-09-20 — #239 release and migration failure boundaries
+
+A lifecycle rule applies to every producer of the artifact family, including
+maintainer release scripts. Reuse the owned-stage implementation for release
+builds instead of relying on language-level temporary-directory cleanup, which
+process termination can skip. Test the public launcher as well as its helper.
+
+For multi-command Git changes, inject errors both before an operation and after
+it has taken effect. A real-index-backed faulting executable can exercise the
+same process boundary without inventing a second Git model. Preserve observable
+partial progress and make dirty-retry/operator resolution explicit; an error
+must not be treated as evidence that no commit or index change happened.
+
+### 2026-09-20 — #239 optional Make commands
+
+An empty target declaration still permits Make implicit rules and file timestamp
+semantics. Declare command targets phony when omission must be a no-op; test
+implicit source candidates and a file bearing the target name, as well as
+authored recipes, prerequisites, and failures.
+
+Optional Make augmentation must also preserve authored rule flavor. A phony
+declaration alone provides omission semantics; adding a concrete single-colon
+rule rejects double-colon recipes. Test both forms when wrapping owner commands.
+
+### 2026-09-20 — #239 external CI action references
+
+A shell run-block fixture does not validate external action refs. Resolve the
+upstream action ref through its repository API before committing workflow changes;
+exercise the hosted workflow before calling the CI integration complete.
+
+### 2026-09-20 — #239 malformed URL diagnostics
+
+URL parser errors may embed the complete input, including credentials, before
+a credential check can run. Source-validation diagnostics must avoid both raw
+input and nested URL errors; test returned errors and CLI output on malformed
+ports, hosts and escapes, not just rejection of valid credential-bearing URLs.

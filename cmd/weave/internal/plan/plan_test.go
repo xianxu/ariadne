@@ -184,6 +184,21 @@ func TestPlanSeedLowering(t *testing.T) {
 	}
 }
 
+func TestPlanSeedOnceLowering(t *testing.T) {
+	layers := []layer.Layer{
+		{Name: "ariadne", Path: "/ws/ariadne", Intents: []intent.Intent{{Kind: intent.SeedOnce, Source: "Makefile.seed", Target: "Makefile"}}},
+		{Name: "leaf", Path: "/ws/leaf"},
+	}
+	got, err := Plan(layers, nil)
+	if err != nil {
+		t.Fatalf("Plan: unexpected error: %v", err)
+	}
+	want := []Action{SeedOnce{Src: "/ws/ariadne/Makefile.seed", Dst: "Makefile"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("Plan = %#v, want %#v", got, want)
+	}
+}
+
 func TestPlanDeferredKindsAreNoOps(t *testing.T) {
 	// Skill lowering is still deferred (the M3 skill index feeds the menu, not a
 	// file-op). It must not error or emit an Action here — just skip. (Merge now

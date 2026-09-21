@@ -1,6 +1,8 @@
 package weavefs
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -80,5 +82,23 @@ func TestExecRunner_SetsCwd(t *testing.T) {
 	}
 	if got != want {
 		t.Errorf("cwd = %q, want %q (cmd.Dir must be the package dir)", got, want)
+	}
+}
+
+func TestExecRunnerEnvironmentInputAndOutput(t *testing.T) {
+	var out bytes.Buffer
+	r := ExecRunner{Env: append(os.Environ(), "WEAVE_TEST=layer"), Stdin: strings.NewReader("tool\n"), Stdout: &out, Stderr: &out}
+	if err := r.Run(t.TempDir(), []string{"sh", "-c", `read name; printf '%s:%s' "$WEAVE_TEST" "$name"`}); err != nil {
+		t.Fatal(err)
+	}
+	if out.String() != "layer:tool" {
+		t.Fatal(out.String())
+	}
+}
+func TestExecRunnerCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	if err := (ExecRunner{Context: ctx}).Run(t.TempDir(), []string{"sh", "-c", "exit 0"}); err == nil {
+		t.Fatal("cancelled operation ran")
 	}
 }

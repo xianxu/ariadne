@@ -1,0 +1,121 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/xianxu/ariadne/cmd/weave/internal/acquire"
+	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
+	"github.com/xianxu/ariadne/pkg/layergraph"
+)
+
+func linkRepository(ctx context.Context, root, input string, out io.Writer) error {
+	path, source := input, ""
+	if strings.Contains(input, "://") || strings.HasPrefix(input, "github.com/") || strings.HasPrefix(input, "git@") {
+		src, err := acquire.NormalizeSource(input)
+		if err != nil {
+			return err
+		}
+		path = filepath.Join("..", src.Name)
+		source = src.URL
+	}
+	dir := path
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(root, dir)
+	}
+	if source == "" {
+		if info, err := os.Stat(dir); err != nil || !info.IsDir() {
+			return fmt.Errorf("link: local base %s is not a directory", dir)
+		}
+		if _, err := os.Lstat(filepath.Join(dir, ".git")); err == nil {
+			origin, err := acquire.Origin(ctx, dir)
+			if err != nil {
+				return fmt.Errorf("link: inspect origin of %s: %w", dir, err)
+			}
+			if origin != "" {
+				src, err := acquire.ResolveSource(origin, dir)
+				if err != nil {
+					return err
+				}
+				source = src.URL
+			}
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
+	if err := acquire.Ensure(ctx, dir, source, true); err != nil {
+		return err
+	}
+	return recordLink(weavefs.OSFS{}, root, path, source, out)
+}
+
+func recordLink(fs weavefs.FS, root, path, source string, out io.Writer) error {
+	// Whitespace-delimited deps cannot represent paths containing whitespace.
+	row := "substrate " + path
+	if source != "" {
+		row += " " + source
+	}
+	if len(strings.Fields(path)) != 1 || strings.ContainsAny(path, " #\t\r\n\v\f") {
+		return fmt.Errorf("link: dependency path cannot contain whitespace or #: %q", path)
+	}
+	if _, err := layergraph.ParseDeps(row); err != nil {
+		return err
+	}
+	deps := filepath.Join(root, "construct", "deps")
+	content, err := fs.ReadFile(deps)
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("read %s: %w", deps, err)
+	}
+	if _, err := layergraph.ParseRows(string(content)); err != nil {
+		return err
+	}
+	lines := strings.Split(string(content), "\n")
+	found := false
+	changed := false
+	for i, line := range lines {
+		body, comment, hasComment := strings.Cut(line, "#")
+		fields := strings.Fields(body)
+		if len(fields) < 2 || fields[0] != "substrate" || fields[1] != path {
+			continue
+		}
+		found = true
+		if len(fields) > 2 && source != "" {
+			previous, e1 := acquire.ResolveSource(fields[2], root)
+			next, e2 := acquire.ResolveSource(source, root)
+			if e1 != nil || e2 != nil || previous.Identity != next.Identity {
+				return fmt.Errorf("link: conflicting source already recorded for %s", path)
+			}
+		} else if len(fields) == 2 && source != "" {
+			lines[i] = row
+			if hasComment {
+				lines[i] += " #" + comment
+			}
+			changed = true
+		}
+	}
+	if !found {
+		next := string(content)
+		if next != "" && !strings.HasSuffix(next, "\n") {
+			next += "\n"
+		}
+		next += row + "\n"
+		lines = []string{next}
+		changed = true
+	}
+	if changed {
+		if err := fs.MkdirAll(filepath.Dir(deps)); err != nil {
+			return err
+		}
+		if err := fs.WriteFile(deps, []byte(strings.Join(lines, "\n"))); err != nil {
+			return err
+		}
+		fmt.Fprintf(out, "weave: declared substrate %s in construct/deps\n", path)
+	} else {
+		fmt.Fprintf(out, "weave: substrate %s already present in construct/deps\n", path)
+	}
+	return ensureBaseManifest(fs, root, path, out)
+}

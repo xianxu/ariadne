@@ -5,6 +5,8 @@
 // intent.Kind, ported from setup.sh's walk_manifest dispatch (ARCH-DRY).
 package plan
 
+import "os"
+
 // Action is one pending filesystem operation — a sum type over the concrete
 // op structs below. It is a closed interface (the isAction marker keeps the
 // set in this package), so a type switch in the IO seam handles every case.
@@ -33,6 +35,8 @@ type Symlink struct {
 type WriteFile struct {
 	Path    string
 	Content string
+	// Mode is explicit for generated files; nil preserves ordinary write semantics.
+	Mode *os.FileMode
 }
 
 // Mkdir creates an empty directory at Path. Lowered from intent.Scaffold
@@ -55,6 +59,13 @@ type Mkdir struct {
 // seam — keeping the planner pure.) A missing Src is non-fatal: the seam warns
 // and leaves the target intact, never erroring the walk.
 type Seed struct {
+	Src string
+	Dst string
+}
+
+// SeedOnce creates a repo-owned file only when absent. Existing regular files
+// are adopted by adding the shared workflow include without replacing them.
+type SeedOnce struct {
 	Src string
 	Dst string
 }
@@ -85,5 +96,6 @@ func (Symlink) isAction()       {}
 func (WriteFile) isAction()     {}
 func (Mkdir) isAction()         {}
 func (Seed) isAction()          {}
+func (SeedOnce) isAction()      {}
 func (Touch) isAction()         {}
 func (MergeSettings) isAction() {}

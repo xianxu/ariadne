@@ -6,7 +6,9 @@
 // the seam is exercised end-to-end without mocks.
 package weavefs
 
-import "os"
+import (
+	"os"
+)
 
 // FS is the filesystem the IO seam reads and mutates through. Reads back the
 // manifest/deps/prose files for the walk; the mutations (Symlink/WriteFile/
@@ -40,9 +42,11 @@ type FS interface {
 	// Symlink creates a symlink at name pointing at oldname (the link target,
 	// which the seam computes relative to name's dir — see plan.Apply).
 	Symlink(oldname, name string) error
-	// WriteFile writes data to path, creating it if needed (setup.sh seeds /
-	// the composed AGENTS.md).
+	// WriteFile writes raw stage data. Final files go through Publish so a
+	// partial write never truncates a published output.
 	WriteFile(path string, data []byte) error
+	// Rename atomically publishes a completed file without following its destination.
+	Rename(oldpath, newpath string) error
 	// Chmod sets path's mode bits. Used by applySeed to replicate create_seed's
 	// `cp -p` mode-preservation (an executable source → an executable seeded
 	// file). The mode is OBSERVED from the source via Stat in the IO seam, so
@@ -69,3 +73,5 @@ func (OSFS) Chmod(path string, mode os.FileMode) error  { return os.Chmod(path, 
 
 // ensure OSFS satisfies FS at compile time.
 var _ FS = OSFS{}
+
+func (OSFS) Rename(oldpath, newpath string) error { return os.Rename(oldpath, newpath) }

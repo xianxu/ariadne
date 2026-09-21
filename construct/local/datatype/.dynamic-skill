@@ -1,15 +1,6 @@
 #!/bin/sh
-# Dynamic-skill marker (#111, #115): weave compile execs this with cwd = the
-# COMPILING repo's root (the repo being woven), via the injected Runner. The
-# `datatype` PATH binary (build-in-owner; on PATH during `weave compile`) walks
-# this repo's construct/deps layer graph, DAG-merges the datatype prototypes
-# (local/leaf shadows shared), and writes the per-repo SKILL.md.
-#
-# --output is REPO-RELATIVE (construct/generated/datatype) and the binary itself
-# mkdir -p's that dir, so materialization always lands under the COMPILING repo's
-# tree — never an ancestor's (a derivative's weave runs ariadne's marker, but
-# cwd=the derivative + a repo-relative output ⇒ the derivative's tree is written).
-# construct/generated/ is gitignored everywhere (the body is regenerated every
-# compile; the tracked marker is what makes the skill discoverable in a fresh
-# clone — #111's "skill vanishes" is dissolved).
-datatype --output construct/generated/datatype
+# weave-output: argv1
+# weave supplies an isolated output directory as argv1 before publishing through
+# ownership checks. Cwd remains the consuming repo for layer-graph reads.
+# Direct invocation retains the conventional output directory.
+datatype --output "${1:-construct/generated/datatype}"

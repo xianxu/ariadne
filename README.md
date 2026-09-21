@@ -4,7 +4,7 @@
 
 *"Life takes 42 shots."*
 
-AI runs the loops. Humans steer. AI learns. `Ariadne` forms a base of all my tinkering, it represents a paradigm of working. To adapt it to a new repo (cloned as a sibling of `ariadne`), run `./bootstrap.sh` (which hands off to `make bootstrap`) — that clones the ancestor layers, builds the tooling, and invokes `weave` (the layer-composition compiler that replaced `construct/setup.sh` in #95) to compose the repo's context. Thereafter `make weave` recomposes on demand.
+AI runs the loops. Humans steer. AI learns. `Ariadne` forms a base of all my tinkering, it represents a paradigm of working. `weave` prepares a repository's declared layers and composes its context; use `weave link` to adopt a base and `weave compile` to prepare and refresh it.
 
 Check `atlas/workflow/index.md` for how to use it (TODO).
 
@@ -12,26 +12,111 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
+## Standalone weave startup
+
+Until #241 publishes the Homebrew formula, build the CLI from this checkout:
+
+```sh
+go build -o bin/weave ./cmd/weave
+# Run from the repository adopting the base:
+/path/to/ariadne/bin/weave link github.com/xianxu/ariadne
+/path/to/ariadne/bin/weave compile
+```
+
+`weave link ../ariadne` also accepts an existing local base. Address links clone
+into a sibling directory and record the source; local links record the checkout's
+origin when available. Matching existing checkouts, including dirty ones, are
+reused without pulling or resetting them.
+
+Dependencies are declared in `construct/deps`:
+
+```text
+substrate ../ariadne https://github.com/xianxu/ariadne.git
+data https://github.com/example/content.git data/content
+```
+
+A substrate row takes a path and optional source; a data row takes a source and
+mount. Blank lines and `#` comments are supported. Other row kinds and malformed
+column counts fail with a line number. Existing two-column substrate rows remain
+valid while the local checkout exists; record a source to restore a missing one.
+Paths/sources cannot contain whitespace or `#` in this format.
+
+With Homebrew on PATH (macOS or Linux), `weave dependencies` restores transitive sources
+and runs each layer's committed root `Brewfile` through `brew bundle install
+--no-upgrade --file=Brewfile`, foundation-first. Homebrew manages package state;
+weave does not build tools, mount data or generate artifacts in this command.
+Linux CI uses Homebrew and the same layer Brewfiles.
+`weave dependencies --dry-run` makes no changes. If a missing source prevents
+reading its declarations, the preview reports that it is incomplete and exits
+nonzero rather than claiming a complete dependency list.
+
+`weave compile` runs dependency preparation, then each layer's owner-local
+`make tools` foundation-first, then data mounts and the leaf's generators and
+artifacts. Owner `tools` targets build explicit binaries from tracked sources
+into their own `bin/` and must work before composition. Ariadne builds `sdlc`,
+`datatype`, `vocabulary`, and `doc-review`; it does not rebuild the distributed
+weave gateway as part of `tools`.
+
+Child processes receive the layer tool directories on PATH. After compilation,
+weave prints the directories to add to your own shell PATH; startup never edits
+shell configuration. Managed ignore entries and an output identity inventory
+allow later compiles to retire unchanged owned outputs while preserving edited
+or unrecognized files.
+
+Dynamic-skill generators declare `# weave-output: argv1` and receive an isolated
+absolute output directory as their first argument. Their working directory stays
+the leaf for graph reads. Weave validates the staged output and publishes it
+through ownership checks; generator failure leaves published outputs intact.
+Markers and children must stay in the assigned process group and preserve
+inherited descriptors rather than daemonizing. Stage cleanup must wait for all
+producers to stop; a dead parent alone is insufficient. Marker authors must
+migrate legacy scripts before they can run; see the
+[generator contract](atlas/workflow/weave.md#dynamic-skill-output-contract).
+
 ## Standalone consumers and maintainer setup
 
-A consumer's root `Makefile` is an upstream-owned **seed**: a real file that
-weave refreshes from ariadne. Put product targets and local help in
-`Makefile.local`; these work without maintainer peers. Avoid editing the seeded
-root, since the next weave replaces its contents. Old root symlinks are safely
-replaced without changing their ancestor's bytes or permissions.
+A consumer owns its root `Makefile`, including its product targets and an
+optional `-include Makefile.workflow`. On first compile, ariadne seeds a
+generic root only when `Makefile` is absent. For an existing regular
+Makefile, weave prepends the workflow include without replacing the product
+rules; non-regular Makefiles are preserved with an adoption instruction.
+`make weave` and the shared `make bootstrap` prerequisite delegate to
+`weave compile`; consumer bootstrap extensions remain additive.
 
-Run `./bootstrap.sh` in the consumer to clone its peer chain and restore the
-maintainer workflow. Bootstrap finds the sibling overlay even when local helper
-links are missing, then orders peer setup, weave, tool builds, and installation.
-Afterward `make weave` refreshes the substrate on demand.
+The seeded `./bootstrap.sh` runs from its own repository root, reuses a
+compatible weave on PATH, or runs `brew install xianxu/ariadne/weave` before
+executing `weave compile`. It requires Homebrew rather than installing it.
+Formula publication is tracked separately in #241; until then, place the
+source-built candidate above on PATH for bootstrap to reuse.
 
-The generic CI workflow is also upstream-seeded. Put consumer-specific tool
-provisioning in an executable `scripts/ci-setup.sh` (`chmod +x scripts/ci-setup.sh`)
-and commit it with the product. CI clones peers and sets up the declared Go
-version first, then runs this hook before merge checks. A missing or
-non-executable hook is skipped; a failing hook stops the job. The runner falls
-back to bootstrapped `../ariadne/scripts/run-merge-checks.sh` when the local helper
-link is absent. Repeated weave preserves the repo-owned hook.
+The generic seeded CI workflow sets up Homebrew on Linux, then compiles before
+running generated helpers. Ariadne source CI provisions its root Brewfile and
+builds the current candidate CLI; consumer CI uses the published gateway through
+bootstrap. Keep consumer packages in the layer's root `Brewfile`. An optional
+executable `scripts/ci-setup.sh` runs after compilation and before merge checks;
+a missing or non-executable hook is skipped, and a failure stops the job. Checks
+use the materialized local `scripts/run-merge-checks.sh`.
+
+## Preparing a weave release
+
+Maintainers with Go, Python 3.9+, and Homebrew can build and test a candidate:
+
+```sh
+bash scripts/test/release-weave.test.sh /tmp/weave-release weave-v0.1.0
+```
+
+Use a new output directory. The test prepares standalone archives for macOS and
+Linux on arm64 and amd64, `SHA256SUMS`, and a generated `weave.rb` formula; it
+checks the native binary and runs the formula's local composition fixture.
+`scripts/release-weave.sh` prepares the same artifacts without running the test
+suite. The version comes from the supplied tag name; these commands build the
+current checkout and do not create a Git tag or publish anything.
+
+The **prepare-weave-release** workflow runs this verification and uploads the
+candidate. #241 owns publishing the reviewed commit and archives and installing
+the generated formula into `xianxu/homebrew-ariadne`. There are no runtime Go or
+Python dependencies in the packaged weave binary. See the
+[consumer migration notes](atlas/workflow/setup-and-replication.md#consumer-cutover).
 
 ## Fleet queries
 

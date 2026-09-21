@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -225,6 +226,69 @@ func TestApplySeed(t *testing.T) {
 	}
 	if after := mustModTime(t, dst); !after.Equal(oldTime) {
 		t.Fatalf("post-update identical re-run rewrote the file (mtime %v != stamped %v)", after, oldTime)
+	}
+}
+
+func TestApplySeedOnceCreatesAndAdoptsMakefile(t *testing.T) {
+	upstream := t.TempDir()
+	src := filepath.Join(upstream, "Makefile.seed")
+	seed := "DEFAULT\n"
+	if err := os.WriteFile(src, []byte(seed), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	greenfield := t.TempDir()
+	if err := Apply(weavefs.OSFS{}, greenfield, []Action{SeedOnce{Src: src, Dst: "Makefile"}}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(filepath.Join(greenfield, "Makefile")); err != nil || string(got) != seed {
+		t.Fatalf("greenfield Makefile = %q, %v", got, err)
+	}
+
+	existing := t.TempDir()
+	original := "build:\n\tgo build ./...\n"
+	if err := os.WriteFile(filepath.Join(existing, "Makefile"), []byte(original), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := Apply(weavefs.OSFS{}, existing, []Action{SeedOnce{Src: src, Dst: "Makefile"}}); err != nil {
+		t.Fatal(err)
+	}
+	want := "-include Makefile.workflow\n" + original
+	if got, err := os.ReadFile(filepath.Join(existing, "Makefile")); err != nil || string(got) != want {
+		t.Fatalf("adopted Makefile = %q, %v; want %q", got, err, want)
+	}
+
+	if err := Apply(weavefs.OSFS{}, existing, []Action{SeedOnce{Src: src, Dst: "Makefile"}}); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(filepath.Join(existing, "Makefile")); err != nil || string(got) != want {
+		t.Fatalf("second adoption changed Makefile = %q, %v", got, err)
+	}
+}
+
+func TestSeedOnceInstructionPreservesSymlink(t *testing.T) {
+	root := t.TempDir()
+	upstream := t.TempDir()
+	if err := os.WriteFile(filepath.Join(upstream, "Makefile"), []byte("workflow\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(upstream, "Makefile"), filepath.Join(root, "Makefile")); err != nil {
+		t.Fatal(err)
+	}
+
+	instruction, err := SeedOnceInstruction(weavefs.OSFS{}, root, SeedOnce{Src: filepath.Join(upstream, "Makefile.seed"), Dst: "Makefile"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(instruction, "-include Makefile.workflow") {
+		t.Fatalf("instruction = %q, want workflow include guidance", instruction)
+	}
+	if err := Apply(weavefs.OSFS{}, root, []Action{SeedOnce{Src: filepath.Join(upstream, "Makefile"), Dst: "Makefile"}}); err != nil {
+		t.Fatal(err)
+	}
+	info, err := os.Lstat(filepath.Join(root, "Makefile"))
+	if err != nil || info.Mode()&os.ModeSymlink == 0 {
+		t.Fatalf("Makefile changed from symlink: info=%v err=%v", info, err)
 	}
 }
 
@@ -600,7 +664,7 @@ func TestApplySeedDestinationStates(t *testing.T) {
 			if err := os.Symlink(victim, dst); err != nil {
 				t.Fatal(err)
 			}
-			if err := applySeed(weavefs.OSFS{}, src, dst); err != nil {
+			if err := applySeed(weavefs.OSFS{}, root, src, dst); err != nil {
 				t.Fatal(err)
 			}
 			fi, err := os.Lstat(dst)
@@ -619,7 +683,7 @@ func TestApplySeedDestinationStates(t *testing.T) {
 				if string(got) != string(source) || fi.Mode().Perm() != 0755 {
 					t.Fatalf("materialized %q mode %v", got, fi.Mode())
 				}
-				if err := applySeed(weavefs.OSFS{}, src, dst); err != nil {
+				if err := applySeed(weavefs.OSFS{}, root, src, dst); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -655,11 +719,11 @@ func (f materializationFaultFS) Lstat(p string) (os.FileInfo, error) {
 	}
 	return f.OSFS.Lstat(p)
 }
-func (f materializationFaultFS) Remove(p string) error {
-	if f.operation == "remove" {
+func (f materializationFaultFS) Rename(old, p string) error {
+	if f.operation == "rename" {
 		return os.ErrPermission
 	}
-	return f.OSFS.Remove(p)
+	return f.OSFS.Rename(old, p)
 }
 func (f materializationFaultFS) WriteFile(p string, b []byte) error {
 	if f.operation == "write" {
@@ -675,7 +739,7 @@ func (f materializationFaultFS) Chmod(p string, m os.FileMode) error {
 }
 func TestMaterializationFailures(t *testing.T) {
 	for _, kind := range []string{"seed", "writefile"} {
-		for _, operation := range []string{"lstat", "remove", "write", "chmod"} {
+		for _, operation := range []string{"lstat", "rename", "write", "chmod"} {
 			if kind == "writefile" && operation == "chmod" {
 				continue
 			}
@@ -697,9 +761,9 @@ func TestMaterializationFailures(t *testing.T) {
 				}
 				invoke := func(fs weavefs.FS) error {
 					if kind == "seed" {
-						return applySeed(fs, src, dst)
+						return applySeed(fs, root, src, dst)
 					}
-					return applyWriteFile(fs, dst, "same")
+					return applyWriteFile(fs, root, dst, "same", nil)
 				}
 				if err := invoke(materializationFaultFS{operation: operation, destination: dst}); err == nil {
 					t.Fatal("materialization failure hidden")

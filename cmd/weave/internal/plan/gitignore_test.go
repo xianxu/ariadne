@@ -14,28 +14,37 @@ import (
 // (applyEnsureGitignore, via Apply) is tested against a real t.TempDir-rooted
 // OSFS (ARCH: faithful over mocked).
 
-func TestEnsureGitignoreTextAppendsToEmpty(t *testing.T) {
-	got, changed := ensureGitignoreText("", []string{"/AGENTS.md", "/.colima/"})
+func TestEnsureGitignoreTextCreatesBlock(t *testing.T) {
+	got, changed, err := ensureGitignoreText("", []string{"/AGENTS.md", "/.colima/"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !changed {
 		t.Fatal("changed = false on an empty .gitignore, want true")
 	}
-	want := "/AGENTS.md\n/.colima/\n"
+	want := ignoreBegin + "\n/.colima/\n/AGENTS.md\n" + ignoreEnd + "\n"
 	if got != want {
 		t.Fatalf("ensureGitignoreText = %q, want %q", got, want)
 	}
 }
 
-func TestEnsureGitignoreTextPreservesExistingAndAppendsAbsent(t *testing.T) {
-	// Existing entries + a comment are preserved verbatim; only the truly absent
-	// entry is appended (the present one is NOT duplicated — grep -qxF semantics).
+func TestEnsureGitignoreTextMigratesExactLegacyEntries(t *testing.T) {
+	// Authored entries remain verbatim after the block; exact legacy entries move
+	// into the generated block without duplication.
 	current := "# existing comment\n/AGENTS.md\nbin/\n"
-	got, changed := ensureGitignoreText(current, []string{"/AGENTS.md", "/.claude/skills/"})
+	got, changed, err := ensureGitignoreText(current, []string{"/AGENTS.md", "/.claude/skills/"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !changed {
 		t.Fatal("changed = false, want true (one entry was absent)")
 	}
-	want := "# existing comment\n/AGENTS.md\nbin/\n/.claude/skills/\n"
+	want := ignoreBegin + "\n/.claude/skills/\n/AGENTS.md\n" + ignoreEnd + "\n# existing comment\nbin/\n"
 	if got != want {
 		t.Fatalf("ensureGitignoreText = %q, want %q", got, want)
+	}
+	if err != nil {
+		t.Fatal(err)
 	}
 	if strings.Count(got, "/AGENTS.md") != 1 {
 		t.Fatalf("/AGENTS.md duplicated:\n%s", got)
@@ -43,11 +52,15 @@ func TestEnsureGitignoreTextPreservesExistingAndAppendsAbsent(t *testing.T) {
 }
 
 func TestEnsureGitignoreTextIdempotentWhenAllPresent(t *testing.T) {
-	// Every entry already present ⇒ no change, byte-identical (running weave twice
-	// never duplicates lines). Built from the canonical list so adding an entry can
-	// never silently desync this fixture.
-	current := strings.Join(GeneratedRuntimeGitignoreEntries, "\n") + "\n"
-	got, changed := ensureGitignoreText(current, GeneratedRuntimeGitignoreEntries)
+	// After initial legacy migration, another reconciliation is byte-identical.
+	current, _, firstErr := ensureGitignoreText(strings.Join(GeneratedRuntimeGitignoreEntries, "\n")+"\n", GeneratedRuntimeGitignoreEntries)
+	if firstErr != nil {
+		t.Fatal(firstErr)
+	}
+	got, changed, err := ensureGitignoreText(current, GeneratedRuntimeGitignoreEntries)
+	if err != nil {
+		t.Fatal(err)
+	}
 	if changed {
 		t.Fatalf("changed = true when all entries present, want false; got:\n%s", got)
 	}
@@ -72,14 +85,16 @@ func TestGeneratedRuntimeGitignoreCoversConstructGenerated(t *testing.T) {
 	}
 }
 
-func TestEnsureGitignoreTextAddsTrailingNewlineBeforeAppend(t *testing.T) {
-	// A non-empty file NOT ending in a newline gets one before the appended entry,
-	// so the new entry never glues onto the last existing line.
-	got, changed := ensureGitignoreText("bin/", []string{"/AGENTS.md"})
+func TestEnsureGitignoreTextPreservesAuthoredMissingFinalNewline(t *testing.T) {
+	// The generated block precedes authored content without rewriting its newline.
+	got, changed, err := ensureGitignoreText("bin/", []string{"/AGENTS.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if !changed {
 		t.Fatal("changed = false, want true")
 	}
-	want := "bin/\n/AGENTS.md\n"
+	want := ignoreBegin + "\n/AGENTS.md\n" + ignoreEnd + "\nbin/"
 	if got != want {
 		t.Fatalf("ensureGitignoreText = %q, want %q", got, want)
 	}
@@ -87,13 +102,16 @@ func TestEnsureGitignoreTextAddsTrailingNewlineBeforeAppend(t *testing.T) {
 
 func TestEnsureGitignoreTextDedupsRepeatedInputEntry(t *testing.T) {
 	// A duplicate in the INPUT entry list is appended only once.
-	got, _ := ensureGitignoreText("", []string{"/AGENTS.md", "/AGENTS.md"})
+	got, _, err := ensureGitignoreText("", []string{"/AGENTS.md", "/AGENTS.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if strings.Count(got, "/AGENTS.md") != 1 {
 		t.Fatalf("repeated input entry duplicated:\n%s", got)
 	}
 }
 
-func TestApplyEnsureGitignoreCreatesAndAppends(t *testing.T) {
+func TestApplyEnsureGitignoreCreatesBlock(t *testing.T) {
 	// Apply on a repo with no .gitignore creates it carrying the fixed entries.
 	root := t.TempDir()
 	if err := Apply(weavefs.OSFS{}, root, []Action{

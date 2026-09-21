@@ -11,13 +11,14 @@ import "strings"
 // — `tool` was dropped in #95 M5 because Go-tool ownership is location-based
 // (construct/dev-aliases.sh), not a go.mod edit.
 var kindByVerb = map[string]Kind{
-	"symlink":  Symlink,
-	"seed":     Seed,
-	"scaffold": Scaffold,
-	"touch":    Touch,
-	"merge":    Merge,
-	"prose":    Prose,
-	"skill":    Skill,
+	"symlink":   Symlink,
+	"seed":      Seed,
+	"seed-once": SeedOnce,
+	"scaffold":  Scaffold,
+	"touch":     Touch,
+	"merge":     Merge,
+	"prose":     Prose,
+	"skill":     Skill,
 }
 
 // visByToken maps the OPTIONAL leading visibility token to its Visibility. A row

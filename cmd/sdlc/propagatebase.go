@@ -3,7 +3,7 @@
 // substrateChain (owner→ancestors): this is owner→recursive-dependents. #106.
 //
 // Per dependent, in topological order: a clean-working-tree precheck
-// (workingTreeDirty) → `make weave` (re-weave via build-in-owner) → `weave
+// (workingTreeDirty) → `weave compile` (prepare and re-weave) → `weave
 // verify-complete` (the gate) → commit the consumption. A dependent with
 // pre-existing uncommitted work (e.g. a concurrent agent session in a sibling repo)
 // is SKIPPED untouched — never `git add -A`'d — and the run exits non-zero (#109).
@@ -23,6 +23,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+
+	"github.com/xianxu/ariadne/pkg/weaveownership"
 )
 
 // propDep is one recursive dependent: its repo root + its substrate chain (the
@@ -46,9 +48,9 @@ func canonRoot(p string) string {
 
 // recursiveDependents finds the present sibling repos whose substrate chain
 // transitively includes ownerRoot — the repos that consume ownerRoot's base layer.
-// A sibling qualifies iff it is a git repo carrying a Makefile.workflow (the
-// universal "uses the ariadne base layer" signal, per Makefile.local:refresh-recursive)
-// AND ownerRoot is in its substrateChain. IO (scans the parent dir + reads deps).
+// A sibling qualifies iff it is a Git repo whose declared substrate chain
+// contains ownerRoot. Generated workflow files need not exist yet.
+// IO: scans the parent directory and reads dependency declarations.
 func recursiveDependents(ownerRoot string) []propDep {
 	ownerKey := canonRoot(ownerRoot)
 	parent := filepath.Dir(ownerRoot)
@@ -64,9 +66,6 @@ func recursiveDependents(ownerRoot string) []propDep {
 		root := filepath.Join(parent, e.Name())
 		if canonRoot(root) == ownerKey {
 			continue // skip self
-		}
-		if _, err := os.Stat(filepath.Join(root, "Makefile.workflow")); err != nil {
-			continue // not an ariadne-base-layer repo
 		}
 		if _, err := os.Stat(filepath.Join(root, ".git")); err != nil {
 			continue // not a git repo (e.g. a setup.sh-era scratch dir) — can't commit
@@ -122,7 +121,6 @@ type propResult struct {
 // ref is the commit-message reference (e.g. "ariadne#107"). dryRun reports the plan
 // without mutating. Returns an error if any dependent FAILED.
 func runPropagateBase(ownerRoot, ref string, dryRun bool, out io.Writer) error {
-	weaveBin := filepath.Join(ownerRoot, "bin", "weave")
 	deps := orderDependentsFoundationFirst(recursiveDependents(ownerRoot))
 	if len(deps) == 0 {
 		fmt.Fprintln(out, "propagate-base: no recursive dependents found")
@@ -133,10 +131,27 @@ func runPropagateBase(ownerRoot, ref string, dryRun bool, out io.Writer) error {
 		fmt.Fprintf(out, "  %d. %s\n", i+1, filepath.Base(d.root))
 	}
 	if dryRun {
-		fmt.Fprintln(out, "(dry-run: would `make weave` + verify-complete + commit each, in order)")
+		fmt.Fprintln(out, "(dry-run: would `weave compile` + verify-complete + commit each, in order)")
 		return nil
 	}
 
+	// Resolve the installed gateway only when the first clean dependent needs it.
+	// Empty, preview-only, and all-dirty runs need no executable.
+	var weaveBin string
+	compile := func(root string) error {
+		if weaveBin == "" {
+			var err error
+			weaveBin, err = exec.LookPath("weave")
+			if err != nil {
+				return fmt.Errorf("find installed weave: %w", err)
+			}
+			weaveBin, err = filepath.Abs(weaveBin)
+			if err != nil {
+				return err
+			}
+		}
+		return run(out, root, weaveBin, "compile")
+	}
 	var results []propResult
 	failed := false
 	skipped := 0
@@ -152,11 +167,15 @@ func runPropagateBase(ownerRoot, ref string, dryRun bool, out io.Writer) error {
 		// commits/stashes that work and re-runs (the re-weave is idempotent).
 		case dirty:
 			res.status = "SKIPPED: dirty working tree (pre-existing uncommitted work — commit/stash + re-run)"
-		case run(out, d.root, "make", "weave") != nil:
-			res.status = "FAILED: make weave"
-		case run(io.Discard, d.root, weaveBin, "verify-complete") != nil:
-			res.status = "FAILED: verify-complete (under-production)"
 		default:
+			if err := compile(d.root); err != nil {
+				res.status = "FAILED: weave compile: " + err.Error()
+				break
+			}
+			if err := run(out, d.root, weaveBin, "verify-complete"); err != nil {
+				res.status = "FAILED: verify-complete: " + err.Error()
+				break
+			}
 			changed, cerr := commitConsumption(d.root, ref)
 			switch {
 			case cerr != nil:
@@ -241,20 +260,39 @@ func workingTreeDirty(repoRoot string) (bool, error) {
 // PRECONDITION: the caller (runPropagateBase) verified the tree was CLEAN before
 // re-weaving (workingTreeDirty), so every change `git add -A` stages here is the
 // re-weave's OWN output — never a concurrent session's unrelated in-flight work.
-func commitConsumption(repoRoot, ref string) (bool, error) {
-	// Untrack any file the re-weave just made gitignored — i.e. a file that USED to
-	// be tracked but is now a weave-generated artifact the EnsureGitignore covered
-	// (e.g. a CLAUDE.md that was a tracked @AGENTS.md bridge and is now generated
-	// prose). Without this, `git add -A` would RE-TRACK the generated content (the
-	// inert-gitignore trap). `ls-files -i -c` lists tracked-but-ignored files.
-	if ignored, err := exec.Command("git", "-C", repoRoot, "ls-files", "-i", "-c", "--exclude-standard").Output(); err == nil {
-		for _, f := range strings.Split(strings.TrimSpace(string(ignored)), "\n") { // one path per line (filenames may contain spaces)
-			if f == "" {
-				continue
-			}
-			if err := exec.Command("git", "-C", repoRoot, "rm", "--cached", "-q", f).Run(); err != nil {
-				return false, fmt.Errorf("untrack now-ignored %s: %w", f, err) // surface, don't silently re-track
-			}
+func commitConsumption(repoRoot, ref string) (changed bool, err error) {
+	// A failed Git command may already have changed the index or even committed.
+	// Preserve Git's actual state; never infer rollback from an error. The public
+	// propagation precheck will reject dirty retries until the operator resolves
+	// them, while a completed commit naturally becomes a no-op on retry.
+	defer func() {
+		if err != nil {
+			err = fmt.Errorf("%w; index changes were not reset: inspect git status and git diff --cached, resolve or commit retained changes, then retry propagation", err)
+		}
+	}()
+	// Ignored does not mean generated: only current identities recorded by weave
+	// authorize untracking. Local negations remain authoritative because Git
+	// supplies the ignored set. Read and validate everything before index edits.
+	owned, err := weaveownership.MatchingPaths(weaveownership.OSReader{}, repoRoot)
+	if err != nil {
+		return false, fmt.Errorf("read weave ownership: %w", err)
+	}
+	ignored, err := exec.Command("git", "-C", repoRoot, "ls-files", "-z", "-i", "-c", "--exclude-standard").Output()
+	if err != nil {
+		return false, fmt.Errorf("list tracked ignored files: %w", err)
+	}
+	ignoredSet := map[string]bool{}
+	for _, path := range strings.Split(string(ignored), "\x00") {
+		if path != "" {
+			ignoredSet[path] = true
+		}
+	}
+	for _, path := range owned {
+		if !ignoredSet[path] {
+			continue
+		}
+		if err := exec.Command("git", "--literal-pathspecs", "-C", repoRoot, "rm", "--cached", "-q", "--", path).Run(); err != nil {
+			return false, fmt.Errorf("untrack owned generated file %s: %w", path, err)
 		}
 	}
 	st, err := gitStatusPorcelain(repoRoot)
@@ -282,7 +320,7 @@ func newPropagateBaseCmd() *cobra.Command {
 		Short: "Re-weave every recursive dependent of this repo (foundation-first)",
 		Long: "Propagate THIS repo's base-layer change to all recursive dependents:\n" +
 			"discover the dependents (siblings whose substrate chain includes this\n" +
-			"repo), order them foundation-first, then per dependent `make weave` +\n" +
+			"repo), order them foundation-first, then per dependent `weave compile` +\n" +
 			"verify-complete + commit. A dependent with a DIRTY working tree (pre-existing\n" +
 			"uncommitted work — e.g. a concurrent session) is SKIPPED untouched and the\n" +
 			"run exits non-zero; commit/stash there and re-run. Run from the OWNER repo,\n" +

@@ -61,3 +61,24 @@ func TestParseDepsEmptyContent(t *testing.T) {
 		t.Fatalf("ParseDeps(\"\") = %v, want empty", got)
 	}
 }
+
+func TestParseRowsSourcesAndLegacyProjection(t *testing.T) {
+	text := "substrate ../base git@github.com:org/base.git # comment\nsubstrate ../legacy\ndata https://github.com/org/data.git data/a\n"
+	rows, err := ParseRows(text)
+	want := []Dependency{{Kind: "substrate", Path: "../base", Source: "git@github.com:org/base.git"}, {Kind: "substrate", Path: "../legacy"}, {Kind: "data", Source: "https://github.com/org/data.git", Mount: "data/a"}}
+	if err != nil || !reflect.DeepEqual(rows, want) {
+		t.Fatalf("rows=%+v err=%v", rows, err)
+	}
+	edges, err := ParseDeps(text)
+	if err != nil || !reflect.DeepEqual(edges, []string{"../base", "../legacy"}) {
+		t.Fatalf("edges=%v err=%v", edges, err)
+	}
+}
+
+func TestParseRowsRejectsMalformed(t *testing.T) {
+	for _, text := range []string{"substrate", "substrate ../base source excess", "data url", "data url mount excess", "unknown target"} {
+		if _, err := ParseRows("# comment\n" + text); err == nil {
+			t.Fatalf("accepted %q", text)
+		}
+	}
+}
