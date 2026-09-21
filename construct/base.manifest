@@ -105,7 +105,9 @@ skill     construct/adapted
 internal  skill construct/skill
 
 # ── Makefile system ───────────────────────────────────────────────────────────
-# Root Makefile is consumer-authored; only the workflow overlay propagates.
+# Root Makefile is consumer-owned after first adoption. Seed it only when
+# absent, and add the workflow include to an existing regular Makefile.
+seed-once construct/Makefile.seed Makefile
 symlink   Makefile.workflow
 symlink   scripts/lib.sh
 symlink   scripts/parallel-checks.sh

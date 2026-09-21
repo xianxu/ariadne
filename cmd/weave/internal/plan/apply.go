@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/settingsx"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
@@ -52,6 +53,8 @@ func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
 			err = applyMkdir(fs, filepath.Join(repoRoot, act.Path))
 		case Seed:
 			err = applySeed(fs, repoRoot, act.Src, filepath.Join(repoRoot, act.Dst))
+		case SeedOnce:
+			err = applySeedOnce(fs, repoRoot, act.Src, filepath.Join(repoRoot, act.Dst))
 		case Touch:
 			err = applyTouch(fs, repoRoot, filepath.Join(repoRoot, act.Path))
 		case WriteFile:
@@ -68,6 +71,73 @@ func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
 		}
 	}
 	return nil
+}
+
+const workflowInclude = "-include Makefile.workflow"
+
+// applySeedOnce creates a repo-owned file only when absent. A regular existing
+// Makefile is adopted by prepending the shared workflow include; symlinks and
+// other non-regular paths are intentionally left untouched.
+func applySeedOnce(fs weavefs.FS, root, src, dst string) error {
+	data, err := fs.ReadFile(src)
+	if err != nil {
+		return nil
+	}
+	source, err := fs.Stat(src)
+	if err != nil {
+		return err
+	}
+	current, err := fs.Lstat(dst)
+	if os.IsNotExist(err) {
+		mode := source.Mode().Perm()
+		if err := weavefs.Publish(fs, root, dst, data, &mode); err != nil {
+			return fmt.Errorf("apply seed-once: write %s: %w", dst, err)
+		}
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if !current.Mode().IsRegular() {
+		return nil
+	}
+	contents, err := fs.ReadFile(dst)
+	if err != nil {
+		return err
+	}
+	if hasWorkflowInclude(string(contents)) {
+		return nil
+	}
+	updated := []byte(workflowInclude + "\n" + string(contents))
+	mode := current.Mode().Perm()
+	if err := weavefs.Publish(fs, root, dst, updated, &mode); err != nil {
+		return fmt.Errorf("apply seed-once: adopt %s: %w", dst, err)
+	}
+	return nil
+}
+
+func hasWorkflowInclude(contents string) bool {
+	for _, line := range strings.Split(contents, "\n") {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == workflowInclude || trimmed == "include Makefile.workflow" {
+			return true
+		}
+	}
+	return false
+}
+
+// SeedOnceInstruction reports why a non-regular existing destination could
+// not be adopted automatically. The compile remains successful and preserves
+// the user's path.
+func SeedOnceInstruction(fs weavefs.FS, root string, action SeedOnce) (string, error) {
+	info, err := fs.Lstat(filepath.Join(root, action.Dst))
+	if os.IsNotExist(err) || (err == nil && info.Mode().IsRegular()) {
+		return "", nil
+	}
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("weave: %s is not a regular file; add %q as its first line to enable shared workflow targets", action.Dst, workflowInclude), nil
 }
 
 // applyMergeSettings is the IO half of the settings cascade: read ordered

@@ -38,7 +38,10 @@ directories explicitly. Generic startup never edits shell configuration.
 installs `xianxu/ariadne/weave` through Homebrew, then execs compile. Homebrew
 must already be present. Formula publication is tracked in #241; until then a
 source-built candidate supplies the gateway. Shared Make aliases delegate to
-compile, and the root Makefile is no longer an inherited seed.
+compile, and the root Makefile is a write-once generic seed: absent roots are
+created from `construct/Makefile.seed`, while existing regular roots are
+adopted by prepending `-include Makefile.workflow` without replacing product
+rules.
 
 `plan.ApplyManaged` records output identities in
 `construct/generated/weave/ownership.json`, separating data and artifact

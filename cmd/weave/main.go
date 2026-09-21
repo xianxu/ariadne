@@ -545,6 +545,17 @@ func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Tar
 		return nil
 	}
 	actions = append(actions, generated...)
+	for _, action := range actions {
+		if seed, ok := action.(plan.SeedOnce); ok {
+			instruction, err := plan.SeedOnceInstruction(fs, root, seed)
+			if err != nil {
+				return fmt.Errorf("inspect seed-once %s: %w", seed.Dst, err)
+			}
+			if instruction != "" {
+				fmt.Fprintln(out, instruction)
+			}
+		}
+	}
 	retired, err := plan.ApplyManaged(fs, root, actions, plan.ScopeArtifacts)
 	if err != nil {
 		return fmt.Errorf("apply: %w", err)

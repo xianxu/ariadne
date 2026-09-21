@@ -468,6 +468,23 @@ rounds:
           round: 14
       recipe: milestone-review
       blocked: false
+    - "n": 15
+      timestamp: "2026-09-20T16:06:48-07:00"
+      agent: codex
+      dispose:
+        - id: BR-17
+          disposition: addressed
+          note: Source-validation errors omit raw input and nested URL errors. Unit and CLI regressions pass at HEAD and fail with HEAD^ source.go substituted through a temporary Go overlay.
+          round: 15
+      findings:
+        - id: BR-18
+          severity: Critical
+          title: Active concept table incorrectly classifies filesystem identity matching as PURE
+          detail: 'workshop/plans/000239-minimal-committed-base-layer-surface-plan.md:249–253 classifies generated identity matching as pure and promises pure tests. However, plan/ownership.go:34 delegates to pkg/weaveownership/ownership.go:79 Matches, which calls Lstat, Readlink and ReadFile; ownership_test.go:34 exercises matching using temporary files and OSReader. ARCH-PURE: classify observation-based matching as INTEGRATION and distinguish pure digest/identity construction. This is the second finding in family core-concept-purity-classification, distinct from BR-9''s corrected setup entity. State and apply the rule across every active concept row: filesystem observation is integration even behind an injected reader. Append a Revisions entry correcting classifications, locations and test descriptions.'
+          family: core-concept-purity-classification
+          round: 15
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#239 (boundary-review)
@@ -660,6 +677,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-17** [Important] `credential-safe-diagnostics` Malformed repository URLs expose credentials in CLI errors
   cmd/weave/internal/acquire/source.go:35–37 echoes raw input and wraps a URL-bearing parse error before credential rejection. A link input containing fictitious userinfo and an invalid port prints its password twice. ARCH-SECURE: sanitize all source-validation diagnostics and add malformed-port, host, and escape regressions asserting credentials are absent from errors and CLI output.
 
+## Round 15 — 2026-09-20T16:06:48-07:00 (codex) — BLOCKED
+
+### Disposed
+
+- BR-17 — addressed — Source-validation errors omit raw input and nested URL errors. Unit and CLI regressions pass at HEAD and fail with HEAD^ source.go substituted through a temporary Go overlay.
+
+### Raised
+
+- **BR-18** [Critical] `core-concept-purity-classification` Active concept table incorrectly classifies filesystem identity matching as PURE
+  workshop/plans/000239-minimal-committed-base-layer-surface-plan.md:249–253 classifies generated identity matching as pure and promises pure tests. However, plan/ownership.go:34 delegates to pkg/weaveownership/ownership.go:79 Matches, which calls Lstat, Readlink and ReadFile; ownership_test.go:34 exercises matching using temporary files and OSReader. ARCH-PURE: classify observation-based matching as INTEGRATION and distinguish pure digest/identity construction. This is the second finding in family core-concept-purity-classification, distinct from BR-9's corrected setup entity. State and apply the rule across every active concept row: filesystem observation is integration even behind an injected reader. Append a Revisions entry correcting classifications, locations and test descriptions.
+
 ## Open findings
 
-- **BR-17** [Important] `credential-safe-diagnostics` Malformed repository URLs expose credentials in CLI errors
+- **BR-18** [Critical] `core-concept-purity-classification` Active concept table incorrectly classifies filesystem identity matching as PURE

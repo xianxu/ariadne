@@ -261,6 +261,11 @@ func materializeManaged(fs weavefs.FS, root string, actions []Action) ([]Action,
 				return nil, fmt.Errorf("seed targets reserved weave state: %s", a.Dst)
 			}
 			out = append(out, a)
+		case SeedOnce:
+			if reservedOutput(filepath.Clean(a.Dst)) {
+				return nil, fmt.Errorf("seed-once targets reserved weave state: %s", a.Dst)
+			}
+			out = append(out, a)
 		case EnsureGitignore:
 			continue // managed inventory supplies the complete block
 		case MergeSettings:

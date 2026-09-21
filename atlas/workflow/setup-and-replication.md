@@ -69,12 +69,14 @@ produces installation guidance; bootstrap does not install Homebrew itself.
 The formula is pending publication in #241. Until then, build `cmd/weave` from
 ariadne and put that candidate on PATH.
 
-Each consumer authors its root `Makefile`; ariadne no longer seeds it. An
-optional `-include Makefile.workflow` exposes shared workflow commands after
-compilation while keeping standalone product targets available. Shared
-`make weave` and `make bootstrap` delegate to `weave compile`; the latter uses a
-prerequisite so consumer setup extensions can remain additive. Generic startup
-has no recursive layer Make builds, shell clone walker, or sdlc-install phase.
+Each consumer owns its root `Makefile`. If absent, compile seeds the generic
+`construct/Makefile.seed` once. If a regular Makefile already exists, compile
+prepends `-include Makefile.workflow` and preserves the rest of the file; a
+symlink or other non-regular path is preserved and compile prints the same
+adoption instruction. Shared `make weave` and `make bootstrap` delegate to
+`weave compile`; the latter uses a prerequisite so consumer setup extensions
+can remain additive. Generic startup has no recursive layer Make builds, shell
+clone walker, or sdlc-install phase.
 
 The seeded merge-check workflow sets up Homebrew on Linux and compiles before
 running the optional executable `scripts/ci-setup.sh` and local merge-check

@@ -26,6 +26,9 @@ const (
 	// Seed — content-tracking real-file copy (NOT a symlink) into the target,
 	// for first-run entrypoints that must work before substrate is present.
 	Seed
+	// SeedOnce — create a repo-owned file when absent; existing regular files
+	// are preserved and adopted when possible.
+	SeedOnce
 	// Scaffold — create an empty directory structure in the target repo.
 	Scaffold
 	// Touch — create an empty file if missing (no source content needed).

@@ -63,6 +63,13 @@ type Seed struct {
 	Dst string
 }
 
+// SeedOnce creates a repo-owned file only when absent. Existing regular files
+// are adopted by adding the shared workflow include without replacing them.
+type SeedOnce struct {
+	Src string
+	Dst string
+}
+
 // Touch ensures an EMPTY file exists at Path, create-if-missing — it does NOT
 // overwrite an existing file. Lowered from intent.Touch, the faithful port of
 // walk_manifest's `touch` case (`if [[ ! -f ]] then touch`, setup.sh:347). This
@@ -89,5 +96,6 @@ func (Symlink) isAction()       {}
 func (WriteFile) isAction()     {}
 func (Mkdir) isAction()         {}
 func (Seed) isAction()          {}
+func (SeedOnce) isAction()      {}
 func (Touch) isAction()         {}
 func (MergeSettings) isAction() {}

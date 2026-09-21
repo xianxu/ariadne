@@ -430,3 +430,71 @@ findings:
     detail: |
       cmd/weave/internal/acquire/source.go:35–37 echoes raw input and wraps a URL-bearing parse error before credential rejection. A link input containing fictitious userinfo and an invalid port prints its password twice. ARCH-SECURE: sanitize all source-validation diagnostics and add malformed-port, host, and escape regressions asserting credentials are absent from errors and CLI output.
 ```
+
+---
+
+## Re-review — 2026-09-20T16:06:48-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 239 — Minimal committed base-layer surface |
+| repo | ariadne |
+| issue file | workshop/issues/000239-minimal-committed-base-layer-surface.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ca9ae7f6d71d48e02ae6c23895c05b0d47f35c17..68482fd8319db2787a0ad6cba215622d598d77a2 |
+| command | sdlc close --issue 239 |
+| reviewer | codex |
+| timestamp | 2026-09-20T16:06:48-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-17 is addressed, and all executed tests pass. One active plan classification contradicts the implementation; the requested core-concepts gate explicitly makes this blocking. No new runtime defect was established.
+
+```findings
+dispose:
+  - id: BR-17
+    disposition: addressed
+    note: |
+      Source-validation errors omit raw input and nested URL errors. Unit and CLI regressions pass at HEAD and fail with HEAD^ source.go substituted through a temporary Go overlay.
+findings:
+  - id: new
+    severity: Critical
+    family: core-concept-purity-classification
+    title: |
+      Active concept table incorrectly classifies filesystem identity matching as PURE
+    detail: |
+      workshop/plans/000239-minimal-committed-base-layer-surface-plan.md:249–253 classifies generated identity matching as pure and promises pure tests. However, plan/ownership.go:34 delegates to pkg/weaveownership/ownership.go:79 Matches, which calls Lstat, Readlink and ReadFile; ownership_test.go:34 exercises matching using temporary files and OSReader. ARCH-PURE: classify observation-based matching as INTEGRATION and distinguish pure digest/identity construction. This is the second finding in family core-concept-purity-classification, distinct from BR-9's corrected setup entity. State and apply the rule across every active concept row: filesystem observation is integration even behind an injected reader. Append a Revisions entry correcting classifications, locations and test descriptions.
+```
+
+1. **Strengths**
+   - Credential regression evidence is independently confirmed red/green.
+   - Publication and retirement share ownership proof; tests cover partial writes, authored replacements and permissions.
+   - Startup, release packaging and scoped migration have meaningful failure coverage.
+   - README and atlas describe the new commands, generator contract and migration boundary.
+
+2. **Critical findings:** The concept-table mismatch above. Correcting the plan is sufficient; no wording-presence test is needed.
+
+3. **Important findings:** None.
+
+4. **Minor findings:** None.
+
+5. **Test coverage:** Passed weave, layergraph and ownership suites; targeted SDLC propagation/migration tests; bootstrap, Make and CI fixtures; four-platform release packaging and native formula composition. Range whitespace checks pass; repository remains unchanged.
+
+6. **Architecture**
+   - **ARCH-DRY — pass:** shared ownership and staging implementations.
+   - **ARCH-PURE — flag:** matching classification contradicts filesystem observation.
+   - **ARCH-PURPOSE — pass:** derived outputs and scoped migration serve the minimal committed-surface contract.
+   - **ARCH-MOCK — pass:** injected failures and real-tool conformance exercise production boundaries.
+   - **ARCH-CONSTRAINTS — pass:** serial setup avoids added concurrent fan-out.
+   - **ARCH-SECURE — pass:** BR-17 verified; persisted ownership validation rejects malformed state.
+   - **ARCH-ORDER — pass:** partial-progress and producer-lifetime tests cover interrupted operations.
+   - **ARCH-FUNERAL — pass:** shared stage reclamation and identity-based retirement provide cleanup paths.
+
+7. **Plan revision:** Append a classification correction covering all active concept rows. Separate pure identity construction/digest from filesystem matching, name `pkg/weaveownership` as the shared implementation, and retain the existing integration tests as evidence.

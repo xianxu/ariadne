@@ -118,6 +118,8 @@ func Plan(layers []layer.Layer, entryFiles []string) ([]Action, error) {
 				// Symlink's lowering (same joinPath(l.Path, in.Source) for the
 				// absolute source); applySeed does the content-compare + write.
 				actions = append(actions, Seed{Src: joinPath(l.Path, in.Source), Dst: in.Target})
+			case intent.SeedOnce:
+				actions = append(actions, SeedOnce{Src: joinPath(l.Path, in.Source), Dst: in.Target})
 			case intent.Prose:
 				// Handled above (composes across layers); nothing per-intent.
 			case intent.Merge:

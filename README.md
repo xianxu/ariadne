@@ -75,9 +75,11 @@ migrate legacy scripts before they can run; see the
 
 ## Standalone consumers and maintainer setup
 
-A consumer authors its root `Makefile`, including its product targets and an
-optional `-include Makefile.workflow`. The root is not seeded by ariadne, so
-product commands can work before the maintainer overlay is materialized.
+A consumer owns its root `Makefile`, including its product targets and an
+optional `-include Makefile.workflow`. On first compile, ariadne seeds a
+generic root only when `Makefile` is absent. For an existing regular
+Makefile, weave prepends the workflow include without replacing the product
+rules; non-regular Makefiles are preserved with an adoption instruction.
 `make weave` and the shared `make bootstrap` prerequisite delegate to
 `weave compile`; consumer bootstrap extensions remain additive.
 

@@ -172,7 +172,36 @@ rounds:
           note: 'Overtaken by compile-before-consumption CI: the active plan does not introduce an owner-directory fallback, so manifest selection continues to govern inherited checks.'
           round: 5
       blocked: false
-content_hash: e4a3ba5c0f520a409aca05d21dc6812c3a2605b5e27ad6eb5df221c2f5258224
+    - "n": 6
+      timestamp: "2026-09-20T17:27:21-07:00"
+      agent: codex
+      findings:
+        - id: PQ-8
+          severity: Important
+          title: The active plan mixes completed milestones with an unchecked replacement plan
+          detail: The durable plan marks overlapping M1–M3 tasks complete at lines 170–239 while its current replacement tasks remain unchecked at lines 131–164, and the issue is already codecomplete. Normalize one authoritative execution sequence and clearly archive prior implementation state before implementation begins.
+          family: active-plan-state-mixes-complete-and-pending
+          round: 6
+        - id: PQ-9
+          severity: Important
+          title: The test plan is a prose case inventory rather than function-level strategies
+          detail: Lines 115–129 and 137–163 enumerate scenarios without naming the functions under test or giving one adversarial-input/mechanical-guard strategy per risky function. Replace the inventories with named strategies for Dependencies, Tools, ToolEnvironment, compile orchestration, and the bootstrap seam.
+          family: function-level-test-strategy
+          round: 6
+        - id: PQ-10
+          severity: Important
+          title: Optional make-tools discovery and failure semantics are deferred to implementation
+          detail: Lines 39–42 and 133–148 say to “resolve how to recognize the optional target” during implementation, but do not define the detection seam, absent-target rule, authored Makefile error behavior, or corresponding stateful fake and real-Make guard. The build-order and ARCH-ORDER contract must be concrete before coding.
+          family: optional-build-contract-unresolved
+          round: 6
+        - id: PQ-11
+          severity: Minor
+          title: Tool packages and owner bin outputs lack an explicit end-of-life contract
+          detail: The plan creates persistent Brewfile-installed packages and owner-local bin outputs, while explicitly declining automatic package removal, but does not state their lifecycle bounds, stale-binary cleanup policy, or operational cost as required by ARCH-FUNERAL.
+          family: durable-tool-artifact-lifecycle
+          round: 6
+      blocked: false
+content_hash: 4600b621983f2f73ecd64df111b4b54525ca5a6d8751b849d497e9d77f05d505
 ---
 
 # Gate ledger — ariadne#239 (plan-quality)
@@ -279,6 +308,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-6 — withdrawn — Overtaken by the restart: the active plan removes the dry-run-gated fleet sweep, requires scoped migration regressions and disposable pilots, and assigns actual rollout to #241.
 - PQ-7 — withdrawn — Overtaken by compile-before-consumption CI: the active plan does not introduce an owner-directory fallback, so manifest selection continues to govern inherited checks.
 
+## Round 6 — 2026-09-20T17:27:21-07:00 (codex) — passed
+
+### Raised
+
+- **PQ-8** [Important] `active-plan-state-mixes-complete-and-pending` The active plan mixes completed milestones with an unchecked replacement plan
+  The durable plan marks overlapping M1–M3 tasks complete at lines 170–239 while its current replacement tasks remain unchecked at lines 131–164, and the issue is already codecomplete. Normalize one authoritative execution sequence and clearly archive prior implementation state before implementation begins.
+- **PQ-9** [Important] `function-level-test-strategy` The test plan is a prose case inventory rather than function-level strategies
+  Lines 115–129 and 137–163 enumerate scenarios without naming the functions under test or giving one adversarial-input/mechanical-guard strategy per risky function. Replace the inventories with named strategies for Dependencies, Tools, ToolEnvironment, compile orchestration, and the bootstrap seam.
+- **PQ-10** [Important] `optional-build-contract-unresolved` Optional make-tools discovery and failure semantics are deferred to implementation
+  Lines 39–42 and 133–148 say to “resolve how to recognize the optional target” during implementation, but do not define the detection seam, absent-target rule, authored Makefile error behavior, or corresponding stateful fake and real-Make guard. The build-order and ARCH-ORDER contract must be concrete before coding.
+- **PQ-11** [Minor] `durable-tool-artifact-lifecycle` Tool packages and owner bin outputs lack an explicit end-of-life contract
+  The plan creates persistent Brewfile-installed packages and owner-local bin outputs, while explicitly declining automatic package removal, but does not state their lifecycle bounds, stale-binary cleanup policy, or operational cost as required by ARCH-FUNERAL.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **PQ-8** [Important] `active-plan-state-mixes-complete-and-pending` The active plan mixes completed milestones with an unchecked replacement plan
+- **PQ-9** [Important] `function-level-test-strategy` The test plan is a prose case inventory rather than function-level strategies
+- **PQ-10** [Important] `optional-build-contract-unresolved` Optional make-tools discovery and failure semantics are deferred to implementation
+- **PQ-11** [Minor] `durable-tool-artifact-lifecycle` Tool packages and owner bin outputs lack an explicit end-of-life contract

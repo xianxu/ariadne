@@ -72,6 +72,8 @@ func ProducedPathSet(actions []Action) map[string]bool {
 			set[filepath.Clean(act.Path)] = true
 		case Seed:
 			set[filepath.Clean(act.Dst)] = true
+		case SeedOnce:
+			set[filepath.Clean(act.Dst)] = true
 		case Touch:
 			set[filepath.Clean(act.Path)] = true
 		case Mkdir:
