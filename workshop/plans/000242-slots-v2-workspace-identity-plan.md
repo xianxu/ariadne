@@ -20,6 +20,8 @@ Primary has canonical address `repo:0` (input alias `repo`), resting branch `mai
 
 Slot validation requires its resting local ref to exist and resolve to a commit. It must not be checked out in another worktree. A slot currently on another reserved resting branch (`main` or a different `main-slotN`) is mismatched and errors. Commit equality with main/upstream is NOT required: independently stale baselines are valid. No remote fetch or tracking-policy requirement belongs to identity. Primary identity remains usable in ordinary master-only/unborn repositories; `main` describes the v2 convention, not a new gate for every historical repo.
 
+Only numbered slots get these resting-ref readiness checks. Primary resolution reports the `main` convention without requiring that ref to exist or checking where it is checked out; future lifecycle commands validate their own readiness. JSON `head` is null for an unborn primary (normalize Git's zero OID), and a full commit OID otherwise; an unborn slot is invalid because it lacks a committed resting baseline.
+
 An address resolves only an existing valid workspace. `:N` uses the caller's repo; qualified names use exact fleet primary names (no prefix matching for the new address grammar). Existing artifact-ref prefix behavior remains. Resolving a requested slot verifies both its expected canonical path and Git membership against the requested primary. A different repository at that path, missing directory/ref, duplicate canonical membership, bare primary, ambiguous membership, or inaccessible Git evidence is an explicit error. A slot-looking ordinary path outside the canonical location gets no slot ownership; an address request for it fails. A symlink spelling that resolves to the legitimate canonical location succeeds; a canonical slot path redirected outside it is refused.
 
 The package exposes `NormalizeVantage(reader, dir)` for repository topology independent of slot readiness, `Resolve(reader, dir, address)` for validated workspace identity, and pure address/path/classification functions. This separation lets fleet enumerate a broken slot without hiding the entire repo and lets provisioning discover the primary before a slot exists. Couch uses `sdlc workspace [address] --json` (cwd as context); absent address resolves the current worktree. It can read primary/fleet identity and apply the documented path convention before provisioning, then validate the completed slot through the same command. No creation, number allocation, roles, claims, dependency binding, refresh, or landing in this issue.
@@ -64,7 +66,7 @@ Inventory to migrate and verify (test files live beside each production file):
 | state and new CLI | `state.go`, `workspace.go`, `main.go` | expose identity, anchor default state issue/history reads at current root for nested cwd |
 | resolve/open/issue deduplication | `resolve.go`, `open.go` | peer search from fleet root, canonical current repo alias, common-dir logical issue key, GitHub display repo |
 | review/orientation | `reviewsidecar.go`, `orientation.go`, `judge.go`, `milestoneclose.go` | correct repo name, including manifest-derived labels, while retaining current worktree root |
-| actual attribution | `actual.go`, `close.go:resolveActualRoots` | canonical name for DiscoverWindowIssues; keep transcript/session root at current workspace; default brain from fleet |
+| actual attribution | `actual.go`, `close.go:resolveActualRoots`, `internal/activetime/commit.go:selfQualifier` | canonical name for DiscoverWindowIssues and active-time self refs, resolving the explicitly supplied git-repo rather than cwd; keep transcript/session root at current workspace; default brain from fleet |
 | ordinary branch-worktree placement | `branchcreate.go:createWorktreeBranch` | use fleet root and canonical repo name for `<fleet>/worktree/<repo>/<issue-branch>`; `.goto` stays at invoking checkout |
 | close and project discovery | `close.go`, `projectfind.go`, `internal/project/discover.go` | fleet root and canonical repo label; substitute current checkout for its primary during project discovery, dedupe common-dir identity |
 | project board/forecast | `projectforecast.go`, `projectstatus.go` | derive repo/fleet from project checkout, preserve current-worktree project content, use resolver for referenced issues |
@@ -75,6 +77,8 @@ Inventory to migrate and verify (test files live beside each production file):
 Do not broadly chdir the process or rewrite all user-provided paths. Use Cobra flag Changed information to distinguish omitted `--brain-dir` from an explicit `../brain`; programmatic callers pass resolved paths. Default issue/project paths touched above are anchored to the current worktree; explicit path arguments retain existing meaning. Preserve existing best-effort warning behavior for optional calibration in planning, but do not substitute a guessed path on failed identity resolution. Required identity failures propagate before mutation. Existing non-Git pure helper tests should inject identity, not force production to accept unverified paths.
 
 Retain `claim.go:findMainWorktree` as a branch-location query: a checkout currently on main is not necessarily the primary. Merge return/cleanup policy belongs to #246 and is not changed here. Keep repo transaction locks keyed to the common Git directory. Fleet inventory still reads primary policy/issues, with its repo-name argument explicitly documented as primary-derived. Ordinary branch-worktree placement is a path correction only; explicit source/refresh semantics remain #245.
+
+`peerwrite.go` currently uses basename for a diagnostic and checkout-path equality to exclude the current checkout. Retain checkout-local write decisions; test that the project-discovery overlay prevents the current primary being offered as a peer write when closing from its slot. Do not widen auto-commit eligibility to other worktrees. Include this file in the final shadow-sweep disposition.
 
 ## Architectural constraints
 
@@ -139,3 +143,7 @@ Files: new `atlas/workflow/workspace-identity.md`; modify `atlas/index.md`, `atl
 ### 2026-09-22 — initial engineering proposal
 
 Derived from the v2 project and live SDLC consumer audit after claim/start-plan. Reuses fleet's existing topology authority; this is the first durable engineering design, pending operator approval. Estimate follows accepted plan-quality review.
+
+### 2026-09-22 — fresh-context review clarifications
+
+Reason: design review approved with optional clarifications. Delta: specified unborn HEAD serialization and primary readiness exemption; added active-time's explicitly targeted repository qualifier and peer-write overlay coverage to the consumer audit.
