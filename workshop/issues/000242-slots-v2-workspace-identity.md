@@ -1,6 +1,6 @@
 ---
 id: 000242
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-22
@@ -8,6 +8,7 @@ updated: 2026-09-22
 estimate_hours: 2.65
 started: 2026-09-22T22:20:59-07:00
 flow: {kind: full, provenance: operator}
+actual_hours: 1.35
 ---
 
 # Slots v2: workspace identity
@@ -60,13 +61,14 @@ Task outline only; settle implementation design through start-plan before change
 
 Engineering proposal: [durable implementation plan](../plans/000242-slots-v2-workspace-identity-plan.md). Operator approved on 2026-09-22; change-code gates are in progress.
 
-- [ ] Inventory live identity/path consumers and specify the shared resolver contract.
-- [ ] Add Git fixture tests and implement the resolver and affected SDLC consumers.
-- [ ] Document the contract for Couch and verify primary/non-slot compatibility.
+- [x] Inventory live identity/path consumers and specify the shared resolver contract.
+- [x] Add Git fixture tests and implement the resolver and affected SDLC consumers.
+- [x] Document the contract for Couch and verify primary/non-slot compatibility.
 
 ## Log
 
 ### 2026-09-22 — fresh v2 task
+- 2026-09-22: closed — Workspace/SDLC suite passed excluding only existing #210 missing-plan test; BR-1 regression red then green, full workspace suite and workspace/state/project/close/resolve consumer regressions passed after fix; vet/build/diff checks passed; README now documents workspace JSON.; review verdict: SHIP
 
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
 
@@ -81,6 +83,28 @@ Fresh-context spec/plan review approved with no blocking findings. Incorporated 
 ### 2026-09-22 — approved; plan-quality refinement
 
 Operator approved the durable plan. The first change-code plan-quality review accepted architecture/scope and raised PQ-1: replace prose test-case lists with function-level adversarial strategies. Updated the plan across that class; rerunning the gate before estimating or implementing.
+
+### 2026-09-22 — implementation and regression evidence
+
+Implemented the shared pkg/workspace resolver and parser promotion, JSON workspace CLI/state, current-checkout project overlay, canonical artifact/review/actual labels, default brain/project paths, migration guard and ordinary worktree placement. Focused production-command suites passed. Shared/fleet/gitx suites and parser/address fuzz runs passed; real resolver samples at 1/10/100 worktrees were 95.796/121.384/154.675ms with 7/9/9 Git reads. Resolver final checks cover selected path/common-dir, HEAD, branch and resting ref; occupancy remains observational and future mutation commands must revalidate under their own lock (ARCH-ORDER).
+
+The first full suite exposed legacy non-Git fixtures, corrected to real Git repositories; macOS logical/physical temporary paths also needed canonical fixture identity for fault injection. The unchanged TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory fails on its missing live plan path, already tracked by #210; HEAD lacks that path and this task does not change that test. Final serialized suite will exclude only that named baseline failure. No history files read. Unrelated #230/#240 edits remain intact.
+
+### 2026-09-22 — integrated verification checkpoint
+
+Passed `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (cmd/sdlc 271.462s, all packages pass). The sole exclusion is the unchanged baseline #210 missing-plan test, documented above. `go vet ./pkg/workspace/... ./cmd/sdlc/...`, `git diff --check`, and `go build -o /tmp/ariadne-242-sdlc ./cmd/sdlc` passed. Built-binary workspace/state JSON smoke checks passed on this checkout; mutation/error scenarios used temporary Git fixtures. Implementation and documentation are complete; mandatory close review and publish remain.
+
+### 2026-09-22 — close review round 1
+
+REWORK: BR-1 found malformed all-zero HEAD observations bypassed OID validation by becoming unborn null; BR-2 found missing README command usage. Fixing the malformed-evidence class with red/green regression coverage and adding README workspace/state discovery. The issue remains working; no gate bypass. Lessons and the durable plan record both corrections.
+
+### 2026-09-22 — review fixes verified
+
+BR-1 class sweep now validates every observed non-bare HEAD and the selected resting ref in Classify before interpreting zero sentinels; direct callers share the same rule. Malformed-observation regression failed before the fix (0.432s), then focused tests passed (0.387s); full workspace suite passed (9.518s). Workspace/state/project/close/resolve consumer regressions passed (10.608s), and Go vet passed across workspace and SDLC. BR-2 README now documents workspace address examples, JSON purpose and state integration. Both findings are ready for gate disposition; no publish yet.
+
+### 2026-09-22 — close accepted
+
+Round 2 returned SHIP, both BR-1 and BR-2 addressed, with no new findings. The reviewer independently passed targeted changed tests; its full run encountered the real-repo hermeticity guard when concurrent doc-only commit 6fd8d5d arrived. Our earlier serialized suite passed with only the known #210 exclusion. SDLC accepted the doc-only delta, measured 1.35h, marked codecomplete, and ticked the peer project task. Lessons were captured with the fixes. Publication remains next.
 
 ## Revisions
 

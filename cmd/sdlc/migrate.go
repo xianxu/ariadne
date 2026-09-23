@@ -211,7 +211,11 @@ func runMigrate(o *migrateOpts) error {
 	if err != nil {
 		die(o.stderr, "not inside a git repo: "+err.Error())
 	}
-	srcRepo := filepath.Base(srcRoot)
+	srcIdentity, err := resolveWorkspace(srcRoot)
+	if err != nil {
+		die(o.stderr, err.Error())
+	}
+	srcRepo := srcIdentity.Repo
 
 	// (0) source path normalization: must lie inside the cwd repo — the
 	// transaction lock and the source-side commit are anchored there.
@@ -260,8 +264,12 @@ func runMigrate(o *migrateOpts) error {
 		die(o.stderr, fmt.Sprintf("%s is not a git repo: %s", o.destDir, strings.TrimSpace(destTopOut)))
 	}
 	destTop := strings.TrimSpace(destTopOut)
-	destRepo := filepath.Base(destTop)
-	if destTop == srcRoot {
+	destIdentity, err := resolveWorkspace(destTop)
+	if err != nil {
+		die(o.stderr, err.Error())
+	}
+	destRepo := destIdentity.Repo
+	if destIdentity.RepoIdentity == srcIdentity.RepoIdentity {
 		die(o.stderr, fmt.Sprintf("destination resolves to the same repo (%s) — a same-repo migrate would flip bare↔qualified forms for nothing; use git mv", srcRepo))
 	}
 	if gitx.IsBrainRepo(destTop) {
@@ -374,7 +382,12 @@ func runMigrate(o *migrateOpts) error {
 // sibling repos. Report-only (#179 v1): issue refs are location-independent,
 // path references are not — the operator judges.
 func reportInboundRefs(stderr io.Writer, srcRoot, destTop, relPath, destRel string) {
-	parent := filepath.Dir(srcRoot)
+	identity, err := resolveWorkspace(srcRoot)
+	if err != nil {
+		cwarn(stderr, "inbound-ref sweep skipped: "+err.Error())
+		return
+	}
+	parent := identity.FleetRoot
 	entries, err := os.ReadDir(parent)
 	if err != nil {
 		cwarn(stderr, "inbound-ref sweep skipped: "+err.Error())

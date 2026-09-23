@@ -55,6 +55,8 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Review, plans, and artifacts
 
+- New CLI surfaces need discoverable README usage as well as detailed atlas and
+  embedded help documentation; check all three before closing.
 - Before a boundary, read the actual verdict and reconcile the plan against the
   committed tree. “Inert at runtime” is not the same as “removed”; an unticked
   row can disable the guard that proves it.
@@ -71,6 +73,9 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Base-layer and data sharp edges
 
+- Validate external identifier grammar before interpreting sentinel values. An
+  all-zero Git OID is unborn only at a valid hash length; malformed zeros must
+  not bypass validation by becoming a null value.
 - Editing `construct/adapted/` changes rendered downstream instructions. Inspect
   generated output and downstream consumers before landing a base-layer change.
 - A span edit is only safe if its boundary is explicit and tested. A pathspec is

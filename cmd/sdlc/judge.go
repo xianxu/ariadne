@@ -14,7 +14,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -106,7 +105,10 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 		}
 		o := boundaryOrientation(f.IssuesDir, f.Issue, f.Milestone)
 		o.RepoRoot = manifest.RepoRoot
-		o.Repo = filepath.Base(manifest.RepoRoot)
+		o.Repo, err = workspaceRepoName(manifest.RepoRoot)
+		if err != nil {
+			die(stderr, fmt.Sprintf("resolve review repository: %v", err))
+		}
 		o.IssueFile = manifest.IssueFile
 		if f.Issue <= 0 {
 			o.IssueRef = "<unspecified>"

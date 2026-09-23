@@ -36,6 +36,7 @@ func surfaceFixture(t *testing.T, hpw float64) string {
 	orig := projectTodayFn
 	projectTodayFn = func() string { return "2026-09-01" }
 	t.Cleanup(func() { projectTodayFn = orig })
+	projectWorkspaceGit(t, filepath.Join(parent, "ariadne"), "init", "-b", "main")
 	return projectsDir
 }
 

@@ -111,9 +111,18 @@ func runStartPlan(stdout io.Writer, issue int) {
 	// $WF_ESTIMATOR_SRC override) and renders for every status, MISSING included —
 	// a brain-less downstream repo gets the pointer, never a break.
 	fmt.Fprintln(stdout)
-	brainAbs, _ := filepath.Abs("../brain")
-	src := estimateSourceStatus(brainAbs, estimate.CurrentModel(), os.Getenv("WF_ESTIMATOR_SRC"))
-	cinfo(stdout, estimate.SourceLine(src))
+	override := os.Getenv("WF_ESTIMATOR_SRC")
+	brainAbs := ""
+	var brainErr error
+	if override == "" {
+		brainAbs, brainErr = defaultBrainDir()
+	}
+	if brainErr != nil {
+		cwarn(stdout, fmt.Sprintf("cannot resolve estimator brain: %v", brainErr))
+	} else {
+		src := estimateSourceStatus(brainAbs, estimate.CurrentModel(), override)
+		cinfo(stdout, estimate.SourceLine(src))
+	}
 
 	// #82 M3 / #83: a non-blocking heads-up on the DEPENDENCY PATH. The symlink
 	// model means a repo reads ALL its transitive upstreams' working trees live,
@@ -150,20 +159,24 @@ type inFlightIssue struct {
 // issues. Built by the thin gatherBaseContention seam; consumed by the pure
 // baseContentionSummary so the wording is table-testable without git/IO.
 type baseContention struct {
-	Repo      string
-	Branch    string
-	DirtyCode int
-	Others    []inFlightIssue
+	Unavailable string // identity resolution failed; preserve the observed error
+	Repo        string
+	Branch      string
+	DirtyCode   int
+	Others      []inFlightIssue
 }
 
 // Clean reports whether the base is a calm place to plan against: on `main`, no
 // dirty code, no other claimed base issues.
 func (c baseContention) Clean() bool {
-	return c.Branch == "main" && c.DirtyCode == 0 && len(c.Others) == 0
+	return c.Unavailable == "" && c.Branch == "main" && c.DirtyCode == 0 && len(c.Others) == 0
 }
 
 // baseContentionSummary renders the one-line heads-up. Pure.
 func baseContentionSummary(c baseContention) string {
+	if c.Unavailable != "" {
+		return fmt.Sprintf("base contention unavailable: %s", c.Unavailable)
+	}
 	if c.Clean() {
 		return fmt.Sprintf("base (%s): clean main, no other base issues in flight — clear to plan.", c.Repo)
 	}
@@ -356,7 +369,14 @@ func substrateChain(root string) []string {
 func gatherBaseContention(root string, excludeIssue int) baseContention {
 	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
 	historyDir := envOr("WF_HISTORY_DIR", "workshop/history")
-	c := baseContention{Repo: filepath.Base(root)}
+	c := baseContention{}
+	identity, err := resolveWorkspace(root)
+	if err != nil {
+		c.Unavailable = err.Error()
+		return c
+	}
+	c.Repo = identity.Repo
+	root = identity.WorktreeRoot
 	// GitInDir output carries a trailing newline (unlike gitx.Capture, which
 	// trims) — TrimSpace, or Branch never equals "main" and Clean() never fires.
 	if out, err := mergeRunner.GitInDir(root, "branch", "--show-current"); err == nil {

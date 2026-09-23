@@ -95,9 +95,10 @@ func TestWorkingTreeDirty(t *testing.T) {
 func TestPropagateBaseSkipsDirtyDependent(t *testing.T) {
 	parent := t.TempDir()
 	owner := filepath.Join(parent, "owner")
-	if err := os.MkdirAll(owner, 0o755); err != nil { // owner just needs to exist (skipped as self)
+	if err := os.MkdirAll(owner, 0o755); err != nil { // the production boundary verifies Git identity
 		t.Fatal(err)
 	}
+	propagationRepo(t, owner)
 	// A real git dependent: substrate ../owner, Makefile.workflow, an initial commit,
 	// then an UNTRACKED file → dirty.
 	dep := filepath.Join(parent, "dep")
@@ -181,7 +182,7 @@ func TestRecursiveDependents(t *testing.T) {
 	} // deliberately no .git
 
 	var names []string
-	for _, d := range recursiveDependents(owner) {
+	for _, d := range recursiveDependentsIn(owner, parent) {
 		names = append(names, filepath.Base(d.root))
 	}
 	sort.Strings(names)

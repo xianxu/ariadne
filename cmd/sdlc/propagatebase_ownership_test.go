@@ -58,6 +58,7 @@ func TestPropagateBaseUsesInstalledCompiler(t *testing.T) {
 			if err := os.MkdirAll(owner, 0755); err != nil {
 				t.Fatal(err)
 			}
+			propagationRepo(t, owner)
 			propagationRepo(t, leaf)
 			propagationWrite(t, leaf, "construct/deps", "substrate ../owner\n")
 			git(t, leaf, "add", "-A")
@@ -188,6 +189,7 @@ func TestPropagatePreviewNeedsNoWeaveAndMissingCompilerLeavesCleanRepo(t *testin
 	if err := os.MkdirAll(owner, 0755); err != nil {
 		t.Fatal(err)
 	}
+	propagationRepo(t, owner)
 	propagationRepo(t, leaf)
 	propagationWrite(t, leaf, "construct/deps", "substrate ../owner\n")
 	git(t, leaf, "add", "-A")

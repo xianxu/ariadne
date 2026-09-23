@@ -129,8 +129,11 @@ func createWorktreeBranch(stdout, stderr io.Writer, name string, r gitRunner) (s
 	if err != nil {
 		return "", fmt.Errorf("git rev-parse --show-toplevel: %v", err)
 	}
-	repoDir := filepath.Base(repoTop)
-	wtRoot := filepath.Join(filepath.Dir(repoTop), "worktree", repoDir)
+	identity, err := resolveWorkspace(repoTop)
+	if err != nil {
+		return "", err
+	}
+	wtRoot := filepath.Join(identity.FleetRoot, "worktree", identity.Repo)
 	wtPath := filepath.Join(wtRoot, name)
 
 	porcelain, err := r.Git("worktree", "list", "--porcelain", "-z")

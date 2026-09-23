@@ -355,3 +355,36 @@ func TestContainsIssueMarker(t *testing.T) {
 		}
 	}
 }
+
+func TestDiscoveryCheckoutOverlay(t *testing.T) {
+	parent := t.TempDir()
+	primary := filepath.Join(parent, "metis")
+	slot := filepath.Join(parent, "worktree", "metis-slot1")
+	writeProject(t, parent, "metis", "workshop/projects", "stale", "[metis#18]")
+	writeProject(t, parent, "worktree/metis-slot1", "workshop/projects", "current", "[metis#18]")
+	writeProject(t, parent, "worktree/metis-slot1", "workshop/history/projects", "archived", "[metis#18]")
+	writeProject(t, parent, "ariadne", "workshop/projects", "peer", "[metis#18]")
+	overlay := CheckoutOverlay{PrimaryRoot: primary, WorktreeRoot: slot, Repo: "metis"}
+	matches, err := DiscoverByIssueRef(parent, "metis", "18", ActiveAndArchive, overlay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(matches) != 3 {
+		t.Fatalf("want current + archived + peer, got %+v", matches)
+	}
+	for _, m := range matches {
+		if m.RepoDir == primary {
+			t.Fatalf("primary must not be offered as a peer write: %+v", m)
+		}
+		if m.RepoDir == slot && m.Repo != "metis" {
+			t.Fatalf("repo name is not canonical: %+v", m)
+		}
+	}
+	files, err := ListActiveProjectFiles(parent, filepath.Join(slot, "workshop/projects/current.md"), overlay)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(files) != 1 || files[0].Repo != "ariadne" {
+		t.Fatalf("want peer only, got %+v", files)
+	}
+}

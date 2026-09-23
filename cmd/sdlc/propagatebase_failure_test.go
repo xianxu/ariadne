@@ -62,7 +62,10 @@ exec "$PROP_REAL_GIT" "$@"
 
 func migrationFailureFixture(t *testing.T) string {
 	t.Helper()
-	root := t.TempDir()
+	root, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
 	propagationRepo(t, root)
 	propagationWrite(t, root, ".gitignore", "/generated-*\n/authored\n/construct/generated/weave/\n")
 	for _, name := range []string{"generated-a", "generated-b", "authored"} {
@@ -152,6 +155,7 @@ func TestPropagationAfterPartialIndexFailureRequiresOperatorResolution(t *testin
 	if err := os.MkdirAll(owner, 0755); err != nil {
 		t.Fatal(err)
 	}
+	propagationRepo(t, owner)
 	propagationWrite(t, root, "construct/deps", "substrate ../base\n")
 	git(t, root, "add", "construct/deps")
 	git(t, root, "commit", "-qm", "declare base")
@@ -199,6 +203,7 @@ func TestPropagationStatusFailureDoesNotRunCompiler(t *testing.T) {
 	if err := os.MkdirAll(owner, 0755); err != nil {
 		t.Fatal(err)
 	}
+	propagationRepo(t, owner)
 	propagationWrite(t, root, "construct/deps", "substrate ../base\n")
 	git(t, root, "add", "construct/deps")
 	git(t, root, "commit", "-qm", "declare base")

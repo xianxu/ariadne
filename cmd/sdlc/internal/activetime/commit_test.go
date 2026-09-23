@@ -2,6 +2,9 @@ package activetime
 
 import (
 	"fmt"
+	"github.com/xianxu/ariadne/pkg/workspace"
+	"os"
+	"os/exec"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -11,6 +14,11 @@ import (
 // withGitRun swaps the package gitRun shim for the duration of a test.
 func withGitRun(t *testing.T, fn func(repo string, args ...string) ([]byte, error)) {
 	t.Helper()
+	origIdentity := resolveCommitWorkspace
+	resolveCommitWorkspace = func(repo string) (workspace.Identity, error) {
+		return workspace.Identity{Repo: filepath.Base(repo)}, nil
+	}
+	t.Cleanup(func() { resolveCommitWorkspace = origIdentity })
 	orig := gitRun
 	gitRun = fn
 	t.Cleanup(func() { gitRun = orig })
@@ -130,19 +138,50 @@ func TestSelfQualifierComesFromGitRepo(t *testing.T) {
 	}
 }
 
-func TestSelfQualifier(t *testing.T) {
-	for _, tc := range []struct{ repo, want string }{
-		{"/Users/x/workspace/ariadne", "ariadne"},
-		{"/Users/x/workspace/pair/", "pair"},
-		{"/", ""},
-	} {
-		if got := selfQualifier(tc.repo); got != tc.want {
-			t.Errorf("selfQualifier(%q) = %q, want %q", tc.repo, got, tc.want)
+func TestSelfQualifierLinkedCheckout(t *testing.T) {
+	t.Setenv("GIT_CONFIG_GLOBAL", os.DevNull)
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	fleet := t.TempDir()
+	primary := filepath.Join(fleet, "pair")
+	if err := os.Mkdir(primary, 0755); err != nil {
+		t.Fatal(err)
+	}
+	git := func(args ...string) {
+		t.Helper()
+		c := exec.Command("git", append([]string{"-C", primary}, args...)...)
+		if out, err := c.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %s %v", args, out, err)
 		}
 	}
-	// "." resolves to the cwd's basename, which is a real repo name when the caller means
-	// "here" — assert only that it does not panic or yield a path separator.
-	if got := selfQualifier("."); strings.ContainsRune(got, filepath.Separator) {
-		t.Errorf(`selfQualifier(".") = %q, want a bare basename`, got)
+	git("init", "-b", "main")
+	git("-c", "user.name=Test", "-c", "user.email=test@example.com", "commit", "--allow-empty", "-m", "pair#129: first (see ariadne#180)")
+	checkout := filepath.Join(fleet, "worktree", "pair", "topic")
+	git("worktree", "add", "-b", "topic", checkout)
+	nested := filepath.Join(checkout, "nested")
+	if err := os.Mkdir(nested, 0755); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := selfQualifier(nested); got != "pair" || err != nil {
+		t.Fatalf("selfQualifier(nested linked worktree) = %q, want pair", got)
+	}
+	commits, err := loadWindowCommits(nested, "", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := commits[0].Issues; !reflect.DeepEqual(got, []string{"129"}) {
+		t.Fatalf("explicit git-repo attribution = %v", got)
+	}
+	if got, err := selfQualifier(fleet); got != "" || err == nil {
+		t.Fatalf("non-Git path guessed qualifier %q", got)
+	}
+}
+
+func TestComputeRefusesUnverifiedIdentity(t *testing.T) {
+	withGitRun(t, func(string, ...string) ([]byte, error) { return nil, nil })
+	resolveCommitWorkspace = func(string) (workspace.Identity, error) {
+		return workspace.Identity{}, fmt.Errorf("identity unavailable")
+	}
+	if _, err := Compute(Options{GitRepo: "/unverified"}); err == nil {
+		t.Fatal("Compute accepted unverified repository identity")
 	}
 }

@@ -51,9 +51,8 @@ func canonRoot(p string) string {
 // A sibling qualifies iff it is a Git repo whose declared substrate chain
 // contains ownerRoot. Generated workflow files need not exist yet.
 // IO: scans the parent directory and reads dependency declarations.
-func recursiveDependents(ownerRoot string) []propDep {
+func recursiveDependentsIn(ownerRoot, parent string) []propDep {
 	ownerKey := canonRoot(ownerRoot)
-	parent := filepath.Dir(ownerRoot)
 	entries, err := os.ReadDir(parent)
 	if err != nil {
 		return nil
@@ -121,7 +120,11 @@ type propResult struct {
 // ref is the commit-message reference (e.g. "ariadne#107"). dryRun reports the plan
 // without mutating. Returns an error if any dependent FAILED.
 func runPropagateBase(ownerRoot, ref string, dryRun bool, out io.Writer) error {
-	deps := orderDependentsFoundationFirst(recursiveDependents(ownerRoot))
+	identity, err := resolveWorkspace(ownerRoot)
+	if err != nil {
+		return fmt.Errorf("resolve propagation owner: %w", err)
+	}
+	deps := orderDependentsFoundationFirst(recursiveDependentsIn(identity.WorktreeRoot, identity.FleetRoot))
 	if len(deps) == 0 {
 		fmt.Fprintln(out, "propagate-base: no recursive dependents found")
 		return nil

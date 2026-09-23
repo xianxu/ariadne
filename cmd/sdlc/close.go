@@ -467,7 +467,11 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	if err != nil {
 		die(stderr, err.Error())
 	}
-	repoName := filepath.Base(repoTop)
+	identity, err := resolveWorkspace(repoTop)
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	repoName := identity.Repo
 
 	fm, body, err := issue.Parse(issueText)
 	if err != nil {
@@ -650,7 +654,11 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// `done` project is never re-ticked; the peer-write commit decision is M3.
 	var projectEdits []projectEdit
 
-	matches, derr := project.DiscoverByIssueRef(filepath.Dir(repoTop), repoName, issueStr, project.ActiveOnly)
+	overlays, overlayErr := projectWorkspaceOverlays(identity)
+	if overlayErr != nil {
+		die(stderr, overlayErr.Error())
+	}
+	matches, derr := project.DiscoverByIssueRef(identity.FleetRoot, repoName, issueStr, project.ActiveOnly, overlays...)
 	if derr != nil {
 		cwarn(stderr, derr.Error()+" — skipping project update")
 	} else if len(matches) == 0 {
@@ -1433,7 +1441,10 @@ func emitLessonsReminder(stdout io.Writer) {
 // a package var so tests can stub the engine (the file's validateChangedInstancesFn
 // pattern). Production resolves roots and runs the same engine as `sdlc actual`.
 var computeActualForCloseFn = func(issueStr string) actualResult {
-	repoTop, brainAbs := resolveActualRoots()
+	repoTop, brainAbs, err := resolveActualRoots()
+	if err != nil {
+		return actualResult{Status: actualError, Issue: issueStr, Detail: err.Error()}
+	}
 	return computeActual(repoTop, brainAbs, issueStr)
 }
 
@@ -1514,14 +1525,12 @@ func explainActual(stderr io.Writer, issueStr, mode, milestone string, res actua
 // resolveActualRoots returns the repo top (cwd fallback) and the sibling brain
 // dir — the two roots computeActual needs. Shared by explainActual (omit-path)
 // and checkActualDeviation (pass-path) so the resolution lives in one place.
-func resolveActualRoots() (repoTop, brainAbs string) {
-	repoTop, err := gitx.RepoTopLevel()
-	if err != nil || repoTop == "" {
-		cwd, _ := os.Getwd()
-		repoTop, _ = filepath.Abs(cwd)
+func resolveActualRoots() (repoTop, brainAbs string, err error) {
+	identity, err := resolveWorkspace(".")
+	if err != nil {
+		return "", "", err
 	}
-	brainAbs, _ = filepath.Abs(filepath.Join(repoTop, "..", "brain"))
-	return repoTop, brainAbs
+	return identity.WorktreeRoot, filepath.Join(identity.FleetRoot, "brain"), nil
 }
 
 // #87: backstop for a hand-passed --actual that doesn't match reality.

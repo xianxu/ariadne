@@ -118,6 +118,24 @@ the generated formula into `xianxu/homebrew-ariadne`. There are no runtime Go or
 Python dependencies in the packaged weave binary. See the
 [consumer migration notes](atlas/workflow/setup-and-replication.md#consumer-cutover).
 
+## Workspace identity
+
+Resolve the current checkout or a numbered workspace from Git topology:
+
+```sh
+sdlc workspace --json
+sdlc workspace :0 --json
+sdlc workspace pair:1 --json
+sdlc state --json
+```
+
+`workspace` is read-only. Its JSON v1 contract separates repository identity,
+primary checkout, and current worktree, and reports the address, active branch,
+and resting branch. Ordinary feature worktrees have no numbered address or
+resting branch. `state` includes the same identity for its current checkout.
+See the [workspace contract](atlas/workflow/workspace-identity.md) for validation
+rules and snapshot limits.
+
 ## Fleet queries
 
 Inspect every Git worktree in the sibling-repository fleet from a caller path,

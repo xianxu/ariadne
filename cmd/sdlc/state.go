@@ -31,14 +31,17 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // ── flag struct ──────────────────────────────────────────────────────────────
 
 type stateFlags struct {
-	JSON       bool
-	IssuesDir  string
-	HistoryDir string
+	JSON            bool
+	IssuesDir       string
+	HistoryDir      string
+	IssuesExplicit  bool
+	HistoryExplicit bool
 }
 
 // ── public types (also the JSON schema) ──────────────────────────────────────
@@ -78,12 +81,13 @@ type DriftFinding struct {
 
 // State is the full snapshot — the root JSON object when --json is set.
 type State struct {
-	Repo      string          `json:"repo"`
-	Branch    string          `json:"branch"`
-	Issues    []IssueState    `json:"issues"`
-	Worktrees []WorktreeState `json:"worktrees"`
-	Recent    []CommitState   `json:"recent_commits"`
-	Drift     []DriftFinding  `json:"drift"`
+	Workspace workspace.Identity `json:"workspace"`
+	Repo      string             `json:"repo"`
+	Branch    string             `json:"branch"`
+	Issues    []IssueState       `json:"issues"`
+	Worktrees []WorktreeState    `json:"worktrees"`
+	Recent    []CommitState      `json:"recent_commits"`
+	Drift     []DriftFinding     `json:"drift"`
 }
 
 // ── command constructor ─────────────────────────────────────────────────────
@@ -97,6 +101,8 @@ func NewStateCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			f.IssuesExplicit = cmd.Flags().Changed("issues-dir")
+			f.HistoryExplicit = cmd.Flags().Changed("history-dir")
 			return runState(cmd.OutOrStdout(), &f)
 		},
 	}
@@ -109,25 +115,32 @@ func NewStateCmd() *cobra.Command {
 // ── main flow ───────────────────────────────────────────────────────────────
 
 func runState(stdout io.Writer, f *stateFlags) error {
+	identity, err := resolveWorkspace(".")
+	if err != nil {
+		return err
+	}
 	recent, baseRef := recentCommits()
 	worktrees, err := listWorktrees()
 	if err != nil {
 		return err
 	}
 	s := State{
+		Workspace: identity,
 		Repo:      gitx.Capture("rev-parse", "--show-toplevel"),
 		Branch:    gitx.Capture("branch", "--show-current"),
 		Worktrees: worktrees,
 		Recent:    recent,
 	}
 
-	issues, err := listIssues(f.IssuesDir)
+	issuesDir := defaultWorkspacePath(identity.WorktreeRoot, f.IssuesDir, f.IssuesExplicit)
+	historyDir := defaultWorkspacePath(identity.WorktreeRoot, f.HistoryDir, f.HistoryExplicit)
+	issues, err := listIssues(issuesDir)
 	if err != nil {
 		return fmt.Errorf("list issues: %w", err)
 	}
 	s.Issues = issues
 	// gitx.ShippedWorkOnMain is the production ship probe; state_test fakes it.
-	s.Drift = detectDrift(issues, f.HistoryDir, gitx.ShippedWorkOnMain)
+	s.Drift = detectDrift(issues, historyDir, gitx.ShippedWorkOnMain)
 	if baseRef == "" {
 		s.Drift = append(s.Drift, DriftFinding{
 			Severity: "info",
@@ -396,6 +409,9 @@ func unpadID(id string) string {
 func renderProse(w io.Writer, s State) error {
 	fmt.Fprintf(w, "Repo:    %s\n", s.Repo)
 	fmt.Fprintf(w, "Branch:  %s\n", s.Branch)
+	if s.Workspace.SchemaVersion != 0 {
+		fmt.Fprintf(w, "Workspace: %s\nResting branch: %s\n", workspaceText(s.Workspace.Address, "(ordinary worktree)"), workspaceText(s.Workspace.RestingBranch, "(none)"))
+	}
 	fmt.Fprintln(w)
 
 	fmt.Fprintln(w, "Issues:")

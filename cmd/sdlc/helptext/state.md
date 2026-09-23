@@ -4,7 +4,7 @@ surface. Compaction recovery primitive: after a session resume, run
 
 WHAT IT SHOWS
 
-  - Current branch + repo root
+  - Current branch + repo root, workspace address and resting branch
   - Issues in workshop/issues/ with status, plan-tick progress
   - Active git worktrees (path + branch)
   - Recent commits on this branch (main..HEAD)
@@ -21,7 +21,9 @@ OUTPUT MODES
 
   - Default: human-readable, terminal-friendly with section headers.
   - `--json`: structured JSON, suitable for tool composition or
-    machine consumption.
+    machine consumption. The additive workspace object uses the JSON v1 contract
+    documented by `sdlc workspace --help`. Default artifact directories are
+    anchored at the current worktree; explicitly passed paths retain cwd meaning.
 
 DRIFT DETECTION
 

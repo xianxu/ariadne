@@ -81,7 +81,11 @@ func Compute(opts Options) (Result, error) {
 	// transcript prose is not counted as this repo's #127 (ariadne#190). The qualifier comes
 	// from GitRepo — the repo whose text is being attributed — for the same reason
 	// selfQualifier does on the commit path.
-	sc := newMentionScope(selfQualifier(opts.GitRepo), opts.Issues)
+	self, err := selfQualifier(opts.GitRepo)
+	if err != nil {
+		return Result{}, err
+	}
+	sc := newMentionScope(self, opts.Issues)
 	events, spans, err := loadEventsWithFiles(opts.Dirs, opts.Files, sc, opts.IncludeAssistant, opts.SinceISO, opts.UntilISO)
 	if err != nil {
 		return Result{}, err

@@ -34,6 +34,8 @@ func TestLookupIssueMetaCrossRepoAndArchive(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(archive, "000007-x.md"), []byte(issue), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	projectWorkspaceGit(t, root, "init", "-b", "main")
+	projectWorkspaceGit(t, peer, "init", "-b", "main")
 	meta, err := lookupIssueMeta("nous#7", root)
 	if err != nil {
 		t.Fatal(err)
@@ -57,6 +59,8 @@ func TestLookupIssueMetaCanonicalizesPeerPrefixAliases(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(issues, "000003-x.md"), []byte(issue), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	projectWorkspaceGit(t, root, "init", "-b", "main")
+	projectWorkspaceGit(t, filepath.Join(parent, "parley.nvim"), "init", "-b", "main")
 	prefix, err := lookupIssueMeta("parley#3", root)
 	if err != nil {
 		t.Fatal(err)
@@ -84,6 +88,8 @@ func TestMalformedIssueEstimateDegradesToBoardWarning(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(peerIssues, "000008-malformed.md"), []byte(issue), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	projectWorkspaceGit(t, root, "init", "-b", "main")
+	projectWorkspaceGit(t, filepath.Join(parent, "nous"), "init", "-b", "main")
 	d := boardDoc(t, "- [ ] malformed estimate [nous#8]")
 	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return lookupIssueMeta(ref, root) })
 	if err != nil {

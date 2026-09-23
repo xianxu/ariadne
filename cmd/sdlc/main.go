@@ -109,6 +109,7 @@ func buildRoot() *cobra.Command {
 	add(NewPRCmd(), "pr", "Open a pull request from a feature branch")
 	add(NewMergeCmd(), "merge", "Merge the PR, archive done issues, clean up")
 	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")
+	add(NewWorkspaceCmd(), "workspace", "Resolve Git-verified repository and workspace identity")
 	add(NewStateCmd(), "state", "Inspect workflow state (branch, working issues, drift)")
 	add(NewFleetCmd(), "fleet", "Inspect fleet worktrees and query prospective admission policy")
 	add(NewResolveCmd(), "resolve", "Resolve a symbolic artifact ref (ariadne#11, #15 M4) to its current path(s) — read-only")
@@ -136,6 +137,8 @@ func buildRoot() *cobra.Command {
 	root.AddCommand(NewStartCmd()) // hidden migration stub (#39)
 	root.AddCommand(newPropagateBaseCmd())
 
+	wrapBrainDefaults(root)
+	wrapProjectDefaults(root)
 	wrapRepoLockCommands(root)
 
 	return root
