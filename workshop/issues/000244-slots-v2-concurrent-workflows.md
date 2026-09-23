@@ -123,7 +123,7 @@ total: 17.01
 
 ## Plan
 
-Current durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). The operator approved the simplified scope. The revised implementation gate passed with plan-quality CLEAN and estimate-quality INFO (17.01h provisional). M1 is implemented and verified, pending its boundary review; M2 remains to integrate.
+Current durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). The operator approved the simplified scope. The revised implementation gate passed with plan-quality CLEAN and estimate-quality INFO (17.01h provisional). M1 closed with SHIP; M2 is implemented and verified, pending its boundary review.
 
 - [x] M1 — Fresh status claims and explicit commit publication across all slots/clones.
 - [ ] M2 — Release external-review locks, reject stale results, and verify dependency workflows.
@@ -183,3 +183,7 @@ Operator authorized implementation and removal of the obsolete design artifact. 
 Revised change-code completed successfully. Implemented fresh status-only claims, same-slug-safe creation, explicit selected documentation commits, three-way Git merging/provenance, and identical publication in primary/worktree/private-clone checkouts. Removed the old whole-branch/snapshot shortcuts. Tests exposed identical candidate commits and server-side ref-lock rejection shapes; reservations now reread on confirmed rejection/up-to-date and preserve uncertainty on ambiguous acknowledgment, without caller ownership inference. Full workspace/SDLC suite passed (known #210 fixture excluded), vet and diff-check passed. Updated atlas/help/base instructions. M1 boundary review is next; M2 is prepared separately and not yet integrated.
 
 - 2026-09-23: M2 integrated shared review snapshots and prepare/unlock/revalidate phases; focused workflow tests passed (196.593s) and judge tests passed. Nested private-dependency CLI creation/claim/issue+plan publication/conflict/recovery passed without touching parent state or caller files/index. Real CLI signal propagation added after finding that the old background-context entry point could orphan unlocked reviewers; scratch real SIGINT/SIGTERM and race tests pass. Full combined verification follows.
+
+### 2026-09-23 — M2 verified before review
+
+Full workspace/SDLC suite passed (426.154s command package; pre-existing #210 fixture excluded), vet and diff checks passed. Real CLI cancellation tests exercise SIGINT/SIGTERM through the actual command entry point; focused race checks passed. Selected-commit nested dependency conflict/recovery preserves parent and caller state. All implementation is complete; M2 boundary review and final issue review/publication remain.
