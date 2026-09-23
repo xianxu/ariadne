@@ -1,0 +1,114 @@
+# Durable slot landing implementation plan
+
+> **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy). Use bounded subagents for GitHub evidence and remote archive, and keep orchestration/integration in the main session. Steps use checkboxes for tracking.
+
+**Goal:** Land a reviewed issue from :0 or :N without refreshing its resting branch, deleting its workspace, or touching sibling checkouts.
+
+**Architecture:** Route addressable primary/slot checkouts through the existing PR and merge commands using shared workspace identity. Confirm exact GitHub integration, archive through the existing conditional trunk publisher, then switch and remove only the proven issue ref. Recovery re-observes Git/GitHub with `merge --branch`; there is no journal.
+
+**Tech Stack:** Go, Git, gh CLI, existing workspace resolver and gitx.TrunkFile; stateful GitHub fake with real local bare Git remotes.
+
+## Core concepts
+
+### Pure entities
+
+| Name | Lives in | Status |
+|---|---|---|
+| landingTarget / landingObservation | cmd/sdlc/landing.go | new |
+| landingAction / nextLandingAction | cmd/sdlc/landing.go | new |
+| landingPR | cmd/sdlc/ghlanding.go | new |
+| landingArchivePlan | cmd/sdlc/landingarchive.go | new |
+
+`landingTarget` identifies one checkout/resting ref/configured main destination; an observation holds current evidence, not authority cached across invocations. One target has one selected PR. `nextLandingAction` is the pure phase decision: refuse, merge, archive, return, delete, complete. All IO outcomes feed the next decision; no effect is authorized solely by an earlier success flag. `landingPR` is a validated structured external record, never a branch-name boolean. An archive plan maps a bounded set of source artifacts to history destinations plus done bodies; one PR owns one archive commit. Reuse existing issue parsing, status vocabulary and archive naming (ARCH-DRY/PURE). Future extension is another GitHub merge policy, not multi-repository transactions.
+
+### Integration points
+
+| Name | Lives in | Status | Wraps |
+|---|---|---|---|
+| resolveLandingTarget | cmd/sdlc/landing.go | new | workspace.Resolve and Git config/remote identity |
+| structured PR observation / expected-head merge | cmd/sdlc/ghlanding.go | new | existing realGH implementation, gh JSON and merge |
+| archiveLandingPR | cmd/sdlc/landingarchive.go | new | TrunkFile.UpdateMany and immutable Git tree/history reads |
+| runDurableMerge / durable PR preparation | cmd/sdlc/landing.go, pr.go, merge.go | new/modified | existing gates, Git switch/ref deletion, confirmation |
+| landing fake | cmd/sdlc/landing_test.go | new | stateful PR records and local bare Git remote |
+
+Use existing gitRunner and GH adapters; add narrowly typed methods instead of raw command escape hatches. Keep legacy methods intact for ordinary/dependency consumers. Git integration tests use real disposable repositories; the GitHub fake creates actual merge, squash or rebased commits on a bare main and maintains exact PR head/base/integration metadata, queue/query failures and effect counters. Read-only conformance uses the real merged PR130 metadata (head remains available after branch deletion); optional tests consume an explicitly selected existing PR and perform no live mutation. Existing workspace fakes retain identity conformance.
+
+## Execution and safety contract
+
+- User approved the spec and dependency-first sequence: land Ariadne's independent clone normally, verify Pair against the merged dependency, then land Pair while preserving siblings.
+- One atomic delivery, plain tasks and one close review; use full flow explicitly because expected runtime changes exceed the quick shell. No estimate before plan-quality accepts.
+- :0 and :N preserve rest. Ordinary feature worktrees and private dependency clones retain legacy cleanup. Resolve before any legacy primary lookup or mutation; failures do not silently fall back.
+- Named remote tracking main is mandatory for durable operations. Bind remote fetch/push and GitHub repository identity; reject missing/ambiguous config, local-dot and mismatched/fork PR identity. Reuse remote URL parsing where suitable; unsupported URL forms fail with guidance.
+- PR creation pushes to that configured remote and uses the fetched target main for the branch window. It never creates a PR for a resting ref. Existing ordinary/dependency PR path remains compatible.
+- Before initial merge, tracked dirt (including tracker edits) and active Git operations refuse. Untracked/ignored files are preserved; collision-protected switching may refuse after integration and is recoverable. Never stash/reset/auto-commit local work.
+- Require local selected head = fresh remote issue head = PR head, normal publish/instance/duplicate-ID gates, and an expected-head merge request. Do not invoke gh local branch deletion. MERGED + integration commit reachable from freshly fetched configured main is the only integration confirmation, including queue/unknown outcomes.
+- Keep current merge-commit submission policy. Already merged squash/rebase PRs use the exact original PR head plus reachable integration evidence, not original-head ancestry.
+- PR-owned archives select codecomplete records with close anchors in `PR head --not PR base` ancestry. Read records at the pinned head; current resting files are irrelevant. Independently published issue copies must not hide an owning close, and unrelated codecomplete base records must not be swept.
+- Archive fresh remote bodies and matching plan/review artifacts in one UpdateMany write/delete commit. Validate ordinary blob modes and safe repository-relative configured roots. Refuse missing/reopened/conflicting identities and occupied destinations. A concurrent remote edit is re-read on retry; no stale overwrite.
+- Archive commit trailers bind GitHub repository + PR number + integrated head. Its diff supplies the complete expected move set. Confirm reachable provenance, complete moves/done generation, absent active paths and intact history blobs on retry. Wrong/missing provenance, partial completion, reopened records or later conflicting edits refuse. No generic file-existence success.
+- After archive confirmation, revalidate identity, issue/rest heads, upstream and occupancy. Switch using `-c submodule.recurse=false switch --no-overwrite-ignore REST`; confirm rest SHA unchanged. Recheck issue ref equals integrated head and is unoccupied, then `update-ref -d refs/heads/ISSUE EXPECTED_HEAD` and remove only that branch's config. Never select main/main-slotN for deletion. No remote branch deletion added.
+- `merge --branch NAME` is recovery from current issue or rest only. While at rest it can resume a merged PR, never merge an open one or apply gates to resting HEAD. Missing issue ref requires unique integrated PR and proven archive completion. Print recovery invocation before irreversible effects.
+- Existing common-dir SDLC lock covers the transaction; plain external Git/editor writers remain outside it. Rechecks and expected-SHA mutations are bounded protection, not an atomic cross-process checkout lock.
+
+### State/event decisions
+
+| Observation/event | Next effect or result |
+|---|---|
+| Open matching PR, issue checked out, gates passed | expected-head server merge |
+| Request failed or response queued/open | stop with recovery; next invocation queries before submitting |
+| Exact merged PR, reachable integration, local issue unchanged | confirm/build remote archive |
+| Archive push unknown or CAS retry exhausted | preserve all local state; next run confirms provenance |
+| Complete matching archive, issue checked out | revalidate then safe switch to captured rest |
+| At rest, same issue head, unoccupied ref | compare-and-delete ref |
+| Ref already absent, matching integration/archive | complete without mutation |
+| Changed head/config/topology, dirt, ambiguous evidence | refuse with preserved state and explicit recovery |
+
+Numeric bounds are conservative implementation limits, not capacity promises: at most 100 matching PR records, 10,000 commits inspected for close/archive provenance and 10,000 selected tree entries; command failures or exceeded limits refuse. gh calls use a two-minute context deadline; no background work outlives the invocation. Tests use tiny fixtures plus limit+1 cases. Existing trunk CAS retry budget remains authoritative. No durable new files; temporary index/blob files retain TrunkFile cleanup, archives use existing history lifecycle (ARCH-CONSTRAINTS/STATE/SECURE/FUNERAL/MOCK).
+
+## Chunk 1: implement the approved flow
+
+### Task 1 — Structured GitHub evidence
+
+Files: create `cmd/sdlc/ghlanding.go`, `cmd/sdlc/ghlanding_test.go`; extend the realGH seam without changing ordinary legacy behavior.
+
+- [ ] Write failing tests for structured same-repository PR identity, full OIDs, exact base/main, unique matching head, absent/error distinction, bounded reads, queue response and expected-head merge argv without `--delete-branch`.
+- [ ] Run `go test ./cmd/sdlc -run 'TestLandingGH' -count=1` and observe red.
+- [ ] Implement typed PR observations and context-bounded gh dispatch. Preserve head/base commit IDs for merged PRs and reject incomplete records; submit by PR number + expected head.
+- [ ] Run the targeted tests green. Commit explicit paths with #246 and Co-Authored-By.
+
+### Task 2 — Remote archive and retry proof
+
+Files: create `cmd/sdlc/landingarchive.go`, `cmd/sdlc/landingarchive_test.go`; reuse/refactor bounded snapshot helpers in `publishgate.go` and plan matching in `push.go` only where shared behavior is required. Read `construct/vocabulary/issue.cue` before lifecycle edits.
+
+- [ ] Write real-Git failing tests for owned close selection (including independently published body), non-owned codecomplete exclusion, atomic issue/plan/review archive, collision/reopen refusal, fresh remote edits and complete/wrong/partial provenance.
+- [ ] Run `go test ./cmd/sdlc -run 'TestLandingArchive' -count=1` red.
+- [ ] Implement `archiveLandingPR(root, remote, repo string, pr landingPR, issuesDir, plansDir, historyDir string) error` with a pure archive-plan transformation and existing TrunkFile UpdateMany; no checkout, primary write or new publisher.
+- [ ] Prove an interrupted/unknown archive publication can be re-observed without duplicate commits or local mutation; use the same seam for fake and production.
+- [ ] Run targeted tests green and preserve existing archive tests. Commit explicit paths.
+
+### Task 3 — Route PR/merge and safe cleanup
+
+Files: create `cmd/sdlc/landing.go`, `cmd/sdlc/landing_test.go`; modify `pr.go`, `merge.go`; adapt existing PR/merge fixtures to explicitly represent legacy ordinary/dependency topology.
+
+- [ ] Add failing tests for real identity routing, configured non-origin remote PR creation, primary/slot rest preservation, dirty primary/other slot preservation, dependency-first flow and legacy worktree cleanup.
+- [ ] Build a stateful GitHub fake on the same typed seam with actual bare-remote integration for merge, squash, rebase and queued/unknown outcomes. Hook effect boundaries for reproducible interruption/races, not sleeps.
+- [ ] Implement pure next-action decisions, durable target/config observations and thin IO orchestration. Add `--branch` to merge, preserving existing confirmation and dry-run conventions.
+- [ ] Route durable operations before legacy origin/main or primary lookup. Reuse the current instance/duplicate/publish gates for fresh issue-head integration; parameterize snapshot readers where needed, and bypass fresh gates only after proven prior integration (not a generic flag).
+- [ ] Implement collision-safe return and expected-SHA deletion with occupancy recheck, branch config cleanup and explicit retries. In dry-run perform reads only: no fetch/merge/archive/switch/delete/config writes.
+- [ ] Test every phase interruption, deleted remote branch, local additions, malformed/missing/ambiguous PR identity, queue admission, current/other Git operations, ignored/untracked collisions, occupancy movement and absent-branch retry. Assert branch/ref/config/index/file bytes remain intact outside intended changes, including sibling clones.
+- [ ] Run `go test ./cmd/sdlc -run 'TestLanding|TestMerge|TestPR|TestArchive' -count=1`; iterate red-green and commit explicit paths.
+
+### Task 4 — Documentation and acceptance
+
+Files: `README.md`, `atlas/workflow/workspace-branching.md`, `atlas/workflow/sdlc-binary.md`, `cmd/sdlc/helptext/merge.md`, `cmd/sdlc/helptext/pr.md`, issue246 and Pair's project record. Keep docs concise and link existing concepts.
+
+- [ ] Document :0/:N no-refresh landing, explicit branch recovery, remotely archived records vs an intentionally old local baseline, and Ariadne-first/Pair-second example. Explain dependency clone legacy behavior and no recursive publication/cleanup.
+- [ ] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -timeout=15m -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (existing #210 missing historical fixture), `go vet ./cmd/sdlc/...`, and `git diff --check`. Validate affected help and build the SDLC binary used to close.
+- [ ] Mutation-check the important guards: wrong-head deletion, missing archive proof and implicit resting refresh must make their fixtures fail; restore and rerun affected cases.
+- [ ] Update issue/project/atlas evidence and close through the one binary-owned boundary review. Fix findings before the close commit, open the PR, report readiness; merge only on operator instruction.
+
+## Revisions
+
+### 2026-09-23 — Approved spec to executable plan
+
+The operator approved the reviewed design and confirmed dependency-first landing. This plan refines the approved behavior into bounded components and fixtures; it does not add another approval checkpoint or a new workflow framework.
