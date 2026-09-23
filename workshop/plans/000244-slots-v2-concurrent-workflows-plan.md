@@ -101,13 +101,33 @@ Review lifetime retains the prior bounded policy: default 30 minutes, `WF_REVIEW
 
 Publication is a bounded CLI transaction. Three retries are sufficient for the intended handful of concurrent slots. Bound provenance queries to 30 seconds; timeout is a refusal. Temporary indexes/files are private and removed on normal success/error; durable source/result commits have ordinary repository retention. No new persistent store, claim vocabulary, migration of existing issues or cleanup service is required (ARCH-FUNERAL). Treat source refs, paths and Git responses as untrusted inputs; resolve exact commit OIDs, separate absent from failed queries, and never interpolate them into shell code (ARCH-SECURE/ORDER).
 
+### Production test map and operating envelope
+
+The following is the exhaustive risky-function inventory for this change. New names are implementation contracts; if a helper is renamed, update this map in the same commit. Each row names the adversarial strategy and the mutation that must make its test fail; scenario names in Tasks 1–3 refer to these production functions, not test-only models.
+
+| Production functions | Adversarial strategy / mechanical guard |
+|---|---|
+| `claimDecision`, `runClaim` | Table-drive every vocabulary status and malformed remote bytes; rendezvous two real CLIs after observing open. Removing the fresh-status check or conditional ref must make exactly-one-winner assertions fail. |
+| `decideCollision`, `syncViaTrunk`, `runIssueNew` | Occupy the proposed ID with identical and different slugs between observations; fail confirmation after push. Assert unique retained records and preservation of uncertain local content; treating equal slug as free must fail. |
+| `TrunkFile.UpdateMany`, shared `pushExpected` | Stateful ref advancement/rewind and lost-ACK schedules plus real bare-Git hooks. Assert no stale overwrite and no prepare rerun after confirmed own candidate publication; ordinary unleased push must fail rewind regression. |
+| `TrunkFile.SelectCommit`, `validateCommitSelection` | Real root/merge/regular commits and all changed path/mode classes, including rename endpoints. Assert complete-set eligibility before effects; ignoring one ineligible path must fail. |
+| `TrunkFile.PublishCommit` | Model refs/trees/provenance across conflict, rejection, unknown acknowledgment, successful retry, later edit and revert. Real Git confirms compatible merge and caller-state preservation. Removing exact trailer/ancestry checks must replay the revert and fail. |
+| `runIssuePublish`, `syncIssuesToMain`, `syncIssue` | CLI matrix across primary/worktree/clone, isolated HOME, bare remotes, staged unrelated code and older unselected ancestors. Compare remote trees and local branch/index/dirty files. Restoring main's whole-branch shortcut or no-new-commit inference must fail. |
+| `capturePreparedReview`, `PreparedReview.validate` | Change each read-set member independently, including missing→present plan, branch identity and ledger generation. Exact read-set oracle rejects each; retain separate docs-only descendant acceptance test. Omitting any captured member must fail. |
+| `runPlanQualityJudge`, `runEstimateQualityJudge`, `reviewThenFinalizeLocked`, `finalizeBoundaryReview` | Barrier-controlled reviewer process pauses each review kind while unrelated commands finish; mutate inputs before every verdict (success and failure). Assert no stale ledger/sidecar/status/branch writes. Moving persistence ahead of validation or retaining lock during dispatch must fail. |
+| `judge.Dispatch`, reviewer process runner | Real controlled child ignores graceful cancel and holds output pipes; short deadline/cancel cases assert bounded return, child reaping and no authority writes. Removing kill/wait or bounded drain must fail timeout test. |
+
+ARCH-CONSTRAINTS: this is an interactive developer CLI, not a keystroke/UI or server path. Domain-informed workload assumption: a handful (roughly 2–8) of concurrent slots, small Markdown commits and an ordinary developer Git repository. No daemon, fan-out, memory-resident repository cache, or throughput promise is introduced. Excess contention exhausts three exact-ref attempts and returns an actionable retry error rather than spinning. Re-measure with the deterministic race suite and wall-clock CLI timings if fleet concurrency grows.
+
+Retain the existing 30-minute local lock-wait ceiling (`repolock.DefaultWaitTimeout`); acquisition/reacquisition failure performs no subsequent authoritative write and tells the operator to inspect the holder. This compatibility ceiling is not a target latency: tests require an unrelated local command to finish while a reviewer remains paused. Reviewer time is intentionally minutes; its existing 30-minute default and configurable ceiling are explicit above. The 30-second history-query deadline is a provisional interactive budget, exercised with an injected stalled Git process; large/slow repositories get an explicit refusal rather than skipped provenance. Normal Git network transport remains subject to Git/SSH timeout and user cancellation behavior; this change does not promise a total network deadline. A failed/interrupting push is uncertain until reachability confirms its candidate, never evidence of absence. Test bare local remotes deterministically; external network latency/service availability is outside the performance claim. CPU/disk work is one selected merge per attempt; no repository-wide checkout or copy. Performance beyond ordinary developer repositories is not claimed; record representative repository size and query timing in verification rather than inventing a benchmark guarantee.
+
 ## Chunk 1 — Claims and selected-commit publication (M1)
 
 ### Task 0: Reconcile the paused v1 draft
 
 - [x] Retired the abandoned uncommitted draft outside the repository at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne-244-retired-draft-j6pdwxfl`; removed its receipt/token implementation.
 - [ ] Retain useful behavior regressions: unrelated code leakage, same-record overwrite, same-slug creation collision, empty-file presence, remote rewind. Replace assertions/API sketches that depend on removed ownership receipts.
-- [x] Removed v1-only production/test placeholders and restored the tracked pre-draft files. Verify the baseline before revised implementation.
+- [x] Removed v1-only production/test placeholders and restored the tracked pre-draft files. Baseline targeted Git/command tests passed before revised implementation.
 
 ### Task 1: Fresh status claims and reservation allocation
 
@@ -163,3 +183,7 @@ The operator requested removal of the old design to avoid misleading future agen
 ### 2026-09-23 — Remove obsolete design from the working tree
 
 Operator authorized implementation and asked to remove the old design. Deleted the superseded design artifact and retired its unfinished draft outside the repository. Git history preserves the old decisions; only this plan is active.
+
+### 2026-09-23 — Gate review coverage and runtime assumptions
+
+Reason: revised gate reported executable-test-strategy and operating-envelope gaps. Delta: enumerate every risky production function with its adversarial test and mutation guard; name concurrency, lock-wait, history-query and reviewer budgets and network limitations. No ownership or receipt mechanism is reintroduced.

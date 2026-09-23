@@ -61,7 +61,23 @@ rounds:
       agent: codex
       blocked: false
       protocol_error: no valid findings block
-content_hash: e539431da875169917b84b99c1f31c87bb20ddb3a00b7c7a1127c8aeeae5c494
+    - "n": 5
+      timestamp: "2026-09-23T12:36:36-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: not-addressed
+          note: The plan names test scenarios, but still does not identify the production functions under test or provide one adversarial strategy and mechanical guard for each risky function.
+          round: 5
+      findings:
+        - id: PQ-4
+          severity: Important
+          title: Define the runtime operating envelope for remote publication and unlocked reviews
+          detail: ARCH-CONSTRAINTS requires workload classification, relevant budgets, their basis, and bounded behavior when exceeded. The plan gives retry and timeout constants (lines 40, 100–102) but does not state the expected concurrency/workload, network and repository-size assumptions, lock-wait budget, or behavior when those bounds are exceeded.
+          family: operating-envelope
+          round: 5
+      blocked: false
+content_hash: 6f25a9a1f31c7ac17ec2f29741afd3ee4bfb154bad18a8339216b22471cb5e7c
 ---
 
 # Gate ledger — ariadne#244 (plan-quality)
@@ -99,6 +115,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 **Protocol error:** no valid findings block — this round contributed no findings.
 
+## Round 5 — 2026-09-23T12:36:36-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — not-addressed — The plan names test scenarios, but still does not identify the production functions under test or provide one adversarial strategy and mechanical guard for each risky function.
+
+### Raised
+
+- **PQ-4** [Important] `operating-envelope` Define the runtime operating envelope for remote publication and unlocked reviews
+  ARCH-CONSTRAINTS requires workload classification, relevant budgets, their basis, and bounded behavior when exceeded. The plan gives retry and timeout constants (lines 40, 100–102) but does not state the expected concurrency/workload, network and repository-size assumptions, lock-wait budget, or behavior when those bounds are exceeded.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **PQ-1** [Important] `executable-test-strategy` Tests are listed as scenarios rather than named functions with one adversarial strategy each
+- **PQ-4** [Important] `operating-envelope` Define the runtime operating envelope for remote publication and unlocked reviews
