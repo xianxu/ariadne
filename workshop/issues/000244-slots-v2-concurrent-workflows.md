@@ -5,7 +5,7 @@ deps: [ariadne#242, ariadne#243]
 github_issue:
 created: 2026-09-22
 updated: 2026-09-23
-estimate_hours:
+estimate_hours: 6.88
 started: 2026-09-23T11:35:53-07:00
 ---
 
@@ -38,6 +38,48 @@ Apply the publication/concurrency audit to both numbered main-repository worktre
 
 - Independent clones targeting the same remote have tested allocation/claim/body-update conflict handling, as well as the existing shared-worktree cases.
 - A parent-slot-driven dependency issue can be created, updated and explicitly published using normal SDLC without losing local issue-body edits or assuming a shared local lock.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
+
+The calibration source is tagged stale by `sdlc estimate-source` (#127), so these are provisional focused ship-hours, not an elapsed-time promise. Primitive decomposition includes design, integration, adversarial tests, documentation and three actual review boundaries (M1, M2, issue close). Familiarity is 1.0 for the existing Go/Git stack. The approved detailed plan earns the 0.2 spec discount and 15% design buffer. Implementation entries are already scaled to 40% of the v2 table; no second scale is applied.
+
+| Primitive | Scope | Design derivation | Implementation derivation |
+|---|---|---|---|
+| issue-spec | audit, approval and design | 1.0, no spec discount on authoring itself | 0.3 × 0.4 = 0.12 |
+| greenfield-go-module | publication decision model | 1.5 × 0.2 = 0.30; no library supplies our workflow semantics | 0.8 × 0.4 = 0.32 |
+| greenfield-go-module | receipt persistence | 1.5 × 0.5 library × 0.2 spec = 0.15; standard JSON/filesystem primitives | 0.8 × 0.4 = 0.32 |
+| api-integration | evidenced Git transaction | 2.0 × 0.5 reuse × 0.2 spec = 0.20; existing TrunkFile plumbing | 1.5 × 0.4 = 0.60 |
+| api-integration | controlled Git/reviewer conformance fixtures | 2.0 × 0.2 = 0.40; domain-specific schedules | 1.5 × 0.4 = 0.60 |
+| cross-cutting-refactor | all issue publication callers | 1.0 × 0.2 = 0.20 | 0.5 × 0.4 = 0.20 |
+| greenfield-go-module | prepared review transitions | 1.5 × 0.2 = 0.30; existing snapshot supplies IO, domain decisions remain | 0.8 × 0.4 = 0.32 |
+| cross-cutting-refactor | review caller integration | 1.0 × 0.2 = 0.20 | 0.5 × 0.4 = 0.20 |
+| smaller-go-module | vocabulary and compatibility | 0.2 × 0.2 = 0.04 | 0.5 × 0.4 = 0.20 |
+| atlas-docs | help, atlas, README and project | 0.10 | 0.2 × 0.4 = 0.08 |
+| milestone-review × 3 | two milestones and final close | 0.0 each | 0.5 × 0.4 = 0.20 each |
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=1.0 impl=0.12
+item: greenfield-go-module design=0.30 impl=0.32
+item: greenfield-go-module design=0.15 impl=0.32
+item: api-integration design=0.20 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: greenfield-go-module design=0.30 impl=0.32
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: smaller-go-module design=0.04 impl=0.20
+item: atlas-docs design=0.10 impl=0.08
+item: milestone-review design=0.0 impl=0.20
+item: milestone-review design=0.0 impl=0.20
+item: milestone-review design=0.0 impl=0.20
+design-buffer: 0.15
+total: 6.88
+```
+
+Design subtotal 2.89 × 1.15 = 3.3235; implementation subtotal 3.56; total 6.8835, rounded to 6.88.
 
 ## Plan
 
