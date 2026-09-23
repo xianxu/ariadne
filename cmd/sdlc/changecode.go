@@ -36,7 +36,7 @@ package main
 
 import (
 	"bufio"
-	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -68,12 +68,13 @@ type changeCodeFlags struct {
 	Agent           string
 	AgentExplicit   bool
 	Sandbox         bool
+	review          *planningReviewTransaction
 	Flow            string // --flow pin: "" (infer) | quick | full (#231)
 }
 
 func NewChangeCodeCmd() *cobra.Command {
 	f := changeCodeFlags{}
-	cmd := markMutatingCommand(&cobra.Command{
+	cmd := markManualLockCommand(&cobra.Command{
 		Use:           "change-code",
 		Short:         "Enter implementation phase (structural + plan-quality gates + branching ask)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"change-code\") in main.go.",
@@ -82,7 +83,7 @@ func NewChangeCodeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
 			f.AgentExplicit = cmd.Flags().Changed("agent")
-			return runChangeCode(cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runChangeCodeCommand(cmd, &f)
 		},
 	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (derives name from issues/NNNNNN-*.md)")
@@ -129,7 +130,17 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	}
 	issueContent := string(issueBytes)
 
-	planContent := readOptionalPlanFile(f.PlansDir, name)
+	planArtifact, err := captureReviewArtifact(filepath.Join(f.PlansDir, name+"-plan.md"))
+	if err != nil {
+		return fmt.Errorf("read optional plan: %w", err)
+	}
+	planContent := planArtifact.text
+	if f.review != nil {
+		supplied := []reviewArtifact{{path: issuePath, present: true, text: issueContent}, planArtifact}
+		if err := f.review.prepare(supplied, planGatePath(f.PlansDir, filepath.Base(issuePath))); err != nil {
+			return err
+		}
+	}
 
 	// 2b. Infer (or take the operator's pin for) the flow (#231). It decides which
 	//     gates run below — none on quick — and is RECORDED only after they pass
@@ -148,12 +159,21 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	}
 	for _, g := range activeChangeCodeGates(ctx) {
 		if err := g.run(); err != nil {
+			var safety *planningReviewSafetyError
+			if errors.As(err, &safety) {
+				return err
+			}
 			// Each gate has already printed its specifics; this is the one shared
 			// --force decision, previously copy-pasted across five blocks.
 			if f.Force == "" {
 				exitWithCode(1)
 			}
 			cwarn(stderr, fmt.Sprintf("%s gate bypassed (--force: %s)", g.name, f.Force))
+		}
+		if g.name == "plan-quality" && f.review != nil {
+			if err := f.review.refreshOwnLedger(); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -184,6 +204,11 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	//    commit+push of the issue file: a second implementation of this, and one
 	//    that only ever handled the UNTRACKED case, leaving a tracked-but-edited
 	//    issue file dirty at branch creation.
+	if f.review != nil {
+		if err := f.review.validate(); err != nil {
+			return err
+		}
+	}
 	recordChangeCodeFlow(stderr, f, issuePath, name, issueFlow)
 	syncIssue(stderr, f, issuePath)
 
@@ -517,9 +542,9 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	}
 
 	cinfo(stderr, fmt.Sprintf("invoking %s for plan-quality check …", agent))
-	output, dispatchErr := judge.Dispatch(context.Background(), opts)
+	output, dispatchErr := dispatchPlanningReview(f, opts)
 	if dispatchErr != nil {
-		return fmt.Errorf("plan-quality dispatch failed: %v", dispatchErr)
+		return fmt.Errorf("plan-quality dispatch failed: %w", dispatchErr)
 	}
 
 	fmt.Fprint(stdout, output)
@@ -754,9 +779,9 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 	}
 
 	cinfo(stderr, fmt.Sprintf("invoking %s for estimate-quality check …", agent))
-	output, dispatchErr := judge.Dispatch(context.Background(), opts)
+	output, dispatchErr := dispatchPlanningReview(f, opts)
 	if dispatchErr != nil {
-		return fmt.Errorf("estimate-quality dispatch failed: %v", dispatchErr)
+		return fmt.Errorf("estimate-quality dispatch failed: %w", dispatchErr)
 	}
 
 	fmt.Fprint(stdout, output)

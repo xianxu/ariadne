@@ -328,16 +328,29 @@ the issue namespace, object store, and remote refs that the motivating races
 touched. The lock does not serialize another clone or machine, so remote
 push/ref races still surface through the existing push/merge retry guidance.
 
-`close` and `milestone-close` are narrower: they lock the compute phase, release
-the lock while the external boundary review runs, then reacquire before
-finalization and refuse to write if the issue file or any prepared project-file
-edit changed while the lock was released, if the canonical durable plan changed
-presence or contents, or if the commits that landed during the review carry code
-surface (#194) — a doc-only delta finalizes, since the reviewed code is unchanged.
-`change-code`, `merge`, and `push` may still hold the lock while
-synchronous judges run. Their wait/timeout messages call this out as a
-long-running review/ship transaction; quick commands should wait or retry
-instead of deleting a live lock. Recovery is conservative but not wedging:
+`change-code`, `close` and `milestone-close` prepare under the lock, release it
+while external reviewers run, then reacquire and validate before recording any
+response (#244). `reviewstate.go` shares the capture/compare policy: canonical
+repository and private worktree Git directory, branch identity, issue/plan bytes
+(including absent plans), and the relevant gate ledger. Close also protects every
+prepared project edit and its first-round plan-ledger seed. `change-code` requires
+exact HEAD; close retains the existing docs-only descendant allowance when its
+captured inputs are unchanged. Validation precedes every verdict's sidecar and
+ledger writes, including failed or malformed reviews. Two responses prepared
+against one ledger cannot both advance it.
+
+`planningreview.go` owns change-code's prepare/unlock/relock phases while keeping
+plan-quality before estimate checks. Cancellation, dispatch failure, stale inputs
+and failed reacquisition stop without new authority writes; `--force` cannot waive
+these safety failures. Review timeout defaults to 30m (`WF_REVIEW_TIMEOUT`, 1s–2h).
+The process runner bounds graceful shutdown and pipe draining to five seconds;
+Unix reviewers have owned process groups so cancellation also kills descendants,
+and the direct reviewer is reaped before returning. CLI interruption is carried
+through the review context; no asynchronous writer survives command completion.
+
+`merge` and `push` retain their existing whole-transaction lock. Wait messages
+name the live holder; wait or retry rather than deleting its lock. Recovery is
+conservative but not wedging:
 `die()` drains the active lock cleanup registry before `os.Exit`, missing
 `meta.json` during the tiny mkdir-before-write window is treated as holder
 initialization and polled through, and a confirmed-dead same-host holder is
@@ -1109,10 +1122,11 @@ boundary review runs against the *un-mutated* working tree (the reviewer reads t
 honest `status: working` issue), and `applyClose` fires only on a **finalizing**
 verdict via the shared finalization helper. The command path releases
 `.git/sdlc.lock` while the external review subprocess runs, then reacquires and
-checks that HEAD, the issue file, and any prepared project-file edit still match
-the reviewed snapshot before writing. The canonical durable plan candidate is in
-that same artifact snapshot even when absent, so creation, deletion, modification,
-or replacement during the unlocked review also refuses finalization.
+validates repository/worktree/branch identity, the reviewed commit, issue,
+prepared project edits, optional durable plan and gate ledgers before any write.
+The shared snapshot and docs-only descendant policy are described under
+[Repo transaction lock](#repo-transaction-lock-132). Stale or interrupted results
+write neither a sidecar nor a ledger round.
 `closeVerdictOutcome` derives from
 `vocab.Verdict()` (#147): finalizing (SHIP/FIX-THEN-SHIP) → finalize; blocking
 (REWORK) → **not finalized**, issue left `working`, non-zero exit, "fix + re-run"
@@ -1133,12 +1147,13 @@ dependence on the user's `~/.zshenv`/`~/.bash_profile`. Launch-failure errors na
 the attempted agent + that bin dir.
 
 **Review sidecar (#136/#201).** The boundary review is no longer a transient terminal
-artifact: every actually-dispatched review writes its semantic final response to a durable
-sidecar under `workshop/plans/` — `NNNNNN-slug-close-review.md` for a whole-issue
+artifact: every completed review whose prepared state still validates writes
+its semantic final response to a durable sidecar under `workshop/plans/` — `NNNNNN-slug-close-review.md` for a whole-issue
 close, `NNNNNN-slug-m<x>-review.md` for milestone `Mx`. The write lives in the
-single shared `dispatchBoundaryReview` (`reviewsidecar.go`: pure `sidecarMeta` +
-`renderReviewEntry` + `sidecarPath` behind a thin atomic-write seam — ARCH-PURE),
-so both close paths inherit it for free (ARCH-DRY). Each file carries a metadata
+shared finalization path, after lock reacquisition and snapshot validation
+(`reviewsidecar.go`: pure `sidecarMeta` + `renderReviewEntry` + `sidecarPath`
+behind a thin atomic-write seam — ARCH-PURE). Both close paths share it
+(ARCH-DRY). Each file carries a metadata
 header (issue id/title, repo, issue file, boundary kind, milestone, base..head
 window, command, reviewer, timestamp, verdict) plus that response. Harness
 diagnostics, progress, prompt echo, and tool transcript remain terminal stderr

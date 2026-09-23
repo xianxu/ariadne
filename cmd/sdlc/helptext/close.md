@@ -121,6 +121,16 @@ MODES
   canonical durable **plan** (including whether that plan exists). Any edit,
   creation, deletion, or replacement refuses finalization — the review READ that
   prose — so write your `## Log` line AFTER the close, not during it.
+  Repository/worktree/branch identity and the boundary ledger also participate;
+  the first boundary round protects the plan ledger it seeds from. Validation
+  happens after reacquiring the lock and before persisting ANY verdict, sidecar
+  or ledger round. Stale inputs, cancellation, failed dispatch and failed lock
+  reacquisition cannot be waived by --force.
+
+  External reviews run without holding the repository lock. WF_REVIEW_TIMEOUT
+  defaults to 30m and accepts Go durations from 1s through 2h. Interruption stops
+  without a review result; reviewer shutdown and pipe draining have a five-second
+  grace bound.
 
   (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/
    merge/push — also carry the repo guard (#176): they refuse in a brain

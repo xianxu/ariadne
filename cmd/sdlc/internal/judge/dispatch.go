@@ -3,6 +3,7 @@ package judge
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -91,21 +92,35 @@ type ProcessOutput struct {
 // can report liveness while the agent runs (#140). We hand-roll Start→Wait
 // instead of CombinedOutput to get that hook and preserve stdout/stderr as
 // distinct semantic and diagnostic channels (#201).
-var Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
+var Run = runProcess
+
+// Five seconds is the maximum graceful shutdown/pipe-drain interval. Tests use
+// a shorter interval while exercising the same actual subprocess boundary.
+var reviewShutdownGrace = 5 * time.Second
+
+func runProcess(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
 	cmd := exec.CommandContext(ctx, name, args...)
+	configureReviewProcess(cmd)
+	cmd.Cancel = func() error { return terminateReviewProcess(cmd, false) }
+	cmd.WaitDelay = reviewShutdownGrace
 	if dir, err := ownerBinDir(); err == nil {
 		cmd.Env = binAugmentedEnv(dir, os.Environ())
 	}
 	var stdout, stderr bytes.Buffer
-	cmd.Stdout = &stdout
-	cmd.Stderr = &stderr
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Start(); err != nil {
-		return ProcessOutput{Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}, err
+		return ProcessOutput{}, err
 	}
 	if onStart != nil {
 		onStart(cmd.Process.Pid)
 	}
+
+	// WaitDelay bounds both graceful cancellation and inherited pipe draining.
+	// Its escalation kills only the direct child; finish by killing remaining
+	// members of our own process group before returning. Wait reaps the direct
+	// child and joins the output-copy goroutines, so no runner work outlives us.
 	err := cmd.Wait()
+	_ = terminateReviewProcess(cmd, true)
 	return ProcessOutput{Stdout: stdout.Bytes(), Stderr: stderr.Bytes()}, err
 }
 
@@ -162,6 +177,15 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 // — Classify() will mark it as Failure based on the empty-output rule.
 // This keeps the binary/agent failure modes cleanly separated.
 func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err error) {
+	timeout, err := reviewTimeout(os.Getenv("WF_REVIEW_TIMEOUT"))
+	if err != nil {
+		return "", err
+	}
+	ctx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+	if err := ctx.Err(); err != nil {
+		return "", fmt.Errorf("review interrupted: %w", err)
+	}
 	name, args, err := BuildArgs(opts)
 	if err != nil {
 		return "", err
@@ -176,7 +200,7 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	// path (unit tests, quick dispatches) and stays free of goroutines/tickers.
 	if opts.Stderr == nil {
 		out, runErr := Run(ctx, onStart, name, args...)
-		return classifyRunResult(out, runErr, name, nil)
+		return classifyRunResult(ctx, out, runErr, name, nil)
 	}
 
 	// Progress path (#140): the agent can run for minutes. Run it on a background
@@ -201,7 +225,7 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	for {
 		select {
 		case r := <-done:
-			return classifyRunResult(r.out, r.runErr, name, opts.Stderr)
+			return classifyRunResult(ctx, r.out, r.runErr, name, opts.Stderr)
 		case <-ticks:
 			fmt.Fprintln(opts.Stderr, heartbeatLine(sinceStart(start), string(opts.Agent), int(pid.Load())))
 		}
@@ -213,9 +237,17 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 // returns semantic stdout, and applies Dispatch's existing exit-code policy: a
 // non-zero exit is swallowed so Classify can interpret the response, while a
 // real launch failure returns a diagnosable error naming owner bin/ + PATH.
-func classifyRunResult(out ProcessOutput, runErr error, name string, diagnostics io.Writer) (string, error) {
+func classifyRunResult(ctx context.Context, out ProcessOutput, runErr error, name string, diagnostics io.Writer) (string, error) {
 	if diagnostics != nil && len(out.Stderr) > 0 {
 		_, _ = diagnostics.Write(out.Stderr)
+	}
+	// Cancellation invalidates even a complete-looking response or a clean exit.
+	// Check before the intentional nonzero-exit compatibility rule below.
+	if err := ctx.Err(); err != nil {
+		return "", fmt.Errorf("review interrupted: %w", err)
+	}
+	if errors.Is(runErr, context.Canceled) || errors.Is(runErr, context.DeadlineExceeded) {
+		return "", fmt.Errorf("review interrupted: %w", runErr)
 	}
 	if _, ok := runErr.(*exec.ExitError); ok {
 		return string(out.Stdout), nil
@@ -254,4 +286,17 @@ func shellQuote(s string) string {
 		return s
 	}
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// reviewTimeout keeps the operating bound independent of command callers.
+// A parent context with an earlier deadline remains authoritative.
+func reviewTimeout(value string) (time.Duration, error) {
+	if value == "" {
+		return 30 * time.Minute, nil
+	}
+	d, err := time.ParseDuration(value)
+	if err != nil || d < time.Second || d > 2*time.Hour {
+		return 0, fmt.Errorf("WF_REVIEW_TIMEOUT must be a Go duration from 1s through 2h (default 30m)")
+	}
+	return d, nil
 }

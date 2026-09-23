@@ -111,3 +111,9 @@ The simplest durable authority beats a clever scan of consequences.
   actual ref updates, up-to-date responses, confirmed rejection, and uncertainty.
 - Race conformance must exercise both client stale-lease rejection and server
   receive-pack ref-lock rejection; both occur in real concurrent Git publication.
+
+- Review cancellation must be wired from actual CLI signals through command
+  contexts to owned subprocesses. A background-context entry point can orphan
+  a reviewer after its repository lock is released, despite unit cancellation tests.
+- Before recording any review verdict, revalidate the complete prepared read set,
+  including absent plans and ledger generations; rejected verdicts also write state.

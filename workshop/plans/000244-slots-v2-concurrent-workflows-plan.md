@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git commit/merge plumbing, existing SDLC locks and judge adapters.
 
-**State:** Simplified scope approved; revised change-code passed (plan-quality CLEAN, estimate-quality INFO, 17.01h provisional). M1 implementation and full regression suite passed; milestone review pending. M2 patches are prepared and tested in isolated scratch checkouts, not yet integrated.
+**State:** Simplified scope approved; M1 closed with SHIP. M2 implemented and verified: full workspace/SDLC suite, vet, real signal/race tests and nested dependency workflow passed. M2 boundary review is next.
 
 ## Agreed contract
 
@@ -113,7 +113,7 @@ The following is the exhaustive risky-function inventory for this change. New na
 | `TrunkFile.SelectCommit`, `validateCommitSelection` | Real root/merge/regular commits and all changed path/mode classes, including rename endpoints. Assert complete-set eligibility before effects; ignoring one ineligible path must fail. |
 | `TrunkFile.PublishCommit` | Model refs/trees/provenance across conflict, rejection, unknown acknowledgment, successful retry, later edit and revert. Real Git confirms compatible merge and caller-state preservation. Removing exact trailer/ancestry checks must replay the revert and fail. |
 | `runIssuePublish`, `syncIssuesToMain`, `syncIssue` | CLI matrix across primary/worktree/clone, isolated HOME, bare remotes, staged unrelated code and older unselected ancestors. Compare remote trees and local branch/index/dirty files. Restoring main's whole-branch shortcut or no-new-commit inference must fail. |
-| `capturePreparedReview`, `PreparedReview.validate` | Change each read-set member independently, including missing→present plan, branch identity and ledger generation. Exact read-set oracle rejects each; retain separate docs-only descendant acceptance test. Omitting any captured member must fail. |
+| `capturePreparedReview`, `comparePreparedReview`, `preparedReview.validateExact` | Change each read-set member independently, including missing→present plan, branch identity and ledger generation. Exact read-set oracle rejects each; retain separate docs-only descendant acceptance test. Omitting any captured member must fail. |
 | `runPlanQualityJudge`, `runEstimateQualityJudge`, `reviewThenFinalizeLocked`, `finalizeBoundaryReview` | Barrier-controlled reviewer process pauses each review kind while unrelated commands finish; mutate inputs before every verdict (success and failure). Assert no stale ledger/sidecar/status/branch writes. Moving persistence ahead of validation or retaining lock during dispatch must fail. |
 | `judge.Dispatch`, reviewer process runner | Real controlled child ignores graceful cancel and holds output pipes; short deadline/cancel cases assert bounded return, child reaping and no authority writes. Removing kill/wait or bounded drain must fail timeout test. |
 
@@ -163,16 +163,16 @@ Files: new `issuepublish.go`, `commitpublication.go`, `internal/gitx/commitpubli
 
 Files: new `reviewstate.go` and tests; modify `changecode.go`, `close.go`, `milestoneclose.go`, `internal/judge/dispatch.go`, review/lock tests.
 
-- [ ] `TestPreparedReviewReadSet`: change each captured artifact/identity independently, including file appearance and ledger generation; assert gate-specific acceptance and no persistence for stale results.
-- [ ] `TestReviewConcurrencySchedules`: barrier-controlled real reviewer subprocess; unrelated issue commands finish while each external review is paused; competing same-boundary responses cannot both advance the ledger.
-- [ ] `TestReviewInterruption`: injected cancellation, deadline and relock errors; no passing cache/status/branch mutation, bounded process cleanup.
-- [ ] Implement shared snapshots and manual lock phases after observing failures. Preserve plan-before-estimate order, pass-through caching and existing legitimate gate waivers.
-- [ ] Run `go test ./cmd/sdlc -run 'Test(PreparedReview|ReviewConcurrency|ReviewInterruption|ChangeCode|Close|Milestone|PlanQuality|EstimateQuality)' -count=1`.
+- [x] `TestPreparedReviewReadSet`: change each captured artifact/identity independently, including file appearance and ledger generation; assert gate-specific acceptance and no persistence for stale results.
+- [x] `TestReviewConcurrencySchedules`: barrier-controlled real reviewer subprocess; unrelated issue commands finish while each external review is paused; competing same-boundary responses cannot both advance the ledger.
+- [x] `TestReviewInterruption`: injected cancellation, deadline and relock errors; no passing cache/status/branch mutation, bounded process cleanup.
+- [x] Implement shared snapshots and manual lock phases after observing failures. Preserve plan-before-estimate order, pass-through caching and existing legitimate gate waivers.
+- [x] Run `go test ./cmd/sdlc -run 'Test(PreparedReview|ReviewConcurrency|ReviewInterruption|ChangeCode|Close|Milestone|PlanQuality|EstimateQuality)' -count=1`.
 
 ### Task 4: Verify and ship
 
-- [ ] Run a nested dependency workflow using ordinary CLI creation, claim, local issue/plan commit, explicit publication and conflict recovery; no recursive dependency publication.
-- [ ] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (the pre-existing #210 missing-history fixture only), `go vet ./pkg/workspace/... ./cmd/sdlc/...`, and scoped `git diff --check`.
+- [x] Run a nested dependency workflow using ordinary CLI creation, claim, local issue/plan commit, explicit publication and conflict recovery; no recursive dependency publication.
+- [x] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (the pre-existing #210 missing-history fixture only), `go vet ./pkg/workspace/... ./cmd/sdlc/...`, and scoped `git diff --check`.
 - [ ] Update review/lock atlas/help and project evidence; record lessons. Commit and close M2, then the issue, through the SDLC gates. Address blocking findings before publication.
 - [ ] Publish through `sdlc pr` and `sdlc merge`; verify archived links and final repository state.
 
@@ -205,3 +205,11 @@ M1 full workspace/SDLC suite passed (411.417s command package; pre-existing #210
 ### 2026-09-23 — M1 accepted
 
 The mandatory M1 boundary review returned SHIP with no findings and independently passed targeted/full SDLC tests, Git adapter tests, vet and diff checks. The gate closed M1 at measured 4.76h. The reviewer emitted an empty findings fence, which the gate recorded as a protocol warning with no findings; it nevertheless finalized the explicit SHIP verdict. A documentation sweep removes remaining obsolete main-only/whole-file publication guidance from the workflow atlas and compatibility help. No implementation scope changed.
+
+### 2026-09-23 — M2 integration checkpoint
+
+Integrated shared prepared-review snapshots and short planning/boundary lock phases. Judge process tests passed (0.485s) and combined workflow tests passed (196.593s). The nested ordinary-dependency workflow passed creation, claim, selected issue+plan publication, conflict refusal and coherent recovery; parent origin and caller files/index remained unchanged. A real CLI audit found signal cancellation must reach the review context while the lock is released; that correction and subprocess regression are part of the planned interruption contract.
+
+### 2026-09-23 — M2 verified
+
+Full workspace/SDLC tests passed with only the pre-existing #210 missing-history fixture excluded (cmd/sdlc 426.154s). Vet and diff checks passed. Six real CLI signal cases cover judge/close/change-code × SIGINT/SIGTERM; focused race verification passed (45.095s), with no persisted result and owned reviewer cleanup. Signal ownership is limited to review commands so other Git/ship commands retain their existing termination behavior; managed locks release on unwind. Local bin/sdlc was built from this source for the remaining gates. ARCH-PURPOSE: cancellation was checked at the CLI entry point, not only via injected test contexts.

@@ -21,6 +21,10 @@ commit them and run `sdlc issue publish --commit SHA`. This applies that change
 with three-way merging in every checkout, including primary `:0`, and preserves
 unrelated local commits. See [issue publication](atlas/workflow/issue-sync.md).
 
+Planning and close reviews release the local repository lock while the reviewer
+runs. SDLC checks the prepared inputs again before recording a result; concurrent
+edits require a rerun. `WF_REVIEW_TIMEOUT` defaults to `30m` (allowed `1s`–`2h`).
+
 ## Standalone weave startup
 
 Until #241 publishes the Homebrew formula, build the CLI from this checkout:

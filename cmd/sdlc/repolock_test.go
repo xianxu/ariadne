@@ -37,7 +37,7 @@ func TestRepoLockCommandMetadata(t *testing.T) {
 			t.Fatalf("%v should require repo lock", path)
 		}
 	}
-	for _, path := range [][]string{{"close"}, {"milestone-close"}} {
+	for _, path := range [][]string{{"change-code"}, {"close"}, {"milestone-close"}} {
 		cmd := mustFindCommand(t, root, path...)
 		if commandAutoWrapsRepoLock(cmd) {
 			t.Fatalf("%v should be manually lock-scoped, not whole-command wrapped", path)

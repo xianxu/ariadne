@@ -54,12 +54,18 @@ WHAT IT DOES
   4. Appends "; review verdict: <verdict>" to the just-written log line
      in the issue file so a human grep finds it.
 
-If the close succeeds but the judge dispatch fails (agent CLI missing,
-no commits matched, etc.), the verb does NOT fail the close — it logs
-a warning, records verdict as `not-run` with a reason, and exits
-successfully. The close is the durable mutation; the review is a
-follow-on. The trailer block is still emitted so the audit chain stays
-intact (operator can re-run the judge and amend the trailer later).
+The command prepares the close under the repository lock, releases it for
+review, then reacquires and validates the prepared state before any durable
+write. Repository/worktree/branch identity, issue/project/plan bytes and the
+boundary ledger must still match; the first round also protects its plan-ledger
+seed. A docs-only descendant remains allowed when those inputs are unchanged.
+This validation precedes every verdict, including REWORK and malformed output.
+
+A failed dispatch, interruption, stale input or failed lock reacquisition
+refuses without writing a review round, sidecar or close result. --force cannot
+waive these safety checks. WF_REVIEW_TIMEOUT defaults to 30m and accepts Go
+durations from 1s through 2h; reviewer shutdown/pipe draining is bounded by a
+five-second grace interval.
 
 FLAGS
 
