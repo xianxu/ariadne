@@ -57,7 +57,7 @@ Task outline only; settle implementation design through start-plan before change
 Engineering proposal: [nested slots and dependency bindings plan](../plans/000243-slots-v2-dependency-bindings-plan.md). Product policy is agreed; fresh-context engineering review and operator plan approval precede change-code.
 
 - [x] Inspect current dependency and installation paths; compare minimal binding policies and obtain the policy decision.
-- [ ] Design and implement the nested identity follow-up and required dependency/setup changes with fixture tests.
+- [x] Design and implement the nested identity follow-up and required dependency/setup changes with fixture tests.
 - [ ] Prove fresh and repeated setup and document explicit dependency/tool updates.
 
 ## Estimate
@@ -157,6 +157,12 @@ Ran start-plan for the revised design. Audits confirmed both Pair and Parley dec
 ### 2026-09-23 — engineering review approved
 
 Fresh-context plan review approved Chunk 1 after fixing two findings: acquisition now accepts only the direct-sibling topology that discovery recognizes, and dependency feature worktrees use clone-specific paths with context inherited through Git-verified primary identity. Unsupported relative composition paths fail with guidance, without generic acquisition fallback. Peer metadata publication uses isolated checkouts to avoid incidental commits. Plan commits: `0b393eb7`, `2966aba`. Scoped diff validation passed; implementation and estimate remain pending operator engineering-plan approval and change-code.
+
+### 2026-09-23 — implementation checkpoint
+
+Operator approved execution; change-code plan-quality CLEAN after clarifying named test strategies, exact provisioning CLI and output-only v2 compatibility. Estimate-quality accepted the calibrated 10.8h unit decomposition. Implemented nested identity/schema and Git proof (`92f6fdb`), environment-aware SDLC consumers (`bf30f4e`), and private remote-main acquisition with inherited setup leases (`43e53fe`). Full `go test ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` passed (SDLC package 367.829s), as did vet and scoped diff checks. The sole skip is existing #210. Additional focused tests verify lexical symlink refusal, whitespace-preserving Git reads, all accepted sibling names, local project writes and independent clone authority. An earlier parallel run passed assertions but failed the repo-status guard when another worker added a test file; the final broad run passed cleanly.
+
+Peer metadata published via isolated clean clones, leaving operator checkouts unchanged: pair#310 PR154 (`d7d062dd`, merged) and parley.nvim#274 PR199 (`007817b4`, merged). Parley merge also auto-archived its pre-existing completed #220 bookkeeping under normal SDLC. Real two-environment compilation and runtime acceptance passed; full Parley suite and final exact script remain in progress. Source HEADs/dirty work and canonical fleet remained unchanged by repeat compilation. Initial owner binaries may differ on repeat because Go embeds VCS dirty-state metadata after generated .gitignore adoption; composition comparisons separate and record this build provenance.
 
 ## Revisions
 
