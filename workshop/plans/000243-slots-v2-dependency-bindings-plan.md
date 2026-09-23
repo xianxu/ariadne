@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git, existing Weave filesystem/process/staging seams, shell integration fixtures; macOS/Linux.
 
-**Status:** Engineering proposal; product policy approved, implementation approval pending. One issue-close review boundary; no Mx tags. No implementation estimate before plan-quality acceptance.
+**Status:** Operator approved implementation on 2026-09-23; change-code gates in progress. One issue-close review boundary; no Mx tags. No implementation estimate before plan-quality acceptance.
 
 ## Chunk 1: Contract and implementation
 
@@ -73,6 +73,10 @@ Expose a shared optional environment-discovery helper usable by Weave without ma
 
 Explicit workspace addresses continue to address the canonical fleet. From a dependency clone, qualified `ariadne:0` resolves canonical `F/ariadne`, not the clone; contextual `:N` refuses with guidance to name the repository explicitly. Empty-address resolution describes the dependency checkout itself. Bare artifact refs and explicit self-qualified issue refs still use the current checkout.
 
+### Snapshot compatibility
+
+`workspace.Identity` is live command output, not a persisted input protocol. `buildWorkspace` and state collection obtain fresh identity; `cmd/sdlc/state.go`'s `renderProse` only checks a populated struct before printing. There is no v1 snapshot reader or migration to modify in #243. Both emit schema v2; old saved output is stale evidence and must be regenerated with `sdlc workspace --json` or `sdlc state --json`. Downstream JSON consumers must reject unsupported versions and malformed/truncated documents before use and rerun the command; implementing Couch's decoder belongs to its consumer issue. Do not invent a snapshot ingestion API here. Contract tests decode fresh output and verify v2/null fields; docs explicitly disallow treating archived v1 output as mutation authority.
+
 ### Consumer roots and ownership
 
 | Consumer | Selected root / behavior |
@@ -97,6 +101,8 @@ Audit all current FleetRoot consumers: `resolve.go`, `projectworkspace.go`, `pro
 ### Weave acquisition and setup contract
 
 Couch provisions the host worktree first (#305), then runs `weave compile` with cwd at the nested main checkout. `weave dependencies` uses the same policy but does not build/compose. No caller-only flag that ordinary compile could omit. Resume of a ready workspace requires no compile/fetch. On setup failure, retry the same command after the reported cause is resolved; do not delete the environment to recover.
+
+Callable contract: execute `weave compile` with cwd exactly the main checkout (`F/worktree/pair-slotN/pair`), default all targets and no special environment variables. Inputs are tracked manifests/deps plus existing sibling repositories. Successful exit 0 means dependency/package/build/composition stages completed; stdout is human progress, not a readiness JSON protocol. Failures exit 1 with a diagnostic on stderr. `weave dependencies` has the same cwd, policy and status convention but restores sources/packages only. `--dry-run` previews without effects and returns nonzero for incomplete graphs. Couch records readiness only after compile exit 0; ready resume does not invoke Weave. It displays diagnostics and offers explicit retry on any failure, never parses prose to decide destructive recovery. Contention says retry after the active setup; absent source/main requires correcting metadata/remote then retry; interrupted setup reuses verified completed clones and the existing stage recovery contract. No automatic retry loop or specialized exit-code taxonomy is added. User cancellation stops setup without marking ready. Exact process/CLI status tests cover this contract.
 
 - Derive context once via the shared probe and acquire a nonblocking exclusive environment setup lease before effects. Contention fails with the environment path and retry guidance. Dry-run stays read-only and acquires no durable lock.
 - Thread policy through every transitive substrate edge in acquisition. Require both the normalized lexical destination and canonical physical destination to be direct repository children of the environment before touching them. Reject deeper contained paths as unsupported, not merely paths that escape. Reject escapes, outward symlinks, conflicting sources, host-repository collision, and dependency aliases into the host common-dir. Accepted existing dependencies must be ordinary checkouts; no primary/worktree sharing.
@@ -128,14 +134,20 @@ OS setup lease serializes cooperative compile/dependencies calls, including call
 
 ### Adversarial verification strategies
 
-- **Nested paths/Classify (pure property tests):** generate repo names, slot integers, Unicode/spaces/hyphens and malformed variants. SlotPath/environment/classification must agree; perturb one component and assert no numbered identity. Flat legacy trees stay ordinary. Malformed OIDs still fail before zero-sentinel handling.
-- **Environment discovery (fake/real conformance + interleavings):** run identical multi-repo scenarios against extended stateful Git fake and real temporary worktrees/clones. Replace/remove host between proof and recheck, inject failed probes, false same-name host clones, wrong common-dir, symlink escapes and broken resting refs. Create the same dependency feature branch in two environments and verify distinct worktree paths; resolve each through primary/common-dir evidence, including from nested cwd, and reject forged or mismatched registrations. Independent dependency access must not require the host's resting ref; false context must never grant outer fleet ownership.
-- **SDLC consumers (differential content tests):** give canonical, slot1 and slot2 copies divergent issue/project contents. Execute production commands from main and dependency nested cwd; assert exact selected files, project write destinations, clone-specific lock identity, canonical brain path, and untouched shadowed primary/other slot. Local selected repo lacking an issue must not silently read canonical content. Test all inventory rows above, including propagation/migration boundaries.
-- **Acquisition transitions (model/event sequences):** exercise every state/event row using a filesystem-backed fake remote/ref/checkout/stage model. Generate failure/cancel/retry/destination-race sequences and assert preservation, no publication before main/manifest verification, reuse after partial graph completion, and bounded producer lifetime. Mutation-check skipping origin/main verification and warm-repo no-update guard.
-- **Acquisition conformance:** temporary bare remotes whose default is develop but main differs; missing main; tag-only main; feature-selected dirty existing repo; transitive diamond; local-source refusal, source mismatch, source-less missing/existing, path escapes, unsupported contained deeper destinations and dry-run. Re-enter identity and compile from every accepted dependency shape to prove policy and lease discovery remain active. From dependency feature worktrees, prove unsupported manifest-relative paths fail before effects, preserve sources, and retain numbered policy/lease discovery. Production source normalization remains active: inject a transport adapter mapping fixture HTTPS names to local bare remotes below validation. No real network or package installation in fixtures.
-- **Setup lease lifetime:** deterministic barriers for two processes in one environment versus two distinct environments; kill parent with live writing child, prove retry remains excluded until child exits; retry then reclaims only stopped owned stages. No timing-only sleeps as the success oracle.
-- **Tool supplier isolation:** run actual compile startup with fixture owner Makefiles, fake brew and isolated HOME/PATH/shell rc. Assert outputs remain in each owner bin and the selected external tool/shell rc is byte-identical. Real ariadne `make tools` in an isolated checkout confirms authored recipes, without running install.
-- **Product acceptance:** two temporary Parley numbered environments with real Git host topology and private ordinary Ariadne clones. Compile twice using built candidate gateway and controlled package runner; compare tracked diffs, source HEADs and generated link targets. Attribute expected first-compile ignore/seed changes, then require stable second output. Run Parley's isolated runtime fresh-clone check and relevant product tests with explicit Plenary location. Run full product suite once if available; report actual limitations instead of inventing success.
+| Production function / boundary | Adversarial strategy and mechanical guard |
+|---|---|
+| `SlotPath`, new `SlotEnvironmentPath`, `slotNumber`, `Classify` | Property-test arbitrary names/integers and perturbed paths/refs; round-trip agreement, valid OID grammar and no false numbered identity. |
+| `NormalizeVantage`, new `DiscoverEnvironment`, `Resolve` | Stateful fake/real Git conformance with topology mutation between probes; require verified host/primary/common-dir evidence and preserve clone identity. |
+| New `selectWorkspacePeer`, `projectWorkspaceOverlays`, project discovery | Differential divergent content across fleet/environments; exact selected reads/writes and no shadowed-primary fallback. |
+| `createWorktreeBranch`, migration, propagation and calibration callers | Differential production-command tests across independent clones; disjoint destinations, local effect scope and canonical brain roots. |
+| New acquisition policy validation and transition functions | Generated malformed paths/transports and event sequences; confinement, no premature publication, warm-state preservation and bounded recovery. |
+| `Client.Ensure`, `Client.Restore` | Fake/real Git conformance under remote/ref/stage failures and retry; verify origin/main before publication, preserve existing state and re-enter every accepted topology. |
+| New setup lease acquisition/release, `ExecRunner.run` | Process barriers and parent-kill interleavings; exclusion lasts through all writing descendants, distinct environments remain independent. |
+| `runCompile`, `buildDependencies` | Production startup fixtures with isolated HOME/tools; no global supplier mutation, dry-run effects, or generic fallback from numbered context. |
+| `buildWorkspace`, state collection/`renderProse` | Decode fresh command output in contract tests; schema v2 and null identity fields agree with live topology. No production snapshot reader exists. |
+| Integration script | Two real temporary Parley hosts/private Ariadne clones; repeated compilation preserves chosen source state and produces stable links/artifacts; run runtime/product checks and owner builds. |
+
+Fake/real Git conformance runs in the normal package test suite on every change to these seams and in CI; no remote service is needed because temporary real Git repositories exercise the installed Git binary. Real product acceptance runs before #243 close and after later topology/acquisition/tool-supplier changes. Fixture transport maps validated remote names to temporary remotes below source validation; do not weaken production remote-only policy. No network/package installation in unit fixtures.
 
 ### Operating envelope and architecture
 
@@ -192,3 +204,7 @@ Derived from the operator-approved nested environment/ordinary remote clone poli
 ### 2026-09-23 — design review, accepted dependency topology
 
 Reason: fresh-context review found that accepting arbitrary contained paths exceeded direct-sibling discovery. Delta: require every acquired substrate checkout to be a direct environment child, including transitive edges, and test policy discovery when re-entering each accepted checkout. Also made peer metadata publication isolation explicit after inspecting dirty/diverged peer state. Dependency feature worktrees now use clone-specific paths and inherit verified context from their primary, avoiding cross-environment collisions. Composition still validates actual relative paths and reports unsupported feature-worktree layouts without adding rebinding or prohibiting normal Git/SDLC worktree use.
+
+### 2026-09-23 — change-code gate clarification
+
+PQ-1 addressed: named production functions and compressed adversarial strategy table replace the prose case inventory. PQ-2 addressed: exact cwd/argv/output/exit contract and Couch readiness/retry mapping are explicit. PQ-3 addressed by correcting the premise: current state code renders live output and consumes no persisted workspace documents; v2 output-only compatibility and downstream rejection/regeneration are now documented. PQ-4 addressed: normal-suite Git conformance and change-triggered product acceptance cadence specified. Operator implementation approval stands; these clarify the existing design.
