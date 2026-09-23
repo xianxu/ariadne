@@ -4,7 +4,7 @@ status: working
 deps: [ariadne#242]
 github_issue:
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 estimate_hours:
 started: 2026-09-22T23:30:57-07:00
 ---
@@ -23,6 +23,20 @@ Resolve and implement the minimum dependency setup needed by couch-slots-v2. Com
 
 Separate source dependencies from the workspace supplying shared installed binaries. Ordinary slot provision/resume/build must not silently select a different machine-wide tool supplier. Existing explicit installation remains possible. Produce the provisioning contract Couch will call, including failure/retry behavior. Change Weave only if existing operations cannot satisfy the chosen contract. ARCH-PURPOSE: keep dependency ownership with the dependency tooling; Couch orchestrates setup. This task requires a binding-policy decision before implementation.
 
+### Agreed scope — 2026-09-23
+
+This section takes precedence over earlier conflicting layout or policy text.
+
+The 2026-09-23 decision replaces the flat-layout/shared-baseline alternatives above. A numbered slot has an environment directory `/workspace/worktree/pair-slot1/` containing the main Git worktree `pair/` and ordinary dependency clones such as `ariadne/`. The primary stays `/workspace/pair`; its existing sibling environment remains `/workspace/`. Relative declarations such as `../ariadne` resolve inside the numbered environment without a shared shelf, primary symlink, or same-number peer mapping.
+
+Extend the shared resolver delivered by #242 for the nested main-worktree path and distinguish the enclosing environment from the checkout root. Keep #242 closed as the delivered flat-layout baseline; this task owns its layout follow-up and the consumer audit needed to distinguish environment-local source dependencies from canonical repository/workflow identity. A dependency clone is an ordinary independent Git repository, not another numbered Couch slot. Do not infer canonical fleet, calibration, or project ownership merely from its containing directory.
+
+Provision dependencies using ordinary clones from their recorded remote sources, initially selecting `origin/main` rather than assuming the remote default branch is main. Existing checkouts retain their chosen commits, branches, dirty files and local commits on compile/setup/resume. Operator and agent can explicitly select another revision using ordinary Git; no local-primary source selection, linked dependency worktrees, live dependency sharing, or automatic dependency refresh is part of this version. Source URLs must be available for missing dependencies; missing origin/main and partially completed setup need explicit diagnostics and retry behavior. Whether extra persisted revision metadata is necessary remains an engineering decision, not an approved new lockfile system.
+
+Weave owns dependency acquisition/composition; Couch orchestrates it. Existing symlinks may target the private dependency clone: edits there intentionally affect this environment, while another slot and the primary remain isolated. Copied/merged generated artifacts follow normal explicit recompilation. Source bindings remain separate from machine-wide installed tool supply: provision/resume/build must not silently retarget installed tools, while explicit installation remains available.
+
+Cross-repository work can be driven from any slot's thread, using each repository's normal issue, review and publication workflow. Publish required Ariadne changes before dependent Pair changes. Do not add automatic recursive merge, cross-repository transaction, dependency editing limits, or dependency Couch entries.
+
 ## Done when
 
 - A recorded decision specifies source binding, freshness/update behavior, generated-link behavior, and the shared-tool supplier policy.
@@ -30,12 +44,17 @@ Separate source dependencies from the workspace supplying shared installed binar
 - Tests/probes show what happens when a primary dependency switches branch, a dependency is missing, and setup is interrupted; no silent retargeting occurs.
 - The agreed contract is usable by Couch, with precise commands/API and recovery steps; whether Weave code changes are necessary is evidenced.
 
+- Shared identity and production consumers resolve `/workspace/worktree/<repo>-slotN/<repo>` correctly; sibling dependency clones are not misclassified as numbered slots.
+- Two fresh numbered environments get separate ordinary dependency clones initially at origin/main; choosing or editing a dependency revision in one leaves the other and the primary unchanged.
+- Repeated compile/setup/resume preserves existing dependency work and machine-wide tool selection; missing source/main and interrupted acquisition have explicit tested recovery.
+- The Couch setup contract documents nested paths, recorded remote requirements, initial origin/main selection, explicit revision changes, generated links, and normal dependency-first SDLC publication.
+
 ## Plan
 
 Task outline only; settle implementation design through start-plan before change-code.
 
-- [ ] Inspect current dependency and installation paths; compare minimal binding policies and obtain the policy decision.
-- [ ] Implement only the required resolution/setup changes with fixture tests.
+- [x] Inspect current dependency and installation paths; compare minimal binding policies and obtain the policy decision.
+- [ ] Design and implement the nested identity follow-up and required dependency/setup changes with fixture tests.
 - [ ] Prove fresh and repeated setup and document explicit dependency/tool updates.
 
 ## Log
@@ -53,3 +72,9 @@ Existing Weave accepts explicit substrate paths and optional source URLs, but no
 Policy question sent to operator: shared stable dedicated dependency baseline (minimum initial-trial machinery, explicitly shared update blast radius) versus independent per-slot dependency pins (new resolution support). Primary symlinks and same-number peer mapping are not assumed approved. ARCH-DRY: any new mapping must reach all layergraph consumers, not only source acquisition. ARCH-PURPOSE: Couch orchestrates a dependency-tool-owned contract.
 
 Read-only audit verification: existing acquire/staging/plan/startup fixture suites passed. Clone staging already owns interrupted-producer recovery; concurrent setup is not currently supported. Repeated compilation can initially seed/adopt Makefiles and generated-ignore metadata, so the acceptance probe must explain tracked changes against a prepared baseline rather than assume a universally clean diff. Implementation design and estimate await the binding-policy decision.
+
+## Revisions
+
+### 2026-09-23 — Nested workspace and dependency policy agreed
+
+Reason: operator agreed nested environments, ordinary remote dependency clones and existing per-repository publication. Delta: added the authoritative scope clarification and acceptance criteria above; original task context remains as provenance. No implementation or lifecycle-status change is claimed by this revision.
