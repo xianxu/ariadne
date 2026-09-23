@@ -45,6 +45,9 @@ func Classify(v Vantage, trees []Worktree, refs map[string]string) (Identity, er
 	count := 0
 	seen := map[string]bool{}
 	for _, w := range trees {
+		if !w.Bare && !validOID(w.HEAD) {
+			return Identity{}, fmt.Errorf("malformed worktree HEAD OID at %q", w.Path)
+		}
 		if seen[w.Path] {
 			return Identity{}, fmt.Errorf("duplicate worktree membership %q", w.Path)
 		}
@@ -60,7 +63,7 @@ func Classify(v Vantage, trees []Worktree, refs map[string]string) (Identity, er
 	if selected.Branch != "" {
 		id.Branch = pointer(selected.Branch)
 	}
-	if selected.HEAD != "" && strings.Trim(selected.HEAD, "0") != "" {
+	if strings.Trim(selected.HEAD, "0") != "" {
 		id.Head = pointer(selected.HEAD)
 	}
 	n := slotNumber(v)
@@ -85,7 +88,7 @@ func Classify(v Vantage, trees []Worktree, refs map[string]string) (Identity, er
 	if n == 0 {
 		return id, nil
 	}
-	if refs[rest] == "" || strings.Trim(refs[rest], "0") == "" {
+	if !validOID(refs[rest]) || strings.Trim(refs[rest], "0") == "" {
 		return Identity{}, fmt.Errorf("slot resting branch %q does not resolve to a commit", rest)
 	}
 	if selected.Branch == "main" || (strings.HasPrefix(selected.Branch, "main-slot") && reservedSlot(selected.Branch) && selected.Branch != rest) {
@@ -105,4 +108,18 @@ func reservedSlot(branch string) bool {
 	s := strings.TrimPrefix(branch, "main-slot")
 	n, e := strconv.Atoi(s)
 	return e == nil && n > 0 && strconv.Itoa(n) == s
+}
+
+// validOID accepts full Git SHA-1 or SHA-256 object IDs, including the
+// corresponding zero sentinel. Callers must reject zero for committed refs.
+func validOID(s string) bool {
+	if len(s) != 40 && len(s) != 64 {
+		return false
+	}
+	for _, c := range s {
+		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
+			return false
+		}
+	}
+	return true
 }

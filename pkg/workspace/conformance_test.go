@@ -396,3 +396,13 @@ func TestResolveUnbornBranchWithExistingDescendant(t *testing.T) {
 		t.Fatal(id, e)
 	}
 }
+
+func TestResolveRejectsMalformedZeroHEAD(t *testing.T) {
+	f := setup(t)
+	r := f.fake.Repositories[0]
+	r.Worktrees[0].HEAD = "0"
+	delete(r.Refs, "main")
+	if id, e := workspace.Resolve(f.fake, f.primary, ""); e == nil {
+		t.Fatalf("malformed all-zero HEAD resolved as unborn: %+v", id)
+	}
+}

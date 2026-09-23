@@ -92,6 +92,14 @@ The first full suite exposed legacy non-Git fixtures, corrected to real Git repo
 
 Passed `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (cmd/sdlc 271.462s, all packages pass). The sole exclusion is the unchanged baseline #210 missing-plan test, documented above. `go vet ./pkg/workspace/... ./cmd/sdlc/...`, `git diff --check`, and `go build -o /tmp/ariadne-242-sdlc ./cmd/sdlc` passed. Built-binary workspace/state JSON smoke checks passed on this checkout; mutation/error scenarios used temporary Git fixtures. Implementation and documentation are complete; mandatory close review and publish remain.
 
+### 2026-09-22 — close review round 1
+
+REWORK: BR-1 found malformed all-zero HEAD observations bypassed OID validation by becoming unborn null; BR-2 found missing README command usage. Fixing the malformed-evidence class with red/green regression coverage and adding README workspace/state discovery. The issue remains working; no gate bypass. Lessons and the durable plan record both corrections.
+
+### 2026-09-22 — review fixes verified
+
+BR-1 class sweep now validates every observed non-bare HEAD and the selected resting ref in Classify before interpreting zero sentinels; direct callers share the same rule. Malformed-observation regression failed before the fix (0.432s), then focused tests passed (0.387s); full workspace suite passed (9.518s). Workspace/state/project/close/resolve consumer regressions passed (10.608s), and Go vet passed across workspace and SDLC. BR-2 README now documents workspace address examples, JSON purpose and state integration. Both findings are ready for gate disposition; no publish yet.
+
 ## Revisions
 
 ### 2026-09-22 — first engineering proposal

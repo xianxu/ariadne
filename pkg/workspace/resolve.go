@@ -73,17 +73,11 @@ func Resolve(git GitReader, dir, address string) (Identity, error) {
 			return Identity{}, gitPathError(v.WorktreeRoot, "resolve resting commit", e, out)
 		}
 		oid := strings.TrimSuffix(string(out), "\n")
-		if !validOID(oid) {
-			return Identity{}, fmt.Errorf("malformed resting commit OID")
-		}
 		refs[resting] = oid
 	}
 	id, e := Classify(v, trees, refs)
 	if e != nil {
 		return Identity{}, e
-	}
-	if id.Head != nil && !validOID(*id.Head) {
-		return Identity{}, fmt.Errorf("malformed worktree HEAD OID")
 	}
 	if e := recheck(git, v, id); e != nil {
 		return Identity{}, e
@@ -99,17 +93,6 @@ func Resolve(git GitReader, dir, address string) (Identity, error) {
 		}
 	}
 	return id, nil
-}
-func validOID(s string) bool {
-	if len(s) != 40 && len(s) != 64 {
-		return false
-	}
-	for _, c := range s {
-		if !(c >= '0' && c <= '9' || c >= 'a' && c <= 'f') {
-			return false
-		}
-	}
-	return true
 }
 func recheck(git GitReader, v Vantage, id Identity) error {
 	for _, q := range []struct{ arg, want string }{{"--show-toplevel", v.WorktreeRoot}, {"--git-common-dir", v.RepoIdentity}} {

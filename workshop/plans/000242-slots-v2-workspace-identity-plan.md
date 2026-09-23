@@ -170,3 +170,7 @@ Reason: production tests and the consumer sweep identified alias/fixture boundar
 ### 2026-09-22 — verified implementation checkpoint
 
 Completed Tasks 1–4 and documentation in one integrated commit per the prior revision. Final serialized regression suite passed with only the named pre-existing #210 missing-plan test excluded; vet, build, diff checks and JSON smoke checks passed. Full evidence is recorded in the issue Log. Boundary review and publication remain pending.
+
+### 2026-09-22 — boundary review corrections
+
+Reason: close review raised BR-1 (malformed all-zero HEAD accepted as unborn) and BR-2 (README usage missing). Delta: validate Git OID grammar before interpreting unborn sentinels across shared classification and resolution, with a failing malformed-evidence regression first. Add README.md to Task 5's documentation surface, including workspace JSON and state integration. Scope remains unchanged; rerun close after verified fixes.

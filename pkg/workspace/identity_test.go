@@ -1,7 +1,9 @@
 package workspace
 
 import (
+	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -52,22 +54,22 @@ func TestSlotPathContainment(t *testing.T) {
 }
 func TestClassify(t *testing.T) {
 	v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/worktree/repo-slot1"}
-	ws := []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: "abc"}, {Path: v.WorktreeRoot, Branch: "issue", HEAD: "def"}}
-	id, e := Classify(v, ws, map[string]string{"main-slot1": "abc"})
+	ws := []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: strings.Repeat("a", 40)}, {Path: v.WorktreeRoot, Branch: "issue", HEAD: strings.Repeat("b", 40)}}
+	id, e := Classify(v, ws, map[string]string{"main-slot1": strings.Repeat("a", 40)})
 	if e != nil || id.Kind != "slot" || *id.Address != "repo:1" || *id.RestingBranch != "main-slot1" {
 		t.Fatal(id, e)
 	}
-	ws = append(ws, Worktree{Path: "/elsewhere", Branch: "other", HEAD: "abc"})
-	if _, e := Classify(v, ws, map[string]string{"main-slot1": "abc"}); e != nil {
+	ws = append(ws, Worktree{Path: "/elsewhere", Branch: "other", HEAD: strings.Repeat("a", 40)})
+	if _, e := Classify(v, ws, map[string]string{"main-slot1": strings.Repeat("a", 40)}); e != nil {
 		t.Fatal(e)
 	}
 	ws[2].Branch = "main-slot1"
-	if _, e := Classify(v, ws, map[string]string{"main-slot1": "abc"}); e == nil {
+	if _, e := Classify(v, ws, map[string]string{"main-slot1": strings.Repeat("a", 40)}); e == nil {
 		t.Fatal("occupied baseline accepted")
 	}
 	ws = ws[:2]
 	ws[1].Branch = "main"
-	if _, e := Classify(v, ws, map[string]string{"main-slot1": "abc"}); e == nil {
+	if _, e := Classify(v, ws, map[string]string{"main-slot1": strings.Repeat("a", 40)}); e == nil {
 		t.Fatal("wrong reserved branch accepted")
 	}
 	ws[1].Branch = "issue"
@@ -75,15 +77,15 @@ func TestClassify(t *testing.T) {
 		t.Fatal("missing baseline accepted")
 	}
 	ws = append(ws, ws[1])
-	if _, e := Classify(v, ws, map[string]string{"main-slot1": "abc"}); e == nil {
+	if _, e := Classify(v, ws, map[string]string{"main-slot1": strings.Repeat("a", 40)}); e == nil {
 		t.Fatal("duplicate membership accepted")
 	}
 }
 
 func TestClassifyTopologyPermutations(t *testing.T) {
 	v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/worktree/repo-slot1"}
-	trees := []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: "abc"}, {Path: v.WorktreeRoot, Branch: "issue", HEAD: "def"}, {Path: "/ordinary", Branch: "other", HEAD: "abc"}}
-	refs := map[string]string{"main-slot1": "abc"}
+	trees := []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: strings.Repeat("a", 40)}, {Path: v.WorktreeRoot, Branch: "issue", HEAD: strings.Repeat("b", 40)}, {Path: "/ordinary", Branch: "other", HEAD: strings.Repeat("a", 40)}}
+	refs := map[string]string{"main-slot1": strings.Repeat("a", 40)}
 	want, e := Classify(v, trees, refs)
 	if e != nil {
 		t.Fatal(e)
@@ -102,7 +104,63 @@ func TestClassifyTopologyPermutations(t *testing.T) {
 
 func TestClassifyRejectsUnaddressablePrimary(t *testing.T) {
 	v := Vantage{RepoIdentity: "/fleet/bad\nrepo/.git", PrimaryRoot: "/fleet/bad\nrepo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/bad\nrepo"}
-	if _, e := Classify(v, []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: "abc"}}, nil); e == nil {
+	if _, e := Classify(v, []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: strings.Repeat("a", 40)}}, nil); e == nil {
 		t.Fatal("unaddressable primary accepted")
+	}
+}
+
+func TestClassifyRejectsMalformedOID(t *testing.T) {
+	malformed := []string{"", "0", strings.Repeat("0", 39), strings.Repeat("0", 41), strings.Repeat("0", 63), strings.Repeat("0", 65), "abc", strings.Repeat("a", 39), strings.Repeat("a", 65), strings.Repeat("g", 40), strings.Repeat("A", 40), strings.Repeat("a", 39) + "\n"}
+	for _, field := range []string{"primary HEAD", "ordinary HEAD", "slot HEAD", "unrelated HEAD", "resting ref"} {
+		for _, oid := range malformed {
+			t.Run(fmt.Sprintf("%s/%q", field, oid), func(t *testing.T) {
+				v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/repo"}
+				trees := []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: strings.Repeat("a", 40)}, {Path: "/fleet/worktree/repo-slot1", Branch: "issue", HEAD: strings.Repeat("b", 40)}, {Path: "/ordinary", Branch: "other", HEAD: strings.Repeat("c", 40)}}
+				refs := map[string]string{"main-slot1": strings.Repeat("a", 40)}
+				switch field {
+				case "primary HEAD":
+					trees[0].HEAD = oid
+				case "ordinary HEAD":
+					v.WorktreeRoot = trees[2].Path
+					trees[2].HEAD = oid
+				case "slot HEAD":
+					v.WorktreeRoot = trees[1].Path
+					trees[1].HEAD = oid
+				case "unrelated HEAD":
+					trees[2].HEAD = oid
+				case "resting ref":
+					v.WorktreeRoot = trees[1].Path
+					refs["main-slot1"] = oid
+				}
+				if id, e := Classify(v, trees, refs); e == nil {
+					t.Fatalf("accepted malformed %s %q: %+v", field, oid, id)
+				}
+			})
+		}
+	}
+}
+func TestClassifyFullOIDForms(t *testing.T) {
+	for _, length := range []int{40, 64} {
+		for _, zero := range []bool{false, true} {
+			t.Run(fmt.Sprintf("length=%d/zero=%v", length, zero), func(t *testing.T) {
+				oid := strings.Repeat("a", length)
+				if zero {
+					oid = strings.Repeat("0", length)
+				}
+				v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/repo"}
+				id, e := Classify(v, []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: oid}}, nil)
+				if e != nil || (id.Head == nil) != zero {
+					t.Fatal(id, e)
+				}
+			})
+		}
+	}
+}
+func TestClassifyRejectsZeroRestingCommit(t *testing.T) {
+	for _, length := range []int{40, 64} {
+		v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/worktree/repo-slot1"}
+		if _, e := Classify(v, []Worktree{{Path: v.WorktreeRoot, Branch: "issue", HEAD: strings.Repeat("a", length)}}, map[string]string{"main-slot1": strings.Repeat("0", length)}); e == nil {
+			t.Fatal("zero resting commit accepted")
+		}
 	}
 }
