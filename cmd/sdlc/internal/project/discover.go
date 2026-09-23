@@ -103,14 +103,49 @@ type CheckoutOverlay struct {
 // dot-dirs) are skipped. Both DiscoverByIssueRef and ListActiveProjectFiles
 // drive off this one walk so "where the fleet's projects live" has one source.
 func walkFleetProjects(parentDir string, includeArchive bool, visit func(path, repoDir, repo string, legacy bool), overlays ...CheckoutOverlay) error {
-	disc := vocab.Project().Discovery()
-	home := disc.Home                                                   // "workshop/projects"
-	archive := vocab.ArchiveSubdir(disc.Archive, vocab.ArchiveProjects) // "workshop/history/projects"
-
-	siblings, err := FleetRepoDirs(parentDir)
+	roots, err := fleetProjectRoots(parentDir, overlays...)
 	if err != nil {
 		return err
 	}
+	return walkProjectRoots(roots, includeArchive, visit)
+}
+
+// ProjectRoot is an explicit content checkout selected by the caller. It makes
+// no claim that a same-named canonical checkout shares Git identity.
+type ProjectRoot struct{ RepoDir, Repo string }
+
+func fleetProjectRoots(parentDir string, overlays ...CheckoutOverlay) ([]ProjectRoot, error) {
+	siblings, err := FleetRepoDirs(parentDir)
+	if err != nil {
+		return nil, err
+	}
+	excluded := map[string]bool{}
+	for _, o := range overlays {
+		for _, r := range o.ExcludeRoots {
+			excluded[filepath.Clean(r)] = true
+		}
+	}
+	var roots []ProjectRoot
+	for _, dir := range siblings {
+		if excluded[filepath.Clean(dir)] {
+			continue
+		}
+		r := ProjectRoot{dir, filepath.Base(dir)}
+		for _, o := range overlays {
+			if filepath.Clean(dir) == filepath.Clean(o.PrimaryRoot) {
+				r = ProjectRoot{o.WorktreeRoot, o.Repo}
+				break
+			}
+		}
+		roots = append(roots, r)
+	}
+	return roots, nil
+}
+
+func walkProjectRoots(roots []ProjectRoot, includeArchive bool, visit func(path, repoDir, repo string, legacy bool)) error {
+	disc := vocab.Project().Discovery()
+	home := disc.Home
+	archive := vocab.ArchiveSubdir(disc.Archive, vocab.ArchiveProjects)
 	seen := map[string]bool{}
 	scan := func(repoDir, repo, relDir string, legacy bool) {
 		files, _ := filepath.Glob(filepath.Join(repoDir, relDir, "*.md"))
@@ -126,23 +161,8 @@ func walkFleetProjects(parentDir string, includeArchive bool, visit func(path, r
 			visit(f, repoDir, repo, legacy)
 		}
 	}
-	excluded := map[string]bool{}
-	for _, overlay := range overlays {
-		for _, root := range overlay.ExcludeRoots {
-			excluded[filepath.Clean(root)] = true
-		}
-	}
-	for _, repoDir := range siblings {
-		if excluded[filepath.Clean(repoDir)] {
-			continue
-		}
-		repo := filepath.Base(repoDir)
-		for _, overlay := range overlays {
-			if filepath.Clean(repoDir) == filepath.Clean(overlay.PrimaryRoot) {
-				repoDir, repo = overlay.WorktreeRoot, overlay.Repo
-				break
-			}
-		}
+	for _, root := range roots {
+		repoDir, repo := root.RepoDir, root.Repo
 		if gitx.IsBrainRepo(repoDir) {
 			scan(repoDir, repo, filepath.Join("data", "project"), true)
 			continue
@@ -163,9 +183,17 @@ func walkFleetProjects(parentDir string, includeArchive bool, visit func(path, r
 // brain/data/project/*.md legacy home. Multiple matches are legitimate
 // membership, not an error. Deterministic given parentDir.
 func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope, overlays ...CheckoutOverlay) ([]ProjectMatch, error) {
+	roots, err := fleetProjectRoots(parentDir, overlays...)
+	if err != nil {
+		return nil, err
+	}
+	return DiscoverInRoots(roots, repoName, issueID, scope)
+}
+
+func DiscoverInRoots(roots []ProjectRoot, repoName, issueID string, scope DiscoverScope) ([]ProjectMatch, error) {
 	marker := "[" + repoName + "#" + issueID
 	var out []ProjectMatch
-	err := walkFleetProjects(parentDir, scope == ActiveAndArchive, func(path, repoDir, repo string, legacy bool) {
+	err := walkProjectRoots(roots, scope == ActiveAndArchive, func(path, repoDir, repo string, legacy bool) {
 		data, rerr := os.ReadFile(path)
 		if rerr != nil {
 			return // best-effort, matches FindByIssueRef
@@ -175,7 +203,7 @@ func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope
 				Path: path, RepoDir: repoDir, Repo: repo, Legacy: legacy,
 			})
 		}
-	}, overlays...)
+	})
 	if err != nil {
 		return nil, err
 	}
@@ -201,12 +229,20 @@ type ProjectFile struct {
 // walkFleetProjects so the fleet enumeration has one source (#182 M2; the
 // calendar forecast's contention input). Deterministic (sorted by path).
 func ListActiveProjectFiles(parentDir, excludePath string, overlays ...CheckoutOverlay) ([]ProjectFile, error) {
+	roots, err := fleetProjectRoots(parentDir, overlays...)
+	if err != nil {
+		return nil, err
+	}
+	return ListActiveInRoots(roots, excludePath)
+}
+
+func ListActiveInRoots(roots []ProjectRoot, excludePath string) ([]ProjectFile, error) {
 	exclude := excludePath
 	if r, err := filepath.EvalSymlinks(excludePath); err == nil && r != "" {
 		exclude = r
 	}
 	var out []ProjectFile
-	err := walkFleetProjects(parentDir, false, func(path, repoDir, repo string, legacy bool) {
+	err := walkProjectRoots(roots, false, func(path, repoDir, repo string, legacy bool) {
 		real := path
 		if r, evErr := filepath.EvalSymlinks(path); evErr == nil && r != "" {
 			real = r
@@ -215,7 +251,7 @@ func ListActiveProjectFiles(parentDir, excludePath string, overlays ...CheckoutO
 			return
 		}
 		out = append(out, ProjectFile{Path: path, RepoDir: repoDir, Repo: repo, Legacy: legacy})
-	}, overlays...)
+	})
 	if err != nil {
 		return nil, err
 	}

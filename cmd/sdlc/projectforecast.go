@@ -63,6 +63,10 @@ func ListFleetProjects(parentDir, excludePath string, overlays ...projectdoc.Che
 		cwarn(os.Stderr, "fleet project walk failed: "+err.Error()+" — forecasting without cross-project contention")
 		return nil
 	}
+	return loadsFromProjectFiles(files)
+}
+
+func loadsFromProjectFiles(files []projectdoc.ProjectFile) []projectdoc.ProjectLoad {
 	var loads []projectdoc.ProjectLoad
 	for _, f := range files {
 		load := projectdoc.ProjectLoad{Repo: f.Repo}
@@ -169,15 +173,18 @@ func forecastForProject(d *projectdoc.Doc, projectPath, brainDir, today string) 
 		return projectdoc.Forecast{}, "", err
 	}
 	repoDir := identity.WorktreeRoot
-	parentDir := identity.FleetRoot
 	// Repo is the repo basename fleet-wide (consistent with sibling loads); the
 	// project's own name lives in ProjectLoad.Name via projectLoadFromDoc.
 	this := projectLoadFromDoc(d, projectdoc.ProjectFile{Path: absPath, RepoDir: repoDir, Repo: identity.Repo})
-	overlays, err := projectWorkspaceOverlays(identity)
+	overlays, err := projectWorkspaceRoots(identity)
 	if err != nil {
 		return projectdoc.Forecast{}, "", err
 	}
-	others := ListFleetProjects(parentDir, absPath, overlays...)
+	files, err := projectdoc.ListActiveInRoots(overlays, absPath)
+	if err != nil {
+		return projectdoc.Forecast{}, "", err
+	}
+	others := loadsFromProjectFiles(files)
 	f, cerr := projectdoc.ComputeForecast(baseline, this, others, today)
 	if cerr != nil {
 		return projectdoc.Forecast{}, meta.Deadline, cerr

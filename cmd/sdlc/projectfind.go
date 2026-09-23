@@ -60,11 +60,11 @@ func discoverProjectsForRef(refStr, root string) ([]projectdoc.ProjectMatch, Art
 		return nil, ref, err
 	}
 	repoName := target.Repo
-	overlays, err := projectWorkspaceOverlays(identity)
+	overlays, err := projectWorkspaceRoots(identity)
 	if err != nil {
 		return nil, ref, err
 	}
-	matches, err := projectdoc.DiscoverByIssueRef(identity.FleetRoot, repoName, strconv.Itoa(ref.ID), projectdoc.ActiveAndArchive, overlays...)
+	matches, err := projectdoc.DiscoverInRoots(overlays, repoName, strconv.Itoa(ref.ID), projectdoc.ActiveAndArchive)
 	if err != nil {
 		return nil, ref, err
 	}

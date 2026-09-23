@@ -654,11 +654,11 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// `done` project is never re-ticked; the peer-write commit decision is M3.
 	var projectEdits []projectEdit
 
-	overlays, overlayErr := projectWorkspaceOverlays(identity)
+	overlays, overlayErr := projectWorkspaceRoots(identity)
 	if overlayErr != nil {
 		die(stderr, overlayErr.Error())
 	}
-	matches, derr := project.DiscoverByIssueRef(identity.FleetRoot, repoName, issueStr, project.ActiveOnly, overlays...)
+	matches, derr := project.DiscoverInRoots(overlays, repoName, issueStr, project.ActiveOnly)
 	if derr != nil {
 		cwarn(stderr, derr.Error()+" — skipping project update")
 	} else if len(matches) == 0 {
