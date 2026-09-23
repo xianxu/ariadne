@@ -31,7 +31,7 @@
 | runDurableMerge / durable PR preparation | cmd/sdlc/landing.go, pr.go, merge.go | new/modified | existing gates, Git switch/ref deletion, confirmation |
 | landing fake | cmd/sdlc/landing_test.go | new | stateful PR records and local bare Git remote |
 
-Use existing gitRunner and GH adapters; add narrowly typed methods instead of raw command escape hatches. Keep legacy methods intact for ordinary/dependency consumers. Git integration tests use real disposable repositories; the GitHub fake creates actual merge, squash or rebased commits on a bare main and maintains exact PR head/base/integration metadata, queue/query failures and effect counters. Read-only conformance uses the real merged PR130 metadata (head remains available after branch deletion); optional tests consume an explicitly selected existing PR and perform no live mutation. Existing workspace fakes retain identity conformance.
+Use existing gitRunner and GH adapters; add narrowly typed methods instead of raw command escape hatches. Keep legacy methods intact for ordinary/dependency consumers. Git integration tests use real disposable repositories; the GitHub fake creates actual merge, squash or rebased commits on a bare main and maintains exact PR head/base/integration metadata, queue/query failures and effect counters. Read-only conformance uses the real merged PR130 metadata (head remains available after branch deletion); `TestLandingGHLiveConformance` consumes an explicitly selected existing PR and performs no live mutation. Run it at #246 acceptance and whenever the typed adapter, fake protocol or supported gh version changes; offline CI skips it unless the repository/PR environment variables are supplied. It compares real same-repo identity, retained head/base OIDs and merged integration metadata with the fake contract; merge argv is checked against installed gh help without a live write. Existing workspace fakes retain identity conformance.
 
 ## Execution and safety contract
 
@@ -65,38 +65,48 @@ Use existing gitRunner and GH adapters; add narrowly typed methods instead of ra
 
 Numeric bounds are conservative implementation limits, not capacity promises: at most 100 matching PR records, 10,000 commits inspected for close/archive provenance and 10,000 selected tree entries; command failures or exceeded limits refuse. gh calls use a two-minute context deadline; no background work outlives the invocation. Tests use tiny fixtures plus limit+1 cases. Existing trunk CAS retry budget remains authoritative. No durable new files; temporary index/blob files retain TrunkFile cleanup, archives use existing history lifecycle (ARCH-CONSTRAINTS/STATE/SECURE/FUNERAL/MOCK).
 
+## Shared rules and executable test strategies
+
+Extract `archiveDestination(historyDir, kind, basename)` for existing `archiveDoneIssues`, `archiveDoneIssuesInDir`, `archivePlanArtifacts` and the landing plan, delegating to `vocab.ArchiveSubdir`. Extract `planArtifactBelongsToIssue(issueBase, artifactBase)` from the current ID-prefix rule and use it in both the filesystem plan mover and immutable tree selector. Extract `publishedIssueContent(frontmatter, body, date)` from `publishCodecompleteIssues` and use it there and in the remote planner. Existing terminal selection continues through vocabulary-backed helpers; PR-ancestry ownership is an additional selection predicate, not another lifecycle definition. Existing filesystem IO loops remain intact.
+
+| Function under test | Adversarial strategy and mechanical guard |
+|---|---|
+| `parseLandingPRs` / `realGH.LandingPRs` | Fuzz malformed external JSON/identity/OIDs; bounded fake gh process must distinguish absence from failed/incomplete evidence. |
+| `realGH.LandingMerge` | Capture subprocess argv and cancellation; require expected-head binding and no local cleanup capability. |
+| `archiveDestination`, `planArtifactBelongsToIssue`, `publishedIssueContent` | Table/property tests over issue families and parsed bodies; both legacy and remote consumers derive the same names and lifecycle transform. |
+| `selectLandingIssues` | Real Git divergent ancestry and independently published records; only immutable PR-owned close anchors select artifacts. |
+| `planLandingArchive` | Pure snapshots with conflicting generations/paths/modes; complete atomic move set or refusal, never partial overwrite. |
+| `landingArchiveComplete` / `archiveLandingPR` | Stateful remote changes and interrupted publication; exact reachable provenance and intact complete generation required before local cleanup. |
+| `nextLandingAction` | Exhaustive phase/evidence combinations; no destructive action from uncertain, conflicting or merely queued evidence. |
+| `resolveLandingTarget` | Real primary/slot/dependency topologies and malformed configuration; exact workspace identity binds named remote/main and GH repository without fallback. |
+| `returnLandingToRest` / `deleteLandingBranch` | Deterministic ref/occupancy/file races at effect boundaries; snapshots and expected-SHA deletion preserve all unrelated state. |
+| `runDurableMerge` / `runPR` | Stateful GH integration plus real bare Git, deterministic interruption hooks; assert retry convergence, gate enforcement and parent/dependency isolation through production entry points. |
+
+
 ## Chunk 1: implement the approved flow
 
 ### Task 1 — Structured GitHub evidence
 
 Files: create `cmd/sdlc/ghlanding.go`, `cmd/sdlc/ghlanding_test.go`; extend the realGH seam without changing ordinary legacy behavior.
 
-- [ ] Write failing tests for structured same-repository PR identity, full OIDs, exact base/main, unique matching head, absent/error distinction, bounded reads, queue response and expected-head merge argv without `--delete-branch`.
-- [ ] Run `go test ./cmd/sdlc -run 'TestLandingGH' -count=1` and observe red.
-- [ ] Implement typed PR observations and context-bounded gh dispatch. Preserve head/base commit IDs for merged PRs and reject incomplete records; submit by PR number + expected head.
-- [ ] Run the targeted tests green. Commit explicit paths with #246 and Co-Authored-By.
+- [ ] TDD the typed GH adapter and parser using the named strategy below; keep the legacy interface compatible.
+- [ ] Verify `go test ./cmd/sdlc -run 'TestLandingGH' -count=1` red then green, and commit explicit paths.
 
 ### Task 2 — Remote archive and retry proof
 
-Files: create `cmd/sdlc/landingarchive.go`, `cmd/sdlc/landingarchive_test.go`; reuse/refactor bounded snapshot helpers in `publishgate.go` and plan matching in `push.go` only where shared behavior is required. Read `construct/vocabulary/issue.cue` before lifecycle edits.
+Files: create `cmd/sdlc/landingarchive.go`, `cmd/sdlc/landingarchive_test.go`; reuse/refactor the explicitly shared pure archive rules below. Read `construct/vocabulary/issue.cue` before lifecycle edits.
 
-- [ ] Write real-Git failing tests for owned close selection (including independently published body), non-owned codecomplete exclusion, atomic issue/plan/review archive, collision/reopen refusal, fresh remote edits and complete/wrong/partial provenance.
-- [ ] Run `go test ./cmd/sdlc -run 'TestLandingArchive' -count=1` red.
-- [ ] Implement `archiveLandingPR(root, remote, repo string, pr landingPR, issuesDir, plansDir, historyDir string) error` with a pure archive-plan transformation and existing TrunkFile UpdateMany; no checkout, primary write or new publisher.
-- [ ] Prove an interrupted/unknown archive publication can be re-observed without duplicate commits or local mutation; use the same seam for fake and production.
-- [ ] Run targeted tests green and preserve existing archive tests. Commit explicit paths.
+- [ ] TDD the shared archive rules, owned selection, pure archive plan and publication/proof adapters using the named strategies below.
+- [ ] Implement `archiveLandingPR(root, remote, repo string, pr landingPR, issuesDir, plansDir, historyDir string) error` and read-only `landingArchiveComplete(root, remoteMainOID, repo string, pr landingPR, issuesDir, plansDir, historyDir string) (bool, error)` through existing TrunkFile; no checkout or new publisher. An empty owned set needs no archive commit.
+- [ ] Verify `go test ./cmd/sdlc -run 'TestLandingArchive|TestArchive' -count=1` red then green and commit explicit paths.
 
 ### Task 3 — Route PR/merge and safe cleanup
 
 Files: create `cmd/sdlc/landing.go`, `cmd/sdlc/landing_test.go`; modify `pr.go`, `merge.go`; adapt existing PR/merge fixtures to explicitly represent legacy ordinary/dependency topology.
 
-- [ ] Add failing tests for real identity routing, configured non-origin remote PR creation, primary/slot rest preservation, dirty primary/other slot preservation, dependency-first flow and legacy worktree cleanup.
-- [ ] Build a stateful GitHub fake on the same typed seam with actual bare-remote integration for merge, squash, rebase and queued/unknown outcomes. Hook effect boundaries for reproducible interruption/races, not sleeps.
-- [ ] Implement pure next-action decisions, durable target/config observations and thin IO orchestration. Add `--branch` to merge, preserving existing confirmation and dry-run conventions.
-- [ ] Route durable operations before legacy origin/main or primary lookup. Reuse the current instance/duplicate/publish gates for fresh issue-head integration; parameterize snapshot readers where needed, and bypass fresh gates only after proven prior integration (not a generic flag).
-- [ ] Implement collision-safe return and expected-SHA deletion with occupancy recheck, branch config cleanup and explicit retries. In dry-run perform reads only: no fetch/merge/archive/switch/delete/config writes.
-- [ ] Test every phase interruption, deleted remote branch, local additions, malformed/missing/ambiguous PR identity, queue admission, current/other Git operations, ignored/untracked collisions, occupancy movement and absent-branch retry. Assert branch/ref/config/index/file bytes remain intact outside intended changes, including sibling clones.
-- [ ] Run `go test ./cmd/sdlc -run 'TestLanding|TestMerge|TestPR|TestArchive' -count=1`; iterate red-green and commit explicit paths.
+- [ ] TDD the named phase/target/return/delete functions and routed commands below, with a stateful GH fake backed by a real bare Git remote.
+- [ ] Wire the durable path before legacy main lookup; preserve existing gates, confirmation and read-only dry-run. Add `merge --branch` recovery through the existing command.
+- [ ] Verify `go test ./cmd/sdlc -run 'TestLanding|TestMerge|TestPR|TestArchive' -count=1` red then green and commit explicit paths.
 
 ### Task 4 — Documentation and acceptance
 
@@ -116,3 +126,7 @@ The operator approved the reviewed design and confirmed dependency-first landing
 ### 2026-09-23 — Recover interrupted branch configuration cleanup
 
 Fresh plan review identified the interruption between compare-and-delete of the issue ref and removal of its branch configuration. Proven absent-ref recovery must remove remaining configuration for that selected branch before completion. Test this exact interruption; never remove configuration for a recreated or occupied ref.
+
+### 2026-09-23 — Plan-quality refinement
+
+Addressed the three reported finding classes: replace test inventories with named risky-function strategies; define shared archive naming, membership and lifecycle helpers and their consumers; require read-only live GH conformance at acceptance and adapter/fake/version changes. No behavior or scope expansion.
