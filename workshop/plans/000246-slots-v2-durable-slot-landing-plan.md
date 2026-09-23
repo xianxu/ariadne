@@ -60,7 +60,7 @@ Use existing gitRunner and GH adapters; add narrowly typed methods instead of ra
 | Archive push unknown or CAS retry exhausted | preserve all local state; next run confirms provenance |
 | Complete matching archive, issue checked out | revalidate then safe switch to captured rest |
 | At rest, same issue head, unoccupied ref | compare-and-delete ref |
-| Ref already absent, matching integration/archive | complete without mutation |
+| Ref already absent, matching integration/archive | remove any remaining selected branch configuration, then complete |
 | Changed head/config/topology, dirt, ambiguous evidence | refuse with preserved state and explicit recovery |
 
 Numeric bounds are conservative implementation limits, not capacity promises: at most 100 matching PR records, 10,000 commits inspected for close/archive provenance and 10,000 selected tree entries; command failures or exceeded limits refuse. gh calls use a two-minute context deadline; no background work outlives the invocation. Tests use tiny fixtures plus limit+1 cases. Existing trunk CAS retry budget remains authoritative. No durable new files; temporary index/blob files retain TrunkFile cleanup, archives use existing history lifecycle (ARCH-CONSTRAINTS/STATE/SECURE/FUNERAL/MOCK).
@@ -112,3 +112,7 @@ Files: `README.md`, `atlas/workflow/workspace-branching.md`, `atlas/workflow/sdl
 ### 2026-09-23 — Approved spec to executable plan
 
 The operator approved the reviewed design and confirmed dependency-first landing. This plan refines the approved behavior into bounded components and fixtures; it does not add another approval checkpoint or a new workflow framework.
+
+### 2026-09-23 — Recover interrupted branch configuration cleanup
+
+Fresh plan review identified the interruption between compare-and-delete of the issue ref and removal of its branch configuration. Proven absent-ref recovery must remove remaining configuration for that selected branch before completion. Test this exact interruption; never remove configuration for a recreated or occupied ref.
