@@ -5,8 +5,9 @@ deps: [ariadne#242]
 github_issue:
 created: 2026-09-22
 updated: 2026-09-23
-estimate_hours:
+estimate_hours: 10.8
 started: 2026-09-22T23:30:57-07:00
+flow: {kind: full, provenance: operator}
 ---
 
 # Slots v2: dependency and tool bindings
@@ -58,6 +59,80 @@ Engineering proposal: [nested slots and dependency bindings plan](../plans/00024
 - [x] Inspect current dependency and installation paths; compare minimal binding policies and obtain the policy decision.
 - [ ] Design and implement the nested identity follow-up and required dependency/setup changes with fixture tests.
 - [ ] Prove fresh and repeated setup and document explicit dependency/tool updates.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Calibration is stale/provisional. Thorough-plan design discount ×0.2, v3.1 implementation multiplier ×0.4, familiarity 1.0 and design buffer +15%. Reuse GitReader/layergraph/staging/runner and existing filesystem-lock facilities; no novel library stack. No vendor-mode propagation multiplier.
+
+The first estimate grouped whole subsystems into single primitives. Estimate-quality correctly identified that each contains several independently implemented/tested units. The following decomposition applies the same calibrated upper-bound primitive values separately rather than changing their unit rates. Rows map, in order, to:
+
+- nested path grammar/schema (smaller-go-module: design 0.06, implementation 0.20).
+- classification and address resolution (smaller-go-module: design 0.06, implementation 0.20).
+- fake/real topology contract (smaller-go-module: design 0.06, implementation 0.20).
+- host proof and inherited environment (greenfield-go-module: design 0.20, implementation 0.32).
+- private-clone validation (greenfield-go-module: design 0.20, implementation 0.32).
+- workspace stateful interleaving model (greenfield-go-module: design 0.20, implementation 0.32).
+- peer selector and artifact reads (cross-cutting-refactor: design 0.20, implementation 0.20).
+- project scan roots and forecasts (cross-cutting-refactor: design 0.20, implementation 0.20).
+- close peer writes (cross-cutting-refactor: design 0.20, implementation 0.20).
+- migration inbound references (cross-cutting-refactor: design 0.20, implementation 0.20).
+- propagation scope (cross-cutting-refactor: design 0.20, implementation 0.20).
+- feature worktree placement (cross-cutting-refactor: design 0.20, implementation 0.20).
+- source acquisition policy (greenfield-go-module: design 0.20, implementation 0.32).
+- acquisition transition core (greenfield-go-module: design 0.20, implementation 0.32).
+- origin-main staged verification (greenfield-go-module: design 0.20, implementation 0.32).
+- stateful remote/ref/stage fake (greenfield-go-module: design 0.20, implementation 0.32).
+- setup lock lifetime (greenfield-go-module: design 0.20, implementation 0.32).
+- inherited producer cancellation (greenfield-go-module: design 0.20, implementation 0.32).
+- startup adapter and dry-run (smaller-go-module: design 0.06, implementation 0.20).
+- startup tool supplier fixture (smaller-go-module: design 0.06, implementation 0.20).
+- two-environment integration harness (smaller-go-module: design 0.06, implementation 0.20).
+- Parley repeated-compile acceptance (smaller-go-module: design 0.06, implementation 0.20).
+- runtime/product and owner-build acceptance (smaller-go-module: design 0.06, implementation 0.20).
+- Pair isolated metadata issue/PR (cross-repo-refactor-small: design 0.06, implementation 0.12).
+- Parley isolated metadata issue/PR (cross-repo-refactor-small: design 0.06, implementation 0.12).
+- CLI/schema and workspace atlas (atlas-docs: design 0.04, implementation 0.08).
+- Weave setup/recovery atlas (atlas-docs: design 0.04, implementation 0.08).
+- main close review (milestone-review: design 0.04, implementation 0.20).
+- peer metadata close reviews (milestone-review: design 0.04, implementation 0.20).
+
+Smaller modules derive from 0.3h design/0.5h implementation; greenfield modules from 1h/0.8h; cross-cutting units from 1h/0.5h; small peer changes from 0.3h/0.3h; docs from 0.2h/0.2h; review from 0.2h/0.5h, before the discounts above. Product acceptance includes harness construction separately from running and diagnosing real product checks. Scope includes all consumer groups, failure models, process lifetime, peer publication and final evidence, not merely production typing.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: cross-repo-refactor-small design=0.06 impl=0.12
+item: cross-repo-refactor-small design=0.06 impl=0.12
+item: atlas-docs design=0.04 impl=0.08
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 10.8
+```
 
 ## Log
 
