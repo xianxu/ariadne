@@ -7,6 +7,7 @@ created: 2026-09-22
 updated: 2026-09-23
 estimate_hours:
 started: 2026-09-23T14:55:42-07:00
+flow: {kind: quick, provenance: inferred, spec: "06f4ce42", done: "8d9b76a4"}
 ---
 
 # Slots v2: branch from a workspace and refresh
@@ -33,7 +34,7 @@ Resolve numbered main checkouts at `/workspace/worktree/<repo>-slotN/<repo>` thr
 
 ### Proposed engineering design — 2026-09-23
 
-Use documented ordinary Git procedures, resolved through `sdlc workspace ADDRESS --json`, rather than adding a branch/adopt/refresh command. The procedures prepare the checkout; existing `claim`, `start-plan`, `change-code` and review gates continue to own the issue lifecycle. This is the recommended design, pending operator approval.
+Use documented ordinary Git procedures, resolved through `sdlc workspace ADDRESS --json`, rather than adding a branch/adopt/refresh command. The procedures prepare the checkout; existing `claim`, `start-plan`, `change-code` and review gates continue to own the issue lifecycle. Operator approved this design on 2026-09-23, with the direction to keep it simple.
 
 Alternatives considered: a `change-code --from` flag would couple source selection to planning review and require moving its present sync-before-branch sequence; separate workspace mutation commands would duplicate Git orchestration. Neither is needed for the agreed agent-driven workflow (ARCH-DRY, ARCH-PURPOSE).
 
@@ -73,11 +74,11 @@ Require the old resting commit to be an ancestor of the fetched commit. Equal co
 
 ## Plan
 
-Task outline only; settle implementation design through start-plan before change-code.
+Small docs-and-tests change, inside the quick-flow shell; no separate plan or new runtime mechanism (ARCH-DRY).
 
-- [ ] Specify readiness and provenance recording using current Git/SDLC surfaces.
-- [ ] Add fixture tests and adapt issue-start/address resolution where needed.
-- [ ] Implement/document explicit refresh and verify refusal/recovery cases.
+- [ ] Add focused real-Git regression fixtures in `cmd/sdlc/workspace_procedure_test.go` for the approved capture/branch/refresh commands, preservation/refusal cases, and existing change-code on a prepared issue branch. Run `go test ./cmd/sdlc -run 'TestWorkspaceProcedure' -count=1`.
+- [ ] Write one concise `atlas/workflow/workspace-branching.md` guide. Link it from `atlas/index.md`, workspace identity and `cmd/sdlc/helptext/change-code.md`; make embedded help carry the essential procedure so downstream agents can find it.
+- [ ] Run focused workspace/change-code tests and `git diff --check`; close through the existing SDLC review, then publish through PR. Keep sibling dependency operations and existing runtime behavior unchanged.
 
 ## Log
 
@@ -102,3 +103,7 @@ Reason: operator agreed nested environments, ordinary remote dependency clones a
 ### 2026-09-23 — Proposed ordinary-Git procedure design
 
 Reason: implementation audit found change-code reviews destination artifacts and checkpoints planning before its current branch-creation step. Delta: propose explicit branch preparation before lifecycle gates, plus separately requested fast-forward refresh, using existing workspace identity and ordinary Git. Specify readiness, bounded capture semantics, provenance, configured remote handling and regression coverage without adding mutation commands. Pending operator design approval; no implementation or estimate yet.
+
+### 2026-09-23 — Approved, keep implementation small
+
+Operator confirmed this is agent branching guidance backed by tests and approved execution. Delta: replace the task outline with a compact implementation checklist; use quick flow because tests/docs are excluded from its production-code limit and the design is below 500 lines. No separate plan or additional approval needed.
