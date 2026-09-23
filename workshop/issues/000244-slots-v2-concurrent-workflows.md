@@ -101,3 +101,7 @@ Plan-quality has no open findings; estimate-quality returned INFO with a provisi
 ### 2026-09-23 — Simplified scope approved
 
 Operator clarified that working on origin/main is sufficient reservation state and rejected complexity introduced for identifying claim retries. Agreed fresh conditional status claims, explicit agent-selected documentation commits (issue plus plan/project when deliberately included), Git-based merging/conflict handling, and identical publication in :0 and other slots/clones. Retained unlocked external reviews with stale-input validation. Preserved v1 design/estimate separately; current estimate is unset pending the revised design gate. Partial v1 code/docs remain uncommitted and unfinished; this turn changes only design artifacts.
+
+### 2026-09-23 — Simplified design review
+
+Fresh-context review approved the revised issue/plan with no blocking inconsistencies. The review confirms status-only claims, explicit commit selection, identical publication across checkout kinds, and unlocked reviews with validation before persistence. This is design review only; revised implementation gate/estimate evidence is still required before code resumes.
