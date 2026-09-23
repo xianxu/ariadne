@@ -53,7 +53,7 @@ Apply the same mechanism in :0, numbered slots, ordinary feature worktrees and p
 
 ## Estimate
 
-The previous 21.28h estimate applies to the superseded receipt-based design and is preserved with [v1](../plans/000244-concurrent-workflows-design-v1.md). Derive a replacement after the revised plan clears plan-quality; no new estimate is asserted by this scope update.
+The previous 21.28h estimate applied to the removed design; it remains in Git history at `bbd3122`. Derive a replacement after the revised plan clears plan-quality; no new estimate is asserted by this scope update.
 
 ## Plan
 
@@ -105,3 +105,7 @@ Operator clarified that working on origin/main is sufficient reservation state a
 ### 2026-09-23 — Simplified design review
 
 Fresh-context review approved the revised issue/plan with no blocking inconsistencies. The review confirms status-only claims, explicit commit selection, identical publication across checkout kinds, and unlocked reviews with validation before persistence. This is design review only; revised implementation gate/estimate evidence is still required before code resumes.
+
+### 2026-09-23 — Resume simplified implementation
+
+Operator authorized implementation and removal of the obsolete design artifact. Retired the uncommitted receipt draft outside the repository and restored its tracked source/docs to HEAD. Re-entering the design/estimate gate for the current scope; earlier gate records are historical evidence only.
