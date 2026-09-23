@@ -90,7 +90,7 @@ Claimed #246 and ran start-plan. Current merge invokes gh with local branch dele
 
 ### 2026-09-23 — Spec review corrections
 
-Fresh review requested precise archive retry proof and PR-owned issue selection. Clarified that close anchors in the PR's own commit set select artifacts even when issue bodies were independently published, and that reachable archive commit provenance plus the complete artifact generation authorizes retry completion. Queue acceptance must be re-observed as merged integration; reserved resting refs cannot be cleanup targets. No receipt file or new landing command added.
+Fresh review requested precise archive retry proof and PR-owned issue selection. Clarified that close anchors in the PR's own commit set select artifacts even when issue bodies were independently published, and that reachable archive commit provenance plus the complete artifact generation authorizes retry completion. Queue acceptance must be re-observed as merged integration; reserved resting refs cannot be cleanup targets. No receipt file or new landing command added. Fresh re-review approved the revised spec with no remaining important gaps; operator approval is pending before durable implementation planning and code.
 
 ## Revisions
 
