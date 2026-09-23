@@ -77,7 +77,33 @@ rounds:
           family: operating-envelope
           round: 5
       blocked: false
-content_hash: 6f25a9a1f31c7ac17ec2f29741afd3ee4bfb154bad18a8339216b22471cb5e7c
+    - "n": 6
+      timestamp: "2026-09-23T12:41:19-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Lines 106-118 now name each risky production function and provide one adversarial strategy plus a mutation guard.
+          round: 6
+        - id: PQ-4
+          disposition: addressed
+          note: Lines 120-122 define workload, concurrency, lock-wait, review, provenance, repository-size, and overload assumptions with bounded behavior.
+          round: 6
+      findings:
+        - id: PQ-5
+          severity: Important
+          title: Define the live Git conformance check and its cadence
+          detail: The plan names a stateful Git fake and “temporary bare-Git conformance in normal tests” at lines 76 and 147-149, but ARCH-MOCK requires a live or scheduled check comparing the fake with real Git behavior. Specify the executable conformance surface, environment, cadence/trigger, and response when drift is detected before implementation.
+          family: external-conformance-cadence
+          round: 6
+        - id: PQ-6
+          severity: Minor
+          title: Bound the growth and retention of publication commits
+          detail: Lines 42 and 102 create durable result commits carrying Source-Commit provenance and say they have “ordinary repository retention,” but do not state who eventually removes or archives them, their growth bound, or the measured cost if retention is effectively forever. Add that lifecycle statement or explicitly justify the existing repository retention policy.
+          family: durable-artifact-lifecycle
+          round: 6
+      blocked: false
+content_hash: 8e1c1f3a0834a41acd00175d79d15abb7d9cce636248c81fc05fb19742a64ac7
 ---
 
 # Gate ledger — ariadne#244 (plan-quality)
@@ -126,7 +152,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-4** [Important] `operating-envelope` Define the runtime operating envelope for remote publication and unlocked reviews
   ARCH-CONSTRAINTS requires workload classification, relevant budgets, their basis, and bounded behavior when exceeded. The plan gives retry and timeout constants (lines 40, 100–102) but does not state the expected concurrency/workload, network and repository-size assumptions, lock-wait budget, or behavior when those bounds are exceeded.
 
+## Round 6 — 2026-09-23T12:41:19-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Lines 106-118 now name each risky production function and provide one adversarial strategy plus a mutation guard.
+- PQ-4 — addressed — Lines 120-122 define workload, concurrency, lock-wait, review, provenance, repository-size, and overload assumptions with bounded behavior.
+
+### Raised
+
+- **PQ-5** [Important] `external-conformance-cadence` Define the live Git conformance check and its cadence
+  The plan names a stateful Git fake and “temporary bare-Git conformance in normal tests” at lines 76 and 147-149, but ARCH-MOCK requires a live or scheduled check comparing the fake with real Git behavior. Specify the executable conformance surface, environment, cadence/trigger, and response when drift is detected before implementation.
+- **PQ-6** [Minor] `durable-artifact-lifecycle` Bound the growth and retention of publication commits
+  Lines 42 and 102 create durable result commits carrying Source-Commit provenance and say they have “ordinary repository retention,” but do not state who eventually removes or archives them, their growth bound, or the measured cost if retention is effectively forever. Add that lifecycle statement or explicitly justify the existing repository retention policy.
+
 ## Open findings
 
-- **PQ-1** [Important] `executable-test-strategy` Tests are listed as scenarios rather than named functions with one adversarial strategy each
-- **PQ-4** [Important] `operating-envelope` Define the runtime operating envelope for remote publication and unlocked reviews
+- **PQ-5** [Important] `external-conformance-cadence` Define the live Git conformance check and its cadence
+- **PQ-6** [Minor] `durable-artifact-lifecycle` Bound the growth and retention of publication commits
