@@ -43,6 +43,20 @@ rounds:
           note: The state/event model now covers interruption and stale finalization, but it still does not specify a bounded reviewer lifetime or timeout policy; this is the 2nd finding in family review-state-machine.
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-23T12:00:10-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: The plan now names each pure or production function under test and gives one compact adversarial strategy and oracle per risky function.
+          round: 3
+        - id: PQ-3
+          disposition: addressed
+          note: The plan now enumerates PreparedReview states, interruption events, stale outcomes, relock failure, concurrent ledger writes, cancellation, timeout, process-group cleanup, and bounded reaping.
+          round: 3
+      blocked: false
+content_hash: e539431da875169917b84b99c1f31c87bb20ddb3a00b7c7a1127c8aeeae5c494
 ---
 
 # Gate ledger — ariadne#244 (plan-quality)
@@ -69,7 +83,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-2 — addressed — The plan now specifies the persisted issue field, versioned receipt shape, private Git directory resolution, compatibility behavior, validation, and recovery rules.
 - PQ-3 — not-addressed — The state/event model now covers interruption and stale finalization, but it still does not specify a bounded reviewer lifetime or timeout policy; this is the 2nd finding in family review-state-machine.
 
+## Round 3 — 2026-09-23T12:00:10-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — The plan now names each pure or production function under test and gives one compact adversarial strategy and oracle per risky function.
+- PQ-3 — addressed — The plan now enumerates PreparedReview states, interruption events, stale outcomes, relock failure, concurrent ledger writes, cancellation, timeout, process-group cleanup, and bounded reaping.
+
 ## Open findings
 
-- **PQ-1** [Important] `executable-test-strategy` Tests are listed as scenarios rather than named functions with one adversarial strategy each
-- **PQ-3** [Important] `review-state-machine` Unlocked review execution lacks an explicit transition model for interruption and stale outcomes
+(none — every finding has been disposed)
