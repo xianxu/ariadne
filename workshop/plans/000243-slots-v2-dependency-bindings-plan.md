@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git, existing Weave filesystem/process/staging seams, shell integration fixtures; macOS/Linux.
 
-**Status:** Implementation and verification complete; close review/publication pending. Operator approved execution on 2026-09-23; change-code gates passed. One issue-close review boundary; no Mx tags. No implementation estimate before plan-quality acceptance.
+**Status:** Implementation and verification complete; close review SHIP, publication pending. Operator approved execution on 2026-09-23; change-code gates passed. One issue-close review boundary; no Mx tags. No implementation estimate before plan-quality acceptance.
 
 ## Chunk 1: Contract and implementation
 
@@ -192,7 +192,7 @@ Files: `../pair/construct/deps`, `../parley.nvim/construct/deps`; new `scripts/t
 - [x] Run isolated Parley runtime acceptance, relevant product tests with `PLENARY` set, and ariadne owner builds. Record selected SHAs, measured durations, tracked-diff attribution and exact remaining limitations.
 - [x] Document schema v2, enclosing environment vs Git roots, setup/retry/explicit revision commands, source/data/tool boundaries, non-automatic dependency publication and the flat-path compatibility decision.
 - [x] Run `go test ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'`, `go vet ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/...`, scoped `git diff --check`, and the integration script. Do not change tracked files while the full test runs.
-- [ ] Commit docs/evidence, update issue checkboxes, run `sdlc close --issue 243 --verified '<measured evidence>'` for the sole mandatory boundary review; fix findings through the gate's protocol. No redundant reviewer at close.
+- [x] Commit docs/evidence, update issue checkboxes, run `sdlc close --issue 243 --verified '<measured evidence>'` for the sole mandatory boundary review; fix findings through the gate's protocol. No redundant reviewer at close.
 - [ ] Publish through `sdlc pr` and `sdlc merge`; preserve unrelated changes and keep project task state current. Peer source-metadata publication uses normal SDLC publication and reports any unrelated peer branch/dirty-state limitation explicitly.
 
 ## Revisions
