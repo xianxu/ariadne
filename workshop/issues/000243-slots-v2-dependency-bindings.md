@@ -1,11 +1,12 @@
 ---
 id: 000243
-status: open
+status: working
 deps: [ariadne#242]
 github_issue:
 created: 2026-09-22
 updated: 2026-09-22
 estimate_hours:
+started: 2026-09-22T23:30:57-07:00
 ---
 
 # Slots v2: dependency and tool bindings
