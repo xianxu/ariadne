@@ -91,7 +91,7 @@ Claimed #245 and ran start-plan. Audited workspace resolution, change-code plann
 
 ### 2026-09-23 — Spec review correction
 
-Fresh review identified that arbitrary branch names or allocating an issue after preparation could make change-code switch to a second branch. Tightened the procedure to require an already allocated issue and its canonical filename stem; missing records are imported explicitly without reallocating IDs. A provisional-branch lifecycle is intentionally outside this procedure.
+Fresh review identified that arbitrary branch names or allocating an issue after preparation could make change-code switch to a second branch. Tightened the procedure to require an already allocated issue and its canonical filename stem; missing records are imported explicitly without reallocating IDs. A provisional-branch lifecycle is intentionally outside this procedure. Fresh re-review approved the corrected spec with no remaining important findings. Issue schema validation and diff whitespace checks passed; implementation and durable implementation planning await operator approval of this design.
 
 ## Revisions
 
