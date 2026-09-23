@@ -48,9 +48,17 @@ func ParseAddress(s string) (Address, error) {
 	a.Slot = n
 	return a, nil
 }
-func SlotPath(fleet, repo string, slot int) (string, error) {
+func SlotEnvironmentPath(fleet, repo string, slot int) (string, error) {
 	if !validRepoName(repo) || slot < 1 {
 		return "", fmt.Errorf("invalid numbered slot %q:%d", repo, slot)
 	}
 	return filepath.Join(fleet, "worktree", repo+"-slot"+strconv.Itoa(slot)), nil
+}
+
+func SlotPath(fleet, repo string, slot int) (string, error) {
+	env, err := SlotEnvironmentPath(fleet, repo, slot)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(env, repo), nil
 }

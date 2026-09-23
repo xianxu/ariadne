@@ -23,9 +23,12 @@ func Resolve(git GitReader, dir, address string) (Identity, error) {
 			return Identity{}, e
 		}
 		if a.Repo == "" {
+			if v.EnvironmentHost != nil && v.RepoIdentity != v.EnvironmentHost.RepoIdentity {
+				return Identity{}, fmt.Errorf("contextual workspace address from a dependency is ambiguous; name the repository explicitly")
+			}
 			a.Repo = filepath.Base(v.PrimaryRoot)
 		}
-		if a.Repo != filepath.Base(v.PrimaryRoot) {
+		if a.Repo != filepath.Base(v.PrimaryRoot) || v.PrimaryRoot != filepath.Join(v.FleetRoot, a.Repo) {
 			peer := filepath.Join(v.FleetRoot, a.Repo)
 			pv, pt, e := loadVantage(git, peer)
 			if e != nil {
@@ -50,6 +53,10 @@ func Resolve(git GitReader, dir, address string) (Identity, error) {
 				return Identity{}, fmt.Errorf("canonical slot path %q redirects to %q", expected, actual)
 			}
 			v.WorktreeRoot = actual
+		}
+		v, trees, err = loadVantage(git, v.WorktreeRoot)
+		if err != nil {
+			return Identity{}, err
 		}
 	}
 	// Missing unrelated prunable worktrees remain ordinary fleet topology. Their

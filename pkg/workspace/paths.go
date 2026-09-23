@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -15,10 +16,12 @@ type GitReader interface {
 // checkout; WorktreeRoot is the checkout containing the caller; and FleetRoot
 // is the parent directory from which sibling repositories are discovered.
 type Vantage struct {
-	RepoIdentity string
-	PrimaryRoot  string
-	WorktreeRoot string
-	FleetRoot    string
+	RepoIdentity    string
+	PrimaryRoot     string
+	WorktreeRoot    string
+	FleetRoot       string
+	EnvironmentRoot string
+	EnvironmentHost *EnvironmentHost
 }
 
 // NormalizeVantage resolves a caller directory to stable Git and fleet paths.
@@ -31,6 +34,56 @@ func NormalizeVantage(git GitReader, dir string) (Vantage, error) {
 }
 
 func loadVantage(git GitReader, dir string) (Vantage, []Worktree, error) {
+	abs, err := filepath.Abs(dir)
+	if err != nil {
+		return Vantage{}, nil, err
+	}
+	var observed *Environment
+	for p := abs; filepath.Dir(p) != p; p = filepath.Dir(p) {
+		candidate, e := environmentCandidate(p)
+		if e != nil {
+			return Vantage{}, nil, e
+		}
+		if candidate != nil {
+			observed = candidate
+			info, e := os.Lstat(p)
+			if e != nil {
+				return Vantage{}, nil, e
+			}
+			if info.Mode()&os.ModeSymlink != 0 {
+				return Vantage{}, nil, fmt.Errorf("redirected environment checkout %q", p)
+			}
+		}
+	}
+
+	v, trees, err := loadTopology(git, dir)
+	if err != nil {
+		return v, trees, err
+	}
+	if observed != nil {
+		root, e := CanonicalPath(observed.Root)
+		if e != nil {
+			return Vantage{}, nil, e
+		}
+		// A flat legacy worktree may contain subdirectories; preserve that ordinary
+		// identity, but an enclosing repository cannot lend Git authority to a slot.
+		if v.WorktreeRoot != root && !strings.HasPrefix(v.WorktreeRoot, root+string(filepath.Separator)) {
+			return Vantage{}, nil, fmt.Errorf("numbered environment candidate has no independent checkout")
+		}
+	}
+	env, err := environmentForVantage(git, v)
+	if err != nil {
+		return Vantage{}, nil, err
+	}
+	if env != nil {
+		v.EnvironmentRoot = env.Root
+		v.EnvironmentHost = &env.Host
+		v.FleetRoot = filepath.Dir(env.Host.PrimaryRoot)
+	}
+	return v, trees, nil
+}
+
+func loadTopology(git GitReader, dir string) (Vantage, []Worktree, error) {
 	if git == nil {
 		return Vantage{}, nil, fmt.Errorf("normalize fleet vantage: nil Git reader")
 	}
@@ -93,10 +146,11 @@ func loadVantage(git GitReader, dir string) (Vantage, []Worktree, error) {
 	}
 
 	return Vantage{
-		RepoIdentity: commonDir,
-		PrimaryRoot:  primaryRoot,
-		WorktreeRoot: worktreeRoot,
-		FleetRoot:    filepath.Dir(primaryRoot),
+		RepoIdentity:    commonDir,
+		PrimaryRoot:     primaryRoot,
+		WorktreeRoot:    worktreeRoot,
+		FleetRoot:       filepath.Dir(primaryRoot),
+		EnvironmentRoot: filepath.Dir(primaryRoot),
 	}, worktrees, nil
 }
 
@@ -149,4 +203,19 @@ func CanonicalPath(path string) (string, error) {
 		return "", err
 	}
 	return filepath.Clean(resolved), nil
+}
+
+// FeatureWorktreePath keeps independent clone worktrees within their owner
+// environment. Branch validation by Git is separate; this enforces containment.
+func FeatureWorktreePath(id Identity, branch string) (string, error) {
+	if branch == "" || branch == "." || filepath.IsAbs(branch) || filepath.Clean(branch) != branch || branch == ".." || strings.HasPrefix(branch, ".."+string(filepath.Separator)) || strings.Contains(branch, "\\") {
+		return "", fmt.Errorf("invalid feature branch path %q", branch)
+	}
+	if !validRepoName(id.Repo) {
+		return "", fmt.Errorf("invalid repository name %q", id.Repo)
+	}
+	if id.EnvironmentHost != nil && id.RepoIdentity != id.EnvironmentHost.RepoIdentity {
+		return filepath.Join(id.EnvironmentRoot, ".worktrees", id.Repo, branch), nil
+	}
+	return filepath.Join(id.FleetRoot, "worktree", id.Repo, branch), nil
 }
