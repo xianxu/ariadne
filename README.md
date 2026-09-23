@@ -153,7 +153,10 @@ and local work. Dependencies have no separate Couch slot. Publish dependency
 changes through their own normal SDLC flow before dependent changes.
 
 See the [workspace contract](atlas/workflow/workspace-identity.md) for validation
-rules and snapshot limits.
+rules and snapshot limits. For “branch :2 from :1” or an explicit resting-branch
+refresh, follow [Branching and Refreshing Slots](atlas/workflow/workspace-branching.md).
+These ordinary Git procedures preserve the chosen baseline and sibling dependencies;
+prepare the issue branch before SDLC planning checkpoints.
 
 ## Fleet queries
 

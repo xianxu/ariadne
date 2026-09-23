@@ -93,7 +93,6 @@ func TestWorkspaceProcedurePinnedBranch(t *testing.T) {
 			procedureWrite(t, sibling, "README", "dirty dependency\n")
 			procedureWrite(t, sibling, "pending", "untracked dependency\n")
 			siblingBefore := procedureSiblingState(t, sibling)
-			before := testfix.Capture(t, dest, "show-ref")
 			config := testfix.Capture(t, dest, "config", "--local", "--list")
 			captured := procedureIdentity(t, dest, fmt.Sprintf(":%d", pair[0]))
 			target := procedureIdentity(t, dest, "")
@@ -105,15 +104,15 @@ func TestWorkspaceProcedurePinnedBranch(t *testing.T) {
 			}
 			// A later commit does not propagate after the capture has been accepted.
 			testfix.Git(t, source, "commit", "--allow-empty", "-qm", "later source")
+			before := testfix.Capture(t, dest, "show-ref")
+			sourceBefore := procedureIdentity(t, source, "")
+			sourceRest := testfix.Capture(t, source, "rev-parse", *sourceBefore.RestingBranch)
 			testfix.Git(t, dest, "-c", "submodule.recurse=false", "switch", "--no-track", "--no-overwrite-ignore", "-c", "000001-procedure", *captured.Head)
 			if procedureHead(t, dest) != *captured.Head {
 				t.Fatal("branch did not use pinned SHA")
 			}
 			for _, line := range strings.Split(strings.TrimSpace(before), "\n") {
 				fields := strings.Fields(line)
-				if fields[1] == "refs/heads/source-feature" {
-					continue
-				}
 				if got := strings.TrimSpace(testfix.Capture(t, dest, "rev-parse", fields[1])); got != fields[0] {
 					t.Fatalf("resting/remote ref moved: %s", line)
 				}
@@ -157,6 +156,13 @@ func TestWorkspaceProcedurePinnedBranch(t *testing.T) {
 			}
 			if strings.TrimSpace(testfix.Capture(t, dest, "branch", "--show-current")) != "000001-procedure" || strings.TrimSpace(testfix.Capture(t, dest, "rev-parse", rest)) != *target.Head {
 				t.Fatal("change-code left prepared branch or moved resting ref")
+			}
+			sourceAfter := procedureIdentity(t, source, "")
+			if *sourceAfter.Head != *sourceBefore.Head || *sourceAfter.Branch != *sourceBefore.Branch ||
+				testfix.Capture(t, source, "rev-parse", *sourceAfter.RestingBranch) != sourceRest ||
+				testfix.Capture(t, source, "config", "--local", "--list") != config ||
+				testfix.Capture(t, source, "status", "--porcelain=v1", "--untracked-files=all", "--ignore-submodules=none") != "" {
+				t.Fatal("branch preparation or checkpointing changed source checkout/ref/upstream")
 			}
 		})
 	}

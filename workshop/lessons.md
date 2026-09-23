@@ -62,6 +62,9 @@ Detailed incidents remain in their owning issue or review artifact.
 
 - New CLI surfaces need discoverable README usage as well as detailed atlas and
   embedded help documentation; check all three before closing.
+- User-runnable procedures need the same README discovery link, even when they
+  introduce no command. Preservation tests must snapshot both source and destination;
+  snapshot after intentional fixture movement rather than skipping that ref.
 - Before a boundary, read the actual verdict and reconcile the plan against the
   committed tree. “Inert at runtime” is not the same as “removed”; an unticked
   row can disable the guard that proves it.
