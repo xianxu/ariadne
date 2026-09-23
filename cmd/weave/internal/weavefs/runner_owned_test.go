@@ -43,7 +43,12 @@ func TestOwnedRunnerBoundsBufferedDescendants(t *testing.T) {
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 			var output bytes.Buffer
-			runner := ExecRunner{Context: ctx, Stdout: &output, Stderr: &output}
+			setup, err := staging.AcquireSetup(fixture)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer setup.Close()
+			runner := ExecRunner{Context: ctx, Stdout: &output, Stderr: &output, ExtraFiles: []*os.File{setup}}
 			script := `echo $$ > "$1/pgid"
 (sh -c 'echo ready > "$1/ready"; read token < "$1/gate"; echo late > "$1/late"' sh "$1") &
 if [ "$2" = cancel ]; then wait; else
@@ -82,6 +87,14 @@ fi`
 				t.Fatal("buffered output kept Wait blocked")
 			}
 			// Positive kernel proof: a live inherited writer would prevent this lock.
+			if err := setup.Close(); err != nil {
+				t.Fatal(err)
+			}
+			setupProof, err := staging.AcquireSetup(fixture)
+			if err != nil {
+				t.Fatalf("returned with descendant setup lease alive: %v", err)
+			}
+			setupProof.Close()
 			lease, err := staging.Exclusive(stage)
 			if err != nil {
 				t.Fatalf("returned with descendant lease alive: %v", err)

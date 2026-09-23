@@ -31,6 +31,9 @@ type ExecRunner struct {
 	Stdin   io.Reader
 	Stdout  io.Writer
 	Stderr  io.Writer
+	// ExtraFiles are inherited by every payload and remain caller-owned. An
+	// owned producer reserves fd 3 for its stage lease and appends these files.
+	ExtraFiles []*os.File
 }
 
 // Run spawns argv[0] with argv[1:] as arguments, cwd = dir. An empty argv is a
@@ -79,6 +82,7 @@ func (r ExecRunner) run(dir string, argv []string, stage string) error {
 		}
 		cmd.ExtraFiles = []*os.File{lease} // fd 3, inherited before payload starts
 	}
+	cmd.ExtraFiles = append(cmd.ExtraFiles, r.ExtraFiles...)
 	cmd.Env = r.Env
 	cmd.Stdin = r.Stdin
 	cmd.Dir = dir

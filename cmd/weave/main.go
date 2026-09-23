@@ -41,7 +41,6 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/xianxu/ariadne/cmd/weave/internal/acquire"
 	"github.com/xianxu/ariadne/cmd/weave/internal/golden"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
@@ -464,17 +463,23 @@ func run(fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Wri
 
 // runCompile restores the graph, prepares each owner, then composes the leaf.
 func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer) (retErr error) {
+	client, runner, closeSetup, err := prepareSetup(ctx, root, dryRun, out, out)
+	if err != nil {
+		return err
+	}
+	defer func() { retErr = errors.Join(retErr, closeSetup()) }()
+	// Preserve lexical numbered-environment evidence until discovery has
+	// rejected redirected checkouts; then normalize paths for composition.
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
 		root = resolved
 	}
-	restored, err := acquire.Restore(ctx, root, dryRun)
+	restored, err := client.Restore(ctx, root, dryRun)
 	for _, missing := range restored.Missing {
 		fmt.Fprintf(out, "weave: missing source %s (preview incomplete)\n", missing)
 	}
 	if err != nil {
 		return err
 	}
-	runner := weavefs.ExecRunner{Context: ctx, Stdout: out, Stderr: out}
 	if err := startup.Dependencies(fs, restored.Layers, runner, dryRun, out); err != nil {
 		return err
 	}

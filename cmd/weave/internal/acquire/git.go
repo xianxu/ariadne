@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -20,21 +21,25 @@ type GitRunner interface {
 
 // Client holds the Git boundary for one acquisition operation. Its zero value
 // uses real Git; injected clients share the same restore/probe/publication code.
-type Client struct{ Git GitRunner }
-type ExecGit struct{}
+type Client struct {
+	Git    GitRunner
+	Policy *Policy
+}
+type ExecGit struct{ ExtraFiles []*os.File }
 
-func (ExecGit) Run(ctx context.Context, dir string, args ...string) (string, error) {
+func (g ExecGit) Run(ctx context.Context, dir string, args ...string) (string, error) {
 	cmd := exec.CommandContext(ctx, "git", args...)
 	cmd.Dir = dir
+	cmd.ExtraFiles = g.ExtraFiles
 	b, err := cmd.CombinedOutput()
 	if err != nil {
 		return "", fmt.Errorf("git %v in %s: %w: %s", args, dir, err, strings.TrimSpace(string(b)))
 	}
 	return strings.TrimSpace(string(b)), nil
 }
-func (ExecGit) RunOwned(ctx context.Context, dir, stage string, args ...string) (string, error) {
+func (g ExecGit) RunOwned(ctx context.Context, dir, stage string, args ...string) (string, error) {
 	var output bytes.Buffer
-	runner := weavefs.ExecRunner{Context: ctx, Stdout: &output, Stderr: &output}
+	runner := weavefs.ExecRunner{Context: ctx, Stdout: &output, Stderr: &output, ExtraFiles: g.ExtraFiles}
 	err := runner.RunOwned(dir, append([]string{"git"}, args...), stage)
 	if err != nil {
 		return "", fmt.Errorf("git %v in %s: %w: %s", args, dir, err, strings.TrimSpace(output.String()))

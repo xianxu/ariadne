@@ -99,3 +99,33 @@ func TestOriginRealGitAbsentAndMalformedConfig(t *testing.T) {
 		t.Fatal("malformed configuration treated as absent origin")
 	}
 }
+
+func TestExecGitInheritsSetupDescriptor(t *testing.T) {
+	file, err := os.CreateTemp(t.TempDir(), "setup")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	g := ExecGit{ExtraFiles: []*os.File{file}}
+	dir := t.TempDir()
+	gitFixture(t, dir, "init")
+	for _, owned := range []bool{false, true} {
+		fd := "3"
+		if owned {
+			fd = "4"
+		}
+		args := []string{"-c", "alias.check=!test -e /dev/fd/" + fd, "check"}
+		if owned {
+			stage, err := newStage(filepath.Join(dir, "peer"))
+			if err != nil {
+				t.Fatal(err)
+			}
+			_, err = g.RunOwned(context.Background(), dir, stage, args...)
+			if err != nil {
+				t.Fatal(err)
+			}
+		} else if _, err := g.Run(context.Background(), dir, args...); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
