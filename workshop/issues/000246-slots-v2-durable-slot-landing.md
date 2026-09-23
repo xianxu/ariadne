@@ -31,7 +31,7 @@ The durable main worktree is `/workspace/worktree/<repo>-slotN/<repo>`; its pare
 
 ### Proposed engineering design — 2026-09-23
 
-Extend existing `sdlc pr` / `sdlc merge`, with no new landing command or persistent receipt file. Use `workspace.Resolve` to distinguish durable primary/numbered slots from ordinary feature worktrees and private dependency checkouts. The project contract applies equally to :0 and :N: landing returns to existing `main` or `main-slotN` without advancing it. Ordinary feature-worktree removal and dependency publication retain their existing, explicitly tested behavior. This is a proposed design, not approval to implement.
+Extend existing `sdlc pr` / `sdlc merge`, with no new landing command or persistent receipt file. Use `workspace.Resolve` to distinguish durable primary/numbered slots from ordinary feature worktrees and private dependency checkouts. The project contract applies equally to :0 and :N: landing returns to existing `main` or `main-slotN` without advancing it. Ordinary feature-worktree removal and dependency publication retain their existing, explicitly tested behavior. Operator approved the design and dependency-first landing sequence on 2026-09-23.
 
 Alternatives considered: only skipping worktree removal would still pull/archive through another checkout and could destroy newer branch work; a per-slot transaction journal would add a second durable authority to reconcile with Git and GitHub. Prefer authoritative Git/PR evidence plus an explicit retry branch (ARCH-DRY, ARCH-FUNERAL).
 
@@ -72,11 +72,12 @@ Operating envelope: one selected repository/PR per invocation, serial bounded ob
 
 ## Plan
 
-Task outline only; settle implementation design through start-plan before change-code.
+Implementation follows [the durable plan](../plans/000246-slots-v2-durable-slot-landing-plan.md), one atomic delivery and one close review.
 
-- [ ] Trace current merge/publication/archive phases and specify durable-slot recovery.
-- [ ] Add integration fixtures, then adapt landing and safe cleanup.
-- [ ] Verify retry, concurrent workspace preservation, and operator/agent documentation.
+- [ ] Add structured exact GitHub integration evidence and expected-head merge.
+- [ ] Add scoped remote archive with authoritative retry proof.
+- [ ] Integrate durable PR/merge routing, safe return/deletion and interruption tests.
+- [ ] Update guidance and complete acceptance verification.
 
 ## Log
 
@@ -101,3 +102,7 @@ Reason: operator agreed nested environments, ordinary remote dependency clones a
 ### 2026-09-23 — Proposed durable landing and recovery
 
 Reason: trace the existing merge/PR/archive behavior against the agreed stable-workspace contract. Delta: propose equal :0/:N resting-baseline preservation, configured-remote PR/merge targeting, scoped remote archiving and an explicit branch retry flag without a journal. Preserve legacy ordinary/dependency cleanup paths. Pending operator approval.
+
+### 2026-09-23 — Implementation authorized
+
+Operator approved the design, including Ariadne dependency first and Pair parent second. Delta: add the durable implementation plan and concrete task checklist; keep ordinary dependency flow and no recursive landing. Full-flow estimate follows plan-quality acceptance.
