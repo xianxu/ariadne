@@ -7,6 +7,7 @@ created: 2026-09-22
 updated: 2026-09-22
 estimate_hours: 2.65
 started: 2026-09-22T22:20:59-07:00
+flow: {kind: full, provenance: operator}
 ---
 
 # Slots v2: workspace identity
