@@ -58,7 +58,7 @@ Snapshot intended bytes once under the local repository lock. Every attempt read
 
 Initial expected state comes from provable shared Git history, never from simply accepting the newest fetched blob. A worktree's confirmed receipt supersedes that initial baseline after remote-only publication, allowing successive edits without forcing a merge of trunk into the feature branch. Missing/ambiguous ancestry or an unreadable receipt refuses rather than guessing. A baseline can advance only through confirmed publication or explicit Git integration containing the observed revision; fetching alone does not accept a conflicting edit.
 
-Claims require fresh remote evidence. An open issue can be claimed with a new locally persisted claim identity; an already claimed issue is idempotent only for the same locally held identity. A competing worktree/clone refuses even if its desired body is identical. A copied branch does not carry the private receipt. Legacy working issues without claim identity remain editable via explicit sync; `claim` cannot assert ownership from their status alone and must explain that limitation. No automatic takeover is added. `--no-start` and unfiltered legacy claim remain body-publication operations, not ownership acquisition.
+Claims require fresh remote evidence. An open issue can be claimed with a new locally persisted claim identity; an already claimed issue is idempotent only for the same locally held identity. A competing worktree/clone refuses even if its desired body is identical. A copied branch does not carry the private receipt. Legacy working issues without claim identity remain editable via explicit sync; `claim` cannot assert ownership from their status alone and must explain that limitation. No automatic takeover is added. Generic body publication must preserve the authoritative claim identity; only the dedicated claim transition may create/change it for an open issue. Copying or editing metadata cannot make a body sync transfer a reservation. `--no-start` and unfiltered legacy claim remain body-publication operations, not ownership acquisition.
 
 New creation regards every occupied ID as taken, including identical slugs and archived records, unless the pending operation proves this is its own retry. Reuse existing bounded reallocation and identity rewriting. Preserve all unresolved local candidates until remote outcome is known; never delete evidence merely because a push returned an error.
 
@@ -68,6 +68,10 @@ Use one versioned receipt per issue/publication operation in a worktree-private 
 
 Persist pending intent atomically before a push; record the built commit before dispatching that push. Extend the existing trunk seam to expose this evidence without creating another retry loop. Fresh remote evidence that the attempted commit is current or an ancestor confirms the operation. An error without such evidence is an unknown outcome, not proof of failure. Reconcile on retry before reallocating, deleting candidates, or starting a replacement intent. If newer changes follow the confirmed commit, retain the confirmed baseline and apply the normal conflict check to further edits.
 
+A conflict found before dispatch is confirmed nonapplication. A push explicitly rejected by the server is also confirmed nonapplication for that attempt; parse the Git push porcelain rejection result, not arbitrary stderr prose or a nonzero exit code. Persist this distinction and the conflicting observed revision. A transport error or incomplete response remains unknown even when a subsequent read does not contain the attempted commit. Unknown intents must reconcile before replacement, and exhaustion preserves them with an actionable diagnostic.
+
+For a confirmed-nonapplied body intent, an ordinary retry remains a conflict until the local checkout has explicitly integrated the recorded conflicting revision (prove ancestry) and supplied the resolved desired body. Then atomically supersede the rejected intent with a new expected/desired snapshot. This is explicit Git reconciliation, not merely fetching. If the remote advanced again, compare the new expected state and refuse again as needed. A foreign claim conflict never becomes a successful takeover through this recovery path. Creation may reallocate after a proven rejected attempt using a fresh ID-space read; it retains original content and candidate evidence until final publication is confirmed. A successful acknowledged attempt later removed by a remote rewind is a conflict, not permission to replay ownership silently.
+
 The remote write must enforce the exact observed old ref, including remote rewind races; use an explicit expected-old-ref lease, and build the proposed commit as a child of that observed ref. This is not permission to replace intervening work. Retain the existing three-attempt contention bound; auth/query errors must not become retries reporting success.
 
 | State/event | Decision/effect |
@@ -75,7 +79,10 @@ The remote write must enforce the exact observed old ref, including remote rewin
 | Unprepared + requested operation | capture expected/desired state, persist pending intent |
 | Pending + remote matches expected | build commit, persist attempt evidence, attempt conditional push |
 | Pending + unrelated remote change | rebuild on fresh parent within retry bound |
-| Pending + same-record conflict / foreign claim | refuse; preserve intent and local bytes |
+| Pending + same-record conflict / foreign claim before push | record confirmed-nonapplied conflict and observed revision; preserve local bytes |
+| Pending + explicit server rejection | record confirmed nonapplication; fresh allocation/retry allowed under record preconditions |
+| Rejected body intent + proven local integration of conflicting revision | atomically supersede with resolved desired snapshot and integrated baseline |
+| Rejected creation + fresh occupied-ID evidence | reallocate within the same bounded operation, retaining candidates |
 | Pending + push acknowledged or attempted commit proven reachable | confirm receipt, then perform safe local candidate cleanup |
 | Pending + failed push and unavailable confirmation | retain unknown outcome; actionable retry |
 | Confirmed + same operation retry | verify fresh authority; idempotent success if still applicable |
@@ -84,7 +91,7 @@ The remote write must enforce the exact observed old ref, including remote rewin
 
 **Invariants:** one winner per claim; unique published creation IDs; no replacement of changed records; no ownership gained by copying Git history; no success inferred from an unavailable probe; no cleanup before confirmed outcome. The pure transition function owns authoritative state changes; IO executes its declared effects and feeds outcomes back.
 
-**Lifetime and bounds:** atomic temp files are removed on completion/error. Confirmed receipts are superseded, not appended. Retire a receipt after fresh evidence of terminal archival and no pending operation; worktree removal also removes its private Git directory. Pending state is never age-deleted. Impose a documented conservative receipt size/count limit and refuse new operations at the bound with recovery instructions; choose constants from repository-size fixtures during implementation, before any write. No background service or accumulating transcript store is introduced.
+**Lifetime and bounds:** atomic temp files are removed on completion/error. Confirmed receipts are superseded, not appended. Retire a receipt after fresh evidence of terminal archival and no pending operation; worktree removal also removes its private Git directory. Pending state is never age-deleted. Initial conservative operating limits (design assumptions, not measured requirements): 16 MiB per pending intent, 4096 receipt entries and 256 MiB total per worktree. Check projected usage before writing; refuse new operations at the bound with recovery instructions, while allowing reconciliation/retirement of existing entries. Test each limit. Change a limit only with recorded fixture evidence and a plan revision. No background service or accumulating transcript store is introduced.
 
 ### Review policy
 
@@ -117,8 +124,8 @@ Files: `claim.go`, `synctrunk.go`, `issue.go`, `issuecollision.go`, `internal/gi
 - [ ] Add failing stateful-fake tests for immutable desired bytes, per-attempt preconditions, exact-old-ref comparison, and push-success/lost-ack recovery.
 - [ ] Route main and non-main publication through the same guarded path; keep `NoPush` local-only. Preserve explicit already-committed-body publication.
 - [ ] Ensure claim and creation carry distinct pending identities and cannot adopt a foreign reservation. Update old tests that intentionally pinned last-writer-wins or offline ownership success.
-- [ ] Add real bare-remote fixtures with two independent clones and two linked worktrees. Use process barriers, not timing sleeps, to force both contenders past observation before either publishes.
-- [ ] Prove one claim winner, two unique creation records (same and different slugs), preservation of unrelated updates, visible same-record conflicts, sequential remote-only updates from unchanged HEAD, crash/restart recovery, and selected issue publication without unrelated local-main commits.
+- [ ] Add real bare-remote fixtures with two independent clones and two linked worktrees. Use process barriers, not timing sleeps. Independent clones rendezvous after remote observation to force CAS contention. Linked worktrees rendezvous before lock acquisition; retain the production common-directory lock and assert serialization plus the second claimant's fresh-authority refusal. Never bypass locking to manufacture a shared-worktree interleaving.
+- [ ] Prove one claim winner, two unique creation records (same and different slugs), preservation of unrelated updates, visible same-record conflicts, sequential remote-only updates from unchanged HEAD, crash/restart recovery, conflict → explicit Git integration → resolved retry success, acknowledged allocation rejection → safe reallocation, uncertain push → retry without duplicate records or lost edits, and selected issue publication without unrelated local-main commits.
 - [ ] Run `go test ./cmd/sdlc/internal/gitx/... ./cmd/sdlc -run 'Test(Trunk|UpdateMany|Publication|Claim|Sync|IssueSync|RunIssueNew|AllocateIssueID)' -count=1` and inspect every failure.
 - [ ] Update `README.md`, `cmd/sdlc/helptext/claim.md`, `helptext/issue.md`, `atlas/workflow/issue-sync.md`, `atlas/workflow/issue-lifecycle.md`; remove the known last-writer-wins/offline-success claims and explain local-main divergence/recovery. Keep atlas index links current.
 - [ ] Commit explicit paths; close M1 via `sdlc milestone-close --issue 244 --milestone M1 --verified '<actual evidence>'`. Update the Pair project checkpoint.
@@ -145,3 +152,13 @@ Files: `publication_concurrency_test.go`, new `review_concurrency_test.go`; `atl
 - [ ] Document concurrency/refusal/retry behavior and observed test evidence. Record discovered review lessons. Update Pair project scope/checkpoint without marking the whole project complete.
 - [ ] Commit; run `sdlc milestone-close --issue 244 --milestone M2 --verified '<actual evidence>'`, then the issue close gate. Fix blocking review findings before continuing.
 - [ ] Publish through `sdlc pr` and `sdlc merge`, and verify archive/project links and repository state. No publication is claimed by this plan.
+
+## Revisions
+
+### 2026-09-23 — Explicit receipt operating bounds
+
+Replaced deferred limit selection with concrete initial limits and recovery behavior so implementation has a testable storage envelope. These are conservative design assumptions, subject to measured revision.
+
+### 2026-09-23 — Fresh-eyes review corrections
+
+Separated confirmed nonapplication from unknown push outcomes; specified explicit-integration recovery and safe allocation retry. Distinguished independent-clone CAS barriers from linked-worktree lock serialization. Added ownership-metadata preservation to generic body sync. These correct review findings without changing project scope.
