@@ -4,7 +4,7 @@ status: open
 deps: []
 github_issue:
 created: 2026-09-20
-updated: 2026-09-20
+updated: 2026-09-21
 estimate_hours:
 ---
 
@@ -158,3 +158,34 @@ above: the machinery exists and only `claim` uses it.
 Running tally of artifact kinds with no trunk-shaped home:
 issue bodies (`issue sync` commits them locally), parley docs, targets,
 `lessons.md`, and base-layer files like `.claude/settings.ariadne.json`.
+
+## Revisions
+
+### 2026-09-21 — distinguish couch provisioning from SDLC slot awareness
+
+The slot direction is now narrower and more rigid than this issue's initial
+"named thread slots" sketch. Couch owns the operator contract: a repo path with
+optional `:N` resolves to the primary or to one durable numbered worktree, with
+a canonical resting branch tracking the remote `main`. Ariadne should infer
+slot awareness from that path/branch contract and adapt its gates; it should
+not invent a separate `coding`/`product` directory scheme.
+
+This issue still owns the trunk-routing problem for issue and product writes.
+The slot contract makes its distinction more important: issue state that is not
+owned by the current issue branch must publish through the trunk CAS path, while
+the slot's code branch remains isolated. The exact slot branch spelling and the
+merge/reset behavior belong in the couch-slots project, not here.
+
+The milestone boundary also needs an explicit synchronization policy once slots
+exist. A remote-trunk-following slot may fetch/rebase at milestone close; a
+local-integration slot may merge back to the primary `main` and defer remote
+absorption. This issue should route issue/product writes correctly under either
+policy, but the project must choose the authority before SDLC gates encode the
+behavior.
+
+Slot-aware SDLC also needs to preserve the distinction between workspace
+identity and agent profile. A design slot may use a stronger model and an
+implementation slot a cheaper one after review, but neither profile changes
+which issue branch owns the work or relaxes the lifecycle gates. The effective
+harness/model should be observable, while the trunk-routing rules remain
+profile-independent.
