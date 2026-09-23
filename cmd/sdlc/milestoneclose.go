@@ -703,7 +703,10 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 	// both close and milestone-close funnel through (ARCH-DRY).
 	o := boundaryOrientation(p.IssuesDir, p.IssueNum, p.Milestone)
 	o.RepoRoot = manifest.RepoRoot
-	o.Repo = filepath.Base(manifest.RepoRoot)
+	o.Repo, err = workspaceRepoName(manifest.RepoRoot)
+	if err != nil {
+		return judge.DispatchOptions{}, false, fmt.Sprintf("resolve review repository: %v", err)
+	}
 	o.IssueFile = manifest.IssueFile
 	in := judge.PromptInput{
 		ReviewWindow: reviewWindow, Base: manifest.BaseSHA, Head: manifest.HeadSHA,

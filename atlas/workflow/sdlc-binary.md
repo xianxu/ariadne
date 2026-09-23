@@ -1336,3 +1336,11 @@ check. The first time → prose. The second time → code.
 Do not formalize the workflow into a state machine. Add checkpoint
 guards for known commit moments where drift recurs; everything between
 checkpoints stays prose-driven.
+
+## Workspace identity (#242)
+
+`workspace [address] --json` exposes the shared `pkg/workspace` identity contract.
+`state` includes the same workspace object. Repository labels and fleet paths
+derive from the primary/common Git directory; local artifacts remain in the
+current worktree. See [Workspace Identity](workspace-identity.md) for address,
+resting-branch, calibration and project-discovery semantics.

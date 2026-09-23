@@ -2,11 +2,11 @@ package activetime
 
 import (
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // Commit is a window commit with its subject issue refs (deduped,
@@ -50,7 +50,10 @@ func loadWindowCommits(repo, sinceISO, untilISO string) ([]Commit, error) {
 		return nil, nil
 	}
 	// Resolved once from the repo the commits came from, not per line.
-	self := selfQualifier(repo)
+	self, err := selfQualifier(repo)
+	if err != nil {
+		return nil, err
+	}
 	var commits []Commit
 	for _, line := range strings.Split(text, "\n") {
 		if strings.TrimSpace(line) == "" {
@@ -74,34 +77,25 @@ func loadWindowCommits(repo, sinceISO, untilISO string) ([]Commit, error) {
 	return commits, nil
 }
 
-// selfQualifier is the repo name whose `#N` qualifier counts as LOCAL, derived from the repo
-// the COMMITS come from — not the process cwd (ariadne#190).
-//
-// That distinction is the whole point: loadWindowCommits reads from `repo`, which the
-// standalone `sdlc active-time` verb takes as `--git-repo`. A cwd-derived qualifier would,
-// with --git-repo pointed at a peer, drop that peer's own self-qualified refs as foreign AND
-// admit ariadne-qualified refs as local — reproducing this bug class inside the diagnostic
-// verb, and invisibly, since `sdlc actual` passes the current repo and would look correct.
-//
-// "" for an unresolvable or non-specific path (".", "/"), which keeps only bare refs.
-//
-// ASYMMETRY WITH gitx.DiscoverWindowIssues, deliberate: that one takes selfRepo as an explicit
-// PARAMETER, because resolving it internally would have made its self-qualified case untestable
-// (RepoTopLevel bypasses the package run shim). Here the repo path is already a parameter —
-// opts.GitRepo — so the only environment touch is resolving it to an absolute path, which
-// `--git-repo .` genuinely requires. The cost is visible in TestSelfQualifier, which can only
-// assert that "." yields SOME bare basename rather than a specific one; that weakened assertion
-// is the tell, and it is the price of supporting a relative --git-repo.
-func selfQualifier(repo string) string {
-	abs, err := filepath.Abs(expandUser(repo))
+// selfQualifier derives local issue qualifiers from the explicitly targeted Git
+// repository, preserving identity across linked checkouts and nested paths.
+// Unverified paths are errors; a filesystem basename is never evidence.
+func selfQualifier(repo string) (string, error) {
+	identity, err := resolveCommitWorkspace(expandUser(repo))
 	if err != nil {
-		return ""
+		return "", err
 	}
-	base := filepath.Base(filepath.Clean(abs))
-	if base == "." || base == string(filepath.Separator) {
-		return ""
-	}
-	return base
+	return identity.Repo, nil
+}
+
+type commitGitReader struct{}
+
+func (commitGitReader) GitInDir(dir string, args ...string) ([]byte, error) {
+	return gitRun(dir, args...)
+}
+
+var resolveCommitWorkspace = func(dir string) (workspace.Identity, error) {
+	return workspace.Resolve(commitGitReader{}, dir, "")
 }
 
 // short7 truncates a SHA to 7 chars (Python's sha[:7]).

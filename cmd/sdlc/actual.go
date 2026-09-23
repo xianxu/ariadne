@@ -73,6 +73,12 @@ type actualResult struct {
 // repoTop.
 func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 	res := actualResult{Issue: issueNum}
+	identity, err := resolveWorkspace(repoTop)
+	if err != nil {
+		res.Status, res.Detail = actualError, err.Error()
+		return res
+	}
+	repoTop = identity.WorktreeRoot
 
 	firstSHA, firstISO, lastISO, _ := gitx.CommitWindow(issueNum)
 	if firstSHA == "" {
@@ -96,9 +102,9 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 		}
 	}
 
-	// selfRepo is the basename of the repo whose commits are being scanned, so a
+	// selfRepo is the canonical name of the repository being scanned, so a
 	// self-qualified `ariadne#180` counts as local while `pair#127` does not (#190).
-	res.Peers, _ = gitx.DiscoverWindowIssues(firstISO, lastISO, issueNum, filepath.Base(repoTop))
+	res.Peers, _ = gitx.DiscoverWindowIssues(firstISO, lastISO, issueNum, identity.Repo)
 	src := transcripts.Select(nonEmpty(brainAbs, repoTop), transcripts.DefaultHarnesses())
 	res.Dirs = src.Dirs
 	if len(src.Dirs) == 0 && len(src.Files) == 0 {

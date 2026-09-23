@@ -12,7 +12,6 @@ package main
 import (
 	"fmt"
 	"io"
-	"path/filepath"
 	"strconv"
 
 	"github.com/spf13/cobra"
@@ -48,12 +47,24 @@ func discoverProjectsForRef(refStr, root string) ([]projectdoc.ProjectMatch, Art
 	if ref.GitHub {
 		return nil, ref, fmt.Errorf("github refs have no project records (projects reference workshop issues)")
 	}
-	repoDir, err := resolveRepoDir(ref, root)
+	identity, err := resolveWorkspace(root)
 	if err != nil {
 		return nil, ref, err
 	}
-	repoName := filepath.Base(repoDir)
-	matches, err := projectdoc.DiscoverByIssueRef(filepath.Dir(root), repoName, strconv.Itoa(ref.ID), projectdoc.ActiveAndArchive)
+	repoDir, err := resolveRepoDir(ref, identity.WorktreeRoot)
+	if err != nil {
+		return nil, ref, err
+	}
+	target, err := resolveWorkspace(repoDir)
+	if err != nil {
+		return nil, ref, err
+	}
+	repoName := target.Repo
+	overlays, err := projectWorkspaceOverlays(identity)
+	if err != nil {
+		return nil, ref, err
+	}
+	matches, err := projectdoc.DiscoverByIssueRef(identity.FleetRoot, repoName, strconv.Itoa(ref.ID), projectdoc.ActiveAndArchive, overlays...)
 	if err != nil {
 		return nil, ref, err
 	}

@@ -7,7 +7,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // sidecarMeta is everything a fresh reader needs to orient on a persisted
@@ -111,11 +110,11 @@ func renderReviewEntry(m sidecarMeta, isRevision bool) string {
 // The single derivation site for "which repo are we in" (consolidates the
 // duplicated filepath.Base(gitx.RepoTopLevel()) the #136 review flagged).
 func repoNameAndRoot() (name, root string) {
-	root, err := gitx.RepoTopLevel()
-	if err != nil || root == "" {
+	identity, err := resolveWorkspace(".")
+	if err != nil {
 		return "", ""
 	}
-	return filepath.Base(root), root
+	return identity.Repo, identity.WorktreeRoot
 }
 
 // repoIdentity returns the repo's top-level basename (e.g. "ariadne"), or "" if

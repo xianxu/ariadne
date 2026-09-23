@@ -55,8 +55,8 @@ func loadThroughputBaseline(brainDir string) (estimate.ThroughputBaseline, error
 // repo vantage; a project whose breakdown doesn't resolve falls back to its
 // Phase-A estimate, and one with neither is `unknown` (weight 0 + warning) —
 // never silently dropped, since a silent drop reads as "no contention".
-func ListFleetProjects(parentDir, excludePath string) []projectdoc.ProjectLoad {
-	files, err := projectdoc.ListActiveProjectFiles(parentDir, excludePath)
+func ListFleetProjects(parentDir, excludePath string, overlays ...projectdoc.CheckoutOverlay) []projectdoc.ProjectLoad {
+	files, err := projectdoc.ListActiveProjectFiles(parentDir, excludePath, overlays...)
 	if err != nil {
 		// A fleet-walk failure (e.g. unreadable parent) degrades to a solo
 		// forecast; surface it rather than silently reading as "no contention".
@@ -164,12 +164,20 @@ func forecastForProject(d *projectdoc.Doc, projectPath, brainDir, today string) 
 	if a, aerr := filepath.Abs(projectPath); aerr == nil {
 		absPath = a
 	}
-	repoDir := projectRepoDir(absPath)
-	parentDir := filepath.Dir(repoDir)
+	identity, err := resolveWorkspace(projectRepoDir(absPath))
+	if err != nil {
+		return projectdoc.Forecast{}, "", err
+	}
+	repoDir := identity.WorktreeRoot
+	parentDir := identity.FleetRoot
 	// Repo is the repo basename fleet-wide (consistent with sibling loads); the
 	// project's own name lives in ProjectLoad.Name via projectLoadFromDoc.
-	this := projectLoadFromDoc(d, projectdoc.ProjectFile{Path: absPath, RepoDir: repoDir, Repo: filepath.Base(repoDir)})
-	others := ListFleetProjects(parentDir, absPath)
+	this := projectLoadFromDoc(d, projectdoc.ProjectFile{Path: absPath, RepoDir: repoDir, Repo: identity.Repo})
+	overlays, err := projectWorkspaceOverlays(identity)
+	if err != nil {
+		return projectdoc.Forecast{}, "", err
+	}
+	others := ListFleetProjects(parentDir, absPath, overlays...)
 	f, cerr := projectdoc.ComputeForecast(baseline, this, others, today)
 	if cerr != nil {
 		return projectdoc.Forecast{}, meta.Deadline, cerr

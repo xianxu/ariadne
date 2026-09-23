@@ -180,10 +180,14 @@ func classifyFamily(id int, paths []string) []Artifact {
 // `parley.nvim`); ambiguity or no match errors with the candidates. IO seam
 // (reads the parent dir); curRoot is injected so the match logic is unit-testable.
 func resolveRepoDir(ref ArtifactRef, curRoot string) (string, error) {
-	if ref.Repo == "" {
-		return curRoot, nil
+	identity, err := resolveWorkspace(curRoot)
+	if err != nil {
+		return "", err
 	}
-	parent := filepath.Dir(curRoot)
+	if ref.Repo == "" || ref.Repo == identity.Repo {
+		return identity.WorktreeRoot, nil
+	}
+	parent := identity.FleetRoot
 	// Shared fleet walk (ARCH-DRY with the cross-repo project discovery). It
 	// applies no filtering, so this matching stays behavior-identical.
 	dirs, err := project.SiblingRepoDirs(parent)
@@ -193,6 +197,9 @@ func resolveRepoDir(ref ArtifactRef, curRoot string) (string, error) {
 	// exact basename match wins (so `brain` beats the `brain-family` prefix sibling)
 	for _, d := range dirs {
 		if filepath.Base(d) == ref.Repo {
+			if filepath.Base(d) == identity.Repo {
+				return identity.WorktreeRoot, nil
+			}
 			return d, nil
 		}
 	}
@@ -206,6 +213,9 @@ func resolveRepoDir(ref ArtifactRef, curRoot string) (string, error) {
 	}
 	switch len(pref) {
 	case 1:
+		if filepath.Base(pref[0]) == identity.Repo {
+			return identity.WorktreeRoot, nil
+		}
 		return pref[0], nil
 	case 0:
 		return "", fmt.Errorf("no sibling repo matches %q under %s", ref.Repo, parent)
@@ -231,15 +241,16 @@ func canonicalIssueIdentity(refText, root string) (string, bool) {
 	if err != nil {
 		return fmt.Sprintf("repo:%s#%d", strings.ToLower(ref.Repo), ref.ID), true
 	}
-	return canonicalRepoIssueIdentity(repoDir, ref.ID), true
+	key := canonicalRepoIssueIdentity(repoDir, ref.ID)
+	return key, key != ""
 }
 
 func canonicalRepoIssueIdentity(repoDir string, id int) string {
-	resolved, err := filepath.EvalSymlinks(repoDir)
+	identity, err := resolveWorkspace(repoDir)
 	if err != nil {
-		resolved = filepath.Clean(repoDir)
+		return ""
 	}
-	return fmt.Sprintf("%s#%d", resolved, id)
+	return fmt.Sprintf("%s#%d", identity.RepoIdentity, id)
 }
 
 // familyFiles globs id NNNNNN's artifacts across the issue home, the plans home,
@@ -372,7 +383,8 @@ func githubWho(ref ArtifactRef, root string) string {
 	if ref.Repo != "" {
 		return ref.Repo
 	}
-	return filepath.Base(root)
+	name, _ := workspaceRepoName(root)
+	return name
 }
 
 // runResolve prints the resolved family paths (or --json). Read-only: takes no

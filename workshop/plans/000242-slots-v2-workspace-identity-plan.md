@@ -108,44 +108,44 @@ Retain `claim.go:findMainWorktree` as a branch-location query: a checkout curren
 
 Files: create `pkg/workspace/worktree.go`, `paths.go` and colocated tests; modify `cmd/sdlc/internal/gitx/worktree.go`, `worktree_test.go`, `cmd/sdlc/internal/fleet/gitpaths.go` and its tests.
 
-- [ ] Move parser and canonical topology tests to the shared owner; establish the ParseWorktrees and NormalizeVantage strategies below before implementation.
-- [ ] Run `go test ./pkg/workspace/... ./cmd/sdlc/internal/fleet ./cmd/sdlc/internal/gitx -count=1`; new API tests must fail before implementation.
-- [ ] Promote the existing implementations, retain delegates for old imports, share canonical helpers, and rerun the same command to PASS.
-- [ ] Commit explicit paths with `#242: refactor: share Git workspace topology` and model coauthor trailer.
+- [x] Move parser and canonical topology tests to the shared owner; establish the ParseWorktrees and NormalizeVantage strategies below before implementation.
+- [x] Run `go test ./pkg/workspace/... ./cmd/sdlc/internal/fleet ./cmd/sdlc/internal/gitx -count=1`; new API tests must fail before implementation.
+- [x] Promote the existing implementations, retain delegates for old imports, share canonical helpers, and rerun the same command to PASS.
+- [x] Commit explicit paths with `#242: refactor: share Git workspace topology` and model coauthor trailer.
 
 ### Task 2: Address and validated identity contract
 
 Files: create `pkg/workspace/address.go`, `identity.go`, `resolve.go`, their tests, `workspacetest/fake.go`, and `conformance_test.go`.
 
-- [ ] Implement the ParseAddress, SlotPath and Classify property strategies below as failing tests.
-- [ ] Implement the Resolve fake/real conformance and deterministic interleaving strategies below as failing tests.
-- [ ] Run `go test ./pkg/workspace/... -count=1` and confirm behavioral failures; implement pure classification plus thin probes, then rerun to PASS.
-- [ ] Execute identical supported scenarios against the stateful fake and real Git; measure 1/10/100-worktree fixtures. Commit explicit package files as `#242: feat: resolve durable workspace identity` with model trailer.
+- [x] Implement the ParseAddress, SlotPath and Classify property strategies below as failing tests.
+- [x] Implement the Resolve fake/real conformance and deterministic interleaving strategies below as failing tests.
+- [x] Run `go test ./pkg/workspace/... -count=1` and confirm behavioral failures; implement pure classification plus thin probes, then rerun to PASS.
+- [x] Execute identical supported scenarios against the stateful fake and real Git; measure 1/10/100-worktree fixtures. Commit explicit package files as `#242: feat: resolve durable workspace identity` with model trailer.
 
 ### Task 3: Expose CLI and state
 
 Files: create `cmd/sdlc/workspace.go`, `workspacepaths.go`, tests, `helptext/workspace.md`; modify `main.go`, `state.go`, `state_test.go`, `helptext/state.md`.
 
-- [ ] Implement buildRoot/runState contract strategies below as failing production-command tests.
-- [ ] Run `go test ./cmd/sdlc -run 'TestWorkspace|TestState' -count=1`; confirm failures, wire shared resolver via existing execGitRunner, render prose/JSON and rerun to PASS.
-- [ ] Ensure the read-only workspace command acquires no transaction lock and mutates no Git/filesystem state. Commit explicit paths as `#242: feat: expose workspace identity to Couch` with model trailer.
+- [x] Implement buildRoot/runState contract strategies below as failing production-command tests.
+- [x] Run `go test ./cmd/sdlc -run 'TestWorkspace|TestState' -count=1`; confirm failures, wire shared resolver via existing execGitRunner, render prose/JSON and rerun to PASS.
+- [x] Ensure the read-only workspace command acquires no transaction lock and mutates no Git/filesystem state. Commit explicit paths as `#242: feat: expose workspace identity to Couch` with model trailer.
 
 ### Task 4: Migrate the consumer inventory
 
 Files: every production surface in the inventory plus colocated tests; create `cmd/sdlc/workspace_consumers_test.go` for shared real-Git fixtures.
 
-- [ ] Implement the production-consumer differential strategy below over every inventory row, with deliberately divergent current/primary checkout content. No live external judge or publication in tests.
-- [ ] Run `go test ./cmd/sdlc/... -count=1` to capture failures; migrate consumers to the shared adapter, preserving injected pure-test seams and existing optional warning behavior.
-- [ ] Re-run that suite to PASS. Shadow-sweep `filepath.Base`, `filepath.Dir`, `../brain`, `--show-toplevel`, `--git-common-dir` and `worktree list` in production SDLC; document every retained identity-looking calculation as checkout-local, delegated, or unrelated. Add any missed production consumer test before changing it.
-- [ ] Commit explicit touched paths as `#242: fix: use repository identity across workspace consumers` with model trailer.
+- [x] Implement the production-consumer differential strategy below over every inventory row, with deliberately divergent current/primary checkout content. No live external judge or publication in tests.
+- [x] Run `go test ./cmd/sdlc/... -count=1` to capture failures; migrate consumers to the shared adapter, preserving injected pure-test seams and existing optional warning behavior.
+- [x] Re-run that suite to PASS. Shadow-sweep `filepath.Base`, `filepath.Dir`, `../brain`, `--show-toplevel`, `--git-common-dir` and `worktree list` in production SDLC; document every retained identity-looking calculation as checkout-local, delegated, or unrelated. Add any missed production consumer test before changing it.
+- [x] Commit explicit touched paths as `#242: fix: use repository identity across workspace consumers` with model trailer.
 
 ### Task 5: Document, verify and close
 
 Files: new `atlas/workflow/workspace-identity.md`; modify `atlas/index.md`, `atlas/workflow/sdlc-binary.md`, issue log/checkboxes. Project completion is updated by the close gate.
 
-- [ ] Document JSON v1, Go seam, primary/slot/ordinary distinction, validation errors, snapshot limitations and provisioning integration examples. Update atlas links and CLI help contract tests.
-- [ ] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1`, `go vet ./pkg/workspace/... ./cmd/sdlc/...`, and `git diff --check`. Use only temp fixtures for command smoke tests; preserve unrelated #230/#240 edits.
-- [ ] Read verification-before-completion skill, record actual command evidence and timing measurements, tick completed steps, and sync issue/design changes.
+- [x] Document JSON v1, Go seam, primary/slot/ordinary distinction, validation errors, snapshot limitations and provisioning integration examples. Update atlas links and CLI help contract tests.
+- [x] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1`, `go vet ./pkg/workspace/... ./cmd/sdlc/...`, and `git diff --check`. Use only temp fixtures for command smoke tests; preserve unrelated #230/#240 edits.
+- [x] Read verification-before-completion skill, record actual command evidence and timing measurements, tick completed steps, and sync issue/design changes.
 - [ ] Commit docs; run `sdlc close --issue 242 --verified '<actual evidence>'` for the one mandatory fresh-context boundary review. Resolve blocking findings and log the verdict; no separate duplicate boundary reviewer.
 - [ ] Publish via `sdlc pr` then `sdlc merge` when the authorized workflow reaches shipping. Follow gate errors; never bypass unrelated dirty work or overwrite it.
 
@@ -162,3 +162,11 @@ Reason: design review approved with optional clarifications. Delta: specified un
 ### 2026-09-22 — PQ-1 testing-strategy refinement and approval
 
 Reason: operator approved; plan-quality requested named adversarial strategies instead of prose case inventories. Delta: compressed Tasks 1–4 and added function-level fuzz/property, differential consumer, and deterministic Git-read interleaving strategies. Scope and design are unchanged.
+
+### 2026-09-22 — integration refinements
+
+Reason: production tests and the consumer sweep identified alias/fixture boundaries. Delta: project discovery explicitly excludes sibling linked worktrees through Git-verified overlays; omitted project paths are anchored at the current worktree, with explicit flags/env retained. Planning surfaces identity evidence failures nonfatally. Test fixtures use real canonical Git roots. Implementation commits are grouped after coordinated integration checks to avoid TestMain's real-repo hermeticity guard mistaking concurrent agent edits/commits for test writes. Scope and the single close boundary remain unchanged.
+
+### 2026-09-22 — verified implementation checkpoint
+
+Completed Tasks 1–4 and documentation in one integrated commit per the prior revision. Final serialized regression suite passed with only the named pre-existing #210 missing-plan test excluded; vet, build, diff checks and JSON smoke checks passed. Full evidence is recorded in the issue Log. Boundary review and publication remain pending.

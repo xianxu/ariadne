@@ -72,6 +72,7 @@ func seedTempRepo(t *testing.T) string {
 	if err := os.MkdirAll(filepath.Join(root, d.Archive), 0o755); err != nil {
 		t.Fatal(err)
 	}
+	projectWorkspaceGit(t, root, "init", "-b", "main")
 	return root
 }
 
@@ -176,6 +177,7 @@ func TestResolveRun_CrossRepo(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(pairIssues, "000050-pair-thing.md"), []byte("x"), 0o644); err != nil {
 		t.Fatal(err)
 	}
+	projectWorkspaceGit(t, filepath.Join(parent, "pair"), "init", "-b", "main")
 	var buf bytes.Buffer
 	if err := runResolve(resolveOpts{ref: "pair#50", root: root, out: &buf}); err != nil {
 		t.Fatal(err)
@@ -233,7 +235,7 @@ func TestResolveOpenAreLockFree(t *testing.T) {
 // family without blocking on the lock.
 func TestResolveResolvesUnderHeldLock(t *testing.T) {
 	root := seedTempRepo(t)
-	gitCommon := t.TempDir()
+	gitCommon := filepath.Join(root, ".git")
 	lock, err := repolock.Acquire(context.Background(), repolock.Options{
 		GitCommonDir: gitCommon,
 		PID:          os.Getpid(),
@@ -309,6 +311,7 @@ func TestResolveRepoDir(t *testing.T) {
 		}
 	}
 	cur := filepath.Join(parent, "ariadne")
+	projectWorkspaceGit(t, cur, "init", "-b", "main")
 	cases := []struct {
 		repo    string
 		wantDir string // basename, "" = expect error

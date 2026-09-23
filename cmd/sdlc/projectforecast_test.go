@@ -193,6 +193,7 @@ func TestForecastForProject_RelativePathResolvesVantage(t *testing.T) {
 
 	// chdir into the repo and pass the RELATIVE project path.
 	repoDir := filepath.Join(parent, "ariadne")
+	projectWorkspaceGit(t, repoDir, "init", "-b", "main")
 	cwd, _ := os.Getwd()
 	t.Cleanup(func() { _ = os.Chdir(cwd) })
 	if err := os.Chdir(repoDir); err != nil {
@@ -217,6 +218,7 @@ func TestForecastForProject_WithBaseline(t *testing.T) {
 	parent := t.TempDir()
 	// subject committed with a Phase-A of 55h, deadline set; no other projects.
 	subject := writeFleetProjectDeadline(t, parent, "ariadne", "subj", "committed", "ariadne#182", "55h", "2026-09-01")
+	projectWorkspaceGit(t, filepath.Join(parent, "ariadne"), "init", "-b", "main")
 	stubIssueLookup(t, map[string]float64{})
 	blPath := filepath.Join(t.TempDir(), "baseline.tsv")
 	if err := os.WriteFile(blPath, []byte(estimate.BaselineHeader()+"\n2026-07-19\ts\te\t55.00\t10\t2\n"), 0o644); err != nil {

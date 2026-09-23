@@ -37,6 +37,8 @@ func seedProjectFleet(t *testing.T) string {
 	write("metis/workshop/history/projects/q.md", strings.Replace(proj, "executing", "done", 1))
 	write("brain/.brain/config.md", "brain\n")
 	write("brain/data/project/r.md", proj)
+	projectWorkspaceGit(t, root, "init", "-b", "main")
+	projectWorkspaceGit(t, filepath.Join(parent, "metis"), "init", "-b", "main")
 	return root
 }
 
