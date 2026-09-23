@@ -5,7 +5,7 @@ deps: [ariadne#242, ariadne#243]
 github_issue:
 created: 2026-09-22
 updated: 2026-09-23
-estimate_hours: 6.88
+estimate_hours: 21.28
 started: 2026-09-23T11:35:53-07:00
 ---
 
@@ -43,43 +43,81 @@ Apply the publication/concurrency audit to both numbered main-repository worktre
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
-The calibration source is tagged stale by `sdlc estimate-source` (#127), so these are provisional focused ship-hours, not an elapsed-time promise. Primitive decomposition includes design, integration, adversarial tests, documentation and three actual review boundaries (M1, M2, issue close). Familiarity is 1.0 for the existing Go/Git stack. The approved detailed plan earns the 0.2 spec discount and 15% design buffer. Implementation entries are already scaled to 40% of the v2 table; no second scale is applied.
+Revised after estimate-quality feedback: separate concrete concerns instead of treating all receipt behavior, all callers or all fixtures as one module. Each implementation primitive includes its own unit tests; the separately itemized integration harnesses exercise cross-component processes and protocol conformance, not those unit tests. Gate reviews are three real boundaries. The calibration source is marked stale (#127), so the result is provisional focused ship-hours.
 
-| Primitive | Scope | Design derivation | Implementation derivation |
+Derivation: greenfield concerns use base design 1.5 × 0.2 detailed-spec discount = 0.30 and base impl 0.8 × 0.4 AI-paired scale = 0.32. Standard-library JSON/filesystem primitives halve receipt IO/decoding design to 0.15; domain ownership/recovery/lifecycle have no library substitute. Each API integration uses base design 2.0 × 0.2 = 0.40 and base impl 1.5 × 0.4 = 0.60. These are behavioral integrations, not mechanical refactors. Smaller module uses 0.3 × 0.2 design and 0.5 × 0.4 impl. Each docs group uses 0.10 design and 0.20 × 0.4 impl. Reviews use 0 design and 0.5 × 0.4 impl. Issue authoring uses 1.0 design without double-discounting the authoring work itself, and 0.3 × 0.4 impl. Familiarity remains 1.0 (existing Go/Git stack); thorough-plan design buffer is 15%.
+
+| Primitive | Concrete concern | Design | AI-paired implementation |
 |---|---|---|---|
-| issue-spec | audit, approval and design | 1.0, no spec discount on authoring itself | 0.3 × 0.4 = 0.12 |
-| greenfield-go-module | publication decision model | 1.5 × 0.2 = 0.30; no library supplies our workflow semantics | 0.8 × 0.4 = 0.32 |
-| greenfield-go-module | receipt persistence | 1.5 × 0.5 library × 0.2 spec = 0.15; standard JSON/filesystem primitives | 0.8 × 0.4 = 0.32 |
-| api-integration | evidenced Git transaction | 2.0 × 0.5 reuse × 0.2 spec = 0.20; existing TrunkFile plumbing | 1.5 × 0.4 = 0.60 |
-| api-integration | controlled Git/reviewer conformance fixtures | 2.0 × 0.2 = 0.40; domain-specific schedules | 1.5 × 0.4 = 0.60 |
-| cross-cutting-refactor | all issue publication callers | 1.0 × 0.2 = 0.20 | 0.5 × 0.4 = 0.20 |
-| greenfield-go-module | prepared review transitions | 1.5 × 0.2 = 0.30; existing snapshot supplies IO, domain decisions remain | 0.8 × 0.4 = 0.32 |
-| cross-cutting-refactor | review caller integration | 1.0 × 0.2 = 0.20 | 0.5 × 0.4 = 0.20 |
-| smaller-go-module | vocabulary and compatibility | 0.2 × 0.2 = 0.04 | 0.5 × 0.4 = 0.20 |
-| atlas-docs | help, atlas, README and project | 0.10 | 0.2 × 0.4 = 0.08 |
-| milestone-review × 3 | two milestones and final close | 0.0 each | 0.5 × 0.4 = 0.20 each |
+| issue-spec | Audit and durable design | 1.00 | 0.12 |
+| greenfield-go-module | Publication transition model | 0.30 | 0.32 |
+| greenfield-go-module | Ownership provenance and metadata | 0.30 | 0.32 |
+| greenfield-go-module | Record preconditions and reconciliation policy | 0.30 | 0.32 |
+| greenfield-go-module | Atomic receipt IO | 0.15 | 0.32 |
+| greenfield-go-module | Strict receipt schema and decoding | 0.15 | 0.32 |
+| greenfield-go-module | Crash recovery and predecessor lineage | 0.30 | 0.32 |
+| greenfield-go-module | Receipt bounds and retirement | 0.30 | 0.32 |
+| api-integration | Git evidence hooks and conditional push | 0.40 | 0.60 |
+| api-integration | Unknown push outcome reconciliation | 0.40 | 0.60 |
+| api-integration | Claim caller integration | 0.40 | 0.60 |
+| api-integration | Create and reallocation integration | 0.40 | 0.60 |
+| api-integration | Sync baseline and conflict integration | 0.40 | 0.60 |
+| greenfield-go-module | Prepared review transition model | 0.30 | 0.32 |
+| api-integration | Plan review prepare/finalize integration | 0.40 | 0.60 |
+| api-integration | Estimate review prepare/finalize integration | 0.40 | 0.60 |
+| api-integration | Close and milestone review record integration | 0.40 | 0.60 |
+| greenfield-go-module | Reviewer timeout/process lifetime shell | 0.30 | 0.32 |
+| api-integration | Stateful Git protocol fake and conformance | 0.40 | 0.60 |
+| api-integration | Independent-clone and worktree publication harness | 0.40 | 0.60 |
+| api-integration | Reviewer subprocess barrier harness | 0.40 | 0.60 |
+| api-integration | Nested dependency CLI conformance | 0.40 | 0.60 |
+| smaller-go-module | Vocabulary and generated contract compatibility | 0.06 | 0.20 |
+| atlas-docs | Claim and issue command help | 0.10 | 0.08 |
+| atlas-docs | Issue sync and lifecycle atlas | 0.10 | 0.08 |
+| atlas-docs | Review/gate atlas and command help | 0.10 | 0.08 |
+| atlas-docs | README and project checkpoint | 0.10 | 0.08 |
+| milestone-review | M1 boundary | 0.00 | 0.20 |
+| milestone-review | M2 boundary | 0.00 | 0.20 |
+| milestone-review | Issue close boundary | 0.00 | 0.20 |
 
 ```estimate
 model: estimate-logic-v3.1
 familiarity: 1.0
-item: issue-spec design=1.0 impl=0.12
+item: issue-spec design=1.00 impl=0.12
+item: greenfield-go-module design=0.30 impl=0.32
+item: greenfield-go-module design=0.30 impl=0.32
 item: greenfield-go-module design=0.30 impl=0.32
 item: greenfield-go-module design=0.15 impl=0.32
-item: api-integration design=0.20 impl=0.60
-item: api-integration design=0.40 impl=0.60
-item: cross-cutting-refactor design=0.20 impl=0.20
+item: greenfield-go-module design=0.15 impl=0.32
 item: greenfield-go-module design=0.30 impl=0.32
-item: cross-cutting-refactor design=0.20 impl=0.20
-item: smaller-go-module design=0.04 impl=0.20
+item: greenfield-go-module design=0.30 impl=0.32
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: greenfield-go-module design=0.30 impl=0.32
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: greenfield-go-module design=0.30 impl=0.32
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: smaller-go-module design=0.06 impl=0.20
 item: atlas-docs design=0.10 impl=0.08
-item: milestone-review design=0.0 impl=0.20
-item: milestone-review design=0.0 impl=0.20
-item: milestone-review design=0.0 impl=0.20
+item: atlas-docs design=0.10 impl=0.08
+item: atlas-docs design=0.10 impl=0.08
+item: atlas-docs design=0.10 impl=0.08
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
+item: milestone-review design=0.00 impl=0.20
 design-buffer: 0.15
-total: 6.88
+total: 21.28
 ```
 
-Design subtotal 2.89 × 1.15 = 3.3235; implementation subtotal 3.56; total 6.8835, rounded to 6.88.
+Design 8.66 × 1.15 + implementation 11.32 = 21.28 hours (rounded).
 
 ## Plan
 
@@ -115,3 +153,7 @@ Fresh-context re-review approved plan commit `7f0850d` with no remaining blockin
 ### 2026-09-23 — Implementation authorized; plan-quality refinements
 
 Operator approved implementation. Baseline targeted Git/publication/lock tests passed. The first plan-quality gate raised PQ-1–PQ-3; the durable plan now specifies persisted ownership/receipt formats, named adversarial test strategies, and review interruption transitions. Implementation still waits for the gate; no code changed.
+
+### 2026-09-23 — Estimate revised after gate feedback
+
+The first 6.88h derivation under-itemized independent receipt concerns, production integrations and conformance harnesses. Replaced it with concrete concern rows from the same calibration method; no implementation scope added. The original estimate-quality refusal remains in `/tmp/ariadne-244-change-code-4.log`.
