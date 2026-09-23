@@ -123,14 +123,16 @@ total: 17.01
 
 ## Plan
 
-Current durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). The operator approved the simplified scope. The revised implementation gate passed with plan-quality CLEAN and estimate-quality INFO (17.01h provisional). M1 closed with SHIP; M2 is implemented and verified, pending its boundary review.
+Current durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). The operator approved the simplified scope. The revised implementation gate passed with plan-quality CLEAN and estimate-quality INFO (17.01h provisional). M1 and M2 closed with SHIP and no findings; final issue acceptance and publication remain.
 
 - [x] M1 — Fresh status claims and explicit commit publication across all slots/clones.
-- [ ] M2 — Release external-review locks, reject stale results, and verify dependency workflows.
+- [x] M2 — Release external-review locks, reject stale results, and verify dependency workflows.
 
 ## Log
 
 
+
+- 2026-09-23: closed M2 — Full workspace/SDLC suite passed (cmd/sdlc 426.154s; known #210 fixture excluded), vet/diff checks passed, six real SIGINT/SIGTERM cases and race tests passed, nested dependency conflict/recovery preserves caller and parent. Actual increment 1.34h = measured total 6.10h minus recorded M1 4.76h.; review verdict: SHIP
 - 2026-09-23: closed M1 — Full pkg/workspace and cmd/sdlc suites passed (known #210 fixture excluded); vet and diff-check passed; real linked-worktree and independent-clone claims have one winner, creation allocates distinct IDs, selected commits preserve local code/index/files. Actual 4.76h copied from this gate measurement.; review verdict: SHIP
 ### 2026-09-22 — fresh v2 task
 

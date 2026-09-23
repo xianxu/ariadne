@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git commit/merge plumbing, existing SDLC locks and judge adapters.
 
-**State:** Simplified scope approved; M1 closed with SHIP. M2 implemented and verified: full workspace/SDLC suite, vet, real signal/race tests and nested dependency workflow passed. M2 boundary review is next.
+**State:** M1 and M2 closed with SHIP, no findings. Implementation, full tests, vet, signal/race checks and nested dependency workflow passed. Final issue acceptance and publication remain.
 
 ## Agreed contract
 
@@ -173,7 +173,8 @@ Files: new `reviewstate.go` and tests; modify `changecode.go`, `close.go`, `mile
 
 - [x] Run a nested dependency workflow using ordinary CLI creation, claim, local issue/plan commit, explicit publication and conflict recovery; no recursive dependency publication.
 - [x] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (the pre-existing #210 missing-history fixture only), `go vet ./pkg/workspace/... ./cmd/sdlc/...`, and scoped `git diff --check`.
-- [ ] Update review/lock atlas/help and project evidence; record lessons. Commit and close M2, then the issue, through the SDLC gates. Address blocking findings before publication.
+- [x] Update review/lock atlas/help and project evidence; record lessons. Commit and close M2 through the SDLC gate.
+- [ ] Close the issue through its final SDLC boundary review; address blocking findings before publication.
 - [ ] Publish through `sdlc pr` and `sdlc merge`; verify archived links and final repository state.
 
 ## Revisions
@@ -213,3 +214,7 @@ Integrated shared prepared-review snapshots and short planning/boundary lock pha
 ### 2026-09-23 — M2 verified
 
 Full workspace/SDLC tests passed with only the pre-existing #210 missing-history fixture excluded (cmd/sdlc 426.154s). Vet and diff checks passed. Six real CLI signal cases cover judge/close/change-code × SIGINT/SIGTERM; focused race verification passed (45.095s), with no persisted result and owned reviewer cleanup. Signal ownership is limited to review commands so other Git/ship commands retain their existing termination behavior; managed locks release on unwind. Local bin/sdlc was built from this source for the remaining gates. ARCH-PURPOSE: cancellation was checked at the CLI entry point, not only via injected test contexts.
+
+### 2026-09-23 — M2 accepted
+
+The M2 boundary review returned SHIP with no findings; focused M2 tests, vet and diff checks independently passed. The gate recorded the measured increment 1.34h (6.10h cumulative measurement minus M1 4.76h). As at M1, the reviewer omitted a valid findings payload; the gate logged a protocol warning with zero findings and finalized SHIP. Split the final bookkeeping checklist row to show the accepted M2 boundary separately from pending whole-issue close. Weave compile completed, rebuilding owner tools and refreshing generated instructions from the new base source.

@@ -10,6 +10,13 @@ rounds:
       recipe: milestone-review
       blocked: false
       protocol_error: no valid findings block
+    - "n": 2
+      timestamp: "2026-09-23T13:46:27-07:00"
+      agent: codex
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
+      protocol_error: no valid findings block
 ---
 
 # Gate ledger — ariadne#244 (boundary-review)
@@ -18,6 +25,10 @@ Findings this gate raised, the stable ids the binary assigned them, and how
 later rounds disposed of them. Generated — edit the gate, not this file.
 
 ## Round 1 — 2026-09-23T13:26:32-07:00 (codex) — passed
+
+**Protocol error:** no valid findings block — this round contributed no findings.
+
+## Round 2 — 2026-09-23T13:46:27-07:00 (codex) — passed
 
 **Protocol error:** no valid findings block — this round contributed no findings.
 
