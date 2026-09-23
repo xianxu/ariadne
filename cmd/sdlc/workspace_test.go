@@ -20,7 +20,7 @@ func newWorkspaceFixture(t *testing.T) workspaceFixture {
 	f := workspaceFixture{Fleet: t.TempDir()}
 	f.Fleet, _ = filepath.EvalSymlinks(f.Fleet)
 	f.Primary = testfix.Repo(t, testfix.At(f.Fleet, "sample"), testfix.InitialCommit())
-	f.Slot = filepath.Join(f.Fleet, "worktree", "sample-slot1")
+	f.Slot = filepath.Join(f.Fleet, "worktree", "sample-slot1", "sample")
 	f.Ordinary = filepath.Join(f.Fleet, "feature")
 	testfix.Git(t, f.Primary, "worktree", "add", "-b", "main-slot1", f.Slot)
 	testfix.Git(t, f.Slot, "checkout", "-b", "issue-slot")
@@ -30,7 +30,7 @@ func newWorkspaceFixture(t *testing.T) workspaceFixture {
 		if err := os.MkdirAll(filepath.Dir(p), 0755); err != nil {
 			t.Fatal(err)
 		}
-		body := "---\nid: 000001\nstatus: open\n---\n# " + filepath.Base(root) + "\n## Plan\n- [ ] local\n"
+		body := "---\nid: 000001\nstatus: open\n---\n# " + filepath.Base(filepath.Dir(root)) + "\n## Plan\n- [ ] local\n"
 		if err := os.WriteFile(p, []byte(body), 0644); err != nil {
 			t.Fatal(err)
 		}
@@ -65,7 +65,7 @@ func TestWorkspaceCommandIdentityAndState(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got["repo"] != "sample" || got["address"] != "sample:1" || got["branch"] != "issue-slot" || got["resting_branch"] != "main-slot1" || got["schema_version"] != float64(1) {
+	if got["repo"] != "sample" || got["address"] != "sample:1" || got["branch"] != "issue-slot" || got["resting_branch"] != "main-slot1" || got["schema_version"] != float64(2) {
 		t.Fatalf("identity: %#v", got)
 	}
 	for _, address := range []string{":0", "sample", "sample:0"} {
@@ -185,11 +185,11 @@ func TestWorkspacePropagationUsesFleetButRetainsSource(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(peer, "construct"), 0755); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.WriteFile(filepath.Join(peer, "construct", "deps"), []byte("substrate ../worktree/sample-slot1\n"), 0644); err != nil {
+	if err := os.WriteFile(filepath.Join(peer, "construct", "deps"), []byte("substrate ../feature\n"), 0644); err != nil {
 		t.Fatal(err)
 	}
 	var out bytes.Buffer
-	if err := runPropagateBase(f.Slot, "sample#1", true, &out); err != nil {
+	if err := runPropagateBase(f.Ordinary, "sample#1", true, &out); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "consumer") {
@@ -205,7 +205,7 @@ func TestWorkspaceCloseKeepsPrimaryProjectUntouched(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	slot := filepath.Join(parent, "worktree", "ariadne-slot1")
+	slot := filepath.Join(parent, "worktree", "ariadne-slot1", "ariadne")
 	testfix.Git(t, primary, "worktree", "add", "-b", "main-slot1", slot)
 	testfix.Git(t, slot, "checkout", "-b", "slot-issue")
 	peer := initFleetRepo(t, parent, "peer")
@@ -231,5 +231,27 @@ func TestWorkspaceCloseKeepsPrimaryProjectUntouched(t *testing.T) {
 	}
 	if subject := testfix.Git(t, slot, "log", "-1", "--pretty=%s"); strings.Contains(subject, "close-time update") {
 		t.Fatal("slot auto-committed as peer")
+	}
+}
+
+func TestWorkspaceDependencyJSONContract(t *testing.T) {
+	f := newWorkspaceFixture(t)
+	dep := testfix.Repo(t, testfix.At(filepath.Dir(f.Slot), "dependency"), testfix.InitialCommit())
+	t.Chdir(dep)
+	for _, command := range []string{"workspace", "state"} {
+		got, e, _ := workspaceCommand(t, command, "--json")
+		if e != nil {
+			t.Fatal(e)
+		}
+		if command == "state" {
+			got = got["workspace"].(map[string]any)
+		}
+		if got["schema_version"] != float64(2) || got["kind"] != "dependency" || got["address"] != nil || got["slot"] != nil || got["resting_branch"] != nil || got["repo_identity"] != filepath.Join(dep, ".git") || got["environment_root"] != filepath.Dir(f.Slot) || got["fleet_root"] != f.Fleet {
+			t.Fatalf("dependency JSON: %#v", got)
+		}
+		host, ok := got["environment_host"].(map[string]any)
+		if !ok || host["repo"] != "sample" || host["slot"] != float64(1) || host["worktree_root"] != f.Slot {
+			t.Fatalf("host JSON: %#v", got)
+		}
 	}
 }

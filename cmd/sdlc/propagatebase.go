@@ -52,17 +52,23 @@ func canonRoot(p string) string {
 // contains ownerRoot. Generated workflow files need not exist yet.
 // IO: scans the parent directory and reads dependency declarations.
 func recursiveDependentsIn(ownerRoot, parent string) []propDep {
-	ownerKey := canonRoot(ownerRoot)
 	entries, err := os.ReadDir(parent)
 	if err != nil {
 		return nil
 	}
-	var deps []propDep
+	var roots []string
 	for _, e := range entries {
-		if !e.IsDir() {
-			continue
+		if e.IsDir() {
+			roots = append(roots, filepath.Join(parent, e.Name()))
 		}
-		root := filepath.Join(parent, e.Name())
+	}
+	return recursiveDependentsFrom(ownerRoot, roots)
+}
+
+func recursiveDependentsFrom(ownerRoot string, roots []string) []propDep {
+	ownerKey := canonRoot(ownerRoot)
+	var deps []propDep
+	for _, root := range roots {
 		if canonRoot(root) == ownerKey {
 			continue // skip self
 		}
@@ -124,7 +130,25 @@ func runPropagateBase(ownerRoot, ref string, dryRun bool, out io.Writer) error {
 	if err != nil {
 		return fmt.Errorf("resolve propagation owner: %w", err)
 	}
-	deps := orderDependentsFoundationFirst(recursiveDependentsIn(identity.WorktreeRoot, identity.FleetRoot))
+	var deps []propDep
+	if identity.EnvironmentHost != nil {
+		repos, err := environmentRepos(identity)
+		if err != nil {
+			return err
+		}
+		var roots []string
+		for _, r := range repos {
+			roots = append(roots, r.Root)
+		}
+		owner := identity.WorktreeRoot
+		if identity.RepoIdentity != identity.EnvironmentHost.RepoIdentity {
+			owner = identity.PrimaryRoot
+		}
+		deps = recursiveDependentsFrom(owner, roots)
+	} else {
+		deps = recursiveDependentsIn(identity.WorktreeRoot, identity.FleetRoot)
+	}
+	deps = orderDependentsFoundationFirst(deps)
 	if len(deps) == 0 {
 		fmt.Fprintln(out, "propagate-base: no recursive dependents found")
 		return nil

@@ -8,6 +8,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/xianxu/ariadne/pkg/workspace"
 	"io"
 	"os"
 	"path/filepath"
@@ -133,8 +134,11 @@ func createWorktreeBranch(stdout, stderr io.Writer, name string, r gitRunner) (s
 	if err != nil {
 		return "", err
 	}
-	wtRoot := filepath.Join(identity.FleetRoot, "worktree", identity.Repo)
-	wtPath := filepath.Join(wtRoot, name)
+	wtPath, err := workspace.FeatureWorktreePath(identity, name)
+	if err != nil {
+		return "", err
+	}
+	wtRoot := filepath.Dir(wtPath)
 
 	porcelain, err := r.Git("worktree", "list", "--porcelain", "-z")
 	if err != nil {

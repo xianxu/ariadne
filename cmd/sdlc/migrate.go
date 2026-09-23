@@ -387,8 +387,7 @@ func reportInboundRefs(stderr io.Writer, srcRoot, destTop, relPath, destRel stri
 		cwarn(stderr, "inbound-ref sweep skipped: "+err.Error())
 		return
 	}
-	parent := identity.FleetRoot
-	entries, err := os.ReadDir(parent)
+	entries, err := workspaceContentRepos(identity)
 	if err != nil {
 		cwarn(stderr, "inbound-ref sweep skipped: "+err.Error())
 		return
@@ -397,10 +396,7 @@ func reportInboundRefs(stderr io.Writer, srcRoot, destTop, relPath, destRel stri
 	var hits []string
 	seen := map[string]bool{}
 	for _, e := range entries {
-		if !e.IsDir() {
-			continue
-		}
-		repoDir := filepath.Join(parent, e.Name())
+		repoDir := e.Root
 		if _, err := os.Stat(filepath.Join(repoDir, ".git")); err != nil {
 			continue
 		}
@@ -421,7 +417,7 @@ func reportInboundRefs(stderr io.Writer, srcRoot, destTop, relPath, destRel stri
 				if repoDir == destTop && filepath.ToSlash(file) == destRel {
 					continue
 				}
-				key := e.Name() + "/" + line
+				key := e.Name + "/" + line
 				if !seen[key] {
 					seen[key] = true
 					hits = append(hits, key)

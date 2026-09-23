@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git, existing Weave filesystem/process/staging seams, shell integration fixtures; macOS/Linux.
 
-**Status:** Operator approved implementation on 2026-09-23; change-code gates in progress. One issue-close review boundary; no Mx tags. No implementation estimate before plan-quality acceptance.
+**Status:** Implementation and verification complete; close review SHIP, publication pending. Operator approved execution on 2026-09-23; change-code gates passed. One issue-close review boundary; no Mx tags. No implementation estimate before plan-quality acceptance.
 
 ## Chunk 1: Contract and implementation
 
@@ -159,40 +159,40 @@ ARCH-DRY: reuse workspace path/probe, layergraph, source normalization, stages a
 
 Files: `pkg/workspace/{address,identity,paths,resolve}.go`; new `environment.go` and colocated tests; `workspacetest/fake.go`; `conformance_test.go`; `cmd/sdlc/workspace_test.go`; `cmd/sdlc/helptext/{workspace,state}.md`.
 
-- [ ] Write property and fake/real environment regressions above; run `go test ./pkg/workspace/... -count=1` and confirm new cases fail.
-- [ ] Implement shared nested paths, verified context, dependency identity and schema v2; keep own Git identity and explicit address rules.
-- [ ] Rerun package tests plus `go test ./cmd/sdlc -run 'TestWorkspace|TestState' -count=1`; require PASS and unchanged legacy ordinary behavior.
-- [ ] Commit explicit paths as `#243: feat: resolve nested workspace environments`, with model coauthor trailer.
+- [x] Write property and fake/real environment regressions above; run `go test ./pkg/workspace/... -count=1` and confirm new cases fail.
+- [x] Implement shared nested paths, verified context, dependency identity and schema v2; keep own Git identity and explicit address rules.
+- [x] Rerun package tests plus `go test ./cmd/sdlc -run 'TestWorkspace|TestState' -count=1`; require PASS and unchanged legacy ordinary behavior.
+- [x] Commit explicit paths as `#243: feat: resolve nested workspace environments`, with model coauthor trailer.
 
 ### Task 2: Environment-aware SDLC content scope
 
 Files: new `cmd/sdlc/workspacepeers.go` and tests; all consumer inventory files above; `internal/project/discover.go` and tests; production workspace/project tests.
 
-- [ ] Add differential read/write tests for each consumer inventory row, including independent clones absent from canonical fleet; confirm behavioral failures.
-- [ ] Centralize peer selection and explicit project roots, preserving clone lock identities and canonical calibration. Implement environment-local propagation/migration scope and clone-specific dependency feature-worktree placement.
-- [ ] Run `go test ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'`; the sole exclusion is documented pre-existing #210. Freeze edits/commits during TestMain's real-checkout guard.
-- [ ] Commit explicit paths as `#243: fix: scope workspace consumers to private environments`.
+- [x] Add differential read/write tests for each consumer inventory row, including independent clones absent from canonical fleet; confirm behavioral failures.
+- [x] Centralize peer selection and explicit project roots, preserving clone lock identities and canonical calibration. Implement environment-local propagation/migration scope and clone-specific dependency feature-worktree placement.
+- [x] Run `go test ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'`; the sole exclusion is documented pre-existing #210. Freeze edits/commits during TestMain's real-checkout guard.
+- [x] Commit explicit paths as `#243: fix: scope workspace consumers to private environments`.
 
 ### Task 3: Private source acquisition and setup lifetime
 
 Files: new `cmd/weave/environment.go`; `main.go`, `dependencies.go`; new `internal/acquire/policy.go`, `fake_test.go`; acquisition/staging/runner files and colocated tests; new `internal/staging/setup.go`.
 
-- [ ] Write policy/state-sequence and production startup tests for origin/main, existing preservation, containment, dry-run, recovery and inherited setup exclusion; confirm failures before implementation.
-- [ ] Implement scoped policy discovery, pure acquisition transitions and staged origin/main verification, reusing existing source/stage behavior outside numbered environments.
-- [ ] Implement environment setup lease and descriptor propagation through clone/build/generator runners; add cancellation and live-descendant tests.
-- [ ] Run `go test ./cmd/weave/... -count=1`; fake/real scenarios must agree and existing no-Git/generic startup tests must pass.
-- [ ] Commit explicit paths as `#243: feat: prepare isolated slot dependencies from remote main`.
+- [x] Write policy/state-sequence and production startup tests for origin/main, existing preservation, containment, dry-run, recovery and inherited setup exclusion; confirm failures before implementation.
+- [x] Implement scoped policy discovery, pure acquisition transitions and staged origin/main verification, reusing existing source/stage behavior outside numbered environments.
+- [x] Implement environment setup lease and descriptor propagation through clone/build/generator runners; add cancellation and live-descendant tests.
+- [x] Run `go test ./cmd/weave/... -count=1`; fake/real scenarios must agree and existing no-Git/generic startup tests must pass.
+- [x] Commit explicit paths as `#243: feat: prepare isolated slot dependencies from remote main`.
 
 ### Task 4: Source metadata, real acceptance and documentation
 
 Files: `../pair/construct/deps`, `../parley.nvim/construct/deps`; new `scripts/test/slot-dependencies.test.sh`; `README.md`; `atlas/workflow/{workspace-identity,weave,setup-and-replication}.md`; `atlas/index.md` if adding a page; issue/project records.
 
-- [ ] Record `substrate ../ariadne https://github.com/xianxu/ariadne.git` in Pair and Parley via small explicit peer commits, preserving other changes. This supplies remote metadata, not a branch/version lock or peer code refactor. Verify current origins first. Pair currently has unrelated dirty files and unpublished commits; Parley main is diverged from origin/main. Do not publish/rebase those incidental changes: prepare each one-line metadata PR from its current remote main in an isolated checkout, use normal SDLC gates, and leave the operator checkouts unchanged. Use the recorded peer metadata commit in acceptance fixtures; report a publication block if a gate cannot express this safely.
-- [ ] Build candidate gateway to /tmp, exercise two temporary nested environments and repeated compile through the integration script; keep live source checkouts, tool installations and shell rc untouched.
-- [ ] Run isolated Parley runtime acceptance, relevant product tests with `PLENARY` set, and ariadne owner builds. Record selected SHAs, measured durations, tracked-diff attribution and exact remaining limitations.
-- [ ] Document schema v2, enclosing environment vs Git roots, setup/retry/explicit revision commands, source/data/tool boundaries, non-automatic dependency publication and the flat-path compatibility decision.
-- [ ] Run `go test ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'`, `go vet ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/...`, scoped `git diff --check`, and the integration script. Do not change tracked files while the full test runs.
-- [ ] Commit docs/evidence, update issue checkboxes, run `sdlc close --issue 243 --verified '<measured evidence>'` for the sole mandatory boundary review; fix findings through the gate's protocol. No redundant reviewer at close.
+- [x] Record `substrate ../ariadne https://github.com/xianxu/ariadne.git` in Pair and Parley via small explicit peer commits, preserving other changes. This supplies remote metadata, not a branch/version lock or peer code refactor. Verify current origins first. Pair currently has unrelated dirty files and unpublished commits; Parley main is diverged from origin/main. Do not publish/rebase those incidental changes: prepare each one-line metadata PR from its current remote main in an isolated checkout, use normal SDLC gates, and leave the operator checkouts unchanged. Use the recorded peer metadata commit in acceptance fixtures; report a publication block if a gate cannot express this safely.
+- [x] Build candidate gateway to /tmp, exercise two temporary nested environments and repeated compile through the integration script; keep live source checkouts, tool installations and shell rc untouched.
+- [x] Run isolated Parley runtime acceptance, relevant product tests with `PLENARY` set, and ariadne owner builds. Record selected SHAs, measured durations, tracked-diff attribution and exact remaining limitations.
+- [x] Document schema v2, enclosing environment vs Git roots, setup/retry/explicit revision commands, source/data/tool boundaries, non-automatic dependency publication and the flat-path compatibility decision.
+- [x] Run `go test ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'`, `go vet ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/...`, scoped `git diff --check`, and the integration script. Do not change tracked files while the full test runs.
+- [x] Commit docs/evidence, update issue checkboxes, run `sdlc close --issue 243 --verified '<measured evidence>'` for the sole mandatory boundary review; fix findings through the gate's protocol. No redundant reviewer at close.
 - [ ] Publish through `sdlc pr` and `sdlc merge`; preserve unrelated changes and keep project task state current. Peer source-metadata publication uses normal SDLC publication and reports any unrelated peer branch/dirty-state limitation explicitly.
 
 ## Revisions
@@ -208,3 +208,7 @@ Reason: fresh-context review found that accepting arbitrary contained paths exce
 ### 2026-09-23 — change-code gate clarification
 
 PQ-1 addressed: named production functions and compressed adversarial strategy table replace the prose case inventory. PQ-2 addressed: exact cwd/argv/output/exit contract and Couch readiness/retry mapping are explicit. PQ-3 addressed by correcting the premise: current state code renders live output and consumes no persisted workspace documents; v2 output-only compatibility and downstream rejection/regeneration are now documented. PQ-4 addressed: normal-suite Git conformance and change-triggered product acceptance cadence specified. Operator implementation approval stands; these clarify the existing design.
+
+### 2026-09-23 — implementation and broad verification
+
+Tasks 1–3 implemented in `92f6fdb`, `bf30f4e`, `43e53fe`. Function names settled as `selectWorkspaceRepo`, `projectWorkspaceRoots`, `DiscoverInRoots` and `ListActiveInRoots`; existing fleet filesystem wrappers remain for non-Git callers. Private namespace scans accept all verified direct sibling repository names, rather than global backup/dot-directory heuristics, and reject redirected Git evidence. Weave preserves raw Git path output and discovers lexical numbered context before canonicalizing symlinks. These fix the same acquisition/discovery contract class found in design review. Full Go suite passed excluding only existing #210; final post-suite changed-path tests and vet passed. Real acceptance and close/publication still pending.

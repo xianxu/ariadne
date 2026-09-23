@@ -8,26 +8,28 @@ import (
 )
 
 type Identity struct {
-	SchemaVersion int     `json:"schema_version"`
-	Repo          string  `json:"repo"`
-	RepoIdentity  string  `json:"repo_identity"`
-	PrimaryRoot   string  `json:"primary_root"`
-	FleetRoot     string  `json:"fleet_root"`
-	WorktreeRoot  string  `json:"worktree_root"`
-	Kind          string  `json:"kind"`
-	Address       *string `json:"address"`
-	Slot          *int    `json:"slot"`
-	Branch        *string `json:"branch"`
-	Head          *string `json:"head"`
-	RestingBranch *string `json:"resting_branch"`
+	EnvironmentRoot string           `json:"environment_root"`
+	EnvironmentHost *EnvironmentHost `json:"environment_host,omitempty"`
+	SchemaVersion   int              `json:"schema_version"`
+	Repo            string           `json:"repo"`
+	RepoIdentity    string           `json:"repo_identity"`
+	PrimaryRoot     string           `json:"primary_root"`
+	FleetRoot       string           `json:"fleet_root"`
+	WorktreeRoot    string           `json:"worktree_root"`
+	Kind            string           `json:"kind"`
+	Address         *string          `json:"address"`
+	Slot            *int             `json:"slot"`
+	Branch          *string          `json:"branch"`
+	Head            *string          `json:"head"`
+	RestingBranch   *string          `json:"resting_branch"`
 }
 
 func pointer[T any](v T) *T { return &v }
 func slotNumber(v Vantage) int {
 	repo := filepath.Base(v.PrimaryRoot)
 	prefix := repo + "-slot"
-	base := filepath.Base(v.WorktreeRoot)
-	if filepath.Dir(v.WorktreeRoot) != filepath.Join(v.FleetRoot, "worktree") || !strings.HasPrefix(base, prefix) {
+	base := filepath.Base(filepath.Dir(v.WorktreeRoot))
+	if filepath.Base(v.WorktreeRoot) != repo || filepath.Dir(filepath.Dir(v.WorktreeRoot)) != filepath.Join(v.FleetRoot, "worktree") || !strings.HasPrefix(base, prefix) {
 		return -1
 	}
 	s := strings.TrimPrefix(base, prefix)
@@ -40,7 +42,7 @@ func slotNumber(v Vantage) int {
 
 // Classify consumes canonical paths and observed commit refs, and performs no IO.
 func Classify(v Vantage, trees []Worktree, refs map[string]string) (Identity, error) {
-	id := Identity{SchemaVersion: 1, Repo: filepath.Base(v.PrimaryRoot), RepoIdentity: v.RepoIdentity, PrimaryRoot: v.PrimaryRoot, FleetRoot: v.FleetRoot, WorktreeRoot: v.WorktreeRoot, Kind: "worktree"}
+	id := Identity{SchemaVersion: 2, EnvironmentRoot: v.EnvironmentRoot, EnvironmentHost: v.EnvironmentHost, Repo: filepath.Base(v.PrimaryRoot), RepoIdentity: v.RepoIdentity, PrimaryRoot: v.PrimaryRoot, FleetRoot: v.FleetRoot, WorktreeRoot: v.WorktreeRoot, Kind: "worktree"}
 	var selected Worktree
 	count := 0
 	seen := map[string]bool{}
@@ -65,6 +67,10 @@ func Classify(v Vantage, trees []Worktree, refs map[string]string) (Identity, er
 	}
 	if strings.Trim(selected.HEAD, "0") != "" {
 		id.Head = pointer(selected.HEAD)
+	}
+	if v.EnvironmentHost != nil && v.RepoIdentity != v.EnvironmentHost.RepoIdentity && v.WorktreeRoot == v.PrimaryRoot {
+		id.Kind = "dependency"
+		return id, nil
 	}
 	n := slotNumber(v)
 	if v.WorktreeRoot == v.PrimaryRoot {

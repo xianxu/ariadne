@@ -50,7 +50,7 @@ func setup(t *testing.T) fixture {
 	}
 	git(t, p, "init", "-b", "main")
 	git(t, p, "-c", "user.name=Test", "-c", "user.email=test@example.com", "-c", "core.hooksPath=/dev/null", "commit", "--allow-empty", "-m", "initial")
-	s := filepath.Join(root, "worktree", "repo-slot1")
+	s := filepath.Join(root, "worktree", "repo-slot1", "repo")
 	git(t, p, "worktree", "add", "-b", "main-slot1", s)
 	o := filepath.Join(root, "ordinary")
 	git(t, p, "worktree", "add", "-b", "ordinary", o)
@@ -296,6 +296,13 @@ func TestResolveRefAndMembershipInterleavings(t *testing.T) {
 				t.Fatal(e)
 			}
 			count := f.fake.Reads
+			firstRef := 0
+			for i, cmd := range f.fake.Commands {
+				if strings.Contains(cmd, "refs/heads/main-slot1^{commit}") {
+					firstRef = i + 1
+					break
+				}
+			}
 			for n := 1; n <= count; n++ {
 				for _, after := range []bool{false, true} {
 					t.Run(fmt.Sprintf("%d/after=%v", n, after), func(t *testing.T) {
@@ -324,7 +331,7 @@ func TestResolveRefAndMembershipInterleavings(t *testing.T) {
 						}
 						_, e := workspace.Resolve(f.fake, f.slot, "")
 						if mutation == "ref" {
-							conflict := n > 4 && n < count || n == 4 && after || n == count && !after
+							conflict := n > firstRef && n < count || n == firstRef && after || n == count && !after
 							if conflict && e == nil {
 								t.Fatal("accepted conflicting resting ref")
 							}
@@ -375,8 +382,8 @@ func TestResolveWrongReservedBranchConformance(t *testing.T) {
 }
 func TestResolveForeignRepositoryAtSlotPath(t *testing.T) {
 	f := setup(t)
-	foreign := filepath.Join(f.root, "worktree", "repo-slot2")
-	if e := os.Mkdir(foreign, 0755); e != nil {
+	foreign := filepath.Join(f.root, "worktree", "repo-slot2", "repo")
+	if e := os.MkdirAll(foreign, 0755); e != nil {
 		t.Fatal(e)
 	}
 	git(t, foreign, "init", "-b", "main")

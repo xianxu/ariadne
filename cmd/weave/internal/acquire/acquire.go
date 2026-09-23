@@ -64,15 +64,54 @@ func Ensure(ctx context.Context, dir, source string, requireLayer bool) error {
 }
 
 func (c Client) Ensure(ctx context.Context, dir, source string, requireLayer bool) (retErr error) {
+	state := uninspected
+	advance := func(event acquisitionEvent) error {
+		next, err := transition(state, event)
+		if err == nil {
+			state = next
+		}
+		return err
+	}
+	defer func() {
+		if retErr != nil && state != unconfirmed {
+			_, _ = transition(state, operationFailed)
+		}
+	}()
+	lexical, err := filepath.Abs(dir)
+	if err != nil {
+		return err
+	}
 	dir = canonical(dir)
+	scoped := c.Policy != nil && requireLayer
+	if scoped {
+		var src Source
+		if source != "" {
+			src, err = sourceAt(source, filepath.Dir(dir))
+			if err != nil {
+				return err
+			}
+		}
+		if err := c.Policy.validate(lexical, dir, src); err != nil {
+			return err
+		}
+		if _, err := os.Lstat(dir); err == nil {
+			if err := c.privateExisting(ctx, dir); err != nil {
+				return err
+			}
+		} else if !os.IsNotExist(err) {
+			return err
+		}
+	}
 	if source == "" {
 		if _, err := os.Stat(dir); err != nil {
 			return fmt.Errorf("missing repository %s: record its source in construct/deps: %w", dir, err)
 		}
 		if requireLayer {
-			return manifest(dir)
+			if err := manifest(dir); err != nil {
+				return err
+			}
 		}
-		return nil
+		return advance(existingVerified)
 	}
 	s, err := sourceAt(source, filepath.Dir(dir))
 	if err != nil {
@@ -82,8 +121,14 @@ func (c Client) Ensure(ctx context.Context, dir, source string, requireLayer boo
 		return err
 	}
 	if _, err := os.Lstat(dir); err == nil {
-		return c.checkExisting(ctx, dir, s, requireLayer)
+		if err := c.checkExisting(ctx, dir, s, requireLayer); err != nil {
+			return err
+		}
+		return advance(existingVerified)
 	} else if !os.IsNotExist(err) {
+		return err
+	}
+	if err := advance(absentRemote); err != nil {
 		return err
 	}
 	parent := filepath.Dir(dir)
@@ -91,26 +136,70 @@ func (c Client) Ensure(ctx context.Context, dir, source string, requireLayer boo
 	if err != nil {
 		return err
 	}
-	defer func() { retErr = errors.Join(retErr, staging.Remove(tmp)) }()
-	checkout := filepath.Join(tmp, "checkout")
-	if _, err = c.gitOwned(ctx, parent, tmp, "clone", "--", s.URL, checkout); err != nil {
+	preserveStage := false
+	defer func() {
+		if !preserveStage {
+			retErr = errors.Join(retErr, staging.Remove(tmp))
+		}
+	}()
+	if err := advance(stageCreated); err != nil {
 		return err
+	}
+	checkout := filepath.Join(tmp, "checkout")
+	args := []string{"clone"}
+	if scoped {
+		args = append(args, "--branch", "main")
+	}
+	args = append(args, "--", s.URL, checkout)
+	if _, err = c.gitOwned(ctx, parent, tmp, args...); err != nil {
+		return err
+	}
+	if err := advance(cloneSucceeded); err != nil {
+		return err
+	}
+	if scoped {
+		main, err := c.git(ctx, checkout, "rev-parse", "--verify", "refs/remotes/origin/main^{commit}")
+		if err != nil {
+			return fmt.Errorf("remote must provide branch main: %w", err)
+		}
+		head, err := c.git(ctx, checkout, "rev-parse", "--verify", "HEAD^{commit}")
+		if err != nil {
+			return err
+		}
+		if main != head {
+			return fmt.Errorf("new dependency HEAD differs from origin/main")
+		}
 	}
 	if requireLayer {
 		if err = manifest(checkout); err != nil {
 			return err
 		}
 	}
+	if err := advance(checksSucceeded); err != nil {
+		return err
+	}
 	// A racing checkout is a conflict; never deliberately replace it.
 	if _, err = os.Lstat(dir); err == nil {
+		preserveStage = scoped
+		_ = advance(destinationAppeared)
 		return fmt.Errorf("destination %s appeared during clone; inspect it and retry", dir)
 	} else if !os.IsNotExist(err) {
 		return err
 	}
+	if scoped {
+		if err := c.Policy.validate(lexical, canonical(dir), s); err != nil {
+			return err
+		}
+	}
+	if err := advance(destinationAbsent); err != nil {
+		return err
+	}
 	if err = os.Rename(checkout, dir); err != nil {
+		preserveStage = scoped
+		_ = advance(publicationUncertain)
 		return fmt.Errorf("publish clone %s: %w", dir, err)
 	}
-	return nil
+	return advance(publishSucceeded)
 }
 
 func (c Client) checkExisting(ctx context.Context, dir string, s Source, requireLayer bool) error {
@@ -163,6 +252,7 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 	seen := map[string]bool{}
 	destinations := map[string]string{}
 	dataSources := map[string]string{}
+	destinationKinds := map[string]string{}
 	mounts := map[string]string{}
 	queue := []string{root}
 	for len(queue) > 0 {
@@ -213,8 +303,33 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 				if !filepath.IsAbs(dest) {
 					dest = filepath.Join(owner, dest)
 				}
+				if c.Policy != nil {
+					lexical, err := filepath.Abs(dest)
+					if err != nil {
+						return result, err
+					}
+					if err := c.Policy.validate(lexical, canonical(dest), src); err != nil {
+						return result, err
+					}
+				}
 				dest = canonical(dest)
 				edges[owner] = append(edges[owner], dest)
+			}
+			if c.Policy != nil {
+				if row.Kind == "data" && dest == c.Policy.HostRoot {
+					return result, fmt.Errorf("data destination %s collides with environment host", dest)
+				}
+				if kind, ok := destinationKinds[dest]; ok && kind != row.Kind {
+					return result, fmt.Errorf("data and substrate destination %s collide", dest)
+				}
+				destinationKinds[dest] = row.Kind
+				if row.Kind == "substrate" && dryRun {
+					if _, err := os.Lstat(dest); err == nil {
+						if err := c.privateExisting(ctx, dest); err != nil {
+							return result, err
+						}
+					}
+				}
 			}
 			if src.Identity != "" {
 				if old, ok := destinations[dest]; ok && old != src.Identity {

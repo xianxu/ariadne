@@ -59,6 +59,54 @@ for humans to add to PATH explicitly. It never edits a shell rc. Compile dry-run
 skips builds, package installation, generators, and writes; generator output and
 retirement are not previewed.
 
+## Numbered workspace environments
+
+A numbered checkout is nested, for example
+`/workspace/worktree/pair-slot1/pair`. Weave verifies its registered host Git
+worktree and treats `/workspace/worktree/pair-slot1` as the private source
+environment. Every substrate edge, including transitive edges, must name a
+direct sibling ordinary checkout. Escapes, symlink aliases, deeper layouts and
+linked dependency checkouts are rejected. This rule also applies when invoked
+from a dependency or its Git-verified feature worktree.
+
+For a missing source, `construct/deps` must record a remote URL. Weave creates an
+ordinary clone at branch main and verifies `origin/main` before publication,
+regardless of the remote default branch. Local/file sources are unsupported
+inside numbered environments. Existing ordinary checkouts are reused without
+fetching, pulling, resetting or switching branches, including dirty state and
+unpublished commits. Recorded origins must match. A source-less existing clone
+works, but needs a recorded URL before it can be restored. Explicit removal and
+recreation uses current remote main, not the prior selected SHA.
+
+To choose another revision, use normal Git in the private dependency, then
+recompile the consuming checkout. Publish dependency changes using that clone's
+normal issue/review/PR flow, prerequisites first. There is no recursive merge,
+shared dependency shelf, lockfile, or local-primary source inference. Dependency
+feature worktrees retain SDLC context but may not satisfy literal relative
+manifest paths; compose from the environment's dependency primary in that case.
+
+Couch calls `weave compile` from the nested main checkout with default targets.
+Exit 0 means preparation and composition completed. Progress is human-readable;
+failures exit 1 with diagnostics. Couch records readiness only on success and
+does not compile/fetch on ready resume. After failure, display the diagnostic
+and explicitly retry the same command after its cause is resolved. Missing
+source/main needs metadata/remote correction; contention needs the active setup
+to finish. No diagnostic-string parser or automatic destructive recovery is
+required. `weave dependencies` prepares sources/packages without composing;
+`--dry-run` creates no lock or files and fails for an incomplete graph.
+
+One stable `.weave-setup.lock` per environment serializes setup across host and
+dependency callers. Live clone/build/generator descendants inherit the OS-held
+lease, so parent death alone cannot admit another writer. Retry reuses complete
+clones and existing owned-stage recovery; it never deletes local dependency work.
+The lock file persists until explicit environment removal. Different environments
+can prepare independently. Trusted producers must preserve inherited descriptors
+and remain in their assigned process group.
+
+Source isolation does not isolate Homebrew packages or data mounts. Owner-local
+tools stay in each clone's `bin`; normal setup never changes installed tool
+selection or shell configuration. Explicit installation remains an operator action.
+
 ## Bootstrap and Make
 
 The real, seeded `bootstrap.sh` is a small gateway: change to its own repo root,

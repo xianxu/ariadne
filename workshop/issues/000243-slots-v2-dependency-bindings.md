@@ -1,6 +1,6 @@
 ---
 id: 000243
-status: working
+status: codecomplete
 deps: [ariadne#242]
 github_issue:
 created: 2026-09-22
@@ -8,6 +8,7 @@ updated: 2026-09-23
 estimate_hours: 10.8
 started: 2026-09-22T23:30:57-07:00
 flow: {kind: full, provenance: operator}
+actual_hours: 2.89
 ---
 
 # Slots v2: dependency and tool bindings
@@ -57,8 +58,8 @@ Task outline only; settle implementation design through start-plan before change
 Engineering proposal: [nested slots and dependency bindings plan](../plans/000243-slots-v2-dependency-bindings-plan.md). Product policy is agreed; fresh-context engineering review and operator plan approval precede change-code.
 
 - [x] Inspect current dependency and installation paths; compare minimal binding policies and obtain the policy decision.
-- [ ] Design and implement the nested identity follow-up and required dependency/setup changes with fixture tests.
-- [ ] Prove fresh and repeated setup and document explicit dependency/tool updates.
+- [x] Design and implement the nested identity follow-up and required dependency/setup changes with fixture tests.
+- [x] Prove fresh and repeated setup and document explicit dependency/tool updates.
 
 ## Estimate
 
@@ -151,12 +152,27 @@ Policy question sent to operator: shared stable dedicated dependency baseline (m
 Read-only audit verification: existing acquire/staging/plan/startup fixture suites passed. Clone staging already owns interrupted-producer recovery; concurrent setup is not currently supported. Repeated compilation can initially seed/adopt Makefiles and generated-ignore metadata, so the acceptance probe must explain tracked changes against a prepared baseline rather than assume a universally clean diff. Implementation design and estimate await the binding-policy decision.
 
 ### 2026-09-23 — engineering proposal checkpoint
+- 2026-09-23: closed — Workspace/Weave/SDLC full Go suite passed excluding documented pre-existing #210; vet and focused final regressions passed. Real two-environment Parley compile/repeat/private-dirty-ref isolation/runtime passed; full product run had one timeout whose unchanged isolated rerun passed 3/3. Pair PR154 and Parley PR199 merged remote metadata. HTTPS fixture transport and inert Brew isolate tests; no live package install claimed.; review verdict: SHIP
 
 Ran start-plan for the revised design. Audits confirmed both Pair and Parley declarations lack acquisition URLs, existing Weave clones remote default HEAD, and flat workspace identity misclassifies nested main/dependency checkouts. The durable proposal covers the nested resolver follow-up, independent clone identity and environment-local content selection, canonical calibration, private origin/main acquisition, setup interruption/exclusion, and real isolated Parley/tooling verification. Source declarations need small peer updates; no runtime implementation has started. Fresh-context spec/plan review is in progress. Unrelated process-manual and #230/#240 edits remain untouched; estimates wait for plan-quality acceptance.
 
 ### 2026-09-23 — engineering review approved
 
 Fresh-context plan review approved Chunk 1 after fixing two findings: acquisition now accepts only the direct-sibling topology that discovery recognizes, and dependency feature worktrees use clone-specific paths with context inherited through Git-verified primary identity. Unsupported relative composition paths fail with guidance, without generic acquisition fallback. Peer metadata publication uses isolated checkouts to avoid incidental commits. Plan commits: `0b393eb7`, `2966aba`. Scoped diff validation passed; implementation and estimate remain pending operator engineering-plan approval and change-code.
+
+### 2026-09-23 — implementation checkpoint
+
+Operator approved execution; change-code plan-quality CLEAN after clarifying named test strategies, exact provisioning CLI and output-only v2 compatibility. Estimate-quality accepted the calibrated 10.8h unit decomposition. Implemented nested identity/schema and Git proof (`92f6fdb`), environment-aware SDLC consumers (`bf30f4e`), and private remote-main acquisition with inherited setup leases (`43e53fe`). Full `go test ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` passed (SDLC package 367.829s), as did vet and scoped diff checks. The sole skip is existing #210. Additional focused tests verify lexical symlink refusal, whitespace-preserving Git reads, all accepted sibling names, local project writes and independent clone authority. An earlier parallel run passed assertions but failed the repo-status guard when another worker added a test file; the final broad run passed cleanly.
+
+Peer metadata published via isolated clean clones, leaving operator checkouts unchanged: pair#310 PR154 (`d7d062dd`, merged) and parley.nvim#274 PR199 (`007817b4`, merged). Parley merge also auto-archived its pre-existing completed #220 bookkeeping under normal SDLC. Real two-environment compilation and runtime acceptance passed; full Parley suite and final exact script remain in progress. Source HEADs/dirty work and canonical fleet remained unchanged by repeat compilation. Initial owner binaries may differ on repeat because Go embeds VCS dirty-state metadata after generated .gitignore adoption; composition comparisons separate and record this build provenance.
+
+### 2026-09-23 — real product acceptance
+
+Final exact integration script passed against committed Ariadne `2bbebef43` and merged Parley `3244b06e7`, with ARIADNE_WORKTREE=0 and RUN_PRODUCT_TESTS=0; evidence `/private/tmp/slot-dependencies.0dp9txe_`. It exercised two real numbered host worktrees and independent ordinary source clones, first/repeat composition, actual owner builds, private feature commit plus dirty/untracked preservation, canonical fleet/content/ref immutability and runtime fresh-clone checks. Remote HTTPS identity used a local transport rewrite below validation; Brew is inert, so this proves source/build/composition isolation, not package installation. Earlier full product run in `/private/tmp/slot-dependencies._cic5u_c` passed lint, units and all but one performance spec; that spec timed out without an assertion failure under concurrent load, then passed all 3 cases with 0 failures/errors in isolation under unchanged timeout (`/tmp/ariadne-243-parley-perf-rerun.log`). No product code/test changes were needed.
+
+### 2026-09-23 — close review SHIP
+
+Boundary review approved the pinned implementation with no findings. Close adopted measured actual 2.89h (attribution warnings retained in the command log), set codecomplete, and ticked the referencing project. The reviewer ran focused suites and interrupted its own broad rerun; the implementer’s earlier full suite completed successfully as recorded above. Project changes remain uncommitted in Pair because its pre-existing project edits must not be absorbed. Publication uses a clean isolated clone so the operator’s unrelated dirty files are neither stashed nor committed.
 
 ## Revisions
 

@@ -43,7 +43,7 @@ func TestSlotPathContainment(t *testing.T) {
 	seen := map[string]bool{}
 	for n := 1; n < 1000; n++ {
 		p, e := SlotPath("/fleet", "repo", n)
-		if e != nil || filepath.Dir(p) != "/fleet/worktree" || seen[p] {
+		if e != nil || filepath.Dir(filepath.Dir(p)) != "/fleet/worktree" || seen[p] {
 			t.Fatal(p, e)
 		}
 		seen[p] = true
@@ -53,7 +53,7 @@ func TestSlotPathContainment(t *testing.T) {
 	}
 }
 func TestClassify(t *testing.T) {
-	v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/worktree/repo-slot1"}
+	v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/worktree/repo-slot1/repo"}
 	ws := []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: strings.Repeat("a", 40)}, {Path: v.WorktreeRoot, Branch: "issue", HEAD: strings.Repeat("b", 40)}}
 	id, e := Classify(v, ws, map[string]string{"main-slot1": strings.Repeat("a", 40)})
 	if e != nil || id.Kind != "slot" || *id.Address != "repo:1" || *id.RestingBranch != "main-slot1" {
@@ -83,7 +83,7 @@ func TestClassify(t *testing.T) {
 }
 
 func TestClassifyTopologyPermutations(t *testing.T) {
-	v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/worktree/repo-slot1"}
+	v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/worktree/repo-slot1/repo"}
 	trees := []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: strings.Repeat("a", 40)}, {Path: v.WorktreeRoot, Branch: "issue", HEAD: strings.Repeat("b", 40)}, {Path: "/ordinary", Branch: "other", HEAD: strings.Repeat("a", 40)}}
 	refs := map[string]string{"main-slot1": strings.Repeat("a", 40)}
 	want, e := Classify(v, trees, refs)
@@ -115,7 +115,7 @@ func TestClassifyRejectsMalformedOID(t *testing.T) {
 		for _, oid := range malformed {
 			t.Run(fmt.Sprintf("%s/%q", field, oid), func(t *testing.T) {
 				v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/repo"}
-				trees := []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: strings.Repeat("a", 40)}, {Path: "/fleet/worktree/repo-slot1", Branch: "issue", HEAD: strings.Repeat("b", 40)}, {Path: "/ordinary", Branch: "other", HEAD: strings.Repeat("c", 40)}}
+				trees := []Worktree{{Path: v.PrimaryRoot, Branch: "main", HEAD: strings.Repeat("a", 40)}, {Path: "/fleet/worktree/repo-slot1/repo", Branch: "issue", HEAD: strings.Repeat("b", 40)}, {Path: "/ordinary", Branch: "other", HEAD: strings.Repeat("c", 40)}}
 				refs := map[string]string{"main-slot1": strings.Repeat("a", 40)}
 				switch field {
 				case "primary HEAD":
@@ -158,9 +158,37 @@ func TestClassifyFullOIDForms(t *testing.T) {
 }
 func TestClassifyRejectsZeroRestingCommit(t *testing.T) {
 	for _, length := range []int{40, 64} {
-		v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/worktree/repo-slot1"}
+		v := Vantage{RepoIdentity: "/fleet/repo/.git", PrimaryRoot: "/fleet/repo", FleetRoot: "/fleet", WorktreeRoot: "/fleet/worktree/repo-slot1/repo"}
 		if _, e := Classify(v, []Worktree{{Path: v.WorktreeRoot, Branch: "issue", HEAD: strings.Repeat("a", length)}}, map[string]string{"main-slot1": strings.Repeat("0", length)}); e == nil {
 			t.Fatal("zero resting commit accepted")
 		}
 	}
+}
+
+func FuzzNestedSlotRoundTrip(f *testing.F) {
+	for _, name := range []string{"repo", "repo-slot7", "仓库", "repo name"} {
+		f.Add(name, 17)
+	}
+	f.Fuzz(func(t *testing.T, repo string, n int) {
+		path, e := SlotPath("/fleet", repo, n)
+		if e != nil {
+			return
+		}
+		env, e := SlotEnvironmentPath("/fleet", repo, n)
+		if e != nil || filepath.Dir(path) != env || filepath.Base(path) != repo {
+			t.Fatal(path, env, e)
+		}
+		v := Vantage{PrimaryRoot: filepath.Join("/fleet", repo), FleetRoot: "/fleet", WorktreeRoot: path}
+		if slotNumber(v) != n {
+			t.Fatalf("round trip %q %d", repo, n)
+		}
+		v.WorktreeRoot = env
+		if slotNumber(v) > 0 {
+			t.Fatal("legacy flat acquired numbered identity")
+		}
+		v.WorktreeRoot = filepath.Join(env, "other")
+		if repo != "other" && slotNumber(v) > 0 {
+			t.Fatal("sibling acquired numbered identity")
+		}
+	})
 }

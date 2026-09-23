@@ -9,38 +9,48 @@ import (
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
-// projectWorkspaceOverlays resolves Git topology at the caller boundary. Fleet
-// projects belong to primary checkouts, except that the caller's checkout
-// supplies its own repo's content. Linked worktrees alongside primaries must
-// not become separate project owners or peer-write targets.
-func projectWorkspaceOverlays(identity workspace.Identity) ([]projectdoc.CheckoutOverlay, error) {
-	overlay := projectdoc.CheckoutOverlay{PrimaryRoot: identity.PrimaryRoot, WorktreeRoot: identity.WorktreeRoot, Repo: identity.Repo}
-	siblings, err := projectdoc.FleetRepoDirs(identity.FleetRoot)
+// projectWorkspaceRoots selects concrete content paths without equating the
+// authority of independent clones. Local-only repositories are first-class
+// roots; same-named fleet copies are shadowed, never duplicate write targets.
+func projectWorkspaceRoots(id workspace.Identity) ([]projectdoc.ProjectRoot, error) {
+	repos, err := workspaceContentRepos(id)
 	if err != nil {
 		return nil, err
 	}
-	for _, dir := range siblings {
-		if dir == identity.PrimaryRoot {
+	eligible, err := projectdoc.FleetRepoDirs(id.FleetRoot)
+	if err != nil {
+		return nil, err
+	}
+	names := map[string]bool{id.Repo: true}
+	for _, dir := range eligible {
+		names[filepath.Base(dir)] = true
+	}
+	local, err := environmentRepos(id)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range local {
+		names[r.Name] = true
+	}
+	var roots []projectdoc.ProjectRoot
+	for _, r := range repos {
+		if !names[r.Name] {
 			continue
 		}
-		if dir == identity.WorktreeRoot {
-			overlay.ExcludeRoots = append(overlay.ExcludeRoots, dir)
-			continue
-		}
-		// Legacy project homes need no Git identity. A .git entry, including a
-		// broken one, instead promises Git evidence and failures must surface.
-		if _, err := os.Lstat(filepath.Join(dir, ".git")); os.IsNotExist(err) {
-			continue
-		} else if err != nil {
+		if _, err := os.Lstat(filepath.Join(r.Root, ".git")); err == nil {
+			v, err := workspace.NormalizeVantage(execGitRunner{}, r.Root)
+			if err != nil {
+				return nil, fmt.Errorf("project repository %s: %w", r.Root, err)
+			}
+			// The caller and the verified host are intentional worktree roots. Other
+			// linked checkouts in the canonical fleet do not become extra project homes.
+			if r.Root != id.WorktreeRoot && v.WorktreeRoot != v.PrimaryRoot && (id.EnvironmentHost == nil || r.Root != id.EnvironmentHost.WorktreeRoot) {
+				continue
+			}
+		} else if !os.IsNotExist(err) {
 			return nil, err
 		}
-		vantage, err := workspace.NormalizeVantage(execGitRunner{}, dir)
-		if err != nil {
-			return nil, fmt.Errorf("project fleet identity: %w", err)
-		}
-		if vantage.WorktreeRoot != vantage.PrimaryRoot {
-			overlay.ExcludeRoots = append(overlay.ExcludeRoots, dir)
-		}
+		roots = append(roots, projectdoc.ProjectRoot{RepoDir: r.Root, Repo: r.Name})
 	}
-	return []projectdoc.CheckoutOverlay{overlay}, nil
+	return roots, nil
 }

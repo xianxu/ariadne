@@ -16,6 +16,7 @@ type Repository struct {
 type Fake struct {
 	Repositories []*Repository
 	Reads        int
+	Commands     []string
 	// Before and After permit deterministic mutation and fault injection at a read ordinal.
 	Before  func(*Fake, int)
 	After   func(*Fake, int)
@@ -25,6 +26,7 @@ type Fake struct {
 
 func (f *Fake) GitInDir(dir string, args ...string) (out []byte, err error) {
 	f.Reads++
+	f.Commands = append(f.Commands, strings.Join(args, " "))
 	n := f.Reads
 	if f.Before != nil {
 		f.Before(f, n)
