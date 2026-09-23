@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-22
 updated: 2026-09-22
-estimate_hours:
+estimate_hours: 2.65
 started: 2026-09-22T22:20:59-07:00
 ---
 
@@ -29,6 +29,29 @@ Audit SDLC consumers of repo basename, primary path, sibling peer paths, fleet i
 - State output identifies repo address, current branch, and resting branch; :0 and qualified addresses resolve consistently.
 - Misleading paths, wrong Git membership, and an occupied/mismatched resting branch produce explicit errors without mutation.
 - Affected issue/project/calibration paths use the intended repositories from a slot; regression tests cover production consumers.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Calibration is marked stale; treat the result as provisional.
+
+Decomposition follows the accepted plan, not a target total. Task 1 is one cross-cutting refactor (design 0.5 × 0.2; impl 0.5 × 0.4). Task 2 is two greenfield single concerns: address/classification and Git snapshot validation with fake/conformance (each design 1.0 × 0.2; impl 0.8 × 0.4). Existing fleet Git normalization/porcelain parsing are reused in Task 1; no external library supplies the new Ariadne slot conventions, so no further greenfield library discount. Task 3 is a smaller Go extension (design 0.2 × 0.2; impl 0.4 × 0.4). Task 4 splits into artifact/project and calibration/remaining consumers, two cross-cutting refactors (each design 0.6 × 0.2; impl 0.5 × 0.4). Task 5 adds docs (design 0.1 × 0.2; impl 0.2 × 0.4) and one boundary review (design 0.2 × 0.2; impl 0.5 × 0.4). Familiar Go/Git/Cobra stack: familiarity 1.0. Thorough approved plan: design discount 0.2 and buffer 15%. No cross-repo implementation or new external API.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: cross-cutting-refactor design=0.10 impl=0.20
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: smaller-go-module design=0.04 impl=0.16
+item: cross-cutting-refactor design=0.12 impl=0.20
+item: cross-cutting-refactor design=0.12 impl=0.20
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 2.65
+```
+
+Design 0.84 × 1.15 + implementation 1.68 = 2.646 hours, rounded to 2.65.
 
 ## Plan
 
