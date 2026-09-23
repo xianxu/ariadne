@@ -21,6 +21,20 @@ rounds:
           round: 1
       recipe: milestone-review
       blocked: true
+    - "n": 2
+      timestamp: "2026-09-22T23:07:42-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: '`Classify` now validates every non-bare HEAD with strict 40/64-character lowercase OID grammar before interpreting all-zero values; regression coverage is present in `identity_test.go`.'
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: README.md now documents `sdlc workspace`, JSON usage, state integration, and links the workspace contract.
+          round: 2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#242 (boundary-review)
@@ -37,7 +51,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Important] `user-facing-surface-docs` README update is missing for the new workspace CLI surface
   `cmd/sdlc/main.go:112` adds `sdlc workspace [address] --json`, but README.md is unchanged and has no usage or contract entry. Add the command and its basic invocation/JSON purpose to README.md.
 
+## Round 2 — 2026-09-22T23:07:42-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — `Classify` now validates every non-bare HEAD with strict 40/64-character lowercase OID grammar before interpreting all-zero values; regression coverage is present in `identity_test.go`.
+- BR-2 — addressed — README.md now documents `sdlc workspace`, JSON usage, state integration, and links the workspace contract.
+
 ## Open findings
 
-- **BR-1** [Critical] `malformed-git-evidence-fails-open` Malformed all-zero HEAD values are accepted as a valid unborn workspace
-- **BR-2** [Important] `user-facing-surface-docs` README update is missing for the new workspace CLI surface
+(none — every finding has been disposed)

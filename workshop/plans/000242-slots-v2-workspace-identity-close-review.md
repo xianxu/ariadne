@@ -79,3 +79,81 @@ The executed workspace and targeted CLI suites passed. The issue records a broad
 
 - Add a `## Revisions` entry requiring strict HEAD OID validation and a regression test for malformed all-zero values.
 - Add README.md to Task 5’s documentation file list and completion criteria.
+
+---
+
+## Re-review — 2026-09-22T23:07:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 242 — Slots v2: workspace identity |
+| repo | ariadne |
+| issue file | workshop/issues/000242-slots-v2-workspace-identity.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 105d5ba1ed89432de9f3506a50433db0753fd8f4..e3d7e69afbea0575cebf297551ea97db9f017b76 |
+| command | sdlc close --issue 242 |
+| reviewer | codex |
+| timestamp | 2026-09-22T23:07:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: medium
+```
+
+The pinned implementation fulfills the Spec/Plan with shared Git-verified identity, consumer migration, stateful fake/conformance coverage, and documentation. No new blocking findings were found. The full suite encountered an unrelated hermeticity failure caused by an existing process-manual test/concurrent commit; targeted workspace, project, brain-default, and changed-package tests passed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      `Classify` now validates every non-bare HEAD with strict 40/64-character lowercase OID grammar before interpreting all-zero values; regression coverage is present in `identity_test.go`.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      README.md now documents `sdlc workspace`, JSON usage, state integration, and links the workspace contract.
+```
+
+### Strengths
+
+- Pure classification and parsing are separated from Git IO (`pkg/workspace/identity.go:41`).
+- Real-Git and stateful-fake conformance cover primary, slot, ordinary worktree, nested paths, and interleavings.
+- Consumer migration preserves current-worktree ownership while deriving repository identity centrally.
+- Atlas and README document the new CLI and workspace contract.
+
+### Critical findings
+
+None.
+
+### Important findings
+
+None.
+
+### Minor findings
+
+None.
+
+### Test coverage notes
+
+- Targeted changed tests passed: `go test ./cmd/sdlc -run '^(TestWorkspace|TestProjectWorkspace|TestBrainDefaults|TestProjectDefaults)' -count=1`.
+- Workspace package tests passed.
+- Full `cmd/sdlc` suite was not clean because its existing hermeticity guard detected an external/legacy test moving the real repository HEAD.
+
+### Architectural notes
+
+- ARCH-DRY: Pass — shared workspace package replaces duplicated topology parsing.
+- ARCH-PURE: Pass — classification/address logic is IO-free.
+- ARCH-PURPOSE: Pass — consumers, CLI, docs, and compatibility paths are covered.
+- ARCH-MOCK: Pass — stateful fake shares the `GitReader` seam with production.
+- ARCH-CONSTRAINTS: Pass — scale samples and query counts are documented.
+- ARCH-SECURE: Pass — malformed Git evidence fails closed.
+- ARCH-ORDER: Pass — observation/recheck semantics and interleavings are explicit.
+- ARCH-FUNERAL: Pass — no new durable artifacts are created.
+
+### Plan revision recommendations
+
+None.

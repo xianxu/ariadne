@@ -1,6 +1,6 @@
 ---
 id: 000242
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-22
@@ -8,6 +8,7 @@ updated: 2026-09-22
 estimate_hours: 2.65
 started: 2026-09-22T22:20:59-07:00
 flow: {kind: full, provenance: operator}
+actual_hours: 1.35
 ---
 
 # Slots v2: workspace identity
@@ -67,6 +68,7 @@ Engineering proposal: [durable implementation plan](../plans/000242-slots-v2-wor
 ## Log
 
 ### 2026-09-22 — fresh v2 task
+- 2026-09-22: closed — Workspace/SDLC suite passed excluding only existing #210 missing-plan test; BR-1 regression red then green, full workspace suite and workspace/state/project/close/resolve consumer regressions passed after fix; vet/build/diff checks passed; README now documents workspace JSON.; review verdict: SHIP
 
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
 
@@ -99,6 +101,10 @@ REWORK: BR-1 found malformed all-zero HEAD observations bypassed OID validation 
 ### 2026-09-22 — review fixes verified
 
 BR-1 class sweep now validates every observed non-bare HEAD and the selected resting ref in Classify before interpreting zero sentinels; direct callers share the same rule. Malformed-observation regression failed before the fix (0.432s), then focused tests passed (0.387s); full workspace suite passed (9.518s). Workspace/state/project/close/resolve consumer regressions passed (10.608s), and Go vet passed across workspace and SDLC. BR-2 README now documents workspace address examples, JSON purpose and state integration. Both findings are ready for gate disposition; no publish yet.
+
+### 2026-09-22 — close accepted
+
+Round 2 returned SHIP, both BR-1 and BR-2 addressed, with no new findings. The reviewer independently passed targeted changed tests; its full run encountered the real-repo hermeticity guard when concurrent doc-only commit 6fd8d5d arrived. Our earlier serialized suite passed with only the known #210 exclusion. SDLC accepted the doc-only delta, measured 1.35h, marked codecomplete, and ticked the peer project task. Lessons were captured with the fixes. Publication remains next.
 
 ## Revisions
 
