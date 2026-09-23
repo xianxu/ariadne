@@ -34,7 +34,7 @@ Audit SDLC consumers of repo basename, primary path, sibling peer paths, fleet i
 
 Task outline only; settle implementation design through start-plan before change-code.
 
-Engineering proposal: [durable implementation plan](../plans/000242-slots-v2-workspace-identity-plan.md). Pending operator approval; implementation has not entered change-code.
+Engineering proposal: [durable implementation plan](../plans/000242-slots-v2-workspace-identity-plan.md). Operator approved on 2026-09-22; change-code gates are in progress.
 
 - [ ] Inventory live identity/path consumers and specify the shared resolver contract.
 - [ ] Add Git fixture tests and implement the resolver and affected SDLC consumers.
@@ -53,6 +53,10 @@ Loaded the v2 project, claimed this issue, and ran start-plan. Read-only consume
 ### 2026-09-22 — design review result
 
 Fresh-context spec/plan review approved with no blocking findings. Incorporated its clarifications for unborn HEAD, primary readiness, active-time repo qualifiers and peer-write coverage. `sdlc issue validate --issue 242` passed. Awaiting operator approval of the durable plan before change-code, as required by AGENTS.md §2.
+
+### 2026-09-22 — approved; plan-quality refinement
+
+Operator approved the durable plan. The first change-code plan-quality review accepted architecture/scope and raised PQ-1: replace prose test-case lists with function-level adversarial strategies. Updated the plan across that class; rerunning the gate before estimating or implementing.
 
 ## Revisions
 
