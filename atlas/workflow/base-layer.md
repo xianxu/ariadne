@@ -138,18 +138,19 @@ every derivative the moment it's saved — high churn is fine, but *long-lived,
 concurrent, invisible* base branches break reasoning. The fix reframes three
 things that look alike but behave differently:
 
-- **Tracker state** (issues, claims, status) — append-only, instantly shared,
-  committed to main *out-of-band*; should never be working-tree residue.
+- **Tracker state** (issues, claims, status) — claims and new-issue reservations
+  publish narrowly to remote main; local design edits are checkpointed and
+  published as explicitly selected documentation commits.
 - **Base-layer code** (`construct/`, `cmd/`) — shared *live* via symlinks; the
   real contention surface.
 - **Leaf code** (derivative-specific) — naturally isolated per session.
 
 Three `sdlc` mechanisms keep the common path smooth without adding a gate:
 
-1. **`issue new` auto-syncs to main (#82 M1)** — filing an issue broadcasts it to
-   origin/main via claim's shared `syncIssuesToMain` (best-effort: the file is
-   still created if the push can't land). Tracker state lands on main, not as
-   residue. See [issue-sync.md](issue-sync.md).
+1. **`issue new` reserves on main (#244)** — its narrow creation transaction
+   checks the fresh remote ID space and conditionally publishes the new record.
+   Confirmed creation is checkpointed locally; an uncertain outcome preserves
+   local content for reconciliation. See [issue-sync.md](issue-sync.md).
 2. **Dirty-tree guards ignore tracker files (#82 M2)** — `assessDirty` buckets
    `workshop/issues|history/*.md` as non-blocking (tracked-modified or
    untracked); only dirty *code* blocks a merge. See [sdlc-binary.md](sdlc-binary.md).
@@ -161,8 +162,10 @@ Three `sdlc` mechanisms keep the common path smooth without adding a gate:
    See [sdlc-binary.md](sdlc-binary.md). (#83 fixed M3's original cwd==base
    heuristic, which mis-fired in every derivative.)
 
-Scoped OUT (a separate, larger concern): a layout-preserving worktree-set for the
-rare case that needs ariadne *isolated* while other base work continues.
+Numbered slots use nested environments with ordinary sibling dependency clones
+(#243), isolating the live base from other slots. Tracker publication follows the
+same conditional remote protocol in these clones and primary checkouts (#244);
+see [issue-sync.md](issue-sync.md).
 
 ## Sandbox (.openshell/)
 

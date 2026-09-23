@@ -78,7 +78,7 @@ func IsLongRunningCommand(m Metadata) bool {
 		verb = fields[1]
 	}
 	switch verb {
-	case "change-code", "close", "milestone-close", "merge", "push":
+	case "merge", "push":
 		return true
 	default:
 		return false
@@ -118,19 +118,22 @@ func Observe(m Metadata, now time.Time, host string, processAlive func(int) bool
 }
 
 type Options struct {
-	GitCommonDir  string
-	Command       string
-	Args          []string
-	Hostname      string
-	PID           int
-	CWD           string
-	Now           func() time.Time
-	ProcessAlive  func(int) bool
-	Sleep         func(context.Context, time.Duration) error
-	Stderr        io.Writer
-	WaitTimeout   time.Duration
-	StaleDuration time.Duration
-	PollInterval  time.Duration
+	// CallerHandlesSignals suppresses the legacy immediate-exit handler when
+	// the caller cancels/reaps owned children and releases its lock on unwind.
+	CallerHandlesSignals bool
+	GitCommonDir         string
+	Command              string
+	Args                 []string
+	Hostname             string
+	PID                  int
+	CWD                  string
+	Now                  func() time.Time
+	ProcessAlive         func(int) bool
+	Sleep                func(context.Context, time.Duration) error
+	Stderr               io.Writer
+	WaitTimeout          time.Duration
+	StaleDuration        time.Duration
+	PollInterval         time.Duration
 }
 
 type Lock struct {
@@ -147,6 +150,9 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 	initDeadline := time.Time{}
 	reported := false
 	for {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
 		err := os.Mkdir(lockDir, 0o700)
 		if err == nil {
 			initDeadline = time.Time{}
@@ -163,7 +169,9 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 				return nil, fmt.Errorf("write sdlc repo lock metadata: %w", werr)
 			}
 			lock := &Lock{dir: lockDir}
-			lock.installSignalCleanup()
+			if !opts.CallerHandlesSignals {
+				lock.installSignalCleanup()
+			}
 			return lock, nil
 		}
 		if !os.IsExist(err) {

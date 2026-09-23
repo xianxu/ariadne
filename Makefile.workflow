@@ -62,7 +62,7 @@ help-workflow:
 	"    PRE_MERGE_CHECKS=yynnyn make pre-merge   Preset selection" \
 	"" \
 	"  Sync issues:" \
-	"    make issue-sync     Sync $(WF_ISSUES_DIR)/ changes to main and push" \
+	"    make issue-sync ISSUE=N    Commit one issue locally" \
 	"" \
 	"  Close (mechanical §5 checklist):" \
 	"    make close-issue ISSUE=N [MILESTONE=Mx] ACTUAL=h VERIFIED='...'" \
@@ -73,19 +73,20 @@ help-workflow:
 	""
 
 # ── Issue sync ────────────────────────────────────────────────────────────────
-# Sync issue file changes to main and push, even when on a feature branch.
-# Delegates to the single Go claim implementation. Before bin/sdlc has been
+# Commit one issue locally; publish a chosen commit with sdlc issue publish.
+# Delegates to the single Go issue sync implementation. Before bin/sdlc has been
 # built, compile from this workflow's source directory to a temporary binary,
 # then invoke it from the consumer cwd. That preserves the target repo for
-# claim while avoiding a shell worktree-porcelain parser.
+# issue sync while avoiding a shell worktree-porcelain parser.
 issue-sync:
+	@test -n "$(ISSUE)" || { echo "ISSUE=N is required; publish with sdlc issue publish --commit SHA" >&2; exit 1; }
 	@if [ -x bin/sdlc ]; then \
-	    bin/sdlc claim; \
+	    bin/sdlc issue sync --issue "$(ISSUE)"; \
 	else \
 	    sync_bin=$$(mktemp "$${TMPDIR:-/tmp}/sdlc-issue-sync.XXXXXX"); \
 	    trap 'rm -f "$$sync_bin"' EXIT; \
 	    ( cd "$(WF_WORKFLOW_SOURCE_DIR)" && go build -o "$$sync_bin" ./cmd/sdlc ) && \
-	    "$$sync_bin" claim; \
+	    "$$sync_bin" issue sync --issue "$(ISSUE)"; \
 	fi
 
 # ── Close (issue or milestone) ────────────────────────────────────────────────

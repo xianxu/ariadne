@@ -49,9 +49,9 @@ func TestHolderLineIncludesPIDCommandAndReviewHint(t *testing.T) {
 		t.Fatalf("quick command should not get review/ship hint: %q", line)
 	}
 
-	long := Metadata{PID: 23456, Hostname: "host-a", Command: "sdlc change-code"}
+	long := Metadata{PID: 23456, Hostname: "host-a", Command: "sdlc merge"}
 	line = HolderLine(long)
-	for _, want := range []string{"pid 23456", "sdlc change-code", "review/ship transaction"} {
+	for _, want := range []string{"pid 23456", "sdlc merge", "review/ship transaction"} {
 		if !strings.Contains(line, want) {
 			t.Fatalf("HolderLine missing %q: %q", want, line)
 		}
@@ -63,9 +63,9 @@ func TestIsLongRunningCommand(t *testing.T) {
 		command string
 		want    bool
 	}{
-		{"sdlc change-code", true},
-		{"sdlc close", true},
-		{"sdlc milestone-close", true},
+		{"sdlc change-code", false},
+		{"sdlc close", false},
+		{"sdlc milestone-close", false},
 		{"sdlc merge", true},
 		{"sdlc push", true},
 		{"sdlc issue new", false},
@@ -207,7 +207,7 @@ func TestAcquireWaitsAndReportsHolder(t *testing.T) {
 		t.Fatal("Acquire should time out while holder remains active")
 	}
 	out := stderr.String()
-	for _, want := range []string{"waiting for sdlc repo lock held by", "pid 555", "sdlc change-code", "review/ship transaction"} {
+	for _, want := range []string{"waiting for sdlc repo lock held by", "pid 555", "sdlc change-code"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("stderr missing %q:\n%s", want, out)
 		}
@@ -215,7 +215,7 @@ func TestAcquireWaitsAndReportsHolder(t *testing.T) {
 	if sleeps == 0 {
 		t.Fatal("Acquire did not wait")
 	}
-	if !strings.Contains(err.Error(), "timed out waiting") || !strings.Contains(err.Error(), "review/ship transaction") {
+	if !strings.Contains(err.Error(), "timed out waiting") {
 		t.Fatalf("timeout error missing guidance: %v", err)
 	}
 }
@@ -412,5 +412,21 @@ func TestConcurrentAcquireReclaimsDeadHolderOnce(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+	}
+}
+
+func TestAcquireCancelledContextDoesNotCreateLock(t *testing.T) {
+	dir := t.TempDir()
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	lock, err := Acquire(ctx, Options{GitCommonDir: dir, PID: os.Getpid()})
+	if lock != nil {
+		defer lock.Release()
+	}
+	if err != context.Canceled {
+		t.Errorf("cancelled acquire: %v", err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "sdlc.lock")); !os.IsNotExist(err) {
+		t.Errorf("cancelled caller acquired lock: %v", err)
 	}
 }

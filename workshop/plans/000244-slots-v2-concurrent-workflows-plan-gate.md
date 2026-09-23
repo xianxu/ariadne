@@ -56,7 +56,67 @@ rounds:
           note: The plan now enumerates PreparedReview states, interruption events, stale outcomes, relock failure, concurrent ledger writes, cancellation, timeout, process-group cleanup, and bounded reaping.
           round: 3
       blocked: false
-content_hash: e539431da875169917b84b99c1f31c87bb20ddb3a00b7c7a1127c8aeeae5c494
+    - "n": 4
+      timestamp: "2026-09-23T12:04:47-07:00"
+      agent: codex
+      blocked: false
+      protocol_error: no valid findings block
+    - "n": 5
+      timestamp: "2026-09-23T12:36:36-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: not-addressed
+          note: The plan names test scenarios, but still does not identify the production functions under test or provide one adversarial strategy and mechanical guard for each risky function.
+          round: 5
+      findings:
+        - id: PQ-4
+          severity: Important
+          title: Define the runtime operating envelope for remote publication and unlocked reviews
+          detail: ARCH-CONSTRAINTS requires workload classification, relevant budgets, their basis, and bounded behavior when exceeded. The plan gives retry and timeout constants (lines 40, 100–102) but does not state the expected concurrency/workload, network and repository-size assumptions, lock-wait budget, or behavior when those bounds are exceeded.
+          family: operating-envelope
+          round: 5
+      blocked: false
+    - "n": 6
+      timestamp: "2026-09-23T12:41:19-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Lines 106-118 now name each risky production function and provide one adversarial strategy plus a mutation guard.
+          round: 6
+        - id: PQ-4
+          disposition: addressed
+          note: Lines 120-122 define workload, concurrency, lock-wait, review, provenance, repository-size, and overload assumptions with bounded behavior.
+          round: 6
+      findings:
+        - id: PQ-5
+          severity: Important
+          title: Define the live Git conformance check and its cadence
+          detail: The plan names a stateful Git fake and “temporary bare-Git conformance in normal tests” at lines 76 and 147-149, but ARCH-MOCK requires a live or scheduled check comparing the fake with real Git behavior. Specify the executable conformance surface, environment, cadence/trigger, and response when drift is detected before implementation.
+          family: external-conformance-cadence
+          round: 6
+        - id: PQ-6
+          severity: Minor
+          title: Bound the growth and retention of publication commits
+          detail: Lines 42 and 102 create durable result commits carrying Source-Commit provenance and say they have “ordinary repository retention,” but do not state who eventually removes or archives them, their growth bound, or the measured cost if retention is effectively forever. Add that lifecycle statement or explicitly justify the existing repository retention policy.
+          family: durable-artifact-lifecycle
+          round: 6
+      blocked: false
+    - "n": 7
+      timestamp: "2026-09-23T12:43:12-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-5
+          disposition: addressed
+          note: The plan specifies real-Git temporary-bare-remote conformance on every publication-adapter or Git upgrade and in normal pre-merge tests, with mismatches blocking shipment.
+          round: 7
+        - id: PQ-6
+          disposition: addressed
+          note: The plan explicitly retains reachable publication commits for repository lifetime, delegates ownership to the repository operator, describes unreachable-object GC, and measures growth and provenance-query cost.
+          round: 7
+      blocked: false
+content_hash: 8376232e047c0c4c39f53e0a427f65464562e0812572a065c2154b652941fc68
 ---
 
 # Gate ledger — ariadne#244 (plan-quality)
@@ -89,6 +149,42 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — addressed — The plan now names each pure or production function under test and gives one compact adversarial strategy and oracle per risky function.
 - PQ-3 — addressed — The plan now enumerates PreparedReview states, interruption events, stale outcomes, relock failure, concurrent ledger writes, cancellation, timeout, process-group cleanup, and bounded reaping.
+
+## Round 4 — 2026-09-23T12:04:47-07:00 (codex) — passed
+
+**Protocol error:** no valid findings block — this round contributed no findings.
+
+## Round 5 — 2026-09-23T12:36:36-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — not-addressed — The plan names test scenarios, but still does not identify the production functions under test or provide one adversarial strategy and mechanical guard for each risky function.
+
+### Raised
+
+- **PQ-4** [Important] `operating-envelope` Define the runtime operating envelope for remote publication and unlocked reviews
+  ARCH-CONSTRAINTS requires workload classification, relevant budgets, their basis, and bounded behavior when exceeded. The plan gives retry and timeout constants (lines 40, 100–102) but does not state the expected concurrency/workload, network and repository-size assumptions, lock-wait budget, or behavior when those bounds are exceeded.
+
+## Round 6 — 2026-09-23T12:41:19-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Lines 106-118 now name each risky production function and provide one adversarial strategy plus a mutation guard.
+- PQ-4 — addressed — Lines 120-122 define workload, concurrency, lock-wait, review, provenance, repository-size, and overload assumptions with bounded behavior.
+
+### Raised
+
+- **PQ-5** [Important] `external-conformance-cadence` Define the live Git conformance check and its cadence
+  The plan names a stateful Git fake and “temporary bare-Git conformance in normal tests” at lines 76 and 147-149, but ARCH-MOCK requires a live or scheduled check comparing the fake with real Git behavior. Specify the executable conformance surface, environment, cadence/trigger, and response when drift is detected before implementation.
+- **PQ-6** [Minor] `durable-artifact-lifecycle` Bound the growth and retention of publication commits
+  Lines 42 and 102 create durable result commits carrying Source-Commit provenance and say they have “ordinary repository retention,” but do not state who eventually removes or archives them, their growth bound, or the measured cost if retention is effectively forever. Add that lifecycle statement or explicitly justify the existing repository retention policy.
+
+## Round 7 — 2026-09-23T12:43:12-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-5 — addressed — The plan specifies real-Git temporary-bare-remote conformance on every publication-adapter or Git upgrade and in normal pre-merge tests, with mismatches blocking shipment.
+- PQ-6 — addressed — The plan explicitly retains reachable publication commits for repository lifetime, delegates ownership to the repository operator, describes unreachable-object GC, and measures growth and provenance-query cost.
 
 ## Open findings
 

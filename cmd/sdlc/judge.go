@@ -23,6 +23,7 @@ import (
 )
 
 type judgeFlags struct {
+	Context       context.Context
 	Base          string
 	Head          string
 	Agent         string
@@ -51,6 +52,7 @@ func NewJudgeCmd() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f.AgentExplicit = cmd.Flags().Changed("agent")
+			f.Context = cmd.Context()
 			return runJudge(cmd.OutOrStdout(), cmd.ErrOrStderr(), args[0], &f)
 		},
 	}
@@ -168,9 +170,13 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 
 	// Dispatch.
 	cinfo(stderr, fmt.Sprintf("invoking %s for %s …", agent, cat.Label()))
-	output, dispatchErr := judge.Dispatch(context.Background(), opts)
+	ctx := f.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	output, dispatchErr := judge.Dispatch(ctx, opts)
 	if dispatchErr != nil {
-		die(stderr, fmt.Sprintf("dispatch failed: %v", dispatchErr))
+		return fmt.Errorf("dispatch failed: %w", dispatchErr)
 	}
 
 	// Surface output + classify.

@@ -188,3 +188,40 @@ func pushPeerFile(t *testing.T, origin, path, content string) {
 	testfix.Git(t, peer, "commit", "-q", "-m", "peer")
 	testfix.Git(t, peer, "push", "-q", "origin", "main")
 }
+
+func TestUpdateMany_EmptyFileCreation(t *testing.T) {
+	repo, origin := trunkFixture(t, "seed\n")
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	err := tf.UpdateMany("empty", func(*TrunkView) (TrunkWrite, error) {
+		return TrunkWrite{Write: map[string][]byte{"empty.md": {}}}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := testfix.Capture(t, origin, "ls-tree", "--name-only", "main", "--", "empty.md"); strings.TrimSpace(got) != "empty.md" {
+		t.Fatalf("empty file absent: %q", got)
+	}
+}
+
+func TestUpdateMany_RemoteRewindRequiresReread(t *testing.T) {
+	repo, origin := trunkFixture(t, "seed\n")
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	old := strings.TrimSpace(testfix.Capture(t, origin, "rev-parse", "main^"))
+	calls := 0
+	err := tf.UpdateMany("after rewind", func(v *TrunkView) (TrunkWrite, error) {
+		calls++
+		if calls == 1 {
+			testfix.Git(t, origin, "update-ref", "refs/heads/main", old)
+		}
+		return TrunkWrite{Write: map[string][]byte{"new.md": []byte("new\n")}}, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if calls != 2 {
+		t.Fatalf("prepare calls=%d; rewind must reject old observation and reread", calls)
+	}
+	if got := strings.TrimSpace(testfix.Capture(t, origin, "rev-parse", "main^")); got != old {
+		t.Fatalf("parent=%s want fresh %s", got, old)
+	}
+}

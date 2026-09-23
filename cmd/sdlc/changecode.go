@@ -36,7 +36,7 @@ package main
 
 import (
 	"bufio"
-	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -49,7 +49,6 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
@@ -69,12 +68,13 @@ type changeCodeFlags struct {
 	Agent           string
 	AgentExplicit   bool
 	Sandbox         bool
+	review          *planningReviewTransaction
 	Flow            string // --flow pin: "" (infer) | quick | full (#231)
 }
 
 func NewChangeCodeCmd() *cobra.Command {
 	f := changeCodeFlags{}
-	cmd := markMutatingCommand(&cobra.Command{
+	cmd := markManualLockCommand(&cobra.Command{
 		Use:           "change-code",
 		Short:         "Enter implementation phase (structural + plan-quality gates + branching ask)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"change-code\") in main.go.",
@@ -83,7 +83,7 @@ func NewChangeCodeCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
 			f.AgentExplicit = cmd.Flags().Changed("agent")
-			return runChangeCode(cmd.InOrStdin(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runChangeCodeCommand(cmd, &f)
 		},
 	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (derives name from issues/NNNNNN-*.md)")
@@ -130,7 +130,17 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	}
 	issueContent := string(issueBytes)
 
-	planContent := readOptionalPlanFile(f.PlansDir, name)
+	planArtifact, err := captureReviewArtifact(filepath.Join(f.PlansDir, name+"-plan.md"))
+	if err != nil {
+		return fmt.Errorf("read optional plan: %w", err)
+	}
+	planContent := planArtifact.text
+	if f.review != nil {
+		supplied := []reviewArtifact{{path: issuePath, present: true, text: issueContent}, planArtifact}
+		if err := f.review.prepare(supplied, planGatePath(f.PlansDir, filepath.Base(issuePath))); err != nil {
+			return err
+		}
+	}
 
 	// 2b. Infer (or take the operator's pin for) the flow (#231). It decides which
 	//     gates run below — none on quick — and is RECORDED only after they pass
@@ -149,12 +159,21 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	}
 	for _, g := range activeChangeCodeGates(ctx) {
 		if err := g.run(); err != nil {
+			var safety *planningReviewSafetyError
+			if errors.As(err, &safety) {
+				return err
+			}
 			// Each gate has already printed its specifics; this is the one shared
 			// --force decision, previously copy-pasted across five blocks.
 			if f.Force == "" {
 				exitWithCode(1)
 			}
 			cwarn(stderr, fmt.Sprintf("%s gate bypassed (--force: %s)", g.name, f.Force))
+		}
+		if g.name == "plan-quality" && f.review != nil {
+			if err := f.review.refreshOwnLedger(); err != nil {
+				return err
+			}
 		}
 	}
 
@@ -169,17 +188,8 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	if f.DryRun {
 		cinfo(stderr, "dry-run — branch creation skipped")
 		if id := issueIDFromPath(issuePath); id > 0 {
-			// Derive the wording from the SAME test syncIssue branches on, not
-			// from a restatement of the outcome: from a branch it commits without
-			// publishing, so promising a push here would be a lie in two of the
-			// three locations.
-			publishes := syncIssuePublishes()
-			fmt.Fprintf(stdout, "Would %s issue #%d under %q\n",
-				changeCodeSyncVerb(publishes), id,
-				issueSyncMessage(id, "spec/plan at change-code"))
-			if note := changeCodeSyncNote(publishes); note != "" {
-				fmt.Fprintln(stdout, note)
-			}
+			fmt.Fprintf(stdout, "Would commit issue #%d under %q and publish only that new commit\n",
+				id, issueSyncMessage(id, "spec/plan at change-code"))
 		}
 		fmt.Fprintf(stdout, "Would create branch %s (mode=%s)\n", name, wt)
 		return nil
@@ -194,6 +204,11 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	//    commit+push of the issue file: a second implementation of this, and one
 	//    that only ever handled the UNTRACKED case, leaving a tracked-but-edited
 	//    issue file dirty at branch creation.
+	if f.review != nil {
+		if err := f.review.validate(); err != nil {
+			return err
+		}
+	}
 	recordChangeCodeFlow(stderr, f, issuePath, name, issueFlow)
 	syncIssue(stderr, f, issuePath)
 
@@ -211,70 +226,12 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	return nil
 }
 
-// syncIssuePublishes reports whether change-code's sync will publish: only from
-// main, where "commit here" and "publish to main" coincide. One source for the
-// decision and for the --dry-run line that describes it, so the two can't drift
-// (the dry-run text used to promise a push unconditionally).
-func syncIssuePublishes() bool {
-	return gitx.Capture("branch", "--show-current") == "main"
-}
-
-// changeCodeSyncVerb names what the sync will do, for human output. Kept to a
-// short verb phrase so it reads mid-sentence; the off-main caveat is a separate
-// line (changeCodeSyncNote) rather than a parenthetical wedged between the verb
-// and its object.
-func changeCodeSyncVerb(publishes bool) string {
-	if publishes {
-		return "sync + push"
-	}
-	return "sync locally"
-}
-
-// changeCodeSyncNote is the follow-up line for the off-main case, or "" on main.
-func changeCodeSyncNote(publishes bool) string {
-	if publishes {
-		return ""
-	}
-	return "    (not on main — publishing belongs to pr/merge/close)"
-}
-
-// syncIssue commits the issue file through the shared sync dispatch (#206), so
-// the design that just cleared plan-quality is durable before any code is
-// written.
-//
-// It replaced commitUntrackedIssueFile, and the two review rounds that followed
-// were both the same mistake: a swapped helper covering fewer cells than the one
-// it replaced. The invariant is therefore stated as a table, over the full
-// cross-product the old helper ran under —
-//
-//	                        │ file untracked        │ file tracked + edited
-//	────────────────────────┼───────────────────────┼──────────────────────────
-//	on main                 │ commit here + publish │ commit here + publish
-//	in-place feature branch │ commit on the branch  │ commit on the branch
-//	feature worktree        │ commit on the branch  │ commit on the branch
-//
-// — crossed with resolveBranchName's three name modes (--issue, --name,
-// auto-detect), which the id derivation below collapses: syncIssue reads the
-// RESOLVED issuePath, the one thing all three modes produce. Gating on f.Issue
-// instead skipped two of the three, and in auto-detect with --worktree=yes left
-// the new worktree holding no issue file at all, since `git worktree add` does
-// not carry untracked files. TestChangeCodeSyncIssue_ModeMatrix runs the table.
-//
-// The single property every cell satisfies: THE ISSUE FILE IS COMMITTED IN THIS
-// WORKTREE, on the branch about to carry the work. That is what "the branch
-// starts from a tracked state" means, and it is why publishing is conditioned on
-// already being on main rather than on the caller's intent. From a branch the
-// publish route would put the in-progress body on origin/main — a half-written
-// Spec published, and a network round-trip added to every milestone re-run.
-// (The mechanism changed in #207: the trunk route builds the commit out-of-tree
-// instead of driving the main worktree. The decision rests on WHAT would be
-// published, so it is unchanged.) main gets the body at `pr`/`merge`/`close`, which is where publishing
-// belongs.
-//
-// BEST-EFFORT, deliberately: change-code's job is to OPEN implementation, and a
-// tracker commit that could not land must not stand between the operator and
-// starting work. The helper this replaced already warned rather than died on a
-// failed push, and the warning names the retry.
+// syncIssue checkpoints the resolved issue locally and publishes only the new
+// narrow commit through the same adapter in every checkout. Previously committed
+// design packages require explicit issue publish --commit selection. No new
+// issue commit is a no-op, never permission to infer an older publication unit.
+// Publication remains best-effort: failure preserves the local checkpoint and
+// reports the selected SHA so implementation can proceed without losing it.
 func syncIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
 	// A --name branch can point at a file outside the NNNNNN- convention; there
 	// is no id to name in the commit subject, so there is nothing to sync.
@@ -282,23 +239,18 @@ func syncIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
 	if id == 0 {
 		return
 	}
-	onMain := syncIssuePublishes()
 	// DryRun is threaded even though runChangeCode returns before reaching here
 	// under --dry-run: a helper that commits must not depend on a caller's early
 	// return for its dry-run correctness.
 	syncFlags := &claimFlags{
 		Issue: id, IssuesDir: f.IssuesDir, NoStart: true,
-		DryRun: f.DryRun, NoPush: !onMain,
+		DryRun: f.DryRun, AllowNoChanges: true,
 	}
 	msg := issueSyncMessage(id, "spec/plan at change-code")
 	if err := syncIssuesToMain(stderr, stderr, syncFlags, changeCodeRunner, msg); err != nil {
-		retry := fmt.Sprintf("sdlc issue sync --issue %d", id)
-		if onMain {
-			retry += " --push"
-		}
 		cwarn(stderr, fmt.Sprintf("issue file not synced: %v\n"+
 			"      the gates passed and the branch is being created anyway;\n"+
-			"      re-run `%s` once the cause is cleared", err, retry))
+			"      preserve the local commit and use the explicit publication retry above", err))
 	}
 }
 
@@ -590,9 +542,9 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	}
 
 	cinfo(stderr, fmt.Sprintf("invoking %s for plan-quality check …", agent))
-	output, dispatchErr := judge.Dispatch(context.Background(), opts)
+	output, dispatchErr := dispatchPlanningReview(f, opts)
 	if dispatchErr != nil {
-		return fmt.Errorf("plan-quality dispatch failed: %v", dispatchErr)
+		return fmt.Errorf("plan-quality dispatch failed: %w", dispatchErr)
 	}
 
 	fmt.Fprint(stdout, output)
@@ -827,9 +779,9 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 	}
 
 	cinfo(stderr, fmt.Sprintf("invoking %s for estimate-quality check …", agent))
-	output, dispatchErr := judge.Dispatch(context.Background(), opts)
+	output, dispatchErr := dispatchPlanningReview(f, opts)
 	if dispatchErr != nil {
-		return fmt.Errorf("estimate-quality dispatch failed: %v", dispatchErr)
+		return fmt.Errorf("estimate-quality dispatch failed: %w", dispatchErr)
 	}
 
 	fmt.Fprint(stdout, output)

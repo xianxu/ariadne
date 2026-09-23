@@ -223,7 +223,7 @@ func TestTrunkFile_RetryExhaustionSurfacesGitRejection(t *testing.T) {
 	if calls != 3 {
 		t.Errorf("transform called %d times, want 3 (the bound)", calls)
 	}
-	if !strings.Contains(err.Error(), "non-fast-forward") && !strings.Contains(err.Error(), "fetch first") {
+	if !strings.Contains(err.Error(), "non-fast-forward") && !strings.Contains(err.Error(), "fetch first") && !strings.Contains(err.Error(), "stale info") {
 		t.Errorf("error must carry git's own rejection text, got: %v", err)
 	}
 }

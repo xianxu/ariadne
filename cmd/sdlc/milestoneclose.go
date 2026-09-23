@@ -32,6 +32,7 @@ import (
 )
 
 type milestoneCloseFlags struct {
+	Context       context.Context
 	Issue         int
 	Milestone     string
 	Actual        string
@@ -62,14 +63,15 @@ type milestoneCloseFlags struct {
 // errored — the operator should still be able to reconstruct what
 // happened from the trailer alone.
 type reviewResult struct {
-	Verdict     judge.Verdict
-	Reason      string // populated for not-run / unknown
-	Base        string // short SHA
-	Head        string // reviewed head: long SHA (falls back to "HEAD" only when rev-parse fails)
-	BaseLong    string // long SHA, used by trailer-verifier lookups in close
-	SidecarPath string // #136: durable final-review-response path ("" when no review ran)
-	Output      string // semantic review body, retained when sidecar writing is deferred
-	Agent       string // resolved reviewer CLI, retained for deferred sidecar metadata
+	DispatchError error // failed/cancelled dispatch may not persist a round
+	Verdict       judge.Verdict
+	Reason        string // populated for not-run / unknown
+	Base          string // short SHA
+	Head          string // reviewed head: long SHA (falls back to "HEAD" only when rev-parse fails)
+	BaseLong      string // long SHA, used by trailer-verifier lookups in close
+	SidecarPath   string // #136: durable final-review-response path ("" when no review ran)
+	Output        string // semantic review body, retained when sidecar writing is deferred
+	Agent         string // resolved reviewer CLI, retained for deferred sidecar metadata
 	// Round is the findings block this review emitted (#194 M2), parsed but NOT yet
 	// applied: dispatch runs with the repo transaction lock released, and the ledger is
 	// a repo write, so it is persisted at finalize time — the same deferral the sidecar
@@ -121,6 +123,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 
 func (f *milestoneCloseFlags) closeFlags() *closeFlags {
 	return &closeFlags{
+		Context:       f.Context,
 		Issue:         f.Issue,
 		Milestone:     f.Milestone,
 		Actual:        f.Actual,
@@ -205,6 +208,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 }
 
 func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *milestoneCloseFlags) error {
+	f.Context = cmd.Context()
 	if f.Milestone == "" || f.Issue <= 0 || f.NoJudge || f.Force || f.DryRun {
 		return withRequiredRepoTransactionLock(cmd, func() error {
 			return runMilestoneClose(stdout, stderr, f)
@@ -543,6 +547,7 @@ func appendVerdictSuffix(text, milestone string, verdict judge.Verdict) (string,
 // a whole-issue window (`#69`). Both invoke the same MilestoneReview prompt (the
 // embedded code-review.md procedure) on the resolved window.
 type boundaryReviewParams struct {
+	Context context.Context // caller cancellation follows the unlocked review
 	// The prompt's issue ref is no longer carried here — it's derived from the
 	// live git context in boundaryReviewDispatchOptions (#137, via IssueNum +
 	// Milestone + the repo root), so it names the actual repo (e.g. pair#69).
@@ -597,9 +602,8 @@ func printBoundaryReviewDryRun(stdout, stderr io.Writer, p boundaryReviewParams)
 }
 
 // dispatchBoundaryReview invokes the one fresh-context review on p's window.
-// Returns a reviewResult capturing the verdict + reason. Never returns an error:
-// the close has already happened; the review is a follow-on, so any failure here
-// is recorded as VerdictNotRun with a Reason and the caller still emits a trailer.
+// Returns a reviewResult capturing the verdict + reason. Dispatch errors carry
+// DispatchError so callers stop before finalization or durable writes.
 func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) reviewResult {
 	res := func(v judge.Verdict, reason string) reviewResult {
 		// ProtocolError distinguishes "the reviewer ran and emitted no fence" from "the
@@ -607,6 +611,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		// a ledger that cannot tell them apart mis-reports why a round contributed
 		// nothing (#194 M2 review).
 		return reviewResult{Verdict: v, Reason: reason, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong,
+			DispatchError: fmt.Errorf("boundary review did not run: %s", reason),
 			ProtocolError: "review did not run: " + reason}
 	}
 	opts, ok, reason := boundaryReviewDispatchOptions(stdout, stderr, p)
@@ -619,12 +624,18 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 
 	agent := opts.Agent
 	cinfo(stderr, fmt.Sprintf("dispatching boundary review (%s..%s) via %s …", shortSHA(p.BaseLong), abbrevSHA(p.Head), agent))
-	output, derr := judge.Dispatch(context.Background(), opts)
+	ctx := p.Context
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	output, derr := judge.Dispatch(ctx, opts)
 	if derr != nil {
 		// Dispatch error → VerdictNotRun → the caller halts (does NOT finalize); the
 		// outcome message is the caller's, not a false "close succeeded" here (#139 I1).
 		cwarn(stderr, fmt.Sprintf("boundary review failed: %v", derr))
-		return res(judge.VerdictNotRun, derr.Error())
+		r := res(judge.VerdictNotRun, derr.Error())
+		r.DispatchError = derr
+		return r
 	}
 	fmt.Fprint(stdout, output)
 	if !strings.HasSuffix(output, "\n") {

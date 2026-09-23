@@ -1,17 +1,4 @@
-// synctrunk.go — publish changed issue files straight to the trunk, with no
-// working tree involved (ariadne#207).
-//
-// Replaces syncViaMainWorktree, which drove SOMEONE ELSE'S CHECKOUT: find the
-// worktree on main, refuse if it is dirty, pull --rebase it, detect files
-// changed on both sides, copy across, commit, push. Every one of those guards
-// exists to make a shared working directory safe, and each is a way to fail —
-// main can be dirty, mid-rebase, another actor's tree, or (the common case,
-// since change-code branches in place) not checked out at all.
-//
-// Here there is no working directory. gitx.TrunkFile builds the commit in the
-// object database and pushes it as a compare-and-swap, which is a strictly
-// stronger concurrency primitive than the cleanliness check it replaces: it
-// sees the remote, where the check could only see local divergence.
+// synctrunk.go — conditional reservation of newly created issue identities.
 package main
 
 import (
@@ -102,11 +89,13 @@ func (res *publishResult) discardCandidates(stderr io.Writer) {
 	}
 }
 
-// syncViaTrunk publishes the changed issue files in ONE commit on the trunk.
+// syncViaTrunk reserves freshly created issue files and reconciles allocation.
 func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher, paths syncPaths) error {
 	res, err := syncViaTrunkWithRealloc(stdout, stderr, f, r, msg, pub, paths)
 	if err != nil {
-		res.discardCandidates(stderr)
+		if !errors.Is(err, gitx.ErrPublicationUncertain) {
+			res.discardCandidates(stderr)
+		}
 		if len(res.reallocs) > 0 {
 			// A re-allocation was needed and the publish still failed, so the id
 			// is taken and the local file still carries it. Say so, or the
@@ -148,32 +137,19 @@ func syncViaTrunk(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg stri
 // re-push a colliding id as a clean fast-forward — ariadne#188's hole.
 func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg string, pub trunkPublisher, paths syncPaths) (*publishResult, error) {
 	res := &publishResult{}
+	if !f.FirstPublication {
+		return res, fmt.Errorf("whole-file publication is retired; select a commit with sdlc issue publish --commit SHA")
+	}
+
 	changed, err := changedIssueFiles(f, r, paths)
 	if err != nil {
 		return res, err
 	}
-	// Same rule as the arm this replaces: nothing to COPY is not nothing to
-	// publish. A body already committed here still needs routing to the trunk.
 	if len(changed) == 0 {
-		if !f.PublishExisting || f.Issue <= 0 {
-			cok(stderr, "No issue changes to sync.")
-			return res, nil
-		}
-		changed = issueFilesForID(paths.Root, f.IssuesDir, f.Issue)
-		// The publisher speaks repo-relative; issueFilesForID returns absolute.
-		for i, c := range changed {
-			// gitx.InsideRoot, not a local helper: it already resolves symlinks and
-			// REFUSES a path that escapes the root, which a bare Rel does not
-			// (#207 BR-22).
-			if rel, rerr := gitx.InsideRoot(paths.Root, c); rerr == nil {
-				changed[i] = rel
-			}
-		}
-		if len(changed) == 0 {
-			cok(stderr, "No issue changes to sync.")
-			return res, nil
-		}
+		cok(stderr, "No issue changes to reserve.")
+		return res, nil
 	}
+
 	sort.Strings(changed)
 
 	root := paths.Root
@@ -225,38 +201,18 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 				free[id] = kept
 			}
 		}
-		// PASS 1 — classify. Deletes are collected BEFORE any decision, because
-		// the collision guard has to see this publish's own removals: a slug
-		// rename carries Delete(old) and Write(new) in ONE commit (#207 BR-19).
+		// Read creation content; updates/deletions use selected-commit publication.
 		type pending struct {
 			rel  string
 			data []byte
 		}
 		var writes []pending
-		deleting := map[string]bool{}
 		for _, rel := range changed {
 			data, rerr := os.ReadFile(filepath.Join(root, rel))
 			if rerr != nil {
-				if !os.IsNotExist(rerr) {
-					return set, fmt.Errorf("read %s: %v", rel, rerr)
-				}
-				// Absent locally is a DELETE only when git says the path is
-				// tracked and now gone. An unexplained not-exist — a mis-parsed
-				// path, say — must fail rather than publish a removal nobody
-				// asked for (#207 BR-9).
-				tracked, terr := pathTrackedAtHEAD(r, root, rel)
-				if terr != nil {
-					return set, terr
-				}
-				if !tracked {
-					return set, fmt.Errorf(
-						"%s is reported changed but is neither on disk nor tracked at HEAD; "+
-							"refusing to guess that it was deleted", rel)
-				}
-				set.Delete = append(set.Delete, rel)
-				deleting[rel] = true
-				continue
+				return set, fmt.Errorf("read new issue %s: %w", rel, rerr)
 			}
+
 			writes = append(writes, pending{rel, data})
 		}
 
@@ -266,8 +222,7 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 			rel, data := w.rel, w.data
 			id := issueIDFromPath(rel)
 			if id <= 0 {
-				set.Write[rel] = data
-				continue
+				return set, fmt.Errorf("new issue path has no valid ID: %s", rel)
 			}
 			// Two files in ONE publish claiming one id is a collision the trunk
 			// cannot arbitrate — it would simply see one path win (#207 BR-15).
@@ -275,7 +230,7 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 				return set, fmt.Errorf(
 					"two files in this publish claim id %06d: %s and %s — rename one first", id, prev, rel)
 			}
-			switch verdict, foreign := decideCollision(id, rel, space, deleting, f.FirstPublication); verdict {
+			switch verdict, foreign := decideCollision(id, rel, space, nil, true); verdict {
 			case verdictRefuse:
 				return set, collisionRefusal(id, rel, foreign)
 			case verdictReallocate:
@@ -313,15 +268,6 @@ func syncViaTrunkWithRealloc(stdout, stderr io.Writer, f *claimFlags, r gitRunne
 		err = fmt.Errorf("%w; ids contended by: %s", err, strings.Join(res.collisions, ", "))
 	}
 	return res, err
-}
-
-// pathTrackedAtHEAD reports whether git has this path at HEAD.
-func pathTrackedAtHEAD(r gitRunner, root, rel string) (bool, error) {
-	out, err := r.GitInDir(root, "ls-tree", "--full-tree", "--name-only", "--end-of-options", "HEAD", "--", rel)
-	if err != nil {
-		return false, fmt.Errorf("ls-tree HEAD -- %s: %v\n%s", rel, err, out)
-	}
-	return strings.TrimSpace(string(out)) != "", nil
 }
 
 func appendUnique(dst []string, add ...string) []string {

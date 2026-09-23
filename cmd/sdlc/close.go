@@ -21,6 +21,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -52,6 +53,7 @@ import (
 
 // closeFlags holds the parsed flag values for the close subcommand.
 type closeFlags struct {
+	Context   context.Context
 	Issue     int
 	Milestone string
 	Actual    string
@@ -797,6 +799,12 @@ var closeRunner gitRunner = execGitRunner{}
 // (#171 M3): scoped commit when the peer is on main with a clean index,
 // report-only otherwise — never failing the close either way.
 func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeResult) {
+	if f.Context != nil {
+		if err := f.Context.Err(); err != nil {
+			die(stderr, fmt.Sprintf("close interrupted: %v", err))
+			return
+		}
+	}
 	// ── Peer-write state snapshot (#171 M3) — BEFORE any file writes ─────────
 	// The current repo's project edit rides the close commit; each PEER repo's
 	// edit is committed there only when git state makes it unambiguous. The
@@ -819,6 +827,14 @@ func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeR
 		states[repoDir] = readRepoGitState(r, repoDir, files)
 	}
 
+	// Peer-state discovery may run Git; cancellation during those reads cannot
+	// authorize the first issue/project write, even on a waived review path.
+	if f.Context != nil {
+		if err := f.Context.Err(); err != nil {
+			die(stderr, fmt.Sprintf("close interrupted: %v", err))
+			return
+		}
+	}
 	if res.newIssueText != res.issueText {
 		if err := os.WriteFile(res.issuePath, []byte(res.newIssueText), 0o644); err != nil {
 			die(stderr, fmt.Sprintf("write %s: %v", res.issuePath, err))
@@ -1089,6 +1105,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 }
 
 func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *closeFlags) error {
+	f.Context = cmd.Context()
 	if f.Milestone != "" || f.skip("judge") || f.DryRun {
 		return withRequiredRepoTransactionLock(cmd, func() error {
 			return runCloseWithReview(stdout, stderr, f)
@@ -1184,18 +1201,32 @@ func rerunCmd(issueStr, milestone, actualArg string) string {
 // reviewThenFinalize dispatches the boundary review for an already-computed close
 // and finalizes ONLY on a finalizing verdict (#139). Shared by full-issue close
 // and milestone-close (annotateLogLineWithVerdict keys on f.Milestone). On REWORK
-// or an unexpected verdict it writes NOTHING (issue stays `working`), emits the
-// trailer for the record, and returns a non-nil error.
+// or an unexpected verdict it preserves the issue, persists valid review
+// findings, emits the trailer, and returns an error. Stale/interrupted reviews
+// persist neither findings nor sidecars.
 func reviewThenFinalize(stdout, stderr io.Writer, f *closeFlags, r closeResult, p boundaryReviewParams) error {
-	review := dispatchBoundaryReview(stdout, stderr, p)
-	return finalizeBoundaryReview(stdout, stderr, f, r, review, p, nil)
+	snapshot, err := captureCloseReviewSnapshot(r, p.Head, p.Milestone, p.PlansDir)
+	if err != nil {
+		return err
+	}
+	dispatchParams := p
+	dispatchParams.ReviewPlansDir, dispatchParams.PlansDir = p.PlansDir, ""
+	review := dispatchBoundaryReview(stdout, stderr, dispatchParams)
+	return finalizeBoundaryReview(stdout, stderr, f, r, review, p, snapshot.validate)
 }
 
 func reviewThenFinalizeLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *closeFlags, r closeResult, p boundaryReviewParams, snapshot closeReviewSnapshot) error {
+	p.Context = cmd.Context()
 	dispatchParams := p
 	dispatchParams.ReviewPlansDir = p.PlansDir
 	dispatchParams.PlansDir = "" // sidecar is a repo write; persist it after reacquiring the lock.
 	review := dispatchBoundaryReview(stdout, stderr, dispatchParams)
+	if err := p.Context.Err(); err != nil {
+		return fmt.Errorf("boundary review interrupted: %w", err)
+	}
+	if review.DispatchError != nil {
+		return review.DispatchError
+	}
 	return withRequiredRepoTransactionLock(cmd, func() error {
 		return finalizeBoundaryReview(stdout, stderr, f, r, review, p, snapshot.validate)
 	})
@@ -1206,6 +1237,43 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 	if f.Milestone != "" {
 		kind = "milestone-close"
 	}
+	if p.Context != nil {
+		if err := p.Context.Err(); err != nil {
+			return fmt.Errorf("boundary review interrupted: %w", err)
+		}
+	}
+	if review.DispatchError != nil {
+		return review.DispatchError
+	}
+	verb := closeVerb(f.Milestone)
+	if validate != nil {
+		note, err := validate()
+		if err != nil {
+			emitTrailerBlock(stdout, review, kind)
+			cwarn(stderr, fmt.Sprintf("boundary review: reviewed state changed while the lock was released — close NOT finalized: %v", err))
+			// #194 M1 review I3: formatAnchorRefusal carries its own re-run
+			// instruction, but it is reached ONLY on the anchor branches — the
+			// issue-file, project-file and git-error branches would otherwise
+			// surface with no next step, and AGENTS.md §5 makes "errors are
+			// next-action specs" a property of this gate.
+			if !strings.Contains(err.Error(), "re-run `") {
+				cwarn(stderr, fmt.Sprintf("re-run `%s` so the review covers the current repo state", verb))
+			}
+			return fmt.Errorf("boundary review stale: %w", err)
+		}
+		// #194: say what the gate decided when it let a delta through — silence
+		// would read as "nothing happened", which is not what occurred.
+		if note != "" {
+			cinfo(stderr, note)
+		}
+	}
+	// Validation performs Git/file IO; cancellation during that work must still
+	// stop before the first authoritative write.
+	if p.Context != nil {
+		if err := p.Context.Err(); err != nil {
+			return fmt.Errorf("boundary review interrupted: %w", err)
+		}
+	}
 	if review.Output != "" && review.SidecarPath == "" && p.PlansDir != "" {
 		p.Agent = review.Agent
 		if path, werr := writeReviewSidecar(p, string(review.Verdict), review.Output, nowRFC3339()); werr != nil {
@@ -1215,7 +1283,6 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			cok(stderr, "review sidecar: "+path)
 		}
 	}
-	verb := closeVerb(f.Milestone)
 
 	// #194 M2 (D4): the verdict and the ledger are BOTH gates, and finalizing requires
 	// both to clear — an AND, not a fallback. A SHIP verdict carrying an undisposed
@@ -1256,27 +1323,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 				"  Or pass --no-ledger (or --force); record why in --verified.", verb, fixTheClassLine()))
 			return fmt.Errorf("boundary gate: %d open blocking finding(s) despite verdict %s", len(ledger.OpenBlocking), review.Verdict)
 		}
-		if validate != nil {
-			note, err := validate()
-			if err != nil {
-				emitTrailerBlock(stdout, review, kind)
-				cwarn(stderr, fmt.Sprintf("boundary review: reviewed state changed while the lock was released — close NOT finalized: %v", err))
-				// #194 M1 review I3: formatAnchorRefusal carries its own re-run
-				// instruction, but it is reached ONLY on the anchor branches — the
-				// issue-file, project-file and git-error branches would otherwise
-				// surface with no next step, and AGENTS.md §5 makes "errors are
-				// next-action specs" a property of this gate.
-				if !strings.Contains(err.Error(), "re-run `") {
-					cwarn(stderr, fmt.Sprintf("re-run `%s` so the review covers the current repo state", verb))
-				}
-				return fmt.Errorf("boundary review stale: %w", err)
-			}
-			// #194: say what the gate decided when it let a delta through — silence
-			// would read as "nothing happened", which is not what occurred.
-			if note != "" {
-				cinfo(stderr, note)
-			}
-		}
+
 		applyClose(stdout, stderr, closeRunner, f, r)
 		emitTrailerBlock(stdout, review, kind)
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, review.Verdict); err != nil {
@@ -1310,61 +1357,52 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 // finalization can tell whether that state still holds when the review returns ~20
 // minutes later.
 type closeReviewSnapshot struct {
-	// reviewed is the CONCRETE SHA the review read (#194) — supplied by the caller,
-	// which resolved it under the same lock that captured this snapshot, rather than
-	// re-`rev-parse`d here. That identity is what makes the three users of the value
-	// (the dispatched diff, the durable record, this check) provably agree.
-	reviewed string
-	// milestone distinguishes a milestone close from a whole-issue close, so a refusal
-	// names the right re-run verb via closeVerb (ARCH-DRY).
+	reviewed  string
 	milestone string
-	artifacts []closeReviewArtifact
+	prepared  preparedReview
 }
 
-type closeReviewArtifact struct {
-	path    string
-	present bool
-	text    string
+// Compatibility names for the boundary-specific tests/callers; shared capture
+// lives in reviewstate.go and also serves change-code.
+type closeReviewArtifact = reviewArtifact
+
+func captureCloseReviewArtifact(path string) (reviewArtifact, error) {
+	return captureReviewArtifact(path)
 }
 
 func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone, plansDir string) (closeReviewSnapshot, error) {
-	s := closeReviewSnapshot{
-		reviewed:  reviewedSHA,
-		milestone: milestone,
-	}
+	var supplied []reviewArtifact
 	if r.issuePath != "" {
-		s.artifacts = append(s.artifacts, closeReviewArtifact{path: r.issuePath, present: true, text: r.issueText})
+		supplied = append(supplied, reviewArtifact{path: r.issuePath, present: true, text: r.issueText})
 	}
 	for _, project := range r.projectEdits {
-		s.artifacts = append(s.artifacts, closeReviewArtifact{path: project.path, present: true, text: project.oldText})
+		supplied = append(supplied, reviewArtifact{path: project.path, present: true, text: project.oldText})
 	}
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
-		return closeReviewSnapshot{}, fmt.Errorf("resolve review repository root for snapshot: %w", err)
+		return closeReviewSnapshot{}, err
 	}
-	_, planPath := reviewPlanPaths(root, plansDir, r.issuePath)
-	if planPath != "" {
-		plan, err := captureCloseReviewArtifact(planPath)
+	var paths []string
+	_, plan := reviewPlanPaths(root, plansDir, r.issuePath)
+	if plan != "" {
+		paths = append(paths, plan)
+	}
+	if plansDir != "" && r.issuePath != "" {
+		name := filepath.Base(r.issuePath)
+		paths = append(paths, boundaryGatePath(plansDir, name))
+		ledger, err := readBoundaryGateLedger(plansDir, name, issueIDFromPath(r.issuePath))
 		if err != nil {
 			return closeReviewSnapshot{}, err
 		}
-		s.artifacts = append(s.artifacts, plan)
+		if len(ledger.Rounds) == 0 {
+			paths = append(paths, planGatePath(plansDir, name))
+		}
 	}
-	return s, nil
-}
-
-func captureCloseReviewArtifact(path string) (closeReviewArtifact, error) {
-	data, err := os.ReadFile(path)
-	if err == nil {
-		return closeReviewArtifact{path: path, present: true, text: string(data)}, nil
+	prepared, err := capturePreparedReview(reviewedSHA, supplied, paths...)
+	if err != nil {
+		return closeReviewSnapshot{}, err
 	}
-	if os.IsNotExist(err) {
-		return closeReviewArtifact{path: path}, nil
-	}
-	if info, statErr := os.Stat(path); statErr == nil && info.IsDir() {
-		return closeReviewArtifact{path: path}, nil
-	}
-	return closeReviewArtifact{}, fmt.Errorf("read review artifact %s: %w", path, err)
+	return closeReviewSnapshot{reviewed: prepared.head, milestone: milestone, prepared: prepared}, nil
 }
 
 // validate reports whether finalization may proceed. It returns a note the caller
@@ -1376,6 +1414,9 @@ func captureCloseReviewArtifact(path string) (closeReviewArtifact, error) {
 // optional canonical plan, so a mid-review content or presence change is a genuine
 // invalidation. Only the HEAD check was ever stricter than its own purpose.
 func (s closeReviewSnapshot) validate() (string, error) {
+	if err := s.prepared.validateIdentityAndArtifacts(); err != nil {
+		return "", err
+	}
 	note := ""
 	if s.reviewed != "" {
 		d, err := gatherReviewAnchorDelta(s.reviewed)
@@ -1395,21 +1436,7 @@ func (s closeReviewSnapshot) validate() (string, error) {
 			return "", fmt.Errorf("%s", formatAnchorRefusal(d, outcome, closeVerb(s.milestone)))
 		}
 	}
-	for _, artifact := range s.artifacts {
-		current, err := captureCloseReviewArtifact(artifact.path)
-		if err != nil {
-			return "", err
-		}
-		if current.present != artifact.present {
-			if current.present {
-				return "", fmt.Errorf("%s appeared", artifact.path)
-			}
-			return "", fmt.Errorf("%s disappeared", artifact.path)
-		}
-		if current.present && current.text != artifact.text {
-			return "", fmt.Errorf("%s changed", artifact.path)
-		}
-	}
+
 	return note, nil
 }
 

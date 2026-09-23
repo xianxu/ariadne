@@ -101,17 +101,31 @@ func (t *TrunkFile) UpdateMany(msg string, prepare func(*TrunkView) (TrunkWrite,
 			return nil
 		}
 
-		out, err := t.commitSetAndPush(set, msg, base, sign)
-		if err == nil {
+		candidate, err := t.commitSet(set, msg, base, sign)
+		if err != nil {
+			return err
+		}
+		out, pushErr := t.pushExpected(candidate, base)
+		if publicationStep(observedPush(pushErr, out), publicationUnconfirmed) == publicationSucceeded {
 			return nil
 		}
-		if _, ferr := t.fetch(); ferr != nil {
-			return fmt.Errorf("publish set: %v\n%s", err, out)
+		// Unlike selected-commit publication, a reservation must establish that
+		// THIS write won. An identical peer can construct the same commit, so
+		// reachability is evidence only, never ownership after an unknown push.
+		if observedPush(pushErr, out) == pushUnknown {
+			return fmt.Errorf("%w: candidate %s; inspect %s/%s before retrying: %v\n%s", ErrPublicationUncertain, candidate, t.remote, t.branch, pushErr, out)
 		}
-		now, rerr := t.resolveOpt(t.trackingRef())
-		if rerr != nil || now == base {
-			return fmt.Errorf("publish set: %v\n%s", err, out)
+		now, err := t.refreshTip()
+		switch publicationStep(observedPush(pushErr, out), observedConfirmation(base, now, false, err)) {
+		case publicationSucceeded:
+			return nil
+		case publicationUncertain:
+			return fmt.Errorf("%w: candidate %s, remote %s: push %v; confirmation %v\n%s", ErrPublicationUncertain, candidate, now, pushErr, err, out)
+		case publicationRefuse:
+			return fmt.Errorf("publish set: %v\n%s", pushErr, out)
+		case publicationRetry: // fetch pinned the new base; rerun prepare
 		}
+
 		lastRejection = out
 	}
 	return fmt.Errorf("%w after %d attempts; last rejection:\n%s",
@@ -121,6 +135,13 @@ func (t *TrunkFile) UpdateMany(msg string, prepare func(*TrunkView) (TrunkWrite,
 // setMatchesTrunk reports whether applying this set would change nothing.
 func (t *TrunkFile) setMatchesTrunk(set TrunkWrite, base string) (bool, error) {
 	for path, want := range set.Write {
+		present, err := t.pathPresent(base, path)
+		if err != nil {
+			return false, err
+		}
+		if !present {
+			return false, nil
+		}
 		got, err := t.readFrom(base, path)
 		if err != nil {
 			return false, err
@@ -141,17 +162,17 @@ func (t *TrunkFile) setMatchesTrunk(set TrunkWrite, base string) (bool, error) {
 	return true, nil
 }
 
-// commitSetAndPush builds one tree carrying every change and pushes it.
-func (t *TrunkFile) commitSetAndPush(set TrunkWrite, msg, base string, sign bool) ([]byte, error) {
+// commitSet builds one tree carrying every change without changing a caller ref.
+func (t *TrunkFile) commitSet(set TrunkWrite, msg, base string, sign bool) (string, error) {
 	idx, cleanupIdx, err := tempIndexPath()
 	defer cleanupIdx()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 	env := []string{"GIT_INDEX_FILE=" + idx}
 
 	if _, errOut, err := runGitIn(t.dir, env, "read-tree", base); err != nil {
-		return errOut, err
+		return "", fmt.Errorf("git tree construction: %v\n%s", err, errOut)
 	}
 
 	// Sorted so the git calls are deterministic — a map's iteration order would
@@ -166,46 +187,35 @@ func (t *TrunkFile) commitSetAndPush(set TrunkWrite, msg, base string, sign bool
 		blobFile, cleanupBlob, err := writeTemp(set.Write[path])
 		if err != nil {
 			cleanupBlob()
-			return nil, err
+			return "", err
 		}
 		out, errOut, err := runGitIn(t.dir, env, "hash-object", "-w", "--path", path, blobFile)
 		cleanupBlob()
 		if err != nil {
-			return errOut, err
+			return "", fmt.Errorf("git tree construction: %v\n%s", err, errOut)
 		}
 		mode, err := t.modeOf(base, path)
 		if err != nil {
-			return nil, err
+			return "", err
 		}
 		if _, errOut, err := runGitIn(t.dir, env, "update-index", "--add",
 			"--cacheinfo", mode+","+strings.TrimSpace(string(out))+","+path); err != nil {
-			return errOut, err
+			return "", fmt.Errorf("git tree construction: %v\n%s", err, errOut)
 		}
 	}
 	for _, path := range set.Delete {
 		// --force-remove drops the entry whether or not it is in the index, so a
 		// delete of an already-absent path is not an error.
 		if _, errOut, err := runGitIn(t.dir, env, "update-index", "--force-remove", path); err != nil {
-			return errOut, err
+			return "", fmt.Errorf("git tree construction: %v\n%s", err, errOut)
 		}
 	}
 
 	out, errOut, err := runGitIn(t.dir, env, "write-tree")
 	if err != nil {
-		return errOut, err
+		return "", fmt.Errorf("git tree construction: %v\n%s", err, errOut)
 	}
 	tree := strings.TrimSpace(string(out))
 
-	args := []string{"commit-tree", tree, "-p", base, "-m", msg}
-	if sign {
-		args = append([]string{"commit-tree", "-S"}, args[1:]...)
-	}
-	out, errOut, err = runGitIn(t.dir, nil, args...)
-	if err != nil {
-		return errOut, err
-	}
-	commit := strings.TrimSpace(string(out))
-
-	_, errOut, err = runGitIn(t.dir, nil, "push", t.remote, commit+":refs/heads/"+t.branch)
-	return errOut, err
+	return t.commitTree(tree, base, msg, sign)
 }

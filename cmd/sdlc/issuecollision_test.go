@@ -35,10 +35,10 @@ func TestDecideCollision(t *testing.T) {
 		{
 			// The regression the first draft would have shipped: every `issue
 			// sync` and `claim` republishes an id already on the trunk — its own.
-			name:     "republish of an already-published issue never renumbers",
+			name:     "same slug is occupied for a new creation",
 			space:    map[int][]string{207: {mine}},
-			firstPub: true, // even asserted as a first publication
-			want:     verdictPublish,
+			firstPub: true,
+			want:     verdictReallocate,
 		},
 		{
 			name:      "different slug at our id, first publication — re-allocate",

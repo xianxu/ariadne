@@ -66,35 +66,38 @@ Flip status with `sdlc issue set-status` (or `sdlc claim` to start work), never
 by hand-editing the frontmatter — the verbs carry the transition guards.
 (`done` closes via `sdlc close`.) The status set above is derived from the model.
 
-COMMITTING THE BODY (#206)
+CHECKPOINTING AND PUBLISHING DOCUMENTATION
 
-`sdlc claim` and `sdlc issue new` publish the *reservation* — an ID and a name.
-That is the whole external contract: peers need to know an issue exists and is
-taken, not what is in it. Nothing commits the body that follows, so the entire
-planning phase — the longest phase, and the one that produces the design — sits
-in the working tree until an unrelated verb sweeps it up, and a compaction or a
-closed terminal loses it.
+`sdlc issue sync --issue N` commits only the selected issue file locally on the
+current branch, with no network operation. Use it after design decisions and
+before context checkpoints. Separate plans are not collected automatically.
 
-`sdlc issue sync --issue N` is that missing half. Reach for it whenever the
-design has moved: after a brainstorm lands, after a decision you'd hate to
-re-derive, before a long-running tool call, before a context checkpoint.
+The agent chooses a coherent same-repository documentation commit, then runs:
 
-It does NOT push. Durability and publication are separable, and only durability
-is missing mid-planning: the default is a local commit in the current worktree,
-on the current branch, performing **no network operation at all** — one `git
-add` and one `git commit` over this issue's files, sub-second, offline-safe.
-That is cheap enough to run on every design move, which is the point.
+  sdlc issue publish --commit SHA
 
-The guarantee is about this VERB, not about the repository. A local commit is
-still a commit: a later `sdlc claim`, `sdlc issue new` or `sdlc push` on main
-publishes whatever main carries, this body included. "Not pushed" means "this
-command did not push", not "this content can never reach origin by any route".
+The complete commit must contain ordinary Markdown changes under configured
+issues/plans/history roots or workshop/projects/. It may deliberately group an
+issue, separate plan and project records. Mixed code/docs, root or merge commits,
+symlinks and submodules refuse; split the commit explicitly. Atlas/code changes
+retain the reviewed PR path.
 
-Publication stays with the verbs that already own an external boundary; `sdlc
-change-code` runs the same sync WITH the push once its gates pass (plan-quality
-has accepted the design on the full flow; the quick flow has no plan gate), and
-`--push` is there for other milestone callers — including to finish
-a publish whose commit already landed.
+Publication applies that commit's patch to fresh origin/main with Git three-way
+merge. Compatible concurrent edits merge; conflicts refuse the entire commit.
+It preserves the caller's branch/index/worktree and never publishes unselected
+ancestors. The same behavior applies in :0, numbered worktrees and independent
+clones. Source-Commit provenance makes confirmed retries no-ops, including after
+a later revert. Unknown acknowledgment preserves the source and reports SHAs
+for remote inspection rather than assuming failure.
+
+`issue sync --push` publishes only a new issue commit created by that invocation.
+When no new commit exists, use explicit `issue publish --commit SHA`; no older
+commit is inferred. `change-code` similarly publishes its new narrow issue
+checkpoint after gates pass, and does nothing when no new checkpoint is needed.
+
+Claim only reserves fresh open issues. It does not sweep local body edits into
+remote main. Ordinary reviewed PR publication or explicit `sdlc push` can still
+publish a branch's commits; local sync makes no promise about those later verbs.
 
 For depth:
 

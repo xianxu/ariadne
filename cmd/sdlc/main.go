@@ -16,10 +16,13 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
+	"os/signal"
 	"strings"
 	"sync"
+	"syscall"
 
 	"github.com/spf13/cobra"
 
@@ -54,10 +57,40 @@ func renderLong(name string) string {
 }
 
 func main() {
-	if err := buildRoot().Execute(); err != nil {
-		fmt.Fprintln(os.Stderr, "Error:", err)
-		os.Exit(1)
+	if code := executeCLI(buildRoot(), os.Args[1:]); code != 0 {
+		os.Exit(code)
 	}
+}
+
+// Only reviewer commands take ownership of signal shutdown: their isolated
+// subprocess groups must be cancelled and reaped before the CLI exits. Other
+// commands retain their existing signal behavior, including Git/network tools
+// whose runners do not yet consume contexts.
+type cliSignalContextKey struct{}
+
+func cliOwnsReviewSignals(cmd *cobra.Command) bool {
+	switch cmd.Name() {
+	case "change-code", "close", "milestone-close", "judge":
+		return true
+	}
+	return false
+}
+
+func executeCLI(root *cobra.Command, args []string) int {
+	ctx := context.Background()
+	if cmd, _, err := root.Find(args); err == nil && cliOwnsReviewSignals(cmd) {
+		signalCtx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+		defer stop()                           // executeCLI returns before main calls os.Exit.
+		unregister := registerDieCleanup(stop) // legacy validation paths use die().
+		defer unregister()
+		ctx = context.WithValue(signalCtx, cliSignalContextKey{}, true)
+	}
+	root.SetArgs(args)
+	if err := root.ExecuteContext(ctx); err != nil {
+		fmt.Fprintln(os.Stderr, "Error:", err)
+		return 1
+	}
+	return 0
 }
 
 // buildRoot assembles the full cobra command tree. Extracted from main so
@@ -100,7 +133,7 @@ func buildRoot() *cobra.Command {
 	add(NewClaimCmd(), "claim", "Start work: flip an open issue to working + broadcast the claim")
 	add(NewStartPlanCmd(), "start-plan", "Enter planning: deliver the architecture principles to design against (#75)")
 	add(NewChangeCodeCmd(), "change-code", "Enter implementation after the structural + plan-quality gates")
-	add(NewIssueCmd(), "issue", "Create + manage issues (new / sync / set-status / list / show)")
+	add(NewIssueCmd(), "issue", "Create + manage issues (new / sync / publish / set-status / list / show)")
 	add(NewProjectCmd(), "project", "Create + manage projects (new / list / show / set-status / validate)")
 	add(NewActualCmd(), "actual", "Compute an issue's focused dev-hours via active-time-v3 (#68)")
 	add(NewActiveTimeCmd(), "active-time", "Per-issue active-time attribution table (the v3 engine, standalone)")

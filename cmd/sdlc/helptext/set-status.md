@@ -77,5 +77,6 @@ EXAMPLES
 RELATED
 
   sdlc close          close → codecomplete with the §5 contract (#160; merge/push then → done)
-  sdlc claim          sync the new status to origin/main
+  sdlc claim          reserve an open remote issue before starting work
+  sdlc issue publish  publish an explicitly selected documentation commit
   sdlc state          inspect current issue statuses

@@ -1,5 +1,5 @@
 Enter the implementation phase for an issue. Composes the gates
-between planning (which happens on `main`) and code-changing work:
+between planning and code-changing work in any checkout:
 
   0. Flow                — infers the issue's flow (#231; see THE FLOW
                            below). On the quick flow, gates 1–3 do not run.
@@ -64,10 +64,13 @@ THE FLOW (#231)
   (Mx rows, or a design past its limit). Gates never downgrade full to quick;
   only a pin does.
 
-  The record is re-derived from the issue as it is when written, so an edit
-  made while the gates ran survives. If that edit changed the flow itself (say,
-  Mx rows appeared), the gates ran for the wrong flow: change-code refuses and
-  asks for a re-run.
+  The command prepares under the repository lock, releases it for plan and
+  estimate reviewers, then reacquires it before using each response. Repository,
+  worktree, branch, HEAD, issue, optional plan and plan-ledger state must still
+  match. A concurrent edit is preserved and the stale command refuses before
+  recording a review, flow metadata, sync commit or branch. Rerun to review the
+  current inputs. Cancellation, failed dispatch and failed lock reacquisition
+  also refuse; --force cannot waive these safety checks.
 
 THE PLAN GATE (stateful since #187)
 
@@ -128,6 +131,10 @@ FLAGS
 
 ENVIRONMENT
 
+  WF_REVIEW_TIMEOUT  timeout per external review, default 30m; accepts 1s–2h.
+                      Interrupted reviews record no result; shutdown and pipe
+                      draining have a five-second grace bound.
+
   WF_BOUNDARY_ROUND_CAP
                       the same knob for the boundary review's gate ledger
                       (`sdlc close` / `milestone-close`, #194); default 3
@@ -168,11 +175,11 @@ EXAMPLES
   sdlc change-code --issue 39 --no-judge
     # structural only; skip LLM judge (faster, for trivial changes)
   sdlc change-code --issue 39 --force "quick docs typo fix"
-    # bypass all refusals; rationale recorded
+    # bypass quality gates; stale/interrupted reviews still refuse
 
 RELATED
 
-  sdlc claim      claim the issue (commit + push the issue file)
+  sdlc claim      reserve an open issue on origin/main (status/start only)
   sdlc judge      manually invoke any judge category, including
                   plan-quality
   sdlc close      close an issue or milestone (the matching exit

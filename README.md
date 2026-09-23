@@ -12,6 +12,19 @@ For an evidence-backed retrospective of development-process friction in a
 current or supplied session transcript, invoke `session-retro`; see
 [`atlas/workflow/session-retro.md`](atlas/workflow/session-retro.md).
 
+## Concurrent issue work
+
+Reserve an open issue with `sdlc claim --issue N`; remote main decides whether it
+is available. Checkpoint its body locally with `sdlc issue sync --issue N`.
+To publish an issue and deliberately selected plan/project files together,
+commit them and run `sdlc issue publish --commit SHA`. This applies that change
+with three-way merging in every checkout, including primary `:0`, and preserves
+unrelated local commits. See [issue publication](atlas/workflow/issue-sync.md).
+
+Planning and close reviews release the local repository lock while the reviewer
+runs. SDLC checks the prepared inputs again before recording a result; concurrent
+edits require a rerun. `WF_REVIEW_TIMEOUT` defaults to `30m` (allowed `1s`–`2h`).
+
 ## Standalone weave startup
 
 Until #241 publishes the Homebrew formula, build the CLI from this checkout:

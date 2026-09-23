@@ -1,238 +1,224 @@
 # Concurrent issue workflows implementation plan
 
-> **For agentic workers:** Consult AGENTS.md Section 3 for execution strategy. Use bounded implementation agents where context is explicit; the SDLC binary owns milestone reviews. Use test-driven development and verification-before-completion.
+> **For agentic workers:** Consult AGENTS.md §3 for delegation. Use TDD; the SDLC binary owns milestone reviews.
 
-**Goal:** Concurrent worktrees and independent dependency clones reserve and publish issues without lost updates, while external reviews leave unrelated repository operations available.
+**Goal:** Safely reserve work, publish explicitly chosen workflow changes, and run reviews concurrently across all slots and independent clones.
 
-**Architecture:** Extend the existing remote-trunk transaction with issue-specific expected-content checks and durable publication intents. Keep local-only issue sync unchanged. Run external reviews between short locked prepare/finalize phases, validating their full input set before recording results.
+**Architecture:** `origin/main` is the issue-status authority. Claim conditionally changes an open issue to working. The agent chooses a coherent documentation commit; SDLC applies its patch to fresh remote main and conditionally publishes it. External reviews run outside the local transaction lock and revalidate before saving results.
 
-**Tech Stack:** Go, Cobra, Git object plumbing, local bare Git remotes, filesystem receipts, existing judge/gatestate machinery.
+**Tech Stack:** Go, Cobra, Git commit/merge plumbing, existing SDLC locks and judge adapters.
 
-**State:** Proposed; implementation awaits operator approval and `sdlc change-code`. Estimates follow the plan-quality gate.
+**State:** M1, M2 and final issue review returned SHIP with no findings. Code complete; full verification passed. PR publication remains.
 
-## Contract and audit
+## Agreed contract
 
-The agreed scope and Done when in `workshop/issues/000244-slots-v2-concurrent-workflows.md` govern this plan. #243 provides nested workspace identity and environment-local peer lookup. No Couch changes, automatic ownership transfer, recursive publication, slot refresh, or new merge policy belong here.
+### 1. Claims use status on origin/main
 
-Live-code audit on 2026-09-23 found:
+`working` means the issue is taken, whether work happens in another slot or on another machine. No local-tree scan can replace that authority. On every claim attempt:
 
-- `claim.go` routes main through a whole-branch push; other branches use `synctrunk.go` and `gitx.TrunkFile.UpdateMany`.
-- Claim writes status/timestamps without ownership identity. Equal bytes cannot distinguish two claimants.
-- Trunk retries recheck ID collisions but replace same-path bodies; they also reread local bytes on each retry.
-- First allocation treats an occupied identical filename as the same issue. Equal-slug creators can collide silently.
-- `change-code` holds the shared Git-common-directory lock across plan and estimate reviews.
-- Close/milestone-close release the lock already, but persist review sidecars/ledgers before validating prepared state. Their snapshot omits branch identity and ledger inputs.
-- Merge/push have deterministic publication gates, not external LLM review waits. Preserve their serialization; do not introduce an unnecessary review abstraction there.
+1. Fetch remote main and read the issue at that exact commit.
+2. Require open status using the existing vocabulary; missing, malformed or non-open records refuse.
+3. Construct only the status/start-date update on those remote bytes, preserving the rest of the record.
+4. Publish only if the remote ref still equals the observed commit. On contention, fetch and check status again; retry at most three times.
 
-### Alternatives
+Two callers observing open cannot both win: the second conditional write fails, and the reread sees working. Repeating a claim on a working issue refuses even for the original worker. Continuing already-started work does not require reclaiming it. If a network failure makes the result uncertain, say so and direct the operator to inspect origin; never invent ownership or undo a potentially successful reservation.
 
-1. **Recommended: expected-content publication through existing trunk transactions.** Small issue-specific state makes independent clones safe and preserves existing command boundaries.
-2. Git merging issue bodies would reduce some conflicts, but cannot establish reservation ownership and risks silently combining contradictory workflow records.
-3. A shared coordination service would centralize reservations but add an operational dependency; Git already supplies the authoritative publication boundary.
+Only update local status metadata after confirmed publication, preserving local body edits. If the local file changed meanwhile, preserve it and report the published claim and reconciliation needed. No claim_id, owner token, receipt store, takeover, or branch-derived ownership is added. Existing status/lifecycle vocabulary remains unchanged.
 
-## Core concepts
+### 2. The agent selects the publication unit
 
-| Pure entity | Lives in | Status |
+The agent/operator determines which changes belong together and makes a coherent local Git commit. It may contain the issue, its separate durable plan, and deliberately chosen related project/design documents in the same repository. SDLC does not infer related files from Markdown prose or automatically gather every file with the issue number.
+
+The proposed explicit surface is `sdlc issue publish --commit <commit>`. It resolves one non-merge commit with exactly one parent. Its entire change set is the publication unit; no silent path filtering. The initial eligible set is ordinary Markdown workflow records under configured issues/plans/history roots and `workshop/projects/`. A mixed code/document commit refuses with instructions to split it; code and code-coupled atlas changes retain the normal reviewed PR path. Root commits, merge commits, symlinks and submodules refuse rather than guessing a parent or copying executable content. This eligibility check enforces the workflow/code boundary, not semantic association between documents.
+
+`issue sync --issue N` remains the deterministic local-only convenience for the issue file itself. It does not silently start including a separate plan. To publish a plan alongside an issue, the agent explicitly stages both and selects their commit. Explicit publication may include several issue files when the agent intentionally groups them. Files in another repository require that repository's own commit/publication.
+
+### 3. Publish the change, not a replacement snapshot
+
+Resolve the selected source commit and parent once. Fetch fresh remote main, apply their Git change with three-way merge semantics in a private temporary index/object transaction, then construct the result as a commit whose parent is the fetched remote tip. The source parent supplies the before-image; there is no separate baseline database.
+
+Only publish if the remote ref still equals the observed tip, using an explicit expected-old-ref lease. Every proposed commit remains a child of that tip; this does not authorize overwriting intervening commits or accepting a rewind silently. On a remote race, repeat the merge against the new tip within three attempts. Unrelated changes survive; compatible edits to the same document may merge; an actual Git conflict refuses the whole selected commit and names the paths. Preserve the source commit, caller index, working files and branch on every outcome.
+
+Record the source SHA in a `Source-Commit:` trailer in the resulting Git commit. This is ordinary Git provenance, not a separate receipt system. Before applying, check whether the source commit itself or a publication carrying that source SHA is reachable from fresh remote main. A confirmed prior publication is already applied, including after later edits or a deliberate revert; retry must not undo that later work. History-query failure or timeout refuses rather than assuming absence. A new deliberate reapplication requires a new source commit. A byte-identical empty result may report no change; it must not acquire a claim or claim a new remote commit was created.
+
+For multiple sequential source commits, publish the prerequisites in order; do not infer or ship their other ancestors. If a chosen commit depends on an earlier unpublished edit, report a merge conflict or missing prerequisite rather than widening the selected set. If push acknowledgment is lost, fresh Git reachability/provenance can confirm publication; otherwise return an uncertain outcome with the source/candidate SHAs and preserve the source. There is no automatic durable recovery daemon or private write-ahead journal.
+
+### 4. Same behavior in every checkout
+
+Use this path in `:0`, numbered slots, ordinary feature worktrees and private dependency clones. Local main receives no whole-branch-push shortcut. Publication does not switch, reset, fast-forward or otherwise modify any checked-out branch, including :0. The agent explicitly integrates remote changes through normal Git when appropriate.
+
+`issue new` retains its narrow automated reservation: check the fresh remote ID space inside the conditional publication attempt. Every occupied ID, including the same slug, is occupied; creation may select another free ID before it becomes an externally referenced identity. Preserve local creation content if publication is unconfirmed. Claims and updates never silently renumber existing issues.
+
+### 5. Short review lock scopes
+
+Retain local serialization for multi-step mutations. Linked worktrees share the common-directory lock; independent clones do not. The remote conditional write handles contention across both.
+
+For plan-quality, estimate-quality, close and milestone-close: lock and capture inputs → unlock and run the reviewer → reacquire and validate → persist the result and continue. Capture branch/worktree identity, review anchor, issue/optional plan (including absence), the relevant gate ledger and first-round seed ledger, plus prepared project edits. Check before writing any authoritative sidecar, ledger round, cache, status or branch change, for every verdict.
+
+Preserve close's existing allowance for unrelated documentation-only descendant commits. Changed read-set bytes, branch switches at the same SHA, changed code/history or concurrent ledger writes make the response stale. Staleness is not waivable through --force. No change to deterministic merge/push gates is needed solely for AI-review waits.
+
+## Core concepts and seams
+
+| Pure concept | File | Status |
 |---|---|---|
-| PublicationIntent and publication transition function | `cmd/sdlc/issuepublication.go` | new |
-| ClaimIdentity | `cmd/sdlc/issuepublication.go`, `construct/vocabulary/issue.cue` | new |
-| PublicationConflict | `cmd/sdlc/issuepublication.go` | new |
-| PreparedReview and artifact comparison | `cmd/sdlc/reviewstate.go` | new |
+| ClaimDecision: open/status/error → attempt or refusal | `cmd/sdlc/claimdecision.go` | new |
+| CommitSelection: fixed source, parent, eligible changed paths | `cmd/sdlc/commitpublication.go` | new |
+| PublicationStep: push/confirmation observations → retry, success, refusal or uncertain | `cmd/sdlc/internal/gitx/publicationstep.go` | new |
+| PreparedReview: captured read set and legal review phase | `cmd/sdlc/reviewstate.go` | new |
 
-PublicationIntent owns one immutable target and a sorted set of expected/desired path states. A path state distinguishes absent from a present empty blob. It includes operation kind (create, claim, update), issue identity, unique operation ID, and any claim identity. Conflict decisions are pure. A claim identity is an opaque random identifier, not a secret or an authentication credential; it distinguishes this worktree's intent from another's. Existing issue status values remain unchanged.
-
-PreparedReview owns the exact data read by a review plus its Git/worktree identity and destinations. Share artifact capture/comparison; retain each gate's existing acceptance policy, including close's intentional allowance for unrelated descendant documentation commits.
-
-| Integration point | Lives in | Status | Wraps |
+| Integration | File | Status | External boundary |
 |---|---|---|---|
-| Issue publication dispatch | `cmd/sdlc/claim.go`, `synctrunk.go`, `issue.go`, `issuecollision.go` | modified | local records and trunk transactions |
-| Worktree-private receipt store | `cmd/sdlc/publicationreceipt.go` | new | atomic files under private Git directory |
-| Trunk transaction evidence | `cmd/sdlc/internal/gitx/updatemany.go`, `trunkfile.go` | modified | fetch, commit construction, push, reconciliation |
-| Review prepare/dispatch/finalize | `cmd/sdlc/changecode.go`, `close.go`, `milestoneclose.go`, `reviewstate.go` | modified | repo lock, judge process, gate ledgers |
+| Claim/create publication | `claim.go`, `issue.go`, `synctrunk.go`, `issuecollision.go` | modified | fresh remote status/ID space |
+| Selected-commit publication | `cmd/sdlc/issuepublish.go`, `internal/gitx/commitpublication.go` | new | Git commit resolution, three-way merge, provenance |
+| Conditional trunk write | `internal/gitx/updatemany.go` | modified | exact-old-ref push |
+| Review execution | `changecode.go`, `close.go`, `milestoneclose.go`, `internal/judge/dispatch.go` | modified | locks, subprocess, ledgers |
 
-### Publication policy
+Reuse the existing Git runner and trunk commit construction. One publication implementation serves all checkout kinds (ARCH-DRY). Keep selection/status/result decisions pure (ARCH-PURE). The Git adapter uses a stateful fake modeling commits, trees, refs, conflicts and push outcomes, with temporary bare-Git conformance in normal tests (ARCH-MOCK).
 
-All publishing issue verbs use the trunk transaction regardless of local branch. Plain `issue sync` still commits locally without network. Publication commits only the selected issue paths and required ownership metadata; it does not push unrelated local commits, switch branches, reset worktrees, or move a checked-out main. Report the published commit and any local branch divergence explicitly. Existing local issue edits remain durable via normal sync.
+### Existing caller migration
 
-Snapshot intended bytes once under the local repository lock. Every attempt reads a fresh remote tree and compares touched records to the intent's expected state. Unrelated records are preserved by constructing the commit atop that tree. A conflicting same-record change refuses with issue/path, expected and observed revision, and instructions to reconcile explicitly and retry; preserve local content. Apply the same rule to deletion and both sides of a rename. Do not merge arbitrary Markdown automatically.
+- `claim --issue N` becomes only fresh status reservation; local body changes are not swept into the claim. Legacy unfiltered claim and --no-start must direct users to explicit body publication instead of retaining a blind overwrite route.
+- `issue sync` stays local. For compatibility, `issue sync --push` can publish the exact single-issue commit it just created. If no new commit was created, require the explicit publish command/SHA; do not guess a range or substitute the entire current file.
+- `change-code` may publish the exact narrow issue commit it creates (for example its flow metadata update) through the same adapter. It must not infer a broader design package. If prior local commits need publication, tell the agent to select/publish those commits explicitly.
+- `issue new` uses its separately defined reservation transaction; its collision policy is not ordinary Markdown merging.
+- Audit `Makefile.workflow` compatibility wrappers, help/README/atlas, and every `syncIssuesToMain` caller. Retire the old whole-file replacement and whole-local-main push paths after migration.
 
-Initial expected state comes from provable shared Git history, never from simply accepting the newest fetched blob. A worktree's confirmed receipt supersedes that initial baseline after remote-only publication, allowing successive edits without forcing a merge of trunk into the feature branch. Missing/ambiguous ancestry or an unreadable receipt refuses rather than guessing. A baseline can advance only through confirmed publication or explicit Git integration containing the observed revision; fetching alone does not accept a conflicting edit.
+### Minimal transition rules
 
-Claims require fresh remote evidence. An open issue can be claimed with a new locally persisted claim identity; an already claimed issue is idempotent only for the same locally held identity. A competing worktree/clone refuses even if its desired body is identical. A copied branch does not carry the private receipt. Legacy working issues without claim identity remain editable via explicit sync; `claim` cannot assert ownership from their status alone and must explain that limitation. No automatic takeover is added. Generic body publication must preserve the authoritative claim identity; only the dedicated claim transition may create/change it for an open issue. Copying or editing metadata cannot make a body sync transfer a reservation. `--no-start` and unfiltered legacy claim remain body-publication operations, not ownership acquisition.
-
-New creation regards every occupied ID as taken, including identical slugs and archived records, unless the pending operation proves this is its own retry. Reuse existing bounded reallocation and identity rewriting. Preserve all unresolved local candidates until remote outcome is known; never delete evidence merely because a push returned an error.
-
-### Durable intent and recovery
-
-Use one versioned receipt per issue/publication operation in a worktree-private Git subdirectory, keyed by a digest of repository identity, remote target, and configured issue namespace. Store expected/desired blob identities and bytes needed for recovery, claim identity, and attempted commit identity. Do not persist credential-bearing remote URLs; compare a target digest. Strict parsing rejects unknown versions, invalid paths/OIDs, truncated records, and mismatched targets.
-
-Persist pending intent atomically before a push; record the built commit before dispatching that push. Extend the existing trunk seam to expose this evidence without creating another retry loop. Fresh remote evidence that the attempted commit is current or an ancestor confirms the operation. An error without such evidence is an unknown outcome, not proof of failure. Reconcile on retry before reallocating, deleting candidates, or starting a replacement intent. If newer changes follow the confirmed commit, retain the confirmed baseline and apply the normal conflict check to further edits.
-
-A conflict found before dispatch is confirmed nonapplication. A push explicitly rejected by the server is also confirmed nonapplication for that attempt; parse the Git push porcelain rejection result, not arbitrary stderr prose or a nonzero exit code. Persist this distinction and the conflicting observed revision. A transport error or incomplete response remains unknown even when a subsequent read does not contain the attempted commit. Unknown intents must reconcile before replacement, and exhaustion preserves them with an actionable diagnostic.
-
-For a confirmed-nonapplied body intent, an ordinary retry remains a conflict until the local checkout has explicitly integrated the recorded conflicting revision (prove ancestry) and supplied the resolved desired body. Then atomically supersede the rejected intent with a new expected/desired snapshot. This is explicit Git reconciliation, not merely fetching. If the remote advanced again, compare the new expected state and refuse again as needed. A foreign claim conflict never becomes a successful takeover through this recovery path. Creation may reallocate after a proven rejected attempt using a fresh ID-space read; it retains original content and candidate evidence until final publication is confirmed. A successful acknowledged attempt later removed by a remote rewind is a conflict, not permission to replay ownership silently.
-
-The remote write must enforce the exact observed old ref, including remote rewind races; use an explicit expected-old-ref lease, and build the proposed commit as a child of that observed ref. This is not permission to replace intervening work. Retain the existing three-attempt contention bound; auth/query errors must not become retries reporting success.
-
-| State/event | Decision/effect |
+| Operation/event | Result |
 |---|---|
-| Unprepared + requested operation | capture expected/desired state, persist pending intent |
-| Pending + remote matches expected | build commit, persist attempt evidence, attempt conditional push |
-| Pending + unrelated remote change | rebuild on fresh parent within retry bound |
-| Pending + same-record conflict / foreign claim before push | record confirmed-nonapplied conflict and observed revision; preserve local bytes |
-| Pending + explicit server rejection | record confirmed nonapplication; fresh allocation/retry allowed under record preconditions |
-| Rejected body intent + proven local integration of conflicting revision | atomically supersede with resolved desired snapshot and integrated baseline |
-| Rejected creation + fresh occupied-ID evidence | reallocate within the same bounded operation, retaining candidates |
-| Pending + push acknowledged or attempted commit proven reachable | confirm receipt, then perform safe local candidate cleanup |
-| Pending + failed push and unavailable confirmation | retain unknown outcome; actionable retry |
-| Confirmed + same operation retry | verify fresh authority; idempotent success if still applicable |
-| Confirmed + new local edit | new intent using confirmed baseline |
-| Any + malformed state / target mismatch | refuse without publication or deletion |
+| Claim sees open / conditional push succeeds | confirmed reservation |
+| Claim sees non-open, including a repeated own call | actionable refusal |
+| Conditional push loses to another publication | reread and re-evaluate, at most three attempts |
+| Selected commit is already reachable/published | confirmed already-applied result; do not replay |
+| Three-way merge conflicts or selection is ineligible | refuse without touching caller state |
+| Push/confirmation cannot establish outcome | uncertain; preserve source and show inspection information |
+| Reviewer finishes and read set still matches | persist result under lock |
+| Reviewer finishes but inputs/ledger/branch changed | stale refusal before persistence |
+| Review cancels/times out or relock fails | stop without persistence; terminate and reap child on normal return |
 
-**Invariants:** one winner per claim; unique published creation IDs; no replacement of changed records; no ownership gained by copying Git history; no success inferred from an unavailable probe; no cleanup before confirmed outcome. The pure transition function owns authoritative state changes; IO executes its declared effects and feeds outcomes back.
+Review lifetime retains the prior bounded policy: default 30 minutes, `WF_REVIEW_TIMEOUT` configurable from 1 second to 2 hours; invalid settings refuse before dispatch. Cancellation allows at most five seconds before kill/wait; bound pipe draining. Uncatchable parent death cannot promise portable child reaping, but cannot finalize a result; a later command starts from durable Git/ledger state. No asynchronous writer outlives its command.
 
-**Lifetime and bounds:** atomic temp files are removed on completion/error. Confirmed receipts are superseded, not appended. Retire a receipt after fresh evidence of terminal archival and no pending operation; worktree removal also removes its private Git directory. Pending state is never age-deleted. Initial conservative operating limits (design assumptions, not measured requirements): 16 MiB per pending intent, 4096 receipt entries and 256 MiB total per worktree. Check projected usage before writing; refuse new operations at the bound with recovery instructions, while allowing reconciliation/retirement of existing entries. Test each limit. Change a limit only with recorded fixture evidence and a plan revision. No background service or accumulating transcript store is introduced.
+Publication is a bounded CLI transaction. Three retries are sufficient for the intended handful of concurrent slots. Bound provenance queries to 30 seconds; timeout is a refusal. Temporary indexes/files are private and removed on normal success/error; durable source/result commits have ordinary repository retention. No new persistent store, claim vocabulary, migration of existing issues or cleanup service is required (ARCH-FUNERAL). Treat source refs, paths and Git responses as untrusted inputs; resolve exact commit OIDs, separate absent from failed queries, and never interpolate them into shell code (ARCH-SECURE/ORDER).
 
-### Review policy
+### Production test map and operating envelope
 
-Prepare under the repository lock, dispatch without it, reacquire and validate before any authoritative write. Capture the issue, optional plan including absence, relevant gate ledger including absence, branch/worktree identity, and Git anchor. Close also captures project destinations and the plan-ledger seed used for a first boundary round. Validate all verdicts, not just SHIP. A stale result must not overwrite a sidecar, advance a ledger/cap, set a passing cache, change status, or branch. Print the response for diagnosis and require rerun; no extra durable stale-response artifact is necessary.
+The following is the exhaustive risky-function inventory for this change. New names are implementation contracts; if a helper is renamed, update this map in the same commit. Each row names the adversarial strategy and the mutation that must make its test fail; scenario names in Tasks 1–3 refer to these production functions, not test-only models.
 
-For `change-code`, preserve structural → plan-quality → estimate/reconcile → estimate-quality ordering, existing cached pass-through, and quick-flow gates. Split external dispatch from result persistence, not the entire command into a second workflow framework. Revalidate again before branching/publication if another unlocked wait occurred. Staleness is a concurrency failure that `--force` and judge waivers cannot waive.
+| Production functions | Adversarial strategy / mechanical guard |
+|---|---|
+| `claimDecision`, `runClaim` | Table-drive every vocabulary status and malformed remote bytes; rendezvous two real CLIs after observing open. Removing the fresh-status check or conditional ref must make exactly-one-winner assertions fail. |
+| `decideCollision`, `syncViaTrunk`, `runIssueNew` | Occupy the proposed ID with identical and different slugs between observations; fail confirmation after push. Assert unique retained records and preservation of uncertain local content; treating equal slug as free must fail. |
+| `TrunkFile.UpdateMany`, shared `pushExpected` | Stateful ref advancement/rewind and lost-ACK schedules plus real bare-Git hooks. Assert no stale overwrite and no ownership inferred from an identical peer candidate; ordinary unleased push must fail rewind regression. |
+| `TrunkFile.SelectCommit`, `validateCommitSelection` | Real root/merge/regular commits and all changed path/mode classes, including rename endpoints. Assert complete-set eligibility before effects; ignoring one ineligible path must fail. |
+| `TrunkFile.PublishCommit` | Model refs/trees/provenance across conflict, rejection, unknown acknowledgment, successful retry, later edit and revert. Real Git confirms compatible merge and caller-state preservation. Removing exact trailer/ancestry checks must replay the revert and fail. |
+| `runIssuePublish`, `syncIssuesToMain`, `syncIssue` | CLI matrix across primary/worktree/clone, isolated HOME, bare remotes, staged unrelated code and older unselected ancestors. Compare remote trees and local branch/index/dirty files. Restoring main's whole-branch shortcut or no-new-commit inference must fail. |
+| `capturePreparedReview`, `comparePreparedReview`, `preparedReview.validateExact` | Change each read-set member independently, including missing→present plan, branch identity and ledger generation. Exact read-set oracle rejects each; retain separate docs-only descendant acceptance test. Omitting any captured member must fail. |
+| `runPlanQualityJudge`, `runEstimateQualityJudge`, `reviewThenFinalizeLocked`, `finalizeBoundaryReview` | Barrier-controlled reviewer process pauses each review kind while unrelated commands finish; mutate inputs before every verdict (success and failure). Assert no stale ledger/sidecar/status/branch writes. Moving persistence ahead of validation or retaining lock during dispatch must fail. |
+| `judge.Dispatch`, reviewer process runner | Real controlled child ignores graceful cancel and holds output pipes; short deadline/cancel cases assert bounded return, child reaping and no authority writes. Removing kill/wait or bounded drain must fail timeout test. |
 
-Close retains unrelated docs-only descendant acceptance, but rejects changed read-set artifacts, branch switches even at the same SHA, code/history changes, and concurrent same-boundary ledger writes. Peer project writes retain their existing exact-content guard; this work does not claim a multi-repository atomic close.
+ARCH-CONSTRAINTS: this is an interactive developer CLI, not a keystroke/UI or server path. Domain-informed workload assumption: a handful (roughly 2–8) of concurrent slots, small Markdown commits and an ordinary developer Git repository. No daemon, fan-out, memory-resident repository cache, or throughput promise is introduced. Excess contention exhausts three exact-ref attempts and returns an actionable retry error rather than spinning. Re-measure with the deterministic race suite and wall-clock CLI timings if fleet concurrency grows.
 
-## Operating envelope and test seams
+Retain the existing 30-minute local lock-wait ceiling (`repolock.DefaultWaitTimeout`); acquisition/reacquisition failure performs no subsequent authoritative write and tells the operator to inspect the holder. This compatibility ceiling is not a target latency: tests require an unrelated local command to finish while a reviewer remains paused. Reviewer time is intentionally minutes; its existing 30-minute default and configurable ceiling are explicit above. The 30-second history-query deadline is a provisional interactive budget, exercised with an injected stalled Git process; large/slow repositories get an explicit refusal rather than skipped provenance. Normal Git network transport remains subject to Git/SSH timeout and user cancellation behavior; this change does not promise a total network deadline. A failed/interrupting push is uncertain until reachability confirms its candidate, never evidence of absence. Test bare local remotes deterministically; external network latency/service availability is outside the performance claim. CPU/disk work is one selected merge per attempt; no repository-wide checkout or copy. Performance beyond ordinary developer repositories is not claimed; record representative repository size and query timing in verification rather than inventing a benchmark guarantee.
 
-This is a small number of concurrent CLI workflows, not a high-throughput service. Each publication handles the selected issue set; remote retries remain bounded at three. Existing lock timeout/cancellation semantics stay in force. Reviews can last minutes; an unrelated issue command must complete while a reviewer is deliberately paused, without releasing that reviewer. Network/git latency is not promised to be eliminated.
+Conformance cadence: run `go test ./cmd/sdlc/internal/gitx/... -count=1` against the locally installed real Git and temporary bare remotes on every publication-adapter change and Git upgrade, and in the normal CI/test suite before merging. `TestCommitPublicationMerge`, `TestCommitPublicationRetry` and UpdateMany conformance cases execute matching fake/real schedules; any mismatch is a failing test that blocks shipping until the adapter or fake is corrected. This is live binary conformance; no GitHub service or credential is needed for the Git semantics used here.
 
-ARCH-PURE/DRY: use one decision model and the existing trunk adapter. ARCH-ORDER/SECURE: explicit uncertain outcomes, immutable desired content, exact record preconditions, strict receipt parsing. ARCH-MOCK: stateful fake remote/receipt adapters share production seams and model refs, blobs, conditional writes and lost acknowledgments. Real temporary bare-Git tests provide conformance on each affected test run. No test may inherit production remotes, credentials, HOME, or Git config. ARCH-FUNERAL: bounded receipts and cleaned temporary indexes; ARCH-PURPOSE: exercise both shared worktrees and independent private clones.
+Retention: reachable publication commits intentionally remain in the repository's ordinary history for its lifetime, owned by the repository operator; rewriting that history can remove the provenance guarantee and is outside this command's contract. Each effective publication adds one commit and only changed trees/blobs, plus one OID-sized trailer, rather than a second snapshot database. Rejected temporary objects are unreachable and eligible for ordinary Git GC. The cost grows with effective publications and changed-document bytes; verification records `git count-objects -vH` and provenance lookup timing on a repeated-publication fixture. This is an explicit unbounded historical retention policy, shared with every normal Git commit, with a bounded reader that refuses on timeout; no automatic history rewrite or deletion is appropriate for workflow audit evidence.
 
-## Chunk 1: Publication (M1)
+## Chunk 1 — Claims and selected-commit publication (M1)
 
-### Task 1 — Specify and test reservation/publication decisions
+### Task 0: Reconcile the paused v1 draft
 
-Files: new `issuepublication.go`, `issuepublication_test.go`, `publicationreceipt.go`, `publicationreceipt_test.go`; modify `construct/vocabulary/issue.cue` and its generated consumer through the existing vocabulary generation workflow.
+- [x] Retired the abandoned uncommitted draft outside the repository at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne-244-retired-draft-j6pdwxfl`; removed its receipt/token implementation.
+- [x] Retain useful behavior regressions: unrelated code leakage, same-record overwrite, same-slug creation collision, empty-file presence, remote rewind. Replace assertions/API sketches that depend on removed ownership receipts.
+- [x] Removed v1-only production/test placeholders and restored the tracked pre-draft files. Baseline targeted Git/command tests passed before revised implementation.
 
-- [ ] Write failing `TestPublicationTransitionSequences` and `TestPublicationConflictingRecords` using the named-function strategies below.
-- [ ] Implement typed decisions and bounded receipt IO; follow `TestPublicationReceiptRejectsMalformed` and `TestPublicationReceiptInterruptedWrite` below.
-- [ ] Run `go test ./cmd/sdlc -run 'Test(Publication|ClaimIdentity|PublicationReceipt)' -count=1`; demonstrate meaningful red then green. Validate vocabulary across existing issue records if its schema changes.
+### Task 1: Fresh status claims and reservation allocation
 
-### Task 2 — Wire the existing transaction and every issue publisher
+Files: `claim.go`, `claimdecision.go`, `issue.go`, `issuecollision.go`, `synctrunk.go`, `internal/gitx/updatemany.go`, related tests.
 
-Files: `claim.go`, `synctrunk.go`, `issue.go`, `issuecollision.go`, `internal/gitx/updatemany.go`, associated tests and new `publication_concurrency_test.go`.
+- [x] Write `TestClaimRemoteStatusRace`: independent clones rendezvous after observing remote open; linked worktrees rendezvous before lock acquisition. Assert exactly one winner and an explicit non-open loser, with no production-lock bypass.
+- [x] Write `TestClaimNonOpenAndUncertain`: vocabulary statuses, malformed/absent records, repeat claim and lost acknowledgment; no owner inference and no local-body loss.
+- [x] Write `TestCreationOccupiedID`: same/different slugs at one candidate ID, fresh retry and interrupted publication; no overwritten reservation.
+- [x] Observe expected failures; implement pure decisions and conditional publication; rerun to green.
+- [x] Run `go test ./cmd/sdlc/internal/gitx/... ./cmd/sdlc -run 'Test(Claim|Creation|StartOnClaim|AllocateIssueID|UpdateMany|Trunk)' -count=1`.
 
-- [ ] Add failing `TestPublicationRemoteInterleavings` through the shared production seam using its named adversarial strategy below.
-- [ ] Route main and non-main publication through the same guarded path; keep `NoPush` local-only. Preserve explicit already-committed-body publication.
-- [ ] Ensure claim and creation carry distinct pending identities and cannot adopt a foreign reservation. Update old tests that intentionally pinned last-writer-wins or offline ownership success.
-- [ ] Add real bare-remote fixtures with two independent clones and two linked worktrees. Use process barriers, not timing sleeps. Independent clones rendezvous after remote observation to force CAS contention. Linked worktrees rendezvous before lock acquisition; retain the production common-directory lock and assert serialization plus the second claimant's fresh-authority refusal. Never bypass locking to manufacture a shared-worktree interleaving.
-- [ ] Implement `TestPublicationClaimContenders`, `TestPublicationAllocationContenders`, `TestPublicationConflictRecovery` and `TestPublicationMainScope` using the named strategies below.
-- [ ] Run `go test ./cmd/sdlc/internal/gitx/... ./cmd/sdlc -run 'Test(Trunk|UpdateMany|Publication|Claim|Sync|IssueSync|RunIssueNew|AllocateIssueID)' -count=1` and inspect every failure.
-- [ ] Update `README.md`, `cmd/sdlc/helptext/claim.md`, `helptext/issue.md`, `atlas/workflow/issue-sync.md`, `atlas/workflow/issue-lifecycle.md`; remove the known last-writer-wins/offline-success claims and explain local-main divergence/recovery. Keep atlas index links current.
-- [ ] Commit explicit paths; close M1 via `sdlc milestone-close --issue 244 --milestone M1 --verified '<actual evidence>'`. Update the Pair project checkpoint.
+### Task 2: Explicit commit publication and callers
 
-## Chunk 2: Review concurrency and acceptance (M2)
+Files: new `issuepublish.go`, `commitpublication.go`, `internal/gitx/commitpublication.go` and tests; modify `issue.go`, `claim.go`, `synctrunk.go`, `changecode.go`, `Makefile.workflow` as required.
 
-### Task 3 — Reuse prepared review state and unlock external planning reviews
+- [x] `TestCommitSelection`: real commit topology and typed path validation; accept intentionally grouped issue/plan/project documents, refuse mixed code, root/merge commits, symlinks, malformed refs and silent partial publication.
+- [x] `TestCommitPublicationMerge`: stateful Git adapter and real bare remote; preserve unrelated changes and compatible same-file edits, expose conflicting edits/deletion/rename without changing caller files/index/branch.
+- [x] `TestCommitPublicationRetry`: force remote advancement/rewind, repeat source SHA, later edit/revert and missing acknowledgment; never overwrite newer state or replay a previously published change.
+- [x] `TestCommitPublicationSlots`: run the same production CLI in primary :0, two linked numbered worktrees and private dependency clones; preserve unrelated local commits and dirty files in every case.
+- [x] `TestCommitPublicationCallers`: local-only sync performs no network; explicit selected commit includes its complete eligible set; legacy convenience callers do not infer or publish unselected ancestors/plan files.
+- [x] Implement through one shared adapter after observing red tests. Keep existing workflow gates intact.
+- [x] Run `go test ./cmd/sdlc/internal/gitx/... ./cmd/sdlc -run 'Test(CommitPublication|CommitSelection|IssueSync|RunIssueNew|Sync|Claim)' -count=1`.
+- [x] Update README, issue/claim help, `atlas/workflow/issue-sync.md`, `issue-lifecycle.md` and the Pair project checkpoint. Document selected files, primary-slot symmetry, conflict handling and repeated-claim refusal.
+- [x] Commit explicit paths and run `sdlc milestone-close --issue 244 --milestone M1 --verified '<observed evidence>'`.
 
-Files: new `reviewstate.go`, `reviewstate_test.go`; modify `changecode.go`, `close.go`, `milestoneclose.go`, `repolock.go` only as needed; existing plan/boundary ledger adapters and tests.
+## Chunk 2 — Review lock scope and integration (M2)
 
-- [ ] Write failing `TestPreparedReviewReadSet` using the comparison and no-write oracle below.
-- [ ] Extract artifact capture/comparison. Convert change-code to manual prepare/dispatch/finalize locking and preserve ordering/pass-through/waivers.
-- [ ] Validate close/milestone-close before sidecar/ledger writes for every result. Include boundary ledger and seed plan ledger in the prepared read set.
-- [ ] Implement `TestReviewConcurrencySchedules` through real command subprocesses for each external review caller, following the barrier strategy below.
-- [ ] Run the prepared-review read-set and interruption transition tests below, preserving existing gate-specific anchor policy.
-- [ ] Run `go test ./cmd/sdlc -run 'Test(PreparedReview|ChangeCode|Close|Milestone|PlanQuality|EstimateQuality|ReviewConcurrency)' -count=1` and confirm red/green evidence for new tests.
+### Task 3: Prepare, unlock, validate, finalize
 
-### Task 4 — End-to-end dependency workflow and publication
+Files: new `reviewstate.go` and tests; modify `changecode.go`, `close.go`, `milestoneclose.go`, `internal/judge/dispatch.go`, review/lock tests.
 
-Files: `publication_concurrency_test.go`, new `review_concurrency_test.go`; `atlas/workflow/sdlc-binary.md`, `atlas/workflow/gate-state.md`, embedded help, `README.md`, and the Pair couch-slots-v2 project.
+- [x] `TestPreparedReviewReadSet`: change each captured artifact/identity independently, including file appearance and ledger generation; assert gate-specific acceptance and no persistence for stale results.
+- [x] `TestReviewConcurrencySchedules`: barrier-controlled real reviewer subprocess; unrelated issue commands finish while each external review is paused; competing same-boundary responses cannot both advance the ledger.
+- [x] `TestReviewInterruption`: injected cancellation, deadline and relock errors; no passing cache/status/branch mutation, bounded process cleanup.
+- [x] Implement shared snapshots and manual lock phases after observing failures. Preserve plan-before-estimate order, pass-through caching and existing legitimate gate waivers.
+- [x] Run `go test ./cmd/sdlc -run 'Test(PreparedReview|ReviewConcurrency|ReviewInterruption|ChangeCode|Close|Milestone|PlanQuality|EstimateQuality)' -count=1`.
 
-- [ ] Implement `TestPublicationDependencyEnvironment` with the temporary nested-clone CLI strategy below.
-- [ ] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'`; the skip is the pre-existing #210 missing historical plan, not a #244 exemption. Run `go vet ./pkg/workspace/... ./cmd/sdlc/...` and scoped `git diff --check`.
-- [ ] Document concurrency/refusal/retry behavior and observed test evidence. Record discovered review lessons. Update Pair project scope/checkpoint without marking the whole project complete.
-- [ ] Commit; run `sdlc milestone-close --issue 244 --milestone M2 --verified '<actual evidence>'`, then the issue close gate. Fix blocking review findings before continuing.
-- [ ] Publish through `sdlc pr` and `sdlc merge`, and verify archive/project links and repository state. No publication is claimed by this plan.
+### Task 4: Verify and ship
+
+- [x] Run a nested dependency workflow using ordinary CLI creation, claim, local issue/plan commit, explicit publication and conflict recovery; no recursive dependency publication.
+- [x] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (the pre-existing #210 missing-history fixture only), `go vet ./pkg/workspace/... ./cmd/sdlc/...`, and scoped `git diff --check`.
+- [x] Update review/lock atlas/help and project evidence; record lessons. Commit and close M2 through the SDLC gate.
+- [x] Close the issue through its final SDLC boundary review; address blocking findings before publication.
+- [ ] Publish through `sdlc pr` and `sdlc merge`; verify archived links and final repository state.
 
 ## Revisions
 
-### 2026-09-23 — Explicit receipt operating bounds
+### 2026-09-23 — Simplified after operator discussion
 
-Replaced deferred limit selection with concrete initial limits and recovery behavior so implementation has a testable storage envelope. These are conservative design assumptions, subject to measured revision.
+Reason: the earlier design added ownership/retry conveniences beyond the required reservation model. Delta: fresh open→working conditional claims replace tokens; explicitly selected Git commits and three-way merge replace whole-file snapshots and receipt baselines; publication includes the agent's chosen issue/plan/project files and behaves identically in :0 and other checkouts. Short review locks remain required.
 
-### 2026-09-23 — Fresh-eyes review corrections
+The operator requested removal of the old design to avoid misleading future agents. It is available only in Git history (commit `bbd3122`). Earlier gate results apply to that superseded design only; derive a new estimate after the current plan clears its gate.
 
-Separated confirmed nonapplication from unknown push outcomes; specified explicit-integration recovery and safe allocation retry. Distinguished independent-clone CAS barriers from linked-worktree lock serialization. Added ownership-metadata preservation to generic body sync. These correct review findings without changing project scope.
+### 2026-09-23 — Remove obsolete design from the working tree
 
-### 2026-09-23 — Plan-quality gate refinements (PQ-1 through PQ-3)
+Operator authorized implementation and asked to remove the old design. Deleted the superseded design artifact and retired its unfinished draft outside the repository. Git history preserves the old decisions; only this plan is active.
 
-The following concrete contracts refine the corresponding sections above. They do not widen the approved scope.
+### 2026-09-23 — Gate review coverage and runtime assumptions
 
-#### Persisted formats and compatibility (PQ-2)
+Reason: revised gate reported executable-test-strategy and operating-envelope gaps. Delta: enumerate every risky production function with its adversarial test and mutation guard; name concurrency, lock-wait, history-query and reviewer budgets and network limitations. No ownership or receipt mechanism is reintroduced.
 
-Authoritative issue frontmatter gains optional `claim_id: "<32 lowercase hex characters>"`, generated from 16 cryptographically random bytes and validated in `construct/vocabulary/issue.cue`. Absence means legacy/unclaimed ownership, not an empty token. Null, empty, malformed or duplicate fields refuse a claim/publication operation. Existing status vocabulary is unchanged. Open issues acquire a fresh ID on claim; matching local receipt plus matching remote ID permits an active claim retry. A terminal issue cannot be started by retrying claim. Legacy active issues keep their existing record and can use body sync, but claim refuses to invent an owner. No bulk migration occurs. Older binaries do not enforce the new contract; documentation requires updated SDLC for all concurrent writers. This is cooperative workflow coordination, not authorization against malicious Git writers.
+### 2026-09-23 — Conformance cadence and Git retention
 
-Resolve the private Git directory with Git (`git rev-parse --absolute-git-dir`) from the verified repository root; never use `--git-common-dir` for receipts. Thus a linked worktree stores under its own `.git/worktrees/<name>/`, and an ordinary clone under its `.git/`. Store records at `<privateGitDir>/sdlc/publications/v1/<targetDigest>/<operationID>.json`. targetDigest is SHA-256 of a length-framed tuple of resolved remote URL, full target branch ref, and canonical repo-relative issues/history namespaces. Remote URLs are hashed in memory, never persisted or echoed. operationID is an independent random 32-hex identifier. Scanning is bounded by the receipt limits, with exactly one latest confirmed baseline for each issue/path set; new confirmed receipts retire superseded ones for that identity. Ownership continuity is copied only within the same private receipt store, never inferred from a copied branch.
+Reason: gate follow-up requested the real-Git execution cadence and durable artifact policy. Delta: normal tests and every adapter/Git update execute matching fake/live-binary schedules; reachable publication history is intentionally retained as ordinary Git audit history, with measured fixture size/query time and ordinary GC for unreachable objects.
 
-Version 1 JSON (field names are the contract; `bytes` is standard JSON base64 encoding of byte arrays):
+### 2026-09-23 — M1 implementation and real race evidence
 
-```json
-{
-  "version": 1,
-  "target": "<64-hex digest>",
-  "operation_id": "<32-hex ID>",
-  "kind": "create|claim|update",
-  "phase": "pending|rejected|confirmed",
-  "issue_id": 244,
-  "claim_id": "<32-hex ID or omitted for unowned legacy>",
-  "baseline_commit": "<Git OID>",
-  "conflict_commit": "<Git OID; rejected conflict only>",
-  "paths": [{"path": "workshop/issues/000244-example.md", "expected": {"present": true, "bytes": "..."}, "desired": {"present": true, "bytes": "..."}}],
-  "attempts": [{"base": "<Git OID>", "commit": "<Git OID>", "outcome": "unconfirmed|rejected|confirmed"}]
-}
-```
+The shared retry decision lives in `internal/gitx/publicationstep.go`, next to both production loops; command eligibility stays pure in `commitpublication.go`. Real receive-pack races can report a confirmed remote rejection rather than client-side stale-info. Both trigger a fresh reservation decision. Two callers can construct identical Git commits, so reservation publication never infers caller ownership from reachability: explicit rejection or an up-to-date push rereads status; an ambiguous transport outcome remains uncertain without replay. Selected documentation publication retains provenance-based idempotence. These refinements preserve the approved status-only contract and add no ownership state.
 
-Use typed discriminants and validate the legal combinations before constructing the pure state. Absent path states carry no bytes; empty present files are distinct. Paths must be unique, canonical relative paths under configured issue namespaces; reject traversal, symlink escapes, duplicate JSON keys, unknown keys/versions, invalid Git OID lengths, and records outside byte/count bounds. JSON decoding is size-limited before allocation. Attempts are capped at three per operation; unresolved attempts prevent replacement. The unique operation ID is also a `Publication-Intent:` trailer on each constructed commit, preventing identical create/claim payloads from producing indistinguishable commit identities.
+M1 full workspace/SDLC suite passed (411.417s command package; pre-existing #210 missing-history fixture excluded), as did vet and diff checks. Real CLI races cover linked worktrees and independent clones; creation races get distinct IDs; primary/worktree/private-clone publication preserves unrelated commits and index/working files. The first broad run was interrupted for diagnosis; its active resolver test passed alone, and the complete verbose rerun passed. A 2,361-commit remote history provenance scan took 63.0ms; repository objects were 38.39MiB loose + 10.36MiB packed. The small publication fixture was 22 objects/88KiB with a 96.8ms retry query. No general performance guarantee is inferred from these measurements.
 
-Write mode 0600 records in mode 0700 directories through same-directory temporary files, fsync the file, rename, and sync the directory. On platforms where directory sync is unsupported, return an explicit durability error rather than acknowledging persistence. One local repository transaction owns store mutations. Existing worktree-private receipts survive in-place branch switches; a new linked worktree does not inherit ownership. Partial temp files are ignored as authority and removed only when no live local operation holds the repository lock. Recovery compares typed target/identity and fresh remote evidence before any cleanup.
+### 2026-09-23 — M1 accepted
 
-#### Named functions and adversarial strategies (PQ-1)
+The mandatory M1 boundary review returned SHIP with no findings and independently passed targeted/full SDLC tests, Git adapter tests, vet and diff checks. The gate closed M1 at measured 4.76h. The reviewer emitted an empty findings fence, which the gate recorded as a protocol warning with no findings; it nevertheless finalized the explicit SHIP verdict. A documentation sweep removes remaining obsolete main-only/whole-file publication guidance from the workflow atlas and compatibility help. No implementation scope changed.
 
-These are planned implementation entry points, not claims that the functions already exist. Tests exercise decisions through their production callers as well as directly.
+### 2026-09-23 — M2 integration checkpoint
 
-| Function / existing caller | Test entry point | Adversarial strategy and oracle |
-|---|---|---|
-| `stepPublication` pure transition | `TestPublicationTransitionSequences` | Enumerate bounded sequences of conflict, rejected/unknown push, restart and confirmation; assert ownership uniqueness, no replacement without expected-state equality, and no cleanup while unknown. |
-| `decideRecordUpdate` / `syncViaTrunkWithRealloc` | `TestPublicationConflictingRecords` | Mutate expected/remote/desired independently, including presence, deletion and rename pairs; changed same-record input refuses while unrelated records survive. |
-| `parsePublicationReceipt` | `TestPublicationReceiptRejectsMalformed` | Table/fuzz over truncation, duplicate/unknown fields, invalid IDs, traversal and oversized input; every malformed record refuses without IO effects. |
-| `writePublicationReceipt` / receipt loader | `TestPublicationReceiptInterruptedWrite` | Inject failures before fsync, rename and directory sync; restart reads either complete prior/new state, never partial authority. |
-| `TrunkFile.UpdateMany` / conditional push adapter | `TestPublicationRemoteInterleavings` | Stateful remote fake schedules unrelated write, same-record write, rewind and lost acknowledgment; exact-old-ref mismatch never overwrites and unknown outcome retains intent. Real bare Git conformance repeats each supported push outcome. |
-| `runClaim` / shared publishing dispatch | `TestPublicationClaimContenders` | Clones barrier after observation, linked worktrees barrier before lock; equal timestamps/content still yield exactly one owner. Repeat winner succeeds; copied branch loses. |
-| `runIssueNew` / `decideCollision` | `TestPublicationAllocationContenders` | Same/different slugs and bytes at one candidate ID; rejection followed by reallocation produces two unique reservations, with no lost originals. |
-| `runIssueSync` / baseline selection | `TestPublicationConflictRecovery` | Publish twice without moving local HEAD, inject third-party edit, integrate explicitly and retry; unresolved intent cannot bypass conflict and reconciled intent cannot stay stuck. |
-| `syncIssuesToMain` | `TestPublicationMainScope` | Stage/commit unrelated code before issue publication; remote contains only selected issue updates and local code/index remain untouched. |
-| `comparePreparedReview` | `TestPreparedReviewReadSet` | Change each input separately, including absent→present, branch-only switch, ledger-only change, code and docs descendants; verify gate-specific acceptance and no authoritative writes on stale input. |
-| `stepPreparedReview` / manual command wrappers | `TestReviewConcurrencySchedules` | Barrier-controlled reviewer pauses, cancellation, failed relock and competing finalization; unrelated work completes, stale/cancelled results cannot advance ledgers or branches, child is waited on before normal return. |
-| actual nested-clone CLI workflow | `TestPublicationDependencyEnvironment` | Drive creation/claim/local-sync/explicit-push from private dependency cwd with unreachable-remote and conflicting-clone episodes; assert normal namespace and preservation of local edits. |
+Integrated shared prepared-review snapshots and short planning/boundary lock phases. Judge process tests passed (0.485s) and combined workflow tests passed (196.593s). The nested ordinary-dependency workflow passed creation, claim, selected issue+plan publication, conflict refusal and coherent recovery; parent origin and caller files/index remained unchanged. A real CLI audit found signal cancellation must reach the review context while the lock is released; that correction and subprocess regression are part of the planned interruption contract.
 
-#### Review transition model (PQ-3)
+### 2026-09-23 — M2 verified
 
-`stepPreparedReview` owns the phase and emits effects; command shells cannot persist result state before it reaches validated. PreparedReview carries immutable input bytes, branch/worktree identity, review anchor and ledger generation. No durable in-flight review record is added.
+Full workspace/SDLC tests passed with only the pre-existing #210 missing-history fixture excluded (cmd/sdlc 426.154s). Vet and diff checks passed. Six real CLI signal cases cover judge/close/change-code × SIGINT/SIGTERM; focused race verification passed (45.095s), with no persisted result and owned reviewer cleanup. Signal ownership is limited to review commands so other Git/ship commands retain their existing termination behavior; managed locks release on unwind. Local bin/sdlc was built from this source for the remaining gates. ARCH-PURPOSE: cancellation was checked at the CLI entry point, not only via injected test contexts.
 
-| State/event | Next state and effects |
-|---|---|
-| Idle + start | acquire local lock; capture prepared input set |
-| Prepared + dispatch | release lock; run one reviewer with command context |
-| Reviewing + completed response | reviewer process is waited/reaped; reacquire local lock |
-| Reviewing + cancellation/dispatch error | cancel reviewer and wait/reap before normal return; no result persistence |
-| Response + relock failure/cancellation | refuse; no sidecar, ledger, status, flow or branch write |
-| Response + reacquired lock, changed read set/identity | stale refusal for every verdict; print output, no authoritative persistence |
-| Response + reacquired lock, unchanged read set | validated; parse/persist existing gate result under lock |
-| Validated + rejected verdict | retain valid review findings using existing ledger rules; no implementation/close transition |
-| Validated + accepted verdict | continue deterministic gates/finalization while locked; another external wait requires another prepared snapshot |
-| Any + parent process death | no later parent finalization exists; existing dead-holder recovery reclaims local lock; rerun starts a fresh review from durable ledger state |
+### 2026-09-23 — M2 accepted
 
-Use the Cobra command context for external dispatch instead of `context.Background()`. Bound each external review with a derived timeout context: default 30 minutes, configurable by `WF_REVIEW_TIMEOUT` as a positive Go duration from 1 second through 2 hours; invalid values refuse before dispatch. This is a conservative operating assumption, not a latency promise. Timeout follows cancellation: signal the owned process group, allow at most 5 seconds to exit, then kill and wait; cap pipe draining with `exec.Cmd.WaitDelay` so inherited pipe descriptors cannot hang return. Inject the timeout/clock in tests rather than waiting in real time. No timeout produces a passing ledger/cache entry, and retry starts a new review against fresh inputs. Normal cancellation/error paths must reap the direct reviewer and terminate its owned process group where supported; do not orphan a reviewer on a normal function return. An uncatchable parent kill cannot promise portable child reaping: review children have no authority to persist gate results, and the next command must not consume their output as a completed round. Existing immutable reviewed commit plus read-set checks remain mandatory after restart. No asynchronous goroutine may mutate gate state after its command returns. Barrier-driven tests inject every interruption above through the production shell; same-boundary concurrent results invalidate on ledger generation before persistence.
+The M2 boundary review returned SHIP with no findings; focused M2 tests, vet and diff checks independently passed. The gate recorded the measured increment 1.34h (6.10h cumulative measurement minus M1 4.76h). As at M1, the reviewer omitted a valid findings payload; the gate logged a protocol warning with zero findings and finalized SHIP. Split the final bookkeeping checklist row to show the accepted M2 boundary separately from pending whole-issue close. Weave compile completed, rebuilding owner tools and refreshing generated instructions from the new base source.
 
-### 2026-09-23 — Plan gate round 2 corrections
+### 2026-09-23 — Final issue acceptance
 
-Replaced duplicate task-level scenario inventories with references to the named test/function strategy table. Added a concrete per-review timeout, bounded shutdown and pipe-drain policy; retained the explicit uncatchable-parent-death limitation. This addresses remaining PQ-1/PQ-3 findings.
+Whole-issue review returned SHIP with no findings and a valid empty findings payload. SDLC marked codecomplete, measured/adopted 6.38h, updated and committed the Pair project task, and recorded calibration. The independent final review passed focused Git/SDLC tests, vet and diff checks. Publication is the only remaining plan step.

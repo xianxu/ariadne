@@ -1,13 +1,14 @@
 ---
 id: 000244
-status: working
+status: codecomplete
 deps: [ariadne#242, ariadne#243]
 github_issue:
 created: 2026-09-22
 updated: 2026-09-23
-estimate_hours: 21.28
+estimate_hours: 17.01
 started: 2026-09-23T11:35:53-07:00
 flow: {kind: full, provenance: inferred}
+actual_hours: 6.38
 ---
 
 # Slots v2: concurrent issue workflows
@@ -22,7 +23,7 @@ Project: `pair/workshop/projects/couch-slots-v2.md`. Fresh task derived from the
 
 Audit and fix current SDLC behavior with two worktrees of one repository. Authoritative reservation checks for issue creation and claiming must be fresh at publication; a loser receives an actionable conflict. Publishing an issue-body update must preserve concurrent unrelated records and refuse conflicting edits rather than replacing them from a stale checkout.
 
-Keep repository mutation serialization where needed, while external review waits should not monopolize the shared repository lock. Revalidate the exact reviewed/prepared state after reacquiring authority. No automatic claim transfer is introduced by branching from another workspace. ARCH-SECURE and ARCH-DRY: use existing ownership/publication machinery, with fresh evidence at mutation boundaries. This is a new v2 acceptance contract; audit live code rather than inheriting old issue conclusions.
+Keep repository mutation serialization where needed, while external review waits should not monopolize the shared repository lock. Revalidate the exact reviewed/prepared state after reacquiring authority. No automatic claim transfer is introduced by branching from another workspace. ARCH-SECURE and ARCH-DRY: use existing Git publication machinery and authoritative issue status, with fresh evidence at mutation boundaries. This is a new v2 acceptance contract; audit live code rather than inheriting old issue conclusions.
 
 ### Agreed scope — 2026-09-23
 
@@ -30,105 +31,112 @@ This section takes precedence over earlier conflicting layout or policy text.
 
 Apply the publication/concurrency audit to both numbered main-repository worktrees and ordinary dependency clones inside their environments. Independent clones share a remote but not a local Git lock, so allocation, reservation and conflicting issue-body publication must rely on fresh remote evidence. A thread rooted in Pair may create, update, review and publish an Ariadne issue by targeting that environment's Ariadne checkout through existing SDLC commands. Creating/publishing a reservation does not imply later local issue-body edits are published; preserve and expose those edits through the existing explicit sync/publication workflow. No automatic recursive dependency publication or claim transfer is introduced.
 
+### Simplified publication scope — 2026-09-23 (current)
+
+This agreement supersedes ownership-token and receipt-based engineering proposals. Origin/main's issue status is the reservation authority: a fresh open→working conditional publication has one winner; any already-working claim refuses, including a repeat from the original worker. No ownership identity, private publication receipt store or automatic takeover is required.
+
+For issue-body and related design updates, the agent/operator selects a coherent local documentation commit. It may contain the issue file, separate plan and deliberately selected same-repository project/design records; SDLC does not infer semantic relatedness. Publish that commit's change onto fresh origin/main using Git three-way merge and conditional remote publication. Preserve unrelated updates, expose conflicts, and preserve the source commit and caller state. Compatible same-record changes may merge. Repeated publication must not undo later changes.
+
+Apply the same mechanism in :0, numbered slots, ordinary feature worktrees and private dependency clones, without a special whole-local-main push path. Local issue sync remains issue-file-only and network-free; including a separate plan is an explicit commit-selection decision. Repository mutation locks remain short; external reviews run unlocked and validate all relevant inputs before recording results.
+
 ## Done when
 
-- A real two-worktree race to claim one issue has one winner and an explicit loser, with no overwritten ownership.
-- Concurrent issue allocation and independent issue updates preserve unique IDs and both records; conflicting same-record updates are visible.
+- A real two-worktree race to claim an open remote issue has one winner and an explicit already-working loser; repeated claims do not imply ownership.
+- Concurrent allocation preserves unique IDs. Explicitly selected documentation commits preserve unrelated changes; compatible edits merge and conflicting edits are visible.
 - A controlled slow review permits unrelated issue operations to finish; changed review inputs prevent stale finalization.
 - Automated interleaving tests cover the production publication/lock boundaries and retain existing SDLC gates.
 
 - Independent clones targeting the same remote have tested allocation/claim/body-update conflict handling, as well as the existing shared-worktree cases.
 - A parent-slot-driven dependency issue can be created, updated and explicitly published using normal SDLC without losing local issue-body edits or assuming a shared local lock.
 
+- A selected commit can intentionally group an issue and its separate plan/project records; no implicit artifact discovery or unrelated code publication occurs.
+- Primary :0 uses the same selected-commit publication behavior and preserves unrelated local commits and dirty files.
+
 ## Estimate
 
 *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
-Revised after estimate-quality feedback: separate concrete concerns instead of treating all receipt behavior, all callers or all fixtures as one module. Each implementation primitive includes its own unit tests; the separately itemized integration harnesses exercise cross-component processes and protocol conformance, not those unit tests. Gate reviews are three real boundaries. The calibration source is marked stale (#127), so the result is provisional focused ship-hours.
+The previous 21.28h estimate belongs to the discarded design (Git history `bbd3122`). This replacement uses concrete concerns from the simplified plan; no receipts or ownership-token work remains. Design values use the thorough-plan ×0.2 discount; implementation values already use v3.1 ×0.4. Familiar Go/Git stack: multiplier 1.0. Existing Git plumbing, YAML parsing, Cobra and lock helpers are reused; no novel third-party library is assumed. No additional library discount is applied to the new coordination policies. Range-table upper values cover adversarial concurrency and integration work.
 
-Derivation: greenfield concerns use base design 1.5 × 0.2 detailed-spec discount = 0.30 and base impl 0.8 × 0.4 AI-paired scale = 0.32. Standard-library JSON/filesystem primitives halve receipt IO/decoding design to 0.15; domain ownership/recovery/lifecycle have no library substitute. Each API integration uses base design 2.0 × 0.2 = 0.40 and base impl 1.5 × 0.4 = 0.60. These are behavioral integrations, not mechanical refactors. Smaller module uses 0.3 × 0.2 design and 0.5 × 0.4 impl. Each docs group uses 0.10 design and 0.20 × 0.4 impl. Reviews use 0 design and 0.5 × 0.4 impl. Issue authoring uses 1.0 design without double-discounting the authoring work itself, and 0.3 × 0.4 impl. Familiarity remains 1.0 (existing Go/Git stack); thorough-plan design buffer is 15%.
+| Primitive | Concern | Design h | Impl h |
+|---|---|---:|---:|
+| issue-spec | Revised scope, decision inventory and durable plan | 0.20 | 0.12 |
+| greenfield-go-module | Fresh claim decision and status validation | 0.30 | 0.32 |
+| greenfield-go-module | Commit eligibility and publication outcome policy | 0.40 | 0.32 |
+| api-integration | Git commit selection and mode/path inspection | 0.40 | 0.60 |
+| api-integration | Three-way merge and conflict extraction | 0.40 | 0.60 |
+| api-integration | Exact-ref push and lost-ack confirmation | 0.40 | 0.60 |
+| api-integration | Bounded source provenance/idempotence | 0.40 | 0.60 |
+| cross-cutting-refactor | Claim command and local reconciliation | 0.20 | 0.20 |
+| cross-cutting-refactor | Creation collision and uncertain preservation | 0.20 | 0.20 |
+| cross-cutting-refactor | Local sync, publish convenience and change-code callers | 0.20 | 0.20 |
+| smaller-go-module | Explicit publish command and diagnostics | 0.06 | 0.20 |
+| api-integration | Stateful Git publication fake and schedule coverage | 0.40 | 0.60 |
+| api-integration | Real Git claim/publication race conformance | 0.40 | 0.60 |
+| greenfield-go-module | Prepared review read-set and stale policy | 0.40 | 0.32 |
+| cross-cutting-refactor | Plan-quality lock phase extraction | 0.20 | 0.20 |
+| cross-cutting-refactor | Estimate-quality lock phase extraction | 0.20 | 0.20 |
+| cross-cutting-refactor | Close/milestone validation before persistence | 0.20 | 0.20 |
+| api-integration | Reviewer context, bounded termination and output drain | 0.40 | 0.60 |
+| api-integration | Stateful reviewer barriers and read-set mutation tests | 0.40 | 0.60 |
+| api-integration | Real reviewer interruption and CLI concurrency tests | 0.40 | 0.60 |
+| api-integration | Nested slot and dependency-clone end-to-end workflow | 0.40 | 0.60 |
+| atlas-docs | M1 help, atlas, README and compatibility wrapper | 0.04 | 0.08 |
+| atlas-docs | M2 review documentation and project checkpoint | 0.04 | 0.08 |
+| milestone-review | M1 boundary review and response | 0.04 | 0.20 |
+| milestone-review | M2 boundary review and response | 0.04 | 0.20 |
+| milestone-review | Issue close review and ship verification | 0.04 | 0.20 |
 
-| Primitive | Concrete concern | Design | AI-paired implementation |
-|---|---|---|---|
-| issue-spec | Audit and durable design | 1.00 | 0.12 |
-| greenfield-go-module | Publication transition model | 0.30 | 0.32 |
-| greenfield-go-module | Ownership provenance and metadata | 0.30 | 0.32 |
-| greenfield-go-module | Record preconditions and reconciliation policy | 0.30 | 0.32 |
-| greenfield-go-module | Atomic receipt IO | 0.15 | 0.32 |
-| greenfield-go-module | Strict receipt schema and decoding | 0.15 | 0.32 |
-| greenfield-go-module | Crash recovery and predecessor lineage | 0.30 | 0.32 |
-| greenfield-go-module | Receipt bounds and retirement | 0.30 | 0.32 |
-| api-integration | Git evidence hooks and conditional push | 0.40 | 0.60 |
-| api-integration | Unknown push outcome reconciliation | 0.40 | 0.60 |
-| api-integration | Claim caller integration | 0.40 | 0.60 |
-| api-integration | Create and reallocation integration | 0.40 | 0.60 |
-| api-integration | Sync baseline and conflict integration | 0.40 | 0.60 |
-| greenfield-go-module | Prepared review transition model | 0.30 | 0.32 |
-| api-integration | Plan review prepare/finalize integration | 0.40 | 0.60 |
-| api-integration | Estimate review prepare/finalize integration | 0.40 | 0.60 |
-| api-integration | Close and milestone review record integration | 0.40 | 0.60 |
-| greenfield-go-module | Reviewer timeout/process lifetime shell | 0.30 | 0.32 |
-| api-integration | Stateful Git protocol fake and conformance | 0.40 | 0.60 |
-| api-integration | Independent-clone and worktree publication harness | 0.40 | 0.60 |
-| api-integration | Reviewer subprocess barrier harness | 0.40 | 0.60 |
-| api-integration | Nested dependency CLI conformance | 0.40 | 0.60 |
-| smaller-go-module | Vocabulary and generated contract compatibility | 0.06 | 0.20 |
-| atlas-docs | Claim and issue command help | 0.10 | 0.08 |
-| atlas-docs | Issue sync and lifecycle atlas | 0.10 | 0.08 |
-| atlas-docs | Review/gate atlas and command help | 0.10 | 0.08 |
-| atlas-docs | README and project checkpoint | 0.10 | 0.08 |
-| milestone-review | M1 boundary | 0.00 | 0.20 |
-| milestone-review | M2 boundary | 0.00 | 0.20 |
-| milestone-review | Issue close boundary | 0.00 | 0.20 |
+Design subtotal 6.76h × 1.15 + implementation 9.24h = **17.01h**. This remains a provisional calibration estimate, not a runtime budget.
 
 ```estimate
 model: estimate-logic-v3.1
 familiarity: 1.0
-item: issue-spec design=1.00 impl=0.12
+item: issue-spec design=0.20 impl=0.12
 item: greenfield-go-module design=0.30 impl=0.32
-item: greenfield-go-module design=0.30 impl=0.32
-item: greenfield-go-module design=0.30 impl=0.32
-item: greenfield-go-module design=0.15 impl=0.32
-item: greenfield-go-module design=0.15 impl=0.32
-item: greenfield-go-module design=0.30 impl=0.32
-item: greenfield-go-module design=0.30 impl=0.32
+item: greenfield-go-module design=0.40 impl=0.32
 item: api-integration design=0.40 impl=0.60
 item: api-integration design=0.40 impl=0.60
 item: api-integration design=0.40 impl=0.60
 item: api-integration design=0.40 impl=0.60
-item: api-integration design=0.40 impl=0.60
-item: greenfield-go-module design=0.30 impl=0.32
-item: api-integration design=0.40 impl=0.60
-item: api-integration design=0.40 impl=0.60
-item: api-integration design=0.40 impl=0.60
-item: greenfield-go-module design=0.30 impl=0.32
-item: api-integration design=0.40 impl=0.60
-item: api-integration design=0.40 impl=0.60
-item: api-integration design=0.40 impl=0.60
-item: api-integration design=0.40 impl=0.60
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
 item: smaller-go-module design=0.06 impl=0.20
-item: atlas-docs design=0.10 impl=0.08
-item: atlas-docs design=0.10 impl=0.08
-item: atlas-docs design=0.10 impl=0.08
-item: atlas-docs design=0.10 impl=0.08
-item: milestone-review design=0.00 impl=0.20
-item: milestone-review design=0.00 impl=0.20
-item: milestone-review design=0.00 impl=0.20
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: greenfield-go-module design=0.40 impl=0.32
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: atlas-docs design=0.04 impl=0.08
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+item: milestone-review design=0.04 impl=0.20
+item: milestone-review design=0.04 impl=0.20
 design-buffer: 0.15
-total: 21.28
+total: 17.01
 ```
-
-Design 8.66 × 1.15 + implementation 11.32 = 21.28 hours (rounded).
 
 ## Plan
 
-Proposed durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). Implementation awaits operator approval and the change-code gate.
+Current durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). The operator approved the simplified scope. The revised implementation gate passed with plan-quality CLEAN and estimate-quality INFO (17.01h provisional). M1 and M2 closed with SHIP and no findings; final issue acceptance and publication remain.
 
-- [ ] M1 — Guard issue reservation and publication across worktrees and clones.
-- [ ] M2 — Release external-review locks, reject stale results, and verify dependency workflows.
+- [x] M1 — Fresh status claims and explicit commit publication across all slots/clones.
+- [x] M2 — Release external-review locks, reject stale results, and verify dependency workflows.
 
 ## Log
 
+
+
+
+- 2026-09-23: closed — M1 and M2 SHIP with no findings; full workspace/SDLC suite passed (known #210 missing-history fixture excluded), vet/diff checks passed, real Git races and nested dependency conflict recovery preserve state, real SIGINT/SIGTERM and race tests pass; weave compile succeeded.; review verdict: SHIP
+- 2026-09-23: closed M2 — Full workspace/SDLC suite passed (cmd/sdlc 426.154s; known #210 fixture excluded), vet/diff checks passed, six real SIGINT/SIGTERM cases and race tests passed, nested dependency conflict/recovery preserves caller and parent. Actual increment 1.34h = measured total 6.10h minus recorded M1 4.76h.; review verdict: SHIP
+- 2026-09-23: closed M1 — Full pkg/workspace and cmd/sdlc suites passed (known #210 fixture excluded); vet and diff-check passed; real linked-worktree and independent-clone claims have one winner, creation allocates distinct IDs, selected commits preserve local code/index/files. Actual 4.76h copied from this gate measurement.; review verdict: SHIP
 ### 2026-09-22 — fresh v2 task
 
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
@@ -158,3 +166,29 @@ Operator approved implementation. Baseline targeted Git/publication/lock tests p
 ### 2026-09-23 — Estimate revised after gate feedback
 
 The first 6.88h derivation under-itemized independent receipt concerns, production integrations and conformance harnesses. Replaced it with concrete concern rows from the same calibration method; no implementation scope added. The original estimate-quality refusal remains in `/tmp/ariadne-244-change-code-4.log`.
+
+### 2026-09-23 — Entered implementation
+
+Plan-quality has no open findings; estimate-quality returned INFO with a provisional 21.28h concern-by-concern derivation. `sdlc change-code` created the issue branch in place. M1 divides into evidenced Git transactions, pure publication/receipt state, and command integration. Root owns verification and boundary gates. No production change is yet claimed.
+
+### 2026-09-23 — Simplified scope approved
+
+Operator clarified that working on origin/main is sufficient reservation state and rejected complexity introduced for identifying claim retries. Agreed fresh conditional status claims, explicit agent-selected documentation commits (issue plus plan/project when deliberately included), Git-based merging/conflict handling, and identical publication in :0 and other slots/clones. Retained unlocked external reviews with stale-input validation. Preserved v1 design/estimate separately; current estimate is unset pending the revised design gate. Partial v1 code/docs remain uncommitted and unfinished; this turn changes only design artifacts.
+
+### 2026-09-23 — Simplified design review
+
+Fresh-context review approved the revised issue/plan with no blocking inconsistencies. The review confirms status-only claims, explicit commit selection, identical publication across checkout kinds, and unlocked reviews with validation before persistence. This is design review only; revised implementation gate/estimate evidence is still required before code resumes.
+
+### 2026-09-23 — Resume simplified implementation
+
+Operator authorized implementation and removal of the obsolete design artifact. Retired the uncommitted receipt draft outside the repository and restored its tracked source/docs to HEAD. Re-entering the design/estimate gate for the current scope; earlier gate records are historical evidence only.
+
+### 2026-09-23 — M1 verified before review
+
+Revised change-code completed successfully. Implemented fresh status-only claims, same-slug-safe creation, explicit selected documentation commits, three-way Git merging/provenance, and identical publication in primary/worktree/private-clone checkouts. Removed the old whole-branch/snapshot shortcuts. Tests exposed identical candidate commits and server-side ref-lock rejection shapes; reservations now reread on confirmed rejection/up-to-date and preserve uncertainty on ambiguous acknowledgment, without caller ownership inference. Full workspace/SDLC suite passed (known #210 fixture excluded), vet and diff-check passed. Updated atlas/help/base instructions. M1 boundary review is next; M2 is prepared separately and not yet integrated.
+
+- 2026-09-23: M2 integrated shared review snapshots and prepare/unlock/revalidate phases; focused workflow tests passed (196.593s) and judge tests passed. Nested private-dependency CLI creation/claim/issue+plan publication/conflict/recovery passed without touching parent state or caller files/index. Real CLI signal propagation added after finding that the old background-context entry point could orphan unlocked reviewers; scratch real SIGINT/SIGTERM and race tests pass. Full combined verification follows.
+
+### 2026-09-23 — M2 verified before review
+
+Full workspace/SDLC suite passed (426.154s command package; pre-existing #210 fixture excluded), vet and diff checks passed. Real CLI cancellation tests exercise SIGINT/SIGTERM through the actual command entry point; focused race checks passed. Selected-commit nested dependency conflict/recovery preserves parent and caller state. All implementation is complete; M2 boundary review and final issue review/publication remain.
