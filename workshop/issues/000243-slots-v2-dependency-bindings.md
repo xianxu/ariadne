@@ -53,6 +53,8 @@ Cross-repository work can be driven from any slot's thread, using each repositor
 
 Task outline only; settle implementation design through start-plan before change-code.
 
+Engineering proposal: [nested slots and dependency bindings plan](../plans/000243-slots-v2-dependency-bindings-plan.md). Product policy is agreed; fresh-context engineering review and operator plan approval precede change-code.
+
 - [x] Inspect current dependency and installation paths; compare minimal binding policies and obtain the policy decision.
 - [ ] Design and implement the nested identity follow-up and required dependency/setup changes with fixture tests.
 - [ ] Prove fresh and repeated setup and document explicit dependency/tool updates.
@@ -73,8 +75,16 @@ Policy question sent to operator: shared stable dedicated dependency baseline (m
 
 Read-only audit verification: existing acquire/staging/plan/startup fixture suites passed. Clone staging already owns interrupted-producer recovery; concurrent setup is not currently supported. Repeated compilation can initially seed/adopt Makefiles and generated-ignore metadata, so the acceptance probe must explain tracked changes against a prepared baseline rather than assume a universally clean diff. Implementation design and estimate await the binding-policy decision.
 
+### 2026-09-23 — engineering proposal checkpoint
+
+Ran start-plan for the revised design. Audits confirmed both Pair and Parley declarations lack acquisition URLs, existing Weave clones remote default HEAD, and flat workspace identity misclassifies nested main/dependency checkouts. The durable proposal covers the nested resolver follow-up, independent clone identity and environment-local content selection, canonical calibration, private origin/main acquisition, setup interruption/exclusion, and real isolated Parley/tooling verification. Source declarations need small peer updates; no runtime implementation has started. Fresh-context spec/plan review is in progress. Unrelated process-manual and #230/#240 edits remain untouched; estimates wait for plan-quality acceptance.
+
 ## Revisions
 
 ### 2026-09-23 — Nested workspace and dependency policy agreed
 
 Reason: operator agreed nested environments, ordinary remote dependency clones and existing per-repository publication. Delta: added the authoritative scope clarification and acceptance criteria above; original task context remains as provenance. No implementation or lifecycle-status change is claimed by this revision.
+
+### 2026-09-23 — first engineering proposal
+
+Reason: operator requested continuation after the policy/task update. Delta: linked the durable implementation plan and recorded live integration gaps. The plan supplies a concrete reviewable design; its additional engineering choices are proposed, not silently treated as prior product decisions.
