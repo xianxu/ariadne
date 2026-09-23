@@ -33,6 +33,45 @@ between planning and code-changing work in any checkout:
                            (with a sizing hint) or, headless, get the
                            agent sentinel.
 
+SLOT BRANCH PREPARATION (#245)
+
+  For “in :2, branch from :1”, resolve both with `sdlc workspace --json`
+  (pass :1 for the source). Require addressable slots of the same repo, a
+  destination on its resting branch, no ongoing Git operation, and both trees
+  clean including nonignored untracked files and dirty submodules. Stop
+  concurrent writers. Use an already allocated issue's exact filename stem
+  as the new branch name; refuse an existing branch.
+
+  Capture source address, symbolic branch and full SHA; re-resolve and recheck
+  identities, HEADs, branches and readiness immediately before switching:
+
+    git -C "$destination" -c submodule.recurse=false switch --no-track --no-overwrite-ignore -c "$issue_branch" "$source_sha"
+
+  Verify HEAD equals the captured SHA. Record source address and SHA in the
+  issue Log, then `sdlc issue sync --issue N`. Explicitly bring in the allocated
+  issue record if absent; do not allocate a replacement or import a plan
+  automatically. Claim open issues normally; do not reclaim working issues.
+  Run planning and `change-code --issue N --worktree=no` on this prepared branch.
+  Subsequent source movement does not propagate. This preserves both resting
+  refs/upstream configurations and leaves sibling dependencies alone.
+
+  For independent work, use the destination's own current committed HEAD as
+  source. No baseline fetch/refresh is implied. Plain change-code retains its
+  existing sync-before-branch order; prepare the branch first when its resting
+  ref must stay unchanged. Reservation/doc publication still contacts remote.
+
+  Refresh is separate and explicit: require a clean resting checkout, read its
+  configured upstream remote/main (never assume origin), fetch main without
+  submodule recursion, pin the fetched SHA, and recheck checkout/configuration.
+  Require resting HEAD to be an ancestor of that SHA before merging it with
+  --ff-only --no-autostash --no-overwrite-ignore and submodule.recurse=false.
+  Refuse active issue branches, ahead/divergent history and unsafe files; no
+  automatic stash, commit, reset or reconciliation. Ignored files may remain
+  only when the switch/merge does not overwrite them.
+
+  Full procedure and recovery: atlas/workflow/workspace-branching.md in Ariadne.
+  These are agent instructions using ordinary Git, not automatic CLI guards.
+
 THE FLOW (#231)
 
   Every issue runs one of two flows, and you run the same verbs either way —

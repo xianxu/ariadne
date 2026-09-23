@@ -1,6 +1,6 @@
 ---
 id: 000245
-status: working
+status: codecomplete
 deps: [ariadne#242, ariadne#243]
 github_issue:
 created: 2026-09-22
@@ -8,6 +8,7 @@ updated: 2026-09-23
 estimate_hours:
 started: 2026-09-23T14:55:42-07:00
 flow: {kind: quick, provenance: inferred, spec: "06f4ce42", done: "8d9b76a4"}
+actual_hours: 0.60
 ---
 
 # Slots v2: branch from a workspace and refresh
@@ -76,9 +77,9 @@ Require the old resting commit to be an ancestor of the fetched commit. Equal co
 
 Small docs-and-tests change, inside the quick-flow shell; no separate plan or new runtime mechanism (ARCH-DRY).
 
-- [ ] Add focused real-Git regression fixtures in `cmd/sdlc/workspace_procedure_test.go` for the approved capture/branch/refresh commands, preservation/refusal cases, and existing change-code on a prepared issue branch. Run `go test ./cmd/sdlc -run 'TestWorkspaceProcedure' -count=1`.
-- [ ] Write one concise `atlas/workflow/workspace-branching.md` guide. Link it from `atlas/index.md`, workspace identity and `cmd/sdlc/helptext/change-code.md`; make embedded help carry the essential procedure so downstream agents can find it.
-- [ ] Run focused workspace/change-code tests and `git diff --check`; close through the existing SDLC review, then publish through PR. Keep sibling dependency operations and existing runtime behavior unchanged.
+- [x] Add focused real-Git regression fixtures in `cmd/sdlc/workspace_procedure_test.go` for the approved capture/branch/refresh commands, preservation/refusal cases, and existing change-code on a prepared issue branch. Run `go test ./cmd/sdlc -run 'TestWorkspaceProcedure' -count=1`.
+- [x] Write one concise `atlas/workflow/workspace-branching.md` guide. Link it from `atlas/index.md`, workspace identity and `cmd/sdlc/helptext/change-code.md`; make embedded help carry the essential procedure so downstream agents can find it.
+- [x] Run focused workspace/change-code tests and `git diff --check`; keep sibling dependency operations and existing runtime behavior unchanged. Standard close review and PR publication follow this implementation checklist.
 
 ## Log
 
@@ -87,12 +88,23 @@ Small docs-and-tests change, inside the quick-flow shell; no separate plan or ne
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
 
 ### 2026-09-23 — Design audit
+- 2026-09-23: closed — Real-Git procedure tests passed, including ignored-overwrite mutation failure and restored pass; workspace suite passed; related workspace/change-code/branch tests passed; prepared-branch change-code reentry passed without bypasses; rebuilt help and git diff --check passed. No runtime behavior or sibling dependency operations added.; review verdict: FIX-THEN-SHIP
 
 Claimed #245 and ran start-plan. Audited workspace resolution, change-code planning review/sync ordering and branch creation with a read-only peer audit. Proposed ordinary Git preparation avoids reviewing the wrong snapshot and avoids placing new planning checkpoints on resting refs. An unrelated untracked stale #244 issue copy is preserved untouched.
 
 ### 2026-09-23 — Spec review correction
 
 Fresh review identified that arbitrary branch names or allocating an issue after preparation could make change-code switch to a second branch. Tightened the procedure to require an already allocated issue and its canonical filename stem; missing records are imported explicitly without reallocating IDs. A provisional-branch lifecycle is intentionally outside this procedure. Fresh re-review approved the corrected spec with no remaining important findings. Issue schema validation and diff whitespace checks passed; implementation and durable implementation planning await operator approval of this design.
+
+### 2026-09-23 — Implementation and verification
+
+Added one ordinary-Git guide, discovery links and 39 lines of embedded change-code guidance; no new CLI, runtime branch behavior or metadata. Added real-Git fixtures for pinned source/provenance, :0/:N symmetry, existing change-code reentry, cleanliness/collisions, capture movement, old baseline/planning preservation, non-origin refresh and sibling state preservation. Agent checks remain explicitly procedural, not claimed as binary enforcement.
+
+Verification: procedure suite passed (19.554s); removing ignored-file protection made the collision test fail, then restored test passed. `go test ./pkg/workspace/... -count=1` passed (20.924s); related `TestWorkspace|TestChangeCode|TestCreateInPlaceBranch|TestResolveBranchName` command tests passed (52.224s). Prepared-branch reentry passed again without a structural bypass (7.567s). `go build -o bin/sdlc ./cmd/sdlc` and diff whitespace checks passed; rebuilt help displays the procedure. Published earlier selected design commits in order, resolving change-code's missing-prerequisite publication warning without publishing unrelated history. The untracked stale #244 file remains untouched.
+
+### 2026-09-23 — Boundary review fixes verified
+
+Close returned FIX-THEN-SHIP with two Important findings and no Critical findings. Addressed both before the close commit: README now links the procedure; branching fixtures snapshot source after intentional source movement, retain every existing-ref assertion, and verify source HEAD, branch, resting ref, upstream configuration and cleanliness after SDLC checkpoints. Injecting an unwanted source commit made all three address combinations fail at the new assertion; restored test passed (7.533s). Recorded the general discovery/preservation rule in lessons. No second close review is required by the gate's post-verdict protocol.
 
 ## Revisions
 
@@ -107,3 +119,7 @@ Reason: implementation audit found change-code reviews destination artifacts and
 ### 2026-09-23 — Approved, keep implementation small
 
 Operator confirmed this is agent branching guidance backed by tests and approved execution. Delta: replace the task outline with a compact implementation checklist; use quick flow because tests/docs are excluded from its production-code limit and the design is below 500 lines. No separate plan or additional approval needed.
+
+### 2026-09-23 — Review coverage and discoverability
+
+Reason: boundary review found missing README discovery and an incomplete source-state assertion. Delta: add the guide link and explicit source checkout/ref/upstream preservation checks; no procedure or runtime scope change.
