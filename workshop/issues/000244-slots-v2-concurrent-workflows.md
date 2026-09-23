@@ -1,10 +1,10 @@
 ---
 id: 000244
 status: open
-deps: [ariadne#242]
+deps: [ariadne#242, ariadne#243]
 github_issue:
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 estimate_hours:
 ---
 
@@ -22,12 +22,21 @@ Audit and fix current SDLC behavior with two worktrees of one repository. Author
 
 Keep repository mutation serialization where needed, while external review waits should not monopolize the shared repository lock. Revalidate the exact reviewed/prepared state after reacquiring authority. No automatic claim transfer is introduced by branching from another workspace. ARCH-SECURE and ARCH-DRY: use existing ownership/publication machinery, with fresh evidence at mutation boundaries. This is a new v2 acceptance contract; audit live code rather than inheriting old issue conclusions.
 
+### Agreed scope — 2026-09-23
+
+This section takes precedence over earlier conflicting layout or policy text.
+
+Apply the publication/concurrency audit to both numbered main-repository worktrees and ordinary dependency clones inside their environments. Independent clones share a remote but not a local Git lock, so allocation, reservation and conflicting issue-body publication must rely on fresh remote evidence. A thread rooted in Pair may create, update, review and publish an Ariadne issue by targeting that environment's Ariadne checkout through existing SDLC commands. Creating/publishing a reservation does not imply later local issue-body edits are published; preserve and expose those edits through the existing explicit sync/publication workflow. No automatic recursive dependency publication or claim transfer is introduced.
+
 ## Done when
 
 - A real two-worktree race to claim one issue has one winner and an explicit loser, with no overwritten ownership.
 - Concurrent issue allocation and independent issue updates preserve unique IDs and both records; conflicting same-record updates are visible.
 - A controlled slow review permits unrelated issue operations to finish; changed review inputs prevent stale finalization.
 - Automated interleaving tests cover the production publication/lock boundaries and retain existing SDLC gates.
+
+- Independent clones targeting the same remote have tested allocation/claim/body-update conflict handling, as well as the existing shared-worktree cases.
+- A parent-slot-driven dependency issue can be created, updated and explicitly published using normal SDLC without losing local issue-body edits or assuming a shared local lock.
 
 ## Plan
 
@@ -42,3 +51,9 @@ Task outline only; settle implementation design through start-plan before change
 ### 2026-09-22 — fresh v2 task
 
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
+
+## Revisions
+
+### 2026-09-23 — Independent dependency repositories use normal SDLC
+
+Reason: operator agreed nested environments, ordinary remote dependency clones and existing per-repository publication. Delta: added the authoritative scope clarification and acceptance criteria above; original task context remains as provenance. Added #243 as a prerequisite for the nested identity contract. No implementation or lifecycle-status change is claimed by this revision.
