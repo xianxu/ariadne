@@ -31,7 +31,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `propagate-base`  | (new #106; precheck #109)   | Re-weave every recursive DEPENDENT of this repo (downstream counterpart to `substrateChain`): discover dependents (Makefile.workflow + substrate chain), order foundation-first, then per repo a clean-tree precheck → `make weave` + verify-complete + commit (untracking now-generated files). A dependent with a DIRTY working tree (pre-existing uncommitted work — e.g. a concurrent session) is SKIPPED untouched (never `git add -A`'d) and the run exits non-zero. `--dry-run`/`--ref`. |
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
 | `fetch`           | `make fetch N`              | **Hidden deprecated alias** for `sdlc issue new --from-github` since #56 M2 (keeps `--github-issue`) |
-| `claim`           | `make issue-sync`           | Issue-file workstream-claim onto main (formerly `lock`, #39) |
+| `claim`           | (formerly `lock`, #39)      | Reserve one open issue on fresh `origin/main`; publish only status/start metadata (#244) |
 | `start-plan`      | (new #75)                   | Planning-entry transition: delivers the `at-plan` architecture lens + the durable-plan pointer (`superpowers-writing-plans` → `workshop/plans/`, #72), sized against the quick-flow shell (#231) to design against |
 | `change-code`     | `make worktree` (partial)   | Planning → implementation gate. First it infers the issue's flow (#231: Mx rows or a design past the shell's design limit → full; neither → quick, which runs none of the gates that follow; `--flow` pins it); the flow is recorded after the gates pass, re-derived from the issue as it is then. Then, in this order (#187 B1): structural + **plan-quality (stateful, #187)** + estimate (#113) + estimate-reconciliation + estimate-quality (#117) + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
 | `set-status`      | (new)                       | Status-transition guards. Moved under `sdlc issue set-status` (#56 M2); **hidden deprecated flat alias** kept one cycle |
@@ -40,7 +40,8 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + the #124 instance-conformance gate (`--no-validate`) + cleanup + irreversible-action confirm (#51) |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| Allocate next ID + write canonical template (`--from-github N` seeds from GitHub) |
-| `issue sync`      | (new #206)                  | Commit ONE issue's body (Spec/Plan/Log) under `#N: issue-sync: <what>`. **Does not push** — `--push` opts in. The planning-phase counterpart to `claim`, which publishes only the reservation. The mid-planning trigger is delivered by `start-plan`'s output + AGENTS.md §2/§14, not left in `--help` |
+| `issue sync`      | `make issue-sync ISSUE=N`   | Commit one issue locally under `#N: issue-sync: <what>`; `--push` publishes only the commit created by this invocation |
+| `issue publish`   | (new #244)                  | Apply one explicitly selected documentation commit to fresh remote main with three-way merging and an exact-ref conditional push |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
@@ -51,82 +52,39 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `project status/retro` | (new #180 M4) | Derive progress, dependency frontier, remaining effort, and thread components from live issue records; append dated re-forecast checkpoints without overwriting the baseline |
 | `project close` | (new #180 M4) | Require the modeled executing→done (or executing/paused→dropped) edge and a retro, roll Phase-A vs issue actuals into the brain fog ledger unless explicitly bypassed, then archive through `ArchiveSubdir(..., ArchiveProjects)` |
 
-### Issue-file sync: durability vs publication (#206)
+### Issue reservation, local durability and publication (#244)
 
-One dispatch — `syncIssuesToMain` in `claim.go` — serves `claim`, `issue new`,
-`issue sync` and `change-code`.
+These are separate operations in every checkout, including primary `:0`, numbered
+slots and independent dependency clones. See [issue publication](issue-sync.md)
+for the operator workflow and recovery contract.
 
-**`change-code`'s invariant: the issue file ends up committed in THIS worktree,**
-on the branch about to carry the work — across `resolveBranchName`'s three name
-modes × {on main, in-place feature branch, feature worktree} × {untracked,
-tracked-and-edited}. Two consequences that each cost a review round to find:
+| Operation | Publication unit |
+|---|---|
+| `claim --issue N` | Only the open → working transition and start metadata, derived from fresh remote issue bytes; local body edits stay local |
+| `issue new` | A new issue reservation, choosing another free ID if any record already occupies the proposed ID |
+| `issue sync --issue N` | One local issue-file commit; no network operation by default |
+| `issue sync --push` / `change-code` | Only the narrow issue commit created by that invocation; no implicit range or design package |
+| `issue publish --commit SHA` | The selected non-merge commit's entire eligible Markdown change set, including deliberately grouped issue, plan and project files |
 
-- The id comes from the RESOLVED issue path, not `--issue` — only one of the
-  three name modes sets that flag, and in auto-detect with `--worktree=yes`
-  gating on it left the new worktree holding no issue file at all, since `git
-  worktree add` does not carry untracked files.
-- Publishing is conditioned on **already being on main**, not on the caller's
-  intent. From a branch the publish route would put the in-progress body on
-  `origin/main` — a half-written Spec published, and a network round-trip per
-  milestone re-run. `pr`/`merge`/`close` are what publish. (The mechanism moved
-  in #207 — the trunk route builds the commit out-of-tree rather than driving
-  the main worktree — but the decision is unchanged and rests on WHAT gets
-  published, not on how.)
+`runClaim` owns remote status reservation. `syncIssuesToMain` dispatches local
+checkpointing, creation reservation, or publication of a newly created issue
+commit. `syncInPlace` only commits the selected local issue; `syncViaTrunk` is
+reserved for creation. `change-code` keeps its issue committed in the worktree
+about to carry the implementation, then publishes that exact checkpoint when one
+was created. No new checkpoint means no publication; `issue sync --push` instead
+asks for an explicit source SHA when there is no new commit.
 
-`TestChangeCodeSyncIssue_ModeMatrix` runs the whole table.
+Documentation publication applies source-parent → source to fresh `origin/main`
+with Git three-way merge semantics. It preserves unrelated remote edits and all
+unselected local commits. Mixed code/document commits and nonregular files
+refuse as a whole. A conflict names its paths; missing prerequisites must be
+published explicitly in order. There is no local-main whole-branch shortcut.
 
-**Publication is the gap between `origin/main` and this worktree's body — never
-the gap between the working tree and HEAD.** Splitting durability from
-publication made "committed locally, not yet pushed" a state the code
-deliberately creates, and `changedIssueFiles` is empty in exactly that state, so
-both arms skip only the COMMIT when nothing is dirty. What that means differs by
-arm, and getting it wrong in either direction is silent:
-
-- The fall-through publish is opt-in: only `sdlc issue sync --push` sets
-  `PublishExisting`. For `claim` and `issue new`, "nothing dirty" stays the no-op
-  it has always been — `claim` die()s on a sync error and is re-run constantly,
-  so a clean-tree claim must not touch the network at all. (Inferring the intent
-  from `origin/main..main` instead turned every clean claim into a wholesale push
-  of local main, publishing bodies a no-push sync had deliberately kept local.)
-- `syncViaTrunk` re-seeds its file list from the ISSUE and publishes it, so
-  "nothing to copy" never means "nothing to publish" — the body may already be
-  committed here and still absent from the trunk.
-- A body the trunk already carries byte-for-byte produces no commit at all:
-  `UpdateMany`'s early return is **whole-set** — every write matches AND every
-  delete is already absent. That preserves the idempotence the old arm got by
-  dropping byte-identical files before its conflict detector ran — without which
-  the documented publish-then-publish-again workflow died on a false `Conflict
-  detected!`. This is not conflict detection (explicitly out of scope) — it is
-  declining to invoke it when there is no content difference to resolve.
-
-`TestIssueSync_PublishMatrix` covers {on main, feature worktree} × {body dirty,
-body already committed} and asserts the published content, not a SHA: comparing
-SHAs would not catch a push that moved nothing. `TestPublishIsIdempotent` runs
-the documented workflow twice from both locations, because an agent re-running a
-verb is the normal case. `issue new` follows
-the same durability-before-publication rule: when its reservation broadcast
-cannot reach the trunk (an unreachable origin, or a push the trunk refuses —
-since #207 there is no worktree to be missing), it falls back to a local commit
-rather than leaving the new issue untracked.
-
-Its two arms are **not** "on main vs on a
-branch"; they are *commit here* vs *publish to origin/main from elsewhere*:
-
-| arm | what it does | reached when |
-|---|---|---|
-| `syncInPlace` | `add` + `commit` in THIS worktree on THIS branch, then `push origin main` unless `NoPush` | the caller isn't publishing, **or** this worktree is already on main |
-| `syncViaTrunk` (#207) | build the commit in the object database and CAS-push it at `origin/main` — no checkout involved | publishing from anywhere that isn't main |
-
-Every step of the second arm exists to publish, so suppressing the push doesn't
-just skip its last line — it selects the other arm entirely. That is what makes
-a no-push sync cheap: local, offline-safe, no worktree hunt, and usable from an
-in-place feature branch where no worktree is on main at all.
-
-The publish choice is spelled `NoPush` on `claimFlags`, never `Push`: `issue
-new` builds that struct as a literal, so a positive field would zero-value to
-false there and silently kill the reservation broadcast (#82 M1). The commit
-subject is a parameter too (`""` = each arm's historical default), which is the
-only thing `issue sync` adds over the shared helper.
+Publication preserves the caller's checked-out branch, index and working files;
+fetch may update remote-tracking refs. The resulting commit retains the selected
+message and adds `Source-Commit:` provenance. Repeating an already-published
+source does not replay it after a later edit or revert. A byte-identical merge
+reports no change without creating a remote commit.
 
 **The sync subject is declared bookkeeping.** `#206: issue-sync: spec/plan`
 anchors `#N`, so without an entry in `gitx.bookkeepingVerbs` it would read as
@@ -141,18 +99,15 @@ add` now carries the same paths as a commit pathspec (`--`, implying `--only`).
 A bare `git commit` records the whole index, so a peer agent's staged work was
 swept into a commit that misdescribed it — the repo transaction lock serializes
 sdlc verbs against each other, but nothing stops a peer running plain `git add`.
-Seven sites: both sync arms, both `push.go` archive commits, `merge.go`'s, and
-`migrate.go`'s two (source + destination). `archiveCommitArgs` derives its path
+Local issue sync, archive and migration commits follow this rule.
+`archiveCommitArgs` derives its path
 list *from* `archiveAddArgs` so the two cannot drift, and refuses an empty move
 list — `git commit -m … --` with no paths is read as NO pathspec and commits the
 whole index, which is the helper's own failure mode on its degenerate input.
 
-Reachability differs by site. The publish arm no longer builds a commit from an
-index at all (#207 — it writes a tree directly), so the swept-index family cannot
-reach it. `syncInPlace`, `push`'s archive and `migrate`'s **source** side have no
-such guard — migrate's cleanliness check (`status --porcelain -- relPath`) is
-scoped to the migrated file alone — and those three are the deterministic
-regressions in `issuesync_test.go`. `migrate --no-commit` prints the pathspec'd
+Remote publication constructs Git objects independently of the caller's index.
+`syncInPlace`, `push`'s archive and `migrate`'s source side still commit locally;
+`issuesync_test.go` protects these paths against unrelated staged work. `migrate --no-commit` prints the pathspec'd
 form in its hints too, so the operator isn't handed the defective command.
 
 **The class is guarded at the source, not per site.** `TestGitCommitsCarryTheirPathspec`
@@ -183,10 +138,9 @@ stronger than a call site that can be deleted with the suite still green.
   have folded the merge in silently. Better behavior, but finish or abort the
   merge first.
 - `issue sync`'s no-push default is a property of the **verb**, not of the
-  repository. The body is committed locally, and a later `claim` / `issue new` /
-  `push` on main publishes whatever main carries — this body included. "Not
-  pushed" means "this command performed no network operation", never "this
-  content cannot reach origin by another route".
+  repository. A later explicit documentation publication or normal PR/ship flow
+  can publish that commit. `claim` and `issue new` do not sweep it into their
+  reservation transactions.
 
 ### Issue-id allocation reads the trunk, not the checkout (#213)
 
@@ -231,8 +185,8 @@ published id. The four:
 The same rule reaches the sites that only *report*: `sdlc merge`'s gate warns
 when it could not refresh the trunk (it used to pass with a confident `[ok]`
 over exactly the window it exists to cover), `claim`'s publish path
-errors instead of reporting success over a read it could not make (its
-main-worktree precheck is gone with the route — #207), and — the sharpest —
+errors instead of reporting success over a read it could not make, and
+— the sharpest —
 `sdlc issue lint-ids` **exits 2 on a degraded read**. That verb is what CI shells
 to, and every read failure used to warn and exit 0: a GREEN required status
 check on a check that never looked. Green is the one answer a check that did not
@@ -627,7 +581,11 @@ cmd/sdlc/
                        remains the loud escape hatch
   start.go             migration stub (REMOVED in #39 — errors with
                        "use claim + change-code")
-  claim.go             branch-aware issue synchronization + claim (#39)
+  claim.go             fresh remote status claim + local issue checkpoint (#244)
+  claimdecision.go     pure open-status reservation decision
+  issuepublish.go      selected documentation commit publication command
+  commitpublication.go pure workflow-path eligibility policy
+  synctrunk.go         new-issue reservation with per-attempt ID allocation
   changecode.go        new (#39): planning → implementation gate
   branchcreate.go      new (#39): branch-creation helpers shared by
                        changecode.go (worktree + in-place paths) + the
@@ -669,63 +627,42 @@ cmd/sdlc/
                        will lift residency)
 ```
 
-## Publishing to the trunk (`gitx.TrunkFile`, #209 + #207)
+## Publishing to the trunk (`gitx.TrunkFile`, #244)
 
-Reads and compare-and-swap-writes paths on a remote branch with **no working
-tree**. Its consumer is `syncViaTrunk` — the publish arm for `sdlc issue new`,
-`issue sync` and `claim`.
+Both reservation and selected-commit publication build a commit whose parent is
+an observed remote tip, then push with an explicit
+`--force-with-lease=refs/heads/main:<observed>` expectation. This detects forward
+movement and rewinds. Plain fast-forward acceptance is not an exact-ref guard.
+Each transaction permits at most three attempts and leaves caller branches,
+working files and the caller index untouched.
 
-The route it replaced drove *someone else's checkout*: find the worktree on main,
-refuse if it is dirty, `pull --rebase` it, detect both-sides changes, copy,
-commit, push. Every guard there existed to make a shared working directory safe,
-and each was a way to fail — main can be dirty, mid-rebase, another actor's tree,
-or absent. **Absent is the common case**, because `change-code` branches in
-place: an actively-worked repo has no worktree on main, so the reservation
-mechanism was unavailable exactly in the workflow's default mode. Measured in
-`pair` on 2026-09-06: twenty consecutive issues filed unreserved, and three real
-id collisions that each cost a renumber.
+`UpdateMany` serves reservations. Its `prepare(*TrunkView)` callback derives the
+whole write set again from each fresh tip. Claim requires open status; creation
+chooses another free ID for every occupied ID, even the same slug. The claim path
+never renumbers. File existence is distinct from empty contents, and deletions
+are explicit in `TrunkWrite`.
 
-`push <commit>:main` is the concurrency primitive — a compare-and-swap that sees
-the remote, where the cleanliness check it replaced could only see local
-divergence.
+`SelectCommit` pins a source and its sole parent and enumerates every changed
+path. Command-level eligibility accepts ordinary Markdown workflow records;
+root/merge commits, symlinks and submodules refuse. `PublishCommit` uses
+`git merge-tree --write-tree --merge-base=<source-parent>` to merge only the
+selected change into fresh main. Git capability failures and conflicts refuse
+without mutating caller state. The resulting source-message-preserving commit
+carries `Source-Commit:` provenance; history queries share a 30-second deadline.
 
-**`UpdateMany` derives its paths per attempt.** `prepare(*TrunkView)` runs after
-each fetch and returns the whole change set, so a caller whose path depends on
-trunk state — an issue id — re-decides it against the base the CAS will actually
-race. A fixed path map would make the retry re-push a colliding id and land the
-duplicate as a clean fast-forward, which is `ariadne#188`'s hole one layer up.
-`TrunkWrite` carries `Delete` as its own field for the same reason a bool could
-not carry three states: an absent key cannot mean "remove this".
+`publicationStep` owns the retry/outcome classification. Selected publication
+can confirm a lost acknowledgment by source or publication reachability. A
+reservation remains uncertain after an ambiguous acknowledgment: a peer can
+produce an identical commit, so reachability does not prove this caller won.
+Explicit rejections and up-to-date reservation responses recheck remote status
+instead. Failed probes never become evidence of absence or permission to replay.
 
-**Collision policy splits by caller, and that split is the design.** Renumbering
-is safe only *before* anything references the id; by claim time it has leaked
-into the branch name, and after that into commit subjects agents grep, `deps:` in
-sibling issues, and review sidecar filenames.
-
-| caller | a different slug holds our id |
-|---|---|
-| `issue new` (`FirstPublication`) | **re-allocate** — next free id, filename AND `id:` frontmatter rewritten together, announced loudly |
-| `issue sync` / `claim` | **refuse**, naming both paths |
-
-`FirstPublication` is DECLARED by the caller, never inferred. An earlier draft of
-#207 inferred "the id is taken, so re-allocate" and would have renumbered every
-existing issue on every sync, because republication pushes an id already on the
-trunk — its own.
-
-Three properties that are load-bearing rather than incidental:
-
-- **`NewTrunkFile` refuses an empty dir.** gitx's older `run` shim carries no
-  `Dir`, so a forgotten one would push to the *real* origin during `go test`.
-- **`runGitIn` returns stdout and stderr separately.** Combining them folded a
-  git warning into a parsed blob hash, and would have folded it into file content
-  on every read.
-- **Offline is asymmetric**: a read degrades to the stale tracking ref with a loud
-  warning, a write refuses, because a CAS push has no base to compare against.
-
-Tested against a real bare origin via `internal/testfix` (`ARCH-MOCK`) — a
-function-call mock cannot produce the non-fast-forward rejection that is the
-whole point — including an end-to-end from a feature branch with no worktree on
-main anywhere.
+The `runGitIn` / `runGitInContext` boundary preserves separate stdout and stderr
+and an explicit repository directory. Read-only degraded reads can warn and use
+a stale ref; publication requires a fresh fetch. Tests use a stateful commit/tree/
+ref fake at that same boundary and real bare-Git fixtures in normal test runs,
+including receive-pack races, remote rewinds, lost acknowledgments, identical
+candidate commits, conflicts and retries after later edits or reverts.
 
 ## Drift checks (`sdlc state`)
 
@@ -1017,9 +954,9 @@ The clean-tree guards (step 2 and the 9b re-assert) refuse only on tracked
 **Untracked** files survive `git switch main`, so they're surfaced as a warning,
 not a blocker — unrelated local WIP no longer forces a stash-around-the-merge
 detour. **Tracker** files (`workshop/issues|history/NNNNNN-*.md`) are likewise
-never blocking, tracked-modified *or* untracked (#82 M2): they're append-only
-shared state synced to main out-of-band (#82 M1), not code contention, so a dirty
-issue file never gates a merge. (Path matching reuses push.go's
+never blocking, tracked-modified *or* untracked (#82 M2): workflow-document
+changes are classified separately from code dirt, so a dirty issue file does not
+by itself gate a merge. Reservation and documentation publication follow #244. (Path matching reuses push.go's
 `isIssuePath`/`isHistoryPath`; the path is pulled by field-split, not column
 slice, since `worktreeDirty` whole-trims and strips the first line's leading
 status space.)
@@ -1308,8 +1245,9 @@ push --yes`.
 
 ## Makefile wrappers (transition state)
 
-Each Make target delegates to `bin/sdlc` when built, falling back to
-the original shell logic when absent:
+Most Make targets delegate to `bin/sdlc` when built and retain shell fallbacks.
+The `issue-sync` wrapper always uses Go: if needed, it compiles a temporary SDLC
+binary from the workflow source directory and invokes it from the consumer cwd.
 
   `make close-issue` → `sdlc close`
   `make fetch <N>`   → `sdlc fetch --github-issue N` (deprecated alias →
@@ -1317,15 +1255,15 @@ the original shell logic when absent:
   `make worktree`    → `sdlc change-code --worktree=yes --no-judge --no-structural
                        --no-estimate` (post-#39, #113; preserves the make target's
                        pre-existing quick-and-dirty gate-free semantics)
-  `make issue-sync`  → `sdlc claim` (renamed from `sdlc lock` in #39)
+  `make issue-sync ISSUE=N` → `sdlc issue sync --issue N` (local checkpoint only)
   `make push`        → `sdlc push`
   `make pull-request` → `sdlc pr`
   `make merge`       → `sdlc merge`
   `make check-<cat>` → `sdlc judge <cat>`
 
-The fallback exists so downstream repos that vendor `Makefile.workflow`
-but haven't yet run `make sdlc-build` keep working. M8 (not yet started)
-deprecates the shell fallbacks and removes the scripts.
+The remaining shell fallbacks serve downstream repos that vendor
+`Makefile.workflow` before building SDLC. There is no separate shell publication
+implementation behind `issue-sync`.
 
 ## When to add a new verb
 

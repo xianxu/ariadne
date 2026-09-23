@@ -125,11 +125,13 @@ total: 17.01
 
 Current durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). The operator approved the simplified scope. The revised implementation gate passed with plan-quality CLEAN and estimate-quality INFO (17.01h provisional). M1 is implemented and verified, pending its boundary review; M2 remains to integrate.
 
-- [ ] M1 — Fresh status claims and explicit commit publication across all slots/clones.
+- [x] M1 — Fresh status claims and explicit commit publication across all slots/clones.
 - [ ] M2 — Release external-review locks, reject stale results, and verify dependency workflows.
 
 ## Log
 
+
+- 2026-09-23: closed M1 — Full pkg/workspace and cmd/sdlc suites passed (known #210 fixture excluded); vet and diff-check passed; real linked-worktree and independent-clone claims have one winner, creation allocates distinct IDs, selected commits preserve local code/index/files. Actual 4.76h copied from this gate measurement.; review verdict: SHIP
 ### 2026-09-22 — fresh v2 task
 
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.

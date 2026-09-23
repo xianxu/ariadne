@@ -8,7 +8,7 @@ The ariadne workflow is an issue-based development loop designed for AI-assisted
 - [Artifact Hierarchy](artifact-hierarchy.md) — where things live and when they move
 - [Pre-merge Checks](pre-merge-checks.md) — constitution enforcement via agent-driven review
 - [CI Merge-check](ci-merge-check.md) — pluggable server-side publish gate (seed shim + symlinked runner + scaffolded `merge-checks.d/`); deterministic checks, complements the LLM judges
-- [Issue Sync](issue-sync.md) — syncing issue state to main from any branch with `sdlc claim`
+- [Issue sync and publication](issue-sync.md) — reserve open work, checkpoint locally, and publish explicitly selected documentation commits from any checkout
 - [Directory Conventions](directory-conventions.md) — the `workshop/` structure and why
 - [Sandbox](sandbox.md) — Claude Code sandbox vs OpenShell container sandbox, zellij multiplexer
 - [OpenShell Sandbox](openshell-sandbox.md) — containerized dev environment setup, daily use, base layer integration

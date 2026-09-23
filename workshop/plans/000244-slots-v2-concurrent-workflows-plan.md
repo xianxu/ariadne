@@ -155,7 +155,7 @@ Files: new `issuepublish.go`, `commitpublication.go`, `internal/gitx/commitpubli
 - [x] Implement through one shared adapter after observing red tests. Keep existing workflow gates intact.
 - [x] Run `go test ./cmd/sdlc/internal/gitx/... ./cmd/sdlc -run 'Test(CommitPublication|CommitSelection|IssueSync|RunIssueNew|Sync|Claim)' -count=1`.
 - [x] Update README, issue/claim help, `atlas/workflow/issue-sync.md`, `issue-lifecycle.md` and the Pair project checkpoint. Document selected files, primary-slot symmetry, conflict handling and repeated-claim refusal.
-- [ ] Commit explicit paths and run `sdlc milestone-close --issue 244 --milestone M1 --verified '<observed evidence>'`.
+- [x] Commit explicit paths and run `sdlc milestone-close --issue 244 --milestone M1 --verified '<observed evidence>'`.
 
 ## Chunk 2 — Review lock scope and integration (M2)
 
@@ -201,3 +201,7 @@ Reason: gate follow-up requested the real-Git execution cadence and durable arti
 The shared retry decision lives in `internal/gitx/publicationstep.go`, next to both production loops; command eligibility stays pure in `commitpublication.go`. Real receive-pack races can report a confirmed remote rejection rather than client-side stale-info. Both trigger a fresh reservation decision. Two callers can construct identical Git commits, so reservation publication never infers caller ownership from reachability: explicit rejection or an up-to-date push rereads status; an ambiguous transport outcome remains uncertain without replay. Selected documentation publication retains provenance-based idempotence. These refinements preserve the approved status-only contract and add no ownership state.
 
 M1 full workspace/SDLC suite passed (411.417s command package; pre-existing #210 missing-history fixture excluded), as did vet and diff checks. Real CLI races cover linked worktrees and independent clones; creation races get distinct IDs; primary/worktree/private-clone publication preserves unrelated commits and index/working files. The first broad run was interrupted for diagnosis; its active resolver test passed alone, and the complete verbose rerun passed. A 2,361-commit remote history provenance scan took 63.0ms; repository objects were 38.39MiB loose + 10.36MiB packed. The small publication fixture was 22 objects/88KiB with a 96.8ms retry query. No general performance guarantee is inferred from these measurements.
+
+### 2026-09-23 — M1 accepted
+
+The mandatory M1 boundary review returned SHIP with no findings and independently passed targeted/full SDLC tests, Git adapter tests, vet and diff checks. The gate closed M1 at measured 4.76h. The reviewer emitted an empty findings fence, which the gate recorded as a protocol warning with no findings; it nevertheless finalized the explicit SHIP verdict. A documentation sweep removes remaining obsolete main-only/whole-file publication guidance from the workflow atlas and compatibility help. No implementation scope changed.

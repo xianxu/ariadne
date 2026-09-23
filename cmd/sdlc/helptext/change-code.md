@@ -172,7 +172,7 @@ EXAMPLES
 
 RELATED
 
-  sdlc claim      claim the issue (commit + push the issue file)
+  sdlc claim      reserve an open issue on fresh origin/main
   sdlc judge      manually invoke any judge category, including
                   plan-quality
   sdlc close      close an issue or milestone (the matching exit
