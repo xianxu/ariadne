@@ -34,6 +34,8 @@ Audit SDLC consumers of repo basename, primary path, sibling peer paths, fleet i
 
 Task outline only; settle implementation design through start-plan before change-code.
 
+Engineering proposal: [durable implementation plan](../plans/000242-slots-v2-workspace-identity-plan.md). Pending operator approval; implementation has not entered change-code.
+
 - [ ] Inventory live identity/path consumers and specify the shared resolver contract.
 - [ ] Add Git fixture tests and implement the resolver and affected SDLC consumers.
 - [ ] Document the contract for Couch and verify primary/non-slot compatibility.
@@ -43,3 +45,13 @@ Task outline only; settle implementation design through start-plan before change
 ### 2026-09-22 — fresh v2 task
 
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
+
+### 2026-09-22 — claimed and engineering design started
+
+Loaded the v2 project, claimed this issue, and ran start-plan. Read-only consumer audit found existing fleet NormalizeVantage and gitx.ParseWorktrees suitable for promotion into a shared package (ARCH-DRY). The durable proposal covers slot/address validation, a JSON CLI for Couch, and all identified SDLC identity/path consumers. Local checkout paths remain distinct from repository identity. Unrelated edits to #230 and #240 are preserved. Design review and operator approval precede change-code; estimate remains unset until plan-quality acceptance.
+
+## Revisions
+
+### 2026-09-22 — first engineering proposal
+
+Reason: execution request starts the first v2 task. Delta: added the durable plan link and audit log while retaining the original task outline and completion contract. No implementation or lifecycle semantics changed.
