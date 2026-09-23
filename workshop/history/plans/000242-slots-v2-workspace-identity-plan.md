@@ -147,7 +147,7 @@ Files: new `atlas/workflow/workspace-identity.md`; modify `atlas/index.md`, `atl
 - [x] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1`, `go vet ./pkg/workspace/... ./cmd/sdlc/...`, and `git diff --check`. Use only temp fixtures for command smoke tests; preserve unrelated #230/#240 edits.
 - [x] Read verification-before-completion skill, record actual command evidence and timing measurements, tick completed steps, and sync issue/design changes.
 - [x] Commit docs; run `sdlc close --issue 242 --verified '<actual evidence>'` for the one mandatory fresh-context boundary review. Resolve blocking findings and log the verdict; no separate duplicate boundary reviewer.
-- [ ] Publish via `sdlc pr` then `sdlc merge` when the authorized workflow reaches shipping. Follow gate errors; never bypass unrelated dirty work or overwrite it.
+- [x] Publish via `sdlc pr` then `sdlc merge` when the authorized workflow reaches shipping. Follow gate errors; never bypass unrelated dirty work or overwrite it.
 
 ## Revisions
 
