@@ -1,10 +1,10 @@
 ---
 id: 000245
 status: open
-deps: [ariadne#242]
+deps: [ariadne#242, ariadne#243]
 github_issue:
 created: 2026-09-22
-updated: 2026-09-22
+updated: 2026-09-23
 estimate_hours:
 ---
 
@@ -24,6 +24,12 @@ Starting independent work on a slot branches from its current baseline without f
 
 Audit change-code and existing Git/procedure surfaces; prefer documented Git operations where adequate. A new adopt command or duplicate Git framework is not required. ARCH-DRY: one address resolver and existing branch/gate mechanisms.
 
+### Agreed scope — 2026-09-23
+
+This section takes precedence over earlier conflicting layout or policy text.
+
+Resolve numbered main checkouts at `/workspace/worktree/<repo>-slotN/<repo>` through the shared contract updated in #243. Branch-from captures the selected repository's committed snapshot, not a multi-repository snapshot of its enclosing environment. Refresh changes only the explicitly targeted repository/resting branch; neither operation clones, switches, refreshes or resets sibling dependency repositories. Dependency revisions are controlled explicitly by operator/agent using ordinary Git. Cross-repository development is available from every slot and does not grant :0 special branch privileges.
+
 ## Done when
 
 - Branching :2 from clean :1 starts at the captured SHA, preserves source and both resting refs/upstreams, and records provenance.
@@ -31,6 +37,8 @@ Audit change-code and existing Git/procedure surfaces; prefer documented Git ope
 - Issue start leaves an intentionally old baseline unchanged; explicit refresh fast-forwards a clean behind resting branch.
 - Dirty/divergent/planning-commit cases preserve all work and expose explicit recovery; configured remotes other than origin are covered.
 - Agent guidance uses branch-from wording and :0/:N shorthand, with ordinary primary workflow regression coverage.
+
+- Branch-from and explicit main-worktree refresh preserve sibling dependency checkout branches, SHAs and dirty/unpublished work in nested-environment fixtures.
 
 ## Plan
 
@@ -45,3 +53,9 @@ Task outline only; settle implementation design through start-plan before change
 ### 2026-09-22 — fresh v2 task
 
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
+
+## Revisions
+
+### 2026-09-23 — Nested slots retain per-repository branch and refresh scope
+
+Reason: operator agreed nested environments, ordinary remote dependency clones and existing per-repository publication. Delta: added the authoritative scope clarification and acceptance criteria above; original task context remains as provenance. Added #243 as a prerequisite for the nested identity contract. No implementation or lifecycle-status change is claimed by this revision.
