@@ -162,3 +162,73 @@ Replaced deferred limit selection with concrete initial limits and recovery beha
 ### 2026-09-23 — Fresh-eyes review corrections
 
 Separated confirmed nonapplication from unknown push outcomes; specified explicit-integration recovery and safe allocation retry. Distinguished independent-clone CAS barriers from linked-worktree lock serialization. Added ownership-metadata preservation to generic body sync. These correct review findings without changing project scope.
+
+### 2026-09-23 — Plan-quality gate refinements (PQ-1 through PQ-3)
+
+The following concrete contracts refine the corresponding sections above. They do not widen the approved scope.
+
+#### Persisted formats and compatibility (PQ-2)
+
+Authoritative issue frontmatter gains optional `claim_id: "<32 lowercase hex characters>"`, generated from 16 cryptographically random bytes and validated in `construct/vocabulary/issue.cue`. Absence means legacy/unclaimed ownership, not an empty token. Null, empty, malformed or duplicate fields refuse a claim/publication operation. Existing status vocabulary is unchanged. Open issues acquire a fresh ID on claim; matching local receipt plus matching remote ID permits an active claim retry. A terminal issue cannot be started by retrying claim. Legacy active issues keep their existing record and can use body sync, but claim refuses to invent an owner. No bulk migration occurs. Older binaries do not enforce the new contract; documentation requires updated SDLC for all concurrent writers. This is cooperative workflow coordination, not authorization against malicious Git writers.
+
+Resolve the private Git directory with Git (`git rev-parse --absolute-git-dir`) from the verified repository root; never use `--git-common-dir` for receipts. Thus a linked worktree stores under its own `.git/worktrees/<name>/`, and an ordinary clone under its `.git/`. Store records at `<privateGitDir>/sdlc/publications/v1/<targetDigest>/<operationID>.json`. targetDigest is SHA-256 of a length-framed tuple of resolved remote URL, full target branch ref, and canonical repo-relative issues/history namespaces. Remote URLs are hashed in memory, never persisted or echoed. operationID is an independent random 32-hex identifier. Scanning is bounded by the receipt limits, with exactly one latest confirmed baseline for each issue/path set; new confirmed receipts retire superseded ones for that identity. Ownership continuity is copied only within the same private receipt store, never inferred from a copied branch.
+
+Version 1 JSON (field names are the contract; `bytes` is standard JSON base64 encoding of byte arrays):
+
+```json
+{
+  "version": 1,
+  "target": "<64-hex digest>",
+  "operation_id": "<32-hex ID>",
+  "kind": "create|claim|update",
+  "phase": "pending|rejected|confirmed",
+  "issue_id": 244,
+  "claim_id": "<32-hex ID or omitted for unowned legacy>",
+  "baseline_commit": "<Git OID>",
+  "conflict_commit": "<Git OID; rejected conflict only>",
+  "paths": [{"path": "workshop/issues/000244-example.md", "expected": {"present": true, "bytes": "..."}, "desired": {"present": true, "bytes": "..."}}],
+  "attempts": [{"base": "<Git OID>", "commit": "<Git OID>", "outcome": "unconfirmed|rejected|confirmed"}]
+}
+```
+
+Use typed discriminants and validate the legal combinations before constructing the pure state. Absent path states carry no bytes; empty present files are distinct. Paths must be unique, canonical relative paths under configured issue namespaces; reject traversal, symlink escapes, duplicate JSON keys, unknown keys/versions, invalid Git OID lengths, and records outside byte/count bounds. JSON decoding is size-limited before allocation. Attempts are capped at three per operation; unresolved attempts prevent replacement. The unique operation ID is also a `Publication-Intent:` trailer on each constructed commit, preventing identical create/claim payloads from producing indistinguishable commit identities.
+
+Write mode 0600 records in mode 0700 directories through same-directory temporary files, fsync the file, rename, and sync the directory. On platforms where directory sync is unsupported, return an explicit durability error rather than acknowledging persistence. One local repository transaction owns store mutations. Existing worktree-private receipts survive in-place branch switches; a new linked worktree does not inherit ownership. Partial temp files are ignored as authority and removed only when no live local operation holds the repository lock. Recovery compares typed target/identity and fresh remote evidence before any cleanup.
+
+#### Named functions and adversarial strategies (PQ-1)
+
+These are planned implementation entry points, not claims that the functions already exist. Tests exercise decisions through their production callers as well as directly.
+
+| Function / existing caller | Test entry point | Adversarial strategy and oracle |
+|---|---|---|
+| `stepPublication` pure transition | `TestPublicationTransitionSequences` | Enumerate bounded sequences of conflict, rejected/unknown push, restart and confirmation; assert ownership uniqueness, no replacement without expected-state equality, and no cleanup while unknown. |
+| `decideRecordUpdate` / `syncViaTrunkWithRealloc` | `TestPublicationConflictingRecords` | Mutate expected/remote/desired independently, including presence, deletion and rename pairs; changed same-record input refuses while unrelated records survive. |
+| `parsePublicationReceipt` | `TestPublicationReceiptRejectsMalformed` | Table/fuzz over truncation, duplicate/unknown fields, invalid IDs, traversal and oversized input; every malformed record refuses without IO effects. |
+| `writePublicationReceipt` / receipt loader | `TestPublicationReceiptInterruptedWrite` | Inject failures before fsync, rename and directory sync; restart reads either complete prior/new state, never partial authority. |
+| `TrunkFile.UpdateMany` / conditional push adapter | `TestPublicationRemoteInterleavings` | Stateful remote fake schedules unrelated write, same-record write, rewind and lost acknowledgment; exact-old-ref mismatch never overwrites and unknown outcome retains intent. Real bare Git conformance repeats each supported push outcome. |
+| `runClaim` / shared publishing dispatch | `TestPublicationClaimContenders` | Clones barrier after observation, linked worktrees barrier before lock; equal timestamps/content still yield exactly one owner. Repeat winner succeeds; copied branch loses. |
+| `runIssueNew` / `decideCollision` | `TestPublicationAllocationContenders` | Same/different slugs and bytes at one candidate ID; rejection followed by reallocation produces two unique reservations, with no lost originals. |
+| `runIssueSync` / baseline selection | `TestPublicationConflictRecovery` | Publish twice without moving local HEAD, inject third-party edit, integrate explicitly and retry; unresolved intent cannot bypass conflict and reconciled intent cannot stay stuck. |
+| `syncIssuesToMain` | `TestPublicationMainScope` | Stage/commit unrelated code before issue publication; remote contains only selected issue updates and local code/index remain untouched. |
+| `comparePreparedReview` | `TestPreparedReviewReadSet` | Change each input separately, including absent→present, branch-only switch, ledger-only change, code and docs descendants; verify gate-specific acceptance and no authoritative writes on stale input. |
+| `stepPreparedReview` / manual command wrappers | `TestReviewConcurrencySchedules` | Barrier-controlled reviewer pauses, cancellation, failed relock and competing finalization; unrelated work completes, stale/cancelled results cannot advance ledgers or branches, child is waited on before normal return. |
+| actual nested-clone CLI workflow | `TestPublicationDependencyEnvironment` | Drive creation/claim/local-sync/explicit-push from private dependency cwd with unreachable-remote and conflicting-clone episodes; assert normal namespace and preservation of local edits. |
+
+#### Review transition model (PQ-3)
+
+`stepPreparedReview` owns the phase and emits effects; command shells cannot persist result state before it reaches validated. PreparedReview carries immutable input bytes, branch/worktree identity, review anchor and ledger generation. No durable in-flight review record is added.
+
+| State/event | Next state and effects |
+|---|---|
+| Idle + start | acquire local lock; capture prepared input set |
+| Prepared + dispatch | release lock; run one reviewer with command context |
+| Reviewing + completed response | reviewer process is waited/reaped; reacquire local lock |
+| Reviewing + cancellation/dispatch error | cancel reviewer and wait/reap before normal return; no result persistence |
+| Response + relock failure/cancellation | refuse; no sidecar, ledger, status, flow or branch write |
+| Response + reacquired lock, changed read set/identity | stale refusal for every verdict; print output, no authoritative persistence |
+| Response + reacquired lock, unchanged read set | validated; parse/persist existing gate result under lock |
+| Validated + rejected verdict | retain valid review findings using existing ledger rules; no implementation/close transition |
+| Validated + accepted verdict | continue deterministic gates/finalization while locked; another external wait requires another prepared snapshot |
+| Any + parent process death | no later parent finalization exists; existing dead-holder recovery reclaims local lock; rerun starts a fresh review from durable ledger state |
+
+Use the Cobra command context for external dispatch instead of `context.Background()`. Normal cancellation/error paths must reap the direct reviewer and terminate its owned process group where supported; do not orphan a reviewer on a normal function return. An uncatchable parent kill cannot promise portable child reaping: review children have no authority to persist gate results, and the next command must not consume their output as a completed round. Existing immutable reviewed commit plus read-set checks remain mandatory after restart. No asynchronous goroutine may mutate gate state after its command returns. Barrier-driven tests inject every interruption above through the production shell; same-boundary concurrent results invalidate on ledger generation before persistence.
