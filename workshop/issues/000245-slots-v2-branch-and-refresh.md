@@ -76,9 +76,9 @@ Require the old resting commit to be an ancestor of the fetched commit. Equal co
 
 Small docs-and-tests change, inside the quick-flow shell; no separate plan or new runtime mechanism (ARCH-DRY).
 
-- [ ] Add focused real-Git regression fixtures in `cmd/sdlc/workspace_procedure_test.go` for the approved capture/branch/refresh commands, preservation/refusal cases, and existing change-code on a prepared issue branch. Run `go test ./cmd/sdlc -run 'TestWorkspaceProcedure' -count=1`.
-- [ ] Write one concise `atlas/workflow/workspace-branching.md` guide. Link it from `atlas/index.md`, workspace identity and `cmd/sdlc/helptext/change-code.md`; make embedded help carry the essential procedure so downstream agents can find it.
-- [ ] Run focused workspace/change-code tests and `git diff --check`; close through the existing SDLC review, then publish through PR. Keep sibling dependency operations and existing runtime behavior unchanged.
+- [x] Add focused real-Git regression fixtures in `cmd/sdlc/workspace_procedure_test.go` for the approved capture/branch/refresh commands, preservation/refusal cases, and existing change-code on a prepared issue branch. Run `go test ./cmd/sdlc -run 'TestWorkspaceProcedure' -count=1`.
+- [x] Write one concise `atlas/workflow/workspace-branching.md` guide. Link it from `atlas/index.md`, workspace identity and `cmd/sdlc/helptext/change-code.md`; make embedded help carry the essential procedure so downstream agents can find it.
+- [x] Run focused workspace/change-code tests and `git diff --check`; keep sibling dependency operations and existing runtime behavior unchanged. Standard close review and PR publication follow this implementation checklist.
 
 ## Log
 
@@ -93,6 +93,12 @@ Claimed #245 and ran start-plan. Audited workspace resolution, change-code plann
 ### 2026-09-23 — Spec review correction
 
 Fresh review identified that arbitrary branch names or allocating an issue after preparation could make change-code switch to a second branch. Tightened the procedure to require an already allocated issue and its canonical filename stem; missing records are imported explicitly without reallocating IDs. A provisional-branch lifecycle is intentionally outside this procedure. Fresh re-review approved the corrected spec with no remaining important findings. Issue schema validation and diff whitespace checks passed; implementation and durable implementation planning await operator approval of this design.
+
+### 2026-09-23 — Implementation and verification
+
+Added one ordinary-Git guide, discovery links and 39 lines of embedded change-code guidance; no new CLI, runtime branch behavior or metadata. Added real-Git fixtures for pinned source/provenance, :0/:N symmetry, existing change-code reentry, cleanliness/collisions, capture movement, old baseline/planning preservation, non-origin refresh and sibling state preservation. Agent checks remain explicitly procedural, not claimed as binary enforcement.
+
+Verification: procedure suite passed (19.554s); removing ignored-file protection made the collision test fail, then restored test passed. `go test ./pkg/workspace/... -count=1` passed (20.924s); related `TestWorkspace|TestChangeCode|TestCreateInPlaceBranch|TestResolveBranchName` command tests passed (52.224s). Prepared-branch reentry passed again without a structural bypass (7.567s). `go build -o bin/sdlc ./cmd/sdlc` and diff whitespace checks passed; rebuilt help displays the procedure. Published earlier selected design commits in order, resolving change-code's missing-prerequisite publication warning without publishing unrelated history. The untracked stale #244 file remains untouched.
 
 ## Revisions
 

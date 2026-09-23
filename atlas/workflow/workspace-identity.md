@@ -111,7 +111,9 @@ workspaces retain fleet scope.
 Resolution is an observation, not a lock or reservation. Final identity/HEAD/
 branch and resting-ref probes detect conflicting observations; occupancy comes
 from the worktree snapshot. No sequence of read-only Git probes is atomic.
-Branch, refresh and landing operations must revalidate under their own operation
+Mutating consumers must revalidate before acting. The ordinary Git
+[branch/refresh procedures](workspace-branching.md) require agents to stop
+concurrent writers and recheck readiness; they do not introduce a transaction
 lock. This package does not change claims, upstreams, resting baselines or files.
 
 Tests combine fuzz/property checks, a stateful Git fake, temporary real Git
@@ -129,5 +131,6 @@ partial-evidence diagnostic collection while using the shared parser/canonical
 helpers; its issue labels receive a primary root. Project walkers receive
 explicit canonical repo labels. Peer-write basename use is diagnostic only.
 Default `../brain` flag spellings are transformed by the command wrapper unless
-explicitly provided. Dependency setup is described in [setup-and-replication.md](setup-and-replication.md); concurrency,
-branch/refresh, and landing changes remain #244–246.
+explicitly provided. Dependency setup is described in [setup-and-replication.md](setup-and-replication.md);
+branch/refresh guidance is in [workspace-branching.md](workspace-branching.md).
+Landing changes remain #246.
