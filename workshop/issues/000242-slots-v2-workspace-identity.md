@@ -50,6 +50,10 @@ Created from the agreed workspace/UI contract and the request for a clean task b
 
 Loaded the v2 project, claimed this issue, and ran start-plan. Read-only consumer audit found existing fleet NormalizeVantage and gitx.ParseWorktrees suitable for promotion into a shared package (ARCH-DRY). The durable proposal covers slot/address validation, a JSON CLI for Couch, and all identified SDLC identity/path consumers. Local checkout paths remain distinct from repository identity. Unrelated edits to #230 and #240 are preserved. Design review and operator approval precede change-code; estimate remains unset until plan-quality acceptance.
 
+### 2026-09-22 — design review result
+
+Fresh-context spec/plan review approved with no blocking findings. Incorporated its clarifications for unborn HEAD, primary readiness, active-time repo qualifiers and peer-write coverage. `sdlc issue validate --issue 242` passed. Awaiting operator approval of the durable plan before change-code, as required by AGENTS.md §2.
+
 ## Revisions
 
 ### 2026-09-22 — first engineering proposal
