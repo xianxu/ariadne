@@ -1,11 +1,12 @@
 ---
 id: 000245
-status: open
+status: working
 deps: [ariadne#242, ariadne#243]
 github_issue:
 created: 2026-09-22
 updated: 2026-09-23
 estimate_hours:
+started: 2026-09-23T14:55:42-07:00
 ---
 
 # Slots v2: branch from a workspace and refresh
