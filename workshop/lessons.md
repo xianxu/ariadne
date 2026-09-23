@@ -105,3 +105,9 @@ Detailed incidents remain in their owning issue or review artifact.
 When designing a gate, name the source of truth, the exact closed grammar, the
 production transition it controls, and the mutation that would make its test red.
 The simplest durable authority beats a clever scan of consequences.
+
+- Git candidate reachability proves remote state, not which caller won: concurrent
+  writers can construct identical commits. Reservation retries must distinguish
+  actual ref updates, up-to-date responses, confirmed rejection, and uncertainty.
+- Race conformance must exercise both client stale-lease rejection and server
+  receive-pack ref-lock rejection; both occur in real concurrent Git publication.

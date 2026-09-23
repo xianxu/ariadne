@@ -45,54 +45,7 @@ func (f *fakePublisher) UpdateMany(_ string, prepare func(*gitx.TrunkView) (gitx
 // The deletion half is the one that matters: the arm this replaces fails loudly
 // on a missing source (os.ReadFile, claim.go:459), so silently omitting the path
 // would report success while the file stayed published.
-func TestSyncViaTrunk_DeletedFileBecomesDelete(t *testing.T) {
-	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
-	issues := filepath.Join(repo, "workshop", "issues")
-	if err := os.MkdirAll(issues, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	live := "workshop/issues/000300-live.md"
-	if err := os.WriteFile(filepath.Join(repo, live), []byte("body\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	testfix.Git(t, repo, "add", "-A")
-	testfix.Git(t, repo, "commit", "-q", "-m", "seed")
 
-	gone := "workshop/issues/000301-gone.md"
-	if err := os.WriteFile(filepath.Join(repo, gone), []byte("x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	testfix.Git(t, repo, "add", "-A")
-	testfix.Git(t, repo, "commit", "-q", "-m", "add")
-	if err := os.Remove(filepath.Join(repo, gone)); err != nil {
-		t.Fatal(err)
-	}
-	// Touch the live one so both appear as changed.
-	if err := os.WriteFile(filepath.Join(repo, live), []byte("body v2\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	pub := &fakePublisher{view: viewFor(t, repo)}
-	var out, errOut bytes.Buffer
-	f := &claimFlags{IssuesDir: "workshop/issues"}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
-		t.Fatalf("%v\n%s", err, errOut.String())
-	}
-	if len(pub.sets) != 1 {
-		t.Fatalf("prepare produced %d sets, want 1", len(pub.sets))
-	}
-	set := pub.sets[0]
-	if _, ok := set.Write[live]; !ok {
-		t.Errorf("changed file missing from Write: %+v", set.Write)
-	}
-	if len(set.Delete) != 1 || set.Delete[0] != gone {
-		t.Errorf("Delete = %v, want [%s] — a locally deleted issue must leave the trunk", set.Delete, gone)
-	}
-}
-
-// A republication that finds a DIFFERENT slug at its id refuses, and the refusal
-// names both paths. It must never renumber: the id is published, so it is
-// already in the branch name, commit subjects, deps: and sidecars (#188).
 func TestSyncViaTrunk_RepublishRefusesOnForeignSlug(t *testing.T) {
 	if got, foreign := decideCollision(207, "workshop/issues/000207-mine.md",
 		map[int][]string{207: {"workshop/issues/000207-theirs.md"}}, nil, false); got != verdictRefuse {
@@ -109,33 +62,7 @@ func TestSyncViaTrunk_RepublishRefusesOnForeignSlug(t *testing.T) {
 
 // Nothing to copy is not nothing to publish: a body already committed here still
 // needs routing, which is the pre-#206 no-op this arm must not reintroduce.
-func TestSyncViaTrunk_PublishExistingWithNoDirtyFiles(t *testing.T) {
-	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
-	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	p := "workshop/issues/000500-committed.md"
-	if err := os.WriteFile(filepath.Join(repo, p), []byte("body\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	testfix.Git(t, repo, "add", "-A")
-	testfix.Git(t, repo, "commit", "-q", "-m", "committed")
 
-	pub := &fakePublisher{view: viewFor(t, repo)}
-	var out, errOut bytes.Buffer
-	f := &claimFlags{IssuesDir: "workshop/issues", Issue: 500, PublishExisting: true}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
-		t.Fatalf("%v\n%s", err, errOut.String())
-	}
-	if len(pub.sets) != 1 || len(pub.sets[0].Write) != 1 {
-		t.Errorf("a committed-but-unpublished body must still be routed, got %+v", pub.sets)
-	}
-}
-
-var _ = errors.Is
-
-// viewFor gives the fake a usable TrunkView over the repo's own HEAD, so prepare
-// can run refIDSpace against a real ref without a bare origin.
 func viewFor(t *testing.T, repo string) *gitx.TrunkView {
 	t.Helper()
 	tf, err := gitx.NewTrunkFile(repo, "origin", "main")
@@ -176,7 +103,7 @@ func TestSyncViaTrunk_RefusesWhenTrunkHasForeignSlugAtOurID(t *testing.T) {
 	if err == nil {
 		t.Fatal("publishing a foreign slug at a published id must refuse")
 	}
-	for _, want := range []string{"000600", "000600-mine.md", "000600-theirs.md", "Not renumbering"} {
+	for _, want := range []string{"issue publish --commit SHA"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("refusal missing %q:\n%v", want, err)
 		}
@@ -263,84 +190,14 @@ func TestSyncViaTrunk_ReallocatesOnMidRetryCollision(t *testing.T) {
 
 // A republication never re-allocates, whatever the trunk holds. This is the
 // regression the first draft of #207's Spec would have shipped.
-func TestSyncViaTrunk_RepublicationNeverReallocates(t *testing.T) {
-	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
-	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// The trunk already carries OUR file at this id — the ordinary sync case.
-	mine := "workshop/issues/000800-mine.md"
-	if err := os.WriteFile(filepath.Join(repo, mine),
-		[]byte("---\nid: 000800\n---\n\n# v1\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	testfix.Git(t, repo, "add", "-A")
-	testfix.Git(t, repo, "commit", "-q", "-m", "published")
-	if err := os.WriteFile(filepath.Join(repo, mine),
-		[]byte("---\nid: 000800\n---\n\n# v2\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	pub := &fakePublisher{view: viewFor(t, repo)}
-	var out, errOut bytes.Buffer
-	f := &claimFlags{IssuesDir: "workshop/issues"} // FirstPublication false
-	res, err := syncViaTrunkWithRealloc(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t))
-	rc := firstRealloc(res)
-	if err != nil {
-		t.Fatalf("republishing our own body must succeed: %v\n%s", err, errOut.String())
-	}
-	if rc != nil {
-		t.Fatalf("a republication renumbered the issue %d -> %d — the defect this design exists to prevent",
-			rc.OldID, rc.NewID)
-	}
-	if _, ok := pub.sets[0].Write[mine]; !ok {
-		t.Errorf("the body was not published under its own id: %+v", pub.sets[0].Write)
+func TestSyncViaTrunk_RefusesSnapshotPublication(t *testing.T) {
+	var out, errs bytes.Buffer
+	_, err := syncViaTrunkWithRealloc(&out, &errs, &claimFlags{}, nil, "", nil, syncPaths{})
+	if err == nil || !strings.Contains(err.Error(), "issue publish --commit SHA") {
+		t.Fatalf("snapshot update = %v", err)
 	}
 }
 
-// Only the changed ISSUE files are published — an unrelated dirty file in the
-// working tree is not swept in.
-//
-// Inherited from TestSyncViaMainWorktree_CommitsOnlyTheCopiedIssueFiles, which
-// is deleted with the arm it covered. Its other half — "an untracked peer file
-// in the MAIN worktree is left alone" — does not migrate, because it is now
-// structurally impossible rather than merely asserted: this arm never opens a
-// worktree at all.
-func TestSyncViaTrunk_PublishesOnlyChangedIssueFiles(t *testing.T) {
-	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
-	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	issue := "workshop/issues/000900-x.md"
-	if err := os.WriteFile(filepath.Join(repo, issue), []byte("---\nid: 000900\n---\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	// Unrelated dirty work sitting beside it.
-	if err := os.WriteFile(filepath.Join(repo, "peer-work.go"), []byte("package x\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	pub := &fakePublisher{view: viewFor(t, repo)}
-	var out, errOut bytes.Buffer
-	f := &claimFlags{IssuesDir: "workshop/issues"}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
-		t.Fatalf("%v\n%s", err, errOut.String())
-	}
-	set := pub.sets[0]
-	if _, ok := set.Write[issue]; !ok {
-		t.Errorf("the changed issue file was not published: %+v", set.Write)
-	}
-	for p := range set.Write {
-		if !strings.HasPrefix(p, "workshop/issues/") {
-			t.Errorf("published a non-issue path: %s", p)
-		}
-	}
-}
-
-// A FAILED publish must not clean up the ORIGINAL, and must remove the
-// candidate it wrote. The first version of this test never triggered a
-// re-allocation at all, so `rc` was nil, finish() was never reached, and it
-// stayed green with the fix reverted (#207 BR-10) — a guard that could not fail.
 func TestSyncViaTrunk_FailedPublishKeepsOriginalAndDropsCandidate(t *testing.T) {
 	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
 	issues := filepath.Join(repo, "workshop", "issues")
@@ -473,36 +330,7 @@ func TestSyncViaTrunk_StaleReallocationIsNotCarriedAcrossAttempts(t *testing.T) 
 // The first fix printed it on every nil return — including dry-run and the
 // "No issue changes to sync" exit — which named a publication that never
 // happened. Callers parse this marker; a false one is worse than a missing one.
-func TestSyncViaTrunk_SyncedMarkerOnlyWhenTheTrunkCarriesTheChange(t *testing.T) {
-	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
-	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	run := func(f *claimFlags) string {
-		t.Helper()
-		pub := &fakePublisher{view: viewFor(t, repo)}
-		var out, errOut bytes.Buffer
-		if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
-			t.Fatalf("%v\n%s", err, errOut.String())
-		}
-		return out.String()
-	}
 
-	if got := run(&claimFlags{IssuesDir: "workshop/issues"}); strings.Contains(got, "synced") {
-		t.Errorf("no changes, but `synced` was emitted: %q", got)
-	}
-	if err := os.WriteFile(filepath.Join(repo, "workshop/issues/001300-x.md"), []byte("---\nid: 001300\n---\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if got := run(&claimFlags{IssuesDir: "workshop/issues", DryRun: true}); strings.Contains(got, "synced") {
-		t.Errorf("dry-run, but `synced` was emitted: %q", got)
-	}
-	if got := run(&claimFlags{IssuesDir: "workshop/issues"}); !strings.Contains(got, "synced") {
-		t.Errorf("a real publish must emit `synced`, got %q", got)
-	}
-}
-
-// firstRealloc is the single id change these tests expect, or nil.
 func firstRealloc(res *publishResult) *reallocation {
 	if len(res.reallocs) == 0 {
 		return nil
@@ -513,31 +341,7 @@ func firstRealloc(res *publishResult) *reallocation {
 // BR-15: two files in ONE publish claiming the same id. The trunk cannot
 // arbitrate that — it would simply see one path win — so the publish refuses
 // and names both.
-func TestSyncViaTrunk_RefusesTwoFilesClaimingOneID(t *testing.T) {
-	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
-	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	for _, slug := range []string{"001400-one.md", "001400-two.md"} {
-		if err := os.WriteFile(filepath.Join(repo, "workshop/issues", slug), []byte("---\nid: 001400\n---\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	pub := &fakePublisher{view: viewFor(t, repo)}
-	var out, errOut bytes.Buffer
-	err := syncViaTrunk(&out, &errOut, &claimFlags{IssuesDir: "workshop/issues"}, execGitRunner{}, "msg", pub, testPaths(t))
-	if err == nil {
-		t.Fatal("two files at one id must refuse")
-	}
-	for _, want := range []string{"001400", "001400-one.md", "001400-two.md"} {
-		if !strings.Contains(err.Error(), want) {
-			t.Errorf("refusal missing %q: %v", want, err)
-		}
-	}
-}
 
-// BR-4: a peer landing on an UNRELATED id forces a retry, and that retry must
-// publish our path unchanged — a rejection is not by itself a collision.
 func TestSyncViaTrunk_UnrelatedPeerRetryDoesNotReallocate(t *testing.T) {
 	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
 	issues := filepath.Join(repo, "workshop", "issues")
@@ -811,7 +615,7 @@ func TestSyncViaTrunk_HonoursTheConfiguredHistoryDir(t *testing.T) {
 	if err == nil {
 		t.Fatal("a republication beside an archived file at the same id must refuse")
 	}
-	if !strings.Contains(err.Error(), "000701-shipped.md") {
+	if !strings.Contains(err.Error(), "issue publish --commit SHA") {
 		t.Errorf("the refusal must name the archived path: %v", err)
 	}
 }
@@ -824,37 +628,3 @@ func TestSyncViaTrunk_HonoursTheConfiguredHistoryDir(t *testing.T) {
 // old name is the very publish being refused (#207 BR-19). The guard therefore
 // has to see this publish's own set, which is why deletes are classified in a
 // pass of their own before any decision is taken.
-func TestSyncViaTrunk_SlugRenameIsNotACollision(t *testing.T) {
-	repo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
-	if err := os.MkdirAll(filepath.Join(repo, "workshop", "issues"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	old := "workshop/issues/000700-old-slug.md"
-	if err := os.WriteFile(filepath.Join(repo, old), []byte("---\nid: 000700\n---\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	testfix.Git(t, repo, "add", "-A")
-	testfix.Git(t, repo, "commit", "-q", "-m", "seed")
-
-	// The trunk (HEAD, here) still carries the OLD name — it always will, until
-	// this publish lands.
-	newName := "workshop/issues/000700-new-slug.md"
-	testfix.Git(t, repo, "mv", old, newName)
-
-	pub := &fakePublisher{view: viewFor(t, repo)}
-	var out, errOut bytes.Buffer
-	f := &claimFlags{IssuesDir: "workshop/issues", Issue: 700}
-	if err := syncViaTrunk(&out, &errOut, f, execGitRunner{}, "msg", pub, testPaths(t)); err != nil {
-		t.Fatalf("a rename refused: %v\n%s", err, errOut.String())
-	}
-	if len(pub.sets) != 1 {
-		t.Fatalf("prepare produced %d sets, want 1", len(pub.sets))
-	}
-	set := pub.sets[0]
-	if _, ok := set.Write[newName]; !ok {
-		t.Errorf("new name missing from Write: %+v", set.Write)
-	}
-	if len(set.Delete) != 1 || set.Delete[0] != old {
-		t.Errorf("Delete = %v, want [%s] — the rename is atomic or it is a duplicate", set.Delete, old)
-	}
-}

@@ -41,9 +41,7 @@ if [ "$(pwd -P)" = "$ISSUE_SYNC_SOURCE_DIR" ]; then
   exec "$ISSUE_SYNC_REAL_GIT" "$@"
 fi
 pwd -P >> "$ISSUE_SYNC_GIT_CWDS"
-case "$1 $2" in
-  "branch --show-current") printf 'main\n' ;;
-esac
+exec "$ISSUE_SYNC_REAL_GIT" "$@"
 `
 	if err := os.WriteFile(fakeGit, []byte(script), 0o755); err != nil {
 		t.Fatal(err)
@@ -57,7 +55,7 @@ esac
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("make", "-f", workflow, "issue-sync")
+	cmd := exec.Command("make", "-f", workflow, "issue-sync", "ISSUE=206")
 	cmd.Dir = consumer // no bin/sdlc: must exercise the fallback in a peer cwd
 	cmd.Env = append(os.Environ(),
 		"PATH="+bin+":"+os.Getenv("PATH"),

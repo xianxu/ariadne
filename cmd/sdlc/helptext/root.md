@@ -8,7 +8,8 @@ BEFORE WORK
   - `sdlc claim --issue N` — the single start-of-work gesture, a CHEAP LOCK.
     Flips an *open* issue to `working` and publishes the claim to origin/main so
     peer agents see it. No estimate demanded (#113) — claim early, the moment an
-    idea crystallizes. `--no-start` suppresses the flip.
+    idea crystallizes. Already-working issues refuse, including repeated claims;
+    resume existing work without reclaiming it. Claims do not publish local body edits.
   - Do NOT hand-edit an issue's `status:` — let `sdlc claim` or `sdlc issue
     set-status` own that transition (it carries the reopen/`→ done` guards).
 

@@ -49,6 +49,12 @@ func (v collisionVerdict) String() string {
 // sidecar filenames (ariadne#188). So `issue new` re-allocates and `issue
 // sync`/`claim` refuse, and the caller says which it is.
 func decideCollision(id int, myPath string, space map[int][]string, pending map[string]bool, firstPublication bool) (collisionVerdict, []string) {
+	if firstPublication && len(space[id]) > 0 {
+		occupied := append([]string(nil), space[id]...)
+		sort.Strings(occupied)
+		return verdictReallocate, occupied
+	}
+
 	var foreign []string
 	mineOnTrunk := false
 	for _, p := range space[id] {

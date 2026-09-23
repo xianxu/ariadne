@@ -20,6 +20,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -48,6 +49,7 @@ func NewIssueCmd() *cobra.Command {
 	cmd.AddCommand(setStatus)
 
 	cmd.AddCommand(newIssueSyncCmd())
+	cmd.AddCommand(newIssuePublishCmd())
 	cmd.AddCommand(newIssueLintIDsCmd())
 	cmd.AddCommand(newIssueListCmd())
 	cmd.AddCommand(newIssueShowCmd())
@@ -327,7 +329,7 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 	// #82 M1: broadcast the new issue to origin/main immediately, so a freshly
 	// filed (base) issue is tracker state on main — not untracked working-tree
 	// residue that every symlinked derivative reads and that gates trip over.
-	// Reuses claim's branch-aware sync with this issue as the `--issue` filter
+	// Reserves only this new issue against fresh remote IDs with the `--issue` filter
 	// (rides #80's filtered add — unrelated untracked files stay put). nextID is
 	// a zero-padded string ("000083"); claimFlags.Issue is an int.
 	if id, perr := strconv.Atoi(nextID); perr == nil {
@@ -346,7 +348,20 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 			cok(stderr, fmt.Sprintf("id %06d was taken on the trunk — filed as %06d instead: %s",
 				rc.OldID, rc.NewID, shown))
 		}
-		if serr != nil {
+		if serr == nil {
+			local := *syncFlags
+			local.NoPush = true
+			if len(syncFlags.Reallocations) > 0 {
+				local.Issue = syncFlags.Reallocations[0].NewID
+			}
+			if err := syncIssuesToMain(stderr, stderr, &local, claimRunner, issueSyncMessage(local.Issue, "new issue")); err != nil {
+				cwarn(stderr, fmt.Sprintf("reservation published but local commit failed: %v", err))
+			}
+		}
+
+		if errors.Is(serr, gitx.ErrPublicationUncertain) {
+			cwarn(stderr, fmt.Sprintf("reservation outcome uncertain; source and candidate files preserved without committing a rejected identity. Inspect origin/main before retrying: %v", serr))
+		} else if serr != nil {
 			// Best-effort: the file is already written + reported above, so a sync
 			// failure (offline, no reachable origin, conflict) must not abort the
 			// create — just surface it. `claim` treats the same error as fatal.
@@ -367,8 +382,9 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 					"      trunk is never renumbered (ariadne#188). Delete this file and re-run `sdlc issue\n"+
 					"      new`, or rename it AND its `id:` frontmatter to a free id.", serr))
 			} else {
+				source := gitx.Capture("rev-parse", "HEAD")
 				cwarn(stderr, fmt.Sprintf("issue committed locally but not broadcast to main: %v\n"+
-					"      peers won't see the reservation yet — publish with `sdlc issue sync --issue %d --push`", serr, id))
+					"      verify the ID is still free, then publish with `sdlc issue publish --commit %s`", serr, source))
 			}
 		}
 	}
@@ -413,8 +429,10 @@ publishing is an external contract that belongs at the boundaries already owning
 it (` + "`sdlc milestone-close`, `sdlc close`, `sdlc change-code`" + `), so the
 common case cannot accidentally publish a half-written Spec. The default commit
 lands in the CURRENT worktree on the CURRENT branch, needs no network, and works
-from an in-place feature branch. --push routes through the same branch-aware
-dispatch ` + "`sdlc claim`" + ` uses.
+from an in-place feature branch. --push publishes only the exact new issue commit
+created by this invocation. If there is no new commit, select an earlier commit
+explicitly with ` + "`sdlc issue publish --commit SHA`" + `. A separate plan or
+project document must be deliberately included in the selected commit.
 
 Run it whenever the Spec, Plan or Log has moved — after a brainstorm lands,
 after a design decision, before a long-running tool call.`,
@@ -435,7 +453,7 @@ func runIssueSync(stdout, stderr io.Writer, f *issueSyncFlags) error {
 	if f.Issue <= 0 {
 		die(stderr, "--issue N is required: `sdlc issue sync` commits ONE issue's files, and the commit message names it")
 	}
-	// Reuses claim's dispatch wholesale (ARCH-DRY): the only things this verb
+	// Reuses the narrow synchronization dispatch (ARCH-DRY): this verb
 	// adds are the subject and the publish choice, both parameters of the shared
 	// helper rather than a second sync path.
 	syncFlags := &claimFlags{
@@ -444,10 +462,6 @@ func runIssueSync(stdout, stderr io.Writer, f *issueSyncFlags) error {
 		DryRun:    f.DryRun,
 		NoStart:   true,
 		NoPush:    !f.Push,
-		// --push means "make origin/main carry this body", which includes the
-		// case where the body is already committed and only the publish is
-		// missing — the state the no-push default deliberately creates.
-		PublishExisting: f.Push,
 	}
 	if err := syncIssuesToMain(stdout, stderr, syncFlags, claimRunner, issueSyncMessage(f.Issue, "spec/plan")); err != nil {
 		die(stderr, err.Error())

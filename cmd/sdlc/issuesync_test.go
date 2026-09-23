@@ -174,8 +174,8 @@ func TestIssueSync_PushPublishes(t *testing.T) {
 	f := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true}
 	syncOK(t, &stdout, &stderr, f)
 	local := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
-	if remote := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); remote != local {
-		t.Errorf("--push should leave origin/main at the sync commit; local %s remote %s", local, remote)
+	if message := git(t, repo, "log", "-1", "--format=%B", "origin/main"); !strings.Contains(message, "Source-Commit: "+local) {
+		t.Fatalf("missing source provenance: %s", message)
 	}
 }
 
@@ -327,19 +327,8 @@ func TestArchiveCommit_LeavesForeignStagedFileAlone(t *testing.T) {
 
 // ── change-code's call ───────────────────────────────────────────────────────
 
-// TestChangeCodeSyncIssue_ModeMatrix runs the full cross-product syncIssue
-// promises over, rather than the one cell a reviewer happened to probe.
-//
-// Both close-review rounds found the same defect: a swapped helper covering
-// fewer cells than the one it replaced. Round 1 was change-code's auto-detect
-// name mode; round 2 was the feature-worktree location, where routing through
-// the publish arm put a half-written Spec on origin/main and left the branch's
-// own copy dirty. Patching each cell as it is found is how a second round
-// happens, so the table is the test.
-//
-// The invariant every cell asserts: the issue file ends up COMMITTED IN THIS
-// WORKTREE, on the branch about to carry the work. Publishing is conditioned on
-// already being on main.
+// TestChangeCodeSyncIssue_ModeMatrix pins local durability and narrow remote
+// publication across every checkout and resolved-name mode.
 func TestChangeCodeSyncIssue_ModeMatrix(t *testing.T) {
 	// location prepares a worktree to run in and returns (cwd, mainWorktree).
 	type location struct {
@@ -349,11 +338,11 @@ func TestChangeCodeSyncIssue_ModeMatrix(t *testing.T) {
 	}
 	locations := []location{
 		{"on main", true, func(t *testing.T, repo string) string { return repo }},
-		{"in-place feature branch", false, func(t *testing.T, repo string) string {
+		{"in-place feature branch", true, func(t *testing.T, repo string) string {
 			git(t, repo, "switch", "-q", "-c", "000206-issue-sync-verb")
 			return repo
 		}},
-		{"feature worktree", false, func(t *testing.T, repo string) string {
+		{"feature worktree", true, func(t *testing.T, repo string) string {
 			wt := filepath.Join(t.TempDir(), "feature")
 			git(t, repo, "worktree", "add", "-b", "000206-issue-sync-verb", wt)
 			return wt
@@ -395,6 +384,7 @@ func TestChangeCodeSyncIssue_ModeMatrix(t *testing.T) {
 			// that commit quietly re-add it.
 			git(t, dir, "rm", "-q", "--", issuePath206)
 			git(t, dir, "commit", "-q", "-m", "untrack the issue file", "--", issuePath206)
+			git(t, dir, "push", "-q", "origin", "HEAD:main")
 			writeSyncIssue(t, dir, "000206-issue-sync-verb.md", "## Plan\n\nbrand new\n")
 		}},
 	}
@@ -407,6 +397,17 @@ func TestChangeCodeSyncIssue_ModeMatrix(t *testing.T) {
 					dir := loc.prepare(t, repo)
 					chdirTo(t, dir)
 					fsx.setup(t, dir)
+					// An older code commit and staged work must stay local even on main.
+					if err := os.WriteFile(filepath.Join(dir, "unrelated-code.go"), []byte("package unrelated\n"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+					git(t, dir, "add", "--", "unrelated-code.go")
+					git(t, dir, "commit", "-q", "-m", "unselected code", "--", "unrelated-code.go")
+					if err := os.WriteFile(filepath.Join(dir, "pending-code.go"), []byte("package pending\n"), 0o644); err != nil {
+						t.Fatal(err)
+					}
+					git(t, dir, "add", "--", "pending-code.go")
+					stagedBefore := git(t, dir, "diff", "--cached")
 					originBefore := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main"))
 
 					var stderr bytes.Buffer
@@ -423,9 +424,16 @@ func TestChangeCodeSyncIssue_ModeMatrix(t *testing.T) {
 						t.Errorf("subject = %q, want the change-code sync message", got)
 					}
 
+					if got := git(t, dir, "diff", "--cached"); got != stagedBefore {
+						t.Errorf("unrelated index changed: %s", got)
+					}
+					remoteFiles := git(t, dir, "ls-tree", "-r", "--name-only", "origin/main")
+					if strings.Contains(remoteFiles, "unrelated-code.go") || strings.Contains(remoteFiles, "pending-code.go") {
+						t.Errorf("unselected code leaked to remote: %s", remoteFiles)
+					}
 					originAfter := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main"))
 					if loc.publishes && originAfter == originBefore {
-						t.Error("on main this is the milestone publish — origin/main should have moved")
+						t.Error("new narrow issue commit must publish in every checkout")
 					}
 					if !loc.publishes && originAfter != originBefore {
 						t.Errorf("from a branch the body must NOT reach origin/main (%s → %s): "+
@@ -458,7 +466,7 @@ func TestChangeCodeSyncIssue_WarnsRatherThanDying(t *testing.T) {
 	if !strings.Contains(stderr.String(), "issue file not synced") {
 		t.Errorf("expected a warning naming the failure; stderr:\n%s", stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "sdlc issue sync --issue 206 --push") {
+	if !strings.Contains(stderr.String(), "sdlc issue publish --commit "+strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))) {
 		t.Errorf("the warning must name the retry; stderr:\n%s", stderr.String())
 	}
 	// Durability still happened: only the push failed, so the commit is local.
@@ -613,55 +621,58 @@ func TestMigrateCommitArgs_HintAndCommandAreTheSameBuilder(t *testing.T) {
 // changedIssueFiles is empty, so `--push` short-circuited and reported success
 // in green while origin/main never moved. Both of the warnings this issue added
 // name that exact command as the recovery, so the no-op was load-bearing.
-func TestIssueSync_PushPublishesAnAlreadyCommittedBody(t *testing.T) {
-	repo, _ := syncRepo(t)
-	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nthe design\n")
-
-	var stdout, stderr bytes.Buffer
-	local := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir}
-	syncOK(t, &stdout, &stderr, local)
-	head := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
-	if origin := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); origin == head {
-		t.Fatal("fixture broken: the local sync should NOT have published")
+func TestIssueSync_PushRequiresExplicitAlreadyCommittedBody(t *testing.T) {
+	repo, origin := syncRepo(t)
+	writeSyncIssue(t, repo, filepath.Base(issuePath206), "committed design\n")
+	var out, errs bytes.Buffer
+	syncOK(t, &out, &errs, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
+	source := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+	before := git(t, origin, "rev-parse", "main")
+	msg, died := expectDie(t, func() {
+		_ = runIssueSync(&out, &errs, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true})
+	})
+	if !died || !strings.Contains(msg, "issue publish --commit SHA") {
+		t.Fatalf("implicit source accepted: %v %s", died, msg)
 	}
-
-	// Nothing has changed in the working tree now — the body is committed. This
-	// is precisely the state --push exists to finish.
-	stdout.Reset()
-	stderr.Reset()
-	publish := &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true}
-	syncOK(t, &stdout, &stderr, publish)
-	if origin := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); origin != head {
-		t.Errorf("--push did not publish the already-committed body: origin/main %s, main %s\nstderr:\n%s",
-			origin, head, stderr.String())
+	if got := git(t, origin, "rev-parse", "main"); got != before {
+		t.Fatal("refusal published")
+	}
+	if err := publishIssueCommit(&out, &errs, repo, source, syncIssuesDir, "workshop/history"); err != nil {
+		t.Fatal(err)
+	}
+	if got := git(t, origin, "show", "main:"+issuePath206); !strings.Contains(got, "committed design") {
+		t.Fatal(got)
 	}
 }
 
-// TestChangeCodeSyncIssue_RetryAfterAFailedPushPublishes walks the other
-// consumer's advertised recovery end to end: change-code's commit lands, its
-// push fails (no origin), the operator adds the remote and re-runs the command
-// the warning printed. If that command can't finish the publish, the warning is
-// a dead end.
 func TestChangeCodeSyncIssue_RetryAfterAFailedPushPublishes(t *testing.T) {
 	repo := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
 	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Plan\n\nthe accepted design\n")
-
 	var stderr bytes.Buffer
 	syncIssue(&stderr, &changeCodeFlags{Issue: 206, IssuesDir: syncIssuesDir}, issuePath206)
-	if !strings.Contains(stderr.String(), "sdlc issue sync --issue 206 --push") {
-		t.Fatalf("expected the retry advice; stderr:\n%s", stderr.String())
+	head := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+	if !strings.Contains(stderr.String(), "sdlc issue publish --commit "+head) {
+		t.Fatalf("expected explicit retry advice; stderr:\n%s", stderr.String())
 	}
-	head := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
-
-	// Clear the cause the warning told us to clear.
 	origin := filepath.Join(t.TempDir(), "origin.git")
 	git(t, "", "init", "--bare", "-b", "main", origin)
 	git(t, repo, "remote", "add", "origin", origin)
-
-	var stdout, stderr2 bytes.Buffer
-	syncOK(t, &stdout, &stderr2, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true})
-	if got := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); got != head {
-		t.Errorf("the retry the warning names must publish: origin/main %s, main %s", got, head)
+	git(t, repo, "push", "-q", "origin", "HEAD^:refs/heads/main")
+	before := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main"))
+	stderr.Reset()
+	syncIssue(&stderr, &changeCodeFlags{Issue: 206, IssuesDir: syncIssuesDir}, issuePath206)
+	if after := strings.TrimSpace(git(t, repo, "rev-parse", "origin/main")); after != before {
+		t.Fatal("automatic rerun published an older unselected commit")
+	}
+	if after := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD")); after != head {
+		t.Fatal("no-change rerun modified local HEAD")
+	}
+	var stdout bytes.Buffer
+	if err := publishIssueCommit(&stdout, &stderr, repo, head, syncIssuesDir, "workshop/history"); err != nil {
+		t.Fatalf("explicit retry failed: %v; stderr: %s", err, stderr.String())
+	}
+	if got := git(t, repo, "show", "origin/main:"+issuePath206); !strings.Contains(got, "the accepted design") {
+		t.Fatalf("explicit retry did not publish source: %s", got)
 	}
 }
 
@@ -694,11 +705,6 @@ func TestIssueSync_PublishMatrix(t *testing.T) {
 	}{
 		{"dirty", func(t *testing.T, dir string) {
 			writeSyncIssue(t, dir, "000206-issue-sync-verb.md", body)
-		}},
-		{"already committed locally", func(t *testing.T, dir string) {
-			writeSyncIssue(t, dir, "000206-issue-sync-verb.md", body)
-			var o, e bytes.Buffer
-			syncOK(t, &o, &e, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
 		}},
 	}
 
@@ -737,104 +743,46 @@ func TestIssueSync_PublishMatrix(t *testing.T) {
 // that gap is empty there is nothing to publish and no reason to reach out.
 func TestSyncInPlace_CleanAndPublishedDoesNotTouchTheNetwork(t *testing.T) {
 	repo, _ := syncRepo(t)
-	// Point origin at a path that no longer exists: any network attempt fails.
 	git(t, repo, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
-
-	var stdout, stderr bytes.Buffer
-	// Publishing caller (NoPush unset), clean tree, main == origin/main.
-	if err := syncIssuesToMain(&stdout, &stderr, &claimFlags{Issue: 206, IssuesDir: syncIssuesDir}, execGitRunner{}, ""); err != nil {
-		t.Fatalf("a clean, already-published tree must be a no-op, got: %v (stderr: %s)", err, stderr.String())
-	}
-	if !strings.Contains(stderr.String(), "No issue changes to sync") {
-		t.Errorf("expected the idempotent no-op; stderr:\n%s", stderr.String())
+	var out, errs bytes.Buffer
+	if err := syncIssuesToMain(&out, &errs, &claimFlags{Issue: 206, IssuesDir: syncIssuesDir, NoPush: true}, execGitRunner{}, ""); err != nil {
+		t.Fatal(err)
 	}
 }
 
-// TestPublishIsIdempotent walks the workflow this issue's own docs recommend,
-// twice, from both locations. Round 4 made the publish arm re-seed its file list
-// from the issue — correct about *what* to publish — and fed that file into a
-// conflict detector built for genuinely-dirty files. After the first publish,
-// main legitimately carries the body, so "changed on both sides since
-// merge-base" is true and the second run died with `Conflict detected!` and a
-// manual-merge guide. `sdlc claim` had been idempotent since it existed.
-//
-// The rule: a body main already carries byte-for-byte is nothing to route, so
-// the conflict detector is never asked about it.
 func TestPublishIsIdempotent(t *testing.T) {
-	for _, loc := range []struct {
-		name    string
-		prepare func(t *testing.T, repo string) string
-	}{
-		{"on main", func(t *testing.T, repo string) string { return repo }},
-		{"feature worktree", func(t *testing.T, repo string) string {
-			wt := filepath.Join(t.TempDir(), "feature")
-			git(t, repo, "worktree", "add", "-b", "000206-issue-sync-verb", wt)
-			return wt
-		}},
-	} {
-		t.Run(loc.name, func(t *testing.T) {
-			repo, _ := syncRepo(t)
-			dir := loc.prepare(t, repo)
-			chdirTo(t, dir)
-			writeSyncIssue(t, dir, "000206-issue-sync-verb.md", "## Spec\n\nthe design\n")
-
-			run := func(label string, f *issueSyncFlags) {
-				t.Helper()
-				var stdout, stderr bytes.Buffer
-				syncOK(t, &stdout, &stderr, f)
-			}
-			// The documented workflow: checkpoint locally, then publish. Then
-			// publish again — an agent re-running a verb is the normal case, not
-			// an edge one.
-			run("local sync", &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
-			run("first publish", &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true})
-			run("second publish", &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir, Push: true})
-			// And a third time with no --issue at all, which is how `sdlc claim`
-			// re-syncs: it must stay the clean no-op it has always been.
-			run("bare re-sync", &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
-		})
+	repo, origin := syncRepo(t)
+	writeSyncIssue(t, repo, filepath.Base(issuePath206), "chosen design\n")
+	var out, errs bytes.Buffer
+	syncOK(t, &out, &errs, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
+	source := strings.TrimSpace(git(t, repo, "rev-parse", "HEAD"))
+	if err := publishIssueCommit(&out, &errs, repo, source, syncIssuesDir, "workshop/history"); err != nil {
+		t.Fatal(err)
+	}
+	tip := git(t, origin, "rev-parse", "main")
+	if err := publishIssueCommit(&out, &errs, repo, source, syncIssuesDir, "workshop/history"); err != nil {
+		t.Fatal(err)
+	}
+	if got := git(t, origin, "rev-parse", "main"); got != tip {
+		t.Fatal("same source replayed")
 	}
 }
 
-// TestClaimStaysIdempotentOffline pins the other half. `sdlc claim` die()s on a
-// sync error and is re-run constantly, so a clean-tree claim must not reach for
-// the network at all. An earlier cut inferred "is there anything to publish"
-// from `origin/main..main`, which made every clean claim a wholesale push of
-// local main — publishing bodies a no-push sync had deliberately kept local, and
-// failing outright when offline. Only `issue sync --push` asks for that now.
-func TestClaimStaysIdempotentOffline(t *testing.T) {
+func TestClaimOfflineRefusesWithoutLocalMutation(t *testing.T) {
 	repo, _ := syncRepo(t)
-	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\nkept local on purpose\n")
-
-	var stdout, stderr bytes.Buffer
-	syncOK(t, &stdout, &stderr, &issueSyncFlags{Issue: 206, IssuesDir: syncIssuesDir})
-	localHead := strings.TrimSpace(git(t, repo, "rev-parse", "main"))
-
-	// Origin is now unreachable: any network attempt fails loudly.
+	writeSyncIssue(t, repo, filepath.Base(issuePath206), "---\nid: 206\nstatus: open\n---\nlocal draft\n")
+	before, _ := os.ReadFile(filepath.Join(repo, issuePath206))
 	git(t, repo, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
-
-	stdout.Reset()
-	stderr.Reset()
-	// A publishing caller (claim's flag shape), clean tree, body committed locally.
-	if err := syncIssuesToMain(&stdout, &stderr, &claimFlags{Issue: 206, IssuesDir: syncIssuesDir}, execGitRunner{}, ""); err != nil {
-		t.Fatalf("a clean-tree claim must be an offline no-op, got: %v\nstderr:\n%s", err, stderr.String())
+	var out, errs bytes.Buffer
+	if err := runClaim(&out, &errs, &claimFlags{Issue: 206, IssuesDir: syncIssuesDir}); err == nil {
+		t.Fatal("offline claim succeeded")
 	}
-	if !strings.Contains(stderr.String(), "No issue changes to sync") {
-		t.Errorf("expected the idempotent no-op; stderr:\n%s", stderr.String())
-	}
-	if got := strings.TrimSpace(git(t, repo, "rev-parse", "main")); got != localHead {
-		t.Errorf("claim must not have moved main (%s → %s)", localHead, got)
+	after, _ := os.ReadFile(filepath.Join(repo, issuePath206))
+	if !bytes.Equal(before, after) {
+		t.Fatal("offline claim edited local issue")
 	}
 }
 
-// End-to-end over REAL git: syncIssuesToMain from a feature branch with NO
-// worktree on main anywhere lands the body on the bare origin.
-//
-// Every syncViaTrunk unit test uses a fake publisher, which proves the arm's
-// logic but not its wiring to a real UpdateMany and a real push. This closes
-// that gap, and it is the condition #207 exists for: change-code branches in
-// place, so an actively-worked repo has no worktree on main and the route this
-// replaced was unavailable exactly in the workflow's default mode.
 func TestSyncIssuesToMain_PublishesFromBranchWithNoMainWorktree(t *testing.T) {
 	repo, origin := syncRepo(t)
 	git(t, repo, "checkout", "-b", "000206-issue-sync-verb")
@@ -981,7 +929,7 @@ func TestSyncIssuesToMain_PushRejectedAfterLocalWriteLeavesTrunkBehindLocal(t *t
 		t.Errorf("the ORIGINAL file was removed after a failed publish: %v", serr)
 	}
 	if _, serr := os.Stat(candidate); !os.IsNotExist(serr) {
-		t.Errorf("an unpublished candidate must not be left behind: %v", serr)
+		t.Errorf("confirmed rejected candidate must be removed: %v", serr)
 	}
 	if out, _ := exec.Command("git", "-C", origin, "ls-tree", "--name-only", "main", "--",
 		syncIssuesDir+"/000207-mine.md").Output(); strings.TrimSpace(string(out)) != "" {
@@ -1046,7 +994,7 @@ func TestSyncIssuesToMain_PublishesANonASCIIFilename(t *testing.T) {
 	writeSyncIssue(t, repo, untracked, "---\nid: 000301\n---\n\n# untracked accent\n")
 
 	var stdout, stderr bytes.Buffer
-	f := &claimFlags{IssuesDir: syncIssuesDir, NoStart: true, FirstPublication: true}
+	f := &claimFlags{Issue: 300, IssuesDir: syncIssuesDir, NoStart: true, FirstPublication: true}
 	if err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, "#300: accented"); err != nil {
 		t.Fatalf("%v\n%s", err, stderr.String())
 	}
@@ -1064,6 +1012,13 @@ func TestSyncIssuesToMain_PublishesANonASCIIFilename(t *testing.T) {
 	}
 	if !found {
 		t.Errorf("trunk listing lacks %q:\n%q", name, listing)
+	}
+	if strings.Contains(listing, untracked) {
+		t.Fatal("reservation swept another issue")
+	}
+	f.Issue = 301
+	if err := syncIssuesToMain(&stdout, &stderr, f, execGitRunner{}, "#301: accented"); err != nil {
+		t.Fatal(err)
 	}
 	if on := git(t, origin, "show", "main:"+syncIssuesDir+"/"+untracked); !strings.Contains(on, "untracked accent") {
 		t.Errorf("the untracked accented file never reached the trunk:\n%s", on)
@@ -1142,15 +1097,13 @@ func TestSyncIssuesToMain_PublishesFromASubdirectory(t *testing.T) {
 		t.Errorf("nothing reached the trunk:\n%s", on)
 	}
 
-	// And the PublishExisting path, which reaches the file through a glob rather
-	// than through git — the same cwd-relative trap, a different mechanism.
+	// Explicit publication also resolves its selected commit from a subdirectory.
 	writeSyncIssue(t, repo, "000206-issue-sync-verb.md", "## Spec\n\ncommitted then republished\n")
 	git(t, repo, "add", "-A")
 	git(t, repo, "commit", "-q", "-m", "local commit")
 	stdout.Reset()
 	stderr.Reset()
-	pf := &claimFlags{Issue: 206, IssuesDir: syncIssuesDir, NoStart: true, PublishExisting: true}
-	if err := syncIssuesToMain(&stdout, &stderr, pf, execGitRunner{}, "#206: republish"); err != nil {
+	if err := publishIssueCommit(&stdout, &stderr, repo, strings.TrimSpace(git(t, repo, "rev-parse", "HEAD")), syncIssuesDir, "workshop/history"); err != nil {
 		t.Fatalf("republish from a subdirectory: %v\n%s", err, stderr.String())
 	}
 	if on := git(t, origin, "show", "main:"+syncIssuesDir+"/000206-issue-sync-verb.md"); !strings.Contains(on, "committed then republished") {

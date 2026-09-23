@@ -236,7 +236,7 @@ func TestRunIssueNew_AutoSyncBestEffort(t *testing.T) {
 	if !strings.Contains(stderr.String(), "committed locally but not broadcast to main") {
 		t.Errorf("expected a best-effort sync warning on stderr; got:\n%s", stderr.String())
 	}
-	if !strings.Contains(stderr.String(), "sdlc issue sync --issue 1 --push") {
+	if !strings.Contains(stderr.String(), "sdlc issue publish --commit ") {
 		t.Errorf("the warning must name how to publish once the cause is cleared; got:\n%s", stderr.String())
 	}
 	// The durability half must have happened even though the broadcast didn't.
@@ -498,5 +498,22 @@ func TestRunIssueNew_FailedPublishOfATakenIDAdvisesSomethingThatWorks(t *testing
 	}
 	if strings.Contains(s, "peers won't see the reservation yet — publish with") {
 		t.Errorf("gave the generic advice, which sends the operator at a verb that refuses:\n%s", s)
+	}
+}
+
+func TestCreationUncertainPreservesCandidatesWithoutCommittingRejectedID(t *testing.T) {
+	repo, issues, history := reallocFixture(t, gitx.ErrPublicationUncertain)
+	before := git(t, repo, "rev-parse", "HEAD")
+	var out, errs bytes.Buffer
+	if err := runIssueNew(&out, &errs, &issueNewFlags{IssuesDir: issues, HistoryDir: history}, []string{"Taken Id"}); err != nil {
+		t.Fatal(err)
+	}
+	if after := git(t, repo, "rev-parse", "HEAD"); after != before {
+		t.Fatal("uncertain reservation committed the rejected identity")
+	}
+	for _, name := range []string{"000001-taken-id.md", "000002-taken-id.md"} {
+		if _, err := os.Stat(filepath.Join(issues, name)); err != nil {
+			t.Fatalf("uncertain source/candidate missing: %s %v", name, err)
+		}
 	}
 }

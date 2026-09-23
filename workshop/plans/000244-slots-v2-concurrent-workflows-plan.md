@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git commit/merge plumbing, existing SDLC locks and judge adapters.
 
-**State:** Scope approved in the operator discussion on 2026-09-23. This revision supersedes v1. Implementation is paused; prior plan/estimate gates do not establish clearance for this changed design. Re-run the design gate and rederive the estimate before resuming code work.
+**State:** Simplified scope approved; revised change-code passed (plan-quality CLEAN, estimate-quality INFO, 17.01h provisional). M1 implementation and full regression suite passed; milestone review pending. M2 patches are prepared and tested in isolated scratch checkouts, not yet integrated.
 
 ## Agreed contract
 
@@ -63,7 +63,7 @@ Preserve close's existing allowance for unrelated documentation-only descendant 
 |---|---|---|
 | ClaimDecision: open/status/error → attempt or refusal | `cmd/sdlc/claimdecision.go` | new |
 | CommitSelection: fixed source, parent, eligible changed paths | `cmd/sdlc/commitpublication.go` | new |
-| PublicationStep: selected/merged/result → retry, success, conflict or uncertain | `cmd/sdlc/commitpublication.go` | new |
+| PublicationStep: push/confirmation observations → retry, success, refusal or uncertain | `cmd/sdlc/internal/gitx/publicationstep.go` | new |
 | PreparedReview: captured read set and legal review phase | `cmd/sdlc/reviewstate.go` | new |
 
 | Integration | File | Status | External boundary |
@@ -109,7 +109,7 @@ The following is the exhaustive risky-function inventory for this change. New na
 |---|---|
 | `claimDecision`, `runClaim` | Table-drive every vocabulary status and malformed remote bytes; rendezvous two real CLIs after observing open. Removing the fresh-status check or conditional ref must make exactly-one-winner assertions fail. |
 | `decideCollision`, `syncViaTrunk`, `runIssueNew` | Occupy the proposed ID with identical and different slugs between observations; fail confirmation after push. Assert unique retained records and preservation of uncertain local content; treating equal slug as free must fail. |
-| `TrunkFile.UpdateMany`, shared `pushExpected` | Stateful ref advancement/rewind and lost-ACK schedules plus real bare-Git hooks. Assert no stale overwrite and no prepare rerun after confirmed own candidate publication; ordinary unleased push must fail rewind regression. |
+| `TrunkFile.UpdateMany`, shared `pushExpected` | Stateful ref advancement/rewind and lost-ACK schedules plus real bare-Git hooks. Assert no stale overwrite and no ownership inferred from an identical peer candidate; ordinary unleased push must fail rewind regression. |
 | `TrunkFile.SelectCommit`, `validateCommitSelection` | Real root/merge/regular commits and all changed path/mode classes, including rename endpoints. Assert complete-set eligibility before effects; ignoring one ineligible path must fail. |
 | `TrunkFile.PublishCommit` | Model refs/trees/provenance across conflict, rejection, unknown acknowledgment, successful retry, later edit and revert. Real Git confirms compatible merge and caller-state preservation. Removing exact trailer/ancestry checks must replay the revert and fail. |
 | `runIssuePublish`, `syncIssuesToMain`, `syncIssue` | CLI matrix across primary/worktree/clone, isolated HOME, bare remotes, staged unrelated code and older unselected ancestors. Compare remote trees and local branch/index/dirty files. Restoring main's whole-branch shortcut or no-new-commit inference must fail. |
@@ -130,31 +130,31 @@ Retention: reachable publication commits intentionally remain in the repository'
 ### Task 0: Reconcile the paused v1 draft
 
 - [x] Retired the abandoned uncommitted draft outside the repository at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne-244-retired-draft-j6pdwxfl`; removed its receipt/token implementation.
-- [ ] Retain useful behavior regressions: unrelated code leakage, same-record overwrite, same-slug creation collision, empty-file presence, remote rewind. Replace assertions/API sketches that depend on removed ownership receipts.
+- [x] Retain useful behavior regressions: unrelated code leakage, same-record overwrite, same-slug creation collision, empty-file presence, remote rewind. Replace assertions/API sketches that depend on removed ownership receipts.
 - [x] Removed v1-only production/test placeholders and restored the tracked pre-draft files. Baseline targeted Git/command tests passed before revised implementation.
 
 ### Task 1: Fresh status claims and reservation allocation
 
 Files: `claim.go`, `claimdecision.go`, `issue.go`, `issuecollision.go`, `synctrunk.go`, `internal/gitx/updatemany.go`, related tests.
 
-- [ ] Write `TestClaimRemoteStatusRace`: independent clones rendezvous after observing remote open; linked worktrees rendezvous before lock acquisition. Assert exactly one winner and an explicit non-open loser, with no production-lock bypass.
-- [ ] Write `TestClaimNonOpenAndUncertain`: vocabulary statuses, malformed/absent records, repeat claim and lost acknowledgment; no owner inference and no local-body loss.
-- [ ] Write `TestCreationOccupiedID`: same/different slugs at one candidate ID, fresh retry and interrupted publication; no overwritten reservation.
-- [ ] Observe expected failures; implement pure decisions and conditional publication; rerun to green.
-- [ ] Run `go test ./cmd/sdlc/internal/gitx/... ./cmd/sdlc -run 'Test(Claim|Creation|StartOnClaim|AllocateIssueID|UpdateMany|Trunk)' -count=1`.
+- [x] Write `TestClaimRemoteStatusRace`: independent clones rendezvous after observing remote open; linked worktrees rendezvous before lock acquisition. Assert exactly one winner and an explicit non-open loser, with no production-lock bypass.
+- [x] Write `TestClaimNonOpenAndUncertain`: vocabulary statuses, malformed/absent records, repeat claim and lost acknowledgment; no owner inference and no local-body loss.
+- [x] Write `TestCreationOccupiedID`: same/different slugs at one candidate ID, fresh retry and interrupted publication; no overwritten reservation.
+- [x] Observe expected failures; implement pure decisions and conditional publication; rerun to green.
+- [x] Run `go test ./cmd/sdlc/internal/gitx/... ./cmd/sdlc -run 'Test(Claim|Creation|StartOnClaim|AllocateIssueID|UpdateMany|Trunk)' -count=1`.
 
 ### Task 2: Explicit commit publication and callers
 
 Files: new `issuepublish.go`, `commitpublication.go`, `internal/gitx/commitpublication.go` and tests; modify `issue.go`, `claim.go`, `synctrunk.go`, `changecode.go`, `Makefile.workflow` as required.
 
-- [ ] `TestCommitSelection`: real commit topology and typed path validation; accept intentionally grouped issue/plan/project documents, refuse mixed code, root/merge commits, symlinks, malformed refs and silent partial publication.
-- [ ] `TestCommitPublicationMerge`: stateful Git adapter and real bare remote; preserve unrelated changes and compatible same-file edits, expose conflicting edits/deletion/rename without changing caller files/index/branch.
-- [ ] `TestCommitPublicationRetry`: force remote advancement/rewind, repeat source SHA, later edit/revert and missing acknowledgment; never overwrite newer state or replay a previously published change.
-- [ ] `TestCommitPublicationSlots`: run the same production CLI in primary :0, two linked numbered worktrees and private dependency clones; preserve unrelated local commits and dirty files in every case.
-- [ ] `TestCommitPublicationCallers`: local-only sync performs no network; explicit selected commit includes its complete eligible set; legacy convenience callers do not infer or publish unselected ancestors/plan files.
-- [ ] Implement through one shared adapter after observing red tests. Keep existing workflow gates intact.
-- [ ] Run `go test ./cmd/sdlc/internal/gitx/... ./cmd/sdlc -run 'Test(CommitPublication|CommitSelection|IssueSync|RunIssueNew|Sync|Claim)' -count=1`.
-- [ ] Update README, issue/claim help, `atlas/workflow/issue-sync.md`, `issue-lifecycle.md` and the Pair project checkpoint. Document selected files, primary-slot symmetry, conflict handling and repeated-claim refusal.
+- [x] `TestCommitSelection`: real commit topology and typed path validation; accept intentionally grouped issue/plan/project documents, refuse mixed code, root/merge commits, symlinks, malformed refs and silent partial publication.
+- [x] `TestCommitPublicationMerge`: stateful Git adapter and real bare remote; preserve unrelated changes and compatible same-file edits, expose conflicting edits/deletion/rename without changing caller files/index/branch.
+- [x] `TestCommitPublicationRetry`: force remote advancement/rewind, repeat source SHA, later edit/revert and missing acknowledgment; never overwrite newer state or replay a previously published change.
+- [x] `TestCommitPublicationSlots`: run the same production CLI in primary :0, two linked numbered worktrees and private dependency clones; preserve unrelated local commits and dirty files in every case.
+- [x] `TestCommitPublicationCallers`: local-only sync performs no network; explicit selected commit includes its complete eligible set; legacy convenience callers do not infer or publish unselected ancestors/plan files.
+- [x] Implement through one shared adapter after observing red tests. Keep existing workflow gates intact.
+- [x] Run `go test ./cmd/sdlc/internal/gitx/... ./cmd/sdlc -run 'Test(CommitPublication|CommitSelection|IssueSync|RunIssueNew|Sync|Claim)' -count=1`.
+- [x] Update README, issue/claim help, `atlas/workflow/issue-sync.md`, `issue-lifecycle.md` and the Pair project checkpoint. Document selected files, primary-slot symmetry, conflict handling and repeated-claim refusal.
 - [ ] Commit explicit paths and run `sdlc milestone-close --issue 244 --milestone M1 --verified '<observed evidence>'`.
 
 ## Chunk 2 — Review lock scope and integration (M2)
@@ -195,3 +195,9 @@ Reason: revised gate reported executable-test-strategy and operating-envelope ga
 ### 2026-09-23 — Conformance cadence and Git retention
 
 Reason: gate follow-up requested the real-Git execution cadence and durable artifact policy. Delta: normal tests and every adapter/Git update execute matching fake/live-binary schedules; reachable publication history is intentionally retained as ordinary Git audit history, with measured fixture size/query time and ordinary GC for unreachable objects.
+
+### 2026-09-23 — M1 implementation and real race evidence
+
+The shared retry decision lives in `internal/gitx/publicationstep.go`, next to both production loops; command eligibility stays pure in `commitpublication.go`. Real receive-pack races can report a confirmed remote rejection rather than client-side stale-info. Both trigger a fresh reservation decision. Two callers can construct identical Git commits, so reservation publication never infers caller ownership from reachability: explicit rejection or an up-to-date push rereads status; an ambiguous transport outcome remains uncertain without replay. Selected documentation publication retains provenance-based idempotence. These refinements preserve the approved status-only contract and add no ownership state.
+
+M1 full workspace/SDLC suite passed (411.417s command package; pre-existing #210 missing-history fixture excluded), as did vet and diff checks. Real CLI races cover linked worktrees and independent clones; creation races get distinct IDs; primary/worktree/private-clone publication preserves unrelated commits and index/working files. The first broad run was interrupted for diagnosis; its active resolver test passed alone, and the complete verbose rerun passed. A 2,361-commit remote history provenance scan took 63.0ms; repository objects were 38.39MiB loose + 10.36MiB packed. The small publication fixture was 22 objects/88KiB with a 96.8ms retry query. No general performance guarantee is inferred from these measurements.

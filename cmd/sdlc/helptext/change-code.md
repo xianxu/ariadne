@@ -1,5 +1,5 @@
 Enter the implementation phase for an issue. Composes the gates
-between planning (which happens on `main`) and code-changing work:
+between planning and code-changing work in any checkout:
 
   0. Flow                — infers the issue's flow (#231; see THE FLOW
                            below). On the quick flow, gates 1–3 do not run.

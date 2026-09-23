@@ -11,7 +11,7 @@
 // deleted in ariadne#207), which could be dirty, mid-rebase, owned by another
 // actor, or simply absent. Every guard on that route exists to make a SHARED WORKING DIRECTORY
 // safe. Here there is no working directory: fetch, build the tree in a temp
-// index, commit-tree, and push the commit at the ref. `push <commit>:main` IS the
+// index, commit-tree, and push the commit at the ref. `push --force-with-lease=<ref>:<observed> <commit>:main` is the
 // concurrency primitive — a compare-and-swap that a local cleanliness check
 // cannot approximate, because it sees the remote and the check only sees here.
 //
@@ -25,12 +25,14 @@ package gitx
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // runGitIn runs git in `dir` with `env` appended to the environment, returning
@@ -49,14 +51,20 @@ import (
 // test, the real repo and its real origin); Env is needed (GIT_INDEX_FILE, since
 // only read-tree has an --index-output escape); stderr is needed (three call
 // sites render git's own text). Stdin is not (blobs come from a temp file via
-// `hash-object --path`), and no git call in this binary takes a context today, so
-// introducing one here would be a second convention.
+// `hash-object --path`). Publication history queries use the context-aware
+// runner below; existing callers retain a background context.
 //
 // `run` is left alone deliberately: its existing callers were written against
 // .Output() semantics, and folding stderr into strings they parse would break
 // them silently.
 var runGitIn = func(dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
-	cmd := exec.Command("git", args...)
+	return runGitInContext(context.Background(), dir, env, args...)
+}
+
+// runGitInContext is the cancellable Git boundary shared by bounded history queries.
+var runGitInContext = func(ctx context.Context, dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.WaitDelay = time.Second
 	cmd.Dir = dir
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)
@@ -195,7 +203,7 @@ func (t *TrunkFile) refPresent(ref string) (bool, error) {
 func (t *TrunkFile) resolveOpt(ref string) (string, error) {
 	out, errOut, err := runGitIn(t.dir, nil, "rev-parse", "--verify", "--quiet", ref)
 	if err == nil {
-		return strings.TrimSpace(string(out)), nil
+		return parseObjectID(out)
 	}
 	if gitExitCode(err) == gitAbsentExit {
 		return "", nil
