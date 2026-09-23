@@ -79,6 +79,10 @@ Read-only audit verification: existing acquire/staging/plan/startup fixture suit
 
 Ran start-plan for the revised design. Audits confirmed both Pair and Parley declarations lack acquisition URLs, existing Weave clones remote default HEAD, and flat workspace identity misclassifies nested main/dependency checkouts. The durable proposal covers the nested resolver follow-up, independent clone identity and environment-local content selection, canonical calibration, private origin/main acquisition, setup interruption/exclusion, and real isolated Parley/tooling verification. Source declarations need small peer updates; no runtime implementation has started. Fresh-context spec/plan review is in progress. Unrelated process-manual and #230/#240 edits remain untouched; estimates wait for plan-quality acceptance.
 
+### 2026-09-23 — engineering review approved
+
+Fresh-context plan review approved Chunk 1 after fixing two findings: acquisition now accepts only the direct-sibling topology that discovery recognizes, and dependency feature worktrees use clone-specific paths with context inherited through Git-verified primary identity. Unsupported relative composition paths fail with guidance, without generic acquisition fallback. Peer metadata publication uses isolated checkouts to avoid incidental commits. Plan commits: `0b393eb7`, `2966aba`. Scoped diff validation passed; implementation and estimate remain pending operator engineering-plan approval and change-code.
+
 ## Revisions
 
 ### 2026-09-23 — Nested workspace and dependency policy agreed
