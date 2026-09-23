@@ -58,7 +58,7 @@ Engineering proposal: [nested slots and dependency bindings plan](../plans/00024
 
 - [x] Inspect current dependency and installation paths; compare minimal binding policies and obtain the policy decision.
 - [x] Design and implement the nested identity follow-up and required dependency/setup changes with fixture tests.
-- [ ] Prove fresh and repeated setup and document explicit dependency/tool updates.
+- [x] Prove fresh and repeated setup and document explicit dependency/tool updates.
 
 ## Estimate
 
@@ -163,6 +163,10 @@ Fresh-context plan review approved Chunk 1 after fixing two findings: acquisitio
 Operator approved execution; change-code plan-quality CLEAN after clarifying named test strategies, exact provisioning CLI and output-only v2 compatibility. Estimate-quality accepted the calibrated 10.8h unit decomposition. Implemented nested identity/schema and Git proof (`92f6fdb`), environment-aware SDLC consumers (`bf30f4e`), and private remote-main acquisition with inherited setup leases (`43e53fe`). Full `go test ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` passed (SDLC package 367.829s), as did vet and scoped diff checks. The sole skip is existing #210. Additional focused tests verify lexical symlink refusal, whitespace-preserving Git reads, all accepted sibling names, local project writes and independent clone authority. An earlier parallel run passed assertions but failed the repo-status guard when another worker added a test file; the final broad run passed cleanly.
 
 Peer metadata published via isolated clean clones, leaving operator checkouts unchanged: pair#310 PR154 (`d7d062dd`, merged) and parley.nvim#274 PR199 (`007817b4`, merged). Parley merge also auto-archived its pre-existing completed #220 bookkeeping under normal SDLC. Real two-environment compilation and runtime acceptance passed; full Parley suite and final exact script remain in progress. Source HEADs/dirty work and canonical fleet remained unchanged by repeat compilation. Initial owner binaries may differ on repeat because Go embeds VCS dirty-state metadata after generated .gitignore adoption; composition comparisons separate and record this build provenance.
+
+### 2026-09-23 — real product acceptance
+
+Final exact integration script passed against committed Ariadne `2bbebef43` and merged Parley `3244b06e7`, with ARIADNE_WORKTREE=0 and RUN_PRODUCT_TESTS=0; evidence `/private/tmp/slot-dependencies.0dp9txe_`. It exercised two real numbered host worktrees and independent ordinary source clones, first/repeat composition, actual owner builds, private feature commit plus dirty/untracked preservation, canonical fleet/content/ref immutability and runtime fresh-clone checks. Remote HTTPS identity used a local transport rewrite below validation; Brew is inert, so this proves source/build/composition isolation, not package installation. Earlier full product run in `/private/tmp/slot-dependencies._cic5u_c` passed lint, units and all but one performance spec; that spec timed out without an assertion failure under concurrent load, then passed all 3 cases with 0 failures/errors in isolation under unchanged timeout (`/tmp/ariadne-243-parley-perf-rerun.log`). No product code/test changes were needed.
 
 ## Revisions
 
