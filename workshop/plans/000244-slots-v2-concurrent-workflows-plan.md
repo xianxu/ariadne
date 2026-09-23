@@ -105,9 +105,9 @@ Publication is a bounded CLI transaction. Three retries are sufficient for the i
 
 ### Task 0: Reconcile the paused v1 draft
 
-- [ ] Preserve the current uncommitted draft for reference before removing its receipt/token implementation; it is unfinished and not a tested baseline.
+- [x] Retired the abandoned uncommitted draft outside the repository at `/var/folders/07/b9wcwwld4_v2w9r3hk525bm80000gn/T/ariadne-244-retired-draft-j6pdwxfl`; removed its receipt/token implementation.
 - [ ] Retain useful behavior regressions: unrelated code leakage, same-record overwrite, same-slug creation collision, empty-file presence, remote rewind. Replace assertions/API sketches that depend on removed ownership receipts.
-- [ ] Remove v1-only production/test placeholders and stale WIP documentation; restore a compiling baseline before adding the revised implementation.
+- [x] Removed v1-only production/test placeholders and restored the tracked pre-draft files. Verify the baseline before revised implementation.
 
 ### Task 1: Fresh status claims and reservation allocation
 
@@ -158,4 +158,8 @@ Files: new `reviewstate.go` and tests; modify `changecode.go`, `close.go`, `mile
 
 Reason: the earlier design added ownership/retry conveniences beyond the required reservation model. Delta: fresh open→working conditional claims replace tokens; explicitly selected Git commits and three-way merge replace whole-file snapshots and receipt baselines; publication includes the agent's chosen issue/plan/project files and behaves identically in :0 and other checkouts. Short review locks remain required.
 
-The complete prior design and its 21.28h estimate are preserved in [superseded v1](000244-concurrent-workflows-design-v1.md). Earlier gate results apply to v1 only. Clear the current estimate and derive it again after the revised plan clears its gate. No completed implementation or passing revised tests is claimed.
+The operator requested removal of the old design to avoid misleading future agents. It is available only in Git history (commit `bbd3122`). Earlier gate results apply to that superseded design only; derive a new estimate after the current plan clears its gate.
+
+### 2026-09-23 — Remove obsolete design from the working tree
+
+Operator authorized implementation and asked to remove the old design. Deleted the superseded design artifact and retired its unfinished draft outside the repository. Git history preserves the old decisions; only this plan is active.
