@@ -1,11 +1,12 @@
 ---
 id: 000245
-status: open
+status: working
 deps: [ariadne#242, ariadne#243]
 github_issue:
 created: 2026-09-22
 updated: 2026-09-23
 estimate_hours:
+started: 2026-09-23T14:55:42-07:00
 ---
 
 # Slots v2: branch from a workspace and refresh
@@ -29,6 +30,36 @@ Audit change-code and existing Git/procedure surfaces; prefer documented Git ope
 This section takes precedence over earlier conflicting layout or policy text.
 
 Resolve numbered main checkouts at `/workspace/worktree/<repo>-slotN/<repo>` through the shared contract updated in #243. Branch-from captures the selected repository's committed snapshot, not a multi-repository snapshot of its enclosing environment. Refresh changes only the explicitly targeted repository/resting branch; neither operation clones, switches, refreshes or resets sibling dependency repositories. Dependency revisions are controlled explicitly by operator/agent using ordinary Git. Cross-repository development is available from every slot and does not grant :0 special branch privileges.
+
+### Proposed engineering design — 2026-09-23
+
+Use documented ordinary Git procedures, resolved through `sdlc workspace ADDRESS --json`, rather than adding a branch/adopt/refresh command. The procedures prepare the checkout; existing `claim`, `start-plan`, `change-code` and review gates continue to own the issue lifecycle. This is the recommended design, pending operator approval.
+
+Alternatives considered: a `change-code --from` flag would couple source selection to planning review and require moving its present sync-before-branch sequence; separate workspace mutation commands would duplicate Git orchestration. Neither is needed for the agreed agent-driven workflow (ARCH-DRY, ARCH-PURPOSE).
+
+**Branch from a workspace.** From the destination, resolve its identity and the requested source address through the existing resolver. Both must be addressable slots of the same Git repository (`repo_identity` equal), including :0. Require destination on its resting branch. Require an explicit new issue branch name; reject an existing local branch instead of reusing it. Detached/unborn/unresolvable workspaces, ongoing Git merge/rebase/cherry-pick/revert/bisect operations, and unsafe readiness refuse before switching. The command is preparation only; it neither acquires nor transfers an issue claim.
+
+Capture the source's full commit SHA and symbolic branch. Require source and destination clean: no staged or unstaged tracked changes, dirty submodules, or nonignored untracked files. Ignored build outputs may remain, but must never be overwritten by switching. Re-resolve and repeat source HEAD/branch/readiness checks immediately before accepting the capture, along with destination identity/HEAD/resting/readiness and branch-name checks. An observed source movement during capture refuses and asks for a fresh capture. Once accepted, the full SHA is the immutable start point; subsequent source movement is harmless and does not propagate. These are bounded observations, not an atomic reservation against an unrelated Git process or editor; agents must stop concurrent writers in the affected checkout while preparing it.
+
+Create the new branch in the destination using ordinary Git:
+
+```sh
+git -C "$destination" -c submodule.recurse=false switch --no-track --no-overwrite-ignore -c "$issue_branch" "$source_sha"
+```
+
+Use quoted, validated arguments and the full captured SHA, never a moving branch name. Do not use force/reset flags. Git is the final branch-name/collision guard. Confirm destination HEAD equals the captured SHA before any workflow edits. Source checkout, both resting refs, and their upstream configurations remain unchanged. The new issue branch deliberately has no inferred upstream.
+
+After switching, append source canonical address and full SHA to the selected issue's `## Log` and checkpoint it through existing issue sync. The initial branch tip is exactly the captured SHA; provenance and later planning checkpoints are subsequent explicit commits on the issue branch. If the issue does not exist in that snapshot, explicitly bring in its already-reserved record or create a genuinely new issue through the normal issue commands; never claim a reserved issue again or import an arbitrary destination plan automatically. Run planning and `change-code` against the final issue/plan content on this branch. A failed provenance checkpoint leaves the prepared branch visible, reports the missing step, and does not roll back or claim implementation readiness.
+
+**Independent issue start.** Apply the same preparation order using the destination's current committed resting HEAD as the start point. Branch before claim/design/checkpoint work when preserving the resting ref matters. There is no implicit fetch, pull or refresh to select the baseline. Explicit claim and normal change-code documentation publication still contact remote main for their existing purposes; they do not update the selected resting baseline. Existing planning commits already on the resting branch remain part of that baseline; they are not silently removed. Ordinary pre-existing change-code behavior outside this documented slot procedure remains compatible.
+
+**Explicit refresh.** Resolve only the requested slot and require it currently checked out on its identified resting branch, clean under the same readiness policy, with no ongoing Git operation. Determine the configured remote from that resting branch's upstream; require a named remote and `refs/heads/main` tracking configuration. Missing, local-dot, or non-main upstreams refuse with configuration guidance rather than guessing origin. Record the current resting SHA and upstream configuration, fetch remote main explicitly into `FETCH_HEAD`, and immediately capture its full SHA. Recheck workspace identity, resting branch/HEAD/configuration and readiness after fetch. Fetch failure or changed evidence stops before any local branch movement.
+
+Require the old resting commit to be an ancestor of the fetched commit. Equal commits are a no-op; a behind branch can fast-forward. Ahead or divergent branches, including local planning commits, refuse and explain that the operator must explicitly choose how to preserve/reconcile them. Use `git merge --ff-only --no-overwrite-ignore` with the pinned fetched SHA and `submodule.recurse=false`; never reset, stash, auto-commit, infer a merge/rebase, or fall back to another remote. Fetch may update remote bookkeeping, but the resting ref moves only on a successful fast-forward. An active issue branch refuses; returning to rest is a separate explicit action after preserving its work.
+
+**Isolation and evidence.** Both procedures operate on the selected repository only. They never traverse or update sibling dependency clones. Document :0 and :N examples, failure recovery, and the ordinary-workflow compatibility distinction in an atlas procedure linked from workspace identity and change-code help. Add real local Git fixtures which execute the documented Git operations and readiness sequence; test source movement at the capture boundary deterministically, not with timing sleeps. Reuse existing workspace fixtures/runner seams where suitable rather than introducing a second resolver or a metadata file. No slot-to-issue metadata is added: the issue branch and its issue Log carry the association and provenance.
+
+**Acceptance coverage.** Fixtures cover :0 and numbered source/destination combinations; same-repository rejection; tracked, staged, nonignored-untracked, ignored-collision and dirty-submodule readiness; in-progress Git operations; an existing branch; source movement before/after accepted capture; exact initial SHA and recorded provenance; existing destination-only planning artifacts; old baseline without refresh; configured non-origin remote; clean equal/behind/ahead/divergent resting branches; failed fetch; active issue refresh refusal; and nested sibling dependency SHAs, branches, dirty/untracked files and unpublished commits remaining unchanged. Verify existing change-code works on the prepared branch and its planning sync advances that branch, not the resting ref.
 
 ## Done when
 
@@ -54,8 +85,16 @@ Task outline only; settle implementation design through start-plan before change
 
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
 
+### 2026-09-23 — Design audit
+
+Claimed #245 and ran start-plan. Audited workspace resolution, change-code planning review/sync ordering and branch creation with a read-only peer audit. Proposed ordinary Git preparation avoids reviewing the wrong snapshot and avoids placing new planning checkpoints on resting refs. An unrelated untracked stale #244 issue copy is preserved untouched.
+
 ## Revisions
 
 ### 2026-09-23 — Nested slots retain per-repository branch and refresh scope
 
 Reason: operator agreed nested environments, ordinary remote dependency clones and existing per-repository publication. Delta: added the authoritative scope clarification and acceptance criteria above; original task context remains as provenance. Added #243 as a prerequisite for the nested identity contract. No implementation or lifecycle-status change is claimed by this revision.
+
+### 2026-09-23 — Proposed ordinary-Git procedure design
+
+Reason: implementation audit found change-code reviews destination artifacts and checkpoints planning before its current branch-creation step. Delta: propose explicit branch preparation before lifecycle gates, plus separately requested fast-forward refresh, using existing workspace identity and ordinary Git. Specify readiness, bounded capture semantics, provenance, configured remote handling and regression coverage without adding mutation commands. Pending operator design approval; no implementation or estimate yet.
