@@ -7,6 +7,7 @@ created: 2026-09-22
 updated: 2026-09-23
 estimate_hours: 3.83
 started: 2026-09-23T15:24:19-07:00
+flow: {kind: full, provenance: operator}
 ---
 
 # Slots v2: land while retaining the workspace
