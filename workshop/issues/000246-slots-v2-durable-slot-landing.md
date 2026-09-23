@@ -1,11 +1,12 @@
 ---
 id: 000246
-status: open
+status: working
 deps: [ariadne#242, ariadne#243, ariadne#244, ariadne#245]
 github_issue:
 created: 2026-09-22
 updated: 2026-09-23
 estimate_hours:
+started: 2026-09-23T15:24:19-07:00
 ---
 
 # Slots v2: land while retaining the workspace
