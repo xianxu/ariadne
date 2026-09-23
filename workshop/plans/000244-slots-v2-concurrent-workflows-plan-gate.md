@@ -103,7 +103,20 @@ rounds:
           family: durable-artifact-lifecycle
           round: 6
       blocked: false
-content_hash: 8e1c1f3a0834a41acd00175d79d15abb7d9cce636248c81fc05fb19742a64ac7
+    - "n": 7
+      timestamp: "2026-09-23T12:43:12-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-5
+          disposition: addressed
+          note: The plan specifies real-Git temporary-bare-remote conformance on every publication-adapter or Git upgrade and in normal pre-merge tests, with mismatches blocking shipment.
+          round: 7
+        - id: PQ-6
+          disposition: addressed
+          note: The plan explicitly retains reachable publication commits for repository lifetime, delegates ownership to the repository operator, describes unreachable-object GC, and measures growth and provenance-query cost.
+          round: 7
+      blocked: false
+content_hash: 8376232e047c0c4c39f53e0a427f65464562e0812572a065c2154b652941fc68
 ---
 
 # Gate ledger — ariadne#244 (plan-quality)
@@ -166,7 +179,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-6** [Minor] `durable-artifact-lifecycle` Bound the growth and retention of publication commits
   Lines 42 and 102 create durable result commits carrying Source-Commit provenance and say they have “ordinary repository retention,” but do not state who eventually removes or archives them, their growth bound, or the measured cost if retention is effectively forever. Add that lifecycle statement or explicitly justify the existing repository retention policy.
 
+## Round 7 — 2026-09-23T12:43:12-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-5 — addressed — The plan specifies real-Git temporary-bare-remote conformance on every publication-adapter or Git upgrade and in normal pre-merge tests, with mismatches blocking shipment.
+- PQ-6 — addressed — The plan explicitly retains reachable publication commits for repository lifetime, delegates ownership to the repository operator, describes unreachable-object GC, and measures growth and provenance-query cost.
+
 ## Open findings
 
-- **PQ-5** [Important] `external-conformance-cadence` Define the live Git conformance check and its cadence
-- **PQ-6** [Minor] `durable-artifact-lifecycle` Bound the growth and retention of publication commits
+(none — every finding has been disposed)
