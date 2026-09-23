@@ -113,19 +113,19 @@ ARCH-PURE/DRY: use one decision model and the existing trunk adapter. ARCH-ORDER
 
 Files: new `issuepublication.go`, `issuepublication_test.go`, `publicationreceipt.go`, `publicationreceipt_test.go`; modify `construct/vocabulary/issue.cue` and its generated consumer through the existing vocabulary generation workflow.
 
-- [ ] Write pure failing sequence tests for every transition above, including equal-byte claims, copied ownership metadata, same-slug creation, delete/update, rename/update and failed confirmation.
-- [ ] Implement typed decisions and bounded versioned receipt IO. Test atomically interrupted writes, unknown schema, invalid paths, empty-vs-absent state, target mismatch and cleanup.
+- [ ] Write failing `TestPublicationTransitionSequences` and `TestPublicationConflictingRecords` using the named-function strategies below.
+- [ ] Implement typed decisions and bounded receipt IO; follow `TestPublicationReceiptRejectsMalformed` and `TestPublicationReceiptInterruptedWrite` below.
 - [ ] Run `go test ./cmd/sdlc -run 'Test(Publication|ClaimIdentity|PublicationReceipt)' -count=1`; demonstrate meaningful red then green. Validate vocabulary across existing issue records if its schema changes.
 
 ### Task 2 — Wire the existing transaction and every issue publisher
 
 Files: `claim.go`, `synctrunk.go`, `issue.go`, `issuecollision.go`, `internal/gitx/updatemany.go`, associated tests and new `publication_concurrency_test.go`.
 
-- [ ] Add failing stateful-fake tests for immutable desired bytes, per-attempt preconditions, exact-old-ref comparison, and push-success/lost-ack recovery.
+- [ ] Add failing `TestPublicationRemoteInterleavings` through the shared production seam using its named adversarial strategy below.
 - [ ] Route main and non-main publication through the same guarded path; keep `NoPush` local-only. Preserve explicit already-committed-body publication.
 - [ ] Ensure claim and creation carry distinct pending identities and cannot adopt a foreign reservation. Update old tests that intentionally pinned last-writer-wins or offline ownership success.
 - [ ] Add real bare-remote fixtures with two independent clones and two linked worktrees. Use process barriers, not timing sleeps. Independent clones rendezvous after remote observation to force CAS contention. Linked worktrees rendezvous before lock acquisition; retain the production common-directory lock and assert serialization plus the second claimant's fresh-authority refusal. Never bypass locking to manufacture a shared-worktree interleaving.
-- [ ] Prove one claim winner, two unique creation records (same and different slugs), preservation of unrelated updates, visible same-record conflicts, sequential remote-only updates from unchanged HEAD, crash/restart recovery, conflict → explicit Git integration → resolved retry success, acknowledged allocation rejection → safe reallocation, uncertain push → retry without duplicate records or lost edits, and selected issue publication without unrelated local-main commits.
+- [ ] Implement `TestPublicationClaimContenders`, `TestPublicationAllocationContenders`, `TestPublicationConflictRecovery` and `TestPublicationMainScope` using the named strategies below.
 - [ ] Run `go test ./cmd/sdlc/internal/gitx/... ./cmd/sdlc -run 'Test(Trunk|UpdateMany|Publication|Claim|Sync|IssueSync|RunIssueNew|AllocateIssueID)' -count=1` and inspect every failure.
 - [ ] Update `README.md`, `cmd/sdlc/helptext/claim.md`, `helptext/issue.md`, `atlas/workflow/issue-sync.md`, `atlas/workflow/issue-lifecycle.md`; remove the known last-writer-wins/offline-success claims and explain local-main divergence/recovery. Keep atlas index links current.
 - [ ] Commit explicit paths; close M1 via `sdlc milestone-close --issue 244 --milestone M1 --verified '<actual evidence>'`. Update the Pair project checkpoint.
@@ -136,18 +136,18 @@ Files: `claim.go`, `synctrunk.go`, `issue.go`, `issuecollision.go`, `internal/gi
 
 Files: new `reviewstate.go`, `reviewstate_test.go`; modify `changecode.go`, `close.go`, `milestoneclose.go`, `repolock.go` only as needed; existing plan/boundary ledger adapters and tests.
 
-- [ ] Write failing tests for stale branch identity, issue/plan appearance or edits, gate-ledger changes, and non-finalizing stale results writing records.
+- [ ] Write failing `TestPreparedReviewReadSet` using the comparison and no-write oracle below.
 - [ ] Extract artifact capture/comparison. Convert change-code to manual prepare/dispatch/finalize locking and preserve ordering/pass-through/waivers.
 - [ ] Validate close/milestone-close before sidecar/ledger writes for every result. Include boundary ledger and seed plan ledger in the prepared read set.
-- [ ] Add real subprocess tests using a fake reviewer with ready/release barriers: while plan, estimate, close or milestone review is paused, another worktree completes an unrelated issue operation. Concurrent same-boundary reviews must reject the stale second result without advancing the ledger.
-- [ ] Retain docs-only descendant acceptance and code/diverged-anchor refusal. Test cancellation/error releases locks and reaps reviewer children.
+- [ ] Implement `TestReviewConcurrencySchedules` through real command subprocesses for each external review caller, following the barrier strategy below.
+- [ ] Run the prepared-review read-set and interruption transition tests below, preserving existing gate-specific anchor policy.
 - [ ] Run `go test ./cmd/sdlc -run 'Test(PreparedReview|ChangeCode|Close|Milestone|PlanQuality|EstimateQuality|ReviewConcurrency)' -count=1` and confirm red/green evidence for new tests.
 
 ### Task 4 — End-to-end dependency workflow and publication
 
 Files: `publication_concurrency_test.go`, new `review_concurrency_test.go`; `atlas/workflow/sdlc-binary.md`, `atlas/workflow/gate-state.md`, embedded help, `README.md`, and the Pair couch-slots-v2 project.
 
-- [ ] In temporary nested Pair-slot environments, drive ordinary Ariadne clones through normal CLI creation, claim, local body sync and explicit publication. Assert local edits survive conflict/offline conditions and each environment retains its Git state.
+- [ ] Implement `TestPublicationDependencyEnvironment` with the temporary nested-clone CLI strategy below.
 - [ ] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'`; the skip is the pre-existing #210 missing historical plan, not a #244 exemption. Run `go vet ./pkg/workspace/... ./cmd/sdlc/...` and scoped `git diff --check`.
 - [ ] Document concurrency/refusal/retry behavior and observed test evidence. Record discovered review lessons. Update Pair project scope/checkpoint without marking the whole project complete.
 - [ ] Commit; run `sdlc milestone-close --issue 244 --milestone M2 --verified '<actual evidence>'`, then the issue close gate. Fix blocking review findings before continuing.
@@ -231,4 +231,8 @@ These are planned implementation entry points, not claims that the functions alr
 | Validated + accepted verdict | continue deterministic gates/finalization while locked; another external wait requires another prepared snapshot |
 | Any + parent process death | no later parent finalization exists; existing dead-holder recovery reclaims local lock; rerun starts a fresh review from durable ledger state |
 
-Use the Cobra command context for external dispatch instead of `context.Background()`. Normal cancellation/error paths must reap the direct reviewer and terminate its owned process group where supported; do not orphan a reviewer on a normal function return. An uncatchable parent kill cannot promise portable child reaping: review children have no authority to persist gate results, and the next command must not consume their output as a completed round. Existing immutable reviewed commit plus read-set checks remain mandatory after restart. No asynchronous goroutine may mutate gate state after its command returns. Barrier-driven tests inject every interruption above through the production shell; same-boundary concurrent results invalidate on ledger generation before persistence.
+Use the Cobra command context for external dispatch instead of `context.Background()`. Bound each external review with a derived timeout context: default 30 minutes, configurable by `WF_REVIEW_TIMEOUT` as a positive Go duration from 1 second through 2 hours; invalid values refuse before dispatch. This is a conservative operating assumption, not a latency promise. Timeout follows cancellation: signal the owned process group, allow at most 5 seconds to exit, then kill and wait; cap pipe draining with `exec.Cmd.WaitDelay` so inherited pipe descriptors cannot hang return. Inject the timeout/clock in tests rather than waiting in real time. No timeout produces a passing ledger/cache entry, and retry starts a new review against fresh inputs. Normal cancellation/error paths must reap the direct reviewer and terminate its owned process group where supported; do not orphan a reviewer on a normal function return. An uncatchable parent kill cannot promise portable child reaping: review children have no authority to persist gate results, and the next command must not consume their output as a completed round. Existing immutable reviewed commit plus read-set checks remain mandatory after restart. No asynchronous goroutine may mutate gate state after its command returns. Barrier-driven tests inject every interruption above through the production shell; same-boundary concurrent results invalidate on ledger generation before persistence.
+
+### 2026-09-23 — Plan gate round 2 corrections
+
+Replaced duplicate task-level scenario inventories with references to the named test/function strategy table. Added a concrete per-review timeout, bounded shutdown and pipe-drain policy; retained the explicit uncatchable-parent-death limitation. This addresses remaining PQ-1/PQ-3 findings.
