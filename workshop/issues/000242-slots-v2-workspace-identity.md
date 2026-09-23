@@ -1,11 +1,12 @@
 ---
 id: 000242
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-22
 updated: 2026-09-22
 estimate_hours:
+started: 2026-09-22T22:20:59-07:00
 ---
 
 # Slots v2: workspace identity
