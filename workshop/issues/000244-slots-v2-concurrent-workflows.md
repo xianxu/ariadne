@@ -5,7 +5,7 @@ deps: [ariadne#242, ariadne#243]
 github_issue:
 created: 2026-09-22
 updated: 2026-09-23
-estimate_hours:
+estimate_hours: 17.01
 started: 2026-09-23T11:35:53-07:00
 flow: {kind: full, provenance: inferred}
 ---
@@ -53,7 +53,73 @@ Apply the same mechanism in :0, numbered slots, ordinary feature worktrees and p
 
 ## Estimate
 
-The previous 21.28h estimate applied to the removed design; it remains in Git history at `bbd3122`. Derive a replacement after the revised plan clears plan-quality; no new estimate is asserted by this scope update.
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
+
+The previous 21.28h estimate belongs to the discarded design (Git history `bbd3122`). This replacement uses concrete concerns from the simplified plan; no receipts or ownership-token work remains. Design values use the thorough-plan ×0.2 discount; implementation values already use v3.1 ×0.4. Familiar Go/Git stack: multiplier 1.0. Existing Git plumbing, YAML parsing, Cobra and lock helpers are reused; no novel third-party library is assumed. No additional library discount is applied to the new coordination policies. Range-table upper values cover adversarial concurrency and integration work.
+
+| Primitive | Concern | Design h | Impl h |
+|---|---|---:|---:|
+| issue-spec | Revised scope, decision inventory and durable plan | 0.20 | 0.12 |
+| greenfield-go-module | Fresh claim decision and status validation | 0.30 | 0.32 |
+| greenfield-go-module | Commit eligibility and publication outcome policy | 0.40 | 0.32 |
+| api-integration | Git commit selection and mode/path inspection | 0.40 | 0.60 |
+| api-integration | Three-way merge and conflict extraction | 0.40 | 0.60 |
+| api-integration | Exact-ref push and lost-ack confirmation | 0.40 | 0.60 |
+| api-integration | Bounded source provenance/idempotence | 0.40 | 0.60 |
+| cross-cutting-refactor | Claim command and local reconciliation | 0.20 | 0.20 |
+| cross-cutting-refactor | Creation collision and uncertain preservation | 0.20 | 0.20 |
+| cross-cutting-refactor | Local sync, publish convenience and change-code callers | 0.20 | 0.20 |
+| smaller-go-module | Explicit publish command and diagnostics | 0.06 | 0.20 |
+| api-integration | Stateful Git publication fake and schedule coverage | 0.40 | 0.60 |
+| api-integration | Real Git claim/publication race conformance | 0.40 | 0.60 |
+| greenfield-go-module | Prepared review read-set and stale policy | 0.40 | 0.32 |
+| cross-cutting-refactor | Plan-quality lock phase extraction | 0.20 | 0.20 |
+| cross-cutting-refactor | Estimate-quality lock phase extraction | 0.20 | 0.20 |
+| cross-cutting-refactor | Close/milestone validation before persistence | 0.20 | 0.20 |
+| api-integration | Reviewer context, bounded termination and output drain | 0.40 | 0.60 |
+| api-integration | Stateful reviewer barriers and read-set mutation tests | 0.40 | 0.60 |
+| api-integration | Real reviewer interruption and CLI concurrency tests | 0.40 | 0.60 |
+| api-integration | Nested slot and dependency-clone end-to-end workflow | 0.40 | 0.60 |
+| atlas-docs | M1 help, atlas, README and compatibility wrapper | 0.04 | 0.08 |
+| atlas-docs | M2 review documentation and project checkpoint | 0.04 | 0.08 |
+| milestone-review | M1 boundary review and response | 0.04 | 0.20 |
+| milestone-review | M2 boundary review and response | 0.04 | 0.20 |
+| milestone-review | Issue close review and ship verification | 0.04 | 0.20 |
+
+Design subtotal 6.76h × 1.15 + implementation 9.24h = **17.01h**. This remains a provisional calibration estimate, not a runtime budget.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.20 impl=0.12
+item: greenfield-go-module design=0.30 impl=0.32
+item: greenfield-go-module design=0.40 impl=0.32
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: greenfield-go-module design=0.40 impl=0.32
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: cross-cutting-refactor design=0.20 impl=0.20
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: api-integration design=0.40 impl=0.60
+item: atlas-docs design=0.04 impl=0.08
+item: atlas-docs design=0.04 impl=0.08
+item: milestone-review design=0.04 impl=0.20
+item: milestone-review design=0.04 impl=0.20
+item: milestone-review design=0.04 impl=0.20
+design-buffer: 0.15
+total: 17.01
+```
 
 ## Plan
 
