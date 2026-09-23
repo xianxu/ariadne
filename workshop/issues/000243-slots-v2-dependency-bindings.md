@@ -43,3 +43,13 @@ Task outline only; settle implementation design through start-plan before change
 ### 2026-09-22 — fresh v2 task
 
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
+
+### 2026-09-22 — claimed; binding audit
+
+Claimed after #242 merged and ran start-plan. Parley's tracked `construct/deps` contains `substrate ../ariadne`; from a flat numbered slot this resolves to the shared `/fleet/worktree/ariadne` location. Its product/runtime tests do not need this optional maintainer overlay. `scripts/check-fresh-clone.sh --runtime --ref HEAD` passed against an isolated archive, including missing/corrupt/malformed runtime-data probes.
+
+Existing Weave accepts explicit substrate paths and optional source URLs, but no revision pin or per-checkout override. It reuses existing origin-matching checkouts without fetch/pull/reset; missing source-bearing edges clone current remote HEAD, while source-less missing edges refuse. Thus reuse is not pin enforcement. Generated static skill links remain live: an explicit dependency-checkout update changes their contents immediately, while copied/merged artifacts require recompilation. `weave compile` builds owner tools into owner bin directories and scopes their PATH to children; explicit install/dev-alias surfaces need separate supplier analysis. No live provisioning or shell configuration changes were made.
+
+Policy question sent to operator: shared stable dedicated dependency baseline (minimum initial-trial machinery, explicitly shared update blast radius) versus independent per-slot dependency pins (new resolution support). Primary symlinks and same-number peer mapping are not assumed approved. ARCH-DRY: any new mapping must reach all layergraph consumers, not only source acquisition. ARCH-PURPOSE: Couch orchestrates a dependency-tool-owned contract.
+
+Read-only audit verification: existing acquire/staging/plan/startup fixture suites passed. Clone staging already owns interrupted-producer recovery; concurrent setup is not currently supported. Repeated compilation can initially seed/adopt Makefiles and generated-ignore metadata, so the acceptance probe must explain tracked changes against a prepared baseline rather than assume a universally clean diff. Implementation design and estimate await the binding-policy decision.
