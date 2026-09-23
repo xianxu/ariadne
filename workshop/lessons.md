@@ -55,6 +55,11 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Review, plans, and artifacts
 
+- Acquisition and later discovery must accept the same topology; test re-entry
+  from every provisioned repository shape, including linked feature worktrees.
+- Independent clones need clone-specific feature-worktree destinations; a fleet
+  path keyed only by repository and branch collides across environments.
+
 - New CLI surfaces need discoverable README usage as well as detailed atlas and
   embedded help documentation; check all three before closing.
 - Before a boundary, read the actual verdict and reconcile the plan against the
