@@ -129,10 +129,16 @@ sdlc workspace pair:1 --json
 sdlc state --json
 ```
 
-`workspace` is read-only. Its JSON v1 contract separates repository identity,
+`workspace` is read-only. Its JSON v2 contract separates repository identity,
 primary checkout, and current worktree, and reports the address, active branch,
 and resting branch. Ordinary feature worktrees have no numbered address or
 resting branch. `state` includes the same identity for its current checkout.
+Numbered checkouts live at `<fleet>/worktree/<repo>-slotN/<repo>`. Run
+`weave compile` there to initialize missing sibling dependencies as independent
+clones of recorded remote `origin/main`; later runs preserve selected revisions
+and local work. Dependencies have no separate Couch slot. Publish dependency
+changes through their own normal SDLC flow before dependent changes.
+
 See the [workspace contract](atlas/workflow/workspace-identity.md) for validation
 rules and snapshot limits.
 

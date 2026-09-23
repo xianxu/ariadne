@@ -312,3 +312,14 @@ Git-ignored. `cmd/datatype/SKILL.md.tmpl` is datatype's authored prose source.
   + DAG-merged datatype + marker-aware discovery]**
 
 Full spec, dep-model rule, and revisions live in the issue + plan above.
+
+## Numbered environment acquisition (#243)
+
+`cmd/weave/environment.go` derives numbered context from `pkg/workspace` for
+compile/dependencies, holds the environment setup lease across all effects, and
+passes the scoped policy through acquisition. `internal/acquire/policy.go` owns
+direct-sibling remote-source validation and acquisition transitions; existing
+clones retain their revisions. `internal/staging/setup.go` owns the stable setup
+lock and process runners inherit its descriptor alongside stage producer leases.
+See [setup-and-replication.md](setup-and-replication.md#numbered-workspace-environments)
+for invocation, recovery, source/data/tool boundaries and explicit revision changes.

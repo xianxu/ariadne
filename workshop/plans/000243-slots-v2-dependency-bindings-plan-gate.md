@@ -32,6 +32,28 @@ rounds:
           family: external-conformance-cadence
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-09-23T10:22:21-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: The adversarial verification table now names production functions and gives one strategy/mechanical guard per risky function.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: The plan specifies commands, cwd, inputs, outputs, exit behavior, contention, failure mapping, and retry behavior for Couch.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: The plan establishes that workspace JSON is live output rather than a persisted input protocol, with v1 treated as stale and unsupported/malformed consumer input rejected.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          note: Git fake-versus-real conformance is scheduled in the normal package suite on seam changes and CI, with product acceptance before close and after relevant later changes.
+          round: 2
+      blocked: false
+content_hash: e1edda55e7c1e4024b45b5835db1894c434f3e009f4f7465300a3d3b5f7c148b
 ---
 
 # Gate ledger — ariadne#243 (plan-quality)
@@ -52,9 +74,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-4** [Minor] `external-conformance-cadence` State the cadence for live fake-versus-real conformance
   ARCH-MOCK is addressed with stateful fakes and real acceptance tests, but the plan does not say when live conformance runs to detect Git/tool behavior drift.
 
+## Round 2 — 2026-09-23T10:22:21-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — The adversarial verification table now names production functions and gives one strategy/mechanical guard per risky function.
+- PQ-2 — addressed — The plan specifies commands, cwd, inputs, outputs, exit behavior, contention, failure mapping, and retry behavior for Couch.
+- PQ-3 — addressed — The plan establishes that workspace JSON is live output rather than a persisted input protocol, with v1 treated as stale and unsupported/malformed consumer input rejected.
+- PQ-4 — addressed — Git fake-versus-real conformance is scheduled in the normal package suite on seam changes and CI, with product acceptance before close and after relevant later changes.
+
 ## Open findings
 
-- **PQ-1** [Important] `test-strategy-contract` Name the production functions under test and compress the prose test inventory
-- **PQ-2** [Important] `couch-provisioning-contract` Define the exact Couch-facing provisioning contract
-- **PQ-3** [Important] `schema-version-compatibility` Specify schema-v2 handling for older and malformed workspace state
-- **PQ-4** [Minor] `external-conformance-cadence` State the cadence for live fake-versus-real conformance
+(none — every finding has been disposed)

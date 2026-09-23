@@ -78,6 +78,12 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Base-layer and data sharp edges
 
+- Preserve raw Git path output through adapters; trimming whitespace before the
+  path parser loses valid path bytes. Detect lexical environment candidates
+  before canonicalization so a symlink cannot turn a refusal into generic setup.
+- Private dependency scans must accept every name acquisition accepts. Global
+  fleet backup/dot-directory heuristics are not a private-repository contract.
+
 - Validate external identifier grammar before interpreting sentinel values. An
   all-zero Git OID is unborn only at a valid hash length; malformed zeros must
   not bypass validation by becoming a null value.
