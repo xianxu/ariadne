@@ -122,7 +122,7 @@ Design 8.66 × 1.15 + implementation 11.32 = 21.28 hours (rounded).
 
 ## Plan
 
-Proposed durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). Implementation awaits operator approval and the change-code gate.
+Proposed durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). Operator approved implementation and the change-code gate passed on 2026-09-23.
 
 - [ ] M1 — Guard issue reservation and publication across worktrees and clones.
 - [ ] M2 — Release external-review locks, reject stale results, and verify dependency workflows.
@@ -158,3 +158,7 @@ Operator approved implementation. Baseline targeted Git/publication/lock tests p
 ### 2026-09-23 — Estimate revised after gate feedback
 
 The first 6.88h derivation under-itemized independent receipt concerns, production integrations and conformance harnesses. Replaced it with concrete concern rows from the same calibration method; no implementation scope added. The original estimate-quality refusal remains in `/tmp/ariadne-244-change-code-4.log`.
+
+### 2026-09-23 — Entered implementation
+
+Plan-quality has no open findings; estimate-quality returned INFO with a provisional 21.28h concern-by-concern derivation. `sdlc change-code` created the issue branch in place. M1 divides into evidenced Git transactions, pure publication/receipt state, and command integration. Root owns verification and boundary gates. No production change is yet claimed.
