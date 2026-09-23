@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git commit/merge plumbing, existing SDLC locks and judge adapters.
 
-**State:** M1, M2 and final issue review returned SHIP with no findings. Code complete; full verification passed. PR publication remains.
+**State:** Complete. M1, M2 and final issue review returned SHIP with no findings. PR #129 merged; SDLC marked done, archived all records and returned to main.
 
 ## Agreed contract
 
@@ -175,7 +175,7 @@ Files: new `reviewstate.go` and tests; modify `changecode.go`, `close.go`, `mile
 - [x] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (the pre-existing #210 missing-history fixture only), `go vet ./pkg/workspace/... ./cmd/sdlc/...`, and scoped `git diff --check`.
 - [x] Update review/lock atlas/help and project evidence; record lessons. Commit and close M2 through the SDLC gate.
 - [x] Close the issue through its final SDLC boundary review; address blocking findings before publication.
-- [ ] Publish through `sdlc pr` and `sdlc merge`; verify archived links and final repository state.
+- [x] Publish through `sdlc pr` and `sdlc merge`; verify archived links and final repository state.
 
 ## Revisions
 
@@ -222,3 +222,7 @@ The M2 boundary review returned SHIP with no findings; focused M2 tests, vet and
 ### 2026-09-23 — Final issue acceptance
 
 Whole-issue review returned SHIP with no findings and a valid empty findings payload. SDLC marked codecomplete, measured/adopted 6.38h, updated and committed the Pair project task, and recorded calibration. The independent final review passed focused Git/SDLC tests, vet and diff checks. Publication is the only remaining plan step.
+
+### 2026-09-23 — Published
+
+PR https://github.com/xianxu/ariadne/pull/129 merged as `4928631`; SDLC archived #244 in `f56706c`. Symbolic resolution finds the issue and complete plan/review family under history. The merged executable/source tree is unchanged from the accepted close commit, so the recorded full-suite verification applies to the published implementation.
