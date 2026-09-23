@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git, existing Weave filesystem/process/staging seams, shell integration fixtures; macOS/Linux.
 
-**Status:** Implementation and verification complete; close review SHIP, publication pending. Operator approved execution on 2026-09-23; change-code gates passed. One issue-close review boundary; no Mx tags. No implementation estimate before plan-quality acceptance.
+**Status:** Complete: SHIP review; merged in Ariadne PR128 on 2026-09-23. Operator approved execution on 2026-09-23; change-code gates passed. One issue-close review boundary; no Mx tags. No implementation estimate before plan-quality acceptance.
 
 ## Chunk 1: Contract and implementation
 
@@ -193,7 +193,7 @@ Files: `../pair/construct/deps`, `../parley.nvim/construct/deps`; new `scripts/t
 - [x] Document schema v2, enclosing environment vs Git roots, setup/retry/explicit revision commands, source/data/tool boundaries, non-automatic dependency publication and the flat-path compatibility decision.
 - [x] Run `go test ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'`, `go vet ./pkg/workspace/... ./cmd/weave/... ./cmd/sdlc/...`, scoped `git diff --check`, and the integration script. Do not change tracked files while the full test runs.
 - [x] Commit docs/evidence, update issue checkboxes, run `sdlc close --issue 243 --verified '<measured evidence>'` for the sole mandatory boundary review; fix findings through the gate's protocol. No redundant reviewer at close.
-- [ ] Publish through `sdlc pr` and `sdlc merge`; preserve unrelated changes and keep project task state current. Peer source-metadata publication uses normal SDLC publication and reports any unrelated peer branch/dirty-state limitation explicitly.
+- [x] Publish through `sdlc pr` and `sdlc merge`; preserve unrelated changes and keep project task state current. Peer source-metadata publication uses normal SDLC publication and reports any unrelated peer branch/dirty-state limitation explicitly.
 
 ## Revisions
 
@@ -212,3 +212,7 @@ PQ-1 addressed: named production functions and compressed adversarial strategy t
 ### 2026-09-23 — implementation and broad verification
 
 Tasks 1–3 implemented in `92f6fdb`, `bf30f4e`, `43e53fe`. Function names settled as `selectWorkspaceRepo`, `projectWorkspaceRoots`, `DiscoverInRoots` and `ListActiveInRoots`; existing fleet filesystem wrappers remain for non-Git callers. Private namespace scans accept all verified direct sibling repository names, rather than global backup/dot-directory heuristics, and reject redirected Git evidence. Weave preserves raw Git path output and discovers lexical numbered context before canonicalizing symlinks. These fix the same acquisition/discovery contract class found in design review. Full Go suite passed excluding only existing #210; final post-suite changed-path tests and vet passed. Real acceptance and close/publication still pending.
+
+### 2026-09-23 — publication complete
+
+Ariadne PR128 merged as `dc19d2c`; SDLC marked #243 done and archived its artifacts. Peer source declarations are merged in Pair PR154 and Parley PR199. No operator working-tree changes were included in publication.
