@@ -22,7 +22,7 @@ Project: `pair/workshop/projects/couch-slots-v2.md`. Fresh task derived from the
 
 Audit and fix current SDLC behavior with two worktrees of one repository. Authoritative reservation checks for issue creation and claiming must be fresh at publication; a loser receives an actionable conflict. Publishing an issue-body update must preserve concurrent unrelated records and refuse conflicting edits rather than replacing them from a stale checkout.
 
-Keep repository mutation serialization where needed, while external review waits should not monopolize the shared repository lock. Revalidate the exact reviewed/prepared state after reacquiring authority. No automatic claim transfer is introduced by branching from another workspace. ARCH-SECURE and ARCH-DRY: use existing ownership/publication machinery, with fresh evidence at mutation boundaries. This is a new v2 acceptance contract; audit live code rather than inheriting old issue conclusions.
+Keep repository mutation serialization where needed, while external review waits should not monopolize the shared repository lock. Revalidate the exact reviewed/prepared state after reacquiring authority. No automatic claim transfer is introduced by branching from another workspace. ARCH-SECURE and ARCH-DRY: use existing Git publication machinery and authoritative issue status, with fresh evidence at mutation boundaries. This is a new v2 acceptance contract; audit live code rather than inheriting old issue conclusions.
 
 ### Agreed scope — 2026-09-23
 
@@ -123,7 +123,7 @@ total: 17.01
 
 ## Plan
 
-Current durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). The operator approved the simplified scope. Prior gate clearance applied to v1; implementation is paused pending revised gate evidence.
+Current durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). The operator approved the simplified scope. The revised implementation gate passed with plan-quality CLEAN and estimate-quality INFO (17.01h provisional). M1 is implemented and verified, pending its boundary review; M2 remains to integrate.
 
 - [ ] M1 — Fresh status claims and explicit commit publication across all slots/clones.
 - [ ] M2 — Release external-review locks, reject stale results, and verify dependency workflows.
@@ -175,3 +175,7 @@ Fresh-context review approved the revised issue/plan with no blocking inconsiste
 ### 2026-09-23 — Resume simplified implementation
 
 Operator authorized implementation and removal of the obsolete design artifact. Retired the uncommitted receipt draft outside the repository and restored its tracked source/docs to HEAD. Re-entering the design/estimate gate for the current scope; earlier gate records are historical evidence only.
+
+### 2026-09-23 — M1 verified before review
+
+Revised change-code completed successfully. Implemented fresh status-only claims, same-slug-safe creation, explicit selected documentation commits, three-way Git merging/provenance, and identical publication in primary/worktree/private-clone checkouts. Removed the old whole-branch/snapshot shortcuts. Tests exposed identical candidate commits and server-side ref-lock rejection shapes; reservations now reread on confirmed rejection/up-to-date and preserve uncertainty on ambiguous acknowledgment, without caller ownership inference. Full workspace/SDLC suite passed (known #210 fixture excluded), vet and diff-check passed. Updated atlas/help/base instructions. M1 boundary review is next; M2 is prepared separately and not yet integrated.
