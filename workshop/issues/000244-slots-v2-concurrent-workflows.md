@@ -41,11 +41,10 @@ Apply the publication/concurrency audit to both numbered main-repository worktre
 
 ## Plan
 
-Task outline only; settle implementation design through start-plan before change-code.
+Proposed durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent-workflows-plan.md). Implementation awaits operator approval and the change-code gate.
 
-- [ ] Map current claim/allocation/body-publication transactions and long lock scopes.
-- [ ] Build failing concurrency fixtures for unmet acceptance cases and fix those boundaries.
-- [ ] Verify two independent slot workflows and document contention/retry behavior.
+- [ ] M1 — Guard issue reservation and publication across worktrees and clones.
+- [ ] M2 — Release external-review locks, reject stale results, and verify dependency workflows.
 
 ## Log
 
@@ -58,3 +57,7 @@ Created from the agreed workspace/UI contract and the request for a clean task b
 ### 2026-09-23 — Independent dependency repositories use normal SDLC
 
 Reason: operator agreed nested environments, ordinary remote dependency clones and existing per-repository publication. Delta: added the authoritative scope clarification and acceptance criteria above; original task context remains as provenance. Added #243 as a prerequisite for the nested identity contract. No implementation or lifecycle-status change is claimed by this revision.
+
+### 2026-09-23 — Live audit and proposed engineering design
+
+Claimed and entered start-plan. Read-only audits confirmed same-record last-writer-wins publication, missing claim identity, same-slug allocation ambiguity, main-path publication divergence, and planning-review lock contention. Close already unlocks but persists review records before checking freshness. Proposed one guarded trunk publication path with private durable intents and exact read-set validation before review persistence (ARCH-DRY, ARCH-ORDER, ARCH-SECURE). Durable plan records two review boundaries and deterministic fake/real-Git tests; implementation has not started. This revision replaces the preliminary task outline, preserving its scope.
