@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git commit/merge plumbing, existing SDLC locks and judge adapters.
 
-**State:** M1 and M2 closed with SHIP, no findings. Implementation, full tests, vet, signal/race checks and nested dependency workflow passed. Final issue acceptance and publication remain.
+**State:** M1, M2 and final issue review returned SHIP with no findings. Code complete; full verification passed. PR publication remains.
 
 ## Agreed contract
 
@@ -174,7 +174,7 @@ Files: new `reviewstate.go` and tests; modify `changecode.go`, `close.go`, `mile
 - [x] Run a nested dependency workflow using ordinary CLI creation, claim, local issue/plan commit, explicit publication and conflict recovery; no recursive dependency publication.
 - [x] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (the pre-existing #210 missing-history fixture only), `go vet ./pkg/workspace/... ./cmd/sdlc/...`, and scoped `git diff --check`.
 - [x] Update review/lock atlas/help and project evidence; record lessons. Commit and close M2 through the SDLC gate.
-- [ ] Close the issue through its final SDLC boundary review; address blocking findings before publication.
+- [x] Close the issue through its final SDLC boundary review; address blocking findings before publication.
 - [ ] Publish through `sdlc pr` and `sdlc merge`; verify archived links and final repository state.
 
 ## Revisions
@@ -218,3 +218,7 @@ Full workspace/SDLC tests passed with only the pre-existing #210 missing-history
 ### 2026-09-23 — M2 accepted
 
 The M2 boundary review returned SHIP with no findings; focused M2 tests, vet and diff checks independently passed. The gate recorded the measured increment 1.34h (6.10h cumulative measurement minus M1 4.76h). As at M1, the reviewer omitted a valid findings payload; the gate logged a protocol warning with zero findings and finalized SHIP. Split the final bookkeeping checklist row to show the accepted M2 boundary separately from pending whole-issue close. Weave compile completed, rebuilding owner tools and refreshing generated instructions from the new base source.
+
+### 2026-09-23 — Final issue acceptance
+
+Whole-issue review returned SHIP with no findings and a valid empty findings payload. SDLC marked codecomplete, measured/adopted 6.38h, updated and committed the Pair project task, and recorded calibration. The independent final review passed focused Git/SDLC tests, vet and diff checks. Publication is the only remaining plan step.

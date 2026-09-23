@@ -1,6 +1,6 @@
 ---
 id: 000244
-status: working
+status: codecomplete
 deps: [ariadne#242, ariadne#243]
 github_issue:
 created: 2026-09-22
@@ -8,6 +8,7 @@ updated: 2026-09-23
 estimate_hours: 17.01
 started: 2026-09-23T11:35:53-07:00
 flow: {kind: full, provenance: inferred}
+actual_hours: 6.38
 ---
 
 # Slots v2: concurrent issue workflows
@@ -132,6 +133,8 @@ Current durable plan: [concurrent workflows](../plans/000244-slots-v2-concurrent
 
 
 
+
+- 2026-09-23: closed — M1 and M2 SHIP with no findings; full workspace/SDLC suite passed (known #210 missing-history fixture excluded), vet/diff checks passed, real Git races and nested dependency conflict recovery preserve state, real SIGINT/SIGTERM and race tests pass; weave compile succeeded.; review verdict: SHIP
 - 2026-09-23: closed M2 — Full workspace/SDLC suite passed (cmd/sdlc 426.154s; known #210 fixture excluded), vet/diff checks passed, six real SIGINT/SIGTERM cases and race tests passed, nested dependency conflict/recovery preserves caller and parent. Actual increment 1.34h = measured total 6.10h minus recorded M1 4.76h.; review verdict: SHIP
 - 2026-09-23: closed M1 — Full pkg/workspace and cmd/sdlc suites passed (known #210 fixture excluded); vet and diff-check passed; real linked-worktree and independent-clone claims have one winner, creation allocates distinct IDs, selected commits preserve local code/index/files. Actual 4.76h copied from this gate measurement.; review verdict: SHIP
 ### 2026-09-22 — fresh v2 task
