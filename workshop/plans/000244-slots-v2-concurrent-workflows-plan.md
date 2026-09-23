@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git object plumbing, local bare Git remotes, filesystem receipts, existing judge/gatestate machinery.
 
-**State:** Proposed; implementation awaits operator approval and `sdlc change-code`. Estimates follow the plan-quality gate.
+**State:** Approved by the operator; `sdlc change-code` cleared plan-quality and estimate-quality on 2026-09-23. Implementation is on `000244-slots-v2-concurrent-workflows`.
 
 ## Contract and audit
 
@@ -236,3 +236,12 @@ Use the Cobra command context for external dispatch instead of `context.Backgrou
 ### 2026-09-23 — Plan gate round 2 corrections
 
 Replaced duplicate task-level scenario inventories with references to the named test/function strategy table. Added a concrete per-review timeout, bounded shutdown and pipe-drain policy; retained the explicit uncatchable-parent-death limitation. This addresses remaining PQ-1/PQ-3 findings.
+
+### 2026-09-23 — Integration contract details at implementation entry
+
+The gate passed; preserve the approved transaction semantics with these concrete seam refinements:
+
+- A reallocated creation uses a new immutable operation ID and optional `predecessor` (32-hex operation ID) in its receipt. Keep rejected predecessors until successor confirmation and exact-content candidate cleanup. An initial occupied-ID observation can persist an explicitly rejected, never-dispatched predecessor to preserve the original local filename through crashes. Load/use checks same-target creation lineage, confirmed nonapplication, bounded depth and absence of cycles. Never delete edited candidate content. Git `TrunkWrite.Message` may override the transaction's default subject to bind each candidate commit to its current Publication-Intent trailer.
+- Unfiltered publication remains one atomic multi-issue update: `issue_id: 0` is permitted only for kind update with no local claim_id. Select baselines per path using confirmed commit ancestry; divergent ambiguous evidence refuses. Confirmed receipt retirement requires complete path-set supersession and preservation of any locally owned claim evidence. A broad body update never acquires claim ownership merely by preserving authoritative claim_id bytes. Keep local ownership provenance separate from content baselines.
+
+These implement the existing recovery, atomicity and no-transfer contracts; they add no workflow or ownership transfer mechanism.

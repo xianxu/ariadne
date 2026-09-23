@@ -56,6 +56,11 @@ rounds:
           note: The plan now enumerates PreparedReview states, interruption events, stale outcomes, relock failure, concurrent ledger writes, cancellation, timeout, process-group cleanup, and bounded reaping.
           round: 3
       blocked: false
+    - "n": 4
+      timestamp: "2026-09-23T12:04:47-07:00"
+      agent: codex
+      blocked: false
+      protocol_error: no valid findings block
 content_hash: e539431da875169917b84b99c1f31c87bb20ddb3a00b7c7a1127c8aeeae5c494
 ---
 
@@ -89,6 +94,10 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - PQ-1 — addressed — The plan now names each pure or production function under test and gives one compact adversarial strategy and oracle per risky function.
 - PQ-3 — addressed — The plan now enumerates PreparedReview states, interruption events, stale outcomes, relock failure, concurrent ledger writes, cancellation, timeout, process-group cleanup, and bounded reaping.
+
+## Round 4 — 2026-09-23T12:04:47-07:00 (codex) — passed
+
+**Protocol error:** no valid findings block — this round contributed no findings.
 
 ## Open findings
 
