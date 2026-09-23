@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, local Git plumbing, temporary real Git repositories.
 
-**Status:** Proposed for operator approval. No implementation authorized by this document alone. This exceeds the 100-code-line quick shell; use the full flow at change-code. One atomic issue-close review boundary; task numbers below are not milestone tags.
+**Status:** Approved by the operator on 2026-09-22; implementation proceeds after change-code gates. This exceeds the 100-code-line quick shell; use the full flow at change-code. One atomic issue-close review boundary; task numbers below are not milestone tags.
 
 ## Design and alternatives
 
@@ -89,13 +89,26 @@ Retain `claim.go:findMainWorktree` as a branch-location query: a checkout curren
 - ARCH-FUNERAL: creates nothing durable because resolution only reads Git/FS and emits output. Fixture directories are owned and removed by tests; no registry/cache/lock family added.
 - ARCH-PURPOSE: finish the entire consumer inventory above and shadow-sweep remaining basename/parent assumptions. #243 handles dependency policy, #244 concurrency semantics, #245 branch/refresh, #246 landing; none is used to defer identity fixes.
 
+## Function-level verification strategies
+
+| Function / entry point | Adversarial input class and mechanical guard |
+|---|---|
+| ParseWorktrees | Fuzz arbitrary NUL-delimited bytes with valid and malformed grammar seeds; require no panic, strict malformed-record refusal, and parse/serialize round-trip for accepted typed records. |
+| ParseAddress | Fuzz arbitrary Unicode/byte strings; accepted addresses must render canonically and reparse identically, with no traversal or out-of-range slot representable. |
+| SlotPath | Property-test valid repo/slot inputs against containment and injectivity invariants; invalid address components cannot escape the fixed worktree parent. |
+| Classify | Generate typed topology permutations and conflicting membership/ref ownership; identity is invariant under unrelated worktree additions, and only verified membership at the canonical slot path yields a numbered address. |
+| NormalizeVantage | Run shared fake/real Git conformance over path-equivalent vantages and malformed topology; assert stable common-dir/primary/fleet identity, correct current root and explicit evidence failures. Preserve the existing fleet regression corpus. |
+| Resolve | Stateful fake injects checkout/ref/membership changes at a chosen Git-read ordinal; replay every supported before/after-read ordering deterministically and require conflicting final observations to refuse. Compare unchanged fake and real Git snapshots; fingerprint refs, status and worktree inventory to prove reads never mutate. |
+| buildRoot workspace command / runState | Decode production output and assert JSON v1 type/nullability, address round-trip and additive state compatibility. Run from divergent checkout fixtures and verify default artifact reads follow selected worktree; refused resolution emits no success JSON and acquires no lock. |
+| Inventory-listed production consumers | Differential fixtures keep logical repo identity fixed while changing caller checkout and local content. Assert repository labels/peer/default-brain roots remain invariant, local artifacts/transcript roots follow checkout, explicit flags retain meaning, and same-repository migration and peer auto-write guards prevent cross-worktree mutation. Exercise each named production seam, including active-time's explicit git-repo argument and ordinary branch-worktree placement. |
+
 ## Chunk 1: shared resolver and production consumers
 
 ### Task 1: Promote canonical topology without changing fleet behavior
 
 Files: create `pkg/workspace/worktree.go`, `paths.go` and colocated tests; modify `cmd/sdlc/internal/gitx/worktree.go`, `worktree_test.go`, `cmd/sdlc/internal/fleet/gitpaths.go` and its tests.
 
-- [ ] Move parser and canonical topology tests to the shared owner, first asserting shared API behavior for nested cwd, symlinks, relative common-dir responses, detached/ordinary/bare/prunable records and whitespace-bearing paths.
+- [ ] Move parser and canonical topology tests to the shared owner; establish the ParseWorktrees and NormalizeVantage strategies below before implementation.
 - [ ] Run `go test ./pkg/workspace/... ./cmd/sdlc/internal/fleet ./cmd/sdlc/internal/gitx -count=1`; new API tests must fail before implementation.
 - [ ] Promote the existing implementations, retain delegates for old imports, share canonical helpers, and rerun the same command to PASS.
 - [ ] Commit explicit paths with `#242: refactor: share Git workspace topology` and model coauthor trailer.
@@ -104,9 +117,8 @@ Files: create `pkg/workspace/worktree.go`, `paths.go` and colocated tests; modif
 
 Files: create `pkg/workspace/address.go`, `identity.go`, `resolve.go`, their tests, `workspacetest/fake.go`, and `conformance_test.go`.
 
-- [ ] Write table tests for `repo`, `repo:0`, `:0`, `repo:1`, `:2`, invalid/negative/leading-zero/overflow slots, missing repo context, path traversal/separators, colon ambiguity, and repo names containing dots/hyphens. Repo token must be one exact safe basename (not `.`/`..`, no separators/control bytes/colon).
-- [ ] Add fixtures with primary on an issue branch, slots 1/2 on different issue branches and different resting commits, and an ordinary feature worktree. Assert correct identity from root/nested/symlink cwd and address aliases. Confirm ordinary worktrees never become `:0`.
-- [ ] Add negative tests for missing resting ref, resting branch occupied elsewhere, wrong reserved branch, wrong common-dir membership, canonical-path impostor, duplicate membership, redirected slot symlink, failed Git read, malformed porcelain and changed final observation. Assert refs, status and worktree lists unchanged on success and refusal.
+- [ ] Implement the ParseAddress, SlotPath and Classify property strategies below as failing tests.
+- [ ] Implement the Resolve fake/real conformance and deterministic interleaving strategies below as failing tests.
 - [ ] Run `go test ./pkg/workspace/... -count=1` and confirm behavioral failures; implement pure classification plus thin probes, then rerun to PASS.
 - [ ] Execute identical supported scenarios against the stateful fake and real Git; measure 1/10/100-worktree fixtures. Commit explicit package files as `#242: feat: resolve durable workspace identity` with model trailer.
 
@@ -114,7 +126,7 @@ Files: create `pkg/workspace/address.go`, `identity.go`, `resolve.go`, their tes
 
 Files: create `cmd/sdlc/workspace.go`, `workspacepaths.go`, tests, `helptext/workspace.md`; modify `main.go`, `state.go`, `state_test.go`, `helptext/state.md`.
 
-- [ ] Write production command tests through `buildRoot()` for JSON schema, exact aliases, nested cwd, ordinary worktree null fields, explicit error/nonzero status, and additive state output. Verify state reads the slot's issue files, not the primary's.
+- [ ] Implement buildRoot/runState contract strategies below as failing production-command tests.
 - [ ] Run `go test ./cmd/sdlc -run 'TestWorkspace|TestState' -count=1`; confirm failures, wire shared resolver via existing execGitRunner, render prose/JSON and rerun to PASS.
 - [ ] Ensure the read-only workspace command acquires no transaction lock and mutates no Git/filesystem state. Commit explicit paths as `#242: feat: expose workspace identity to Couch` with model trailer.
 
@@ -122,8 +134,7 @@ Files: create `cmd/sdlc/workspace.go`, `workspacepaths.go`, tests, `helptext/wor
 
 Files: every production surface in the inventory plus colocated tests; create `cmd/sdlc/workspace_consumers_test.go` for shared real-Git fixtures.
 
-- [ ] Seed one temporary fleet with primary/slots containing deliberately different local issue/project content, a peer project referencing the canonical repo, and brain velocity/transcript fixtures. Add regressions through production resolve/open, project-find/forecast, close preparation, migration, propagation discovery, review/orientation, planning and calibration entry points. Do not run a live external judge or publish during tests.
-- [ ] Assert local and qualified-current refs read the slot, peer refs read the peer primary, fleet project discovery includes local slot content once, calibration uses fleet brain, and explicit relative brain paths/overrides stay explicit. Verify actual-time qualified self refs and transcript root separately; manifest-based review labels are canonical. Same-repository migration across worktrees must refuse before edits. Test ordinary branch-worktree placement from primary, slot and ordinary feature cwd; `.goto` remains at the invoking checkout. Ordinary feature worktrees exercise the same repository identity fix without numbered lifecycle assumptions.
+- [ ] Implement the production-consumer differential strategy below over every inventory row, with deliberately divergent current/primary checkout content. No live external judge or publication in tests.
 - [ ] Run `go test ./cmd/sdlc/... -count=1` to capture failures; migrate consumers to the shared adapter, preserving injected pure-test seams and existing optional warning behavior.
 - [ ] Re-run that suite to PASS. Shadow-sweep `filepath.Base`, `filepath.Dir`, `../brain`, `--show-toplevel`, `--git-common-dir` and `worktree list` in production SDLC; document every retained identity-looking calculation as checkout-local, delegated, or unrelated. Add any missed production consumer test before changing it.
 - [ ] Commit explicit touched paths as `#242: fix: use repository identity across workspace consumers` with model trailer.
@@ -147,3 +158,7 @@ Derived from the v2 project and live SDLC consumer audit after claim/start-plan.
 ### 2026-09-22 — fresh-context review clarifications
 
 Reason: design review approved with optional clarifications. Delta: specified unborn HEAD serialization and primary readiness exemption; added active-time's explicitly targeted repository qualifier and peer-write overlay coverage to the consumer audit.
+
+### 2026-09-22 — PQ-1 testing-strategy refinement and approval
+
+Reason: operator approved; plan-quality requested named adversarial strategies instead of prose case inventories. Delta: compressed Tasks 1–4 and added function-level fuzz/property, differential consumer, and deterministic Git-read interleaving strategies. Scope and design are unchanged.
