@@ -5,7 +5,7 @@ deps: [ariadne#242, ariadne#243, ariadne#244, ariadne#245]
 github_issue:
 created: 2026-09-22
 updated: 2026-09-23
-estimate_hours:
+estimate_hours: 3.83
 started: 2026-09-23T15:24:19-07:00
 ---
 
@@ -106,3 +106,24 @@ Reason: trace the existing merge/PR/archive behavior against the agreed stable-w
 ### 2026-09-23 — Implementation authorized
 
 Operator approved the design, including Ariadne dependency first and Pair parent second. Delta: add the durable implementation plan and concrete task checklist; keep ordinary dependency flow and no recursive landing. Full-flow estimate follows plan-quality acceptance.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Calibration is tagged stale; the result is provisional.
+
+Issue/spec work uses 0.8 design and 0.2 × 0.4 implementation hours. GH integration uses 2 × 0.2 design and 1.5 × 0.4 implementation. Remote archive uses greenfield design 2 × 0.5 (existing TrunkFile/issue/vocabulary libraries) × 0.2 (settled plan) and implementation 0.8 × 0.4. Landing orchestration uses 1 × 0.2 design and 0.8 × 0.4 implementation; no outside library replaces its repository policy. The remaining items cover integration fixtures (0.2 × 0.2 design, 0.5 × 0.4 implementation), docs (0.1 × 0.2, 0.2 × 0.4), one review (0, 0.5 × 0.4), and read-only API conformance (0, 0.3 × 0.4). Familiar Git/Go code uses 1.0 familiarity and the thorough plan earns the 15% design buffer. No vendor propagation overhead; Pair only receives the project record.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.8 impl=0.08
+item: api-integration design=0.4 impl=0.6
+item: greenfield-go-module design=0.2 impl=0.32
+item: greenfield-go-module design=0.2 impl=0.32
+item: smaller-go-module design=0.04 impl=0.2
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0 impl=0.2
+item: real-api-discovery design=0 impl=0.12
+design-buffer: 0.15
+total: 3.83
+```
