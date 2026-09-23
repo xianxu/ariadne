@@ -82,3 +82,21 @@ Filed at the user's request after parley.nvim#254's merge exposed missing
 worktree-relative substrate resolution. The agreed direction is current-checkout
 resolution first, then the same relative path from the primary checkout; no
 arbitrary search across all worktrees. This task records follow-up work only.
+
+### 2026-09-21 — dependency of the rigid couch-slot contract
+
+The proposed couch surface is repo-first: `../pair :1` may become
+`../worktree/pair-1` (or the explicit `pair-slot1`) without provisioning a
+same-slot `ariadne` sibling. That makes this issue part of the slot boundary,
+not incidental cleanup. Resolution must remain deterministic: prefer a valid
+slot-local peer when one exists, otherwise use the primary checkout as the
+fallback, and report which one was selected. Do not search arbitrary numbered
+slots or silently choose a peer by recency. This is the cross-repo case the
+couch pensive leaves open.
+
+The companion provisioning path is now explicit: after entering a fresh slot,
+couch should run `weave link` from the slot root to establish the main-slot
+dependency targets, then `weave compile` there. This issue should provide the
+resolver/conformance seam that proves the resulting graph is deterministic and
+that a repeated compile is clean; couch should not grow a second dependency
+linker.
