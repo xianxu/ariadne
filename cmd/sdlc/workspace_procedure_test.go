@@ -188,6 +188,71 @@ func TestWorkspaceProcedureCaptureMovement(t *testing.T) {
 	}
 }
 
+func TestWorkspaceProcedureMoveBranchToPrimaryPreservesParkedMainAndScratch(t *testing.T) {
+	roots, _ := procedureFixture(t)
+	source, destination := roots[1], roots[0]
+	testfix.Git(t, source, "switch", "-c", "000001-procedure")
+	procedureWrite(t, source, "feature", "selected branch\n")
+	testfix.Git(t, source, "add", "feature")
+	testfix.Git(t, source, "commit", "-qm", "feature change")
+	selected := procedureHead(t, source)
+	sourceRest := strings.TrimSpace(testfix.Capture(t, source, "rev-parse", "main-slot1"))
+	testfix.Git(t, destination, "commit", "--allow-empty", "-qm", "local main work")
+	parked := procedureHead(t, destination)
+	procedureWrite(t, destination, "operator-scratch", "keep me\n")
+
+	from := procedureIdentity(t, source, "")
+	to := procedureIdentity(t, source, ":0")
+	if from.RepoIdentity != to.RepoIdentity || *from.Branch != "000001-procedure" || *to.Branch != *to.RestingBranch {
+		t.Fatal("move identity preflight failed")
+	}
+	if got := testfix.Capture(t, destination, "log", "--oneline", "000001-procedure..main"); !strings.Contains(got, "local main work") {
+		t.Fatal("local resting commits not reported before the move")
+	}
+	if got := testfix.Capture(t, destination, "ls-files", "--others", "--exclude-standard"); strings.TrimSpace(got) != "operator-scratch" {
+		t.Fatalf("scratch preflight: %q", got)
+	}
+	// An operator has explicitly chosen a temporary smoke test of the feature as-is.
+	testfix.Git(t, source, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", "main-slot1")
+	testfix.Git(t, destination, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", "000001-procedure")
+	if got := procedureHead(t, destination); got != selected {
+		t.Fatalf("destination HEAD = %s, want %s", got, selected)
+	}
+	if got := procedureHead(t, source); got != sourceRest {
+		t.Fatalf("source rest moved: %s", got)
+	}
+	if got := strings.TrimSpace(testfix.Capture(t, destination, "rev-parse", "main")); got != parked {
+		t.Fatalf("parked main moved: %s", got)
+	}
+	if data, err := os.ReadFile(filepath.Join(destination, "operator-scratch")); err != nil || string(data) != "keep me\n" {
+		t.Fatalf("scratch changed: %q %v", data, err)
+	}
+	if data, err := os.ReadFile(filepath.Join(destination, "feature")); err != nil || string(data) != "selected branch\n" {
+		t.Fatalf("feature not checked out: %q %v", data, err)
+	}
+}
+
+func TestWorkspaceProcedureMoveRejectsIncomingUntrackedCollision(t *testing.T) {
+	roots, _ := procedureFixture(t)
+	source, destination := roots[1], roots[0]
+	testfix.Git(t, source, "switch", "-c", "000001-procedure")
+	procedureWrite(t, source, "operator-scratch", "incoming tracked\n")
+	testfix.Git(t, source, "add", "operator-scratch")
+	testfix.Git(t, source, "commit", "-qm", "feature change")
+	procedureWrite(t, destination, "operator-scratch", "local untracked\n")
+	before := procedureHead(t, destination)
+	testfix.Git(t, source, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", "main-slot1")
+	if _, err := (execGitRunner{}).GitInDir(destination, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", "000001-procedure"); err == nil {
+		t.Fatal("Git silently overwrote a destination scratch file")
+	}
+	if procedureHead(t, destination) != before {
+		t.Fatal("failed switch moved destination HEAD")
+	}
+	if data, err := os.ReadFile(filepath.Join(destination, "operator-scratch")); err != nil || string(data) != "local untracked\n" {
+		t.Fatalf("untracked collision changed: %q %v", data, err)
+	}
+}
+
 func TestWorkspaceProcedureReadinessAndCollisions(t *testing.T) {
 	for _, kind := range []string{"tracked", "staged", "untracked", "ignored", "ignored-collision", "existing-branch", "submodule"} {
 		t.Run(kind, func(t *testing.T) {

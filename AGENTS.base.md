@@ -16,6 +16,7 @@
 
 #### Peer Repo
 - Peer = sibling repo in the same parent dir, usually ariadne-styled (has `construct/`).
+- When asked to "move this branch to :N", follow [the slot move procedure](atlas/workflow/workspace-branching.md#move-this-branch-to-n); resolve both checkouts with `sdlc workspace` before switching.
 - Touching peer X: skip its `AGENTS.md` (near-duplicate of this); read its `AGENTS.local.md` + `MEMORY.md`. Its issues/atlas/tests live in its tree.
 - "brain" = special peer for **capture and measurement only** — pensive dumps, life-data, velocity calibration, transcripts — on the nous auto-commit rhythm. It holds **no SDLC process artifacts** (projects and roadmaps live in coding repos, see §8). A repo is a brain iff `.brain/config.md` exists (`test -d .brain`). The binary enforces the charter: spine lifecycle verbs (claim/start-plan/change-code/milestone-close/close/merge/push) **refuse** in a brain repo and in repos without `workshop/issues/` (#176; `WF_SPINE_GUARD=off` is the logged emergency hatch; reads like `estimate-source` are unaffected), and the close gate's peer-write never auto-commits into a brain. Encrypted via gcrypt + GPG recipient list unless local-only; see `brain/atlas/threat-model-shared-brain.md`.
 
