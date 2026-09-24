@@ -76,6 +76,7 @@ maps the operator's words to the procedure.
   rest to both the feature and the configured upstream; the real-Git fixture
   executes the guide's history commands and exercises both comparisons.
 - The AGENTS.md base layer points the phrase at it; propagated downstream.
+- README names the move phrase and links the shared procedure for operators.
 - Pair's `AGENTS.local.md` declares its post-move build (`make build` in :0),
   delivered through Pair-owned issue pair#318 and its own close/merge boundary.
 - Dry run: a fresh agent session told "move this branch to :0" from a pair slot
@@ -125,6 +126,14 @@ commands and requires the destination-only commit to appear in both comparisons.
 Removing either command from the guide makes the fixture fail. This tests the
 agent-facing contract itself (ARCH-PURPOSE).
 
+### 2026-09-24 — operator discoverability
+
+**Reason:** the third close review found README's slot guidance still named
+only branching and refreshing even though the move is a user-invoked phrase.
+
+**Delta:** add the move phrase to README's existing slot-procedure link and
+update that link title. AGENTS.base.md remains the agent entry point.
+
 ## Log
 
 ### 2026-09-23
@@ -151,3 +160,5 @@ agent-facing contract itself (ARCH-PURPOSE).
 - The follow-up review required regression evidence tied to the agent guide.
   The fixture now runs the guide's history command block against its real Git
   repository, rather than duplicating those commands in Go.
+- The third review accepted that evidence and found the operator README link
+  needed the new move phrase; README now points at the same shared procedure.

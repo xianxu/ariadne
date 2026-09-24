@@ -146,3 +146,5 @@ The simplest durable authority beats a clever scan of consequences.
 - Tests for executable agent instructions must consume the authored instruction
   when practical; duplicating its commands in a fixture cannot catch a missing
   step in the guide.
+- When a new operator phrase is added to an agent guide, update the existing
+  README entry point for that workflow in the same change.
