@@ -123,36 +123,36 @@ One atomic delivery and one SDLC close review; no Mx boundary tags.
 
 **Files:** create `cmd/weave/internal/refresh/model.go`, `model_test.go`, `git.go`, `refresh_test.go`; extend `cmd/weave/internal/acquire/git.go` without changing existing caller semantics.
 
-- [ ] Write failing tests for `eligibility`, `advance`, parsers and Git probes using the strategy table.
-- [ ] Run `go test ./cmd/weave/internal/refresh -count=1`; confirm intended failures, then implement typed snapshots/prepared state and rules.
-- [ ] Reuse acquire.GitRunner; add opt-in raw/bounded execution to ExecGit, with cancellation and inherited setup descriptors. Implement probes and the stateful model through the shared seam.
-- [ ] Run pure, probe and `TestGitConformance` tests; commit the verified unit.
+- [x] Write failing tests for `eligibility`, `advance`, parsers and Git probes using the strategy table.
+- [x] Run `go test ./cmd/weave/internal/refresh -count=1`; confirm intended failures, then implement typed snapshots/prepared state and rules.
+- [x] Reuse acquire.GitRunner; add opt-in raw/bounded execution to ExecGit, with cancellation and inherited setup descriptors. Implement probes and the stateful model through the shared seam.
+- [x] Run pure, probe and `TestGitConformance` tests; commit the verified unit.
 
 ### Task 2: Discovery, preflight and update orchestration
 
 **Files:** create `cmd/weave/internal/refresh/refresh.go`, `refresh_test.go`; modify `cmd/weave/internal/acquire/acquire.go`, `git.go` for bounded discovery options; add colocated acquisition regression tests.
 
-- [ ] Write failing `Run`, `revalidate` and bounded-discovery tests per the strategy table, using real Git checkouts plus deterministic external-event injection.
-- [ ] Implement read-only Restore integration, sequential preflight, immutable targets, graph comparison and transition-controlled updates with accurate partial-progress reporting.
-- [ ] Implement apply-time/final revalidation and failure recovery behavior from the contract above; no automatic rollback or acquisition of unchecked repositories.
-- [ ] Run `go test ./cmd/weave/internal/refresh ./cmd/weave/internal/acquire -count=1`, then commit.
+- [x] Write failing `Run`, `revalidate` and bounded-discovery tests per the strategy table, using real Git checkouts plus deterministic external-event injection.
+- [x] Implement read-only Restore integration, sequential preflight, immutable targets, graph comparison and transition-controlled updates with accurate partial-progress reporting.
+- [x] Implement apply-time/final revalidation and failure recovery behavior from the contract above; no automatic rollback or acquisition of unchecked repositories.
+- [x] Run `go test ./cmd/weave/internal/refresh ./cmd/weave/internal/acquire -count=1`, then commit.
 
 ### Task 3: CLI and shared compile integration
 
 **Files:** create `cmd/weave/refresh.go`, `refresh_test.go`; modify `cmd/weave/main.go`, `environment.go` only as needed, `environment_test.go` and relevant startup tests.
 
-- [ ] Write failing command and compile-orchestration tests per the strategy table.
-- [ ] Register `buildRefresh`; extract `compilePrepared` without changing ordinary compile behavior. Wire refresh through one prepareSetup/close lifetime and always compile successful passes.
-- [ ] Verify lease lifetime and independent-environment preservation through existing real setup fixtures; verify cancellation leaves no command-owned child running.
-- [ ] Run `go test ./cmd/weave/... ./pkg/layergraph/... ./pkg/workspace/... -count=1`, then commit.
+- [x] Write failing command and compile-orchestration tests per the strategy table.
+- [x] Register `buildRefresh`; extract `compilePrepared` without changing ordinary compile behavior. Wire refresh through one prepareSetup/close lifetime and always compile successful passes.
+- [x] Verify lease lifetime and independent-environment preservation through existing real setup fixtures; verify cancellation leaves no command-owned child running.
+- [x] Run `go test ./cmd/weave/... ./pkg/layergraph/... ./pkg/workspace/... -count=1`, then commit.
 
 ### Task 4: Documentation, verification and publication
 
 **Files:** modify `README.md`, `atlas/workflow/weave.md`, `atlas/workflow/workspace-branching.md`; update issue and this plan. No implementation step edits Pair: leave referencing project discovery/ticking to the existing SDLC close gate. Any final peer publication must select only this issue's documentation delta through `sdlc issue publish`, preserving concurrent peer work; it is not a runtime or blocking dependency.
 
-- [ ] Document the contract above in README, atlas and CLI help. Confirm existing atlas index links remain valid; clarify ordinary compile preserves existing revisions.
-- [ ] Run full Weave/layergraph/workspace tests, `go test -race ./cmd/weave/internal/refresh`, `go vet ./cmd/weave/...`, build `bin/weave` in this checkout, and smoke-test help in a temporary environment. No live refresh of this working checkout.
-- [ ] Mutation-check ancestry refusal, captured-SHA application and all-repository preflight; each disabled guard must fail its test, then restore and verify. Record runtimes and evidence.
+- [x] Document the contract above in README, atlas and CLI help. Confirm existing atlas index links remain valid; clarify ordinary compile preserves existing revisions.
+- [x] Run full Weave/layergraph/workspace tests, `go test -race ./cmd/weave/internal/refresh`, `go vet ./cmd/weave/...`, build `bin/weave` in this checkout, and smoke-test help in a temporary environment. No live refresh of this working checkout.
+- [x] Mutation-check ancestry refusal, captured-SHA application and all-repository preflight; each disabled guard must fail its test, then restore and verify. Record runtimes and evidence.
 - [ ] Update Log/lessons and commit. Close through `sdlc close --issue 247 --verified 'actual evidence'`, address review findings, open PR through SDLC. Merge only on operator instruction.
 
 ## Review and approval
@@ -193,3 +193,11 @@ there is no second Git implementation to maintain. Acquisition now exposes one
 bounded ReadDeclarations helper reused by refresh. Tests exposed predicate-exit
 error ambiguity after cancellation/overflow and ignored-path collisions in
 intermediate rebase commits; both classes were corrected with regressions.
+
+### 2026-09-23 — Acceptance evidence
+
+Implementation checkpoint b7eb415 contains the completed CLI, Git integration,
+refresh engine and docs. All Weave/layergraph/workspace tests pass, including
+real-Git conformance, compile retry and setup-lease coverage. Refresh/acquisition
+race tests, vet, local binary build/help and diff checks pass. Boundary acceptance
+and PR publication remain; the final checklist item records that distinction.

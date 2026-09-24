@@ -94,9 +94,19 @@ Engineering plan: [explicit Weave refresh](../plans/000247-slot-claim-dependency
 
 - [x] Design the refresh operation around existing Weave discovery and setup mechanisms, following the agreed contract above.
 - [x] Implement default fast-forward refresh and explicit rebase with captured targets, preflight and apply-time revalidation.
-- [ ] Verify failure/retry and preservation behavior with real Git fixtures and compile failure coverage; document the explicit workflow.
+- [x] Verify failure/retry and preservation behavior with real Git fixtures and compile failure coverage; document the explicit workflow.
 
 ## Log
+
+### 2026-09-23 — Acceptance verification
+
+Full Weave/layergraph/workspace suites passed (refresh 41.874s, CLI 27.750s).
+Race suites passed for refresh (44.486s) and acquisition (13.224s). Vet, local
+bin/weave build and refresh help smoke check passed; git diff --check is clean.
+Real-Git conformance runs with the package suite. Mutation checks for eligibility,
+captured-target application and all-ready preflight each failed as intended
+when their guard was removed, then passed after restoration. Record framing
+fuzzing passed 277,083 executions. Boundary review is next.
 
 ### 2026-09-23 — Implementation checkpoint
 
