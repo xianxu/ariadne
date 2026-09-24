@@ -122,7 +122,7 @@ func (t landingTarget) fetchMain(r gitRunner) (string, error) {
 	}
 	return landingGit(r, t.Root, "rev-parse", "--verify", t.mainRef()+"^{commit}")
 }
-func landingClean(r gitRunner, root string) error {
+func landingNoOperation(r gitRunner, root string) error {
 	for _, operation := range []string{"MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply", "sequencer", "BISECT_START"} {
 		p, err := landingGit(r, root, "rev-parse", "--git-path", operation)
 		if err != nil {
@@ -137,6 +137,13 @@ func landingClean(r gitRunner, root string) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func landingClean(r gitRunner, root string) error {
+	if err := landingNoOperation(r, root); err != nil {
+		return err
+	}
 	out, err := r.GitInDir(root, "status", "--porcelain=v1", "-z", "--untracked-files=no", "--ignore-submodules=none")
 	if err != nil {
 		return fmt.Errorf("read worktree status: %w", err)
@@ -146,6 +153,16 @@ func landingClean(r gitRunner, root string) error {
 	}
 	return nil
 }
+
+// Once already on rest, cleanup touches only the proven issue ref/config.
+// New staged or unstaged resting work is preserved without refreshing its index.
+func landingCheckoutReady(r gitRunner, t landingTarget, current string) error {
+	if current == t.Rest {
+		return landingNoOperation(r, t.Root)
+	}
+	return landingClean(r, t.Root)
+}
+
 func landingIssueBranch(r gitRunner, t landingTarget, requested string) (string, string, error) {
 	current, err := landingGit(r, t.Root, "symbolic-ref", "--quiet", "--short", "HEAD")
 	if err != nil {
@@ -243,7 +260,7 @@ func revalidateLanding(r gitRunner, t landingTarget, branch, head, current strin
 	if actual != head {
 		return errors.New("issue branch changed; preserving new work")
 	}
-	return landingClean(r, t.Root)
+	return landingCheckoutReady(r, t, current)
 }
 func landingUnoccupied(r gitRunner, t landingTarget, branch string) error {
 	out, err := r.GitInDir(t.Root, "worktree", "list", "--porcelain", "-z")
@@ -308,7 +325,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if err != nil {
 		return err
 	}
-	if err = landingClean(r, t.Root); err != nil {
+	if err = landingCheckoutReady(r, t, current); err != nil {
 		return err
 	}
 	if mergeNeedsTTY(f.Yes, f.DryRun, isTTY(os.Stdin)) {

@@ -129,3 +129,7 @@ The simplest durable authority beats a clever scan of consequences.
 - Archive retries need an intact complete generation: preserve compatible prose,
   refuse changed lifecycle metadata or missing owned artifacts, and verify the
   exact reachable archive commit before deleting local recovery refs.
+
+- Scope cleanliness to effects: integration/switching need a clean issue checkout,
+  while proven ref-only cleanup on rest can preserve new staged and unstaged work.
+  Test both immediate post-switch edits and retries after each cleanup effect.

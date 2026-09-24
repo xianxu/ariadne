@@ -10,7 +10,8 @@ DURABLE WORKSPACES (:0 AND :N)
   not assume origin. Fork PRs are not supported by this path.
 
   Before merging, local issue HEAD, fresh remote issue HEAD and the PR head
-  must match. Tracked dirt (including tracker edits), active Git operations,
+  must match. Before integration or switching, tracked dirt (including tracker
+  edits), active Git operations,
   changed identity or ambiguous evidence refuse. Noncolliding untracked and
   ignored files survive; switch collisions refuse. Never stash/reset to finish.
 
@@ -41,7 +42,9 @@ RECOVERY
   only an already merged PR, never initiate an open PR's merge. It confirms
   integration/archive again before cleanup; new local commits or uncertain
   evidence preserve work and refuse. After ref deletion, retry can finish
-  removing leftover branch configuration. No transaction journal is created.
+  removing leftover branch configuration. Work created on the resting checkout
+  is preserved during this ref-only cleanup, including staged/unstaged changes;
+  active Git operations still refuse. No transaction journal is created.
 
 ORDINARY WORKTREES AND DEPENDENCY CLONES
 

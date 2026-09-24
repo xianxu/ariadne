@@ -606,3 +606,90 @@ func TestLandingOrdinaryWorktreeRetainsLegacyCleanup(t *testing.T) {
 		t.Fatal("legacy integration missing")
 	}
 }
+
+func TestLandingPreservesDirtyRestingRecovery(t *testing.T) {
+	for _, phase := range []string{"after-switch", "after-return", "after-delete"} {
+		t.Run(phase, func(t *testing.T) {
+			roots, _, _ := landingFixture(t, 1)
+			root := roots[1]
+			original := mergeRunner
+			rest := git(t, root, "rev-parse", "main-slot1")
+			var indexBefore []byte
+			dirtyRest := func() {
+				procedureWrite(t, root, "README", "new staged work on rest\n")
+				git(t, root, "add", "README")
+				procedureWrite(t, root, "README", "additional unstaged work on rest\n")
+				procedureWrite(t, root, "pending-rest", "untracked rest work\n")
+				indexPath := git(t, root, "rev-parse", "--git-path", "index")
+				var err error
+				indexBefore, err = os.ReadFile(indexPath)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			stopped := false
+			mergeRunner = landingHookRunner{gitRunner: original, after: func(_ string, args []string) error {
+				if phase == "after-switch" && strings.Contains(strings.Join(args, " "), "switch --no-overwrite-ignore") {
+					dirtyRest()
+				}
+				return nil
+			}, before: func(_ string, args []string) error {
+				match := phase == "after-return" && len(args) > 0 && args[0] == "update-ref" || phase == "after-delete" && strings.Contains(strings.Join(args, " "), "--remove-section")
+				if match && !stopped {
+					stopped = true
+					return errors.New("interrupted cleanup")
+				}
+				return nil
+			}}
+			err := runMerge(io.Discard, io.Discard, landingFlags())
+			if phase != "after-switch" {
+				if err == nil || !stopped {
+					t.Fatal("missing interruption", err)
+				}
+				mergeRunner = original
+				dirtyRest()
+				f := landingFlags()
+				f.Branch = landingTestBranch
+				err = runMerge(io.Discard, io.Discard, f)
+			}
+			if err != nil {
+				t.Fatal("cleanup rejected preserved resting work", err)
+			}
+			if procedureHead(t, root) != rest {
+				t.Fatal("rest advanced")
+			}
+			indexAfter, err := os.ReadFile(git(t, root, "rev-parse", "--git-path", "index"))
+			if err != nil || string(indexBefore) != string(indexAfter) {
+				t.Fatal("resting index modified", err)
+			}
+			for name, want := range map[string]string{"README": "additional unstaged work on rest\n", "pending-rest": "untracked rest work\n"} {
+				b, err := os.ReadFile(filepath.Join(root, name))
+				if err != nil || string(b) != want {
+					t.Fatal("resting data changed", name, err)
+				}
+			}
+			if _, err := (execGitRunner{}).GitInDir(root, "show-ref", "--verify", "refs/heads/"+landingTestBranch); err == nil {
+				t.Fatal("integrated branch retained")
+			}
+		})
+	}
+}
+
+func TestLandingRestingRecoveryRejectsGitOperation(t *testing.T) {
+	roots, _, gh := landingFixture(t, 1)
+	root := roots[1]
+	git(t, root, "switch", "main-slot1")
+	operation := git(t, root, "rev-parse", "--git-path", "MERGE_HEAD")
+	if err := os.WriteFile(operation, []byte(gh.pr.HeadOID+"\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+	f := landingFlags()
+	f.Branch = landingTestBranch
+	err := runMerge(io.Discard, io.Discard, f)
+	if err == nil || !strings.Contains(err.Error(), "active Git operation") {
+		t.Fatal("resting operation not rejected", err)
+	}
+	if gh.merges != 0 || git(t, root, "rev-parse", "refs/heads/"+landingTestBranch) != gh.pr.HeadOID {
+		t.Fatal("changed active operation refs")
+	}
+}

@@ -134,3 +134,11 @@ Addressed the three reported finding classes: replace test inventories with name
 ### 2026-09-23 — Integration gate reuse
 
 Read-only integration review found that legacy duplicate checking assumes origin and publish candidate enumeration uses issue-body diffs. Durable landing instead passes its pinned configured main to duplicate checking and its PR-owned close records to the shared publish rules. Effective fetch/push URLs bind GitHub identity; PR preparation pins and revalidates issue HEAD. These enforce the approved contract rather than widening scope. Corrected advisory PQ-1 architecture marker to ARCH-ORDER.
+
+### 2026-09-23 — Preserve work created on rest during cleanup
+
+Boundary finding BR-2 separates pre-integration/pre-switch cleanliness from
+post-return ref cleanup. `landingCheckoutReady` still rejects Git operations in
+every phase, but permits staged/unstaged/untracked resting work for an already
+integrated PR. The three cleanup interruption fixtures assert unchanged files,
+index bytes and resting SHA. No cleanup effect writes the resting files/index.

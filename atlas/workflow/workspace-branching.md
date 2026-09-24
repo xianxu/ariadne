@@ -101,8 +101,8 @@ The resting branch's single named remote tracking `refs/heads/main` selects the
 destination. Effective fetch and push URLs must identify the same supported
 GitHub repository; missing, ambiguous or mismatched configuration refuses.
 Durable landing supports same-repository PRs. Local issue HEAD, fresh remote
-issue HEAD and PR head must match before merge. Tracked changes, including
-tracker edits, and ongoing Git operations refuse. Noncolliding untracked and
+issue HEAD and PR head must match before merge. Before integration or switching,
+tracked changes (including tracker edits) and ongoing Git operations refuse. Noncolliding untracked and
 ignored files remain; collisions refuse without stash/reset or forced switching.
 
 A server-side merge request is followed by exact integration confirmation;
@@ -137,6 +137,10 @@ branch; ordinary feature worktrees are removed. For coordinated Ariadne/Pair
 work, land the Ariadne dependency through its normal SDLC flow first, verify
 Pair against that merged dependency, then land Pair. Driving both from a Pair
 thread does not recursively publish, refresh or clean sibling repositories.
+
+Ref-only recovery while already on rest preserves staged, unstaged and untracked
+work there. Active Git operations still refuse; fresh integration and switching
+from the issue checkout require tracked cleanliness.
 
 ## Explicitly refresh a resting slot
 
