@@ -113,6 +113,13 @@ the graph before compile; Git refresh subjects are host/substrate layers, not da
 mount repositories. These constraints are explicit in the plan for approval.
 No code or estimate yet; claim behavior remains unchanged (ARCH-DRY, ARCH-ORDER).
 
+### 2026-09-23 — Plan review passed
+
+Fresh spec/plan review approved with no blocking findings. The plan explicitly
+bounds declaration reads in discovery and retains existing acquisition output
+semantics. Issue schema validation passed. Awaiting engineering-plan approval;
+no implementation or estimate has started.
+
 ## Revisions
 
 ### 2026-09-23 — Explicit refresh replaces claim preparation
