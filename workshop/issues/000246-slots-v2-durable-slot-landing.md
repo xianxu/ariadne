@@ -75,10 +75,10 @@ Operating envelope: one selected repository/PR per invocation, serial bounded ob
 
 Implementation follows [the durable plan](../plans/000246-slots-v2-durable-slot-landing-plan.md), one atomic delivery and one close review.
 
-- [ ] Add structured exact GitHub integration evidence and expected-head merge.
-- [ ] Add scoped remote archive with authoritative retry proof.
-- [ ] Integrate durable PR/merge routing, safe return/deletion and interruption tests.
-- [ ] Update guidance and complete acceptance verification.
+- [x] Add structured exact GitHub integration evidence and expected-head merge.
+- [x] Add scoped remote archive with authoritative retry proof.
+- [x] Integrate durable PR/merge routing, safe return/deletion and interruption tests.
+- [x] Update guidance and complete acceptance verification.
 
 ## Log
 
@@ -97,6 +97,14 @@ Fresh review requested precise archive retry proof and PR-owned issue selection.
 ### 2026-09-23 — Implementation entry and integration findings
 
 Plan-quality round 2 accepted; estimate-quality accepted 3.83h and change-code created the issue branch. GH adapter isolated tests, parser fuzz and read-only PR130 conformance passed. Root integration fixtures observed missing archive behavior before implementation. Ad-hoc review found legacy origin-bound duplicate checking and body-diff publish enumeration; both are being routed through shared rules with pinned configured-main/PR-owned evidence. Effective URLs and selected PR branch/HEAD are revalidated. No landing or merge has been performed for #246.
+
+### 2026-09-23 — Acceptance verification
+
+Implemented durable primary/slot routing, structured expected-head GitHub integration, PR-owned remote archiving with complete retry proof, safe unchanged-rest return and compare-and-delete cleanup. Ordinary worktrees and dependency clones retain legacy flow. No journal or recursive publication added.
+
+Full `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -timeout=15m -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` passed (main package 812.590s; known #210 absent historical fixture excluded). The extra direct ordinary-worktree cleanup test passed in 3.076s. `go vet ./cmd/sdlc/...`, build, installed workspace/help smoke and diff-check passed. Read-only PR130 conformance passed; GH parser fuzz passed 242,204 executions. Stateful bare-Git fixtures cover merge/squash/rebase, cleanup interruptions, lost merge response, branch/occupancy races, archive CAS/unknown outcomes, lifecycle conflicts, unchanged baselines, dirty neighbors/dependencies and dependency-first publication. Mutations removing deletion CAS, accepting missing archive proof, advancing rest and reverting to body-diff publish selection each failed the intended fixture, then the restored implementation passed.
+
+Integration review corrections were implemented: effective fetch/push URL binding, PR HEAD revalidation, configured-main duplicate checking, owned-close publish selection, lifecycle generation and required-plan preservation. Boundary review is next; #246 is not merged.
 
 ## Revisions
 
