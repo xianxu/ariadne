@@ -131,6 +131,14 @@ engineering-plan approval remains pending. Begin from current origin/main, which
 also contains #246's completed durable landing implementation; this primary's
 resting baseline was intentionally not refreshed after landing.
 
+### 2026-09-23 — Implementation authorized here
+
+Operator requested continuing in this primary checkout because local tool lookup
+uses ~/workspace/ariadne/bin. This supersedes the new-slot handoff and pending
+approval notes. change-code created the issue branch; full-flow planning review
+is being completed before code. Gate feedback clarified test strategies and
+conformance cadence; project ticking remains owned by SDLC close.
+
 ## Revisions
 
 ### 2026-09-23 — Explicit refresh replaces claim preparation
