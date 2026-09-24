@@ -70,6 +70,24 @@ rounds:
           round: 4
       recipe: small-diff-review
       blocked: false
+    - "n": 5
+      timestamp: "2026-09-24T00:19:23-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The guide compares destination rest with both the feature and configured upstream, and the fixture executes the authored command block and observes the parked commit in both outputs.
+          round: 5
+        - id: BR-2
+          disposition: addressed
+          note: The issue records the Pair-owned pair#318 boundary and its post-move build declaration; this Ariadne range introduces no contradictory behavior.
+          round: 5
+        - id: BR-3
+          disposition: addressed
+          note: README.md names “move this branch to :0” and links the renamed shared procedure.
+          round: 5
+      recipe: small-diff-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#248 (boundary-review)
@@ -111,6 +129,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-3 — addressed — README.md:183-186 now names “move this branch to :0” and links the renamed shared procedure.
 - BR-1 — addressed — The procedure explicitly compares destination rest with both the feature branch and configured upstream; the real-Git test executes both commands.
 - BR-2 — addressed — The issue records Pair's post-move build declaration under the separate Pair-owned pair#318 boundary; this Ariadne range introduces no contradictory behavior.
+
+## Round 5 — 2026-09-24T00:19:23-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The guide compares destination rest with both the feature and configured upstream, and the fixture executes the authored command block and observes the parked commit in both outputs.
+- BR-2 — addressed — The issue records the Pair-owned pair#318 boundary and its post-move build declaration; this Ariadne range introduces no contradictory behavior.
+- BR-3 — addressed — README.md names “move this branch to :0” and links the renamed shared procedure.
 
 ## Open findings
 

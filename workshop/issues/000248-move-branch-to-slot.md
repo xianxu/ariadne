@@ -8,7 +8,7 @@ updated: 2026-09-24
 estimate_hours:
 started: 2026-09-23T23:34:13-07:00
 flow: {kind: quick, provenance: inferred, spec: "50bdd523", done: "34aba0ca"}
-actual_hours: 0.73
+actual_hours: 0.83
 ---
 
 # Agent procedure: move this branch to :N
@@ -138,6 +138,8 @@ update that link title. AGENTS.base.md remains the agent entry point.
 ## Log
 
 
+
+- 2026-09-24: closed — Remote claim history merged without changing reviewed files; local main and origin/main are both ancestors of this feature; real-Git guide and Pair composition evidence remain valid.; review verdict: SHIP
 - 2026-09-24: closed — Guide history commands run against real-Git fixture and identify parked commits against feature and configured upstream; fresh agent moved/built clean case and stopped on local-main divergence; README and AGENTS link procedure; Pair declaration closed in pair#318 and composed by weave.; review verdict: SHIP
 ### 2026-09-23
 

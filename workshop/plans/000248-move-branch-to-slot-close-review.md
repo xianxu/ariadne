@@ -291,3 +291,79 @@ None.
 ### Plan revision recommendations
 
 None.
+
+---
+
+## Re-review — 2026-09-24T00:19:23-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 248 — Agent procedure: move this branch to :N |
+| repo | ariadne |
+| issue file | workshop/issues/000248-move-branch-to-slot.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 36991fc50b25377a0faa50397a498c38cda6dfc7..347d8c201781f30fb4335686f0e222fe5ab00533 |
+| command | sdlc close --issue 248 |
+| reviewer | codex |
+| timestamp | 2026-09-24T00:19:23-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range fulfills the Spec and Plan. The procedure, discoverability updates, real-Git fixtures, and prior finding fixes are evidenced; no new blocking findings.
+
+1. Strengths
+
+- Explicit source/destination identity and HEAD validation.
+- Correct untracked-file preservation and collision refusal.
+- History checks are sourced directly from the authored guide and test both comparisons.
+- README, AGENTS, and atlas discoverability are updated.
+- Focused real-Git tests pass; `git diff --check` passes.
+
+2. Critical findings
+
+None.
+
+3. Important findings
+
+None.
+
+4. Minor findings
+
+None.
+
+5. Test coverage notes
+
+`go test ./cmd/sdlc -run '^TestWorkspaceProcedure' -count=1` passed. The full package suite was stopped after several minutes without output; no conclusion was drawn from it.
+
+6. Architectural notes
+
+- ARCH-DRY: Pass — reuses existing switching preflight.
+- ARCH-PURE: Pass — no new runtime logic; tests use real Git fixtures.
+- ARCH-PURPOSE: Pass — documented procedure, consumers, history checks, and fixtures cover the stated goal.
+
+7. Plan revision recommendations
+
+None.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The guide compares destination rest with both the feature and configured upstream, and the fixture executes the authored command block and observes the parked commit in both outputs.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The issue records the Pair-owned pair#318 boundary and its post-move build declaration; this Ariadne range introduces no contradictory behavior.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      README.md names “move this branch to :0” and links the renamed shared procedure.
+```
