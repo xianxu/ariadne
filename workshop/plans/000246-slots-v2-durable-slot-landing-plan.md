@@ -115,7 +115,7 @@ Files: `README.md`, `atlas/workflow/workspace-branching.md`, `atlas/workflow/sdl
 - [x] Document :0/:N no-refresh landing, explicit branch recovery, remotely archived records vs an intentionally old local baseline, and Ariadne-first/Pair-second example. Explain dependency clone legacy behavior and no recursive publication/cleanup.
 - [x] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -timeout=15m -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (existing #210 missing historical fixture), `go vet ./cmd/sdlc/...`, and `git diff --check`. Validate affected help and build the SDLC binary used to close.
 - [x] Mutation-check the important guards: wrong-head deletion, missing archive proof and implicit resting refresh must make their fixtures fail; restore and rerun affected cases.
-- [ ] Update issue/project/atlas evidence and close through the one binary-owned boundary review. Fix findings before the close commit, open the PR, report readiness; merge only on operator instruction.
+- [x] Update issue/project/atlas evidence and close through the one binary-owned boundary review. Fix findings before the close commit, open the PR, report readiness; merge only on operator instruction.
 
 ## Revisions
 

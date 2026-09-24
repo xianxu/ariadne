@@ -117,6 +117,8 @@ fresh-integration dirt refusal. Help tests, vet, build and diff-check also passe
 The earlier full workspace/SDLC suite passed before this localized correction;
 no unaffected runtime surface changed. BR-1/BR-3 marker corrections are complete.
 
+- 2026-09-23: Close re-review returned SHIP, all BR findings addressed; reviewer independently reran landing/merge/PR/archive tests (170.927s). Measured actual 3.63h. Opened [PR131](https://github.com/xianxu/ariadne/pull/131), unmerged. Project acceptance published separately to Pair main via selected documentation commit (710d3de4), preserving concurrent #308 work.
+
 ## Revisions
 
 ### 2026-09-23 — Retain nested environments and publish repositories separately
