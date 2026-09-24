@@ -143,3 +143,6 @@ The simplest durable authority beats a clever scan of consequences.
   commits unpublished.
 - Cross-repository requirements need a named issue and review boundary in the
   owning repository; a single repository's pinned diff cannot prove a peer edit.
+- Tests for executable agent instructions must consume the authored instruction
+  when practical; duplicating its commands in a fixture cannot catch a missing
+  step in the guide.

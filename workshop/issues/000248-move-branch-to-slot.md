@@ -74,7 +74,7 @@ maps the operator's words to the procedure.
   steps 1–6, including the untracked-file rule and the local-only-commits
   decision before switching. Its history check explicitly compares destination
   rest to both the feature and the configured upstream; the real-Git fixture
-  exercises both comparisons.
+  executes the guide's history commands and exercises both comparisons.
 - The AGENTS.md base layer points the phrase at it; propagated downstream.
 - Pair's `AGENTS.local.md` declares its post-move build (`make build` in :0),
   delivered through Pair-owned issue pair#318 and its own close/merge boundary.
@@ -114,6 +114,17 @@ isolated branch; its composed `AGENTS.md` was verified with this Ariadne branch.
 The pair#318 boundary and merge must complete before #248 is considered fully
 shipped.
 
+### 2026-09-24 — exercise the written history check
+
+**Reason:** the second close review found that independently repeating the
+upstream Git command in a test would still pass if the agent procedure omitted
+that command.
+
+**Delta:** the real-Git fixture now executes the move guide's fenced history
+commands and requires the destination-only commit to appear in both comparisons.
+Removing either command from the guide makes the fixture fail. This tests the
+agent-facing contract itself (ARCH-PURPOSE).
+
 ## Log
 
 ### 2026-09-23
@@ -137,3 +148,6 @@ shipped.
 - Pair's authored declaration is committed on `000318-declare-pair-post-move-build`
   at `defbbac5` and will cross its own Pair close/merge boundary. Ariadne's
   review range cannot contain a file owned by the Pair repository (ARCH-PURPOSE).
+- The follow-up review required regression evidence tied to the agent guide.
+  The fixture now runs the guide's history command block against its real Git
+  repository, rather than duplicating those commands in Go.

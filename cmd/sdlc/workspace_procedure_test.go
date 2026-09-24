@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -206,15 +207,30 @@ func TestWorkspaceProcedureMoveBranchToPrimaryPreservesParkedMainAndScratch(t *t
 	if from.RepoIdentity != to.RepoIdentity || *from.Branch != "000001-procedure" || *to.Branch != *to.RestingBranch {
 		t.Fatal("move identity preflight failed")
 	}
-	if got := testfix.Capture(t, destination, "log", "--oneline", "000001-procedure..main"); !strings.Contains(got, "local main work") {
-		t.Fatal("local resting commits not reported before the move")
+	guide, err := os.ReadFile("../../atlas/workflow/workspace-branching.md")
+	if err != nil {
+		t.Fatal(err)
 	}
-	upstream := strings.TrimSpace(testfix.Capture(t, destination, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "main@{upstream}"))
-	if upstream != "upstream/main" {
-		t.Fatalf("configured resting upstream = %q", upstream)
+	_, historyStep, found := strings.Cut(string(guide), "3. Before switching, resolve the destination rest's configured upstream")
+	if !found {
+		t.Fatal("move guide has no resting-history step")
 	}
-	if got := testfix.Capture(t, destination, "log", "--oneline", upstream+"..main"); !strings.Contains(got, "local main work") {
-		t.Fatal("local resting commits not compared with configured upstream")
+	_, historyStep, found = strings.Cut(historyStep, "```sh\n")
+	if !found {
+		t.Fatal("move guide has no executable history check")
+	}
+	historyScript, _, found := strings.Cut(historyStep, "```")
+	if !found {
+		t.Fatal("move guide has no closed history command block")
+	}
+	command := exec.Command("sh", "-c", historyScript)
+	command.Env = append(os.Environ(), "destination="+destination, "destination_rest=main", "issue_branch=000001-procedure")
+	output, err := command.CombinedOutput()
+	if err != nil {
+		t.Fatalf("move guide history check: %v: %s", err, output)
+	}
+	if got := strings.Count(string(output), "local main work"); got != 2 {
+		t.Fatalf("move guide must report resting commits absent from both feature and configured upstream; got %d: %s", got, output)
 	}
 	if got := testfix.Capture(t, destination, "ls-files", "--others", "--exclude-standard"); strings.TrimSpace(got) != "operator-scratch" {
 		t.Fatalf("scratch preflight: %q", got)
