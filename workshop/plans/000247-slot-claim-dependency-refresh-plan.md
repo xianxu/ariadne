@@ -86,7 +86,7 @@ No persisted refresh phase. Retry derives truth from Git and declarations. No co
 
 ## Operating envelope and trust
 
-Interactive batch operation over a small developer layer graph. Sequential work; initial limit 128 unique layers, chosen well above the current few-layer environments. Enforce the discovery limit before further queue expansion (optional acquisition discovery limit, zero preserves other callers), not after a complete unbounded walk. Explain the limit in errors; no truncation. Cap dependency document reads at 1 MiB and Git captured output at 4 MiB per command; reject overflow. Initial per-Git-command timeout 2 minutes with bounded child/pipe shutdown; compilation retains its existing signal-aware lifecycle rather than a new arbitrary overall deadline. Reassess limits using the chain fixture and representative clone timings (ARCH-CONSTRAINTS).
+Interactive batch operation over a small developer layer graph. Sequential work; initial limit 128 unique layers, chosen well above the current few-layer environments. Enforce the discovery limit before further queue expansion (optional acquisition discovery limit, zero preserves other callers), not after a complete unbounded walk. Explain the limit in errors; no truncation. Cap dependency document reads at 1 MiB (including acquisition discovery: bounded reader before allocation/parsing, not only Git target blobs) and Git captured output at 4 MiB per command; reject overflow. Initial per-Git-command timeout 2 minutes with bounded child/pipe shutdown; compilation retains its existing signal-aware lifecycle rather than a new arbitrary overall deadline. Reassess limits using the chain fixture and representative clone timings (ARCH-CONSTRAINTS).
 
 Treat Git stdout, paths, remote config and declaration blobs as parsed external evidence. Validate full SHAs, symbolic refs and exact checkout roots; use argv arrays, never shell interpolation. Preserve path bytes through Git adapters rather than generic TrimSpace. Do not print credentials from origin URLs in diagnostics. Fake remotes use temporary folders only; no real-network writes in tests (ARCH-SECURE).
 
@@ -139,3 +139,12 @@ One atomic delivery and one SDLC close review; no Mx boundary tags.
 ## Review and approval
 
 This is the concrete engineering plan for the agreed product behavior. The topology-change refusal and substrate-only refresh boundary are explicit implementation constraints for review. No code has changed; implementation follows plan approval and the change-code gate. Estimate follows plan-quality acceptance, not before it.
+
+## Revisions
+
+### 2026-09-23 — Fresh planning review
+
+The independent spec/plan reviewer approved with no blocking findings. Clarified
+that the dependency-document read limit applies inside reused discovery before
+allocation, and that raw Git output must preserve acquisition caller semantics.
+Engineering-plan approval remains the next step; no implementation has started.
