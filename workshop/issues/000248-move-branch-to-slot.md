@@ -1,11 +1,12 @@
 ---
 id: 000248
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-23
 updated: 2026-09-23
 estimate_hours:
+started: 2026-09-23T23:34:13-07:00
 ---
 
 # Agent procedure: move this branch to :N
@@ -73,7 +74,17 @@ maps the operator's words to the procedure.
 
 ## Plan
 
-- [ ]
+- [ ] Document the move and return procedure beside slot branching, using the existing identity and readiness preflight. Preserve harmless destination untracked files, refuse incoming-path collisions, and report resting-only commits.
+- [ ] Add the phrase-to-procedure pointer to exported `AGENTS.base.md`; add Pair's `:0` post-move `make build` declaration on an isolated Pair branch.
+- [ ] Exercise source/destination switching, preserved refs and scratch files, collision refusal, and local-only resting commits with real Git fixtures; dry-run the written steps from a fresh agent context.
+
+## Revisions
+
+### 2026-09-23 — implementation shape
+
+**Reason:** the source constitution is `AGENTS.base.md`, exported by `construct/base.manifest`; the root `AGENTS.md` is generated. Pair's primary checkout currently has an unrelated issue branch and untracked operator files.
+
+**Delta:** keep the change as an agent procedure over existing `sdlc workspace` and Git. Edit Pair's local declaration on a separate checkout so its active work remains untouched. The procedure treats the target's existing tracked paths and incoming branch paths as the collision boundary, with Git's non-forcing switch as the final guard (ARCH-DRY, ARCH-SECURE). No new CLI, persistent state, or background work is introduced (ARCH-PURE, ARCH-ORDER, ARCH-FUNERAL).
 
 ## Log
 
