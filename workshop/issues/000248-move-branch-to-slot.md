@@ -80,9 +80,9 @@ maps the operator's words to the procedure.
 
 ## Plan
 
-- [ ] Document the move and return procedure beside slot branching, using the existing identity and readiness preflight. Preserve harmless destination untracked files, refuse incoming-path collisions, and report resting-only commits.
-- [ ] Add the phrase-to-procedure pointer to exported `AGENTS.base.md`; add Pair's `:0` post-move `make build` declaration on an isolated Pair branch.
-- [ ] Exercise source/destination switching, preserved refs and scratch files, collision refusal, and local-only resting commits with real Git fixtures; dry-run the written steps from a fresh agent context.
+- [x] Document the move and return procedure beside slot branching, using the existing identity and readiness preflight. Preserve harmless destination untracked files, refuse incoming-path collisions, and report resting-only commits.
+- [x] Add the phrase-to-procedure pointer to exported `AGENTS.base.md`; add Pair's `:0` post-move `make build` declaration on an isolated Pair branch.
+- [x] Exercise source/destination switching, preserved refs and scratch files, collision refusal, and local-only resting commits with real Git fixtures; dry-run the written steps from a fresh agent context.
 
 ## Revisions
 
@@ -98,6 +98,19 @@ maps the operator's words to the procedure.
 
 **Delta:** compare the destination resting branch with the feature and its configured upstream before switching. When rest contains commits absent from the feature, stop for a choice: publish rest first and rebase the feature on the reviewed remote tip; deliberately include those unpublished commits in the feature; or accept a temporary test and reconcile rest before the feature ships. Moving branches itself never publishes or rewrites commits (ARCH-ORDER, ARCH-PURPOSE).
 
+### 2026-09-23 — review boundary and upstream evidence
+
+**Reason:** the first close review found that the guide described the configured
+upstream without an explicit comparison. It also could not inspect Pair's
+separate repository in Ariadne's pinned review range.
+
+**Delta:** require a concrete comparison of destination rest with both the
+feature and its configured upstream, with a real-Git fixture for each. Pair's
+local build declaration is delivered and reviewed under pair#318 on its own
+isolated branch; its composed `AGENTS.md` was verified with this Ariadne branch.
+The pair#318 boundary and merge must complete before #248 is considered fully
+shipped.
+
 ## Log
 
 ### 2026-09-23
@@ -109,3 +122,15 @@ maps the operator's words to the procedure.
   `bin/pair` via `go tool nm`.
 - Related: #244 (slots v2 workflows), #246 (durable-slot landing: return-to-rest,
   untracked-collision rule to reuse), #247.
+- `go test ./cmd/sdlc -run '^TestWorkspaceProcedure' -count=1` passed with
+  real-Git move and collision fixtures. A disposable Pair worktree composed the
+  exported Ariadne guide and Pair's post-move `make build` declaration using
+  `weave compile`; Pair's active `:0` checkout was untouched.
+- An independent fresh-agent dry run moved a feature from `pair:1` to `pair:0`,
+  preserved `operator-scratch`, returned `:1` to `main-slot1`, and ran its
+  declared `make build` without changing the selected HEAD. With a local-only
+  `main` commit added to `:0`, a second run stopped before switching and asked
+  for an explicit ordering choice.
+- Pair's authored declaration is committed on `000318-declare-pair-post-move-build`
+  at `defbbac5` and will cross its own Pair close/merge boundary. Ariadne's
+  review range cannot contain a file owned by the Pair repository (ARCH-PURPOSE).

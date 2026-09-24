@@ -98,16 +98,22 @@ slot's resting ref.
    ancestor collisions. Refuse a collision, preserve every other untracked file,
    and never stash, reset, auto-commit or delete it. Ignored output is also
    preserved; `--no-overwrite-ignore` supplies the final Git collision guard.
-3. Before switching, list commits on destination rest absent from the feature:
+3. Before switching, resolve the destination rest's configured upstream and
+   compare rest against both the feature and that upstream:
 
    ```sh
+   upstream_ref=$(git -C "$destination" rev-parse --abbrev-ref --symbolic-full-name "${destination_rest}@{upstream}")
    git -C "$destination" log --oneline "$issue_branch..$destination_rest"
+   git -C "$destination" log --oneline "$upstream_ref..$destination_rest"
    ```
 
-   If any appear, **stop for the operator's ordering choice**. The configured
-   resting upstream can help identify locally unpublished commits, but a local
-   tracking ref may be stale. If those commits should precede the feature,
-   publish them through their normal review path, then rebase the feature onto
+   Stop if no single configured upstream resolves. The second command lists
+   parked commits absent from the feature; the third identifies rest commits
+   absent from the local upstream tracking ref. Report both lists. A tracking
+   ref may be stale, so verify remote state before treating the third list as
+   unpublished. If the second list is nonempty, **stop for the operator's
+   ordering choice**. If those commits should precede the feature, publish
+   them through their normal review path, then rebase the feature onto
    the updated remote main before moving. Including unpublished rest commits in
    the feature branch is a separate explicit choice. A temporary smoke test of
    the feature as-is is also possible, with reconciliation of rest and remote

@@ -209,6 +209,13 @@ func TestWorkspaceProcedureMoveBranchToPrimaryPreservesParkedMainAndScratch(t *t
 	if got := testfix.Capture(t, destination, "log", "--oneline", "000001-procedure..main"); !strings.Contains(got, "local main work") {
 		t.Fatal("local resting commits not reported before the move")
 	}
+	upstream := strings.TrimSpace(testfix.Capture(t, destination, "rev-parse", "--abbrev-ref", "--symbolic-full-name", "main@{upstream}"))
+	if upstream != "upstream/main" {
+		t.Fatalf("configured resting upstream = %q", upstream)
+	}
+	if got := testfix.Capture(t, destination, "log", "--oneline", upstream+"..main"); !strings.Contains(got, "local main work") {
+		t.Fatal("local resting commits not compared with configured upstream")
+	}
 	if got := testfix.Capture(t, destination, "ls-files", "--others", "--exclude-standard"); strings.TrimSpace(got) != "operator-scratch" {
 		t.Fatalf("scratch preflight: %q", got)
 	}
