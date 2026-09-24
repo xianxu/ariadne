@@ -44,10 +44,15 @@ CLI verb.
    adopt #246's rule: keep untracked files that don't collide with the branch,
    refuse collisions, never stash/reset/auto-commit. State this exception
    explicitly rather than silently relaxing the empty-status rule.
-3. Switch the source to its resting branch, then `git switch <branch>` in the
-   destination. Report destination-resting commits that are not on the branch
-   (e.g. `:0`'s `main` ahead of origin): they stay on the resting branch and
-   are absent from what gets tested.
+3. Before switching, compare destination-resting commits with both the feature
+   branch and its upstream. If destination rest has commits absent from the
+   feature branch, stop for an explicit ordering decision. The operator may
+   publish those commits through their normal review path and then rebase the
+   feature on updated remote main, deliberately include unpublished commits in
+   the feature, or choose a temporary smoke test with a later reconciliation.
+   Never push or rebase as part of the move. Then switch the source to its
+   resting branch and `git switch <branch>` in the destination. Report which
+   resting commits remain parked and absent from the build.
 4. Repo-specific post-move step: a repo whose runtime is a built artifact (pair:
    `make build` in `:0`) declares it in its `AGENTS.local.md`; the procedure
    says "run the destination repo's declared post-move build, if any" and
@@ -66,7 +71,7 @@ maps the operator's words to the procedure.
 
 - `workspace-branching.md` has the "Move this branch to :N" section covering
   steps 1–6, including the untracked-file rule and the local-only-commits
-  report.
+  decision before switching.
 - The AGENTS.md base layer points the phrase at it; propagated downstream.
 - pair's `AGENTS.local.md` declares its post-move build (`make build` in :0).
 - Dry run: a fresh agent session told "move this branch to :0" from a pair slot
@@ -85,6 +90,12 @@ maps the operator's words to the procedure.
 **Reason:** the source constitution is `AGENTS.base.md`, exported by `construct/base.manifest`; the root `AGENTS.md` is generated. Pair's primary checkout currently has an unrelated issue branch and untracked operator files.
 
 **Delta:** keep the change as an agent procedure over existing `sdlc workspace` and Git. Edit Pair's local declaration on a separate checkout so its active work remains untouched. The procedure treats the target's existing tracked paths and incoming branch paths as the collision boundary, with Git's non-forcing switch as the final guard (ARCH-DRY, ARCH-SECURE). No new CLI, persistent state, or background work is introduced (ARCH-PURE, ARCH-ORDER, ARCH-FUNERAL).
+
+### 2026-09-23 — local resting history is an ordering decision
+
+**Reason:** the operator pointed out that moving a feature to `:0` parks local main commits; later PR integration can leave local and remote main on different lineages. A mere report at the end does not protect the intended history order.
+
+**Delta:** compare the destination resting branch with the feature and its configured upstream before switching. When rest contains commits absent from the feature, stop for a choice: publish rest first and rebase the feature on the reviewed remote tip; deliberately include those unpublished commits in the feature; or accept a temporary test and reconcile rest before the feature ships. Moving branches itself never publishes or rewrites commits (ARCH-ORDER, ARCH-PURPOSE).
 
 ## Log
 
