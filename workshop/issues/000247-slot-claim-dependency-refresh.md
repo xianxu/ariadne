@@ -7,6 +7,7 @@ created: 2026-09-23
 updated: 2026-09-23
 estimate_hours:
 started: 2026-09-23T22:39:51-07:00
+flow: {kind: quick, provenance: inferred, spec: "9e3a113b", done: "4175b2aa"}
 ---
 
 # Explicitly refresh repositories and dependencies with Weave
