@@ -89,7 +89,7 @@ Project: [couch-slots-v2](../../../pair/workshop/projects/couch-slots-v2.md).
 
 ## Plan
 
-Engineering design and implementation have not started. Follow-up work:
+Engineering plan: [explicit Weave refresh](../plans/000247-slot-claim-dependency-refresh-plan.md). Implementation awaits engineering-plan approval and the change-code gate. Follow-up work:
 
 - [ ] Design the refresh operation around existing Weave discovery and setup mechanisms, following the agreed contract above.
 - [ ] Implement default fast-forward refresh and explicit rebase with captured targets, preflight and apply-time revalidation.
@@ -101,6 +101,17 @@ Engineering design and implementation have not started. Follow-up work:
 
 Filed from the operator-approved slot dependency refresh discussion. Scope is
 capture only; implementation and engineering design have not started.
+
+### 2026-09-23 — Engineering planning started
+
+Claimed #247 and ran start-plan. The implementation plan reuses read-only Weave
+acquisition discovery, the existing Git seam, and one setup lease through refresh
+and compile. A fresh audit identified target declaration changes and compile
+lease re-entry as the main integration hazards. Proposed conservative boundary:
+refuse changed parsed dependency declarations before branch updates and recheck
+the graph before compile; Git refresh subjects are host/substrate layers, not data
+mount repositories. These constraints are explicit in the plan for approval.
+No code or estimate yet; claim behavior remains unchanged (ARCH-DRY, ARCH-ORDER).
 
 ## Revisions
 
