@@ -94,6 +94,10 @@ Claimed #246 and ran start-plan. Current merge invokes gh with local branch dele
 
 Fresh review requested precise archive retry proof and PR-owned issue selection. Clarified that close anchors in the PR's own commit set select artifacts even when issue bodies were independently published, and that reachable archive commit provenance plus the complete artifact generation authorizes retry completion. Queue acceptance must be re-observed as merged integration; reserved resting refs cannot be cleanup targets. No receipt file or new landing command added. Fresh re-review approved the revised spec with no remaining important gaps; operator approval is pending before durable implementation planning and code.
 
+### 2026-09-23 — Implementation entry and integration findings
+
+Plan-quality round 2 accepted; estimate-quality accepted 3.83h and change-code created the issue branch. GH adapter isolated tests, parser fuzz and read-only PR130 conformance passed. Root integration fixtures observed missing archive behavior before implementation. Ad-hoc review found legacy origin-bound duplicate checking and body-diff publish enumeration; both are being routed through shared rules with pinned configured-main/PR-owned evidence. Effective URLs and selected PR branch/HEAD are revalidated. No landing or merge has been performed for #246.
+
 ## Revisions
 
 ### 2026-09-23 — Retain nested environments and publish repositories separately
