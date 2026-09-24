@@ -158,6 +158,15 @@ refresh, follow [Branching and Refreshing Slots](atlas/workflow/workspace-branch
 These ordinary Git procedures preserve the chosen baseline and sibling dependencies;
 prepare the issue branch before SDLC planning checkpoints.
 
+After review, `sdlc pr` and `sdlc merge --yes` land :0 and :N through the resting
+branch's configured remote/main. They archive the PR's completed records remotely,
+return to unchanged `main` or `main-slotN`, and remove only the completed local
+issue branch and its configuration. The workspace and dependency clones survive;
+refresh remains explicit. Resume interrupted landing with
+`sdlc merge --branch <issue-branch> --yes`, including from rest after integration.
+See [landing and recovery](atlas/workflow/workspace-branching.md#land-and-retain-the-workspace)
+for evidence checks, legacy dependency behavior and the intentionally old baseline.
+
 ## Fleet queries
 
 Inspect every Git worktree in the sibling-repository fleet from a caller path,

@@ -1,8 +1,8 @@
-# Branching and refreshing slots
+# Branching, landing and refreshing slots
 
-These are agent procedures using existing Git and SDLC commands, not new CLI
-commands or automatic guards. They apply equally to :0 (`main`) and numbered
-slots (`main-slotN`). Use [workspace identity](workspace-identity.md) to resolve
+Branching and refresh below are agent procedures using existing Git commands;
+landing is enforced by `sdlc pr` and `sdlc merge`. Both apply equally to :0
+(`main`) and numbered slots (`main-slotN`). Use [workspace identity](workspace-identity.md) to resolve
 addresses; never construct checkout paths yourself. Operate only on the selected
 repository, leaving sibling dependency clones alone.
 
@@ -88,6 +88,56 @@ checkpoints planning before creating its branch. Claim and change-code may
 contact remote main for reservation/document publication; neither refreshes the
 prepared branch's baseline. Use the separate refresh procedure only on request.
 
+## Land and retain the workspace
+
+After `sdlc close` and publication of the reviewed issue head:
+
+```sh
+sdlc pr
+sdlc merge --yes
+```
+
+The resting branch's single named remote tracking `refs/heads/main` selects the
+destination. Effective fetch and push URLs must identify the same supported
+GitHub repository; missing, ambiguous or mismatched configuration refuses.
+Durable landing supports same-repository PRs. Local issue HEAD, fresh remote
+issue HEAD and PR head must match before merge. Tracked changes, including
+tracker edits, and ongoing Git operations refuse. Noncolliding untracked and
+ignored files remain; collisions refuse without stash/reset or forced switching.
+
+A server-side merge request is followed by exact integration confirmation;
+queue admission alone is insufficient. Already merged squash/rebase PRs are
+recognized through their original PR head and reachable integration evidence.
+The command archives only this PR's completed issue/plan/review records on remote
+main, with provenance checked on retry. It then returns to the unchanged resting
+ref and removes only the proven issue branch and its configuration. It neither
+pulls in another checkout nor removes the enclosing environment or dependencies.
+No remote branch deletion is added; repository auto-deletion remains independent.
+
+The resting snapshot is intentionally old. An issue may still appear active in
+its local tracker even though remote main already contains the archive. This is
+not a failed archive; use the explicit refresh procedure when you want a newer
+baseline. Landing never refreshes automatically.
+
+If interrupted, use the recovery command printed before irreversible effects:
+
+```sh
+sdlc merge --branch <issue-branch> --yes
+```
+
+Run from that issue branch or this workspace's rest. From rest it resumes only
+an already merged PR, never merges an open one. Retry re-observes Git/GitHub and
+archive evidence; uncertain outcomes, changed issue commits or occupancy refuse
+cleanup. If the ref was already deleted, confirmed recovery can finish removing
+its remaining configuration. There is no persistent transaction journal.
+
+Ordinary feature worktrees and private dependency clones keep their legacy
+per-repository flow: refresh their own main, archive and remove the completed
+branch; ordinary feature worktrees are removed. For coordinated Ariadne/Pair
+work, land the Ariadne dependency through its normal SDLC flow first, verify
+Pair against that merged dependency, then land Pair. Driving both from a Pair
+thread does not recursively publish, refresh or clean sibling repositories.
+
 ## Explicitly refresh a resting slot
 
 1. Resolve the target and require it on its resting branch, ready as above.
@@ -134,3 +184,5 @@ prepared branch's baseline. Use the separate refresh procedure only on request.
 these commands, readiness observations, capture timing and preserved refs/files.
 The agent owns the prose preconditions; these tests do not turn them into CLI
 enforcement. Existing workspace resolver tests cover address/identity validity.
+Durable landing is covered separately by `cmd/sdlc/landing_test.go` and the
+GitHub/archive fixtures, including interrupted cleanup and preservation checks.

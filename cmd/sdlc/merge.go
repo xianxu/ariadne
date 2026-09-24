@@ -33,6 +33,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -48,6 +49,8 @@ import (
 
 // mergeFlags holds the parsed flag values for the merge subcommand.
 type mergeFlags struct {
+	Context    context.Context
+	Branch     string
 	Yes        bool
 	NoJudge    bool
 	NoValidate bool
@@ -100,9 +103,11 @@ func NewMergeCmd() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
+			f.Context = cmd.Context()
 			return runMerge(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
+	cmd.Flags().StringVar(&f.Branch, "branch", "", "resume landing this issue branch from its workspace resting branch")
 	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the final irreversible-merge confirmation AND not-done warn — REQUIRED for non-interactive/agent runs (merge fail-fasts before the publish gate when stdin is not a terminal)")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the pre-merge publish gate — #160 reviewed-HEAD-unchanged invariant (emergency-only)")
 	cmd.Flags().BoolVar(&f.NoValidate, "no-validate", false, "skip the #124 instance-conformance gate (escape hatch — announced loudly)")
@@ -255,6 +260,17 @@ func decideMergeAction(openPRNumber string, mergedExists bool, unmergedCount int
 }
 
 func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
+	target, err := resolveLandingTarget(mergeRunner)
+	if err != nil {
+		return err
+	}
+	if target != nil {
+		return runDurableMerge(stdout, stderr, f, *target)
+	}
+	if f.Branch != "" {
+		return fmt.Errorf("--branch recovery requires an addressable primary or numbered slot")
+	}
+
 	// ── 1. Refuse if main / empty branch ────────────────────────────────────
 	branch := gitx.Capture("branch", "--show-current")
 	if branch == "" || branch == "main" {
@@ -649,7 +665,7 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 			return moves, fmt.Errorf("mkdir %s: %v", issuesSubFull, err)
 		}
 		base := filepath.Base(ref.Path)
-		dest := filepath.Join(issuesSubFull, base)
+		dest := archiveDestination(historyFull, vocab.ArchiveIssues, base)
 		fmt.Fprintf(stderr, "  Moving %s to %s/\n", base, issuesSubRec)
 		if err := os.Rename(ref.Path, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
@@ -659,7 +675,7 @@ func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, history
 		// would silently miss the staged move.
 		moves = append(moves, preparedArchiveMove{
 			IssuePath:   filepath.Join(issuesDir, base),
-			HistoryPath: filepath.Join(issuesSubRec, base),
+			HistoryPath: archiveDestination(historyDir, vocab.ArchiveIssues, base),
 		})
 		// Sweep the issue's durable plan + review sidecars to history too (#143).
 		// Rename under mainPath; record mainPath-relative paths for the git add.
