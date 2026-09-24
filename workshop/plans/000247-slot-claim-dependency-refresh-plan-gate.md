@@ -50,6 +50,16 @@ rounds:
           family: existing-behavior-grounding
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-23T22:54:54-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-4
+          disposition: addressed
+          note: The plan defines strict discoverRefresh behavior that rejects errors and nonempty Result.Missing before fetch/update, with named regression tests preserving ordinary Restore semantics.
+          round: 3
+      blocked: false
+content_hash: bf3233b99690bf88e0c29e709a33850a7ebae5648aacc4b3b60aa61597e486f8
 ---
 
 # Gate ledger — ariadne#247 (plan-quality)
@@ -81,6 +91,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-4** [Important] `existing-behavior-grounding` Define a strict refresh discovery path instead of assuming Restore refuses missing checkouts
   The plan states that `Restore(ctx, root, true)` “refuses a missing checkout” at plan line 37, but the existing implementation treats dry-run missing repositories as an incomplete graph and records them in `Result.Missing` (`cmd/weave/internal/acquire/acquire.go:240-248`, `cmd/weave/internal/acquire/acquire.go:326-330`); existing CLI code reports those entries and continues (`cmd/weave/main.go:476-483`). Specify whether refresh adds a strict discovery option/wrapper that rejects `Result.Missing`, or changes Restore semantics while preserving ordinary compile/dependency behavior, and name the regression tests for both paths.
 
+## Round 3 — 2026-09-23T22:54:54-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-4 — addressed — The plan defines strict discoverRefresh behavior that rejects errors and nonempty Result.Missing before fetch/update, with named regression tests preserving ordinary Restore semantics.
+
 ## Open findings
 
-- **PQ-4** [Important] `existing-behavior-grounding` Define a strict refresh discovery path instead of assuming Restore refuses missing checkouts
+(none — every finding has been disposed)
