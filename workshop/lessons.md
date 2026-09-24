@@ -138,3 +138,13 @@ The simplest durable authority beats a clever scan of consequences.
   keep those errors distinct from completed `exit 1` absence/ancestry results.
 - Rebase overwrite checks must cover paths touched by intermediate replay commits,
   including files deleted again before HEAD, not only the target and final trees.
+- When a procedure promises two history comparisons, show and test both Git
+  commands. State which local tracking evidence may be stale before calling
+  commits unpublished.
+- Cross-repository requirements need a named issue and review boundary in the
+  owning repository; a single repository's pinned diff cannot prove a peer edit.
+- Tests for executable agent instructions must consume the authored instruction
+  when practical; duplicating its commands in a fixture cannot catch a missing
+  step in the guide.
+- When a new operator phrase is added to an agent guide, update the existing
+  README entry point for that workflow in the same change.
