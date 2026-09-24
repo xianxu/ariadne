@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // ── e2e harness for runMerge (#63) ───────────────────────────────────────────
@@ -125,6 +126,13 @@ func (g *e2eGH) PRMerge(repo, branch string) error                    { g.prMerg
 // each its own isolated state — the swaps (and the chdir) would race.
 func swapMergeDeps(t *testing.T, gh ghCaller, gate func(baseRef, issuesDir string, stderr io.Writer) error) {
 	t.Helper()
+	// These fixtures exercise legacy dependency-clone cleanup. Durable primary
+	// and numbered-slot routing have real-identity coverage in landing_test.go.
+	previousIdentity := resolveLandingWorkspace
+	resolveLandingWorkspace = func(workspace.GitReader, string, string) (workspace.Identity, error) {
+		return workspace.Identity{Kind: "dependency"}, nil
+	}
+	t.Cleanup(func() { resolveLandingWorkspace = previousIdentity })
 	prevGH, prevDetect, prevGate, prevVal := ghClient, detectRepo, runPublishGateFn, validateChangedInstancesFn
 	ghClient = gh
 	detectRepo = func() (string, error) { return "test/repo", nil }

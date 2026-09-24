@@ -120,3 +120,16 @@ The simplest durable authority beats a clever scan of consequences.
   a reviewer after its repository lock is released, despite unit cancellation tests.
 - Before recording any review verdict, revalidate the complete prepared read set,
   including absent plans and ledger generations; rejected verdicts also write state.
+
+- When reusing a publication guard, inspect its hidden destination and selection
+  assumptions. Pass the pinned configured trunk and owned close records; an
+  issue-body diff can omit independently published review evidence.
+- Bind GitHub identity to Git's effective fetch and push URLs, including rewrites.
+  Revalidate the selected branch and head as well as destination configuration.
+- Archive retries need an intact complete generation: preserve compatible prose,
+  refuse changed lifecycle metadata or missing owned artifacts, and verify the
+  exact reachable archive commit before deleting local recovery refs.
+
+- Scope cleanliness to effects: integration/switching need a clean issue checkout,
+  while proven ref-only cleanup on rest can preserve new staged and unstaged work.
+  Test both immediate post-switch edits and retries after each cleanup effect.

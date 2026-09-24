@@ -146,7 +146,7 @@ func (t *TrunkFile) trackingRef() string {
 // `git fetch origin main`, which only guarantees FETCH_HEAD) is the same form
 // issueids.go uses.
 func (t *TrunkFile) fetch() ([]byte, error) {
-	_, errOut, err := runGitIn(t.dir, nil, "fetch", "--quiet", t.remote,
+	_, errOut, err := runGitIn(t.dir, nil, "fetch", "--quiet", "--no-recurse-submodules", t.remote,
 		"+refs/heads/"+t.branch+":"+t.trackingRef())
 	return errOut, err
 }

@@ -63,7 +63,7 @@ Use existing gitRunner and GH adapters; add narrowly typed methods instead of ra
 | Ref already absent, matching integration/archive | remove any remaining selected branch configuration, then complete |
 | Changed head/config/topology, dirt, ambiguous evidence | refuse with preserved state and explicit recovery |
 
-Numeric bounds are conservative implementation limits, not capacity promises: at most 100 matching PR records, 10,000 commits inspected for close/archive provenance and 10,000 selected tree entries; command failures or exceeded limits refuse. gh calls use a two-minute context deadline; no background work outlives the invocation. Tests use tiny fixtures plus limit+1 cases. Existing trunk CAS retry budget remains authoritative. No durable new files; temporary index/blob files retain TrunkFile cleanup, archives use existing history lifecycle (ARCH-CONSTRAINTS/STATE/SECURE/FUNERAL/MOCK).
+Numeric bounds are conservative implementation limits, not capacity promises: at most 100 matching PR records, 10,000 commits inspected for close/archive provenance and 10,000 selected tree entries; command failures or exceeded limits refuse. gh calls use a two-minute context deadline; no background work outlives the invocation. Tests use tiny fixtures plus limit+1 cases. Existing trunk CAS retry budget remains authoritative. No durable new files; temporary index/blob files retain TrunkFile cleanup, archives use existing history lifecycle (ARCH-CONSTRAINTS/ORDER/SECURE/FUNERAL/MOCK).
 
 ## Shared rules and executable test strategies
 
@@ -89,33 +89,33 @@ Extract `archiveDestination(historyDir, kind, basename)` for existing `archiveDo
 
 Files: create `cmd/sdlc/ghlanding.go`, `cmd/sdlc/ghlanding_test.go`; extend the realGH seam without changing ordinary legacy behavior.
 
-- [ ] TDD the typed GH adapter and parser using the named strategy below; keep the legacy interface compatible.
-- [ ] Verify `go test ./cmd/sdlc -run 'TestLandingGH' -count=1` red then green, and commit explicit paths.
+- [x] TDD the typed GH adapter and parser using the named strategy below; keep the legacy interface compatible.
+- [x] Verify `go test ./cmd/sdlc -run 'TestLandingGH' -count=1` red then green, and commit explicit paths.
 
 ### Task 2 — Remote archive and retry proof
 
 Files: create `cmd/sdlc/landingarchive.go`, `cmd/sdlc/landingarchive_test.go`; reuse/refactor the explicitly shared pure archive rules below. Read `construct/vocabulary/issue.cue` before lifecycle edits.
 
-- [ ] TDD the shared archive rules, owned selection, pure archive plan and publication/proof adapters using the named strategies below.
-- [ ] Implement `archiveLandingPR(root, remote, repo string, pr landingPR, issuesDir, plansDir, historyDir string) error` and read-only `landingArchiveComplete(root, remoteMainOID, repo string, pr landingPR, issuesDir, plansDir, historyDir string) (bool, error)` through existing TrunkFile; no checkout or new publisher. An empty owned set needs no archive commit.
-- [ ] Verify `go test ./cmd/sdlc -run 'TestLandingArchive|TestArchive' -count=1` red then green and commit explicit paths.
+- [x] TDD the shared archive rules, owned selection, pure archive plan and publication/proof adapters using the named strategies below.
+- [x] Implement `archiveLandingPR(root, remote, repo string, pr landingPR, issuesDir, plansDir, historyDir string) error` and read-only `landingArchiveComplete(root, remoteMainOID, repo string, pr landingPR, issuesDir, plansDir, historyDir string) (bool, error)` through existing TrunkFile; no checkout or new publisher. An empty owned set needs no archive commit.
+- [x] Verify `go test ./cmd/sdlc -run 'TestLandingArchive|TestArchive' -count=1` red then green and commit explicit paths.
 
 ### Task 3 — Route PR/merge and safe cleanup
 
 Files: create `cmd/sdlc/landing.go`, `cmd/sdlc/landing_test.go`; modify `pr.go`, `merge.go`; adapt existing PR/merge fixtures to explicitly represent legacy ordinary/dependency topology.
 
-- [ ] TDD the named phase/target/return/delete functions and routed commands below, with a stateful GH fake backed by a real bare Git remote.
-- [ ] Wire the durable path before legacy main lookup; preserve existing gates, confirmation and read-only dry-run. Add `merge --branch` recovery through the existing command.
-- [ ] Verify `go test ./cmd/sdlc -run 'TestLanding|TestMerge|TestPR|TestArchive' -count=1` red then green and commit explicit paths.
+- [x] TDD the named phase/target/return/delete functions and routed commands below, with a stateful GH fake backed by a real bare Git remote.
+- [x] Wire the durable path before legacy main lookup; preserve existing gates, confirmation and read-only dry-run. Add `merge --branch` recovery through the existing command.
+- [x] Verify `go test ./cmd/sdlc -run 'TestLanding|TestMerge|TestPR|TestArchive' -count=1` red then green and commit explicit paths.
 
 ### Task 4 — Documentation and acceptance
 
 Files: `README.md`, `atlas/workflow/workspace-branching.md`, `atlas/workflow/sdlc-binary.md`, `cmd/sdlc/helptext/merge.md`, `cmd/sdlc/helptext/pr.md`, issue246 and Pair's project record. Keep docs concise and link existing concepts.
 
-- [ ] Document :0/:N no-refresh landing, explicit branch recovery, remotely archived records vs an intentionally old local baseline, and Ariadne-first/Pair-second example. Explain dependency clone legacy behavior and no recursive publication/cleanup.
-- [ ] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -timeout=15m -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (existing #210 missing historical fixture), `go vet ./cmd/sdlc/...`, and `git diff --check`. Validate affected help and build the SDLC binary used to close.
-- [ ] Mutation-check the important guards: wrong-head deletion, missing archive proof and implicit resting refresh must make their fixtures fail; restore and rerun affected cases.
-- [ ] Update issue/project/atlas evidence and close through the one binary-owned boundary review. Fix findings before the close commit, open the PR, report readiness; merge only on operator instruction.
+- [x] Document :0/:N no-refresh landing, explicit branch recovery, remotely archived records vs an intentionally old local baseline, and Ariadne-first/Pair-second example. Explain dependency clone legacy behavior and no recursive publication/cleanup.
+- [x] Run `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -timeout=15m -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` (existing #210 missing historical fixture), `go vet ./cmd/sdlc/...`, and `git diff --check`. Validate affected help and build the SDLC binary used to close.
+- [x] Mutation-check the important guards: wrong-head deletion, missing archive proof and implicit resting refresh must make their fixtures fail; restore and rerun affected cases.
+- [x] Update issue/project/atlas evidence and close through the one binary-owned boundary review. Fix findings before the close commit, open the PR, report readiness; merge only on operator instruction.
 
 ## Revisions
 
@@ -130,3 +130,15 @@ Fresh plan review identified the interruption between compare-and-delete of the 
 ### 2026-09-23 — Plan-quality refinement
 
 Addressed the three reported finding classes: replace test inventories with named risky-function strategies; define shared archive naming, membership and lifecycle helpers and their consumers; require read-only live GH conformance at acceptance and adapter/fake/version changes. No behavior or scope expansion.
+
+### 2026-09-23 — Integration gate reuse
+
+Read-only integration review found that legacy duplicate checking assumes origin and publish candidate enumeration uses issue-body diffs. Durable landing instead passes its pinned configured main to duplicate checking and its PR-owned close records to the shared publish rules. Effective fetch/push URLs bind GitHub identity; PR preparation pins and revalidates issue HEAD. These enforce the approved contract rather than widening scope. Corrected advisory PQ-1 architecture marker to ARCH-ORDER.
+
+### 2026-09-23 — Preserve work created on rest during cleanup
+
+Boundary finding BR-2 separates pre-integration/pre-switch cleanliness from
+post-return ref cleanup. `landingCheckoutReady` still rejects Git operations in
+every phase, but permits staged/unstaged/untracked resting work for an already
+integrated PR. The three cleanup interruption fixtures assert unchanged files,
+index bytes and resting SHA. No cleanup effect writes the resting files/index.

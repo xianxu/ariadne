@@ -1,6 +1,6 @@
 ---
 id: 000246
-status: working
+status: done
 deps: [ariadne#242, ariadne#243, ariadne#244, ariadne#245]
 github_issue:
 created: 2026-09-22
@@ -8,6 +8,7 @@ updated: 2026-09-23
 estimate_hours: 3.83
 started: 2026-09-23T15:24:19-07:00
 flow: {kind: full, provenance: operator}
+actual_hours: 3.63
 ---
 
 # Slots v2: land while retaining the workspace
@@ -54,7 +55,7 @@ Alternatives considered: only skipping worktree removal would still pull/archive
 | At rest, completed ref still at integrated head | Occupancy check and expected-SHA ref deletion | Preserve ref on changes; retry with `--branch` |
 | At rest, ref absent, integration/archive confirmed | Report complete | No publication or checkout mutation |
 
-The phase decisions are pure; Git/GitHub/archive effects stay behind existing IO seams. One invocation owns its effects, uses the existing common-directory SDLC lock, and starts no background worker. Git/editor processes outside that lock can still race: rechecks, Git collision checks and expected-SHA writes provide bounded protection, not an atomic lock over arbitrary external actors (ARCH-PURE, ARCH-STATE).
+The phase decisions are pure; Git/GitHub/archive effects stay behind existing IO seams. One invocation owns its effects, uses the existing common-directory SDLC lock, and starts no background worker. Git/editor processes outside that lock can still race: rechecks, Git collision checks and expected-SHA writes provide bounded protection, not an atomic lock over arbitrary external actors (ARCH-PURE, ARCH-ORDER).
 
 **Verification and boundaries.** Reuse local Git fixtures and add a stateful GitHub fake backed by a bare remote, exercising actual integration as merge/squash/rebase. Inject failures after merge, archive publication, return-to-rest and ref deletion; retries must not duplicate integration/archive. Assert byte/ref/config preservation for :0, a dirty primary, another active slot and independent dependency siblings. Test deleted remote issue branch, post-integration local commits, wrong/ambiguous PR target, queued-but-unmerged responses, query failure, uncertain publication, tracked/untracked/ignored collisions and occupancy races. Archive fixtures include independently published issue copies, unrelated codecomplete base changes, absent/wrong provenance, partial/conflicting moves and exact complete retry. Check configured non-origin remotes in both pr and merge. Keep legacy ordinary-worktree and dependency publication regressions, including dependency-first then parent landing. README, embedded help, atlas and project records describe the changed :0 behavior and explicit recovery.
 
@@ -75,10 +76,10 @@ Operating envelope: one selected repository/PR per invocation, serial bounded ob
 
 Implementation follows [the durable plan](../plans/000246-slots-v2-durable-slot-landing-plan.md), one atomic delivery and one close review.
 
-- [ ] Add structured exact GitHub integration evidence and expected-head merge.
-- [ ] Add scoped remote archive with authoritative retry proof.
-- [ ] Integrate durable PR/merge routing, safe return/deletion and interruption tests.
-- [ ] Update guidance and complete acceptance verification.
+- [x] Add structured exact GitHub integration evidence and expected-head merge.
+- [x] Add scoped remote archive with authoritative retry proof.
+- [x] Integrate durable PR/merge routing, safe return/deletion and interruption tests.
+- [x] Update guidance and complete acceptance verification.
 
 ## Log
 
@@ -87,12 +88,36 @@ Implementation follows [the durable plan](../plans/000246-slots-v2-durable-slot-
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
 
 ### 2026-09-23 — Landing audit and proposal
+- 2026-09-23: closed — Full workspace/SDLC suite passed before localized cleanup correction (known #210 fixture excluded); final landing/merge/archive/publish regressions passed 232.850s, including dirty-rest file/index preservation and active-operation refusal. Help tests, vet, build and diff-check pass. Stateful bare-Git dependency-first/retry/race fixtures, GH PR130 read-only conformance, parser fuzz and guard mutation checks passed.; review verdict: SHIP
 
 Claimed #246 and ran start-plan. Current merge invokes gh with local branch deletion, assumes origin, pulls/archives in primary and removes all linked worktrees. Read-only audit recommends early identity-based routing, structured exact PR evidence, remote archive through existing TrunkFile, and explicit branch retry instead of a receipt file. Live read-only PR130 evidence retains its deleted head SHA and pre-merge base SHA plus integration commit. No implementation started; design review/approval and full-flow durable planning precede estimates and code.
 
 ### 2026-09-23 — Spec review corrections
 
 Fresh review requested precise archive retry proof and PR-owned issue selection. Clarified that close anchors in the PR's own commit set select artifacts even when issue bodies were independently published, and that reachable archive commit provenance plus the complete artifact generation authorizes retry completion. Queue acceptance must be re-observed as merged integration; reserved resting refs cannot be cleanup targets. No receipt file or new landing command added. Fresh re-review approved the revised spec with no remaining important gaps; operator approval is pending before durable implementation planning and code.
+
+### 2026-09-23 — Implementation entry and integration findings
+
+Plan-quality round 2 accepted; estimate-quality accepted 3.83h and change-code created the issue branch. GH adapter isolated tests, parser fuzz and read-only PR130 conformance passed. Root integration fixtures observed missing archive behavior before implementation. Ad-hoc review found legacy origin-bound duplicate checking and body-diff publish enumeration; both are being routed through shared rules with pinned configured-main/PR-owned evidence. Effective URLs and selected PR branch/HEAD are revalidated. No landing or merge has been performed for #246.
+
+### 2026-09-23 — Acceptance verification
+
+Implemented durable primary/slot routing, structured expected-head GitHub integration, PR-owned remote archiving with complete retry proof, safe unchanged-rest return and compare-and-delete cleanup. Ordinary worktrees and dependency clones retain legacy flow. No journal or recursive publication added.
+
+Full `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -timeout=15m -skip '^TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory$'` passed (main package 812.590s; known #210 absent historical fixture excluded). The extra direct ordinary-worktree cleanup test passed in 3.076s. `go vet ./cmd/sdlc/...`, build, installed workspace/help smoke and diff-check passed. Read-only PR130 conformance passed; GH parser fuzz passed 242,204 executions. Stateful bare-Git fixtures cover merge/squash/rebase, cleanup interruptions, lost merge response, branch/occupancy races, archive CAS/unknown outcomes, lifecycle conflicts, unchanged baselines, dirty neighbors/dependencies and dependency-first publication. Mutations removing deletion CAS, accepting missing archive proof, advancing rest and reverting to body-diff publish selection each failed the intended fixture, then the restored implementation passed.
+
+Integration review corrections were implemented: effective fetch/push URL binding, PR HEAD revalidation, configured-main duplicate checking, owned-close publish selection, lifecycle generation and required-plan preservation. Boundary review is next; #246 is not merged.
+
+### 2026-09-23 — Boundary correction verified
+
+BR-2 regression first failed in all three cleanup phases, then passed with
+byte-preserved resting index/files. Final focused landing/merge/archive/publish
+regressions passed (232.850s), including active-operation refusal on rest and
+fresh-integration dirt refusal. Help tests, vet, build and diff-check also passed.
+The earlier full workspace/SDLC suite passed before this localized correction;
+no unaffected runtime surface changed. BR-1/BR-3 marker corrections are complete.
+
+- 2026-09-23: Close re-review returned SHIP, all BR findings addressed; reviewer independently reran landing/merge/PR/archive tests (170.927s). Measured actual 3.63h. Opened [PR131](https://github.com/xianxu/ariadne/pull/131), unmerged. Project acceptance published separately to Pair main via selected documentation commit (710d3de4), preserving concurrent #308 work.
 
 ## Revisions
 
@@ -107,6 +132,17 @@ Reason: trace the existing merge/PR/archive behavior against the agreed stable-w
 ### 2026-09-23 — Implementation authorized
 
 Operator approved the design, including Ariadne dependency first and Pair parent second. Delta: add the durable implementation plan and concrete task checklist; keep ordinary dependency flow and no recursive landing. Full-flow estimate follows plan-quality acceptance.
+
+### 2026-09-23 — Boundary review recovery correction
+
+BR-2 reproduced with real Git in three phases: edits immediately after switch,
+retry after return, and retry after issue-ref deletion. Cleanup now preserves
+staged, unstaged and untracked work on the resting checkout while revalidating
+identity, exact refs, occupancy and absence of active Git operations. Fresh
+integration and switching from the issue checkout still require tracked
+cleanliness. Regression fixtures compare resting file and index bytes.
+BR-1/BR-3: both live design artifacts now use ARCH-ORDER; historical review
+records retain their original finding text. Review completion remains pending.
 
 ## Estimate
 

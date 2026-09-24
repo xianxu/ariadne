@@ -37,7 +37,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `set-status`      | (new)                       | Status-transition guards. Moved under `sdlc issue set-status` (#56 M2); **hidden deprecated flat alias** kept one cycle |
 | `push`            | `make push`                 | Direct-on-main ship + the #124 instance-conformance gate (`--no-validate`) + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
-| `merge`           | `make merge`                | Branch merge (in-place or worktree) via PR + the #124 instance-conformance gate (`--no-validate`) + cleanup + irreversible-action confirm (#51) |
+| `merge`           | `make merge`                | PR landing with instance/publish gates and confirmation; :0/:N archive remotely and return to unchanged rest, ordinary worktrees/dependencies retain legacy cleanup |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| Allocate next ID + write canonical template (`--from-github N` seeds from GitHub) |
 | `issue sync`      | `make issue-sync ISSUE=N`   | Commit one issue locally under `#N: issue-sync: <what>`; `--push` publishes only the commit created by this invocation |
@@ -237,6 +237,43 @@ CRUD/authoring surface for the issue *record* — the noun-grouped home for
 `new` (and, post-#56-M2, `set-status`/`list`/`show`). The canonical issue-file
 template lives in one place: the `Render` function in `internal/issue/scaffold.go`,
 documented in prose by `sdlc issue --help`.
+
+
+## Durable PR landing
+
+`pr.go` and `merge.go` resolve workspace identity before legacy primary/origin
+lookups. For :0 and :N, `landing.go` uses the resting branch's single named
+remote tracking main; effective fetch/push destinations must identify the same
+supported GitHub repository. `sdlc pr` builds its window from fetched configured
+main and publishes the issue branch there. `ghlanding.go` binds a same-repository
+PR to exact head/base identity, submits an expected-head server merge, and checks
+MERGED plus reachable integration. Queue admission is not integration; already
+merged squash/rebase PRs use the original PR head and integration evidence.
+
+`landingarchive.go` owns the scoped remote-main archive through
+`gitx.TrunkFile.UpdateMany`: PR-owned close anchors select completed records,
+and one conditional commit moves issue/plan/review artifacts. Retry verifies
+reachable provenance and the complete archived generation before cleanup.
+Landing returns the selected checkout to unchanged `main` or `main-slotN`, then
+compare-and-deletes only the proven local issue ref and removes its configuration.
+Tracked dirt (including tracker edits), active Git operations, conflicting
+occupancy or uncertain evidence refuse. Noncolliding untracked/ignored files,
+sibling workspaces and the enclosing dependency environment remain intact.
+
+`sdlc merge --branch NAME --yes` resumes from the issue branch or its resting
+checkout. At rest only already merged work can resume; an absent ref still needs
+integration/archive proof before leftover branch configuration is cleaned up.
+Recovery uses Git/GitHub evidence, with no journal. Remote branch deletion is not
+added to this path. An intentionally old local resting tracker may still show a
+record archived remotely; refresh is explicit, never part of durable landing.
+
+Ordinary feature worktrees and private dependency clones retain legacy cleanup,
+including refresh of their own main and removal of ordinary feature worktrees.
+Ship a dependency such as Ariadne first through its normal SDLC flow, verify Pair
+against it, then land Pair separately. There is no recursive publication.
+See [workspace branching and landing](workspace-branching.md) for the procedure;
+`landing_test.go` uses real Git plus a stateful GitHub fake for preservation and
+interruption/retry coverage.
 
 ## The quick flow at close (#231)
 
@@ -615,7 +652,10 @@ cmd/sdlc/
   setstatus.go         new
   push.go              ← Makefile push:
   pr.go                ← Makefile pull-request:
-  merge.go             ← Makefile merge:
+  merge.go             ← Makefile merge; durable routing before legacy cleanup
+  landing.go           configured target, durable PR/merge and safe return/deletion
+  ghlanding.go         typed GitHub PR identity and expected-head merge
+  landingarchive.go    PR-owned remote archive and retry provenance
   milestoneclose.go    composition over close + judge milestone-review
   estimatesource.go    new (#134): `sdlc estimate-source` pull — names the shared
                        method + repo-local calibration doc (estimateSourceStatus
@@ -943,44 +983,18 @@ can't measure. Closes the hole where a hand-typed value (the failure #86's docs
 prime against) was trusted blindly — the doc fix removes the priming, this
 removes the blind trust. `milestone-close` inherits it (computes via `computeClose`).
 
-`push` and `merge` auto-dispatch `judge plan|specs|lessons` as pre-
-flight so the checks run consistently rather than as a remembered
-manual step. `milestone-close` auto-dispatches `judge milestone-review`
-as a post-action.
+`push` and `merge` use deterministic publish gates; LLM review belongs to
+`close` and `milestone-close`. Judges report findings rather than editing files;
+the implementing agent applies fixes before retrying the boundary.
 
-**Judges are read-only (#62).** A judge is a reviewer, not a doer — all
-categories run with a read-only tool allowlist (`Read,Grep,Glob,Bash`); they
-report findings and the main agent (full context) applies fixes. The `specs`
-judge used to auto-edit stale docs (`Edit,Write`), which let a *passing* gate
-leave the tree dirty and strand the subsequent merge. `merge` now also (a)
-re-asserts no **tracked** dirt immediately before the irreversible `gh pr merge`
-(refuse, don't strand), and (b) resumes an interrupted merge — a re-run detects
-an already-merged PR and finishes the local cleanup instead of erroring. The
-resume path is guarded (#148): before cleanup it fetches `origin/main` and counts
-`origin/main..origin/<branch>` (`countUnmerged`, fakeable seam); a nonzero count
-means a **reused branch name** (its old work shipped via that PR, new work piled on)
-→ `decideMergeAction` returns `actionResumeBlocked` and merge refuses *before* any
-switch/delete/archive, rather than silently stranding the new commits.
-The clean-tree guards (step 2 and the 9b re-assert) refuse only on tracked
-**code** changes via one pure `assessDirty(...).Refuse()` decision (#78);
-`assessDirty` buckets each porcelain line into Blocking / Untracked / Tracker.
-**Untracked** files survive `git switch main`, so they're surfaced as a warning,
-not a blocker — unrelated local WIP no longer forces a stash-around-the-merge
-detour. **Tracker** files (`workshop/issues|history/NNNNNN-*.md`) are likewise
-never blocking, tracked-modified *or* untracked (#82 M2): workflow-document
-changes are classified separately from code dirt, so a dirty issue file does not
-by itself gate a merge. Reservation and documentation publication follow #244. (Path matching reuses push.go's
-`isIssuePath`/`isHistoryPath`; the path is pulled by field-split, not column
-slice, since `worktreeDirty` whole-trims and strips the first line's leading
-status space.)
-Both behaviors have e2e regression coverage (#63, `merge_e2e_test.go`): a
-`tempRepo(t)` harness runs `runMerge` against a real throwaway repo + local bare
-origin (in-place topology), so switch/pull/archive/branch-delete execute for
-real. The unlock is a trio of `func`→`var` test seams — `die` (term.go,
-swapped for panic+recover via `expectDie`), `detectRepo` (fetch.go), and
-`runPreflightJudgesFn` (merge.go step 5, used to inject a tree-dirtying
-"judge"). `expectDie` is the reusable pattern for testing any `run*` verb's
-refusal path.
+The ordinary-worktree/dependency **legacy merge path** rechecks tracked code
+changes and resumes interrupted cleanup using `origin/main` ancestry checks.
+Its `assessDirty` helper separates Blocking / Untracked / Tracker entries:
+tracker edits and untracked files do not themselves block that legacy gate.
+`merge_e2e_test.go` explicitly exercises this legacy behavior with real local
+Git and injected GitHub responses. Durable :0/:N landing instead refuses all
+tracked dirt and uses exact PR integration plus remote archive evidence, as
+described above. Reservation and documentation publication follow #244.
 
 **Judge → classifier contract (#70).** One contract, both sides reference it:
 the human mirror is `construct/judge-output-contract.md`; the Go source of truth
@@ -1241,7 +1255,8 @@ never a directory-wide `git add issues/ history/`, which would also sweep
 unrelated untracked WIP onto main, #80), commits "archive completed issues to
 history", pushes, and exits without rerunning judges against an archive-only
 retry. The same precise-staging helper backs the non-recovery archive commit in
-both `push` and `merge`. The archive sweep also moves the issue's
+both `push` and the legacy `merge` path. Durable landing archives remotely
+through `landingarchive.go` instead. The legacy archive sweep also moves the issue's
 `workshop/plans/NNNNNN-*` artifacts (durable plan + review sidecars) into history
 alongside it (`archivePlanArtifacts`, #143); recovery reconstructs those plan
 moves too, but — since plan artifacts carry no terminal frontmatter — gates them
