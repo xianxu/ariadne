@@ -88,6 +88,12 @@ Project: [couch-slots-v2](../../../pair/workshop/projects/couch-slots-v2.md).
 
 ## Plan
 
+Engineering design and implementation have not started. Follow-up work:
+
+- [ ] Design the refresh operation around existing Weave discovery and setup mechanisms, following the agreed contract above.
+- [ ] Implement default fast-forward refresh and explicit rebase with captured targets, preflight and apply-time revalidation.
+- [ ] Verify failure/retry and preservation behavior with real Git fixtures and compile failure coverage; document the explicit workflow.
+
 ## Log
 
 ### 2026-09-23
