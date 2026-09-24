@@ -120,6 +120,16 @@ bounds declaration reads in discovery and retains existing acquisition output
 semantics. Issue schema validation passed. Awaiting engineering-plan approval;
 no implementation or estimate has started.
 
+### 2026-09-23 — Handoff to a new slot
+
+Operator requested committing and publishing the issue and plan to origin/main
+before resuming in a new slot. #247 is already claimed: resume it without another
+claim. Product decisions and the independently reviewed engineering plan are
+recorded here; no implementation, estimate or change-code gate has run. Concrete
+engineering-plan approval remains pending. Begin from current origin/main, which
+also contains #246's completed durable landing implementation; this primary's
+resting baseline was intentionally not refreshed after landing.
+
 ## Revisions
 
 ### 2026-09-23 — Explicit refresh replaces claim preparation
