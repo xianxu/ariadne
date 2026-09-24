@@ -1,13 +1,14 @@
 ---
 id: 000248
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-23
-updated: 2026-09-23
+updated: 2026-09-24
 estimate_hours:
 started: 2026-09-23T23:34:13-07:00
 flow: {kind: quick, provenance: inferred, spec: "50bdd523", done: "34aba0ca"}
+actual_hours: 0.73
 ---
 
 # Agent procedure: move this branch to :N
@@ -136,6 +137,8 @@ update that link title. AGENTS.base.md remains the agent entry point.
 
 ## Log
 
+
+- 2026-09-24: closed — Guide history commands run against real-Git fixture and identify parked commits against feature and configured upstream; fresh agent moved/built clean case and stopped on local-main divergence; README and AGENTS link procedure; Pair declaration closed in pair#318 and composed by weave.; review verdict: SHIP
 ### 2026-09-23
 
 - Filed from pair#316's session, where the move was done by hand: pair-slot1
