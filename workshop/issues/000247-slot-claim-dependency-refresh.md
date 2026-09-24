@@ -1,6 +1,6 @@
 ---
 id: 000247
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-23
@@ -8,6 +8,7 @@ updated: 2026-09-23
 estimate_hours: 4.24
 started: 2026-09-23T22:39:51-07:00
 flow: {kind: full, provenance: operator}
+actual_hours: 1.47
 ---
 
 # Explicitly refresh repositories and dependencies with Weave
@@ -99,6 +100,7 @@ Engineering plan: [explicit Weave refresh](../plans/000247-slot-claim-dependency
 ## Log
 
 ### 2026-09-23 — Acceptance verification
+- 2026-09-23: closed — Full go test ./cmd/weave/... ./pkg/layergraph/... ./pkg/workspace/... passes; refresh and acquire race suites pass; real-Git conformance, captured-SHA and preflight mutations, compile retry and setup-lease tests pass; 277083 framing fuzz executions; go vet, local bin/weave build/help and git diff --check pass.; review verdict: SHIP
 
 Full Weave/layergraph/workspace suites passed (refresh 41.874s, CLI 27.750s).
 Race suites passed for refresh (44.486s) and acquisition (13.224s). Vet, local

@@ -153,7 +153,7 @@ One atomic delivery and one SDLC close review; no Mx boundary tags.
 - [x] Document the contract above in README, atlas and CLI help. Confirm existing atlas index links remain valid; clarify ordinary compile preserves existing revisions.
 - [x] Run full Weave/layergraph/workspace tests, `go test -race ./cmd/weave/internal/refresh`, `go vet ./cmd/weave/...`, build `bin/weave` in this checkout, and smoke-test help in a temporary environment. No live refresh of this working checkout.
 - [x] Mutation-check ancestry refusal, captured-SHA application and all-repository preflight; each disabled guard must fail its test, then restore and verify. Record runtimes and evidence.
-- [ ] Update Log/lessons and commit. Close through `sdlc close --issue 247 --verified 'actual evidence'`, address review findings, open PR through SDLC. Merge only on operator instruction.
+- [x] Update Log/lessons and commit. Close through `sdlc close --issue 247 --verified 'actual evidence'`, address review findings, open PR through SDLC. Merge only on operator instruction.
 
 ## Review and approval
 
@@ -201,3 +201,11 @@ refresh engine and docs. All Weave/layergraph/workspace tests pass, including
 real-Git conformance, compile retry and setup-lease coverage. Refresh/acquisition
 race tests, vet, local binary build/help and diff checks pass. Boundary acceptance
 and PR publication remain; the final checklist item records that distinction.
+
+### 2026-09-23 — Boundary acceptance
+
+SDLC close returned SHIP with no findings (window 76c4e4c8..f3ba40b8),
+recorded measured 1.47h, and committed its project checklist update in Pair.
+The reviewer independently passed focused Weave suites; its broader SDLC run
+encountered an unrelated calibrate subprocess outside a Git repository.
+No SDLC runtime changes belong to this PR. PR publication follows acceptance.
