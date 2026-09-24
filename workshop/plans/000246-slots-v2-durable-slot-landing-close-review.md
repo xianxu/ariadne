@@ -80,3 +80,84 @@ findings:
     detail: |
       workshop/issues/000246-slots-v2-durable-slot-landing.md:57 cites ARCH-STATE, while the registry and corrected plan use ARCH-ORDER. Update the issue specification for consistent architectural traceability.
 ```
+
+---
+
+## Re-review — 2026-09-23T17:52:51-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 246 — Slots v2: land while retaining the workspace |
+| repo | ariadne |
+| issue file | workshop/issues/000246-slots-v2-durable-slot-landing.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 9977b163e4367cfbfa7ba249ccd6467578e13485..76b441b0ceda450f776576fbc41248ef9be63f23 |
+| command | sdlc close --issue 246 |
+| reviewer | codex |
+| timestamp | 2026-09-23T17:52:51-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The pinned range fulfills the issue’s plan and safely addresses all prior findings. Focused landing, merge, PR, and archive tests pass against real Git fixtures; documentation and architecture surfaces are updated.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      The live plan now uses ARCH-ORDER; historical review records retain the original finding text.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      landingCheckoutReady separates pre-integration cleanliness from post-return identity checks, with real-Git regression coverage in landing_test.go:610-676.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The issue specification now uses ARCH-ORDER at workshop/issues/000246-slots-v2-durable-slot-landing.md:57.
+```
+
+### Strengths
+
+1. Durable routing is reached before legacy lookup in `merge.go:262-269` and `pr.go`.
+2. Cleanup uses identity revalidation and compare-and-delete semantics in `landing.go:241-320`.
+3. Archive ownership and retry proof are scoped to PR ancestry with provenance validation in `landingarchive.go:139-193` and `403-522`.
+4. Real-Git/stateful GitHub fixtures cover merge strategies, interruption, retries, dirt preservation, and archive uncertainty.
+5. README, atlas, and command help document the new landing and recovery surfaces.
+
+### Critical findings
+
+None.
+
+### Important findings
+
+None.
+
+### Minor findings
+
+None.
+
+### Test coverage notes
+
+`go test ./cmd/sdlc -run 'TestLanding|TestMerge|TestPR|TestArchive' -count=1 -timeout=15m` passed in 170.927s. `git diff --check` also passed. The issue records the broader workspace/SDLC suite, vet, build, and mutation checks as previously completed; this review independently confirmed the focused boundary suite.
+
+### Architectural notes
+
+- ARCH-DRY: pass — archive naming, plan membership, and lifecycle transforms use shared helpers.
+- ARCH-PURE: pass — phase decisions are pure and effects use injected seams.
+- ARCH-PURPOSE: pass — :0/:N preservation, scoped archival, recovery, and legacy compatibility are all delivered.
+- ARCH-MOCK: pass — integration tests use stateful GitHub fakes and disposable bare Git remotes.
+- ARCH-CONSTRAINTS: pass — GitHub, commit, tree, and provenance bounds are explicit and enforced.
+- ARCH-SECURE: pass — repository identity, OIDs, paths, and external PR records are validated.
+- ARCH-ORDER: pass — phase transitions and cleanup ordering are explicit; dirty resting state is handled separately.
+- ARCH-FUNERAL: pass — completed issue branches/configuration are removed only after proven archive and integration.
+
+### Plan revision recommendations
+
+None.

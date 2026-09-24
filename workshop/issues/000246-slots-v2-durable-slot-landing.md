@@ -1,6 +1,6 @@
 ---
 id: 000246
-status: working
+status: codecomplete
 deps: [ariadne#242, ariadne#243, ariadne#244, ariadne#245]
 github_issue:
 created: 2026-09-22
@@ -8,6 +8,7 @@ updated: 2026-09-23
 estimate_hours: 3.83
 started: 2026-09-23T15:24:19-07:00
 flow: {kind: full, provenance: operator}
+actual_hours: 3.63
 ---
 
 # Slots v2: land while retaining the workspace
@@ -87,6 +88,7 @@ Implementation follows [the durable plan](../plans/000246-slots-v2-durable-slot-
 Created from the agreed workspace/UI contract and the request for a clean task breakdown. Implementation has not started; estimates follow design approval.
 
 ### 2026-09-23 — Landing audit and proposal
+- 2026-09-23: closed — Full workspace/SDLC suite passed before localized cleanup correction (known #210 fixture excluded); final landing/merge/archive/publish regressions passed 232.850s, including dirty-rest file/index preservation and active-operation refusal. Help tests, vet, build and diff-check pass. Stateful bare-Git dependency-first/retry/race fixtures, GH PR130 read-only conformance, parser fuzz and guard mutation checks passed.; review verdict: SHIP
 
 Claimed #246 and ran start-plan. Current merge invokes gh with local branch deletion, assumes origin, pulls/archives in primary and removes all linked worktrees. Read-only audit recommends early identity-based routing, structured exact PR evidence, remote archive through existing TrunkFile, and explicit branch retry instead of a receipt file. Live read-only PR130 evidence retains its deleted head SHA and pre-merge base SHA plus integration commit. No implementation started; design review/approval and full-flow durable planning precede estimates and code.
 

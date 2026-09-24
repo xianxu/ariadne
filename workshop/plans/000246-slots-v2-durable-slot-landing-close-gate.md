@@ -36,6 +36,24 @@ rounds:
           round: 2
       recipe: milestone-review
       blocked: true
+    - "n": 3
+      timestamp: "2026-09-23T17:52:51-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The live plan now uses ARCH-ORDER; historical review records retain the original finding text.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: landingCheckoutReady separates pre-integration cleanliness from post-return identity checks, with real-Git regression coverage in landing_test.go:610-676.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: The issue specification now uses ARCH-ORDER at workshop/issues/000246-slots-v2-durable-slot-landing.md:57.
+          round: 3
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#246 (boundary-review)
@@ -60,8 +78,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Minor] `architecture-marker-integrity` Issue specification retains undefined ARCH-STATE marker
   workshop/issues/000246-slots-v2-durable-slot-landing.md:57 cites ARCH-STATE, while the registry and corrected plan use ARCH-ORDER. Update the issue specification for consistent architectural traceability.
 
+## Round 3 — 2026-09-23T17:52:51-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The live plan now uses ARCH-ORDER; historical review records retain the original finding text.
+- BR-2 — addressed — landingCheckoutReady separates pre-integration cleanliness from post-return identity checks, with real-Git regression coverage in landing_test.go:610-676.
+- BR-3 — addressed — The issue specification now uses ARCH-ORDER at workshop/issues/000246-slots-v2-durable-slot-landing.md:57.
+
 ## Open findings
 
-- **BR-1** [Minor] `architecture-marker-integrity` Replace the undefined ARCH-STATE marker with ARCH-ORDER
-- **BR-2** [Critical] `resting-checkout-dirt-preservation` Post-switch cleanup rejects preserved tracked dirt on the resting branch
-- **BR-3** [Minor] `architecture-marker-integrity` Issue specification retains undefined ARCH-STATE marker
+(none — every finding has been disposed)
