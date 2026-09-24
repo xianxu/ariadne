@@ -7,6 +7,7 @@ created: 2026-09-23
 updated: 2026-09-23
 estimate_hours:
 started: 2026-09-23T23:34:13-07:00
+flow: {kind: quick, provenance: inferred, spec: "50bdd523", done: "34aba0ca"}
 ---
 
 # Agent procedure: move this branch to :N
