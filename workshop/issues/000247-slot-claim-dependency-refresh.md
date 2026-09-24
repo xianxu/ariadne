@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-23
 updated: 2026-09-23
-estimate_hours:
+estimate_hours: 4.24
 started: 2026-09-23T22:39:51-07:00
 flow: {kind: quick, provenance: inferred, spec: "9e3a113b", done: "4175b2aa"}
 ---
@@ -184,3 +184,37 @@ Project: [couch-slots-v2](../../../pair/workshop/projects/couch-slots-v2.md).
 - :0 peers, other environments and the host working branch remain unchanged.
 - Real Git fixtures cover fast-forward, already-current, refusal, partial failure and retry; compilation has observable failure/retry coverage.
 - Operator documentation explains the preparation step and explicit host refresh.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Calibration is stale; this is provisional.
+
+Issue/spec design uses 0.8h without discount because it includes the conversation;
+implementation is 0.2 × 0.4. Core model and refresh orchestration each use a
+1.5h greenfield design base, halved for existing Git/layergraph/acquisition
+libraries then multiplied by 0.2 for the settled plan; each implementation is
+0.8 × 0.4. Git integration uses 2 × 0.2 design and 1.5 × 0.4 implementation.
+Acquisition bounds and CLI each use 0.2 × 0.2 design and 0.4 × 0.4 implementation.
+Compile extraction uses 0.5 × 0.2 design and 0.5 × 0.4 implementation. Docs use
+0.1 × 0.2 design and 0.2 × 0.4 implementation; one close review uses 0.5 × 0.4
+implementation and live Git conformance uses 0.4 × 0.4. No new Git library is
+needed: existing adapters and the Git binary provide the mechanics; repository
+refresh policy is the new code. Familiarity 1.0, thorough-plan design buffer 15%,
+no vendor propagation overhead. Total: 1.70 × 1.15 + 2.28 = 4.235h, rounded 4.24h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.8 impl=0.08
+item: greenfield-go-module design=0.15 impl=0.32
+item: api-integration design=0.4 impl=0.6
+item: greenfield-go-module design=0.15 impl=0.32
+item: smaller-go-module design=0.04 impl=0.16
+item: cross-cutting-refactor design=0.1 impl=0.2
+item: smaller-go-module design=0.04 impl=0.16
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0 impl=0.2
+item: real-api-discovery design=0 impl=0.16
+design-buffer: 0.15
+total: 4.24
+```
