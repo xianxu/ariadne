@@ -52,6 +52,39 @@ inventory, compilation does not guess historical ownership. Compile dry-run
 performs no writes, package operations, builds, or generators and explicitly
 omits generator output and retirement from the preview.
 
+## Explicit refresh (#247)
+
+`weave refresh [--rebase]` adopts fetched `origin/main` snapshots for the host and
+its transitive substrate layers. `cmd/weave/refresh.go` owns CLI/setup lifetime;
+`cmd/weave/internal/refresh` owns pure eligibility/phase rules, Git observations,
+whole-set preflight and sequential application. Discovery reuses read-only
+`acquire.Client.Restore`, rejecting incomplete/missing checkouts; data mount
+repositories are not Git update subjects. There is no SDLC claim hook.
+
+Before branch updates, every repository must be clean (including nonignored
+untracked files and dirty submodules), attached and free of active Git operations.
+Default mode requires captured HEAD to be an ancestor of captured remote main;
+`--rebase` permits local commit replay. Update arguments use full captured SHAs,
+not moving refs. Checkout identity, branch, HEAD, origin and readiness are checked
+again before mutation. Target declaration changes refuse before application;
+read-only rediscovery and declaration comparison also precede compilation.
+
+Foundation-first updates retain current branch names. Failures report partial
+progress and stop; completed updates stay in place. Rebase conflicts use ordinary
+Git recovery, without automatic abort, stash or reset. Rerunning captures a new
+snapshot and always compiles after successful updates, even when refs are current.
+This is not an atomic transaction across repos or a lock against arbitrary Git
+writers. Numbered environments reuse the setup lease through Git and compilation;
+primary shared peers keep the existing cooperative setup limitations.
+
+`compilePrepared` shares the existing compile implementation under the caller's
+lease, avoiding a second setup acquisition. Builds retain the owner-local bin
+paths and existing machine-wide installation policy. Refresh introduces no
+receipt, persistent phase file or inventory. Default refresh bounds are 128
+layers, 1 MiB per dependency document, 4 MiB Git output and two minutes per Git
+command; limits refuse visibly rather than truncating inputs. Conformance tests
+exercise real temporary bare Git remotes through the same injected boundary.
+
 ## Distribution and ownership consumers
 
 `cmd/weave/version.go` defaults to `dev`; release preparation sets it from the

@@ -4,9 +4,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
 	"github.com/xianxu/ariadne/pkg/layergraph"
@@ -212,17 +214,17 @@ func (c Client) checkExisting(ctx context.Context, dir string, s Source, require
 	}
 	origin, err := c.Origin(ctx, dir)
 	if err != nil {
-		return fmt.Errorf("destination %s has no origin matching %s: %w", dir, s.URL, err)
+		return fmt.Errorf("inspect origin for destination %s; check its Git configuration: %w", dir, err)
 	}
 	if origin == "" {
-		return fmt.Errorf("destination %s has no origin matching %s", dir, s.URL)
+		return fmt.Errorf("destination %s has no origin; configure it to match construct/deps or choose another path", dir)
 	}
 	actual, err := sourceAt(origin, dir)
 	if err != nil {
-		return err
+		return fmt.Errorf("destination %s has an invalid origin; fix its Git configuration: %w", dir, err)
 	}
 	if actual.Identity != s.Identity {
-		return fmt.Errorf("destination %s origin %s conflicts with declared source %s; fix construct/deps or choose another path", dir, origin, s.URL)
+		return fmt.Errorf("destination %s origin conflicts with its declared source; fix construct/deps or choose another path", dir)
 	}
 	if requireLayer {
 		return manifest(dir)
@@ -255,6 +257,7 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 	destinationKinds := map[string]string{}
 	mounts := map[string]string{}
 	queue := []string{root}
+	queued := map[string]bool{root: true}
 	for len(queue) > 0 {
 		owner := queue[0]
 		queue = queue[1:]
@@ -262,7 +265,7 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 			continue
 		}
 		seen[owner] = true
-		content, err := os.ReadFile(filepath.Join(owner, "construct/deps"))
+		content, err := c.readDeclarations(filepath.Join(owner, "construct/deps"))
 		if os.IsNotExist(err) {
 			continue
 		}
@@ -313,6 +316,13 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 					}
 				}
 				dest = canonical(dest)
+				if !queued[dest] {
+					if c.MaxLayers > 0 && len(queued) >= c.MaxLayers {
+						return result, fmt.Errorf("dependency layer limit %d exceeded at %s", c.MaxLayers, dest)
+					}
+					queued[dest] = true
+					queue = append(queue, dest)
+				}
 				edges[owner] = append(edges[owner], dest)
 			}
 			if c.Policy != nil {
@@ -333,7 +343,7 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 			}
 			if src.Identity != "" {
 				if old, ok := destinations[dest]; ok && old != src.Identity {
-					return result, fmt.Errorf("destination %s has conflicting declared sources %s and %s", dest, old, src.Identity)
+					return result, fmt.Errorf("destination %s has conflicting declared sources; fix construct/deps or choose another path", dest)
 				}
 				destinations[dest] = src.Identity
 			}
@@ -343,7 +353,7 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 					return result, fmt.Errorf("missing substrate %s declared in %s: record its source in construct/deps", dest, owner)
 				}
 				if dryRun {
-					result.Missing = append(result.Missing, fmt.Sprintf("%s from %s", dest, src.URL))
+					result.Missing = append(result.Missing, dest)
 					continue
 				}
 				if err := c.Ensure(ctx, dest, src.URL, row.Kind == "substrate"); err != nil {
@@ -362,13 +372,10 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 			} else if err := manifest(dest); err != nil {
 				return result, err
 			}
-			if row.Kind == "substrate" {
-				queue = append(queue, dest)
-			}
 		}
 	}
 	if len(result.Missing) > 0 {
-		return result, fmt.Errorf("incomplete dependency graph (dry-run): missing %s", strings.Join(result.Missing, ", "))
+		return result, fmt.Errorf("incomplete dependency graph (dry-run): missing %s; restore declared dependencies and retry", strings.Join(result.Missing, ", "))
 	}
 	var err error
 	result.Layers, err = layergraph.Resolve(root, edges)
@@ -389,4 +396,59 @@ func mountTarget(owner, mount string) (string, error) {
 		return "", fmt.Errorf("data mount %q escapes %s through a parent symlink", mount, owner)
 	}
 	return filepath.Join(parent, filepath.Base(target)), nil
+}
+
+// ReadDeclarations reads a dependency document. A positive maxBytes rejects
+// nonordinary files and bounds the read before allocation; zero preserves the
+// ordinary acquisition behavior of os.ReadFile.
+func ReadDeclarations(path string, maxBytes int64) ([]byte, error) {
+	return (Client{MaxDeclarationBytes: maxBytes}).readDeclarations(path)
+}
+
+// readDeclarations keeps ordinary acquisition compatibility while allowing
+// refresh to reject nonordinary documents and cap reads before allocation.
+func (c Client) readDeclarations(path string) ([]byte, error) {
+	if c.MaxDeclarationBytes <= 0 {
+		return os.ReadFile(path)
+	}
+	st, err := os.Lstat(path)
+	if err != nil {
+		return nil, err
+	}
+	if !st.Mode().IsRegular() {
+		return nil, fmt.Errorf("dependency declaration %s must be an ordinary file", path)
+	}
+	if st.Size() > c.MaxDeclarationBytes {
+		return nil, fmt.Errorf("dependency declaration %s exceeds byte limit %d", path, c.MaxDeclarationBytes)
+	}
+	// Avoid following a replacement symlink or blocking on a replacement FIFO.
+	fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
+	if err != nil {
+		return nil, fmt.Errorf("open dependency declaration %s: %w", path, err)
+	}
+	f := os.NewFile(uintptr(fd), path)
+	defer f.Close()
+	st, err = f.Stat()
+	if err != nil {
+		return nil, err
+	}
+	if !st.Mode().IsRegular() {
+		return nil, fmt.Errorf("dependency declaration %s must be an ordinary file", path)
+	}
+	if st.Size() > c.MaxDeclarationBytes {
+		return nil, fmt.Errorf("dependency declaration %s exceeds byte limit %d", path, c.MaxDeclarationBytes)
+	}
+	content, err := io.ReadAll(io.LimitReader(f, c.MaxDeclarationBytes))
+	if err != nil {
+		return nil, err
+	}
+	var extra [1]byte
+	n, err := f.Read(extra[:])
+	if n > 0 {
+		return nil, fmt.Errorf("dependency declaration %s exceeds byte limit %d", path, c.MaxDeclarationBytes)
+	}
+	if err != nil && err != io.EOF {
+		return nil, err
+	}
+	return content, nil
 }

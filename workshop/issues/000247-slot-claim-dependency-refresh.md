@@ -90,13 +90,22 @@ Project: [couch-slots-v2](../../../pair/workshop/projects/couch-slots-v2.md).
 
 ## Plan
 
-Engineering plan: [explicit Weave refresh](../plans/000247-slot-claim-dependency-refresh-plan.md). Implementation awaits engineering-plan approval and the change-code gate. Follow-up work:
+Engineering plan: [explicit Weave refresh](../plans/000247-slot-claim-dependency-refresh-plan.md). Implementation was authorized in this checkout and passed the full change-code gates. Acceptance work:
 
-- [ ] Design the refresh operation around existing Weave discovery and setup mechanisms, following the agreed contract above.
-- [ ] Implement default fast-forward refresh and explicit rebase with captured targets, preflight and apply-time revalidation.
+- [x] Design the refresh operation around existing Weave discovery and setup mechanisms, following the agreed contract above.
+- [x] Implement default fast-forward refresh and explicit rebase with captured targets, preflight and apply-time revalidation.
 - [ ] Verify failure/retry and preservation behavior with real Git fixtures and compile failure coverage; document the explicit workflow.
 
 ## Log
+
+### 2026-09-23 — Implementation checkpoint
+
+Refresh, bounded Git/discovery, one-lease compile integration and documentation
+are implemented in the primary checkout. Focused CLI/core/acquisition tests passed;
+record-framing fuzzing passed 277,083 executions in 5s. Vet and the local bin/weave
+build/help smoke check passed. Full acceptance and race suites are running before
+the close review. Diagnostic regressions remove credential-bearing source URLs
+from acquisition errors while preserving checkout and recovery guidance.
 
 ### 2026-09-23
 
@@ -138,6 +147,16 @@ uses ~/workspace/ariadne/bin. This supersedes the new-slot handoff and pending
 approval notes. change-code created the issue branch; full-flow planning review
 is being completed before code. Gate feedback clarified test strategies and
 conformance cadence; project ticking remains owned by SDLC close.
+
+### 2026-09-23 — Implementation and focused verification
+
+Full-flow plan-quality and estimate-quality gates passed; the derived estimate
+is 4.24h (provisional/stale calibration). Integrated origin/main on the issue
+branch, preserving the resting main ref. Implemented bounded Git/discovery,
+explicit refresh orchestration and shared compile-under-lease integration.
+CLI fixtures pass for compile failure/retry, opt-in rebase and retained setup
+lease during real tool execution. Acquisition race tests passed. Broader
+acceptance and close review are pending. No live refresh of this checkout.
 
 ## Revisions
 

@@ -86,6 +86,34 @@ producers to stop; a dead parent alone is insufficient. Marker authors must
 migrate legacy scripts before they can run; see the
 [generator contract](atlas/workflow/weave.md#dynamic-skill-output-contract).
 
+## Explicit source refresh
+
+Run `weave refresh` from the repository root when you want to adopt newer source
+revisions. It discovers the host and its transitive substrate checkouts, requires
+all of them clean with no active Git operation, fetches each `origin/main`, and
+checks every checkout can fast-forward before advancing any working branch.
+Each update uses its captured target SHA and rechecks the starting branch/HEAD.
+A numbered host can stay on `main-slot1`; dependency clones stay on their current
+branches. On a primary checkout this explicitly includes its declared shared peers.
+
+```sh
+weave refresh          # all-repository preflight, fast-forward only, then compile
+weave refresh --rebase # explicitly permit replaying local commits, then compile
+```
+
+`--rebase` may rewrite local commits or stop with conflicts. Resolve or abort the
+Git operation explicitly before retrying. Completed repository updates remain
+after any later failure; there is no automatic stash, reset or rollback. Compile
+runs even when refs are already current, so retry also repairs a previous build
+or composition failure. A later remote advance waits for the next refresh.
+
+Refresh updates substrate repositories, not data-mount repositories. Missing
+checkouts require ordinary setup first. A target that changes parsed dependency
+declarations refuses before branch updates: reconcile that declaration change
+separately so every update stays inside the preflighted graph. Ordinary compile
+preserves existing Git revisions, and claiming an issue never invokes refresh.
+See [refresh behavior and implementation](atlas/workflow/weave.md#explicit-refresh-247).
+
 ## Standalone consumers and maintainer setup
 
 A consumer owns its root `Makefile`, including its product targets and an

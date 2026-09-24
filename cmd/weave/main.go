@@ -41,6 +41,7 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/xianxu/ariadne/cmd/weave/internal/acquire"
 	"github.com/xianxu/ariadne/cmd/weave/internal/golden"
 	"github.com/xianxu/ariadne/cmd/weave/internal/layer"
 	"github.com/xianxu/ariadne/cmd/weave/internal/plan"
@@ -78,6 +79,7 @@ func buildRoot() *cobra.Command {
 		// RunE intentionally nil: the bare command is help-only (no compile).
 	}
 	cmd.AddCommand(buildCompile())
+	cmd.AddCommand(buildRefresh())
 	cmd.AddCommand(buildGolden())
 	cmd.AddCommand(buildVerifyComplete())
 	cmd.AddCommand(buildSkills())
@@ -468,6 +470,12 @@ func runCompile(ctx context.Context, fs weavefs.FS, root string, target plan.Tar
 		return err
 	}
 	defer func() { retErr = errors.Join(retErr, closeSetup()) }()
+	return compilePrepared(ctx, fs, root, target, dryRun, out, client, runner)
+}
+
+// compilePrepared composes under the caller-owned setup lease. Refresh reuses
+// this body without releasing or reacquiring that lease between Git and builds.
+func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target plan.Target, dryRun bool, out io.Writer, client acquire.Client, runner weavefs.ExecRunner) (retErr error) {
 	// Preserve lexical numbered-environment evidence until discovery has
 	// rejected redirected checkouts; then normalize paths for composition.
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {

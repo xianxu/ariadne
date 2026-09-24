@@ -32,7 +32,7 @@
 | buildRefresh / runRefresh | cmd/weave/refresh.go | new | Cobra, setup context, refresh engine, compile |
 | compilePrepared | cmd/weave/main.go | new extraction | existing compile body after prepareSetup |
 | prepareSetup | cmd/weave/environment.go | reused | verified environment policy and inherited setup lease |
-| Git model | cmd/weave/internal/refresh/fake_test.go | new test fixture | mutable refs, graph, dirty/operation state, failures and ordering |
+| Git model | cmd/weave/internal/refresh/refresh_test.go | new test fixture | mutable refs, graph, dirty/operation state, failures and ordering |
 
 `discoverRefresh` wraps `Restore(ctx, root, true)` for read-only discovery/validation. It refuses either a returned error or nonempty `Result.Missing` before any fetch/update, then consumes `Result.Layers`, already deduplicated and foundation-first. Existing Restore already returns an incomplete-graph error after traversal when Missing is nonempty (`cmd/weave/internal/acquire/acquire.go:370–372`); the wrapper makes refresh's strict contract explicit without relying solely on that current implementation detail or changing ordinary setup behavior. It does not clone during preflight. Missing checkouts receive guidance to run ordinary setup first. Source-less substrate declarations retain existing behavior: the existing checkout must still have a usable origin/main for refresh.
 
@@ -101,22 +101,19 @@ No new durable receipt, index or inventory. Reuse existing setup lock and compil
 | `parseOID`, `parseBranch`, `parseRecord` | Fuzz malformed/truncated/framing inputs; reject ambiguity and preserve path bytes. |
 | `observe`, `readDeclarations` | Real Git and bounded file fixtures: errors/active operations/dirty state cannot become readiness, nonordinary or excessive input cannot become declarations. |
 | `discoverRefresh` | Missing/incomplete results must refuse before fetch; `TestRefreshMissingCheckout` verifies no mutations, while existing `TestRestoreDryRunMissingAndLocalCycle` and `TestCompileDryRunDoesNotMutate` defend ordinary setup semantics. |
-| `Prepare` | Mutable stateful backend: any repository's blocker prevents every branch update; prove by independent snapshots of refs/index/files. |
-| `revalidate`, `Prepared.Apply` | Inject external changes at each observation/effect boundary; only the captured SHA is a destination and stale starting evidence prevents the next effect. |
+| `Run` preflight | Mutable stateful backend: any repository's blocker prevents every branch update; prove by independent snapshots of refs/index/files. |
+| `revalidate`, `Run` application | Inject external changes at each observation/effect boundary; only the captured SHA is a destination and stale starting evidence prevents the next effect. |
 | `runRefresh`, `compilePrepared` | Real command/compile with portable tool fixtures: compile happens once after confirmed updates, retry runs compile even for current refs, and one lease spans both. |
 | `acquire.Client.Restore` | Adversarial graph/document input with a counting backend: reject at configured limits before unbounded work/allocation; existing unlimited callers remain compatible. |
 
-`TestGitConformance` runs the same observation/update contract through the stateful
-Git model and real `acquire.ExecGit` on temporary bare remotes and clones. Compare
-semantic outcomes, not generated SHA identity: branch/ref relationships, target
-selection, dirty/operation refusal, update preservation and conflict state.
-The model stores commits/ancestry, working branch/HEAD, index/dirt, remote refs,
-declarations and operation state; injected events deterministically move those
-values or interrupt an effect. Production and tests use the same GitRunner seam.
-Conformance runs on **every** `go test ./cmd/weave/internal/refresh`, hence in the
-full acceptance command and future CI when that package is run. This is live Git
-conformance without external credentials/network, not a separate scheduled job.
-Compilation tests reuse real owned Weave code and temporary fake brew/make payloads.
+`TestGitConformance` exercises the same GitRunner contract directly and through
+a stateful repository-backed event adapter. Temporary real Git repositories own
+the graph, refs, index, files and operation state; the adapter injects external
+changes and uncertain responses at deterministic IO boundaries. This reuses Git's
+actual semantics rather than maintaining a second implementation of Git. Additional
+sequence tests drive the same adapter through rebase, conflict and interruption.
+Conformance runs on every package test invocation, with no network or credentials.
+Compilation tests reuse real owned Weave code and temporary tool payloads.
 
 ## Chunk 1: Implementation and acceptance
 
@@ -124,7 +121,7 @@ One atomic delivery and one SDLC close review; no Mx boundary tags.
 
 ### Task 1: Pure refresh contract and Git probes
 
-**Files:** create `cmd/weave/internal/refresh/model.go`, `model_test.go`, `git.go`, `git_test.go`, `fake_test.go`; extend `cmd/weave/internal/acquire/git.go` without changing existing caller semantics.
+**Files:** create `cmd/weave/internal/refresh/model.go`, `model_test.go`, `git.go`, `refresh_test.go`; extend `cmd/weave/internal/acquire/git.go` without changing existing caller semantics.
 
 - [ ] Write failing tests for `eligibility`, `advance`, parsers and Git probes using the strategy table.
 - [ ] Run `go test ./cmd/weave/internal/refresh -count=1`; confirm intended failures, then implement typed snapshots/prepared state and rules.
@@ -135,7 +132,7 @@ One atomic delivery and one SDLC close review; no Mx boundary tags.
 
 **Files:** create `cmd/weave/internal/refresh/refresh.go`, `refresh_test.go`; modify `cmd/weave/internal/acquire/acquire.go`, `git.go` for bounded discovery options; add colocated acquisition regression tests.
 
-- [ ] Write failing `Prepare`, `revalidate`, `Prepared.Apply` and bounded-discovery tests per the strategy table, using real Git checkouts plus deterministic external-event injection.
+- [ ] Write failing `Run`, `revalidate` and bounded-discovery tests per the strategy table, using real Git checkouts plus deterministic external-event injection.
 - [ ] Implement read-only Restore integration, sequential preflight, immutable targets, graph comparison and transition-controlled updates with accurate partial-progress reporting.
 - [ ] Implement apply-time/final revalidation and failure recovery behavior from the contract above; no automatic rollback or acquisition of unchecked repositories.
 - [ ] Run `go test ./cmd/weave/internal/refresh ./cmd/weave/internal/acquire -count=1`, then commit.
@@ -160,7 +157,7 @@ One atomic delivery and one SDLC close review; no Mx boundary tags.
 
 ## Review and approval
 
-This is the concrete engineering plan for the agreed product behavior. The topology-change refusal and substrate-only refresh boundary are explicit implementation constraints for review. No code has changed; implementation follows plan approval and the change-code gate. Estimate follows plan-quality acceptance, not before it.
+Implementation is authorized in this checkout. Full-flow plan-quality accepted after three rounds; estimate-quality accepted the derived provisional 4.24h with advisory optimism notes. The topology-change refusal and substrate-only refresh boundary remain the agreed implementation constraints.
 
 ## Revisions
 
@@ -186,3 +183,13 @@ Missing results before fetch/update. This explicitly guards the boundary while
 preserving Restore and ordinary compile/dependencies semantics; named regression
 coverage distinguishes these paths. The current Restore already returns an
 incomplete-graph error at the end of traversal, which the reviewer had missed.
+
+### 2026-09-23 — Implementation structure and regression discoveries
+
+The engine keeps one Run orchestration with a private Prepared snapshot set,
+rather than exporting separate preparation/application entrypoints. Its stateful
+Git fixture uses real temporary repositories plus deterministic event injection;
+there is no second Git implementation to maintain. Acquisition now exposes one
+bounded ReadDeclarations helper reused by refresh. Tests exposed predicate-exit
+error ambiguity after cancellation/overflow and ignored-path collisions in
+intermediate rebase commits; both classes were corrected with regressions.
