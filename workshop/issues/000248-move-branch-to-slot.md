@@ -72,9 +72,12 @@ maps the operator's words to the procedure.
 
 - `workspace-branching.md` has the "Move this branch to :N" section covering
   steps 1–6, including the untracked-file rule and the local-only-commits
-  decision before switching.
+  decision before switching. Its history check explicitly compares destination
+  rest to both the feature and the configured upstream; the real-Git fixture
+  exercises both comparisons.
 - The AGENTS.md base layer points the phrase at it; propagated downstream.
-- pair's `AGENTS.local.md` declares its post-move build (`make build` in :0).
+- Pair's `AGENTS.local.md` declares its post-move build (`make build` in :0),
+  delivered through Pair-owned issue pair#318 and its own close/merge boundary.
 - Dry run: a fresh agent session told "move this branch to :0" from a pair slot
   performs the procedure without further explanation.
 
