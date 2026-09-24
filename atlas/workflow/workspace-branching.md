@@ -144,6 +144,20 @@ from the issue checkout require tracked cleanliness.
 
 ## Explicitly refresh a resting slot
 
+To refresh the host **and** its private substrate dependencies together, run
+`weave refresh` from the resting checkout. It preflights every repository before
+any working branch advances, then fast-forwards current branches to captured
+origin/main commits and compiles. Use `weave refresh --rebase` only when replaying
+local commits is intended; conflicts require explicit resolution. Dirty work and
+active Git operations refuse in both modes. Updates already completed remain on
+later failure, and ordinary retry recompiles even when refs have not moved.
+
+This operation also works from :0, where the explicitly selected substrates are
+shared siblings. Data mounts are not rebased. Changed dependency declarations
+require separate reconciliation; see [Weave refresh](weave.md#explicit-refresh-247).
+The manual procedure below remains available for refreshing the host alone or
+using its configured upstream remote instead of origin.
+
 1. Resolve the target and require it on its resting branch, ready as above.
    An active issue branch refuses; returning to rest is a separate explicit
    action after preserving its work. Capture resting HEAD and upstream config.

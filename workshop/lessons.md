@@ -133,3 +133,8 @@ The simplest durable authority beats a clever scan of consequences.
 - Scope cleanliness to effects: integration/switching need a clean issue checkout,
   while proven ref-only cleanup on rest can preserve new staged and unstaged work.
   Test both immediate post-switch edits and retries after each cleanup effect.
+
+- A cancelled or output-limited Git command has no trustworthy predicate exit code;
+  keep those errors distinct from completed `exit 1` absence/ancestry results.
+- Rebase overwrite checks must cover paths touched by intermediate replay commits,
+  including files deleted again before HEAD, not only the target and final trees.

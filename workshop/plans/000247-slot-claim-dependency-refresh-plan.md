@@ -32,9 +32,9 @@
 | buildRefresh / runRefresh | cmd/weave/refresh.go | new | Cobra, setup context, refresh engine, compile |
 | compilePrepared | cmd/weave/main.go | new extraction | existing compile body after prepareSetup |
 | prepareSetup | cmd/weave/environment.go | reused | verified environment policy and inherited setup lease |
-| Git model | cmd/weave/internal/refresh/fake_test.go | new test fixture | mutable refs, graph, dirty/operation state, failures and ordering |
+| Git model | cmd/weave/internal/refresh/refresh_test.go | new test fixture | mutable refs, graph, dirty/operation state, failures and ordering |
 
-`Restore(ctx, root, true)` performs read-only discovery/validation and refuses a missing checkout. Refresh consumes `Result.Layers`, already deduplicated and foundation-first. It does not clone during preflight. Missing checkouts receive guidance to run ordinary setup first. Source-less substrate declarations retain existing behavior: the existing checkout must still have a usable origin/main for refresh.
+`discoverRefresh` wraps `Restore(ctx, root, true)` for read-only discovery/validation. It refuses either a returned error or nonempty `Result.Missing` before any fetch/update, then consumes `Result.Layers`, already deduplicated and foundation-first. Existing Restore already returns an incomplete-graph error after traversal when Missing is nonempty (`cmd/weave/internal/acquire/acquire.go:370–372`); the wrapper makes refresh's strict contract explicit without relying solely on that current implementation detail or changing ordinary setup behavior. It does not clone during preflight. Missing checkouts receive guidance to run ordinary setup first. Source-less substrate declarations retain existing behavior: the existing checkout must still have a usable origin/main for refresh.
 
 Only the host and transitive `substrate` dependencies are Git refresh subjects. `data` mounts keep their existing compile/acquisition behavior; they are not Ariadne layers and are not rebased by refresh. Their declarations remain part of the topology check described below. No new declaration parser or path inventory (ARCH-DRY).
 
@@ -92,53 +92,72 @@ Treat Git stdout, paths, remote config and declaration blobs as parsed external 
 
 No new durable receipt, index or inventory. Reuse existing setup lock and compilation ownership/staging lifecycle. Git retains fetched objects and reflogs under its normal maintenance. Interrupted rebases retain standard Git state until explicitly resolved or aborted (ARCH-FUNERAL).
 
+## Test strategy and conformance
+
+| Function | Strategy and mechanical guard |
+|---|---|
+| `eligibility` | Pure relation/mode table: only equality/ancestry authorize default mode; mutation of this predicate must fail the table. |
+| `advance` | Exhaustive state/event matrix and generated event sequences: no apply before ready and no compile before all confirmed updates. |
+| `parseOID`, `parseBranch`, `parseRecord` | Fuzz malformed/truncated/framing inputs; reject ambiguity and preserve path bytes. |
+| `observe`, `readDeclarations` | Real Git and bounded file fixtures: errors/active operations/dirty state cannot become readiness, nonordinary or excessive input cannot become declarations. |
+| `discoverRefresh` | Missing/incomplete results must refuse before fetch; `TestRefreshMissingCheckout` verifies no mutations, while existing `TestRestoreDryRunMissingAndLocalCycle` and `TestCompileDryRunDoesNotMutate` defend ordinary setup semantics. |
+| `Run` preflight | Mutable stateful backend: any repository's blocker prevents every branch update; prove by independent snapshots of refs/index/files. |
+| `revalidate`, `Run` application | Inject external changes at each observation/effect boundary; only the captured SHA is a destination and stale starting evidence prevents the next effect. |
+| `runRefresh`, `compilePrepared` | Real command/compile with portable tool fixtures: compile happens once after confirmed updates, retry runs compile even for current refs, and one lease spans both. |
+| `acquire.Client.Restore` | Adversarial graph/document input with a counting backend: reject at configured limits before unbounded work/allocation; existing unlimited callers remain compatible. |
+
+`TestGitConformance` exercises the same GitRunner contract directly and through
+a stateful repository-backed event adapter. Temporary real Git repositories own
+the graph, refs, index, files and operation state; the adapter injects external
+changes and uncertain responses at deterministic IO boundaries. This reuses Git's
+actual semantics rather than maintaining a second implementation of Git. Additional
+sequence tests drive the same adapter through rebase, conflict and interruption.
+Conformance runs on every package test invocation, with no network or credentials.
+Compilation tests reuse real owned Weave code and temporary tool payloads.
+
 ## Chunk 1: Implementation and acceptance
 
 One atomic delivery and one SDLC close review; no Mx boundary tags.
 
 ### Task 1: Pure refresh contract and Git probes
 
-**Files:** create `cmd/weave/internal/refresh/model.go`, `model_test.go`, `git.go`, `git_test.go`, `fake_test.go`.
+**Files:** create `cmd/weave/internal/refresh/model.go`, `model_test.go`, `git.go`, `refresh_test.go`; extend `cmd/weave/internal/acquire/git.go` without changing existing caller semantics.
 
-- [ ] Write failing pure tests for default eligibility (equal/behind/ahead/diverged), rebase eligibility, full-set blockers, and every legal/illegal phase transition.
-- [ ] Run `go test ./cmd/weave/internal/refresh -count=1`; confirm intended failures, then implement typed snapshots/prepared state and pure rules.
-- [ ] Add a stateful Git model behind the production Git seam, with captured target movement, starting-state mutation, active operation, command failure and uncertain completion events.
-- [ ] Reuse acquire.GitRunner and extend the existing ExecGit adapter with an opt-in raw-output/bounded execution path for refresh, preserving acquisition callers. Implement Git probes with exit-code-aware ancestry/missing-value handling, origin binding, clean/no-operation checks and precise target capture. Add bare-repository conformance tests for each consumed Git behavior, run every test invocation (no network required).
-- [ ] Run package tests and commit the verified unit.
+- [x] Write failing tests for `eligibility`, `advance`, parsers and Git probes using the strategy table.
+- [x] Run `go test ./cmd/weave/internal/refresh -count=1`; confirm intended failures, then implement typed snapshots/prepared state and rules.
+- [x] Reuse acquire.GitRunner; add opt-in raw/bounded execution to ExecGit, with cancellation and inherited setup descriptors. Implement probes and the stateful model through the shared seam.
+- [x] Run pure, probe and `TestGitConformance` tests; commit the verified unit.
 
 ### Task 2: Discovery, preflight and update orchestration
 
-**Files:** create `cmd/weave/internal/refresh/refresh.go`, `refresh_test.go`; modify `cmd/weave/internal/acquire/acquire.go`, `git.go` only for a bounded discovery option if needed; add colocated acquisition regression tests.
+**Files:** create `cmd/weave/internal/refresh/refresh.go`, `refresh_test.go`; modify `cmd/weave/internal/acquire/acquire.go`, `git.go` for bounded discovery options; add colocated acquisition regression tests.
 
-- [ ] Write real-Git fixtures for host plus diamond dependencies, including a numbered host on main-slot1 and private ordinary clones. Verify discovery deduplication and source/topology refusal through the existing Restore path.
-- [ ] Add failing cases for dirty/active/ahead/divergent later repositories: snapshot every branch/index/file and prove no branch advances before all preflight checks succeed. Fetch failure and missing main are blockers too.
-- [ ] Implement sequential preflight and updates to captured SHAs with state transitions and immutable snapshots. Read declarations at captured targets and reject graph/source/mount changes before mutation; allow comment-only changes.
-- [ ] Inject ref movement after target capture and before apply. Prove target ref movement cannot change the destination; branch/HEAD/identity/dirt changes stop safely. Simulate failure before and after a real completed Git update to verify accurate partial-progress reporting and retry.
-- [ ] Add rebase fixtures for local commit replay, conflicts, user-resolved retry and preservation of other branch refs. Exercise cancellation, output/declaration/graph limits and active submodules.
-- [ ] Run `go test ./cmd/weave/internal/refresh ./cmd/weave/internal/acquire -count=1`, then commit.
+- [x] Write failing `Run`, `revalidate` and bounded-discovery tests per the strategy table, using real Git checkouts plus deterministic external-event injection.
+- [x] Implement read-only Restore integration, sequential preflight, immutable targets, graph comparison and transition-controlled updates with accurate partial-progress reporting.
+- [x] Implement apply-time/final revalidation and failure recovery behavior from the contract above; no automatic rollback or acquisition of unchecked repositories.
+- [x] Run `go test ./cmd/weave/internal/refresh ./cmd/weave/internal/acquire -count=1`, then commit.
 
 ### Task 3: CLI and shared compile integration
 
 **Files:** create `cmd/weave/refresh.go`, `refresh_test.go`; modify `cmd/weave/main.go`, `environment.go` only as needed, `environment_test.go` and relevant startup tests.
 
-- [ ] Write command tests for `refresh`, `--rebase`, unexpected args and help; register `buildRefresh` with no implicit bare-command or claim behavior change.
-- [ ] Extract `compilePrepared` with no semantic change to ordinary compile. Wire refresh through one prepareSetup/close lifetime, invoking compile on every successful pass including no-op refs.
-- [ ] Test compile failure after successful updates, ordinary retry with unchanged refs, and actual generated output changing after dependency refresh. Use portable fake brew/make tools with observable counters/failures and existing real compile fixtures.
-- [ ] Verify lease retention across update and compile, competing setup refusal, and cancellation/child cleanup. Assert other slots, primary checkouts, unrelated files and external tool suppliers remain untouched.
-- [ ] Run `go test ./cmd/weave/... ./pkg/layergraph/... ./pkg/workspace/... -count=1`, then commit.
+- [x] Write failing command and compile-orchestration tests per the strategy table.
+- [x] Register `buildRefresh`; extract `compilePrepared` without changing ordinary compile behavior. Wire refresh through one prepareSetup/close lifetime and always compile successful passes.
+- [x] Verify lease lifetime and independent-environment preservation through existing real setup fixtures; verify cancellation leaves no command-owned child running.
+- [x] Run `go test ./cmd/weave/... ./pkg/layergraph/... ./pkg/workspace/... -count=1`, then commit.
 
 ### Task 4: Documentation, verification and publication
 
-**Files:** modify `README.md`, `atlas/workflow/weave.md`, `atlas/workflow/workspace-branching.md`; update issue and this plan. Update the referenced Pair project at acceptance without touching concurrent work there.
+**Files:** modify `README.md`, `atlas/workflow/weave.md`, `atlas/workflow/workspace-branching.md`; update issue and this plan. No implementation step edits Pair: leave referencing project discovery/ticking to the existing SDLC close gate. Any final peer publication must select only this issue's documentation delta through `sdlc issue publish`, preserving concurrent peer work; it is not a runtime or blocking dependency.
 
-- [ ] Document default safety, origin/main target, --rebase, explicit :0/slot scope, topology-change refusal, always-compile retry and partial progress. Clarify compile itself does not update existing Git revisions. Atlas index already links the modified pages; confirm links remain valid.
-- [ ] Run the full Weave/layergraph/workspace tests, `go test -race ./cmd/weave/internal/refresh`, `go vet ./cmd/weave/...`, build Weave and smoke-test help in a temporary environment. No live refresh of this working checkout.
-- [ ] Mutation-check default ancestry refusal, captured-SHA application and all-repo preflight by temporarily disabling each guard; the corresponding tests must fail, then restore and verify. Record measured fixture runtimes and actual test evidence.
-- [ ] Update Log/lessons and commit. Close through `sdlc close --issue 247 --verified 'actual evidence'`, address review findings, open PR through SDLC. Merge only on operator instruction.
+- [x] Document the contract above in README, atlas and CLI help. Confirm existing atlas index links remain valid; clarify ordinary compile preserves existing revisions.
+- [x] Run full Weave/layergraph/workspace tests, `go test -race ./cmd/weave/internal/refresh`, `go vet ./cmd/weave/...`, build `bin/weave` in this checkout, and smoke-test help in a temporary environment. No live refresh of this working checkout.
+- [x] Mutation-check ancestry refusal, captured-SHA application and all-repository preflight; each disabled guard must fail its test, then restore and verify. Record runtimes and evidence.
+- [x] Update Log/lessons and commit. Close through `sdlc close --issue 247 --verified 'actual evidence'`, address review findings, open PR through SDLC. Merge only on operator instruction.
 
 ## Review and approval
 
-This is the concrete engineering plan for the agreed product behavior. The topology-change refusal and substrate-only refresh boundary are explicit implementation constraints for review. No code has changed; implementation follows plan approval and the change-code gate. Estimate follows plan-quality acceptance, not before it.
+Implementation is authorized in this checkout. Full-flow plan-quality accepted after three rounds; estimate-quality accepted the derived provisional 4.24h with advisory optimism notes. The topology-change refusal and substrate-only refresh boundary remain the agreed implementation constraints.
 
 ## Revisions
 
@@ -148,3 +167,45 @@ The independent spec/plan reviewer approved with no blocking findings. Clarified
 that the dependency-document read limit applies inside reused discovery before
 allocation, and that raw Git output must preserve acquisition caller semantics.
 Engineering-plan approval remains the next step; no implementation has started.
+
+### 2026-09-23 — Implementation authorized in the primary checkout
+
+Operator requested continuing here because local PATH uses this checkout's bin/.
+This supersedes the new-slot handoff and pending approval text above. Plan gate
+PQ-1/2/3 refinements name test functions/strategies, define shared real-Git/model
+conformance on every package run, and leave peer-project ticking to SDLC close.
+The implementation contract is unchanged. No runtime code has changed yet.
+
+### 2026-09-23 — Strict discovery contract clarified
+
+PQ-4: refresh uses discoverRefresh to reject both discovery errors and nonempty
+Missing results before fetch/update. This explicitly guards the boundary while
+preserving Restore and ordinary compile/dependencies semantics; named regression
+coverage distinguishes these paths. The current Restore already returns an
+incomplete-graph error at the end of traversal, which the reviewer had missed.
+
+### 2026-09-23 — Implementation structure and regression discoveries
+
+The engine keeps one Run orchestration with a private Prepared snapshot set,
+rather than exporting separate preparation/application entrypoints. Its stateful
+Git fixture uses real temporary repositories plus deterministic event injection;
+there is no second Git implementation to maintain. Acquisition now exposes one
+bounded ReadDeclarations helper reused by refresh. Tests exposed predicate-exit
+error ambiguity after cancellation/overflow and ignored-path collisions in
+intermediate rebase commits; both classes were corrected with regressions.
+
+### 2026-09-23 — Acceptance evidence
+
+Implementation checkpoint b7eb415 contains the completed CLI, Git integration,
+refresh engine and docs. All Weave/layergraph/workspace tests pass, including
+real-Git conformance, compile retry and setup-lease coverage. Refresh/acquisition
+race tests, vet, local binary build/help and diff checks pass. Boundary acceptance
+and PR publication remain; the final checklist item records that distinction.
+
+### 2026-09-23 — Boundary acceptance
+
+SDLC close returned SHIP with no findings (window 76c4e4c8..f3ba40b8),
+recorded measured 1.47h, and committed its project checklist update in Pair.
+The reviewer independently passed focused Weave suites; its broader SDLC run
+encountered an unrelated calibrate subprocess outside a Git repository.
+No SDLC runtime changes belong to this PR. PR publication follows acceptance.

@@ -1,13 +1,14 @@
 ---
 id: 000247
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-23
 updated: 2026-09-23
-estimate_hours:
+estimate_hours: 4.24
 started: 2026-09-23T22:39:51-07:00
 flow: {kind: full, provenance: operator}
+actual_hours: 1.47
 ---
 
 # Explicitly refresh repositories and dependencies with Weave
@@ -90,13 +91,33 @@ Project: [couch-slots-v2](../../../pair/workshop/projects/couch-slots-v2.md).
 
 ## Plan
 
-Engineering plan: [explicit Weave refresh](../plans/000247-slot-claim-dependency-refresh-plan.md). Implementation awaits engineering-plan approval and the change-code gate. Follow-up work:
+Engineering plan: [explicit Weave refresh](../plans/000247-slot-claim-dependency-refresh-plan.md). Implementation was authorized in this checkout and passed the full change-code gates. Acceptance work:
 
-- [ ] Design the refresh operation around existing Weave discovery and setup mechanisms, following the agreed contract above.
-- [ ] Implement default fast-forward refresh and explicit rebase with captured targets, preflight and apply-time revalidation.
-- [ ] Verify failure/retry and preservation behavior with real Git fixtures and compile failure coverage; document the explicit workflow.
+- [x] Design the refresh operation around existing Weave discovery and setup mechanisms, following the agreed contract above.
+- [x] Implement default fast-forward refresh and explicit rebase with captured targets, preflight and apply-time revalidation.
+- [x] Verify failure/retry and preservation behavior with real Git fixtures and compile failure coverage; document the explicit workflow.
 
 ## Log
+
+### 2026-09-23 — Acceptance verification
+- 2026-09-23: closed — Full go test ./cmd/weave/... ./pkg/layergraph/... ./pkg/workspace/... passes; refresh and acquire race suites pass; real-Git conformance, captured-SHA and preflight mutations, compile retry and setup-lease tests pass; 277083 framing fuzz executions; go vet, local bin/weave build/help and git diff --check pass.; review verdict: SHIP
+
+Full Weave/layergraph/workspace suites passed (refresh 41.874s, CLI 27.750s).
+Race suites passed for refresh (44.486s) and acquisition (13.224s). Vet, local
+bin/weave build and refresh help smoke check passed; git diff --check is clean.
+Real-Git conformance runs with the package suite. Mutation checks for eligibility,
+captured-target application and all-ready preflight each failed as intended
+when their guard was removed, then passed after restoration. Record framing
+fuzzing passed 277,083 executions. Boundary review is next.
+
+### 2026-09-23 — Implementation checkpoint
+
+Refresh, bounded Git/discovery, one-lease compile integration and documentation
+are implemented in the primary checkout. Focused CLI/core/acquisition tests passed;
+record-framing fuzzing passed 277,083 executions in 5s. Vet and the local bin/weave
+build/help smoke check passed. Full acceptance and race suites are running before
+the close review. Diagnostic regressions remove credential-bearing source URLs
+from acquisition errors while preserving checkout and recovery guidance.
 
 ### 2026-09-23
 
@@ -130,6 +151,24 @@ recorded here; no implementation, estimate or change-code gate has run. Concrete
 engineering-plan approval remains pending. Begin from current origin/main, which
 also contains #246's completed durable landing implementation; this primary's
 resting baseline was intentionally not refreshed after landing.
+
+### 2026-09-23 — Implementation authorized here
+
+Operator requested continuing in this primary checkout because local tool lookup
+uses ~/workspace/ariadne/bin. This supersedes the new-slot handoff and pending
+approval notes. change-code created the issue branch; full-flow planning review
+is being completed before code. Gate feedback clarified test strategies and
+conformance cadence; project ticking remains owned by SDLC close.
+
+### 2026-09-23 — Implementation and focused verification
+
+Full-flow plan-quality and estimate-quality gates passed; the derived estimate
+is 4.24h (provisional/stale calibration). Integrated origin/main on the issue
+branch, preserving the resting main ref. Implemented bounded Git/discovery,
+explicit refresh orchestration and shared compile-under-lease integration.
+CLI fixtures pass for compile failure/retry, opt-in rebase and retained setup
+lease during real tool execution. Acquisition race tests passed. Broader
+acceptance and close review are pending. No live refresh of this checkout.
 
 ## Revisions
 
@@ -176,3 +215,37 @@ Project: [couch-slots-v2](../../../pair/workshop/projects/couch-slots-v2.md).
 - :0 peers, other environments and the host working branch remain unchanged.
 - Real Git fixtures cover fast-forward, already-current, refusal, partial failure and retry; compilation has observable failure/retry coverage.
 - Operator documentation explains the preparation step and explicit host refresh.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Calibration is stale; this is provisional.
+
+Issue/spec design uses 0.8h without discount because it includes the conversation;
+implementation is 0.2 × 0.4. Core model and refresh orchestration each use a
+1.5h greenfield design base, halved for existing Git/layergraph/acquisition
+libraries then multiplied by 0.2 for the settled plan; each implementation is
+0.8 × 0.4. Git integration uses 2 × 0.2 design and 1.5 × 0.4 implementation.
+Acquisition bounds and CLI each use 0.2 × 0.2 design and 0.4 × 0.4 implementation.
+Compile extraction uses 0.5 × 0.2 design and 0.5 × 0.4 implementation. Docs use
+0.1 × 0.2 design and 0.2 × 0.4 implementation; one close review uses 0.5 × 0.4
+implementation and live Git conformance uses 0.4 × 0.4. No new Git library is
+needed: existing adapters and the Git binary provide the mechanics; repository
+refresh policy is the new code. Familiarity 1.0, thorough-plan design buffer 15%,
+no vendor propagation overhead. Total: 1.70 × 1.15 + 2.28 = 4.235h, rounded 4.24h.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.8 impl=0.08
+item: greenfield-go-module design=0.15 impl=0.32
+item: api-integration design=0.4 impl=0.6
+item: greenfield-go-module design=0.15 impl=0.32
+item: smaller-go-module design=0.04 impl=0.16
+item: cross-cutting-refactor design=0.1 impl=0.2
+item: smaller-go-module design=0.04 impl=0.16
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0 impl=0.2
+item: real-api-discovery design=0 impl=0.16
+design-buffer: 0.15
+total: 4.24
+```
