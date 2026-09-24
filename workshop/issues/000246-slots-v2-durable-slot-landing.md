@@ -54,7 +54,7 @@ Alternatives considered: only skipping worktree removal would still pull/archive
 | At rest, completed ref still at integrated head | Occupancy check and expected-SHA ref deletion | Preserve ref on changes; retry with `--branch` |
 | At rest, ref absent, integration/archive confirmed | Report complete | No publication or checkout mutation |
 
-The phase decisions are pure; Git/GitHub/archive effects stay behind existing IO seams. One invocation owns its effects, uses the existing common-directory SDLC lock, and starts no background worker. Git/editor processes outside that lock can still race: rechecks, Git collision checks and expected-SHA writes provide bounded protection, not an atomic lock over arbitrary external actors (ARCH-PURE, ARCH-STATE).
+The phase decisions are pure; Git/GitHub/archive effects stay behind existing IO seams. One invocation owns its effects, uses the existing common-directory SDLC lock, and starts no background worker. Git/editor processes outside that lock can still race: rechecks, Git collision checks and expected-SHA writes provide bounded protection, not an atomic lock over arbitrary external actors (ARCH-PURE, ARCH-ORDER).
 
 **Verification and boundaries.** Reuse local Git fixtures and add a stateful GitHub fake backed by a bare remote, exercising actual integration as merge/squash/rebase. Inject failures after merge, archive publication, return-to-rest and ref deletion; retries must not duplicate integration/archive. Assert byte/ref/config preservation for :0, a dirty primary, another active slot and independent dependency siblings. Test deleted remote issue branch, post-integration local commits, wrong/ambiguous PR target, queued-but-unmerged responses, query failure, uncertain publication, tracked/untracked/ignored collisions and occupancy races. Archive fixtures include independently published issue copies, unrelated codecomplete base changes, absent/wrong provenance, partial/conflicting moves and exact complete retry. Check configured non-origin remotes in both pr and merge. Keep legacy ordinary-worktree and dependency publication regressions, including dependency-first then parent landing. README, embedded help, atlas and project records describe the changed :0 behavior and explicit recovery.
 
@@ -106,6 +106,15 @@ Full `go test ./pkg/workspace/... ./cmd/sdlc/... -count=1 -timeout=15m -skip '^T
 
 Integration review corrections were implemented: effective fetch/push URL binding, PR HEAD revalidation, configured-main duplicate checking, owned-close publish selection, lifecycle generation and required-plan preservation. Boundary review is next; #246 is not merged.
 
+### 2026-09-23 — Boundary correction verified
+
+BR-2 regression first failed in all three cleanup phases, then passed with
+byte-preserved resting index/files. Final focused landing/merge/archive/publish
+regressions passed (232.850s), including active-operation refusal on rest and
+fresh-integration dirt refusal. Help tests, vet, build and diff-check also passed.
+The earlier full workspace/SDLC suite passed before this localized correction;
+no unaffected runtime surface changed. BR-1/BR-3 marker corrections are complete.
+
 ## Revisions
 
 ### 2026-09-23 — Retain nested environments and publish repositories separately
@@ -119,6 +128,17 @@ Reason: trace the existing merge/PR/archive behavior against the agreed stable-w
 ### 2026-09-23 — Implementation authorized
 
 Operator approved the design, including Ariadne dependency first and Pair parent second. Delta: add the durable implementation plan and concrete task checklist; keep ordinary dependency flow and no recursive landing. Full-flow estimate follows plan-quality acceptance.
+
+### 2026-09-23 — Boundary review recovery correction
+
+BR-2 reproduced with real Git in three phases: edits immediately after switch,
+retry after return, and retry after issue-ref deletion. Cleanup now preserves
+staged, unstaged and untracked work on the resting checkout while revalidating
+identity, exact refs, occupancy and absence of active Git operations. Fresh
+integration and switching from the issue checkout still require tracked
+cleanliness. Regression fixtures compare resting file and index bytes.
+BR-1/BR-3: both live design artifacts now use ARCH-ORDER; historical review
+records retain their original finding text. Review completion remains pending.
 
 ## Estimate
 
