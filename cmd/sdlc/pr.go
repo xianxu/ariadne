@@ -50,6 +50,14 @@ func NewPRCmd() *cobra.Command {
 
 // runPR dispatches the pr workflow.
 func runPR(stdout, stderr io.Writer, f *prFlags) error {
+	target, targetErr := resolveLandingTarget(prRunner)
+	if targetErr != nil {
+		return targetErr
+	}
+	if target != nil {
+		return runDurablePR(stdout, stderr, f, *target)
+	}
+
 	// ── 1. Refuse if on main / detached ─────────────────────────────────────
 	branch := gitx.Capture("branch", "--show-current")
 	if branch == "" || branch == "main" {

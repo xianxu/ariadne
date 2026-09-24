@@ -323,14 +323,16 @@ func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHis
 	// legs derive via ArchiveSubdir — the rename dest (historyFull, absolute
 	// or mainPath-joined) and the recorded git-relative path (recHistoryDir).
 	plansSubFull := vocab.ArchiveSubdir(historyFull, vocab.ArchivePlans)
-	plansSubRec := vocab.ArchiveSubdir(recHistoryDir, vocab.ArchivePlans)
 	if err := os.MkdirAll(plansSubFull, 0o755); err != nil {
 		return nil, fmt.Errorf("mkdir %s: %v", plansSubFull, err)
 	}
 	var moves []preparedArchiveMove
 	for _, p := range matches {
 		base := filepath.Base(p)
-		dest := filepath.Join(plansSubFull, base)
+		if !planArtifactBelongsToIssue(issueBase, base) {
+			continue
+		}
+		dest := archiveDestination(historyFull, vocab.ArchivePlans, base)
 		recSrc := filepath.Join(recPlansDir, base)
 		untracked := srcUntracked != nil && srcUntracked(recSrc)
 		if err := os.Rename(p, dest); err != nil {
@@ -338,7 +340,7 @@ func archivePlanArtifacts(issueBase, plansFull, historyFull, recPlansDir, recHis
 		}
 		moves = append(moves, preparedArchiveMove{
 			IssuePath:       recSrc,
-			HistoryPath:     filepath.Join(plansSubRec, base),
+			HistoryPath:     archiveDestination(recHistoryDir, vocab.ArchivePlans, base),
 			SourceUntracked: untracked,
 		})
 	}
@@ -643,7 +645,7 @@ func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir, plansDir s
 		if err := os.MkdirAll(issuesSub, 0o755); err != nil {
 			return moves, fmt.Errorf("mkdir %s: %v", issuesSub, err)
 		}
-		dest := filepath.Join(issuesSub, filepath.Base(ref.Path))
+		dest := archiveDestination(historyDir, vocab.ArchiveIssues, filepath.Base(ref.Path))
 		cinfo(stderr, fmt.Sprintf("Archiving %s to %s/", ref.Path, issuesSub))
 		if err := os.Rename(ref.Path, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)

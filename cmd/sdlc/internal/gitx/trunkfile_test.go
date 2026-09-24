@@ -830,3 +830,33 @@ func TestTrunkFile_UnchangedContentPushesNothing(t *testing.T) {
 		t.Errorf("an unchanged transform moved the trunk %s -> %s", before, after)
 	}
 }
+
+func TestTrunkFileFetchDisablesSubmoduleRecursion(t *testing.T) {
+	repo, _ := trunkFixture(t, "base\n")
+	testfix.Git(t, repo, "config", "fetch.recurseSubmodules", "true")
+	original := runGitIn
+	defer func() { runGitIn = original }()
+	observed := false
+	runGitIn = func(dir string, env []string, args ...string) ([]byte, []byte, error) {
+		if len(args) > 0 && args[0] == "fetch" {
+			observed = true
+			found := false
+			for _, arg := range args {
+				if arg == "--no-recurse-submodules" {
+					found = true
+				}
+			}
+			if !found {
+				t.Error("trunk fetch inherits recursion configuration and can mutate dependency refs")
+			}
+		}
+		return original(dir, env, args...)
+	}
+	tf, _ := NewTrunkFile(repo, "origin", "main")
+	if _, err := tf.Read("note.md"); err != nil {
+		t.Fatal(err)
+	}
+	if !observed {
+		t.Fatal("test did not observe production fetch")
+	}
+}

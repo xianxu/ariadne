@@ -1,134 +1,92 @@
-Merge the current feature branch into main via a GitHub PR (server-side,
-so CI gates it), archive any completed issues, and clean up. Works for
-both branch topologies (#51), detected automatically:
-  - in-place — the primary checkout sitting on a feature branch: after
-    the merge, switch this checkout back to main, pull, delete the branch.
-  - worktree — a linked worktree: archive in the main worktree, remove
-    the worktree, delete the branch.
-The longest + most safety-conscious checkpoint guard — every step has a
-refusal or confirmation, because the actions are irreversible.
+Merge a reviewed feature branch through its GitHub PR, archive its completed
+issues, and clean up according to workspace identity.
 
-REFUSES IF
+DURABLE WORKSPACES (:0 AND :N)
 
-  - current branch is empty (detached HEAD)
-  - current branch == main (run `sdlc change-code` to branch, or `sdlc push`)
-  - uncommitted TRACKED changes exist (commit or stash first). Untracked
-    files don't block — they survive the branch switch, so they're warned
-    about, not refused (#78).
-  - no upstream is configured for the branch
-  - branch is ahead of upstream (unpushed local commits — push first)
-  - the branch has a MERGED PR but still carries commits not in main (#148) —
-    a reused branch name; merge refuses (rather than silently deleting the
-    branch and stranding the new commits) so you rename + `sdlc pr` + retry.
+  The primary workspace (:0) and numbered slots retain their checkout and
+  return to their existing main or main-slotN without advancing that branch.
+  The resting branch must track one named remote's main. Effective fetch and
+  push destinations must identify the same supported GitHub repository; do
+  not assume origin. Fork PRs are not supported by this path.
 
-WHAT IT DOES
+  Before merging, local issue HEAD, fresh remote issue HEAD and the PR head
+  must match. Before integration or switching, tracked dirt (including tracker
+  edits), active Git operations,
+  changed identity or ambiguous evidence refuse. Noncolliding untracked and
+  ignored files survive; switch collisions refuse. Never stash/reset to finish.
 
-  1. Verifies the four refusal conditions above.
-  2. Runs the pre-merge PUBLISH GATE (#160) — deterministic, NO LLM. All LLM
-     review is now close-time (the `sdlc close` boundary review, which owns
-     plan/docs/atlas/README). The publish gate enforces the reviewed-HEAD-
-     unchanged invariant: it refuses unless HEAD is unchanged since the
-     codecomplete issues' `sdlc close` (i.e. nothing drifted after the review).
-     Doc-only post-close deltas (workshop/, atlas/, docs/, *.md — #177's "no
-     code surface", except cmd/ which is embedded binary surface) pass with
-     an info line (#174); code deltas refuse.
-     For a quick-flow issue it also checks what close could not measure, the
-     fixes made after the verdict (#231): {{QUICK_AFTER_REVIEW}}.
-     On refusal, re-run `sdlc close --issue N --verified '...'` to re-review the
-     delta, then retry. Skip with `--no-judge` (emergency only).
-     PUSH IS NOT OPTIONAL: merge is server-side — it merges *origin's* branch tip
-     via `gh pr merge`, not your local HEAD. So a fix you commit for any failed
-     pre-merge gate (the publish gate, the dirty-tree refusal) must reach origin
-     first, or the re-run stops at the ahead-of-upstream refusal (above). The
-     recovery loop is: fix → commit → push → re-run `sdlc merge`.
-     After the merge, merge flips the published issues codecomplete → done and
-     archives them (§ below).
-  3. Resolves topology from `git rev-parse --git-dir`: in-place (primary
-     checkout) vs worktree (git-dir under `.git/worktrees/`). For worktree,
-     locates the main worktree via `git worktree list --porcelain -z`.
-  4. Shows unmerged commits (`git log main..HEAD --oneline`) for
-     situational awareness.
-  5. Scans touched issue files vs `main` for not-done statuses;
-     warns + prompts unless `--yes`.
-  6. INTERACTIVE CONFIRMATION (skippable with `--yes`):
-       "Final confirmation: proceed with irreversible merge/cleanup
-        actions? [y/N]"
-  6b. RE-ASSERTS the working tree is still clean immediately before the
-      irreversible merge (#62 M1). Step 1 checked it, but a pre-merge
-      gate/hook could have dirtied it since; refuses with an actionable
-      message ("review + commit, then re-run") rather than merging and
-      then stranding on the post-merge `git switch`.
-  7. Finds the open PR for the branch via `gh pr list`.
-       - if PR exists: `gh pr merge` (server-side). Then, in-place:
-         `git switch main`; both: `git pull` so main has the result.
-       - if NO open PR but a MERGED PR exists: a prior run was interrupted
-         after the server-side merge; re-running RESUMES the local cleanup
-         (switch/pull/archive/branch-delete) idempotently (#62 M3) — no
-         hand-recovery needed.
-       - if no PR at all: in-place aborts (run `sdlc pr` first); worktree,
-         with unmerged commits, prompts to create a PR or remove the worktree.
-  8. Archives done/wontfix/punt issue files into `workshop/history/issues/`
-     (plans + review sidecars into `workshop/history/plans/`, #181)
-     in the main checkout; commits + pushes on main if any moved. Unlike
-     `sdlc push`, does NOT call `gh issue close` — the PR merge already
-     closes linked issues via the "Fixes #N" body.
-  9. Cleanup:
-       - in-place: `git branch -D <branch>` (already on main).
-       - worktree: `git worktree remove <wt-path>` + `git branch -D`,
-         both run from the main worktree (worktree-remove on self is
-         undefined). Writes the main path to `<wt-path>/.goto` so the
-         `g` shell alias lands the operator back on main.
+  1. Run instance, duplicate-ID and deterministic publish gates, then confirm.
+  2. Submit a server-side merge with an expected-head check. Queue admission
+     is not completion: require MERGED and reachable integration on freshly
+     fetched configured main. Already merged squash/rebase PRs use exact PR
+     evidence too; a matching branch name alone is insufficient.
+  3. Archive this PR's completed issue/plan/review records on remote main in
+     one conditional commit. Retry verifies matching archive provenance.
+     Other checkouts are not used to pull, archive or publish.
+  4. Recheck identity, refs, upstream and occupancy; switch safely to unchanged
+     rest, then compare-and-delete only the integrated local issue ref and
+     remove its branch configuration. Never delete the workspace directory.
+
+  The enclosing environment, sibling dependency clones and other slots stay
+  intact. No recursive publication or remote branch deletion is added; GitHub
+  repository auto-deletion settings remain independent. The unchanged local
+  baseline may still show an active tracker record already archived remotely.
+  Refresh is a separate explicit operation.
+
+RECOVERY
+
+  sdlc merge --branch <issue-branch> --yes
+
+  The recovery command is printed before irreversible effects. Run it from
+  the selected issue branch or this workspace's rest. At rest it can resume
+  only an already merged PR, never initiate an open PR's merge. It confirms
+  integration/archive again before cleanup; new local commits or uncertain
+  evidence preserve work and refuse. After ref deletion, retry can finish
+  removing leftover branch configuration. Work created on the resting checkout
+  is preserved during this ref-only cleanup, including staged/unstaged changes;
+  active Git operations still refuse. No transaction journal is created.
+
+ORDINARY WORKTREES AND DEPENDENCY CLONES
+
+  These retain the legacy flow: publish through origin, refresh their own main,
+  archive there, then delete the completed branch. Ordinary feature worktrees
+  are removed; in-place dependency checkouts return to updated main. Legacy
+  cleanup may delete the remote branch through gh. It never recursively lands
+  sibling repositories. --branch recovery is for durable workspaces only.
+
+PUBLISH GATE
+
+  Review is close-time; merge runs no LLM judge. Code changes after the close
+  anchor require re-review; documentation-only bookkeeping may pass. For a
+  quick-flow issue the final delta must also satisfy {{QUICK_AFTER_REVIEW}}.
+  Fix, commit, push to the selected remote, then retry. On review drift, run
+  `sdlc close --issue N --verified '...'` first. --no-judge waives this gate;
+  it does not waive integration or cleanup evidence.
 
 FLAGS
 
-  --yes                 skip both the not-done warn AND the final confirm.
-                        REQUIRED for non-interactive/agent runs — see below.
-  --no-<gate>           the per-gate bypasses (emergency only), each waiving one:
+  --yes                 skip interactive confirmation; required without a TTY
+  --branch <name>       resume a selected durable issue branch (see RECOVERY)
+  --no-<gate>           waive only the named gate (emergency only):
 {{GATE_FLAGS}}
-  --dry-run             print would-be operations; do nothing
+  --dry-run             print proposed operations; durable path does no fetch or mutation
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
   --history-dir <path>  override $WF_HISTORY_DIR / workshop/history
 
-NON-INTERACTIVE / AGENT RUNS
-
-  The final confirmation reads stdin. When stdin is NOT a terminal (an
-  agent, a pipe, a `</dev/null` redirect), there is no one to answer it, so
-  merge FAILS FAST — before the publish gate + irreversible merge — with a message
-  telling you to re-run with `--yes`. This early refusal is deliberate: it
-  turns "ran the whole gate, then aborted at the prompt" into an immediate,
-  actionable error. `--yes` is the explicit opt-in for scripted/agent flows
-  where the operator has already accepted the irreversible actions.
-  `--dry-run` never prompts (it mutates nothing), so it needs no `--yes`.
-
 EXAMPLES
 
-  sdlc merge                    # full flow, both prompts presented
-  sdlc merge --yes              # skip not-done + final confirm
-  sdlc merge --no-judge         # emergency: bypass the publish gate
-  sdlc merge --dry-run          # see what would happen
+  sdlc merge --yes
+  sdlc merge --branch 000246-slots-v2-durable-slot-landing --yes
+  sdlc merge --dry-run
 
 EXIT CODES
 
-  0   merged + cleaned (in-place: back on main; worktree: removed) — or dry-run
-  1   any refusal condition, publish-gate refusal, gh pr merge failure,
-      operator-aborted at confirmation
-
-IRREVERSIBLE ACTIONS
-
-  - `gh pr merge --merge --delete-branch` — the PR merges and the
-    GitHub branch is deleted. Reopening means re-pushing the local
-    branch.
-  - `git branch -D <branch>` — local branch deleted from the main
-    worktree's index.
-  - `git worktree remove <wt-path>` — the feature worktree directory
-    is removed.
-
-  All of the above gate behind the "Final confirmation:" prompt
-  unless `--yes` was passed. `--yes` exists for scripted flows where
-  the operator has already confirmed elsewhere.
+  0   landing/cleanup completed, or dry-run completed
+  1   refusal, uncertain outcome, Git/GitHub failure, or operator abort
 
 RELATED
 
   sdlc pr         open the PR this verb merges
-  sdlc push       direct-on-main counterpart (no PR, no worktree)
-  sdlc judge      standalone one-category LLM check (ad-hoc; #160 merge no longer runs judges — review is close-time)
+  sdlc push       direct-on-main publication
+  sdlc workspace resolve current identity and resting branch
+  sdlc judge      standalone ad-hoc review

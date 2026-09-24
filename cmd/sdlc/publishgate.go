@@ -40,24 +40,8 @@ import (
 // the anchor. But post-close code changes must re-close, set-status can't write
 // codecomplete, and hand-editing frontmatter is off-convention — so it doesn't occur.
 func codecompleteAnchorCommit(issuePath string) string {
-	out, err := gitx.RunGit("log", "--format=%H", "--", issuePath)
-	if err != nil {
-		return ""
-	}
-	for _, sha := range strings.Fields(string(out)) {
-		content, err := gitx.RunGit("show", sha+":"+issuePath)
-		if err != nil {
-			continue
-		}
-		fm, _, perr := issue.Parse(string(content))
-		if perr != nil {
-			continue
-		}
-		if st, _ := issue.GetField(fm, "status"); st == "codecomplete" {
-			return sha
-		}
-	}
-	return ""
+	anchor, _ := codecompleteAnchorCommitAt("HEAD", issuePath, gitx.RunGit)
+	return anchor
 }
 
 // mergedCodecompleteIssues returns the repo-relative paths of issue files changed in
@@ -91,6 +75,12 @@ func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	return validatePublishIssues(issues, stderr)
+}
+
+// validatePublishIssues shares the reviewed-head, docs-only and quick-flow
+// checks across ordinary diff selection and immutable landing ownership.
+func validatePublishIssues(issues []string, stderr io.Writer) error {
 	if len(issues) == 0 {
 		// No codecomplete issue in this window (e.g. an intermediate push of
 		// not-yet-closed work) — no invariant to enforce. Deterministic no-op.
@@ -204,10 +194,11 @@ func publishCodecompleteIssues(issuesDir string) ([]string, error) {
 	today := time.Now().Format("2006-01-02")
 	var flipped []string
 	for _, ref := range codecompleteIssueFiles(refs) {
-		fm := ref.Frontmatter
-		fm = issue.SetField(fm, "status", "done")
-		fm = issue.SetField(fm, "updated", today)
-		if werr := os.WriteFile(ref.Path, []byte(issue.Compose(fm, ref.Body)), 0o644); werr != nil {
+		content, err := publishedIssueContent(ref.Frontmatter, ref.Body, today)
+		if err != nil {
+			return flipped, err
+		}
+		if werr := os.WriteFile(ref.Path, content, 0o644); werr != nil {
 			return flipped, fmt.Errorf("flip %s → done: %w", ref.Path, werr)
 		}
 		flipped = append(flipped, ref.Path)
@@ -250,4 +241,38 @@ func revCount(rangeSpec string) (count int, ok bool) {
 	}
 	n, err := strconv.Atoi(out)
 	return n, err == nil
+}
+
+// codecompleteAnchorCommitAt is the bounded immutable counterpart of the legacy
+// HEAD query. Query failure cannot masquerade as no close evidence.
+func codecompleteAnchorCommitAt(ref, issuePath string, runGit func(...string) ([]byte, error)) (string, error) {
+	out, err := runGit("--literal-pathspecs", "log", "--format=%H", "--max-count=10001", ref, "--", issuePath)
+	if err != nil {
+		return "", fmt.Errorf("read close history: %w", err)
+	}
+	commits := strings.Fields(string(out))
+	if len(commits) > 10000 {
+		return "", fmt.Errorf("close history exceeds 10000 commits")
+	}
+	for _, sha := range commits {
+		entries, err := runGit("--literal-pathspecs", "ls-tree", "-z", sha, "--", issuePath)
+		if err != nil {
+			return "", fmt.Errorf("read close entry: %w", err)
+		}
+		if len(entries) == 0 {
+			continue
+		}
+		content, err := runGit("cat-file", "blob", sha+":"+issuePath)
+		if err != nil {
+			return "", fmt.Errorf("read close body: %w", err)
+		}
+		fm, _, err := issue.Parse(string(content))
+		if err != nil {
+			return "", fmt.Errorf("parse close body: %w", err)
+		}
+		if status, _ := issue.GetField(fm, "status"); status == "codecomplete" {
+			return sha, nil
+		}
+	}
+	return "", nil
 }
