@@ -34,7 +34,7 @@
 | prepareSetup | cmd/weave/environment.go | reused | verified environment policy and inherited setup lease |
 | Git model | cmd/weave/internal/refresh/fake_test.go | new test fixture | mutable refs, graph, dirty/operation state, failures and ordering |
 
-`Restore(ctx, root, true)` performs read-only discovery/validation and refuses a missing checkout. Refresh consumes `Result.Layers`, already deduplicated and foundation-first. It does not clone during preflight. Missing checkouts receive guidance to run ordinary setup first. Source-less substrate declarations retain existing behavior: the existing checkout must still have a usable origin/main for refresh.
+`discoverRefresh` wraps `Restore(ctx, root, true)` for read-only discovery/validation. It refuses either a returned error or nonempty `Result.Missing` before any fetch/update, then consumes `Result.Layers`, already deduplicated and foundation-first. Existing Restore already returns an incomplete-graph error after traversal when Missing is nonempty (`cmd/weave/internal/acquire/acquire.go:370–372`); the wrapper makes refresh's strict contract explicit without relying solely on that current implementation detail or changing ordinary setup behavior. It does not clone during preflight. Missing checkouts receive guidance to run ordinary setup first. Source-less substrate declarations retain existing behavior: the existing checkout must still have a usable origin/main for refresh.
 
 Only the host and transitive `substrate` dependencies are Git refresh subjects. `data` mounts keep their existing compile/acquisition behavior; they are not Ariadne layers and are not rebased by refresh. Their declarations remain part of the topology check described below. No new declaration parser or path inventory (ARCH-DRY).
 
@@ -100,6 +100,7 @@ No new durable receipt, index or inventory. Reuse existing setup lock and compil
 | `advance` | Exhaustive state/event matrix and generated event sequences: no apply before ready and no compile before all confirmed updates. |
 | `parseOID`, `parseBranch`, `parseRecord` | Fuzz malformed/truncated/framing inputs; reject ambiguity and preserve path bytes. |
 | `observe`, `readDeclarations` | Real Git and bounded file fixtures: errors/active operations/dirty state cannot become readiness, nonordinary or excessive input cannot become declarations. |
+| `discoverRefresh` | Missing/incomplete results must refuse before fetch; `TestRefreshMissingCheckout` verifies no mutations, while existing `TestRestoreDryRunMissingAndLocalCycle` and `TestCompileDryRunDoesNotMutate` defend ordinary setup semantics. |
 | `Prepare` | Mutable stateful backend: any repository's blocker prevents every branch update; prove by independent snapshots of refs/index/files. |
 | `revalidate`, `Prepared.Apply` | Inject external changes at each observation/effect boundary; only the captured SHA is a destination and stale starting evidence prevents the next effect. |
 | `runRefresh`, `compilePrepared` | Real command/compile with portable tool fixtures: compile happens once after confirmed updates, retry runs compile even for current refs, and one lease spans both. |
@@ -177,3 +178,11 @@ This supersedes the new-slot handoff and pending approval text above. Plan gate
 PQ-1/2/3 refinements name test functions/strategies, define shared real-Git/model
 conformance on every package run, and leave peer-project ticking to SDLC close.
 The implementation contract is unchanged. No runtime code has changed yet.
+
+### 2026-09-23 — Strict discovery contract clarified
+
+PQ-4: refresh uses discoverRefresh to reject both discovery errors and nonempty
+Missing results before fetch/update. This explicitly guards the boundary while
+preserving Restore and ordinary compile/dependencies semantics; named regression
+coverage distinguishes these paths. The current Restore already returns an
+incomplete-graph error at the end of traversal, which the reviewer had missed.
