@@ -200,3 +200,15 @@ Files: create `cmd/sdlc/tracker_e2e_test.go`; update `README.md`, `atlas/workflo
 ## Approval and execution
 
 The user approved the issue's behavior; this document supplies the still-new Git transfer, mirror provenance, completion binding and migration mechanics. Review this durable plan before `change-code`, per AGENTS.md §2. Each M1–M4 row is a real mandatory SDLC review boundary; do not add a second ad-hoc code reviewer at those boundaries. A fresh plan-document review precedes operator approval. After approval, run `sdlc change-code --issue 252 --worktree=yes`; address its plan-quality/estimate next actions without bypassing them. Use an isolated checkout so unactivated base-layer changes do not become live in primary downstream consumers.
+
+## Revisions
+
+### 2026-09-25 — Fresh plan review
+
+Reason: the first review found three missing cross-checkout/cutover contracts.
+Pinned start-plan to fresh main with safe-rest preconditions; moved durable
+handoff provenance onto the tracker so source-clone loss cannot disable merge
+protection; required reconstruction of legacy codecomplete bindings from proven
+review evidence or refusal before activation. Named the recovery command and
+added corresponding fixtures. Second review approved Chunks 1–4 with no
+Important/Critical findings. Operator approval remains pending.
