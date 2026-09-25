@@ -56,7 +56,9 @@ Designed with the operator in pair session, 2026-09-25.
   `github_issue`, dates), `# Title` and `## Problem`.
   A card is just the slower-changing part of today's issue file.
 - **Details:** stays at today's path `workshop/issues/NNN-slug.md`, on the
-  branch, landing on `main` with the code. It is a **superset of the card**
+  creator's local branch, landing on `main` to complete issue creation before
+  claim. Subsequent work updates details alongside the implementation. It is a
+  **superset of the card**
   (so the file looks unchanged to agents) plus Spec, Done when, Plan, Log,
   Revisions and branch-local frontmatter (`deps`, `flow:`, review anchors).
 
@@ -66,28 +68,43 @@ Designed with the operator in pair session, 2026-09-25.
   similar verbs commit directly to the tracker ref, one file per commit, by
   their own SHA (no copies). Agents never free-edit card fields.
 - **The card fields inside details are a read-only copy that sdlc owns.** sdlc
-  refreshes them from the card whenever it touches details (`issue sync`,
-  `start-plan`, `change-code`, `close`), under a marker such as
+  refreshes them from the card whenever it touches details (`start-plan`,
+  `change-code`, `close`), under a marker such as
   `# card fields mirrored from issue-cards/…; edit via sdlc`.
-- **Drift is refused, not ignored.** If a copied field in details disagrees with
-  the card, `issue sync` and the close gate refuse with the next action
+- **Hand edits to mirrored fields are refused.** Operations consuming or
+  updating details, including the close gate, refuse hand edits with the next action
   ("status is owned by the card; use `sdlc …`"). The card is the source of truth
-  for the fields it owns.
+  for the fields it owns. Legitimately stale mirrors must be refreshable;
+  distinguishing them from hand edits remains a durable-plan requirement.
 - **Precedence covers frontmatter, not `## Problem`.** The card keeps the
   original report; details start with a copy of it that the branch may revise.
-- **Work can begin without a details file; close cannot finish without one.**
-  Details are created on first need (first `start-plan` or Log entry); `close`
-  requires Done when + verification there.
+- **Creation completes only when details land on `main`; work cannot begin
+  before then.** `issue new` creates the tracker card and local details together.
+  While the creator finishes those details, the card is visible but the issue
+  is not claimable. Claim verifies that details have landed on `main`; neither
+  claim nor `start-plan` fabricates missing details. Close requires Done when
+  + verification in the details.
 
 ### Flows
 
 - **Filing, including a spin-off from a code branch:** write the card on the
-  tracker ref (id allocation stays a compare-and-swap: the push must
-  fast-forward). The code branch is untouched.
+  tracker ref and details on the current local branch. ID allocation stays a
+  compare-and-swap: the push must fast-forward. Filing does not publish the
+  branch's code; details must land on `main` before claim.
+- **Early handoff:** `sdlc issue move-detail --issue N` publishes existing local
+  details to `main`, or creates them from the card if no local details exist.
+  It refuses an existing destination and removes the local source only after
+  confirmed publication. Read errors are not absence. Retries reconcile any
+  already-published result. The transfer must preserve the published details
+  and subsequent edits when the original branch later merges; copy-and-delete
+  alone is insufficient. No separate `make-detail` command is needed.
+- **Checkpointing:** cards are committed/published by their owning SDLC verbs;
+  details use ordinary branch commits and publication. The proposed workflow
+  removes `issue sync`; `move-detail` is the explicit initial-details handoff.
 - **Card writes after a rejected push:** a rejection means another card
-  changed; sdlc fetches, replays its one-file commit on the new tip and pushes
-  again, never conflicting on content. The only real contention is two writes
-  to the *same* card (e.g. two claims); refusing is correct there.
+  changed; sdlc fetches and re-evaluates the operation against the new tip.
+  Filing must recompute its ID and path, not replay a stale allocation.
+  Conflicting writes to the same card (e.g. two claims) refuse.
 - **Close / merge:** `close` writes `codecomplete` to the card; `merge` writes
   `done` after landing. If the `done` write fails (network), the card stays at
   `codecomplete`; the next sdlc run detects "PR merged, card not done" and
@@ -100,10 +117,10 @@ Designed with the operator in pair session, 2026-09-25.
 
 ### Unchanged
 
-The status vocabulary, lifecycle and gate logic. What changes is where sdlc
-reads and writes the card fields (tracker checkout vs branch file), plus a
-one-time migration that splits existing issue files. Archiving keeps today's
-convention.
+The status vocabulary is unchanged; claim gains the requirement that initial
+details have landed on `main`. Gates read card-owned fields from the tracker
+and branch-owned fields from details. A one-time migration splits existing
+issue files. Details archiving keeps today's convention.
 
 ### Relation to #251
 
@@ -147,14 +164,22 @@ durable plan, rather than settled operator choices.
 
 ## Done when
 
-- `sdlc issue new`/`claim`/`close`/`merge` write only cards on the tracker ref,
-  by their own SHA; no verb publishes a copy of a branch commit.
-- A full issue cycle in a slot (new → claim → design → change-code → close →
-  merge, plus a mid-branch spin-off `issue new`) leaves the resting branch
+- Card writes from `sdlc issue new`/`claim`/`close`/`merge` land directly on the
+  tracker ref by their own SHA. `issue new` also creates local details; no
+  verb uses the old copied-branch-commit publication mechanism.
+- Claim refuses until initial details land on `main`; card-only and local-only
+  details do not permit work, and claim/start-plan never create missing details.
+- A full issue cycle in a slot (new → details land on main → claim → design →
+  change-code → close → merge, plus a mid-branch spin-off and `move-detail`
+  while code remains unshipped) leaves the resting branch
   0 ahead / 0 behind after refresh, and the PR merges with no issue-file
   conflict (e2e test).
-- Hand-editing a copied card field in details is refused by `issue sync` and
-  the close gate with an actionable message (test).
+- Hand-editing a copied card field is refused by operations consuming/updating
+  details, including the close gate, with an actionable message; legitimate
+  stale mirrors can refresh (tests).
+- Both `move-detail` paths are tested, including existing destination refusal,
+  read errors, publication failure/uncertainty and retry, and the original
+  branch's eventual merge preserving transferred details and subsequent edits.
 - Existing issue files are migrated; gates read card fields from the card.
 - Atlas documents the card/details split and ownership rules.
 
@@ -250,3 +275,16 @@ the issue and asked how card retention should support issue-number allocation.
   the tracker, including historical IDs and recomputation after contention.
   Explained why a separate counter is unnecessary unless later scale evidence
   warrants it; this recommendation is not an additional operator decision.
+
+### 2026-09-25 14:22 PDT — Fold agreed corrections into the active contract
+
+Reason: recording superseding decisions only in Revisions left the active Spec
+and Done when contradicting the agreed creation boundary.
+
+- Updated the active ownership, filing, handoff and acceptance clauses: initial
+  details must land on `main` before claim, and missing details are never
+  fabricated by claim or start-plan.
+- Integrated the agreed `move-detail` behavior and removal of `issue sync`
+  from the proposed workflow. Kept earlier revisions as decision history.
+- Removed related stale claims about an untouched local branch, unchanged
+  claim gates, unconditional drift refusal and replay-only allocation retries.
