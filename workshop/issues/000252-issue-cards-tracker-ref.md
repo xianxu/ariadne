@@ -53,12 +53,12 @@ Designed with the operator in pair session, 2026-09-25.
 - **Card:** `workshop/issue-cards/NNN-slug.md` on a **dedicated tracker ref**
   (not `main`, so filings and claims stop moving `main`). Holds the global
   frontmatter (status, claim/`started`, `estimate_hours`, `actual_hours`,
-  `github_issue`, dates; `deps` to be decided), `# Title` and `## Problem`.
+  `github_issue`, dates), `# Title` and `## Problem`.
   A card is just the slower-changing part of today's issue file.
 - **Details:** stays at today's path `workshop/issues/NNN-slug.md`, on the
   branch, landing on `main` with the code. It is a **superset of the card**
   (so the file looks unchanged to agents) plus Spec, Done when, Plan, Log,
-  Revisions and branch-local frontmatter (`flow:`, review anchors).
+  Revisions and branch-local frontmatter (`deps`, `flow:`, review anchors).
 
 ### Ownership rules
 
@@ -114,15 +114,36 @@ lifecycle** (spec/plan/code phases, per-phase claims, `parked`,
 verdict-backed `complete`, sufficiency judge) is not addressed here and stays
 an open question for the operator.
 
-### Open questions
+### Tracker, dependencies and migration decisions
 
-1. Tracker ref shape: a branch (`🤖<tracker>[let's use issue-tracker]`) checked out in a hidden worktree, or
-   another ref namespace? How sdlc and agents locate the checkout.
-2. `deps`: card (global, so peers see blocking) or details?
-3. Migration: split every existing issue file in one pass, or lazily on first
-   touch; how history (`workshop/history/`) cards are handled.
-4. Downstream repos (pair, parley, …) get the base-layer change: rollout order
-   and a compatibility window where some issues are still unsplit.
+1. Use a normal branch named `issue-tracker`. How sdlc and agents locate its
+   checkout remains to be designed.
+2. `deps` belongs to details, not the card. Dependency checks must read the
+   appropriate details; a card-only listing cannot supply dependency metadata.
+3. Split existing issue files in one migration, not lazily on first touch.
+   Move issue-number allocation to the tracker at that cutover. Preserve
+   existing details archiving semantics (`workshop/issues/` to
+   `workshop/history/`).
+4. Freeze SDLC writers across the participating downstream repos for migration;
+   a mixed-version compatibility window is not required. The durable plan must
+   specify rollout order, treatment of outstanding branches, verification and
+   recovery before writers resume.
+
+For cards and numbering, the recommendation is to retain cards in
+`workshop/issue-cards/` on `issue-tracker`, including cards for archived issues.
+Allocate `max(id) + 1` from those cards, not the number of files: gaps must not
+cause reuse. Migration must account for historical IDs as well as active ones.
+On a rejected allocation push, fetch and recompute the ID and path against the
+new tracker tip; merely replaying a commit can duplicate an ID under a different
+slug. Retention costs one small card per issue and a scan proportional to the
+number of cards; the durable plan should validate that cost at fleet scale.
+
+A separate next-ID file is possible, but is not needed with retained cards. It
+would introduce another authoritative value and require atomically committing
+the counter update with each new card, revising the one-file-per-commit rule.
+Retaining cards keeps allocation derived from the issue records. (`ARCH-DRY`)
+Card retention and the allocation mechanism remain recommendations for the
+durable plan, rather than settled operator choices.
 
 ## Done when
 
@@ -214,3 +235,18 @@ for the current code branch to ship:
   later merge preserving the handed-off details and subsequent edits.
 - These are requirements for #252, not implemented commands. The current
   `issue sync` remains the repository's checkpoint mechanism until replaced.
+
+### 2026-09-25 14:14 PDT — Tracker and migration comments resolved
+
+Reason: the operator resolved the storage and rollout choices while reading
+the issue and asked how card retention should support issue-number allocation.
+
+- Selected `issue-tracker` as the branch name and kept `deps` in details;
+  updated the field ownership descriptions accordingly.
+- Selected a one-pass split and a coordinated freeze of downstream SDLC
+  writers, preserving existing details archiving semantics. Checkout location,
+  outstanding-branch handling and migration recovery remain design work.
+- Recorded the recommendation to retain cards and derive `max(id) + 1` from
+  the tracker, including historical IDs and recomputation after contention.
+  Explained why a separate counter is unnecessary unless later scale evidence
+  warrants it; this recommendation is not an additional operator decision.
