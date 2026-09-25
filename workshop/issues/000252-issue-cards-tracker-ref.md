@@ -5,7 +5,7 @@ deps: []
 github_issue:
 created: 2026-09-25
 updated: 2026-09-25
-estimate_hours:
+estimate_hours: 10.77
 started: 2026-09-25T14:26:14-07:00
 ---
 
@@ -184,10 +184,48 @@ durable plan, rather than settled operator choices.
 - Existing issue files are migrated; gates read card fields from the card.
 - Atlas documents the card/details split and ownership rules.
 
+## Estimate
+
+Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only. Calibration is flagged stale; numbers are
+provisional ship-wall-clock hours, not an implementation deadline.
+
+The decomposition covers six new concerns (card/mirror, tracker repository,
+creation recovery, transfer recovery, completion binding, migration), eight
+bounded command/reader extensions, four cross-cutting consumer/instruction
+sweeps, two stateful integration surfaces (Git and GitHub landing), five review
+boundaries (four milestones and issue close), four documentation surfaces,
+issue design, and two downstream cutover coordination units. Existing Go YAML,
+Git CAS, process and landing seams avoid a new library/framework; no additional
+library shortcut is assumed for the novel ownership/recovery rules.
+
+Per-unit v2 design choices: greenfield 1.0, smaller module 0.2, cross-cutting
+1.0, integration 1.5, review 0.1, docs 0.1, issue-spec 1.0, peer coordination
+0.2 hours; apply the thorough-spec ×0.2 discount. Per-unit v2 implementation:
+0.8, 0.4, 0.5, 1.5, 0.5, 0.2, 0.3, 0.3 respectively; apply v3.1 ×0.4 once.
+Rows below aggregate those counts. Familiarity 1.0 for the existing stack;
+design buffer 15% for the approved detailed plan. Design 3.38 + implementation
+6.88 gives 3.38 × 1.15 + 6.88 = 10.767 hours (rounded 10.77).
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module design=1.20 impl=1.92
+item: smaller-go-module design=0.32 impl=1.28
+item: cross-cutting-refactor design=0.80 impl=0.80
+item: api-integration design=0.60 impl=1.20
+item: milestone-review design=0.10 impl=1.00
+item: atlas-docs design=0.08 impl=0.32
+item: issue-spec design=0.20 impl=0.12
+item: cross-repo-refactor-small design=0.08 impl=0.24
+design-buffer: 0.15
+total: 10.77
+```
+
 ## Plan
 
 - [x] Resolve creation, handoff, field ownership and migration approach with the operator
-- [ ] Approve [durable implementation plan](../plans/000252-issue-cards-tracker-ref-plan.md)
+- [x] Approve [durable implementation plan](../plans/000252-issue-cards-tracker-ref-plan.md)
 - [ ] M1 — Card/mirror model and tracker repository with CAS/recovery tests
 - [ ] M2 — Creation, claim readiness, early design branch and move-detail handoff
 - [ ] M3 — Composed readers, activity evidence and close/landing recovery
