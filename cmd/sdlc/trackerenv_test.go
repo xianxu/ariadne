@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
@@ -89,3 +90,15 @@ func (r *trackerRepo) git(args ...string) string {
 
 const openCard7 = "---\nid: 000007\nstatus: open\ncreated: 2026-09-01\nupdated: 2026-09-01\n---\n\n# Seven\n\n## Problem\nReport.\n"
 const card7Path = "workshop/issue-cards/000007-seven.md"
+
+// seededIssue renders one issue and splits it exactly as `issue new` does, so
+// the card and the details' mirror baseline agree byte for byte.
+func seededIssue(t *testing.T, id, slug string) (cardPath, card, detailPath, detail string) {
+	t.Helper()
+	full := issue.Render(issue.ScaffoldSpec{ID: id, Title: "Seeded " + slug, Today: "2026-09-01"})
+	c, d, err := issue.SplitCardWithFormat([]byte(full), "sha1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return tracker.CardPath(id, slug), string(c), "workshop/issues/" + id + "-" + slug + ".md", string(d)
+}

@@ -3,10 +3,12 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -16,6 +18,8 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // claimFlags holds the parsed flag values for the claim subcommand.
@@ -56,13 +60,13 @@ func NewClaimCmd() *cobra.Command {
 	f := claimFlags{}
 	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "claim",
-		Short:         "Reserve an open issue on fresh origin/main",
+		Short:         "Reserve an open issue card on the tracker",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"lock\") in main.go.",
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
-			return runClaim(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runClaim(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID to reserve (required)")
@@ -77,98 +81,122 @@ func NewClaimCmd() *cobra.Command {
 // tests can inject capture runners across both verbs.
 var claimRunner gitRunner = execGitRunner{}
 
-// runClaim reserves from remote bytes before reconciling local metadata.
-func runClaim(stdout, stderr io.Writer, f *claimFlags) error {
+// runClaim reserves an open card on the tracker (#252). An issue is claimable
+// only once its creation is complete — its details have landed on main — so a
+// card-only or local-only issue can never be worked by a second thread.
+func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) error {
 	if f.Issue <= 0 || f.NoStart {
-		return fmt.Errorf("claim requires --issue N and an open remote issue; publish documentation with sdlc issue publish --commit SHA")
+		return fmt.Errorf("claim requires --issue N and an open issue card")
 	}
-	paths, err := resolveSyncPaths(f)
+	dirs, err := resolveIDDirs(f.IssuesDir, f.HistoryDir)
 	if err != nil {
 		return err
 	}
-	pub, err := newTrunkPublisher(paths.Root)
+	env, err := openTracker(ctx)
 	if err != nil {
 		return err
 	}
-	var localPath string
-	var before []byte
-	matches := issueFilesForID(paths.Root, f.IssuesDir, f.Issue)
-	if len(matches) > 1 {
-		return fmt.Errorf("multiple local issue files for #%d", f.Issue)
+	id := fmt.Sprintf("%06d", f.Issue)
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return err
 	}
-	if len(matches) == 1 {
-		localPath = matches[0]
-		info, err := os.Lstat(localPath)
+	card, ok := snap.Card(id)
+	if !ok {
+		return fmt.Errorf("no card #%s on %s; file issues with `sdlc issue new`", id, vocab.Issue().Discovery().Tracker)
+	}
+	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))
+	ready := func() error {
+		view, err := env.main.Snapshot()
 		if err != nil {
 			return err
 		}
-		if !info.Mode().IsRegular() {
-			return fmt.Errorf("local issue is not an ordinary file: %s", localPath)
-		}
-		before, err = os.ReadFile(localPath)
+		present, err := view.Exists(detailPath)
 		if err != nil {
 			return err
 		}
-	}
-	var claimed []byte
-	dry := errors.New("claim dry run")
-	err = pub.UpdateMany(fmt.Sprintf("#%d: issue-sync: claim", f.Issue), func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
-		space, err := refIDSpace(v.Ref(), paths.Dirs, claimRunner)
-		if err != nil {
-			return gitx.TrunkWrite{}, err
+		if !present {
+			return fmt.Errorf("#%s is not claimable yet: its details (%s) have not landed on main, so its creation is incomplete.\n"+
+				"      The creator finishes it with `sdlc issue move-detail --issue %s` (or by merging the branch that filed it)", id, detailPath, id)
 		}
-		remotePaths := space[f.Issue]
-		if len(remotePaths) != 1 {
-			return gitx.TrunkWrite{}, fmt.Errorf("origin/main must contain exactly one issue #%d; found %d", f.Issue, len(remotePaths))
-		}
-		if localPath != "" && filepath.Base(localPath) != filepath.Base(remotePaths[0]) {
-			return gitx.TrunkWrite{}, fmt.Errorf("issue #%d has different local and remote names (%s, %s); reconcile identity before claiming", f.Issue, filepath.Base(localPath), remotePaths[0])
-		}
-		raw, err := v.Read(remotePaths[0])
-		if err != nil {
-			return gitx.TrunkWrite{}, err
-		}
-		claimed, err = claimDecision(raw, f.Issue, time.Now().Format("2006-01-02"), startedClock())
-		if err != nil {
-			return gitx.TrunkWrite{}, err
-		}
-		if f.DryRun {
-			return gitx.TrunkWrite{}, dry
-		}
-		return gitx.TrunkWrite{Write: map[string][]byte{remotePaths[0]: claimed}}, nil
-	})
-	if errors.Is(err, dry) {
-		cinfo(stderr, "dry-run — remote issue is open; would reserve it")
 		return nil
 	}
+	if err := ready(); err != nil {
+		return err
+	}
+	claimed, err := claimDecision(card.Raw, f.Issue, time.Now().Format("2006-01-02"), startedClock())
 	if err != nil {
 		return err
 	}
-	if localPath != "" {
-		current, readErr := os.ReadFile(localPath)
-		if readErr != nil || !bytes.Equal(current, before) {
-			cwarn(stderr, "claim published; local issue changed meanwhile — reconcile status from origin/main")
-		} else {
-			fm, body, parseErr := issue.Parse(string(before))
-			remoteFM, _, _ := issue.Parse(string(claimed))
-			if parseErr != nil {
-				cwarn(stderr, "claim published; local issue could not be parsed — reconcile status from origin/main")
-			} else {
-				for _, field := range []string{"status", "updated", "started"} {
-					value, ok := issue.GetField(remoteFM, field)
-					if ok {
-						fm = issue.SetField(fm, field, value)
-					}
-				}
-				if err := os.WriteFile(localPath, []byte(issue.Compose(fm, body)), 0644); err != nil {
-					return fmt.Errorf("claim published, but local reconciliation failed: %w", err)
-				}
-			}
-		}
+	if f.DryRun {
+		cinfo(stderr, "dry-run — the card is open and its details are on main; would reserve it")
+		return nil
 	}
-	cok(stderr, fmt.Sprintf("Issue #%d reserved on origin/main (open → working).", f.Issue))
+	// Readiness is re-verified against fresh main after the candidate is pinned,
+	// immediately before the only mutation.
+	err = env.repo.UpdateCard(card, claimed, operationToken("claim"), func(base, candidate string) error { return ready() })
+	if errors.Is(err, tracker.ErrCardChanged) {
+		return fmt.Errorf("card #%s changed while claiming (a peer may hold it); `sdlc issue show --issue %d` and retry only if it is still open", id, f.Issue)
+	}
+	if err != nil {
+		return err
+	}
+	cok(stderr, fmt.Sprintf("Issue #%s reserved on %s (open → working).", id, vocab.Issue().Discovery().Tracker))
+	if warn := refreshLocalMirror(env, detailPath); warn != "" {
+		cwarn(stderr, warn)
+	}
 	fmt.Fprintln(stdout, "claimed")
 	return nil
+}
+
+// refreshLocalMirror brings this checkout's copy of an issue's card fields up
+// to the tracker, when the checkout has the details. It never fails a verb that
+// already published: a refusal (hand-edited mirrored field) is reported instead.
+func refreshLocalMirror(env *trackerEnv, detailPath string) string {
+	abs := filepath.Join(env.root, filepath.FromSlash(detailPath))
+	details, err := os.ReadFile(abs)
+	if errors.Is(err, os.ErrNotExist) {
+		return ""
+	}
+	if err != nil {
+		return fmt.Sprintf("local details unreadable, mirror not refreshed: %v", err)
+	}
+	id, _, ok := issue.ParseFilename(path.Base(detailPath))
+	if !ok {
+		return fmt.Sprintf("%s: not an issue filename; mirror not refreshed", detailPath)
+	}
+	refreshed, err := refreshMirror(env, id, details)
+	if err != nil {
+		return fmt.Sprintf("%s: mirror not refreshed: %v", detailPath, err)
+	}
+	if !bytes.Equal(refreshed, details) {
+		if err := os.WriteFile(abs, refreshed, 0o644); err != nil {
+			return fmt.Sprintf("%s: mirror not refreshed: %v", detailPath, err)
+		}
+	}
+	return ""
+}
+
+// refreshMirror projects the current card into details, proving first that
+// the details' mirrored fields are the untouched projection of their baseline.
+func refreshMirror(env *trackerEnv, id string, details []byte) ([]byte, error) {
+	baselineOID, err := issue.MirrorBaselineOID(details)
+	if err != nil {
+		return nil, err
+	}
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	current, ok := snap.Card(id)
+	if !ok {
+		return nil, fmt.Errorf("no card #%s on the tracker", id)
+	}
+	baseline, err := env.repo.ReadCardBlob(baselineOID)
+	if err != nil {
+		return nil, fmt.Errorf("mirror baseline %s unavailable: %w", baselineOID, err)
+	}
+	return issue.RefreshMirror(details, baseline, current.Raw)
 }
 
 // syncIssuesToMain commits locally, reserves a newly created issue, or publishes

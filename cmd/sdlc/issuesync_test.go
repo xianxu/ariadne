@@ -768,21 +768,6 @@ func TestPublishIsIdempotent(t *testing.T) {
 	}
 }
 
-func TestClaimOfflineRefusesWithoutLocalMutation(t *testing.T) {
-	repo, _ := syncRepo(t)
-	writeSyncIssue(t, repo, filepath.Base(issuePath206), "---\nid: 206\nstatus: open\n---\nlocal draft\n")
-	before, _ := os.ReadFile(filepath.Join(repo, issuePath206))
-	git(t, repo, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
-	var out, errs bytes.Buffer
-	if err := runClaim(&out, &errs, &claimFlags{Issue: 206, IssuesDir: syncIssuesDir}); err == nil {
-		t.Fatal("offline claim succeeded")
-	}
-	after, _ := os.ReadFile(filepath.Join(repo, issuePath206))
-	if !bytes.Equal(before, after) {
-		t.Fatal("offline claim edited local issue")
-	}
-}
-
 func TestSyncIssuesToMain_PublishesFromBranchWithNoMainWorktree(t *testing.T) {
 	repo, origin := syncRepo(t)
 	git(t, repo, "checkout", "-b", "000206-issue-sync-verb")
