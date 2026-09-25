@@ -1,11 +1,12 @@
 ---
 id: 000252
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-25
 updated: 2026-09-25
 estimate_hours:
+started: 2026-09-25T14:26:14-07:00
 ---
 
 # Issue cards: card fields on a tracker ref, details on the branch
@@ -185,8 +186,13 @@ durable plan, rather than settled operator choices.
 
 ## Plan
 
-- [ ] Resolve open questions with the operator
-- [ ] Durable plan (outside the quick-flow shell)
+- [x] Resolve creation, handoff, field ownership and migration approach with the operator
+- [ ] Approve [durable implementation plan](../plans/000252-issue-cards-tracker-ref-plan.md)
+- [ ] M1 — Card/mirror model and tracker repository with CAS/recovery tests
+- [ ] M2 — Creation, claim readiness, early design branch and move-detail handoff
+- [ ] M3 — Composed readers, activity evidence and close/landing recovery
+- [ ] M4 — Migration tooling, legacy writer retirement, instructions and full slot-cycle proof
+- [ ] Coordinate and verify production migration before issue closure
 
 ## Log
 
@@ -195,6 +201,22 @@ durable plan, rather than settled operator choices.
 - Filed from pair session after reconciling `main-slot1` by hand for the third
   time. Design converged with the operator; see Spec. Supersedes #251's storage
   and landing half.
+
+### 2026-09-25 — Planning started
+
+- Operator approved the corrected issue and authorized work. Claimed #252;
+  ran start-plan. Implementation awaits durable-plan approval and change-code.
+- Audited tracker consumers with bounded read-only agents. Reuse
+  `gitx.TrunkFile.UpdateMany` rather than adding a second CAS implementation
+  (ARCH-DRY). Hidden consumers include branch-history-based archive selection,
+  active-time claim evidence and shell/Python alternate writers.
+- Real-Git transfer experiment: source add/remove without joining publication
+  ancestry preserves both unshipped code and later destination edits; joining
+  publication before removal instead deletes/conflicts. Plan binds transfer to
+  absent merge bases, operation receipts and pre-publication preservation checks
+  (ARCH-ORDER). No production files or refs were used in the experiment.
+- Drafted the durable plan with four review boundaries and an explicit
+  downstream cutover procedure; requesting a fresh plan review before approval.
 
 ## Revisions
 
@@ -288,3 +310,11 @@ and Done when contradicting the agreed creation boundary.
   from the proposed workflow. Kept earlier revisions as decision history.
 - Removed related stale claims about an untouched local branch, unchanged
   claim gates, unconditional drift refusal and replay-only allocation retries.
+
+### 2026-09-25 — Durable implementation plan
+
+Reason: operator approved the issue and requested implementation work.
+Replaced the preliminary Plan checklist with four concrete review boundaries
+and the production migration acceptance step. The linked plan proposes ref-based
+tracker access, mirror blob provenance, net-zero transfer history and explicit
+completion binding; these mechanics await plan approval.
