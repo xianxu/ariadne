@@ -8,20 +8,24 @@
 
 **Tech Stack:** Go, Cobra, Git object/ref plumbing, existing Git/GitHub process seams and stateful fakes, CUE vocabulary, Markdown artifacts.
 
-**Status:** Operator approved implementation on 2026-09-25. Plan-quality and estimate gates passed; M1 implementation is in progress in the isolated issue worktree. No production migration or consumer activation has begun.
+**Status:** Operator approved implementation on 2026-09-25. Plan-quality and estimate gates passed; M1 implementation and verification are committed, with boundary acceptance pending. M2–M4 are not implemented. No production migration or consumer activation has begun.
 
 ## Core concepts
 
 ### Pure entities
 
-| Name | Lives in | Status |
-|---|---|---|
-| Card / owned-field schema | `cmd/sdlc/internal/issue/card.go`, `construct/vocabulary/issue.cue` | new / modified |
-| DetailMirror / composed issue | `cmd/sdlc/internal/issue/mirror.go` | new |
-| Creation / transfer transitions | `cmd/sdlc/internal/tracker/creation.go`, `transfer.go` | new |
-| Close generation / landing transitions | `cmd/sdlc/internal/tracker/completion.go` | new |
-| Migration manifest | `cmd/sdlc/internal/tracker/migration.go` | new |
-| Activity event selection | `cmd/sdlc/internal/activetime/commit.go` | modified |
+This inventory distinguishes delivered M1 foundation from planned later work.
+“Planned” is not a claim of presence or modification in the M1 review window.
+
+| Name | Kind | Lives in | Delivery status |
+|---|---|---|---|
+| Card / owned-field schema | PURE | `cmd/sdlc/internal/issue/card.go`, `construct/vocabulary/issue.cue` | M1: new / modified, delivered |
+| DetailMirror | PURE | `cmd/sdlc/internal/issue/mirror.go` | M1: new, delivered |
+| Creation / transfer transitions | PURE | `cmd/sdlc/internal/tracker/creation.go`, `transfer.go` | M1: new, delivered |
+| Close generation / landing transitions | PURE | `cmd/sdlc/internal/tracker/completion.go` | M1: new, delivered |
+| Typed recovery receipt / shared transition engine | PURE | `cmd/sdlc/internal/tracker/receipt.go` | M1: new, delivered |
+| Migration manifest | PURE | `cmd/sdlc/internal/tracker/migration.go` | Planned M4: file absent, not delivered |
+| Activity event selection | PURE | `cmd/sdlc/internal/activetime/commit.go` | Planned M3: existing file unchanged in M1 |
 
 Card owns ID, status, started, created/updated dates, estimate/actual hours, GitHub linkage and canonical title. Its Problem is the original report. Details retain editable Problem, Spec, Done when, Estimate explanation, Plan, Log, Revisions, deps, target, flow and review anchors. Define ownership once; unknown detail fields remain untouched, unknown tracker schema versions refuse. No new lifecycle statuses. Read `vocabulary` skill and the complete CUE model before changing the model.
 
@@ -31,15 +35,16 @@ Each card has one stable ID/path; one or more detail checkouts can mirror it, bu
 
 ### Integration points
 
-| Name | Lives in | Status | Wraps |
-|---|---|---|---|
-| Tracker repository | `cmd/sdlc/internal/tracker/repository.go` | new | `gitx.TrunkFile`, pinned Git refs/trees |
-| Git snapshot/CAS and bootstrap | `cmd/sdlc/internal/gitx/trunkfile.go`, `updatemany.go`, new `refbootstrap.go` | modified / new | Git subprocess boundary |
-| Detail transfer adapter | `cmd/sdlc/issuemovedetail.go` | new | tracker, main publication, index/worktree and recovery refs |
-| Composed issue reader | `cmd/sdlc/issuerecord.go`, `cmd/sdlc/internal/tracker/reader.go` | new | cards plus selected detail location |
-| Completion adapter | `cmd/sdlc/trackercompletion.go` | new | close evidence, existing GitHub landing identity and archive transaction |
-| Migration command | `cmd/sdlc/issuemigrate.go` | new | repository inventory, bootstrap, mirrors, cutover marker |
-| Publication fake | `cmd/sdlc/internal/gitx/commitpublication_fake_test.go` | modified | immutable objects, multiple refs, rejection/lost acknowledgement |
+| Name | Kind | Lives in | Delivery status | Wraps |
+|---|---|---|---|---|
+| Tracker repository / card snapshot reader | INTEGRATION | `cmd/sdlc/internal/tracker/repository.go`, `reader.go` | M1: new, delivered; card inventory only | `gitx.TrunkFile`, pinned Git refs/trees |
+| Git snapshot/CAS and bootstrap | INTEGRATION | `cmd/sdlc/internal/gitx/trunkfile.go`, `updatemany.go`, `snapshot.go`, `refbootstrap.go` | M1: modified / new, delivered | Git subprocess boundary |
+| Bounded output / shared process-group cleanup | INTEGRATION | `cmd/sdlc/internal/gitx/boundedoutput.go`, `cmd/sdlc/internal/processgroup/` | M1: new, delivered; judge wrappers updated | subprocess IO and cancellation |
+| Detail transfer adapter | INTEGRATION | `cmd/sdlc/issuemovedetail.go` | Planned M2: absent, not delivered | tracker, main publication, index/worktree and recovery refs |
+| Composed issue reader | INTEGRATION | `cmd/sdlc/issuerecord.go` | Planned M2/M3: absent, not delivered | M1 card reader plus selected detail location |
+| Completion adapter | INTEGRATION | `cmd/sdlc/trackercompletion.go` | Planned M3: absent, not delivered | close evidence, existing GitHub landing identity and archive transaction |
+| Migration command | INTEGRATION | `cmd/sdlc/issuemigrate.go` | Planned M4: absent, not delivered | repository inventory, bootstrap, mirrors, cutover marker |
+| Publication fake | INTEGRATION test double | `cmd/sdlc/internal/gitx/commitpublication_fake_test.go` | M1: modified, delivered | immutable objects, multiple refs, rejection/lost acknowledgement |
 
 Reuse the common-dir repository lock. Correct the existing cancellation gap: `TrunkFile` calls `runGitIn`, which supplies `context.Background()` (`trunkfile.go:60`), and `UpdateMany` accepts no context (`updatemany.go:68`). Add `NewTrunkFileContext(ctx, dir, remote, branch)` and store a non-nil context; an instance runner routes all fetch/read/tree-build/push/confirmation through `runGitInContext`. Keep the old constructor as a compatibility adapter only for unmigrated callers. Tracker commands pass Cobra command context through repository/lock/preparation boundaries. Cancellation never becomes predicate absence or confirmed rejection. Bound process-group termination and pipe draining to five seconds using existing command cancellation helpers. Cancelled pushes retain Unconfirmed receipts; recovery uses a later invocation, never a detached worker. TrunkView inherits its owner's context. Linked worktrees share refs and locks; independent clones use remote CAS. Use remote-tracking refs and object reads rather than a hidden worktree. Read-only card snapshots may be materialized for navigation, never editing authority.
 
@@ -153,7 +158,13 @@ Files: create `cmd/sdlc/internal/tracker/{repository,reader,creation,transfer,co
 - [x] Write failing model-based tests for `BootstrapTracker`, `Repository.UpdateCard`, `StepCreation`, `StepTransfer`, `StepCompletion`; run matching sequences against the stateful fake and disposable real Git.
 - [x] Run `go test ./cmd/sdlc/internal/gitx ./cmd/sdlc/internal/tracker -count=1`; verify new tests fail for the intended missing behavior.
 - [x] Implement snapshot reads, atomic expected-version card writes and typed operation receipts. Preserve existing CAS semantics; generalize the stateful fake to main and tracker refs, not duplicate it per command.
-- [ ] Repeat tests, add cardinality/IO benchmarks, and document tracker model in new `atlas/workflow/issue-tracker.md` with `atlas/index.md` link. Commit, then `sdlc milestone-close --issue 252 --milestone M1` with actual test evidence per help. Foundation remains unactivated pending cutover.
+- [x] Repeat tests, add cardinality/IO benchmarks, and document tracker model in new `atlas/workflow/issue-tracker.md` with `atlas/index.md` link. Committed as `2144608`; verification evidence is recorded in the issue's M1 review-submission Log (including the baseline CLI-suite failure and measured performance limits).
+
+**M1 acceptance is still pending:** run `sdlc milestone-close --issue 252
+--milestone M1` with the recorded evidence and resolve its findings. The issue's
+M1 checkbox is the acceptance record and stays unchecked until that gate passes;
+the completed implementation checklist above does not assert gate acceptance.
+Foundation remains unactivated pending cutover.
 
 ## Chunk 2: Creation and handoff — M2
 
@@ -251,3 +262,13 @@ conformance triggers. These refinements preserve the approved behavior.
 The implementation gate passed and the approved model is now implemented in
 the isolated issue worktree. Updated execution status and Task 1 progress;
 the transaction foundation remains in progress and no consumers are activated.
+
+### 2026-09-25 — M1 boundary inventory correction (BR-1, BR-2)
+
+Reason: the review could not distinguish project-wide planned entities from
+delivered M1 entities, and the final task row combined completed verification
+with the review gate itself. Swept both concept tables: every row now names its
+kind and delivered/planned milestone, including absent future files and unchanged
+future modifications. Split implementation evidence from acceptance: tests,
+benchmarks, atlas and commit are complete; the mandatory M1 gate is still pending
+and remains represented by the unchecked issue milestone. No code or scope change.

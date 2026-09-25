@@ -68,6 +68,9 @@ Detailed incidents remain in their owning issue or review artifact.
 - Before a boundary, read the actual verdict and reconcile the plan against the
   committed tree. “Inert at runtime” is not the same as “removed”; an unticked
   row can disable the guard that proves it.
+- Multi-milestone inventories distinguish delivered entities from future files
+  and modifications. Separate completed implementation checklists from the
+  acceptance gate whose successful execution is still pending.
 - Review snapshots enumerate every mutable artifact in their prompt and remain
   bounded. Do not truncate judge output with `tail` or `grep`.
 - A close claim names evidence at the corrected mutation boundary. A plan revision
