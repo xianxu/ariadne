@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,8 +10,6 @@ import (
 	"testing"
 
 	"github.com/spf13/cobra"
-
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // newTestDirs makes an issues/ + history/ pair under a temp dir and
@@ -96,47 +95,81 @@ func TestRunIssueShow_HeadersNotBodies(t *testing.T) {
 // mutate the issue identically — the back-compat promise, exercised
 // through the real command tree (buildRoot).
 func TestSetStatusAlias_BothPathsMutate(t *testing.T) {
-	// #149: set-status is a mutating verb, so buildRoot().Execute() acquires the
-	// repo transaction lock. Chdir into a temp git repo so that lock resolves to
-	// the temp .git, not the developer's real .git/sdlc.lock (which hangs the
-	// suite when a live `sdlc` holds it). --issues-dir stays an absolute temp path.
-	hermeticRepo(t)
-	issues, _ := newTestDirs(t)
-	writeOpen := func() {
-		if err := os.WriteFile(filepath.Join(issues, "000001-x.md"), []byte("---\nid: 000001\nstatus: open\n---\n\n# X\n"), 0o644); err != nil {
-			t.Fatal(err)
-		}
-	}
-	statusOf := func() string {
-		data, _ := os.ReadFile(filepath.Join(issues, "000001-x.md"))
-		fm, _, _ := issue.Parse(string(data))
-		s, _ := issue.GetField(fm, "status")
-		return s
-	}
+	// Both spellings reach the same card writer (#252). The fixture is a temp repo,
+	// so the mutating-verb lock never touches the developer's .git (#149).
+	cardPath, card, _, _ := seededIssue(t, "000001", "x")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, nil)
 	run := func(args ...string) {
 		root := buildRoot()
 		root.SetArgs(args)
 		root.SetOut(&bytes.Buffer{})
 		root.SetErr(&bytes.Buffer{})
-		if err := root.Execute(); err != nil {
+		if err := root.ExecuteContext(context.Background()); err != nil {
 			t.Fatalf("execute %v: %v", args, err)
 		}
 	}
-
-	writeOpen()
-	// #122 M4: use a model-legal flip (open→working) — set-status now gates on the
-	// lifecycle graph and open→blocked is illegal (claim first). The test's point is
-	// alias-vs-grouped parity, not the specific transition.
-	run("issue", "set-status", "working", "--issue", "1", "--issues-dir", issues)
-	if got := statusOf(); got != "working" {
-		t.Errorf("grouped `issue set-status` left status %q, want working", got)
+	run("issue", "set-status", "working", "--issue", "1")
+	if got := r.card(cardPath); !strings.Contains(got, "status: working") {
+		t.Errorf("grouped `issue set-status` left:\n%s", got)
 	}
-
-	writeOpen()
-	run("set-status", "working", "--issue", "1", "--issues-dir", issues)
-	if got := statusOf(); got != "working" {
-		t.Errorf("flat `set-status` alias left status %q, want working", got)
+	run("set-status", "blocked", "--issue", "1")
+	if got := r.card(cardPath); !strings.Contains(got, "status: blocked") {
+		t.Errorf("flat `set-status` alias left:\n%s", got)
 	}
+}
+
+// TestCardSetters_UpdateOnlyTheirField drives each card setter through the
+// command tree and checks the card changed in exactly that field.
+func TestCardSetters_UpdateOnlyTheirField(t *testing.T) {
+	cardPath, card, _, _ := seededIssue(t, "000001", "x")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, nil)
+	for _, c := range []struct {
+		args []string
+		want string
+	}{
+		{[]string{"issue", "set-estimate", "--issue", "1", "--hours", "2.5"}, "estimate_hours: 2.5"},
+		{[]string{"issue", "set-github", "--issue", "1", "--number", "42"}, "github_issue: 42"},
+		{[]string{"issue", "set-title", "--issue", "1", "Better title"}, "# Better title"},
+	} {
+		before := r.card(cardPath)
+		root := buildRoot()
+		root.SetArgs(c.args)
+		root.SetOut(&bytes.Buffer{})
+		root.SetErr(&bytes.Buffer{})
+		if err := root.ExecuteContext(context.Background()); err != nil {
+			t.Fatalf("%v: %v", c.args, err)
+		}
+		after := r.card(cardPath)
+		if !strings.Contains(after, c.want) {
+			t.Fatalf("%v: card lacks %q:\n%s", c.args, c.want, after)
+		}
+		if changed := diffLines(before, after); changed != 1 {
+			t.Errorf("%v changed %d lines, want 1", c.args, changed)
+		}
+	}
+	for _, bad := range [][]string{{"issue", "set-estimate", "--issue", "1", "--hours", "0"}, {"issue", "set-github", "--issue", "1"}, {"issue", "set-title", "--issue", "1", " "}} {
+		root := buildRoot()
+		root.SetArgs(bad)
+		root.SetOut(&bytes.Buffer{})
+		root.SetErr(&bytes.Buffer{})
+		if err := root.ExecuteContext(context.Background()); err == nil {
+			t.Errorf("%v accepted", bad)
+		}
+	}
+}
+
+func diffLines(a, b string) int {
+	al, bl := strings.Split(a, "\n"), strings.Split(b, "\n")
+	if len(al) != len(bl) {
+		return -1
+	}
+	n := 0
+	for i := range al {
+		if al[i] != bl[i] {
+			n++
+		}
+	}
+	return n
 }
 
 // TestCommandTree_AliasShape: fetch + set-status flat aliases are hidden +

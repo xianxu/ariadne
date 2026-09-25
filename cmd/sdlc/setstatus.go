@@ -19,6 +19,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"io"
@@ -31,6 +32,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -62,50 +64,64 @@ func NewSetStatusCmd() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f.Status = args[0]
-			return runSetStatus(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runSetStatus(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (required)")
 	cmd.Flags().BoolVar(&f.Force, "force", false, "bypass transition guards")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would change; do not write")
-	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
+	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue details")
 	return cmd
 }
 
-// runSetStatus is the entry point for the cobra RunE.
-func runSetStatus(stdout, stderr io.Writer, f *setStatusFlags) error {
-	path, prev, changed, err := applyStatus(f.IssuesDir, f.Issue, f.Status, f.Force, f.DryRun)
-	if err != nil {
-		die(stderr, err.Error())
+// runSetStatus changes the card's status through the transition guards (#252).
+// The guards read the card's current status and, for a reopen, this checkout's
+// details Log. codecomplete and done stay owned by close and merge.
+func runSetStatus(ctx context.Context, stdout, stderr io.Writer, f *setStatusFlags) error {
+	var prev string
+	decide := func(card tracker.Record, body string) ([]byte, error) {
+		next, p, err := statusDecision(card.Raw, body, f.Status, f.Force, time.Now().Format("2006-01-02"), startedClock())
+		prev = p
+		return next, err
 	}
-
+	if err := runCardUpdate(ctx, stdout, stderr, f.IssuesDir, f.Issue, "status → "+f.Status, f.DryRun, decide); err != nil {
+		return err
+	}
 	// #122 M4: when --force masked the lifecycle gate on an illegal transition,
 	// log the override — the escape hatch is explicit and recorded, not silent.
 	if f.Force && prev != "" && prev != f.Status && !vocab.Issue().CanTransition(prev, f.Status) {
-		cwarn(stderr, fmt.Sprintf("--force: overriding illegal transition %s → %s (not in the lifecycle)", prev, f.Status))
+		cwarn(stderr, fmt.Sprintf("--force: overrode illegal transition %s → %s (not in the lifecycle)", prev, f.Status))
 	}
-
-	// No-op when already at the target status (after guards). applyStatus
-	// still bumps `updated:` so commits show intent — match `sdlc close`'s
-	// posture of always emitting a `updated:` line.
-	if prev == f.Status {
-		cwarn(stderr, fmt.Sprintf("status already '%s'; updating timestamp only", f.Status))
-	}
-
-	if f.DryRun {
-		cinfo(stderr, "dry-run — no files written")
-		fmt.Fprintf(stdout, "Would update %s: status %s → %s, updated %s\n",
-			filepath.Base(path), valueOr(prev, "(unset)"), f.Status, time.Now().Format("2006-01-02"))
-		return nil
-	}
-	if !changed {
-		cok(stderr, fmt.Sprintf("no changes to %s", filepath.Base(path)))
-		return nil
-	}
-	cok(stderr, fmt.Sprintf("%s: status %s → %s", filepath.Base(path),
-		valueOr(prev, "(unset)"), f.Status))
-	fmt.Fprintln(stdout, path)
 	return nil
+}
+
+// statusDecision is set-status's pure core: guard the transition (unless
+// forced), then set status/updated and stamp `started` on open → working
+// without ever moving an existing stamp (#116).
+func statusDecision(card []byte, detailsBody, next string, force bool, today, started string) ([]byte, string, error) {
+	if !isValidStatus(next) {
+		return nil, "", fmt.Errorf("invalid status %q (valid: %s)", next, strings.Join(vocab.Issue().AllStatuses(), ", "))
+	}
+	fm, _, err := issue.Parse(string(card))
+	if err != nil {
+		return nil, "", err
+	}
+	prev, _ := issue.GetField(fm, "status")
+	if !force {
+		if err := checkTransitionGuards(prev, next, fm, detailsBody); err != nil {
+			return nil, prev, err
+		}
+	}
+	out, err := issue.SetCardField(card, "status", next)
+	if err == nil {
+		out, err = issue.SetCardField(out, "updated", today)
+	}
+	if err == nil && vocab.Issue().IsOpen(prev) && next == "working" {
+		if cur, _ := issue.GetField(fm, "started"); strings.TrimSpace(cur) == "" {
+			out, err = issue.SetCardField(out, "started", started)
+		}
+	}
+	return out, prev, err
 }
 
 // locateIssueFile resolves issue <id> to its single workshop/issues file,
@@ -175,57 +191,6 @@ func issueStatus(issuesDir string, issueID int) (string, error) {
 // Local-offset RFC3339 matches git's %aI author-date format that windowStart
 // compares against lexically; tests override it for determinism.
 var startedClock = func() string { return time.Now().Format(time.RFC3339) }
-
-func applyStatus(issuesDir string, issueID int, status string, force, dryRun bool) (path, prev string, changed bool, err error) {
-	if !isValidStatus(status) {
-		return "", "", false, fmt.Errorf("invalid status %q (valid: %s)", status, strings.Join(vocab.Issue().AllStatuses(), ", "))
-	}
-	path, err = locateIssueFile(issuesDir, issueID)
-	if err != nil {
-		return "", "", false, err
-	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return path, "", false, fmt.Errorf("read %s: %v", path, err)
-	}
-	fm, body, err := issue.Parse(string(raw))
-	if err != nil {
-		return path, "", false, fmt.Errorf("parse frontmatter from %s: %v", path, err)
-	}
-	prev, _ = issue.GetField(fm, "status")
-
-	if !force {
-		if gErr := checkTransitionGuards(prev, status, fm, body); gErr != nil {
-			return path, prev, false, gErr
-		}
-	}
-
-	today := time.Now().Format("2006-01-02")
-	newFM := issue.SetField(fm, "status", status)
-	newFM = issue.SetField(newFM, "updated", today)
-	// #116: stamp `started:` on the open→working transition — the explicit, robust
-	// active-time window anchor that supersedes the WorkingTransitionISO git-log
-	// heuristic. Local-offset RFC3339 (startedClock) to stay lexically comparable
-	// with git's %aI author dates that windowStart compares. Idempotent: never
-	// overwrite an existing stamp (re-claim / re-flip must not move the anchor).
-	// #122: "open" membership reads from the model; "working" stays literal — it's
-	// the specific claim target (the open→working edge stamps started), not a category.
-	if vocab.Issue().IsOpen(prev) && status == "working" {
-		if cur, _ := issue.GetField(newFM, "started"); strings.TrimSpace(cur) == "" {
-			newFM = issue.SetField(newFM, "started", startedClock())
-		}
-	}
-	newText := issue.Compose(newFM, body)
-	changed = newText != string(raw)
-
-	if dryRun || !changed {
-		return path, prev, changed, nil
-	}
-	if err := os.WriteFile(path, []byte(newText), 0o644); err != nil {
-		return path, prev, changed, fmt.Errorf("write %s: %v", path, err)
-	}
-	return path, prev, changed, nil
-}
 
 // ── transition guards ────────────────────────────────────────────────────────
 

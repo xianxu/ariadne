@@ -2,8 +2,7 @@ package main
 
 import (
 	"bytes"
-	"os"
-	"path/filepath"
+	"context"
 	"strings"
 	"testing"
 	"time"
@@ -163,24 +162,16 @@ func TestCheckTransitionGuards_IllegalRejected(t *testing.T) {
 	}
 }
 
-// TestApplyStatus_ForceBypassesLifecycleGate: --force lets an illegal transition
-// through (the operator's logged escape hatch).
-func TestApplyStatus_ForceBypassesLifecycleGate(t *testing.T) {
-	issues, _ := newTestDirs(t)
-	p := filepath.Join(issues, "000001-x.md")
-	if err := os.WriteFile(p, []byte("---\nid: 000001\nstatus: open\n---\n\n# X\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	// open→blocked is illegal; refused without --force.
-	if _, _, _, err := applyStatus(issues, 1, "blocked", false, false); err == nil {
+// TestStatusDecision_ForceBypassesLifecycleGate: --force lets an illegal
+// transition through (the operator's logged escape hatch).
+func TestStatusDecision_ForceBypassesLifecycleGate(t *testing.T) {
+	card := []byte(openCard7)
+	if _, _, err := statusDecision(card, "", "blocked", false, "2026-09-25", "now"); err == nil {
 		t.Fatal("open→blocked should be refused without --force")
 	}
-	// With --force it applies.
-	if _, _, _, err := applyStatus(issues, 1, "blocked", true, false); err != nil {
-		t.Fatalf("--force should bypass the lifecycle gate, got: %v", err)
-	}
-	if data, _ := os.ReadFile(p); !strings.Contains(string(data), "status: blocked") {
-		t.Errorf("forced flip did not write status: blocked; file:\n%s", data)
+	out, prev, err := statusDecision(card, "", "blocked", true, "2026-09-25", "now")
+	if err != nil || prev != "open" || !strings.Contains(string(out), "status: blocked") {
+		t.Fatalf("--force: %s %s %v", out, prev, err)
 	}
 }
 
@@ -208,97 +199,46 @@ func TestLogHasEntryToday_VariousShapes(t *testing.T) {
 	}
 }
 
-// TestRunSetStatus_DryRunHonored exercises the dry-run path end-to-end:
-// valid working → blocked transition, no file mutation, summary printed.
-func TestRunSetStatus_DryRunHonored(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "000042-foo.md")
-	original := "---\nid: 000042\nstatus: working\nestimate_hours: 2\nupdated: 2026-04-01\n---\n# Foo\n"
-	if err := os.WriteFile(path, []byte(original), 0o644); err != nil {
-		t.Fatal(err)
+// TestStatusDecision_StampsStartedOnce pins #116: open→working stamps an
+// engagement anchor; an existing stamp is never overwritten.
+func TestStatusDecision_StampsStartedOnce(t *testing.T) {
+	out, _, err := statusDecision([]byte(openCard7), "", "working", false, "2026-09-25", "2026-06-18T10:00:00-07:00")
+	if err != nil || !strings.Contains(string(out), "started: 2026-06-18T10:00:00-07:00") || !strings.Contains(string(out), "updated: 2026-09-25") {
+		t.Fatalf("open→working: %s %v", out, err)
 	}
-	var stdout, stderr bytes.Buffer
-	f := &setStatusFlags{
-		Issue:     42,
-		Status:    "blocked",
-		IssuesDir: dir,
-		DryRun:    true,
-	}
-	if err := runSetStatus(&stdout, &stderr, f); err != nil {
-		t.Fatalf("runSetStatus err: %v", err)
-	}
-	// File contents preserved.
-	got, _ := os.ReadFile(path)
-	if string(got) != original {
-		t.Errorf("dry-run mutated file:\n--- got ---\n%s\n--- want ---\n%s", got, original)
-	}
-	if !strings.Contains(stdout.String(), "Would update") {
-		t.Errorf("dry-run stdout missing summary: %q", stdout.String())
+	stamped := strings.Replace(openCard7, "status: open", "status: open\nstarted: 2025-01-01T00:00:00-07:00", 1)
+	out, _, err = statusDecision([]byte(stamped), "", "working", false, "2026-09-25", "2099-12-31T23:59:59-07:00")
+	if err != nil || strings.Contains(string(out), "2099") || !strings.Contains(string(out), "started: 2025-01-01T00:00:00-07:00") {
+		t.Fatalf("existing started moved: %s %v", out, err)
 	}
 }
 
-// TestApplyStatus_StampsStarted pins #116: the open→working flip stamps an
-// idempotent `started:` engagement anchor (injected clock for determinism); an
-// existing stamp is never overwritten.
-func TestApplyStatus_StampsStarted(t *testing.T) {
-	orig := startedClock
-	t.Cleanup(func() { startedClock = orig })
-	dir := t.TempDir()
-
-	// Case A: open without started → stamped.
-	pathA := filepath.Join(dir, "000008-a.md")
-	if err := os.WriteFile(pathA, []byte("---\nid: 000008\nstatus: open\nestimate_hours: 1\n---\n# A\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	startedClock = func() string { return "2026-06-18T10:00:00-07:00" }
-	if _, _, _, err := applyStatus(dir, 8, "working", false, false); err != nil {
-		t.Fatalf("applyStatus A: %v", err)
-	}
-	if a, _ := os.ReadFile(pathA); !strings.Contains(string(a), "started: 2026-06-18T10:00:00-07:00") {
-		t.Errorf("open→working should stamp started:\n%s", a)
-	}
-
-	// Case B: open WITH an existing started → not overwritten (idempotent).
-	pathB := filepath.Join(dir, "000009-b.md")
-	if err := os.WriteFile(pathB, []byte("---\nid: 000009\nstatus: open\nestimate_hours: 1\nstarted: 2025-01-01T00:00:00-07:00\n---\n# B\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	startedClock = func() string { return "2099-12-31T23:59:59-07:00" }
-	if _, _, _, err := applyStatus(dir, 9, "working", false, false); err != nil {
-		t.Fatalf("applyStatus B: %v", err)
-	}
-	b, _ := os.ReadFile(pathB)
-	if strings.Contains(string(b), "2099") {
-		t.Errorf("existing started: must not be overwritten:\n%s", b)
-	}
-	if !strings.Contains(string(b), "started: 2025-01-01T00:00:00-07:00") {
-		t.Errorf("original started: lost:\n%s", b)
-	}
-}
-
-// TestRunSetStatus_WritesNewStatus tests the happy path: valid
-// transition writes the file with the new status + today's updated.
-func TestRunSetStatus_WritesNewStatus(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "000007-foo.md")
-	if err := os.WriteFile(path, []byte("---\nid: 000007\nstatus: open\nestimate_hours: 1\n---\n# Foo\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+// TestRunSetStatus_UpdatesCardAndHonorsDryRun: the status lives on the card;
+// a dry run decides without publishing, and the resting branch is untouched.
+func TestRunSetStatus_UpdatesCardAndHonorsDryRun(t *testing.T) {
+	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
 	var stdout, stderr bytes.Buffer
-	f := &setStatusFlags{
-		Issue:     7,
-		Status:    "working",
-		IssuesDir: dir,
+	f := &setStatusFlags{Issue: 9, Status: "working", IssuesDir: "workshop/issues", DryRun: true}
+	if err := runSetStatus(context.Background(), &stdout, &stderr, f); err != nil {
+		t.Fatal(err)
 	}
-	if err := runSetStatus(&stdout, &stderr, f); err != nil {
-		t.Fatalf("runSetStatus err: %v", err)
+	if r.card(cardPath) != card || !strings.Contains(stdout.String(), "Would update") {
+		t.Fatalf("dry run published or was silent: %s", stdout.String())
 	}
-	got, _ := os.ReadFile(path)
-	if !strings.Contains(string(got), "status: working") {
-		t.Errorf("file does not contain new status:\n%s", got)
+	f.DryRun = false
+	if err := runSetStatus(context.Background(), &stdout, &stderr, f); err != nil {
+		t.Fatalf("%v\n%s", err, stderr.String())
 	}
-	if !strings.Contains(string(got), "updated: "+todayIso()) {
-		t.Errorf("file missing today's updated:\n%s", got)
+	if got := r.card(cardPath); !strings.Contains(got, "status: working") || !strings.Contains(got, "updated: "+todayIso()) {
+		t.Fatalf("card:\n%s", got)
+	}
+	if r.git("status", "--porcelain") != "" {
+		t.Fatal("set-status edited the resting branch")
+	}
+	f.Status = "codecomplete"
+	if err := runSetStatus(context.Background(), &stdout, &stderr, f); err == nil || !strings.Contains(err.Error(), "sdlc close") {
+		t.Fatalf("→ codecomplete must route to close: %v", err)
 	}
 }
 

@@ -49,6 +49,7 @@ func NewIssueCmd() *cobra.Command {
 	setStatus := NewSetStatusCmd()
 	setStatus.Long = renderLong("set-status") // #125: derive the lifecycle facts (not add()-wired)
 	cmd.AddCommand(setStatus)
+	cmd.AddCommand(newIssueSetTitleCmd(), newIssueSetEstimateCmd(), newIssueSetGitHubCmd())
 
 	cmd.AddCommand(newIssueSyncCmd())
 	cmd.AddCommand(newIssuePublishCmd())
