@@ -204,46 +204,63 @@ func (op *CreationOp) materialize(e Effect, spec ReceiptSpec) (Event, error) {
 	return Event{Kind: EventConfirmed, Binding: e.Expected, CandidateOID: e.CandidateOID}, nil
 }
 
-// publishCardEvent pushes a prepared card candidate once and reports the
-// observation: accepted (with the resulting card blob), a proven race, or unknown.
-func publishCardEvent(repo *Repository, e Effect, cardPath string) (Event, error) {
-	c := gitx.Candidate{Base: e.Expected.TrackerBase, OID: e.CandidateOID}
-	outcome, _ := repo.Push(c)
+// publisher is one destination ref's candidate steps (tracker or main).
+type publisher interface {
+	Push(gitx.Candidate) (gitx.PushOutcome, error)
+	Probe(gitx.Candidate) (gitx.ProbeOutcome, string, error)
+}
+
+// publishEvent pushes a prepared candidate once and reports the observation:
+// accepted, a proven race, or unknown. confirm builds the Confirmed event.
+func publishEvent(p publisher, e Effect, base string, confirm func() (Event, error)) (Event, error) {
+	c := gitx.Candidate{Base: base, OID: e.CandidateOID}
+	outcome, _ := p.Push(c)
 	switch outcome {
 	case gitx.PushAccepted:
-		return confirmedCard(repo, e, cardPath)
+		return confirm()
 	case gitx.PushRejected:
 		// A rejection alone is not a race: the identical candidate may already be
 		// there (a lost earlier acknowledgement). Probe before calling it lost.
-		return probeCardEvent(repo, e, cardPath)
+		return probeEvent(p, e, base, confirm)
 	}
 	return Event{Kind: EventUnknown, Binding: e.Expected}, nil
 }
 
-func probeCardEvent(repo *Repository, e Effect, cardPath string) (Event, error) {
-	c := gitx.Candidate{Base: e.Expected.TrackerBase, OID: e.CandidateOID}
-	probe, _, _ := repo.Probe(c)
+// probeEvent observes an outstanding candidate. From Apply (a remote effect)
+// absence is a race; from Probe it is a completed not-applied observation.
+func probeEvent(p publisher, e Effect, base string, confirm func() (Event, error)) (Event, error) {
+	c := gitx.Candidate{Base: base, OID: e.CandidateOID}
+	probe, _, _ := p.Probe(c)
 	if probe == gitx.ProbeAbsentSame {
 		// Settle a possibly delayed push by re-pushing the identical candidate
 		// under the same lease: it lands once, or it already has. Then observe.
-		if out, _ := repo.Push(c); out == gitx.PushAccepted {
-			return confirmedCard(repo, e, cardPath)
+		if out, _ := p.Push(c); out == gitx.PushAccepted {
+			return confirm()
 		}
-		probe, _, _ = repo.Probe(c)
+		probe, _, _ = p.Probe(c)
 	}
+	applying := e.Kind != ProbePublication
 	switch probe {
 	case gitx.ProbeReachable:
-		return confirmedCard(repo, e, cardPath)
+		return confirm()
 	case gitx.ProbeAbsentMoved:
-		if e.Kind == PublishCard {
+		if applying {
 			return Event{Kind: EventRefRace, Binding: e.Expected}, nil
 		}
 		return Event{Kind: EventNotApplied, Binding: e.Expected}, nil
 	}
-	if e.Kind == PublishCard {
+	if applying {
 		return Event{Kind: EventUnknown, Binding: e.Expected}, nil
 	}
 	return Event{Kind: EventProbeUnknown, Binding: e.Expected}, nil
+}
+
+func publishCardEvent(repo *Repository, e Effect, cardPath string) (Event, error) {
+	return publishEvent(repo, e, e.Expected.TrackerBase, func() (Event, error) { return confirmedCard(repo, e, cardPath) })
+}
+
+func probeCardEvent(repo *Repository, e Effect, cardPath string) (Event, error) {
+	return probeEvent(repo, e, e.Expected.TrackerBase, func() (Event, error) { return confirmedCard(repo, e, cardPath) })
 }
 
 func confirmedCard(repo *Repository, e Effect, cardPath string) (Event, error) {

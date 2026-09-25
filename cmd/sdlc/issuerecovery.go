@@ -1,0 +1,136 @@
+// issuerecovery.go — `sdlc issue recovery` (#252): the checkout-local receipts
+// of tracker operations that stopped before finishing (an uncertain push, an
+// interrupted process). Listing never mutates; reconcile resumes an operation
+// through the same transition model, and releases one that published nothing.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+
+	"github.com/spf13/cobra"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+)
+
+func newIssueRecoveryCmd() *cobra.Command {
+	cmd := &cobra.Command{
+		Use:   "recovery",
+		Short: "List or resume interrupted tracker operations in this checkout",
+		Args:  cobra.NoArgs,
+		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+	}
+	cmd.AddCommand(&cobra.Command{
+		Use:   "list",
+		Short: "List unfinished operation receipts (read-only)",
+		Args:  cobra.NoArgs, SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runRecoveryList(cmd.Context(), cmd.OutOrStdout())
+		},
+	})
+	var issueID int
+	reconcile := markMutatingCommand(&cobra.Command{
+		Use:   "reconcile",
+		Short: "Resume (or release, when nothing was published) an issue's unfinished operations",
+		Args:  cobra.NoArgs, SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runRecoveryReconcile(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), issueID)
+		},
+	})
+	reconcile.Flags().IntVar(&issueID, "issue", 0, "issue ID (required)")
+	cmd.AddCommand(reconcile)
+	return cmd
+}
+
+func runRecoveryList(ctx context.Context, stdout io.Writer) error {
+	env, err := openTracker(ctx)
+	if err != nil {
+		return err
+	}
+	receipts, err := env.receipts()
+	if err != nil {
+		return err
+	}
+	all, listErr := receipts.List()
+	if len(all) == 0 && listErr == nil {
+		fmt.Fprintln(stdout, "no unfinished tracker operations")
+		return nil
+	}
+	for _, r := range all {
+		spec := r.Spec()
+		fmt.Fprintf(stdout, "#%s\t%s\t%s\t%s\t%s\n", spec.IssueID, r.Operation(), r.Stage(), r.Outcome(), spec.Token)
+	}
+	return listErr
+}
+
+// runRecoveryReconcile resumes each of an issue's receipts. Creation cannot
+// re-render a draft after losing its ID, so a creation that published nothing
+// is released instead (the operator reruns `issue new`); every other state is
+// driven forward, probing an uncertain effect before anything is repeated.
+func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID int) error {
+	if issueID <= 0 {
+		return errors.New("--issue is required and must be positive")
+	}
+	env, err := openTracker(ctx)
+	if err != nil {
+		return err
+	}
+	receipts, err := env.receipts()
+	if err != nil {
+		return err
+	}
+	mine, err := receiptsFor(receipts, fmt.Sprintf("%06d", issueID))
+	if err != nil {
+		return err
+	}
+	if len(mine) == 0 {
+		cok(stderr, fmt.Sprintf("no unfinished operations for #%d here", issueID))
+		return nil
+	}
+	mainView, err := env.main.Snapshot()
+	if err != nil {
+		return err
+	}
+	for _, r := range mine {
+		if r.Discardable() && r.Operation() == "creation" {
+			if err := receipts.Discard(r); err != nil {
+				return err
+			}
+			cwarn(stderr, fmt.Sprintf("#%d's creation published nothing; released it — rerun `sdlc issue new`", issueID))
+			continue
+		}
+		var step tracker.Stepper
+		var adapter tracker.Adapter
+		switch r.Operation() {
+		case "creation":
+			resumed, err := tracker.ResumeCreation(r)
+			if err != nil {
+				return err
+			}
+			r = resumed.Receipt()
+			step = tracker.CreationStepper
+			adapter = tracker.NewCreationOp(ctx, env.repo, env.checkout(mainView.Ref()), func(string) (tracker.Draft, error) {
+				return tracker.Draft{}, errors.New("the reserved ID was lost; nothing was published — rerun `sdlc issue new`")
+			})
+		case "transfer":
+			resumed, err := tracker.ResumeTransfer(r)
+			if err != nil {
+				return err
+			}
+			r = resumed.Receipt()
+			step = tracker.TransferStepper
+			adapter = tracker.NewTransferOp(ctx, env.repo, env.main, env.root, moveDetailRemover(env))
+		default:
+			return fmt.Errorf("receipt %s: %s operations are recovered by their own verb", r.Spec().Token, r.Operation())
+		}
+		final, err := tracker.Drive(r, step, adapter, receipts)
+		if err != nil {
+			return fmt.Errorf("#%d %s (%s): %w", issueID, r.Operation(), final.Stage(), err)
+		}
+		cok(stderr, fmt.Sprintf("#%d %s finished", issueID, r.Operation()))
+	}
+	fmt.Fprintln(stdout, "reconciled")
+	return nil
+}

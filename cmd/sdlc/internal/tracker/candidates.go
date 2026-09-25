@@ -79,6 +79,40 @@ func (r *Repository) PrepareUpdate(expected Record, raw []byte, what, token stri
 	})
 }
 
+// PrepareCardChange builds a candidate applying mutate to the card as it is on
+// the candidate's own pinned tip. For monotone changes an operation owns (its
+// handoff record), this re-derives from current content instead of replacing a
+// newer card with stale bytes; mutate refuses when the change no longer applies.
+func (r *Repository) PrepareCardChange(id, cardPath, what, token string, mutate func(current []byte) ([]byte, error)) (gitx.Candidate, error) {
+	if !tokenPattern.MatchString(token) || mutate == nil {
+		return gitx.Candidate{}, errors.New("card change requires an operation token and mutation")
+	}
+	return r.trunk.PrepareCandidate(cardMessage(id, what, token), func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
+		snapshot, err := readSnapshot(view)
+		if err != nil {
+			return gitx.TrunkWrite{}, err
+		}
+		current, ok := snapshot.Card(id)
+		if !ok || current.Path != cardPath {
+			return gitx.TrunkWrite{}, ErrCardChanged
+		}
+		next, err := mutate(current.Raw)
+		if err != nil {
+			return gitx.TrunkWrite{}, err
+		}
+		if _, err := r.validCandidateCard(cardPath, next, token); err != nil {
+			return gitx.TrunkWrite{}, err
+		}
+		if bytes.Equal(current.Raw, next) {
+			return gitx.TrunkWrite{}, ErrNoChange
+		}
+		if err := snapshot.validateReplacement(current, next); err != nil {
+			return gitx.TrunkWrite{}, err
+		}
+		return gitx.TrunkWrite{Write: map[string][]byte{cardPath: next}, ExactBytes: true}, nil
+	})
+}
+
 func (r *Repository) validCandidateCard(cardPath string, raw []byte, token string) (issue.Card, error) {
 	if !tokenPattern.MatchString(token) {
 		return issue.Card{}, errors.New("tracker candidate requires an operation token")
