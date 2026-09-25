@@ -116,7 +116,7 @@ an open question for the operator.
 
 ### Open questions
 
-1. Tracker ref shape: a branch (`tracker`) checked out in a hidden worktree, or
+1. Tracker ref shape: a branch (`🤖<tracker>[let's use issue-tracker]`) checked out in a hidden worktree, or
    another ref namespace? How sdlc and agents locate the checkout.
 2. `deps`: card (global, so peers see blocking) or details?
 3. Migration: split every existing issue file in one pass, or lazily on first
@@ -149,3 +149,68 @@ an open question for the operator.
 - Filed from pair session after reconciling `main-slot1` by hand for the third
   time. Design converged with the operator; see Spec. Supersedes #251's storage
   and landing half.
+
+## Revisions
+
+### 2026-09-25 14:00 PDT — Creation completes when details land; explicit handoff
+
+Reason: a visible card can belong to a process still writing the initial issue.
+Allowing another agent to fabricate missing details would give two agents
+ownership of the same file. The operator clarified the creation boundary and
+agreed an explicit handoff for issues whose containing code branch cannot ship
+yet. These decisions supersede the conflicting Spec and Done when clauses above.
+
+#### Creation and eligibility
+
+- `issue new` creates both files: the card on the tracker ref and details on
+  the creator's current local branch. Filing a spin-off therefore does touch
+  that branch; it does not publish the branch's code.
+- Card-only visibility means creation is still in progress. The creator may
+  continue authoring locally, but another thread cannot claim the issue or
+  independently create details to begin work.
+- The issue is treated as fully created only when its details land on `main`.
+  Claim must verify that landing; a card or a local details file alone is not
+  sufficient. This is a readiness condition, not a new status enum decision.
+- Remove lazy details creation from `start-plan` or first Log entry. Close
+  still requires the details and their Done when + verification evidence.
+
+#### `sdlc issue move-detail --issue N`
+
+An explicit initial-details handoff unblocks another thread without waiting
+for the current code branch to ship:
+
+- If local details exist, publish their current contents to `main`, preserving
+  the work already written, then remove the local source after confirmed
+  publication. The creator no longer needs that local file after handing off.
+- If local details do not exist, create initial details from the card on
+  `main` and publish them. This is the explicit completion of creation, not
+  automatic fabrication by a claim attempt. No separate `make-detail` command
+  is needed.
+- Refuse if details already exist on `main`: creation is complete and another
+  thread may own further work. Do not overwrite them.
+- A read error is not file absence. Failed or uncertain publication must not
+  discard the local source; retry must reconcile any already-published result.
+- Reconcile the transfer in Git history so the original branch's eventual PR
+  neither deletes the published details nor reintroduces its old copy. A plain
+  copy followed by a tracked deletion is insufficient. The concrete transfer
+  mechanism remains for the durable plan. (`ARCH-ORDER`)
+
+#### Synchronization and acceptance changes
+
+- The proposed workflow no longer needs `issue sync` as a special issue
+  synchronization operation. Card writes commit/publish through their owning
+  SDLC verbs; details use ordinary branch commits and publication. Local
+  checkpointing remains necessary. `move-detail` handles the explicit early
+  handoff, rather than broadly synchronizing issue files.
+- Replace the original `issue sync` mirror-refresh/refusal references with
+  the remaining operations that consume or update details; retain the close
+  gate's ownership check. Distinguishing a stale mirror from a hand edit still
+  needs a concrete design.
+- Amend Done when: `issue new` writes a tracker card AND local details; claim
+  refuses until details land on `main`. The lifecycle e2e must include that
+  landing before claim, and a spin-off handoff while code remains unshipped.
+- Add tests for both `move-detail` paths, existing destination refusal, read
+  errors, publication failure/uncertainty and retry, and the original branch's
+  later merge preserving the handed-off details and subsequent edits.
+- These are requirements for #252, not implemented commands. The current
+  `issue sync` remains the repository's checkpoint mechanism until replaced.
