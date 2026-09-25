@@ -34,7 +34,10 @@ const (
 	CardSource  SourceKind = "card"
 )
 
-// ReceiptSpec contains immutable operation intent. CardOID is the prepared
+// ReceiptSpec contains operation intent and its observed destination bases.
+// SourceBase remains immutable; TrackerBase/MainBase advance when preparation
+// observes a candidate's actual parent, without spending a publication attempt.
+// CardOID is the prepared
 // generation (the intended initial blob for creation); acknowledged card stages
 // advance the expected generation in Binding without changing this original.
 type ReceiptSpec struct {
@@ -122,13 +125,18 @@ type LandingEvidence struct {
 // EventNotApplied is a completed negative provenance observation after the old
 // worker has stopped, never a timeout. Unknown/probe-unknown cannot authorize a
 // replay. Replacement is supplied only after a confirmed ref race/revalidation.
+// CandidateBaseOID is required only for remote CandidatePrepared events. Binding
+// still names the prior state: the adapter must validate its expected card/source
+// against the fresh snapshot before reporting that snapshot's candidate parent.
+// Local effects must leave CandidateBaseOID empty; they cannot refresh a remote.
 type Event struct {
-	Kind          EventKind
-	Binding       Binding
-	CandidateOID  string
-	ResultCardOID string
-	Replacement   *ReceiptSpec
-	Landing       *LandingEvidence
+	Kind             EventKind
+	Binding          Binding
+	CandidateOID     string
+	CandidateBaseOID string
+	ResultCardOID    string
+	Replacement      *ReceiptSpec
+	Landing          *LandingEvidence
 }
 
 type operationStage struct {
@@ -332,6 +340,18 @@ func stepOperation(original Receipt, operation string, event Event) (Receipt, []
 		if phase != phasePreparing || !validOperationOID(event.CandidateOID, r.wire.Spec) {
 			return fail("candidate requires a preparing stage and valid OID")
 		}
+		if remoteStage(stage.effect) {
+			if !validOperationOID(event.CandidateBaseOID, r.wire.Spec) {
+				return fail("remote candidate requires its actual destination parent OID")
+			}
+			if stage.effect == PublishCard {
+				r.wire.Spec.TrackerBase = event.CandidateBaseOID
+			} else {
+				r.wire.Spec.MainBase = event.CandidateBaseOID
+			}
+		} else if event.CandidateBaseOID != "" {
+			return fail("local candidate cannot refresh a destination parent")
+		}
 		r.wire.CandidateOID = event.CandidateOID
 		r.wire.Phase = phaseSaving
 		return r, r.effect(PersistReceipt), nil
@@ -447,7 +467,10 @@ func validateOperationEvent(event Event) error {
 	// Clear only the payload allowed by the tag. Anything left is a foreign
 	// variant, rather than metadata a later adapter might accidentally trust.
 	switch event.Kind {
-	case EventCandidatePrepared, EventRefRace, EventNotApplied:
+	case EventCandidatePrepared:
+		event.CandidateOID = ""
+		event.CandidateBaseOID = ""
+	case EventRefRace, EventNotApplied:
 		event.CandidateOID = ""
 	case EventConfirmed:
 		event.CandidateOID = ""
@@ -457,7 +480,7 @@ func validateOperationEvent(event Event) error {
 	case EventLandingConfirmed:
 		event.Landing = nil
 	}
-	if event.CandidateOID != "" || event.ResultCardOID != "" || event.Replacement != nil || event.Landing != nil {
+	if event.CandidateOID != "" || event.CandidateBaseOID != "" || event.ResultCardOID != "" || event.Replacement != nil || event.Landing != nil {
 		return errors.New("event carries payload from another variant")
 	}
 	return nil

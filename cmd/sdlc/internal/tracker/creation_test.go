@@ -19,7 +19,7 @@ func TestCreationReservesBeforeMaterializingAndNeverReallocatesAfterReserve(t *t
 	if err != nil || effects[0].Kind != PrepareCandidate {
 		t.Fatalf("begin: %v %v", effects, err)
 	}
-	s, effects, err = StepCreation(s, Event{Kind: EventCandidatePrepared, Binding: s.Binding(), CandidateOID: strings.Repeat("7", 40)})
+	s, effects, err = StepCreation(s, preparedCandidate(s.Binding(), strings.Repeat("7", 40)))
 	if err != nil || effects[0].Kind != PersistReceipt {
 		t.Fatalf("prepare: %v %v", effects, err)
 	}
@@ -45,7 +45,7 @@ func TestCreationRetryBoundAndAllocationReplacement(t *testing.T) {
 	var err error
 	s, _, _ = StepCreation(s, Event{Kind: EventBegin, Binding: s.Binding()})
 	for i := 0; i < 3; i++ {
-		s, _, err = StepCreation(s, Event{Kind: EventCandidatePrepared, Binding: s.Binding(), CandidateOID: fmt.Sprintf("%040x", 100+i)})
+		s, _, err = StepCreation(s, preparedCandidate(s.Binding(), fmt.Sprintf("%040x", 100+i)))
 		if err != nil {
 			t.Fatal(err)
 		}

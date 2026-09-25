@@ -38,7 +38,7 @@ func TestCompletionRequiresEvidenceExactLandingAndDoneBeforeArchive(t *testing.T
 			t.Fatalf("prepare %v", effects)
 		}
 		oid := fmt.Sprintf("%040x", 100+i)
-		s, effects, err = StepCompletion(s, Event{Kind: EventCandidatePrepared, Binding: s.Binding(), CandidateOID: oid})
+		s, effects, err = StepCompletion(s, preparedCandidate(s.Binding(), oid))
 		if err != nil || effects[0].Kind != PersistReceipt {
 			t.Fatalf("save %v %v", effects, err)
 		}

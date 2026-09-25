@@ -7,6 +7,179 @@ import (
 	"testing"
 )
 
+func preparedCandidate(binding Binding, oid string) Event {
+	event := Event{Kind: EventCandidatePrepared, Binding: binding, CandidateOID: oid}
+	switch binding.Stage {
+	case "creation.reserve", "transfer.handoff", "transfer.record", "completion.codecomplete", "completion.done":
+		event.CandidateBaseOID = binding.TrackerBase
+	case "transfer.main", "completion.archive":
+		event.CandidateBaseOID = binding.MainBase
+	}
+	return event
+}
+
+func TestCandidatePreparationBindsObservedParentAcrossStages(t *testing.T) {
+	for _, kind := range []string{"creation", "transfer", "completion"} {
+		t.Run(kind, func(t *testing.T) {
+			h := transactionForTest(t, kind)
+			effects, err := h.step(Event{Kind: EventBegin, Binding: h.binding()})
+			if err != nil {
+				t.Fatal(err)
+			}
+			for tick := 0; len(effects) > 0 && tick < 40; tick++ {
+				effect := effects[0]
+				event := Event{Binding: h.binding()}
+				switch effect.Kind {
+				case PrepareCandidate:
+					before := h.receipt().Spec()
+					event = preparedCandidate(h.binding(), fmt.Sprintf("%040x", 100+tick))
+					remote := event.CandidateBaseOID != ""
+					if remote {
+						event.CandidateBaseOID = fmt.Sprintf("%040x", 700+tick)
+					}
+					effects, err = h.step(event)
+					if err != nil {
+						t.Fatal(err)
+					}
+					after := h.receipt().Spec()
+					want := before
+					if remote {
+						if effect.Stage == "transfer.main" || effect.Stage == "completion.archive" {
+							want.MainBase = event.CandidateBaseOID
+						} else {
+							want.TrackerBase = event.CandidateBaseOID
+						}
+					}
+					if after != want {
+						t.Fatalf("preparation changed source/identity or wrong destination:\n got %+v\nwant %+v", after, want)
+					}
+					if effects[0].Kind != PersistReceipt || effects[0].Expected != h.binding() {
+						t.Fatal("candidate parent not pinned before persistence")
+					}
+					if remote {
+						raw, err := MarshalReceipt(h.receipt())
+						if err != nil {
+							t.Fatal(err)
+						}
+						r, err := ParseReceipt(raw, before.Repository)
+						if err != nil {
+							t.Fatal(err)
+						}
+						resumed := transactionForTest(t, kind)
+						if err = resumed.resume(r); err != nil {
+							t.Fatal(err)
+						}
+						if resumed.receipt().Spec() != want || resumed.binding() != h.binding() {
+							t.Fatal("resume lost observed parent")
+						}
+						probe, err := resumed.step(Event{Kind: EventBegin, Binding: resumed.binding()})
+						if err != nil || probe[0].Kind != ProbePublication {
+							t.Fatal("resume did not probe pinned candidate")
+						}
+					}
+					continue
+				case PersistReceipt:
+					event.Kind = EventReceiptSaved
+				case PublishCard, PublishMain, MaterializeDetail, WriteEvidence, RemoveSource, ArchiveDetails:
+					event.Kind = EventConfirmed
+					event.CandidateOID = effect.CandidateOID
+					if effect.Kind == PublishCard {
+						event.ResultCardOID = fmt.Sprintf("%040x", 400+tick)
+					}
+				case ObserveLanding:
+					b := h.binding()
+					event.Kind = EventLandingConfirmed
+					event.Landing = &LandingEvidence{Repository: b.Repository, ReviewedHEAD: b.ReviewedHEAD, EvidenceOID: b.EvidenceOID, LandedHEAD: b.EvidenceOID, IntegrationOID: fmt.Sprintf("%040x", 900)}
+				case CleanupReceipt:
+					event.Kind = EventCleanupConfirmed
+				default:
+					t.Fatalf("unexpected effect %s", effect.Kind)
+				}
+				effects, err = h.step(event)
+				if err != nil {
+					t.Fatal(err)
+				}
+			}
+			if len(effects) != 0 || h.receipt().Outcome() != Finalized {
+				t.Fatal("operation did not finish")
+			}
+		})
+	}
+}
+
+func TestCandidatePreparationCannotRefreshStaleCardOrSource(t *testing.T) {
+	h := transactionForTest(t, "transfer")
+	_, _ = h.step(Event{Kind: EventBegin, Binding: h.binding()})
+	before, _ := MarshalReceipt(h.receipt())
+	for _, mutate := range []func(*Binding){func(b *Binding) { b.CardOID = strings.Repeat("9", 40) }, func(b *Binding) { b.SourceHEAD = strings.Repeat("9", 40) }, func(b *Binding) { b.SourceBlob = strings.Repeat("9", 40) }, func(b *Binding) { b.Repository = "other/repo" }, func(b *Binding) { b.Token = "other" }, func(b *Binding) { b.IssueID = "000002" }} {
+		event := preparedCandidate(h.binding(), strings.Repeat("7", 40))
+		event.CandidateBaseOID = strings.Repeat("8", 40)
+		mutate(&event.Binding)
+		if effects, err := h.step(event); err == nil || len(effects) != 0 {
+			t.Fatal("observed parent bypassed stale generation refusal")
+		}
+		after, _ := MarshalReceipt(h.receipt())
+		if !bytes.Equal(before, after) {
+			t.Fatal("refused event changed receipt")
+		}
+	}
+	for _, base := range []string{"", "bad", strings.Repeat("0", 40), strings.Repeat("a", 64)} {
+		event := preparedCandidate(h.binding(), strings.Repeat("7", 40))
+		event.CandidateBaseOID = base
+		if _, err := h.step(event); err == nil {
+			t.Fatalf("accepted invalid parent %q", base)
+		}
+	}
+}
+
+func TestCandidatePreparationParentDoesNotSpendPublicationAttempt(t *testing.T) {
+	h := transactionForTest(t, "creation")
+	_, _ = h.step(Event{Kind: EventBegin, Binding: h.binding()})
+	for attempt := 0; attempt < 3; attempt++ {
+		event := preparedCandidate(h.binding(), fmt.Sprintf("%040x", 100+attempt))
+		event.CandidateBaseOID = fmt.Sprintf("%040x", 700+attempt)
+		if _, err := h.step(event); err != nil {
+			t.Fatal(err)
+		}
+		if _, err := h.step(Event{Kind: EventReceiptSaved, Binding: h.binding()}); err != nil {
+			t.Fatal(err)
+		}
+		effects, err := h.step(Event{Kind: EventRefRace, Binding: h.binding()})
+		if attempt == 2 {
+			if err == nil || len(effects) != 0 {
+				t.Fatal("granted fourth publication attempt")
+			}
+			return
+		}
+		if err != nil || effects[0].Kind != RefreshInputs {
+			t.Fatalf("observed parent consumed retry %d: %v", attempt, err)
+		}
+		spec := h.receipt().Spec()
+		if _, err := h.step(Event{Kind: EventRevalidated, Binding: h.binding(), Replacement: &spec}); err != nil {
+			t.Fatal(err)
+		}
+	}
+}
+
+func TestCandidatePreparationParentIsRemotePreparationOnly(t *testing.T) {
+	h := transactionForTest(t, "completion")
+	_, _ = h.step(Event{Kind: EventBegin, Binding: h.binding()})
+	before, _ := MarshalReceipt(h.receipt())
+	event := preparedCandidate(h.binding(), strings.Repeat("7", 40))
+	event.CandidateBaseOID = strings.Repeat("8", 40)
+	if effects, err := h.step(event); err == nil || len(effects) != 0 {
+		t.Fatal("local evidence preparation refreshed remote parent")
+	}
+	event = Event{Kind: EventBegin, Binding: h.binding(), CandidateBaseOID: strings.Repeat("8", 40)}
+	if effects, err := h.step(event); err == nil || len(effects) != 0 {
+		t.Fatal("another event variant refreshed remote parent")
+	}
+	after, _ := MarshalReceipt(h.receipt())
+	if !bytes.Equal(before, after) {
+		t.Fatal("refusal modified source or intent")
+	}
+}
+
 func TestReceiptRejectsUntrustedShapeIdentityAndImpossibleState(t *testing.T) {
 	s, err := NewTransfer(operationSpec())
 	if err != nil {
@@ -48,7 +221,7 @@ func TestReceiptRejectsMixedHashAlgorithmsAndInvalidRefComponents(t *testing.T) 
 	}
 	s, _ := NewTransfer(operationSpec())
 	s, _, _ = StepTransfer(s, Event{Kind: EventBegin, Binding: s.Binding()})
-	if _, _, err := StepTransfer(s, Event{Kind: EventCandidatePrepared, Binding: s.Binding(), CandidateOID: strings.Repeat("1", 64)}); err == nil {
+	if _, _, err := StepTransfer(s, preparedCandidate(s.Binding(), strings.Repeat("1", 64))); err == nil {
 		t.Fatal("accepted mixed-algorithm candidate")
 	}
 }
@@ -202,8 +375,7 @@ func TestReceiptGeneratedInterruptionsAtEveryDeclaredEffect(t *testing.T) {
 						event := Event{Binding: h.binding()}
 						switch effect.Kind {
 						case PrepareCandidate:
-							event.Kind = EventCandidatePrepared
-							event.CandidateOID = fmt.Sprintf("%040x", 100+mutationIndex)
+							event = preparedCandidate(h.binding(), fmt.Sprintf("%040x", 100+mutationIndex))
 						case PersistReceipt:
 							event.Kind = EventReceiptSaved
 						case RefreshInputs:

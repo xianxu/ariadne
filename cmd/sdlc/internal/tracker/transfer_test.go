@@ -25,7 +25,7 @@ func TestTransferGeneratedInterruptionSequences(t *testing.T) {
 					t.Fatalf("prepare %d: %v", i, effects)
 				}
 				oid := fmt.Sprintf("%040x", 100+i)
-				s, effects, err = StepTransfer(s, Event{Kind: EventCandidatePrepared, Binding: s.Binding(), CandidateOID: oid})
+				s, effects, err = StepTransfer(s, preparedCandidate(s.Binding(), oid))
 				if err != nil || effects[0].Kind != PersistReceipt {
 					t.Fatalf("receipt %v %v", effects, err)
 				}
@@ -105,7 +105,7 @@ func TestTransferRestFinalizationCanUsePublishedMainCommit(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		oid := fmt.Sprintf("%040x", 100+i)
 		var err error
-		s, _, err = StepTransfer(s, Event{Kind: EventCandidatePrepared, Binding: s.Binding(), CandidateOID: oid})
+		s, _, err = StepTransfer(s, preparedCandidate(s.Binding(), oid))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -123,7 +123,7 @@ func TestTransferRestFinalizationCanUsePublishedMainCommit(t *testing.T) {
 		}
 	}
 	mainOID := fmt.Sprintf("%040x", 101)
-	s, effects, err := StepTransfer(s, Event{Kind: EventCandidatePrepared, Binding: s.Binding(), CandidateOID: mainOID})
+	s, effects, err := StepTransfer(s, preparedCandidate(s.Binding(), mainOID))
 	if err != nil || effects[0].Kind != PersistReceipt {
 		t.Fatalf("rest finalization candidate rejected: %v %v", effects, err)
 	}
