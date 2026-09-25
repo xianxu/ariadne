@@ -274,6 +274,21 @@ total: 10.77
   found the new worktree lacks generated AGENTS.md; preparing it through the
   normal weave compile path before rerunning that suite. No gate bypass.
 
+### 2026-09-25 — M1 model verification
+
+- Card/mirror codec and CUE ownership bindings implemented. Fresh
+  `go test ./cmd/sdlc/internal/issue ./pkg/vocab ./cmd/sdlc/internal/processgroup
+  ./cmd/sdlc/internal/judge -count=1` passed after weave generated the worktree
+  instructions. Agent fuzz runs: SplitCard 400,030 executions; RefreshMirror
+  65,336 executions. Unknown detail fields remain branch-owned.
+- Tracker repository tests cover immutable snapshots, same-card CAS refusal,
+  unrelated-card retry and mandatory pre-push receipts. Integration exposed
+  empty root snapshots with ls-tree's end-of-options argument and lost context
+  cancellation wrapping; regression tests pass after corrections.
+- Git snapshot output is explicitly bounded (32 MiB total; 1 MiB per blob),
+  with process-group cancellation on overflow (ARCH-CONSTRAINTS, ARCH-SECURE).
+  Recovery transitions and full M1 transaction verification remain in progress.
+
 ## Revisions
 
 ### 2026-09-25 14:00 PDT — Creation completes when details land; explicit handoff
