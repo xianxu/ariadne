@@ -12,9 +12,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -52,6 +54,11 @@ func NewStartPlanCmd() *cobra.Command {
 				}
 				if path, err := locateIssueFile(issuesDir, issue); err == nil {
 					guardIssueNotDone(cmd.ErrOrStderr(), path, strconv.Itoa(issue)) // #176 done-issue guard
+				}
+			}
+			if issue > 0 {
+				if err := startPlanBranch(cmd.Context(), cmd.OutOrStdout(), issue); err != nil {
+					return err
 				}
 			}
 			runStartPlan(cmd.OutOrStdout(), issue)
@@ -226,18 +233,59 @@ func planPointer(issue int) string {
 		"    ephemeral — NOT the record.", flow.ShellSummary(), slug)
 }
 
-// syncPointer renders the mid-planning durability trigger (#206). Pure — the
-// only input is the issue number — so the wording is table-testable without IO.
-// Continuation lines indent 4 to align under cinfo's `==> ` prefix.
+// syncPointer renders the mid-planning durability trigger (#206, retargeted by
+// #252). Pure — the only input is the issue number — so the wording is
+// table-testable without IO. Continuation lines indent 4 to align under
+// cinfo's `==> ` prefix.
 func syncPointer(issue int) string {
-	flag := "--issue N"
+	id := "N"
 	if issue > 0 {
-		flag = fmt.Sprintf("--issue %d", issue)
+		id = fmt.Sprintf("%d", issue)
 	}
-	return fmt.Sprintf("Checkpoint the design as it lands: `sdlc issue sync %s`. It commits\n"+
-		"    the issue body locally (no push, no network) so a compaction or a closed\n"+
-		"    terminal can't lose it. Run it whenever the Spec/Plan/Log has moved —\n"+
-		"    `sdlc change-code` publishes at the end, but only what survived to it.", flag)
+	return fmt.Sprintf("Checkpoint the design as it lands with ordinary commits on this issue\n"+
+		"    branch — `git commit -m '#%s: plan: …' -- <details> <plan>` — so a compaction\n"+
+		"    or a closed terminal can't lose it. Nothing publishes them: the branch's PR\n"+
+		"    lands the details. Card fields (status, estimate, title) change only through sdlc.", id)
+}
+
+// startPlanBranch moves planning for a claimed issue onto its own branch before
+// any design is authored (#252), and refreshes the local card mirror.
+func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
+	dirs, err := resolveIDDirs(envOr("WF_ISSUES_DIR", "workshop/issues"), envOr("WF_HISTORY_DIR", "workshop/history"))
+	if err != nil {
+		return err
+	}
+	env, err := openTracker(ctx)
+	if err != nil {
+		return err
+	}
+	id := fmt.Sprintf("%06d", issueID)
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return err
+	}
+	card, ok := snap.Card(id)
+	if !ok {
+		return fmt.Errorf("no card #%s on the tracker", id)
+	}
+	if status, _ := issue.GetField(card.Card.Frontmatter, "status"); status != "working" {
+		return fmt.Errorf("#%s is %s; planning starts after `sdlc claim --issue %d` reserves it", id, status, issueID)
+	}
+	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))
+	result, err := preparePlanningBranch(env, id, detailPath)
+	if err != nil {
+		return err
+	}
+	switch result {
+	case planningCreatedBranch:
+		cok(stdout, fmt.Sprintf("Created %s at main for #%s's design; the resting branch is unchanged.", env.branch, id))
+	case planningSwitchedBranch:
+		cok(stdout, fmt.Sprintf("Switched to #%s's existing branch %s.", id, env.branch))
+	}
+	if warn := refreshLocalMirror(env, detailPath); warn != "" {
+		cwarn(stdout, warn)
+	}
+	return nil
 }
 
 // estimateNudge renders the start-plan reminder about estimate_hours (#113, retimed by

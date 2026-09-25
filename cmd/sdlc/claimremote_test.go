@@ -55,7 +55,7 @@ func TestClaimRefusesUntilDetailsLandOnMain(t *testing.T) {
 	}
 }
 
-func TestClaimReservesCardAndRefreshesLocalMirror(t *testing.T) {
+func TestClaimReservesCardAndLeavesRestUntouched(t *testing.T) {
 	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
 	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
 	mainBefore, headBefore := r.originMain(), r.git("rev-parse", "HEAD")
@@ -70,18 +70,34 @@ func TestClaimReservesCardAndRefreshesLocalMirror(t *testing.T) {
 	if r.originMain() != mainBefore || r.git("rev-parse", "HEAD") != headBefore {
 		t.Fatal("claim moved main or committed locally")
 	}
-	local, _ := os.ReadFile(filepath.Join(r.root, detailPath))
-	if !strings.Contains(string(local), "status: working") || string(local) == detail {
-		t.Fatalf("local mirror not refreshed:\n%s", local)
+	// Refreshing the mirror on rest would dirty it; start-plan refreshes on the
+	// issue branch instead (regression: claim → start-plan refused a dirty rest).
+	if dirty := r.git("status", "--porcelain"); dirty != "" {
+		t.Fatalf("claim dirtied the resting branch: %s", dirty)
 	}
 	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9)); err == nil || !strings.Contains(err.Error(), "not open") {
 		t.Fatalf("repeated claim = %v", err)
 	}
 }
 
+func TestClaimRefreshesMirrorOnAFeatureBranch(t *testing.T) {
+	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
+	r.git("switch", "-q", "-c", "000009-nine")
+	var out, errs bytes.Buffer
+	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9)); err != nil {
+		t.Fatalf("%v\n%s", err, errs.String())
+	}
+	local, _ := os.ReadFile(filepath.Join(r.root, detailPath))
+	if !strings.Contains(string(local), "status: working") || string(local) == detail {
+		t.Fatalf("local mirror not refreshed:\n%s", local)
+	}
+}
+
 func TestClaimLeavesHandEditedMirrorAndWarns(t *testing.T) {
 	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
 	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
+	r.git("switch", "-q", "-c", "000009-nine")
 	edited := strings.Replace(detail, "status: open", "status: blocked", 1)
 	writeRepoFile(t, r.root, detailPath, edited)
 	var out, errs bytes.Buffer

@@ -152,7 +152,13 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 // refreshLocalMirror brings this checkout's copy of an issue's card fields up
 // to the tracker, when the checkout has the details. It never fails a verb that
 // already published: a refusal (hand-edited mirrored field) is reported instead.
+// The resting branch is never edited — a local change there is exactly the
+// divergence the tracker exists to remove; its mirror refreshes when the issue
+// branch is prepared (start-plan) or through main.
 func refreshLocalMirror(env *trackerEnv, detailPath string) string {
+	if env.onRest() {
+		return ""
+	}
 	abs := filepath.Join(env.root, filepath.FromSlash(detailPath))
 	details, err := os.ReadFile(abs)
 	if errors.Is(err, os.ErrNotExist) {
