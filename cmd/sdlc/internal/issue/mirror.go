@@ -145,3 +145,20 @@ func MirrorBaselineOID(details []byte) (string, error) {
 	}
 	return n.Value, nil
 }
+
+// HasMirror reports whether details claim a card mirror at all, independent of
+// whether that claim is valid. It is a textual top-level key check, so malformed
+// frontmatter cannot make a mirrored file look like a pre-tracker one and skip
+// its ownership checks; validation belongs to MirrorBaselineOID/RefreshMirror.
+func HasMirror(details []byte) bool {
+	fm, _, err := Parse(string(details))
+	if err != nil {
+		return false
+	}
+	for _, line := range strings.Split(fm, "\n") {
+		if strings.HasPrefix(line, MirrorField+":") {
+			return true
+		}
+	}
+	return false
+}

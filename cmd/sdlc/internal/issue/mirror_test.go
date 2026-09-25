@@ -172,3 +172,17 @@ func TestRefreshMirrorPreservesScalarTypes(t *testing.T) {
 		t.Fatal("accepted changed YAML scalar type")
 	}
 }
+
+func TestHasMirrorIsIndependentOfValidity(t *testing.T) {
+	for raw, want := range map[string]bool{
+		"---\nid: 000001\n---\nbody\n":   false,
+		"no frontmatter\n":               false,
+		"---\ncard_mirror: 'abc'\n---\n": true,
+		"---\nid: 1\nestimate_hours: 1\nestimate_hours: 2\ncard_mirror: x\n---\n": true, // malformed, still mirrored
+		"---\nnote: card_mirror: x\n---\n":                                        false,
+	} {
+		if got := HasMirror([]byte(raw)); got != want {
+			t.Errorf("HasMirror(%q) = %v, want %v", raw, got, want)
+		}
+	}
+}

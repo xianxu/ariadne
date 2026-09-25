@@ -36,6 +36,8 @@ package main
 
 import (
 	"bufio"
+	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -123,6 +125,12 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	}
 	guardIssueNotDone(stderr, issuePath, strconv.Itoa(f.Issue)) // #176 done-issue guard
 
+	// 1b. Tracker-era details (#252) carry a card mirror: design continues on the
+	//     issue branch start-plan prepared, and the gates read current card fields.
+	if err := refreshChangeCodeMirror(f, name, issuePath); err != nil {
+		return err
+	}
+
 	// 2. Read issue content (and optional plan file).
 	issueBytes, err := os.ReadFile(issuePath)
 	if err != nil {
@@ -188,29 +196,22 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	if f.DryRun {
 		cinfo(stderr, "dry-run — branch creation skipped")
 		if id := issueIDFromPath(issuePath); id > 0 {
-			fmt.Fprintf(stdout, "Would commit issue #%d under %q and publish only that new commit\n",
-				id, issueSyncMessage(id, "spec/plan at change-code"))
+			fmt.Fprintf(stdout, "Would commit issue #%d's design on %s under %q (local only; nothing is published)\n",
+				id, name, designCheckpointMessage(id))
 		}
 		fmt.Fprintf(stdout, "Would create branch %s (mode=%s)\n", name, wt)
 		return nil
 	}
 
-	// 7. Land the planning output: commit + publish the issue file so the
-	//    branch starts from a tracked state (#206). This is the milestone the
-	//    Spec/Plan should become external at — plan-quality has just accepted
-	//    the design — so it publishes, unlike the bare `sdlc issue sync`.
-	//
-	//    Replaces commitUntrackedIssueFile, which was change-code's own private
-	//    commit+push of the issue file: a second implementation of this, and one
-	//    that only ever handled the UNTRACKED case, leaving a tracked-but-edited
-	//    issue file dirty at branch creation.
+	// 7. Record the flow now that the gates passed. The design is checkpointed
+	//    by a narrow local commit on the issue branch once it exists (step 9);
+	//    nothing is published — details land through the branch's PR (#252).
 	if f.review != nil {
 		if err := f.review.validate(); err != nil {
 			return err
 		}
 	}
 	recordChangeCodeFlow(stderr, f, issuePath, name, issueFlow)
-	syncIssue(stderr, f, issuePath)
 
 	// 8. Create branch.
 	switch wt {
@@ -223,35 +224,90 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 			die(stderr, err.Error())
 		}
 	}
+
+	// 9. Checkpoint the accepted design where the branch now carries it.
+	if err := checkpointDesign(f, name, issuePath); err != nil {
+		cwarn(stderr, fmt.Sprintf("the design was not checkpointed: %v\n"+
+			"      commit the issue and plan on %s before implementing", err, name))
+	}
 	return nil
 }
 
-// syncIssue checkpoints the resolved issue locally and publishes only the new
-// narrow commit through the same adapter in every checkout. Previously committed
-// design packages require explicit issue publish --commit selection. No new
-// issue commit is a no-op, never permission to infer an older publication unit.
-// Publication remains best-effort: failure preserves the local checkpoint and
-// reports the selected SHA so implementation can proceed without losing it.
-func syncIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
-	// A --name branch can point at a file outside the NNNNNN- convention; there
-	// is no id to name in the commit subject, so there is nothing to sync.
+func designCheckpointMessage(id int) string {
+	return fmt.Sprintf("#%d: plan: accepted design at change-code", id)
+}
+
+// checkpointDesign commits the accepted design — details, durable plan and
+// plan-gate ledger — by one narrow local commit on the issue branch. It never
+// publishes, never commits on another branch, and leaves unrelated staged or
+// unstaged work alone. No changes is a no-op.
+func checkpointDesign(f *changeCodeFlags, name, issuePath string) error {
 	id := issueIDFromPath(issuePath)
-	if id == 0 {
-		return
+	if id == 0 || f.DryRun {
+		return nil
 	}
-	// DryRun is threaded even though runChangeCode returns before reaching here
-	// under --dry-run: a helper that commits must not depend on a caller's early
-	// return for its dry-run correctness.
-	syncFlags := &claimFlags{
-		Issue: id, IssuesDir: f.IssuesDir, NoStart: true,
-		DryRun: f.DryRun, AllowNoChanges: true,
+	if current := currentBranch(changeCodeRunner); current != name {
+		// A new worktree holds the branch; this checkout's copy stays uncommitted.
+		return fmt.Errorf("this checkout is on %q, not %s", current, name)
 	}
-	msg := issueSyncMessage(id, "spec/plan at change-code")
-	if err := syncIssuesToMain(stderr, stderr, syncFlags, changeCodeRunner, msg); err != nil {
-		cwarn(stderr, fmt.Sprintf("issue file not synced: %v\n"+
-			"      the gates passed and the branch is being created anyway;\n"+
-			"      preserve the local commit and use the explicit publication retry above", err))
+	var paths []string
+	for _, p := range []string{issuePath, filepath.Join(f.PlansDir, name+"-plan.md"), planGatePath(f.PlansDir, filepath.Base(issuePath))} {
+		if _, err := os.Stat(p); err == nil {
+			paths = append(paths, p)
+		}
 	}
+	status, err := changeCodeRunner.Git(append([]string{"status", "--porcelain", "--"}, paths...)...)
+	if err != nil {
+		return fmt.Errorf("git status: %v\n%s", err, status)
+	}
+	if strings.TrimSpace(string(status)) == "" {
+		return nil
+	}
+	if out, err := changeCodeRunner.Git(append([]string{"add", "--"}, paths...)...); err != nil {
+		return fmt.Errorf("git add: %v\n%s", err, out)
+	}
+	args := append([]string{"commit", "-q", "--no-verify", "-m", designCheckpointMessage(id), "--only", "--"}, paths...)
+	if out, err := changeCodeRunner.Git(args...); err != nil {
+		return fmt.Errorf("git commit: %v\n%s", err, out)
+	}
+	return nil
+}
+
+// refreshChangeCodeMirror applies to tracker-era details only (a card mirror
+// marker); files that predate the migration keep the legacy path untouched. It
+// refuses the resting branch — start-plan owns moving design off it — and a
+// hand-edited card field, whose refusal names the setter to use instead.
+func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) error {
+	details, err := os.ReadFile(issuePath)
+	if err != nil {
+		return fmt.Errorf("read issue file %s: %w", issuePath, err)
+	}
+	if !issue.HasMirror(details) {
+		return nil
+	}
+	ctx := context.Background()
+	if f.review != nil {
+		ctx = f.review.context()
+	}
+	env, err := openTracker(ctx)
+	if err != nil {
+		return err
+	}
+	id, _, ok := issue.ParseFilename(filepath.Base(issuePath))
+	if !ok {
+		return fmt.Errorf("%s is not an issue filename", issuePath)
+	}
+	if env.branch != name {
+		return fmt.Errorf("#%s's design belongs on its branch %s (this checkout is on %q); run `sdlc start-plan --issue %s` first", id, name, env.branch, strings.TrimLeft(id, "0"))
+	}
+	refreshed, err := refreshMirror(env, id, details)
+	if err != nil {
+		return err
+	}
+	if !bytes.Equal(refreshed, details) {
+		return os.WriteFile(issuePath, refreshed, 0o644)
+	}
+	return nil
 }
 
 // ── the gate sequence ───────────────────────────────────────────────────────
@@ -333,7 +389,7 @@ func (c *changeCodeCtx) estimate() error {
 	}
 	fmt.Fprintln(c.stderr, "estimate gate failed:")
 	fmt.Fprintf(c.stderr, "  [%s] %s\n", fail.Name, fail.Message)
-	cwarn(c.stderr, "the plan has cleared plan-quality — derive `estimate_hours: <n>` now and add it to the issue frontmatter, OR re-run with --no-estimate / --force <reason>")
+	cwarn(c.stderr, "the plan has cleared plan-quality — derive the estimate now and record it on the card with `sdlc issue set-estimate --issue N --hours <n>` (estimate_hours is card-owned), OR re-run with --no-estimate / --force <reason>")
 	return fmt.Errorf("estimate failure")
 }
 

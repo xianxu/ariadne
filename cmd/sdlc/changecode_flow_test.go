@@ -251,7 +251,7 @@ func TestRunChangeCodeRecordsFlowAfterGates(t *testing.T) {
 		{"activeChangeCodeGates", pos["activeChangeCodeGates"]},
 		{"the dry-run return", dryRunIf},
 		{"recordChangeCodeFlow", pos["recordChangeCodeFlow"]},
-		{"syncIssue", pos["syncIssue"]},
+		{"checkpointDesign", pos["checkpointDesign"]},
 	}
 	for i, o := range order {
 		if o.at == 0 {
@@ -259,7 +259,7 @@ func TestRunChangeCodeRecordsFlowAfterGates(t *testing.T) {
 		}
 		if i > 0 && o.at <= order[i-1].at {
 			t.Errorf("%s comes before %s in runChangeCode — the flow record must be written after the gates pass "+
-				"and past the dry-run return, and before the sync commit", o.name, order[i-1].name)
+				"and past the dry-run return, and before the design checkpoint", o.name, order[i-1].name)
 		}
 	}
 }

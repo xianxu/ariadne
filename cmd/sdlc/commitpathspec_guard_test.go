@@ -210,8 +210,8 @@ type wiring struct {
 // the verb — it proves the call exists, not that it runs — but it is strictly
 // stronger than nothing, and it fails the moment someone deletes the line.
 var commitWirings = []wiring{
-	{"changecode.go", "runChangeCode", "syncIssue",
-		"Spec piece 3 (#206): change-code lands + publishes the design at the end of planning"},
+	{"changecode.go", "runChangeCode", "checkpointDesign",
+		"the accepted design is one narrow local commit on the issue branch (#252)"},
 	{"push.go", "runPush", "archiveCommitArgs",
 		"the archive commit must be as narrow as archiveAddArgs staged"},
 	{"push.go", "recoverInterruptedArchive", "archiveCommitArgs",
