@@ -26,6 +26,41 @@ rounds:
           family: external-fake-conformance-cadence
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-09-25T14:39:04-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Specifies context propagation across the reused transaction seam, bounded subprocess shutdown, retained uncertainty and production-command cancellation verification.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Names production functions with adversarial strategies and mechanical invariants, while retaining integration acceptance requirements separately.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Identifies recurring Git and GitHub conformance checks and their execution triggers.
+          round: 2
+      blocked: false
+    - "n": 3
+      timestamp: "2026-09-25T14:40:36-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Command context reaches transaction execution, with bounded shutdown and retained uncertain-publication evidence.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: The function-level contract names adversarial strategies and independent invariants for risky production functions.
+          round: 3
+        - id: PQ-3
+          disposition: addressed
+          note: Git and GitHub conformance checks have explicit PR, milestone, rollout and contract-change triggers.
+          round: 3
+      blocked: false
+content_hash: 187710b94f60d2fa2e4044fa38d3006ef6960dba0daf373203931256673bd818
 ---
 
 # Gate ledger — ariadne#252 (plan-quality)
@@ -44,8 +79,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-3** [Minor] `external-fake-conformance-cadence` State when external dependency conformance checks run
   ARCH-MOCK: The plan names stateful doubles and implementation-time real-Git checks but no recurring conformance cadence. Identify the checks and their execution trigger for the Git and GitHub behavior relied upon by publication and landing recovery.
 
+## Round 2 — 2026-09-25T14:39:04-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Specifies context propagation across the reused transaction seam, bounded subprocess shutdown, retained uncertainty and production-command cancellation verification.
+- PQ-2 — addressed — Names production functions with adversarial strategies and mechanical invariants, while retaining integration acceptance requirements separately.
+- PQ-3 — addressed — Identifies recurring Git and GitHub conformance checks and their execution triggers.
+
+## Round 3 — 2026-09-25T14:40:36-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Command context reaches transaction execution, with bounded shutdown and retained uncertain-publication evidence.
+- PQ-2 — addressed — The function-level contract names adversarial strategies and independent invariants for risky production functions.
+- PQ-3 — addressed — Git and GitHub conformance checks have explicit PR, milestone, rollout and contract-change triggers.
+
 ## Open findings
 
-- **PQ-1** [Important] `cancellation-through-production-seam` Specify cancellation propagation through the reused Git transaction API
-- **PQ-2** [Important] `function-level-adversarial-test-contract` Replace enumerated test cases with named functions and adversarial strategies
-- **PQ-3** [Minor] `external-fake-conformance-cadence` State when external dependency conformance checks run
+(none — every finding has been disposed)
