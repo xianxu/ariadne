@@ -52,9 +52,9 @@ after the ariadne-source branch:
 
 ## Plan
 
-- [ ] Test first: portable-ci fixture gains a tap-unpublished gateway (fake `brew tap` failure, pass-through `git` that stubs `clone`); published case now expects the `brew:tap` row
-- [ ] Workflow: consumer fallback branch in "Build candidate gateway"
-- [ ] Mutation-check; `bash scripts/test/portable-ci.test.sh`; note removal in #241
+- [x] Test first: portable-ci fixture gains a tap-unpublished gateway (fake `brew tap` failure, pass-through `git` that stubs `clone`); published case now expects the `brew:tap` row
+- [x] Workflow: consumer fallback branch in "Build candidate gateway"
+- [x] Mutation-check; `bash scripts/test/portable-ci.test.sh`; note removal in #241
 
 ## Log
 
@@ -62,3 +62,10 @@ after the ariadne-source branch:
 
 - Filed from pair#323. Seed semantics (`construct/base.manifest`: seed tracks
   upstream, refreshed on drift) rule out a pair-local fix.
+- Implemented. `portable-ci.test.sh` executes the real run blocks for published
+  tap, unpublished tap and ariadne source; it failed before the workflow change.
+  The fake `go` now logs to the leaf's events, because the fallback builds inside
+  the source clone. Mutations caught: remove the fallback branch; drop its
+  `$GITHUB_PATH` export. `go test ./cmd/weave/...` and
+  `bootstrap-transitive.test.sh` green. Removal is noted in #241.
+
