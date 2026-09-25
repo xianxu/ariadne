@@ -102,4 +102,7 @@ part of the delivery contract.
   when `brew tap xianxu/ariadne` fails it builds weave from ariadne source. When
   this issue publishes the tap, delete that `elif` branch (and its
   `portable-ci.test.sh` tap-unpublished case) in the same change.
+  #250's close review also noted the step name "Build candidate gateway for
+  ariadne source CI" is stale while the fallback exists; it becomes accurate
+  again once the branch is deleted.
 

@@ -1,6 +1,6 @@
 ---
 id: 000250
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-24
@@ -8,6 +8,7 @@ updated: 2026-09-24
 estimate_hours:
 started: 2026-09-24T20:15:40-07:00
 flow: {kind: quick, provenance: inferred, spec: "d0c76448", done: "99f79d25"}
+actual_hours: 0.09
 ---
 
 # Seeded merge-check builds weave from source while the tap is unpublished
@@ -59,6 +60,7 @@ after the ariadne-source branch:
 ## Log
 
 ### 2026-09-24
+- 2026-09-24: closed — scripts/test/portable-ci.test.sh executes the seeded workflow run blocks for published tap, unpublished tap (new: tap fails -> clone -> bundle -> candidate build -> compile, no brew install) and ariadne source; failed before the change; mutations (remove fallback branch; drop GITHUB_PATH export) both caught; go test ./cmd/weave/... and construct/scripts/test/bootstrap-transitive.test.sh green. No atlas: interim CI fallback owned by #241 for removal, no new architectural surface. Live proof pending: pair#323 re-seed + a green pair PR run.; review verdict: SHIP
 
 - Filed from pair#323. Seed semantics (`construct/base.manifest`: seed tracks
   upstream, refreshed on drift) rule out a pair-local fix.
