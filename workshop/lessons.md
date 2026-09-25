@@ -71,6 +71,8 @@ Detailed incidents remain in their owning issue or review artifact.
 - Multi-milestone inventories distinguish delivered entities from future files
   and modifications. Separate completed implementation checklists from the
   acceptance gate whose successful execution is still pending.
+- Check generated review artifacts against the complete boundary range before
+  committing; an unstaged-only whitespace check misses already committed prose.
 - Review snapshots enumerate every mutable artifact in their prompt and remain
   bounded. Do not truncate judge output with `tail` or `grep`.
 - A close claim names evidence at the corrected mutation boundary. A plan revision

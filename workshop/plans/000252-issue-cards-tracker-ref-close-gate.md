@@ -22,6 +22,28 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: true
+    - "n": 2
+      timestamp: "2026-09-25T15:30:42-07:00"
+      agent: codex
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The plan now distinguishes delivered M1 entities from absent planned M2–M4 entities and records the correction in Revisions.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: M1 implementation checklist items are checked; acceptance is explicitly separated and remains pending until milestone-close.
+          round: 2
+      findings:
+        - id: BR-3
+          severity: Minor
+          title: Committed M1 review artifact contains trailing whitespace
+          detail: git diff --check reports trailing whitespace in workshop/plans/000252-issue-cards-tracker-ref-m1-review.md:34 and :39; remove it before final cleanup.
+          family: review-artifact-hygiene
+          round: 2
+      boundary: M1
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#252 (boundary-review)
@@ -38,7 +60,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Important] `boundary-checklist-not-closed` Final M1 plan checklist item remains unchecked
   The M1 row covering repeated tests, benchmarks, atlas documentation, and milestone-close evidence remains unchecked while the review is being submitted. Close the row with evidence or defer the boundary.
 
+## Round 2 — 2026-09-25T15:30:42-07:00 (codex) — passed
+
+### Disposed
+
+- BR-1 — addressed — The plan now distinguishes delivered M1 entities from absent planned M2–M4 entities and records the correction in Revisions.
+- BR-2 — addressed — M1 implementation checklist items are checked; acceptance is explicitly separated and remains pending until milestone-close.
+
+### Raised
+
+- **BR-3** [Minor] `review-artifact-hygiene` Committed M1 review artifact contains trailing whitespace
+  git diff --check reports trailing whitespace in workshop/plans/000252-issue-cards-tracker-ref-m1-review.md:34 and :39; remove it before final cleanup.
+
 ## Open findings
 
-- **BR-1** [Critical] `core-concepts-inventory-drift` Core concepts table claims future entities are delivered
-- **BR-2** [Important] `boundary-checklist-not-closed` Final M1 plan checklist item remains unchecked
+- **BR-3** [Minor] `review-artifact-hygiene` Committed M1 review artifact contains trailing whitespace

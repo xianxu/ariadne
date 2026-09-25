@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git object/ref plumbing, existing Git/GitHub process seams and stateful fakes, CUE vocabulary, Markdown artifacts.
 
-**Status:** Operator approved implementation on 2026-09-25. Plan-quality and estimate gates passed; M1 implementation and verification are committed, with boundary acceptance pending. M2–M4 are not implemented. No production migration or consumer activation has begun.
+**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2–M4 are not implemented. No production migration or consumer activation has begun.
 
 ## Core concepts
 
@@ -160,11 +160,10 @@ Files: create `cmd/sdlc/internal/tracker/{repository,reader,creation,transfer,co
 - [x] Implement snapshot reads, atomic expected-version card writes and typed operation receipts. Preserve existing CAS semantics; generalize the stateful fake to main and tracker refs, not duplicate it per command.
 - [x] Repeat tests, add cardinality/IO benchmarks, and document tracker model in new `atlas/workflow/issue-tracker.md` with `atlas/index.md` link. Committed as `2144608`; verification evidence is recorded in the issue's M1 review-submission Log (including the baseline CLI-suite failure and measured performance limits).
 
-**M1 acceptance is still pending:** run `sdlc milestone-close --issue 252
---milestone M1` with the recorded evidence and resolve its findings. The issue's
-M1 checkbox is the acceptance record and stays unchecked until that gate passes;
-the completed implementation checklist above does not assert gate acceptance.
-Foundation remains unactivated pending cutover.
+**M1 accepted:** `sdlc milestone-close --issue 252 --milestone M1` round 2
+disposed BR-1/BR-2 and returned FIX-THEN-SHIP with one minor artifact-whitespace
+finding (BR-3), corrected in the boundary commit. The issue's M1 checkbox is
+the acceptance record. Foundation remains unactivated pending cutover.
 
 ## Chunk 2: Creation and handoff — M2
 
@@ -272,3 +271,10 @@ kind and delivered/planned milestone, including absent future files and unchange
 future modifications. Split implementation evidence from acceptance: tests,
 benchmarks, atlas and commit are complete; the mandatory M1 gate is still pending
 and remains represented by the unchecked issue milestone. No code or scope change.
+
+### 2026-09-25 — M1 acceptance
+
+Round 2 accepted the corrected inventory and checklist (BR-1/BR-2 addressed).
+Fixed the remaining minor trailing whitespace in the generated review artifact
+before the boundary commit, as the FIX-THEN-SHIP protocol requires. Updated
+current execution status; no production activation or implementation scope change.

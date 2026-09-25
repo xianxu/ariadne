@@ -227,7 +227,7 @@ total: 10.77
 
 - [x] Resolve creation, handoff, field ownership and migration approach with the operator
 - [x] Approve [durable implementation plan](../plans/000252-issue-cards-tracker-ref-plan.md)
-- [ ] M1 — Card/mirror model and tracker repository with CAS/recovery tests
+- [x] M1 — Card/mirror model and tracker repository with CAS/recovery tests
 - [ ] M2 — Creation, claim readiness, early design branch and move-detail handoff
 - [ ] M3 — Composed readers, activity evidence and close/landing recovery
 - [ ] M4 — Migration tooling, legacy writer retirement, instructions and full slot-cycle proof
@@ -236,6 +236,7 @@ total: 10.77
 ## Log
 
 ### 2026-09-25
+- 2026-09-25: closed M1 — M1 card/mirror, CAS/bootstrap, recovery and envelope regressions pass; tracker race suite passes; snapshot fuzz 284976 cases; vocabulary vet and diff check pass. BR-1/BR-2 corrected in plan inventory/checklist without code changes. Baseline CLI #210 failure reproduced on main; remaining CLI suite running with 25m timeout. Actual 0.17h measured by sdlc actual.; review verdict: FIX-THEN-SHIP
 
 - Filed from pair session after reconciling `main-slot1` by hand for the third
   time. Design converged with the operator; see Spec. Supersedes #251's storage
@@ -321,6 +322,11 @@ total: 10.77
   with `-skip` for that one baseline failure and `-timeout=25m`.
 - Submitting M1 to its mandatory SDLC review. No production activation or
   migration; consumer integration remains M2/M3 and cutover remains M4.
+
+- M1 review round 2 disposed BR-1/BR-2 and accepted FIX-THEN-SHIP. Corrected
+  BR-3 trailing whitespace across the review artifact before the close commit;
+  `git diff --check` across the full M1 range is clean. No code findings remain.
+  The CLI regression run excluding confirmed baseline #210 is still in progress.
 
 ## Revisions
 
