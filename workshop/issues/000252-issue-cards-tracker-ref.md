@@ -328,6 +328,27 @@ total: 10.77
   `git diff --check` across the full M1 range is clean. No code findings remain.
   The CLI regression run excluding confirmed baseline #210 is still in progress.
 
+### 2026-09-25 — M2 in progress (session handover)
+
+- Took over uncommitted M2 groundwork from the previous session (operator
+  confirmed it had stopped). Completed and committed it (`e6f5e9f`): publication
+  target from the resting branch's upstream, observed candidate parents in
+  receipts, and `RecoveryStore` recovery refs pinning objects through gc.
+- `UpdateManyPrepared` fuses prepare/push/retry, so the receipt engine could not
+  own retries or resume. Split publication into `PrepareCandidate` /
+  `PushCandidate` / `ProbeCandidate` and added one `tracker.Drive` loop that
+  persists before each protected effect and stops on uncertainty (ARCH-ORDER).
+  A probe finding the tip unmoved re-pushes the identical candidate under the
+  same lease, settling a delayed push rather than stranding the receipt.
+- `issue new` (`b310f86`) and `claim` (`009713b`) now run on the tracker: the
+  card is reserved by its own commit, details are written locally (narrow commit
+  on a feature branch, uncommitted on rest), claim requires details on fresh
+  main and re-checks immediately before push. Two-clone races for both verbs
+  pass against the built binary.
+- Deviation: the CUE model (M1) names separate setters (`issue set-title`,
+  `set-estimate`, `set-github`); the plan's generic `issue set --field` is
+  superseded by the delivered model's refusal messages.
+
 ## Revisions
 
 ### 2026-09-25 14:00 PDT — Creation completes when details land; explicit handoff
