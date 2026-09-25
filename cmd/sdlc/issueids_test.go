@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -835,8 +836,8 @@ func TestClassifyDuplicates_IntroducedIsNotCalledPreExisting(t *testing.T) {
 // gate looks at, whose natural repair (git mv into workshop/issues/)
 // manufactures exactly the collision this issue exists to prevent.
 func TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir(t *testing.T) {
-	repo, _ := idRepo(t)
-	sub := filepath.Join(repo, "docs", "sub")
+	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
+	sub := filepath.Join(r.root, "docs", "sub")
 	if err := os.MkdirAll(sub, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -844,16 +845,16 @@ func TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir(t *testing.T) {
 
 	var stdout, stderr bytes.Buffer
 	f := &issueNewFlags{IssuesDir: idsDir, HistoryDir: histDir}
-	if err := runIssueNew(&stdout, &stderr, f, []string{"Subdir Run"}); err != nil {
+	if err := runIssueNew(context.Background(), &stdout, &stderr, f, []string{"Subdir Run"}); err != nil {
 		t.Fatalf("runIssueNew: %v (stderr: %s)", err, stderr.String())
 	}
-	if _, err := os.Stat(filepath.Join(repo, "workshop", "issues", "000002-subdir-run.md")); err != nil {
+	if _, err := os.Stat(filepath.Join(r.root, "workshop", "issues", "000008-subdir-run.md")); err != nil {
 		t.Errorf("issue not written to the repo's issue dir: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(sub, "workshop", "issues")); err == nil {
 		t.Error("issue written under docs/sub/workshop/issues — a live issue where no gate looks")
 	}
-	if got := strings.TrimSpace(stdout.String()); got != "workshop/issues/000002-subdir-run.md" {
+	if got := strings.TrimSpace(stdout.String()); got != "workshop/issues/000008-subdir-run.md" {
 		t.Errorf("stdout = %q, want the repo-relative path every gate and commit speaks", got)
 	}
 }

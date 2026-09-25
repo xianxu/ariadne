@@ -9,10 +9,12 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -20,8 +22,8 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -212,7 +214,7 @@ title overrides it) and the issue body is seeded under ## Problem.`,
 		Args:          cobra.MaximumNArgs(1),
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runIssueNew(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args)
+			return runIssueNew(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args)
 		},
 	})
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "override the auto-derived slug")
@@ -225,9 +227,11 @@ title overrides it) and the issue body is seeded under ## Problem.`,
 	return cmd
 }
 
-// runIssueNew is the entry point for `sdlc issue new`. Hard guardrail
-// failures call die(); the happy path prints the created path to stdout.
-func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) error {
+// runIssueNew files an issue in two places (#252): the card is reserved on the
+// tracker branch by its own commit, then the details are written to this
+// checkout. Nothing is published to main — details land there through the
+// branch's own PR, or `sdlc issue move-detail`, and claim waits for that.
+func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags, args []string) error {
 	title := ""
 	if len(args) > 0 {
 		title = args[0]
@@ -237,159 +241,111 @@ func runIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string) erro
 	if f.FromGitHub > 0 {
 		repo, err := detectRepo()
 		if err != nil {
-			die(stderr, err.Error())
+			return err
 		}
 		ghNum = strconv.Itoa(f.FromGitHub)
 		ghTitle, ghBody, err := ghClient.TitleAndBody(repo, ghNum)
 		if err != nil {
-			die(stderr, fmt.Sprintf("fetch GitHub issue %s: %v", ghNum, err))
+			return fmt.Errorf("fetch GitHub issue %s: %w", ghNum, err)
 		}
 		if title == "" {
 			title = ghTitle
 		}
 		problemBody = ghBody
 	}
-
 	if strings.TrimSpace(title) == "" {
-		die(stderr, "a title is required (positional arg, or --from-github N to derive it)")
+		return errors.New("a title is required (positional arg, or --from-github N to derive it)")
 	}
-
 	slug := f.Slug
 	if slug == "" {
 		slug = issue.Slugify(title)
 	}
 	if slug == "" {
-		die(stderr, fmt.Sprintf("title %q produced an empty slug; pass --slug", title))
+		return fmt.Errorf("title %q produced an empty slug; pass --slug", title)
 	}
-
-	// Resolve the issue directory ONCE, against the repo top level, and use the
-	// resolved location for every step below — allocation, the file write, and
-	// the sync pathspec (#213 BR-25). Left cwd-relative, `sdlc issue new` from a
-	// subdirectory allocated against an EMPTY id space (docs/sub/workshop/issues
-	// does not exist, so both ls-tree and ReadDir truthfully answered nothing),
-	// then wrote the file there and pushed it — where no gate looks, and where
-	// the natural repair manufactures exactly the collision this issue exists to
-	// prevent. Reading and writing must agree on where ids live.
-	// Only the WRITE takes the absolute form. f.IssuesDir stays as given, because
-	// it also feeds the sync (#213 BR-26). Since #207 BR-16 the sync pins its own
-	// git calls to the repo root, so neither form is silently blind from a
-	// subdirectory — which is what broke #82's guarantee here before.
-	// allocateIssueID resolves for itself, so it needs no help here.
-	writeDir, shownDir := f.IssuesDir, f.IssuesDir
-	if dirs, derr := resolveIDDirs(f.IssuesDir, f.HistoryDir); derr == nil {
-		writeDir, shownDir = dirs.Abs[0], dirs.Rel[0]
-	}
-
-	nextID, err := allocateIssueID(stderr, f.IssuesDir, f.HistoryDir, claimRunner)
+	dirs, err := resolveIDDirs(f.IssuesDir, f.HistoryDir)
 	if err != nil {
-		die(stderr, err.Error())
+		return err
 	}
+	home := dirs.Rel[0]
 
+	env, err := openTracker(ctx)
+	if err != nil {
+		return err
+	}
+	if env.branch == "" {
+		return errors.New("issue new writes details on the current branch; check out a branch first")
+	}
 	today := time.Now().Format("2006-01-02")
-	name := fmt.Sprintf("%s-%s.md", nextID, slug)
-	dest := filepath.Join(writeDir, name)
-	// Reported repo-relative: that is what every gate, commit and human means by
-	// an issue path, and from the repo top it is byte-identical to the old output.
-	shown := filepath.ToSlash(filepath.Join(shownDir, name))
-	if _, err := os.Stat(dest); err == nil {
-		die(stderr, fmt.Sprintf("issue file already exists: %s", dest))
+	render := func(id string) (tracker.Draft, error) {
+		full := issue.Render(issue.ScaffoldSpec{ID: id, Title: title, Today: today, GithubIssue: ghNum,
+			ProblemBody: problemBody, Deps: f.Deps, Target: f.Target})
+		card, detail, err := issue.SplitCardWithFormat([]byte(full), env.format)
+		if err != nil {
+			return tracker.Draft{}, err
+		}
+		return tracker.Draft{CardPath: tracker.CardPath(id, slug), DetailPath: path.Join(home, id+"-"+slug+".md"), Card: card, Detail: detail}, nil
 	}
-
-	rendered := issue.Render(issue.ScaffoldSpec{
-		ID:          nextID,
-		Title:       title,
-		Today:       today,
-		GithubIssue: ghNum,
-		ProblemBody: problemBody,
-		Deps:        f.Deps,
-		Target:      f.Target,
-	})
-
 	if f.DryRun {
-		cinfo(stderr, "dry-run — no files written")
-		fmt.Fprintf(stdout, "Would create: %s\n", shown)
-		fmt.Fprintln(stdout, "─── body ───")
-		fmt.Fprint(stdout, rendered)
+		snap, err := env.repo.Snapshot()
+		if err != nil {
+			return err
+		}
+		d, err := render(fmt.Sprintf("%06d", snap.MaxID()+1))
+		if err != nil {
+			return err
+		}
+		cinfo(stderr, "dry-run — nothing reserved or written")
+		fmt.Fprintf(stdout, "Would reserve: %s (on %s)\nWould create: %s\n", d.CardPath, vocab.Issue().Discovery().Tracker, d.DetailPath)
+		fmt.Fprintln(stdout, "─── details ───")
+		fmt.Fprint(stdout, string(d.Detail))
 		return nil
 	}
 
-	if err := os.MkdirAll(writeDir, 0o755); err != nil {
-		die(stderr, fmt.Sprintf("mkdir %s: %v", shownDir, err))
+	mainView, err := env.main.Snapshot()
+	if err != nil {
+		return err
 	}
-	if err := os.WriteFile(dest, []byte(rendered), 0o644); err != nil {
-		die(stderr, fmt.Sprintf("write %s: %v", dest, err))
+	receipts, err := env.receipts()
+	if err != nil {
+		return err
 	}
-
-	created := fmt.Sprintf("Created %s", shown)
+	op := tracker.NewCreationOp(ctx, env.repo, env.checkout(mainView.Ref()), render)
+	var r tracker.Receipt
+	// A peer can take the allocated ID between snapshot and candidate; nothing
+	// is published then, so a fresh allocation is safe. Races after the
+	// candidate is durable are the receipt engine's (bounded) retries.
+	for attempt := 1; ; attempt++ {
+		if r, err = op.Start(operationToken("new")); err != nil {
+			return err
+		}
+		r, err = tracker.Drive(r, tracker.CreationStepper, op, receipts)
+		if err == nil || !errors.Is(err, tracker.ErrIDTaken) || !r.Discardable() || attempt == tracker.MaxPublicationAttempts {
+			break
+		}
+		if derr := receipts.Discard(r); derr != nil {
+			return derr
+		}
+	}
+	spec := r.Spec()
+	if errors.Is(err, tracker.ErrOperationUncertain) {
+		return fmt.Errorf("%w\n      nothing is lost: run `sdlc issue recovery reconcile --issue %s` to finish #%s", err, spec.IssueID, spec.IssueID)
+	}
+	if err != nil {
+		return err
+	}
+	created := fmt.Sprintf("Reserved #%s on %s; created %s", spec.IssueID, vocab.Issue().Discovery().Tracker, spec.DestinationPath)
 	if ghNum != "" {
 		created += fmt.Sprintf(" (GitHub #%s)", ghNum)
 	}
 	cok(stderr, created)
-
-	// #82 M1: broadcast the new issue to origin/main immediately, so a freshly
-	// filed (base) issue is tracker state on main — not untracked working-tree
-	// residue that every symlinked derivative reads and that gates trip over.
-	// Reserves only this new issue against fresh remote IDs with the `--issue` filter
-	// (rides #80's filtered add — unrelated untracked files stay put). nextID is
-	// a zero-padded string ("000083"); claimFlags.Issue is an int.
-	if id, perr := strconv.Atoi(nextID); perr == nil {
-		syncFlags := &claimFlags{Issue: id, IssuesDir: f.IssuesDir, HistoryDir: f.HistoryDir, NoStart: true, FirstPublication: true}
-		// Route the sync's stdout to stderr: its machine "synced" marker must not
-		// pollute `issue new`'s stdout contract (the created path, printed below).
-		// "" keeps issue new's historical subject ("issue-sync: update issues");
-		// naming the issue is `sdlc issue sync`'s job, not creation's.
-		serr := syncIssuesToMain(stderr, stderr, syncFlags, claimRunner, "")
-		if serr == nil && len(syncFlags.Reallocations) > 0 {
-			// The publisher re-allocated, so the file named above is gone: stdout
-			// is the CREATED PATH contract, and printing a path finish() deleted
-			// hands callers a name that does not exist (#207 BR-1).
-			rc := syncFlags.Reallocations[0]
-			shown = filepath.Join(filepath.Dir(shown), filepath.Base(rc.NewPath))
-			cok(stderr, fmt.Sprintf("id %06d was taken on the trunk — filed as %06d instead: %s",
-				rc.OldID, rc.NewID, shown))
-		}
-		if serr == nil {
-			local := *syncFlags
-			local.NoPush = true
-			if len(syncFlags.Reallocations) > 0 {
-				local.Issue = syncFlags.Reallocations[0].NewID
-			}
-			if err := syncIssuesToMain(stderr, stderr, &local, claimRunner, issueSyncMessage(local.Issue, "new issue")); err != nil {
-				cwarn(stderr, fmt.Sprintf("reservation published but local commit failed: %v", err))
-			}
-		}
-
-		if errors.Is(serr, gitx.ErrPublicationUncertain) {
-			cwarn(stderr, fmt.Sprintf("reservation outcome uncertain; source and candidate files preserved without committing a rejected identity. Inspect origin/main before retrying: %v", serr))
-		} else if serr != nil {
-			// Best-effort: the file is already written + reported above, so a sync
-			// failure (offline, no reachable origin, conflict) must not abort the
-			// create — just surface it. `claim` treats the same error as fatal.
-			//
-			// But fall back to a LOCAL commit first (#206). Publication and
-			// durability are separable, and only publication failed here; leaving
-			// the new issue as an untracked working-tree file is the hole this
-			// issue exists to close. Since #207 the common trigger is a genuinely
-			// unreachable origin rather than a missing worktree on main — the
-			// trunk route needs no checkout. A no-op when the first attempt
-			// already committed and only the push failed.
-			syncFlags.NoPush = true
-			if lerr := syncIssuesToMain(stderr, stderr, syncFlags, claimRunner, issueSyncMessage(id, "new issue")); lerr != nil {
-				cwarn(stderr, fmt.Sprintf("issue created but NOT committed: %v (sync to main also failed: %v)", lerr, serr))
-			} else if errors.Is(serr, errIDTaken) {
-				cwarn(stderr, fmt.Sprintf("issue committed locally but NOT broadcast: %v\n"+
-					"      `sdlc issue sync --push` will refuse for the same reason — an id already on the\n"+
-					"      trunk is never renumbered (ariadne#188). Delete this file and re-run `sdlc issue\n"+
-					"      new`, or rename it AND its `id:` frontmatter to a free id.", serr))
-			} else {
-				source := gitx.Capture("rev-parse", "HEAD")
-				cwarn(stderr, fmt.Sprintf("issue committed locally but not broadcast to main: %v\n"+
-					"      verify the ID is still free, then publish with `sdlc issue publish --commit %s`", serr, source))
-			}
-		}
+	if env.onRest() {
+		cinfo(stderr, "details are uncommitted on the resting branch; the issue is claimable once they land on main — "+
+			"`sdlc issue move-detail --issue "+spec.IssueID+"` publishes them")
+	} else if err := commitOnly(env, fmt.Sprintf("#%s: issue: new", spec.IssueID), spec.DestinationPath); err != nil {
+		return fmt.Errorf("card reserved and details written, but the local commit failed: %w", err)
 	}
-
-	fmt.Fprintln(stdout, shown)
+	fmt.Fprintln(stdout, spec.DestinationPath)
 	return nil
 }
 

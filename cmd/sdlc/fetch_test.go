@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -27,158 +28,33 @@ func (s stubGH) PRListForBranch(repo, headRef string) (string, error)   { return
 func (s stubGH) PRMerge(repo, branch string) error                      { return nil }
 func (s stubGH) PRMergedForBranch(repo, headRef string) (bool, error)   { return false, nil }
 
-// TestRunFetch_DryRun exercises the dry-run path end-to-end with stubbed
-// gh and a temp workspace. Skips the real gh invocation; verifies the
-// rendered output flows through stdout and no file is written.
-func TestRunFetch_DryRun(t *testing.T) {
-	// Swap in stub gh, restore at test end.
-	prev := ghClient
-	ghClient = stubGH{title: "My GH Title", body: "Body line one.\nLine two.", err: nil}
-	defer func() { ghClient = prev }()
-
-	// Provide a minimal git remote so detectRepo succeeds. We override
-	// detectRepo by running inside a git temp dir that has origin set.
-	tmp := t.TempDir()
-	gitInit(t, tmp, "git@github.com:xianxu/ariadne.git")
-	cwd, _ := os.Getwd()
-	defer os.Chdir(cwd)
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatal(err)
-	}
-
-	issuesDir := filepath.Join(tmp, "workshop", "issues")
-	historyDir := filepath.Join(tmp, "workshop", "history")
-	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(historyDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-
-	var stdout, stderr bytes.Buffer
-	f := &fetchFlags{
-		GitHubIssue: 42,
-		IssuesDir:   issuesDir,
-		HistoryDir:  historyDir,
-		DryRun:      true,
-	}
-	if err := runFetch(&stdout, &stderr, f); err != nil {
-		t.Fatalf("runFetch dry-run returned err: %v", err)
-	}
-	// No file created.
-	entries, _ := os.ReadDir(issuesDir)
-	if len(entries) != 0 {
-		t.Errorf("dry-run wrote files: %v", entries)
-	}
-	if !strings.Contains(stdout.String(), "Would create:") {
-		t.Errorf("dry-run stdout missing 'Would create:' — got:\n%s", stdout.String())
-	}
-	if !strings.Contains(stdout.String(), "# My GH Title") {
-		t.Errorf("dry-run stdout missing title — got:\n%s", stdout.String())
-	}
-}
-
-func TestRunFetch_CreatesFileWithNextID(t *testing.T) {
-	prev := ghClient
-	ghClient = stubGH{title: "Fix the thing", body: "context"}
-	defer func() { ghClient = prev }()
-
-	tmp := t.TempDir()
-	gitInit(t, tmp, "https://github.com/xianxu/ariadne")
-	cwd, _ := os.Getwd()
-	defer os.Chdir(cwd)
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatal(err)
-	}
-
-	issuesDir := filepath.Join(tmp, "workshop", "issues")
-	historyDir := filepath.Join(tmp, "workshop", "history")
-	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(historyDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	// Existing 7 → next should be 8.
-	if err := os.WriteFile(filepath.Join(issuesDir, "000007-prev.md"), []byte("---\n---\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-
-	var stdout, stderr bytes.Buffer
-	f := &fetchFlags{
-		GitHubIssue: 99,
-		IssuesDir:   issuesDir,
-		HistoryDir:  historyDir,
-	}
-	if err := runFetch(&stdout, &stderr, f); err != nil {
-		t.Fatalf("runFetch returned err: %v", err)
-	}
-	want := filepath.Join(issuesDir, "000008-fix-the-thing.md")
-	if _, err := os.Stat(want); err != nil {
-		t.Fatalf("expected file at %s, got: %v", want, err)
-	}
-	got, err := os.ReadFile(want)
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, want := range []string{
-		"id: 000008",
-		"github_issue: 99",
-		"# Fix the thing",
-	} {
-		if !strings.Contains(string(got), want) {
-			t.Errorf("file missing %q", want)
-		}
-	}
-}
-
-// TestFetchAlias_ThroughTree exercises the folded `fetch` alias end-to-end
-// via the real command tree (buildRoot). `fetch --github-issue N` is the
-// thing that changed in M2 (it now delegates to runIssueNew), so prove the
-// GH body lands under ## Problem in the canonical template — not just that
-// the command is hidden+deprecated.
+// TestFetchAlias_ThroughTree: the hidden `fetch --github-issue N` alias still
+// delegates to `issue new --from-github`, now reserving a tracker card (#252).
 func TestFetchAlias_ThroughTree(t *testing.T) {
-	prev := ghClient
+	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
+	prevGH, prevRepo := ghClient, detectRepo
 	ghClient = stubGH{title: "Folded Fetch", body: "GH body text."}
-	defer func() { ghClient = prev }()
-
-	tmp := t.TempDir()
-	gitInit(t, tmp, "git@github.com:xianxu/ariadne.git")
-	cwd, _ := os.Getwd()
-	defer os.Chdir(cwd)
-	if err := os.Chdir(tmp); err != nil {
-		t.Fatal(err)
-	}
-	issuesDir := filepath.Join(tmp, "workshop", "issues")
-	historyDir := filepath.Join(tmp, "workshop", "history")
-	if err := os.MkdirAll(issuesDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.MkdirAll(historyDir, 0o755); err != nil {
-		t.Fatal(err)
-	}
+	detectRepo = func() (string, error) { return "xianxu/ariadne", nil }
+	t.Cleanup(func() { ghClient, detectRepo = prevGH, prevRepo })
 
 	root := buildRoot()
-	root.SetArgs([]string{"fetch", "--github-issue", "7", "--issues-dir", issuesDir, "--history-dir", historyDir})
+	root.SetArgs([]string{"fetch", "--github-issue", "7"})
 	root.SetOut(&bytes.Buffer{})
 	root.SetErr(&bytes.Buffer{})
-	if err := root.Execute(); err != nil {
+	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute fetch alias: %v", err)
 	}
-
-	data, err := os.ReadFile(filepath.Join(issuesDir, "000001-folded-fetch.md"))
+	data, err := os.ReadFile(filepath.Join(r.root, "workshop/issues/000008-folded-fetch.md"))
 	if err != nil {
-		t.Fatalf("expected created file: %v", err)
+		t.Fatalf("expected created details: %v", err)
 	}
 	body := string(data)
-	if !strings.Contains(body, "github_issue: 7") {
-		t.Errorf("fold lost github_issue:\n%s", body)
-	}
-	probIdx := strings.Index(body, "## Problem")
-	specIdx := strings.Index(body, "## Spec")
-	ghIdx := strings.Index(body, "GH body text.")
+	probIdx, specIdx, ghIdx := strings.Index(body, "## Problem"), strings.Index(body, "## Spec"), strings.Index(body, "GH body text.")
 	if probIdx < 0 || ghIdx < probIdx || ghIdx > specIdx {
-		t.Errorf("GH body should sit under ## Problem in the canonical template:\n%s", body)
+		t.Errorf("GH body should sit under ## Problem:\n%s", body)
+	}
+	if card := r.card("workshop/issue-cards/000008-folded-fetch.md"); !strings.Contains(card, "github_issue: 7") {
+		t.Errorf("card lost github_issue:\n%s", card)
 	}
 }
 

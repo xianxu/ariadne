@@ -54,6 +54,18 @@ func (s *RecoveryReceipts) Delete(r Receipt) error {
 	return nil
 }
 
+// Discard drops a receipt that published nothing (see Discardable). A receipt
+// this run never persisted needs no cleanup.
+func (s *RecoveryReceipts) Discard(r Receipt) error {
+	if !r.Discardable() {
+		return fmt.Errorf("receipt %s guards published or outstanding work", r.wire.Spec.Token)
+	}
+	if s.gen[r.wire.Spec.Token] == "" {
+		return nil
+	}
+	return s.Delete(r)
+}
+
 // Load reads one receipt and adopts its generation for later CAS writes.
 func (s *RecoveryReceipts) Load(token string) (Receipt, error) {
 	entry, err := s.store.Load(token)
