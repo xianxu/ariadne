@@ -261,6 +261,19 @@ total: 10.77
   and specifying validated migration of existing codecomplete generations.
   Plan is committed locally and awaits operator approval; no code changed.
 
+### 2026-09-25 — M1 implementation started
+
+- Operator approved execution. change-code passed plan-quality (PQ-1–3
+  addressed) and estimate-quality (INFO: provisional rollout/verification
+  grouping). Worktree: `/Users/xianxu/workspace/worktree/ariadne/000252-issue-cards-tracker-ref`.
+- Baseline `go test ./cmd/sdlc/internal/issue ./cmd/sdlc/internal/gitx
+  ./pkg/vocab -count=1` passed before code edits. TDD underway for card/mirror
+  codec, context-bound Git transactions, orphan tracker bootstrap and shared
+  subprocess group cancellation.
+- Focused context propagation/pre-push receipt tests passed. Full judge tests
+  found the new worktree lacks generated AGENTS.md; preparing it through the
+  normal weave compile path before rerunning that suite. No gate bypass.
+
 ## Revisions
 
 ### 2026-09-25 14:00 PDT — Creation completes when details land; explicit handoff
