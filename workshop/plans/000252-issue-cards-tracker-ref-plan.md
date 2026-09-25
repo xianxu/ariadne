@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git object/ref plumbing, existing Git/GitHub process seams and stateful fakes, CUE vocabulary, Markdown artifacts.
 
-**Status:** Operator approved implementation on 2026-09-25. Implementation gate review is in progress; no code or production migration has begun. No estimate until the plan-quality gate accepts this plan.
+**Status:** Operator approved implementation on 2026-09-25. Plan-quality and estimate gates passed; M1 implementation is in progress in the isolated issue worktree. No production migration or consumer activation has begun.
 
 ## Core concepts
 
@@ -141,9 +141,9 @@ is needed for that check. Record versions and fixture identity with results.
 
 Files: create `cmd/sdlc/internal/issue/card.go`, `card_test.go`, `mirror.go`, `mirror_test.go`; modify `construct/vocabulary/issue.cue`, `pkg/vocab/vocab.go`, generated `pkg/vocab/issue.json`, `pkg/vocab/vocab_test.go`.
 
-- [ ] Write failing property/fuzz tests for `SplitCard`, `ParseCard`, `RefreshMirror` per the function strategy contract below; assert preservation independently of serialization.
-- [ ] Run `go test ./cmd/sdlc/internal/issue ./pkg/vocab -count=1` and record intended failures before implementation.
-- [ ] Add card discovery/ownership alongside existing `discovery.home` (which remains details); implement pure projection comparison and refresh. Expose typed validation errors with setter next actions.
+- [x] Write failing property/fuzz tests for `SplitCard`, `ParseCard`, `RefreshMirror` per the function strategy contract below; assert preservation independently of serialization.
+- [x] Run `go test ./cmd/sdlc/internal/issue ./pkg/vocab -count=1` and record intended failures before implementation.
+- [x] Add card discovery/ownership alongside existing `discovery.home` (which remains details); implement pure projection comparison and refresh. Expose typed validation errors with setter next actions.
 - [ ] Regenerate using the repository vocabulary generation path; run the tests above and `git diff --check`; commit explicit paths as `#252 M1: model: split card authority from details`.
 
 ### Task 2: Ref-backed repository and transaction evidence
@@ -245,3 +245,9 @@ PQ-1 (context propagation through the legacy Git transaction seam), PQ-2
 The plan now explicitly migrates transaction execution to command contexts,
 names risky production functions and their invariants, and states recurring
 conformance triggers. These refinements preserve the approved behavior.
+
+### 2026-09-25 — M1 implementation checkpoint
+
+The implementation gate passed and the approved model is now implemented in
+the isolated issue worktree. Updated execution status and Task 1 progress;
+the transaction foundation remains in progress and no consumers are activated.
