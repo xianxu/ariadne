@@ -272,11 +272,11 @@ func (s *RecoveryStore) List() ([]RecoveryEntry, error) {
 }
 
 func (s *RecoveryStore) hashBlob(content []byte) (string, error) {
-	out, diag, err := s.git(content, diagnosticOutputLimit, "hash-object", "-w", "--no-filters", "--stdin")
-	if err != nil {
-		return "", s.fail("write recovery blob", err, diag)
+	oid, err := WriteBlob(s.ctx, s.dir, content)
+	if err != nil && s.ctx.Err() != nil {
+		return "", s.ctx.Err()
 	}
-	return parseObjectID(out)
+	return oid, err
 }
 
 func (s *RecoveryStore) readBlob(spec string) ([]byte, error) {
