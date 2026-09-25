@@ -289,6 +289,25 @@ total: 10.77
   with process-group cancellation on overflow (ARCH-CONSTRAINTS, ARCH-SECURE).
   Recovery transitions and full M1 transaction verification remain in progress.
 
+### 2026-09-25 — M1 transaction foundation
+
+- Implemented orphan bootstrap, context-bound Git execution, bounded batched
+  snapshot reads and conditional exact-byte card updates. The shared stateful
+  Git fake now models main and tracker refs; real-Git tests cover the same race
+  and lost-acknowledgment behaviors. Tracker changes preserve caller HEAD/index.
+- Added separate pure creation, transfer and completion transitions with
+  versioned, bounded recovery receipts. Tests interrupt every declared effect,
+  reject stale generations and delayed receipts, and preserve uncertain work.
+  Publication is bounded to three attempts. Confirmed creation never reallocates.
+- Latest complete Git/tracker run passed (73.5s/13.5s), then exact reader/writer
+  envelope symmetry was added for final verification. Snapshot fuzz: 284,976
+  executions. Pure processing: 10k cards 96ms; 100 active detail mirrors 19ms.
+  Real Git 10k-file reads: 0.997–1.037s, two subprocesses, excluding fetch;
+  end-to-end sub-second latency is not demonstrated.
+- Operator confirmed the split after inspecting binary-owned writes: details,
+  review evidence, project updates and archives remain outside issue-tracker.
+  No scope change. M1 remains unactivated pending review; M2/M3 wire consumers.
+
 ## Revisions
 
 ### 2026-09-25 14:00 PDT — Creation completes when details land; explicit handoff
