@@ -217,6 +217,10 @@ durable plan, rather than settled operator choices.
   (ARCH-ORDER). No production files or refs were used in the experiment.
 - Drafted the durable plan with four review boundaries and an explicit
   downstream cutover procedure; requesting a fresh plan review before approval.
+- Fresh plan review approved all four chunks after correcting stale-slot
+  branch preparation, publishing transfer provenance for fresh-clone recovery,
+  and specifying validated migration of existing codecomplete generations.
+  Plan is committed locally and awaits operator approval; no code changed.
 
 ## Revisions
 
