@@ -308,6 +308,20 @@ total: 10.77
   review evidence, project updates and archives remain outside issue-tracker.
   No scope change. M1 remains unactivated pending review; M2/M3 wire consumers.
 
+### 2026-09-25 — M1 review submission
+
+- Foundation committed as `2144608` (card model `846e985`). Final envelope
+  regressions passed; final tracker race suite passed in 68.9s. Vocabulary vet,
+  diff check, focused Git snapshot tests and all internal-package suites passed.
+- Broad `go test ./cmd/sdlc/... ./pkg/vocab/... -count=1` did not pass: the
+  CLI package references the absent #200 durable plan, then reached the default
+  ten-minute suite timeout. The same missing-file test fails on unchanged main
+  (`TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`), matching #210.
+  No unrelated test/code changes made. The remaining CLI suite is rerunning
+  with `-skip` for that one baseline failure and `-timeout=25m`.
+- Submitting M1 to its mandatory SDLC review. No production activation or
+  migration; consumer integration remains M2/M3 and cutover remains M4.
+
 ## Revisions
 
 ### 2026-09-25 14:00 PDT — Creation completes when details land; explicit handoff
