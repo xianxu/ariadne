@@ -12,9 +12,13 @@ import (
 // with "-" from being read as a flag; --full-tree keeps the pathspec rooted at
 // the top of the tree whatever dir is. dir "" runs in the current directory.
 func EntryAt(dir, ref, path string) (mode string, present bool, err error) {
-	out, errOut, err := runGitIn(dir, nil, "ls-tree", "--full-tree", "--end-of-options", ref, "--", path)
+	return entryAt(func(env []string, args ...string) ([]byte, []byte, error) { return runGitIn(dir, env, args...) }, ref, path)
+}
+
+func entryAt(run func([]string, ...string) ([]byte, []byte, error), ref, path string) (mode string, present bool, err error) {
+	out, errOut, err := run(nil, "ls-tree", "--full-tree", "--end-of-options", ref, "--", path)
 	if err != nil {
-		return "", false, fmt.Errorf("ls-tree %s -- %s: %v\n%s", ref, path, err, errOut)
+		return "", false, fmt.Errorf("ls-tree %s -- %s: %w\n%s", ref, path, err, errOut)
 	}
 	f := strings.Fields(strings.TrimSpace(string(out)))
 	if len(f) == 0 {
@@ -26,9 +30,13 @@ func EntryAt(dir, ref, path string) (mode string, present bool, err error) {
 // BlobAt reads the blob at ref:path. Callers establish presence with EntryAt
 // first; here a failure is an error, never "empty".
 func BlobAt(dir, ref, path string) ([]byte, error) {
-	out, errOut, err := runGitIn(dir, nil, "cat-file", "blob", ref+":"+path)
+	return blobAt(func(env []string, args ...string) ([]byte, []byte, error) { return runGitIn(dir, env, args...) }, ref, path)
+}
+
+func blobAt(run func([]string, ...string) ([]byte, []byte, error), ref, path string) ([]byte, error) {
+	out, errOut, err := run(nil, "cat-file", "blob", ref+":"+path)
 	if err != nil {
-		return nil, fmt.Errorf("cat-file blob %s:%s: %v\n%s", ref, path, err, errOut)
+		return nil, fmt.Errorf("cat-file blob %s:%s: %w\n%s", ref, path, err, errOut)
 	}
 	return out, nil
 }

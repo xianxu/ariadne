@@ -28,11 +28,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 )
 
 // runGitIn runs git in `dir` with `env` appended to the environment, returning
@@ -63,16 +66,27 @@ var runGitIn = func(dir string, env []string, args ...string) (stdout, stderr []
 
 // runGitInContext is the cancellable Git boundary shared by bounded history queries.
 var runGitInContext = func(ctx context.Context, dir string, env []string, args ...string) (stdout, stderr []byte, err error) {
+	return runGitInputContext(ctx, dir, env, nil, args...)
+}
+
+var runGitInputContext = func(ctx context.Context, dir string, env []string, input io.Reader, args ...string) (stdout, stderr []byte, err error) {
+	var out, errBuf bytes.Buffer
+	err = executeGitInputContext(ctx, dir, env, input, &out, &errBuf, args...)
+	return out.Bytes(), errBuf.Bytes(), err
+}
+
+func executeGitInputContext(ctx context.Context, dir string, env []string, input io.Reader, stdout, stderr io.Writer, args ...string) error {
 	cmd := exec.CommandContext(ctx, "git", args...)
+	processgroup.Configure(cmd)
+	cmd.Cancel = func() error { return processgroup.Terminate(cmd, true) }
 	cmd.WaitDelay = time.Second
 	cmd.Dir = dir
+	cmd.Stdin = input
 	if len(env) > 0 {
 		cmd.Env = append(os.Environ(), env...)
 	}
-	var out, errBuf bytes.Buffer
-	cmd.Stdout, cmd.Stderr = &out, &errBuf
-	err = cmd.Run()
-	return out.Bytes(), errBuf.Bytes(), err
+	cmd.Stdout, cmd.Stderr = stdout, stderr
+	return cmd.Run()
 }
 
 // A git query that can legitimately answer "absent" has THREE outcomes, and this
@@ -107,7 +121,8 @@ func gitExitCode(err error) int {
 
 // TrunkFile reads and CAS-writes one path on <remote>/<branch>.
 type TrunkFile struct {
-	dir    string // repo to run git in — never empty, see NewTrunkFile
+	ctx    context.Context // nil only for the legacy background-context constructor
+	dir    string          // repo to run git in — never empty, see NewTrunkFile
 	remote string
 	branch string
 }
@@ -128,6 +143,40 @@ func NewTrunkFile(dir, remote, branch string) (*TrunkFile, error) {
 	return &TrunkFile{dir: dir, remote: remote, branch: branch}, nil
 }
 
+// NewTrunkFileContext binds every transaction subprocess to the command's lifetime.
+func NewTrunkFileContext(ctx context.Context, dir, remote, branch string) (*TrunkFile, error) {
+	if ctx == nil {
+		return nil, errors.New("trunkfile: context must not be nil")
+	}
+	t, err := NewTrunkFile(dir, remote, branch)
+	if err != nil {
+		return nil, err
+	}
+	t.ctx = ctx
+	return t, nil
+}
+
+func (t *TrunkFile) operationContext() context.Context {
+	if t.ctx == nil {
+		return context.Background()
+	}
+	return t.ctx
+}
+
+func (t *TrunkFile) run(env []string, args ...string) ([]byte, []byte, error) {
+	if t.ctx == nil {
+		return runGitIn(t.dir, env, args...)
+	}
+	if err := t.ctx.Err(); err != nil {
+		return nil, nil, err
+	}
+	out, diag, err := runGitInContext(t.ctx, t.dir, env, args...)
+	if t.ctx.Err() != nil {
+		return out, diag, t.ctx.Err()
+	}
+	return out, diag, err
+}
+
 // localRef is the local BRANCH, fully qualified.
 //
 // Qualification is not cosmetic. An unqualified "main" resolves through git's
@@ -146,7 +195,7 @@ func (t *TrunkFile) trackingRef() string {
 // `git fetch origin main`, which only guarantees FETCH_HEAD) is the same form
 // issueids.go uses.
 func (t *TrunkFile) fetch() ([]byte, error) {
-	_, errOut, err := runGitIn(t.dir, nil, "fetch", "--quiet", "--no-recurse-submodules", t.remote,
+	_, errOut, err := t.run(nil, "fetch", "--quiet", "--no-recurse-submodules", t.remote,
 		"+refs/heads/"+t.branch+":"+t.trackingRef())
 	return errOut, err
 }
@@ -201,7 +250,7 @@ func (t *TrunkFile) refPresent(ref string) (bool, error) {
 // absent, or an error when git could not tell. refPresent and resolve were two
 // functions asking it separately, and Update ran both per attempt.
 func (t *TrunkFile) resolveOpt(ref string) (string, error) {
-	out, errOut, err := runGitIn(t.dir, nil, "rev-parse", "--verify", "--quiet", ref)
+	out, errOut, err := t.run(nil, "rev-parse", "--verify", "--quiet", ref)
 	if err == nil {
 		return parseObjectID(out)
 	}
@@ -221,7 +270,7 @@ func (t *TrunkFile) resolveOpt(ref string) (string, error) {
 // first line is the observation; the offline case is offered as a possibility,
 // not a diagnosis.
 func offlineError(remote string, err error, out []byte) error {
-	return fmt.Errorf("could not fetch from %s (offline, auth, or a bad ref — git says): %v\n%s",
+	return fmt.Errorf("could not fetch from %s (offline, auth, or a bad ref — git says): %w\n%s",
 		remote, err, FirstLine(string(out)))
 }
 
@@ -261,7 +310,7 @@ func (t *TrunkFile) pathPresent(ref, path string) (bool, error) {
 // in which field of one answer they keep are one function (ARCH-DRY), and the
 // split also doubled the git calls on the hot path (ARCH-CONSTRAINTS).
 func (t *TrunkFile) entryOf(ref, path string) (mode string, present bool, err error) {
-	return EntryAt(t.dir, ref, path)
+	return entryAt(t.run, ref, path)
 }
 
 // readFrom reads <ref>:<path>, answering empty for a ref or path that is simply
@@ -288,7 +337,7 @@ func (t *TrunkFile) readFrom(ref, path string) ([]byte, error) {
 	if !present {
 		return nil, nil // absent reads as empty: a first write needs no special case
 	}
-	return BlobAt(t.dir, ref, path)
+	return blobAt(t.run, ref, path)
 }
 
 // tempIndexPath returns an ABSOLUTE path for GIT_INDEX_FILE, inside a private
@@ -377,7 +426,7 @@ func (t *TrunkFile) modeOf(ref, path string) (string, error) {
 // so `--get` on a repo configured with `yes` returns "yes" and a naive == "true"
 // yields exactly the silent unsigned commit this function exists to prevent.
 func (t *TrunkFile) signs() (bool, error) {
-	out, errOut, err := runGitIn(t.dir, nil, "config", "--type=bool", "--get", "commit.gpgsign")
+	out, errOut, err := t.run(nil, "config", "--type=bool", "--get", "commit.gpgsign")
 	if err == nil {
 		return strings.TrimSpace(string(out)) == "true", nil
 	}
@@ -387,7 +436,7 @@ func (t *TrunkFile) signs() (bool, error) {
 	// Anything else means we could not determine the policy. Returning false here
 	// would publish an UNSIGNED commit in a repo that requires signing, which is
 	// the exact regression this function exists to prevent.
-	return false, fmt.Errorf("read commit.gpgsign: %v\n%s", err, errOut)
+	return false, fmt.Errorf("read commit.gpgsign: %w\n%s", err, errOut)
 }
 
 // writeTemp stages content for hash-object, which reads a file rather than

@@ -3,20 +3,15 @@
 package judge
 
 import (
-	"os"
 	"os/exec"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 )
 
 // Platforms without POSIX process groups retain direct-child cleanup. The
 // portable WaitDelay still bounds draining inherited output descriptors.
-func configureReviewProcess(cmd *exec.Cmd) {}
+func configureReviewProcess(cmd *exec.Cmd) { processgroup.Configure(cmd) }
 
 func terminateReviewProcess(cmd *exec.Cmd, force bool) error {
-	if cmd.Process == nil {
-		return os.ErrProcessDone
-	}
-	if force {
-		return cmd.Process.Kill()
-	}
-	return cmd.Process.Signal(os.Interrupt)
+	return processgroup.Terminate(cmd, force)
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"sort"
 	"strings"
@@ -24,11 +25,43 @@ type publicationGit struct {
 	loseAck          bool
 	failHistory      bool
 	absent           error
+	absentRemote     error
+	remoteRefs       map[string]string
+	trackingRefs     map[string]string
+	indexes          map[string]map[string]string
+	blobs            map[string]string
+	pushCandidate    string
 }
 type fakePublicationCommit struct{ parent, tree, message string }
 
 func newPublicationGit(t *testing.T) *publicationGit {
-	return &publicationGit{trees: map[string]map[string]string{}, commits: map[string]fakePublicationCommit{}, absent: &exec.ExitError{ProcessState: failedState(t, 1)}}
+	return &publicationGit{trees: map[string]map[string]string{}, commits: map[string]fakePublicationCommit{}, absent: &exec.ExitError{ProcessState: failedState(t, 1)}, absentRemote: &exec.ExitError{ProcessState: failedState(t, 2)}, remoteRefs: map[string]string{}, trackingRefs: map[string]string{}, indexes: map[string]map[string]string{}, blobs: map[string]string{}}
+}
+
+// Keep the original main fields for existing publication schedules, with all
+// other branches sharing the same immutable objects and explicit ref model.
+func (f *publicationGit) remoteTip(ref string) string {
+	if ref == "refs/heads/main" {
+		return f.remote
+	}
+	return f.remoteRefs[ref]
+}
+func (f *publicationGit) setRemote(ref, tip string) {
+	if ref == "refs/heads/main" {
+		f.remote = tip
+		return
+	}
+	f.remoteRefs[ref] = tip
+}
+func (f *publicationGit) blob(content string) string {
+	for oid, raw := range f.blobs {
+		if raw == content {
+			return oid
+		}
+	}
+	oid := f.oid()
+	f.blobs[oid] = content
+	return oid
 }
 func (f *publicationGit) oid() string { f.next++; return fmt.Sprintf("%040x", f.next) }
 func (f *publicationGit) tree(files map[string]string) string {
@@ -78,21 +111,57 @@ func (f *publicationGit) isAncestor(source, tip string) bool {
 	return false
 }
 func (f *publicationGit) run(ctx context.Context, dir string, env []string, args ...string) ([]byte, []byte, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, nil, err
+	}
 	if dir != "stateful-fake" {
 		return nil, nil, errors.New("fake received wrong repository")
 	}
 	ok := func(out string) ([]byte, []byte, error) { return []byte(out), nil, nil }
+	index := ""
+	for _, setting := range env {
+		if strings.HasPrefix(setting, "GIT_INDEX_FILE=") {
+			index = strings.TrimPrefix(setting, "GIT_INDEX_FILE=")
+		}
+	}
 	switch args[0] {
+	case "check-ref-format":
+		if !strings.HasPrefix(args[1], "refs/heads/") || strings.ContainsAny(args[1], " :?*") {
+			return nil, nil, f.absent
+		}
+		return ok("")
+	case "ls-remote":
+		ref := args[len(args)-1]
+		tip := f.remoteTip(ref)
+		if tip == "" {
+			return nil, nil, f.absentRemote
+		}
+		return ok(tip + "\t" + ref + "\n")
 	case "config":
 		return ok("false\n")
 	case "fetch":
-		f.tracking = f.remote
+		refs := strings.SplitN(strings.TrimPrefix(args[len(args)-1], "+"), ":", 2)
+		if len(refs) != 2 {
+			return nil, nil, errors.New("fake requires explicit fetch refspec")
+		}
+		tip := f.remoteTip(refs[0])
+		if tip == "" {
+			return nil, nil, f.absent
+		}
+		if refs[1] == "refs/remotes/origin/main" {
+			f.tracking = tip
+		} else {
+			f.trackingRefs[refs[1]] = tip
+		}
 		return ok("")
 	case "rev-parse":
 		ref := args[len(args)-1]
 		ref = strings.TrimSuffix(ref, "^{commit}")
 		if ref == "refs/remotes/origin/main" {
 			return ok(f.tracking)
+		}
+		if tip, present := f.trackingRefs[ref]; present {
+			return ok(tip)
 		}
 		if strings.HasSuffix(ref, "^{tree}") {
 			return ok(f.commits[strings.TrimSuffix(ref, "^{tree}")].tree)
@@ -193,22 +262,99 @@ func (f *publicationGit) run(ctx context.Context, dir string, env []string, args
 		return ok(f.tree(merged) + "\x00")
 	case "commit-tree":
 		oid := f.oid()
-		f.commits[oid] = fakePublicationCommit{tree: args[1], parent: args[3], message: args[5]}
+		commit := fakePublicationCommit{tree: args[1]}
+		for i := 2; i < len(args); i++ {
+			switch args[i] {
+			case "-p":
+				i++
+				commit.parent = args[i]
+			case "-m":
+				i++
+				commit.message = args[i]
+			case "-S":
+			default:
+				return nil, nil, fmt.Errorf("unsupported commit-tree arg %s", args[i])
+			}
+		}
+		f.commits[oid] = commit
 		return ok(oid)
+	case "read-tree":
+		if index == "" {
+			return nil, nil, errors.New("fake requires private index")
+		}
+		if args[1] == "--empty" {
+			f.indexes[index] = map[string]string{}
+		} else {
+			f.indexes[index] = copyFiles(f.files(args[1]))
+		}
+		return ok("")
+	case "hash-object":
+		raw, err := os.ReadFile(args[len(args)-1])
+		if err != nil {
+			return nil, nil, err
+		}
+		return ok(f.blob(string(raw)))
+	case "update-index":
+		files, present := f.indexes[index]
+		if !present {
+			return nil, nil, errors.New("unknown private index")
+		}
+		if args[1] == "--force-remove" {
+			delete(files, args[len(args)-1])
+			return ok("")
+		}
+		parts := strings.SplitN(args[len(args)-1], ",", 3)
+		if len(parts) != 3 || parts[0] != "100644" {
+			return nil, nil, errors.New("fake requires ordinary cacheinfo")
+		}
+		raw, present := f.blobs[parts[1]]
+		if !present {
+			return nil, nil, errors.New("unknown index blob")
+		}
+		files[parts[2]] = raw
+		return ok("")
+	case "write-tree":
+		files, present := f.indexes[index]
+		if !present {
+			return nil, nil, errors.New("unknown private index")
+		}
+		return ok(f.tree(files))
+	case "ls-tree":
+		ref, p := args[len(args)-3], args[len(args)-1]
+		raw, present := f.files(ref)[p]
+		if !present {
+			return ok("")
+		}
+		return ok("100644 blob " + f.blob(raw) + "\t" + p + "\n")
+	case "cat-file":
+		parts := strings.SplitN(args[len(args)-1], ":", 2)
+		if len(parts) != 2 {
+			return nil, nil, errors.New("fake requires ref:path blob read")
+		}
+		raw, present := f.files(parts[0])[parts[1]]
+		if !present {
+			return nil, nil, f.absent
+		}
+		return ok(raw)
 	case "push":
 		f.pushes++
+		lease := strings.SplitN(strings.TrimPrefix(args[2], "--force-with-lease="), ":", 2)
+		destination := strings.SplitN(args[len(args)-1], ":", 2)
+		if len(lease) != 2 || len(destination) != 2 || lease[0] != destination[1] {
+			return nil, nil, errors.New("fake requires exact ref lease")
+		}
+		expected, ref, candidate := lease[1], lease[0], destination[0]
+		f.pushCandidate = candidate
 		if f.beforePush != nil {
 			f.beforePush(f)
 		}
-		expected := strings.TrimPrefix(args[2], "--force-with-lease=refs/heads/main:")
-		candidate := strings.SplitN(args[len(args)-1], ":", 2)[0]
-		if expected != f.remote {
-			return []byte("!\t" + candidate + ":refs/heads/main\t[rejected] (stale info)\n"), nil, f.absent
+		if expected != f.remoteTip(ref) {
+			return []byte("!\t" + candidate + ":" + ref + "\t[rejected] (stale info)\n"), nil, f.absent
 		}
 		if f.commits[candidate].parent != expected {
 			return nil, nil, errors.New("candidate not child of observed base")
 		}
-		f.remote = candidate
+		f.setRemote(ref, candidate)
 		if f.loseAck {
 			return nil, nil, errors.New("lost push acknowledgment")
 		}

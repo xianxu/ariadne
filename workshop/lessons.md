@@ -136,6 +136,12 @@ The simplest durable authority beats a clever scan of consequences.
 
 - A cancelled or output-limited Git command has no trustworthy predicate exit code;
   keep those errors distinct from completed `exit 1` absence/ancestry results.
+- Match writer limits to reader limits, including framing overhead; a successful
+  write must not make the next authoritative read refuse its own data.
+- A bounded writer must not accidentally expose an embedded `ReadFrom` fast path
+  that bypasses its `Write` limit. Test the real subprocess/`io.Copy` boundary.
+- Authoritative Git blob identities require exact bytes: bypass clean filters on
+  writes and archive export filters on reads; test caller and global attributes.
 - Rebase overwrite checks must cover paths touched by intermediate replay commits,
   including files deleted again before HEAD, not only the target and final trees.
 - When a procedure promises two history comparisons, show and test both Git

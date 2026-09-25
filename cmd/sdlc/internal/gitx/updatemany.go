@@ -28,6 +28,9 @@ var ErrTrunkMoved = errors.New("the trunk moved under the publish")
 type TrunkWrite struct {
 	Write  map[string][]byte // create or replace
 	Delete []string          // remove from the trunk
+	// ExactBytes bypasses checkout/global clean filters for authoritative objects.
+	// Legacy file publication retains path-based Git normalization by default.
+	ExactBytes bool
 }
 
 // TrunkView is read access to the base a given attempt will race — the ref as
@@ -66,6 +69,20 @@ func (v *TrunkView) Ref() string { return v.ref }
 // fixed map makes the retry re-push the same colliding id and land the duplicate
 // as a clean fast-forward, which is ariadne#188's hole one layer up.
 func (t *TrunkFile) UpdateMany(msg string, prepare func(*TrunkView) (TrunkWrite, error)) error {
+	return t.updateMany(msg, prepare, nil)
+}
+
+// UpdateManyPrepared persists the exact candidate before each publication attempt.
+// A failed receipt prevents publication. A rejected attempt may prepare a new
+// candidate; the callback must retain enough evidence to reconcile every attempt.
+func (t *TrunkFile) UpdateManyPrepared(msg string, prepare func(*TrunkView) (TrunkWrite, error), beforePush func(base, candidate string) error) error {
+	if beforePush == nil {
+		return errors.New("publication receipt callback is required")
+	}
+	return t.updateMany(msg, prepare, beforePush)
+}
+
+func (t *TrunkFile) updateMany(msg string, prepare func(*TrunkView) (TrunkWrite, error), beforePush func(base, candidate string) error) error {
 	sign, err := t.signs()
 	if err != nil {
 		return err
@@ -104,6 +121,11 @@ func (t *TrunkFile) UpdateMany(msg string, prepare func(*TrunkView) (TrunkWrite,
 		candidate, err := t.commitSet(set, msg, base, sign)
 		if err != nil {
 			return err
+		}
+		if beforePush != nil {
+			if err := beforePush(base, candidate); err != nil {
+				return err
+			}
 		}
 		out, pushErr := t.pushExpected(candidate, base)
 		if publicationStep(observedPush(pushErr, out), publicationUnconfirmed) == publicationSucceeded {
@@ -171,7 +193,7 @@ func (t *TrunkFile) commitSet(set TrunkWrite, msg, base string, sign bool) (stri
 	}
 	env := []string{"GIT_INDEX_FILE=" + idx}
 
-	if _, errOut, err := runGitIn(t.dir, env, "read-tree", base); err != nil {
+	if _, errOut, err := t.run(env, "read-tree", base); err != nil {
 		return "", fmt.Errorf("git tree construction: %v\n%s", err, errOut)
 	}
 
@@ -189,7 +211,11 @@ func (t *TrunkFile) commitSet(set TrunkWrite, msg, base string, sign bool) (stri
 			cleanupBlob()
 			return "", err
 		}
-		out, errOut, err := runGitIn(t.dir, env, "hash-object", "-w", "--path", path, blobFile)
+		hashArgs := []string{"hash-object", "-w", "--path", path, blobFile}
+		if set.ExactBytes {
+			hashArgs = []string{"hash-object", "-w", "--no-filters", "--", blobFile}
+		}
+		out, errOut, err := t.run(env, hashArgs...)
 		cleanupBlob()
 		if err != nil {
 			return "", fmt.Errorf("git tree construction: %v\n%s", err, errOut)
@@ -198,7 +224,7 @@ func (t *TrunkFile) commitSet(set TrunkWrite, msg, base string, sign bool) (stri
 		if err != nil {
 			return "", err
 		}
-		if _, errOut, err := runGitIn(t.dir, env, "update-index", "--add",
+		if _, errOut, err := t.run(env, "update-index", "--add",
 			"--cacheinfo", mode+","+strings.TrimSpace(string(out))+","+path); err != nil {
 			return "", fmt.Errorf("git tree construction: %v\n%s", err, errOut)
 		}
@@ -206,12 +232,12 @@ func (t *TrunkFile) commitSet(set TrunkWrite, msg, base string, sign bool) (stri
 	for _, path := range set.Delete {
 		// --force-remove drops the entry whether or not it is in the index, so a
 		// delete of an already-absent path is not an error.
-		if _, errOut, err := runGitIn(t.dir, env, "update-index", "--force-remove", path); err != nil {
+		if _, errOut, err := t.run(env, "update-index", "--force-remove", path); err != nil {
 			return "", fmt.Errorf("git tree construction: %v\n%s", err, errOut)
 		}
 	}
 
-	out, errOut, err := runGitIn(t.dir, env, "write-tree")
+	out, errOut, err := t.run(env, "write-tree")
 	if err != nil {
 		return "", fmt.Errorf("git tree construction: %v\n%s", err, errOut)
 	}

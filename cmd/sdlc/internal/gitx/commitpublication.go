@@ -36,7 +36,7 @@ var ErrPublicationUncertain = errors.New("publication outcome uncertain")
 // SelectCommit pins the source once. No source ancestors become part of the
 // publication unit. Eligibility of workflow paths belongs to the command layer.
 func (t *TrunkFile) SelectCommit(rev string) (SelectedCommit, error) {
-	out, diag, err := runGitIn(t.dir, nil, "rev-parse", "--verify", "--end-of-options", rev+"^{commit}")
+	out, diag, err := t.run(nil, "rev-parse", "--verify", "--end-of-options", rev+"^{commit}")
 	if err != nil {
 		return SelectedCommit{}, fmt.Errorf("resolve selected commit: %v\n%s", err, diag)
 	}
@@ -44,7 +44,7 @@ func (t *TrunkFile) SelectCommit(rev string) (SelectedCommit, error) {
 	if err != nil {
 		return SelectedCommit{}, err
 	}
-	out, diag, err = runGitIn(t.dir, nil, "rev-list", "--parents", "-n", "1", source, "--")
+	out, diag, err = t.run(nil, "rev-list", "--parents", "-n", "1", source, "--")
 	if err != nil {
 		return SelectedCommit{}, fmt.Errorf("read selected parent: %v\n%s", err, diag)
 	}
@@ -57,7 +57,7 @@ func (t *TrunkFile) SelectCommit(rev string) (SelectedCommit, error) {
 		return SelectedCommit{}, err
 	}
 	selected := SelectedCommit{Source: source, Parent: parent}
-	out, diag, err = runGitIn(t.dir, nil, "diff-tree", "--raw", "--no-abbrev", "--no-renames", "-r", "-z", selected.Parent, source, "--")
+	out, diag, err = t.run(nil, "diff-tree", "--raw", "--no-abbrev", "--no-renames", "-r", "-z", selected.Parent, source, "--")
 	if err != nil {
 		return SelectedCommit{}, fmt.Errorf("read selected paths: %v\n%s", err, diag)
 	}
@@ -78,7 +78,7 @@ func (t *TrunkFile) SelectCommit(rev string) (SelectedCommit, error) {
 		}
 		selected.Changes = append(selected.Changes, change)
 	}
-	out, diag, err = runGitIn(t.dir, nil, "show", "-s", "--format=%B", source, "--")
+	out, diag, err = t.run(nil, "show", "-s", "--format=%B", source, "--")
 	if err != nil {
 		return SelectedCommit{}, fmt.Errorf("read selected message: %v\n%s", err, diag)
 	}
@@ -118,7 +118,7 @@ func (t *TrunkFile) PublishCommit(selected SelectedCommit) (CommitPublicationRes
 			result.Outcome = CommitAlreadyApplied
 			return result, nil
 		}
-		out, diag, err := runGitIn(t.dir, nil, "merge-tree", "--write-tree", "--name-only", "-z", "--merge-base="+selected.Parent, base, selected.Source)
+		out, diag, err := t.run(nil, "merge-tree", "--write-tree", "--name-only", "-z", "--merge-base="+selected.Parent, base, selected.Source)
 		if err != nil {
 			if gitExitCode(err) == 1 {
 				return result, fmt.Errorf("selected commit conflicts; publish prerequisites first if needed: %s", strings.ReplaceAll(string(out), "\x00", " "))
@@ -173,7 +173,7 @@ func (t *TrunkFile) PublishCommit(selected SelectedCommit) (CommitPublicationRes
 // sourceApplied shares one deadline across reachability and trailer lookup. A
 // failed query is never interpreted as absence. WaitDelay bounds pipe draining.
 func (t *TrunkFile) sourceApplied(source, base string) (bool, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.operationContext(), 30*time.Second)
 	defer cancel()
 	ancestor, err := t.ancestor(ctx, source, base)
 	if err != nil || ancestor {
@@ -205,14 +205,14 @@ func (t *TrunkFile) commitTree(tree, base, msg string, sign bool) (string, error
 	if sign {
 		args = append([]string{"commit-tree", "-S"}, args[1:]...)
 	}
-	out, diag, err := runGitIn(t.dir, nil, args...)
+	out, diag, err := t.run(nil, args...)
 	if err != nil {
 		return "", fmt.Errorf("create publication commit: %v\n%s", err, diag)
 	}
 	return parseObjectID(out)
 }
 func (t *TrunkFile) pushExpected(candidate, base string) ([]byte, error) {
-	out, diag, err := runGitIn(t.dir, nil, "push", "--porcelain", "--force-with-lease=refs/heads/"+t.branch+":"+base, t.remote, candidate+":refs/heads/"+t.branch)
+	out, diag, err := t.run(nil, "push", "--porcelain", "--force-with-lease=refs/heads/"+t.branch+":"+base, t.remote, candidate+":refs/heads/"+t.branch)
 	return append(out, diag...), err
 }
 
@@ -238,7 +238,7 @@ func (t *TrunkFile) confirmPush(candidate string) (string, bool, error) {
 	if err != nil {
 		return "", false, err
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(t.operationContext(), 30*time.Second)
 	defer cancel()
 	confirmed, err := t.ancestor(ctx, candidate, now)
 	return now, confirmed, err

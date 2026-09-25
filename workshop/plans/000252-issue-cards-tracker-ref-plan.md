@@ -144,15 +144,15 @@ Files: create `cmd/sdlc/internal/issue/card.go`, `card_test.go`, `mirror.go`, `m
 - [x] Write failing property/fuzz tests for `SplitCard`, `ParseCard`, `RefreshMirror` per the function strategy contract below; assert preservation independently of serialization.
 - [x] Run `go test ./cmd/sdlc/internal/issue ./pkg/vocab -count=1` and record intended failures before implementation.
 - [x] Add card discovery/ownership alongside existing `discovery.home` (which remains details); implement pure projection comparison and refresh. Expose typed validation errors with setter next actions.
-- [ ] Regenerate using the repository vocabulary generation path; run the tests above and `git diff --check`; commit explicit paths as `#252 M1: model: split card authority from details`.
+- [x] Regenerate using the repository vocabulary generation path; run the tests above and `git diff --check`; commit explicit paths as `#252 M1: model: split card authority from details`.
 
 ### Task 2: Ref-backed repository and transaction evidence
 
 Files: create `cmd/sdlc/internal/tracker/{repository,reader,creation,transfer,completion}.go` and colocated tests; create `cmd/sdlc/internal/gitx/refbootstrap.go` and tests; modify `trunkfile.go`, `updatemany.go`, `commitpublication_fake_test.go` only where existing APIs lack outcome/evidence access.
 
-- [ ] Write failing model-based tests for `BootstrapTracker`, `Repository.UpdateCard`, `StepCreation`, `StepTransfer`, `StepCompletion`; run matching sequences against the stateful fake and disposable real Git.
-- [ ] Run `go test ./cmd/sdlc/internal/gitx ./cmd/sdlc/internal/tracker -count=1`; verify new tests fail for the intended missing behavior.
-- [ ] Implement snapshot reads, atomic expected-version card writes and typed operation receipts. Preserve existing CAS semantics; generalize the stateful fake to main and tracker refs, not duplicate it per command.
+- [x] Write failing model-based tests for `BootstrapTracker`, `Repository.UpdateCard`, `StepCreation`, `StepTransfer`, `StepCompletion`; run matching sequences against the stateful fake and disposable real Git.
+- [x] Run `go test ./cmd/sdlc/internal/gitx ./cmd/sdlc/internal/tracker -count=1`; verify new tests fail for the intended missing behavior.
+- [x] Implement snapshot reads, atomic expected-version card writes and typed operation receipts. Preserve existing CAS semantics; generalize the stateful fake to main and tracker refs, not duplicate it per command.
 - [ ] Repeat tests, add cardinality/IO benchmarks, and document tracker model in new `atlas/workflow/issue-tracker.md` with `atlas/index.md` link. Commit, then `sdlc milestone-close --issue 252 --milestone M1` with actual test evidence per help. Foundation remains unactivated pending cutover.
 
 ## Chunk 2: Creation and handoff — M2
