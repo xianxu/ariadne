@@ -187,3 +187,12 @@ enforced at start-plan; `--no-prd` escape).
 Filed from slot 1 while it was on #250's feature branch; the local copy of
 this issue's creation commit was removed from that branch
 (`git reset --keep fa5396e`) and the spec written in slot 2.
+
+## Revisions
+
+- 2026-09-25: storage and landing design (Problem, own-SHA landing,
+  snapshot + merge-back, clean resting branches) superseded by #252 (issue
+  cards on a tracker ref, details on the branch). The phased lifecycle half
+  (phases, per-phase claims, `parked`, verdict-backed `complete`, sufficiency
+  judge) is not covered by #252 and remains open for the operator to keep,
+  narrow or drop.
