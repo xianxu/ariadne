@@ -180,4 +180,13 @@ The simplest durable authority beats a clever scan of consequences.
 - A landing's identity is what the forge confirmed (the PR's merge commit), not
   ancestry of the branch's commits: squash and rebase rewrite them (#252 M3).
 - A deferred effect replays inputs pinned when it was decided, never the live
-  worktree a later commit may have changed (#252 M3).
+  worktree a later commit may have changed (#252 M3) — and replays them
+  three-way: only where the target still holds the version the decision saw.
+  A later committed edit is newer than the pin; overwriting it is data loss
+  (#252 M3 BR-30).
+- A cleanup path shared by landing and abandonment completes nothing: gate each
+  completion on the confirmed landing itself, not on reaching the step after it
+  (#252 M3 BR-29: removing an unmerged worktree marked its cards done).
+- Every identifier in a ticked plan row greps to shipped code. When a name
+  changes in implementation, rename it in the row (planned name in parentheses)
+  as well as in Revisions (#252, 4th inventory-drift finding).

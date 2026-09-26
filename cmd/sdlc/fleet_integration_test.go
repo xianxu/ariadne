@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +47,7 @@ func TestFleetInventory_RealGitPortableFleet(t *testing.T) {
 	writeFleetIntegrationIssue(t, alpha, "000123-feature.md", "working")
 
 	options := fleet.InventoryOptions{Git: execGitRunner{}}
-	first, err := fleet.CollectInventory(fleetRoot, options)
+	first, err := fleet.CollectInventory(context.Background(), fleetRoot, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -85,7 +86,7 @@ func TestFleetInventory_RealGitPortableFleet(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(linked, "untracked.txt"), []byte("dirty\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	second, err := fleet.CollectInventory(fleetRoot, options)
+	second, err := fleet.CollectInventory(context.Background(), fleetRoot, options)
 	if err != nil {
 		t.Fatal(err)
 	}

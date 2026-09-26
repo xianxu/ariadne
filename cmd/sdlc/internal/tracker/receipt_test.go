@@ -425,3 +425,30 @@ func TestReceiptGeneratedInterruptionsAtEveryDeclaredEffect(t *testing.T) {
 		}
 	}
 }
+
+// BR-30: a deferred evidence commit writes a pin only over a file HEAD has not
+// touched since review; a later commit's edit is newer and survives.
+func TestEvidenceReplaysOnlyOverUntouchedFiles(t *testing.T) {
+	const base, pin, later = "b", "p", "l"
+	cases := []struct {
+		name        string
+		entry       EvidenceEntry
+		base, head  string
+		wantReplays bool
+	}{
+		{"untouched since review", EvidenceEntry{Blob: pin}, base, base, true},
+		{"new file untouched", EvidenceEntry{Blob: pin}, "", "", true},
+		{"a fix swept the pin", EvidenceEntry{Blob: pin}, base, pin, false},
+		{"a fix edited it later", EvidenceEntry{Blob: pin}, base, later, false},
+		{"a fix created it later", EvidenceEntry{Blob: pin}, "", later, false},
+		{"a fix deleted it", EvidenceEntry{Blob: pin}, base, "", false},
+		{"pinned removal, untouched", EvidenceEntry{}, base, base, true},
+		{"pinned removal, already gone", EvidenceEntry{}, base, "", false},
+		{"pinned removal, edited later", EvidenceEntry{}, base, later, false},
+	}
+	for _, c := range cases {
+		if got := c.entry.Replays(c.base, c.head); got != c.wantReplays {
+			t.Errorf("%s: Replays=%v, want %v", c.name, got, c.wantReplays)
+		}
+	}
+}

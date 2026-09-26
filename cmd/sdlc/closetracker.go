@@ -48,17 +48,25 @@ func (g gitEvidence) Prepare(spec tracker.ReceiptSpec) (string, error) {
 		return "", err
 	}
 	for _, e := range spec.EvidenceEntries() {
+		base, _, err := g.treeEntry(spec.ReviewedHEAD, e.Path)
+		if err != nil {
+			return "", err
+		}
+		current, mode, err := g.treeEntry(head, e.Path)
+		if err != nil {
+			return "", err
+		}
+		if !e.Replays(base, current) {
+			continue // already pinned, or edited in a later commit that must survive
+		}
 		if e.Blob == "" {
 			if _, err := env.gitEnv(withIndex, "update-index", "--force-remove", "--", e.Path); err != nil {
 				return "", err
 			}
 			continue
 		}
-		mode := "100644"
-		if entry, err := env.git("ls-tree", head, "--", e.Path); err != nil {
-			return "", err
-		} else if strings.HasPrefix(entry, "100755 ") {
-			mode = "100755"
+		if mode != "100755" {
+			mode = "100644"
 		}
 		if _, err := env.gitEnv(withIndex, "update-index", "--add", "--cacheinfo", mode+","+e.Blob+","+e.Path); err != nil {
 			return "", err
@@ -76,6 +84,20 @@ func (g gitEvidence) Prepare(spec tracker.ReceiptSpec) (string, error) {
 		args = append(args, "-S")
 	}
 	return env.git(args...)
+}
+
+// treeEntry is path's blob and mode in commit ("" when absent).
+func (g gitEvidence) treeEntry(commit, p string) (blob, mode string, err error) {
+	entry, err := g.env.git("ls-tree", "--full-tree", commit, "--", p)
+	if err != nil || entry == "" {
+		return "", "", err
+	}
+	meta, _, _ := strings.Cut(entry, "\t")
+	fields := strings.Fields(meta)
+	if len(fields) != 3 || fields[1] != "blob" {
+		return "", "", fmt.Errorf("%s in %s is not a file (%s)", p, shortOID(commit), entry)
+	}
+	return fields[2], fields[0], nil
 }
 
 func (g gitEvidence) Apply(spec tracker.ReceiptSpec, commit string) error {

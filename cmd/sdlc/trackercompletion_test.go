@@ -180,3 +180,45 @@ func TestDurableRunMergeCompletesTrackedCloseForEveryStrategy(t *testing.T) {
 		})
 	}
 }
+
+// BR-29: a non-durable merge that removes a worktree without merging — no PR,
+// operator abandons the branch — completes nothing: the close stays
+// codecomplete, bound to its evidence, until a real landing.
+func TestAbandonedWorktreeMergeLeavesTheCloseCodecomplete(t *testing.T) {
+	r, cardPath, _ := closeReady(t, 311)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "311", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	before := r.card(cardPath)
+	if !strings.Contains(before, "status: codecomplete") {
+		t.Fatalf("fixture: close did not publish codecomplete:\n%s", before)
+	}
+	branch := r.git("branch", "--show-current")
+	r.git("push", "-q", "-u", "origin", branch)
+	r.git("switch", "-q", "main")
+	wt := filepath.Join(t.TempDir(), "wt")
+	r.git("worktree", "add", "-q", wt, branch)
+	if resolved, err := filepath.EvalSymlinks(wt); err == nil {
+		wt = resolved
+	}
+	prev, _ := os.Getwd()
+	if err := os.Chdir(wt); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(prev) })
+	swapMergeDeps(t, &e2eGH{}, nil)
+	prevPrompter := mergePrompter
+	mergePrompter = &fakePrompter{answers: []string{"n", "y"}} // no PR; remove without merging
+	t.Cleanup(func() { mergePrompter = prevPrompter })
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history", PlansDir: "workshop/plans"}
+	if msg, died := expectDie(t, func() { _ = runMerge(io.Discard, io.Discard, f) }); died {
+		t.Fatalf("abandon died: %s", msg)
+	}
+	if r.git("branch", "--list", branch) != "" {
+		t.Fatal("fixture: the abandoned branch was not removed")
+	}
+	if after := r.card(cardPath); after != before {
+		t.Fatalf("abandoning the branch changed the card:\n%s", after)
+	}
+}

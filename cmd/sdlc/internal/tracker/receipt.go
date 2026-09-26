@@ -64,12 +64,23 @@ type ReceiptSpec struct {
 	// file), the exact files the evidence commit records — details, ledgers,
 	// sidecars, project records — as they were at close. A deferred evidence
 	// commit (FIX-THEN-SHIP, recovery) replays these bytes, never a worktree a
-	// later fix commit may have swept.
+	// later fix commit may have swept — and only over files HEAD has not
+	// changed since the reviewed commit (EvidenceEntry.Replays).
 	EvidencePaths string `json:"evidence_paths,omitempty"`
 }
 
 // EvidenceEntry is one pinned evidence file; Blob is "" for a removal.
 type EvidenceEntry struct{ Blob, Path string }
+
+// Replays reports whether a deferred evidence commit writes this pinned entry
+// over HEAD. base and head are the file's blobs at the reviewed commit and at
+// HEAD now ("" when absent). HEAD untouched since review takes the pin; HEAD
+// already holding the pin needs nothing; HEAD changed to anything else was
+// committed after the close — a fix that edited the details, a ledger or a
+// sidecar — and is newer than the pin, so it is kept, never overwritten.
+func (e EvidenceEntry) Replays(base, head string) bool {
+	return head == base && head != e.Blob
+}
 
 // EvidenceRemoved marks a pinned removal in EvidencePaths.
 const EvidenceRemoved = "-"

@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -142,6 +144,37 @@ func TestTrackerCloseFixThenShipSurvivesASweepingFixCommit(t *testing.T) {
 	}
 	if c, ok, _ := issue.CardCompletion([]byte(r.card(cardPath))); !ok || c.EvidenceCommit != r.git("rev-parse", "HEAD") {
 		t.Fatalf("card not bound to the evidence: %+v", c)
+	}
+}
+
+// BR-30: a fix commit that edits a pinned file after FIX-THEN-SHIP (here a
+// Log line recording the fix) is newer than the pin: the evidence commit keeps
+// HEAD's version instead of reverting it to the bytes pinned at close.
+func TestTrackerCloseFixThenShipKeepsALaterEditOfAPinnedFile(t *testing.T) {
+	r, _, detailPath := closeReady(t, 306)
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "306", "--verified", "e2e", "--actual", "2", "--no-atlas", "--no-ledger"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	raw, err := os.ReadFile(filepath.Join(r.root, detailPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	details := string(raw)
+	if !strings.Contains(details, "closed — e2e") {
+		t.Fatal("fixture: close did not write its Log line")
+	}
+	edited := details + "- fixed the review finding\n"
+	writeRepoFile(t, r.root, detailPath, edited)
+	writeRepoFile(t, r.root, "cmd/a.go", "package a // fixed\n")
+	r.git("add", "cmd/a.go", detailPath)
+	r.git("commit", "-qm", "#306: fix review finding")
+	var out, errs bytes.Buffer
+	if err := runRecoveryReconcile(context.Background(), &out, &errs, 306); err != nil {
+		t.Fatalf("reconcile: %v\n%s", err, errs.String())
+	}
+	if got := r.git("show", "HEAD:"+detailPath); got != strings.TrimSpace(edited) {
+		t.Fatalf("evidence reverted the later Log edit:\n%s", got)
 	}
 }
 

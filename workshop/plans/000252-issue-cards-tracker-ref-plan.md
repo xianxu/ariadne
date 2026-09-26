@@ -134,15 +134,15 @@ Complete the sweep with `rg -n 'issue sync|issue publish|PublishCommit|estimate_
 |---|---|
 | `SplitCard`, `ParseCard` | Fuzz malformed YAML/Markdown; reject ambiguous ownership and preserve all unowned bytes. |
 | `RefreshMirror` | Generate baseline/local/current projections; reject changed owned local values, refresh only unchanged projections. |
-| `BootstrapTracker`, `Repository.UpdateCard` | Reproducibly interleave two writers and uncertain transport results against stateful Git; one authoritative winner, unique IDs, no lost updates. |
+| `TrunkFile.Bootstrap` (planned `BootstrapTracker`), `Repository.UpdateCard` | Reproducibly interleave two writers and uncertain transport results against stateful Git; one authoritative winner, unique IDs, no lost updates. |
 | `TrunkFile.run`, `runIssueNew` cancellation path | Cancel from the production Cobra command while a controlled child Git process blocks; process group and pipes end within five seconds and uncertain publication retains recovery evidence. |
 | `StepCreation`, `StepTransfer`, `StepCompletion` | Generate event sequences, including interruption at each declared effect; assert no destructive action without confirmed ownership and no accepted stale generation. |
 | `runClaim` | Drive concurrent commands against independent snapshots; only a fresh-main-ready open card can be reserved once. |
-| `PreparePlanningBranch` | Generate rest/main ancestry and dirty-state combinations; accepted branch contains eligible details and never changes resting refs. |
-| `CheckTransferredPaths` | Generate DAGs across publication and later owner changes; reject any prospective merge losing authoritative transferred content. |
-| `ReadIssueRecord`, `LookupRepoIssues` | Vary card and detail generations independently; source selection respects field ownership and missing detail information remains unknown. |
-| `SelectActivityEvents`, `computeActual` | Generate overlapping selected histories; each OID counted once and claim engagement survives off-branch storage. |
-| `FinalizeTrackerClose`, `SelectCompletedIssues` | Mutate bound repo/head/evidence between review and effect; refuse stale ownership rather than completing unrelated work. |
+| `preparePlanningBranch` (planned `PreparePlanningBranch`) | Generate rest/main ancestry and dirty-state combinations; accepted branch contains eligible details and never changes resting refs. |
+| `checkTransferredPaths` (planned `CheckTransferredPaths`) | Generate DAGs across publication and later owner changes; reject any prospective merge losing authoritative transferred content. |
+| `LoadRecords` (planned `ReadIssueRecord`), `LookupRepoIssues` | Vary card and detail generations independently; source selection respects field ownership and missing detail information remains unknown. |
+| `loadWindowCommits` (planned `SelectActivityEvents`), `computeActual` | Generate overlapping selected histories; each OID counted once and claim engagement survives off-branch storage. |
+| `publishTrackerClose` (planned `FinalizeTrackerClose`), `ownedCompletions` (planned `SelectCompletedIssues`) | Mutate bound repo/head/evidence between review and effect; refuse stale ownership rather than completing unrelated work. |
 | `PlanTrackerMigration`, `ApplyTrackerMigration` | Generate legacy populations and interrupt each phase; no lost IDs/evidence and no activation from incomplete or contradictory inputs. |
 
 Real-Git conformance runs with the normal Go suite on every relevant PR and
@@ -165,7 +165,7 @@ Files: create `cmd/sdlc/internal/issue/card.go`, `card_test.go`, `mirror.go`, `m
 
 Files: create `cmd/sdlc/internal/tracker/{repository,reader,creation,transfer,completion}.go` and colocated tests; create `cmd/sdlc/internal/gitx/refbootstrap.go` and tests; modify `trunkfile.go`, `updatemany.go`, `commitpublication_fake_test.go` only where existing APIs lack outcome/evidence access.
 
-- [x] Write failing model-based tests for `BootstrapTracker`, `Repository.UpdateCard`, `StepCreation`, `StepTransfer`, `StepCompletion`; run matching sequences against the stateful fake and disposable real Git.
+- [x] Write failing model-based tests for `TrunkFile.Bootstrap` (planned `BootstrapTracker`), `Repository.UpdateCard`, `StepCreation`, `StepTransfer`, `StepCompletion`; run matching sequences against the stateful fake and disposable real Git.
 - [x] Run `go test ./cmd/sdlc/internal/gitx ./cmd/sdlc/internal/tracker -count=1`; verify new tests fail for the intended missing behavior.
 - [x] Implement snapshot reads, atomic expected-version card writes and typed operation receipts. Preserve existing CAS semantics; generalize the stateful fake to main and tracker refs, not duplicate it per command.
 - [x] Repeat tests, add cardinality/IO benchmarks, and document tracker model in new `atlas/workflow/issue-tracker.md` with `atlas/index.md` link. Committed as `2144608`; verification evidence is recorded in the issue's M1 review-submission Log (including the baseline CLI-suite failure and measured performance limits).
@@ -182,7 +182,7 @@ the acceptance record. Foundation remains unactivated pending cutover.
 Files (revised at M2): modify `cmd/sdlc/{issue,claim,setstatus,startplan,changecode}.go`; add `trackerenv.go`, `planningbranch.go`, `cardsetters.go`, `internal/issue/cardset.go` and tests (`issuenew_test.go`, `planningbranch_test.go`, `changecode_tracker_test.go`); update `claimremote_test.go`, `startplan_test.go`, `setstatus_test.go`. `issuerecord.go` moves to M3; `issuemetadata.go` was superseded by `cardsetters.go`.
 
 - [x] Test `runIssueNew` and `runClaim` through the production command seam with controlled publication schedules; assert one reserved identity/claim and no readiness from local-only details.
-- [x] Test `PreparePlanningBranch` with generated checkout/ref relationships; assert fresh-main details are present and resting refs/unrelated work are unchanged.
+- [x] Test `preparePlanningBranch` (planned `PreparePlanningBranch`) with generated checkout/ref relationships; assert fresh-main details are present and resting refs/unrelated work are unchanged.
 - [x] Run focused tests with `go test ./cmd/sdlc -run 'Test(Issue|Claim|StartPlan|ChangeCode)' -count=1`; record red results.
 - [x] Route through the tracker (composed reader deferred to M3 with its consumers). Card setters are `sdlc issue set-title` / `set-estimate` / `set-github` (the delivered CUE model's setter names; see Revisions); ID/dates/started/status/actuals remain owned by their specific lifecycle verbs. Estimate explanation validation stays in details.
 - [x] Remove sync/publish behavior from implementation entry; keep ordinary explicit-path local checkpoints on the issue branch. Run focused tests and commit.
@@ -193,7 +193,7 @@ Files: create `cmd/sdlc/issuemovedetail.go`, `issuemovedetail_test.go`, `transfe
 
 - [x] Build real-Git fixtures for A→B→R versus A→D→E, asserting main gets only details, code stays unshipped, source removal is scoped, and eventual merge preserves E exactly. Include main-rest fast-forward and no-local-file modes.
 - [x] Test `StepTransfer` with reproducible interruption/event sequences; source removal requires confirmed owned publication and an unchanged source fingerprint.
-- [x] Property-test `CheckTransferredPaths` over generated branch/main DAGs and fresh-clone replay; prospective merge preserves current destination state or refuses without mutation.
+- [x] Property-test `checkTransferredPaths` (planned `CheckTransferredPaths`) over generated branch/main DAGs and fresh-clone replay; prospective merge preserves current destination state or refuses without mutation.
 - [x] Implement the pinned transfer and merge checks described above, including `issue recovery list/reconcile` registration and tests in `issuemovedetail_test.go`. Run `go test ./cmd/sdlc -run 'Test(MoveDetail|Transfer|IssueRecovery)' -count=1`, then affected PR/merge/push suites; no production remotes in tests.
 - [x] Update tracker atlas and README command discovery; commit.
 - M2 acceptance is its `sdlc milestone-close` boundary review, recorded by the issue's M2 checkbox (not ticked here).
@@ -204,17 +204,17 @@ Files: create `cmd/sdlc/issuemovedetail.go`, `issuemovedetail_test.go`, `transfe
 
 Files (revised at M3 from `git diff --name-status`): create `internal/tracker/records.go`, `cmd/sdlc/issuerecord.go` and tests; modify `state.go`, `issue.go`, `startplan.go`, `repoguard.go`, `pr.go`, `internal/fleet/issues.go`, `projectstatus.go`, `projectclose.go`, `projectretro.go`, `project.go`, `projectsetstatus.go`, `projectforecast.go`, `actual.go`, `internal/activetime/{commit,compute}.go`, `internal/gitx/window.go`, `main.go` (records scope). `resolve.go`, `validategate.go` and `internal/project/metadata.go` needed no change (navigation / open schema / generic decode).
 
-- [x] Test `ReadIssueRecord` and `LookupRepoIssues` with independently varied authoritative snapshots and projections; card metadata wins while detail-owned values remain intact.
+- [x] Test `LoadRecords` (planned `ReadIssueRecord`) and `LookupRepoIssues` with independently varied authoritative snapshots and projections; card metadata wins while detail-owned values remain intact.
 - [x] For cross-issue/dependency reads use pinned main details; for the active issue use its checked-out details. Preserve archive navigation and allow card-only inspection without fabricating an editable file.
-- [x] Test `SelectActivityEvents` and `computeActual` over generated code/tracker histories; assert selected-source-only membership, deduplicated OIDs and preserved engagement intervals.
+- [x] Test `loadWindowCommits` (planned `SelectActivityEvents`) and `computeActual` over generated code/tracker histories; assert selected-source-only membership, deduplicated OIDs and preserved engagement intervals.
 - [x] Implement and run `go test ./cmd/sdlc ./cmd/sdlc/internal/fleet ./cmd/sdlc/internal/project ./cmd/sdlc/internal/activetime -count=1`; commit after the new assertions pass.
 
 ### Task 6: Close generation, exact landing and recovery
 
 Files (revised at M3 from `git diff --name-status`): create `cmd/sdlc/{trackercompletion,closetracker}.go`, `internal/tracker/completeop.go` and tests; modify `close.go`, `milestoneclose.go` (shared trailers), `publishgate.go`, `landing.go`, `landinggate.go`, `landingarchive.go`, `merge.go`, `push.go`, `issuefiles.go`, `issuerecovery.go`, `internal/tracker/{receipt,completion,store,candidates,drive}.go`, `internal/issue/handoff.go`. `reviewstate.go` needed no change: review snapshots deliberately do not pin the card (see M3 Revisions).
 
-- [x] Test `StepCompletion` and `FinalizeTrackerClose` with reproducible review/remote-generation interruptions; stale verdicts and uncertain writes never become accepted completion.
-- [x] Test `SelectCompletedIssues` against unrelated ancestry and altered generation bindings; only proven reviewed/landed generations can be selected, independent of mirrored status.
+- [x] Test `StepCompletion` and `publishTrackerClose` (planned `FinalizeTrackerClose`) with reproducible review/remote-generation interruptions; stale verdicts and uncertain writes never become accepted completion.
+- [x] Test `ownedCompletions` (planned `SelectCompletedIssues`) against unrelated ancestry and altered generation bindings; only proven reviewed/landed generations can be selected, independent of mirrored status.
 - [x] Implement explicit completion bindings and recovery through existing landing identity/review guards; retain exact reviewed-head checks and scoped archive behavior.
 - [x] Run `go test ./cmd/sdlc -run 'Test(Close|Milestone|Review|Publish|Landing|Merge|Push|Archive)' -count=1`; update `atlas/workflow/{issue-lifecycle,ledger-landscape,sdlc-binary}.md`; commit.
 - M3 acceptance is its `sdlc milestone-close` boundary review, recorded by the issue's M3 checkbox.
@@ -382,3 +382,21 @@ a wedging FIX-THEN-SHIP, and (3rd in family) inventory kinds/files drift. Delta:
 - Inventory rule, applied here: re-derive each entity's kind from its shipped
   code and test IO (pure `composeRecords` extracted; loaders are INTEGRATION),
   and revise every Task "Files:" list against `git diff --name-status`.
+
+
+### 2026-09-25 — M3 boundary review round 8 (FIX-THEN-SHIP) corrections
+
+Reason: an abandoned worktree branch completed its cards (BR-29); a deferred
+evidence commit reverted files a fix commit had edited after the close (BR-30);
+fleet inventory still minted its own context; and (4th in family) ticked rows
+named planned identifiers that never shipped. Delta:
+- Non-durable merge completes owned cards only on a confirmed landing (a PR
+  merged now or found merged on resume); abandoning the branch completes nothing.
+- A deferred evidence commit replays a pinned file only where HEAD still holds
+  the reviewed commit's version (`EvidenceEntry.Replays`, base derived from
+  `ReviewedHEAD`); a later committed edit is newer and survives.
+- `CollectInventory`/`LookupRepoIssues` take the caller's context; the context
+  source guard parses every `internal/` package too. `guardIssueNotDone` reads
+  Fresh (it authorizes a write).
+- Ticked rows now name the shipped identifiers, the planned names kept in
+  parentheses; rule: every identifier in a ticked row greps to shipped code.

@@ -572,7 +572,9 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// IsTerminal, and codecomplete is active. Actuals were set at close, so the
 	// done-guard holds. The flip is captured by the archive commit below (the
 	// flipped files move to history).
-	if trackerEnvForMerge != nil {
+	// Only a confirmed landing completes a card: a PR merged now, or found merged
+	// on resume. An abandoned branch (removed without merging) completes nothing.
+	if trackerEnvForMerge != nil && merged {
 		out, lerr := mergeRunner.GitInDir(mainPath, "rev-parse", "--verify", "HEAD^{commit}")
 		if lerr != nil {
 			die(stderr, fmt.Sprintf("resolve the landed main commit: %v\n%s", lerr, out))

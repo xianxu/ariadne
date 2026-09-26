@@ -89,16 +89,16 @@ func guardSpineRepo(stderr io.Writer) {
 }
 
 // guardIssueNotDone refuses start-plan/change-code on a done issue. The status
-// is the card's where a tracker exists (#252). An unreadable record is left to
-// the verb's own error path (this guard only decides the done question).
+// is the card's where a tracker exists (#252), read Fresh: the guard authorizes
+// a write, so a stale card cannot answer it. It fails closed — a record it
+// cannot read cannot prove the issue is not done.
 func guardIssueNotDone(ctx context.Context, stderr io.Writer, issuePath, issueStr string) {
 	id, _, ok := issue.ParseFilename(filepath.Base(issuePath))
 	if !ok {
 		return
 	}
-	rs, err := loadIssueRecords(ctx, filepath.Dir(issuePath), tracker.PreferFresh)
+	rs, err := loadIssueRecords(ctx, filepath.Dir(issuePath), tracker.Fresh)
 	if err != nil {
-		// Fail closed: an unreadable record cannot prove the issue is not done.
 		die(stderr, fmt.Sprintf("cannot confirm #%s is not done: %v", issueStr, err))
 	}
 	if rec, ok := rs.Get(id); ok && rec.Status() == "done" {

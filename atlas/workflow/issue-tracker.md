@@ -104,10 +104,12 @@ Completion is two stages: close commits its evidence (details Log line, ledgers,
 sidecars, same-repo project records, with verdict and `Close-Actual:` trailers)
 and publishes codecomplete with a `tracker.completion` binding {token,
 repository, reviewed head, evidence commit}. FIX-THEN-SHIP stores the receipt
-unstarted so fixes land before the evidence. Publishing verbs own the closes
-whose evidence they carry (`trackercompletion.go`), anchor the reviewed-state
-check on it, and complete cards by compare-and-swap for the same token after the
-landing; recovery is re-derivation ("codecomplete whose evidence is on main").
+unstarted so fixes land before the evidence; the deferred commit replays the
+bytes pinned at close only where HEAD still holds the reviewed version, so a fix
+that edits a pinned file is kept (`EvidenceEntry.Replays`). Publishing verbs own
+the closes whose evidence they carry (`trackercompletion.go`), anchor the
+reviewed-state check on it, and complete cards by compare-and-swap for the same
+token after a confirmed landing (never on an abandoned branch's cleanup); recovery is re-derivation ("codecomplete whose evidence is on main").
 Tracked details are archived byte-for-byte so archive proofs stay deterministic.
 
 ## Verification pointers

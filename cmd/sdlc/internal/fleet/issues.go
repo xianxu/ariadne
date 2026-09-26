@@ -27,13 +27,13 @@ type IssueLookup func(id string) ([]IssueRecord, error)
 // With a tracker (#252) the card's status is declared; without one (pre-
 // migration) each active details file's status is. Duplicate or unreadable
 // details, and invalid statuses, discard partial results. Stable order.
-func LookupRepoIssues(repoRoot, id string) ([]IssueRecord, error) {
+func LookupRepoIssues(ctx context.Context, repoRoot, id string) ([]IssueRecord, error) {
 	records := make([]IssueRecord, 0)
 	parsedID, _, validID := issue.ParseFilename(id + "-.md")
 	if !validID || parsedID != id {
 		return records, nil
 	}
-	rs, err := repoRecords(repoRoot)
+	rs, err := repoRecords(ctx, repoRoot)
 	if err != nil {
 		return records, err
 	}
@@ -59,16 +59,15 @@ func LookupRepoIssues(repoRoot, id string) ([]IssueRecord, error) {
 
 // repoRecords loads (once per process) a repository's composed issue records.
 // Fleet inventory is a read-only view: a stale tracker read is acceptable.
-var repoRecords = func() func(string) (tracker.Records, error) {
+var repoRecords = func() func(context.Context, string) (tracker.Records, error) {
 	var mu sync.Mutex
 	cache := map[string]tracker.Records{}
-	return func(repoRoot string) (tracker.Records, error) {
+	return func(ctx context.Context, repoRoot string) (tracker.Records, error) {
 		mu.Lock()
 		defer mu.Unlock()
 		if rs, ok := cache[repoRoot]; ok {
 			return rs, nil
 		}
-		ctx := context.Background()
 		repo, err := tracker.RepositoryForCheckout(ctx, repoRoot)
 		if err != nil {
 			return tracker.Records{}, err

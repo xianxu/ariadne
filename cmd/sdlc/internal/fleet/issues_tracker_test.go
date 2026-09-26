@@ -35,11 +35,11 @@ func TestLookupRepoIssuesDeclaresTheCardStatus(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(home, "000149-working.md"), []byte("---\nid: 000149\nstatus: open\n---\n# T\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	got, err := LookupRepoIssues(root, "000149")
+	got, err := LookupRepoIssues(context.Background(), root, "000149")
 	if err != nil || len(got) != 1 || got[0].DeclaredStatus != "working" {
 		t.Fatalf("carded issue: %+v %v", got, err)
 	}
-	got, err = LookupRepoIssues(root, "000150")
+	got, err = LookupRepoIssues(context.Background(), root, "000150")
 	if err != nil || len(got) != 1 || got[0].DeclaredStatus != "open" {
 		t.Fatalf("card-only issue: %+v %v", got, err)
 	}

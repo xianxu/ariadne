@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"io"
 	"path/filepath"
@@ -81,7 +82,7 @@ func TestFleetInventoryUsesNormalizedFleetAndSharedLoader(t *testing.T) {
 			loadedPath = path
 			return fleet.PolicyCapability{Diagnostic: &fleet.PolicyDiagnostic{Code: fleet.DiagnosticMissingPolicy, Message: "missing", Path: path}}
 		},
-		collectInventory: func(root string, options fleet.InventoryOptions) (fleet.Inventory, error) {
+		collectInventory: func(_ context.Context, root string, options fleet.InventoryOptions) (fleet.Inventory, error) {
 			collectedRoot = root
 			if options.Git == nil || options.LoadPolicy == nil {
 				t.Fatal("inventory did not receive Git and shared policy loader")
@@ -346,7 +347,9 @@ func TestFleetInventoryAndPolicyHumanOutputUseTypedRenderers(t *testing.T) {
 			return fleet.Vantage{FleetRoot: fleetRoot, PrimaryRoot: repoRoot, RepoIdentity: repoIdentity, WorktreeRoot: repoRoot}, nil
 		},
 		canonicalProspectivePath: func(string) (string, string, error) { return repoRoot, repoRoot, nil },
-		collectInventory:         func(string, fleet.InventoryOptions) (fleet.Inventory, error) { return fleet.Inventory{}, nil },
+		collectInventory: func(context.Context, string, fleet.InventoryOptions) (fleet.Inventory, error) {
+			return fleet.Inventory{}, nil
+		},
 		loadPolicy: func(string) fleet.PolicyCapability {
 			return fleet.PolicyCapability{Diagnostic: &fleet.PolicyDiagnostic{Code: fleet.DiagnosticMissingPolicy, Message: "missing"}}
 		},
