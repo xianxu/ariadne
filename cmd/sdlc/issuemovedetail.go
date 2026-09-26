@@ -193,8 +193,13 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 		fmt.Fprintf(stdout, "Would publish #%s's initial details from %s to main as %s\n", id, from, dest)
 		return nil
 	}
+	t, err := tracker.NewTransfer(spec)
+	if err != nil {
+		return err
+	}
 	if staleMirror {
-		// The first effect: refresh the source file and, where Git tracks it,
+		// The first effect, after every fallible check including the receipt's
+		// own validation: refresh the source file and, where Git tracks it,
 		// its index entry too, so no staged/unstaged split is introduced.
 		if err := os.WriteFile(abs, source, info.Mode().Perm()); err != nil {
 			return err
@@ -208,10 +213,6 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 				return err
 			}
 		}
-	}
-	t, err := tracker.NewTransfer(spec)
-	if err != nil {
-		return err
 	}
 	op := tracker.NewTransferOp(ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
 	final, err := tracker.Drive(t.Receipt(), tracker.TransferStepper, op, receipts)

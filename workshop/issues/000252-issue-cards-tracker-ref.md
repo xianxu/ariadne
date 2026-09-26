@@ -228,7 +228,7 @@ total: 10.77
 - [x] Resolve creation, handoff, field ownership and migration approach with the operator
 - [x] Approve [durable implementation plan](../plans/000252-issue-cards-tracker-ref-plan.md)
 - [x] M1 — Card/mirror model and tracker repository with CAS/recovery tests
-- [ ] M2 — Creation, claim readiness, early design branch and move-detail handoff
+- [x] M2 — Creation, claim readiness, early design branch and move-detail handoff
 - [ ] M3 — Composed readers, activity evidence and close/landing recovery
 - [ ] M4 — Migration tooling, legacy writer retirement, instructions and full slot-cycle proof
 - [ ] Coordinate and verify production migration before issue closure
@@ -236,6 +236,7 @@ total: 10.77
 ## Log
 
 ### 2026-09-25
+- 2026-09-25: closed M2 — M2 tracker verbs + review rounds 3-5 fixes (source-checkout ownership, CLIRef hints, unrecorded-publication guard, mirror written only after gates/checks, gitTest probes + no-dropped-git-error guard, help/atlas verb sweep); full go test ./cmd/sdlc/... ./pkg/vocab/... green except baseline #210 (skipped) and processgroup ps test (sandbox-only; passes unsandboxed). Actual = measured 0.49h cumulative − M1 0.17h; review verdict: SHIP
 - 2026-09-25: closed M1 — M1 card/mirror, CAS/bootstrap, recovery and envelope regressions pass; tracker race suite passes; snapshot fuzz 284976 cases; vocabulary vet and diff check pass. BR-1/BR-2 corrected in plan inventory/checklist without code changes. Baseline CLI #210 failure reproduced on main; remaining CLI suite running with 25m timeout. Actual 0.17h measured by sdlc actual.; review verdict: FIX-THEN-SHIP
 
 - Filed from pair session after reconciling `main-slot1` by hand for the third
@@ -348,6 +349,17 @@ total: 10.77
 - Deviation: the CUE model (M1) names separate setters (`issue set-title`,
   `set-estimate`, `set-github`); the plan's generic `issue set --field` is
   superseded by the delivered model's refusal messages.
+
+### 2026-09-25 — M2 accepted
+
+- M2 boundary review: REWORK (round 3), FIX-THEN-SHIP (rounds 4–5), SHIP
+  (round 6). Findings BR-4..BR-17 addressed; rules added to lessons.md. The
+  round-6 advisory (build the transfer receipt before the first write) is fixed
+  in the close commit.
+- Carried to M3: `close` still writes `codecomplete` into the details file; the
+  flow e2e passes on that legacy path. M3 moves completion to the card.
+- Regenerating `atlas/process-manual.md` in this worktree drops the judge-prompt
+  architecture sections (environmental); left unregenerated, to refresh normally.
 
 ## Revisions
 

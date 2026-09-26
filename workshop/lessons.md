@@ -170,6 +170,7 @@ The simplest durable authority beats a clever scan of consequences.
   descriptions (#252 M2).
 - Checks run before effects: a verb's dry-run and refusal paths must leave every
   file unchanged, so compute refreshes in memory and write only after the last
-  check (#252 M2: a stale-mirror refresh was written before refusals ran).
+  check, including building any receipt or operation that validates its input
+  (#252 M2: a stale-mirror refresh was written before refusals ran).
 - An observation error is never evidence of absence: a Git probe distinguishes
   exit 1 (false) from any other failure (#252 M2).
