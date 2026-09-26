@@ -78,7 +78,7 @@ func (op *TransferOp) Prepare(e Effect, r Receipt) (Event, error) {
 		if detail, err = gitx.ReadBlob(op.ctx, op.root, spec.SourceBlob); err != nil {
 			return Event{}, err
 		}
-		msg := fmt.Sprintf("#%s: issue: initial details\n\nTracker-Operation: %s\nDetail-Handoff: #%s", spec.IssueID, spec.Token, spec.IssueID)
+		msg := fmt.Sprintf("#%s: issue: initial details\n\nTracker-Operation: %s\nDetail-Handoff: #%s", issue.CLIRef(spec.IssueID), spec.Token, spec.IssueID)
 		c, err = op.main.PrepareCandidate(msg, func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
 			present, err := view.Exists(spec.DestinationPath)
 			if err != nil {

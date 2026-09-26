@@ -61,7 +61,7 @@ func (r *Repository) UpdateCard(expected Record, raw []byte, operationToken stri
 		return errors.New("tracker update must preserve expected card identity")
 	}
 	content := bytes.Clone(raw)
-	message := fmt.Sprintf("#%s: tracker: update card\n\nTracker-Operation: %s", card.ID, operationToken)
+	message := cardMessage(card.ID, "update card", operationToken)
 	return r.trunk.UpdateManyPrepared(message, func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
 		snapshot, err := readSnapshot(view)
 		if err != nil {
@@ -92,3 +92,7 @@ func (r *Repository) LocalSnapshot() (Snapshot, bool, error) {
 	s, err := readSnapshot(view)
 	return s, err == nil, err
 }
+
+// TrackingRef is the local remote-tracking ref of the tracker branch, for
+// readers that include its history (the active-time window).
+func (r *Repository) TrackingRef() string { return r.trunk.TrackingRef() }

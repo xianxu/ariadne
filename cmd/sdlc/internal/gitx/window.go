@@ -285,14 +285,18 @@ const WindowCapDays = 61
 // snippet (issue: #123)" from a 2-year-old upstream commit) but not the
 // subject. Whole-message --grep would pull those in and stretch the window
 // by years.
-func CommitWindow(issueNum string) (firstSHA, firstISO, lastISO string, err error) {
+//
+// extraRefs (#252) adds histories beside HEAD — the fetched issue tracker, whose
+// card commits record the claim and close. git log visits each commit once.
+func CommitWindow(issueNum string, extraRefs ...string) (firstSHA, firstISO, lastISO string, err error) {
 	// Loose --grep first to narrow candidates; precise subject-anchor
 	// check happens below. Git's POSIX regex doesn't reliably support \b
 	// for word boundaries across platforms, so we filter subjects in Go.
-	cmd := exec.Command("git", "log",
-		"--grep=#"+issueNum, "--reverse",
-		"--pretty=%aI%x00%H%x00%s",
-	)
+	args := []string{"log", "--grep=#" + issueNum, "--reverse", "--pretty=%aI%x00%H%x00%s"}
+	if len(extraRefs) > 0 {
+		args = append(append(args, "HEAD"), extraRefs...)
+	}
+	cmd := exec.Command("git", args...)
 	out, err := cmd.Output()
 	if err != nil {
 		// non-zero exit (e.g., not a git repo) → no window, no error
@@ -332,7 +336,13 @@ func CommitWindow(issueNum string) (firstSHA, firstISO, lastISO string, err erro
 	firstISO = recent[0].iso
 	lastISO = recent[len(recent)-1].iso
 
-	// v3 segment-start: parent of first match (still bounded by cap).
+	// v3 segment-start: parent of first match (still bounded by cap). Only for
+	// code history: a tracker commit's parent is some other card's change.
+	if len(extraRefs) > 0 {
+		if onHead := exec.Command("git", "merge-base", "--is-ancestor", firstSHA, "HEAD").Run(); onHead != nil {
+			return firstSHA, firstISO, lastISO, nil
+		}
+	}
 	parentOut, perr := exec.Command(
 		"git", "log", "-1", "--pretty=%aI", firstSHA+"^",
 	).Output()

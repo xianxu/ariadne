@@ -344,7 +344,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	if env.onRest() {
 		cinfo(stderr, "details are uncommitted on the resting branch; the issue is claimable once they land on main — "+
 			"`sdlc issue move-detail --issue "+issue.CLIRef(spec.IssueID)+"` publishes them")
-	} else if err := commitOnly(env, fmt.Sprintf("#%s: issue: new", spec.IssueID), spec.DestinationPath); err != nil {
+	} else if err := commitOnly(env, fmt.Sprintf("#%s: issue: new", issue.CLIRef(spec.IssueID)), spec.DestinationPath); err != nil {
 		return fmt.Errorf("card reserved and details written, but the local commit failed: %w", err)
 	}
 	fmt.Fprintln(stdout, spec.DestinationPath)

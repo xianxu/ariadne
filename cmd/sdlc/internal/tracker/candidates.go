@@ -18,8 +18,10 @@ var ErrIDTaken = errors.New("tracker ID already allocated")
 // declared effect (prepare, push, probe), so the pure receipt engine — not a
 // fused retry loop — decides retries, refresh and recovery.
 
+// cardMessage follows the commit convention, "#N: tracker: <what>" with the
+// unpadded number agents and the activity window match on.
 func cardMessage(id, what, token string) string {
-	return fmt.Sprintf("#%s: tracker: %s\n\nTracker-Operation: %s", id, what, token)
+	return fmt.Sprintf("#%s: tracker: %s\n\nTracker-Operation: %s", issue.CLIRef(id), what, token)
 }
 
 // CardPath is the tracker path for a card, derived from its detail filename.

@@ -171,3 +171,6 @@ func (t *TrunkFile) LocalView() (*TrunkView, bool, error) {
 	}
 	return t.ViewOf(tip), true, nil
 }
+
+// TrackingRef is the local remote-tracking ref this TrunkFile reads.
+func (t *TrunkFile) TrackingRef() string { return t.trackingRef() }

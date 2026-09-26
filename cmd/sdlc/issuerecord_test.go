@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -59,5 +60,21 @@ func TestProjectIssueMetaReadsCardFieldsAndDetailDeps(t *testing.T) {
 	only, err := lookupIssueMeta(filepath.Base(r.root)+"#10", r.root)
 	if err != nil || only.Status != "open" || !only.DepsUnknown {
 		t.Fatalf("card-only meta: %+v %v", only, err)
+	}
+}
+
+func TestActualTrackerInputsUseTheCardStamp(t *testing.T) {
+	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
+	var out, errs bytes.Buffer
+	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9)); err != nil {
+		t.Fatal(err)
+	}
+	refs, started, carded := actualTrackerInputs(r.root, "9")
+	if !carded || started == "" || len(refs) != 1 || refs[0] != "refs/remotes/origin/issue-tracker" {
+		t.Fatalf("refs %v started %q carded %v", refs, started, carded)
+	}
+	if !strings.Contains(r.card(cardPath), "started: "+started) {
+		t.Fatalf("started %q is not the card's stamp", started)
 	}
 }
