@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -23,6 +24,10 @@ import (
 // use as the merge/push window base. Restores cwd on cleanup.
 func publishRepo(t *testing.T) (git func(args ...string), base string) {
 	t.Helper()
+	// Remote-less fixture: the #252 handoff guard has no tracker to read here.
+	prevGuard := guardTransferredDetailsFn
+	guardTransferredDetailsFn = func(context.Context) error { return nil }
+	t.Cleanup(func() { guardTransferredDetailsFn = prevGuard })
 	dir := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
 	git = func(args ...string) { t.Helper(); testfix.Git(t, dir, args...) }
 	if err := os.MkdirAll("workshop/issues", 0o755); err != nil {

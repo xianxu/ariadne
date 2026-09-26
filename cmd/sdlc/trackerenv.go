@@ -67,8 +67,9 @@ func openTracker(ctx context.Context) (*trackerEnv, error) {
 	return e, nil
 }
 
-// git runs one read in the checkout and returns trimmed stdout. Stderr is kept
-// out of the value so a warning can never be parsed as an object ID.
+// git runs one command in the checkout and returns trimmed stdout — also on a
+// non-zero exit, where some commands (merge-tree) still report a result. Stderr
+// is kept out of the value so a warning can never be parsed as an object ID.
 func (e *trackerEnv) git(args ...string) (string, error) {
 	cmd := exec.CommandContext(e.ctx, "git", args...)
 	cmd.Dir = e.root
@@ -76,7 +77,7 @@ func (e *trackerEnv) git(args ...string) (string, error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return "", fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(stderr.String()))
+		return strings.TrimSpace(string(out)), fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(stderr.String()))
 	}
 	return strings.TrimSpace(string(out)), nil
 }

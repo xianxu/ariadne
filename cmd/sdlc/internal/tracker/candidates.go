@@ -173,3 +173,6 @@ func (r *Repository) ReadCardBlob(oid string) ([]byte, error) {
 	}
 	return view.ReadBlob(oid)
 }
+
+// Initialized reports whether the tracker branch exists on the remote at all.
+func (r *Repository) Initialized() (bool, error) { return r.trunk.RemoteExists() }

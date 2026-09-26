@@ -144,3 +144,16 @@ func (t *TrunkFile) BlobAt(commit, path string) (string, error) {
 	}
 	return parseObjectID(out)
 }
+
+// RemoteExists reports whether the destination branch exists on the remote.
+// Absent is a completed observation (ls-remote exit 2), never a transport error.
+func (t *TrunkFile) RemoteExists() (bool, error) {
+	out, diag, err := t.run(nil, "ls-remote", "--refs", "--exit-code", "--", t.remote, t.localRef())
+	if err == nil {
+		return len(strings.TrimSpace(string(out))) > 0, nil
+	}
+	if gitExitCode(err) == 2 && len(out) == 0 {
+		return false, nil
+	}
+	return false, offlineError(t.remote, err, diag)
+}

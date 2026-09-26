@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -51,6 +52,9 @@ func runLandingPublishGate(pr landingPR, issuesDir string, stderr io.Writer) err
 	head, err := gitx.RunGit("rev-parse", "--verify", "HEAD")
 	if err != nil || strings.TrimSpace(string(head)) != pr.HeadOID {
 		return fmt.Errorf("landing publish gate checkout HEAD differs from selected PR head")
+	}
+	if err := guardTransferredDetailsFn(context.Background()); err != nil {
+		return err
 	}
 	root, err := gitx.RepoTopLevel()
 	if err != nil {

@@ -9,6 +9,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -71,6 +72,9 @@ func mergedCodecompleteIssues(baseRef, issuesDir string) ([]string, error) {
 // per-issue "drift" refusal on multi-issue branches), and refuses unless HEAD is
 // unchanged since that anchor. On refusal the message points at re-running close.
 func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
+	if err := guardTransferredDetailsFn(context.Background()); err != nil {
+		return err
+	}
 	issues, err := mergedCodecompleteIssues(baseRef, issuesDir)
 	if err != nil {
 		return err
