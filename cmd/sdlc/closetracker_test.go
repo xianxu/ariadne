@@ -117,3 +117,68 @@ func TestTrackerCloseFixThenShipLandsEvidenceAfterTheFixes(t *testing.T) {
 		t.Fatalf("card not bound to the post-fix evidence: %+v", c)
 	}
 }
+
+// BR-25: a fix commit that sweeps every evidence file into HEAD must not wedge
+// the deferred close: the evidence commit may be empty and still anchors it.
+func TestTrackerCloseFixThenShipSurvivesASweepingFixCommit(t *testing.T) {
+	r, cardPath, _ := closeReady(t, 303)
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "303", "--verified", "e2e", "--actual", "2", "--no-atlas", "--no-ledger"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	writeRepoFile(t, r.root, "cmd/a.go", "package a // fixed\n")
+	r.git("add", "-A") // sweeps the details, ledgers and sidecar too
+	r.git("commit", "-qm", "#303: fix and everything")
+	fix := r.git("rev-parse", "HEAD")
+	var out, errs bytes.Buffer
+	if err := runRecoveryReconcile(context.Background(), &out, &errs, 303); err != nil {
+		t.Fatalf("reconcile after a sweeping fix: %v\n%s", err, errs.String())
+	}
+	if r.git("rev-parse", "HEAD^") != fix || r.git("rev-parse", "HEAD^{tree}") != r.git("rev-parse", fix+"^{tree}") {
+		t.Fatal("expected an empty evidence commit on top of the sweeping fix")
+	}
+	if !strings.Contains(r.git("log", "-1", "--format=%B"), "Close-Actual: 2") {
+		t.Fatal("empty evidence commit lost its trailers")
+	}
+	if c, ok, _ := issue.CardCompletion([]byte(r.card(cardPath))); !ok || c.EvidenceCommit != r.git("rev-parse", "HEAD") {
+		t.Fatalf("card not bound to the evidence: %+v", c)
+	}
+}
+
+// BR-21: re-closing supersedes an unstarted FIX-THEN-SHIP close instead of
+// leaving two receipts that could rebind the card to the older review.
+func TestTrackerReCloseSupersedesAnUnstartedClose(t *testing.T) {
+	r, cardPath, _ := closeReady(t, 304)
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nrename a thing\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "304", "--verified", "first", "--actual", "2", "--no-atlas", "--no-ledger"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "304", "--verified", "second", "--actual", "2", "--no-atlas", "--no-ledger"); err != nil {
+		t.Fatalf("re-close: %v\n%s", err, stderr)
+	}
+	var list bytes.Buffer
+	if err := runRecoveryList(context.Background(), &list); err != nil || !strings.Contains(list.String(), "no unfinished") {
+		t.Fatalf("superseded close still pending: %q %v", list.String(), err)
+	}
+	if c, ok, _ := issue.CardCompletion([]byte(r.card(cardPath))); !ok || c.EvidenceCommit != r.git("rev-parse", "HEAD") {
+		t.Fatalf("card not bound to the re-close: %+v", c)
+	}
+}
+
+// BR-22: a verdict-independent precondition refuses before the review runs.
+func TestTrackerCloseRefusesPreconditionsBeforeReview(t *testing.T) {
+	r, _, _ := closeReady(t, 305)
+	r.git("switch", "-q", "--detach")
+	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	head := r.git("rev-parse", "HEAD")
+	msg, died := expectDie(t, func() {
+		_, _, _ = executeSDLCTestCommand("close", "--issue", "305", "--verified", "e2e", "--actual", "1", "--no-atlas")
+	})
+	if !died || !strings.Contains(msg, "check out the issue branch") {
+		t.Fatalf("detached close: died=%v %q", died, msg)
+	}
+	if *calls != 0 || r.git("rev-parse", "HEAD") != head || r.git("status", "--porcelain") != "" {
+		t.Fatal("close reviewed or wrote before refusing its precondition")
+	}
+}

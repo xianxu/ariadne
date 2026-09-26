@@ -60,20 +60,58 @@ type ReceiptSpec struct {
 	// verdict and Close-Actual trailers): the durable record from which a later
 	// process rebuilds the evidence commit and the card change.
 	EvidenceMessage string `json:"evidence_message,omitempty"`
-	// EvidencePaths lists (newline-separated, repository-relative) the files the
-	// evidence commit records: details, ledgers, sidecars, project records.
+	// EvidencePaths pins, one "<blob> <path>" per line ("-" for a removed
+	// file), the exact files the evidence commit records — details, ledgers,
+	// sidecars, project records — as they were at close. A deferred evidence
+	// commit (FIX-THEN-SHIP, recovery) replays these bytes, never a worktree a
+	// later fix commit may have swept.
 	EvidencePaths string `json:"evidence_paths,omitempty"`
 }
+
+// EvidenceEntry is one pinned evidence file; Blob is "" for a removal.
+type EvidenceEntry struct{ Blob, Path string }
+
+// EvidenceRemoved marks a pinned removal in EvidencePaths.
+const EvidenceRemoved = "-"
 
 // MaxEvidencePaths bounds a close's evidence file list.
 const MaxEvidencePaths = 64
 
-// EvidencePathList splits EvidencePaths.
-func (s ReceiptSpec) EvidencePathList() []string {
+func (s ReceiptSpec) EvidenceEntries() []EvidenceEntry {
 	if s.EvidencePaths == "" {
 		return nil
 	}
-	return strings.Split(s.EvidencePaths, "\n")
+	var entries []EvidenceEntry
+	for _, line := range strings.Split(s.EvidencePaths, "\n") {
+		blob, p, _ := strings.Cut(line, " ")
+		if blob == EvidenceRemoved {
+			blob = ""
+		}
+		entries = append(entries, EvidenceEntry{Blob: blob, Path: p})
+	}
+	return entries
+}
+
+// EvidencePathList is the pinned evidence files' paths.
+func (s ReceiptSpec) EvidencePathList() []string {
+	var paths []string
+	for _, e := range s.EvidenceEntries() {
+		paths = append(paths, e.Path)
+	}
+	return paths
+}
+
+// FormatEvidenceEntries renders pinned evidence for EvidencePaths.
+func FormatEvidenceEntries(entries []EvidenceEntry) string {
+	lines := make([]string, 0, len(entries))
+	for _, e := range entries {
+		blob := e.Blob
+		if blob == "" {
+			blob = EvidenceRemoved
+		}
+		lines = append(lines, blob+" "+e.Path)
+	}
+	return strings.Join(lines, "\n")
 }
 
 // MaxEvidenceMessageBytes bounds the close message inside a 16 KiB receipt.
@@ -537,16 +575,16 @@ func validateReceiptSpec(operation string, s ReceiptSpec) error {
 		if strings.TrimSpace(s.EvidenceMessage) == "" || len(s.EvidenceMessage) > MaxEvidenceMessageBytes || !utf8.ValidString(s.EvidenceMessage) || strings.ContainsRune(s.EvidenceMessage, 0) {
 			return errors.New("completion requires a bounded evidence message")
 		}
-		paths := s.EvidencePathList()
-		if len(paths) == 0 || len(paths) > MaxEvidencePaths {
+		entries := s.EvidenceEntries()
+		if len(entries) == 0 || len(entries) > MaxEvidencePaths {
 			return errors.New("completion requires a bounded evidence path list")
 		}
 		seen := map[string]bool{}
-		for _, p := range paths {
-			if !validReceiptPath(p) || seen[p] {
-				return errors.New("invalid or repeated evidence path")
+		for _, e := range entries {
+			if !validReceiptPath(e.Path) || seen[e.Path] || (e.Blob != "" && (!validReceiptOID(e.Blob) || len(e.Blob) != len(s.SourceHEAD))) {
+				return errors.New("invalid, unpinned or repeated evidence path")
 			}
-			seen[p] = true
+			seen[e.Path] = true
 		}
 		if !seen[s.SourcePath] {
 			return errors.New("evidence must include the issue details")

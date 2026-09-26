@@ -392,7 +392,8 @@ type closeResult struct {
 	// tracker: the details mirror a card (#252). Card-owned fields are not
 	// written here; the finalized close publishes them on the card, bound to
 	// an evidence commit it creates itself.
-	tracker bool
+	tracker     bool
+	trackerPrep *trackerClosePrep // tracker-era issue close: checked before the review
 }
 
 // computeClose runs every close gate and composes the new issue/project text in
@@ -500,6 +501,14 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			die(stderr, fmt.Sprintf("#%s has mirrored details but no card on the tracker", issueStr))
 		}
 		currentStatus = rec.Status()
+	}
+	var trackerPrep *trackerClosePrep
+	if trackerEra && mode == "issue" {
+		// #252 BR-22: every verdict-independent precondition of the tracker
+		// publication is checked here, before the review runs or anything is written.
+		if trackerPrep, err = prepareTrackerClose(commandContext(f.Context), fmt.Sprintf("%06d", f.Issue)); err != nil {
+			die(stderr, err.Error())
+		}
 	}
 	if mode == "issue" && currentStatus == "done" {
 		if !f.skip("reclose") {
@@ -786,6 +795,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		appliedMsgs:  applied,
 		flow:         flowOutcome,
 		tracker:      trackerEra,
+		trackerPrep:  trackerPrep,
 	}
 }
 

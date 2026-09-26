@@ -1,6 +1,7 @@
 package tracker
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
@@ -45,5 +46,31 @@ func TestCodecompleteCardBindsTheCloseAndRefusesDone(t *testing.T) {
 		if _, err := CodecompleteCard([]byte(working), bad, evidence, "d"); err == nil {
 			t.Errorf("accepted evidence message %q", msg)
 		}
+	}
+}
+
+func TestNewestCloseRefusesAnOlderReviewThanTheCardsClose(t *testing.T) {
+	spec := operationSpec()
+	spec.ReviewedHEAD = spec.SourceHEAD
+	other := issue.Completion{Token: "close-newer", Repository: spec.Repository, ReviewedHEAD: strings.Repeat("9", 40), EvidenceCommit: strings.Repeat("8", 40)}
+	card, err := issue.SetCardCompletion([]byte(strings.Replace(testCard, "status: open", "status: working", 1)), other)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []struct {
+		older bool
+		want  error
+	}{{true, nil}, {false, ErrSupersededClose}} {
+		op := &CompletionOp{ancestor: func(a, b string) (bool, error) { return c.older, nil }}
+		if err := op.newestClose(spec, card); !errors.Is(err, c.want) && !(c.want == nil && err == nil) {
+			t.Errorf("card review older=%v: %v", c.older, err)
+		}
+	}
+	same := other
+	same.Token = spec.Token
+	card, _ = issue.SetCardCompletion([]byte(strings.Replace(testCard, "status: open", "status: working", 1)), same)
+	op := &CompletionOp{ancestor: func(a, b string) (bool, error) { t.Fatal("own binding needs no ancestry"); return false, nil }}
+	if err := op.newestClose(spec, card); err != nil {
+		t.Fatal(err)
 	}
 }

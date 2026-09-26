@@ -31,10 +31,33 @@ type CompletionOp struct {
 	branch   string // refs/heads/<name> of the checkout driving this run
 	evidence Evidence
 	today    string
+	// ancestor reports whether commit a precedes (or equals) commit b.
+	ancestor func(a, b string) (bool, error)
 }
 
-func NewCompletionOp(ctx context.Context, repo *Repository, branch string, evidence Evidence, today string) *CompletionOp {
-	return &CompletionOp{ctx: ctx, repo: repo, branch: branch, evidence: evidence, today: today}
+// ErrSupersededClose refuses a completion whose review is older than the close
+// the card already records: resuming it would rebind the card to stale review.
+var ErrSupersededClose = errors.New("the card records a newer close than this receipt")
+
+func NewCompletionOp(ctx context.Context, repo *Repository, branch string, evidence Evidence, today string, ancestor func(a, b string) (bool, error)) *CompletionOp {
+	return &CompletionOp{ctx: ctx, repo: repo, branch: branch, evidence: evidence, today: today, ancestor: ancestor}
+}
+
+// newestClose proves, before an effect, that no newer close generation holds
+// the card: a different binding must have reviewed an ancestor of this one.
+func (op *CompletionOp) newestClose(spec ReceiptSpec, card []byte) error {
+	b, ok, err := issue.CardCompletion(card)
+	if err != nil || !ok || b.Token == spec.Token {
+		return err
+	}
+	older, err := op.ancestor(b.ReviewedHEAD, spec.ReviewedHEAD)
+	if err != nil {
+		return err
+	}
+	if !older {
+		return fmt.Errorf("%w (%s reviewed %s)", ErrSupersededClose, b.Token, b.ReviewedHEAD)
+	}
+	return nil
 }
 
 // EvidenceCommit is the confirmed evidence commit, or "" before it exists.
@@ -96,6 +119,17 @@ func (op *CompletionOp) Prepare(e Effect, r Receipt) (Event, error) {
 		if err := requireSourceCheckout(spec, op.branch); err != nil {
 			return Event{}, err
 		}
+		snap, err := op.repo.Snapshot()
+		if err != nil {
+			return Event{}, err
+		}
+		card, ok := snap.Card(spec.IssueID)
+		if !ok {
+			return Event{}, fmt.Errorf("no card #%s on the tracker", spec.IssueID)
+		}
+		if err := op.newestClose(spec, card.Raw); err != nil {
+			return Event{}, err
+		}
 		commit, err := op.evidence.Prepare(spec)
 		if err != nil {
 			return Event{}, err
@@ -104,6 +138,9 @@ func (op *CompletionOp) Prepare(e Effect, r Receipt) (Event, error) {
 	case "completion.codecomplete":
 		evidence := e.Expected.EvidenceOID
 		c, err := op.repo.PrepareCardChange(spec.IssueID, spec.CardPath, "codecomplete", spec.Token, func(current []byte) ([]byte, error) {
+			if err := op.newestClose(spec, current); err != nil {
+				return nil, err
+			}
 			return CodecompleteCard(current, spec, evidence, op.today)
 		})
 		if err != nil {

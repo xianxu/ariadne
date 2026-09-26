@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -46,29 +47,20 @@ func (g gitEvidence) Prepare(spec tracker.ReceiptSpec) (string, error) {
 	if _, err := env.gitEnv(withIndex, "read-tree", head); err != nil {
 		return "", err
 	}
-	for _, p := range spec.EvidencePathList() {
-		abs := filepath.Join(env.root, filepath.FromSlash(p))
-		info, err := os.Lstat(abs)
-		switch {
-		case errors.Is(err, os.ErrNotExist):
-			if _, err := env.gitEnv(withIndex, "update-index", "--force-remove", "--", p); err != nil {
+	for _, e := range spec.EvidenceEntries() {
+		if e.Blob == "" {
+			if _, err := env.gitEnv(withIndex, "update-index", "--force-remove", "--", e.Path); err != nil {
 				return "", err
 			}
 			continue
-		case err != nil:
-			return "", err
-		case !info.Mode().IsRegular():
-			return "", fmt.Errorf("evidence %s is not an ordinary file", p)
-		}
-		blob, err := env.git("hash-object", "-w", "--path", p, "--", abs)
-		if err != nil {
-			return "", err
 		}
 		mode := "100644"
-		if info.Mode().Perm()&0o111 != 0 {
+		if entry, err := env.git("ls-tree", head, "--", e.Path); err != nil {
+			return "", err
+		} else if strings.HasPrefix(entry, "100755 ") {
 			mode = "100755"
 		}
-		if _, err := env.gitEnv(withIndex, "update-index", "--add", "--cacheinfo", mode+","+blob+","+p); err != nil {
+		if _, err := env.gitEnv(withIndex, "update-index", "--add", "--cacheinfo", mode+","+e.Blob+","+e.Path); err != nil {
 			return "", err
 		}
 	}
@@ -76,11 +68,8 @@ func (g gitEvidence) Prepare(spec tracker.ReceiptSpec) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if headTree, err := env.git("rev-parse", head+"^{tree}"); err != nil {
-		return "", err
-	} else if headTree == tree {
-		return "", errors.New("the close changed none of its evidence files; nothing to record")
-	}
+	// An unchanged tree is legitimate: a fix commit may already carry the pinned
+	// evidence. The commit still records the verdict trailers and the anchor.
 	args := []string{"commit-tree", tree, "-p", head, "-m", spec.EvidenceMessage}
 	// Honour the repository's signing policy (unset exits 1: no signing).
 	if value, err := env.git("config", "--bool", "--get", "commit.gpgsign"); err == nil && value == "true" {
@@ -115,10 +104,11 @@ func tempIndexFile() (string, func(), error) {
 	return filepath.Join(dir, "index"), func() { os.RemoveAll(dir) }, nil
 }
 
-// closeEvidencePaths lists the files a close records: the details, every
-// changed issue-family artifact in the plans directory (plan, gate ledgers,
-// review sidecars) and the project records edited in this repository.
-func closeEvidencePaths(env *trackerEnv, r closeResult, plansDir string) ([]string, error) {
+// closeEvidence pins the files a close records — the details, every changed
+// issue-family artifact in the plans directory (plan, gate ledgers, review
+// sidecars) and the project records edited in this repository — as blobs of
+// their bytes now, so a deferred evidence commit replays exactly these.
+func closeEvidence(env *trackerEnv, r closeResult, plansDir string) ([]tracker.EvidenceEntry, error) {
 	rel := func(p string) (string, error) {
 		abs, err := filepath.Abs(p)
 		if err != nil {
@@ -158,14 +148,77 @@ func closeEvidencePaths(env *trackerEnv, r closeResult, plansDir string) ([]stri
 		paths = append(paths, p)
 	}
 	seen := map[string]bool{}
-	var out []string
+	var entries []tracker.EvidenceEntry
 	for _, p := range paths {
-		if !seen[p] {
-			seen[p] = true
-			out = append(out, p)
+		if seen[p] {
+			continue
 		}
+		seen[p] = true
+		raw, err := os.ReadFile(filepath.Join(env.root, filepath.FromSlash(p)))
+		switch {
+		case errors.Is(err, os.ErrNotExist):
+			entries = append(entries, tracker.EvidenceEntry{Path: p})
+			continue
+		case err != nil:
+			return nil, err
+		}
+		blob, err := gitx.WriteBlob(env.ctx, env.root, raw)
+		if err != nil {
+			return nil, err
+		}
+		entries = append(entries, tracker.EvidenceEntry{Blob: blob, Path: p})
 	}
-	return out, nil
+	return entries, nil
+}
+
+// trackerClosePrep carries the verdict-independent preconditions of a
+// tracker-era close, checked in computeClose before any review or write.
+type trackerClosePrep struct {
+	env        *trackerEnv
+	card       tracker.Record
+	trackerRef string
+	receipts   *tracker.RecoveryReceipts
+	superseded []tracker.Receipt // unstarted earlier closes this one replaces
+}
+
+// prepareTrackerClose checks what a tracker-era close needs before its review:
+// a branch to commit on, the card, and no half-finished close in progress (an
+// unstarted one — a FIX-THEN-SHIP never resumed — is superseded by this close).
+func prepareTrackerClose(ctx context.Context, id string) (*trackerClosePrep, error) {
+	env, err := openTracker(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if env.branch == "" {
+		return nil, errors.New("a tracker-era close commits its evidence on a branch; check out the issue branch")
+	}
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	card, ok := snap.Card(id)
+	if !ok {
+		return nil, fmt.Errorf("no card #%s on the tracker", id)
+	}
+	receipts, err := env.receipts()
+	if err != nil {
+		return nil, err
+	}
+	pending, err := receiptsFor(receipts, id)
+	if err != nil {
+		return nil, err
+	}
+	prep := &trackerClosePrep{env: env, card: card, trackerRef: snap.Ref(), receipts: receipts}
+	for _, r := range pending {
+		if r.Operation() != "completion" {
+			continue
+		}
+		if !r.Discardable() {
+			return nil, fmt.Errorf("#%s has a close in progress (%s at %s); finish it with `sdlc issue recovery reconcile --issue %s` before closing again", id, r.Spec().Token, r.Stage(), issue.CLIRef(id))
+		}
+		prep.superseded = append(prep.superseded, r)
+	}
+	return prep, nil
 }
 
 // publishTrackerClose records a finalized close: the evidence commit, then
@@ -173,25 +226,12 @@ func closeEvidencePaths(env *trackerEnv, r closeResult, plansDir string) ([]stri
 // unstarted, so the agent's fixes land first and the evidence commit — the
 // anchor merge checks the reviewed state against — comes last.
 func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult, review reviewResult) error {
-	env, err := openTracker(commandContext(f.Context))
-	if err != nil {
-		return err
+	prep := r.trackerPrep
+	if prep == nil {
+		return errors.New("tracker close was not prepared before its review")
 	}
-	if env.branch == "" {
-		return errors.New("a tracker-era close needs a checked-out branch for its evidence commit")
-	}
-	id, _, ok := issue.ParseFilename(filepath.Base(r.issuePath))
-	if !ok {
-		return fmt.Errorf("%s is not an issue filename", r.issuePath)
-	}
-	snap, err := env.repo.Snapshot()
-	if err != nil {
-		return err
-	}
-	card, ok := snap.Card(id)
-	if !ok {
-		return fmt.Errorf("no card #%s on the tracker", id)
-	}
+	env, card := prep.env, prep.card
+	id := card.ID
 	mainView, err := env.main.Snapshot()
 	if err != nil {
 		return err
@@ -200,35 +240,31 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 	if err != nil {
 		return fmt.Errorf("resolve the reviewed commit: %w", err)
 	}
-	paths, err := closeEvidencePaths(env, r, f.plansDir())
+	entries, err := closeEvidence(env, r, f.plansDir())
 	if err != nil {
 		return err
 	}
-	details, err := os.ReadFile(r.issuePath)
-	if err != nil {
-		return err
-	}
-	blob, err := gitx.WriteBlob(env.ctx, env.root, details)
-	if err != nil {
-		return err
-	}
+	blob := entries[0].Blob // the details, pinned as they are now
 	actual := f.Actual
 	if actual == "" {
 		actual = issue.ActualNotApplicableSentinel
 	}
 	message := fmt.Sprintf("#%s: close\n\n%s\nClose-Actual: %s", issue.CLIRef(id), strings.Join(reviewTrailers(review), "\n"), actual)
 	spec := tracker.ReceiptSpec{Token: operationToken("close"), Repository: env.target.Repository, IssueID: id,
-		CardPath: card.Path, SourcePath: paths[0], DestinationPath: paths[0], SourceBranch: env.branchRef(),
+		CardPath: card.Path, SourcePath: entries[0].Path, DestinationPath: entries[0].Path, SourceBranch: env.branchRef(),
 		SourceBase: reviewed, SourceHEAD: reviewed, ReviewedHEAD: reviewed, SourceBlob: blob, CardOID: card.BlobOID,
-		TrackerBase: snap.Ref(), MainBase: mainView.Ref(), Source: tracker.LocalSource,
-		EvidenceMessage: message, EvidencePaths: strings.Join(paths, "\n")}
+		TrackerBase: prep.trackerRef, MainBase: mainView.Ref(), Source: tracker.LocalSource,
+		EvidenceMessage: message, EvidencePaths: tracker.FormatEvidenceEntries(entries)}
 	c, err := tracker.NewCompletion(spec)
 	if err != nil {
 		return err
 	}
-	receipts, err := env.receipts()
-	if err != nil {
-		return err
+	receipts := prep.receipts
+	for _, old := range prep.superseded {
+		if err := receipts.Discard(old); err != nil {
+			return fmt.Errorf("release the superseded close %s: %w", old.Spec().Token, err)
+		}
+		cinfo(stderr, fmt.Sprintf("superseded the unfinished close %s", old.Spec().Token))
 	}
 	if review.Verdict == judge.VerdictFixThenShip {
 		if err := receipts.Save(c.Receipt()); err != nil {
@@ -238,7 +274,7 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 			"      (the evidence commit lands after your fixes; codecomplete is published bound to it)", env.branch, issue.CLIRef(id)))
 		return nil
 	}
-	op := tracker.NewCompletionOp(env.ctx, env.repo, env.branchRef(), gitEvidence{env}, time.Now().Format("2006-01-02"))
+	op := tracker.NewCompletionOp(env.ctx, env.repo, env.branchRef(), gitEvidence{env}, time.Now().Format("2006-01-02"), env.ancestorOf)
 	final, err := tracker.Drive(c.Receipt(), tracker.CompletionStepper, op, receipts)
 	if err != nil {
 		return fmt.Errorf("%w\n      the close is recorded; finish it with `sdlc issue recovery reconcile --issue %s`", err, issue.CLIRef(id))
@@ -247,4 +283,3 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 	fmt.Fprintln(stdout, tracker.EvidenceCommit(final))
 	return nil
 }
-

@@ -155,11 +155,19 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 			}
 			r = resumed.Receipt()
 			step = tracker.CompletionStepper
-			adapter = tracker.NewCompletionOp(ctx, env.repo, env.branchRef(), gitEvidence{env}, time.Now().Format("2006-01-02"))
+			adapter = tracker.NewCompletionOp(ctx, env.repo, env.branchRef(), gitEvidence{env}, time.Now().Format("2006-01-02"), env.ancestorOf)
 		default:
 			return fmt.Errorf("receipt %s: %s operations are recovered by their own verb", r.Spec().Token, r.Operation())
 		}
 		final, err := tracker.Drive(r, step, adapter, receipts)
+		if errors.Is(err, tracker.ErrSupersededClose) && final.Discardable() {
+			// A newer close owns the card; this one never recorded anything.
+			if derr := receipts.Discard(final); derr != nil {
+				return derr
+			}
+			cwarn(stderr, fmt.Sprintf("#%d: released close %s — %v", issueID, final.Spec().Token, err))
+			continue
+		}
 		if err != nil {
 			return fmt.Errorf("#%d %s (%s): %w", issueID, r.Operation(), final.Stage(), err)
 		}

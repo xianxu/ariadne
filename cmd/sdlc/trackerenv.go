@@ -115,6 +115,11 @@ func (e *trackerEnv) has(commit, p string) (bool, error) {
 	return e.gitTest("rev-parse", "-q", "--verify", commit+":"+p)
 }
 
+// ancestorOf reports whether commit a precedes (or equals) commit b.
+func (e *trackerEnv) ancestorOf(a, b string) (bool, error) {
+	return e.gitTest("merge-base", "--is-ancestor", a, b)
+}
+
 // branchRef is the checkout's current branch as a full ref ("" when detached).
 func (e *trackerEnv) branchRef() string {
 	if e.branch == "" {
