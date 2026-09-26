@@ -4,12 +4,12 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"path/filepath"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // loadIssueRecords composes the tracker's cards with the details in issuesDir,
@@ -51,18 +51,12 @@ func loadIssueRecordsAt(ctx context.Context, root, issuesDir string, mode tracke
 	return tracker.LoadRecords(commandContext(ctx), repo, issuesDir, mode)
 }
 
-// recordsRepository opens the tracker through the checkout's publication target.
-// Without a target the repository can have no tracker — unless one was fetched
-// already, which means the configuration broke: that is an error, never a quiet
-// fallback to stale mirrors.
+// recordsRepository opens the tracker of the repository at root, through the
+// resting branch that repository's workspace identity names.
 func recordsRepository(ctx context.Context, root string) (*tracker.Repository, error) {
-	env, err := openTrackerAt(ctx, root)
-	if err == nil {
-		return env.repo, nil
+	resting := "main"
+	if identity, err := workspace.Resolve(execGitRunner{}, root, ""); err == nil && identity.RestingBranch != nil {
+		resting = *identity.RestingBranch
 	}
-	fetched, ferr := gitx.RunGit("-C", root, "for-each-ref", "--format=%(refname)", "refs/remotes/*/issue-tracker")
-	if ferr == nil && len(fetched) == 0 {
-		return nil, nil
-	}
-	return nil, fmt.Errorf("this repository has a fetched issue tracker but its publication target is unusable: %w", err)
+	return tracker.RepositoryFor(commandContext(ctx), root, resting)
 }

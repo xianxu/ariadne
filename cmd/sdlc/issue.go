@@ -521,23 +521,35 @@ func runIssueShow(stdout, stderr io.Writer, f *issueShowFlags, arg string) error
 	if err != nil || id <= 0 {
 		die(stderr, fmt.Sprintf("invalid issue id %q (want a positive number, e.g. 56)", arg))
 	}
-	path, err := locateIssueFile(f.IssuesDir, id)
+	rs, err := loadIssueRecords(context.Background(), f.IssuesDir, tracker.PreferFresh)
 	if err != nil {
 		die(stderr, err.Error())
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		die(stderr, fmt.Sprintf("read %s: %v", path, err))
+	rec, ok := rs.Get(fmt.Sprintf("%06d", id))
+	if !ok {
+		die(stderr, fmt.Sprintf("no issue #%d: no card and no details under %s", id, f.IssuesDir))
 	}
-	fm, body, err := issue.Parse(string(data))
-	if err != nil {
-		die(stderr, fmt.Sprintf("parse %s: %v", path, err))
+	if rec.Card != nil {
+		// The card is authoritative for its fields (#252); shown first.
+		stale := ""
+		if rs.Stale {
+			stale = " (tracker unreachable — as last fetched)"
+		}
+		fmt.Fprintf(stdout, "card %s on %s%s\n---\n%s---\n", rec.Card.Path, vocab.Issue().Discovery().Tracker, stale, ensureTrailingNewline(rec.Card.Card.Frontmatter))
 	}
-	fmt.Fprintf(stdout, "%s\n---\n%s---\n", filepath.Base(path), ensureTrailingNewline(fm))
+	if rec.DetailPath == "" {
+		fmt.Fprintln(stdout, "(details are not in this checkout — card only)")
+		fmt.Fprintf(stdout, "# %s\n", rec.Title())
+		return nil
+	}
+	if rec.DetailErr != nil {
+		die(stderr, fmt.Sprintf("read %s: %v", rec.DetailPath, rec.DetailErr))
+	}
+	fmt.Fprintf(stdout, "%s\n---\n%s---\n", filepath.Base(rec.DetailPath), ensureTrailingNewline(rec.DetailFM))
 	// Title + section headers only (`# ` / `## `). Deeper headers like
 	// `### YYYY-MM-DD` Log entries are intentionally omitted — this is a
 	// structure peek, not a content dump.
-	for _, line := range strings.Split(body, "\n") {
+	for _, line := range strings.Split(rec.DetailBody, "\n") {
 		if strings.HasPrefix(line, "# ") || strings.HasPrefix(line, "## ") {
 			fmt.Fprintln(stdout, line)
 		}

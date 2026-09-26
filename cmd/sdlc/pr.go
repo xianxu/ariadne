@@ -9,8 +9,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
@@ -151,16 +153,26 @@ func touchedIssueFiles(baseRef, issuesDir string, r gitRunner) ([]string, error)
 // Missing files are skipped silently — the shell target uses `[ -f ]`.
 func collectGitHubIssueNumbers(paths []string) []string {
 	seen := map[string]struct{}{}
+	records := map[string]tracker.Records{} // per details directory
 	for _, p := range paths {
-		data, err := readFile(p)
-		if err != nil {
+		id, _, ok := issue.ParseFilename(filepath.Base(p))
+		if !ok {
 			continue
 		}
-		fm, _, perr := issue.Parse(string(data))
-		if perr != nil {
-			continue
+		dir := filepath.Dir(p)
+		rs, loaded := records[dir]
+		if !loaded {
+			var err error
+			if rs, err = loadIssueRecords(context.Background(), dir, tracker.PreferFresh); err != nil {
+				continue
+			}
+			records[dir] = rs
 		}
-		num, ok := issue.GetField(fm, "github_issue")
+		rec, ok := rs.Get(id)
+		if !ok || rec.DetailPath == "" {
+			continue // the shell target skips missing files: a touched path must exist
+		}
+		num, ok := rec.Field("github_issue") // the card's link, where a tracker exists
 		if !ok || num == "" {
 			continue
 		}

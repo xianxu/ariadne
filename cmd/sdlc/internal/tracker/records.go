@@ -3,11 +3,13 @@ package tracker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -25,7 +27,10 @@ type IssueRecord struct {
 	DetailErr  error // unreadable or malformed details, reported rather than skipped
 	// DetailUnreadable separates an IO failure from malformed content.
 	DetailUnreadable bool
-	tracked    bool  // composed from a repository that has a tracker
+	tracked          bool // composed from a repository that has a tracker
+	// Duplicate marks a second details file for an ID already seen: listed so
+	// ambiguity stays visible, never returned by Get.
+	Duplicate bool
 }
 
 var cardOwned = func() map[string]bool {
@@ -142,6 +147,7 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 	if err != nil {
 		return rs, err
 	}
+	var dups []*IssueRecord
 	for _, p := range matches {
 		id, slug, ok := issue.ParseFilename(filepath.Base(p))
 		if !ok || slug == "" { // the inventory requires a slug
@@ -153,16 +159,12 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 			byID[id] = rec
 		}
 		if rec.DetailPath != "" {
-			rec.DetailErr = errors.Join(rec.DetailErr, errors.New("more than one details file for #"+id))
+			dup := &IssueRecord{ID: id, Card: rec.Card, tracked: rs.Tracker, Duplicate: true}
+			readDetails(dup, p)
+			dups = append(dups, dup)
 			continue
 		}
-		rec.DetailPath = p
-		raw, err := os.ReadFile(p)
-		if err != nil {
-			rec.DetailErr, rec.DetailUnreadable = err, true
-			continue
-		}
-		rec.DetailFM, rec.DetailBody, rec.DetailErr = issue.Parse(string(raw))
+		readDetails(rec, p)
 	}
 	ids := make([]string, 0, len(byID))
 	for id := range byID {
@@ -170,9 +172,45 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 	}
 	sort.Strings(ids)
 	rs.byID = map[string]int{}
-	for i, id := range ids {
+	for _, id := range ids {
+		rs.byID[id] = len(rs.list)
 		rs.list = append(rs.list, *byID[id])
-		rs.byID[id] = i
+		for _, d := range dups {
+			if d.ID == id {
+				rs.list = append(rs.list, *d)
+			}
+		}
 	}
 	return rs, nil
+}
+
+// readDetails fills one record's details half; errors are recorded, not skipped.
+func readDetails(rec *IssueRecord, p string) {
+	rec.DetailPath = p
+	raw, err := os.ReadFile(p)
+	if err != nil {
+		rec.DetailErr, rec.DetailUnreadable = err, true
+		return
+	}
+	rec.DetailFM, rec.DetailBody, rec.DetailErr = issue.Parse(string(raw))
+}
+
+// RepositoryFor opens the tracker of the repository at root through its
+// resting branch's publication target. Without a usable target the repository
+// can have no tracker — unless one was fetched already, which means the
+// configuration broke: that is an error, never a quiet fallback to mirrors.
+// nil, nil means "no tracker": its details are the record.
+func RepositoryFor(ctx context.Context, root, restingBranch string) (*Repository, error) {
+	if _, err := gitx.RunGit("-C", root, "rev-parse", "--git-dir"); err != nil {
+		return nil, nil // not a repository: nothing can have been tracked
+	}
+	target, err := gitx.ResolvePublicationTarget(ctx, root, restingBranch)
+	if err == nil {
+		return NewRepository(ctx, root, target.Remote)
+	}
+	fetched, ferr := gitx.RunGit("-C", root, "for-each-ref", "--format=%(refname)", "refs/remotes/*/"+vocab.Issue().Discovery().Tracker)
+	if ferr == nil && len(fetched) == 0 {
+		return nil, nil
+	}
+	return nil, fmt.Errorf("%s has a fetched issue tracker but its publication target is unusable: %w", root, err)
 }

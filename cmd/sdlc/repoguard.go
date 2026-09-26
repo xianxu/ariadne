@@ -30,7 +30,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"io"
 	"os"
 	"path/filepath"
@@ -86,19 +88,19 @@ func guardSpineRepo(stderr io.Writer) {
 	}
 }
 
-// guardIssueNotDone refuses start-plan/change-code on a terminal issue. Reads
-// the status from the issue file; unreadable/unparsable files are left to the
-// verb's own error path (this guard only decides the done question).
+// guardIssueNotDone refuses start-plan/change-code on a done issue. The status
+// is the card's where a tracker exists (#252). An unreadable record is left to
+// the verb's own error path (this guard only decides the done question).
 func guardIssueNotDone(stderr io.Writer, issuePath, issueStr string) {
-	raw, err := os.ReadFile(issuePath)
+	id, _, ok := issue.ParseFilename(filepath.Base(issuePath))
+	if !ok {
+		return
+	}
+	rs, err := loadIssueRecords(context.Background(), filepath.Dir(issuePath), tracker.PreferFresh)
 	if err != nil {
 		return
 	}
-	fm, _, err := issue.Parse(string(raw))
-	if err != nil {
-		return
-	}
-	if status, _ := issue.GetField(fm, "status"); status == "done" {
+	if rec, ok := rs.Get(id); ok && rec.Status() == "done" {
 		die(stderr, issueDoneMsg(issueStr))
 	}
 }

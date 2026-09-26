@@ -65,10 +65,10 @@ func TestCollectGitHubIssueNumbers(t *testing.T) {
 		}
 		return p
 	}
-	a := mk("a.md", "42")
-	b := mk("b.md", "10")
-	c := mk("c.md", "")   // no github_issue → skipped
-	d := mk("d.md", "42") // duplicate of a → deduped
+	a := mk("000001-a.md", "42")
+	b := mk("000002-b.md", "10")
+	c := mk("000003-c.md", "")   // no github_issue → skipped
+	d := mk("000004-d.md", "42") // duplicate of a → deduped
 
 	got := collectGitHubIssueNumbers([]string{a, b, c, d})
 	// Numerically sorted: 10, 42
@@ -136,6 +136,17 @@ func (g *recordingGH) PRCreate(repo, base, head, body string) (string, error) {
 	return "https://github.com/owner/repo/pull/123", nil
 }
 
+// A tracked repository links through the card, not the details' mirror.
+func TestCollectGitHubIssueNumbersReadsTheCard(t *testing.T) {
+	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
+	card = strings.Replace(card, "github_issue:", "github_issue: 77", 1)
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
+	got := collectGitHubIssueNumbers([]string{filepath.Join(r.root, detailPath)})
+	if len(got) != 1 || got[0] != "77" {
+		t.Fatalf("got %v, want the card's link [77]", got)
+	}
+}
+
 func TestCollectGitHubIssueNumbers_DedupesAndOrders(t *testing.T) {
 	tmp := t.TempDir()
 	mkIssue := func(name, gh string) string {
@@ -144,10 +155,10 @@ func TestCollectGitHubIssueNumbers_DedupesAndOrders(t *testing.T) {
 		_ = os.WriteFile(p, []byte(body), 0o644)
 		return p
 	}
-	a := mkIssue("a.md", "5")
-	b := mkIssue("b.md", "1")
-	c := mkIssue("c.md", "10")
-	d := mkIssue("d.md", "1") // dup
+	a := mkIssue("000001-a.md", "5")
+	b := mkIssue("000002-b.md", "1")
+	c := mkIssue("000003-c.md", "10")
+	d := mkIssue("000004-d.md", "1") // dup
 
 	got := collectGitHubIssueNumbers([]string{a, b, c, d})
 	want := []string{"1", "5", "10"}
