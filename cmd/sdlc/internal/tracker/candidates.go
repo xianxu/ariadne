@@ -178,3 +178,33 @@ func (r *Repository) ReadCardBlob(oid string) ([]byte, error) {
 
 // Initialized reports whether the tracker branch exists on the remote at all.
 func (r *Repository) Initialized() (bool, error) { return r.trunk.RemoteExists() }
+
+// ChangeCard publishes mutate(current card) in one conditional commit, re-read
+// and re-derived on every retry (unlike UpdateCard's fixed replacement bytes).
+// mutate returning ErrNoChange means the change is already in place.
+func (r *Repository) ChangeCard(id, cardPath, what, token string, mutate func(current []byte) ([]byte, error)) error {
+	if !tokenPattern.MatchString(token) || mutate == nil {
+		return errors.New("card change requires an operation token and mutation")
+	}
+	return r.trunk.UpdateManyPrepared(cardMessage(id, what, token), func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
+		snapshot, err := readSnapshot(view)
+		if err != nil {
+			return gitx.TrunkWrite{}, err
+		}
+		current, ok := snapshot.Card(id)
+		if !ok || current.Path != cardPath {
+			return gitx.TrunkWrite{}, ErrCardChanged
+		}
+		next, err := mutate(current.Raw)
+		if err != nil {
+			return gitx.TrunkWrite{}, err
+		}
+		if _, err := r.validCandidateCard(cardPath, next, token); err != nil {
+			return gitx.TrunkWrite{}, err
+		}
+		if err := snapshot.validateReplacement(current, next); err != nil {
+			return gitx.TrunkWrite{}, err
+		}
+		return gitx.TrunkWrite{Write: map[string][]byte{cardPath: next}, ExactBytes: true}, nil
+	}, func(string, string) error { return nil })
+}

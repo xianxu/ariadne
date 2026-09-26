@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"io"
 	"strings"
 	"time"
@@ -92,6 +93,17 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 	if err != nil {
 		return err
 	}
+	defer func() {
+		// A close whose evidence already landed (a merge made elsewhere, or an
+		// interrupted publish) is completed by re-derivation, receipt or not.
+		if settled, serr := settleLandedCompletions(ctx, env, envOr("WF_ISSUES_DIR", "workshop/issues")); serr != nil {
+			cwarn(stderr, fmt.Sprintf("landed closes not settled: %v", serr))
+		} else {
+			for _, id := range settled {
+				cok(stderr, fmt.Sprintf("#%s landed; its card is now done", issue.CLIRef(id)))
+			}
+		}
+	}()
 	if len(mine) == 0 {
 		cok(stderr, fmt.Sprintf("no unfinished operations for #%d here", issueID))
 		return nil

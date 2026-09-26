@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -8,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -59,6 +61,31 @@ func scanIssueFiles(baseRef, issuesDir string, runGit func(...string) ([]byte, e
 			Frontmatter: fm,
 			Body:        body,
 		})
+	}
+	return overlayCardStatus(issuesDir, refs)
+}
+
+// overlayCardStatus replaces each file's status with its card's where the
+// repository has a tracker (#252): selection by status (codecomplete, terminal)
+// must never read a mirror. A details file without a card has no known status.
+func overlayCardStatus(issuesDir string, refs []issueFileRef) ([]issueFileRef, error) {
+	if len(refs) == 0 {
+		return refs, nil
+	}
+	rs, err := loadIssueRecords(context.Background(), issuesDir, tracker.Fresh)
+	if err != nil {
+		return nil, err
+	}
+	if !rs.Tracker {
+		return refs, nil
+	}
+	for i := range refs {
+		refs[i].Status = ""
+		if id, _, ok := issue.ParseFilename(filepath.Base(refs[i].Path)); ok {
+			if rec, ok := rs.Get(id); ok && rec.Card != nil {
+				refs[i].Status = rec.Status()
+			}
+		}
 	}
 	return refs, nil
 }

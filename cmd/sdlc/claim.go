@@ -159,7 +159,12 @@ func refreshLocalMirror(env *trackerEnv, detailPath string) string {
 	if env.onRest() {
 		return ""
 	}
-	abs := filepath.Join(env.root, filepath.FromSlash(detailPath))
+	return refreshLocalMirrorAt(env, filepath.Join(env.root, filepath.FromSlash(detailPath)))
+}
+
+// refreshLocalMirrorAt refreshes one details file wherever it is — for a
+// caller that commits the result itself (the archive of a done issue).
+func refreshLocalMirrorAt(env *trackerEnv, abs string) string {
 	details, err := os.ReadFile(abs)
 	if errors.Is(err, os.ErrNotExist) {
 		return ""
@@ -167,17 +172,17 @@ func refreshLocalMirror(env *trackerEnv, detailPath string) string {
 	if err != nil {
 		return fmt.Sprintf("local details unreadable, mirror not refreshed: %v", err)
 	}
-	id, _, ok := issue.ParseFilename(path.Base(detailPath))
+	id, _, ok := issue.ParseFilename(filepath.Base(abs))
 	if !ok {
-		return fmt.Sprintf("%s: not an issue filename; mirror not refreshed", detailPath)
+		return fmt.Sprintf("%s: not an issue filename; mirror not refreshed", abs)
 	}
 	refreshed, err := refreshMirror(env, id, details)
 	if err != nil {
-		return fmt.Sprintf("%s: mirror not refreshed: %v", detailPath, err)
+		return fmt.Sprintf("%s: mirror not refreshed: %v", filepath.Base(abs), err)
 	}
 	if !bytes.Equal(refreshed, details) {
 		if err := os.WriteFile(abs, refreshed, 0o644); err != nil {
-			return fmt.Sprintf("%s: mirror not refreshed: %v", detailPath, err)
+			return fmt.Sprintf("%s: mirror not refreshed: %v", filepath.Base(abs), err)
 		}
 	}
 	return ""
