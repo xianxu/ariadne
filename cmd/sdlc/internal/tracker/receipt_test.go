@@ -10,9 +10,9 @@ import (
 func preparedCandidate(binding Binding, oid string) Event {
 	event := Event{Kind: EventCandidatePrepared, Binding: binding, CandidateOID: oid}
 	switch binding.Stage {
-	case "creation.reserve", "transfer.handoff", "transfer.record", "completion.codecomplete", "completion.done":
+	case "creation.reserve", "transfer.handoff", "transfer.record", "completion.codecomplete":
 		event.CandidateBaseOID = binding.TrackerBase
-	case "transfer.main", "completion.archive":
+	case "transfer.main":
 		event.CandidateBaseOID = binding.MainBase
 	}
 	return event
@@ -44,7 +44,7 @@ func TestCandidatePreparationBindsObservedParentAcrossStages(t *testing.T) {
 					after := h.receipt().Spec()
 					want := before
 					if remote {
-						if effect.Stage == "transfer.main" || effect.Stage == "completion.archive" {
+						if effect.Stage == "transfer.main" {
 							want.MainBase = event.CandidateBaseOID
 						} else {
 							want.TrackerBase = event.CandidateBaseOID
@@ -80,16 +80,12 @@ func TestCandidatePreparationBindsObservedParentAcrossStages(t *testing.T) {
 					continue
 				case PersistReceipt:
 					event.Kind = EventReceiptSaved
-				case PublishCard, PublishMain, MaterializeDetail, WriteEvidence, RemoveSource, ArchiveDetails:
+				case PublishCard, PublishMain, MaterializeDetail, WriteEvidence, RemoveSource:
 					event.Kind = EventConfirmed
 					event.CandidateOID = effect.CandidateOID
 					if effect.Kind == PublishCard {
 						event.ResultCardOID = fmt.Sprintf("%040x", 400+tick)
 					}
-				case ObserveLanding:
-					b := h.binding()
-					event.Kind = EventLandingConfirmed
-					event.Landing = &LandingEvidence{Repository: b.Repository, ReviewedHEAD: b.ReviewedHEAD, EvidenceOID: b.EvidenceOID, LandedHEAD: b.EvidenceOID, IntegrationOID: fmt.Sprintf("%040x", 900)}
 				case CleanupReceipt:
 					event.Kind = EventCleanupConfirmed
 				default:
@@ -314,15 +310,12 @@ func TestReceiptGeneratedInterruptionsAtEveryDeclaredEffect(t *testing.T) {
 		"creation":           {PublishCard, MaterializeDetail},
 		"transfer":           {PublishCard, PublishMain, PublishCard, RemoveSource},
 		"transfer-from-card": {PublishCard, PublishMain, PublishCard},
-		"completion":         {WriteEvidence, PublishCard, ObserveLanding, PublishCard, ArchiveDetails},
+		"completion":         {WriteEvidence, PublishCard},
 	}
 	for kind, expected := range oracles {
 		// Baseline plus an interruption at each effect in that baseline. Two
 		// recovery observations model effect-applied and confirmed-not-applied.
 		baselineEffects := 3*len(expected) + 2
-		if kind == "completion" {
-			baselineEffects -= 2
-		}
 		for interrupt := -1; interrupt < baselineEffects; interrupt++ {
 			for _, applied := range []bool{false, true} {
 				t.Run(fmt.Sprintf("%s/effect-%d/applied-%v", kind, interrupt, applied), func(t *testing.T) {
@@ -392,7 +385,7 @@ func TestReceiptGeneratedInterruptionsAtEveryDeclaredEffect(t *testing.T) {
 								break
 							}
 							fallthrough
-						case PublishCard, PublishMain, MaterializeDetail, WriteEvidence, RemoveSource, ArchiveDetails:
+						case PublishCard, PublishMain, MaterializeDetail, WriteEvidence, RemoveSource:
 							want := expected[mutationIndex]
 							if effect.Kind != ProbePublication && effect.Kind != want {
 								t.Fatalf("out of order: got %s want %s", effect.Kind, want)
@@ -405,14 +398,6 @@ func TestReceiptGeneratedInterruptionsAtEveryDeclaredEffect(t *testing.T) {
 							if want == PublishCard {
 								event.ResultCardOID = fmt.Sprintf("%040x", 200+mutationIndex)
 							}
-							mutationIndex++
-						case ObserveLanding:
-							if expected[mutationIndex] != ObserveLanding {
-								t.Fatal("landing out of order")
-							}
-							b := h.binding()
-							event.Kind = EventLandingConfirmed
-							event.Landing = &LandingEvidence{Repository: b.Repository, ReviewedHEAD: b.ReviewedHEAD, EvidenceOID: b.EvidenceOID, LandedHEAD: b.EvidenceOID, IntegrationOID: fmt.Sprintf("%040x", 500)}
 							mutationIndex++
 						case CleanupReceipt:
 							if h.receipt().Outcome() != Finalized || mutationIndex != len(expected) {

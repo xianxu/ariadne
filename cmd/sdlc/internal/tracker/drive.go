@@ -15,8 +15,7 @@ var ErrOperationUncertain = errors.New("operation outcome uncertain; receipt ret
 type Adapter interface {
 	// Prepare builds the candidate for e.Stage (EventCandidatePrepared).
 	Prepare(e Effect, r Receipt) (Event, error)
-	// Apply performs the stage's mutation (Confirmed, RefRace or Unknown), or
-	// observes landing (LandingConfirmed or Unknown).
+	// Apply performs the stage's mutation (Confirmed, RefRace or Unknown).
 	Apply(e Effect, r Receipt) (Event, error)
 	// Probe settles an uncertain candidate (Confirmed, NotApplied or ProbeUnknown).
 	Probe(e Effect, r Receipt) (Event, error)

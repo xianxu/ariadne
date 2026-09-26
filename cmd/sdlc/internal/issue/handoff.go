@@ -27,9 +27,22 @@ type Handoff struct {
 	MainCommit   string `yaml:"main_commit,omitempty"`
 }
 
+// Completion binds a card's codecomplete to the exact close that produced it
+// (#252): the reviewed HEAD and the evidence commit on the closing branch, in one
+// repository. Publishing verbs select issues by this binding — a status alone
+// cannot say which PR owns it — and write done only for the same token.
+type Completion struct {
+	Token          string `yaml:"token"`
+	Repository     string `yaml:"repository"`
+	ReviewedHEAD   string `yaml:"reviewed_head"`
+	EvidenceCommit string `yaml:"evidence_commit"`
+	LandedCommit   string `yaml:"landed_commit,omitempty"`
+}
+
 type trackerEnvelope struct {
-	Version int      `yaml:"version"`
-	Handoff *Handoff `yaml:"handoff,omitempty"`
+	Version    int         `yaml:"version"`
+	Handoff    *Handoff    `yaml:"handoff,omitempty"`
+	Completion *Completion `yaml:"completion,omitempty"`
 }
 
 var handoffOID = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
@@ -51,24 +64,82 @@ func (h Handoff) validate() error {
 	return nil
 }
 
+func (c Completion) validate() error {
+	for name, v := range map[string]string{"token": c.Token, "repository": c.Repository} {
+		if strings.TrimSpace(v) == "" || strings.ContainsAny(v, "\r\n\x00") {
+			return invalidCard("tracker.completion."+name, "required single-line value")
+		}
+	}
+	for name, v := range map[string]string{"reviewed_head": c.ReviewedHEAD, "evidence_commit": c.EvidenceCommit} {
+		if !handoffOID.MatchString(v) {
+			return invalidCard("tracker.completion."+name, "expected a full object ID")
+		}
+	}
+	if c.LandedCommit != "" && !handoffOID.MatchString(c.LandedCommit) {
+		return invalidCard("tracker.completion.landed_commit", "expected a full object ID")
+	}
+	return nil
+}
+
+// cardEnvelope decodes the card's internal transaction envelope (zero if absent).
+func cardEnvelope(d *cardDocument) (trackerEnvelope, error) {
+	node := d.fields[vocab.Issue().Card.Internal.Field]
+	if node == nil {
+		return trackerEnvelope{Version: vocab.Issue().Card.Internal.Version}, nil
+	}
+	var env trackerEnvelope
+	if err := node.Decode(&env); err != nil {
+		return env, invalidCard("tracker", err.Error())
+	}
+	if env.Handoff != nil {
+		if err := env.Handoff.validate(); err != nil {
+			return env, err
+		}
+	}
+	if env.Completion != nil {
+		if err := env.Completion.validate(); err != nil {
+			return env, err
+		}
+	}
+	return env, nil
+}
+
+// updateEnvelope rewrites the whole envelope after one member changes, keeping
+// every other member and every other card byte.
+func updateEnvelope(card []byte, change func(*trackerEnvelope) error) ([]byte, error) {
+	d, err := parseCardDocument(card)
+	if err != nil {
+		return nil, err
+	}
+	env, err := cardEnvelope(d)
+	if err != nil {
+		return nil, err
+	}
+	if err := change(&env); err != nil {
+		return nil, err
+	}
+	env.Version = vocab.Issue().Card.Internal.Version
+	field := vocab.Issue().Card.Internal.Field
+	fm := d.withoutField(field)
+	block, err := yaml.Marshal(map[string]trackerEnvelope{field: env})
+	if err != nil {
+		return nil, err
+	}
+	out := []byte(Compose(strings.TrimRight(fm, "\n")+"\n"+strings.TrimRight(string(block), "\n"), d.body))
+	if _, err := ParseCard(out); err != nil {
+		return nil, fmt.Errorf("card envelope: %w", err)
+	}
+	return out, nil
+}
+
 // CardHandoff returns the card's handoff record, if any.
 func CardHandoff(card []byte) (Handoff, bool, error) {
 	d, err := parseCardDocument(card)
 	if err != nil {
 		return Handoff{}, false, err
 	}
-	node := d.fields[vocab.Issue().Card.Internal.Field]
-	if node == nil {
-		return Handoff{}, false, nil
-	}
-	var env trackerEnvelope
-	if err := node.Decode(&env); err != nil {
-		return Handoff{}, false, invalidCard("tracker", err.Error())
-	}
-	if env.Handoff == nil {
-		return Handoff{}, false, nil
-	}
-	if err := env.Handoff.validate(); err != nil {
+	env, err := cardEnvelope(d)
+	if err != nil || env.Handoff == nil {
 		return Handoff{}, false, err
 	}
 	return *env.Handoff, true, nil
@@ -81,32 +152,50 @@ func SetCardHandoff(card []byte, h Handoff) ([]byte, error) {
 	if err := h.validate(); err != nil {
 		return nil, err
 	}
-	prior, ok, err := CardHandoff(card)
-	if err != nil {
-		return nil, err
-	}
-	if ok {
-		completing := prior.Token == h.Token && prior.MainCommit == "" && h.MainCommit != ""
-		prior.MainCommit = h.MainCommit
-		if !completing || prior != h {
-			return nil, errors.New("card already records its initial handoff; details were created once")
+	return updateEnvelope(card, func(env *trackerEnvelope) error {
+		if prior := env.Handoff; prior != nil {
+			completing := prior.Token == h.Token && prior.MainCommit == "" && h.MainCommit != ""
+			p := *prior
+			p.MainCommit = h.MainCommit
+			if !completing || p != h {
+				return errors.New("card already records its initial handoff; details were created once")
+			}
 		}
-	}
+		env.Handoff = &h
+		return nil
+	})
+}
+
+// CardCompletion returns the card's completion binding, if any.
+func CardCompletion(card []byte) (Completion, bool, error) {
 	d, err := parseCardDocument(card)
 	if err != nil {
+		return Completion{}, false, err
+	}
+	env, err := cardEnvelope(d)
+	if err != nil || env.Completion == nil {
+		return Completion{}, false, err
+	}
+	return *env.Completion, true, nil
+}
+
+// SetCardCompletion records a close's binding. A new close (a new token)
+// replaces an older generation; the same close may only add its landed commit.
+func SetCardCompletion(card []byte, c Completion) ([]byte, error) {
+	if err := c.validate(); err != nil {
 		return nil, err
 	}
-	field := vocab.Issue().Card.Internal.Field
-	fm := d.withoutField(field)
-	block, err := yaml.Marshal(map[string]trackerEnvelope{field: {Version: vocab.Issue().Card.Internal.Version, Handoff: &h}})
-	if err != nil {
-		return nil, err
-	}
-	out := []byte(Compose(strings.TrimRight(fm, "\n")+"\n"+strings.TrimRight(string(block), "\n"), d.body))
-	if _, err := ParseCard(out); err != nil {
-		return nil, fmt.Errorf("handoff record: %w", err)
-	}
-	return out, nil
+	return updateEnvelope(card, func(env *trackerEnvelope) error {
+		if prior := env.Completion; prior != nil && prior.Token == c.Token {
+			p := *prior
+			p.LandedCommit = c.LandedCommit
+			if p != c || (prior.LandedCommit != "" && prior.LandedCommit != c.LandedCommit) {
+				return errors.New("a close's completion binding cannot be rewritten")
+			}
+		}
+		env.Completion = &c
+		return nil
+	})
 }
 
 // DetailsFromCard derives initial details for an issue whose creator left no

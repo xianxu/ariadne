@@ -75,9 +75,7 @@ const (
 	PublishMain       EffectKind = "publish-main"
 	MaterializeDetail EffectKind = "materialize-detail"
 	WriteEvidence     EffectKind = "write-evidence"
-	ObserveLanding    EffectKind = "observe-landing"
 	RemoveSource      EffectKind = "remove-source"
-	ArchiveDetails    EffectKind = "archive-details"
 	RefreshInputs     EffectKind = "refresh-inputs"
 	ProbePublication  EffectKind = "probe-publication"
 	CleanupReceipt    EffectKind = "cleanup-receipt"
@@ -110,17 +108,8 @@ const (
 	EventUnknown           EventKind = "unknown"
 	EventProbeUnknown      EventKind = "probe-unknown"
 	EventNotApplied        EventKind = "not-applied"
-	EventLandingConfirmed  EventKind = "landing-confirmed"
 	EventCleanupConfirmed  EventKind = "cleanup-confirmed"
 )
-
-type LandingEvidence struct {
-	Repository     string `json:"repository"`
-	ReviewedHEAD   string `json:"reviewed_head"`
-	EvidenceOID    string `json:"evidence_oid"`
-	LandedHEAD     string `json:"landed_head"`
-	IntegrationOID string `json:"integration_oid"`
-}
 
 // EventNotApplied is a completed negative provenance observation after the old
 // worker has stopped, never a timeout. Unknown/probe-unknown cannot authorize a
@@ -136,7 +125,6 @@ type Event struct {
 	CandidateBaseOID string
 	ResultCardOID    string
 	Replacement      *ReceiptSpec
-	Landing          *LandingEvidence
 }
 
 type operationStage struct {
@@ -152,17 +140,15 @@ const (
 	phaseApplying    operationPhase = "applying"
 	phaseUnconfirmed operationPhase = "unconfirmed"
 	phaseRefreshing  operationPhase = "refreshing"
-	phaseLanding     operationPhase = "landing"
 	phaseFinalizing  operationPhase = "finalizing"
 	phaseFinalized   operationPhase = "finalized"
 	phaseCleaned     operationPhase = "cleaned"
 )
 
 type operationProof struct {
-	Stage        string           `json:"stage"`
-	CandidateOID string           `json:"candidate_oid,omitempty"`
-	CardOID      string           `json:"card_oid,omitempty"`
-	Landing      *LandingEvidence `json:"landing,omitempty"`
+	Stage        string `json:"stage"`
+	CandidateOID string `json:"candidate_oid,omitempty"`
+	CardOID      string `json:"card_oid,omitempty"`
 }
 type receiptWire struct {
 	Version      int              `json:"version"`
@@ -181,21 +167,15 @@ type receiptWire struct {
 type Receipt struct{ wire receiptWire }
 
 // Confirmation is a detached provenance projection for adapters building the
-// next card commit (notably transfer.record and completion.done). Landing is the
-// zero value except for the landing stage; modifying it cannot mutate a receipt.
+// next card commit (notably transfer.record and completion.codecomplete).
 type Confirmation struct {
 	Stage, CandidateOID, CardOID string
-	Landing                      LandingEvidence
 }
 
 func (r Receipt) Confirmations() []Confirmation {
 	result := make([]Confirmation, 0, len(r.wire.Proofs))
 	for _, proof := range r.wire.Proofs {
-		value := Confirmation{Stage: proof.Stage, CandidateOID: proof.CandidateOID, CardOID: proof.CardOID}
-		if proof.Landing != nil {
-			value.Landing = *proof.Landing
-		}
-		result = append(result, value)
+		result = append(result, Confirmation{Stage: proof.Stage, CandidateOID: proof.CandidateOID, CardOID: proof.CardOID})
 	}
 	return result
 }
@@ -281,10 +261,6 @@ func (r Receipt) startStage() (Receipt, []Effect) {
 		r.wire.Phase = phaseFinalizing
 		return r, r.effect(PersistReceipt)
 	}
-	if r.stages()[r.wire.Stage].effect == ObserveLanding {
-		r.wire.Phase = phaseLanding
-		return r, r.effect(ObserveLanding)
-	}
 	r.wire.Phase = phasePreparing
 	return r, r.effect(PrepareCandidate)
 }
@@ -323,14 +299,9 @@ func stepOperation(original Receipt, operation string, event Event) (Receipt, []
 			r.wire.Phase = phaseUnconfirmed
 			return r, r.effect(ProbePublication), nil
 		case phaseUnconfirmed:
-			if stage.effect == ObserveLanding {
-				return r, r.effect(ObserveLanding), nil
-			}
 			return r, r.effect(ProbePublication), nil
 		case phaseRefreshing:
 			return r, r.effect(RefreshInputs), nil
-		case phaseLanding:
-			return r, r.effect(ObserveLanding), nil
 		case phaseFinalized:
 			return r, r.effect(CleanupReceipt), nil
 		case phaseCleaned:
@@ -367,7 +338,7 @@ func stepOperation(original Receipt, operation string, event Event) (Receipt, []
 		return r, r.effect(stage.effect), nil
 	case EventUnknown:
 		switch phase {
-		case phaseApplying, phaseSaving, phaseLanding:
+		case phaseApplying, phaseSaving:
 			r.wire.Phase = phaseUnconfirmed
 		case phasePreparing, phaseRefreshing, phaseFinalizing, phaseFinalized, phaseUnconfirmed:
 		default:
@@ -382,9 +353,6 @@ func stepOperation(original Receipt, operation string, event Event) (Receipt, []
 	case EventRefRace, EventNotApplied:
 		if (event.Kind == EventRefRace && phase != phaseApplying) || (event.Kind == EventNotApplied && phase != phaseUnconfirmed) {
 			return fail("ref race/absence does not match an outstanding attempt")
-		}
-		if stage.effect == ObserveLanding {
-			return fail("landing absence does not roll back completion")
 		}
 		if event.CandidateOID != "" && event.CandidateOID != r.wire.CandidateOID {
 			return fail("ref observation names another candidate")
@@ -428,7 +396,7 @@ func stepOperation(original Receipt, operation string, event Event) (Receipt, []
 		nextState, effects := r.startStage()
 		return nextState, effects, nil
 	case EventConfirmed:
-		if (phase != phaseApplying && phase != phaseUnconfirmed) || stage.effect == ObserveLanding || event.CandidateOID != r.wire.CandidateOID {
+		if (phase != phaseApplying && phase != phaseUnconfirmed) || event.CandidateOID != r.wire.CandidateOID {
 			return fail("confirmation does not prove this candidate")
 		}
 		proof := operationProof{Stage: stage.name, CandidateOID: event.CandidateOID}
@@ -444,15 +412,6 @@ func stepOperation(original Receipt, operation string, event Event) (Receipt, []
 			return fail("non-card effect cannot change card generation")
 		}
 		return finishOperationStage(r, proof)
-	case EventLandingConfirmed:
-		if (phase != phaseLanding && phase != phaseUnconfirmed) || stage.effect != ObserveLanding || event.Landing == nil {
-			return fail("no landing observation is pending")
-		}
-		if err := validateLanding(*event.Landing, r.binding()); err != nil {
-			return original, nil, err
-		}
-		landing := *event.Landing
-		return finishOperationStage(r, operationProof{Stage: stage.name, Landing: &landing})
 	case EventCleanupConfirmed:
 		if phase != phaseFinalized {
 			return fail("cleanup requires finalized ownership")
@@ -477,10 +436,8 @@ func validateOperationEvent(event Event) error {
 		event.ResultCardOID = ""
 	case EventRevalidated:
 		event.Replacement = nil
-	case EventLandingConfirmed:
-		event.Landing = nil
 	}
-	if event.CandidateOID != "" || event.CandidateBaseOID != "" || event.ResultCardOID != "" || event.Replacement != nil || event.Landing != nil {
+	if event.CandidateOID != "" || event.CandidateBaseOID != "" || event.ResultCardOID != "" || event.Replacement != nil {
 		return errors.New("event carries payload from another variant")
 	}
 	return nil
@@ -495,7 +452,7 @@ func finishOperationStage(r Receipt, proof operationProof) (Receipt, []Effect, e
 	return next, effects, nil
 }
 func remoteStage(effect EffectKind) bool {
-	return effect == PublishCard || effect == PublishMain || effect == ArchiveDetails
+	return effect == PublishCard || effect == PublishMain
 }
 
 func validReceiptOID(oid string) bool {
@@ -561,12 +518,6 @@ func validateReceiptSpec(operation string, s ReceiptSpec) error {
 	}
 	return nil
 }
-func validateLanding(p LandingEvidence, b Binding) error {
-	if p.Repository != b.Repository || p.ReviewedHEAD != b.ReviewedHEAD || p.EvidenceOID != b.EvidenceOID || p.LandedHEAD != b.EvidenceOID || !validReceiptOID(p.IntegrationOID) || len(p.IntegrationOID) != len(b.SourceHEAD) {
-		return errors.New("landing does not prove the exact reviewed/evidence generation")
-	}
-	return nil
-}
 
 func validateReceipt(r Receipt) error {
 	w := r.wire
@@ -586,28 +537,19 @@ func validateReceipt(r Receipt) error {
 		if p.Stage != stage.name {
 			return errors.New("receipt proofs are not an ordered stage prefix")
 		}
-		if stage.effect == ObserveLanding {
-			if p.Landing == nil || p.CandidateOID != "" || p.CardOID != "" {
-				return errors.New("invalid landing proof shape")
+		if !validOperationOID(p.CandidateOID, w.Spec) {
+			return errors.New("invalid stage candidate")
+		}
+		if stage.effect == PublishCard {
+			if !validOperationOID(p.CardOID, w.Spec) || (stage.name != "creation.reserve" && p.CardOID == binding.CardOID) {
+				return errors.New("invalid card generation proof")
 			}
-			if err := validateLanding(*p.Landing, binding); err != nil {
-				return err
-			}
-		} else {
-			if !validOperationOID(p.CandidateOID, w.Spec) || p.Landing != nil {
-				return errors.New("invalid stage candidate")
-			}
-			if stage.effect == PublishCard {
-				if !validOperationOID(p.CardOID, w.Spec) || (stage.name != "creation.reserve" && p.CardOID == binding.CardOID) {
-					return errors.New("invalid card generation proof")
-				}
-				binding.CardOID = p.CardOID
-			} else if p.CardOID != "" {
-				return errors.New("non-card proof changed card generation")
-			}
-			if stage.effect == WriteEvidence {
-				binding.EvidenceOID = p.CandidateOID
-			}
+			binding.CardOID = p.CardOID
+		} else if p.CardOID != "" {
+			return errors.New("non-card proof changed card generation")
+		}
+		if stage.effect == WriteEvidence {
+			binding.EvidenceOID = p.CandidateOID
 		}
 	}
 	final := w.Stage == len(stages)
@@ -617,31 +559,26 @@ func validateReceipt(r Receipt) error {
 		}
 		return nil
 	}
-	landing := stages[w.Stage].effect == ObserveLanding
 	switch w.Phase {
 	case phaseQueued:
 		if w.Stage != 0 || w.Retries != 0 || w.CandidateOID != "" {
 			return errors.New("invalid initial receipt")
 		}
 	case phasePreparing:
-		if landing || w.CandidateOID != "" {
+		if w.CandidateOID != "" {
 			return errors.New("invalid preparation receipt")
 		}
 	case phaseRefreshing:
-		if landing || w.CandidateOID != "" || w.Retries == 0 {
+		if w.CandidateOID != "" || w.Retries == 0 {
 			return errors.New("invalid retry receipt")
 		}
 	case phaseSaving, phaseApplying:
-		if landing || !validOperationOID(w.CandidateOID, w.Spec) {
+		if !validOperationOID(w.CandidateOID, w.Spec) {
 			return errors.New("invalid prepared candidate receipt")
 		}
 	case phaseUnconfirmed:
-		if (!landing && !validOperationOID(w.CandidateOID, w.Spec)) || (landing && w.CandidateOID != "") {
+		if !validOperationOID(w.CandidateOID, w.Spec) {
 			return errors.New("invalid uncertain receipt")
-		}
-	case phaseLanding:
-		if !landing || w.CandidateOID != "" {
-			return errors.New("invalid landing observation receipt")
 		}
 	default:
 		return errors.New("unknown or unreachable operation phase")
@@ -733,14 +670,8 @@ func receiptJSONShape(raw []byte) error {
 		return errors.New("receipt proofs must be an array")
 	}
 	for _, rawProof := range proofs {
-		proof, err := receiptObject(rawProof, "stage", "candidate_oid card_oid landing")
-		if err != nil {
+		if _, err := receiptObject(rawProof, "stage", "candidate_oid card_oid"); err != nil {
 			return err
-		}
-		if landing, ok := proof["landing"]; ok {
-			if _, err := receiptObject(landing, "repository reviewed_head evidence_oid landed_head integration_oid", ""); err != nil {
-				return err
-			}
 		}
 	}
 	return nil

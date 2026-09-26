@@ -1,7 +1,8 @@
 package tracker
 
-// Completion binds card transitions to durable branch evidence and its exact
-// landing. Done publication and archival have separate recoverable stages.
+// Completion is a close: commit the branch-local evidence, then publish
+// codecomplete with its binding to that evidence on the card. Landing, done and
+// archival are re-derived from the card's binding by the publishing verbs.
 type Completion struct{ receipt Receipt }
 
 func NewCompletion(spec ReceiptSpec) (Completion, error) {
@@ -23,7 +24,4 @@ func StepCompletion(s Completion, event Event) (Completion, []Effect, error) {
 var completionStages = []operationStage{
 	{"completion.evidence", WriteEvidence},
 	{"completion.codecomplete", PublishCard},
-	{"completion.landing", ObserveLanding},
-	{"completion.done", PublishCard},
-	{"completion.archive", ArchiveDetails},
 }

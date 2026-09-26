@@ -5,7 +5,9 @@ import (
 	"testing"
 )
 
-func TestCompletionRequiresEvidenceExactLandingAndDoneBeforeArchive(t *testing.T) {
+// A close commits its evidence before publishing codecomplete, and the card
+// stage is bound to that evidence commit.
+func TestCompletionCommitsEvidenceBeforeCodecomplete(t *testing.T) {
 	spec := operationSpec()
 	spec.ReviewedHEAD = spec.SourceHEAD
 	s, err := NewCompletion(spec)
@@ -16,24 +18,7 @@ func TestCompletionRequiresEvidenceExactLandingAndDoneBeforeArchive(t *testing.T
 	if err != nil {
 		t.Fatal(err)
 	}
-	expected := []EffectKind{WriteEvidence, PublishCard, ObserveLanding, PublishCard, ArchiveDetails}
-	for i, kind := range expected {
-		if kind == ObserveLanding {
-			if effects[0].Kind != ObserveLanding {
-				t.Fatalf("landing %v", effects)
-			}
-			proof := LandingEvidence{Repository: spec.Repository, ReviewedHEAD: spec.ReviewedHEAD, EvidenceOID: s.Binding().EvidenceOID, LandedHEAD: s.Binding().EvidenceOID, IntegrationOID: fmt.Sprintf("%040x", 500)}
-			wrong := proof
-			wrong.ReviewedHEAD = fmt.Sprintf("%040x", 999)
-			if _, _, err := StepCompletion(s, Event{Kind: EventLandingConfirmed, Binding: s.Binding(), Landing: &wrong}); err == nil {
-				t.Fatal("accepted different reviewed generation")
-			}
-			s, effects, err = StepCompletion(s, Event{Kind: EventLandingConfirmed, Binding: s.Binding(), Landing: &proof})
-			if err != nil {
-				t.Fatal(err)
-			}
-			continue
-		}
+	for i, kind := range []EffectKind{WriteEvidence, PublishCard} {
 		if effects[0].Kind != PrepareCandidate {
 			t.Fatalf("prepare %v", effects)
 		}
@@ -46,16 +31,14 @@ func TestCompletionRequiresEvidenceExactLandingAndDoneBeforeArchive(t *testing.T
 		if err != nil || effects[0].Kind != kind {
 			t.Fatalf("apply %v %v", effects, err)
 		}
-		s, _, err = StepCompletion(s, Event{Kind: EventUnknown, Binding: s.Binding()})
-		if err != nil {
-			t.Fatal(err)
+		if kind == PublishCard && effects[0].Expected.EvidenceOID != fmt.Sprintf("%040x", 100) {
+			t.Fatal("codecomplete is not bound to the evidence commit")
 		}
 		event := Event{Kind: EventConfirmed, Binding: s.Binding(), CandidateOID: oid}
 		if kind == PublishCard {
 			event.ResultCardOID = fmt.Sprintf("%040x", 200+i)
 		}
-		s, effects, err = StepCompletion(s, event)
-		if err != nil {
+		if s, effects, err = StepCompletion(s, event); err != nil {
 			t.Fatal(err)
 		}
 	}

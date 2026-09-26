@@ -128,6 +128,8 @@ func (r Receipt) NeedsSourceCheckout() bool {
 		return r.wire.Stage <= 1
 	case "transfer":
 		return r.wire.Spec.Source == LocalSource && r.wire.Stage <= 3
+	case "completion":
+		return r.wire.Stage == 0 // the evidence commit lands on the source branch
 	}
 	return false
 }

@@ -73,3 +73,51 @@ func TestDetailsFromCardMirrorsExactlyAndCarriesTheTemplate(t *testing.T) {
 		t.Fatalf("details are not an untouched projection of the card: %v", err)
 	}
 }
+
+func testCompletion(token string) Completion {
+	return Completion{Token: token, Repository: "file:/r", ReviewedHEAD: strings.Repeat("c", 40), EvidenceCommit: strings.Repeat("d", 40)}
+}
+
+func TestCompletionBindingCoexistsWithHandoffAndOnlyGainsItsLanding(t *testing.T) {
+	card, err := SetCardHandoff([]byte(setterCard), testHandoff())
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := testCompletion("close-1")
+	card, err = SetCardCompletion(card, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if h, ok, _ := CardHandoff(card); !ok || h != testHandoff() {
+		t.Fatal("writing completion dropped the handoff record")
+	}
+	if got, ok, _ := CardCompletion(card); !ok || got != c {
+		t.Fatalf("completion read back %+v", got)
+	}
+	landed := c
+	landed.LandedCommit = strings.Repeat("e", 40)
+	card, err = SetCardCompletion(card, landed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	moved := landed
+	moved.LandedCommit = strings.Repeat("f", 40)
+	if _, err := SetCardCompletion(card, moved); err == nil {
+		t.Fatal("a landed binding moved to another commit")
+	}
+	rewritten := c
+	rewritten.EvidenceCommit = strings.Repeat("a", 40)
+	if _, err := SetCardCompletion(card, rewritten); err == nil {
+		t.Fatal("a close's evidence was rewritten under the same token")
+	}
+	reclose := testCompletion("close-2")
+	if card, err = SetCardCompletion(card, reclose); err != nil {
+		t.Fatalf("a new close generation: %v", err)
+	}
+	if got, _, _ := CardCompletion(card); got != reclose {
+		t.Fatal("re-close did not replace the older generation")
+	}
+	if _, ok, _ := CardHandoff(card); !ok {
+		t.Fatal("re-close dropped the handoff record")
+	}
+}
