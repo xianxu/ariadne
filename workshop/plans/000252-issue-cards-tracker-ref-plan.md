@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git object/ref plumbing, existing Git/GitHub process seams and stateful fakes, CUE vocabulary, Markdown artifacts.
 
-**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2 accepted through its boundary gate (SHIP after rounds 3–6). M3 implemented and submitted to its boundary review. M4 is not implemented. No production migration or consumer activation has begun.
+**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2 accepted through its boundary gate (SHIP after rounds 3–6). M3 accepted through its boundary gate (SHIP after rounds 7–9). M4 is not implemented. No production migration or consumer activation has begun.
 
 ## Core concepts
 
