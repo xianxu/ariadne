@@ -10,7 +10,6 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
-	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // loadIssueRecords composes the tracker's cards with the details in issuesDir,
@@ -109,12 +108,7 @@ func invalidateIssueRecords(ctx context.Context) {
 	}
 }
 
-// recordsRepository opens the tracker of the repository at root, through the
-// resting branch that repository's workspace identity names.
+// recordsRepository opens the tracker of the checkout at root.
 func recordsRepository(ctx context.Context, root string) (*tracker.Repository, error) {
-	resting := "main"
-	if identity, err := workspace.Resolve(execGitRunner{}, root, ""); err == nil && identity.RestingBranch != nil {
-		resting = *identity.RestingBranch
-	}
-	return tracker.RepositoryFor(commandContext(ctx), root, resting)
+	return tracker.RepositoryForCheckout(commandContext(ctx), root)
 }

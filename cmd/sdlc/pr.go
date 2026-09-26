@@ -9,7 +9,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"io"
 	"os"
 	"path/filepath"
@@ -18,9 +17,9 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // prFlags holds the parsed flag values for the pr subcommand.
@@ -91,7 +90,10 @@ func runPR(stdout, stderr io.Writer, f *prFlags) error {
 	if err != nil {
 		die(stderr, fmt.Sprintf("scan touched issues: %v", err))
 	}
-	ghNums := collectGitHubIssueNumbers(ctx, touched)
+	ghNums, lerr := collectGitHubIssueNumbers(ctx, touched)
+	if lerr != nil {
+		cwarn(stderr, fmt.Sprintf("PR body lacks Fixes lines: %v", lerr))
+	}
 
 	// ── 4. Build commits + fixes body ───────────────────────────────────────
 	commits := gitCommitsSince(base, prRunner)
@@ -152,7 +154,7 @@ func touchedIssueFiles(baseRef, issuesDir string, r gitRunner) ([]string, error)
 // in ascending numeric order (matches the shell's `sort -u`).
 //
 // Missing files are skipped silently — the shell target uses `[ -f ]`.
-func collectGitHubIssueNumbers(ctx context.Context, paths []string) []string {
+func collectGitHubIssueNumbers(ctx context.Context, paths []string) ([]string, error) {
 	seen := map[string]struct{}{}
 	records := map[string]tracker.Records{} // per details directory
 	for _, p := range paths {
@@ -165,7 +167,7 @@ func collectGitHubIssueNumbers(ctx context.Context, paths []string) []string {
 		if !loaded {
 			var err error
 			if rs, err = loadIssueRecords(ctx, dir, tracker.PreferFresh); err != nil {
-				continue
+				return nil, fmt.Errorf("read the GitHub links of %s: %w", dir, err)
 			}
 			records[dir] = rs
 		}
@@ -191,7 +193,7 @@ func collectGitHubIssueNumbers(ctx context.Context, paths []string) []string {
 		}
 		return ai < aj
 	})
-	return out
+	return out, nil
 }
 
 // formatFixes returns the "Fixes ..." line for the given github_issue

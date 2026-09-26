@@ -71,7 +71,10 @@ func TestCollectGitHubIssueNumbers(t *testing.T) {
 	c := mk("000003-c.md", "")   // no github_issue → skipped
 	d := mk("000004-d.md", "42") // duplicate of a → deduped
 
-	got := collectGitHubIssueNumbers(context.Background(), []string{a, b, c, d})
+	got, err := collectGitHubIssueNumbers(context.Background(), []string{a, b, c, d})
+	if err != nil {
+		t.Fatal(err)
+	}
 	// Numerically sorted: 10, 42
 	if len(got) != 2 {
 		t.Fatalf("got %v, want [10 42]", got)
@@ -82,7 +85,10 @@ func TestCollectGitHubIssueNumbers(t *testing.T) {
 }
 
 func TestCollectGitHubIssueNumbers_SkipsMissingFiles(t *testing.T) {
-	got := collectGitHubIssueNumbers(context.Background(), []string{"/does/not/exist.md", "/also/missing.md"})
+	got, err := collectGitHubIssueNumbers(context.Background(), []string{"/does/not/exist.md", "/also/missing.md"})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(got) != 0 {
 		t.Errorf("got %v, want empty", got)
 	}
@@ -142,7 +148,10 @@ func TestCollectGitHubIssueNumbersReadsTheCard(t *testing.T) {
 	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
 	card = strings.Replace(card, "github_issue:", "github_issue: 77", 1)
 	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
-	got := collectGitHubIssueNumbers(context.Background(), []string{filepath.Join(r.root, detailPath)})
+	got, err := collectGitHubIssueNumbers(context.Background(), []string{filepath.Join(r.root, detailPath)})
+	if err != nil {
+		t.Fatal(err)
+	}
 	if len(got) != 1 || got[0] != "77" {
 		t.Fatalf("got %v, want the card's link [77]", got)
 	}
@@ -161,7 +170,10 @@ func TestCollectGitHubIssueNumbers_DedupesAndOrders(t *testing.T) {
 	c := mkIssue("000003-c.md", "10")
 	d := mkIssue("000004-d.md", "1") // dup
 
-	got := collectGitHubIssueNumbers(context.Background(), []string{a, b, c, d})
+	got, err := collectGitHubIssueNumbers(context.Background(), []string{a, b, c, d})
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := []string{"1", "5", "10"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v, want %v", got, want)

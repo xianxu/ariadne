@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -12,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"go.yaml.in/yaml/v3"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
+	"go.yaml.in/yaml/v3"
 )
 
 const landingArchiveLimit = 10000

@@ -3,9 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"io"
 	"os"
 	"path/filepath"
@@ -13,7 +10,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // closedAndLanded closes #N on its branch (SHIP) and lands the branch on main.

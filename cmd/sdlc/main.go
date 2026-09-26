@@ -25,7 +25,6 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"

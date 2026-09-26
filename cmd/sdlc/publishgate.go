@@ -11,7 +11,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"io"
 	"os"
 	"path/filepath"
@@ -23,6 +22,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // codecompleteAnchorCommit returns the SHA of the NEWEST commit touching issuePath

@@ -8,13 +8,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"io"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
-
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 

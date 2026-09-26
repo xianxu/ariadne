@@ -497,7 +497,11 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	if err != nil {
 		return err
 	}
-	body := combineBody(commits, formatFixes(collectGitHubIssueNumbers(ctx, splitNonEmptyLines(changedPaths))))
+	ghNums, lerr := collectGitHubIssueNumbers(ctx, splitNonEmptyLines(changedPaths))
+	if lerr != nil {
+		cwarn(stderr, fmt.Sprintf("PR body lacks Fixes lines: %v", lerr))
+	}
+	body := combineBody(commits, formatFixes(ghNums))
 	if f.DryRun {
 		fmt.Fprintf(stdout, "Would: git push -u %s %s\nWould: gh pr create --repo %s --base main --head %s\n%s\n", t.Remote, branch, t.Repo, branch, body)
 		return nil

@@ -21,7 +21,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"

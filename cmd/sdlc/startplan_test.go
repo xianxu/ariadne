@@ -8,9 +8,8 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 func TestStartPlanCmd_Registered(t *testing.T) {

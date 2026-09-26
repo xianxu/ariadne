@@ -15,7 +15,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"io"
 	"os"
 	"path/filepath"
@@ -23,10 +22,10 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
 )
 
@@ -84,7 +83,10 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 
 	// #252: the tracker's card commits (claim, close) are this issue's activity
 	// too, and its card holds the authoritative `started` stamp.
-	trackerRefs, cardStarted, carded := actualTrackerInputs(ctx, repoTop, issueNum)
+	trackerRefs, cardStarted, carded, trackerWarning := actualTrackerInputs(ctx, repoTop, issueNum)
+	if trackerWarning != "" {
+		res.Warnings = append(res.Warnings, trackerWarning)
+	}
 	firstSHA, firstISO, lastISO, _ := gitx.CommitWindow(issueNum, trackerRefs...)
 	if firstSHA == "" {
 		res.Status = actualNoWindow
@@ -145,25 +147,31 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 // actualTrackerInputs reads the tracker for active-time (#252): the tracking ref
 // whose history holds the claim/close commits, and the card's `started` stamp.
 // carded is false without a tracker (or card), leaving the legacy anchors.
-func actualTrackerInputs(ctx context.Context, repoTop, issueNum string) (refs []string, started string, carded bool) {
+func actualTrackerInputs(ctx context.Context, repoTop, issueNum string) (refs []string, started string, carded bool, warning string) {
 	id, err := strconv.Atoi(issueNum)
 	if err != nil {
-		return nil, "", false
+		return nil, "", false, ""
 	}
 	repo, err := recordsRepository(ctx, repoTop)
-	if err != nil || repo == nil {
-		return nil, "", false
+	if err != nil {
+		return nil, "", false, "tracker unavailable, measured without its claim/close commits: " + err.Error()
+	}
+	if repo == nil {
+		return nil, "", false, ""
 	}
 	rs, err := tracker.LoadRecords(ctx, repo, filepath.Join(repoTop, envOr("WF_ISSUES_DIR", "workshop/issues")), tracker.PreferFresh)
-	if err != nil || !rs.Tracker {
-		return nil, "", false
+	if err != nil {
+		return nil, "", false, "tracker unreadable, measured without its claim/close commits: " + err.Error()
+	}
+	if !rs.Tracker {
+		return nil, "", false, ""
 	}
 	rec, ok := rs.Get(fmt.Sprintf("%06d", id))
 	if !ok || rec.Card == nil {
-		return []string{repo.TrackingRef()}, "", false
+		return []string{repo.TrackingRef()}, "", false, ""
 	}
 	s, _ := rec.Field("started")
-	return []string{repo.TrackingRef()}, strings.TrimSpace(s), true
+	return []string{repo.TrackingRef()}, strings.TrimSpace(s), true, ""
 }
 
 // startedAnchor reads the explicit `started:` engagement stamp (#116) from an

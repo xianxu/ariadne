@@ -9,7 +9,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	projectdoc "github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 )

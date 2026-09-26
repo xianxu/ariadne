@@ -174,3 +174,10 @@ The simplest durable authority beats a clever scan of consequences.
   (#252 M2: a stale-mirror refresh was written before refusals ran).
 - An observation error is never evidence of absence: a Git probe distinguishes
   exit 1 (false) from any other failure (#252 M2).
+- Stage explicit paths, never a directory (`git add cmd/sdlc` committed a 9 MB
+  build artifact and an unrelated gofmt rewrite in #252 M3); build binaries to
+  `-o` outside the source tree.
+- A landing's identity is what the forge confirmed (the PR's merge commit), not
+  ancestry of the branch's commits: squash and rebase rewrite them (#252 M3).
+- A deferred effect replays inputs pinned when it was decided, never the live
+  worktree a later commit may have changed (#252 M3).

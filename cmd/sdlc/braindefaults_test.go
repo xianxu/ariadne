@@ -3,12 +3,13 @@ package main
 import (
 	"bytes"
 	"context"
-	"github.com/spf13/cobra"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/spf13/cobra"
 )
 
 func calibrationWorkspace(t *testing.T) (string, string) {

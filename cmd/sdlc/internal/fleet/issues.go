@@ -69,7 +69,7 @@ var repoRecords = func() func(string) (tracker.Records, error) {
 			return rs, nil
 		}
 		ctx := context.Background()
-		repo, err := tracker.RepositoryFor(ctx, repoRoot, "main")
+		repo, err := tracker.RepositoryForCheckout(ctx, repoRoot)
 		if err != nil {
 			return tracker.Records{}, err
 		}

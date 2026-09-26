@@ -2,11 +2,13 @@ package tracker
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -89,5 +91,32 @@ func TestRecordsOfflineReadLastFetchedCardsAsStale(t *testing.T) {
 	}
 	if rec, ok := rs.Get("000252"); !ok || rec.Status() != "open" || !strings.HasPrefix(rec.Title(), "Tracker") {
 		t.Fatal("stale read lost the last-fetched card")
+	}
+}
+
+// composeRecords is pure: vary cards and detail files independently.
+func TestComposeRecordsJoinsByIDWithoutIO(t *testing.T) {
+	card, err := issue.ParseCard([]byte(testCard))
+	if err != nil {
+		t.Fatal(err)
+	}
+	cards := []Record{{ID: "000252", Path: testPath, Card: card, Raw: []byte(testCard)}}
+	files := []DetailFile{
+		{Path: "/d/000252-test.md", Raw: []byte("---\nid: 000252\nstatus: blocked\ndeps: [a#1]\n---\n# T\n")},
+		{Path: "/d/000252-copy.md", Raw: []byte("---\nid: 000252\n---\n# Copy\n")},
+		{Path: "/d/000301-unread.md", ReadErr: errors.New("permission denied")},
+		{Path: "/d/000302-.md"},
+	}
+	rs := composeRecords(Records{Tracker: true}, cards, files)
+	all := rs.All()
+	if len(all) != 3 || !all[1].Duplicate || all[2].ID != "000301" || !all[2].DetailUnreadable {
+		t.Fatalf("composition: %+v", all)
+	}
+	rec, _ := rs.Get("000252")
+	if rec.Status() != "open" || rec.DetailPath != "/d/000252-test.md" {
+		t.Fatalf("card-owned status or first details: %+v", rec)
+	}
+	if deps, _ := rec.Field("deps"); deps != "[a#1]" {
+		t.Fatalf("detail-owned deps: %q", deps)
 	}
 }

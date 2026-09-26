@@ -12,7 +12,8 @@ import (
 // #252 BR-14/BR-16: no trackerEnv.git result may discard its error. A probe goes
 // through gitTest/has; everything else propagates the failure.
 func TestTrackerGitResultsKeepTheirErrors(t *testing.T) {
-	dropped := regexp.MustCompile(`(,\s*_\s*:?=|^\s*_\s*=)\s*(env|e)\.git\(`)
+	// Also the composed issue reader (#252 BR-26): a load error surfaced, never dropped.
+	dropped := regexp.MustCompile(`(,\s*_\s*:?=|^\s*_\s*=)\s*((env|e)\.git|loadIssueRecords|loadIssueRecordsAt)\(`)
 	files, err := filepath.Glob("*.go")
 	if err != nil {
 		t.Fatal(err)

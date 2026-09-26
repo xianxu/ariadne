@@ -27,8 +27,7 @@ This inventory distinguishes delivered M1 foundation from planned later work.
 | Handoff envelope / card-derived details | PURE | `cmd/sdlc/internal/issue/handoff.go` | M2: new, delivered |
 | Card field/title mutators | PURE | `cmd/sdlc/internal/issue/cardset.go` | M2: new, delivered |
 | Migration manifest | PURE | `cmd/sdlc/internal/tracker/migration.go` | Planned M4: file absent, not delivered |
-| Activity event selection | PURE | `cmd/sdlc/internal/activetime/commit.go` | M3: modified (tracker ref beside HEAD), delivered |
-| Composed issue records | PURE (+ thin loader) | `cmd/sdlc/internal/tracker/records.go` | M3: new, delivered |
+| Composed issue records join | PURE | `cmd/sdlc/internal/tracker/records.go` (`composeRecords`, `IssueRecord.Field`) | M3: new, delivered |
 
 Card owns ID, status, started, created/updated dates, estimate/actual hours, GitHub linkage and canonical title. Its Problem is the original report. Details retain editable Problem, Spec, Done when, Estimate explanation, Plan, Log, Revisions, deps, target, flow and review anchors. Define ownership once; unknown detail fields remain untouched, unknown tracker schema versions refuse. No new lifecycle statuses. Read `vocabulary` skill and the complete CUE model before changing the model.
 
@@ -50,6 +49,8 @@ Each card has one stable ID/path; one or more detail checkouts can mirror it, bu
 | Card setters / recovery verbs | INTEGRATION | `cmd/sdlc/cardsetters.go`, `issuerecovery.go` | M2: new, delivered | tracker CAS updates, receipt resume |
 | Transfer guard | INTEGRATION | `cmd/sdlc/transferguard.go` | M2: new, delivered | `git merge-tree`, tracker handoff records |
 | Composed issue reader | INTEGRATION | `cmd/sdlc/issuerecord.go` | M3: new, delivered | M1 card reader plus selected detail location |
+| Records loader / repository opener | INTEGRATION | `cmd/sdlc/internal/tracker/records.go` (`LoadRecords`, `RepositoryForCheckout`), `cmd/sdlc/issuerecord.go` (per-command scope) | M3: new, delivered | tracker snapshot, details files, workspace identity |
+| Activity commit loader | INTEGRATION | `cmd/sdlc/internal/activetime/commit.go` (`loadWindowCommits`), `internal/gitx/window.go` (`CommitWindow`) | M3: modified (tracker ref beside HEAD), delivered | git log over HEAD and the tracker ref |
 | Close adapter | INTEGRATION | `cmd/sdlc/closetracker.go`, `internal/tracker/completeop.go` | M3: new, delivered | evidence commit (temporary index, branch CAS), card codecomplete |
 | Completion adapter | INTEGRATION | `cmd/sdlc/trackercompletion.go` | M3: new, delivered | binding selection, done CAS, existing landing identity and archive transaction |
 | Migration command | INTEGRATION | `cmd/sdlc/issuemigrate.go` | Planned M4: absent, not delivered | repository inventory, bootstrap, mirrors, cutover marker |
@@ -201,7 +202,7 @@ Files: create `cmd/sdlc/issuemovedetail.go`, `issuemovedetail_test.go`, `transfe
 
 ### Task 5: Composed readers and activity evidence
 
-Files: modify every reader in the inventory, with existing colocated tests; add `cmd/sdlc/issuerecord_test.go`, `internal/tracker/reader_test.go`.
+Files (revised at M3 from `git diff --name-status`): create `internal/tracker/records.go`, `cmd/sdlc/issuerecord.go` and tests; modify `state.go`, `issue.go`, `startplan.go`, `repoguard.go`, `pr.go`, `internal/fleet/issues.go`, `projectstatus.go`, `projectclose.go`, `projectretro.go`, `project.go`, `projectsetstatus.go`, `projectforecast.go`, `actual.go`, `internal/activetime/{commit,compute}.go`, `internal/gitx/window.go`, `main.go` (records scope). `resolve.go`, `validategate.go` and `internal/project/metadata.go` needed no change (navigation / open schema / generic decode).
 
 - [x] Test `ReadIssueRecord` and `LookupRepoIssues` with independently varied authoritative snapshots and projections; card metadata wins while detail-owned values remain intact.
 - [x] For cross-issue/dependency reads use pinned main details; for the active issue use its checked-out details. Preserve archive navigation and allow card-only inspection without fabricating an editable file.
@@ -210,7 +211,7 @@ Files: modify every reader in the inventory, with existing colocated tests; add 
 
 ### Task 6: Close generation, exact landing and recovery
 
-Files: create `cmd/sdlc/trackercompletion.go`, `trackercompletion_test.go`; modify `close.go`, `reviewstate.go`, `milestoneclose.go`, `publishgate.go`, `landing.go`, `landingarchive.go`, `merge.go`, `push.go` and their tests.
+Files (revised at M3 from `git diff --name-status`): create `cmd/sdlc/{trackercompletion,closetracker}.go`, `internal/tracker/completeop.go` and tests; modify `close.go`, `milestoneclose.go` (shared trailers), `publishgate.go`, `landing.go`, `landinggate.go`, `landingarchive.go`, `merge.go`, `push.go`, `issuefiles.go`, `issuerecovery.go`, `internal/tracker/{receipt,completion,store,candidates,drive}.go`, `internal/issue/handoff.go`. `reviewstate.go` needed no change: review snapshots deliberately do not pin the card (see M3 Revisions).
 
 - [x] Test `StepCompletion` and `FinalizeTrackerClose` with reproducible review/remote-generation interruptions; stale verdicts and uncertain writes never become accepted completion.
 - [x] Test `SelectCompletedIssues` against unrelated ancestry and altered generation bindings; only proven reviewed/landed generations can be selected, independent of mirrored status.
@@ -363,3 +364,21 @@ to its landing (another clone, days later, or GitHub). Delta:
 - Files added in the window (enumerated): `closetracker.go`,
   `internal/tracker/completeop.go`, `internal/tracker/records.go`,
   `issuerecord.go`, `trackercompletion.go` — each has a Core concepts row.
+
+### 2026-09-25 — M3 boundary review round 7 (REWORK) corrections
+
+Reason: the review found squash/rebase landings never completing, a
+resumable stale close, late preconditions, ambient contexts, repeated fetches,
+a wedging FIX-THEN-SHIP, and (3rd in family) inventory kinds/files drift. Delta:
+- Landings complete closes by the PR's confirmed identity (slot: `MergeOID`;
+  non-durable merge: selection before the server-side merge); ancestry settling
+  remains for pushes. Proven through runMerge for merge/squash/rebase.
+- Evidence is pinned as blobs in the receipt; an empty evidence commit is legal.
+  One live close per issue (re-close supersedes an unstarted one); every resume
+  proves no newer close generation holds the card; tracker preconditions run in
+  computeClose before review.
+- Verb contexts reach all tracker reads (source guard); one composed view per
+  repository per command (records scope, invalidated by card writes).
+- Inventory rule, applied here: re-derive each entity's kind from its shipped
+  code and test IO (pure `composeRecords` extracted; loaders are INTEGRATION),
+  and revise every Task "Files:" list against `git diff --name-status`.

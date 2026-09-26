@@ -3,10 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 func TestListIssuesComposesCardsWithDetails(t *testing.T) {
@@ -71,8 +72,8 @@ func TestActualTrackerInputsUseTheCardStamp(t *testing.T) {
 	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9)); err != nil {
 		t.Fatal(err)
 	}
-	refs, started, carded := actualTrackerInputs(context.Background(), r.root, "9")
-	if !carded || started == "" || len(refs) != 1 || refs[0] != "refs/remotes/origin/issue-tracker" {
+	refs, started, carded, warning := actualTrackerInputs(context.Background(), r.root, "9")
+	if !carded || warning != "" || started == "" || len(refs) != 1 || refs[0] != "refs/remotes/origin/issue-tracker" {
 		t.Fatalf("refs %v started %q carded %v", refs, started, carded)
 	}
 	if !strings.Contains(r.card(cardPath), "started: "+started) {

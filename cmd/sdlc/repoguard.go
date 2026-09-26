@@ -32,13 +32,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"io"
 	"os"
 	"path/filepath"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 const spineGuardBypassACK = "spine repo guard bypassed (WF_SPINE_GUARD=off) — say why in your commit/log"
@@ -98,7 +98,8 @@ func guardIssueNotDone(ctx context.Context, stderr io.Writer, issuePath, issueSt
 	}
 	rs, err := loadIssueRecords(ctx, filepath.Dir(issuePath), tracker.PreferFresh)
 	if err != nil {
-		return
+		// Fail closed: an unreadable record cannot prove the issue is not done.
+		die(stderr, fmt.Sprintf("cannot confirm #%s is not done: %v", issueStr, err))
 	}
 	if rec, ok := rs.Get(id); ok && rec.Status() == "done" {
 		die(stderr, issueDoneMsg(issueStr))

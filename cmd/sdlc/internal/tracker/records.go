@@ -12,6 +12,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // IssueRecord composes one issue from its two homes (#252): the tracker card is
@@ -135,21 +136,41 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 			return rs, err
 		}
 	}
-	byID := map[string]*IssueRecord{}
+	var cards []Record
 	if rs.Tracker {
 		rs.Ref = snap.Ref()
-		for _, c := range snap.Records() {
-			card := c
-			byID[c.ID] = &IssueRecord{ID: c.ID, Card: &card, tracked: true}
-		}
+		cards = snap.Records()
 	}
 	matches, err := filepath.Glob(filepath.Join(detailsDir, issue.FilenamePattern))
 	if err != nil {
 		return rs, err
 	}
-	var dups []*IssueRecord
+	files := make([]DetailFile, 0, len(matches))
 	for _, p := range matches {
-		id, slug, ok := issue.ParseFilename(filepath.Base(p))
+		raw, err := os.ReadFile(p)
+		files = append(files, DetailFile{Path: p, Raw: raw, ReadErr: err})
+	}
+	return composeRecords(rs, cards, files), nil
+}
+
+// DetailFile is one details file as read from disk (ReadErr when unreadable).
+type DetailFile struct {
+	Path    string
+	Raw     []byte
+	ReadErr error
+}
+
+// composeRecords is the pure join: every card, every well-named details file,
+// by ID; later same-ID files become visible duplicates. No IO.
+func composeRecords(rs Records, cards []Record, files []DetailFile) Records {
+	byID := map[string]*IssueRecord{}
+	for _, c := range cards {
+		card := c
+		byID[c.ID] = &IssueRecord{ID: c.ID, Card: &card, tracked: true}
+	}
+	var dups []*IssueRecord
+	for _, f := range files {
+		id, slug, ok := issue.ParseFilename(filepath.Base(f.Path))
 		if !ok || slug == "" { // the inventory requires a slug
 			continue
 		}
@@ -160,11 +181,11 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 		}
 		if rec.DetailPath != "" {
 			dup := &IssueRecord{ID: id, Card: rec.Card, tracked: rs.Tracker, Duplicate: true}
-			readDetails(dup, p)
+			fillDetails(dup, f)
 			dups = append(dups, dup)
 			continue
 		}
-		readDetails(rec, p)
+		fillDetails(rec, f)
 	}
 	ids := make([]string, 0, len(byID))
 	for id := range byID {
@@ -181,18 +202,34 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 			}
 		}
 	}
-	return rs, nil
+	return rs
 }
 
-// readDetails fills one record's details half; errors are recorded, not skipped.
-func readDetails(rec *IssueRecord, p string) {
-	rec.DetailPath = p
-	raw, err := os.ReadFile(p)
-	if err != nil {
-		rec.DetailErr, rec.DetailUnreadable = err, true
+// fillDetails records one file's details half; errors are kept, not skipped.
+func fillDetails(rec *IssueRecord, f DetailFile) {
+	rec.DetailPath = f.Path
+	if f.ReadErr != nil {
+		rec.DetailErr, rec.DetailUnreadable = f.ReadErr, true
 		return
 	}
-	rec.DetailFM, rec.DetailBody, rec.DetailErr = issue.Parse(string(raw))
+	rec.DetailFM, rec.DetailBody, rec.DetailErr = issue.Parse(string(f.Raw))
+}
+
+// RepositoryForCheckout opens the tracker of the checkout at root through the
+// resting branch its workspace identity names (main for an ordinary worktree).
+func RepositoryForCheckout(ctx context.Context, root string) (*Repository, error) {
+	resting := "main"
+	if identity, err := workspace.Resolve(gitDirReader{ctx}, root, ""); err == nil && identity.RestingBranch != nil {
+		resting = *identity.RestingBranch
+	}
+	return RepositoryFor(ctx, root, resting)
+}
+
+// gitDirReader adapts gitx's context-bound runner to workspace.GitReader.
+type gitDirReader struct{ ctx context.Context }
+
+func (g gitDirReader) GitInDir(dir string, args ...string) ([]byte, error) {
+	return gitx.RunGit(append([]string{"-C", dir}, args...)...)
 }
 
 // RepositoryFor opens the tracker of the repository at root through its

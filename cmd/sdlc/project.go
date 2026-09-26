@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
 	projectdoc "github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
