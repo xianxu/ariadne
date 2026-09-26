@@ -143,7 +143,7 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 			byID[c.ID] = &IssueRecord{ID: c.ID, Card: &card, tracked: true}
 		}
 	}
-	matches, err := filepath.Glob(filepath.Join(detailsDir, "[0-9][0-9][0-9][0-9][0-9][0-9]-*.md"))
+	matches, err := filepath.Glob(filepath.Join(detailsDir, issue.FilenamePattern))
 	if err != nil {
 		return rs, err
 	}

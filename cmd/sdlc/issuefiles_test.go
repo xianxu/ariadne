@@ -229,7 +229,7 @@ func TestIssueFilenameGrammarConsumersUseSharedSource(t *testing.T) {
 		"issueFilename":          "issueFilenameParts",
 		"issueIDPrefix":          "issueFilenameParts",
 		"buildPushCommitMessage": "issueFilenamePattern",
-		"listIssues":             "issueFilenameParts",
+		"listIssueStates":        "loadIssueRecords", // #252: the grammar lives in tracker.LoadRecords
 		"listUntrackedIssues":    "issueFilename",
 	}
 	foundReference := make(map[string]bool, len(wantReference))
@@ -261,6 +261,14 @@ func TestIssueFilenameGrammarConsumersUseSharedSource(t *testing.T) {
 
 	if literalCount != 0 {
 		t.Errorf("main package repeats the shared issue filename pattern %d time(s), want none", literalCount)
+	}
+	// The composed reader (#252) globs details with the shared pattern, never a copy.
+	records, err := os.ReadFile(filepath.Join("internal", "tracker", "records.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(records), "issue.FilenamePattern") || strings.Contains(string(records), "[0-9][0-9]") {
+		t.Error("tracker.LoadRecords must glob with issue.FilenamePattern")
 	}
 	for function, identifier := range wantReference {
 		if !foundReference[function] {
