@@ -361,6 +361,24 @@ total: 10.77
 - Regenerating `atlas/process-manual.md` in this worktree drops the judge-prompt
   architecture sections (environmental); left unregenerated, to refresh normally.
 
+### 2026-09-25 — M3 in progress
+
+- Completion redesigned (ARCH-ORDER, ARCH-FUNERAL): a merge can happen from
+  another clone, days later or on GitHub, so the card — not a local receipt —
+  carries a close to its landing. Completion = evidence commit + codecomplete
+  with a `tracker.completion` binding (token, repository, reviewed HEAD,
+  evidence commit); landing/done/archive re-derive from the binding. The M1
+  engine's unreachable landing/archive stages were removed (`694abfbb`).
+- Composed reader (`internal/tracker/records.go`, `issuerecord.go`): card fields
+  from cards, detail fields from details, missing halves unknown; repository
+  derived from the issues dir; stale reads labelled; a fetched tracker behind a
+  broken target errors. Rewired: state, issue list/show, start-plan contention,
+  done guard, PR links, fleet status, project board/rollups (card-only deps are
+  unknown ⇒ blocked), active-time (tracker ref beside HEAD, card `started`).
+- Remaining for M3: close (evidence commit + card codecomplete), merge/push/
+  landing selection by binding, done + archive recovery, issuefiles status
+  overlay, atlas.
+
 ## Revisions
 
 ### 2026-09-25 14:00 PDT — Creation completes when details land; explicit handoff
