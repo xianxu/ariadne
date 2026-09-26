@@ -16,13 +16,11 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
-	"os"
-	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"time"
 
@@ -30,6 +28,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
@@ -56,6 +55,9 @@ type IssueState struct {
 	PlanTotal  int    `json:"plan_total"`
 	PlanTicked int    `json:"plan_ticked"`
 	Updated    string `json:"updated,omitempty"`
+	// CardOnly: the card exists but this checkout has no details (#252) — the
+	// issue is still being created, or its details live on another branch.
+	CardOnly bool `json:"card_only,omitempty"`
 }
 
 // WorktreeState describes one entry from `git worktree list --porcelain -z`.
@@ -88,6 +90,8 @@ type State struct {
 	Worktrees []WorktreeState    `json:"worktrees"`
 	Recent    []CommitState      `json:"recent_commits"`
 	Drift     []DriftFinding     `json:"drift"`
+	// TrackerStale: the tracker could not be fetched; cards are as last fetched.
+	TrackerStale bool `json:"tracker_stale,omitempty"`
 }
 
 // ── command constructor ─────────────────────────────────────────────────────
@@ -134,11 +138,11 @@ func runState(stdout io.Writer, f *stateFlags) error {
 
 	issuesDir := defaultWorkspacePath(identity.WorktreeRoot, f.IssuesDir, f.IssuesExplicit)
 	historyDir := defaultWorkspacePath(identity.WorktreeRoot, f.HistoryDir, f.HistoryExplicit)
-	issues, err := listIssues(issuesDir)
+	issues, stale, err := listIssueStates(issuesDir)
 	if err != nil {
 		return fmt.Errorf("list issues: %w", err)
 	}
-	s.Issues = issues
+	s.Issues, s.TrackerStale = issues, stale
 	// gitx.ShippedWorkOnMain is the production ship probe; state_test fakes it.
 	s.Drift = detectDrift(issues, historyDir, gitx.ShippedWorkOnMain)
 	if baseRef == "" {
@@ -220,68 +224,58 @@ func recentCommits() ([]CommitState, string) {
 // titleRE matches the first `# Title` heading after the frontmatter.
 var titleRE = regexp.MustCompile(`(?m)^# (.+)$`)
 
-// listIssues scans issuesDir for NNNNNN-*.md files, parses frontmatter,
-// counts plan items. Returns issues sorted by numeric ID.
+// listIssues composes the active issues of the current repository: every
+// details file in issuesDir, plus
+// open cards whose details are not in this checkout (#252: a card-only issue is
+// still being created). Card-owned fields come from the card. Sorted by ID.
 func listIssues(issuesDir string) ([]IssueState, error) {
-	entries, err := os.ReadDir(issuesDir)
+	out, _, err := listIssueStates(issuesDir)
+	return out, err
+}
+
+// listIssueStates also reports whether the cards came from a stale tracker read.
+// The repository is the one containing issuesDir (a dependency's, for
+// start-plan's contention check).
+func listIssueStates(issuesDir string) ([]IssueState, bool, error) {
+	rs, err := loadIssueRecords(context.Background(), issuesDir, tracker.PreferFresh)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return nil, nil
-		}
-		return nil, err
+		return nil, false, err
 	}
 	var out []IssueState
-	for _, e := range entries {
-		if e.IsDir() {
+	for _, rec := range rs.All() {
+		if rec.DetailPath == "" {
+			// Card only: archived (terminal) cards are history, not active work.
+			if vocab.Issue().IsTerminal(rec.Status()) {
+				continue
+			}
+			updated, _ := rec.Field("updated")
+			out = append(out, IssueState{ID: rec.ID, Status: rec.Status(), Title: rec.Title(), Updated: updated, CardOnly: true})
 			continue
 		}
-		name := e.Name()
-		id, slug, ok := issueFilenameParts(name)
-		if !ok || slug == "" {
-			continue
-		}
-		path := filepath.Join(issuesDir, name)
-		data, err := os.ReadFile(path)
-		if err != nil {
+		if rec.DetailErr != nil {
 			// Don't drop silently — surface as an unreadable entry so
-			// detectDrift can warn. The whole point of state is to be
-			// the single source of truth post-compaction; shrinking
-			// inventory on transient permission/symlink errors
-			// undermines that. M2 review C2.
-			out = append(out, IssueState{
-				ID:     id,
-				Path:   path,
-				Status: "unreadable",
-			})
+			// detectDrift can warn (M2 review C2); a malformed file keeps an
+			// empty status.
+			status := ""
+			if rec.DetailUnreadable {
+				status = "unreadable"
+			}
+			out = append(out, IssueState{ID: rec.ID, Path: rec.DetailPath, Status: status})
 			continue
 		}
-		text := string(data)
-		fm, body, ferr := issue.Parse(text)
-		if ferr != nil {
-			// Issue file without frontmatter — surface with empty status
-			// so drift detection notices.
-			out = append(out, IssueState{ID: id, Path: path, Status: ""})
-			continue
-		}
-		status, _ := issue.GetField(fm, "status")
-		updated, _ := issue.GetField(fm, "updated")
-		total, ticked := issue.CountPlanItems(body)
-		title := ""
-		if tm := titleRE.FindStringSubmatch(body); tm != nil {
-			title = tm[1]
-		}
+		updated, _ := rec.Field("updated")
+		total, ticked := issue.CountPlanItems(rec.DetailBody)
 		out = append(out, IssueState{
-			ID:         id,
-			Path:       path,
-			Status:     status,
-			Title:      title,
+			ID:         rec.ID,
+			Path:       rec.DetailPath,
+			Status:     rec.Status(),
+			Title:      rec.Title(),
 			PlanTotal:  total,
 			PlanTicked: ticked,
 			Updated:    updated,
 		})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
-	return out, nil
+	return out, rs.Stale, nil
 }
 
 // ── drift detection ─────────────────────────────────────────────────────────
@@ -409,13 +403,21 @@ func renderProse(w io.Writer, s State) error {
 	}
 	fmt.Fprintln(w)
 
-	fmt.Fprintln(w, "Issues:")
+	if s.TrackerStale {
+		fmt.Fprintln(w, "Issues (tracker unreachable — card fields as last fetched):")
+	} else {
+		fmt.Fprintln(w, "Issues:")
+	}
 	if len(s.Issues) == 0 {
 		fmt.Fprintln(w, "  (none)")
 	}
 	for _, i := range s.Issues {
 		// "#000031  status: working  3/8 ticked  — title"
-		fmt.Fprintf(w, "  #%s  status: %-8s  %d/%d ticked", i.ID, valueOr(i.Status, "?"), i.PlanTicked, i.PlanTotal)
+		if i.CardOnly {
+			fmt.Fprintf(w, "  #%s  status: %-8s  card only", i.ID, valueOr(i.Status, "?"))
+		} else {
+			fmt.Fprintf(w, "  #%s  status: %-8s  %d/%d ticked", i.ID, valueOr(i.Status, "?"), i.PlanTicked, i.PlanTotal)
+		}
 		if i.Title != "" {
 			fmt.Fprintf(w, "  — %s", truncate(i.Title, 60))
 		}

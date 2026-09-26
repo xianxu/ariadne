@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/url"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -119,8 +120,16 @@ func publicationRepository(root, raw string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	local, err = filepath.EvalSymlinks(local)
-	if err != nil {
+	// Identity belongs to the configured location, not its reachability: an
+	// unreachable (absent) repository keeps its cleaned path, so an offline read
+	// fails at fetch, where it is labelled, instead of here.
+	resolved, err := filepath.EvalSymlinks(local)
+	switch {
+	case err == nil:
+		local = resolved
+	case errors.Is(err, os.ErrNotExist):
+		local = filepath.Clean(local)
+	default:
 		return "", fmt.Errorf("resolve local publication repository: %w", err)
 	}
 	return "file:" + local, nil

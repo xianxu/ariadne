@@ -157,3 +157,17 @@ func (t *TrunkFile) RemoteExists() (bool, error) {
 	}
 	return false, offlineError(t.remote, err, diag)
 }
+
+// LocalView pins the last-fetched tracking ref without network IO. ok is false
+// when this clone has never fetched the branch.
+func (t *TrunkFile) LocalView() (*TrunkView, bool, error) {
+	present, err := t.refPresent(t.trackingRef())
+	if err != nil || !present {
+		return nil, false, err
+	}
+	tip, err := t.resolve(t.trackingRef())
+	if err != nil {
+		return nil, false, err
+	}
+	return t.ViewOf(tip), true, nil
+}

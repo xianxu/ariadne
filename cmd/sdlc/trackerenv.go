@@ -34,11 +34,15 @@ func (e *trackerEnv) onRest() bool { return e.branch != "" && e.branch == e.rest
 
 // openTracker pins the checkout and its publication target. It performs no
 // network IO; the first snapshot or candidate fetches.
-func openTracker(ctx context.Context) (*trackerEnv, error) {
+func openTracker(ctx context.Context) (*trackerEnv, error) { return openTrackerAt(ctx, ".") }
+
+// openTrackerAt pins the checkout containing dir (another repository's, for
+// readers that inspect a dependency chain).
+func openTrackerAt(ctx context.Context, dir string) (*trackerEnv, error) {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	identity, err := workspace.Resolve(execGitRunner{}, ".", "")
+	identity, err := workspace.Resolve(execGitRunner{}, dir, "")
 	if err != nil {
 		return nil, fmt.Errorf("resolve checkout: %w", err)
 	}

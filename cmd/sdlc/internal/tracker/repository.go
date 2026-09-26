@@ -80,3 +80,15 @@ func (r *Repository) UpdateCard(expected Record, raw []byte, operationToken stri
 		return gitx.TrunkWrite{Write: map[string][]byte{current.Path: content}, ExactBytes: true}, nil
 	}, beforePush)
 }
+
+// LocalSnapshot reads the last-fetched tracker without network IO; ok is false
+// when this clone has never fetched it. Its content may be stale: callers label
+// it so and never authorize a write from it.
+func (r *Repository) LocalSnapshot() (Snapshot, bool, error) {
+	view, ok, err := r.trunk.LocalView()
+	if err != nil || !ok {
+		return Snapshot{}, ok, err
+	}
+	s, err := readSnapshot(view)
+	return s, err == nil, err
+}
