@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -139,5 +140,27 @@ func TestChangeCodeDryRunLeavesStaleMirrorOnDisk(t *testing.T) {
 	}
 	if got, _ := os.ReadFile(abs); !bytes.Equal(got, before) {
 		t.Fatal("dry run rewrote the details")
+	}
+}
+
+// BR-13: a gate refusal (the estimate gate here, with no estimate on the card)
+// happens after the mirror is refreshed in memory; the file must be untouched.
+func TestChangeCodeGateRefusalLeavesStaleMirrorOnDisk(t *testing.T) {
+	binary := buildFleetE2EBinary(t)
+	r, _, detailPath := claimedOnBranch(t)
+	retitleElsewhere(t, r, "000009", "Renamed Elsewhere")
+	abs := filepath.Join(r.root, detailPath)
+	before, _ := os.ReadFile(abs)
+	head := r.git("rev-parse", "HEAD")
+	cmd := exec.Command(binary, "change-code", "--issue", "9", "--worktree", "no", "--no-judge", "--no-structural", "--no-estimate-recon", "--flow", "full")
+	cmd.Dir = r.root
+	if out, err := cmd.CombinedOutput(); err == nil || !strings.Contains(string(out), "estimate gate failed") {
+		t.Fatalf("expected the estimate gate to refuse: %v\n%s", err, out)
+	}
+	if got, _ := os.ReadFile(abs); !bytes.Equal(got, before) {
+		t.Fatal("refused change-code rewrote the details")
+	}
+	if r.git("rev-parse", "HEAD") != head {
+		t.Fatal("refused change-code committed")
 	}
 }

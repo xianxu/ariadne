@@ -83,8 +83,10 @@ func (e *trackerEnv) git(args ...string) (string, error) {
 }
 
 // gitTest runs a Git predicate: exit 0 is true, exit 1 is a completed false
-// observation, and anything else (a missing repository, a bad name, a killed
-// process) is an error — never evidence of absence or difference.
+// observation, and anything else (a missing repository, a killed process) is
+// an error — never evidence of absence or difference. What exit 1 means is the
+// command's: `rev-parse -q --verify` also exits 1 for an unknown commit, so
+// callers pass commits they have already resolved.
 func (e *trackerEnv) gitTest(args ...string) (bool, error) {
 	_, err := e.git(args...)
 	if err == nil {

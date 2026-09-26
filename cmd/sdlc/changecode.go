@@ -132,9 +132,10 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		return err
 	}
 
-	// 2. Read issue content (and optional plan file). A dry run left the file
-	//    untouched: the review snapshot covers the disk bytes, while the gates
-	//    read the refreshed card fields.
+	// 2. Read issue content (and optional plan file). The refreshed mirror is
+	//    not written yet: the review snapshot covers the untouched disk bytes,
+	//    the gates read the refreshed card fields, and the file changes only
+	//    after every gate has passed (step 7).
 	issueBytes, err := os.ReadFile(issuePath)
 	if err != nil {
 		die(stderr, fmt.Sprintf("read issue file %s: %v", issuePath, err))
@@ -218,6 +219,11 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 			return err
 		}
 	}
+	if refreshed != nil && !bytes.Equal(refreshed, issueBytes) {
+		if err := os.WriteFile(issuePath, refreshed, 0o644); err != nil {
+			return fmt.Errorf("write refreshed card mirror: %w", err)
+		}
+	}
 	recordChangeCodeFlow(stderr, f, issuePath, name, issueFlow)
 
 	// 8. Create branch.
@@ -283,9 +289,9 @@ func checkpointDesign(f *changeCodeFlags, name, issuePath string) error {
 // refreshChangeCodeMirror applies to tracker-era details only (a card mirror
 // marker); files that predate the migration keep the legacy path untouched. It
 // refuses the resting branch — start-plan owns moving design off it — and a
-// hand-edited card field, whose refusal names the setter to use instead. Every
-// check runs before the only effect; a dry run returns the refreshed bytes
-// without writing them. nil means "use the file as it is".
+// hand-edited card field, whose refusal names the setter to use instead. It
+// never writes: the caller writes the refreshed bytes only after every gate
+// passes. nil means "use the file as it is".
 func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) ([]byte, error) {
 	details, err := os.ReadFile(issuePath)
 	if err != nil {
@@ -312,11 +318,6 @@ func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) ([]byte
 	refreshed, err := refreshMirror(env, id, details)
 	if err != nil {
 		return nil, err
-	}
-	if !f.DryRun && !bytes.Equal(refreshed, details) {
-		if err := os.WriteFile(issuePath, refreshed, 0o644); err != nil {
-			return nil, err
-		}
 	}
 	return refreshed, nil
 }

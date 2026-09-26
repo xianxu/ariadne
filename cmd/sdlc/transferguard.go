@@ -103,8 +103,17 @@ func checkTransferredPaths(env *trackerEnv, mainTip string, paths []string) erro
 		if err != nil {
 			return err
 		}
-		want, _ := env.git("rev-parse", "-q", "--verify", mainTip+":"+p)
-		got, _ := env.git("rev-parse", "-q", "--verify", result+":"+p)
+		var want, got string
+		if onMain {
+			if want, err = env.git("rev-parse", "--verify", mainTip+":"+p); err != nil {
+				return err
+			}
+		}
+		if inResult {
+			if got, err = env.git("rev-parse", "--verify", result+":"+p); err != nil {
+				return err
+			}
+		}
 		switch {
 		case !onMain && !inResult:
 			continue // absent on both (archived by its owner)

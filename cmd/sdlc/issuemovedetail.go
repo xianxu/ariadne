@@ -199,7 +199,11 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 		if err := os.WriteFile(abs, source, info.Mode().Perm()); err != nil {
 			return err
 		}
-		if staged, _ := env.git("ls-files", "--cached", "--", dest); staged != "" {
+		staged, err := env.git("ls-files", "--cached", "--", dest)
+		if err != nil {
+			return err
+		}
+		if staged != "" {
 			if _, err := env.git("add", "--", dest); err != nil {
 				return err
 			}
@@ -298,12 +302,10 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 			return fmt.Errorf("read source %s: %w", spec.SourcePath, err)
 		}
 		if env.onRest() {
-			if head, _ := env.git("rev-parse", "HEAD"); head != "" {
-				if done, err := env.gitTest("merge-base", "--is-ancestor", mainCommit, "HEAD"); err != nil {
-					return err
-				} else if done {
-					return nil // already fast-forwarded
-				}
+			if done, err := env.gitTest("merge-base", "--is-ancestor", mainCommit, "HEAD"); err != nil {
+				return err
+			} else if done {
+				return nil // already fast-forwarded
 			}
 		}
 		if current != nil {
@@ -319,7 +321,10 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 		if err != nil {
 			return err
 		}
-		staged, _ := env.git("ls-files", "--cached", "--", spec.SourcePath)
+		staged, err := env.git("ls-files", "--cached", "--", spec.SourcePath)
+		if err != nil {
+			return err
+		}
 		if staged != "" {
 			if _, err := env.git("rm", "-q", "--cached", "--", spec.SourcePath); err != nil {
 				return err
