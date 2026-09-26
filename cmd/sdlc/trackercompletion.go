@@ -9,12 +9,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
+	"path/filepath"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
-	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // publishIssue is one issue a publish completes, with the anchor its reviewed
@@ -30,12 +29,17 @@ type ownedCompletion struct {
 }
 
 // ownedCompletions selects codecomplete cards bound to this repository whose
-// evidence commit head contains and base (when given) does not. A missing
-// evidence object is simply not this branch's; any other Git failure refuses.
-func ownedCompletions(env *trackerEnv, rs tracker.Records, head, base string) ([]ownedCompletion, error) {
+// evidence commit head contains and base (when given) does not. withDone also
+// selects cards already done for such a close — an archive that runs after the
+// done write must still find what it owns. A missing evidence object is simply
+// not this branch's; any other Git failure refuses.
+func ownedCompletions(env *trackerEnv, rs tracker.Records, head, base string, withDone bool) ([]ownedCompletion, error) {
 	var owned []ownedCompletion
 	for _, rec := range rs.All() {
-		if rec.Duplicate || rec.Card == nil || rec.Status() != "codecomplete" {
+		if rec.Duplicate || rec.Card == nil {
+			continue
+		}
+		if status := rec.Status(); status != "codecomplete" && !(withDone && status == "done") {
 			continue
 		}
 		b, ok, err := issue.CardCompletion(rec.Card.Raw)
@@ -127,7 +131,7 @@ func settleLandedCompletions(ctx context.Context, env *trackerEnv, issuesDir str
 	if err != nil {
 		return nil, err
 	}
-	landed, err := ownedCompletions(env, rs, view.Ref(), "")
+	landed, err := ownedCompletions(env, rs, view.Ref(), "", false)
 	if err != nil {
 		return nil, err
 	}
@@ -141,24 +145,20 @@ func settleLandedCompletions(ctx context.Context, env *trackerEnv, issuesDir str
 	return settled, nil
 }
 
-// refreshDoneMirrors brings the details of terminal cards up to the card before
-// they are archived, so a history file mirrors its final state. A mirror that
-// cannot refresh (a hand edit) is archived as it is and reported.
-func refreshDoneMirrors(ctx context.Context, stderr io.Writer, env *trackerEnv, issuesDir string) error {
-	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
+// settleLandingCompletions completes, in the tracked repository at root, every
+// close whose evidence main now carries. A repository without a tracker is a
+// no-op.
+func settleLandingCompletions(root, issuesDir string) error {
+	ctx := context.Background()
+	dir := filepath.Join(root, filepath.FromSlash(issuesDir))
+	rs, err := loadIssueRecords(ctx, dir, tracker.Fresh)
 	if err != nil || !rs.Tracker {
 		return err
 	}
-	for _, rec := range rs.All() {
-		if rec.Duplicate || rec.Card == nil || rec.DetailPath == "" || !vocab.Issue().IsTerminal(rec.Status()) {
-			continue
-		}
-		if !issue.HasMirror([]byte(issue.Compose(rec.DetailFM, rec.DetailBody))) {
-			continue
-		}
-		if warn := refreshLocalMirrorAt(env, rec.DetailPath); warn != "" {
-			cwarn(stderr, warn)
-		}
+	env, err := openTrackerAt(ctx, root)
+	if err != nil {
+		return err
 	}
-	return nil
+	_, err = settleLandedCompletions(ctx, env, dir)
+	return err
 }

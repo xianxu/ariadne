@@ -23,6 +23,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"io"
 	"os"
 	"path/filepath"
@@ -550,6 +551,20 @@ func historyFileIsTerminal(path string) (bool, error) {
 	fm, _, perr := issue.Parse(string(data))
 	if perr != nil {
 		return false, nil
+	}
+	if issue.HasMirror(data) {
+		// #252: an archived tracker-era details file keeps its mirror as it
+		// was; its card is the authority on whether the issue is terminal.
+		id, _, ok := issue.ParseFilename(filepath.Base(path))
+		if !ok {
+			return false, nil
+		}
+		rs, err := loadIssueRecords(context.Background(), filepath.Dir(path), tracker.Fresh)
+		if err != nil {
+			return false, err
+		}
+		rec, ok := rs.Get(id)
+		return ok && rec.Card != nil && vocab.Issue().IsTerminal(rec.Status()), nil
 	}
 	st, _ := issue.GetField(fm, "status")
 	return vocab.Issue().IsTerminal(st), nil

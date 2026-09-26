@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -37,10 +38,6 @@ func TestPublishFlipCompletesLandedClosesAndArchivesByCard(t *testing.T) {
 	c, _, _ := issue.CardCompletion([]byte(card))
 	if !strings.Contains(card, "status: done") || c.LandedCommit != landed {
 		t.Fatalf("card not done at the landing (%s):\n%s", landed, card)
-	}
-	raw, _ := os.ReadFile(filepath.Join(r.root, detailPath))
-	if !strings.Contains(string(raw), "status: done") {
-		t.Fatal("details mirror not refreshed before archive")
 	}
 	// Idempotent: a second publish finds nothing left to complete.
 	if again, err := publishCodecompleteIssues("workshop/issues"); err != nil || len(again) != 0 {
@@ -79,3 +76,51 @@ func TestPublishFlipLeavesAReclosedGenerationAlone(t *testing.T) {
 }
 
 func itoa(n int) string { return strconv.Itoa(n) }
+
+// Durable (slot) landing in a tracked repository: the PR's close is owned by its
+// binding, the landing completes the card, and the archive moves the details as
+// they are — verifiably, and idempotently on retry.
+func TestDurableLandingArchivesTrackedCloseByBinding(t *testing.T) {
+	r, cardPath, detailPath := closeReady(t, 321)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "321", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	head, branch := r.git("rev-parse", "HEAD"), r.git("branch", "--show-current")
+	base := r.git("merge-base", "HEAD", "origin/main")
+	r.git("push", "-q", "origin", "HEAD:main") // the PR merged as a fast-forward
+	pr := landingPR{Number: 321, State: "MERGED", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head}
+	evidence, _, _ := issue.CardCompletion([]byte(r.card(cardPath)))
+
+	selected, err := selectLandingIssues(r.root, pr, "workshop/issues")
+	if err != nil || len(selected) != 1 || !selected[0].tracked || selected[0].anchor != evidence.EvidenceCommit {
+		t.Fatalf("selection by binding: %+v %v", selected, err)
+	}
+	if err := settleLandingCompletions(r.root, "workshop/issues"); err != nil {
+		t.Fatal(err)
+	}
+	if card := r.card(cardPath); !strings.Contains(card, "status: done") {
+		t.Fatalf("landing did not complete the card:\n%s", card)
+	}
+	if done, err := selectLandingIssues(r.root, pr, "workshop/issues"); err != nil || len(done) != 1 {
+		t.Fatalf("a done card left the archive without its owner: %+v %v", done, err)
+	}
+	if complete, err := laProof(r.root, head, pr); err != nil || complete {
+		t.Fatalf("premature archive proof: %v %v", complete, err)
+	}
+	if err := laArchive(r.root, pr); err != nil {
+		t.Fatal(err)
+	}
+	tip := strings.TrimSpace(testfix.Capture(t, r.origin, "rev-parse", "main"))
+	history := "workshop/history/issues/" + filepath.Base(detailPath)
+	archived := testfix.Capture(t, r.origin, "show", "main:"+history)
+	if archived != testfix.Capture(t, r.origin, "show", head+":"+detailPath) {
+		t.Fatal("tracked details were rewritten by the archive")
+	}
+	if complete, err := laProof(r.root, tip, pr); err != nil || !complete {
+		t.Fatalf("archive proof: %v %v", complete, err)
+	}
+	if err := laArchive(r.root, pr); err != nil || strings.TrimSpace(testfix.Capture(t, r.origin, "rev-parse", "main")) != tip {
+		t.Fatalf("retried archive was not a no-op: %v", err)
+	}
+}

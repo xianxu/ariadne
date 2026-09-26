@@ -87,7 +87,7 @@ func runPublishGate(ctx context.Context, baseRef, issuesDir string, stderr io.Wr
 		if err != nil {
 			return err
 		}
-		owned, err := ownedCompletions(env, rs, "HEAD", baseRef)
+		owned, err := ownedCompletions(env, rs, "HEAD", baseRef, false)
 		if err != nil {
 			return err
 		}
@@ -331,8 +331,9 @@ func codecompleteAnchorCommitAt(ref, issuePath string, runGit func(...string) ([
 
 // publishTrackerCompletions is the publish flip for a tracked repository (#252):
 // every codecomplete card bound here whose evidence commit fresh main now
-// carries goes done for its close generation, and the done issues' details
-// mirrors are refreshed so the archive below records their final state.
+// carries goes done for its close generation. Details are archived as they
+// are: the card is the authority on their status, and archived bytes that do
+// not depend on the live card keep archive confirmation deterministic.
 func publishTrackerCompletions(issuesDir string) (done []string, tracked bool, err error) {
 	ctx := context.Background()
 	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
@@ -348,9 +349,6 @@ func publishTrackerCompletions(issuesDir string) (done []string, tracked bool, e
 		return nil, true, err
 	}
 	if done, err = settleLandedCompletions(ctx, env, abs); err != nil {
-		return done, true, err
-	}
-	if err := refreshDoneMirrors(ctx, os.Stderr, env, abs); err != nil {
 		return done, true, err
 	}
 	return done, true, nil

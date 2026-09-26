@@ -431,6 +431,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if err = revalidateLanding(r, t, branch, head, current); err != nil {
 		return err
 	}
+	// #252: the landing is confirmed, so the closes it carries go done on their
+	// cards (by re-derivation: idempotent, and it settles earlier landings too).
+	if err = settleLandingCompletions(t.Root, f.IssuesDir); err != nil {
+		return err
+	}
 	complete, err := landingArchiveComplete(t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
 	if err != nil {
 		return err
