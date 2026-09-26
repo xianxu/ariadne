@@ -237,6 +237,7 @@ total: 10.77
 
 ### 2026-09-25
 - 2026-09-25: closed M2 — M2 tracker verbs + review rounds 3-5 fixes (source-checkout ownership, CLIRef hints, unrecorded-publication guard, mirror written only after gates/checks, gitTest probes + no-dropped-git-error guard, help/atlas verb sweep); full go test ./cmd/sdlc/... ./pkg/vocab/... green except baseline #210 (skipped) and processgroup ps test (sandbox-only; passes unsandboxed). Actual = measured 0.49h cumulative − M1 0.17h; review verdict: SHIP
+- 2026-09-25: M3 review round 8 FIX-THEN-SHIP (BR-29 abandoned-branch completion, BR-30 evidence replay clobbering later edits, + Minors) fixed in 0ab603a5, each proven by a test that fails without its fix. The cmd/sdlc package now needs `-timeout 30m` (1051s serially); no CI runs it.
 - 2026-09-25: closed M1 — M1 card/mirror, CAS/bootstrap, recovery and envelope regressions pass; tracker race suite passes; snapshot fuzz 284976 cases; vocabulary vet and diff check pass. BR-1/BR-2 corrected in plan inventory/checklist without code changes. Baseline CLI #210 failure reproduced on main; remaining CLI suite running with 25m timeout. Actual 0.17h measured by sdlc actual.; review verdict: FIX-THEN-SHIP
 
 - Filed from pair session after reconciling `main-slot1` by hand for the third
