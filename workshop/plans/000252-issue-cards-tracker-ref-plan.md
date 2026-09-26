@@ -400,3 +400,62 @@ named planned identifiers that never shipped. Delta:
   Fresh (it authorizes a write).
 - Ticked rows now name the shipped identifiers, the planned names kept in
   parentheses; rule: every identifier in a ticked row greps to shipped code.
+
+### 2026-09-26 — M4 design: concrete migration and cutover mechanics
+
+Reason: Task 7 named the phases but not the mechanics. A read-only probe of the
+fleet (11 repositories, 280 active / 860 archived details) found the strict card
+parser rejects 15 active and 217 archived files (no `## Problem` — older issues
+keep it as the preamble under the H1; closed without hours; no frontmatter), and
+this repository holds duplicate IDs (two archived 000040s; open 000096 beside an
+archived 000096). Delta (ARCH-PURE, ARCH-ORDER, ARCH-SECURE, ARCH-DRY):
+
+- **Card derivation (pure, `internal/issue`).** Active details split with the
+  existing `SplitCardWithFormat`; one without `## Problem` gets the heading
+  inserted above its non-empty preamble (the modern template, content unchanged)
+  and splits normally; an empty preamble, any invalid owned field, or a closed
+  status without hours refuses with the file and next action. Archived details
+  are never rewritten (their frontmatter stays their terminal authority, as
+  `historyFileIsTerminal` already reads unmirrored files): each gets a card built
+  tolerantly — valid owned fields copied, invalid ones dropped, N/A hours for
+  closed work lacking them, status inferred `done` only for a file without
+  frontmatter, title from the H1 or slug, Problem from the section, else the
+  preamble, else a pointer to the archived file — every inference listed in the
+  manifest for operator review.
+- **Plan (pure, `internal/tracker/migration.go`, `PlanTrackerMigration`).** Input
+  is an inventory: pinned main commit, repository identity, object format, active
+  and archived files from main's tree, per-branch issue files that differ from
+  their merge base, dirty-worktree issue paths, and codecomplete anchor evidence.
+  Output is a deterministic manifest (cards, details conversions, refusals,
+  inferences, duplicates, digest). One card per ID: the active file if any, else
+  the newest archived file; two active files sharing an ID refuse (renumber first).
+  A branch whose issue file changes card-owned fields relative to main, an issue
+  present only on a branch, or dirty issue edits in a worktree refuse (publish or
+  discard under the old workflow during the freeze). A codecomplete issue imports
+  with a completion binding only when exactly one branch (or main) carries a
+  legacy codecomplete anchor (`codecompleteAnchorCommitAt`) with only docs after
+  it; binding = {token `migrate-<id>`, repository, reviewed = anchor's parent,
+  evidence = anchor}; otherwise it refuses as unprovable.
+- **Apply (IO, `issuemigrate.go`).** `sdlc issue migrate` is a dry run;
+  `--apply --expect <digest>` re-inventories, requires the reviewed digest and no
+  refusals, then: (1) bootstraps `issue-tracker` by expected-absence CAS, or
+  accepts an existing tracker only when its root commit's files equal the plan's;
+  (2) publishes one main commit (details conversions + the cutover marker
+  `workshop/issue-tracker.json` = `{version, tracker_root}`) by CAS on the pinned
+  main. Each phase is observable, so a retry resumes; main already carrying the
+  marker for this tracker reports "already migrated". Never rolled back.
+- **Cutover guard.** Repositories opened by commands enforce the marker: a
+  checkout whose marker disagrees with the tracker (marker without tracker,
+  tracker without marker, or a root not in the tracker's history) refuses with the
+  next action (`git pull` on rest, `sdlc issue migrate --reconcile` on a branch).
+  A legacy (unmirrored) active details file in a tracked checkout refuses the
+  legacy close/change-code paths instead of writing status into it.
+- **Branch reconciliation.** `sdlc issue migrate --reconcile` on a pre-cutover
+  branch appends the mirror line against the imported card (after proving the
+  branch's owned fields equal it) and adds the marker in one ordinary commit, so
+  a later merge with main applies identical changes; divergent fields refuse.
+- **Legacy writers.** In a tracked repository `issue sync`/`issue publish` and the
+  Makefile/Python fallbacks refuse (marker-detected) with the tracker-era action;
+  their code stays until every fleet repository has cut over, and is deleted at
+  the coordinated migration step before issue close (removing it earlier would
+  strand unmigrated repositories sharing the binary).
