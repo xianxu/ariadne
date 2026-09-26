@@ -2,7 +2,11 @@ package main
 
 import (
 	"bytes"
+	"context"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"io"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -96,7 +100,7 @@ func TestDurableLandingArchivesTrackedCloseByBinding(t *testing.T) {
 	if err != nil || len(selected) != 1 || !selected[0].tracked || selected[0].anchor != evidence.EvidenceCommit {
 		t.Fatalf("selection by binding: %+v %v", selected, err)
 	}
-	if err := settleLandingCompletions(r.root, "workshop/issues"); err != nil {
+	if err := completeLandingPR(context.Background(), r.root, "workshop/issues", pr); err != nil {
 		t.Fatal(err)
 	}
 	if card := r.card(cardPath); !strings.Contains(card, "status: done") {
@@ -122,5 +126,57 @@ func TestDurableLandingArchivesTrackedCloseByBinding(t *testing.T) {
 	}
 	if err := laArchive(r.root, pr); err != nil || strings.TrimSpace(testfix.Capture(t, r.origin, "rev-parse", "main")) != tip {
 		t.Fatalf("retried archive was not a no-op: %v", err)
+	}
+}
+
+// BR-19: a slot landing completes the PR's close on its card for every merge
+// strategy — squash and rebase leave the evidence commit off main — landed at
+// the PR's integrated merge, and a retry changes nothing.
+func TestDurableRunMergeCompletesTrackedCloseForEveryStrategy(t *testing.T) {
+	for _, strategy := range []string{"merge", "squash", "rebase"} {
+		t.Run(strategy, func(t *testing.T) {
+			roots, _, gh := landingFixture(t, 0)
+			gh.strategy = strategy
+			root := roots[0]
+			const cardPath = "workshop/issue-cards/000001-procedure.md"
+			// The binding names the identity close would record: the resolved
+			// publication target (here the rewritten local transport).
+			env, err := openTrackerAt(context.Background(), root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			card := []byte("---\nid: 000001\nstatus: codecomplete\nactual_hours: 1\nupdated: 2026-09-23\n---\n\n# Procedure\n\n## Problem\nx\n")
+			card, err = issue.SetCardCompletion(card, issue.Completion{Token: "close-landing", Repository: env.target.Repository,
+				ReviewedHEAD: gh.pr.HeadOID, EvidenceCommit: gh.pr.HeadOID})
+			if err != nil {
+				t.Fatal(err)
+			}
+			tf, err := gitx.NewTrunkFileContext(context.Background(), root, "upstream", "issue-tracker")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := tf.Bootstrap(map[string][]byte{tracker.ManifestPath: tracker.ManifestBytes(), cardPath: card}, "bootstrap landing", func(gitx.BootstrapResult) error { return nil }); err != nil {
+				t.Fatal(err)
+			}
+			if err := runMerge(io.Discard, io.Discard, landingFlags()); err != nil {
+				t.Fatal(err)
+			}
+			raw, err := tf.Read(cardPath)
+			if err != nil {
+				t.Fatal(err)
+			}
+			b, _, _ := issue.CardCompletion(raw)
+			if !strings.Contains(string(raw), "status: done") || b.LandedCommit != gh.pr.MergeOID {
+				t.Fatalf("card after %s landing (merge %s):\n%s", strategy, gh.pr.MergeOID, raw)
+			}
+			f := landingFlags()
+			f.Branch = landingTestBranch
+			if err := runMerge(io.Discard, io.Discard, f); err != nil {
+				t.Fatal("completed retry", err)
+			}
+			if again, _ := tf.Read(cardPath); string(again) != string(raw) {
+				t.Fatal("retry rewrote the completed card")
+			}
+		})
 	}
 }

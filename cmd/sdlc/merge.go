@@ -35,6 +35,7 @@ import (
 	"bufio"
 	"context"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"io"
 	"os"
 	"path/filepath"
@@ -375,6 +376,15 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		cwarn(stderr, "--no-judge: skipping the pre-merge publish gate (#160 reviewed-HEAD-unchanged invariant)")
 	}
 
+	// ── 5.5 Tracker ownership (#252) ─────────────────────────────────────────
+	// The server-side merge may squash or rebase, leaving the evidence commits
+	// off main, so the closes this branch owns are selected now, from the
+	// branch, and completed after the landing is pulled.
+	trackerOwned, trackerEnvForMerge, err := branchOwnedCompletions(commandContext(f.Context), f.IssuesDir)
+	if err != nil {
+		die(stderr, fmt.Sprintf("tracker completions: %v", err))
+	}
+
 	// ── 6. Resolve merge topology: in-place vs worktree ─────────────────────
 	// In-place = the primary checkout sitting on a feature branch (main is
 	// reached by switching here). Worktree = a linked worktree (main lives in
@@ -559,6 +569,18 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// IsTerminal, and codecomplete is active. Actuals were set at close, so the
 	// done-guard holds. The flip is captured by the archive commit below (the
 	// flipped files move to history).
+	if trackerEnvForMerge != nil {
+		out, lerr := mergeRunner.GitInDir(mainPath, "rev-parse", "--verify", "HEAD^{commit}")
+		if lerr != nil {
+			die(stderr, fmt.Sprintf("resolve the landed main commit: %v\n%s", lerr, out))
+		}
+		landed := strings.TrimSpace(string(out))
+		for _, oc := range trackerOwned {
+			if cerr := completeOnCard(trackerEnvForMerge, oc, landed); cerr != nil {
+				die(stderr, fmt.Sprintf("complete #%s on its card: %v\n  retry `sdlc merge` or `sdlc issue recovery reconcile --issue %s`", issue.CLIRef(oc.ID), cerr, issue.CLIRef(oc.ID)))
+			}
+		}
+	}
 	if flipped, ferr := publishCodecompleteIssues(filepath.Join(mainPath, f.IssuesDir)); ferr != nil {
 		die(stderr, fmt.Sprintf("publish flip (codecomplete → done): %v", ferr))
 	} else if len(flipped) > 0 {

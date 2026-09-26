@@ -145,11 +145,12 @@ func settleLandedCompletions(ctx context.Context, env *trackerEnv, issuesDir str
 	return settled, nil
 }
 
-// settleLandingCompletions completes, in the tracked repository at root, every
-// close whose evidence main now carries. A repository without a tracker is a
-// no-op.
-func settleLandingCompletions(root, issuesDir string) error {
-	ctx := context.Background()
+// completeLandingPR completes, in the tracked repository at root, the closes a
+// confirmed PR landing owns: their evidence is in the PR (HeadOID --not
+// BaseOID), and the landed commit is the PR's integrated merge — whatever the
+// strategy, since a squash or rebase leaves the evidence commit off main. It
+// also settles earlier landings that did keep their evidence (idempotent).
+func completeLandingPR(ctx context.Context, root, issuesDir string, pr landingPR) error {
 	dir := filepath.Join(root, filepath.FromSlash(issuesDir))
 	rs, err := loadIssueRecords(ctx, dir, tracker.Fresh)
 	if err != nil || !rs.Tracker {
@@ -159,6 +160,34 @@ func settleLandingCompletions(root, issuesDir string) error {
 	if err != nil {
 		return err
 	}
+	owned, err := ownedCompletions(env, rs, pr.HeadOID, pr.BaseOID, false)
+	if err != nil {
+		return err
+	}
+	for _, oc := range owned {
+		if err := completeOnCard(env, oc, pr.MergeOID); err != nil {
+			return fmt.Errorf("complete #%s landed by PR #%d: %w", issue.CLIRef(oc.ID), pr.Number, err)
+		}
+	}
 	_, err = settleLandedCompletions(ctx, env, dir)
 	return err
+}
+
+// branchOwnedCompletions selects, in a tracked repository, the closes the
+// current branch carries beyond main (nil env without a tracker).
+func branchOwnedCompletions(ctx context.Context, issuesDir string) ([]ownedCompletion, *trackerEnv, error) {
+	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
+	if err != nil || !rs.Tracker {
+		return nil, nil, err
+	}
+	env, err := openTracker(ctx)
+	if err != nil {
+		return nil, nil, err
+	}
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return nil, nil, err
+	}
+	owned, err := ownedCompletions(env, rs, "HEAD", view.Ref(), false)
+	return owned, env, err
 }
