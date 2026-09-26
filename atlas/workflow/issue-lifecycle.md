@@ -27,6 +27,10 @@ drifted after the review; doc-only bookkeeping deltas are tolerated, #174), run 
 LLM judge, flip `codecomplete → done`, and archive. `codecomplete` is written **only** by `sdlc close` (set-status refuses it),
 which is what makes the commit carrying it a trustworthy anchor for that invariant.
 So `done` now means "reviewed AND published," not "an agent thinks it's finished."
+With the issue tracker (#252) close commits its own evidence and publishes
+codecomplete on the card with a binding to that commit; publishing verbs select
+closes by the binding, anchor on the evidence commit, and write `done` on the card
+for the same close generation (see [issue tracker](issue-tracker.md)).
 
 ## Transitions
 
@@ -210,8 +214,9 @@ Each `sdlc push` / `sdlc merge` archives done issues into `history/`. Before tha
    in one `sdlc close`; only tag `Mx` rows when the work has ≥2 separate review
    boundaries you'll `milestone-close` individually (AGENTS.md §3 — an `Mx` tag is
    a review boundary, not a task label).
-3. **Record `actual_hours`** in the frontmatter: a measured positive number, or
-   explicit `N/A` only when measurement is not applicable.
+3. **Record `actual_hours`** (on the card for tracker-era issues, #252; in the
+   frontmatter otherwise): a measured positive number, or explicit `N/A` only
+   when measurement is not applicable. `sdlc close` measures and records it.
 4. Update the parent project file (if any).
 5. Update `atlas/` for any new architectural surface.
 6. ~~Append validation-log entry~~ — now automatic: on a full-issue close `sdlc

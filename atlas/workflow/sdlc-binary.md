@@ -255,8 +255,10 @@ MERGED plus reachable integration. Queue admission is not integration; already
 merged squash/rebase PRs use the original PR head and integration evidence.
 
 `landingarchive.go` owns the scoped remote-main archive through
-`gitx.TrunkFile.UpdateMany`: PR-owned close anchors select completed records,
-and one conditional commit moves issue/plan/review artifacts. Retry verifies
+`gitx.TrunkFile.UpdateMany`: PR-owned close anchors select completed records
+(in a tracked repository, card completion bindings whose evidence commit is in
+the PR, #252 — their details move byte-for-byte), and one conditional commit
+moves issue/plan/review artifacts. Retry verifies
 reachable provenance and the complete archived generation before cleanup.
 Landing returns the selected checkout to unchanged `main` or `main-slotN`, then
 compare-and-deletes only the proven local issue ref and removes its configuration.
@@ -965,8 +967,9 @@ and the **engagement anchor** (`resolveWindowStart`), anchoring at the cheap ear
 `claim` so DESIGN attention (brainstorm / spec / plan / reviews) before the first
 code commit is in-window instead of cut off; gap-truncation keeps a dormant
 claim→work gap from inflating the actual. The anchor is resolved in robustness
-order (#116): the explicit `started:` frontmatter stamp (written once at the
-open→working flip in `applyStatus`, local-offset RFC3339 to match `%aI`) →
+order (#116): the explicit `started:` stamp (written once at the open→working
+flip — on the tracker card since #252, whose claim/close commits are read beside
+HEAD so a freshly claimed issue has a window; local-offset RFC3339 to match `%aI`) →
 `gitx.WorkingTransitionISO` (the #113 git-log heuristic, now the legacy fallback)
 → commit-parent. The explicit stamp survives rebases/moves where the heuristic's
 "best-effort" history scan could silently miss and drop design time.

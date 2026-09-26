@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git object/ref plumbing, existing Git/GitHub process seams and stateful fakes, CUE vocabulary, Markdown artifacts.
 
-**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2 implemented in the issue worktree and submitted to its boundary review. M3–M4 are not implemented. No production migration or consumer activation has begun.
+**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2 accepted through its boundary gate (SHIP after rounds 3–6). M3 implemented and submitted to its boundary review. M4 is not implemented. No production migration or consumer activation has begun.
 
 ## Core concepts
 
@@ -22,12 +22,13 @@ This inventory distinguishes delivered M1 foundation from planned later work.
 | Card / owned-field schema | PURE | `cmd/sdlc/internal/issue/card.go`, `construct/vocabulary/issue.cue` | M1: new / modified, delivered |
 | DetailMirror | PURE | `cmd/sdlc/internal/issue/mirror.go` | M1: new, delivered |
 | Creation / transfer transitions | PURE | `cmd/sdlc/internal/tracker/creation.go`, `transfer.go` | M1: new, delivered |
-| Close generation / landing transitions | PURE | `cmd/sdlc/internal/tracker/completion.go` | M1: new, delivered |
+| Close generation transition (evidence, codecomplete) | PURE | `cmd/sdlc/internal/tracker/completion.go`, `completeop.go` (`CodecompleteCard`) | M1: new; M3: trimmed to two stages, delivered |
 | Typed recovery receipt / shared transition engine | PURE | `cmd/sdlc/internal/tracker/receipt.go` | M1: new, delivered |
 | Handoff envelope / card-derived details | PURE | `cmd/sdlc/internal/issue/handoff.go` | M2: new, delivered |
 | Card field/title mutators | PURE | `cmd/sdlc/internal/issue/cardset.go` | M2: new, delivered |
 | Migration manifest | PURE | `cmd/sdlc/internal/tracker/migration.go` | Planned M4: file absent, not delivered |
-| Activity event selection | PURE | `cmd/sdlc/internal/activetime/commit.go` | Planned M3: existing file unchanged in M1 |
+| Activity event selection | PURE | `cmd/sdlc/internal/activetime/commit.go` | M3: modified (tracker ref beside HEAD), delivered |
+| Composed issue records | PURE (+ thin loader) | `cmd/sdlc/internal/tracker/records.go` | M3: new, delivered |
 
 Card owns ID, status, started, created/updated dates, estimate/actual hours, GitHub linkage and canonical title. Its Problem is the original report. Details retain editable Problem, Spec, Done when, Estimate explanation, Plan, Log, Revisions, deps, target, flow and review anchors. Define ownership once; unknown detail fields remain untouched, unknown tracker schema versions refuse. No new lifecycle statuses. Read `vocabulary` skill and the complete CUE model before changing the model.
 
@@ -48,8 +49,9 @@ Each card has one stable ID/path; one or more detail checkouts can mirror it, bu
 | Planning branch / tracker environment | INTEGRATION | `cmd/sdlc/planningbranch.go`, `trackerenv.go` (checkout/target glue) | M2: new, delivered | workspace identity, branch creation |
 | Card setters / recovery verbs | INTEGRATION | `cmd/sdlc/cardsetters.go`, `issuerecovery.go` | M2: new, delivered | tracker CAS updates, receipt resume |
 | Transfer guard | INTEGRATION | `cmd/sdlc/transferguard.go` | M2: new, delivered | `git merge-tree`, tracker handoff records |
-| Composed issue reader | INTEGRATION | `cmd/sdlc/issuerecord.go` | Planned M3: absent, not delivered (M2 verbs read card and details directly) | M1 card reader plus selected detail location |
-| Completion adapter | INTEGRATION | `cmd/sdlc/trackercompletion.go` | Planned M3: absent, not delivered | close evidence, existing GitHub landing identity and archive transaction |
+| Composed issue reader | INTEGRATION | `cmd/sdlc/issuerecord.go` | M3: new, delivered | M1 card reader plus selected detail location |
+| Close adapter | INTEGRATION | `cmd/sdlc/closetracker.go`, `internal/tracker/completeop.go` | M3: new, delivered | evidence commit (temporary index, branch CAS), card codecomplete |
+| Completion adapter | INTEGRATION | `cmd/sdlc/trackercompletion.go` | M3: new, delivered | binding selection, done CAS, existing landing identity and archive transaction |
 | Migration command | INTEGRATION | `cmd/sdlc/issuemigrate.go` | Planned M4: absent, not delivered | repository inventory, bootstrap, mirrors, cutover marker |
 | Publication fake | INTEGRATION test double | `cmd/sdlc/internal/gitx/commitpublication_fake_test.go` | M1: modified, delivered | immutable objects, multiple refs, rejection/lost acknowledgement |
 
@@ -201,19 +203,20 @@ Files: create `cmd/sdlc/issuemovedetail.go`, `issuemovedetail_test.go`, `transfe
 
 Files: modify every reader in the inventory, with existing colocated tests; add `cmd/sdlc/issuerecord_test.go`, `internal/tracker/reader_test.go`.
 
-- [ ] Test `ReadIssueRecord` and `LookupRepoIssues` with independently varied authoritative snapshots and projections; card metadata wins while detail-owned values remain intact.
-- [ ] For cross-issue/dependency reads use pinned main details; for the active issue use its checked-out details. Preserve archive navigation and allow card-only inspection without fabricating an editable file.
-- [ ] Test `SelectActivityEvents` and `computeActual` over generated code/tracker histories; assert selected-source-only membership, deduplicated OIDs and preserved engagement intervals.
-- [ ] Implement and run `go test ./cmd/sdlc ./cmd/sdlc/internal/fleet ./cmd/sdlc/internal/project ./cmd/sdlc/internal/activetime -count=1`; commit after the new assertions pass.
+- [x] Test `ReadIssueRecord` and `LookupRepoIssues` with independently varied authoritative snapshots and projections; card metadata wins while detail-owned values remain intact.
+- [x] For cross-issue/dependency reads use pinned main details; for the active issue use its checked-out details. Preserve archive navigation and allow card-only inspection without fabricating an editable file.
+- [x] Test `SelectActivityEvents` and `computeActual` over generated code/tracker histories; assert selected-source-only membership, deduplicated OIDs and preserved engagement intervals.
+- [x] Implement and run `go test ./cmd/sdlc ./cmd/sdlc/internal/fleet ./cmd/sdlc/internal/project ./cmd/sdlc/internal/activetime -count=1`; commit after the new assertions pass.
 
 ### Task 6: Close generation, exact landing and recovery
 
 Files: create `cmd/sdlc/trackercompletion.go`, `trackercompletion_test.go`; modify `close.go`, `reviewstate.go`, `milestoneclose.go`, `publishgate.go`, `landing.go`, `landingarchive.go`, `merge.go`, `push.go` and their tests.
 
-- [ ] Test `StepCompletion` and `FinalizeTrackerClose` with reproducible review/remote-generation interruptions; stale verdicts and uncertain writes never become accepted completion.
-- [ ] Test `SelectCompletedIssues` against unrelated ancestry and altered generation bindings; only proven reviewed/landed generations can be selected, independent of mirrored status.
-- [ ] Implement explicit completion bindings and recovery through existing landing identity/review guards; retain exact reviewed-head checks and scoped archive behavior.
-- [ ] Run `go test ./cmd/sdlc -run 'Test(Close|Milestone|Review|Publish|Landing|Merge|Push|Archive)' -count=1`; update `atlas/workflow/{issue-lifecycle,ledger-landscape,sdlc-binary}.md`, commit and close M3.
+- [x] Test `StepCompletion` and `FinalizeTrackerClose` with reproducible review/remote-generation interruptions; stale verdicts and uncertain writes never become accepted completion.
+- [x] Test `SelectCompletedIssues` against unrelated ancestry and altered generation bindings; only proven reviewed/landed generations can be selected, independent of mirrored status.
+- [x] Implement explicit completion bindings and recovery through existing landing identity/review guards; retain exact reviewed-head checks and scoped archive behavior.
+- [x] Run `go test ./cmd/sdlc -run 'Test(Close|Milestone|Review|Publish|Landing|Merge|Push|Archive)' -count=1`; update `atlas/workflow/{issue-lifecycle,ledger-landscape,sdlc-binary}.md`; commit.
+- M3 acceptance is its `sdlc milestone-close` boundary review, recorded by the issue's M3 checkbox.
 
 ## Chunk 4: Cutover tooling, instructions and end-to-end proof — M4
 
@@ -335,3 +338,28 @@ Reason: the M2 review found a foreign-worktree recovery hazard, octal-parsed
   the mirror before publishing. `start-plan --issue` now needs the tracker and
   network while pre-tracker details keep change-code's legacy path — acceptable
   under the freeze-and-cutover plan, removed at M4.
+
+### 2026-09-25 — M3 implementation
+
+Reason: executing Chunk 3 showed a checkout-local receipt cannot carry a close
+to its landing (another clone, days later, or GitHub). Delta:
+- Completion = evidence commit + codecomplete with a `tracker.completion`
+  binding on the card; the M1 engine's landing/done/archive stages were removed
+  as unreachable. Landing, done and archive re-derive from the binding; recovery
+  is "codecomplete whose evidence is on main" (idempotent, token-checked).
+- Close commits its own evidence for tracker-era issues (it used to leave the
+  commit to the agent). The receipt carries the evidence message and path list
+  so FIX-THEN-SHIP (stored unstarted; fixes first) and recovery can rebuild it.
+- Tracked details are archived byte-for-byte (card = status authority), keeping
+  the durable archive's retry proof deterministic; no pre-archive mirror refresh.
+- Readers compose through `tracker.LoadRecords`; the repository derives from the
+  issues directory; read-only views label stale reads; missing halves are
+  unknown (card-only project deps ⇒ blocked). Active-time reads the tracker ref
+  beside HEAD. Planned names `ReadIssueRecord`/`SelectActivityEvents`/
+  `FinalizeTrackerClose`/`SelectCompletedIssues` shipped as `LoadRecords`/
+  `loadWindowCommits(extraRefs)`/`publishTrackerClose`/`ownedCompletions`.
+- Review snapshots do not pin the card blob: unrelated card changes do not
+  invalidate a review, and a status change is refused when the card is published.
+- Files added in the window (enumerated): `closetracker.go`,
+  `internal/tracker/completeop.go`, `internal/tracker/records.go`,
+  `issuerecord.go`, `trackercompletion.go` — each has a Core concepts row.

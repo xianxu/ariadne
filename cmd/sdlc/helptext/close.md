@@ -1,6 +1,8 @@
 Close an issue or a milestone — perform AGENTS.md §5's mechanical closing
-steps. Edits files in place; does NOT commit (the agent commits, usually
-bundling close with other work).
+steps. Edits files in place; for an issue whose details mirror a tracker card
+(#252) the whole-issue close then commits its own evidence and publishes the
+card (see TRACKER-ERA ISSUES); otherwise the agent commits, usually bundling
+close with other work.
 
 `sdlc close` is the LOCAL ACCEPTANCE GATE (#160): it runs the fresh-context
 boundary review (all LLM review — code quality, requirements traceability, docs
@@ -19,6 +21,24 @@ re-run close (re-reviews the delta, advances the anchor — no bypass flag
 needed at codecomplete). Doc-only post-close commits pass the publish gate
 on their own. "Fix the findings" means the CLASS each one names, not only the
 site it points at — ARCH-PURPOSE (`sdlc arch-principles`).
+
+TRACKER-ERA ISSUES (#252)
+
+  status, actual_hours and updated live on the issue's card, not in the details.
+  After a finalizing verdict the whole-issue close commits its evidence itself —
+  the details' Log line, the gate ledgers, review sidecars and this repository's
+  project records, with the Review-Verdict/Review-Window trailers and a
+  `Close-Actual:` trailer — as one narrow commit on the issue branch (unrelated
+  staged work is left alone). It then publishes codecomplete, the actual hours
+  and a completion binding (reviewed head, evidence commit) on the card. Merge,
+  push and slot landings select closes by that binding and check the reviewed
+  state against the evidence commit. close reports success only after the card
+  is confirmed; an interruption is finished by `sdlc issue recovery reconcile
+  --issue N`.
+
+  On FIX-THEN-SHIP close publishes nothing yet: commit the fixes on the branch,
+  then run `sdlc issue recovery reconcile --issue N`, which lands the evidence
+  commit after them and publishes the card bound to it.
 
 MODES
 
@@ -189,14 +209,16 @@ WHAT IT DOES
   - Ticks the milestone box in the issue's ## Plan (milestone mode)
   - Flips status: codecomplete (#160 — NOT done; the deterministic publish gate
     `sdlc merge`/`push` flips codecomplete → done), sets actual_hours (number or
-    N/A) and updated (issue mode)
+    N/A) and updated (issue mode) — in the issue file, or, for a tracker-era
+    issue, on its card after the evidence commit (#252)
   - Appends a log line to ## Log: "YYYY-MM-DD: closed — <verified>"
   - Emits the no-LLM `lessons` reminder on a whole-issue close (#160 Q4 — moved
     here from the publish gate so it fires while findings are fresh)
   - Ticks the project task row + upserts **actual:** and **closed:** in the
     detail block
   - Prints the COST REPORT (#187) — see below
-  - Does NOT git-commit, does NOT move the file to workshop/history/
+  - Does NOT git-commit (except a tracker-era issue's evidence commit, #252),
+    does NOT move the file to workshop/history/
 
 THE QUICK FLOW (#231)
 

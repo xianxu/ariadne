@@ -33,7 +33,10 @@ WHAT IT DOES
      the fallback subject is "auto-commit before push".
   2. Runs the pre-push PUBLISH GATE (#160) — deterministic, NO LLM.
      It refuses unless HEAD is unchanged since the codecomplete issues'
-     `sdlc close` (nothing drifted after the boundary review). On refusal,
+     `sdlc close` (nothing drifted after the boundary review). In a
+     repository with an issue tracker (#252) the issues are the cards whose
+     completion binding's evidence commit this push carries, and the anchor is
+     that evidence commit; after the push those cards go done. On refusal,
      re-run `sdlc close --issue N --verified '...'`, then retry. Skip with
      `--no-judge` (emergency only).
   3. Scans `origin/main..HEAD` for touched issue files whose status

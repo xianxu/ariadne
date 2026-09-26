@@ -63,6 +63,14 @@ PUBLISH GATE
   `sdlc close --issue N --verified '...'` first. --no-judge waives this gate;
   it does not waive integration or cleanup evidence.
 
+  In a repository with an issue tracker (#252) the PR owns the closes whose
+  card completion binding's evidence commit it carries; the anchor is that
+  evidence commit. Once integration is confirmed those cards go done (for the
+  same close generation only — a reopened or re-closed card refuses) and the
+  details are archived as they are; the card is their status authority. An
+  interrupted landing is completed by re-running merge or `sdlc issue recovery
+  reconcile --issue N`.
+
 FLAGS
 
   --yes                 skip interactive confirmation; required without a TTY

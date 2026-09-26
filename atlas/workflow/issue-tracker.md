@@ -3,7 +3,8 @@
 #252 is implementing a dedicated `issue-tracker` branch. It is not yet
 activated: the installed binary keeps the existing issue workflow until the
 coordinated migration (M4) replaces its readers and writers. M1 built the model
-and storage; M2 moved the creation, claim, planning and handoff verbs onto it.
+and storage; M2 moved the creation, claim, planning and handoff verbs onto it;
+M3 moved every reader and close/landing completion onto it.
 
 ## Ownership
 
@@ -86,6 +87,28 @@ conflict with, delete, re-add or rewrite them (`transferguard.go`); the issue's
 own branch is exempt. `sdlc issue recovery list|reconcile` resumes stopped
 operations, probing before repeating anything; a creation that published
 nothing is released rather than re-rendered.
+
+## Readers and completion (M3)
+
+Every reader of card-owned fields goes through `tracker.LoadRecords`
+(`internal/tracker/records.go`, glue in `cmd/sdlc/issuerecord.go`): cards for
+status/started/dates/hours/GitHub link/title, details for deps, target, flow and
+plan; a missing half is unknown, never a stale mirror. The repository is the one
+containing the issues directory. Read-only views (`state`, `issue list/show`,
+fleet, project board) prefer a fresh fetch and label a stale last-fetched read;
+gates that authorize a write require a fresh fetch. A repository whose remote has
+no tracker is pre-migration and its details are the record. Active-time reads the
+tracker ref beside HEAD and the card's `started`.
+
+Completion is two stages: close commits its evidence (details Log line, ledgers,
+sidecars, same-repo project records, with verdict and `Close-Actual:` trailers)
+and publishes codecomplete with a `tracker.completion` binding {token,
+repository, reviewed head, evidence commit}. FIX-THEN-SHIP stores the receipt
+unstarted so fixes land before the evidence. Publishing verbs own the closes
+whose evidence they carry (`trackercompletion.go`), anchor the reviewed-state
+check on it, and complete cards by compare-and-swap for the same token after the
+landing; recovery is re-derivation ("codecomplete whose evidence is on main").
+Tracked details are archived byte-for-byte so archive proofs stay deterministic.
 
 ## Verification pointers
 
