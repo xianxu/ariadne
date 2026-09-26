@@ -176,6 +176,12 @@ func TestTrackerCloseFixThenShipKeepsALaterEditOfAPinnedFile(t *testing.T) {
 	if got := r.git("show", "HEAD:"+detailPath); got != strings.TrimSpace(edited) {
 		t.Fatalf("evidence reverted the later Log edit:\n%s", got)
 	}
+	if !strings.Contains(r.git("log", "-1", "--format=%B"), tracker.EvidenceKeptTrailer+": "+detailPath) {
+		t.Fatal("the evidence commit does not name the superseded pin")
+	}
+	if !strings.Contains(errs.String(), "kept "+detailPath) {
+		t.Fatalf("no warning for the superseded pin:\n%s", errs.String())
+	}
 }
 
 // BR-21: re-closing supersedes an unstarted FIX-THEN-SHIP close instead of

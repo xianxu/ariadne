@@ -154,7 +154,7 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 			}
 			r = resumed.Receipt()
 			step = tracker.CompletionStepper
-			adapter = tracker.NewCompletionOp(ctx, env.repo, env.branchRef(), gitEvidence{env}, time.Now().Format("2006-01-02"), env.ancestorOf)
+			adapter = tracker.NewCompletionOp(ctx, env.repo, env.branchRef(), gitEvidence{env, stderr}, time.Now().Format("2006-01-02"), env.ancestorOf)
 		default:
 			return fmt.Errorf("receipt %s: %s operations are recovered by their own verb", r.Spec().Token, r.Operation())
 		}

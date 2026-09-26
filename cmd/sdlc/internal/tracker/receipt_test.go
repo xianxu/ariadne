@@ -431,24 +431,30 @@ func TestReceiptGeneratedInterruptionsAtEveryDeclaredEffect(t *testing.T) {
 func TestEvidenceReplaysOnlyOverUntouchedFiles(t *testing.T) {
 	const base, pin, later = "b", "p", "l"
 	cases := []struct {
-		name        string
-		entry       EvidenceEntry
-		base, head  string
-		wantReplays bool
+		name                    string
+		entry                   EvidenceEntry
+		base, head              string
+		wantReplays, superseded bool
 	}{
-		{"untouched since review", EvidenceEntry{Blob: pin}, base, base, true},
-		{"new file untouched", EvidenceEntry{Blob: pin}, "", "", true},
-		{"a fix swept the pin", EvidenceEntry{Blob: pin}, base, pin, false},
-		{"a fix edited it later", EvidenceEntry{Blob: pin}, base, later, false},
-		{"a fix created it later", EvidenceEntry{Blob: pin}, "", later, false},
-		{"a fix deleted it", EvidenceEntry{Blob: pin}, base, "", false},
-		{"pinned removal, untouched", EvidenceEntry{}, base, base, true},
-		{"pinned removal, already gone", EvidenceEntry{}, base, "", false},
-		{"pinned removal, edited later", EvidenceEntry{}, base, later, false},
+		{"untouched since review", EvidenceEntry{Blob: pin}, base, base, true, false},
+		{"new file untouched", EvidenceEntry{Blob: pin}, "", "", true, false},
+		{"a fix swept the pin", EvidenceEntry{Blob: pin}, base, pin, false, false},
+		{"a fix edited it later", EvidenceEntry{Blob: pin}, base, later, false, true},
+		{"a fix created it later", EvidenceEntry{Blob: pin}, "", later, false, true},
+		{"a fix deleted it", EvidenceEntry{Blob: pin}, base, "", false, true},
+		{"pinned removal, untouched", EvidenceEntry{}, base, base, true, false},
+		{"pinned removal, already gone", EvidenceEntry{}, base, "", false, false},
+		{"pinned removal, edited later", EvidenceEntry{}, base, later, false, true},
 	}
 	for _, c := range cases {
 		if got := c.entry.Replays(c.base, c.head); got != c.wantReplays {
 			t.Errorf("%s: Replays=%v, want %v", c.name, got, c.wantReplays)
+		}
+		if got := c.entry.Superseded(c.base, c.head); got != c.superseded {
+			t.Errorf("%s: Superseded=%v, want %v", c.name, got, c.superseded)
+		}
+		if c.entry.Replays(c.base, c.head) && c.entry.Superseded(c.base, c.head) {
+			t.Errorf("%s: a replayed pin cannot also be superseded", c.name)
 		}
 	}
 }

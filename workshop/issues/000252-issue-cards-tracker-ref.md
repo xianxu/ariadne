@@ -229,13 +229,15 @@ total: 10.77
 - [x] Approve [durable implementation plan](../plans/000252-issue-cards-tracker-ref-plan.md)
 - [x] M1 — Card/mirror model and tracker repository with CAS/recovery tests
 - [x] M2 — Creation, claim readiness, early design branch and move-detail handoff
-- [ ] M3 — Composed readers, activity evidence and close/landing recovery
+- [x] M3 — Composed readers, activity evidence and close/landing recovery
 - [ ] M4 — Migration tooling, legacy writer retirement, instructions and full slot-cycle proof
 - [ ] Coordinate and verify production migration before issue closure
 
 ## Log
 
 ### 2026-09-25
+- 2026-09-25: closed M3 — M3 tracker-era close/landing/readers; round-8 fixes 0ab603a5 (BR-29 landing-gated completion, BR-30 three-way evidence replay, fleet ctx + internal context guard, Fresh done-guard, plan identifiers), each with a test that fails without its fix; go test ./cmd/sdlc/... (-timeout 30m) and ./pkg/... green except baseline #210 and the sandbox-only processgroup ps test (skipped). --no-actual: sdlc actual under-attributes this window (0.49h cumulative), a guessed value would pollute calibration.; review verdict: SHIP
+- 2026-09-26: M3 round 9 SHIP; its advisory Minor (evidence replay silently keeping a superseded pin) fixed in the close commit: the replay warns and records a `Close-Kept:` trailer (`EvidenceEntry.Superseded`), unit + e2e tested; full suite green (-timeout 30m). Reviewed at the M4 boundary.
 - 2026-09-25: closed M2 — M2 tracker verbs + review rounds 3-5 fixes (source-checkout ownership, CLIRef hints, unrecorded-publication guard, mirror written only after gates/checks, gitTest probes + no-dropped-git-error guard, help/atlas verb sweep); full go test ./cmd/sdlc/... ./pkg/vocab/... green except baseline #210 (skipped) and processgroup ps test (sandbox-only; passes unsandboxed). Actual = measured 0.49h cumulative − M1 0.17h; review verdict: SHIP
 - 2026-09-25: M3 review round 8 FIX-THEN-SHIP (BR-29 abandoned-branch completion, BR-30 evidence replay clobbering later edits, + Minors) fixed in 0ab603a5, each proven by a test that fails without its fix. The cmd/sdlc package now needs `-timeout 30m` (1051s serially); no CI runs it.
 - 2026-09-25: closed M1 — M1 card/mirror, CAS/bootstrap, recovery and envelope regressions pass; tracker race suite passes; snapshot fuzz 284976 cases; vocabulary vet and diff check pass. BR-1/BR-2 corrected in plan inventory/checklist without code changes. Baseline CLI #210 failure reproduced on main; remaining CLI suite running with 25m timeout. Actual 0.17h measured by sdlc actual.; review verdict: FIX-THEN-SHIP

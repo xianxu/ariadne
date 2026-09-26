@@ -82,6 +82,17 @@ func (e EvidenceEntry) Replays(base, head string) bool {
 	return head == base && head != e.Blob
 }
 
+// Superseded reports a pin a later commit replaced with other content: the
+// replay keeps HEAD's version, and the caller must say so rather than drop
+// close evidence silently.
+func (e EvidenceEntry) Superseded(base, head string) bool {
+	return head != base && head != e.Blob
+}
+
+// EvidenceKeptTrailer names, in an evidence commit, each pinned file the
+// commit kept at a later committed version instead of the close's bytes.
+const EvidenceKeptTrailer = "Close-Kept"
+
 // EvidenceRemoved marks a pinned removal in EvidencePaths.
 const EvidenceRemoved = "-"
 

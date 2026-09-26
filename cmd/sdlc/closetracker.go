@@ -24,8 +24,13 @@ import (
 
 // gitEvidence commits a close's files on the source branch. It builds the
 // commit in a temporary index from HEAD, so staged unrelated work is neither
-// committed nor disturbed, and moves the branch by compare-and-swap.
-type gitEvidence struct{ env *trackerEnv }
+// committed nor disturbed, and moves the branch by compare-and-swap. A pinned
+// file a later commit superseded is kept, warned on stderr and named in a
+// Close-Kept trailer, so no close evidence is dropped silently.
+type gitEvidence struct {
+	env    *trackerEnv
+	stderr io.Writer
+}
 
 func (g gitEvidence) Prepare(spec tracker.ReceiptSpec) (string, error) {
 	env := g.env
@@ -47,6 +52,7 @@ func (g gitEvidence) Prepare(spec tracker.ReceiptSpec) (string, error) {
 	if _, err := env.gitEnv(withIndex, "read-tree", head); err != nil {
 		return "", err
 	}
+	message := spec.EvidenceMessage
 	for _, e := range spec.EvidenceEntries() {
 		base, _, err := g.treeEntry(spec.ReviewedHEAD, e.Path)
 		if err != nil {
@@ -55,6 +61,10 @@ func (g gitEvidence) Prepare(spec tracker.ReceiptSpec) (string, error) {
 		current, mode, err := g.treeEntry(head, e.Path)
 		if err != nil {
 			return "", err
+		}
+		if e.Superseded(base, current) {
+			message += "\n" + tracker.EvidenceKeptTrailer + ": " + e.Path
+			cwarn(g.stderr, fmt.Sprintf("kept %s as committed after the close; it differs from the close's pinned version (check it still carries the close record)", e.Path))
 		}
 		if !e.Replays(base, current) {
 			continue // already pinned, or edited in a later commit that must survive
@@ -78,7 +88,7 @@ func (g gitEvidence) Prepare(spec tracker.ReceiptSpec) (string, error) {
 	}
 	// An unchanged tree is legitimate: a fix commit may already carry the pinned
 	// evidence. The commit still records the verdict trailers and the anchor.
-	args := []string{"commit-tree", tree, "-p", head, "-m", spec.EvidenceMessage}
+	args := []string{"commit-tree", tree, "-p", head, "-m", message}
 	// Honour the repository's signing policy (unset exits 1: no signing).
 	if value, err := env.git("config", "--bool", "--get", "commit.gpgsign"); err == nil && value == "true" {
 		args = append(args, "-S")
@@ -296,7 +306,7 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 			"      (the evidence commit lands after your fixes; codecomplete is published bound to it)", env.branch, issue.CLIRef(id)))
 		return nil
 	}
-	op := tracker.NewCompletionOp(env.ctx, env.repo, env.branchRef(), gitEvidence{env}, time.Now().Format("2006-01-02"), env.ancestorOf)
+	op := tracker.NewCompletionOp(env.ctx, env.repo, env.branchRef(), gitEvidence{env, stderr}, time.Now().Format("2006-01-02"), env.ancestorOf)
 	final, err := tracker.Drive(c.Receipt(), tracker.CompletionStepper, op, receipts)
 	invalidateIssueRecords(env.ctx)
 	if err != nil {

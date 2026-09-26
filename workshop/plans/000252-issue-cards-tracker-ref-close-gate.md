@@ -227,6 +227,174 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 7
+      timestamp: "2026-09-25T22:19:01-07:00"
+      agent: claude
+      findings:
+        - id: BR-19
+          severity: Critical
+          title: Squash/rebase-landed PR never flips its card to done, yet its details are archived
+          detail: settleLandingCompletions accepts only evidence-ancestor-of-main; selectTrackedLandingIssues selects by PR head/base and archives. Under squash/rebase (supported by landingFakeGH) the card stays codecomplete forever. Derive done from the confirmed pr.MergeOID in the durable path; test merge/squash/rebase through runMerge.
+          family: landing-completion-proof
+          round: 7
+        - id: BR-20
+          severity: Critical
+          title: Core concepts label IO entities PURE (loadWindowCommits, LoadRecords join) and Task 6 Files lists unchanged merge.go/reviewstate.go
+          detail: '3rd in family. Rule: when a Revisions entry renames a planned entity, re-derive its kind from the shipped code and its test IO, and re-check every Task Files list against name-status. Relabel as INTEGRATION or extract a pure composeRecords.'
+          family: core-concepts-inventory-drift
+          round: 7
+        - id: BR-21
+          severity: Important
+          title: Outstanding completion receipt is neither refused nor superseded by a re-close; resume can rebind the card to an older review
+          detail: '2nd in family. FIX-THEN-SHIP saves receipt A; re-running close drives B; reconcile later resumes A and SetCardCompletion accepts any new token, or A wedges on nothing-to-record. Rule: one outstanding receipt per (issue, operation); a resume proves it is still the newest generation before effects.'
+          family: resume-identity-check
+          round: 7
+        - id: BR-22
+          severity: Important
+          title: publishTrackerClose preconditions (branch, card, reviewed commit, evidence paths) run after applyClose wrote the Log, ledger and calibration and after the review
+          detail: '3rd in family. Rule: every verdict-independent tracker-close precondition runs in computeClose before review dispatch; publishTrackerClose only performs effects.'
+          family: refusal-after-local-effect
+          round: 7
+        - id: BR-23
+          severity: Important
+          title: Tracker reads and card CAS writes on merge/push/landing paths use context.Background()
+          detail: '2nd in family. Sites: settleLandingCompletions, publishTrackerCompletions, selectTrackedLandingIssues, overlayCardStatus, historyFileIsTerminal, actualTrackerInputs and other readers. Rule: any path reaching loadIssueRecords/openTrackerAt/Repository takes the verb context; enforce with a source-guard test.'
+          family: context-propagation
+          round: 7
+        - id: BR-24
+          severity: Important
+          title: Push/merge fetch the tracker many times per command (plus once per archived file) against the declared one-fetch budget
+          detail: Load tracker.Records once per command and thread it to the publish gate, not-done scan, flip, archive and historyFileIsTerminal; pre-tracker repos also pay repeated ls-remote today.
+          family: operating-envelope-enforcement
+          round: 7
+        - id: BR-25
+          severity: Important
+          title: A FIX-THEN-SHIP evidence commit rebuilds from worktree files that a fix commit (git commit -a) sweeps away, wedging the receipt
+          detail: Prepare refuses when no evidence file differs from HEAD; the test passes only because the ledger stays untracked. Pin evidence blobs in the receipt or a recovery ref when it is saved.
+          family: deferred-effect-input-drift
+          round: 7
+        - id: BR-26
+          severity: Minor
+          title: Tracker load errors become absence in collectGitHubIssueNumbers, guardIssueNotDone and actualTrackerInputs
+          detail: '5th in family. Rule: a Records load error in a verb is surfaced (warn, or error in gates), never converted to no record; guardIssueNotDone should also use Fresh. Needs a lint over loadIssueRecords call sites.'
+          family: silent-error-swallowing
+          round: 7
+        - id: BR-27
+          severity: Minor
+          title: fleet repoRecords hard-codes the main resting branch, duplicating recordsRepository
+          detail: 2nd in family. Move the resting-branch-aware repository resolution into internal/tracker and use it from both.
+          family: shared-helper-extraction
+          round: 7
+        - id: BR-28
+          severity: Minor
+          title: Module imports placed inside the stdlib import group in several changed files
+          family: import-grouping
+          round: 7
+      boundary: M3
+      recipe: milestone-review
+      blocked: true
+    - "n": 8
+      timestamp: "2026-09-25T23:18:40-07:00"
+      agent: claude
+      dispose:
+        - id: BR-19
+          disposition: addressed
+          note: completeLandingPR completes by HeadOID..BaseOID at MergeOID; runMerge test covers merge/squash/rebase plus idempotent retry, and the targeted run passed.
+          round: 8
+        - id: BR-20
+          disposition: addressed
+          note: Plan rows 30/52/53 relabelled (composeRecords PURE, loaders INTEGRATION); Task 5/6 Files lists revised against name-status.
+          round: 8
+        - id: BR-21
+          disposition: addressed
+          note: prepareTrackerClose supersedes discardable closes and refuses started ones; newestClose guards both stages; TestTrackerReCloseSupersedesAnUnstartedClose.
+          round: 8
+        - id: BR-22
+          disposition: addressed
+          note: Branch, card and pending-close checks moved into computeClose; TestTrackerCloseRefusesPreconditionsBeforeReview asserts zero judge calls.
+          round: 8
+        - id: BR-23
+          disposition: addressed
+          note: Contexts threaded through package main with the TestVerbContextsReachTrackerReads guard; the fleet leftover is raised as a new Minor.
+          round: 8
+        - id: BR-24
+          disposition: addressed
+          note: recordsScope gives one composed view per repo per command, invalidated on card writes; unit test TestRecordsScopeFetchesOncePerCommand.
+          round: 8
+        - id: BR-25
+          disposition: addressed
+          note: Evidence pinned as blobs held by the recovery ref; an empty commit is allowed; TestTrackerCloseFixThenShipSurvivesASweepingFixCommit. Pinned blobs now overwrite HEAD, raised as new.
+          round: 8
+        - id: BR-26
+          disposition: addressed
+          note: 'Load errors surfaced (warn, fail-closed guard, actual warning) and the regex guard extended. Residual: guardIssueNotDone still uses PreferFresh and its doc comment is stale.'
+          round: 8
+        - id: BR-27
+          disposition: addressed
+          note: tracker.RepositoryForCheckout is shared by fleet and recordsRepository.
+          round: 8
+        - id: BR-28
+          disposition: addressed
+          note: Mixed import groups in actual.go, pr.go and trackercompletion_test.go are fixed.
+          round: 8
+      findings:
+        - id: BR-29
+          severity: Important
+          title: Non-durable merge completes owned cards to done even when the branch was abandoned unmerged
+          detail: 'merge.go:575 runs completeOnCard whenever trackerEnvForMerge is non-nil. On the worktree path with no PR, where the operator answers remove-without-merging, the card goes done with LandedCommit set to a main HEAD that lacks the evidence. 2nd in family. Rule: a card goes done only on a confirmed landing observation of its evidence. Gate on merged and test the abandon path.'
+          family: landing-completion-proof
+          round: 8
+        - id: BR-30
+          severity: Important
+          title: Deferred evidence commit overwrites HEAD's newer details, ledgers and sidecars with the blobs pinned at close
+          detail: 'gitEvidence.Prepare reads HEAD''s tree and then writes pinned blobs over it. A post-FIX-THEN-SHIP Log edit committed with the fixes is reverted in the evidence commit, visible only as a dirty worktree. 2nd in family. Rule: replaying pinned inputs is a three-way merge against their base. Record the base blob, and refuse or keep HEAD when HEAD''s version differs from both.'
+          family: deferred-effect-input-drift
+          round: 8
+        - id: BR-31
+          severity: Minor
+          title: fleet repoRecords still reads the tracker under context.Background(); the guard only parses package main
+          detail: '3rd in family. Rule: every exported tracker entry point takes a context, and the source guard should scan internal packages too.'
+          family: context-propagation
+          round: 8
+        - id: BR-32
+          severity: Minor
+          title: Ticked Task 5/6 plan rows name functions that do not exist
+          detail: 'FinalizeTrackerClose, SelectCompletedIssues, SelectActivityEvents and ReadIssueRecord are absent from the code. 4th in family. Rule: every identifier in a ticked plan row greps to shipped code, or is renamed in a Revisions entry.'
+          family: core-concepts-inventory-drift
+          round: 8
+      boundary: M3
+      recipe: milestone-review
+      blocked: true
+    - "n": 9
+      timestamp: "2026-09-25T23:59:34-07:00"
+      agent: claude
+      dispose:
+        - id: BR-29
+          disposition: addressed
+          note: merge.go:577 gates completeOnCard on merged; TestAbandonedWorktreeMergeLeavesTheCloseCodecomplete exercises the no-PR abandon path and would go red without the gate.
+          round: 9
+        - id: BR-30
+          disposition: addressed
+          note: EvidenceEntry.Replays(base, head) three-way check keeps HEAD when changed since review; pure table test plus e2e TestTrackerCloseFixThenShipKeepsALaterEditOfAPinnedFile.
+          round: 9
+        - id: BR-31
+          disposition: addressed
+          note: LookupRepoIssues/repoRecords/CollectInventory take ctx; context_guard_test now parses every internal package with qualified allowlist.
+          round: 9
+        - id: BR-32
+          disposition: addressed
+          note: Plan rows 143-145, 207-217 now name shipped identifiers with planned names in parentheses, and Revisions line 359 records the rename; all shipped names grep to code.
+          round: 9
+      findings:
+        - id: BR-33
+          severity: Minor
+          title: Evidence replay silently skips pinned files whose HEAD version diverged from both base and pin
+          detail: '3rd in family. Rule: a deferred replay reports every pinned input it did not apply (path plus reason), so a later commit that also dropped close evidence such as a ledger row is visible rather than silently kept.'
+          family: deferred-effect-input-drift
+          round: 9
+      boundary: M3
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#252 (boundary-review)
@@ -329,7 +497,72 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-18** [Minor] `refusal-after-local-effect` move-detail rewrites the stale mirror before tracker.NewTransfer validates the receipt spec
   2nd finding in this family. Rule: every fallible validation, including receipt/op construction, completes before the first file or index write. In issuemovedetail.go the staleMirror WriteFile and git add run before NewTransfer(spec), whose newReceipt validation can refuse; move NewTransfer above the write.
 
+## Round 7 — 2026-09-25T22:19:01-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-19** [Critical] `landing-completion-proof` Squash/rebase-landed PR never flips its card to done, yet its details are archived
+  settleLandingCompletions accepts only evidence-ancestor-of-main; selectTrackedLandingIssues selects by PR head/base and archives. Under squash/rebase (supported by landingFakeGH) the card stays codecomplete forever. Derive done from the confirmed pr.MergeOID in the durable path; test merge/squash/rebase through runMerge.
+- **BR-20** [Critical] `core-concepts-inventory-drift` Core concepts label IO entities PURE (loadWindowCommits, LoadRecords join) and Task 6 Files lists unchanged merge.go/reviewstate.go
+  3rd in family. Rule: when a Revisions entry renames a planned entity, re-derive its kind from the shipped code and its test IO, and re-check every Task Files list against name-status. Relabel as INTEGRATION or extract a pure composeRecords.
+- **BR-21** [Important] `resume-identity-check` Outstanding completion receipt is neither refused nor superseded by a re-close; resume can rebind the card to an older review
+  2nd in family. FIX-THEN-SHIP saves receipt A; re-running close drives B; reconcile later resumes A and SetCardCompletion accepts any new token, or A wedges on nothing-to-record. Rule: one outstanding receipt per (issue, operation); a resume proves it is still the newest generation before effects.
+- **BR-22** [Important] `refusal-after-local-effect` publishTrackerClose preconditions (branch, card, reviewed commit, evidence paths) run after applyClose wrote the Log, ledger and calibration and after the review
+  3rd in family. Rule: every verdict-independent tracker-close precondition runs in computeClose before review dispatch; publishTrackerClose only performs effects.
+- **BR-23** [Important] `context-propagation` Tracker reads and card CAS writes on merge/push/landing paths use context.Background()
+  2nd in family. Sites: settleLandingCompletions, publishTrackerCompletions, selectTrackedLandingIssues, overlayCardStatus, historyFileIsTerminal, actualTrackerInputs and other readers. Rule: any path reaching loadIssueRecords/openTrackerAt/Repository takes the verb context; enforce with a source-guard test.
+- **BR-24** [Important] `operating-envelope-enforcement` Push/merge fetch the tracker many times per command (plus once per archived file) against the declared one-fetch budget
+  Load tracker.Records once per command and thread it to the publish gate, not-done scan, flip, archive and historyFileIsTerminal; pre-tracker repos also pay repeated ls-remote today.
+- **BR-25** [Important] `deferred-effect-input-drift` A FIX-THEN-SHIP evidence commit rebuilds from worktree files that a fix commit (git commit -a) sweeps away, wedging the receipt
+  Prepare refuses when no evidence file differs from HEAD; the test passes only because the ledger stays untracked. Pin evidence blobs in the receipt or a recovery ref when it is saved.
+- **BR-26** [Minor] `silent-error-swallowing` Tracker load errors become absence in collectGitHubIssueNumbers, guardIssueNotDone and actualTrackerInputs
+  5th in family. Rule: a Records load error in a verb is surfaced (warn, or error in gates), never converted to no record; guardIssueNotDone should also use Fresh. Needs a lint over loadIssueRecords call sites.
+- **BR-27** [Minor] `shared-helper-extraction` fleet repoRecords hard-codes the main resting branch, duplicating recordsRepository
+  2nd in family. Move the resting-branch-aware repository resolution into internal/tracker and use it from both.
+- **BR-28** [Minor] `import-grouping` Module imports placed inside the stdlib import group in several changed files
+
+## Round 8 — 2026-09-25T23:18:40-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-19 — addressed — completeLandingPR completes by HeadOID..BaseOID at MergeOID; runMerge test covers merge/squash/rebase plus idempotent retry, and the targeted run passed.
+- BR-20 — addressed — Plan rows 30/52/53 relabelled (composeRecords PURE, loaders INTEGRATION); Task 5/6 Files lists revised against name-status.
+- BR-21 — addressed — prepareTrackerClose supersedes discardable closes and refuses started ones; newestClose guards both stages; TestTrackerReCloseSupersedesAnUnstartedClose.
+- BR-22 — addressed — Branch, card and pending-close checks moved into computeClose; TestTrackerCloseRefusesPreconditionsBeforeReview asserts zero judge calls.
+- BR-23 — addressed — Contexts threaded through package main with the TestVerbContextsReachTrackerReads guard; the fleet leftover is raised as a new Minor.
+- BR-24 — addressed — recordsScope gives one composed view per repo per command, invalidated on card writes; unit test TestRecordsScopeFetchesOncePerCommand.
+- BR-25 — addressed — Evidence pinned as blobs held by the recovery ref; an empty commit is allowed; TestTrackerCloseFixThenShipSurvivesASweepingFixCommit. Pinned blobs now overwrite HEAD, raised as new.
+- BR-26 — addressed — Load errors surfaced (warn, fail-closed guard, actual warning) and the regex guard extended. Residual: guardIssueNotDone still uses PreferFresh and its doc comment is stale.
+- BR-27 — addressed — tracker.RepositoryForCheckout is shared by fleet and recordsRepository.
+- BR-28 — addressed — Mixed import groups in actual.go, pr.go and trackercompletion_test.go are fixed.
+
+### Raised
+
+- **BR-29** [Important] `landing-completion-proof` Non-durable merge completes owned cards to done even when the branch was abandoned unmerged
+  merge.go:575 runs completeOnCard whenever trackerEnvForMerge is non-nil. On the worktree path with no PR, where the operator answers remove-without-merging, the card goes done with LandedCommit set to a main HEAD that lacks the evidence. 2nd in family. Rule: a card goes done only on a confirmed landing observation of its evidence. Gate on merged and test the abandon path.
+- **BR-30** [Important] `deferred-effect-input-drift` Deferred evidence commit overwrites HEAD's newer details, ledgers and sidecars with the blobs pinned at close
+  gitEvidence.Prepare reads HEAD's tree and then writes pinned blobs over it. A post-FIX-THEN-SHIP Log edit committed with the fixes is reverted in the evidence commit, visible only as a dirty worktree. 2nd in family. Rule: replaying pinned inputs is a three-way merge against their base. Record the base blob, and refuse or keep HEAD when HEAD's version differs from both.
+- **BR-31** [Minor] `context-propagation` fleet repoRecords still reads the tracker under context.Background(); the guard only parses package main
+  3rd in family. Rule: every exported tracker entry point takes a context, and the source guard should scan internal packages too.
+- **BR-32** [Minor] `core-concepts-inventory-drift` Ticked Task 5/6 plan rows name functions that do not exist
+  FinalizeTrackerClose, SelectCompletedIssues, SelectActivityEvents and ReadIssueRecord are absent from the code. 4th in family. Rule: every identifier in a ticked plan row greps to shipped code, or is renamed in a Revisions entry.
+
+## Round 9 — 2026-09-25T23:59:34-07:00 (claude) — passed
+
+### Disposed
+
+- BR-29 — addressed — merge.go:577 gates completeOnCard on merged; TestAbandonedWorktreeMergeLeavesTheCloseCodecomplete exercises the no-PR abandon path and would go red without the gate.
+- BR-30 — addressed — EvidenceEntry.Replays(base, head) three-way check keeps HEAD when changed since review; pure table test plus e2e TestTrackerCloseFixThenShipKeepsALaterEditOfAPinnedFile.
+- BR-31 — addressed — LookupRepoIssues/repoRecords/CollectInventory take ctx; context_guard_test now parses every internal package with qualified allowlist.
+- BR-32 — addressed — Plan rows 143-145, 207-217 now name shipped identifiers with planned names in parentheses, and Revisions line 359 records the rename; all shipped names grep to code.
+
+### Raised
+
+- **BR-33** [Minor] `deferred-effect-input-drift` Evidence replay silently skips pinned files whose HEAD version diverged from both base and pin
+  3rd in family. Rule: a deferred replay reports every pinned input it did not apply (path plus reason), so a later commit that also dropped close evidence such as a ledger row is visible rather than silently kept.
+
 ## Open findings
 
 - **BR-3** [Minor] `review-artifact-hygiene` Committed M1 review artifact contains trailing whitespace
 - **BR-18** [Minor] `refusal-after-local-effect` move-detail rewrites the stale mirror before tracker.NewTransfer validates the receipt spec
+- **BR-33** [Minor] `deferred-effect-input-drift` Evidence replay silently skips pinned files whose HEAD version diverged from both base and pin
