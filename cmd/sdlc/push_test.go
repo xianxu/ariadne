@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"os"
@@ -210,7 +211,7 @@ func TestPreparedArchiveMovesDetectsUnstagedMove(t *testing.T) {
 	writeArchiveCandidate(t, "workshop/history/000036-done.md", "done")
 
 	status := " D workshop/issues/000036-done.md\n?? workshop/history/000036-done.md\n"
-	moves, other, err := preparedArchiveMoves(status, "workshop/issues", "workshop/history", "workshop/plans")
+	moves, other, err := preparedArchiveMoves(context.Background(), status, "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -232,7 +233,7 @@ func TestPreparedArchiveMovesRejectsNonTerminalHistoryFile(t *testing.T) {
 	writeArchiveCandidate(t, "workshop/history/000036-open.md", "open")
 
 	status := " D workshop/issues/000036-open.md\n?? workshop/history/000036-open.md\n"
-	moves, other, err := preparedArchiveMoves(status, "workshop/issues", "workshop/history", "workshop/plans")
+	moves, other, err := preparedArchiveMoves(context.Background(), status, "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +262,7 @@ func TestRecoverInterruptedArchiveCommitsAndPushes(t *testing.T) {
 	defer func() { pushRunner = prev }()
 
 	var stdout, stderr bytes.Buffer
-	recovered, err := recoverInterruptedArchive(&stdout, &stderr, &pushFlags{
+	recovered, err := recoverInterruptedArchive(context.Background(), &stdout, &stderr, &pushFlags{
 		IssuesDir:  "workshop/issues",
 		HistoryDir: "workshop/history",
 	})
@@ -334,7 +335,7 @@ func TestTouchedIssuesNotDone(t *testing.T) {
 	}
 
 	r := &notDoneRunner{touched: []byte("workshop/issues/000005-missing.md\nworkshop/issues/000001-working.md\nworkshop/issues/000002-done.md\nworkshop/issues/000003-open.md\nworkshop/issues/000004-cc.md\n")}
-	notDone, err := touchedIssuesNotDone("origin/main", issuesDir, r)
+	notDone, err := touchedIssuesNotDone(context.Background(), "origin/main", issuesDir, r)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -359,7 +360,7 @@ func TestTouchedIssuesNotDone(t *testing.T) {
 func TestTouchedIssuesNotDonePreservesGitOutputOnFailure(t *testing.T) {
 	cause := errors.New("exit status 128")
 	r := &notDoneRunner{touched: []byte("fatal: bad revision\n"), touchedErr: cause}
-	_, err := touchedIssuesNotDone("origin/main", "workshop/issues", r)
+	_, err := touchedIssuesNotDone(context.Background(), "origin/main", "workshop/issues", r)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -409,7 +410,7 @@ func TestArchiveDoneIssues_MovesAndClosesGH(t *testing.T) {
 	defer func() { ghClient = prev }()
 
 	var stderr bytes.Buffer
-	moves, err := archiveDoneIssues(&stderr, "owner/repo", issuesDir, historyDir, filepath.Join(issuesDir, "..", "plans"))
+	moves, err := archiveDoneIssues(context.Background(), &stderr, "owner/repo", issuesDir, historyDir, filepath.Join(issuesDir, "..", "plans"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -457,7 +458,7 @@ func TestPushPublishSequence_CodecompleteFlippedThenArchived(t *testing.T) {
 	}
 
 	// Step 6.5: flip codecomplete → done.
-	flipped, err := publishCodecompleteIssues(issuesDir)
+	flipped, err := publishCodecompleteIssues(context.Background(), issuesDir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -466,7 +467,7 @@ func TestPushPublishSequence_CodecompleteFlippedThenArchived(t *testing.T) {
 	}
 	// Step 7: archive (now terminal).
 	var stderr bytes.Buffer
-	moves, err := archiveDoneIssues(&stderr, "", issuesDir, historyDir, filepath.Join(issuesDir, "..", "plans"))
+	moves, err := archiveDoneIssues(context.Background(), &stderr, "", issuesDir, historyDir, filepath.Join(issuesDir, "..", "plans"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -599,7 +600,7 @@ func TestArchiveDoneIssues_NoneToArchive(t *testing.T) {
 	_ = os.WriteFile(p, []byte("---\nstatus: working\n---\n\n# x\n"), 0o644)
 
 	var stderr bytes.Buffer
-	moves, err := archiveDoneIssues(&stderr, "owner/repo", issuesDir, historyDir, filepath.Join(issuesDir, "..", "plans"))
+	moves, err := archiveDoneIssues(context.Background(), &stderr, "owner/repo", issuesDir, historyDir, filepath.Join(issuesDir, "..", "plans"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -697,7 +698,7 @@ func TestRecoverInterruptedArchive_SubfolderLayout(t *testing.T) {
 	defer func() { pushRunner = prev }()
 
 	var stdout, stderr bytes.Buffer
-	recovered, err := recoverInterruptedArchive(&stdout, &stderr, &pushFlags{
+	recovered, err := recoverInterruptedArchive(context.Background(), &stdout, &stderr, &pushFlags{
 		IssuesDir:  "workshop/issues",
 		HistoryDir: "workshop/history",
 		PlansDir:   "workshop/plans",

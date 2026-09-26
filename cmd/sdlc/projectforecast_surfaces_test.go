@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,7 +44,7 @@ func surfaceFixture(t *testing.T, hpw float64) string {
 func TestProjectShow_IncludesForecast(t *testing.T) {
 	dir := surfaceFixture(t, 55)
 	var out strings.Builder
-	if err := runProjectShow(&out, &out, &projectShowFlags{Slug: "demo", ProjectsDir: dir, BrainDir: "/nonexistent"}); err != nil {
+	if err := runProjectShow(context.Background(), &out, &out, &projectShowFlags{Slug: "demo", ProjectsDir: dir, BrainDir: "/nonexistent"}); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "forecast:") || !strings.Contains(out.String(), "lands ~2026-09-08") {
@@ -55,7 +56,7 @@ func TestProjectStatus_IncludesForecast(t *testing.T) {
 	dir := surfaceFixture(t, 55)
 	stubIssueLookup(t, map[string]float64{})
 	var out strings.Builder
-	if err := runProjectStatus(&out, &out, &projectStatusFlags{Slug: "demo", ProjectsDir: dir, BrainDir: "/nonexistent"}); err != nil {
+	if err := runProjectStatus(context.Background(), &out, &out, &projectStatusFlags{Slug: "demo", ProjectsDir: dir, BrainDir: "/nonexistent"}); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(out.String(), "forecast:") {
@@ -67,7 +68,7 @@ func TestProjectShow_NoBaselineQuietLine(t *testing.T) {
 	dir := surfaceFixture(t, 55)
 	t.Setenv("WF_THROUGHPUT_BASELINE", filepath.Join(t.TempDir(), "missing.tsv"))
 	var out strings.Builder
-	if err := runProjectShow(&out, &out, &projectShowFlags{Slug: "demo", ProjectsDir: dir, BrainDir: "/nonexistent"}); err != nil {
+	if err := runProjectShow(context.Background(), &out, &out, &projectShowFlags{Slug: "demo", ProjectsDir: dir, BrainDir: "/nonexistent"}); err != nil {
 		t.Fatalf("show must not fail without a baseline: %v", err)
 	}
 	if !strings.Contains(out.String(), "no blessed baseline") {

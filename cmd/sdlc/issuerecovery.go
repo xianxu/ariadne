@@ -160,6 +160,7 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 			return fmt.Errorf("receipt %s: %s operations are recovered by their own verb", r.Spec().Token, r.Operation())
 		}
 		final, err := tracker.Drive(r, step, adapter, receipts)
+		invalidateIssueRecords(env.ctx)
 		if errors.Is(err, tracker.ErrSupersededClose) && final.Discardable() {
 			// A newer close owns the card; this one never recorded anything.
 			if derr := receipts.Discard(final); derr != nil {

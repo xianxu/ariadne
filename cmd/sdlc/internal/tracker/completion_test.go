@@ -1,8 +1,8 @@
 package tracker
 
 import (
-	"strings"
 	"fmt"
+	"strings"
 	"testing"
 )
 

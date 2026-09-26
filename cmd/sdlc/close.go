@@ -439,7 +439,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// the engine can't measure — and for an ADOPTED value (#178): comparing
 		// the measurement against itself would just re-run the engine.
 		if !adopted && !f.skip("actual") {
-			if derr := checkActualDeviation(stderr, issueStr, v, mode); derr != nil {
+			if derr := checkActualDeviation(commandContext(f.Context), stderr, issueStr, v, mode); derr != nil {
 				die(stderr, derr.Error())
 			}
 		}
@@ -1521,12 +1521,12 @@ func emitLessonsReminder(stdout io.Writer) {
 // computeActualForCloseFn is the measurement seam for the omit-path (#178) —
 // a package var so tests can stub the engine (the file's validateChangedInstancesFn
 // pattern). Production resolves roots and runs the same engine as `sdlc actual`.
-var computeActualForCloseFn = func(issueStr string) actualResult {
+var computeActualForCloseFn = func(ctx context.Context, issueStr string) actualResult {
 	repoTop, brainAbs, err := resolveActualRoots()
 	if err != nil {
 		return actualResult{Status: actualError, Issue: issueStr, Detail: err.Error()}
 	}
-	return computeActual(repoTop, brainAbs, issueStr)
+	return computeActual(ctx, repoTop, brainAbs, issueStr)
 }
 
 // resolveOmittedActual is the pure omit-path decision (#178): adopt a measured
@@ -1557,7 +1557,7 @@ func formatAdoptLine(res actualResult) string {
 // statuses it returns ok=false with NO side effects — the caller explains
 // (reusing the same measurement) and exits.
 func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) (actualResult, bool) {
-	res := computeActualForCloseFn(issueStr)
+	res := computeActualForCloseFn(commandContext(f.Context), issueStr)
 	if mode == "milestone" {
 		// #178 close-review Important #1: per-milestone project detail blocks
 		// record per-milestone hours, but computeActual's window is ISSUE-scoped
@@ -1663,11 +1663,11 @@ func actualDeviation(passed, measured float64) (devVerdict, float64) {
 // refusal error. Milestone values are increments but the available measurement
 // is cumulative claim→HEAD, so they are deliberately skipped until a windowed
 // milestone measurement exists. Unavailable issue measurements also never gate.
-func checkActualDeviation(stderr io.Writer, issueStr string, passed float64, mode string) error {
+func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, mode string) error {
 	if mode == "milestone" {
 		return nil
 	}
-	res := computeActualForCloseFn(issueStr)
+	res := computeActualForCloseFn(ctx, issueStr)
 	if res.Status != actualMeasured {
 		return nil // can't measure → don't block (judgment path owns this)
 	}

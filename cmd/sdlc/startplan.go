@@ -53,7 +53,7 @@ func NewStartPlanCmd() *cobra.Command {
 					}
 				}
 				if path, err := locateIssueFile(issuesDir, issue); err == nil {
-					guardIssueNotDone(cmd.ErrOrStderr(), path, strconv.Itoa(issue)) // #176 done-issue guard
+					guardIssueNotDone(cmd.Context(), cmd.ErrOrStderr(), path, strconv.Itoa(issue)) // #176 done-issue guard
 				}
 			}
 			if issue > 0 {
@@ -61,7 +61,7 @@ func NewStartPlanCmd() *cobra.Command {
 					return err
 				}
 			}
-			runStartPlan(cmd.OutOrStdout(), issue)
+			runStartPlan(cmd.Context(), cmd.OutOrStdout(), issue)
 			return nil
 		},
 	}
@@ -70,7 +70,7 @@ func NewStartPlanCmd() *cobra.Command {
 }
 
 // runStartPlan emits the planning framing + the at-plan architecture lens.
-func runStartPlan(stdout io.Writer, issue int) {
+func runStartPlan(ctx context.Context, stdout io.Writer, issue int) {
 	label := "this issue"
 	if issue > 0 {
 		label = fmt.Sprintf("#%d", issue)
@@ -144,7 +144,7 @@ func runStartPlan(stdout io.Writer, issue int) {
 		}
 		fmt.Fprintln(stdout)
 		for _, up := range chain {
-			c := gatherBaseContention(up, issue)
+			c := gatherBaseContention(ctx, up, issue)
 			if c.Clean() {
 				cok(stdout, baseContentionSummary(c))
 			} else {
@@ -414,7 +414,7 @@ func substrateChain(root string) []string {
 // Blocking bucket, so a dirty tracker file is NOT counted, #82 M2) read via
 // `git -C root`, plus other status:working issues in that root's tracker
 // (excluding the one being planned). Run per repo on the dependency path.
-func gatherBaseContention(root string, excludeIssue int) baseContention {
+func gatherBaseContention(ctx context.Context, root string, excludeIssue int) baseContention {
 	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
 	historyDir := envOr("WF_HISTORY_DIR", "workshop/history")
 	c := baseContention{}
@@ -434,7 +434,7 @@ func gatherBaseContention(root string, excludeIssue int) baseContention {
 		c.DirtyCode = len(assessDirty(strings.TrimSpace(string(out)), issuesDir, historyDir).Blocking)
 	}
 	excludeID := fmt.Sprintf("%06d", excludeIssue)
-	if issues, err := listIssues(filepath.Join(root, issuesDir)); err == nil {
+	if issues, err := listIssues(ctx, filepath.Join(root, issuesDir)); err == nil {
 		for _, is := range issues {
 			// #122 carve-out: in-flight = "working" specifically (the contention warning
 			// is about actively-worked peers; blocked is waiting) — not a category test.

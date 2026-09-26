@@ -107,7 +107,7 @@ func NewStateCmd() *cobra.Command {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			f.IssuesExplicit = cmd.Flags().Changed("issues-dir")
 			f.HistoryExplicit = cmd.Flags().Changed("history-dir")
-			return runState(cmd.OutOrStdout(), &f)
+			return runState(cmd.Context(), cmd.OutOrStdout(), &f)
 		},
 	}
 	cmd.Flags().BoolVar(&f.JSON, "json", false, "emit JSON instead of human-readable prose")
@@ -118,7 +118,7 @@ func NewStateCmd() *cobra.Command {
 
 // ── main flow ───────────────────────────────────────────────────────────────
 
-func runState(stdout io.Writer, f *stateFlags) error {
+func runState(ctx context.Context, stdout io.Writer, f *stateFlags) error {
 	identity, err := resolveWorkspace(".")
 	if err != nil {
 		return err
@@ -138,7 +138,7 @@ func runState(stdout io.Writer, f *stateFlags) error {
 
 	issuesDir := defaultWorkspacePath(identity.WorktreeRoot, f.IssuesDir, f.IssuesExplicit)
 	historyDir := defaultWorkspacePath(identity.WorktreeRoot, f.HistoryDir, f.HistoryExplicit)
-	issues, stale, err := listIssueStates(issuesDir)
+	issues, stale, err := listIssueStates(ctx, issuesDir)
 	if err != nil {
 		return fmt.Errorf("list issues: %w", err)
 	}
@@ -228,16 +228,16 @@ var titleRE = regexp.MustCompile(`(?m)^# (.+)$`)
 // details file in issuesDir, plus
 // open cards whose details are not in this checkout (#252: a card-only issue is
 // still being created). Card-owned fields come from the card. Sorted by ID.
-func listIssues(issuesDir string) ([]IssueState, error) {
-	out, _, err := listIssueStates(issuesDir)
+func listIssues(ctx context.Context, issuesDir string) ([]IssueState, error) {
+	out, _, err := listIssueStates(ctx, issuesDir)
 	return out, err
 }
 
 // listIssueStates also reports whether the cards came from a stale tracker read.
 // The repository is the one containing issuesDir (a dependency's, for
 // start-plan's contention check).
-func listIssueStates(issuesDir string) ([]IssueState, bool, error) {
-	rs, err := loadIssueRecords(context.Background(), issuesDir, tracker.PreferFresh)
+func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool, error) {
+	rs, err := loadIssueRecords(ctx, issuesDir, tracker.PreferFresh)
 	if err != nil {
 		return nil, false, err
 	}

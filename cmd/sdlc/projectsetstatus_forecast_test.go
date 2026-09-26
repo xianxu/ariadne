@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -46,7 +47,7 @@ func TestSetStatusCommit_ComputesAndDerivesPlannedFinish(t *testing.T) {
 	dir := commitFixture(t, 55)
 	var out strings.Builder
 	f := &projectSetStatusFlags{Slug: "demo", To: "committed", ProjectsDir: dir, BrainDir: "/nonexistent-brain"}
-	if err := runProjectSetStatus(&out, &out, f); err != nil {
+	if err := runProjectSetStatus(context.Background(), &out, &out, f); err != nil {
 		t.Fatalf("commit: %v\n%s", err, out.String())
 	}
 	if !strings.Contains(out.String(), "forecast:") {
@@ -76,7 +77,7 @@ func TestSetStatusCommit_PreExistingPlannedFinishKept(t *testing.T) {
 
 	var out strings.Builder
 	f := &projectSetStatusFlags{Slug: "demo", To: "committed", ProjectsDir: dir, BrainDir: "/nonexistent-brain"}
-	if err := runProjectSetStatus(&out, &out, f); err != nil {
+	if err := runProjectSetStatus(context.Background(), &out, &out, f); err != nil {
 		t.Fatalf("commit: %v\n%s", err, out.String())
 	}
 	got, _ := os.ReadFile(p)
@@ -92,7 +93,7 @@ func TestSetStatusCommit_ExplicitPlannedFinishWins(t *testing.T) {
 	dir := commitFixture(t, 55)
 	var out strings.Builder
 	f := &projectSetStatusFlags{Slug: "demo", To: "committed", PlannedFinish: "2026-10-01", ProjectsDir: dir, BrainDir: "/nonexistent-brain"}
-	if err := runProjectSetStatus(&out, &out, f); err != nil {
+	if err := runProjectSetStatus(context.Background(), &out, &out, f); err != nil {
 		t.Fatalf("commit: %v\n%s", err, out.String())
 	}
 	got, _ := os.ReadFile(filepath.Join(dir, "demo.md"))
@@ -109,7 +110,7 @@ func TestSetStatusCommit_NoBaselineRefusesWithHint(t *testing.T) {
 	t.Setenv("WF_THROUGHPUT_BASELINE", filepath.Join(t.TempDir(), "missing.tsv"))
 	var out strings.Builder
 	f := &projectSetStatusFlags{Slug: "demo", To: "committed", ProjectsDir: dir, BrainDir: "/nonexistent-brain"}
-	err := runProjectSetStatus(&out, &out, f)
+	err := runProjectSetStatus(context.Background(), &out, &out, f)
 	if err == nil || !strings.Contains(err.Error(), "reality-check") {
 		t.Fatalf("no baseline + no --reality should refuse on the guard: %v", err)
 	}
@@ -129,7 +130,7 @@ func TestSetStatusCommit_NoBaselineWithRealityPasses(t *testing.T) {
 
 	var out strings.Builder
 	f := &projectSetStatusFlags{Slug: "demo", To: "committed", Reality: "fits, checked manually", ProjectsDir: dir, BrainDir: "/nonexistent-brain"}
-	if err := runProjectSetStatus(&out, &out, f); err != nil {
+	if err := runProjectSetStatus(context.Background(), &out, &out, f); err != nil {
 		t.Fatalf("no baseline + --reality should pass (legacy fallback): %v\n%s", err, out.String())
 	}
 	got, _ := os.ReadFile(filepath.Join(dir, "demo.md"))
@@ -152,7 +153,7 @@ func TestSetStatusCommit_AlreadyCommittedNoBaselineNoOp(t *testing.T) {
 
 	var out strings.Builder
 	f := &projectSetStatusFlags{Slug: "demo", To: "committed", ProjectsDir: dir, BrainDir: "/nonexistent-brain"}
-	if err := runProjectSetStatus(&out, &out, f); err != nil {
+	if err := runProjectSetStatus(context.Background(), &out, &out, f); err != nil {
 		t.Fatalf("re-committing with no baseline should be a clean no-op, got: %v", err)
 	}
 	if strings.Contains(out.String(), "forecast:") {
@@ -167,7 +168,7 @@ func TestSetStatusNonCommit_Untouched(t *testing.T) {
 	_ = path
 	var out strings.Builder
 	f := &projectSetStatusFlags{Slug: "demo", To: "defined", ProjectsDir: dir, BrainDir: "/nonexistent-brain"}
-	if err := runProjectSetStatus(&out, &out, f); err != nil {
+	if err := runProjectSetStatus(context.Background(), &out, &out, f); err != nil {
 		t.Fatalf("defined transition: %v", err)
 	}
 	if strings.Contains(out.String(), "forecast:") {

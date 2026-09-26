@@ -73,7 +73,7 @@ type actualResult struct {
 // brain/repo transcript dirs, run activetime.Compute, and classify the result.
 // Runs git via the cwd (gitx.CommitWindow), so the caller should be inside
 // repoTop.
-func computeActual(repoTop, brainAbs, issueNum string) actualResult {
+func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actualResult {
 	res := actualResult{Issue: issueNum}
 	identity, err := resolveWorkspace(repoTop)
 	if err != nil {
@@ -84,7 +84,7 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 
 	// #252: the tracker's card commits (claim, close) are this issue's activity
 	// too, and its card holds the authoritative `started` stamp.
-	trackerRefs, cardStarted, carded := actualTrackerInputs(repoTop, issueNum)
+	trackerRefs, cardStarted, carded := actualTrackerInputs(ctx, repoTop, issueNum)
 	firstSHA, firstISO, lastISO, _ := gitx.CommitWindow(issueNum, trackerRefs...)
 	if firstSHA == "" {
 		res.Status = actualNoWindow
@@ -145,12 +145,11 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 // actualTrackerInputs reads the tracker for active-time (#252): the tracking ref
 // whose history holds the claim/close commits, and the card's `started` stamp.
 // carded is false without a tracker (or card), leaving the legacy anchors.
-func actualTrackerInputs(repoTop, issueNum string) (refs []string, started string, carded bool) {
+func actualTrackerInputs(ctx context.Context, repoTop, issueNum string) (refs []string, started string, carded bool) {
 	id, err := strconv.Atoi(issueNum)
 	if err != nil {
 		return nil, "", false
 	}
-	ctx := context.Background()
 	repo, err := recordsRepository(ctx, repoTop)
 	if err != nil || repo == nil {
 		return nil, "", false
@@ -300,7 +299,7 @@ func NewActualCmd() *cobra.Command {
 				die(stderr, err.Error())
 			}
 			brainAbs, _ := filepath.Abs(brainDir)
-			res := computeActual(repoTop, brainAbs, strconv.Itoa(issue))
+			res := computeActual(cmd.Context(), repoTop, brainAbs, strconv.Itoa(issue))
 			printActual(stderr, res)
 			return nil
 		},

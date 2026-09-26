@@ -74,7 +74,7 @@ func TestLandingPublishGateIndependentlyPublishedBody(t *testing.T) {
 			}
 			pr := landingPR{HeadOID: gitx.Capture("rev-parse", "HEAD"), BaseOID: prBase}
 			// The prior body-diff enumeration demonstrably overlooks this owned close.
-			omitted, err := mergedCodecompleteIssues(prBase, "workshop/issues")
+			omitted, err := mergedCodecompleteIssues(context.Background(), prBase, "workshop/issues")
 			if err != nil || len(omitted) != 0 {
 				t.Fatalf("fixture not independently published: %v %v", omitted, err)
 			}

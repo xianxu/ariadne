@@ -31,7 +31,7 @@ func (e *issueFileScanError) Error() string { return e.Err.Error() }
 
 func (e *issueFileScanError) Unwrap() error { return e.Err }
 
-func scanIssueFiles(baseRef, issuesDir string, runGit func(...string) ([]byte, error)) ([]issueFileRef, error) {
+func scanIssueFiles(ctx context.Context, baseRef, issuesDir string, runGit func(...string) ([]byte, error)) ([]issueFileRef, error) {
 	var paths []string
 	if baseRef != "" {
 		out, err := runGit("diff", "--name-only", baseRef+"..HEAD", "--", issuesDir+"/*.md")
@@ -62,17 +62,17 @@ func scanIssueFiles(baseRef, issuesDir string, runGit func(...string) ([]byte, e
 			Body:        body,
 		})
 	}
-	return overlayCardStatus(issuesDir, refs)
+	return overlayCardStatus(ctx, issuesDir, refs)
 }
 
 // overlayCardStatus replaces each file's status with its card's where the
 // repository has a tracker (#252): selection by status (codecomplete, terminal)
 // must never read a mirror. A details file without a card has no known status.
-func overlayCardStatus(issuesDir string, refs []issueFileRef) ([]issueFileRef, error) {
+func overlayCardStatus(ctx context.Context, issuesDir string, refs []issueFileRef) ([]issueFileRef, error) {
 	if len(refs) == 0 {
 		return refs, nil
 	}
-	rs, err := loadIssueRecords(context.Background(), issuesDir, tracker.Fresh)
+	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
 	if err != nil {
 		return nil, err
 	}

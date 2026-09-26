@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -156,7 +157,7 @@ func TestArchiveDoneIssues_UntrackedSidecar_RealRepo(t *testing.T) {
 	mkArtifact(t, filepath.Join(plans, "000154-x-close-review.md"), "untracked sidecar")
 
 	var stderr bytes.Buffer
-	moves, err := archiveDoneIssues(&stderr, "", issues, history, plans)
+	moves, err := archiveDoneIssues(context.Background(), &stderr, "", issues, history, plans)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -218,7 +219,7 @@ func TestArchiveDoneIssuesInDir_UntrackedSidecar_RealRepo(t *testing.T) {
 	mkArtifact(t, filepath.Join(mainPath, plans, "000154-x-close-review.md"), "untracked sidecar")
 
 	var stderr bytes.Buffer
-	moves, err := archiveDoneIssuesInDir(&stderr, "", mainPath, issues, history, plans)
+	moves, err := archiveDoneIssuesInDir(context.Background(), &stderr, "", mainPath, issues, history, plans)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -288,7 +289,7 @@ func TestArchiveDoneIssues_SweepsPlanArtifacts(t *testing.T) {
 	mkArtifact(t, filepath.Join(plans, "000144-y-plan.md"), "plan-open")
 
 	var stderr bytes.Buffer
-	moves, err := archiveDoneIssues(&stderr, "", issues, history, plans)
+	moves, err := archiveDoneIssues(context.Background(), &stderr, "", issues, history, plans)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -326,7 +327,7 @@ func TestArchiveDoneIssuesInDir_SweepsPlanArtifacts(t *testing.T) {
 	mkArtifact(t, filepath.Join(tmp, plans, "000144-y-plan.md"), "open plan")
 
 	var stderr bytes.Buffer
-	moves, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, issues, history, plans)
+	moves, err := archiveDoneIssuesInDir(context.Background(), &stderr, "owner/repo", tmp, issues, history, plans)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -369,7 +370,7 @@ func TestPreparedArchiveMoves_RecoversPlanArtifacts(t *testing.T) {
 		"?? workshop/history/000143-x.md\n" +
 		" D workshop/plans/000143-x-plan.md\n" +
 		"?? workshop/history/000143-x-plan.md\n"
-	moves, other, err := preparedArchiveMoves(status, "workshop/issues", "workshop/history", "workshop/plans")
+	moves, other, err := preparedArchiveMoves(context.Background(), status, "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}

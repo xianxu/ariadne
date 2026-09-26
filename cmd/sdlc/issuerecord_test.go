@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,7 +16,7 @@ func TestListIssuesComposesCardsWithDetails(t *testing.T) {
 	c11 = strings.Replace(c11, "status: open", "status: done\nactual_hours: 1", 1)
 	r := newTrackerRepo(t, map[string]string{cp9: c9, cp10: c10, cp11: c11}, map[string]string{dp9: d9})
 	retitleElsewhere(t, r, "000009", "Card Title Wins")
-	got, stale, err := listIssueStates(filepath.Join(r.root, "workshop/issues"))
+	got, stale, err := listIssueStates(context.Background(), filepath.Join(r.root, "workshop/issues"))
 	if err != nil || stale {
 		t.Fatalf("list: %v stale=%v", err, stale)
 	}
@@ -30,7 +31,7 @@ func TestListIssuesComposesCardsWithDetails(t *testing.T) {
 	}
 
 	git(t, r.root, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
-	got, stale, err = listIssueStates(filepath.Join(r.root, "workshop/issues"))
+	got, stale, err = listIssueStates(context.Background(), filepath.Join(r.root, "workshop/issues"))
 	if err != nil || !stale || len(got) != 2 || got[0].Title != "Card Title Wins" {
 		t.Fatalf("offline read: %+v stale=%v err=%v", got, stale, err)
 	}
@@ -50,14 +51,14 @@ func TestProjectIssueMetaReadsCardFieldsAndDetailDeps(t *testing.T) {
 	d9 = strings.Replace(d9, "estimate_hours:", "estimate_hours: 99", 1) // stale mirror, must not count
 	cp10, c10, _, _ := seededIssue(t, "000010", "card-only")
 	r := newTrackerRepo(t, map[string]string{cp9: c9, cp10: c10}, map[string]string{dp9: d9})
-	meta, err := lookupIssueMeta(filepath.Base(r.root)+"#9", r.root)
+	meta, err := lookupIssueMeta(context.Background(), filepath.Base(r.root)+"#9", r.root)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if meta.Status != "open" || meta.EstimateHours != 4 || len(meta.Deps) != 1 || meta.Deps[0] != "r#10" || meta.DepsUnknown {
 		t.Fatalf("#9 meta: %+v", meta)
 	}
-	only, err := lookupIssueMeta(filepath.Base(r.root)+"#10", r.root)
+	only, err := lookupIssueMeta(context.Background(), filepath.Base(r.root)+"#10", r.root)
 	if err != nil || only.Status != "open" || !only.DepsUnknown {
 		t.Fatalf("card-only meta: %+v %v", only, err)
 	}
@@ -70,11 +71,42 @@ func TestActualTrackerInputsUseTheCardStamp(t *testing.T) {
 	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9)); err != nil {
 		t.Fatal(err)
 	}
-	refs, started, carded := actualTrackerInputs(r.root, "9")
+	refs, started, carded := actualTrackerInputs(context.Background(), r.root, "9")
 	if !carded || started == "" || len(refs) != 1 || refs[0] != "refs/remotes/origin/issue-tracker" {
 		t.Fatalf("refs %v started %q carded %v", refs, started, carded)
 	}
 	if !strings.Contains(r.card(cardPath), "started: "+started) {
 		t.Fatalf("started %q is not the card's stamp", started)
+	}
+}
+
+// BR-24: one tracker fetch per command. Within a command's records scope a
+// second read is served without network IO; a card write invalidates it; a
+// stale (offline) read never satisfies a fresh request.
+func TestRecordsScopeFetchesOncePerCommand(t *testing.T) {
+	cardPath, card, _, _ := seededIssue(t, "000009", "nine")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, nil)
+	dir := filepath.Join(r.root, "workshop/issues")
+	ctx := withIssueRecordsScope(context.Background())
+	if _, err := loadIssueRecords(ctx, dir, tracker.Fresh); err != nil {
+		t.Fatal(err)
+	}
+	git(t, r.root, "remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+	if rs, err := loadIssueRecords(ctx, dir, tracker.Fresh); err != nil || !rs.Tracker {
+		t.Fatalf("second read in the command fetched again: %v", err)
+	}
+	if _, err := loadIssueRecords(context.Background(), dir, tracker.Fresh); err == nil {
+		t.Fatal("fixture: an unscoped fresh read should need the (gone) remote")
+	}
+	invalidateIssueRecords(ctx)
+	if _, err := loadIssueRecords(ctx, dir, tracker.Fresh); err == nil {
+		t.Fatal("a read after a card write reused the invalidated view")
+	}
+	stale, err := loadIssueRecords(ctx, dir, tracker.PreferFresh)
+	if err != nil || !stale.Stale {
+		t.Fatalf("offline preferred read: %+v %v", stale, err)
+	}
+	if _, err := loadIssueRecords(ctx, dir, tracker.Fresh); err == nil {
+		t.Fatal("a cached stale view satisfied a fresh request")
 	}
 }

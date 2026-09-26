@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ func TestLookupIssueMetaCrossRepoAndArchive(t *testing.T) {
 	}
 	projectWorkspaceGit(t, root, "init", "-b", "main")
 	projectWorkspaceGit(t, peer, "init", "-b", "main")
-	meta, err := lookupIssueMeta("nous#7", root)
+	meta, err := lookupIssueMeta(context.Background(), "nous#7", root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,11 +62,11 @@ func TestLookupIssueMetaCanonicalizesPeerPrefixAliases(t *testing.T) {
 	}
 	projectWorkspaceGit(t, root, "init", "-b", "main")
 	projectWorkspaceGit(t, filepath.Join(parent, "parley.nvim"), "init", "-b", "main")
-	prefix, err := lookupIssueMeta("parley#3", root)
+	prefix, err := lookupIssueMeta(context.Background(), "parley#3", root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	full, err := lookupIssueMeta("parley.nvim#3", root)
+	full, err := lookupIssueMeta(context.Background(), "parley.nvim#3", root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +92,7 @@ func TestMalformedIssueEstimateDegradesToBoardWarning(t *testing.T) {
 	projectWorkspaceGit(t, root, "init", "-b", "main")
 	projectWorkspaceGit(t, filepath.Join(parent, "nous"), "init", "-b", "main")
 	d := boardDoc(t, "- [ ] malformed estimate [nous#8]")
-	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return lookupIssueMeta(ref, root) })
+	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return lookupIssueMeta(context.Background(), ref, root) })
 	if err != nil {
 		t.Fatal(err)
 	}

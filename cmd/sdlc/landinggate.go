@@ -67,7 +67,7 @@ func runLandingPublishGate(ctx context.Context, pr landingPR, issuesDir string, 
 	if rel == "." {
 		return fmt.Errorf("landing publish gate requires a scoped issues directory")
 	}
-	selected, err := selectLandingIssues(root, pr, rel)
+	selected, err := selectLandingIssues(ctx, root, pr, rel)
 	if err != nil {
 		return err
 	}

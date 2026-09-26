@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"testing"
@@ -36,7 +37,7 @@ func stubIssueLookup(t *testing.T, estimates map[string]float64) {
 	t.Helper()
 	orig := projectIssueLookupFn
 	t.Cleanup(func() { projectIssueLookupFn = orig })
-	projectIssueLookupFn = func(ref, _ string) (issueMeta, error) {
+	projectIssueLookupFn = func(_ context.Context, ref, _ string) (issueMeta, error) {
 		if h, ok := estimates[ref]; ok {
 			return issueMeta{Identity: ref, Status: "working", EstimateHours: h}, nil
 		}
@@ -59,7 +60,7 @@ func TestListFleetProjects(t *testing.T) {
 		"nous#9":  14,
 	})
 
-	loads := ListFleetProjects(parent, subject)
+	loads := ListFleetProjects(context.Background(), parent, subject)
 	byName := map[string]projectdoc.ProjectLoad{}
 	for _, l := range loads {
 		byName[l.Name] = l
@@ -93,12 +94,12 @@ func TestListFleetProjects_AllTerminalReadsBoardZero(t *testing.T) {
 
 	orig := projectIssueLookupFn
 	t.Cleanup(func() { projectIssueLookupFn = orig })
-	projectIssueLookupFn = func(ref, _ string) (issueMeta, error) {
+	projectIssueLookupFn = func(_ context.Context, ref, _ string) (issueMeta, error) {
 		// kbench#1 resolves to a terminal (done) issue → board remaining 0.
 		return issueMeta{Identity: ref, Status: "done", EstimateHours: 5}, nil
 	}
 
-	loads := ListFleetProjects(parent, subject)
+	loads := ListFleetProjects(context.Background(), parent, subject)
 	var bd projectdoc.ProjectLoad
 	for _, l := range loads {
 		if l.Name == "burned-down" {
@@ -171,7 +172,7 @@ func TestForecastForProject_NoBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, _, ferr := forecastForProject(d, subject, "/nonexistent-brain", "2026-09-01")
+	_, _, ferr := forecastForProject(context.Background(), d, subject, "/nonexistent-brain", "2026-09-01")
 	if ferr != errNoBaseline {
 		t.Errorf("want errNoBaseline, got %v", ferr)
 	}
@@ -204,7 +205,7 @@ func TestForecastForProject_RelativePathResolvesVantage(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, _, ferr := forecastForProject(d, relPath, "/nonexistent-brain", "2026-09-01")
+	f, _, ferr := forecastForProject(context.Background(), d, relPath, "/nonexistent-brain", "2026-09-01")
 	if ferr != nil {
 		t.Fatalf("relative path should forecast (Phase-A 55h): %v", ferr)
 	}
@@ -229,7 +230,7 @@ func TestForecastForProject_WithBaseline(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, deadline, ferr := forecastForProject(d, subject, "/nonexistent-brain", "2026-09-01")
+	f, deadline, ferr := forecastForProject(context.Background(), d, subject, "/nonexistent-brain", "2026-09-01")
 	if ferr != nil {
 		t.Fatalf("forecast: %v", ferr)
 	}

@@ -322,6 +322,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 			return err
 		}
 		r, err = tracker.Drive(r, tracker.CreationStepper, op, receipts)
+		invalidateIssueRecords(env.ctx)
 		if err == nil || !errors.Is(err, tracker.ErrIDTaken) || !r.Discardable() || attempt == tracker.MaxPublicationAttempts {
 			break
 		}
@@ -458,7 +459,7 @@ working set + drift.`,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runIssueList(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runIssueList(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	}
 	cmd.Flags().StringVar(&f.Status, "status", "", "filter to this status (open|working|blocked|done|wontfix|punt)")
@@ -468,11 +469,11 @@ working set + drift.`,
 
 // runIssueList reuses state.go's listIssues (which reads + sorts by ID)
 // rather than re-deriving the scan/sort.
-func runIssueList(stdout, stderr io.Writer, f *issueListFlags) error {
+func runIssueList(ctx context.Context, stdout, stderr io.Writer, f *issueListFlags) error {
 	if f.Status != "" && !isValidStatus(f.Status) {
 		die(stderr, fmt.Sprintf("invalid status %q (valid: %s)", f.Status, strings.Join(vocab.Issue().AllStatuses(), ", ")))
 	}
-	issues, err := listIssues(f.IssuesDir)
+	issues, err := listIssues(ctx, f.IssuesDir)
 	if err != nil {
 		die(stderr, fmt.Sprintf("list issues: %v", err))
 	}
@@ -509,19 +510,19 @@ without loading the whole file.`,
 		Args:          cobra.ExactArgs(1),
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runIssueShow(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args[0])
+			return runIssueShow(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args[0])
 		},
 	}
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	return cmd
 }
 
-func runIssueShow(stdout, stderr io.Writer, f *issueShowFlags, arg string) error {
+func runIssueShow(ctx context.Context, stdout, stderr io.Writer, f *issueShowFlags, arg string) error {
 	id, err := strconv.Atoi(arg)
 	if err != nil || id <= 0 {
 		die(stderr, fmt.Sprintf("invalid issue id %q (want a positive number, e.g. 56)", arg))
 	}
-	rs, err := loadIssueRecords(context.Background(), f.IssuesDir, tracker.PreferFresh)
+	rs, err := loadIssueRecords(ctx, f.IssuesDir, tracker.PreferFresh)
 	if err != nil {
 		die(stderr, err.Error())
 	}

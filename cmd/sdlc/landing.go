@@ -436,7 +436,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if err = completeLandingPR(commandContext(f.Context), t.Root, f.IssuesDir, pr); err != nil {
 		return err
 	}
-	complete, err := landingArchiveComplete(t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
+	complete, err := landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
 	if err != nil {
 		return err
 	}
@@ -445,14 +445,14 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 		return err
 	}
 	if action == landingArchive {
-		if err = archiveLandingPR(t.Root, t.Remote, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir); err != nil {
+		if err = archiveLandingPR(ctx, t.Root, t.Remote, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir); err != nil {
 			return err
 		}
 		mainOID, err = t.fetchMain(r)
 		if err != nil {
 			return err
 		}
-		complete, err = landingArchiveComplete(t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
+		complete, err = landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
 		if err != nil {
 			return err
 		}
@@ -473,6 +473,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 }
 
 func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
+	ctx := commandContext(f.Context)
 	branch, _, err := landingIssueBranch(prRunner, t, "")
 	if err != nil {
 		return err
@@ -496,7 +497,7 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	if err != nil {
 		return err
 	}
-	body := combineBody(commits, formatFixes(collectGitHubIssueNumbers(splitNonEmptyLines(changedPaths))))
+	body := combineBody(commits, formatFixes(collectGitHubIssueNumbers(ctx, splitNonEmptyLines(changedPaths))))
 	if f.DryRun {
 		fmt.Fprintf(stdout, "Would: git push -u %s %s\nWould: gh pr create --repo %s --base main --head %s\n%s\n", t.Remote, branch, t.Repo, branch, body)
 		return nil

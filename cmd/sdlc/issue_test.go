@@ -45,7 +45,7 @@ func TestRunIssueList_SortsAndFilters(t *testing.T) {
 	writeIssueFile(t, issues, "000002", "open", "Second")
 
 	var stdout, stderr bytes.Buffer
-	if err := runIssueList(&stdout, &stderr, &issueListFlags{IssuesDir: issues}); err != nil {
+	if err := runIssueList(context.Background(), &stdout, &stderr, &issueListFlags{IssuesDir: issues}); err != nil {
 		t.Fatalf("runIssueList err: %v", err)
 	}
 	lines := strings.Split(strings.TrimSpace(stdout.String()), "\n")
@@ -57,7 +57,7 @@ func TestRunIssueList_SortsAndFilters(t *testing.T) {
 	}
 
 	var so, se bytes.Buffer
-	if err := runIssueList(&so, &se, &issueListFlags{IssuesDir: issues, Status: "working"}); err != nil {
+	if err := runIssueList(context.Background(), &so, &se, &issueListFlags{IssuesDir: issues, Status: "working"}); err != nil {
 		t.Fatalf("runIssueList filter err: %v", err)
 	}
 	if !strings.Contains(so.String(), "000003") || strings.Contains(so.String(), "000001") {
@@ -73,7 +73,7 @@ func TestRunIssueShow_HeadersNotBodies(t *testing.T) {
 
 	for _, arg := range []string{"5", "000005"} {
 		var stdout, stderr bytes.Buffer
-		if err := runIssueShow(&stdout, &stderr, &issueShowFlags{IssuesDir: issues}, arg); err != nil {
+		if err := runIssueShow(context.Background(), &stdout, &stderr, &issueShowFlags{IssuesDir: issues}, arg); err != nil {
 			t.Fatalf("runIssueShow(%q) err: %v", arg, err)
 		}
 		out := stdout.String()

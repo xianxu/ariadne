@@ -112,6 +112,7 @@ func completeOnCard(env *trackerEnv, oc ownedCompletion, landed string) error {
 	err := env.repo.ChangeCard(oc.ID, oc.Card.Path, "done", operationToken("done"), func(current []byte) ([]byte, error) {
 		return doneCard(current, oc.Binding.Token, landed, today)
 	})
+	invalidateIssueRecords(env.ctx) // the archive that follows must see done
 	if errors.Is(err, tracker.ErrNoChange) {
 		return nil
 	}

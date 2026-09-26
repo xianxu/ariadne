@@ -276,6 +276,7 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 	}
 	op := tracker.NewCompletionOp(env.ctx, env.repo, env.branchRef(), gitEvidence{env}, time.Now().Format("2006-01-02"), env.ancestorOf)
 	final, err := tracker.Drive(c.Receipt(), tracker.CompletionStepper, op, receipts)
+	invalidateIssueRecords(env.ctx)
 	if err != nil {
 		return fmt.Errorf("%w\n      the close is recorded; finish it with `sdlc issue recovery reconcile --issue %s`", err, issue.CLIRef(id))
 	}

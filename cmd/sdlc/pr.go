@@ -55,6 +55,7 @@ func NewPRCmd() *cobra.Command {
 
 // runPR dispatches the pr workflow.
 func runPR(stdout, stderr io.Writer, f *prFlags) error {
+	ctx := commandContext(f.Context)
 	// #252: a PR must not carry a change to handed-off details (checked again at
 	// merge against the then-current main).
 	if err := guardTransferredDetailsFn(commandContext(f.Context)); err != nil {
@@ -90,7 +91,7 @@ func runPR(stdout, stderr io.Writer, f *prFlags) error {
 	if err != nil {
 		die(stderr, fmt.Sprintf("scan touched issues: %v", err))
 	}
-	ghNums := collectGitHubIssueNumbers(touched)
+	ghNums := collectGitHubIssueNumbers(ctx, touched)
 
 	// ── 4. Build commits + fixes body ───────────────────────────────────────
 	commits := gitCommitsSince(base, prRunner)
@@ -151,7 +152,7 @@ func touchedIssueFiles(baseRef, issuesDir string, r gitRunner) ([]string, error)
 // in ascending numeric order (matches the shell's `sort -u`).
 //
 // Missing files are skipped silently — the shell target uses `[ -f ]`.
-func collectGitHubIssueNumbers(paths []string) []string {
+func collectGitHubIssueNumbers(ctx context.Context, paths []string) []string {
 	seen := map[string]struct{}{}
 	records := map[string]tracker.Records{} // per details directory
 	for _, p := range paths {
@@ -163,7 +164,7 @@ func collectGitHubIssueNumbers(paths []string) []string {
 		rs, loaded := records[dir]
 		if !loaded {
 			var err error
-			if rs, err = loadIssueRecords(context.Background(), dir, tracker.PreferFresh); err != nil {
+			if rs, err = loadIssueRecords(ctx, dir, tracker.PreferFresh); err != nil {
 				continue
 			}
 			records[dir] = rs

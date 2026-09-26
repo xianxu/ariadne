@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"math"
 	"os"
@@ -22,7 +23,7 @@ func TestProjectCloseRequiresExecutingAndPointsPausedAtResume(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.status, func(t *testing.T) {
 			f, _, _ := projectCloseFixture(t, tt.status, true, true)
-			if err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), tt.want) {
+			if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), tt.want) {
 				t.Fatalf("runProjectClose error = %v, want containing %q", err, tt.want)
 			}
 		})
@@ -31,13 +32,13 @@ func TestProjectCloseRequiresExecutingAndPointsPausedAtResume(t *testing.T) {
 
 func TestProjectCloseRequiresRetroUnlessBypassed(t *testing.T) {
 	f, _, _ := projectCloseFixture(t, "executing", false, true)
-	if err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), "--no-retro") {
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), "--no-retro") {
 		t.Fatalf("runProjectClose error = %v, want --no-retro pointer", err)
 	}
 	f.NoRetro = true
 	f.NoLedger = true
 	var stderr bytes.Buffer
-	if err := runProjectClose(&bytes.Buffer{}, &stderr, f); err != nil {
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &stderr, f); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(stderr.String(), "--no-retro (or --force)") {
@@ -53,7 +54,7 @@ func TestProjectCloseRecordsFogAndArchives(t *testing.T) {
 	originalToday := projectTodayFn
 	projectTodayFn = func() string { return "2026-07-16" }
 	originalLookup := projectIssueLookupFn
-	projectIssueLookupFn = func(ref, _ string) (issueMeta, error) {
+	projectIssueLookupFn = func(_ context.Context, ref, _ string) (issueMeta, error) {
 		return map[string]issueMeta{
 			"ariadne#1": {ActualHours: 10, ActualAvailable: true},
 			"ariadne#2": {ActualHours: 30, ActualAvailable: true},
@@ -65,7 +66,7 @@ func TestProjectCloseRecordsFogAndArchives(t *testing.T) {
 	})
 
 	var stdout, stderr bytes.Buffer
-	if err := runProjectClose(&stdout, &stderr, f); err != nil {
+	if err := runProjectClose(context.Background(), &stdout, &stderr, f); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := os.Stat(projectPath); !os.IsNotExist(err) {
@@ -137,11 +138,11 @@ func TestProjectCloseReadsQuotedStatusAndBlockMVPScope(t *testing.T) {
 		t.Fatal(err)
 	}
 	original := projectIssueLookupFn
-	projectIssueLookupFn = func(string, string) (issueMeta, error) {
+	projectIssueLookupFn = func(context.Context, string, string) (issueMeta, error) {
 		return issueMeta{ActualHours: 20, ActualAvailable: true}, nil
 	}
 	t.Cleanup(func() { projectIssueLookupFn = original })
-	if err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
 		t.Fatal(err)
 	}
 	archived, err := os.ReadFile(filepath.Join(f.HistoryDir, "projects", "alpha.md"))
@@ -154,7 +155,7 @@ func TestProjectCloseFailsClosedOnUnknownModeledGuard(t *testing.T) {
 	f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
 	original := projectCloseTransitionFn
 	originalLookup := projectIssueLookupFn
-	projectIssueLookupFn = func(string, string) (issueMeta, error) {
+	projectIssueLookupFn = func(context.Context, string, string) (issueMeta, error) {
 		return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
 	}
 	projectCloseTransitionFn = func(from, event string) *vocab.Transition {
@@ -167,7 +168,7 @@ func TestProjectCloseFailsClosedOnUnknownModeledGuard(t *testing.T) {
 		projectIssueLookupFn = originalLookup
 	})
 
-	err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+	err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f)
 	if err == nil || !strings.Contains(err.Error(), `unknown project close guard "future-close-guard"`) {
 		t.Fatalf("runProjectClose error = %v, want unknown modeled guard refusal", err)
 	}
@@ -205,9 +206,10 @@ func TestProjectCloseRefusesIncompleteActualsUnlessLedgerBypassed(t *testing.T) 
 		t.Run(tt.name, func(t *testing.T) {
 			f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
 			original := projectIssueLookupFn
-			projectIssueLookupFn = tt.lookup
+			lookup := tt.lookup
+			projectIssueLookupFn = func(_ context.Context, ref, root string) (issueMeta, error) { return lookup(ref, root) }
 			t.Cleanup(func() { projectIssueLookupFn = original })
-			err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+			err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f)
 			if err == nil || !strings.Contains(err.Error(), "incomplete MVP actuals") || !strings.Contains(err.Error(), "--no-ledger") {
 				t.Fatalf("runProjectClose error = %v, want incomplete-actual refusal", err)
 			}
@@ -222,10 +224,10 @@ func TestProjectCloseNoLedgerAllowsIncompleteActualsButLogsNA(t *testing.T) {
 	f, _, _ := projectCloseFixture(t, "executing", true, true)
 	f.NoLedger = true
 	original := projectIssueLookupFn
-	projectIssueLookupFn = func(string, string) (issueMeta, error) { return issueMeta{}, nil }
+	projectIssueLookupFn = func(context.Context, string, string) (issueMeta, error) { return issueMeta{}, nil }
 	t.Cleanup(func() { projectIssueLookupFn = original })
 	var stderr bytes.Buffer
-	if err := runProjectClose(&bytes.Buffer{}, &stderr, f); err != nil {
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &stderr, f); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(f.HistoryDir, "projects", "alpha.md"))
@@ -241,10 +243,10 @@ func TestProjectCloseRejectsNonFiniteActuals(t *testing.T) {
 	for _, actual := range []float64{math.NaN(), math.Inf(1), math.Inf(-1)} {
 		f, projectPath, _ := projectCloseFixture(t, "executing", true, true)
 		original := projectIssueLookupFn
-		projectIssueLookupFn = func(string, string) (issueMeta, error) {
+		projectIssueLookupFn = func(context.Context, string, string) (issueMeta, error) {
 			return issueMeta{ActualHours: actual, ActualAvailable: true}, nil
 		}
-		err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+		err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f)
 		projectIssueLookupFn = original
 		if err == nil || !strings.Contains(err.Error(), "incomplete MVP actuals") {
 			t.Errorf("actual %v error = %v, want refusal", actual, err)
@@ -268,11 +270,11 @@ func TestProjectCloseRejectsDuplicateLogicalMVPScopeRefs(t *testing.T) {
 		}
 		original := projectIssueLookupFn
 		lookups := 0
-		projectIssueLookupFn = func(string, string) (issueMeta, error) {
+		projectIssueLookupFn = func(context.Context, string, string) (issueMeta, error) {
 			lookups++
 			return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
 		}
-		err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+		err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f)
 		projectIssueLookupFn = original
 		if err == nil || !strings.Contains(err.Error(), "duplicate logical MVP issue") {
 			t.Errorf("scope %q error = %v, want duplicate refusal", scope, err)
@@ -296,14 +298,14 @@ func TestProjectCloseTreatsUnavailablePeerAsIncompleteActual(t *testing.T) {
 			t.Fatal(err)
 		}
 		original := projectIssueLookupFn
-		projectIssueLookupFn = func(ref string, _ string) (issueMeta, error) {
+		projectIssueLookupFn = func(_ context.Context, ref string, _ string) (issueMeta, error) {
 			if ref == "missing-peer#2" {
 				return issueMeta{}, errors.New("peer unavailable")
 			}
 			return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
 		}
 		var stderr bytes.Buffer
-		err := runProjectClose(&bytes.Buffer{}, &stderr, f)
+		err := runProjectClose(context.Background(), &bytes.Buffer{}, &stderr, f)
 		projectIssueLookupFn = original
 		if !noLedger {
 			if err == nil || !strings.Contains(err.Error(), "incomplete MVP actuals") {
@@ -334,14 +336,14 @@ func TestProjectCloseCapturesTodayOnce(t *testing.T) {
 		}
 		return "2026-07-17"
 	}
-	projectIssueLookupFn = func(string, string) (issueMeta, error) {
+	projectIssueLookupFn = func(context.Context, string, string) (issueMeta, error) {
 		return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
 	}
 	t.Cleanup(func() {
 		projectTodayFn = originalToday
 		projectIssueLookupFn = originalLookup
 	})
-	if err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
 		t.Fatal(err)
 	}
 	if calls != 1 {
@@ -354,7 +356,7 @@ func TestProjectCloseLedgerStageFailureLeavesBothRecordsUnchanged(t *testing.T) 
 	projectBefore, _ := os.ReadFile(projectPath)
 	ledgerBefore, _ := os.ReadFile(ledgerPath)
 	originalLookup := projectIssueLookupFn
-	projectIssueLookupFn = func(string, string) (issueMeta, error) {
+	projectIssueLookupFn = func(context.Context, string, string) (issueMeta, error) {
 		return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
 	}
 	originalStage := projectCloseStageFileFn
@@ -369,7 +371,7 @@ func TestProjectCloseLedgerStageFailureLeavesBothRecordsUnchanged(t *testing.T) 
 		projectCloseStageFileFn = originalStage
 	})
 
-	err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+	err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f)
 	if err == nil || !strings.Contains(err.Error(), "forced ledger stage failure") {
 		t.Fatalf("runProjectClose error = %v, want forced stage failure", err)
 	}
@@ -388,7 +390,7 @@ func TestProjectCloseArchiveRenameFailureRestoresProjectAndLedger(t *testing.T) 
 	projectBefore, _ := os.ReadFile(projectPath)
 	ledgerBefore, _ := os.ReadFile(ledgerPath)
 	originalLookup := projectIssueLookupFn
-	projectIssueLookupFn = func(string, string) (issueMeta, error) {
+	projectIssueLookupFn = func(context.Context, string, string) (issueMeta, error) {
 		return issueMeta{ActualHours: 2, ActualAvailable: true}, nil
 	}
 	originalRename := projectCloseRenameFn
@@ -402,7 +404,7 @@ func TestProjectCloseArchiveRenameFailureRestoresProjectAndLedger(t *testing.T) 
 		projectIssueLookupFn = originalLookup
 		projectCloseRenameFn = originalRename
 	})
-	err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+	err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f)
 	if err == nil || !strings.Contains(err.Error(), "forced archive rename failure") {
 		t.Fatalf("runProjectClose error = %v", err)
 	}
@@ -417,12 +419,12 @@ func TestProjectCloseMissingPhaseAWarnsAndLogsNAWithoutLedger(t *testing.T) {
 	f, _, ledgerPath := projectCloseFixture(t, "executing", true, false)
 	before, _ := os.ReadFile(ledgerPath)
 	var stderr bytes.Buffer
-	if err := runProjectClose(&bytes.Buffer{}, &stderr, f); err == nil || !strings.Contains(err.Error(), "--no-ledger") {
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &stderr, f); err == nil || !strings.Contains(err.Error(), "--no-ledger") {
 		t.Fatalf("missing phase-a error = %v, want explicit bypass requirement", err)
 	}
 	f.NoLedger = true
 	stderr.Reset()
-	if err := runProjectClose(&bytes.Buffer{}, &stderr, f); err != nil {
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &stderr, f); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(stderr.String(), "phase-a") {
@@ -448,7 +450,7 @@ func TestProjectCloseRejectsMalformedOrNonPositivePhaseA(t *testing.T) {
 				t.Fatal(err)
 			}
 			f.NoLedger = true
-			err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f)
+			err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f)
 			if err == nil || !strings.Contains(err.Error(), "invalid phase-a") {
 				t.Fatalf("phase-a %q error = %v, want invalid refusal", value, err)
 			}
@@ -460,7 +462,7 @@ func TestProjectCloseDropFromPausedArchivesWithoutLedger(t *testing.T) {
 	f, _, ledgerPath := projectCloseFixture(t, "paused", true, true)
 	f.Drop = true
 	before, _ := os.ReadFile(ledgerPath)
-	if err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err != nil {
 		t.Fatal(err)
 	}
 	b, err := os.ReadFile(filepath.Join(f.HistoryDir, "projects", "alpha.md"))
@@ -479,7 +481,7 @@ func TestProjectCloseDropFromPausedArchivesWithoutLedger(t *testing.T) {
 func TestProjectCloseDropRejectsPreExecutionFunnelStatus(t *testing.T) {
 	f, _, _ := projectCloseFixture(t, "committed", true, true)
 	f.Drop = true
-	if err := runProjectClose(&bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), "requires status executing or paused") {
+	if err := runProjectClose(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, f); err == nil || !strings.Contains(err.Error(), "requires status executing or paused") {
 		t.Fatalf("runProjectClose error = %v, want executing-or-paused refusal", err)
 	}
 }

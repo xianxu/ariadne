@@ -261,6 +261,7 @@ func decideMergeAction(openPRNumber string, mergedExists bool, unmergedCount int
 }
 
 func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
+	ctx := commandContext(f.Context)
 	target, err := resolveLandingTarget(mergeRunner)
 	if err != nil {
 		return err
@@ -423,7 +424,10 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 
 	// ── 8. Not-done issue warn (vs main) ────────────────────────────────────
-	notDone, _ := touchedIssuesNotDone("main", f.IssuesDir, mergeRunner)
+	notDone, nerr := touchedIssuesNotDone(ctx, "main", f.IssuesDir, mergeRunner)
+	if nerr != nil {
+		cwarn(stderr, fmt.Sprintf("could not scan touched issues: %v", nerr))
+	}
 	if len(notDone) > 0 && !f.Yes && !f.DryRun {
 		fmt.Fprintf(stderr, "  %s[!]%s Touched issue files that are NOT done:\n", ansiYellow, ansiReset)
 		for _, p := range notDone {
@@ -581,14 +585,14 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			}
 		}
 	}
-	if flipped, ferr := publishCodecompleteIssues(filepath.Join(mainPath, f.IssuesDir)); ferr != nil {
+	if flipped, ferr := publishCodecompleteIssues(ctx, filepath.Join(mainPath, f.IssuesDir)); ferr != nil {
 		die(stderr, fmt.Sprintf("publish flip (codecomplete → done): %v", ferr))
 	} else if len(flipped) > 0 {
 		cinfo(stderr, fmt.Sprintf("Published %d issue(s): codecomplete → done", len(flipped)))
 	}
 
 	// ── 11. Archive done issues in MAIN worktree ────────────────────────────
-	moves, err := archiveDoneIssuesInDir(stderr, repo, mainPath, f.IssuesDir, f.HistoryDir, f.PlansDir)
+	moves, err := archiveDoneIssuesInDir(ctx, stderr, repo, mainPath, f.IssuesDir, f.HistoryDir, f.PlansDir)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -660,11 +664,11 @@ func isInPlaceCheckout(gitDir string) bool {
 // archiveDoneIssues, but it scans + mutates inside the main worktree
 // at mainPath (so the archive commit lands on main, not on the feature
 // branch).
-func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, error) {
+func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPath, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, error) {
 	issuesFull := filepath.Join(mainPath, issuesDir)
 	historyFull := filepath.Join(mainPath, historyDir)
 	plansFull := filepath.Join(mainPath, plansDir)
-	refs, err := scanIssueFiles("", issuesFull, nil)
+	refs, err := scanIssueFiles(ctx, "", issuesFull, nil)
 	if err != nil {
 		return nil, err
 	}

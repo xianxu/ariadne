@@ -135,6 +135,7 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	// Readiness is re-verified against fresh main after the candidate is pinned,
 	// immediately before the only mutation.
 	err = env.repo.UpdateCard(card, claimed, operationToken("claim"), func(base, candidate string) error { return ready() })
+	invalidateIssueRecords(env.ctx)
 	if errors.Is(err, tracker.ErrCardChanged) {
 		return fmt.Errorf("card #%s changed while claiming (a peer may hold it); `sdlc issue show --issue %d` and retry only if it is still open", id, f.Issue)
 	}

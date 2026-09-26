@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"github.com/spf13/cobra"
 	"os"
 	"os/exec"
@@ -65,12 +66,12 @@ func TestBrainDefaultsLinkedNested(t *testing.T) {
 			t.Errorf("explicit=%v got %q want %q", explicit, got, want)
 		}
 	}
-	c := gatherBaseContention(nested, 0)
+	c := gatherBaseContention(context.Background(), nested, 0)
 	if c.Repo != "sample" {
 		t.Errorf("contention repo %q want sample", c.Repo)
 	}
 	var out bytes.Buffer
-	runStartPlan(&out, 0)
+	runStartPlan(context.Background(), &out, 0)
 	if !strings.Contains(out.String(), filepath.Join(fleet, "brain")) {
 		t.Errorf("planning source not fleet brain: %s", out.String())
 	}
@@ -89,7 +90,7 @@ func TestBrainDefaultsIdentityFailure(t *testing.T) {
 		t.Fatalf("missing identity: called=%v err=%v", called, err)
 	}
 	var out bytes.Buffer
-	runStartPlan(&out, 0)
+	runStartPlan(context.Background(), &out, 0)
 	if !strings.Contains(out.String(), "cannot resolve estimator brain") {
 		t.Errorf("optional planning should warn: %s", out.String())
 	}
@@ -121,7 +122,7 @@ func TestActualPeersCanonicalFromLinkedCheckout(t *testing.T) {
 	if out, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("git: %s %v", out, err)
 	}
-	result := computeActual(filepath.Dir(nested), "", "1")
+	result := computeActual(context.Background(), filepath.Dir(nested), "", "1")
 	if len(result.Peers) != 2 || result.Peers[0] != "1" || result.Peers[1] != "2" {
 		t.Fatalf("canonical peers = %v, status=%v detail=%s", result.Peers, result.Status, result.Detail)
 	}
@@ -146,7 +147,7 @@ func TestPlanningEstimateUsesCurrentCheckout(t *testing.T) {
 
 func TestPlanningContentionReportsUnavailableIdentity(t *testing.T) {
 	root := t.TempDir()
-	got := gatherBaseContention(root, 0)
+	got := gatherBaseContention(context.Background(), root, 0)
 	if got.Clean() {
 		t.Fatal("unavailable Git identity reported clean")
 	}

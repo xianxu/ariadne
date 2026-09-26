@@ -92,7 +92,7 @@ func TestMergedCodecompleteIssues(t *testing.T) {
 	writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
 	writeIssueStatus(t, git, 70, "working", "#70 wip")
 
-	got, err := mergedCodecompleteIssues(base, "workshop/issues")
+	got, err := mergedCodecompleteIssues(context.Background(), base, "workshop/issues")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,7 +103,7 @@ func TestMergedCodecompleteIssues(t *testing.T) {
 
 func TestMergedCodecompleteIssuesPreservesGitError(t *testing.T) {
 	t.Setenv("PATH", "")
-	_, err := mergedCodecompleteIssues("base", "workshop/issues")
+	_, err := mergedCodecompleteIssues(context.Background(), "base", "workshop/issues")
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -176,7 +176,7 @@ func TestPublishCodecompleteIssues(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	flipped, err := publishCodecompleteIssues("workshop/issues")
+	flipped, err := publishCodecompleteIssues(context.Background(), "workshop/issues")
 	if err != nil {
 		t.Fatal(err)
 	}

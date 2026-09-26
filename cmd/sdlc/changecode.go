@@ -123,7 +123,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	if err != nil {
 		die(stderr, err.Error())
 	}
-	guardIssueNotDone(stderr, issuePath, strconv.Itoa(f.Issue)) // #176 done-issue guard
+	guardIssueNotDone(changeCodeContext(f), stderr, issuePath, strconv.Itoa(f.Issue)) // #176 done-issue guard
 
 	// 1b. Tracker-era details (#252) carry a card mirror: design continues on the
 	//     issue branch start-plan prepared, and the gates read current card fields.
@@ -286,6 +286,14 @@ func checkpointDesign(f *changeCodeFlags, name, issuePath string) error {
 	return nil
 }
 
+// changeCodeContext is the verb's context (the review transaction carries it).
+func changeCodeContext(f *changeCodeFlags) context.Context {
+	if f.review != nil {
+		return f.review.context()
+	}
+	return context.Background()
+}
+
 // refreshChangeCodeMirror applies to tracker-era details only (a card mirror
 // marker); files that predate the migration keep the legacy path untouched. It
 // refuses the resting branch — start-plan owns moving design off it — and a
@@ -300,11 +308,7 @@ func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) ([]byte
 	if !issue.HasMirror(details) {
 		return nil, nil
 	}
-	ctx := context.Background()
-	if f.review != nil {
-		ctx = f.review.context()
-	}
-	env, err := openTracker(ctx)
+	env, err := openTracker(changeCodeContext(f))
 	if err != nil {
 		return nil, err
 	}

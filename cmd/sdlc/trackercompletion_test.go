@@ -34,7 +34,7 @@ func closedAndLanded(t *testing.T, id int) (*trackerRepo, string, string) {
 func TestPublishFlipCompletesLandedClosesAndArchivesByCard(t *testing.T) {
 	r, cardPath, detailPath := closedAndLanded(t, 311)
 	landed := r.git("rev-parse", "HEAD")
-	done, err := publishCodecompleteIssues("workshop/issues")
+	done, err := publishCodecompleteIssues(context.Background(), "workshop/issues")
 	if err != nil || len(done) != 1 || done[0] != "000311" {
 		t.Fatalf("flip: %v %v", done, err)
 	}
@@ -44,11 +44,11 @@ func TestPublishFlipCompletesLandedClosesAndArchivesByCard(t *testing.T) {
 		t.Fatalf("card not done at the landing (%s):\n%s", landed, card)
 	}
 	// Idempotent: a second publish finds nothing left to complete.
-	if again, err := publishCodecompleteIssues("workshop/issues"); err != nil || len(again) != 0 {
+	if again, err := publishCodecompleteIssues(context.Background(), "workshop/issues"); err != nil || len(again) != 0 {
 		t.Fatalf("second flip: %v %v", again, err)
 	}
 	var stderr bytes.Buffer
-	moves, err := archiveDoneIssues(&stderr, "", "workshop/issues", "workshop/history", "workshop/plans")
+	moves, err := archiveDoneIssues(context.Background(), &stderr, "", "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil || len(moves) == 0 {
 		t.Fatalf("archive by card status: %v %v", moves, err)
 	}
@@ -70,7 +70,7 @@ func TestPublishFlipLeavesAReclosedGenerationAlone(t *testing.T) {
 		t.Fatalf("re-close: %v\n%s", err, stderr)
 	}
 	r.git("switch", "-q", "main")
-	done, err := publishCodecompleteIssues("workshop/issues")
+	done, err := publishCodecompleteIssues(context.Background(), "workshop/issues")
 	if err != nil || len(done) != 0 {
 		t.Fatalf("a stale landing completed a newer close: %v %v", done, err)
 	}
@@ -96,7 +96,7 @@ func TestDurableLandingArchivesTrackedCloseByBinding(t *testing.T) {
 	pr := landingPR{Number: 321, State: "MERGED", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head}
 	evidence, _, _ := issue.CardCompletion([]byte(r.card(cardPath)))
 
-	selected, err := selectLandingIssues(r.root, pr, "workshop/issues")
+	selected, err := selectLandingIssues(context.Background(), r.root, pr, "workshop/issues")
 	if err != nil || len(selected) != 1 || !selected[0].tracked || selected[0].anchor != evidence.EvidenceCommit {
 		t.Fatalf("selection by binding: %+v %v", selected, err)
 	}
@@ -106,7 +106,7 @@ func TestDurableLandingArchivesTrackedCloseByBinding(t *testing.T) {
 	if card := r.card(cardPath); !strings.Contains(card, "status: done") {
 		t.Fatalf("landing did not complete the card:\n%s", card)
 	}
-	if done, err := selectLandingIssues(r.root, pr, "workshop/issues"); err != nil || len(done) != 1 {
+	if done, err := selectLandingIssues(context.Background(), r.root, pr, "workshop/issues"); err != nil || len(done) != 1 {
 		t.Fatalf("a done card left the archive without its owner: %+v %v", done, err)
 	}
 	if complete, err := laProof(r.root, head, pr); err != nil || complete {

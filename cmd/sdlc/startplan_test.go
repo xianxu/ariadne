@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,7 +24,7 @@ func TestStartPlanCmd_Registered(t *testing.T) {
 // injection) to the main thread, labeled with the issue.
 func TestRunStartPlan_RendersAtPlanLens(t *testing.T) {
 	var b strings.Builder
-	runStartPlan(&b, 75)
+	runStartPlan(context.Background(), &b, 75)
 	out := b.String()
 	// Architecture lens + the #72 durable-plan pointer must both be wired into the
 	// integrated output (TestPlanPointer pins the helper's wording; this pins that
@@ -45,7 +46,7 @@ func TestRunStartPlan_RendersAtPlanLens(t *testing.T) {
 	}
 	// No --issue → generic label, still renders the principles.
 	var b2 strings.Builder
-	runStartPlan(&b2, 0)
+	runStartPlan(context.Background(), &b2, 0)
 	if !strings.Contains(b2.String(), "ARCH-PURE") {
 		t.Error("start-plan with no issue should still render the principles")
 	}

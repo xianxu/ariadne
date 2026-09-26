@@ -216,6 +216,7 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	}
 	op := tracker.NewTransferOp(ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
 	final, err := tracker.Drive(t.Receipt(), tracker.TransferStepper, op, receipts)
+	invalidateIssueRecords(env.ctx)
 	if err != nil {
 		if errors.Is(err, tracker.ErrOperationUncertain) || final.ConfirmedStages() > 0 {
 			return fmt.Errorf("%w\n      the operation is recorded; finish it with `sdlc issue recovery reconcile --issue %s`", err, issue.CLIRef(id))

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -101,7 +102,7 @@ func TestProjectWorkspaceForecastOverlaysCurrentCheckout(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, _, err := forecastForProject(d, subject, "", "2026-09-01")
+	f, _, err := forecastForProject(context.Background(), d, subject, "", "2026-09-01")
 	if err != nil {
 		t.Fatal(err)
 	}

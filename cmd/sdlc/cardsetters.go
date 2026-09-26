@@ -68,6 +68,7 @@ func runCardUpdate(ctx context.Context, stdout, stderr io.Writer, issuesDir stri
 		return nil
 	}
 	err = env.repo.UpdateCard(card, next, operationToken("set"), func(string, string) error { return nil })
+	invalidateIssueRecords(env.ctx)
 	switch {
 	case errors.Is(err, tracker.ErrNoChange):
 		cok(stderr, fmt.Sprintf("#%s already has that %s", id, what))

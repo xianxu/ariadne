@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 )
@@ -50,7 +51,7 @@ func TestFormatAdoptLine(t *testing.T) {
 // measurement is still returned — it feeds the suggest flow unchanged.
 func TestAdoptOmittedActualMilestoneKeepsSuggestFlow(t *testing.T) {
 	orig := computeActualForCloseFn
-	computeActualForCloseFn = func(string) actualResult {
+	computeActualForCloseFn = func(context.Context, string) actualResult {
 		return actualResult{Status: actualMeasured, Hours: 6.57, Window: "abcd1234 → HEAD"}
 	}
 	t.Cleanup(func() { computeActualForCloseFn = orig })
@@ -74,7 +75,7 @@ func TestAdoptOmittedActualMilestoneKeepsSuggestFlow(t *testing.T) {
 func TestAdoptOmittedActual(t *testing.T) {
 	calls := 0
 	orig := computeActualForCloseFn
-	computeActualForCloseFn = func(issueStr string) actualResult {
+	computeActualForCloseFn = func(_ context.Context, issueStr string) actualResult {
 		calls++
 		return actualResult{Status: actualMeasured, Hours: 0.65, Window: "abcd1234 → HEAD", Issue: issueStr}
 	}
@@ -95,7 +96,7 @@ func TestAdoptOmittedActual(t *testing.T) {
 
 	// unmeasurable → no adoption, no output side effects (the caller then runs
 	// explainActual + exit; that arm's decision is pinned by TestResolveOmittedActual)
-	computeActualForCloseFn = func(string) actualResult { return actualResult{Status: actualTelemetryGap} }
+	computeActualForCloseFn = func(context.Context, string) actualResult { return actualResult{Status: actualTelemetryGap} }
 	var stderr2 bytes.Buffer
 	f2 := &closeFlags{Issue: 178}
 	res, ok2 := adoptOmittedActual(&stderr2, f2, "178", "issue")

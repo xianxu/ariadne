@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -33,7 +34,7 @@ func newProjectSetStatusCmd() *cobra.Command {
 	f := projectSetStatusFlags{}
 	cmd := markMutatingCommand(&cobra.Command{Use: "set-status", Short: "Move a project through its guarded lifecycle", Args: cobra.NoArgs, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runProjectSetStatus(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runProjectSetStatus(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		}})
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug")
 	cmd.Flags().StringVar(&f.To, "to", "", "target project status")
@@ -48,13 +49,13 @@ func newProjectSetStatusCmd() *cobra.Command {
 	return cmd
 }
 
-func runProjectSetStatus(stdout, stderr io.Writer, f *projectSetStatusFlags) error {
+func runProjectSetStatus(ctx context.Context, stdout, stderr io.Writer, f *projectSetStatusFlags) error {
 	path, err := projectdoc.ResolvePath(f.ProjectsDir, f.Slug)
 	if err != nil {
 		return err
 	}
 	today := projectTodayFn()
-	ctx := projectdoc.GuardCtx{Today: today, Evidence: map[string]string{"reality-check": f.Reality, "issues-cover-prd": f.Coverage}}
+	guardCtx := projectdoc.GuardCtx{Today: today, Evidence: map[string]string{"reality-check": f.Reality, "issues-cover-prd": f.Coverage}}
 	decision := plannedFinishDecision{Manual: f.PlannedFinish}
 
 	// #182: the commit transition COMPUTES a calendar forecast and INFORMS —
@@ -63,12 +64,12 @@ func runProjectSetStatus(stdout, stderr io.Writer, f *projectSetStatusFlags) err
 	// computed), and planned_finish derives from it. With no blessed baseline,
 	// fall back to the legacy --reality prose (the guard still requires it).
 	if f.To == "committed" {
-		if forecastErr := computeCommitForecast(stdout, stderr, path, f, &ctx, &decision, today); forecastErr != nil {
+		if forecastErr := computeCommitForecast(ctx, stdout, stderr, path, f, &guardCtx, &decision, today); forecastErr != nil {
 			return forecastErr
 		}
 	}
 
-	prev, changed, err := applyProjectStatus(path, f.To, f.Force, ctx, decision)
+	prev, changed, err := applyProjectStatus(path, f.To, f.Force, guardCtx, decision)
 	if err != nil {
 		return err
 	}
@@ -84,7 +85,7 @@ func runProjectSetStatus(stdout, stderr io.Writer, f *projectSetStatusFlags) err
 // planned_finish. On errNoBaseline it leaves --reality handling untouched and,
 // if the operator also gave no --reality, returns a guard-shaped refusal with
 // the bless hint. A compute error other than errNoBaseline is surfaced.
-func computeCommitForecast(stdout, stderr io.Writer, path string, f *projectSetStatusFlags, ctx *projectdoc.GuardCtx, decision *plannedFinishDecision, today string) error {
+func computeCommitForecast(ctx context.Context, stdout, stderr io.Writer, path string, f *projectSetStatusFlags, guardCtx *projectdoc.GuardCtx, decision *plannedFinishDecision, today string) error {
 	d, err := readProject(path)
 	if err != nil {
 		return err
@@ -97,7 +98,7 @@ func computeCommitForecast(stdout, stderr io.Writer, path string, f *projectSetS
 	if d.FM("status") != "defined" {
 		return nil
 	}
-	forecast, deadline, ferr := forecastForProject(d, path, f.BrainDir, today)
+	forecast, deadline, ferr := forecastForProject(ctx, d, path, f.BrainDir, today)
 	if ferr == errNoBaseline {
 		if strings.TrimSpace(f.Reality) == "" && !f.Force {
 			return fmt.Errorf("guard reality-check: no throughput baseline blessed — bless one (`sdlc project throughput --bless <FROM>..<TO>`) so the commit forecast computes, or pass --reality '<why it fits>'")
@@ -111,7 +112,7 @@ func computeCommitForecast(stdout, stderr io.Writer, path string, f *projectSetS
 	statement := projectdoc.RenderForecast(forecast, deadline)
 	cinfo(stdout, statement)
 	if strings.TrimSpace(f.Reality) == "" {
-		ctx.Evidence["reality-check"] = "computed: " + statement
+		guardCtx.Evidence["reality-check"] = "computed: " + statement
 	}
 	decision.Derived = forecast.ProjectedFinish
 	return nil

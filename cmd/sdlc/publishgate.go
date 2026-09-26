@@ -51,8 +51,8 @@ func codecompleteAnchorCommit(issuePath string) string {
 // baseRef..HEAD whose CURRENT (working-tree) status is codecomplete — the set a
 // publish is about to flip to done. Mirrors touchedIssuesNotDone's window scan
 // (ARCH-DRY).
-func mergedCodecompleteIssues(baseRef, issuesDir string) ([]string, error) {
-	refs, err := scanIssueFiles(baseRef, issuesDir, gitx.RunGit)
+func mergedCodecompleteIssues(ctx context.Context, baseRef, issuesDir string) ([]string, error) {
+	refs, err := scanIssueFiles(ctx, baseRef, issuesDir, gitx.RunGit)
 	if err != nil {
 		if scanErr, ok := err.(*issueFileScanError); ok {
 			return nil, fmt.Errorf("git diff %s..HEAD: %w", baseRef, scanErr.Err)
@@ -93,7 +93,7 @@ func runPublishGate(ctx context.Context, baseRef, issuesDir string, stderr io.Wr
 		}
 		return validatePublishAnchors(ownedPublishIssues(owned), stderr)
 	}
-	issues, err := mergedCodecompleteIssues(baseRef, issuesDir)
+	issues, err := mergedCodecompleteIssues(ctx, baseRef, issuesDir)
 	if err != nil {
 		return err
 	}
@@ -235,11 +235,11 @@ func quickGrewPastReview(issues []string) error {
 // merge/push flips them), so the only codecomplete issues present are this publish's.
 // (The invariant that gates un-reviewed drift is runPublishGate; this flip is the
 // mechanical state change once that gate passed.)
-func publishCodecompleteIssues(issuesDir string) ([]string, error) {
-	if done, tracked, err := publishTrackerCompletions(issuesDir); tracked || err != nil {
+func publishCodecompleteIssues(ctx context.Context, issuesDir string) ([]string, error) {
+	if done, tracked, err := publishTrackerCompletions(ctx, issuesDir); tracked || err != nil {
 		return done, err
 	}
-	refs, err := scanIssueFiles("", issuesDir, nil)
+	refs, err := scanIssueFiles(ctx, "", issuesDir, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -334,8 +334,7 @@ func codecompleteAnchorCommitAt(ref, issuePath string, runGit func(...string) ([
 // carries goes done for its close generation. Details are archived as they
 // are: the card is the authority on their status, and archived bytes that do
 // not depend on the live card keep archive confirmation deterministic.
-func publishTrackerCompletions(issuesDir string) (done []string, tracked bool, err error) {
-	ctx := context.Background()
+func publishTrackerCompletions(ctx context.Context, issuesDir string) (done []string, tracked bool, err error) {
 	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
 	if err != nil || !rs.Tracker {
 		return nil, rs.Tracker, err
