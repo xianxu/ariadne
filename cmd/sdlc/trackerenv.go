@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 
@@ -74,9 +75,15 @@ func openTrackerAt(ctx context.Context, dir string) (*trackerEnv, error) {
 // git runs one command in the checkout and returns trimmed stdout — also on a
 // non-zero exit, where some commands (merge-tree) still report a result. Stderr
 // is kept out of the value so a warning can never be parsed as an object ID.
-func (e *trackerEnv) git(args ...string) (string, error) {
+func (e *trackerEnv) git(args ...string) (string, error) { return e.gitEnv(nil, args...) }
+
+// gitEnv is git with extra environment (a temporary index, for instance).
+func (e *trackerEnv) gitEnv(extra []string, args ...string) (string, error) {
 	cmd := exec.CommandContext(e.ctx, "git", args...)
 	cmd.Dir = e.root
+	if len(extra) > 0 {
+		cmd.Env = append(os.Environ(), extra...)
+	}
 	var stderr strings.Builder
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()

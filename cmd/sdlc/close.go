@@ -23,6 +23,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"io"
 	"math"
 	"os"
@@ -388,6 +389,10 @@ type closeResult struct {
 	// flow is what this close does with the issue's flow (#231): the review
 	// recipe it selects, and whether it upgraded a quick issue.
 	flow closeFlowOutcome
+	// tracker: the details mirror a card (#252). Card-owned fields are not
+	// written here; the finalized close publishes them on the card, bound to
+	// an evidence commit it creates itself.
+	tracker bool
 }
 
 // computeClose runs every close gate and composes the new issue/project text in
@@ -479,10 +484,24 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	if err != nil {
 		die(stderr, fmt.Sprintf("no YAML frontmatter in %s", issuePath))
 	}
+	trackerEra := issue.HasMirror(issueBytes)
 
 	// #122 carve-out: re-close guard keys on "done" specifically (the verified-complete
-	// state), not IsTerminal — re-closing a done issue is the case to guard.
-	if currentStatus, _ := issue.GetField(fm, "status"); mode == "issue" && currentStatus == "done" {
+	// state), not IsTerminal — re-closing a done issue is the case to guard. A
+	// tracker-era issue's status is its card's (#252), never the mirror's.
+	currentStatus, _ := issue.GetField(fm, "status")
+	if trackerEra {
+		rs, rerr := loadIssueRecords(commandContext(f.Context), filepath.Dir(issuePath), tracker.Fresh)
+		if rerr != nil {
+			die(stderr, fmt.Sprintf("read #%s's card: %v", issueStr, rerr))
+		}
+		rec, ok := rs.Get(fmt.Sprintf("%06d", f.Issue))
+		if !ok || rec.Card == nil {
+			die(stderr, fmt.Sprintf("#%s has mirrored details but no card on the tracker", issueStr))
+		}
+		currentStatus = rec.Status()
+	}
+	if mode == "issue" && currentStatus == "done" {
 		if !f.skip("reclose") {
 			// #174: append-only after the pinned span — gatesig's RefusalPat and
 			// the frozen codex golden fixtures both key on the head text.
@@ -622,20 +641,26 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// codecomplete (set-status refuses it), which is what makes the commit carrying
 		// it a trustworthy anchor for that invariant. (#122 carve-out: value-specific
 		// write, a literal like claim's "working" — not a category test.)
-		newFM = issue.SetField(newFM, "status", "codecomplete")
-		if f.Actual != "" {
-			newFM = issue.SetField(newFM, "actual_hours", f.Actual)
-		} else if f.skip("actual") {
-			newFM = issue.SetField(newFM, "actual_hours", issue.ActualNotApplicableSentinel)
+		if trackerEra {
+			// #252: status, actual_hours and updated are card-owned; they are
+			// published on the card after the evidence commit, never mirrored here.
+			applied = append(applied, "codecomplete is published on the card, bound to the close's evidence commit")
+		} else {
+			newFM = issue.SetField(newFM, "status", "codecomplete")
+			if f.Actual != "" {
+				newFM = issue.SetField(newFM, "actual_hours", f.Actual)
+			} else if f.skip("actual") {
+				newFM = issue.SetField(newFM, "actual_hours", issue.ActualNotApplicableSentinel)
+			}
+			newFM = issue.SetField(newFM, "updated", today)
+			msg := fmt.Sprintf("flipped %s → status: codecomplete", filepath.Base(issuePath))
+			if f.Actual != "" {
+				msg += fmt.Sprintf(", actual_hours: %s", f.Actual)
+			} else if f.skip("actual") {
+				msg += fmt.Sprintf(", actual_hours: %s", issue.ActualNotApplicableSentinel)
+			}
+			applied = append(applied, msg)
 		}
-		newFM = issue.SetField(newFM, "updated", today)
-		msg := fmt.Sprintf("flipped %s → status: codecomplete", filepath.Base(issuePath))
-		if f.Actual != "" {
-			msg += fmt.Sprintf(", actual_hours: %s", f.Actual)
-		} else if f.skip("actual") {
-			msg += fmt.Sprintf(", actual_hours: %s", issue.ActualNotApplicableSentinel)
-		}
-		applied = append(applied, msg)
 	}
 
 	if f.Verified != "" {
@@ -760,6 +785,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		today:        today,
 		appliedMsgs:  applied,
 		flow:         flowOutcome,
+		tracker:      trackerEra,
 	}
 }
 
@@ -875,6 +901,9 @@ func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeR
 	// line the operator just read.
 	if shouldLogCalibration(f) {
 		appendCalibrationRow(stderr, f, res.fm, res.body, res.repoName, res.issueStr, res.today, m, res.flow)
+	}
+	if res.tracker && f.Milestone == "" {
+		return // the evidence commit and the card follow the verdict (#252)
 	}
 	cok(stderr, "done — review with `git diff`, then commit")
 }
@@ -1070,8 +1099,14 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		// dispatch-ERROR VerdictNotRun ever reaches closeVerdictOutcome's halt).
 		cinfo(stderr, "skipping issue boundary review per --no-judge (or --force)")
 		applyClose(stdout, stderr, closeRunner, f, r)
-		return finishBoundaryReview(stdout, stderr, f,
-			reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong})
+		skipped := reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong}
+		if err := finishBoundaryReview(stdout, stderr, f, skipped); err != nil {
+			return err
+		}
+		if r.tracker {
+			return publishTrackerClose(stdout, stderr, f, r, skipped)
+		}
+		return nil
 	case f.DryRun:
 		cinfo(stderr, "dry-run — would dispatch the issue boundary review")
 		printCloseDryRun(stderr, r)
@@ -1328,6 +1363,15 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 		emitTrailerBlock(stdout, review, kind)
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, review.Verdict); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
+		}
+		if r.tracker && f.Milestone == "" {
+			// #252: close commits its own evidence and publishes the card; its
+			// FIX-THEN-SHIP handling defers that commit until the fixes land.
+			if err := publishTrackerClose(stdout, stderr, f, r, review); err != nil {
+				return err
+			}
+			emitLessonsReminder(stdout)
+			return nil
 		}
 		if review.Verdict == judge.VerdictFixThenShip {
 			// #174: state the post-FIX-THEN-SHIP protocol at the moment of

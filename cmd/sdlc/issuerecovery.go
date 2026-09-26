@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 
@@ -135,6 +136,14 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 			r = resumed.Receipt()
 			step = tracker.TransferStepper
 			adapter = tracker.NewTransferOp(ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
+		case "completion":
+			resumed, err := tracker.ResumeCompletion(r)
+			if err != nil {
+				return err
+			}
+			r = resumed.Receipt()
+			step = tracker.CompletionStepper
+			adapter = tracker.NewCompletionOp(ctx, env.repo, env.branchRef(), gitEvidence{env}, time.Now().Format("2006-01-02"))
 		default:
 			return fmt.Errorf("receipt %s: %s operations are recovered by their own verb", r.Spec().Token, r.Operation())
 		}

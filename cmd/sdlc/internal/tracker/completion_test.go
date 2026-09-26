@@ -10,6 +10,8 @@ import (
 func TestCompletionCommitsEvidenceBeforeCodecomplete(t *testing.T) {
 	spec := operationSpec()
 	spec.ReviewedHEAD = spec.SourceHEAD
+	spec.EvidenceMessage = "#1: close\n\nClose-Actual: 1"
+	spec.EvidencePaths = spec.SourcePath
 	s, err := NewCompletion(spec)
 	if err != nil {
 		t.Fatal(err)

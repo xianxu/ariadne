@@ -56,7 +56,28 @@ type ReceiptSpec struct {
 	MainBase        string     `json:"main_base"`
 	ReviewedHEAD    string     `json:"reviewed_head,omitempty"`
 	Source          SourceKind `json:"source"`
+	// EvidenceMessage is a completion's prepared close-commit message (subject,
+	// verdict and Close-Actual trailers): the durable record from which a later
+	// process rebuilds the evidence commit and the card change.
+	EvidenceMessage string `json:"evidence_message,omitempty"`
+	// EvidencePaths lists (newline-separated, repository-relative) the files the
+	// evidence commit records: details, ledgers, sidecars, project records.
+	EvidencePaths string `json:"evidence_paths,omitempty"`
 }
+
+// MaxEvidencePaths bounds a close's evidence file list.
+const MaxEvidencePaths = 64
+
+// EvidencePathList splits EvidencePaths.
+func (s ReceiptSpec) EvidencePathList() []string {
+	if s.EvidencePaths == "" {
+		return nil
+	}
+	return strings.Split(s.EvidencePaths, "\n")
+}
+
+// MaxEvidenceMessageBytes bounds the close message inside a 16 KiB receipt.
+const MaxEvidenceMessageBytes = 8 << 10
 
 // Binding is the exact identity/generation the IO adapter must re-observe. A
 // reopened card, changed source or evidence from another repository cannot be
@@ -513,7 +534,24 @@ func validateReceiptSpec(operation string, s ReceiptSpec) error {
 		if s.ReviewedHEAD != s.SourceHEAD || s.Source != LocalSource {
 			return errors.New("completion must bind the exact reviewed source HEAD")
 		}
-	} else if s.ReviewedHEAD != "" {
+		if strings.TrimSpace(s.EvidenceMessage) == "" || len(s.EvidenceMessage) > MaxEvidenceMessageBytes || !utf8.ValidString(s.EvidenceMessage) || strings.ContainsRune(s.EvidenceMessage, 0) {
+			return errors.New("completion requires a bounded evidence message")
+		}
+		paths := s.EvidencePathList()
+		if len(paths) == 0 || len(paths) > MaxEvidencePaths {
+			return errors.New("completion requires a bounded evidence path list")
+		}
+		seen := map[string]bool{}
+		for _, p := range paths {
+			if !validReceiptPath(p) || seen[p] {
+				return errors.New("invalid or repeated evidence path")
+			}
+			seen[p] = true
+		}
+		if !seen[s.SourcePath] {
+			return errors.New("evidence must include the issue details")
+		}
+	} else if s.ReviewedHEAD != "" || s.EvidenceMessage != "" || s.EvidencePaths != "" {
 		return errors.New("review binding belongs only to completion")
 	}
 	return nil
@@ -662,7 +700,7 @@ func receiptJSONShape(raw []byte) error {
 	if err != nil {
 		return err
 	}
-	if _, err = receiptObject(root["spec"], "token repository issue_id card_path source_path destination_path source_branch source_base source_head source_blob card_oid tracker_base main_base source", "reviewed_head"); err != nil {
+	if _, err = receiptObject(root["spec"], "token repository issue_id card_path source_path destination_path source_branch source_base source_head source_blob card_oid tracker_base main_base source", "reviewed_head evidence_message evidence_paths"); err != nil {
 		return err
 	}
 	var proofs []json.RawMessage

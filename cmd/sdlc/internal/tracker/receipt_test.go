@@ -283,6 +283,8 @@ func transactionForTest(t *testing.T, kind string) transactionHarness {
 		}}
 	case "completion":
 		spec.ReviewedHEAD = spec.SourceHEAD
+		spec.EvidenceMessage = "#1: close\n\nClose-Actual: 1"
+		spec.EvidencePaths = spec.SourcePath
 		s, err := NewCompletion(spec)
 		if err != nil {
 			t.Fatal(err)
