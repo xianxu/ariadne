@@ -127,16 +127,23 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 
 	// 1b. Tracker-era details (#252) carry a card mirror: design continues on the
 	//     issue branch start-plan prepared, and the gates read current card fields.
-	if err := refreshChangeCodeMirror(f, name, issuePath); err != nil {
+	refreshed, err := refreshChangeCodeMirror(f, name, issuePath)
+	if err != nil {
 		return err
 	}
 
-	// 2. Read issue content (and optional plan file).
+	// 2. Read issue content (and optional plan file). A dry run left the file
+	//    untouched: the review snapshot covers the disk bytes, while the gates
+	//    read the refreshed card fields.
 	issueBytes, err := os.ReadFile(issuePath)
 	if err != nil {
 		die(stderr, fmt.Sprintf("read issue file %s: %v", issuePath, err))
 	}
 	issueContent := string(issueBytes)
+	gateContent := issueContent
+	if refreshed != nil {
+		gateContent = string(refreshed)
+	}
 
 	planArtifact, err := captureReviewArtifact(filepath.Join(f.PlansDir, name+"-plan.md"))
 	if err != nil {
@@ -153,7 +160,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	// 2b. Infer (or take the operator's pin for) the flow (#231). It decides which
 	//     gates run below — none on quick — and is RECORDED only after they pass
 	//     (step 7), so a refused run leaves the issue untouched.
-	issueFlow := reportChangeCodeFlow(stderr, f, issueContent, planContent)
+	issueFlow := reportChangeCodeFlow(stderr, f, gateContent, planContent)
 
 	// 3. Run the gate sequence. RUNNING the declaration (rather than hand-sequencing
 	//    blocks that happen to match it) is what makes changeCodeGateOrder a real guard:
@@ -162,7 +169,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	ctx := &changeCodeCtx{
 		f: f, stdout: stdout, stderr: stderr,
 		name: name, issuePath: issuePath,
-		issueContent: issueContent, planContent: planContent,
+		issueContent: gateContent, planContent: planContent,
 		flow: issueFlow.flow,
 	}
 	for _, g := range activeChangeCodeGates(ctx) {
@@ -186,7 +193,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 	}
 
 	// 4. Branching strategy (the gate sequence above is step 3).
-	wt, err := resolveBranchingStrategy(stdin, stdout, stderr, f, name, issueContent)
+	wt, err := resolveBranchingStrategy(stdin, stdout, stderr, f, name, gateContent)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -276,14 +283,16 @@ func checkpointDesign(f *changeCodeFlags, name, issuePath string) error {
 // refreshChangeCodeMirror applies to tracker-era details only (a card mirror
 // marker); files that predate the migration keep the legacy path untouched. It
 // refuses the resting branch — start-plan owns moving design off it — and a
-// hand-edited card field, whose refusal names the setter to use instead.
-func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) error {
+// hand-edited card field, whose refusal names the setter to use instead. Every
+// check runs before the only effect; a dry run returns the refreshed bytes
+// without writing them. nil means "use the file as it is".
+func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) ([]byte, error) {
 	details, err := os.ReadFile(issuePath)
 	if err != nil {
-		return fmt.Errorf("read issue file %s: %w", issuePath, err)
+		return nil, fmt.Errorf("read issue file %s: %w", issuePath, err)
 	}
 	if !issue.HasMirror(details) {
-		return nil
+		return nil, nil
 	}
 	ctx := context.Background()
 	if f.review != nil {
@@ -291,23 +300,25 @@ func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) error {
 	}
 	env, err := openTracker(ctx)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	id, _, ok := issue.ParseFilename(filepath.Base(issuePath))
 	if !ok {
-		return fmt.Errorf("%s is not an issue filename", issuePath)
+		return nil, fmt.Errorf("%s is not an issue filename", issuePath)
 	}
 	if env.branch != name {
-		return fmt.Errorf("#%s's design belongs on its branch %s (this checkout is on %q); run `sdlc start-plan --issue %s` first", id, name, env.branch, issue.CLIRef(id))
+		return nil, fmt.Errorf("#%s's design belongs on its branch %s (this checkout is on %q); run `sdlc start-plan --issue %s` first", id, name, env.branch, issue.CLIRef(id))
 	}
 	refreshed, err := refreshMirror(env, id, details)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	if !bytes.Equal(refreshed, details) {
-		return os.WriteFile(issuePath, refreshed, 0o644)
+	if !f.DryRun && !bytes.Equal(refreshed, details) {
+		if err := os.WriteFile(issuePath, refreshed, 0o644); err != nil {
+			return nil, err
+		}
 	}
-	return nil
+	return refreshed, nil
 }
 
 // ── the gate sequence ───────────────────────────────────────────────────────

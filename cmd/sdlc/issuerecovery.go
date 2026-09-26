@@ -59,7 +59,7 @@ func runRecoveryList(ctx context.Context, stdout io.Writer) error {
 		fmt.Fprintln(stdout, "no unfinished tracker operations")
 		return nil
 	}
-	here := "refs/heads/" + env.branch
+	here := env.branchRef()
 	for _, r := range all {
 		spec := r.Spec()
 		where := "here"
@@ -99,7 +99,7 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 	if err != nil {
 		return err
 	}
-	here := "refs/heads/" + env.branch
+	here := env.branchRef()
 	for _, r := range mine {
 		// Receipts are visible from every linked worktree; a remaining local effect
 		// belongs to the one on the source branch. Refuse before touching anything.
@@ -134,7 +134,7 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 			}
 			r = resumed.Receipt()
 			step = tracker.TransferStepper
-			adapter = tracker.NewTransferOp(ctx, env.repo, env.main, env.root, "refs/heads/"+env.branch, moveDetailRemover(env))
+			adapter = tracker.NewTransferOp(ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
 		default:
 			return fmt.Errorf("receipt %s: %s operations are recovered by their own verb", r.Spec().Token, r.Operation())
 		}

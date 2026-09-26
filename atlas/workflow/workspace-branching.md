@@ -59,7 +59,7 @@ commit, reset or abort an operation to manufacture readiness.
    permitted. Source movement after the accepted capture does not propagate:
    this branches a whole committed snapshot, not an issue-specific selection.
 4. Append `Branched from <canonical address> at <full SHA>.` to the target issue's
-   `## Log`, then checkpoint with `sdlc issue sync --issue N`. If the issue record
+   `## Log`, then commit it on the branch (a local checkpoint). If the issue record
    is absent from this snapshot, explicitly bring in that exact allocated record
    and verify its filename matches the branch. Do not allocate a replacement or
    automatically transplant an old destination plan. A failed checkpoint leaves

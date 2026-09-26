@@ -140,11 +140,12 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	}
 
 	spec := tracker.ReceiptSpec{Token: operationToken("move"), Repository: env.target.Repository, IssueID: id,
-		CardPath: card.Path, SourcePath: dest, DestinationPath: dest, SourceBranch: "refs/heads/" + env.branch,
+		CardPath: card.Path, SourcePath: dest, DestinationPath: dest, SourceBranch: env.branchRef(),
 		SourceHEAD: env.head, CardOID: card.BlobOID, TrackerBase: snap.Ref(), MainBase: pinnedMain}
 	abs := filepath.Join(env.root, filepath.FromSlash(dest))
 	info, statErr := os.Lstat(abs)
 	var source []byte
+	staleMirror := false
 	switch {
 	case statErr == nil:
 		if !info.Mode().IsRegular() {
@@ -156,22 +157,18 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 		if !issue.HasMirror(source) {
 			return fmt.Errorf("%s has no card mirror; it predates the tracker and cannot be handed off", dest)
 		}
-		// Publishing makes these bytes main's details: a hand-edited card field is
-		// refused, and a merely stale mirror is refreshed (on disk too, so the
-		// removal later matches what was published).
-		refreshed, err := refreshMirror(env, id, source)
-		if err != nil {
-			return fmt.Errorf("%s: %w — nothing was published", dest, err)
-		}
-		if !bytes.Equal(refreshed, source) {
-			if err := os.WriteFile(abs, refreshed, info.Mode().Perm()); err != nil {
-				return err
-			}
-			source = refreshed
-		}
 		if err := checkMoveSource(env, dest, pinnedMain); err != nil {
 			return err
 		}
+		// Publishing makes these bytes main's details: a hand-edited card field is
+		// refused, and a merely stale mirror is refreshed — in memory here, and
+		// on disk only after every check (below), so the later removal matches.
+		refreshed, err := refreshMirror(env, id, source)
+		if err != nil {
+			return fmt.Errorf("%s: %w — nothing was changed", dest, err)
+		}
+		staleMirror = !bytes.Equal(refreshed, source)
+		source = refreshed
 		spec.Source = tracker.LocalSource
 	case errors.Is(statErr, os.ErrNotExist):
 		if source, err = issue.DetailsFromCard(card.Raw, env.format, time.Now().Format("2006-01-02")); err != nil {
@@ -196,11 +193,23 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 		fmt.Fprintf(stdout, "Would publish #%s's initial details from %s to main as %s\n", id, from, dest)
 		return nil
 	}
+	if staleMirror {
+		// The first effect: refresh the source file and, where Git tracks it,
+		// its index entry too, so no staged/unstaged split is introduced.
+		if err := os.WriteFile(abs, source, info.Mode().Perm()); err != nil {
+			return err
+		}
+		if staged, _ := env.git("ls-files", "--cached", "--", dest); staged != "" {
+			if _, err := env.git("add", "--", dest); err != nil {
+				return err
+			}
+		}
+	}
 	t, err := tracker.NewTransfer(spec)
 	if err != nil {
 		return err
 	}
-	op := tracker.NewTransferOp(ctx, env.repo, env.main, env.root, "refs/heads/"+env.branch, moveDetailRemover(env))
+	op := tracker.NewTransferOp(ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
 	final, err := tracker.Drive(t.Receipt(), tracker.TransferStepper, op, receipts)
 	if err != nil {
 		if errors.Is(err, tracker.ErrOperationUncertain) || final.ConfirmedStages() > 0 {
@@ -230,11 +239,24 @@ func shortOID(oid string) string {
 // split, and on the resting branch no local-only commits (it will
 // fast-forward to the publication).
 func checkMoveSource(env *trackerEnv, dest, pinnedMain string) error {
-	if _, err := env.git("diff", "--quiet", "--", dest); err != nil {
+	// A split is a staged version (index ≠ HEAD) with further unstaged edits
+	// (worktree ≠ index): publishing either side would silently drop the other.
+	// An ordinary uncommitted edit, or a fully staged one, is not a split.
+	worktreeClean, err := env.gitTest("diff", "--quiet", "--", dest)
+	if err != nil {
+		return err
+	}
+	indexClean, err := env.gitTest("diff", "--cached", "--quiet", "--", dest)
+	if err != nil {
+		return err
+	}
+	if !worktreeClean && !indexClean {
 		return fmt.Errorf("%s has unstaged changes over a staged version; stage or discard one side first — nothing was changed", dest)
 	}
 	if env.onRest() {
-		if _, err := env.git("merge-base", "--is-ancestor", "HEAD", pinnedMain); err != nil {
+		if contained, err := env.gitTest("merge-base", "--is-ancestor", "HEAD", pinnedMain); err != nil {
+			return err
+		} else if !contained {
 			return fmt.Errorf("%s has commits that are not on main; the handoff fast-forwards it, so reconcile them first — nothing was changed", env.resting)
 		}
 	}
@@ -251,7 +273,9 @@ func moveSourceBase(env *trackerEnv, dest, pinnedMain string) (string, error) {
 	}
 	bases := strings.Fields(out)
 	for _, base := range bases {
-		if _, err := env.git("cat-file", "-e", base+":"+dest); err == nil {
+		if present, err := env.has(base, dest); err != nil {
+			return "", err
+		} else if present {
 			return "", fmt.Errorf("%s already exists at merge base %s; this is not an initial handoff", dest, shortOID(base))
 		}
 	}
@@ -275,7 +299,9 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 		}
 		if env.onRest() {
 			if head, _ := env.git("rev-parse", "HEAD"); head != "" {
-				if _, err := env.git("merge-base", "--is-ancestor", mainCommit, "HEAD"); err == nil {
+				if done, err := env.gitTest("merge-base", "--is-ancestor", mainCommit, "HEAD"); err != nil {
+					return err
+				} else if done {
 					return nil // already fast-forwarded
 				}
 			}
@@ -289,9 +315,9 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 				return fmt.Errorf("%s changed after it was published; it is left untouched. Main has the published copy (%s); reconcile your edits into it, then `sdlc issue recovery reconcile --issue %s`", spec.SourcePath, shortOID(mainCommit), issue.CLIRef(spec.IssueID))
 			}
 		}
-		tracked := false
-		if _, err := env.git("cat-file", "-e", "HEAD:"+spec.SourcePath); err == nil {
-			tracked = true
+		tracked, err := env.has("HEAD", spec.SourcePath)
+		if err != nil {
+			return err
 		}
 		staged, _ := env.git("ls-files", "--cached", "--", spec.SourcePath)
 		if staged != "" {

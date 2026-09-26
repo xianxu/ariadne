@@ -147,10 +147,10 @@ things that look alike but behave differently:
 
 Three `sdlc` mechanisms keep the common path smooth without adding a gate:
 
-1. **`issue new` reserves on main (#244)** — its narrow creation transaction
-   checks the fresh remote ID space and conditionally publishes the new record.
-   Confirmed creation is checkpointed locally; an uncertain outcome preserves
-   local content for reconciliation. See [issue-sync.md](issue-sync.md).
+1. **`issue new` reserves a tracker card (#252)** — the card is published by
+   its own commit on `issue-tracker` at `max(id)+1`, reallocating after a proven
+   race; details are written locally and never pushed to main by filing. An
+   uncertain outcome keeps a recovery receipt. See [issue-tracker.md](issue-tracker.md).
 2. **Dirty-tree guards ignore tracker files (#82 M2)** — `assessDirty` buckets
    `workshop/issues|history/*.md` as non-blocking (tracked-modified or
    untracked); only dirty *code* blocks a merge. See [sdlc-binary.md](sdlc-binary.md).

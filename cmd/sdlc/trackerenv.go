@@ -82,12 +82,36 @@ func (e *trackerEnv) git(args ...string) (string, error) {
 	return strings.TrimSpace(string(out)), nil
 }
 
-func (e *trackerEnv) checkout(mainBase string) tracker.Checkout {
-	branch := ""
-	if e.branch != "" {
-		branch = "refs/heads/" + e.branch
+// gitTest runs a Git predicate: exit 0 is true, exit 1 is a completed false
+// observation, and anything else (a missing repository, a bad name, a killed
+// process) is an error — never evidence of absence or difference.
+func (e *trackerEnv) gitTest(args ...string) (bool, error) {
+	_, err := e.git(args...)
+	if err == nil {
+		return true, nil
 	}
-	return tracker.Checkout{Root: e.root, Repository: e.target.Repository, Branch: branch, HEAD: e.head, MainBase: mainBase, ObjectFormat: e.format}
+	var exit *exec.ExitError
+	if errors.As(err, &exit) && exit.ExitCode() == 1 {
+		return false, nil
+	}
+	return false, err
+}
+
+// has reports whether a path exists at a commit (rev-parse exits 1 when not).
+func (e *trackerEnv) has(commit, p string) (bool, error) {
+	return e.gitTest("rev-parse", "-q", "--verify", commit+":"+p)
+}
+
+// branchRef is the checkout's current branch as a full ref ("" when detached).
+func (e *trackerEnv) branchRef() string {
+	if e.branch == "" {
+		return ""
+	}
+	return "refs/heads/" + e.branch
+}
+
+func (e *trackerEnv) checkout(mainBase string) tracker.Checkout {
+	return tracker.Checkout{Root: e.root, Repository: e.target.Repository, Branch: e.branchRef(), HEAD: e.head, MainBase: mainBase, ObjectFormat: e.format}
 }
 
 func (e *trackerEnv) receipts() (*tracker.RecoveryReceipts, error) {

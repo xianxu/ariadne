@@ -315,3 +315,39 @@ func TestMoveDetailRefusesHandEditedCardFieldBeforePublishing(t *testing.T) {
 		t.Fatal("refused handoff recorded on the card")
 	}
 }
+
+// BR-13: checks run before effects — a dry run or a refusal leaves the stale
+// source untouched; only a proceeding run refreshes (and publishes) it.
+func TestMoveDetailStaleMirrorIsWrittenOnlyWhenProceeding(t *testing.T) {
+	r := spinOffOnCodeBranch(t)
+	retitleElsewhere(t, r, "000008", "Renamed Elsewhere")
+	abs := filepath.Join(r.root, spinOffDetails)
+	before, _ := os.ReadFile(abs)
+	var out, errs bytes.Buffer
+	dry := moveFlags(8)
+	dry.DryRun = true
+	if err := runMoveDetail(context.Background(), &out, &errs, dry); err != nil {
+		t.Fatalf("dry run: %v", err)
+	}
+	if got, _ := os.ReadFile(abs); !bytes.Equal(got, before) {
+		t.Fatal("dry run rewrote the source")
+	}
+	// A staged/unstaged split (in a branch-owned section) refuses the handoff.
+	split := strings.Replace(string(before), "## Spec\n", "## Spec\n\nstaged note\n", 1)
+	writeRepoFile(t, r.root, spinOffDetails, split)
+	r.git("add", spinOffDetails)
+	writeRepoFile(t, r.root, spinOffDetails, split+"unstaged\n")
+	if err := runMoveDetail(context.Background(), &out, &errs, moveFlags(8)); err == nil || !strings.Contains(err.Error(), "unstaged changes") {
+		t.Fatalf("split source: %v", err)
+	}
+	if got, _ := os.ReadFile(abs); string(got) != split+"unstaged\n" {
+		t.Fatal("refused run rewrote the source")
+	}
+	r.git("checkout", "--", spinOffDetails)
+	if err := runMoveDetail(context.Background(), &out, &errs, moveFlags(8)); err != nil {
+		t.Fatalf("proceeding run: %v\n%s", err, errs.String())
+	}
+	if got := testfix.Capture(t, r.origin, "show", "main:"+spinOffDetails); !strings.Contains(got, "# Renamed Elsewhere") {
+		t.Fatalf("published details kept the stale title:\n%s", got)
+	}
+}

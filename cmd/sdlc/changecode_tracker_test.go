@@ -125,3 +125,19 @@ func TestChangeCodeRefusesMalformedMirroredDetails(t *testing.T) {
 		t.Fatal("refused change-code committed")
 	}
 }
+
+func TestChangeCodeDryRunLeavesStaleMirrorOnDisk(t *testing.T) {
+	r, _, detailPath := claimedOnBranch(t)
+	retitleElsewhere(t, r, "000009", "Renamed Elsewhere")
+	abs := filepath.Join(r.root, detailPath)
+	before, _ := os.ReadFile(abs)
+	f := trackerChangeCodeFlags()
+	f.DryRun = true
+	var out, errs bytes.Buffer
+	if err := runChangeCode(strings.NewReader(""), &out, &errs, f); err != nil {
+		t.Fatalf("%v\n%s", err, errs.String())
+	}
+	if got, _ := os.ReadFile(abs); !bytes.Equal(got, before) {
+		t.Fatal("dry run rewrote the details")
+	}
+}

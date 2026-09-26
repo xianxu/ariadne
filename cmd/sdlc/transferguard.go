@@ -58,7 +58,11 @@ func guardTransferredDetails(ctx context.Context) error {
 		// An interrupted handoff may have published to main before recording it
 		// on the card; the details on main are protected from that moment.
 		if h.MainCommit == "" {
-			if _, err := env.git("cat-file", "-e", mainTip+":"+h.Destination); err != nil {
+			onMain, err := env.has(mainTip, h.Destination)
+			if err != nil {
+				return err
+			}
+			if !onMain {
 				continue
 			}
 		}
@@ -91,14 +95,22 @@ func checkTransferredPaths(env *trackerEnv, mainTip string, paths []string) erro
 		}
 	}
 	for _, p := range paths {
-		want, werr := env.git("rev-parse", "-q", "--verify", mainTip+":"+p)
-		got, gerr := env.git("rev-parse", "-q", "--verify", result+":"+p)
+		onMain, err := env.has(mainTip, p)
+		if err != nil {
+			return err
+		}
+		inResult, err := env.has(result, p)
+		if err != nil {
+			return err
+		}
+		want, _ := env.git("rev-parse", "-q", "--verify", mainTip+":"+p)
+		got, _ := env.git("rev-parse", "-q", "--verify", result+":"+p)
 		switch {
-		case werr != nil && gerr != nil:
+		case !onMain && !inResult:
 			continue // absent on both (archived by its owner)
-		case gerr != nil:
+		case !inResult:
 			return transferRefusal(p, "would be deleted")
-		case werr != nil:
+		case !onMain:
 			return transferRefusal(p, "would be re-added after its owner archived it")
 		case want != got:
 			return transferRefusal(p, "would be overwritten")

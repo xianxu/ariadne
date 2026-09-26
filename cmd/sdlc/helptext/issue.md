@@ -116,8 +116,8 @@ for remote inspection rather than assuming failure.
 
 `issue sync --push` publishes only a new issue commit created by that invocation.
 When no new commit exists, use explicit `issue publish --commit SHA`; no older
-commit is inferred. `change-code` similarly publishes its new narrow issue
-checkpoint after gates pass, and does nothing when no new checkpoint is needed.
+commit is inferred. (Since #252, `change-code` publishes nothing: its design
+checkpoint is a local commit on the issue branch.)
 
 Claim only reserves fresh open issues. It does not sweep local body edits into
 remote main. Ordinary reviewed PR publication or explicit `sdlc push` can still

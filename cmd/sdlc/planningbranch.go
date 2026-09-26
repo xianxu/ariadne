@@ -46,7 +46,9 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 		return 0, err
 	}
 	pinned := view.Ref()
-	if _, err := env.git("merge-base", "--is-ancestor", "HEAD", pinned); err != nil {
+	if contained, err := env.gitTest("merge-base", "--is-ancestor", "HEAD", pinned); err != nil {
+		return 0, err
+	} else if !contained {
 		return 0, fmt.Errorf("%s has commits that are not on main (ahead or diverged); reconcile them — push, move them to a branch, or drop them deliberately — before planning #%s. Nothing was changed", env.resting, id)
 	}
 	present, err := view.Exists(detailPath)
@@ -56,9 +58,9 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 	if !present {
 		return 0, fmt.Errorf("#%s's details (%s) are not on main; its creation is incomplete, so it cannot be planned yet", id, detailPath)
 	}
-	exists := true
-	if _, err := env.git("rev-parse", "--verify", "-q", "refs/heads/"+name); err != nil {
-		exists = false
+	exists, err := env.gitTest("rev-parse", "--verify", "-q", "refs/heads/"+name)
+	if err != nil {
+		return 0, err
 	}
 	if exists {
 		if _, err := env.git("switch", "-q", name); err != nil {

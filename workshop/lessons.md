@@ -163,6 +163,13 @@ The simplest durable authority beats a clever scan of consequences.
   (`git diff --name-status BASE HEAD | grep '^A' | grep -v _test`) and reconcile
   them with the plan's Core concepts table and each Task "Files:" list; reviewing
   the inventory by memory missed six entities and two phantom files (#252 M2).
-- When a verb's behaviour changes, update its `cmd/sdlc/helptext/*.md` page and
-  any root-help summary of it in the same change: per-verb help is the workflow
-  contract agents read, and a later instruction sweep does not cover it (#252 M2).
+- When a verb's behaviour changes, `rg` the verb's name across
+  `cmd/sdlc/helptext/` and `atlas/` and classify every hit (still true / now
+  false / legacy until cutover) in the same change: per-verb help is the workflow
+  contract agents read, and fixing only the pages you remember left four stale
+  descriptions (#252 M2).
+- Checks run before effects: a verb's dry-run and refusal paths must leave every
+  file unchanged, so compute refreshes in memory and write only after the last
+  check (#252 M2: a stale-mirror refresh was written before refusals ran).
+- An observation error is never evidence of absence: a Git probe distinguishes
+  exit 1 (false) from any other failure (#252 M2).

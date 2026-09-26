@@ -109,3 +109,42 @@ func seededIssue(t *testing.T, id, slug string) (cardPath, card, detailPath, det
 	}
 	return tracker.CardPath(id, slug), string(c), "workshop/issues/" + id + "-" + slug + ".md", string(d)
 }
+
+// retitleElsewhere changes a card as another worktree would, leaving this
+// checkout's mirror stale.
+func retitleElsewhere(t *testing.T, r *trackerRepo, id, title string) {
+	t.Helper()
+	repo, err := tracker.NewRepository(context.Background(), r.root, "origin")
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := repo.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	current, _ := snap.Card(id)
+	next, err := issue.SetCardTitle(current.Raw, title)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := repo.UpdateCard(current, next, "retitle-elsewhere", func(string, string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// An observation error is never evidence of absence (#252 BR-14): only exit 1
+// is a false predicate; a Git failure is reported.
+func TestGitTestSeparatesFalseFromFailure(t *testing.T) {
+	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
+	env := &trackerEnv{ctx: context.Background(), root: r.root}
+	if ok, err := env.has("HEAD", "README"); err != nil || !ok {
+		t.Fatalf("present path: %v %v", ok, err)
+	}
+	if ok, err := env.has("HEAD", "absent.md"); err != nil || ok {
+		t.Fatalf("absent path: %v %v", ok, err)
+	}
+	broken := &trackerEnv{ctx: context.Background(), root: t.TempDir()} // not a repository
+	if ok, err := broken.has("HEAD", "README"); err == nil || ok {
+		t.Fatalf("a failed probe read as absence: %v %v", ok, err)
+	}
+}
