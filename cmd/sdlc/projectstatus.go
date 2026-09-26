@@ -1,12 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -64,6 +67,9 @@ type issueMeta struct {
 	EstimateHours, ActualHours float64
 	ActualAvailable, ActualNA  bool
 	Deps                       []string
+	// DepsUnknown: a card with no details anywhere (#252) — its creation is
+	// incomplete, so "no deps" would be a guess. It is never workable frontier.
+	DepsUnknown bool
 }
 
 type boardRow struct {
@@ -151,7 +157,7 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 		if !ok {
 			continue
 		}
-		blocked := false
+		blocked := meta.DepsUnknown
 		for _, dep := range meta.Deps {
 			depID := refIDs[dep]
 			depMeta, ok := metas[depID]
@@ -268,27 +274,51 @@ func lookupIssueMeta(refText, currentRepoRoot string) (issueMeta, error) {
 		return issueMeta{}, err
 	}
 	disc := vocab.Issue().Discovery()
-	path, err := locateIssueFile(filepath.Join(repoDir, disc.Home), ref.ID)
+	rs, err := projectIssueRecords(repoDir)
 	if err != nil {
+		return issueMeta{}, fmt.Errorf("resolve %s: %w", refText, err)
+	}
+	id := fmt.Sprintf("%06d", ref.ID)
+	rec, found := rs.Get(id)
+	detailsFM := ""
+	switch {
+	case found && rec.DetailPath != "":
+		if rec.DetailErr != nil {
+			return issueMeta{}, fmt.Errorf("%s: %w", refText, rec.DetailErr)
+		}
+		detailsFM = rec.DetailFM
+	default:
+		// Archived details (a done issue's history), or a pre-tracker archive.
 		archive := filepath.Join(repoDir, vocab.ArchiveSubdir(disc.Archive, vocab.ArchiveIssues))
-		path, err = locateIssueFile(archive, ref.ID)
-		if err != nil {
-			return issueMeta{}, fmt.Errorf("resolve %s: %w", refText, err)
+		if path, lerr := locateIssueFile(archive, ref.ID); lerr == nil {
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return issueMeta{}, err
+			}
+			if detailsFM, _, err = issue.Parse(string(raw)); err != nil {
+				return issueMeta{}, err
+			}
+		} else if !found || rec.Card == nil {
+			return issueMeta{}, fmt.Errorf("resolve %s: %w", refText, lerr)
 		}
 	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return issueMeta{}, err
+	// Card-owned fields from the card where one exists; deps from the details.
+	cardFM := detailsFM
+	if found && rec.Card != nil {
+		cardFM = rec.Card.Card.Frontmatter
 	}
-	fm, _, err := issue.Parse(string(raw))
-	if err != nil {
-		return issueMeta{}, err
-	}
-	decoded, err := projectdoc.DecodeMetadata(fm)
+	decoded, err := projectdoc.DecodeMetadata(cardFM)
 	if err != nil {
 		return issueMeta{}, fmt.Errorf("%s: %w", refText, err)
 	}
-	meta := issueMeta{Identity: canonicalRepoIssueIdentity(repoDir, ref.ID), Status: decoded.Status, Deps: decoded.Deps}
+	if detailsFM != "" && detailsFM != cardFM {
+		detail, err := projectdoc.DecodeMetadata(detailsFM)
+		if err != nil {
+			return issueMeta{}, fmt.Errorf("%s: %w", refText, err)
+		}
+		decoded.Deps = detail.Deps
+	}
+	meta := issueMeta{Identity: canonicalRepoIssueIdentity(repoDir, ref.ID), Status: decoded.Status, Deps: decoded.Deps, DepsUnknown: detailsFM == ""}
 	meta.EstimateHours, _, _, err = projectdoc.NumberValue(decoded.EstimateHours, "estimate_hours")
 	if err != nil {
 		return issueMeta{}, fmt.Errorf("%s has %w", refText, err)
@@ -299,3 +329,22 @@ func lookupIssueMeta(refText, currentRepoRoot string) (issueMeta, error) {
 	}
 	return meta, nil
 }
+
+// projectIssueRecords loads (once per process) one repository's composed
+// records. The board is a read-only view: a stale tracker read is acceptable.
+var projectIssueRecords = func() func(string) (tracker.Records, error) {
+	var mu sync.Mutex
+	cache := map[string]tracker.Records{}
+	return func(repoDir string) (tracker.Records, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if rs, ok := cache[repoDir]; ok {
+			return rs, nil
+		}
+		rs, err := loadIssueRecordsAt(context.Background(), repoDir, vocab.Issue().Discovery().Home, tracker.PreferFresh)
+		if err == nil {
+			cache[repoDir] = rs
+		}
+		return rs, err
+	}
+}()

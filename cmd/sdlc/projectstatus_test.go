@@ -221,3 +221,22 @@ func TestComputeBoardDecodesQuotedProjectName(t *testing.T) {
 		t.Fatalf("board name = %q", b.Name)
 	}
 }
+
+// A card whose details are nowhere (creation incomplete, #252) has unknown
+// deps: it is blocked, never the workable frontier.
+func TestComputeBoardUnknownDepsBlock(t *testing.T) {
+	d := boardDoc(t, "- [ ] [ariadne#1] card only\n- [ ] [ariadne#2] ready\n")
+	lookup := func(ref string) (issueMeta, error) {
+		if ref == "ariadne#1" {
+			return issueMeta{Identity: "ariadne#1", Status: "open", DepsUnknown: true}, nil
+		}
+		return issueMeta{Identity: "ariadne#2", Status: "open"}, nil
+	}
+	b, err := computeBoard(d, lookup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b.Blocked) != 1 || b.Blocked[0] != "ariadne#1" || len(b.Frontier) != 1 || b.Frontier[0] != "ariadne#2" {
+		t.Fatalf("blocked %v frontier %v", b.Blocked, b.Frontier)
+	}
+}

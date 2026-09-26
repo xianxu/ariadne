@@ -41,3 +41,23 @@ func TestListIssuesComposesCardsWithDetails(t *testing.T) {
 		t.Errorf("state did not label stale cards or card-only rows:\n%s", out.String())
 	}
 }
+
+func TestProjectIssueMetaReadsCardFieldsAndDetailDeps(t *testing.T) {
+	cp9, c9, dp9, d9 := seededIssue(t, "000009", "nine")
+	c9 = strings.Replace(c9, "estimate_hours:", "estimate_hours: 4", 1)
+	d9 = strings.Replace(d9, "deps: []", "deps: [r#10]", 1)
+	d9 = strings.Replace(d9, "estimate_hours:", "estimate_hours: 99", 1) // stale mirror, must not count
+	cp10, c10, _, _ := seededIssue(t, "000010", "card-only")
+	r := newTrackerRepo(t, map[string]string{cp9: c9, cp10: c10}, map[string]string{dp9: d9})
+	meta, err := lookupIssueMeta(filepath.Base(r.root)+"#9", r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if meta.Status != "open" || meta.EstimateHours != 4 || len(meta.Deps) != 1 || meta.Deps[0] != "r#10" || meta.DepsUnknown {
+		t.Fatalf("#9 meta: %+v", meta)
+	}
+	only, err := lookupIssueMeta(filepath.Base(r.root)+"#10", r.root)
+	if err != nil || only.Status != "open" || !only.DepsUnknown {
+		t.Fatalf("card-only meta: %+v %v", only, err)
+	}
+}
