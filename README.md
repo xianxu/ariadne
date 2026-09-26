@@ -20,6 +20,9 @@ To publish an issue and deliberately selected plan/project files together,
 commit them and run `sdlc issue publish --commit SHA`. This applies that change
 with three-way merging in every checkout, including primary `:0`, and preserves
 unrelated local commits. See [issue publication](atlas/workflow/issue-sync.md).
+The coming tracker workflow (#252, not yet activated) replaces sync and copied
+publication with cards on `issue-tracker`; see
+[issue tracker](atlas/workflow/issue-tracker.md) for its verbs.
 
 Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent

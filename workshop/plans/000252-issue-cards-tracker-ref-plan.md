@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git object/ref plumbing, existing Git/GitHub process seams and stateful fakes, CUE vocabulary, Markdown artifacts.
 
-**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2–M4 are not implemented. No production migration or consumer activation has begun.
+**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2 implemented in the issue worktree and submitted to its boundary review. M3–M4 are not implemented. No production migration or consumer activation has begun.
 
 ## Core concepts
 
@@ -40,8 +40,10 @@ Each card has one stable ID/path; one or more detail checkouts can mirror it, bu
 | Tracker repository / card snapshot reader | INTEGRATION | `cmd/sdlc/internal/tracker/repository.go`, `reader.go` | M1: new, delivered; card inventory only | `gitx.TrunkFile`, pinned Git refs/trees |
 | Git snapshot/CAS and bootstrap | INTEGRATION | `cmd/sdlc/internal/gitx/trunkfile.go`, `updatemany.go`, `snapshot.go`, `refbootstrap.go` | M1: modified / new, delivered | Git subprocess boundary |
 | Bounded output / shared process-group cleanup | INTEGRATION | `cmd/sdlc/internal/gitx/boundedoutput.go`, `cmd/sdlc/internal/processgroup/` | M1: new, delivered; judge wrappers updated | subprocess IO and cancellation |
-| Detail transfer adapter | INTEGRATION | `cmd/sdlc/issuemovedetail.go` | Planned M2: absent, not delivered | tracker, main publication, index/worktree and recovery refs |
-| Composed issue reader | INTEGRATION | `cmd/sdlc/issuerecord.go` | Planned M2/M3: absent, not delivered | M1 card reader plus selected detail location |
+| Detail transfer adapter | INTEGRATION | `cmd/sdlc/issuemovedetail.go`, `internal/tracker/transferop.go` | M2: new, delivered | tracker, main publication, index/worktree and recovery refs |
+| Receipt driver / candidate steps / recovery refs | INTEGRATION | `internal/tracker/drive.go`, `createop.go`, `store.go`, `internal/gitx/candidate.go`, `recoveryref.go` | M2: new, delivered | receipt engine, Git candidate publication, local refs |
+| Transfer guard | INTEGRATION | `cmd/sdlc/transferguard.go` | M2: new, delivered | `git merge-tree`, tracker handoff records |
+| Composed issue reader | INTEGRATION | `cmd/sdlc/issuerecord.go` | Planned M3: absent, not delivered (M2 verbs read card and details directly) | M1 card reader plus selected detail location |
 | Completion adapter | INTEGRATION | `cmd/sdlc/trackercompletion.go` | Planned M3: absent, not delivered | close evidence, existing GitHub landing identity and archive transaction |
 | Migration command | INTEGRATION | `cmd/sdlc/issuemigrate.go` | Planned M4: absent, not delivered | repository inventory, bootstrap, mirrors, cutover marker |
 | Publication fake | INTEGRATION test double | `cmd/sdlc/internal/gitx/commitpublication_fake_test.go` | M1: modified, delivered | immutable objects, multiple refs, rejection/lost acknowledgement |
@@ -171,21 +173,22 @@ the acceptance record. Foundation remains unactivated pending cutover.
 
 Files: modify `cmd/sdlc/{issue,issueids,claim,claimdecision,setstatus,startplan,changecode,changecode_flow}.go`; add `issuerecord.go`, `issuemetadata.go` and tests; update existing `issue_test.go`, `claimremote_test.go`, `startplan_test.go`, `changecode_test.go`.
 
-- [ ] Test `runIssueNew` and `runClaim` through the production command seam with controlled publication schedules; assert one reserved identity/claim and no readiness from local-only details.
-- [ ] Test `PreparePlanningBranch` with generated checkout/ref relationships; assert fresh-main details are present and resting refs/unrelated work are unchanged.
-- [ ] Run focused tests with `go test ./cmd/sdlc -run 'Test(Issue|Claim|StartPlan|ChangeCode)' -count=1`; record red results.
-- [ ] Route through the composed reader and tracker. Add `sdlc issue set --issue N --field FIELD --value VALUE` for editable card metadata (title, github_issue, estimate_hours); ID/dates/started/status/actuals remain owned by their specific lifecycle verbs. Preserve Estimate explanation validation in details.
-- [ ] Remove sync/publish behavior from implementation entry; keep ordinary explicit-path local checkpoints on the issue branch. Run focused tests and commit.
+- [x] Test `runIssueNew` and `runClaim` through the production command seam with controlled publication schedules; assert one reserved identity/claim and no readiness from local-only details.
+- [x] Test `PreparePlanningBranch` with generated checkout/ref relationships; assert fresh-main details are present and resting refs/unrelated work are unchanged.
+- [x] Run focused tests with `go test ./cmd/sdlc -run 'Test(Issue|Claim|StartPlan|ChangeCode)' -count=1`; record red results.
+- [x] Route through the tracker (composed reader deferred to M3 with its consumers). Card setters are `sdlc issue set-title` / `set-estimate` / `set-github` (the delivered CUE model's setter names; see Revisions); ID/dates/started/status/actuals remain owned by their specific lifecycle verbs. Estimate explanation validation stays in details.
+- [x] Remove sync/publish behavior from implementation entry; keep ordinary explicit-path local checkpoints on the issue branch. Run focused tests and commit.
 
 ### Task 4: Initial-details transfer and merge protection
 
 Files: create `cmd/sdlc/issuemovedetail.go`, `issuemovedetail_test.go`, `transferguard.go`, `transferguard_test.go`; modify `issue.go`, `pr.go`, `publishgate.go`, `merge.go`, `push.go`.
 
-- [ ] Build real-Git fixtures for A→B→R versus A→D→E, asserting main gets only details, code stays unshipped, source removal is scoped, and eventual merge preserves E exactly. Include main-rest fast-forward and no-local-file modes.
-- [ ] Test `StepTransfer` with reproducible interruption/event sequences; source removal requires confirmed owned publication and an unchanged source fingerprint.
-- [ ] Property-test `CheckTransferredPaths` over generated branch/main DAGs and fresh-clone replay; prospective merge preserves current destination state or refuses without mutation.
-- [ ] Implement the pinned transfer and merge checks described above, including `issue recovery list/reconcile` registration and tests in `issuemovedetail_test.go`. Run `go test ./cmd/sdlc -run 'Test(MoveDetail|Transfer|IssueRecovery)' -count=1`, then affected PR/merge/push suites; no production remotes in tests.
-- [ ] Update tracker atlas and README command discovery; commit and close M2 through the SDLC gate.
+- [x] Build real-Git fixtures for A→B→R versus A→D→E, asserting main gets only details, code stays unshipped, source removal is scoped, and eventual merge preserves E exactly. Include main-rest fast-forward and no-local-file modes.
+- [x] Test `StepTransfer` with reproducible interruption/event sequences; source removal requires confirmed owned publication and an unchanged source fingerprint.
+- [x] Property-test `CheckTransferredPaths` over generated branch/main DAGs and fresh-clone replay; prospective merge preserves current destination state or refuses without mutation.
+- [x] Implement the pinned transfer and merge checks described above, including `issue recovery list/reconcile` registration and tests in `issuemovedetail_test.go`. Run `go test ./cmd/sdlc -run 'Test(MoveDetail|Transfer|IssueRecovery)' -count=1`, then affected PR/merge/push suites; no production remotes in tests.
+- [x] Update tracker atlas and README command discovery; commit.
+- M2 acceptance is its `sdlc milestone-close` boundary review, recorded by the issue's M2 checkbox (not ticked here).
 
 ## Chunk 3: All readers, close and landing — M3
 
@@ -278,3 +281,28 @@ Round 2 accepted the corrected inventory and checklist (BR-1/BR-2 addressed).
 Fixed the remaining minor trailing whitespace in the generated review artifact
 before the boundary commit, as the FIX-THEN-SHIP protocol requires. Updated
 current execution status; no production activation or implementation scope change.
+
+### 2026-09-25 — M2 implementation
+
+Reason: executing Chunk 2 exposed mechanics the plan left implicit.
+- `UpdateManyPrepared` fuses prepare/push/retry, so the receipt engine could not
+  own retries or resume. Added candidate steps (prepare/push/probe) and one
+  `tracker.Drive` dispatcher; an unmoved-tip probe re-pushes the identical
+  candidate under the same lease to settle a delayed push (ARCH-ORDER).
+- Card stages of an operation re-derive their owned envelope change from the
+  current card (`PrepareCardChange`) instead of CAS against the last confirmed
+  blob: once details reach main another thread may claim, and the engine forbids
+  changing `CardOID` on revalidation, so a fixed-blob record stage could never
+  finish. This is revalidation, not stale overwrite.
+- Mirror refresh never edits the resting branch (a generated test showed claim
+  dirtying rest and blocking start-plan); change-code refuses rest for
+  tracker-era details and points at start-plan. Mirror presence is a textual
+  check so malformed frontmatter cannot bypass validation.
+- Setters follow the delivered CUE model (`set-title`, `set-estimate`,
+  `set-github`) rather than a generic `issue set --field`.
+- `recovery reconcile` releases a creation that published nothing instead of
+  re-rendering its draft; the operator reruns `issue new`.
+- The transfer guard reads only tracker handoff records (fresh clones are
+  protected), exempts the issue's own branch, and is not applicable without a
+  tracker. Remote-less publish-gate unit fixtures stub it through a seam.
+- The composed issue reader moves wholly to M3 with its consumers.

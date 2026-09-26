@@ -1,8 +1,9 @@
-# Issue tracker foundation
+# Issue tracker
 
-#252 is implementing a dedicated `issue-tracker` branch. The foundation is not
-yet activated: production commands still use the existing issue workflow until
-the coordinated migration replaces its readers and writers.
+#252 is implementing a dedicated `issue-tracker` branch. It is not yet
+activated: the installed binary keeps the existing issue workflow until the
+coordinated migration (M4) replaces its readers and writers. M1 built the model
+and storage; M2 moved the creation, claim, planning and handoff verbs onto it.
 
 ## Ownership
 
@@ -52,6 +53,40 @@ refuses records above 16 KiB,
 unknown/duplicate keys and structurally impossible progress; it is not a
 signature and does not replace an adapter's Git provenance checks.
 
+## Operations against Git (M2)
+
+Publication is split into steps the receipt engine drives: `gitx.TrunkFile`
+`PrepareCandidate` / `PushCandidate` / `ProbeCandidate` (a candidate is one
+commit on a pinned tip, carrying a unique `Tracker-Operation:` token, so its
+reachability proves ownership). `tracker.Drive` is the only dispatcher: it
+persists the receipt before every protected effect and stops on any uncertain
+observation. A probe that finds the destination unmoved re-pushes the identical
+candidate under the same lease, settling a delayed push instead of stranding it.
+Receipts live in checkout-local recovery refs (`refs/sdlc/recovery/<token>`,
+`gitx.RecoveryStore`) whose tree and parents keep pinned objects alive through gc.
+
+The publication remote is the resting branch's upstream
+(`gitx.ResolvePublicationTarget`), never a guessed `origin`.
+
+| Verb | Card (tracker) | Details (checkout) | Main |
+|---|---|---|---|
+| `issue new` | reserved at `max(id)+1`, own commit; reallocates after a proven race | written locally; narrow commit on a feature branch, uncommitted on rest | untouched |
+| `claim` | open → working by CAS | mirror refreshed (never on rest) | must already hold the details, re-checked before push |
+| `start-plan` | must be working | branch `<details stem>` created at pinned main from a clean rest | untouched |
+| `change-code` | read (mirror refresh before gates) | design committed narrowly on the issue branch | never published |
+| `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
+| `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
+
+`move-detail` is add-then-remove relative to a merge base without the file, so
+the source branch's direct, merge-from-main or squash landing keeps main's copy
+and the new owner's edits. The card's `tracker.handoff` record (versioned
+internal envelope, never mirrored) lets any clone recognise handed-off details:
+PR, push, merge and durable landing refuse when the prospective merge would
+conflict with, delete, re-add or rewrite them (`transferguard.go`); the issue's
+own branch is exempt. `sdlc issue recovery list|reconcile` resumes stopped
+operations, probing before repeating anything; a creation that published
+nothing is released rather than re-rendered.
+
 ## Verification pointers
 
 - `internal/issue/card_test.go`, `mirror_test.go`: projection, ownership and fuzz
@@ -63,5 +98,15 @@ signature and does not replace an adapter's Git provenance checks.
 - `internal/gitx/snapshot_test.go`, `boundedoutput_test.go`: literal object reads,
   malformed frames and bounded subprocess output.
 
-The durable implementation plan contains creation/handoff/completion contracts
-and the remaining consumer migration and operational cutover requirements.
+- `internal/gitx/candidate_test.go`, `recoveryref_test.go`: candidate
+  ownership, peer rejection, cancellation; recovery refs surviving gc.
+- `internal/tracker/createop_test.go`: allocation race, lost acknowledgement
+  resumed from a fresh process, never overwriting foreign details.
+- `cmd/sdlc/issuemovedetail_test.go`, `transferguard_test.go`: the A→B→R vs
+  A→D→E landings, rest fast-forward, card-derived details, interrupted record
+  finished by reconcile, guard over branch shapes and from a fresh clone.
+- `cmd/sdlc/claimremote_test.go`: two-clone claim and filing races against the
+  built binary.
+
+The durable implementation plan contains the completion contracts and the
+remaining consumer migration and operational cutover requirements.

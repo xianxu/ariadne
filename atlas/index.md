@@ -5,7 +5,7 @@ Central directory for atlas entries — practical pointers for future developers
 
 ## 1. Workflow System (base layer)
 - [Workflow Index](workflow/index.md) — issue-based development loop
-- [Issue Tracker Foundation](workflow/issue-tracker.md) — #252 card authority, exact detail mirrors and Git snapshot/CAS storage; not yet activated.
+- [Issue Tracker](workflow/issue-tracker.md) — #252 card authority, detail mirrors, Git snapshot/CAS storage, receipt-driven creation/claim/handoff verbs; not yet activated.
 - [Issue Lifecycle](workflow/issue-lifecycle.md) — GitHub → local → archive flow; closing checklist (actual_hours, side-quest log, auto calibration-ledger append); section parsing is one fence-aware scanner with an explicit unterminated-fence policy (#211).
 - [Artifact Hierarchy](workflow/artifact-hierarchy.md) — where workshop/ files live + lifecycle
 - [Ledger Landscape](workflow/ledger-landscape.md) — where state and evidence live across all surfaces (issue file, git history + trailers, transcripts, memory, atlas, project file); design principles for picking the right ledger
