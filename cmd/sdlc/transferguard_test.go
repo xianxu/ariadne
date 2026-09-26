@@ -132,3 +132,28 @@ func TestPublishGateAndPRRefuseChangedHandedOffDetails(t *testing.T) {
 		t.Fatalf("pr: %v", err)
 	}
 }
+
+// A fresh clone has none of the originating checkout's recovery refs; the
+// handoff record on the card alone must still protect the details.
+func TestTransferGuardFromAFreshCloneUsesOnlyTrackerRecords(t *testing.T) {
+	r := handedOff(t)
+	r.git("push", "-q", "origin", "000007-seven")
+	clone := filepath.Join(t.TempDir(), "fresh")
+	git(t, "", "clone", "-q", r.origin, clone)
+	git(t, clone, "config", "user.name", "c")
+	git(t, clone, "config", "user.email", "c@c")
+	git(t, clone, "switch", "-q", "000007-seven")
+	chdirTo(t, clone)
+	if refs := git(t, clone, "for-each-ref", "refs/sdlc/"); strings.TrimSpace(refs) != "" {
+		t.Fatalf("fixture: clone has private refs %s", refs)
+	}
+	if err := guardTransferredDetails(context.Background()); err != nil {
+		t.Fatalf("net-zero source branch refused from a fresh clone: %v", err)
+	}
+	git(t, clone, "merge", "-q", "--no-edit", "origin/main")
+	writeRepoFile(t, clone, spinOffDetails, "rewritten in a fresh clone\n")
+	git(t, clone, "commit", "-qam", "rewrite")
+	if err := guardTransferredDetails(context.Background()); !errors.Is(err, errTransferredDetails) {
+		t.Fatalf("fresh clone rewrite not refused: %v", err)
+	}
+}
