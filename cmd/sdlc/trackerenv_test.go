@@ -41,6 +41,13 @@ func newTrackerRepo(t *testing.T, cards map[string]string, details map[string]st
 		testfix.Git(t, root, "commit", "-qm", "seed details")
 	}
 	testfix.Git(t, root, "push", "-q", "-u", "origin", "main")
+	tf := bootstrapTracker(t, root, cards)
+	return &trackerRepo{t: t, root: root, origin: origin, tracker: tf}
+}
+
+// bootstrapTracker initializes origin's issue-tracker with the given cards.
+func bootstrapTracker(t *testing.T, root string, cards map[string]string) *gitx.TrunkFile {
+	t.Helper()
 	tf, err := gitx.NewTrunkFileContext(context.Background(), root, "origin", "issue-tracker")
 	if err != nil {
 		t.Fatal(err)
@@ -52,7 +59,7 @@ func newTrackerRepo(t *testing.T, cards map[string]string, details map[string]st
 	if _, err := tf.Bootstrap(files, "bootstrap test-tracker", func(gitx.BootstrapResult) error { return nil }); err != nil {
 		t.Fatal(err)
 	}
-	return &trackerRepo{t: t, root: root, origin: origin, tracker: tf}
+	return tf
 }
 
 func writeRepoFile(t *testing.T, root, rel, body string) {

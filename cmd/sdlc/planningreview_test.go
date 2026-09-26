@@ -26,6 +26,8 @@ func startPlanningReviewCLI(t *testing.T, binary, pause string, prepare ...func(
 	text := "---\nid: 000206\nstatus: working\n---\n## Spec\nDesign\n## Done when\n- Safe\n## Plan\n- [ ] Implement\n## Estimate\nReview this estimate\n"
 	writeSyncIssue(t, repo, filepath.Base(issuePath206), text)
 	writeSyncIssue(t, repo, "000207-unrelated.md", "---\nid: 000207\nstatus: open\n---\nOther work\n")
+	cardPath, card, _, _ := seededIssue(t, "000207", "unrelated")
+	bootstrapTracker(t, repo, map[string]string{cardPath: card})
 	for _, before := range prepare {
 		before(repo)
 	}
