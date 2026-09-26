@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -202,11 +203,11 @@ func TestMoveDetailRemoverLeavesAChangedSourceUntouched(t *testing.T) {
 	}
 }
 
-func TestMoveDetailInterruptedRecordIsFinishedByReconcile(t *testing.T) {
-	r := spinOffOnCodeBranch(t)
+// blockTrackerAfterFirstPush installs a pre-push hook rejecting every tracker
+// push after the first (the handoff) while the returned block file exists.
+func blockTrackerAfterFirstPush(t *testing.T, r *trackerRepo) (block string) {
+	t.Helper()
 	hooks, state := t.TempDir(), t.TempDir()
-	// Reject tracker pushes after the first (the handoff) while the block file
-	// exists: the record stage then cannot be confirmed in this run.
 	hook := "#!/bin/sh\nwhile read l ls rr rs; do\n  case \"$rr\" in refs/heads/issue-tracker)\n" +
 		"    n=$(cat '" + state + "/n' 2>/dev/null || echo 0); n=$((n+1)); echo $n > '" + state + "/n'\n" +
 		"    if [ -f '" + state + "/block' ] && [ $n -ge 2 ]; then exit 1; fi;;\n  esac\ndone\nexit 0\n"
@@ -214,9 +215,52 @@ func TestMoveDetailInterruptedRecordIsFinishedByReconcile(t *testing.T) {
 		t.Fatal(err)
 	}
 	r.git("config", "core.hooksPath", hooks)
-	if err := os.WriteFile(filepath.Join(state, "block"), nil, 0o644); err != nil {
+	block = filepath.Join(state, "block")
+	if err := os.WriteFile(block, nil, 0o644); err != nil {
 		t.Fatal(err)
 	}
+	return block
+}
+
+func TestRecoveryReconcileRefusesAnotherWorktree(t *testing.T) {
+	r := spinOffOnCodeBranch(t)
+	block := blockTrackerAfterFirstPush(t, r)
+	var out, errs bytes.Buffer
+	if err := runMoveDetail(context.Background(), &out, &errs, moveFlags(8)); err == nil {
+		t.Fatal("interruption fixture did not interrupt")
+	}
+	if err := os.Remove(block); err != nil {
+		t.Fatal(err)
+	}
+	other := filepath.Join(t.TempDir(), "slot")
+	r.git("worktree", "add", "-q", "-b", "elsewhere", other, "origin/main")
+	chdirTo(t, other)
+	var list bytes.Buffer
+	if err := runRecoveryList(context.Background(), &list); err != nil || !strings.Contains(list.String(), "finish from 000007-seven") {
+		t.Fatalf("list from another worktree: %q %v", list.String(), err)
+	}
+	otherHead := strings.TrimSpace(testfix.Capture(t, other, "rev-parse", "HEAD"))
+	if err := runRecoveryReconcile(context.Background(), &out, &errs, 8); !errors.Is(err, tracker.ErrForeignCheckout) {
+		t.Fatalf("reconcile from another worktree: %v", err)
+	}
+	if strings.TrimSpace(testfix.Capture(t, other, "rev-parse", "HEAD")) != otherHead {
+		t.Fatal("foreign reconcile moved the other worktree")
+	}
+	if _, err := os.Stat(filepath.Join(r.root, spinOffDetails)); err != nil {
+		t.Fatal("foreign reconcile touched the source checkout")
+	}
+	chdirTo(t, r.root)
+	if err := runRecoveryReconcile(context.Background(), &out, &errs, 8); err != nil {
+		t.Fatalf("reconcile from the source checkout: %v\n%s", err, errs.String())
+	}
+	if _, err := os.Stat(filepath.Join(r.root, spinOffDetails)); !os.IsNotExist(err) {
+		t.Fatal("source not removed by its own checkout")
+	}
+}
+
+func TestMoveDetailInterruptedRecordIsFinishedByReconcile(t *testing.T) {
+	r := spinOffOnCodeBranch(t)
+	block := blockTrackerAfterFirstPush(t, r)
 	var out, errs bytes.Buffer
 	err := runMoveDetail(context.Background(), &out, &errs, moveFlags(8))
 	if err == nil || !strings.Contains(err.Error(), "recovery reconcile --issue 8") {
@@ -233,7 +277,7 @@ func TestMoveDetailInterruptedRecordIsFinishedByReconcile(t *testing.T) {
 	if err := runMoveDetail(context.Background(), &out, &errs, moveFlags(8)); err == nil || !strings.Contains(err.Error(), "unfinished transfer") {
 		t.Fatalf("second move-detail must defer to reconcile: %v", err)
 	}
-	if err := os.Remove(filepath.Join(state, "block")); err != nil {
+	if err := os.Remove(block); err != nil {
 		t.Fatal(err)
 	}
 	if err := runRecoveryReconcile(context.Background(), &out, &errs, 8); err != nil {
@@ -251,5 +295,23 @@ func TestMoveDetailInterruptedRecordIsFinishedByReconcile(t *testing.T) {
 	list.Reset()
 	if err := runRecoveryList(context.Background(), &list); err != nil || !strings.Contains(list.String(), "no unfinished") {
 		t.Fatalf("receipt retained: %q %v", list.String(), err)
+	}
+}
+
+func TestMoveDetailRefusesHandEditedCardFieldBeforePublishing(t *testing.T) {
+	r := spinOffOnCodeBranch(t)
+	abs := filepath.Join(r.root, spinOffDetails)
+	raw, _ := os.ReadFile(abs)
+	writeRepoFile(t, r.root, spinOffDetails, strings.Replace(string(raw), "status: open", "status: blocked", 1))
+	mainBefore := r.originMain()
+	var out, errs bytes.Buffer
+	if err := runMoveDetail(context.Background(), &out, &errs, moveFlags(8)); err == nil || !strings.Contains(err.Error(), "owned by the card") {
+		t.Fatalf("hand-edited status published: %v", err)
+	}
+	if r.originMain() != mainBefore {
+		t.Fatal("refused handoff reached main")
+	}
+	if _, ok, _ := issue.CardHandoff([]byte(r.card("workshop/issue-cards/000008-spin-off.md"))); ok {
+		t.Fatal("refused handoff recorded on the card")
 	}
 }

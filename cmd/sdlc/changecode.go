@@ -298,7 +298,7 @@ func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) error {
 		return fmt.Errorf("%s is not an issue filename", issuePath)
 	}
 	if env.branch != name {
-		return fmt.Errorf("#%s's design belongs on its branch %s (this checkout is on %q); run `sdlc start-plan --issue %s` first", id, name, env.branch, strings.TrimLeft(id, "0"))
+		return fmt.Errorf("#%s's design belongs on its branch %s (this checkout is on %q); run `sdlc start-plan --issue %s` first", id, name, env.branch, issue.CLIRef(id))
 	}
 	refreshed, err := refreshMirror(env, id, details)
 	if err != nil {

@@ -45,7 +45,7 @@ func runLandingDuplicateGate(mainOID, issuesDir, historyDir string, r gitRunner)
 
 // Ownership follows close ancestry, not a body diff: an independently published
 // issue copy on main must not erase the original branch's review obligations.
-func runLandingPublishGate(pr landingPR, issuesDir string, stderr io.Writer) error {
+func runLandingPublishGate(ctx context.Context, pr landingPR, issuesDir string, stderr io.Writer) error {
 	if !landingOIDValid(pr.HeadOID) || !landingOIDValid(pr.BaseOID) {
 		return fmt.Errorf("landing publish gate requires pinned PR head and base")
 	}
@@ -53,7 +53,7 @@ func runLandingPublishGate(pr landingPR, issuesDir string, stderr io.Writer) err
 	if err != nil || strings.TrimSpace(string(head)) != pr.HeadOID {
 		return fmt.Errorf("landing publish gate checkout HEAD differs from selected PR head")
 	}
-	if err := guardTransferredDetailsFn(context.Background()); err != nil {
+	if err := guardTransferredDetailsFn(ctx); err != nil {
 		return err
 	}
 	root, err := gitx.RepoTopLevel()

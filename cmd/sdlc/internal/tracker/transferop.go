@@ -25,15 +25,26 @@ type Remover func(spec ReceiptSpec, mainCommit string) error
 // remove the local source. Card stages re-derive from the current card, so an
 // unrelated card change (a claim, once details are on main) never strands it.
 type TransferOp struct {
+	diagnostics
 	ctx    context.Context
 	repo   *Repository
 	main   *gitx.TrunkFile
 	root   string
+	branch string // refs/heads/<name> of the checkout driving this run
 	remove Remover
 }
 
-func NewTransferOp(ctx context.Context, repo *Repository, main *gitx.TrunkFile, root string, remove Remover) *TransferOp {
-	return &TransferOp{ctx: ctx, repo: repo, main: main, root: root, remove: remove}
+func NewTransferOp(ctx context.Context, repo *Repository, main *gitx.TrunkFile, root, branch string, remove Remover) *TransferOp {
+	return &TransferOp{ctx: ctx, repo: repo, main: main, root: root, branch: branch, remove: remove}
+}
+
+// removeSource runs the remover only in the source checkout.
+func (op *TransferOp) removeSource(r Receipt) error {
+	spec := r.Spec()
+	if err := requireSourceCheckout(spec, op.branch); err != nil {
+		return err
+	}
+	return op.remove(spec, MainCommit(r))
 }
 
 func (op *TransferOp) handoff(spec ReceiptSpec) issue.Handoff {
@@ -100,11 +111,11 @@ func (op *TransferOp) Apply(e Effect, r Receipt) (Event, error) {
 	spec := r.Spec()
 	switch e.Kind {
 	case PublishCard:
-		return publishCardEvent(op.repo, e, spec.CardPath)
+		return publishCardEvent(op.repo, &op.diagnostics, e, spec.CardPath)
 	case PublishMain:
-		return publishEvent(mainPublisher{op.main}, e, e.Expected.MainBase, op.confirmMain(e))
+		return publishEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, op.confirmMain(e))
 	case RemoveSource:
-		if err := op.remove(spec, MainCommit(r)); err != nil {
+		if err := op.removeSource(r); err != nil {
 			return Event{}, err
 		}
 		return Event{Kind: EventConfirmed, Binding: e.Expected, CandidateOID: e.CandidateOID}, nil
@@ -116,12 +127,12 @@ func (op *TransferOp) Probe(e Effect, r Receipt) (Event, error) {
 	spec := r.Spec()
 	switch e.Stage {
 	case "transfer.handoff", "transfer.record":
-		return probeCardEvent(op.repo, e, spec.CardPath)
+		return probeCardEvent(op.repo, &op.diagnostics, e, spec.CardPath)
 	case "transfer.main":
-		return probeEvent(mainPublisher{op.main}, e, e.Expected.MainBase, op.confirmMain(e))
+		return probeEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, op.confirmMain(e))
 	case "transfer.remove":
 		// The remover is idempotent: it confirms an earlier removal or finishes it.
-		if err := op.remove(spec, MainCommit(r)); err != nil {
+		if err := op.removeSource(r); err != nil {
 			return Event{Kind: EventProbeUnknown, Binding: e.Expected}, err
 		}
 		return Event{Kind: EventConfirmed, Binding: e.Expected, CandidateOID: e.CandidateOID}, nil

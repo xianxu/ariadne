@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,7 +125,7 @@ func TestPublishGateAndPRRefuseChangedHandedOffDetails(t *testing.T) {
 	r.git("rm", "-q", spinOffDetails)
 	r.git("commit", "-qm", "drop details")
 	var stderr bytes.Buffer
-	if err := runPublishGate(r.git("merge-base", "HEAD", "origin/main"), "workshop/issues", &stderr); !errors.Is(err, errTransferredDetails) {
+	if err := runPublishGate(context.Background(), r.git("merge-base", "HEAD", "origin/main"), "workshop/issues", &stderr); !errors.Is(err, errTransferredDetails) {
 		t.Fatalf("publish gate: %v", err)
 	}
 	var stdout bytes.Buffer
@@ -155,5 +156,44 @@ func TestTransferGuardFromAFreshCloneUsesOnlyTrackerRecords(t *testing.T) {
 	git(t, clone, "commit", "-qam", "rewrite")
 	if err := guardTransferredDetails(context.Background()); !errors.Is(err, errTransferredDetails) {
 		t.Fatalf("fresh clone rewrite not refused: %v", err)
+	}
+}
+
+// BR-6: between transfer.main and transfer.record the card names no main
+// commit, but main already holds the details and may already carry the new
+// owner's edits. A landing of the unfinished source branch must be refused.
+func TestTransferGuardProtectsAnUnrecordedPublication(t *testing.T) {
+	r := spinOffOnCodeBranch(t)
+	block := blockTrackerAfterFirstPush(t, r)
+	var out, errs bytes.Buffer
+	if err := runMoveDetail(context.Background(), &out, &errs, moveFlags(8)); err == nil {
+		t.Fatal("interruption fixture did not interrupt")
+	}
+	_ = os.Remove(block)
+	h, ok, _ := issue.CardHandoff([]byte(r.card("workshop/issue-cards/000008-spin-off.md")))
+	if !ok || h.MainCommit != "" {
+		t.Fatalf("fixture: want an unrecorded handoff, got %+v", h)
+	}
+	if err := guardTransferredDetails(context.Background()); err != nil {
+		t.Fatalf("identical unfinished copy loses nothing: %v", err)
+	}
+	ownerEdit(t, r)
+	if err := guardTransferredDetails(context.Background()); !errors.Is(err, errTransferredDetails) {
+		t.Fatalf("unrecorded publication left unprotected: %v", err)
+	}
+}
+
+func TestTransferGuardRefusesMalformedHandoffRepoWide(t *testing.T) {
+	cardPath, card, _, _ := seededIssue(t, "000009", "nine")
+	oid := strings.Repeat("a", 40)
+	bad, err := issue.SetCardHandoff([]byte(card), issue.Handoff{Token: "move-x", Repository: "file:/x", SourceBranch: "refs/heads/x",
+		SourceBase: oid, SourceHEAD: oid, SourceBlob: oid, SourcePath: "../../etc/000009-nine.md", Destination: "../../etc/000009-nine.md", MainCommit: oid})
+	if err != nil {
+		t.Fatal(err)
+	}
+	newTrackerRepo(t, map[string]string{cardPath: string(bad)}, nil)
+	err = guardTransferredDetails(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "#000009 is malformed") || !strings.Contains(err.Error(), "every PR, push and merge") {
+		t.Fatalf("malformed destination: %v", err)
 	}
 }

@@ -205,3 +205,18 @@ func TestCreationNeverOverwritesForeignDetails(t *testing.T) {
 		t.Fatal("reserved card lost its recovery receipt")
 	}
 }
+
+func TestUncertainStopReportsTheGitError(t *testing.T) {
+	op, receipts, root, _ := creationFixture(t)
+	r, err := op.Start("create-gone")
+	if err != nil {
+		t.Fatal(err)
+	}
+	gone := injectingStore{receipts, func() {
+		testfix.Git(t, root, "remote", "set-url", "publication", filepath.Join(t.TempDir(), "gone.git"))
+	}}
+	_, err = Drive(r, CreationStepper, op, gone)
+	if !errors.Is(err, ErrOperationUncertain) || !strings.Contains(err.Error(), "last Git error:") {
+		t.Fatalf("uncertain stop without diagnostic: %v", err)
+	}
+}

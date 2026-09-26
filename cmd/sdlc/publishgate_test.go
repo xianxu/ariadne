@@ -119,7 +119,7 @@ func TestRunPublishGate(t *testing.T) {
 	t.Run("clean: HEAD == anchor passes", func(t *testing.T) {
 		git, base := publishRepo(t)
 		writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
-		if err := runPublishGate(base, "workshop/issues", io.Discard); err != nil {
+		if err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard); err != nil {
 			t.Errorf("HEAD==anchor should pass, got: %v", err)
 		}
 	})
@@ -128,7 +128,7 @@ func TestRunPublishGate(t *testing.T) {
 		git, base := publishRepo(t)
 		writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
 		commitCode(t, git, "late.go")
-		err := runPublishGate(base, "workshop/issues", io.Discard)
+		err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard)
 		if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
 			t.Fatalf("post-close drift should refuse with a re-run-close message, got: %v", err)
 		}
@@ -139,7 +139,7 @@ func TestRunPublishGate(t *testing.T) {
 		git, base := publishRepo(t)
 		writeIssueStatus(t, git, 69, "codecomplete", "#69 close") // anchor X
 		writeIssueStatus(t, git, 70, "codecomplete", "#70 close") // anchor Y = HEAD
-		if err := runPublishGate(base, "workshop/issues", io.Discard); err != nil {
+		if err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard); err != nil {
 			t.Errorf("two sequential closes (latest anchor==HEAD) should pass, got: %v", err)
 		}
 	})
@@ -149,7 +149,7 @@ func TestRunPublishGate(t *testing.T) {
 		writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
 		commitCode(t, git, "drift.go")
 		writeIssueStatus(t, git, 69, "codecomplete", "#69 re-close") // advances anchor to HEAD
-		if err := runPublishGate(base, "workshop/issues", io.Discard); err != nil {
+		if err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard); err != nil {
 			t.Errorf("re-close (anchor advanced to HEAD) should pass, got: %v", err)
 		}
 	})
@@ -157,7 +157,7 @@ func TestRunPublishGate(t *testing.T) {
 	t.Run("no codecomplete issue is a no-op", func(t *testing.T) {
 		git, base := publishRepo(t)
 		writeIssueStatus(t, git, 69, "working", "#69 wip")
-		if err := runPublishGate(base, "workshop/issues", io.Discard); err != nil {
+		if err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard); err != nil {
 			t.Errorf("no codecomplete issue should pass (no-op), got: %v", err)
 		}
 	})
@@ -221,7 +221,7 @@ func TestRunPublishGate_DocsOnly(t *testing.T) {
 		writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
 		commitDocs(t, git, "lessons.md")
 		var stderr strings.Builder
-		if err := runPublishGate(base, "workshop/issues", &stderr); err != nil {
+		if err := runPublishGate(context.Background(), base, "workshop/issues", &stderr); err != nil {
 			t.Errorf("docs-only delta should pass: %v", err)
 		}
 		for _, want := range []string{"doc-only", "#174"} {
@@ -236,7 +236,7 @@ func TestRunPublishGate_DocsOnly(t *testing.T) {
 		writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
 		commitDocs(t, git, "lessons.md")
 		commitCode(t, git, "late.go")
-		err := runPublishGate(base, "workshop/issues", io.Discard)
+		err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard)
 		if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
 			t.Errorf("mixed delta should refuse with the pinned message, got: %v", err)
 		}
@@ -247,7 +247,7 @@ func TestRunPublishGate_DocsOnly(t *testing.T) {
 		writeIssueStatus(t, git, 69, "codecomplete", "#69 close") // older anchor
 		writeIssueStatus(t, git, 70, "codecomplete", "#70 close") // newest anchor
 		commitDocs(t, git, "lessons.md")
-		if err := runPublishGate(base, "workshop/issues", io.Discard); err != nil {
+		if err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard); err != nil {
 			t.Errorf("docs-only delta past the newest anchor should pass: %v", err)
 		}
 	})
@@ -278,7 +278,7 @@ func TestRunPublishGate_EmbeddedHelptextIsCodeSurface(t *testing.T) {
 	os.WriteFile("cmd/sdlc/helptext/close.md", []byte("edited\n"), 0o644)
 	git("add", "cmd/sdlc/helptext/close.md")
 	git("commit", "-q", "-m", "docs: helptext tweak")
-	err := runPublishGate(base, "workshop/issues", io.Discard)
+	err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard)
 	if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
 		t.Errorf("embedded-helptext delta should refuse, got: %v", err)
 	}
@@ -368,7 +368,7 @@ func TestRunPublishGate_QuickGrewPastReview(t *testing.T) {
 			if c.docs {
 				commitDocs(t, git, "lessons.md")
 			}
-			err := runPublishGate(base, "workshop/issues", io.Discard)
+			err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard)
 			if !c.refuses {
 				if err != nil {
 					t.Errorf("want a publish, got: %v", err)

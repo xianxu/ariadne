@@ -364,7 +364,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// unchanged since the codecomplete issues' `sdlc close`. (Replaces the old
 	// plan/specs/lessons pre-merge judges — #142 folded here.)
 	if !f.NoJudge {
-		if err := runPublishGateFn(gitx.DiffBase(), f.IssuesDir, stderr); err != nil {
+		if err := runPublishGateFn(commandContext(f.Context), gitx.DiffBase(), f.IssuesDir, stderr); err != nil {
 			if f.DryRun {
 				cwarn(stderr, fmt.Sprintf("dry-run: publish gate WOULD refuse: %v", err))
 			} else {

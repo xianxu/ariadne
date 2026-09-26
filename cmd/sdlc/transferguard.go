@@ -37,25 +37,37 @@ func guardTransferredDetails(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return err
+	}
+	mainTip := view.Ref()
 	var paths []string
 	for _, rec := range snap.Records() {
 		h, ok, err := issue.CardHandoff(rec.Raw)
-		if err != nil {
-			return fmt.Errorf("card #%s: %w", rec.ID, err)
+		if err == nil && ok {
+			err = validHandoffDestination(h.Destination, rec.Path)
 		}
-		if !ok || h.MainCommit == "" || env.branch == strings.TrimSuffix(path.Base(h.Destination), ".md") {
+		if err != nil {
+			return fmt.Errorf("tracker card #%s is malformed: %w\n"+
+				"      every PR, push and merge in this repository is refused until the card is repaired", rec.ID, err)
+		}
+		if !ok || env.branch == strings.TrimSuffix(path.Base(h.Destination), ".md") {
 			continue
+		}
+		// An interrupted handoff may have published to main before recording it
+		// on the card; the details on main are protected from that moment.
+		if h.MainCommit == "" {
+			if _, err := env.git("cat-file", "-e", mainTip+":"+h.Destination); err != nil {
+				continue
+			}
 		}
 		paths = append(paths, h.Destination)
 	}
 	if len(paths) == 0 {
 		return nil
 	}
-	view, err := env.main.Snapshot()
-	if err != nil {
-		return err
-	}
-	return checkTransferredPaths(env, view.Ref(), paths)
+	return checkTransferredPaths(env, mainTip, paths)
 }
 
 // checkTransferredPaths compares each handed-off path in the merge result of
@@ -91,6 +103,17 @@ func checkTransferredPaths(env *trackerEnv, mainTip string, paths []string) erro
 		case want != got:
 			return transferRefusal(p, "would be overwritten")
 		}
+	}
+	return nil
+}
+
+// validHandoffDestination checks untrusted card data before it is used as a
+// path and as the exemption key: a clean repository-relative details path
+// named after the card.
+func validHandoffDestination(dest, cardPath string) error {
+	if dest == "" || path.IsAbs(dest) || path.Clean(dest) != dest || strings.HasPrefix(dest, "../") || dest == ".." ||
+		path.Base(dest) != path.Base(cardPath) || strings.ContainsAny(dest, "\\:*?[") {
+		return fmt.Errorf("handoff destination %q is not a details path for %s", dest, path.Base(cardPath))
 	}
 	return nil
 }

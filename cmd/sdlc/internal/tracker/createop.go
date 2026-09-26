@@ -38,6 +38,7 @@ type Checkout struct {
 // materialize the details locally. Bytes are read back from the object database
 // by the OIDs the receipt pins, so a later process can resume from the receipt.
 type CreationOp struct {
+	diagnostics
 	ctx    context.Context
 	repo   *Repository
 	co     Checkout
@@ -131,7 +132,7 @@ func (op *CreationOp) Prepare(e Effect, r Receipt) (Event, error) {
 func (op *CreationOp) Apply(e Effect, r Receipt) (Event, error) {
 	switch e.Stage {
 	case "creation.reserve":
-		return publishCardEvent(op.repo, e, r.Spec().CardPath)
+		return publishCardEvent(op.repo, &op.diagnostics, e, r.Spec().CardPath)
 	case "creation.detail":
 		return op.materialize(e, r.Spec())
 	}
@@ -141,7 +142,7 @@ func (op *CreationOp) Apply(e Effect, r Receipt) (Event, error) {
 func (op *CreationOp) Probe(e Effect, r Receipt) (Event, error) {
 	switch e.Stage {
 	case "creation.reserve":
-		return probeCardEvent(op.repo, e, r.Spec().CardPath)
+		return probeCardEvent(op.repo, &op.diagnostics, e, r.Spec().CardPath)
 	case "creation.detail":
 		ev, err := op.materialize(e, r.Spec())
 		if err != nil {
@@ -165,6 +166,9 @@ func (op *CreationOp) Refresh(e Effect, r Receipt) (Event, error) {
 // materialize writes the details exactly once. An existing file with other
 // bytes is someone's work and is never overwritten.
 func (op *CreationOp) materialize(e Effect, spec ReceiptSpec) (Event, error) {
+	if err := requireSourceCheckout(spec, op.co.Branch); err != nil {
+		return Event{}, err
+	}
 	want, err := gitx.ReadBlob(op.ctx, op.co.Root, e.CandidateOID)
 	if err != nil {
 		return Event{}, err
@@ -181,7 +185,7 @@ func (op *CreationOp) materialize(e Effect, spec ReceiptSpec) (Event, error) {
 			return Event{}, err
 		}
 		if !bytes.Equal(have, want) {
-			return Event{}, fmt.Errorf("%s exists with other content; card #%s is reserved — reconcile the file, then `sdlc issue recovery reconcile --issue %s`", spec.DestinationPath, spec.IssueID, spec.IssueID)
+			return Event{}, fmt.Errorf("%s exists with other content; card #%s is reserved — reconcile the file, then `sdlc issue recovery reconcile --issue %s`", spec.DestinationPath, spec.IssueID, issue.CLIRef(spec.IssueID))
 		}
 	case errors.Is(err, os.ErrNotExist):
 		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
@@ -210,34 +214,52 @@ type publisher interface {
 	Probe(gitx.Candidate) (gitx.ProbeOutcome, string, error)
 }
 
+// diagnostics keeps the last transport error an observation absorbed, so an
+// uncertain stop can say why (auth, hook, network) instead of only "unknown".
+type diagnostics struct{ last error }
+
+func (d *diagnostics) note(err error) {
+	if err != nil {
+		d.last = err
+	}
+}
+
+// Diagnostic implements the optional interface Drive reports on an uncertain stop.
+func (d *diagnostics) Diagnostic() error { return d.last }
+
 // publishEvent pushes a prepared candidate once and reports the observation:
 // accepted, a proven race, or unknown. confirm builds the Confirmed event.
-func publishEvent(p publisher, e Effect, base string, confirm func() (Event, error)) (Event, error) {
+func publishEvent(p publisher, d *diagnostics, e Effect, base string, confirm func() (Event, error)) (Event, error) {
 	c := gitx.Candidate{Base: base, OID: e.CandidateOID}
-	outcome, _ := p.Push(c)
+	outcome, err := p.Push(c)
+	d.note(err)
 	switch outcome {
 	case gitx.PushAccepted:
 		return confirm()
 	case gitx.PushRejected:
 		// A rejection alone is not a race: the identical candidate may already be
 		// there (a lost earlier acknowledgement). Probe before calling it lost.
-		return probeEvent(p, e, base, confirm)
+		return probeEvent(p, d, e, base, confirm)
 	}
 	return Event{Kind: EventUnknown, Binding: e.Expected}, nil
 }
 
 // probeEvent observes an outstanding candidate. From Apply (a remote effect)
 // absence is a race; from Probe it is a completed not-applied observation.
-func probeEvent(p publisher, e Effect, base string, confirm func() (Event, error)) (Event, error) {
+func probeEvent(p publisher, d *diagnostics, e Effect, base string, confirm func() (Event, error)) (Event, error) {
 	c := gitx.Candidate{Base: base, OID: e.CandidateOID}
-	probe, _, _ := p.Probe(c)
+	probe, _, err := p.Probe(c)
+	d.note(err)
 	if probe == gitx.ProbeAbsentSame {
 		// Settle a possibly delayed push by re-pushing the identical candidate
 		// under the same lease: it lands once, or it already has. Then observe.
-		if out, _ := p.Push(c); out == gitx.PushAccepted {
+		out, err := p.Push(c)
+		d.note(err)
+		if out == gitx.PushAccepted {
 			return confirm()
 		}
-		probe, _, _ = p.Probe(c)
+		probe, _, err = p.Probe(c)
+		d.note(err)
 	}
 	applying := e.Kind != ProbePublication
 	switch probe {
@@ -255,12 +277,12 @@ func probeEvent(p publisher, e Effect, base string, confirm func() (Event, error
 	return Event{Kind: EventProbeUnknown, Binding: e.Expected}, nil
 }
 
-func publishCardEvent(repo *Repository, e Effect, cardPath string) (Event, error) {
-	return publishEvent(repo, e, e.Expected.TrackerBase, func() (Event, error) { return confirmedCard(repo, e, cardPath) })
+func publishCardEvent(repo *Repository, d *diagnostics, e Effect, cardPath string) (Event, error) {
+	return publishEvent(repo, d, e, e.Expected.TrackerBase, func() (Event, error) { return confirmedCard(repo, e, cardPath) })
 }
 
-func probeCardEvent(repo *Repository, e Effect, cardPath string) (Event, error) {
-	return probeEvent(repo, e, e.Expected.TrackerBase, func() (Event, error) { return confirmedCard(repo, e, cardPath) })
+func probeCardEvent(repo *Repository, d *diagnostics, e Effect, cardPath string) (Event, error) {
+	return probeEvent(repo, d, e, e.Expected.TrackerBase, func() (Event, error) { return confirmedCard(repo, e, cardPath) })
 }
 
 func confirmedCard(repo *Repository, e Effect, cardPath string) (Event, error) {

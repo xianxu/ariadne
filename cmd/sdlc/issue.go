@@ -42,9 +42,9 @@ func NewIssueCmd() *cobra.Command {
 	}
 	cmd.AddCommand(newIssueNewCmd())
 
-	// set-status moved under `issue` (#56 M2). The transition guards live
-	// in applyStatus / checkTransitionGuards (returned errors, unit-tested)
-	// — only the cobra wiring relocates. main.go keeps a hidden deprecated
+	// set-status moved under `issue` (#56 M2). The transition guards live in
+	// statusDecision / checkTransitionGuards (pure, unit-tested); since #252
+	// the status is written to the tracker card. main.go keeps a hidden deprecated
 	// flat `sdlc set-status` alias for one cycle.
 	setStatus := NewSetStatusCmd()
 	setStatus.Long = renderLong("set-status") // #125: derive the lifecycle facts (not add()-wired)
@@ -331,7 +331,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	}
 	spec := r.Spec()
 	if errors.Is(err, tracker.ErrOperationUncertain) {
-		return fmt.Errorf("%w\n      nothing is lost: run `sdlc issue recovery reconcile --issue %s` to finish #%s", err, spec.IssueID, spec.IssueID)
+		return fmt.Errorf("%w\n      nothing is lost: run `sdlc issue recovery reconcile --issue %s` to finish #%s", err, issue.CLIRef(spec.IssueID), spec.IssueID)
 	}
 	if err != nil {
 		return err
@@ -343,7 +343,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	cok(stderr, created)
 	if env.onRest() {
 		cinfo(stderr, "details are uncommitted on the resting branch; the issue is claimable once they land on main — "+
-			"`sdlc issue move-detail --issue "+spec.IssueID+"` publishes them")
+			"`sdlc issue move-detail --issue "+issue.CLIRef(spec.IssueID)+"` publishes them")
 	} else if err := commitOnly(env, fmt.Sprintf("#%s: issue: new", spec.IssueID), spec.DestinationPath); err != nil {
 		return fmt.Errorf("card reserved and details written, but the local commit failed: %w", err)
 	}

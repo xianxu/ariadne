@@ -159,3 +159,10 @@ The simplest durable authority beats a clever scan of consequences.
   step in the guide.
 - When a new operator phrase is added to an agent guide, update the existing
   README entry point for that workflow in the same change.
+- Before submitting a milestone, enumerate the non-test files added in its window
+  (`git diff --name-status BASE HEAD | grep '^A' | grep -v _test`) and reconcile
+  them with the plan's Core concepts table and each Task "Files:" list; reviewing
+  the inventory by memory missed six entities and two phantom files (#252 M2).
+- When a verb's behaviour changes, update its `cmd/sdlc/helptext/*.md` page and
+  any root-help summary of it in the same change: per-verb help is the workflow
+  contract agents read, and a later instruction sweep does not cover it (#252 M2).

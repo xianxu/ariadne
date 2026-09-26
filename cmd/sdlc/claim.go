@@ -117,7 +117,7 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 		}
 		if !present {
 			return fmt.Errorf("#%s is not claimable yet: its details (%s) have not landed on main, so its creation is incomplete.\n"+
-				"      The creator finishes it with `sdlc issue move-detail --issue %s` (or by merging the branch that filed it)", id, detailPath, id)
+				"      The creator finishes it with `sdlc issue move-detail --issue %s` (or by merging the branch that filed it)", id, detailPath, issue.CLIRef(id))
 		}
 		return nil
 	}

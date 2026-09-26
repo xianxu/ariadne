@@ -5,11 +5,17 @@ edits the record itself.
 
 SUBCOMMANDS
 
-  new            Create a new issue from the canonical template (allocates the
-                 next ID; `--from-github N` seeds it from a GitHub issue)
-  sync           Commit this issue's body (Spec/Plan/Log) under a message that
-                 names it; `--push` to also publish
-  set-status     Flip an issue's status with transition guards
+  new            Reserve the next ID's card on the tracker and write the details
+                 locally (`--from-github N` seeds it from a GitHub issue)
+  move-detail    Complete creation early: publish initial details to main
+                 without shipping the branch that filed the issue
+  recovery       `list` / `reconcile --issue N` interrupted tracker operations
+  set-status     Flip an issue card's status with transition guards
+  set-title      Retitle an issue card (paths keep their slug)
+  set-estimate   Record estimate_hours on the card (`--hours`)
+  set-github     Link the card to a GitHub issue (`--number`)
+  sync           (retiring at the #252 cutover) commit an issue body locally
+  publish        (retiring at the #252 cutover) publish a selected doc commit
   list           List issues (ID, status, title), sorted by ID; --status filters
   show           Print an issue's frontmatter + section headers (no bodies)
 
@@ -66,7 +72,25 @@ Flip status with `sdlc issue set-status` (or `sdlc claim` to start work), never
 by hand-editing the frontmatter — the verbs carry the transition guards.
 (`done` closes via `sdlc close`.) The status set above is derived from the model.
 
-CHECKPOINTING AND PUBLISHING DOCUMENTATION
+CARDS AND DETAILS (#252)
+
+An issue is two files. Its card (`workshop/issue-cards/NNNNNN-<slug>.md` on the
+`issue-tracker` branch) holds the fields everyone needs current — id, status,
+started, dates, estimate/actual hours, GitHub link, title — and the original
+Problem. Only sdlc writes a card, by compare-and-swap commits of its own. The
+details (this file, at the path below) carry Spec, Done when, Plan, Log and
+branch-owned fields, plus a read-only mirror of the card fields that sdlc
+refreshes; a hand edit to a mirrored field is refused with the setter to use.
+
+Details travel with the work: `issue new` writes them in the current checkout
+(a narrow commit on a feature branch; uncommitted on the resting branch), and
+they land on main through the branch's PR or `issue move-detail`. Only then is
+the issue claimable. Checkpoint design with ordinary commits on the issue
+branch; nothing publishes them early. An interrupted card/main publication
+keeps a receipt: `sdlc issue recovery list` shows it, and `reconcile` resumes
+it from the checkout that owns it, probing before repeating anything.
+
+LEGACY CHECKPOINTING AND PUBLISHING (until the #252 cutover)
 
 `sdlc issue sync --issue N` commits only the selected issue file locally on the
 current branch, with no network operation. Use it after design decisions and

@@ -395,7 +395,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 			}
 		}
 		if !f.NoJudge {
-			if err = runLandingPublishGate(pr, f.IssuesDir, stderr); err != nil {
+			if err = runLandingPublishGate(commandContext(f.Context), pr, f.IssuesDir, stderr); err != nil {
 				return err
 			}
 		}

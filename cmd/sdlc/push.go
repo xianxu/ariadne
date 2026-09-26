@@ -21,6 +21,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -38,6 +39,7 @@ import (
 
 // pushFlags holds the parsed flag values for the push subcommand.
 type pushFlags struct {
+	Context    context.Context
 	Yes        bool
 	NoJudge    bool
 	NoValidate bool
@@ -62,6 +64,7 @@ func NewPushCmd() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
+			f.Context = cmd.Context()
 			return runPush(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
@@ -134,7 +137,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 	// Push is "merge without a PR": the same reviewed-HEAD-unchanged invariant.
 	// All LLM review is close-time; the publish gate carries no judge.
 	if !f.NoJudge {
-		if err := runPublishGate(gitx.DiffBase(), f.IssuesDir, stderr); err != nil {
+		if err := runPublishGate(commandContext(f.Context), gitx.DiffBase(), f.IssuesDir, stderr); err != nil {
 			if f.DryRun {
 				cwarn(stderr, fmt.Sprintf("dry-run: publish gate WOULD refuse: %v", err))
 			} else {

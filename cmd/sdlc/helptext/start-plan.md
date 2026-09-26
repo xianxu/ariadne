@@ -32,10 +32,10 @@ OUTPUT
   shell's design limit — and change-code infers the quick flow; outside it,
   author the plan via the `superpowers-writing-plans` skill into
   `workshop/plans/NNNNNN-slug-plan.md` (version-controlled), not the harness
-  builtin's ephemeral `~/.claude/plans/` file (#72). Then the durability trigger (#206): `sdlc issue sync --issue N`
-  commits the issue body locally as the design lands — where planPointer says
-  WHERE to author, this says HOW OFTEN to save, because nothing else commits the
-  body until `change-code` and a compaction in between loses it. Then a
+  builtin's ephemeral `~/.claude/plans/` file (#72). Then the durability trigger (#206, #252):
+  checkpoint the design with ordinary commits on the issue branch as it lands —
+  where planPointer says WHERE to author, this says HOW OFTEN to save, because a
+  compaction before `change-code` otherwise loses it. Nothing publishes them. Then a
   non-blocking `estimate_hours` note (#113, retimed by #187):
   do NOT derive the estimate here. On the full flow `change-code` runs
   plan-quality FIRST and asks for the estimate only after the plan clears —
@@ -45,11 +45,18 @@ OUTPUT
 
 FLAGS
 
-  --issue <n>   the issue being planned (optional, for the label)
+  --issue <n>   the issue being planned (optional). With it, start-plan requires
+                a claimed (working) card and moves design onto the issue's own
+                branch (the details filename stem): from a clean resting branch
+                that main contains, it creates the branch at freshly fetched main
+                once the details are proven there; it reuses an existing issue
+                branch; it refuses a dirty, ahead or diverged rest and any other
+                branch without changing anything. It never moves the resting
+                branch, then refreshes the details' card mirror.
 
 RELATED
 
   sdlc change-code   infers the flow; on the full flow, the plan-quality gate that
                      checks the plan against the same principles (the backward
                      review)
-  sdlc issue sync    checkpoint the design mid-planning (local commit, no push)
+  sdlc claim         reserve the card first; start-plan requires it

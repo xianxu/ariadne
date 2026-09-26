@@ -397,12 +397,7 @@ func abbrevSHA(sha string) string {
 // unpadID strips the 6-digit zero padding for the `sdlc close --issue N` hint
 // (issues are addressed by bare number). Falls back to the padded form if it
 // would otherwise empty out.
-func unpadID(id string) string {
-	if n := strings.TrimLeft(id, "0"); n != "" {
-		return n
-	}
-	return id
-}
+func unpadID(id string) string { return issue.CLIRef(id) }
 
 // ── prose rendering ─────────────────────────────────────────────────────────
 

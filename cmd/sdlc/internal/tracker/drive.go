@@ -96,7 +96,11 @@ func Drive(r Receipt, step Stepper, a Adapter, store ReceiptStore) (Receipt, err
 			if err := store.Save(r); err != nil {
 				return r, fmt.Errorf("%w; persisting it also failed: %v", ErrOperationUncertain, err)
 			}
-			return r, fmt.Errorf("%w at %s (#%s, operation %s)", ErrOperationUncertain, e.Stage, r.wire.Spec.IssueID, r.wire.Spec.Token)
+			cause := ""
+			if d, ok := a.(interface{ Diagnostic() error }); ok && d.Diagnostic() != nil {
+				cause = "; last Git error: " + d.Diagnostic().Error()
+			}
+			return r, fmt.Errorf("%w at %s (#%s, operation %s)%s", ErrOperationUncertain, e.Stage, r.wire.Spec.IssueID, r.wire.Spec.Token, cause)
 		}
 	}
 	return r, nil

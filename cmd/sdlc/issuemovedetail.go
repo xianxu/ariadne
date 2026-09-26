@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -111,7 +112,7 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	if pending, err := receiptsFor(receipts, id); err != nil {
 		return err
 	} else if len(pending) > 0 {
-		return fmt.Errorf("#%s has an unfinished %s operation here; resume it with `sdlc issue recovery reconcile --issue %d`", id, pending[0].Operation(), f.Issue)
+		return fmt.Errorf("#%s has an unfinished %s operation here; resume it with `sdlc issue recovery reconcile --issue %s`", id, pending[0].Operation(), issue.CLIRef(id))
 	}
 	snap, err := env.repo.Snapshot()
 	if err != nil {
@@ -155,6 +156,19 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 		if !issue.HasMirror(source) {
 			return fmt.Errorf("%s has no card mirror; it predates the tracker and cannot be handed off", dest)
 		}
+		// Publishing makes these bytes main's details: a hand-edited card field is
+		// refused, and a merely stale mirror is refreshed (on disk too, so the
+		// removal later matches what was published).
+		refreshed, err := refreshMirror(env, id, source)
+		if err != nil {
+			return fmt.Errorf("%s: %w — nothing was published", dest, err)
+		}
+		if !bytes.Equal(refreshed, source) {
+			if err := os.WriteFile(abs, refreshed, info.Mode().Perm()); err != nil {
+				return err
+			}
+			source = refreshed
+		}
 		if err := checkMoveSource(env, dest, pinnedMain); err != nil {
 			return err
 		}
@@ -186,11 +200,11 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	if err != nil {
 		return err
 	}
-	op := tracker.NewTransferOp(ctx, env.repo, env.main, env.root, moveDetailRemover(env))
+	op := tracker.NewTransferOp(ctx, env.repo, env.main, env.root, "refs/heads/"+env.branch, moveDetailRemover(env))
 	final, err := tracker.Drive(t.Receipt(), tracker.TransferStepper, op, receipts)
 	if err != nil {
 		if errors.Is(err, tracker.ErrOperationUncertain) || final.ConfirmedStages() > 0 {
-			return fmt.Errorf("%w\n      the operation is recorded; finish it with `sdlc issue recovery reconcile --issue %d`", err, f.Issue)
+			return fmt.Errorf("%w\n      the operation is recorded; finish it with `sdlc issue recovery reconcile --issue %s`", err, issue.CLIRef(id))
 		}
 		if final.Discardable() {
 			_ = receipts.Discard(final)
@@ -272,7 +286,7 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 				return err
 			}
 			if oid != spec.SourceBlob {
-				return fmt.Errorf("%s changed after it was published; it is left untouched. Main has the published copy (%s); reconcile your edits into it, then `sdlc issue recovery reconcile --issue %s`", spec.SourcePath, shortOID(mainCommit), strings.TrimLeft(spec.IssueID, "0"))
+				return fmt.Errorf("%s changed after it was published; it is left untouched. Main has the published copy (%s); reconcile your edits into it, then `sdlc issue recovery reconcile --issue %s`", spec.SourcePath, shortOID(mainCommit), issue.CLIRef(spec.IssueID))
 			}
 		}
 		tracked := false
@@ -299,7 +313,7 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 		if !tracked {
 			return nil
 		}
-		msg := fmt.Sprintf("#%s: issue: hand off initial details to main\n\nTracker-Operation: %s\nDetail-Handoff: #%s", strings.TrimLeft(spec.IssueID, "0"), spec.Token, spec.IssueID)
+		msg := fmt.Sprintf("#%s: issue: hand off initial details to main\n\nTracker-Operation: %s\nDetail-Handoff: #%s", issue.CLIRef(spec.IssueID), spec.Token, spec.IssueID)
 		if _, err := env.git("commit", "-q", "--no-verify", "-m", msg, "--only", "--", spec.SourcePath); err != nil {
 			return fmt.Errorf("commit source removal: %w", err)
 		}

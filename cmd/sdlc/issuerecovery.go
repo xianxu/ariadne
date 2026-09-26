@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -58,9 +59,14 @@ func runRecoveryList(ctx context.Context, stdout io.Writer) error {
 		fmt.Fprintln(stdout, "no unfinished tracker operations")
 		return nil
 	}
+	here := "refs/heads/" + env.branch
 	for _, r := range all {
 		spec := r.Spec()
-		fmt.Fprintf(stdout, "#%s\t%s\t%s\t%s\t%s\n", spec.IssueID, r.Operation(), r.Stage(), r.Outcome(), spec.Token)
+		where := "here"
+		if r.NeedsSourceCheckout() && spec.SourceBranch != here {
+			where = "finish from " + strings.TrimPrefix(spec.SourceBranch, "refs/heads/")
+		}
+		fmt.Fprintf(stdout, "#%s\t%s\t%s\t%s\t%s\t%s\n", spec.IssueID, r.Operation(), r.Stage(), r.Outcome(), spec.Token, where)
 	}
 	return listErr
 }
@@ -93,7 +99,14 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 	if err != nil {
 		return err
 	}
+	here := "refs/heads/" + env.branch
 	for _, r := range mine {
+		// Receipts are visible from every linked worktree; a remaining local effect
+		// belongs to the one on the source branch. Refuse before touching anything.
+		if r.NeedsSourceCheckout() && r.Spec().SourceBranch != here && !(r.Discardable() && r.Operation() == "creation") {
+			return fmt.Errorf("%w: #%d's %s must be finished from the checkout on %s (this one is on %q)",
+				tracker.ErrForeignCheckout, issueID, r.Operation(), r.Spec().SourceBranch, env.branch)
+		}
 		if r.Discardable() && r.Operation() == "creation" {
 			if err := receipts.Discard(r); err != nil {
 				return err
@@ -121,7 +134,7 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 			}
 			r = resumed.Receipt()
 			step = tracker.TransferStepper
-			adapter = tracker.NewTransferOp(ctx, env.repo, env.main, env.root, moveDetailRemover(env))
+			adapter = tracker.NewTransferOp(ctx, env.repo, env.main, env.root, "refs/heads/"+env.branch, moveDetailRemover(env))
 		default:
 			return fmt.Errorf("receipt %s: %s operations are recovered by their own verb", r.Spec().Token, r.Operation())
 		}

@@ -1,6 +1,8 @@
-Flip an issue's `status:` frontmatter field with transition guards
-that match the xx-issues skill's contract. Mutates one issue file
-in place; bumps `updated:` to today.
+Flip an issue's `status` with transition guards that match the xx-issues
+skill's contract. The status lives on the issue's card on the `issue-tracker`
+branch (#252): set-status updates the card by compare-and-swap and bumps
+`updated` to today; this checkout's details mirror is then refreshed (never on
+the resting branch). A reopen reads this checkout's details Log for its entry.
 
 {{LIFECYCLE}}
 
@@ -77,6 +79,6 @@ EXAMPLES
 RELATED
 
   sdlc close          close → codecomplete with the §5 contract (#160; merge/push then → done)
-  sdlc claim          reserve an open remote issue before starting work
-  sdlc issue publish  publish an explicitly selected documentation commit
+  sdlc claim          reserve an open issue card before starting work
+  sdlc issue set-title / set-estimate / set-github   the other card-field setters
   sdlc state          inspect current issue statuses

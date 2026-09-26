@@ -71,8 +71,8 @@ func mergedCodecompleteIssues(baseRef, issuesDir string) ([]string, error) {
 // covered branch-point..anchor — hence a branch-level check suffices, no false
 // per-issue "drift" refusal on multi-issue branches), and refuses unless HEAD is
 // unchanged since that anchor. On refusal the message points at re-running close.
-func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
-	if err := guardTransferredDetailsFn(context.Background()); err != nil {
+func runPublishGate(ctx context.Context, baseRef, issuesDir string, stderr io.Writer) error {
+	if err := guardTransferredDetailsFn(ctx); err != nil {
 		return err
 	}
 	issues, err := mergedCodecompleteIssues(baseRef, issuesDir)

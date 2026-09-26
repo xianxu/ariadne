@@ -24,6 +24,8 @@ This inventory distinguishes delivered M1 foundation from planned later work.
 | Creation / transfer transitions | PURE | `cmd/sdlc/internal/tracker/creation.go`, `transfer.go` | M1: new, delivered |
 | Close generation / landing transitions | PURE | `cmd/sdlc/internal/tracker/completion.go` | M1: new, delivered |
 | Typed recovery receipt / shared transition engine | PURE | `cmd/sdlc/internal/tracker/receipt.go` | M1: new, delivered |
+| Handoff envelope / card-derived details | PURE | `cmd/sdlc/internal/issue/handoff.go` | M2: new, delivered |
+| Card field/title mutators | PURE | `cmd/sdlc/internal/issue/cardset.go` | M2: new, delivered |
 | Migration manifest | PURE | `cmd/sdlc/internal/tracker/migration.go` | Planned M4: file absent, not delivered |
 | Activity event selection | PURE | `cmd/sdlc/internal/activetime/commit.go` | Planned M3: existing file unchanged in M1 |
 
@@ -41,7 +43,10 @@ Each card has one stable ID/path; one or more detail checkouts can mirror it, bu
 | Git snapshot/CAS and bootstrap | INTEGRATION | `cmd/sdlc/internal/gitx/trunkfile.go`, `updatemany.go`, `snapshot.go`, `refbootstrap.go` | M1: modified / new, delivered | Git subprocess boundary |
 | Bounded output / shared process-group cleanup | INTEGRATION | `cmd/sdlc/internal/gitx/boundedoutput.go`, `cmd/sdlc/internal/processgroup/` | M1: new, delivered; judge wrappers updated | subprocess IO and cancellation |
 | Detail transfer adapter | INTEGRATION | `cmd/sdlc/issuemovedetail.go`, `internal/tracker/transferop.go` | M2: new, delivered | tracker, main publication, index/worktree and recovery refs |
-| Receipt driver / candidate steps / recovery refs | INTEGRATION | `internal/tracker/drive.go`, `createop.go`, `store.go`, `internal/gitx/candidate.go`, `recoveryref.go` | M2: new, delivered | receipt engine, Git candidate publication, local refs |
+| Receipt driver / candidate steps / recovery refs | INTEGRATION | `internal/tracker/drive.go`, `createop.go`, `store.go`, `candidates.go`, `internal/gitx/candidate.go`, `recoveryref.go`, `objects.go` | M2: new, delivered | receipt engine, Git candidate publication, recovery refs in the common Git dir |
+| Publication target | INTEGRATION | `internal/gitx/publicationtarget.go` | M2: new, delivered | resting branch upstream config |
+| Planning branch / tracker environment | INTEGRATION | `cmd/sdlc/planningbranch.go`, `trackerenv.go` (checkout/target glue) | M2: new, delivered | workspace identity, branch creation |
+| Card setters / recovery verbs | INTEGRATION | `cmd/sdlc/cardsetters.go`, `issuerecovery.go` | M2: new, delivered | tracker CAS updates, receipt resume |
 | Transfer guard | INTEGRATION | `cmd/sdlc/transferguard.go` | M2: new, delivered | `git merge-tree`, tracker handoff records |
 | Composed issue reader | INTEGRATION | `cmd/sdlc/issuerecord.go` | Planned M3: absent, not delivered (M2 verbs read card and details directly) | M1 card reader plus selected detail location |
 | Completion adapter | INTEGRATION | `cmd/sdlc/trackercompletion.go` | Planned M3: absent, not delivered | close evidence, existing GitHub landing identity and archive transaction |
@@ -97,7 +102,7 @@ Implement separate tagged creation/transfer/completion state types using this co
 
 - CLI operations, not keystroke paths. Initial design budget: one tracker fetch per command, one tree listing per snapshot, batched blob reads, no fetch per card. Exercise 10,000 cards and 100 active details in benchmarks; target under one second local snapshot processing on a developer machine, report hardware/results rather than claiming it now. Network uses existing command cancellation/timeouts; stale reads must be visibly labelled and cannot authorize writes. ARCH-CONSTRAINTS.
 - Cards persist for repository lifetime: one small record per issue plus Git history. Derive max ID, retain terminal cards, and measure scan/storage cost in the benchmark; no counter file. Historical migration seeds every used ID. This is the recommended allocation choice adopted by this proposed plan.
-- Tracker format manifest persists per repository. Mirror baseline blobs stay reachable through tracker history. Each transferred card retains one initial-handoff record, bounded to one per initial creation; its immutable history supports fresh-clone verification even after source-clone loss. Recovery refs retain source snapshots until confirmed finalization; `sdlc issue recovery list` reports remaining local operations and `sdlc issue recovery reconcile --issue N` resumes or cleans confirmed completed operations through the same transition model. Never age-delete uncertain operations. No background daemon.
+- Tracker format manifest persists per repository. Mirror baseline blobs stay reachable through tracker history. Each transferred card retains one initial-handoff record, bounded to one per initial creation; its immutable history supports fresh-clone verification even after source-clone loss. Recovery refs live in the repository's common Git directory, so every linked worktree sees every receipt; a receipt's remaining local effects (materializing details, removing a handed-off source) run only in the worktree on its source branch, and `recovery list` marks receipts owned elsewhere. They retain source snapshots until confirmed finalization; `sdlc issue recovery list` reports remaining local operations and `sdlc issue recovery reconcile --issue N` resumes or cleans confirmed completed operations through the same transition model. Never age-delete uncertain operations. No background daemon.
 - Inputs are untrusted: validate IDs, OIDs, ordinary file modes, repository-relative roots, duplicate IDs/YAML keys, schema versions, receipt size/shape and exact repository identity before effects. Reject symlinks and malformed trees; missing and unreadable differ. Fixtures isolate HOME/config/remotes and disable hooks/signing; no new credentials. ARCH-SECURE, ARCH-FUNERAL.
 
 ## Consumer inventory and ownership
@@ -171,7 +176,7 @@ the acceptance record. Foundation remains unactivated pending cutover.
 
 ### Task 3: Commands, setters and early design branch
 
-Files: modify `cmd/sdlc/{issue,issueids,claim,claimdecision,setstatus,startplan,changecode,changecode_flow}.go`; add `issuerecord.go`, `issuemetadata.go` and tests; update existing `issue_test.go`, `claimremote_test.go`, `startplan_test.go`, `changecode_test.go`.
+Files (revised at M2): modify `cmd/sdlc/{issue,claim,setstatus,startplan,changecode}.go`; add `trackerenv.go`, `planningbranch.go`, `cardsetters.go`, `internal/issue/cardset.go` and tests (`issuenew_test.go`, `planningbranch_test.go`, `changecode_tracker_test.go`); update `claimremote_test.go`, `startplan_test.go`, `setstatus_test.go`. `issuerecord.go` moves to M3; `issuemetadata.go` was superseded by `cardsetters.go`.
 
 - [x] Test `runIssueNew` and `runClaim` through the production command seam with controlled publication schedules; assert one reserved identity/claim and no readiness from local-only details.
 - [x] Test `PreparePlanningBranch` with generated checkout/ref relationships; assert fresh-main details are present and resting refs/unrelated work are unchanged.
@@ -306,3 +311,27 @@ Reason: executing Chunk 2 exposed mechanics the plan left implicit.
   protected), exempts the issue's own branch, and is not applicable without a
   tracker. Remote-less publish-gate unit fixtures stub it through a seam.
 - The composed issue reader moves wholly to M3 with its consumers.
+
+### 2026-09-25 — M2 boundary review round 3 (REWORK) corrections
+
+Reason: the M2 review found a foreign-worktree recovery hazard, octal-parsed
+`--issue` hints, an unguarded interrupted-handoff window, stale verb help and
+(second in family) inventory drift. Delta:
+- Local effects are bound to the receipt's source branch in both adapters, and
+  reconcile refuses another checkout up front (`ErrForeignCheckout`).
+- Every `--issue` hint renders through `issue.CLIRef`; a source guard test keeps
+  padded IDs out of hints.
+- The transfer guard also protects handoffs without `main_commit` once main holds
+  the details; handoff destinations are validated and a malformed card's refusal
+  says it blocks publication repo-wide.
+- Help for claim, issue, set-status, start-plan, change-code and root now
+  describes the tracker workflow; `issue sync`/`publish` are marked as retiring.
+- Inventory rule (applied here): every non-test file added in a boundary window
+  (`git diff --name-status BASE HEAD | grep '^A' | grep -v _test`) has a Core
+  concepts row or is named as glue, and each Task "Files:" list is revised to
+  what exists.
+- Also: guard runs under the verb's context; uncertain stops report the last Git
+  error; set-status reports malformed details; move-detail validates/refreshes
+  the mirror before publishing. `start-plan --issue` now needs the tracker and
+  network while pre-tracker details keep change-code's legacy path — acceptable
+  under the freeze-and-cutover plan, removed at M4.

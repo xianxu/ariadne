@@ -23,6 +23,7 @@ import (
 
 // prFlags holds the parsed flag values for the pr subcommand.
 type prFlags struct {
+	Context   context.Context
 	DryRun    bool
 	IssuesDir string
 }
@@ -41,6 +42,7 @@ func NewPRCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			f.Context = cmd.Context()
 			return runPR(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
@@ -53,7 +55,7 @@ func NewPRCmd() *cobra.Command {
 func runPR(stdout, stderr io.Writer, f *prFlags) error {
 	// #252: a PR must not carry a change to handed-off details (checked again at
 	// merge against the then-current main).
-	if err := guardTransferredDetailsFn(context.Background()); err != nil {
+	if err := guardTransferredDetailsFn(commandContext(f.Context)); err != nil {
 		return err
 	}
 	target, targetErr := resolveLandingTarget(prRunner)

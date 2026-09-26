@@ -118,3 +118,11 @@ func commitOnly(e *trackerEnv, message string, paths ...string) error {
 	_, err := e.git(append([]string{"commit", "-q", "--no-verify", "-m", message, "--only", "--"}, paths...)...)
 	return err
 }
+
+// commandContext is the verb's Cobra context, or Background for direct callers.
+func commandContext(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
+}

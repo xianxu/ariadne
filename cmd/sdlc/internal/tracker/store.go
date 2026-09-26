@@ -113,5 +113,32 @@ func (r Receipt) Discardable() bool {
 	return false
 }
 
+// ErrForeignCheckout refuses a local effect outside the operation's source
+// checkout. Recovery refs live in the repository's common Git directory, so
+// every linked worktree sees every receipt; only the worktree on the receipt's
+// source branch (Git allows a branch in one worktree at a time) holds the files
+// its local stages act on.
+var ErrForeignCheckout = errors.New("operation belongs to another checkout")
+
+// NeedsSourceCheckout reports whether finishing this receipt still performs a
+// local effect: materializing created details or removing a handed-off source.
+func (r Receipt) NeedsSourceCheckout() bool {
+	switch r.wire.Operation {
+	case "creation":
+		return r.wire.Stage <= 1
+	case "transfer":
+		return r.wire.Spec.Source == LocalSource && r.wire.Stage <= 3
+	}
+	return false
+}
+
+// requireSourceCheckout guards every local effect, whichever verb drives it.
+func requireSourceCheckout(spec ReceiptSpec, branch string) error {
+	if branch != spec.SourceBranch {
+		return fmt.Errorf("%w: #%s's %s is on %s (this checkout is on %q); run recovery there", ErrForeignCheckout, spec.IssueID, spec.SourcePath, spec.SourceBranch, branch)
+	}
+	return nil
+}
+
 // Stage names the operation's current stage ("finalize" once all are proven).
 func (r Receipt) Stage() string { return r.binding().Stage }

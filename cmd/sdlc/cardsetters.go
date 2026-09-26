@@ -49,9 +49,12 @@ func runCardUpdate(ctx context.Context, stdout, stderr io.Writer, issuesDir stri
 	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))
 	body := ""
 	if raw, err := os.ReadFile(filepath.Join(env.root, filepath.FromSlash(detailPath))); err == nil {
-		if _, b, perr := issue.Parse(string(raw)); perr == nil {
-			body = b
+		// A malformed file is not "no Log": the reopen guard would misread it.
+		_, b, perr := issue.Parse(string(raw))
+		if perr != nil {
+			return fmt.Errorf("%s is malformed (%v); repair it before changing the card", detailPath, perr)
 		}
+		body = b
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("read %s: %w", detailPath, err)
 	}
