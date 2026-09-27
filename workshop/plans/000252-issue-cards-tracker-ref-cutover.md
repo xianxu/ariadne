@@ -88,24 +88,31 @@ test the real `--apply`: that writes pair's shared remote.
       slot, always call the slot's own `bin/sdlc`.)
 - [x] Push the #252 branch to GitHub: `git push -u origin 000252-issue-cards-tracker-ref`
       (from the #252 worktree) — pushed at `4f7260ae`, full suite green
-- [ ] In `~/workspace/worktree/parley.nvim-slot1/ariadne`: `git restore .gitignore` (weave regenerates
+- [x] In `~/workspace/worktree/parley.nvim-slot1/ariadne`: `git restore .gitignore` (weave regenerates
       its generated block in a dependency clone; safe to discard) → `git fetch origin` →
       `git switch --track origin/000252-issue-cards-tracker-ref`
-- [ ] In `~/workspace/worktree/parley.nvim-slot1/parley.nvim`: `weave compile` (exit 0) → `bin/sdlc` is
-      the #252 build; the composed `CLAUDE.md` carries the "Issue tracker repositories (#252)" bullet
+- [x] In `~/workspace/worktree/parley.nvim-slot1/parley.nvim`: `weave compile` (exit 0) → the slot's `sdlc`
+      runs the private clone's build (`../ariadne/bin/sdlc`, `vcs.revision` = the #252 branch; `:0`'s
+      `bin/sdlc` stays at `pre-252-freeze`); the composed `CLAUDE.md` carries the "Issue tracker
+      repositories (#252)" bullet
 - [x] First soak run found legacy `issue new` broken (2026-09-27) → legacy mode restored; re-run from
       the next step with the new push of the #252 branch (`git fetch && git pull` in the slot's ariadne,
       then `weave compile`)
-- [ ] Before the soak, and again before Phase B: the differential check passes —
+- [x] Before the soak: the differential check passes —
       `cmd/sdlc/testdata/legacy-equivalence.sh <pre-252 sdlc> <#252 sdlc>` (build the old one from
-      `pre-252-freeze`; see the script header)
-- [ ] Legacy mode, read-only, with `bin/sdlc`: `issue list`, `issue show N`, `state`,
+      `pre-252-freeze`; see the script header): 19/19 steps and both end states identical
+- [ ] Again right before Phase B, on the exact build that will land
+- [x] Legacy mode, read-only, with `bin/sdlc`: `issue list`, `issue show N`, `state`,
       `project status` (if it has projects), `sdlc actual --issue N` — same answers as `parley.nvim:0`
-- [ ] Legacy mode on a local branch (no push): claim-free flow on a scratch branch —
+- [x] Legacy mode on a local branch (no push): claim-free flow on a scratch branch —
       `issue lint-ids --base main --head HEAD`, the publish gate via `sdlc push --dry-run`
-- [ ] parley.nvim's real dry run (read-only): `bin/sdlc issue migrate` → refusals match Phase C
+- [x] parley.nvim's real dry run (read-only): `bin/sdlc issue migrate` → refusals match Phase C
       (C11: the unlanded #276–#286 stack) — never `--apply` here
 - [ ] Soak: a couple of days of ordinary parley.nvim work in this slot, in legacy mode
+      **Evidence so far (2026-09-27):** the slot's `sdlc` is the #252 build (`:0`'s untouched); #287 and
+      #281 ran new→claim→design→change-code→close→PR (#202, #203)→merge→archive, #289–#291 filed, #264
+      claimed; parley.nvim's GitHub stays pure legacy (no tracker, marker or `card_mirror`); the frozen
+      and #252 binaries list all 49 issues identically. Still to exercise naturally: `milestone-close`.
 - [x] Rehearse the apply on a **disposable copy** of parley.nvim (bare copy + clone, as A1):
       `--apply`, re-apply *already migrated*, `issue list`, one claim
       **Result (2026-09-27):** mirror of GitHub + parley.nvim:0's local branches → 0 refusals (the
@@ -220,10 +227,9 @@ found on 2026-09-26; re-run the dry run first — they may have changed.
 - [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
 - [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
 
-### C11 — parley.nvim (11 blockers: an unlanded branch stack)
-- [ ] 1a land the stack `000276` … `000286` (issues #277–#286 exist only on those branches;
-      #276's close was never synced) — or publish each issue file to main
-- [ ] 1b re-run the dry run → 0 refusals
+### C11 — parley.nvim (ready as of 2026-09-27: the stack landed; rehearsed in A3)
+- [x] 1a the #276–#286 stack landed; the rehearsal dry run shows 0 refusals
+- [ ] 1b commit/sync any in-flight issue edits (e.g. the slot's #264 design), re-run the dry run → 0 refusals
 - [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
 - [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
 
