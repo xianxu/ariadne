@@ -504,3 +504,30 @@ Reason: implementation and the rehearsals refined the design. Delta:
   parley.nvim holds an unlanded stack (#276–#285) whose issues exist only on
   branches. Each is a pre-cutover task for its repository, under its own
   instructions.
+
+### 2026-09-26 — M4 boundary review round 10 (REWORK) corrections
+
+Reason: the review found (Critical, 4th in family deferred-effect-input-drift)
+that a legacy codecomplete's main conversion pinned the card from before its
+close was bound, so main named a blob the tracker never held and the reconciled
+branch conflicted on the mirror line; plus five Minors. Delta:
+- One constructor pins a mirror, from final bytes: `MigrateActiveDetails`
+  returns unmirrored details; `issue.MirrorDetails` proves the owned fields and
+  pins the card after binding; reconcile uses the same constructor. The
+  generated-population test asserts every conversion's baseline equals its
+  final card's blob and that an unchanged branch copy reconciles to main's
+  bytes; the imported-close e2e now merges migrated main without conflict,
+  lands, and settles the card to done.
+- A legacy close already in main's history (landed, never marked done) binds
+  main's own close record; code after it on main is other work.
+- `lint-ids` refuses details a range adds without a card at the same id and
+  slug in a tracker repository (the consumer inventory's "tracker ID
+  validation" row, now delivered, with a real-Git exit-code test).
+- The Makefile/Python fallbacks detect a cut-over repository as
+  `tracker.CutOver` does (marker, or a fetched tracker).
+- `TrunkFile.Roots` is the one root listing; the guard caches its verified
+  (root, ref) pair. Measured: 54 ms and one Git process per new tracker
+  generation over a 10,000-write history; the local read stays under a second.
+- The moved-main apply error names both outcomes (resume, or abandon an
+  unwritten tracker).
+

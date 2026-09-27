@@ -25,6 +25,8 @@ derivation in `internal/issue/migrate.go`.
   `migrate-<id>`) only to exactly one provable legacy close: the commit that
   recorded codecomplete on a branch (main's issue-sync copy of it does not
   count) with only docs after it. Then the branch lands like any tracked close.
+  A close already in main's history (landed, never marked done) binds main's
+  record and settles to done. The details' mirror pins the final, bound card.
 - **Marker.** One main commit adds `workshop/issue-tracker.json`
   `{version, tracker_root}` beside the details conversion. The marker is what
   makes the era explicit to the binary.
@@ -83,10 +85,13 @@ product-owned consumers that need changes get issues in their owning repositorie
 
 - `internal/issue/migrate_test.go`: round trip over generated legacy files; a
   reconciled branch copy equals main's conversion byte for byte.
-- `internal/tracker/migration_test.go`: generated populations parse as a valid
-  snapshot with the right max ID; duplicates, divergence and close provability.
+- `internal/tracker/migration_test.go`: generated populations (bound
+  codecomplete cards included) parse as a valid snapshot with the right max
+  ID; every conversion pins its final card's blob; duplicates, divergence and
+  close provability.
 - `internal/tracker/cutover_test.go`: marker strictness; the guard on reads,
   stale reads and card writes; a marker without a tracker never reads legacy.
 - `cmd/sdlc/issuemigrate_test.go`: dry run, apply, resume, foreign tracker,
-  reconcile then clean merge, imported close owned by its branch.
-- `cmd/sdlc/trackedlegacy_test.go`: legacy entrypoints and Makefile fallbacks.
+  reconcile then clean merge, an imported close merged, landed and settled.
+- `cmd/sdlc/trackedlegacy_test.go`: legacy entrypoints, Makefile fallbacks, and
+  `lint-ids` refusing cardless details.

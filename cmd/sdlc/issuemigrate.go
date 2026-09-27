@@ -355,7 +355,13 @@ func legacyCloseAnchors(env *migrateEnv, main string, branches []string, issuePa
 				paths = append(paths, p)
 			}
 		}
-		anchors = append(anchors, tracker.MigrationAnchor{Ref: ref, Anchor: anchor, Parent: parent, CodeAfter: publishGateHasCodeSurface(paths), OnMain: ref == main})
+		onMain := ref == main
+		if !onMain {
+			if onMain, err = env.ancestorOf(anchor, main); err != nil {
+				return nil, err
+			}
+		}
+		anchors = append(anchors, tracker.MigrationAnchor{Ref: ref, Anchor: anchor, Parent: parent, CodeAfter: publishGateHasCodeSurface(paths), OnMain: onMain})
 	}
 	return anchors, nil
 }
@@ -404,11 +410,10 @@ func applyTrackerBootstrap(env *migrateEnv, m tracker.MigrationManifest) (string
 	if err != nil {
 		return "", err
 	}
-	rootsOut, err := env.git("rev-list", "--max-parents=0", view.Ref(), "--")
+	roots, err := env.trunk.Roots(view.Ref())
 	if err != nil {
 		return "", err
 	}
-	roots := strings.Fields(rootsOut)
 	if len(roots) != 1 {
 		return "", fmt.Errorf("the issue tracker has %d root commits; expected one", len(roots))
 	}
@@ -463,7 +468,10 @@ func applyMainCutover(env *migrateEnv, m tracker.MigrationManifest, root string)
 	msg := fmt.Sprintf("migrate: issue details onto the issue tracker\n\nMigration-Digest: %s\nTracker-Root: %s", m.Digest, root)
 	return env.main.UpdateMany(msg, func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
 		if view.Ref() != m.Main {
-			return gitx.TrunkWrite{}, fmt.Errorf("main moved from %s to %s since the plan; keep writers frozen and re-run the dry run (the tracker is in place; the new plan resumes from it)", shortOID(m.Main), shortOID(view.Ref()))
+			return gitx.TrunkWrite{}, fmt.Errorf("main moved from %s to %s since the plan; keep writers frozen and re-run the dry run.\n"+
+				"      If main's movement changed no issue files, the new plan matches the tracker already in place and resumes from it;\n"+
+				"      otherwise the tracker is not the new plan's: abandon it (delete the issue-tracker branch — nothing has written to it yet) and apply the new plan",
+				shortOID(m.Main), shortOID(view.Ref()))
 		}
 		return gitx.TrunkWrite{Write: write}, nil
 	})

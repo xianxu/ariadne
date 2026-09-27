@@ -102,9 +102,15 @@ func (r *Repository) checkCutover(ref string) error {
 			"      If main lacks it too, the migration is unfinished: `sdlc issue migrate` (dry run), then `--apply`",
 			ErrCutover, CutoverMarkerPath)
 	}
+	if r.verified == [2]string{trackerRoot, ref} {
+		return nil
+	}
 	ok, err := r.trunk.HasRoot(trackerRoot, ref)
 	if err != nil {
 		return err
+	}
+	if ok {
+		r.verified = [2]string{trackerRoot, ref}
 	}
 	if !ok {
 		return fmt.Errorf("%w: %s names tracker root %s, which is not where the issue tracker's history starts; the tracker was re-created — stop and reconcile by hand", ErrCutover, CutoverMarkerPath, trackerRoot)

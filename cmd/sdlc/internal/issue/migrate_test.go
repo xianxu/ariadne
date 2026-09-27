@@ -36,9 +36,16 @@ func TestMigrateActiveDetailsRoundTripsOverGeneratedLegacyFiles(t *testing.T) {
 				}
 				label := fmt.Sprintf("%s/%s/%b", name, status, mask)
 				legacy := legacyActive(strings.Join(fm, "\n"), body)
-				card, mirrored, inferences, err := MigrateActiveDetails(legacy, "sha1")
+				card, normalized, inferences, err := MigrateActiveDetails(legacy, "sha1")
 				if err != nil {
 					t.Fatalf("%s: %v", label, err)
+				}
+				if HasMirror(normalized) {
+					t.Fatalf("%s: derivation pinned a mirror before the card is final", label)
+				}
+				mirrored, err := MirrorDetails(normalized, card, "sha1")
+				if err != nil {
+					t.Fatalf("%s: mirror: %v", label, err)
 				}
 				if _, err := ParseCard(card); err != nil {
 					t.Fatalf("%s: card invalid: %v", label, err)
@@ -66,6 +73,9 @@ func TestMigrateActiveDetailsNormalizesOnlyTheProblemHeading(t *testing.T) {
 	legacy := legacyActive("id: 000042\nstatus: open", "# Title\n\nThe report.\n\n## Done when\n\n- x\n")
 	card, mirrored, _, err := MigrateActiveDetails(legacy, "sha1")
 	if err != nil {
+		t.Fatal(err)
+	}
+	if mirrored, err = MirrorDetails(mirrored, card, "sha1"); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(string(card), "## Problem\n\nThe report.") {

@@ -18,24 +18,66 @@ import (
 	"go.yaml.in/yaml/v3"
 )
 
-// MigrateActiveDetails splits legacy active details into a card and mirrored
-// details. Details without a `## Problem` section get the heading inserted above
-// their preamble (the text between the H1 and the next section), or — with no
-// preamble — a labelled placeholder section; the inferences list says which.
-// Any invalid owned field refuses.
-func MigrateActiveDetails(details []byte, objectFormat string) (card, mirrored []byte, inferences []string, err error) {
+// MigrateActiveDetails derives the card of legacy active details and returns
+// the details normalized but NOT yet mirrored: a caller that changes the card
+// afterwards (binding a legacy close) must pin the final bytes, so the mirror
+// is attached once, by MirrorDetails, after the last card mutation. Details
+// without a `## Problem` section get the heading inserted above their preamble
+// (the text between the H1 and the next section), or — with no preamble — a
+// labelled placeholder section; the inferences list says which. Any invalid
+// owned field refuses.
+func MigrateActiveDetails(details []byte, objectFormat string) (card, normalized []byte, inferences []string, err error) {
 	normalized, inferred, err := withProblemHeading(details)
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	card, mirrored, err = SplitCardWithFormat(normalized, objectFormat)
-	if err != nil {
+	if card, _, err = SplitCardWithFormat(normalized, objectFormat); err != nil {
 		return nil, nil, nil, err
 	}
 	if inferred != "" {
 		inferences = append(inferences, inferred)
 	}
-	return card, mirrored, inferences, nil
+	return card, normalized, inferences, nil
+}
+
+// MirrorDetails is the one constructor of a migrated card mirror: it proves
+// every card-owned field the details hold equals card's (Problem excluded:
+// details may revise it) and pins card's exact blob. Call it with the card's
+// final bytes; a pin computed before a later card change names a blob the
+// tracker never holds.
+func MirrorDetails(details, card []byte, objectFormat string) ([]byte, error) {
+	if HasMirror(details) {
+		return nil, ErrNotLegacy
+	}
+	d, err := parseCardDocument(details)
+	if err != nil {
+		return nil, err
+	}
+	c, err := parseCardDocument(card)
+	if err != nil {
+		return nil, err
+	}
+	var differ []string
+	for _, field := range vocab.Issue().CardFields() {
+		if field.Kind == "title" {
+			if d.title != c.title {
+				differ = append(differ, "title")
+			}
+			continue
+		}
+		if !sameCardValue(d.fields[field.Name], c.fields[field.Name]) {
+			differ = append(differ, field.Name)
+		}
+	}
+	if len(differ) > 0 {
+		slices.Sort(differ)
+		return nil, fmt.Errorf("card-owned fields differ from the imported card: %s", strings.Join(differ, ", "))
+	}
+	oid, err := CardBlobOID(card, objectFormat)
+	if err != nil {
+		return nil, err
+	}
+	return []byte(Compose(d.fm+"\n"+mirrorLine(oid), d.body)), nil
 }
 
 // NoProblemPlaceholder is the Problem a migrated issue gets when its details
@@ -244,8 +286,8 @@ func archivedTitleAndProblem(body, slug, file string, infer func(string, ...any)
 var ErrNotLegacy = errors.New("details already carry a card mirror")
 
 // ReconcileLegacyDetails attaches the imported card's mirror to a pre-cutover
-// branch's legacy details, proving first that every card-owned field the branch
-// holds equals the imported card's (Problem is excluded: details may revise it).
+// branch's legacy details — the same normalization and constructor as main's
+// conversion, so an unchanged branch copy yields exactly main's bytes.
 func ReconcileLegacyDetails(details, importedCard []byte, objectFormat string) ([]byte, error) {
 	if HasMirror(details) {
 		return nil, ErrNotLegacy
@@ -254,33 +296,5 @@ func ReconcileLegacyDetails(details, importedCard []byte, objectFormat string) (
 	if err != nil {
 		return nil, err
 	}
-	d, err := parseCardDocument(normalized)
-	if err != nil {
-		return nil, err
-	}
-	c, err := parseCardDocument(importedCard)
-	if err != nil {
-		return nil, err
-	}
-	var differ []string
-	for _, field := range vocab.Issue().CardFields() {
-		if field.Kind == "title" {
-			if d.title != c.title {
-				differ = append(differ, "title")
-			}
-			continue
-		}
-		if !sameCardValue(d.fields[field.Name], c.fields[field.Name]) {
-			differ = append(differ, field.Name)
-		}
-	}
-	if len(differ) > 0 {
-		slices.Sort(differ)
-		return nil, fmt.Errorf("card-owned fields differ from the imported card: %s", strings.Join(differ, ", "))
-	}
-	oid, err := CardBlobOID(importedCard, objectFormat)
-	if err != nil {
-		return nil, err
-	}
-	return []byte(Compose(d.fm+"\n"+mirrorLine(oid), d.body)), nil
+	return MirrorDetails(normalized, importedCard, objectFormat)
 }

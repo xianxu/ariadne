@@ -29,12 +29,15 @@ WF_ISSUES_DIR ?= issues
 WF_HISTORY_DIR ?= history
 export WF_ISSUES_DIR WF_HISTORY_DIR
 
-# #252: a repository cut over to the issue tracker (its marker sits beside the
-# issues directory) keeps IDs and status on cards. The shell fallbacks below
-# allocate IDs or read/write status in details, so there they refuse and ask for
-# the sdlc binary instead. Prefix a fallback's shell with $(WF_TRACKED_REFUSES).
+# #252: a repository cut over to the issue tracker keeps IDs and status on
+# cards. The shell fallbacks below allocate IDs or read/write status in details,
+# so there they refuse and ask for the sdlc binary instead. Cut over means what
+# sdlc's tracker.CutOver means: the marker (tracker.CutoverMarkerPath, beside
+# the issues directory) is present, or the clone has fetched an issue tracker —
+# a pre-cutover branch lacks the marker but not the fetched tracker. Prefix a
+# fallback's shell with $(WF_TRACKED_REFUSES).
 WF_TRACKER_MARKER ?= $(dir $(WF_ISSUES_DIR))issue-tracker.json
-WF_TRACKED_REFUSES = if [ -f "$(WF_TRACKER_MARKER)" ]; then echo "Error: this repository uses the issue tracker ($(WF_TRACKER_MARKER)); build bin/sdlc — the shell fallback would write issue state into details" >&2; exit 1; fi;
+WF_TRACKED_REFUSES = if [ -f "$(WF_TRACKER_MARKER)" ] || [ -n "$$(git for-each-ref --count=1 --format='%(refname)' 'refs/remotes/*/issue-tracker' 2>/dev/null)" ]; then echo "Error: this repository uses the issue tracker ($(WF_TRACKER_MARKER)); build bin/sdlc — the shell fallback would write issue state into details" >&2; exit 1; fi;
 
 # BRAIN_DIR points at the brain repo for cross-cutting state (project files,
 # velocity baselines). close-issue.py reads it to update parent project tasks.

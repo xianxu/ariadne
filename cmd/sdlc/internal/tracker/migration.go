@@ -34,8 +34,10 @@ type MigrationBranchFile struct {
 
 // MigrationAnchor is a legacy close found for a codecomplete issue: the commit
 // that recorded codecomplete on Ref, and whether code landed after it. OnMain
-// marks main's own history, where a codecomplete is usually the legacy
-// publication of a branch's close rather than a close of its own.
+// marks a close already in main's history — main's own (often the legacy
+// publication of a branch's close) or a branch close that has since landed.
+// A landed close is complete work never marked done: code after it on main is
+// other work, so CodeAfter is not asked of it.
 type MigrationAnchor struct {
 	Ref, Anchor, Parent string
 	CodeAfter, OnMain   bool
@@ -130,7 +132,7 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 			continue
 		}
 		f := files[0]
-		card, mirrored, inferences, err := issue.MigrateActiveDetails(f.Raw, in.ObjectFormat)
+		card, normalized, inferences, err := issue.MigrateActiveDetails(f.Raw, in.ObjectFormat)
 		if err != nil {
 			refuse(f.Path, err.Error(), "fix the details under the old workflow, then re-run the dry run")
 			continue
@@ -151,6 +153,12 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 				continue
 			}
 			card = bound
+		}
+		// The card is final (bound, if it was codecomplete): pin exactly it.
+		mirrored, err := issue.MirrorDetails(normalized, card, in.ObjectFormat)
+		if err != nil {
+			refuse(f.Path, err.Error(), "fix the details under the old workflow, then re-run the dry run")
+			continue
 		}
 		_, slug, _ := issue.ParseFilename(path.Base(f.Path))
 		cards[id] = MigrationCard{ID: id, Path: CardPath(id, slug), Source: f.Path, Raw: card, Inferences: inferences}
@@ -234,18 +242,28 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 // it. Main's anchor is the close only when no branch carries one (a close made
 // directly on main); otherwise it is the legacy publication of the branch's.
 func bindLegacyClose(card []byte, id string, in MigrationInput) ([]byte, string) {
-	candidates := []MigrationAnchor{}
+	var candidates, landed, mainOwn []MigrationAnchor
 	for _, a := range in.Anchors[id] {
-		if !a.OnMain {
+		switch {
+		case !a.OnMain:
 			candidates = append(candidates, a)
+		case a.Ref == in.Main:
+			mainOwn = append(mainOwn, a)
+		default:
+			landed = append(landed, a)
 		}
 	}
 	if len(candidates) == 0 {
-		candidates = in.Anchors[id]
+		// Landed and never marked done: main's newest close record binds it, and
+		// the next push or recovery settles it to done by ancestry.
+		candidates = mainOwn
+		if len(candidates) == 0 {
+			candidates = landed
+		}
 	}
 	distinct := map[string]MigrationAnchor{}
 	for _, a := range candidates {
-		if a.CodeAfter {
+		if a.CodeAfter && !a.OnMain {
 			return nil, fmt.Sprintf("codecomplete, but %s has code after its close %s", a.Ref, short(a.Anchor))
 		}
 		distinct[a.Anchor] = a

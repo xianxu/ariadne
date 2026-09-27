@@ -199,3 +199,9 @@ The simplest durable authority beats a clever scan of consequences.
   parser over the real population read-only: a fleet probe showed a fifth of
   issue files failing it and duplicate IDs, which reshaped the migration
   (#252 M4). Then rehearse the whole command on a disposable copy.
+- An artifact that pins another's identity (a blob OID, a digest) is built by
+  one constructor from the source's final bytes, after its last mutation — and
+  the pure plan asserts pin == identity(final). Deriving the pin alongside the
+  first version and mutating the source afterwards (binding a close to a card)
+  left main naming a blob the tracker never held (#252 M4 BR-34).
+

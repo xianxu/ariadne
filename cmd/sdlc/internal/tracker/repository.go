@@ -22,6 +22,10 @@ var ErrNoChange = errors.New("tracker write makes no change; content equality do
 type Repository struct {
 	trunk    *gitx.TrunkFile
 	checkout string // guarded checkout root (GuardCutover); "" for unguarded
+	// verified is the last (marker root, tracker ref) pair the guard proved, so
+	// repeated reads of one generation (a CAS retry, a second reader) do not
+	// respawn the root listing.
+	verified [2]string
 }
 
 func NewRepository(ctx context.Context, root, remote string) (*Repository, error) {

@@ -42,7 +42,7 @@ func basicInput() MigrationInput {
 // seed max-ID from every used ID, and not depend on inventory order.
 func TestPlanTrackerMigrationOverGeneratedPopulations(t *testing.T) {
 	rng := rand.New(rand.NewSource(252))
-	statuses := []string{"open", "working", "blocked"}
+	statuses := []string{"open", "working", "blocked", "codecomplete"}
 	for round := 0; round < 60; round++ {
 		in := basicInput()
 		maxID := 0
@@ -50,7 +50,14 @@ func TestPlanTrackerMigrationOverGeneratedPopulations(t *testing.T) {
 			pid := fmt.Sprintf("%06d", id)
 			switch rng.Intn(3) {
 			case 0:
-				in.Active = append(in.Active, activeFile(pid, "a"+pid, statuses[rng.Intn(len(statuses))]))
+				status := statuses[rng.Intn(len(statuses))]
+				in.Active = append(in.Active, activeFile(pid, "a"+pid, status))
+				if status == "codecomplete" { // a provable legacy close: the card gets bound
+					if in.Anchors == nil {
+						in.Anchors = map[string][]MigrationAnchor{}
+					}
+					in.Anchors[pid] = []MigrationAnchor{{Ref: "b" + pid, Anchor: oidB, Parent: oidP}}
+				}
 			case 1:
 				in.Archived = append(in.Archived, archivedFile(pid, "h"+pid, "2026-05-01"))
 				if rng.Intn(4) == 0 { // an archived duplicate
@@ -80,9 +87,24 @@ func TestPlanTrackerMigrationOverGeneratedPopulations(t *testing.T) {
 		if len(m.Conversions) != len(in.Active) {
 			t.Fatalf("round %d: %d conversions for %d active", round, len(m.Conversions), len(in.Active))
 		}
+		// Every pin names its card's FINAL bytes (bound or not), and an
+		// unchanged branch copy reconciles to exactly main's conversion.
+		cardFor := map[string][]byte{}
+		for _, c := range m.Cards {
+			cardFor[c.Source] = c.Raw
+		}
+		legacyAt := map[string][]byte{}
+		for _, f := range in.Active {
+			legacyAt[f.Path] = f.Raw
+		}
 		for _, c := range m.Conversions {
-			if !issue.HasMirror(c.Raw) {
-				t.Fatalf("round %d: %s converted without a mirror", round, c.Path)
+			pin, err := issue.MirrorBaselineOID(c.Raw)
+			want, _ := issue.CardBlobOID(cardFor[c.Path], "sha1")
+			if err != nil || pin != want {
+				t.Fatalf("round %d: %s pins %s, its card is %s (%v)", round, c.Path, pin, want, err)
+			}
+			if again, err := issue.ReconcileLegacyDetails(legacyAt[c.Path], cardFor[c.Path], "sha1"); err != nil || string(again) != string(c.Raw) {
+				t.Fatalf("round %d: %s: a branch copy does not reconcile to main's conversion (%v)", round, c.Path, err)
 			}
 		}
 		shuffled := in
@@ -170,7 +192,8 @@ func TestPlanTrackerMigrationBindsOnlyAProvableLegacyClose(t *testing.T) {
 		{"two closes", []MigrationAnchor{{Ref: "a", Anchor: oidA, Parent: oidP}, {Ref: "b", Anchor: oidB, Parent: oidP}}, "2 legacy close"},
 		{"code after the close", []MigrationAnchor{{Ref: "feat", Anchor: oidB, Parent: oidP, CodeAfter: true}}, "code after"},
 		{"the branch close beside main's legacy publication of it", []MigrationAnchor{{Ref: "main", Anchor: oidA, Parent: oidP, OnMain: true}, {Ref: "feat", Anchor: oidB, Parent: oidP}}, ""},
-		{"a close made directly on main", []MigrationAnchor{{Ref: "main", Anchor: oidB, Parent: oidP, OnMain: true}}, ""},
+		{"a close made directly on main", []MigrationAnchor{{Ref: oidA, Anchor: oidB, Parent: oidP, OnMain: true, CodeAfter: true}}, ""},
+		{"a landed branch close never marked done, main moved on", []MigrationAnchor{{Ref: "feat", Anchor: oidA, Parent: oidP, OnMain: true, CodeAfter: true}, {Ref: oidA, Anchor: oidB, Parent: oidP, OnMain: true, CodeAfter: true}}, ""},
 	}
 	for _, c := range cases {
 		in := basicInput()

@@ -252,6 +252,26 @@ func TestIssueMigrateImportsAProvableLegacyClose(t *testing.T) {
 	if err != nil || len(owned) != 1 || owned[0].ID != "000001" {
 		t.Fatalf("the imported close is not owned by its branch: %+v %v", owned, err)
 	}
+	// Main's conversion pins the blob the tracker actually holds (the bound card).
+	r.git("fetch", "-q", "origin")
+	pin, err := issue.MirrorBaselineOID([]byte(r.git("show", "origin/main:workshop/issues/000001-one.md") + "\n"))
+	if err != nil || pin != r.git("rev-parse", "origin/issue-tracker:"+tracker.CardPath("000001", "one")) {
+		t.Fatalf("main pins %s, the tracker holds %s (%v)", pin, r.git("rev-parse", "origin/issue-tracker:"+tracker.CardPath("000001", "one")), err)
+	}
+	// The reconciled branch merges migrated main cleanly, lands, and settles to done.
+	if out, err := exec.Command("git", "-C", r.root, "merge", "--no-edit", "-q", "origin/main").CombinedOutput(); err != nil {
+		t.Fatalf("the imported close's branch conflicts with migrated main: %v\n%s", err, out)
+	}
+	r.git("switch", "-q", "main")
+	r.git("pull", "-q", "--ff-only")
+	r.git("merge", "-q", "--no-ff", "--no-edit", "000001-one")
+	r.git("push", "-q", "origin", "main")
+	if _, stderr, err := executeSDLCTestCommand("issue", "recovery", "reconcile", "--issue", "1"); err != nil {
+		t.Fatalf("settle: %v\n%s", err, stderr)
+	}
+	if c := r.card(tracker.CardPath("000001", "one")); !strings.Contains(c, "status: done") {
+		t.Fatalf("the landed imported close did not complete:\n%s", c)
+	}
 
 	// Code after the close makes it unprovable: the cutover waits.
 	u := legacyRepo(t)
