@@ -8,7 +8,6 @@ updated: 2026-09-27
 estimate_hours:
 ---
 
-
 # Keep the sdlc test suite fast: tiers, shared binary, parallel-safe e2e
 
 ## Problem
