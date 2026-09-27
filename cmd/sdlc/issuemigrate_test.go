@@ -62,7 +62,7 @@ func TestIssueMigrateDryRunChangesNothingAndReportsRefusals(t *testing.T) {
 	r.git("switch", "-q", "main")
 	mainBefore := r.originMain()
 	_, out, err := migrateDryRun(t)
-	if err == nil || !strings.Contains(out, "000001-one: workshop/issues/000001-one.md") || !strings.Contains(out, "unpublished card fields") {
+	if err == nil || !strings.Contains(out, "workshop/issues/000001-one.md (on 000001-one)") || !strings.Contains(out, "unpublished card fields") {
 		t.Fatalf("unsynced branch claim not refused: %v\n%s", err, out)
 	}
 	for _, want := range []string{"cards: 3", "inserted `## Problem`", "duplicate IDs: 1"} {

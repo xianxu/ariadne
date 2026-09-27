@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"path"
 	"sort"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
@@ -180,23 +181,34 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 			m.Duplicates = append(m.Duplicates, fmt.Sprintf("%s: card from %s; archived %s keeps its own record", id, seed.Path, other.file.Path))
 		}
 	}
+	// Stacked branches and their remote-tracking copies repeat one problem;
+	// each (path, reason) is one refusal naming every branch that carries it.
+	type branchProblem struct{ path, reason, next string }
+	carriers := map[branchProblem][]string{}
 	for _, b := range in.Branches {
 		id, _, ok := issue.ParseFilename(path.Base(b.Path))
 		if !ok || b.Raw == nil {
 			continue // a branch's own archive move or an unrelated file
 		}
-		subject := b.Branch + ": " + b.Path
+		var p branchProblem
 		card, known := cards[id]
 		switch {
 		case !known && len(active[id]) == 0 && len(older[id]) == 0:
-			refuse(subject, "issue exists only on this branch", "publish it to main (legacy `sdlc issue sync --push`) or drop it, before cutover")
+			p = branchProblem{b.Path, "issue exists only on a branch", "publish it to main (legacy `sdlc issue sync --push`) or drop it, before cutover"}
 		case len(active[id]) == 0:
-			refuse(subject, "the branch edits an issue main has archived", "land or drop the branch's edit before cutover")
+			p = branchProblem{b.Path, "a branch edits an issue main has archived", "land or drop the branch's edit before cutover"}
 		case known:
 			if _, err := issue.ReconcileLegacyDetails(b.Raw, card.Raw, in.ObjectFormat); err != nil {
-				refuse(subject, "unpublished card fields: "+err.Error(), "publish them to main (legacy `sdlc issue sync --push`) or revert them, before cutover")
+				p = branchProblem{b.Path, "unpublished card fields: " + err.Error(), "publish them to main (legacy `sdlc issue sync --push`) or revert them, before cutover"}
 			}
 		}
+		if p.path != "" {
+			carriers[p] = append(carriers[p], b.Branch)
+		}
+	}
+	for p, branches := range carriers {
+		sort.Strings(branches)
+		refuse(p.path+" (on "+strings.Join(branches, ", ")+")", p.reason, p.next)
 	}
 	for _, d := range in.DirtyIssuePaths {
 		refuse(d, "uncommitted issue edits", "commit and publish, or discard, them before cutover")

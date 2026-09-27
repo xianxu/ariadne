@@ -135,6 +135,7 @@ func TestPlanTrackerMigrationRefusesLegacyDivergence(t *testing.T) {
 		{Branch: "feat-c", Path: activeDir + "000009-new.md", Raw: activeFile("000009", "new", "open").Raw},     // branch-only issue
 		{Branch: "feat-d", Path: activeDir + "000003-three.md", Raw: activeFile("000003", "three", "open").Raw}, // edits an archived issue
 		{Branch: "feat-e", Path: activeDir + "000001-one.md"},                                                   // a deletion: the branch's own archive move
+		{Branch: "feat-f", Path: activeDir + "000009-new.md", Raw: activeFile("000009", "new", "open").Raw},     // a stacked copy: one refusal
 	}
 	in.DirtyIssuePaths = []string{"/slot2: workshop/issues/000001-one.md"}
 	m := PlanTrackerMigration(in)
@@ -143,10 +144,10 @@ func TestPlanTrackerMigrationRefusesLegacyDivergence(t *testing.T) {
 		got[r.Subject] = r.Reason
 	}
 	want := map[string]string{
-		"feat-b: " + activeDir + "000002-two.md":   "status",
-		"feat-c: " + activeDir + "000009-new.md":   "only on this branch",
-		"feat-d: " + activeDir + "000003-three.md": "archived",
-		"/slot2: workshop/issues/000001-one.md":    "uncommitted",
+		activeDir + "000002-two.md (on feat-b)":         "status",
+		activeDir + "000009-new.md (on feat-c, feat-f)": "only on a branch",
+		activeDir + "000003-three.md (on feat-d)":       "archived",
+		"/slot2: workshop/issues/000001-one.md":         "uncommitted",
 	}
 	if len(got) != len(want) {
 		t.Fatalf("refusals %v, want %v", got, want)
@@ -188,6 +189,27 @@ func TestPlanTrackerMigrationBindsOnlyAProvableLegacyClose(t *testing.T) {
 		b, ok, err := issue.CardCompletion(m.Cards[0].Raw)
 		if err != nil || !ok || b.Token != MigrationToken("000005") || b.EvidenceCommit != oidB || b.ReviewedHEAD != oidP || b.Repository != "file:///repo" {
 			t.Fatalf("%s: binding %+v %v", c.name, b, err)
+		}
+	}
+}
+
+// Migration planning is a one-time batch; this bounds it at fleet scale:
+// 9,900 archived and 100 active legacy files.
+func BenchmarkPlanTrackerMigrationTenThousandIssues(b *testing.B) {
+	in := basicInput()
+	for id := 1; id <= 10000; id++ {
+		pid := fmt.Sprintf("%06d", id)
+		if id > 9900 {
+			in.Active = append(in.Active, activeFile(pid, "a"+pid, "open"))
+		} else {
+			in.Archived = append(in.Archived, archivedFile(pid, "h"+pid, "2026-05-01"))
+		}
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		if m := PlanTrackerMigration(in); len(m.Cards) != 10000 || len(m.Refusals) != 0 {
+			b.Fatalf("plan: %d cards, %d refusals", len(m.Cards), len(m.Refusals))
 		}
 	}
 }

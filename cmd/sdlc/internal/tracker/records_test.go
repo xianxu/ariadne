@@ -3,6 +3,7 @@ package tracker
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -118,5 +119,33 @@ func TestComposeRecordsJoinsByIDWithoutIO(t *testing.T) {
 	}
 	if deps, _ := rec.Field("deps"); deps != "[a#1]" {
 		t.Fatalf("detail-owned deps: %q", deps)
+	}
+}
+
+// The operating envelope's read path (#252 M3): 10,000 cards joined with 100
+// active details, the composed view every reader consumes.
+func BenchmarkComposeRecordsTenThousandCardsHundredDetails(b *testing.B) {
+	cards := make([]Record, 0, 10000)
+	for id := 1; id <= 10000; id++ {
+		key := fmt.Sprintf("%06d", id)
+		raw := []byte(strings.ReplaceAll(testCard, "000252", key))
+		card, err := issue.ParseCard(raw)
+		if err != nil {
+			b.Fatal(err)
+		}
+		cards = append(cards, Record{ID: key, Path: "workshop/issue-cards/" + key + "-sample.md", Card: card, Raw: raw})
+	}
+	details := make([]DetailFile, 0, 100)
+	for id := 9901; id <= 10000; id++ {
+		key := fmt.Sprintf("%06d", id)
+		details = append(details, DetailFile{Path: "workshop/issues/" + key + "-sample.md", Raw: []byte("---\nid: " + key + "\nstatus: working\ndeps: []\n---\n\n# T\n\n## Problem\nx\n")})
+	}
+	b.ReportAllocs()
+	b.ResetTimer()
+	for range b.N {
+		rs := composeRecords(Records{Tracker: true}, cards, details)
+		if rec, ok := rs.Get("010000"); !ok || rec.DetailPath == "" || len(rs.All()) != 10000 {
+			b.Fatal("compose lost records")
+		}
 	}
 }
