@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git object/ref plumbing, existing Git/GitHub process seams and stateful fakes, CUE vocabulary, Markdown artifacts.
 
-**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2 accepted through its boundary gate (SHIP after rounds 3–6). M3 accepted through its boundary gate (SHIP after rounds 7–9). M4 implemented and submitted to its boundary review. No production migration or consumer activation has begun.
+**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2 accepted through its boundary gate (SHIP after rounds 3–6). M3 accepted through its boundary gate (SHIP after rounds 7–9). M4 accepted through its boundary gate (SHIP after rounds 10–11). Production migration has not begun. No production migration or consumer activation has begun.
 
 ## Core concepts
 
@@ -243,7 +243,7 @@ Files: create `cmd/sdlc/tracker_e2e_test.go`; update `README.md`, `atlas/workflo
 - [x] Assert main is unchanged by card-only operations, no copied source-commit publication, card states current across slots, original PR has no issue-file conflict, and refreshed rest is exactly zero ahead/behind. Add fresh CI clone without tracker ref and disconnected-read/mutation cases.
 - [x] Run full Go suites above plus focused real-Git race/conformance tests; publish measured 10k-card benchmark results and verify process counts remain bounded. Update atlas at this boundary, not after rollout.
 - [x] Write exact operator cutover/recovery procedure, including owner-binary build and generated instruction propagation. Inventory participating downstream repos read-only under their local instructions before scheduling any freeze. Product-owned consumers needing changes require issues and review in their owning repos; do not call ariadne tests proof of peer integration.
-- [ ] Record M4 verification and close its review boundary. Actual fleet migration is a separately coordinated operational step using the tested command; do not freeze another live session or migrate peer state without that coordination. Issue closure requires the migration acceptance criterion to be satisfied, not merely the command to exist.
+- [x] Record M4 verification and close its review boundary. Actual fleet migration is a separately coordinated operational step using the tested command; do not freeze another live session or migrate peer state without that coordination. Issue closure requires the migration acceptance criterion to be satisfied, not merely the command to exist.
 
 ## Approval and execution
 
