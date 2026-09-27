@@ -588,3 +588,15 @@ step's exit code and output, and the published end state, are identical; the
 pre-fix build fails it. The legacy tests M2 converted are restored beside
 their tracker versions (`legacymode_test.go`).
 
+### 2026-09-27 — A4: canary cutover of parley.nvim before #252 ships
+
+Reason: operator direction. parley.nvim cuts over while only `parley.nvim:1` runs
+#252 (its private ariadne clone on the #252 branch) and `parley.nvim:0` stays
+frozen on `pre-252-freeze` by convention (single developer). This proves
+tracker mode on real history and GitHub before shipping, and replaces C11. CI is
+bypassed for the window (it would run pre-#252 sdlc); landings use `sdlc merge`
+or `sdlc push`, which run the #252 publish gate locally. No `--revert` tool:
+the abort is a documented manual procedure that accepts losing card edits made
+since the cutover. Verification is read-only first everywhere, so the back-out
+stays trivial until the first card write.
+

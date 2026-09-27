@@ -126,6 +126,54 @@ test the real `--apply`: that writes pair's shared remote.
       leave the slot on #252 until Phase B
 - [ ] Record results in #252's Log
 
+### A4 — Canary cutover: parley.nvim in tracker mode, from slot 1 only
+
+parley.nvim cuts over while only `parley.nvim:1` runs #252 (its private ariadne clone
+on the #252 branch); `parley.nvim:0` stays frozen on `pre-252-freeze` and unused. This
+proves tracker mode on real history and GitHub before #252 ships, and replaces C11.
+
+Before:
+- [ ] A3 soak work landed or committed: #264, #290; no uncommitted issue edits in `:0` or `:1`
+- [ ] Differential check on the exact slot build (`legacy-equivalence.sh`, all `same`)
+- [ ] **Freeze `parley.nvim:0` (convention):** no `sdlc`, no `make`, no agents there until #252 ships
+      — its binary cannot honor the marker and would write legacy state
+- [ ] CI is bypassed for the window: land with `sdlc merge` (gh, unprotected main) or `sdlc push`;
+      both run the #252 publish gate locally; ignore merge-check results (they run pre-#252 sdlc)
+
+Cutover (in `~/workspace/worktree/parley.nvim-slot1/parley.nvim`, rest `main-slot1`):
+- [ ] `sdlc issue migrate` → 0 refusals; review inferences (133 archived cards); note the digest
+- [ ] `sdlc issue migrate --apply --expect <digest>` → `git pull --ff-only`
+- [ ] **Read-only verification first** (the back-out stays trivial until the first card write):
+      `sdlc issue list` matches the pre-cutover listing · `sdlc issue show 264` shows the card ·
+      `sdlc issue migrate` says *already migrated* · `sdlc issue recovery list` is empty
+- [ ] First card write: `sdlc issue new` (or a claim) — from here, backing out loses card edits
+
+Soak in tracker mode (slot 1 only), a few days:
+- [ ] `issue new` → `move-detail` → `claim` → `start-plan` → design (`issue sync` checkpoints on the
+      issue branch) → `change-code` → `close` → `sdlc pr` → `sdlc merge` → card `done`, archived
+- [ ] A `milestone-close` on an `Mx` plan
+- [ ] A spin-off: `issue new` on an issue branch → `move-detail` while the code is unshipped
+- [ ] Reconcile one pre-cutover branch (or merge origin/main into it)
+- [ ] Record results in #252's Log
+
+Exit: Phase B (ship #252); then `parley.nvim:0` pulls ariadne + `weave compile`, `git pull`s
+parley.nvim (gets the marker), and its old branches reconcile on next use.
+
+**Abort (manual; loses card edits since the cutover — the agreed compromise):**
+1. Stop work in slot 1.
+2. Delete the tracker: `git push origin --delete issue-tracker`.
+3. On `main-slot1` (up to date): `git revert <migration commit>` (subject "migrate: issue details
+   onto the issue tracker"), then strip any remaining `card_mirror:` lines from
+   `workshop/issues/*.md` (issues filed or moved during A4 — a stray one makes the legacy close
+   fail) and remove `workshop/issue-tracker.json` if still present; commit; push to `main`.
+4. `git fetch --prune origin` in `:0` and in slot 1 (an unpruned clone still reads as cut over).
+5. Issues filed during A4: check each has its details on `main` (else legacy `issue new` could
+   reuse its ID) — publish with `sdlc issue sync --issue N --push` or delete it.
+6. Branches from A4: merge `main` into them (drops the marker and mirror lines); anything closed
+   in tracker mode is re-closed under legacy before landing.
+7. Point slot 1's ariadne back at `pre-252-freeze` (or keep #252 — legacy mode is equivalent) and
+   `weave compile`.
+
 ---
 
 ## Phase B — Land #252 (once): the deliberate unfreeze of `ariadne:0`
@@ -163,8 +211,10 @@ found on 2026-09-26; re-run the dry run first — they may have changed.
 5. `git pull --ff-only` in every resting slot. Branches from before the cutover refuse sdlc
    commands until brought across: `bin/sdlc issue migrate --reconcile` (or merge origin/main) —
    now, or lazily on each branch's next use
-6. Verify: `bin/sdlc issue list` shows statuses · `bin/sdlc issue recovery list` is empty ·
-   one `claim` (or `issue new`) works
+6. Verify **read-only first** — `bin/sdlc issue list` shows statuses · `bin/sdlc issue migrate`
+   says *already migrated* · `bin/sdlc issue recovery list` is empty — then the first card write
+   (one `claim` or `issue new`). Until that write, backing out is: delete `issue-tracker`, revert
+   the migration commit, `git fetch --prune` everywhere
 7. Unfreeze
 
 ### C1 — kaggle (ready)
@@ -227,7 +277,7 @@ found on 2026-09-26; re-run the dry run first — they may have changed.
 - [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
 - [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
 
-### C11 — parley.nvim (ready as of 2026-09-27: the stack landed; rehearsed in A3)
+### C11 — parley.nvim (superseded by A4: the canary cutover)
 - [x] 1a the #276–#286 stack landed; the rehearsal dry run shows 0 refusals
 - [ ] 1b commit/sync any in-flight issue edits (e.g. the slot's #264 design), re-run the dry run → 0 refusals
 - [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
