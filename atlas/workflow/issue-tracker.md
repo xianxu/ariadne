@@ -1,10 +1,12 @@
 # Issue tracker
 
-#252 is implementing a dedicated `issue-tracker` branch. It is not yet
-activated: the installed binary keeps the existing issue workflow until the
-coordinated migration (M4) replaces its readers and writers. M1 built the model
-and storage; M2 moved the creation, claim, planning and handoff verbs onto it;
-M3 moved every reader and close/landing completion onto it.
+#252 keeps card fields on a dedicated `issue-tracker` branch. A repository is
+on it once `sdlc issue migrate --apply` has run there (the cutover marker
+`workshop/issue-tracker.json` on main); until then the binary keeps the legacy
+workflow for it. M1 built the model and storage; M2 moved the creation, claim,
+planning and handoff verbs onto it; M3 moved every reader and close/landing
+completion onto it; M4 added the migration and the cutover guard — see
+[issue tracker migration](issue-tracker-migration.md).
 
 ## Ownership
 
