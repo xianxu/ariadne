@@ -10,12 +10,15 @@ SUBCOMMANDS
   move-detail    Complete creation early: publish initial details to main
                  without shipping the branch that filed the issue
   recovery       `list` / `reconcile --issue N` interrupted tracker operations
+  migrate        One-time cutover of a legacy repository to the issue tracker
+                 (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch)
   set-status     Flip an issue card's status with transition guards
   set-title      Retitle an issue card (paths keep their slug)
   set-estimate   Record estimate_hours on the card (`--hours`)
   set-github     Link the card to a GitHub issue (`--number`)
-  sync           (retiring at the #252 cutover) commit an issue body locally
-  publish        (retiring at the #252 cutover) publish a selected doc commit
+  sync           Commit an issue body locally (tracker repositories: on the
+                 issue branch only, no --push)
+  publish        (legacy repositories only) publish a selected doc commit
   list           List issues (ID, status, title), sorted by ID; --status filters
   show           Print an issue's frontmatter + section headers (no bodies)
 
@@ -90,7 +93,35 @@ branch; nothing publishes them early. An interrupted card/main publication
 keeps a receipt: `sdlc issue recovery list` shows it, and `reconcile` resumes
 it from the checkout that owns it, probing before repeating anything.
 
-LEGACY CHECKPOINTING AND PUBLISHING (until the #252 cutover)
+A tracker repository is marked by `workshop/issue-tracker.json` on main, naming
+the tracker's root commit. A checkout whose marker disagrees with the tracker
+(a tracker but no marker, a marker but no tracker, another root) refuses every
+card read and write with the next action; unmirrored details in such a
+repository refuse the legacy close/change-code paths. `sync` checkpoints on the
+issue branch only; `publish` and the Makefile/Python shell fallbacks refuse.
+
+MIGRATION (#252)
+
+`sdlc issue migrate` plans the one-time cutover from the pinned main, every
+local and publication-remote branch, and this clone's worktrees, and prints the
+cards (with each inferred value), duplicate IDs, refusals and a digest. It
+changes nothing. Refusals name what blocks the cutover — card fields changed
+on a branch but never published, issues that exist only on a branch, branches
+editing archived issues, uncommitted issue edits, two active files sharing an
+ID, or a codecomplete issue without exactly one provable legacy close — each
+with its next action under the old workflow.
+
+With every SDLC writer frozen, `--apply --expect DIGEST` re-plans, refuses any
+other digest, bootstraps the issue-tracker branch (or adopts it only when its
+root holds exactly the planned cards), then publishes one main commit that
+mirrors every active details file and adds the marker. Rerun the same command
+after an interruption: each phase is recognized, nothing is rolled back.
+Archived details are never rewritten. Afterwards `git pull` each resting
+checkout, and run `--reconcile` once on each branch from before the cutover:
+it proves the branch changed no card-owned field and adds the mirrors and the
+marker in one ordinary commit, so merging main later applies identical changes.
+
+LEGACY CHECKPOINTING AND PUBLISHING (repositories before the #252 cutover)
 
 `sdlc issue sync --issue N` commits only the selected issue file locally on the
 current branch, with no network operation. Use it after design decisions and

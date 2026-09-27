@@ -1,11 +1,13 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 func newIssuePublishCmd() *cobra.Command {
@@ -21,6 +23,11 @@ func newIssuePublishCmd() *cobra.Command {
 			root, err := gitx.RepoTopLevel()
 			if err != nil {
 				return err
+			}
+			if cut, err := tracker.CutOver(root); err != nil {
+				return err
+			} else if cut {
+				return errors.New("this repository uses the issue tracker: initial details reach main through `sdlc issue move-detail`, later edits with their issue branch; `issue publish` copied commits to main and is retired here")
 			}
 			return publishIssueCommit(cmd.OutOrStdout(), cmd.ErrOrStderr(), root, source,
 				envOr("WF_ISSUES_DIR", "workshop/issues"), envOr("WF_HISTORY_DIR", "workshop/history"))

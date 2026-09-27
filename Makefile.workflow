@@ -29,6 +29,13 @@ WF_ISSUES_DIR ?= issues
 WF_HISTORY_DIR ?= history
 export WF_ISSUES_DIR WF_HISTORY_DIR
 
+# #252: a repository cut over to the issue tracker (its marker sits beside the
+# issues directory) keeps IDs and status on cards. The shell fallbacks below
+# allocate IDs or read/write status in details, so there they refuse and ask for
+# the sdlc binary instead. Prefix a fallback's shell with $(WF_TRACKED_REFUSES).
+WF_TRACKER_MARKER ?= $(dir $(WF_ISSUES_DIR))issue-tracker.json
+WF_TRACKED_REFUSES = if [ -f "$(WF_TRACKER_MARKER)" ]; then echo "Error: this repository uses the issue tracker ($(WF_TRACKER_MARKER)); build bin/sdlc — the shell fallback would write issue state into details" >&2; exit 1; fi;
+
 # BRAIN_DIR points at the brain repo for cross-cutting state (project files,
 # velocity baselines). close-issue.py reads it to update parent project tasks.
 # Must default *here* — without ?=, the close-issue: export below would emit
@@ -140,6 +147,7 @@ close-issue:
 	          $${BRAIN_DIR:+--brain-dir "$$BRAIN_DIR"}; \
 	    fi; \
 	else \
+	    $(WF_TRACKED_REFUSES) \
 	    scripts/close-issue.py; \
 	fi
 
@@ -237,6 +245,7 @@ worktree:
 	        bin/sdlc change-code --worktree=yes --no-judge --no-structural; \
 	    fi; \
 	else \
+	    $(WF_TRACKED_REFUSES) \
 	    name="$(WT_NAME)"; \
 	    if [ -z "$$name" ]; then \
 	        issues=$$(git ls-files --others --exclude-standard -- '$(WF_ISSUES_DIR)/' 2>/dev/null | grep -E '/[0-9]{6}-.*\.md$$'); \
@@ -281,7 +290,7 @@ fetch:
 ifneq ($(wildcard bin/sdlc),)
 	@bin/sdlc fetch --github-issue "$(FETCH_NUM)"
 else
-	@set -o pipefail; \
+	@$(WF_TRACKED_REFUSES) set -o pipefail; \
 	repo=$$(git remote get-url origin | sed 's|.*github.com[:/]\(.*\)\.git|\1|;s|.*github.com[:/]\(.*\)$$|\1|'); \
 	gh_title=$$(gh issue view "$(FETCH_NUM)" --repo "$$repo" --json title --jq '.title') || exit 1; \
 	gh_body=$$(gh issue view "$(FETCH_NUM)" --repo "$$repo" --json body --jq '.body // ""'); \
@@ -335,7 +344,7 @@ push:
 ifneq ($(wildcard bin/sdlc),)
 	@bin/sdlc push $(if $(YES),--yes) $(if $(NO_JUDGE),--no-judge)
 else
-	@branch=$$(git branch --show-current); \
+	@$(WF_TRACKED_REFUSES) branch=$$(git branch --show-current); \
 	if [ "$$branch" != "main" ]; then \
 		echo "Error: make push must be run from main (current branch: $$branch)"; \
 		exit 1; \
@@ -460,7 +469,7 @@ merge:
 ifneq ($(wildcard bin/sdlc),)
 	@bin/sdlc merge $(if $(YES),--yes) $(if $(NO_JUDGE),--no-judge)
 else
-	@branch=$$(git branch --show-current); \
+	@$(WF_TRACKED_REFUSES) branch=$$(git branch --show-current); \
 	if [ -z "$$branch" ] || [ "$$branch" = "main" ]; then \
 		echo "Error: run this from a worktree branch, not main"; \
 		exit 1; \
