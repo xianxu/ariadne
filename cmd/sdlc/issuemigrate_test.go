@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"regexp"
@@ -369,5 +370,23 @@ func TestIssueMigrateReconcileLeavesUntouchedIssuesToMain(t *testing.T) {
 	}
 	if out, err := exec.Command("git", "-C", r.root, "merge", "--no-edit", "-q", "origin/main").CombinedOutput(); err != nil {
 		t.Fatalf("merge after reconcile: %v\n%s\n%s", err, out, r.git("status", "--short"))
+	}
+}
+
+// A stale worktree registration (its .git link gone — git reports it
+// prunable) holds no checkout: the inventory skips it instead of dying on it
+// (#252, found by the parley.nvim A4 pre-flight).
+func TestIssueMigrateSkipsPrunableWorktrees(t *testing.T) {
+	r := legacyRepo(t)
+	stale := filepath.Join(t.TempDir(), "stale")
+	r.git("worktree", "add", "-q", "-b", "scratch", stale)
+	if err := os.Remove(filepath.Join(stale, ".git")); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(r.git("worktree", "list", "--porcelain"), "prunable") {
+		t.Fatal("fixture: git does not report the stale worktree as prunable")
+	}
+	if _, out, err := migrateDryRun(t); err != nil {
+		t.Fatalf("a prunable worktree broke the dry run: %v\n%s", err, out)
 	}
 }

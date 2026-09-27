@@ -291,23 +291,30 @@ func branchIssueEdits(env *migrateEnv, ref, main, home string) ([]tracker.Migrat
 }
 
 // dirtyIssuePaths lists uncommitted issue edits in every worktree of this clone.
+// A worktree git itself reports prunable (its directory or .git link is gone)
+// or bare holds no checkout, so nothing there can be lost: it is skipped.
 func dirtyIssuePaths(env *migrateEnv, home string) ([]string, error) {
 	out, err := env.git("worktree", "list", "--porcelain")
 	if err != nil {
 		return nil, err
 	}
 	var dirty []string
-	for _, line := range strings.Split(out, "\n") {
-		wt, ok := strings.CutPrefix(line, "worktree ")
-		if !ok {
+	for _, record := range strings.Split(out, "\n\n") {
+		wt, skip := "", false
+		for _, line := range strings.Split(record, "\n") {
+			switch {
+			case strings.HasPrefix(line, "worktree "):
+				wt = strings.TrimPrefix(line, "worktree ")
+			case line == "bare", strings.HasPrefix(line, "prunable"):
+				skip = true
+			}
+		}
+		if wt == "" || skip {
 			continue
 		}
 		status, err := env.git("-C", wt, "status", "--porcelain", "--untracked-files=all", "--", home)
 		if err != nil {
-			if _, statErr := os.Stat(wt); errors.Is(statErr, os.ErrNotExist) {
-				continue // a pruned worktree: nothing to lose
-			}
-			return nil, err
+			return nil, fmt.Errorf("read issue edits in worktree %s: %w", wt, err)
 		}
 		for _, s := range strings.Split(status, "\n") {
 			if len(s) > 3 {
