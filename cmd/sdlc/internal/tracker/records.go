@@ -116,7 +116,8 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 	if repo != nil {
 		exists, err := repo.Initialized()
 		switch {
-		case err != nil && mode == Fresh:
+		case err != nil && (mode == Fresh || errors.Is(err, ErrCutover)):
+			// A cutover mismatch is not a transport failure: no stale read answers it.
 			return rs, err
 		case err != nil:
 			local, ok, lerr := repo.LocalSnapshot()
@@ -243,10 +244,17 @@ func RepositoryFor(ctx context.Context, root, restingBranch string) (*Repository
 	}
 	target, err := gitx.ResolvePublicationTarget(ctx, root, restingBranch)
 	if err == nil {
-		return NewRepository(ctx, root, target.Remote)
+		repo, err := NewRepository(ctx, root, target.Remote)
+		if err != nil {
+			return nil, err
+		}
+		return repo.GuardCutover(root), nil
 	}
-	fetched, ferr := gitx.RunGit("-C", root, "for-each-ref", "--format=%(refname)", "refs/remotes/*/"+vocab.Issue().Discovery().Tracker)
-	if ferr == nil && len(fetched) == 0 {
+	fetched, ferr := FetchedTracker(root)
+	if ferr == nil && !fetched {
+		if merr := MarkerWithoutTracker(root); merr != nil {
+			return nil, merr
+		}
 		return nil, nil
 	}
 	return nil, fmt.Errorf("%s has a fetched issue tracker but its publication target is unusable: %w", root, err)

@@ -158,6 +158,8 @@ func TestDurableRunMergeCompletesTrackedCloseForEveryStrategy(t *testing.T) {
 			if _, err := tf.Bootstrap(map[string][]byte{tracker.ManifestPath: tracker.ManifestBytes(), cardPath: card}, "bootstrap landing", func(gitx.BootstrapResult) error { return nil }); err != nil {
 				t.Fatal(err)
 			}
+			markCutover(t, root, "upstream") // the PR branch postdates the cutover
+			gh.pr.HeadOID = procedureHead(t, root)
 			if err := runMerge(io.Discard, io.Discard, landingFlags()); err != nil {
 				t.Fatal(err)
 			}

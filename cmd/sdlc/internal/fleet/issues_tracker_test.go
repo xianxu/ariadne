@@ -4,6 +4,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -27,6 +28,13 @@ func TestLookupRepoIssuesDeclaresTheCardStatus(t *testing.T) {
 		"workshop/issue-cards/000149-working.md":  card("000149", "working"),
 		"workshop/issue-cards/000150-cardonly.md": card("000150", "open"),
 	}, "bootstrap fleet", func(gitx.BootstrapResult) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	// A migrated checkout carries the cutover marker naming the tracker root.
+	trackerRoot := strings.Fields(testfix.Capture(t, root, "ls-remote", "origin", "refs/heads/issue-tracker"))[0]
+	markerPath := filepath.Join(root, filepath.FromSlash(tracker.CutoverMarkerPath))
+	_ = os.MkdirAll(filepath.Dir(markerPath), 0o755)
+	if err := os.WriteFile(markerPath, tracker.CutoverMarkerBytes(trackerRoot), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	home := filepath.Join(root, "workshop", "issues")

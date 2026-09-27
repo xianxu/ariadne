@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -10,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
@@ -219,5 +221,36 @@ func TestTrackerCloseRefusesPreconditionsBeforeReview(t *testing.T) {
 	}
 	if *calls != 0 || r.git("rev-parse", "HEAD") != head || r.git("status", "--porcelain") != "" {
 		t.Fatal("close reviewed or wrote before refusing its precondition")
+	}
+}
+
+// A legacy (unmirrored) details file in a checkout of a tracked repository
+// must not take the legacy close/change-code path, which writes card fields
+// into details: it refuses with the reconcile action. In a legacy repository
+// the same file is the record and keeps its path.
+func TestLegacyDetailsRefuseInATrackedCheckout(t *testing.T) {
+	cardPath, card, detailPath, _ := seededIssue(t, "000330", "legacy")
+	legacyDetails := "---\nid: 000330\nstatus: working\ncreated: 2026-09-01\n---\n\n# Seeded legacy\n\n## Problem\n\nx\n\n## Done when\n\n- y\n\n## Plan\n\n- [x] z\n\n## Log\n"
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: legacyDetails})
+	abs := filepath.Join(r.root, detailPath)
+	if _, err := refreshChangeCodeMirror(&changeCodeFlags{Issue: 330}, "000330-legacy", abs); !errors.Is(err, tracker.ErrLegacyDetails) || !strings.Contains(err.Error(), "migrate --reconcile") {
+		t.Fatalf("change-code took the legacy path: %v", err)
+	}
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	before := r.git("rev-parse", "HEAD")
+	msg, died := expectDie(t, func() {
+		_, _, _ = executeSDLCTestCommand("close", "--issue", "330", "--verified", "e2e", "--actual", "1", "--no-atlas")
+	})
+	if !died || !strings.Contains(msg, "migrate --reconcile") {
+		t.Fatalf("close took the legacy path: died=%v %q", died, msg)
+	}
+	if r.git("rev-parse", "HEAD") != before || !strings.Contains(r.git("show", "HEAD:"+detailPath), "status: working") {
+		t.Fatal("the refused close wrote something")
+	}
+
+	legacyRepo := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	writeRepoFile(t, legacyRepo, detailPath, legacyDetails)
+	if out, err := refreshChangeCodeMirror(&changeCodeFlags{Issue: 330}, "000330-legacy", filepath.Join(legacyRepo, detailPath)); err != nil || out != nil {
+		t.Fatalf("a legacy repository's details lost the legacy path: %v", err)
 	}
 }

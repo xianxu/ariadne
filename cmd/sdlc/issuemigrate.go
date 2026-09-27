@@ -1,0 +1,591 @@
+// issuemigrate.go — `sdlc issue migrate`: the one-time cutover of a legacy
+// repository to the issue tracker (#252).
+//
+// The command is the thin IO shell around tracker.PlanTrackerMigration: it
+// gathers the inventory (pinned main, every branch's issue edits, dirty
+// worktrees, legacy close anchors), prints the plan, and on --apply performs
+// its two observable phases — bootstrap the tracker, then publish main's details
+// conversion with the cutover marker. Each phase is recognized on retry, so an
+// interrupted apply resumes; nothing is ever rolled back. --reconcile brings a
+// branch created before the cutover onto the tracker's side of it.
+package main
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"path"
+	"path/filepath"
+	"sort"
+	"strings"
+
+	"github.com/spf13/cobra"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/vocab"
+)
+
+type issueMigrateFlags struct {
+	Apply, Reconcile bool
+	Expect           string
+}
+
+func newIssueMigrateCmd() *cobra.Command {
+	var f issueMigrateFlags
+	cmd := markMutatingCommand(&cobra.Command{
+		Use:           "migrate",
+		Short:         "Cut a legacy repository over to the issue tracker (dry run unless --apply)",
+		Args:          cobra.NoArgs,
+		SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			guardSpineRepo(cmd.ErrOrStderr())
+			return runIssueMigrate(commandContext(cmd.Context()), cmd.OutOrStdout(), cmd.ErrOrStderr(), f)
+		},
+	})
+	cmd.Flags().BoolVar(&f.Apply, "apply", false, "perform the reviewed plan (requires --expect)")
+	cmd.Flags().StringVar(&f.Expect, "expect", "", "the digest the dry run printed; --apply refuses any other plan")
+	cmd.Flags().BoolVar(&f.Reconcile, "reconcile", false, "bring this pre-cutover branch's details onto the tracker")
+	return cmd
+}
+
+// migrateEnv is the checkout plus an UNGUARDED tracker: the migration runs
+// exactly where the cutover guard would refuse.
+type migrateEnv struct {
+	*trackerEnv
+	tracker *tracker.Repository
+	trunk   *gitx.TrunkFile // the issue-tracker branch
+}
+
+func openMigrate(ctx context.Context) (*migrateEnv, error) {
+	env, err := openTrackerAt(ctx, ".")
+	if err != nil {
+		return nil, err
+	}
+	repo, err := tracker.NewRepository(ctx, env.root, env.target.Remote)
+	if err != nil {
+		return nil, err
+	}
+	tf, err := gitx.NewTrunkFileContext(ctx, env.root, env.target.Remote, vocab.Issue().Discovery().Tracker)
+	if err != nil {
+		return nil, err
+	}
+	return &migrateEnv{trackerEnv: env, tracker: repo, trunk: tf}, nil
+}
+
+func runIssueMigrate(ctx context.Context, stdout, stderr io.Writer, f issueMigrateFlags) error {
+	if f.Apply && f.Reconcile {
+		return errors.New("--apply migrates main; --reconcile brings a branch across afterwards — pick one")
+	}
+	env, err := openMigrate(ctx)
+	if err != nil {
+		return err
+	}
+	if f.Reconcile {
+		return runMigrateReconcile(env, stdout, stderr)
+	}
+	mainView, err := env.main.Snapshot()
+	if err != nil {
+		return err
+	}
+	if done, err := migratedAlready(env, mainView); err != nil || done {
+		if done {
+			cok(stderr, "already migrated: main carries the cutover marker for this repository's issue tracker")
+		}
+		return err
+	}
+	in, err := migrationInventory(env, mainView)
+	if err != nil {
+		return err
+	}
+	m := tracker.PlanTrackerMigration(in)
+	printMigrationPlan(stdout, m)
+	if len(m.Refusals) > 0 {
+		return fmt.Errorf("%d refusal(s) block the cutover; resolve them under the old workflow and re-run the dry run", len(m.Refusals))
+	}
+	if !f.Apply {
+		cinfo(stderr, fmt.Sprintf("dry run. After freezing every SDLC writer: `sdlc issue migrate --apply --expect %s`", m.Digest))
+		return nil
+	}
+	if f.Expect != m.Digest {
+		return fmt.Errorf("the plan is %s, not the reviewed %q; re-run the dry run and review it", m.Digest, f.Expect)
+	}
+	root, err := applyTrackerBootstrap(env, m)
+	if err != nil {
+		return err
+	}
+	cok(stderr, fmt.Sprintf("issue tracker at root %s", shortOID(root)))
+	if err := applyMainCutover(env, m, root); err != nil {
+		return err
+	}
+	cok(stderr, fmt.Sprintf("main converted: %d details mirrored, cutover marker %s", len(m.Conversions), tracker.CutoverMarkerPath))
+	cinfo(stderr, "next: `git pull` in every resting checkout; `sdlc issue migrate --reconcile` on each pre-cutover branch")
+	return nil
+}
+
+// migratedAlready reports a completed migration: main carries a marker whose
+// root is the tracker's. A marker naming another tracker refuses.
+func migratedAlready(env *migrateEnv, mainView *gitx.TrunkView) (bool, error) {
+	present, err := mainView.Exists(tracker.CutoverMarkerPath)
+	if err != nil || !present {
+		return false, err
+	}
+	raw, err := mainView.Read(tracker.CutoverMarkerPath)
+	if err != nil {
+		return false, err
+	}
+	root, err := tracker.ParseCutoverMarker(raw)
+	if err != nil {
+		return false, err
+	}
+	exists, err := env.tracker.Initialized()
+	if err != nil {
+		return false, err
+	}
+	if !exists {
+		return false, fmt.Errorf("main carries %s (tracker root %s) but %s has no issue tracker; restore it rather than migrate again", tracker.CutoverMarkerPath, shortOID(root), env.target.Remote)
+	}
+	view, err := env.trunk.Snapshot()
+	if err != nil {
+		return false, err
+	}
+	if ok, err := env.trunk.HasRoot(root, view.Ref()); err != nil || !ok {
+		if err == nil {
+			err = fmt.Errorf("main's %s names tracker root %s, which the issue tracker's history does not start at", tracker.CutoverMarkerPath, shortOID(root))
+		}
+		return false, err
+	}
+	return true, nil
+}
+
+// migrationInventory gathers the plan's input from the pinned main tree, every
+// local and publication-remote branch, and this clone's worktrees.
+func migrationInventory(env *migrateEnv, mainView *gitx.TrunkView) (tracker.MigrationInput, error) {
+	d := vocab.Issue().Discovery()
+	in := tracker.MigrationInput{Repository: env.target.Repository, ObjectFormat: env.format, Main: mainView.Ref(), Anchors: map[string][]tracker.MigrationAnchor{}}
+	readDir := func(dir string) ([]tracker.MigrationFile, error) {
+		present, err := mainView.Exists(dir)
+		if err != nil || !present {
+			return nil, err
+		}
+		files, err := mainView.Files(dir)
+		if err != nil {
+			return nil, err
+		}
+		var out []tracker.MigrationFile
+		for _, f := range files {
+			if path.Dir(f.Path) != dir {
+				continue
+			}
+			if _, _, ok := issue.ParseFilename(path.Base(f.Path)); ok {
+				out = append(out, tracker.MigrationFile{Path: f.Path, Raw: f.Content})
+			}
+		}
+		return out, nil
+	}
+	var err error
+	if in.Active, err = readDir(d.Home); err != nil {
+		return in, err
+	}
+	if in.Archived, err = readDir(vocab.ArchiveSubdir(d.Archive, vocab.ArchiveIssues)); err != nil {
+		return in, err
+	}
+	refs, err := migrationBranchRefs(env)
+	if err != nil {
+		return in, err
+	}
+	for _, ref := range refs {
+		files, err := branchIssueEdits(env, ref, mainView.Ref(), d.Home)
+		if err != nil {
+			return in, err
+		}
+		in.Branches = append(in.Branches, files...)
+	}
+	if in.DirtyIssuePaths, err = dirtyIssuePaths(env, d.Home); err != nil {
+		return in, err
+	}
+	for _, f := range in.Active {
+		fm, _, perr := issue.Parse(string(f.Raw))
+		if status, _ := issue.GetField(fm, "status"); perr != nil || status != "codecomplete" {
+			continue
+		}
+		id, _, _ := issue.ParseFilename(path.Base(f.Path))
+		anchors, err := legacyCloseAnchors(env, mainView.Ref(), refs, f.Path)
+		if err != nil {
+			return in, err
+		}
+		in.Anchors[id] = anchors
+	}
+	return in, nil
+}
+
+// migrationBranchRefs lists local branches and the publication remote's
+// branches, except the resting trunks and the tracker itself.
+func migrationBranchRefs(env *migrateEnv) ([]string, error) {
+	remote := env.target.Remote
+	out, err := env.git("for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/"+remote)
+	if err != nil {
+		return nil, err
+	}
+	skip := map[string]bool{
+		"refs/heads/main": true, "refs/heads/" + env.resting: true,
+		"refs/remotes/" + remote + "/main": true, "refs/remotes/" + remote + "/HEAD": true,
+		"refs/heads/" + vocab.Issue().Discovery().Tracker: true, "refs/remotes/" + remote + "/" + vocab.Issue().Discovery().Tracker: true,
+	}
+	var refs []string
+	for _, ref := range strings.Fields(out) {
+		if !skip[ref] {
+			refs = append(refs, ref)
+		}
+	}
+	sort.Strings(refs)
+	return refs, nil
+}
+
+// branchIssueEdits lists the issue files ref changed relative to its merge base
+// with main, with their bytes at ref (nil when ref deleted the file).
+func branchIssueEdits(env *migrateEnv, ref, main, home string) ([]tracker.MigrationBranchFile, error) {
+	tip, err := env.git("rev-parse", "--verify", ref+"^{commit}")
+	if err != nil {
+		return nil, err
+	}
+	related, err := env.gitTest("merge-base", tip, main)
+	if err != nil {
+		return nil, err
+	}
+	if !related {
+		return nil, nil // unrelated history: nothing on it can merge into main
+	}
+	base, err := env.git("merge-base", tip, main)
+	if err != nil {
+		return nil, err
+	}
+	names, err := env.git("diff", "--name-only", "--no-renames", "-z", base, tip, "--", home)
+	if err != nil {
+		return nil, err
+	}
+	var files []tracker.MigrationBranchFile
+	for _, p := range strings.Split(names, "\x00") {
+		if p == "" || path.Dir(p) != home {
+			continue
+		}
+		if _, _, ok := issue.ParseFilename(path.Base(p)); !ok {
+			continue
+		}
+		f := tracker.MigrationBranchFile{Branch: strings.TrimPrefix(strings.TrimPrefix(ref, "refs/heads/"), "refs/remotes/"), Path: p}
+		present, err := env.has(tip, p)
+		if err != nil {
+			return nil, err
+		}
+		if present {
+			if f.Raw, err = env.main.ReadAt(tip, p); err != nil {
+				return nil, err
+			}
+		}
+		files = append(files, f)
+	}
+	return files, nil
+}
+
+// dirtyIssuePaths lists uncommitted issue edits in every worktree of this clone.
+func dirtyIssuePaths(env *migrateEnv, home string) ([]string, error) {
+	out, err := env.git("worktree", "list", "--porcelain")
+	if err != nil {
+		return nil, err
+	}
+	var dirty []string
+	for _, line := range strings.Split(out, "\n") {
+		wt, ok := strings.CutPrefix(line, "worktree ")
+		if !ok {
+			continue
+		}
+		status, err := env.git("-C", wt, "status", "--porcelain", "--untracked-files=all", "--", home)
+		if err != nil {
+			if _, statErr := os.Stat(wt); errors.Is(statErr, os.ErrNotExist) {
+				continue // a pruned worktree: nothing to lose
+			}
+			return nil, err
+		}
+		for _, s := range strings.Split(status, "\n") {
+			if len(s) > 3 {
+				dirty = append(dirty, wt+": "+s[3:])
+			}
+		}
+	}
+	return dirty, nil
+}
+
+// legacyCloseAnchors finds, on each ref carrying the issue file, the legacy
+// close commit (the one that recorded codecomplete) and whether code followed.
+func legacyCloseAnchors(env *migrateEnv, main string, branches []string, issuePath string) ([]tracker.MigrationAnchor, error) {
+	runGit := func(args ...string) ([]byte, error) {
+		out, err := env.git(args...)
+		return []byte(out), err
+	}
+	var anchors []tracker.MigrationAnchor
+	for _, ref := range append([]string{main}, branches...) {
+		present, err := env.has(ref, issuePath)
+		if err != nil {
+			return nil, err
+		}
+		if !present {
+			continue
+		}
+		anchor, err := codecompleteAnchorCommitAt(ref, issuePath, runGit)
+		if err != nil || anchor == "" {
+			if err != nil {
+				return nil, err
+			}
+			continue
+		}
+		parent, err := env.git("rev-parse", "--verify", anchor+"^1")
+		if err != nil {
+			return nil, fmt.Errorf("the close %s has no parent to have reviewed: %w", shortOID(anchor), err)
+		}
+		changed, err := env.git("diff", "--name-only", "-z", anchor, ref)
+		if err != nil {
+			return nil, err
+		}
+		var paths []string
+		for _, p := range strings.Split(changed, "\x00") {
+			if p != "" {
+				paths = append(paths, p)
+			}
+		}
+		anchors = append(anchors, tracker.MigrationAnchor{Ref: ref, Anchor: anchor, Parent: parent, CodeAfter: publishGateHasCodeSurface(paths), OnMain: ref == main})
+	}
+	return anchors, nil
+}
+
+func printMigrationPlan(w io.Writer, m tracker.MigrationManifest) {
+	inferred := 0
+	for _, c := range m.Cards {
+		if len(c.Inferences) > 0 {
+			inferred++
+		}
+	}
+	fmt.Fprintf(w, "issue tracker migration for %s at main %s\n", m.Repository, shortOID(m.Main))
+	fmt.Fprintf(w, "  cards: %d (%d with inferred values), details converted: %d, duplicate IDs: %d\n", len(m.Cards), inferred, len(m.Conversions), len(m.Duplicates))
+	if inferred > 0 {
+		fmt.Fprintln(w, "\ninferred card values (review; the details files are unchanged records):")
+		for _, c := range m.Cards {
+			if len(c.Inferences) > 0 {
+				fmt.Fprintf(w, "  #%s %s: %s\n", c.ID, c.Source, strings.Join(c.Inferences, "; "))
+			}
+		}
+	}
+	if len(m.Duplicates) > 0 {
+		fmt.Fprintln(w, "\nduplicate IDs (one card each):")
+		for _, d := range m.Duplicates {
+			fmt.Fprintf(w, "  %s\n", d)
+		}
+	}
+	if len(m.Refusals) > 0 {
+		fmt.Fprintln(w, "\nrefusals (the cutover cannot happen until each is resolved):")
+		for _, r := range m.Refusals {
+			fmt.Fprintf(w, "  %s\n      %s\n      next: %s\n", r.Subject, r.Reason, r.Next)
+		}
+	}
+	fmt.Fprintf(w, "\ndigest: %s\n", m.Digest)
+}
+
+// applyTrackerBootstrap creates the issue tracker from the plan by
+// expected-absence CAS, or accepts an existing one only when its root commit
+// holds exactly the planned files (a resumed apply). It returns the root.
+func applyTrackerBootstrap(env *migrateEnv, m tracker.MigrationManifest) (string, error) {
+	_, err := env.trunk.Bootstrap(m.TrackerFiles(), "sdlc issue migrate "+m.Digest, func(gitx.BootstrapResult) error { return nil })
+	if err != nil && !errors.Is(err, gitx.ErrBootstrapExists) {
+		return "", fmt.Errorf("bootstrap the issue tracker: %w\n      re-run the same `--apply --expect %s` to resume", err, m.Digest)
+	}
+	view, err := env.trunk.Snapshot()
+	if err != nil {
+		return "", err
+	}
+	rootsOut, err := env.git("rev-list", "--max-parents=0", view.Ref(), "--")
+	if err != nil {
+		return "", err
+	}
+	roots := strings.Fields(rootsOut)
+	if len(roots) != 1 {
+		return "", fmt.Errorf("the issue tracker has %d root commits; expected one", len(roots))
+	}
+	if err := sameTrackerFiles(env, roots[0], m); err != nil {
+		return "", err
+	}
+	return roots[0], nil
+}
+
+// sameTrackerFiles proves the tracker's root commit holds exactly the plan's
+// files (by blob identity), so a resumed apply never adopts another tracker.
+func sameTrackerFiles(env *migrateEnv, root string, m tracker.MigrationManifest) error {
+	listing, err := env.git("ls-tree", "-r", "-z", "--full-tree", root)
+	if err != nil {
+		return err
+	}
+	have := map[string]string{}
+	for _, entry := range strings.Split(listing, "\x00") {
+		meta, p, ok := strings.Cut(entry, "\t")
+		if !ok {
+			continue
+		}
+		fields := strings.Fields(meta)
+		if len(fields) == 3 {
+			have[p] = fields[2]
+		}
+	}
+	want := m.TrackerFiles()
+	if len(have) != len(want) {
+		return fmt.Errorf("an issue tracker with a different root (%d files, plan has %d) already exists; it is not this migration's", len(have), len(want))
+	}
+	for p, raw := range want {
+		oid, err := issue.CardBlobOID(raw, env.format)
+		if err != nil {
+			return err
+		}
+		if have[p] != oid {
+			return fmt.Errorf("an issue tracker whose root differs at %s already exists; it is not this migration's", p)
+		}
+	}
+	return nil
+}
+
+// applyMainCutover publishes the details conversion and the cutover marker in
+// one commit on the pinned main (the freeze keeps main still; a moved main
+// refuses rather than convert details the plan never saw).
+func applyMainCutover(env *migrateEnv, m tracker.MigrationManifest, root string) error {
+	write := map[string][]byte{tracker.CutoverMarkerPath: tracker.CutoverMarkerBytes(root)}
+	for _, c := range m.Conversions {
+		write[c.Path] = c.Raw
+	}
+	msg := fmt.Sprintf("migrate: issue details onto the issue tracker\n\nMigration-Digest: %s\nTracker-Root: %s", m.Digest, root)
+	return env.main.UpdateMany(msg, func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
+		if view.Ref() != m.Main {
+			return gitx.TrunkWrite{}, fmt.Errorf("main moved from %s to %s since the plan; keep writers frozen and re-run the dry run (the tracker is in place; the new plan resumes from it)", shortOID(m.Main), shortOID(view.Ref()))
+		}
+		return gitx.TrunkWrite{Write: write}, nil
+	})
+}
+
+// runMigrateReconcile brings a branch from before the cutover across: each
+// legacy details file gains the mirror of its imported card (after proving the
+// branch changed no card-owned field), and the marker is added, in one commit.
+func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
+	if env.branch == "" || env.onRest() || env.branch == "main" {
+		return errors.New("reconcile runs on a pre-cutover issue branch; a resting checkout only needs `git pull`")
+	}
+	mainView, err := env.main.Snapshot()
+	if err != nil {
+		return err
+	}
+	done, err := migratedAlready(env, mainView)
+	if err != nil {
+		return err
+	}
+	if !done {
+		return errors.New("main has not been migrated yet; nothing to reconcile against")
+	}
+	marker, err := mainView.Read(tracker.CutoverMarkerPath)
+	if err != nil {
+		return err
+	}
+	root, _ := tracker.ParseCutoverMarker(marker)
+	imported, err := importedCards(env, root)
+	if err != nil {
+		return err
+	}
+	home := vocab.Issue().Discovery().Home
+	if dirty, err := env.git("status", "--porcelain", "--", home, tracker.CutoverMarkerPath); err != nil {
+		return err
+	} else if dirty != "" {
+		return fmt.Errorf("commit or stash the uncommitted issue edits first (nothing was changed):\n%s", dirty)
+	}
+	entries, err := os.ReadDir(filepath.Join(env.root, filepath.FromSlash(home)))
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return err
+	}
+	write := map[string][]byte{}
+	var refusals []string
+	for _, e := range entries {
+		id, _, ok := issue.ParseFilename(e.Name())
+		if !ok || !e.Type().IsRegular() {
+			continue
+		}
+		rel := path.Join(home, e.Name())
+		raw, err := os.ReadFile(filepath.Join(env.root, filepath.FromSlash(rel)))
+		if err != nil {
+			return err
+		}
+		if issue.HasMirror(raw) {
+			continue
+		}
+		card, ok := imported[id]
+		if !ok {
+			refusals = append(refusals, fmt.Sprintf("%s: #%s has no card on the issue tracker (created on this branch before the cutover?); file it with `sdlc issue new` and move this content there", rel, issue.CLIRef(id)))
+			continue
+		}
+		next, err := issue.ReconcileLegacyDetails(raw, card, env.format)
+		if err != nil {
+			refusals = append(refusals, fmt.Sprintf("%s: %v; set them through the card's setters, then revert them here", rel, err))
+			continue
+		}
+		write[rel] = next
+	}
+	if len(refusals) > 0 {
+		return fmt.Errorf("cannot reconcile this branch (nothing was changed):\n  %s", strings.Join(refusals, "\n  "))
+	}
+	if _, present, err := tracker.ReadCutoverMarker(env.root); err != nil {
+		return err
+	} else if !present {
+		write[tracker.CutoverMarkerPath] = marker
+	}
+	if len(write) == 0 {
+		cok(stderr, "nothing to reconcile: this branch is already on the tracker's side of the cutover")
+		return nil
+	}
+	paths := make([]string, 0, len(write))
+	for p, raw := range write {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(env.root, filepath.FromSlash(p))), 0o755); err != nil {
+			return err
+		}
+		if err := os.WriteFile(filepath.Join(env.root, filepath.FromSlash(p)), raw, 0o644); err != nil {
+			return err
+		}
+		paths = append(paths, p)
+	}
+	sort.Strings(paths)
+	if _, err := env.git(append([]string{"add", "--"}, paths...)...); err != nil {
+		return err
+	}
+	if _, err := env.git(append([]string{"commit", "-q", "-m", "migrate: reconcile issue details onto the issue tracker", "--"}, paths...)...); err != nil {
+		return err
+	}
+	cok(stderr, fmt.Sprintf("reconciled %d file(s) on %s", len(paths), env.branch))
+	fmt.Fprintln(stdout, strings.Join(paths, "\n"))
+	return nil
+}
+
+// importedCards reads the cards the migration bootstrapped (the tracker's
+// root commit), by ID: the projection every pre-cutover branch was based on.
+func importedCards(env *migrateEnv, root string) (map[string][]byte, error) {
+	cardsDir := vocab.Issue().Discovery().Cards
+	listing, err := env.git("ls-tree", "-z", "--name-only", root, "--", cardsDir+"/")
+	if err != nil {
+		return nil, err
+	}
+	cards := map[string][]byte{}
+	for _, p := range strings.Split(listing, "\x00") {
+		id, _, ok := issue.ParseFilename(path.Base(p))
+		if p == "" || !ok {
+			continue
+		}
+		raw, err := env.trunk.ReadAt(root, p)
+		if err != nil {
+			return nil, err
+		}
+		cards[id] = raw
+	}
+	return cards, nil
+}

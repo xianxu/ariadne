@@ -32,10 +32,12 @@ type MigrationBranchFile struct {
 }
 
 // MigrationAnchor is a legacy close found for a codecomplete issue: the commit
-// that recorded codecomplete on Ref, and whether code landed after it.
+// that recorded codecomplete on Ref, and whether code landed after it. OnMain
+// marks main's own history, where a codecomplete is usually the legacy
+// publication of a branch's close rather than a close of its own.
 type MigrationAnchor struct {
 	Ref, Anchor, Parent string
-	CodeAfter           bool
+	CodeAfter, OnMain   bool
 }
 
 // MigrationInput is the inventory the command gathers.
@@ -216,10 +218,21 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 }
 
 // bindLegacyClose binds a codecomplete card to its legacy close: exactly one
-// distinct anchor commit, with no code after it on the ref that carries it.
+// distinct branch anchor commit, with no code after it on the ref that carries
+// it. Main's anchor is the close only when no branch carries one (a close made
+// directly on main); otherwise it is the legacy publication of the branch's.
 func bindLegacyClose(card []byte, id string, in MigrationInput) ([]byte, string) {
-	distinct := map[string]MigrationAnchor{}
+	candidates := []MigrationAnchor{}
 	for _, a := range in.Anchors[id] {
+		if !a.OnMain {
+			candidates = append(candidates, a)
+		}
+	}
+	if len(candidates) == 0 {
+		candidates = in.Anchors[id]
+	}
+	distinct := map[string]MigrationAnchor{}
+	for _, a := range candidates {
 		if a.CodeAfter {
 			return nil, fmt.Sprintf("codecomplete, but %s has code after its close %s", a.Ref, short(a.Anchor))
 		}

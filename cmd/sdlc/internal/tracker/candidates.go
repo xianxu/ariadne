@@ -38,7 +38,7 @@ func (r *Repository) PrepareCreate(cardPath string, raw []byte, token string) (g
 	}
 	content := bytes.Clone(raw)
 	return r.trunk.PrepareCandidate(cardMessage(card.ID, "new card", token), func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
-		snapshot, err := readSnapshot(view)
+		snapshot, err := r.read(view)
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
@@ -63,7 +63,7 @@ func (r *Repository) PrepareUpdate(expected Record, raw []byte, what, token stri
 	}
 	content := bytes.Clone(raw)
 	return r.trunk.PrepareCandidate(cardMessage(card.ID, what, token), func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
-		snapshot, err := readSnapshot(view)
+		snapshot, err := r.read(view)
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
@@ -90,7 +90,7 @@ func (r *Repository) PrepareCardChange(id, cardPath, what, token string, mutate 
 		return gitx.Candidate{}, errors.New("card change requires an operation token and mutation")
 	}
 	return r.trunk.PrepareCandidate(cardMessage(id, what, token), func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
-		snapshot, err := readSnapshot(view)
+		snapshot, err := r.read(view)
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
@@ -177,7 +177,13 @@ func (r *Repository) ReadCardBlob(oid string) ([]byte, error) {
 }
 
 // Initialized reports whether the tracker branch exists on the remote at all.
-func (r *Repository) Initialized() (bool, error) { return r.trunk.RemoteExists() }
+func (r *Repository) Initialized() (bool, error) {
+	exists, err := r.trunk.RemoteExists()
+	if err == nil && !exists {
+		err = r.checkAbsentTracker()
+	}
+	return exists, err
+}
 
 // ChangeCard publishes mutate(current card) in one conditional commit, re-read
 // and re-derived on every retry (unlike UpdateCard's fixed replacement bytes).
@@ -187,7 +193,7 @@ func (r *Repository) ChangeCard(id, cardPath, what, token string, mutate func(cu
 		return errors.New("card change requires an operation token and mutation")
 	}
 	return r.trunk.UpdateManyPrepared(cardMessage(id, what, token), func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
-		snapshot, err := readSnapshot(view)
+		snapshot, err := r.read(view)
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}

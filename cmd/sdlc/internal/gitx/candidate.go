@@ -174,3 +174,18 @@ func (t *TrunkFile) LocalView() (*TrunkView, bool, error) {
 
 // TrackingRef is the local remote-tracking ref this TrunkFile reads.
 func (t *TrunkFile) TrackingRef() string { return t.trackingRef() }
+
+// HasRoot reports whether root is a parentless commit in ref's history: the
+// identity of a branch's first generation (#252's tracker cutover marker).
+func (t *TrunkFile) HasRoot(root, ref string) (bool, error) {
+	out, diag, err := t.run(nil, "rev-list", "--max-parents=0", ref, "--")
+	if err != nil {
+		return false, fmt.Errorf("list the roots of %s: %v\n%s", ref, err, diag)
+	}
+	for _, line := range strings.Split(string(out), "\n") {
+		if strings.TrimSpace(line) == root {
+			return true, nil
+		}
+	}
+	return false, nil
+}

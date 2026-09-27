@@ -191,6 +191,9 @@ func refreshLocalMirrorAt(env *trackerEnv, abs string) string {
 // refreshMirror projects the current card into details, proving first that
 // the details' mirrored fields are the untouched projection of their baseline.
 func refreshMirror(env *trackerEnv, id string, details []byte) ([]byte, error) {
+	if !issue.HasMirror(details) {
+		return nil, fmt.Errorf("%w: #%s's details have no card_mirror; run `sdlc issue migrate --reconcile` on this branch first", tracker.ErrLegacyDetails, issue.CLIRef(id))
+	}
 	baselineOID, err := issue.MirrorBaselineOID(details)
 	if err != nil {
 		return nil, err

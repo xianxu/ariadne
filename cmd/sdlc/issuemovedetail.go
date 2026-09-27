@@ -154,7 +154,7 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 			return fmt.Errorf("read %s: %w", dest, err)
 		}
 		if !issue.HasMirror(source) {
-			return fmt.Errorf("%s has no card mirror; it predates the tracker and cannot be handed off", dest)
+			return fmt.Errorf("%s has no card mirror; it predates the tracker and cannot be handed off (run `sdlc issue migrate --reconcile` first)", dest)
 		}
 		if err := checkMoveSource(env, dest, pinnedMain); err != nil {
 			return err

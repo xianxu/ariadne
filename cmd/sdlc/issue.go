@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -49,7 +50,7 @@ func NewIssueCmd() *cobra.Command {
 	setStatus.Long = renderLong("set-status") // #125: derive the lifecycle facts (not add()-wired)
 	cmd.AddCommand(setStatus)
 	cmd.AddCommand(newIssueSetTitleCmd(), newIssueSetEstimateCmd(), newIssueSetGitHubCmd())
-	cmd.AddCommand(newIssueMoveDetailCmd(), newIssueRecoveryCmd())
+	cmd.AddCommand(newIssueMoveDetailCmd(), newIssueRecoveryCmd(), newIssueMigrateCmd())
 
 	cmd.AddCommand(newIssueSyncCmd())
 	cmd.AddCommand(newIssuePublishCmd())
@@ -359,6 +360,7 @@ type issueSyncFlags struct {
 	IssuesDir string
 	Push      bool
 	DryRun    bool
+	Context   context.Context
 }
 
 // newIssueSyncCmd builds `sdlc issue sync` (#206) — the verb that commits an
@@ -397,6 +399,7 @@ after a design decision, before a long-running tool call.`,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			f.Context = cmd.Context()
 			return runIssueSync(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
@@ -410,6 +413,9 @@ after a design decision, before a long-running tool call.`,
 func runIssueSync(stdout, stderr io.Writer, f *issueSyncFlags) error {
 	if f.Issue <= 0 {
 		die(stderr, "--issue N is required: `sdlc issue sync` commits ONE issue's files, and the commit message names it")
+	}
+	if err := trackedIssueSync(f); err != nil {
+		die(stderr, err.Error())
 	}
 	// Reuses the narrow synchronization dispatch (ARCH-DRY): this verb
 	// adds are the subject and the publish choice, both parameters of the shared
@@ -560,4 +566,30 @@ func runIssueShow(ctx context.Context, stdout, stderr io.Writer, f *issueShowFla
 // ensureTrailingNewline returns s with exactly one terminating newline.
 func ensureTrailingNewline(s string) string {
 	return strings.TrimRight(s, "\n") + "\n"
+}
+
+// trackedIssueSync keeps `issue sync` a checkpoint in a repository cut over to
+// the issue tracker (#252): a local commit of the details on the issue branch.
+// Its two legacy behaviors refuse there — committing on a resting branch (the
+// divergence the tracker removes) and --push copying commits to main.
+func trackedIssueSync(f *issueSyncFlags) error {
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return err
+	}
+	cut, err := tracker.CutOver(root)
+	if err != nil || !cut {
+		return err
+	}
+	if f.Push {
+		return errors.New("this repository uses the issue tracker: details reach main with their issue branch (initial details: `sdlc issue move-detail`); `--push` is retired here")
+	}
+	env, err := openTrackerAt(commandContext(f.Context), root)
+	if err != nil {
+		return err
+	}
+	if env.branch == "" || env.onRest() {
+		return fmt.Errorf("this repository uses the issue tracker: checkpoint #%d on its issue branch (`sdlc start-plan --issue %d` prepares it), never on a resting branch", f.Issue, f.Issue)
+	}
+	return nil
 }

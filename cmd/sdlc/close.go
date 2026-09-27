@@ -485,6 +485,11 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		die(stderr, fmt.Sprintf("no YAML frontmatter in %s", issuePath))
 	}
 	trackerEra := issue.HasMirror(issueBytes)
+	if !trackerEra {
+		if lerr := tracker.RefuseLegacyDetails(repoRootOf(issuePath), issuePath); lerr != nil {
+			die(stderr, lerr.Error())
+		}
+	}
 
 	// #122 carve-out: re-close guard keys on "done" specifically (the verified-complete
 	// state), not IsTerminal — re-closing a done issue is the case to guard. A

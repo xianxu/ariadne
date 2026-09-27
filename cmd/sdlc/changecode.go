@@ -52,6 +52,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 type changeCodeFlags struct {
@@ -305,7 +306,7 @@ func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) ([]byte
 		return nil, fmt.Errorf("read issue file %s: %w", issuePath, err)
 	}
 	if !issue.HasMirror(details) {
-		return nil, nil
+		return nil, tracker.RefuseLegacyDetails(repoRootOf(issuePath), issuePath)
 	}
 	env, err := openTracker(changeCodeContext(f))
 	if err != nil {

@@ -19,7 +19,10 @@ var ErrNoChange = errors.New("tracker write makes no change; content equality do
 
 // Repository always fetches from the caller's explicit publication remote.
 // Construct it with the command context; never reuse it after cancellation.
-type Repository struct{ trunk *gitx.TrunkFile }
+type Repository struct {
+	trunk    *gitx.TrunkFile
+	checkout string // guarded checkout root (GuardCutover); "" for unguarded
+}
 
 func NewRepository(ctx context.Context, root, remote string) (*Repository, error) {
 	if root == "" || remote == "" {
@@ -37,7 +40,7 @@ func (r *Repository) Snapshot() (Snapshot, error) {
 	if err != nil {
 		return Snapshot{}, err
 	}
-	return readSnapshot(view)
+	return r.read(view)
 }
 
 var tokenPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
@@ -63,7 +66,7 @@ func (r *Repository) UpdateCard(expected Record, raw []byte, operationToken stri
 	content := bytes.Clone(raw)
 	message := cardMessage(card.ID, "update card", operationToken)
 	return r.trunk.UpdateManyPrepared(message, func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
-		snapshot, err := readSnapshot(view)
+		snapshot, err := r.read(view)
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
@@ -89,7 +92,7 @@ func (r *Repository) LocalSnapshot() (Snapshot, bool, error) {
 	if err != nil || !ok {
 		return Snapshot{}, ok, err
 	}
-	s, err := readSnapshot(view)
+	s, err := r.read(view)
 	return s, err == nil, err
 }
 

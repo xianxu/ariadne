@@ -60,6 +60,7 @@ func openTrackerAt(ctx context.Context, dir string) (*trackerEnv, error) {
 	if e.repo, err = tracker.NewRepository(ctx, e.root, e.target.Remote); err != nil {
 		return nil, err
 	}
+	e.repo.GuardCutover(e.root)
 	if e.main, err = gitx.NewTrunkFileContext(ctx, e.root, e.target.Remote, "main"); err != nil {
 		return nil, err
 	}

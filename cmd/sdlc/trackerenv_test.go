@@ -45,8 +45,17 @@ func newTrackerRepo(t *testing.T, cards map[string]string, details map[string]st
 	return &trackerRepo{t: t, root: root, origin: origin, tracker: tf}
 }
 
-// bootstrapTracker initializes origin's issue-tracker with the given cards.
+// bootstrapTracker initializes origin's issue-tracker with the given cards and
+// marks the checkout cut over, as a migrated repository is.
 func bootstrapTracker(t *testing.T, root string, cards map[string]string) *gitx.TrunkFile {
+	t.Helper()
+	tf := bootstrapTrackerOnly(t, root, cards)
+	markCutover(t, root, "origin")
+	return tf
+}
+
+// bootstrapTrackerOnly creates origin's issue-tracker without the cutover.
+func bootstrapTrackerOnly(t *testing.T, root string, cards map[string]string) *gitx.TrunkFile {
 	t.Helper()
 	tf, err := gitx.NewTrunkFileContext(context.Background(), root, "origin", "issue-tracker")
 	if err != nil {
@@ -60,6 +69,21 @@ func bootstrapTracker(t *testing.T, root string, cards map[string]string) *gitx.
 		t.Fatal(err)
 	}
 	return tf
+}
+
+// markCutover commits the cutover marker naming remote's tracker root on the
+// checkout's current branch and publishes that branch: the fixture is a
+// migrated repository (#252), as the migration's main commit makes it.
+func markCutover(t *testing.T, root, remote string) {
+	t.Helper()
+	line := strings.Fields(testfix.Capture(t, root, "ls-remote", "--exit-code", remote, "refs/heads/issue-tracker"))
+	if len(line) == 0 {
+		t.Fatal("markCutover: no tracker on " + remote)
+	}
+	writeRepoFile(t, root, tracker.CutoverMarkerPath, string(tracker.CutoverMarkerBytes(line[0])))
+	testfix.Git(t, root, "add", "--", tracker.CutoverMarkerPath)
+	testfix.Git(t, root, "commit", "-qm", "migrate: issue tracker cutover marker")
+	testfix.Git(t, root, "push", "-q", remote, "HEAD")
 }
 
 func writeRepoFile(t *testing.T, root, rel, body string) {
