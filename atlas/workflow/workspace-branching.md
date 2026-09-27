@@ -151,8 +151,10 @@ local planning commits are included, not removed. Issue allocation is a separate
 prerequisite; this procedure does not rewrite earlier planning history.
 
 Branch **before** new claim/design/checkpoint work when preserving the resting
-ref matters. Plain `change-code` still supports the existing workflow: it
-checkpoints planning before creating its branch. Claim and change-code may
+ref matters. In an issue tracker repository (#252) `start-plan` does this itself:
+after a claim it creates the issue branch at freshly pinned main, so design
+checkpoints never land on rest. Plain `change-code` still supports the legacy
+workflow: it checkpoints planning before creating its branch. Claim and change-code may
 contact remote main for reservation/document publication; neither refreshes the
 prepared branch's baseline. Use the separate refresh procedure only on request.
 
