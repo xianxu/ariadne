@@ -73,9 +73,40 @@ commit, details archived, rest 0/0 after a fast-forward. The imported #3 landed
 as PR #2 (publish gate anchored on its legacy close) → `done`, archived.
 `recovery list` empty. The sandbox repo is still up; delete it when done.
 
+### A3 — Legacy mode in a real peer slot (pair:1), before #252 ships
+
+Tests the #252 binary **and** its composed prompts/skills/Makefile against a real
+peer in legacy mode, isolated from `pair:0` and every other repo. A slot's
+`construct/deps` (`substrate ../ariadne`) resolves to its **private** ariadne clone
+(`~/workspace/worktree/pair-slot1/ariadne`), so only that slot sees #252. It cannot
+test the real `--apply`: that writes pair's shared remote.
+
+- [ ] **Freeze `ariadne:0`:** don't pull, switch or rebuild `~/workspace/ariadne` until Phase B.
+      (The `sdlc`/`weave`/`vocabulary` shell functions rebuild from it on every call — in the
+      slot, always call the slot's own `bin/sdlc`.)
+- [ ] Push the #252 branch to GitHub: `git push -u origin 000252-issue-cards-tracker-ref`
+      (from the #252 worktree)
+- [ ] In `~/workspace/worktree/pair-slot1/ariadne`: `git fetch origin` →
+      `git switch --track origin/000252-issue-cards-tracker-ref`
+- [ ] In `~/workspace/worktree/pair-slot1/pair`: `weave compile` (exit 0) → `bin/sdlc` is the #252
+      build; the composed `CLAUDE.md` carries the "Issue tracker repositories (#252)" bullet
+- [ ] Legacy mode, read-only, with `bin/sdlc`: `issue list`, `issue show N`, `state`,
+      `project status` (if pair has projects), `sdlc actual --issue N` — same answers as `pair:0`
+- [ ] Legacy mode on a local branch (no push): claim-free flow on a scratch branch —
+      `issue lint-ids --base main --head HEAD`, the publish gate via `sdlc push --dry-run`
+- [ ] Pair's real dry run (read-only): `bin/sdlc issue migrate` → refusals match Phase C (C10)
+- [ ] Rehearse the apply on a **disposable copy** of pair (bare copy + clone, as A1):
+      `--apply`, re-apply *already migrated*, `issue list`, one claim
+- [ ] Afterwards: switch `pair-slot1/ariadne` back to `main` and `weave compile` again, or
+      leave the slot on #252 until Phase B
+- [ ] Record results in #252's Log
+
 ---
 
-## Phase B — Land #252 (once)
+## Phase B — Land #252 (once): the deliberate unfreeze of `ariadne:0`
+
+After #252 lands, every repo runs the #252 binary **in legacy mode** until its own
+Phase C cutover: without the marker, nothing about its workflow changes.
 
 - [ ] **Decide:** #252's Done-when includes "existing issue files are migrated", which the
       fleet cutover delivers after #252 lands. Recommended: file a follow-up issue for
@@ -83,13 +114,14 @@ as PR #2 (publish gate anchored on its legacy close) → `done`, archived.
       #252), and close #252 on the tooling.
 - [ ] Full suite green: `go test ./cmd/sdlc/... ./pkg/... -count=1 -timeout 45m`
 - [ ] `sdlc close --issue 252 --verified '<evidence>'` → review SHIP
-- [ ] `sdlc pr` → `sdlc merge`
-- [ ] Rebuild the binary in ariadne: `make build` (or `go build -o bin/sdlc ./cmd/sdlc`)
-- [ ] Propagate the base layer to every layer repo: `weave` in each of 42shots, kaggle,
-      kbench, metis, nous, pair, parley.nvim, tools, xianxu.dev, you-decide (and astro,
-      parli if they will use issues)
-- [ ] Rebuild `bin/sdlc` in each of those repos (`make build`)
-- [ ] Spot-check one legacy repo still works as before: `bin/sdlc issue list`, `bin/sdlc state`
+- [ ] `sdlc pr` → `sdlc merge` — from the #252 worktree this pulls `~/workspace/ariadne`:
+      this **is** the unfreeze (the shell `sdlc` now builds the #252 binary)
+- [ ] Rebuild ariadne's binaries: `make build` (or `go build -o bin/sdlc ./cmd/sdlc`)
+- [ ] Propagate to every layer repo's `:0` (and slots, when next used): `weave compile` in each of
+      42shots, kaggle, kbench, metis, nous, pair, parley.nvim, tools, xianxu.dev, you-decide
+      (and astro, parli if they will use issues)
+- [ ] Spot-check two repos in legacy mode: `bin/sdlc issue list`, `bin/sdlc state`
+- [ ] Return `pair-slot1/ariadne` to `main` (if A3 left it on #252) and `weave compile` there
 
 ---
 

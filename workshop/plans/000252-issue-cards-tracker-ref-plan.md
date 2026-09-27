@@ -542,3 +542,13 @@ per-repository steps (with the 2026-09-26 dry-run blockers) are the checklist
 carve "fleet cutover + legacy writer deletion" into a follow-up issue so #252
 can close on the tooling.
 
+### 2026-09-26 — Rollout: legacy-mode slot test before shipping (A3)
+
+Reason: operator direction. Every peer builds its binary and composed
+prompts from `~/workspace/ariadne`, so #252 is tested against a real peer in
+legacy mode first, isolated in a numbered slot whose private ariadne clone
+tracks the #252 branch (A3, pair:1), with `ariadne:0` frozen. Landing #252 is
+then the deliberate unfreeze; every repo runs it in legacy mode until its own
+cutover. A slot cannot isolate the real `--apply` (it writes the shared
+remote), so that stays a per-repository, all-checkouts freeze in Phase C.
+
