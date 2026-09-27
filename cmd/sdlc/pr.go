@@ -80,9 +80,13 @@ func runPR(stdout, stderr io.Writer, f *prFlags) error {
 	}
 
 	// ── 2. Compute merge base ───────────────────────────────────────────────
-	base := gitx.Capture("merge-base", "main", "HEAD")
+	trunk := gitx.TrunkRef()
+	if trunk == "" {
+		trunk = "main"
+	}
+	base := gitx.Capture("merge-base", trunk, "HEAD")
 	if base == "" {
-		base = "main"
+		base = trunk
 	}
 
 	// ── 3. Collect touched issues + github_issue numbers ────────────────────
@@ -229,10 +233,10 @@ func fixesRef(n string) string {
 }
 
 // gitCommitsSince returns "- <subject>\n- <subject>" lines for every
-// commit in `main..HEAD`. Empty if none. Mirrors the shell target's
-// `git log main..HEAD --pretty=format:'- %s'`.
-func gitCommitsSince(_ string, r gitRunner) string {
-	out, err := r.Git("log", "main..HEAD", "--pretty=format:- %s")
+// commit in `base..HEAD` (base: the branch point from the published trunk).
+// Empty if none.
+func gitCommitsSince(base string, r gitRunner) string {
+	out, err := r.Git("log", base+"..HEAD", "--pretty=format:- %s")
 	if err != nil {
 		return ""
 	}

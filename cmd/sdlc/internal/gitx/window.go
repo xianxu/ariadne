@@ -77,17 +77,32 @@ func DiffBase() string {
 			}
 		}
 	}
+	trunk := TrunkRef()
 	branch := Capture("branch", "--show-current")
 	if branch == "main" {
-		if ref := Capture("rev-parse", "origin/main"); ref != "" {
-			return "origin/main"
+		if trunk != "" && trunk != "main" {
+			return trunk
 		}
 		return "HEAD~10"
 	}
-	if base := Capture("merge-base", "main", "HEAD"); base != "" {
-		return base
+	if trunk != "" {
+		if base := Capture("merge-base", trunk, "HEAD"); base != "" {
+			return base
+		}
 	}
 	return "HEAD~10"
+}
+
+// TrunkRef names the published trunk a branch is measured against: local main's
+// configured upstream (origin/main, or <publication remote>/main), else MainRef.
+// Not local main itself: a numbered slot shares refs with its primary, whose
+// local main is whatever the primary last pulled — stale, or carrying unpushed
+// commits — while the slot's branches fork from the published trunk.
+func TrunkRef() string {
+	if up := Capture("rev-parse", "--abbrev-ref", "--symbolic-full-name", "main@{upstream}"); up != "" && Capture("rev-parse", "--verify", "-q", up) != "" {
+		return up
+	}
+	return MainRef()
 }
 
 // MergeBaseWithMain returns the branch point — `git merge-base main HEAD` — or
@@ -103,7 +118,11 @@ func DiffBase() string {
 // divergence it returns "" so boundaryWindowBase picks the issue's own branch
 // start (the first `#N` commit's parent) for the direct-on-main flow (#77).
 func MergeBaseWithMain() string {
-	base := Capture("merge-base", "main", "HEAD")
+	trunk := TrunkRef()
+	if trunk == "" {
+		return ""
+	}
+	base := Capture("merge-base", trunk, "HEAD")
 	if base == "" {
 		return ""
 	}
