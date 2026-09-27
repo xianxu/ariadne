@@ -191,3 +191,11 @@ The simplest durable authority beats a clever scan of consequences.
 - Every identifier in a ticked plan row greps to shipped code. When a name
   changes in implementation, rename it in the row (planned name in parentheses)
   as well as in Revisions (#252, 4th inventory-drift finding).
+- Fixtures must not normalize what production callers don't: resolving a temp
+  root's symlinks up front hid close comparing /tmp and /private/tmp paths
+  until an e2e used the raw slot paths (#252 M4). Compare filesystem paths
+  canonically on both sides (`canonRoot`).
+- Before designing a transformation of existing records, run the strict
+  parser over the real population read-only: a fleet probe showed a fifth of
+  issue files failing it and duplicate IDs, which reshaped the migration
+  (#252 M4). Then rehearse the whole command on a disposable copy.

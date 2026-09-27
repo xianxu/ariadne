@@ -8,7 +8,7 @@
 
 **Tech Stack:** Go, Cobra, Git object/ref plumbing, existing Git/GitHub process seams and stateful fakes, CUE vocabulary, Markdown artifacts.
 
-**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2 accepted through its boundary gate (SHIP after rounds 3–6). M3 accepted through its boundary gate (SHIP after rounds 7–9). M4 is not implemented. No production migration or consumer activation has begun.
+**Status:** Operator approved implementation on 2026-09-25. M1 accepted through its boundary gate (FIX-THEN-SHIP; minor artifact whitespace corrected). M2 accepted through its boundary gate (SHIP after rounds 3–6). M3 accepted through its boundary gate (SHIP after rounds 7–9). M4 implemented and submitted to its boundary review. No production migration or consumer activation has begun.
 
 ## Core concepts
 
@@ -26,7 +26,8 @@ This inventory distinguishes delivered M1 foundation from planned later work.
 | Typed recovery receipt / shared transition engine | PURE | `cmd/sdlc/internal/tracker/receipt.go` | M1: new, delivered |
 | Handoff envelope / card-derived details | PURE | `cmd/sdlc/internal/issue/handoff.go` | M2: new, delivered |
 | Card field/title mutators | PURE | `cmd/sdlc/internal/issue/cardset.go` | M2: new, delivered |
-| Migration manifest | PURE | `cmd/sdlc/internal/tracker/migration.go` | Planned M4: file absent, not delivered |
+| Migration plan / manifest | PURE | `cmd/sdlc/internal/tracker/migration.go` (`PlanTrackerMigration`) | M4: new, delivered |
+| Migration card derivation | PURE | `cmd/sdlc/internal/issue/migrate.go` (`MigrateActiveDetails`, `ArchivedCard`, `ReconcileLegacyDetails`) | M4: new, delivered |
 | Composed issue records join | PURE | `cmd/sdlc/internal/tracker/records.go` (`composeRecords`, `IssueRecord.Field`) | M3: new, delivered |
 
 Card owns ID, status, started, created/updated dates, estimate/actual hours, GitHub linkage and canonical title. Its Problem is the original report. Details retain editable Problem, Spec, Done when, Estimate explanation, Plan, Log, Revisions, deps, target, flow and review anchors. Define ownership once; unknown detail fields remain untouched, unknown tracker schema versions refuse. No new lifecycle statuses. Read `vocabulary` skill and the complete CUE model before changing the model.
@@ -53,7 +54,8 @@ Each card has one stable ID/path; one or more detail checkouts can mirror it, bu
 | Activity commit loader | INTEGRATION | `cmd/sdlc/internal/activetime/commit.go` (`loadWindowCommits`), `internal/gitx/window.go` (`CommitWindow`) | M3: modified (tracker ref beside HEAD), delivered | git log over HEAD and the tracker ref |
 | Close adapter | INTEGRATION | `cmd/sdlc/closetracker.go`, `internal/tracker/completeop.go` | M3: new, delivered | evidence commit (temporary index, branch CAS), card codecomplete |
 | Completion adapter | INTEGRATION | `cmd/sdlc/trackercompletion.go` | M3: new, delivered | binding selection, done CAS, existing landing identity and archive transaction |
-| Migration command | INTEGRATION | `cmd/sdlc/issuemigrate.go` | Planned M4: absent, not delivered | repository inventory, bootstrap, mirrors, cutover marker |
+| Migration command | INTEGRATION | `cmd/sdlc/issuemigrate.go` (`migrationInventory`, `applyTrackerBootstrap`, `applyMainCutover`, `runMigrateReconcile`) | M4: new, delivered | repository inventory, bootstrap, mirrors, cutover marker |
+| Cutover marker and guard | INTEGRATION | `cmd/sdlc/internal/tracker/cutover.go` (`Repository.GuardCutover`, `RefuseLegacyDetails`, `CutOver`; `ParseCutoverMarker` pure) | M4: new, delivered | checkout marker file, `gitx.TrunkFile.HasRoot` |
 | Publication fake | INTEGRATION test double | `cmd/sdlc/internal/gitx/commitpublication_fake_test.go` | M1: modified, delivered | immutable objects, multiple refs, rejection/lost acknowledgement |
 
 Reuse the common-dir repository lock. Correct the existing cancellation gap: `TrunkFile` calls `runGitIn`, which supplies `context.Background()` (`trunkfile.go:60`), and `UpdateMany` accepts no context (`updatemany.go:68`). Add `NewTrunkFileContext(ctx, dir, remote, branch)` and store a non-nil context; an instance runner routes all fetch/read/tree-build/push/confirmation through `runGitInContext`. Keep the old constructor as a compatibility adapter only for unmigrated callers. Tracker commands pass Cobra command context through repository/lock/preparation boundaries. Cancellation never becomes predicate absence or confirmed rejection. Bound process-group termination and pipe draining to five seconds using existing command cancellation helpers. Cancelled pushes retain Unconfirmed receipts; recovery uses a later invocation, never a detached worker. TrunkView inherits its owner's context. Linked worktrees share refs and locks; independent clones use remote CAS. Use remote-tracking refs and object reads rather than a hidden worktree. Read-only card snapshots may be materialized for navigation, never editing authority.
@@ -143,7 +145,7 @@ Complete the sweep with `rg -n 'issue sync|issue publish|PublishCommit|estimate_
 | `LoadRecords` (planned `ReadIssueRecord`), `LookupRepoIssues` | Vary card and detail generations independently; source selection respects field ownership and missing detail information remains unknown. |
 | `loadWindowCommits` (planned `SelectActivityEvents`), `computeActual` | Generate overlapping selected histories; each OID counted once and claim engagement survives off-branch storage. |
 | `publishTrackerClose` (planned `FinalizeTrackerClose`), `ownedCompletions` (planned `SelectCompletedIssues`) | Mutate bound repo/head/evidence between review and effect; refuse stale ownership rather than completing unrelated work. |
-| `PlanTrackerMigration`, `ApplyTrackerMigration` | Generate legacy populations and interrupt each phase; no lost IDs/evidence and no activation from incomplete or contradictory inputs. |
+| `PlanTrackerMigration`, `applyTrackerBootstrap`/`applyMainCutover` (planned `ApplyTrackerMigration`) | Generate legacy populations and interrupt each phase; no lost IDs/evidence and no activation from incomplete or contradictory inputs. |
 
 Real-Git conformance runs with the normal Go suite on every relevant PR and
 before each milestone gate. Existing GitHub stateful landing tests run on every
@@ -225,22 +227,22 @@ Files (revised at M3 from `git diff --name-status`): create `cmd/sdlc/{trackerco
 
 Files: create `cmd/sdlc/issuemigrate.go`, `issuemigrate_test.go`, `internal/tracker/migration.go` and tests; modify `issue.go`, `repoguard.go`, `validategate.go`, `issuelintids.go`, portable scripts/Makefile/instructions from the inventory; delete retired `issuesync`/`issuepublish` command code only after checking remaining callers.
 
-- [ ] Add `sdlc issue migrate --dry-run` and `--apply` with an exact inventory manifest: active/archive IDs, duplicates, source OIDs, all worktrees, active branches, legacy local-only issue commits, schema version and proposed tracker root. Default dry-run never changes refs/files.
-- [ ] Test `PlanTrackerMigration` and `ApplyTrackerMigration` against generated legacy populations and interrupted phases; preserve every used ID and valid completion, refusing ambiguous activation. Use synthetic history fixtures, not live workshop/history.
-- [ ] Import existing codecomplete generations only after reconstructing their binding from the legacy close-transition commit, accepted review evidence and pinned PR head (or direct-main landing target), using existing publish-gate validation. Migration refuses an unprovable binding before activation, with the exact issue/anchor and next action to reopen/reclose under the old workflow during the freeze. Never silently omit the issue, invent acceptance, or change its status. Prove the valid imported PR can next merge to done/archive; prove the invalid case blocks cutover until repaired. Include these checks in the operator cutover manifest.
-- [ ] Define cutover sequence: freeze all writers; inventory and checkpoint every checkout; refuse unresolved legacy divergence; publish tracker snapshot; commit/publish ordinary main mirror conversion with format marker; reconcile each inventoried branch against its captured old card projection; verify and activate new writers. No automatic discard/reset/rebase of user work. A late/unknown checkout must reconcile or refuse before mutation.
-- [ ] New binary refuses writes when cutover marker and tracker generation disagree. Old binaries cannot be made to honor a new marker: the operational freeze must include aliases, scripts and already-running agents until all entrypoints are upgraded. Retry resumes a matching manifest; after tracker writes resume never roll it back to the import snapshot.
-- [ ] Remove/delegate shell/Python writers and `issue sync`/generic copied issue publication entrypoints. Update CI fetch/ID checks and all active agent guidance, including adapted skills that prescribe sync. Use xx-construct guidance for substrate edits and preserve generated-source boundaries.
+- [x] Add `sdlc issue migrate --dry-run` and `--apply` with an exact inventory manifest: active/archive IDs, duplicates, source OIDs, all worktrees, active branches, legacy local-only issue commits, schema version and proposed tracker root. Default dry-run never changes refs/files.
+- [x] Test `PlanTrackerMigration` and `applyTrackerBootstrap`/`applyMainCutover` (planned `ApplyTrackerMigration`) against generated legacy populations and interrupted phases; preserve every used ID and valid completion, refusing ambiguous activation. Use synthetic history fixtures, not live workshop/history.
+- [x] Import existing codecomplete generations only after reconstructing their binding from the legacy close-transition commit, accepted review evidence and pinned PR head (or direct-main landing target), using existing publish-gate validation. Migration refuses an unprovable binding before activation, with the exact issue/anchor and next action to reopen/reclose under the old workflow during the freeze. Never silently omit the issue, invent acceptance, or change its status. Prove the valid imported PR can next merge to done/archive; prove the invalid case blocks cutover until repaired. Include these checks in the operator cutover manifest.
+- [x] Define cutover sequence: freeze all writers; inventory and checkpoint every checkout; refuse unresolved legacy divergence; publish tracker snapshot; commit/publish ordinary main mirror conversion with format marker; reconcile each inventoried branch against its captured old card projection; verify and activate new writers. No automatic discard/reset/rebase of user work. A late/unknown checkout must reconcile or refuse before mutation.
+- [x] New binary refuses writes when cutover marker and tracker generation disagree. Old binaries cannot be made to honor a new marker: the operational freeze must include aliases, scripts and already-running agents until all entrypoints are upgraded. Retry resumes a matching manifest; after tracker writes resume never roll it back to the import snapshot.
+- [x] Remove/delegate shell/Python writers and `issue sync`/generic copied issue publication entrypoints. Update CI fetch/ID checks and all active agent guidance, including adapted skills that prescribe sync. Use xx-construct guidance for substrate edits and preserve generated-source boundaries.
 - [ ] Run `go test ./cmd/sdlc/... ./pkg/vocab/... -count=1`, vocabulary generation/conformance checks, and existing shell/Python checks covering modified portable entrypoints. Run the consumer sweep and classify remaining matches in the issue Log.
 
 ### Task 8: Full slot cycle and rollout package
 
 Files: create `cmd/sdlc/tracker_e2e_test.go`; update `README.md`, `atlas/workflow/{issue-tracker,issue-sync,workspace-branching,artifact-hierarchy,ci-merge-check,base-layer}.md`, `atlas/index.md`; add `atlas/workflow/issue-tracker-migration.md`.
 
-- [ ] Exercise two cloned slots and a bare remote: new → details publication → claim → branch/design → change-code → close → PR/merge → archive → resting refresh. Include a spin-off handoff while original code stays unshipped, a competing claim and later edits to the transferred issue.
-- [ ] Assert main is unchanged by card-only operations, no copied source-commit publication, card states current across slots, original PR has no issue-file conflict, and refreshed rest is exactly zero ahead/behind. Add fresh CI clone without tracker ref and disconnected-read/mutation cases.
+- [x] Exercise two cloned slots and a bare remote: new → details publication → claim → branch/design → change-code → close → PR/merge → archive → resting refresh. Include a spin-off handoff while original code stays unshipped, a competing claim and later edits to the transferred issue.
+- [x] Assert main is unchanged by card-only operations, no copied source-commit publication, card states current across slots, original PR has no issue-file conflict, and refreshed rest is exactly zero ahead/behind. Add fresh CI clone without tracker ref and disconnected-read/mutation cases.
 - [ ] Run full Go suites above plus focused real-Git race/conformance tests; publish measured 10k-card benchmark results and verify process counts remain bounded. Update atlas at this boundary, not after rollout.
-- [ ] Write exact operator cutover/recovery procedure, including owner-binary build and generated instruction propagation. Inventory participating downstream repos read-only under their local instructions before scheduling any freeze. Product-owned consumers needing changes require issues and review in their owning repos; do not call ariadne tests proof of peer integration.
+- [x] Write exact operator cutover/recovery procedure, including owner-binary build and generated instruction propagation. Inventory participating downstream repos read-only under their local instructions before scheduling any freeze. Product-owned consumers needing changes require issues and review in their owning repos; do not call ariadne tests proof of peer integration.
 - [ ] Record M4 verification and close its review boundary. Actual fleet migration is a separately coordinated operational step using the tested command; do not freeze another live session or migrate peer state without that coordination. Issue closure requires the migration acceptance criterion to be satisfied, not merely the command to exist.
 
 ## Approval and execution
@@ -459,3 +461,46 @@ archived 000096). Delta (ARCH-PURE, ARCH-ORDER, ARCH-SECURE, ARCH-DRY):
   their code stays until every fleet repository has cut over, and is deleted at
   the coordinated migration step before issue close (removing it earlier would
   strand unmigrated repositories sharing the binary).
+
+### 2026-09-26 — M4 implementation corrections
+
+Reason: implementation and the rehearsals refined the design. Delta:
+- `issue sync` is not retired: in a tracker repository it stays the checkpoint
+  verb as a local commit on the issue branch, refusing its legacy behaviors
+  (a resting-branch commit, `--push`). `issue publish` and the Makefile/Python
+  fallbacks refuse on the marker. Code deletion waits for the fleet cutover.
+- A legacy close on a branch wins over main's issue-sync copy of it (which
+  also records codecomplete); main's anchor binds only a close made on main.
+- Branch refusals group by (path, reason) across stacked branches and their
+  remote-tracking copies (a real stack produced 53 lines for 10 problems).
+- The e2e found two defects outside the migration, fixed with their class:
+  close compared symlink-resolved and unresolved paths (`canonRoot` now
+  resolves through a missing path's nearest ancestor), and `issue list`
+  printed stale statuses bare — every PreferFresh view now labels a stale
+  read, `pr` reads Fresh, and a source guard enforces it.
+- Files, per `git diff --name-status` of the window. Task 7: new
+  `issuemigrate.go`, `internal/tracker/{migration,cutover}.go`,
+  `internal/issue/migrate.go` (+ tests, `trackedlegacy_test.go`,
+  `stale_guard_test.go`); modified `issue.go`, `issuepublish.go`, `close.go`,
+  `changecode.go`, `claim.go`, `issuemovedetail.go`, `issuerecord.go`,
+  `trackerenv.go`, `internal/tracker/{repository,candidates,records}.go`,
+  `internal/gitx/candidate.go`, readers (`state.go`, `startplan.go`, `pr.go`,
+  `actual.go`, `projectstatus.go`, `internal/fleet/{issues,render}.go`),
+  `closetracker.go`, `propagatebase.go`, `Makefile.workflow`,
+  `scripts/close-issue.py`, `AGENTS.base.md`, `helptext/{issue,estimate}.md`,
+  `construct/datatype/project.md`. `repoguard.go`, `validategate.go` and
+  `issuelintids.go` needed no change. Task 8: new `tracker_e2e_test.go`,
+  `atlas/workflow/issue-tracker-migration.md`; modified `README.md`,
+  `atlas/index.md`, `atlas/workflow/{issue-tracker,issue-sync,
+  workspace-branching,artifact-hierarchy,ci-merge-check,base-layer}.md`.
+- Measured (Apple Silicon, 3 CPUs visible, a full suite running alongside):
+  Git snapshot of 10,000 cards 775 ms with 2 Git processes; parse 75 ms;
+  compose with 100 details 4 ms; refresh 100 mirrors 14 ms — about 0.85 s for
+  the whole local read, inside the one-second envelope. Planning a
+  10,000-issue migration: 294 ms.
+- Read-only fleet inventory (dry runs on disposable copies): kaggle, kbench,
+  metis, nous, xianxu.dev and you-decide are ready; ariadne, pair and tools
+  hold stale branches editing archived issues and a few unsynced closes;
+  parley.nvim holds an unlanded stack (#276–#285) whose issues exist only on
+  branches. Each is a pre-cutover task for its repository, under its own
+  instructions.
