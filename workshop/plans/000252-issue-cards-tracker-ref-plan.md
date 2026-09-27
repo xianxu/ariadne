@@ -552,3 +552,18 @@ then the deliberate unfreeze; every repo runs it in legacy mode until its own
 cutover. A slot cannot isolate the real `--apply` (it writes the shared
 remote), so that stays a per-repository, all-checkouts freeze in Phase C.
 
+### 2026-09-27 — Reconcile merges the migration commit; leftover-branch matrix
+
+Reason: the leftover-branch e2e matrix (operator request after A2) found the
+M4 reconcile design wrong: committing the same converted bytes without main's
+migration commit as an ancestor keeps a pre-cutover merge base, so the first
+mirror refresh on either side (any card write) conflicts at landing. Delta:
+`--reconcile` pre-checks the branch-changed details (fields, card existence),
+then merges main's migration commit (not the rest of main) and verifies every
+mirror against its imported card, undoing the merge otherwise; conflicts abort.
+Leftover branches may be reconciled lazily on next use. The matrix
+(`leftover_e2e_test.go`) walks each shape to done through the real publish
+gate, the card-edit remedy (apply on the card from a caught-up checkout,
+revert on the branch), a cardless branch-only issue blocked by CI's id check,
+and the back-out (which needs `git fetch --prune` in every clone).
+

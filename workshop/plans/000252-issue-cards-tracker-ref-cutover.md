@@ -135,8 +135,9 @@ found on 2026-09-26; re-run the dry run first — they may have changed.
 2. Freeze: stop every agent session, script and alias working in this repo **and its slots**
 3. `bin/sdlc issue migrate` → review inferred values → note the digest
 4. `bin/sdlc issue migrate --apply --expect <digest>` (interrupted? re-run the same command)
-5. `git pull --ff-only` in every resting slot; `bin/sdlc issue migrate --reconcile` once on
-   each open issue branch from before the cutover
+5. `git pull --ff-only` in every resting slot. Branches from before the cutover refuse sdlc
+   commands until brought across: `bin/sdlc issue migrate --reconcile` (or merge origin/main) —
+   now, or lazily on each branch's next use
 6. Verify: `bin/sdlc issue list` shows statuses · `bin/sdlc issue recovery list` is empty ·
    one `claim` (or `issue new`) works
 7. Unfreeze
@@ -234,4 +235,4 @@ found on 2026-09-26; re-run the dry run first — they may have changed.
 | "cutover mismatch … no workshop/issue-tracker.json" | this checkout predates the cutover | resting slot: `git pull`; branch: `sdlc issue migrate --reconcile` |
 | "marker … but no issue tracker is reachable" | the tracker branch is missing on the remote | fix the remote; never fall back to legacy |
 | reconcile: "card-owned fields differ" | the branch edited card fields | set them with the card setters (`sdlc issue set-*`), revert them on the branch, re-run |
-| Need to back out a repo | only before any card write after the cutover | delete the `issue-tracker` branch and revert the marker commit; after writes resume, repair forward |
+| Need to back out a repo | only before any card write after the cutover | delete the `issue-tracker` branch, revert the migration commit, and `git fetch --prune` in **every** clone (an unpruned clone still reads as cut over); after writes resume, repair forward |

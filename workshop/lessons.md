@@ -209,4 +209,9 @@ The simplest durable authority beats a clever scan of consequences.
   both bypassed the publish gate, so the transfer guard refusing the owner's
   own edits on a direct push surfaced only in the second smoke cycle. Run the
   deterministic gates in e2e; stub only the LLM.
+- "Both sides make the identical change, so the merge is clean" holds only
+  until either side edits that region again; durable convergence needs the
+  change as a shared ancestor (merge it), not a byte-identical copy. #252's
+  first reconcile committed main's conversion bytes and conflicted at the
+  first mirror refresh (#252, leftover-branch matrix).
 

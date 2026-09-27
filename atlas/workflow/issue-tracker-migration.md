@@ -71,9 +71,12 @@ details in a cut-over repository refuse the legacy close/change-code paths
    run and apply the new digest (the tracker already in place is adopted only
    if its root holds exactly the new plan's cards).
 6. **Bring checkouts across.** `git pull` every resting checkout (all slots).
-   On each branch from before the cutover, `sdlc issue migrate --reconcile`
-   once: it proves the branch changed no card-owned field and commits the
-   mirrors and the marker, so merging main later is clean.
+   A branch from before the cutover refuses sdlc commands until brought
+   across — now, or on its next use — with `sdlc issue migrate --reconcile`
+   (or by merging origin/main). Reconcile proves every details file the branch
+   changed kept its imported card's fields and has a card, then merges main's
+   migration commit so later merges start from converted details; card-field
+   edits are applied on the card from a caught-up checkout first.
 7. **Verify, then unfreeze:** `sdlc issue list` shows card statuses,
    `sdlc issue recovery list` is empty, a claim on an open issue succeeds.
 
@@ -98,5 +101,9 @@ product-owned consumers that need changes get issues in their owning repositorie
   stale reads and card writes; a marker without a tracker never reads legacy.
 - `cmd/sdlc/issuemigrate_test.go`: dry run, apply, resume, foreign tracker,
   reconcile then clean merge, an imported close merged, landed and settled.
+- `cmd/sdlc/leftover_e2e_test.go`: a leftover branch is locked for every verb
+  and the publish gate, catches up by reconcile or by merging main, then lands
+  to done; an invisible branch's card edits recover via the card; an invisible
+  branch-only issue cannot land; backing out a cutover (with the prune).
 - `cmd/sdlc/trackedlegacy_test.go`: legacy entrypoints, Makefile fallbacks, and
   `lint-ids` refusing cardless details.

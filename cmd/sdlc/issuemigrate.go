@@ -488,13 +488,13 @@ func applyMainCutover(env *migrateEnv, m tracker.MigrationManifest, root string)
 	})
 }
 
-// runMigrateReconcile brings a branch from before the cutover across, in one
-// commit: each legacy details file the branch changed gains the mirror of its
-// imported card (after proving the branch changed no card-owned field); one it
-// did not change takes main's current version — what merging main would do,
-// so nothing is lost and the later merge applies identical changes — or, if
-// main has archived it, stays as it is for that merge to move (deleting it here
-// would conflict with main's rename); and the marker is added.
+// runMigrateReconcile brings a branch from before the cutover across by merging
+// main's migration commit — not the rest of main — so the migration becomes an
+// ancestor and later merges with main start from converted details (committing
+// the same bytes without that ancestry conflicts as soon as either side's
+// mirror is refreshed). Before merging it proves every details file the branch
+// changed kept the imported card's fields and has a card at all; after merging
+// it proves every mirror pins its imported card, undoing the merge otherwise.
 func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 	if env.branch == "" || env.onRest() || env.branch == "main" {
 		return errors.New("reconcile runs on a pre-cutover issue branch; a resting checkout only needs `git pull`")
@@ -519,23 +519,86 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	mainTip := mainView.Ref()
-	base, err := env.git("merge-base", "HEAD", mainTip)
+	migration, err := env.git("log", "-1", "--format=%H", "--diff-filter=A", mainView.Ref(), "--", tracker.CutoverMarkerPath)
+	if err != nil || migration == "" {
+		return fmt.Errorf("find main's migration commit (the one adding %s): %v", tracker.CutoverMarkerPath, err)
+	}
+	if across, err := env.ancestorOf(migration, "HEAD"); err != nil {
+		return err
+	} else if across {
+		cok(stderr, "nothing to reconcile: this branch already contains the cutover")
+		return nil
+	}
+	home := vocab.Issue().Discovery().Home
+	if dirty, err := env.git("status", "--porcelain", "--untracked-files=no"); err != nil {
+		return err
+	} else if dirty != "" {
+		return fmt.Errorf("commit or stash the uncommitted changes first (nothing was changed):\n%s", dirty)
+	}
+	base, err := env.git("merge-base", "HEAD", migration)
 	if err != nil {
 		return fmt.Errorf("%s shares no history with main: %w", env.branch, err)
 	}
-	home := vocab.Issue().Discovery().Home
-	if dirty, err := env.git("status", "--porcelain", "--", home, tracker.CutoverMarkerPath); err != nil {
-		return err
-	} else if dirty != "" {
-		return fmt.Errorf("commit or stash the uncommitted issue edits first (nothing was changed):\n%s", dirty)
-	}
-	entries, err := os.ReadDir(filepath.Join(env.root, filepath.FromSlash(home)))
-	if err != nil && !errors.Is(err, os.ErrNotExist) {
+	changed, err := env.git("diff", "--name-only", "-z", base, "HEAD", "--", home)
+	if err != nil {
 		return err
 	}
-	write := map[string][]byte{}
 	var refusals []string
+	for _, rel := range strings.Split(changed, "\x00") {
+		id, _, ok := issue.ParseFilename(path.Base(rel))
+		if rel == "" || !ok || path.Dir(rel) != home {
+			continue
+		}
+		present, err := env.has("HEAD", rel)
+		if err != nil {
+			return err
+		}
+		if !present {
+			continue // the branch removed it (its own archive move)
+		}
+		raw, err := env.main.ReadAt(env.head, rel)
+		if err != nil {
+			return err
+		}
+		card, ok := imported[id]
+		if !ok {
+			refusals = append(refusals, fmt.Sprintf("%s: #%s has no card on the issue tracker (created on this branch before the cutover?); file it with `sdlc issue new` and move this content there", rel, issue.CLIRef(id)))
+			continue
+		}
+		if _, err := issue.ReconcileLegacyDetails(raw, card, env.format); err != nil {
+			refusals = append(refusals, fmt.Sprintf("%s: %v.\n"+
+				"      This branch changed card fields before the cutover. If the change is wanted, apply it on the card\n"+
+				"      from a caught-up checkout (main, after `git pull`) with its verb — claim, set-status, set-title,\n"+
+				"      set-estimate, set-github — then revert the fields here to main's values, commit, and reconcile again", rel, err))
+		}
+	}
+	if len(refusals) > 0 {
+		return fmt.Errorf("cannot reconcile this branch (nothing was changed):\n  %s", strings.Join(refusals, "\n  "))
+	}
+	before := env.head
+	msg := fmt.Sprintf("migrate: bring %s across the issue tracker cutover", env.branch)
+	if out, err := env.git("merge", "--no-ff", "--no-edit", "-m", msg, migration); err != nil {
+		_, _ = env.git("merge", "--abort")
+		return fmt.Errorf("merging main's migration commit conflicts (nothing was changed):\n%s\n"+
+			"      Merge origin/main into this branch yourself, resolve the conflicts, and commit; that brings it across too", out)
+	}
+	if err := verifyMigratedMirrors(env, home, imported); err != nil {
+		_, _ = env.git("reset", "-q", "--hard", before)
+		return fmt.Errorf("%v\n      the merge was undone; nothing was changed", err)
+	}
+	cok(stderr, fmt.Sprintf("%s is across the cutover (merged main's migration commit %s)", env.branch, shortOID(migration)))
+	fmt.Fprintln(stdout, migration)
+	return nil
+}
+
+// verifyMigratedMirrors proves every details file in the checkout mirrors the
+// card the migration imported for it, with no card-owned field changed: a
+// pre-cutover branch can only have gained its mirrors from that merge.
+func verifyMigratedMirrors(env *migrateEnv, home string, imported map[string][]byte) error {
+	entries, err := os.ReadDir(filepath.Join(env.root, filepath.FromSlash(home)))
+	if err != nil {
+		return err
+	}
 	for _, e := range entries {
 		id, _, ok := issue.ParseFilename(e.Name())
 		if !ok || !e.Type().IsRegular() {
@@ -546,69 +609,14 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 		if err != nil {
 			return err
 		}
-		if issue.HasMirror(raw) {
-			continue
+		card, carded := imported[id]
+		if !issue.HasMirror(raw) || !carded {
+			return fmt.Errorf("%s is not a mirrored tracker issue after the merge", rel)
 		}
-		untouched, err := env.gitTest("diff", "--quiet", base, "HEAD", "--", rel)
-		if err != nil {
-			return err
+		if _, err := issue.RefreshMirror(raw, card, card); err != nil {
+			return fmt.Errorf("%s does not mirror its imported card: %v", rel, err)
 		}
-		if untouched {
-			onMain, err := env.has(mainTip, rel)
-			if err != nil {
-				return err
-			}
-			if !onMain {
-				continue // archived on main: the merge moves it
-			}
-			if write[rel], err = env.main.ReadAt(mainTip, rel); err != nil {
-				return err
-			}
-			continue
-		}
-		card, ok := imported[id]
-		if !ok {
-			refusals = append(refusals, fmt.Sprintf("%s: #%s has no card on the issue tracker (created on this branch before the cutover?); file it with `sdlc issue new` and move this content there", rel, issue.CLIRef(id)))
-			continue
-		}
-		next, err := issue.ReconcileLegacyDetails(raw, card, env.format)
-		if err != nil {
-			refusals = append(refusals, fmt.Sprintf("%s: %v; set them through the card's setters, then revert them here", rel, err))
-			continue
-		}
-		write[rel] = next
 	}
-	if len(refusals) > 0 {
-		return fmt.Errorf("cannot reconcile this branch (nothing was changed):\n  %s", strings.Join(refusals, "\n  "))
-	}
-	if _, present, err := tracker.ReadCutoverMarker(env.root); err != nil {
-		return err
-	} else if !present {
-		write[tracker.CutoverMarkerPath] = marker
-	}
-	if len(write) == 0 {
-		cok(stderr, "nothing to reconcile: this branch is already on the tracker's side of the cutover")
-		return nil
-	}
-	paths := make([]string, 0, len(write))
-	for p, raw := range write {
-		if err := os.MkdirAll(filepath.Dir(filepath.Join(env.root, filepath.FromSlash(p))), 0o755); err != nil {
-			return err
-		}
-		if err := os.WriteFile(filepath.Join(env.root, filepath.FromSlash(p)), raw, 0o644); err != nil {
-			return err
-		}
-		paths = append(paths, p)
-	}
-	sort.Strings(paths)
-	if _, err := env.git(append([]string{"add", "--"}, paths...)...); err != nil {
-		return err
-	}
-	if _, err := env.git(append([]string{"commit", "-q", "-m", "migrate: reconcile issue details onto the issue tracker", "--"}, paths...)...); err != nil {
-		return err
-	}
-	cok(stderr, fmt.Sprintf("reconciled %d file(s) on %s", len(paths), env.branch))
-	fmt.Fprintln(stdout, strings.Join(paths, "\n"))
 	return nil
 }
 

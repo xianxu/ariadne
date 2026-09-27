@@ -322,9 +322,10 @@ func TestIssueMigrateLandedLegacyClose(t *testing.T) {
 }
 
 // A pre-cutover branch carries older copies of issues it never touched (main
-// moved them on after it forked). Reconcile takes main's version of those —
-// or drops one main archived — and mirrors only what the branch changed, so
-// the later merge is clean (#252, found by smoke test A2).
+// moved them on after it forked). Reconcile checks only what the branch
+// changed, and its merge of main's migration commit brings main's versions of
+// the rest — including #5's archive move — so the later merge is clean (#252,
+// found by smoke test A2).
 func TestIssueMigrateReconcileLeavesUntouchedIssuesToMain(t *testing.T) {
 	r := legacyRepo(t)
 	five := "workshop/issues/000005-five.md"
@@ -360,8 +361,8 @@ func TestIssueMigrateReconcileLeavesUntouchedIssuesToMain(t *testing.T) {
 	if got, want := r.git("show", "HEAD:"+one), r.git("show", "origin/main:"+one); got != want {
 		t.Fatalf("#1 not taken from main:\n%s\n---\n%s", got, want)
 	}
-	if r.git("show", "HEAD:"+five) != r.git("show", "HEAD~1:"+five) {
-		t.Fatal("#5, archived on main, was rewritten instead of left for the merge to move")
+	if r.git("ls-tree", "--name-only", "HEAD", "--", five) != "" || r.git("ls-tree", "--name-only", "HEAD", "--", "workshop/history/issues/000005-five.md") == "" {
+		t.Fatal("#5, archived on main, was not moved to history by the cutover merge")
 	}
 	if b := r.git("show", "HEAD:"+two); !issue.HasMirror([]byte(b)) || !strings.Contains(b, "a design step on the branch") {
 		t.Fatalf("#2 not reconciled:\n%s", b)

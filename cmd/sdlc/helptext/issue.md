@@ -117,9 +117,12 @@ root holds exactly the planned cards), then publishes one main commit that
 mirrors every active details file and adds the marker. Rerun the same command
 after an interruption: each phase is recognized, nothing is rolled back.
 Archived details are never rewritten. Afterwards `git pull` each resting
-checkout, and run `--reconcile` once on each branch from before the cutover:
-it proves the branch changed no card-owned field and adds the mirrors and the
-marker in one ordinary commit, so merging main later applies identical changes.
+checkout. A branch from before the cutover refuses sdlc commands until it is
+brought across — now or on its next use — by `--reconcile` (or by merging
+origin/main): it proves every details file the branch changed kept the
+imported card's fields and has a card, then merges main's migration commit
+(not the rest of main), so later merges with main start from converted
+details. A conflict aborts the merge and says how to resolve it.
 
 LEGACY CHECKPOINTING AND PUBLISHING (repositories before the #252 cutover)
 
