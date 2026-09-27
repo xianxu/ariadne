@@ -233,7 +233,7 @@ Files: create `cmd/sdlc/issuemigrate.go`, `issuemigrate_test.go`, `internal/trac
 - [x] Define cutover sequence: freeze all writers; inventory and checkpoint every checkout; refuse unresolved legacy divergence; publish tracker snapshot; commit/publish ordinary main mirror conversion with format marker; reconcile each inventoried branch against its captured old card projection; verify and activate new writers. No automatic discard/reset/rebase of user work. A late/unknown checkout must reconcile or refuse before mutation.
 - [x] New binary refuses writes when cutover marker and tracker generation disagree. Old binaries cannot be made to honor a new marker: the operational freeze must include aliases, scripts and already-running agents until all entrypoints are upgraded. Retry resumes a matching manifest; after tracker writes resume never roll it back to the import snapshot.
 - [x] Remove/delegate shell/Python writers and `issue sync`/generic copied issue publication entrypoints. Update CI fetch/ID checks and all active agent guidance, including adapted skills that prescribe sync. Use xx-construct guidance for substrate edits and preserve generated-source boundaries.
-- [ ] Run `go test ./cmd/sdlc/... ./pkg/vocab/... -count=1`, vocabulary generation/conformance checks, and existing shell/Python checks covering modified portable entrypoints. Run the consumer sweep and classify remaining matches in the issue Log.
+- [x] Run `go test ./cmd/sdlc/... ./pkg/vocab/... -count=1`, vocabulary generation/conformance checks, and existing shell/Python checks covering modified portable entrypoints. Run the consumer sweep and classify remaining matches in the issue Log.
 
 ### Task 8: Full slot cycle and rollout package
 
@@ -241,7 +241,7 @@ Files: create `cmd/sdlc/tracker_e2e_test.go`; update `README.md`, `atlas/workflo
 
 - [x] Exercise two cloned slots and a bare remote: new → details publication → claim → branch/design → change-code → close → PR/merge → archive → resting refresh. Include a spin-off handoff while original code stays unshipped, a competing claim and later edits to the transferred issue.
 - [x] Assert main is unchanged by card-only operations, no copied source-commit publication, card states current across slots, original PR has no issue-file conflict, and refreshed rest is exactly zero ahead/behind. Add fresh CI clone without tracker ref and disconnected-read/mutation cases.
-- [ ] Run full Go suites above plus focused real-Git race/conformance tests; publish measured 10k-card benchmark results and verify process counts remain bounded. Update atlas at this boundary, not after rollout.
+- [x] Run full Go suites above plus focused real-Git race/conformance tests; publish measured 10k-card benchmark results and verify process counts remain bounded. Update atlas at this boundary, not after rollout.
 - [x] Write exact operator cutover/recovery procedure, including owner-binary build and generated instruction propagation. Inventory participating downstream repos read-only under their local instructions before scheduling any freeze. Product-owned consumers needing changes require issues and review in their owning repos; do not call ariadne tests proof of peer integration.
 - [ ] Record M4 verification and close its review boundary. Actual fleet migration is a separately coordinated operational step using the tested command; do not freeze another live session or migrate peer state without that coordination. Issue closure requires the migration acceptance criterion to be satisfied, not merely the command to exist.
 
