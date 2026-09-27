@@ -8,7 +8,6 @@ updated: 2026-09-27
 estimate_hours:
 ---
 
-
 # Hours attribution: ignore GitHub PR numbers; window starts at the claim
 
 ## Problem
