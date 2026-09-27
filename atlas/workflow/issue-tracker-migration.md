@@ -54,10 +54,12 @@ details in a cut-over repository refuse the legacy close/change-code paths
    `sdlc issue migrate`. It lists cards, inferences, duplicates and refusals and
    prints a digest; it changes nothing. Clones on other machines run it too:
    their local-only branches and dirty worktrees are invisible elsewhere.
-3. **Freeze every writer.** Stop agent sessions, aliases, scripts and cron
-   entries that run `sdlc` or the workflow Makefile in the participating
-   repositories. Old binaries cannot honor the marker, so the freeze — not the
-   binary — protects the window until every entrypoint runs the new build.
+3. **Freeze that repository's writers.** Stop agent sessions, aliases,
+   scripts and cron entries that run `sdlc` or the workflow Makefile in it and
+   its slots. The new binary still runs the legacy workflow wherever the marker
+   is absent, so once every entrypoint runs it, repositories cut over one at a
+   time — no fleet-wide freeze. Old binaries cannot honor the marker: the new
+   build must be installed everywhere first.
 4. **Resolve refusals under the old workflow:** publish unsynced card fields
    (`sdlc issue sync --push` on the old binary), land or drop branches that
    edit archived issues, renumber colliding active IDs, commit or discard dirty
@@ -74,6 +76,9 @@ details in a cut-over repository refuse the legacy close/change-code paths
    mirrors and the marker, so merging main later is clean.
 7. **Verify, then unfreeze:** `sdlc issue list` shows card statuses,
    `sdlc issue recovery list` is empty, a claim on an open issue succeeds.
+
+The step-by-step operator checklist is
+`workshop/plans/000252-issue-cards-tracker-ref-cutover.md` (archived with #252).
 
 **Recovery.** Before any tracker write after the cutover, the migration can be
 abandoned by deleting the `issue-tracker` branch and reverting the main commit.
