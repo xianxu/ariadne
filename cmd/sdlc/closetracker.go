@@ -141,12 +141,11 @@ func tempIndexFile() (string, func(), error) {
 // sidecars) and the project records edited in this repository — as blobs of
 // their bytes now, so a deferred evidence commit replays exactly these.
 func closeEvidence(env *trackerEnv, r closeResult, plansDir string) ([]tracker.EvidenceEntry, error) {
+	root := canonRoot(env.root)
 	rel := func(p string) (string, error) {
-		abs, err := filepath.Abs(p)
-		if err != nil {
-			return "", err
-		}
-		out, err := filepath.Rel(env.root, abs)
+		// Both sides canonical: Git's toplevel resolves symlinks, a caller's
+		// cwd-relative path may not (/tmp vs /private/tmp on macOS).
+		out, err := filepath.Rel(root, canonRoot(p))
 		if err != nil || strings.HasPrefix(out, "..") {
 			return "", fmt.Errorf("%s is outside the checkout", p)
 		}
