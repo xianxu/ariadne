@@ -4,11 +4,13 @@ import (
 	"bytes"
 	"context"
 	"errors"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // handedOff runs the spin-off handoff, then lands the owner's edit E on main.
@@ -110,10 +112,16 @@ func TestTransferGuardInterruptedRemovalProtectsOwnerEdits(t *testing.T) {
 }
 
 func TestTransferGuardWithoutTrackerIsNotApplicable(t *testing.T) {
+	legacyRepo(t)
+	if err := guardTransferredDetails(context.Background()); err != nil {
+		t.Fatalf("legacy repository: %v", err)
+	}
+	// A migrated checkout whose tracker vanished is not "no tracker": the
+	// guard refuses rather than skip the protection (#252 cutover guard).
 	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
 	r.git("push", "-q", "origin", "--delete", "issue-tracker")
-	if err := guardTransferredDetails(context.Background()); err != nil {
-		t.Fatalf("no tracker: %v", err)
+	if err := guardTransferredDetails(context.Background()); !errors.Is(err, tracker.ErrCutover) {
+		t.Fatalf("marker without tracker: %v", err)
 	}
 }
 

@@ -145,21 +145,34 @@ func TestDurableRunMergeCompletesTrackedCloseForEveryStrategy(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
+			tf, err := gitx.NewTrunkFileContext(context.Background(), root, "upstream", "issue-tracker")
+			if err != nil {
+				t.Fatal(err)
+			}
+			working := []byte("---\nid: 000001\nstatus: working\nupdated: 2026-09-23\n---\n\n# Procedure\n\n## Problem\nx\n")
+			if _, err := tf.Bootstrap(map[string][]byte{tracker.ManifestPath: tracker.ManifestBytes(), cardPath: working}, "bootstrap landing", func(gitx.BootstrapResult) error { return nil }); err != nil {
+				t.Fatal(err)
+			}
+			// The migration's main commit carries the marker; the resting branch
+			// and the PR branch both postdate the cutover.
+			markCutoverOn(t, roots[1], "upstream", "main")
+			git(t, root, "fetch", "-q", "upstream")
+			git(t, root, "branch", "-f", "main", "upstream/main")
+			git(t, root, "rebase", "-q", "upstream/main")
+			git(t, root, "push", "-q", "-f", "upstream", landingTestBranch)
+			gh.pr.HeadOID, gh.pr.BaseOID = procedureHead(t, root), git(t, root, "rev-parse", "upstream/main")
+			// Close published codecomplete bound to the evidence it reviewed.
 			card := []byte("---\nid: 000001\nstatus: codecomplete\nactual_hours: 1\nupdated: 2026-09-23\n---\n\n# Procedure\n\n## Problem\nx\n")
 			card, err = issue.SetCardCompletion(card, issue.Completion{Token: "close-landing", Repository: env.target.Repository,
 				ReviewedHEAD: gh.pr.HeadOID, EvidenceCommit: gh.pr.HeadOID})
 			if err != nil {
 				t.Fatal(err)
 			}
-			tf, err := gitx.NewTrunkFileContext(context.Background(), root, "upstream", "issue-tracker")
-			if err != nil {
+			if err := tf.UpdateMany("close #1", func(*gitx.TrunkView) (gitx.TrunkWrite, error) {
+				return gitx.TrunkWrite{Write: map[string][]byte{cardPath: card}, ExactBytes: true}, nil
+			}); err != nil {
 				t.Fatal(err)
 			}
-			if _, err := tf.Bootstrap(map[string][]byte{tracker.ManifestPath: tracker.ManifestBytes(), cardPath: card}, "bootstrap landing", func(gitx.BootstrapResult) error { return nil }); err != nil {
-				t.Fatal(err)
-			}
-			markCutover(t, root, "upstream") // the PR branch postdates the cutover
-			gh.pr.HeadOID = procedureHead(t, root)
 			if err := runMerge(io.Discard, io.Discard, landingFlags()); err != nil {
 				t.Fatal(err)
 			}

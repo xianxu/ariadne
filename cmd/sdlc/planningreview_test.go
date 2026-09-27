@@ -12,7 +12,9 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 type planningCLIResult struct {
@@ -23,16 +25,23 @@ type planningCLIResult struct {
 func startPlanningReviewCLI(t *testing.T, binary, pause string, prepare ...func(string)) (repo, barrier string, finish func() planningCLIResult) {
 	t.Helper()
 	repo, _ = syncRepo(t)
-	text := "---\nid: 000206\nstatus: working\n---\n## Spec\nDesign\n## Done when\n- Safe\n## Plan\n- [ ] Implement\n## Estimate\nReview this estimate\n"
-	writeSyncIssue(t, repo, filepath.Base(issuePath206), text)
-	writeSyncIssue(t, repo, "000207-unrelated.md", "---\nid: 000207\nstatus: open\n---\nOther work\n")
-	cardPath, card, _, _ := seededIssue(t, "000207", "unrelated")
-	bootstrapTracker(t, repo, map[string]string{cardPath: card})
+	// A tracker repository (#252): #206 under review and a #207 that a
+	// concurrent setter changes both have cards and mirrored details.
+	legacy206 := "---\nid: 000206\nstatus: working\n---\n\n# Issue sync verb\n\n## Problem\n\nx\n\n## Spec\nDesign\n## Done when\n- Safe\n## Plan\n- [ ] Implement\n## Estimate\nReview this estimate\n"
+	card206, details206, err := issue.SplitCardWithFormat([]byte(legacy206), "sha1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeSyncIssue(t, repo, filepath.Base(issuePath206), string(details206))
+	cardPath, card, _, details207 := seededIssue(t, "000207", "unrelated")
+	writeSyncIssue(t, repo, "000207-unrelated.md", details207)
+	bootstrapTracker(t, repo, map[string]string{cardPath: card, tracker.CardPath("000206", strings.TrimPrefix(strings.TrimSuffix(filepath.Base(issuePath206), ".md"), "000206-")): string(card206)})
 	for _, before := range prepare {
 		before(repo)
 	}
 	git(t, repo, "add", "--", syncIssuesDir)
 	git(t, repo, "commit", "-m", "review inputs")
+	git(t, repo, "switch", "-q", "-c", "000206-issue-sync-verb") // as start-plan prepares it
 	barrier = t.TempDir()
 	agentDir := barrier
 	script := `#!/bin/sh
