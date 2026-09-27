@@ -73,31 +73,36 @@ commit, details archived, rest 0/0 after a fast-forward. The imported #3 landed
 as PR #2 (publish gate anchored on its legacy close) → `done`, archived.
 `recovery list` empty. The sandbox repo is still up; delete it when done.
 
-### A3 — Legacy mode in a real peer slot (pair:1), before #252 ships
+### A3 — Legacy mode in a real peer slot (parley.nvim:1), before #252 ships
 
 Tests the #252 binary **and** its composed prompts/skills/Makefile against a real
 peer in legacy mode, isolated from `pair:0` and every other repo. A slot's
 `construct/deps` (`substrate ../ariadne`) resolves to its **private** ariadne clone
-(`~/workspace/worktree/pair-slot1/ariadne`), so only that slot sees #252. It cannot
+(`~/workspace/worktree/parley.nvim-slot1/ariadne`), so only that slot sees #252. It cannot
 test the real `--apply`: that writes pair's shared remote.
 
-- [ ] **Freeze `ariadne:0`:** don't pull, switch or rebuild `~/workspace/ariadne` until Phase B.
+- [x] **Freeze `ariadne:0`:** don't pull, switch or rebuild `~/workspace/ariadne` until Phase B.
+      Tag `pre-252-freeze` (on GitHub too) marks it: `git switch --detach pre-252-freeze` returns
+      any ariadne clone to the pre-#252 revision.
       (The `sdlc`/`weave`/`vocabulary` shell functions rebuild from it on every call — in the
       slot, always call the slot's own `bin/sdlc`.)
-- [ ] Push the #252 branch to GitHub: `git push -u origin 000252-issue-cards-tracker-ref`
-      (from the #252 worktree)
-- [ ] In `~/workspace/worktree/pair-slot1/ariadne`: `git fetch origin` →
+- [x] Push the #252 branch to GitHub: `git push -u origin 000252-issue-cards-tracker-ref`
+      (from the #252 worktree) — pushed at `4f7260ae`, full suite green
+- [ ] In `~/workspace/worktree/parley.nvim-slot1/ariadne`: `git restore .gitignore` (weave regenerates
+      its generated block in a dependency clone; safe to discard) → `git fetch origin` →
       `git switch --track origin/000252-issue-cards-tracker-ref`
-- [ ] In `~/workspace/worktree/pair-slot1/pair`: `weave compile` (exit 0) → `bin/sdlc` is the #252
-      build; the composed `CLAUDE.md` carries the "Issue tracker repositories (#252)" bullet
+- [ ] In `~/workspace/worktree/parley.nvim-slot1/parley.nvim`: `weave compile` (exit 0) → `bin/sdlc` is
+      the #252 build; the composed `CLAUDE.md` carries the "Issue tracker repositories (#252)" bullet
 - [ ] Legacy mode, read-only, with `bin/sdlc`: `issue list`, `issue show N`, `state`,
-      `project status` (if pair has projects), `sdlc actual --issue N` — same answers as `pair:0`
+      `project status` (if it has projects), `sdlc actual --issue N` — same answers as `parley.nvim:0`
 - [ ] Legacy mode on a local branch (no push): claim-free flow on a scratch branch —
       `issue lint-ids --base main --head HEAD`, the publish gate via `sdlc push --dry-run`
-- [ ] Pair's real dry run (read-only): `bin/sdlc issue migrate` → refusals match Phase C (C10)
-- [ ] Rehearse the apply on a **disposable copy** of pair (bare copy + clone, as A1):
+- [ ] parley.nvim's real dry run (read-only): `bin/sdlc issue migrate` → refusals match Phase C
+      (C11: the unlanded #276–#286 stack) — never `--apply` here
+- [ ] Soak: a couple of days of ordinary parley.nvim work in this slot, in legacy mode
+- [ ] Rehearse the apply on a **disposable copy** of parley.nvim (bare copy + clone, as A1):
       `--apply`, re-apply *already migrated*, `issue list`, one claim
-- [ ] Afterwards: switch `pair-slot1/ariadne` back to `main` and `weave compile` again, or
+- [ ] Afterwards: switch `parley.nvim-slot1/ariadne` back to `main` and `weave compile` again, or
       leave the slot on #252 until Phase B
 - [ ] Record results in #252's Log
 
@@ -121,7 +126,7 @@ Phase C cutover: without the marker, nothing about its workflow changes.
       42shots, kaggle, kbench, metis, nous, pair, parley.nvim, tools, xianxu.dev, you-decide
       (and astro, parli if they will use issues)
 - [ ] Spot-check two repos in legacy mode: `bin/sdlc issue list`, `bin/sdlc state`
-- [ ] Return `pair-slot1/ariadne` to `main` (if A3 left it on #252) and `weave compile` there
+- [ ] Return `parley.nvim-slot1/ariadne` to `main` (if A3 left it on #252) and `weave compile` there
 
 ---
 
