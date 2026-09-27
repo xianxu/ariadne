@@ -106,8 +106,15 @@ test the real `--apply`: that writes pair's shared remote.
 - [ ] parley.nvim's real dry run (read-only): `bin/sdlc issue migrate` → refusals match Phase C
       (C11: the unlanded #276–#286 stack) — never `--apply` here
 - [ ] Soak: a couple of days of ordinary parley.nvim work in this slot, in legacy mode
-- [ ] Rehearse the apply on a **disposable copy** of parley.nvim (bare copy + clone, as A1):
+- [x] Rehearse the apply on a **disposable copy** of parley.nvim (bare copy + clone, as A1):
       `--apply`, re-apply *already migrated*, `issue list`, one claim
+      **Result (2026-09-27):** mirror of GitHub + parley.nvim:0's local branches → 0 refusals (the
+      #276–#286 stack has landed); 290 cards (133 inferred, all archived), 49 details, 4 duplicate IDs;
+      apply ~12 s; re-apply *already migrated*; `issue list` identical to before; claim #289 card-only;
+      `issue new` → #292. `--reconcile` on the old `000209-safe-defaults-plan` refused cleanly: merging
+      main's migration commit conflicts in `workshop/lessons.md` (pre-cutover divergence) — resolve by
+      merging origin/main by hand, as landing it would need anyway. At the real apply, the slot's
+      uncommitted #264 edits will refuse: commit/sync them first.
 - [ ] Afterwards: switch `parley.nvim-slot1/ariadne` back to `main` and `weave compile` again, or
       leave the slot on #252 until Phase B
 - [ ] Record results in #252's Log
