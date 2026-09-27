@@ -201,11 +201,20 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 
 	// 6. Dry-run pre-empts side effects (apart from the gates already
 	//    run above, which are read-only).
+	// A legacy repository (#252: no issue tracker) lands its design as before:
+	// commit the issue locally and publish that narrow commit (step 7).
+	tracked, err := repositoryTracked(changeCodeContext(f), f.IssuesDir)
+	if err != nil {
+		die(stderr, err.Error())
+	}
 	if f.DryRun {
 		cinfo(stderr, "dry-run — branch creation skipped")
-		if id := issueIDFromPath(issuePath); id > 0 {
+		if id := issueIDFromPath(issuePath); id > 0 && tracked {
 			fmt.Fprintf(stdout, "Would commit issue #%d's design on %s under %q (local only; nothing is published)\n",
 				id, name, designCheckpointMessage(id))
+		} else if id > 0 {
+			fmt.Fprintf(stdout, "Would commit issue #%d under %q and publish only that new commit\n",
+				id, issueSyncMessage(id, "spec/plan at change-code"))
 		}
 		fmt.Fprintf(stdout, "Would create branch %s (mode=%s)\n", name, wt)
 		return nil
@@ -225,6 +234,9 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		}
 	}
 	recordChangeCodeFlow(stderr, f, issuePath, name, issueFlow)
+	if !tracked {
+		syncLegacyIssue(stderr, f, issuePath)
+	}
 
 	// 8. Create branch.
 	switch wt {
@@ -238,7 +250,11 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		}
 	}
 
-	// 9. Checkpoint the accepted design where the branch now carries it.
+	// 9. Checkpoint the accepted design where the branch now carries it
+	//    (a legacy repository already committed and published it at step 7).
+	if !tracked {
+		return nil
+	}
 	if err := checkpointDesign(f, name, issuePath); err != nil {
 		cwarn(stderr, fmt.Sprintf("the design was not checkpointed: %v\n"+
 			"      commit the issue and plan on %s before implementing", err, name))

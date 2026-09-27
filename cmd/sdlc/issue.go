@@ -234,6 +234,11 @@ title overrides it) and the issue body is seeded under ## Problem.`,
 // checkout. Nothing is published to main — details land there through the
 // branch's own PR, or `sdlc issue move-detail`, and claim waits for that.
 func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags, args []string) error {
+	if tracked, err := repositoryTracked(ctx, f.IssuesDir); err != nil {
+		return err
+	} else if !tracked {
+		return runLegacyIssueNew(stdout, stderr, f, args)
+	}
 	title := ""
 	if len(args) > 0 {
 		title = args[0]

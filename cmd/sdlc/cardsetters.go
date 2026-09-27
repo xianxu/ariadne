@@ -32,6 +32,11 @@ func runCardUpdate(ctx context.Context, stdout, stderr io.Writer, issuesDir stri
 	if err != nil {
 		return err
 	}
+	if tracked, err := repositoryTracked(ctx, dirs.Abs[0]); err != nil {
+		return err
+	} else if !tracked {
+		return errLegacyOnly("setting "+what, "edit the field in the details file's frontmatter, then `sdlc issue sync --issue N`")
+	}
 	env, err := openTracker(ctx)
 	if err != nil {
 		return err

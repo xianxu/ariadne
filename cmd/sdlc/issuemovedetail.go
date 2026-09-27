@@ -91,6 +91,11 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	if err != nil {
 		return err
 	}
+	if tracked, err := repositoryTracked(ctx, dirs.Abs[0]); err != nil {
+		return err
+	} else if !tracked {
+		return errLegacyOnly("sdlc issue move-detail", "`sdlc issue new` already published the issue; publish later edits with `sdlc issue sync --issue N --push`")
+	}
 	env, err := openTracker(ctx)
 	if err != nil {
 		return err

@@ -93,6 +93,12 @@ test the real `--apply`: that writes pair's shared remote.
       `git switch --track origin/000252-issue-cards-tracker-ref`
 - [ ] In `~/workspace/worktree/parley.nvim-slot1/parley.nvim`: `weave compile` (exit 0) → `bin/sdlc` is
       the #252 build; the composed `CLAUDE.md` carries the "Issue tracker repositories (#252)" bullet
+- [x] First soak run found legacy `issue new` broken (2026-09-27) → legacy mode restored; re-run from
+      the next step with the new push of the #252 branch (`git fetch && git pull` in the slot's ariadne,
+      then `weave compile`)
+- [ ] Before the soak, and again before Phase B: the differential check passes —
+      `cmd/sdlc/testdata/legacy-equivalence.sh <pre-252 sdlc> <#252 sdlc>` (build the old one from
+      `pre-252-freeze`; see the script header)
 - [ ] Legacy mode, read-only, with `bin/sdlc`: `issue list`, `issue show N`, `state`,
       `project status` (if it has projects), `sdlc actual --issue N` — same answers as `parley.nvim:0`
 - [ ] Legacy mode on a local branch (no push): claim-free flow on a scratch branch —

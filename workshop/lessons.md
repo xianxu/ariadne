@@ -214,4 +214,9 @@ The simplest durable authority beats a clever scan of consequences.
   change as a shared ancestor (merge it), not a byte-identical copy. #252's
   first reconcile committed main's conversion bytes and conflicted at the
   first mirror refresh (#252, leftover-branch matrix).
+- When a rollout changes shape (big-bang → incremental), re-audit every
+  premise the old shape let you drop: #252 M2 made verbs tracker-only for a
+  simultaneous cutover, the per-repo rollout silently needed them legacy-capable,
+  and only a live soak found it. For "behaves like the old binary" claims, test
+  differentially against the old binary (`testdata/legacy-equivalence.sh`).
 

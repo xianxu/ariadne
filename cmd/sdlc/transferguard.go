@@ -26,14 +26,14 @@ var guardTransferredDetailsFn = guardTransferredDetails
 // or any HEAD (main after a local merge for a direct push, a stacked branch)
 // whose every change to the details since main was authored on that branch.
 func guardTransferredDetails(ctx context.Context) error {
+	// Decided before opening the tracker environment, which needs main's
+	// upstream: a legacy repository has no handoffs and needs no such setup.
+	if tracked, err := repositoryTracked(ctx, "."); err != nil || !tracked {
+		return err
+	}
 	env, err := openTracker(ctx)
 	if err != nil {
 		return err
-	}
-	if ok, err := env.repo.Initialized(); err != nil {
-		return err
-	} else if !ok {
-		return nil // no tracker, so no handoffs to protect
 	}
 	snap, err := env.repo.Snapshot()
 	if err != nil {

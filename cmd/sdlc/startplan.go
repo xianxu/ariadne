@@ -96,7 +96,10 @@ func runStartPlan(ctx context.Context, stdout io.Writer, issue int) {
 	// where the trigger has to be delivered. Sits with planPointer: WHERE to
 	// author, then HOW OFTEN to save.
 	fmt.Fprintln(stdout)
-	cinfo(stdout, syncPointer(issue))
+	// A legacy repository checkpoints with `issue sync` as before #252; an
+	// unreadable mode reads as tracked (the stricter advice).
+	tracked, err := repositoryTracked(ctx, ".")
+	cinfo(stdout, syncPointer(issue, tracked || err != nil))
 
 	// #113: a non-blocking estimate nudge. The estimate gate moved
 	// claim → change-code, and start-plan is where it's naturally set (post-
@@ -240,7 +243,17 @@ func planPointer(issue int) string {
 // #252). Pure — the only input is the issue number — so the wording is
 // table-testable without IO. Continuation lines indent 4 to align under
 // cinfo's `==> ` prefix.
-func syncPointer(issue int) string {
+func syncPointer(issue int, tracked bool) string {
+	if !tracked {
+		flag := "--issue N"
+		if issue > 0 {
+			flag = fmt.Sprintf("--issue %d", issue)
+		}
+		return fmt.Sprintf("Checkpoint the design as it lands: `sdlc issue sync %s`. It commits\n"+
+			"    the issue body locally (no push, no network) so a compaction or a closed\n"+
+			"    terminal can't lose it. Run it whenever the Spec/Plan/Log has moved —\n"+
+			"    `sdlc change-code` publishes at the end, but only what survived to it.", flag)
+	}
 	id := "N"
 	if issue > 0 {
 		id = fmt.Sprintf("%d", issue)
@@ -256,6 +269,11 @@ func syncPointer(issue int) string {
 func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
 	dirs, err := resolveIDDirs(envOr("WF_ISSUES_DIR", "workshop/issues"), envOr("WF_HISTORY_DIR", "workshop/history"))
 	if err != nil {
+		return err
+	}
+	// A legacy repository plans as before #252: start-plan frames the design
+	// and change-code creates the branch.
+	if tracked, err := repositoryTracked(ctx, dirs.Abs[0]); err != nil || !tracked {
 		return err
 	}
 	env, err := openTracker(ctx)

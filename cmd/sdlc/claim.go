@@ -84,6 +84,11 @@ var claimRunner gitRunner = execGitRunner{}
 // only once its creation is complete — its details have landed on main — so a
 // card-only or local-only issue can never be worked by a second thread.
 func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) error {
+	if tracked, err := repositoryTracked(ctx, f.IssuesDir); err != nil {
+		return err
+	} else if !tracked {
+		return runLegacyClaim(stdout, stderr, f)
+	}
 	if f.Issue <= 0 || f.NoStart {
 		return fmt.Errorf("claim requires --issue N and an open issue card")
 	}

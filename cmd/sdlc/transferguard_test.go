@@ -241,4 +241,3 @@ func ownerBranchEdit(t *testing.T, r *trackerRepo) {
 	writeRepoFile(t, r.root, spinOffDetails, "owner's design\n")
 	r.git("commit", "-qam", "owner designs")
 }
-

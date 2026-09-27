@@ -31,6 +31,17 @@ derivation in `internal/issue/migrate.go`.
   `{version, tracker_root}` beside the details conversion. The marker is what
   makes the era explicit to the binary.
 
+## Legacy mode
+
+Until a repository cuts over, the #252 binary runs its pre-#252 workflow
+(`cmd/sdlc/legacymode.go`): one mode decision (`repositoryTracked`: a tracker
+on the publication remote), then `issue new`, `claim`, `set-status` and
+`change-code`'s publication run the code restored from `pre-252-freeze`,
+`start-plan` gives the `issue sync` advice without moving the checkout, and the
+tracker-only verbs (`issue set-*`, `move-detail`) refuse with the legacy way.
+`cmd/sdlc/testdata/legacy-equivalence.sh` proves it differentially against the
+pre-#252 binary. Deleted with the legacy writers after the fleet cutover.
+
 ## The cutover guard
 
 Commands open trackers guarded (`Repository.GuardCutover`): every read and

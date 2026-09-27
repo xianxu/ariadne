@@ -567,3 +567,24 @@ gate, the card-edit remedy (apply on the card from a caught-up checkout,
 revert on the branch), a cardless branch-only issue blocked by CI's id check,
 and the back-out (which needs `git fetch --prune` in every clone).
 
+### 2026-09-27 — Legacy mode: the #252 binary runs the pre-#252 workflow
+
+Reason: the A3 soak (parley.nvim:1) found `issue new` failing in a legacy
+repository; an audit found `issue new`/`fetch`, `claim`, `start-plan --issue`,
+`set-status` and the new setters/`move-detail` tracker-only — M2 made them so
+under the original fleet-wide simultaneous cutover, and removed their legacy
+tests ("those verbs now require a tracker"). The per-repository rollout (the
+2026-09-26 Revision) depends on the opposite. Delta: one mode decision,
+`repositoryTracked` (the readers' rule: a tracker on the publication remote;
+a marker without one is an error), and in a legacy repository `issue new`,
+`claim` and `set-status` run their pre-#252 code (restored verbatim from
+`pre-252-freeze`, `legacymode.go`), `start-plan` skips branch preparation and
+gives the `issue sync` checkpoint advice, `change-code` restores its step-7
+sync and skips the tracker-era checkpoint, the setters and `move-detail`
+refuse with the legacy way, and the transfer guard needs no upstream. Proof:
+`cmd/sdlc/testdata/legacy-equivalence.sh` runs two scenarios (19 steps
+across every legacy verb) with the pre-#252 binary and the new one: every
+step's exit code and output, and the published end state, are identical; the
+pre-fix build fails it. The legacy tests M2 converted are restored beside
+their tracker versions (`legacymode_test.go`).
+

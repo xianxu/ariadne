@@ -78,6 +78,11 @@ func NewSetStatusCmd() *cobra.Command {
 // The guards read the card's current status and, for a reopen, this checkout's
 // details Log. codecomplete and done stay owned by close and merge.
 func runSetStatus(ctx context.Context, stdout, stderr io.Writer, f *setStatusFlags) error {
+	if tracked, err := repositoryTracked(ctx, f.IssuesDir); err != nil {
+		return err
+	} else if !tracked {
+		return runLegacySetStatus(stdout, stderr, f)
+	}
 	var prev string
 	decide := func(card tracker.Record, body string) ([]byte, error) {
 		next, p, err := statusDecision(card.Raw, body, f.Status, f.Force, time.Now().Format("2006-01-02"), startedClock())
