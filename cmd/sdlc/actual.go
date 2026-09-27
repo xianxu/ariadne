@@ -166,12 +166,15 @@ func actualTrackerInputs(ctx context.Context, repoTop, issueNum string) (refs []
 	if !rs.Tracker {
 		return nil, "", false, ""
 	}
+	if rs.Stale {
+		warning = staleTrackerNote + "; measured against its last-fetched claim/close commits"
+	}
 	rec, ok := rs.Get(fmt.Sprintf("%06d", id))
 	if !ok || rec.Card == nil {
-		return []string{repo.TrackingRef()}, "", false, ""
+		return []string{repo.TrackingRef()}, "", false, warning
 	}
 	s, _ := rec.Field("started")
-	return []string{repo.TrackingRef()}, strings.TrimSpace(s), true, ""
+	return []string{repo.TrackingRef()}, strings.TrimSpace(s), true, warning
 }
 
 // startedAnchor reads the explicit `started:` engagement stamp (#116) from an

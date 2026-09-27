@@ -478,9 +478,12 @@ func runIssueList(ctx context.Context, stdout, stderr io.Writer, f *issueListFla
 	if f.Status != "" && !isValidStatus(f.Status) {
 		die(stderr, fmt.Sprintf("invalid status %q (valid: %s)", f.Status, strings.Join(vocab.Issue().AllStatuses(), ", ")))
 	}
-	issues, err := listIssues(ctx, f.IssuesDir)
+	issues, stale, err := listIssueStates(ctx, f.IssuesDir)
 	if err != nil {
 		die(stderr, fmt.Sprintf("list issues: %v", err))
+	}
+	if stale {
+		cwarn(stderr, staleTrackerNote)
 	}
 	n := 0
 	for _, is := range issues {

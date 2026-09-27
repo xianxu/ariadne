@@ -69,6 +69,7 @@ type issueMeta struct {
 	// DepsUnknown: a card with no details anywhere (#252) — its creation is
 	// incomplete, so "no deps" would be a guess. It is never workable frontier.
 	DepsUnknown bool
+	StaleCard   bool // the card came from the last-fetched tracker
 }
 
 type boardRow struct {
@@ -124,6 +125,9 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 				}
 				if duplicate && row.Warning == "" {
 					row.Warning = "duplicate logical issue reference (first " + display[row.Identity] + ")"
+				}
+				if meta.StaleCard && row.Warning == "" {
+					row.Warning = staleTrackerNote
 				}
 			}
 		}
@@ -317,7 +321,7 @@ func lookupIssueMeta(ctx context.Context, refText, currentRepoRoot string) (issu
 		}
 		decoded.Deps = detail.Deps
 	}
-	meta := issueMeta{Identity: canonicalRepoIssueIdentity(repoDir, ref.ID), Status: decoded.Status, Deps: decoded.Deps, DepsUnknown: detailsFM == ""}
+	meta := issueMeta{Identity: canonicalRepoIssueIdentity(repoDir, ref.ID), Status: decoded.Status, Deps: decoded.Deps, DepsUnknown: detailsFM == "", StaleCard: rs.Stale}
 	meta.EstimateHours, _, _, err = projectdoc.NumberValue(decoded.EstimateHours, "estimate_hours")
 	if err != nil {
 		return issueMeta{}, fmt.Errorf("%s has %w", refText, err)

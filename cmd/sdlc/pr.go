@@ -166,7 +166,8 @@ func collectGitHubIssueNumbers(ctx context.Context, paths []string) ([]string, e
 		rs, loaded := records[dir]
 		if !loaded {
 			var err error
-			if rs, err = loadIssueRecords(ctx, dir, tracker.PreferFresh); err != nil {
+			// Fresh: the links are published in the PR body; a stale card could drop one.
+			if rs, err = loadIssueRecords(ctx, dir, tracker.Fresh); err != nil {
 				return nil, fmt.Errorf("read the GitHub links of %s: %w", dir, err)
 			}
 			records[dir] = rs

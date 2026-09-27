@@ -170,12 +170,13 @@ type baseContention struct {
 	Branch      string
 	DirtyCode   int
 	Others      []inFlightIssue
+	StaleCards  bool // the in-flight set came from the last-fetched tracker
 }
 
 // Clean reports whether the base is a calm place to plan against: on `main`, no
 // dirty code, no other claimed base issues.
 func (c baseContention) Clean() bool {
-	return c.Unavailable == "" && c.Branch == "main" && c.DirtyCode == 0 && len(c.Others) == 0
+	return c.Unavailable == "" && c.Branch == "main" && c.DirtyCode == 0 && len(c.Others) == 0 && !c.StaleCards
 }
 
 // baseContentionSummary renders the one-line heads-up. Pure.
@@ -202,6 +203,9 @@ func baseContentionSummary(c baseContention) string {
 			refs = append(refs, issueRef(o.ID))
 		}
 		parts = append(parts, fmt.Sprintf("%d other issue(s) in-flight (%s)", n, strings.Join(refs, ", ")))
+	}
+	if c.StaleCards {
+		parts = append(parts, staleTrackerNote)
 	}
 	return fmt.Sprintf("base (%s): %s — planning against a moving base.", c.Repo, strings.Join(parts, "; "))
 }
@@ -433,7 +437,13 @@ func gatherBaseContention(ctx context.Context, root string, excludeIssue int) ba
 		c.DirtyCode = len(assessDirty(strings.TrimSpace(string(out)), issuesDir, historyDir).Blocking)
 	}
 	excludeID := fmt.Sprintf("%06d", excludeIssue)
-	if issues, err := listIssues(ctx, filepath.Join(root, issuesDir)); err == nil {
+	issues, stale, err := listIssueStates(ctx, filepath.Join(root, issuesDir))
+	if err != nil {
+		c.Unavailable = "read the base's issues: " + err.Error()
+		return c
+	}
+	c.StaleCards = stale
+	{
 		for _, is := range issues {
 			// #122 carve-out: in-flight = "working" specifically (the contention warning
 			// is about actively-worked peers; blocked is waiting) — not a category test.

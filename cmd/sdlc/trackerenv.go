@@ -37,6 +37,10 @@ func (e *trackerEnv) onRest() bool { return e.branch != "" && e.branch == e.rest
 // network IO; the first snapshot or candidate fetches.
 func openTracker(ctx context.Context) (*trackerEnv, error) { return openTrackerAt(ctx, ".") }
 
+// staleTrackerNote labels a read-only view built from the last-fetched
+// tracker because the fresh fetch failed (#252): stale, never silent.
+const staleTrackerNote = "issue tracker unreachable: card statuses are stale (as last fetched)"
+
 // openTrackerAt pins the checkout containing dir (another repository's, for
 // readers that inspect a dependency chain).
 func openTrackerAt(ctx context.Context, dir string) (*trackerEnv, error) {

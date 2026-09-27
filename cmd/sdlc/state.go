@@ -227,11 +227,6 @@ var titleRE = regexp.MustCompile(`(?m)^# (.+)$`)
 // details file in issuesDir, plus
 // open cards whose details are not in this checkout (#252: a card-only issue is
 // still being created). Card-owned fields come from the card. Sorted by ID.
-func listIssues(ctx context.Context, issuesDir string) ([]IssueState, error) {
-	out, _, err := listIssueStates(ctx, issuesDir)
-	return out, err
-}
-
 // listIssueStates also reports whether the cards came from a stale tracker read.
 // The repository is the one containing issuesDir (a dependency's, for
 // start-plan's contention check).

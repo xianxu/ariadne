@@ -18,6 +18,8 @@ const IssueProvenanceBranchPrefix = "branch-prefix"
 type IssueRecord struct {
 	Ref            string
 	DeclaredStatus string
+	// StaleStatus: the status came from the last-fetched tracker (#252).
+	StaleStatus bool
 }
 
 // IssueLookup returns every same-repository issue matching a six-digit ID.
@@ -49,7 +51,7 @@ func LookupRepoIssues(ctx context.Context, repoRoot, id string) ([]IssueRecord, 
 		if status == "" || !containsString(vocab.Issue().AllStatuses(), status) {
 			return make([]IssueRecord, 0), fmt.Errorf("validate same-repo issue %q: invalid or missing status %q", rec.DetailPath, status)
 		}
-		records = append(records, IssueRecord{Ref: ref, DeclaredStatus: status})
+		records = append(records, IssueRecord{Ref: ref, DeclaredStatus: status, StaleStatus: rs.Stale && rec.Card != nil})
 		if rec.Card != nil {
 			break // one card is one record, whatever details copies exist
 		}
@@ -86,6 +88,7 @@ type IssueAssociation struct {
 	Ref            string `json:"ref"`
 	DeclaredStatus string `json:"declared_status"`
 	Provenance     string `json:"provenance"`
+	StaleStatus    bool   `json:"stale_status,omitempty"`
 }
 
 // AssociateBranchIssue associates only a whole issue-prefixed branch with one
@@ -120,6 +123,7 @@ func AssociateBranchIssue(branch string, lookup IssueLookup) ([]IssueAssociation
 		Ref:            matches[0].Ref,
 		DeclaredStatus: matches[0].DeclaredStatus,
 		Provenance:     IssueProvenanceBranchPrefix,
+		StaleStatus:    matches[0].StaleStatus,
 	}
 	if err := validateIssueAssociation(association); err != nil {
 		return associations, fmt.Errorf("validate same-repo issue association %s: %w", id, err)
