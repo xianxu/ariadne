@@ -230,11 +230,14 @@ total: 10.77
 - [x] M1 — Card/mirror model and tracker repository with CAS/recovery tests
 - [x] M2 — Creation, claim readiness, early design branch and move-detail handoff
 - [x] M3 — Composed readers, activity evidence and close/landing recovery
-- [ ] M4 — Migration tooling, legacy writer retirement, instructions and full slot-cycle proof
+- [x] M4 — Migration tooling, legacy writer retirement, instructions and full slot-cycle proof
 - [ ] Coordinate and verify production migration before issue closure
 
 ## Log
 
+
+- 2026-09-26: closed M4 — M4 migration + cutover (see M4 Revisions); round-10 REWORK fixed in 4824965e: MirrorDetails pins the final (bound) card for main and reconcile, population invariant pin==identity(final card), imported-close e2e merges migrated main, lands and settles to done (mutation-checked); landed legacy closes bind main record; lint-ids refuses cardless details (exit-code test); fallbacks detect cut-over like CutOver; Roots helper + guard cache (54 ms/1 process per generation). Full go test ./cmd/sdlc/... green at 4824965e (18 pkgs; skips baseline #210 and sandbox-only processgroup ps test); pkg green. --no-actual: sdlc actual under-attributes this issue (0.49h cumulative).; review verdict: SHIP
+- 2026-09-26: M4 round 11 SHIP; its two advisory Minors fixed in the close commit: a landed legacy close refuses while any branch carrying it holds code main lacks (pure case + e2e), and a test pins the shell fallbacks' copies of the tracker vocabulary (ref glob, marker name) — mutation-checked. Reviewed at the issue close.
 ### 2026-09-25
 - 2026-09-25: closed M3 — M3 tracker-era close/landing/readers; round-8 fixes 0ab603a5 (BR-29 landing-gated completion, BR-30 three-way evidence replay, fleet ctx + internal context guard, Fresh done-guard, plan identifiers), each with a test that fails without its fix; go test ./cmd/sdlc/... (-timeout 30m) and ./pkg/... green except baseline #210 and the sandbox-only processgroup ps test (skipped). --no-actual: sdlc actual under-attributes this window (0.49h cumulative), a guessed value would pollute calibration.; review verdict: SHIP
 - 2026-09-26: M3 round 9 SHIP; its advisory Minor (evidence replay silently keeping a superseded pin) fixed in the close commit: the replay warns and records a `Close-Kept:` trailer (`EvidenceEntry.Superseded`), unit + e2e tested; full suite green (-timeout 30m). Reviewed at the M4 boundary.

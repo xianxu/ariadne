@@ -345,23 +345,34 @@ func legacyCloseAnchors(env *migrateEnv, main string, branches []string, issuePa
 		if err != nil {
 			return nil, fmt.Errorf("the close %s has no parent to have reviewed: %w", shortOID(anchor), err)
 		}
-		changed, err := env.git("diff", "--name-only", "-z", anchor, ref)
-		if err != nil {
-			return nil, err
-		}
-		var paths []string
-		for _, p := range strings.Split(changed, "\x00") {
-			if p != "" {
-				paths = append(paths, p)
-			}
-		}
 		onMain := ref == main
 		if !onMain {
 			if onMain, err = env.ancestorOf(anchor, main); err != nil {
 				return nil, err
 			}
 		}
-		anchors = append(anchors, tracker.MigrationAnchor{Ref: ref, Anchor: anchor, Parent: parent, CodeAfter: publishGateHasCodeSurface(paths), OnMain: onMain})
+		// What code follows the close on this ref: for main's own record, none
+		// (its later commits are other work); for a landed branch close, what
+		// the branch holds that main does not; otherwise, everything after it.
+		codeAfter := false
+		if ref != main {
+			span := anchor + ".." + ref
+			if onMain {
+				span = main + "..." + ref
+			}
+			changed, err := env.git("diff", "--name-only", "-z", span)
+			if err != nil {
+				return nil, err
+			}
+			var paths []string
+			for _, p := range strings.Split(changed, "\x00") {
+				if p != "" {
+					paths = append(paths, p)
+				}
+			}
+			codeAfter = publishGateHasCodeSurface(paths)
+		}
+		anchors = append(anchors, tracker.MigrationAnchor{Ref: ref, Anchor: anchor, Parent: parent, CodeAfter: codeAfter, OnMain: onMain})
 	}
 	return anchors, nil
 }

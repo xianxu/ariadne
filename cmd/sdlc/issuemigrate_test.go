@@ -289,3 +289,34 @@ func TestIssueMigrateImportsAProvableLegacyClose(t *testing.T) {
 		t.Fatalf("an unprovable close did not block: %v\n%s", err, out)
 	}
 }
+
+// A legacy close that landed but was never marked done binds main's record,
+// unless its branch still carries code main does not have (#252 M4).
+func TestIssueMigrateLandedLegacyClose(t *testing.T) {
+	r := legacyRepo(t)
+	r.git("switch", "-q", "-c", "000001-one")
+	writeRepoFile(t, r.root, "cmd/a.go", "package a\n")
+	r.git("add", "cmd/a.go")
+	r.git("commit", "-qm", "#1: implement")
+	closed := "---\nid: 000001\nstatus: codecomplete\nactual_hours: 2\ncreated: 2026-09-01\n---\n\n# One\n\n## Problem\n\nFirst.\n\n## Log\n- closed\n"
+	writeRepoFile(t, r.root, "workshop/issues/000001-one.md", closed)
+	r.git("commit", "-qam", "#1: close")
+	r.git("switch", "-q", "main")
+	r.git("merge", "-q", "--no-ff", "--no-edit", "000001-one") // landed; the done flip never ran
+	writeRepoFile(t, r.root, "cmd/later.go", "package later\n")
+	r.git("add", "cmd/later.go")
+	r.git("commit", "-qm", "other work on main")
+	r.git("push", "-q", "origin", "main", "000001-one")
+	if _, out, err := migrateDryRun(t); err != nil {
+		t.Fatalf("a landed close refused: %v\n%s", err, out)
+	}
+	r.git("switch", "-q", "000001-one")
+	writeRepoFile(t, r.root, "cmd/unlanded.go", "package unlanded\n")
+	r.git("add", "cmd/unlanded.go")
+	r.git("commit", "-qm", "#1: code after the close, never landed")
+	r.git("push", "-q", "origin", "000001-one")
+	r.git("switch", "-q", "main")
+	if _, out, err := migrateDryRun(t); err == nil || !strings.Contains(out, "carries code after it") {
+		t.Fatalf("unlanded code after a landed close did not block: %v\n%s", err, out)
+	}
+}

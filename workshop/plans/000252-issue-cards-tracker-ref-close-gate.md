@@ -395,6 +395,83 @@ rounds:
       boundary: M3
       recipe: milestone-review
       blocked: false
+    - "n": 10
+      timestamp: "2026-09-26T18:17:37-07:00"
+      agent: claude
+      findings:
+        - id: BR-34
+          severity: Critical
+          title: 'Codecomplete migration: main conversion mirrors the unbound card; tracker holds the bound card (missing baseline, merge conflict)'
+          detail: 'This is the 4th finding in family deferred-effect-input-drift. migration.go:133-157 derives `mirrored` from the pre-binding card, then replaces `card` with SetCardCompletion''s output, so main''s card_mirror names a blob never written, while --reconcile on the branch mirrors the bound blob. Result: refresh refuses on the missing baseline, and the PR merge conflicts on the card_mirror line. Rule for the class: any artifact that pins a source identity (OID/digest) must be computed from the source''s final bytes by one constructor called after the last mutation, and the pure plan must assert pin == identity(final). Fix by attaching the mirror after binding. Add a population invariant (each conversion''s MirrorBaselineOID == CardBlobOID(card)) and extend TestIssueMigrateImportsAProvableLegacyClose through merge and landing.'
+          family: deferred-effect-input-drift
+          round: 10
+        - id: BR-35
+          severity: Minor
+          title: Moved-main apply error promises resumption that sameTrackerFiles refuses when issue files changed
+          detail: issuemigrate.go:466 says the new plan resumes from the existing tracker; any change to active or archived details changes the plan's cards, so the bootstrap check refuses and only the atlas's manual abandonment works. The message should name that path.
+          family: next-action-hint-correctness
+          round: 10
+        - id: BR-36
+          severity: Minor
+          title: Cutover guard adds a rev-list process per guarded read, outside the measured envelope
+          detail: cutover.go:105 runs HasRoot on every read(), including each CAS retry; the plan's 2-process, 0.85 s measurement predates the guard.
+          family: operating-envelope-enforcement
+          round: 10
+        - id: BR-37
+          severity: Minor
+          title: applyTrackerBootstrap re-implements TrunkFile.HasRoot's root listing
+          detail: issuemigrate.go:407 runs rev-list --max-parents=0 through env.git; a TrunkFile Roots helper shared with HasRoot would keep one implementation.
+          family: shared-helper-extraction
+          round: 10
+        - id: BR-38
+          severity: Minor
+          title: Consumer inventory's tracker ID validation for 40-duplicate-issue-id is neither delivered nor dispositioned
+          detail: 'This is the 5th finding in family core-concepts-inventory-drift. Only an atlas note was added; a cardless details file merged through the UI can later collide with a card-allocated ID. Rule: every inventory row needs either a delivering diff or an explicit Revision disposition. The close gate could check this by diffing inventory rows against the window''s name-status.'
+          family: core-concepts-inventory-drift
+          round: 10
+      boundary: M4
+      recipe: milestone-review
+      blocked: true
+    - "n": 11
+      timestamp: "2026-09-26T18:51:40-07:00"
+      agent: claude
+      dispose:
+        - id: BR-34
+          disposition: addressed
+          note: MirrorDetails pins after binding (migration.go:157); population test asserts pin==CardBlobOID(final) incl. bound codecomplete; e2e merges, lands, settles.
+          round: 11
+        - id: BR-35
+          disposition: addressed
+          note: issuemigrate.go:471-474 now names both resume and abandon-unwritten-tracker outcomes.
+          round: 11
+        - id: BR-36
+          disposition: addressed
+          note: Guard caches verified (root, tip OID) in Repository.verified; benchmark measures 1 process per generation.
+          round: 11
+        - id: BR-37
+          disposition: addressed
+          note: TrunkFile.Roots is shared by HasRoot and applyTrackerBootstrap.
+          round: 11
+        - id: BR-38
+          disposition: addressed
+          note: lint-ids refuses cardless added details in tracker repos; pure unit test plus real-Git exit-code test.
+          round: 11
+      findings:
+        - id: BR-39
+          severity: Minor
+          title: Makefile and close-issue.py hardcode the issue-tracker ref name that Go derives from vocab
+          detail: This is the 4th finding in shared-helper-extraction. The shell fallbacks cannot call the binary, so the rule is that every non-Go copy of a vocab constant is pinned by a test that reads vocab. trackedlegacy_test also hardcodes the literal, so a rename would not turn it red.
+          family: shared-helper-extraction
+          round: 11
+        - id: BR-40
+          severity: Minor
+          title: A landed branch close ignores CodeAfter, so unlanded post-close branch code settles the card to done
+          detail: 'This is the 3rd finding in landing-completion-proof. Rule: done requires proof that every ref carrying the close has nothing beyond main after it. Apply CodeAfter to a landed anchor''s branch tip relative to main, not only to unlanded anchors.'
+          family: landing-completion-proof
+          round: 11
+      boundary: M4
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#252 (boundary-review)
@@ -561,8 +638,42 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-33** [Minor] `deferred-effect-input-drift` Evidence replay silently skips pinned files whose HEAD version diverged from both base and pin
   3rd in family. Rule: a deferred replay reports every pinned input it did not apply (path plus reason), so a later commit that also dropped close evidence such as a ledger row is visible rather than silently kept.
 
+## Round 10 — 2026-09-26T18:17:37-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-34** [Critical] `deferred-effect-input-drift` Codecomplete migration: main conversion mirrors the unbound card; tracker holds the bound card (missing baseline, merge conflict)
+  This is the 4th finding in family deferred-effect-input-drift. migration.go:133-157 derives `mirrored` from the pre-binding card, then replaces `card` with SetCardCompletion's output, so main's card_mirror names a blob never written, while --reconcile on the branch mirrors the bound blob. Result: refresh refuses on the missing baseline, and the PR merge conflicts on the card_mirror line. Rule for the class: any artifact that pins a source identity (OID/digest) must be computed from the source's final bytes by one constructor called after the last mutation, and the pure plan must assert pin == identity(final). Fix by attaching the mirror after binding. Add a population invariant (each conversion's MirrorBaselineOID == CardBlobOID(card)) and extend TestIssueMigrateImportsAProvableLegacyClose through merge and landing.
+- **BR-35** [Minor] `next-action-hint-correctness` Moved-main apply error promises resumption that sameTrackerFiles refuses when issue files changed
+  issuemigrate.go:466 says the new plan resumes from the existing tracker; any change to active or archived details changes the plan's cards, so the bootstrap check refuses and only the atlas's manual abandonment works. The message should name that path.
+- **BR-36** [Minor] `operating-envelope-enforcement` Cutover guard adds a rev-list process per guarded read, outside the measured envelope
+  cutover.go:105 runs HasRoot on every read(), including each CAS retry; the plan's 2-process, 0.85 s measurement predates the guard.
+- **BR-37** [Minor] `shared-helper-extraction` applyTrackerBootstrap re-implements TrunkFile.HasRoot's root listing
+  issuemigrate.go:407 runs rev-list --max-parents=0 through env.git; a TrunkFile Roots helper shared with HasRoot would keep one implementation.
+- **BR-38** [Minor] `core-concepts-inventory-drift` Consumer inventory's tracker ID validation for 40-duplicate-issue-id is neither delivered nor dispositioned
+  This is the 5th finding in family core-concepts-inventory-drift. Only an atlas note was added; a cardless details file merged through the UI can later collide with a card-allocated ID. Rule: every inventory row needs either a delivering diff or an explicit Revision disposition. The close gate could check this by diffing inventory rows against the window's name-status.
+
+## Round 11 — 2026-09-26T18:51:40-07:00 (claude) — passed
+
+### Disposed
+
+- BR-34 — addressed — MirrorDetails pins after binding (migration.go:157); population test asserts pin==CardBlobOID(final) incl. bound codecomplete; e2e merges, lands, settles.
+- BR-35 — addressed — issuemigrate.go:471-474 now names both resume and abandon-unwritten-tracker outcomes.
+- BR-36 — addressed — Guard caches verified (root, tip OID) in Repository.verified; benchmark measures 1 process per generation.
+- BR-37 — addressed — TrunkFile.Roots is shared by HasRoot and applyTrackerBootstrap.
+- BR-38 — addressed — lint-ids refuses cardless added details in tracker repos; pure unit test plus real-Git exit-code test.
+
+### Raised
+
+- **BR-39** [Minor] `shared-helper-extraction` Makefile and close-issue.py hardcode the issue-tracker ref name that Go derives from vocab
+  This is the 4th finding in shared-helper-extraction. The shell fallbacks cannot call the binary, so the rule is that every non-Go copy of a vocab constant is pinned by a test that reads vocab. trackedlegacy_test also hardcodes the literal, so a rename would not turn it red.
+- **BR-40** [Minor] `landing-completion-proof` A landed branch close ignores CodeAfter, so unlanded post-close branch code settles the card to done
+  This is the 3rd finding in landing-completion-proof. Rule: done requires proof that every ref carrying the close has nothing beyond main after it. Apply CodeAfter to a landed anchor's branch tip relative to main, not only to unlanded anchors.
+
 ## Open findings
 
 - **BR-3** [Minor] `review-artifact-hygiene` Committed M1 review artifact contains trailing whitespace
 - **BR-18** [Minor] `refusal-after-local-effect` move-detail rewrites the stale mirror before tracker.NewTransfer validates the receipt spec
 - **BR-33** [Minor] `deferred-effect-input-drift` Evidence replay silently skips pinned files whose HEAD version diverged from both base and pin
+- **BR-39** [Minor] `shared-helper-extraction` Makefile and close-issue.py hardcode the issue-tracker ref name that Go derives from vocab
+- **BR-40** [Minor] `landing-completion-proof` A landed branch close ignores CodeAfter, so unlanded post-close branch code settles the card to done

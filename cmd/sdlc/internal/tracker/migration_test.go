@@ -193,7 +193,8 @@ func TestPlanTrackerMigrationBindsOnlyAProvableLegacyClose(t *testing.T) {
 		{"code after the close", []MigrationAnchor{{Ref: "feat", Anchor: oidB, Parent: oidP, CodeAfter: true}}, "code after"},
 		{"the branch close beside main's legacy publication of it", []MigrationAnchor{{Ref: "main", Anchor: oidA, Parent: oidP, OnMain: true}, {Ref: "feat", Anchor: oidB, Parent: oidP}}, ""},
 		{"a close made directly on main", []MigrationAnchor{{Ref: oidA, Anchor: oidB, Parent: oidP, OnMain: true, CodeAfter: true}}, ""},
-		{"a landed branch close never marked done, main moved on", []MigrationAnchor{{Ref: "feat", Anchor: oidA, Parent: oidP, OnMain: true, CodeAfter: true}, {Ref: oidA, Anchor: oidB, Parent: oidP, OnMain: true, CodeAfter: true}}, ""},
+		{"a landed branch close never marked done, main moved on", []MigrationAnchor{{Ref: "feat", Anchor: oidA, Parent: oidP, OnMain: true}, {Ref: oidA, Anchor: oidB, Parent: oidP, OnMain: true, CodeAfter: true}}, ""},
+		{"a landed close whose branch still carries unlanded code", []MigrationAnchor{{Ref: "feat", Anchor: oidA, Parent: oidP, OnMain: true, CodeAfter: true}, {Ref: oidA, Anchor: oidB, Parent: oidP, OnMain: true}}, "carries code after it"},
 	}
 	for _, c := range cases {
 		in := basicInput()

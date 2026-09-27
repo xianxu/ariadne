@@ -4,12 +4,14 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // In a repository cut over to the issue tracker, `issue sync` stays a local
@@ -78,9 +80,10 @@ func TestMakefileFallbacksRefuseInATrackedRepository(t *testing.T) {
 		}
 	}
 	// A pre-cutover branch: no marker yet, but the clone has fetched a tracker.
-	testfix.Git(t, consumer, "update-ref", "refs/remotes/origin/issue-tracker", "HEAD")
+	fetched := "refs/remotes/origin/" + vocab.Issue().Discovery().Tracker
+	testfix.Git(t, consumer, "update-ref", fetched, "HEAD")
 	refuseAll("fetched tracker")
-	testfix.Git(t, consumer, "update-ref", "-d", "refs/remotes/origin/issue-tracker")
+	testfix.Git(t, consumer, "update-ref", "-d", fetched)
 	writeRepoFile(t, consumer, tracker.CutoverMarkerPath, string(tracker.CutoverMarkerBytes(strings.Repeat("a", 40))))
 	refuseAll("marker")
 }
@@ -138,5 +141,25 @@ func TestLintIDsRefusesCardlessDetailsInATrackerRepository(t *testing.T) {
 	r.git("commit", "-qm", "a hand-made issue")
 	if code, out := lint(); code != 1 || !strings.Contains(out, "000010-hand-made.md") || !strings.Contains(out, "no matching issue card") {
 		t.Fatalf("cardless details not refused (%d):\n%s", code, out)
+	}
+}
+
+// The shell fallbacks cannot ask the binary, so their copies of the tracker's
+// vocabulary are pinned here: renaming the tracker branch or the marker in Go
+// turns this red instead of silently disarming the fallback guard (#252).
+func TestShellFallbacksSpellTheTrackerVocabulary(t *testing.T) {
+	root := realRepoRoot()
+	fetchedGlob := "refs/remotes/*/" + vocab.Issue().Discovery().Tracker
+	marker := path.Base(tracker.CutoverMarkerPath)
+	for _, f := range []string{"Makefile.workflow", "scripts/close-issue.py"} {
+		raw, err := os.ReadFile(filepath.Join(root, f))
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, want := range []string{fetchedGlob, marker} {
+			if !strings.Contains(string(raw), want) {
+				t.Errorf("%s does not spell %q; keep it in step with the vocabulary", f, want)
+			}
+		}
 	}
 }

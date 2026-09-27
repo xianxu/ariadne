@@ -255,7 +255,13 @@ func bindLegacyClose(card []byte, id string, in MigrationInput) ([]byte, string)
 	}
 	if len(candidates) == 0 {
 		// Landed and never marked done: main's newest close record binds it, and
-		// the next push or recovery settles it to done by ancestry.
+		// the next push or recovery settles it to done by ancestry — but only
+		// when no branch carrying the close holds code main does not have.
+		for _, a := range landed {
+			if a.CodeAfter {
+				return nil, fmt.Sprintf("codecomplete and its close %s landed, but %s carries code after it that main does not have", short(a.Anchor), a.Ref)
+			}
+		}
 		candidates = mainOwn
 		if len(candidates) == 0 {
 			candidates = landed
