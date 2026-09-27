@@ -320,3 +320,53 @@ func TestIssueMigrateLandedLegacyClose(t *testing.T) {
 		t.Fatalf("unlanded code after a landed close did not block: %v\n%s", err, out)
 	}
 }
+
+// A pre-cutover branch carries older copies of issues it never touched (main
+// moved them on after it forked). Reconcile takes main's version of those —
+// or drops one main archived — and mirrors only what the branch changed, so
+// the later merge is clean (#252, found by smoke test A2).
+func TestIssueMigrateReconcileLeavesUntouchedIssuesToMain(t *testing.T) {
+	r := legacyRepo(t)
+	five := "workshop/issues/000005-five.md"
+	writeRepoFile(t, r.root, five, "---\nid: 000005\nstatus: open\ncreated: 2026-09-01\n---\n\n# Five\n\n## Problem\n\nx\n")
+	r.git("add", five)
+	r.git("commit", "-qm", "#5: file")
+	r.git("push", "-q", "origin", "main")
+	r.git("switch", "-q", "-c", "000002-two")
+	two := "workshop/issues/000002-two.md"
+	writeRepoFile(t, r.root, two, r.git("show", "HEAD:"+two)+"\n- a design step on the branch\n")
+	r.git("commit", "-qam", "#2: design")
+	r.git("push", "-q", "origin", "000002-two")
+	r.git("switch", "-q", "main") // main moves on: #1 blocked, #5 done and archived
+	one := "workshop/issues/000001-one.md"
+	writeRepoFile(t, r.root, one, strings.Replace(r.git("show", "HEAD:"+one)+"\n", "status: open", "status: blocked", 1))
+	r.git("mv", five, "workshop/history/issues/000005-five.md")
+	writeRepoFile(t, r.root, "workshop/history/issues/000005-five.md", "---\nid: 000005\nstatus: done\nactual_hours: 1\ncreated: 2026-09-01\n---\n\n# Five\n\n## Problem\n\nx\n")
+	r.git("add", "-A")
+	r.git("commit", "-qm", "main moves on")
+	r.git("push", "-q", "origin", "main")
+	digest, out, err := migrateDryRun(t)
+	if err != nil {
+		t.Fatalf("dry run: %v\n%s", err, out)
+	}
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--apply", "--expect", digest); err != nil {
+		t.Fatalf("apply: %v\n%s", err, stderr)
+	}
+	r.git("switch", "-q", "000002-two")
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--reconcile"); err != nil {
+		t.Fatalf("reconcile refused untouched older copies: %v\n%s", err, stderr)
+	}
+	r.git("fetch", "-q", "origin")
+	if got, want := r.git("show", "HEAD:"+one), r.git("show", "origin/main:"+one); got != want {
+		t.Fatalf("#1 not taken from main:\n%s\n---\n%s", got, want)
+	}
+	if r.git("show", "HEAD:"+five) != r.git("show", "HEAD~1:"+five) {
+		t.Fatal("#5, archived on main, was rewritten instead of left for the merge to move")
+	}
+	if b := r.git("show", "HEAD:"+two); !issue.HasMirror([]byte(b)) || !strings.Contains(b, "a design step on the branch") {
+		t.Fatalf("#2 not reconciled:\n%s", b)
+	}
+	if out, err := exec.Command("git", "-C", r.root, "merge", "--no-edit", "-q", "origin/main").CombinedOutput(); err != nil {
+		t.Fatalf("merge after reconcile: %v\n%s\n%s", err, out, r.git("status", "--short"))
+	}
+}

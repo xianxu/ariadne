@@ -488,9 +488,13 @@ func applyMainCutover(env *migrateEnv, m tracker.MigrationManifest, root string)
 	})
 }
 
-// runMigrateReconcile brings a branch from before the cutover across: each
-// legacy details file gains the mirror of its imported card (after proving the
-// branch changed no card-owned field), and the marker is added, in one commit.
+// runMigrateReconcile brings a branch from before the cutover across, in one
+// commit: each legacy details file the branch changed gains the mirror of its
+// imported card (after proving the branch changed no card-owned field); one it
+// did not change takes main's current version — what merging main would do,
+// so nothing is lost and the later merge applies identical changes — or, if
+// main has archived it, stays as it is for that merge to move (deleting it here
+// would conflict with main's rename); and the marker is added.
 func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 	if env.branch == "" || env.onRest() || env.branch == "main" {
 		return errors.New("reconcile runs on a pre-cutover issue branch; a resting checkout only needs `git pull`")
@@ -515,6 +519,11 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	mainTip := mainView.Ref()
+	base, err := env.git("merge-base", "HEAD", mainTip)
+	if err != nil {
+		return fmt.Errorf("%s shares no history with main: %w", env.branch, err)
+	}
 	home := vocab.Issue().Discovery().Home
 	if dirty, err := env.git("status", "--porcelain", "--", home, tracker.CutoverMarkerPath); err != nil {
 		return err
@@ -538,6 +547,23 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 			return err
 		}
 		if issue.HasMirror(raw) {
+			continue
+		}
+		untouched, err := env.gitTest("diff", "--quiet", base, "HEAD", "--", rel)
+		if err != nil {
+			return err
+		}
+		if untouched {
+			onMain, err := env.has(mainTip, rel)
+			if err != nil {
+				return err
+			}
+			if !onMain {
+				continue // archived on main: the merge moves it
+			}
+			if write[rel], err = env.main.ReadAt(mainTip, rel); err != nil {
+				return err
+			}
 			continue
 		}
 		card, ok := imported[id]
