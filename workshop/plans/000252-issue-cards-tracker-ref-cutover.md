@@ -44,21 +44,34 @@ offline `issue list` labelled stale, offline `claim` refused.
 
 ### A2 — Real GitHub sandbox (needs a throwaway repo from you)
 
-- [ ] **You:** create a private throwaway repo (e.g. `sdlc-smoke`) and tell Claude its name
-- [ ] Seed it with the ariadne layer and legacy issues: one `open`, one `working` with a
+- [x] **You:** create a private throwaway repo (e.g. `sdlc-smoke`) and tell Claude its name
+- [x] Seed it with the ariadne layer and legacy issues: one `open`, one `working` with a
       design branch, one `codecomplete` whose close sits on an unmerged branch, and two
       archived issues sharing an ID
-- [ ] `sdlc issue migrate` → check: 0 refusals, the duplicate reported, the codecomplete bound
-- [ ] `sdlc issue migrate --apply --expect <digest>` → tracker branch and marker commit on GitHub
-- [ ] Re-run the same `--apply` → reports *already migrated*
-- [ ] On the pre-cutover design branch: `sdlc issue migrate --reconcile` → one commit;
+- [x] `sdlc issue migrate` → check: 0 refusals, the duplicate reported, the codecomplete bound
+- [x] `sdlc issue migrate --apply --expect <digest>` → tracker branch and marker commit on GitHub
+- [x] Re-run the same `--apply` → reports *already migrated*
+- [x] On the pre-cutover design branch: `sdlc issue migrate --reconcile` → one commit;
       `git merge origin/main` is clean
-- [ ] Full cycle through real `gh`: `issue new` → `move-detail` → `claim` → `start-plan` →
+- [x] Full cycle through real `gh`: `issue new` → `move-detail` → `claim` → `start-plan` →
       `change-code` → `close` → `sdlc pr` → `sdlc merge`
-- [ ] After merge: card `done`, details archived under `workshop/history/issues/`, rest refreshes 0/0
-- [ ] The imported codecomplete's branch: `sdlc pr` → `sdlc merge` → its card goes `done`
-- [ ] `sdlc issue recovery list` is empty
+- [x] After merge: card `done`, details archived under `workshop/history/issues/`, rest refreshes 0/0
+- [x] The imported codecomplete's branch: `sdlc pr` → `sdlc merge` → its card goes `done`
+- [x] `sdlc issue recovery list` is empty
 - [ ] Record results in #252's Log; delete the sandbox repo when satisfied
+
+**A2 result (2026-09-26, `xianxu/sdlc-smoke`):** passed after one fix. The dry
+run found 4 cards, the duplicate #4 reported, #2's preamble given its
+`## Problem`, and #3 bound to its branch close (not main's issue-sync copy);
+apply and re-apply behaved. Reconcile refused `000002-designing` over #3, an
+issue the branch never touched whose copy was simply older than main's —
+fixed: reconcile mirrors only what the branch changed and takes main's version
+of the rest. Through real `gh`: #5 went new → move-detail → claim → start-plan
+→ change-code → close → `sdlc pr` (PR #1) → `sdlc merge` with the real
+conformance and publish gates → card `done` with the PR merge as landed
+commit, details archived, rest 0/0 after a fast-forward. The imported #3 landed
+as PR #2 (publish gate anchored on its legacy close) → `done`, archived.
+`recovery list` empty. The sandbox repo is still up; delete it when done.
 
 ---
 
