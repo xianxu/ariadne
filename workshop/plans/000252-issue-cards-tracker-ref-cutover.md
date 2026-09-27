@@ -20,18 +20,27 @@ Log, and ask before improvising.
 
 ### A1 — Two-slot rehearsal on a disposable copy of kaggle (Claude can run this)
 
-- [ ] Build the #252 binary: `go build -o $TMPDIR/sdlc-252 ./cmd/sdlc` (in the #252 worktree)
-- [ ] Bare-copy kaggle, clone it, add two slot worktrees (`main-slot1`, `main-slot2`)
-- [ ] `sdlc issue migrate` → review the plan → `--apply --expect <digest>`
-- [ ] `git pull --ff-only` in both slots
-- [ ] Slot 1: `sdlc issue new "smoke"` → `sdlc issue move-detail --issue N` → `sdlc claim --issue N`
-- [ ] Slot 2: `sdlc claim --issue N` **refuses**; `sdlc issue show N` shows `working`
-- [ ] Slot 1: `sdlc start-plan --issue N` → edit design → `sdlc issue sync --issue N` → `sdlc change-code --issue N --worktree=no`
-- [ ] Slot 1: commit code → `sdlc close --issue N --verified smoke --actual 0.5`
-- [ ] Land the branch on main by hand (no GitHub here) → `sdlc issue recovery reconcile --issue N` → card is `done`
-- [ ] Rest in slot 1 fast-forwards to 0 ahead / 0 behind
-- [ ] Offline: point the remote at a missing path → `sdlc issue list` says *stale*, `sdlc claim` refuses
-- [ ] Record results in #252's Log
+- [x] Build the #252 binary: `go build -o $TMPDIR/sdlc-252 ./cmd/sdlc` (in the #252 worktree)
+- [x] Bare-copy kaggle, clone it, add two slot worktrees (`main-slot1`, `main-slot2`)
+- [x] `sdlc issue migrate` → review the plan → `--apply --expect <digest>`
+- [x] `git pull --ff-only` in both slots
+- [x] Slot 1: `sdlc issue new "smoke"` → `sdlc issue move-detail --issue N` → `sdlc claim --issue N`
+- [x] Slot 2: `sdlc claim --issue N` **refuses**; `sdlc issue show N` shows `working`
+- [x] Slot 1: `sdlc start-plan --issue N` → edit design → `sdlc issue sync --issue N` → `sdlc change-code --issue N --worktree=no`
+- [x] Slot 1: commit code → `sdlc close --issue N --verified smoke --actual 0.5`
+- [x] Land the branch on main by hand (no GitHub here): merge into main, then `sdlc push --yes` → card `done`, details archived
+      (in the sandbox only, `--no-validate`: the copy has no sibling metis/ariadne layer, so the vocabulary is empty)
+- [x] Rest in slot 1 fast-forwards to 0 ahead / 0 behind
+- [x] Offline: point the remote at a missing path → `sdlc issue list` says *stale*, `sdlc claim` refuses
+- [x] Record results in #252's Log
+
+**A1 result (2026-09-26):** passed after one fix. The first cycle skipped the
+publish gate (`--no-judge`), hiding that the transfer guard refused the owner's
+own details edits when landed by a direct push from main (it exempted only a
+checkout *on* the issue branch). Fixed: changes to handed-off details are
+exempt when every commit making them since main is on the owner's branch; the
+second cycle pushed through the real gate. Rest refreshed 0/0 in both slots;
+offline `issue list` labelled stale, offline `claim` refused.
 
 ### A2 — Real GitHub sandbox (needs a throwaway repo from you)
 

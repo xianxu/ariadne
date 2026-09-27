@@ -153,7 +153,9 @@ func TestTrackerFullSlotCycle(t *testing.T) {
 	ghClient = gh
 	t.Cleanup(func() { ghClient = oldGH })
 	t.Chdir(slot1)
-	if err := runMerge(io.Discard, io.Discard, landingFlags()); err != nil {
+	f := landingFlags()
+	f.NoJudge = false // the publish gate (reviewed-HEAD anchor, transfer guard) runs for real
+	if err := runMerge(io.Discard, io.Discard, f); err != nil {
 		t.Fatalf("landing: %v", err)
 	}
 

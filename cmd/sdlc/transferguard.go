@@ -22,7 +22,9 @@ import (
 var guardTransferredDetailsFn = guardTransferredDetails
 
 // guardTransferredDetails checks HEAD's prospective merge into fresh main. The
-// issue's own branch is exempt: edits there are the claimed owner's work.
+// claimed owner's edits are exempt, however they land: the issue's own branch,
+// or any HEAD (main after a local merge for a direct push, a stacked branch)
+// whose every change to the details since main was authored on that branch.
 func guardTransferredDetails(ctx context.Context) error {
 	env, err := openTracker(ctx)
 	if err != nil {
@@ -52,7 +54,16 @@ func guardTransferredDetails(ctx context.Context) error {
 			return fmt.Errorf("tracker card #%s is malformed: %w\n"+
 				"      every PR, push and merge in this repository is refused until the card is repaired", rec.ID, err)
 		}
-		if !ok || env.branch == strings.TrimSuffix(path.Base(h.Destination), ".md") {
+		if !ok {
+			continue
+		}
+		owner := strings.TrimSuffix(path.Base(h.Destination), ".md")
+		if env.branch == owner {
+			continue
+		}
+		if owned, err := ownerAuthored(env, mainTip, h.Destination, owner); err != nil {
+			return err
+		} else if owned {
 			continue
 		}
 		// An interrupted handoff may have published to main before recording it
@@ -72,6 +83,46 @@ func guardTransferredDetails(ctx context.Context) error {
 		return nil
 	}
 	return checkTransferredPaths(env, mainTip, paths)
+}
+
+// ownerAuthored reports whether every commit in mainTip..HEAD that changes p
+// is on the owner's issue branch (local, or the publication remote's copy): the
+// changes a landing makes to handed-off details are then the owner's own work.
+// No such commit at all is false — the merge check below then has nothing of
+// HEAD's to object to anyway.
+func ownerAuthored(env *trackerEnv, mainTip, p, owner string) (bool, error) {
+	touched, err := env.git("rev-list", mainTip+"..HEAD", "--", p)
+	if err != nil {
+		return false, err
+	}
+	commits := strings.Fields(touched)
+	if len(commits) == 0 {
+		return false, nil
+	}
+	var refs []string
+	for _, ref := range []string{"refs/heads/" + owner, "refs/remotes/" + env.target.Remote + "/" + owner} {
+		present, err := env.gitTest("rev-parse", "--verify", "-q", ref+"^{commit}")
+		if err != nil {
+			return false, err
+		}
+		if present {
+			refs = append(refs, ref)
+		}
+	}
+	for _, c := range commits {
+		on := false
+		for _, ref := range refs {
+			if on, err = env.ancestorOf(c, ref); err != nil {
+				return false, err
+			} else if on {
+				break
+			}
+		}
+		if !on {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 // checkTransferredPaths compares each handed-off path in the merge result of

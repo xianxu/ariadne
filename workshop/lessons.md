@@ -204,4 +204,9 @@ The simplest durable authority beats a clever scan of consequences.
   the pure plan asserts pin == identity(final). Deriving the pin alongside the
   first version and mutating the source afterwards (binding a close to a card)
   left main naming a blob the tracker never held (#252 M4 BR-34).
+- An end-to-end test that skips a gate (`--no-judge`, `NoJudge: true`) also
+  skips every bug behind it: the #252 slot-cycle e2e and the first smoke cycle
+  both bypassed the publish gate, so the transfer guard refusing the owner's
+  own edits on a direct push surfaced only in the second smoke cycle. Run the
+  deterministic gates in e2e; stub only the LLM.
 

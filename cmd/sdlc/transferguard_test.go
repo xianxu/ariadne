@@ -60,6 +60,33 @@ func TestTransferGuardOverBranchShapes(t *testing.T) {
 			writeRepoFile(t, r.root, spinOffDetails, "owner's next edit\n")
 			r.git("commit", "-qam", "owner works")
 		}, ""},
+		{"main merges the owner's branch for a direct push", func(t *testing.T, r *trackerRepo) {
+			ownerBranchEdit(t, r)
+			r.git("switch", "-q", "-C", "main", "origin/main")
+			r.git("merge", "-q", "--no-ff", "--no-edit", "000008-spin-off")
+		}, ""},
+		{"a branch stacked on the owner's", func(t *testing.T, r *trackerRepo) {
+			ownerBranchEdit(t, r)
+			r.git("switch", "-q", "-c", "000012-stacked")
+			writeRepoFile(t, r.root, "stacked.go", "package stacked\n")
+			r.git("add", "stacked.go")
+			r.git("commit", "-qm", "stacked work")
+		}, ""},
+		{"main merges a non-owner rewrite", func(t *testing.T, r *trackerRepo) {
+			r.git("fetch", "-q", "origin")
+			r.git("switch", "-q", "-c", "000013-meddler", "origin/main")
+			writeRepoFile(t, r.root, spinOffDetails, "rewritten by someone else\n")
+			r.git("commit", "-qam", "meddle")
+			r.git("switch", "-q", "-C", "main", "origin/main")
+			r.git("merge", "-q", "--no-ff", "--no-edit", "000013-meddler")
+		}, "would be overwritten"},
+		{"main edits the details itself after merging the owner's work", func(t *testing.T, r *trackerRepo) {
+			ownerBranchEdit(t, r)
+			r.git("switch", "-q", "-C", "main", "origin/main")
+			r.git("merge", "-q", "--no-ff", "--no-edit", "000008-spin-off")
+			writeRepoFile(t, r.root, spinOffDetails, "not the owner's\n")
+			r.git("commit", "-qam", "edit on main")
+		}, "would be overwritten"},
 		{"unrelated branch", func(t *testing.T, r *trackerRepo) {
 			r.git("fetch", "-q", "origin")
 			r.git("switch", "-q", "-c", "000011-other", "origin/main")
@@ -205,3 +232,13 @@ func TestTransferGuardRefusesMalformedHandoffRepoWide(t *testing.T) {
 		t.Fatalf("malformed destination: %v", err)
 	}
 }
+
+// ownerBranchEdit is the claimed owner's design edit on the issue's own branch.
+func ownerBranchEdit(t *testing.T, r *trackerRepo) {
+	t.Helper()
+	r.git("fetch", "-q", "origin")
+	r.git("switch", "-q", "-c", "000008-spin-off", "origin/main")
+	writeRepoFile(t, r.root, spinOffDetails, "owner's design\n")
+	r.git("commit", "-qam", "owner designs")
+}
+
