@@ -578,12 +578,17 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 	before := env.head
 	msg := fmt.Sprintf("migrate: bring %s across the issue tracker cutover", env.branch)
 	if out, err := env.git("merge", "--no-ff", "--no-edit", "-m", msg, migration); err != nil {
-		_, _ = env.git("merge", "--abort")
+		if _, aerr := env.git("merge", "--abort"); aerr != nil {
+			return fmt.Errorf("merging main's migration commit failed (%v), and aborting that merge failed too: %v\n"+
+				"      the checkout is mid-merge: inspect `git status`, then `git merge --abort` by hand", err, aerr)
+		}
 		return fmt.Errorf("merging main's migration commit conflicts (nothing was changed):\n%s\n"+
 			"      Merge origin/main into this branch yourself, resolve the conflicts, and commit; that brings it across too", out)
 	}
 	if err := verifyMigratedMirrors(env, home, imported); err != nil {
-		_, _ = env.git("reset", "-q", "--hard", before)
+		if _, rerr := env.git("reset", "-q", "--hard", before); rerr != nil {
+			return fmt.Errorf("%v\n      undoing the merge failed: %v — the branch holds the merge commit; reset it to %s by hand", err, rerr, shortOID(before))
+		}
 		return fmt.Errorf("%v\n      the merge was undone; nothing was changed", err)
 	}
 	cok(stderr, fmt.Sprintf("%s is across the cutover (merged main's migration commit %s)", env.branch, shortOID(migration)))
