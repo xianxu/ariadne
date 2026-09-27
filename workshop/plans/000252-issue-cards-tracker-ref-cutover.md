@@ -133,7 +133,8 @@ on the #252 branch); `parley.nvim:0` stays frozen on `pre-252-freeze` and unused
 proves tracker mode on real history and GitHub before #252 ships, and replaces C11.
 
 Before:
-- [ ] A3 soak work landed or committed: #264, #290; no uncommitted issue edits in `:0` or `:1`
+- [ ] #264 finished in legacy mode (landed, or at least committed/synced); #290 and #291 not
+      started (they are worked in tracker mode below); no uncommitted issue edits in `:0` or `:1`
 - [ ] Differential check on the exact slot build (`legacy-equivalence.sh`, all `same`)
 - [ ] **Freeze `parley.nvim:0` (convention):** no `sdlc`, no `make`, no agents there until #252 ships
       — its binary cannot honor the marker and would write legacy state
@@ -149,8 +150,10 @@ Cutover (in `~/workspace/worktree/parley.nvim-slot1/parley.nvim`, rest `main-slo
 - [ ] First card write: `sdlc issue new` (or a claim) — from here, backing out loses card edits
 
 Soak in tracker mode (slot 1 only), a few days:
-- [ ] `issue new` → `move-detail` → `claim` → `start-plan` → design (`issue sync` checkpoints on the
-      issue branch) → `change-code` → `close` → `sdlc pr` → `sdlc merge` → card `done`, archived
+- [ ] #290 and #291 — issues filed before the cutover, carried across as cards: `claim` →
+      `start-plan` → design (`issue sync` checkpoints on the issue branch) → `change-code` → `close` →
+      `sdlc pr` → `sdlc merge` → card `done`, archived
+- [ ] A new issue end to end: `issue new` → `move-detail` → `claim` → … → `sdlc merge`
 - [ ] A `milestone-close` on an `Mx` plan
 - [ ] A spin-off: `issue new` on an issue branch → `move-detail` while the code is unshipped
 - [ ] Reconcile one pre-cutover branch (or merge origin/main into it)
