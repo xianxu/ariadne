@@ -31,7 +31,8 @@ RECONCILIATION (what change-code enforces, deterministically)
 
   recomputed = Σ(item.design) × (1 + design-buffer) + Σ(item.impl) × familiarity
 
-  The gate passes iff `total` ≈ `recomputed` AND frontmatter `estimate_hours` ≈
+  The gate passes iff `total` ≈ `recomputed` AND `estimate_hours` (the card's,
+  set by `sdlc issue set-estimate`, in an issue tracker repository) ≈
   `total`, within tol = max(0.05, 5% of total). It also requires a recognized
   `model:` and every `item:` slug drawn from the closed vocabulary below. The
   per-item hours stay your judgment — but a free-floating guess is structurally
