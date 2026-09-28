@@ -238,7 +238,9 @@ func cardlessAdditions(ctx context.Context, headRef string, base, head map[int][
 	if repo == nil {
 		return nil, fmt.Errorf("%s marks an issue tracker repository, but no issue tracker is reachable", tracker.CutoverMarkerPath)
 	}
-	snap, err := repo.Snapshot()
+	// Judge the head, not the checkout: a pre-push lint checks a commit that
+	// is not checked out, such as the migration commit carrying the marker.
+	snap, err := repo.GuardCutoverAt(dirs.Top, headRef).Snapshot()
 	if err != nil {
 		return nil, err
 	}

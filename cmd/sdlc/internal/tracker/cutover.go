@@ -80,6 +80,38 @@ func (r *Repository) GuardCutover(checkoutRoot string) *Repository {
 	return r
 }
 
+// GuardCutoverAt guards like GuardCutover, but judges commit's side of the
+// cutover: the marker is read from commit's tree, not the checkout's files. A
+// check of a commit that is not checked out — a pre-push lint of the commit
+// being published, such as the migration commit itself — uses it (#257).
+func (r *Repository) GuardCutoverAt(checkoutRoot, commit string) *Repository {
+	r.checkout, r.markerAt = checkoutRoot, commit
+	return r
+}
+
+// readMarker reads the marker the guard judges: markerAt's tree when set,
+// otherwise the checkout's file.
+func (r *Repository) readMarker() (string, bool, error) {
+	if r.markerAt != "" {
+		return ReadCutoverMarkerAt(r.checkout, r.markerAt)
+	}
+	return ReadCutoverMarker(r.checkout)
+}
+
+// ReadCutoverMarkerAt reads the marker in commit's tree ("" when absent).
+func ReadCutoverMarkerAt(root, commit string) (string, bool, error) {
+	spec := commit + ":" + CutoverMarkerPath
+	if _, err := gitx.RunGit("-C", root, "cat-file", "-e", "--end-of-options", spec); err != nil {
+		return "", false, nil
+	}
+	raw, err := gitx.RunGit("-C", root, "cat-file", "blob", "--end-of-options", spec)
+	if err != nil {
+		return "", false, fmt.Errorf("read %s: %w", spec, err)
+	}
+	trackerRoot, err := ParseCutoverMarker(raw)
+	return trackerRoot, err == nil, err
+}
+
 // read is the single snapshot read of a guarded repository.
 func (r *Repository) read(view *gitx.TrunkView) (Snapshot, error) {
 	if r.checkout != "" {
@@ -91,9 +123,12 @@ func (r *Repository) read(view *gitx.TrunkView) (Snapshot, error) {
 }
 
 func (r *Repository) checkCutover(ref string) error {
-	trackerRoot, present, err := ReadCutoverMarker(r.checkout)
+	trackerRoot, present, err := r.readMarker()
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrCutover, err)
+	}
+	if !present && r.markerAt != "" {
+		return fmt.Errorf("%w: the issue tracker exists but commit %s has no %s; a commit judged against the tracker must descend from the migration commit", ErrCutover, r.markerAt, CutoverMarkerPath)
 	}
 	if !present {
 		return fmt.Errorf("%w: the issue tracker exists but this checkout has no %s.\n"+
@@ -164,13 +199,16 @@ func (r *Repository) checkAbsentTracker() error {
 	if r.checkout == "" {
 		return nil
 	}
-	return MarkerWithoutTracker(r.checkout)
+	return markerWithoutTracker(r.readMarker())
 }
 
 // MarkerWithoutTracker refuses a checkout that carries the cutover marker when
 // no issue tracker is reachable (absent, or no publication target).
 func MarkerWithoutTracker(checkoutRoot string) error {
-	trackerRoot, present, err := ReadCutoverMarker(checkoutRoot)
+	return markerWithoutTracker(ReadCutoverMarker(checkoutRoot))
+}
+
+func markerWithoutTracker(trackerRoot string, present bool, err error) error {
 	if err != nil {
 		return fmt.Errorf("%w: %v", ErrCutover, err)
 	}

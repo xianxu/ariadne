@@ -202,7 +202,7 @@ func (r *Repository) Presence() (tracked, stale bool, err error) {
 	}
 	marked := false
 	if r.checkout != "" {
-		_, present, merr := ReadCutoverMarker(r.checkout)
+		_, present, merr := r.readMarker()
 		if merr != nil {
 			return false, false, errors.Join(err, fmt.Errorf("%w: %v", ErrCutover, merr))
 		}

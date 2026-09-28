@@ -1,12 +1,13 @@
 ---
 id: 000257
-status: open
+status: working
 deps: [000255]
 github_issue:
 created: 2026-09-27
 updated: 2026-09-27
 estimate_hours:
-card_mirror: 'f4ba1e05be1b424cd79af8663d99852002930c26' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f1ea34457673ed8ee3f29a6c2e96db1b454961eb' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-27T23:33:11-07:00
 ---
 
 # lint-ids reads the cutover marker from the checked commit, not the checkout
@@ -34,13 +35,27 @@ cutover mismatch guard still refuses a real mismatch at `H`.
 
 - A pre-push of the migration commit from a checkout without the marker passes
   the id lint (e2e: bootstrap tracker, lint `--head` the marker commit).
-- A head without the marker in a tracked repository still refuses.
+- A head whose marker names another tracker root still refuses.
 
 ## Plan
 
-- [ ] Read the marker at `--head` in lint-ids' mode decision
-- [ ] Tests for both outcomes
+- [x] Read the marker at `--head` in lint-ids' mode decision
+- [x] Tests for both outcomes
 
 ## Log
 
 ### 2026-09-27
+- Fix: the guard reads its marker through one `Repository.readMarker`
+  (checkout by default; `GuardCutoverAt(root, commit)` reads a commit's tree),
+  used by `checkCutover`, the absent-tracker check and `Presence`; lint-ids
+  guards at `--head`. `TestIssueLintIDsJudgesTheMarkerAtHead` (subprocess, as
+  lint-ids exits itself) reproduces you-decide's exact error without the fix.
+
+## Revisions
+
+### 2026-09-27 — Done when: the negative case
+
+Reason: "a head without the marker in a tracked repository still refuses" was
+wrong — lint-ids deliberately treats a pre-cutover head as legacy (that is
+what a branch awaiting `--reconcile` looks like). The real negative case is a
+head whose marker names another tracker root; Done when now says so.
