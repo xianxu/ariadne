@@ -52,7 +52,7 @@ moved.
 
 ## Plan
 
-- [ ] Phase B: land #252; unfreeze `ariadne:0`; `weave compile` every `:0`; parley.nvim:0 pulls the cutover
+- [x] Phase B: land #252; unfreeze `ariadne:0`; `weave compile` every `:0`; parley.nvim:0 pulls the cutover
 - [ ] parley.nvim (cut over in #252's A4 canary; finish its `:0` catch-up)
 - [ ] kaggle
 - [ ] xianxu.dev
@@ -76,3 +76,13 @@ moved.
   blockers from the 2026-09-26/27 read-only dry runs are in the checklist;
   re-run each dry run before its cutover.
 - Added ducks (`../ducks`), a new ariadne-layer project, to the cutover list.
+- Phase B done: #252 landed (PR #135, ec7f997b; archived in e23d2b74) after
+  issue review round 13 SHIP. `ariadne:0` unfrozen and rebuilt; parley.nvim:0
+  pulled (its 2 local #289 syncs were already on main), reads cards, dry run
+  says already migrated; `parley.nvim-slot1/ariadne` back on main.
+- `weave compile` across the fleet is only partial, and every failure
+  reproduces with the pre-#252 `weave` (see checklist Phase B): metis's seeded
+  Makefile (blocks kaggle, kbench), you-decide's tools, parli never compiled.
+  These become Phase C step-1 blockers for their repositories.
+- Cleared ariadne's C8 blockers 1a/1b/1d: deleted the stale local and remote
+  branches; #119 abandoned (wontfix). 1c resolved by #252 landing.

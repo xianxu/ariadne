@@ -193,20 +193,27 @@ parley.nvim (gets the marker), and its old branches reconcile on next use.
 After #252 lands, every repo runs the #252 binary **in legacy mode** until its own
 Phase C cutover: without the marker, nothing about its workflow changes.
 
-- [ ] **Decide:** #252's Done-when includes "existing issue files are migrated", which the
+- [x] **Decide:** #252's Done-when includes "existing issue files are migrated", which the
       fleet cutover delivers after #252 lands. Recommended: file a follow-up issue for
       "fleet cutover + delete legacy writers", move that criterion there (a Revision in
       #252), and close #252 on the tooling.
-- [ ] Full suite green: `go test ./cmd/sdlc/... ./pkg/... -count=1 -timeout 45m`
-- [ ] `sdlc close --issue 252 --verified '<evidence>'` → review SHIP
-- [ ] `sdlc pr` → `sdlc merge` — from the #252 worktree this pulls `~/workspace/ariadne`:
+- [x] Full suite green: `go test ./cmd/sdlc/... ./pkg/... -count=1 -timeout 45m`
+- [x] `sdlc close --issue 252 --verified '<evidence>'` → review SHIP
+- [x] `sdlc pr` → `sdlc merge` — from the #252 worktree this pulls `~/workspace/ariadne`:
       this **is** the unfreeze (the shell `sdlc` now builds the #252 binary)
-- [ ] Rebuild ariadne's binaries: `make build` (or `go build -o bin/sdlc ./cmd/sdlc`)
+- [x] Rebuild ariadne's binaries: `make build` (or `go build -o bin/sdlc ./cmd/sdlc`)
 - [ ] Propagate to every layer repo's `:0` (and slots, when next used): `weave compile` in each of
       42shots, kaggle, kbench, metis, nous, pair, parley.nvim, tools, xianxu.dev, you-decide
       (and astro, parli if they will use issues)
-- [ ] Spot-check two repos in legacy mode: `bin/sdlc issue list`, `bin/sdlc state`
-- [ ] Return `parley.nvim-slot1/ariadne` to `main` (if A3 left it on #252) and `weave compile` there
+      **Partial (2026-09-27):** pair and ducks compiled clean. Pre-existing failures (the
+      pre-#252 `weave` fails identically) — kaggle and kbench: metis's seeded Makefile builds
+      `tools` from `./cmd/sdlc`, which metis lacks; you-decide: its own `make tools`; nous:
+      Homebrew not on PATH (sandbox only?); parli: never compiled, refuses to overwrite
+      `construct/generated/vocabulary/.source-sha` (its output was removed again). Skipped,
+      work in flight on `:0`: tools, xianxu.dev, astro, 42shots, metis. Each repo's compile
+      now happens at its own Phase C step 1; the shared binary already switched with the merge.
+- [x] Spot-check two repos in legacy mode: `bin/sdlc issue list`, `bin/sdlc state`
+- [x] Return `parley.nvim-slot1/ariadne` to `main` (if A3 left it on #252) and `weave compile` there
 
 ---
 
