@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -124,7 +125,7 @@ func (g *e2eGH) PRMerge(repo, branch string) error                    { g.prMerg
 // tests run serially (no t.Parallel(), and tempRepo does a process-global
 // os.Chdir). Do NOT add t.Parallel() to merge e2e tests without first giving
 // each its own isolated state — the swaps (and the chdir) would race.
-func swapMergeDeps(t *testing.T, gh ghCaller, gate func(baseRef, issuesDir string, stderr io.Writer) error) {
+func swapMergeDeps(t *testing.T, gh ghCaller, gate func(ctx context.Context, baseRef, issuesDir string, stderr io.Writer) error) {
 	t.Helper()
 	// These fixtures exercise legacy dependency-clone cleanup. Durable primary
 	// and numbered-slot routing have real-identity coverage in landing_test.go.
@@ -164,7 +165,7 @@ func TestRunMerge_DirtyAfterJudge_RefusesPreMerge(t *testing.T) {
 	// A "judge" that dirties a tracked file (README.md is committed by tempRepo)
 	// and returns nil (success). NoJudge stays false so this fires (step 5 is
 	// gated on it). A passing judge that left a tracked file dirty is the #62 hazard.
-	dirtyingGate := func(_, _ string, _ io.Writer) error {
+	dirtyingGate := func(_ context.Context, _, _ string, _ io.Writer) error {
 		return os.WriteFile(filepath.Join(dir, "README.md"), []byte("dirtied by step-5 hook\n"), 0o644)
 	}
 	swapMergeDeps(t, gh, dirtyingGate)
@@ -192,7 +193,7 @@ func TestRunMerge_DirtyAfterJudge_RefusesPreMerge(t *testing.T) {
 func TestRunMerge_UntrackedAfterJudge_Proceeds(t *testing.T) {
 	dir := tempRepo(t)
 	gh := &e2eGH{openPR: "42"}
-	untrackingGate := func(_, _ string, _ io.Writer) error {
+	untrackingGate := func(_ context.Context, _, _ string, _ io.Writer) error {
 		return os.WriteFile(filepath.Join(dir, "gate-scratch.txt"), []byte("x\n"), 0o644)
 	}
 	swapMergeDeps(t, gh, untrackingGate)

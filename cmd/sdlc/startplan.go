@@ -12,15 +12,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -51,10 +52,15 @@ func NewStartPlanCmd() *cobra.Command {
 					}
 				}
 				if path, err := locateIssueFile(issuesDir, issue); err == nil {
-					guardIssueNotDone(cmd.ErrOrStderr(), path, strconv.Itoa(issue)) // #176 done-issue guard
+					guardIssueNotDone(cmd.Context(), cmd.ErrOrStderr(), path, strconv.Itoa(issue)) // #176 done-issue guard
 				}
 			}
-			runStartPlan(cmd.OutOrStdout(), issue)
+			if issue > 0 {
+				if err := startPlanBranch(cmd.Context(), cmd.OutOrStdout(), issue); err != nil {
+					return err
+				}
+			}
+			runStartPlan(cmd.Context(), cmd.OutOrStdout(), issue)
 			return nil
 		},
 	}
@@ -63,7 +69,7 @@ func NewStartPlanCmd() *cobra.Command {
 }
 
 // runStartPlan emits the planning framing + the at-plan architecture lens.
-func runStartPlan(stdout io.Writer, issue int) {
+func runStartPlan(ctx context.Context, stdout io.Writer, issue int) {
 	label := "this issue"
 	if issue > 0 {
 		label = fmt.Sprintf("#%d", issue)
@@ -90,7 +96,10 @@ func runStartPlan(stdout io.Writer, issue int) {
 	// where the trigger has to be delivered. Sits with planPointer: WHERE to
 	// author, then HOW OFTEN to save.
 	fmt.Fprintln(stdout)
-	cinfo(stdout, syncPointer(issue))
+	// A legacy repository checkpoints with `issue sync` as before #252; an
+	// unreadable mode reads as tracked (the stricter advice).
+	tracked, err := repositoryTracked(ctx, ".")
+	cinfo(stdout, syncPointer(issue, tracked || err != nil))
 
 	// #113: a non-blocking estimate nudge. The estimate gate moved
 	// claim → change-code, and start-plan is where it's naturally set (post-
@@ -137,7 +146,7 @@ func runStartPlan(stdout io.Writer, issue int) {
 		}
 		fmt.Fprintln(stdout)
 		for _, up := range chain {
-			c := gatherBaseContention(up, issue)
+			c := gatherBaseContention(ctx, up, issue)
 			if c.Clean() {
 				cok(stdout, baseContentionSummary(c))
 			} else {
@@ -164,12 +173,13 @@ type baseContention struct {
 	Branch      string
 	DirtyCode   int
 	Others      []inFlightIssue
+	StaleCards  bool // the in-flight set came from the last-fetched tracker
 }
 
 // Clean reports whether the base is a calm place to plan against: on `main`, no
 // dirty code, no other claimed base issues.
 func (c baseContention) Clean() bool {
-	return c.Unavailable == "" && c.Branch == "main" && c.DirtyCode == 0 && len(c.Others) == 0
+	return c.Unavailable == "" && c.Branch == "main" && c.DirtyCode == 0 && len(c.Others) == 0 && !c.StaleCards
 }
 
 // baseContentionSummary renders the one-line heads-up. Pure.
@@ -196,6 +206,9 @@ func baseContentionSummary(c baseContention) string {
 			refs = append(refs, issueRef(o.ID))
 		}
 		parts = append(parts, fmt.Sprintf("%d other issue(s) in-flight (%s)", n, strings.Join(refs, ", ")))
+	}
+	if c.StaleCards {
+		parts = append(parts, staleTrackerNote)
 	}
 	return fmt.Sprintf("base (%s): %s — planning against a moving base.", c.Repo, strings.Join(parts, "; "))
 }
@@ -226,18 +239,74 @@ func planPointer(issue int) string {
 		"    ephemeral — NOT the record.", flow.ShellSummary(), slug)
 }
 
-// syncPointer renders the mid-planning durability trigger (#206). Pure — the
-// only input is the issue number — so the wording is table-testable without IO.
-// Continuation lines indent 4 to align under cinfo's `==> ` prefix.
-func syncPointer(issue int) string {
-	flag := "--issue N"
-	if issue > 0 {
-		flag = fmt.Sprintf("--issue %d", issue)
+// syncPointer renders the mid-planning durability trigger (#206, retargeted by
+// #252). Pure — the only input is the issue number — so the wording is
+// table-testable without IO. Continuation lines indent 4 to align under
+// cinfo's `==> ` prefix.
+func syncPointer(issue int, tracked bool) string {
+	if !tracked {
+		flag := "--issue N"
+		if issue > 0 {
+			flag = fmt.Sprintf("--issue %d", issue)
+		}
+		return fmt.Sprintf("Checkpoint the design as it lands: `sdlc issue sync %s`. It commits\n"+
+			"    the issue body locally (no push, no network) so a compaction or a closed\n"+
+			"    terminal can't lose it. Run it whenever the Spec/Plan/Log has moved —\n"+
+			"    `sdlc change-code` publishes at the end, but only what survived to it.", flag)
 	}
-	return fmt.Sprintf("Checkpoint the design as it lands: `sdlc issue sync %s`. It commits\n"+
-		"    the issue body locally (no push, no network) so a compaction or a closed\n"+
-		"    terminal can't lose it. Run it whenever the Spec/Plan/Log has moved —\n"+
-		"    `sdlc change-code` publishes at the end, but only what survived to it.", flag)
+	id := "N"
+	if issue > 0 {
+		id = fmt.Sprintf("%d", issue)
+	}
+	return fmt.Sprintf("Checkpoint the design as it lands with ordinary commits on this issue\n"+
+		"    branch — `git commit -m '#%s: plan: …' -- <details> <plan>` — so a compaction\n"+
+		"    or a closed terminal can't lose it. Nothing publishes them: the branch's PR\n"+
+		"    lands the details. Card fields (status, estimate, title) change only through sdlc.", id)
+}
+
+// startPlanBranch moves planning for a claimed issue onto its own branch before
+// any design is authored (#252), and refreshes the local card mirror.
+func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
+	dirs, err := resolveIDDirs(envOr("WF_ISSUES_DIR", "workshop/issues"), envOr("WF_HISTORY_DIR", "workshop/history"))
+	if err != nil {
+		return err
+	}
+	// A legacy repository plans as before #252: start-plan frames the design
+	// and change-code creates the branch.
+	if tracked, err := repositoryTracked(ctx, dirs.Abs[0]); err != nil || !tracked {
+		return err
+	}
+	env, err := openTracker(ctx)
+	if err != nil {
+		return err
+	}
+	id := fmt.Sprintf("%06d", issueID)
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return err
+	}
+	card, ok := snap.Card(id)
+	if !ok {
+		return fmt.Errorf("no card #%s on the tracker", id)
+	}
+	if status, _ := issue.GetField(card.Card.Frontmatter, "status"); status != "working" {
+		return fmt.Errorf("#%s is %s; planning starts after `sdlc claim --issue %d` reserves it", id, status, issueID)
+	}
+	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))
+	result, err := preparePlanningBranch(env, id, detailPath)
+	if err != nil {
+		return err
+	}
+	switch result {
+	case planningCreatedBranch:
+		cok(stdout, fmt.Sprintf("Created %s at main for #%s's design; the resting branch is unchanged.", env.branch, id))
+	case planningSwitchedBranch:
+		cok(stdout, fmt.Sprintf("Switched to #%s's existing branch %s.", id, env.branch))
+	}
+	if warn := refreshLocalMirror(env, detailPath); warn != "" {
+		cwarn(stdout, warn)
+	}
+	return nil
 }
 
 // estimateNudge renders the start-plan reminder about estimate_hours (#113, retimed by
@@ -366,7 +435,7 @@ func substrateChain(root string) []string {
 // Blocking bucket, so a dirty tracker file is NOT counted, #82 M2) read via
 // `git -C root`, plus other status:working issues in that root's tracker
 // (excluding the one being planned). Run per repo on the dependency path.
-func gatherBaseContention(root string, excludeIssue int) baseContention {
+func gatherBaseContention(ctx context.Context, root string, excludeIssue int) baseContention {
 	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
 	historyDir := envOr("WF_HISTORY_DIR", "workshop/history")
 	c := baseContention{}
@@ -386,7 +455,13 @@ func gatherBaseContention(root string, excludeIssue int) baseContention {
 		c.DirtyCode = len(assessDirty(strings.TrimSpace(string(out)), issuesDir, historyDir).Blocking)
 	}
 	excludeID := fmt.Sprintf("%06d", excludeIssue)
-	if issues, err := listIssues(filepath.Join(root, issuesDir)); err == nil {
+	issues, stale, err := listIssueStates(ctx, filepath.Join(root, issuesDir))
+	if err != nil {
+		c.Unavailable = "read the base's issues: " + err.Error()
+		return c
+	}
+	c.StaleCards = stale
+	{
 		for _, is := range issues {
 			// #122 carve-out: in-flight = "working" specifically (the contention warning
 			// is about actively-worked peers; blocked is waiting) — not a category test.

@@ -8,6 +8,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -55,7 +56,7 @@ func loadThroughputBaseline(brainDir string) (estimate.ThroughputBaseline, error
 // repo vantage; a project whose breakdown doesn't resolve falls back to its
 // Phase-A estimate, and one with neither is `unknown` (weight 0 + warning) —
 // never silently dropped, since a silent drop reads as "no contention".
-func ListFleetProjects(parentDir, excludePath string, overlays ...projectdoc.CheckoutOverlay) []projectdoc.ProjectLoad {
+func ListFleetProjects(ctx context.Context, parentDir, excludePath string, overlays ...projectdoc.CheckoutOverlay) []projectdoc.ProjectLoad {
 	files, err := projectdoc.ListActiveProjectFiles(parentDir, excludePath, overlays...)
 	if err != nil {
 		// A fleet-walk failure (e.g. unreadable parent) degrades to a solo
@@ -63,10 +64,10 @@ func ListFleetProjects(parentDir, excludePath string, overlays ...projectdoc.Che
 		cwarn(os.Stderr, "fleet project walk failed: "+err.Error()+" — forecasting without cross-project contention")
 		return nil
 	}
-	return loadsFromProjectFiles(files)
+	return loadsFromProjectFiles(ctx, files)
 }
 
-func loadsFromProjectFiles(files []projectdoc.ProjectFile) []projectdoc.ProjectLoad {
+func loadsFromProjectFiles(ctx context.Context, files []projectdoc.ProjectFile) []projectdoc.ProjectLoad {
 	var loads []projectdoc.ProjectLoad
 	for _, f := range files {
 		load := projectdoc.ProjectLoad{Repo: f.Repo}
@@ -78,14 +79,14 @@ func loadsFromProjectFiles(files []projectdoc.ProjectFile) []projectdoc.ProjectL
 			loads = append(loads, load)
 			continue
 		}
-		loads = append(loads, projectLoadFromDoc(d, f))
+		loads = append(loads, projectLoadFromDoc(ctx, d, f))
 	}
 	return loads
 }
 
 // projectLoadFromDoc turns one project doc into a contention load: board
 // remaining if the breakdown resolves, else Phase-A, else unknown.
-func projectLoadFromDoc(d *projectdoc.Doc, f projectdoc.ProjectFile) projectdoc.ProjectLoad {
+func projectLoadFromDoc(ctx context.Context, d *projectdoc.Doc, f projectdoc.ProjectFile) projectdoc.ProjectLoad {
 	meta, err := d.Metadata()
 	name := projectFileName(f.Path)
 	if err == nil && meta.Name != "" {
@@ -102,7 +103,7 @@ func projectLoadFromDoc(d *projectdoc.Doc, f projectdoc.ProjectFile) projectdoc.
 	// even at 0 remaining (a fully-done project is maximally mature and reads
 	// ~0, NOT the coarse Phase-A number). Phase-A is a fallback only for a
 	// project whose breakdown hasn't resolved into any issues yet.
-	b, berr := computeBoard(d, func(ref string) (issueMeta, error) { return projectIssueLookupFn(ref, f.RepoDir) })
+	b, berr := computeBoard(d, func(ref string) (issueMeta, error) { return projectIssueLookupFn(ctx, ref, f.RepoDir) })
 	if berr == nil && boardRowsResolved(b) {
 		load.RemainingHours, load.RemainingSource = b.RemainingHours, "board"
 		return load
@@ -133,12 +134,12 @@ func boardRowsResolved(b board) bool {
 // best-effort: no baseline yields a short bless hint, any other error yields a
 // short unavailable line, and neither ever fails the read. Empty only when the
 // project doc itself can't be read (the verb reports that separately).
-func forecastLine(path, brainDir, today string) string {
+func forecastLine(ctx context.Context, path, brainDir, today string) string {
 	d, err := readProject(path)
 	if err != nil {
 		return ""
 	}
-	f, deadline, ferr := forecastForProject(d, path, brainDir, today)
+	f, deadline, ferr := forecastForProject(ctx, d, path, brainDir, today)
 	if ferr == errNoBaseline {
 		return "forecast: no blessed baseline (sdlc project throughput --bless <FROM>..<TO>)"
 	}
@@ -155,7 +156,7 @@ func forecastLine(path, brainDir, today string) string {
 // projects-dir gives) would otherwise resolve to "." and silently fail every
 // cross-repo issue lookup. Returns errNoBaseline (bubbled) so each consumer
 // picks its own fallback.
-func forecastForProject(d *projectdoc.Doc, projectPath, brainDir, today string) (projectdoc.Forecast, string, error) {
+func forecastForProject(ctx context.Context, d *projectdoc.Doc, projectPath, brainDir, today string) (projectdoc.Forecast, string, error) {
 	baseline, err := loadThroughputBaseline(brainDir)
 	if err != nil {
 		return projectdoc.Forecast{}, "", err
@@ -175,7 +176,7 @@ func forecastForProject(d *projectdoc.Doc, projectPath, brainDir, today string) 
 	repoDir := identity.WorktreeRoot
 	// Repo is the repo basename fleet-wide (consistent with sibling loads); the
 	// project's own name lives in ProjectLoad.Name via projectLoadFromDoc.
-	this := projectLoadFromDoc(d, projectdoc.ProjectFile{Path: absPath, RepoDir: repoDir, Repo: identity.Repo})
+	this := projectLoadFromDoc(ctx, d, projectdoc.ProjectFile{Path: absPath, RepoDir: repoDir, Repo: identity.Repo})
 	overlays, err := projectWorkspaceRoots(identity)
 	if err != nil {
 		return projectdoc.Forecast{}, "", err
@@ -184,7 +185,7 @@ func forecastForProject(d *projectdoc.Doc, projectPath, brainDir, today string) 
 	if err != nil {
 		return projectdoc.Forecast{}, "", err
 	}
-	others := loadsFromProjectFiles(files)
+	others := loadsFromProjectFiles(ctx, files)
 	f, cerr := projectdoc.ComputeForecast(baseline, this, others, today)
 	if cerr != nil {
 		return projectdoc.Forecast{}, meta.Deadline, cerr

@@ -9,9 +9,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -20,6 +22,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // codecompleteAnchorCommit returns the SHA of the NEWEST commit touching issuePath
@@ -48,8 +51,8 @@ func codecompleteAnchorCommit(issuePath string) string {
 // baseRef..HEAD whose CURRENT (working-tree) status is codecomplete — the set a
 // publish is about to flip to done. Mirrors touchedIssuesNotDone's window scan
 // (ARCH-DRY).
-func mergedCodecompleteIssues(baseRef, issuesDir string) ([]string, error) {
-	refs, err := scanIssueFiles(baseRef, issuesDir, gitx.RunGit)
+func mergedCodecompleteIssues(ctx context.Context, baseRef, issuesDir string) ([]string, error) {
+	refs, err := scanIssueFiles(ctx, baseRef, issuesDir, gitx.RunGit)
 	if err != nil {
 		if scanErr, ok := err.(*issueFileScanError); ok {
 			return nil, fmt.Errorf("git diff %s..HEAD: %w", baseRef, scanErr.Err)
@@ -70,24 +73,46 @@ func mergedCodecompleteIssues(baseRef, issuesDir string) ([]string, error) {
 // covered branch-point..anchor — hence a branch-level check suffices, no false
 // per-issue "drift" refusal on multi-issue branches), and refuses unless HEAD is
 // unchanged since that anchor. On refusal the message points at re-running close.
-func runPublishGate(baseRef, issuesDir string, stderr io.Writer) error {
-	issues, err := mergedCodecompleteIssues(baseRef, issuesDir)
+func runPublishGate(ctx context.Context, baseRef, issuesDir string, stderr io.Writer) error {
+	if err := guardTransferredDetailsFn(ctx); err != nil {
+		return err
+	}
+	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
+	if err != nil {
+		return err
+	}
+	if rs.Tracker {
+		// #252: this publish owns the closes whose evidence it carries.
+		env, err := openTracker(ctx)
+		if err != nil {
+			return err
+		}
+		owned, err := ownedCompletions(env, rs, "HEAD", baseRef, false)
+		if err != nil {
+			return err
+		}
+		return validatePublishAnchors(ownedPublishIssues(owned), stderr)
+	}
+	issues, err := mergedCodecompleteIssues(ctx, baseRef, issuesDir)
 	if err != nil {
 		return err
 	}
 	return validatePublishIssues(issues, stderr)
 }
 
-// validatePublishIssues shares the reviewed-head, docs-only and quick-flow
-// checks across ordinary diff selection and immutable landing ownership.
-func validatePublishIssues(issues []string, stderr io.Writer) error {
-	if len(issues) == 0 {
-		// No codecomplete issue in this window (e.g. an intermediate push of
-		// not-yet-closed work) — no invariant to enforce. Deterministic no-op.
-		cinfo(stderr, "publish gate: no codecomplete issues in this window — nothing to verify")
-		return nil
+// ownedPublishIssues anchors each owned completion on its evidence commit.
+func ownedPublishIssues(owned []ownedCompletion) []publishIssue {
+	entries := make([]publishIssue, 0, len(owned))
+	for _, oc := range owned {
+		entries = append(entries, publishIssue{Path: oc.DetailPath, Anchor: oc.Binding.EvidenceCommit})
 	}
-	newestAnchor, minAhead := "", -1
+	return entries
+}
+
+// validatePublishIssues anchors pre-tracker issues on the newest commit that
+// left them codecomplete, then applies the shared checks.
+func validatePublishIssues(issues []string, stderr io.Writer) error {
+	entries := make([]publishIssue, 0, len(issues))
 	for _, p := range issues {
 		a := codecompleteAnchorCommit(p)
 		if a == "" {
@@ -95,6 +120,30 @@ func validatePublishIssues(issues []string, stderr io.Writer) error {
 				"publish gate: %s is codecomplete but has no close commit reachable from HEAD.\n"+
 					"  Commit the `sdlc close` (its status flip must be committed), then retry the publish.", p)
 		}
+		entries = append(entries, publishIssue{Path: p, Anchor: a})
+	}
+	return validatePublishAnchors(entries, stderr)
+}
+
+// validatePublishAnchors shares the reviewed-head, docs-only and quick-flow
+// checks across ordinary diff selection, immutable landing ownership and card
+// completion bindings (#252).
+func validatePublishAnchors(entries []publishIssue, stderr io.Writer) error {
+	issues := make([]string, 0, len(entries))
+	for _, e := range entries {
+		if e.Path != "" {
+			issues = append(issues, e.Path)
+		}
+	}
+	if len(entries) == 0 {
+		// No codecomplete issue in this window (e.g. an intermediate push of
+		// not-yet-closed work) — no invariant to enforce. Deterministic no-op.
+		cinfo(stderr, "publish gate: no codecomplete issues in this window — nothing to verify")
+		return nil
+	}
+	newestAnchor, minAhead := "", -1
+	for _, e := range entries {
+		a := e.Anchor
 		ahead, ok := revCount(a + "..HEAD")
 		if !ok {
 			// Fail-closed: if we can't verify HEAD vs the anchor, refuse rather than
@@ -186,8 +235,11 @@ func quickGrewPastReview(issues []string) error {
 // merge/push flips them), so the only codecomplete issues present are this publish's.
 // (The invariant that gates un-reviewed drift is runPublishGate; this flip is the
 // mechanical state change once that gate passed.)
-func publishCodecompleteIssues(issuesDir string) ([]string, error) {
-	refs, err := scanIssueFiles("", issuesDir, nil)
+func publishCodecompleteIssues(ctx context.Context, issuesDir string) ([]string, error) {
+	if done, tracked, err := publishTrackerCompletions(ctx, issuesDir); tracked || err != nil {
+		return done, err
+	}
+	refs, err := scanIssueFiles(ctx, "", issuesDir, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -275,4 +327,28 @@ func codecompleteAnchorCommitAt(ref, issuePath string, runGit func(...string) ([
 		}
 	}
 	return "", nil
+}
+
+// publishTrackerCompletions is the publish flip for a tracked repository (#252):
+// every codecomplete card bound here whose evidence commit fresh main now
+// carries goes done for its close generation. Details are archived as they
+// are: the card is the authority on their status, and archived bytes that do
+// not depend on the live card keep archive confirmation deterministic.
+func publishTrackerCompletions(ctx context.Context, issuesDir string) (done []string, tracked bool, err error) {
+	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
+	if err != nil || !rs.Tracker {
+		return nil, rs.Tracker, err
+	}
+	abs, err := filepath.Abs(issuesDir)
+	if err != nil {
+		return nil, true, err
+	}
+	env, err := openTrackerAt(ctx, abs)
+	if err != nil {
+		return nil, true, err
+	}
+	if done, err = settleLandedCompletions(ctx, env, abs); err != nil {
+		return done, true, err
+	}
+	return done, true, nil
 }

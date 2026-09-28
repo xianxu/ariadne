@@ -14,12 +14,17 @@ current or supplied session transcript, invoke `session-retro`; see
 
 ## Concurrent issue work
 
-Reserve an open issue with `sdlc claim --issue N`; remote main decides whether it
-is available. Checkpoint its body locally with `sdlc issue sync --issue N`.
-To publish an issue and deliberately selected plan/project files together,
-commit them and run `sdlc issue publish --commit SHA`. This applies that change
-with three-way merging in every checkout, including primary `:0`, and preserves
-unrelated local commits. See [issue publication](atlas/workflow/issue-sync.md).
+In an issue tracker repository (#252; `workshop/issue-tracker.json` on main),
+each issue's card — id, status, dates, hours, title — lives on the
+`issue-tracker` branch and changes only through sdlc's verbs. `sdlc claim --issue
+N` reserves an open issue on its card; `sdlc start-plan` puts the design on the
+issue's own branch, where `sdlc issue sync --issue N` checkpoints it; the details
+reach main with that branch (initial details: `sdlc issue move-detail`). See
+[issue tracker](atlas/workflow/issue-tracker.md). A legacy repository cuts over
+once with `sdlc issue migrate` — see
+[issue tracker migration](atlas/workflow/issue-tracker-migration.md); until then
+it keeps [issue publication](atlas/workflow/issue-sync.md): claim on main,
+`issue sync` locally, `sdlc issue publish --commit SHA` for selected doc commits.
 
 Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent

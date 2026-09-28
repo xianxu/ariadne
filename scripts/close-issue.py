@@ -41,6 +41,21 @@ FORCE = os.environ.get('FORCE', '') == '1'
 
 RED, GREEN, YELLOW, CYAN, RESET = '\033[1;31m', '\033[1;32m', '\033[1;33m', '\033[1;36m', '\033[0m'
 def die(msg) -> NoReturn:  print(f"{RED}Error: {msg}{RESET}", file=sys.stderr); sys.exit(1)
+
+# #252: a repository cut over to the issue tracker keeps status and hours on
+# cards; this script would write them into details, so it refuses there. Cut
+# over means what sdlc's tracker.CutOver means: the marker
+# (tracker.CutoverMarkerPath) exists, or the clone has fetched an issue tracker.
+_TRACKER_MARKER = os.path.join(os.path.dirname(WF_ISSUES_DIR) or '.', 'issue-tracker.json')
+def _fetched_tracker() -> bool:
+    try:
+        out = subprocess.run(['git', 'for-each-ref', '--count=1', '--format=%(refname)', 'refs/remotes/*/issue-tracker'],
+                             capture_output=True, text=True, check=False).stdout
+    except OSError:
+        return False
+    return out.strip() != ''
+if os.path.exists(_TRACKER_MARKER) or _fetched_tracker():
+    die(f"this repository uses the issue tracker ({_TRACKER_MARKER}); close with `sdlc close` — this script would write card fields into details")
 def info(msg): print(f"{CYAN}==>{RESET} {msg}", file=sys.stderr)
 def ok(msg):   print(f"  {GREEN}[ok]{RESET} {msg}", file=sys.stderr)
 def warn(msg): print(f"  {YELLOW}[!]{RESET} {msg}", file=sys.stderr)

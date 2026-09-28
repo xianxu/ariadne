@@ -42,8 +42,8 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -260,6 +260,7 @@ func decideMergeAction(openPRNumber string, mergedExists bool, unmergedCount int
 }
 
 func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
+	ctx := commandContext(f.Context)
 	target, err := resolveLandingTarget(mergeRunner)
 	if err != nil {
 		return err
@@ -364,7 +365,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// unchanged since the codecomplete issues' `sdlc close`. (Replaces the old
 	// plan/specs/lessons pre-merge judges — #142 folded here.)
 	if !f.NoJudge {
-		if err := runPublishGateFn(gitx.DiffBase(), f.IssuesDir, stderr); err != nil {
+		if err := runPublishGateFn(commandContext(f.Context), gitx.DiffBase(), f.IssuesDir, stderr); err != nil {
 			if f.DryRun {
 				cwarn(stderr, fmt.Sprintf("dry-run: publish gate WOULD refuse: %v", err))
 			} else {
@@ -373,6 +374,15 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		}
 	} else {
 		cwarn(stderr, "--no-judge: skipping the pre-merge publish gate (#160 reviewed-HEAD-unchanged invariant)")
+	}
+
+	// ── 5.5 Tracker ownership (#252) ─────────────────────────────────────────
+	// The server-side merge may squash or rebase, leaving the evidence commits
+	// off main, so the closes this branch owns are selected now, from the
+	// branch, and completed after the landing is pulled.
+	trackerOwned, trackerEnvForMerge, err := branchOwnedCompletions(commandContext(f.Context), f.IssuesDir)
+	if err != nil {
+		die(stderr, fmt.Sprintf("tracker completions: %v", err))
 	}
 
 	// ── 6. Resolve merge topology: in-place vs worktree ─────────────────────
@@ -401,7 +411,11 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 
 	// ── 7. Show unmerged commits ────────────────────────────────────────────
-	unmergedOut, _ := mergeRunner.Git("log", "main..HEAD", "--oneline")
+	base := gitx.BranchPoint()
+	if base == "" {
+		base = "main"
+	}
+	unmergedOut, _ := mergeRunner.Git("log", base+"..HEAD", "--oneline")
 	unmerged := strings.TrimRight(string(unmergedOut), "\n")
 	if unmerged != "" {
 		cok(stderr, "Unmerged local commits found:")
@@ -413,7 +427,10 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 
 	// ── 8. Not-done issue warn (vs main) ────────────────────────────────────
-	notDone, _ := touchedIssuesNotDone("main", f.IssuesDir, mergeRunner)
+	notDone, nerr := touchedIssuesNotDone(ctx, "main", f.IssuesDir, mergeRunner)
+	if nerr != nil {
+		cwarn(stderr, fmt.Sprintf("could not scan touched issues: %v", nerr))
+	}
 	if len(notDone) > 0 && !f.Yes && !f.DryRun {
 		fmt.Fprintf(stderr, "  %s[!]%s Touched issue files that are NOT done:\n", ansiYellow, ansiReset)
 		for _, p := range notDone {
@@ -559,14 +576,28 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// IsTerminal, and codecomplete is active. Actuals were set at close, so the
 	// done-guard holds. The flip is captured by the archive commit below (the
 	// flipped files move to history).
-	if flipped, ferr := publishCodecompleteIssues(filepath.Join(mainPath, f.IssuesDir)); ferr != nil {
+	// Only a confirmed landing completes a card: a PR merged now, or found merged
+	// on resume. An abandoned branch (removed without merging) completes nothing.
+	if trackerEnvForMerge != nil && merged {
+		out, lerr := mergeRunner.GitInDir(mainPath, "rev-parse", "--verify", "HEAD^{commit}")
+		if lerr != nil {
+			die(stderr, fmt.Sprintf("resolve the landed main commit: %v\n%s", lerr, out))
+		}
+		landed := strings.TrimSpace(string(out))
+		for _, oc := range trackerOwned {
+			if cerr := completeOnCard(trackerEnvForMerge, oc, landed); cerr != nil {
+				die(stderr, fmt.Sprintf("complete #%s on its card: %v\n  retry `sdlc merge` or `sdlc issue recovery reconcile --issue %s`", issue.CLIRef(oc.ID), cerr, issue.CLIRef(oc.ID)))
+			}
+		}
+	}
+	if flipped, ferr := publishCodecompleteIssues(ctx, filepath.Join(mainPath, f.IssuesDir)); ferr != nil {
 		die(stderr, fmt.Sprintf("publish flip (codecomplete → done): %v", ferr))
 	} else if len(flipped) > 0 {
 		cinfo(stderr, fmt.Sprintf("Published %d issue(s): codecomplete → done", len(flipped)))
 	}
 
 	// ── 11. Archive done issues in MAIN worktree ────────────────────────────
-	moves, err := archiveDoneIssuesInDir(stderr, repo, mainPath, f.IssuesDir, f.HistoryDir, f.PlansDir)
+	moves, err := archiveDoneIssuesInDir(ctx, stderr, repo, mainPath, f.IssuesDir, f.HistoryDir, f.PlansDir)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -638,11 +669,11 @@ func isInPlaceCheckout(gitDir string) bool {
 // archiveDoneIssues, but it scans + mutates inside the main worktree
 // at mainPath (so the archive commit lands on main, not on the feature
 // branch).
-func archiveDoneIssuesInDir(stderr io.Writer, repo, mainPath, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, error) {
+func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPath, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, error) {
 	issuesFull := filepath.Join(mainPath, issuesDir)
 	historyFull := filepath.Join(mainPath, historyDir)
 	plansFull := filepath.Join(mainPath, plansDir)
-	refs, err := scanIssueFiles("", issuesFull, nil)
+	refs, err := scanIssueFiles(ctx, "", issuesFull, nil)
 	if err != nil {
 		return nil, err
 	}

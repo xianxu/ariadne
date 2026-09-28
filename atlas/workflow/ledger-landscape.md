@@ -35,7 +35,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 ## Choosing a ledger — worked examples
 
 **"Was the post-milestone code review conducted, and what was the verdict?"**
-- *Authoritative:* git commit trailer on the milestone-close commit (`Review-Verdict: SHIP`). Parseable, immutable, ships in git.
+- *Authoritative:* git commit trailer on the milestone-close commit (`Review-Verdict: SHIP`). Parseable, immutable, ships in git. For a tracker-era whole-issue close (#252) close writes that commit itself (the evidence commit, with a `Close-Actual:` trailer) and the card's `tracker.completion` binding names it.
 - *Human mirror:* Log line in the issue file (`review verdict: SHIP`).
 - *Durable detail (#136/#201):* boundary metadata plus the reviewer's semantic final response is persisted to a git-tracked sidecar in `workshop/plans/` (`NNNNNN-slug-close-review.md` / `-m<x>-review.md`; re-runs append a `## Re-review` section). Its `window` row names the reviewed commit (#194). Harness diagnostics/progress stay on terminal stderr; the separate `*-gate.md` is the machine finding/disposition ledger. Per principle #4 the review sidecar is the reliable human-detail surface; the local agent transcript is the fallback when no sidecar was written (`--no-judge`/dry-run/not-run).
 - *NOT* in the project file — that tracks portfolio status, not per-milestone evidence.

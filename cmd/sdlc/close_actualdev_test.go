@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"testing"
 )
@@ -42,7 +43,7 @@ func TestActualDeviation(t *testing.T) {
 func TestCheckActualDeviation_SkipsWhenUnmeasurable(t *testing.T) {
 	var buf bytes.Buffer
 	// #99999 has no commits referencing it → computeActualForCloseFn → actualNoWindow.
-	if err := checkActualDeviation(&buf, "99999", 13.5, "issue"); err != nil {
+	if err := checkActualDeviation(context.Background(), &buf, "99999", 13.5, "issue"); err != nil {
 		t.Fatalf("expected nil (skip) when unmeasurable, got: %v", err)
 	}
 	if out := strings.TrimSpace(buf.String()); out != "" {
@@ -58,14 +59,14 @@ func TestCheckActualDeviation_SkipsWhenUnmeasurable(t *testing.T) {
 func TestCheckActualDeviation_MilestoneSkipsCumulativeMeasurement(t *testing.T) {
 	orig := computeActualForCloseFn
 	calls := 0
-	computeActualForCloseFn = func(string) actualResult {
+	computeActualForCloseFn = func(context.Context, string) actualResult {
 		calls++
 		return actualResult{Status: actualMeasured, Hours: 5.14}
 	}
 	t.Cleanup(func() { computeActualForCloseFn = orig })
 
 	var buf bytes.Buffer
-	if err := checkActualDeviation(&buf, "180", 0.37, "milestone"); err != nil {
+	if err := checkActualDeviation(context.Background(), &buf, "180", 0.37, "milestone"); err != nil {
 		t.Fatalf("milestone increment must not be compared with cumulative actual: %v", err)
 	}
 	if calls != 0 {

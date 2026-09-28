@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -50,10 +51,10 @@ func laFixture(t *testing.T) (root, origin string, pr landingPR) {
 	return root, origin, landingPR{Number: 246, State: "MERGED", Repo: "test/repo", HeadRef: "000246-landing", HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head}
 }
 func laArchive(root string, pr landingPR) error {
-	return archiveLandingPR(root, "origin", pr.Repo, pr, "workshop/issues", "workshop/plans", "workshop/history")
+	return archiveLandingPR(context.Background(), root, "origin", pr.Repo, pr, "workshop/issues", "workshop/plans", "workshop/history")
 }
 func laProof(root, tip string, pr landingPR) (bool, error) {
-	return landingArchiveComplete(root, tip, pr.Repo, pr, "workshop/issues", "workshop/plans", "workshop/history")
+	return landingArchiveComplete(context.Background(), root, tip, pr.Repo, pr, "workshop/issues", "workshop/plans", "workshop/history")
 }
 
 func TestLandingArchiveAtomicAndRetryProof(t *testing.T) {
@@ -171,7 +172,7 @@ func TestLandingArchiveEmptyAndUnsafeRoots(t *testing.T) {
 	if laGit(t, origin, "rev-parse", "main") != tip {
 		t.Fatal("empty archive committed")
 	}
-	if _, err := landingArchiveComplete(root, tip, pr.Repo, pr, "../issues", "workshop/plans", "workshop/history"); err == nil {
+	if _, err := landingArchiveComplete(context.Background(), root, tip, pr.Repo, pr, "../issues", "workshop/plans", "workshop/history"); err == nil {
 		t.Fatal("outside root accepted")
 	}
 }

@@ -24,7 +24,6 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -450,17 +449,26 @@ func emitTrailerBlock(stdout io.Writer, r reviewResult, kind string) {
 	fmt.Fprintln(stdout)
 	fmt.Fprintf(stdout, "── %s trailers (paste into commit message) ──\n", kind)
 	fmt.Fprintln(stdout)
-	fmt.Fprintf(stdout, "Review-Verdict: %s\n", r.Verdict)
+	for _, line := range reviewTrailers(r) {
+		fmt.Fprintln(stdout, line)
+	}
+}
+
+// reviewTrailers renders the verdict trailers once, for the printed block and
+// for the evidence commit a tracker-era close creates itself (#252).
+func reviewTrailers(r reviewResult) []string {
+	lines := []string{fmt.Sprintf("Review-Verdict: %s", r.Verdict)}
 	// Both ends through the SAME abbreviator so the window reads symmetrically —
 	// r.Base is git's minimal-unique short form (often 7), abbrevSHA is a fixed 8.
 	base := r.Base
 	if r.BaseLong != "" {
 		base = abbrevSHA(r.BaseLong)
 	}
-	fmt.Fprintf(stdout, "Review-Window: %s..%s\n", base, abbrevSHA(r.Head))
+	lines = append(lines, fmt.Sprintf("Review-Window: %s..%s", base, abbrevSHA(r.Head)))
 	if r.Reason != "" {
-		fmt.Fprintf(stdout, "Review-Reason: %s\n", r.Reason)
+		lines = append(lines, fmt.Sprintf("Review-Reason: %s", r.Reason))
 	}
+	return lines
 }
 
 // annotateLogLineWithVerdict re-reads the issue file and appends

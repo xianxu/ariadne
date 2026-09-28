@@ -40,9 +40,29 @@ type Transition struct {
 // parley.nvim#116 (home) and sdlc resolve #144 (the full family).
 type Discovery struct {
 	Home    string `json:"home"`    // active issue instances
+	Cards   string `json:"cards"`   // authoritative metadata, on Tracker
+	Tracker string `json:"tracker"` // dedicated branch name
 	Glob    string `json:"glob"`    // filename glob within Home
 	Archive string `json:"archive"` // terminal issues + family move here on close/merge
 	Plans   string `json:"plans"`   // active durable plan + boundary-review sidecars
+}
+
+// CardField describes one protected detail projection, derived from CUE.
+// Kind "title" names the Markdown H1; other kinds are frontmatter scalars.
+type CardField struct {
+	Name     string `json:"name"`
+	Kind     string `json:"kind"`
+	Required bool   `json:"required"`
+	Setter   string `json:"setter"`
+}
+
+// CardModel separates user metadata ownership from internal transaction data.
+type CardModel struct {
+	Fields   []CardField `json:"fields"`
+	Internal struct {
+		Field   string `json:"field"`
+		Version int    `json:"version"`
+	} `json:"internal"`
 }
 
 // Section is one body section of the new-issue creation template: a heading
@@ -72,7 +92,8 @@ type IssueModel struct {
 	Lifecycle []Transition `json:"lifecycle"`
 	// Scaf holds the scaffold: block; unexported-name-clash-avoiding (Scaf, not
 	// Scaffold) so the Sections() accessor can carry the read name — mirrors Disc.
-	Scaf Scaffold `json:"scaffold"`
+	Scaf Scaffold  `json:"scaffold"`
+	Card CardModel `json:"card"`
 }
 
 var issueModel = mustLoadIssue()
@@ -92,6 +113,9 @@ func Issue() *IssueModel { return issueModel }
 // so consumers derive artifact locations from the model instead of hardcoding
 // them (ariadne#144).
 func (m *IssueModel) Discovery() Discovery { return m.Disc }
+
+// CardFields returns a copy so callers cannot mutate canonical ownership.
+func (m *IssueModel) CardFields() []CardField { return append([]CardField(nil), m.Card.Fields...) }
 
 // ArchiveKind names one per-kind archive subdir under the archive root (#181
 // layout, widened kind-keyed for #180): issues under root/issues, plans +

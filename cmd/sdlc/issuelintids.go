@@ -18,16 +18,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"path"
+	"sort"
 	"strings"
 
 	"github.com/spf13/cobra"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 type issueLintIDsFlags struct {
+	Context    context.Context
 	Base       string
 	Head       string
 	Trunk      string
@@ -50,6 +55,9 @@ merges both cleanly and nothing else in the lifecycle objects — which is why
 this check exists rather than relying on a conflict.
 
   INTRODUCED    refused (exit 1); the range is where renaming is still cheap
+  CARDLESS      (issue tracker repositories) refused (exit 1): details the
+                range adds must belong to a card with the same id and slug —
+                ids are allocated on the tracker, so a hand-made file collides
   PRE-EXISTING  reported; renumbering is operator work, and blocking every
                 merge until it is done would be worse than the bug
 
@@ -61,6 +69,7 @@ Read-only.`,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			f.Context = cmd.Context()
 			return runIssueLintIDs(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	}
@@ -122,6 +131,18 @@ func runIssueLintIDs(stdout, stderr io.Writer, f *issueLintIDsFlags) error {
 	clashes, err := introducedIDClashes(baseSpace, f.Base, f.Trunk, head, dirs, r)
 	if err != nil {
 		return degraded(err)
+	}
+	cardless, err := cardlessAdditions(commandContext(f.Context), f.Head, baseSpace, head, dirs, r)
+	if err != nil {
+		return degraded(err)
+	}
+	if len(cardless) > 0 {
+		fmt.Fprintf(stderr, "%sthis range adds %d details file(s) with no matching issue card:%s\n%s\n",
+			ansiRed, len(cardless), ansiReset, strings.Join(cardless, "\n"))
+		fmt.Fprintln(stderr, "  In an issue tracker repository ids are allocated on cards; a hand-made details")
+		fmt.Fprintln(stderr, "  file can collide with the next allocated id. File it with `sdlc issue new`.")
+		exitWithCode(1)
+		return nil
 	}
 	if len(clashes) == 0 {
 		cok(stderr, "id lint: this range introduces no reused issue ids")
@@ -197,4 +218,70 @@ func introducedIDClashes(baseByID map[int][]string, base, trunk string, head map
 		trunkByID = t
 	}
 	return renderClashes(head, baseByID, trunkByID), nil
+}
+
+// cardlessAdditions is the tracker-era half of the id check (#252): in a
+// repository whose head carries the cutover marker, every details file the
+// range adds must belong to a card at the same id and slug. The tracker is read
+// fresh; an unreadable tracker is a check that could not run, never clean.
+func cardlessAdditions(ctx context.Context, headRef string, base, head map[int][]string, dirs idDirs, r gitRunner) ([]string, error) {
+	if len(dirs.Rel) == 0 {
+		return nil, nil
+	}
+	if _, err := r.Git("cat-file", "-e", "--end-of-options", headRef+":"+tracker.CutoverMarkerPath); err != nil {
+		return nil, nil // not a tracker repository at head
+	}
+	repo, err := tracker.RepositoryForCheckout(ctx, dirs.Top)
+	if err != nil {
+		return nil, err
+	}
+	if repo == nil {
+		return nil, fmt.Errorf("%s marks an issue tracker repository, but no issue tracker is reachable", tracker.CutoverMarkerPath)
+	}
+	snap, err := repo.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	cards := map[string]string{}
+	for _, c := range snap.Records() {
+		cards[c.ID] = c.Path
+	}
+	return detailsWithoutCards(addedDetails(base, head, dirs.Rel[0]), cards), nil
+}
+
+// addedDetails lists the details paths head has under issuesDir that base does
+// not. Pure.
+func addedDetails(base, head map[int][]string, issuesDir string) []string {
+	had := map[string]bool{}
+	for _, paths := range base {
+		for _, p := range paths {
+			had[p] = true
+		}
+	}
+	var added []string
+	for _, paths := range head {
+		for _, p := range paths {
+			if !had[p] && path.Dir(p) == issuesDir {
+				added = append(added, p)
+			}
+		}
+	}
+	sort.Strings(added)
+	return added
+}
+
+// detailsWithoutCards returns the added details whose id has no card, or whose
+// card sits at another slug. Pure.
+func detailsWithoutCards(added []string, cards map[string]string) []string {
+	var missing []string
+	for _, p := range added {
+		id, slug, ok := issue.ParseFilename(path.Base(p))
+		if !ok {
+			continue
+		}
+		if cards[id] != tracker.CardPath(id, slug) {
+			missing = append(missing, p)
+		}
+	}
+	return missing
 }

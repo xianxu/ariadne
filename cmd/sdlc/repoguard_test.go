@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -155,7 +156,7 @@ func TestGuardIssueNotDone_WorkingIssuePasses(t *testing.T) {
 	// command tree can't be driven past the guard here — its own downstream
 	// gates exit via bare exitWithCode, which expectDie can't intercept).
 	issuePath := filepath.Join(issuesDir, "000006-t.md")
-	msg, died := expectDie(t, func() { guardIssueNotDone(io.Discard, issuePath, "6") })
+	msg, died := expectDie(t, func() { guardIssueNotDone(context.Background(), io.Discard, issuePath, "6") })
 	if died {
 		t.Fatalf("done-guard fired on a WORKING issue: %q", msg)
 	}

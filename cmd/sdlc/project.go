@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
 	projectdoc "github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -84,7 +84,7 @@ func newProjectShowCmd() *cobra.Command {
 	f := projectShowFlags{}
 	cmd := &cobra.Command{Use: "show", Short: "Show one project and its task summary", Args: cobra.NoArgs, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runProjectShow(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runProjectShow(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		}}
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug")
 	cmd.Flags().StringVar(&f.ProjectsDir, "projects-dir", defaultProjectsDir(), "directory holding project files")
@@ -160,7 +160,7 @@ func runProjectList(stdout, _ io.Writer, f *projectListFlags) error {
 	return nil
 }
 
-func runProjectShow(stdout, _ io.Writer, f *projectShowFlags) error {
+func runProjectShow(ctx context.Context, stdout, _ io.Writer, f *projectShowFlags) error {
 	path, err := projectdoc.ResolvePath(f.ProjectsDir, f.Slug)
 	if err != nil {
 		return err
@@ -170,7 +170,7 @@ func runProjectShow(stdout, _ io.Writer, f *projectShowFlags) error {
 		return err
 	}
 	fmt.Fprint(stdout, projectdoc.RenderShow(projectdoc.Summarize(path, d)))
-	if line := forecastLine(path, f.BrainDir, projectTodayFn()); line != "" {
+	if line := forecastLine(ctx, path, f.BrainDir, projectTodayFn()); line != "" {
 		fmt.Fprintln(stdout, line)
 	}
 	return nil

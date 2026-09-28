@@ -68,6 +68,11 @@ Detailed incidents remain in their owning issue or review artifact.
 - Before a boundary, read the actual verdict and reconcile the plan against the
   committed tree. “Inert at runtime” is not the same as “removed”; an unticked
   row can disable the guard that proves it.
+- Multi-milestone inventories distinguish delivered entities from future files
+  and modifications. Separate completed implementation checklists from the
+  acceptance gate whose successful execution is still pending.
+- Check generated review artifacts against the complete boundary range before
+  committing; an unstaged-only whitespace check misses already committed prose.
 - Review snapshots enumerate every mutable artifact in their prompt and remain
   bounded. Do not truncate judge output with `tail` or `grep`.
 - A close claim names evidence at the corrected mutation boundary. A plan revision
@@ -136,6 +141,12 @@ The simplest durable authority beats a clever scan of consequences.
 
 - A cancelled or output-limited Git command has no trustworthy predicate exit code;
   keep those errors distinct from completed `exit 1` absence/ancestry results.
+- Match writer limits to reader limits, including framing overhead; a successful
+  write must not make the next authoritative read refuse its own data.
+- A bounded writer must not accidentally expose an embedded `ReadFrom` fast path
+  that bypasses its `Write` limit. Test the real subprocess/`io.Copy` boundary.
+- Authoritative Git blob identities require exact bytes: bypass clean filters on
+  writes and archive export filters on reads; test caller and global attributes.
 - Rebase overwrite checks must cover paths touched by intermediate replay commits,
   including files deleted again before HEAD, not only the target and final trees.
 - When a procedure promises two history comparisons, show and test both Git
@@ -148,3 +159,73 @@ The simplest durable authority beats a clever scan of consequences.
   step in the guide.
 - When a new operator phrase is added to an agent guide, update the existing
   README entry point for that workflow in the same change.
+- Before submitting a milestone, enumerate the non-test files added in its window
+  (`git diff --name-status BASE HEAD | grep '^A' | grep -v _test`) and reconcile
+  them with the plan's Core concepts table and each Task "Files:" list; reviewing
+  the inventory by memory missed six entities and two phantom files (#252 M2).
+- When a verb's behaviour changes, `rg` the verb's name across
+  `cmd/sdlc/helptext/` and `atlas/` and classify every hit (still true / now
+  false / legacy until cutover) in the same change: per-verb help is the workflow
+  contract agents read, and fixing only the pages you remember left four stale
+  descriptions (#252 M2).
+- Checks run before effects: a verb's dry-run and refusal paths must leave every
+  file unchanged, so compute refreshes in memory and write only after the last
+  check, including building any receipt or operation that validates its input
+  (#252 M2: a stale-mirror refresh was written before refusals ran).
+- An observation error is never evidence of absence: a Git probe distinguishes
+  exit 1 (false) from any other failure (#252 M2).
+- Stage explicit paths, never a directory (`git add cmd/sdlc` committed a 9 MB
+  build artifact and an unrelated gofmt rewrite in #252 M3); build binaries to
+  `-o` outside the source tree.
+- A landing's identity is what the forge confirmed (the PR's merge commit), not
+  ancestry of the branch's commits: squash and rebase rewrite them (#252 M3).
+- A deferred effect replays inputs pinned when it was decided, never the live
+  worktree a later commit may have changed (#252 M3) — and replays them
+  three-way: only where the target still holds the version the decision saw.
+  A later committed edit is newer than the pin; overwriting it is data loss
+  (#252 M3 BR-30). Every pinned input the replay does not apply is reported
+  (path + reason, durably where possible), never dropped silently.
+- A cleanup path shared by landing and abandonment completes nothing: gate each
+  completion on the confirmed landing itself, not on reaching the step after it
+  (#252 M3 BR-29: removing an unmerged worktree marked its cards done).
+- Every identifier in a ticked plan row greps to shipped code. When a name
+  changes in implementation, rename it in the row (planned name in parentheses)
+  as well as in Revisions (#252, 4th inventory-drift finding).
+- Fixtures must not normalize what production callers don't: resolving a temp
+  root's symlinks up front hid close comparing /tmp and /private/tmp paths
+  until an e2e used the raw slot paths (#252 M4). Compare filesystem paths
+  canonically on both sides (`canonRoot`).
+- Before designing a transformation of existing records, run the strict
+  parser over the real population read-only: a fleet probe showed a fifth of
+  issue files failing it and duplicate IDs, which reshaped the migration
+  (#252 M4). Then rehearse the whole command on a disposable copy.
+- An artifact that pins another's identity (a blob OID, a digest) is built by
+  one constructor from the source's final bytes, after its last mutation — and
+  the pure plan asserts pin == identity(final). Deriving the pin alongside the
+  first version and mutating the source afterwards (binding a close to a card)
+  left main naming a blob the tracker never held (#252 M4 BR-34).
+- An end-to-end test that skips a gate (`--no-judge`, `NoJudge: true`) also
+  skips every bug behind it: the #252 slot-cycle e2e and the first smoke cycle
+  both bypassed the publish gate, so the transfer guard refusing the owner's
+  own edits on a direct push surfaced only in the second smoke cycle. Run the
+  deterministic gates in e2e; stub only the LLM.
+- "Both sides make the identical change, so the merge is clean" holds only
+  until either side edits that region again; durable convergence needs the
+  change as a shared ancestor (merge it), not a byte-identical copy. #252's
+  first reconcile committed main's conversion bytes and conflicted at the
+  first mirror refresh (#252, leftover-branch matrix).
+- When a rollout changes shape (big-bang → incremental), re-audit every
+  premise the old shape let you drop: #252 M2 made verbs tracker-only for a
+  simultaneous cutover, the per-repo rollout silently needed them legacy-capable,
+  and only a live soak found it. For "behaves like the old binary" claims, test
+  differentially against the old binary (`testdata/legacy-equivalence.sh`).
+- A fix to a helper shared by both modes needs checking in both: #252's
+  tracker-mode `TrunkRef` fix (local main behind the trunk) silently broke
+  legacy mode (local main ahead of it), caught only by re-running
+  `legacy-equivalence.sh` before close. When a fix picks one ref over another,
+  enumerate every ordering of the two (behind, ahead, diverged) and test each.
+- A mode decision is itself a read, and must degrade like one: #252's
+  legacy/tracked selector asked the remote with no offline fallback, so a
+  verb that never needed the network before started needing it just to learn
+  which code path to run. When adding a gate in front of an existing local
+  verb, ask what it does offline, and test it with an unreachable remote.

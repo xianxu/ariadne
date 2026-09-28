@@ -74,7 +74,11 @@ func renderInventory(w io.Writer, inventory Inventory) error {
 			}
 		}
 		for _, issue := range row.Issues {
-			if _, err := fmt.Fprintf(w, "  issue=%s status=%s provenance=%s\n", quote(issue.Ref), quote(issue.DeclaredStatus), quote(issue.Provenance)); err != nil {
+			stale := ""
+			if issue.StaleStatus {
+				stale = " stale=true"
+			}
+			if _, err := fmt.Fprintf(w, "  issue=%s status=%s provenance=%s%s\n", quote(issue.Ref), quote(issue.DeclaredStatus), quote(issue.Provenance), stale); err != nil {
 				return err
 			}
 		}

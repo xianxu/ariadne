@@ -34,16 +34,27 @@ type propDep struct {
 	chain []string
 }
 
-// canonRoot canonicalizes a path for stable identity comparison (EvalSymlinks when
-// it exists, else Abs+Clean), matching substrateChain's keying.
+// canonRoot canonicalizes a path for stable identity comparison, matching
+// substrateChain's keying: symlinks resolved through its nearest existing
+// ancestor (a path that does not exist yet still compares equal to Git's
+// symlink-resolved toplevel, e.g. /tmp vs /private/tmp), else Abs+Clean.
 func canonRoot(p string) string {
-	if real, err := filepath.EvalSymlinks(p); err == nil {
-		return real
+	abs, err := filepath.Abs(p)
+	if err != nil {
+		return filepath.Clean(p)
 	}
-	if abs, err := filepath.Abs(p); err == nil {
-		return filepath.Clean(abs)
+	abs = filepath.Clean(abs)
+	for dir, rest := abs, ""; ; {
+		if real, err := filepath.EvalSymlinks(dir); err == nil {
+			return filepath.Join(real, rest)
+		}
+		parent := filepath.Dir(dir)
+		if parent == dir {
+			return abs
+		}
+		rest = filepath.Join(filepath.Base(dir), rest)
+		dir = parent
 	}
-	return filepath.Clean(p)
 }
 
 // recursiveDependents finds the present sibling repos whose substrate chain

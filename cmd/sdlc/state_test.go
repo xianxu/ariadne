@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -70,7 +71,7 @@ updated: 2026-05-25
 	mustWrite("000004-.md", "no slug\n")   // low-level grammar accepts it; inventory requires a slug
 	mustWrite("not-an-issue.md", "junk\n") // should be skipped (filename pattern)
 
-	got, err := listIssues(dir)
+	got, _, err := listIssueStates(context.Background(), dir)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +93,7 @@ updated: 2026-05-25
 }
 
 func TestListIssues_MissingDir(t *testing.T) {
-	got, err := listIssues(filepath.Join(t.TempDir(), "does-not-exist"))
+	got, _, err := listIssueStates(context.Background(), filepath.Join(t.TempDir(), "does-not-exist"))
 	if err != nil {
 		t.Errorf("expected nil error for missing dir, got %v", err)
 	}

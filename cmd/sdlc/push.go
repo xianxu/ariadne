@@ -21,6 +21,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -29,15 +30,15 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
-
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // pushFlags holds the parsed flag values for the push subcommand.
 type pushFlags struct {
+	Context    context.Context
 	Yes        bool
 	NoJudge    bool
 	NoValidate bool
@@ -62,6 +63,7 @@ func NewPushCmd() *cobra.Command {
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			guardSpineRepo(cmd.ErrOrStderr()) // #176 lifecycle guard
+			f.Context = cmd.Context()
 			return runPush(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
@@ -78,13 +80,14 @@ func NewPushCmd() *cobra.Command {
 // runPush dispatches the push workflow. Hard guard failures call die()
 // directly (red prefix + os.Exit). Soft errors return through cobra.
 func runPush(stdout, stderr io.Writer, f *pushFlags) error {
+	ctx := commandContext(f.Context)
 	// ── 1. Branch == main ───────────────────────────────────────────────────
 	branch := gitx.Capture("branch", "--show-current")
 	if branch != "main" {
 		die(stderr, fmt.Sprintf("sdlc push must be run from main (current branch: %s)", valueOr(branch, "(detached)")))
 	}
 
-	if recovered, err := recoverInterruptedArchive(stdout, stderr, f); err != nil {
+	if recovered, err := recoverInterruptedArchive(ctx, stdout, stderr, f); err != nil {
 		die(stderr, err.Error())
 	} else if recovered {
 		cok(stderr, "Done.")
@@ -134,7 +137,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 	// Push is "merge without a PR": the same reviewed-HEAD-unchanged invariant.
 	// All LLM review is close-time; the publish gate carries no judge.
 	if !f.NoJudge {
-		if err := runPublishGate(gitx.DiffBase(), f.IssuesDir, stderr); err != nil {
+		if err := runPublishGate(commandContext(f.Context), gitx.DiffBase(), f.IssuesDir, stderr); err != nil {
 			if f.DryRun {
 				cwarn(stderr, fmt.Sprintf("dry-run: publish gate WOULD refuse: %v", err))
 			} else {
@@ -146,7 +149,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 	}
 
 	// ── 5. Not-done issue warn ──────────────────────────────────────────────
-	notDone, err := touchedIssuesNotDone("origin/main", f.IssuesDir, pushRunner)
+	notDone, err := touchedIssuesNotDone(ctx, "origin/main", f.IssuesDir, pushRunner)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("not-done scan skipped: %v", err))
 	}
@@ -179,7 +182,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 	// Direct-to-main publish (Q3): the just-pushed codecomplete issues become done
 	// (the deterministic flip) before the archive scan, which keys on IsTerminal.
 	// The flip is bundled into the archive commit + push below.
-	if flipped, ferr := publishCodecompleteIssues(f.IssuesDir); ferr != nil {
+	if flipped, ferr := publishCodecompleteIssues(ctx, f.IssuesDir); ferr != nil {
 		die(stderr, fmt.Sprintf("publish flip (codecomplete → done): %v", ferr))
 	} else if len(flipped) > 0 {
 		cinfo(stderr, fmt.Sprintf("Published %d issue(s): codecomplete → done", len(flipped)))
@@ -192,7 +195,7 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		cwarn(stderr, fmt.Sprintf("repo detection failed: %v (skipping GitHub issue closes)", repoErr))
 		repo = ""
 	}
-	moves, err := archiveDoneIssues(stderr, repo, f.IssuesDir, f.HistoryDir, f.PlansDir)
+	moves, err := archiveDoneIssues(ctx, stderr, repo, f.IssuesDir, f.HistoryDir, f.PlansDir)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -370,12 +373,12 @@ func isPlanPath(path, plansDir string) bool {
 // step: issue files have already moved to history/, but the archive commit did
 // not land. That state contains untracked history files, so it must be handled
 // before the general untracked-file guard.
-func recoverInterruptedArchive(stdout, stderr io.Writer, f *pushFlags) (bool, error) {
+func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f *pushFlags) (bool, error) {
 	statusOut, err := pushRunner.Git("status", "--porcelain", "--untracked-files=all")
 	if err != nil {
 		return false, fmt.Errorf("git status: %v\n%s", err, statusOut)
 	}
-	moves, other, err := preparedArchiveMoves(string(statusOut), f.IssuesDir, f.HistoryDir, f.PlansDir)
+	moves, other, err := preparedArchiveMoves(ctx, string(statusOut), f.IssuesDir, f.HistoryDir, f.PlansDir)
 	if err != nil {
 		return false, err
 	}
@@ -424,7 +427,7 @@ func recoverInterruptedArchive(stdout, stderr io.Writer, f *pushFlags) (bool, er
 	return true, nil
 }
 
-func preparedArchiveMoves(statusText, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, []string, error) {
+func preparedArchiveMoves(ctx context.Context, statusText, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, []string, error) {
 	// A half is one side of a src→history archive move. srcIsPlan marks a plan
 	// artifact (workshop/plans/NNNNNN-*, #143), which — unlike an issue — carries
 	// no terminal frontmatter, so its id-prefixed plans-dir source is the
@@ -488,7 +491,7 @@ func preparedArchiveMoves(statusText, issuesDir, historyDir, plansDir string) ([
 			// Issue moves keep the terminal-frontmatter gate; plan moves rely on the
 			// id-prefixed plans-dir source as the membership proof instead.
 			if !h.srcIsPlan {
-				ok, err := historyFileIsTerminal(h.historyPath)
+				ok, err := historyFileIsTerminal(ctx, h.historyPath)
 				if err != nil {
 					return nil, nil, err
 				}
@@ -539,7 +542,7 @@ func isHistoryPath(path, historyDir string) bool {
 	return dir == filepath.Clean(historyDir) || dir == issuesSub || dir == plansSub
 }
 
-func historyFileIsTerminal(path string) (bool, error) {
+func historyFileIsTerminal(ctx context.Context, path string) (bool, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return false, fmt.Errorf("read archive candidate %s: %v", path, err)
@@ -547,6 +550,20 @@ func historyFileIsTerminal(path string) (bool, error) {
 	fm, _, perr := issue.Parse(string(data))
 	if perr != nil {
 		return false, nil
+	}
+	if issue.HasMirror(data) {
+		// #252: an archived tracker-era details file keeps its mirror as it
+		// was; its card is the authority on whether the issue is terminal.
+		id, _, ok := issue.ParseFilename(filepath.Base(path))
+		if !ok {
+			return false, nil
+		}
+		rs, err := loadIssueRecords(ctx, filepath.Dir(path), tracker.Fresh)
+		if err != nil {
+			return false, err
+		}
+		rec, ok := rs.Get(id)
+		return ok && rec.Card != nil && vocab.Issue().IsTerminal(rec.Status()), nil
 	}
 	st, _ := issue.GetField(fm, "status")
 	return vocab.Issue().IsTerminal(st), nil
@@ -601,8 +618,8 @@ func extractFirstTitle(body string) string {
 // returns the ones whose status is NOT in {done, wontfix, punt}. Used
 // by push's not-done warn step. Mirrors check_undone_issues in
 // Makefile.workflow.
-func touchedIssuesNotDone(baseRef, issuesDir string, r gitRunner) ([]string, error) {
-	refs, err := scanIssueFiles(baseRef, issuesDir, r.Git)
+func touchedIssuesNotDone(ctx context.Context, baseRef, issuesDir string, r gitRunner) ([]string, error) {
+	refs, err := scanIssueFiles(ctx, baseRef, issuesDir, r.Git)
 	if err != nil {
 		if scanErr, ok := err.(*issueFileScanError); ok {
 			return nil, fmt.Errorf("git diff %s..HEAD: %v\n%s", baseRef, scanErr.Err, scanErr.Output)
@@ -621,8 +638,8 @@ func touchedIssuesNotDone(baseRef, issuesDir string, r gitRunner) ([]string, err
 // frontmatter, calls gh issue close (best-effort — failure warns but does
 // not abort). Returns the moves it made (deleted issue path + created history
 // path, repo-relative) so the caller can stage exactly those paths (#80).
-func archiveDoneIssues(stderr io.Writer, repo, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, error) {
-	refs, err := scanIssueFiles("", issuesDir, nil)
+func archiveDoneIssues(ctx context.Context, stderr io.Writer, repo, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, error) {
+	refs, err := scanIssueFiles(ctx, "", issuesDir, nil)
 	if err != nil {
 		return nil, err
 	}

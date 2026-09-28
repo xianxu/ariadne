@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -19,7 +20,7 @@ type fleetCommandDeps struct {
 	git                      fleet.GitReader
 	normalizeVantage         func(fleet.GitReader, string) (fleet.Vantage, error)
 	canonicalProspectivePath func(string) (string, string, error)
-	collectInventory         func(string, fleet.InventoryOptions) (fleet.Inventory, error)
+	collectInventory         func(context.Context, string, fleet.InventoryOptions) (fleet.Inventory, error)
 	loadPolicy               fleet.PolicyLoader
 	resolvePolicy            func(fleet.PolicyCapabilityValue, fleet.CanonicalPaths) fleet.PolicyResult
 	renderInventory          func(io.Writer, fleet.Inventory) error
@@ -100,7 +101,7 @@ func newFleetInventoryCmd(deps fleetCommandDeps) *cobra.Command {
 		SilenceErrors: true,
 		SilenceUsage:  true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runFleetInventory(cmd.OutOrStdout(), flags, deps)
+			return runFleetInventory(commandContext(cmd.Context()), cmd.OutOrStdout(), flags, deps)
 		},
 	}
 	cmd.Flags().StringVar(&flags.Path, "path", ".", "caller path used to locate the fleet (defaults to .)")
@@ -108,12 +109,12 @@ func newFleetInventoryCmd(deps fleetCommandDeps) *cobra.Command {
 	return cmd
 }
 
-func runFleetInventory(stdout io.Writer, flags fleetCommandFlags, deps fleetCommandDeps) error {
+func runFleetInventory(ctx context.Context, stdout io.Writer, flags fleetCommandFlags, deps fleetCommandDeps) error {
 	vantage, err := deps.normalizeVantage(deps.git, flags.Path)
 	if err != nil {
 		return fmt.Errorf("fleet inventory: %w", err)
 	}
-	inventory, err := deps.collectInventory(vantage.FleetRoot, fleet.InventoryOptions{
+	inventory, err := deps.collectInventory(ctx, vantage.FleetRoot, fleet.InventoryOptions{
 		Git:        deps.git,
 		LoadPolicy: deps.loadPolicy,
 	})

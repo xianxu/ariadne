@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -12,7 +13,7 @@ import (
 
 func TestLookupRepoIssuesFilesystem(t *testing.T) {
 	t.Run("zero missing home", func(t *testing.T) {
-		got, err := LookupRepoIssues(t.TempDir(), "000149")
+		got, err := LookupRepoIssues(context.Background(), t.TempDir(), "000149")
 		if err != nil || got == nil || len(got) != 0 {
 			t.Fatalf("LookupRepoIssues missing home = (%#v, %v), want non-nil empty", got, err)
 		}
@@ -22,7 +23,7 @@ func TestLookupRepoIssuesFilesystem(t *testing.T) {
 		repo := t.TempDir()
 		writeLookupIssue(t, repo, "000149-target.md", "working")
 		writeLookupIssue(t, repo, "000150-other.md", "open")
-		got, err := LookupRepoIssues(repo, "000149")
+		got, err := LookupRepoIssues(context.Background(), repo, "000149")
 		want := []IssueRecord{{Ref: filepath.Base(repo) + "#000149", DeclaredStatus: "working"}}
 		if err != nil || !reflect.DeepEqual(got, want) {
 			t.Fatalf("LookupRepoIssues one = (%#v, %v), want %#v", got, err, want)
@@ -33,7 +34,7 @@ func TestLookupRepoIssuesFilesystem(t *testing.T) {
 		repo := t.TempDir()
 		writeLookupIssue(t, repo, "000149-zeta.md", "working")
 		writeLookupIssue(t, repo, "000149-alpha.md", "open")
-		got, err := LookupRepoIssues(repo, "000149")
+		got, err := LookupRepoIssues(context.Background(), repo, "000149")
 		want := []IssueRecord{
 			{Ref: filepath.Base(repo) + "#000149", DeclaredStatus: "open"},
 			{Ref: filepath.Base(repo) + "#000149", DeclaredStatus: "working"},
@@ -52,7 +53,7 @@ func TestLookupRepoIssuesFilesystem(t *testing.T) {
 		if err := os.Symlink("missing-target", filepath.Join(home, "000149-broken.md")); err != nil {
 			t.Fatal(err)
 		}
-		got, err := LookupRepoIssues(repo, "000149")
+		got, err := LookupRepoIssues(context.Background(), repo, "000149")
 		if err == nil || got == nil || len(got) != 0 || !strings.Contains(err.Error(), "000149-broken.md") {
 			t.Fatalf("LookupRepoIssues read error = (%#v, %v), want non-nil empty and path error", got, err)
 		}
@@ -68,7 +69,7 @@ func TestLookupRepoIssuesFilesystem(t *testing.T) {
 		if err := os.WriteFile(path, []byte("no frontmatter\n"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		got, err := LookupRepoIssues(repo, "000149")
+		got, err := LookupRepoIssues(context.Background(), repo, "000149")
 		if err == nil || got == nil || len(got) != 0 || !strings.Contains(err.Error(), "000149-broken.md") {
 			t.Fatalf("LookupRepoIssues parse error = (%#v, %v), want non-nil empty and path error", got, err)
 		}
@@ -91,7 +92,7 @@ func TestLookupRepoIssuesFilesystem(t *testing.T) {
 			if err := os.WriteFile(path, []byte(tt.raw), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			got, err := LookupRepoIssues(repo, "000149")
+			got, err := LookupRepoIssues(context.Background(), repo, "000149")
 			if err == nil || len(got) != 0 || !strings.Contains(err.Error(), path) {
 				t.Fatalf("LookupRepoIssues() = (%#v, %v), want empty result and contextual error for %q", got, err, path)
 			}

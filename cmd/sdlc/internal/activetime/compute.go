@@ -35,9 +35,11 @@ const (
 // --prefix-commit-weight 0 is honored, matching the Python original's
 // --prefix-commit-weight defaulting (None → commit-weight).
 type Options struct {
-	Dirs             []string
-	Files            []string
-	GitRepo          string
+	Dirs    []string
+	Files   []string
+	GitRepo string
+	// ExtraRefs are histories read beside HEAD, e.g. the issue tracker (#252).
+	ExtraRefs        []string
 	SinceISO         string
 	UntilISO         string
 	Issues           []string
@@ -90,7 +92,7 @@ func Compute(opts Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	commits, err := loadWindowCommits(opts.GitRepo, opts.SinceISO, opts.UntilISO)
+	commits, err := loadWindowCommits(opts.GitRepo, opts.SinceISO, opts.UntilISO, opts.ExtraRefs...)
 	if err != nil {
 		return Result{}, err
 	}

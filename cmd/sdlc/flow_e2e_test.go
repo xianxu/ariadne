@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"os"
 	"path/filepath"
 	"strings"
@@ -17,13 +18,16 @@ import (
 // the issue as close left it.
 func runVerbSequence(t *testing.T, id int, code map[string]string) (prompt, issueText string) {
 	t.Helper()
-	repo, _ := syncRepo(t)
 	name := fmt.Sprintf("%06d-e2e.md", id)
-	writeSyncIssue(t, repo, name, fmt.Sprintf("---\nid: %06d\nstatus: open\ndeps: []\n---\n\n# e2e\n\n"+
-		"## Spec\n\nA thing.\n\n## Done when\n\n- it works\n\n## Plan\n\n- [x] do it\n\n## Log\n", id))
-	git(t, repo, "add", "-A")
-	git(t, repo, "commit", "-q", "-m", "file the issue")
-	git(t, repo, "push", "-q", "origin", "main")
+	full := fmt.Sprintf("---\nid: %06d\nstatus: open\ndeps: []\ncreated: 2026-09-01\nupdated: 2026-09-01\n---\n\n# e2e\n\n"+
+		"## Problem\n\nA gap.\n\n## Spec\n\nA thing.\n\n## Done when\n\n- it works\n\n## Plan\n\n- [x] do it\n\n## Log\n", id)
+	card, detail, err := issue.SplitCardWithFormat([]byte(full), "sha1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := newTrackerRepo(t, map[string]string{tracker.CardPath(fmt.Sprintf("%06d", id), "e2e"): string(card)},
+		map[string]string{syncIssuesDir + "/" + name: string(detail)})
+	repo := r.root
 
 	run := func(args ...string) {
 		t.Helper()
@@ -33,6 +37,7 @@ func runVerbSequence(t *testing.T, id int, code map[string]string) (prompt, issu
 	}
 	idArg := fmt.Sprint(id)
 	run("claim", "--issue", idArg)
+	run("start-plan", "--issue", idArg)
 	run("change-code", "--issue", idArg, "--worktree=no")
 
 	for p, text := range code {

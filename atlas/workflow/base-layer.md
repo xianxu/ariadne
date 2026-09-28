@@ -32,7 +32,7 @@ Defined in `construct/base.manifest` (in ariadne):
 - **Skills**: per-harness skill dirs — `.claude/skills/xx-*` (claude) + `.agents/skills/xx-*` (codex/gemini), each carrying the local (`xx-*`) + adapted (`superpowers-*`) skills — weave lowers these per layer (#107 Option B; see [harness-integration.md](harness-integration.md)); derivatives pick up ariadne's local + adapted skills through the weave LAYER WALK, each `<skill-dir>/<name>` pointing straight at ariadne's source dir (NO whole-dir `construct/adapted` symlink — #104 M3 dropped those; see [Construct: Adaptation is Ariadne-Only](construct-adaptation.md))
 - **Makefile system**:
   - `Makefile` — consumer-owned, with an optional `-include Makefile.workflow`. A missing root is seeded once from `construct/Makefile.seed`; an existing regular root is adopted by prepending the include, and its product targets remain authoritative. Each tool-owning layer declares its own `tools` target here.
-  - `Makefile.workflow` — issue lifecycle targets + auto-includes of `.openshell/Makefile`, `.tart/Makefile`, and `.colima/Makefile`.
+  - `Makefile.workflow` — issue lifecycle targets + auto-includes of `.openshell/Makefile`, `.tart/Makefile`, and `.colima/Makefile`. Its shell fallbacks (no `bin/sdlc`) refuse in an issue tracker repository (`WF_TRACKED_REFUSES`, #252) — see [issue tracker migration](issue-tracker-migration.md).
   - `scripts/` — issue-sync, pre-merge-checks, close-issue.py, lib.sh
 - **Construct system**: `construct/scripts/` — skill tooling; `construct/datatype/` — datatype prototypes, **per-layer-owned (NOT symlinked)**: each layer owns its own dir and the `datatype` binary reads the DAG-merged union across the layer graph (#115 retired the `symlink construct/datatype` manifest row). (`construct/local/` + `construct/adapted/` are ariadne's OWN skill dirs, read by derivatives through the weave layer walk — NOT installed by symlink since #104 M3.)
 - **Sandbox** (`.openshell/`) — Linux container dev environment (see below)
@@ -147,10 +147,10 @@ things that look alike but behave differently:
 
 Three `sdlc` mechanisms keep the common path smooth without adding a gate:
 
-1. **`issue new` reserves on main (#244)** — its narrow creation transaction
-   checks the fresh remote ID space and conditionally publishes the new record.
-   Confirmed creation is checkpointed locally; an uncertain outcome preserves
-   local content for reconciliation. See [issue-sync.md](issue-sync.md).
+1. **`issue new` reserves a tracker card (#252)** — the card is published by
+   its own commit on `issue-tracker` at `max(id)+1`, reallocating after a proven
+   race; details are written locally and never pushed to main by filing. An
+   uncertain outcome keeps a recovery receipt. See [issue-tracker.md](issue-tracker.md).
 2. **Dirty-tree guards ignore tracker files (#82 M2)** — `assessDirty` buckets
    `workshop/issues|history/*.md` as non-blocking (tracked-modified or
    untracked); only dirty *code* blocks a merge. See [sdlc-binary.md](sdlc-binary.md).

@@ -78,16 +78,55 @@ func DiffBase() string {
 		}
 	}
 	branch := Capture("branch", "--show-current")
+	trunk := TrunkRef()
 	if branch == "main" {
-		if ref := Capture("rev-parse", "origin/main"); ref != "" {
-			return "origin/main"
+		if trunk != "" && trunk != "main" {
+			return trunk
 		}
 		return "HEAD~10"
 	}
-	if base := Capture("merge-base", "main", "HEAD"); base != "" {
+	if base := BranchPoint(); base != "" {
 		return base
 	}
 	return "HEAD~10"
+}
+
+// BranchPoint returns where HEAD left the main line: the later of its
+// merge-bases with TrunkRef and with local main, or the trunk's when the two
+// are unordered. Local main behind the trunk (a slot sharing its primary's
+// refs) must not widen the window back to a stale fork; local main ahead of it
+// (a legacy repository, whose change-code commits the design to main without
+// publishing it) must not pull the issue's own design commits into the window.
+// "" when no main line resolves or HEAD shares no history with it.
+func BranchPoint() string {
+	trunk := TrunkRef()
+	if trunk == "" {
+		return ""
+	}
+	base := Capture("merge-base", trunk, "HEAD")
+	if trunk == "main" || Capture("rev-parse", "--verify", "-q", "refs/heads/main") == "" {
+		return base
+	}
+	local := Capture("merge-base", "main", "HEAD")
+	if local == "" || local == base {
+		return base
+	}
+	if base == "" || exec.Command("git", "merge-base", "--is-ancestor", base, local).Run() == nil {
+		return local
+	}
+	return base
+}
+
+// TrunkRef names the published trunk a branch is measured against: local main's
+// configured upstream (origin/main, or <publication remote>/main), else MainRef.
+// Not local main itself: a numbered slot shares refs with its primary, whose
+// local main is whatever the primary last pulled — stale, or carrying unpushed
+// commits — while the slot's branches fork from the published trunk.
+func TrunkRef() string {
+	if up := Capture("rev-parse", "--abbrev-ref", "--symbolic-full-name", "main@{upstream}"); up != "" && Capture("rev-parse", "--verify", "-q", up) != "" {
+		return up
+	}
+	return MainRef()
 }
 
 // MergeBaseWithMain returns the branch point — `git merge-base main HEAD` — or
@@ -103,7 +142,7 @@ func DiffBase() string {
 // divergence it returns "" so boundaryWindowBase picks the issue's own branch
 // start (the first `#N` commit's parent) for the direct-on-main flow (#77).
 func MergeBaseWithMain() string {
-	base := Capture("merge-base", "main", "HEAD")
+	base := BranchPoint()
 	if base == "" {
 		return ""
 	}
@@ -285,14 +324,18 @@ const WindowCapDays = 61
 // snippet (issue: #123)" from a 2-year-old upstream commit) but not the
 // subject. Whole-message --grep would pull those in and stretch the window
 // by years.
-func CommitWindow(issueNum string) (firstSHA, firstISO, lastISO string, err error) {
+//
+// extraRefs (#252) adds histories beside HEAD — the fetched issue tracker, whose
+// card commits record the claim and close. git log visits each commit once.
+func CommitWindow(issueNum string, extraRefs ...string) (firstSHA, firstISO, lastISO string, err error) {
 	// Loose --grep first to narrow candidates; precise subject-anchor
 	// check happens below. Git's POSIX regex doesn't reliably support \b
 	// for word boundaries across platforms, so we filter subjects in Go.
-	cmd := exec.Command("git", "log",
-		"--grep=#"+issueNum, "--reverse",
-		"--pretty=%aI%x00%H%x00%s",
-	)
+	args := []string{"log", "--grep=#" + issueNum, "--reverse", "--pretty=%aI%x00%H%x00%s"}
+	if len(extraRefs) > 0 {
+		args = append(append(args, "HEAD"), extraRefs...)
+	}
+	cmd := exec.Command("git", args...)
 	out, err := cmd.Output()
 	if err != nil {
 		// non-zero exit (e.g., not a git repo) → no window, no error
@@ -332,7 +375,13 @@ func CommitWindow(issueNum string) (firstSHA, firstISO, lastISO string, err erro
 	firstISO = recent[0].iso
 	lastISO = recent[len(recent)-1].iso
 
-	// v3 segment-start: parent of first match (still bounded by cap).
+	// v3 segment-start: parent of first match (still bounded by cap). Only for
+	// code history: a tracker commit's parent is some other card's change.
+	if len(extraRefs) > 0 {
+		if onHead := exec.Command("git", "merge-base", "--is-ancestor", firstSHA, "HEAD").Run(); onHead != nil {
+			return firstSHA, firstISO, lastISO, nil
+		}
+	}
 	parentOut, perr := exec.Command(
 		"git", "log", "-1", "--pretty=%aI", firstSHA+"^",
 	).Output()

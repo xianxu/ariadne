@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -232,7 +233,7 @@ func TestArchiveDoneIssuesInDir_MovesTerminalAndRecordsRelativePaths(t *testing.
 	defer func() { ghClient = prev }()
 
 	var stderr stringWriter
-	moves, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, issuesDir, historyDir, "workshop/plans")
+	moves, err := archiveDoneIssuesInDir(context.Background(), &stderr, "owner/repo", tmp, issuesDir, historyDir, "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -270,7 +271,7 @@ func TestArchiveDoneIssuesInDir_EmptyTree(t *testing.T) {
 		t.Fatal(err)
 	}
 	var stderr stringWriter
-	moves, err := archiveDoneIssuesInDir(&stderr, "owner/repo", tmp, "workshop/issues", "workshop/history", "workshop/plans")
+	moves, err := archiveDoneIssuesInDir(context.Background(), &stderr, "owner/repo", tmp, "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}

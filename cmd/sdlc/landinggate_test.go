@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -73,11 +74,11 @@ func TestLandingPublishGateIndependentlyPublishedBody(t *testing.T) {
 			}
 			pr := landingPR{HeadOID: gitx.Capture("rev-parse", "HEAD"), BaseOID: prBase}
 			// The prior body-diff enumeration demonstrably overlooks this owned close.
-			omitted, err := mergedCodecompleteIssues(prBase, "workshop/issues")
+			omitted, err := mergedCodecompleteIssues(context.Background(), prBase, "workshop/issues")
 			if err != nil || len(omitted) != 0 {
 				t.Fatalf("fixture not independently published: %v %v", omitted, err)
 			}
-			err = runLandingPublishGate(pr, "workshop/issues", io.Discard)
+			err = runLandingPublishGate(context.Background(), pr, "workshop/issues", io.Discard)
 			if delta == "code" {
 				if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
 					t.Fatalf("post-close code escaped review: %v", err)
@@ -86,7 +87,7 @@ func TestLandingPublishGateIndependentlyPublishedBody(t *testing.T) {
 				t.Fatalf("safe %s refused: %v (close %s)", delta, err, closeHead)
 			}
 			pr.HeadOID = base
-			if err := runLandingPublishGate(pr, "workshop/issues", io.Discard); err == nil {
+			if err := runLandingPublishGate(context.Background(), pr, "workshop/issues", io.Discard); err == nil {
 				t.Fatal("gate ran on different checkout head")
 			}
 		})

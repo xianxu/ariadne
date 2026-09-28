@@ -41,6 +41,8 @@ when: {
 // workshop/issues. Repo-relative (the consumer joins to its repo root). ──
 discovery: {
 	home: "workshop/issues" // repo-relative home folder for issue instances
+	cards: "workshop/issue-cards" // authoritative metadata on the tracker branch
+	tracker: "issue-tracker"
 	glob: "*.md"            // filename glob within home
 	// archive: the ROOT terminal issues AND their id-keyed plan/review family
 	// move under on close/merge (ariadne#160). Since ariadne#181 writes land in
@@ -55,6 +57,27 @@ discovery: {
 	// boundary-review sidecar (NNNNNN-*-mX-review.md / -close-review.md), same
 	// 6-digit id; co-archived to `archive` on close/merge (ariadne#136).
 	plans: "workshop/plans"
+}
+
+// Card ownership is independent of details discovery and lifecycle. `title`
+// lives in the Markdown H1; the remaining fields live in frontmatter. Problem
+// is copied at creation, but is deliberately not a protected mirror field.
+// Internal transaction records use a versioned tracker envelope and are never
+// projected into details. Field kind and setter travel to Go consumers so the
+// ownership list and refusal actions are defined exactly once.
+card: {
+	fields: [
+		{name: "id", kind: "id", required: true, setter: "sdlc issue new"},
+		{name: "status", kind: "status", required: true, setter: "sdlc issue set-status"},
+		{name: "started", kind: "timestamp", setter: "sdlc claim"},
+		{name: "created", kind: "date", setter: "sdlc issue new"},
+		{name: "updated", kind: "date", setter: "sdlc issue set-status"},
+		{name: "estimate_hours", kind: "estimate", setter: "sdlc issue set-estimate"},
+		{name: "actual_hours", kind: "actual", setter: "sdlc close"},
+		{name: "github_issue", kind: "github", setter: "sdlc issue set-github"},
+		{name: "title", kind: "title", required: true, setter: "sdlc issue set-title"},
+	]
+	internal: {field: "tracker", version: 1}
 }
 
 // ── scaffold: the on-disk creation template `sdlc issue new` writes (#145).

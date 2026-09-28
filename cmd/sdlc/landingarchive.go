@@ -2,18 +2,20 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"path"
+	"path/filepath"
 	"reflect"
 	"sort"
 	"strings"
 	"time"
 
-	"go.yaml.in/yaml/v3"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
+	"go.yaml.in/yaml/v3"
 )
 
 const landingArchiveLimit = 10000
@@ -30,6 +32,9 @@ type landingArchiveSnapshot map[string]landingArchiveBlob
 type landingOwnedIssue struct {
 	path, frontmatter, body, anchor string
 	requiredPlans                   []string
+	// tracked: owned through a card completion binding (#252). Its details
+	// are archived as they are — the card is the authority on their status.
+	tracked bool
 }
 type landingArchiveMove struct{ source, destination string }
 type landingArchivePlan struct {
@@ -136,7 +141,10 @@ func parseLandingIssue(name string, content []byte) (landingOwnedIssue, error) {
 	}
 	return landingOwnedIssue{path: name, frontmatter: fm, body: body}, nil
 }
-func selectLandingIssues(root string, pr landingPR, issuesDir string) ([]landingOwnedIssue, error) {
+func selectLandingIssues(ctx context.Context, root string, pr landingPR, issuesDir string) ([]landingOwnedIssue, error) {
+	if selected, tracked, err := selectTrackedLandingIssues(ctx, root, pr, issuesDir); tracked || err != nil {
+		return selected, err
+	}
 	out, err := archiveRead(root, "rev-list", "--max-count=10001", pr.HeadOID, "--not", pr.BaseOID, "--")
 	if err != nil {
 		return nil, err
@@ -194,8 +202,8 @@ func selectLandingIssues(root string, pr landingPR, issuesDir string) ([]landing
 }
 
 // Archive selection additionally pins the minimum artifact membership at the PR head.
-func selectArchiveLandingIssues(root string, pr landingPR, dirs landingArchiveRoots) ([]landingOwnedIssue, error) {
-	selected, err := selectLandingIssues(root, pr, dirs.issues)
+func selectArchiveLandingIssues(ctx context.Context, root string, pr landingPR, dirs landingArchiveRoots) ([]landingOwnedIssue, error) {
+	selected, err := selectLandingIssues(ctx, root, pr, dirs.issues)
 	if err != nil || len(selected) == 0 {
 		return selected, err
 	}
@@ -314,9 +322,11 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 				return plan, fmt.Errorf("conflicting issue identity/archive: %s", name)
 			}
 		}
-		done, err := publishedIssueContent(ref.frontmatter, ref.body, date)
-		if err != nil {
-			return plan, fmt.Errorf("%s: %w", owned.path, err)
+		done := b.content // a tracked issue's details move as they are (#252)
+		if !owned.tracked {
+			if done, err = publishedIssueContent(ref.frontmatter, ref.body, date); err != nil {
+				return plan, fmt.Errorf("%s: %w", owned.path, err)
+			}
 		}
 		if err := add(owned.path, archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path)), done); err != nil {
 			return plan, err
@@ -344,7 +354,7 @@ func archiveProvenance(repo string, pr landingPR) string {
 	return fmt.Sprintf("Landing-PR: %s#%d\nLanding-Head: %s", repo, pr.Number, pr.HeadOID)
 }
 
-func archiveLandingPR(root, remote, repo string, pr landingPR, issuesDir, plansDir, historyDir string) error {
+func archiveLandingPR(ctx context.Context, root, remote, repo string, pr landingPR, issuesDir, plansDir, historyDir string) error {
 	if err := validateArchivePR(repo, pr); err != nil {
 		return err
 	}
@@ -352,7 +362,7 @@ func archiveLandingPR(root, remote, repo string, pr landingPR, issuesDir, plansD
 	if err != nil {
 		return err
 	}
-	selected, err := selectArchiveLandingIssues(root, pr, dirs)
+	selected, err := selectArchiveLandingIssues(ctx, root, pr, dirs)
 	if err != nil {
 		return err
 	}
@@ -365,7 +375,7 @@ func archiveLandingPR(root, remote, repo string, pr landingPR, issuesDir, plansD
 	}
 	msg := archiveCommitMessage + "\n\n" + archiveProvenance(repo, pr)
 	return pub.UpdateMany(msg, func(v *gitx.TrunkView) (gitx.TrunkWrite, error) {
-		complete, err := confirmLandingArchive(root, v.Ref(), repo, pr, dirs, selected)
+		complete, err := confirmLandingArchive(ctx, root, v.Ref(), repo, pr, dirs, selected)
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
@@ -383,7 +393,7 @@ func archiveLandingPR(root, remote, repo string, pr landingPR, issuesDir, plansD
 
 // landingArchiveComplete is read-only. In particular, missing-local-ref recovery
 // must not create an archive and then use that new effect to justify completion.
-func landingArchiveComplete(root, remoteMainOID, repo string, pr landingPR, issuesDir, plansDir, historyDir string) (bool, error) {
+func landingArchiveComplete(ctx context.Context, root, remoteMainOID, repo string, pr landingPR, issuesDir, plansDir, historyDir string) (bool, error) {
 	if err := validateArchivePR(repo, pr); err != nil {
 		return false, err
 	}
@@ -391,16 +401,16 @@ func landingArchiveComplete(root, remoteMainOID, repo string, pr landingPR, issu
 	if err != nil {
 		return false, err
 	}
-	selected, err := selectArchiveLandingIssues(root, pr, dirs)
+	selected, err := selectArchiveLandingIssues(ctx, root, pr, dirs)
 	if err != nil {
 		return false, err
 	}
 	if len(selected) == 0 {
 		return true, nil
 	}
-	return confirmLandingArchive(root, remoteMainOID, repo, pr, dirs, selected)
+	return confirmLandingArchive(ctx, root, remoteMainOID, repo, pr, dirs, selected)
 }
-func confirmLandingArchive(root, tip, repo string, pr landingPR, dirs landingArchiveRoots, selected []landingOwnedIssue) (bool, error) {
+func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landingPR, dirs landingArchiveRoots, selected []landingOwnedIssue) (bool, error) {
 	if !landingOIDValid(tip) {
 		return false, fmt.Errorf("archive proof requires a full main object ID")
 	}
@@ -520,4 +530,48 @@ func confirmLandingArchive(root, tip, repo string, pr landingPR, dirs landingArc
 		}
 	}
 	return true, nil
+}
+
+// selectTrackedLandingIssues owns, in a tracked repository (#252), the issues
+// whose card completion binding's evidence commit is in the PR (HeadOID --not
+// BaseOID) — codecomplete, or already done by an earlier attempt of this
+// landing. The details must be at the PR head; the evidence commit anchors the
+// reviewed-state check.
+func selectTrackedLandingIssues(ctx context.Context, root string, pr landingPR, issuesDir string) ([]landingOwnedIssue, bool, error) {
+	rs, err := loadIssueRecords(ctx, filepath.Join(root, filepath.FromSlash(issuesDir)), tracker.Fresh)
+	if err != nil || !rs.Tracker {
+		return nil, false, err
+	}
+	env, err := openTrackerAt(ctx, root)
+	if err != nil {
+		return nil, true, err
+	}
+	owned, err := ownedCompletions(env, rs, pr.HeadOID, pr.BaseOID, true)
+	if err != nil {
+		return nil, true, err
+	}
+	tree, err := archiveTree(root, pr.HeadOID, landingArchiveRoots{issues: issuesDir})
+	if err != nil {
+		return nil, true, err
+	}
+	var selected []landingOwnedIssue
+	for _, oc := range owned {
+		name := path.Join(issuesDir, path.Base(oc.Card.Path))
+		b, ok := tree[name]
+		if !ok {
+			return nil, true, fmt.Errorf("#%s is closed in this PR but its details (%s) are not at the PR head", oc.ID, name)
+		}
+		content, err := archiveBlob(root, b)
+		if err != nil {
+			return nil, true, fmt.Errorf("read %s: %w", name, err)
+		}
+		ref, err := parseLandingIssue(name, content)
+		if err != nil {
+			return nil, true, err
+		}
+		ref.anchor, ref.tracked = oc.Binding.EvidenceCommit, true
+		selected = append(selected, ref)
+	}
+	sort.Slice(selected, func(i, j int) bool { return selected[i].path < selected[j].path })
+	return selected, true, nil
 }

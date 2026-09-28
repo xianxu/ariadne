@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -89,7 +90,7 @@ func TestProjectSlugConsumersRejectTraversal(t *testing.T) {
 	if err := runProjectNew(&out, &errOut, &projectNewFlags{Slug: slug, Goal: "g", DoneWhen: "d", ProjectsDir: dir}); err == nil || !strings.Contains(err.Error(), "invalid project slug") {
 		t.Errorf("new traversal = %v", err)
 	}
-	if err := runProjectShow(&out, &errOut, &projectShowFlags{Slug: slug, ProjectsDir: dir}); err == nil || !strings.Contains(err.Error(), "invalid project slug") {
+	if err := runProjectShow(context.Background(), &out, &errOut, &projectShowFlags{Slug: slug, ProjectsDir: dir}); err == nil || !strings.Contains(err.Error(), "invalid project slug") {
 		t.Errorf("show traversal = %v", err)
 	}
 	orig := validateFrontmatterFn
@@ -102,7 +103,7 @@ func TestProjectSlugConsumersRejectTraversal(t *testing.T) {
 	if calls != 0 {
 		t.Fatalf("validator called %d times for traversal", calls)
 	}
-	if err := runProjectSetStatus(&out, &errOut, &projectSetStatusFlags{Slug: slug, To: "defined", ProjectsDir: dir}); err == nil || !strings.Contains(err.Error(), "invalid project slug") {
+	if err := runProjectSetStatus(context.Background(), &out, &errOut, &projectSetStatusFlags{Slug: slug, To: "defined", ProjectsDir: dir}); err == nil || !strings.Contains(err.Error(), "invalid project slug") {
 		t.Errorf("set-status traversal = %v", err)
 	}
 }
@@ -137,7 +138,7 @@ func TestRunProjectListAndShow(t *testing.T) {
 		}
 	}
 	out.Reset()
-	if err := runProjectShow(&out, &errOut, &projectShowFlags{ProjectsDir: dir, Slug: "alpha"}); err != nil {
+	if err := runProjectShow(context.Background(), &out, &errOut, &projectShowFlags{ProjectsDir: dir, Slug: "alpha"}); err != nil {
 		t.Fatal(err)
 	}
 	for _, want := range []string{"alpha.md", "status: executing", "tasks: 1/2 done"} {

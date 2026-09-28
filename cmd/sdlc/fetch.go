@@ -6,6 +6,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os/exec"
@@ -34,7 +35,7 @@ func NewFetchCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runFetch(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runFetch(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
 	cmd.Flags().IntVar(&f.GitHubIssue, "github-issue", 0, "GitHub issue number to fetch (required)")
@@ -53,11 +54,11 @@ func NewFetchCmd() *cobra.Command {
 // renderer + ID allocation in runIssueNew, so a fetched issue gets the same
 // template as a blank one (GH body seeded under ## Problem). The retained
 // `--github-issue` flag keeps old callers working.
-func runFetch(stdout, stderr io.Writer, f *fetchFlags) error {
+func runFetch(ctx context.Context, stdout, stderr io.Writer, f *fetchFlags) error {
 	if f.GitHubIssue <= 0 {
 		die(stderr, fmt.Sprintf("--github-issue is required and must be positive (got %d)", f.GitHubIssue))
 	}
-	return runIssueNew(stdout, stderr, &issueNewFlags{
+	return runIssueNew(ctx, stdout, stderr, &issueNewFlags{
 		FromGitHub: f.GitHubIssue,
 		IssuesDir:  f.IssuesDir,
 		HistoryDir: f.HistoryDir,

@@ -382,7 +382,8 @@ func stubRepoLockAcquire(t *testing.T, fn func(*cobra.Command) (func() error, er
 }
 
 func TestRepoLockConcurrentIssueNewSerializesAllocation(t *testing.T) {
-	issues, history := newTestDirs(t)
+	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
+	issues := filepath.Join(r.root, "workshop", "issues")
 	lock := newSerializingTestLock()
 	restore := stubRepoLockAcquire(t, lock.acquire)
 	defer restore()
@@ -393,11 +394,7 @@ func TestRepoLockConcurrentIssueNewSerializesAllocation(t *testing.T) {
 		wg.Add(1)
 		go func(title string) {
 			defer wg.Done()
-			_, stderr, err := executeSDLCTestCommand(
-				"issue", "new", title,
-				"--issues-dir", issues,
-				"--history-dir", history,
-			)
+			_, stderr, err := executeSDLCTestCommand("issue", "new", title)
 			if err != nil {
 				errs <- err
 				return
@@ -424,7 +421,7 @@ func TestRepoLockConcurrentIssueNewSerializesAllocation(t *testing.T) {
 		t.Fatalf("created %d issues, want 2: %v", len(matches), matches)
 	}
 	got := []string{filepath.Base(matches[0]), filepath.Base(matches[1])}
-	if !strings.HasPrefix(got[0], "000001-") || !strings.HasPrefix(got[1], "000002-") {
+	if !strings.HasPrefix(got[0], "000008-") || !strings.HasPrefix(got[1], "000009-") {
 		t.Fatalf("issue files should allocate distinct sequential IDs, got %v", got)
 	}
 	joined := strings.Join(got, "\n")
@@ -439,11 +436,8 @@ func TestRepoLockConcurrentIssueNewSerializesAllocation(t *testing.T) {
 }
 
 func TestRepoLockSetStatusMutationWaits(t *testing.T) {
-	issues, _ := newTestDirs(t)
-	path := filepath.Join(issues, "000001-status.md")
-	if err := os.WriteFile(path, []byte("---\nid: 000001\nstatus: open\nupdated: 2026-06-27\n---\n\n# Status\n\n## Log\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
+	cardPath, card, _, _ := seededIssue(t, "000001", "status")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, nil)
 	lock := newSerializingTestLock()
 	restore := stubRepoLockAcquire(t, lock.acquire)
 	defer restore()
@@ -454,7 +448,7 @@ func TestRepoLockSetStatusMutationWaits(t *testing.T) {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
-			_, _, err := executeSDLCTestCommand("issue", "set-status", "working", "--issue", "1", "--issues-dir", issues, "--force")
+			_, _, err := executeSDLCTestCommand("issue", "set-status", "working", "--issue", "1", "--force")
 			errs <- err
 		}()
 	}
@@ -465,12 +459,8 @@ func TestRepoLockSetStatusMutationWaits(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(data), "status: working") {
-		t.Fatalf("status not updated:\n%s", data)
+	if got := r.card(cardPath); !strings.Contains(got, "status: working") {
+		t.Fatalf("status not updated:\n%s", got)
 	}
 	if waits := lock.waitMessages(); waits == "" || !strings.Contains(waits, "pid 777") {
 		t.Fatalf("expected wait message with holder pid, got %q", waits)

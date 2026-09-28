@@ -5,11 +5,20 @@ edits the record itself.
 
 SUBCOMMANDS
 
-  new            Create a new issue from the canonical template (allocates the
-                 next ID; `--from-github N` seeds it from a GitHub issue)
-  sync           Commit this issue's body (Spec/Plan/Log) under a message that
-                 names it; `--push` to also publish
-  set-status     Flip an issue's status with transition guards
+  new            Reserve the next ID's card on the tracker and write the details
+                 locally (`--from-github N` seeds it from a GitHub issue)
+  move-detail    Complete creation early: publish initial details to main
+                 without shipping the branch that filed the issue
+  recovery       `list` / `reconcile --issue N` interrupted tracker operations
+  migrate        One-time cutover of a legacy repository to the issue tracker
+                 (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch)
+  set-status     Flip an issue card's status with transition guards
+  set-title      Retitle an issue card (paths keep their slug)
+  set-estimate   Record estimate_hours on the card (`--hours`)
+  set-github     Link the card to a GitHub issue (`--number`)
+  sync           Commit an issue body locally (tracker repositories: on the
+                 issue branch only, no --push)
+  publish        (legacy repositories only) publish a selected doc commit
   list           List issues (ID, status, title), sorted by ID; --status filters
   show           Print an issue's frontmatter + section headers (no bodies)
 
@@ -66,7 +75,56 @@ Flip status with `sdlc issue set-status` (or `sdlc claim` to start work), never
 by hand-editing the frontmatter — the verbs carry the transition guards.
 (`done` closes via `sdlc close`.) The status set above is derived from the model.
 
-CHECKPOINTING AND PUBLISHING DOCUMENTATION
+CARDS AND DETAILS (#252)
+
+An issue is two files. Its card (`workshop/issue-cards/NNNNNN-<slug>.md` on the
+`issue-tracker` branch) holds the fields everyone needs current — id, status,
+started, dates, estimate/actual hours, GitHub link, title — and the original
+Problem. Only sdlc writes a card, by compare-and-swap commits of its own. The
+details (this file, at the path below) carry Spec, Done when, Plan, Log and
+branch-owned fields, plus a read-only mirror of the card fields that sdlc
+refreshes; a hand edit to a mirrored field is refused with the setter to use.
+
+Details travel with the work: `issue new` writes them in the current checkout
+(a narrow commit on a feature branch; uncommitted on the resting branch), and
+they land on main through the branch's PR or `issue move-detail`. Only then is
+the issue claimable. Checkpoint design with ordinary commits on the issue
+branch; nothing publishes them early. An interrupted card/main publication
+keeps a receipt: `sdlc issue recovery list` shows it, and `reconcile` resumes
+it from the checkout that owns it, probing before repeating anything.
+
+A tracker repository is marked by `workshop/issue-tracker.json` on main, naming
+the tracker's root commit. A checkout whose marker disagrees with the tracker
+(a tracker but no marker, a marker but no tracker, another root) refuses every
+card read and write with the next action; unmirrored details in such a
+repository refuse the legacy close/change-code paths. `sync` checkpoints on the
+issue branch only; `publish` and the Makefile/Python shell fallbacks refuse.
+
+MIGRATION (#252)
+
+`sdlc issue migrate` plans the one-time cutover from the pinned main, every
+local and publication-remote branch, and this clone's worktrees, and prints the
+cards (with each inferred value), duplicate IDs, refusals and a digest. It
+changes nothing. Refusals name what blocks the cutover — card fields changed
+on a branch but never published, issues that exist only on a branch, branches
+editing archived issues, uncommitted issue edits, two active files sharing an
+ID, or a codecomplete issue without exactly one provable legacy close — each
+with its next action under the old workflow.
+
+With every SDLC writer frozen, `--apply --expect DIGEST` re-plans, refuses any
+other digest, bootstraps the issue-tracker branch (or adopts it only when its
+root holds exactly the planned cards), then publishes one main commit that
+mirrors every active details file and adds the marker. Rerun the same command
+after an interruption: each phase is recognized, nothing is rolled back.
+Archived details are never rewritten. Afterwards `git pull` each resting
+checkout. A branch from before the cutover refuses sdlc commands until it is
+brought across — now or on its next use — by `--reconcile` (or by merging
+origin/main): it proves every details file the branch changed kept the
+imported card's fields and has a card, then merges main's migration commit
+(not the rest of main), so later merges with main start from converted
+details. A conflict aborts the merge and says how to resolve it.
+
+LEGACY CHECKPOINTING AND PUBLISHING (repositories before the #252 cutover)
 
 `sdlc issue sync --issue N` commits only the selected issue file locally on the
 current branch, with no network operation. Use it after design decisions and
@@ -92,8 +150,8 @@ for remote inspection rather than assuming failure.
 
 `issue sync --push` publishes only a new issue commit created by that invocation.
 When no new commit exists, use explicit `issue publish --commit SHA`; no older
-commit is inferred. `change-code` similarly publishes its new narrow issue
-checkpoint after gates pass, and does nothing when no new checkpoint is needed.
+commit is inferred. (Since #252, `change-code` publishes nothing: its design
+checkpoint is a local commit on the issue branch.)
 
 Claim only reserves fresh open issues. It does not sweep local body edits into
 remote main. Ordinary reviewed PR publication or explicit `sdlc push` can still

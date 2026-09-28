@@ -128,7 +128,7 @@ Convention:
 
 Field semantics:
 - `**est:**` — estimate range, mirrors the issue's `estimate_hours` frontmatter when one exists. Free-form (`10–16h`, `~2h`, `medium`).
-- `**actual:**` — actual focused hours spent. **Set on close.** Required for tasks linked to issues — propagate the same value to the issue's `actual_hours` frontmatter (xx-issues skill enforces). Without this the velocity calibration loop cannot close.
+- `**actual:**` — actual focused hours spent. **Set on close.** Required for tasks linked to issues — the issue's `actual_hours` is measured and recorded by `sdlc close` (on the issue's card in an issue tracker repository, #252); copy that value here rather than hand-editing the issue. Without this the velocity calibration loop cannot close.
 - `**status:**` — used when state isn't conveyed by the checkbox alone. Common: `blocked — <reason>`, `in progress — <note>`. Drop when the checkbox is sufficient.
 - `**started:**` / `**closed:**` — ISO dates.
 
@@ -230,7 +230,7 @@ When the dispatcher applies this prototype:
 8. **Updates preserve everything else.** Common edits: flipping a checkbox state, adding a detail block, recording `actual:` and `closed:` on completion, adding or removing tasks. Edit in place — never rewrite the file.
 
 9. **Velocity calibration loop discipline.** When a task closes (checkbox flips to `[x]` and `actual:` is recorded in the detail block), the dispatcher should also:
-   - Update `actual_hours: <N>` in the corresponding issue's frontmatter (in the product repo's `workshop/issues/`).
+   - Confirm the issue's `actual_hours` was recorded by `sdlc close` (the close gate's ticking does this); never hand-edit it — in an issue tracker repository it lives on the card and the details' mirror refuses edits.
    - State the calibration analysis ("estimate was X, actual was Y, off by Z×") to the user.
    Project-level Phase-A calibration is separate: `sdlc project close` requires
    complete issue actuals and appends the fog-factor row.
@@ -276,5 +276,5 @@ rg -A2 "^# " workshop/projects/
 - `mvp_scope` and `explicitly_out` together form the MVP commitment. The `out` list is the load-bearing one.
 - Task lines stay short — title + ref only. State and detail belong in `## Breakdown` detail blocks.
 - Reference definitions and detail blocks are paired: when adding a detail block, add the reference definition; when removing one, remove the other.
-- Closing a task propagates `actual_hours` to the issue's frontmatter. Project close rolls the complete MVP issue set into the Phase-A fog ledger; without both steps, calibration drifts.
+- Closing a task records the issue's measured `actual_hours` through `sdlc close` (never by hand). Project close rolls the complete MVP issue set into the Phase-A fog ledger; without both steps, calibration drifts.
 - A project doesn't replace an issue tracker. Issues describe units of work that exist regardless of timing; a project is the operator's view of what's currently in flight. The same issue can appear in multiple projects over its lifetime.

@@ -7,21 +7,24 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strconv"
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // prFlags holds the parsed flag values for the pr subcommand.
 type prFlags struct {
+	Context   context.Context
 	DryRun    bool
 	IssuesDir string
 }
@@ -40,6 +43,7 @@ func NewPRCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
+			f.Context = cmd.Context()
 			return runPR(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
@@ -50,6 +54,12 @@ func NewPRCmd() *cobra.Command {
 
 // runPR dispatches the pr workflow.
 func runPR(stdout, stderr io.Writer, f *prFlags) error {
+	ctx := commandContext(f.Context)
+	// #252: a PR must not carry a change to handed-off details (checked again at
+	// merge against the then-current main).
+	if err := guardTransferredDetailsFn(commandContext(f.Context)); err != nil {
+		return err
+	}
 	target, targetErr := resolveLandingTarget(prRunner)
 	if targetErr != nil {
 		return targetErr
@@ -70,7 +80,7 @@ func runPR(stdout, stderr io.Writer, f *prFlags) error {
 	}
 
 	// ── 2. Compute merge base ───────────────────────────────────────────────
-	base := gitx.Capture("merge-base", "main", "HEAD")
+	base := gitx.BranchPoint()
 	if base == "" {
 		base = "main"
 	}
@@ -80,7 +90,10 @@ func runPR(stdout, stderr io.Writer, f *prFlags) error {
 	if err != nil {
 		die(stderr, fmt.Sprintf("scan touched issues: %v", err))
 	}
-	ghNums := collectGitHubIssueNumbers(touched)
+	ghNums, lerr := collectGitHubIssueNumbers(ctx, touched)
+	if lerr != nil {
+		cwarn(stderr, fmt.Sprintf("PR body lacks Fixes lines: %v", lerr))
+	}
 
 	// ── 4. Build commits + fixes body ───────────────────────────────────────
 	commits := gitCommitsSince(base, prRunner)
@@ -141,18 +154,29 @@ func touchedIssueFiles(baseRef, issuesDir string, r gitRunner) ([]string, error)
 // in ascending numeric order (matches the shell's `sort -u`).
 //
 // Missing files are skipped silently — the shell target uses `[ -f ]`.
-func collectGitHubIssueNumbers(paths []string) []string {
+func collectGitHubIssueNumbers(ctx context.Context, paths []string) ([]string, error) {
 	seen := map[string]struct{}{}
+	records := map[string]tracker.Records{} // per details directory
 	for _, p := range paths {
-		data, err := readFile(p)
-		if err != nil {
+		id, _, ok := issue.ParseFilename(filepath.Base(p))
+		if !ok {
 			continue
 		}
-		fm, _, perr := issue.Parse(string(data))
-		if perr != nil {
-			continue
+		dir := filepath.Dir(p)
+		rs, loaded := records[dir]
+		if !loaded {
+			var err error
+			// Fresh: the links are published in the PR body; a stale card could drop one.
+			if rs, err = loadIssueRecords(ctx, dir, tracker.Fresh); err != nil {
+				return nil, fmt.Errorf("read the GitHub links of %s: %w", dir, err)
+			}
+			records[dir] = rs
 		}
-		num, ok := issue.GetField(fm, "github_issue")
+		rec, ok := rs.Get(id)
+		if !ok || rec.DetailPath == "" {
+			continue // the shell target skips missing files: a touched path must exist
+		}
+		num, ok := rec.Field("github_issue") // the card's link, where a tracker exists
 		if !ok || num == "" {
 			continue
 		}
@@ -170,7 +194,7 @@ func collectGitHubIssueNumbers(paths []string) []string {
 		}
 		return ai < aj
 	})
-	return out
+	return out, nil
 }
 
 // formatFixes returns the "Fixes ..." line for the given github_issue
@@ -205,10 +229,10 @@ func fixesRef(n string) string {
 }
 
 // gitCommitsSince returns "- <subject>\n- <subject>" lines for every
-// commit in `main..HEAD`. Empty if none. Mirrors the shell target's
-// `git log main..HEAD --pretty=format:'- %s'`.
-func gitCommitsSince(_ string, r gitRunner) string {
-	out, err := r.Git("log", "main..HEAD", "--pretty=format:- %s")
+// commit in `base..HEAD` (base: the branch point from the published trunk).
+// Empty if none.
+func gitCommitsSince(base string, r gitRunner) string {
+	out, err := r.Git("log", base+"..HEAD", "--pretty=format:- %s")
 	if err != nil {
 		return ""
 	}

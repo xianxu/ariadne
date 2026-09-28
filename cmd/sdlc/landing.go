@@ -395,7 +395,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 			}
 		}
 		if !f.NoJudge {
-			if err = runLandingPublishGate(pr, f.IssuesDir, stderr); err != nil {
+			if err = runLandingPublishGate(commandContext(f.Context), pr, f.IssuesDir, stderr); err != nil {
 				return err
 			}
 		}
@@ -431,7 +431,12 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if err = revalidateLanding(r, t, branch, head, current); err != nil {
 		return err
 	}
-	complete, err := landingArchiveComplete(t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
+	// #252: the landing is confirmed, so the closes the PR owns go done on their
+	// cards, landed at its integrated merge (squash and rebase included).
+	if err = completeLandingPR(commandContext(f.Context), t.Root, f.IssuesDir, pr); err != nil {
+		return err
+	}
+	complete, err := landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
 	if err != nil {
 		return err
 	}
@@ -440,14 +445,14 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 		return err
 	}
 	if action == landingArchive {
-		if err = archiveLandingPR(t.Root, t.Remote, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir); err != nil {
+		if err = archiveLandingPR(ctx, t.Root, t.Remote, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir); err != nil {
 			return err
 		}
 		mainOID, err = t.fetchMain(r)
 		if err != nil {
 			return err
 		}
-		complete, err = landingArchiveComplete(t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
+		complete, err = landingArchiveComplete(ctx, t.Root, mainOID, t.Repo, pr, f.IssuesDir, f.PlansDir, f.HistoryDir)
 		if err != nil {
 			return err
 		}
@@ -468,6 +473,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 }
 
 func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
+	ctx := commandContext(f.Context)
 	branch, _, err := landingIssueBranch(prRunner, t, "")
 	if err != nil {
 		return err
@@ -491,7 +497,11 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	if err != nil {
 		return err
 	}
-	body := combineBody(commits, formatFixes(collectGitHubIssueNumbers(splitNonEmptyLines(changedPaths))))
+	ghNums, lerr := collectGitHubIssueNumbers(ctx, splitNonEmptyLines(changedPaths))
+	if lerr != nil {
+		cwarn(stderr, fmt.Sprintf("PR body lacks Fixes lines: %v", lerr))
+	}
+	body := combineBody(commits, formatFixes(ghNums))
 	if f.DryRun {
 		fmt.Fprintf(stdout, "Would: git push -u %s %s\nWould: gh pr create --repo %s --base main --head %s\n%s\n", t.Remote, branch, t.Repo, branch, body)
 		return nil

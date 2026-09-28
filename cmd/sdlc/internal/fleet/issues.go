@@ -1,13 +1,14 @@
 package fleet
 
 import (
+	"context"
 	"fmt"
-	"os"
 	"path/filepath"
-	"sort"
 	"strings"
+	"sync"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -17,64 +18,77 @@ const IssueProvenanceBranchPrefix = "branch-prefix"
 type IssueRecord struct {
 	Ref            string
 	DeclaredStatus string
+	// StaleStatus: the status came from the last-fetched tracker (#252).
+	StaleStatus bool
 }
 
 // IssueLookup returns every same-repository issue matching a six-digit ID.
 type IssueLookup func(id string) ([]IssueRecord, error)
 
-// LookupRepoIssues reads every exact issue-ID match from one repository's
-// active issue home. It reuses the canonical filename and frontmatter grammars,
-// returns stable filename order, and discards partial results on any read or
-// parse error.
-func LookupRepoIssues(repoRoot, id string) ([]IssueRecord, error) {
+// LookupRepoIssues reports one repository's record for a six-digit issue ID.
+// With a tracker (#252) the card's status is declared; without one (pre-
+// migration) each active details file's status is. Duplicate or unreadable
+// details, and invalid statuses, discard partial results. Stable order.
+func LookupRepoIssues(ctx context.Context, repoRoot, id string) ([]IssueRecord, error) {
 	records := make([]IssueRecord, 0)
 	parsedID, _, validID := issue.ParseFilename(id + "-.md")
 	if !validID || parsedID != id {
 		return records, nil
 	}
-	home := filepath.Join(repoRoot, "workshop", "issues")
-	entries, err := os.ReadDir(home)
+	rs, err := repoRecords(ctx, repoRoot)
 	if err != nil {
-		if os.IsNotExist(err) {
-			return records, nil
-		}
-		return records, fmt.Errorf("read same-repo issue home %q: %w", home, err)
+		return records, err
 	}
-	paths := make([]string, 0)
-	for _, entry := range entries {
-		if entry.IsDir() {
+	ref := filepath.Base(filepath.Clean(repoRoot)) + "#" + id
+	for _, rec := range rs.All() {
+		if rec.ID != id {
 			continue
 		}
-		candidateID, _, ok := issue.ParseFilename(entry.Name())
-		if ok && candidateID == id {
-			paths = append(paths, filepath.Join(home, entry.Name()))
+		if rec.DetailErr != nil {
+			return make([]IssueRecord, 0), fmt.Errorf("read same-repo issue %q: %w", rec.DetailPath, rec.DetailErr)
 		}
-	}
-	sort.Strings(paths)
-	ref := filepath.Base(filepath.Clean(repoRoot)) + "#" + id
-	for _, path := range paths {
-		raw, err := os.ReadFile(path)
-		if err != nil {
-			return make([]IssueRecord, 0), fmt.Errorf("read same-repo issue %q: %w", path, err)
+		status := rec.Status()
+		if status == "" || !containsString(vocab.Issue().AllStatuses(), status) {
+			return make([]IssueRecord, 0), fmt.Errorf("validate same-repo issue %q: invalid or missing status %q", rec.DetailPath, status)
 		}
-		frontmatter, _, err := issue.Parse(string(raw))
-		if err != nil {
-			return make([]IssueRecord, 0), fmt.Errorf("parse same-repo issue %q: %w", path, err)
+		records = append(records, IssueRecord{Ref: ref, DeclaredStatus: status, StaleStatus: rs.Stale && rec.Card != nil})
+		if rec.Card != nil {
+			break // one card is one record, whatever details copies exist
 		}
-		status, present := issue.GetField(frontmatter, "status")
-		if !present || status == "" || !containsString(vocab.Issue().AllStatuses(), status) {
-			return make([]IssueRecord, 0), fmt.Errorf("validate same-repo issue %q: invalid or missing status %q", path, status)
-		}
-		records = append(records, IssueRecord{Ref: ref, DeclaredStatus: status})
 	}
 	return records, nil
 }
+
+// repoRecords loads (once per process) a repository's composed issue records.
+// Fleet inventory is a read-only view: a stale tracker read is acceptable.
+var repoRecords = func() func(context.Context, string) (tracker.Records, error) {
+	var mu sync.Mutex
+	cache := map[string]tracker.Records{}
+	return func(ctx context.Context, repoRoot string) (tracker.Records, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if rs, ok := cache[repoRoot]; ok {
+			return rs, nil
+		}
+		repo, err := tracker.RepositoryForCheckout(ctx, repoRoot)
+		if err != nil {
+			return tracker.Records{}, err
+		}
+		rs, err := tracker.LoadRecords(ctx, repo, filepath.Join(repoRoot, vocab.Issue().Discovery().Home), tracker.PreferFresh)
+		if err != nil {
+			return tracker.Records{}, fmt.Errorf("read same-repo issues of %q: %w", repoRoot, err)
+		}
+		cache[repoRoot] = rs
+		return rs, nil
+	}
+}()
 
 // IssueAssociation is issue metadata carried alongside measured tree facts.
 type IssueAssociation struct {
 	Ref            string `json:"ref"`
 	DeclaredStatus string `json:"declared_status"`
 	Provenance     string `json:"provenance"`
+	StaleStatus    bool   `json:"stale_status,omitempty"`
 }
 
 // AssociateBranchIssue associates only a whole issue-prefixed branch with one
@@ -109,6 +123,7 @@ func AssociateBranchIssue(branch string, lookup IssueLookup) ([]IssueAssociation
 		Ref:            matches[0].Ref,
 		DeclaredStatus: matches[0].DeclaredStatus,
 		Provenance:     IssueProvenanceBranchPrefix,
+		StaleStatus:    matches[0].StaleStatus,
 	}
 	if err := validateIssueAssociation(association); err != nil {
 		return associations, fmt.Errorf("validate same-repo issue association %s: %w", id, err)

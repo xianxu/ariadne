@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"go/ast"
@@ -69,7 +70,7 @@ func TestScanIssueFilesWindowPreservesOrderAndParsedSnapshot(t *testing.T) {
 		gotArgs = append([]string(nil), args...)
 		return []byte(second + "\n" + first + "\n"), nil
 	}
-	refs, err := scanIssueFiles("base", dir, runGit)
+	refs, err := scanIssueFiles(context.Background(), "base", dir, runGit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +106,7 @@ func TestScanIssueFilesWindowUsesRealGitDiff(t *testing.T) {
 	runGitCommand(t, repo, "commit", "-qm", "changed")
 
 	runner := execGitRunner{}
-	refs, err := scanIssueFiles(base, issuesDir, runner.Git)
+	refs, err := scanIssueFiles(context.Background(), base, issuesDir, runner.Git)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -123,7 +124,7 @@ func TestScanIssueFilesDirectoryUsesSharedGrammarAndSorts(t *testing.T) {
 	first := writeScanIssueFile(t, dir, "000001-first.md", "working", "# First\n")
 	writeScanIssueFile(t, dir, "custom.md", "working", "# Custom\n")
 
-	refs, err := scanIssueFiles("", dir, func(...string) ([]byte, error) {
+	refs, err := scanIssueFiles(context.Background(), "", dir, func(...string) ([]byte, error) {
 		t.Fatal("directory scan invoked git")
 		return nil, nil
 	})
@@ -180,7 +181,7 @@ func TestScanIssueFilesSkipsDeletedUnreadableAndMalformed(t *testing.T) {
 	runGit := func(...string) ([]byte, error) {
 		return []byte(strings.Join([]string{deleted, malformed, unreadable, missingStatus}, "\n")), nil
 	}
-	refs, err := scanIssueFiles("base", dir, runGit)
+	refs, err := scanIssueFiles(context.Background(), "base", dir, runGit)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -194,7 +195,7 @@ func TestScanIssueFilesRetainsGitFailureFacts(t *testing.T) {
 	runGit := func(...string) ([]byte, error) {
 		return []byte("fatal detail"), cause
 	}
-	_, err := scanIssueFiles("base", "workshop/issues", runGit)
+	_, err := scanIssueFiles(context.Background(), "base", "workshop/issues", runGit)
 	if err == nil {
 		t.Fatal("expected error")
 	}
@@ -229,7 +230,7 @@ func TestIssueFilenameGrammarConsumersUseSharedSource(t *testing.T) {
 		"issueFilename":          "issueFilenameParts",
 		"issueIDPrefix":          "issueFilenameParts",
 		"buildPushCommitMessage": "issueFilenamePattern",
-		"listIssues":             "issueFilenameParts",
+		"listIssueStates":        "loadIssueRecords", // #252: the grammar lives in tracker.LoadRecords
 		"listUntrackedIssues":    "issueFilename",
 	}
 	foundReference := make(map[string]bool, len(wantReference))
@@ -261,6 +262,14 @@ func TestIssueFilenameGrammarConsumersUseSharedSource(t *testing.T) {
 
 	if literalCount != 0 {
 		t.Errorf("main package repeats the shared issue filename pattern %d time(s), want none", literalCount)
+	}
+	// The composed reader (#252) globs details with the shared pattern, never a copy.
+	records, err := os.ReadFile(filepath.Join("internal", "tracker", "records.go"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(records), "issue.FilenamePattern") || strings.Contains(string(records), "[0-9][0-9]") {
+		t.Error("tracker.LoadRecords must glob with issue.FilenamePattern")
 	}
 	for function, identifier := range wantReference {
 		if !foundReference[function] {

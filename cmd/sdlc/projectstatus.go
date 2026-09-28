@@ -1,19 +1,21 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	projectdoc "github.com/xianxu/ariadne/cmd/sdlc/internal/project"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -25,7 +27,7 @@ func newProjectStatusCmd() *cobra.Command {
 	f := projectStatusFlags{}
 	cmd := &cobra.Command{Use: "status", Short: "Render the derived project board", Args: cobra.NoArgs, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runProjectStatus(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runProjectStatus(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		}}
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug")
 	cmd.Flags().StringVar(&f.ProjectsDir, "projects-dir", defaultProjectsDir(), "directory holding project files")
@@ -34,7 +36,7 @@ func newProjectStatusCmd() *cobra.Command {
 	return cmd
 }
 
-func runProjectStatus(stdout, _ io.Writer, f *projectStatusFlags) error {
+func runProjectStatus(ctx context.Context, stdout, _ io.Writer, f *projectStatusFlags) error {
 	path, err := projectdoc.ResolvePath(f.ProjectsDir, f.Slug)
 	if err != nil {
 		return err
@@ -47,12 +49,12 @@ func runProjectStatus(stdout, _ io.Writer, f *projectStatusFlags) error {
 	if err != nil {
 		return err
 	}
-	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return projectIssueLookupFn(ref, root) })
+	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return projectIssueLookupFn(ctx, ref, root) })
 	if err != nil {
 		return err
 	}
 	fmt.Fprint(stdout, renderBoard(b, projectTodayFn()))
-	if line := forecastLine(path, f.BrainDir, projectTodayFn()); line != "" {
+	if line := forecastLine(ctx, path, f.BrainDir, projectTodayFn()); line != "" {
 		fmt.Fprintln(stdout, line)
 	}
 	return nil
@@ -64,6 +66,10 @@ type issueMeta struct {
 	EstimateHours, ActualHours float64
 	ActualAvailable, ActualNA  bool
 	Deps                       []string
+	// DepsUnknown: a card with no details anywhere (#252) — its creation is
+	// incomplete, so "no deps" would be a guess. It is never workable frontier.
+	DepsUnknown bool
+	StaleCard   bool // the card came from the last-fetched tracker
 }
 
 type boardRow struct {
@@ -120,6 +126,9 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 				if duplicate && row.Warning == "" {
 					row.Warning = "duplicate logical issue reference (first " + display[row.Identity] + ")"
 				}
+				if meta.StaleCard && row.Warning == "" {
+					row.Warning = staleTrackerNote
+				}
 			}
 		}
 		b.Rows = append(b.Rows, row)
@@ -151,7 +160,7 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 		if !ok {
 			continue
 		}
-		blocked := false
+		blocked := meta.DepsUnknown
 		for _, dep := range meta.Deps {
 			depID := refIDs[dep]
 			depMeta, ok := metas[depID]
@@ -255,7 +264,7 @@ func renderBoard(b board, today string) string {
 	return s.String()
 }
 
-func lookupIssueMeta(refText, currentRepoRoot string) (issueMeta, error) {
+func lookupIssueMeta(ctx context.Context, refText, currentRepoRoot string) (issueMeta, error) {
 	ref, err := parseRef(refText)
 	if err != nil {
 		return issueMeta{}, err
@@ -268,27 +277,51 @@ func lookupIssueMeta(refText, currentRepoRoot string) (issueMeta, error) {
 		return issueMeta{}, err
 	}
 	disc := vocab.Issue().Discovery()
-	path, err := locateIssueFile(filepath.Join(repoDir, disc.Home), ref.ID)
+	rs, err := projectIssueRecords(ctx, repoDir)
 	if err != nil {
+		return issueMeta{}, fmt.Errorf("resolve %s: %w", refText, err)
+	}
+	id := fmt.Sprintf("%06d", ref.ID)
+	rec, found := rs.Get(id)
+	detailsFM := ""
+	switch {
+	case found && rec.DetailPath != "":
+		if rec.DetailErr != nil {
+			return issueMeta{}, fmt.Errorf("%s: %w", refText, rec.DetailErr)
+		}
+		detailsFM = rec.DetailFM
+	default:
+		// Archived details (a done issue's history), or a pre-tracker archive.
 		archive := filepath.Join(repoDir, vocab.ArchiveSubdir(disc.Archive, vocab.ArchiveIssues))
-		path, err = locateIssueFile(archive, ref.ID)
-		if err != nil {
-			return issueMeta{}, fmt.Errorf("resolve %s: %w", refText, err)
+		if path, lerr := locateIssueFile(archive, ref.ID); lerr == nil {
+			raw, err := os.ReadFile(path)
+			if err != nil {
+				return issueMeta{}, err
+			}
+			if detailsFM, _, err = issue.Parse(string(raw)); err != nil {
+				return issueMeta{}, err
+			}
+		} else if !found || rec.Card == nil {
+			return issueMeta{}, fmt.Errorf("resolve %s: %w", refText, lerr)
 		}
 	}
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		return issueMeta{}, err
+	// Card-owned fields from the card where one exists; deps from the details.
+	cardFM := detailsFM
+	if found && rec.Card != nil {
+		cardFM = rec.Card.Card.Frontmatter
 	}
-	fm, _, err := issue.Parse(string(raw))
-	if err != nil {
-		return issueMeta{}, err
-	}
-	decoded, err := projectdoc.DecodeMetadata(fm)
+	decoded, err := projectdoc.DecodeMetadata(cardFM)
 	if err != nil {
 		return issueMeta{}, fmt.Errorf("%s: %w", refText, err)
 	}
-	meta := issueMeta{Identity: canonicalRepoIssueIdentity(repoDir, ref.ID), Status: decoded.Status, Deps: decoded.Deps}
+	if detailsFM != "" && detailsFM != cardFM {
+		detail, err := projectdoc.DecodeMetadata(detailsFM)
+		if err != nil {
+			return issueMeta{}, fmt.Errorf("%s: %w", refText, err)
+		}
+		decoded.Deps = detail.Deps
+	}
+	meta := issueMeta{Identity: canonicalRepoIssueIdentity(repoDir, ref.ID), Status: decoded.Status, Deps: decoded.Deps, DepsUnknown: detailsFM == "", StaleCard: rs.Stale}
 	meta.EstimateHours, _, _, err = projectdoc.NumberValue(decoded.EstimateHours, "estimate_hours")
 	if err != nil {
 		return issueMeta{}, fmt.Errorf("%s has %w", refText, err)
@@ -299,3 +332,22 @@ func lookupIssueMeta(refText, currentRepoRoot string) (issueMeta, error) {
 	}
 	return meta, nil
 }
+
+// projectIssueRecords loads (once per process) one repository's composed
+// records. The board is a read-only view: a stale tracker read is acceptable.
+var projectIssueRecords = func() func(context.Context, string) (tracker.Records, error) {
+	var mu sync.Mutex
+	cache := map[string]tracker.Records{}
+	return func(ctx context.Context, repoDir string) (tracker.Records, error) {
+		mu.Lock()
+		defer mu.Unlock()
+		if rs, ok := cache[repoDir]; ok {
+			return rs, nil
+		}
+		rs, err := loadIssueRecordsAt(ctx, repoDir, vocab.Issue().Discovery().Home, tracker.PreferFresh)
+		if err == nil {
+			cache[repoDir] = rs
+		}
+		return rs, err
+	}
+}()

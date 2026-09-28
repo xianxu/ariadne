@@ -25,7 +25,6 @@ import (
 	"syscall"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
@@ -86,6 +85,8 @@ func executeCLI(root *cobra.Command, args []string) int {
 		ctx = context.WithValue(signalCtx, cliSignalContextKey{}, true)
 	}
 	root.SetArgs(args)
+	// #252: one composed issue view per repository per command (one tracker fetch).
+	ctx = withIssueRecordsScope(ctx)
 	if err := root.ExecuteContext(ctx); err != nil {
 		fmt.Fprintln(os.Stderr, "Error:", err)
 		return 1

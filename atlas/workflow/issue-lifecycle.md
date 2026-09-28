@@ -27,11 +27,15 @@ drifted after the review; doc-only bookkeeping deltas are tolerated, #174), run 
 LLM judge, flip `codecomplete → done`, and archive. `codecomplete` is written **only** by `sdlc close` (set-status refuses it),
 which is what makes the commit carrying it a trustworthy anchor for that invariant.
 So `done` now means "reviewed AND published," not "an agent thinks it's finished."
+With the issue tracker (#252) close commits its own evidence and publishes
+codecomplete on the card with a binding to that commit; publishing verbs select
+closes by the binding, anchor on the evidence commit, and write `done` on the card
+for the same close generation (see [issue tracker](issue-tracker.md)).
 
 ## Transitions
 
 1. **Create**: `sdlc issue new "<title>"` allocates the next ID and writes the canonical template (the no-GitHub entry path); `sdlc issue new --from-github <num>` (or the older `sdlc fetch`) seeds it from a GitHub issue. See `sdlc issue --help` for the canonical issue-file contract.
-2. **Claim**: `sdlc claim --issue N` reads fresh `origin/main`, requires an open issue, and conditionally publishes only its transition to `working`. Already-working claims refuse, including repeats; continue existing work without reclaiming. Local body edits are preserved and require explicit documentation publication (see [issue sync](issue-sync.md)). A **cheap lock** — no estimate demanded (#113), so claim early (at brainstorm start). The flip stamps an explicit `started:` timestamp (#116) that anchors the active-time window at engagement start, so `sdlc actual` measures design attention instead of dropping it (superseding the older `WorkingTransitionISO` git-log heuristic; gap-truncation keeps a dormant claim→work gap from inflating the actual).
+2. **Claim**: `sdlc claim --issue N` compare-and-swaps the issue's card on the `issue-tracker` branch from open to `working` (#252; see [issue tracker](issue-tracker.md)). It refuses until the issue's details have landed on main — a card-only issue is still being created — and nothing is published to main. Already-working claims refuse, including repeats; continue existing work without reclaiming. A **cheap lock** — no estimate demanded (#113), so claim early (at brainstorm start). The flip stamps an explicit `started:` timestamp (#116) that anchors the active-time window at engagement start, so `sdlc actual` measures design attention instead of dropping it (superseding the older `WorkingTransitionISO` git-log heuristic; gap-truncation keeps a dormant claim→work gap from inflating the actual).
 3. **Plan**: `sdlc start-plan` marks the design entry — it delivers the `at-plan` architecture lens, sizes the work against the quick-flow shell, points at the durable-plan path, and tells you NOT to derive `estimate_hours` yet — `change-code` asks for it only after the plan clears plan-quality (#187), and only on the full flow. For work outside the shell, author the plan via the **`superpowers-writing-plans`** skill into `workshop/plans/NNNNNN-slug-plan.md` (version-controlled — never the harness builtin's ephemeral `~/.claude/plans/`, #72).
 4. **Work**: Agent works within the issue file — updates Plan, Log, Spec sections
 5. **Default — branch + PR**: `sdlc change-code` creates an **in-place branch** (a branch in the current checkout) after the gates; `sdlc pr` opens the pull request; `sdlc merge` merges it server-side, archives done issues, and switches back to main. `--worktree=yes` gets an isolated worktree instead (parallel work).
@@ -210,8 +214,9 @@ Each `sdlc push` / `sdlc merge` archives done issues into `history/`. Before tha
    in one `sdlc close`; only tag `Mx` rows when the work has ≥2 separate review
    boundaries you'll `milestone-close` individually (AGENTS.md §3 — an `Mx` tag is
    a review boundary, not a task label).
-3. **Record `actual_hours`** in the frontmatter: a measured positive number, or
-   explicit `N/A` only when measurement is not applicable.
+3. **Record `actual_hours`** (on the card for tracker-era issues, #252; in the
+   frontmatter otherwise): a measured positive number, or explicit `N/A` only
+   when measurement is not applicable. `sdlc close` measures and records it.
 4. Update the parent project file (if any).
 5. Update `atlas/` for any new architectural surface.
 6. ~~Append validation-log entry~~ — now automatic: on a full-issue close `sdlc

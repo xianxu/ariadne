@@ -1,15 +1,15 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 func TestStartPlanCmd_Registered(t *testing.T) {
@@ -23,7 +23,7 @@ func TestStartPlanCmd_Registered(t *testing.T) {
 // injection) to the main thread, labeled with the issue.
 func TestRunStartPlan_RendersAtPlanLens(t *testing.T) {
 	var b strings.Builder
-	runStartPlan(&b, 75)
+	runStartPlan(context.Background(), &b, 75)
 	out := b.String()
 	// Architecture lens + the #72 durable-plan pointer must both be wired into the
 	// integrated output (TestPlanPointer pins the helper's wording; this pins that
@@ -31,23 +31,40 @@ func TestRunStartPlan_RendersAtPlanLens(t *testing.T) {
 	// silently).
 	// "estimate-source" pins the #134 estimator-SOURCE push (estimate.SourceLine)
 	// is wired below the nudge — so it can't be silently dropped in a refactor.
-	// "sdlc issue sync" pins the #206 mid-planning DURABILITY trigger. That verb's
-	// whole justification is checkpointing the design while it is being made, and
-	// start-plan's output is its only delivery point in the agent's attention path
-	// — a verb nobody is routed to is documentation, not a feature (ARCH-PURPOSE).
-	for _, want := range []string{"#75", "ARCH-DRY", "ARCH-CONSTRAINTS", "at-plan", "change-code", "superpowers-writing-plans", "workshop/plans/000075-", "sdlc issue sync --issue 75", "estimate-source", estimate.CurrentModel()} {
+	// "#75: plan:" pins the #206 mid-planning DURABILITY trigger (#252: an ordinary
+	// commit on the issue branch). Checkpointing matters while the design is being
+	// made, and start-plan's output is its only delivery point in the agent's
+	// attention path (ARCH-PURPOSE).
+	for _, want := range []string{"#75", "ARCH-DRY", "ARCH-CONSTRAINTS", "at-plan", "change-code", "superpowers-writing-plans", "workshop/plans/000075-", "estimate-source", estimate.CurrentModel()} {
 		if !strings.Contains(out, want) {
 			t.Errorf("start-plan output missing %q:\n%s", want, out)
 		}
+	}
+	// The checkpoint pointer is the repository's mode's (TestSyncPointerByMode
+	// pins both wordings); it must be wired in either way.
+	if !strings.Contains(out, syncPointer(75, true)) && !strings.Contains(out, syncPointer(75, false)) {
+		t.Errorf("start-plan output lacks the checkpoint pointer:\n%s", out)
 	}
 	if !strings.Contains(out, judge.ArchitectureRegistry) {
 		t.Errorf("start-plan must carry the complete architecture registry, not marker sentinels:\n%s", out)
 	}
 	// No --issue → generic label, still renders the principles.
 	var b2 strings.Builder
-	runStartPlan(&b2, 0)
+	runStartPlan(context.Background(), &b2, 0)
 	if !strings.Contains(b2.String(), "ARCH-PURE") {
 		t.Error("start-plan with no issue should still render the principles")
+	}
+}
+
+// #206/#252: the mid-planning checkpoint pointer follows the repository's mode —
+// an ordinary commit on the issue branch in a tracker repository, `issue sync`
+// in a legacy one (exactly the pre-#252 wording).
+func TestSyncPointerByMode(t *testing.T) {
+	if got := syncPointer(75, true); !strings.Contains(got, "#75: plan:") || strings.Contains(got, "issue sync") {
+		t.Errorf("tracker-era pointer:\n%s", got)
+	}
+	if got := syncPointer(75, false); !strings.Contains(got, "`sdlc issue sync --issue 75`") || !strings.Contains(got, "publishes at the end") {
+		t.Errorf("legacy pointer:\n%s", got)
 	}
 }
 

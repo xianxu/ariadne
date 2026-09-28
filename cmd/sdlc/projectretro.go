@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -8,7 +9,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	projectdoc "github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 )
@@ -22,7 +22,7 @@ func newProjectRetroCmd() *cobra.Command {
 	f := projectRetroFlags{}
 	cmd := markMutatingCommand(&cobra.Command{Use: "retro", Short: "Append a project retrospective checkpoint", Args: cobra.NoArgs, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runProjectRetro(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runProjectRetro(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		}})
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug")
 	cmd.Flags().StringVar(&f.ProjectsDir, "projects-dir", defaultProjectsDir(), "directory holding project files")
@@ -31,7 +31,7 @@ func newProjectRetroCmd() *cobra.Command {
 	return cmd
 }
 
-func runProjectRetro(stdout, _ io.Writer, f *projectRetroFlags) error {
+func runProjectRetro(ctx context.Context, stdout, _ io.Writer, f *projectRetroFlags) error {
 	path, err := projectdoc.ResolvePath(f.ProjectsDir, f.Slug)
 	if err != nil {
 		return err
@@ -44,7 +44,7 @@ func runProjectRetro(stdout, _ io.Writer, f *projectRetroFlags) error {
 	if err != nil {
 		return err
 	}
-	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return projectIssueLookupFn(ref, root) })
+	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return projectIssueLookupFn(ctx, ref, root) })
 	if err != nil {
 		return err
 	}

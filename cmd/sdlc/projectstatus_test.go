@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -36,7 +37,7 @@ func TestLookupIssueMetaCrossRepoAndArchive(t *testing.T) {
 	}
 	projectWorkspaceGit(t, root, "init", "-b", "main")
 	projectWorkspaceGit(t, peer, "init", "-b", "main")
-	meta, err := lookupIssueMeta("nous#7", root)
+	meta, err := lookupIssueMeta(context.Background(), "nous#7", root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -61,11 +62,11 @@ func TestLookupIssueMetaCanonicalizesPeerPrefixAliases(t *testing.T) {
 	}
 	projectWorkspaceGit(t, root, "init", "-b", "main")
 	projectWorkspaceGit(t, filepath.Join(parent, "parley.nvim"), "init", "-b", "main")
-	prefix, err := lookupIssueMeta("parley#3", root)
+	prefix, err := lookupIssueMeta(context.Background(), "parley#3", root)
 	if err != nil {
 		t.Fatal(err)
 	}
-	full, err := lookupIssueMeta("parley.nvim#3", root)
+	full, err := lookupIssueMeta(context.Background(), "parley.nvim#3", root)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +92,7 @@ func TestMalformedIssueEstimateDegradesToBoardWarning(t *testing.T) {
 	projectWorkspaceGit(t, root, "init", "-b", "main")
 	projectWorkspaceGit(t, filepath.Join(parent, "nous"), "init", "-b", "main")
 	d := boardDoc(t, "- [ ] malformed estimate [nous#8]")
-	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return lookupIssueMeta(ref, root) })
+	b, err := computeBoard(d, func(ref string) (issueMeta, error) { return lookupIssueMeta(context.Background(), ref, root) })
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -219,5 +220,24 @@ func TestComputeBoardDecodesQuotedProjectName(t *testing.T) {
 	}
 	if b.Name != "quoted-demo" {
 		t.Fatalf("board name = %q", b.Name)
+	}
+}
+
+// A card whose details are nowhere (creation incomplete, #252) has unknown
+// deps: it is blocked, never the workable frontier.
+func TestComputeBoardUnknownDepsBlock(t *testing.T) {
+	d := boardDoc(t, "- [ ] [ariadne#1] card only\n- [ ] [ariadne#2] ready\n")
+	lookup := func(ref string) (issueMeta, error) {
+		if ref == "ariadne#1" {
+			return issueMeta{Identity: "ariadne#1", Status: "open", DepsUnknown: true}, nil
+		}
+		return issueMeta{Identity: "ariadne#2", Status: "open"}, nil
+	}
+	b, err := computeBoard(d, lookup)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(b.Blocked) != 1 || b.Blocked[0] != "ariadne#1" || len(b.Frontier) != 1 || b.Frontier[0] != "ariadne#2" {
+		t.Fatalf("blocked %v frontier %v", b.Blocked, b.Frontier)
 	}
 }

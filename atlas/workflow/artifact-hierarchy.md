@@ -8,7 +8,8 @@ Work artifacts live close to the issue, then graduate to permanent locations or 
 
 | Path | Purpose | Lifecycle |
 |------|---------|-----------|
-| `workshop/issues/` | Active issue files | Archived to history when done |
+| `workshop/issues/` | Active issue details (in an issue tracker repository, with a read-only `card_mirror`) | Archived to history when done |
+| `workshop/issue-cards/` on branch `issue-tracker` | Issue cards: id, status, dates, hours, GitHub link, title, original Problem (#252; see [issue tracker](issue-tracker.md)) | Permanent, including done issues; written only by sdlc |
 | `workshop/plans/` | Detailed designs for issues outside the quick-flow shell (#231), authored via the `superpowers-writing-plans` skill (the canonical plan path, #72); also boundary-review sidecars (`-close-review.md` / `-m<x>-review.md`, #136) | Archived with issue |
 | `workshop/history/` | Completed issue files | Permanent archive, low-signal |
 | `workshop/staging/` | Work-in-progress scratch | Temporary |

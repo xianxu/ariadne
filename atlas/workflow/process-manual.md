@@ -106,10 +106,10 @@ between planning (which happens on `main`) and code-changing work:
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
 
-Sync workshop/issues/ changes to origin/main, even from a feature
-branch. The workstream-claim primitive: an agent runs `sdlc claim
---issue N` and the claim is broadcast to origin/main so peer agents see
-it before they start parallel work.
+Reserve an open issue card on the tracker (open → working). The
+workstream-claim primitive: an agent runs `sdlc claim --issue N` and the
+card on `issue-tracker` shows the claim to peer agents before they start
+parallel work; the issue must be fully created (details on main).
 
 ### [close](../../cmd/sdlc/helptext/close.md)
 

@@ -4,9 +4,9 @@ between planning and code-changing work in any checkout:
   0. Flow                — infers the issue's flow (#231; see THE FLOW
                            below). On the quick flow, gates 1–3 do not run.
                            The flow is RECORDED in the frontmatter only
-                           after the gates pass, just before the sync
-                           commit, so a refused run leaves the issue as it
-                           was.
+                           after the gates pass, just before the design
+                           checkpoint, so a refused run leaves the issue as
+                           it was.
   1. Structural sanity   — does the issue have a filled-in Spec, a
                            non-empty Plan, and Done-when criteria?
   2. Plan-quality judge  — fresh-context LLM review (skip with
@@ -33,6 +33,16 @@ between planning and code-changing work in any checkout:
                            (with a sizing hint) or, headless, get the
                            agent sentinel.
 
+DESIGN CHECKPOINT AND CARD FIELDS (#252)
+
+  After branching, change-code commits the accepted design — the issue details,
+  the durable plan and its gate ledger — by one narrow local commit on the issue
+  branch, leaving unrelated staged or unstaged work alone. It publishes nothing:
+  the branch's PR lands the details. Before the gates it refreshes the details'
+  card mirror, so they read the card's current `estimate_hours` (set with
+  `sdlc issue set-estimate --issue N --hours H`, never by hand); a hand-edited
+  mirrored field refuses and names its setter.
+
 SLOT BRANCH PREPARATION (#245)
 
   For “in :2, branch from :1”, resolve both with `sdlc workspace --json`
@@ -48,7 +58,7 @@ SLOT BRANCH PREPARATION (#245)
     git -C "$destination" -c submodule.recurse=false switch --no-track --no-overwrite-ignore -c "$issue_branch" "$source_sha"
 
   Verify HEAD equals the captured SHA. Record source address and SHA in the
-  issue Log, then `sdlc issue sync --issue N`. Explicitly bring in the allocated
+  issue Log and commit it on the branch. Explicitly bring in the allocated
   issue record if absent; do not allocate a replacement or import a plan
   automatically. Claim open issues normally; do not reclaim working issues.
   Run planning and `change-code --issue N --worktree=no` on this prepared branch.
@@ -56,9 +66,9 @@ SLOT BRANCH PREPARATION (#245)
   refs/upstream configurations and leaves sibling dependencies alone.
 
   For independent work, use the destination's own current committed HEAD as
-  source. No baseline fetch/refresh is implied. Plain change-code retains its
-  existing sync-before-branch order; prepare the branch first when its resting
-  ref must stay unchanged. Reservation/doc publication still contacts remote.
+  source. No baseline fetch/refresh is implied. For tracker-era details (a card
+  mirror, #252), `sdlc start-plan --issue N` prepares the issue branch at fresh
+  main and change-code refuses to run from the resting branch.
 
   Refresh is separate and explicit: require a clean resting checkout, read its
   configured upstream remote/main (never assume origin), fetch main without
@@ -107,7 +117,7 @@ THE FLOW (#231)
   estimate reviewers, then reacquires it before using each response. Repository,
   worktree, branch, HEAD, issue, optional plan and plan-ledger state must still
   match. A concurrent edit is preserved and the stale command refuses before
-  recording a review, flow metadata, sync commit or branch. Rerun to review the
+  recording a review, flow metadata, design checkpoint or branch. Rerun to review the
   current inputs. Cancellation, failed dispatch and failed lock reacquisition
   also refuse; --force cannot waive these safety checks.
 
@@ -218,7 +228,7 @@ EXAMPLES
 
 RELATED
 
-  sdlc claim      reserve an open issue on origin/main (status/start only)
+  sdlc claim      reserve an open issue card on the tracker (status/start only)
   sdlc judge      manually invoke any judge category, including
                   plan-quality
   sdlc close      close an issue or milestone (the matching exit

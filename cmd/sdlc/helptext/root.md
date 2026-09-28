@@ -6,10 +6,11 @@ recurs. `sdlc` manages the development life cycle; prefer it over `git`/`gh`.
 
 BEFORE WORK
   - `sdlc claim --issue N` — the single start-of-work gesture, a CHEAP LOCK.
-    Flips an *open* issue to `working` and publishes the claim to origin/main so
-    peer agents see it. No estimate demanded (#113) — claim early, the moment an
-    idea crystallizes. Already-working issues refuse, including repeated claims;
-    resume existing work without reclaiming it. Claims do not publish local body edits.
+    Flips an *open* issue card to `working` on the `issue-tracker` branch so peer
+    agents see it (#252); the issue must be fully created (details on main). No
+    estimate demanded (#113) — claim early. Already-working issues refuse,
+    including repeated claims; resume existing work without reclaiming it.
+    Then `sdlc start-plan --issue N` moves design onto the issue branch.
   - Do NOT hand-edit an issue's `status:` — let `sdlc claim` or `sdlc issue
     set-status` own that transition (it carries the reopen/`→ done` guards).
 

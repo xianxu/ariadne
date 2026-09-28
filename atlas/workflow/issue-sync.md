@@ -1,5 +1,13 @@
 # Issue sync and publication
 
+> **Legacy repositories only (#252).** This page describes the pre-tracker
+> workflow, which runs until a repository's cutover. In an issue tracker
+> repository `claim` and `issue new` write cards and never publish to main,
+> `change-code` publishes nothing, `issue sync` is a local checkpoint on the
+> issue branch only, and `issue publish` refuses. See
+> [issue tracker](issue-tracker.md) and
+> [issue tracker migration](issue-tracker-migration.md).
+
 Issue reservation and documentation publication are separate operations. Both use
 fresh `origin/main` and conditional Git publication in every checkout: primary
 `:0`, numbered worktree, feature branch, and private dependency clone.
@@ -48,8 +56,8 @@ ancestors and unrelated local code do not travel with the selected change.
 
 `issue sync --push` publishes only the narrow commit created by that invocation.
 If it creates no commit, select the existing commit explicitly instead.
-`change-code` also publishes only the narrow issue checkpoint it creates; no new
-checkpoint means no publication. A broader design package remains an explicit
+(Pre-#252) `change-code` also published only the narrow issue checkpoint it
+created; no new checkpoint meant no publication. A broader design package remains an explicit
 agent choice.
 
 ## Concurrency and recovery

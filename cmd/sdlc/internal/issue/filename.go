@@ -19,3 +19,13 @@ func ParseFilename(name string) (id, slug string, ok bool) {
 	}
 	return base[:6], strings.TrimSuffix(base[7:], ".md"), true
 }
+
+// CLIRef renders a canonical (zero-padded) issue ID as the decimal value a
+// `--issue N` flag expects. A padded "000253" would be parsed as octal (171) by
+// the flag library, so every next-action hint goes through this one function.
+func CLIRef(id string) string {
+	if n := strings.TrimLeft(id, "0"); n != "" {
+		return n
+	}
+	return id
+}

@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -48,7 +49,7 @@ func TestInventory_MultiRepoMutationAndFaultIsolation(t *testing.T) {
 		},
 	}
 
-	first, err := CollectInventory(fleetRoot, options)
+	first, err := CollectInventory(context.Background(), fleetRoot, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -82,7 +83,7 @@ func TestInventory_MultiRepoMutationAndFaultIsolation(t *testing.T) {
 	mustFakeMutation(t, fake.SetDirty(linked, []FakeGitStatusEntry{{Code: "??", Path: "new.txt"}}))
 	lookups[alpha.primary]["000124"] = []IssueRecord{{Ref: "alpha#000124", DeclaredStatus: "open"}}
 
-	second, err := CollectInventory(fleetRoot, options)
+	second, err := CollectInventory(context.Background(), fleetRoot, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -105,7 +106,7 @@ func TestInventory_MultiRepoMutationAndFaultIsolation(t *testing.T) {
 		}
 		return append([]IssueRecord(nil), lookups[repoRoot][id]...), nil
 	}
-	malformed, err := CollectInventory(fleetRoot, options)
+	malformed, err := CollectInventory(context.Background(), fleetRoot, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +132,7 @@ func TestInventory_MultiRepoMutationAndFaultIsolation(t *testing.T) {
 		}
 		return append([]IssueRecord(nil), lookups[repoRoot][id]...), nil
 	}
-	faulted, err := CollectInventory(fleetRoot, options)
+	faulted, err := CollectInventory(context.Background(), fleetRoot, options)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -156,11 +157,11 @@ func TestInventory_MultiRepoMutationAndFaultIsolation(t *testing.T) {
 }
 
 func TestInventory_RejectsMissingRequiredDependenciesAndPreservesEmptyArrays(t *testing.T) {
-	if _, err := CollectInventory(t.TempDir(), InventoryOptions{}); err == nil {
+	if _, err := CollectInventory(context.Background(), t.TempDir(), InventoryOptions{}); err == nil {
 		t.Fatal("CollectInventory accepted a nil GitReader")
 	}
 
-	empty, err := CollectInventory(t.TempDir(), InventoryOptions{Git: NewFakeGit()})
+	empty, err := CollectInventory(context.Background(), t.TempDir(), InventoryOptions{Git: NewFakeGit()})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -185,7 +186,7 @@ func TestInventory_LinkedSiblingUsesPrimaryPolicyAndDoesNotDuplicateRepo(t *test
 	mustFakeMutation(t, fake.AddWorktree(repo.common, gitx.Worktree{Path: linked, HEAD: repo.head, Branch: "linked"}))
 
 	var loaded []string
-	inventory, err := CollectInventory(fleetRoot, InventoryOptions{
+	inventory, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{
 		Git: fake,
 		LoadPolicy: func(path string) PolicyCapability {
 			loaded = append(loaded, path)
@@ -228,7 +229,7 @@ func TestInventory_LinkedSiblingWorktreeFailureIsReportedOncePerRepo(t *testing.
 		canonicalContractPath(t, linked) + "\x00" + command: errors.New("linked list failure"),
 		repo.primary + "\x00" + command:                     errors.New("primary list failure"),
 	}}
-	inventory, err := CollectInventory(fleetRoot, InventoryOptions{Git: faults})
+	inventory, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: faults})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -261,7 +262,7 @@ func TestInventory_LinkedAliasFailureRetriesHealthyPrimary(t *testing.T) {
 	faults := &inventoryFaultGit{GitReader: fake, failures: map[string]error{
 		canonicalContractPath(t, linked) + "\x00" + command: errors.New("linked list failure"),
 	}}
-	inventory, err := CollectInventory(fleetRoot, InventoryOptions{Git: faults})
+	inventory, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: faults})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -296,7 +297,7 @@ func TestInventory_TreeFailuresArePerCanonicalTreeNotAlias(t *testing.T) {
 		repo.primary + "\x00" + statusCommand: errors.New("primary status failure"),
 		linked + "\x00" + statusCommand:       errors.New("linked status failure"),
 	}}
-	inventory, err := CollectInventory(fleetRoot, InventoryOptions{
+	inventory, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{
 		Git: faults,
 		LookupIssues: func(_ string, id string) ([]IssueRecord, error) {
 			return nil, fmt.Errorf("issue %s unavailable", id)
@@ -347,7 +348,7 @@ func TestInventory_WorktreeCanonicalizationFailuresArePerListedTreeNotAlias(t *t
 		mustFakeMutation(t, fake.AddWorktree(repo.common, gitx.Worktree{Path: path, HEAD: repo.head, Branch: branch, Prunable: &reason}))
 	}
 
-	inventory, err := CollectInventory(fleetRoot, InventoryOptions{Git: fake})
+	inventory, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: fake})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -373,7 +374,7 @@ func TestInventory_HeadExistsOnlyInMeasuredFacts(t *testing.T) {
 	fleetRoot := t.TempDir()
 	fake := NewFakeGit()
 	addInventoryFakeRepo(t, fake, fleetRoot, "repo", "main")
-	inventory, err := CollectInventory(fleetRoot, InventoryOptions{Git: fake})
+	inventory, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: fake})
 	if err != nil {
 		t.Fatal(err)
 	}

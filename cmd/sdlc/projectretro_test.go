@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -30,10 +31,10 @@ func TestRunProjectRetroAppendsAndDryRuns(t *testing.T) {
 	t.Cleanup(func() { projectTodayFn = orig })
 	var out, errOut bytes.Buffer
 	f := &projectRetroFlags{Slug: "demo", ProjectsDir: dir}
-	if err := runProjectRetro(&out, &errOut, f); err != nil {
+	if err := runProjectRetro(context.Background(), &out, &errOut, f); err != nil {
 		t.Fatal(err)
 	}
-	if err := runProjectRetro(&out, &errOut, f); err != nil {
+	if err := runProjectRetro(context.Background(), &out, &errOut, f); err != nil {
 		t.Fatal(err)
 	}
 	b, _ := os.ReadFile(path)
@@ -43,7 +44,7 @@ func TestRunProjectRetroAppendsAndDryRuns(t *testing.T) {
 	before := string(b)
 	f.DryRun = true
 	out.Reset()
-	if err := runProjectRetro(&out, &errOut, f); err != nil {
+	if err := runProjectRetro(context.Background(), &out, &errOut, f); err != nil {
 		t.Fatal(err)
 	}
 	after, _ := os.ReadFile(path)

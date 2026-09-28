@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
@@ -44,13 +45,16 @@ func runLandingDuplicateGate(mainOID, issuesDir, historyDir string, r gitRunner)
 
 // Ownership follows close ancestry, not a body diff: an independently published
 // issue copy on main must not erase the original branch's review obligations.
-func runLandingPublishGate(pr landingPR, issuesDir string, stderr io.Writer) error {
+func runLandingPublishGate(ctx context.Context, pr landingPR, issuesDir string, stderr io.Writer) error {
 	if !landingOIDValid(pr.HeadOID) || !landingOIDValid(pr.BaseOID) {
 		return fmt.Errorf("landing publish gate requires pinned PR head and base")
 	}
 	head, err := gitx.RunGit("rev-parse", "--verify", "HEAD")
 	if err != nil || strings.TrimSpace(string(head)) != pr.HeadOID {
 		return fmt.Errorf("landing publish gate checkout HEAD differs from selected PR head")
+	}
+	if err := guardTransferredDetailsFn(ctx); err != nil {
+		return err
 	}
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
@@ -63,13 +67,13 @@ func runLandingPublishGate(pr landingPR, issuesDir string, stderr io.Writer) err
 	if rel == "." {
 		return fmt.Errorf("landing publish gate requires a scoped issues directory")
 	}
-	selected, err := selectLandingIssues(root, pr, rel)
+	selected, err := selectLandingIssues(ctx, root, pr, rel)
 	if err != nil {
 		return err
 	}
-	paths := make([]string, 0, len(selected))
+	entries := make([]publishIssue, 0, len(selected))
 	for _, item := range selected {
-		paths = append(paths, item.path)
+		entries = append(entries, publishIssue{Path: item.path, Anchor: item.anchor})
 	}
-	return validatePublishIssues(paths, stderr)
+	return validatePublishAnchors(entries, stderr)
 }

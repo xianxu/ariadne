@@ -1,6 +1,7 @@
 package fleet
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -64,7 +65,7 @@ func FilesystemGitRepo(repoDir string) (bool, error) {
 // CollectInventory enumerates every eligible Git sibling under an already
 // normalized fleet root. Repository failures are recorded and isolated; only a
 // fleet-root enumeration failure prevents returning a complete observation.
-func CollectInventory(fleetRoot string, options InventoryOptions) (Inventory, error) {
+func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOptions) (Inventory, error) {
 	inventory := Inventory{Rows: make([]TreeRow, 0), Diagnostics: make([]RepoDiagnostic, 0)}
 	if options.Git == nil {
 		return inventory, fmt.Errorf("collect fleet inventory: nil Git reader")
@@ -88,7 +89,7 @@ func CollectInventory(fleetRoot string, options InventoryOptions) (Inventory, er
 	}
 	lookupIssues := options.LookupIssues
 	if lookupIssues == nil {
-		lookupIssues = LookupRepoIssues
+		lookupIssues = func(repoRoot, id string) ([]IssueRecord, error) { return LookupRepoIssues(ctx, repoRoot, id) }
 	}
 	diagnosticKeys := make(map[string]bool)
 	rowKeys := make(map[string]bool)

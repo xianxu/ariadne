@@ -3,27 +3,15 @@
 package judge
 
 import (
-	"errors"
-	"os"
 	"os/exec"
-	"syscall"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/processgroup"
 )
 
 func configureReviewProcess(cmd *exec.Cmd) {
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	processgroup.Configure(cmd)
 }
 
 func terminateReviewProcess(cmd *exec.Cmd, force bool) error {
-	if cmd.Process == nil {
-		return os.ErrProcessDone
-	}
-	signal := syscall.SIGTERM
-	if force {
-		signal = syscall.SIGKILL
-	}
-	err := syscall.Kill(-cmd.Process.Pid, signal)
-	if errors.Is(err, syscall.ESRCH) {
-		return os.ErrProcessDone
-	}
-	return err
+	return processgroup.Terminate(cmd, force)
 }

@@ -13,6 +13,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -21,10 +22,10 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/transcripts"
 )
 
@@ -71,7 +72,7 @@ type actualResult struct {
 // brain/repo transcript dirs, run activetime.Compute, and classify the result.
 // Runs git via the cwd (gitx.CommitWindow), so the caller should be inside
 // repoTop.
-func computeActual(repoTop, brainAbs, issueNum string) actualResult {
+func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actualResult {
 	res := actualResult{Issue: issueNum}
 	identity, err := resolveWorkspace(repoTop)
 	if err != nil {
@@ -80,7 +81,13 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 	}
 	repoTop = identity.WorktreeRoot
 
-	firstSHA, firstISO, lastISO, _ := gitx.CommitWindow(issueNum)
+	// #252: the tracker's card commits (claim, close) are this issue's activity
+	// too, and its card holds the authoritative `started` stamp.
+	trackerRefs, cardStarted, carded, trackerWarning := actualTrackerInputs(ctx, repoTop, issueNum)
+	if trackerWarning != "" {
+		res.Warnings = append(res.Warnings, trackerWarning)
+	}
+	firstSHA, firstISO, lastISO, _ := gitx.CommitWindow(issueNum, trackerRefs...)
 	if firstSHA == "" {
 		res.Status = actualNoWindow
 		return res
@@ -94,7 +101,9 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 	// Widening the start also widens DiscoverWindowIssues' peer membership (a
 	// deliberate attribution change, not just this issue's minutes), so Peers is
 	// derived AFTER the override.
-	if id, err := strconv.Atoi(issueNum); err == nil {
+	if carded {
+		firstISO = resolveWindowStart(firstISO, cardStarted, "")
+	} else if id, err := strconv.Atoi(issueNum); err == nil {
 		issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
 		if path, err := locateIssueFile(filepath.Join(repoTop, issuesDir), id); err == nil {
 			wtISO, _ := gitx.WorkingTransitionISO(path)
@@ -116,6 +125,7 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 		Dirs:             src.Dirs,
 		Files:            src.Files,
 		GitRepo:          repoTop,
+		ExtraRefs:        trackerRefs,
 		SinceISO:         firstISO,
 		UntilISO:         lastISO,
 		Issues:           res.Peers,
@@ -132,6 +142,39 @@ func computeActual(repoTop, brainAbs, issueNum string) actualResult {
 		res.Warnings = append(res.Warnings, formatAttributionWarning(w))
 	}
 	return res
+}
+
+// actualTrackerInputs reads the tracker for active-time (#252): the tracking ref
+// whose history holds the claim/close commits, and the card's `started` stamp.
+// carded is false without a tracker (or card), leaving the legacy anchors.
+func actualTrackerInputs(ctx context.Context, repoTop, issueNum string) (refs []string, started string, carded bool, warning string) {
+	id, err := strconv.Atoi(issueNum)
+	if err != nil {
+		return nil, "", false, ""
+	}
+	repo, err := recordsRepository(ctx, repoTop)
+	if err != nil {
+		return nil, "", false, "tracker unavailable, measured without its claim/close commits: " + err.Error()
+	}
+	if repo == nil {
+		return nil, "", false, ""
+	}
+	rs, err := tracker.LoadRecords(ctx, repo, filepath.Join(repoTop, envOr("WF_ISSUES_DIR", "workshop/issues")), tracker.PreferFresh)
+	if err != nil {
+		return nil, "", false, "tracker unreadable, measured without its claim/close commits: " + err.Error()
+	}
+	if !rs.Tracker {
+		return nil, "", false, ""
+	}
+	if rs.Stale {
+		warning = staleTrackerNote + "; measured against its last-fetched claim/close commits"
+	}
+	rec, ok := rs.Get(fmt.Sprintf("%06d", id))
+	if !ok || rec.Card == nil {
+		return []string{repo.TrackingRef()}, "", false, warning
+	}
+	s, _ := rec.Field("started")
+	return []string{repo.TrackingRef()}, strings.TrimSpace(s), true, warning
 }
 
 // startedAnchor reads the explicit `started:` engagement stamp (#116) from an
@@ -267,7 +310,7 @@ func NewActualCmd() *cobra.Command {
 				die(stderr, err.Error())
 			}
 			brainAbs, _ := filepath.Abs(brainDir)
-			res := computeActual(repoTop, brainAbs, strconv.Itoa(issue))
+			res := computeActual(cmd.Context(), repoTop, brainAbs, strconv.Itoa(issue))
 			printActual(stderr, res)
 			return nil
 		},

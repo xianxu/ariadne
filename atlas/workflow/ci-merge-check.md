@@ -90,6 +90,10 @@ check suppresses a real refusal:
 | **nothing to check** | no `workshop/issues/`, or no `origin` remote | 0 — the check is inapplicable and clean is honest |
 | **could not check** | no `go`, no `cmd/sdlc` to build, no writable temp dir, build failed, `origin/main` unreadable | 2 — there IS something to check, so clean would be a false pass |
 
+In an issue tracker repository (#252) new IDs are allocated on cards, so a
+collision needs a hand-made details file; the check still guards details a
+branch adds.
+
 Both sets are evaluated before any side effect. The `sdlc issue lint-ids` it
 shells to uses the same three codes (0 clean, 1 introduced, 2 could-not-run), so
 the distinction survives to CI rather than being flattened at the boundary.

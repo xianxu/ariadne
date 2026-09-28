@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"math"
@@ -10,7 +11,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	projectdoc "github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -37,7 +37,7 @@ func newProjectCloseCmd() *cobra.Command {
 			if strings.TrimSpace(f.Slug) == "" {
 				return fmt.Errorf("--slug is required")
 			}
-			return runProjectClose(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			return runProjectClose(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		}})
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug")
 	cmd.Flags().StringVar(&f.ProjectsDir, "projects-dir", defaultProjectsDir(), "directory holding live project files")
@@ -50,7 +50,7 @@ func newProjectCloseCmd() *cobra.Command {
 	return cmd
 }
 
-func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
+func runProjectClose(ctx context.Context, stdout, stderr io.Writer, f *projectCloseFlags) error {
 	path, err := projectdoc.ResolvePath(f.ProjectsDir, f.Slug)
 	if err != nil {
 		return err
@@ -117,7 +117,7 @@ func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
 				return err
 			}
 			var unavailable []string
-			actuals, unavailable, err = rollupProjectActuals(metadata.MVPScope, root, stderr)
+			actuals, unavailable, err = rollupProjectActuals(ctx, metadata.MVPScope, root, stderr)
 			if err != nil {
 				return err
 			}
@@ -165,7 +165,7 @@ func runProjectClose(stdout, stderr io.Writer, f *projectCloseFlags) error {
 	return nil
 }
 
-func rollupProjectActuals(refs []string, root string, stderr io.Writer) (float64, []string, error) {
+func rollupProjectActuals(ctx context.Context, refs []string, root string, stderr io.Writer) (float64, []string, error) {
 	if len(refs) == 0 {
 		return 0, []string{"mvp_scope is empty"}, nil
 	}
@@ -183,7 +183,7 @@ func rollupProjectActuals(refs []string, root string, stderr io.Writer) (float64
 		seen[identity] = ref
 	}
 	for _, ref := range refs {
-		meta, err := projectIssueLookupFn(ref, root)
+		meta, err := projectIssueLookupFn(ctx, ref, root)
 		reason := ""
 		switch {
 		case err != nil:

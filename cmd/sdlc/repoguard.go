@@ -30,6 +30,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -37,6 +38,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 const spineGuardBypassACK = "spine repo guard bypassed (WF_SPINE_GUARD=off) — say why in your commit/log"
@@ -86,19 +88,20 @@ func guardSpineRepo(stderr io.Writer) {
 	}
 }
 
-// guardIssueNotDone refuses start-plan/change-code on a terminal issue. Reads
-// the status from the issue file; unreadable/unparsable files are left to the
-// verb's own error path (this guard only decides the done question).
-func guardIssueNotDone(stderr io.Writer, issuePath, issueStr string) {
-	raw, err := os.ReadFile(issuePath)
-	if err != nil {
+// guardIssueNotDone refuses start-plan/change-code on a done issue. The status
+// is the card's where a tracker exists (#252), read Fresh: the guard authorizes
+// a write, so a stale card cannot answer it. It fails closed — a record it
+// cannot read cannot prove the issue is not done.
+func guardIssueNotDone(ctx context.Context, stderr io.Writer, issuePath, issueStr string) {
+	id, _, ok := issue.ParseFilename(filepath.Base(issuePath))
+	if !ok {
 		return
 	}
-	fm, _, err := issue.Parse(string(raw))
+	rs, err := loadIssueRecords(ctx, filepath.Dir(issuePath), tracker.Fresh)
 	if err != nil {
-		return
+		die(stderr, fmt.Sprintf("cannot confirm #%s is not done: %v", issueStr, err))
 	}
-	if status, _ := issue.GetField(fm, "status"); status == "done" {
+	if rec, ok := rs.Get(id); ok && rec.Status() == "done" {
 		die(stderr, issueDoneMsg(issueStr))
 	}
 }
