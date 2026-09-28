@@ -1,8 +1,8 @@
 ---
 id: 000249
-status: open
+status: wontfix
 created: 2026-09-24
-updated: 2026-09-24
+updated: 2026-09-28
 estimate_hours:
 github_issue:
 ---
