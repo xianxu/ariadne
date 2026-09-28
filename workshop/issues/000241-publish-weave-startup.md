@@ -126,6 +126,29 @@ that stages its `.gitignore` edit with the outputs it covers.
 Remaining: you-decide, nous, 42shots, astro (symlink + pre-inventory), parli
 (pre-inventory), tools, xianxu.dev (work in flight); pair and ducks compile.
 
+### 2026-09-27 — Fleet adoption progress (manual, per operator: one-off)
+
+Operator decision: adopt by hand, one repository at a time, after a branch
+cleanup in each; no adopt mode needed for a one-off.
+
+- Adopted (committed locally, unpushed): metis 43a885a, kaggle b9f5b6e,
+  kbench 77deb07, you-decide 8b5085a, nous 8bac006 (`tools` builds `nous` for
+  the brain repos; `README-NOUS.md` is nous's own manifest link), 42shots
+  43e4b72, astro 30440c8, parli 1ab4bee. Each: 25–26 owned links untracked,
+  dead links into retired ariadne files removed, second compile a no-op.
+- New finding (parli): weave's "add the workflow include to an existing
+  Makefile" does not recognise the older indirect form
+  (`-include $(WF_WORKFLOW)` with a `../ariadne` fallback) and prepends a
+  second include, above the repo's `WF_*` settings: `make` then warns about
+  redefined targets and the next compile would prepend again. Fixed by hand by
+  moving parli to the seed's form.
+- Homebrew now refuses untrusted third-party taps: nous's Brewfile needs
+  `brew trust mutagen-io/mutagen` (operator approved) before compile runs.
+- Deferred, work in flight on `:0`: tools (#80, #81 working; local main holds
+  their unpublished designs) and xianxu.dev (#4 working, close review
+  verdict unknown on 2026-09-19). Adopt after they land.
+- Not yet checked: pair and ducks compile, but may still track old links.
+
 ## Revisions
 
 ### 2026-09-20 — tap repository and command availability confirmed
