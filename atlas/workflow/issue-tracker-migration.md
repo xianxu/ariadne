@@ -73,7 +73,8 @@ details in a cut-over repository refuse the legacy close/change-code paths
    build must be installed everywhere first.
 4. **Resolve refusals under the old workflow:** publish unsynced card fields
    (`sdlc issue sync --push` on the old binary), land or drop branches that
-   edit archived issues, renumber colliding active IDs, commit or discard dirty
+   edit archived issues or archive still-active ones (an unlanded legacy
+   close, #256), renumber colliding active IDs, commit or discard dirty
    issue edits, and land or re-close unprovable codecomplete issues. Re-run the
    dry run until it reports none; review the inferences.
 5. **Apply:** `sdlc issue migrate --apply --expect <digest>`. It bootstraps

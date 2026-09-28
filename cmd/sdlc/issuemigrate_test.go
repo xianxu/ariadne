@@ -409,3 +409,83 @@ func TestIssueMigrateNamesEveryUncommittedIssueEdit(t *testing.T) {
 		}
 	}
 }
+
+// A branch that archived an issue main still has active is an unlanded legacy
+// close: the cutover refuses it, naming the branch, while a branch that only
+// renamed an active issue's details passes (#256, nous #48).
+func TestIssueMigrateRefusesABranchThatArchivesAnActiveIssue(t *testing.T) {
+	r := legacyRepo(t)
+	r.git("switch", "-q", "-c", "000001-one")
+	r.git("mv", "workshop/issues/000001-one.md", "workshop/history/issues/000001-one.md")
+	r.git("commit", "-qm", "#1: archive issue to history (done)")
+	r.git("switch", "-q", "-c", "000002-two", "main")
+	r.git("mv", "workshop/issues/000002-two.md", "workshop/issues/000002-deux.md")
+	r.git("commit", "-qm", "#2: issue: rename slug")
+	r.git("switch", "-q", "main")
+	_, out, err := migrateDryRun(t)
+	if err == nil || !strings.Contains(out, "workshop/issues/000001-one.md (on 000001-one)") || !strings.Contains(out, "archives an issue main still has active") {
+		t.Fatalf("an unlanded archive of an active issue must refuse the cutover: %v\n%s", err, out)
+	}
+	if _, refusals, _ := strings.Cut(out, "refusals"); strings.Contains(refusals, "000002") {
+		t.Fatalf("a rename of an active issue's details must not be refused:\n%s", out)
+	}
+}
+
+// A branch the dry run never saw (created from the pre-cutover main, say on
+// another clone) that archived an issue still open on the tracker is refused by
+// reconcile, which changes nothing; a branch that renamed an open issue's
+// details is not refused for that (#256 review BR-1).
+func TestIssueMigrateReconcileRefusesAnUnlandedArchive(t *testing.T) {
+	r := legacyRepo(t)
+	pre := r.git("rev-parse", "HEAD")
+	digest, out, err := migrateDryRun(t)
+	if err != nil {
+		t.Fatalf("dry run: %v\n%s", err, out)
+	}
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--apply", "--expect", digest); err != nil {
+		t.Fatalf("apply: %v\n%s", err, stderr)
+	}
+	r.git("switch", "-q", "-c", "000001-one", pre)
+	r.git("mv", "workshop/issues/000001-one.md", "workshop/history/issues/000001-one.md")
+	r.git("commit", "-qm", "#1: archive issue to history (done)")
+	before := r.git("rev-parse", "HEAD")
+	_, stderr, err := executeSDLCTestCommand("issue", "migrate", "--reconcile")
+	if err == nil || !strings.Contains(err.Error()+stderr, tracker.ArchivesActiveReason) {
+		t.Fatalf("reconcile must refuse an unlanded archive of an open issue: %v\n%s", err, stderr)
+	}
+	if r.git("rev-parse", "HEAD") != before {
+		t.Fatal("a refused reconcile changed the branch")
+	}
+	r.git("switch", "-q", "-c", "000002-two", pre)
+	r.git("mv", "workshop/issues/000002-two.md", "workshop/issues/000002-deux.md")
+	r.git("commit", "-qm", "#2: issue: rename slug")
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--reconcile"); err != nil && strings.Contains(err.Error()+stderr, tracker.ArchivesActiveReason) {
+		t.Fatalf("a rename was refused as an archive: %v\n%s", err, stderr)
+	}
+}
+
+// The other silent case: a branch archiving an issue main closed too carries
+// nothing, so reconcile does not refuse it for an unlanded archive (#256).
+func TestIssueMigrateReconcileAllowsAnArchiveMainClosedToo(t *testing.T) {
+	r := legacyRepo(t)
+	pre := r.git("rev-parse", "HEAD")
+	one := "workshop/issues/000001-one.md"
+	r.git("mv", one, "workshop/history/issues/000001-one.md")
+	writeRepoFile(t, r.root, "workshop/history/issues/000001-one.md", "---\nid: 000001\nstatus: done\nactual_hours: 1\ncreated: 2026-09-01\n---\n\n# One\n\n## Problem\n\nFirst.\n")
+	r.git("add", "-A")
+	r.git("commit", "-qm", "#1: done and archived on main")
+	r.git("push", "-q", "origin", "main")
+	digest, out, err := migrateDryRun(t)
+	if err != nil {
+		t.Fatalf("dry run: %v\n%s", err, out)
+	}
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--apply", "--expect", digest); err != nil {
+		t.Fatalf("apply: %v\n%s", err, stderr)
+	}
+	r.git("switch", "-q", "-c", "000001-one", pre)
+	r.git("mv", one, "workshop/history/issues/000001-one.md")
+	r.git("commit", "-qm", "#1: archive issue to history (done)")
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--reconcile"); err != nil && strings.Contains(err.Error()+stderr, tracker.ArchivesActiveReason) {
+		t.Fatalf("an archive of an issue main closed too was refused: %v\n%s", err, stderr)
+	}
+}

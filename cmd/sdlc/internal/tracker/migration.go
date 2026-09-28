@@ -44,6 +44,17 @@ type MigrationAnchor struct {
 	CodeAfter, OnMain   bool
 }
 
+// ArchivesActiveReason names a branch that removed the details of an issue
+// main still has open: an unlanded legacy close, whose card would stay open
+// after cutover (#256, nous #48).
+const ArchivesActiveReason = "a branch archives an issue main still has active"
+
+// RemovalArchivesActive is the one rule for a branch that removed an issue's
+// details, shared by the dry run and the post-cutover reconcile: benign when
+// the branch keeps other details for the ID (a rename) or main has closed the
+// issue too; otherwise the branch archived an issue main still has active.
+func RemovalArchivesActive(keptOther, closedOnMain bool) bool { return !keptOther && !closedOnMain }
+
 // MigrationInput is the inventory the command gathers.
 type MigrationInput struct {
 	Repository, ObjectFormat, Main string
@@ -194,14 +205,25 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 	// each (path, reason) is one refusal naming every branch that carries it.
 	type branchProblem struct{ path, reason, next string }
 	carriers := map[branchProblem][]string{}
+	kept := map[[2]string]bool{} // (branch, id): the branch still has active details for id
+	for _, b := range in.Branches {
+		if id, _, ok := issue.ParseFilename(path.Base(b.Path)); ok && b.Raw != nil {
+			kept[[2]string{b.Branch, id}] = true
+		}
+	}
 	for _, b := range in.Branches {
 		id, _, ok := issue.ParseFilename(path.Base(b.Path))
-		if !ok || b.Raw == nil {
-			continue // a branch's own archive move or an unrelated file
+		if !ok {
+			continue
 		}
 		var p branchProblem
 		card, known := cards[id]
 		switch {
+		case b.Raw == nil:
+			if !RemovalArchivesActive(kept[[2]string{b.Branch, id}], len(active[id]) == 0) {
+				continue
+			}
+			p = branchProblem{b.Path, ArchivesActiveReason, "land or drop the branch before cutover"}
 		case !known && len(active[id]) == 0 && len(older[id]) == 0:
 			p = branchProblem{b.Path, "issue exists only on a branch", "publish it to main (legacy `sdlc issue sync --push`) or drop it, before cutover"}
 		case len(active[id]) == 0:

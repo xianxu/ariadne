@@ -556,6 +556,16 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
+	listed, err := env.git("ls-tree", "-z", "--name-only", "HEAD", "--", home+"/")
+	if err != nil {
+		return err
+	}
+	kept := map[string]bool{} // IDs this branch still has active details for
+	for _, rel := range strings.Split(listed, "\x00") {
+		if id, _, ok := issue.ParseFilename(path.Base(rel)); ok {
+			kept[id] = true
+		}
+	}
 	var refusals []string
 	for _, rel := range strings.Split(changed, "\x00") {
 		id, _, ok := issue.ParseFilename(path.Base(rel))
@@ -567,7 +577,20 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 			return err
 		}
 		if !present {
-			continue // the branch removed it (its own archive move)
+			card, onTracker := imported[id]
+			if !onTracker {
+				continue // an issue main never had: nothing to carry
+			}
+			closed, err := cardClosed(card)
+			if err != nil {
+				refusals = append(refusals, fmt.Sprintf("%s: the tracker's card for #%s is unreadable (%v); repair it before reconciling", rel, issue.CLIRef(id), err))
+				continue
+			}
+			if !tracker.RemovalArchivesActive(kept[id], closed) {
+				continue // a rename, or an issue main closed too
+			}
+			refusals = append(refusals, fmt.Sprintf("%s: %s (#%s is still open on the issue tracker); land the close on main, or restore the details here, then reconcile again", rel, tracker.ArchivesActiveReason, issue.CLIRef(id)))
+			continue
 		}
 		raw, err := env.main.ReadAt(env.head, rel)
 		if err != nil {
@@ -659,4 +682,14 @@ func importedCards(env *migrateEnv, root string) (map[string][]byte, error) {
 		cards[id] = raw
 	}
 	return cards, nil
+}
+
+// cardClosed reports whether an imported card's status is terminal.
+func cardClosed(card []byte) (bool, error) {
+	parsed, err := issue.ParseCard(card)
+	if err != nil {
+		return false, err
+	}
+	status, _ := issue.GetField(parsed.Frontmatter, "status")
+	return vocab.Issue().IsTerminal(status), nil
 }
