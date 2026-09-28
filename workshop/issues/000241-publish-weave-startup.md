@@ -152,7 +152,7 @@ cleanup in each; no adopt mode needed for a one-off.
   older indirect Makefile include (as parli), moved to the seed's form;
   xianxu.dev's `:0` also held a half-applied 2026-09-19/27 compile and a stray
   `src/.gitignore` (old root list), removed.
-- pair adopted and pushed (f35bec7e): its 2026-09-23 partial #239 adoption
+- pair adopted and pushed (2347d2c7): its 2026-09-23 partial #239 adoption
   (aff72f82) had committed weave's prepended duplicate include (70 `make`
   warnings); moved to the seed's form, untracked 26 owned links and one dead
   link. ducks was born on the layout (no tracked links); its local main had
