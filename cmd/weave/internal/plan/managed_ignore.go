@@ -13,37 +13,53 @@ import (
 const ignoreBegin = "# BEGIN weave generated"
 const ignoreEnd = "# END weave generated"
 
-// managedIgnoreText puts the owned block before authored rules, allowing local
-// negations to override it. Only exact entries from the old fixed list migrate.
-func managedIgnoreText(current string, entries []string) (string, error) {
+// splitIgnore separates the weave block's entries from the authored rules
+// around it. Only exact entries from the old fixed list, which lived outside
+// the block, migrate away.
+func splitIgnore(current string) (string, []string, error) {
 	legacy := map[string]bool{}
 	for _, e := range GeneratedRuntimeGitignoreEntries {
 		legacy[e] = true
 	}
 	var kept strings.Builder
+	var block []string
 	inside, seen := false, false
 	for _, line := range strings.SplitAfter(current, "\n") {
 		trimmed := strings.TrimSuffix(strings.TrimSuffix(line, "\n"), "\r")
 		switch trimmed {
 		case ignoreBegin:
 			if inside || seen {
-				return "", fmt.Errorf("malformed weave gitignore block")
+				return "", nil, fmt.Errorf("malformed weave gitignore block")
 			}
 			inside = true
 			seen = true
 		case ignoreEnd:
 			if !inside {
-				return "", fmt.Errorf("malformed weave gitignore block")
+				return "", nil, fmt.Errorf("malformed weave gitignore block")
 			}
 			inside = false
 		default:
-			if !inside && !legacy[trimmed] {
+			if inside {
+				if trimmed != "" {
+					block = append(block, trimmed)
+				}
+			} else if !legacy[trimmed] {
 				kept.WriteString(line)
 			}
 		}
 	}
 	if inside {
-		return "", fmt.Errorf("unterminated weave gitignore block")
+		return "", nil, fmt.Errorf("unterminated weave gitignore block")
+	}
+	return kept.String(), block, nil
+}
+
+// managedIgnoreText puts the owned block before authored rules, allowing local
+// negations to override it.
+func managedIgnoreText(current string, entries []string) (string, error) {
+	kept, _, err := splitIgnore(current)
+	if err != nil {
+		return "", err
 	}
 	set := map[string]bool{}
 	for _, e := range entries {
@@ -55,9 +71,9 @@ func managedIgnoreText(current string, entries []string) (string, error) {
 	}
 	sort.Strings(sorted)
 	if len(sorted) == 0 {
-		return kept.String(), nil
+		return kept, nil
 	}
-	return ignoreBegin + "\n" + strings.Join(sorted, "\n") + "\n" + ignoreEnd + "\n" + kept.String(), nil
+	return ignoreBegin + "\n" + strings.Join(sorted, "\n") + "\n" + ignoreEnd + "\n" + kept, nil
 }
 
 // escapeIgnore quotes gitignore metacharacters so an output pathname cannot
@@ -66,7 +82,13 @@ func escapeIgnore(path string) string {
 	r := strings.NewReplacer("\\", "\\\\", "*", "\\*", "?", "\\?", "[", "\\[", "]", "\\]", " ", "\\ ")
 	return "/" + r.Replace(filepath.ToSlash(path))
 }
-func managedIgnore(fs weavefs.FS, root string, ids []outputIdentity) (string, error) {
+
+// managedIgnore derives the block from the next inventory. An existing entry is
+// dropped only when weave owned that path (it appears in the old inventory);
+// any other entry was committed by another checkout's compile and survives
+// (#263) — a dependency never compiled locally has an empty inventory, not an
+// empty set of generated outputs.
+func managedIgnore(fs weavefs.FS, root string, old, ids []outputIdentity) (string, error) {
 	p := filepath.Join(root, ".gitignore")
 	if fi, e := fs.Lstat(p); e == nil && !fi.Mode().IsRegular() {
 		return "", fmt.Errorf("gitignore is not a regular file: %s", p)
@@ -78,6 +100,19 @@ func managedIgnore(fs weavefs.FS, root string, ids []outputIdentity) (string, er
 		return "", e
 	}
 	entries := []string{escapeIgnore(filepath.Dir(InventoryPath)) + "/"}
+	owned := map[string]bool{}
+	for _, id := range old {
+		owned[escapeIgnore(id.Path)] = true
+	}
+	_, block, e := splitIgnore(string(b))
+	if e != nil {
+		return "", e
+	}
+	for _, entry := range block {
+		if !owned[entry] {
+			entries = append(entries, entry)
+		}
+	}
 	for _, id := range ids {
 		entries = append(entries, escapeIgnore(id.Path))
 	}

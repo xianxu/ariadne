@@ -234,3 +234,10 @@ The simplest durable authority beats a clever scan of consequences.
   shifts its path by one. Read status as `--porcelain=v1 -z` through
   `gitx.ParseStatusZ` from untrimmed output. Hit twice in one day (#255's
   migrate dirty list; #259's close evidence silently dropped the gate ledger).
+- A generated block inside a tracked file (weave's `.gitignore` block) is
+  shared across checkouts, but the inventory that justifies each line is
+  per-checkout. Rebuilding the block from local state alone erased the lines
+  another checkout's compile committed (#263). Remove only what local
+  provenance proves you own. And before adding a migration exception, check
+  in git history where the legacy data actually lived: #263's first draft
+  exempted legacy entries "inside the block", which never existed there.

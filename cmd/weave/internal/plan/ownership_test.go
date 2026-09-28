@@ -357,3 +357,35 @@ func TestManagedRejectsCrossScopeClaimOfAbsentOutput(t *testing.T) {
 	}
 	managedAbsent(t, root, "out")
 }
+
+// #263: a dependency checkout never compiled locally has no inventory, but its
+// committed .gitignore carries the block another checkout's compile produced.
+// A data apply there (even with no mounts) must not shrink that block.
+func TestManagedPreservesCommittedBlockWithoutInventory(t *testing.T) {
+	committed := "# BEGIN weave generated\n/AGENTS.md\n/construct/generated/vocabulary/issue.json\n/construct/generated/weave/\n# END weave generated\n.goto\n"
+	for _, inventory := range []string{"", "{\n  \"version\": 1,\n  \"outputs\": []\n}\n"} {
+		root := t.TempDir()
+		managedWrite(t, root, ".gitignore", committed)
+		if inventory != "" {
+			managedWrite(t, root, InventoryPath, inventory)
+		}
+		managedApply(t, root, nil, ScopeData)
+		if got := managedRead(t, root, ".gitignore"); got != committed {
+			t.Fatalf("committed block changed (inventory %q):\n%s", inventory, got)
+		}
+	}
+}
+func TestManagedRetiresOnlyOwnedBlockEntries(t *testing.T) {
+	root := t.TempDir()
+	managedWrite(t, root, ".gitignore", "# BEGIN weave generated\n/foreign\n# END weave generated\n")
+	managedApply(t, root, []Action{WriteFile{Path: "owned", Content: "x"}}, ScopeArtifacts)
+	got := managedRead(t, root, ".gitignore")
+	if !strings.Contains(got, "/foreign\n") || !strings.Contains(got, "/owned\n") {
+		t.Fatal(got)
+	}
+	managedApply(t, root, nil, ScopeArtifacts)
+	got = managedRead(t, root, ".gitignore")
+	if strings.Contains(got, "/owned\n") || !strings.Contains(got, "/foreign\n") {
+		t.Fatal(got)
+	}
+}
