@@ -36,8 +36,8 @@ Invariant: **a weave run removes an ignore entry only when it knows it owned
 that path** — i.e. the path is an identity in the checkout's prior ownership
 inventory (any scope). Block entries with no inventory provenance (committed
 by another checkout's compile) are preserved, merged with the current set.
-Exception: the legacy fixed list (`GeneratedRuntimeGitignoreEntries`) still
-migrates away, as today.
+The legacy fixed list (`GeneratedRuntimeGitignoreEntries`) only ever lived
+*outside* the block; that outside-block migration is unchanged (see Revisions).
 
 Consequence: in a checkout without inventory, an entry for an output retired
 upstream lingers until a checkout that owned it retires it (it is committed,
@@ -60,15 +60,19 @@ ariadne as shared mutable singleton).
   weave block leaves `.gitignore` byte-identical (regression test).
 - Entries owned per the prior inventory still retire from the block (existing
   tests pass).
-- Legacy fixed-list entries inside the block still migrate away.
+- Legacy fixed-list entries *outside* the block still migrate away (existing `TestManagedIgnoreMigrationAndLocalNegations`).
 - `go test ./cmd/weave/...` passes.
 
 ## Plan
 
 - [x] Regression test: committed block + empty inventory + data apply with no mounts → `.gitignore` unchanged
-- [x] Test: unknown entry preserved alongside new outputs; known entry retires; legacy entry inside block migrates
+- [x] Test: unknown entry preserved alongside new outputs; known entry retires
 - [x] `ApplyManaged`/`managedIgnore`: preserve existing block entries not derived from the old inventory
 - [x] Run weave tests; restore `pair-slot1/ariadne/.gitignore` and re-run `weave refresh` there to verify no diff
+
+## Revisions
+
+- 2026-09-28 — dropped the "legacy entries inside the block migrate" rule. Reason: the real committed block holds exact outputs (`/AGENTS.md`, `/CLAUDE.md`, `/.claude/settings.json`) that are also on the legacy list, so the rule still clobbered; history (`8d2d08bb`, #239) shows the legacy list never lived inside the block. Delta: Spec, Done-when 3 and Plan item 2 now describe outside-block migration only (flagged by close review BR-1). Close review Minors also fixed: one block parser (`splitIgnore`) shared by both callers; the regression test covers both a missing and an explicit empty-outputs inventory.
 
 ## Log
 

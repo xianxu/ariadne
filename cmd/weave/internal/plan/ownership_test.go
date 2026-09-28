@@ -362,12 +362,17 @@ func TestManagedRejectsCrossScopeClaimOfAbsentOutput(t *testing.T) {
 // committed .gitignore carries the block another checkout's compile produced.
 // A data apply there (even with no mounts) must not shrink that block.
 func TestManagedPreservesCommittedBlockWithoutInventory(t *testing.T) {
-	root := t.TempDir()
 	committed := "# BEGIN weave generated\n/AGENTS.md\n/construct/generated/vocabulary/issue.json\n/construct/generated/weave/\n# END weave generated\n.goto\n"
-	managedWrite(t, root, ".gitignore", committed)
-	managedApply(t, root, nil, ScopeData)
-	if got := managedRead(t, root, ".gitignore"); got != committed {
-		t.Fatalf("committed block changed:\n%s", got)
+	for _, inventory := range []string{"", "{\n  \"version\": 1,\n  \"outputs\": []\n}\n"} {
+		root := t.TempDir()
+		managedWrite(t, root, ".gitignore", committed)
+		if inventory != "" {
+			managedWrite(t, root, InventoryPath, inventory)
+		}
+		managedApply(t, root, nil, ScopeData)
+		if got := managedRead(t, root, ".gitignore"); got != committed {
+			t.Fatalf("committed block changed (inventory %q):\n%s", inventory, got)
+		}
 	}
 }
 func TestManagedRetiresOnlyOwnedBlockEntries(t *testing.T) {
