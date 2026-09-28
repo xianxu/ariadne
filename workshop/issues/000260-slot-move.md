@@ -80,7 +80,12 @@ Moving back is the same command run from `:N` with a slot target, e.g.
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000260-slot-move-plan.md`.
+
+- [ ] Pure rules: `checkMove` and `untrackedCollisions` with unit tests
+- [ ] `gitOperationInProgress` takes a git func + root (reused by move)
+- [ ] `sdlc move` command: observe twice, switch, verify; help text; real-Git tests
+- [ ] Atlas and README point at `sdlc move`; replace the two procedure move tests
 
 ## Log
 
@@ -94,3 +99,6 @@ Filed from ariadne slot 1 at the operator's request. The five steps are the oper
   untracked files in `:N` may stay unless they collide with `A`. The open
   question is resolved and removed; Done when gained the collision and
   survival tests.
+- 2026-09-28: the post-move build is printed as the next step, not run. #248
+  declares it as prose in `AGENTS.local.md`, which a program can't reliably
+  execute; a machine-readable declaration is out of scope.
