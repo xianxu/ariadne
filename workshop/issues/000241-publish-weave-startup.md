@@ -152,7 +152,14 @@ cleanup in each; no adopt mode needed for a one-off.
   older indirect Makefile include (as parli), moved to the seed's form;
   xianxu.dev's `:0` also held a half-applied 2026-09-19/27 compile and a stray
   `src/.gitignore` (old root list), removed.
-- Not yet checked: pair and ducks compile, but may still track old links.
+- pair adopted and pushed (f35bec7e): its 2026-09-23 partial #239 adoption
+  (aff72f82) had committed weave's prepended duplicate include (70 `make`
+  warnings); moved to the seed's form, untracked 26 owned links and one dead
+  link. ducks was born on the layout (no tracked links); its local main had
+  12 commits already on origin under rewritten history, reset to origin.
+- Every ariadne-layer repository in `~/workspace` is now on the #241 layout
+  and pushed. The per-repository adoption for #241's Done-when is complete;
+  the release/tap work remains.
 
 ## Revisions
 
