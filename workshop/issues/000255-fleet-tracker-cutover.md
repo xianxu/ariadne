@@ -60,13 +60,13 @@ moved.
 - [x] kbench
 - [x] metis
 - [x] you-decide
-- [ ] nous
-- [ ] 42shots
+- [x] nous
+- [x] 42shots
 - [x] ariadne (clear its dry-run blockers first)
-- [ ] tools (clear its blockers first)
-- [ ] pair (clear its blockers first)
+- [x] tools (clear its blockers first)
+- [x] pair (clear its blockers first)
 - [x] ducks (new project, created 2026-09-27)
-- [ ] astro, parli: decide
+- [x] astro, parli: cut over (operator: issues will improve these repos too)
 - [ ] Phase D: delete the legacy writers and legacy mode
 
 ## Log
@@ -136,3 +136,17 @@ moved.
   first tracker-mode issue, and the PR merged with no issue-file conflict).
 - Remaining: pair, tools, nous (batch 2); 42shots, astro, parli (no issues:
   cut over or exclude).
+- **Batch 2 and the issue-less repos cut over (2026-09-28):** pair (root
+  c039dc4b; 332 cards, 95 details; slots 1–2 fast-forwarded; #292's branch
+  reconciles on next use), nous (bccecf82), tools (ea8ec461), and — operator:
+  "issues are there to improve those repos too" — 42shots (1160c082), astro
+  (f18ab102), parli (74a1985d; slot 1 fast-forwarded) with empty trackers.
+  tools first published #82's local design (filed 2026-09-27 23:09, legacy
+  divergence) with `issue publish --commit`, so its migration converted the
+  full body. All verified: issue list, already migrated, recovery empty.
+- **Every non-brain ariadne-layer repository in `~/workspace` is on the issue
+  tracker** (sweep: 42shots, ariadne, astro, ducks, kaggle, kbench, metis,
+  nous, pair, parley.nvim, parli, sdlc-smoke, tools, xianxu.dev, you-decide).
+  Brains (brain, brain-family, brain-private, robotics) are excluded by
+  charter. Done-when bullets 1–2 hold; Phase D (delete the legacy writers and
+  legacy mode) remains.
