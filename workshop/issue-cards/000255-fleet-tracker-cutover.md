@@ -1,6 +1,6 @@
 ---
 id: 000255
-status: codecomplete
+status: done
 created: 2026-09-27
 updated: 2026-09-28
 estimate_hours:
@@ -14,6 +14,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 3ce173c5d70da69010df6304187bc43085945252
         evidence_commit: 3092bf0c5293259da260b71afa1a4d4a0c8c97b0
+        landed_commit: a82d29c5b0d1164a15c3b64b5788aff909594f34
 ---
 
 # Fleet cutover to the issue tracker; delete the legacy writers
