@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000263-weave-dependency-gitignore-clobber.md
         source_blob: 9a0c653917df0a62dd0b568edcb1371533493012
         destination: workshop/issues/000263-weave-dependency-gitignore-clobber.md
+        main_commit: 7fc9a236ac087bb67870cd58cd7009ce04bd8a43
 ---
 
 # weave refresh clobbers a dependency's committed gitignore block
