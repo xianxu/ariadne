@@ -76,15 +76,18 @@ land later, and reviews wait.
 
 ## Done when
 
+(Revised twice, see ## Revisions; moved items are struck through.)
+
 - A timing report script exists, and its first output is recorded in the Log.
-- `go test -short ./cmd/sdlc/...` finishes in about 60 s or less on the
-  development machine.
+- ~~`go test -short ./cmd/sdlc/...` finishes in about 60 s or less on the
+  development machine.~~ → #261 (in-memory fake makes the fast tier)
 - The full suite finishes in at most 5 minutes on the same machine (from
-  about 20).
-- A guard enforces the budget (short-tier total and per-test cap for non-e2e
-  tests), and the e2e marker is checked.
-- The sdlc binary is built once per test process.
-- Development guidance names the tiers and the budget.
+  about 20), via `make test`.
+- ~~A guard enforces the budget (short-tier total and per-test cap for non-e2e
+  tests), and the e2e marker is checked.~~ → #261
+- ~~The sdlc binary is built once per test process.~~ → dropped for now (the
+  sharded run meets the target without it)
+- Development guidance names how to run the suite and why it is sharded.
 
 ## Plan
 
