@@ -77,6 +77,7 @@ ariadne as shared mutable singleton).
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — go test ./cmd/weave/... passes incl. regression tests (committed block survives data apply with missing and with empty-outputs inventory; unowned entries kept, owned entries retire). Live: restored pair-slot1/ariadne/.gitignore, ran patched weave compile in pair-slot1/pair (107 actions) — dependency and pair git status clean. --no-atlas: bugfix to an existing ownership rule, no new surface. Round-2 review BR-1 + Minors fixed in 7b31373a.; review verdict: SHIP
 - Reproduced with a unit test: committed block + empty inventory + `ApplyManaged(nil, ScopeData)` shrank the block to `/construct/generated/weave/`.
 - Design correction: first draft also excluded the legacy fixed list (`GeneratedRuntimeGitignoreEntries`) from preservation; that still clobbered, because the real committed block contains `/AGENTS.md`, `/CLAUDE.md`, `/.claude/settings.json` (exact outputs that are also in the legacy list). Git history (`8d2d08bb`, #239) shows the legacy list only ever lived *outside* the block, where `managedIgnoreText` still migrates it — so inside-block entries need no legacy rule. Dropped it.
 - Live verification: restored `worktree/pair-slot1/ariadne/.gitignore`, ran the patched `weave compile` in `pair-slot1/pair` (same `compilePrepared` path as `refresh`, minus the git pulls): 107 actions applied, dependency and pair both `git status` clean.

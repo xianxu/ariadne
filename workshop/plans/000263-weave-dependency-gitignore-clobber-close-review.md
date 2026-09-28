@@ -98,3 +98,80 @@ findings:
     detail: |
       The observed state was an inventory file containing an empty outputs list. It is likely the same code path, but a one-line variant would pin it.
 ```
+
+---
+
+## Re-review — 2026-09-28T15:49:37-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 263 — weave refresh clobbers a dependency's committed gitignore block |
+| repo | ariadne |
+| issue file | workshop/issues/000263-weave-dependency-gitignore-clobber.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 7fc9a236ac087bb67870cd58cd7009ce04bd8a43..7b31373ab682a5426a8d404848c2a01f5330f01e |
+| command | sdlc close --issue 263 |
+| reviewer | claude |
+| timestamp | 2026-09-28T15:49:37-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three open findings from earlier rounds are fixed, and I found nothing new that blocks the close. `managedIgnore` now removes a block entry only when the old inventory shows the checkout owned it (`managed_ignore.go:103-115`). The old inventory it uses is the one `ApplyManaged` already loads, covering all scopes (`ownership.go:174`). The issue's contract now matches the code. The Spec, Done-when clause 3 and Plan item 2 were rewritten, and a `## Revisions` entry records why. The duplicated BEGIN/END parsing now lives in one function, `splitIgnore`, which both callers use. The regression test now covers both a missing inventory and an inventory file with an empty `outputs` list. I ran `go test ./cmd/weave/...` at head and it passes.
+
+1. **Strengths**
+   - **Ownership check in the right place.** The rule is fixed inside `ApplyManaged`, not by skipping dependency owners in `compilePrepared`. So a dependency that does have data mounts is covered too.
+   - **One parser.** `splitIgnore` (`managed_ignore.go:19-56`) is the only BEGIN/END parser. It returns both the text outside the block and the entries inside it. `managedIgnoreText` and `managedIgnore` both call it, and malformed-block errors are raised the same way for both.
+   - **Paths compared in the same form.** Ownership keys are built with `escapeIgnore(id.Path)`, the same escaping used for block lines, so the comparison lines up.
+   - **Regression test checks exact bytes.** `TestManagedPreservesCommittedBlockWithoutInventory` requires `.gitignore` to stay byte-identical when the inventory is missing and when it has empty `outputs`. The fixture includes `/AGENTS.md`, which is also on the legacy list — the real-world case that broke the first draft.
+   - **Both sides of the rule tested.** `TestManagedRetiresOnlyOwnedBlockEntries` checks that an entry the checkout doesn't own survives, and that an owned entry is added and later retired.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - In `managed_ignore.go:111`, the loop variable in `for _, e := range block` shadows the error variable `e` from the line above. The code is correct, but the name makes it harder to read; something like `entry` would be clearer. This is a one-off, not a pattern elsewhere in the diff.
+
+5. **Test coverage**
+   - Done-when clause 1: covered for both a missing and an empty inventory.
+   - Clause 2: covered by the retire test plus the existing tests.
+   - Clause 3: covered by `TestManagedIgnoreMigrationAndLocalNegations` (`ownership_test.go:196`, confirmed present).
+   - Clause 4: the full weave test suite passes.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass, now that the parser is shared.
+   - **ARCH-PURE:** pass. `splitIgnore` and `managedIgnoreText` are pure functions, and `managedIgnore` only adds a thin file read around them.
+   - **ARCH-PURPOSE:** pass. The ownership rule is fixed where it lives, so every caller gets it, not just the dependency path the bug report named. The known side effect is documented in the Spec: in a checkout with no inventory, an ignore line for an output removed upstream stays behind. That is harmless.
+
+7. **Plan revisions:** none needed; the Revisions entry already covers the change.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Spec, Done-when 3 and Plan item 2 now describe outside-block migration only; a Revisions entry explains why, and the named test exists at ownership_test.go:196.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      splitIgnore is the only BEGIN/END parser, used by managedIgnoreText and managedIgnore; blockEntries is gone.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The regression test loops over both a missing inventory and an explicit empty-outputs inventory file.
+findings:
+  - id: new
+    severity: Minor
+    family: identifier-shadowing
+    title: |
+      The loop variable e in managedIgnore shadows the error variable e from the line above
+    detail: |
+      managed_ignore.go:111 has `for _, e := range block`. The code is correct but the name is confusing; renaming it to entry fixes it. This is the only instance in the window.
+```
