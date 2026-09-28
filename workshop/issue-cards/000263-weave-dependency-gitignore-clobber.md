@@ -1,6 +1,6 @@
 ---
 id: 000263
-status: codecomplete
+status: done
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 9d1c94e2d7bbe3053b908ca1a51d9691fa87e4d3
         evidence_commit: 29cee0458d71dd84dd7c45f03018275902010350
+        landed_commit: e0793fce3cae7e2d6d40530ad1196aa91bc1c351
 ---
 
 # weave refresh clobbers a dependency's committed gitignore block
