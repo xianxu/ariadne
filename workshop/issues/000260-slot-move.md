@@ -8,7 +8,7 @@ updated: 2026-09-28
 estimate_hours:
 card_mirror: '9dac2893c0e13151acbb5dd2f221c58452e198e1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T11:22:06-07:00
-flow: {kind: quick, provenance: inferred, spec: "89f0d9f1", done: "2aba2121"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc move: move the current branch to another slot
@@ -88,6 +88,8 @@ Durable plan: `workshop/plans/000260-slot-move-plan.md`.
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — Targeted tests green on HEAD: go test ./cmd/sdlc -run 'Move|Workspace|CheckMove|Untracked|Help|Render', ./cmd/sdlc/helptext, ./pkg/workspace. Real-Git tests: move to :0 and :2, refusals (incl. no upstream) leave both slots unchanged, parked commits reported, dry run, failed second switch keeps the branch intact, post-move check catches a resting branch moved by a hook (mutation-checked: fails with the check removed). Review BR-1..3 fixed. Live: operator moved #260's branch to :2 and back, and confirmed the not-resting refusal. Full cmd/sdlc exceeds 30m in the sandbox (#253); its one failure, TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory, is pre-existing on main (reads an archived plan path). processgroup fails only in the sandbox (/bin/ps blocked).; review verdict: SHIP
+- 2026-09-28: flow upgraded quick → full — 303 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Filed from ariadne slot 1 at the operator's request. The five steps are the operator's; the extra checks come from the #248 procedure.
 
