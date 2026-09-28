@@ -1,6 +1,6 @@
 ---
 id: 000260
-status: codecomplete
+status: done
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: e1104e8677e6015071ffc9245b520f4175aa9388
         evidence_commit: ec5477c77761c79e6eaa2df4c63f8afa708a04bd
+        landed_commit: d28456f518a879d82c167cb41bbe26b793171b5f
 ---
 
 # sdlc move: move the current branch to another slot
