@@ -219,4 +219,8 @@ The simplest durable authority beats a clever scan of consequences.
   simultaneous cutover, the per-repo rollout silently needed them legacy-capable,
   and only a live soak found it. For "behaves like the old binary" claims, test
   differentially against the old binary (`testdata/legacy-equivalence.sh`).
-
+- A fix to a helper shared by both modes needs checking in both: #252's
+  tracker-mode `TrunkRef` fix (local main behind the trunk) silently broke
+  legacy mode (local main ahead of it), caught only by re-running
+  `legacy-equivalence.sh` before close. When a fix picks one ref over another,
+  enumerate every ordering of the two (behind, ahead, diverged) and test each.

@@ -77,20 +77,44 @@ func DiffBase() string {
 			}
 		}
 	}
-	trunk := TrunkRef()
 	branch := Capture("branch", "--show-current")
+	trunk := TrunkRef()
 	if branch == "main" {
 		if trunk != "" && trunk != "main" {
 			return trunk
 		}
 		return "HEAD~10"
 	}
-	if trunk != "" {
-		if base := Capture("merge-base", trunk, "HEAD"); base != "" {
-			return base
-		}
+	if base := BranchPoint(); base != "" {
+		return base
 	}
 	return "HEAD~10"
+}
+
+// BranchPoint returns where HEAD left the main line: the later of its
+// merge-bases with TrunkRef and with local main, or the trunk's when the two
+// are unordered. Local main behind the trunk (a slot sharing its primary's
+// refs) must not widen the window back to a stale fork; local main ahead of it
+// (a legacy repository, whose change-code commits the design to main without
+// publishing it) must not pull the issue's own design commits into the window.
+// "" when no main line resolves or HEAD shares no history with it.
+func BranchPoint() string {
+	trunk := TrunkRef()
+	if trunk == "" {
+		return ""
+	}
+	base := Capture("merge-base", trunk, "HEAD")
+	if trunk == "main" || Capture("rev-parse", "--verify", "-q", "refs/heads/main") == "" {
+		return base
+	}
+	local := Capture("merge-base", "main", "HEAD")
+	if local == "" || local == base {
+		return base
+	}
+	if base == "" || exec.Command("git", "merge-base", "--is-ancestor", base, local).Run() == nil {
+		return local
+	}
+	return base
 }
 
 // TrunkRef names the published trunk a branch is measured against: local main's
@@ -118,11 +142,7 @@ func TrunkRef() string {
 // divergence it returns "" so boundaryWindowBase picks the issue's own branch
 // start (the first `#N` commit's parent) for the direct-on-main flow (#77).
 func MergeBaseWithMain() string {
-	trunk := TrunkRef()
-	if trunk == "" {
-		return ""
-	}
-	base := Capture("merge-base", trunk, "HEAD")
+	base := BranchPoint()
 	if base == "" {
 		return ""
 	}

@@ -453,3 +453,49 @@ func TestTrunkRefIgnoresAStaleLocalMain(t *testing.T) {
 		t.Fatalf("review diff base %s, want %s", got, fork)
 	}
 }
+
+// A legacy repository's change-code commits the design to local main without
+// publishing it, then forks the issue branch there: the window starts at that
+// unpublished commit, as it did before #252, not at the older published trunk.
+func TestBranchPointFollowsALocalMainAheadOfTheTrunk(t *testing.T) {
+	t.Setenv("GIT_CONFIG_NOSYSTEM", "1")
+	origin := filepath.Join(t.TempDir(), "origin.git")
+	repo := t.TempDir()
+	run := func(dir string, args ...string) string {
+		t.Helper()
+		cmd := exec.Command("git", args...)
+		cmd.Dir = dir
+		out, err := cmd.CombinedOutput()
+		if err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+		return strings.TrimSpace(string(out))
+	}
+	run("", "init", "-q", "--bare", "-b", "main", origin)
+	run(repo, "init", "-q", "-b", "main")
+	run(repo, "config", "user.email", "t@t")
+	run(repo, "config", "user.name", "t")
+	run(repo, "config", "commit.gpgsign", "false")
+	run(repo, "remote", "add", "origin", origin)
+	run(repo, "commit", "-q", "--allow-empty", "-m", "seed")
+	run(repo, "push", "-q", "-u", "origin", "main")
+	run(repo, "commit", "-q", "--allow-empty", "-m", "#4: issue-sync: spec/plan at change-code")
+	design := run(repo, "rev-parse", "HEAD")
+	t.Chdir(repo)
+
+	if got := MergeBaseWithMain(); got != "" {
+		t.Fatalf("on main, close window base %q, want no divergence (\"\")", got)
+	}
+
+	run(repo, "switch", "-q", "-c", "000004-cycle")
+	run(repo, "commit", "-q", "--allow-empty", "-m", "#4: implement")
+	if got := BranchPoint(); got != design {
+		t.Fatalf("BranchPoint %s, want the unpublished design commit %s", got, design)
+	}
+	if got := MergeBaseWithMain(); got != design {
+		t.Fatalf("close window base %s, want %s", got, design)
+	}
+	if got := DiffBase(); got != design {
+		t.Fatalf("review diff base %s, want %s", got, design)
+	}
+}

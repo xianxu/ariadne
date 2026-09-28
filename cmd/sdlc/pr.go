@@ -80,13 +80,9 @@ func runPR(stdout, stderr io.Writer, f *prFlags) error {
 	}
 
 	// ── 2. Compute merge base ───────────────────────────────────────────────
-	trunk := gitx.TrunkRef()
-	if trunk == "" {
-		trunk = "main"
-	}
-	base := gitx.Capture("merge-base", trunk, "HEAD")
+	base := gitx.BranchPoint()
 	if base == "" {
-		base = trunk
+		base = "main"
 	}
 
 	// ── 3. Collect touched issues + github_issue numbers ────────────────────

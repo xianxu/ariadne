@@ -394,6 +394,17 @@ total: 10.77
   landing selection by binding, done + archive recovery, issuefiles status
   overlay, atlas.
 
+- 2026-09-27 — Phase B pre-close equivalence re-run found a legacy regression
+  from A4's `TrunkRef` fix: legacy change-code commits the design to local
+  main unpublished, so origin/main lags and the close window (churn, review
+  diff) swallowed the issue's own design commits (`out-05-close` differed:
+  workshop churn 0 vs 45). Fixed the class with `gitx.BranchPoint` (later of
+  the merge-bases with the trunk and with local main; trunk's when unordered),
+  now the one base for DiffBase, MergeBaseWithMain, pr and merge — which also
+  restores pre-#252 direct-on-main behavior. Regression test
+  `TestBranchPointFollowsALocalMainAheadOfTheTrunk` (mutation-checked);
+  equivalence harness all steps same on the rebuilt binary.
+
 ## Revisions
 
 ### 2026-09-25 14:00 PDT — Creation completes when details land; explicit handoff

@@ -411,11 +411,11 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 
 	// ── 7. Show unmerged commits ────────────────────────────────────────────
-	trunk := gitx.TrunkRef()
-	if trunk == "" {
-		trunk = "main"
+	base := gitx.BranchPoint()
+	if base == "" {
+		base = "main"
 	}
-	unmergedOut, _ := mergeRunner.Git("log", trunk+"..HEAD", "--oneline")
+	unmergedOut, _ := mergeRunner.Git("log", base+"..HEAD", "--oneline")
 	unmerged := strings.TrimRight(string(unmergedOut), "\n")
 	if unmerged != "" {
 		cok(stderr, "Unmerged local commits found:")
