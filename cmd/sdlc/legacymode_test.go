@@ -209,8 +209,9 @@ func TestLegacyRepoLockSetStatusMutationWaits(t *testing.T) {
 }
 
 // With the remote unreachable, the mode decision falls back to local evidence
-// (#252 BR-41): a legacy repository's local verbs keep working offline, and a
-// checkout carrying the cutover marker still refuses rather than drop to legacy.
+// (#252 BR-41, BR-43): a legacy repository's local verbs and reads keep working
+// offline, and a checkout carrying the cutover marker still refuses, in verbs
+// and readers alike, rather than drop to legacy.
 func TestLegacyModeDecisionWorksOffline(t *testing.T) {
 	r := legacyRepo(t)
 	r.git("remote", "set-url", "origin", filepath.Join(t.TempDir(), "unreachable.git"))
@@ -220,11 +221,19 @@ func TestLegacyModeDecisionWorksOffline(t *testing.T) {
 	if !strings.Contains(readRepoFileOr(t, r.root, "workshop/issues/000001-one.md"), "status: working") {
 		t.Fatal("offline legacy set-status did not write the details")
 	}
+	if out, err := slotRun(t, r.root, "issue", "list"); err != nil || !strings.Contains(out, "000001") {
+		t.Fatalf("offline legacy issue list must read the details: %v\n%s", err, out)
+	}
 	writeRepoFile(t, r.root, tracker.CutoverMarkerPath, `{"version":1,"tracker_root":"`+strings.Repeat("a", 40)+`"}`+"\n")
 	if out, err := slotRun(t, r.root, "issue", "set-status", "open", "--issue", "1"); err == nil || !strings.Contains(out+err.Error(), "could not fetch") {
 		t.Fatalf("an offline checkout with the cutover marker must refuse on the transport error, not fall back to legacy: %v\n%s", err, out)
 	}
 	if !strings.Contains(readRepoFileOr(t, r.root, "workshop/issues/000001-one.md"), "status: working") {
 		t.Fatal("the refused set-status still wrote the details")
+	}
+	// Readers make the same decision (Repository.Presence): tracked, with no
+	// fetched tracker to read, is an error — never the details read as legacy.
+	if out, err := slotRun(t, r.root, "issue", "list"); err == nil {
+		t.Fatalf("an offline checkout with the cutover marker read its details as legacy:\n%s", out)
 	}
 }

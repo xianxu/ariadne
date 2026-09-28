@@ -185,6 +185,35 @@ func (r *Repository) Initialized() (bool, error) {
 	return exists, err
 }
 
+// Presence is the one tracked-or-legacy decision, for readers and verbs
+// alike. With the remote reachable it is Initialized. With it unreachable
+// (stale), local evidence decides: a fetched tracker or a cutover marker means
+// tracked, and err keeps the transport failure, which a caller needing the
+// tracker must surface; neither means legacy, and err is nil because the
+// details are the whole record. A cutover mismatch is never stale.
+func (r *Repository) Presence() (tracked, stale bool, err error) {
+	exists, err := r.Initialized()
+	if err == nil || errors.Is(err, ErrCutover) {
+		return exists, false, err
+	}
+	_, fetched, lerr := r.LocalSnapshot()
+	if lerr != nil {
+		return false, false, errors.Join(err, lerr)
+	}
+	marked := false
+	if r.checkout != "" {
+		_, present, merr := ReadCutoverMarker(r.checkout)
+		if merr != nil {
+			return false, false, errors.Join(err, fmt.Errorf("%w: %v", ErrCutover, merr))
+		}
+		marked = present
+	}
+	if fetched || marked {
+		return true, true, err
+	}
+	return false, true, nil
+}
+
 // ChangeCard publishes mutate(current card) in one conditional commit, re-read
 // and re-derived on every retry (unlike UpdateCard's fixed replacement bytes).
 // mutate returning ErrNoChange means the change is already in place.

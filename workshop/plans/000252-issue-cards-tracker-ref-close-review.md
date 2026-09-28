@@ -122,3 +122,79 @@ findings:
     detail: |
       This is the 4th finding in landing-completion-proof, and it is doc drift left behind by the BR-40 fix. The rule already applies in code; only migration.go:36-40 contradicts it. Update the comment to say a landed close checks the branch's code beyond main.
 ```
+
+---
+
+## Re-review — 2026-09-27T19:30:49-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 252 — Issue cards: card fields on a tracker ref, details on the branch |
+| repo | ariadne |
+| issue file | workshop/issues/000252-issue-cards-tracker-ref.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e8fcf6116f82106b029519dc02009272a13adfcd..5a23d0a315cec6e3b5ba78ad509ac58cf559a5ce |
+| command | sdlc close --issue 252 |
+| reviewer | claude |
+| timestamp | 2026-09-27T19:30:49-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: medium
+```
+
+This round fixes both open findings, and I checked each one in the code, not from the commit message. **BR-41:** `repositoryTracked` (`cmd/sdlc/legacymode.go:48-63`) now handles an unreachable remote using local evidence. If a tracker ref was fetched earlier, or the checkout has the cutover marker, the repository counts as tracked and the verb refuses on the transport error. If neither exists, it counts as legacy, so offline legacy verbs work as they did before #252. A cutover mismatch (`ErrCutover`) still refuses. The new test `TestLegacyModeDecisionWorksOffline` passes at HEAD. I restored the previous `legacymode.go` in a scratch worktree and the test failed, so it really guards against the regression. **BR-42:** the `MigrationAnchor` comment (`internal/tracker/migration.go:39-41`) now matches the code: `issuemigrate.go:371-374` uses `main...ref` for a landed close, and `migration.go:260-264` refuses when that branch has code main lacks. The same commit also fixes an unlisted bug where the first dirty path was cut short (`issuemigrate.go:319-328`), and adds a test for it. Nothing blocks SHIP. I have one Minor finding.
+
+1. **Strengths**
+   - The offline fallback follows the rule `LoadRecords` already uses for stale reads (`records.go:117-129`). `ErrCutover` still refuses rather than being treated as legacy, and the test covers that case by adding the marker offline.
+   - Errors from reading the marker or the local snapshot are joined with the transport error and returned, never dropped. That keeps the silent-error-swallowing family from growing.
+   - The regression test also confirms a refused `set-status` leaves the details file untouched, which covers the refusal-after-local-effect family.
+   - `dirtyIssuePaths` now reuses `porcelainPaths` instead of slicing fixed columns, and handles rename destinations (ARCH-DRY).
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **Two copies of the offline mode decision.** `repositoryTracked` counts the cutover marker as evidence of a tracked repo. `LoadRecords`'s stale branch (`records.go:122-128`) ignores it. So an offline checkout with the marker but no fetched tracker is "tracked" to the mode selector but reads as `Tracker=false` in `LoadRecords` (see findings block).
+
+5. **Test coverage**
+   - The targeted tests pass, and the revert check turned the offline test red.
+   - In the full `go test ./...` run, only `internal/processgroup` `TestCancellationKillsDescendants` failed. The cause was the environment: `fork/exec /bin/ps: operation not permitted`, not this diff.
+   - That run's output was truncated, so I have no full-suite result for the root `cmd/sdlc` package. Its targeted run passed, which is why confidence is medium.
+
+6. **Architecture**
+   - ARCH-DRY: flag (Minor above).
+   - ARCH-PURE: pass. The mode decision is thin glue over the tracker's own local-read methods.
+   - ARCH-PURPOSE: pass. The fix covers the whole class of local-only verbs, because they all go through `repositoryTracked`.
+   - ARCH-MOCK: pass. The test runs against a real git repo with an unreachable remote path.
+   - ARCH-CONSTRAINTS: pass. The fallback adds only local reads.
+   - ARCH-SECURE: pass. A malformed marker refuses.
+   - ARCH-ORDER: N/A. This path holds no state between events; it is a single decision per command.
+   - ARCH-FUNERAL: pass. Nothing durable is added.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-41
+    disposition: addressed
+    note: |
+      legacymode.go:48-63 falls back to local evidence; TestLegacyModeDecisionWorksOffline goes red with the prior legacymode.go restored.
+  - id: BR-42
+    disposition: addressed
+    note: |
+      migration.go:39-41 now states the main...Ref CodeAfter check, matching issuemigrate.go:371-374 and migration.go:260-264.
+findings:
+  - id: new
+    severity: Minor
+    family: shared-helper-extraction
+    title: |
+      Offline tracked/legacy decision restated in repositoryTracked and LoadRecords with differing rules
+    detail: |
+      This is the 5th finding in family shared-helper-extraction. Class rule: whatever turns the result of Initialized into tracked, legacy or stale belongs in one function in the tracker package, and every caller uses it. repositoryTracked counts the cutover marker as evidence; the stale branch of LoadRecords (records.go:122-128) does not, so an offline checkout with the marker but no fetched tracker reads as Tracker=false.
+```

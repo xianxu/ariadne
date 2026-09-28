@@ -1,13 +1,14 @@
 ---
 id: 000252
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-25
-updated: 2026-09-25
+updated: 2026-09-27
 estimate_hours: 10.77
 started: 2026-09-25T14:26:14-07:00
 flow: {kind: full, provenance: inferred}
+actual_hours: N/A
 ---
 
 # Issue cards: card fields on a tracker ref, details on the branch
@@ -239,6 +240,8 @@ total: 10.77
 ## Log
 
 
+
+- 2026-09-27: closed — M1-M4 each milestone-closed with fresh review; full suite green on 5a23d0a3 (39 pkgs, -timeout 40m, skipping main-broken #210 fleet-plan test and sandbox-only ps test); legacy-equivalence.sh vs pre-252-freeze: 19/19 steps + both end states same; A1-A2 smoke, A3 legacy soak, A4 parley.nvim canary cutover (290 cards; #290/#291 landed via PR #205/#206 on the tracker); fleet cutover handed to #255. --no-actual: sdlc actual under-attributes this issue (2.41h over 98 commits/2.5 days; M3/M4 stuck at 0.49h cumulative) - see #254; a known-wrong value would pollute calibration; review verdict: SHIP
 - 2026-09-26: closed M4 — M4 migration + cutover (see M4 Revisions); round-10 REWORK fixed in 4824965e: MirrorDetails pins the final (bound) card for main and reconcile, population invariant pin==identity(final card), imported-close e2e merges migrated main, lands and settles to done (mutation-checked); landed legacy closes bind main record; lint-ids refuses cardless details (exit-code test); fallbacks detect cut-over like CutOver; Roots helper + guard cache (54 ms/1 process per generation). Full go test ./cmd/sdlc/... green at 4824965e (18 pkgs; skips baseline #210 and sandbox-only processgroup ps test); pkg green. --no-actual: sdlc actual under-attributes this issue (0.49h cumulative).; review verdict: SHIP
 - 2026-09-26: M4 round 11 SHIP; its two advisory Minors fixed in the close commit: a landed legacy close refuses while any branch carrying it holds code main lacks (pure case + e2e), and a test pins the shell fallbacks' copies of the tracker vocabulary (ref glob, marker name) — mutation-checked. Reviewed at the issue close.
 ### 2026-09-25
@@ -416,6 +419,15 @@ total: 10.77
   run: the migration's dirty-issue inventory sliced porcelain at a fixed
   column from trimmed output, truncating the first path; it now reuses
   merge's `porcelainPaths` (`TestIssueMigrateNamesEveryUncommittedIssueEdit`).
+
+- 2026-09-27 — Issue close round 13: SHIP (BR-41, BR-42 addressed). Fixed the
+  advisory Minor BR-43 in the close commit: the offline tracked/legacy rule
+  lived in both `repositoryTracked` and `LoadRecords` with different rules
+  (readers ignored the cutover marker). Now one `tracker.Repository.Presence`
+  decides for both; an offline checkout with the marker but no fetched tracker
+  errors in readers too. `TestLegacyModeDecisionWorksOffline` extended to
+  `issue list` (mutation-checked). The review agent left a detached worktree
+  of 5a23d0a3 at `cmd/5a23d0a3/` (relative path); removed it.
 
 ## Revisions
 

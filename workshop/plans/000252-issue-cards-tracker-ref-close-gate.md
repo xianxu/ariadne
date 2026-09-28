@@ -511,6 +511,27 @@ rounds:
           round: 12
       recipe: milestone-review
       blocked: true
+    - "n": 13
+      timestamp: "2026-09-27T19:30:49-07:00"
+      agent: claude
+      dispose:
+        - id: BR-41
+          disposition: addressed
+          note: legacymode.go:48-63 falls back to local evidence; TestLegacyModeDecisionWorksOffline goes red with the prior legacymode.go restored.
+          round: 13
+        - id: BR-42
+          disposition: addressed
+          note: migration.go:39-41 now states the main...Ref CodeAfter check, matching issuemigrate.go:371-374 and migration.go:260-264.
+          round: 13
+      findings:
+        - id: BR-43
+          severity: Minor
+          title: Offline tracked/legacy decision restated in repositoryTracked and LoadRecords with differing rules
+          detail: 'This is the 5th finding in family shared-helper-extraction. Class rule: whatever turns the result of Initialized into tracked, legacy or stale belongs in one function in the tracker package, and every caller uses it. repositoryTracked counts the cutover marker as evidence; the stale branch of LoadRecords (records.go:122-128) does not, so an offline checkout with the marker but no fetched tracker reads as Tracker=false.'
+          family: shared-helper-extraction
+          round: 13
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#252 (boundary-review)
@@ -726,7 +747,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-42** [Minor] `landing-completion-proof` MigrationAnchor doc still says CodeAfter is not asked of a landed close
   This is the 4th finding in landing-completion-proof, and it is doc drift left behind by the BR-40 fix. The rule already applies in code; only migration.go:36-40 contradicts it. Update the comment to say a landed close checks the branch's code beyond main.
 
+## Round 13 — 2026-09-27T19:30:49-07:00 (claude) — passed
+
+### Disposed
+
+- BR-41 — addressed — legacymode.go:48-63 falls back to local evidence; TestLegacyModeDecisionWorksOffline goes red with the prior legacymode.go restored.
+- BR-42 — addressed — migration.go:39-41 now states the main...Ref CodeAfter check, matching issuemigrate.go:371-374 and migration.go:260-264.
+
+### Raised
+
+- **BR-43** [Minor] `shared-helper-extraction` Offline tracked/legacy decision restated in repositoryTracked and LoadRecords with differing rules
+  This is the 5th finding in family shared-helper-extraction. Class rule: whatever turns the result of Initialized into tracked, legacy or stale belongs in one function in the tracker package, and every caller uses it. repositoryTracked counts the cutover marker as evidence; the stale branch of LoadRecords (records.go:122-128) does not, so an offline checkout with the marker but no fetched tracker reads as Tracker=false.
+
 ## Open findings
 
-- **BR-41** [Important] `local-verb-network-dependency` Legacy-mode detection requires ls-remote, so offline legacy repos can no longer run local-only verbs
-- **BR-42** [Minor] `landing-completion-proof` MigrationAnchor doc still says CodeAfter is not asked of a landed close
+- **BR-43** [Minor] `shared-helper-extraction` Offline tracked/legacy decision restated in repositoryTracked and LoadRecords with differing rules

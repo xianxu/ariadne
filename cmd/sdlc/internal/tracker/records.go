@@ -114,17 +114,19 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 	var rs Records
 	var snap Snapshot
 	if repo != nil {
-		exists, err := repo.Initialized()
+		exists, stale, err := repo.Presence()
 		switch {
-		case err != nil && (mode == Fresh || errors.Is(err, ErrCutover)):
-			// A cutover mismatch is not a transport failure: no stale read answers it.
+		case err != nil && (!stale || mode == Fresh):
 			return rs, err
-		case err != nil:
+		case stale && exists:
 			local, ok, lerr := repo.LocalSnapshot()
-			if lerr != nil {
+			if lerr != nil || !ok {
+				// The marker says tracked, but nothing was fetched to read.
 				return rs, errors.Join(err, lerr)
 			}
-			rs.Stale, rs.Tracker, snap = true, ok, local
+			rs.Stale, rs.Tracker, snap = true, true, local
+		case stale:
+			rs.Stale = true
 		case exists:
 			if snap, err = repo.Snapshot(); err != nil {
 				return rs, err
