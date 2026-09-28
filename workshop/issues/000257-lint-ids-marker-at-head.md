@@ -8,6 +8,7 @@ updated: 2026-09-27
 estimate_hours:
 card_mirror: 'f1ea34457673ed8ee3f29a6c2e96db1b454961eb' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-27T23:33:11-07:00
+flow: {kind: quick, provenance: inferred, spec: "3b3861c1", done: "e78591ed"}
 ---
 
 # lint-ids reads the cutover marker from the checked commit, not the checkout
