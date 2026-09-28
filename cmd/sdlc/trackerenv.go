@@ -82,8 +82,28 @@ func openTrackerAt(ctx context.Context, dir string) (*trackerEnv, error) {
 // is kept out of the value so a warning can never be parsed as an object ID.
 func (e *trackerEnv) git(args ...string) (string, error) { return e.gitEnv(nil, args...) }
 
+// statusEntries runs `git -C dir status --porcelain=v1 -z <args>` and parses it
+// byte-exact. Status output is column-structured: git() trims, which eats the
+// first entry's leading status space and shifts its path (#259).
+func (e *trackerEnv) statusEntries(dir string, args ...string) ([]gitx.StatusEntry, error) {
+	out, err := e.gitRaw(nil, append([]string{"-C", dir, "status", "--porcelain=v1", "-z"}, args...)...)
+	if err != nil {
+		return nil, err
+	}
+	return gitx.ParseStatusZ(out)
+}
+
 // gitEnv is git with extra environment (a temporary index, for instance).
+// Its output is trimmed, which suits single values (an OID, a ref, a count);
+// column-structured output goes through gitRaw.
 func (e *trackerEnv) gitEnv(extra []string, args ...string) (string, error) {
+	out, err := e.gitRaw(extra, args...)
+	return strings.TrimSpace(string(out)), err
+}
+
+// gitRaw runs git in the checkout and returns its stdout untouched; a failure
+// carries git's stderr.
+func (e *trackerEnv) gitRaw(extra []string, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(e.ctx, "git", args...)
 	cmd.Dir = e.root
 	if len(extra) > 0 {
@@ -93,9 +113,9 @@ func (e *trackerEnv) gitEnv(extra []string, args ...string) (string, error) {
 	cmd.Stderr = &stderr
 	out, err := cmd.Output()
 	if err != nil {
-		return strings.TrimSpace(string(out)), fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(stderr.String()))
+		return out, fmt.Errorf("git %s: %w: %s", args[0], err, strings.TrimSpace(stderr.String()))
 	}
-	return strings.TrimSpace(string(out)), nil
+	return out, nil
 }
 
 // gitTest runs a Git predicate: exit 0 is true, exit 1 is a completed false

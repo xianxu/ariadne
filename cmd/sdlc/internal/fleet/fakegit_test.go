@@ -690,7 +690,7 @@ func fakeStatusPorcelain(entries []FakeGitStatusEntry) ([]byte, error) {
 	})
 	var out bytes.Buffer
 	for _, entry := range entries {
-		if !validStatusCode(entry.Code) || entry.Path == "" || strings.ContainsRune(entry.Path, 0) {
+		if !gitx.ValidStatusCode(entry.Code) || entry.Path == "" || strings.ContainsRune(entry.Path, 0) {
 			return nil, fmt.Errorf("fake git: invalid dirty entry %#v", entry)
 		}
 		isRename := strings.ContainsAny(entry.Code, "RC")

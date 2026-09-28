@@ -370,7 +370,7 @@ func TestPreparedArchiveMoves_RecoversPlanArtifacts(t *testing.T) {
 		"?? workshop/history/000143-x.md\n" +
 		" D workshop/plans/000143-x-plan.md\n" +
 		"?? workshop/history/000143-x-plan.md\n"
-	moves, other, err := preparedArchiveMoves(context.Background(), status, "workshop/issues", "workshop/history", "workshop/plans")
+	moves, other, err := preparedArchiveMoves(context.Background(), statusOf(t, status), "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}

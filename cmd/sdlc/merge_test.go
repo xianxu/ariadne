@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // countRunner is a minimal gitRunner fake for countUnmerged (#148): Git returns
@@ -39,6 +41,34 @@ func TestCountUnmerged(t *testing.T) {
 	}
 }
 
+// statusZ encodes porcelain-v1 literal lines ("XY path", "XY orig -> path") as
+// the `-z` stream git emits, so fakes feed the real parser.
+func statusZ(porcelain string) []byte {
+	var z []byte
+	for _, line := range strings.Split(porcelain, "\n") {
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		xy, rest := line[:2], line[3:]
+		if orig, dest, ok := strings.Cut(rest, " -> "); ok {
+			z = append(z, xy+" "+dest+"\x00"+orig+"\x00"...)
+			continue
+		}
+		z = append(z, xy+" "+rest+"\x00"...)
+	}
+	return z
+}
+
+// statusOf parses porcelain-v1 literal lines through gitx.ParseStatusZ.
+func statusOf(t *testing.T, porcelain string) []gitx.StatusEntry {
+	t.Helper()
+	entries, err := gitx.ParseStatusZ(statusZ(porcelain))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return entries
+}
+
 // ── #62 M1: worktree clean re-check before the irreversible merge ────────────
 func TestWorktreeDirty(t *testing.T) {
 	cases := []struct {
@@ -53,14 +83,14 @@ func TestWorktreeDirty(t *testing.T) {
 	}
 	for _, tc := range cases {
 		r := &claimRunnerStub{responses: map[string][]byte{
-			"status --porcelain": []byte(tc.porcelain),
+			"status --porcelain=v1 -z": statusZ(tc.porcelain),
 		}}
 		dirty, err := worktreeDirty(r)
 		if err != nil {
 			t.Fatalf("%s: unexpected err: %v", tc.name, err)
 		}
-		if (dirty != "") != tc.wantDirty {
-			t.Errorf("%s: dirty=%v (%q), want dirty=%v", tc.name, dirty != "", dirty, tc.wantDirty)
+		if (len(dirty) > 0) != tc.wantDirty {
+			t.Errorf("%s: dirty=%v (%q), want dirty=%v", tc.name, len(dirty) > 0, dirty, tc.wantDirty)
 		}
 	}
 }
@@ -94,11 +124,8 @@ func TestAssessDirty(t *testing.T) {
 		{"dirty subfoldered issue proceeds", " M workshop/history/issues/000080-done.md\n", false, 0, 0, 1},
 		{"dirty subfoldered plan proceeds", " M workshop/history/plans/000080-done-plan.md\n", false, 0, 0, 1},
 		{"renamed into history/issues proceeds", "R  workshop/issues/000080-x.md -> workshop/history/issues/000080-x.md\n", false, 0, 0, 1},
-		// Regression: worktreeDirty whole-trims its output, so the FIRST porcelain
-		// line loses its leading status space ("M workshop/..." not " M workshop/
-		// ..."). Column-slicing would mis-read the path and bucket it as Blocking;
-		// field-splitting must still see it as Tracker.
-		{"leading-space-trimmed issue line proceeds", "M workshop/issues/000082-x.md\n", false, 0, 0, 1},
+		// A path with a space stays whole (#259): the old whitespace split cut it.
+		{"spaced issue path proceeds", " M workshop/issues/000082-x y.md\n", false, 0, 0, 1},
 		// The crux both-directions case: a dirty issue file must NOT rescue a
 		// dirty CODE file — code still blocks, issue file is bucketed to Tracker.
 		{"dirty code still blocks despite dirty issue file", " M cmd/sdlc/merge.go\n M workshop/issues/000082-x.md\n", true, 1, 0, 1},
@@ -106,7 +133,7 @@ func TestAssessDirty(t *testing.T) {
 		{"non-tracker markdown still blocks", " M atlas/workflow/x.md\n", true, 1, 0, 0},
 	}
 	for _, tc := range cases {
-		d := assessDirty(tc.porcelain, "workshop/issues", "workshop/history")
+		d := assessDirty(statusOf(t, tc.porcelain), "workshop/issues", "workshop/history")
 		if d.Refuse() != tc.wantRefuse {
 			t.Errorf("%s: Refuse()=%v, want %v (assessment=%+v)", tc.name, d.Refuse(), tc.wantRefuse, d)
 		}
@@ -118,28 +145,6 @@ func TestAssessDirty(t *testing.T) {
 		}
 		if len(d.Tracker) != tc.wantTracker {
 			t.Errorf("%s: len(Tracker)=%d, want %d (%q)", tc.name, len(d.Tracker), tc.wantTracker, d.Tracker)
-		}
-	}
-}
-
-// TestPorcelainPaths pins the field-based extractor that #82 M2 relies on —
-// robust to whether the leading status space was trimmed (worktreeDirty does).
-func TestPorcelainPaths(t *testing.T) {
-	cases := []struct {
-		line, path, dest string
-	}{
-		{" M workshop/issues/000082-x.md", "workshop/issues/000082-x.md", ""},
-		{"M workshop/issues/000082-x.md", "workshop/issues/000082-x.md", ""}, // leading space trimmed
-		{"?? workshop/issues/000888-wip.md", "workshop/issues/000888-wip.md", ""},
-		{"A  cmd/sdlc/new.go", "cmd/sdlc/new.go", ""},
-		{"R  workshop/issues/000080-x.md -> workshop/history/000080-x.md", "workshop/issues/000080-x.md", "workshop/history/000080-x.md"},
-		{"", "", ""},
-		{"   ", "", ""},
-	}
-	for _, tc := range cases {
-		p, d := porcelainPaths(tc.line)
-		if p != tc.path || d != tc.dest {
-			t.Errorf("porcelainPaths(%q) = (%q,%q), want (%q,%q)", tc.line, p, d, tc.path, tc.dest)
 		}
 	}
 }

@@ -13,6 +13,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -451,9 +452,15 @@ func gatherBaseContention(ctx context.Context, root string, excludeIssue int) ba
 	if out, err := mergeRunner.GitInDir(root, "branch", "--show-current"); err == nil {
 		c.Branch = strings.TrimSpace(string(out))
 	}
-	if out, err := mergeRunner.GitInDir(root, "status", "--porcelain"); err == nil {
-		c.DirtyCode = len(assessDirty(strings.TrimSpace(string(out)), issuesDir, historyDir).Blocking)
+	// A status that cannot be read or parsed (a git error, or a malformed -z
+	// stream from a substituted runner) is unknown, never clean.
+	out, err := mergeRunner.GitInDir(root, "status", "--porcelain=v1", "-z")
+	entries, perr := gitx.ParseStatusZ(out)
+	if err != nil || perr != nil {
+		c.Unavailable = fmt.Sprintf("read the base's status: %v", errors.Join(err, perr))
+		return c
 	}
+	c.DirtyCode = len(assessDirty(entries, issuesDir, historyDir).Blocking)
 	excludeID := fmt.Sprintf("%06d", excludeIssue)
 	issues, stale, err := listIssueStates(ctx, filepath.Join(root, issuesDir))
 	if err != nil {

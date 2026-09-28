@@ -119,19 +119,27 @@ func NewMergeCmd() *cobra.Command {
 }
 
 // runMerge dispatches the merge workflow.
-// worktreeDirty returns the trimmed `git status --porcelain` output ("" =
-// clean) via the runner, or an error if git status itself fails. Checked at the
+// worktreeDirty returns the parsed `git status` entries (none = clean) via the
+// runner, or an error if git status itself fails. Checked at the
 // start of merge AND — per #62 — re-checked immediately before the irreversible
 // `gh pr merge`: a pre-merge judge/hook can dirty the tree after the initial
 // check, and the post-merge `git switch main` then refuses, stranding the merge
 // (remote merged, local stuck). Re-asserting here converts that into a clean
 // pre-merge refusal.
-func worktreeDirty(r gitRunner) (string, error) {
-	out, err := r.Git("status", "--porcelain")
+func worktreeDirty(r gitRunner) ([]gitx.StatusEntry, error) {
+	out, err := r.Git("status", "--porcelain=v1", "-z")
 	if err != nil {
-		return "", fmt.Errorf("git status: %v\n%s", err, out)
+		return nil, fmt.Errorf("git status: %v\n%s", err, out)
 	}
-	return strings.TrimSpace(string(out)), nil
+	return gitx.ParseStatusZ(out)
+}
+
+// statusLine renders a status entry as porcelain v1 prints it, for messages.
+func statusLine(e gitx.StatusEntry) string {
+	if e.Orig != "" {
+		return e.XY + " " + e.Orig + " -> " + e.Path
+	}
+	return e.XY + " " + e.Path
 }
 
 // dirtyAssessment splits a `git status --porcelain` result into the classes that
@@ -151,7 +159,7 @@ type dirtyAssessment struct {
 // out of Blocking by construction (#82 M2), so they can't flip this.
 func (d dirtyAssessment) Refuse() bool { return len(d.Blocking) > 0 }
 
-// assessDirty classifies porcelain output. Pure (mirrors decideMergeAction's
+// assessDirty classifies parsed status entries. Pure (mirrors decideMergeAction's
 // extracted-decision pattern). Only tracked CODE modifications block a merge: a
 // dirty tracked file makes the post-merge `git switch main` / `git pull` refuse,
 // stranding the server-side merge. Two classes are non-blocking: untracked `??`
@@ -160,20 +168,17 @@ func (d dirtyAssessment) Refuse() bool { return len(d.Blocking) > 0 }
 // out-of-band (#82 M1) — a dirty issue file is never code contention, whether
 // tracked-modified or untracked (#82 M2). Both are surfaced as warnings, not
 // refusals.
-func assessDirty(porcelain, issuesDir, historyDir string) dirtyAssessment {
+func assessDirty(entries []gitx.StatusEntry, issuesDir, historyDir string) dirtyAssessment {
 	var d dirtyAssessment
-	for _, line := range strings.Split(porcelain, "\n") {
-		if strings.TrimSpace(line) == "" {
-			continue
-		}
+	for _, e := range entries {
+		line := statusLine(e)
 		// Tracker classification is by PATH and comes first, so a dirty issue
 		// file lands in Tracker regardless of its tracked/untracked status code.
-		path, dest := porcelainPaths(line)
-		if isTrackerPath(path, issuesDir, historyDir) || isTrackerPath(dest, issuesDir, historyDir) {
+		if isTrackerPath(e.Path, issuesDir, historyDir) || isTrackerPath(e.Orig, issuesDir, historyDir) {
 			d.Tracker = append(d.Tracker, line)
 			continue
 		}
-		if strings.HasPrefix(line, "??") {
+		if e.XY == "??" {
 			d.Untracked = append(d.Untracked, line)
 		} else {
 			d.Blocking = append(d.Blocking, line)
@@ -190,26 +195,6 @@ func isTrackerPath(p, issuesDir, historyDir string) bool {
 		return false
 	}
 	return isIssuePath(p, issuesDir) || isHistoryPath(p, historyDir)
-}
-
-// porcelainPaths extracts the path (and rename/copy dest) from a `git status
-// --porcelain` line. It splits on whitespace rather than slicing fixed status
-// columns, because worktreeDirty whole-trims its output — stripping the leading
-// status space off the first line (" M f" → "M f") and shifting any column
-// parse. Field-splitting is immune: fields[0] is the status code, the path is
-// the next field (last field for an `orig -> dest` rename). (Quoted paths with
-// embedded spaces aren't handled — same limitation as parsePorcelainStatus.)
-func porcelainPaths(line string) (path, dest string) {
-	fields := strings.Fields(line)
-	if len(fields) < 2 {
-		return "", ""
-	}
-	for i, f := range fields {
-		if f == "->" && i+1 < len(fields) {
-			return fields[1], fields[len(fields)-1]
-		}
-	}
-	return fields[1], ""
 }
 
 // mergeAction is what step 10 should do, given the PR state.

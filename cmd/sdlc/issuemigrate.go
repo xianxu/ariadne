@@ -305,20 +305,12 @@ func dirtyIssuePaths(env *migrateEnv, home string) ([]string, error) {
 		if wt == "" || skip {
 			continue
 		}
-		status, err := env.git("-C", wt, "status", "--porcelain", "--untracked-files=all", "--", home)
+		status, err := env.statusEntries(wt, "--untracked-files=all", "--", home)
 		if err != nil {
 			return nil, fmt.Errorf("read issue edits in worktree %s: %w", wt, err)
 		}
-		// porcelainPaths splits on whitespace: the trimmed output loses the
-		// first line's leading status column, so fixed-column slicing would not.
-		for _, s := range strings.Split(status, "\n") {
-			path, dest := porcelainPaths(s)
-			if dest != "" {
-				path = dest
-			}
-			if path != "" {
-				dirty = append(dirty, wt+": "+path)
-			}
+		for _, e := range status {
+			dirty = append(dirty, wt+": "+e.Path)
 		}
 	}
 	return dirty, nil

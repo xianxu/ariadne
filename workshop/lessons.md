@@ -229,3 +229,8 @@ The simplest durable authority beats a clever scan of consequences.
   verb that never needed the network before started needing it just to learn
   which code path to run. When adding a gate in front of an existing local
   verb, ask what it does offline, and test it with an unreachable remote.
+- Never slice `git status` output at fixed columns when the runner trims:
+  the first entry's leading status space (" M path") is data, and trimming
+  shifts its path by one. Read status as `--porcelain=v1 -z` through
+  `gitx.ParseStatusZ` from untrimmed output. Hit twice in one day (#255's
+  migrate dirty list; #259's close evidence silently dropped the gate ledger).
