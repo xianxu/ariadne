@@ -183,3 +183,21 @@ func TestMoveSecondSwitchFails(t *testing.T) {
 		t.Fatalf("ignored output overwritten: %q %v", data, err)
 	}
 }
+
+// A post-checkout hook in the source advances its resting branch during the
+// first switch; the post-move check must catch it and say both switches ran.
+func TestMoveVerifiesSourceRestingHead(t *testing.T) {
+	roots, _ := moveFixture(t)
+	hooks := filepath.Join(strings.TrimSpace(testfix.Capture(t, roots[0], "rev-parse", "--path-format=absolute", "--git-common-dir")), "hooks")
+	src := strings.TrimSpace(testfix.Capture(t, roots[1], "rev-parse", "--show-toplevel"))
+	procedureWrite(t, hooks, "post-checkout", "#!/bin/sh\n[ \"$(git rev-parse --show-toplevel)\" = '"+src+"' ] || exit 0\n"+
+		"[ \"$(git branch --show-current)\" = main-slot1 ] || exit 0\n"+
+		"git -c user.name=t -c user.email=t@t commit -q --allow-empty -m 'hook moved rest'\n")
+	if err := os.Chmod(filepath.Join(hooks, "post-checkout"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	out, err := runMoveTest(t, roots[1], ":0", false)
+	if err == nil || !strings.Contains(err.Error(), "both switches ran") || !strings.Contains(err.Error(), "main-slot1") {
+		t.Fatalf("err = %v, want the post-move check to catch the moved resting branch\n%s", err, out)
+	}
+}
