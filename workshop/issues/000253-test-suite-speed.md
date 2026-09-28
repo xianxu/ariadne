@@ -1,12 +1,13 @@
 ---
 id: 000253
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-28
 estimate_hours:
-card_mirror: '3362d24d779b6a1d6e7e1ce354a9141557597a04' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1c3ce1093c13414aedd4a527a73e5cac3533fdc0' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-28T11:24:11-07:00
 ---
 
 # Keep the sdlc test suite fast: tiers, shared binary, parallel-safe e2e
@@ -99,3 +100,34 @@ land later, and reviews wait.
 - Filed from #252 (issue-cards tracker), whose e2e tests pushed the full
   suite to about 20 minutes. Numbers above are from #252's full runs at
   4f7260ae (18 packages ok; cmd/sdlc 1,140 s).
+
+### 2026-09-28
+
+- Claimed. Timing report script: `scripts/test-timing.py` over
+  `go test -json` output (packages, totals by kind, top N).
+- Baseline at 8f27d185, M-series Mac with 12 cores, go 1.27.1, Apple Git 2.50.1, in
+  the agent sandbox:
+  - `go test ./cmd/sdlc/...` **cannot pass as-is**: `cmd/sdlc` hits go's
+    default 10-minute `-timeout` about 360 tests in. Any gate/CI run needs an
+    explicit `-timeout`.
+  - `cmd/sdlc` alone with `-timeout 60m`: **1,531 s** wall, 838 top-level
+    tests. By kind (serial sums): real-git 423 tests / 1,226 s;
+    builds-binary 74 / 248 s; pure 341 / 57 s.
+  - Other packages: gitx 79 s, tracker 32 s, fleet 13 s, the rest < 5 s.
+  - Top tests: TransferGuardOverBranchShapes 75 s, LandingRetainsWorkspace
+    59 s, LeftoverBranchIsLockedUntilCaughtUpThenWorks 48 s,
+    TrackerFullSlotCycle 48 s, DurableRunMergeCompletesTrackedClose… 42 s,
+    CLISignalCancelsOwnedReviewer 41 s.
+  - Known failures: #210 (TestFleetPlanHas… reads an archived plan);
+    processgroup's TestCancellationKillsDescendants fails only in the sandbox
+    (`/bin/ps` blocked).
+- Tests are serial within a package (no `t.Parallel()` anywhere), so
+  `cmd/sdlc` runs on about one core while the other packages finish in 80 s.
+- Constant factor found: `/usr/bin/git` on macOS is the xcrun shim, about
+  16 ms per spawn against about 5 ms for the real binary
+  (`$(git --exec-path)/git`). Measuring `cmd/sdlc` with that directory first
+  on PATH before deciding whether parallelism is needed at all.
+- Scope: the stateful git fake (ARCH-MOCK, run tests on both backends) is
+  split out to #261 at the operator's direction; #253 makes the real-git
+  tests fast.
+
