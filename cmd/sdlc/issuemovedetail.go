@@ -65,14 +65,14 @@ An interrupted run resumes with ` + "`sdlc issue recovery reconcile --issue N`" 
 // HEAD are not the user's settled intent.
 var gitOperationMarkers = []string{"MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "rebase-merge", "rebase-apply", "BISECT_LOG"}
 
-func gitOperationInProgress(env *trackerEnv) (string, error) {
+func gitOperationInProgress(git func(...string) (string, error), root string) (string, error) {
 	for _, m := range gitOperationMarkers {
-		p, err := env.git("rev-parse", "--git-path", m)
+		p, err := git("rev-parse", "--git-path", m)
 		if err != nil {
 			return "", err
 		}
 		if !filepath.IsAbs(p) {
-			p = filepath.Join(env.root, p)
+			p = filepath.Join(root, p)
 		}
 		if _, err := os.Lstat(p); err == nil {
 			return m, nil
@@ -103,7 +103,7 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	if env.branch == "" {
 		return errors.New("move-detail needs a checked-out branch (the source's home)")
 	}
-	if op, err := gitOperationInProgress(env); err != nil {
+	if op, err := gitOperationInProgress(env.git, env.root); err != nil {
 		return err
 	} else if op != "" {
 		return fmt.Errorf("a Git operation is in progress (%s); finish or abort it first — nothing was changed", op)
