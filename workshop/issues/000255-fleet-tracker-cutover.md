@@ -62,7 +62,7 @@ moved.
 - [ ] you-decide
 - [ ] nous
 - [ ] 42shots
-- [ ] ariadne (clear its dry-run blockers first)
+- [x] ariadne (clear its dry-run blockers first)
 - [ ] tools (clear its blockers first)
 - [ ] pair (clear its blockers first)
 - [ ] ducks (new project, created 2026-09-27; dry-run not yet taken)
@@ -112,3 +112,14 @@ moved.
   deletions main made too stay silent). Dry runs with it: pair, kaggle, kbench
   0 refusals; ariadne 2 pre-existing (`origin/feature` edits archived #148,
   #159 — drop or land that branch before ariadne's cutover).
+- **ariadne cut over (2026-09-27), moved ahead of kaggle** because every
+  legacy-mode ariadne change re-created the copy-publication conflict #252
+  removes (#256's PR hit it). Step 0: `weave compile` already clean. Blockers:
+  deleted `origin/feature` (a July test-fixture push editing archived #148,
+  #159) and six merged remote branches. Dry run: 0 refusals, 251 cards, 50
+  details converted, 35 inferences (N/A actuals, Problem from preamble,
+  `## Problem` inserted in #15, #23, #114, #123, #130, #131), 2 duplicate IDs
+  (000040, 000096). Applied `f810548c9edd8a73`: tracker root aee6be5b,
+  migration commit 0c567478. `:0` and slots 1–3 fast-forwarded. Verified: issue
+  list (`:0` and a slot), already migrated, recovery empty. First card write:
+  claimed #255 → `issue-tracker` 38d41d8b, main untouched.

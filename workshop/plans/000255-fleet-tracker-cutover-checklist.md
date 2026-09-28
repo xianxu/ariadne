@@ -271,16 +271,16 @@ found on 2026-09-26; re-run the dry run first — they may have changed.
 - [ ] 5 slots / branches · [ ] 6 verify with `issue new` · [ ] 7 unfreeze
 
 ### C8 — ariadne (6 blockers)
-- [ ] 1a #119: publish the card fields changed on `000119-multi-agent-benchmark-harness`
+- [x] 1a #119: publish the card fields changed on `000119-multi-agent-benchmark-harness`
       (`estimate_hours`, `updated`) — legacy `sdlc issue sync --issue 119 --push` on that branch — or revert them
-- [ ] 1b #240: publish or revert its `updated` change on `000239-minimal-committed-base-layer-surface`
-- [ ] 1c `main-slot1` carries a local-only issue-sync of #252's `estimate_hours`: publish or drop it
-- [ ] 1d delete stale branches that edit archived issues: `backup-000031-pre-rebase*` (4),
+- [x] 1b #240: publish or revert its `updated` change on `000239-minimal-committed-base-layer-surface`
+- [x] 1c `main-slot1` carries a local-only issue-sync of #252's `estimate_hours`: publish or drop it
+- [x] 1d delete stale branches that edit archived issues: `backup-000031-pre-rebase*` (4),
       `000239-minimal-committed-base-layer-surface`, `000242-slots-v2-workspace-identity`
       (local and on origin)
-- [ ] 1e re-run the dry run → 0 refusals
-- [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
-- [ ] 5 slots (6 worktrees) / branches · [ ] 6 verify · [ ] 7 unfreeze
+- [x] 1e re-run the dry run → 0 refusals
+- [x] 2 freeze · [x] 3 dry run (digest: f810548c9edd8a73) · [x] 4 apply
+- [x] 5 slots (6 worktrees) / branches · [x] 6 verify · [x] 7 unfreeze
 
 ### C9 — tools (5 blockers; 7 worktrees)
 - [ ] 1a #80 and #81 were closed on their branches but never synced: publish those issue files to main
