@@ -66,7 +66,33 @@ func escapeIgnore(path string) string {
 	r := strings.NewReplacer("\\", "\\\\", "*", "\\*", "?", "\\?", "[", "\\[", "]", "\\]", " ", "\\ ")
 	return "/" + r.Replace(filepath.ToSlash(path))
 }
-func managedIgnore(fs weavefs.FS, root string, ids []outputIdentity) (string, error) {
+
+// blockEntries lists the lines inside the current weave block, if any.
+func blockEntries(current string) []string {
+	var out []string
+	inside := false
+	for _, line := range strings.Split(current, "\n") {
+		switch trimmed := strings.TrimSuffix(line, "\r"); trimmed {
+		case ignoreBegin:
+			inside = true
+		case ignoreEnd:
+			inside = false
+		default:
+			if inside && trimmed != "" {
+				out = append(out, trimmed)
+			}
+		}
+	}
+	return out
+}
+
+// managedIgnore derives the block from the next inventory. An existing entry is
+// dropped only when weave owned that path (it appears in the old inventory);
+// any other entry was committed by another checkout's compile and survives
+// (#263) — a dependency never compiled locally has an empty inventory, not an
+// empty set of generated outputs. The legacy fixed list only ever lived outside
+// the block, where managedIgnoreText still migrates it.
+func managedIgnore(fs weavefs.FS, root string, old, ids []outputIdentity) (string, error) {
 	p := filepath.Join(root, ".gitignore")
 	if fi, e := fs.Lstat(p); e == nil && !fi.Mode().IsRegular() {
 		return "", fmt.Errorf("gitignore is not a regular file: %s", p)
@@ -78,6 +104,15 @@ func managedIgnore(fs weavefs.FS, root string, ids []outputIdentity) (string, er
 		return "", e
 	}
 	entries := []string{escapeIgnore(filepath.Dir(InventoryPath)) + "/"}
+	owned := map[string]bool{}
+	for _, id := range old {
+		owned[escapeIgnore(id.Path)] = true
+	}
+	for _, e := range blockEntries(string(b)) {
+		if !owned[e] {
+			entries = append(entries, e)
+		}
+	}
 	for _, id := range ids {
 		entries = append(entries, escapeIgnore(id.Path))
 	}

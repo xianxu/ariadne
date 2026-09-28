@@ -171,7 +171,7 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 		}
 	}
 	next := append(append([]outputIdentity{}, other...), wanted...)
-	gi, e := managedIgnore(fs, root, next)
+	gi, e := managedIgnore(fs, root, old, next)
 	if e != nil {
 		return nil, e
 	}

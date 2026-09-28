@@ -65,11 +65,14 @@ ariadne as shared mutable singleton).
 
 ## Plan
 
-- [ ] Regression test: committed block + empty inventory + data apply with no mounts → `.gitignore` unchanged
-- [ ] Test: unknown entry preserved alongside new outputs; known entry retires; legacy entry inside block migrates
-- [ ] `ApplyManaged`/`managedIgnore`: preserve existing block entries not derived from the old inventory
-- [ ] Run weave tests; restore `pair-slot1/ariadne/.gitignore` and re-run `weave refresh` there to verify no diff
+- [x] Regression test: committed block + empty inventory + data apply with no mounts → `.gitignore` unchanged
+- [x] Test: unknown entry preserved alongside new outputs; known entry retires; legacy entry inside block migrates
+- [x] `ApplyManaged`/`managedIgnore`: preserve existing block entries not derived from the old inventory
+- [x] Run weave tests; restore `pair-slot1/ariadne/.gitignore` and re-run `weave refresh` there to verify no diff
 
 ## Log
 
 ### 2026-09-28
+- Reproduced with a unit test: committed block + empty inventory + `ApplyManaged(nil, ScopeData)` shrank the block to `/construct/generated/weave/`.
+- Design correction: first draft also excluded the legacy fixed list (`GeneratedRuntimeGitignoreEntries`) from preservation; that still clobbered, because the real committed block contains `/AGENTS.md`, `/CLAUDE.md`, `/.claude/settings.json` (exact outputs that are also in the legacy list). Git history (`8d2d08bb`, #239) shows the legacy list only ever lived *outside* the block, where `managedIgnoreText` still migrates it — so inside-block entries need no legacy rule. Dropped it.
+- Live verification: restored `worktree/pair-slot1/ariadne/.gitignore`, ran the patched `weave compile` in `pair-slot1/pair` (same `compilePrepared` path as `refresh`, minus the git pulls): 107 actions applied, dependency and pair both `git status` clean.
