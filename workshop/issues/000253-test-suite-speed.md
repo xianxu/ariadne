@@ -87,11 +87,23 @@ land later, and reviews wait.
 
 ## Plan
 
-- [ ] Timing report (`go test -json`), recorded in the Log
-- [ ] `-short` tier via one e2e helper, plus its guard
-- [ ] Shared binary in `TestMain`
-- [ ] ~~Parallel-safe seams for the real-Git tests (cwd and package-level stubs), then `t.Parallel()`~~ → #262 (see Revisions)
-- [ ] Budget guard and development guidance
+Scope after the second revision: the two short-term speed-ups, measured.
+
+- [x] Timing report (`go test -json`), recorded in the Log
+- [ ] Real git on PATH: `testfix.PreferRealGit()` puts `$(git --exec-path)`
+  first on PATH; called from a `TestMain` in every package that drives real
+  git (cmd/sdlc, gitx, tracker, fleet, activetime)
+- [ ] Sharded runner `scripts/test-shard.py`: compile the `cmd/sdlc` test binary once, split its
+  top-level tests over N processes balanced by the last run's timings (LPT),
+  run the other packages alongside; `test2json` output, so
+  `scripts/test-timing.py` reads it; non-zero exit on any failure; `make test`
+- [ ] Fixes the sharded run surfaced: `TestBrainDefaultsExplicitEstimatorOverride`
+  passes `SetArgs(nil)` (cobra then reads the test binary's own os.Args);
+  the hermeticity guard counts another slot's live `sdlc.lock` as a leak —
+  flag it only when this test process holds it; investigate the load-sensitive
+  5 s waits and the silent exit-1 shard
+- [ ] Verify: sharded run green (bar #210) on an idle machine; record wall
+  times (serial vs. sharded) in the Log; guidance line in AGENTS.local.md
 
 ## Revisions
 
@@ -110,6 +122,19 @@ land later, and reviews wait.
     refactoring production code.
   - The "full suite ≤ 5 min" done-when is re-set from the measurement after
     the constant-factor wins, not assumed.
+
+### 2026-09-28 — second narrowing: two speed-ups only
+
+- **Reason:** the operator wants the two measured ideas shipped as the
+  short-term speed-up before the in-memory fake (#261): real git on PATH
+  (1,531 s → 867 s for `cmd/sdlc`) and process sharding (867 s → about 194 s
+  over 10 processes in a first, not-yet-green experiment).
+- **Delta:** out of #253: the `-short` tier and its e2e marker, the shared
+  binary build, and the budget guard. The `-short` tier belongs with #261,
+  whose in-memory fake is what makes a fast tier (per ARCH-MOCK: in memory,
+  timing under test control, fidelity covered by conformance runs against
+  real git). "Full suite ≤ 5 min" becomes: the sharded runner's wall time,
+  measured and logged.
 
 ## Log
 
