@@ -33,8 +33,12 @@ Steps, run from the source slot:
    (their `worktree_root`, not a path built from the slot number). Refuse if
    `:N`'s worktree is missing, both resolve to the same worktree, or the
    `repo_identity` differs.
-2. Check `:N`: clean (no tracked, staged or untracked changes, no Git
-   operation in progress) and on its resting branch.
+2. Check `:N`: on its resting branch, with no tracked or staged changes, dirty
+   submodules or Git operation in progress. Untracked files may stay (for
+   example operator scratch files in `:0`), as in #248: list them with
+   `git ls-files --others --exclude-standard -z`, refuse any that collide with a
+   path `A` checks out (including file/directory ancestor collisions), and keep
+   the rest untouched.
 3. Check the source slot: clean, with no uncommitted or untracked changes.
    Record its current branch `A`. Refuse if `A` is the source's resting branch.
 4. Switch the source slot to its resting branch. This must come first because
@@ -59,20 +63,16 @@ Carry over from the #248 procedure:
 Moving back is the same command run from `:N` with a slot target, e.g.
 `sdlc move :1`.
 
-## Open questions
-
-- Should `:N` really have to be free of untracked files? #248 allows operator
-  scratch files in `:0` and refuses only paths that collide with `A`. The
-  operator asked for "clean", which is the stricter reading.
-
 ## Done when
 
 - `sdlc move` and `sdlc move :N` perform steps 1–5 with the carried-over
   checks. Real-Git fixture: two linked worktrees; after the move the branch is
   in the destination and the source is on its resting branch.
 - Each refusal has a test that also shows nothing changed: missing `:N`,
-  `:N` dirty or not resting, source dirty or untracked, source on its resting
-  branch, `A..rest` nonempty without acceptance.
+  `:N` with tracked changes or not resting, an untracked file in `:N` that
+  collides with `A`, source dirty or untracked, source on its resting branch,
+  `A..rest` nonempty without acceptance.
+- Non-colliding untracked files in `:N` survive the move unchanged (test).
 - A failed second switch leaves the branch ref and both resting refs intact
   (test).
 - The atlas procedure points to `sdlc move` and keeps only what a person still
@@ -87,3 +87,10 @@ Moving back is the same command run from `:N` with a slot target, e.g.
 ### 2026-09-28
 
 Filed from ariadne slot 1 at the operator's request. The five steps are the operator's; the extra checks come from the #248 procedure.
+
+## Revisions
+
+- 2026-09-28: the operator relaxed step 2 from "`:N` clean" to #248's rule:
+  untracked files in `:N` may stay unless they collide with `A`. The open
+  question is resolved and removed; Done when gained the collision and
+  survival tests.
