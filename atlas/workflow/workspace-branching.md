@@ -1,7 +1,7 @@
 # Branching, moving, landing and refreshing slots
 
-Branching, moving and refresh below are agent procedures using existing Git commands;
-landing is enforced by `sdlc pr` and `sdlc merge`. Both apply equally to :0
+Branching and refresh below are agent procedures using existing Git commands;
+moving is `sdlc move`, and landing is enforced by `sdlc pr` and `sdlc merge`. Both apply equally to :0
 (`main`) and numbered slots (`main-slotN`). Use [workspace identity](workspace-identity.md) to resolve
 addresses; never construct checkout paths yourself. Operate only on the selected
 repository, leaving sibling dependency clones alone.
@@ -78,70 +78,41 @@ needed: the canonical issue branch and issue Log provide the association.
 ## Move this branch to :N
 
 Use this when the operator wants to test the **current issue branch** in another
-slot, often `:0`, whose runtime or shell points at that checkout. This moves the
-checkout of the same branch; it does not create a new branch or move either
-slot's resting ref.
+slot, often `:0`, whose runtime or shell points at that checkout. From the slot
+holding the branch:
 
-1. In the source slot, resolve `sdlc workspace --json` and
-   `sdlc workspace :N --json`. Use their `worktree_root` paths; never construct
-   paths from a slot number. Require schema v2, valid non-null address, branch,
-   HEAD and resting branch, equal `repo_identity`, distinct worktrees, source on
-   a non-resting issue branch, and destination on its resting branch. Capture
-   both identities and the full source branch HEAD.
-2. Apply [the switching preflight](#before-switching-or-refreshing) to **both**
-   slots: stop concurrent writers, reject tracked edits, staged changes, dirty
-   submodules and active Git operations. The source must have no untracked
-   files. The destination may retain nonignored untracked files, including
-   operator scratch files in `:0`. Enumerate them with
-   `git -C "$destination" ls-files --others --exclude-standard -z`; compare
-   against paths the feature branch will check out, including file/directory
-   ancestor collisions. Refuse a collision, preserve every other untracked file,
-   and never stash, reset, auto-commit or delete it. Ignored output is also
-   preserved; `--no-overwrite-ignore` supplies the final Git collision guard.
-3. Before switching, resolve the destination rest's configured upstream and
-   compare rest against both the feature and that upstream:
+```sh
+sdlc move --dry-run   # check both slots, print the move
+sdlc move             # :0; or `sdlc move :2`
+```
 
-   ```sh
-   upstream_ref=$(git -C "$destination" rev-parse --abbrev-ref --symbolic-full-name "${destination_rest}@{upstream}")
-   git -C "$destination" log --oneline "$issue_branch..$destination_rest"
-   git -C "$destination" log --oneline "$upstream_ref..$destination_rest"
-   ```
+`sdlc move` (#260) resolves both slots with workspace identity, checks them,
+checks again just before switching, then switches this slot to its resting
+branch and the target to the issue branch. It refuses, changing nothing, when
+either slot has uncommitted changes, dirty submodules or a Git operation in
+progress, when this slot has untracked files, or when the target is not on its
+resting branch or has untracked files the branch would overwrite. Other
+untracked files in the target, such as operator scratch files in `:0`, stay.
+It never stashes, resets, deletes or pushes. `sdlc move --help` has the full
+contract.
 
-   Stop if no single configured upstream resolves. The second command lists
-   parked commits absent from the feature; the third identifies rest commits
-   absent from the local upstream tracking ref. Report both lists. A tracking
-   ref may be stale, so verify remote state before treating the third list as
-   unpublished. If the second list is nonempty, **stop for the operator's
-   ordering choice**. If those commits should precede the feature, publish
-   them through their normal review path, then rebase the feature onto
-   the updated remote main before moving. Including unpublished rest commits in
-   the feature branch is a separate explicit choice. A temporary smoke test of
-   the feature as-is is also possible, with reconciliation of rest and remote
-   main before shipping. The move itself never pushes or rebases. Explain which
-   resting commits will be parked and absent from the test.
-4. Immediately before mutation, re-resolve both identities and repeat the
-   preflight. Refuse changed HEADs, branches, addresses or occupancy. Then run:
+What remains for the operator or agent:
 
-   ```sh
-   git -C "$source" -c submodule.recurse=false switch --no-overwrite-ignore "$source_rest"
-   git -C "$destination" -c submodule.recurse=false switch --no-overwrite-ignore "$issue_branch"
-   ```
-
-   The source must release the branch first because Git permits one worktree to
-   check it out. Git's switch still refuses a newly appeared collision. If the
-   second switch fails, leave the branch on the source repository's branch ref
-   and both resting refs intact; inspect and retry after reconciling the
-   destination. Verify destination branch and full HEAD equal the capture, source
-   is on its unchanged resting HEAD, and all preserved untracked paths remain.
-5. Run the destination repository's post-move build declared in its
-   `AGENTS.local.md`, if any. Capture destination HEAD immediately before the
-   build and verify it remains the selected branch HEAD afterward; a failed
-   build is a failed smoke test. Already-running sessions retain the old binary.
-   Start a fresh thread or relaunch the runtime to exercise the new build.
-6. To move the branch back, use the same identity, readiness, collision and
-   resting-history checks with the slot roles reversed. After a normal merge,
-   `sdlc merge`'s [durable-slot landing](#land-and-retain-the-workspace) owns
-   the return to the destination's resting branch where applicable.
+- **Resting commits left out.** The move lists the target's resting commits
+  that the branch lacks. They stay on the resting branch, but the test runs
+  without them. If they should be tested, publish them and rebase the issue
+  branch first.
+- **A failed second switch** (for example an ignored file the branch tracks)
+  leaves the branch intact and this slot on its resting branch; the error names
+  the retry after reconciling the target.
+- **Post-move build.** Run the target repository's post-move build declared in
+  its `AGENTS.local.md`, if any (pair: `make build` in `pair:0`).
+  Already-running sessions keep the old binary; relaunch or start a fresh
+  thread to test the new build.
+- **Moving back:** run `sdlc move :N` from the slot now holding the branch,
+  naming the original slot. After a normal merge, `sdlc merge`'s
+  [durable-slot landing](#land-and-retain-the-workspace) returns the slot to
+  its resting branch where applicable.
 
 ## Start independent work without refreshing
 
