@@ -35,7 +35,7 @@ func newIssueMoveDetailCmd() *cobra.Command {
 	cmd := markMutatingCommand(&cobra.Command{
 		Use:   "move-detail",
 		Short: "Publish an issue's initial details to main so it becomes claimable",
-		Long: `Consult operator before move, this is an escape patch, not for regular use.
+		Long: `Consult the operator before moving: this is an escape hatch, not for regular use.
 An issue filed on a branch normally waits for that branch to merge; only
 urgent work needs it claimable sooner, and that calls for human judgement
 (or for filing it on main directly).

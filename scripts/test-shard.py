@@ -94,6 +94,13 @@ def main() -> int:
             results = list(ex.map(lambda j: run_proc(j[0], j[1], j[2], tmp / f"{j[0]}.json"), jobs))
 
         failed, new_times, merged = report(tmp, results)
+        # Every listed test must have run in exactly one shard: a name the
+        # selection or a -test.run pattern dropped would otherwise pass silently.
+        seen = ran_tests(merged)
+        missing = sorted(set(names) - seen)
+        if missing:
+            failed = True
+            print(f"--- {len(missing)} listed cmd/sdlc test(s) never ran: {', '.join(missing[:20])}")
         if args.json:
             Path(args.json).write_text("".join(merged))
         # Merge even from a failing run (a known failure must not freeze the
@@ -145,9 +152,22 @@ def report(tmp, results):
     return failed, times, merged
 
 
+def ran_tests(lines):
+    """Top-level cmd/sdlc tests with a terminal event (pass, fail or skip)."""
+    out = set()
+    for l in lines:
+        ev = json.loads(l)
+        test = ev.get("Test") or ""
+        if ev.get("Package") == MAIN_PKG and test and "/" not in test and ev.get("Action") in ("pass", "fail", "skip"):
+            out.add(test)
+    return out
+
+
 def write_atomic(path, text):
-    tmp = path.with_suffix(".tmp")
-    tmp.write_text(text)
+    # A unique temp name: slots share the git common dir and may run at once.
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=path.name + ".")
+    with os.fdopen(fd, "w") as fh:
+        fh.write(text)
     os.replace(tmp, path)
 
 
