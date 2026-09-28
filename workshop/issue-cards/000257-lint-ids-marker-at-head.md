@@ -1,6 +1,6 @@
 ---
 id: 000257
-status: open
+status: working
 created: 2026-09-27
 updated: 2026-09-27
 estimate_hours:
@@ -17,6 +17,7 @@ tracker:
         source_blob: a70d70bacfdbd72c27e6067287241c0c8550efa7
         destination: workshop/issues/000257-lint-ids-marker-at-head.md
         main_commit: 76c347e6829f88c629a3b20b7e999281dbe26257
+started: 2026-09-27T23:33:11-07:00
 ---
 
 # lint-ids reads the cutover marker from the checked commit, not the checkout
