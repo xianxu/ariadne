@@ -8,6 +8,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // Test hermeticity guard (#149/#165). cmd/sdlc tests run with cwd inside the REAL
@@ -24,7 +27,7 @@ type repoSnapshot struct {
 	head      string          // git rev-parse HEAD
 	branch    string          // git branch --show-current
 	porcelain map[string]bool // set of `git status --porcelain` lines
-	lockFile  bool            // .git/sdlc.lock present
+	lockOwned bool            // .git/sdlc.lock present and possibly this run's (lockMayBeOurs)
 	resolved  bool            // false ⇒ real repo couldn't be resolved (guard skips)
 }
 
@@ -59,7 +62,7 @@ func snapshotDiff(before, after repoSnapshot) []string {
 	for _, p := range fresh {
 		out = append(out, "new working-tree change: "+p)
 	}
-	if !before.lockFile && after.lockFile {
+	if !before.lockOwned && after.lockOwned {
 		out = append(out, "leaked .git/sdlc.lock (acquired and not released)")
 	}
 	return out
@@ -75,6 +78,20 @@ func guardVerdict(before, after repoSnapshot, code int) (exit int, mutations []s
 		return 1, mutations
 	}
 	return code, mutations
+}
+
+// lockMayBeOurs decides whether a present .git/sdlc.lock could have been leaked
+// by this test process. The lock lives in the git common dir, which every linked
+// worktree (every slot) shares, so another slot's running sdlc verb holding it
+// is not a leak (#253). It is ours when this process holds it (an in-process
+// command, #149) or when its holder is gone (a test's child sdlc, or a crash).
+// Unreadable metadata means an acquirer is still initializing it: a live
+// process, so not counted. Pure.
+func lockMayBeOurs(m repolock.Metadata, metaErr error, self int, host string, alive func(int) bool) bool {
+	if metaErr != nil || m.Hostname != host {
+		return false
+	}
+	return m.PID == self || !alive(m.PID)
 }
 
 // realRepoRoot resolves the real repo top-level from the INITIAL cwd — called by
@@ -117,17 +134,24 @@ func readSnapshot(root string) repoSnapshot {
 	if !filepath.IsAbs(common) {
 		common = filepath.Join(root, common)
 	}
-	_, lockErr := os.Stat(filepath.Join(common, "sdlc.lock"))
+	lockDir := filepath.Join(common, "sdlc.lock")
+	lockOwned := false
+	if _, err := os.Stat(lockDir); err == nil {
+		host, _ := os.Hostname()
+		meta, metaErr := repolock.ReadMetadata(lockDir)
+		lockOwned = lockMayBeOurs(meta, metaErr, os.Getpid(), host, processAlive)
+	}
 	return repoSnapshot{
 		head:      head,
 		branch:    git("branch", "--show-current"),
 		porcelain: porc,
-		lockFile:  lockErr == nil,
+		lockOwned: lockOwned,
 		resolved:  head != "",
 	}
 }
 
 func TestMain(m *testing.M) {
+	testfix.PreferRealGit()
 	root := realRepoRoot()
 	before := readSnapshot(root)
 	code := m.Run()

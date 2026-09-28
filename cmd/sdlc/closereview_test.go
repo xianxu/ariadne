@@ -178,11 +178,16 @@ func (l *observedRepoLock) events() []string {
 	return append([]string(nil), l.eventLog...)
 }
 
+// hangGuard bounds a wait that a passing test never reaches. It only turns a
+// hang into a failure, so it is generous: a tight bound fails healthy tests on
+// a loaded machine (#253, sharded runs).
+const hangGuard = time.Minute
+
 func waitForSignal(t *testing.T, ch <-chan struct{}, label string) {
 	t.Helper()
 	select {
 	case <-ch:
-	case <-time.After(5 * time.Second):
+	case <-time.After(hangGuard):
 		t.Fatalf("timeout waiting for %s", label)
 	}
 }
@@ -192,7 +197,7 @@ func waitForErr(t *testing.T, ch <-chan error, label string) error {
 	select {
 	case err := <-ch:
 		return err
-	case <-time.After(2 * time.Second):
+	case <-time.After(hangGuard):
 		t.Fatalf("timeout waiting for %s", label)
 		return nil
 	}

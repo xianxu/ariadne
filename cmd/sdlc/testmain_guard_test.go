@@ -1,13 +1,18 @@
 package main
 
-import "testing"
+import (
+	"errors"
+	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
+)
 
 func snap(head, branch string, porcelain []string, lock bool) repoSnapshot {
 	set := map[string]bool{}
 	for _, p := range porcelain {
 		set[p] = true
 	}
-	return repoSnapshot{head: head, branch: branch, porcelain: set, lockFile: lock, resolved: true}
+	return repoSnapshot{head: head, branch: branch, porcelain: set, lockOwned: lock, resolved: true}
 }
 
 // TestSnapshotDiff pins the pure guard decision (#149/#165): reports only NEW
@@ -68,5 +73,31 @@ func TestGuardVerdict(t *testing.T) {
 	// Failing run + mutation → keep the failure (don't mask), still surface it.
 	if exit, muts := guardVerdict(clean, dirty, 2); exit != 2 || len(muts) != 1 {
 		t.Errorf("failing+mutation: exit=%d muts=%v, want exit=2 with mutation surfaced", exit, muts)
+	}
+}
+
+// TestLockMayBeOurs: the lock sits in the git common dir every slot shares, so
+// only a lock this process holds, or one whose holder died, counts as a leak;
+// another slot's live verb holding it does not (#253).
+func TestLockMayBeOurs(t *testing.T) {
+	const self = 100
+	alive := func(pid int) bool { return pid == self || pid == 300 }
+	meta := func(pid int, host string) repolock.Metadata { return repolock.Metadata{PID: pid, Hostname: host} }
+	cases := []struct {
+		name string
+		m    repolock.Metadata
+		err  error
+		want bool
+	}{
+		{"held by this process", meta(self, "h"), nil, true},
+		{"held by another live process (another slot)", meta(300, "h"), nil, false},
+		{"holder died (leaked by a child or a crash)", meta(400, "h"), nil, true},
+		{"metadata still being written", repolock.Metadata{}, errors.New("no meta.json"), false},
+		{"held on another host", meta(400, "other"), nil, false},
+	}
+	for _, c := range cases {
+		if got := lockMayBeOurs(c.m, c.err, self, "h", alive); got != c.want {
+			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		}
 	}
 }

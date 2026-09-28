@@ -107,7 +107,7 @@ func TestBrainDefaultsExplicitEstimatorOverride(t *testing.T) {
 	wrapBrainDefaults(cmd)
 	var out bytes.Buffer
 	cmd.SetOut(&out)
-	cmd.SetArgs(nil)
+	cmd.SetArgs([]string{}) // nil makes cobra read the test binary's own os.Args
 	if err := cmd.Execute(); err != nil {
 		t.Fatal(err)
 	}
