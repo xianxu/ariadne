@@ -84,3 +84,10 @@ reuses it. No reader of status output slices fixed columns from trimmed text.
   (`TestPlanningContentionReportsUnreadableStatus`, fails without the fix);
   merge and push already fail closed on a parse error. merge_test's gitx import
   grouped.
+- Close round 3 SHIP; its remaining advisory (the rule not applied at the
+  source) fixed: `execGitRunner` returns stdout alone on success and stdout +
+  stderr on failure (`runGitCmd`), so parsed output never carries stderr
+  warnings while error messages keep git's diagnostics. Checked: every caller
+  of stderr-writing verbs (push, pull, fetch) reads the output only on error.
+  Full suite green (39 packages, -timeout 40m; baseline #210 and sandbox ps
+  skipped).

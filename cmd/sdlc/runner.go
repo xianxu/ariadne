@@ -11,6 +11,7 @@
 package main
 
 import (
+	"bytes"
 	"os"
 	"os/exec"
 )
@@ -34,13 +35,26 @@ type gitRunner interface {
 type execGitRunner struct{}
 
 func (execGitRunner) Git(args ...string) ([]byte, error) {
-	return exec.Command("git", args...).CombinedOutput()
+	return runGitCmd(exec.Command("git", args...))
 }
 
 func (execGitRunner) GitInDir(dir string, args ...string) ([]byte, error) {
 	cmd := exec.Command("git", args...)
 	cmd.Dir = dir
-	return cmd.CombinedOutput()
+	return runGitCmd(cmd)
+}
+
+// runGitCmd returns stdout alone on success, so parsed output (a -z status
+// stream, a SHA) never carries stderr warnings (#259); on failure it returns
+// stdout followed by stderr, so error messages keep git's diagnostics.
+func runGitCmd(cmd *exec.Cmd) ([]byte, error) {
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return append(out, stderr.Bytes()...), err
+	}
+	return out, nil
 }
 
 func (execGitRunner) MkdirAll(path string) error { return os.MkdirAll(path, 0o755) }
