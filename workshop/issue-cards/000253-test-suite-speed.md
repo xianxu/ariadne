@@ -10,10 +10,10 @@ actual_hours: 1.08
 tracker:
     version: 1
     completion:
-        token: close-cbc89b0bdac0
+        token: close-3f52b3540b50
         repository: github.com/xianxu/ariadne
-        reviewed_head: 3f11b26fe786c88616d165056e42e9813f15172c
-        evidence_commit: 34b0bc003e9686a1f2ea73a6c7615686d3d03a99
+        reviewed_head: dd78d856fd93bacab04c607e44cc78ab94a05eea
+        evidence_commit: 9ce77508fa261eb0b6156d5b96f0ba40dd139f0f
 ---
 
 # Keep the sdlc test suite fast: tiers, shared binary, parallel-safe e2e
