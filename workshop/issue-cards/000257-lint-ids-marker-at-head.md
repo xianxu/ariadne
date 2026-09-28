@@ -1,6 +1,6 @@
 ---
 id: 000257
-status: codecomplete
+status: done
 created: 2026-09-27
 updated: 2026-09-27
 estimate_hours:
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 76112df699f73401b98a2e5eab625397aa8df614
         evidence_commit: 6bde769ceca040d2247b28fe8e6b2853f340826e
+        landed_commit: 8eea695c0827f1b6c898c7a7e50ba069b98e1566
 ---
 
 # lint-ids reads the cutover marker from the checked commit, not the checkout
