@@ -38,7 +38,8 @@ reuses it. No reader of status output slices fixed columns from trimmed text.
 
 - A close whose gate ledger is modified (not new) commits it in the evidence
   commit (regression test fails today).
-- Migrate names a dirty issue path containing a space exactly.
+- Migrate names a dirty issue path containing a space exactly; no status
+  reader parses status text by hand.
 - `ParseStatusZ` has unit tests (modified-first, untracked, rename, spaces,
   malformed); fleet's count uses it.
 
@@ -64,7 +65,11 @@ reuses it. No reader of status output slices fixed columns from trimmed text.
   `TestIssueMigrateNamesADirtyPathWithASpace` — both fail without the fix.
   gitx, fleet, tracker and the Close/Tracker/IssueMigrate/Merge/StartPlan/
   Leftover/Legacy command tests pass (the only failure is main's baseline #210).
-- Left as is, deliberately: merge's `porcelainPaths` (merge and start-plan's
-  dirty classification) splits on whitespace — it survives the trim, and a path
-  with a space only lands in Blocking, so it fails closed (over-refuses), never
-  drops a file.
+- Close round 1 SHIP; its three advisory Minors fixed: every status reader now
+  goes through `gitx.ParseStatusZ` — merge's dirty check and its pre-merge
+  re-check, start-plan's dirty count, push's interrupted-archive recovery
+  (`porcelainPaths` and `parsePorcelainStatus` deleted; `assessDirty` and
+  `preparedArchiveMoves` take entries; tests feed real `-z` bytes via
+  `statusZ`, plus a spaced-path case); `trackerEnv.gitRaw` is the one exec path
+  (`gitEnv` trims it, `statusEntries` parses it); gitx imports grouped with the
+  project's. Wider command tests green (786 s).

@@ -117,7 +117,7 @@ type archiveRecoveryRunner struct {
 
 func (r *archiveRecoveryRunner) Git(args ...string) ([]byte, error) {
 	r.gitCalls = append(r.gitCalls, append([]string{}, args...))
-	if len(args) >= 3 && args[0] == "status" && args[1] == "--porcelain" && args[2] == "--untracked-files=all" {
+	if len(args) >= 4 && args[0] == "status" && args[1] == "--porcelain=v1" && args[2] == "-z" && args[3] == "--untracked-files=all" {
 		return r.status, nil
 	}
 	return nil, nil
@@ -211,7 +211,7 @@ func TestPreparedArchiveMovesDetectsUnstagedMove(t *testing.T) {
 	writeArchiveCandidate(t, "workshop/history/000036-done.md", "done")
 
 	status := " D workshop/issues/000036-done.md\n?? workshop/history/000036-done.md\n"
-	moves, other, err := preparedArchiveMoves(context.Background(), status, "workshop/issues", "workshop/history", "workshop/plans")
+	moves, other, err := preparedArchiveMoves(context.Background(), statusOf(t, status), "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -233,7 +233,7 @@ func TestPreparedArchiveMovesRejectsNonTerminalHistoryFile(t *testing.T) {
 	writeArchiveCandidate(t, "workshop/history/000036-open.md", "open")
 
 	status := " D workshop/issues/000036-open.md\n?? workshop/history/000036-open.md\n"
-	moves, other, err := preparedArchiveMoves(context.Background(), status, "workshop/issues", "workshop/history", "workshop/plans")
+	moves, other, err := preparedArchiveMoves(context.Background(), statusOf(t, status), "workshop/issues", "workshop/history", "workshop/plans")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -256,7 +256,7 @@ func TestRecoverInterruptedArchiveCommitsAndPushes(t *testing.T) {
 
 	prev := pushRunner
 	r := &archiveRecoveryRunner{
-		status: []byte(" D workshop/issues/000036-done.md\n?? workshop/history/000036-done.md\n"),
+		status: statusZ(" D workshop/issues/000036-done.md\n?? workshop/history/000036-done.md\n"),
 	}
 	pushRunner = r
 	defer func() { pushRunner = prev }()
@@ -274,7 +274,7 @@ func TestRecoverInterruptedArchiveCommitsAndPushes(t *testing.T) {
 	}
 	got := callsJoined(r.gitCalls)
 	for _, want := range []string{
-		"status --porcelain --untracked-files=all",
+		"status --porcelain=v1 -z --untracked-files=all",
 		// Precise add of the exact prepared move — not the broad `add <dir>/`
 		// that swept unrelated untracked WIP onto main (#80).
 		"add -- workshop/issues/000036-done.md workshop/history/000036-done.md",
@@ -691,7 +691,7 @@ func TestRecoverInterruptedArchive_SubfolderLayout(t *testing.T) {
 
 	prev := pushRunner
 	r := &archiveRecoveryRunner{
-		status: []byte(" D workshop/issues/000036-done.md\n?? workshop/history/issues/000036-done.md\n" +
+		status: statusZ(" D workshop/issues/000036-done.md\n?? workshop/history/issues/000036-done.md\n" +
 			" D workshop/plans/000036-done-plan.md\n?? workshop/history/plans/000036-done-plan.md\n"),
 	}
 	pushRunner = r

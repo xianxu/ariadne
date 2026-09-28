@@ -374,11 +374,15 @@ func isPlanPath(path, plansDir string) bool {
 // not land. That state contains untracked history files, so it must be handled
 // before the general untracked-file guard.
 func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f *pushFlags) (bool, error) {
-	statusOut, err := pushRunner.Git("status", "--porcelain", "--untracked-files=all")
+	statusOut, err := pushRunner.Git("status", "--porcelain=v1", "-z", "--untracked-files=all")
 	if err != nil {
 		return false, fmt.Errorf("git status: %v\n%s", err, statusOut)
 	}
-	moves, other, err := preparedArchiveMoves(ctx, string(statusOut), f.IssuesDir, f.HistoryDir, f.PlansDir)
+	entries, err := gitx.ParseStatusZ(statusOut)
+	if err != nil {
+		return false, err
+	}
+	moves, other, err := preparedArchiveMoves(ctx, entries, f.IssuesDir, f.HistoryDir, f.PlansDir)
 	if err != nil {
 		return false, err
 	}
@@ -427,7 +431,7 @@ func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f 
 	return true, nil
 }
 
-func preparedArchiveMoves(ctx context.Context, statusText, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, []string, error) {
+func preparedArchiveMoves(ctx context.Context, entries []gitx.StatusEntry, issuesDir, historyDir, plansDir string) ([]preparedArchiveMove, []string, error) {
 	// A half is one side of a src→history archive move. srcIsPlan marks a plan
 	// artifact (workshop/plans/NNNNNN-*, #143), which — unlike an issue — carries
 	// no terminal frontmatter, so its id-prefixed plans-dir source is the
@@ -449,12 +453,12 @@ func preparedArchiveMoves(ctx context.Context, statusText, issuesDir, historyDir
 		return h
 	}
 	var other []string
-	for _, line := range strings.Split(statusText, "\n") {
-		line = strings.TrimRight(line, "\r")
-		if line == "" {
-			continue
+	for _, e := range entries {
+		line := statusLine(e)
+		status, path, dest := strings.TrimSpace(e.XY), e.Path, ""
+		if e.Orig != "" {
+			path, dest = e.Orig, e.Path
 		}
-		status, path, dest := parsePorcelainStatus(line)
 		if dest != "" {
 			// A staged rename of an issue OR plan artifact, src → history, same base.
 			if isHistoryPath(dest, historyDir) && filepath.Base(path) == filepath.Base(dest) &&
@@ -510,19 +514,6 @@ func preparedArchiveMoves(ctx context.Context, statusText, issuesDir, historyDir
 	sort.Slice(moves, func(i, j int) bool { return moves[i].IssuePath < moves[j].IssuePath })
 	sort.Strings(other)
 	return moves, other, nil
-}
-
-func parsePorcelainStatus(line string) (status, path, dest string) {
-	if len(line) < 4 {
-		return strings.TrimSpace(line), "", ""
-	}
-	status = strings.TrimSpace(line[:2])
-	path = strings.TrimSpace(line[3:])
-	if strings.Contains(path, " -> ") {
-		parts := strings.SplitN(path, " -> ", 2)
-		path, dest = strings.TrimSpace(parts[0]), strings.TrimSpace(parts[1])
-	}
-	return status, path, dest
 }
 
 func isIssuePath(path, issuesDir string) bool {

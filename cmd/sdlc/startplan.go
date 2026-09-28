@@ -451,8 +451,10 @@ func gatherBaseContention(ctx context.Context, root string, excludeIssue int) ba
 	if out, err := mergeRunner.GitInDir(root, "branch", "--show-current"); err == nil {
 		c.Branch = strings.TrimSpace(string(out))
 	}
-	if out, err := mergeRunner.GitInDir(root, "status", "--porcelain"); err == nil {
-		c.DirtyCode = len(assessDirty(strings.TrimSpace(string(out)), issuesDir, historyDir).Blocking)
+	if out, err := mergeRunner.GitInDir(root, "status", "--porcelain=v1", "-z"); err == nil {
+		if entries, err := gitx.ParseStatusZ(out); err == nil {
+			c.DirtyCode = len(assessDirty(entries, issuesDir, historyDir).Blocking)
+		}
 	}
 	excludeID := fmt.Sprintf("%06d", excludeIssue)
 	issues, stale, err := listIssueStates(ctx, filepath.Join(root, issuesDir))

@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // CollectFacts measures one canonical worktree through GitReader. It is total:
