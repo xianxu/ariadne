@@ -150,3 +150,7 @@ moved.
   Brains (brain, brain-family, brain-private, robotics) are excluded by
   charter. Done-when bullets 1–2 hold; Phase D (delete the legacy writers and
   legacy mode) remains.
+- Phase D deferred by the operator (2026-09-28): sdlc changes rarely, so keep
+  legacy mode and the legacy writers for a while as a fallback in case the
+  cutover missed something; delete them later. The `sdlc-smoke` sandbox repo
+  (#252 smoke test A2) is being deleted from GitHub by the operator.
