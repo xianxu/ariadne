@@ -82,6 +82,20 @@ func openTrackerAt(ctx context.Context, dir string) (*trackerEnv, error) {
 // is kept out of the value so a warning can never be parsed as an object ID.
 func (e *trackerEnv) git(args ...string) (string, error) { return e.gitEnv(nil, args...) }
 
+// statusEntries runs `git -C dir status --porcelain=v1 -z <args>` and parses it
+// byte-exact. Status output is column-structured: git() trims, which eats the
+// first entry's leading status space and shifts its path (#259).
+func (e *trackerEnv) statusEntries(dir string, args ...string) ([]gitx.StatusEntry, error) {
+	cmd := exec.CommandContext(e.ctx, "git", append([]string{"-C", dir, "status", "--porcelain=v1", "-z"}, args...)...)
+	var stderr strings.Builder
+	cmd.Stderr = &stderr
+	out, err := cmd.Output()
+	if err != nil {
+		return nil, fmt.Errorf("git status: %w: %s", err, strings.TrimSpace(stderr.String()))
+	}
+	return gitx.ParseStatusZ(out)
+}
+
 // gitEnv is git with extra environment (a temporary index, for instance).
 func (e *trackerEnv) gitEnv(extra []string, args ...string) (string, error) {
 	cmd := exec.CommandContext(e.ctx, "git", args...)

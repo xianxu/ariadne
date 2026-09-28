@@ -158,14 +158,12 @@ func closeEvidence(env *trackerEnv, r closeResult, plansDir string) ([]tracker.E
 	paths := []string{details}
 	stem := strings.TrimSuffix(filepath.Base(r.issuePath), ".md")
 	if plans, err := rel(plansDir); err == nil {
-		changed, err := env.git("status", "--porcelain", "-z", "--untracked-files=all", "--", path.Join(plans, stem+"-*"))
+		changed, err := env.statusEntries(env.root, "--untracked-files=all", "--", path.Join(plans, stem+"-*"))
 		if err != nil {
 			return nil, err
 		}
-		for _, entry := range strings.Split(changed, "\x00") {
-			if len(entry) > 3 {
-				paths = append(paths, entry[3:])
-			}
+		for _, entry := range changed {
+			paths = append(paths, entry.Path)
 		}
 	}
 	for _, e := range r.projectEdits {

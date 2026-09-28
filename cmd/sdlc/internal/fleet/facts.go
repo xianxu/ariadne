@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"strconv"
 	"strings"
 	"time"
@@ -99,37 +100,8 @@ func (facts *MeasuredFacts) collectDivergence(git GitReader, worktreeRoot string
 }
 
 func countStatusEntries(porcelain []byte) (int, error) {
-	if len(porcelain) == 0 {
-		return 0, nil
-	}
-	if porcelain[len(porcelain)-1] != 0 {
-		return 0, fmt.Errorf("status stream is missing final NUL terminator")
-	}
-	fields := bytes.Split(porcelain, []byte{0})
-	count := 0
-	for i := 0; i < len(fields); i++ {
-		field := fields[i]
-		if len(field) == 0 {
-			if i == len(fields)-1 {
-				continue
-			}
-			return 0, fmt.Errorf("empty status field %d", i+1)
-		}
-		if len(field) < 4 || field[2] != ' ' || !validStatusCode(string(field[:2])) {
-			return 0, fmt.Errorf("field %d is not XY+path status", i+1)
-		}
-		if field[0] == 0 || field[1] == 0 || len(field[3:]) == 0 {
-			return 0, fmt.Errorf("field %d is malformed", i+1)
-		}
-		count++
-		if field[0] == 'R' || field[0] == 'C' || field[1] == 'R' || field[1] == 'C' {
-			i++
-			if i >= len(fields) || len(fields[i]) == 0 {
-				return 0, fmt.Errorf("field %d rename/copy is missing source path", i)
-			}
-		}
-	}
-	return count, nil
+	entries, err := gitx.ParseStatusZ(porcelain)
+	return len(entries), err
 }
 
 func parseDivergence(output []byte) (behind, ahead int, err error) {
@@ -161,24 +133,6 @@ func decimalBytes(value []byte) bool {
 		}
 	}
 	return true
-}
-
-func validStatusCode(code string) bool {
-	switch code {
-	case " A", " M", " T", " D",
-		"M ", "MM", "MT", "MD",
-		"T ", "TM", "TT", "TD",
-		"A ", "AM", "AT", "AD",
-		"D ",
-		"R ", "RM", "RT", "RD",
-		"C ", "CM", "CT", "CD",
-		" R", " C",
-		"DD", "AU", "UD", "UA", "DU", "AA", "UU",
-		"??":
-		return true
-	default:
-		return false
-	}
 }
 
 type exitCoder interface{ ExitCode() int }

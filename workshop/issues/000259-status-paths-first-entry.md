@@ -1,12 +1,13 @@
 ---
 id: 000259
-status: open
+status: working
 deps: [000255]
 github_issue:
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
-card_mirror: '4e102fcd8913cf6021bdd7d56e7216c96744cc5b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '76225029040b45dd2203a24aaa2f30ab7050b3ab' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-28T09:25:50-07:00
 ---
 
 # close evidence and other status readers drop the first modified path
@@ -42,11 +43,26 @@ reuses it. No reader of status output slices fixed columns from trimmed text.
 
 ## Plan
 
-- [ ] `gitx.ParseStatusZ` + tests; fleet's count reuses it
-- [ ] `trackerEnv.statusPaths`; `closeEvidence` and `dirtyIssuePaths` use it
-- [ ] Regression tests (second-round close ledger; spaced dirty path)
-- [ ] Lesson: never slice status output at fixed columns from a trimming runner
+- [x] `gitx.ParseStatusZ` + tests; fleet's count reuses it
+- [x] `trackerEnv.statusEntries`; `closeEvidence` and `dirtyIssuePaths` use it
+- [x] Regression tests (second-round close ledger; spaced dirty path)
+- [x] Lesson: never slice status output at fixed columns from a trimming runner
 
 ## Log
 
 ### 2026-09-28
+- `gitx.ParseStatusZ` (moved from fleet's validating counter, which now
+  returns its length; `ValidStatusCode` exported for fleet's fake git) and
+  `trackerEnv.statusEntries` (untrimmed). `closeEvidence` and migrate's
+  `dirtyIssuePaths` use it. Evidence commits confirmed the diagnosis: #257
+  118c7039 (round 1, ledger new) carried the gate ledger; aad120e7, 6bde769c
+  and #255 3092bf0c (later rounds, ledger modified) did not.
+- Tests: `TestParseStatusZ` (modified-first, untracked, rename, spaces;
+  trimmed-first refused), `TestTrackerReCloseCommitsTheModifiedGateLedger` and
+  `TestIssueMigrateNamesADirtyPathWithASpace` — both fail without the fix.
+  gitx, fleet, tracker and the Close/Tracker/IssueMigrate/Merge/StartPlan/
+  Leftover/Legacy command tests pass (the only failure is main's baseline #210).
+- Left as is, deliberately: merge's `porcelainPaths` (merge and start-plan's
+  dirty classification) splits on whitespace — it survives the trim, and a path
+  with a space only lands in Blocking, so it fails closed (over-refuses), never
+  drops a file.

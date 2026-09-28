@@ -254,3 +254,33 @@ func TestLegacyDetailsRefuseInATrackedCheckout(t *testing.T) {
 		t.Fatalf("a legacy repository's details lost the legacy path: %v", err)
 	}
 }
+
+// A re-close modifies the boundary gate ledger its first close created. Its
+// status entry then leads with a space (" M"), sorts first among the issue's
+// plan files, and must still ride the evidence commit (#259: the trimmed
+// status read cut it to "orkshop/…", leaving the ledger uncommitted).
+func TestTrackerReCloseCommitsTheModifiedGateLedger(t *testing.T) {
+	r, _, _ := closeReady(t, 302)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	closeOnce := func() {
+		t.Helper()
+		if _, stderr, err := executeSDLCTestCommand("close", "--issue", "302", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
+			t.Fatalf("close: %v\n%s", err, stderr)
+		}
+	}
+	closeOnce()
+	ledger := "workshop/plans/000302-e2e-close-gate.md"
+	if r.git("ls-tree", "--name-only", "HEAD", "--", ledger) == "" {
+		t.Fatalf("the first close did not commit its new gate ledger:\n%s", r.git("show", "--name-only", "--format=", "HEAD"))
+	}
+	writeRepoFile(t, r.root, "cmd/b.go", "package a\n")
+	r.git("add", "cmd/b.go")
+	r.git("commit", "-qm", "#302: a fix after the close")
+	closeOnce()
+	if !strings.Contains(r.git("show", "--name-only", "--format=", "HEAD"), ledger) {
+		t.Fatalf("the re-close's evidence commit lacks the modified gate ledger:\n%s", r.git("show", "--name-only", "--format=", "HEAD"))
+	}
+	if dirty := r.git("status", "--porcelain", "--", "workshop/plans"); dirty != "" {
+		t.Fatalf("the re-close left plan files uncommitted:\n%s", dirty)
+	}
+}
