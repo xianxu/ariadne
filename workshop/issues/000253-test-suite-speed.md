@@ -8,6 +8,7 @@ updated: 2026-09-28
 estimate_hours:
 card_mirror: '1c3ce1093c13414aedd4a527a73e5cac3533fdc0' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T11:24:11-07:00
+flow: {kind: quick, provenance: inferred, spec: "ac96e243", done: "e5e3c244"}
 ---
 
 # Keep the sdlc test suite fast: tiers, shared binary, parallel-safe e2e
