@@ -58,6 +58,16 @@ rounds:
           round: 3
       recipe: small-diff-review
       blocked: false
+    - "n": 4
+      timestamp: "2026-09-28T15:53:51-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: managed_ignore.go:111 at head reads `for _, entry := range block`; the shadowing is gone (pure rename, no behavior change).
+          round: 4
+      recipe: small-diff-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#263 (boundary-review)
@@ -93,6 +103,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `identifier-shadowing` The loop variable e in managedIgnore shadows the error variable e from the line above
   managed_ignore.go:111 has `for _, e := range block`. The code is correct but the name is confusing; renaming it to entry fixes it. This is the only instance in the window.
 
+## Round 4 — 2026-09-28T15:53:51-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — managed_ignore.go:111 at head reads `for _, entry := range block`; the shadowing is gone (pure rename, no behavior change).
+
 ## Open findings
 
-- **BR-4** [Minor] `identifier-shadowing` The loop variable e in managedIgnore shadows the error variable e from the line above
+(none — every finding has been disposed)
