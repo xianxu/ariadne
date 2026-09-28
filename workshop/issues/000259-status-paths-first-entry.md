@@ -8,7 +8,7 @@ updated: 2026-09-28
 estimate_hours:
 card_mirror: '76225029040b45dd2203a24aaa2f30ab7050b3ab' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T09:25:50-07:00
-flow: {kind: quick, provenance: inferred, spec: "976ea22b", done: "fa4e239f"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # close evidence and other status readers drop the first modified path
@@ -53,6 +53,8 @@ reuses it. No reader of status output slices fixed columns from trimmed text.
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — Round 2: all status readers (close evidence, migrate dirty list, merge dirty check + re-check, start-plan dirty count, push archive recovery, fleet count) use gitx.ParseStatusZ; hand parsers deleted; trackerEnv.gitRaw single exec path. Regression tests fail without the fix (re-close ledger, spaced dirty path); wider command tests green (786s, -timeout 40m). --no-atlas: internal parser consolidation, no new surface.; review verdict: SHIP
+- 2026-09-28: flow upgraded quick → full — 133 added lines in code files (limit 100)
 - 2026-09-28: closed — gitx.ParseStatusZ is the one byte-exact status reader (fleet count reuses it); trackerEnv.statusEntries reads untrimmed; closeEvidence and migrate dirtyIssuePaths use it. TestTrackerReCloseCommitsTheModifiedGateLedger and TestIssueMigrateNamesADirtyPathWithASpace fail without the fix; TestParseStatusZ covers modified-first/untracked/rename/spaces/trimmed-refused. gitx/fleet/tracker + Close/Tracker/IssueMigrate/Merge/StartPlan/Leftover/Legacy tests green (only main baseline #210 fails). --no-atlas: internal parser consolidation, no new surface.; review verdict: SHIP
 - `gitx.ParseStatusZ` (moved from fleet's validating counter, which now
   returns its length; `ValidStatusCode` exported for fleet's fake git) and
