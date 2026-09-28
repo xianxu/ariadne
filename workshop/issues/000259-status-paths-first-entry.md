@@ -8,6 +8,7 @@ updated: 2026-09-28
 estimate_hours:
 card_mirror: '76225029040b45dd2203a24aaa2f30ab7050b3ab' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T09:25:50-07:00
+flow: {kind: quick, provenance: inferred, spec: "976ea22b", done: "fa4e239f"}
 ---
 
 # close evidence and other status readers drop the first modified path
