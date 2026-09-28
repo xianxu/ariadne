@@ -6,7 +6,7 @@ updated: 2026-09-27
 estimate_hours:
 github_issue:
 started: 2026-09-27T23:33:11-07:00
-actual_hours: 0.19
+actual_hours: 0.26
 tracker:
     version: 1
     handoff:
@@ -20,10 +20,10 @@ tracker:
         destination: workshop/issues/000257-lint-ids-marker-at-head.md
         main_commit: 76c347e6829f88c629a3b20b7e999281dbe26257
     completion:
-        token: close-5382178e7d90
+        token: close-89a43f297250
         repository: github.com/xianxu/ariadne
-        reviewed_head: 79ee4f70a2a65ab5dd3c97a07ab96fe6222cd8cc
-        evidence_commit: aad120e70a25d4c2ac40ebb599fb90882cd86b85
+        reviewed_head: 76112df699f73401b98a2e5eab625397aa8df614
+        evidence_commit: 6bde769ceca040d2247b28fe8e6b2853f340826e
 ---
 
 # lint-ids reads the cutover marker from the checked commit, not the checkout
