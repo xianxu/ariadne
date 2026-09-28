@@ -1,6 +1,6 @@
 ---
 id: 000259
-status: codecomplete
+status: done
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 074fd154781ac207c10fbf883b6c745d859465e7
         evidence_commit: 2d2fdb679734359d7ddde0448a3b5bfca290f195
+        landed_commit: 6dc24893691864d8cd232b71b4702d61678d813b
 ---
 
 # close evidence and other status readers drop the first modified path
