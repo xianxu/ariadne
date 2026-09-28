@@ -91,19 +91,19 @@ land later, and reviews wait.
 Scope after the second revision: the two short-term speed-ups, measured.
 
 - [x] Timing report (`go test -json`), recorded in the Log
-- [ ] Real git on PATH: `testfix.PreferRealGit()` puts `$(git --exec-path)`
+- [x] Real git on PATH: `testfix.PreferRealGit()` puts `$(git --exec-path)`
   first on PATH; called from a `TestMain` in every package that drives real
   git (cmd/sdlc, gitx, tracker, fleet, activetime)
-- [ ] Sharded runner `scripts/test-shard.py`: compile the `cmd/sdlc` test binary once, split its
+- [x] Sharded runner `scripts/test-shard.py`: compile the `cmd/sdlc` test binary once, split its
   top-level tests over N processes balanced by the last run's timings (LPT),
   run the other packages alongside; `test2json` output, so
   `scripts/test-timing.py` reads it; non-zero exit on any failure; `make test`
-- [ ] Fixes the sharded run surfaced: `TestBrainDefaultsExplicitEstimatorOverride`
+- [x] Fixes the sharded run surfaced: `TestBrainDefaultsExplicitEstimatorOverride`
   passes `SetArgs(nil)` (cobra then reads the test binary's own os.Args);
   the hermeticity guard counts another slot's live `sdlc.lock` as a leak —
   flag it only when this test process holds it; investigate the load-sensitive
   5 s waits and the silent exit-1 shard
-- [ ] Verify: sharded run green (bar #210) on an idle machine; record wall
+- [x] Verify: sharded run green (bar #210) on an idle machine; record wall
   times (serial vs. sharded) in the Log; guidance line in AGENTS.local.md
 
 ## Revisions
@@ -174,4 +174,29 @@ Scope after the second revision: the two short-term speed-ups, measured.
 - Scope: the stateful git fake (ARCH-MOCK, run tests on both backends) is
   split out to #261 at the operator's direction; #253 makes the real-git
   tests fast.
+- Implemented (754ba3d4, 1fb3c843): `testfix.PreferRealGit()` from a
+  `TestMain` in cmd/sdlc, gitx, tracker, fleet, activetime;
+  `scripts/test-shard.py` / `make test`; the three fixes the experiment
+  surfaced (cobra reading the test binary's os.Args via `SetArgs(nil)`; the
+  guard now flags a lock only when this process holds it or its holder is dead
+  — `lockMayBeOurs`; a shared one-minute hang guard in place of 5 s / 2 s
+  bounds). The silent exit-1 shard from the experiment did not recur.
+- Results, `cmd/sdlc/...` full suite on this machine (12 cores, sandbox):
+
+  | run | wall |
+  |---|---|
+  | serial `go test`, before | 1,531 s for `cmd/sdlc` alone (needs `-timeout 60m`) |
+  | serial, real git on PATH | 867 s for `cmd/sdlc` |
+  | `make test`, first run (no timings, round-robin) | 246 s, then 240 s |
+  | `make test`, LPT-balanced (shards 156–180 s) | **181 s** |
+
+  Failures in every run are the two known ones only: #210
+  (TestFleetPlanHas… reads an archived plan) and processgroup's
+  TestCancellationKillsDescendants (sandbox blocks `/bin/ps`).
+- One balanced run tripped the hermeticity guard because a commit landed in
+  the checkout mid-run (HEAD moved): the guard working as designed. Run the
+  suite in a checkout nobody commits to during the run; a `:1+` slot is the
+  natural place.
+- The operator switched `:0` to main mid-session (the hazard of sharing `:0`);
+  switched back with no loss.
 
