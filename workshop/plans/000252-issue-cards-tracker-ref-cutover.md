@@ -160,8 +160,10 @@ Soak in tracker mode (slot 1 only), a few days:
 - [ ] A new issue end to end: `issue new` → `move-detail` → `claim` → … → `sdlc merge`
 - [ ] A `milestone-close` on an `Mx` plan
 - [ ] A spin-off: `issue new` on an issue branch → `move-detail` while the code is unshipped
-- [ ] (deferred by the operator) Reconcile one pre-cutover branch — `000209-safe-defaults-plan`
-      later; rehearsal showed it needs its pre-cutover `lessons.md` conflict resolved
+- [ ] After #291: retire the pre-cutover branch `000209-safe-defaults-plan` — copy its
+      `workshop/plans/000209-safe-by-default-posture-plan.md` (and its 7 `lessons.md` lines, if still
+      wanted) onto main by hand in one commit, then delete the branch (local only; never on GitHub).
+      #209 restarts from main later (operator choice over merging the stale branch)
 - [ ] Record results in #252's Log
 
 Exit: Phase B (ship #252); then `parley.nvim:0` pulls ariadne + `weave compile`, `git pull`s
