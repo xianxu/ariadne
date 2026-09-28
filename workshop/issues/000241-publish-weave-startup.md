@@ -147,6 +147,11 @@ cleanup in each; no adopt mode needed for a one-off.
 - Deferred, work in flight on `:0`: tools (#80, #81 working; local main holds
   their unpublished designs) and xianxu.dev (#4 working, close review
   verdict unknown on 2026-09-19). Adopt after they land.
+  → Both landed (tools #80/#81 via PRs #55/#56; xianxu.dev #4 closed by hand
+  and pushed), then adopted: tools 975ddb6, xianxu.dev 1784439. Both had the
+  older indirect Makefile include (as parli), moved to the seed's form;
+  xianxu.dev's `:0` also held a half-applied 2026-09-19/27 compile and a stray
+  `src/.gitignore` (old root list), removed.
 - Not yet checked: pair and ducks compile, but may still track old links.
 
 ## Revisions
