@@ -156,3 +156,81 @@ dispose:
     note: |
       cmd/sdlc/realgit_guard_test.go enforces it; per-dir grep shows fleet/tracker/gitx/activetime would fail without their TestMain call; passes at HEAD.
 ```
+
+---
+
+## Re-review — 2026-09-28T15:29:02-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 253 — Keep the sdlc test suite fast: tiers, shared binary, parallel-safe e2e |
+| repo | ariadne |
+| issue file | workshop/issues/000253-test-suite-speed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e8415cb0b218ae713b4f9ae06e0018ef727ddd24..dd78d856fd93bacab04c607e44cc78ab94a05eea |
+| command | sdlc close --issue 253 |
+| reviewer | claude |
+| timestamp | 2026-09-28T15:29:02-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The two speed-ups in the narrowed scope are delivered and they work. `testfix.PreferRealGit()` is called from a `TestMain` in every package that drives git (cmd/sdlc, gitx, tracker, fleet, activetime), and a source guard now enforces it (`TestGitDrivingPackagesPreferRealGit`). The sharded runner is in `scripts/test-shard.py` behind `make test`. The two fixes the sharded run needed are in (`SetArgs([]string{})`, and `lockMayBeOurs` for the shared `sdlc.lock`). The atlas and `AGENTS.local.md` both document how to run the suite. At HEAD dd78d856 the targeted tests pass: `TestGitDrivingPackagesPreferRealGit`, `TestLockMayBeOurs`, `TestSnapshotDiff` and the `testfix` package. Nothing blocks. Two prior Minors are still open. BR-1 was never touched: the `move-detail` help text still says "escape patch". BR-3 widened the regex, but the rule behind that finding still has no check.
+
+**1. Strengths**
+- `cmd/sdlc/testmain_test.go:90` `lockMayBeOurs` is a pure decision with the process-liveness check injected. The table in `testmain_guard_test.go:81` covers live, dead, mid-initialisation and other-host holders (ARCH-PURE).
+- `internal/testfix/realgit.go` is a no-op when git or its exec-path binary is missing. `PrependPath` is idempotent and has its own table test.
+- `realgit_guard_test.go` turns the "new git-driving package needs a `TestMain`" rule from atlas prose into a failing test. That closes BR-4 properly.
+- `test-shard.py` bounds the timings file: it is overwritten each run, pruned to the tests that still exist, and lives in the git common dir, so it goes away with the clone. Its comment says all of this (ARCH-FUNERAL).
+- `closereview_test.go:184` `hangGuard` fixes the root cause of the load-sensitive 5 s waits: the bound exists only to catch a hang, so it is now generous rather than tight.
+
+**2. Critical:** none.
+
+**3. Important:** none.
+
+**4. Minor**
+- BR-1 (still open): `cmd/sdlc/issuemovedetail.go:38` still reads "Consult operator before move, this is an escape patch, not for regular use." It should say "hatch", and the run-on sentence needs splitting, e.g. "Consult the operator before moving: this is an escape hatch, not for regular use."
+- BR-3 (still open, 2nd in family `shard-test-selection-completeness`): the regex now includes `Example`, which fixes that one case. The rule it belongs to is still unchecked: every name `-test.list` prints (except `Benchmark*`) must run in exactly one shard. The runner could compute `set(names) - {tests seen with a pass/fail/skip event}` and exit non-zero when that set is non-empty. That catches this whole family (a regex gap, a sharding bug, a name dropped from a `-test.run` pattern), not just the `Example` case. Right now nothing fails if a selected test silently never runs.
+- `scripts/test-shard.py:151`: `write_atomic` uses a fixed `sdlc-test-timings.tmp` in the shared common dir. Two slots running `make test` at once can race on that temp file. A `tempfile.NamedTemporaryFile(dir=...)` would avoid it. This is low impact, since the file only feeds shard balancing.
+
+**5. Test coverage notes**
+- The guard's regex only sees direct git spawns in test source: `exec.Command…"git"` and `testfix.Git/Capture/Repo`. A package whose tests reach git only through production code (for example by calling into gitx) would not be flagged. I found no such package today, so this is not a finding; it's a known blind spot.
+- `test-shard.py` and `test-timing.py` have no automated tests. The runner's selection and failure reporting were checked only by live runs, which is why BR-3 is still open.
+
+**6. Architecture pass**
+- **ARCH-DRY: pass.** The five per-package `TestMain` files are near-identical, but that is how Go requires it.
+- **ARCH-PURE: pass.** `lockMayBeOurs` and `PrependPath` are pure.
+- **ARCH-PURPOSE: pass** against the twice-revised Done-when. The `-short` tier, the budget guard and the shared binary build were deferred explicitly to #261, with the reasons logged.
+- **ARCH-MOCK: pass.** The stateful git fake is scoped to #261, and this change adds no new external call.
+- **ARCH-CONSTRAINTS: pass.** Shard count defaults to the core count, and the per-process timeout is explicit (30m).
+- **ARCH-SECURE: pass.** A timings file that fails to parse degrades to round-robin dealing. It is trusted only for balancing.
+- **ARCH-ORDER: pass.** The only ordering concern is lock ownership across slots, and it is handled with an explicit pure decision.
+- **ARCH-FUNERAL: pass.** The timings file is bounded and overwritten, and the temp directory is cleaned up by its context manager.
+
+**7. Plan revision recommendations:** none. The plan matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      issuemovedetail.go:38 at dd78d856 still reads "this is an escape patch" in a comma-spliced sentence; unchanged since f3e7c907.
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      Regex widened to Example (3f11b26f), but no test and no class check; add a runner coverage check that every -test.list name except Benchmark got a terminal event, else exit non-zero.
+findings:
+  - id: new
+    severity: Minor
+    family: shared-state-write-race
+    title: |
+      test-shard.py write_atomic uses a fixed .tmp path in the shared git common dir, so concurrent make test runs from two slots can race
+    detail: |
+      scripts/test-shard.py:151 always writes sdlc-test-timings.tmp. Use tempfile.NamedTemporaryFile(dir=path.parent, delete=False) and then os.replace.
+```

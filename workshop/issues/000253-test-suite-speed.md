@@ -149,6 +149,7 @@ Scope after the second revision: the two short-term speed-ups, measured.
   4f7260ae (18 packages ok; cmd/sdlc 1,140 s).
 
 ### 2026-09-28
+- 2026-09-28: closed — make test: 181 s wall balanced (1,531 s serial before); only known failures #210 and sandbox-only processgroup ps; re-close after merging origin/main (clean; move-detail/help/guard tests green); review verdict: FIX-THEN-SHIP
 - 2026-09-28: closed — make test: 181 s wall balanced (1,531 s serial before); only known failures #210 and sandbox-only processgroup ps; close-review Minors fixed in 3f11b26f (guard red without a TestMain, green with); review verdict: SHIP
 - 2026-09-28: closed — make test: 181 s wall balanced (1,531 s serial before); only known failures #210 and sandbox-only processgroup ps; review verdict: SHIP
 - 2026-09-28: flow upgraded quick → full — 321 added lines in code files (limit 100)

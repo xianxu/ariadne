@@ -52,6 +52,27 @@ rounds:
           round: 2
       recipe: milestone-review
       blocked: false
+    - "n": 3
+      timestamp: "2026-09-28T15:29:02-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: not-addressed
+          note: issuemovedetail.go:38 at dd78d856 still reads "this is an escape patch" in a comma-spliced sentence; unchanged since f3e7c907.
+          round: 3
+        - id: BR-3
+          disposition: not-addressed
+          note: Regex widened to Example (3f11b26f), but no test and no class check; add a runner coverage check that every -test.list name except Benchmark got a terminal event, else exit non-zero.
+          round: 3
+      findings:
+        - id: BR-5
+          severity: Minor
+          title: test-shard.py write_atomic uses a fixed .tmp path in the shared git common dir, so concurrent make test runs from two slots can race
+          detail: scripts/test-shard.py:151 always writes sdlc-test-timings.tmp. Use tempfile.NamedTemporaryFile(dir=path.parent, delete=False) and then os.replace.
+          family: shared-state-write-race
+          round: 3
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#253 (boundary-review)
@@ -78,7 +99,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-3 — not-addressed — TEST_NAME now admits Example, but no test pins it and no Example exists in cmd/sdlc, so no fixture reaches the change; scripts/test/ could host the check.
 - BR-4 — addressed — cmd/sdlc/realgit_guard_test.go enforces it; per-dir grep shows fleet/tracker/gitx/activetime would fail without their TestMain call; passes at HEAD.
 
+## Round 3 — 2026-09-28T15:29:02-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — not-addressed — issuemovedetail.go:38 at dd78d856 still reads "this is an escape patch" in a comma-spliced sentence; unchanged since f3e7c907.
+- BR-3 — not-addressed — Regex widened to Example (3f11b26f), but no test and no class check; add a runner coverage check that every -test.list name except Benchmark got a terminal event, else exit non-zero.
+
+### Raised
+
+- **BR-5** [Minor] `shared-state-write-race` test-shard.py write_atomic uses a fixed .tmp path in the shared git common dir, so concurrent make test runs from two slots can race
+  scripts/test-shard.py:151 always writes sdlc-test-timings.tmp. Use tempfile.NamedTemporaryFile(dir=path.parent, delete=False) and then os.replace.
+
 ## Open findings
 
 - **BR-1** [Minor] `help-text-accuracy` move-detail help text says "escape patch" (means escape hatch) and the sentence is ungrammatical
 - **BR-3** [Minor] `shard-test-selection-completeness` test-shard TEST_NAME excludes Example functions, so future cmd/sdlc examples would silently not run under make test
+- **BR-5** [Minor] `shared-state-write-race` test-shard.py write_atomic uses a fixed .tmp path in the shared git common dir, so concurrent make test runs from two slots can race
