@@ -33,6 +33,35 @@ rounds:
           round: 1
       recipe: small-diff-review
       blocked: false
+    - "n": 2
+      timestamp: "2026-09-27T23:46:19-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: cutover.go:106 verifies commit^{commit} before ls-tree; only an empty listing is absent. cutover_test.go:147 (no-such-commit must error) goes red on the old cat-file -e probe.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: issuelintids.go:231 and issuemigrate.go:132 both use tracker.ReadCutoverMarkerAt; the guard reads via Repository.readMarker. Residual reconcile re-read raised separately.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: Spec now reads "from the tree of its head (--head, default HEAD), never the checkout's files", matching cardlessAdditions.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: TestGuardCutoverAtJudgesTheCommit asserts "commit <sha> has no" for an unmarked commit beside a marked checkout; without the cutover.go:139 branch the generic checkout message fails it.
+          round: 2
+      findings:
+        - id: BR-5
+          severity: Minor
+          title: reconcile re-reads main's marker right after migratedAlready read it, and drops the parse error
+          detail: '2nd finding in family single-marker-reader. Rule: read a commit''s marker once through ReadCutoverMarkerAt and pass the root along. At issuemigrate.go:518-522, mainView.Read plus a ParseCutoverMarker whose error is discarded repeats migratedAlready''s read. Fix: have migratedAlready return (root, done, err). Enumeration in this window: issuemigrate.go:518 (this one); issuelintids.go:231 followed by the GuardCutoverAt re-read (same reader, acceptable).'
+          family: single-marker-reader
+          round: 2
+      recipe: small-diff-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#257 (boundary-review)
@@ -53,9 +82,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `unexercised-branch` checkCutover's markerAt-absent refusal (cutover.go:130) has no test and no reaching caller
   lint-ids checks marker presence at head before guarding, so this branch is unreachable today; a tracker-package unit test would pin it for future GuardCutoverAt callers.
 
+## Round 2 — 2026-09-27T23:46:19-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — cutover.go:106 verifies commit^{commit} before ls-tree; only an empty listing is absent. cutover_test.go:147 (no-such-commit must error) goes red on the old cat-file -e probe.
+- BR-2 — addressed — issuelintids.go:231 and issuemigrate.go:132 both use tracker.ReadCutoverMarkerAt; the guard reads via Repository.readMarker. Residual reconcile re-read raised separately.
+- BR-3 — addressed — Spec now reads "from the tree of its head (--head, default HEAD), never the checkout's files", matching cardlessAdditions.
+- BR-4 — addressed — TestGuardCutoverAtJudgesTheCommit asserts "commit <sha> has no" for an unmarked commit beside a marked checkout; without the cutover.go:139 branch the generic checkout message fails it.
+
+### Raised
+
+- **BR-5** [Minor] `single-marker-reader` reconcile re-reads main's marker right after migratedAlready read it, and drops the parse error
+  2nd finding in family single-marker-reader. Rule: read a commit's marker once through ReadCutoverMarkerAt and pass the root along. At issuemigrate.go:518-522, mainView.Read plus a ParseCutoverMarker whose error is discarded repeats migratedAlready's read. Fix: have migratedAlready return (root, done, err). Enumeration in this window: issuemigrate.go:518 (this one); issuelintids.go:231 followed by the GuardCutoverAt re-read (same reader, acceptable).
+
 ## Open findings
 
-- **BR-1** [Minor] `absent-vs-error-conflation` ReadCutoverMarkerAt treats any cat-file -e failure (bad ref, git error) as "marker absent"
-- **BR-2** [Minor] `single-marker-reader` Marker presence probed twice for lint-ids, with a third commit-tree reader in issuemigrate
-- **BR-3** [Minor] `doc-claim-drift` Spec says lint-ids without --head reads the checkout; it reads HEAD's committed tree
-- **BR-4** [Minor] `unexercised-branch` checkCutover's markerAt-absent refusal (cutover.go:130) has no test and no reaching caller
+- **BR-5** [Minor] `single-marker-reader` reconcile re-reads main's marker right after migratedAlready read it, and drops the parse error

@@ -63,6 +63,9 @@ cutover mismatch guard still refuses a real mismatch at `H`.
   always has a head); `TestGuardCutoverAtJudgesTheCommit` pins the commit
   guard (unmarked commit beside a marked checkout refuses, committed match
   passes, foreign root refuses, bad commit errors).
+- Close round 2 SHIP; its Minor fixed: `migratedAlready` returns the root it
+  read, so reconcile no longer re-reads main's marker (and no longer drops a
+  parse error). One commit-marker read per decision.
 
 ## Revisions
 

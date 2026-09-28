@@ -91,7 +91,7 @@ func runIssueMigrate(ctx context.Context, stdout, stderr io.Writer, f issueMigra
 	if err != nil {
 		return err
 	}
-	if done, err := migratedAlready(env, mainView); err != nil || done {
+	if _, done, err := migratedAlready(env, mainView); err != nil || done {
 		if done {
 			cok(stderr, "already migrated: main carries the cutover marker for this repository's issue tracker")
 		}
@@ -126,31 +126,32 @@ func runIssueMigrate(ctx context.Context, stdout, stderr io.Writer, f issueMigra
 	return nil
 }
 
-// migratedAlready reports a completed migration: main carries a marker whose
-// root is the tracker's. A marker naming another tracker refuses.
-func migratedAlready(env *migrateEnv, mainView *gitx.TrunkView) (bool, error) {
+// migratedAlready reports a completed migration and the tracker root main's
+// marker names: main carries a marker whose root is the tracker's. A marker
+// naming another tracker refuses.
+func migratedAlready(env *migrateEnv, mainView *gitx.TrunkView) (string, bool, error) {
 	root, present, err := tracker.ReadCutoverMarkerAt(env.root, mainView.Ref())
 	if err != nil || !present {
-		return false, err
+		return "", false, err
 	}
 	exists, err := env.tracker.Initialized()
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	if !exists {
-		return false, fmt.Errorf("main carries %s (tracker root %s) but %s has no issue tracker; restore it rather than migrate again", tracker.CutoverMarkerPath, shortOID(root), env.target.Remote)
+		return "", false, fmt.Errorf("main carries %s (tracker root %s) but %s has no issue tracker; restore it rather than migrate again", tracker.CutoverMarkerPath, shortOID(root), env.target.Remote)
 	}
 	view, err := env.trunk.Snapshot()
 	if err != nil {
-		return false, err
+		return "", false, err
 	}
 	if ok, err := env.trunk.HasRoot(root, view.Ref()); err != nil || !ok {
 		if err == nil {
 			err = fmt.Errorf("main's %s names tracker root %s, which the issue tracker's history does not start at", tracker.CutoverMarkerPath, shortOID(root))
 		}
-		return false, err
+		return "", false, err
 	}
-	return true, nil
+	return root, true, nil
 }
 
 // migrationInventory gathers the plan's input from the pinned main tree, every
@@ -508,18 +509,13 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 	if err != nil {
 		return err
 	}
-	done, err := migratedAlready(env, mainView)
+	root, done, err := migratedAlready(env, mainView)
 	if err != nil {
 		return err
 	}
 	if !done {
 		return errors.New("main has not been migrated yet; nothing to reconcile against")
 	}
-	marker, err := mainView.Read(tracker.CutoverMarkerPath)
-	if err != nil {
-		return err
-	}
-	root, _ := tracker.ParseCutoverMarker(marker)
 	imported, err := importedCards(env, root)
 	if err != nil {
 		return err
