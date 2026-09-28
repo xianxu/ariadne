@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000260-slot-move.md
         source_blob: bca47a27a3738587e92c794549f9060dfd000447
         destination: workshop/issues/000260-slot-move.md
+        main_commit: 7dceb208d22219b76806dc1144d07a06196a9929
 ---
 
 # sdlc move: move the current branch to another slot
