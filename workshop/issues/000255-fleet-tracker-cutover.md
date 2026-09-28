@@ -49,7 +49,8 @@ moved.
   (brains are excluded by charter; decide astro and parli).
 - Existing issue files are migrated in each of them (moved from #252's
   Done when).
-- The legacy writers and legacy mode are deleted, with their tests and docs.
+- ~~The legacy writers and legacy mode are deleted, with their tests and
+  docs.~~ Moved to #258 (see Revisions, 2026-09-28).
 
 ## Plan
 
@@ -67,7 +68,7 @@ moved.
 - [x] pair (clear its blockers first)
 - [x] ducks (new project, created 2026-09-27)
 - [x] astro, parli: cut over (operator: issues will improve these repos too)
-- [ ] Phase D: delete the legacy writers and legacy mode
+- [x] Phase D: delete the legacy writers and legacy mode → spun off to #258 (deferred, `punt`)
 
 ## Log
 
@@ -162,3 +163,16 @@ moved.
   over with an empty tracker (root 3656af77). The `sdlc-smoke` sandbox is
   deleted (operator). Brains remaining legacy by charter: brain, brain-family,
   brain-private.
+
+## Revisions
+
+### 2026-09-28 — Phase D spun off to #258
+
+Reason: every work repository is on the tracker, and the operator chose to
+keep legacy mode for a while as a fallback (sdlc changes rarely). Holding #255
+open on one deliberately deferred row served no purpose.
+
+- Done when: "the legacy writers and legacy mode are deleted" moves to #258,
+  filed `punt` with the removal list from this Spec. #255 closes on the fleet
+  cutover (Done when 1–2).
+- Plan: the Phase D row points at #258.
