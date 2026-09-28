@@ -94,3 +94,101 @@ findings:
     title: |
       Legacy-mode removal in 258 is punted with no trigger or date for "a while"
 ```
+
+---
+
+## Re-review — 2026-09-28T09:18:30-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 255 — Fleet cutover to the issue tracker; delete the legacy writers |
+| repo | ariadne |
+| issue file | workshop/issues/000255-fleet-tracker-cutover.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8b19a7afd70579fb4c71ea5dfe713379f1ccf1c3..3ce173c5d70da69010df6304187bc43085945252 |
+| command | sdlc close --issue 255 |
+| reviewer | claude |
+| timestamp | 2026-09-28T09:18:30-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This close boundary for #255 is operational work plus its record. The large `cmd/sdlc` part of the window is #252's tracker code, which reached SHIP through its own 13 review rounds. #255 adds cutover records (Log, checklist, #258 spin-off) on top of it. I checked the Log against `~/workspace` itself, not the prose. Every directory with `construct/` or `workshop/` is in one of three states:
+- **On the tracker** (`workshop/issue-tracker.json` present): 42shots, ariadne, astro, ducks, kaggle, kbench, metis, nous, pair, parley.nvim, parli, robotics, tools, xianxu.dev, you-decide.
+- **A brain** (`.brain/` present): brain, brain-family, brain-private.
+- **Recorded as excluded**: `metis.bak` and `test-repo`, each a single commit with no remote and no issues.
+
+`sdlc-smoke` is gone from disk, and `sdlc issue migrate` in robotics (the latest cutover) reports *already migrated*. All five prior findings are fixed and nothing blocks the close.
+
+1. **Strengths**
+   - The per-repository results table in the #255 Log gives dry-run counts, the apply digest and the tracker root for all 15 repositories, which is the record the Spec asked for.
+   - The checklist now has a **Result:** line per C-row with the same digest and root as the Log table, so the plan and the issue agree.
+   - Moving Phase D to #258 is logged as a `## Revisions` entry that says why and what changed, and Done-when 3 is struck through with a pointer to #258 rather than deleted.
+   - The one live check that wasn't run (a tracker-mode `milestone-close`) is marked `[skipped]` and says what covers it, rather than ticked.
+   - The exclusions give a real reason ("a tracker needs a publication remote"), which matches what I found on disk.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - `workshop/plans/000255-fleet-tracker-cutover-checklist.md` C11: step 3 is ticked while its digest is still `______`. The **Result:** line says the row was superseded by A4, so this is cosmetic. Striking the step, or writing "n/a (A4)", would read better.
+   - Same file, C12: its **Result:** line sits after the `---` separator, so it looks detached from its row. Formatting only.
+   - I raised neither as a finding. Neither belongs to an open family and neither is worth a follow-up.
+
+5. **Test coverage notes**
+   - #255 adds no code. The tooling bugs the cutover found were each fixed with regression tests in their own issues:
+     - #256: refuse a branch that archives an issue main still has active.
+     - #257: lint-ids judges the cutover marker at `--head`, not the checkout.
+   - The live tracker-mode `milestone-close` path is covered only by #252's e2e tests, not by a real-repository run. That is acceptable, and it is recorded.
+
+6. **Architectural notes** (on #255's delta)
+   - **ARCH-DRY:** pass. The per-repository numbers appear in both the Log table and the checklist Result lines. That is deliberate: one is the record, the other is the plan's closure. The values match.
+   - **ARCH-PURE:** pass. #255 adds no code.
+   - **ARCH-PURPOSE:** pass.
+     - Shadow-sweep: every ariadne-layer repository in the workspace is on the tracker, a brain, or recorded as excluded, and I confirmed this on disk.
+     - Moving Phase D out is not the easy-subset failure. The issue's purpose (the fleet cutover) is delivered, and the operator made keeping legacy mode as a fallback an explicit decision.
+   - **ARCH-MOCK:** N/A. There are no new external calls; the live GitHub checks were A1 and A2 in #252.
+   - **ARCH-CONSTRAINTS:** N/A. No runtime change.
+   - **ARCH-SECURE:** pass.
+     - robotics was created as a private repository.
+     - Brains stay on their encrypted remotes and were not touched.
+     - The one hooks-skipped `--apply` was operator-authorized and fixed properly in #257.
+   - **ARCH-ORDER:** pass. Leftover pre-cutover branches (kbench `000028`, pair #292) are sent to `--reconcile` on next use rather than left in an undefined state.
+   - **ARCH-FUNERAL:** pass.
+     - Legacy mode's end is now named: #258, revisit by 2026-11-30 or sooner if an sdlc change touches a legacy path.
+     - The `sdlc-smoke` sandbox was removed.
+     - robotics' brain scaffolding was dropped.
+   - For #258: before deleting the legacy writers, confirm the three brains never go down a legacy writer path. Brain repositories are refused by the spine guard, but read paths such as `estimate-source` still run there.
+
+7. **Plan revision recommendations:** none. The Revisions entry already records the Phase D move.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Log "Excluded" bullet and checklist Excluded section name metis.bak and test-repo; verified on disk (1 commit, no remote, 0 issues each).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Checklist C1-C13 rows ticked with digest/root Result lines, C11 marked superseded by A4, C12 decided, Phase D rows point at 258.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Per-repository results table in the 255 Log carries counts, digest and tracker root for all 15 repos.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Appended Excluded bullet corrects the sweep line; sdlc-smoke confirmed deleted from the workspace.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      258 Log now says revisit by 2026-11-30 or when an sdlc change next touches a legacy path.
+```

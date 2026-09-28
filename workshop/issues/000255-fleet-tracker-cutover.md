@@ -72,6 +72,8 @@ moved.
 
 ## Log
 
+
+- 2026-09-28: closed — Fleet cutover complete: 15 work repositories report already migrated (per-repo digests and roots in the Log table); exclusions recorded (brains by charter; metis.bak and test-repo: no remote, no issues). Tool bugs found were fixed with regression tests: #256, #257. #241 layout adopted fleet-wide as step 0. Checklist rows all resolved; Phase D spun off to #258 (punt, revisit by 2026-11-30). --no-actual: sdlc actual under-attributes (#254).; review verdict: SHIP
 ### 2026-09-27
 
 - Filed from #252 so #252 can close on the tooling. The per-repository
