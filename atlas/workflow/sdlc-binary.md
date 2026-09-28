@@ -363,7 +363,10 @@ session). Two guards: command-tree tests chdir into an isolated repo via
 `hermeticRepo(t)` (so the lock resolves to the temp `.git`); and a package `TestMain`
 snapshots the real repo (HEAD/branch/porcelain/`.git/sdlc.lock`) before+after the
 run and FAILS a passing run that left durable damage (`snapshotDiff`, pure) — the
-backstop that catches any test that still leaks.
+backstop that catches any test that still leaks. A lock present after the run
+counts only when this test process holds it or its holder is dead
+(`lockMayBeOurs`, #253): every slot shares the lock, so another slot's live verb
+holding it is not a leak.
 
 The lock path is resolved from `git rev-parse --git-common-dir`, so linked
 worktrees for one repo share the same lock. That is intentional: worktrees share
@@ -1230,6 +1233,25 @@ first prerequisite) — before the peer-clone cascade and the recursive ariadne
 bootstrap's tool build. Pre-sdlc, ariadne needed only shell + python (always
 present), so bootstrap never provisioned a toolchain; #61 closed that gap. nous
 owns its richer toolchain (Homebrew/GPG/gh/…) separately.
+
+### Running the test suite (#253)
+
+`make test` (`scripts/test-shard.py`) is the full run: it compiles the
+`cmd/sdlc` test binary once and splits its top-level tests over one process per
+core, balanced from the last run's per-test times
+(`<git-common-dir>/sdlc-test-timings.json`), with the other packages alongside.
+`cmd/sdlc`'s tests change cwd and swap package seams, so they cannot run in
+parallel inside one process; separate processes share neither. About 4 minutes
+against about 25 serially. Plain `go test ./cmd/sdlc/...` still works but runs
+`cmd/sdlc` serially and needs `-timeout 60m` (it exceeds go's 10-minute default).
+`scripts/test-timing.py` reports per-test times from either run's `-json` output.
+
+Every package whose tests run git calls `testfix.PreferRealGit()` from its
+`TestMain`, putting `$(git --exec-path)` first on PATH: on macOS `/usr/bin/git`
+is the xcrun shim, which costs about 11 ms per spawn. A new git-driving test
+package needs the same `TestMain`. The in-memory git fake that would make a
+fast inner-loop tier is #261; the single git seam it and in-process parallelism
+need is #262.
 
 ### Downstream staleness gotcha
 

@@ -11,7 +11,7 @@
 #
 # Shards are balanced longest-first (LPT) from the previous run's per-test
 # times, kept in <git-common-dir>/sdlc-test-timings.json: overwritten by every
-# run that completes, one entry per test (tens of KB), removed with the clone.
+# run, one entry per current test (tens of KB), removed with the clone.
 # Without it (first run) tests are dealt round-robin.
 #
 # Output is `go test -json` shaped (via test2json); --json writes it to OUT so
@@ -96,8 +96,10 @@ def main() -> int:
         failed, new_times, merged = report(tmp, results)
         if args.json:
             Path(args.json).write_text("".join(merged))
-        if not failed and len(new_times) >= len(names):
-            write_atomic(timings_path, json.dumps(new_times, sort_keys=True))
+        # Merge even from a failing run (a known failure must not freeze the
+        # balance); keep only tests that still exist, so the file stays bounded.
+        kept = {n: new_times.get(n, times.get(n)) for n in names if n in new_times or n in times}
+        write_atomic(timings_path, json.dumps(kept, sort_keys=True))
 
     print(f"\nwall {time.time() - t0:.1f}s  ({len(shards)} shards over {len(names)} cmd/sdlc tests, "
           f"{len(others)} other packages)")
