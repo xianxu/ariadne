@@ -8,7 +8,7 @@ updated: 2026-09-28
 estimate_hours:
 card_mirror: '1c3ce1093c13414aedd4a527a73e5cac3533fdc0' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T11:24:11-07:00
-flow: {kind: quick, provenance: inferred, spec: "ac96e243", done: "e5e3c244"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Keep the sdlc test suite fast: tiers, shared binary, parallel-safe e2e
@@ -149,6 +149,8 @@ Scope after the second revision: the two short-term speed-ups, measured.
   4f7260ae (18 packages ok; cmd/sdlc 1,140 s).
 
 ### 2026-09-28
+- 2026-09-28: closed — make test: 181 s wall balanced (1,531 s serial before); only known failures #210 and sandbox-only processgroup ps; review verdict: SHIP
+- 2026-09-28: flow upgraded quick → full — 321 added lines in code files (limit 100)
 
 - Claimed. Timing report script: `scripts/test-timing.py` over
   `go test -json` output (packages, totals by kind, top N).
