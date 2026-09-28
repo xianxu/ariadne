@@ -92,3 +92,14 @@ moved.
   procedure and findings in #241's Log; metis, kaggle, kbench adopted
   (committed locally, unpushed, as each carries earlier unpushed operator
   commits).
+- **Migration gap (to fix before nous cuts over):** `PlanTrackerMigration`
+  skips a branch whose only edit to an issue is deleting it ("a branch's own
+  archive move"). nous's local `000048-shim-oauth-…` branch closed #48 and
+  archived it as done without landing (≈1.2k lines, 2026-06-11), while main
+  says `working`; the dry run reports 0 refusals. After cutover the card
+  would stay `working` and landing the branch would modify/delete-conflict
+  with the converted details. Fix: refuse "a branch archives an issue main
+  still has active; land or drop it before cutover", with a test. For nous:
+  land #48 in legacy mode (merge main in, PR) before its cutover.
+- nous branch cleanup: deleted merged `nous-14` (+ worktree) and `branch-32`;
+  kept #48's branch (operator: keep, land later).
