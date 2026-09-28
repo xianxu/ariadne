@@ -159,3 +159,64 @@ findings:
     detail: |
       2nd finding in family single-marker-reader. Rule: read a commit's marker once through ReadCutoverMarkerAt and pass the root along. At issuemigrate.go:518-522, mainView.Read plus a ParseCutoverMarker whose error is discarded repeats migratedAlready's read. Fix: have migratedAlready return (root, done, err). Enumeration in this window: issuemigrate.go:518 (this one); issuelintids.go:231 followed by the GuardCutoverAt re-read (same reader, acceptable).
 ```
+
+---
+
+## Re-review — 2026-09-27T23:50:32-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 257 — lint-ids reads the cutover marker from the checked commit, not the checkout |
+| repo | ariadne |
+| issue file | workshop/issues/000257-lint-ids-marker-at-head.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 76c347e6829f88c629a3b20b7e999281dbe26257..76112df699f73401b98a2e5eab625397aa8df614 |
+| command | sdlc close --issue 257 |
+| reviewer | claude |
+| timestamp | 2026-09-27T23:50:32-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This change is ready to ship. It meets all three `## Done when` clauses:
+
+- **Marker read at `--head`.** `lint-ids` now reads the cutover marker from the commit given by `--head`, through `GuardCutoverAt`, instead of from the checkout.
+- **Foreign root still refuses.** A head whose marker names another tracker root still fails the lint.
+- **One careful reader.** `ReadCutoverMarkerAt` treats only a missing path as absent. `lint-ids` and `migratedAlready` both read through it.
+
+The last open finding, BR-5, is fixed. `migratedAlready` now returns the root it read, and reconcile uses that root. The second read of main's marker (`mainView.Read` plus the ignored `ParseCutoverMarker` error) is gone. I searched the tree for `CutoverMarkerPath`. Outside tests, only three functions read the marker: `ReadCutoverMarker` reads the checkout's file, `ReadCutoverMarkerAt` reads a commit's tree, and the guard's `readMarker` chooses between them. There are no other readers. The tracker package tests and the `LintIDs|IssueMigrate` tests pass at head.
+
+1. **Strengths**
+   - `cutover.go:102-122`: `ReadCutoverMarkerAt` separates "not a commit" and "git failed" from "the marker file is missing".
+   - `Repository.readMarker` is the one place the guard reads its marker. `checkCutover`, `checkAbsentTracker` and `Presence` all go through it, and none of them reads the file directly.
+   - `markerWithoutTracker` is a pure helper, and the exported `MarkerWithoutTracker` is a thin wrapper around it.
+   - `TestIssueLintIDsJudgesTheMarkerAtHead` reproduces the real failure seen when cutting over you-decide (a checkout without the marker pushing the migration commit). It also checks that a forged root refuses.
+   - `TestGuardCutoverAtJudgesTheCommit` checks each outcome at a commit:
+     - an unmarked commit next to a marked checkout refuses;
+     - a matching marker passes;
+     - a foreign root refuses;
+     - a bad commit is an error, not "absent".
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor**
+   - `ls-tree` and `cat-file` in `ReadCutoverMarkerAt` get the commit without `--end-of-options` before it; only `rev-parse` has one. Since `rev-parse` checks the commit first, this matters only in theory. I'm noting it, not raising it.
+5. **Test coverage:** both outcomes of every Done-when clause are exercised, including an unresolvable commit.
+6. **Architecture**
+   - **ARCH-DRY: pass.** There is one reader of a commit's marker, and the reconcile re-read is gone.
+   - **ARCH-PURE: pass.** Parsing (`ParseCutoverMarker`, `markerWithoutTracker`) is pure, and the git calls stay in a thin IO layer.
+   - **ARCH-PURPOSE: pass.** Both places that read a commit's marker (`lint-ids` and migrate) now use the shared reader, and the atlas entry was updated.
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      migratedAlready returns (root, done, err) via ReadCutoverMarkerAt; reconcile (issuemigrate.go:512) uses it; the mainView.Read/ignored-parse re-read is gone. Refactor covered by existing reconcile tests, which pass.
+```
