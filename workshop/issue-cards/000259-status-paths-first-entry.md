@@ -1,6 +1,6 @@
 ---
 id: 000259
-status: open
+status: working
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -17,6 +17,7 @@ tracker:
         source_blob: f34ace5b5e22defae9c792a015ea85cc7c8bcdf4
         destination: workshop/issues/000259-status-paths-first-entry.md
         main_commit: 968861f13e4d6a20fc281d79b4e080d405b6108d
+started: 2026-09-28T09:25:50-07:00
 ---
 
 # close evidence and other status readers drop the first modified path
