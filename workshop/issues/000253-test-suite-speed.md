@@ -90,8 +90,26 @@ land later, and reviews wait.
 - [ ] Timing report (`go test -json`), recorded in the Log
 - [ ] `-short` tier via one e2e helper, plus its guard
 - [ ] Shared binary in `TestMain`
-- [ ] Parallel-safe seams for the real-Git tests (cwd and package-level stubs), then `t.Parallel()`
+- [ ] ~~Parallel-safe seams for the real-Git tests (cwd and package-level stubs), then `t.Parallel()`~~ → #262 (see Revisions)
 - [ ] Budget guard and development guidance
+
+## Revisions
+
+### 2026-09-28 — scope narrowed to short-term, incremental speed-ups
+
+- **Reason:** the operator split the structural work out. #253 stays a
+  short-term incremental speed-up of the real-git tests.
+- **Delta:**
+  - Spec item 4 (parallel-safe e2e by threading cwd and package seams, then
+    `t.Parallel()`) moves to #262 (route all git through one
+    directory-explicit seam). The stateful git fake is #261.
+  - In: constant-factor wins (direct git binary instead of the macOS xcrun
+    shim; one shared sdlc build per test process), the `-short` tier with a
+    checked e2e marker, an explicit `-timeout`, the budget guard, and
+    `t.Parallel()` only where a test is already parallel-safe without
+    refactoring production code.
+  - The "full suite ≤ 5 min" done-when is re-set from the measurement after
+    the constant-factor wins, not assumed.
 
 ## Log
 
