@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000261-git-fake-dual-backend.md
         source_blob: a9601205f866da2b6391a77c8f4578816fd8352b
         destination: workshop/issues/000261-git-fake-dual-backend.md
+        main_commit: e9bcb90907396982ff58c387455df27493adcd9b
 ---
 
 # Stateful git fake behind the consolidated seam; run e2e tests against both backends
