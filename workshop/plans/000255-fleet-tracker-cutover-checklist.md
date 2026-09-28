@@ -219,10 +219,12 @@ Phase C cutover: without the marker, nothing about its workflow changes.
 
 ## Phase C — Cut over, one repository at a time
 
-For every repository, the same seven steps. Blockers are what the read-only dry run
+For every repository, the same steps (0–7). Blockers are what the read-only dry run
 found on 2026-09-26; re-run the dry run first — they may have changed.
 
 **The seven steps**
+0. On the #241 weave layout: `weave compile` is clean and idempotent (adoption procedure in
+   #241's Log, 2026-09-27; done: metis, kaggle, kbench)
 1. Blockers cleared (under the old workflow)
 2. Freeze: stop every agent session, script and alias working in this repo **and its slots**
 3. `bin/sdlc issue migrate` → review inferred values → note the digest

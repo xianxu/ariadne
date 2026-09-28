@@ -82,6 +82,50 @@ startup and release/migration tools, closes and merges; #241 publishes and
 verifies delivery afterward. No release or consumer mutation has started.
 
 
+### 2026-09-27 — Fleet adoption findings (from #255 Phase B)
+
+Found while running `weave compile` across the fleet for the #252 tracker
+cutover (#255). Every failure below reproduces with the pre-#252 `weave`.
+
+- **Symlinked root Makefiles.** metis, kaggle, kbench, you-decide, nous,
+  42shots and astro commit `Makefile -> ../ariadne/Makefile`. Since #239 the
+  root Makefile is seed-once and ariadne's own builds ariadne's tools, so the
+  startup `make tools` through the symlink builds `./cmd/sdlc` in a repo
+  without it and fails every dependent's compile. `startup.Tools` checks
+  `IsRegular` via `Stat`, which follows the link; `Lstat` would refuse clearly.
+- **Pre-inventory generated output.** Repos last compiled before ownership
+  inventories (metis Jul 29, parli Sep 19) have `construct/generated/` but no
+  `ownership.json`, so compile refuses `vocabulary/.source-sha` as an "authored
+  replacement". Nothing adopts such output; neither compile nor
+  `propagate-base` will retire what it cannot prove it owns.
+- **A refused compile is not atomic.** It had already rewritten `.gitignore`
+  (managed block replacing the old list), exposing ignored generated files as
+  untracked; hand-restored in metis and parli.
+- `propagate-base` is all-dependents-or-nothing and skips dirty trees, so it
+  cannot adopt one repository at a time.
+
+**Manual adoption procedure** (proved on metis 43a885a, kaggle b9f5b6e, kbench
+77deb07, foundation first; committed locally, not pushed):
+1. Replace a symlinked Makefile with the seed (`construct/Makefile.seed`) plus
+   the repo's `WF_ISSUES_DIR`/`WF_HISTORY_DIR` and a `tools` target building
+   its dependents' commands (metis: `metis`; kaggle: `kaggle`,
+   `kaggle-download`, `kaggle-submit` — replacing kbench's hand `go build`).
+2. Move the pre-inventory `construct/generated/` aside; `weave compile`
+   rewrites it and records ownership (metis: 96 outputs).
+3. Untrack exactly the tracked paths git now ignores whose link target matches
+   the ownership record (25 per repo; kbench's force-tracked run data and
+   `AGENTS.local.md` stay), `git rm` the two links into files ariadne retired
+   (`construct/scripts/bootstrap-peers.sh`, `scripts/issue-sync.sh`), and take
+   the new seeded `bootstrap.sh` and `merge-check.yml`.
+4. Verify: a second compile is a no-op, `weave verify-complete` clean, the
+   repo's own checks pass (kaggle `make go-check`).
+
+Candidate fixes: an explicit adopt mode (step 2–3 with the ownership proof),
+per-repository `propagate-base`, `Lstat` in `startup.Tools`, and a compile
+that stages its `.gitignore` edit with the outputs it covers.
+Remaining: you-decide, nous, 42shots, astro (symlink + pre-inventory), parli
+(pre-inventory), tools, xianxu.dev (work in flight); pair and ducks compile.
+
 ## Revisions
 
 ### 2026-09-20 — tap repository and command availability confirmed

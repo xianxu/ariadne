@@ -86,3 +86,9 @@ moved.
   These become Phase C step-1 blockers for their repositories.
 - Cleared ariadne's C8 blockers 1a/1b/1d: deleted the stale local and remote
   branches; #119 abandoned (wontfix). 1c resolved by #252 landing.
+- Every cutover now starts with step 0: the repository on #241's weave
+  layout. Most of the fleet never adopted #239 (symlinked Makefiles,
+  pre-inventory generated output), so `weave compile` fails there. Adoption
+  procedure and findings in #241's Log; metis, kaggle, kbench adopted
+  (committed locally, unpushed, as each carries earlier unpushed operator
+  commits).
