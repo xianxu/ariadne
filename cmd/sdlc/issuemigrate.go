@@ -578,8 +578,16 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 		}
 		if !present {
 			card, onTracker := imported[id]
-			if !onTracker || !tracker.RemovalArchivesActive(kept[id], cardClosed(card)) {
-				continue // a rename, an issue main closed too, or one main never had
+			if !onTracker {
+				continue // an issue main never had: nothing to carry
+			}
+			closed, err := cardClosed(card)
+			if err != nil {
+				refusals = append(refusals, fmt.Sprintf("%s: the tracker's card for #%s is unreadable (%v); repair it before reconciling", rel, issue.CLIRef(id), err))
+				continue
+			}
+			if !tracker.RemovalArchivesActive(kept[id], closed) {
+				continue // a rename, or an issue main closed too
 			}
 			refusals = append(refusals, fmt.Sprintf("%s: %s (#%s is still open on the issue tracker); land the close on main, or restore the details here, then reconcile again", rel, tracker.ArchivesActiveReason, issue.CLIRef(id)))
 			continue
@@ -677,11 +685,11 @@ func importedCards(env *migrateEnv, root string) (map[string][]byte, error) {
 }
 
 // cardClosed reports whether an imported card's status is terminal.
-func cardClosed(card []byte) bool {
+func cardClosed(card []byte) (bool, error) {
 	parsed, err := issue.ParseCard(card)
 	if err != nil {
-		return false
+		return false, err
 	}
 	status, _ := issue.GetField(parsed.Frontmatter, "status")
-	return vocab.Issue().IsTerminal(status)
+	return vocab.Issue().IsTerminal(status), nil
 }

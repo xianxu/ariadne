@@ -1,6 +1,6 @@
 ---
 id: 000256
-status: working
+status: codecomplete
 deps: [000255]
 github_issue:
 created: 2026-09-27
@@ -8,6 +8,7 @@ updated: 2026-09-27
 estimate_hours:
 started: 2026-09-27T23:03:37-07:00
 flow: {kind: quick, provenance: inferred, spec: "dbdf0577", done: "24e209b3"}
+actual_hours: 0.15
 ---
 
 # issue migrate: refuse a branch that archives an issue main still has active
@@ -56,3 +57,12 @@ existing refusals.
   asks whether main still has the issue active, reconcile whether its card is
   terminal (`vocab.Issue().IsTerminal`); both keep renames silent.
   `TestIssueMigrateReconcileRefusesAnUnlandedArchive` fails without the fix.
+
+## Log
+
+- 2026-09-27: closed — Refusal for a branch that archives an issue main still has active, one shared rule (tracker.RemovalArchivesActive) used by the dry run and --reconcile; renames and issues main closed stay silent. TestPlanTrackerMigrationRefusesLegacyDivergence, TestIssueMigrateRefusesABranchThatArchivesAnActiveIssue and TestIssueMigrateReconcileRefusesAnUnlandedArchive each fail without the fix; tracker package and all TestIssueMigrate* green; real dry runs: pair/kaggle/kbench 0 refusals, ariadne 2 pre-existing (origin/feature). Atlas migration step 4 names the refusal.; review verdict: SHIP
+- Close round 2 SHIP; its two advisory Minors fixed in the close commit:
+  reconcile's closed-card silent path now has a test
+  (`TestIssueMigrateReconcileAllowsAnArchiveMainClosedToo`, fails when the
+  terminal check is forced false), and an unreadable card refuses with its
+  parse error instead of claiming the issue is still open.

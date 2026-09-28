@@ -463,3 +463,29 @@ func TestIssueMigrateReconcileRefusesAnUnlandedArchive(t *testing.T) {
 		t.Fatalf("a rename was refused as an archive: %v\n%s", err, stderr)
 	}
 }
+
+// The other silent case: a branch archiving an issue main closed too carries
+// nothing, so reconcile does not refuse it for an unlanded archive (#256).
+func TestIssueMigrateReconcileAllowsAnArchiveMainClosedToo(t *testing.T) {
+	r := legacyRepo(t)
+	pre := r.git("rev-parse", "HEAD")
+	one := "workshop/issues/000001-one.md"
+	r.git("mv", one, "workshop/history/issues/000001-one.md")
+	writeRepoFile(t, r.root, "workshop/history/issues/000001-one.md", "---\nid: 000001\nstatus: done\nactual_hours: 1\ncreated: 2026-09-01\n---\n\n# One\n\n## Problem\n\nFirst.\n")
+	r.git("add", "-A")
+	r.git("commit", "-qm", "#1: done and archived on main")
+	r.git("push", "-q", "origin", "main")
+	digest, out, err := migrateDryRun(t)
+	if err != nil {
+		t.Fatalf("dry run: %v\n%s", err, out)
+	}
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--apply", "--expect", digest); err != nil {
+		t.Fatalf("apply: %v\n%s", err, stderr)
+	}
+	r.git("switch", "-q", "-c", "000001-one", pre)
+	r.git("mv", one, "workshop/history/issues/000001-one.md")
+	r.git("commit", "-qm", "#1: archive issue to history (done)")
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--reconcile"); err != nil && strings.Contains(err.Error()+stderr, tracker.ArchivesActiveReason) {
+		t.Fatalf("an archive of an issue main closed too was refused: %v\n%s", err, stderr)
+	}
+}

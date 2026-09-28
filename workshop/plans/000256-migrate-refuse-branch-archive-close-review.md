@@ -67,3 +67,75 @@ findings:
     detail: |
       cmd/sdlc/issuemigrate.go:569-571 skips a removed details file ("its own archive move") without checking the imported card. A branch the dry run never saw (another clone, never pushed) that archived a still-active issue reconciles silently, and the card stays open. This is the #256 scenario after cutover. Family sweep: this is the only remaining instance (grep "own archive move"). Fix: refuse unless the card is done or the branch keeps other active details for the ID. Test both outcomes.
 ```
+
+---
+
+## Re-review — 2026-09-27T23:13:29-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 256 — issue migrate: refuse a branch that archives an issue main still has active |
+| repo | ariadne |
+| issue file | workshop/issues/000256-migrate-refuse-branch-archive.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f1f03ebd6cfda3d8baa70509b2df895c9a69cadc..6152b1faa8af3c8ff08cdde80cd39359b38b5d5d |
+| command | sdlc close --issue 256 |
+| reviewer | claude |
+| timestamp | 2026-09-27T23:13:29-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Reviewed the diff and reconcile path; writing the verdict now.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This closes BR-1 at the rule level, not just at the one site. A single predicate, `tracker.RemovalArchivesActive(keptOther, closedOnMain)`, now decides both paths that handle a deleted details file. The dry run (`migration.go:222-226`) passes it "main has no active file for the ID". Reconcile (`issuemigrate.go:579-585`) passes "the imported card is terminal". Both pass "the branch still has other details for the ID", so renames stay silent. `grep "own archive move"` now only hits the updated test comment. Every Done-when clause has a test: the unlanded archive is refused and names the branch (dry-run e2e plus unit `feat-e`), and a landed archive stays silent (unit `feat-h`). Reconcile has a regression test for the refusal (`TestIssueMigrateReconcileRefusesAnUnlandedArchive`), and that test fails without the fix. One small test gap remains, listed under Minor.
+
+**Strengths**
+- One shared rule and one reason string (`ArchivesActiveReason`) serve the dry run and reconcile, so the family is fixed in one place (ARCH-DRY passes).
+- `RemovalArchivesActive` is a pure bool function. The IO (the ls-tree listing and parsing the card) stays in the thin `runMigrateReconcile` shell (ARCH-PURE passes).
+- The unit test `migration_test.go:159-163` replaces the old `feat-e` fixture, which had encoded the gap. It also pins both silent outcomes: a rename (`feat-g`) and main archiving the issue too (`feat-h`).
+- The reconcile test checks that a refused reconcile leaves HEAD unchanged.
+- The atlas step 4 now covers the new refusal.
+
+**Critical:** none.
+
+**Important:** none.
+
+**Minor**
+- In reconcile, the silent path for a card that is closed on the tracker has no test. The test's silent case is the rename (`kept`). If `cardClosed` always returned false, no test would fail. Fix: close #1's card after apply (or seed a done card), then assert that reconcile does not refuse on `ArchivesActiveReason`.
+- When the imported card doesn't parse, `cardClosed` (`issuemigrate.go:680-686`) returns false and quietly turns the parse error into "open". That fails safe (it refuses), but the refusal message would then wrongly say "still open on the tracker".
+
+**Test coverage:** The dry run is covered by the unit test and the e2e test (both outcomes). Reconcile covers refusal and the rename. The closed-card silent case is missing, as above.
+
+**Architecture:** ARCH-DRY passes, ARCH-PURE passes, and ARCH-PURPOSE passes: both consumers of the removal rule derive from the shared predicate, and the shadow sweep found no remaining restatement.
+
+**Plan revisions:** none. The `## Plan` log already records the BR-1 disposition.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      issuemigrate.go:579-585 now refuses via shared tracker.RemovalArchivesActive (kept + terminal card); TestIssueMigrateReconcileRefusesAnUnlandedArchive pins the refusal; grep "own archive move" finds no other code site.
+findings:
+  - id: new
+    severity: Minor
+    family: test-both-outcomes
+    title: |
+      Reconcile's closed-card silent path (cardClosed true) has no test
+    detail: |
+      The reconcile test's only silent case is a rename (kept). Stubbing cardClosed to false would stay green. Add a case where #1's card is done and assert that reconcile does not refuse with ArchivesActiveReason.
+  - id: new
+    severity: Minor
+    family: parse-error-coerced-to-state
+    title: |
+      cardClosed maps an unparseable card to open, so the refusal wrongly says the issue is still open
+    detail: |
+      issuemigrate.go:680-686 ignores the ParseCard error. This fails safe, but the message is inaccurate. Consider surfacing the parse error as its own refusal.
+```
