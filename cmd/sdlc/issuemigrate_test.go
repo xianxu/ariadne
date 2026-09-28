@@ -409,3 +409,24 @@ func TestIssueMigrateNamesEveryUncommittedIssueEdit(t *testing.T) {
 		}
 	}
 }
+
+// A branch that archived an issue main still has active is an unlanded legacy
+// close: the cutover refuses it, naming the branch, while a branch that only
+// renamed an active issue's details passes (#256, nous #48).
+func TestIssueMigrateRefusesABranchThatArchivesAnActiveIssue(t *testing.T) {
+	r := legacyRepo(t)
+	r.git("switch", "-q", "-c", "000001-one")
+	r.git("mv", "workshop/issues/000001-one.md", "workshop/history/issues/000001-one.md")
+	r.git("commit", "-qm", "#1: archive issue to history (done)")
+	r.git("switch", "-q", "-c", "000002-two", "main")
+	r.git("mv", "workshop/issues/000002-two.md", "workshop/issues/000002-deux.md")
+	r.git("commit", "-qm", "#2: issue: rename slug")
+	r.git("switch", "-q", "main")
+	_, out, err := migrateDryRun(t)
+	if err == nil || !strings.Contains(out, "workshop/issues/000001-one.md (on 000001-one)") || !strings.Contains(out, "archives an issue main still has active") {
+		t.Fatalf("an unlanded archive of an active issue must refuse the cutover: %v\n%s", err, out)
+	}
+	if _, refusals, _ := strings.Cut(out, "refusals"); strings.Contains(refusals, "000002") {
+		t.Fatalf("a rename of an active issue's details must not be refused:\n%s", out)
+	}
+}

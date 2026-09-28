@@ -39,6 +39,13 @@ existing refusals.
 
 ## Plan
 
-- [ ] Refusal in `PlanTrackerMigration` for a deleting branch edit when main has the issue active
-- [ ] Unit test in `migration_test.go`, plus a dry-run e2e in `issuemigrate_test.go`
+- [x] Refusal in `PlanTrackerMigration` for a deleting branch edit when main has the issue active
+- [x] Unit test in `migration_test.go`, plus a dry-run e2e in `issuemigrate_test.go`
 - [ ] Record in #255
+- The existing unit test encoded the gap (`feat-e`: "a deletion: the branch's
+  own archive move" of an issue main still had active). Before cutover a legacy
+  archive happens on main at merge, so such a deletion is an unlanded close.
+  Kept silent: a rename (the branch keeps other active details for the ID) and
+  a deletion main made too. Both tests fail without the fix.
+- Real-repo dry runs with the fix: pair, kaggle, kbench 0 refusals; ariadne's
+  2 are pre-existing (`origin/feature` edits archived #148, #159).

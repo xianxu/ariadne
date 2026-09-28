@@ -156,8 +156,11 @@ func TestPlanTrackerMigrationRefusesLegacyDivergence(t *testing.T) {
 		{Branch: "feat-b", Path: activeDir + "000002-two.md", Raw: activeFile("000002", "two", "working").Raw},  // unpublished claim
 		{Branch: "feat-c", Path: activeDir + "000009-new.md", Raw: activeFile("000009", "new", "open").Raw},     // branch-only issue
 		{Branch: "feat-d", Path: activeDir + "000003-three.md", Raw: activeFile("000003", "three", "open").Raw}, // edits an archived issue
-		{Branch: "feat-e", Path: activeDir + "000001-one.md"},                                                   // a deletion: the branch's own archive move
+		{Branch: "feat-e", Path: activeDir + "000001-one.md"},                                                   // archives an issue main has active: an unlanded close
 		{Branch: "feat-f", Path: activeDir + "000009-new.md", Raw: activeFile("000009", "new", "open").Raw},     // a stacked copy: one refusal
+		{Branch: "feat-g", Path: activeDir + "000002-two.md"},                                                   // a rename: removes the old name...
+		{Branch: "feat-g", Path: activeDir + "000002-deux.md", Raw: activeFile("000002", "two", "open").Raw},    // ...and keeps the details
+		{Branch: "feat-h", Path: activeDir + "000003-three.md"},                                                 // main archived it too: nothing to carry
 	}
 	in.DirtyIssuePaths = []string{"/slot2: workshop/issues/000001-one.md"}
 	m := PlanTrackerMigration(in)
@@ -169,6 +172,7 @@ func TestPlanTrackerMigrationRefusesLegacyDivergence(t *testing.T) {
 		activeDir + "000002-two.md (on feat-b)":         "status",
 		activeDir + "000009-new.md (on feat-c, feat-f)": "only on a branch",
 		activeDir + "000003-three.md (on feat-d)":       "archived",
+		activeDir + "000001-one.md (on feat-e)":         "archives an issue main still has active",
 		"/slot2: workshop/issues/000001-one.md":         "uncommitted",
 	}
 	if len(got) != len(want) {

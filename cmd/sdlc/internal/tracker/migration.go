@@ -194,14 +194,29 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 	// each (path, reason) is one refusal naming every branch that carries it.
 	type branchProblem struct{ path, reason, next string }
 	carriers := map[branchProblem][]string{}
+	kept := map[[2]string]bool{} // (branch, id): the branch still has active details for id
+	for _, b := range in.Branches {
+		if id, _, ok := issue.ParseFilename(path.Base(b.Path)); ok && b.Raw != nil {
+			kept[[2]string{b.Branch, id}] = true
+		}
+	}
 	for _, b := range in.Branches {
 		id, _, ok := issue.ParseFilename(path.Base(b.Path))
-		if !ok || b.Raw == nil {
-			continue // a branch's own archive move or an unrelated file
+		if !ok {
+			continue
 		}
 		var p branchProblem
 		card, known := cards[id]
 		switch {
+		case b.Raw == nil:
+			// Removing the details is a rename when the branch keeps others for
+			// id, and nothing to carry when main has archived id too. Otherwise
+			// the branch archived an issue main still has active: an unlanded
+			// legacy close, whose card would stay open after cutover.
+			if kept[[2]string{b.Branch, id}] || len(active[id]) == 0 {
+				continue
+			}
+			p = branchProblem{b.Path, "a branch archives an issue main still has active", "land or drop the branch before cutover"}
 		case !known && len(active[id]) == 0 && len(older[id]) == 0:
 			p = branchProblem{b.Path, "issue exists only on a branch", "publish it to main (legacy `sdlc issue sync --push`) or drop it, before cutover"}
 		case len(active[id]) == 0:
