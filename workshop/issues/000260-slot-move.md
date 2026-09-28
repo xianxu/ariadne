@@ -8,6 +8,7 @@ updated: 2026-09-28
 estimate_hours:
 card_mirror: '9dac2893c0e13151acbb5dd2f221c58452e198e1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T11:22:06-07:00
+flow: {kind: quick, provenance: inferred, spec: "89f0d9f1", done: "2aba2121"}
 ---
 
 # sdlc move: move the current branch to another slot
