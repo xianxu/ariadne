@@ -1,12 +1,14 @@
 ---
 id: 000263
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
-card_mirror: '9a461fb72c19a6ca782cb3b179b0eeaec0d2a3dc' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3ec13c5a2fe0cca34aeb35544c17ee775f1c14bf' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-28T15:38:02-07:00
+flow: {kind: quick, provenance: inferred, spec: "9a47d4ff", done: "6e35a782"}
 ---
 
 # weave refresh clobbers a dependency's committed gitignore block
