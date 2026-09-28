@@ -6,7 +6,7 @@ updated: 2026-09-28
 estimate_hours:
 github_issue:
 started: 2026-09-28T15:38:02-07:00
-actual_hours: 0.19
+actual_hours: 0.22
 tracker:
     version: 1
     handoff:
@@ -20,10 +20,10 @@ tracker:
         destination: workshop/issues/000263-weave-dependency-gitignore-clobber.md
         main_commit: 7fc9a236ac087bb67870cd58cd7009ce04bd8a43
     completion:
-        token: close-9c67a4e6e5de
+        token: close-8016f18dd032
         repository: github.com/xianxu/ariadne
-        reviewed_head: 7b31373ab682a5426a8d404848c2a01f5330f01e
-        evidence_commit: 29f09e937173c1cba0eb51315dfa276aebf20476
+        reviewed_head: 9d1c94e2d7bbe3053b908ca1a51d9691fa87e4d3
+        evidence_commit: 29cee0458d71dd84dd7c45f03018275902010350
 ---
 
 # weave refresh clobbers a dependency's committed gitignore block
