@@ -6,6 +6,7 @@ github_issue:
 created: 2026-07-29
 updated: 2026-07-29
 estimate_hours:
+card_mirror: 'e9c44cd9eee897cfbd3c432545ceddd8c0bc4608' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # runChangeCode gate loop has no in-process coverage — exitWithCode bypasses the swappable die seam

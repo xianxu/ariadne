@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-18
 updated: 2026-09-18
 estimate_hours:
+card_mirror: 'ed6cedf4f7d752eac4a68c0afb184c873054644f' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Durable-plan lookup is exact-name: a plan under another slug is invisible

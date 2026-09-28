@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-17
 updated: 2026-09-17
 estimate_hours:
+card_mirror: '33f001cd39d4383a0532f5a9930ca9efc878bd1c' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # sdlc config: a review-free flow for declarative changes

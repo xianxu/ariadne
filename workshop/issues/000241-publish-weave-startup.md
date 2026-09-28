@@ -7,6 +7,7 @@ target: base-layer-mechanics
 created: 2026-09-20
 updated: 2026-09-20
 estimate_hours:
+card_mirror: '16bbca7b4ea62a10411f272cf083ecb6bf4a2fdf' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Publish weave and cut over startup

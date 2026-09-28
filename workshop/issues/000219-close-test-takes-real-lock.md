@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-09
 updated: 2026-09-09
 estimate_hours:
+card_mirror: '5587eb9436f1e6a087cea655658e66cf2a906fe0' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # close_test flag assertion takes the real repo lock, so the suite cannot run inside an sdlc transaction

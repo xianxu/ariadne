@@ -6,6 +6,7 @@ github_issue:
 created: 2026-07-29
 updated: 2026-07-29
 estimate_hours:
+card_mirror: '6c996d55150d2df85965267666f6f449fee99452' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # sdlc judge plan-quality renders an empty issue — no --issue path populates IssueContent/PlanContent

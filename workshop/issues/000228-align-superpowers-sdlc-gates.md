@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-15
 updated: 2026-09-15
 estimate_hours:
+card_mirror: '8bf1f916e01e65a243e625bbf530ccefca8f48e5' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Align local superpowers with SDLC review gates

@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-27
 updated: 2026-09-27
 estimate_hours:
+card_mirror: '1a5081591614b6df57a8b3565b309d3e22c35bde' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Hours attribution: ignore GitHub PR numbers; window starts at the claim

@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-11
 updated: 2026-09-11
 estimate_hours:
+card_mirror: 'c5813e3024e354ef4c8b4ef908054690821b019a' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # weave-lowered substrate symlinks are tracked in every derivative, so weave's own prune and refresh show up as git churn

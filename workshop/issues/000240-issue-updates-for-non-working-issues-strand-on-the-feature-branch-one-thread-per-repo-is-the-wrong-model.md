@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-20
 updated: 2026-09-21
 estimate_hours:
+card_mirror: 'a17ad0182482b5fb55bf5f8c8af9d04e3d9b0e5f' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Issue updates for non-working issues strand on the feature branch — one thread per repo is the wrong model

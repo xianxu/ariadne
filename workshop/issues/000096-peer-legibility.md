@@ -6,6 +6,7 @@ github_issue:
 created: 2026-06-14
 updated: 2026-06-14
 estimate_hours:
+card_mirror: 'bec7efeee7cf6f783c58e944d4c6d98fc43e02f9' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Peer-repo work legibility: make cross-repo base-layer edits visible at the gate

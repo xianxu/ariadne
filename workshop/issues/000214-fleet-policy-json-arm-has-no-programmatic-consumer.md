@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-02
 updated: 2026-09-02
 estimate_hours:
+card_mirror: 'e2809c23d3e83cea80132603f3591088b8c80beb' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # fleet policy JSON arm has no programmatic consumer

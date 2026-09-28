@@ -6,6 +6,7 @@ github_issue:
 created: 2026-07-13
 updated: 2026-07-13
 estimate_hours:
+card_mirror: '5a696fa2d2688b45e6601a53b7b0c786029d279d' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # audit ariadne stack for opportunities to simplify

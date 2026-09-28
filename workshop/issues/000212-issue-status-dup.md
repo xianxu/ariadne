@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-02
 updated: 2026-09-02
 estimate_hours:
+card_mirror: '93829dbe3af6c418716e569dc0da9a9a5af0db6f' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Add dup to the issue status vocabulary

@@ -6,6 +6,7 @@ github_issue:
 created: 2026-08-20
 updated: 2026-08-20
 estimate_hours:
+card_mirror: 'b032449abc62c681239d1b366a92144beccb97b2' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # the durable plan in workshop/plans/ has no close gate, so it silently drifts from the code it specifies

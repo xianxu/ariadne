@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-15
 updated: 2026-09-15
 estimate_hours:
+card_mirror: '5c11a09d5c21f7b066fe3677a80cdf22c08da8c3' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Design Argos stateful protocol binary

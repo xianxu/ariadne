@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-11
 updated: 2026-09-11
 estimate_hours:
+card_mirror: 'b1ac10050b18b9b7a2f17900cb32e45a8c23df8a' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Same-issue concurrent trunk edits are last-writer-wins

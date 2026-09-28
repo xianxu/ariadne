@@ -5,6 +5,7 @@ deps: [000031]
 created: 2026-05-26
 updated: 2026-05-26
 estimate_hours:
+card_mirror: 'a3d7c6dec56f673e7799e5f29a736c23831e4b1b' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # sdlc postmortem subcommand — structured per-issue retrospective

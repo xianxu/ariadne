@@ -5,6 +5,7 @@ deps: []
 created: 2026-05-31
 updated: 2026-05-31
 estimate_hours: 3
+card_mirror: 'ebd022f1a806ec987aaa728f0a8fe70db906a11b' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Generic CI merge-check mechanism (pluggable publish gate for derivatives)

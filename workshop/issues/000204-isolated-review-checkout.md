@@ -6,6 +6,7 @@ github_issue:
 created: 2026-08-25
 updated: 2026-08-25
 estimate_hours:
+card_mirror: 'f71102a52867d27e36b271173008a590c0bc02ba' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Run each boundary reviewer in a disposable isolated checkout

@@ -6,6 +6,7 @@ github_issue:
 created: 2026-06-10
 updated: 2026-06-10
 estimate_hours:
+card_mirror: '70390be232330b558822cea82fd521ef2e144c1e' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # docflow: suspend and resume session-state pair with auto-summary on resume

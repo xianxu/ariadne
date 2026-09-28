@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-17
 updated: 2026-09-17
 estimate_hours:
+card_mirror: '137ef55aed33475f0b06ce12ab494fbc8fdbfaac' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # ARCH-ORDER: separate provenance from authority, and bound the modeled extent of external state

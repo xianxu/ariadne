@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-17
 updated: 2026-09-17
 estimate_hours:
+card_mirror: '366a7d2cef67348b77b4ed6a8df3586961b1dbc0' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Split actuals at the first boundary review: build time vs converge time

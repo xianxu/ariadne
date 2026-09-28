@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-07
 updated: 2026-09-07
 estimate_hours:
+card_mirror: 'ef0691ffe5dfb10aac69c5df5e1bdb8753839d78' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # ARCH-ERROR: name the fault domain and where its failures are decided

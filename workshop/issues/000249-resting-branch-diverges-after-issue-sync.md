@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-24
 updated: 2026-09-24
 estimate_hours:
+card_mirror: 'add97d845302c62c5f0cfa99a30c5fcdb2b5c88a' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Issue sync and publish leave a slot's resting branch diverged from origin/main

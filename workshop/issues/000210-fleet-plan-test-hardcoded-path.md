@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-02
 updated: 2026-09-02
 estimate_hours:
+card_mirror: '1b15a61332ff87b075040328b0cf3de3b8d27956' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # fleet plan test reads a hardcoded workshop/plans path that archiving breaks

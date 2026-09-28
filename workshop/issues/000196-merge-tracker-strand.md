@@ -6,6 +6,7 @@ github_issue:
 created: 2026-08-20
 updated: 2026-08-20
 estimate_hours:
+card_mirror: 'bb05fa53d70f305ea7c91cc948bd96e793c87977' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # merge: dirty tracker files are exempted from the block but still strand the post-merge switch

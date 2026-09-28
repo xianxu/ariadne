@@ -6,6 +6,7 @@ github_issue:
 created: 2026-08-20
 updated: 2026-08-20
 estimate_hours:
+card_mirror: 'ec0a0e12f025447b88585a308e8e7973cf0314bf' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # derive the boundary-review window from the gate ledger, not a hand-pasted Review-Verdict trailer

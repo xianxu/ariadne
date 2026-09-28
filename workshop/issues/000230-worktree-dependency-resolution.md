@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-15
 updated: 2026-09-15
 estimate_hours:
+card_mirror: '3e5625c8e92cb0a67b353b87feccd5002cb8ad25' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Make Weave dependency resolution worktree-aware

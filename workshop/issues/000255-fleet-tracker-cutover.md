@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-27
 updated: 2026-09-27
 estimate_hours:
+card_mirror: 'babc5f2ddf57a41726035e5b0a0d85a3000f209c' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Fleet cutover to the issue tracker; delete the legacy writers

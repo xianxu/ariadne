@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-06
 updated: 2026-09-06
 estimate_hours:
+card_mirror: '86a7a13e7a45d0e6a0ef1ab81b57d101e18edf14' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # ARCH-CONSTRAINTS: every number names how to re-measure it

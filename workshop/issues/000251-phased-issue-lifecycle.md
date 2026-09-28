@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-24
 updated: 2026-09-24
 estimate_hours:
+card_mirror: '996addaebb6ffccbe066a8c7cc477bdaf635632e' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Phased issue lifecycle: spec, plan and code phases land on main

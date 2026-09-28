@@ -6,6 +6,7 @@ github_issue:
 created: 2026-07-16
 updated: 2026-07-16
 estimate_hours:
+card_mirror: 'c401deebe562b2345fcfffe639b3b2a091ed59ee' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # FIX-THEN-SHIP needs better process

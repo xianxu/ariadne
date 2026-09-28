@@ -5,6 +5,7 @@ deps: [000033]
 created: 2026-05-26
 updated: 2026-05-26
 estimate_hours:
+card_mirror: '5fc66dda1a602949bc918235195c475a68e763ee' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Brainstorming skill: gist vocabulary + default-acceptance signal capture

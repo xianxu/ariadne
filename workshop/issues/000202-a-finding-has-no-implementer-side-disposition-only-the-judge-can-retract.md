@@ -6,6 +6,7 @@ github_issue:
 created: 2026-08-21
 updated: 2026-08-21
 estimate_hours:
+card_mirror: '5b810997d763927c576281b6f2987009192c2aef' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # A finding has no implementer-side disposition: only the judge can retract

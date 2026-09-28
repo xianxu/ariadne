@@ -6,6 +6,7 @@ github_issue:
 created: 2026-06-19
 updated: 2026-06-19
 estimate_hours:
+card_mirror: 'b6fb519539676cc984d9297d8364b7f3f0e4bbd9' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Subagent strategy: add the fork-for-implementation pattern (context inheritance)

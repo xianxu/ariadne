@@ -7,6 +7,7 @@ target: base-layer-mechanics
 created: 2026-06-14
 updated: 2026-06-14
 estimate_hours:
+card_mirror: '7bdafbfdda72c3c48ceaee057542f033cd48beba' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # weave settings round-trip: lifting output edits back into sources (inverse-merge / lens)

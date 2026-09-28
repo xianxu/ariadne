@@ -4,9 +4,12 @@ status: open
 deps: []
 created: 2026-06-24
 updated: 2026-06-24
+card_mirror: 'b43320e2dec70d1f903f17eff21ece7c371de8d7' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # sdlc state can track all ariadne changes
+
+## Problem
 
 right now, `sdlc state` operate one repo at a time, which is by design. but sometimes I want to make sure all "dependency (ancestor) repos are clean" before I start some big change. so let's add a mode `sdlc state --full` to check also state of dependencies declared of the current repo. 
 

@@ -6,6 +6,7 @@ github_issue:
 created: 2026-09-27
 updated: 2026-09-27
 estimate_hours:
+card_mirror: '3362d24d779b6a1d6e7e1ce354a9141557597a04' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Keep the sdlc test suite fast: tiers, shared binary, parallel-safe e2e

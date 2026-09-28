@@ -5,9 +5,12 @@ deps: [000012, 000016]
 created: 2026-04-29
 updated: 2026-05-03
 references: [/Users/xianxu/workspace/brain/memory/life/42shots/ideas/2026-04-28-02-pensive-ariadne-arc.md]
+card_mirror: 'c832438bf628e496534951153f9e0b8969800442' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # product and roadmap data types
+
+## Problem
 
 Add two typed-document prototypes to the data system: `product` (the durable charter for a thing being built, spanning 1..N peer repos of the brain) and `roadmap` (a structured monthly snapshot tracking progress against a product's components). Co-design the prototypes and the workflows around them inside the prototype files themselves — the prototype is the spec.
 

@@ -6,6 +6,7 @@ github_issue:
 created: 2026-07-05
 updated: 2026-07-05
 estimate_hours:
+card_mirror: 'b56f5b1a98e7fe6a45a3beba6e2fa10e77a9d1b2' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # docflow ship: ask whether to squash review rounds

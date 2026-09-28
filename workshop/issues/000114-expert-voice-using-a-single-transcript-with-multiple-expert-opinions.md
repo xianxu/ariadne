@@ -4,9 +4,12 @@ status: open
 deps: []
 created: 2026-06-17
 updated: 2026-06-17
+card_mirror: '965ed2bc231149887f204bc32b915a71f0e7fbf6' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # expert voice: using a single transcript with multiple expert opinions
+
+## Problem
 
 the way I use ariadne, is as my workbench. Such workbench brings in the power of AI, in terms of world knowledge and the ability to manage process on behalf of a human operator.
 
