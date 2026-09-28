@@ -1,11 +1,12 @@
 ---
 id: 000256
-status: open
+status: working
 deps: [000255]
 github_issue:
 created: 2026-09-27
 updated: 2026-09-27
 estimate_hours:
+started: 2026-09-27T23:03:37-07:00
 ---
 
 # issue migrate: refuse a branch that archives an issue main still has active
