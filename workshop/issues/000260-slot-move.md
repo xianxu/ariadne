@@ -1,12 +1,13 @@
 ---
 id: 000260
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
-card_mirror: '827d0745549acc3a8680d02a0a894110914c7dff' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9dac2893c0e13151acbb5dd2f221c58452e198e1' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-28T11:22:06-07:00
 ---
 
 # sdlc move: move the current branch to another slot
