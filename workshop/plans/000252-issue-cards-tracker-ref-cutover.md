@@ -108,11 +108,12 @@ test the real `--apply`: that writes pair's shared remote.
       `issue lint-ids --base main --head HEAD`, the publish gate via `sdlc push --dry-run`
 - [x] parley.nvim's real dry run (read-only): `bin/sdlc issue migrate` → refusals match Phase C
       (C11: the unlanded #276–#286 stack) — never `--apply` here
-- [ ] Soak: a couple of days of ordinary parley.nvim work in this slot, in legacy mode
+- [x] Soak: a couple of days of ordinary parley.nvim work in this slot, in legacy mode
       **Evidence so far (2026-09-27):** the slot's `sdlc` is the #252 build (`:0`'s untouched); #287 and
       #281 ran new→claim→design→change-code→close→PR (#202, #203)→merge→archive, #289–#291 filed, #264
       claimed; parley.nvim's GitHub stays pure legacy (no tracker, marker or `card_mirror`); the frozen
-      and #252 binaries list all 49 issues identically. Still to exercise naturally: `milestone-close`.
+      and #252 binaries list all 49 issues identically. #264 then closed with two milestone-closes
+      (M1, M2) and landed (PR #204) — every legacy verb exercised.
 - [x] Rehearse the apply on a **disposable copy** of parley.nvim (bare copy + clone, as A1):
       `--apply`, re-apply *already migrated*, `issue list`, one claim
       **Result (2026-09-27):** mirror of GitHub + parley.nvim:0's local branches → 0 refusals (the
@@ -122,9 +123,8 @@ test the real `--apply`: that writes pair's shared remote.
       main's migration commit conflicts in `workshop/lessons.md` (pre-cutover divergence) — resolve by
       merging origin/main by hand, as landing it would need anyway. At the real apply, the slot's
       uncommitted #264 edits will refuse: commit/sync them first.
-- [ ] Afterwards: switch `parley.nvim-slot1/ariadne` back to `main` and `weave compile` again, or
-      leave the slot on #252 until Phase B
-- [ ] Record results in #252's Log
+- [x] Afterwards: the slot stays on #252 — parley.nvim cut over in A4
+- [x] Record results in #252's Log
 
 ### A4 — Canary cutover: parley.nvim in tracker mode, from slot 1 only
 
@@ -133,30 +133,35 @@ on the #252 branch); `parley.nvim:0` stays frozen on `pre-252-freeze` and unused
 proves tracker mode on real history and GitHub before #252 ships, and replaces C11.
 
 Before:
-- [ ] #264 finished in legacy mode (landed, or at least committed/synced); #290 and #291 not
+- [x] #264 finished in legacy mode (landed, or at least committed/synced); #290 and #291 not
       started (they are worked in tracker mode below); no uncommitted issue edits in `:0` or `:1`
-- [ ] Differential check on the exact slot build (`legacy-equivalence.sh`, all `same`)
-- [ ] **Freeze `parley.nvim:0` (convention):** no `sdlc`, no `make`, no agents there until #252 ships
+- [x] Differential check on the exact slot build (`legacy-equivalence.sh`, all `same`)
+- [x] **Freeze `parley.nvim:0` (convention):** no `sdlc`, no `make`, no agents there until #252 ships
       — its binary cannot honor the marker and would write legacy state
-- [ ] CI is bypassed for the window: land with `sdlc merge` (gh, unprotected main) or `sdlc push`;
+- [x] CI is bypassed for the window: land with `sdlc merge` (gh, unprotected main) or `sdlc push`;
       both run the #252 publish gate locally; ignore merge-check results (they run pre-#252 sdlc)
 
 Cutover (in `~/workspace/worktree/parley.nvim-slot1/parley.nvim`, rest `main-slot1`):
-- [ ] `sdlc issue migrate` → 0 refusals; review inferences (133 archived cards); note the digest
-- [ ] `sdlc issue migrate --apply --expect <digest>` → `git pull --ff-only`
-- [ ] **Read-only verification first** (the back-out stays trivial until the first card write):
+- [x] `sdlc issue migrate` → 0 refusals; review inferences (133 archived cards); note the digest
+      (first attempt died on a prunable worktree registration — fixed, 26bed9e8)
+- [x] `sdlc issue migrate --apply --expect <digest>` → `git pull --ff-only` (tracker root 41de715a,
+      migration commit a26cd3bc)
+- [x] **Read-only verification first** (the back-out stays trivial until the first card write):
       `sdlc issue list` matches the pre-cutover listing · `sdlc issue show 264` shows the card ·
       `sdlc issue migrate` says *already migrated* · `sdlc issue recovery list` is empty
-- [ ] First card write: `sdlc issue new` (or a claim) — from here, backing out loses card edits
+- [x] First card write: `sdlc issue new` (or a claim) — from here, backing out loses card edits
+      (claim #290)
 
 Soak in tracker mode (slot 1 only), a few days:
-- [ ] #290 and #291 — issues filed before the cutover, carried across as cards: `claim` →
+- [ ] #290 ✓ (PR #205 → done, landed_commit = the merge; its close found the local-`main` window
+      bug, fixed 3823d557) and #291 — issues filed before the cutover, carried across as cards: `claim` →
       `start-plan` → design (`issue sync` checkpoints on the issue branch) → `change-code` → `close` →
       `sdlc pr` → `sdlc merge` → card `done`, archived
 - [ ] A new issue end to end: `issue new` → `move-detail` → `claim` → … → `sdlc merge`
 - [ ] A `milestone-close` on an `Mx` plan
 - [ ] A spin-off: `issue new` on an issue branch → `move-detail` while the code is unshipped
-- [ ] Reconcile one pre-cutover branch (or merge origin/main into it)
+- [ ] (deferred by the operator) Reconcile one pre-cutover branch — `000209-safe-defaults-plan`
+      later; rehearsal showed it needs its pre-cutover `lessons.md` conflict resolved
 - [ ] Record results in #252's Log
 
 Exit: Phase B (ship #252); then `parley.nvim:0` pulls ariadne + `weave compile`, `git pull`s
