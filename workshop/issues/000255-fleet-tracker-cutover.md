@@ -54,7 +54,7 @@ moved.
 ## Plan
 
 - [x] Phase B: land #252; unfreeze `ariadne:0`; `weave compile` every `:0`; parley.nvim:0 pulls the cutover
-- [ ] parley.nvim (cut over in #252's A4 canary; finish its `:0` catch-up)
+- [x] parley.nvim (cut over in #252's A4 canary; finish its `:0` catch-up)
 - [x] kaggle
 - [x] xianxu.dev
 - [x] kbench
