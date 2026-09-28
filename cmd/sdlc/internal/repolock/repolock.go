@@ -178,7 +178,7 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 			return nil, fmt.Errorf("create sdlc repo lock %s: %w", lockDir, err)
 		}
 
-		holder, readErr := readMetadata(lockDir)
+		holder, readErr := ReadMetadata(lockDir)
 		if readErr != nil {
 			if initDeadline.IsZero() {
 				initDeadline = opts.Now().Add(metadataInitGrace)
@@ -258,7 +258,8 @@ func (l *Lock) stopSignalCleanup() {
 	})
 }
 
-func readMetadata(lockDir string) (Metadata, error) {
+// ReadMetadata reads the holder record of the lock at lockDir.
+func ReadMetadata(lockDir string) (Metadata, error) {
 	data, err := os.ReadFile(filepath.Join(lockDir, metadataFile))
 	if err != nil {
 		return Metadata{}, err

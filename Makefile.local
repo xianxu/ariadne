@@ -1,7 +1,13 @@
 # ariadne-specific Makefile targets. NOT vendored to consumers
 # (consumers don't need to refresh other repos — only ariadne does).
 
-.PHONY: refresh-recursive harness-check
+.PHONY: refresh-recursive harness-check test
+
+# Run the sdlc Go suite sharded across processes (#253): one compiled cmd/sdlc
+# test binary split over N processes (LPT-balanced from the last run's timings),
+# the other packages alongside. Pass flags with ARGS, e.g. ARGS="--shards 6".
+test:
+	@python3 scripts/test-shard.py $(ARGS)
 
 # Guard ariadne's per-harness skill-discovery integration assumptions (#107).
 # weave's Option B lowering trusts each harness to discover its own skill dir
