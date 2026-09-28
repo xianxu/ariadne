@@ -55,17 +55,17 @@ moved.
 
 - [x] Phase B: land #252; unfreeze `ariadne:0`; `weave compile` every `:0`; parley.nvim:0 pulls the cutover
 - [ ] parley.nvim (cut over in #252's A4 canary; finish its `:0` catch-up)
-- [ ] kaggle
-- [ ] xianxu.dev
-- [ ] kbench
-- [ ] metis
-- [ ] you-decide
+- [x] kaggle
+- [x] xianxu.dev
+- [x] kbench
+- [x] metis
+- [x] you-decide
 - [ ] nous
 - [ ] 42shots
 - [x] ariadne (clear its dry-run blockers first)
 - [ ] tools (clear its blockers first)
 - [ ] pair (clear its blockers first)
-- [ ] ducks (new project, created 2026-09-27; dry-run not yet taken)
+- [x] ducks (new project, created 2026-09-27)
 - [ ] astro, parli: decide
 - [ ] Phase D: delete the legacy writers and legacy mode
 
@@ -123,3 +123,16 @@ moved.
   migration commit 0c567478. `:0` and slots 1–3 fast-forwarded. Verified: issue
   list (`:0` and a slot), already migrated, recovery empty. First card write:
   claimed #255 → `issue-tracker` 38d41d8b, main untouched.
+- **Batch 1 cut over (2026-09-27):** kaggle (root e9029056), kbench
+  (0d475da7), metis (e81d3097), xianxu.dev (222a1b75), ducks (2e02bdc1),
+  you-decide (d8ba181f). All dry runs 0 refusals; each `:0` pulled; verified
+  (issue list, already migrated, recovery empty). kbench's pre-cutover branch
+  `000028-turn-level-conductor` needs `--reconcile` before reuse.
+- you-decide's apply stopped between bootstrap and the main commit: its
+  pre-push publish gate ran lint-ids, which judged the checkout's (absent)
+  marker instead of the pushed commit's. Finished by re-running the same
+  `--apply` with hooks skipped once (operator-authorized); fixed properly in
+  #257 (lint-ids judges the marker at `--head`; landed PR #137 — ariadne's
+  first tracker-mode issue, and the PR merged with no issue-file conflict).
+- Remaining: pair, tools, nous (batch 2); 42shots, astro, parli (no issues:
+  cut over or exclude).
