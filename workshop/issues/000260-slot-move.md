@@ -80,16 +80,24 @@ Moving back is the same command run from `:N` with a slot target, e.g.
 
 Durable plan: `workshop/plans/000260-slot-move-plan.md`.
 
-- [ ] Pure rules: `checkMove` and `untrackedCollisions` with unit tests
-- [ ] `gitOperationInProgress` takes a git func + root (reused by move)
-- [ ] `sdlc move` command: observe twice, switch, verify; help text; real-Git tests
-- [ ] Atlas and README point at `sdlc move`; replace the two procedure move tests
+- [x] Pure rules: `checkMove` and `untrackedCollisions` with unit tests
+- [x] `gitOperationInProgress` takes a git func + root (reused by move)
+- [x] `sdlc move` command: observe twice, switch, verify; help text; real-Git tests
+- [x] Atlas and README point at `sdlc move`; replace the two procedure move tests
 
 ## Log
 
 ### 2026-09-28
 
 Filed from ariadne slot 1 at the operator's request. The five steps are the operator's; the extra checks come from the #248 procedure.
+
+Implemented: `cmd/sdlc/moveplan.go` (pure `checkMove`, `untrackedCollisions`),
+`cmd/sdlc/move.go` (observe twice, switch, verify), `helptext/move.md`.
+`gitOperationInProgress` now takes a git func + root, shared with
+`issue move-detail`. Real-Git tests in `move_test.go` replace the two #248
+procedure tests that parsed the atlas shell block. `AGENTS.base.md`, the atlas
+move section and README point at `sdlc move`. Live dry run in ariadne refused
+correctly (`:0` was on #253's branch). `change-code` inferred the quick flow.
 
 ## Revisions
 
