@@ -10,7 +10,8 @@ nothing, when:
 
   - the target slot is missing, is this slot, or is another repository
   - this slot is on its resting branch or detached
-  - the target slot is not on its resting branch
+  - the target slot is not on its resting branch, or that branch has no
+    configured upstream
   - either slot has uncommitted changes, dirty submodules or a Git operation
     in progress
   - this slot has untracked files

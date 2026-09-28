@@ -65,13 +65,13 @@ func runMove(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 		return fmt.Errorf("switch %s to %s: %v\n%s\n%s is intact at %s and %s is on %s; reconcile %s, then retry: git -C %s switch %s",
 			to.Address, branch, err, out, branch, from.Head, from.Address, from.Resting, to.Address, to.Root, branch)
 	}
-	for _, check := range []struct{ root, branch, head string }{{to.Root, branch, from.Head}, {from.Root, from.Resting, ""}} {
+	for _, check := range []struct{ root, branch, head string }{{to.Root, branch, from.Head}, {from.Root, from.Resting, from.RestHead}} {
 		id, err := workspace.Resolve(r, check.root, "")
 		if err != nil {
-			return err
+			return fmt.Errorf("both switches ran, but verifying %s failed: %w", check.root, err)
 		}
-		if workspaceText(id.Branch, "") != check.branch || (check.head != "" && workspaceText(id.Head, "") != check.head) {
-			return fmt.Errorf("after the move %s is on %s at %s, want %s", check.root, workspaceText(id.Branch, "(detached)"), workspaceText(id.Head, ""), check.branch)
+		if got, head := workspaceText(id.Branch, "(detached)"), workspaceText(id.Head, ""); got != check.branch || head != check.head {
+			return fmt.Errorf("both switches ran, but %s is on %s at %s, want %s at %s; inspect it before continuing", check.root, got, head, check.branch, check.head)
 		}
 	}
 	cok(stderr, fmt.Sprintf("%s is on %s in %s; %s is back on %s", branch, to.Address, to.Root, from.Address, from.Resting))
@@ -141,6 +141,13 @@ func observeMove(dir, address string) (moveFacts, error) {
 func observeMoveSide(r execGitRunner, id workspace.Identity) (moveSide, error) {
 	s := moveSide{Root: id.WorktreeRoot, Address: workspaceText(id.Address, ""), Branch: workspaceText(id.Branch, ""),
 		Resting: workspaceText(id.RestingBranch, ""), Head: workspaceText(id.Head, "")}
+	if s.Resting != "" {
+		rest, err := r.GitInDir(s.Root, "rev-parse", "--verify", "refs/heads/"+s.Resting)
+		if err != nil {
+			return moveSide{}, fmt.Errorf("resolve %s in %s: %v\n%s", s.Resting, s.Root, err, rest)
+		}
+		s.RestHead = strings.TrimSpace(string(rest))
+	}
 	out, err := r.GitInDir(s.Root, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")
 	if err != nil {
 		return moveSide{}, fmt.Errorf("git status in %s: %v\n%s", s.Root, err, out)

@@ -137,6 +137,9 @@ func TestMoveRefusals(t *testing.T) {
 		{"source resting", ":0", "no issue branch to move", func(t *testing.T, r []string) {
 			testfix.Git(t, r[1], "switch", "-q", "main-slot1")
 		}},
+		{"destination without upstream", ":0", "main has no configured upstream", func(t *testing.T, r []string) {
+			testfix.Git(t, r[0], "branch", "--unset-upstream", "main")
+		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			roots, _ := moveFixture(t)

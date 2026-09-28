@@ -11,6 +11,7 @@ import (
 // moveSide is one slot as `sdlc move` observed it (#260).
 type moveSide struct {
 	Root, Address, Branch, Resting, Head string
+	RestHead                             string             // commit Resting points at
 	Changes                              []gitx.StatusEntry // tracked, staged, submodule
 	Untracked                            []string
 	Operation                            string
