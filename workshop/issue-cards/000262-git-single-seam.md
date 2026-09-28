@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000262-git-single-seam.md
         source_blob: 866b8a5b882d84eca7aed7c2ca4b689717dac02f
         destination: workshop/issues/000262-git-single-seam.md
+        main_commit: 7ac10ee1e83b074ea8a3d2caba7d91cb852e8a56
 ---
 
 # Route all git calls through one directory-explicit seam
