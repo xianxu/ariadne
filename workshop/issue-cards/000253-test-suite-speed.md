@@ -1,11 +1,19 @@
 ---
 id: 000253
-status: working
+status: codecomplete
 created: 2026-09-27
 updated: 2026-09-28
 estimate_hours:
 github_issue:
 started: 2026-09-28T11:24:11-07:00
+actual_hours: 1.04
+tracker:
+    version: 1
+    completion:
+        token: close-da4d92e7d9c5
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 491ded173bfd6183e25edef59c590dd26a4cff54
+        evidence_commit: 67a17a2d981cb845ea1fad61a5e0d2ab0b756175
 ---
 
 # Keep the sdlc test suite fast: tiers, shared binary, parallel-safe e2e
