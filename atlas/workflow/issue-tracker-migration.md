@@ -48,7 +48,9 @@ Commands open trackers guarded (`Repository.GuardCutover`): every read and
 card preparation proves the checkout's marker names the tracker's root commit.
 A tracker without a marker (a checkout from before the cutover, or an
 unfinished migration), a marker without a tracker, or a marker naming another
-root refuses with the next action — never a stale or legacy read. Unmirrored
+root refuses with the next action — never a stale or legacy read. A check of a
+commit that is not checked out (lint-ids at `--head`, as in a pre-push hook)
+judges that commit's marker instead (`GuardCutoverAt`, #257). Unmirrored
 details in a cut-over repository refuse the legacy close/change-code paths
 (`tracker.RefuseLegacyDetails`). Legacy-only entrypoints refuse on the marker:
 `issue publish`, `issue sync --push` or on a resting branch, and the

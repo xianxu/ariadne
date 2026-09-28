@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -487,5 +488,52 @@ func TestIssueMigrateReconcileAllowsAnArchiveMainClosedToo(t *testing.T) {
 	r.git("commit", "-qm", "#1: archive issue to history (done)")
 	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--reconcile"); err != nil && strings.Contains(err.Error()+stderr, tracker.ArchivesActiveReason) {
 		t.Fatalf("an archive of an issue main closed too was refused: %v\n%s", err, stderr)
+	}
+}
+
+// A pre-push lint judges the commit being published, not the checkout: right
+// after --apply the checkout has no marker yet while the migration commit on
+// origin carries it, and the id lint of that commit must still run and pass. A
+// head whose marker names another tracker root still refuses (#257, found
+// cutting over you-decide).
+func TestIssueLintIDsJudgesTheMarkerAtHead(t *testing.T) {
+	bin := filepath.Join(t.TempDir(), "sdlc") // lint-ids exits 2 itself: run it as a process
+	if out, err := exec.Command("go", "build", "-o", bin, ".").CombinedOutput(); err != nil {
+		t.Fatalf("build sdlc: %v\n%s", err, out)
+	}
+	r := legacyRepo(t)
+	pre := r.git("rev-parse", "HEAD")
+	digest, out, err := migrateDryRun(t)
+	if err != nil {
+		t.Fatalf("dry run: %v\n%s", err, out)
+	}
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--apply", "--expect", digest); err != nil {
+		t.Fatalf("apply: %v\n%s", err, stderr)
+	}
+	r.git("fetch", "-q", "origin")
+	if r.git("ls-tree", "--name-only", "HEAD", "--", tracker.CutoverMarkerPath) != "" {
+		t.Fatal("fixture: the checkout should not carry the marker yet")
+	}
+	lint := func(head string) (int, string) {
+		cmd := exec.Command(bin, "issue", "lint-ids", "--base", pre, "--head", head)
+		cmd.Dir = r.root
+		cmd.Env = envWithTMPDIR(t)
+		out, err := cmd.CombinedOutput()
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return ee.ExitCode(), string(out)
+		} else if err != nil {
+			t.Fatalf("run lint-ids: %v\n%s", err, out)
+		}
+		return 0, string(out)
+	}
+	if code, out := lint("origin/main"); code != 0 {
+		t.Fatalf("lint of the migration commit from a checkout without the marker exited %d:\n%s", code, out)
+	}
+	r.git("switch", "-q", "-c", "forged", "origin/main")
+	writeRepoFile(t, r.root, tracker.CutoverMarkerPath, `{"version":1,"tracker_root":"`+strings.Repeat("b", 40)+`"}`+"\n")
+	r.git("commit", "-qam", "forge the marker")
+	if code, out := lint("HEAD"); code == 0 || !strings.Contains(out, "not where the issue tracker's history starts") {
+		t.Fatalf("a head naming another tracker root must refuse (exit %d):\n%s", code, out)
 	}
 }
