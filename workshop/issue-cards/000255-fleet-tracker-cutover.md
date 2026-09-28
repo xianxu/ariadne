@@ -1,10 +1,11 @@
 ---
 id: 000255
-status: open
+status: working
 created: 2026-09-27
 updated: 2026-09-27
 estimate_hours:
 github_issue:
+started: 2026-09-27T23:21:50-07:00
 ---
 
 # Fleet cutover to the issue tracker; delete the legacy writers
