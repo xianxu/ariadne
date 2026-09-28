@@ -59,7 +59,7 @@ offline `issue list` labelled stale, offline `claim` refused.
 - [x] After merge: card `done`, details archived under `workshop/history/issues/`, rest refreshes 0/0
 - [x] The imported codecomplete's branch: `sdlc pr` → `sdlc merge` → its card goes `done`
 - [x] `sdlc issue recovery list` is empty
-- [ ] Record results in #252's Log; delete the sandbox repo when satisfied
+- [x] Record results in #252's Log; delete the sandbox repo when satisfied (operator deleted `sdlc-smoke`, 2026-09-28)
 
 **A2 result (2026-09-26, `xianxu/sdlc-smoke`):** passed after one fix. The dry
 run found 4 cards, the duplicate #4 reported, #2's preamble given its
@@ -102,7 +102,7 @@ test the real `--apply`: that writes pair's shared remote.
 - [x] Before the soak: the differential check passes —
       `cmd/sdlc/testdata/legacy-equivalence.sh <pre-252 sdlc> <#252 sdlc>` (build the old one from
       `pre-252-freeze`; see the script header): 19/19 steps and both end states identical
-- [ ] Again right before Phase B, on the exact build that will land
+- [x] Again right before Phase B, on the exact build that will land (19/19 same after the BranchPoint fix, 2026-09-27)
 - [x] Legacy mode, read-only, with `bin/sdlc`: `issue list`, `issue show N`, `state`,
       `project status` (if it has projects), `sdlc actual --issue N` — same answers as `parley.nvim:0`
 - [x] Legacy mode on a local branch (no push): claim-free flow on a scratch branch —
@@ -158,15 +158,15 @@ Soak in tracker mode (slot 1 only), a few days:
       bug, fixed 3823d557) and #291 ✓ (PR #206) — issues filed before the cutover, carried across as cards: `claim` →
       `start-plan` → design (`issue sync` checkpoints on the issue branch) → `change-code` → `close` →
       `sdlc pr` → `sdlc merge` → card `done`, archived
-- [ ] A new issue end to end: `issue new` → `move-detail` → `claim` → … → `sdlc merge`
-- [ ] A `milestone-close` on an `Mx` plan
+- [x] A new issue end to end: `issue new` → `move-detail` → `claim` → … → `sdlc merge` (ariadne #257, PR #137, 2026-09-28)
+- [skipped] A `milestone-close` on an `Mx` plan — not exercised live in tracker mode; covered by the #252 milestone e2e tests
 - [x] A spin-off: `issue new` on an issue branch → `move-detail` while the code is unshipped
       (#292 from #291's branch; #293 handed off from rest; #291's PR merged with no issue-file conflict)
 - [x] After #291: retire the pre-cutover branch `000209-safe-defaults-plan` — copy its
       `workshop/plans/000209-safe-by-default-posture-plan.md` (and its 7 `lessons.md` lines, if still
       wanted) onto main by hand in one commit, then delete the branch (local only; never on GitHub).
       #209 restarts from main later (operator choice over merging the stale branch)
-- [ ] Record results in #252's Log
+- [x] Record results in #252's Log
 
 Exit: Phase B (ship #252); then `parley.nvim:0` pulls ariadne + `weave compile`, `git pull`s
 parley.nvim (gets the marker), and its old branches reconcile on next use.
@@ -202,7 +202,7 @@ Phase C cutover: without the marker, nothing about its workflow changes.
 - [x] `sdlc pr` → `sdlc merge` — from the #252 worktree this pulls `~/workspace/ariadne`:
       this **is** the unfreeze (the shell `sdlc` now builds the #252 binary)
 - [x] Rebuild ariadne's binaries: `make build` (or `go build -o bin/sdlc ./cmd/sdlc`)
-- [ ] Propagate to every layer repo's `:0` (and slots, when next used): `weave compile` in each of
+- [x] Propagate to every layer repo's `:0` (and slots, when next used): `weave compile` in each of
       42shots, kaggle, kbench, metis, nous, pair, parley.nvim, tools, xianxu.dev, you-decide
       (and astro, parli if they will use issues)
       **Partial (2026-09-27):** pair and ducks compiled clean. Pre-existing failures (the
@@ -239,36 +239,50 @@ found on 2026-09-26; re-run the dry run first — they may have changed.
 7. Unfreeze
 
 ### C1 — kaggle (ready)
-- [ ] 1 no blockers · [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
-- [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
+- [x] 1 no blockers · [x] 2 freeze · [x] 3 dry run (digest: 49c1cf6c94054ad5) · [x] 4 apply
+- [x] 5 slots / branches · [x] 6 verify · [x] 7 unfreeze
+
+**Result:** cut over (2026-09-27, batch 1); tracker root e9029056; verified already migrated, recovery empty.
 
 ### C2 — xianxu.dev (ready)
-- [ ] 1 no blockers (it is checked out on `000004-fold-parley-detail-blocks` with 3 dirty
+- [x] 1 no blockers (it is checked out on `000004-fold-parley-detail-blocks` with 3 dirty
       files — commit or park them first)
-- [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
-- [ ] 5 slots / branches (reconcile `000004-fold-parley-detail-blocks`) · [ ] 6 verify · [ ] 7 unfreeze
+- [x] 2 freeze · [x] 3 dry run (digest: 69553139df1b397a) · [x] 4 apply
+- [x] 5 slots / branches (reconcile `000004-fold-parley-detail-blocks`) · [x] 6 verify · [x] 7 unfreeze
+
+**Result:** cut over (2026-09-27, batch 1; #4 landed by hand first); tracker root 222a1b75; verified already migrated, recovery empty.
 
 ### C3 — kbench (ready; 5 worktrees)
-- [ ] 1 no blockers · [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
-- [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
+- [x] 1 no blockers · [x] 2 freeze · [x] 3 dry run (digest: d31157b817c449dd) · [x] 4 apply
+- [x] 5 slots / branches · [x] 6 verify · [x] 7 unfreeze
+
+**Result:** cut over (2026-09-27, batch 1; `000028-turn-level-conductor` reconciles on reuse); tracker root 0d475da7; verified already migrated, recovery empty.
 
 ### C4 — metis (ready)
-- [ ] 1 no blockers · [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
-- [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
+- [x] 1 no blockers · [x] 2 freeze · [x] 3 dry run (digest: e3036e98d2889a3a) · [x] 4 apply
+- [x] 5 slots / branches · [x] 6 verify · [x] 7 unfreeze
+
+**Result:** cut over (2026-09-27, batch 1); tracker root e81d3097; verified already migrated, recovery empty.
 
 ### C5 — you-decide (ready; 4 inferred cards)
-- [ ] 1 review the 4 inferred values in the dry run · [ ] 2 freeze · [ ] 3 dry run (digest: ______)
-- [ ] 4 apply · [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
+- [x] 1 review the 4 inferred values in the dry run · [x] 2 freeze · [x] 3 dry run (digest: 48f7a22721f27216)
+- [x] 4 apply · [x] 5 slots / branches · [x] 6 verify · [x] 7 unfreeze
+
+**Result:** cut over (2026-09-27, batch 1; pre-push hook skipped once, fixed by #257); tracker root d8ba181f; verified already migrated, recovery empty.
 
 ### C6 — nous (ready; 15 inferred cards)
-- [ ] 1 review the inferred values (6 active issues get a placeholder `## Problem` —
+- [x] 1 review the inferred values (6 active issues get a placeholder `## Problem` —
       optionally write real ones first)
-- [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
-- [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
+- [x] 2 freeze · [x] 3 dry run (digest: 892406db4b8ff766) · [x] 4 apply
+- [x] 5 slots / branches · [x] 6 verify · [x] 7 unfreeze
+
+**Result:** cut over (2026-09-28, batch 2; #48 landed first); tracker root bccecf82; verified already migrated, recovery empty.
 
 ### C7 — 42shots (ready; no issues — creates an empty tracker)
-- [ ] 1 no blockers · [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
-- [ ] 5 slots / branches · [ ] 6 verify with `issue new` · [ ] 7 unfreeze
+- [x] 1 no blockers · [x] 2 freeze · [x] 3 dry run (digest: 95699770925b8bac) · [x] 4 apply
+- [x] 5 slots / branches · [x] 6 verify with `issue new` · [x] 7 unfreeze
+
+**Result:** cut over (2026-09-28, empty tracker); tracker root 1160c082; verified already migrated, recovery empty.
 
 ### C8 — ariadne (6 blockers)
 - [x] 1a #119: publish the card fields changed on `000119-multi-agent-benchmark-harness`
@@ -283,42 +297,59 @@ found on 2026-09-26; re-run the dry run first — they may have changed.
 - [x] 5 slots (6 worktrees) / branches · [x] 6 verify · [x] 7 unfreeze
 
 ### C9 — tools (5 blockers; 7 worktrees)
-- [ ] 1a #80 and #81 were closed on their branches but never synced: publish those issue files to main
+- [x] 1a #80 and #81 were closed on their branches but never synced: publish those issue files to main
       (legacy `sdlc issue sync --issue N --push`), or land the branches
-- [ ] 1b stale branches editing archived issues: `origin/000001-define` (#2),
+- [x] 1b stale branches editing archived issues: `origin/000001-define` (#2),
       `origin/000054-background-harvest` (#55, #56) — land or delete
-- [ ] 1c re-run the dry run → 0 refusals
-- [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
-- [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
+- [x] 1c re-run the dry run → 0 refusals
+- [x] 2 freeze · [x] 3 dry run (digest: aee2ef2c0cb7e0cb) · [x] 4 apply
+- [x] 5 slots / branches · [x] 6 verify · [x] 7 unfreeze
+
+**Result:** cut over (2026-09-28, batch 2; #80/#81 landed, #82 design published first); tracker root ea8ec461; verified already migrated, recovery empty.
 
 ### C10 — pair (2 blockers; 8 worktrees)
-- [ ] 1a delete `origin/abandoned/000115-resurrect-a-session-across-agents-20260728` (edits archived #115)
-- [ ] 1b land or delete `000140-muse-return-rewrite-only-in-composer` (edits archived #140)
-- [ ] 1c re-run the dry run → 0 refusals
-- [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
-- [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
+- [x] 1a delete `origin/abandoned/000115-resurrect-a-session-across-agents-20260728` (edits archived #115)
+- [x] 1b land or delete `000140-muse-return-rewrite-only-in-composer` (edits archived #140)
+- [x] 1c re-run the dry run → 0 refusals
+- [x] 2 freeze · [x] 3 dry run (digest: d4815982eadc2ec3) · [x] 4 apply
+- [x] 5 slots / branches · [x] 6 verify · [x] 7 unfreeze
+
+**Result:** cut over (2026-09-28, batch 2; blockers already gone at the dry run (0 refusals); #292 reconciles on reuse); tracker root c039dc4b; verified already migrated, recovery empty.
 
 ### C11 — parley.nvim (superseded by A4: the canary cutover)
 - [x] 1a the #276–#286 stack landed; the rehearsal dry run shows 0 refusals
-- [ ] 1b commit/sync any in-flight issue edits (e.g. the slot's #264 design), re-run the dry run → 0 refusals
-- [ ] 2 freeze · [ ] 3 dry run (digest: ______) · [ ] 4 apply
-- [ ] 5 slots / branches · [ ] 6 verify · [ ] 7 unfreeze
+- [x] 1b commit/sync any in-flight issue edits (e.g. the slot's #264 design), re-run the dry run → 0 refusals
+- [x] 2 freeze · [x] 3 dry run (digest: ______) · [x] 4 apply
+- [x] 5 slots / branches · [x] 6 verify · [x] 7 unfreeze
+
+**Result:** superseded by A4 — parley.nvim cut over as the canary (root 41de715a, migration commit a26cd3bc); its `:0` caught up in Phase B.
 
 ### C12 — astro, parli (decide)
-- [ ] Decide whether they will use issues. If yes: commit `workshop/issues/.gitkeep`, then
+- [x] Decide whether they will use issues. If yes: commit `workshop/issues/.gitkeep`, then
       run the seven steps (they migrate as empty trackers). If no: leave them out.
 
 ---
 
+**Result:** decided 2026-09-28 — both cut over with empty trackers (operator: issues will improve these repos too): astro (digest 933eaf04121344b9, root f18ab102), parli (digest 6daea0c5988c8506, root 74a1985d).
+
+### C13 — robotics (added 2026-09-28)
+- [x] Was a local-only brain; operator: a work repository not yet started. Dropped `.brain/` and the brain scaffolding, adopted the #241 layout, created private `xianxu/robotics`, cut over (digest ada41ec698ac9acb, root 3656af77).
+
+### Excluded
+- Brains (brain, brain-family, brain-private): by charter.
+- `metis.bak`, `test-repo`: single-commit scaffolds with no remote and no issues (a tracker needs a publication remote).
+
 ## Phase D — After every repository is across
 
-- [ ] `bin/sdlc issue migrate` in each repo reports *already migrated*
-- [ ] Delete the legacy writers: `issue publish`, the `issue sync --push` path, the
+- [x] `bin/sdlc issue migrate` in each repo reports *already migrated* (2026-09-28 sweep)
+- [→ #258] Delete the legacy writers: `issue publish`, the `issue sync --push` path, the
       Makefile/Python shell fallbacks that allocate IDs or write status, and their tests
-- [ ] Remove the "legacy repositories" sections from help text, `README.md` and the atlas
-- [ ] Close the follow-up issue (and #252, if not closed in Phase B)
+- [→ #258] Remove the "legacy repositories" sections from help text, `README.md` and the atlas
+- [→ #258] Close the follow-up issue (and #252, if not closed in Phase B)
 
 ---
+
+The remaining Phase D rows moved to #258 (deferred, `punt`), 2026-09-28.
 
 ## If something goes wrong
 

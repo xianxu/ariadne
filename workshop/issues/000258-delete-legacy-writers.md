@@ -52,4 +52,5 @@ Before deleting, confirm nothing outside the brains still takes a legacy path
 
 ### 2026-09-28
 - Spun off from #255 (its Phase D) on 2026-09-28 so #255 can close on the
-  fleet cutover; deferred (`punt`) until the operator wants it.
+  fleet cutover; deferred (`punt`) until the operator wants it. Revisit by
+  2026-11-30, or sooner when an sdlc change next touches a legacy path.

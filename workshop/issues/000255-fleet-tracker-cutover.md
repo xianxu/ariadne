@@ -163,6 +163,37 @@ moved.
   over with an empty tracker (root 3656af77). The `sdlc-smoke` sandbox is
   deleted (operator). Brains remaining legacy by charter: brain, brain-family,
   brain-private.
+- **Per-repository results** (dry run → apply; all 0 refusals, verified
+  already migrated with recovery empty):
+
+  | Repository | Cards (inferred), details converted, duplicate IDs | Digest | Tracker root |
+  |---|---|---|---|
+  | parley.nvim | 290 (A4 canary, #252) | — | 41de715a |
+  | ariadne | 251 (35), 50, 2 | f810548c9edd8a73 | aee6be5b |
+  | kaggle | 10 (0), 5, 0 | 49c1cf6c94054ad5 | e9029056 |
+  | kbench | 28 (0), 5, 0 | d31157b817c449dd | 0d475da7 |
+  | metis | 69 (0), 15, 0 | e3036e98d2889a3a | e81d3097 |
+  | xianxu.dev | 4 (0), 2, 0 | 69553139df1b397a | 222a1b75 |
+  | you-decide | 14 (4), 10, 0 | 48f7a22721f27216 | d8ba181f |
+  | ducks | 11 (0), 11, 0 | dc1b0ca2024a9bb9 | 2e02bdc1 |
+  | pair | 332 (38), 95, 1 | d4815982eadc2ec3 | c039dc4b |
+  | nous | 53 (15), 16, 0 | 892406db4b8ff766 | bccecf82 |
+  | tools | 82 (1), 23, 0 | aee2ef2c0cb7e0cb | ea8ec461 |
+  | 42shots | 0 | 95699770925b8bac | 1160c082 |
+  | astro | 0 | 933eaf04121344b9 | f18ab102 |
+  | parli | 0 | 6daea0c5988c8506 | 74a1985d |
+  | robotics | 0 | ada41ec698ac9acb | 3656af77 |
+
+- **Excluded** (close review BR-1): brains (brain, brain-family,
+  brain-private) by charter; `metis.bak` and `test-repo`, single-commit
+  scaffolds with no remote and no issues — a tracker needs a publication
+  remote. The 2026-09-28 sweep line above listed `sdlc-smoke` as cut over; it
+  was the #252 A2 sandbox and has since been deleted, so it is not part of the
+  fleet.
+- Close review BR-2: the cutover checklist now records every C-row's result
+  (digest, root), C11 superseded by A4, C12 decided, C13 robotics, the
+  exclusions, and Phase D pointing at #258; the live tracker-mode
+  `milestone-close` was not exercised (marked skipped).
 
 ## Revisions
 
