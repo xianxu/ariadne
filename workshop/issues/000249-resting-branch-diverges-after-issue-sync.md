@@ -81,3 +81,14 @@ Filed from pair slot 2 after the operator asked what keeps diverging
 `main-slot2` from `origin/main`. Evidence: pair reflog for `main-slot2`
 (`15f5220f`/`6aa7d819`/`24199071` #311 syncs left behind after publish;
 `76e677e1` #320 sync vs origin `d8b521fb`/`e52a7e2b` #319).
+
+### 2026-09-28
+
+Closed as `wontfix`: superseded by #252 (issue cards on the `issue-tracker`
+branch, details on the work branch). Card writes no longer publish copies to
+`main`, `issue sync` is no longer a special publishing operation, and resting
+branches only fast-forward; #252's slot-cycle e2e requires the resting branch
+to end 0 ahead / 0 behind. That covers this issue's first two Done-when
+items. The `sdlc state` divergence report was dropped (planning now refuses
+from a resting branch with commits not on main, `cmd/sdlc/planningbranch.go`),
+and #240's feature-branch case is left to #240.
