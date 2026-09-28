@@ -52,6 +52,7 @@ reuses it. No reader of status output slices fixed columns from trimmed text.
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — gitx.ParseStatusZ is the one byte-exact status reader (fleet count reuses it); trackerEnv.statusEntries reads untrimmed; closeEvidence and migrate dirtyIssuePaths use it. TestTrackerReCloseCommitsTheModifiedGateLedger and TestIssueMigrateNamesADirtyPathWithASpace fail without the fix; TestParseStatusZ covers modified-first/untracked/rename/spaces/trimmed-refused. gitx/fleet/tracker + Close/Tracker/IssueMigrate/Merge/StartPlan/Leftover/Legacy tests green (only main baseline #210 fails). --no-atlas: internal parser consolidation, no new surface.; review verdict: SHIP
 - `gitx.ParseStatusZ` (moved from fleet's validating counter, which now
   returns its length; `ValidStatusCode` exported for fleet's fake git) and
   `trackerEnv.statusEntries` (untrimmed). `closeEvidence` and migrate's
