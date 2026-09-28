@@ -29,10 +29,11 @@ Issue: `workshop/issues/000260-slot-move.md` (Spec and Done when are the contrac
   - **Relationships:** `moveFacts` holds two (From, To).
 - **moveFacts** — everything the decision needs: both sides, whether they share
   `repo_identity`, the paths branch A checks out, and the destination rest's
-  commits missing from A (`Parked`) and from its upstream (`Unpublished`).
+  commits missing from A (`Parked`) and from its upstream (`Unpublished`),
+  both reported as information only.
   Comparable with `reflect.DeepEqual`, which is how the second observation is
   checked against the first.
-- **checkMove(facts, acceptParked) error** — all refusal rules in one place,
+- **checkMove(facts) error** — all refusal rules in one place,
   returning the first failure as an actionable message.
   - **DRY rationale:** the preflight and the dry run use the same rules; the
     #248 atlas prose shrinks to a pointer instead of restating them.
@@ -67,14 +68,13 @@ Unit tests: `cmd/sdlc/moveplan_test.go`, no IO.
 
 ### Decisions
 
-- **Post-move build is printed, not run.** #248's post-move build is prose in the
-  destination repository's `AGENTS.local.md` (pair: "run `make build` there").
-  The command prints it as the next step and notes that running sessions keep
-  their old binaries. Making it executable needs a machine-readable
-  declaration, which is out of scope (Simplicity First). Recorded as a Spec
-  revision.
-- **`--accept-parked`** is the explicit acceptance of destination resting
-  commits that A lacks (#248 step 3's "temporary smoke test" choice).
+- **No post-move build in the command.** #248's post-move build is prose in
+  the destination repository's `AGENTS.local.md` (pair: "run `make build`
+  there"). The command doesn't read it; the atlas procedure keeps it as the
+  manual step after the move (Simplicity First).
+- **Parked commits are reported, not refused.** The destination's resting
+  branch ref is untouched, so nothing is lost; its commits that A lacks are
+  only absent from the test. Operator decision, 2026-09-28.
 - **Replaced tests:** `TestWorkspaceProcedureMoveBranchToPrimaryPreservesParkedMainAndScratch`
   and `TestWorkspaceProcedureMoveRejectsIncomingUntrackedCollision` exercised
   the manual procedure and parsed its atlas shell block. `move_test.go`
@@ -97,8 +97,7 @@ Unit tests: `cmd/sdlc/moveplan_test.go`, no IO.
   resting branch; source changes; source untracked; source operation;
   destination not on resting; destination changes; destination operation;
   destination untracked colliding (names the path); destination untracked not
-  colliding → nil; parked non-empty → refuses naming `--accept-parked`; parked
-  non-empty with accept → nil.
+  colliding → nil; parked non-empty → nil.
 - [ ] **Step 2:** `go test ./cmd/sdlc -run 'TestUntrackedCollisions|TestCheckMove'` → FAIL (undefined).
 - [ ] **Step 3: implement.**
 
@@ -133,7 +132,7 @@ type moveFacts struct {
 
 // checkMove holds every refusal rule of `sdlc move`; nil means the two
 // switches may run.
-func checkMove(f moveFacts, acceptParked bool) error {
+func checkMove(f moveFacts) error {
 	from, to := f.From, f.To
 	switch {
 	case !f.SameRepo:
@@ -160,10 +159,6 @@ func checkMove(f moveFacts, acceptParked bool) error {
 	}
 	if c := untrackedCollisions(to.Untracked, f.Incoming); len(c) > 0 {
 		return fmt.Errorf("%s has untracked files that %s would overwrite: %s; move or remove them first", to.Address, from.Branch, strings.Join(c, ", "))
-	}
-	if len(f.Parked) > 0 && !acceptParked {
-		return fmt.Errorf("%s has %d commit(s) that %s lacks, which the move would leave out of the test:\n  %s\npublish them and rebase %s first, or rerun with --accept-parked for a temporary smoke test",
-			to.Resting, len(f.Parked), from.Branch, strings.Join(f.Parked, "\n  "), from.Branch)
 	}
 	return nil
 }
@@ -216,16 +211,16 @@ func untrackedCollisions(untracked, incoming []string) []string {
   source, on `000001-procedure` with one committed file `feature`):
   - `TestMoveToPrimary`: scratch file in `:0`; `runMove(slot1, "", …)` →
     `:0` on the branch at the recorded HEAD, slot 1 on `main-slot1` at its
-    old HEAD, scratch file unchanged, output names the post-move step.
+    old HEAD, scratch file unchanged.
   - `TestMoveToSlot`: target `:2` → same checks.
   - `TestMoveRefusals` (table; each row asserts an error substring and that a
     snapshot of both slots — `status --porcelain=v1 --untracked-files=all`,
     `show-ref`, `symbolic-ref HEAD` — is unchanged): missing slot `:5`; `:0`
     tracked change; `:0` on another branch; `:0` untracked `feature`
     (collision); slot 1 tracked change; slot 1 untracked file; slot 1 on its
-    resting branch; `:0` resting commit absent from the branch.
-  - `TestMoveAcceptParked`: that last case with `acceptParked` → moves; `main`
-    still at the parked commit.
+    resting branch.
+  - `TestMoveReportsParked`: `:0` has a resting commit the branch lacks → moves,
+    output lists it, `main` still at that commit.
   - `TestMoveDryRun`: prints the plan, snapshot unchanged.
   - `TestMoveSecondSwitchFails`: `:0` has ignored `build/output`; the branch
     force-adds `build/output` → error names the retry
@@ -240,15 +235,15 @@ func untrackedCollisions(untracked, incoming []string) []string {
 // (default :0) and returns this slot to its resting branch (#260).
 package main
 
-// NewMoveCmd: Use "move [address]", MaximumNArgs(1), flags --dry-run and
-// --accept-parked, wrapped in markMutatingCommand; RunE calls
-// runMove(".", address, accept, dry, stdout, stderr).
+// NewMoveCmd: Use "move [address]", MaximumNArgs(1), flag --dry-run,
+// wrapped in markMutatingCommand; RunE calls
+// runMove(".", address, dry, stdout, stderr).
 
 // runMove:
-//  1. facts := observeMove(dir, address); checkMove(facts, accept).
+//  1. facts := observeMove(dir, address); checkMove(facts).
 //  2. Print: "Move <branch> from <from.Address> to <to.Address>", then
-//     Unpublished commits (if any) as information and Parked commits when
-//     accepted. --dry-run stops here.
+//     Parked and Unpublished commits (if any) as information: parked ones
+//     stay on the resting branch but are not in the test. --dry-run stops here.
 //  3. again := observeMove(...); !reflect.DeepEqual(facts, again) → refuse
 //     "slots changed since the preflight; rerun".
 //  4. git -C from -c submodule.recurse=false switch --no-overwrite-ignore <from.Resting>
@@ -258,9 +253,6 @@ package main
 //     `git -C <to.Root> switch <branch>` after reconciling <to.Address>.
 //  6. Verify with observeMove-style reads: to on branch at facts.From.Head,
 //     from on its resting branch at its pre-move resting HEAD.
-//  7. Print the next step: "Run <to.Root>'s post-move build from its
-//     AGENTS.local.md, if it declares one. Running sessions keep the old
-//     binaries."
 
 // observeMove(dir, address):
 //  - from := workspace.Resolve(r, dir, ""); to := workspace.Resolve(r, dir, address or ":0").
@@ -277,7 +269,7 @@ package main
 ```
 
   Help text `helptext/move.md`: usage lines (`sdlc move`, `sdlc move :2`,
-  `--dry-run`, `--accept-parked`), what it checks, that it never stashes,
+  `--dry-run`), what it checks, that it never stashes,
   resets, deletes or pushes, and moving back (`sdlc move :1` from the other
   slot). Register: `add(NewMoveCmd(), "move", "Move this slot's issue branch into another slot (default :0)")`.
 - [ ] **Step 4:** `go test ./cmd/sdlc -run 'TestMove|MoveDetail|Help'` → PASS.
@@ -292,8 +284,8 @@ package main
 - Modify: `cmd/sdlc/workspace_procedure_test.go` (delete the two move tests).
 
 - [ ] Rewrite the atlas section to: run `sdlc move [:N]` (`--dry-run` first);
-  what it refuses and why; the operator decision `--accept-parked` stands for;
-  the post-move build and relaunch; moving back. Keep only what a person
+  what it refuses and why; parked commits are reported, not tested;
+  the post-move build from `AGENTS.local.md` and relaunch; moving back. Keep only what a person
   decides.
 - [ ] Delete the two replaced tests; `go test ./cmd/sdlc/...` → PASS.
 - [ ] Commit `#260: atlas: point the branch move at sdlc move`.

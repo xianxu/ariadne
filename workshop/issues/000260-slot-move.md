@@ -47,8 +47,8 @@ Steps, run from the source slot:
 
 Carry over from the #248 procedure:
 - Compare `:N`'s resting branch against `A` and against its configured
-  upstream. Report resting commits that the move will leave out of `A`, and
-  refuse a nonempty `A..rest` list unless the operator explicitly accepts it.
+  upstream, and report resting commits the move leaves out of `A`. This is
+  information only: the resting branch ref is untouched.
 - Re-resolve both slots just before switching, and refuse if anything changed
   since the preflight.
 - Use `switch --no-overwrite-ignore` with `submodule.recurse=false`.
@@ -56,8 +56,6 @@ Carry over from the #248 procedure:
   retry. Never stash, reset, delete or push.
 - After the move, verify: `:N` is on `A` at the recorded HEAD, and the source
   is on its unchanged resting HEAD.
-- Run the destination repository's post-move build from its `AGENTS.local.md`,
-  if it declares one. Say that already-running sessions keep the old binary.
 - Support `--dry-run`.
 
 Moving back is the same command run from `:N` with a slot target, e.g.
@@ -70,8 +68,7 @@ Moving back is the same command run from `:N` with a slot target, e.g.
   in the destination and the source is on its resting branch.
 - Each refusal has a test that also shows nothing changed: missing `:N`,
   `:N` with tracked changes or not resting, an untracked file in `:N` that
-  collides with `A`, source dirty or untracked, source on its resting branch,
-  `A..rest` nonempty without acceptance.
+  collides with `A`, source dirty or untracked, source on its resting branch.
 - Non-colliding untracked files in `:N` survive the move unchanged (test).
 - A failed second switch leaves the branch ref and both resting refs intact
   (test).
@@ -99,6 +96,7 @@ Filed from ariadne slot 1 at the operator's request. The five steps are the oper
   untracked files in `:N` may stay unless they collide with `A`. The open
   question is resolved and removed; Done when gained the collision and
   survival tests.
-- 2026-09-28: the post-move build is printed as the next step, not run. #248
-  declares it as prose in `AGENTS.local.md`, which a program can't reliably
-  execute; a machine-readable declaration is out of scope.
+- 2026-09-28: operator decisions. (1) Resting commits missing from `A` are
+  reported, not refused: the ref is untouched, so nothing is lost. (2) The
+  post-move build stays out of the command; it is prose in `AGENTS.local.md`,
+  and the atlas procedure keeps it as the manual step after the move.
