@@ -37,6 +37,9 @@ cutover mismatch guard still refuses a real mismatch at `H`.
 - A pre-push of the migration commit from a checkout without the marker passes
   the id lint (e2e: bootstrap tracker, lint `--head` the marker commit).
 - A head whose marker names another tracker root still refuses.
+- Reading a commit's marker treats only a missing path as absent: an
+  unresolvable head is an error, never "not cut over"; lint-ids and the
+  migration's already-migrated check share that one reader.
 
 ## Plan
 
