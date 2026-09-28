@@ -1,10 +1,10 @@
 ---
 id: 000119
-status: working
+status: wontfix
 deps: []
 github_issue:
 created: 2026-06-18
-updated: 2026-06-18
+updated: 2026-09-27
 estimate_hours:
 started: 2026-06-18T23:32:37-07:00
 ---
@@ -247,3 +247,5 @@ skeleton (review boundaries):_
   leaks in the diff, not just transcript); nested-dispatch risk (contestant runs
   `sdlc` which dispatches its own review agent); autonomous dispatch is the first
   `judge.Dispatch` caller needing write allowlist + real timeout plumbing.
+
+- 2026-09-27: abandoned (wontfix) by the operator; the unlanded M1 branch `000119-multi-agent-benchmark-harness` was deleted locally and on origin (last tip 7d1ae253).
