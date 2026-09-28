@@ -92,7 +92,7 @@ details in a cut-over repository refuse the legacy close/change-code paths
    `sdlc issue recovery list` is empty, a claim on an open issue succeeds.
 
 The step-by-step operator checklist is
-`workshop/plans/000252-issue-cards-tracker-ref-cutover.md` (archived with #252).
+`workshop/plans/000255-fleet-tracker-cutover-checklist.md` (tracked by #255).
 
 **Recovery.** Before any tracker write after the cutover, the migration can be
 abandoned by deleting the `issue-tracker` branch and reverting the main commit.

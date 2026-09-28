@@ -538,7 +538,7 @@ the cutover marker, so a fleet-wide freeze is unnecessary (operator agreed).
 Delta: #252 lands once and its binary is installed everywhere; each repository
 then cuts over on its own, freezing only itself. The smoke tests, landing and
 per-repository steps (with the 2026-09-26 dry-run blockers) are the checklist
-`000252-issue-cards-tracker-ref-cutover.md`. Open decision recorded there:
+`000255-fleet-tracker-cutover-checklist.md` (moved to #255 on 2026-09-27). Open decision recorded there:
 carve "fleet cutover + legacy writer deletion" into a follow-up issue so #252
 can close on the tooling.
 

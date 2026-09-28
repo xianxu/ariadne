@@ -1,7 +1,8 @@
-# #252 smoke test and cutover checklist
+# #255 fleet cutover checklist (smoke tests from #252)
 
 Operator checklist for moving the fleet onto the issue tracker. Tick as you go.
-Background: [plan](000252-issue-cards-tracker-ref-plan.md),
+Tracked by [#255](../issues/000255-fleet-tracker-cutover.md); Phase A ran under #252.
+Background: [#252 plan](000252-issue-cards-tracker-ref-plan.md),
 [migration atlas](../../atlas/workflow/issue-tracker-migration.md).
 
 **Why per repo:** the #252 binary still runs the legacy workflow in any

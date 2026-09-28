@@ -182,7 +182,9 @@ durable plan, rather than settled operator choices.
 - Both `move-detail` paths are tested, including existing destination refusal,
   read errors, publication failure/uncertainty and retry, and the original
   branch's eventual merge preserving transferred details and subsequent edits.
-- Existing issue files are migrated; gates read card fields from the card.
+- The migration tooling moves existing issue files onto the tracker (proved
+  on parley.nvim, A4); gates read card fields from the card. Fleet-wide
+  migration is #255.
 - Atlas documents the card/details split and ownership rules.
 
 ## Estimate
@@ -231,7 +233,8 @@ total: 10.77
 - [x] M2 — Creation, claim readiness, early design branch and move-detail handoff
 - [x] M3 — Composed readers, activity evidence and close/landing recovery
 - [x] M4 — Migration tooling, legacy writer retirement, instructions and full slot-cycle proof
-- [ ] Coordinate and verify production migration before issue closure
+- [x] Coordinate and verify production migration before issue closure (A1–A4
+  in the checklist; parley.nvim cut over; the rest of the fleet is #255)
 
 ## Log
 
@@ -491,3 +494,17 @@ Replaced the preliminary Plan checklist with four concrete review boundaries
 and the production migration acceptance step. The linked plan proposes ref-based
 tracker access, mirror blob provenance, net-zero transfer history and explicit
 completion binding; these mechanics await plan approval.
+
+### 2026-09-27 — Split fleet cutover into #255
+
+Reason: #252 has to land on main before the rest of the fleet can migrate
+(every `:0` needs the cutover-aware binary), so fleet migration cannot be
+a precondition for closing #252.
+
+- Done when: "Existing issue files are migrated" is narrowed to the tooling
+  proved on a production repository (parley.nvim, A4). Migrating the rest of
+  the fleet and deleting the legacy writers move to #255.
+- The Plan's production-migration row is ticked on the evidence of A1–A4.
+- The cutover checklist moved to
+  `workshop/plans/000255-fleet-tracker-cutover-checklist.md` so it stays
+  live after #252 is archived.
