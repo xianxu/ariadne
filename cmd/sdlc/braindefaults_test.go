@@ -157,3 +157,26 @@ func TestPlanningContentionReportsUnavailableIdentity(t *testing.T) {
 		t.Fatalf("missing failure evidence: %s", line)
 	}
 }
+
+// statusNoiseRunner is the real runner, except that `status` answers with
+// stderr text mixed into the -z stream, as the combined-output runner would.
+type statusNoiseRunner struct{ execGitRunner }
+
+func (statusNoiseRunner) GitInDir(dir string, args ...string) ([]byte, error) {
+	if len(args) > 0 && args[0] == "status" {
+		return []byte("warning: noise\n M cmd/a.go\x00"), nil
+	}
+	return execGitRunner{}.GitInDir(dir, args...)
+}
+
+// A base whose status cannot be parsed is unknown, never clean (#259).
+func TestPlanningContentionReportsUnreadableStatus(t *testing.T) {
+	r := legacyRepo(t)
+	prev := mergeRunner
+	mergeRunner = statusNoiseRunner{}
+	t.Cleanup(func() { mergeRunner = prev })
+	got := gatherBaseContention(context.Background(), r.root, 0)
+	if got.Clean() || !strings.Contains(got.Unavailable, "status") {
+		t.Fatalf("unparseable status reported as %+v", got)
+	}
+}

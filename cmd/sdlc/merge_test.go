@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // countRunner is a minimal gitRunner fake for countUnmerged (#148): Git returns

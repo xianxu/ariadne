@@ -75,3 +75,11 @@ reuses it. No reader of status output slices fixed columns from trimmed text.
   `statusZ`, plus a spaced-path case); `trackerEnv.gitRaw` is the one exec path
   (`gitEnv` trims it, `statusEntries` parses it); gitx imports grouped with the
   project's. Wider command tests green (786 s).
+- Close round 2 SHIP — and the fix proved itself live: the round-2 gate
+  ledger (modified) rode evidence commit 31a20753, no leftover. Its Minors
+  fixed: start-plan no longer swallows an unreadable or unparseable status
+  (the combined-output runner can mix stderr into the -z stream) — it reports
+  the base as unavailable, never clean
+  (`TestPlanningContentionReportsUnreadableStatus`, fails without the fix);
+  merge and push already fail closed on a parse error. merge_test's gitx import
+  grouped.
