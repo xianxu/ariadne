@@ -62,6 +62,16 @@ rounds:
           round: 2
       recipe: small-diff-review
       blocked: false
+    - "n": 3
+      timestamp: "2026-09-27T23:50:32-07:00"
+      agent: claude
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: migratedAlready returns (root, done, err) via ReadCutoverMarkerAt; reconcile (issuemigrate.go:512) uses it; the mainView.Read/ignored-parse re-read is gone. Refactor covered by existing reconcile tests, which pass.
+          round: 3
+      recipe: small-diff-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#257 (boundary-review)
@@ -96,6 +106,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Minor] `single-marker-reader` reconcile re-reads main's marker right after migratedAlready read it, and drops the parse error
   2nd finding in family single-marker-reader. Rule: read a commit's marker once through ReadCutoverMarkerAt and pass the root along. At issuemigrate.go:518-522, mainView.Read plus a ParseCutoverMarker whose error is discarded repeats migratedAlready's read. Fix: have migratedAlready return (root, done, err). Enumeration in this window: issuemigrate.go:518 (this one); issuelintids.go:231 followed by the GuardCutoverAt re-read (same reader, acceptable).
 
+## Round 3 — 2026-09-27T23:50:32-07:00 (claude) — passed
+
+### Disposed
+
+- BR-5 — addressed — migratedAlready returns (root, done, err) via ReadCutoverMarkerAt; reconcile (issuemigrate.go:512) uses it; the mainView.Read/ignored-parse re-read is gone. Refactor covered by existing reconcile tests, which pass.
+
 ## Open findings
 
-- **BR-5** [Minor] `single-marker-reader` reconcile re-reads main's marker right after migratedAlready read it, and drops the parse error
+(none — every finding has been disposed)
