@@ -46,6 +46,7 @@ cutover mismatch guard still refuses a real mismatch at `H`.
 ## Log
 
 ### 2026-09-27
+- 2026-09-27: closed — Guard reads its marker via one Repository.readMarker (checkout, or a commit via GuardCutoverAt), used by checkCutover, the absent-tracker check and Presence; lint-ids guards at --head. TestIssueLintIDsJudgesTheMarkerAtHead (subprocess) passes, and without the fix reproduces you-decide exact error; the forged-root head refuses. Tracker package and LintIDs/Leftover/TrackedLegacy/Legacy/IssueMigrate/Offline tests green. Atlas notes GuardCutoverAt.; review verdict: SHIP
 - Fix: the guard reads its marker through one `Repository.readMarker`
   (checkout by default; `GuardCutoverAt(root, commit)` reads a commit's tree),
   used by `checkCutover`, the absent-tracker check and `Presence`; lint-ids
