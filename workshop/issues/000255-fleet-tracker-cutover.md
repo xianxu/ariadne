@@ -106,3 +106,8 @@ moved.
 - nous #48 landed (nous PR #10, 2026-09-27; `done`, archived): nous's
   archived-on-branch blocker is gone. The migration-tool gap it exposed still
   needs its refusal + test before any further cutover.
+- The archived-on-branch migration gap is fixed by #256: the dry run now
+  refuses a branch that archives an issue main still has active (renames and
+  deletions main made too stay silent). Dry runs with it: pair, kaggle, kbench
+  0 refusals; ariadne 2 pre-existing (`origin/feature` edits archived #148,
+  #159 — drop or land that branch before ariadne's cutover).
