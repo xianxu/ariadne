@@ -79,3 +79,80 @@ findings:
     title: |
       "new git-driving package needs PreferRealGit TestMain" is enforced only by atlas prose, not a source guard
 ```
+
+---
+
+## Re-review — 2026-09-28T13:21:25-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 253 — Keep the sdlc test suite fast: tiers, shared binary, parallel-safe e2e |
+| repo | ariadne |
+| issue file | workshop/issues/000253-test-suite-speed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8f27d185111d247ad86e33aade2630dfc6c2088b..3f11b26fe786c88616d165056e42e9813f15172c |
+| command | sdlc close --issue 253 |
+| reviewer | claude |
+| timestamp | 2026-09-28T13:21:25-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The issue's narrowed Done-when is met. It has a timing script with its baseline in the Log, and `make test` runs the full suite in 181 s against 1,531 s before. The target was 5 minutes. The guidance line and the atlas section are both in place. Real git on PATH is wired through one helper, `testfix.PreferRealGit`, and a source guard now enforces it. The three fixes that came out of the sharded run are pinned by tests: `lockMayBeOurs` is pure and table-tested, the `SetArgs` fix is a one-liner, and there is a shared hang guard. The new guard and lock tests pass on HEAD (`go test -run 'TestGitDrivingPackagesPreferRealGit|TestLockMayBeOurs|TestSnapshotDiff'` → ok). Two prior Minors are still open: the help-text typo, and a runner name-filter change with no test covering it. Nothing blocks SHIP.
+
+**1. Strengths**
+- `lockMayBeOurs` (`cmd/sdlc/testmain_test.go:90`) is a pure decision. Process liveness, PID and host are injected, and the table covers all five cases: self, another live slot, dead holder, metadata still being written, and another host. This is ARCH-PURE applied well.
+- `PrependPath` is pure and table-tested (`internal/testfix/realgit_test.go:11`). `PreferRealGit` is a no-op when git or its exec-path binary is missing, and the second test checks the result end to end with `exec.LookPath`.
+- `realgit_guard_test.go` turns the atlas rule into a check (BR-4). A grep of each package shows that removing the `TestMain` from fleet, tracker, gitx or activetime would make it fail: each has spawn ≥ 3 and prefer = 1.
+- The runner keeps its timings file bounded. It holds only tests that still exist, is written atomically, and merges results even from failing runs (ARCH-FUNERAL is documented in the script header).
+- The runner reports a process that dies without any failing test and prints the tail of its output. This closes the "silent exit-1 shard" gap.
+
+**2. Critical:** none.
+
+**3. Important:** none.
+
+**4. Minor**
+- BR-1 is not fixed. `cmd/sdlc/issuemovedetail.go:38` still reads "Consult operator before move, this is an escape patch".
+- BR-3 is not fixed per the regression-evidence rule. The regex now accepts `Example`, but nothing tests it. The tree also has no `Example` functions, so no fixture reaches the change. `scripts/test/` already hosts shell tests where a small name-filter check could live.
+- The guard's regex (`realgit_guard_test.go:15`) detects git use only through `exec.Command(... "git"` or `testfix.(Git|Capture|Repo)`. A package whose tests reach git only through `gitx` helpers would not be caught. No such package exists today (`internal/project` only mentions `gitx.IsBrainRepo` in comments), so I'm noting this rather than raising it as a finding.
+
+**5. Test coverage notes**
+- The new pure logic (`PrependPath`, `lockMayBeOurs`, `snapshotDiff`) is covered. The Python runner has no automated tests: `lpt`, the name filter and `report` are all unpinned. It was validated by the logged runs instead.
+
+**6. Architectural notes**
+- **ARCH-DRY: pass.** One helper is called from five thin `TestMain`s. `test-timing.py`'s `GIT_RE` and the guard's `spawnsGit` duplicate a prefix. This is tolerable because they live in different languages and serve different purposes.
+- **ARCH-PURE: pass.** The decisions are pure and the IO is at the edges (`readSnapshot`, `PreferRealGit`).
+- **ARCH-PURPOSE: pass.** Scope was narrowed explicitly in `## Revisions`. The deferred items went to #261 and #262 as separable work; they are not the point of this issue.
+- **ARCH-MOCK: pass.** The stateful git fake is #261, deferred at the operator's direction and recorded in the atlas.
+- **ARCH-CONSTRAINTS: pass.** The measured envelope is logged. The hang guard was widened with a stated reason, and the per-process timeout is explicit. The oversubscription (N shards plus a `go test` of the other packages) is accepted for a dev-machine runner.
+- **ARCH-SECURE: pass.** The timings JSON is parsed defensively (`OSError`/`ValueError` fall back to `{}`), and lock metadata errors map to "not ours".
+- **ARCH-ORDER: pass.** The guard reads a before and after snapshot, and the race with another slot's live lock is handled explicitly. There is one leftover false positive: another slot's verb crashing during the run would look like a leak. That is rare and would show up as a visible failure.
+- **ARCH-FUNERAL: pass.** The timings file is overwritten each run, bounded to current tests, and deleted with the clone. Temporary shard output lives in a `TemporaryDirectory`.
+
+**7. Plan revision recommendations:** none. The plan matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      cmd/sdlc/issuemovedetail.go:38 still reads "Consult operator before move, this is an escape patch" at HEAD 3f11b26f.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      git ls-tree 3f11b26f shows scripts/test-shard.py (and test-timing.py) as 100755.
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      TEST_NAME now admits Example, but no test pins it and no Example exists in cmd/sdlc, so no fixture reaches the change; scripts/test/ could host the check.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      cmd/sdlc/realgit_guard_test.go enforces it; per-dir grep shows fleet/tracker/gitx/activetime would fail without their TestMain call; passes at HEAD.
+```
