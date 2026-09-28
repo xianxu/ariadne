@@ -153,14 +153,15 @@ Cutover (in `~/workspace/worktree/parley.nvim-slot1/parley.nvim`, rest `main-slo
       (claim #290)
 
 Soak in tracker mode (slot 1 only), a few days:
-- [ ] #290 ✓ (PR #205 → done, landed_commit = the merge; its close found the local-`main` window
-      bug, fixed 3823d557) and #291 — issues filed before the cutover, carried across as cards: `claim` →
+- [x] #290 ✓ (PR #205 → done, landed_commit = the merge; its close found the local-`main` window
+      bug, fixed 3823d557) and #291 ✓ (PR #206) — issues filed before the cutover, carried across as cards: `claim` →
       `start-plan` → design (`issue sync` checkpoints on the issue branch) → `change-code` → `close` →
       `sdlc pr` → `sdlc merge` → card `done`, archived
 - [ ] A new issue end to end: `issue new` → `move-detail` → `claim` → … → `sdlc merge`
 - [ ] A `milestone-close` on an `Mx` plan
-- [ ] A spin-off: `issue new` on an issue branch → `move-detail` while the code is unshipped
-- [ ] After #291: retire the pre-cutover branch `000209-safe-defaults-plan` — copy its
+- [x] A spin-off: `issue new` on an issue branch → `move-detail` while the code is unshipped
+      (#292 from #291's branch; #293 handed off from rest; #291's PR merged with no issue-file conflict)
+- [x] After #291: retire the pre-cutover branch `000209-safe-defaults-plan` — copy its
       `workshop/plans/000209-safe-by-default-posture-plan.md` (and its 7 `lessons.md` lines, if still
       wanted) onto main by hand in one commit, then delete the branch (local only; never on GitHub).
       #209 restarts from main later (operator choice over merging the stale branch)
