@@ -154,3 +154,11 @@ moved.
   legacy mode and the legacy writers for a while as a fallback in case the
   cutover missed something; delete them later. The `sdlc-smoke` sandbox repo
   (#252 smoke test A2) is being deleted from GitHub by the operator.
+- robotics (2026-09-28): operator: a work repository not yet started, not a
+  brain. Dropped `.brain/` and the empty `nous brain new` scaffolding (1c113dc;
+  nous's brain watcher drops a directory without `.brain/config.md` on its next
+  scan — one stray autosave was folded into the adoption commit), adopted the
+  #241 layout (fcaf0ec), created private `xianxu/robotics` as origin, and cut
+  over with an empty tracker (root 3656af77). The `sdlc-smoke` sandbox is
+  deleted (operator). Brains remaining legacy by charter: brain, brain-family,
+  brain-private.
