@@ -6,7 +6,7 @@ updated: 2026-09-28
 estimate_hours:
 github_issue:
 started: 2026-09-28T09:25:50-07:00
-actual_hours: 1.08
+actual_hours: 1.40
 tracker:
     version: 1
     handoff:
@@ -20,10 +20,10 @@ tracker:
         destination: workshop/issues/000259-status-paths-first-entry.md
         main_commit: 968861f13e4d6a20fc281d79b4e080d405b6108d
     completion:
-        token: close-e1f69ffe23f5
+        token: close-854a202e2944
         repository: github.com/xianxu/ariadne
-        reviewed_head: be261d03b7845ecde7f95d0571c9fdc3f45334c4
-        evidence_commit: 804162158cea2ec2838b1553c7f7424d48a16afe
+        reviewed_head: 074fd154781ac207c10fbf883b6c745d859465e7
+        evidence_commit: 2d2fdb679734359d7ddde0448a3b5bfca290f195
 ---
 
 # close evidence and other status readers drop the first modified path
