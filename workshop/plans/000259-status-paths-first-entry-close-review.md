@@ -163,3 +163,71 @@ findings:
     detail: |
       2nd in family. Rule: goimports -local github.com/xianxu/ariadne enforced by lint; no goimports/gci installed. Measured prevalence about 10 files (branchcreate.go, setstatus.go, workspace.go, workspacepaths.go, several _test.go files), so fix via tooling, not per instance.
 ```
+
+---
+
+## Re-review — 2026-09-28T10:33:00-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 259 — close evidence and other status readers drop the first modified path |
+| repo | ariadne |
+| issue file | workshop/issues/000259-status-paths-first-entry.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 968861f13e4d6a20fc281d79b4e080d405b6108d..be261d03b7845ecde7f95d0571c9fdc3f45334c4 |
+| command | sdlc close --issue 259 |
+| reviewer | claude |
+| timestamp | 2026-09-28T10:33:00-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This PR delivers what the Spec asks for. `gitx.ParseStatusZ` (`cmd/sdlc/internal/gitx/status.go:21`) is now the only thing that reads paths out of `git status`. Close evidence, migrate's dirty-issue list, merge's dirty check and its re-check, start-plan's dirty count, push's archive recovery and fleet's count all go through it. The hand-written parsers `porcelainPaths` and `parsePorcelainStatus` are deleted. `trackerEnv.gitRaw` is the one exec path. I checked every other `status --porcelain` caller in the tree: `issuemigrate.go:526`, `planningbranch.go:39`, `changecode.go:288`, `peerwrite.go:118`, `propagatebase.go:271` and `landing.go:147` only test whether the output is empty. None reads a path, so the Done-when line "no status reader parses status text by hand" holds. I ran the gitx and fleet packages and the targeted command tests (ReClose, spaced migrate path, PlanningContention, AssessDirty, WorktreeDirty, PreparedArchive, RecoverInterrupted); all pass. The one open item is BR-4's recommended runner-level fix: it wasn't applied. What remains is unclear error messages, not a safety problem, so it doesn't block SHIP.
+
+1. **Strengths**
+   - `ParseStatusZ` rejects a trimmed first entry instead of guessing what it was (`status_test.go:28`). That makes the #259 bug class fail loudly.
+   - Rename handling is correct across all callers. In `-z` output the new path comes first and the source second; push (`push.go:458-461`) and merge (`merge.go:177`) map `Path` and `Orig` correctly.
+   - The start-plan fix now reports a status it can't read as unavailable, never as clean (`startplan.go:455-462`). This matches how merge and push already fail when they can't parse status. `TestPlanningContentionReportsUnreadableStatus` pins it.
+   - Test fakes now feed real `-z` bytes through the production parser (`statusZ`/`statusOf` in `merge_test.go`), so the tests exercise the real parsing instead of restating it.
+   - The regression tests cover the exact failure seen in the field: a re-close whose gate ledger is modified, plus a dirty path containing a space.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - BR-4 is still open (disposed below).
+   - When git itself fails, start-plan's error text leaves out git's own message: `errors.Join(err, perr)` reports "exit status 128" plus "missing NUL terminator" instead of the `fatal:` line (`startplan.go:460`). Same family as BR-4.
+   - The comment on `baseContention.Unavailable` (`startplan.go:172`) still says "identity resolution failed", but the field now also carries status and issue-read failures.
+
+5. **Test coverage:** good. Both main regression tests are claimed to fail without the fix. The fake-noise runner test covers start-plan. Merge and push have no test for a noisy or malformed status stream, but their error path is a plain return.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. There is one parser. Four call sites repeat a two-line "run, then parse" pattern; that's what BR-4 would fold into one helper.
+   - **ARCH-PURE:** pass. The parser and `assessDirty`/`preparedArchiveMoves` are pure and take parsed entries.
+   - **ARCH-PURPOSE:** pass. The sweep covers every reader in the class.
+   - **ARCH-MOCK:** pass. The existing runner seam and fleet's fake git reuse `ValidStatusCode`.
+   - **ARCH-CONSTRAINTS:** N/A. Status output is small and read once per verb.
+   - **ARCH-SECURE:** pass. Git output is untrusted input and is now parsed into a typed value at the boundary; malformed input fails visibly.
+   - **ARCH-ORDER:** N/A. Nothing keeps state between events; every read is a one-shot snapshot.
+   - **ARCH-FUNERAL:** N/A. The diff creates nothing durable apart from the gate artifacts the SDLC already archives.
+
+7. **Plan revisions:** none. The plan matches the code.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      Half fixed: start-plan no longer swallows the error; it reports the base as unavailable, and TestPlanningContentionReportsUnreadableStatus pins that. The rule was not applied: execGitRunner (runner.go:37,43) still uses CombinedOutput, so a stderr warning still fails merge and push with an opaque "field 1 is not XY+path status", and start-plan's message drops git's own text. The run-and-parse pattern is still repeated at four sites (merge.go:130, push.go:377, startplan.go:457, trackerenv.go:89). The fix is still one stdout-only StatusEntries helper on the runner. This affects error messages, not safety; everything fails closed.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      merge_test.go now groups the gitx import with the project imports, and every import block this diff touches is grouped correctly (checked push.go, startplan.go, trackerenv.go, merge.go and fleet/fakegit_test.go). The tooling rule (goimports -local in lint) covers roughly 10 files that predate this diff and belongs outside this issue.
+```
