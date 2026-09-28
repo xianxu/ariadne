@@ -79,3 +79,83 @@ findings:
     detail: |
       lint-ids checks marker presence at head before guarding, so this branch is unreachable today; a tracker-package unit test would pin it for future GuardCutoverAt callers.
 ```
+
+---
+
+## Re-review — 2026-09-27T23:46:19-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 257 — lint-ids reads the cutover marker from the checked commit, not the checkout |
+| repo | ariadne |
+| issue file | workshop/issues/000257-lint-ids-marker-at-head.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 76c347e6829f88c629a3b20b7e999281dbe26257..79ee4f70a2a65ab5dd3c97a07ab96fe6222cd8cc |
+| command | sdlc close --issue 257 |
+| reviewer | claude |
+| timestamp | 2026-09-27T23:46:19-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All four findings from round 1 are fixed, and each fix is either backed by a test or a prose change I checked against the code. `ReadCutoverMarkerAt` (`cmd/sdlc/internal/tracker/cutover.go:103-122`) now confirms `commit^{commit}` exists first and treats only a missing path as "absent". It is the reader for lint-ids' mode decision and for `migratedAlready`. `readMarker` gives the guard's three checks one reader: `checkCutover`, `checkAbsentTracker` and `Presence`. The e2e test `TestIssueLintIDsJudgesTheMarkerAtHead` covers both Done-when outcomes: the migration commit linted from a checkout without the marker passes, and a head with a forged marker root is refused. The tracker-package test covers the new `markerAt`-absent refusal and the unresolvable-commit error. Both test suites passed when I ran them (`internal/tracker` for Cutover/Guard; `.` for LintIDs and IssueMigrate). One Minor is left: a duplicate re-read of main's marker in the `--reconcile` path, which the prior finding BR-2 did not sweep. It does not block.
+
+1. **Strengths**
+   - `cutover.go:95-100`: `readMarker` is the one switch between reading the checkout and reading a commit. The guard's existing checks pick it up without branching per caller.
+   - `cutover.go:103-122`: the reader checks that the commit exists, then lists the tree, then reads the blob. An unresolvable commit or a git failure can no longer pass as "not cut over".
+   - `issuemigrate_test.go:499-539`: the test runs lint-ids as a subprocess (it exits by itself), matching the real pre-push shape. It also checks its own premise: the checkout must not have the marker yet.
+   - `cutover_test.go:121-150`: the test puts an unmarked commit beside a marked checkout, so it proves the guard reads the commit and not the files on disk.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `issuemigrate.go:518-522`: `--reconcile` reads main's marker again through `mainView.Read` and `ParseCutoverMarker`, and discards the parse error. `migratedAlready` read and parsed the same marker two lines earlier. **This is the 2nd finding in family `single-marker-reader`.** The rule is: a marker in a commit is read once, through `ReadCutoverMarkerAt`, and the root it returns is passed along rather than read again. Instances in this window:
+     - `issuemigrate.go:518` (this re-read);
+     - `issuelintids.go:231` then `GuardCutoverAt` re-reading inside `checkCutover`. Both go through the one reader, so this one is acceptable.
+
+     Fix: `migratedAlready` returns `(root, done, err)` and reconcile uses that root.
+
+5. **Test coverage:** every Done-when clause is covered in both of its states: the migration commit passes and the forged root is refused; an absent path is read as absent and a bad commit is an error. `Presence`'s new commit branch has no direct test, but no current caller uses `Presence` together with `GuardCutoverAt`.
+
+6. **Architecture**
+   - **ARCH-DRY: flag (Minor).** The reconcile re-read above. Otherwise, the old commit-tree readers were merged into `ReadCutoverMarkerAt`, and `markerWithoutTracker` now serves both the checkout path and the commit path.
+   - **ARCH-PURE: pass.** `ParseCutoverMarker` stays pure. The git calls sit in the reader's thin shell.
+   - **ARCH-PURPOSE: pass.** lint-ids judges the commit at `--head` in both its mode decision and its guard. The atlas entry (`atlas/workflow/issue-tracker-migration.md`) documents `GuardCutoverAt`.
+
+7. **Plan revisions:** none needed. The Spec's revised wording ("tree of its head (`--head`, default `HEAD`)") matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      cutover.go:106 verifies commit^{commit} before ls-tree; only an empty listing is absent. cutover_test.go:147 (no-such-commit must error) goes red on the old cat-file -e probe.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      issuelintids.go:231 and issuemigrate.go:132 both use tracker.ReadCutoverMarkerAt; the guard reads via Repository.readMarker. Residual reconcile re-read raised separately.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Spec now reads "from the tree of its head (--head, default HEAD), never the checkout's files", matching cardlessAdditions.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      TestGuardCutoverAtJudgesTheCommit asserts "commit <sha> has no" for an unmarked commit beside a marked checkout; without the cutover.go:139 branch the generic checkout message fails it.
+findings:
+  - id: new
+    severity: Minor
+    family: single-marker-reader
+    title: |
+      reconcile re-reads main's marker right after migratedAlready read it, and drops the parse error
+    detail: |
+      2nd finding in family single-marker-reader. Rule: read a commit's marker once through ReadCutoverMarkerAt and pass the root along. At issuemigrate.go:518-522, mainView.Read plus a ParseCutoverMarker whose error is discarded repeats migratedAlready's read. Fix: have migratedAlready return (root, done, err). Enumeration in this window: issuemigrate.go:518 (this one); issuelintids.go:231 followed by the GuardCutoverAt re-read (same reader, acceptable).
+```
