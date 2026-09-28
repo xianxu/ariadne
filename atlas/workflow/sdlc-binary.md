@@ -1249,7 +1249,8 @@ against about 25 serially. Plain `go test ./cmd/sdlc/...` still works but runs
 Every package whose tests run git calls `testfix.PreferRealGit()` from its
 `TestMain`, putting `$(git --exec-path)` first on PATH: on macOS `/usr/bin/git`
 is the xcrun shim, which costs about 11 ms per spawn. A new git-driving test
-package needs the same `TestMain`. The in-memory git fake that would make a
+package needs the same `TestMain`
+(`TestGitDrivingPackagesPreferRealGit` fails without it). The in-memory git fake that would make a
 fast inner-loop tier is #261; the single git seam it and in-process parallelism
 need is #262.
 

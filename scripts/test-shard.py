@@ -30,7 +30,7 @@ import time
 from pathlib import Path
 
 MAIN_PKG = "github.com/xianxu/ariadne/cmd/sdlc"
-TEST_NAME = re.compile(r"^(Test|Fuzz)\w+$")
+TEST_NAME = re.compile(r"^(Test|Fuzz|Example)\w*$")
 
 
 def git(*args: str) -> str:
