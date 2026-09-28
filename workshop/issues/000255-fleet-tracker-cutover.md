@@ -8,7 +8,6 @@ updated: 2026-09-27
 estimate_hours:
 ---
 
-
 # Fleet cutover to the issue tracker; delete the legacy writers
 
 ## Problem
