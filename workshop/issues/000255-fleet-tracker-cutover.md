@@ -64,6 +64,7 @@ moved.
 - [ ] ariadne (clear its dry-run blockers first)
 - [ ] tools (clear its blockers first)
 - [ ] pair (clear its blockers first)
+- [ ] ducks (new project, created 2026-09-27; dry-run not yet taken)
 - [ ] astro, parli: decide
 - [ ] Phase D: delete the legacy writers and legacy mode
 
@@ -74,3 +75,4 @@ moved.
 - Filed from #252 so #252 can close on the tooling. The per-repository
   blockers from the 2026-09-26/27 read-only dry runs are in the checklist;
   re-run each dry run before its cutover.
+- Added ducks (`../ducks`), a new ariadne-layer project, to the cutover list.
