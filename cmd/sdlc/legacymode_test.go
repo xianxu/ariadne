@@ -7,6 +7,8 @@ import (
 	"strings"
 	"sync"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // The #252 binary must run the legacy workflow unchanged in any repository
@@ -203,5 +205,26 @@ func TestLegacyRepoLockSetStatusMutationWaits(t *testing.T) {
 	}
 	if waits := lock.waitMessages(); waits == "" || !strings.Contains(waits, "pid 777") {
 		t.Fatalf("expected wait message with holder pid, got %q", waits)
+	}
+}
+
+// With the remote unreachable, the mode decision falls back to local evidence
+// (#252 BR-41): a legacy repository's local verbs keep working offline, and a
+// checkout carrying the cutover marker still refuses rather than drop to legacy.
+func TestLegacyModeDecisionWorksOffline(t *testing.T) {
+	r := legacyRepo(t)
+	r.git("remote", "set-url", "origin", filepath.Join(t.TempDir(), "unreachable.git"))
+	if out, err := slotRun(t, r.root, "issue", "set-status", "working", "--issue", "1"); err != nil {
+		t.Fatalf("legacy set-status with the remote unreachable: %v\n%s", err, out)
+	}
+	if !strings.Contains(readRepoFileOr(t, r.root, "workshop/issues/000001-one.md"), "status: working") {
+		t.Fatal("offline legacy set-status did not write the details")
+	}
+	writeRepoFile(t, r.root, tracker.CutoverMarkerPath, `{"version":1,"tracker_root":"`+strings.Repeat("a", 40)+`"}`+"\n")
+	if out, err := slotRun(t, r.root, "issue", "set-status", "open", "--issue", "1"); err == nil || !strings.Contains(out+err.Error(), "could not fetch") {
+		t.Fatalf("an offline checkout with the cutover marker must refuse on the transport error, not fall back to legacy: %v\n%s", err, out)
+	}
+	if !strings.Contains(readRepoFileOr(t, r.root, "workshop/issues/000001-one.md"), "status: working") {
+		t.Fatal("the refused set-status still wrote the details")
 	}
 }

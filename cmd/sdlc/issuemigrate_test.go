@@ -390,3 +390,22 @@ func TestIssueMigrateSkipsPrunableWorktrees(t *testing.T) {
 		t.Fatalf("a prunable worktree broke the dry run: %v\n%s", err, out)
 	}
 }
+
+// Uncommitted issue edits refuse the cutover, each named by its full path —
+// including the first, whose porcelain line leads with a space the trimmed
+// output drops (#252, "orkshop/…" in the ducks dry run).
+func TestIssueMigrateNamesEveryUncommittedIssueEdit(t *testing.T) {
+	r := legacyRepo(t)
+	for _, p := range []string{"workshop/issues/000001-one.md", "workshop/issues/000002-two.md"} {
+		writeRepoFile(t, r.root, p, "---\nid: x\n---\n\n# edited\n")
+	}
+	_, out, err := migrateDryRun(t)
+	if err == nil {
+		t.Fatalf("uncommitted issue edits must refuse the cutover:\n%s", out)
+	}
+	for _, p := range []string{": workshop/issues/000001-one.md\n", ": workshop/issues/000002-two.md\n"} {
+		if !strings.Contains(out, p) {
+			t.Errorf("refusal does not name %q:\n%s", strings.TrimSpace(p), out)
+		}
+	}
+}

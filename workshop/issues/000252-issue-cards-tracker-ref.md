@@ -405,6 +405,18 @@ total: 10.77
   `TestBranchPointFollowsALocalMainAheadOfTheTrunk` (mutation-checked);
   equivalence harness all steps same on the rebuilt binary.
 
+- 2026-09-27 — Issue close round 12 (FIX-THEN-SHIP, not finalized): BR-41
+  (Important) legacy-mode detection ran `ls-remote`, so an offline legacy
+  repository could not run local-only verbs. `repositoryTracked` now degrades
+  the way the readers' stale read does: unreachable remote → a fetched tracker
+  or a cutover marker means tracked (the verb refuses on the transport error),
+  neither means legacy. `TestLegacyModeDecisionWorksOffline` (mutation-checked:
+  reproduces the reviewer's error without the fix). Minor: MigrationAnchor doc
+  now states the landed-close CodeAfter rule. Also fixed from the ducks dry
+  run: the migration's dirty-issue inventory sliced porcelain at a fixed
+  column from trimmed output, truncating the first path; it now reuses
+  merge's `porcelainPaths` (`TestIssueMigrateNamesEveryUncommittedIssueEdit`).
+
 ## Revisions
 
 ### 2026-09-25 14:00 PDT — Creation completes when details land; explicit handoff

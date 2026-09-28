@@ -30,6 +30,12 @@ import (
 // readers make it (LoadRecords): no publication target and nothing fetched, or
 // a remote without the tracker branch, is a legacy repository. A checkout whose
 // cutover marker names a tracker the remote lacks is an error, never legacy.
+//
+// An unreachable remote falls back to local evidence, as the readers' stale
+// read does: a fetched tracker or a cutover marker means tracked (the verb then
+// refuses on the transport error, since it needs the tracker); neither means
+// legacy, so a legacy repository's local-only verbs keep working offline, as
+// they did before #252.
 func repositoryTracked(ctx context.Context, dir string) (bool, error) {
 	root := repoRootOf(dir)
 	if root == "" {
@@ -39,7 +45,22 @@ func repositoryTracked(ctx context.Context, dir string) (bool, error) {
 	if err != nil || repo == nil {
 		return false, err
 	}
-	return repo.Initialized()
+	exists, err := repo.Initialized()
+	if err == nil || errors.Is(err, tracker.ErrCutover) {
+		return exists, err
+	}
+	_, fetched, lerr := repo.LocalSnapshot()
+	if lerr != nil {
+		return false, errors.Join(err, lerr)
+	}
+	_, marked, merr := tracker.ReadCutoverMarker(root)
+	if merr != nil {
+		return false, errors.Join(err, merr)
+	}
+	if fetched || marked {
+		return true, err
+	}
+	return false, nil
 }
 
 // errLegacyOnly is how a tracker-only verb refuses in a legacy repository.

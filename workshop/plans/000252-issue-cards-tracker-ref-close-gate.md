@@ -472,6 +472,45 @@ rounds:
       boundary: M4
       recipe: milestone-review
       blocked: false
+    - "n": 12
+      timestamp: "2026-09-27T18:51:52-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: git diff --check over the window reports nothing for the M1 review artifact.
+          round: 12
+        - id: BR-18
+          disposition: addressed
+          note: issuemovedetail.go:200 constructs tracker.NewTransfer before the staleMirror WriteFile and git add at :204-216.
+          round: 12
+        - id: BR-33
+          disposition: addressed
+          note: closetracker.go:65-68 names every superseded pinned file in a Close-Kept trailer plus a warning; closetracker_test.go:181 asserts the trailer.
+          round: 12
+        - id: BR-39
+          disposition: addressed
+          note: TestShellFallbacksSpellTheTrackerVocabulary derives the fetched-ref glob from vocab and the marker from tracker.CutoverMarkerPath, and checks Makefile.workflow plus scripts/close-issue.py.
+          round: 12
+        - id: BR-40
+          disposition: addressed
+          note: bindLegacyClose refuses a landed anchor whose CodeAfter (main...ref) is set; migration_test.go:197 covers it. The MigrationAnchor doc comment is stale (raised Minor below).
+          round: 12
+      findings:
+        - id: BR-41
+          severity: Important
+          title: Legacy-mode detection requires ls-remote, so offline legacy repos can no longer run local-only verbs
+          detail: repositoryTracked calls Repository.Initialized, whose TrunkFile.RemoteExists runs ls-remote; an unreachable remote returns an error, so claim, set-status, issue new and change-code refuse before the legacy path. Reproduced with issue set-status against an unreachable origin. Decide from local evidence first (cutover marker, fetched tracker ref), and treat an offline remote with no evidence as legacy for local verbs; add an unreachable-origin test.
+          family: local-verb-network-dependency
+          round: 12
+        - id: BR-42
+          severity: Minor
+          title: MigrationAnchor doc still says CodeAfter is not asked of a landed close
+          detail: This is the 4th finding in landing-completion-proof, and it is doc drift left behind by the BR-40 fix. The rule already applies in code; only migration.go:36-40 contradicts it. Update the comment to say a landed close checks the branch's code beyond main.
+          family: landing-completion-proof
+          round: 12
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#252 (boundary-review)
@@ -670,10 +709,24 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-40** [Minor] `landing-completion-proof` A landed branch close ignores CodeAfter, so unlanded post-close branch code settles the card to done
   This is the 3rd finding in landing-completion-proof. Rule: done requires proof that every ref carrying the close has nothing beyond main after it. Apply CodeAfter to a landed anchor's branch tip relative to main, not only to unlanded anchors.
 
+## Round 12 — 2026-09-27T18:51:52-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-3 — addressed — git diff --check over the window reports nothing for the M1 review artifact.
+- BR-18 — addressed — issuemovedetail.go:200 constructs tracker.NewTransfer before the staleMirror WriteFile and git add at :204-216.
+- BR-33 — addressed — closetracker.go:65-68 names every superseded pinned file in a Close-Kept trailer plus a warning; closetracker_test.go:181 asserts the trailer.
+- BR-39 — addressed — TestShellFallbacksSpellTheTrackerVocabulary derives the fetched-ref glob from vocab and the marker from tracker.CutoverMarkerPath, and checks Makefile.workflow plus scripts/close-issue.py.
+- BR-40 — addressed — bindLegacyClose refuses a landed anchor whose CodeAfter (main...ref) is set; migration_test.go:197 covers it. The MigrationAnchor doc comment is stale (raised Minor below).
+
+### Raised
+
+- **BR-41** [Important] `local-verb-network-dependency` Legacy-mode detection requires ls-remote, so offline legacy repos can no longer run local-only verbs
+  repositoryTracked calls Repository.Initialized, whose TrunkFile.RemoteExists runs ls-remote; an unreachable remote returns an error, so claim, set-status, issue new and change-code refuse before the legacy path. Reproduced with issue set-status against an unreachable origin. Decide from local evidence first (cutover marker, fetched tracker ref), and treat an offline remote with no evidence as legacy for local verbs; add an unreachable-origin test.
+- **BR-42** [Minor] `landing-completion-proof` MigrationAnchor doc still says CodeAfter is not asked of a landed close
+  This is the 4th finding in landing-completion-proof, and it is doc drift left behind by the BR-40 fix. The rule already applies in code; only migration.go:36-40 contradicts it. Update the comment to say a landed close checks the branch's code beyond main.
+
 ## Open findings
 
-- **BR-3** [Minor] `review-artifact-hygiene` Committed M1 review artifact contains trailing whitespace
-- **BR-18** [Minor] `refusal-after-local-effect` move-detail rewrites the stale mirror before tracker.NewTransfer validates the receipt spec
-- **BR-33** [Minor] `deferred-effect-input-drift` Evidence replay silently skips pinned files whose HEAD version diverged from both base and pin
-- **BR-39** [Minor] `shared-helper-extraction` Makefile and close-issue.py hardcode the issue-tracker ref name that Go derives from vocab
-- **BR-40** [Minor] `landing-completion-proof` A landed branch close ignores CodeAfter, so unlanded post-close branch code settles the card to done
+- **BR-41** [Important] `local-verb-network-dependency` Legacy-mode detection requires ls-remote, so offline legacy repos can no longer run local-only verbs
+- **BR-42** [Minor] `landing-completion-proof` MigrationAnchor doc still says CodeAfter is not asked of a landed close

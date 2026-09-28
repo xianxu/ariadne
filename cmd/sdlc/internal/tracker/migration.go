@@ -36,8 +36,9 @@ type MigrationBranchFile struct {
 // that recorded codecomplete on Ref, and whether code landed after it. OnMain
 // marks a close already in main's history — main's own (often the legacy
 // publication of a branch's close) or a branch close that has since landed.
-// A landed close is complete work never marked done: code after it on main is
-// other work, so CodeAfter is not asked of it.
+// A landed close is complete work never marked done. Code after it on main is
+// other work, but a branch carrying the landed close checks CodeAfter against
+// main (main...Ref): code there that main lacks refuses the binding.
 type MigrationAnchor struct {
 	Ref, Anchor, Parent string
 	CodeAfter, OnMain   bool

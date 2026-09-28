@@ -316,9 +316,15 @@ func dirtyIssuePaths(env *migrateEnv, home string) ([]string, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read issue edits in worktree %s: %w", wt, err)
 		}
+		// porcelainPaths splits on whitespace: the trimmed output loses the
+		// first line's leading status column, so fixed-column slicing would not.
 		for _, s := range strings.Split(status, "\n") {
-			if len(s) > 3 {
-				dirty = append(dirty, wt+": "+s[3:])
+			path, dest := porcelainPaths(s)
+			if dest != "" {
+				path = dest
+			}
+			if path != "" {
+				dirty = append(dirty, wt+": "+path)
 			}
 		}
 	}

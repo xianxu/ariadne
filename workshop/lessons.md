@@ -224,3 +224,8 @@ The simplest durable authority beats a clever scan of consequences.
   legacy mode (local main ahead of it), caught only by re-running
   `legacy-equivalence.sh` before close. When a fix picks one ref over another,
   enumerate every ordering of the two (behind, ahead, diverged) and test each.
+- A mode decision is itself a read, and must degrade like one: #252's
+  legacy/tracked selector asked the remote with no offline fallback, so a
+  verb that never needed the network before started needing it just to learn
+  which code path to run. When adding a gate in front of an existing local
+  verb, ask what it does offline, and test it with an unreachable remote.
