@@ -103,3 +103,6 @@ moved.
   land #48 in legacy mode (merge main in, PR) before its cutover.
 - nous branch cleanup: deleted merged `nous-14` (+ worktree) and `branch-32`;
   kept #48's branch (operator: keep, land later).
+- nous #48 landed (nous PR #10, 2026-09-27; `done`, archived): nous's
+  archived-on-branch blocker is gone. The migration-tool gap it exposed still
+  needs its refusal + test before any further cutover.
