@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000258-delete-legacy-writers.md
         source_blob: d8c5e94681531d1837a69ad568b790fb59ed1600
         destination: workshop/issues/000258-delete-legacy-writers.md
+        main_commit: c0fa2837af0a829f387f0e81704d1e7ee26950d7
 ---
 
 # Delete the legacy writers and legacy mode
