@@ -44,6 +44,17 @@ type MigrationAnchor struct {
 	CodeAfter, OnMain   bool
 }
 
+// ArchivesActiveReason names a branch that removed the details of an issue
+// main still has open: an unlanded legacy close, whose card would stay open
+// after cutover (#256, nous #48).
+const ArchivesActiveReason = "a branch archives an issue main still has active"
+
+// RemovalArchivesActive is the one rule for a branch that removed an issue's
+// details, shared by the dry run and the post-cutover reconcile: benign when
+// the branch keeps other details for the ID (a rename) or main has closed the
+// issue too; otherwise the branch archived an issue main still has active.
+func RemovalArchivesActive(keptOther, closedOnMain bool) bool { return !keptOther && !closedOnMain }
+
 // MigrationInput is the inventory the command gathers.
 type MigrationInput struct {
 	Repository, ObjectFormat, Main string
@@ -209,14 +220,10 @@ func PlanTrackerMigration(in MigrationInput) MigrationManifest {
 		card, known := cards[id]
 		switch {
 		case b.Raw == nil:
-			// Removing the details is a rename when the branch keeps others for
-			// id, and nothing to carry when main has archived id too. Otherwise
-			// the branch archived an issue main still has active: an unlanded
-			// legacy close, whose card would stay open after cutover.
-			if kept[[2]string{b.Branch, id}] || len(active[id]) == 0 {
+			if !RemovalArchivesActive(kept[[2]string{b.Branch, id}], len(active[id]) == 0) {
 				continue
 			}
-			p = branchProblem{b.Path, "a branch archives an issue main still has active", "land or drop the branch before cutover"}
+			p = branchProblem{b.Path, ArchivesActiveReason, "land or drop the branch before cutover"}
 		case !known && len(active[id]) == 0 && len(older[id]) == 0:
 			p = branchProblem{b.Path, "issue exists only on a branch", "publish it to main (legacy `sdlc issue sync --push`) or drop it, before cutover"}
 		case len(active[id]) == 0:

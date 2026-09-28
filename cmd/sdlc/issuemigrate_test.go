@@ -430,3 +430,36 @@ func TestIssueMigrateRefusesABranchThatArchivesAnActiveIssue(t *testing.T) {
 		t.Fatalf("a rename of an active issue's details must not be refused:\n%s", out)
 	}
 }
+
+// A branch the dry run never saw (created from the pre-cutover main, say on
+// another clone) that archived an issue still open on the tracker is refused by
+// reconcile, which changes nothing; a branch that renamed an open issue's
+// details is not refused for that (#256 review BR-1).
+func TestIssueMigrateReconcileRefusesAnUnlandedArchive(t *testing.T) {
+	r := legacyRepo(t)
+	pre := r.git("rev-parse", "HEAD")
+	digest, out, err := migrateDryRun(t)
+	if err != nil {
+		t.Fatalf("dry run: %v\n%s", err, out)
+	}
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--apply", "--expect", digest); err != nil {
+		t.Fatalf("apply: %v\n%s", err, stderr)
+	}
+	r.git("switch", "-q", "-c", "000001-one", pre)
+	r.git("mv", "workshop/issues/000001-one.md", "workshop/history/issues/000001-one.md")
+	r.git("commit", "-qm", "#1: archive issue to history (done)")
+	before := r.git("rev-parse", "HEAD")
+	_, stderr, err := executeSDLCTestCommand("issue", "migrate", "--reconcile")
+	if err == nil || !strings.Contains(err.Error()+stderr, tracker.ArchivesActiveReason) {
+		t.Fatalf("reconcile must refuse an unlanded archive of an open issue: %v\n%s", err, stderr)
+	}
+	if r.git("rev-parse", "HEAD") != before {
+		t.Fatal("a refused reconcile changed the branch")
+	}
+	r.git("switch", "-q", "-c", "000002-two", pre)
+	r.git("mv", "workshop/issues/000002-two.md", "workshop/issues/000002-deux.md")
+	r.git("commit", "-qm", "#2: issue: rename slug")
+	if _, stderr, err := executeSDLCTestCommand("issue", "migrate", "--reconcile"); err != nil && strings.Contains(err.Error()+stderr, tracker.ArchivesActiveReason) {
+		t.Fatalf("a rename was refused as an archive: %v\n%s", err, stderr)
+	}
+}

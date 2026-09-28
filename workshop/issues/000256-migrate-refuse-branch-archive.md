@@ -49,3 +49,10 @@ existing refusals.
   a deletion main made too. Both tests fail without the fix.
 - Real-repo dry runs with the fix: pair, kaggle, kbench 0 refusals; ariadne's
   2 are pre-existing (`origin/feature` edits archived #148, #159).
+- Close review round 1 (FIX-THEN-SHIP), BR-1 Important: the post-cutover
+  `--reconcile` path made the same "own archive move" assumption, so a branch
+  the dry run never saw could archive an open issue silently. One shared rule
+  now (`tracker.RemovalArchivesActive` + `ArchivesActiveReason`): the dry run
+  asks whether main still has the issue active, reconcile whether its card is
+  terminal (`vocab.Issue().IsTerminal`); both keep renames silent.
+  `TestIssueMigrateReconcileRefusesAnUnlandedArchive` fails without the fix.
