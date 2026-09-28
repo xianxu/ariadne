@@ -103,7 +103,7 @@ func planPeerWrites(edits map[string][]string, states map[string]RepoGitState, c
 // check (`status --porcelain -- <files>`, catching modified/staged/untracked
 // alike) is only meaningful against the pre-write tree. `diff --cached
 // --quiet` exits non-zero iff there are staged changes; execGitRunner
-// surfaces that as err != nil (CombinedOutput). A failed rev-parse yields
+// surfaces that as err != nil (runGitCmd). A failed rev-parse yields
 // Branch "" (never the error text) so the planner reports "could not be
 // determined" instead of a garbled branch name.
 func readRepoGitState(r gitRunner, repoDir string, files []string) RepoGitState {

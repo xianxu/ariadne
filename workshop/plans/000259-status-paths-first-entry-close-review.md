@@ -231,3 +231,67 @@ dispose:
     note: |
       merge_test.go now groups the gitx import with the project imports, and every import block this diff touches is grouped correctly (checked push.go, startplan.go, trackerenv.go, merge.go and fleet/fakegit_test.go). The tooling rule (goimports -local in lint) covers roughly 10 files that predate this diff and belongs outside this issue.
 ```
+
+---
+
+## Re-review — 2026-09-28T11:09:57-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 259 — close evidence and other status readers drop the first modified path |
+| repo | ariadne |
+| issue file | workshop/issues/000259-status-paths-first-entry.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 968861f13e4d6a20fc281d79b4e080d405b6108d..074fd154781ac207c10fbf883b6c745d859465e7 |
+| command | sdlc close --issue 259 |
+| reviewer | claude |
+| timestamp | 2026-09-28T11:09:57-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The issue does what it set out to do. `gitx.ParseStatusZ` is now the only reader of status output that parses paths. Close evidence, migrate's dirty list, merge's dirty check and re-check, start-plan's dirty count, push's archive recovery and fleet's count all go through it. The regression tests named in the Done-when exist, and the targeted tests pass here: gitx, fleet, and the `sdlc` tests matching `TestPlanningContention|TestTrackerReClose|TestIssueMigrateNamesADirtyPath|TestParseStatusZ|Merge`. `go vet` is clean. Round 4 (`074fd154`) fixes BR-4's cause in the runner itself rather than adding a status-only helper, which is the more general fix. But it changes behavior for every `execGitRunner` caller and has no test that fails without it. It also left two comments describing the old runner. Both fixes are cheap and neither blocks.
+
+1. **Strengths**
+   - `cmd/sdlc/internal/gitx/status.go`: one validating parser that keeps paths byte-exact. It rejects a malformed or trimmed stream instead of misreading it.
+   - `cmd/sdlc/runner.go:50` `runGitCmd`: success returns stdout only, and failure still appends stderr, so error messages keep git's diagnostics. I checked every caller of stderr-writing verbs (push, pull, fetch, switch, checkout, worktree add/remove, branch -D). Each reads `out` only on the error path, so nothing lost information it relied on.
+   - `startplan.go:457-462`: a status that can't be read or parsed now reports the base as unavailable, never as clean, and a test covers it.
+   - `trackerenv.go:106`: `gitRaw` is the single exec path for the tracker. `gitEnv` trims its output and `statusEntries` parses it.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `runGitCmd` has no regression test. A cheap one: `runGitCmd(exec.Command("sh","-c","printf out; printf warn >&2"))` should return exactly `out` on success, and both streams when the command exits non-zero.
+   - Two comments still describe the old combined-output runner:
+     - `startplan.go:455-456` says "stderr mixed into the -z stream by the combined-output runner".
+     - `peerwrite.go:105-106` says "(CombinedOutput)".
+
+5. **Test coverage:** `ParseStatusZ` has unit tests (modified-first, untracked, rename, spaces, trimmed input refused). The close-ledger and spaced-path tests pin the bug that shipped. The start-plan unavailable path is tested. The only gap is the runner change above.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** There is one parser. The status reads left outside it (`landing.go:147`, `planningbranch.go:39`, `issuemigrate.go:526`, `changecode.go:288`, `peerwrite.go:118`, `propagatebase.go:271`) only check whether output is empty. They never extract paths, so they are within the Spec's "no fixed-column slicing" rule.
+   - **ARCH-PURE: pass.** `ParseStatusZ` and `assessDirty` are pure and fed real `-z` bytes; the IO stays in the runner and in `gitRaw`.
+   - **ARCH-PURPOSE: pass.** Checking every status reader turns up no path-parsing reader outside the parser, and the stderr cause is fixed at its source.
+   - **ARCH-MOCK: pass.** Tests still go through the `gitRunner` seam and fleet's fake git, which now uses `ValidStatusCode`.
+   - **ARCH-CONSTRAINTS: N/A.** The change parses small status output locally; runtime and resources are unaffected.
+   - **ARCH-SECURE: pass.** Status output from git is untrusted input; it is turned into a typed value at the boundary, and a parse failure fails closed (merge and push refuse, start-plan reports unavailable).
+   - **ARCH-ORDER: N/A.** The parser and the runner hold no state between calls.
+   - **ARCH-FUNERAL: N/A.** No new durable artifact beyond the plan and ledger files, which are archived with the issue.
+
+7. **Plan revisions:** none. The plan still matches the code.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      The start-plan swallow is fixed with a test, and the cause is fixed in runGitCmd, but that runner change has no test that fails without it. Add a sh-based runGitCmd test and update the stale comments at startplan.go:455 and peerwrite.go:106.
+```

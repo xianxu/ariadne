@@ -452,8 +452,8 @@ func gatherBaseContention(ctx context.Context, root string, excludeIssue int) ba
 	if out, err := mergeRunner.GitInDir(root, "branch", "--show-current"); err == nil {
 		c.Branch = strings.TrimSpace(string(out))
 	}
-	// A status that cannot be read or parsed (a git error, or stderr mixed into
-	// the -z stream by the combined-output runner) is unknown, never clean.
+	// A status that cannot be read or parsed (a git error, or a malformed -z
+	// stream from a substituted runner) is unknown, never clean.
 	out, err := mergeRunner.GitInDir(root, "status", "--porcelain=v1", "-z")
 	entries, perr := gitx.ParseStatusZ(out)
 	if err != nil || perr != nil {

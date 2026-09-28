@@ -53,6 +53,7 @@ reuses it. No reader of status output slices fixed columns from trimmed text.
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — Round 4: execGitRunner returns stdout alone on success, stdout+stderr on failure (runGitCmd); push/pull/fetch callers read output only on error. Full suite green (39 packages). Earlier evidence stands (regression tests fail without the fix; round-2 evidence commit carried its modified ledger).; review verdict: FIX-THEN-SHIP
 - 2026-09-28: closed — Round 3: start-plan surfaces an unreadable/unparseable base status as unavailable (TestPlanningContentionReportsUnreadableStatus fails without the fix); merge_test import grouped. Earlier rounds evidence stands; round-2 evidence commit carried its modified ledger (live proof of the fix). --no-atlas: internal parser consolidation.; review verdict: SHIP
 - 2026-09-28: closed — Round 2: all status readers (close evidence, migrate dirty list, merge dirty check + re-check, start-plan dirty count, push archive recovery, fleet count) use gitx.ParseStatusZ; hand parsers deleted; trackerEnv.gitRaw single exec path. Regression tests fail without the fix (re-close ledger, spaced dirty path); wider command tests green (786s, -timeout 40m). --no-atlas: internal parser consolidation, no new surface.; review verdict: SHIP
 - 2026-09-28: flow upgraded quick → full — 133 added lines in code files (limit 100)
@@ -91,3 +92,6 @@ reuses it. No reader of status output slices fixed columns from trimmed text.
   of stderr-writing verbs (push, pull, fetch) reads the output only on error.
   Full suite green (39 packages, -timeout 40m; baseline #210 and sandbox ps
   skipped).
+- Close round 4 FIX-THEN-SHIP, fixed in the same commit: `TestRunGitCmdSeparatesStderr`
+  (fails against CombinedOutput: "datawarning: noise"); stale comments at
+  peerwrite.go and startplan.go updated.

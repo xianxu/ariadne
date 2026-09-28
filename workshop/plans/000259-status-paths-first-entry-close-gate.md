@@ -71,6 +71,16 @@ rounds:
           round: 3
       recipe: milestone-review
       blocked: false
+    - "n": 4
+      timestamp: "2026-09-28T11:09:57-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: not-addressed
+          note: The start-plan swallow is fixed with a test, and the cause is fixed in runGitCmd, but that runner change has no test that fails without it. Add a sh-based runGitCmd test and update the stale comments at startplan.go:455 and peerwrite.go:106.
+          round: 4
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#259 (boundary-review)
@@ -109,6 +119,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-4 — not-addressed — Half fixed: start-plan no longer swallows the error; it reports the base as unavailable, and TestPlanningContentionReportsUnreadableStatus pins that. The rule was not applied: execGitRunner (runner.go:37,43) still uses CombinedOutput, so a stderr warning still fails merge and push with an opaque "field 1 is not XY+path status", and start-plan's message drops git's own text. The run-and-parse pattern is still repeated at four sites (merge.go:130, push.go:377, startplan.go:457, trackerenv.go:89). The fix is still one stdout-only StatusEntries helper on the runner. This affects error messages, not safety; everything fails closed.
 - BR-5 — addressed — merge_test.go now groups the gitx import with the project imports, and every import block this diff touches is grouped correctly (checked push.go, startplan.go, trackerenv.go, merge.go and fleet/fakegit_test.go). The tooling rule (goimports -local in lint) covers roughly 10 files that predate this diff and belongs outside this issue.
+
+## Round 4 — 2026-09-28T11:09:57-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — not-addressed — The start-plan swallow is fixed with a test, and the cause is fixed in runGitCmd, but that runner change has no test that fails without it. Add a sh-based runGitCmd test and update the stale comments at startplan.go:455 and peerwrite.go:106.
 
 ## Open findings
 
