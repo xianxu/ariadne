@@ -98,12 +98,21 @@ func (r *Repository) readMarker() (string, bool, error) {
 	return ReadCutoverMarker(r.checkout)
 }
 
-// ReadCutoverMarkerAt reads the marker in commit's tree ("" when absent).
+// ReadCutoverMarkerAt reads the marker in commit's tree ("" when absent). Only
+// a missing path is absent: an unresolvable commit or a failing git is an
+// error, never a quiet "not cut over".
 func ReadCutoverMarkerAt(root, commit string) (string, bool, error) {
-	spec := commit + ":" + CutoverMarkerPath
-	if _, err := gitx.RunGit("-C", root, "cat-file", "-e", "--end-of-options", spec); err != nil {
+	if _, err := gitx.RunGit("-C", root, "rev-parse", "--verify", "-q", "--end-of-options", commit+"^{commit}"); err != nil {
+		return "", false, fmt.Errorf("%s is not a commit", commit)
+	}
+	listed, err := gitx.RunGit("-C", root, "ls-tree", "--name-only", commit, "--", CutoverMarkerPath)
+	if err != nil {
+		return "", false, fmt.Errorf("look for %s in %s: %w", CutoverMarkerPath, commit, err)
+	}
+	if len(bytes.TrimSpace(listed)) == 0 {
 		return "", false, nil
 	}
+	spec := commit + ":" + CutoverMarkerPath
 	raw, err := gitx.RunGit("-C", root, "cat-file", "blob", "--end-of-options", spec)
 	if err != nil {
 		return "", false, fmt.Errorf("read %s: %w", spec, err)

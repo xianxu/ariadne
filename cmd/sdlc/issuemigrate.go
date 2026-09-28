@@ -129,16 +129,8 @@ func runIssueMigrate(ctx context.Context, stdout, stderr io.Writer, f issueMigra
 // migratedAlready reports a completed migration: main carries a marker whose
 // root is the tracker's. A marker naming another tracker refuses.
 func migratedAlready(env *migrateEnv, mainView *gitx.TrunkView) (bool, error) {
-	present, err := mainView.Exists(tracker.CutoverMarkerPath)
+	root, present, err := tracker.ReadCutoverMarkerAt(env.root, mainView.Ref())
 	if err != nil || !present {
-		return false, err
-	}
-	raw, err := mainView.Read(tracker.CutoverMarkerPath)
-	if err != nil {
-		return false, err
-	}
-	root, err := tracker.ParseCutoverMarker(raw)
-	if err != nil {
 		return false, err
 	}
 	exists, err := env.tracker.Initialized()

@@ -228,7 +228,9 @@ func cardlessAdditions(ctx context.Context, headRef string, base, head map[int][
 	if len(dirs.Rel) == 0 {
 		return nil, nil
 	}
-	if _, err := r.Git("cat-file", "-e", "--end-of-options", headRef+":"+tracker.CutoverMarkerPath); err != nil {
+	if _, marked, err := tracker.ReadCutoverMarkerAt(dirs.Top, headRef); err != nil {
+		return nil, err
+	} else if !marked {
 		return nil, nil // not a tracker repository at head
 	}
 	repo, err := tracker.RepositoryForCheckout(ctx, dirs.Top)

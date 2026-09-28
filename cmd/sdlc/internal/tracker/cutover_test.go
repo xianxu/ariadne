@@ -113,3 +113,38 @@ func TestGuardedRepositoryRefusesAMarkerWithoutATracker(t *testing.T) {
 		t.Fatalf("a read fell back to legacy details: %v", err)
 	}
 }
+
+// GuardCutoverAt judges a commit's marker, not the checkout's file: a commit
+// without one refuses even when the checkout carries a matching marker, a
+// committed matching marker passes, and an unresolvable commit is an error,
+// never "not cut over" (#257).
+func TestGuardCutoverAtJudgesTheCommit(t *testing.T) {
+	_, root, _ := fixture(t)
+	trackerRoot := strings.Fields(testfix.Capture(t, root, "ls-remote", "publication", "refs/heads/issue-tracker"))[0]
+	at := func(commit string) error {
+		repo, err := NewRepository(context.Background(), root, "publication")
+		if err != nil {
+			t.Fatal(err)
+		}
+		_, err = repo.GuardCutoverAt(root, commit).Snapshot()
+		return err
+	}
+	unmarked := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
+	writeMarker(t, root, string(CutoverMarkerBytes(trackerRoot)))
+	if err := at(unmarked); !errors.Is(err, ErrCutover) || !strings.Contains(err.Error(), "commit "+unmarked+" has no") {
+		t.Fatalf("a commit without the marker, beside a marked checkout: %v", err)
+	}
+	testfix.Git(t, root, "add", CutoverMarkerPath)
+	testfix.Git(t, root, "commit", "-qm", "marker")
+	if err := at("HEAD"); err != nil {
+		t.Fatalf("a commit carrying the matching marker refused: %v", err)
+	}
+	writeMarker(t, root, string(CutoverMarkerBytes(strings.Repeat("b", 40))))
+	testfix.Git(t, root, "commit", "-qam", "foreign root")
+	if err := at("HEAD"); !errors.Is(err, ErrCutover) || !strings.Contains(err.Error(), "re-created") {
+		t.Fatalf("a commit naming another root: %v", err)
+	}
+	if _, present, err := ReadCutoverMarkerAt(root, "no-such-commit"); err == nil || present {
+		t.Fatalf("an unresolvable commit read as absent: present=%v err=%v", present, err)
+	}
+}

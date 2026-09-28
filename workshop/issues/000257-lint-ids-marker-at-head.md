@@ -28,8 +28,8 @@ commit under check.
 
 ## Spec
 
-With `--head`, lint-ids reads the cutover marker (and so the tracked/legacy
-decision) from `H`'s tree; without `--head` it keeps reading the checkout. The
+lint-ids reads the cutover marker (and so the tracked/legacy decision) from
+the tree of its head (`--head`, default `HEAD`), never the checkout's files. The
 cutover mismatch guard still refuses a real mismatch at `H`.
 
 ## Done when
@@ -52,6 +52,13 @@ cutover mismatch guard still refuses a real mismatch at `H`.
   used by `checkCutover`, the absent-tracker check and `Presence`; lint-ids
   guards at `--head`. `TestIssueLintIDsJudgesTheMarkerAtHead` (subprocess, as
   lint-ids exits itself) reproduces you-decide's exact error without the fix.
+- Close round 1 SHIP; its four advisory Minors fixed after the evidence
+  commit: `ReadCutoverMarkerAt` treats only a missing path as absent (an
+  unresolvable commit or git failure errors); lint-ids and `migratedAlready`
+  now read through it (one commit-tree marker reader); Spec wording (lint-ids
+  always has a head); `TestGuardCutoverAtJudgesTheCommit` pins the commit
+  guard (unmarked commit beside a marked checkout refuses, committed match
+  passes, foreign root refuses, bad commit errors).
 
 ## Revisions
 
