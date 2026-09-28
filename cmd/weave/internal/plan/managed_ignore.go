@@ -108,9 +108,9 @@ func managedIgnore(fs weavefs.FS, root string, old, ids []outputIdentity) (strin
 	if e != nil {
 		return "", e
 	}
-	for _, e := range block {
-		if !owned[e] {
-			entries = append(entries, e)
+	for _, entry := range block {
+		if !owned[entry] {
+			entries = append(entries, entry)
 		}
 	}
 	for _, id := range ids {
