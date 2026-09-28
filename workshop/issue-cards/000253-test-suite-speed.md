@@ -1,10 +1,11 @@
 ---
 id: 000253
-status: open
+status: working
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-09-28
 estimate_hours:
 github_issue:
+started: 2026-09-28T11:24:11-07:00
 ---
 
 # Keep the sdlc test suite fast: tiers, shared binary, parallel-safe e2e
