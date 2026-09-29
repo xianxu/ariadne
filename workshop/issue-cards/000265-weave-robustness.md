@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000265-weave-robustness.md
         source_blob: b452cfb519ad7d3d3801e0c0ff570d046481f31d
         destination: workshop/issues/000265-weave-robustness.md
+        main_commit: 0186e297fad232b3f8f9a8a44301dfb50e36fa72
 ---
 
 # weave robustness: atomic compile, symlinked Makefile, legacy include, dependency writes
