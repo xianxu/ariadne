@@ -284,6 +284,19 @@ Before claiming fleet completion again, sweep every repo under `~/workspace`
 (inventory present and non-empty, managed block present, no tracked link
 matching the record, one workflow include) rather than working from a list.
 
+### 2026-09-28 — post-M1: license travels with the binary
+
+- M1 review advisory: the archives held only `weave`, so the MIT notice didn't
+  ship with distributed copies. Fixed before tagging, since published archives
+  are immutable: `writeArchive` now writes `weave` (0755) and `LICENSE` (0644),
+  and Homebrew installs a top-level LICENSE into the keg. **The M2 asset check
+  expects two archive members.**
+- Reviewed with `sdlc judge milestone-review --base 8640c9db`: all ARCH checks
+  pass. Its two Minor findings (no archive-shape unit test, missing-LICENSE path
+  untested) are fixed by `TestArchiveCarriesBinaryAndLicense` and
+  `TestMissingLicenseFailsBeforeStaging`. `go test ./cmd/weave/internal/release/`
+  and `release-weave.test.sh weave-v0.1.0` pass. This commit is the tag target.
+
 ## Revisions
 
 ### 2026-09-28 — plan concretized
