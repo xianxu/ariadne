@@ -1,6 +1,6 @@
 ---
 id: 000267
-status: codecomplete
+status: done
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 0be94e82c536e390831ea8c8a56800182a90fa8f
         evidence_commit: 1e293803cd6fcb4c3cbf669625ab694e8d00d1fd
+        landed_commit: 29ef38077bc94f2cdc50f43382e5e9470226e31d
 ---
 
 # merge/pr: a PR behind the local branch reads as 'found 0 PRs'; pr re-run pushes then fails
