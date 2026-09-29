@@ -112,6 +112,11 @@ and candidate directions; it does not choose a data model or command syntax.
 - Refreshing the scenario from main retains completed issue details and their
   evidence without add/add conflicts caused solely by initial-detail
   publication; genuine conflicting edits are reported without data loss.
+- The initial-detail handoff guard permits a proven legitimate owner's
+  reviewed completion bindings and completed details to land, while still
+  rejecting stale-owner overwrites. Regressions cover the stacked #300
+  landing refusal and edits on main after initial-detail publication; no
+  recovery path requires replacing completed records with initial templates.
 - Issue and architecture-artifact attribution separates inherited helper
   exports from new exports. Active-time diagnostics in the scenario are
   explained and tested, with any reproducible attribution defect corrected.
@@ -151,3 +156,24 @@ finding are committed locally; their publication is blocked by that guard.
 This is additional observed workflow friction during ticket creation, distinct
 from the stack's acceptance scope. No guard was bypassed or implementation
 attempted.
+
+Final stacked-landing follow-up: parley.nvim#300 received a full re-review
+with SHIP verdict at `fa255b82` on the combined #303 branch, and the latest
+branch was pushed to PR #215. `sdlc merge` passed conformance, then refused:
+"landing would change handed-off issue details:
+workshop/issues/000300-app-labels-buffer-completion.md would be overwritten by
+this branch. Its details were handed off to main (sdlc issue move-detail) and
+may have a new owner." The suggested `sdlc issue recovery reconcile --issue
+300` returned "no unfinished operations". Main held the initial template;
+the branch held the reviewed completed record, so restoring main's version
+would discard the issue body and history. No guard was bypassed. The branch
+remained pushed, PR #215 open, and main unmerged at this checkpoint. The same
+handoff guard therefore affects both the stack's landing and this ticket's
+on-main follow-up publication.
+
+## Revisions
+
+- 2026-09-29 — Added the final stacked-landing refusal after #300's full
+  re-review cleared the earlier budget gate. Extended Done when to require
+  evidence-based legitimate-owner admission and stale-owner refusal across
+  initial-detail handoff, without discarding completed records.
