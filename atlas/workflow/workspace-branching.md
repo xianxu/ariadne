@@ -142,7 +142,12 @@ The resting branch's single named remote tracking `refs/heads/main` selects the
 destination. Effective fetch and push URLs must identify the same supported
 GitHub repository; missing, ambiguous or mismatched configuration refuses.
 Durable landing supports same-repository PRs. Local issue HEAD, fresh remote
-issue HEAD and PR head must match before merge. Before integration or switching,
+issue HEAD and PR head must match before merge. A commit after `sdlc pr` (a
+main merge, a FIX-THEN-SHIP fix) leaves the open PR behind; `merge` refuses
+naming that PR, and re-running `sdlc pr` pushes into it (`updated PR #N`)
+rather than creating another. `git push -u` exits 0 even when a sandbox denies
+the `.git/config` write, so the branch may have no upstream; `sdlc pr` warns,
+and re-running it is the way to publish later commits. Before integration or switching,
 tracked changes (including tracker edits) and ongoing Git operations refuse. Noncolliding untracked and
 ignored files remain; collisions refuse without stash/reset or forced switching.
 

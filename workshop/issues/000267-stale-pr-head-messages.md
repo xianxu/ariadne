@@ -52,16 +52,16 @@ verb says the fix is to push:
 
 ## Plan
 
-- [ ] Split `selectLandingPR` into an identity pass (`liveLandingPRs`: repo,
+- [x] Split `selectLandingPR` into an identity pass (`liveLandingPRs`: repo,
   head ref, base, not closed) and a head filter; no head match plus exactly one
   OPEN PR at another head → "PR #N is at X, local is at Y; push with `sdlc pr`,
   then retry".
-- [ ] `runDurablePR` queries the branch's PRs (identity-checked) before pushing;
+- [x] `runDurablePR` queries the branch's PRs (identity-checked) before pushing;
   one OPEN PR → push, report "updated PR #N to <sha>", exit 0, no create; >1 →
   refuse.
-- [ ] After the push, verify `branch.<b>.merge`; if git could not record it,
+- [x] After the push, verify `branch.<b>.merge`; if git could not record it,
   warn with the cause instead of dropping git's stderr.
-- [ ] Tests for all three through the production entry points (`runMerge`,
+- [x] Tests for all three through the production entry points (`runMerge`,
   `runPR`) on the real-git landing fixture.
 
 ## Log
@@ -77,3 +77,14 @@ verb says the fix is to push:
   success, so `sdlc pr` reported nothing. sdlc cannot write config the sandbox
   forbids; the fix is to verify and warn. The pushed path forward is re-running
   `sdlc pr`, which now updates the open PR.
+- Taken over in ariadne:2 at 22:02. The previous session stopped at 20:46,
+  with the implementation, three tests, helptext and atlas written but
+  uncommitted. Kept as is apart from gofmt on `landing.go` (a stray blank
+  line).
+- Verified the tests are real regressions: with `HEAD`'s `landing.go`, all
+  three fail (`TestLandingStalePRHeadNamesPush`,
+  `TestLandingPRUpdatesOpenPR`, `TestLandingPRWarnsUnrecordedUpstream`); with
+  the change, all pass.
+- Scope note: this fixes the local `sdlc pr`/`merge` experience only. The
+  GitHub CI failures on every PR are #266 (the ID lint in
+  `internal/tracker/records.go`), a separate code path.
