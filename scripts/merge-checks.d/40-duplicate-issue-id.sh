@@ -92,10 +92,14 @@ trap 'rm -rf "$tmp"' EXIT
 #   --trunk the published tip — what this branch will actually merge INTO, and
 #           the only place the colliding file exists
 #
+# --remote origin: the issue tracker is read from the same remote as the trunk.
+# A CI checkout is detached with no local main tracking anything, so the
+# publication target the operator path resolves does not exist there (#266).
+#
 # lint-ids exits 0 clean, 1 collisions introduced, 2 could-not-run; all three
 # propagate, so CI never sees green from a check that did not look.
 if [ -n "$fallback_base" ]; then
-    "$tmp/sdlc" issue lint-ids --base "$fallback_base" --trunk "$trunk" --head "$head"
+    "$tmp/sdlc" issue lint-ids --remote origin --base "$fallback_base" --trunk "$trunk" --head "$head"
 else
-    "$tmp/sdlc" issue lint-ids --base "$trunk" --head "$head"
+    "$tmp/sdlc" issue lint-ids --remote origin --base "$trunk" --head "$head"
 fi
