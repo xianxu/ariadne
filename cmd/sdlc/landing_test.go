@@ -236,9 +236,12 @@ func TestLandingPRUpdatesOpenPR(t *testing.T) {
 	head := procedureHead(t, roots[1])
 	g := &recordingGH{existing: []landingPR{fake.pr}}
 	ghClient = g
-	var out strings.Builder
-	if err := runPR(&out, io.Discard, &prFlags{IssuesDir: "workshop/issues"}); err != nil {
+	var out, errOut strings.Builder
+	if err := runPR(&out, &errOut, &prFlags{IssuesDir: "workshop/issues"}); err != nil {
 		t.Fatal(err)
+	}
+	if strings.Contains(errOut.String(), "upstream") {
+		t.Fatalf("upstream warning with a recorded upstream: %q", errOut.String())
 	}
 	if g.prCreated.called {
 		t.Fatal("created a duplicate PR")

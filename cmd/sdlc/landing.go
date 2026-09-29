@@ -523,7 +523,8 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	}
 	body := combineBody(commits, formatFixes(ghNums))
 	if f.DryRun {
-		fmt.Fprintf(stdout, "Would: git push -u %s %s\nWould: gh pr create --repo %s --base main --head %s\n%s\n", t.Remote, branch, t.Repo, branch, body)
+		// #267: the dry run stays offline, so it names both outcomes of the PR query.
+		fmt.Fprintf(stdout, "Would: git push -u %s %s\nWould: update the branch's open PR if one exists, else gh pr create --repo %s --base main --head %s\n%s\n", t.Remote, branch, t.Repo, branch, body)
 		return nil
 	}
 	now, err := resolveLandingTarget(prRunner)
@@ -560,9 +561,12 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	if _, err = landingGit(prRunner, t.Root, "push", "-u", t.Remote, "refs/heads/"+branch+":refs/heads/"+branch); err != nil {
 		return err
 	}
-	// #267: git exits 0 when it pushes but cannot write the upstream config.
-	if upstream, _ := landingOptional(prRunner, t.Root, "config", "--get", "branch."+branch+".merge"); upstream == "" {
-		cwarn(stderr, fmt.Sprintf("pushed, but git could not record %s's upstream (is .git/config write-protected, e.g. by a sandbox?); a bare `git push` will fail — re-run `sdlc pr` to publish later commits", branch))
+	// #267: git exits 0 when it pushes but cannot write the upstream config,
+	// and its stderr is not returned on success; verify the result instead.
+	if upstream, cerr := landingOptional(prRunner, t.Root, "config", "--get", "branch."+branch+".merge"); cerr != nil {
+		cwarn(stderr, fmt.Sprintf("pushed, but could not read %s's upstream: %v", branch, cerr))
+	} else if upstream == "" {
+		cwarn(stderr, fmt.Sprintf("pushed, but git did not record %s's upstream (a write-protected .git/config, as in an agent sandbox, does this); a bare `git push` will fail — re-run `sdlc pr` to publish later commits", branch))
 	}
 	// #267: the branch's open PR follows its head; the push was the update.
 	if len(open) == 1 {
