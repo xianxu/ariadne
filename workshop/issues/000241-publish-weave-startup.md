@@ -245,6 +245,7 @@ cleanup in each; no adopt mode needed for a one-off.
   the release/tap work remains.
 
 ### 2026-09-28 — M1
+- 2026-09-28: closed M2 — weave-v0.1.0 released from CI build-of-record run 36511188527 (checksums re-verified, archives=weave+LICENSE); tap xianxu/homebrew-ariadne live; clean trust store on macOS: brew install/test/audit --strict --online/reinstall all rc=0, weave version 0.1.0; Linux: parley.nvim CI run 36511435873 installed weave 0.1.0 from the tap and compiled 107 actions with no fallback (job red only from unrelated id-lint, filed #266); merge-check fallback removed, portable-ci + release tests PASS; docs swept. --no-actual: whole-window measurement fell below M1s recorded 0.61h (0.61 -> 0.55 -> 0.42 as #263/#265/#266 mentions re-attribute time), so no non-negative M2 increment exists; issue close adopts the measured total.; review verdict: SHIP
 - 2026-09-28: closed M1 — release-weave.test.sh weave-v0.1.0 PASS: four archives (darwin/linux x arm64/amd64), targets/CGO/version/layout/checksums, formula composition test; generated weave.rb carries license "MIT" and version 0.1.0. Actual = sdlc actual measured 0.61h (first milestone, whole window).; review verdict: SHIP
 
 - Added `LICENSE` (MIT) and `license "MIT"` to the formula template.
@@ -332,6 +333,13 @@ matching the record, one workflow include) rather than working from a list.
 - Stopgap removed (merge-check `elif` and its portable-ci case); docs swept
   (`grep '#241|until…publish|pending publication'` finds only historical
   mentions). Consumers' seeded merge-check copies keep a dormant fallback.
+
+- M2 review advisories: (1) the tap formula's stanza swap vs the tag's
+  artifact is the one-time exception logged above, since the template is fixed
+  for future releases; (2) consumers' seed-once `merge-check.yml` keep the
+  dormant fallback, and seeds have no retirement path (ARCH-FUNERAL). That
+  belongs to #265 and should be added there when it's claimed. Its details now
+  live on main, not on this branch.
 
 ## Revisions
 
