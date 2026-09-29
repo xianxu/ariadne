@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000269-sdlc-close-integrate-a-moved-origin-main-before-the-boundary-review.md
         source_blob: edab72395bf5419f88aab5c10d3702508e117901
         destination: workshop/issues/000269-sdlc-close-integrate-a-moved-origin-main-before-the-boundary-review.md
+        main_commit: ce0a928ef5c1e4f42a3ab26e1c89e2b95f77a409
 ---
 
 # sdlc close: integrate a moved origin/main before the boundary review
