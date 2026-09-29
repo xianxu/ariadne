@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 
@@ -100,6 +101,11 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 	if e != nil {
 		return nil, e
 	}
+	// Nothing to apply and nothing of this scope to retire: publish nothing, so a
+	// mount-less data pass leaves an unmigrated repo untouched (#264).
+	if len(actions) == 0 && !slices.ContainsFunc(old, func(id outputIdentity) bool { return id.Scope == scope }) {
+		return nil, nil
+	}
 	strict := map[string]bool{}
 	for _, action := range actions {
 		if staged, ok := action.(stagedOutput); ok {
@@ -171,7 +177,7 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 		}
 	}
 	next := append(append([]outputIdentity{}, other...), wanted...)
-	gi, e := managedIgnore(fs, root, old, next)
+	gi, e := managedIgnore(fs, root, old, next, scope == ScopeArtifacts)
 	if e != nil {
 		return nil, e
 	}

@@ -273,7 +273,7 @@ func TestManagedRejectsSymlinkParent(t *testing.T) {
 }
 func TestManagedIgnoreMalformedBlocks(t *testing.T) {
 	for _, input := range []string{ignoreEnd + "\n", ignoreBegin + "\n" + ignoreBegin + "\n" + ignoreEnd + "\n", ignoreBegin + "\n" + ignoreEnd + "\n" + ignoreBegin + "\n" + ignoreEnd + "\n"} {
-		if _, e := managedIgnoreText(input, nil); e == nil {
+		if _, e := managedIgnoreText(input, nil, true); e == nil {
 			t.Fatalf("accepted %q", input)
 		}
 	}
@@ -373,6 +373,36 @@ func TestManagedPreservesCommittedBlockWithoutInventory(t *testing.T) {
 		if got := managedRead(t, root, ".gitignore"); got != committed {
 			t.Fatalf("committed block changed (inventory %q):\n%s", inventory, got)
 		}
+	}
+}
+
+// #264: compile runs the data pass before the artifacts pass. In a repo last
+// compiled before inventories, a data pass stripped the legacy list and the
+// artifacts pass then refused, exposing every generated file as untracked.
+// Only the artifacts pass, which records the replacement, may retire it.
+const legacyIgnore = "/AGENTS.md\n/.claude/skills/\n/construct/generated/\n.goto\n"
+
+func TestManagedEmptyDataPassWritesNothing(t *testing.T) {
+	root := t.TempDir()
+	managedWrite(t, root, ".gitignore", legacyIgnore)
+	managedApply(t, root, nil, ScopeData)
+	if got := managedRead(t, root, ".gitignore"); got != legacyIgnore {
+		t.Fatalf("gitignore changed:\n%s", got)
+	}
+	managedAbsent(t, root, InventoryPath)
+}
+func TestManagedDataPassKeepsLegacyListForArtifacts(t *testing.T) {
+	root := t.TempDir()
+	managedWrite(t, root, ".gitignore", legacyIgnore)
+	managedApply(t, root, []Action{Symlink{Src: t.TempDir(), Dst: "data/mount"}}, ScopeData)
+	got := managedRead(t, root, ".gitignore")
+	if !strings.Contains(got, "/data/mount\n") || !strings.HasSuffix(got, legacyIgnore) {
+		t.Fatalf("data pass must add its entry and keep the legacy list:\n%s", got)
+	}
+	managedApply(t, root, []Action{WriteFile{Path: "AGENTS.md", Content: "x"}}, ScopeArtifacts)
+	got = managedRead(t, root, ".gitignore")
+	if strings.Contains(got, "/.claude/skills/\n") || !strings.Contains(got, "/AGENTS.md\n") || !strings.Contains(got, "/data/mount\n") || !strings.HasSuffix(got, ".goto\n") {
+		t.Fatalf("artifacts pass must migrate the legacy list:\n%s", got)
 	}
 }
 func TestManagedRetiresOnlyOwnedBlockEntries(t *testing.T) {
