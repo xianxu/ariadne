@@ -9,6 +9,7 @@ updated: 2026-09-28
 estimate_hours:
 card_mirror: 'fa51f845627c8b76ee852750ed91bdd041382f1a' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T19:13:03-07:00
+flow: {kind: quick, provenance: inferred, spec: "88c7843a", done: "6eb13e58"}
 ---
 
 # weave compile: a refused compile must not rewrite .gitignore
