@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000270-active-time-integrating-main-hands-this-session-s-time-to-other-sessions-commits.md
         source_blob: 9ca98d4ae97bcc9f6d71c7bcde05e319398407fe
         destination: workshop/issues/000270-active-time-integrating-main-hands-this-session-s-time-to-other-sessions-commits.md
+        main_commit: ea921c5b4a1f04902dbbf10028b85486043adbcc
 ---
 
 # active-time: integrating main hands this session's time to other sessions' commits
