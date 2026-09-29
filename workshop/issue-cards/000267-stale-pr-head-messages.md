@@ -20,10 +20,10 @@ tracker:
         destination: workshop/issues/000267-stale-pr-head-messages.md
         main_commit: 73a07a222e4f7c49b90e1b864f98995df0b947b2
     completion:
-        token: close-0261d899791f
+        token: close-1a6a5ac6252a
         repository: github.com/xianxu/ariadne
-        reviewed_head: df7fedde652d10ea4ca73c0efdb370f411dbe72e
-        evidence_commit: 235b17a3b116b4703c5b9dd33af21fa8ef56287f
+        reviewed_head: 0be94e82c536e390831ea8c8a56800182a90fa8f
+        evidence_commit: 1e293803cd6fcb4c3cbf669625ab694e8d00d1fd
 ---
 
 # merge/pr: a PR behind the local branch reads as 'found 0 PRs'; pr re-run pushes then fails
