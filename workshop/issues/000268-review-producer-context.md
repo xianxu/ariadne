@@ -34,6 +34,7 @@ Extend the authoritative hosted xx-fix instructions with the Pair context envelo
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — Revisions only adds verification cases for existing legacy compatibility contract; acceptance scope unchanged, so Done-when freshness waived. Fresh-context probes verify exact envelope, stale branch/activation refusals for human/agent/ship with unchanged artifacts, initial round without history, legacy admission only for confirmed uninterrupted activation and refusal for restored/retargeted/unknown. Expected/observed decisions in Log; git diff --check passes; Pair symlink verified; atlas updated.; review verdict: SHIP
 
 User approved pair#341 implementation including this linked peer change. Ariadne :0 was clean on main; other work is isolated in sibling slots.
 
