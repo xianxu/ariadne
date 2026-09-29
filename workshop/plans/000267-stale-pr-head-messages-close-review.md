@@ -142,3 +142,64 @@ dispose:
     note: |
       TestLandingPRUpdatesOpenPR now captures stderr and fails on any "upstream" text after a real push -u records the upstream, so a warning that always fires goes red.
 ```
+
+---
+
+## Re-review — 2026-09-28T22:47:13-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 267 — merge/pr: a PR behind the local branch reads as 'found 0 PRs'; pr re-run pushes then fails |
+| repo | ariadne |
+| issue file | workshop/issues/000267-stale-pr-head-messages.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8420be3db5d9adaccf9c354c9456b8efaf690639..0be94e82c536e390831ea8c8a56800182a90fa8f |
+| command | sdlc close --issue 267 |
+| reviewer | claude |
+| timestamp | 2026-09-28T22:47:13-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The change does what the issue set out to do, and I recommend shipping it. `selectLandingPR` now checks a PR's identity first and its head second. An open PR that lags the local branch now gets a refusal naming the fix ("PR #N … push it with `sdlc pr`, then retry") instead of "found 0". `runDurablePR` looks up the branch's live PRs before pushing. With one open PR it pushes into it and prints `updated PR #N to <sha>`. With two or more open PRs it refuses before pushing. With none it creates a PR as before. After the push it reads `branch.<b>.merge` and warns if git did not record the upstream. Each `## Done when` clause has a test that goes through the real entry points on the real-git fixture. Nothing in the code changed after round 2: the only later commits are `#267: close` and a merge from main, neither of which touches the window's code. That leaves one open Minor, BR-1, which does not block. The dry-run fix (BR-2) and the quiet-path test (BR-3) are still in place.
+
+1. **Strengths**
+   - `cmd/sdlc/landing.go:187-201`: `liveLandingPRs` is pulled out once and used by both `selectLandingPR` and `runDurablePR`. The identity rule is therefore defined in one place (ARCH-DRY passes).
+   - `landing.go:215-218`: the stale-head refusal only fires when no PR matches the local head and exactly one open PR sits at another head. Several stale PRs, or `head == ""`, still take the old path.
+   - `runDurablePR` refuses on more than one open PR before it pushes, so it never pushes and then fails.
+   - The upstream check uses `landingOptional`. An unset key (exit 1) gets the "not recorded" warning. Any other config error is surfaced as the error itself instead of being guessed at.
+   - `TestLandingPRUpdatesOpenPR` covers three things together: the remote head moved, no PR was created, and stdout names the PR. It also checks that the warning stays silent when the upstream was recorded, and that two open PRs are refused.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - **BR-1 is still open (not addressed).** Nothing reaches the `cerr` branch at `landing.go:562`. A `landingHookRunner` that fails `config --get` with a non-1 exit code would cover it. Git's stderr from a successful push is still dropped, although the verify-and-warn check makes up for most of that.
+
+5. **Test coverage notes**
+   - The Log records that all three #267 tests fail against the previous `landing.go` and pass with the change.
+   - Only the "not recorded" branch of the upstream check is tested; the `cerr` branch is not (that is BR-1).
+   - The "more than one open PR" refusal is tested. The case of a merged PR plus no open PR, which should create a new PR, is not tested. The code handles it correctly because `open` excludes `MERGED`.
+
+6. **Architectural notes**
+   - **ARCH-DRY: passes.** The identity filter is shared. The open-PR loop in `runDurablePR` is small and has no twin elsewhere.
+   - **ARCH-PURE: passes.** `selectLandingPR` and `liveLandingPRs` are pure. The open-PR decision in `runDurablePR` is a small amount of inline logic inside the IO layer. If more PR-state policy is added later, a pure `classifyBranchPRs(live) → (open, err)` function would be the place for it.
+   - **ARCH-PURPOSE: passes.** All three Spec items are delivered: the refusal names the push, `sdlc pr` updates an open PR, and the upstream problem is diagnosed and warned about. The Log records the sandbox's `.git/config` denial as the root cause of the missing upstream.
+   - The durable `sdlc pr` path now needs `ghClient` to implement `landingGH`. That is fine for the production client. Any new test fake for durable `runPR` will need `LandingPRs`.
+
+7. **Plan revision recommendations:** none. The Plan matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      No code change since round 2; the cerr branch at landing.go:562 is still unreached by any test and push stderr is still dropped on success. Minor, non-blocking.
+```
