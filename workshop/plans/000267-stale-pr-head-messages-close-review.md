@@ -76,3 +76,69 @@ findings:
     detail: |
       No test asserts that stderr has no warning when branch.<b>.merge was recorded (TestLandingPRUpdatesOpenPR discards stderr), so a warning that fires every time would go unnoticed.
 ```
+
+---
+
+## Re-review — 2026-09-28T22:44:48-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 267 — merge/pr: a PR behind the local branch reads as 'found 0 PRs'; pr re-run pushes then fails |
+| repo | ariadne |
+| issue file | workshop/issues/000267-stale-pr-head-messages.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 73a07a222e4f7c49b90e1b864f98995df0b947b2..df7fedde652d10ea4ca73c0efdb370f411dbe72e |
+| command | sdlc close --issue 267 |
+| reviewer | claude |
+| timestamp | 2026-09-28T22:44:48-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The window does what the Spec asks. `merge` now reports a stale open PR by number and says to push, instead of "found 0". `sdlc pr` pushes into an existing open PR and exits 0 with `updated PR #N to <sha>`, and refuses before pushing if there is more than one open PR. After the push it checks `branch.<b>.merge` and warns if git did not record it. The Log explains the upstream root cause, which satisfies that Done-when clause. The round-2 commit (`df7fedde`) handles all three prior Minors in code. BR-2 and BR-3 are fully resolved. BR-1's new error branch has no test, so it stays open as a Minor. Nothing blocks SHIP.
+
+**1. Strengths**
+- `cmd/sdlc/landing.go:189` — `liveLandingPRs` is the one identity check, and both `merge` and `pr` call it (ARCH-DRY pass).
+- `landing.go:~215` — the stale-PR branch fires only when nothing matches the local head and exactly one OPEN PR sits at another head. MERGED PRs, ambiguous cases and `head == ""` keep the old exact-match meaning.
+- `runDurablePR` refuses more than one open PR before it pushes, so a refusal never changes the remote. The test covers this at `landing_test.go:~254`.
+- The Done-when clause about the upstream warning is now tested both ways. `TestLandingPRWarnsUnrecordedUpstream` covers the case where it fires. `TestLandingPRUpdatesOpenPR` covers the quiet case: it asserts no "upstream" on stderr after a real `push -u` records the upstream.
+
+**2. Critical:** none.
+
+**3. Important:** none.
+
+**4. Minor**
+- BR-1 is still open, for test evidence only. The `cerr != nil` branch (`landing.go:~566`) now reports a failed config read instead of hiding it behind the sandbox guess, but no test reaches that branch. A `landingHookRunner.after` that returns an error for `args[0] == "config"` would make it cheap to add. This is still the 1st instance of the `success-path-stderr-dropped` family, not a new one. The push's own stderr is still dropped on success. The warning now presents the sandbox as an example ("as in an agent sandbox") rather than as the known cause, which is acceptable.
+
+**5. Test coverage notes**
+- Every Done-when clause has a test that goes through `runMerge` or `runPR` on the real-git fixture.
+- The new dry-run wording has no assertion. That is acceptable: it is informational text, and a test would only check that the wording is present.
+
+**6. Architectural notes**
+- ARCH-DRY: pass. The small loop in `runDurablePR` that keeps only OPEN PRs is specific to that call.
+- ARCH-PURE: pass. `liveLandingPRs` and `selectLandingPR` are pure functions, and IO stays in `runDurablePR`.
+- ARCH-PURPOSE: pass. All three Spec items are delivered, and the upstream item is resolved as Done-when allows (a verified warning plus the Log's explanation).
+
+**7. Plan revision recommendations:** none needed. You could optionally note that the upstream warning infers its cause, because git's push stderr is still discarded on success.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      Config-read errors now surface via the cerr branch, but no test reaches it; a landingHookRunner.after failing args[0]=="config" would pin it. Push stderr is still dropped on success.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      landing.go dry-run line now names both outcomes (update the open PR, else gh pr create), which matches the real path while staying offline.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestLandingPRUpdatesOpenPR now captures stderr and fails on any "upstream" text after a real push -u records the upstream, so a warning that always fires goes red.
+```

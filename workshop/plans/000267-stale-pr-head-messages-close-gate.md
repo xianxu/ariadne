@@ -27,6 +27,24 @@ rounds:
           round: 1
       recipe: small-diff-review
       blocked: false
+    - "n": 2
+      timestamp: "2026-09-28T22:44:48-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: not-addressed
+          note: Config-read errors now surface via the cerr branch, but no test reaches it; a landingHookRunner.after failing args[0]=="config" would pin it. Push stderr is still dropped on success.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: landing.go dry-run line now names both outcomes (update the open PR, else gh pr create), which matches the real path while staying offline.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: TestLandingPRUpdatesOpenPR now captures stderr and fails on any "upstream" text after a real push -u records the upstream, so a warning that always fires goes red.
+          round: 2
+      recipe: small-diff-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#267 (boundary-review)
@@ -45,8 +63,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Minor] `two-state-clause-coverage` Upstream warning is tested only in its fires state
   No test asserts that stderr has no warning when branch.<b>.merge was recorded (TestLandingPRUpdatesOpenPR discards stderr), so a warning that fires every time would go unnoticed.
 
+## Round 2 — 2026-09-28T22:44:48-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — not-addressed — Config-read errors now surface via the cerr branch, but no test reaches it; a landingHookRunner.after failing args[0]=="config" would pin it. Push stderr is still dropped on success.
+- BR-2 — addressed — landing.go dry-run line now names both outcomes (update the open PR, else gh pr create), which matches the real path while staying offline.
+- BR-3 — addressed — TestLandingPRUpdatesOpenPR now captures stderr and fails on any "upstream" text after a real push -u records the upstream, so a warning that always fires goes red.
+
 ## Open findings
 
 - **BR-1** [Minor] `success-path-stderr-dropped` Upstream warning guesses the cause; git's stderr and non-exit-1 config errors are discarded
-- **BR-2** [Minor] `dry-run-mirrors-real-path` pr --dry-run still announces gh pr create when an open PR would be updated
-- **BR-3** [Minor] `two-state-clause-coverage` Upstream warning is tested only in its fires state
