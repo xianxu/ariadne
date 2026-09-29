@@ -1,13 +1,14 @@
 ---
 id: 000264
-status: open
+status: working
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
-card_mirror: '4aa7ef59a348cd7f7430b4514c168a8aa3f37ab4' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fa51f845627c8b76ee852750ed91bdd041382f1a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-28T19:13:03-07:00
 ---
 
 # weave compile: a refused compile must not rewrite .gitignore
@@ -36,24 +37,57 @@ out here so #241 stays about publication.
 
 ## Spec
 
-A compile that does not reach a successful artifacts apply leaves `.gitignore`
-byte-identical. Legacy-list migration happens only in the same step that
-records the outputs replacing it — the ignore edit is part of the artifacts
-publication, not of each scope's pass. Candidate shape: the data scope
-contributes entries but does not write `.gitignore`; the artifacts pass writes
-it once, after its preflight has cleared.
+Invariant: **the legacy fixed list is retired only by the pass that records
+its replacement.** Every legacy entry (`/AGENTS.md`, `/.claude/skills/`, …)
+covers an artifacts-scope output, so only an artifacts-scope `ApplyManaged`
+may strip it — in the same write that puts the recorded artifact paths into
+the block. A data-scope pass keeps legacy lines verbatim (it still manages its
+own block entries, per #263's ownership rule). A refused artifacts pass fails
+in its preflight, before any write, so the legacy list survives and nothing
+generated surfaces as untracked.
+
+Second rule: a pass with nothing to reconcile — no intended outputs and no
+prior identities in its scope — writes nothing (no inventory, no `.gitignore`).
+This makes the common failing case (a repo without data mounts, like
+parley.nvim) byte-identical, and stops dependency owners with no mounts from
+publishing an empty inventory they don't need.
+
+ARCH: root cause in the ownership rule (`ApplyManaged`/`splitIgnore`), not by
+reordering `compilePrepared` — any other caller of a data pass would still
+strip. ARCH-FUNERAL: creates nothing durable; the second rule removes an
+empty-inventory write rather than adding one.
 
 ## Done when
 
-- A regression test: pre-inventory repo with a conflicting generated file →
-  `weave compile` fails with the existing refusal AND `.gitignore` is unchanged
-  (fails on current main).
-- Successful compiles still produce the same managed block and legacy
-  migration (existing ownership/managed-ignore tests pass).
+- Regression (fails on main): legacy list outside the block, no inventory,
+  data `ApplyManaged` with no mounts → `.gitignore` byte-identical and no
+  inventory written.
+- Regression (fails on main): same, with a data mount → the mount's entry is
+  added but every legacy line survives; a following artifacts pass then
+  migrates them away.
+- Existing ownership/gitignore tests pass (incl. #263's
+  `TestManagedPreservesCommittedBlockWithoutInventory` and legacy migration in
+  `TestManagedIgnoreMigrationAndLocalNegations`); `go test ./cmd/weave/...`.
+- Live: a parley.nvim-shaped scratch repo (pre-inventory generated file, legacy
+  list) → `weave compile` refuses and `git status` shows no change.
 
 ## Plan
 
-- [ ]
+- [ ] Tests first: the two regressions above (red on main).
+- [ ] `splitIgnore`/`managedIgnoreText` take a migrate flag; `ApplyManaged`
+      passes `scope == ScopeArtifacts`; the plain-Apply `EnsureGitignore` path
+      keeps migrating.
+- [ ] `ApplyManaged`: return early when the scope has no wanted and no
+      previous identities.
+- [ ] `go test ./cmd/weave/...`; live scratch-repo check.
+
+## Revisions
+
+- 2026-09-28 — Spec replaced at design. Reason: the filing-time candidate
+  ("the data scope does not write `.gitignore`") would leave data mounts
+  unignored, and #263 (merged after filing) already fixed in-block clobbering;
+  what remains is the outside-block legacy strip. Delta: Spec/Done-when now
+  scope legacy migration to the artifacts pass and make empty passes no-ops.
 
 ## Log
 
