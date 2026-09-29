@@ -1,12 +1,13 @@
 ---
 id: 000266
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
-card_mirror: '2b1f8da5113cec05740a08ea09b3c8e21a164de5' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7f5071598ad7b1faefee00433da038600b42afd0' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-28T21:16:53-07:00
 ---
 
 # sdlc id lint cannot resolve publication target in CI checkouts
@@ -34,6 +35,22 @@ A read-only lint should derive what it reads from the fetched tracker ref
 without requiring publication configuration, or the seeded CI should configure
 the tracking it needs. Pick one after reading the lint's resolution path.
 
+**Decision: the lint takes its remote explicitly.** The failure path is
+`cardlessAdditions` → `tracker.RepositoryForCheckout` → `RepositoryFor`, which
+resolves `branch.main.remote`/`.merge` (the *publication* target, needed to
+write cards) just to learn which remote's `issue-tracker` to read. The CI script
+already fixes that answer: it reads the published id space from `origin/main`
+and exits 0 when there is no `origin`. So `sdlc issue lint-ids` gains
+`--remote NAME`: when given, the tracker is opened directly on that remote
+(`tracker.NewRepository`), no resting-branch configuration consulted; the
+script passes `--remote origin`, so trunk and cards come from one remote
+(ARCH-DRY). Without the flag the operator path is unchanged. Still fails
+closed: a marked repository whose named remote carries no tracker exits 2.
+
+Rejected: having the seeded CI write `branch.main.*` config — it mutates the
+runner to satisfy a read that doesn't need publication, and every consumer's
+CI would have to carry it.
+
 ## Done when
 
 - parley.nvim merge-check passes `40-duplicate-issue-id.sh` on a PR run.
@@ -41,7 +58,12 @@ the tracking it needs. Pick one after reading the lint's resolution path.
 
 ## Plan
 
-- [ ]
+- [ ] Regression test: CI-shaped checkout (fresh `git init`, fetched
+      `refs/remotes/origin/*` incl. `issue-tracker`, detached HEAD, no local
+      `main`) running the real `40-duplicate-issue-id.sh` → exit 0 for carded
+      details, 1 for cardless; confirm it fails (exit 2) before the fix.
+- [ ] `lint-ids --remote`; script passes `--remote origin`.
+- [ ] Ship; re-run parley.nvim merge-check on a PR once it has the new script.
 
 ## Log
 
