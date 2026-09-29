@@ -3,7 +3,7 @@ id: 000241
 status: working
 created: 2026-09-20
 updated: 2026-09-28
-estimate_hours:
+estimate_hours: 1.23
 github_issue:
 started: 2026-09-28T18:52:27-07:00
 ---
