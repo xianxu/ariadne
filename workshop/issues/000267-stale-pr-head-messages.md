@@ -8,6 +8,7 @@ updated: 2026-09-28
 estimate_hours:
 card_mirror: '930e109ebfee92436c8ca907989ae8d575532fdf' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T20:40:36-07:00
+flow: {kind: quick, provenance: inferred, spec: "e980c95c", done: "754be3ce"}
 ---
 
 # merge/pr: a PR behind the local branch reads as 'found 0 PRs'; pr re-run pushes then fails
