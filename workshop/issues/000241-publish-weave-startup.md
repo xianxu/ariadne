@@ -6,8 +6,8 @@ github_issue:
 target: base-layer-mechanics
 created: 2026-09-20
 updated: 2026-09-28
-estimate_hours:
-card_mirror: '25082c83ce68a3e330cab16f7d20276de9bb44c9' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 1.23
+card_mirror: '292ba2b609c14b338a3eb795d3023b04c26f85ee' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T18:52:27-07:00
 ---
 
@@ -77,7 +77,7 @@ publishing plus live verification.
 - [ ] M2 — Publish and cut over.
   - Tag the M1-reviewed commit `weave-v0.1.0` and push the tag. **Build of
     record:** the `prepare-weave-release` workflow dispatched with
-    `--ref weave-v0.1.0` (a clean runner at the tag, running the full
+    `gh workflow run weave-release.yml --ref weave-v0.1.0 -f tag=weave-v0.1.0` (a clean runner at the tag, running the full
     `release-weave.test.sh`). Download its `weave-release-candidate` artifact,
     re-verify `SHA256SUMS` locally, and create the GitHub release from those
     exact files (four archives + `SHA256SUMS`). No local build is uploaded.
@@ -127,6 +127,31 @@ SHA stays reachable from main.
 
 The release goes public shortly before this branch merges, but it is built
 from a reviewed commit (M1's milestone-close).
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module          design=0.05 impl=0.12
+item: real-api-discovery         design=0.0 impl=0.2
+item: real-api-discovery         design=0.0 impl=0.2
+item: cross-repo-refactor-small  design=0.04 impl=0.08
+item: smaller-go-module          design=0.04 impl=0.12
+item: atlas-docs                 design=0.02 impl=0.06
+item: milestone-review           design=0.0 impl=0.14
+item: milestone-review           design=0.0 impl=0.14
+design-buffer: 0.15
+total: 1.23
+```
+
+Items in order: M1 license, formula and test flip; GitHub release and
+workflow-dispatch discovery; Homebrew tap and trust discovery; tap repo plus
+parley.nvim CI check; merge-check fallback removal and its test; doc sweep;
+two milestone reviews. Design is ×0.2 (the plan settles the decisions and the
+release tooling already exists); impl is at v3.1's 40%.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 
