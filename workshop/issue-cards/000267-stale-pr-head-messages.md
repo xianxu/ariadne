@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000267-stale-pr-head-messages.md
         source_blob: b32cd5f5f59a4973d6ef4483ce0fa0180cd6f3fc
         destination: workshop/issues/000267-stale-pr-head-messages.md
+        main_commit: 73a07a222e4f7c49b90e1b864f98995df0b947b2
 ---
 
 # merge/pr: a PR behind the local branch reads as 'found 0 PRs'; pr re-run pushes then fails
