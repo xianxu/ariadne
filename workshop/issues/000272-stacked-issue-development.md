@@ -59,6 +59,12 @@ configuration behaves identically.
    That review covered the full stack, and viewer corrections became scoped
    into #303. The gap is identifying and reviewing the extra commit's scope
    without discarding earlier acceptance, not bypassing the drift guard.
+7. At final landing, `sdlc merge` accepted #303's latest full-review evidence
+   with documentation-only drift, then refused because #300 was quick-flow
+   and "its diff grew to 385 added lines in code files" (limit 200), directing
+   another `sdlc close --issue 300` to upgrade it to full review. #300's own
+   code was unchanged; descendant code was charged against the ancestor's
+   quick-flow budget despite #303's full review covering the combined HEAD.
 
 Preserve what worked: cheap claims, independent issue records, binary-owned
 fresh-context close reviews, multiple completion bindings in one PR, and a
@@ -99,6 +105,10 @@ and candidate directions; it does not choose a data model or command syntax.
   acceptance, and invalidation reason. Unchanged accepted ancestors do not
   trigger redundant full-stack reviews at every close; changed ancestor code
   invalidates affected evidence, and final integration is validated.
+- Publication does not charge descendant changes against an unchanged
+  ancestor's quick-flow budget or demand its redundant full review. Tests
+  reproduce the 385-line combined-stack refusal and prove that actual edits
+  to the ancestor's accepted scope still invalidate evidence appropriately.
 - Refreshing the scenario from main retains completed issue details and their
   evidence without add/add conflicts caused solely by initial-detail
   publication; genuine conflicting edits are reported without data loss.
