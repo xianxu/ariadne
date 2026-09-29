@@ -74,13 +74,13 @@ empty-inventory write rather than adding one.
 
 ## Plan
 
-- [ ] Tests first: the two regressions above (red on main).
-- [ ] `splitIgnore`/`managedIgnoreText` take a migrate flag; `ApplyManaged`
+- [x] Tests first: the two regressions above (red on main).
+- [x] `splitIgnore`/`managedIgnoreText` take a migrate flag; `ApplyManaged`
       passes `scope == ScopeArtifacts`; the plain-Apply `EnsureGitignore` path
       keeps migrating.
-- [ ] `ApplyManaged`: return early when the scope has no wanted and no
+- [x] `ApplyManaged`: return early when the scope has no wanted and no
       previous identities.
-- [ ] `go test ./cmd/weave/...`; live scratch-repo check.
+- [x] `go test ./cmd/weave/...`; live scratch-repo check.
 
 ## Revisions
 
@@ -98,3 +98,14 @@ Filed from the parley.nvim investigation: `ownership.json` held
 `"outputs": []` (written by the data pass) while the artifacts pass had refused
 `vocabulary/.source-sha`; the `.gitignore` diff showed the legacy list removed
 and a one-entry block.
+
+Implementation (1bc6c5f4): both regressions red on main (the data pass wrote
+`/construct/generated/weave/` into a new block and dropped `/AGENTS.md`,
+`/.claude/skills/`, `/construct/generated/`), green after. `go test
+./cmd/weave/...` passes. Live: a detached parley.nvim worktree at f30cdefc
+with its real pre-inventory `construct/generated/` (from today's backup),
+`AGENTS.md` and `.colima/` present — main's weave refuses on
+`vocabulary/.source-sha` and leaves ` M .gitignore`, `?? .colima/`,
+`?? AGENTS.md` plus an empty inventory; this branch's weave refuses identically
+and `git status` stays clean. The test compile cloned a private ariadne
+dependency beside the worktree; both removed.
