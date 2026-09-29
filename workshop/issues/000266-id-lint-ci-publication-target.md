@@ -71,10 +71,10 @@ CI would have to carry it.
 
 ## Revisions
 
-- 2026-09-28 — Done-when clause 1 (parley.nvim PR run passes) and Plan box 3 are
+- 2026-09-28 — Done-when clause 2 (parley.nvim PR run passes) and Plan box 3 are
   verified **after merge**, not at close: parley's `40-duplicate-issue-id.sh`
   symlinks into ariadne and its CI clones ariadne `main`, so no pre-merge run can
-  exercise this change. Close attests clause 2; clause 1 is logged post-merge.
+  exercise this change. Close attests clause 1; clause 2 is logged post-merge.
 
 ## Log
 
