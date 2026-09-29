@@ -255,6 +255,35 @@ cleanup in each; no adopt mode needed for a one-off.
   four real archives, targets/CGO/version/layout/checksums, formula
   composition, failures`.
 
+### 2026-09-28 — Fleet adoption was not complete (coding-agent miss)
+
+The 2026-09-27 entry's "every ariadne-layer repository in `~/workspace` is now
+on the #241 layout" was wrong: the agent declared the fleet done without
+checking it. Four repos had been skipped — parley.nvim (the #239 pilot,
+presumably assumed done) and the three brain repos (brain, brain-family,
+brain-private; the Spec's "brain/data repos retain their capture/commit rhythm"
+was misread as an exclusion — it governs how their changes land, not whether
+they migrate). Surfaced when the operator ran `weave compile` in parley.nvim and
+got the pre-inventory refusal plus a stripped `.gitignore` (now #264).
+
+Adopted 2026-09-28 by the same procedure, all local (unpushed):
+- parley.nvim 65c654a3 — pre-inventory `construct/generated/` moved aside;
+  Makefile moved from the indirect `WF_WORKFLOW` include to the seed's form;
+  seeded `bootstrap.sh`/`merge-check.yml`; tracked `vocabulary/issue.json`
+  picked up the #252 card fields. No tracked links.
+- brain 3837c26 + 789c5eb + 5f47668, brain-family ea75054 + c7aee8b,
+  brain-private 4806207 + 6a2316a — the nous autosave/membership rhythm
+  committed parts of each adoption. Symlinked `../ariadne/Makefile` → seed;
+  pre-inventory generated moved aside; 28/27/27 owned links untracked, the
+  dead `construct/scripts/bootstrap-peers.sh` and `scripts/issue-sync.sh`
+  removed.
+- Each: second compile a no-op, `weave verify-complete` clean, no `make`
+  warnings, only `AGENTS.local.md` tracked-but-ignored.
+
+Before claiming fleet completion again, sweep every repo under `~/workspace`
+(inventory present and non-empty, managed block present, no tracked link
+matching the record, one workflow include) rather than working from a list.
+
 ## Revisions
 
 ### 2026-09-28 — plan concretized
