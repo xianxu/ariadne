@@ -8,7 +8,7 @@ import (
 )
 
 func TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory(t *testing.T) {
-	path := filepath.Join(repoRootForTest(t), "workshop", "plans", "000200-sdlc-fleet-thread-inventory-plan.md")
+	path := filepath.Join(repoRootForTest(t), "workshop", "history", "plans", "000200-sdlc-fleet-thread-inventory-plan.md")
 	body, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
