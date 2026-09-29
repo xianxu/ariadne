@@ -93,6 +93,7 @@ empty-inventory write rather than adding one.
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — go test ./cmd/weave/... passes incl. new regressions TestManagedEmptyDataPassWritesNothing and TestManagedDataPassKeepsLegacyListForArtifacts (both red on main). Live: pre-inventory parley.nvim worktree (f30cdefc + real old construct/generated) — main weave refuses on vocabulary/.source-sha and leaves M .gitignore, ?? .colima/, ?? AGENTS.md; patched weave refuses identically with git status clean. --no-atlas: bugfix to an existing ownership rule, no new surface (as #263).; review verdict: SHIP
 
 Filed from the parley.nvim investigation: `ownership.json` held
 `"outputs": []` (written by the data pass) while the artifacts pass had refused
