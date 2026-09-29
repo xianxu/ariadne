@@ -1,6 +1,6 @@
 ---
 id: 000268
-status: open
+status: working
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -17,6 +17,7 @@ tracker:
         source_blob: 79c7eb97b7a6b0dac509b21d5ffed1ae7c898f3c
         destination: workshop/issues/000268-review-producer-context.md
         main_commit: d6ace419b5dd9a645a34af1a8a3ae4d5df7548dd
+started: 2026-09-28T20:57:50-07:00
 ---
 
 # Bind hosted review producer effects to activation context
