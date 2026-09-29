@@ -245,6 +245,7 @@ cleanup in each; no adopt mode needed for a one-off.
   the release/tap work remains.
 
 ### 2026-09-28 — M1
+- 2026-09-28: closed M1 — release-weave.test.sh weave-v0.1.0 PASS: four archives (darwin/linux x arm64/amd64), targets/CGO/version/layout/checksums, formula composition test; generated weave.rb carries license "MIT" and version 0.1.0. Actual = sdlc actual measured 0.61h (first milestone, whole window).; review verdict: SHIP
 
 - Added `LICENSE` (MIT) and `license "MIT"` to the formula template.
   `release-weave.test.sh` now requires the license line; its Ruby stand-in for
