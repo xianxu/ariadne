@@ -1,12 +1,13 @@
 ---
 id: 000267
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
-card_mirror: '01f7c91a5f89013254ec065532a958bf83d23035' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '930e109ebfee92436c8ca907989ae8d575532fdf' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-28T20:40:36-07:00
 ---
 
 # merge/pr: a PR behind the local branch reads as 'found 0 PRs'; pr re-run pushes then fails
@@ -50,10 +51,28 @@ verb says the fix is to push:
 
 ## Plan
 
-- [ ]
+- [ ] Split `selectLandingPR` into an identity pass (`liveLandingPRs`: repo,
+  head ref, base, not closed) and a head filter; no head match plus exactly one
+  OPEN PR at another head → "PR #N is at X, local is at Y; push with `sdlc pr`,
+  then retry".
+- [ ] `runDurablePR` queries the branch's PRs (identity-checked) before pushing;
+  one OPEN PR → push, report "updated PR #N to <sha>", exit 0, no create; >1 →
+  refuse.
+- [ ] After the push, verify `branch.<b>.merge`; if git could not record it,
+  warn with the cause instead of dropping git's stderr.
+- [ ] Tests for all three through the production entry points (`runMerge`,
+  `runPR`) on the real-git landing fixture.
 
 ## Log
 
 ### 2026-09-28
 
 - Filed from #253's landing, at the operator's request.
+- Upstream root cause: the agent sandbox denies writes to the primary
+  checkout's `.git/config` (`git config --local x y` → "could not lock config
+  file … Operation not permitted"). `git push -u` then pushes, prints "error:
+  unable to write upstream branch configuration", and still exits 0
+  (reproduced with a held `config.lock`). `runGitCmd` drops stderr on
+  success, so `sdlc pr` reported nothing. sdlc cannot write config the sandbox
+  forbids; the fix is to verify and warn. The pushed path forward is re-running
+  `sdlc pr`, which now updates the open PR.
