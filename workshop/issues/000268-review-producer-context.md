@@ -28,11 +28,13 @@ Extend the authoritative hosted xx-fix instructions with the Pair context envelo
 
 ## Plan
 
-- [ ] Run baseline producer scenarios, update authoritative instructions, and rerun scenarios.
-- [ ] Verify the Pair skill resolves to this source; close through SDLC review.
+- [x] Run baseline producer scenarios, update authoritative instructions, and rerun scenarios.
+- [x] Verify the Pair skill resolves to this source; submit the completed change to SDLC close review.
 
 ## Log
 
 ### 2026-09-28
 
 User approved pair#341 implementation including this linked peer change. Ariadne :0 was clean on main; other work is isolated in sibling slots.
+
+Baseline fresh-context Codex probe with the old skill could not produce the envelope: “I cannot specify exactly how the supplied context must accompany this record without inventing the contract.” It conservatively blocked branch/activation mismatches. The updated-skill probe produced the exact envelope, preserved artifacts and refused agent/human/ship effects on mismatches, and allowed the initial human round with validated active-pane context before matching history exists. Probe outputs: `/tmp/ariadne-268-red.txt`, `/tmp/ariadne-268-green-accepted.txt`. Pair skill realpath resolves to this authoritative file; `git diff --check` passes. Updated the existing docflow atlas entry; executable transport/concurrency regressions remain in pair#341.
