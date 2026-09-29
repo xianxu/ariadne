@@ -8,6 +8,7 @@ updated: 2026-09-28
 estimate_hours:
 card_mirror: '7f5071598ad7b1faefee00433da038600b42afd0' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T21:16:53-07:00
+flow: {kind: quick, provenance: inferred, spec: "63a81d39", done: "029ec9a1"}
 ---
 
 # sdlc id lint cannot resolve publication target in CI checkouts
