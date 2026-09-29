@@ -75,30 +75,58 @@ publishing plus live verification.
       (four archives, SHA256SUMS, formula, native `--version`, formula
       composition test). milestone-close reviews the commit that gets tagged.
 - [ ] M2 — Publish and cut over.
-  - Tag the M1-reviewed commit `weave-v0.1.0` and push the tag. Build the
-    artifacts from that exact commit (`scripts/release-weave.sh` in a clean
-    worktree at the tag). Create the GitHub release with the four archives and
-    `SHA256SUMS`, then inspect the uploaded assets against the checksums.
-  - Create the public `xianxu/homebrew-ariadne` repo with the generated
-    `Formula/weave.rb` and a README giving the install command.
-  - Verify on this Mac: `brew tap xianxu/ariadne`,
-    `brew install xianxu/ariadne/weave`, `$(brew --prefix)/bin/weave --version`
-    prints `weave version 0.1.0`, and `brew test xianxu/ariadne/weave` passes.
-  - Remove the #250 stopgap: the `elif ! brew tap …` branch in
-    `.github/workflows/merge-check.yml` and `portable-ci.test.sh`'s
-    tap-unpublished case and `#241` warning assertion. The published-tap row
-    becomes `install → --prefix → compile` (bootstrap's `brew install` taps
-    implicitly). Consumers' seeded copies keep a dormant fallback, which is
-    harmless once the tap resolves.
-  - Linux and consumer verification: run a real consumer CI (pilot nous or
-    parley.nvim) and confirm it installs from the tap with no source-build
-    warning.
-  - Docs: README release section (publishing steps), atlas `weave.md` and
-    `setup-and-replication.md` (tap is live, no longer "until #241").
+  - Tag the M1-reviewed commit `weave-v0.1.0` and push the tag. **Build of
+    record:** the `prepare-weave-release` workflow dispatched with
+    `--ref weave-v0.1.0` (a clean runner at the tag, running the full
+    `release-weave.test.sh`). Download its `weave-release-candidate` artifact,
+    re-verify `SHA256SUMS` locally, and create the GitHub release from those
+    exact files (four archives + `SHA256SUMS`). No local build is uploaded.
+  - Create the public `xianxu/homebrew-ariadne` repo with that artifact's
+    `weave.rb` as `Formula/weave.rb`, plus a README giving the install command.
+  - **Tap trust (Homebrew 7 refuses untrusted third-party taps by default).**
+    Homebrew source: `Trust.explicitly_allowed?` (`trust.rb:567`) loads an
+    untrusted tap's formula when its full name is on the command line. So
+    `bootstrap.sh`'s `brew install xianxu/ariadne/weave` and
+    `brew --prefix xianxu/ariadne/weave` need no trust. A Brewfile entry
+    (`bundle/brew.rb:158`) and a bare `brew upgrade` do. Verify in a clean
+    trust store (`HOMEBREW_USER_CONFIG_HOME` set to an empty temp dir, fresh
+    tap): install, `--prefix`, `weave --version` → `weave version 0.1.0`, and
+    `brew test xianxu/ariadne/weave`. If the explicit install is refused, add
+    `brew trust --formula xianxu/ariadne/weave` to `bootstrap.sh` before
+    install and keep the fallback. Document `brew trust xianxu/ariadne` for
+    `brew upgrade` in the README and tap README.
+  - Remove the #250 stopgap **only after the clean-store verification
+    passes**: the `elif ! brew tap …` branch and its comments in
+    `.github/workflows/merge-check.yml`, and `portable-ci.test.sh`'s
+    tap-unpublished case plus its `::warning::`/`#241` assertion. The
+    published-tap row becomes `install → --prefix → compile` (bootstrap's
+    explicit install taps implicitly). Consumers' seeded copies keep a
+    dormant fallback, which is harmless once the tap resolves.
+  - Linux and consumer verification: run **parley.nvim**'s real merge-check CI
+    (nous is excluded: its Linux bootstrap is recorded as unverified,
+    `setup-and-replication.md:223`). Pass = the job installs from the tap
+    (log shows `brew install xianxu/ariadne/weave`, no source-build warning)
+    and goes green.
+  - Docs sweep, every stale "#241 / until published" reference:
+    `README.md:35,135-136,162`; `atlas/workflow/base-layer.md:9,108,132`;
+    `atlas/workflow/weave.md:39-40,100`;
+    `atlas/workflow/setup-and-replication.md:117,196`; and the
+    `merge-check.yml` comments at `:22,29`. Rewrite them as "published at
+    weave-v0.1.0; install with …" plus the release steps. Re-run the grep at
+    close to confirm nothing is left.
 
-Note: the tag commit becomes reachable from main when this branch merges.
-merge-check keeps merge commits, so the tag SHA survives. The release is
-public shortly before the merge, but it is built from a reviewed commit.
+**Non-goals** (tracked separately, not in this delivery): an adopt mode,
+per-repo `propagate-base`, `Lstat` in `startup.Tools`, recognizing the older
+indirect include form, atomic `.gitignore` staging across compile passes, and
+nous's Linux/Mutagen bootstrap. These go into a follow-up weave-robustness
+issue.
+
+**Provenance invariant:** after the tag is pushed, this branch is never
+rebased, amended or squashed. `sdlc merge` keeps merge commits, so the tagged
+SHA stays reachable from main.
+
+The release goes public shortly before this branch merges, but it is built
+from a reviewed commit (M1's milestone-close).
 
 ## Log
 
