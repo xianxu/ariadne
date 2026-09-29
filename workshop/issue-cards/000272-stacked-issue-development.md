@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000272-stacked-issue-development.md
         source_blob: af4a21f8ad50d5411335fc03376fa3007d03789a
         destination: workshop/issues/000272-stacked-issue-development.md
+        main_commit: 0f57ded303b1235df54ad8b126234aa6952e0514
 ---
 
 # Support stacked issue development
