@@ -45,6 +45,9 @@ Detailed incidents remain in their owning issue or review artifact.
   perform deferred cleanup, including init races and hard exits.
 - Agent-invoked CLI verbs must run headless and gate on durable state, not local
   convenience or an interactive editor.
+- A read-only check must not resolve writer-side configuration (a publication
+  target, an upstream) just to learn where to read. CI checkouts are detached with
+  no local branch config; take the source explicitly from the caller (#266).
 - A live integration test must exercise filesystem, Git, process, or network
   behavior with real data. A fake keyed to the same value shape masks IO bugs.
 - A silent `0` or empty result is a footgun when it is indistinguishable from a
