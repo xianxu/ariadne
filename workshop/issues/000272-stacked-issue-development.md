@@ -118,8 +118,8 @@ and candidate directions; it does not choose a data model or command syntax.
 
 ## Plan
 
-Design pending. Reproduce the session topology before choosing metadata,
-commands, or implementation boundaries.
+- [ ] Reproduce the session topology and design stack support before choosing
+  metadata, commands, or implementation boundaries.
 
 ## Log
 
