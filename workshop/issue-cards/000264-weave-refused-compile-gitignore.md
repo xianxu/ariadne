@@ -1,6 +1,6 @@
 ---
 id: 000264
-status: open
+status: working
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -17,6 +17,7 @@ tracker:
         source_blob: 94eb93cfe890b8bb8cc243bf89f3bfc531ede47c
         destination: workshop/issues/000264-weave-refused-compile-gitignore.md
         main_commit: e0373799b0d4b1792b61f6ba548aa8c8a24ad340
+started: 2026-09-28T19:13:03-07:00
 ---
 
 # weave compile: a refused compile must not rewrite .gitignore
