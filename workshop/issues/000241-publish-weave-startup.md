@@ -75,7 +75,7 @@ publishing plus live verification.
       `license "MIT"`. Run `release-weave.test.sh` locally with `weave-v0.1.0`
       (four archives, SHA256SUMS, formula, native `--version`, formula
       composition test). milestone-close reviews the commit that gets tagged.
-- [ ] M2 — Publish and cut over.
+- [x] M2 — Publish and cut over.
   - Tag the M1-reviewed commit `weave-v0.1.0` and push the tag. **Build of
     record:** the `prepare-weave-release` workflow dispatched with
     `gh workflow run weave-release.yml --ref weave-v0.1.0 -f tag=weave-v0.1.0` (a clean runner at the tag, running the full
@@ -296,6 +296,42 @@ matching the record, one workflow include) rather than working from a list.
   untested) are fixed by `TestArchiveCarriesBinaryAndLicense` and
   `TestMissingLicenseFailsBeforeStaging`. `go test ./cmd/weave/internal/release/`
   and `release-weave.test.sh weave-v0.1.0` pass. This commit is the tag target.
+
+### 2026-09-28 — M2: published
+
+- **Tag:** `weave-v0.1.0` → `4de31b2d` (M1 plus reviewed license bundling).
+- **Build of record:** `prepare-weave-release` run 36511188527 at the tag
+  (success; full release test on the runner). Artifact re-verified locally:
+  `shasum -c` OK ×4, each archive = `weave` + `LICENSE` (identical to the
+  repo's), `weave.rb` has `license "MIT"`/`version "0.1.0"`, darwin-arm64
+  binary prints `weave version 0.1.0`.
+- **Release:** https://github.com/xianxu/ariadne/releases/tag/weave-v0.1.0 —
+  the four archives + `SHA256SUMS` from that artifact. The public download
+  URLs in the formula re-download and match `SHA256SUMS`.
+- **Tap:** https://github.com/xianxu/homebrew-ariadne (`ac233bd` formula from
+  the artifact, plus README and LICENSE). `brew audit --strict` flagged
+  stanza order (`version` before `license`); fixed in the template (9cf6ef7d)
+  and by the same two-line swap in the tap (`1d3ecf3`). URLs and checksums are
+  untouched, and the tap formula equals the template modulo release metadata.
+- **Clean-store verification (macOS arm64):** with `HOMEBREW_USER_CONFIG_HOME`
+  set to an empty dir, `brew install xianxu/ariadne/weave` installs
+  `/opt/homebrew/Cellar/weave/0.1.0` (bin, LICENSE) and writes no trust entry.
+  `weave --version` → `weave version 0.1.0`; `brew test`, `brew audit --strict
+  --online` and `brew reinstall` all exit 0. This confirms the
+  `Trust.explicitly_allowed?` reading, so no `brew trust` step is needed in
+  bootstrap.
+- **Linux + consumer CI:** parley.nvim merge-check run 36511435873 (ubuntu,
+  started 45s after the tap went live) ran `Tapping xianxu/ariadne` →
+  `Installing weave from xianxu/ariadne` →
+  `/home/linuxbrew/.linuxbrew/Cellar/weave/0.1.0` → `weave: applied 107
+  action(s)`, with no source-build warning and no ariadne-source clone. The job
+  is red only from `40-duplicate-issue-id.sh`: sdlc's ID lint can't resolve a
+  publication target in a CI checkout ("configure main to track one named
+  remote/main"). That is unrelated to weave (earlier parley.nvim runs fail the
+  same way) and goes to a follow-up.
+- Stopgap removed (merge-check `elif` and its portable-ci case); docs swept
+  (`grep '#241|until…publish|pending publication'` finds only historical
+  mentions). Consumers' seeded merge-check copies keep a dormant fallback.
 
 ## Revisions
 
