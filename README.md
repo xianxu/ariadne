@@ -32,14 +32,20 @@ edits require a rerun. `WF_REVIEW_TIMEOUT` defaults to `30m` (allowed `1s`–`2h
 
 ## Standalone weave startup
 
-Until #241 publishes the Homebrew formula, build the CLI from this checkout:
+Install the published CLI from the Homebrew tap, then link and compile from the
+repository adopting the base:
 
 ```sh
-go build -o bin/weave ./cmd/weave
-# Run from the repository adopting the base:
-/path/to/ariadne/bin/weave link github.com/xianxu/ariadne
-/path/to/ariadne/bin/weave compile
+brew install xianxu/ariadne/weave
+weave link github.com/xianxu/ariadne
+weave compile
 ```
+
+Naming the formula in full lets Homebrew load it from the untrusted third-party
+tap. To have a bare `brew upgrade` pick up new releases, trust the tap once with
+`brew trust xianxu/ariadne`. To work on weave itself, build the candidate from
+this checkout with `go build -o bin/weave ./cmd/weave` and put `bin/` first on
+PATH.
 
 `weave link ../ariadne` also accepts an existing local base. Address links clone
 into a sibling directory and record the source; local links record the checkout's
@@ -132,8 +138,6 @@ rules; non-regular Makefiles are preserved with an adoption instruction.
 The seeded `./bootstrap.sh` runs from its own repository root, reuses a
 compatible weave on PATH, or runs `brew install xianxu/ariadne/weave` before
 executing `weave compile`. It requires Homebrew rather than installing it.
-Formula publication is tracked separately in #241; until then, place the
-source-built candidate above on PATH for bootstrap to reuse.
 
 The generic seeded CI workflow sets up Homebrew on Linux, then compiles before
 running generated helpers. Ariadne source CI provisions its root Brewfile and
@@ -158,10 +162,26 @@ checks the native binary and runs the formula's local composition fixture.
 suite. The version comes from the supplied tag name; these commands build the
 current checkout and do not create a Git tag or publish anything.
 
-The **prepare-weave-release** workflow runs this verification and uploads the
-candidate. #241 owns publishing the reviewed commit and archives and installing
-the generated formula into `xianxu/homebrew-ariadne`. There are no runtime Go or
-Python dependencies in the packaged weave binary. See the
+Each archive holds the `weave` binary and `LICENSE` (MIT). There are no runtime
+Go or Python dependencies in the packaged binary.
+
+To publish a reviewed commit (first done for `weave-v0.1.0` in #241):
+
+1. Tag the reviewed commit `weave-vX.Y.Z` and push the tag. Never rebase or
+   squash the branch afterwards; merges keep the tagged SHA reachable from main.
+2. Build the release on a clean runner at the tag:
+   `gh workflow run weave-release.yml --ref weave-vX.Y.Z -f tag=weave-vX.Y.Z`.
+   That workflow runs the full release test and uploads the
+   `weave-release-candidate` artifact.
+3. Download the artifact, check it with `shasum -a 256 -c SHA256SUMS`, and create
+   the GitHub release from those exact files (four archives plus
+   `SHA256SUMS`): `gh release create weave-vX.Y.Z --verify-tag …`.
+4. Commit the artifact's `weave.rb` as `Formula/weave.rb` in
+   [`xianxu/homebrew-ariadne`](https://github.com/xianxu/homebrew-ariadne).
+5. Verify with an empty trust store (`HOMEBREW_USER_CONFIG_HOME` set to a new
+   temp dir): `brew install xianxu/ariadne/weave`, `weave --version`,
+   `brew test xianxu/ariadne/weave`, and
+   `brew audit --strict --online --formula xianxu/ariadne/weave`. See the
 [consumer migration notes](atlas/workflow/setup-and-replication.md#consumer-cutover).
 
 ## Workspace identity
@@ -273,3 +293,7 @@ sdlc project close --slug legacy-example --no-retro --no-ledger
 `sdlc project close`. When a retro or calibration ledger genuinely does not
 apply, acknowledge that explicitly with `--no-retro` or `--no-ledger`
 (`--force` waives both); ordinary closes should satisfy both gates.
+
+## License
+
+MIT — see [LICENSE](LICENSE).

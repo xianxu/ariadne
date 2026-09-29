@@ -36,8 +36,8 @@ directories explicitly. Generic startup never edits shell configuration.
 
 `bootstrap.sh` changes to its own root, reuses a compatible gateway on PATH or
 installs `xianxu/ariadne/weave` through Homebrew, then execs compile. Homebrew
-must already be present. Formula publication is tracked in #241; until then a
-source-built candidate supplies the gateway. Shared Make aliases delegate to
+must already be present. The formula is published in the `xianxu/ariadne` tap
+(#241); the explicit full-name install loads it without `brew trust`. Shared Make aliases delegate to
 compile, and the root Makefile is a write-once generic seed: absent roots are
 created from `construct/Makefile.seed`, while existing regular roots are
 adopted by prepending `-include Makefile.workflow` without replacing product
@@ -97,7 +97,9 @@ from those exact files. The committed formula is a template, not the published
 tap. `scripts/test/release-weave.test.sh` checks archives, metadata, checksums,
 failure cleanup, and the formula's local composition test using the native
 binary. `.github/workflows/weave-release.yml` prepares/uploads candidates only.
-The current checkout is the build source; #241 publishes its reviewed commit.
+Publishing (#241): the tag's workflow run is the build of record; its artifact
+becomes the GitHub release and `xianxu/homebrew-ariadne`'s `Formula/weave.rb`.
+Archives carry `weave` plus `LICENSE` (MIT).
 See [README release preparation](../../README.md#preparing-a-weave-release).
 
 `pkg/weaveownership` owns the inventory schema, validation, path checks, and

@@ -5,9 +5,9 @@ skills — that consuming repos adopt through standalone `weave`.
 
 ## Adopting the Base Layer
 
-Install Homebrew on macOS or Linux and put a compatible weave on PATH. The
-`xianxu/ariadne/weave` formula is pending publication in #241; until then build
-`go build -o bin/weave ./cmd/weave` in ariadne and use that candidate.
+Install Homebrew on macOS or Linux, then `brew install xianxu/ariadne/weave`
+(published from `weave-v0.1.0`, #241). Build `go build -o bin/weave ./cmd/weave`
+in ariadne only when developing weave itself.
 
 ```sh
 cd /path/to/your-repo
@@ -105,8 +105,8 @@ skills, not dev-env helpers).
 
 ## Pushing Updates to All Consumers
 
-After the release and consumer cutover in #241, maintainers use the installed
-weave gateway through SDLC:
+Maintainers use the installed weave gateway through SDLC (the release and
+consumer cutover landed in #241):
 
 ```sh
 cd /path/to/ariadne
@@ -129,7 +129,7 @@ commit becomes a no-op. No automatic index reset occurs. Push remains separate.
 
 The old `make refresh-recursive` helper only invokes peer Make targets; it does
 not provide this ownership-aware migration. #239 tests propagation in disposable
-repos; actual fleet cutover belongs to #241.
+repos; the fleet cutover itself was done by hand, one repository at a time, in #241.
 
 ## Base-as-trunk: three layers, different physics (#82)
 
