@@ -69,7 +69,7 @@ Operator decisions (2026-09-28): license **MIT**; first tag **`weave-v0.1.0`**.
 Pilot consumer adoption is already done (Log 2026-09-27), so what's left is
 publishing plus live verification.
 
-- [ ] M1 — License the release. Add `LICENSE` (MIT, Xian Xu, 2026). Add
+- [x] M1 — License the release. Add `LICENSE` (MIT, Xian Xu, 2026). Add
       `license "MIT"` to `packaging/homebrew/Formula/weave.rb`, and flip
       `release-weave.test.sh`'s `'license ' not in formula` assertion to require
       `license "MIT"`. Run `release-weave.test.sh` locally with `weave-v0.1.0`
@@ -243,6 +243,16 @@ cleanup in each; no adopt mode needed for a one-off.
 - Every ariadne-layer repository in `~/workspace` is now on the #241 layout
   and pushed. The per-repository adoption for #241's Done-when is complete;
   the release/tap work remains.
+
+### 2026-09-28 — M1
+
+- Added `LICENSE` (MIT) and `license "MIT"` to the formula template.
+  `release-weave.test.sh` now requires the license line; its Ruby stand-in for
+  the Formula DSL needed a `license` method (the first run failed with
+  `undefined method 'license'`).
+- `bash scripts/test/release-weave.test.sh <out> weave-v0.1.0` → `PASS release:
+  four real archives, targets/CGO/version/layout/checksums, formula
+  composition, failures`.
 
 ## Revisions
 

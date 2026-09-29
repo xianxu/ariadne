@@ -51,7 +51,7 @@ with tempfile.TemporaryDirectory(prefix='weave-release-test.') as tmp:
     assert len(sums)==4,sums
     formula=(release/'weave.rb').read_text()
     assert '@WEAVE_' not in formula
-    assert 'license ' not in formula and 'depends_on ' not in formula
+    assert 'license "MIT"' in formula and 'depends_on ' not in formula
     for name,digest in sums.items():
         archive=release/name
         assert hashlib.sha256(archive.read_bytes()).hexdigest()==digest,name
@@ -85,6 +85,7 @@ class Formula
     attr_reader :test_block, :release_version
     def desc(*); end
     def homepage(*); end
+    def license(*); end
     def url(*); end
     def sha256(*); end
     def version(value); @release_version=value; end
