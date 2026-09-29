@@ -1,6 +1,6 @@
 ---
 id: 000266
-status: codecomplete
+status: done
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f864843970b724a3276d40a0f109fa3de71ccce9
         evidence_commit: e5978a3e18e983bb4351dff7ccd6ce2f5071ddd0
+        landed_commit: 215783a4dae648e19071ea6d79795d0cf98d6203
 ---
 
 # sdlc id lint cannot resolve publication target in CI checkouts
