@@ -54,8 +54,11 @@ CI would have to carry it.
 
 ## Done when
 
-- parley.nvim merge-check passes `40-duplicate-issue-id.sh` on a PR run.
-- A regression test covers a detached CI-style checkout with a fetched tracker.
+- A regression test covers a detached CI-style checkout with a fetched tracker:
+  carded details pass, hand-made details are refused, and an `origin` without a
+  tracker exits 2 (attested at close).
+- After merge: parley.nvim merge-check passes `40-duplicate-issue-id.sh` on a PR
+  run (its CI clones ariadne `main`, so no earlier run can show it).
 
 ## Plan
 
