@@ -207,13 +207,58 @@ directly?"** (the standalone flow) — breaks the pane's undo tree and the recor
 know you're in the workbench from the "Review workbench open on …" announce poke the pane
 sends when it opens, or the "…please review" / "applied N edits…" round pokes.)
 
-**2. You own all the git** — the nvim writes none (invariant #1):
+**Activation context (pair #341).** New workbench requests supply JSON
+`context: {repo, branch, file, activation}`: `repo` is the canonical absolute
+repository root, `file` is repository-relative, and `activation` is the pane's
+opaque activation token. Echo that exact object without reconstructing or
+updating its fields. Write the handoff as an envelope, not a bare record array:
+
+```json
+{"context":{"repo":"/docs","branch":"review/a","file":"a.md","activation":"one"},"records":[{"old":"x","occurrence":1,"new":"y","explain":"Correction"}]}
+```
+
+Keep this context with the request through completion. Human-finished,
+agent-applied and ship pokes, and landed artifacts, carry the same context.
+Definition responses also retain the request ID and echo the supplied context.
+Do not put the envelope into the round commit body: the existing record-body
+encoding and the pane's verbatim landed body remain unchanged.
+
+**Before every Git effect for an activated pane** (human round, agent round,
+ship, or any separately invoked stage/commit/merge), compare the poke and any landed artifact with
+the original request context and current pane activation. Immediately revalidate
+the canonical repository, checked-out branch, and tracked regular document
+within that repository. Read the third line of `$PAIR_REVIEW_OPEN_PATH` as
+JSON: `{version: 1, endpoint, token, session, context}`; require the captured
+context to equal its `context` in all four fields. Missing/unsupported metadata
+cannot authorize scoped work. Recheck Git with `git -C <repo> branch --show-current`
+and verify that the canonical document is tracked, regular, and inside the
+canonical repository. These checks plus matching active-pane metadata admit the
+first human round before history exists. `pair review readiness --resolve <repo>`
+can additionally check committed document identity once rounds exist; it never
+proves activation. Never substitute a cached target or basename match. Execute
+in that validated repository. A resolver HEAD is an observation token, not a context
+field: legitimate round commits advance HEAD without changing activation.
+
+A missing/malformed context, failed probe, or mismatch means **stop without Git
+effects**. Preserve handoff and landed artifacts unchanged and report the
+expected versus observed context. Ask the operator to return to the original
+branch and finish the round, or reissue it from the intended activation. Do not
+switch branches automatically, retag an old response, delete it as stale, or
+retry a commit on the new branch. An applied acknowledgment authorizes only
+its original activation; urgency and a matching filename do not override this.
+Legacy array-only traffic is allowed only for a confirmed uninterrupted legacy
+activation. A restored or retargeted activation requires scoped requests and
+responses; missing scope is not evidence that the activation is legacy.
+
+**2. You own all the git** — the nvim writes none (invariant #1). Apply the
+activation-context checks above before each activated-pane effect; initial
+preparation below runs before an activation exists:
 
 - **On review-start**: the branch is created during *prep* (see **Preparing & resuming**
   below — the readiness probe; `new` → memory discovery + `docflow start`).
 - **After the pane's `"applied N edit(s)… commit the agent round"` poke**: read the
   landed-artifact (seam #2b, currently `$XDG_DATA_HOME/pair/review-landed-<tag>.json` =
-  `{summary, body, applied, dropped, conflicts}`) and commit the agent round **verbatim**:
+  `{context, summary, body, applied, dropped, conflicts}`) and commit the agent round **verbatim**:
   `docflow round --side agent -m <summary> --body <body>`. The body is *what actually
   landed* — the pane is the apply authority (drops filtered, occurrences resolved); do
   **not** regenerate it from your proposal (invariant #3).
@@ -304,7 +349,8 @@ incorporate through the active Generate/Edit/Proofread posture. Under docflow, n
 dispatch and what you applied in the round body.
 
 **Shipping (M4b).** When the operator says **"ship it"** (a deliberate land-on-main
-decision — *not* merely that the markers cleared), run **`docflow ship`** in the doc's
+decision — *not* merely that the markers cleared), validate the ship poke's
+activation context immediately before running **`docflow ship`** in the doc's
 repo (`--no-ff` merge of `review/<slug>` + branch delete). It refuses while any `🤖`
 marker remains, so resolve/clear them first; `--force` is the abandon path.
 

@@ -36,6 +36,7 @@ type issueLintIDsFlags struct {
 	Base       string
 	Head       string
 	Trunk      string
+	Remote     string
 	IssuesDir  string
 	HistoryDir string
 }
@@ -61,6 +62,11 @@ this check exists rather than relying on a conflict.
   PRE-EXISTING  reported; renumbering is operator work, and blocking every
                 merge until it is done would be worse than the bug
 
+--remote NAME reads the issue tracker from that remote instead of through the
+resting branch's publication target. CI passes it: a detached PR checkout has
+no local main configured to publish anywhere, and this read-only check needs
+only to know where the tracker lives (#266).
+
 Exit codes: 0 clean, 1 collisions introduced, 2 THE CHECK COULD NOT RUN.
 A degraded read exits 2 rather than 0, so a required status check cannot go
 green on a check that never looked.
@@ -76,6 +82,7 @@ Read-only.`,
 	cmd.Flags().StringVar(&f.Base, "base", "", "base ref of the range (omit to check --head alone)")
 	cmd.Flags().StringVar(&f.Head, "head", "HEAD", "head ref of the range")
 	cmd.Flags().StringVar(&f.Trunk, "trunk", "", "published ref the range will merge into (default: --base)")
+	cmd.Flags().StringVar(&f.Remote, "remote", "", "remote whose issue tracker to read (default: the resting branch's publication target)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
 	return cmd
@@ -132,7 +139,7 @@ func runIssueLintIDs(stdout, stderr io.Writer, f *issueLintIDsFlags) error {
 	if err != nil {
 		return degraded(err)
 	}
-	cardless, err := cardlessAdditions(commandContext(f.Context), f.Head, baseSpace, head, dirs, r)
+	cardless, err := cardlessAdditions(commandContext(f.Context), f.Head, f.Remote, baseSpace, head, dirs, r)
 	if err != nil {
 		return degraded(err)
 	}
@@ -223,8 +230,9 @@ func introducedIDClashes(baseByID map[int][]string, base, trunk string, head map
 // cardlessAdditions is the tracker-era half of the id check (#252): in a
 // repository whose head carries the cutover marker, every details file the
 // range adds must belong to a card at the same id and slug. The tracker is read
-// fresh; an unreadable tracker is a check that could not run, never clean.
-func cardlessAdditions(ctx context.Context, headRef string, base, head map[int][]string, dirs idDirs, r gitRunner) ([]string, error) {
+// fresh — from remote when named, else through the publication target; an
+// unreadable tracker is a check that could not run, never clean.
+func cardlessAdditions(ctx context.Context, headRef, remote string, base, head map[int][]string, dirs idDirs, r gitRunner) ([]string, error) {
 	if len(dirs.Rel) == 0 {
 		return nil, nil
 	}
@@ -233,7 +241,13 @@ func cardlessAdditions(ctx context.Context, headRef string, base, head map[int][
 	} else if !marked {
 		return nil, nil // not a tracker repository at head
 	}
-	repo, err := tracker.RepositoryForCheckout(ctx, dirs.Top)
+	var repo *tracker.Repository
+	var err error
+	if remote != "" {
+		repo, err = tracker.NewRepository(ctx, dirs.Top, remote)
+	} else {
+		repo, err = tracker.RepositoryForCheckout(ctx, dirs.Top)
+	}
 	if err != nil {
 		return nil, err
 	}

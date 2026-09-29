@@ -144,6 +144,67 @@ func TestLintIDsRefusesCardlessDetailsInATrackerRepository(t *testing.T) {
 	}
 }
 
+// CI's id check runs in the checkout actions/checkout leaves: a fresh clone
+// with fetched remote-tracking refs (the issue tracker among them), a detached
+// HEAD, and no local main tracking anything. The tracker is read from the
+// remote the check already names, not from a publication target that only a
+// writer needs (#266). Drives the real merge-check script.
+func TestDuplicateIDCheckRunsInADetachedCICheckout(t *testing.T) {
+	ariadne, err := filepath.Abs("../..")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := filepath.Join(ariadne, "scripts/merge-checks.d/40-duplicate-issue-id.sh")
+	cardPath, card, detail9Path, detail9 := seededIssue(t, "000009", "nine")
+	r := newTrackerRepo(t, map[string]string{card7Path: openCard7, cardPath: card}, nil)
+	base := strings.TrimSpace(r.git("rev-parse", "HEAD"))
+	r.git("switch", "-q", "-c", "000009-nine")
+	writeRepoFile(t, r.root, detail9Path, detail9)
+	r.git("add", detail9Path)
+	r.git("commit", "-qm", "#9: details for its card")
+	r.git("switch", "-q", "-c", "hand-made")
+	writeRepoFile(t, r.root, "workshop/issues/000010-hand-made.md", "---\nid: 000010\nstatus: open\n---\n\n# Hand made\n\n## Problem\nx\n")
+	r.git("add", "workshop/issues/000010-hand-made.md")
+	r.git("commit", "-qm", "a hand-made issue")
+	r.git("push", "-q", "origin", "000009-nine", "hand-made")
+
+	ci := filepath.Join(t.TempDir(), "ci")
+	testfix.Git(t, "", "init", "-q", ci)
+	testfix.Git(t, ci, "remote", "add", "origin", r.origin)
+	testfix.Git(t, ci, "fetch", "-q", "origin", "+refs/heads/*:refs/remotes/origin/*")
+	// The checker is built in its owner repo, which a consumer finds here.
+	writeRepoFile(t, ci, "construct/dev-aliases.sh", "#!/bin/sh\nprintf 'sdlc\\t%s\\n' '"+ariadne+"'\n")
+	if err := os.Chmod(filepath.Join(ci, "construct/dev-aliases.sh"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	check := func(branch string) (int, string) {
+		testfix.Git(t, ci, "checkout", "-q", "--detach", "origin/"+branch)
+		cmd := exec.Command("bash", script, base, "HEAD")
+		cmd.Dir = ci
+		cmd.Env = envWithTMPDIR(t)
+		out, err := cmd.CombinedOutput()
+		var ee *exec.ExitError
+		if errors.As(err, &ee) {
+			return ee.ExitCode(), string(out)
+		} else if err != nil {
+			t.Fatalf("run %s: %v\n%s", script, err, out)
+		}
+		return 0, string(out)
+	}
+	if code, out := check("000009-nine"); code != 0 {
+		t.Fatalf("carded details in a CI checkout (%d):\n%s", code, out)
+	}
+	if code, out := check("hand-made"); code != 1 || !strings.Contains(out, "000010-hand-made.md") {
+		t.Fatalf("cardless details in a CI checkout not refused (%d):\n%s", code, out)
+	}
+	// A marked repository whose origin has lost its tracker could not check:
+	// the stale fetched ref must not stand in for the tracker.
+	testfix.Git(t, "", "--git-dir", r.origin, "branch", "-D", vocab.Issue().Discovery().Tracker)
+	if code, out := check("000009-nine"); code != 2 || !strings.Contains(out, "COULD NOT RUN") {
+		t.Fatalf("origin without a tracker was not a check that could not run (%d):\n%s", code, out)
+	}
+}
+
 // The shell fallbacks cannot ask the binary, so their copies of the tracker's
 // vocabulary are pinned here: renaming the tracker branch or the marker in Go
 // turns this red instead of silently disarming the fallback guard (#252).

@@ -92,7 +92,10 @@ check suppresses a real refusal:
 
 In an issue tracker repository (#252) new IDs are allocated on cards, so a
 collision needs a hand-made details file; the check still guards details a
-branch adds.
+branch adds. It reads the cards with `lint-ids --remote origin`, the same remote
+as the trunk, not through the resting branch's publication target: a CI checkout
+is detached with no local `main` configured, so that lookup made every consumer
+PR exit 2 (#266). A marked repository whose `origin` has no tracker still exits 2.
 
 Both sets are evaluated before any side effect. The `sdlc issue lint-ids` it
 shells to uses the same three codes (0 clean, 1 introduced, 2 could-not-run), so
