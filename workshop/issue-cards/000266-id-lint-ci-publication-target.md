@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000266-id-lint-ci-publication-target.md
         source_blob: 4d0a09a33bed5c9a268f8348e07a40cb7c158ab3
         destination: workshop/issues/000266-id-lint-ci-publication-target.md
+        main_commit: 5bdf1f729e05c19044ea42d7892e7c710bf0bc80
 ---
 
 # sdlc id lint cannot resolve publication target in CI checkouts
