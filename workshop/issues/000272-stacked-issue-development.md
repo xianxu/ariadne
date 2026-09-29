@@ -139,3 +139,15 @@ Filed at the user's request from the parley.nvim stacked-development session.
 This is a follow-up ticket only; no implementation or claim is requested.
 PR #215 was still in publication work when this record was authored, so its
 eventual landing and cleanup outcome are not asserted here.
+
+Ticket-authoring follow-up: initial details were published from ariadne's main
+with `sdlc issue move-detail --issue 272` at `0f57ded303b1`. A subsequent
+schema correction (make the deferred Plan step a checklist) was committed on
+main, but `sdlc push --yes` refused: "landing would change handed-off issue
+details ... Its details were handed off to main ... and may have a new owner."
+The prescribed `sdlc issue recovery reconcile --issue 272` reported no
+unfinished operations. The valid correction and the later #300 quick-budget
+finding are committed locally; their publication is blocked by that guard.
+This is additional observed workflow friction during ticket creation, distinct
+from the stack's acceptance scope. No guard was bypassed or implementation
+attempted.
