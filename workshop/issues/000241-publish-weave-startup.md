@@ -9,6 +9,7 @@ updated: 2026-09-28
 estimate_hours: 1.23
 card_mirror: '292ba2b609c14b338a3eb795d3023b04c26f85ee' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T18:52:27-07:00
+flow: {kind: full, provenance: inferred}
 ---
 
 # Publish weave and cut over startup
