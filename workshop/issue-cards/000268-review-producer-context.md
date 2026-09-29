@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000268-review-producer-context.md
         source_blob: 79c7eb97b7a6b0dac509b21d5ffed1ae7c898f3c
         destination: workshop/issues/000268-review-producer-context.md
+        main_commit: d6ace419b5dd9a645a34af1a8a3ae4d5df7548dd
 ---
 
 # Bind hosted review producer effects to activation context
