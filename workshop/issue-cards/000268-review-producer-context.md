@@ -1,6 +1,6 @@
 ---
 id: 000268
-status: codecomplete
+status: done
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: b1938ebc76c210c537b9dfd849f52d09adc3059e
         evidence_commit: 5484941c591cb1d0492c4037eec7eaa281b3d1d0
+        landed_commit: b8732de66b975d32bf490cdc1443ab5c669d5c7a
 ---
 
 # Bind hosted review producer effects to activation context
