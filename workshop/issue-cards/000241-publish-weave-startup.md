@@ -1,10 +1,11 @@
 ---
 id: 000241
-status: open
+status: working
 created: 2026-09-20
-updated: 2026-09-20
+updated: 2026-09-28
 estimate_hours:
 github_issue:
+started: 2026-09-28T18:52:27-07:00
 ---
 
 # Publish weave and cut over startup
