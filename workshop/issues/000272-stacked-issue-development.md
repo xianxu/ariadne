@@ -171,6 +171,22 @@ remained pushed, PR #215 open, and main unmerged at this checkpoint. The same
 handoff guard therefore affects both the stack's landing and this ticket's
 on-main follow-up publication.
 
+Recovery outcome: the user explicitly authorized manual merging.
+`gh pr merge 215 --merge --match-head-commit fa255b82` landed the reviewed
+stack at `aedd9d66`. Local main was fast-forwarded to the fetched merge and
+switching to main preserved tracked demo edits. Running
+`sdlc merge --branch 000303-app-completion-keys --yes` from resting main then
+recognized the already-merged PR, archived all four issues and their reviews
+remotely at `7d2ffa67`, set all four cards to done with
+`landed_commit: aedd9d66`, and removed tip branch #303. After fast-forwarding
+the archive commit, safe `git branch -d` deletion of ancestor branches
+#300/#301/#302 succeeded. No changes were lost; the untracked recording was
+also preserved. This narrows the observed gap: the pre-merge handoff guard
+blocked the stack, while post-merge recovery accepted the same lineage and
+completion bindings. Preserve this successful recovery behavior in regression
+coverage; manual forge merging required explicit user authorization and is
+not the proposed normal stack workflow.
+
 ## Revisions
 
 - 2026-09-29 — Added the final stacked-landing refusal after #300's full
