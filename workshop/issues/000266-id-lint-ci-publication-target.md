@@ -79,6 +79,7 @@ CI would have to carry it.
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — TestDuplicateIDCheckRunsInADetachedCICheckout drives the real 40-duplicate-issue-id.sh in a CI-shaped checkout (fresh init, fetched refs/remotes/origin/* incl. issue-tracker, detached HEAD, no local main): exit 2 with the exact CI error before the fix; after, carded details exit 0, hand-made details exit 1, and origin without a tracker exits 2 (mutation-checked). Full cmd/sdlc suite green except TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory (pre-existing, #210). --no-plan-check: the one open item is the post-merge parley.nvim PR rerun (Done-when clause 2, its CI clones ariadne main). ACTUAL is a LABELED JUDGMENT ESTIMATE: sdlc actual found no telemetry because the session transcript lives under the :0 cwd while work ran in :1 (commits 21:18-22:00, ~20m idle on the test suite).; review verdict: SHIP
 - Reproduced: `TestDuplicateIDCheckRunsInADetachedCICheckout` drives the real
   `40-duplicate-issue-id.sh` in a fresh-init, fetched, detached checkout; before
   the fix it exits 2 with the exact CI message ("publication target is
