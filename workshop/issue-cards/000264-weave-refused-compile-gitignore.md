@@ -1,6 +1,6 @@
 ---
 id: 000264
-status: codecomplete
+status: done
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 1494c0b8df4f8af4641e5719d173ee5a018559fc
         evidence_commit: ddbcf87270c00c6351645650a916707187a49d89
+        landed_commit: c63a1b1844b7016c22b4221a2cf552d0bdfa103f
 ---
 
 # weave compile: a refused compile must not rewrite .gitignore
