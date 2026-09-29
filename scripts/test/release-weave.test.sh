@@ -57,7 +57,8 @@ with tempfile.TemporaryDirectory(prefix='weave-release-test.') as tmp:
         assert hashlib.sha256(archive.read_bytes()).hexdigest()==digest,name
         assert digest in formula and f'/{release_tag}/{name}' in formula,name
         with tarfile.open(archive) as tar:
-            entries=tar.getmembers(); assert len(entries)==1 and entries[0].name=='weave',entries
+            entries=tar.getmembers(); assert [e.name for e in entries]==['weave','LICENSE'],entries
+            notice=tar.extractfile('LICENSE').read(); assert notice==(source/'LICENSE').read_bytes() and entries[1].isfile(),name
             entry=entries[0]; assert entry.isfile() and entry.mode & 0o111==0o111
             if name==f'weave_{release_version}_{platform.system().lower()}_{dict(aarch64="arm64",arm64="arm64",x86_64="amd64")[platform.machine()]}.tar.gz':
                 native=root/'native'; native.mkdir()

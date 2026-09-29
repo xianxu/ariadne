@@ -80,6 +80,7 @@ func fixture(t *testing.T) (string, string, []string) {
 	dir := filepath.Join(root, "packaging", "homebrew", "Formula")
 	os.MkdirAll(dir, 0755)
 	os.WriteFile(filepath.Join(dir, "weave.rb"), template, 0644)
+	os.WriteFile(filepath.Join(root, "LICENSE"), []byte("MIT License\n"), 0644)
 	commands := filepath.Join(root, "commands")
 	os.Mkdir(commands, 0755)
 	script := `#!/bin/sh
