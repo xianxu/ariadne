@@ -1,6 +1,6 @@
 ---
 id: 000272
-status: open
+status: working
 created: 2026-09-29
 updated: 2026-09-29
 estimate_hours:
@@ -17,6 +17,7 @@ tracker:
         source_blob: af4a21f8ad50d5411335fc03376fa3007d03789a
         destination: workshop/issues/000272-stacked-issue-development.md
         main_commit: 0f57ded303b1235df54ad8b126234aa6952e0514
+started: 2026-09-29T16:14:23-07:00
 ---
 
 # Support stacked issue development
