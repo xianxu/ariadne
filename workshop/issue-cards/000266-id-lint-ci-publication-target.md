@@ -1,6 +1,6 @@
 ---
 id: 000266
-status: open
+status: working
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -17,6 +17,7 @@ tracker:
         source_blob: 4d0a09a33bed5c9a268f8348e07a40cb7c158ab3
         destination: workshop/issues/000266-id-lint-ci-publication-target.md
         main_commit: 5bdf1f729e05c19044ea42d7892e7c710bf0bc80
+started: 2026-09-28T21:16:53-07:00
 ---
 
 # sdlc id lint cannot resolve publication target in CI checkouts
