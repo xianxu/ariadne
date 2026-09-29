@@ -75,6 +75,12 @@ func prepare(ctx context.Context, root, tag, output string, stdout, stderr io.Wr
 		return err
 	}
 	formula := strings.ReplaceAll(string(template), "@WEAVE_VERSION@", version)
+	// Every distributed copy carries the MIT notice; Homebrew installs a
+	// top-level LICENSE from the archive into the keg.
+	license, err := os.ReadFile(filepath.Join(root, "LICENSE"))
+	if err != nil {
+		return err
+	}
 	stage, err := staging.New(output)
 	if err != nil {
 		return err
@@ -97,7 +103,7 @@ func prepare(ctx context.Context, root, tag, output string, stdout, stderr io.Wr
 			}
 			name := fmt.Sprintf("weave_%s_%s_%s.tar.gz", version, goos, arch)
 			archive := filepath.Join(artifacts, name)
-			if err = writeArchive(binary, archive); err != nil {
+			if err = writeArchive(binary, license, archive); err != nil {
 				return err
 			}
 			data, err := os.ReadFile(archive)
@@ -135,7 +141,7 @@ func prepare(ctx context.Context, root, tag, output string, stdout, stderr io.Wr
 	return nil
 }
 
-func writeArchive(binary, path string) (retErr error) {
+func writeArchive(binary string, license []byte, path string) (retErr error) {
 	data, err := os.ReadFile(binary)
 	if err != nil {
 		return err
@@ -149,9 +155,17 @@ func writeArchive(binary, path string) (retErr error) {
 	defer func() { retErr = errors.Join(retErr, zipped.Close()) }()
 	archive := tar.NewWriter(zipped)
 	defer func() { retErr = errors.Join(retErr, archive.Close()) }()
-	if err = archive.WriteHeader(&tar.Header{Name: "weave", Mode: 0755, Size: int64(len(data))}); err != nil {
-		return err
+	for _, entry := range []struct {
+		name string
+		mode int64
+		data []byte
+	}{{"weave", 0755, data}, {"LICENSE", 0644, license}} {
+		if err = archive.WriteHeader(&tar.Header{Name: entry.name, Mode: entry.mode, Size: int64(len(entry.data))}); err != nil {
+			return err
+		}
+		if _, err = archive.Write(entry.data); err != nil {
+			return err
+		}
 	}
-	_, err = archive.Write(data)
-	return err
+	return nil
 }

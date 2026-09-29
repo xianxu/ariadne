@@ -1,13 +1,15 @@
 ---
 id: 000241
-status: open
+status: working
 deps: [ariadne#239]
 github_issue:
 target: base-layer-mechanics
 created: 2026-09-20
-updated: 2026-09-20
-estimate_hours:
-card_mirror: '16bbca7b4ea62a10411f272cf083ecb6bf4a2fdf' # card fields mirrored from issue-cards; edit via sdlc
+updated: 2026-09-28
+estimate_hours: 1.23
+card_mirror: '292ba2b609c14b338a3eb795d3023b04c26f85ee' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-28T18:52:27-07:00
+flow: {kind: full, provenance: inferred}
 ---
 
 # Publish weave and cut over startup
@@ -63,14 +65,94 @@ choice before adding a project license grant; no license is inferred here.
 
 ## Plan
 
-- [ ] After #239 merges, inspect its release candidate, native tests, formula,
-      bootstrap version floor and migration tooling; resolve publication metadata.
-- [ ] Publish the versioned release from the merged commit and the corresponding
-      formula in the tap; verify installation from the public endpoints.
-- [ ] Apply the prepared pilot migrations through peer workflows, verify cold
-      startup and real CI, then roll out remaining applicable consumers.
-- [ ] Record public release/install links and per-consumer evidence, update
-      documentation, and close only after delivery is verified.
+Operator decisions (2026-09-28): license **MIT**; first tag **`weave-v0.1.0`**.
+Pilot consumer adoption is already done (Log 2026-09-27), so what's left is
+publishing plus live verification.
+
+- [x] M1 — License the release. Add `LICENSE` (MIT, Xian Xu, 2026). Add
+      `license "MIT"` to `packaging/homebrew/Formula/weave.rb`, and flip
+      `release-weave.test.sh`'s `'license ' not in formula` assertion to require
+      `license "MIT"`. Run `release-weave.test.sh` locally with `weave-v0.1.0`
+      (four archives, SHA256SUMS, formula, native `--version`, formula
+      composition test). milestone-close reviews the commit that gets tagged.
+- [x] M2 — Publish and cut over.
+  - Tag the M1-reviewed commit `weave-v0.1.0` and push the tag. **Build of
+    record:** the `prepare-weave-release` workflow dispatched with
+    `gh workflow run weave-release.yml --ref weave-v0.1.0 -f tag=weave-v0.1.0` (a clean runner at the tag, running the full
+    `release-weave.test.sh`). Download its `weave-release-candidate` artifact,
+    re-verify `SHA256SUMS` locally, and create the GitHub release from those
+    exact files (four archives + `SHA256SUMS`). No local build is uploaded.
+  - Create the public `xianxu/homebrew-ariadne` repo with that artifact's
+    `weave.rb` as `Formula/weave.rb`, plus a README giving the install command.
+  - **Tap trust (Homebrew 7 refuses untrusted third-party taps by default).**
+    Homebrew source: `Trust.explicitly_allowed?` (`trust.rb:567`) loads an
+    untrusted tap's formula when its full name is on the command line. So
+    `bootstrap.sh`'s `brew install xianxu/ariadne/weave` and
+    `brew --prefix xianxu/ariadne/weave` need no trust. A Brewfile entry
+    (`bundle/brew.rb:158`) and a bare `brew upgrade` do. Verify in a clean
+    trust store (`HOMEBREW_USER_CONFIG_HOME` set to an empty temp dir, fresh
+    tap): install, `--prefix`, `weave --version` → `weave version 0.1.0`, and
+    `brew test xianxu/ariadne/weave`. If the explicit install is refused, add
+    `brew trust --formula xianxu/ariadne/weave` to `bootstrap.sh` before
+    install and keep the fallback. Document `brew trust xianxu/ariadne` for
+    `brew upgrade` in the README and tap README.
+  - Remove the #250 stopgap **only after the clean-store verification
+    passes**: the `elif ! brew tap …` branch and its comments in
+    `.github/workflows/merge-check.yml`, and `portable-ci.test.sh`'s
+    tap-unpublished case plus its `::warning::`/`#241` assertion. The
+    published-tap row becomes `install → --prefix → compile` (bootstrap's
+    explicit install taps implicitly). Consumers' seeded copies keep a
+    dormant fallback, which is harmless once the tap resolves.
+  - Linux and consumer verification: run **parley.nvim**'s real merge-check CI
+    (nous is excluded: its Linux bootstrap is recorded as unverified,
+    `setup-and-replication.md:223`). Pass = the job installs from the tap
+    (log shows `brew install xianxu/ariadne/weave`, no source-build warning)
+    and goes green.
+  - Docs sweep, every stale "#241 / until published" reference:
+    `README.md:35,135-136,162`; `atlas/workflow/base-layer.md:9,108,132`;
+    `atlas/workflow/weave.md:39-40,100`;
+    `atlas/workflow/setup-and-replication.md:117,196`; and the
+    `merge-check.yml` comments at `:22,29`. Rewrite them as "published at
+    weave-v0.1.0; install with …" plus the release steps. Re-run the grep at
+    close to confirm nothing is left.
+
+**Non-goals** (tracked separately, not in this delivery): an adopt mode,
+per-repo `propagate-base`, `Lstat` in `startup.Tools`, recognizing the older
+indirect include form, atomic `.gitignore` staging across compile passes, and
+nous's Linux/Mutagen bootstrap. The weave items are filed as #265, and the CI
+ID-lint failure found during verification as #266.
+
+**Provenance invariant:** after the tag is pushed, this branch is never
+rebased, amended or squashed. `sdlc merge` keeps merge commits, so the tagged
+SHA stays reachable from main.
+
+The release goes public shortly before this branch merges, but it is built
+from a reviewed commit (M1's milestone-close).
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module          design=0.05 impl=0.12
+item: real-api-discovery         design=0.0 impl=0.2
+item: real-api-discovery         design=0.0 impl=0.2
+item: cross-repo-refactor-small  design=0.04 impl=0.08
+item: smaller-go-module          design=0.04 impl=0.12
+item: atlas-docs                 design=0.02 impl=0.06
+item: milestone-review           design=0.0 impl=0.14
+item: milestone-review           design=0.0 impl=0.14
+design-buffer: 0.15
+total: 1.23
+```
+
+Items in order: M1 license, formula and test flip; GitHub release and
+workflow-dispatch discovery; Homebrew tap and trust discovery; tap repo plus
+parley.nvim CI check; merge-check fallback removal and its test; doc sweep;
+two milestone reviews. Design is ×0.2 (the plan settles the decisions and the
+release tooling already exists); impl is at v3.1's 40%.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Log
 
@@ -162,7 +244,113 @@ cleanup in each; no adopt mode needed for a one-off.
   and pushed. The per-repository adoption for #241's Done-when is complete;
   the release/tap work remains.
 
+### 2026-09-28 — M1
+- 2026-09-28: closed — Release: https://github.com/xianxu/ariadne/releases/tag/weave-v0.1.0 (tag 4de31b2d, CI build-of-record run 36511188527, SHA256SUMS verified locally and against public URLs). Tap: https://github.com/xianxu/homebrew-ariadne. Clean trust store macOS arm64: brew install/test/audit --strict --online/reinstall rc=0, weave version 0.1.0. Linux consumer: parley.nvim CI run 36511435873 tapped, installed weave 0.1.0 and compiled 107 actions, no fallback. GAP: that job is red only from the unrelated sdlc id-lint (40-duplicate-issue-id.sh cannot resolve a publication target in CI checkouts), filed as #266; per-repo adoption evidence is in the 2026-09-27 Log. Tests: go test ./cmd/weave/internal/release, release-weave.test.sh weave-v0.1.0, portable-ci.test.sh all PASS. Docs swept; merge-check fallback removed.; review verdict: SHIP
+- 2026-09-28: closed M2 — weave-v0.1.0 released from CI build-of-record run 36511188527 (checksums re-verified, archives=weave+LICENSE); tap xianxu/homebrew-ariadne live; clean trust store on macOS: brew install/test/audit --strict --online/reinstall all rc=0, weave version 0.1.0; Linux: parley.nvim CI run 36511435873 installed weave 0.1.0 from the tap and compiled 107 actions with no fallback (job red only from unrelated id-lint, filed #266); merge-check fallback removed, portable-ci + release tests PASS; docs swept. --no-actual: whole-window measurement fell below M1s recorded 0.61h (0.61 -> 0.55 -> 0.42 as #263/#265/#266 mentions re-attribute time), so no non-negative M2 increment exists; issue close adopts the measured total.; review verdict: SHIP
+- 2026-09-28: closed M1 — release-weave.test.sh weave-v0.1.0 PASS: four archives (darwin/linux x arm64/amd64), targets/CGO/version/layout/checksums, formula composition test; generated weave.rb carries license "MIT" and version 0.1.0. Actual = sdlc actual measured 0.61h (first milestone, whole window).; review verdict: SHIP
+
+- Added `LICENSE` (MIT) and `license "MIT"` to the formula template.
+  `release-weave.test.sh` now requires the license line; its Ruby stand-in for
+  the Formula DSL needed a `license` method (the first run failed with
+  `undefined method 'license'`).
+- `bash scripts/test/release-weave.test.sh <out> weave-v0.1.0` → `PASS release:
+  four real archives, targets/CGO/version/layout/checksums, formula
+  composition, failures`.
+
+### 2026-09-28 — Fleet adoption was not complete (coding-agent miss)
+
+The 2026-09-27 entry's "every ariadne-layer repository in `~/workspace` is now
+on the #241 layout" was wrong: the agent declared the fleet done without
+checking it. Four repos had been skipped — parley.nvim (the #239 pilot,
+presumably assumed done) and the three brain repos (brain, brain-family,
+brain-private; the Spec's "brain/data repos retain their capture/commit rhythm"
+was misread as an exclusion — it governs how their changes land, not whether
+they migrate). Surfaced when the operator ran `weave compile` in parley.nvim and
+got the pre-inventory refusal plus a stripped `.gitignore` (now #264).
+
+Adopted 2026-09-28 by the same procedure, all local (unpushed):
+- parley.nvim 65c654a3 — pre-inventory `construct/generated/` moved aside;
+  Makefile moved from the indirect `WF_WORKFLOW` include to the seed's form;
+  seeded `bootstrap.sh`/`merge-check.yml`; tracked `vocabulary/issue.json`
+  picked up the #252 card fields. No tracked links.
+- brain 3837c26 + 789c5eb + 5f47668, brain-family ea75054 + c7aee8b,
+  brain-private 4806207 + 6a2316a — the nous autosave/membership rhythm
+  committed parts of each adoption. Symlinked `../ariadne/Makefile` → seed;
+  pre-inventory generated moved aside; 28/27/27 owned links untracked, the
+  dead `construct/scripts/bootstrap-peers.sh` and `scripts/issue-sync.sh`
+  removed.
+- Each: second compile a no-op, `weave verify-complete` clean, no `make`
+  warnings, only `AGENTS.local.md` tracked-but-ignored.
+
+Before claiming fleet completion again, sweep every repo under `~/workspace`
+(inventory present and non-empty, managed block present, no tracked link
+matching the record, one workflow include) rather than working from a list.
+
+### 2026-09-28 — post-M1: license travels with the binary
+
+- M1 review advisory: the archives held only `weave`, so the MIT notice didn't
+  ship with distributed copies. Fixed before tagging, since published archives
+  are immutable: `writeArchive` now writes `weave` (0755) and `LICENSE` (0644),
+  and Homebrew installs a top-level LICENSE into the keg. **The M2 asset check
+  expects two archive members.**
+- Reviewed with `sdlc judge milestone-review --base 8640c9db`: all ARCH checks
+  pass. Its two Minor findings (no archive-shape unit test, missing-LICENSE path
+  untested) are fixed by `TestArchiveCarriesBinaryAndLicense` and
+  `TestMissingLicenseFailsBeforeStaging`. `go test ./cmd/weave/internal/release/`
+  and `release-weave.test.sh weave-v0.1.0` pass. This commit is the tag target.
+
+### 2026-09-28 — M2: published
+
+- **Tag:** `weave-v0.1.0` → `4de31b2d` (M1 plus reviewed license bundling).
+- **Build of record:** `prepare-weave-release` run 36511188527 at the tag
+  (success; full release test on the runner). Artifact re-verified locally:
+  `shasum -c` OK ×4, each archive = `weave` + `LICENSE` (identical to the
+  repo's), `weave.rb` has `license "MIT"`/`version "0.1.0"`, darwin-arm64
+  binary prints `weave version 0.1.0`.
+- **Release:** https://github.com/xianxu/ariadne/releases/tag/weave-v0.1.0 —
+  the four archives + `SHA256SUMS` from that artifact. The public download
+  URLs in the formula re-download and match `SHA256SUMS`.
+- **Tap:** https://github.com/xianxu/homebrew-ariadne (`ac233bd` formula from
+  the artifact, plus README and LICENSE). `brew audit --strict` flagged
+  stanza order (`version` before `license`); fixed in the template (9cf6ef7d)
+  and by the same two-line swap in the tap (`1d3ecf3`). URLs and checksums are
+  untouched, and the tap formula equals the template modulo release metadata.
+- **Clean-store verification (macOS arm64):** with `HOMEBREW_USER_CONFIG_HOME`
+  set to an empty dir, `brew install xianxu/ariadne/weave` installs
+  `/opt/homebrew/Cellar/weave/0.1.0` (bin, LICENSE) and writes no trust entry.
+  `weave --version` → `weave version 0.1.0`; `brew test`, `brew audit --strict
+  --online` and `brew reinstall` all exit 0. This confirms the
+  `Trust.explicitly_allowed?` reading, so no `brew trust` step is needed in
+  bootstrap.
+- **Linux + consumer CI:** parley.nvim merge-check run 36511435873 (ubuntu,
+  started 45s after the tap went live) ran `Tapping xianxu/ariadne` →
+  `Installing weave from xianxu/ariadne` →
+  `/home/linuxbrew/.linuxbrew/Cellar/weave/0.1.0` → `weave: applied 107
+  action(s)`, with no source-build warning and no ariadne-source clone. The job
+  is red only from `40-duplicate-issue-id.sh`: sdlc's ID lint can't resolve a
+  publication target in a CI checkout ("configure main to track one named
+  remote/main"). That is unrelated to weave (earlier parley.nvim runs fail the
+  same way) and goes to a follow-up.
+- Stopgap removed (merge-check `elif` and its portable-ci case); docs swept
+  (`grep '#241|until…publish|pending publication'` finds only historical
+  mentions). Consumers' seeded merge-check copies keep a dormant fallback.
+
+- M2 review advisories: (1) the tap formula's stanza swap vs the tag's
+  artifact is the one-time exception logged above, since the template is fixed
+  for future releases; (2) consumers' seed-once `merge-check.yml` keep the
+  dormant fallback, and seeds have no retirement path (ARCH-FUNERAL). That
+  belongs to #265 and should be added there when it's claimed. Its details now
+  live on main, not on this branch.
+
 ## Revisions
+
+### 2026-09-28 — plan concretized
+
+**Reason:** operator chose MIT and `weave-v0.1.0`, and fleet adoption finished
+by hand. **Delta:** the old four-step plan is replaced with M1 (license) and M2
+(publish, tap, verify, remove fallback, docs). Consumer migration steps are
+done; only live CI verification remains.
+
 
 ### 2026-09-20 — tap repository and command availability confirmed
 

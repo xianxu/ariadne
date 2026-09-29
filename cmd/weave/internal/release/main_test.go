@@ -1,6 +1,8 @@
 package main
 
 import (
+	"archive/tar"
+	"compress/gzip"
 	"context"
 	"errors"
 	"io"
@@ -80,6 +82,7 @@ func fixture(t *testing.T) (string, string, []string) {
 	dir := filepath.Join(root, "packaging", "homebrew", "Formula")
 	os.MkdirAll(dir, 0755)
 	os.WriteFile(filepath.Join(dir, "weave.rb"), template, 0644)
+	os.WriteFile(filepath.Join(root, "LICENSE"), []byte("MIT License\n"), 0644)
 	commands := filepath.Join(root, "commands")
 	os.Mkdir(commands, 0755)
 	script := `#!/bin/sh
@@ -197,5 +200,60 @@ func TestKilledOwnerPreservesProducerLeaseAndReclaimsBeforeExistingOutputCheck(t
 	}
 	if b, _ := os.ReadFile(sentinel); strings.TrimSpace(string(b)) != "keep" {
 		t.Fatal("existing output changed")
+	}
+}
+
+func TestArchiveCarriesBinaryAndLicense(t *testing.T) {
+	dir := t.TempDir()
+	binary := filepath.Join(dir, "weave")
+	os.WriteFile(binary, []byte("binary"), 0755)
+	path := filepath.Join(dir, "weave.tar.gz")
+	if err := writeArchive(binary, []byte("MIT License\n"), path); err != nil {
+		t.Fatal(err)
+	}
+	file, err := os.Open(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer file.Close()
+	zipped, err := gzip.NewReader(file)
+	if err != nil {
+		t.Fatal(err)
+	}
+	archive := tar.NewReader(zipped)
+	want := []struct {
+		name string
+		mode int64
+		data string
+	}{{"weave", 0755, "binary"}, {"LICENSE", 0644, "MIT License\n"}}
+	for _, w := range want {
+		header, err := archive.Next()
+		if err != nil {
+			t.Fatal(err)
+		}
+		data, _ := io.ReadAll(archive)
+		if header.Name != w.name || header.Mode != w.mode || string(data) != w.data {
+			t.Fatalf("entry %q mode %o data %q, want %+v", header.Name, header.Mode, data, w)
+		}
+	}
+	if _, err := archive.Next(); err != io.EOF {
+		t.Fatalf("unexpected extra entry: %v", err)
+	}
+}
+
+func TestMissingLicenseFailsBeforeStaging(t *testing.T) {
+	root := t.TempDir()
+	dir := filepath.Join(root, "packaging", "homebrew", "Formula")
+	os.MkdirAll(dir, 0755)
+	os.WriteFile(filepath.Join(dir, "weave.rb"), []byte("version \"@WEAVE_VERSION@\"\n"), 0644)
+	output := filepath.Join(root, "release")
+	if err := prepare(context.Background(), root, "weave-v1.2.3", output, io.Discard, io.Discard); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("prepare without LICENSE: %v", err)
+	}
+	if _, err := os.Lstat(output); !os.IsNotExist(err) {
+		t.Fatalf("output exists: %v", err)
+	}
+	if left := stages(output); len(left) != 0 {
+		t.Fatalf("stages left behind: %v", left)
 	}
 }

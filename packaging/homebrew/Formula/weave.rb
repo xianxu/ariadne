@@ -3,6 +3,7 @@ class Weave < Formula
   desc "Prepare repository layers and compile agent context"
   homepage "https://github.com/xianxu/ariadne"
   version "@WEAVE_VERSION@"
+  license "MIT"
 
   on_macos do
     on_arm do

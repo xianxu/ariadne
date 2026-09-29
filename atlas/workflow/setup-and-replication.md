@@ -114,8 +114,10 @@ reuse a compatible weave on PATH, otherwise install `xianxu/ariadne/weave` with
 Homebrew, then exec `weave compile`. When a legacy source binary shadows the
 installation, bootstrap invokes the formula's binary directly. Missing Homebrew
 produces installation guidance; bootstrap does not install Homebrew itself.
-The formula is pending publication in #241. Until then, build `cmd/weave` from
-ariadne and put that candidate on PATH.
+The formula is published in the `xianxu/ariadne` tap (#241, from
+`weave-v0.1.0`). Homebrew loads an untrusted tap's formula when its full name is
+on the command line, so bootstrap needs no `brew trust`; a Brewfile entry or a
+bare `brew upgrade` does.
 
 Each consumer owns its root `Makefile`. If absent, compile seeds the generic
 `construct/Makefile.seed` once. If a regular Makefile already exists, compile
@@ -193,8 +195,9 @@ repo's manifest; see [data-deps.md](data-deps.md).
 
 ## Consumer cutover
 
-#239 prepares and tests startup and migration tooling. #241 owns the actual
-release, tap publication, and consumer edits after the implementation merges.
+#239 prepared and tested the startup and migration tooling. #241 published the
+release and tap and moved every consumer over by hand (its Log has the
+per-repository evidence).
 For each consumer, keep these inputs committed before testing a fresh clone:
 
 - A source-bearing `construct/deps` row for every missing peer that bootstrap
@@ -220,6 +223,6 @@ Disposable pilots during #239 established the following boundaries:
 | Consumer snapshot | Migration inputs exercised | Evidence and remaining limitation |
 |---|---|---|
 | parley.nvim `c8dcd56a` | Authored root with optional local workflow include; root Brewfile for Neovim/Python; no owner tools | Linux compile and bootstrap repeat passed. Product sources and intentionally tracked vocabulary `issue.json` remained unchanged. Full product lint was not claimed. |
-| nous `2e7756d5` | Replace inherited root Makefile link with authored root and `tools: nous-build`; keep `nous-bootstrap`/`nous-dev` explicit; guard macOS packages in Brewfile | macOS ordinary owner build and safe help passed without service/signing actions. Full bootstrap remains unverified: Linux code requires launchd and the existing Mutagen tap formula targets amd64 and needs Homebrew trust handling. Resolve those consumer choices in #241 rather than porting nous in #239. |
+| nous `2e7756d5` | Replace inherited root Makefile link with authored root and `tools: nous-build`; keep `nous-bootstrap`/`nous-dev` explicit; guard macOS packages in Brewfile | macOS ordinary owner build and safe help passed without service/signing actions. Full bootstrap remains unverified: Linux code requires launchd and the existing Mutagen tap formula targets amd64 and needs Homebrew trust handling. #241 deferred these consumer choices as a non-goal; they belong to a nous-owned follow-up. |
 
 Actual peer repositories were not modified for these pilots.
