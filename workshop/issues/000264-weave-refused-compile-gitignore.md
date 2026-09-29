@@ -1,13 +1,15 @@
 ---
 id: 000264
-status: open
+status: working
 deps: []
 github_issue:
 target: base-layer-mechanics
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
-card_mirror: '4aa7ef59a348cd7f7430b4514c168a8aa3f37ab4' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fa51f845627c8b76ee852750ed91bdd041382f1a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-28T19:13:03-07:00
+flow: {kind: quick, provenance: inferred, spec: "88c7843a", done: "6eb13e58"}
 ---
 
 # weave compile: a refused compile must not rewrite .gitignore
@@ -36,30 +38,76 @@ out here so #241 stays about publication.
 
 ## Spec
 
-A compile that does not reach a successful artifacts apply leaves `.gitignore`
-byte-identical. Legacy-list migration happens only in the same step that
-records the outputs replacing it — the ignore edit is part of the artifacts
-publication, not of each scope's pass. Candidate shape: the data scope
-contributes entries but does not write `.gitignore`; the artifacts pass writes
-it once, after its preflight has cleared.
+Invariant: **the legacy fixed list is retired only by the pass that records
+its replacement.** Every legacy entry (`/AGENTS.md`, `/.claude/skills/`, …)
+covers an artifacts-scope output, so only an artifacts-scope `ApplyManaged`
+may strip it — in the same write that puts the recorded artifact paths into
+the block. A data-scope pass keeps legacy lines verbatim (it still manages its
+own block entries, per #263's ownership rule). A refused artifacts pass fails
+in its preflight, before any write, so the legacy list survives and nothing
+generated surfaces as untracked.
+
+Second rule: a pass with nothing to reconcile — no intended outputs and no
+prior identities in its scope — writes nothing (no inventory, no `.gitignore`).
+This makes the common failing case (a repo without data mounts, like
+parley.nvim) byte-identical, and stops dependency owners with no mounts from
+publishing an empty inventory they don't need.
+
+ARCH: root cause in the ownership rule (`ApplyManaged`/`splitIgnore`), not by
+reordering `compilePrepared` — any other caller of a data pass would still
+strip. ARCH-FUNERAL: creates nothing durable; the second rule removes an
+empty-inventory write rather than adding one.
 
 ## Done when
 
-- A regression test: pre-inventory repo with a conflicting generated file →
-  `weave compile` fails with the existing refusal AND `.gitignore` is unchanged
-  (fails on current main).
-- Successful compiles still produce the same managed block and legacy
-  migration (existing ownership/managed-ignore tests pass).
+- Regression (fails on main): legacy list outside the block, no inventory,
+  data `ApplyManaged` with no mounts → `.gitignore` byte-identical and no
+  inventory written.
+- Regression (fails on main): same, with a data mount → the mount's entry is
+  added but every legacy line survives; a following artifacts pass then
+  migrates them away.
+- Existing ownership/gitignore tests pass (incl. #263's
+  `TestManagedPreservesCommittedBlockWithoutInventory` and legacy migration in
+  `TestManagedIgnoreMigrationAndLocalNegations`); `go test ./cmd/weave/...`.
+- Live: a parley.nvim-shaped scratch repo (pre-inventory generated file, legacy
+  list) → `weave compile` refuses and `git status` shows no change.
 
 ## Plan
 
-- [ ]
+- [x] Tests first: the two regressions above (red on main).
+- [x] `splitIgnore`/`managedIgnoreText` take a migrate flag; `ApplyManaged`
+      passes `scope == ScopeArtifacts`; the plain-Apply `EnsureGitignore` path
+      keeps migrating.
+- [x] `ApplyManaged`: return early when the scope has no wanted and no
+      previous identities.
+- [x] `go test ./cmd/weave/...`; live scratch-repo check.
+
+## Revisions
+
+- 2026-09-28 — Spec replaced at design. Reason: the filing-time candidate
+  ("the data scope does not write `.gitignore`") would leave data mounts
+  unignored, and #263 (merged after filing) already fixed in-block clobbering;
+  what remains is the outside-block legacy strip. Delta: Spec/Done-when now
+  scope legacy migration to the artifacts pass and make empty passes no-ops.
 
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — go test ./cmd/weave/... passes incl. new regressions TestManagedEmptyDataPassWritesNothing and TestManagedDataPassKeepsLegacyListForArtifacts (both red on main; the latter now pins the full legacy retirement). Live: pre-inventory parley.nvim worktree (f30cdefc + real old construct/generated) — main weave refuses on vocabulary/.source-sha and leaves M .gitignore, ?? .colima/, ?? AGENTS.md; patched weave refuses identically with git status clean. Round-1 Minors fixed (test assertion, atlas/workflow/weave.md sentence); lessons added.; review verdict: SHIP
+- 2026-09-28: closed — go test ./cmd/weave/... passes incl. new regressions TestManagedEmptyDataPassWritesNothing and TestManagedDataPassKeepsLegacyListForArtifacts (both red on main). Live: pre-inventory parley.nvim worktree (f30cdefc + real old construct/generated) — main weave refuses on vocabulary/.source-sha and leaves M .gitignore, ?? .colima/, ?? AGENTS.md; patched weave refuses identically with git status clean. --no-atlas: bugfix to an existing ownership rule, no new surface (as #263).; review verdict: SHIP
 
 Filed from the parley.nvim investigation: `ownership.json` held
 `"outputs": []` (written by the data pass) while the artifacts pass had refused
 `vocabulary/.source-sha`; the `.gitignore` diff showed the legacy list removed
 and a one-entry block.
+
+Implementation (1bc6c5f4): both regressions red on main (the data pass wrote
+`/construct/generated/weave/` into a new block and dropped `/AGENTS.md`,
+`/.claude/skills/`, `/construct/generated/`), green after. `go test
+./cmd/weave/...` passes. Live: a detached parley.nvim worktree at f30cdefc
+with its real pre-inventory `construct/generated/` (from today's backup),
+`AGENTS.md` and `.colima/` present — main's weave refuses on
+`vocabulary/.source-sha` and leaves ` M .gitignore`, `?? .colima/`,
+`?? AGENTS.md` plus an empty inventory; this branch's weave refuses identically
+and `git status` stays clean. The test compile cloned a private ariadne
+dependency beside the worktree; both removed.

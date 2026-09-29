@@ -14,12 +14,15 @@ const ignoreBegin = "# BEGIN weave generated"
 const ignoreEnd = "# END weave generated"
 
 // splitIgnore separates the weave block's entries from the authored rules
-// around it. Only exact entries from the old fixed list, which lived outside
-// the block, migrate away.
-func splitIgnore(current string) (string, []string, error) {
+// around it. With migrate, exact entries from the old fixed list, which lived
+// outside the block, are dropped; only the artifacts pass, which records their
+// replacement, migrates (#264).
+func splitIgnore(current string, migrate bool) (string, []string, error) {
 	legacy := map[string]bool{}
-	for _, e := range GeneratedRuntimeGitignoreEntries {
-		legacy[e] = true
+	if migrate {
+		for _, e := range GeneratedRuntimeGitignoreEntries {
+			legacy[e] = true
+		}
 	}
 	var kept strings.Builder
 	var block []string
@@ -56,8 +59,8 @@ func splitIgnore(current string) (string, []string, error) {
 
 // managedIgnoreText puts the owned block before authored rules, allowing local
 // negations to override it.
-func managedIgnoreText(current string, entries []string) (string, error) {
-	kept, _, err := splitIgnore(current)
+func managedIgnoreText(current string, entries []string, migrate bool) (string, error) {
+	kept, _, err := splitIgnore(current, migrate)
 	if err != nil {
 		return "", err
 	}
@@ -88,7 +91,7 @@ func escapeIgnore(path string) string {
 // any other entry was committed by another checkout's compile and survives
 // (#263) — a dependency never compiled locally has an empty inventory, not an
 // empty set of generated outputs.
-func managedIgnore(fs weavefs.FS, root string, old, ids []outputIdentity) (string, error) {
+func managedIgnore(fs weavefs.FS, root string, old, ids []outputIdentity, migrate bool) (string, error) {
 	p := filepath.Join(root, ".gitignore")
 	if fi, e := fs.Lstat(p); e == nil && !fi.Mode().IsRegular() {
 		return "", fmt.Errorf("gitignore is not a regular file: %s", p)
@@ -104,7 +107,7 @@ func managedIgnore(fs weavefs.FS, root string, old, ids []outputIdentity) (strin
 	for _, id := range old {
 		owned[escapeIgnore(id.Path)] = true
 	}
-	_, block, e := splitIgnore(string(b))
+	_, block, e := splitIgnore(string(b), migrate)
 	if e != nil {
 		return "", e
 	}
@@ -116,7 +119,7 @@ func managedIgnore(fs weavefs.FS, root string, old, ids []outputIdentity) (strin
 	for _, id := range ids {
 		entries = append(entries, escapeIgnore(id.Path))
 	}
-	return managedIgnoreText(string(b), entries)
+	return managedIgnoreText(string(b), entries, migrate)
 }
 func writeManagedIgnore(fs weavefs.FS, root, next string) error {
 	p := filepath.Join(root, ".gitignore")

@@ -241,3 +241,15 @@ The simplest durable authority beats a clever scan of consequences.
   provenance proves you own. And before adding a migration exception, check
   in git history where the legacy data actually lived: #263's first draft
   exempted legacy entries "inside the block", which never existed there.
+- A fleet-wide "all migrated" claim must come from a sweep, not a worklist:
+  #241's log declared every ariadne-layer repo adopted while parley.nvim and
+  the three brains had never been touched (the Spec's "brain repos retain
+  their commit rhythm" was misread as an exclusion). Before claiming fleet
+  completion, enumerate every repo under the workspace and check the end
+  state directly (inventory present, managed block, no owned link still
+  tracked, one workflow include). Same for "no atlas surface": search the
+  atlas for the component's name, not just the change's vocabulary (#264).
+- A multi-pass writer to one shared file must let only the pass that owns a
+  migration perform it: weave's data pass stripped the legacy ignore list
+  that only the later artifacts pass could replace, so a refused artifacts
+  pass left generated files exposed (#264).

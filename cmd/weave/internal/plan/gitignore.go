@@ -30,7 +30,7 @@ type EnsureGitignore struct{ Entries []string }
 func (EnsureGitignore) isAction() {}
 
 func ensureGitignoreText(current string, entries []string) (string, bool, error) {
-	next, err := managedIgnoreText(current, entries)
+	next, err := managedIgnoreText(current, entries, true)
 	return next, next != current, err
 }
 
