@@ -1,6 +1,6 @@
 ---
 id: 000267
-status: open
+status: working
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
@@ -17,6 +17,7 @@ tracker:
         source_blob: b32cd5f5f59a4973d6ef4483ce0fa0180cd6f3fc
         destination: workshop/issues/000267-stale-pr-head-messages.md
         main_commit: 73a07a222e4f7c49b90e1b864f98995df0b947b2
+started: 2026-09-28T20:40:36-07:00
 ---
 
 # merge/pr: a PR behind the local branch reads as 'found 0 PRs'; pr re-run pushes then fails
