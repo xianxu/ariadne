@@ -401,7 +401,7 @@ func TestManagedDataPassKeepsLegacyListForArtifacts(t *testing.T) {
 	}
 	managedApply(t, root, []Action{WriteFile{Path: "AGENTS.md", Content: "x"}}, ScopeArtifacts)
 	got = managedRead(t, root, ".gitignore")
-	if strings.Contains(got, "/.claude/skills/\n") || !strings.Contains(got, "/AGENTS.md\n") || !strings.Contains(got, "/data/mount\n") || !strings.HasSuffix(got, ".goto\n") {
+	if !strings.Contains(got, "/AGENTS.md\n") || !strings.Contains(got, "/data/mount\n") || !strings.HasSuffix(got, ignoreEnd+"\n.goto\n") {
 		t.Fatalf("artifacts pass must migrate the legacy list:\n%s", got)
 	}
 }

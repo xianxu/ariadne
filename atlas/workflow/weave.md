@@ -47,8 +47,11 @@ rules.
 `construct/generated/weave/ownership.json`, separating data and artifact
 scopes. Removed outputs retire only if their recorded identities still match;
 edited and unrecognized outputs remain. Its managed ignore block follows
-owned runtime outputs without replacing authored ignore rules. Without prior
-inventory, compilation does not guess historical ownership. Compile dry-run
+owned runtime outputs without replacing authored ignore rules. Only the
+artifacts pass retires the pre-inventory fixed ignore list, in the write that
+records its replacement, and a pass with nothing to apply or retire writes
+nothing — so a refused compile leaves an unmigrated `.gitignore` intact (#264).
+Without prior inventory, compilation does not guess historical ownership. Compile dry-run
 performs no writes, package operations, builds, or generators and explicitly
 omits generator output and retirement from the preview.
 
