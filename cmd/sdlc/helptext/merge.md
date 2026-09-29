@@ -10,7 +10,8 @@ DURABLE WORKSPACES (:0 AND :N)
   not assume origin. Fork PRs are not supported by this path.
 
   Before merging, local issue HEAD, fresh remote issue HEAD and the PR head
-  must match. Before integration or switching, tracked dirt (including tracker
+  must match; an open PR behind local commits refuses naming the fix (re-run
+  `sdlc pr` to push, then retry). Before integration or switching, tracked dirt (including tracker
   edits), active Git operations,
   changed identity or ambiguous evidence refuse. Noncolliding untracked and
   ignored files survive; switch collisions refuse. Never stash/reset to finish.

@@ -209,6 +209,79 @@ func TestLandingPRConfiguredRemote(t *testing.T) {
 	}
 }
 
+// #267: an open PR behind the local branch is the branch's PR, not "no PR";
+// the refusal names the push that fixes it.
+func TestLandingStalePRHeadNamesPush(t *testing.T) {
+	roots, _, gh := landingFixture(t, 1)
+	git(t, roots[1], "commit", "--allow-empty", "-qm", "fix after PR")
+	err := runMerge(io.Discard, io.Discard, landingFlags())
+	if err == nil {
+		t.Fatal("stale PR head landed")
+	}
+	for _, want := range []string{"PR #1", "sdlc pr", "then retry"} {
+		if !strings.Contains(err.Error(), want) {
+			t.Fatalf("refusal %q lacks %q", err, want)
+		}
+	}
+	if strings.Contains(err.Error(), "found 0") || gh.merges != 0 {
+		t.Fatalf("stale head read as no PR: %v (merges %d)", err, gh.merges)
+	}
+}
+
+// #267: re-running `sdlc pr` with an open PR pushes the new head into it and
+// succeeds instead of failing on a duplicate create.
+func TestLandingPRUpdatesOpenPR(t *testing.T) {
+	roots, remote, fake := landingFixture(t, 1)
+	git(t, roots[1], "commit", "--allow-empty", "-qm", "fix after PR")
+	head := procedureHead(t, roots[1])
+	g := &recordingGH{existing: []landingPR{fake.pr}}
+	ghClient = g
+	var out, errOut strings.Builder
+	if err := runPR(&out, &errOut, &prFlags{IssuesDir: "workshop/issues"}); err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(errOut.String(), "upstream") {
+		t.Fatalf("upstream warning with a recorded upstream: %q", errOut.String())
+	}
+	if g.prCreated.called {
+		t.Fatal("created a duplicate PR")
+	}
+	if got := git(t, remote, "rev-parse", "refs/heads/"+landingTestBranch); got != head {
+		t.Fatalf("remote head %s, want %s", got, head)
+	}
+	if !strings.Contains(out.String(), "updated PR #1 to "+head[:12]) {
+		t.Fatalf("output %q does not name the updated PR", out.String())
+	}
+
+	g.existing = append(g.existing, landingPR{Number: 2, State: "OPEN", Repo: "test/repo", HeadRef: landingTestBranch, BaseRef: "main"})
+	if err := runPR(io.Discard, io.Discard, &prFlags{IssuesDir: "workshop/issues"}); err == nil || g.prCreated.called {
+		t.Fatalf("two open PRs accepted: %v", err)
+	}
+}
+
+// #267: git exits 0 when it pushes but cannot write the upstream (a sandbox
+// that denies .git/config); `sdlc pr` must say so rather than drop it.
+func TestLandingPRWarnsUnrecordedUpstream(t *testing.T) {
+	roots, _, _ := landingFixture(t, 1)
+	git(t, roots[1], "config", "--unset", "branch."+landingTestBranch+".merge")
+	old := prRunner
+	t.Cleanup(func() { prRunner = old })
+	prRunner = landingHookRunner{gitRunner: prRunner, after: func(root string, args []string) error {
+		if len(args) > 0 && args[0] == "push" {
+			git(t, roots[1], "config", "--unset", "branch."+landingTestBranch+".merge")
+		}
+		return nil
+	}}
+	ghClient = &recordingGH{}
+	var errOut strings.Builder
+	if err := runPR(io.Discard, &errOut, &prFlags{IssuesDir: "workshop/issues"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(errOut.String(), "upstream") || !strings.Contains(errOut.String(), ".git/config") {
+		t.Fatalf("missing upstream warning: %q", errOut.String())
+	}
+}
+
 type landingHookRunner struct {
 	gitRunner
 	before func(string, []string) error

@@ -11,8 +11,12 @@ DURABLE WORKSPACES (:0 AND :N)
 
   Fetch the configured main to establish the branch window, build the commit
   list and Fixes links, push the selected issue branch to that remote, and
-  create its PR against main. This does not refresh the resting branch or any
-  dependency. Resting branches and detached HEAD cannot be PR subjects.
+  create its PR against main. When the branch already has one open PR, the
+  push updates it and the verb reports `updated PR #N to <sha>` — re-run
+  `sdlc pr` after any new commit on the branch. If git pushes but cannot record
+  the upstream (a write-protected .git/config), it warns. This does not
+  refresh the resting branch or any dependency. Resting branches and detached
+  HEAD cannot be PR subjects.
 
 ORDINARY WORKTREES AND DEPENDENCY CLONES
 
@@ -37,7 +41,7 @@ PR BODY
 
 EXIT CODES
 
-  0   PR created, or dry-run completed
+  0   PR created or updated, or dry-run completed
   1   invalid workspace/branch/target, push failure, or GitHub failure
 
 RELATED

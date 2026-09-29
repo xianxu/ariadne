@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -125,9 +126,11 @@ func (r *prTestRunner) Git(args ...string) ([]byte, error) {
 	return nil, nil
 }
 
-// recordingGH captures PRCreate args for assertions.
+// recordingGH captures PRCreate args for assertions; existing is what the
+// durable path's PR query observes before it decides to create.
 type recordingGH struct {
 	stubGH
+	existing  []landingPR
 	prCreated struct {
 		repo, base, head, body string
 		called                 bool
@@ -141,6 +144,13 @@ func (g *recordingGH) PRCreate(repo, base, head, body string) (string, error) {
 	g.prCreated.body = body
 	g.prCreated.called = true
 	return "https://github.com/owner/repo/pull/123", nil
+}
+
+func (g *recordingGH) LandingPRs(context.Context, string, string) ([]landingPR, error) {
+	return g.existing, nil
+}
+func (g *recordingGH) LandingMerge(context.Context, string, int, string) error {
+	return errors.New("recordingGH does not merge")
 }
 
 // A tracked repository links through the card, not the details' mirror.

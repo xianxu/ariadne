@@ -183,18 +183,38 @@ func landingIssueBranch(r gitRunner, t landingTarget, requested string) (string,
 	}
 	return branch, current, nil
 }
-func selectLandingPR(prs []landingPR, t landingTarget, branch, head string) (landingPR, error) {
-	var matches []landingPR
+
+// liveLandingPRs refuses any PR whose identity (repository, head ref, base)
+// differs from the landing target and drops closed ones.
+func liveLandingPRs(prs []landingPR, t landingTarget, branch string) ([]landingPR, error) {
+	var live []landingPR
 	for _, pr := range prs {
 		if pr.Repo != t.Repo || pr.HeadRef != branch || pr.BaseRef != "main" {
-			return landingPR{}, errors.New("GitHub PR identity does not match landing target")
+			return nil, errors.New("GitHub PR identity does not match landing target")
 		}
-		if pr.State == "CLOSED" {
-			continue
+		if pr.State != "CLOSED" {
+			live = append(live, pr)
 		}
+	}
+	return live, nil
+}
+
+func selectLandingPR(prs []landingPR, t landingTarget, branch, head string) (landingPR, error) {
+	live, err := liveLandingPRs(prs, t, branch)
+	if err != nil {
+		return landingPR{}, err
+	}
+	var matches, stale []landingPR
+	for _, pr := range live {
 		if head == "" || pr.HeadOID == head {
 			matches = append(matches, pr)
+		} else if pr.State == "OPEN" {
+			stale = append(stale, pr)
 		}
+	}
+	// #267: the branch's open PR behind local work is still its PR; name the push.
+	if len(matches) == 0 && len(stale) == 1 {
+		return landingPR{}, fmt.Errorf("PR #%d for %s is at %s but the local branch is at %s; push it with `sdlc pr`, then retry (preserving local work)", stale[0].Number, branch, shortOID(stale[0].HeadOID), shortOID(head))
 	}
 	if len(matches) != 1 {
 		return landingPR{}, fmt.Errorf("need one exact matching PR for %s; found %d (preserving local work)", branch, len(matches))
@@ -503,7 +523,8 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	}
 	body := combineBody(commits, formatFixes(ghNums))
 	if f.DryRun {
-		fmt.Fprintf(stdout, "Would: git push -u %s %s\nWould: gh pr create --repo %s --base main --head %s\n%s\n", t.Remote, branch, t.Repo, branch, body)
+		// #267: the dry run stays offline, so it names both outcomes of the PR query.
+		fmt.Fprintf(stdout, "Would: git push -u %s %s\nWould: update the branch's open PR if one exists, else gh pr create --repo %s --base main --head %s\n%s\n", t.Remote, branch, t.Repo, branch, body)
 		return nil
 	}
 	now, err := resolveLandingTarget(prRunner)
@@ -516,8 +537,41 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	if err = revalidateLanding(prRunner, t, branch, head, branch); err != nil {
 		return err
 	}
+	gh, ok := ghClient.(landingGH)
+	if !ok {
+		return errors.New("GitHub adapter does not support structured landing evidence")
+	}
+	prs, err := gh.LandingPRs(ctx, t.Repo, branch)
+	if err != nil {
+		return err
+	}
+	live, err := liveLandingPRs(prs, t, branch)
+	if err != nil {
+		return err
+	}
+	var open []landingPR
+	for _, pr := range live {
+		if pr.State == "OPEN" {
+			open = append(open, pr)
+		}
+	}
+	if len(open) > 1 {
+		return fmt.Errorf("found %d open PRs for %s; close all but one, then retry", len(open), branch)
+	}
 	if _, err = landingGit(prRunner, t.Root, "push", "-u", t.Remote, "refs/heads/"+branch+":refs/heads/"+branch); err != nil {
 		return err
+	}
+	// #267: git exits 0 when it pushes but cannot write the upstream config,
+	// and its stderr is not returned on success; verify the result instead.
+	if upstream, cerr := landingOptional(prRunner, t.Root, "config", "--get", "branch."+branch+".merge"); cerr != nil {
+		cwarn(stderr, fmt.Sprintf("pushed, but could not read %s's upstream: %v", branch, cerr))
+	} else if upstream == "" {
+		cwarn(stderr, fmt.Sprintf("pushed, but git did not record %s's upstream (a write-protected .git/config, as in an agent sandbox, does this); a bare `git push` will fail — re-run `sdlc pr` to publish later commits", branch))
+	}
+	// #267: the branch's open PR follows its head; the push was the update.
+	if len(open) == 1 {
+		fmt.Fprintf(stdout, "updated PR #%d to %s\n", open[0].Number, shortOID(head))
+		return nil
 	}
 	link, err := ghClient.PRCreate(t.Repo, "main", branch, body)
 	if err != nil {
