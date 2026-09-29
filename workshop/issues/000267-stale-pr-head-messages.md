@@ -67,6 +67,7 @@ verb says the fix is to push:
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — Full go test -timeout 45m ./cmd/sdlc/ (1046s): only failure TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory, pre-existing on main (#200 plan archived by dfeba9c7), fixed in side-quest 7c0c6a42 and passing; hermeticity note was my own mid-run commit. The three #267 tests (StalePRHeadNamesPush, PRUpdatesOpenPR, PRWarnsUnrecordedUpstream) fail against HEAD~ landing.go and pass with the change. processgroup passes outside the sandbox (/bin/ps denied inside). Helptext merge/pr and atlas workspace-branching updated.; review verdict: SHIP
 
 - Filed from #253's landing, at the operator's request.
 - Upstream root cause: the agent sandbox denies writes to the primary
