@@ -27,6 +27,20 @@ rounds:
           round: 2
       recipe: small-diff-review
       blocked: false
+    - "n": 3
+      timestamp: "2026-09-28T20:39:06-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: ownership_test.go now asserts HasSuffix(got, ignoreEnd+"\n.goto\n"), so any legacy line (/construct/generated/, /.claude/skills/) surviving after the END marker fails the test.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: atlas/workflow/weave.md:50-53 now states only the artifacts pass retires the pre-inventory fixed list and that a pass with nothing to apply or retire writes nothing; matches ownership.go:104-108,180.
+          round: 3
+      recipe: small-diff-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#264 (boundary-review)
@@ -47,7 +61,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Minor] `atlas-surface-lag` weave atlas does not record the artifacts-only legacy migration or the empty-pass no-op
   atlas/workflow/weave.md:46-53 describes ApplyManaged's ignore ownership; one sentence noting that only the artifacts pass retires the legacy fixed list and that an empty pass writes nothing would keep the map current.
 
+## Round 3 — 2026-09-28T20:39:06-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — ownership_test.go now asserts HasSuffix(got, ignoreEnd+"\n.goto\n"), so any legacy line (/construct/generated/, /.claude/skills/) surviving after the END marker fails the test.
+- BR-2 — addressed — atlas/workflow/weave.md:50-53 now states only the artifacts pass retires the pre-inventory fixed list and that a pass with nothing to apply or retire writes nothing; matches ownership.go:104-108,180.
+
 ## Open findings
 
-- **BR-1** [Minor] `assertion-underconstrains-contract` Artifacts-pass migration test does not prove every legacy line is retired
-- **BR-2** [Minor] `atlas-surface-lag` weave atlas does not record the artifacts-only legacy migration or the empty-pass no-op
+(none — every finding has been disposed)

@@ -87,3 +87,64 @@ findings:
     detail: |
       atlas/workflow/weave.md:46-53 describes ApplyManaged's ignore ownership; one sentence noting that only the artifacts pass retires the legacy fixed list and that an empty pass writes nothing would keep the map current.
 ```
+
+---
+
+## Re-review — 2026-09-28T20:39:06-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 264 — weave compile: a refused compile must not rewrite .gitignore |
+| repo | ariadne |
+| issue file | workshop/issues/000264-weave-refused-compile-gitignore.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e0373799b0d4b1792b61f6ba548aa8c8a24ad340..1494c0b8df4f8af4641e5719d173ee5a018559fc |
+| command | sdlc close --issue 264 |
+| reviewer | claude |
+| timestamp | 2026-09-28T20:39:06-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checks are done (tests pass, both prior findings verified). Here is the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This change fixes the bug at its source, in the ownership rule, as ARCH requires. `splitIgnore` and `managedIgnoreText` now take a `migrate` flag. `ApplyManaged` sets it only when `scope == ScopeArtifacts`, and the plain `EnsureGitignore` path still migrates. A new early return makes a pass that has no actions and no prior identities in its scope write nothing. Both Done-when regressions are in place and `go test ./cmd/weave/...` passes at HEAD. Both prior Minor findings are fixed. Nothing blocks SHIP.
+
+1. **Strengths**
+   - `ownership.go:180` sets the migrate flag from the scope that owns the replacement. That is the root cause, and the flag is not keyed to caller order, so any other data-pass caller is covered too.
+   - The early return at `ownership.go:104-108` runs after `readInventory` and before any write. It only skips work when the scope has nothing to retire, so retirement of existing entries is untouched.
+   - `TestManagedDataPassKeepsLegacyListForArtifacts` covers both states of the migrate clause: a data pass keeps the list, then an artifacts pass retires it. The `HasSuffix(got, ignoreEnd+"\n.goto\n")` check pins the whole retirement.
+   - I checked every caller of `splitIgnore`, `managedIgnoreText`, `managedIgnore` and `ApplyManaged`. All pass an explicit flag and none were missed (`gitignore.go:33`, `main.go:523`, `main.go:572`).
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new. The empty-pass test only runs `ScopeData`, though the rule applies to any scope. The artifacts case uses the same line of code and Done-when only names the data pass, so I'm not raising it.
+
+5. **Test coverage:** Both regressions exist and fit the log's claim that they failed on main. Existing tests still cover the malformed-block cases (now called with `migrate=true`) and #263's committed-block preservation.
+
+6. **Architecture:**
+   - **ARCH-DRY: pass.** One flag is threaded through the existing helpers; no logic is copied.
+   - **ARCH-PURE: pass.** `splitIgnore` and `managedIgnoreText` stay pure. The migrate decision is made once, in the IO shell (`ApplyManaged`).
+   - **ARCH-PURPOSE: pass.** Both parts of the invariant are delivered: only the artifacts pass migrates, and an empty pass writes nothing. The code change and its tests are in the same commit, and nothing essential is left as a follow-up.
+
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      ownership_test.go now asserts HasSuffix(got, ignoreEnd+"\n.goto\n"), so any legacy line (/construct/generated/, /.claude/skills/) surviving after the END marker fails the test.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      atlas/workflow/weave.md:50-53 now states only the artifacts pass retires the pre-inventory fixed list and that a pass with nothing to apply or retire writes nothing; matches ownership.go:104-108,180.
+```

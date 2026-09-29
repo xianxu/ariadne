@@ -93,6 +93,7 @@ empty-inventory write rather than adding one.
 ## Log
 
 ### 2026-09-28
+- 2026-09-28: closed — go test ./cmd/weave/... passes incl. new regressions TestManagedEmptyDataPassWritesNothing and TestManagedDataPassKeepsLegacyListForArtifacts (both red on main; the latter now pins the full legacy retirement). Live: pre-inventory parley.nvim worktree (f30cdefc + real old construct/generated) — main weave refuses on vocabulary/.source-sha and leaves M .gitignore, ?? .colima/, ?? AGENTS.md; patched weave refuses identically with git status clean. Round-1 Minors fixed (test assertion, atlas/workflow/weave.md sentence); lessons added.; review verdict: SHIP
 - 2026-09-28: closed — go test ./cmd/weave/... passes incl. new regressions TestManagedEmptyDataPassWritesNothing and TestManagedDataPassKeepsLegacyListForArtifacts (both red on main). Live: pre-inventory parley.nvim worktree (f30cdefc + real old construct/generated) — main weave refuses on vocabulary/.source-sha and leaves M .gitignore, ?? .colima/, ?? AGENTS.md; patched weave refuses identically with git status clean. --no-atlas: bugfix to an existing ownership rule, no new surface (as #263).; review verdict: SHIP
 
 Filed from the parley.nvim investigation: `ownership.json` held
