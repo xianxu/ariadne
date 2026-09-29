@@ -253,3 +253,7 @@ The simplest durable authority beats a clever scan of consequences.
   migration perform it: weave's data pass stripped the legacy ignore list
   that only the later artifacts pass could replace, so a refused artifacts
   pass left generated files exposed (#264).
+
+- A protocol compatibility exception needs behavioral probes for both admission
+  and refusal: confirmed old mode, restored state, retargeted state, and unknown
+  provenance. New-format happy paths cannot prove an old-format exception.

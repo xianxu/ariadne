@@ -39,6 +39,17 @@ User approved pair#341 implementation including this linked peer change. Ariadne
 
 Baseline fresh-context Codex probe with the old skill could not produce the envelope: “I cannot specify exactly how the supplied context must accompany this record without inventing the contract.” It conservatively blocked branch/activation mismatches. The updated-skill probe produced the exact envelope, preserved artifacts and refused agent/human/ship effects on mismatches, and allowed the initial human round with validated active-pane context before matching history exists. Probe outputs: `/tmp/ariadne-268-red.txt`, `/tmp/ariadne-268-green-accepted.txt`. Pair skill realpath resolves to this authoritative file; `git diff --check` passes. Updated the existing docflow atlas entry; executable transport/concurrency regressions remain in pair#341.
 
+BR-1 verification: fresh-context Codex read the committed skill with four absent-context cases, other repository/branch/file checks passing, and urgency after lengthy review. Expected and observed:
+
+| Activation evidence | Expected | Observed |
+|---|---|---|
+| Positive same old activation continuity since captured legacy request; no restore/retarget | Allow legacy round | “Allow legacy protocol”; preserve verbatim landed body, no invented context |
+| Restored activation | Refuse | “Refuse this unscoped round”; preserve artifacts, no Git effects |
+| Retargeted activation | Refuse | “Refuse this unscoped round”; preserve artifacts, no Git effects |
+| Unknown legacy/continuity evidence | Refuse | “Refuse this unscoped round”; preserve artifacts, no Git effects |
+
+The probe explicitly gave the specific legacy exception precedence over the general missing-context rule only in the first case. No instruction change was required. Input `/tmp/ariadne-268-legacy-probe.txt`; output `/tmp/ariadne-268-legacy.txt`. Added the coverage rule to lessons.
+
 ## Revisions
 
 ### 2026-09-28T21:05-07:00 — close review BR-1
