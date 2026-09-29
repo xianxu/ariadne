@@ -1,13 +1,14 @@
 ---
 id: 000241
-status: open
+status: working
 deps: [ariadne#239]
 github_issue:
 target: base-layer-mechanics
 created: 2026-09-20
-updated: 2026-09-20
+updated: 2026-09-28
 estimate_hours:
-card_mirror: '16bbca7b4ea62a10411f272cf083ecb6bf4a2fdf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '25082c83ce68a3e330cab16f7d20276de9bb44c9' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-28T18:52:27-07:00
 ---
 
 # Publish weave and cut over startup
@@ -63,14 +64,41 @@ choice before adding a project license grant; no license is inferred here.
 
 ## Plan
 
-- [ ] After #239 merges, inspect its release candidate, native tests, formula,
-      bootstrap version floor and migration tooling; resolve publication metadata.
-- [ ] Publish the versioned release from the merged commit and the corresponding
-      formula in the tap; verify installation from the public endpoints.
-- [ ] Apply the prepared pilot migrations through peer workflows, verify cold
-      startup and real CI, then roll out remaining applicable consumers.
-- [ ] Record public release/install links and per-consumer evidence, update
-      documentation, and close only after delivery is verified.
+Operator decisions (2026-09-28): license **MIT**; first tag **`weave-v0.1.0`**.
+Pilot consumer adoption is already done (Log 2026-09-27), so what's left is
+publishing plus live verification.
+
+- [ ] M1 — License the release. Add `LICENSE` (MIT, Xian Xu, 2026). Add
+      `license "MIT"` to `packaging/homebrew/Formula/weave.rb`, and flip
+      `release-weave.test.sh`'s `'license ' not in formula` assertion to require
+      `license "MIT"`. Run `release-weave.test.sh` locally with `weave-v0.1.0`
+      (four archives, SHA256SUMS, formula, native `--version`, formula
+      composition test). milestone-close reviews the commit that gets tagged.
+- [ ] M2 — Publish and cut over.
+  - Tag the M1-reviewed commit `weave-v0.1.0` and push the tag. Build the
+    artifacts from that exact commit (`scripts/release-weave.sh` in a clean
+    worktree at the tag). Create the GitHub release with the four archives and
+    `SHA256SUMS`, then inspect the uploaded assets against the checksums.
+  - Create the public `xianxu/homebrew-ariadne` repo with the generated
+    `Formula/weave.rb` and a README giving the install command.
+  - Verify on this Mac: `brew tap xianxu/ariadne`,
+    `brew install xianxu/ariadne/weave`, `$(brew --prefix)/bin/weave --version`
+    prints `weave version 0.1.0`, and `brew test xianxu/ariadne/weave` passes.
+  - Remove the #250 stopgap: the `elif ! brew tap …` branch in
+    `.github/workflows/merge-check.yml` and `portable-ci.test.sh`'s
+    tap-unpublished case and `#241` warning assertion. The published-tap row
+    becomes `install → --prefix → compile` (bootstrap's `brew install` taps
+    implicitly). Consumers' seeded copies keep a dormant fallback, which is
+    harmless once the tap resolves.
+  - Linux and consumer verification: run a real consumer CI (pilot nous or
+    parley.nvim) and confirm it installs from the tap with no source-build
+    warning.
+  - Docs: README release section (publishing steps), atlas `weave.md` and
+    `setup-and-replication.md` (tap is live, no longer "until #241").
+
+Note: the tag commit becomes reachable from main when this branch merges.
+merge-check keeps merge commits, so the tag SHA survives. The release is
+public shortly before the merge, but it is built from a reviewed commit.
 
 ## Log
 
@@ -163,6 +191,14 @@ cleanup in each; no adopt mode needed for a one-off.
   the release/tap work remains.
 
 ## Revisions
+
+### 2026-09-28 — plan concretized
+
+**Reason:** operator chose MIT and `weave-v0.1.0`, and fleet adoption finished
+by hand. **Delta:** the old four-step plan is replaced with M1 (license) and M2
+(publish, tap, verify, remove fallback, docs). Consumer migration steps are
+done; only live CI verification remains.
+
 
 ### 2026-09-20 — tap repository and command availability confirmed
 
