@@ -8,6 +8,7 @@ updated: 2026-09-28
 estimate_hours:
 card_mirror: '3086404002851105088a772279b7f1350bd76bbc' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-28T20:57:50-07:00
+flow: {kind: quick, provenance: inferred, spec: "8de1116f", done: "155eab07"}
 ---
 
 # Bind hosted review producer effects to activation context
