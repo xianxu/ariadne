@@ -66,9 +66,14 @@ CI would have to carry it.
 - [x] `lint-ids --remote`; script passes `--remote origin`.
 - [ ] Ship; re-run parley.nvim merge-check on a PR once it has the new script.
 
-## Log
+## Revisions
 
-### 2026-09-28
+- 2026-09-28 — Done-when clause 1 (parley.nvim PR run passes) and Plan box 3 are
+  verified **after merge**, not at close: parley's `40-duplicate-issue-id.sh`
+  symlinks into ariadne and its CI clones ariadne `main`, so no pre-merge run can
+  exercise this change. Close attests clause 2; clause 1 is logged post-merge.
+
+## Log
 
 ### 2026-09-28
 - Reproduced: `TestDuplicateIDCheckRunsInADetachedCICheckout` drives the real
@@ -76,6 +81,8 @@ CI would have to carry it.
   the fix it exits 2 with the exact CI message ("publication target is
   unusable: configure main to track one named remote/main").
 - Fixed via `lint-ids --remote`; the test passes (carded → 0, hand-made → 1).
+- Close review BR-1: the fail-closed path (origin without a tracker → 2) had no
+  test. Added to the same test; mutation-checked (a tolerant snapshot read turns it red).
 - Full `cmd/sdlc` suite: green except `TestFleetPlanHasAuthoritativeCorrectedCoreConceptInventory`,
   which reads a plan archived to history on main (#210), unrelated. The suite takes
   ~19 min, so it needs `-timeout 30m`; the default 10m looks like a hang.

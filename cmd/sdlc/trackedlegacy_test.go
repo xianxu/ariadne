@@ -197,6 +197,12 @@ func TestDuplicateIDCheckRunsInADetachedCICheckout(t *testing.T) {
 	if code, out := check("hand-made"); code != 1 || !strings.Contains(out, "000010-hand-made.md") {
 		t.Fatalf("cardless details in a CI checkout not refused (%d):\n%s", code, out)
 	}
+	// A marked repository whose origin has lost its tracker could not check:
+	// the stale fetched ref must not stand in for the tracker.
+	testfix.Git(t, "", "--git-dir", r.origin, "branch", "-D", vocab.Issue().Discovery().Tracker)
+	if code, out := check("000009-nine"); code != 2 || !strings.Contains(out, "COULD NOT RUN") {
+		t.Fatalf("origin without a tracker was not a check that could not run (%d):\n%s", code, out)
+	}
 }
 
 // The shell fallbacks cannot ask the binary, so their copies of the tracker's
