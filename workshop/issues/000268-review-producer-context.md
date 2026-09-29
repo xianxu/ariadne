@@ -38,3 +38,9 @@ Extend the authoritative hosted xx-fix instructions with the Pair context envelo
 User approved pair#341 implementation including this linked peer change. Ariadne :0 was clean on main; other work is isolated in sibling slots.
 
 Baseline fresh-context Codex probe with the old skill could not produce the envelope: “I cannot specify exactly how the supplied context must accompany this record without inventing the contract.” It conservatively blocked branch/activation mismatches. The updated-skill probe produced the exact envelope, preserved artifacts and refused agent/human/ship effects on mismatches, and allowed the initial human round with validated active-pane context before matching history exists. Probe outputs: `/tmp/ariadne-268-red.txt`, `/tmp/ariadne-268-green-accepted.txt`. Pair skill realpath resolves to this authoritative file; `git diff --check` passes. Updated the existing docflow atlas entry; executable transport/concurrency regressions remain in pair#341.
+
+## Revisions
+
+### 2026-09-28T21:05-07:00 — close review BR-1
+
+Added the full legacy compatibility scenario family to verification: with all other repository/branch/document checks passing and absent context, allow a positively confirmed uninterrupted legacy activation, refuse a restored activation, refuse a retargeted activation, and refuse unknown legacy status. The existing scenarios already cover scoped envelope and Git boundaries; this addition checks the deliberate compatibility exception rather than assuming prompt readers infer its precedence.
