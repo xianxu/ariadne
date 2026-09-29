@@ -71,6 +71,9 @@ In a hosted pair review pane, `xx-fix` is the agent half of pair's document
 workbench. The agent still owns docflow branch/round/ship operations, but it does
 not edit the file directly: it writes `{old, occurrence, new, explain}` records
 to pair's handoff seam, waits for the pane to apply the records undo-ably, then
-commits the landed artifact with `docflow round`. The mode vocabulary for that
-hosted flow is Generate / Edit / Proofread; fact-check remains an instruction
+commits the landed artifact with `docflow round`. Scoped work carries the pane's
+repository/branch/file/activation context through requests, handoffs and landed
+artifacts; the producer revalidates that context before Git effects and preserves
+artifacts on mismatch. The authoritative checks live in `construct/local/fix/SKILL.md`.
+The mode vocabulary for that hosted flow is Generate / Edit / Proofread; fact-check remains an instruction
 that dispatches `doc-review` and folds accepted findings back through records.
