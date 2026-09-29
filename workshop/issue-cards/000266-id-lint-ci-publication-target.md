@@ -1,10 +1,12 @@
 ---
 id: 000266
-status: working
+status: codecomplete
 created: 2026-09-28
 updated: 2026-09-28
 estimate_hours:
 github_issue:
+started: 2026-09-28T21:16:53-07:00
+actual_hours: 0.5
 tracker:
     version: 1
     handoff:
@@ -17,7 +19,11 @@ tracker:
         source_blob: 4d0a09a33bed5c9a268f8348e07a40cb7c158ab3
         destination: workshop/issues/000266-id-lint-ci-publication-target.md
         main_commit: 5bdf1f729e05c19044ea42d7892e7c710bf0bc80
-started: 2026-09-28T21:16:53-07:00
+    completion:
+        token: close-ac6319f9648a
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f864843970b724a3276d40a0f109fa3de71ccce9
+        evidence_commit: e5978a3e18e983bb4351dff7ccd6ce2f5071ddd0
 ---
 
 # sdlc id lint cannot resolve publication target in CI checkouts
