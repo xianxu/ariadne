@@ -119,8 +119,8 @@ publishing plus live verification.
 **Non-goals** (tracked separately, not in this delivery): an adopt mode,
 per-repo `propagate-base`, `Lstat` in `startup.Tools`, recognizing the older
 indirect include form, atomic `.gitignore` staging across compile passes, and
-nous's Linux/Mutagen bootstrap. These go into a follow-up weave-robustness
-issue.
+nous's Linux/Mutagen bootstrap. The weave items are filed as #265, and the CI
+ID-lint failure found during verification as #266.
 
 **Provenance invariant:** after the tag is pushed, this branch is never
 rebased, amended or squashed. `sdlc merge` keeps merge commits, so the tagged
