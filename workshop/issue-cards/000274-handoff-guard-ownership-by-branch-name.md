@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000274-handoff-guard-ownership-by-branch-name.md
         source_blob: 2aafbbb5db900c5aa78ca15e6986e0d27a2569ff
         destination: workshop/issues/000274-handoff-guard-ownership-by-branch-name.md
+        main_commit: 259024b6a5cb94d7b932ced3fa1bd712e1d5ced0
 ---
 
 # Handoff guard judges detail ownership by branch name
