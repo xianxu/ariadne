@@ -209,6 +209,22 @@ func TestPreparePlanningBranchRefusesAnUnlandedBase(t *testing.T) {
 			r.git("switch", "-q", "-c", issueBranch)
 			commit(r, "nine.md", "#9: nine work")
 		}},
+		{name: "a child whose parent's own commit mentions it", setup: func(r *trackerRepo) {
+			r.git("switch", "-q", "-c", issueBranch)
+			commit(r, "nine.md", "#9: prep hook for #10")
+			r.git("switch", "-q", "-c", "000010-child")
+			commit(r, "child.md", "#10: child work")
+			r.git("switch", "-q", issueBranch)
+		}},
+		{name: "switching to a branch that merged main in", setup: func(r *trackerRepo) {
+			r.git("switch", "-q", "-c", issueBranch)
+			commit(r, "nine.md", "#9: nine work")
+			peerCommit(t, r, "peer.md")
+			r.git("fetch", "-q", "origin")
+			r.git("merge", "-q", "--no-edit", "origin/main")
+			r.git("switch", "-q", "main")
+			r.git("merge", "-q", "--ff-only", "origin/main")
+		}},
 		{name: "a parent that has landed", setup: func(r *trackerRepo) {
 			r.git("switch", "-q", "-c", parent)
 			commit(r, "parent.md", "#3: parent work")

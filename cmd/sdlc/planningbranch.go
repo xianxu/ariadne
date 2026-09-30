@@ -91,15 +91,12 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 	return planningCreatedBranch, nil
 }
 
-// issueBranchRE matches an issue branch's name: the six-digit ID, then its slug.
-var issueBranchRE = regexp.MustCompile(`^([0-9]{6})-`)
-
 // refuseUnlandedBase keeps one issue per branch, based on main (#272): a
 // branch holding another unlanded issue branch's commits was started on (or
 // absorbed) that issue's work, and planning on it would stack the two. Shared
 // history alone cannot say whose work a commit is — a parent and the child
 // built on it share the parent's commits — so ownership is read from the `#N`
-// tag the constitution requires in commit subjects; an untagged shared commit
+// tag the constitution requires in commit subjects (commitIssue); an untagged shared commit
 // is left to that soft instruction. Commits main already has never count.
 func refuseUnlandedBase(env *trackerEnv, tip, mainTip, id, name string) error {
 	held, err := env.git("rev-list", tip, "^"+mainTip)
@@ -116,7 +113,7 @@ func refuseUnlandedBase(env *trackerEnv, tip, mainTip, id, name string) error {
 	}
 	for _, ref := range strings.Fields(refs) {
 		other := path.Base(ref)
-		m := issueBranchRE.FindStringSubmatch(other)
+		m := issueFamilyRE.FindStringSubmatch(other)
 		if other == name || m == nil || m[1] == id {
 			continue
 		}
@@ -124,10 +121,9 @@ func refuseUnlandedBase(env *trackerEnv, tip, mainTip, id, name string) error {
 		if err != nil {
 			return err
 		}
-		tagged := issueTagRE(m[1])
 		for _, line := range strings.Split(unlanded, "\n") {
 			sha, subject, _ := strings.Cut(line, " ")
-			if onTip[sha] && tagged.MatchString(subject) {
+			if onTip[sha] && commitIssue(subject) == strings.TrimLeft(m[1], "0") {
 				return fmt.Errorf("%s carries unlanded work of %s (%s %q): one issue per branch, based on main (#272).\n"+
 					"      Land %s first, or restart #%s's design on a branch from main; fold the work into one issue if it is one change",
 					name, other, shortSHA(sha), subject, other, id)
@@ -137,8 +133,15 @@ func refuseUnlandedBase(env *trackerEnv, tip, mainTip, id, name string) error {
 	return nil
 }
 
-// issueTagRE matches a commit subject tagged with the six-digit issue id, in
-// the `#N` form the commit convention uses (leading zeros optional).
-func issueTagRE(id string) *regexp.Regexp {
-	return regexp.MustCompile(`(^|[^0-9A-Za-z_])#0*` + strings.TrimLeft(id, "0") + `\b`)
+// commitTagRE finds a commit subject's `#N` issue tags.
+var commitTagRE = regexp.MustCompile(`(?:^|[^0-9A-Za-z_])#0*([0-9]+)\b`)
+
+// commitIssue is the issue a commit subject is tagged for: its first `#N`
+// (leading zeros dropped), as in `#9: …` or `area: #9: …`; a later mention
+// ("#9: prep hook for #10") is a reference, not ownership. "" when untagged.
+func commitIssue(subject string) string {
+	if m := commitTagRE.FindStringSubmatch(subject); m != nil {
+		return m[1]
+	}
+	return ""
 }

@@ -242,6 +242,11 @@ Regression cases added: a child built on this branch that then advanced, and
 a shared commit tagged `#31` not matching issue #3. An earlier close attempt
 recorded `unknown` because the sandbox blocked the reviewer's network.
 
+Close advisory Minors fixed in the same round: a commit's owner is its
+subject's first `#N` (`commitIssue`), so "#9: prep hook for #10" stays #9's;
+the branch-prefix regex is shared with migrate.go's `issueFamilyRE`
+(ARCH-DRY); a passing switch-path case was added. 10 cases now.
+
 ## Revisions
 
 - 2026-09-29 — Added the final stacked-landing refusal after #300's full
