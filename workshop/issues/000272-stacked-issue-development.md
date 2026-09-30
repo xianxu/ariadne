@@ -218,6 +218,14 @@ files in the target repo, pair injects peer messages only at a safe insertion
 point), and ariadne#273 (rename `move-detail` → `publish-detail`). No
 grounding-test issue yet: per repo, and still visionary.
 
+Operator clarification on `move-detail` (arrived after #273/pair#353 were
+filed, so their Specs need it folded in when claimed): from a **feature
+branch** it stays an escape hatch — details found while testing are kept
+private until the branch lands, unless another slot must start sooner. From a
+**resting branch** (e.g. a cross-repo issue filed in a free slot for
+dispatch) publishing is the normal path and should be smooth once dispatch
+exists. #273's "not an escape hatch" framing is therefore only half right.
+
 ## Revisions
 
 - 2026-09-29 — Added the final stacked-landing refusal after #300's full
