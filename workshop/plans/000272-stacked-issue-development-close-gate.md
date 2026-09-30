@@ -70,6 +70,31 @@ rounds:
           round: 3
       recipe: small-diff-review
       blocked: false
+    - "n": 4
+      timestamp: "2026-09-29T21:35:33-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: 'commitIssue takes the first #N; case "a child whose parent''s own commit mentions it" would refuse under the old anywhere-match; test passes at 75a79140.'
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: issueFamilyRE (migrate.go:179) now captures the id and is reused at planningbranch.go:116; issueBranchRE removed.
+          round: 4
+        - id: BR-6
+          disposition: addressed
+          note: Case "switching to a branch that merged main in" starts from rest main with an existing issue branch and passes through refuseUnlandedBase then git switch.
+          round: 4
+      findings:
+        - id: BR-7
+          severity: Important
+          title: commitIssue duplicates gitx's single-source subject-ownership anchor with divergent rules
+          detail: '2nd in family commit-owner-leading-tag. Rule: a commit''s owning issue is decided only by gitx issueSubjectDescriptor (window.go:212, "#N ..." or "<area>: #N ..."); export it (e.g. gitx.SubjectOwnedBy, normalizing leading zeros) and delete commitTagRE/commitIssue (planningbranch.go:137-147). Divergence: "docs: mention #10 hook" on parent #9 is owned by #10 here, so #9 is falsely refused when an unlanded 000010 child is built on it; add that as a pass case. Only instance in this window.'
+          family: commit-owner-leading-tag
+          round: 4
+      recipe: small-diff-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#272 (boundary-review)
@@ -109,8 +134,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Minor] `two-mode-clause-coverage` The switch-to-existing-branch path has no passing test case
   Every passing case runs on the already-on-branch path; the switch path is tested only for refusal. Add one passing switch case, e.g. an existing branch that merged main, checked out from rest.
 
+## Round 4 — 2026-09-29T21:35:33-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — commitIssue takes the first #N; case "a child whose parent's own commit mentions it" would refuse under the old anywhere-match; test passes at 75a79140.
+- BR-5 — addressed — issueFamilyRE (migrate.go:179) now captures the id and is reused at planningbranch.go:116; issueBranchRE removed.
+- BR-6 — addressed — Case "switching to a branch that merged main in" starts from rest main with an existing issue branch and passes through refuseUnlandedBase then git switch.
+
+### Raised
+
+- **BR-7** [Important] `commit-owner-leading-tag` commitIssue duplicates gitx's single-source subject-ownership anchor with divergent rules
+  2nd in family commit-owner-leading-tag. Rule: a commit's owning issue is decided only by gitx issueSubjectDescriptor (window.go:212, "#N ..." or "<area>: #N ..."); export it (e.g. gitx.SubjectOwnedBy, normalizing leading zeros) and delete commitTagRE/commitIssue (planningbranch.go:137-147). Divergence: "docs: mention #10 hook" on parent #9 is owned by #10 here, so #9 is falsely refused when an unlanded 000010 child is built on it; add that as a pass case. Only instance in this window.
+
 ## Open findings
 
-- **BR-4** [Minor] `commit-owner-leading-tag` A #N mention anywhere in this branch's own commit subject counts it as another issue's work
-- **BR-5** [Minor] `shared-issue-id-regex` issueBranchRE repeats issueFamilyRE (migrate.go:178) with an added capture group
-- **BR-6** [Minor] `two-mode-clause-coverage` The switch-to-existing-branch path has no passing test case
+- **BR-7** [Important] `commit-owner-leading-tag` commitIssue duplicates gitx's single-source subject-ownership anchor with divergent rules

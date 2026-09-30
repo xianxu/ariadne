@@ -194,3 +194,90 @@ findings:
     detail: |
       Every passing case runs on the already-on-branch path; the switch path is tested only for refusal. Add one passing switch case, e.g. an existing branch that merged main, checked out from rest.
 ```
+
+---
+
+## Re-review — 2026-09-29T21:35:33-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 272 — One issue per branch: no work on an unlanded base |
+| repo | ariadne |
+| issue file | workshop/issues/000272-stacked-issue-development.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 01d0ae03f5d0872d0ac251dbd40dea4ac3d6b0e0..75a79140e8e648d64f797b8e22c21e87611acd32 |
+| command | sdlc close --issue 272 |
+| reviewer | claude |
+| timestamp | 2026-09-29T21:35:33-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The `start-plan` guard does what `## Done when` asks, and I checked this by running it. At `75a79140`, `TestPreparePlanningBranchRefusesAnUnlandedBase` passes all 10 cases. It covers the parley topology, which is refused on both the already-on-branch path and the switch path, plus a parent that exists only on the remote. The pass cases are: main merged in (on both paths), a child built on this branch, a child whose parent then advanced, `#31` against `#3`, the `#9: prep hook for #10` mention, and a landed parent. The constitution line, the atlas row, the help text and the lesson are all present. No `change-code`, `close` or publish guard was added, as the operator decided. All three open Minors are fixed.
+
+The fix for BR-4, though, created a second definition of "which issue owns a commit subject" (`commitIssue`/`commitTagRE`). `gitx` already declares itself the single source for that rule (`issueSubjectDescriptor`/`subjectAnchorRE`), and the two rules disagree. That is non-blocking, but it is cheap to fix and it can still refuse a parent by mistake.
+
+**1. Strengths**
+- The rewritten lesson and design: ownership now comes from the `#N` subject tag, not from ancestry. That removes the whole BR-1 class, not just one site of it (`planningbranch.go:94-100`, lessons.md).
+- On a refusal, HEAD does not move. The test checks this directly, and the check runs before `git switch` (`planningbranch.go:74`).
+- Commits that main already has are excluded (`^mainTip`), so merging main in stays legal on both paths.
+- The branch-prefix regex is now shared with `migrate.go:179`.
+
+**2. Critical:** none.
+
+**3. Important**
+- `cmd/sdlc/planningbranch.go:137-147` — `commitIssue` re-implements commit-subject ownership. `cmd/sdlc/internal/gitx/window.go:212` (`issueSubjectDescriptor`, documented at `:248` as "the single source for the 'commit subject opens with #N' anchor") already defines it, with different rules:
+  - `gitx` treats a loose `docs: mention #10 …` as owned by nobody.
+  - `commitIssue` gives that commit to #10.
+  - As a result, a parent #9 whose own commit is `docs: mention #10 hook`, and whose unlanded child `000010-*` is built on it, is refused. This is the BR-1 and BR-4 false-parent-refusal class again.
+
+  **This is the 2nd finding in family `commit-owner-leading-tag`.** The rule that covers all of them: a commit's owning issue is decided in exactly one place, the `gitx` subject anchor (`#N …` or `<area>: #N …`, optionally with `close`). Every consumer calls it.
+  - Fix: export a `gitx` owner check (e.g. `gitx.SubjectOwnedBy(issueNum, subject)`, wrapping `issueSubjectDescriptor(…, true)`) and delete `commitTagRE`/`commitIssue`.
+  - Keep leading-zero tolerance by normalizing the id before the call. `#000003` is used in a test, while the `gitx` anchor matches the literal digits only.
+  - Add a pass case for `docs: mention #10`.
+  - Instances in this window: only `planningbranch.go:137-147`.
+
+**4. Minor**
+- An issue with id `000000` would give `TrimLeft("000000","0") == ""`, which equals `commitIssue` of an untagged subject, so untagged shared commits would count as #0's. The fix above removes this.
+- `path.Base(ref)` treats `refs/heads/foo/000003-x` as an issue branch. That is probably intended; noted only.
+
+**5. Test coverage notes**
+- Every `## Done when` clause is exercised, both refuse and pass, on both paths. BR-6's switch-path pass case is at test line ~215.
+- Missing: a pass case where a loose mention of another issue sits under an area prefix (see Important).
+
+**6. Architectural notes**
+- **ARCH-DRY:** flagged, as above.
+- **ARCH-PURE:** pass. `refuseUnlandedBase` mixes `git` calls with the decision, but the ownership decision is a pure helper. Reusing the `gitx` pure function keeps it that way.
+- **ARCH-PURPOSE:** pass. Only `start-plan` enforces the rule, which is what the operator chose; the soft instruction covers the other gates.
+
+**7. Plan revision recommendations:** none. The Log already records the tag-ownership pivot.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      commitIssue takes the first #N; case "a child whose parent's own commit mentions it" would refuse under the old anywhere-match; test passes at 75a79140.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      issueFamilyRE (migrate.go:179) now captures the id and is reused at planningbranch.go:116; issueBranchRE removed.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Case "switching to a branch that merged main in" starts from rest main with an existing issue branch and passes through refuseUnlandedBase then git switch.
+findings:
+  - id: new
+    severity: Important
+    family: commit-owner-leading-tag
+    title: |
+      commitIssue duplicates gitx's single-source subject-ownership anchor with divergent rules
+    detail: |
+      2nd in family commit-owner-leading-tag. Rule: a commit's owning issue is decided only by gitx issueSubjectDescriptor (window.go:212, "#N ..." or "<area>: #N ..."); export it (e.g. gitx.SubjectOwnedBy, normalizing leading zeros) and delete commitTagRE/commitIssue (planningbranch.go:137-147). Divergence: "docs: mention #10 hook" on parent #9 is owned by #10 here, so #9 is falsely refused when an unlanded 000010 child is built on it; add that as a pass case. Only instance in this window.
+```

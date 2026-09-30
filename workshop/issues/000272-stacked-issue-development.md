@@ -150,6 +150,7 @@ reading the spec back and grounding it. Slots, not stacks, are the buffer.
 ## Log
 
 ### 2026-09-29
+- 2026-09-29: closed — TestPreparePlanningBranchRefusesAnUnlandedBase: 10 cases (3 refusals incl. switch path and remote-only parent; merged main on both paths, child, child-then-parent-advanced, parent commit mentioning child, #31-vs-#3 boundary, landed parent pass); refusal cases fail with guard stubbed; cmd/sdlc planning/start-plan/migrate tests green; review verdict: FIX-THEN-SHIP
 - 2026-09-29: closed — TestPreparePlanningBranchRefusesAnUnlandedBase: 8 cases (3 refusals incl. switch path and remote-only parent; merged main, child, child-then-parent-advanced (BR-1), #31-vs-#3 tag boundary, landed parent pass); refusal cases fail with guard stubbed; make test cmd/sdlc green earlier (processgroup fails only under sandbox /bin/ps; TestClose_MilestoneRefusesWithRedirect flaky, passes alone); review verdict: SHIP
 
 Filed at the user's request from the parley.nvim stacked-development session.
