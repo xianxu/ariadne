@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000273-rename-move-detail-to-publish-detail.md
         source_blob: b0beea35151733e3de0c63295063ab2ea9249548
         destination: workshop/issues/000273-rename-move-detail-to-publish-detail.md
+        main_commit: 4ac6768969cd7e46fc723536c96d0ce689990c6f
 ---
 
 # Rename issue move-detail to publish-detail
