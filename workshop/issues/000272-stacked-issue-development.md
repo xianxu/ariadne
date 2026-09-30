@@ -6,11 +6,11 @@ github_issue:
 created: 2026-09-29
 updated: 2026-09-29
 estimate_hours:
-card_mirror: 'd597ada8920c2648055ca14b637a8513972f3505' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b89d35a5c4a39113ba675f60a1491b2306426d0c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-29T16:14:23-07:00
 ---
 
-# Support stacked issue development
+# One issue per branch: no work on an unlanded base
 
 ## Problem
 
@@ -122,43 +122,29 @@ reading the spec back and grounding it. Slots, not stacks, are the buffer.
 
 ## Done when
 
-- A reproducible regression scenario exercises four small dependent issues,
-  an isolated descendant worktree, ancestor review corrections arriving during
-  descendant work, and one combined landing with all four completion bindings.
-- Review diagnostics identify each selected base/head, owned delta, inherited
-  acceptance, and invalidation reason. Unchanged accepted ancestors do not
-  trigger redundant full-stack reviews at every close; changed ancestor code
-  invalidates affected evidence, and final integration is validated.
-- Publication does not charge descendant changes against an unchanged
-  ancestor's quick-flow budget or demand its redundant full review. Tests
-  reproduce the 385-line combined-stack refusal and prove that actual edits
-  to the ancestor's accepted scope still invalidate evidence appropriately.
-- Refreshing the scenario from main retains completed issue details and their
-  evidence without add/add conflicts caused solely by initial-detail
-  publication; genuine conflicting edits are reported without data loss.
-- The initial-detail handoff guard permits a proven legitimate owner's
-  reviewed completion bindings and completed details to land, while still
-  rejecting stale-owner overwrites. Regressions cover the stacked #300
-  landing refusal and edits on main after initial-detail publication; no
-  recovery path requires replacing completed records with initial templates.
-- Issue and architecture-artifact attribution separates inherited helper
-  exports from new exports. Active-time diagnostics in the scenario are
-  explained and tested, with any reproducible attribution defect corrected.
-- Post-close unrelated code is detected and assigned explicit review scope;
-  prior valid acceptance survives, and no unreviewed code can publish through
-  evidence reuse. Regression tests cover both permitted reuse and refusal.
-- A combined landing completes the selected issues and safely cleans up
-  eligible ancestor branches/worktrees, preserving independently advanced,
-  unlanded, dirty, or otherwise unproven work. Interrupted operations can be
-  inspected and retried without losing artifacts or recording false completion.
-- CLI help and workflow documentation explain supported stacking, refresh,
-  publication choices, drift handling, and cleanup; any unsupported topology
-  has an explicit diagnostic rather than requiring guessed Git commands.
+- `sdlc start-plan` refuses to plan an issue on a branch that carries another
+  issue's unlanded work: when the checkout is already on, or switches to, an
+  existing issue branch whose commits beyond fresh main include commits of an
+  unlanded issue branch it does not lead, it names that branch and the next
+  action (land it, or restart the design from main). Creating a new issue
+  branch keeps branching at freshly pinned main, named with the six-digit ID.
+- Regression tests: the parley topology (a descendant branch started on an
+  unlanded ancestor) is refused; a branch that merged main in, a branch that
+  an unlanded descendant was built on, and a branch sharing only landed
+  commits all still pass.
+- Soft instruction, not gates: the constitution and the SDLC atlas state one
+  issue per branch and never starting on an unlanded base, and how to handle
+  mid-issue discoveries (fold, dispatch to another slot, or file and wait).
+  No `change-code`/`close`/publish guard is added (operator decision).
+- The handoff-guard ownership defect is filed as its own issue.
 
 ## Plan
 
-- [ ] Reproduce the session topology and design stack support before choosing
-  metadata, commands, or implementation boundaries.
+- [ ] Retitle and rewrite Done when against the ban.
+- [ ] File the handoff-guard ownership bug.
+- [ ] start-plan: foreign-unlanded-base check on existing issue branches
+  (`preparePlanningBranch`), with tests.
+- [ ] Docs: constitution line, atlas workflow page, `start-plan --help`.
 
 ## Log
 
@@ -235,3 +221,7 @@ exists. #273's "not an escape hatch" framing is therefore only half right.
 - 2026-09-29 — Brainstorm pivot: ban stacked development instead of supporting
   it (see Spec → Direction). Done when still describes stack support and gets
   rewritten against the ban when the plan lands.
+- 2026-09-29 — Retitled to "One issue per branch: no work on an unlanded
+  base". Done when rewritten: operator chose soft agent instruction over
+  gate-time base/multi-issue guards; only `start-plan` enforces the base. The
+  quick-budget-to-HEAD defect is moot under one issue per branch.
