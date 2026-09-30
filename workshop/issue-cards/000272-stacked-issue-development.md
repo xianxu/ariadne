@@ -1,8 +1,8 @@
 ---
 id: 000272
-status: codecomplete
+status: done
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-09-30
 estimate_hours:
 github_issue:
 started: 2026-09-29T16:14:23-07:00
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 75a79140e8e648d64f797b8e22c21e87611acd32
         evidence_commit: 38c9ad76a2a6628aef26adf6a373f97dadb1e8df
+        landed_commit: 6d173f1fab83f170cbed79c1e0e6644454463be9
 ---
 
 # One issue per branch: no work on an unlanded base
