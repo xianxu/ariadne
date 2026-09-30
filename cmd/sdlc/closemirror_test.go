@@ -181,3 +181,69 @@ func issueField(t *testing.T, doc, key string) string {
 	v, _ := issue.GetField(fm, key)
 	return v
 }
+
+// #275: the landing archive's projection is a function of its inputs alone —
+// the done card mirrored in, or the details kept when they cannot take it.
+func TestArchivedDetailsProjectsOrKeeps(t *testing.T) {
+	full := "---\nid: 000346\nstatus: working\ncreated: 2026-09-01\nupdated: 2026-09-01\n---\n\n# p\n\n## Problem\n\nx\n\n## Log\n"
+	baseline, details, err := issue.SplitCardWithFormat([]byte(full), "sha1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	done := []byte(strings.Replace(strings.Replace(string(baseline), "status: working", "status: done", 1), "updated: 2026-09-01", "updated: 2026-09-30\nactual_hours: 1", 1))
+	codecomplete := []byte(strings.Replace(string(baseline), "status: working", "status: codecomplete", 1))
+	refreshed := archivedDetails(details, baseline, done)
+	mirrorsCard(t, string(refreshed), string(done), "done")
+	if !bytes.Equal(archivedDetails(details, baseline, done), refreshed) {
+		t.Fatal("the projection is not deterministic")
+	}
+	edited := []byte(strings.Replace(string(details), "status: working", "status: done", 1))
+	for name, c := range map[string]struct{ details, baseline, card []byte }{
+		"hand-edited mirror":  {edited, baseline, done},
+		"no baseline":         {details, nil, done},
+		"card not done":       {details, baseline, codecomplete},
+		"unmirrored details":  {[]byte(full), baseline, done},
+		"baseline mismatched": {details, done, done},
+	} {
+		if got := archivedDetails(c.details, c.baseline, c.card); !bytes.Equal(got, c.details) {
+			t.Errorf("%s: details rewritten:\n%s", name, got)
+		}
+	}
+}
+
+// #275: a card that changes after the archive (still done, same close) does not
+// break the landing's retry proof — the archived mirror pins the card it used.
+func TestDurableLandingProofSurvivesACardChangeAfterArchive(t *testing.T) {
+	r, cardPath, _ := closeReady(t, 347)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "347", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	head, branch := r.git("rev-parse", "HEAD"), r.git("branch", "--show-current")
+	base := r.git("merge-base", "HEAD", "origin/main")
+	r.git("push", "-q", "origin", "HEAD:main")
+	pr := landingPR{Number: 347, State: "MERGED", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head}
+	if err := completeLandingPR(context.Background(), r.root, "workshop/issues", pr); err != nil {
+		t.Fatal(err)
+	}
+	if err := laArchive(r.root, pr); err != nil {
+		t.Fatal(err)
+	}
+	env, err := openTrackerAt(context.Background(), r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.repo.ChangeCard("000347", cardPath, "retitle", operationToken("set"), func(c []byte) ([]byte, error) {
+		return []byte(strings.Replace(string(c), "# e2e", "# renamed", 1)), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	invalidateIssueRecords(context.Background())
+	if !strings.Contains(r.card(cardPath), "# renamed") || !strings.Contains(r.card(cardPath), "status: done") {
+		t.Fatalf("fixture: card not retitled:\n%s", r.card(cardPath))
+	}
+	tip := r.originMain()
+	if complete, err := laProof(r.root, tip, pr); err != nil || !complete {
+		t.Fatalf("archive proof after a card change: %v %v", complete, err)
+	}
+}

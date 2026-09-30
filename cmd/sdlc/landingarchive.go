@@ -33,9 +33,67 @@ type landingOwnedIssue struct {
 	path, frontmatter, body, anchor string
 	requiredPlans                   []string
 	// tracked: owned through a card completion binding (#252). Its details
-	// are archived as they are — the card is the authority on their status.
+	// are archived with the done card mirrored in (#275, archivedDetails).
 	tracked bool
+	// baseline and card feed archivedDetails: the card blob the PR head's
+	// details mirror, and the card the archive projects. readCard resolves an
+	// exact card blob, so the proof can recover the card an archive pinned.
+	baseline, card []byte
+	readCard       func(oid string) ([]byte, error)
 }
+
+// archivedDetails is the one projection a tracked landing archive writes and
+// its proof re-derives (#275): the done card mirrored into the details, or the
+// details unchanged when they cannot take it (no baseline, a hand-edited
+// mirrored field, a card that is not done). It reads nothing but its inputs,
+// so a retry reproduces it without consulting the live card.
+func archivedDetails(content, baseline, card []byte) []byte {
+	if baseline == nil || card == nil {
+		return content
+	}
+	fm, _, err := issue.Parse(string(card))
+	if status, _ := issue.GetField(fm, "status"); err != nil || status != "done" {
+		return content
+	}
+	out, err := issue.RefreshMirror(content, baseline, card)
+	if err != nil {
+		return content
+	}
+	return out
+}
+
+// pinArchivedCard points a tracked issue's projection at the card its archived
+// details mirror, so the proof never depends on the live card: a done card of
+// the same close, or — for details archived unchanged — none at all.
+func pinArchivedCard(owned landingOwnedIssue, archived []byte) (landingOwnedIssue, error) {
+	if !owned.tracked {
+		return owned, nil
+	}
+	pinned, err := issue.MirrorBaselineOID(archived)
+	if err != nil {
+		owned.card = nil
+		return owned, nil
+	}
+	if source, err := issue.MirrorBaselineOID([]byte(issue.Compose(owned.frontmatter, owned.body))); err == nil && source == pinned {
+		owned.card = nil
+		return owned, nil
+	}
+	card, err := owned.readCard(pinned)
+	if err != nil {
+		return owned, fmt.Errorf("archived %s pins card %s: %w", owned.path, pinned, err)
+	}
+	want, _, werr := issue.CardCompletion(owned.card)
+	got, _, gerr := issue.CardCompletion(card)
+	fm, _, perr := issue.Parse(string(card))
+	status, _ := issue.GetField(fm, "status")
+	id, _ := issue.GetField(fm, "id")
+	if werr != nil || gerr != nil || perr != nil || status != "done" || got.Token != want.Token || id != issueIDPrefix(path.Base(owned.path)) {
+		return owned, fmt.Errorf("archived %s pins card %s, which is not this close's done card", owned.path, pinned)
+	}
+	owned.card = card
+	return owned, nil
+}
+
 type landingArchiveMove struct{ source, destination string }
 type landingArchivePlan struct {
 	write gitx.TrunkWrite
@@ -322,8 +380,10 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 				return plan, fmt.Errorf("conflicting issue identity/archive: %s", name)
 			}
 		}
-		done := b.content // a tracked issue's details move as they are (#252)
-		if !owned.tracked {
+		done := b.content
+		if owned.tracked {
+			done = archivedDetails(b.content, owned.baseline, owned.card)
+		} else {
 			if done, err = publishedIssueContent(ref.frontmatter, ref.body, date); err != nil {
 				return plan, fmt.Errorf("%s: %w", owned.path, err)
 			}
@@ -480,7 +540,14 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 	if _, err := time.Parse("2006-01-02", date); err != nil {
 		return false, fmt.Errorf("archive generation has invalid updated date")
 	}
-	plan, err := planLandingArchive(selected, before, dirs, date)
+	pinned := make([]landingOwnedIssue, len(selected))
+	for i, owned := range selected {
+		archived := after[archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path))]
+		if pinned[i], err = pinArchivedCard(owned, archived.content); err != nil {
+			return false, err
+		}
+	}
+	plan, err := planLandingArchive(pinned, before, dirs, date)
 	if err != nil {
 		return false, err
 	}
@@ -570,6 +637,12 @@ func selectTrackedLandingIssues(ctx context.Context, root string, pr landingPR, 
 			return nil, true, err
 		}
 		ref.anchor, ref.tracked = oc.Binding.EvidenceCommit, true
+		ref.card, ref.readCard = oc.Card.Raw, env.repo.ReadCardBlob
+		if oid, err := issue.MirrorBaselineOID(content); err == nil {
+			if ref.baseline, err = env.repo.ReadCardBlob(oid); err != nil {
+				return nil, true, fmt.Errorf("#%s: mirror baseline %s unavailable: %w", oc.ID, oid, err)
+			}
+		}
 		selected = append(selected, ref)
 	}
 	sort.Slice(selected, func(i, j int) bool { return selected[i].path < selected[j].path })

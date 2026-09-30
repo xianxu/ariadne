@@ -118,8 +118,9 @@ func TestDurableLandingArchivesTrackedCloseByBinding(t *testing.T) {
 	tip := strings.TrimSpace(testfix.Capture(t, r.origin, "rev-parse", "main"))
 	history := "workshop/history/issues/" + filepath.Base(detailPath)
 	archived := testfix.Capture(t, r.origin, "show", "main:"+history)
-	if archived != testfix.Capture(t, r.origin, "show", head+":"+detailPath) {
-		t.Fatal("tracked details were rewritten by the archive")
+	mirrorsCard(t, archived, r.card(cardPath), "done") // #275
+	if bodyOf(t, archived) != bodyOf(t, testfix.Capture(t, r.origin, "show", head+":"+detailPath)) {
+		t.Fatal("the archive changed the details body")
 	}
 	if complete, err := laProof(r.root, tip, pr); err != nil || !complete {
 		t.Fatalf("archive proof: %v %v", complete, err)
