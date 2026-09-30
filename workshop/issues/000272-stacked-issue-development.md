@@ -8,6 +8,7 @@ updated: 2026-09-29
 estimate_hours:
 card_mirror: 'b89d35a5c4a39113ba675f60a1491b2306426d0c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-29T16:14:23-07:00
+flow: {kind: quick, provenance: inferred, spec: "b067f456", done: "3946662b"}
 ---
 
 # One issue per branch: no work on an unlanded base
@@ -140,8 +141,8 @@ reading the spec back and grounding it. Slots, not stacks, are the buffer.
 
 ## Plan
 
-- [ ] Retitle and rewrite Done when against the ban.
-- [ ] File the handoff-guard ownership bug.
+- [x] Retitle and rewrite Done when against the ban.
+- [x] File the handoff-guard ownership bug.
 - [ ] start-plan: foreign-unlanded-base check on existing issue branches
   (`preparePlanningBranch`), with tests.
 - [ ] Docs: constitution line, atlas workflow page, `start-plan --help`.
