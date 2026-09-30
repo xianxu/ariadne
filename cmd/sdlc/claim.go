@@ -167,8 +167,32 @@ func refreshLocalMirror(env *trackerEnv, detailPath string) string {
 	return refreshLocalMirrorAt(env, filepath.Join(env.root, filepath.FromSlash(detailPath)))
 }
 
+// refreshArchivedMirror projects the done card into a details file an archive
+// just moved, before the archive commits it (#275). Unmirrored files (legacy
+// details, plan artifacts) are left alone; a refusal — a hand-edited mirrored
+// field — archives the file as it is, with a warning. The card stays the
+// authority either way.
+func refreshArchivedMirror(ctx context.Context, stderr io.Writer, path string) {
+	raw, err := os.ReadFile(path)
+	if err != nil || !issue.HasMirror(raw) {
+		return
+	}
+	env, err := openTrackerAt(ctx, filepath.Dir(path))
+	if err == nil {
+		abs, aerr := filepath.Abs(path)
+		if err = aerr; err == nil {
+			if warn := refreshLocalMirrorAt(env, abs); warn != "" {
+				err = errors.New(warn)
+			}
+		}
+	}
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("%s archived with a stale mirror: %v", filepath.Base(path), err))
+	}
+}
+
 // refreshLocalMirrorAt refreshes one details file wherever it is — for a
-// caller that commits the result itself (the archive of a done issue).
+// caller that commits the result itself (an archive of a done issue).
 func refreshLocalMirrorAt(env *trackerEnv, abs string) string {
 	details, err := os.ReadFile(abs)
 	if errors.Is(err, os.ErrNotExist) {

@@ -91,3 +91,93 @@ func TestCloseMirrorKeepsDirtyDetailsBody(t *testing.T) {
 		t.Fatalf("the uncommitted edit was lost:\n%s", worktree)
 	}
 }
+
+// landedDone lands #N's close on main and completes its card (the publish
+// flip), leaving the details at main's HEAD for an archive to move.
+func landedDone(t *testing.T, id int) (*trackerRepo, string, string) {
+	t.Helper()
+	r, cardPath, detailPath := closedAndLanded(t, id)
+	if done, err := publishCodecompleteIssues(context.Background(), "workshop/issues"); err != nil || len(done) != 1 {
+		t.Fatalf("flip: %v %v", done, err)
+	}
+	return r, cardPath, detailPath
+}
+
+func historyOf(detailPath string) string {
+	return "workshop/history/issues/" + filepath.Base(detailPath)
+}
+
+// #275 (pair#358's archive half): a checkout archive projects the done card
+// into the archived details, keeping their body.
+func TestCheckoutArchiveMirrorsTheDoneCard(t *testing.T) {
+	r, cardPath, detailPath := landedDone(t, 343)
+	landed := r.git("show", "HEAD:"+detailPath)
+	var stderr bytes.Buffer
+	if _, err := archiveDoneIssues(context.Background(), &stderr, "", "workshop/issues", "workshop/history", "workshop/plans"); err != nil {
+		t.Fatalf("archive: %v\n%s", err, stderr.String())
+	}
+	archived, err := os.ReadFile(filepath.Join(r.root, historyOf(detailPath)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	card := r.card(cardPath)
+	mirrorsCard(t, string(archived), card, "done")
+	for _, want := range []string{"actual_hours: 1\n", "updated: " + issueField(t, card, "updated") + "\n"} {
+		if !strings.Contains(string(archived), want) {
+			t.Errorf("archived details lack %q:\n%s", want, archived)
+		}
+	}
+	if bodyOf(t, string(archived)) != bodyOf(t, landed+"\n") {
+		t.Fatal("the archive changed the details body")
+	}
+}
+
+// #275: a hand-edited mirrored field cannot be refreshed; the details are
+// archived as they are, with a warning — the card stays the authority.
+func TestCheckoutArchiveKeepsAHandEditedMirrorWithAWarning(t *testing.T) {
+	r, _, detailPath := landedDone(t, 344)
+	abs := filepath.Join(r.root, detailPath)
+	raw, _ := os.ReadFile(abs)
+	edited := strings.Replace(string(raw), "status: codecomplete", "status: working", 1)
+	writeRepoFile(t, r.root, detailPath, edited)
+	var stderr bytes.Buffer
+	if _, err := archiveDoneIssues(context.Background(), &stderr, "", "workshop/issues", "workshop/history", "workshop/plans"); err != nil {
+		t.Fatalf("archive: %v\n%s", err, stderr.String())
+	}
+	archived, _ := os.ReadFile(filepath.Join(r.root, historyOf(detailPath)))
+	if string(archived) != edited {
+		t.Fatalf("hand-edited details were rewritten:\n%s", archived)
+	}
+	if !strings.Contains(stderr.String(), "mirror not refreshed") {
+		t.Fatalf("no warning for the unrefreshed mirror:\n%s", stderr.String())
+	}
+}
+
+// #275: an interrupted archive's recovery refreshes the moved details before
+// committing them.
+func TestRecoverInterruptedArchiveMirrorsTheDoneCard(t *testing.T) {
+	r, cardPath, detailPath := landedDone(t, 345)
+	if err := os.MkdirAll(filepath.Dir(filepath.Join(r.root, historyOf(detailPath))), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Rename(filepath.Join(r.root, detailPath), filepath.Join(r.root, historyOf(detailPath))); err != nil {
+		t.Fatal(err)
+	}
+	r.git("branch", "--set-upstream-to=origin/main")
+	var stdout, stderr bytes.Buffer
+	recovered, err := recoverInterruptedArchive(context.Background(), &stdout, &stderr, &pushFlags{IssuesDir: "workshop/issues", HistoryDir: "workshop/history", PlansDir: "workshop/plans"})
+	if err != nil || !recovered {
+		t.Fatalf("recovery: %v %v\n%s", recovered, err, stderr.String())
+	}
+	mirrorsCard(t, r.git("show", "HEAD:"+historyOf(detailPath))+"\n", r.card(cardPath), "done")
+}
+
+func issueField(t *testing.T, doc, key string) string {
+	t.Helper()
+	fm, _, err := issue.Parse(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	v, _ := issue.GetField(fm, key)
+	return v
+}

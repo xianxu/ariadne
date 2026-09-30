@@ -686,6 +686,7 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 		if err := os.Rename(ref.Path, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
 		}
+		refreshArchivedMirror(ctx, stderr, dest)
 		// Record paths relative to mainPath: GitInDir(mainPath, "add", …)
 		// resolves them from the main worktree root, so an absolute path here
 		// would silently miss the staged move.
