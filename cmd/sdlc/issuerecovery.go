@@ -171,6 +171,10 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 		if err != nil {
 			return fmt.Errorf("#%d %s (%s): %w", issueID, r.Operation(), final.Stage(), err)
 		}
+		// The mirror commit belongs on the close's own branch, never another checkout's.
+		if r.Operation() == "completion" && final.Spec().SourceBranch == env.branchRef() {
+			commitCloseMirror(env, stderr, final.Spec().IssueID, final.Spec().SourcePath)
+		}
 		cok(stderr, fmt.Sprintf("#%d %s finished", issueID, r.Operation()))
 	}
 	fmt.Fprintln(stdout, "reconciled")

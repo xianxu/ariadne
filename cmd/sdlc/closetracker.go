@@ -6,6 +6,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -82,18 +83,92 @@ func (g gitEvidence) Prepare(spec tracker.ReceiptSpec) (string, error) {
 			return "", err
 		}
 	}
+	// An unchanged tree is legitimate: a fix commit may already carry the pinned
+	// evidence. The commit still records the verdict trailers and the anchor.
+	return commitIndexOnto(env, withIndex, head, message)
+}
+
+// commitIndexOnto writes the temporary index as a commit on head, honouring the
+// repository's signing policy. No ref moves; the caller swaps the branch.
+func commitIndexOnto(env *trackerEnv, withIndex []string, head, message string) (string, error) {
 	tree, err := env.gitEnv(withIndex, "write-tree")
 	if err != nil {
 		return "", err
 	}
-	// An unchanged tree is legitimate: a fix commit may already carry the pinned
-	// evidence. The commit still records the verdict trailers and the anchor.
 	args := []string{"commit-tree", tree, "-p", head, "-m", message}
-	// Honour the repository's signing policy (unset exits 1: no signing).
+	// Unset exits 1: no signing.
 	if value, err := env.git("config", "--bool", "--get", "commit.gpgsign"); err == nil && value == "true" {
 		args = append(args, "-S")
 	}
 	return env.git(args...)
+}
+
+// commitCloseMirror brings the issue branch's details to the codecomplete card
+// a close just published (#275). The evidence commit cannot carry it — the card
+// names that commit — so the projection lands in a narrow follow-up commit,
+// built like the evidence commit so staged unrelated work is untouched. Like
+// every post-publication mirror refresh it never fails the close.
+func commitCloseMirror(env *trackerEnv, stderr io.Writer, id, detailRel string) {
+	if err := closeMirrorCommit(env, id, detailRel); err != nil {
+		cwarn(stderr, fmt.Sprintf("#%s: details mirror not refreshed after close: %v", issue.CLIRef(id), err))
+	}
+}
+
+func closeMirrorCommit(env *trackerEnv, id, rel string) error {
+	head, err := env.git("rev-parse", "--verify", "HEAD^{commit}")
+	if err != nil {
+		return err
+	}
+	oldBlob, err := env.git("rev-parse", "--verify", head+":"+rel)
+	if err != nil {
+		return err
+	}
+	committed, err := env.gitRaw(nil, "cat-file", "blob", oldBlob)
+	if err != nil {
+		return err
+	}
+	refreshed, err := refreshMirror(env, id, committed)
+	if err != nil || bytes.Equal(refreshed, committed) {
+		return err
+	}
+	blob, err := gitx.WriteBlob(env.ctx, env.root, refreshed)
+	if err != nil {
+		return err
+	}
+	idx, cleanup, err := tempIndexFile()
+	defer cleanup()
+	if err != nil {
+		return err
+	}
+	withIndex := []string{"GIT_INDEX_FILE=" + idx}
+	if _, err := env.gitEnv(withIndex, "read-tree", head); err != nil {
+		return err
+	}
+	if _, err := env.gitEnv(withIndex, "update-index", "--cacheinfo", "100644,"+blob+","+rel); err != nil {
+		return err
+	}
+	commit, err := commitIndexOnto(env, withIndex, head, fmt.Sprintf("#%s: mirror codecomplete card", issue.CLIRef(id)))
+	if err != nil {
+		return err
+	}
+	if _, err := env.git("update-ref", "-m", "sdlc close mirror", env.branchRef(), commit, head); err != nil {
+		return err
+	}
+	// The index and worktree follow only where they still hold the old bytes; an
+	// uncommitted edit keeps its body and gets the same projection.
+	if staged, err := env.git("rev-parse", "--verify", ":"+rel); err == nil && staged == oldBlob {
+		if _, err := env.git("update-index", "--cacheinfo", "100644,"+blob+","+rel); err != nil {
+			return err
+		}
+	}
+	abs := filepath.Join(env.root, filepath.FromSlash(rel))
+	if worktree, err := os.ReadFile(abs); err == nil && bytes.Equal(worktree, committed) {
+		return os.WriteFile(abs, refreshed, 0o644)
+	}
+	if warn := refreshLocalMirrorAt(env, abs); warn != "" {
+		return errors.New(warn)
+	}
+	return nil
 }
 
 // treeEntry is path's blob and mode in commit ("" when absent).
@@ -310,6 +385,7 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 		return fmt.Errorf("%w\n      the close is recorded; finish it with `sdlc issue recovery reconcile --issue %s`", err, issue.CLIRef(id))
 	}
 	cok(stderr, fmt.Sprintf("#%s codecomplete on %s, bound to evidence commit %s", id, env.branch, shortOID(tracker.EvidenceCommit(final))))
+	commitCloseMirror(env, stderr, id, entries[0].Path)
 	fmt.Fprintln(stdout, tracker.EvidenceCommit(final))
 	return nil
 }
