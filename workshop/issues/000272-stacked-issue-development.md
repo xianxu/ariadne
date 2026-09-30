@@ -1,12 +1,13 @@
 ---
 id: 000272
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-29
 updated: 2026-09-29
 estimate_hours:
-card_mirror: '820594ec5fb58fdda250e1dfc16a0666d042d3a3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd597ada8920c2648055ca14b637a8513972f3505' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-29T16:14:23-07:00
 ---
 
 # Support stacked issue development
@@ -95,6 +96,26 @@ and candidate directions; it does not choose a data model or command syntax.
 - Name legal transitions for ancestor drift, refresh, close, publication,
   interruption/retry, and cleanup (ARCH-ORDER). Keep exact evidence checks and
   actionable refusals; a stale ancestor verdict is not reusable by assertion.
+
+### Direction (2026-09-29): ban stacked development
+
+Brainstorm outcome with the operator; supersedes the exploratory bullets above
+(kept for the record). Stacks were an accidental buffer in front of the one
+serial resource in AI coding — the operator's smoke test, which doubles as
+reading the spec back and grounding it. Slots, not stacks, are the buffer.
+
+- **One issue, one branch.** The branch is named with the full six-digit issue
+  ID prefix (`000272-…`) and carries only that issue's work.
+- **Never start work on an unlanded base.** An issue branch starts from main;
+  commits reachable only from another unlanded issue branch are refused with a
+  diagnostic, not supported. Merging main in stays legal.
+- **Discoveries mid-issue:** a change to the current item's contour folds into
+  the current issue (a scope revision); independent work goes to another slot
+  from main; work that depends on unlanded code is filed and waits for its
+  parent to land.
+- **Out of scope here, follow-ups:** grounding tests (shrink the set of changes
+  that need the operator's smoke test; make the rest cheap) and live cross-slot
+  dispatch in Couch (pair repo) so kicking off a slot costs no attention.
 
 ## Done when
 
@@ -193,3 +214,6 @@ not the proposed normal stack workflow.
   re-review cleared the earlier budget gate. Extended Done when to require
   evidence-based legitimate-owner admission and stale-owner refusal across
   initial-detail handoff, without discarding completed records.
+- 2026-09-29 — Brainstorm pivot: ban stacked development instead of supporting
+  it (see Spec → Direction). Done when still describes stack support and gets
+  rewritten against the ban when the plan lands.
