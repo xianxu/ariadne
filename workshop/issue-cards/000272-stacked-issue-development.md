@@ -6,7 +6,7 @@ updated: 2026-09-29
 estimate_hours:
 github_issue:
 started: 2026-09-29T16:14:23-07:00
-actual_hours: 4.22
+actual_hours: 4.30
 tracker:
     version: 1
     handoff:
@@ -20,10 +20,10 @@ tracker:
         destination: workshop/issues/000272-stacked-issue-development.md
         main_commit: 0f57ded303b1235df54ad8b126234aa6952e0514
     completion:
-        token: close-b8e590960bb2
+        token: close-81a8b7531fb6
         repository: github.com/xianxu/ariadne
-        reviewed_head: adfa4250aa0bf95b3835cc2ec2da8ae6493c8399
-        evidence_commit: d300da23bc13f5ebddbf6e46a102af5c6526fc8f
+        reviewed_head: 75a79140e8e648d64f797b8e22c21e87611acd32
+        evidence_commit: 38c9ad76a2a6628aef26adf6a373f97dadb1e8df
 ---
 
 # One issue per branch: no work on an unlanded base
