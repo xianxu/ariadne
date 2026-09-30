@@ -1,12 +1,13 @@
 ---
 id: 000275
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-30
 updated: 2026-09-30
 estimate_hours:
-card_mirror: '4c0ba8e6d7b2cad0d7cc825baf07804b6653dd4e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'bc23fdac81d2e2836676a16475cd62ffb233e336' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-30T15:23:01-07:00
 ---
 
 # Keep issue detail frontmatter current
@@ -55,6 +56,14 @@ its archive should not unnecessarily contradict its authoritative card.
 
 ## Plan
 
+Durable plan: `workshop/plans/000275-current-detail-frontmatter-plan.md`.
+All refreshes reuse `issue.RefreshMirror`, which is one-way and preserves the body.
+
+- [ ] Close: a follow-up commit mirrors the codecomplete card onto the issue branch. It cannot go into the evidence commit, because the card embeds that commit's SHA.
+- [ ] Checkout archives (merge, push, interrupted recovery): refresh the moved history file from the done card before staging it.
+- [ ] Slot-landing archive: a deterministic projection of the done card. The retry proof pins the card through the archived file's `card_mirror`.
+- [ ] Documentation: the refresh points and the remaining stale copies, including main's active copy before landing.
+
 ## Log
 
 ### 2026-09-30
@@ -63,3 +72,11 @@ its archive should not unnecessarily contradict its authoritative card.
   issue-tracker authority and wants detail frontmatter kept as up to date as
   possible to reduce confusion. ARCH-DRY: derive mirrors from the existing
   authority rather than creating a second status owner.
+- Design: the #252 M3 commit 0c9ad8ef deliberately dropped the archive refresh
+  so that the landing archive proof would not depend on the live card. This
+  design restores the refresh without losing that property: the archived
+  file's `card_mirror` names the done card it was projected from, and the
+  proof re-derives from that pinned blob.
+- Main's active copy is never refreshed, because the rest branch is never
+  edited and a main-side commit would conflict with the branch's frontmatter.
+  It stays documented as a stale case until landing.
