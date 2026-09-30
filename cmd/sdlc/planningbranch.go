@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"path"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // planningBranchResult says what preparation did, for the caller's report.
@@ -26,6 +28,13 @@ const (
 func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBranchResult, error) {
 	name := strings.TrimSuffix(path.Base(detailPath), ".md")
 	if env.branch == name {
+		view, err := env.main.Snapshot()
+		if err != nil {
+			return 0, err
+		}
+		if err := refuseUnlandedBase(env, "HEAD", view.Ref(), id, name); err != nil {
+			return 0, err
+		}
 		return planningAlreadyOnBranch, nil
 	}
 	if !env.onRest() {
@@ -63,6 +72,9 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 		return 0, err
 	}
 	if exists {
+		if err := refuseUnlandedBase(env, "refs/heads/"+name, pinned, id, name); err != nil {
+			return 0, err
+		}
 		if _, err := env.git("switch", "-q", name); err != nil {
 			return 0, fmt.Errorf("switch to existing %s: %w", name, err)
 		}
@@ -78,4 +90,46 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 	}
 	env.branch, env.head = name, head
 	return planningCreatedBranch, nil
+}
+
+// refuseUnlandedBase keeps one issue per branch, based on main (#272): a
+// branch holding another unlanded issue branch's commits was started on (or
+// absorbed) that issue's work, and planning on it would stack the two. Shared
+// history alone cannot say whose work a commit is — a parent and the child
+// built on it share the parent's commits — so ownership is read from the `#N`
+// tag the constitution requires in commit subjects (gitx.SubjectOwnedBy); an untagged shared commit
+// is left to that soft instruction. Commits main already has never count.
+func refuseUnlandedBase(env *trackerEnv, tip, mainTip, id, name string) error {
+	held, err := env.git("rev-list", tip, "^"+mainTip)
+	if err != nil || held == "" {
+		return err
+	}
+	onTip := map[string]bool{}
+	for _, sha := range strings.Fields(held) {
+		onTip[sha] = true
+	}
+	refs, err := env.git("for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/"+env.target.Remote)
+	if err != nil {
+		return err
+	}
+	for _, ref := range strings.Fields(refs) {
+		other := path.Base(ref)
+		m := issueFamilyRE.FindStringSubmatch(other)
+		if other == name || m == nil || m[1] == id {
+			continue
+		}
+		unlanded, err := env.git("log", "--format=%H %s", ref, "^"+mainTip)
+		if err != nil {
+			return err
+		}
+		for _, line := range strings.Split(unlanded, "\n") {
+			sha, subject, _ := strings.Cut(line, " ")
+			if onTip[sha] && gitx.SubjectOwnedBy(m[1], subject) {
+				return fmt.Errorf("%s carries unlanded work of %s (%s %q): one issue per branch, based on main (#272).\n"+
+					"      Land %s first, or restart #%s's design on a branch from main; fold the work into one issue if it is one change",
+					name, other, shortSHA(sha), subject, other, id)
+			}
+		}
+	}
+	return nil
 }

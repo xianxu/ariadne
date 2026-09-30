@@ -174,8 +174,9 @@ func gitInDir(dir string, args ...string) (string, error) {
 	return string(out), err
 }
 
-// issueFamilyRE matches the id-keyed artifact filename prefix (NNNNNN-).
-var issueFamilyRE = regexp.MustCompile(`^[0-9]{6}-`)
+// issueFamilyRE matches the id-keyed prefix (NNNNNN-) of an issue artifact's
+// filename or an issue branch's name, capturing the id.
+var issueFamilyRE = regexp.MustCompile(`^([0-9]{6})-`)
 
 // isIssueFamilyPath reports whether root-relative relPath lies in one of the
 // vocab Discovery dirs with an id-keyed name — the artifact class whose

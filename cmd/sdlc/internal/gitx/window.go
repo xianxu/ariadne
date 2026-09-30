@@ -209,6 +209,15 @@ func IsShippedWorkSubject(issueNum, subject string) bool {
 	return true
 }
 
+// SubjectOwnedBy reports whether a commit subject is tagged as issue
+// issueNum's own work — "#N …" or "<area>: #N …", the one ownership rule
+// (#272). issueNum may carry leading zeros ("000009"); a later "#N" mention in
+// the subject is a reference, not ownership.
+func SubjectOwnedBy(issueNum, subject string) bool {
+	_, ok := issueSubjectDescriptor(strings.TrimLeft(issueNum, "0"), subject, false)
+	return ok
+}
+
 func issueSubjectDescriptor(issueNum, subject string, allowClosePrefix bool) (string, bool) {
 	s := strings.TrimSpace(subject)
 	if allowClosePrefix {

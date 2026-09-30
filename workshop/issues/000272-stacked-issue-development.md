@@ -1,15 +1,17 @@
 ---
 id: 000272
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-29
 updated: 2026-09-29
 estimate_hours:
-card_mirror: '820594ec5fb58fdda250e1dfc16a0666d042d3a3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b89d35a5c4a39113ba675f60a1491b2306426d0c' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-29T16:14:23-07:00
+flow: {kind: quick, provenance: inferred, spec: "b067f456", done: "3946662b"}
 ---
 
-# Support stacked issue development
+# One issue per branch: no work on an unlanded base
 
 ## Problem
 
@@ -96,49 +98,60 @@ and candidate directions; it does not choose a data model or command syntax.
   interruption/retry, and cleanup (ARCH-ORDER). Keep exact evidence checks and
   actionable refusals; a stale ancestor verdict is not reusable by assertion.
 
+### Direction (2026-09-29): ban stacked development
+
+Brainstorm outcome with the operator; supersedes the exploratory bullets above
+(kept for the record). Stacks were an accidental buffer in front of the one
+serial resource in AI coding — the operator's smoke test, which doubles as
+reading the spec back and grounding it. Slots, not stacks, are the buffer.
+
+- **One issue, one branch.** The branch is named with the full six-digit issue
+  ID prefix (`000272-…`) and carries only that issue's work.
+- **Never start work on an unlanded base.** An issue branch starts from main;
+  commits reachable only from another unlanded issue branch are refused with a
+  diagnostic, not supported. Merging main in stays legal.
+- **Discoveries mid-issue:** a change to the current item's contour folds into
+  the current issue (a scope revision); independent work goes to another slot
+  from main; work that depends on unlanded code is filed and waits for its
+  parent to land.
+- **Out of scope here, follow-ups:** grounding tests (shrink the set of changes
+  that need the operator's smoke test; make the rest cheap) and live cross-slot
+  dispatch in Couch (pair repo) so kicking off a slot costs no attention.
+- **Grounding tests are per repo**, at different maturity; the long-run vision
+  (pensive) is a testing agent that reads the user manual and simulates a
+  typical user. Filed per product, not here.
+
 ## Done when
 
-- A reproducible regression scenario exercises four small dependent issues,
-  an isolated descendant worktree, ancestor review corrections arriving during
-  descendant work, and one combined landing with all four completion bindings.
-- Review diagnostics identify each selected base/head, owned delta, inherited
-  acceptance, and invalidation reason. Unchanged accepted ancestors do not
-  trigger redundant full-stack reviews at every close; changed ancestor code
-  invalidates affected evidence, and final integration is validated.
-- Publication does not charge descendant changes against an unchanged
-  ancestor's quick-flow budget or demand its redundant full review. Tests
-  reproduce the 385-line combined-stack refusal and prove that actual edits
-  to the ancestor's accepted scope still invalidate evidence appropriately.
-- Refreshing the scenario from main retains completed issue details and their
-  evidence without add/add conflicts caused solely by initial-detail
-  publication; genuine conflicting edits are reported without data loss.
-- The initial-detail handoff guard permits a proven legitimate owner's
-  reviewed completion bindings and completed details to land, while still
-  rejecting stale-owner overwrites. Regressions cover the stacked #300
-  landing refusal and edits on main after initial-detail publication; no
-  recovery path requires replacing completed records with initial templates.
-- Issue and architecture-artifact attribution separates inherited helper
-  exports from new exports. Active-time diagnostics in the scenario are
-  explained and tested, with any reproducible attribution defect corrected.
-- Post-close unrelated code is detected and assigned explicit review scope;
-  prior valid acceptance survives, and no unreviewed code can publish through
-  evidence reuse. Regression tests cover both permitted reuse and refusal.
-- A combined landing completes the selected issues and safely cleans up
-  eligible ancestor branches/worktrees, preserving independently advanced,
-  unlanded, dirty, or otherwise unproven work. Interrupted operations can be
-  inspected and retried without losing artifacts or recording false completion.
-- CLI help and workflow documentation explain supported stacking, refresh,
-  publication choices, drift handling, and cleanup; any unsupported topology
-  has an explicit diagnostic rather than requiring guessed Git commands.
+- `sdlc start-plan` refuses to plan an issue on a branch that carries another
+  issue's unlanded work: when the checkout is already on, or switches to, an
+  existing issue branch whose commits beyond fresh main include commits of an
+  unlanded issue branch it does not lead, it names that branch and the next
+  action (land it, or restart the design from main). Creating a new issue
+  branch keeps branching at freshly pinned main, named with the six-digit ID.
+- Regression tests: the parley topology (a descendant branch started on an
+  unlanded ancestor) is refused; a branch that merged main in, a branch that
+  an unlanded descendant was built on, and a branch sharing only landed
+  commits all still pass.
+- Soft instruction, not gates: the constitution and the SDLC atlas state one
+  issue per branch and never starting on an unlanded base, and how to handle
+  mid-issue discoveries (fold, dispatch to another slot, or file and wait).
+  No `change-code`/`close`/publish guard is added (operator decision).
+- The handoff-guard ownership defect is filed as its own issue.
 
 ## Plan
 
-- [ ] Reproduce the session topology and design stack support before choosing
-  metadata, commands, or implementation boundaries.
+- [x] Retitle and rewrite Done when against the ban.
+- [x] File the handoff-guard ownership bug.
+- [x] start-plan: foreign-unlanded-base check on existing issue branches
+  (`preparePlanningBranch`), with tests.
+- [x] Docs: constitution line, atlas workflow page, `start-plan --help`.
 
 ## Log
 
 ### 2026-09-29
+- 2026-09-29: closed — TestPreparePlanningBranchRefusesAnUnlandedBase: 10 cases (3 refusals incl. switch path and remote-only parent; merged main on both paths, child, child-then-parent-advanced, parent commit mentioning child, #31-vs-#3 boundary, landed parent pass); refusal cases fail with guard stubbed; cmd/sdlc planning/start-plan/migrate tests green; review verdict: FIX-THEN-SHIP
+- 2026-09-29: closed — TestPreparePlanningBranchRefusesAnUnlandedBase: 8 cases (3 refusals incl. switch path and remote-only parent; merged main, child, child-then-parent-advanced (BR-1), #31-vs-#3 tag boundary, landed parent pass); refusal cases fail with guard stubbed; make test cmd/sdlc green earlier (processgroup fails only under sandbox /bin/ps; TestClose_MilestoneRefusesWithRedirect flaky, passes alone); review verdict: SHIP
 
 Filed at the user's request from the parley.nvim stacked-development session.
 This is a follow-up ticket only; no implementation or claim is requested.
@@ -187,9 +200,64 @@ completion bindings. Preserve this successful recovery behavior in regression
 coverage; manual forge merging required explicit user authorization and is
 not the proposed normal stack workflow.
 
+Claimed; brainstorm pivoted to banning stacked development (Spec → Direction).
+Follow-ups filed: pair#352 (`couch --notify`, stateful operator notifications
+as the verification inbox), pair#353 (live cross-slot dispatch; the sender
+files in the target repo, pair injects peer messages only at a safe insertion
+point), and ariadne#273 (rename `move-detail` → `publish-detail`). No
+grounding-test issue yet: per repo, and still visionary.
+
+Operator clarification on `move-detail` (arrived after #273/pair#353 were
+filed, so their Specs need it folded in when claimed): from a **feature
+branch** it stays an escape hatch — details found while testing are kept
+private until the branch lands, unless another slot must start sooner. From a
+**resting branch** (e.g. a cross-repo issue filed in a free slot for
+dispatch) publishing is the normal path and should be smooth once dispatch
+exists. #273's "not an escape hatch" framing is therefore only half right.
+
+Implemented the start-plan guard: `refuseUnlandedBase` (planningbranch.go)
+runs when the checkout is already on, or switches to, an existing issue
+branch. It refuses when the branch shares commits beyond main with another
+unlanded `NNNNNN-*` branch (local or on the publication remote) that is not
+built on it — ownership read from refs, not subject tags, so it needs no
+commit convention. Merged-in main and landed parents never count
+(ARCH-DRY: reuses trackerEnv's pinned main). Six regression cases in
+`TestPreparePlanningBranchRefusesAnUnlandedBase`; the three refusal cases
+fail with the guard stubbed out. Soft instruction added to AGENTS.base.md
+§2; start-plan help and the issue-tracker atlas table updated. `make test`:
+cmd/sdlc green; `internal/processgroup` fails only under the sandbox
+(`/bin/ps` not permitted); `TestClose_MilestoneRefusesWithRedirect` flaked in
+2 of 3 sharded runs (different shards each time) and passes alone —
+unrelated to this change. Composed AGENTS.md/CLAUDE.md are gitignored;
+`weave compile` could not rewrite `.claude/settings.json` in the sandbox, so
+the operator recomposes locally.
+
+Close review round 1 (FIX-THEN-SHIP): BR-1 Important — the ancestry-based
+exemption refused a parent once it advanced past an unlanded child's fork.
+Fixed at the class (lesson added): ownership of a shared commit is read from
+its `#N` subject tag, not from topology; untagged shared commits are left to
+the soft instruction. The same rewrite removes the merge-base error swallow
+(Minor) and reuses the pinned main on the switch path instead of fetching it
+twice (Minor; the already-on-branch path still fetches once, by design).
+Regression cases added: a child built on this branch that then advanced, and
+a shared commit tagged `#31` not matching issue #3. An earlier close attempt
+recorded `unknown` because the sandbox blocked the reviewer's network.
+
+Close advisory Minors fixed in the same round: a commit's owner is its
+subject's first `#N` (`commitIssue`), so "#9: prep hook for #10" stays #9's;
+the branch-prefix regex is shared with migrate.go's `issueFamilyRE`
+(ARCH-DRY); a passing switch-path case was added. 10 cases now.
+
 ## Revisions
 
 - 2026-09-29 — Added the final stacked-landing refusal after #300's full
   re-review cleared the earlier budget gate. Extended Done when to require
   evidence-based legitimate-owner admission and stale-owner refusal across
   initial-detail handoff, without discarding completed records.
+- 2026-09-29 — Brainstorm pivot: ban stacked development instead of supporting
+  it (see Spec → Direction). Done when still describes stack support and gets
+  rewritten against the ban when the plan lands.
+- 2026-09-29 — Retitled to "One issue per branch: no work on an unlanded
+  base". Done when rewritten: operator chose soft agent instruction over
+  gate-time base/multi-issue guards; only `start-plan` enforces the base. The
+  quick-budget-to-HEAD defect is moot under one issue per branch.

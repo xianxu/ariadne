@@ -499,3 +499,22 @@ func TestBranchPointFollowsALocalMainAheadOfTheTrunk(t *testing.T) {
 		t.Fatalf("review diff base %s, want %s", got, design)
 	}
 }
+
+func TestSubjectOwnedBy(t *testing.T) {
+	for _, tc := range []struct {
+		id, subject string
+		want        bool
+	}{
+		{"000009", "#9: nine work", true},
+		{"000009", "area: #9: nine work", true},
+		{"9", "#9 M1: nine work", true},
+		{"000010", "#9: prep hook for #10", false},
+		{"000010", "docs: mention #10 hook", false},
+		{"000003", "#31: stray work", false},
+		{"000003", "untagged work", false},
+	} {
+		if got := SubjectOwnedBy(tc.id, tc.subject); got != tc.want {
+			t.Errorf("SubjectOwnedBy(%q, %q) = %v, want %v", tc.id, tc.subject, got, tc.want)
+		}
+	}
+}

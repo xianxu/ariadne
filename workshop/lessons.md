@@ -260,3 +260,10 @@ The simplest durable authority beats a clever scan of consequences.
 - A protocol compatibility exception needs behavioral probes for both admission
   and refusal: confirmed old mode, restored state, retargeted state, and unknown
   provenance. New-format happy paths cannot prove an old-format exception.
+
+- Don't infer whose work a commit is from git topology. Neither ancestry (a
+  parent and its child share the parent's commits) nor a branch name (the
+  owner can commit elsewhere) says who owns it; read the `#N` subject tag.
+  #272's first start-plan guard refused a parent once it advanced past its
+  child's fork, and #274's handoff guard refuses owner edits made off the
+  owner's branch.
