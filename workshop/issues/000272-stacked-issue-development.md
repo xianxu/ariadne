@@ -230,6 +230,17 @@ unrelated to this change. Composed AGENTS.md/CLAUDE.md are gitignored;
 `weave compile` could not rewrite `.claude/settings.json` in the sandbox, so
 the operator recomposes locally.
 
+Close review round 1 (FIX-THEN-SHIP): BR-1 Important — the ancestry-based
+exemption refused a parent once it advanced past an unlanded child's fork.
+Fixed at the class (lesson added): ownership of a shared commit is read from
+its `#N` subject tag, not from topology; untagged shared commits are left to
+the soft instruction. The same rewrite removes the merge-base error swallow
+(Minor) and reuses the pinned main on the switch path instead of fetching it
+twice (Minor; the already-on-branch path still fetches once, by design).
+Regression cases added: a child built on this branch that then advanced, and
+a shared commit tagged `#31` not matching issue #3. An earlier close attempt
+recorded `unknown` because the sandbox blocked the reviewer's network.
+
 ## Revisions
 
 - 2026-09-29 — Added the final stacked-landing refusal after #300's full

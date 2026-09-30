@@ -142,16 +142,17 @@ func peerAdd(t *testing.T, r *trackerRepo, file, body string) {
 
 // TestPreparePlanningBranchRefusesAnUnlandedBase pins #272's topology: the
 // parley.nvim#300–#303 stack started each issue branch on its unlanded
-// parent. Planning on such a branch refuses, whether the checkout is already
-// on it or switches to it; commits main already has, and a branch built on
-// this one, never count against it.
+// parent. Planning on a branch holding another unlanded issue's `#N`-tagged
+// commits refuses, whether the checkout is already on it or switches to it;
+// commits main already has, and a child built on this branch (even after this
+// branch advances past the fork), never count against it.
 func TestPreparePlanningBranchRefusesAnUnlandedBase(t *testing.T) {
 	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
 	const issueBranch, parent = "000009-nine", "000003-parent"
-	commit := func(r *trackerRepo, file string) {
+	commit := func(r *trackerRepo, file, subject string) {
 		writeRepoFile(t, r.root, file, file+"\n")
 		r.git("add", "--", file)
-		r.git("commit", "-qm", file)
+		r.git("commit", "-qm", subject)
 	}
 	for _, tc := range []struct {
 		name   string
@@ -160,47 +161,60 @@ func TestPreparePlanningBranchRefusesAnUnlandedBase(t *testing.T) {
 	}{
 		{name: "on a branch started on an unlanded parent", refuse: true, setup: func(r *trackerRepo) {
 			r.git("switch", "-q", "-c", parent)
-			commit(r, "parent.md")
+			commit(r, "parent.md", "#3: parent work")
 			r.git("switch", "-q", "-c", issueBranch)
-			commit(r, "nine.md")
+			commit(r, "nine.md", "#9: nine work")
 		}},
 		{name: "switching to a branch that absorbed an unlanded parent", refuse: true, setup: func(r *trackerRepo) {
 			r.git("switch", "-q", "-c", parent)
-			commit(r, "parent.md")
+			commit(r, "parent.md", "area: #3: parent work")
 			r.git("switch", "-q", "-c", issueBranch, "main")
-			commit(r, "nine.md")
+			commit(r, "nine.md", "#9: nine work")
 			r.git("merge", "-q", "--no-edit", parent)
 			r.git("switch", "-q", "main")
 		}},
 		{name: "a remote-only unlanded parent counts too", refuse: true, setup: func(r *trackerRepo) {
 			r.git("switch", "-q", "-c", parent)
-			commit(r, "parent.md")
+			commit(r, "parent.md", "#000003: parent work")
 			r.git("push", "-q", "origin", parent)
 			r.git("switch", "-q", "-c", issueBranch)
 			r.git("branch", "-D", parent)
-			commit(r, "nine.md")
+			commit(r, "nine.md", "#9: nine work")
 		}},
 		{name: "main merged in", setup: func(r *trackerRepo) {
 			r.git("switch", "-q", "-c", issueBranch)
-			commit(r, "nine.md")
+			commit(r, "nine.md", "#9: nine work")
 			peerCommit(t, r, "peer.md")
 			r.git("fetch", "-q", "origin")
 			r.git("merge", "-q", "--no-edit", "origin/main")
 		}},
-		{name: "a descendant built on this branch", setup: func(r *trackerRepo) {
+		{name: "a child built on this branch", setup: func(r *trackerRepo) {
 			r.git("switch", "-q", "-c", issueBranch)
-			commit(r, "nine.md")
-			r.git("branch", "000010-child")
-			r.git("switch", "-q", "000010-child")
-			commit(r, "child.md")
+			commit(r, "nine.md", "#9: nine work")
+			r.git("switch", "-q", "-c", "000010-child")
+			commit(r, "child.md", "#10: child work")
 			r.git("switch", "-q", issueBranch)
+		}},
+		{name: "a child built on this branch, which then advanced", setup: func(r *trackerRepo) {
+			r.git("switch", "-q", "-c", issueBranch)
+			commit(r, "nine.md", "#9: nine work")
+			r.git("switch", "-q", "-c", "000010-child")
+			commit(r, "child.md", "#10: child work")
+			r.git("switch", "-q", issueBranch)
+			commit(r, "more.md", "#9: more nine work")
+		}},
+		{name: "a shared commit tagged with a longer number", setup: func(r *trackerRepo) {
+			r.git("switch", "-q", "-c", parent)
+			commit(r, "stray.md", "#31: stray work")
+			r.git("switch", "-q", "-c", issueBranch)
+			commit(r, "nine.md", "#9: nine work")
 		}},
 		{name: "a parent that has landed", setup: func(r *trackerRepo) {
 			r.git("switch", "-q", "-c", parent)
-			commit(r, "parent.md")
+			commit(r, "parent.md", "#3: parent work")
 			r.git("push", "-q", "origin", parent+":main")
 			r.git("switch", "-q", "-c", issueBranch)
-			commit(r, "nine.md")
+			commit(r, "nine.md", "#9: nine work")
 		}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {

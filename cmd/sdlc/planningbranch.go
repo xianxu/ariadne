@@ -27,7 +27,11 @@ const (
 func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBranchResult, error) {
 	name := strings.TrimSuffix(path.Base(detailPath), ".md")
 	if env.branch == name {
-		if err := refuseUnlandedBase(env, "HEAD", id, name); err != nil {
+		view, err := env.main.Snapshot()
+		if err != nil {
+			return 0, err
+		}
+		if err := refuseUnlandedBase(env, "HEAD", view.Ref(), id, name); err != nil {
 			return 0, err
 		}
 		return planningAlreadyOnBranch, nil
@@ -67,7 +71,7 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 		return 0, err
 	}
 	if exists {
-		if err := refuseUnlandedBase(env, "refs/heads/"+name, id, name); err != nil {
+		if err := refuseUnlandedBase(env, "refs/heads/"+name, pinned, id, name); err != nil {
 			return 0, err
 		}
 		if _, err := env.git("switch", "-q", name); err != nil {
@@ -88,55 +92,53 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 }
 
 // issueBranchRE matches an issue branch's name: the six-digit ID, then its slug.
-var issueBranchRE = regexp.MustCompile(`^[0-9]{6}-`)
+var issueBranchRE = regexp.MustCompile(`^([0-9]{6})-`)
 
-// refuseUnlandedBase keeps one issue per branch, based on main (#272): an
-// existing issue branch that shares unlanded commits with another issue's
-// branch was started on (or absorbed) that issue's work, and planning on it
-// would stack the two. A branch built on this one is its descendant's problem,
-// not this one's; commits main already has (a merged-in main, a landed branch)
-// are shared by everyone and never count.
-func refuseUnlandedBase(env *trackerEnv, tip, id, name string) error {
-	view, err := env.main.Snapshot()
-	if err != nil {
+// refuseUnlandedBase keeps one issue per branch, based on main (#272): a
+// branch holding another unlanded issue branch's commits was started on (or
+// absorbed) that issue's work, and planning on it would stack the two. Shared
+// history alone cannot say whose work a commit is — a parent and the child
+// built on it share the parent's commits — so ownership is read from the `#N`
+// tag the constitution requires in commit subjects; an untagged shared commit
+// is left to that soft instruction. Commits main already has never count.
+func refuseUnlandedBase(env *trackerEnv, tip, mainTip, id, name string) error {
+	held, err := env.git("rev-list", tip, "^"+mainTip)
+	if err != nil || held == "" {
 		return err
 	}
-	mainTip := view.Ref()
+	onTip := map[string]bool{}
+	for _, sha := range strings.Fields(held) {
+		onTip[sha] = true
+	}
 	refs, err := env.git("for-each-ref", "--format=%(refname)", "refs/heads", "refs/remotes/"+env.target.Remote)
 	if err != nil {
 		return err
 	}
 	for _, ref := range strings.Fields(refs) {
 		other := path.Base(ref)
-		if other == name || !issueBranchRE.MatchString(other) {
+		m := issueBranchRE.FindStringSubmatch(other)
+		if other == name || m == nil || m[1] == id {
 			continue
 		}
-		base, stacked, err := unlandedSharedBase(env, tip, ref, mainTip)
+		unlanded, err := env.git("log", "--format=%H %s", ref, "^"+mainTip)
 		if err != nil {
 			return err
 		}
-		if !stacked {
-			continue
+		tagged := issueTagRE(m[1])
+		for _, line := range strings.Split(unlanded, "\n") {
+			sha, subject, _ := strings.Cut(line, " ")
+			if onTip[sha] && tagged.MatchString(subject) {
+				return fmt.Errorf("%s carries unlanded work of %s (%s %q): one issue per branch, based on main (#272).\n"+
+					"      Land %s first, or restart #%s's design on a branch from main; fold the work into one issue if it is one change",
+					name, other, shortSHA(sha), subject, other, id)
+			}
 		}
-		return fmt.Errorf("%s carries unlanded work of %s (shared commits up to %s): one issue per branch, based on main (#272).\n"+
-			"      Land %s first, or restart #%s's design on a branch from main; fold the work into one issue if it is one change",
-			name, other, shortSHA(base), other, id)
 	}
 	return nil
 }
 
-// unlandedSharedBase reports whether tip holds ref's unlanded commits: ref has
-// not landed, is not built on tip, and their merge base is beyond main.
-func unlandedSharedBase(env *trackerEnv, tip, ref, mainTip string) (string, bool, error) {
-	for _, pair := range [][2]string{{ref, mainTip}, {tip, ref}} {
-		if contained, err := env.ancestorOf(pair[0], pair[1]); err != nil || contained {
-			return "", false, err
-		}
-	}
-	base, err := env.git("merge-base", tip, ref)
-	if err != nil || base == "" {
-		return "", false, nil // unrelated histories share nothing
-	}
-	onMain, err := env.ancestorOf(base, mainTip)
-	return base, !onMain && err == nil, err
+// issueTagRE matches a commit subject tagged with the six-digit issue id, in
+// the `#N` form the commit convention uses (leading zeros optional).
+func issueTagRE(id string) *regexp.Regexp {
+	return regexp.MustCompile(`(^|[^0-9A-Za-z_])#0*` + strings.TrimLeft(id, "0") + `\b`)
 }
