@@ -211,6 +211,13 @@ completion bindings. Preserve this successful recovery behavior in regression
 coverage; manual forge merging required explicit user authorization and is
 not the proposed normal stack workflow.
 
+Claimed; brainstorm pivoted to banning stacked development (Spec → Direction).
+Follow-ups filed: pair#352 (`couch --notify`, stateful operator notifications
+as the verification inbox), pair#353 (live cross-slot dispatch; the sender
+files in the target repo, pair injects peer messages only at a safe insertion
+point), and ariadne#273 (rename `move-detail` → `publish-detail`). No
+grounding-test issue yet: per repo, and still visionary.
+
 ## Revisions
 
 - 2026-09-29 — Added the final stacked-landing refusal after #300's full
