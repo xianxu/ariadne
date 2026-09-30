@@ -8,6 +8,7 @@ updated: 2026-09-30
 estimate_hours:
 card_mirror: 'bc23fdac81d2e2836676a16475cd62ffb233e336' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-30T15:23:01-07:00
+flow: {kind: quick, provenance: inferred, spec: "a0289e19", done: "407d86b8"}
 ---
 
 # Keep issue detail frontmatter current
