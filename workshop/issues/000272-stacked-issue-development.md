@@ -116,6 +116,9 @@ reading the spec back and grounding it. Slots, not stacks, are the buffer.
 - **Out of scope here, follow-ups:** grounding tests (shrink the set of changes
   that need the operator's smoke test; make the rest cheap) and live cross-slot
   dispatch in Couch (pair repo) so kicking off a slot costs no attention.
+- **Grounding tests are per repo**, at different maturity; the long-run vision
+  (pensive) is a testing agent that reads the user manual and simulates a
+  typical user. Filed per product, not here.
 
 ## Done when
 
