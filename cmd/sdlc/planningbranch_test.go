@@ -175,7 +175,7 @@ func TestPreparePlanningBranchRefusesAnUnlandedBase(t *testing.T) {
 		}},
 		{name: "a remote-only unlanded parent counts too", refuse: true, setup: func(r *trackerRepo) {
 			r.git("switch", "-q", "-c", parent)
-			commit(r, "parent.md", "#000003: parent work")
+			commit(r, "parent.md", "#3 M1: parent work")
 			r.git("push", "-q", "origin", parent)
 			r.git("switch", "-q", "-c", issueBranch)
 			r.git("branch", "-D", parent)
@@ -212,6 +212,14 @@ func TestPreparePlanningBranchRefusesAnUnlandedBase(t *testing.T) {
 		{name: "a child whose parent's own commit mentions it", setup: func(r *trackerRepo) {
 			r.git("switch", "-q", "-c", issueBranch)
 			commit(r, "nine.md", "#9: prep hook for #10")
+			r.git("switch", "-q", "-c", "000010-child")
+			commit(r, "child.md", "#10: child work")
+			r.git("switch", "-q", issueBranch)
+		}},
+		{name: "a child mentioned in this branch's own untagged-for-it commit", setup: func(r *trackerRepo) {
+			r.git("switch", "-q", "-c", issueBranch)
+			commit(r, "nine.md", "#9: nine work")
+			commit(r, "hook.md", "docs: mention #10 hook")
 			r.git("switch", "-q", "-c", "000010-child")
 			commit(r, "child.md", "#10: child work")
 			r.git("switch", "-q", issueBranch)

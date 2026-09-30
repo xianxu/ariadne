@@ -7,8 +7,9 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"regexp"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
 // planningBranchResult says what preparation did, for the caller's report.
@@ -96,7 +97,7 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 // absorbed) that issue's work, and planning on it would stack the two. Shared
 // history alone cannot say whose work a commit is — a parent and the child
 // built on it share the parent's commits — so ownership is read from the `#N`
-// tag the constitution requires in commit subjects (commitIssue); an untagged shared commit
+// tag the constitution requires in commit subjects (gitx.SubjectOwnedBy); an untagged shared commit
 // is left to that soft instruction. Commits main already has never count.
 func refuseUnlandedBase(env *trackerEnv, tip, mainTip, id, name string) error {
 	held, err := env.git("rev-list", tip, "^"+mainTip)
@@ -123,7 +124,7 @@ func refuseUnlandedBase(env *trackerEnv, tip, mainTip, id, name string) error {
 		}
 		for _, line := range strings.Split(unlanded, "\n") {
 			sha, subject, _ := strings.Cut(line, " ")
-			if onTip[sha] && commitIssue(subject) == strings.TrimLeft(m[1], "0") {
+			if onTip[sha] && gitx.SubjectOwnedBy(m[1], subject) {
 				return fmt.Errorf("%s carries unlanded work of %s (%s %q): one issue per branch, based on main (#272).\n"+
 					"      Land %s first, or restart #%s's design on a branch from main; fold the work into one issue if it is one change",
 					name, other, shortSHA(sha), subject, other, id)
@@ -131,17 +132,4 @@ func refuseUnlandedBase(env *trackerEnv, tip, mainTip, id, name string) error {
 		}
 	}
 	return nil
-}
-
-// commitTagRE finds a commit subject's `#N` issue tags.
-var commitTagRE = regexp.MustCompile(`(?:^|[^0-9A-Za-z_])#0*([0-9]+)\b`)
-
-// commitIssue is the issue a commit subject is tagged for: its first `#N`
-// (leading zeros dropped), as in `#9: …` or `area: #9: …`; a later mention
-// ("#9: prep hook for #10") is a reference, not ownership. "" when untagged.
-func commitIssue(subject string) string {
-	if m := commitTagRE.FindStringSubmatch(subject); m != nil {
-		return m[1]
-	}
-	return ""
 }
