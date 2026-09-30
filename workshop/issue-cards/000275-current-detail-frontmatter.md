@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000275-current-detail-frontmatter.md
         source_blob: 29d9c2c5526d2f62fa283f764e66dd58dd960d1e
         destination: workshop/issues/000275-current-detail-frontmatter.md
+        main_commit: c5e040ca68f5d104e535a587fa4ed314f6c56703
 ---
 
 # Keep issue detail frontmatter current
