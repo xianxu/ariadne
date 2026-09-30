@@ -20,6 +20,6 @@ tracker:
 started: 2026-09-29T16:14:23-07:00
 ---
 
-# Support stacked issue development
+# One issue per branch: no work on an unlanded base
 
 ## Problem
