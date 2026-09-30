@@ -143,9 +143,9 @@ reading the spec back and grounding it. Slots, not stacks, are the buffer.
 
 - [x] Retitle and rewrite Done when against the ban.
 - [x] File the handoff-guard ownership bug.
-- [ ] start-plan: foreign-unlanded-base check on existing issue branches
+- [x] start-plan: foreign-unlanded-base check on existing issue branches
   (`preparePlanningBranch`), with tests.
-- [ ] Docs: constitution line, atlas workflow page, `start-plan --help`.
+- [x] Docs: constitution line, atlas workflow page, `start-plan --help`.
 
 ## Log
 
@@ -212,6 +212,23 @@ private until the branch lands, unless another slot must start sooner. From a
 **resting branch** (e.g. a cross-repo issue filed in a free slot for
 dispatch) publishing is the normal path and should be smooth once dispatch
 exists. #273's "not an escape hatch" framing is therefore only half right.
+
+Implemented the start-plan guard: `refuseUnlandedBase` (planningbranch.go)
+runs when the checkout is already on, or switches to, an existing issue
+branch. It refuses when the branch shares commits beyond main with another
+unlanded `NNNNNN-*` branch (local or on the publication remote) that is not
+built on it — ownership read from refs, not subject tags, so it needs no
+commit convention. Merged-in main and landed parents never count
+(ARCH-DRY: reuses trackerEnv's pinned main). Six regression cases in
+`TestPreparePlanningBranchRefusesAnUnlandedBase`; the three refusal cases
+fail with the guard stubbed out. Soft instruction added to AGENTS.base.md
+§2; start-plan help and the issue-tracker atlas table updated. `make test`:
+cmd/sdlc green; `internal/processgroup` fails only under the sandbox
+(`/bin/ps` not permitted); `TestClose_MilestoneRefusesWithRedirect` flaked in
+2 of 3 sharded runs (different shards each time) and passes alone —
+unrelated to this change. Composed AGENTS.md/CLAUDE.md are gitignored;
+`weave compile` could not rewrite `.claude/settings.json` in the sandbox, so
+the operator recomposes locally.
 
 ## Revisions
 

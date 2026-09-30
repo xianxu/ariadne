@@ -50,8 +50,10 @@ FLAGS
                 branch (the details filename stem): from a clean resting branch
                 that main contains, it creates the branch at freshly fetched main
                 once the details are proven there; it reuses an existing issue
-                branch; it refuses a dirty, ahead or diverged rest and any other
-                branch without changing anything. It never moves the resting
+                branch unless that branch carries another issue's unlanded
+                commits (one issue per branch, based on main, #272); it refuses
+                a dirty, ahead or diverged rest and any other branch without
+                changing anything. It never moves the resting
                 branch, then refreshes the details' card mirror.
 
 RELATED
