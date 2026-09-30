@@ -60,10 +60,10 @@ its archive should not unnecessarily contradict its authoritative card.
 Durable plan: `workshop/plans/000275-current-detail-frontmatter-plan.md`.
 All refreshes reuse `issue.RefreshMirror`, which is one-way and preserves the body.
 
-- [ ] Close: a follow-up commit mirrors the codecomplete card onto the issue branch. It cannot go into the evidence commit, because the card embeds that commit's SHA.
-- [ ] Checkout archives (merge, push, interrupted recovery): refresh the moved history file from the done card before staging it.
-- [ ] Slot-landing archive: a deterministic projection of the done card. The retry proof pins the card through the archived file's `card_mirror`.
-- [ ] Documentation: the refresh points and the remaining stale copies, including main's active copy before landing.
+- [x] Close: a follow-up commit mirrors the codecomplete card onto the issue branch. It cannot go into the evidence commit, because the card embeds that commit's SHA.
+- [x] Checkout archives (merge, push, interrupted recovery): refresh the moved history file from the done card before staging it.
+- [x] Slot-landing archive: a deterministic projection of the done card. The retry proof pins the card through the archived file's `card_mirror`.
+- [x] Documentation: the refresh points and the remaining stale copies, including main's active copy before landing.
 
 ## Log
 
@@ -81,3 +81,15 @@ All refreshes reuse `issue.RefreshMirror`, which is one-way and preserves the bo
 - Main's active copy is never refreshed, because the rest branch is never
   edited and a main-side commit would conflict with the branch's frontmatter.
   It stays documented as a stale case until landing.
+- Implemented in four commits: close mirror, checkout archive refresh, deterministic
+  landing archive, docs. Close tests now locate the evidence commit at `HEAD^`
+  (`evidenceRev`), because the mirror commit sits on top of it.
+- Pair#358 repro: `TestTrackerFullSlotCycle` asserts that the archived details on
+  main mirror the done card. The pin test was mutation-checked: with
+  `pinArchivedCard` disabled, the proof fails with "archive generation differs".
+- `make test`: every cmd/sdlc shard passes.
+  `internal/processgroup` `TestCancellationKillsDescendants` fails in the sandbox
+  (`fork/exec /bin/ps: operation not permitted`). That is environmental; the
+  package is untouched.
+  `TestClose_MilestoneRefusesWithRedirect` failed intermittently in one shard,
+  passes in isolation, and passed on the next full run.

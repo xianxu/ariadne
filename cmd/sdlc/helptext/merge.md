@@ -67,8 +67,10 @@ PUBLISH GATE
   In a repository with an issue tracker (#252) the PR owns the closes whose
   card completion binding's evidence commit it carries; the anchor is that
   evidence commit. Once integration is confirmed those cards go done (for the
-  same close generation only — a reopened or re-closed card refuses) and the
-  details are archived as they are; the card is their status authority. An
+  same close generation only — a reopened or re-closed card refuses). The
+  archived details mirror the done card (#275); the card stays their status
+  authority. Details with a hand-edited mirrored field are archived unchanged.
+  An
   interrupted landing is completed by re-running merge or `sdlc issue recovery
   reconcile --issue N`.
 

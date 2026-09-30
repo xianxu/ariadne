@@ -77,6 +77,7 @@ The publication remote is the resting branch's upstream
 | `claim` | open → working by CAS | mirror refreshed (never on rest) | must already hold the details, re-checked before push |
 | `start-plan` | must be working | branch `<details stem>` created at pinned main from a clean rest; an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
 | `change-code` | read (mirror refresh before gates) | design committed narrowly on the issue branch | never published |
+| `close` | codecomplete bound to the evidence commit | evidence commit, then a mirror commit (#275) | never published |
 | `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
 
@@ -113,7 +114,41 @@ that edits a pinned file is kept, warned and named in a `Close-Kept:` trailer
 the closes whose evidence they carry (`trackercompletion.go`), anchor the
 reviewed-state check on it, and complete cards by compare-and-swap for the same
 token after a confirmed landing (never on an abandoned branch's cleanup); recovery is re-derivation ("codecomplete whose evidence is on main").
-Tracked details are archived byte-for-byte so archive proofs stay deterministic.
+Archives mirror the done card into tracked details (#275). See the next
+section for how that keeps the landing archive's proof deterministic.
+
+## Mirror freshness (#275)
+
+The card is the authority. A details file's mirrored frontmatter is a one-way
+projection, `issue.RefreshMirror`. It keeps the body intact and refuses when a
+mirrored field was hand-edited. Refresh points:
+
+| Point | What is refreshed |
+|---|---|
+| `claim`, `start-plan`, card setters | the checkout's details (worktree), never on the resting branch |
+| `change-code` | the details, committed with the design |
+| `close` / FIX-THEN-SHIP reconcile | a narrow commit after the evidence commit mirrors the codecomplete card. The evidence commit cannot carry it, because the card names that commit. A dirty details file keeps its edit. |
+| merge / push / interrupted-archive recovery | the moved history file, before it is staged |
+| slot-landing archive | `archivedDetails` projects the done card |
+
+The landing archive's retry proof reads the card named by the archived file's
+own `card_mirror` (`pinArchivedCard`), not the live card. The pinned card must
+be this close's done card. A later title change or reopen therefore cannot
+invalidate a finished archive. Details that could not take the projection are
+archived unchanged. Refreshes are warnings, never failures: the card has
+already been published.
+
+Copies can still lag:
+
+- **Main's active copy.** Written by `move-detail`, it keeps its creation-time
+  mirror until the issue branch lands. The resting branch is never edited, and
+  a main-side refresh commit would conflict with the branch's own frontmatter.
+- **A checkout that has run no SDLC verb since a card change.** A plain
+  `git pull` is not a refresh.
+- **The issue branch after a setter run in another clone,** until the next
+  local verb.
+- **Hand-edited mirrored fields,** which are archived as they are, with a
+  warning.
 
 ## Verification pointers
 

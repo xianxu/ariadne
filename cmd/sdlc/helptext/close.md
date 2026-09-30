@@ -34,7 +34,10 @@ TRACKER-ERA ISSUES (#252)
   push and slot landings select closes by that binding and check the reviewed
   state against the evidence commit. close reports success only after the card
   is confirmed; an interruption is finished by `sdlc issue recovery reconcile
-  --issue N`.
+  --issue N`. A second narrow commit then mirrors the codecomplete card into
+  the details (#275). The evidence commit cannot carry that mirror, because
+  the card names the evidence commit. An uncommitted details edit keeps its
+  body and gets the same mirror.
 
   On FIX-THEN-SHIP close publishes nothing yet: commit the fixes on the branch,
   then run `sdlc issue recovery reconcile --issue N`, which lands the evidence

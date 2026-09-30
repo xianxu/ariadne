@@ -257,7 +257,7 @@ merged squash/rebase PRs use the original PR head and integration evidence.
 `landingarchive.go` owns the scoped remote-main archive through
 `gitx.TrunkFile.UpdateMany`: PR-owned close anchors select completed records
 (in a tracked repository, card completion bindings whose evidence commit is in
-the PR, #252 — their details move byte-for-byte), and one conditional commit
+the PR, #252 — their details archive with the done card mirrored in, #275), and one conditional commit
 moves issue/plan/review artifacts. Retry verifies
 reachable provenance and the complete archived generation before cleanup.
 Landing returns the selected checkout to unchanged `main` or `main-slotN`, then
