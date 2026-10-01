@@ -75,6 +75,10 @@ card: {
 		{name: "estimate_hours", kind: "estimate", setter: "sdlc issue set-estimate"},
 		{name: "actual_hours", kind: "actual", setter: "sdlc close"},
 		{name: "github_issue", kind: "github", setter: "sdlc issue set-github"},
+		// #277: who is responsible and where the work belongs — operator,
+		// keyed machine fingerprint + readable name, optional slot label,
+		// worktree and repository. Written with the claim's status CAS.
+		{name: "claimant", kind: "claimant", setter: "sdlc claim"},
 		{name: "title", kind: "title", required: true, setter: "sdlc issue set-title"},
 	]
 	internal: {field: "tracker", version: 1}

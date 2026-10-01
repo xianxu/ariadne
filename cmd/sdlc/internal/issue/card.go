@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"regexp"
 	"slices"
 	"strconv"
@@ -231,6 +232,10 @@ func validateCardYAML(n *yaml.Node) error {
 var cardIDRE = regexp.MustCompile(`^[0-9]{6}$`)
 
 func validateCardScalar(field vocab.CardField, n *yaml.Node) error {
+	if field.Kind == "claimant" {
+		_, err := parseClaimant(n)
+		return err
+	}
 	fail := func() error { return invalidCard(field.Name, "invalid "+field.Kind+" scalar") }
 	if n.Kind != yaml.ScalarNode {
 		return fail()
@@ -321,6 +326,10 @@ func sameCardValue(a, b *yaml.Node) bool {
 	}
 	if a.Tag != b.Tag || a.Kind != b.Kind {
 		return false
+	}
+	if a.Kind == yaml.MappingNode { // a structured field (#277 claimant)
+		var av, bv any
+		return a.Decode(&av) == nil && b.Decode(&bv) == nil && reflect.DeepEqual(av, bv)
 	}
 	if a.Value == b.Value {
 		return true

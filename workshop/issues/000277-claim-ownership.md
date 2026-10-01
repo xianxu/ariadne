@@ -159,3 +159,12 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
 
 - Plan-quality cleared after 3 rounds. Estimate derived with v3.1 (4.09h);
   the calibration source is stale per #127.
+- change-code passed (estimate-quality: reasonable; relocation is the likeliest overrun). Starting M1.
+- M1 step done: added the `claimant` card kind (issue.cue plus the
+  regenerated `pkg/vocab/issue.json`) and pure `internal/issue/claimant.go`.
+  - Parse and validation fail closed: exact keys, nonempty one-line strings,
+    and `machine` must be a 32-hex fingerprint.
+  - `SetCardClaimant` / `CardClaimant`, `MatchClaimant` (keyed on repository,
+    machine and worktree), `RelocationAllowed` and `MachineFingerprint`.
+  - The mirror needed only `sameCardValue` to compare mappings. Table tests
+    pass.
