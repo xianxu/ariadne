@@ -414,8 +414,9 @@ func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f 
 		fmt.Fprintln(stdout, "Would: git push")
 		return true, nil
 	}
+	mirrors := newArchiveMirrors(ctx, stderr)
 	for _, m := range moves {
-		refreshArchivedMirror(ctx, stderr, m.HistoryPath) // #275; idempotent on a retry
+		mirrors.refresh(m.HistoryPath) // #275; idempotent on a retry
 	}
 	if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 		return false, fmt.Errorf("git add archived paths: %v\n%s", gerr, out)
@@ -638,6 +639,7 @@ func archiveDoneIssues(ctx context.Context, stderr io.Writer, repo, issuesDir, h
 		return nil, err
 	}
 	var moves []preparedArchiveMove
+	mirrors := newArchiveMirrors(ctx, stderr)
 	for _, ref := range terminalIssueFiles(refs) {
 		// status=done + github_issue: → close GitHub issue first. (#122 carve-out:
 		// literal "done" is value-specific — only done has a GitHub issue to close —
@@ -661,7 +663,7 @@ func archiveDoneIssues(ctx context.Context, stderr io.Writer, repo, issuesDir, h
 		if err := os.Rename(ref.Path, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
 		}
-		refreshArchivedMirror(ctx, stderr, dest)
+		mirrors.refresh(dest)
 		moves = append(moves, preparedArchiveMove{IssuePath: ref.Path, HistoryPath: dest})
 		// Sweep the issue's durable plan + review sidecars to history too (#143).
 		// An untracked sidecar (#154) stages only its history dest, not a vanished

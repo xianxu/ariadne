@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // mirrorsCard asserts details project exactly the given card blob (#275).
@@ -107,13 +108,32 @@ func historyOf(detailPath string) string {
 	return "workshop/history/issues/" + filepath.Base(detailPath)
 }
 
-// #275 (pair#358's archive half): a checkout archive projects the done card
-// into the archived details, keeping their body.
+// #275 (pair#358's archive half): push's and merge's checkout archives project
+// the done card into the archived details, keeping their body.
 func TestCheckoutArchiveMirrorsTheDoneCard(t *testing.T) {
-	r, cardPath, detailPath := landedDone(t, 343)
+	for _, c := range []struct {
+		name    string
+		id      int
+		archive func(stderr *bytes.Buffer, root string) error
+	}{
+		{"push", 343, func(stderr *bytes.Buffer, _ string) error {
+			_, err := archiveDoneIssues(context.Background(), stderr, "", "workshop/issues", "workshop/history", "workshop/plans")
+			return err
+		}},
+		{"merge", 349, func(stderr *bytes.Buffer, root string) error {
+			_, err := archiveDoneIssuesInDir(context.Background(), stderr, "", root, "workshop/issues", "workshop/history", "workshop/plans")
+			return err
+		}},
+	} {
+		t.Run(c.name, func(t *testing.T) { checkoutArchiveMirrors(t, c.id, c.archive) })
+	}
+}
+
+func checkoutArchiveMirrors(t *testing.T, id int, archive func(*bytes.Buffer, string) error) {
+	r, cardPath, detailPath := landedDone(t, id)
 	landed := r.git("show", "HEAD:"+detailPath)
 	var stderr bytes.Buffer
-	if _, err := archiveDoneIssues(context.Background(), &stderr, "", "workshop/issues", "workshop/history", "workshop/plans"); err != nil {
+	if err := archive(&stderr, r.root); err != nil {
 		t.Fatalf("archive: %v\n%s", err, stderr.String())
 	}
 	archived, err := os.ReadFile(filepath.Join(r.root, historyOf(detailPath)))
@@ -245,5 +265,40 @@ func TestDurableLandingProofSurvivesACardChangeAfterArchive(t *testing.T) {
 	tip := r.originMain()
 	if complete, err := laProof(r.root, tip, pr); err != nil || !complete {
 		t.Fatalf("archive proof after a card change: %v %v", complete, err)
+	}
+}
+
+// #275: a details mirror naming a card blob the tracker cannot read must not
+// wedge a landing: the details are archived unchanged and the proof completes.
+func TestDurableLandingArchivesAnUnreadableBaselineUnchanged(t *testing.T) {
+	r, _, detailPath := closeReady(t, 348)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "348", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	abs := filepath.Join(r.root, detailPath)
+	raw, _ := os.ReadFile(abs)
+	oid, err := issue.MirrorBaselineOID(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	missing := strings.Replace(string(raw), oid, strings.Repeat("0", len(oid)), 1)
+	writeRepoFile(t, r.root, detailPath, missing)
+	r.git("commit", "-qm", "#348: a mirror naming a missing blob", "--", detailPath)
+	head, branch := r.git("rev-parse", "HEAD"), r.git("branch", "--show-current")
+	base := r.git("merge-base", "HEAD", "origin/main")
+	r.git("push", "-q", "origin", "HEAD:main")
+	pr := landingPR{Number: 348, State: "MERGED", Repo: "test/repo", HeadRef: branch, HeadOID: head, BaseRef: "main", BaseOID: base, MergeOID: head}
+	if err := completeLandingPR(context.Background(), r.root, "workshop/issues", pr); err != nil {
+		t.Fatal(err)
+	}
+	if err := laArchive(r.root, pr); err != nil {
+		t.Fatalf("an unreadable baseline wedged the archive: %v", err)
+	}
+	if got := testfix.Capture(t, r.origin, "show", "main:"+historyOf(detailPath)); got != missing {
+		t.Fatalf("details with an unreadable baseline were rewritten:\n%s", got)
+	}
+	if complete, err := laProof(r.root, r.originMain(), pr); err != nil || !complete {
+		t.Fatalf("archive proof: %v %v", complete, err)
 	}
 }

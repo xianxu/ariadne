@@ -35,11 +35,27 @@ type landingOwnedIssue struct {
 	// tracked: owned through a card completion binding (#252). Its details
 	// are archived with the done card mirrored in (#275, archivedDetails).
 	tracked bool
-	// baseline and card feed archivedDetails: the card blob the PR head's
-	// details mirror, and the card the archive projects. readCard resolves an
-	// exact card blob, so the proof can recover the card an archive pinned.
-	baseline, card []byte
-	readCard       func(oid string) ([]byte, error)
+	// card is the card the archive projects; readCard resolves an exact card
+	// blob — the archived details' mirror baseline, and the card a finished
+	// archive pinned, which its proof re-derives from.
+	card     []byte
+	readCard func(oid string) ([]byte, error)
+}
+
+// trackedArchiveBytes is what a tracked issue's details become in the archive:
+// archivedDetails over the details' own mirror baseline. A baseline that cannot
+// be read keeps the bytes — the proof then finds the details' own mirror pinned
+// and expects them unchanged — so an unreadable blob never wedges a landing.
+func trackedArchiveBytes(owned landingOwnedIssue, content []byte) []byte {
+	oid, err := issue.MirrorBaselineOID(content)
+	if err != nil || owned.card == nil {
+		return content
+	}
+	baseline, err := owned.readCard(oid)
+	if err != nil {
+		return content
+	}
+	return archivedDetails(content, baseline, owned.card)
 }
 
 // archivedDetails is the one projection a tracked landing archive writes and
@@ -64,8 +80,9 @@ func archivedDetails(content, baseline, card []byte) []byte {
 
 // pinArchivedCard points a tracked issue's projection at the card its archived
 // details mirror, so the proof never depends on the live card: a done card of
-// the same close, or — for details archived unchanged — none at all.
-func pinArchivedCard(owned landingOwnedIssue, archived []byte) (landingOwnedIssue, error) {
+// the same close, or — for details archived unchanged — none at all. source is
+// the details the archive moved (main's copy, which the planner projects).
+func pinArchivedCard(owned landingOwnedIssue, source, archived []byte) (landingOwnedIssue, error) {
 	if !owned.tracked {
 		return owned, nil
 	}
@@ -74,7 +91,7 @@ func pinArchivedCard(owned landingOwnedIssue, archived []byte) (landingOwnedIssu
 		owned.card = nil
 		return owned, nil
 	}
-	if source, err := issue.MirrorBaselineOID([]byte(issue.Compose(owned.frontmatter, owned.body))); err == nil && source == pinned {
+	if own, err := issue.MirrorBaselineOID(source); err == nil && own == pinned {
 		owned.card = nil
 		return owned, nil
 	}
@@ -382,7 +399,7 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 		}
 		done := b.content
 		if owned.tracked {
-			done = archivedDetails(b.content, owned.baseline, owned.card)
+			done = trackedArchiveBytes(owned, b.content)
 		} else {
 			if done, err = publishedIssueContent(ref.frontmatter, ref.body, date); err != nil {
 				return plan, fmt.Errorf("%s: %w", owned.path, err)
@@ -543,7 +560,7 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 	pinned := make([]landingOwnedIssue, len(selected))
 	for i, owned := range selected {
 		archived := after[archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path))]
-		if pinned[i], err = pinArchivedCard(owned, archived.content); err != nil {
+		if pinned[i], err = pinArchivedCard(owned, before[owned.path].content, archived.content); err != nil {
 			return false, err
 		}
 	}
@@ -638,11 +655,6 @@ func selectTrackedLandingIssues(ctx context.Context, root string, pr landingPR, 
 		}
 		ref.anchor, ref.tracked = oc.Binding.EvidenceCommit, true
 		ref.card, ref.readCard = oc.Card.Raw, env.repo.ReadCardBlob
-		if oid, err := issue.MirrorBaselineOID(content); err == nil {
-			if ref.baseline, err = env.repo.ReadCardBlob(oid); err != nil {
-				return nil, true, fmt.Errorf("#%s: mirror baseline %s unavailable: %w", oc.ID, oid, err)
-			}
-		}
 		selected = append(selected, ref)
 	}
 	sort.Slice(selected, func(i, j int) bool { return selected[i].path < selected[j].path })

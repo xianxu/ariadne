@@ -133,10 +133,11 @@ mirrored field was hand-edited. Refresh points:
 
 The landing archive's retry proof reads the card named by the archived file's
 own `card_mirror` (`pinArchivedCard`), not the live card. The pinned card must
-be this close's done card. A later title change or reopen therefore cannot
-invalidate a finished archive. Details that could not take the projection are
-archived unchanged. Refreshes are warnings, never failures: the card has
-already been published.
+be this close's done card. A later title change therefore cannot invalidate a
+finished archive; a reopened card is no longer selected at all. Details that
+could not take the projection are archived unchanged. That covers a
+hand-edited mirrored field and a mirror baseline the tracker cannot read.
+Refreshes are warnings, never failures: the card has already been published.
 
 Copies can still lag:
 
@@ -149,6 +150,9 @@ Copies can still lag:
   local verb.
 - **Hand-edited mirrored fields,** which are archived as they are, with a
   warning.
+- **The issue branch after a close interrupted between publishing
+  codecomplete and its mirror commit.** Nothing retries that commit. The
+  archive at landing still projects the done card.
 
 ## Verification pointers
 

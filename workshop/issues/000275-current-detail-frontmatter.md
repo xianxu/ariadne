@@ -93,3 +93,15 @@ All refreshes reuse `issue.RefreshMirror`, which is one-way and preserves the bo
   package is untouched.
   `TestClose_MilestoneRefusesWithRedirect` failed intermittently in one shard,
   passes in isolation, and passed on the next full run.
+- Close round 1: the reviewer's network was blocked by the sandbox, so there
+  was no verdict. Round 2 returned FIX-THEN-SHIP, but the reviewer had
+  detached this checkout's HEAD (#204), so close refused it as stale. Fixed
+  the findings it reported:
+  - An unreadable mirror baseline no longer fails the landing. The details
+    are archived unchanged and the proof expects that.
+  - The baseline and the pin comparison now come from main's copy, which the
+    planner projects.
+  - The tracker is opened once per archive run.
+  - The merge path has a test.
+  - The atlas no longer over-claims what a reopen does, and documents the
+    crash window between codecomplete and the mirror commit.

@@ -167,17 +167,31 @@ func refreshLocalMirror(env *trackerEnv, detailPath string) string {
 	return refreshLocalMirrorAt(env, filepath.Join(env.root, filepath.FromSlash(detailPath)))
 }
 
-// refreshArchivedMirror projects the done card into a details file an archive
-// just moved, before the archive commits it (#275). Unmirrored files (legacy
+// archiveMirrors projects the done card into details files an archive just
+// moved, before the archive commits them (#275). Unmirrored files (legacy
 // details, plan artifacts) are left alone; a refusal — a hand-edited mirrored
 // field — archives the file as it is, with a warning. The card stays the
-// authority either way.
-func refreshArchivedMirror(ctx context.Context, stderr io.Writer, path string) {
+// authority either way. The tracker is opened once per archive run.
+type archiveMirrors struct {
+	ctx    context.Context
+	stderr io.Writer
+	env    *trackerEnv
+	err    error
+}
+
+func newArchiveMirrors(ctx context.Context, stderr io.Writer) *archiveMirrors {
+	return &archiveMirrors{ctx: ctx, stderr: stderr}
+}
+
+func (m *archiveMirrors) refresh(path string) {
 	raw, err := os.ReadFile(path)
 	if err != nil || !issue.HasMirror(raw) {
 		return
 	}
-	env, err := openTrackerAt(ctx, filepath.Dir(path))
+	if m.env == nil && m.err == nil {
+		m.env, m.err = openTrackerAt(m.ctx, filepath.Dir(path))
+	}
+	env, err := m.env, m.err
 	if err == nil {
 		abs, aerr := filepath.Abs(path)
 		if err = aerr; err == nil {
@@ -187,7 +201,7 @@ func refreshArchivedMirror(ctx context.Context, stderr io.Writer, path string) {
 		}
 	}
 	if err != nil {
-		cwarn(stderr, fmt.Sprintf("%s archived with a stale mirror: %v", filepath.Base(path), err))
+		cwarn(m.stderr, fmt.Sprintf("%s archived with a stale mirror: %v", filepath.Base(path), err))
 	}
 }
 
