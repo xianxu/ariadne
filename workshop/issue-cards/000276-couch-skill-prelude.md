@@ -1,6 +1,6 @@
 ---
 id: 000276
-status: codecomplete
+status: done
 created: 2026-09-30
 updated: 2026-09-30
 estimate_hours:
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ce2df1ae91e4ab97567439e093042925eb52e579
         evidence_commit: 1d47690a56d921c23a9ba2c1482f7c3158e06972
+        landed_commit: b68259411e9a7bfb4ac1471af45bca3e2e64e9a9
 ---
 
 # Add Couch skill prelude
