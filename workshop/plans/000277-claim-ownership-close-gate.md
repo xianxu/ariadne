@@ -90,6 +90,58 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-01T14:34:56-07:00"
+      agent: claude
+      findings:
+        - id: BR-9
+          severity: Important
+          title: Relocation reassigns a working card on any same-machine worktree whose owner merely is not on the issue branch
+          detail: relocatable/RelocationAllowed (cmd/sdlc/claimant.go:162) accept "recorded worktree does not hold the branch" as evidence of a move; that is also true right after claim (before start-plan) or when the owner switched away, so `git switch -c 000NNN-slug && sdlc claim` in another slot takes the card. Require positive move evidence (e.g. a local relocation marker written by sdlc move before its CAS) and add the negative test.
+          family: absence-as-authority
+          round: 3
+        - id: BR-10
+          severity: Important
+          title: Verb-contract cells for adopt/set-status untested and drifting (no adopt race/table; set-status working on unattributed working card silently adopts)
+          detail: '3rd finding in this family. Rule: the plan''s Verb contract table is the source; one table-driven test enumerates every situation x verb cell. Lift adopt''s decision out of IO adoptClaim (claim.go:561) into a pure function, make statusDecision refuse working->working on an unattributed card toward --adopt (setstatus.go:144), add the planned two-clone adopt race.'
+          family: plan-code-contract-drift
+          round: 3
+        - id: BR-11
+          severity: Important
+          title: moveRelocation success path and Unknown branch never exercised; planned real move test not delivered
+          detail: '2nd finding in this family. Rule: every return path of a new effectful function gets a fixture. TestRelocationAfterMoveAndRepair covers only the still-held refusal and a stubbed failure; the move.go:140 relocateClaimant success and move.go:131 Unknown return are unreached. Drive runMove (or unstubbed moveRelocation) to a success and an Unknown case.'
+          family: missing-branch-unit-test
+          round: 3
+        - id: BR-12
+          severity: Important
+          title: README Concurrent issue work omits claim ownership, --adopt and the rebuild flag day
+          detail: README.md:15-27 describes claim/start-plan in tracker repos; add one sentence on the owning workspace, --adopt for legacy cards, and rebuilding sdlc after landing.
+          family: docs-surface-gap
+          round: 3
+        - id: BR-13
+          severity: Minor
+          title: cmd/sdlc/move.go import block is not gofmt-sorted
+          family: gofmt-clean
+          round: 3
+        - id: BR-14
+          severity: Minor
+          title: Identical OWNERSHIP paragraph copied into four helptexts; use a shared template placeholder
+          detail: ARCH-DRY; also the change-code.md paragraph splits "in any checkout:" from its numbered list.
+          family: duplicated-help-prose
+          round: 3
+        - id: BR-15
+          severity: Minor
+          title: requireIssueOwnership discards relocatable's error and reports a plain Foreign refusal
+          family: swallowed-probe-error
+          round: 3
+        - id: BR-16
+          severity: Minor
+          title: Tracker-era close opens the tracker and snapshots twice (ownership gate, then prepareTrackerClose)
+          family: repeated-tracker-snapshot
+          round: 3
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#277 (boundary-review)
@@ -129,6 +181,32 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `stale-test-precondition` TestSlotLabelOnlyWhereSlotsExist's "no slots" check runs after the malformed slot dir is created, duplicating the prior assertion
   Move the plain-primary assertion before writing worktree/ariadne-slotX so the no-slot-dirs state is still exercised.
 
+## Round 3 — 2026-10-01T14:34:56-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-9** [Important] `absence-as-authority` Relocation reassigns a working card on any same-machine worktree whose owner merely is not on the issue branch
+  relocatable/RelocationAllowed (cmd/sdlc/claimant.go:162) accept "recorded worktree does not hold the branch" as evidence of a move; that is also true right after claim (before start-plan) or when the owner switched away, so `git switch -c 000NNN-slug && sdlc claim` in another slot takes the card. Require positive move evidence (e.g. a local relocation marker written by sdlc move before its CAS) and add the negative test.
+- **BR-10** [Important] `plan-code-contract-drift` Verb-contract cells for adopt/set-status untested and drifting (no adopt race/table; set-status working on unattributed working card silently adopts)
+  3rd finding in this family. Rule: the plan's Verb contract table is the source; one table-driven test enumerates every situation x verb cell. Lift adopt's decision out of IO adoptClaim (claim.go:561) into a pure function, make statusDecision refuse working->working on an unattributed card toward --adopt (setstatus.go:144), add the planned two-clone adopt race.
+- **BR-11** [Important] `missing-branch-unit-test` moveRelocation success path and Unknown branch never exercised; planned real move test not delivered
+  2nd finding in this family. Rule: every return path of a new effectful function gets a fixture. TestRelocationAfterMoveAndRepair covers only the still-held refusal and a stubbed failure; the move.go:140 relocateClaimant success and move.go:131 Unknown return are unreached. Drive runMove (or unstubbed moveRelocation) to a success and an Unknown case.
+- **BR-12** [Important] `docs-surface-gap` README Concurrent issue work omits claim ownership, --adopt and the rebuild flag day
+  README.md:15-27 describes claim/start-plan in tracker repos; add one sentence on the owning workspace, --adopt for legacy cards, and rebuilding sdlc after landing.
+- **BR-13** [Minor] `gofmt-clean` cmd/sdlc/move.go import block is not gofmt-sorted
+- **BR-14** [Minor] `duplicated-help-prose` Identical OWNERSHIP paragraph copied into four helptexts; use a shared template placeholder
+  ARCH-DRY; also the change-code.md paragraph splits "in any checkout:" from its numbered list.
+- **BR-15** [Minor] `swallowed-probe-error` requireIssueOwnership discards relocatable's error and reports a plain Foreign refusal
+- **BR-16** [Minor] `repeated-tracker-snapshot` Tracker-era close opens the tracker and snapshots twice (ownership gate, then prepareTrackerClose)
+
 ## Open findings
 
 - **BR-8** [Minor] `stale-test-precondition` TestSlotLabelOnlyWhereSlotsExist's "no slots" check runs after the malformed slot dir is created, duplicating the prior assertion
+- **BR-9** [Important] `absence-as-authority` Relocation reassigns a working card on any same-machine worktree whose owner merely is not on the issue branch
+- **BR-10** [Important] `plan-code-contract-drift` Verb-contract cells for adopt/set-status untested and drifting (no adopt race/table; set-status working on unattributed working card silently adopts)
+- **BR-11** [Important] `missing-branch-unit-test` moveRelocation success path and Unknown branch never exercised; planned real move test not delivered
+- **BR-12** [Important] `docs-surface-gap` README Concurrent issue work omits claim ownership, --adopt and the rebuild flag day
+- **BR-13** [Minor] `gofmt-clean` cmd/sdlc/move.go import block is not gofmt-sorted
+- **BR-14** [Minor] `duplicated-help-prose` Identical OWNERSHIP paragraph copied into four helptexts; use a shared template placeholder
+- **BR-15** [Minor] `swallowed-probe-error` requireIssueOwnership discards relocatable's error and reports a plain Foreign refusal
+- **BR-16** [Minor] `repeated-tracker-snapshot` Tracker-era close opens the tracker and snapshots twice (ownership gate, then prepareTrackerClose)

@@ -395,3 +395,36 @@ func TestMoveLeavesAnUnattributedIssueUnknown(t *testing.T) {
 		t.Fatal("a move whose relocation does not apply left its record")
 	}
 }
+
+// #277: two clones adopting the same unattributed working card race through the
+// card's compare-and-swap: exactly one records its worktree, the other is
+// refused and publishes nothing.
+func TestAdoptRaceHasExactlyOneWinner(t *testing.T) {
+	if _, err := machineID(); err != nil {
+		t.Skipf("adopt needs the host machine ID, unreadable here: %v", err)
+	}
+	binary := buildFleetE2EBinary(t)
+	cardPath, card, detailPath, detail := seededIssue(t, "000373", "adoptrace")
+	working := strings.Replace(card, "status: open", "status: working\nstarted: 2026-09-01T09:00:00-07:00", 1)
+	r := newTrackerRepo(t, map[string]string{cardPath: working}, map[string]string{detailPath: detail})
+	peer := filepath.Join(t.TempDir(), "peer")
+	git(t, "", "clone", "-q", r.origin, peer)
+	git(t, peer, "config", "user.name", "Peer")
+	git(t, peer, "config", "user.email", "peer@example.com")
+	results := raceBuiltBinary(t, binary, []string{r.root, peer}, "claim", "--issue", "373", "--adopt")
+	wins, winner := 0, ""
+	for _, res := range results {
+		if res.err == nil {
+			wins++
+			winner = res.dir
+		} else if !strings.Contains(res.out, "changed while adopting") && !strings.Contains(res.out, "never reassigns") {
+			t.Errorf("loser was not a CAS/owner refusal: %v %s", res.err, res.out)
+		}
+	}
+	if wins != 1 {
+		t.Fatalf("adopt winners=%d; want exactly one", wins)
+	}
+	if owner, ok := ownerOf(t, r, cardPath); !ok || owner.Worktree != canonRoot(winner) {
+		t.Fatalf("owner %+v, want the winner %s", owner, winner)
+	}
+}

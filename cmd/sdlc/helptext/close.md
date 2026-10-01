@@ -4,12 +4,8 @@ steps. Edits files in place; for an issue whose details mirror a tracker card
 card (see TRACKER-ERA ISSUES); otherwise the agent commits, usually bundling
 close with other work.
 
-OWNERSHIP (#277): close continues only an issue this workspace owns. That
-is the card's `claimant`, matched on repository, machine and worktree; a
-working status alone is not enough. Another workspace's issue is refused,
-naming the owner. An issue with no recorded owner is refused toward
-`sdlc claim --issue N --adopt`. The check runs before the review, so a
-refused close dispatches no judge.
+{{OWNERSHIP_GATE}}
+The check runs before the review, so a refused close dispatches no judge.
 
 `sdlc close` is the LOCAL ACCEPTANCE GATE (#160): it runs the fresh-context
 boundary review (all LLM review — code quality, requirements traceability, docs

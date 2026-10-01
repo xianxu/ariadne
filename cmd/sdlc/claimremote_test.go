@@ -144,38 +144,10 @@ func TestClaimRaceHasExactlyOneWinner(t *testing.T) {
 	git(t, peer, "config", "user.name", "Peer")
 	git(t, peer, "config", "user.email", "peer@example.com")
 	dirs := []string{r.root, peer}
-	barrier := t.TempDir()
-	hooks := t.TempDir()
-	// Each claimant reaches pre-push only after pinning its candidate on the
-	// open card; neither pushes until both have.
-	for i, dir := range dirs {
-		hookDir := filepath.Join(hooks, fmt.Sprint(i))
-		if err := os.MkdirAll(hookDir, 0o755); err != nil {
-			t.Fatal(err)
-		}
-		hook := fmt.Sprintf("#!/bin/sh\ntouch '%s/ready%d'\nn=0\nwhile [ ! -f '%s/ready%d' ]; do n=$((n+1)); [ \"$n\" -lt 1000 ] || exit 1; sleep 0.01; done\n", barrier, i, barrier, 1-i)
-		if err := os.WriteFile(filepath.Join(hookDir, "pre-push"), []byte(hook), 0o755); err != nil {
-			t.Fatal(err)
-		}
-		git(t, dir, "config", "core.hooksPath", hookDir)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-	defer cancel()
-	type result struct {
-		dir, out string
-		err      error
-	}
-	results := make(chan result, 2)
-	for _, dir := range dirs {
-		cmd := exec.CommandContext(ctx, binary, "claim", "--issue", "9")
-		cmd.Dir = dir
-		cmd.WaitDelay = 2 * time.Second
-		go func() { out, err := cmd.CombinedOutput(); results <- result{dir, string(out), err} }()
-	}
+	results := raceBuiltBinary(t, binary, dirs, "claim", "--issue", "9")
 	wins := 0
 	var winner, loser string
-	for range 2 {
-		res := <-results
+	for _, res := range results {
 		if res.err == nil {
 			wins++
 			winner = res.dir
@@ -318,4 +290,42 @@ func TestClaimDryRunOwnerRepeatWritesNothing(t *testing.T) {
 	if raw, _ := os.ReadFile(filepath.Join(r.root, detailPath)); string(raw) != detail {
 		t.Fatal("a dry-run repeat claim wrote the details")
 	}
+}
+
+type raceResult struct {
+	dir, out string
+	err      error
+}
+
+// raceBuiltBinary runs the built binary with args in each dir concurrently. A
+// pre-push hook barrier holds each process until all have pinned their
+// candidate, so every racer reads the same tracker state before anyone pushes.
+func raceBuiltBinary(t *testing.T, binary string, dirs []string, args ...string) []raceResult {
+	t.Helper()
+	barrier, hooks := t.TempDir(), t.TempDir()
+	for i, dir := range dirs {
+		hookDir := filepath.Join(hooks, fmt.Sprint(i))
+		if err := os.MkdirAll(hookDir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+		hook := fmt.Sprintf("#!/bin/sh\ntouch '%s/ready%d'\nn=0\nwhile [ ! -f '%s/ready%d' ]; do n=$((n+1)); [ \"$n\" -lt 1000 ] || exit 1; sleep 0.01; done\n", barrier, i, barrier, 1-i)
+		if err := os.WriteFile(filepath.Join(hookDir, "pre-push"), []byte(hook), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		git(t, dir, "config", "core.hooksPath", hookDir)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ch := make(chan raceResult, len(dirs))
+	for _, dir := range dirs {
+		cmd := exec.CommandContext(ctx, binary, args...)
+		cmd.Dir = dir
+		cmd.WaitDelay = 2 * time.Second
+		go func() { out, err := cmd.CombinedOutput(); ch <- raceResult{dir, string(out), err} }()
+	}
+	var results []raceResult
+	for range dirs {
+		results = append(results, <-ch)
+	}
+	return results
 }

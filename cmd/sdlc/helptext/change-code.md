@@ -1,11 +1,6 @@
 Enter the implementation phase for an issue. Composes the gates
 between planning and code-changing work in any checkout:
 
-OWNERSHIP (#277): change-code continues only an issue this workspace owns. That
-is the card's `claimant`, matched on repository, machine and worktree; a
-working status alone is not enough. Another workspace's issue is refused,
-naming the owner. An issue with no recorded owner is refused toward
-`sdlc claim --issue N --adopt`.
 
   0. Flow                — infers the issue's flow (#231; see THE FLOW
                            below). On the quick flow, gates 1–3 do not run.
@@ -162,6 +157,8 @@ WHEN TO USE
   creation) was split into `sdlc claim` + `sdlc change-code` because
   in practice the planning step takes hours-to-days, and the
   worktree decision wants to wait until you can size the work.
+
+{{OWNERSHIP_GATE}}
 
 FLAGS
 

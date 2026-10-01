@@ -52,6 +52,8 @@ func renderLong(name string) string {
 		"{{QUICK_AFTER_REVIEW}}", flow.AfterReviewSummary(),
 		// #231 BR-27: a page's gate-flag list, rendered from the gate catalog.
 		"{{GATE_FLAGS}}", processmanual.GateTable(name),
+		// #277: the continuation gate's contract, said once.
+		"{{OWNERSHIP_GATE}}", ownershipGateHelp,
 	).Replace(helptext.MustGet(name))
 }
 

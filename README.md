@@ -20,7 +20,16 @@ each issue's card — id, status, dates, hours, title — lives on the
 N` reserves an open issue on its card; `sdlc start-plan` puts the design on the
 issue's own branch, where `sdlc issue sync --issue N` checkpoints it; the details
 reach main with that branch (initial details: `sdlc issue move-detail`). See
-[issue tracker](atlas/workflow/issue-tracker.md). A legacy repository cuts over
+[issue tracker](atlas/workflow/issue-tracker.md).
+
+A claim also records its owner on the card (#277): the operator, a
+fingerprint of the machine, and the worktree. Only that workspace continues the
+issue through start-plan, change-code and close. A working issue claimed before
+then is adopted with `sdlc claim --issue N --adopt`, and `sdlc move` carries
+ownership with the branch. Rebuild every checkout's `sdlc` after this lands,
+because older binaries refuse claimed cards.
+
+A legacy repository cuts over
 once with `sdlc issue migrate` — see
 [issue tracker migration](atlas/workflow/issue-tracker-migration.md); until then
 it keeps [issue publication](atlas/workflow/issue-sync.md): claim on main,

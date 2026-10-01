@@ -129,6 +129,15 @@ func ownership(env *trackerEnv, card tracker.Record) (issue.Ownership, issue.Cla
 	return issue.MatchClaimant(&recorded, me), recorded, me, nil
 }
 
+// ownershipGateHelp states requireIssueOwnership's contract for every verb help
+// that runs it ({{OWNERSHIP_GATE}}).
+const ownershipGateHelp = "OWNERSHIP (#277): this verb continues only an issue this workspace owns. That\n" +
+	"is the card's claimant, matched on repository, machine and worktree; a working\n" +
+	"status alone is not enough. Another workspace's issue is refused, naming the\n" +
+	"owner. An issue with no recorded owner is refused toward\n" +
+	"`sdlc claim --issue N --adopt`. Work that `sdlc move` brought here, whose\n" +
+	"owner update did not finish, is pointed to the `sdlc claim` repair."
+
 // requireIssueOwnership is the continuation gate (#277): start-plan,
 // change-code, close and milestone-close continue an issue only from the
 // workspace that owns it. A working status alone is a reservation, not a

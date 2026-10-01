@@ -277,3 +277,17 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     `--adopt` and leaves no record.
   - Minors: relocatable's probe error is surfaced; one tracker read per
     close (`requireCardOwnership` inside `prepareTrackerClose`).
+- M2 round-1 fixes, part 2:
+  - BR-10's two-clone adopt race now exists, using a shared
+    `raceBuiltBinary` helper that the claim race uses too.
+  - BR-12: README sentence on owners, `--adopt`, move and the rebuild.
+  - Minor: the help is single-sourced through `{{OWNERSHIP_GATE}}`
+    (`ownershipGateHelp`), and change-code's note moved out of its numbered
+    list.
+  - Full suite: every cmd/sdlc test passes. Two load-timing flakes in a first
+    run (`TestCLISignalCancelsOwnedReviewer`,
+    `TestPlanningReviewConcurrencySchedules`) passed in isolation and in the
+    rerun.
+  - Process note: a parallel batch ran in the wrong directory and appended to
+    a stray root `ownership_test.go`. I moved its content into the right file
+    and removed the stray.

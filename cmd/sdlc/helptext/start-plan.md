@@ -1,10 +1,6 @@
 Enter planning — deliver the architectural principles to design against (#75).
 
-OWNERSHIP (#277): start-plan continues only an issue this workspace owns. That
-is the card's `claimant`, matched on repository, machine and worktree; a
-working status alone is not enough. Another workspace's issue is refused,
-naming the owner. An issue with no recorded owner is refused toward
-`sdlc claim --issue N --adopt`.
+{{OWNERSHIP_GATE}}
 
 The SDLC workflow has `claim` (start work) and `change-code` (the gate into
 implementation: it infers the flow and, on the full flow, runs the plan-quality
