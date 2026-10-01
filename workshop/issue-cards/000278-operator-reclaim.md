@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000278-operator-reclaim.md
         source_blob: e5852fe4b8d60adfee179919fea9d2e7471cb408
         destination: workshop/issues/000278-operator-reclaim.md
+        main_commit: 829f814edf6e8d9962585e27ad7455d18d3587a9
 ---
 
 # Add operator-directed reclaim for recovery
