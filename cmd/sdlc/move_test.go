@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -37,7 +38,7 @@ func moveSnapshot(t *testing.T, roots ...string) string {
 func runMoveTest(t *testing.T, dir, address string, dryRun bool) (string, error) {
 	t.Helper()
 	var out bytes.Buffer
-	err := runMove(dir, address, dryRun, &out, &out)
+	err := runMove(context.Background(), dir, address, dryRun, &out, &out)
 	return out.String(), err
 }
 

@@ -36,6 +36,27 @@ details like every card field.
 - **No extra fields:** there is no claim ID or timestamp. Git history and the
   card blob already order claims.
 
+**Enforcement.**
+- **The gate.** `requireIssueOwnership` is the one continuation gate, used
+  by start-plan, change-code and `computeClose` (whole-issue close and
+  milestone-close alike, before any review).
+  - It passes the owner.
+  - It refuses another workspace's issue, naming the owner.
+  - It refuses an unattributed working card (claimed before #277) toward
+    `sdlc claim --issue N --adopt`.
+- **Adopt** writes a claimant only on an unattributed working or blocked
+  card, and never reassigns.
+- **set-status** into `working` records the claimant like claim does. It
+  refuses on another workspace's card even with `--force`.
+- **Relocation** is the owner moving its own work on the same machine
+  (`RelocationAllowed`). The current checkout is on the issue branch and the
+  recorded worktree no longer holds it.
+  - `sdlc move` re-stamps after its verified switches.
+  - If that network step fails, `sdlc claim` at the destination repairs it.
+    The gate names that repair.
+- **Out of scope:** reassigning an owned card across workspaces, machines or
+  operators is reclaim (#278); structured observation is #279.
+
 **Rollout is a flag day.** An `sdlc` built before #277 aborts the whole
 tracker snapshot on the first card it cannot parse
 (`internal/tracker/reader.go`). So once any card carries a `claimant`, every
@@ -102,8 +123,8 @@ The publication remote is the resting branch's upstream
 |---|---|---|---|
 | `issue new` | reserved at `max(id)+1`, own commit; reallocates after a proven race | written locally; narrow commit on a feature branch, uncommitted on rest | untouched |
 | `claim` | open → working + claimant by CAS; the owner's repeat is a no-op, others refuse (#277) | mirror refreshed (never on rest) | must already hold the details, re-checked before push |
-| `start-plan` | must be working | branch `<details stem>` created at pinned main from a clean rest; an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
-| `change-code` | read (mirror refresh before gates) | design committed narrowly on the issue branch | never published |
+| `start-plan` | must be working and owned by this workspace (#277) | branch `<details stem>` created at pinned main from a clean rest; an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
+| `change-code` | read (mirror refresh before gates); owner only (#277) | design committed narrowly on the issue branch | never published |
 | `close` | codecomplete bound to the evidence commit | evidence commit, then a mirror commit (#275) | never published |
 | `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |

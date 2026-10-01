@@ -4,6 +4,11 @@ branch (#252): set-status updates the card by compare-and-swap and bumps
 `updated` to today; this checkout's details mirror is then refreshed (never on
 the resting branch). A reopen reads this checkout's details Log for its entry.
 
+OWNERSHIP (#277): entering `working` records this workspace as the card's
+claimant, as claim does: from open, or when reopening an unattributed issue or
+one of your own. It refuses when another workspace owns the card, even with
+--force, because that would be a takeover (reclaim, #278).
+
 {{LIFECYCLE}}
 
 (STATUSES + LEGAL TRANSITIONS above are derived from the issue lifecycle model —

@@ -196,7 +196,7 @@ func TestRelocationAfterMoveAndRepair(t *testing.T) {
 	prev := moveRelocation
 	moveRelocation = func(context.Context, string, string) error { return errors.New("tracker unreachable") }
 	var warn bytes.Buffer
-	relocateAfterMove(r.root, "000371-relocate", &warn)
+	relocateAfterMove(context.Background(), r.root, "000371-relocate", &warn)
 	moveRelocation = prev
 	if !strings.Contains(warn.String(), "sdlc claim --issue 371") {
 		t.Fatalf("failed re-stamp named no repair: %s", warn.String())

@@ -3,6 +3,12 @@ fresh-context code review (AGENTS.md §3). The canonical closing path
 for milestone work — bundles the mechanical close + the mandatory
 review into one invocation so neither half is skipped.
 
+OWNERSHIP (#277): milestone-close continues only an issue this workspace owns. That
+is the card's `claimant`, matched on repository, machine and worktree; a
+working status alone is not enough. Another workspace's issue is refused,
+naming the owner. An issue with no recorded owner is refused toward
+`sdlc claim --issue N --adopt`. The check runs before the review.
+
 WHAT IT DOES
 
   1. Runs the mechanical milestone close:

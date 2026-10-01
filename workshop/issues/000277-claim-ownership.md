@@ -233,3 +233,12 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     - restart survival through the built binary.
   - Mutation check: disabling `requireIssueOwnership` turns all four gate
     subtests red.
+- M2 docs:
+  - Ownership notes went into the help for start-plan, change-code, close,
+    milestone-close, move and set-status.
+  - The atlas Claimant section gained Enforcement (gate, adopt, set-status,
+    relocation, #278/#279 boundary) and updated verb rows.
+  - The process manual needed no change: it catalogs only each help text's
+    first paragraph.
+  - `TestVerbContextsReachTrackerReads` caught move's relocation using
+    `context.Background`; the command context now threads through `runMove`.

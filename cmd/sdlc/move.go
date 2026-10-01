@@ -30,14 +30,14 @@ func NewMoveCmd() *cobra.Command {
 			if len(args) > 0 {
 				address = args[0]
 			}
-			return runMove(".", address, dryRun, cmd.OutOrStdout(), cmd.ErrOrStderr())
+			return runMove(commandContext(cmd.Context()), ".", address, dryRun, cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
 	})
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "check both slots and print the move; change nothing")
 	return cmd
 }
 
-func runMove(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
+func runMove(ctx context.Context, dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 	if address == "" {
 		address = ":0"
 	}
@@ -84,7 +84,7 @@ func runMove(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 		}
 	}
 	cok(stderr, fmt.Sprintf("%s is on %s in %s; %s is back on %s", branch, to.Address, to.Root, from.Address, from.Resting))
-	relocateAfterMove(to.Root, branch, stderr)
+	relocateAfterMove(ctx, to.Root, branch, stderr)
 	return nil
 }
 
@@ -92,12 +92,12 @@ func runMove(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 // branch carries (#277). It runs only after both switches are verified, so its
 // network step can never strand the branch: a failure leaves the move complete,
 // the claimant on the source, and names the convergent repair.
-func relocateAfterMove(dest, branch string, stderr io.Writer) {
+func relocateAfterMove(ctx context.Context, dest, branch string, stderr io.Writer) {
 	id, _, ok := issue.ParseFilename(branch + ".md")
 	if !ok {
 		return // not an issue branch
 	}
-	if err := moveRelocation(context.Background(), dest, id); err != nil {
+	if err := moveRelocation(ctx, dest, id); err != nil {
 		cwarn(stderr, fmt.Sprintf("%s moved, but #%s's owner was not updated: %v\n      finish it with `sdlc claim --issue %s` in %s", branch, id, err, issue.CLIRef(id), dest))
 	}
 }
