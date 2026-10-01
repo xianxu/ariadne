@@ -268,6 +268,23 @@ rounds:
           round: 7
       recipe: milestone-review
       blocked: false
+    - "n": 8
+      timestamp: "2026-10-01T15:38:41-07:00"
+      agent: claude
+      dispose:
+        - id: BR-22
+          disposition: addressed
+          note: close.go:508,518 judges ownership on rec.Card from the status read; requireIssueOwnership removed; start-plan/change-code already single-read.
+          round: 8
+      findings:
+        - id: BR-23
+          severity: Minor
+          title: Whole-issue tracker close still reads status (loadIssueRecords) and ownership (prepareTrackerClose snapshot) from two card reads
+          detail: '4th in family. Rule: status and ownership must be judged on the same card, so a precondition helper takes the caller''s card instead of snapshotting again. Remaining instance: close.go:500-508 vs closetracker.go:330-338. Fix: pass the loaded tracker.Record into prepareTrackerClose, or take currentStatus from trackerPrep.card when mode == "issue". Prevalence: 4 verbs had it, 3 fixed. The Log line "Every verb judges status and owner on one card read" overstates this until it is fixed.'
+          family: repeated-tracker-snapshot
+          round: 8
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#277 (boundary-review)
@@ -383,6 +400,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-22** [Minor] `repeated-tracker-snapshot` Milestone close reads the status from loadIssueRecords, then opens and snapshots the tracker again for requireIssueOwnership
   3rd in family. Rule: each verb judges status and ownership from one card read; requireIssueOwnership only where no card or record is held. close.go:510-520 holds an IssueRecord (rs.Get) but opens the tracker again. Fix: reach the raw card through the record or a shared snapshot so both judgments read one version. Prevalence: start-plan, change-code, milestone close; the first two are now fixed.
 
+## Round 8 — 2026-10-01T15:38:41-07:00 (claude) — passed
+
+### Disposed
+
+- BR-22 — addressed — close.go:508,518 judges ownership on rec.Card from the status read; requireIssueOwnership removed; start-plan/change-code already single-read.
+
+### Raised
+
+- **BR-23** [Minor] `repeated-tracker-snapshot` Whole-issue tracker close still reads status (loadIssueRecords) and ownership (prepareTrackerClose snapshot) from two card reads
+  4th in family. Rule: status and ownership must be judged on the same card, so a precondition helper takes the caller's card instead of snapshotting again. Remaining instance: close.go:500-508 vs closetracker.go:330-338. Fix: pass the loaded tracker.Record into prepareTrackerClose, or take currentStatus from trackerPrep.card when mode == "issue". Prevalence: 4 verbs had it, 3 fixed. The Log line "Every verb judges status and owner on one card read" overstates this until it is fixed.
+
 ## Open findings
 
-- **BR-22** [Minor] `repeated-tracker-snapshot` Milestone close reads the status from loadIssueRecords, then opens and snapshots the tracker again for requireIssueOwnership
+- **BR-23** [Minor] `repeated-tracker-snapshot` Whole-issue tracker close still reads status (loadIssueRecords) and ownership (prepareTrackerClose snapshot) from two card reads

@@ -68,3 +68,79 @@ findings:
     detail: |
       3rd in family. Rule: each verb judges status and ownership from one card read; requireIssueOwnership only where no card or record is held. close.go:510-520 holds an IssueRecord (rs.Get) but opens the tracker again. Fix: reach the raw card through the record or a shared snapshot so both judgments read one version. Prevalence: start-plan, change-code, milestone close; the first two are now fixed.
 ```
+
+---
+
+## Re-review — 2026-10-01T15:38:41-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 277 — Record claimant ownership atomically with issue reservation |
+| repo | ariadne |
+| issue file | workshop/issues/000277-claim-ownership.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | bb6221d84ecd5ba27a1336cb78515ecdb2e5d602..4d449496bb6c32fc2c4e758e750ab4b1b858380d |
+| command | sdlc close --issue 277 |
+| reviewer | claude |
+| timestamp | 2026-10-01T15:38:41-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** This round fixed the open finding, BR-22. In a tracker-era milestone close, `computeClose` used to load the card record to read the status, then open and snapshot the tracker again for the ownership check. It now passes the card it already loaded (`rec.Card`) to `requireCardOwnership`. The old `requireIssueOwnership` is gone, so one gate function takes the card it is given. Start-plan, change-code and milestone close each now judge status and ownership on a single card read.
+
+Whole-issue close is the one sibling left. It still reads status from `loadIssueRecords` and ownership from a second snapshot inside `prepareTrackerClose`. That makes the Log line "Every verb judges status and owner on one card read" slightly overstated. It is Minor and does not block the gate.
+
+What I ran:
+- **Build and vet:** both clean.
+- **gofmt:** clean on the changed files. The only flagged file, `cmd/sdlc/reviewsidecar.go`, is not in this window.
+- **Tests:** the ownership, claimant, verb-contract, relocation, set-status and move tests passed. `TestMoveDetailWithoutLocalDetailsDerivesThemFromTheCard` failed once while removing its temp directory, then passed 3 out of 3 when re-run alone. It looks like a cleanup flake under parallel load, not something this diff introduced.
+
+1. **Strengths**
+   - `cmd/sdlc/close.go:498-519`: milestone close judges ownership on the card version it read the status from. The non-nil guarantee holds because the code dies at line 506 when `rec.Card == nil`.
+   - `cmd/sdlc/claimant.go:141-145`: one gate function instead of two near-duplicates, which removes the snapshot-or-card split (ARCH-DRY).
+   - The atlas entry and the help-template comment were renamed in the same commit, so the docs stay in step with the code.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor** (one item)
+   - **This is the 4th finding in family `repeated-tracker-snapshot`.**
+     - **Rule:** a verb's status check and its ownership check must read the same card. A precondition helper should take the card from its caller, not snapshot again on its own.
+     - **Remaining instance:** whole-issue close. `close.go:500-508` reads status via `loadIssueRecords`. `prepareTrackerClose` (`closetracker.go:330-338`) snapshots again for ownership and for the card it publishes.
+     - **Fix:** have `prepareTrackerClose` take the already-loaded `tracker.Record`, or take `currentStatus` from `trackerPrep.card` when `mode == "issue"`.
+     - **Prevalence:** 4 verbs had the pattern; 3 are fixed.
+
+5. **Test coverage**
+   - BR-22 is a refactor that keeps behaviour the same, so no new test is needed.
+   - The existing milestone-close ownership tests still pass and still go through the gate.
+
+6. **Architecture**
+   - ARCH-DRY, ARCH-PURE, ARCH-MOCK, ARCH-CONSTRAINTS, ARCH-SECURE and ARCH-FUNERAL: pass, nothing new in this round.
+   - ARCH-ORDER: pass. The time window between two card reads is now gone in 3 of the 4 verbs.
+   - ARCH-PURPOSE: flagged. The one-read rule is met in every verb except whole-issue close; that is the Minor above.
+
+7. **Plan revisions:** none. The Log claim should either be narrowed to milestone close, or made true by the Minor fix.
+
+```findings
+dispose:
+  - id: BR-22
+    disposition: addressed
+    note: |
+      close.go:508,518 judges ownership on rec.Card from the status read; requireIssueOwnership removed; start-plan/change-code already single-read.
+findings:
+  - id: new
+    severity: Minor
+    family: repeated-tracker-snapshot
+    title: |
+      Whole-issue tracker close still reads status (loadIssueRecords) and ownership (prepareTrackerClose snapshot) from two card reads
+    detail: |
+      4th in family. Rule: status and ownership must be judged on the same card, so a precondition helper takes the caller's card instead of snapshotting again. Remaining instance: close.go:500-508 vs closetracker.go:330-338. Fix: pass the loaded tracker.Record into prepareTrackerClose, or take currentStatus from trackerPrep.card when mode == "issue". Prevalence: 4 verbs had it, 3 fixed. The Log line "Every verb judges status and owner on one card read" overstates this until it is fixed.
+```
