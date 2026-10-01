@@ -194,6 +194,37 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 5
+      timestamp: "2026-10-01T15:02:20-07:00"
+      agent: claude
+      dispose:
+        - id: BR-15
+          disposition: addressed
+          note: TestGateSurfacesAnUnreadableMoveRecord drives a malformed record through the gate; reverting the wrapped error in a scratch copy turns it red.
+          round: 5
+        - id: BR-17
+          disposition: addressed
+          note: atlas/workflow/issue-tracker.md:51-67 states the record evidence rule and full lifecycle; plan has the M2 rounds 1-2 Revision, superseded note, and the updated Verb contract cell; lesson recorded.
+          round: 5
+        - id: BR-18
+          disposition: addressed
+          note: move.go removes the record on the first-switch failure; TestMoveFirstSwitchFailureLeavesNoRecord is red with the removal reverted; second-switch failure intentionally keeps it.
+          round: 5
+      findings:
+        - id: BR-19
+          severity: Important
+          title: claim --help omits --adopt and still says any other workspace's repeat claim is refused, contradicting the relocation repair
+          detail: '3rd in family. helptext/claim.md FLAGS lacks --adopt (registered at claim.go:78) and lines 34-36 contradict claim.go:143-165. Rule: every registered flag appears in its rendered help (enforce with a VisitAll-over-subcommands test beside helpflags_test.go), and the restatement sweep in lessons.md includes the help page of every verb whose behavior changed.'
+          family: docs-surface-gap
+          round: 5
+        - id: BR-20
+          severity: Minor
+          title: Plan superseded-note cites Revision "M2 review round 1" but the entry is titled "M2 review rounds 1-2"
+          family: plan-code-contract-drift
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#277 (boundary-review)
@@ -271,9 +302,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-18** [Minor] `effect-record-outlives-effect` sdlc move leaves its relocation record when the first switch fails and nothing moved
   move.go writes the record before switching; the "nothing was moved" return never removes it, leaving stale evidence that later authorizes a claim-relocation after hand switching. Remove it on that path (keep it on the second-switch failure, where it is the repair evidence).
 
+## Round 5 — 2026-10-01T15:02:20-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-15 — addressed — TestGateSurfacesAnUnreadableMoveRecord drives a malformed record through the gate; reverting the wrapped error in a scratch copy turns it red.
+- BR-17 — addressed — atlas/workflow/issue-tracker.md:51-67 states the record evidence rule and full lifecycle; plan has the M2 rounds 1-2 Revision, superseded note, and the updated Verb contract cell; lesson recorded.
+- BR-18 — addressed — move.go removes the record on the first-switch failure; TestMoveFirstSwitchFailureLeavesNoRecord is red with the removal reverted; second-switch failure intentionally keeps it.
+
+### Raised
+
+- **BR-19** [Important] `docs-surface-gap` claim --help omits --adopt and still says any other workspace's repeat claim is refused, contradicting the relocation repair
+  3rd in family. helptext/claim.md FLAGS lacks --adopt (registered at claim.go:78) and lines 34-36 contradict claim.go:143-165. Rule: every registered flag appears in its rendered help (enforce with a VisitAll-over-subcommands test beside helpflags_test.go), and the restatement sweep in lessons.md includes the help page of every verb whose behavior changed.
+- **BR-20** [Minor] `plan-code-contract-drift` Plan superseded-note cites Revision "M2 review round 1" but the entry is titled "M2 review rounds 1-2"
+
 ## Open findings
 
 - **BR-8** [Minor] `stale-test-precondition` TestSlotLabelOnlyWhereSlotsExist's "no slots" check runs after the malformed slot dir is created, duplicating the prior assertion
-- **BR-15** [Minor] `swallowed-probe-error` requireIssueOwnership discards relocatable's error and reports a plain Foreign refusal
-- **BR-17** [Important] `docs-surface-gap` Atlas and plan still state the pre-BR-9 relocation rule; relocation record family undocumented
-- **BR-18** [Minor] `effect-record-outlives-effect` sdlc move leaves its relocation record when the first switch fails and nothing moved
+- **BR-19** [Important] `docs-surface-gap` claim --help omits --adopt and still says any other workspace's repeat claim is refused, contradicting the relocation repair
+- **BR-20** [Minor] `plan-code-contract-drift` Plan superseded-note cites Revision "M2 review round 1" but the entry is titled "M2 review rounds 1-2"

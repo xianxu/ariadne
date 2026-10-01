@@ -78,6 +78,7 @@ func NewClaimCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.Adopt, "adopt", false, "record this workspace as owner of a working issue that has none (claimed before #277)")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
 	cmd.Flags().BoolVar(&f.NoStart, "no-start", false, "retired; use issue publish --commit SHA for documentation")
+	_ = cmd.Flags().MarkHidden("no-start") // retired: refused, kept only to explain itself
 	return cmd
 }
 

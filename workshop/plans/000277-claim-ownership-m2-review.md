@@ -296,3 +296,107 @@ findings:
     detail: |
       move.go writes the record before switching; the "nothing was moved" return never removes it, leaving stale evidence that later authorizes a claim-relocation after hand switching. Remove it on that path (keep it on the second-switch failure, where it is the repair evidence).
 ```
+
+---
+
+## Re-review — 2026-10-01T15:02:20-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 277 — Record claimant ownership atomically with issue reservation |
+| repo | ariadne |
+| issue file | workshop/issues/000277-claim-ownership.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | e53c075bd9ae04f71535872f44d124abf2839d4b..b368bb3fc5862a8fb94216ebb0112c962339c6cf |
+| command | sdlc milestone-close --issue 277 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-10-01T15:02:20-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+Round 3 closes all three open findings, and I confirmed each with tests rather than taking the commit messages at face value. BR-15 and BR-18 each have a regression test. I reverted each fix in a scratch copy and both tests went red:
+- `TestGateSurfacesAnUnreadableMoveRecord` fails with the plain "owned by" refusal.
+- `TestMoveFirstSwitchFailureLeavesNoRecord` fails because the record is left behind.
+
+BR-17's atlas rewrite and plan Revision now describe the evidence rule and the record's lifecycle. The targeted ownership, move, relocation and verb-contract tests pass.
+
+One Important gap remains, and it is the same family again: `sdlc claim --help` was never updated in M2. It doesn't list or describe `--adopt`. It also still says "a repeat claim by any other workspace is refused", but the relocation repair is a successful repeat claim from another worktree.
+
+### 1. Strengths
+- **Both regression tests go red without their fixes.** BR-15's test hits the "malformed relocation record" path through the real gate. BR-18's test makes the first switch fail for real by locking the index, not by stubbing.
+- **The record lifecycle is right on every path.** `move.go:78-81` removes the record when nothing moved. The second-switch failure (`move.go:83-86`) keeps it on purpose, as evidence for the `git switch` + `sdlc claim` repair, and the atlas states this.
+- **The Atlas Record bullets in `atlas/workflow/issue-tracker.md:51-67`** cover every write and removal path, plus the bound (ARCH-FUNERAL).
+- **The rule behind BR-17 is now in `workshop/lessons.md`**, along with the "absence is not evidence" rule. Both are stated as classes, not as single instances.
+
+### 2. Critical
+None.
+
+### 3. Important
+**I-1: `cmd/sdlc/helptext/claim.md` doesn't document `--adopt` or the relocation repair** (family `docs-surface-gap`).
+- `--adopt` is registered at `claim.go:78` but is missing from the FLAGS list (lines 43-48). The prose only names it as the target of a refusal; it never says what it does or that it refuses an issue that already has an owner.
+- Lines 34-36 say "A repeat claim by any other workspace is refused". `claim.go:143-165` contradicts that: a repeat claim at a move destination, with a move record present, relocates and succeeds. `move.md` and the gate both point operators at exactly this command.
+
+> **This is the 3rd finding in family `docs-surface-gap`.** Earlier rounds fixed instances (README in BR-12, atlas/plan in BR-17). The rule: **every flag a command registers appears in its rendered `--help`, and the help page of each verb whose behavior changes is part of the "every restatement" sweep in lessons.md.**
+>
+> The flag half can be enforced mechanically and should be: add a test next to `helpflags_test.go`. It should walk every subcommand's non-hidden `Flags()` with `VisitAll` and assert that `--<name>` appears in `renderLong(page)`. That catches this class in every verb, not just `claim`.
+>
+> The prose half (the relocation exception) can't be tested. It is covered by the existing lessons rule, applied to the helptext of every verb the diff touches: here `claim.go`, where `claim.md` was left out of the sweep.
+
+### 4. Minor
+- `workshop/plans/000277-claim-ownership-plan.md:87`: the "Superseded by Revision 'M2 review round 1'" note points to a heading that doesn't exist. The Revision is titled "M2 review rounds 1–2".
+- The `cmd/sdlc/helptext/change-code.md:3-4` double blank line was noted last round and is still there.
+- `gofmt -l` flags only `reviewsidecar.go`, which is outside this window.
+
+### 5. Test coverage notes
+- BR-15: `TestGateSurfacesAnUnreadableMoveRecord` covers `readRelocation`'s malformed branch and the wrapped gate error. It is red without the fix.
+- BR-18: `TestMoveFirstSwitchFailureLeavesNoRecord` is red without the fix. One weakness in its oracle: a `writeRelocation` failure would also produce "nothing was moved" and no record, so the test could pass for the wrong reason. Asserting the error text starts with `switch ` would pin which path ran.
+- No test enumerates registered flags against the help pages. I-1's fix adds one.
+
+### 6. Architectural notes
+- **ARCH-DRY: pass.** The ownership help is single-sourced, and `relocationPath` is the one place that knows the record layout.
+- **ARCH-PURE: pass.** The decisions are pure. Record IO is confined to `relocation.go`.
+- **ARCH-PURPOSE: flag (I-1).** The behavior is delivered, but claim's own help page, the first place an operator looks for `--adopt`, doesn't teach it.
+- **ARCH-MOCK: pass.** Real git and real lock-induced failures, no stubs.
+- **ARCH-CONSTRAINTS: pass.**
+- **ARCH-SECURE: pass.** A malformed record fails closed and the error reaches the operator.
+- **ARCH-ORDER: pass.** Every exit after the record is written has a defined disposition: removed when nothing moved, kept on the second-switch failure, removed on success or when relocation doesn't apply, removed by the claim repair.
+- **ARCH-FUNERAL: pass.** BR-18 closed the remaining stale-record path.
+
+### 7. Plan revision recommendations
+- Fix the "Superseded by" pointer so it names "M2 review rounds 1–2".
+
+```findings
+dispose:
+  - id: BR-15
+    disposition: addressed
+    note: |
+      TestGateSurfacesAnUnreadableMoveRecord drives a malformed record through the gate; reverting the wrapped error in a scratch copy turns it red.
+  - id: BR-17
+    disposition: addressed
+    note: |
+      atlas/workflow/issue-tracker.md:51-67 states the record evidence rule and full lifecycle; plan has the M2 rounds 1-2 Revision, superseded note, and the updated Verb contract cell; lesson recorded.
+  - id: BR-18
+    disposition: addressed
+    note: |
+      move.go removes the record on the first-switch failure; TestMoveFirstSwitchFailureLeavesNoRecord is red with the removal reverted; second-switch failure intentionally keeps it.
+findings:
+  - id: new
+    severity: Important
+    family: docs-surface-gap
+    title: |
+      claim --help omits --adopt and still says any other workspace's repeat claim is refused, contradicting the relocation repair
+    detail: |
+      3rd in family. helptext/claim.md FLAGS lacks --adopt (registered at claim.go:78) and lines 34-36 contradict claim.go:143-165. Rule: every registered flag appears in its rendered help (enforce with a VisitAll-over-subcommands test beside helpflags_test.go), and the restatement sweep in lessons.md includes the help page of every verb whose behavior changed.
+  - id: new
+    severity: Minor
+    family: plan-code-contract-drift
+    title: |
+      Plan superseded-note cites Revision "M2 review round 1" but the entry is titled "M2 review rounds 1-2"
+```

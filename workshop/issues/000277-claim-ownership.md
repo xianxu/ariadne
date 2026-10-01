@@ -300,3 +300,14 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - BR-15 is now tested: an unreadable move record surfaces at the gate.
   - BR-18: a move whose first switch fails removes its record. Tested, and
     mutation-checked.
+- M2 review round 3: BR-19, `claim --help` lacked `--adopt` and contradicted
+  the relocation repair (third docs finding). Fixes:
+  - Fixed the class: `TestEveryFlagAppearsInItsHelp` requires every
+    registered, non-hidden flag to appear in its page's FLAGS section. Gate
+    flags are exempt because the catalog renders them.
+  - The test found pre-existing gaps: change-code's `--sandbox`,
+    `--issues-dir` and `--plans-dir`, and merge/push `--plans-dir`. Fixed
+    those. Hid the retired `claim --no-start`.
+  - The claim help now states the relocation exception.
+  - Fixed the plan citation, and widened the restatement lesson to include
+    help pages.

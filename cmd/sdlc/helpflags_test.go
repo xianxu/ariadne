@@ -5,6 +5,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
 )
@@ -45,4 +48,38 @@ func TestGateFlagListsAreRenderedFromTheCatalog(t *testing.T) {
 			}
 		}
 	}
+}
+
+// TestEveryFlagAppearsInItsHelp (#277 BR-19): a help page with a FLAGS section
+// documents every flag its command registers (hidden ones excepted), so a new
+// flag cannot ship invisible in --help while the page claims to list them.
+func TestEveryFlagAppearsInItsHelp(t *testing.T) {
+	catalogued := map[string]bool{} // "<command> --<flag>": rendered from the gate catalog instead
+	for _, g := range processmanual.GateCatalog {
+		for _, cmd := range g.Commands {
+			catalogued[cmd+" --"+g.Flag] = true
+		}
+	}
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+		_, flags, listed := strings.Cut(c.Long, "\nFLAGS")
+		if !listed {
+			return // no hand-written flag list to keep complete
+		}
+		if end := strings.Index(flags, "\n\n"+"EXAMPLES"); end >= 0 {
+			flags = flags[:end]
+		}
+		c.LocalFlags().VisitAll(func(f *pflag.Flag) {
+			if f.Hidden || f.Name == "help" || catalogued[strings.TrimPrefix(c.CommandPath(), "sdlc ")+" --"+f.Name] {
+				return
+			}
+			if !regexp.MustCompile(`--` + regexp.QuoteMeta(f.Name) + `\b`).MatchString(flags) {
+				t.Errorf("sdlc %s --help lists FLAGS but omits --%s", c.CommandPath(), f.Name)
+			}
+		})
+	}
+	walk(buildRoot())
 }

@@ -64,8 +64,9 @@ Detailed incidents remain in their owning issue or review artifact.
 ## Review, plans, and artifacts
 
 - When a fix round changes a contract, grep every restatement of it (atlas,
-  README, help, plan steps and tables, Revisions) and update them in the same
-  commit. A fixed rule documented the old way reads as two rules (#277).
+  README, the help page of every verb whose behavior changed, plan steps and
+  tables, Revisions) and update them in the same commit. Registered flags are
+  checked against their FLAGS section by `TestEveryFlagAppearsInItsHelp`. A fixed rule documented the old way reads as two rules (#277).
 - Absence is not evidence of a transfer. Authorize a state change from
   positive evidence written by the actor entitled to make it, never from
   "the other party no longer holds X" (#277 BR-9).

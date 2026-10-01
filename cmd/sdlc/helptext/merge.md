@@ -82,6 +82,8 @@ FLAGS
   --dry-run             print proposed operations; durable path does no fetch or mutation
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues
   --history-dir <path>  override $WF_HISTORY_DIR / workshop/history
+  --plans-dir <path>    durable plans + review sidecars, archived with the issue
+                        (default workshop/plans, #143)
 
 EXAMPLES
 

@@ -84,7 +84,7 @@
 - **Relocation** (`issue.RelocationAllowed`, pure, plus `relocateClaimant`
   in `cmd/sdlc/claimant.go`; operator decision) — the owner moves their own
   work to another worktree on the same machine.
-  - *Superseded by Revision "M2 review round 1" (BR-9): relocation also
+  - *Superseded by Revision "M2 review rounds 1–2" (BR-9): relocation also
     requires `sdlc move`'s positive record.*
   - `RelocationAllowed(claimant, current, claimantWorktreeBranch)` is true
     only when all of these hold:
