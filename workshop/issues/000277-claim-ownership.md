@@ -8,6 +8,7 @@ updated: 2026-10-01
 estimate_hours: 4.09
 card_mirror: '15223d7e7c44c0f427a6e4667bb121e124bcd929' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-01T13:19:29-07:00
+flow: {kind: full, provenance: inferred}
 ---
 
 # Record claimant ownership atomically with issue reservation
