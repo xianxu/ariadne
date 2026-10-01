@@ -4,13 +4,19 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"io"
 	"reflect"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -47,6 +53,9 @@ func runMove(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 	moveReport(stderr, fmt.Sprintf("%s commits not in %s (they stay on %s, but are not in the test)", to.Resting, branch, to.Resting), facts.Parked)
 	moveReport(stderr, fmt.Sprintf("%s commits not on its upstream", to.Resting), facts.Unpublished)
 	if dryRun {
+		if _, _, ok := issue.ParseFilename(branch + ".md"); ok {
+			cinfo(stderr, fmt.Sprintf("would then record %s as the issue's owner, if this workspace owns it (#277)", to.Address))
+		}
 		cinfo(stderr, "dry-run — nothing was switched")
 		return nil
 	}
@@ -75,7 +84,60 @@ func runMove(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 		}
 	}
 	cok(stderr, fmt.Sprintf("%s is on %s in %s; %s is back on %s", branch, to.Address, to.Root, from.Address, from.Resting))
+	relocateAfterMove(to.Root, branch, stderr)
 	return nil
+}
+
+// relocateAfterMove records the destination as the owner of the issue the moved
+// branch carries (#277). It runs only after both switches are verified, so its
+// network step can never strand the branch: a failure leaves the move complete,
+// the claimant on the source, and names the convergent repair.
+func relocateAfterMove(dest, branch string, stderr io.Writer) {
+	id, _, ok := issue.ParseFilename(branch + ".md")
+	if !ok {
+		return // not an issue branch
+	}
+	if err := moveRelocation(context.Background(), dest, id); err != nil {
+		cwarn(stderr, fmt.Sprintf("%s moved, but #%s's owner was not updated: %v\n      finish it with `sdlc claim --issue %s` in %s", branch, id, err, issue.CLIRef(id), dest))
+	}
+}
+
+// moveRelocation is relocateAfterMove's effect, a variable so a test can fail
+// it after the switches.
+var moveRelocation = func(ctx context.Context, dest, id string) error {
+	if _, err := os.Stat(filepath.Join(dest, filepath.FromSlash(tracker.CutoverMarkerPath))); errors.Is(err, os.ErrNotExist) {
+		return nil // a pre-tracker repository has no owners to move
+	}
+	env, err := openTrackerAt(ctx, dest)
+	if err != nil {
+		return err
+	}
+	if tracked, _, err := env.repo.Presence(); err != nil || !tracked {
+		return err // a pre-tracker repository has no owners to move
+	}
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return err
+	}
+	card, ok := snap.Card(id)
+	if !ok {
+		return nil
+	}
+	own, recorded, me, err := ownership(env, card)
+	if err != nil || own == issue.OwnershipMine {
+		return err
+	}
+	if own == issue.OwnershipUnknown {
+		return fmt.Errorf("it has no recorded owner; `sdlc claim --issue %s --adopt` here records one", issue.CLIRef(id))
+	}
+	allowed, err := relocatable(env, card, recorded, me)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return fmt.Errorf("it is owned by %s, not the slot it moved from — moving never takes ownership (reclaim is #278)", describeClaimant(recorded))
+	}
+	return relocateClaimant(env, card, me)
 }
 
 func moveReport(w io.Writer, title string, commits []string) {

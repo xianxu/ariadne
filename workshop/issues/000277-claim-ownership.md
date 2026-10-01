@@ -219,3 +219,17 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     card even under `--force`.
   - The planning-review fixture now seeds its working card with the host
     identity.
+- M2:
+  - `sdlc move` relocates the owner after its verified switches
+    (`relocateAfterMove` → `moveRelocation`). It is skipped in pre-tracker
+    repositories, which have no cutover marker. On failure it warns and names
+    the `sdlc claim` repair.
+  - `ownership_test.go` covers:
+    - each of the four gates against Foreign and Unknown, with the judge never
+      dispatched, then adopt restoring the owner;
+    - adopt only on unattributed work;
+    - relocation with a forced re-stamp failure, its repair, and refusals for
+      another machine and for a still-held branch;
+    - restart survival through the built binary.
+  - Mutation check: disabling `requireIssueOwnership` turns all four gate
+    subtests red.
