@@ -144,3 +144,63 @@ findings:
     detail: |
       4th in family. Rule: status and ownership must be judged on the same card, so a precondition helper takes the caller's card instead of snapshotting again. Remaining instance: close.go:500-508 vs closetracker.go:330-338. Fix: pass the loaded tracker.Record into prepareTrackerClose, or take currentStatus from trackerPrep.card when mode == "issue". Prevalence: 4 verbs had it, 3 fixed. The Log line "Every verb judges status and owner on one card read" overstates this until it is fixed.
 ```
+
+---
+
+## Re-review — 2026-10-01T15:49:01-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 277 — Record claimant ownership atomically with issue reservation |
+| repo | ariadne |
+| issue file | workshop/issues/000277-claim-ownership.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | bb6221d84ecd5ba27a1336cb78515ecdb2e5d602..d130b35c36108a69cfc375487325df8ad72c55e4 |
+| command | sdlc close --issue 277 |
+| reviewer | claude |
+| timestamp | 2026-10-01T15:49:01-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-23, the only open finding, is fixed in d130b35c. A whole-issue tracker close used to read the card's status through `loadIssueRecords` and then judge ownership on a second card read inside `prepareTrackerClose`. It now runs `prepareTrackerClose` first and takes `currentStatus` from that same card (`trackerPrep.card.Card.Frontmatter`), at `cmd/sdlc/close.go:499-509`. The `loadIssueRecords` read is left only for milestone close, which already judges ownership on the record it loaded (`close.go:527`). I checked every caller of `requireCardOwnership`: `changecode.go:347`, `close.go:527`, `closetracker.go:338` and `startplan.go:296`. Each one passes a card the caller already holds. None of them takes a second snapshot, so the rule is now enforced everywhere, not just at the sites earlier findings named. I ran the stat and name-status recipes on the window (46 files, +3790/−82). The new commit only reorders the close path and doesn't add any new user-facing surface.
+
+1. **Strengths**
+   - `close.go:499-509`: one card read now gives status, the ownership verdict and the tracker base for the receipt (`trackerRef`). All three judge the same card version.
+   - `requireCardOwnership` (`claimant.go:145`) is the single ownership gate. Every caller hands it the card it already holds (ARCH-DRY).
+   - The fix still runs before the review and before any write, so the BR-22 ordering of preconditions is kept.
+   - The Log entry admits the earlier claim was overstated, and it records that this round swept the whole class of verbs rather than one site.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new.
+
+5. **Test coverage notes:** I found no test written specifically to pin "whole-issue close does exactly one card read". The change is a pure reordering with no new branch, and the existing tests for close ownership and status still exercise the path. That's acceptable for a Minor follow-through, and I'm not raising it.
+
+6. **Architectural notes**
+   - ARCH-DRY passes.
+   - ARCH-PURE passes; the gate is a pure check on a card that is passed in.
+   - ARCH-PURPOSE passes; all eight verbs in the class are covered.
+   - ARCH-MOCK has no change in this round.
+   - ARCH-CONSTRAINTS passes; one fewer tracker read on close.
+   - ARCH-SECURE has no change.
+   - ARCH-ORDER passes. Status and owner now come from the same card version, which removes a time-of-check/time-of-use gap between the two reads.
+   - ARCH-FUNERAL has nothing new that persists.
+
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-23
+    disposition: addressed
+    note: |
+      close.go:499-509 now takes currentStatus from prepareTrackerClose's card (same read that runs requireCardOwnership and supplies trackerRef); all requireCardOwnership callers pass a caller-held card.
+```

@@ -285,6 +285,16 @@ rounds:
           round: 8
       recipe: milestone-review
       blocked: false
+    - "n": 9
+      timestamp: "2026-10-01T15:49:01-07:00"
+      agent: claude
+      dispose:
+        - id: BR-23
+          disposition: addressed
+          note: close.go:499-509 now takes currentStatus from prepareTrackerClose's card (same read that runs requireCardOwnership and supplies trackerRef); all requireCardOwnership callers pass a caller-held card.
+          round: 9
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#277 (boundary-review)
@@ -411,6 +421,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-23** [Minor] `repeated-tracker-snapshot` Whole-issue tracker close still reads status (loadIssueRecords) and ownership (prepareTrackerClose snapshot) from two card reads
   4th in family. Rule: status and ownership must be judged on the same card, so a precondition helper takes the caller's card instead of snapshotting again. Remaining instance: close.go:500-508 vs closetracker.go:330-338. Fix: pass the loaded tracker.Record into prepareTrackerClose, or take currentStatus from trackerPrep.card when mode == "issue". Prevalence: 4 verbs had it, 3 fixed. The Log line "Every verb judges status and owner on one card read" overstates this until it is fixed.
 
+## Round 9 — 2026-10-01T15:49:01-07:00 (claude) — passed
+
+### Disposed
+
+- BR-23 — addressed — close.go:499-509 now takes currentStatus from prepareTrackerClose's card (same read that runs requireCardOwnership and supplies trackerRef); all requireCardOwnership callers pass a caller-held card.
+
 ## Open findings
 
-- **BR-23** [Minor] `repeated-tracker-snapshot` Whole-issue tracker close still reads status (loadIssueRecords) and ownership (prepareTrackerClose snapshot) from two card reads
+(none — every finding has been disposed)
