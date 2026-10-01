@@ -81,15 +81,39 @@
       block at close.go:~509. It runs for **both** modes, before the review,
       separate from `prepareTrackerClose`, which runs only when
       `mode == "issue"`.
-- **move re-stamp** (`cmd/sdlc/move.go`, operator decision) — `sdlc move :N`
-  relocates the owner's own work.
-  - When the card's claimant is Mine for the source slot, move CASes the
-    claimant to the destination's identity: same machine, destination
-    worktree and workspace.
-  - That happens before it switches checkouts. It refuses when the claimant is
-    Foreign or Unknown, which is reclaim (#278) or `--adopt`. Move gains no
-    takeover power.
-  - Non-tracker repositories are unchanged.
+- **Relocation** (`issue.RelocationAllowed`, pure, plus `relocateClaimant`
+  in `cmd/sdlc/claimant.go`; operator decision) — the owner moves their own
+  work to another worktree on the same machine.
+  - `RelocationAllowed(claimant, current, claimantWorktreeBranch)` is true
+    only when all of these hold:
+    - `repository` and `machine` equal the current ones;
+    - the current checkout is on the issue's branch;
+    - the claimant's worktree no longer has that branch checked out. That is
+      observed locally, because the path is on this machine. An unreadable or
+      missing worktree counts as "not on it", while a read error stays an
+      error.
+    It never applies across machines or repositories, and never while the old
+    worktree still holds the branch. Takeover stays #278.
+  - `relocateClaimant` CASes the claimant to the current identity. It is
+    convergent: a rerun after success is a no-op, and a rerun after a failure
+    retries.
+  - **`sdlc move :N` effect order:**
+    1. The existing preflight, re-observe, both switches and their
+       verification.
+    2. **Then** `relocateClaimant` from the destination's identity.
+    The CAS publishes to the remote tracker, so move gains a network step
+    only after the local move is complete. If the CAS fails (offline,
+    contention), the branch is already safely at the destination. Move then
+    warns and names the repair, `sdlc claim --issue N` run at the
+    destination.
+  - **Repair through `claim`:** when the card is `working` and
+    `RelocationAllowed` holds, a repeat claim relocates instead of refusing.
+    So every partial state is recoverable by rerunning one verb.
+  - Issue mapping uses the existing issue-branch name parse (`NNNNNN-slug`).
+    A non-issue branch, a non-tracker repository and `--dry-run` skip the
+    relocation and write nothing; dry-run prints "would relocate".
+  - Foreign or Unknown claimants are never relocated: move warns with the
+    reclaim (#278) or `--adopt` action.
 
 ### Verb contract
 
@@ -150,19 +174,29 @@
 
 ## M2 — Enforce ownership at the gates; adopt; set-status
 
-- [ ] **`requireOwnership`.** Wire it into start-plan, change-code, close and milestone-close. Each gate gets a real-git test with three cases: Mine passes; Foreign refuses naming the owner; Unknown refuses with the `--adopt` action. close refuses *before* its review runs; assert that the judge stub was not called.
-- [ ] **`claim --adopt`.** CAS only when the card is `working`/`blocked` and has no claimant. Tests:
-  - adopt on a legacy working card;
-  - adopt refused on an owned card and on an open card;
-  - two concurrent adopts have one winner.
+- [ ] **`requireOwnership`.** Wire it into start-plan, change-code, close and
+  milestone-close. Test strategy: one table-driven real-git test runs each
+  gate entry point against {Mine, Foreign, Unknown}. close and
+  milestone-close assert that the judge stub was never called on a refusal.
+- [ ] **`claim --adopt`.** CAS only when the card is `working`/`blocked` and
+  has no claimant. Test strategy: run the claim decision as a table over
+  (card status × claimant presence × flag), plus one two-clone adopt race.
 - [ ] **set-status into working.** Stamp the claimant on an open card or an unknown reopen; refuse on Foreign. Test open→working through set-status and a Foreign reopen.
 - [ ] **Restart survival.** A built-binary test claims, then runs start-plan
   from a fresh process with the real identity, and it passes. Foreign-machine
   refusal runs in-process, where the package-var seam is reachable: the same
   worktree path with an injected different fingerprint is refused.
-- [ ] **move re-stamp.** Real-git test: claim in :1, `sdlc move :0`, and the
-  card's claimant now names the :0 worktree; gates pass there. move refuses
-  for a Foreign or Unknown claimant, and the card is unchanged.
+- [ ] **Relocation.**
+  - `RelocationAllowed` gets a table-driven pure test over machine, repository,
+    current branch and the old worktree's branch (on the branch, off it,
+    missing, read error).
+  - A real-git move test: claim in :1, run `sdlc move :0`, and the claimant
+    names :0, where the gates pass.
+  - Inject a CAS failure after the switches: the branch is at :0, the
+    claimant is still :1, and move warns. Then `sdlc claim` at :0 repairs it,
+    and running it again is a no-op.
+  - A Foreign or Unknown claimant is never relocated.
+  - `--dry-run` writes nothing.
 - [ ] **Docs.**
   - start-plan, change-code, close and milestone-close help: add a line on the ownership precondition.
   - atlas `issue-tracker.md`: add an "Ownership" section covering the record, matching, the legacy adopt path, exposure and the #278 boundary.
@@ -191,4 +225,13 @@
     tolerant reader first).
   - Minors: added Non-goals, corrected `gitx.ResolvePublicationTarget`, and
     compressed the test strategy for the pure parser.
+
+- 2026-10-01 — plan-quality round 2 (PQ-8 Important; PQ-5 Minor carried).
+  - PQ-8: a move re-stamp is now a generic owner *relocation*
+    (`RelocationAllowed`). It runs after move's switches are verified, and is
+    repairable by rerunning `sdlc claim` at the destination. The network step
+    comes last; dry-run and non-issue branches skip it. Added a
+    failure-injection test.
+  - PQ-5: compressed the gate, adopt and relocation tests into table
+    strategies.
 

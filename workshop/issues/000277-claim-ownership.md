@@ -115,4 +115,8 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   Operator decisions: **move re-stamps** the claimant for the owner's own
   relocation, and a **documented flag-day** rollout. The plan has been
   revised (see its Revisions).
+- Plan-quality round 2: round 1's findings were disposed as addressed. One
+  new Important finding: move's re-stamp ordering. The plan now generalizes
+  the re-stamp into a convergent same-machine *relocation*. It runs after
+  move's switches, and `sdlc claim` at the destination repairs a failure.
 
