@@ -65,6 +65,7 @@ degrade with an explanation instead.
 ## Log
 
 ### 2026-09-30
+- 2026-09-30: closed — construct/local/couch/SKILL.md added; weave compile lowered .claude/skills/xx-couch + .agents/skills/xx-couch (live harness listed xx-couch); throwaway derivative linked to this checkout got both links resolving to SKILL.md; go test ./cmd/weave/... ./pkg/... and make weave-drift-check pass; prelude carries no protocol copy and states the missing-binary behavior.; review verdict: SHIP
 
 Filed during pair#353 close after operator acceptance of direct send/reply and
 family dispatch smoke. This is the remaining skill-discovery integration, not
