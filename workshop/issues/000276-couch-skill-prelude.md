@@ -8,6 +8,7 @@ updated: 2026-09-30
 estimate_hours:
 card_mirror: '8a6b659d6b7a79a0686595a714c4bf0c601e6afb' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-30T22:11:29-07:00
+flow: {kind: quick, provenance: inferred, spec: "121d93ce", done: "e14868a9"}
 ---
 
 # Add Couch skill prelude
