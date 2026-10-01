@@ -77,3 +77,14 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   hostname. There is no `/etc/machine-id` on macOS; Linux has one. A MAC
   address needs an interface choice (en0?), Wi-Fi private-address
   randomization makes it unstable, and it changes when a NIC is replaced.
+- Operator decisions, 2026-10-01. Asked after noting that the ariadne
+  tracker branch is public:
+  1. **Machine identity:** the OS machine ID (macOS `IOPlatformUUID`, Linux
+     `/etc/machine-id`), hashed with an ariadne-specific key, plus a readable
+     name. The raw hardware ID is never published. MAC address was rejected.
+  2. **Storage:** a structured `claimant` card field in the vocabulary,
+     mirrored into the details frontmatter. Older binaries refuse such cards,
+     which fails closed.
+  3. **Legacy unattributed `working` cards:** ownership gates refuse them.
+     `sdlc claim --issue N --adopt` records an owner on an unattributed card
+     only. Reassigning an owned card stays with #278.
