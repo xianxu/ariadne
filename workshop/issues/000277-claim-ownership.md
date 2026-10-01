@@ -44,7 +44,7 @@ Durable plan: `workshop/plans/000277-claim-ownership-plan.md`.
 - [x] M1 — record and publish ownership: the `claimant` card kind, a mirrored
       field and a pure match; the machine fingerprint plus identity seam; claim
       stamps ownership in its CAS; race and mirror tests; docs.
-- [ ] M2 — enforce at start-plan, change-code, close and milestone-close; add
+- [x] M2 — enforce at start-plan, change-code, close and milestone-close; add
       `claim --adopt` for unattributed working cards; make set-status into
       working stamp or refuse; make `sdlc move` re-stamp the owner's own
       relocation; restart-survival test; docs, process manual and rollout note.
@@ -88,6 +88,7 @@ Items, in order:
 ## Log
 
 ### 2026-10-01
+- 2026-10-01: closed M2 — ownership gate on start-plan/change-code/close/milestone-close (mutation-checked); relocation requires sdlc move's local record (BR-9 regression mutation-checked; record removed when nothing moved; unreadable record surfaces); TestVerbContractTable covers every cell; adopt race; real sdlc move tests; TestEveryFlagAppearsInItsHelp + help/atlas/plan/README restatements; set-status uses one tracker env; full sharded suite twice: all cmd/sdlc green; actual = 1.84 h measured minus M1's 0.76h; --no-project: pair's project tracks ariadne#277 at issue granularity; review verdict: SHIP
 - 2026-10-01: closed M1 — claimant card kind (fail-closed, mirrored), identity seam (fingerprinted OS machine ID, slot label only where pkg/workspace says the layout is in use), claim stamps owner in its CAS; owner repeat no-op (dry-run writes nothing), foreign refused naming owner, unattributed -> --adopt; race test accepts all three loser refusals and checks the winner's full claimant; review round-1 findings all fixed; actual = sdlc actual measurement (first milestone); --no-project: pair's project tracks ariadne#277 at issue granularity; review verdict: SHIP
 
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
@@ -312,3 +313,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Fixed the plan citation, and widened the restatement lesson to include
     help pages.
 - Full suite: `TestPlanningReviewConcurrencySchedules` timed out (2s budget) under load in two runs. The cause was mine: set-status working opened the tracker a second time to resolve the identity. `cardUpdate` decisions now receive the setter's own `trackerEnv`, so there is one open.
+- M2 advisory (BR-21): start-plan and change-code now judge ownership on the card they already hold (`requireCardOwnership`, plus `refreshMirrorFrom`). The verdict and the mirror read the same card version, with no second snapshot.

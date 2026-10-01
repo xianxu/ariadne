@@ -284,10 +284,6 @@ func refreshMirror(env *trackerEnv, id string, details []byte) ([]byte, error) {
 	if !issue.HasMirror(details) {
 		return nil, fmt.Errorf("%w: #%s's details have no card_mirror; run `sdlc issue migrate --reconcile` on this branch first", tracker.ErrLegacyDetails, issue.CLIRef(id))
 	}
-	baselineOID, err := issue.MirrorBaselineOID(details)
-	if err != nil {
-		return nil, err
-	}
 	snap, err := env.repo.Snapshot()
 	if err != nil {
 		return nil, err
@@ -295,6 +291,19 @@ func refreshMirror(env *trackerEnv, id string, details []byte) ([]byte, error) {
 	current, ok := snap.Card(id)
 	if !ok {
 		return nil, fmt.Errorf("no card #%s on the tracker", id)
+	}
+	return refreshMirrorFrom(env, current, details)
+}
+
+// refreshMirrorFrom is refreshMirror over a card already read — for a caller
+// that judges the same card version first (change-code's ownership gate, #277).
+func refreshMirrorFrom(env *trackerEnv, current tracker.Record, details []byte) ([]byte, error) {
+	if !issue.HasMirror(details) {
+		return nil, fmt.Errorf("%w: #%s's details have no card_mirror; run `sdlc issue migrate --reconcile` on this branch first", tracker.ErrLegacyDetails, issue.CLIRef(current.ID))
+	}
+	baselineOID, err := issue.MirrorBaselineOID(details)
+	if err != nil {
+		return nil, err
 	}
 	baseline, err := env.repo.ReadCardBlob(baselineOID)
 	if err != nil {

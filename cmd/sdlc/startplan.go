@@ -293,7 +293,7 @@ func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
 	if status, _ := issue.GetField(card.Card.Frontmatter, "status"); status != "working" {
 		return fmt.Errorf("#%s is %s; planning starts after `sdlc claim --issue %d` reserves it", id, status, issueID)
 	}
-	if err := requireIssueOwnership(env, id); err != nil {
+	if err := requireCardOwnership(env, card); err != nil { // #277: same card version as the status check
 		return err
 	}
 	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))

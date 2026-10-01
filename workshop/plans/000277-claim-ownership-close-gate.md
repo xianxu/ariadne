@@ -225,6 +225,28 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 6
+      timestamp: "2026-10-01T15:20:37-07:00"
+      agent: claude
+      dispose:
+        - id: BR-19
+          disposition: addressed
+          note: claim.md now lists --adopt and states the move-record exception matching claim.go:144-165; TestEveryFlagAppearsInItsHelp walks all subcommands (would fail on base claim.md) and drove the change-code/merge/push FLAGS fixes; lessons.md sweep rule names verb help pages.
+          round: 6
+        - id: BR-20
+          disposition: addressed
+          note: Plan superseded-note now cites Revision "M2 review rounds 1–2".
+          round: 6
+      findings:
+        - id: BR-21
+          severity: Minor
+          title: start-plan and change-code re-snapshot the tracker for the ownership gate while already holding the card
+          detail: '2nd in family. startplan.go:296 holds card yet calls requireIssueOwnership (second Snapshot); changecode.go:338 snapshots for ownership then again in refreshMirror. Rule: a verb holding a card judges with requireCardOwnership(env, card); requireIssueOwnership only where no card is held — also judges status and owner on one card version.'
+          family: repeated-tracker-snapshot
+          round: 6
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#277 (boundary-review)
@@ -316,8 +338,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   3rd in family. helptext/claim.md FLAGS lacks --adopt (registered at claim.go:78) and lines 34-36 contradict claim.go:143-165. Rule: every registered flag appears in its rendered help (enforce with a VisitAll-over-subcommands test beside helpflags_test.go), and the restatement sweep in lessons.md includes the help page of every verb whose behavior changed.
 - **BR-20** [Minor] `plan-code-contract-drift` Plan superseded-note cites Revision "M2 review round 1" but the entry is titled "M2 review rounds 1-2"
 
+## Round 6 — 2026-10-01T15:20:37-07:00 (claude) — passed
+
+### Disposed
+
+- BR-19 — addressed — claim.md now lists --adopt and states the move-record exception matching claim.go:144-165; TestEveryFlagAppearsInItsHelp walks all subcommands (would fail on base claim.md) and drove the change-code/merge/push FLAGS fixes; lessons.md sweep rule names verb help pages.
+- BR-20 — addressed — Plan superseded-note now cites Revision "M2 review rounds 1–2".
+
+### Raised
+
+- **BR-21** [Minor] `repeated-tracker-snapshot` start-plan and change-code re-snapshot the tracker for the ownership gate while already holding the card
+  2nd in family. startplan.go:296 holds card yet calls requireIssueOwnership (second Snapshot); changecode.go:338 snapshots for ownership then again in refreshMirror. Rule: a verb holding a card judges with requireCardOwnership(env, card); requireIssueOwnership only where no card is held — also judges status and owner on one card version.
+
 ## Open findings
 
 - **BR-8** [Minor] `stale-test-precondition` TestSlotLabelOnlyWhereSlotsExist's "no slots" check runs after the malformed slot dir is created, duplicating the prior assertion
-- **BR-19** [Important] `docs-surface-gap` claim --help omits --adopt and still says any other workspace's repeat claim is refused, contradicting the relocation repair
-- **BR-20** [Minor] `plan-code-contract-drift` Plan superseded-note cites Revision "M2 review round 1" but the entry is titled "M2 review rounds 1-2"
+- **BR-21** [Minor] `repeated-tracker-snapshot` start-plan and change-code re-snapshot the tracker for the ownership gate while already holding the card

@@ -400,3 +400,81 @@ findings:
     title: |
       Plan superseded-note cites Revision "M2 review round 1" but the entry is titled "M2 review rounds 1-2"
 ```
+
+---
+
+## Re-review — 2026-10-01T15:20:37-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 277 — Record claimant ownership atomically with issue reservation |
+| repo | ariadne |
+| issue file | workshop/issues/000277-claim-ownership.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | e53c075bd9ae04f71535872f44d124abf2839d4b..8c2da75301d15d2be5148833d31d5052774c7ebd |
+| command | sdlc milestone-close --issue 277 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-10-01T15:20:37-07:00 |
+| verdict | SHIP |
+
+## Review
+
+BR-19, BR-20 and the targeted tests all check out, and I've confirmed that slots share one git common dir. Writing up the verdict now.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The round-3 fixes hold up. `claim --help` now lists `--adopt`. Its repeat-claim paragraph now matches the relocation branch in `claim.go:144-165`, which refuses unless `sdlc move`'s record names this checkout as the destination. A new test, `TestEveryFlagAppearsInItsHelp` (`helpflags_test.go:53`), walks every subcommand from `buildRoot()`. It enforces the BR-19 rule across the whole family, not one page: it already caught the missing `--sandbox`/`--issues-dir`/`--plans-dir` on change-code and the missing `--plans-dir` on merge and push, and all three are fixed in this window. The base `claim.md` had a FLAGS section without `--adopt`, so this test would fail without the fix. The plan's superseded note now cites the correct Revision title. The targeted tests (`Ownership|Adopt|Relocat|VerbContract|SetStatus|Move|Claimant|GateFlag|EveryFlag`) and `internal/issue` pass. `gofmt -l` reports only `reviewsidecar.go`, which this window doesn't touch. Nothing blocks the boundary.
+
+1. **Strengths**
+   - `issue.RelocationAllowed` (`internal/issue/claimant.go:189`) now needs positive evidence: move's own `Relocation{From,To}` record. A branch merely being absent from the old worktree is no longer enough. Lessons.md records this rule.
+   - `relocateAfterMove` (`move.go:105`) runs only after both switches are verified, and it tells apart "does not apply" (record removed) from "failed" (record kept, repair named). This bounds the effect cleanly.
+   - `adoptDecision` is a pure compare-and-swap. The race test (`ownership_test.go:402`) shows a single winner, and the verb×situation table (`verbcontract_test.go`) pins the plan's contract cells against production decisions.
+   - Moving set-status's claimant lookup into `decide(env, …)` (`setstatus.go:87`) removes the second tracker open without changing the decision's purity.
+   - Relocation records live in the shared git common dir. That's correct for slot worktrees: I confirmed the slot's common dir is `/Users/xianxu/workspace/ariadne/.git`.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `startplan.go:296` already holds `card` from a snapshot, then calls `requireIssueOwnership(env, id)`, which takes a second snapshot. `changecode.go:338` followed by `refreshMirror` does the same. **This is the 2nd finding in family `repeated-tracker-snapshot`.** The rule is: a verb that already holds a card judges ownership with `requireCardOwnership(env, card)`; `requireIssueOwnership` is only for callers that hold no card. Apply it to start-plan; change-code can share the snapshot with `refreshMirror`. As a side benefit, status and owner are then judged from the same card version.
+   - `helptext/claim.md:39`: the relocation sentence is not re-wrapped, leaving one line of about 150 characters. Same for the new lessons.md bullet.
+
+5. **Test coverage notes:** the help test, verb-contract table, adopt race, relocation success and failure paths, and restart persistence together cover the bug classes this diff could ship. There is no built-binary check that `set-status working` stamps the claimant through `runCardUpdate`. The pure test plus the unchanged seam are enough for this window.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. The `{{OWNERSHIP_GATE}}` placeholder single-sources the help text, and `requireCardOwnership` is shared.
+   - ARCH-PURE: pass. The decisions live in `internal/issue` and `claimdecision.go`; the IO stays in `claimant.go` and `relocation.go`.
+   - ARCH-PURPOSE: pass. The help-flag rule is enforced class-wide by the test.
+   - ARCH-MOCK: pass. Tests use real git worktrees and tracker fixtures.
+   - ARCH-CONSTRAINTS: pass, apart from the extra snapshot noted above.
+   - ARCH-SECURE: pass. Machine IDs are fingerprinted, and a malformed relocation record is an error rather than being read as "no move".
+   - ARCH-ORDER: pass. The record is written before the switch, removed if the first switch fails, and the relocation runs only after both switches are verified.
+   - ARCH-FUNERAL: pass. `relocation.go`'s header gives the lifecycle and the size bound.
+   - Upcoming work: reclaim (#278) should reuse `MatchClaimant`/`SetCardClaimant` and use the same CAS-on-read-card shape as `adoptClaim`.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-19
+    disposition: addressed
+    note: |
+      claim.md now lists --adopt and states the move-record exception matching claim.go:144-165; TestEveryFlagAppearsInItsHelp walks all subcommands (would fail on base claim.md) and drove the change-code/merge/push FLAGS fixes; lessons.md sweep rule names verb help pages.
+  - id: BR-20
+    disposition: addressed
+    note: |
+      Plan superseded-note now cites Revision "M2 review rounds 1–2".
+findings:
+  - id: new
+    severity: Minor
+    family: repeated-tracker-snapshot
+    title: |
+      start-plan and change-code re-snapshot the tracker for the ownership gate while already holding the card
+    detail: |
+      2nd in family. startplan.go:296 holds card yet calls requireIssueOwnership (second Snapshot); changecode.go:338 snapshots for ownership then again in refreshMirror. Rule: a verb holding a card judges with requireCardOwnership(env, card); requireIssueOwnership only where no card is held — also judges status and owner on one card version.
+```
