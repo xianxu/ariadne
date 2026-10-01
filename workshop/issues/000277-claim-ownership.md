@@ -38,7 +38,14 @@ ARCH-DRY: one tracker authority for assignment; ARCH-PURPOSE: ownership is respo
 
 ## Plan
 
-Implementation plan to be designed after issue claim and start-plan; these are requirements, not an approved implementation plan.
+Durable plan: `workshop/plans/000277-claim-ownership-plan.md`.
+
+- [ ] M1 — record and publish ownership: the `claimant` card kind, a mirrored
+      field and a pure match; the machine fingerprint plus identity seam; claim
+      stamps ownership in its CAS; race and mirror tests; docs.
+- [ ] M2 — enforce at start-plan, change-code, close and milestone-close; add
+      `claim --adopt` for unattributed working cards; make set-status into
+      working stamp or refuse; restart-survival test; docs and process manual.
 
 ## Log
 
@@ -88,3 +95,10 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   3. **Legacy unattributed `working` cards:** ownership gates refuse them.
      `sdlc claim --issue N --adopt` records an owner on an unattributed card
      only. Reassigning an owned card stays with #278.
+- The operator asked why the machine ID is hashed. The tracker is public, and
+  the raw `IOPlatformUUID` / `machine-id` is a permanent fingerprint that its
+  owners treat as confidential. Matching only needs equality, which a keyed
+  hash preserves, the same way systemd's app-specific IDs work.
+- Wrote the durable plan with milestones M1 and M2. The Spec requirements are
+  unchanged.
+
