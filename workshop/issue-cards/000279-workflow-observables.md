@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000279-workflow-observables.md
         source_blob: bdb387ea885166d8b8dab5c5306c9782ed85d2bb
         destination: workshop/issues/000279-workflow-observables.md
+        main_commit: e2556787388bddea93b4051d365e95dbade6feb0
 ---
 
 # Expose authoritative workflow observations for agents
