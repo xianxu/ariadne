@@ -1,14 +1,15 @@
 ---
 id: 000276
-status: working
+status: codecomplete
 deps: [pair#353]
 github_issue:
 created: 2026-09-30
 updated: 2026-09-30
 estimate_hours:
-card_mirror: '8a6b659d6b7a79a0686595a714c4bf0c601e6afb' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '83b47e50a36e06b71b876a4ae44dc35b10a369a7' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-30T22:11:29-07:00
 flow: {kind: quick, provenance: inferred, spec: "121d93ce", done: "e14868a9"}
+actual_hours: 0.24
 ---
 
 # Add Couch skill prelude
