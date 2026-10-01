@@ -1,6 +1,6 @@
 ---
 id: 000275
-status: codecomplete
+status: done
 created: 2026-09-30
 updated: 2026-09-30
 estimate_hours:
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 56677eb11b34c4317c827f329f9643a71af4243a
         evidence_commit: c5c753d41358f08e9f2577f8b4380c3971dfbe12
+        landed_commit: 3509bc862d45383243fe43aceefefd2cf489411f
 ---
 
 # Keep issue detail frontmatter current
