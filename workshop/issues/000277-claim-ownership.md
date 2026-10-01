@@ -52,3 +52,28 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   ran start-plan. Branch `000277-claim-ownership` sits at main. Mapping the
   claim CAS, the card vocabulary and the gates that read `working` before
   designing.
+- Code map (explorer):
+  - Claim is `claimDecision` (claimdecision.go) followed by a
+    `tracker.UpdateCard` blob-OID CAS. There are 3 attempts, and a race on
+    the same card yields `ErrCardChanged`. A repeat claim already refuses
+    with "not open".
+  - Nothing on the card distinguishes a claim from a reclaim, beyond the
+    card's blob OID and the `Tracker-Operation: claim-…` trailer.
+  - Card fields come from `issue.cue` `card.fields`. They are scalar only
+    (`validateCardScalar`), and mirroring is span-based.
+  - The `tracker:` envelope (handoff/completion) decodes without KnownFields.
+    An older binary re-marshalling it would silently drop a new member.
+  - Workspace identity: `pkg/workspace.Identity` has
+    `Address` (`repo:N`), `Slot` and `WorktreeRoot`. `openTrackerAt` keeps
+    only the root and branches. There is no operator/machine helper.
+  - Gates that read `working`:
+    - start-plan requires `working` (startplan.go:293).
+    - change-code checks only the branch.
+    - close refuses only `done`.
+    - milestone-close and move-detail check no status.
+    - `issue set-status working` can claim through its own CAS, bypassing
+      claim's readiness check.
+- Machine identity sources here: macOS `IOPlatformUUID`, ComputerName and
+  hostname. There is no `/etc/machine-id` on macOS; Linux has one. A MAC
+  address needs an interface choice (en0?), Wi-Fi private-address
+  randomization makes it unstable, and it changes when a NIC is replaced.
