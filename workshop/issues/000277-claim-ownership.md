@@ -291,3 +291,12 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Process note: a parallel batch ran in the wrong directory and appended to
     a stray root `ownership_test.go`. I moved its content into the right file
     and removed the stray.
+- M2 review round 2: one Important finding (BR-17), atlas and plan
+  restatements still described the pre-BR-9 rule. Fixes:
+  - Updated the atlas Relocation entry (evidence rule plus record lifecycle),
+    move help, plan Revisions and the plan's Verb-contract set-status cell.
+  - Added two lessons: update every restatement when a contract changes; and
+    absence is not evidence of a transfer.
+  - BR-15 is now tested: an unreadable move record surfaces at the gate.
+  - BR-18: a move whose first switch fails removes its record. Tested, and
+    mutation-checked.
