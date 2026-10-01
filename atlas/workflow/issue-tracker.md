@@ -17,6 +17,25 @@ dependencies and evidence. `internal/issue/card.go` projects cards from details.
 fields before refreshing an unchanged old projection. Unknown detail fields and
 unrelated body bytes remain untouched. Transaction metadata is not mirrored.
 
+## Claimant: who owns the work (#277)
+
+A claim writes a `claimant` card field in the same compare-and-swap as
+open → working. It is a structured vocabulary kind (`issue.cue`), mirrored into
+details like every card field.
+- **Record:** operator (git `user.name`), machine (a keyed SHA-256
+  fingerprint of the OS machine ID; the raw ID is never published), a readable
+  machine name, an optional slot label, the canonical worktree, and the
+  repository.
+- **Pure core:** `internal/issue/claimant.go` holds parsing and validation,
+  which fail closed on unknown keys, non-strings and raw IDs. It also holds
+  `MatchClaimant`, `RelocationAllowed` and `MachineFingerprint`.
+- **IO seam:** `cmd/sdlc/claimant.go` provides `claimantIdentity`.
+- **Ownership** is the same repository, machine and worktree. Operator and
+  slot label are descriptive, and the slot label is recorded only where the
+  slot layout is in use, so Ariadne needs neither slots nor Couch.
+- **No extra fields:** there is no claim ID or timestamp. Git history and the
+  card blob already order claims.
+
 ## Storage boundary
 
 `internal/tracker.Repository` reads a fresh, pinned Git snapshot with a versioned
@@ -74,7 +93,7 @@ The publication remote is the resting branch's upstream
 | Verb | Card (tracker) | Details (checkout) | Main |
 |---|---|---|---|
 | `issue new` | reserved at `max(id)+1`, own commit; reallocates after a proven race | written locally; narrow commit on a feature branch, uncommitted on rest | untouched |
-| `claim` | open → working by CAS | mirror refreshed (never on rest) | must already hold the details, re-checked before push |
+| `claim` | open → working + claimant by CAS; the owner's repeat is a no-op, others refuse (#277) | mirror refreshed (never on rest) | must already hold the details, re-checked before push |
 | `start-plan` | must be working | branch `<details stem>` created at pinned main from a clean rest; an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
 | `change-code` | read (mirror refresh before gates) | design committed narrowly on the issue branch | never published |
 | `close` | codecomplete bound to the evidence commit | evidence commit, then a mirror commit (#275) | never published |

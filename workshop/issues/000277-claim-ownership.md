@@ -185,3 +185,9 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Tests: the two-clone race (winner's full claimant; the loser's worktree
     is absent from tracker history), the repeat claim, and the mirror showing
     the owner in details with no slot label for a plain clone.
+- M1 docs: added an ownership contract to the claim help and a Claimant
+  section plus the claim row to the atlas `issue-tracker.md`.
+  - Full sharded suite: all 864 cmd/sdlc tests pass.
+  - `internal/processgroup` `TestCancellationKillsDescendants` still fails;
+    the sandbox blocks `/bin/ps` there, and the package is untouched.
+  - Running M1's milestone-close next.

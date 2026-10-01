@@ -9,16 +9,33 @@ names the next action (`sdlc issue move-detail --issue N` from the creating
 checkout, or merging the branch that filed it). Readiness is checked against
 fresh main, and checked again immediately before the reservation is pushed.
 
-Claim changes only the card: status → working, `updated`, and a first
-`started` stamp. It is a compare-and-swap on the card blob it read, published
+Claim changes only the card: status → working, `updated`, a first `started`
+stamp, and its owner (#277). It is a compare-and-swap on the card blob it read, published
 through the resting branch's configured upstream remote. Nothing is committed
 or pushed to main, and the resting branch is never edited. In a checkout that
 holds the details on a feature branch, the details' card mirror is refreshed;
 a hand-edited mirrored field is left alone and reported.
 
-A competing claim has one winner; the loser sees "not open" or a changed card.
-Every non-open status refuses, including a repeat by the original worker —
-continue started work without reclaiming. No estimate is required; change-code
+OWNERSHIP (#277). The same card write records a `claimant`, which the details
+mirror. It holds:
+  - your git `user.name`;
+  - a keyed fingerprint of the OS machine ID (macOS IOPlatformUUID, Linux
+    /etc/machine-id) and a readable machine name. The raw ID is never
+    published, because the tracker may be public.
+  - the slot label `repo:N`, recorded only where the slot layout is in use;
+  - the canonical worktree path;
+  - the repository.
+A workspace owns the issue when its repository, machine and worktree match the
+record. The operator and slot label are only descriptive. Claim refuses if
+user.name is unset or the machine ID is unreadable.
+
+A competing claim has one winner. The loser sees "not open" or a changed card
+and publishes no ownership. A repeat claim by the owning workspace succeeds
+without writing anything. A repeat claim by any other workspace is refused,
+naming the owner. Reassignment is operator-directed reclaim (#278). A working
+card with no recorded owner, claimed before #277, refuses toward
+`sdlc claim --issue N --adopt`. Every other non-open status refuses, as
+before. No estimate is required; change-code
 owns the implementation gates. Next: `sdlc start-plan --issue N` moves design
 onto the issue's own branch.
 
