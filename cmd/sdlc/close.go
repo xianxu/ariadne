@@ -496,7 +496,17 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// tracker-era issue's status is its card's (#252), never the mirror's.
 	currentStatus, _ := issue.GetField(fm, "status")
 	var trackerCard *tracker.Record
-	if trackerEra {
+	var trackerPrep *trackerClosePrep
+	if trackerEra && mode == "issue" {
+		// #252 BR-22: every verdict-independent precondition of the tracker
+		// publication is checked here, before the review runs or anything is
+		// written. #277: its one card read also supplies the status and the
+		// ownership verdict, so all three judge the same card version.
+		if trackerPrep, err = prepareTrackerClose(commandContext(f.Context), fmt.Sprintf("%06d", f.Issue)); err != nil {
+			die(stderr, err.Error())
+		}
+		currentStatus, _ = issue.GetField(trackerPrep.card.Card.Frontmatter, "status")
+	} else if trackerEra {
 		rs, rerr := loadIssueRecords(commandContext(f.Context), filepath.Dir(issuePath), tracker.Fresh)
 		if rerr != nil {
 			die(stderr, fmt.Sprintf("read #%s's card: %v", issueStr, rerr))
@@ -507,7 +517,6 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		}
 		currentStatus, trackerCard = rec.Status(), rec.Card
 	}
-	var trackerPrep *trackerClosePrep
 	if trackerEra && mode != "issue" {
 		// #277: a milestone close continues the issue too, so it needs its
 		// owner before the review runs — judged on the card version its status
@@ -518,13 +527,6 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			err = requireCardOwnership(env, *trackerCard)
 		}
 		if err != nil {
-			die(stderr, err.Error())
-		}
-	}
-	if trackerEra && mode == "issue" {
-		// #252 BR-22: every verdict-independent precondition of the tracker
-		// publication is checked here, before the review runs or anything is written.
-		if trackerPrep, err = prepareTrackerClose(commandContext(f.Context), fmt.Sprintf("%06d", f.Issue)); err != nil {
 			die(stderr, err.Error())
 		}
 	}

@@ -324,3 +324,14 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     `requireCardOwnership`, the one gate. Every verb judges status and owner
     on one card read. Atlas updated.
   - Re-closing so the review covers this change.
+- Re-close review returned SHIP, with a fourth instance of the
+  repeated-snapshot family: whole-issue close read status and ownership from
+  two card reads. My earlier Log line ("every verb…") overstated the fix.
+  - This time I swept the whole class: claim, adopt, set-status, move,
+    start-plan, change-code, milestone close and whole-issue close.
+    Whole-issue close was the last instance. It now takes its status from
+    `prepareTrackerClose`'s card, so status, ownership and the receipt's
+    tracker base come from one read.
+  - Process note: I fixed instances when the reviewer asked for the rule,
+    which cost two extra rounds. The existing lesson ("enumerate the real
+    population from the tree, not from the finding's examples") covers it.
