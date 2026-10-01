@@ -168,3 +168,11 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     machine and worktree), `RelocationAllowed` and `MachineFingerprint`.
   - The mirror needed only `sameCardValue` to compare mappings. Table tests
     pass.
+- M1 step done: the identity seam `cmd/sdlc/claimant.go`.
+  - Reads git `user.name`; the macOS `ioreg` IOPlatformUUID or Linux
+    `/etc/machine-id` (then dbus), fingerprinted; ComputerName or hostname;
+    the canonical worktree; and the publication repository.
+  - `workspace` is recorded only for a slot, or for a primary with slot
+    worktrees beside it. A plain clone gets none: a `primary` classifies as
+    `repo:0`, which would have mislabeled every plain clone.
+  - Parser tests plus a live host test, which ran rather than skipped here.
