@@ -129,7 +129,7 @@ func ownership(env *trackerEnv, card tracker.Record) (issue.Ownership, issue.Cla
 	return issue.MatchClaimant(&recorded, me), recorded, me, nil
 }
 
-// ownershipGateHelp states requireIssueOwnership's contract for every verb help
+// ownershipGateHelp states requireCardOwnership's contract for every verb help
 // that runs it ({{OWNERSHIP_GATE}}).
 const ownershipGateHelp = "OWNERSHIP (#277): this verb continues only an issue this workspace owns. That\n" +
 	"is the card's claimant, matched on repository, machine and worktree; a working\n" +
@@ -138,24 +138,10 @@ const ownershipGateHelp = "OWNERSHIP (#277): this verb continues only an issue t
 	"`sdlc claim --issue N --adopt`. Work that `sdlc move` brought here, whose\n" +
 	"owner update did not finish, is pointed to the `sdlc claim` repair."
 
-// requireIssueOwnership is the continuation gate (#277): start-plan,
+// requireCardOwnership is the continuation gate (#277): start-plan,
 // change-code, close and milestone-close continue an issue only from the
-// workspace that owns it. A working status alone is a reservation, not a
-// license to continue.
-func requireIssueOwnership(env *trackerEnv, id string) error {
-	snap, err := env.repo.Snapshot()
-	if err != nil {
-		return err
-	}
-	card, ok := snap.Card(id)
-	if !ok {
-		return fmt.Errorf("no card #%s on the tracker", id)
-	}
-	return requireCardOwnership(env, card)
-}
-
-// requireCardOwnership is requireIssueOwnership over a card already read — for
-// a caller holding a snapshot (the tracker-era close).
+// workspace that owns it, judged on the card version each verb already read. A
+// working status alone is a reservation, not a license to continue.
 func requireCardOwnership(env *trackerEnv, card tracker.Record) error {
 	id := card.ID
 	own, recorded, me, err := ownership(env, card)

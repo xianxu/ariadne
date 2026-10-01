@@ -37,7 +37,7 @@ details like every card field.
   card blob already order claims.
 
 **Enforcement.**
-- **The gate.** `requireIssueOwnership` is the one continuation gate, used
+- **The gate.** `requireCardOwnership` is the one continuation gate, judged on the card each verb already read and used
   by start-plan, change-code and `computeClose` (whole-issue close and
   milestone-close alike, before any review).
   - It passes the owner.

@@ -316,3 +316,10 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     help pages.
 - Full suite: `TestPlanningReviewConcurrencySchedules` timed out (2s budget) under load in two runs. The cause was mine: set-status working opened the tracker a second time to resolve the identity. `cardUpdate` decisions now receive the setter's own `trackerEnv`, so there is one open.
 - M2 advisory (BR-21): start-plan and change-code now judge ownership on the card they already hold (`requireCardOwnership`, plus `refreshMirrorFrom`). The verdict and the mirror read the same card version, with no second snapshot.
+- Close review returned SHIP with one advisory Minor, the third in its family:
+  milestone close re-read the tracker for ownership. Fixed in-round:
+  - Milestone close judges the card record it already loaded for its status.
+  - The now-unused `requireIssueOwnership` is folded into
+    `requireCardOwnership`, the one gate. Every verb judges status and owner
+    on one card read. Atlas updated.
+  - Re-closing so the review covers this change.
