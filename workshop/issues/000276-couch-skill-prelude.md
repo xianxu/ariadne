@@ -92,3 +92,7 @@ another messaging implementation. Depends on pair#353's binary skill provider.
 - No hand-maintained skill list exists outside the generated manual. Added an
   `atlas/index.md` entry.
 
+- Close review: SHIP. One advisory Minor: the atlas index links straight to a
+  `SKILL.md` rather than to an atlas page. Kept on purpose, as the reviewer
+  noted is acceptable. A one-file pointer skill has nothing more to map, and
+  an atlas page would only restate it.
