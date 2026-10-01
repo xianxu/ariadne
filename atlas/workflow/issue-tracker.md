@@ -151,8 +151,9 @@ Copies can still lag:
 - **Hand-edited mirrored fields,** which are archived as they are, with a
   warning.
 - **The issue branch after a close interrupted between publishing
-  codecomplete and its mirror commit.** Nothing retries that commit. The
-  archive at landing still projects the done card.
+  codecomplete and its mirror commit,** until `sdlc issue recovery reconcile
+  --issue N` runs on that branch. Its `retryCloseMirror` makes the commit, and
+  the archive at landing projects the done card regardless.
 
 ## Verification pointers
 

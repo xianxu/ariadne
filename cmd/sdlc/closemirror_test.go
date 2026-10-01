@@ -93,6 +93,33 @@ func TestCloseMirrorKeepsDirtyDetailsBody(t *testing.T) {
 	}
 }
 
+// #275: a close interrupted after codecomplete but before its mirror commit is
+// finished by recovery reconcile.
+func TestReconcileRetriesAnInterruptedCloseMirror(t *testing.T) {
+	r, cardPath, detailPath := closeReady(t, 350)
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "350", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	r.git("reset", "-q", "--hard", evidenceRev) // the crash: no mirror commit
+	abs := filepath.Join(r.root, detailPath)
+	raw, _ := os.ReadFile(abs)
+	writeRepoFile(t, r.root, detailPath, string(raw)+"- a staged note\n")
+	r.git("add", detailPath) // a staged edit stays staged
+	var out, errs bytes.Buffer
+	if err := runRecoveryReconcile(context.Background(), &out, &errs, 350); err != nil {
+		t.Fatalf("reconcile: %v\n%s", err, errs.String())
+	}
+	mirrorsCard(t, r.git("show", "HEAD:"+detailPath)+"\n", r.card(cardPath), "codecomplete")
+	if staged := r.git("diff", "--cached", "--", detailPath); !strings.Contains(staged, "+- a staged note") {
+		t.Fatalf("the staged edit was overwritten in the index:\n%s", staged)
+	}
+	before := r.git("rev-parse", "HEAD")
+	if err := runRecoveryReconcile(context.Background(), &out, &errs, 350); err != nil || r.git("rev-parse", "HEAD") != before {
+		t.Fatalf("a second reconcile was not a no-op: %v", err)
+	}
+}
+
 // landedDone lands #N's close on main and completes its card (the publish
 // flip), leaving the details at main's HEAD for an archive to move.
 func landedDone(t *testing.T, id int) (*trackerRepo, string, string) {

@@ -93,6 +93,9 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 		return err
 	}
 	defer func() {
+		// A close finished here — just now, or before a crash cut off its mirror
+		// commit — leaves this branch mirroring its codecomplete card (#275).
+		retryCloseMirror(env, stderr, fmt.Sprintf("%06d", issueID))
 		// A close whose evidence already landed (a merge made elsewhere, or an
 		// interrupted publish) is completed by re-derivation, receipt or not.
 		if settled, serr := settleLandedCompletions(ctx, env, envOr("WF_ISSUES_DIR", "workshop/issues")); serr != nil {
@@ -170,10 +173,6 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 		}
 		if err != nil {
 			return fmt.Errorf("#%d %s (%s): %w", issueID, r.Operation(), final.Stage(), err)
-		}
-		// The mirror commit belongs on the close's own branch, never another checkout's.
-		if r.Operation() == "completion" && final.Spec().SourceBranch == env.branchRef() {
-			commitCloseMirror(env, stderr, final.Spec().IssueID, final.Spec().SourcePath)
 		}
 		cok(stderr, fmt.Sprintf("#%d %s finished", issueID, r.Operation()))
 	}

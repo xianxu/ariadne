@@ -114,6 +114,37 @@ func commitCloseMirror(env *trackerEnv, stderr io.Writer, id, detailRel string) 
 	}
 }
 
+// retryCloseMirror makes the mirror commit for a close this branch carries
+// whose card is codecomplete, so recovery covers a close interrupted between
+// publishing codecomplete and its mirror commit. Idempotent: a current mirror
+// commits nothing. Another branch's close is never touched.
+func retryCloseMirror(env *trackerEnv, stderr io.Writer, id string) {
+	if env.branch == "" || env.onRest() {
+		return
+	}
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("#%s: details mirror not checked: %v", issue.CLIRef(id), err))
+		return
+	}
+	card, ok := snap.Card(id)
+	if !ok {
+		return
+	}
+	fm, _, err := issue.Parse(string(card.Raw))
+	if status, _ := issue.GetField(fm, "status"); err != nil || status != "codecomplete" {
+		return
+	}
+	b, ok, err := issue.CardCompletion(card.Raw)
+	if err != nil || !ok || b.Repository != env.target.Repository {
+		return
+	}
+	if here, err := env.gitTest("merge-base", "--is-ancestor", b.EvidenceCommit, "HEAD"); err != nil || !here {
+		return
+	}
+	commitCloseMirror(env, stderr, id, path.Join(envOr("WF_ISSUES_DIR", "workshop/issues"), path.Base(card.Path)))
+}
+
 func closeMirrorCommit(env *trackerEnv, id, rel string) error {
 	head, err := env.git("rev-parse", "--verify", "HEAD^{commit}")
 	if err != nil {

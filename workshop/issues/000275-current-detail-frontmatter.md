@@ -105,3 +105,10 @@ All refreshes reuse `issue.RefreshMirror`, which is one-way and preserves the bo
   - The merge path has a test.
   - The atlas no longer over-claims what a reopen does, and documents the
     crash window between codecomplete and the mirror commit.
+- Close round 3 returned FIX-THEN-SHIP with one Important finding (BR-1, plan
+  table drift on planner purity) and three Minors. Fixes:
+  - BR-1: recorded in the plan's `## Revisions` and table, because the reader
+    is an injected seam.
+  - Minors: fixed the merge help reflow; added `retryCloseMirror` in reconcile
+    for the crash window; added a test that the staged-index branch keeps a
+    staged edit.

@@ -21,7 +21,8 @@
 |------|----------|--------|
 | `issue.RefreshMirror` | `cmd/sdlc/internal/issue/mirror.go` | unchanged (reused) |
 | `archivedDetails` | `cmd/sdlc/landingarchive.go` | new |
-| `landingOwnedIssue` (+ `baseline`, `card` bytes) | `cmd/sdlc/landingarchive.go` | modified |
+| `landingOwnedIssue` (+ `card` bytes, injected `readCard`) | `cmd/sdlc/landingarchive.go` | modified |
+| `trackedArchiveBytes` / `pinArchivedCard` | `cmd/sdlc/landingarchive.go` | new |
 | `planLandingArchive` | `cmd/sdlc/landingarchive.go` | modified |
 
 - **archivedDetails(content, baseline, card []byte) []byte** — the one archive projection for tracked details. It returns `RefreshMirror(content, baseline, card)`, or `content` unchanged when the refresh refuses. A refusal means a hand-edited mirrored field, or no or an invalid mirror. The outcome is a function of its inputs only, so the proof can recompute it. It is pure, and `landingarchive_test.go` tests it without IO.
@@ -120,3 +121,21 @@
 - [ ] Commit: `#275: docs: mirror freshness points and remaining stale copies`.
 
 ## Revisions
+
+- 2026-09-30 — close review (BR-1) and round-1 fixes.
+  - **Reason:** the first design resolved the mirror baseline from the PR-head
+    details during selection, and an unreadable baseline failed the landing
+    closed. The planner, however, projects main's copy, and a cosmetic refresh
+    must never wedge a landing.
+  - **Delta:** `landingOwnedIssue` carries the done `card` and an injected
+    `readCard` (`tracker.Repository.ReadCardBlob`) instead of pre-resolved
+    `baseline` bytes. `trackedArchiveBytes` resolves the baseline from the
+    content it projects (main's copy); a read failure keeps the bytes.
+    `planLandingArchive` stays deterministic given that reader; it is pure in
+    the seam sense, with IO only through the injected function. `archivedDetails`
+    remains the pure core and is unit-tested without IO.
+  - **Delta:** `pinArchivedCard` compares against main's source copy.
+  - **Delta:** `retryCloseMirror` in `issue recovery reconcile` re-attempts the
+    mirror commit after a crash between codecomplete and that commit. It
+    replaces the per-receipt call.
+

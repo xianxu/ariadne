@@ -70,9 +70,8 @@ PUBLISH GATE
   same close generation only — a reopened or re-closed card refuses). The
   archived details mirror the done card (#275); the card stays their status
   authority. Details with a hand-edited mirrored field are archived unchanged.
-  An
-  interrupted landing is completed by re-running merge or `sdlc issue recovery
-  reconcile --issue N`.
+  An interrupted landing is completed by re-running merge or `sdlc issue
+  recovery reconcile --issue N`.
 
 FLAGS
 
