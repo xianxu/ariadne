@@ -8,7 +8,7 @@ updated: 2026-09-30
 estimate_hours:
 card_mirror: 'bc23fdac81d2e2836676a16475cd62ffb233e336' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-09-30T15:23:01-07:00
-flow: {kind: quick, provenance: inferred, spec: "a0289e19", done: "407d86b8"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Keep issue detail frontmatter current
@@ -68,6 +68,8 @@ All refreshes reuse `issue.RefreshMirror`, which is one-way and preserves the bo
 ## Log
 
 ### 2026-09-30
+- 2026-09-30: closed — New real-git tests: close mirrors the codecomplete card (clean, dirty, staged; reconcile retries after a crash); merge/push/recovery archives mirror the done card; hand-edited mirror or unreadable baseline archived unchanged; landing projection (pure table) plus a proof that survives a later card change (mutation-checked); TestTrackerFullSlotCycle asserts archived details on main say done (pair#358 repro). make test: all cmd/sdlc shards green; processgroup ps failure is a sandbox artifact in an untouched package.; review verdict: SHIP
+- 2026-09-30: flow upgraded quick → full — 260 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Filed at the operator's request after closing pair#358. The user accepts
   issue-tracker authority and wants detail frontmatter kept as up to date as
