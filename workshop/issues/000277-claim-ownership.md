@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-01
 updated: 2026-10-01
-estimate_hours:
-card_mirror: 'c5b96f7820a325963bb81a0d13a7460b8edc406a' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 4.09
+card_mirror: '15223d7e7c44c0f427a6e4667bb121e124bcd929' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-01T13:19:29-07:00
 ---
 
@@ -47,6 +47,42 @@ Durable plan: `workshop/plans/000277-claim-ownership-plan.md`.
       `claim --adopt` for unattributed working cards; make set-status into
       working stamp or refuse; make `sdlc move` re-stamp the owner's own
       relocation; restart-survival test; docs, process manual and rollout note.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec             design=0.8 impl=0.05
+item: greenfield-go-module   design=0.5 impl=0.22
+item: smaller-go-module      design=0.1 impl=0.14
+item: smaller-go-module      design=0.2 impl=0.14
+item: smaller-go-module      design=0.1 impl=0.14
+item: smaller-go-module      design=0.1 impl=0.14
+item: smaller-go-module      design=0.2 impl=0.14
+item: cross-cutting-refactor design=0.2 impl=0.14
+item: atlas-docs             design=0.1 impl=0.05
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+design-buffer: 0.15
+total: 4.09
+```
+
+Items, in order:
+- issue-spec: brainstorm, operator decisions and three plan-quality rounds.
+- greenfield-go-module: pure `claimant.go` (parse/validate, match,
+  fingerprint, relocation).
+- smaller-go-module ×5:
+  1. card kind, `sameCardValue` and the vocabulary;
+  2. the identity seam (ioreg, machine-id, names);
+  3. claim decision, `--adopt` and set-status;
+  4. `requireOwnership` at four gates;
+  5. move relocation and the claim repair.
+- cross-cutting-refactor: existing claim, close and gate tests gain an
+  identity.
+- atlas-docs, then two milestone reviews (M1, M2).
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* The calibration source is flagged stale (#127), so treat the numbers as provisional.
 
 ## Log
 
@@ -120,3 +156,5 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   the re-stamp into a convergent same-machine *relocation*. It runs after
   move's switches, and `sdlc claim` at the destination repairs a failure.
 
+- Plan-quality cleared after 3 rounds. Estimate derived with v3.1 (4.09h);
+  the calibration source is stale per #127.
