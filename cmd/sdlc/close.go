@@ -507,6 +507,17 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		currentStatus = rec.Status()
 	}
 	var trackerPrep *trackerClosePrep
+	if trackerEra {
+		// #277: both close modes continue an issue, so both need its owner —
+		// checked here, before the review runs or anything is written.
+		env, err := openTracker(commandContext(f.Context))
+		if err == nil {
+			err = requireIssueOwnership(env, fmt.Sprintf("%06d", f.Issue))
+		}
+		if err != nil {
+			die(stderr, err.Error())
+		}
+	}
 	if trackerEra && mode == "issue" {
 		// #252 BR-22: every verdict-independent precondition of the tracker
 		// publication is checked here, before the review runs or anything is written.

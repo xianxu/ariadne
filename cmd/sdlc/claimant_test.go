@@ -4,9 +4,12 @@ import (
 	"context"
 	"regexp"
 	"runtime"
+	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -93,4 +96,40 @@ func withClaimant(t *testing.T, c issue.Claimant) {
 	prev := claimantIdentity
 	claimantIdentity = func(*trackerEnv) (issue.Claimant, error) { return c, nil }
 	t.Cleanup(func() { claimantIdentity = prev })
+}
+
+// hostClaimant is the identity a claim from root would record on this host —
+// for built-binary fixtures, whose subprocess cannot see withClaimant.
+func hostClaimant(t *testing.T, root string) issue.Claimant {
+	t.Helper()
+	raw, err := machineID()
+	if err != nil {
+		t.Skipf("claims need the host machine ID, unreadable here: %v", err)
+	}
+	target, err := gitx.ResolvePublicationTarget(context.Background(), root, "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	name := strings.TrimSpace(testfix.Capture(t, root, "config", "--get", "user.name"))
+	return issue.Claimant{Operator: name, Machine: issue.MachineFingerprint(raw), MachineName: machineName(),
+		Worktree: canonRoot(root), Repository: target.Repository}
+}
+
+// withOwner returns card with c as its recorded claimant.
+func withOwner(t *testing.T, card []byte, c issue.Claimant) []byte {
+	t.Helper()
+	out, err := issue.SetCardClaimant(card, c)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+func mustSplitCard(t *testing.T, full string) []byte {
+	t.Helper()
+	card, _, err := issue.SplitCardWithFormat([]byte(full), "sha1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	return card
 }

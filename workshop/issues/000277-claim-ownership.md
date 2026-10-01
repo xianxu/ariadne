@@ -208,3 +208,14 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Verified the real tracker has no claimant cards. Claims go through
     :0's pre-#277 binary until this lands.
 - M1 advisory (BR-8): reordered the slot-label test so the no-slots state is exercised first.
+- M2 in progress:
+  - `requireIssueOwnership` is wired into start-plan, change-code and
+    `computeClose` (both modes, before the review).
+  - `claim --adopt` records an owner only on unattributed working/blocked
+    cards.
+  - A repeat claim repairs relocated work (`relocatable` /
+    `relocateClaimant`).
+  - `set-status` into working records the claimant, and refuses on a foreign
+    card even under `--force`.
+  - The planning-review fixture now seeds its working card with the host
+    identity.

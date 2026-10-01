@@ -83,9 +83,22 @@ func runSetStatus(ctx context.Context, stdout, stderr io.Writer, f *setStatusFla
 	} else if !tracked {
 		return runLegacySetStatus(stdout, stderr, f)
 	}
+	// #277: entering working records who holds the work, as claim does.
+	var me *issue.Claimant
+	if f.Status == "working" {
+		env, err := openTracker(ctx)
+		if err != nil {
+			return err
+		}
+		c, err := claimantIdentity(env)
+		if err != nil {
+			return err
+		}
+		me = &c
+	}
 	var prev string
 	decide := func(card tracker.Record, body string) ([]byte, error) {
-		next, p, err := statusDecision(card.Raw, body, f.Status, f.Force, time.Now().Format("2006-01-02"), startedClock())
+		next, p, err := statusDecision(card.Raw, body, f.Status, f.Force, time.Now().Format("2006-01-02"), startedClock(), me)
 		prev = p
 		return next, err
 	}
@@ -102,8 +115,10 @@ func runSetStatus(ctx context.Context, stdout, stderr io.Writer, f *setStatusFla
 
 // statusDecision is set-status's pure core: guard the transition (unless
 // forced), then set status/updated and stamp `started` on open → working
-// without ever moving an existing stamp (#116).
-func statusDecision(card []byte, detailsBody, next string, force bool, today, started string) ([]byte, string, error) {
+// without ever moving an existing stamp (#116). Entering working with an
+// identity (#277) records it as the claimant — refused when another workspace
+// owns the card, even under --force: reassignment is reclaim (#278).
+func statusDecision(card []byte, detailsBody, next string, force bool, today, started string, me *issue.Claimant) ([]byte, string, error) {
 	if !isValidStatus(next) {
 		return nil, "", fmt.Errorf("invalid status %q (valid: %s)", next, strings.Join(vocab.Issue().AllStatuses(), ", "))
 	}
@@ -125,6 +140,16 @@ func statusDecision(card []byte, detailsBody, next string, force bool, today, st
 		if cur, _ := issue.GetField(fm, "started"); strings.TrimSpace(cur) == "" {
 			out, err = issue.SetCardField(out, "started", started)
 		}
+	}
+	if err == nil && next == "working" && me != nil {
+		recorded, has, cerr := issue.CardClaimant(card)
+		if cerr != nil {
+			return nil, prev, cerr
+		}
+		if has && issue.MatchClaimant(&recorded, *me) == issue.OwnershipForeign {
+			return nil, prev, fmt.Errorf("owned by %s; entering working from another workspace is a takeover — operator-directed reclaim (#278), not set-status", describeClaimant(recorded))
+		}
+		out, err = issue.SetCardClaimant(out, *me)
 	}
 	return out, prev, err
 }
