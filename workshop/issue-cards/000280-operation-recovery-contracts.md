@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000280-operation-recovery-contracts.md
         source_blob: ddecb1b5a71f6686c462362f6bd30b008e7b48e3
         destination: workshop/issues/000280-operation-recovery-contracts.md
+        main_commit: bb6221d84ecd5ba27a1336cb78515ecdb2e5d602
 ---
 
 # Publish tested operation recovery contracts
