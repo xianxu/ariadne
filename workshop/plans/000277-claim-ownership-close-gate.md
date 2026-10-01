@@ -247,6 +247,27 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 7
+      timestamp: "2026-10-01T15:28:01-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: claimant_test.go:42 asserts the plain primary before writing worktree/ariadne-slotX at :45.
+          round: 7
+        - id: BR-21
+          disposition: addressed
+          note: startplan.go:296 and changecode.go:347 call requireCardOwnership on the held card; changecode refreshes the mirror from the same card via refreshMirrorFrom.
+          round: 7
+      findings:
+        - id: BR-22
+          severity: Minor
+          title: Milestone close reads the status from loadIssueRecords, then opens and snapshots the tracker again for requireIssueOwnership
+          detail: '3rd in family. Rule: each verb judges status and ownership from one card read; requireIssueOwnership only where no card or record is held. close.go:510-520 holds an IssueRecord (rs.Get) but opens the tracker again. Fix: reach the raw card through the record or a shared snapshot so both judgments read one version. Prevalence: start-plan, change-code, milestone close; the first two are now fixed.'
+          family: repeated-tracker-snapshot
+          round: 7
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#277 (boundary-review)
@@ -350,7 +371,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-21** [Minor] `repeated-tracker-snapshot` start-plan and change-code re-snapshot the tracker for the ownership gate while already holding the card
   2nd in family. startplan.go:296 holds card yet calls requireIssueOwnership (second Snapshot); changecode.go:338 snapshots for ownership then again in refreshMirror. Rule: a verb holding a card judges with requireCardOwnership(env, card); requireIssueOwnership only where no card is held — also judges status and owner on one card version.
 
+## Round 7 — 2026-10-01T15:28:01-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — claimant_test.go:42 asserts the plain primary before writing worktree/ariadne-slotX at :45.
+- BR-21 — addressed — startplan.go:296 and changecode.go:347 call requireCardOwnership on the held card; changecode refreshes the mirror from the same card via refreshMirrorFrom.
+
+### Raised
+
+- **BR-22** [Minor] `repeated-tracker-snapshot` Milestone close reads the status from loadIssueRecords, then opens and snapshots the tracker again for requireIssueOwnership
+  3rd in family. Rule: each verb judges status and ownership from one card read; requireIssueOwnership only where no card or record is held. close.go:510-520 holds an IssueRecord (rs.Get) but opens the tracker again. Fix: reach the raw card through the record or a shared snapshot so both judgments read one version. Prevalence: start-plan, change-code, milestone close; the first two are now fixed.
+
 ## Open findings
 
-- **BR-8** [Minor] `stale-test-precondition` TestSlotLabelOnlyWhereSlotsExist's "no slots" check runs after the malformed slot dir is created, duplicating the prior assertion
-- **BR-21** [Minor] `repeated-tracker-snapshot` start-plan and change-code re-snapshot the tracker for the ownership gate while already holding the card
+- **BR-22** [Minor] `repeated-tracker-snapshot` Milestone close reads the status from loadIssueRecords, then opens and snapshots the tracker again for requireIssueOwnership
