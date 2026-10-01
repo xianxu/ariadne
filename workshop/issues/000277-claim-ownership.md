@@ -6,10 +6,10 @@ github_issue:
 created: 2026-10-01
 updated: 2026-10-01
 estimate_hours: 4.09
-card_mirror: 'cacd3c7cf2c376d8b8d581109bedd8520769391a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5a945805f9fc8281b30a7b5baf6e82edb6d3067d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-01T13:19:29-07:00
 flow: {kind: full, provenance: inferred}
-actual_hours: 2.21
+actual_hours: 2.41
 ---
 
 # Record claimant ownership atomically with issue reservation
