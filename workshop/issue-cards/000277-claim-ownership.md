@@ -6,7 +6,7 @@ updated: 2026-10-01
 estimate_hours: 4.09
 github_issue:
 started: 2026-10-01T13:19:29-07:00
-actual_hours: 2.07
+actual_hours: 2.21
 tracker:
     version: 1
     handoff:
@@ -20,10 +20,10 @@ tracker:
         destination: workshop/issues/000277-claim-ownership.md
         main_commit: b54e7e4808a0b193821510721c5ccc1037b32ceb
     completion:
-        token: close-78e6ddeefcbb
+        token: close-9fcf0044f840
         repository: github.com/xianxu/ariadne
-        reviewed_head: f48f8df3b25f5a26bd41e3cf180ca49d0a117cd5
-        evidence_commit: bf68e5ed82df8ad31709de6dce943e68cd4ec7a1
+        reviewed_head: 4d449496bb6c32fc2c4e758e750ab4b1b858380d
+        evidence_commit: f590419f7a13c47e9242311eb040f4ee48550aae
 ---
 
 # Record claimant ownership atomically with issue reservation
