@@ -82,3 +82,11 @@ func TestResolveClaimantIdentityOnThisHost(t *testing.T) {
 		t.Fatalf("a plain test clone got a slot label %q", c.Workspace)
 	}
 }
+
+// withClaimant makes this test's workspace identity c (in-process only).
+func withClaimant(t *testing.T, c issue.Claimant) {
+	t.Helper()
+	prev := claimantIdentity
+	claimantIdentity = func(*trackerEnv) (issue.Claimant, error) { return c, nil }
+	t.Cleanup(func() { claimantIdentity = prev })
+}

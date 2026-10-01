@@ -11,13 +11,14 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 func TestClaimDecisionOnlyReservesOpenWellFormedRecords(t *testing.T) {
 	for _, status := range append(vocab.Issue().AllStatuses(), "unknown", "") {
 		raw := []byte("---\nid: 000031\nstatus: " + status + "\n---\nbody\n")
-		got, err := claimDecision(raw, 31, "2026-09-23", "2026-09-23T12:00:00Z")
+		got, err := claimDecision(raw, 31, "2026-09-23", "2026-09-23T12:00:00Z", nil)
 		if status == "open" {
 			if err != nil || !bytes.Contains(got, []byte("status: working")) {
 				t.Fatalf("open: %s %v", got, err)
@@ -27,7 +28,7 @@ func TestClaimDecisionOnlyReservesOpenWellFormedRecords(t *testing.T) {
 		}
 	}
 	for _, raw := range []string{"", "---\nstatus: open\n---\n", "---\nid: 31\nstatus: open\nstatus: working\n---\n", "---\nid: 31\nstatus: [\n---\n"} {
-		if _, err := claimDecision([]byte(raw), 31, "today", "now"); err == nil {
+		if _, err := claimDecision([]byte(raw), 31, "today", "now", nil); err == nil {
 			t.Errorf("accepted malformed record: %q", raw)
 		}
 	}
@@ -75,8 +76,21 @@ func TestClaimReservesCardAndLeavesRestUntouched(t *testing.T) {
 	if dirty := r.git("status", "--porcelain"); dirty != "" {
 		t.Fatalf("claim dirtied the resting branch: %s", dirty)
 	}
-	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9)); err == nil || !strings.Contains(err.Error(), "not open") {
-		t.Fatalf("repeated claim = %v", err)
+	// #277: the card names its owner; the owner's repeat claim is a no-op, and
+	// another workspace's is refused, naming the owner — never a takeover.
+	owner, ok, err := issue.CardClaimant([]byte(now))
+	if err != nil || !ok || owner.Worktree != canonRoot(r.root) {
+		t.Fatalf("claimant %+v %v %v:\n%s", owner, ok, err, now)
+	}
+	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9)); err != nil || r.card(cardPath) != now {
+		t.Fatalf("owner's repeated claim = %v (card changed: %v)", err, r.card(cardPath) != now)
+	}
+	elsewhere := owner
+	elsewhere.Worktree = "/elsewhere/ariadne"
+	withClaimant(t, elsewhere)
+	err = runClaim(context.Background(), &out, &errs, claimFlagsFor(9))
+	if err == nil || !strings.Contains(err.Error(), "claimed by "+owner.Operator) || r.card(cardPath) != now {
+		t.Fatalf("another workspace's repeated claim = %v", err)
 	}
 }
 
@@ -91,6 +105,11 @@ func TestClaimRefreshesMirrorOnAFeatureBranch(t *testing.T) {
 	local, _ := os.ReadFile(filepath.Join(r.root, detailPath))
 	if !strings.Contains(string(local), "status: working") || string(local) == detail {
 		t.Fatalf("local mirror not refreshed:\n%s", local)
+	}
+	// #277: people reading the details see who owns the issue — a plain clone,
+	// so no slot label.
+	if !strings.Contains(string(local), "claimant:\n") || !strings.Contains(string(local), "worktree: "+canonRoot(r.root)) || strings.Contains(string(local), "workspace:") {
+		t.Fatalf("details do not show the owner:\n%s", local)
 	}
 }
 
@@ -139,30 +158,43 @@ func TestClaimRaceHasExactlyOneWinner(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 	type result struct {
-		out string
-		err error
+		dir, out string
+		err      error
 	}
 	results := make(chan result, 2)
 	for _, dir := range dirs {
 		cmd := exec.CommandContext(ctx, binary, "claim", "--issue", "9")
 		cmd.Dir = dir
 		cmd.WaitDelay = 2 * time.Second
-		go func() { out, err := cmd.CombinedOutput(); results <- result{string(out), err} }()
+		go func() { out, err := cmd.CombinedOutput(); results <- result{dir, string(out), err} }()
 	}
 	wins := 0
+	var winner, loser string
 	for range 2 {
 		res := <-results
 		if res.err == nil {
 			wins++
-		} else if !strings.Contains(res.out, "not open") && !strings.Contains(res.out, "changed while claiming") {
+			winner = res.dir
+		} else if loser = res.dir;  !strings.Contains(res.out, "not open") && !strings.Contains(res.out, "changed while claiming") {
 			t.Errorf("loser was not a status/CAS refusal: %v %s", res.err, res.out)
 		}
 	}
 	if wins != 1 {
 		t.Fatalf("claim winners=%d; want exactly one", wins)
 	}
-	if got := r.card(cardPath); !strings.Contains(got, "status: working") {
+	got := r.card(cardPath)
+	if !strings.Contains(got, "status: working") {
 		t.Fatalf("card = %s", got)
+	}
+	// #277: the winner's complete ownership landed in the same card write; the
+	// loser published none. Identities differ by the clones' real worktrees (a
+	// built binary cannot see an in-process seam).
+	owner, ok, err := issue.CardClaimant([]byte(got))
+	if err != nil || !ok || owner.Worktree != canonRoot(winner) || owner.Operator == "" || owner.Repository == "" || owner.MachineName == "" {
+		t.Fatalf("winner's claimant %+v %v %v:\n%s", owner, ok, err, got)
+	}
+	if history := git(t, r.root, "log", "-p", "origin/issue-tracker", "--", cardPath); strings.Contains(history, canonRoot(loser)) {
+		t.Fatal("the losing claimant's worktree reached the tracker")
 	}
 }
 

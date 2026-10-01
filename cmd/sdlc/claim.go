@@ -128,7 +128,19 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	if err := ready(); err != nil {
 		return err
 	}
-	claimed, err := claimDecision(card.Raw, f.Issue, time.Now().Format("2006-01-02"), startedClock())
+	me, err := claimantIdentity(env)
+	if err != nil {
+		return err
+	}
+	claimed, err := claimDecision(card.Raw, f.Issue, time.Now().Format("2006-01-02"), startedClock(), &me)
+	if errors.Is(err, errAlreadyMine) {
+		cok(stderr, fmt.Sprintf("#%s is already claimed by this workspace; nothing to do", id))
+		if warn := refreshLocalMirror(env, detailPath); warn != "" {
+			cwarn(stderr, warn)
+		}
+		fmt.Fprintln(stdout, "claimed")
+		return nil
+	}
 	if err != nil {
 		return err
 	}

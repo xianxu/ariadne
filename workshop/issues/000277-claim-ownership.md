@@ -176,3 +176,12 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     worktrees beside it. A plain clone gets none: a `primary` classifies as
     `repo:0`, which would have mislabeled every plain clone.
   - Parser tests plus a live host test, which ran rather than skipped here.
+- M1 step done: claim stamps the claimant in its existing CAS.
+  - `claimDecision` takes `*issue.Claimant`; a pre-tracker repository passes
+    nil and keeps the old behavior.
+  - An owner's repeat claim is a no-op success. Another workspace's is
+    refused, naming the owner. An unattributed working card is refused,
+    pointing to `--adopt`.
+  - Tests: the two-clone race (winner's full claimant; the loser's worktree
+    is absent from tracker history), the repeat claim, and the mirror showing
+    the owner in details with no slot label for a plain clone.
