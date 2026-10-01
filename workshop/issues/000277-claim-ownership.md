@@ -1,12 +1,13 @@
 ---
 id: 000277
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-01
 updated: 2026-10-01
 estimate_hours:
-card_mirror: '259ddace94a8e1e3283f42b0370c904529994fee' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c5b96f7820a325963bb81a0d13a7460b8edc406a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-01T13:19:29-07:00
 ---
 
 # Record claimant ownership atomically with issue reservation
@@ -44,3 +45,10 @@ Implementation plan to be designed after issue claim and start-plan; these are r
 ### 2026-10-01
 
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
+
+### 2026-10-01 (implementation session)
+
+- Operator authorized the work ("work on #277"). Claimed in ariadne:1 and
+  ran start-plan. Branch `000277-claim-ownership` sits at main. Mapping the
+  claim CAS, the card vocabulary and the gates that read `working` before
+  designing.
