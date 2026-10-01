@@ -331,9 +331,8 @@ func codecompleteAnchorCommitAt(ref, issuePath string, runGit func(...string) ([
 
 // publishTrackerCompletions is the publish flip for a tracked repository (#252):
 // every codecomplete card bound here whose evidence commit fresh main now
-// carries goes done for its close generation. Details are archived as they
-// are: the card is the authority on their status, and archived bytes that do
-// not depend on the live card keep archive confirmation deterministic.
+// carries goes done for its close generation. The archive that follows mirrors
+// that done card into the details (#275); the card stays the authority.
 func publishTrackerCompletions(ctx context.Context, issuesDir string) (done []string, tracked bool, err error) {
 	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
 	if err != nil || !rs.Tracker {

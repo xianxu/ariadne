@@ -168,6 +168,9 @@ func TestTrackerFullSlotCycle(t *testing.T) {
 	if strings.Contains(mainTree, detail2) || !strings.Contains(mainTree, "workshop/history/issues/"+filepath.Base(detail2)) {
 		t.Fatalf("#2's details were not archived on main:\n%s", mainTree)
 	}
+	// #275 (pair#358): the archived details say what the card says.
+	mirrorsCard(t, git(t, primary, "show", "upstream/main:workshop/history/issues/"+filepath.Base(detail2)),
+		testfix.Capture(t, primary, "show", "upstream/issue-tracker:"+card2), "done")
 	if got := git(t, primary, "show", "upstream/main:"+detail3); !strings.Contains(got, "a later edit by the new owner") {
 		t.Fatalf("the landing lost the transferred issue's later edit:\n%s", got)
 	}

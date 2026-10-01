@@ -36,6 +36,11 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Paths, processes, and integration
 
+- A best-effort projection must not add a refusal to the verb that hosts it.
+  If a cosmetic refresh's input cannot be read, the output should degrade to
+  the unrefreshed bytes and stay deterministic for any proof; it should not
+  fail closed and wedge a landing (#275).
+
 - A changed path or residency includes search recipes, generated references,
   comments, and execution records. Sweep the old location, not only feature prose.
 - A peer migration starts by checking branch, cleanliness, and the real fleet;

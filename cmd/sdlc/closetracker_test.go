@@ -17,6 +17,10 @@ import (
 
 // closeReady files #N with a complete design, claims it, prepares its branch,
 // passes change-code and commits code: the state just before `sdlc close`.
+// evidenceRev is a close's evidence commit: the close's mirror commit (#275)
+// sits directly on it.
+const evidenceRev = "HEAD^"
+
 func closeReady(t *testing.T, id int) (*trackerRepo, string, string) {
 	t.Helper()
 	pid := fmt.Sprintf("%06d", id)
@@ -54,17 +58,17 @@ func TestTrackerCloseCommitsEvidenceAndPublishesBoundCard(t *testing.T) {
 	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "301", "--verified", "e2e", "--actual", "1.5", "--no-atlas"); err != nil {
 		t.Fatalf("close: %v\n%s", err, stderr)
 	}
-	evidence := r.git("rev-parse", "HEAD")
-	if r.git("rev-parse", "HEAD^") != reviewed {
+	evidence := r.git("rev-parse", evidenceRev)
+	if r.git("rev-parse", evidenceRev+"^") != reviewed {
 		t.Fatal("the evidence commit is not directly on the reviewed commit")
 	}
-	msg := r.git("log", "-1", "--format=%B")
+	msg := r.git("log", "-1", "--format=%B", evidenceRev)
 	for _, want := range []string{"#301: close", "Review-Verdict: SHIP", "Close-Actual: 1.5"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("evidence message lacks %q:\n%s", want, msg)
 		}
 	}
-	files := r.git("show", "--name-only", "--format=", "HEAD")
+	files := r.git("show", "--name-only", "--format=", evidenceRev)
 	if !strings.Contains(files, detailPath) || strings.Contains(files, "unrelated.go") || strings.Contains(files, "cmd/a.go") {
 		t.Fatalf("evidence commit carried %q", files)
 	}
@@ -81,7 +85,7 @@ func TestTrackerCloseCommitsEvidenceAndPublishesBoundCard(t *testing.T) {
 	if err != nil || !ok || c.EvidenceCommit != evidence || c.ReviewedHEAD != reviewed {
 		t.Fatalf("binding %+v (evidence %s reviewed %s): %v", c, evidence, reviewed, err)
 	}
-	details := r.git("show", "HEAD:"+detailPath)
+	details := r.git("show", evidenceRev+":"+detailPath)
 	if strings.Contains(details, "status: codecomplete") || strings.Contains(details, "actual_hours: 1.5") {
 		t.Fatal("card-owned close fields were written into the details")
 	}
@@ -113,11 +117,11 @@ func TestTrackerCloseFixThenShipLandsEvidenceAfterTheFixes(t *testing.T) {
 	if err := runRecoveryReconcile(context.Background(), &out, &errs, 302); err != nil {
 		t.Fatalf("reconcile: %v\n%s", err, errs.String())
 	}
-	if r.git("rev-parse", "HEAD^") != fix {
+	if r.git("rev-parse", evidenceRev+"^") != fix {
 		t.Fatal("the evidence commit did not land after the fix")
 	}
 	c, ok, _ := issue.CardCompletion([]byte(r.card(cardPath)))
-	if !ok || c.EvidenceCommit != r.git("rev-parse", "HEAD") || !strings.Contains(r.card(cardPath), "status: codecomplete") {
+	if !ok || c.EvidenceCommit != r.git("rev-parse", evidenceRev) || !strings.Contains(r.card(cardPath), "status: codecomplete") {
 		t.Fatalf("card not bound to the post-fix evidence: %+v", c)
 	}
 }
@@ -138,13 +142,13 @@ func TestTrackerCloseFixThenShipSurvivesASweepingFixCommit(t *testing.T) {
 	if err := runRecoveryReconcile(context.Background(), &out, &errs, 303); err != nil {
 		t.Fatalf("reconcile after a sweeping fix: %v\n%s", err, errs.String())
 	}
-	if r.git("rev-parse", "HEAD^") != fix || r.git("rev-parse", "HEAD^{tree}") != r.git("rev-parse", fix+"^{tree}") {
+	if r.git("rev-parse", evidenceRev+"^") != fix || r.git("rev-parse", evidenceRev+"^{tree}") != r.git("rev-parse", fix+"^{tree}") {
 		t.Fatal("expected an empty evidence commit on top of the sweeping fix")
 	}
-	if !strings.Contains(r.git("log", "-1", "--format=%B"), "Close-Actual: 2") {
+	if !strings.Contains(r.git("log", "-1", "--format=%B", evidenceRev), "Close-Actual: 2") {
 		t.Fatal("empty evidence commit lost its trailers")
 	}
-	if c, ok, _ := issue.CardCompletion([]byte(r.card(cardPath))); !ok || c.EvidenceCommit != r.git("rev-parse", "HEAD") {
+	if c, ok, _ := issue.CardCompletion([]byte(r.card(cardPath))); !ok || c.EvidenceCommit != r.git("rev-parse", evidenceRev) {
 		t.Fatalf("card not bound to the evidence: %+v", c)
 	}
 }
@@ -175,10 +179,10 @@ func TestTrackerCloseFixThenShipKeepsALaterEditOfAPinnedFile(t *testing.T) {
 	if err := runRecoveryReconcile(context.Background(), &out, &errs, 306); err != nil {
 		t.Fatalf("reconcile: %v\n%s", err, errs.String())
 	}
-	if got := r.git("show", "HEAD:"+detailPath); got != strings.TrimSpace(edited) {
+	if got := r.git("show", evidenceRev+":"+detailPath); got != strings.TrimSpace(edited) {
 		t.Fatalf("evidence reverted the later Log edit:\n%s", got)
 	}
-	if !strings.Contains(r.git("log", "-1", "--format=%B"), tracker.EvidenceKeptTrailer+": "+detailPath) {
+	if !strings.Contains(r.git("log", "-1", "--format=%B", evidenceRev), tracker.EvidenceKeptTrailer+": "+detailPath) {
 		t.Fatal("the evidence commit does not name the superseded pin")
 	}
 	if !strings.Contains(errs.String(), "kept "+detailPath) {
@@ -202,7 +206,7 @@ func TestTrackerReCloseSupersedesAnUnstartedClose(t *testing.T) {
 	if err := runRecoveryList(context.Background(), &list); err != nil || !strings.Contains(list.String(), "no unfinished") {
 		t.Fatalf("superseded close still pending: %q %v", list.String(), err)
 	}
-	if c, ok, _ := issue.CardCompletion([]byte(r.card(cardPath))); !ok || c.EvidenceCommit != r.git("rev-parse", "HEAD") {
+	if c, ok, _ := issue.CardCompletion([]byte(r.card(cardPath))); !ok || c.EvidenceCommit != r.git("rev-parse", evidenceRev) {
 		t.Fatalf("card not bound to the re-close: %+v", c)
 	}
 }
@@ -270,15 +274,15 @@ func TestTrackerReCloseCommitsTheModifiedGateLedger(t *testing.T) {
 	}
 	closeOnce()
 	ledger := "workshop/plans/000302-e2e-close-gate.md"
-	if r.git("ls-tree", "--name-only", "HEAD", "--", ledger) == "" {
-		t.Fatalf("the first close did not commit its new gate ledger:\n%s", r.git("show", "--name-only", "--format=", "HEAD"))
+	if r.git("ls-tree", "--name-only", evidenceRev, "--", ledger) == "" {
+		t.Fatalf("the first close did not commit its new gate ledger:\n%s", r.git("show", "--name-only", "--format=", evidenceRev))
 	}
 	writeRepoFile(t, r.root, "cmd/b.go", "package a\n")
 	r.git("add", "cmd/b.go")
 	r.git("commit", "-qm", "#302: a fix after the close")
 	closeOnce()
-	if !strings.Contains(r.git("show", "--name-only", "--format=", "HEAD"), ledger) {
-		t.Fatalf("the re-close's evidence commit lacks the modified gate ledger:\n%s", r.git("show", "--name-only", "--format=", "HEAD"))
+	if !strings.Contains(r.git("show", "--name-only", "--format=", evidenceRev), ledger) {
+		t.Fatalf("the re-close's evidence commit lacks the modified gate ledger:\n%s", r.git("show", "--name-only", "--format=", evidenceRev))
 	}
 	if dirty := r.git("status", "--porcelain", "--", "workshop/plans"); dirty != "" {
 		t.Fatalf("the re-close left plan files uncommitted:\n%s", dirty)

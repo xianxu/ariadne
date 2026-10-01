@@ -1,12 +1,15 @@
 ---
 id: 000275
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-30
 updated: 2026-09-30
 estimate_hours:
-card_mirror: '4c0ba8e6d7b2cad0d7cc825baf07804b6653dd4e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '52aca8f1350d7d1aa6a7a8d9bf9b4bb5bb191bfb' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-30T15:23:01-07:00
+flow: {kind: full, provenance: inferred}
+actual_hours: 1.30
 ---
 
 # Keep issue detail frontmatter current
@@ -55,11 +58,60 @@ its archive should not unnecessarily contradict its authoritative card.
 
 ## Plan
 
+Durable plan: `workshop/plans/000275-current-detail-frontmatter-plan.md`.
+All refreshes reuse `issue.RefreshMirror`, which is one-way and preserves the body.
+
+- [x] Close: a follow-up commit mirrors the codecomplete card onto the issue branch. It cannot go into the evidence commit, because the card embeds that commit's SHA.
+- [x] Checkout archives (merge, push, interrupted recovery): refresh the moved history file from the done card before staging it.
+- [x] Slot-landing archive: a deterministic projection of the done card. The retry proof pins the card through the archived file's `card_mirror`.
+- [x] Documentation: the refresh points and the remaining stale copies, including main's active copy before landing.
+
 ## Log
 
 ### 2026-09-30
+- 2026-09-30: closed — New real-git tests: close mirrors the codecomplete card (clean, dirty, staged; reconcile retries after a crash); merge/push/recovery archives mirror the done card; hand-edited mirror or unreadable baseline archived unchanged; landing projection (pure table) plus a proof that survives a later card change (mutation-checked); TestTrackerFullSlotCycle asserts archived details on main say done (pair#358 repro). make test: all cmd/sdlc shards green; processgroup ps failure is a sandbox artifact in an untouched package.; review verdict: SHIP
+- 2026-09-30: flow upgraded quick → full — 260 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Filed at the operator's request after closing pair#358. The user accepts
   issue-tracker authority and wants detail frontmatter kept as up to date as
   possible to reduce confusion. ARCH-DRY: derive mirrors from the existing
   authority rather than creating a second status owner.
+- Design: the #252 M3 commit 0c9ad8ef deliberately dropped the archive refresh
+  so that the landing archive proof would not depend on the live card. This
+  design restores the refresh without losing that property: the archived
+  file's `card_mirror` names the done card it was projected from, and the
+  proof re-derives from that pinned blob.
+- Main's active copy is never refreshed, because the rest branch is never
+  edited and a main-side commit would conflict with the branch's frontmatter.
+  It stays documented as a stale case until landing.
+- Implemented in four commits: close mirror, checkout archive refresh, deterministic
+  landing archive, docs. Close tests now locate the evidence commit at `HEAD^`
+  (`evidenceRev`), because the mirror commit sits on top of it.
+- Pair#358 repro: `TestTrackerFullSlotCycle` asserts that the archived details on
+  main mirror the done card. The pin test was mutation-checked: with
+  `pinArchivedCard` disabled, the proof fails with "archive generation differs".
+- `make test`: every cmd/sdlc shard passes.
+  `internal/processgroup` `TestCancellationKillsDescendants` fails in the sandbox
+  (`fork/exec /bin/ps: operation not permitted`). That is environmental; the
+  package is untouched.
+  `TestClose_MilestoneRefusesWithRedirect` failed intermittently in one shard,
+  passes in isolation, and passed on the next full run.
+- Close round 1: the reviewer's network was blocked by the sandbox, so there
+  was no verdict. Round 2 returned FIX-THEN-SHIP, but the reviewer had
+  detached this checkout's HEAD (#204), so close refused it as stale. Fixed
+  the findings it reported:
+  - An unreadable mirror baseline no longer fails the landing. The details
+    are archived unchanged and the proof expects that.
+  - The baseline and the pin comparison now come from main's copy, which the
+    planner projects.
+  - The tracker is opened once per archive run.
+  - The merge path has a test.
+  - The atlas no longer over-claims what a reopen does, and documents the
+    crash window between codecomplete and the mirror commit.
+- Close round 3 returned FIX-THEN-SHIP with one Important finding (BR-1, plan
+  table drift on planner purity) and three Minors. Fixes:
+  - BR-1: recorded in the plan's `## Revisions` and table, because the reader
+    is an injected seam.
+  - Minors: fixed the merge help reflow; added `retryCloseMirror` in reconcile
+    for the crash window; added a test that the staged-index branch keeps a
+    staged edit.

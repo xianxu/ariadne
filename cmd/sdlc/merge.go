@@ -670,6 +670,7 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 	issuesSubFull := vocab.ArchiveSubdir(historyFull, vocab.ArchiveIssues)
 	issuesSubRec := vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues)
 	cinfo(stderr, fmt.Sprintf("Archiving completed issues to %s/...", issuesSubRec))
+	mirrors := newArchiveMirrors(ctx, stderr)
 	for _, ref := range terminalIssueFiles(refs) {
 		// Merge target's shell DOES NOT call gh issue close — only push:
 		// closes GH issues. We mirror that. (Rationale: PR merge itself
@@ -686,6 +687,7 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 		if err := os.Rename(ref.Path, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
 		}
+		mirrors.refresh(dest)
 		// Record paths relative to mainPath: GitInDir(mainPath, "add", …)
 		// resolves them from the main worktree root, so an absolute path here
 		// would silently miss the staged move.
