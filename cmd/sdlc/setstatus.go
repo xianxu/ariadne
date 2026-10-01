@@ -83,21 +83,18 @@ func runSetStatus(ctx context.Context, stdout, stderr io.Writer, f *setStatusFla
 	} else if !tracked {
 		return runLegacySetStatus(stdout, stderr, f)
 	}
-	// #277: entering working records who holds the work, as claim does.
-	var me *issue.Claimant
-	if f.Status == "working" {
-		env, err := openTracker(ctx)
-		if err != nil {
-			return err
-		}
-		c, err := claimantIdentity(env)
-		if err != nil {
-			return err
-		}
-		me = &c
-	}
 	var prev string
-	decide := func(card tracker.Record, body string) ([]byte, error) {
+	decide := func(env *trackerEnv, card tracker.Record, body string) ([]byte, error) {
+		// #277: entering working records who holds the work, as claim does —
+		// resolved from the setter's own tracker environment.
+		var me *issue.Claimant
+		if f.Status == "working" {
+			c, err := claimantIdentity(env)
+			if err != nil {
+				return nil, err
+			}
+			me = &c
+		}
 		next, p, err := statusDecision(card.Raw, body, f.Status, f.Force, time.Now().Format("2006-01-02"), startedClock(), me)
 		prev = p
 		return next, err

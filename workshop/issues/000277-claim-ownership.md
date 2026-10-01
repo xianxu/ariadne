@@ -311,3 +311,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - The claim help now states the relocation exception.
   - Fixed the plan citation, and widened the restatement lesson to include
     help pages.
+- Full suite: `TestPlanningReviewConcurrencySchedules` timed out (2s budget) under load in two runs. The cause was mine: set-status working opened the tracker a second time to resolve the identity. `cardUpdate` decisions now receive the setter's own `trackerEnv`, so there is one open.
