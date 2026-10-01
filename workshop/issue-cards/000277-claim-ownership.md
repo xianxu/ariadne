@@ -5,6 +5,17 @@ created: 2026-10-01
 updated: 2026-10-01
 estimate_hours:
 github_issue:
+tracker:
+    version: 1
+    handoff:
+        token: move-c594d94bc06d
+        repository: github.com/xianxu/ariadne
+        source_branch: refs/heads/main
+        source_base: c634a11d498877834858b482df99f0729da9c6dc
+        source_head: c634a11d498877834858b482df99f0729da9c6dc
+        source_path: workshop/issues/000277-claim-ownership.md
+        source_blob: 94a91b2226d6f7774bf1515c659faa371227a4d2
+        destination: workshop/issues/000277-claim-ownership.md
 ---
 
 # Record claimant ownership atomically with issue reservation
