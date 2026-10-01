@@ -428,3 +428,37 @@ func TestAdoptRaceHasExactlyOneWinner(t *testing.T) {
 		t.Fatalf("owner %+v, want the winner %s", owner, winner)
 	}
 }
+
+// #277 BR-15: a move record that cannot be read is an error at the gate, never
+// "not moved" (and never a relocation).
+func TestGateSurfacesAnUnreadableMoveRecord(t *testing.T) {
+	r, cardPath, detailPath := closeReady(t, 374)
+	owner, _ := ownerOf(t, r, cardPath)
+	elsewhere := owner
+	elsewhere.Worktree = canonRoot(r.root) + "-elsewhere"
+	withClaimant(t, elsewhere)
+	p, err := relocationPath(r.root, "000374")
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, filepath.Dir(p), filepath.Base(p), "{not json")
+	refusal, judged := ownershipGate(t, r, "start-plan", 374, detailPath)
+	if !strings.Contains(refusal, "checking whether it was moved here failed") || !strings.Contains(refusal, "malformed relocation record") || judged {
+		t.Fatalf("unreadable record: %q", refusal)
+	}
+}
+
+// #277 BR-18: a move whose first switch fails moved nothing, so it leaves no
+// relocation record behind to authorize a later claim.
+func TestMoveFirstSwitchFailureLeavesNoRecord(t *testing.T) {
+	roots, _ := moveTrackerFixture(t)
+	gitDir := strings.TrimSpace(testfix.Capture(t, roots[1], "rev-parse", "--absolute-git-dir"))
+	writeRepoFile(t, gitDir, "index.lock", "") // the first switch cannot write the index
+	out, err := runMoveTest(t, roots[1], ":0", false)
+	if err == nil || !strings.Contains(err.Error(), "nothing was moved") {
+		t.Fatalf("move with a locked index: %v\n%s", err, out)
+	}
+	if rec, rerr := readRelocation(roots[1], "000001"); rerr != nil || rec != nil {
+		t.Fatalf("a move that moved nothing left its record: %+v %v", rec, rerr)
+	}
+}

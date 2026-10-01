@@ -142,6 +142,58 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 4
+      timestamp: "2026-10-01T14:56:04-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: RelocationAllowed + relocatable require sdlc move's record naming from/to; negative integration test plus pure "no move record" case; red when the record check is removed.
+          round: 4
+        - id: BR-10
+          disposition: addressed
+          note: adoptDecision is pure; TestVerbContractTable covers every cell (red with the working->working refusal disabled); TestAdoptRaceHasExactlyOneWinner added.
+          round: 4
+        - id: BR-11
+          disposition: addressed
+          note: TestMoveRelocatesItsOwner drives real runMove to success; TestMoveLeavesAnUnattributedIssueUnknown covers the Unknown path; both pass.
+          round: 4
+        - id: BR-12
+          disposition: addressed
+          note: README.md now states owner recording, --adopt, move carrying ownership and the rebuild flag day.
+          round: 4
+        - id: BR-13
+          disposition: addressed
+          note: gofmt -l no longer lists move.go.
+          round: 4
+        - id: BR-14
+          disposition: addressed
+          note: '{{OWNERSHIP_GATE}} rendered from ownershipGateHelp in main.go renderLong; paragraph moved out of change-code''s numbered list (a stray double blank line remains).'
+          round: 4
+        - id: BR-15
+          disposition: not-addressed
+          note: Code wraps the probe error, but no test reaches it (no malformed relocation record fixture); the fix is unverified.
+          round: 4
+        - id: BR-16
+          disposition: addressed
+          note: Whole-issue close checks ownership inside prepareTrackerClose over the card it already reads; only milestone mode opens the tracker in computeClose.
+          round: 4
+      findings:
+        - id: BR-17
+          severity: Important
+          title: Atlas and plan still state the pre-BR-9 relocation rule; relocation record family undocumented
+          detail: '2nd in family. Rule: a fix round that changes a contract greps and updates every restatement (atlas, README, help, plan step/table, Revisions) in the same commit. atlas/workflow/issue-tracker.md:51-53 omits the required move record and its <git-common-dir>/sdlc/relocations/<id>.json lifecycle; the plan has no M2 Revision for the evidence rule or the set-status working->working refusal the Verb contract table still shows as "-".'
+          family: docs-surface-gap
+          round: 4
+        - id: BR-18
+          severity: Minor
+          title: sdlc move leaves its relocation record when the first switch fails and nothing moved
+          detail: move.go writes the record before switching; the "nothing was moved" return never removes it, leaving stale evidence that later authorizes a claim-relocation after hand switching. Remove it on that path (keep it on the second-switch failure, where it is the repair evidence).
+          family: effect-record-outlives-effect
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#277 (boundary-review)
@@ -199,14 +251,29 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-15** [Minor] `swallowed-probe-error` requireIssueOwnership discards relocatable's error and reports a plain Foreign refusal
 - **BR-16** [Minor] `repeated-tracker-snapshot` Tracker-era close opens the tracker and snapshots twice (ownership gate, then prepareTrackerClose)
 
+## Round 4 — 2026-10-01T14:56:04-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-9 — addressed — RelocationAllowed + relocatable require sdlc move's record naming from/to; negative integration test plus pure "no move record" case; red when the record check is removed.
+- BR-10 — addressed — adoptDecision is pure; TestVerbContractTable covers every cell (red with the working->working refusal disabled); TestAdoptRaceHasExactlyOneWinner added.
+- BR-11 — addressed — TestMoveRelocatesItsOwner drives real runMove to success; TestMoveLeavesAnUnattributedIssueUnknown covers the Unknown path; both pass.
+- BR-12 — addressed — README.md now states owner recording, --adopt, move carrying ownership and the rebuild flag day.
+- BR-13 — addressed — gofmt -l no longer lists move.go.
+- BR-14 — addressed — {{OWNERSHIP_GATE}} rendered from ownershipGateHelp in main.go renderLong; paragraph moved out of change-code's numbered list (a stray double blank line remains).
+- BR-15 — not-addressed — Code wraps the probe error, but no test reaches it (no malformed relocation record fixture); the fix is unverified.
+- BR-16 — addressed — Whole-issue close checks ownership inside prepareTrackerClose over the card it already reads; only milestone mode opens the tracker in computeClose.
+
+### Raised
+
+- **BR-17** [Important] `docs-surface-gap` Atlas and plan still state the pre-BR-9 relocation rule; relocation record family undocumented
+  2nd in family. Rule: a fix round that changes a contract greps and updates every restatement (atlas, README, help, plan step/table, Revisions) in the same commit. atlas/workflow/issue-tracker.md:51-53 omits the required move record and its <git-common-dir>/sdlc/relocations/<id>.json lifecycle; the plan has no M2 Revision for the evidence rule or the set-status working->working refusal the Verb contract table still shows as "-".
+- **BR-18** [Minor] `effect-record-outlives-effect` sdlc move leaves its relocation record when the first switch fails and nothing moved
+  move.go writes the record before switching; the "nothing was moved" return never removes it, leaving stale evidence that later authorizes a claim-relocation after hand switching. Remove it on that path (keep it on the second-switch failure, where it is the repair evidence).
+
 ## Open findings
 
 - **BR-8** [Minor] `stale-test-precondition` TestSlotLabelOnlyWhereSlotsExist's "no slots" check runs after the malformed slot dir is created, duplicating the prior assertion
-- **BR-9** [Important] `absence-as-authority` Relocation reassigns a working card on any same-machine worktree whose owner merely is not on the issue branch
-- **BR-10** [Important] `plan-code-contract-drift` Verb-contract cells for adopt/set-status untested and drifting (no adopt race/table; set-status working on unattributed working card silently adopts)
-- **BR-11** [Important] `missing-branch-unit-test` moveRelocation success path and Unknown branch never exercised; planned real move test not delivered
-- **BR-12** [Important] `docs-surface-gap` README Concurrent issue work omits claim ownership, --adopt and the rebuild flag day
-- **BR-13** [Minor] `gofmt-clean` cmd/sdlc/move.go import block is not gofmt-sorted
-- **BR-14** [Minor] `duplicated-help-prose` Identical OWNERSHIP paragraph copied into four helptexts; use a shared template placeholder
 - **BR-15** [Minor] `swallowed-probe-error` requireIssueOwnership discards relocatable's error and reports a plain Foreign refusal
-- **BR-16** [Minor] `repeated-tracker-snapshot` Tracker-era close opens the tracker and snapshots twice (ownership gate, then prepareTrackerClose)
+- **BR-17** [Important] `docs-surface-gap` Atlas and plan still state the pre-BR-9 relocation rule; relocation record family undocumented
+- **BR-18** [Minor] `effect-record-outlives-effect` sdlc move leaves its relocation record when the first switch fails and nothing moved

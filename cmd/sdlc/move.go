@@ -75,6 +75,9 @@ func runMove(ctx context.Context, dir, address string, dryRun bool, stdout, stde
 		}
 	}
 	if out, err := r.GitInDir(from.Root, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", from.Resting); err != nil {
+		if id, _, ok := issue.ParseFilename(branch + ".md"); ok {
+			removeRelocation(from.Root, id) // nothing moved: no evidence of a move
+		}
 		return fmt.Errorf("switch %s to %s: %v\n%s\nnothing was moved", from.Address, from.Resting, err, out)
 	}
 	if out, err := r.GitInDir(to.Root, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", branch); err != nil {

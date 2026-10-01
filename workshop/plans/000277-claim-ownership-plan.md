@@ -84,6 +84,8 @@
 - **Relocation** (`issue.RelocationAllowed`, pure, plus `relocateClaimant`
   in `cmd/sdlc/claimant.go`; operator decision) — the owner moves their own
   work to another worktree on the same machine.
+  - *Superseded by Revision "M2 review round 1" (BR-9): relocation also
+    requires `sdlc move`'s positive record.*
   - `RelocationAllowed(claimant, current, claimantWorktreeBranch)` is true
     only when all of these hold:
     - `repository` and `machine` equal the current ones;
@@ -122,7 +124,7 @@
 | open | working + claimant, one CAS | refuse (use claim) | stamps claimant like claim | — |
 | working, Mine | ok, "already yours", no write | refuse (already owned) | — | pass |
 | working, Foreign | refuse, naming the owner | refuse (#278) | refuse | refuse |
-| working, Unknown | refuse (use --adopt) | writes claimant, one CAS | — | refuse (use --adopt) |
+| working, Unknown | refuse (use --adopt) | writes claimant, one CAS | refuse (use --adopt) | refuse (use --adopt) |
 | reopen (codecomplete/done/… → working) | — | — | Mine/Unknown: stamp current; Foreign: refuse | — |
 
 ### Lifecycle / ordering / exposure (ARCH-FUNERAL / ARCH-ORDER / ARCH-SECURE)
@@ -248,4 +250,23 @@
     - the race test skips without a host machine ID;
     - the slot-layout question moved to `pkg/workspace.Identity.UsesSlotLayout`;
     - added a `claimDecision` ownership table test.
+
+- 2026-10-01 — M2 review rounds 1–2 (BR-9 to BR-18).
+  - **BR-9:** the old worktree's absence from the branch is no longer
+    evidence, since it is also the state right after a claim (a takeover
+    hole). The delta:
+    - `RelocationAllowed(recorded, current, move *Relocation, onBranch, oldHolds)`
+      requires `sdlc move`'s local record (from/to worktrees) in
+      `<git-common-dir>/sdlc/relocations/<id>.json`.
+    - Move writes the record before switching, removes it if the first switch
+      fails, and after the switches removes it on success or non-applicability.
+    - A failed re-stamp keeps the record for the `sdlc claim` repair.
+  - **BR-10:** `adoptDecision` is pure. set-status working→working on an
+    unattributed card refuses toward `--adopt` (Verb contract row updated).
+    `TestVerbContractTable` enumerates every cell.
+  - **BR-11:** real `sdlc move` tests (owner relocated; unattributed left
+    unknown).
+  - **BR-12:** the README.
+  - **BR-17:** atlas and plan restatements updated. Lesson added: a fix round
+    that changes a contract updates every restatement in the same commit.
 

@@ -49,11 +49,22 @@ details like every card field.
 - **set-status** into `working` records the claimant like claim does. It
   refuses on another workspace's card even with `--force`.
 - **Relocation** is the owner moving its own work on the same machine
-  (`RelocationAllowed`). The current checkout is on the issue branch and the
-  recorded worktree no longer holds it.
-  - `sdlc move` re-stamps after its verified switches.
-  - If that network step fails, `sdlc claim` at the destination repairs it.
-    The gate names that repair.
+  (`RelocationAllowed`). It requires **positive evidence**: `sdlc move`'s own
+  record (`issue.Relocation`, `cmd/sdlc/relocation.go`) naming the recorded
+  owner's worktree as the source and this one as the destination. The current
+  checkout must also be on the issue branch, and the old worktree must no
+  longer hold it. The branch's absence alone is never evidence, because that
+  is also the state right after a claim.
+  - **Record:** `<git-common-dir>/sdlc/relocations/<id>.json`, local and never
+    committed.
+    - Move writes it before switching and removes it if the first switch
+      fails.
+    - After the switches, move re-stamps and removes it, both on success and
+      when relocation doesn't apply (an unattributed or foreign card).
+    - A failed re-stamp keeps it for the repair: `sdlc claim` at the
+      destination relocates and removes it. The gate names that repair.
+    - A later move of the same issue overwrites it. The bound is one small
+      file per moved issue.
 - **Out of scope:** reassigning an owned card across workspaces, machines or
   operators is reclaim (#278); structured observation is #279.
 

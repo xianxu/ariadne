@@ -2,10 +2,13 @@ Move this slot's issue branch into another slot, usually :0 for testing, and
 return this slot to its resting branch (#260).
 
 OWNERSHIP (#277): moving an issue branch is the owner relocating its own work
-on this machine. After both switches are verified, move records the destination
-as the issue's owner, if the source slot owned it. A failure leaves the branch
-moved and names the repair, which is `sdlc claim --issue N` at the destination.
-Move never takes another workspace's issue; that is reclaim (#278).
+on this machine. Before switching, move records the relocation locally (the
+source and destination worktrees). That record is the evidence relocation
+requires, because a branch merely missing from the owner's worktree proves
+nothing. After both switches are verified, move records the destination as the
+issue's owner, if the source slot owned it. A failure leaves the branch moved,
+keeps the record, and names the repair, which is `sdlc claim --issue N` at the
+destination. Move never takes another workspace's issue; that is reclaim (#278).
 
   sdlc move                 move to :0
   sdlc move :2              move to slot 2

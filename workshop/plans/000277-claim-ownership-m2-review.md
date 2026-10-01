@@ -157,3 +157,142 @@ findings:
     title: |
       Tracker-era close opens the tracker and snapshots twice (ownership gate, then prepareTrackerClose)
 ```
+
+---
+
+## Re-review — 2026-10-01T14:56:04-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 277 — Record claimant ownership atomically with issue reservation |
+| repo | ariadne |
+| issue file | workshop/issues/000277-claim-ownership.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | e53c075bd9ae04f71535872f44d124abf2839d4b..8bb514f1a838ed5e96a4841e34ae25449321c7a9 |
+| command | sdlc milestone-close --issue 277 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-10-01T14:56:04-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+# Review of ariadne#277 M2, round 2: FIX-THEN-SHIP. One Important finding: the atlas and plan still describe the old relocation rule
+
+Round 2 fixed the round-1 problems. It closes BR-9's takeover hole with positive evidence: `sdlc move` now writes a record in the git common dir, and `RelocationAllowed` and `relocatable` both require a record whose source is the recorded owner and whose destination is this worktree. The adopt decision is now pure (`adoptDecision`). `statusDecision` refuses working→working on a card with no owner. A real `runMove` test covers both the success path and the no-owner path, and there is now a two-clone adopt race.
+
+I ran the targeted tests and both packages pass. I also removed two fixes in scratch copies to see whether tests catch it:
+- Disabling set-status's no-owner refusal turns `TestVerbContractTable` red.
+- Deleting the record check from `RelocationAllowed` alone leaves `TestRelocationAfterMoveAndRepair` green, because `relocatable`'s own nil check still guards it. The pure `TestRelocationAllowed` "no move record" case covers that path instead, so the protection is doubled, not missing.
+
+What keeps this from SHIP:
+- **Important:** the BR-9 fix changed the relocation contract, but the atlas and the plan still describe the old "absence of the branch is enough" rule, and the new on-disk record family is documented in neither.
+- **Minor:** the move record outlives a move that never happened.
+
+## 1. Strengths
+- **Two independent guards on positive evidence.** `relocatable` (`cmd/sdlc/claimant.go`) refuses when there is no record, and `issue.RelocationAllowed` also requires From/To to match. The pure table covers "no move record", "move from another worktree" and "move to another destination".
+- **`relocation.go` writes down its own lifecycle (ARCH-FUNERAL)** and treats a malformed record as an error, never as "no move" (ARCH-SECURE).
+- **`raceBuiltBinary` (`claimremote_test.go`)** pulls the pre-push barrier out into one helper that the claim race and the adopt race share (ARCH-DRY). The oracle accepts both legal loser outcomes.
+- **`TestVerbContractTable`** checks every situation × verb cell against the pure decisions, so the plan's table is now enforced rather than restated.
+- **One tracker read per close:** `requireCardOwnership` runs inside `prepareTrackerClose` (`closetracker.go:338`), and only milestone mode opens the tracker separately.
+
+## 2. Critical
+None.
+
+## 3. Important
+**I-1: the atlas and plan still describe the pre-BR-9 relocation rule, and the new relocation-record file family is undocumented.**
+
+This is the 2nd finding in family `docs-surface-gap`. The rule that covers both instances: **when a fix round changes a contract, grep every restatement of that contract and update them in the same commit.** The restatements are atlas, README, help text, the plan's step text and verb table, and plan Revisions.
+
+For this contract (search for `RelocationAllowed` and "relocat"), the stale or missing places are:
+- **`atlas/workflow/issue-tracker.md:51-53`** says relocation needs only "the current checkout is on the issue branch and the recorded worktree no longer holds it". That is exactly the rule BR-9 showed to be a takeover hole. The atlas should say:
+  - relocation requires `sdlc move`'s record at `<git-common-dir>/sdlc/relocations/<id>.json`;
+  - when the record is written and when it is removed.
+- **The plan's M2 "Relocation" step** still describes the pure table over machine, repository, branch and holder, with no record. The plan has no M2 `## Revisions` entry for:
+  - the evidence rule (round 1 §7 asked for this);
+  - set-status working→working on a card with no owner now refusing toward `--adopt`. The Verb contract table still shows "—" for that cell, while the code and `TestVerbContractTable` assert a refusal.
+
+## 4. Minor
+- **The move record outlives a move that never happened** (`move.go:72-79`, new family `effect-record-outlives-effect`, ARCH-FUNERAL).
+  - The record is written before the first `git switch`. If that switch fails ("nothing was moved"), the function returns without calling `removeRelocation`.
+  - The leftover record still names this move. If the owner's slot later leaves the branch and the destination checks it out by hand, a plain `sdlc claim` there relocates the card with no move behind it.
+  - Fix: remove the record on that return. Keep it on the second-switch failure, where it is the intended repair evidence.
+- **Leftover double blank line** in `cmd/sdlc/helptext/change-code.md:3-4` after "in any checkout:".
+- `gofmt -l cmd/sdlc` flags only `reviewsidecar.go`, which is outside this window.
+
+## 5. Test coverage notes
+- BR-15's fix (the probe error is now wrapped into the refusal) has no fixture. Nothing writes a malformed relocation record and asserts the "checking whether it was moved here failed" message, so I dispose it as not-addressed. A malformed `relocations/<id>.json` plus a gate call would cover it, along with `readRelocation`'s malformed branch.
+- A Foreign card with no move record on the same machine is pinned at the integration level, and the pure From/To mismatch cases are pinned at the unit level.
+- The move tests rely on slots being linked worktrees that share a common dir, as the fixture builds them. That assumption should go in the atlas line for I-1.
+
+## 6. Architecture notes
+- **ARCH-DRY: pass.** The help text is single-sourced through `{{OWNERSHIP_GATE}}`, the race helper is shared, and one `ownership()` serves claim, the gate and move.
+- **ARCH-PURE: pass.** `adoptDecision`, `statusDecision` and `RelocationAllowed` are pure. The IO is in `relocatable`, `relocation.go` and `adoptClaim`.
+- **ARCH-PURPOSE: flag (I-1).** The behavior is delivered, but the documented contract still teaches the weaker rule.
+- **ARCH-MOCK: pass.** Tests use real git and the real tracker repository. Identity is injected only in-process, and the built binary runs with the real host identity.
+- **ARCH-CONSTRAINTS: pass.** Move's network step runs after the switches are verified, and close reads the tracker once.
+- **ARCH-SECURE: pass.** The record is local and never published, a malformed record fails closed, and another machine is never probed.
+- **ARCH-ORDER: pass, with one gap.** Relocation now needs positive evidence. The remaining gap is that a failed switch leaves stale evidence (Minor above).
+- **ARCH-FUNERAL: pass, with the same Minor.** The record family is one file per issue with a removal path. The exception is the first-switch failure, which leaves the record behind.
+
+## 7. Plan revision recommendations
+Add an M2 round-1 `## Revisions` entry recording:
+- **The relocation evidence rule:** the record at `<git-common-dir>/sdlc/relocations/<id>.json`, written by move before switching and removed on success, when relocation doesn't apply, or by the claim repair. `RelocationAllowed` gains a `*Relocation` parameter.
+- **`adoptDecision`** as the pure adopt core.
+- **The Verb contract cell** "working, Unknown × set-status → working" changing from "—" to "refuse (use --adopt)", plus the "blocked, Unknown/Foreign" reopen rows that `TestVerbContractTable` asserts.
+
+```findings
+dispose:
+  - id: BR-9
+    disposition: addressed
+    note: |
+      RelocationAllowed + relocatable require sdlc move's record naming from/to; negative integration test plus pure "no move record" case; red when the record check is removed.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      adoptDecision is pure; TestVerbContractTable covers every cell (red with the working->working refusal disabled); TestAdoptRaceHasExactlyOneWinner added.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      TestMoveRelocatesItsOwner drives real runMove to success; TestMoveLeavesAnUnattributedIssueUnknown covers the Unknown path; both pass.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      README.md now states owner recording, --adopt, move carrying ownership and the rebuild flag day.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      gofmt -l no longer lists move.go.
+  - id: BR-14
+    disposition: addressed
+    note: |
+      {{OWNERSHIP_GATE}} rendered from ownershipGateHelp in main.go renderLong; paragraph moved out of change-code's numbered list (a stray double blank line remains).
+  - id: BR-15
+    disposition: not-addressed
+    note: |
+      Code wraps the probe error, but no test reaches it (no malformed relocation record fixture); the fix is unverified.
+  - id: BR-16
+    disposition: addressed
+    note: |
+      Whole-issue close checks ownership inside prepareTrackerClose over the card it already reads; only milestone mode opens the tracker in computeClose.
+findings:
+  - id: new
+    severity: Important
+    family: docs-surface-gap
+    title: |
+      Atlas and plan still state the pre-BR-9 relocation rule; relocation record family undocumented
+    detail: |
+      2nd in family. Rule: a fix round that changes a contract greps and updates every restatement (atlas, README, help, plan step/table, Revisions) in the same commit. atlas/workflow/issue-tracker.md:51-53 omits the required move record and its <git-common-dir>/sdlc/relocations/<id>.json lifecycle; the plan has no M2 Revision for the evidence rule or the set-status working->working refusal the Verb contract table still shows as "-".
+  - id: new
+    severity: Minor
+    family: effect-record-outlives-effect
+    title: |
+      sdlc move leaves its relocation record when the first switch fails and nothing moved
+    detail: |
+      move.go writes the record before switching; the "nothing was moved" return never removes it, leaving stale evidence that later authorizes a claim-relocation after hand switching. Remove it on that path (keep it on the second-switch failure, where it is the repair evidence).
+```
