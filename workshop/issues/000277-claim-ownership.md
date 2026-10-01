@@ -1,14 +1,15 @@
 ---
 id: 000277
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-01
 updated: 2026-10-01
 estimate_hours: 4.09
-card_mirror: '15223d7e7c44c0f427a6e4667bb121e124bcd929' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '59132a02377b496ea1252ca7855a0eebfb982e24' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-01T13:19:29-07:00
 flow: {kind: full, provenance: inferred}
+actual_hours: 2.07
 ---
 
 # Record claimant ownership atomically with issue reservation
