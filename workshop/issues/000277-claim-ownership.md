@@ -242,3 +242,20 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     first paragraph.
   - `TestVerbContextsReachTrackerReads` caught move's relocation using
     `context.Background`; the command context now threads through `runMove`.
+- M2 review round 1 returned FIX-THEN-SHIP with four Important findings.
+  - **BR-9 (real takeover hole):** relocation accepted the old worktree's
+    absence from the branch as proof of a move. Another slot could
+    `git switch -c <issue-branch> && sdlc claim` to take the card. The fix
+    requires *positive* evidence: a local relocation marker that `sdlc move`
+    writes in the git common dir, naming from/to. Relocation (move's re-stamp,
+    claim's repair, the gate's hint) requires a marker matching the recorded
+    owner and this destination. Added a negative test.
+  - **BR-10:** the verb contract becomes one table test over pure decisions.
+    The adopt decision is now pure. set-status working→working on an
+    unattributed card refuses toward `--adopt` (it silently adopted before).
+    Added a two-clone adopt race.
+  - **BR-11:** exercise moveRelocation's success and Unknown paths, and a real
+    `runMove` when the fixture allows it.
+  - **BR-12:** a README sentence.
+  - Minors: gofmt; the shared help paragraph; surface relocatable's error;
+    open and snapshot the tracker once per close.
