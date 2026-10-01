@@ -101,4 +101,9 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   hash preserves, the same way systemd's app-specific IDs work.
 - Wrote the durable plan with milestones M1 and M2. The Spec requirements are
   unchanged.
+- Operator review of the plan: `workspace` (a slot such as `ariadne:1`) is a
+  Couch-specific concept, and ariadne must work without Couch. The field is
+  now optional and informational only, read from `pkg/workspace` when
+  resolvable, and ownership matching ignores it. Added a plain-clone test.
+  Plan Revisions updated.
 

@@ -93,6 +93,7 @@
   - a hand-edited claimant in details gives `OwnershipError` naming `sdlc claim`.
 - [ ] **Identity seam.** Add `claimant.go` with `claimantIdentity`. Unit-test the parsers of `ioreg` output and `/etc/machine-id` (pure helpers fed fixture text). Add one live check on the host, skipped where unsupported.
 - [ ] **claimDecision.** Take the current Claimant and stamp it alongside status, updated and started. Make an owner's repeat claim a no-op success. Update `TestClaimDecisionOnlyReservesOpenWellFormedRecords`.
+- [ ] **Plain clone (no slot, no Couch).** A claim from a checkout outside the `<repo>-slotN` layout succeeds and records no `workspace` key. The same clone then passes `requireOwnership` (M2).
 - [ ] **Race test.** Extend `TestClaimRaceHasExactlyOneWinner`. The two clones get distinct injected identities. The card has exactly the winner's complete claimant; the loser's identity appears nowhere on the tracker.
 - [ ] **Mirror refresh after claim.** On a feature branch, the details show the claimant. Extend `TestClaimRefreshesMirrorOnAFeatureBranch`.
 - [ ] **Docs.** Update `claim.md` help and the atlas `issue-tracker.md` verb table (claim row and ownership section).
@@ -114,3 +115,12 @@
 - [ ] Close.
 
 ## Revisions
+
+- 2026-10-01 — operator review: the slot label is Couch-flavoured, and
+  ariadne must work without Couch.
+  - **Delta:** `workspace` is optional, informational only, and never
+    required. It is read solely from ariadne's own `pkg/workspace` slot
+    layout, never from Couch. It is omitted for plain clones and wherever the
+    address is unresolvable. `MatchClaimant` already ignores it.
+  - **Delta:** added a plain-clone claim/gate test in M1.
+
