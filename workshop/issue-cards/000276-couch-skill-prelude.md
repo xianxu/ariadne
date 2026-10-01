@@ -1,6 +1,6 @@
 ---
 id: 000276
-status: open
+status: working
 created: 2026-09-30
 updated: 2026-09-30
 estimate_hours:
@@ -17,6 +17,7 @@ tracker:
         source_blob: 71560e4be57cc66256f85922d9f9d1ad07507b1f
         destination: workshop/issues/000276-couch-skill-prelude.md
         main_commit: c634a11d498877834858b482df99f0729da9c6dc
+started: 2026-09-30T22:11:29-07:00
 ---
 
 # Add Couch skill prelude
