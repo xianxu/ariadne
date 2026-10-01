@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000276-couch-skill-prelude.md
         source_blob: 71560e4be57cc66256f85922d9f9d1ad07507b1f
         destination: workshop/issues/000276-couch-skill-prelude.md
+        main_commit: c634a11d498877834858b482df99f0729da9c6dc
 ---
 
 # Add Couch skill prelude
