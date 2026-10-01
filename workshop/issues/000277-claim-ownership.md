@@ -45,7 +45,8 @@ Durable plan: `workshop/plans/000277-claim-ownership-plan.md`.
       stamps ownership in its CAS; race and mirror tests; docs.
 - [ ] M2 — enforce at start-plan, change-code, close and milestone-close; add
       `claim --adopt` for unattributed working cards; make set-status into
-      working stamp or refuse; restart-survival test; docs and process manual.
+      working stamp or refuse; make `sdlc move` re-stamp the owner's own
+      relocation; restart-survival test; docs, process manual and rollout note.
 
 ## Log
 
@@ -106,4 +107,12 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   now optional and informational only, read from `pkg/workspace` when
   resolvable, and ownership matching ignores it. Added a plain-clone test.
   Plan Revisions updated.
+- change-code plan-quality round 1 returned four Important findings:
+  - milestone-close bypasses `prepareTrackerClose`;
+  - `sdlc move` would orphan the owner;
+  - the built-binary tests can't reach a package-var seam;
+  - an older binary aborts the whole snapshot on one claimant card.
+  Operator decisions: **move re-stamps** the claimant for the owner's own
+  relocation, and a **documented flag-day** rollout. The plan has been
+  revised (see its Revisions).
 

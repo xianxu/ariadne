@@ -19,6 +19,20 @@
 
 ---
 
+## Non-goals
+
+- Reassigning an owned card to another workspace, machine or operator is #278
+  (reclaim). This issue does only adoption of *unattributed* cards, plus the
+  owner relocating their own work through `sdlc move`.
+- Structured observation of assignments and activity is #279. This issue
+  shows the owner only in refusals and in the mirrored details.
+- No claim ID and no claim timestamp. Git chronology and the card blob or
+  `Tracker-Operation` already distinguish generations, and nothing consumes a
+  separate ID.
+- No Couch dependency. The slot label is optional and never matched.
+- No tolerant reader for older binaries (operator decision: documented flag
+  day, see Rollout).
+
 ## Core concepts
 
 ### Pure entities
@@ -45,7 +59,7 @@
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `claimantIdentity` (+ package var for tests) | `cmd/sdlc/claimant.go` | new | `git config user.name`, `ioreg` / `/etc/machine-id`, `scutil --get ComputerName` / `os.Hostname`, `pkg/workspace.Resolve`, `PublicationTarget` |
+| `claimantIdentity` (+ package var for tests) | `cmd/sdlc/claimant.go` | new | `git config user.name`, `ioreg` / `/etc/machine-id`, `scutil --get ComputerName` / `os.Hostname`, `pkg/workspace.Resolve`, `gitx.ResolvePublicationTarget` (via `trackerEnv.target`) |
 | `requireOwnership(env, card)` | `cmd/sdlc/claimant.go` | new | tracker snapshot + identity |
 | claim `--adopt` | `cmd/sdlc/claim.go` | modified | `UpdateCard` CAS |
 | `statusDecision` into `working` | `cmd/sdlc/setstatus.go` | modified | — |
@@ -60,7 +74,22 @@
   - Foreign → refuse, naming the owner's operator, machine_name, workspace and worktree, and pointing to #278 reclaim once it exists. Until then: "coordinate with the owner".
   - Unknown → refuse with `sdlc claim --issue N --adopt`.
   - Legacy (pre-tracker) repositories are untouched.
-  - Callers: start-plan (beside its `working` check), change-code (tracker branch only, after `refreshChangeCodeMirror`'s branch check), close (in `prepareTrackerClose`, before the review) and milestone-close (same prepare path).
+  - Callers:
+    - start-plan, beside its `working` check.
+    - change-code, on the tracker branch only, after `refreshChangeCodeMirror`'s branch check.
+    - close and milestone-close: one call in `computeClose`, in the tracker-era
+      block at close.go:~509. It runs for **both** modes, before the review,
+      separate from `prepareTrackerClose`, which runs only when
+      `mode == "issue"`.
+- **move re-stamp** (`cmd/sdlc/move.go`, operator decision) — `sdlc move :N`
+  relocates the owner's own work.
+  - When the card's claimant is Mine for the source slot, move CASes the
+    claimant to the destination's identity: same machine, destination
+    worktree and workspace.
+  - That happens before it switches checkouts. It refuses when the claimant is
+    Foreign or Unknown, which is reclaim (#278) or `--adopt`. Move gains no
+    takeover power.
+  - Non-tracker repositories are unchanged.
 
 ### Verb contract
 
@@ -77,12 +106,25 @@
 - **Size and lifetime.** A claimant is about six short lines per card, the same order as `tracker:` handoff. It lives as long as the card and is replaced, never appended, by claim, adopt or reclaim. Nothing else durable is created.
 - **Ordering.** Ownership and status change in one blob-OID CAS (`UpdateCard`). A losing racer publishes nothing: `ErrCardChanged`, or "not open" on re-read. Gates read a fresh snapshot, so a check-then-act window exists between the gate read and the gate's effect. That is acceptable: no gate writes the card except close, and close's codecomplete CAS is keyed on the card blob it read.
 - **Exposure.** The public tracker gets the operator's git `user.name`, the machine name, the slot and the worktree path. The path already contains the home directory name. The raw machine ID never leaves the machine.
-- **Compatibility.** Binaries older than this change refuse cards with `claimant` (`ParseCard` rejects unknown keys), which fails closed. Fleet binaries rebuild from main through `weave compile` / `make tools`.
+- **Compatibility and rollout: a documented flag day** (operator decision).
+  An older binary aborts the *whole* tracker snapshot on the first card with
+  an unknown key (`internal/tracker/reader.go:108` → `ParseCard`). So the
+  first claimant card breaks every stale `sdlc` until it is rebuilt.
+  - That failure is loud and closed: it names the `claimant` field.
+  - The fleet has about 20 separately built binaries, one in each
+    slot's or peer's `ariadne/bin`.
+  - The atlas Ownership section and the PR body state the rollout: after
+    landing, refresh each ariadne checkout and rebuild (`make weave-all`, or
+    `weave compile` / `make tools` per checkout).
+  - Close must list this as an operator follow-up.
 
 ## M1 — Record and publish ownership
 
 - [ ] **Vocabulary.** Add `{name: "claimant", kind: "claimant", setter: "sdlc claim"}` to `card.fields` in issue.cue. Run `make vocab-embed` and commit the regenerated `pkg/vocab` artifacts. `pkg/vocab/card_test.go` must cover the new field.
-- [ ] **Pure `claimant.go` (TDD).**
+- [ ] **Pure `claimant.go` (TDD).** Test strategy: table-driven tests over
+  hand-edited and old-version card YAML for `ParseClaimant` and the kind
+  validator. Seed the table with extra keys, non-string values, flow style,
+  nulls and a missing required key.
   - `ParseClaimant` and the kind validator: exact keys, string values, required versus optional.
   - `SetCardClaimant` replaces the block span and keeps every other byte.
   - `CardClaimant` reads it back.
@@ -94,7 +136,14 @@
 - [ ] **Identity seam.** Add `claimant.go` with `claimantIdentity`. Unit-test the parsers of `ioreg` output and `/etc/machine-id` (pure helpers fed fixture text). Add one live check on the host, skipped where unsupported.
 - [ ] **claimDecision.** Take the current Claimant and stamp it alongside status, updated and started. Make an owner's repeat claim a no-op success. Update `TestClaimDecisionOnlyReservesOpenWellFormedRecords`.
 - [ ] **Plain clone (no slot, no Couch).** A claim from a checkout outside the `<repo>-slotN` layout succeeds and records no `workspace` key. The same clone then passes `requireOwnership` (M2).
-- [ ] **Race test.** Extend `TestClaimRaceHasExactlyOneWinner`. The two clones get distinct injected identities. The card has exactly the winner's complete claimant; the loser's identity appears nowhere on the tracker.
+- [ ] **Race test.** Extend `TestClaimRaceHasExactlyOneWinner`. The built
+  binary runs in a subprocess, so the package-var seam is unreachable.
+  Identities therefore come from **real differences**: the two clones'
+  distinct worktree paths and the host's real machine ID. The card holds
+  exactly the winner's complete claimant (its worktree, the host fingerprint
+  and `repository`). The loser's worktree path appears nowhere on the
+  tracker. The test is skipped with a reason where the host's machine ID is
+  unreadable.
 - [ ] **Mirror refresh after claim.** On a feature branch, the details show the claimant. Extend `TestClaimRefreshesMirrorOnAFeatureBranch`.
 - [ ] **Docs.** Update `claim.md` help and the atlas `issue-tracker.md` verb table (claim row and ownership section).
 - [ ] M1 — milestone-close.
@@ -107,7 +156,13 @@
   - adopt refused on an owned card and on an open card;
   - two concurrent adopts have one winner.
 - [ ] **set-status into working.** Stamp the claimant on an open card or an unknown reopen; refuse on Foreign. Test open→working through set-status and a Foreign reopen.
-- [ ] **Restart survival.** A test claims, re-opens the tracker env from a fresh process (built binary) and passes start-plan. A second clone at the same path on another "machine" (injected identity) is refused.
+- [ ] **Restart survival.** A built-binary test claims, then runs start-plan
+  from a fresh process with the real identity, and it passes. Foreign-machine
+  refusal runs in-process, where the package-var seam is reachable: the same
+  worktree path with an injected different fingerprint is refused.
+- [ ] **move re-stamp.** Real-git test: claim in :1, `sdlc move :0`, and the
+  card's claimant now names the :0 worktree; gates pass there. move refuses
+  for a Foreign or Unknown claimant, and the card is unchanged.
 - [ ] **Docs.**
   - start-plan, change-code, close and milestone-close help: add a line on the ownership precondition.
   - atlas `issue-tracker.md`: add an "Ownership" section covering the record, matching, the legacy adopt path, exposure and the #278 boundary.
@@ -123,4 +178,17 @@
     layout, never from Couch. It is omitted for plain clones and wherever the
     address is unresolvable. `MatchClaimant` already ignores it.
   - **Delta:** added a plain-clone claim/gate test in M1.
+
+- 2026-10-01 — plan-quality round 1 (PQ-1..PQ-4 Important, three Minor), with
+  operator decisions on move and rollout.
+  - PQ-1: the milestone-close ownership hook is named explicitly in
+    `computeClose` for both modes.
+  - PQ-2: `sdlc move` re-stamps the claimant for the owner's own relocation
+    (operator chose this over blocking move, and over machine-only matching).
+  - PQ-3: built-binary tests use real identity differences; injected identity
+    is used only in-process.
+  - PQ-4: documented flag-day rollout (operator chose this over landing a
+    tolerant reader first).
+  - Minors: added Non-goals, corrected `gitx.ResolvePublicationTarget`, and
+    compressed the test strategy for the pure parser.
 
