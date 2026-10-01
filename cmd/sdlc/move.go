@@ -7,9 +7,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
-	"io"
 	"reflect"
 	"strings"
 
@@ -67,6 +67,13 @@ func runMove(ctx context.Context, dir, address string, dryRun bool, stdout, stde
 		return fmt.Errorf("%s or %s changed since the preflight; nothing was switched, rerun sdlc move", from.Address, to.Address)
 	}
 	r := execGitRunner{}
+	// #277: the positive record that the owner moved this work, written before
+	// anything switches (a failure here leaves nothing moved).
+	if id, _, ok := issue.ParseFilename(branch + ".md"); ok {
+		if err := writeRelocation(from.Root, id, issue.Relocation{From: canonRoot(from.Root), To: canonRoot(to.Root)}); err != nil {
+			return fmt.Errorf("record the move of #%s: %w; nothing was moved", id, err)
+		}
+	}
 	if out, err := r.GitInDir(from.Root, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", from.Resting); err != nil {
 		return fmt.Errorf("switch %s to %s: %v\n%s\nnothing was moved", from.Address, from.Resting, err, out)
 	}
@@ -97,10 +104,22 @@ func relocateAfterMove(ctx context.Context, dest, branch string, stderr io.Write
 	if !ok {
 		return // not an issue branch
 	}
-	if err := moveRelocation(ctx, dest, id); err != nil {
+	err := moveRelocation(ctx, dest, id)
+	switch {
+	case err == nil:
+		removeRelocation(dest, id)
+	case errors.Is(err, errNoRelocation):
+		removeRelocation(dest, id)
+		cwarn(stderr, fmt.Sprintf("%s moved; #%s's owner is unchanged: %v", branch, id, err))
+	default:
 		cwarn(stderr, fmt.Sprintf("%s moved, but #%s's owner was not updated: %v\n      finish it with `sdlc claim --issue %s` in %s", branch, id, err, issue.CLIRef(id), dest))
 	}
 }
+
+// errNoRelocation marks a move whose owner update does not apply (the issue is
+// someone else's, or unattributed) — as opposed to one that failed and keeps
+// its record for the repair.
+var errNoRelocation = errors.New("relocation does not apply")
 
 // moveRelocation is relocateAfterMove's effect, a variable so a test can fail
 // it after the switches.
@@ -111,9 +130,6 @@ var moveRelocation = func(ctx context.Context, dest, id string) error {
 	env, err := openTrackerAt(ctx, dest)
 	if err != nil {
 		return err
-	}
-	if tracked, _, err := env.repo.Presence(); err != nil || !tracked {
-		return err // a pre-tracker repository has no owners to move
 	}
 	snap, err := env.repo.Snapshot()
 	if err != nil {
@@ -128,14 +144,14 @@ var moveRelocation = func(ctx context.Context, dest, id string) error {
 		return err
 	}
 	if own == issue.OwnershipUnknown {
-		return fmt.Errorf("it has no recorded owner; `sdlc claim --issue %s --adopt` here records one", issue.CLIRef(id))
+		return fmt.Errorf("%w: it has no recorded owner; `sdlc claim --issue %s --adopt` here records one", errNoRelocation, issue.CLIRef(id))
 	}
 	allowed, err := relocatable(env, card, recorded, me)
 	if err != nil {
 		return err
 	}
 	if !allowed {
-		return fmt.Errorf("it is owned by %s, not the slot it moved from — moving never takes ownership (reclaim is #278)", describeClaimant(recorded))
+		return fmt.Errorf("%w: it is owned by %s, not the slot it moved from — moving never takes ownership (reclaim is #278)", errNoRelocation, describeClaimant(recorded))
 	}
 	return relocateClaimant(env, card, me)
 }

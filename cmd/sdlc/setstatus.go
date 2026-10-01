@@ -149,6 +149,9 @@ func statusDecision(card []byte, detailsBody, next string, force bool, today, st
 		if has && issue.MatchClaimant(&recorded, *me) == issue.OwnershipForeign {
 			return nil, prev, fmt.Errorf("owned by %s; entering working from another workspace is a takeover — operator-directed reclaim (#278), not set-status", describeClaimant(recorded))
 		}
+		if !has && prev == "working" {
+			return nil, prev, fmt.Errorf("already working with no recorded owner (claimed before #277); record an owner with `sdlc claim --adopt`, not set-status")
+		}
 		out, err = issue.SetCardClaimant(out, *me)
 	}
 	return out, prev, err

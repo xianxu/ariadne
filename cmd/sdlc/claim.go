@@ -560,28 +560,17 @@ func findMainWorktree(r gitRunner) (string, error) {
 // owned card refuses — adoption never reassigns.
 func adoptClaim(stdout, stderr io.Writer, env *trackerEnv, card tracker.Record, me issue.Claimant, detailPath string, dryRun bool) error {
 	id := card.ID
-	status, _ := issue.GetField(card.Card.Frontmatter, "status")
-	if status != "working" && status != "blocked" {
-		return fmt.Errorf("#%s is %s; --adopt records the owner of working work claimed before #277 — an open issue is claimed with plain `sdlc claim --issue %s`", id, status, issue.CLIRef(id))
+	next, err := adoptDecision(card.Raw, id, me)
+	if errors.Is(err, errAlreadyMine) {
+		cok(stderr, fmt.Sprintf("#%s is already owned by this workspace; nothing to do", id))
+		return nil
 	}
-	recorded, has, err := issue.CardClaimant(card.Raw)
 	if err != nil {
-		return fmt.Errorf("card #%s: %w", id, err)
-	}
-	if has {
-		if issue.MatchClaimant(&recorded, me) == issue.OwnershipMine {
-			cok(stderr, fmt.Sprintf("#%s is already owned by this workspace; nothing to do", id))
-			return nil
-		}
-		return fmt.Errorf("#%s is owned by %s; --adopt never reassigns — that is operator-directed reclaim (#278)", id, describeClaimant(recorded))
+		return err
 	}
 	if dryRun {
 		cinfo(stderr, fmt.Sprintf("dry-run — would record this workspace (%s) as #%s's owner", me.Worktree, id))
 		return nil
-	}
-	next, err := issue.SetCardClaimant(card.Raw, me)
-	if err != nil {
-		return err
 	}
 	err = env.repo.UpdateCard(card, next, operationToken("adopt"), func(string, string) error { return nil })
 	invalidateIssueRecords(env.ctx)

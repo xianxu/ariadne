@@ -87,3 +87,27 @@ func describeClaimant(c issue.Claimant) string {
 	}
 	return fmt.Sprintf("%s on %s at %s", c.Operator, c.MachineName, where)
 }
+
+// adoptDecision is claim --adopt's pure core (#277): record me as the owner of
+// a working or blocked card that has none. The owner's repeat is
+// errAlreadyMine; an owned card refuses — adoption never reassigns.
+func adoptDecision(raw []byte, id string, me issue.Claimant) ([]byte, error) {
+	fm, _, err := issue.Parse(string(raw))
+	if err != nil {
+		return nil, err
+	}
+	if status, _ := issue.GetField(fm, "status"); status != "working" && status != "blocked" {
+		return nil, fmt.Errorf("#%s is %s; --adopt records the owner of working work claimed before #277 — an open issue is claimed with plain `sdlc claim --issue %s`", id, status, issue.CLIRef(id))
+	}
+	recorded, has, err := issue.CardClaimant(raw)
+	if err != nil {
+		return nil, fmt.Errorf("card #%s: %w", id, err)
+	}
+	if has {
+		if issue.MatchClaimant(&recorded, me) == issue.OwnershipMine {
+			return nil, errAlreadyMine
+		}
+		return nil, fmt.Errorf("#%s is owned by %s; --adopt never reassigns — that is operator-directed reclaim (#278)", id, describeClaimant(recorded))
+	}
+	return issue.SetCardClaimant(raw, me)
+}

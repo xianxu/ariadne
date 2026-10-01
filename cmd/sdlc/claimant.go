@@ -142,6 +142,13 @@ func requireIssueOwnership(env *trackerEnv, id string) error {
 	if !ok {
 		return fmt.Errorf("no card #%s on the tracker", id)
 	}
+	return requireCardOwnership(env, card)
+}
+
+// requireCardOwnership is requireIssueOwnership over a card already read — for
+// a caller holding a snapshot (the tracker-era close).
+func requireCardOwnership(env *trackerEnv, card tracker.Record) error {
+	id := card.ID
 	own, recorded, me, err := ownership(env, card)
 	if err != nil {
 		return err
@@ -152,25 +159,34 @@ func requireIssueOwnership(env *trackerEnv, id string) error {
 	case issue.OwnershipUnknown:
 		return fmt.Errorf("#%s has no recorded owner (claimed before #277); if this workspace holds its work, record that with `sdlc claim --issue %s --adopt`", id, issue.CLIRef(id))
 	}
-	if ok, err := relocatable(env, card, recorded, me); err == nil && ok {
-		return fmt.Errorf("#%s is recorded at %s, but its branch is checked out here now — your own relocated work; record that with `sdlc claim --issue %s`", id, recorded.Worktree, issue.CLIRef(id))
+	moved, err := relocatable(env, card, recorded, me)
+	if err != nil {
+		return fmt.Errorf("#%s is owned by %s, and checking whether it was moved here failed: %w", id, describeClaimant(recorded), err)
+	}
+	if moved {
+		return fmt.Errorf("#%s was moved here by `sdlc move` from %s, whose owner update did not finish; record it with `sdlc claim --issue %s`", id, recorded.Worktree, issue.CLIRef(id))
 	}
 	return fmt.Errorf("#%s is owned by %s; this workspace (%s) may not continue it — coordinate with the owner (reassignment is operator-directed reclaim, #278)", id, describeClaimant(recorded), me.Worktree)
 }
 
-// relocatable observes RelocationAllowed's facts locally: this checkout is on
-// the issue's branch and the recorded worktree — on this machine — no longer
-// holds it. Another machine's worktree is never probed.
+// relocatable observes RelocationAllowed's facts locally: sdlc move's record
+// of this relocation, this checkout on the issue's branch, and the recorded
+// worktree — on this machine — no longer holding it. Another machine's
+// worktree is never probed.
 func relocatable(env *trackerEnv, card tracker.Record, recorded, me issue.Claimant) (bool, error) {
 	if recorded.Machine != me.Machine || recorded.Repository != me.Repository {
 		return false, nil
+	}
+	move, err := readRelocation(env.root, card.ID)
+	if err != nil || move == nil {
+		return false, err
 	}
 	branch := strings.TrimSuffix(path.Base(card.Path), ".md")
 	holds, err := worktreeHoldsBranch(recorded.Worktree, branch)
 	if err != nil {
 		return false, err
 	}
-	return issue.RelocationAllowed(recorded, me, env.branch == branch, holds), nil
+	return issue.RelocationAllowed(recorded, me, move, env.branch == branch, holds), nil
 }
 
 // worktreeHoldsBranch reports whether the checkout at root is on branch. A
@@ -188,8 +204,9 @@ func worktreeHoldsBranch(root, branch string) (bool, error) {
 }
 
 // relocateClaimant records this workspace as the owner of a card whose owner
-// relocated its own work here (sdlc move, or claim repairing a move whose
-// re-stamp failed). Convergent: rerunning after success is a no-op.
+// moved its own work here (sdlc move, or claim repairing a move whose re-stamp
+// failed), then retires the move's record. Convergent: rerunning after success
+// is a no-op.
 func relocateClaimant(env *trackerEnv, card tracker.Record, me issue.Claimant) error {
 	next, err := issue.SetCardClaimant(card.Raw, me)
 	if err != nil {
@@ -197,8 +214,9 @@ func relocateClaimant(env *trackerEnv, card tracker.Record, me issue.Claimant) e
 	}
 	err = env.repo.UpdateCard(card, next, operationToken("relocate"), func(string, string) error { return nil })
 	invalidateIssueRecords(env.ctx)
-	if errors.Is(err, tracker.ErrNoChange) {
-		return nil
+	if err != nil && !errors.Is(err, tracker.ErrNoChange) {
+		return err
 	}
-	return err
+	removeRelocation(env.root, card.ID)
+	return nil
 }

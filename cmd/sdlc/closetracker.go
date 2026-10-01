@@ -335,6 +335,9 @@ func prepareTrackerClose(ctx context.Context, id string) (*trackerClosePrep, err
 	if !ok {
 		return nil, fmt.Errorf("no card #%s on the tracker", id)
 	}
+	if err := requireCardOwnership(env, card); err != nil { // #277
+		return nil, err
+	}
 	receipts, err := env.receipts()
 	if err != nil {
 		return nil, err

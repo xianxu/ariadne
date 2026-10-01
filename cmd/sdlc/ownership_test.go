@@ -9,8 +9,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // ownerOf reads #id's recorded claimant from the tracker.
@@ -167,10 +169,12 @@ func TestAdoptOnlyUnattributedWork(t *testing.T) {
 	}
 }
 
-// #277: the owner moves its own work to another worktree on this machine. The
-// relocation runs after the move (here: a failed re-stamp leaves the claimant on
-// the source and warns); a repeat claim at the destination repairs it, and is
-// then a no-op. Another worktree still holding the branch blocks relocation.
+// #277: the owner moves its own work to another worktree on this machine.
+// Without sdlc move's record, a branch merely missing from the owner's worktree
+// is no evidence (BR-9: that is also the state right after a claim) — a claim
+// elsewhere is refused. With the record, a failed re-stamp warns and keeps it,
+// the gate names the repair, a repeat claim at the destination relocates, and
+// is then a no-op. Another machine never relocates.
 func TestRelocationAfterMoveAndRepair(t *testing.T) {
 	cardPath, card, detailPath, detail := seededIssue(t, "000371", "relocate")
 	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
@@ -190,9 +194,23 @@ func TestRelocationAfterMoveAndRepair(t *testing.T) {
 	if err := moveRelocation(context.Background(), r.root, "000371"); err == nil {
 		t.Fatal("relocated while the source worktree still holds the branch")
 	}
-	// sdlc move's switches: the slot leaves the branch, the destination takes it.
+	// The slot leaves the branch and the destination takes it — by hand, with no
+	// move record: a takeover attempt, refused (BR-9).
 	testfix.Git(t, slot, "switch", "-q", "--detach")
 	testfix.Git(t, r.root, "switch", "-q", "000371-relocate")
+	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(371)); err == nil || !strings.Contains(err.Error(), "claimed by") {
+		t.Fatalf("a claim without a move record took the card: %v", err)
+	}
+	if refusal, _ := ownershipGate(t, r, "start-plan", 371, detailPath); !strings.Contains(refusal, "owned by") || strings.Contains(refusal, "moved here") {
+		t.Fatalf("gate offered a repair without a move record: %q", refusal)
+	}
+	if got, _ := ownerOf(t, r, cardPath); got != source {
+		t.Fatal("the owner changed without a move record")
+	}
+	// sdlc move records the relocation before switching.
+	if err := writeRelocation(slot, "000371", issue.Relocation{From: canonRoot(slot), To: canonRoot(r.root)}); err != nil {
+		t.Fatal(err)
+	}
 	prev := moveRelocation
 	moveRelocation = func(context.Context, string, string) error { return errors.New("tracker unreachable") }
 	var warn bytes.Buffer
@@ -204,7 +222,10 @@ func TestRelocationAfterMoveAndRepair(t *testing.T) {
 	if got, _ := ownerOf(t, r, cardPath); got != source {
 		t.Fatal("a failed re-stamp changed the owner")
 	}
-	if refusal, _ := ownershipGate(t, r, "start-plan", 371, detailPath); !strings.Contains(refusal, "relocated work") {
+	if rec, err := readRelocation(r.root, "000371"); err != nil || rec == nil {
+		t.Fatalf("a failed re-stamp dropped the move record: %v", err)
+	}
+	if refusal, _ := ownershipGate(t, r, "start-plan", 371, detailPath); !strings.Contains(refusal, "moved here by `sdlc move`") {
 		t.Fatalf("gate did not name the repair: %q", refusal)
 	}
 	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(371)); err != nil {
@@ -213,6 +234,9 @@ func TestRelocationAfterMoveAndRepair(t *testing.T) {
 	moved, _ := ownerOf(t, r, cardPath)
 	if moved.Worktree != canonRoot(r.root) || moved.Machine != source.Machine {
 		t.Fatalf("not relocated: %+v", moved)
+	}
+	if rec, _ := readRelocation(r.root, "000371"); rec != nil {
+		t.Fatal("the repair left the move record behind")
 	}
 	before := r.card(cardPath)
 	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(371)); err != nil || r.card(cardPath) != before {
@@ -225,6 +249,9 @@ func TestRelocationAfterMoveAndRepair(t *testing.T) {
 	t.Chdir(slot)
 	testfix.Git(t, r.root, "switch", "-q", "--detach")
 	testfix.Git(t, slot, "switch", "-q", "000371-relocate")
+	if err := writeRelocation(slot, "000371", issue.Relocation{From: moved.Worktree, To: canonRoot(slot)}); err != nil {
+		t.Fatal(err)
+	}
 	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(371)); err == nil || r.card(cardPath) != before {
 		t.Fatalf("another machine relocated the owner: %v", err)
 	}
@@ -253,5 +280,118 @@ func TestOwnershipSurvivesRestart(t *testing.T) {
 	withClaimant(t, away)
 	if refusal, _ := ownershipGate(t, r, "start-plan", 372, detailPath); !strings.Contains(refusal, "owned by") {
 		t.Fatalf("same path on another machine continued: %q", refusal)
+	}
+}
+
+// moveTrackerFixture is the slot layout (primary :0, slots :1/:2 on remote
+// upstream) as a tracker repository, with #1's card working and owned by
+// :1, which holds its issue branch one commit ahead. Identities share a machine
+// and differ by worktree, like slots on one machine.
+func moveTrackerFixture(t *testing.T) (roots []string, cardPath string) {
+	t.Helper()
+	roots, _ = procedureFixture(t)
+	primary := roots[0]
+	cardPath, card, _, _ := seededIssue(t, "000001", "procedure")
+	tf, err := gitx.NewTrunkFileContext(context.Background(), primary, "upstream", "issue-tracker")
+	if err != nil {
+		t.Fatal(err)
+	}
+	base := issue.Claimant{Operator: "Op", Machine: issue.MachineFingerprint("this-machine"), MachineName: "box"}
+	claimantIdentity = func(env *trackerEnv) (issue.Claimant, error) {
+		c := base
+		c.Worktree, c.Repository = canonRoot(env.root), env.target.Repository
+		return c, nil
+	}
+	t.Cleanup(func() { claimantIdentity = resolveClaimantIdentity })
+	if _, err := tf.Bootstrap(map[string][]byte{tracker.ManifestPath: tracker.ManifestBytes(), cardPath: []byte(card)}, "bootstrap", func(gitx.BootstrapResult) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	markCutoverOn(t, primary, "upstream", "main")
+	slot := roots[1]
+	testfix.Git(t, slot, "fetch", "-q", "upstream")
+	testfix.Git(t, slot, "merge", "-q", "--ff-only", "upstream/main")
+	t.Chdir(slot)
+	env, err := openTrackerAt(context.Background(), slot)
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, _ := snap.Card("000001")
+	owner, _ := claimantIdentity(env)
+	next, err := issue.SetCardClaimant([]byte(strings.Replace(string(rec.Raw), "status: open", "status: working\nstarted: 2026-10-01T09:00:00-07:00", 1)), owner)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.repo.UpdateCard(rec, next, operationToken("set"), func(string, string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	invalidateIssueRecords(context.Background())
+	testfix.Git(t, slot, "switch", "-q", "-c", "000001-procedure")
+	procedureWrite(t, slot, "feature", "selected branch\n")
+	testfix.Git(t, slot, "add", "feature")
+	testfix.Git(t, slot, "commit", "-qm", "feature change")
+	return roots, cardPath
+}
+
+func cardOwner(t *testing.T, root, cardPath string) (issue.Claimant, bool) {
+	t.Helper()
+	tf, err := gitx.NewTrunkFileContext(context.Background(), root, "upstream", "issue-tracker")
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, err := tf.Read(cardPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	c, ok, err := issue.CardClaimant(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return c, ok
+}
+
+// #277 (BR-11): a real `sdlc move` relocates its owner after the switches and
+// retires its record; an unattributed issue moves with its owner unknown, a
+// warning toward --adopt, and no record left behind.
+func TestMoveRelocatesItsOwner(t *testing.T) {
+	roots, cardPath := moveTrackerFixture(t)
+	out, err := runMoveTest(t, roots[1], ":0", false)
+	if err != nil {
+		t.Fatalf("move: %v\n%s", err, out)
+	}
+	if owner, _ := cardOwner(t, roots[0], cardPath); owner.Worktree != canonRoot(roots[0]) {
+		t.Fatalf("owner not relocated to :0: %+v\n%s", owner, out)
+	}
+	if rec, err := readRelocation(roots[0], "000001"); err != nil || rec != nil {
+		t.Fatalf("move left its record: %+v %v", rec, err)
+	}
+}
+
+func TestMoveLeavesAnUnattributedIssueUnknown(t *testing.T) {
+	roots, cardPath := moveTrackerFixture(t)
+	env, err := openTrackerAt(context.Background(), roots[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.repo.ChangeCard("000001", cardPath, "legacy", operationToken("set"), func(c []byte) ([]byte, error) {
+		fm, body, _ := issue.Parse(string(c))
+		i := strings.Index(fm, "\nclaimant:")
+		return []byte(issue.Compose(fm[:i], body)), nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	invalidateIssueRecords(context.Background())
+	out, err := runMoveTest(t, roots[1], ":0", false)
+	if err != nil {
+		t.Fatalf("move: %v\n%s", err, out)
+	}
+	if _, ok := cardOwner(t, roots[0], cardPath); ok || !strings.Contains(out, "--adopt") {
+		t.Fatalf("unattributed move: owner recorded=%v\n%s", ok, out)
+	}
+	if rec, _ := readRelocation(roots[0], "000001"); rec != nil {
+		t.Fatal("a move whose relocation does not apply left its record")
 	}
 }

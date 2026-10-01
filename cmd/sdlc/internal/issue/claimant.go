@@ -172,13 +172,23 @@ func MatchClaimant(recorded *Claimant, current Claimant) Ownership {
 	}
 }
 
+// Relocation is positive evidence that the owner moved its own work: `sdlc
+// move` records it locally (from/to worktrees) before switching. Absence of the
+// branch from the old worktree is never evidence on its own — that is also the
+// state right after a claim, or after the owner switched away.
+type Relocation struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
 // RelocationAllowed lets an owner move its own work to another worktree on the
-// same machine (sdlc move, or claim repairing an interrupted move): the current
-// checkout is on the issue branch and the recorded worktree — on this machine,
-// so locally observable — no longer holds it. Never across machines or
-// repositories, and never while the old worktree still holds the branch.
-func RelocationAllowed(recorded, current Claimant, onIssueBranch, oldWorktreeHoldsBranch bool) bool {
-	return onIssueBranch && !oldWorktreeHoldsBranch &&
+// same machine (sdlc move, or claim repairing a move whose re-stamp failed). It
+// requires the move's own record naming the recorded owner as its source and
+// this worktree as its destination, this checkout on the issue branch, and the
+// old worktree no longer holding it. Never across machines or repositories.
+func RelocationAllowed(recorded, current Claimant, move *Relocation, onIssueBranch, oldWorktreeHoldsBranch bool) bool {
+	return move != nil && move.From == recorded.Worktree && move.To == current.Worktree &&
+		onIssueBranch && !oldWorktreeHoldsBranch &&
 		recorded.Repository == current.Repository && recorded.Machine == current.Machine &&
 		recorded.Worktree != current.Worktree
 }

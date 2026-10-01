@@ -96,19 +96,24 @@ func TestRelocationAllowed(t *testing.T) {
 	old := testClaimant()
 	here := old
 	here.Workspace, here.Worktree = "ariadne:0", "/w/ariadne"
+	moved := &Relocation{From: old.Worktree, To: here.Worktree}
 	for name, c := range map[string]struct {
 		recorded           Claimant
+		move               *Relocation
 		onBranch, oldHolds bool
 		want               bool
 	}{
-		"owner moved its branch":          {old, true, false, true},
-		"old worktree still holds it":     {old, true, true, false},
-		"not on the issue branch here":    {old, false, false, false},
-		"another machine":                 {func() Claimant { c := old; c.Machine = MachineFingerprint("UUID-2"); return c }(), true, false, false},
-		"another repository":              {func() Claimant { c := old; c.Repository = "r2"; return c }(), true, false, false},
-		"already here (convergent no-op)": {here, true, false, false},
+		"owner moved its branch":          {old, moved, true, false, true},
+		"no move record (absence only)":   {old, nil, true, false, false},
+		"move from another worktree":      {old, &Relocation{From: "/w/other", To: here.Worktree}, true, false, false},
+		"move to another destination":     {old, &Relocation{From: old.Worktree, To: "/w/other"}, true, false, false},
+		"old worktree still holds it":     {old, moved, true, true, false},
+		"not on the issue branch here":    {old, moved, false, false, false},
+		"another machine":                 {func() Claimant { c := old; c.Machine = MachineFingerprint("UUID-2"); return c }(), moved, true, false, false},
+		"another repository":              {func() Claimant { c := old; c.Repository = "r2"; return c }(), moved, true, false, false},
+		"already here (convergent no-op)": {here, moved, true, false, false},
 	} {
-		if got := RelocationAllowed(c.recorded, here, c.onBranch, c.oldHolds); got != c.want {
+		if got := RelocationAllowed(c.recorded, here, c.move, c.onBranch, c.oldHolds); got != c.want {
 			t.Errorf("%s: %v, want %v", name, got, c.want)
 		}
 	}

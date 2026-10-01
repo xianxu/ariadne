@@ -259,3 +259,21 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - **BR-12:** a README sentence.
   - Minors: gofmt; the shared help paragraph; surface relocatable's error;
     open and snapshot the tracker once per close.
+- M2 round-1 fixes, part 1:
+  - **BR-9 closed.** `RelocationAllowed` requires `sdlc move`'s record
+    (`issue.Relocation`, stored in `<git-common-dir>/sdlc/relocations/<id>.json`)
+    naming the recorded owner as the source and this worktree as the
+    destination.
+    - Move writes the record before switching and retires it on success or
+      when relocation doesn't apply. A failed re-stamp keeps it for the
+      `sdlc claim` repair, which removes it.
+    - The regression test (a hand-switched branch plus claim is refused) was
+      mutation-checked: it goes red when the record requirement is removed.
+  - **BR-10.** `adoptDecision` is pure. set-status working→working on an
+    unattributed card refuses toward `--adopt`. `TestVerbContractTable` covers
+    every situation × verb cell of the plan.
+  - **BR-11.** A real `sdlc move` over a tracker slot fixture relocates its
+    owner and retires the record. The unattributed path warns toward
+    `--adopt` and leaves no record.
+  - Minors: relocatable's probe error is surfaced; one tracker read per
+    close (`requireCardOwnership` inside `prepareTrackerClose`).

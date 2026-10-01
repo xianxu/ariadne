@@ -507,9 +507,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		currentStatus = rec.Status()
 	}
 	var trackerPrep *trackerClosePrep
-	if trackerEra {
-		// #277: both close modes continue an issue, so both need its owner —
-		// checked here, before the review runs or anything is written.
+	if trackerEra && mode != "issue" {
+		// #277: a milestone close continues the issue too, so it needs its
+		// owner before the review runs (the whole-issue close checks it in
+		// prepareTrackerClose, over the card it already reads).
 		env, err := openTracker(commandContext(f.Context))
 		if err == nil {
 			err = requireIssueOwnership(env, fmt.Sprintf("%06d", f.Issue))
