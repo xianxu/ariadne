@@ -100,24 +100,23 @@ shows up months out, where agents are weakest.
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
 
 Enter the implementation phase for an issue. Composes the gates
-between planning (which happens on `main`) and code-changing work:
+between planning and code-changing work in any checkout:
 
 ### [claim](../../cmd/sdlc/helptext/claim.md)
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
 
-Reserve an open issue card on the tracker (open → working). The
-workstream-claim primitive: an agent runs `sdlc claim --issue N` and the
-card on `issue-tracker` shows the claim to peer agents before they start
-parallel work; the issue must be fully created (details on main).
+Reserve an open issue card on the tracker (open → working).
 
 ### [close](../../cmd/sdlc/helptext/close.md)
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
 
 Close an issue or a milestone — perform AGENTS.md §5's mechanical closing
-steps. Edits files in place; does NOT commit (the agent commits, usually
-bundling close with other work).
+steps. Edits files in place; for an issue whose details mirror a tracker card
+(#252) the whole-issue close then commits its own evidence and publishes the
+card (see TRACKER-ERA ISSUES); otherwise the agent commits, usually bundling
+close with other work.
 
 ### [estimate](../../cmd/sdlc/helptext/estimate.md)
 
@@ -189,15 +188,8 @@ success doesn't propagate.
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
 
-Merge the current feature branch into main via a GitHub PR (server-side,
-so CI gates it), archive any completed issues, and clean up. Works for
-both branch topologies (#51), detected automatically:
-  - in-place — the primary checkout sitting on a feature branch: after
-    the merge, switch this checkout back to main, pull, delete the branch.
-  - worktree — a linked worktree: archive in the main worktree, remove
-    the worktree, delete the branch.
-The longest + most safety-conscious checkpoint guard — every step has a
-refusal or confirmation, because the actions are irreversible.
+Merge a reviewed feature branch through its GitHub PR, archive its completed
+issues, and clean up according to workspace identity.
 
 ### [migrate](../../cmd/sdlc/helptext/migrate.md)
 
@@ -217,6 +209,13 @@ fresh-context code review (AGENTS.md §3). The canonical closing path
 for milestone work — bundles the mechanical close + the mandatory
 review into one invocation so neither half is skipped.
 
+### [move](../../cmd/sdlc/helptext/move.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Move this slot's issue branch into another slot, usually :0 for testing, and
+return this slot to its resting branch (#260).
+
 ### [open](../../cmd/sdlc/helptext/open.md)
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
@@ -229,9 +228,8 @@ Resolve a symbolic artifact reference and open the primary artifact in
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
 
-Open a GitHub pull request for the current worktree branch. Pushes the
-branch with upstream tracking and links every touched issue file's
-`github_issue:` frontmatter as `Fixes #N, #M, ...` in the PR body.
+Open a GitHub pull request for the current issue branch. Pushes with upstream
+tracking and includes touched issues' github_issue links in the PR body.
 
 ### [process-manual](../../cmd/sdlc/helptext/process-manual.md)
 
@@ -278,9 +276,11 @@ recurs. `sdlc` manages the development life cycle; prefer it over `git`/`gh`.
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
 
-Flip an issue's `status:` frontmatter field with transition guards
-that match the xx-issues skill's contract. Mutates one issue file
-in place; bumps `updated:` to today.
+Flip an issue's `status` with transition guards that match the xx-issues
+skill's contract. The status lives on the issue's card on the `issue-tracker`
+branch (#252): set-status updates the card by compare-and-swap and bumps
+`updated` to today; this checkout's details mirror is then refreshed (never on
+the resting branch). A reopen reads this checkout's details Log for its entry.
 
 ### [start-plan](../../cmd/sdlc/helptext/start-plan.md)
 
@@ -295,6 +295,12 @@ Enter planning — deliver the architectural principles to design against (#75).
 Inspect SDLC workflow state for this repo — a read-only "where am I"
 surface. Compaction recovery primitive: after a session resume, run
 `sdlc state` instead of re-inferring from issue files.
+
+### [workspace](../../cmd/sdlc/helptext/workspace.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Resolve an existing workspace from the current repository context (read-only).
 
 ## Skills
 
@@ -418,6 +424,14 @@ If you were dispatched as a subagent to execute a specific task, skip this skill
 # The Construct — AI Substrate Management
 ~~~
 
+### [xx-couch](../../construct/local/couch/SKILL.md)
+
+**When:** Use when coordinating with another live Couch slot — handing off authorized independent work, asking a peer slot a question — or when interpreting an incoming Couch message. The `couch` binary owns the peer-messaging protocol; this skill loads it.
+
+~~~
+# couch — peer messages between live slots
+~~~
+
 ### [xx-datatype](../../construct/generated/datatype/SKILL.md)
 
 **When:** Use when the user is requesting an artifact (capture, save, record, create) AND the substance to preserve is conversational context they've already produced. Skip when the user is stating facts, asking questions, or asking the agent to generate substance from scratch. Also trigger when editing markdown with known frontmatter type: continuation, meeting-notes, pensive, procedure, product, project, prose, roadmap, target, type
@@ -505,7 +519,7 @@ If you were dispatched as a subagent to execute a specific task, skip this skill
 **When:** read at session start / review boundary — accumulated mistake-prevention rules
 
 ~~~
-# Lessons Learned
+# Lessons
 ~~~
 
 ## AGENTS chain
