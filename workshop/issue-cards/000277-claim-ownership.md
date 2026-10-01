@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000277-claim-ownership.md
         source_blob: 94a91b2226d6f7774bf1515c659faa371227a4d2
         destination: workshop/issues/000277-claim-ownership.md
+        main_commit: b54e7e4808a0b193821510721c5ccc1037b32ceb
 ---
 
 # Record claimant ownership atomically with issue reservation
