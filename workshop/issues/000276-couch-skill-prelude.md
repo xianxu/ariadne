@@ -1,12 +1,13 @@
 ---
 id: 000276
-status: open
+status: working
 deps: [pair#353]
 github_issue:
 created: 2026-09-30
 updated: 2026-09-30
 estimate_hours:
-card_mirror: '29811fedd6eadbb05d2af7a0eb7237da73fca44c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8a6b659d6b7a79a0686595a714c4bf0c601e6afb' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-09-30T22:11:29-07:00
 ---
 
 # Add Couch skill prelude
@@ -37,8 +38,28 @@ manual operator prompt. Loading the skill must not initiate messages or work.
 
 ## Plan
 
-- [ ] Add the prelude using the existing binary-skill pattern and distribution.
-- [ ] Verify downstream discovery and loading; document the setup if needed.
+Design: a static pointer skill at `construct/local/couch/SKILL.md`, following
+the `construct/local/sdlc` (`xx-sdlc`) precedent. weave lowers every
+`construct/local/<name>` to `.claude/skills/xx-<name>` and
+`.agents/skills/xx-<name>`. Derivatives inherit it through the weave layer
+walk, so no manifest change is needed.
+
+A dynamic (weave-generated) skill was rejected for two reasons. Its body would
+be a copy of `couch --skill`, which the spec forbids. Its generator would also
+fail `weave compile` on any machine without Couch, while the prelude must
+degrade with an explanation instead.
+
+- [ ] Add `construct/local/couch/SKILL.md`. Its trigger description covers
+      coordinating with live slots and interpreting an incoming Couch message.
+      Its body says to run `couch --skill` and follow the output; to explain
+      and stop if `couch` is missing; and that loading sends nothing.
+- [ ] Run `weave compile` in ariadne. Generated: `xx-couch` links, `.gitignore`
+      entries, and the process-manual entries.
+- [ ] Verify downstream with a throwaway derivative linked to this checkout.
+      `weave compile` must produce `.claude/skills/xx-couch`, and its
+      `SKILL.md` must resolve.
+- [ ] Atlas: add the skill to the skill list, if one exists beyond the
+      generated process manual.
 
 ## Log
 
@@ -47,3 +68,9 @@ manual operator prompt. Loading the skill must not initiate messages or work.
 Filed during pair#353 close after operator acceptance of direct send/reply and
 family dispatch smoke. This is the remaining skill-discovery integration, not
 another messaging implementation. Depends on pair#353's binary skill provider.
+
+- Claimed and started planning in :1. The binary-skill precedent is
+  `construct/local/sdlc`, a static pointer to `sdlc --help`. Couch at
+  `/Users/xianxu/workspace/pair/bin/couch` provides `couch --skill`
+  (`name: couch`).
+
