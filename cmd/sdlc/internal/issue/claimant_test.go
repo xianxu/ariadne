@@ -1,7 +1,9 @@
 package issue
 
 import (
+	"crypto/sha256"
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 	"testing"
@@ -160,5 +162,15 @@ func TestClaimantMirrorsIntoDetails(t *testing.T) {
 	var own *OwnershipError
 	if _, err := RefreshMirror([]byte(edited), claimed, relocated); !errors.As(err, &own) || own.Field != ClaimantField || own.Setter != "sdlc claim" {
 		t.Fatalf("hand-edited claimant: %v", err)
+	}
+}
+
+// The fingerprint is domain-separated: it is not the bare hash of the raw ID,
+// so it cannot be matched against other systems that publish sha256(machine-id).
+func TestMachineFingerprintIsDomainSeparated(t *testing.T) {
+	raw := "2F1C-UUID"
+	bare := fmt.Sprintf("%x", sha256.Sum256([]byte(raw)))
+	if fp := MachineFingerprint(raw); strings.HasPrefix(bare, fp) {
+		t.Fatalf("fingerprint %s is the unkeyed hash prefix", fp)
 	}
 }

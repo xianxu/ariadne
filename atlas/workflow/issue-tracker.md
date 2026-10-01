@@ -36,6 +36,14 @@ details like every card field.
 - **No extra fields:** there is no claim ID or timestamp. Git history and the
   card blob already order claims.
 
+**Rollout is a flag day.** An `sdlc` built before #277 aborts the whole
+tracker snapshot on the first card it cannot parse
+(`internal/tracker/reader.go`). So once any card carries a `claimant`, every
+stale binary fails, loudly and closed, naming the field. After #277 lands,
+refresh each ariadne checkout and rebuild: `make weave-all`, or
+`weave compile` / `make tools` per checkout. Until it lands, claim only with
+an older binary, so that no claimant card reaches the shared tracker.
+
 ## Storage boundary
 
 `internal/tracker.Repository` reads a fresh, pinned Git snapshot with a versioned

@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"runtime"
 	"strings"
@@ -44,23 +43,14 @@ func resolveClaimantIdentity(env *trackerEnv) (issue.Claimant, error) {
 	return c, nil
 }
 
-// slotLabel is the checkout's `repo:N` only where the slot layout is in use: a
-// slot, or a primary that has slots beside it. A plain clone gets none —
-// Ariadne works without slots (or Couch), and the label is never matched.
+// slotLabel is the checkout's `repo:N` only where the slot layout is in use
+// (pkg/workspace owns that question). A plain clone gets none — Ariadne works
+// without slots (or Couch), and the label is never matched.
 func slotLabel(id workspace.Identity) string {
-	if id.Address == nil {
+	if id.Address == nil || !id.UsesSlotLayout() {
 		return ""
 	}
-	switch id.Kind {
-	case "slot":
-		return *id.Address
-	case "primary":
-		slots, _ := filepath.Glob(filepath.Join(id.FleetRoot, "worktree", id.Repo+"-slot*", id.Repo))
-		if len(slots) > 0 {
-			return *id.Address
-		}
-	}
-	return ""
+	return *id.Address
 }
 
 // machineID reads the OS's stable per-install identifier. It is fingerprinted

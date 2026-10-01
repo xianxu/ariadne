@@ -191,3 +191,18 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - `internal/processgroup` `TestCancellationKillsDescendants` still fails;
     the sandbox blocks `/bin/ps` there, and the package is untouched.
   - Running M1's milestone-close next.
+- M1 boundary review round 1 returned FIX-THEN-SHIP. I fixed all seven
+  findings in this round:
+  - Race-test oracle: it now accepts the late-reader "claimed by" refusal
+    (BR-1).
+  - BR-2: the plan's Revisions now match the fixed-key fingerprint. Added a
+    domain-separation test.
+  - Minors:
+    - an owner's dry-run repeat claim writes nothing;
+    - the flag-day rollout paragraph moved into M1's atlas;
+    - the race test skips without a host machine ID;
+    - the slot-layout question moved into
+      `pkg/workspace.Identity.UsesSlotLayout`;
+    - added a `claimDecision` ownership table test.
+  - Verified the real tracker has no claimant cards. Claims go through
+    :0's pre-#277 binary until this lands.

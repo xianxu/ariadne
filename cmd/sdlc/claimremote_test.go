@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -132,6 +133,9 @@ func TestClaimLeavesHandEditedMirrorAndWarns(t *testing.T) {
 }
 
 func TestClaimRaceHasExactlyOneWinner(t *testing.T) {
+	if _, err := machineID(); err != nil {
+		t.Skipf("claims need the host machine ID, unreadable here: %v", err)
+	}
 	binary := buildFleetE2EBinary(t)
 	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
 	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
@@ -175,8 +179,8 @@ func TestClaimRaceHasExactlyOneWinner(t *testing.T) {
 		if res.err == nil {
 			wins++
 			winner = res.dir
-		} else if loser = res.dir;  !strings.Contains(res.out, "not open") && !strings.Contains(res.out, "changed while claiming") {
-			t.Errorf("loser was not a status/CAS refusal: %v %s", res.err, res.out)
+		} else if loser = res.dir; !strings.Contains(res.out, "not open") && !strings.Contains(res.out, "changed while claiming") && !strings.Contains(res.out, "claimed by") {
+			t.Errorf("loser was not a status/CAS/owner refusal: %v %s", res.err, res.out)
 		}
 	}
 	if wins != 1 {
@@ -253,5 +257,65 @@ func TestClaimOfflineRefusesWithoutLocalMutation(t *testing.T) {
 	}
 	if raw, _ := os.ReadFile(filepath.Join(r.root, detailPath)); string(raw) != detail {
 		t.Fatal("offline claim edited local details")
+	}
+}
+
+// #277: claimDecision with an ownership identity — open is stamped; a working
+// card is the owner's (no-op), another workspace's (refused, naming the owner)
+// or unattributed (refused toward --adopt).
+func TestClaimDecisionOwnership(t *testing.T) {
+	me := issue.Claimant{Operator: "Me", Machine: issue.MachineFingerprint("m1"), MachineName: "box", Worktree: "/w/a", Repository: "r"}
+	open := []byte("---\nid: 000031\nstatus: open\ncreated: 2026-10-01\nupdated: 2026-10-01\n---\n\n# t\n\n## Problem\n\nx\n")
+	claimed, err := claimDecision(open, 31, "2026-10-01", "2026-10-01T12:00:00Z", &me)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok, _ := issue.CardClaimant(claimed); !ok || got != me {
+		t.Fatalf("open card not stamped:\n%s", claimed)
+	}
+	other := me
+	other.Operator, other.Worktree = "Them", "/w/b"
+	unattributed := bytes.Replace(open, []byte("status: open"), []byte("status: working"), 1)
+	for name, c := range map[string]struct {
+		raw  []byte
+		want string
+	}{
+		"owner repeats":  {claimed, "already claimed by this workspace"},
+		"another claims": {claimed, "claimed by Me on box at /w/a"},
+		"unattributed":   {unattributed, "--adopt"},
+		"codecomplete":   {bytes.Replace(claimed, []byte("status: working"), []byte("status: blocked"), 1), "not open"},
+	} {
+		who := me
+		if name == "another claims" {
+			who = other
+		}
+		_, err := claimDecision(c.raw, 31, "2026-10-01", "now", &who)
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: %v (want %q)", name, err, c.want)
+		}
+	}
+	if _, err := claimDecision(claimed, 31, "2026-10-01", "now", &me); !errors.Is(err, errAlreadyMine) {
+		t.Fatalf("owner's repeat is not the no-op sentinel: %v", err)
+	}
+}
+
+// #277: an owner's repeat claim under --dry-run changes nothing, not even the
+// local mirror.
+func TestClaimDryRunOwnerRepeatWritesNothing(t *testing.T) {
+	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
+	r.git("switch", "-q", "-c", "000009-nine")
+	var out, errs bytes.Buffer
+	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9)); err != nil {
+		t.Fatalf("%v\n%s", err, errs.String())
+	}
+	writeRepoFile(t, r.root, detailPath, detail) // a stale mirror a real run would refresh
+	f := claimFlagsFor(9)
+	f.DryRun = true
+	if err := runClaim(context.Background(), &out, &errs, f); err != nil {
+		t.Fatal(err)
+	}
+	if raw, _ := os.ReadFile(filepath.Join(r.root, detailPath)); string(raw) != detail {
+		t.Fatal("a dry-run repeat claim wrote the details")
 	}
 }

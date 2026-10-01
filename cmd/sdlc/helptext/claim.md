@@ -29,8 +29,9 @@ A workspace owns the issue when its repository, machine and worktree match the
 record. The operator and slot label are only descriptive. Claim refuses if
 user.name is unset or the machine ID is unreadable.
 
-A competing claim has one winner. The loser sees "not open" or a changed card
-and publishes no ownership. A repeat claim by the owning workspace succeeds
+A competing claim has one winner. The loser sees "not open", a changed card,
+or, if it reads after the winner publishes, "claimed by <owner>". It
+publishes no ownership. A repeat claim by the owning workspace succeeds
 without writing anything. A repeat claim by any other workspace is refused,
 naming the owner. Reassignment is operator-directed reclaim (#278). A working
 card with no recorded owner, claimed before #277, refuses toward

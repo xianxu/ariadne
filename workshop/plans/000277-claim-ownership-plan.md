@@ -235,3 +235,17 @@
   - PQ-5: compressed the gate, adopt and relocation tests into table
     strategies.
 
+- 2026-10-01 — M1 boundary review (BR-1 to BR-7).
+  - BR-2: `MachineFingerprint(raw)` is domain-separated by the fixed key
+    "ariadne-claimant", not a caller-supplied key, because there is one
+    consumer. Its test asserts that the fingerprint is stable, 32 hex
+    characters, separates machines, and is not the unkeyed sha256 prefix.
+    There is no "different key" test, since there is no key parameter.
+  - BR-1: the race-test oracle accepts the late-reader "claimed by" refusal.
+  - Minors:
+    - an owner's dry-run repeat writes nothing;
+    - the rollout paragraph moved into M1;
+    - the race test skips without a host machine ID;
+    - the slot-layout question moved to `pkg/workspace.Identity.UsesSlotLayout`;
+    - added a `claimDecision` ownership table test.
+
