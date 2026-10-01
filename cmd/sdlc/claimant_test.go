@@ -36,12 +36,12 @@ func TestSlotLabelOnlyWhereSlotsExist(t *testing.T) {
 	fleet := t.TempDir()
 	addr := "ariadne:0"
 	primary := workspace.Identity{Kind: "primary", Repo: "ariadne", FleetRoot: fleet, PrimaryRoot: fleet + "/ariadne", Address: &addr}
+	if got := slotLabel(primary); got != "" {
+		t.Fatalf("a plain primary (no slots) got a slot label %q", got)
+	}
 	writeRepoFile(t, fleet, "worktree/ariadne-slotX/ariadne/.keep", "") // not a slot number
 	if got := slotLabel(primary); got != "" {
 		t.Fatalf("a malformed slot dir made a slot label %q", got)
-	}
-	if got := slotLabel(primary); got != "" {
-		t.Fatalf("a plain primary (no slots) got a slot label %q", got)
 	}
 	writeRepoFile(t, fleet, "worktree/ariadne-slot1/ariadne/.keep", "")
 	if got := slotLabel(primary); got != "ariadne:0" {

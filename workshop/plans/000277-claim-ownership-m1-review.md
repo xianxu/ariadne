@@ -138,3 +138,101 @@ findings:
     title: |
       No claimDecision table test with a non-nil claimant; the Unknown (legacy working card) refusal is untested in M1
 ```
+
+---
+
+## Re-review — 2026-10-01T14:06:40-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 277 — Record claimant ownership atomically with issue reservation |
+| repo | ariadne |
+| issue file | workshop/issues/000277-claim-ownership.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | bb6221d84ecd5ba27a1336cb78515ecdb2e5d602..25c0dec0f9b838da17c21614e8b61e7ca4e4a2e9 |
+| command | sdlc milestone-close --issue 277 --milestone M1 |
+| reviewer | claude |
+| timestamp | 2026-10-01T14:06:40-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP (high confidence).** All seven findings from round 1 are fixed and checked against the code, not the commit message. The touched packages pass: `pkg/workspace`, `internal/issue`, `pkg/vocab`, plus the claim, slot-label and claimant tests in `cmd/sdlc`. To confirm the dry-run test pins the fix, I removed the new `if f.DryRun { return nil }` guard in a scratch worktree. `TestClaimDryRunOwnerRepeatWritesNothing` then failed with "a dry-run repeat claim wrote the details" (`claimremote_test.go:319`). The ownership branches now have a deterministic test that runs in process, and the race test's oracle accepts all three outcomes a loser can legitimately get. Nothing blocks the boundary.
+
+1. **Strengths**
+   - `claimDecision` (`cmd/sdlc/claimdecision.go`) stays pure. Ownership goes through a single `MatchClaimant` switch with three outcomes (Mine / Foreign / Unknown), and each outcome now has a table test (`TestClaimDecisionOwnership`).
+   - The question "does this checkout use the slot layout?" now lives in `pkg/workspace.Identity.UsesSlotLayout`, which reuses the canonical `slotNumber` parser. That also rejects malformed `-slotX` directories, which the old glob accepted (ARCH-DRY).
+   - The fingerprint domain-separation test (`internal/issue/claimant_test.go:168`) guards the property that matters: the fingerprint is never a prefix of the bare sha256 of the machine ID.
+   - The flag-day rollout note in `atlas/workflow/issue-tracker.md:39` names the failure mode (stale binaries fail closed in `internal/tracker/reader.go`) and the interim rule (claim only with a binary built before #277).
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - In `cmd/sdlc/claimant_test.go:39-45`, the second check ("a plain primary (no slots)") now runs after the malformed `ariadne-slotX` directory exists. It just repeats the first check and no longer tests a primary with no slot directories at all. Run it before writing the malformed directory.
+   - `UsesSlotLayout` has no unit test next to it in `pkg/workspace`; only `cmd/sdlc`'s `slotLabel` test covers it indirectly. This is a cosmetic gap, not a new family instance.
+
+5. **Test coverage**
+   - The race test still sees whichever interleaving it happens to get, but the oracle is now correct for every legal one.
+   - The foreign-owner and legacy-working refusals are covered by the deterministic table test, so the earlier single-interleaving gap is closed by a pure test rather than by the end-to-end run.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** The layout logic is consolidated in `pkg/workspace`.
+   - **ARCH-PURE: pass.** The decision and match code is pure; identity IO stays in `claimant.go`.
+   - **ARCH-PURPOSE: pass for M1's scope.** The claimant is stamped in the same compare-and-swap that changes the status, and repeat claims are gated.
+   - **ARCH-MOCK: pass.** Tests run against a local git tracker repository as a fake.
+   - **ARCH-CONSTRAINTS: pass.** It adds one glob over the `worktree/` directory per claim.
+   - **ARCH-SECURE: pass.** Only a domain-separated fingerprint is published, never the raw machine ID. Malformed claimant records are refused through `CardClaimant`'s error.
+   - **ARCH-ORDER: pass.** Ownership is decided by an explicit three-way match. The compare-and-swap still arbitrates races, and losers publish nothing.
+   - **ARCH-FUNERAL: pass.** The claimant field lives on the card and goes with the card's lifecycle; the release semantics in #278 come later.
+
+   For upcoming work: M2's reclaim and adopt paths should reuse `ownedBy` and `describeClaimant` rather than restating the refusal text.
+
+7. **Plan revisions:** none needed. The 2026-10-01 revisions entry already reconciles the fingerprint signature and records the fixes.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Oracle now accepts "claimed by" (claimremote_test.go:182); help text updated; TestClaimDecisionOwnership pins the foreign-owner refusal deterministically.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan Revisions entry 2026-10-01 records the fixed-key MachineFingerprint(raw); domain-separation test added.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      claim.go:138 dry-run guard; TestClaimDryRunOwnerRepeatWritesNothing goes red when the guard is reverted (verified in scratch worktree).
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Rollout paragraph now in atlas/workflow/issue-tracker.md within M1.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      TestClaimRaceHasExactlyOneWinner skips when machineID() errors.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      slotLabel delegates to pkg/workspace Identity.UsesSlotLayout, which reuses slotNumber.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      TestClaimDecisionOwnership covers stamp, Mine, Foreign, Unknown (--adopt), and non-working statuses.
+findings:
+  - id: new
+    severity: Minor
+    family: stale-test-precondition
+    title: |
+      TestSlotLabelOnlyWhereSlotsExist's "no slots" check runs after the malformed slot dir is created, duplicating the prior assertion
+    detail: |
+      Move the plain-primary assertion before writing worktree/ariadne-slotX so the no-slot-dirs state is still exercised.
+```

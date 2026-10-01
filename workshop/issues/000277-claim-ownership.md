@@ -41,7 +41,7 @@ ARCH-DRY: one tracker authority for assignment; ARCH-PURPOSE: ownership is respo
 
 Durable plan: `workshop/plans/000277-claim-ownership-plan.md`.
 
-- [ ] M1 — record and publish ownership: the `claimant` card kind, a mirrored
+- [x] M1 — record and publish ownership: the `claimant` card kind, a mirrored
       field and a pure match; the machine fingerprint plus identity seam; claim
       stamps ownership in its CAS; race and mirror tests; docs.
 - [ ] M2 — enforce at start-plan, change-code, close and milestone-close; add
@@ -88,6 +88,7 @@ Items, in order:
 ## Log
 
 ### 2026-10-01
+- 2026-10-01: closed M1 — claimant card kind (fail-closed, mirrored), identity seam (fingerprinted OS machine ID, slot label only where pkg/workspace says the layout is in use), claim stamps owner in its CAS; owner repeat no-op (dry-run writes nothing), foreign refused naming owner, unattributed -> --adopt; race test accepts all three loser refusals and checks the winner's full claimant; review round-1 findings all fixed; actual = sdlc actual measurement (first milestone); --no-project: pair's project tracks ariadne#277 at issue granularity; review verdict: SHIP
 
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
 
@@ -206,3 +207,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     - added a `claimDecision` ownership table test.
   - Verified the real tracker has no claimant cards. Claims go through
     :0's pre-#277 binary until this lands.
+- M1 advisory (BR-8): reordered the slot-label test so the no-slots state is exercised first.
