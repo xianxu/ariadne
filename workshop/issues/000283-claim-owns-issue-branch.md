@@ -123,12 +123,12 @@ The design buffer is +15% because a thorough plan doc exists.
 
 - [x] Claim, run start-plan, settle the open questions and the child-issue split before designing the implementation.
 - [x] Design the model change; durable plan at `workshop/plans/000283-claimant-lock-model-plan.md` (full flow: >100 code lines).
-- [ ] Model: `ownership` axis in issue.cue + pkg/vocab; open→working is `start` (plan Task 1)
-- [ ] claim records the owner only (Task 2)
-- [ ] start-plan starts the lifecycle; carries own details edits (Task 3)
-- [ ] change-code refuses unstarted; reclaim derives holdable statuses (Task 4)
+- [x] Model: `ownership` axis in issue.cue + pkg/vocab; open→working is `start` (plan Task 1)
+- [x] claim records the owner only (Task 2)
+- [x] start-plan starts the lifecycle; carries own details edits (Task 3)
+- [x] change-code refuses unstarted; reclaim derives holdable statuses (Task 4)
 - [ ] e2e fixtures: claim then start-plan (Task 5)
-- [ ] Help text, atlas, terminology (Task 6)
+- [x] Help text, atlas, terminology (Task 6)
 
 ## Log
 
@@ -162,6 +162,20 @@ Fourth round:
 - Claiming several issues at once is atomic: one tracker commit compare-and-swaps all the cards, and on a race it re-reads, re-checks every card and retries.
 - `sdlc issue publish --issue a,b,c` republishes owned details edits narrowly to main. `move-detail` stays the first publication.
 - No `abandon` verb exists; `wontfix`/`punt` go through `set-status`, which leaves the branch, the remote branch and the owner behind. Proposed: `sdlc abandon` (sketch in the reply; to settle).
+
+Implementation (plan Tasks 1–4 and 6), one commit each:
+- vocab axis `62d27b83`;
+- claim `ad040794`;
+- start-plan `9ff1d044`;
+- change-code/reclaim `69537645`;
+- docs `6c294eb0`.
+
+Notes:
+- `claimDecision` keeps its legacy arm keyed on a nil identity (`legacymode.go:275`), which matches the model's scope gloss.
+- `adoptDecision` now takes any active status, so a pre-#277 `codecomplete` card can be adopted.
+- AGENTS.md/CLAUDE.md are weave outputs; the source edit is `AGENTS.base.md`. The local entry files refresh on the next `weave compile`.
+- Left for #285: the transfer guard's code still names the branch `owner` (`transferguard.go:60`).
+- Plan-quality ran three rounds. Round 1 hit a sandbox block on the reviewer's API host and recorded no findings; round 2 raised six Minors, all folded into the plan's Revisions; round 3 dispositioned them.
 
 ## Revisions
 
