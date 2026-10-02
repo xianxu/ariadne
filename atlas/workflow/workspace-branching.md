@@ -32,6 +32,11 @@ refuse overwriting them. Also refuse an ongoing merge, rebase, cherry-pick,
 revert, sequencer or bisect operation. Inspect their worktree-specific Git state
 using `git rev-parse --git-path` (MERGE_HEAD, rebase-merge, rebase-apply,
 CHERRY_PICK_HEAD, REVERT_HEAD, sequencer and BISECT_START), not a guessed `.git/`.
+Inside `sdlc` the marker list is single-sourced as `gitx.OperationMarkers` (#289;
+it also counts REBASE_HEAD and BISECT_LOG): landing, `move`, `move-detail` and
+fleet readiness all check it in the worktree's own git directory —
+`WorktreeGitDir` follows a linked worktree's `gitdir:` pointer, so fleet reads it
+without a git process.
 Preserve unfinished work and ask for explicit reconciliation; never auto-stash,
 commit, reset or abort an operation to manufacture readiness.
 
