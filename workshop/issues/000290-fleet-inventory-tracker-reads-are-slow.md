@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "28ce4da7", done: "007dd8cd"}
 ---
 
 # Fleet inventory tracker reads are slow
