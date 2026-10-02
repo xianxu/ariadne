@@ -69,6 +69,23 @@ rounds:
           round: 2
       recipe: milestone-review
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-01T21:24:50-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: README.md:29-32 now names `sdlc reclaim --issue N`, inspect-first, then `--expect REV --reason`; it matches reclaim.go:119-120,61-62,223.
+          round: 3
+      findings:
+        - id: BR-7
+          severity: Minor
+          title: README.md:32 reclaim sentence leaves an over-long unwrapped line in the ownership paragraph
+          detail: Cosmetic only; reflow the paragraph. Not a missing-surface repeat, just formatting at the site of the BR-6 fix.
+          family: docs-new-surface-missing
+          round: 3
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#278 (boundary-review)
@@ -103,6 +120,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Important] `docs-new-surface-missing` README's ownership paragraph lists claim, --adopt and move but not the new sdlc reclaim verb
   README.md:26-30 describes #277 ownership verbs; add one sentence naming `sdlc reclaim` (inspect, then --expect/--reason) as the operator-directed transfer between owners.
 
+## Round 3 — 2026-10-01T21:24:50-07:00 (claude) — passed
+
+### Disposed
+
+- BR-6 — addressed — README.md:29-32 now names `sdlc reclaim --issue N`, inspect-first, then `--expect REV --reason`; it matches reclaim.go:119-120,61-62,223.
+
+### Raised
+
+- **BR-7** [Minor] `docs-new-surface-missing` README.md:32 reclaim sentence leaves an over-long unwrapped line in the ownership paragraph
+  Cosmetic only; reflow the paragraph. Not a missing-surface repeat, just formatting at the site of the BR-6 fix.
+
 ## Open findings
 
-- **BR-6** [Important] `docs-new-surface-missing` README's ownership paragraph lists claim, --adopt and move but not the new sdlc reclaim verb
+- **BR-7** [Minor] `docs-new-surface-missing` README.md:32 reclaim sentence leaves an over-long unwrapped line in the ownership paragraph

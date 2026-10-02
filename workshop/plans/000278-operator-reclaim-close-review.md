@@ -206,3 +206,63 @@ findings:
     detail: |
       README.md:26-30 describes #277 ownership verbs; add one sentence naming `sdlc reclaim` (inspect, then --expect/--reason) as the operator-directed transfer between owners.
 ```
+
+---
+
+## Re-review — 2026-10-01T21:24:50-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 278 — Add operator-directed reclaim for recovery |
+| repo | ariadne |
+| issue file | workshop/issues/000278-operator-reclaim.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | d97ba867ffefc3f07e10fe145741754ef75f2a83..71ec9776d8a00879b4139be4286f90196b1395c8 |
+| command | sdlc close --issue 278 |
+| reviewer | claude |
+| timestamp | 2026-10-01T21:24:50-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The only change since the previous round is commit 71ec9776, a README edit, and it closes BR-6. `README.md:29-32` now names `sdlc reclaim --issue N` next to claim, `--adopt` and move. It says the verb inspects first and then transfers with `--expect REV --reason '…'`, and that it refuses if the card changed. I checked those claims against the code. `cmd/sdlc/reclaim.go:119-120` defines the `--expect` and `--reason` flags. `cmd/sdlc/reclaim.go:61-62` refuses when the card revision no longer matches `--expect`. `cmd/sdlc/reclaim.go:223` makes inspect print the confirm command. The other five findings were settled in earlier rounds and nothing in this window reopens them. Nothing blocks SHIP.
+
+1. **Strengths**
+   - The README describes the verb accurately, including the check that the card hasn't changed since inspection, and cites the issue (#278).
+   - Reclaim is pinned to the inspected card revision by `--expect`, with the stale-revision refusal at `cmd/sdlc/reclaim.go:61`. This keeps the transfer safe when two actors touch the same card.
+   - `--reason` without `--expect` is refused loudly (`cmd/sdlc/reclaim.go:158`) rather than silently ignored.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `README.md:32`: the new sentence runs into "Older binaries refuse…" on one very long line, which breaks the paragraph's wrapping. This is cosmetic and reflowing it is optional.
+
+5. **Test coverage:** the only change this round is to prose, so it needs no new test. The reclaim behaviour the README describes is already covered by tests in `cmd/sdlc/reclaim_test.go`.
+
+6. **Architecture:** I made no change to the per-principle assessments from earlier rounds, because the code under ARCH-DRY, PURE, PURPOSE, MOCK, CONSTRAINTS, SECURE, ORDER and FUNERAL did not change. ARCH-PURPOSE now passes: the README, atlas, process manual and help text all mention the new verb.
+
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      README.md:29-32 now names `sdlc reclaim --issue N`, inspect-first, then `--expect REV --reason`; it matches reclaim.go:119-120,61-62,223.
+findings:
+  - id: new
+    severity: Minor
+    family: docs-new-surface-missing
+    title: |
+      README.md:32 reclaim sentence leaves an over-long unwrapped line in the ownership paragraph
+    detail: |
+      Cosmetic only; reflow the paragraph. Not a missing-surface repeat, just formatting at the site of the BR-6 fix.
+```

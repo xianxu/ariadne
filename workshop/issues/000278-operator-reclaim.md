@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "3eac6248", done: "db328d5b"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Add operator-directed reclaim for recovery
@@ -54,6 +54,8 @@ Durable plan: `workshop/plans/000278-operator-reclaim-plan.md` (single pass).
 ## Log
 
 ### 2026-10-01
+- 2026-10-01: closed — sdlc reclaim: inspect writes nothing and prints a working confirm (--reason alone refused); confirm transfers claimant to this workspace by CAS on the inspected revision with Reclaim-From/To/Reason trailers (last 20 shown by inspect); old workspace's start-plan/change-code/close refused after reclaim before review, new owner's start-plan passes; dirty work untouched; stale --expect refused; identical and lost-response reruns are no-ops that refresh the mirror (mutation-checked); two-clone race: one winner; operator-only AST guard incl. package initializers (mutation-checked); README/help/atlas name reclaim; full sharded suite green (sandbox-only processgroup failure).; review verdict: SHIP
+- 2026-10-01: flow upgraded quick → full — 352 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
 
