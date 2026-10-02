@@ -22,7 +22,10 @@ claims may be missing), unknown (no answer; claims is empty and says nothing),
 absent (the checkout has no tracker cutover marker and no fetched tracker; its
 remote is not contacted). A read both stale and partial reports partial, and
 `claims_error` carries both reasons. `claims_error` says why for stale, partial
-and unknown. Claims come from one tracker read per tracked repository.
+and unknown. Claims come from one tracker read per tracked repository; the
+reads run concurrently (at most 8), skip the fetch when the remote tracker is
+unchanged, and each has a 15s deadline — a remote that does not answer makes
+only its own repository's rows unknown.
 
 This command reports measured Git facts, declared policy capability and
 recorded tracker claims only. It does not infer coldness, drift, actor

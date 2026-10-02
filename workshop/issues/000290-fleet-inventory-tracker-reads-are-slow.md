@@ -65,9 +65,9 @@ unchanged. Prerequisite for ariadne#289, which adds dependency-clone rows.
 
 Durable plan: `workshop/plans/000290-fleet-inventory-tracker-reads-are-slow-plan.md`.
 
-- [ ] Fetch-skip when the remote tracker tip equals the local tracking ref; `--no-auto-maintenance` on tracker fetches
-- [ ] Per-key-once records cache + bounded concurrent warm-up of tracked repositories
-- [ ] Per-read deadline; a hanging remote degrades only its repository
+- [x] Fetch-skip when the remote tracker tip equals the local tracking ref; `--no-auto-maintenance` on tracker fetches
+- [x] Per-key-once records cache + bounded concurrent warm-up of tracked repositories
+- [x] Per-read deadline; a hanging remote degrades only its repository
 - [ ] Before/after trace in the Log; atlas + help; close
 
 ## Log
@@ -77,3 +77,16 @@ Durable plan: `workshop/plans/000290-fleet-inventory-tracker-reads-are-slow-plan
 Filed while designing ariadne#289 at the operator's direction ("it's already a
 bit slow"); to land before #289 resumes. Trace: 5.35s `ls-remote`, 5.13s
 `fetch`, rest local.
+
+Implemented. Measured on this machine, alternating builds, same fleet (46 rows,
+27 repositories): before 17.83s / 17.31s, after 6.02s / 5.81s; JSON output
+byte-identical. After-trace: 611 git processes, 15 `ls-remote` (concurrent),
+0 `fetch` (every tracker unchanged), 0 `maintenance`. Tests:
+`TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged` (real git, fetch counted via
+GIT_TRACE, moved tip fetched, probe tip used once, --no-auto-maintenance),
+`TestRecordsCacheIsPerKeyOnce`, `TestRecordsCacheKeepsTimeoutsRetriesOtherErrors`,
+`TestWarmRecordsIsBounded` (gated, -race), `TestHangingRemoteDegradesWithinTheDeadline`
+(ssh transport that sleeps → unknown naming the deadline in ~0.6s). Fixture
+note: the sandbox sets GIT_SSH_COMMAND, which overrides core.sshCommand. A
+timed-out read reports unknown, not stale: the local fallback read shares the
+expired context.

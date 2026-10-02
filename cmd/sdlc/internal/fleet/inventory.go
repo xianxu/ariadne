@@ -11,6 +11,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/project"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // GitRepoPredicate distinguishes eligible Git siblings from ordinary sibling
@@ -103,6 +104,12 @@ func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOp
 	if lookupIssues == nil {
 		lookupIssues = func(repoRoot, id string) ([]IssueRecord, error) { return LookupRepoIssues(ctx, repoRoot, id) }
 	}
+	if options.LookupIssues == nil && options.LookupClaims == nil {
+		// #290: tracker reads are network round trips; load every tracked
+		// repository's records concurrently up front, so the row walk below
+		// reads them from the cache.
+		warmRecords(ctx, trackedRoots(repoDirs), recordsReadConcurrency, repoRecords)
+	}
 	diagnosticKeys := make(map[string]bool)
 	rowKeys := make(map[string]bool)
 	repoStates := make(map[string]*inventoryRepoState)
@@ -160,6 +167,26 @@ func collectClaims(ctx context.Context, inventory *Inventory, options InventoryO
 		}
 	}
 	inventory.Rows, inventory.DanglingClaims = PlaceClaims(inventory.Rows, byRepo, inventory.Machine)
+}
+
+// recordsReadConcurrency bounds concurrent tracker reads (#290).
+const recordsReadConcurrency = 8
+
+// trackedRoots are the canonical fleet repositories that use the issue tracker
+// (cutover marker or fetched tracker; local checks only). A spelling that
+// differs from the walk's key only costs that repository a sequential read.
+func trackedRoots(repoDirs []string) []string {
+	var roots []string
+	for _, dir := range repoDirs {
+		root, err := canonicalPath(dir)
+		if err != nil {
+			continue
+		}
+		if cut, err := tracker.CutOver(root); err == nil && cut {
+			roots = append(roots, root)
+		}
+	}
+	return roots
 }
 
 type inventoryRepoState struct {

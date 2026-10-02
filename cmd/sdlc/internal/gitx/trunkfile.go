@@ -125,6 +125,9 @@ type TrunkFile struct {
 	dir    string          // repo to run git in — never empty, see NewTrunkFile
 	remote string
 	branch string
+	// probedTip is the remote tip the last RemoteExists read (#290), handed to
+	// the next Snapshot once so an unchanged tracker is read without a fetch.
+	probedTip string
 }
 
 // NewTrunkFile refuses an empty dir.
@@ -195,7 +198,9 @@ func (t *TrunkFile) trackingRef() string {
 // `git fetch origin main`, which only guarantees FETCH_HEAD) is the same form
 // issueids.go uses.
 func (t *TrunkFile) fetch() ([]byte, error) {
-	_, errOut, err := t.run(nil, "fetch", "--quiet", "--no-recurse-submodules", t.remote,
+	// --no-auto-maintenance (#290): housekeeping belongs to the operator's own
+	// git; a tracker read should not pay for it on every fetch.
+	_, errOut, err := t.run(nil, "fetch", "--quiet", "--no-recurse-submodules", "--no-auto-maintenance", t.remote,
 		"+refs/heads/"+t.branch+":"+t.trackingRef())
 	return errOut, err
 }
