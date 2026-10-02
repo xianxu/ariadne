@@ -207,3 +207,101 @@ dispose:
     note: |
       The testfix import is now in its own group (snapshot_test.go:10).
 ```
+
+---
+
+## Re-review — 2026-10-02T16:20:59-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 290 — Fleet inventory tracker reads are slow |
+| repo | ariadne |
+| issue file | workshop/issues/000290-fleet-inventory-tracker-reads-are-slow.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f16d418421e0ab1d8e4d6f5a1890888793305a69..c51b944bae0643fd85a6c84b20d6aea0c04a7a23 |
+| command | sdlc close --issue 290 |
+| reviewer | claude |
+| timestamp | 2026-10-02T16:20:59-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both open findings from the earlier rounds are fixed, and I found nothing new that blocks the close. I read the whole range and checked it against the issue's Spec, its Done-when list and the plan's Revisions. The code does what the issue asks:
+- **Fetch-skip:** a snapshot taken right after an unchanged presence probe skips the fetch, and the probed tip is used once.
+- **No maintenance:** every tracker fetch passes `--no-auto-maintenance`.
+- **Concurrency:** the records cache loads each repository once and lets different repositories load at the same time; the warm-up runs at most 8 loads at once.
+- **Deadline:** each read has a 15s deadline, and a timed-out read is kept so the walk doesn't wait for it twice.
+
+I ran the five fleet tests with `-race`, plus the gitx snapshot tests; all passed. The only gaps left are two small test-strength points.
+
+**Strengths**
+- `Snapshot` (`cmd/sdlc/internal/gitx/snapshot.go:22-30`) skips the fetch only when the local tracking ref resolves to exactly the tip `ls-remote` just reported, and it uses that tip once. This is an exact check, not a cache, so it can't serve an out-of-date view.
+- The records cache (`cmd/sdlc/internal/fleet/issues.go:93-133`) is a clean per-repository "load once" design. It keeps timeouts on purpose (`errors.Is(..., DeadlineExceeded)`), and `TrunkFile.run` wraps that error with `%w`, so the check really fires.
+- The concurrency tests prove overlap and the in-flight limit by holding loads open behind a gate, not by timing (`recordscache_test.go`).
+- The two integration tests (`recordsdeadline_test.go`) run real Git against real bare origins and cover the Done-when items "identical to a sequential run" and "one hanging remote degrades only its own repository".
+- The help text and both atlas files describe what was actually built.
+
+**Disposition of prior findings**
+- **BR-2 (Core concepts table): addressed.** The table now uses the as-built names (`warmRecords` in `issues.go`, `trackedRoots`/`recordsReadConcurrency` in `inventory.go`), and it no longer claims a direct unit test for `parseLsRemoteTip`. This is a prose-only fix and I checked it against the code.
+- **BR-5 (probed tip surviving a fetch): addressed.**
+  - **Fix:** `fetch()` now clears `probedTip` (`trunkfile.go:201`).
+  - **Test:** the last block of `TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged` does probe → `Read` (which fetches) → `Snapshot` and expects 4 fetches. Without the clear, that `Snapshot` would find the local ref equal to the stale probed tip and skip, giving 3 fetches, so the test fails without the fix.
+  - **Plan:** the Revisions section now records that the skip also reaches write verbs, and that the compare-and-swap push still fetches.
+
+**Critical findings:** none.
+
+**Important findings:** none.
+
+**Minor findings**
+- **Hanging-remote test can't detect a double wait.** `TestHangingRemoteDegradesOnlyItsRepository` allows 5s against a 500ms deadline, and it took 1.37s here. If the warm-up and the row walk ever used different cache keys, the walk would wait out the deadline a second time and the test would still pass. Counting cache loads for the stuck repository (expecting 1) would pin "the walk never waits twice" from start to finish.
+- **`parseLsRemoteTip` has no direct unit test.** The plan lists it as a pure function, but it is only exercised through the real-git snapshot test. A small table test would cover the edge cases: a different ref name, a malformed object ID, and empty output.
+- **Warm-up ignores cancellation of the caller's context.** `warmRecords` waits for a free slot without watching `ctx`. Each load is still capped at 15s, so the delay is bounded.
+
+**Test coverage notes:** Every Done-when item now has an automated test, except the wall-clock target, which is measured and recorded in the Log (17.5s → 5.9s). Deleting the fetch's `probedTip` clear makes the BR-5 regression test fail.
+
+**Architecture principles**
+- **ARCH-DRY: pass.** Loads go through one `loadRepoRecords`. `trackedRoots` uses the same `tracker.CutOver` check as `LookupRepoClaims`.
+- **ARCH-PURE: pass.** `parseLsRemoteTip` is pure. The cache takes its loader as a parameter, so it can be tested without IO.
+- **ARCH-PURPOSE: pass.** All four Spec levers are delivered. Keeping local facts sequential is an explicit, justified scope decision.
+- **ARCH-MOCK: pass.** The tests use real Git and bare origins, and the hanging remote is simulated through the same ssh transport production uses.
+- **ARCH-CONSTRAINTS: pass.** The limits are enforced in code: at most 8 concurrent reads, 15s each, and one round trip per unchanged tracker.
+- **ARCH-SECURE: pass.** `ls-remote` output is parsed with `parseObjectID`, and any malformed output falls back to a normal fetch.
+- **ARCH-ORDER: pass.** The cache is the only shared state, and a test drives concurrent callers into one key behind a gate. `probedTip` is a simple one-shot value with a written invariant: set by a probe, cleared by a snapshot or a fetch.
+- **ARCH-FUNERAL: pass.** Nothing durable is created. The warm-up's goroutines are all joined before it returns, and the cache lives only for the process.
+
+**Notes for upcoming work:** ariadne#289 adds dependency-clone rows, which means more `trackedRoots` entries. The limit of 8 and the per-key cache should absorb them, but re-measure using the same trace script.
+
+**Plan revision recommendations:** none; the plan matches the code.
+
+```findings
+dispose:
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Core concepts table rewritten to as-built names and files (warmRecords in issues.go, trackedRoots in inventory.go); unit-test claim dropped.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      fetch() clears probedTip (trunkfile.go:201); the probe-Read-Snapshot block of TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged expects 4 fetches and gets 3 without the clear; Revisions records the skip reaching write verbs.
+findings:
+  - id: new
+    severity: Minor
+    family: done-when-untested
+    title: |
+      Hanging-remote test bound (5s vs 500ms deadline) cannot detect the walk waiting a second time
+    detail: |
+      This is the 2nd finding in family done-when-untested. Rule: each Done-when clause needs an assertion that fails when that clause is violated, not just a loose wall-clock bound. Here, count cache loads for the stuck repository (expect 1) so a warm-up/walk key mismatch or an uncached timeout fails the test.
+  - id: new
+    severity: Minor
+    family: pure-entity-untested
+    title: |
+      parseLsRemoteTip (declared pure) has no colocated unit test
+    detail: |
+      It is only exercised through the real-git snapshot test; add a table test for a different ref name, a malformed object ID and empty output.
+```

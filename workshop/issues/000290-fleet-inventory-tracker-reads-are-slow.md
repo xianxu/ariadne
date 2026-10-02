@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "28ce4da7", done: "007dd8cd"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Fleet inventory tracker reads are slow
@@ -73,6 +73,8 @@ Durable plan: `workshop/plans/000290-fleet-inventory-tracker-reads-are-slow-plan
 ## Log
 
 ### 2026-10-02
+- 2026-10-02: closed — fleet inventory 17.83/17.31s -> 6.02/5.81s here, JSON byte-identical; after-trace 15 concurrent ls-remote, 0 fetch, 0 maintenance. Tests: TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged (incl. a fetch consumes the probe; verified to fail without the clear), TestRecordsCacheIsPerKeyOnce, TestRecordsCacheKeepsTimeoutsRetriesOtherErrors, TestWarmRecordsIsBounded (-race), TestHangingRemoteDegradesOnlyItsRepository, TestWarmedInventoryEqualsSequential. make test green (processgroup fails only in sandbox).; review verdict: SHIP
+- 2026-10-02: flow upgraded quick → full — 147 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Filed while designing ariadne#289 at the operator's direction ("it's already a
 bit slow"); to land before #289 resumes. Trace: 5.35s `ls-remote`, 5.13s

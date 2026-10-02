@@ -74,6 +74,33 @@ rounds:
           round: 2
       recipe: milestone-review
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-02T16:20:59-07:00"
+      agent: claude
+      dispose:
+        - id: BR-2
+          disposition: addressed
+          note: Core concepts table rewritten to as-built names and files (warmRecords in issues.go, trackedRoots in inventory.go); unit-test claim dropped.
+          round: 3
+        - id: BR-5
+          disposition: addressed
+          note: fetch() clears probedTip (trunkfile.go:201); the probe-Read-Snapshot block of TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged expects 4 fetches and gets 3 without the clear; Revisions records the skip reaching write verbs.
+          round: 3
+      findings:
+        - id: BR-7
+          severity: Minor
+          title: Hanging-remote test bound (5s vs 500ms deadline) cannot detect the walk waiting a second time
+          detail: 'This is the 2nd finding in family done-when-untested. Rule: each Done-when clause needs an assertion that fails when that clause is violated, not just a loose wall-clock bound. Here, count cache loads for the stuck repository (expect 1) so a warm-up/walk key mismatch or an uncached timeout fails the test.'
+          family: done-when-untested
+          round: 3
+        - id: BR-8
+          severity: Minor
+          title: parseLsRemoteTip (declared pure) has no colocated unit test
+          detail: It is only exercised through the real-git snapshot test; add a table test for a different ref name, a malformed object ID and empty output.
+          family: pure-entity-untested
+          round: 3
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#290 (boundary-review)
@@ -108,7 +135,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-5 — not-addressed — The plan wording is fixed and fetch() clears probedTip (trunkfile.go:201), but no test runs the RemoteExists, refreshTip, Snapshot sequence, so reverting the clear stays green.
 - BR-6 — addressed — The testfix import is now in its own group (snapshot_test.go:10).
 
+## Round 3 — 2026-10-02T16:20:59-07:00 (claude) — passed
+
+### Disposed
+
+- BR-2 — addressed — Core concepts table rewritten to as-built names and files (warmRecords in issues.go, trackedRoots in inventory.go); unit-test claim dropped.
+- BR-5 — addressed — fetch() clears probedTip (trunkfile.go:201); the probe-Read-Snapshot block of TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged expects 4 fetches and gets 3 without the clear; Revisions records the skip reaching write verbs.
+
+### Raised
+
+- **BR-7** [Minor] `done-when-untested` Hanging-remote test bound (5s vs 500ms deadline) cannot detect the walk waiting a second time
+  This is the 2nd finding in family done-when-untested. Rule: each Done-when clause needs an assertion that fails when that clause is violated, not just a loose wall-clock bound. Here, count cache loads for the stuck repository (expect 1) so a warm-up/walk key mismatch or an uncached timeout fails the test.
+- **BR-8** [Minor] `pure-entity-untested` parseLsRemoteTip (declared pure) has no colocated unit test
+  It is only exercised through the real-git snapshot test; add a table test for a different ref name, a malformed object ID and empty output.
+
 ## Open findings
 
-- **BR-2** [Important] `plan-code-drift` Core concepts table names warmRepoRecords in inventory.go; the code has warmRecords in issues.go
-- **BR-5** [Minor] `implicit-cross-call-state` probedTip survives an intervening fetch or refreshTip, so the "right after a probe" rule is not enforced
+- **BR-7** [Minor] `done-when-untested` Hanging-remote test bound (5s vs 500ms deadline) cannot detect the walk waiting a second time
+- **BR-8** [Minor] `pure-entity-untested` parseLsRemoteTip (declared pure) has no colocated unit test
