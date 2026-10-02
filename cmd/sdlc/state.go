@@ -57,6 +57,9 @@ type IssueState struct {
 	// CardOnly: the card exists but this checkout has no details (#252) — the
 	// issue is still being created, or its details live on another branch.
 	CardOnly bool `json:"card_only,omitempty"`
+	// Unreadable says why an "unreadable" status could not be read, when the
+	// reader knows (#288: an unparseable tracker card).
+	Unreadable string `json:"unreadable,omitempty"`
 }
 
 // WorktreeState describes one entry from `git worktree list --porcelain -z`.
@@ -237,6 +240,12 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 	}
 	var out []IssueState
 	for _, rec := range rs.All() {
+		if rec.CardErr != nil {
+			// The card cannot be read (#288): its status is unknown, never the
+			// mirror's; surfaced so it is not mistaken for absent.
+			out = append(out, IssueState{ID: rec.ID, Path: rec.DetailPath, Status: "unreadable", CardOnly: rec.DetailPath == "", Unreadable: rec.CardErr.Error()})
+			continue
+		}
 		if rec.DetailPath == "" {
 			// Card only: archived (terminal) cards are history, not active work.
 			if vocab.Issue().IsTerminal(rec.Status()) {
@@ -308,11 +317,11 @@ func detectDrift(issues []IssueState, historyDir string, shipped shipProbe) []Dr
 				Message:  "no frontmatter or missing status: field",
 			})
 		case i.Status == "unreadable":
-			out = append(out, DriftFinding{
-				Severity: "warn",
-				Issue:    i.ID,
-				Message:  fmt.Sprintf("could not read %s — check permissions / symlinks", i.Path),
-			})
+			msg := fmt.Sprintf("could not read %s — check permissions / symlinks", i.Path)
+			if i.Unreadable != "" {
+				msg = "card unreadable: " + i.Unreadable + " — repair it on the tracker"
+			}
+			out = append(out, DriftFinding{Severity: "warn", Issue: i.ID, Message: msg})
 		case vocab.Issue().IsTerminal(i.Status):
 			out = append(out, DriftFinding{
 				Severity: "warn",

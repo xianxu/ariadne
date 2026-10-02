@@ -50,7 +50,10 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 			if rec.Card != nil {
 				in.Card, in.CardPath, in.CardBlob = rec.Card.Raw, rec.Card.Path, rec.Card.BlobOID
 				stem = strings.TrimSuffix(path.Base(rec.Card.Path), ".md")
-			} else if rec.DetailPath != "" {
+			} else {
+				in.CardErr = rec.CardErr
+			}
+			if rec.Card == nil && rec.DetailPath != "" {
 				stem = strings.TrimSuffix(path.Base(rec.DetailPath), ".md")
 			}
 		}

@@ -111,6 +111,16 @@ the observation moves into `sdlc fleet inventory` (no new verb); only claimed
 issues; orphaned claims are `dangling_claims`; a malformed card must not fail
 the whole tracker read (folded in as M1).
 
+M1 implemented. Snapshot quarantine (`UnreadableCard`, `Require`), records
+`CardErr`, every write-path lookup through `Require`, transferguard fail-closed,
+reader audit (close/actual/push/projectstatus/issuefiles/state/issue show/observe/
+fleet). E2E `TestOneMalformedCardDoesNotBlockOthers`. Side-quest:
+`TestClose_MilestoneRefusesWithRedirect` ran `close` (repo lock + spine guard)
+in the real checkout and died under sharded `make test` 3/6 runs with "not an
+SDLC repo" — trigger not isolated (cwd/env were correct in 3 instrumented
+passing runs); made hermetic (scratch SDLC repo). `make test` then green except
+`processgroup` (sandbox blocks `/bin/ps`; passes unsandboxed).
+
 ## Revisions
 
 - 2026-10-02 — operator review. Scope delta: home moves from a new

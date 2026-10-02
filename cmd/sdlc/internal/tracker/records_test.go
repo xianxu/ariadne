@@ -108,7 +108,7 @@ func TestComposeRecordsJoinsByIDWithoutIO(t *testing.T) {
 		{Path: "/d/000301-unread.md", ReadErr: errors.New("permission denied")},
 		{Path: "/d/000302-.md"},
 	}
-	rs := composeRecords(Records{Tracker: true}, cards, files)
+	rs := composeRecords(Records{Tracker: true}, cards, nil, files)
 	all := rs.All()
 	if len(all) != 3 || !all[1].Duplicate || all[2].ID != "000301" || !all[2].DetailUnreadable {
 		t.Fatalf("composition: %+v", all)
@@ -143,9 +143,24 @@ func BenchmarkComposeRecordsTenThousandCardsHundredDetails(b *testing.B) {
 	b.ReportAllocs()
 	b.ResetTimer()
 	for range b.N {
-		rs := composeRecords(Records{Tracker: true}, cards, details)
+		rs := composeRecords(Records{Tracker: true}, cards, nil, details)
 		if rec, ok := rs.Get("010000"); !ok || rec.DetailPath == "" || len(rs.All()) != 10000 {
 			b.Fatal("compose lost records")
 		}
+	}
+}
+
+// #288: an unreadable card composes as CardErr with its details; card-owned
+// fields read as unknown — never the (possibly stale) mirror.
+func TestComposeRecordsCarriesUnreadableCards(t *testing.T) {
+	cause := errors.New("tracker workshop/issue-cards/000007-bad.md: invalid claimant")
+	files := []DetailFile{{Path: "/d/000007-bad.md", Raw: []byte("---\nid: 000007\nstatus: working\n---\n# Bad\n")}}
+	rs := composeRecords(Records{Tracker: true}, nil, []UnreadableCard{{ID: "000007", Path: "workshop/issue-cards/000007-bad.md", Err: cause}}, files)
+	rec, ok := rs.Get("000007")
+	if !ok || rec.Card != nil || !errors.Is(rec.CardErr, cause) || rec.DetailPath == "" {
+		t.Fatalf("composed: %+v", rec)
+	}
+	if s, ok := rec.Field("status"); ok || s != "" {
+		t.Fatalf("status of an unreadable card read %q from the mirror", s)
 	}
 }

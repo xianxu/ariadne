@@ -611,6 +611,9 @@ func runIssueShow(ctx context.Context, stdout, stderr io.Writer, f *issueShowFla
 		}
 		fmt.Fprintf(stdout, "card %s on %s%s\n---\n%s---\n", rec.Card.Path, vocab.Issue().Discovery().Tracker, stale, ensureTrailingNewline(rec.Card.Card.Frontmatter))
 	}
+	if rec.CardErr != nil {
+		fmt.Fprintf(stdout, "card unreadable on %s: %v\n", vocab.Issue().Discovery().Tracker, rec.CardErr)
+	}
 	if rec.DetailPath == "" {
 		fmt.Fprintln(stdout, "(details are not in this checkout — card only)")
 		fmt.Fprintf(stdout, "# %s\n", rec.Title())

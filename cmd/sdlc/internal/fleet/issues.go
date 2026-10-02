@@ -44,6 +44,9 @@ func LookupRepoIssues(ctx context.Context, repoRoot, id string) ([]IssueRecord, 
 		if rec.ID != id {
 			continue
 		}
+		if rec.CardErr != nil {
+			return make([]IssueRecord, 0), fmt.Errorf("read same-repo issue %s: %w", ref, rec.CardErr)
+		}
 		if rec.DetailErr != nil {
 			return make([]IssueRecord, 0), fmt.Errorf("read same-repo issue %q: %w", rec.DetailPath, rec.DetailErr)
 		}

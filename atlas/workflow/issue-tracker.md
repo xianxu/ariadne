@@ -88,8 +88,9 @@ coordinated out of band. It runs in two headless steps:
   timeout, reachability, move or recovery path reaches it. `sdlc move` keeps
   only the owner's own same-machine relocation.
 
-**Rollout is a flag day.** An `sdlc` built before #277 aborts the whole
-tracker snapshot on the first card it cannot parse
+**Rollout is a flag day.** An `sdlc` built before #277 (and before #288's
+quarantine, below) aborts the whole tracker snapshot on the first card it
+cannot parse
 (`internal/tracker/reader.go`). So once any card carries a `claimant`, every
 stale binary fails, loudly and closed, naming the field. Each environment
 builds `sdlc` from its own ariadne checkout (the `construct/dev-aliases.sh`
@@ -150,6 +151,28 @@ ways) and `Assemble`. `cmd/sdlc/observe.go` collects the inputs.
 IDs and exposes the maximum retained ID for allocation. Reads use one tree
 listing and a batched blob read rather than one subprocess per card. There is no
 hidden checkout or implicit publication remote.
+
+**One bad card is quarantined, not fatal (#288).** A card whose own content does
+not parse (`ParseCard` fails, or its frontmatter ID disagrees with its filename)
+is kept as an `UnreadableCard`. Every other card stays readable. The tracker's
+structure still fails the whole read: file mode, path, filename, a duplicate ID
+(unreadable copies count), manifest, size limits. A quarantined card keeps its
+ID and path: it counts toward `MaxID`, and `issue new` cannot take its ID or
+path. Its readers report it as unknown, never absent:
+
+- `Snapshot.Require(id)` is the lookup for a verb acting on one card. It returns
+  `ErrNoCard` or `ErrUnreadableCard` naming the path and the cause, so claim,
+  setters, start-plan, change-code, close, reclaim, move and move-detail refuse
+  with the cause. `Snapshot.Card` stays readable-only for compare-and-swap.
+- `IssueRecord.CardErr` carries it into the composed records: `issue show`
+  reports the card `unknown`, `issue list`/`state` report `unreadable` with a
+  drift warning, and `close`, `actual`, project status and fleet lookups name
+  the error.
+- PR, push and merge refuse repo-wide (`transferguard`) while any card is
+  unreadable, since an unreadable card may hide a handoff record.
+
+This also softens the next card-schema rollout: a stale binary now quarantines
+the cards carrying a field it does not know, rather than failing every read.
 
 `gitx.TrunkFile.Bootstrap` creates an orphan history with expected-absence CAS.
 `UpdateManyPrepared` records a candidate before publication; the repository

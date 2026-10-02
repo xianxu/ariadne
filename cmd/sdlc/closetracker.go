@@ -127,8 +127,11 @@ func retryCloseMirror(env *trackerEnv, stderr io.Writer, id string) {
 		cwarn(stderr, fmt.Sprintf("#%s: details mirror not checked: %v", issue.CLIRef(id), err))
 		return
 	}
-	card, ok := snap.Card(id)
-	if !ok {
+	card, err := snap.Require(id)
+	if errors.Is(err, tracker.ErrNoCard) {
+		return
+	} else if err != nil {
+		cwarn(stderr, fmt.Sprintf("#%s: details mirror not checked: %v", issue.CLIRef(id), err))
 		return
 	}
 	fm, _, err := issue.Parse(string(card.Raw))
@@ -331,9 +334,9 @@ func prepareTrackerClose(ctx context.Context, id string) (*trackerClosePrep, err
 	if err != nil {
 		return nil, err
 	}
-	card, ok := snap.Card(id)
-	if !ok {
-		return nil, fmt.Errorf("no card #%s on the tracker", id)
+	card, err := snap.Require(id)
+	if err != nil {
+		return nil, err
 	}
 	if err := requireCardOwnership(env, card); err != nil { // #277
 		return nil, err

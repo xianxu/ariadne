@@ -339,9 +339,9 @@ func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) ([]byte
 	if err != nil {
 		return nil, err
 	}
-	card, ok := snap.Card(id)
-	if !ok {
-		return nil, fmt.Errorf("no card #%s on the tracker", id)
+	card, err := snap.Require(id)
+	if err != nil {
+		return nil, err
 	}
 	// #277: the ownership verdict and the mirror read one card version.
 	if err := requireCardOwnership(env, card); err != nil {

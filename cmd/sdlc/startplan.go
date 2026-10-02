@@ -286,9 +286,9 @@ func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
 	if err != nil {
 		return err
 	}
-	card, ok := snap.Card(id)
-	if !ok {
-		return fmt.Errorf("no card #%s on the tracker", id)
+	card, err := snap.Require(id)
+	if err != nil {
+		return err
 	}
 	if status, _ := issue.GetField(card.Card.Frontmatter, "status"); status != "working" {
 		return fmt.Errorf("#%s is %s; planning starts after `sdlc claim --issue %d` reserves it", id, status, issueID)

@@ -264,6 +264,9 @@ func cardlessAdditions(ctx context.Context, headRef, remote string, base, head m
 	for _, c := range snap.Records() {
 		cards[c.ID] = c.Path
 	}
+	for _, u := range snap.Unreadable() { // an unreadable card still holds its ID (#288)
+		cards[u.ID] = u.Path
+	}
 	return detailsWithoutCards(addedDetails(base, head, dirs.Rel[0]), cards), nil
 }
 

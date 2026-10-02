@@ -127,9 +127,9 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	if err != nil {
 		return err
 	}
-	card, ok := snap.Card(id)
-	if !ok {
-		return fmt.Errorf("no card #%s on the tracker", id)
+	card, err := snap.Require(id)
+	if err != nil {
+		return err
 	}
 	if h, ok, err := issue.CardHandoff(card.Raw); err != nil {
 		return err

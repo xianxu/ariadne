@@ -558,6 +558,9 @@ func historyFileIsTerminal(ctx context.Context, path string) (bool, error) {
 			return false, err
 		}
 		rec, ok := rs.Get(id)
+		if ok && rec.CardErr != nil {
+			return false, rec.CardErr // terminal or not is unknown: never guess (#288)
+		}
 		return ok && rec.Card != nil && vocab.Issue().IsTerminal(rec.Status()), nil
 	}
 	st, _ := issue.GetField(fm, "status")

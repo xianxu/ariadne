@@ -3,6 +3,7 @@ package tracker
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"path"
@@ -28,12 +29,28 @@ type Record struct {
 	Raw               []byte
 }
 
+// UnreadableCard is a card the snapshot holds but cannot parse (#288): one
+// malformed card is quarantined here instead of failing every tracker read.
+// It keeps its ID and path (no reuse) and is never returned as a Record.
+type UnreadableCard struct {
+	ID, Path, BlobOID string
+	Err               error
+}
+
+var (
+	// ErrNoCard: the tracker has no card for the ID.
+	ErrNoCard = errors.New("no card on the tracker")
+	// ErrUnreadableCard: the tracker's card for the ID cannot be parsed.
+	ErrUnreadableCard = errors.New("unreadable card on the tracker")
+)
+
 // Snapshot owns a pinned inventory. Accessors never expose its mutable storage.
 type Snapshot struct {
-	ref       string
-	cards     map[string]Record
-	maxID     int
-	wireBytes int
+	ref        string
+	cards      map[string]Record
+	unreadable map[string]UnreadableCard
+	maxID      int
+	wireBytes  int
 }
 
 func (s Snapshot) Ref() string { return s.ref }
@@ -43,6 +60,39 @@ func (s Snapshot) Card(id string) (Record, bool) {
 	r.Raw = bytes.Clone(r.Raw)
 	return r, ok
 }
+
+// Unreadable lists the quarantined cards, by ID.
+func (s Snapshot) Unreadable() []UnreadableCard {
+	out := make([]UnreadableCard, 0, len(s.unreadable))
+	for _, u := range s.unreadable {
+		out = append(out, u)
+	}
+	sort.Slice(out, func(i, j int) bool { return out[i].ID < out[j].ID })
+	return out
+}
+
+// Require is the lookup for a verb acting on one card: the record, or an error
+// that says whether the card is missing (ErrNoCard) or unreadable
+// (ErrUnreadableCard, naming its path and cause).
+func (s Snapshot) Require(id string) (Record, error) {
+	if r, ok := s.Card(id); ok {
+		return r, nil
+	}
+	if u, ok := s.unreadable[id]; ok {
+		return Record{}, fmt.Errorf("card #%s (%s): %w: %v", id, u.Path, ErrUnreadableCard, u.Err)
+	}
+	return Record{}, fmt.Errorf("card #%s: %w", id, ErrNoCard)
+}
+
+// taken reports the path holding id, readable or not.
+func (s Snapshot) taken(id string) (string, bool) {
+	if r, ok := s.cards[id]; ok {
+		return r.Path, true
+	}
+	u, ok := s.unreadable[id]
+	return u.Path, ok
+}
+
 func (s Snapshot) Records() []Record {
 	ids := make([]string, 0, len(s.cards))
 	for id := range s.cards {
@@ -66,7 +116,7 @@ func readSnapshot(view *gitx.TrunkView) (Snapshot, error) {
 }
 
 func parseSnapshot(ref string, files []gitx.TreeFile) (Snapshot, error) {
-	s := Snapshot{ref: ref, cards: map[string]Record{}}
+	s := Snapshot{ref: ref, cards: map[string]Record{}, unreadable: map[string]UnreadableCard{}}
 	if len(files) > gitx.SnapshotEntryLimit {
 		return Snapshot{}, fmt.Errorf("%w: tracker entry count", gitx.ErrOutputLimit)
 	}
@@ -105,17 +155,20 @@ func parseSnapshot(ref string, files []gitx.TreeFile) (Snapshot, error) {
 		if !ok || slug == "" || strings.ContainsAny(slug, "\\\x00\r\n") {
 			return Snapshot{}, fmt.Errorf("invalid tracker card path %q", f.Path)
 		}
+		if prior, exists := s.taken(id); exists {
+			return Snapshot{}, fmt.Errorf("duplicate tracker ID %s: %s and %s", id, prior, f.Path)
+		}
+		// A card's own content is quarantined, not fatal (#288); everything
+		// above is the tracker's structure and still fails the read.
 		card, err := issue.ParseCard(f.Content)
+		if err == nil && card.ID != id {
+			err = fmt.Errorf("filename ID disagrees with card ID %s", card.ID)
+		}
 		if err != nil {
-			return Snapshot{}, fmt.Errorf("tracker %s: %w", f.Path, err)
+			s.unreadable[id] = UnreadableCard{ID: id, Path: f.Path, BlobOID: f.OID, Err: fmt.Errorf("tracker %s: %w", f.Path, err)}
+		} else {
+			s.cards[id] = Record{ID: id, Path: f.Path, BlobOID: f.OID, Card: card, Raw: bytes.Clone(f.Content)}
 		}
-		if card.ID != id {
-			return Snapshot{}, fmt.Errorf("tracker %s: filename ID disagrees with card ID %s", f.Path, card.ID)
-		}
-		if prior, exists := s.cards[id]; exists {
-			return Snapshot{}, fmt.Errorf("duplicate tracker ID %s: %s and %s", id, prior.Path, f.Path)
-		}
-		s.cards[id] = Record{ID: id, Path: f.Path, BlobOID: f.OID, Card: card, Raw: bytes.Clone(f.Content)}
 		n, _ := strconv.Atoi(id)
 		if n > s.maxID {
 			s.maxID = n

@@ -46,10 +46,7 @@ func (r *Repository) PrepareCreate(cardPath string, raw []byte, token string) (g
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
-		if prior, taken := snapshot.Card(card.ID); taken {
-			return gitx.TrunkWrite{}, fmt.Errorf("%w: #%s is %s", ErrIDTaken, card.ID, prior.Path)
-		}
-		if err := snapshot.validateAddition(cardPath, content); err != nil {
+		if err := snapshot.claimable(card.ID, cardPath, content); err != nil {
 			return gitx.TrunkWrite{}, err
 		}
 		return gitx.TrunkWrite{Write: map[string][]byte{cardPath: content}, ExactBytes: true}, nil
@@ -138,12 +135,26 @@ func (r *Repository) validCandidateCard(cardPath string, raw []byte, token strin
 }
 
 // validateAddition checks the envelope after adding one new card.
+// claimable refuses a new card whose ID (under any slug, readable or not) is
+// held, then validates the addition.
+func (s Snapshot) claimable(id, cardPath string, raw []byte) error {
+	if prior, taken := s.taken(id); taken {
+		return fmt.Errorf("%w: #%s is %s", ErrIDTaken, id, prior)
+	}
+	return s.validateAddition(cardPath, raw)
+}
+
 func (s Snapshot) validateAddition(cardPath string, raw []byte) error {
-	if len(s.cards)+2 > gitx.SnapshotEntryLimit { // cards + manifest + new card
+	if len(s.cards)+len(s.unreadable)+2 > gitx.SnapshotEntryLimit { // cards + manifest + new card
 		return fmt.Errorf("%w: tracker entry count", gitx.ErrOutputLimit)
 	}
 	for _, r := range s.cards {
 		if r.Path == cardPath {
+			return fmt.Errorf("%w: %s", ErrIDTaken, cardPath)
+		}
+	}
+	for _, u := range s.unreadable {
+		if u.Path == cardPath {
 			return fmt.Errorf("%w: %s", ErrIDTaken, cardPath)
 		}
 	}

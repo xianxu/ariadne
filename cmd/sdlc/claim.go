@@ -111,9 +111,11 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	if err != nil {
 		return err
 	}
-	card, ok := snap.Card(id)
-	if !ok {
+	card, err := snap.Require(id)
+	if errors.Is(err, tracker.ErrNoCard) {
 		return fmt.Errorf("no card #%s on %s; file issues with `sdlc issue new`", id, vocab.Issue().Discovery().Tracker)
+	} else if err != nil {
+		return err
 	}
 	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))
 	ready := func() error {
@@ -288,9 +290,9 @@ func refreshMirror(env *trackerEnv, id string, details []byte) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	current, ok := snap.Card(id)
-	if !ok {
-		return nil, fmt.Errorf("no card #%s on the tracker", id)
+	current, err := snap.Require(id)
+	if err != nil {
+		return nil, err
 	}
 	return refreshMirrorFrom(env, current, details)
 }
