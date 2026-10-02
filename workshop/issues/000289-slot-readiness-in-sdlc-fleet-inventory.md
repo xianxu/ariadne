@@ -75,8 +75,8 @@ then `weave refresh`) must re-check it at action time.
 
 Durable plan: `workshop/plans/000289-slot-readiness-in-sdlc-fleet-inventory-plan.md`.
 
-- [ ] M1 — per-checkout readiness facts and verdict (shared `gitx` operation detector, dirty paths + operation on facts, pure `JudgeCheckout`)
-- [ ] M2 — fleet inventory reports one readiness row per slot (declared membership via `layergraph.ParseRows`, `AssembleSlots`, versioned `slots`, real-git fixtures, recovery entry, help, atlas)
+- [ ] M1 — per-checkout readiness facts and verdict (shared file-based `gitx` operation detector, operation on facts, pure `JudgeCheckout`)
+- [ ] M2 — fleet inventory reports one readiness row per slot (slots from paths, declared membership via `layergraph.ParseRows`, dependency clones as rows, `AssembleSlots`, versioned `slots`, real-git fixtures, recovery entry, help, atlas)
 
 ## Log
 
