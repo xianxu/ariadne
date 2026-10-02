@@ -6,6 +6,11 @@ the rulebook a coordinator uses once Couch's lossy channel has sent "work on
 #N". Observations (#279) say what happened; contracts say what an agent may do
 next.
 
+**Scope:** repositories with an issue tracker (#252). In a legacy repository
+(no issue-tracker branch) these guarantees are unknown, because its verbs
+publish details to main directly. Every generated surface renders
+`recovery.Scope`.
+
 - **Single source:** `cmd/sdlc/internal/recovery`.
   - `Catalog` holds one `Contract` per verb or verb family: class, effects,
     evidence, preconditions, repeat, lost response, when guarantees end, and
