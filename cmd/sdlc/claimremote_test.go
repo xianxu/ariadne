@@ -245,6 +245,9 @@ func TestClaimDecisionOwnership(t *testing.T) {
 	if got, ok, _ := issue.CardClaimant(claimed); !ok || got != me {
 		t.Fatalf("open card not stamped:\n%s", claimed)
 	}
+	if !bytes.Contains(claimed, []byte("status: open")) {
+		t.Fatalf("#283: claim moved status; it records the owner only:\n%s", claimed)
+	}
 	other := me
 	other.Operator, other.Worktree = "Them", "/w/b"
 	unattributed := bytes.Replace(open, []byte("status: open"), []byte("status: working"), 1)
@@ -253,9 +256,10 @@ func TestClaimDecisionOwnership(t *testing.T) {
 		want string
 	}{
 		"owner repeats":  {claimed, "already claimed by this workspace"},
+		"started, mine":  {bytes.Replace(claimed, []byte("status: open"), []byte("status: blocked"), 1), "already claimed by this workspace"},
 		"another claims": {claimed, "claimed by Me on box at /w/a"},
 		"unattributed":   {unattributed, "--adopt"},
-		"codecomplete":   {bytes.Replace(claimed, []byte("status: working"), []byte("status: blocked"), 1), "not open"},
+		"terminal":       {bytes.Replace(open, []byte("status: open"), []byte("status: done"), 1), "not open"},
 	} {
 		who := me
 		if name == "another claims" {
