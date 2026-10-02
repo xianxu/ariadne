@@ -1,12 +1,20 @@
 ---
 id: 000278
-status: open
+status: working
 deps: [ariadne#277]
 github_issue:
 created: 2026-10-01
 updated: 2026-10-01
 estimate_hours:
-card_mirror: '9da00517ec8098e778d6cbfb4eecfa6d5bad9375' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '6bd7daaa803b59bf95092eced08f9f98e1d40935' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-01T17:25:01-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Add operator-directed reclaim for recovery
@@ -39,3 +47,17 @@ Implementation plan to be designed after issue claim and start-plan; these are r
 ### 2026-10-01
 
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
+
+### 2026-10-01 (implementation session)
+
+- Operator authorized the work ("work on #278"). Claimed in ariadne:1 with
+  :0's pre-#277 binary, deliberately: a claimant card would start the #277
+  flag day before the fleet is rebuilt. This card is therefore unattributed
+  and will need `--adopt` after the rollout. Ran start-plan; the branch
+  `000278-operator-reclaim` sits at main, which includes #277.
+- Tension to resolve in design: the Spec says "do not overload sdlc move",
+  but #277 (operator decision) already has move relocate the owner's *own*
+  work on the same machine, using positive move evidence. Reclaim is the
+  general, operator-directed transfer across workspaces and machines; move's
+  relocation stays the narrow same-owner case.
+
