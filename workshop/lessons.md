@@ -324,3 +324,9 @@ The simplest durable authority beats a clever scan of consequences.
   weave's marker list, `construct/deps` reader and placement rule, each weaker
   (lexical paths, symlink-following, FIFO-blocking) until moved to
   `pkg/workspace` / `pkg/layergraph` and shared.
+- Compare a failing suite against main through the same runner. #283's main
+  baseline ran `scripts/test-shard.py` directly, while the branch ran `make
+  test`, which exports `Makefile.workflow`'s cwd-relative `WF_ISSUES_DIR`. A
+  test that died only under make looked branch-caused until the env var was
+  printed. When a guard says "not here", log cwd, the resolved top level and
+  every `WF_*` override before suspecting the diff.

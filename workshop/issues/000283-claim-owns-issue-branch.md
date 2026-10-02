@@ -1,12 +1,12 @@
 ---
 id: 000283
-status: codecomplete
+status: working
 deps: [ariadne#277, ariadne#278]
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours: 3.48
-card_mirror: 'b406f875204bb2c866638fb741a872238573a6a0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9c6be28ab75c25245ba3dd40ac3bfd4a21a7e14b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-02T10:51:37-07:00
 claimant:
     operator: Xian Xu
@@ -187,6 +187,13 @@ Verification (Task 7):
 Two finds while running the suite:
 - start-plan had dropped `requireCardOwnership`'s relocation hint for held open cards; fixed.
 - side-quest: `TestClose_MilestoneRefusesWithRedirect` died under `make test`, because `Makefile.workflow` exports a cwd-relative `WF_ISSUES_DIR`. It predates #283 (a main baseline run directly through `scripts/test-shard.py` skipped make), and the test now clears the variable.
+
+Close review round 1 (SHIP, five Minors), reopened to fix in the same round:
+1. The stale `setstatus.go` comment about claim as an open→working lock is rewritten.
+2. The `owned` guard on `start` is now enforced: `set-status working` on an unowned open card refuses toward claim, so starting never skips claim's details-on-main check. `--force` waives it, like every named guard; a foreign owner is still never waivable. Tests are updated to match.
+3. The contention warning still counts only `working`. This is intended (plan revision 3); the shaping-claim views are #284's.
+4. The relocation hint for a moved open, held card is recorded in #284's Log, since move semantics for open claims belong there.
+5. Imports regrouped.
 
 ## Revisions
 

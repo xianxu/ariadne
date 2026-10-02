@@ -6,8 +6,10 @@ the resting branch). A reopen reads this checkout's details Log for its entry.
 
 OWNERSHIP (#277, #283): the owner is the lock and status is lifecycle only.
 Entering `working` is the manual spelling of start-plan's `start`, and records
-this workspace as the card's claimant: from open (unowned, or already yours),
-or when reopening an unattributed issue or one of your own. It refuses when another workspace owns the card, even with
+this workspace as the card's claimant: from open only when this workspace
+already holds the claim (an unowned open issue is claimed first, which checks
+its details are on main), or when reopening an unattributed issue or one of
+your own. It refuses when another workspace owns the card, even with
 --force, because that would be a takeover (`sdlc reclaim`).
 
 {{LIFECYCLE}}

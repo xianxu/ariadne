@@ -39,9 +39,9 @@ func TestVerbContractTable(t *testing.T) {
 			return claimDecision(raw, 31, "2026-10-01", "2026-10-01T09:00:00-07:00", &me)
 		},
 		"adopt": func(raw []byte) ([]byte, error) { return adoptDecision(raw, "000031", me) },
-		// --force: the lifecycle guards are not what this table is about.
+		// Unforced: the `owned` guard on start (#283) is part of this table.
 		"set-status working": func(raw []byte) ([]byte, error) {
-			out, _, err := statusDecision(raw, "", "working", true, "2026-10-01", "2026-10-01T09:00:00-07:00", &me)
+			out, _, err := statusDecision(raw, "", "working", false, "2026-10-01", "2026-10-01T09:00:00-07:00", &me)
 			return out, err
 		},
 	}
@@ -50,7 +50,7 @@ func TestVerbContractTable(t *testing.T) {
 		raw       []byte
 		want      map[string]string
 	}{
-		{"open", card("open", nil), map[string]string{"claim": "stamp", "adopt": "plain `sdlc claim", "set-status working": "stamp"}},
+		{"open", card("open", nil), map[string]string{"claim": "stamp", "adopt": "plain `sdlc claim", "set-status working": "takes the lock first"}},
 		{"working, mine", card("working", &me), map[string]string{"claim": "mine", "adopt": "mine", "set-status working": "stamp"}},
 		{"working, foreign", card("working", &other), map[string]string{"claim": "claimed by Them", "adopt": "never reassigns", "set-status working": "`sdlc reclaim`"}},
 		{"working, unknown", card("working", nil), map[string]string{"claim": "--adopt", "adopt": "stamp", "set-status working": "--adopt"}},

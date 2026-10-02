@@ -15,8 +15,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
-	"github.com/xianxu/ariadne/pkg/vocab"
 	"io"
 	"os"
 	"path"
@@ -31,7 +29,9 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/layergraph"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // NewStartPlanCmd returns the cobra command for `sdlc start-plan`.

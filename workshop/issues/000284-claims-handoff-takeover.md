@@ -41,3 +41,8 @@ Part of project `claimant-ownership` (see its PRD; design rationale in #283's Lo
 ## Log
 
 ### 2026-10-02
+
+From #283's close review: `requireCardOwnership`'s "moved here, finish with `sdlc claim`" hint (`claimant.go:162`) assumes claim finishes relocations, but `claim.go` does so only for `move`'s statuses (active). An open, held card that `sdlc move` relocated (start-plan's card write lost, then move) gets a refusal instead. Decide here whether `move` applies to open claims; then align claim's repair and the hint.
+
+Also from #283: the model's `unclaim` lists every holdable status, `codecomplete` included, following round 2's handoff decision (which supersedes round 1's "not from codecomplete"). Confirm that when building the verb.
+

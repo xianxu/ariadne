@@ -220,6 +220,11 @@ func TestRunSetStatus_UpdatesCardAndHonorsDryRun(t *testing.T) {
 	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
 	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
 	var stdout, stderr bytes.Buffer
+	// #283: starting needs the lock; claim takes it (status stays open).
+	if err := runClaim(context.Background(), &stdout, &stderr, claimFlagsFor(9)); err != nil {
+		t.Fatal(err)
+	}
+	card = r.card(cardPath)
 	f := &setStatusFlags{Issue: 9, Status: "working", IssuesDir: "workshop/issues", DryRun: true}
 	if err := runSetStatus(context.Background(), &stdout, &stderr, f); err != nil {
 		t.Fatal(err)
@@ -256,12 +261,26 @@ func todayIso() string {
 // another workspace owns the card, even forced.
 func TestStatusDecisionRecordsOrRefusesTheClaimant(t *testing.T) {
 	me := issue.Claimant{Operator: "Me", Machine: issue.MachineFingerprint("m1"), MachineName: "box", Worktree: "/w/a", Repository: "r"}
-	out, _, err := statusDecision([]byte(openCard7), "", "working", false, "2026-10-01", "2026-10-01T09:00:00-07:00", &me)
+	// #283: `start` is guarded `owned` — an unowned open card is claimed first;
+	// --force waives the guard (and records the setter), a held one starts.
+	if _, _, err := statusDecision([]byte(openCard7), "", "working", false, "2026-10-01", "2026-10-01T09:00:00-07:00", &me); err == nil || !strings.Contains(err.Error(), "takes the lock first") {
+		t.Fatalf("unowned open → working = %v", err)
+	}
+	if forced, _, err := statusDecision([]byte(openCard7), "", "working", true, "2026-10-01", "2026-10-01T09:00:00-07:00", &me); err != nil {
+		t.Fatalf("--force must waive the owned guard: %v", err)
+	} else if got, ok, _ := issue.CardClaimant(forced); !ok || got != me {
+		t.Fatalf("forced start not stamped:\n%s", forced)
+	}
+	held, err := issue.SetCardClaimant([]byte(openCard7), me)
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, _, err := statusDecision(held, "", "working", false, "2026-10-01", "2026-10-01T09:00:00-07:00", &me)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if got, ok, _ := issue.CardClaimant(out); !ok || got != me {
-		t.Fatalf("open → working not stamped:\n%s", out)
+		t.Fatalf("held open → working lost the owner:\n%s", out)
 	}
 	blocked := bytes.Replace(out, []byte("status: working"), []byte("status: blocked"), 1)
 	if again, _, err := statusDecision(blocked, "", "working", false, "2026-10-01", "2026-10-01T09:00:00-07:00", &me); err != nil || !bytes.Contains(again, []byte("status: working")) {
