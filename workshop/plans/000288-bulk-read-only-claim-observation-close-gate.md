@@ -115,6 +115,101 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: false
+    - "n": 5
+      timestamp: "2026-10-02T14:29:20-07:00"
+      agent: claude
+      findings:
+        - id: BR-9
+          severity: Important
+          title: dangling_claims keyed by git checkout identity; separate clones of one repo report each other's live claims as dangling
+          detail: 'PlaceClaims keys placed/dangling by RepoIdentity (the git dir) while each repo read returns every tracker card; a claim placed on clone B''s row is also emitted as dangling under clone A. Fix: dangling only when the claimant worktree matches no row inventory-wide, or key the join by tracker repository; add a two-identity PlaceClaims case.'
+          family: tracker-entity-keyed-by-checkout
+          round: 5
+        - id: BR-10
+          severity: Important
+          title: repoClaimsFrom's partial/absent/unknown/duplicate branches are untested; Done-when promises partial is tested
+          detail: '2nd finding in this family. Rule: every pure function mapping an input state space to a quality value is table-tested over that state space, not only through its consumer. TestPlaceClaims feeds hand-built RepoClaims; add a repoClaimsFrom table test and assert claims_state partial naming 42 in TestOneMalformedCardDoesNotBlockOthers.'
+          family: per-site-branch-untested
+          round: 5
+        - id: BR-11
+          severity: Important
+          title: inventory now probes every repository's tracker remote one after another with no latency bound (ARCH-CONSTRAINTS)
+          detail: Previously only repos with issue-prefixed branches triggered repoRecords; now every repo with rows runs LoadRecords(PreferFresh) and Presence(), which checks the remote, including gcrypt brain remotes. Decide absent locally first, or declare a budget and bound each probe via ctx.
+          family: undeclared-io-fanout
+          round: 5
+        - id: BR-12
+          severity: Minor
+          title: observe.go:95 reads rec.Status() via Get; an unreadable card's empty status selects the non-done evidence path
+          detail: 4th instance in this family. The rule exists (Records.Require); make it structural, e.g. IssueRecord.Status reports unknown, or a lint forbidding Get(...).Status().
+          family: unreadable-card-read-as-absent
+          round: 5
+        - id: BR-13
+          severity: Minor
+          title: Inventory.MarshalJSON writes defaults into the caller's Rows backing array
+          family: marshal-mutates-input
+          round: 5
+        - id: BR-14
+          severity: Minor
+          title: fleet fingerprintPattern duplicates issue.fingerprintRE; export one validator from issue
+          family: duplicated-validator
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
+    - "n": 6
+      timestamp: "2026-10-02T14:38:08-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: PlaceClaims marks a claim dangling only when its worktree is no row anywhere and dedupes by trackerIssueKey; TestPlaceClaimsAcrossClones fails on the old per-identity key.
+          round: 6
+        - id: BR-10
+          disposition: addressed
+          note: 'TestRepoClaimsFrom table covers absent/unknown x2/present/stale/partial/stale+partial plus duplicate; malformedcard_test asserts partial naming #000042.'
+          round: 6
+        - id: BR-11
+          disposition: not-addressed
+          note: The CutOver early return in LookupRepoClaims (issues.go:147) has no regression test; removing it leaves the suite green. Add an untracked checkout with an unreachable origin and assert absent with no error. Tracked repos still fetch one after another with no declared budget; record that in the plan.
+          round: 6
+        - id: BR-12
+          disposition: addressed
+          note: Records.Get is now unexported (records.go:112), so outside callers must use Require; observe.go:97 uses Require and skips Status on cerr. All() callers each check CardErr.
+          round: 6
+        - id: BR-13
+          disposition: addressed
+          note: MarshalJSON copies rows (types.go:420); TestInventoryMarshalDoesNotMutate fails against the old in-place write.
+          round: 6
+        - id: BR-14
+          disposition: addressed
+          note: issue.ValidFingerprint is exported and used by fleet; the local fingerprintPattern is deleted.
+          round: 6
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
+    - "n": 7
+      timestamp: "2026-10-02T14:40:10-07:00"
+      agent: claude
+      dispose:
+        - id: BR-11
+          disposition: addressed
+          note: LookupRepoClaims checks the local CutOver signal (marker or fetched ref) before any remote probe, so untracked repos cost no network; TestFleetClaimsSkipUntrackedRemotes would read unknown without the check. Budget declared in the plan.
+          round: 7
+      findings:
+        - id: BR-15
+          severity: Minor
+          title: Plan budget says tracker fetches are bounded by Git's transport timeout, but Presence takes no ctx and git fetch has no default deadline
+          detail: 'This is the 2nd finding in family undeclared-io-fanout. The rule: a network call on a read-only view path either takes the caller''s ctx deadline or its budget says it is unbounded. Thread ctx into Repository.Presence/Initialized, or correct the plan''s wording.'
+          family: undeclared-io-fanout
+          round: 7
+        - id: BR-16
+          severity: Minor
+          title: renderMachineClaims and TestFleetInventoryPlacesClaims compare Machine.State against ClaimsPresent instead of MachinePresent
+          family: cross-enum-constant
+          round: 7
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#288 (boundary-review)
@@ -173,6 +268,46 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `unreadable-card-read-as-absent` guardIssueNotDone reads an unreadable card's status as not-done, contrary to its fail-closed contract
   3rd in family. Rule: every card-owned read on an IssueRecord (Card, Status(), card-owned Field) checks CardErr first. The prior sweep grepped .Card == nil and snap.Card, so it missed rs.Get(...).Status()/Field() reads. Of 10 rs.Get sites, 3 do not check CardErr: repoguard.go:104 (fails open, masked because start-plan and change-code call snap.Require next), pr.go:175 (safe, both callers run after transferguard), observe.go:95 (harmless, card already Unknown). Structural fix: add Records.Require(id) mirroring Snapshot.Require and route card-owned reads through it, starting with guardIssueNotDone.
 
+## Round 5 — 2026-10-02T14:29:20-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-9** [Important] `tracker-entity-keyed-by-checkout` dangling_claims keyed by git checkout identity; separate clones of one repo report each other's live claims as dangling
+  PlaceClaims keys placed/dangling by RepoIdentity (the git dir) while each repo read returns every tracker card; a claim placed on clone B's row is also emitted as dangling under clone A. Fix: dangling only when the claimant worktree matches no row inventory-wide, or key the join by tracker repository; add a two-identity PlaceClaims case.
+- **BR-10** [Important] `per-site-branch-untested` repoClaimsFrom's partial/absent/unknown/duplicate branches are untested; Done-when promises partial is tested
+  2nd finding in this family. Rule: every pure function mapping an input state space to a quality value is table-tested over that state space, not only through its consumer. TestPlaceClaims feeds hand-built RepoClaims; add a repoClaimsFrom table test and assert claims_state partial naming 42 in TestOneMalformedCardDoesNotBlockOthers.
+- **BR-11** [Important] `undeclared-io-fanout` inventory now probes every repository's tracker remote one after another with no latency bound (ARCH-CONSTRAINTS)
+  Previously only repos with issue-prefixed branches triggered repoRecords; now every repo with rows runs LoadRecords(PreferFresh) and Presence(), which checks the remote, including gcrypt brain remotes. Decide absent locally first, or declare a budget and bound each probe via ctx.
+- **BR-12** [Minor] `unreadable-card-read-as-absent` observe.go:95 reads rec.Status() via Get; an unreadable card's empty status selects the non-done evidence path
+  4th instance in this family. The rule exists (Records.Require); make it structural, e.g. IssueRecord.Status reports unknown, or a lint forbidding Get(...).Status().
+- **BR-13** [Minor] `marshal-mutates-input` Inventory.MarshalJSON writes defaults into the caller's Rows backing array
+- **BR-14** [Minor] `duplicated-validator` fleet fingerprintPattern duplicates issue.fingerprintRE; export one validator from issue
+
+## Round 6 — 2026-10-02T14:38:08-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-9 — addressed — PlaceClaims marks a claim dangling only when its worktree is no row anywhere and dedupes by trackerIssueKey; TestPlaceClaimsAcrossClones fails on the old per-identity key.
+- BR-10 — addressed — TestRepoClaimsFrom table covers absent/unknown x2/present/stale/partial/stale+partial plus duplicate; malformedcard_test asserts partial naming #000042.
+- BR-11 — not-addressed — The CutOver early return in LookupRepoClaims (issues.go:147) has no regression test; removing it leaves the suite green. Add an untracked checkout with an unreachable origin and assert absent with no error. Tracked repos still fetch one after another with no declared budget; record that in the plan.
+- BR-12 — addressed — Records.Get is now unexported (records.go:112), so outside callers must use Require; observe.go:97 uses Require and skips Status on cerr. All() callers each check CardErr.
+- BR-13 — addressed — MarshalJSON copies rows (types.go:420); TestInventoryMarshalDoesNotMutate fails against the old in-place write.
+- BR-14 — addressed — issue.ValidFingerprint is exported and used by fleet; the local fingerprintPattern is deleted.
+
+## Round 7 — 2026-10-02T14:40:10-07:00 (claude) — passed
+
+### Disposed
+
+- BR-11 — addressed — LookupRepoClaims checks the local CutOver signal (marker or fetched ref) before any remote probe, so untracked repos cost no network; TestFleetClaimsSkipUntrackedRemotes would read unknown without the check. Budget declared in the plan.
+
+### Raised
+
+- **BR-15** [Minor] `undeclared-io-fanout` Plan budget says tracker fetches are bounded by Git's transport timeout, but Presence takes no ctx and git fetch has no default deadline
+  This is the 2nd finding in family undeclared-io-fanout. The rule: a network call on a read-only view path either takes the caller's ctx deadline or its budget says it is unbounded. Thread ctx into Repository.Presence/Initialized, or correct the plan's wording.
+- **BR-16** [Minor] `cross-enum-constant` renderMachineClaims and TestFleetInventoryPlacesClaims compare Machine.State against ClaimsPresent instead of MachinePresent
+
 ## Open findings
 
 - **BR-8** [Minor] `unreadable-card-read-as-absent` guardIssueNotDone reads an unreadable card's status as not-done, contrary to its fail-closed contract
+- **BR-15** [Minor] `undeclared-io-fanout` Plan budget says tracker fetches are bounded by Git's transport timeout, but Presence takes no ctx and git fetch has no default deadline
+- **BR-16** [Minor] `cross-enum-constant` renderMachineClaims and TestFleetInventoryPlacesClaims compare Machine.State against ClaimsPresent instead of MachinePresent
