@@ -1,12 +1,20 @@
 ---
 id: 000279
-status: open
+status: working
 deps: [ariadne#277]
 github_issue:
 created: 2026-10-01
 updated: 2026-10-01
 estimate_hours:
-card_mirror: '847bcd74596c491522b5ad71cb73fd6298086f92' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '61002c0ce009892b53729176aef6fe04456996a6' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-01T23:06:24-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Expose authoritative workflow observations for agents
@@ -39,3 +47,13 @@ Implementation plan to be designed after issue claim and start-plan; these are r
 ### 2026-10-01
 
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
+
+### 2026-10-01 (implementation session)
+
+- Operator authorized the work ("work on #279"). Claimed in ariadne:1 (the
+  claim records the claimant) and ran start-plan. Branch
+  `000279-workflow-observables` sits at main, which includes #277, #278 and
+  #275. Mapping the existing read-only inspection commands (`state`,
+  `issue show/list`, `fleet`, `workspace`, `reclaim` inspect) before
+  designing, so this extends them rather than adding a second state store.
+
