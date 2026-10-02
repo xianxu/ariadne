@@ -301,7 +301,7 @@ func assertWiring(t *testing.T, edges []wiring) {
 // TestGuardScopeCoversEveryPackage keeps the list honest by failing when a
 // package outside it references a plan-counting regex — a population defined by
 // a list is exactly what these guards exist to distrust.
-var guardScanDirs = []string{".", "internal/issue"}
+var guardScanDirs = []string{".", "internal/issue", "internal/observe"}
 
 // planItemMatchers are the regexes that COUNT plan items. Any function using one
 // is by definition a plan-item reader and must take its body from
@@ -318,7 +318,7 @@ var guardScanDirs = []string{".", "internal/issue"}
 // caller set — the hand-kept planItemBodySources list it replaces missed
 // change-code's flow inference the day that caller was added (#231 BR-4).
 var planItemMatchers = []string{
-	"PlanUncheckedRE", "PlanItemRE", "nonEmptyPlanItemRE", "milestonePlanRE", "MilestonesInPlanOrder",
+	"PlanUncheckedRE", "PlanItemRE", "nonEmptyPlanItemRE", "milestonePlanRE", "MilestonesInPlanOrder", "TickedMilestones",
 }
 
 // planItemReaderExemptions holds a function that uses one of the counting
@@ -333,6 +333,9 @@ var planItemReaderExemptions = map[string]string{
 	"internal/issue/plan.go:MilestonesInPlanOrder": "a PURE helper that RECEIVES an already-filtered plan body. " +
 		"Exempt here; its callers are derived readers instead, because MilestonesInPlanOrder is itself " +
 		"in planItemMatchers (#231 BR-4) — so each must obtain its body from PlanItemsBody",
+	"internal/issue/plan.go:TickedMilestones": "a PURE helper that RECEIVES an already-filtered plan body, " +
+		"as MilestonesInPlanOrder does (#279); it is in planItemMatchers, so its callers are derived " +
+		"readers and must obtain that body from PlanItemsBody",
 }
 
 // planItemWriters are the call sites that REWRITE plan rows. The reader guard

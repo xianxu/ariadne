@@ -193,3 +193,11 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
       missing, other machine);
     - a subprocess bound of at most 20 git commands per query.
 - M2 docs: `issue show` help gains OBSERVATIONS (sections, read quality, authority, freshness, reach). Atlas: the Observations section extended plus a verb row. README sentence. Plan Revisions record the open_blocking correction.
+- The full suite found `TestGuardScopeCoversEveryPackage`, a real guard:
+  `internal/observe` reads milestones but sat outside the plan-item guard's
+  scan.
+  - Fixed the class: added `internal/observe` to `guardScanDirs`.
+  - Replaced my private ticked-milestone regex with `issue.TickedMilestones`,
+    which shares `milestonePlanRE` (the regex now captures the box). It is
+    added to `planItemMatchers` and exempted like `MilestonesInPlanOrder`.
+  - `assembleCheckpoints` filters the plan once through `PlanItemsBody`.

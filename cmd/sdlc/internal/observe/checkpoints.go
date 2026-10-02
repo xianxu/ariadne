@@ -77,19 +77,13 @@ func assembleWorkspaces(in Inputs, a Assignment) Workspaces {
 	return w
 }
 
-var tickedMilestoneRE = regexp.MustCompile(`(?m)^- \[x\] \*{0,2}(M\d+[a-z]?)\b`)
-
 // expectedBoundaries are the review boundaries the issue's own record says
 // happened: ticked milestones in the plan, and a whole-issue close once the
 // card is codecomplete or done. Their evidence missing is unknown, not absent.
-func expectedBoundaries(details []byte, status string) map[string]bool {
+func expectedBoundaries(ticked map[string]bool, status string) map[string]bool {
 	want := map[string]bool{}
-	if _, body, err := issue.Parse(string(details)); err == nil {
-		if plan, ok := issue.SectionBody(body, "Plan"); ok {
-			for _, m := range tickedMilestoneRE.FindAllStringSubmatch(plan, -1) {
-				want[m[1]] = true
-			}
-		}
+	for tag := range ticked {
+		want[tag] = true
 	}
 	if status == "codecomplete" || status == "done" {
 		want["close"] = true
@@ -123,19 +117,23 @@ func assembleCheckpoints(in Inputs, c Card) Checkpoints {
 		return cp
 	}
 	cp.Read = Read{State: Present, Source: ev.Source}
+	plan := "" // fence-filtered, as every milestone reader requires
 	if ev.Details != nil {
 		if fm, body, err := issue.Parse(string(ev.Details)); err == nil {
 			if f, recorded, ferr := flow.FromFrontmatter(fm); ferr == nil && recorded {
 				cp.Flow = &Flow{Kind: string(f.Kind()), Provenance: string(f.Provenance())}
 			}
 			cp.Plan.Total, cp.Plan.Ticked = issue.CountPlanItems(body)
+			if items, ok := issue.PlanItemsBody(body); ok {
+				plan = items
+			}
 		}
 	}
 	if ev.PlanGate != nil {
 		cp.Reviews = append(cp.Reviews, review("plan", *ev.PlanGate, false, ev.Source))
 	}
-	expected := expectedBoundaries(ev.Details, c.Status)
-	order := issue.MilestonesInPlanOrder(planOf(ev.Details))
+	expected := expectedBoundaries(issue.TickedMilestones(plan), c.Status)
+	order := issue.MilestonesInPlanOrder(plan)
 	order = append(order, "close")
 	for _, boundary := range order {
 		art, has := ev.Artifacts[boundary]
@@ -145,15 +143,6 @@ func assembleCheckpoints(in Inputs, c Card) Checkpoints {
 		cp.Reviews = append(cp.Reviews, review(boundary, art, expected[boundary], ev.Source))
 	}
 	return cp
-}
-
-func planOf(details []byte) string {
-	if _, body, err := issue.Parse(string(details)); err == nil {
-		if plan, ok := issue.SectionBody(body, "Plan"); ok {
-			return plan
-		}
-	}
-	return ""
 }
 
 // review reads one boundary's evidence. A boundary the record says happened,

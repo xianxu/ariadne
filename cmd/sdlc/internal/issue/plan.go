@@ -93,7 +93,7 @@ func TickMilestone(body, milestone string) (string, int) {
 // by any separator (em dash, colon, space) — accepting every form existing issue
 // files use is the point: #231 retired a colon-only sibling in sizing.go that
 // reported zero milestones for the dominant em-dash form.
-var milestonePlanRE = regexp.MustCompile(`(?m)^- \[[ x.]\] \*{0,2}(M\d+[a-z]?)\b`)
+var milestonePlanRE = regexp.MustCompile(`(?m)^- \[([ x.])\] \*{0,2}(M\d+[a-z]?)\b`)
 
 // MilestonesInPlanOrder enumerates the milestone tags in a Plan body, in plan
 // order, de-duplicated (a milestone may appear twice if the plan was revised).
@@ -113,10 +113,30 @@ func MilestonesInPlanOrder(planBody string) []string {
 	var ordered []string
 	seen := map[string]bool{}
 	for _, mm := range milestonePlanRE.FindAllStringSubmatch(planBody, -1) {
-		if tag := mm[1]; !seen[tag] {
+		if tag := mm[2]; !seen[tag] {
 			seen[tag] = true
 			ordered = append(ordered, tag)
 		}
 	}
 	return ordered
+}
+
+// TickedMilestones is the set of milestones whose every Plan row is ticked —
+// closed, as milestone-close's TickMilestone leaves them (#279). Same
+// enumeration and the same fence-filtered input as MilestonesInPlanOrder.
+func TickedMilestones(planBody string) map[string]bool {
+	ticked := map[string]bool{}
+	for _, mm := range milestonePlanRE.FindAllStringSubmatch(planBody, -1) {
+		done := mm[1] == "x"
+		if prev, seen := ticked[mm[2]]; seen {
+			done = done && prev
+		}
+		ticked[mm[2]] = done
+	}
+	for tag, done := range ticked {
+		if !done {
+			delete(ticked, tag)
+		}
+	}
+	return ticked
 }
