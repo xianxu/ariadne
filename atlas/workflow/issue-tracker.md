@@ -164,7 +164,9 @@ path. Its readers report it as unknown, never absent:
   `ErrNoCard` or `ErrUnreadableCard` naming the path and the cause, so claim,
   setters, start-plan, change-code, close, reclaim, move and move-detail refuse
   with the cause. `Snapshot.Card` stays readable-only for compare-and-swap.
-- `IssueRecord.CardErr` carries it into the composed records: `issue show`
+- `IssueRecord.CardErr` carries it into the composed records, and
+  `Records.Require(id)` is the point lookup for a reader that decides on card
+  fields (the not-done guard, PR links, close, actual, archive): `issue show`
   reports the card `unknown`, `issue list`/`state` report `unreadable` with a
   drift warning, and `close`, `actual`, project status and fleet lookups name
   the error.

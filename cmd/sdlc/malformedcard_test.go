@@ -95,6 +95,9 @@ func TestOneMalformedCardDoesNotBlockOthers(t *testing.T) {
 	if _, _, _, warning := actualTrackerInputs(ctx, ".", "42"); !strings.Contains(warning, "card unreadable") {
 		t.Errorf("actual: want a warning naming the unreadable card, got %q", warning)
 	}
+	if msg, died := expectDie(t, func() { guardIssueNotDone(ctx, io.Discard, badDetailPath, "42") }); !died || !strings.Contains(msg, "cannot confirm") {
+		t.Errorf("the not-done guard must fail closed on an unreadable card: died=%v %q", died, msg)
+	}
 	msg, died := expectDie(t, func() {
 		computeClose(io.Discard, &closeFlags{Context: ctx, Issue: 42, Milestone: "M1", Actual: "1", Verified: "x", IssuesDir: "workshop/issues", PlansDir: "workshop/plans"})
 	})

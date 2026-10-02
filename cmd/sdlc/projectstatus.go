@@ -282,9 +282,9 @@ func lookupIssueMeta(ctx context.Context, refText, currentRepoRoot string) (issu
 		return issueMeta{}, fmt.Errorf("resolve %s: %w", refText, err)
 	}
 	id := fmt.Sprintf("%06d", ref.ID)
-	rec, found := rs.Get(id)
-	if found && rec.CardErr != nil {
-		return issueMeta{}, fmt.Errorf("%s: %w", refText, rec.CardErr)
+	rec, found, err := rs.Require(id)
+	if err != nil {
+		return issueMeta{}, fmt.Errorf("%s: %w", refText, err)
 	}
 	detailsFM := ""
 	switch {

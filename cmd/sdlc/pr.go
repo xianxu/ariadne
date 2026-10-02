@@ -172,7 +172,10 @@ func collectGitHubIssueNumbers(ctx context.Context, paths []string) ([]string, e
 			}
 			records[dir] = rs
 		}
-		rec, ok := rs.Get(id)
+		rec, ok, err := rs.Require(id)
+		if err != nil {
+			return nil, fmt.Errorf("read the GitHub link of #%s: %w", id, err)
+		}
 		if !ok || rec.DetailPath == "" {
 			continue // the shell target skips missing files: a touched path must exist
 		}

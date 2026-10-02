@@ -114,6 +114,17 @@ func (rs Records) Get(id string) (IssueRecord, bool) {
 	return rs.list[i], true
 }
 
+// Require is Get for a reader that decides on card-owned fields: ok is false
+// when no record exists, and err is the parse error when the tracker holds the
+// card but cannot read it (#288) — an unknown status is never answered.
+func (rs Records) Require(id string) (rec IssueRecord, ok bool, err error) {
+	rec, ok = rs.Get(id)
+	if ok && rec.CardErr != nil {
+		return rec, true, rec.CardErr
+	}
+	return rec, ok, nil
+}
+
 // LoadRecords joins the tracker cards (via repo; nil means no publication
 // remote is configured) with the details under detailsDir.
 func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode FetchMode) (Records, error) {

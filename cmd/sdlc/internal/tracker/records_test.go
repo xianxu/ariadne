@@ -163,4 +163,10 @@ func TestComposeRecordsCarriesUnreadableCards(t *testing.T) {
 	if s, ok := rec.Field("status"); ok || s != "" {
 		t.Fatalf("status of an unreadable card read %q from the mirror", s)
 	}
+	if _, ok, err := rs.Require("000007"); !ok || !errors.Is(err, cause) {
+		t.Fatalf("Require(unreadable): ok=%v err=%v", ok, err)
+	}
+	if _, ok, err := rs.Require("000008"); ok || err != nil {
+		t.Fatalf("Require(missing): ok=%v err=%v", ok, err)
+	}
 }

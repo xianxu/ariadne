@@ -101,7 +101,11 @@ func guardIssueNotDone(ctx context.Context, stderr io.Writer, issuePath, issueSt
 	if err != nil {
 		die(stderr, fmt.Sprintf("cannot confirm #%s is not done: %v", issueStr, err))
 	}
-	if rec, ok := rs.Get(id); ok && rec.Status() == "done" {
+	rec, ok, err := rs.Require(id)
+	if err != nil {
+		die(stderr, fmt.Sprintf("cannot confirm #%s is not done: %v", issueStr, err))
+	}
+	if ok && rec.Status() == "done" {
 		die(stderr, issueDoneMsg(issueStr))
 	}
 }
