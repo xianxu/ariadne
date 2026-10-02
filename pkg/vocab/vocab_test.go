@@ -227,3 +227,37 @@ func repoRoot() (string, error) {
 		dir = parent
 	}
 }
+
+// TestOwnershipAxis pins #283's second axis: the claimant is the lock, status is
+// lifecycle only. Ownership events are not lifecycle events, terminal statuses
+// hold no lock, and open → working is the owner's `start`.
+func TestOwnershipAxis(t *testing.T) {
+	m := Issue()
+	if got := m.Ownership().Lock; got != "claimant" {
+		t.Fatalf("lock = %q, want claimant", got)
+	}
+	for _, s := range m.AllStatuses() {
+		if want := !m.IsTerminal(s); m.CanHoldOwner(s) != want {
+			t.Errorf("CanHoldOwner(%s) = %v, want %v", s, !want, want)
+		}
+	}
+	for _, ev := range []string{"claim", "unclaim", "reclaim", "move"} {
+		e := m.OwnershipEvent(ev)
+		if e == nil {
+			t.Errorf("ownership event %q missing", ev)
+			continue
+		}
+		if len(e.Statuses) == 0 || e.When == "" {
+			t.Errorf("ownership event %q must name its statuses and gloss", ev)
+		}
+		if m.FirstTransitionForEvent(ev) != nil {
+			t.Errorf("%q is an ownership event; it must not be a lifecycle event", ev)
+		}
+	}
+	if tr := m.TransitionFor("open", "working"); tr == nil || tr.Event != "start" {
+		t.Fatalf("open→working must be event start, got %+v", tr)
+	}
+	if m.TransitionForEvent("open", "start") == nil || m.TransitionForEvent("working", "start") != nil {
+		t.Fatal("start must leave open only")
+	}
+}

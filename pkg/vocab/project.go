@@ -94,12 +94,7 @@ func (m *ProjectModel) LegalTransitions(from string) []string {
 // has none — the guard runner's lookup surface: the returned edge's Guards
 // name the registry entries `sdlc project set-status`/`close` must run.
 func (m *ProjectModel) TransitionFor(from, to string) *Transition {
-	for i := range m.Lifecycle {
-		if m.Lifecycle[i].From == from && m.Lifecycle[i].To == to {
-			return &m.Lifecycle[i]
-		}
-	}
-	return nil
+	return transitionFor(m.Lifecycle, from, to)
 }
 
 func (m *ProjectModel) TransitionForEvent(from, event string) *Transition {

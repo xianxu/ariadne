@@ -163,7 +163,9 @@ scaffold: sections: [...#ScaffoldSection] & [
 }
 
 lifecycle: [...#Transition] & [
-	{from: "open", to: "working", event: "claim"},      // start work
+	// #283: the owner starts the lifecycle (`sdlc start-plan`). Claiming is an
+	// ownership event, below, and never moves status.
+	{from: "open", to: "working", event: "start", guards: ["owned"]},
 	{from: "working", to: "blocked", event: "block"},   // hit a dependency
 	{from: "blocked", to: "working", event: "unblock"}, // dependency cleared
 	// #160: `sdlc close` (the local acceptance gate) flips to `codecomplete`, NOT
@@ -194,6 +196,30 @@ lifecycle: [...#Transition] & [
 	{from: "codecomplete", to: "punt", event: "defer"},
 ]
 
+// ── ownership: the lock axis (#283), orthogonal to lifecycle. The card's
+// claimant (a slot: repository + machine + worktree) is the owner AND the lock;
+// status is lifecycle only. Ownership events change the owner, never the status.
+// Terminal statuses keep the last owner as attribution, never as a lock.
+// Scope: issue tracker repositories. A legacy repository has no claimant, so its
+// `claim` performs `start` in one step (open → working). ──
+#OwnershipEvent: {
+	event:    string
+	owner:    "none→me" | "me→none" | "other→me" | "me→me"
+	statuses: [...#Status] & [_, ...]
+	when:     string & !=""
+}
+
+ownership: {
+	lock:     "claimant"
+	holdable: list.Concat([categories.open, categories.active])
+	events: [...#OwnershipEvent] & [
+		{event: "claim", owner: "none→me", statuses: holdable, when: "take the lock: to shape an open issue, or to take over unowned started work"},
+		{event: "unclaim", owner: "me→none", statuses: holdable, when: "release the lock; started work stays started and is open for takeover"},
+		{event: "reclaim", owner: "other→me", statuses: holdable, when: "operator-directed transfer from another slot, with a reason"},
+		{event: "move", owner: "me→me", statuses: categories.active, when: "relocate the owner's own work between worktrees on one machine"},
+	]
+}
+
 // ── laws: named assertions the graph shape doesn't already guarantee.
 // Each evaluates to a concrete value when satisfied, or ⊥ (a vet failure) when not. ──
 _froms: [for t in lifecycle {t.from}]
@@ -210,6 +236,18 @@ laws: {
 	"reachable": {
 		for s in list.Concat([categories.active, categories.terminal]) {
 			(s): list.Contains(_tos, s) & true
+		}
+	}
+	// #283: ownership events are not lifecycle events — claim never moves status
+	"ownership-disjoint": {
+		for e in ownership.events {
+			(e.event): list.Contains([for t in lifecycle {t.event}], e.event) & false
+		}
+	}
+	// #283: a terminal issue holds no lock
+	"holdable-nonterminal": {
+		for s in ownership.holdable {
+			(s): list.Contains(categories.terminal, s) & false
 		}
 	}
 	// every non-terminal status is escapable (appears as some transition's `from`)
