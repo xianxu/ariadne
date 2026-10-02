@@ -1,12 +1,12 @@
 ---
 id: 000290
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours:
-card_mirror: '7cd6cd49f714ba758e451bdf8eef3e8b4666fa48' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e6963133bab60ae55c81818be04a09fa53f22ba3' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-02T15:58:13-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.36
 ---
 
 # Fleet inventory tracker reads are slow
