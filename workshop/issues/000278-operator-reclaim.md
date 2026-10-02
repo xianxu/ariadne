@@ -43,13 +43,13 @@ Do not infer abandonment from a timeout, shutdown, parking or unreachable machin
 
 Durable plan: `workshop/plans/000278-operator-reclaim-plan.md` (single pass).
 
-- [ ] Pure `reclaimDecision` and the trailers; `UpdateCard` message trailers.
-- [ ] `sdlc reclaim`: inspect (read-only), then confirm with `--expect` and
+- [x] Pure `reclaimDecision` and the trailers; `UpdateCard` message trailers.
+- [x] `sdlc reclaim`: inspect (read-only), then confirm with `--expect` and
       `--reason` (CAS; a retry decides from the card).
-- [ ] Real-git tests: transfer and wrong-owner refusal, dirty work preserved,
+- [x] Real-git tests: transfer and wrong-owner refusal, dirty work preserved,
       stale expect, identical retry and lost response, concurrent reclaim,
       history; a no-automation guard.
-- [ ] Docs: reclaim help, #277 refusal pointers, atlas.
+- [x] Docs: reclaim help, #277 refusal pointers, atlas.
 
 ## Log
 

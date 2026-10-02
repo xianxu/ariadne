@@ -72,12 +72,12 @@
 
 ## Steps (single pass; one close)
 
-- [ ] **Pure decision and trailers (TDD).** `reclaim_test.go` holds two tables:
+- [x] **Pure decision and trailers (TDD).** `reclaim_test.go` holds two tables:
   - `reclaimDecision` over {open, working, blocked, codecomplete, done} × {mine, foreign, unattributed} × {expect matches, stale} × {reason ok, empty, multi-line};
   - a trailer round trip, including a reason containing `:` and unicode.
-- [ ] **Tracker message trailers.** Extend `UpdateCard`. A test asserts that the commit message carries the trailers and that existing callers' messages are byte-identical.
-- [ ] **Command.** Add `runReclaim` with inspect and confirm, `helptext/reclaim.md`, and registration on the root command.
-- [ ] **Real-git tests** (`reclaim_test.go`, on the #277 harness):
+- [x] **Tracker message trailers.** Extend `UpdateCard`. A test asserts that the commit message carries the trailers and that existing callers' messages are byte-identical.
+- [x] **Command.** Add `runReclaim` with inspect and confirm, `helptext/reclaim.md`, and registration on the root command.
+- [x] **Real-git tests** (`reclaim_test.go`, on the #277 harness):
   1. Inspect writes nothing (the tracker tip is unchanged) and prints the current owner, the proposed owner, the rev and a confirm command that works when run.
   2. Confirm transfers. The old workspace's start-plan / change-code / close then refuse as Foreign, and the new one passes: wrong-owner resume refusal.
   3. Dirty files in both worktrees are byte-identical before and after.
@@ -85,8 +85,8 @@
   5. An identical rerun after success is a no-op with no new tracker commit. A simulated lost response is handled the same way: the CAS publishes, the error is injected, and the rerun reconciles.
   6. Two clones each inspect the same rev and confirm concurrently (`raceBuiltBinary`): exactly one wins and the loser refuses.
   7. History: after two reclaims, inspect lists both transfers with their reasons, read from the trailers.
-- [ ] **No-automation guard.** An AST test asserts that the reclaim effect is reachable only from `NewReclaimCmd`, modeled on `context_guard_test.go`'s walk. It also asserts that `move.go` does not reference reclaim.
-- [ ] **Docs.**
+- [x] **No-automation guard.** An AST test asserts that the reclaim effect is reachable only from `NewReclaimCmd`, modeled on `context_guard_test.go`'s walk. It also asserts that `move.go` does not reference reclaim.
+- [x] **Docs.**
   - `reclaim.md` help covers out-of-band coordination, the two steps, the guarantees (stale/concurrent/retry), what reclaim does not do, and the instruction that an agent runs it only on the operator's direction.
   - Point the #277 refusals ("reassignment is operator-directed reclaim (#278)") to `sdlc reclaim`.
   - Add an atlas `issue-tracker.md` Reclaim subsection and a verb-table row. Add `atlas/index.md` if needed.
