@@ -1,12 +1,20 @@
 ---
 id: 000288
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours:
-card_mirror: '81756b25c0115783217f1318ec388759dcb48e8f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '79ff06cc9a7f98e9c6d6dfba3f40e22bb546cacb' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-02T12:14:27-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Bulk read-only claim observation
@@ -50,7 +58,14 @@ as read-only.
 
 ## Plan
 
-Implementation plan to be designed after issue claim and start-plan.
+Durable plan: `workshop/plans/000288-bulk-read-only-claim-observation-plan.md`.
+New read-only verb `sdlc issue claims [--json] [--repo]`, pure assembly in
+`internal/observe/claims.go` reusing the per-issue observation's judgments.
+
+- [ ] Pure `observe.AssembleClaims` + strict claims contract (relations, unreadable owner, unknown machine, stale/unknown tracker)
+- [ ] Extract `localMachine`, `trackerReadInputs`, `localWorktrees` (shared with `claim` / `issue show`)
+- [ ] `collectClaims` + `sdlc issue claims` with fixture tests (this/other machine, unattributed, terminal excluded, bounded git reads, stale, unknown identity)
+- [ ] Recovery catalog entry (read-only, proofs) + atlas
 
 ## Log
 
@@ -58,3 +73,8 @@ Implementation plan to be designed after issue claim and start-plan.
 
 Filed from pair#367 at the operator's direction (the survey found no bulk
 claim query). pair#367 depends on this issue.
+
+Claimed and planned. Finding: a malformed claimant fails the whole tracker
+snapshot parse (`validateCardScalar` → `parseClaimant`), so an unreadable owner
+surfaces as `tracker: unknown` with `issues: []`, never as "no claims"; the
+per-entry `unknown` path is kept and pure-tested.
