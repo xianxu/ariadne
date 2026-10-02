@@ -68,6 +68,11 @@ rounds:
           disposition: addressed
           round: 2
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-02T10:56:35-07:00"
+      agent: claude
+      blocked: false
+      protocol_error: no valid findings block
 content_hash: 41049e4672326894c8efe8536ddd6b42d3df882650287fa11692a637952100ff
 ---
 
@@ -101,6 +106,10 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-4 — addressed
 - PQ-5 — addressed
 - PQ-6 — addressed
+
+## Round 3 — 2026-10-02T10:56:35-07:00 (claude) — passed
+
+**Protocol error:** no valid findings block — this round contributed no findings.
 
 ## Open findings
 
