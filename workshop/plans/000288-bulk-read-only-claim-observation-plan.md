@@ -78,6 +78,15 @@ the same derivation `claim` records.
 - **ARCH-CONSTRAINTS:** one tracker read per repository (the existing
   `repoRecords` cache), no per-issue or per-worktree probes for claims; machine
   identity computed once per inventory. Tested with a counting loader.
+  **Network budget (M2 revision, BR-11):** only tracked repositories (cutover
+  marker or fetched tracker) are contacted — one tracker fetch each, run in
+  sequence, each bounded by Git's own transport timeout; an untracked checkout
+  costs no network (`TestFleetClaimsSkipUntrackedRemotes`). For a tracked
+  repository this is the same fetch its branch-prefix lookup already made
+  whenever a worktree held an issue branch, so the worst case is one fetch per
+  tracked repository in the fleet (today: ariadne, pair). A stale or failed
+  fetch degrades that repository's rows to stale/unknown; the others are
+  unaffected. Parallelizing the fetches is the lever if a large fleet needs it.
 
 ## Core concepts
 

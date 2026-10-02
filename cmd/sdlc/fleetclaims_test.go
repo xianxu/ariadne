@@ -134,3 +134,16 @@ func TestFleetInventoryStaleClaimsSaySo(t *testing.T) {
 		t.Fatalf("stale slot row: %+v", s)
 	}
 }
+
+// #288 BR-11: a checkout that does not use the tracker (no cutover marker, no
+// fetched tracker) is absent without contacting its remote — here one that
+// does not exist, which a probe would report as unknown.
+func TestFleetClaimsSkipUntrackedRemotes(t *testing.T) {
+	root := testfix.Repo(t, testfix.InitialCommit())
+	testfix.Git(t, root, "remote", "add", "origin", filepath.Join(t.TempDir(), "never-created.git"))
+	testfix.Git(t, root, "config", "branch.main.remote", "origin") // a real clone's publication target
+	testfix.Git(t, root, "config", "branch.main.merge", "refs/heads/main")
+	if got := fleet.LookupRepoClaims(context.Background(), root); got.State != fleet.ClaimsAbsent || got.Error != "" {
+		t.Fatalf("untracked checkout: %+v, want absent with no remote probe", got)
+	}
+}
