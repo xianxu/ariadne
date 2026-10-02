@@ -57,8 +57,8 @@ func TestVerbContractTable(t *testing.T) {
 		{"blocked, unknown (reopen)", card("blocked", nil), map[string]string{"claim": "--adopt", "adopt": "stamp", "set-status working": "stamp"}},
 		{"blocked, foreign (reopen)", card("blocked", &other), map[string]string{"claim": "claimed by Them", "adopt": "never reassigns", "set-status working": "`sdlc reclaim`"}},
 		// #283: a shaping claim — open with an owner — is a held lock.
-		{"open, mine", card("open", &me), map[string]string{"claim": "mine", "adopt": "plain `sdlc claim", "set-status working": "stamp"}},
-		{"open, foreign", card("open", &other), map[string]string{"claim": "claimed by Them", "adopt": "plain `sdlc claim", "set-status working": "`sdlc reclaim`"}},
+		{"open, mine", card("open", &me), map[string]string{"claim": "mine", "adopt": "mine", "set-status working": "stamp"}},
+		{"open, foreign", card("open", &other), map[string]string{"claim": "claimed by Them", "adopt": "never reassigns", "set-status working": "`sdlc reclaim`"}},
 		{"codecomplete, unknown", card("codecomplete", nil), map[string]string{"claim": "--adopt", "adopt": "stamp", "set-status working": "stamp"}},
 	} {
 		for verb, decide := range verbs {

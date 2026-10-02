@@ -66,8 +66,9 @@ func TestClaimReservesCardAndLeavesRestUntouched(t *testing.T) {
 		t.Fatalf("%v\n%s", err, errs.String())
 	}
 	now := r.card(cardPath)
-	if !strings.Contains(now, "status: working") || !strings.Contains(now, "started:") {
-		t.Fatalf("card not reserved:\n%s", now)
+	// #283: claim takes the lock (owner + engagement stamp); status stays open.
+	if !strings.Contains(now, "status: open") || !strings.Contains(now, "started:") || !strings.Contains(now, "claimant:") {
+		t.Fatalf("card not claimed:\n%s", now)
 	}
 	if r.originMain() != mainBefore || r.git("rev-parse", "HEAD") != headBefore {
 		t.Fatal("claim moved main or committed locally")
@@ -104,7 +105,7 @@ func TestClaimRefreshesMirrorOnAFeatureBranch(t *testing.T) {
 		t.Fatalf("%v\n%s", err, errs.String())
 	}
 	local, _ := os.ReadFile(filepath.Join(r.root, detailPath))
-	if !strings.Contains(string(local), "status: working") || string(local) == detail {
+	if !strings.Contains(string(local), "claimant:") || string(local) == detail { // #283: claim mirrors the owner
 		t.Fatalf("local mirror not refreshed:\n%s", local)
 	}
 	// #277: people reading the details see who owns the issue — a plain clone,
@@ -159,7 +160,7 @@ func TestClaimRaceHasExactlyOneWinner(t *testing.T) {
 		t.Fatalf("claim winners=%d; want exactly one", wins)
 	}
 	got := r.card(cardPath)
-	if !strings.Contains(got, "status: working") {
+	if !strings.Contains(got, "status: open") { // #283: the winner holds the lock; status unchanged
 		t.Fatalf("card = %s", got)
 	}
 	// #277: the winner's complete ownership landed in the same card write; the

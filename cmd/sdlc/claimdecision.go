@@ -105,18 +105,20 @@ func adoptDecision(raw []byte, id string, me issue.Claimant) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if status, _ := issue.GetField(fm, "status"); !vocab.Issue().IsActive(status) {
-		return nil, fmt.Errorf("#%s is %s; --adopt records the owner of started work claimed before #277 — an open issue is claimed with plain `sdlc claim --issue %s`", id, status, issue.CLIRef(id))
-	}
+	status, _ := issue.GetField(fm, "status")
 	recorded, has, err := issue.CardClaimant(raw)
 	if err != nil {
 		return nil, fmt.Errorf("card #%s: %w", id, err)
 	}
-	if has {
+	// The owner's repeat of any lock verb is a no-op wherever it holds the lock.
+	if has && vocab.Issue().CanHoldOwner(status) {
 		if issue.MatchClaimant(&recorded, me) == issue.OwnershipMine {
 			return nil, errAlreadyMine
 		}
 		return nil, fmt.Errorf("#%s is owned by %s; --adopt never reassigns — that is the operator-directed `sdlc reclaim --issue %s`", id, describeClaimant(recorded), issue.CLIRef(id))
+	}
+	if !vocab.Issue().IsActive(status) {
+		return nil, fmt.Errorf("#%s is %s; --adopt records the owner of started work claimed before #277 — an open issue is claimed with plain `sdlc claim --issue %s`", id, status, issue.CLIRef(id))
 	}
 	return issue.SetCardClaimant(raw, me)
 }
