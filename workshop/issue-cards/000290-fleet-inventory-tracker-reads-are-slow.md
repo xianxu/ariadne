@@ -1,6 +1,6 @@
 ---
 id: 000290
-status: codecomplete
+status: done
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c51b944bae0643fd85a6c84b20d6aea0c04a7a23
         evidence_commit: 8883698fa335a6528675fcf8cd8b4910f03d492b
+        landed_commit: aa1a81ea976dbea8fa5c8d2339407da57c6e4746
 ---
 
 # Fleet inventory tracker reads are slow
