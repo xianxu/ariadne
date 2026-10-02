@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-01
 updated: 2026-10-02
 estimate_hours: 3.51
-card_mirror: '2c54e3d380a527098ff9dd197381b75192461c4a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '184062a00158d39026c692555a3d2211b190903f' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-02T10:21:50-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 3.33
+actual_hours: 3.42
 ---
 
 # Publish tested operation recovery contracts
