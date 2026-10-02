@@ -59,5 +59,40 @@ func RenderText(w io.Writer, o Observation) {
 		landing += ", archive unknown: " + l.ArchiveError
 	}
 	fmt.Fprintf(w, "  landing:     %s%s\n", strings.TrimSpace(landing), quality(l.Read))
-	fmt.Fprintln(w, "  (activity is not progress: a working card proves a claim, not execution)")
+	b := o.Branch
+	if b.Ref != "" {
+		fmt.Fprintf(w, "  branch:      %s at %s, %d ahead of main, last commit %s\n", b.Ref, short(b.Head), b.CommitsAheadOfMain, b.LastCommitAt)
+	} else {
+		fmt.Fprintf(w, "  branch:      none here%s\n", quality(b.Read))
+	}
+	ws := o.Workspaces
+	if len(ws.Holding) == 0 {
+		fmt.Fprintf(w, "  worktrees:   none holds the branch%s\n", quality(ws.Read))
+	}
+	for _, h := range ws.Holding {
+		label := h.Path
+		if h.Address != "" {
+			label = h.Address + " (" + h.Path + ")"
+		}
+		owner := ""
+		if h.IsClaimant {
+			owner = ", the owner's"
+		}
+		fmt.Fprintf(w, "  worktree:    %s%s — %d dirty, %d ahead / %d behind main%s\n", label, owner, h.DirtyCount, h.Ahead, h.Behind,
+			map[bool]string{true: " [unreadable: " + h.Error + "]", false: ""}[h.Error != ""])
+	}
+	cp := o.Checkpoints
+	flowText := "no flow recorded"
+	if cp.Flow != nil {
+		flowText = cp.Flow.Kind + " flow (" + cp.Flow.Provenance + ")"
+	}
+	fmt.Fprintf(w, "  checkpoints: %s, plan %d/%d ticked%s\n", flowText, cp.Plan.Ticked, cp.Plan.Total, quality(cp.Read))
+	for _, r := range cp.Reviews {
+		verdict := r.Verdict
+		if r.Boundary == "plan" {
+			verdict = "plan-quality"
+		}
+		fmt.Fprintf(w, "    %-7s %s, %d open blocking%s\n", r.Boundary+":", verdict, r.OpenBlocking, quality(r.Read))
+	}
+	fmt.Fprintln(w, "  (worktree activity is not progress; a working card proves a claim, not execution)")
 }

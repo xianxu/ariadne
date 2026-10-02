@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/observe"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
@@ -137,5 +138,126 @@ func TestObserveAnchorsOnTheIssuesDir(t *testing.T) {
 	}
 	if trackerTip(t, r) != tip || r.git("for-each-ref", "refs/remotes") != remoteRef {
 		t.Fatal("an observation of a loose issues dir touched the cwd repository")
+	}
+}
+
+func reviewOf(o observe.Observation, boundary string) (observe.Review, bool) {
+	for _, r := range o.Checkpoints.Reviews {
+		if r.Boundary == boundary {
+			return r, true
+		}
+	}
+	return observe.Review{}, false
+}
+
+// #279: one issue through its lifecycle, always observed from a different
+// checkout. In progress (flow, no reviews), closed (SHIP from its artifact), its
+// close artifact lost (unknown — a close the card records), and landed by a
+// squash merge with the branch deleted (the verdict read from main's archive).
+func TestObserveCheckpointsAcrossTheLifecycle(t *testing.T) {
+	r, cardPath, detailPath := closeReady(t, 394)
+	branch := r.git("branch", "--show-current")
+	other := filepath.Join(t.TempDir(), "other")
+	testfix.Git(t, r.root, "worktree", "add", "-q", "--detach", other, "origin/main")
+	look := func() observe.Observation { t.Helper(); t.Chdir(other); defer t.Chdir(r.root); return observeIssue(t, 394, "") }
+
+	o := look()
+	if o.Branch.Ref != "refs/heads/"+branch || o.Checkpoints.State != observe.Present || o.Checkpoints.Flow == nil || len(o.Checkpoints.Reviews) != 0 {
+		t.Fatalf("in progress: %+v %+v", o.Branch, o.Checkpoints)
+	}
+	if len(o.Workspaces.Holding) != 1 || o.Workspaces.Holding[0].Path != canonRoot(r.root) || !o.Workspaces.Holding[0].IsClaimant {
+		t.Fatalf("holding: %+v", o.Workspaces)
+	}
+
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "394", "--verified", "e2e", "--actual", "1", "--no-atlas"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	o = look()
+	if rv, ok := reviewOf(o, "close"); !ok || rv.Verdict != "SHIP" || rv.State != observe.Present || o.Completion.State != observe.Present {
+		t.Fatalf("closed: %+v %+v", o.Checkpoints.Reviews, o.Completion)
+	}
+
+	review := "workshop/plans/" + strings.TrimSuffix(filepath.Base(detailPath), ".md") + "-close-review.md"
+	r.git("rm", "-q", review)
+	r.git("commit", "-qm", "#394: lose the close artifact")
+	if rv, _ := reviewOf(look(), "close"); rv.State != observe.Unknown {
+		t.Fatalf("a recorded close without its artifact: %+v", rv)
+	}
+	r.git("revert", "--no-edit", "HEAD")
+
+	// Land by squash, delete the branch, complete the card, archive on main.
+	card := r.card(cardPath)
+	binding, _, _ := issue.CardCompletion([]byte(card))
+	r.git("switch", "-q", "main")
+	r.git("merge", "-q", "--squash", branch)
+	r.git("commit", "-qm", "#394: squash landing")
+	r.git("push", "-q", "origin", "main")
+	r.git("branch", "-q", "-D", branch)
+	landed := r.git("rev-parse", "HEAD")
+	env, err := openTrackerAt(context.Background(), r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.repo.ChangeCard("000394", cardPath, "done", operationToken("done"), func(c []byte) ([]byte, error) {
+		return doneCard(c, binding.Token, landed, "2026-10-02")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	invalidateIssueRecords(context.Background())
+	var stderr bytes.Buffer
+	if _, err := archiveDoneIssues(context.Background(), &stderr, "", "workshop/issues", "workshop/history", "workshop/plans"); err != nil {
+		t.Fatalf("archive: %v\n%s", err, stderr.String())
+	}
+	r.git("add", "-A", "workshop")
+	r.git("commit", "-qm", "archive completed issues to history")
+	r.git("push", "-q", "origin", "main")
+	o = look()
+	if o.Landing.Outcome != observe.OutcomeLanded || o.Landing.Archived == "" || o.Branch.State != observe.Absent {
+		t.Fatalf("landed: %+v %+v", o.Landing, o.Branch)
+	}
+	if rv, ok := reviewOf(o, "close"); !ok || rv.Verdict != "SHIP" || !strings.Contains(o.Checkpoints.Source, "history/plans") {
+		t.Fatalf("verdict after a squash landing: %+v from %s", rv, o.Checkpoints.Source)
+	}
+}
+
+// #279: where the recorded owner's worktree stands — elsewhere while a third
+// worktree holds the branch, missing once removed, another machine never
+// probed — and that one query's git work is bounded by the issue, not the fleet.
+func TestObserveWorktreeFatesAndBound(t *testing.T) {
+	r, slot, cardPath, _ := reclaimFixture(t, 395)
+	testfix.Git(t, slot, "switch", "-q", "--detach")
+	third := filepath.Join(t.TempDir(), "third")
+	testfix.Git(t, r.root, "worktree", "add", "-q", third, "000395-reclaim")
+	calls := 0
+	prev := observeGit
+	observeGit = func(dir string, args ...string) ([]byte, error) { calls++; return prev(dir, args...) }
+	o := observeIssue(t, 395, "")
+	observeGit = prev
+	if o.Assignment.ClaimantWorktree != observe.FateElsewhere || len(o.Workspaces.Holding) != 1 ||
+		o.Workspaces.Holding[0].Path != canonRoot(third) || o.Workspaces.Holding[0].IsClaimant {
+		t.Fatalf("elsewhere: %+v %+v", o.Assignment, o.Workspaces)
+	}
+	if calls > 20 {
+		t.Fatalf("one observation ran %d git commands; the bound is per issue (holding worktrees + artifacts)", calls)
+	}
+	testfix.Git(t, r.root, "worktree", "remove", "--force", slot)
+	if o := observeIssue(t, 395, ""); o.Assignment.ClaimantWorktree != observe.FateMissing {
+		t.Fatalf("removed: %+v", o.Assignment)
+	}
+	env, err := openTrackerAt(context.Background(), r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	owner, _ := ownerOf(t, r, cardPath)
+	owner.Machine = issue.MachineFingerprint("another-machine")
+	if err := env.repo.ChangeCard("000395", cardPath, "owner", operationToken("set"), func(c []byte) ([]byte, error) {
+		return issue.SetCardClaimant(c, owner)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	invalidateIssueRecords(context.Background())
+	if o := observeIssue(t, 395, ""); o.Assignment.ClaimantWorktree != observe.FateOtherMachine {
+		t.Fatalf("another machine: %+v", o.Assignment)
 	}
 }

@@ -180,3 +180,15 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Plan correction: `DecideScoped`'s OpenBlocking depends on the round cap
     (it demotes past the cap). So `open_blocking` = OpenBlocking + Demoted,
     computed collector-side with `openScopeFor`.
+- M2 step: collectors for the branch (local, else the remote copy), the
+  holding worktrees' activity, and evidence. Evidence comes from the branch
+  before landing and from main's archive, then main's plans, after done.
+  Ledgers are scoped as the gates scope them.
+  - The text view shows every section.
+  - Real-git tests:
+    - the lifecycle from another checkout: in progress; closed SHIP; the
+      close artifact lost (unknown); landed by squash with the branch deleted
+      (verdict from main's archive, mutation-checked);
+    - worktree fates (elsewhere while a third worktree holds the branch,
+      missing, other machine);
+    - a subprocess bound of at most 20 git commands per query.
