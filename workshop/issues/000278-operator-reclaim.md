@@ -115,3 +115,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
       help and plan say so;
     - `--reason` without `--expect` refuses;
     - the guard now also scans package-level initializers (mutation-checked).
+- Close review round 2: BR-6, the README ownership paragraph lacked reclaim. Added. The sweep found no other hand-written verb listing (the root help is generated from registered commands).

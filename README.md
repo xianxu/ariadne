@@ -26,7 +26,10 @@ A claim also records its owner on the card (#277): the operator, a
 fingerprint of the machine, and the worktree. Only that workspace continues the
 issue through start-plan, change-code and close. A working issue claimed before
 then is adopted with `sdlc claim --issue N --adopt`, and `sdlc move` carries
-ownership with the branch. Older binaries refuse claimed cards, so after this
+ownership with the branch. Moving responsibility between owners, after the
+operator coordinates out of band, is `sdlc reclaim --issue N`. It inspects
+first; then `--expect REV --reason '…'` transfers the issue to the workspace
+running it, refusing if the card changed since you looked (#278). Older binaries refuse claimed cards, so after this
 lands, update ariadne:0 and run `weave refresh` in every :1+ slot.
 
 A legacy repository cuts over

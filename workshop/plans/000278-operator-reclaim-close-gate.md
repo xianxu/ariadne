@@ -36,6 +36,39 @@ rounds:
           round: 1
       recipe: milestone-review
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-01T21:23:53-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: reclaim_test.go:164-171 runs start-plan, change-code and close from the old slot, each refused with judged=false; :190-198 shows the new owner's start-plan passes.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: reclaim.go:166-168 refreshes on the already-mine path; scratch mutation removing it turns TestReclaimStaleAndLostResponse red at reclaim_test.go:237.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: reclaimHistoryLimit=20 with --grep on the trailer (max-count applies after grep); help and plan both say last 20.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: reclaim.go:157-159 refuses --reason without --expect; tested at reclaim_test.go:187-189.
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: Guard now walks GenDecl ValueSpec initializers (reclaim_test.go:334-341); the vacuity check confirms reclaimEffect's initializer is seen.
+          round: 2
+      findings:
+        - id: BR-6
+          severity: Important
+          title: README's ownership paragraph lists claim, --adopt and move but not the new sdlc reclaim verb
+          detail: 'README.md:26-30 describes #277 ownership verbs; add one sentence naming `sdlc reclaim` (inspect, then --expect/--reason) as the operator-directed transfer between owners.'
+          family: docs-new-surface-missing
+          round: 2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#278 (boundary-review)
@@ -55,10 +88,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `silently-ignored-flag` --reason without --expect is silently ignored (inspect mode)
 - **BR-5** [Minor] `guard-scope-gap` TestReclaimIsOnlyOperatorInvoked scans only function bodies; package-level var initializers escape it
 
+## Round 2 — 2026-10-01T21:23:53-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — reclaim_test.go:164-171 runs start-plan, change-code and close from the old slot, each refused with judged=false; :190-198 shows the new owner's start-plan passes.
+- BR-2 — addressed — reclaim.go:166-168 refreshes on the already-mine path; scratch mutation removing it turns TestReclaimStaleAndLostResponse red at reclaim_test.go:237.
+- BR-3 — addressed — reclaimHistoryLimit=20 with --grep on the trailer (max-count applies after grep); help and plan both say last 20.
+- BR-4 — addressed — reclaim.go:157-159 refuses --reason without --expect; tested at reclaim_test.go:187-189.
+- BR-5 — addressed — Guard now walks GenDecl ValueSpec initializers (reclaim_test.go:334-341); the vacuity check confirms reclaimEffect's initializer is seen.
+
+### Raised
+
+- **BR-6** [Important] `docs-new-surface-missing` README's ownership paragraph lists claim, --adopt and move but not the new sdlc reclaim verb
+  README.md:26-30 describes #277 ownership verbs; add one sentence naming `sdlc reclaim` (inspect, then --expect/--reason) as the operator-directed transfer between owners.
+
 ## Open findings
 
-- **BR-1** [Important] `plan-claimed-test-missing` The wrong-owner test checks only the old workspace's start-plan; the plan's "new one passes" and change-code/close refusals are untested
-- **BR-2** [Minor] `retry-path-skips-side-effects` The "already mine" rerun skips the local mirror refresh, so after a lost response that landed, details stay stale
-- **BR-3** [Minor] `doc-code-bound-drift` reclaimHistory reads 50 card commits; the plan says 20 and the help says "every past reclaim"
-- **BR-4** [Minor] `silently-ignored-flag` --reason without --expect is silently ignored (inspect mode)
-- **BR-5** [Minor] `guard-scope-gap` TestReclaimIsOnlyOperatorInvoked scans only function bodies; package-level var initializers escape it
+- **BR-6** [Important] `docs-new-surface-missing` README's ownership paragraph lists claim, --adopt and move but not the new sdlc reclaim verb
