@@ -85,7 +85,11 @@ func ownershipGate(t *testing.T, r *trackerRepo, name string, id int, detailPath
 		refusal = run("start-plan", "--issue", idArg)
 	case "change-code":
 		stem := strings.TrimSuffix(filepath.Base(detailPath), ".md")
-		if _, err := refreshChangeCodeMirror(&changeCodeFlags{Issue: id}, stem, filepath.Join(r.root, detailPath)); err != nil {
+		abs := detailPath
+		if !filepath.IsAbs(abs) {
+			abs = filepath.Join(r.root, detailPath)
+		}
+		if _, err := refreshChangeCodeMirror(&changeCodeFlags{Issue: id}, stem, abs); err != nil {
 			refusal = err.Error()
 		}
 	case "close":

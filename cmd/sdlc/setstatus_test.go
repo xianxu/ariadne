@@ -270,7 +270,7 @@ func TestStatusDecisionRecordsOrRefusesTheClaimant(t *testing.T) {
 	other := me
 	other.Worktree = "/w/b"
 	for _, force := range []bool{false, true} {
-		if _, _, err := statusDecision(blocked, "", "working", force, "2026-10-01", "2026-10-01T09:00:00-07:00", &other); err == nil || !strings.Contains(err.Error(), "reclaim (#278)") {
+		if _, _, err := statusDecision(blocked, "", "working", force, "2026-10-01", "2026-10-01T09:00:00-07:00", &other); err == nil || !strings.Contains(err.Error(), "`sdlc reclaim`") {
 			t.Fatalf("foreign entry (force=%v) = %v", force, err)
 		}
 	}

@@ -65,16 +65,40 @@ details like every card field.
       destination relocates and removes it. The gate names that repair.
     - A later move of the same issue overwrites it. The bound is one small
       file per moved issue.
-- **Out of scope:** reassigning an owned card across workspaces, machines or
-  operators is reclaim (#278); structured observation is #279.
+- **Out of scope here:** reassigning an owned card across workspaces,
+  machines or operators is `sdlc reclaim` (below); structured observation is
+  #279.
+
+**Reclaim (#278).** `sdlc reclaim` is the operator-directed transfer of an
+owned card's claimant to the workspace running it, after the operator has
+coordinated out of band. It runs in two headless steps:
+- **Inspect** (`--issue N`) reads one card. It shows the revision, the current
+  and proposed owner, and past reclaims, then prints the confirm command. It
+  writes nothing.
+- **Confirm** (`--expect REV --reason '…'`) runs the pure `reclaimDecision` on
+  a fresh card and publishes with `UpdateCardWithTrailers`, a CAS on that
+  card. Its tracker commit carries `Reclaim-From` / `Reclaim-To` /
+  `Reclaim-Reason`. Those trailers are the record, and inspect lists them from
+  the tracker log.
+- **Stale or concurrent change:** refused.
+- **Retry or lost response:** decided by the card. If it already names this
+  workspace, the rerun is a no-op.
+- **Boundaries:** reclaim never touches worktrees and never fences old workers.
+  `TestReclaimIsOnlyOperatorInvoked` holds the transfer to the command, so no
+  timeout, reachability, move or recovery path reaches it. `sdlc move` keeps
+  only the owner's own same-machine relocation.
 
 **Rollout is a flag day.** An `sdlc` built before #277 aborts the whole
 tracker snapshot on the first card it cannot parse
 (`internal/tracker/reader.go`). So once any card carries a `claimant`, every
-stale binary fails, loudly and closed, naming the field. After #277 lands,
-refresh each ariadne checkout and rebuild: `make weave-all`, or
-`weave compile` / `make tools` per checkout. Until it lands, claim only with
-an older binary, so that no claimant card reaches the shared tracker.
+stale binary fails, loudly and closed, naming the field. Each environment
+builds `sdlc` from its own ariadne checkout (the `construct/dev-aliases.sh`
+function). So after #277 lands, every environment's checkout has to advance:
+update ariadne:0, then run `weave refresh` on the resting branch of every :1+
+slot. Refresh fast-forwards the slot's private substrates and compiles.
+`weave compile` alone keeps existing Git revisions, so it does not pick the
+change up. Do this before the first claim from an updated environment. An
+issue branch builds from itself, so it needs main merged or rebased in.
 
 ## Storage boundary
 
@@ -137,6 +161,7 @@ The publication remote is the resting branch's upstream
 | `start-plan` | must be working and owned by this workspace (#277) | branch `<details stem>` created at pinned main from a clean rest; an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
 | `change-code` | read (mirror refresh before gates); owner only (#277) | design committed narrowly on the issue branch | never published |
 | `close` | codecomplete bound to the evidence commit | evidence commit, then a mirror commit (#275) | never published |
+| `reclaim` | owned card's claimant → this workspace by CAS on the inspected revision; trailers record from/to/reason (#278) | mirror refreshed (never on rest) | untouched |
 | `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
 

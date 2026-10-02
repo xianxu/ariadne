@@ -196,3 +196,31 @@ func TestRepositoryRevalidatesAfterPeerWrite(t *testing.T) {
 		})
 	}
 }
+
+// #278: a card update's tracker commit carries its trailers after the
+// operation token; plain UpdateCard keeps its message byte-identical, and a
+// malformed trailer refuses before anything is published.
+func TestUpdateCardTrailers(t *testing.T) {
+	r, root, _ := fixture(t)
+	snap, err := r.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	old, _ := snap.Card("000252")
+	working := []byte(strings.Replace(testCard, "status: open", "status: working", 1))
+	if err := r.UpdateCardWithTrailers(old, working, "test-bad-trailer", []string{"Reclaim-Reason: two\nlines"}, func(string, string) error { return nil }); err == nil {
+		t.Fatal("a multi-line trailer was accepted")
+	}
+	trailers := []string{"Reclaim-From: a", "Reclaim-Reason: machine died: rebuilt as box2 ✓"}
+	if err := r.UpdateCardWithTrailers(old, working, "test-trailers", trailers, func(string, string) error { return nil }); err != nil {
+		t.Fatal(err)
+	}
+	snap, _ = r.Snapshot()
+	msg := strings.TrimSpace(testfix.Capture(t, root, "log", "-1", "--format=%B", snap.Ref()))
+	if want := "#252: tracker: update card\n\nTracker-Operation: test-trailers\n" + strings.Join(trailers, "\n"); msg != want {
+		t.Fatalf("message:\n%s\nwant:\n%s", msg, want)
+	}
+	if got := cardMessage("000252", "update card", "plain"); got != "#252: tracker: update card\n\nTracker-Operation: plain" {
+		t.Fatalf("plain message changed: %q", got)
+	}
+}

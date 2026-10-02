@@ -1,12 +1,22 @@
 ---
 id: 000278
-status: open
+status: codecomplete
 deps: [ariadne#277]
 github_issue:
 created: 2026-10-01
 updated: 2026-10-01
 estimate_hours:
-card_mirror: '9da00517ec8098e778d6cbfb4eecfa6d5bad9375' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f1169ba4aa8db5cc84ce8a000f93678a9d1f1884' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-01T17:25:01-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 1.42
 ---
 
 # Add operator-directed reclaim for recovery
@@ -32,10 +42,101 @@ Do not infer abandonment from a timeout, shutdown, parking or unreachable machin
 
 ## Plan
 
-Implementation plan to be designed after issue claim and start-plan; these are requirements, not an approved implementation plan.
+Durable plan: `workshop/plans/000278-operator-reclaim-plan.md` (single pass).
+
+- [x] Pure `reclaimDecision` and the trailers; `UpdateCard` message trailers.
+- [x] `sdlc reclaim`: inspect (read-only), then confirm with `--expect` and
+      `--reason` (CAS; a retry decides from the card).
+- [x] Real-git tests: transfer and wrong-owner refusal, dirty work preserved,
+      stale expect, identical retry and lost response, concurrent reclaim,
+      history; a no-automation guard.
+- [x] Docs: reclaim help, #277 refusal pointers, atlas.
 
 ## Log
 
 ### 2026-10-01
+- 2026-10-01: closed — sdlc reclaim: inspect writes nothing and prints a working confirm (--reason alone refused); confirm transfers claimant to this workspace by CAS on the inspected revision with Reclaim-From/To/Reason trailers (last 20 shown by inspect); old workspace's start-plan/change-code/close refused after reclaim before review, new owner's start-plan passes; dirty work untouched; stale --expect refused; identical and lost-response reruns are no-ops that refresh the mirror (mutation-checked); two-clone race: one winner; operator-only AST guard incl. package initializers (mutation-checked); README/help/atlas name reclaim; full sharded suite green (sandbox-only processgroup failure).; review verdict: SHIP
+- 2026-10-01: flow upgraded quick → full — 352 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
+
+### 2026-10-01 (implementation session)
+
+- Operator authorized the work ("work on #278"). Claimed in ariadne:1 with
+  :0's pre-#277 binary, deliberately: a claimant card would start the #277
+  flag day before the fleet is rebuilt. This card is therefore unattributed
+  and will need `--adopt` after the rollout. Ran start-plan; the branch
+  `000278-operator-reclaim` sits at main, which includes #277.
+- Tension to resolve in design: the Spec says "do not overload sdlc move",
+  but #277 (operator decision) already has move relocate the owner's *own*
+  work on the same machine, using positive move evidence. Reclaim is the
+  general, operator-directed transfer across workspaces and machines; move's
+  relocation stays the narrow same-owner case.
+- Operator decisions:
+  - **CLI shape:** inspect, then confirm. `sdlc reclaim --issue N` shows the
+    current owner, the proposed owner and past reclaims, and prints the
+    confirm command. `--expect <card-rev> --reason '...'` performs it as a
+    CAS against that revision.
+  - **New owner:** only the running workspace.
+- side-quest: corrected #277's rollout procedure in the atlas and README.
+  Each environment builds `sdlc` from its own ariadne checkout, so the
+  procedure is: update ariadne:0, then `weave refresh` in every :1+ slot.
+  The earlier `weave compile` / `make weave-all` advice would not have
+  advanced any Git revision. The operator is running the refresh.
+
+- **Correction** to the claim note above. The claim did *not* run pre-#277
+  code. `sdlc merge` for #277 had already fast-forwarded `main-slot1` to
+  include #277 (17:19), and `sdlc` builds from this slot's own checkout. So
+  the 17:25 claim wrote the first `claimant` card (tracker `4be6376a`), and
+  the #277 flag day began then, not at a later claim.
+  - The operator was told and has since refreshed the fleet: every live slot
+    is on #277 (checked with `couch --actors`). The idle ariadne-slot2,
+    ariadne-slot3 and pair-slot2 still need `weave refresh` before reuse.
+  - `sdlc claim --adopt` just now was a no-op; the card already names this
+    workspace.
+- Wrote the durable plan (single pass, no milestones). Awaiting operator approval.
+- Operator approved the plan. change-code inferred the quick flow (no plan-quality, no estimate); close will upgrade to the full review if the diff leaves the shell. Implementing.
+- Done: `UpdateCardWithTrailers` (tracker commit trailers; plain messages unchanged) and the pure `reclaimDecision` plus trailer round trip. Both are table-tested.
+- Done: the `sdlc reclaim` command (inspect/confirm, history from trailers, lost-response message, mirror refresh) and `helptext/reclaim.md`. Next: real-git tests and the no-automation guard.
+- Done:
+  - Real-git tests: transfer and wrong-owner refusal, dirty work preserved,
+    stale expect, identical rerun and lost response, a two-clone race, and
+    history.
+  - The no-automation AST guard. Its mutation check (a `move.go` reference)
+    goes red.
+  - The #277 refusal texts and help now name `sdlc reclaim`.
+  - Atlas: a Reclaim subsection plus the verb row.
+- Regenerated the process manual (reclaim help). Full sharded suite: all cmd/sdlc tests pass; only the sandbox-only processgroup failure remains. Closing.
+- Close review round 1 returned FIX-THEN-SHIP. Fixed every finding:
+  - BR-1: the old workspace's start-plan, change-code and close are each
+    refused after reclaim, before any review. The new owner's start-plan
+    passes once the old worktree lets go of the branch.
+  - Minors:
+    - an "already yours" rerun refreshes the details mirror (lost-response
+      case; mutation-checked);
+    - history is bounded to the last 20 reclaims, selected by trailer, and the
+      help and plan say so;
+    - `--reason` without `--expect` refuses;
+    - the guard now also scans package-level initializers (mutation-checked).
+- Close review round 2: BR-6, the README ownership paragraph lacked reclaim. Added. The sweep found no other hand-written verb listing (the root help is generated from registered commands).
+- Smoke test on the real tracker (#278's own card), operator-requested:
+  1. `sdlc move :2` from :1: the claimant re-stamped to `ariadne:2` (#277
+     relocation) and the relocation record was removed.
+  2. Inspect from :2: "already owns it", no history.
+  3. Inspect from :1 (running :2's branch binary) showed owner :2, proposed
+     :1 and the confirm command. Confirm transferred the claimant to :1; the
+     tracker commit carries Reclaim-From/To/Reason. :1's worktree was
+     untouched.
+  4. Refusals:
+     - :2's `change-code` was refused as owned by :1 and pointed to
+       `sdlc reclaim --issue 278`.
+     - A confirm rerun from :1 was a no-op with no tracker commit.
+     - A stale `--expect` from :2 was refused ("changed since you inspected").
+     - (`start-plan` refused earlier, on codecomplete status, before
+       ownership.)
+  5. Reclaim back from :2: owner :2 again. Inspect lists both transfers
+     with reasons, newest first. :2's change-code passed the ownership gate.
+     Reclaim refreshed :2's details mirror (committed here).
+  - Observation (from #277, not this issue; filed as #282): `sdlc move` re-stamps the card
+    but does not refresh the destination's details mirror. It stays stale
+    until the next verb there. Cosmetic.
