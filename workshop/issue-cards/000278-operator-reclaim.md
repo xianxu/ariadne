@@ -10,8 +10,8 @@ claimant:
     operator: Xian Xu
     machine: 4716879978a7b90f6b583da1716fd0e9
     machine_name: MacBook Pro
-    workspace: ariadne:2
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 actual_hours: 1.42
 tracker:
