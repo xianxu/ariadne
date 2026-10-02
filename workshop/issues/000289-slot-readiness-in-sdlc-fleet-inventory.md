@@ -65,7 +65,8 @@ then `weave refresh`) must re-check it at action time.
   commits; issue branch with zero commits), needs-recovery (modified,
   untracked, active rebase, detached) in the product checkout and in a substrate
   checkout, missing checkout, and a failed probe.
-- needs-recovery rows list the offending paths per checkout.
+- needs-recovery rows give the reasons per checkout (dirty count, active
+  operation, detached HEAD); paths are not listed (operator, 2026-10-02).
 - Membership comes from weave's declared dependencies, tested against a slot
   with an undeclared sibling directory.
 - The command's recovery entry states read-only, with its proof.
@@ -91,3 +92,9 @@ operator's direction, then claimed. Design findings: membership is declared in
 `construct/deps` (`pkg/layergraph.ParseRows`, transitive); weave records no
 clone set, so membership is re-derived; dependency clones rest on `main`;
 operation-marker detection exists twice with different lists (to be unified).
+
+## Revisions
+
+- 2026-10-02 — operator: drop path listing from needs-recovery (reasons only).
+  Dependency clones join inventory as rows (they are not rows today). Paused
+  until the inventory slowdown #288 introduced is fixed in its own issue.

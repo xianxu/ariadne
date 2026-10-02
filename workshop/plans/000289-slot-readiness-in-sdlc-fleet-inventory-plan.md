@@ -213,3 +213,36 @@ evidence and proofs), `helptext/fleet-inventory.md`,
 - Manual: `go run ./cmd/sdlc fleet inventory --json | jq '.slots[] | {address,
   verdict, members: [.members[] | {path, verdict, reasons}]}'` on this machine
   lists ariadne:0–2 and pair:0–1, pair:1 with members `pair` and `ariadne`.
+
+## Revisions
+
+- 2026-10-02 — plan-quality PQ-1 + operator review, before implementation
+  (the tasks above are to be re-cut to this at the next design pass):
+  - **Dependency clones become inventory rows.** They are independent clones,
+    so today's inventory never lists them (`FleetRepoDirs` excludes
+    `worktree/`); joining slot members to rows would make every `:N` slot
+    unknown. Each numbered slot's declared dependency clone is collected as a
+    row (`collectInventoryRepo` on its path). Its tracker reads (claims, branch
+    issue) reuse the read of the fleet repository with the same publication
+    repository, so a clone adds no network fetch; with none in the fleet it is
+    read like any tracked checkout.
+  - **No new git processes for existing rows.** The active-operation check
+    reads the worktree's `.git` pointer (file or directory) and `lstat`s the
+    markers; slot discovery (`repo:0`/`repo:N`, environment root, resting
+    branch) derives from row paths and the slot layout, not `workspace.Resolve`
+    per row. Added cost: about 10 local git commands per dependency clone row.
+  - **No dirty-file listing** (operator): a needs-recovery member gives its
+    reasons (dirty count, active operation, detached HEAD), not paths. The
+    `json:"-"` dirty-paths field and the 20-path cap are dropped.
+  - Plan-quality Minors folded in: the unified operation-marker list is an
+    intended behavior change for landing (gains REBASE_HEAD, BISECT_LOG) and
+    move-detail (gains sequencer, BISECT_START), all checked with `lstat`;
+    dependency clones rest on `main` because weave's environment policy is
+    scoped (`acquire.go:87,152`); substrate paths from a member's
+    `construct/deps` must resolve inside the environment root (else that
+    member is `unknown`); "open issue" is `!vocab.IsTerminal(DeclaredStatus)`
+    on the row's existing issue association; tests stated as one strategy line
+    per risky function.
+  - **Sequencing:** #288's tracker reads made inventory ~3x slower (15
+    sequential `ls-remote`+`fetch`+auto-maintenance, 10.5s of 17s measured with
+    `GIT_TRACE`). Fixed first in its own issue; #289 resumes on top of it.
