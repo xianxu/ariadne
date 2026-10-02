@@ -147,7 +147,7 @@ section; registers the recovery proof; updates help and atlas.
 - [ ] **Operation detector.** Tests: `ActiveOperation` table over markers ×
   {present, absent, lstat error}; `WorktreeGitDir` over {dir, absolute gitdir
   file, relative gitdir file, malformed file}; a real-git conflicted rebase
-  in a linked worktree reports `rebase-merge`. Switch `move-detail` and landing
+  in a linked worktree reports a rebase marker (REBASE_HEAD comes first). Switch `move-detail` and landing
   (their tests stay green).
 - [ ] **Facts.** `CollectFacts` records `Operation` / `OperationError` with no
   added git process (fake-git command log unchanged); row JSON unchanged.

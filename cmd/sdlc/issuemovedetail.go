@@ -67,7 +67,7 @@ An interrupted run resumes with ` + "`sdlc issue recovery reconcile --issue N`" 
 	return cmd
 }
 
-// gitOperationInProgress names the operation in progress in root's worktree
+// gitOperationInProgress names the operation in progress in the worktree git runs in
 // ("" for none), through the one marker list (workspace.OperationMarkers, #289).
 func gitOperationInProgress(git func(...string) (string, error)) (string, error) {
 	dir, err := git("rev-parse", "--absolute-git-dir")

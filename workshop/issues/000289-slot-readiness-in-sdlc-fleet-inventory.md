@@ -101,7 +101,7 @@ design already spent after the claim.
 
 Durable plan: `workshop/plans/000289-slot-readiness-in-sdlc-fleet-inventory-plan.md`.
 
-- [x] M1 — per-checkout readiness facts and verdict (shared file-based `gitx` operation detector, operation on facts, pure `JudgeCheckout`)
+- [x] M1 — per-checkout readiness facts and verdict (shared file-based `pkg/workspace` operation detector, operation on facts, pure `JudgeCheckout`)
 - [ ] M2 — fleet inventory reports one readiness row per slot (slots from paths, declared membership via `layergraph.ParseRows`, dependency clones as rows, `AssembleSlots`, versioned `slots`, real-git fixtures, recovery entry, help, atlas)
 
 ## Log
