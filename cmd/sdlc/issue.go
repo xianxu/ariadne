@@ -10,8 +10,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/observe"
 	"io"
 	"os"
 	"path"
@@ -510,6 +512,8 @@ func runIssueList(ctx context.Context, stdout, stderr io.Writer, f *issueListFla
 
 type issueShowFlags struct {
 	IssuesDir string
+	JSON      bool   // #279: emit the observation
+	Repo      string // #279: observe another repository's issue
 }
 
 func newIssueShowCmd() *cobra.Command {
@@ -519,7 +523,48 @@ func newIssueShowCmd() *cobra.Command {
 		Short: "Show an issue's frontmatter + section headers (no bodies)",
 		Long: `Print issue <N>'s frontmatter and its body section headers (# / ## lines)
 without the section contents — a structured peek for orienting on an issue
-without loading the whole file.`,
+without loading the whole file — followed by its observations (#279).
+
+OBSERVATIONS
+
+  --json prints only the observation: a versioned (schema_version 1),
+  read-only answer to who owns the issue and where its work is, which
+  checkpoints passed, and whether it landed. Consumers reject other versions
+  and unknown keys. Sections:
+    - tracker: the tracker commit read;
+    - card: status, title and revision;
+    - assignment: the claimant, its relation to the queried checkout, and
+      where the owner's worktree stands;
+    - workspaces: local worktrees holding the issue branch, with dirty and
+      ahead/behind counts;
+    - branch: the branch head and its commits ahead of main;
+    - checkpoints: the flow, plan ticks, and each review boundary's verdict
+      and open blocking findings;
+    - completion: the close's evidence and reviewed commits;
+    - landing: whether the work landed, its landed commit, and its archive
+      path.
+
+  Every section's "state" is read quality, never the value: present, absent
+  (read, none recorded), stale (answered from the last tracker fetch; error
+  says why) or unknown (the read failed; error says why). A failed read is
+  never reported as absent.
+
+  Authority: "tracker" sections (card, assignment, completion, landing) are
+  authoritative for claim, status and landing. "committed" sections
+  (branch, checkpoints) read evidence on the issue branch, or on main's
+  archive once landed, so squash merges and deleted branches don't lose it.
+  "worktree" is activity only. Dirty files and unpushed commits are not
+  progress, and a working card proves a claim, not execution.
+
+  Every answer carries observed_at and the tracker commit. The query fetches
+  the tracker (updating the remote-tracking ref) and otherwise writes
+  nothing.
+
+  It runs from any checkout of the repository. Parked or agentless slots are
+  found through git, and another machine's worktree is reported as
+  other-machine without being probed. --repo <path> observes an issue of the
+  repository containing that path. The repository is always the one
+  containing the issues directory, never the shell's current directory.`,
 		Args:          cobra.ExactArgs(1),
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
@@ -527,6 +572,8 @@ without loading the whole file.`,
 		},
 	}
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
+	cmd.Flags().BoolVar(&f.JSON, "json", false, "print the issue's observation (schema_version 1) as JSON")
+	cmd.Flags().StringVar(&f.Repo, "repo", "", "observe an issue of the repository containing this path")
 	return cmd
 }
 
@@ -535,7 +582,20 @@ func runIssueShow(ctx context.Context, stdout, stderr io.Writer, f *issueShowFla
 	if err != nil || id <= 0 {
 		die(stderr, fmt.Sprintf("invalid issue id %q (want a positive number, e.g. 56)", arg))
 	}
-	rs, err := loadIssueRecords(ctx, f.IssuesDir, tracker.PreferFresh)
+	root, issuesDir, err := issueShowRepo(f)
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	if f.JSON { // #279: the observation alone, on stdout
+		raw, err := json.MarshalIndent(collectObservation(ctx, root, issuesDir, fmt.Sprintf("%06d", id)), "", "  ")
+		if err != nil {
+			die(stderr, err.Error())
+		}
+		fmt.Fprintln(stdout, string(raw))
+		return nil
+	}
+	defer func() { observe.RenderText(stdout, collectObservation(ctx, root, issuesDir, fmt.Sprintf("%06d", id))) }()
+	rs, err := loadIssueRecords(ctx, issuesDir, tracker.PreferFresh)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -600,4 +660,26 @@ func trackedIssueSync(f *issueSyncFlags) error {
 		return fmt.Errorf("this repository uses the issue tracker: checkpoint #%d on its issue branch (`sdlc start-plan --issue %d` prepares it), never on a resting branch", f.Issue, f.Issue)
 	}
 	return nil
+}
+
+// issueShowRepo resolves what an issue show reads (#279). The repository is
+// the one containing the issues dir — the data the verb was given, never the
+// process cwd — or, with --repo, the one containing that path, its issues dir
+// resolved inside it. An issues dir outside any repository yields root "": its
+// details are the whole record, as before.
+func issueShowRepo(f *issueShowFlags) (root, issuesDir string, err error) {
+	if f.Repo != "" {
+		if root = repoRootOf(f.Repo); root == "" {
+			return "", "", fmt.Errorf("--repo %s is not inside a repository", f.Repo)
+		}
+		issuesDir = f.IssuesDir
+		if !filepath.IsAbs(issuesDir) {
+			issuesDir = filepath.Join(root, issuesDir)
+		}
+		return root, issuesDir, nil
+	}
+	if issuesDir, err = filepath.Abs(f.IssuesDir); err != nil {
+		return "", "", err
+	}
+	return repoRootOf(issuesDir), issuesDir, nil
 }

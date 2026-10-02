@@ -19,6 +19,13 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- In a rejection table, each row must assert that it was refused by its own
+  check (for example, the error names the field). A shared invariant failing
+  first, such as a nil collection, makes every row pass vacuously (#279 BR-8).
+- A scripted edit (search and replace) must assert that its anchor matched.
+  An unmatched replace silently does nothing, and the work log then claims a
+  change that never happened (#279 BR-8).
+
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - A syntactic guard cannot support an absolute semantic claim. Bound the claim to
@@ -35,6 +42,11 @@ Detailed incidents remain in their owning issue or review artifact.
   unsupported and from a negative result.
 
 ## Paths, processes, and integration
+
+- Resolve a verb's repository from the path it was given (`--issues-dir`,
+  `--repo`), never from the process cwd. A cwd fallback reads, or fetches, the
+  wrong repository silently, including the developer's own checkout during
+  `go test` (#279 BR-1).
 
 - A best-effort projection must not add a refusal to the verb that hosts it.
   If a cosmetic refresh's input cannot be read, the output should degrade to

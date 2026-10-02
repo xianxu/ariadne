@@ -100,6 +100,49 @@ slot. Refresh fast-forwards the slot's private substrates and compiles.
 change up. Do this before the first claim from an updated environment. An
 issue branch builds from itself, so it needs main merged or rebased in.
 
+## Observations (#279)
+
+`sdlc issue show N --json` is the versioned (`schema_version: 1`), read-only
+observation of one issue, for agents and humans. It reads the existing
+authorities and records nothing. `internal/observe` is pure: its types,
+strict JSON (unknown and duplicate keys refused, invariants validated both
+ways) and `Assemble`. `cmd/sdlc/observe.go` collects the inputs.
+
+- **Every section's `state` is read quality only:** `present`, `absent`
+  (read, none recorded), `stale` (as last fetched, with the fetch error) or
+  `unknown` (the read failed, with the error). Values live in their own
+  fields: `assignment.relation` and `claimant_worktree`, `landing.outcome`,
+  review `verdict`. `tracker.Records.FetchErr` keeps a stale read's reason.
+- **Authority classes:** `tracker` covers claim, status, completion and
+  landing. `committed` covers checkpoints. `worktree` covers activity only,
+  which is not progress: a working card proves a claim, not execution.
+- **Reach:** a query runs from any checkout. Worktrees (including parked,
+  agentless slots) come from git. Another machine's worktree is reported as
+  `other-machine` and never probed. `--repo <path>` observes another
+  repository.
+- **Freshness:** each answer carries the tracker commit and `observed_at`.
+  The tracker fetch's remote-tracking update is the only side effect.
+- **Checkpoints (M2):** read from the issue branch's committed
+  `workshop/plans` before landing, and from main's `history/plans` after.
+  Review artifacts are archived with the issue, so squash merges and deleted
+  branches don't strand them.
+  - A review's `verdict` comes from its prose sidecar's verdict row.
+  - `open_blocking` comes from the gate ledgers. The plan-quality ledger
+    covers the plan boundary. The issue-wide boundary ledger is scoped as its
+    gate scopes it (`FilterBoundary` / `openScopeFor`), and counted as
+    OpenBlocking + Demoted so the default round cap doesn't change the
+    answer.
+  - A boundary the record says closed (a ticked milestone, or a
+    codecomplete/done card) without its artifact is `unknown`. An unreached
+    boundary is omitted.
+- **Activity:** the worktrees holding the issue branch, with dirty count and
+  ahead/behind main. The branch head and its commits ahead of main.
+- **Envelope:** one tracker fetch through the shared records layer. The
+  collector's own git work is per issue: one worktree list, facts only for
+  the holding worktrees, one listing plus a fixed set of `git show`s at the
+  evidence location. A test bounds the collector (not the tracker load) at
+  20 commands.
+
 ## Storage boundary
 
 `internal/tracker.Repository` reads a fresh, pinned Git snapshot with a versioned
@@ -161,6 +204,7 @@ The publication remote is the resting branch's upstream
 | `start-plan` | must be working and owned by this workspace (#277) | branch `<details stem>` created at pinned main from a clean rest; an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
 | `change-code` | read (mirror refresh before gates); owner only (#277) | design committed narrowly on the issue branch | never published |
 | `close` | codecomplete bound to the evidence commit | evidence commit, then a mirror commit (#275) | never published |
+| `issue show --json` | read: one card (fresh, else stale with its reason) | read at the issue branch or main's archive | read (archive) — writes nothing (#279) |
 | `reclaim` | owned card's claimant → this workspace by CAS on the inspected revision; trailers record from/to/reason (#278) | mirror refreshed (never on rest) | untouched |
 | `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |

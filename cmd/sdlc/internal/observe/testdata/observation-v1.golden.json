@@ -1,0 +1,124 @@
+{
+  "schema_version": 1,
+  "issue": "000279",
+  "observed_at": "2026-10-02T09:00:00Z",
+  "tracker": {
+    "state": "present",
+    "ref": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "card": {
+    "state": "present",
+    "source": "issue-tracker:workshop/issue-cards/000279-observe.md",
+    "authority": "tracker",
+    "revision": "ffffffffffffffffffffffffffffffffffffffff",
+    "status": "done",
+    "title": "Observe",
+    "updated": "2026-10-02"
+  },
+  "assignment": {
+    "state": "present",
+    "source": "issue-tracker:workshop/issue-cards/000279-observe.md",
+    "authority": "tracker",
+    "claimant": {
+      "operator": "Me",
+      "machine": "8dadc29170e2846e2b2ce50ee07bed9d",
+      "machine_name": "box",
+      "workspace": "r:2",
+      "worktree": "/w/slot2",
+      "repository": "github.com/x/r"
+    },
+    "relation": "other-workspace",
+    "claimant_worktree": "holds-branch"
+  },
+  "workspaces": {
+    "state": "present",
+    "source": "git worktree list",
+    "authority": "worktree",
+    "holding": [
+      {
+        "path": "/w/slot2",
+        "address": "r:2",
+        "branch": "000279-observe",
+        "head": "1111111111111111111111111111111111111111",
+        "dirty_count": 2,
+        "ahead": 3,
+        "behind": 0,
+        "is_claimant": true
+      }
+    ]
+  },
+  "branch": {
+    "state": "present",
+    "source": "refs/heads/000279-observe",
+    "authority": "committed",
+    "ref": "refs/heads/000279-observe",
+    "head": "1111111111111111111111111111111111111111",
+    "commits_ahead_of_main": 3,
+    "last_commit_at": "2026-10-02T08:00:00Z"
+  },
+  "checkpoints": {
+    "state": "present",
+    "source": "refs/remotes/origin/main:workshop/history/plans",
+    "authority": "committed",
+    "flow": {
+      "kind": "full",
+      "provenance": "inferred"
+    },
+    "plan": {
+      "total": 2,
+      "ticked": 2
+    },
+    "reviews": [
+      {
+        "state": "present",
+        "source": "refs/remotes/origin/main:workshop/history/plans",
+        "boundary": "plan",
+        "open_blocking": 0
+      },
+      {
+        "state": "present",
+        "source": "refs/remotes/origin/main:workshop/history/plans",
+        "boundary": "M1",
+        "verdict": "SHIP",
+        "window": "a..b",
+        "at": "2026-10-02T08:30:00-07:00",
+        "open_blocking": 0
+      },
+      {
+        "state": "present",
+        "source": "refs/remotes/origin/main:workshop/history/plans",
+        "boundary": "M2",
+        "verdict": "FIX-THEN-SHIP",
+        "window": "b..c",
+        "at": "2026-10-02T08:30:00-07:00",
+        "open_blocking": 1
+      },
+      {
+        "state": "present",
+        "source": "refs/remotes/origin/main:workshop/history/plans",
+        "boundary": "close",
+        "verdict": "SHIP",
+        "window": "a..d",
+        "at": "2026-10-02T08:30:00-07:00",
+        "open_blocking": 0
+      }
+    ]
+  },
+  "completion": {
+    "state": "present",
+    "source": "issue-tracker:workshop/issue-cards/000279-observe.md",
+    "authority": "tracker",
+    "token": "close-aaaaaaaaaaaa",
+    "evidence_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "reviewed_head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "landed_commit": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  "landing": {
+    "state": "present",
+    "source": "issue-tracker:workshop/issue-cards/000279-observe.md",
+    "authority": "tracker",
+    "outcome": "landed",
+    "landed_commit": "cccccccccccccccccccccccccccccccccccccccc",
+    "archived": "workshop/history/issues/000279-observe.md"
+  }
+}
