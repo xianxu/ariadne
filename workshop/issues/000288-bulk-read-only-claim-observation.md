@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
-estimate_hours:
-card_mirror: '79ff06cc9a7f98e9c6d6dfba3f40e22bb546cacb' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 2.32
+card_mirror: '2930208fffc4a9e3b657eb736e33aa8fc743e5a6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-02T12:14:27-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # Bulk read-only claim observation
@@ -61,6 +62,30 @@ as read-only.
   quarantined and reads as unknown; writes to it refuse naming the cause;
   others proceed; tested end to end.
 - `fleet inventory` appears in `sdlc help recovery` as read-only, with proofs.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module        design=0.1  impl=0.16
+item: cross-cutting-refactor   design=0.3  impl=0.2
+item: greenfield-go-module     design=0.3  impl=0.24
+item: smaller-go-module        design=0.05 impl=0.12
+item: atlas-docs               design=0.05 impl=0.05
+item: milestone-review         design=0.0  impl=0.14
+item: milestone-review         design=0.0  impl=0.14
+item: scope-pivot              design=0.3  impl=0.0
+design-buffer: 0.15
+total: 2.32
+```
+
+M1: snapshot quarantine (smaller module) + the reader/write-site audit
+(cross-cutting). M2: pure `PlaceClaims` + contract (greenfield, thorough plan),
+wiring + identity extraction (smaller). The scope pivot already happened in
+design review.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 

@@ -61,6 +61,18 @@ the same derivation `claim` records.
 - **ARCH-FUNERAL:** creates nothing durable — read-only output; the only side
   effect is the tracker fetch's remote-tracking ref update inventory already
   performs. Quarantined cards are in-memory read results.
+- **ARCH-ORDER:** holds no state between events because inventory is a
+  single-shot read over one pinned snapshot per repository; no concurrent
+  writers inside the process, and a racing claim is simply observed as of the
+  snapshot's tracker commit.
+- **Path identity:** `LookupRepoClaims` re-canonicalizes each recorded claimant
+  worktree with the fleet's own `canonicalPath` (`workspace.CanonicalPath`, the
+  helper that produced every row's `tree_path`), keeping the recorded spelling
+  only when the path no longer exists (it then matches no row and is dangling,
+  which is correct). `PlaceClaims` compares strings only. `canonRoot` (claim
+  side) and `CanonicalPath` agree for existing paths (both `EvalSymlinks(Abs)`);
+  the integration fixture lives under macOS's symlinked temp root
+  (`/var` → `/private/var`), so a divergence would fail it.
 - **ARCH-CONSTRAINTS:** one tracker read per repository (the existing
   `repoRecords` cache), no per-issue or per-worktree probes for claims; machine
   identity computed once per inventory. Tested with a counting loader.
@@ -135,17 +147,13 @@ the same derivation `claim` records.
 (`validateAddition` + creation `taken` include unreadable); test
 `internal/tracker/reader_test.go`.
 
-- [ ] **Failing tests** (pure, `parseSnapshot` over `[]gitx.TreeFile`):
-  `TestParseSnapshotQuarantinesAMalformedCard` — manifest + one good card + one
-  card with a malformed claimant + one whose frontmatter id disagrees with its
-  filename → no error; `Records()` holds only the good card; `Unreadable()`
-  lists the two with path and cause; `MaxID()` counts all three;
-  `Require(bad)` errors with `ErrUnreadableCard` and the cause; `Require(missing)`
-  is `ErrNoCard`. `TestParseSnapshotStructuralErrorsStillFail` — a duplicate ID
-  where one copy is unreadable, a bad path, a missing manifest: whole read fails.
-  `TestCreateRefusesAnUnreadableID` — creating a card with a quarantined ID or
-  path is `ErrIDTaken`.
-- [ ] Run `go test ./cmd/sdlc/internal/tracker/ -run 'Quarantine|Structural|UnreadableID'` → FAIL.
+- [ ] **Failing tests** — strategy: `parseSnapshot` table-driven over seeded
+  tree files, one row per error class (malformed claimant, ID/filename
+  disagreement → quarantined; duplicate ID with an unreadable copy, bad path,
+  missing manifest → whole read fails), asserting `Records`/`Unreadable`/
+  `MaxID`/`Require` per row (`TestParseSnapshotQuarantine`); creation over a
+  quarantined ID or path is `ErrIDTaken` (`TestCreateRefusesAnUnreadableID`).
+- [ ] Run `go test ./cmd/sdlc/internal/tracker/ -run 'Quarantine|UnreadableID'` → FAIL.
 - [ ] Implement; run → PASS; whole tracker package green.
 
 ### Task 2: readers of the snapshot and of records
@@ -198,16 +206,14 @@ modify `internal/fleet/types.go` (row + inventory fields, validate, strict
 unmarshal), `internal/fleet/render.go` (text: `  claim=… status=… revision=…`,
 `claims=<state>` with error, `machine …`, `dangling_claim …` lines).
 
-- [ ] **Failing tests** (pure): `TestPlaceClaims` — two repos, rows for main +
-  slot; claims: this-machine on the slot (placed), this-machine on a removed
-  path (dangling), other-machine (omitted), open/done statuses (omitted),
-  unattributed active (omitted). `TestPlaceClaimsReadQuality` — stale repo →
-  rows `stale` with error and claims listed; unknown repo → `unknown`, `[]`;
-  unreadable cards → `partial` naming them; machine error → every row
-  `unknown`; no-tracker repo → `absent`. `TestInventoryClaimsContract` —
-  marshal/strict-unmarshal round trip; validation rejects `claims: null`, an
-  unknown `claims_state`, `unknown` with listed claims, `present`/`absent` with
-  an error, `stale`/`partial`/`unknown` without one, a non-fingerprint machine.
+- [ ] **Failing tests** — strategy: `PlaceClaims` table-driven over the cross
+  product {repo read: present, stale, partial, unknown, no tracker; machine:
+  known, unknown} × {claimant class: this machine on a row, this machine on no
+  row, other machine, no claimant, non-active status}, asserting each row's
+  state/claims/error and the dangling set (`TestPlaceClaims`); the contract by
+  round trip plus one rejection per invariant (`TestInventoryClaimsContract`:
+  null claims, unknown state, values under `unknown`, error iff stale/partial/
+  unknown, non-fingerprint machine).
 - [ ] Run `go test ./cmd/sdlc/internal/fleet/ -run 'Claims'` → FAIL; implement; → PASS.
   Existing fleet tests (json, render goldens) updated for the new fields.
 
