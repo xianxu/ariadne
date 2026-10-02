@@ -68,6 +68,12 @@ func (o Observation) Validate() error {
 		if rv.Verdict != "" && !vocab.Verdict().IsEmitted(rv.Verdict) {
 			return fmt.Errorf("checkpoints: review %s verdict %q is not a review verdict", rv.Boundary, rv.Verdict)
 		}
+		// A verdict is set exactly when a review artifact was read (present)
+		// for a boundary that records one — the plan boundary keeps a ledger,
+		// not a verdict.
+		if wantVerdict := rv.State == Present && rv.Boundary != "plan"; (rv.Verdict != "") != wantVerdict {
+			return fmt.Errorf("checkpoints: review %s verdict is set exactly when its artifact was read", rv.Boundary)
+		}
 	}
 	if f := o.Checkpoints.Flow; f != nil {
 		if !flow.ValidKind(f.Kind) {

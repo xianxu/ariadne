@@ -250,3 +250,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     assert their anchor).
 
 - M2 closed (SHIP; 0.63h measured). Three advisory Minors (verdict iff present non-plan review; envelope claim scope; plan.go doc-comment attachment) are being fixed before the issue close.
+- Fixed the M2 advisories: the verdict is set exactly when a present non-plan review (two rejection rows); the envelope test and the atlas now state the collector-only scope; the plan.go doc comments are reattached, with capture groups 1 and 2 documented.

@@ -81,6 +81,10 @@ func TickMilestone(body, milestone string) (string, int) {
 	return body[:start] + strings.Join(lines, "\n") + body[end:], n
 }
 
+// MilestoneTagPattern is a milestone tag's grammar (M1, M4b) — the one
+// definition plan parsing and the #279 observation contract match against.
+const MilestoneTagPattern = `M\d+[a-z]?`
+
 // milestonePlanRE matches a ticked-or-unticked milestone bullet at the
 // start of a plan-section line:
 //
@@ -88,15 +92,12 @@ func TickMilestone(body, milestone string) (string, int) {
 //   - [ ] M4b: port milestone-close
 //   - [.] **M5 — wip
 //
-// Captures the milestone tag (group 1, e.g. "M1" or "M4b"). The bold
+// Captures the checkbox state (group 1: " ", "x" or ".") and the milestone tag
+// (group 2, e.g. "M1" or "M4b"). The bold
 // asterisks are typical but not strictly required, and the tag may be followed
 // by any separator (em dash, colon, space) — accepting every form existing issue
 // files use is the point: #231 retired a colon-only sibling in sizing.go that
 // reported zero milestones for the dominant em-dash form.
-// MilestoneTagPattern is a milestone tag's grammar (M1, M4b) — the one
-// definition plan parsing and the #279 observation contract match against.
-const MilestoneTagPattern = `M\d+[a-z]?`
-
 var milestonePlanRE = regexp.MustCompile(`(?m)^- \[([ x.])\] \*{0,2}(` + MilestoneTagPattern + `)\b`)
 
 // MilestonesInPlanOrder enumerates the milestone tags in a Plan body, in plan

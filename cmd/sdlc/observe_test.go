@@ -162,7 +162,12 @@ func TestObserveCheckpointsAcrossTheLifecycle(t *testing.T) {
 	branch := r.git("branch", "--show-current")
 	other := filepath.Join(t.TempDir(), "other")
 	testfix.Git(t, r.root, "worktree", "add", "-q", "--detach", other, "origin/main")
-	look := func() observe.Observation { t.Helper(); t.Chdir(other); defer t.Chdir(r.root); return observeIssue(t, 394, "") }
+	look := func() observe.Observation {
+		t.Helper()
+		t.Chdir(other)
+		defer t.Chdir(r.root)
+		return observeIssue(t, 394, "")
+	}
 
 	o := look()
 	if o.Branch.Ref != "refs/heads/"+branch || o.Checkpoints.State != observe.Present || o.Checkpoints.Flow == nil || len(o.Checkpoints.Reviews) != 0 {
@@ -241,8 +246,11 @@ func TestObserveWorktreeFatesAndBound(t *testing.T) {
 		o.Workspaces.Holding[0].Path != canonRoot(third) || o.Workspaces.Holding[0].IsClaimant {
 		t.Fatalf("elsewhere: %+v %+v", o.Assignment, o.Workspaces)
 	}
+	// Scope: the collector's own git work (worktrees, branch, holding facts,
+	// evidence, Resolve). The tracker load (fetch, snapshot, card reads) is the
+	// shared records layer's, bounded there, and not counted here.
 	if calls > 20 {
-		t.Fatalf("one observation ran %d git commands; the bound is per issue (holding worktrees + artifacts)", calls)
+		t.Fatalf("the collector ran %d git commands; its bound is per issue (holding worktrees + artifacts)", calls)
 	}
 	testfix.Git(t, r.root, "worktree", "remove", "--force", slot)
 	if o := observeIssue(t, 395, ""); o.Assignment.ClaimantWorktree != observe.FateMissing {

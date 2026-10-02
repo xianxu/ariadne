@@ -137,9 +137,11 @@ ways) and `Assemble`. `cmd/sdlc/observe.go` collects the inputs.
     boundary is omitted.
 - **Activity:** the worktrees holding the issue branch, with dirty count and
   ahead/behind main. The branch head and its commits ahead of main.
-- **Envelope:** one tracker fetch. The git work is per issue: one worktree
-  list, facts only for the holding worktrees, one listing plus a fixed set of
-  `git show`s at the evidence location. A test bounds it at 20 commands.
+- **Envelope:** one tracker fetch through the shared records layer. The
+  collector's own git work is per issue: one worktree list, facts only for
+  the holding worktrees, one listing plus a fixed set of `git show`s at the
+  evidence location. A test bounds the collector (not the tracker load) at
+  20 commands.
 
 ## Storage boundary
 

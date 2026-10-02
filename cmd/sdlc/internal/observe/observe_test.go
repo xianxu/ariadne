@@ -289,19 +289,21 @@ func TestValidateRejectsEveryUnknownEnum(t *testing.T) {
 		spoil func(*Observation)
 		names string
 	}{
-		"state":                     {func(o *Observation) { o.Branch.State = "fine" }, "branch: unknown state"},
-		"card authority":            {func(o *Observation) { o.Card.Authority = AuthorityWorktree }, "card: authority"},
-		"workspaces authority":      {func(o *Observation) { o.Workspaces.Authority = AuthorityTracker }, "workspaces: authority"},
-		"checkpoints authority":     {func(o *Observation) { o.Checkpoints.Authority = "" }, "checkpoints: authority"},
-		"relation":                  {func(o *Observation) { o.Assignment.Relation = "friend" }, "unknown relation"},
-		"claimant_worktree":         {func(o *Observation) { o.Assignment.ClaimantWorktree = "nearby" }, "unknown claimant_worktree"},
-		"outcome":                   {func(o *Observation) { o.Landing.Outcome = "shipped" }, "unknown outcome"},
-		"review boundary empty":     {review(Review{Read: Read{State: Absent}}), "review boundary"},
-		"review boundary grammar":   {review(Review{Read: Read{State: Absent}, Boundary: "M"}), "review boundary"},
-		"review boundary lowercase": {review(Review{Read: Read{State: Absent}, Boundary: "m1"}), "review boundary"},
-		"verdict":                   {review(Review{Read: Read{State: Present}, Boundary: "close", Verdict: "MAYBE"}), "not a review verdict"},
-		"flow kind":                 {func(o *Observation) { o.Checkpoints.Flow = &Flow{Kind: "huge", Provenance: "inferred"} }, "flow kind"},
-		"flow provenance":           {func(o *Observation) { o.Checkpoints.Flow = &Flow{Kind: "full", Provenance: "x"} }, "flow provenance"},
+		"state":                       {func(o *Observation) { o.Branch.State = "fine" }, "branch: unknown state"},
+		"card authority":              {func(o *Observation) { o.Card.Authority = AuthorityWorktree }, "card: authority"},
+		"workspaces authority":        {func(o *Observation) { o.Workspaces.Authority = AuthorityTracker }, "workspaces: authority"},
+		"checkpoints authority":       {func(o *Observation) { o.Checkpoints.Authority = "" }, "checkpoints: authority"},
+		"relation":                    {func(o *Observation) { o.Assignment.Relation = "friend" }, "unknown relation"},
+		"claimant_worktree":           {func(o *Observation) { o.Assignment.ClaimantWorktree = "nearby" }, "unknown claimant_worktree"},
+		"outcome":                     {func(o *Observation) { o.Landing.Outcome = "shipped" }, "unknown outcome"},
+		"review boundary empty":       {review(Review{Read: Read{State: Absent}}), "review boundary"},
+		"review boundary grammar":     {review(Review{Read: Read{State: Absent}, Boundary: "M"}), "review boundary"},
+		"review boundary lowercase":   {review(Review{Read: Read{State: Absent}, Boundary: "m1"}), "review boundary"},
+		"verdict":                     {review(Review{Read: Read{State: Present}, Boundary: "close", Verdict: "MAYBE"}), "not a review verdict"},
+		"present review, no verdict":  {review(Review{Read: Read{State: Present}, Boundary: "close"}), "verdict is set exactly when"},
+		"verdict on an absent review": {review(Review{Read: Read{State: Absent}, Boundary: "M1", Verdict: "SHIP"}), "verdict is set exactly when"},
+		"flow kind":                   {func(o *Observation) { o.Checkpoints.Flow = &Flow{Kind: "huge", Provenance: "inferred"} }, "flow kind"},
+		"flow provenance":             {func(o *Observation) { o.Checkpoints.Flow = &Flow{Kind: "full", Provenance: "x"} }, "flow provenance"},
 	} {
 		o := good
 		o.Checkpoints.Reviews = append([]Review{}, good.Checkpoints.Reviews...) // non-nil, independent
