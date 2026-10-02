@@ -68,6 +68,7 @@ func TestSchedulingExampleRuns(t *testing.T) {
 		t.Fatalf("before the claim: card.status = %q", got)
 	}
 
+	flowChecked := false
 	for i, step := range recovery.Example {
 		label := fmt.Sprintf("step %d (%s: %s)", i+1, step.Actor, step.Does)
 		switch {
@@ -106,6 +107,13 @@ func TestSchedulingExampleRuns(t *testing.T) {
 				}
 			}
 			for _, e := range step.Expect {
+				if e.Path == "checkpoints.state" {
+					// The fixture's own fact, not guidance: its one-box plan is the quick flow.
+					flowChecked = true
+					if got, _ := recovery.Lookup(doc, "checkpoints.flow.kind"); got != "quick" {
+						t.Errorf("%s: the fixture's flow = %q, want quick", label, got)
+					}
+				}
 				if got, ok := recovery.Lookup(doc, e.Path); !ok || got != e.Equals {
 					t.Errorf("%s: %s = %q (resolved %v), want %q", label, e.Path, got, ok, e.Equals)
 				}
@@ -113,6 +121,9 @@ func TestSchedulingExampleRuns(t *testing.T) {
 		default:
 			t.Fatalf("%s: unknown actor", label)
 		}
+	}
+	if !flowChecked {
+		t.Error("no step observed the checkpoints; the recorded flow went unchecked")
 	}
 }
 
