@@ -77,7 +77,20 @@ rounds:
           family: plan-self-consistency
           round: 2
       blocked: false
-content_hash: e8a77bdfe61ee028b0d6dd22320c5caf6d4ebf3b01347429b6e404b251521919
+    - "n": 3
+      timestamp: "2026-10-02T16:24:41-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-4
+          disposition: addressed
+          note: Tasks now give one table-strategy line per risky function (input-class axes), not enumerated prose cases.
+          round: 3
+        - id: PQ-7
+          disposition: addressed
+          note: Goal now reads "with the reasons behind each member's verdict (no file lists)", consistent with Decisions and Done-when.
+          round: 3
+      blocked: false
+content_hash: 97552f3a04baaedc7b53602efeeee063c8348478d479754cab65fa595d956451
 ---
 
 # Gate ledger — ariadne#289 (plan-quality)
@@ -115,7 +128,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-7** [Minor] `plan-self-consistency` Goal line still promises needs-recovery paths, contradicting the reasons-not-paths decision
   The plan header Goal says "with the paths behind a needs-recovery verdict"; Decisions and Done-when say reasons only. Update the Goal so implementers do not reintroduce path lists.
 
+## Round 3 — 2026-10-02T16:24:41-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-4 — addressed — Tasks now give one table-strategy line per risky function (input-class axes), not enumerated prose cases.
+- PQ-7 — addressed — Goal now reads "with the reasons behind each member's verdict (no file lists)", consistent with Decisions and Done-when.
+
 ## Open findings
 
-- **PQ-4** [Minor] `test-prose-enumeration` Tasks 3-6 enumerate test cases in prose; reduce to one strategy line per risky function
-- **PQ-7** [Minor] `plan-self-consistency` Goal line still promises needs-recovery paths, contradicting the reasons-not-paths decision
+(none — every finding has been disposed)
