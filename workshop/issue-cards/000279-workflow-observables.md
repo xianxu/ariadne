@@ -1,6 +1,6 @@
 ---
 id: 000279
-status: codecomplete
+status: done
 created: 2026-10-01
 updated: 2026-10-02
 estimate_hours: 3.31
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f8780473f93ea87dd1dda0cacdd8a442c63dc97c
         evidence_commit: 13f28859008c7cd122a2f514e0f66c78c8459149
+        landed_commit: afb5969efb6892a72c5a5fe80f4749794e11b4c6
 ---
 
 # Expose authoritative workflow observations for agents
