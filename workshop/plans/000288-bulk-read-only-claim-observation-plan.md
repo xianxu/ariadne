@@ -169,15 +169,17 @@ Record readers (`rec.Card == nil` sites) and their unreadable-card behavior:
 
 | Site | Behavior |
 |------|----------|
-| `close.go:515` | refuse naming the parse error (not "no card") |
-| `actual.go:173` | refuse/measure-fails naming the parse error |
-| `push.go:561` | not terminal → the existing refusal path; message names the error |
-| `trackercompletion.go:39` | unreachable for publish (transferguard refuses first); skip stays |
-| `projectstatus.go:304` | error naming the parse error |
-| `issuefiles.go:85`, `issue.go:606` (`issue show` text) | status/card shown as unreadable |
-| `observe.go:50` → `observe.Inputs.CardErr` | card section `unknown`, never `absent` |
-| `internal/fleet/issues.go:54` | branch-prefix lookup returns an error → row diagnostic |
-| `state`/`issue list` (`listIssueStates`) | status `unreadable` (the existing sentinel) |
+| `close.go` (tracker-era status read) | dies naming the parse error (not "no card") |
+| `actual.go` (`actualTrackerInputs`) | measures without the started stamp; warning names the error |
+| `push.go` (`historyFileIsTerminal`) | returns the error — terminal or not is unknown, never guessed |
+| `trackercompletion.go` (`ownedCompletions`) | refuses naming the card — reached by landing (`completeLandingPR`) and recovery (`settleLandedCompletions`), which transferguard does not guard |
+| `projectstatus.go` (`lookupIssueMeta`) | error naming the parse error |
+| `issuefiles.go` (`overlayCardStatus`) | fails the scan (fail-closed; its callers are publish paths) |
+| `issue.go` (`issue show` text) | prints `card unreadable on …: <cause>` |
+| `observe.go` → `observe.Inputs.CardErr` | card section `unknown`, never `absent` |
+| `internal/fleet/issues.go` (`LookupRepoIssues`) | returns an error → row diagnostic |
+| `state.go` (`listIssueStates`) | status `unreadable` + `unreadable` reason; drift names it |
+| `transferguard.go` | refuses PR/push/merge naming every unreadable card |
 
 - [ ] **Failing integration test** `TestOneMalformedCardDoesNotBlockOthers`
   (`tracker_e2e_test.go` style, real fixture): push a commit to the origin
@@ -264,3 +266,9 @@ inventory, `atlas/workflow/issue-tracker.md` (quarantine semantics),
   move into `fleet inventory`; unclaimed issues are out; orphaned claims are
   `dangling_claims`; a malformed card must no longer fail the whole tracker read
   (folded in as M1). The first draft's body is superseded and kept in history.
+- 2026-10-02 — M1 boundary review (BR-3/BR-4). The Task 2 reader table is
+  rewritten to current reality: `ownedCompletions` was wrongly called
+  unreachable (landing and recovery reach it without transferguard) and now
+  refuses; `overlayCardStatus` fails closed rather than showing "unreadable";
+  transferguard names every unreadable card. Each reader branch is now
+  exercised by `TestOneMalformedCardDoesNotBlockOthers`.

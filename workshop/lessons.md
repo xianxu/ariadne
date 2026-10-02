@@ -299,3 +299,8 @@ The simplest durable authority beats a clever scan of consequences.
   prose and the Plan rows, not only the table cells. Rewrite the table to current reality in one Revisions entry
   rather than patching the row a reviewer named. #280 drifted twice: M1
   revised one row, and M2's review found four more absent files.
+- "Unreachable because guard X refuses first" is a claim about every caller,
+  not the ones you had in mind. Before skipping a branch on that argument,
+  list the function's callers and confirm each one passes through X. #288 M1
+  skipped unreadable cards in `ownedCompletions` as "behind transferguard",
+  but landing and recovery reach it without the guard.

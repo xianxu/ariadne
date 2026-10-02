@@ -360,3 +360,20 @@ func reviewFor(o Observation, boundary string) (Review, bool) {
 	}
 	return Review{}, false
 }
+
+// #288: an unreadable card is unknown, with its cause — never absent — and
+// every tracker-derived section follows it into unknown.
+func TestAssembleUnreadableCardIsUnknown(t *testing.T) {
+	in := base(nil)
+	in.CardErr = errors.New("tracker workshop/issue-cards/000279-observe.md: invalid claimant")
+	o := Assemble(in)
+	if o.Card.State != Unknown || !strings.Contains(o.Card.Error, "invalid claimant") {
+		t.Fatalf("card: %+v", o.Card)
+	}
+	if o.Assignment.State != Unknown || o.Assignment.Relation != "" || o.Landing.Outcome != "" {
+		t.Fatalf("derived sections: %+v %+v", o.Assignment, o.Landing)
+	}
+	if err := o.Validate(); err != nil {
+		t.Fatal(err)
+	}
+}

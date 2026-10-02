@@ -6,7 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/fleet"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/observe"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // #288: one malformed tracker card is quarantined, not fatal. Every other
@@ -58,6 +60,43 @@ func TestOneMalformedCardDoesNotBlockOthers(t *testing.T) {
 
 	if err := guardTransferredDetails(ctx); err == nil || !strings.Contains(err.Error(), "#000042 is malformed") {
 		t.Fatalf("publishing must refuse while a card is unreadable: %v", err)
+	}
+
+	// Every reader of the composed records names the cause instead of reading
+	// the card as absent (M1 review BR-3/BR-4).
+	names := func(what string, err error) {
+		t.Helper()
+		if err == nil || !strings.Contains(err.Error(), "fingerprint") {
+			t.Errorf("%s: want an error naming the cause, got %v", what, err)
+		}
+	}
+	invalidateIssueRecords(ctx)
+	errs.Reset()
+	names("issue set-status", runSetStatus(ctx, &out, &errs, &setStatusFlags{Issue: 42, Status: "blocked", IssuesDir: "workshop/issues"}))
+	_, err = historyFileIsTerminal(ctx, badDetailPath)
+	names("archive terminal check", err)
+	_, err = lookupIssueMeta(ctx, "#42", ".")
+	names("project status lookup", err)
+	_, err = overlayCardStatus(ctx, "workshop/issues", []issueFileRef{{Path: badDetailPath}})
+	names("issue-file status overlay", err)
+	_, err = fleet.LookupRepoIssues(ctx, ".", "000042")
+	names("fleet branch lookup", err)
+	env, err := openTrackerAt(ctx, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	rs, err := loadIssueRecords(ctx, "workshop/issues", tracker.PreferFresh)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = ownedCompletions(env, rs, "HEAD", "", false)
+	names("landing completions", err)
+	if _, _, _, warning := actualTrackerInputs(ctx, ".", "42"); !strings.Contains(warning, "card unreadable") {
+		t.Errorf("actual: want a warning naming the unreadable card, got %q", warning)
+	}
+	out.Reset()
+	if err := runIssueShow(ctx, &out, &errs, &issueShowFlags{IssuesDir: "workshop/issues"}, "42"); err != nil || !strings.Contains(out.String(), "card unreadable") {
+		t.Errorf("issue show text: %v\n%s", err, out.String())
 	}
 
 	out.Reset()
