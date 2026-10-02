@@ -1,12 +1,20 @@
 ---
 id: 000289
-status: open
+status: working
 deps: [ariadne#288]
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours:
-card_mirror: '1b338f4501b9e8f4743105cea1146b9d94a6ea3f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e0b0f6d300080f1b3e621777ceec65a1f428bccd' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-02T14:54:16-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Slot readiness in sdlc fleet inventory
@@ -64,7 +72,10 @@ then `weave refresh`) must re-check it at action time.
 
 ## Plan
 
-Implementation plan to be designed after issue claim and start-plan.
+Durable plan: `workshop/plans/000289-slot-readiness-in-sdlc-fleet-inventory-plan.md`.
+
+- [ ] M1 — per-checkout readiness facts and verdict (shared `gitx` operation detector, dirty paths + operation on facts, pure `JudgeCheckout`)
+- [ ] M2 — fleet inventory reports one readiness row per slot (declared membership via `layergraph.ParseRows`, `AssembleSlots`, versioned `slots`, real-git fixtures, recovery entry, help, atlas)
 
 ## Log
 
@@ -73,3 +84,10 @@ Implementation plan to be designed after issue claim and start-plan.
 Filed from pair#384's design review at the operator's direction (pair#384 closed
 wontfix; its slot facts belong to sdlc). To be picked up after ariadne#288.
 Consumers: pair#363 (bulk resume/reboot), pair#367 (slot view and recovery).
+
+Details were left untracked in pair-slot1/ariadne by the filing session;
+published to main with `sdlc issue move-detail` from that checkout at the
+operator's direction, then claimed. Design findings: membership is declared in
+`construct/deps` (`pkg/layergraph.ParseRows`, transitive); weave records no
+clone set, so membership is re-derived; dependency clones rest on `main`;
+operation-marker detection exists twice with different lists (to be unified).
