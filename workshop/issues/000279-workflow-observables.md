@@ -169,3 +169,14 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Added a lesson on anchoring repositories to the given path.
 
 - M1 closed (SHIP after REWORK; 0.86h measured). Advisories BR-4 (ref-error test), BR-5 (validate every enum including authority, one rejection table) and BR-6 (placeholder sections and golden) are folded into M2's first steps.
+- M2 step: pure assembly for branch, workspaces (activity) and checkpoints.
+  - Checkpoints cover flow, plan, and reviews in plan order. A boundary the
+    record says closed but whose artifact is missing is `unknown`; an
+    unreached boundary is omitted.
+  - Advisories done: BR-4 (ref-error test); BR-5 (every enum, including each
+    section's fixed authority and review boundaries, validated, with a
+    rejection table); BR-6 (the placeholder is gone and the golden
+    regenerated with full v1 content).
+  - Plan correction: `DecideScoped`'s OpenBlocking depends on the round cap
+    (it demotes past the cap). So `open_blocking` = OpenBlocking + Demoted,
+    computed collector-side with `openScopeFor`.

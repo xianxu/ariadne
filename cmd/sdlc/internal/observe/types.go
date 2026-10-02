@@ -124,6 +124,7 @@ type Workspace struct {
 	Ahead      int    `json:"ahead"`
 	Behind     int    `json:"behind"`
 	IsClaimant bool   `json:"is_claimant"`
+	Error      string `json:"error,omitempty"` // its activity facts could not be read
 }
 
 // Workspaces are the local worktrees holding the issue branch — activity only.

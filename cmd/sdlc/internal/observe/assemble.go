@@ -38,6 +38,10 @@ type Inputs struct {
 	// not archived there).
 	MainArchive    string
 	MainArchiveErr error
+
+	Branch   BranchFacts
+	Holding  []HoldingFacts // local worktrees holding the issue branch
+	Evidence Evidence       // where checkpoints are read
 }
 
 type LocalWorktree struct{ Path, Branch string }
@@ -49,16 +53,13 @@ func Assemble(in Inputs) Observation {
 		SchemaVersion: SchemaVersion,
 		Issue:         in.Issue,
 		ObservedAt:    in.ObservedAt.UTC().Format(time.RFC3339),
-		Workspaces:    Workspaces{Authority: AuthorityWorktree, Holding: []Workspace{}},
-		Branch:        Branch{Authority: AuthorityCommitted},
-		Checkpoints:   Checkpoints{Authority: AuthorityCommitted, Reviews: []Review{}},
 	}
-	notYet := Read{State: Unknown, Error: "not observed by this build"}
-	o.Workspaces.Read, o.Branch.Read, o.Checkpoints.Read = notYet, notYet, notYet
-
 	o.Tracker = assembleTracker(in)
 	o.Card = assembleCard(in, o.Tracker)
 	o.Assignment = assembleAssignment(in, o.Card)
+	o.Workspaces = assembleWorkspaces(in, o.Assignment)
+	o.Branch = assembleBranch(in)
+	o.Checkpoints = assembleCheckpoints(in, o.Card)
 	o.Completion = assembleCompletion(in, o.Card)
 	o.Landing = assembleLanding(in, o.Card, o.Completion)
 	return o

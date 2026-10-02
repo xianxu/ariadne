@@ -43,6 +43,21 @@ func (o Observation) Validate() error {
 	if o.Workspaces.Holding == nil || o.Checkpoints.Reviews == nil {
 		return errors.New("collections must be present (empty, never null)")
 	}
+	for name, got := range map[string]struct{ have, want Authority }{
+		"card": {o.Card.Authority, AuthorityTracker}, "assignment": {o.Assignment.Authority, AuthorityTracker},
+		"completion": {o.Completion.Authority, AuthorityTracker}, "landing": {o.Landing.Authority, AuthorityTracker},
+		"workspaces": {o.Workspaces.Authority, AuthorityWorktree},
+		"branch":     {o.Branch.Authority, AuthorityCommitted}, "checkpoints": {o.Checkpoints.Authority, AuthorityCommitted},
+	} {
+		if got.have != got.want {
+			return fmt.Errorf("%s: authority %q, want %q", name, got.have, got.want)
+		}
+	}
+	for _, rv := range o.Checkpoints.Reviews {
+		if rv.Boundary == "" {
+			return errors.New("checkpoints: a review without a boundary")
+		}
+	}
 	valued := func(r Read) bool { return r.State == Present || r.State == Stale }
 	if (o.Assignment.Relation != "") != valued(o.Assignment.Read) {
 		return errors.New("assignment: relation is set exactly when the read yielded a value")

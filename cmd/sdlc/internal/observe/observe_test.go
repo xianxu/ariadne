@@ -177,6 +177,15 @@ var update = flag.Bool("update", false, "rewrite golden files")
 func TestObservationGolden(t *testing.T) {
 	in := base(card(t, "done", &slot, true))
 	in.MainArchive = "workshop/history/issues/000279-observe.md"
+	in.Branch = BranchFacts{Ref: "refs/heads/000279-observe", Head: strings.Repeat("1", 40), LastCommitAt: "2026-10-02T08:00:00Z", AheadOfMain: 3}
+	in.Holding = []HoldingFacts{{Path: "/w/slot2", Address: "r:2", Branch: "000279-observe", Head: strings.Repeat("1", 40), DirtyCount: 2, Ahead: 3}}
+	in.Evidence = Evidence{Source: "refs/remotes/origin/main:workshop/history/plans", Details: details("- [x] M1 — contract\n- [x] M2 — the rest\n"),
+		PlanGate: &ArtifactFacts{Found: true},
+		Artifacts: map[string]ArtifactFacts{
+			"M1":    {Found: true, Sidecar: sidecar("SHIP", "a..b")},
+			"M2":    {Found: true, Sidecar: sidecar("FIX-THEN-SHIP", "b..c"), OpenBlocking: 1},
+			"close": {Found: true, Sidecar: sidecar("SHIP", "a..d")},
+		}}
 	got, err := json.MarshalIndent(Assemble(in), "", "  ")
 	if err != nil {
 		t.Fatal(err)
@@ -200,5 +209,93 @@ func TestObservationGolden(t *testing.T) {
 	var back Observation
 	if err := json.Unmarshal(want, &back); err != nil {
 		t.Fatalf("the golden is not a valid observation: %v", err)
+	}
+}
+
+func details(plan string) []byte {
+	return []byte("---\nid: 000279\nstatus: done\nflow: {kind: full, provenance: inferred}\n---\n\n# Observe\n\n## Problem\n\nx\n\n## Plan\n\n" + plan + "\n## Log\n")
+}
+
+func sidecar(verdict, window string) string {
+	return "# Boundary Review\n\n| field | value |\n|-------|-------|\n| window | " + window + " |\n| timestamp | 2026-10-02T08:30:00-07:00 |\n| verdict | " + verdict + " |\n\n## Review\n\nfine\n"
+}
+
+// #279: checkpoints read from the evidence location. Reviews follow plan order
+// and close; a boundary the record says closed, without its artifact, is
+// unknown, never absent; a boundary not reached is omitted.
+func TestAssembleCheckpoints(t *testing.T) {
+	in := base(card(t, "codecomplete", &me, false))
+	in.Evidence = Evidence{Source: "refs/heads/000279-observe:workshop/plans", Details: details("- [x] M1 — a\n- [ ] M2 — b\n"),
+		Artifacts: map[string]ArtifactFacts{"M1": {Found: true, Sidecar: sidecar("SHIP", "a..b"), OpenBlocking: 0}}}
+	o := Assemble(in)
+	if err := o.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	cp := o.Checkpoints
+	if cp.State != Present || cp.Flow == nil || cp.Flow.Kind != "full" || cp.Plan.Total != 2 || cp.Plan.Ticked != 1 {
+		t.Fatalf("checkpoints: %+v", cp)
+	}
+	got := map[string]Review{}
+	for _, r := range cp.Reviews {
+		got[r.Boundary] = r
+	}
+	if got["M1"].Verdict != "SHIP" || got["M1"].Window != "a..b" {
+		t.Fatalf("M1: %+v", got["M1"])
+	}
+	if _, reached := got["M2"]; reached {
+		t.Fatal("an unreached milestone was listed")
+	}
+	if got["close"].State != Unknown || !strings.Contains(got["close"].Error, "recorded as closed") {
+		t.Fatalf("a codecomplete card's missing close artifact: %+v", got["close"])
+	}
+	// Unreadable evidence and no evidence at all.
+	in.Evidence = Evidence{Source: "x", Err: errors.New("git show: boom")}
+	if o := Assemble(in); o.Checkpoints.State != Unknown {
+		t.Fatalf("unreadable evidence: %+v", o.Checkpoints.Read)
+	}
+	in.Evidence = Evidence{}
+	if o := Assemble(in); o.Checkpoints.State != Unknown {
+		t.Fatalf("a closed card with nowhere holding its evidence must be unknown: %+v", o.Checkpoints.Read)
+	}
+	working := base(card(t, "working", &me, false))
+	if o := Assemble(working); o.Checkpoints.State != Absent || o.Branch.State != Absent || o.Workspaces.State != Absent {
+		t.Fatalf("a fresh claim: %+v %+v %+v", o.Checkpoints.Read, o.Branch.Read, o.Workspaces.Read)
+	}
+}
+
+// #279 BR-4: cards read but their tracker commit unnamed — the reason is kept.
+func TestAssembleKeepsTheRefError(t *testing.T) {
+	in := base(card(t, "working", &me, false))
+	in.TrackerRef, in.TrackerRefErr = "", errors.New("rev-parse: bad ref")
+	o := Assemble(in)
+	if o.Tracker.State != Present || o.Tracker.RefError != "rev-parse: bad ref" || o.Validate() != nil {
+		t.Fatalf("ref error: %+v", o.Tracker)
+	}
+}
+
+// #279 BR-5: every enum-typed contract field rejects a value outside its set.
+func TestValidateRejectsEveryUnknownEnum(t *testing.T) {
+	good := Assemble(base(card(t, "done", &slot, true)))
+	if err := good.Validate(); err != nil {
+		t.Fatal(err)
+	}
+	for name, spoil := range map[string]func(*Observation){
+		"state":                 func(o *Observation) { o.Branch.State = "fine" },
+		"card authority":        func(o *Observation) { o.Card.Authority = AuthorityWorktree },
+		"workspaces authority":  func(o *Observation) { o.Workspaces.Authority = AuthorityTracker },
+		"checkpoints authority": func(o *Observation) { o.Checkpoints.Authority = "" },
+		"relation":              func(o *Observation) { o.Assignment.Relation = "friend" },
+		"claimant_worktree":     func(o *Observation) { o.Assignment.ClaimantWorktree = "nearby" },
+		"outcome":               func(o *Observation) { o.Landing.Outcome = "shipped" },
+		"review boundary": func(o *Observation) {
+			o.Checkpoints.Reviews = append(o.Checkpoints.Reviews, Review{Read: Read{State: Absent}})
+		},
+	} {
+		o := good
+		o.Checkpoints.Reviews = append([]Review(nil), good.Checkpoints.Reviews...)
+		spoil(&o)
+		if o.Validate() == nil {
+			t.Errorf("%s: an out-of-set value validated", name)
+		}
 	}
 }
