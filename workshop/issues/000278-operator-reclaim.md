@@ -137,6 +137,6 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   5. Reclaim back from :2: owner :2 again. Inspect lists both transfers
      with reasons, newest first. :2's change-code passed the ownership gate.
      Reclaim refreshed :2's details mirror (committed here).
-  - Observation (from #277, not this issue): `sdlc move` re-stamps the card
+  - Observation (from #277, not this issue; filed as #282): `sdlc move` re-stamps the card
     but does not refresh the destination's details mirror. It stays stale
     until the next verb there. Cosmetic.
