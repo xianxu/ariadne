@@ -73,3 +73,26 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
      against a real-git fixture.
 - An explorer is mapping each verb's actual recovery behavior and the tests
   behind it.
+- Explorer map, per verb:
+  - **claim, adopt, relocation, set-status, reclaim:** a single card CAS
+    with no receipt, decided by the card on rerun. Convergent, except that
+    reclaim alone tells the caller to "rerun".
+  - **start-plan:** convergent (creates or switches the branch). It takes no
+    repo lock.
+  - **change-code:** convergent for git and ledger state. Estimate-quality
+    re-dispatches every run.
+  - **milestone-close:** a new review round each run (non-repeatable); no
+    commit and no card write.
+  - **close:** receipt-driven (evidence commit, then codecomplete, then the
+    mirror commit); `issue recovery reconcile` finishes an interrupted
+    close; a re-run after SHIP is a new generation (non-repeatable).
+  - **pr:** the durable path updates the open PR (convergent); the legacy
+    path fails on a re-run (gh: PR exists).
+  - **merge:** the legacy path refuses a duplicate run; the durable path
+    prints a `--branch` recovery command and observes the landing state.
+  - **move:** a re-run is refused (duplicate-safe).
+  - Gaps: claim, adopt, relocation and set-status return a raw
+    `ErrPublicationUncertain` with no guidance; there are no lost-ack tests
+    for claim or set-status.
+  - Precedent: the gate catalog (`GateCatalog`, rendered via
+    `{{GATE_FLAGS}}`, guarded by registered-flag and help tests).
