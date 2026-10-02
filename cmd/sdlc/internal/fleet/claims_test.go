@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 var (
@@ -144,5 +145,103 @@ func TestInventoryClaimsContract(t *testing.T) {
 				t.Fatalf("accepted %s", bad)
 			}
 		})
+	}
+}
+
+// #288 BR-9: two clones of one repository read the same tracker. A claim on
+// clone B's tree is placed on B's row and is not dangling from A's read; a
+// claim on no tree is dangling once, not once per clone.
+func TestPlaceClaimsAcrossClones(t *testing.T) {
+	cards := []ClaimCard{
+		{Ref: "x#000001", Status: "working", Revision: "r1", Claimant: claimantOn(meFP, "/b")},
+		{Ref: "x#000002", Status: "working", Revision: "r2", Claimant: claimantOn(meFP, "/gone")},
+	}
+	rowsIn := []TreeRow{claimsRow("/a", "/a"), claimsRow("/b", "/b")}
+	byRepo := map[string]RepoClaims{"/a/.git": {State: ClaimsPresent, Cards: cards}, "/b/.git": {State: ClaimsPresent, Cards: cards}}
+	rows, dangling := PlaceClaims(rowsIn, byRepo, me)
+	if len(rows[0].Claims) != 0 || len(rows[1].Claims) != 1 || rows[1].Claims[0].Ref != "x#000001" {
+		t.Fatalf("placement: %+v / %+v", rows[0].Claims, rows[1].Claims)
+	}
+	if len(dangling) != 1 || dangling[0].Ref != "x#000002" {
+		t.Fatalf("dangling must be the one claim on no tree, once: %+v", dangling)
+	}
+}
+
+// #288 BR-10: the claim read's quality, derived from the composed records,
+// over its state space: tracker presence × freshness × unreadable cards ×
+// claimant record, with duplicates never counted twice.
+func TestRepoClaimsFrom(t *testing.T) {
+	base := "---\nid: 000001\nstatus: working\ncreated: 2026-10-01\nupdated: 2026-10-02\n---\n\n# C\n\n## Problem\n\nx\n"
+	mk := func(id, status string, owner *issue.Claimant) tracker.Record {
+		raw := strings.NewReplacer("000001", id, "status: working", "status: "+status).Replace(base)
+		b := []byte(raw)
+		if owner != nil {
+			var err error
+			if b, err = issue.SetCardClaimant(b, *owner); err != nil {
+				t.Fatal(err)
+			}
+		}
+		card, err := issue.ParseCard(b)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tracker.Record{ID: id, Path: "workshop/issue-cards/" + id + "-c.md", BlobOID: "blob" + id, Card: card, Raw: b}
+	}
+	owner := issue.Claimant{Operator: "op", Machine: meFP, MachineName: "m", Worktree: "/w/raw", Repository: "r"}
+	cards := []tracker.Record{mk("000001", "working", &owner), mk("000002", "open", nil)}
+	bad := []tracker.UnreadableCard{{ID: "000003", Path: "workshop/issue-cards/000003-c.md", Err: errors.New("invalid claimant")}}
+	dup := []tracker.DetailFile{{Path: "/d/000001-c.md", Raw: []byte(base)}, {Path: "/d/000001-copy.md", Raw: []byte(base)}}
+	canon := func(p string) string { return "/canon" + p }
+	offline := errors.New("dial: no route")
+	for _, tc := range []struct {
+		name       string
+		rs         tracker.Records
+		unreadable []tracker.UnreadableCard
+		state      string
+		errHas     string
+		cards      int
+	}{
+		{"no tracker", tracker.Records{}, nil, ClaimsAbsent, "", 0},
+		{"unconfirmed tracker", tracker.Records{Stale: true}, nil, ClaimsUnknown, "could not confirm", 0},
+		{"never fetched", tracker.Records{Stale: true, FetchErr: offline}, nil, ClaimsUnknown, "no route", 0},
+		{"present", tracker.Records{Tracker: true}, nil, ClaimsPresent, "", 2},
+		{"stale", tracker.Records{Tracker: true, Stale: true, FetchErr: offline}, nil, ClaimsStale, "no route", 2},
+		{"partial", tracker.Records{Tracker: true}, bad, ClaimsPartial, "r#000003", 2},
+		{"stale and partial", tracker.Records{Tracker: true, Stale: true, FetchErr: offline}, bad, ClaimsPartial, "no route", 2},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var in []tracker.Record
+			if tc.rs.Tracker {
+				in = cards
+			}
+			got := repoClaimsFrom(tracker.ComposeRecords(tc.rs, in, tc.unreadable, dup), "r", canon)
+			if got.State != tc.state || !strings.Contains(got.Error, tc.errHas) || len(got.Cards) != tc.cards {
+				t.Fatalf("got %+v", got)
+			}
+			if (got.Error == "") != (tc.state == ClaimsPresent || tc.state == ClaimsAbsent) {
+				t.Fatalf("error %q for state %s", got.Error, tc.state)
+			}
+			if tc.cards > 0 {
+				if c := got.Cards[0]; c.Ref != "r#000001" || c.Revision != "blob000001" || c.Claimant == nil || c.Claimant.Worktree != "/canon/w/raw" {
+					t.Fatalf("claimed card: %+v", c)
+				}
+				if got.Cards[1].Claimant != nil {
+					t.Fatalf("unclaimed card has a claimant: %+v", got.Cards[1])
+				}
+			}
+		})
+	}
+}
+
+// #288: marshalling never writes into the caller's rows.
+func TestInventoryMarshalDoesNotMutate(t *testing.T) {
+	row := validTreeRow()
+	row.Claims, row.ClaimsState = nil, ""
+	inv := Inventory{Rows: []TreeRow{row}}
+	if _, err := json.Marshal(inv); err != nil {
+		t.Fatal(err)
+	}
+	if inv.Rows[0].ClaimsState != "" || inv.Rows[0].Claims != nil {
+		t.Fatalf("marshal mutated the caller's row: %+v", inv.Rows[0])
 	}
 }

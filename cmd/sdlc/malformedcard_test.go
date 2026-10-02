@@ -23,7 +23,7 @@ func TestOneMalformedCardDoesNotBlockOthers(t *testing.T) {
 	// A claimant carrying a raw machine ID, never a fingerprint: ParseCard
 	// rejects it, so before #288 every tracker read failed.
 	badCard = strings.Replace(badCard, "status: open", "status: working\nclaimant:\n    operator: a\n    machine: RAW-MACHINE-ID\n    machine_name: m\n    worktree: /w\n    repository: r", 1)
-	newTrackerRepo(t, map[string]string{goodPath: goodCard, badPath: badCard},
+	r := newTrackerRepo(t, map[string]string{goodPath: goodCard, badPath: badCard},
 		map[string]string{goodDetailPath: goodDetail, badDetailPath: badDetail})
 	ctx := context.Background()
 
@@ -103,6 +103,10 @@ func TestOneMalformedCardDoesNotBlockOthers(t *testing.T) {
 	})
 	if !died || !strings.Contains(msg, "fingerprint") {
 		t.Errorf("milestone close of the malformed card: died=%v %q", died, msg)
+	}
+	if inv, _ := fleetClaims(t, r.root); rowAt(t, inv, r.root).ClaimsState != fleet.ClaimsPartial ||
+		!strings.Contains(rowAt(t, inv, r.root).ClaimsError, "#000042") || len(rowAt(t, inv, r.root).Claims) != 1 {
+		t.Errorf("fleet inventory must report the claims read partial, naming #42: %+v", rowAt(t, inv, r.root))
 	}
 	out.Reset()
 	if err := runIssueShow(ctx, &out, &errs, &issueShowFlags{IssuesDir: "workshop/issues"}, "42"); err != nil || !strings.Contains(out.String(), "card unreadable") {

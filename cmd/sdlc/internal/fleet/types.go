@@ -390,7 +390,7 @@ func (i Inventory) withDefaults() Inventory {
 		i.DanglingClaims = []DanglingClaim{}
 	}
 	if i.Machine.State == "" {
-		i.Machine = Machine{State: ClaimsUnknown, Error: "machine identity was not collected"}
+		i.Machine = Machine{State: MachineUnknown, Error: "machine identity was not collected"}
 	}
 	return i
 }
@@ -417,12 +417,14 @@ func (i Inventory) MarshalJSON() ([]byte, error) {
 			return nil, fmt.Errorf("marshal inventory: %w", err)
 		}
 	}
+	rows := make([]TreeRow, len(i.Rows)) // never write into the caller's rows
 	for n, row := range i.Rows {
-		i.Rows[n] = row.withDefaults()
-		if err := i.Rows[n].validate(); err != nil {
+		rows[n] = row.withDefaults()
+		if err := rows[n].validate(); err != nil {
 			return nil, fmt.Errorf("marshal inventory: %w", err)
 		}
 	}
+	i.Rows = rows
 	if err := i.validateClaims(); err != nil {
 		return nil, fmt.Errorf("marshal inventory: %w", err)
 	}

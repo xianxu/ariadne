@@ -45,6 +45,9 @@ var claimantKeys = []struct {
 
 var fingerprintRE = regexp.MustCompile(`^[0-9a-f]{32}$`)
 
+// ValidFingerprint reports whether s is a machine fingerprint (never a raw ID).
+func ValidFingerprint(s string) bool { return fingerprintRE.MatchString(s) }
+
 // MachineFingerprint keys the OS machine ID to Ariadne claims, so the published
 // value matches exactly when the machine does without revealing or linking the
 // raw identifier (the tracker may be public).

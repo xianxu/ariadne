@@ -139,7 +139,17 @@ func AssociateBranchIssue(branch string, lookup IssueLookup) ([]IssueAssociation
 // recorded worktree is re-canonicalized with the helper that produced the
 // inventory's tree paths, so placement compares like with like; a path that no
 // longer exists keeps its recorded spelling (it matches no row: dangling).
+//
+// A checkout with no tracker cutover marker and no fetched tracker has no
+// claims: it is absent without probing its remote (#288 BR-11), so inventory
+// contacts only the remotes of repositories that use the tracker — one fetch
+// each, the same read their branch-prefix lookups already make.
 func LookupRepoClaims(ctx context.Context, repoRoot string) RepoClaims {
+	if cut, err := tracker.CutOver(repoRoot); err != nil {
+		return RepoClaims{State: ClaimsUnknown, Error: err.Error()}
+	} else if !cut {
+		return RepoClaims{State: ClaimsAbsent}
+	}
 	rs, err := repoRecords(ctx, repoRoot)
 	if err != nil {
 		return RepoClaims{State: ClaimsUnknown, Error: err.Error()}

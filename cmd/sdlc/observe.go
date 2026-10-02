@@ -46,12 +46,12 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 	}
 	stem := ""
 	if err == nil {
-		if rec, ok := rs.Get(id); ok {
-			if rec.Card != nil {
+		if rec, ok, cerr := rs.Require(id); ok {
+			if cerr != nil {
+				in.CardErr = cerr
+			} else if rec.Card != nil {
 				in.Card, in.CardPath, in.CardBlob = rec.Card.Raw, rec.Card.Path, rec.Card.BlobOID
 				stem = strings.TrimSuffix(path.Base(rec.Card.Path), ".md")
-			} else {
-				in.CardErr = rec.CardErr
 			}
 			if rec.Card == nil && rec.DetailPath != "" {
 				stem = strings.TrimSuffix(path.Base(rec.DetailPath), ".md")
@@ -91,8 +91,10 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 		if in.WorktreesErr == nil {
 			in.Holding = collectHolding(in.Worktrees, remote, stem)
 		}
+		// An unreadable card's status is unknown (#288): the card section
+		// already says so, and evidence is then read from the branch only.
 		status := ""
-		if rec, ok := rs.Get(id); ok {
+		if rec, ok, cerr := rs.Require(id); ok && cerr == nil {
 			status = rec.Status()
 		}
 		if rel, rerr := filepath.Rel(canonRoot(root), canonRoot(issuesDir)); rerr != nil || strings.HasPrefix(rel, "..") {

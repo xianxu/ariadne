@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"os"
@@ -8,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/fleet"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -51,9 +53,44 @@ func rowAt(t *testing.T, inv fleet.Inventory, path string) fleet.TreeRow {
 
 // #288: a claim made in a slot is reported on that slot's row, against this
 // machine's identity as claim recorded it, from one claims read per
-// repository; once the slot is removed the claim is dangling, never dropped.
+// repository; another machine's claim, an ownerless working card and an open
+// card are not local state; once the slot is removed the claim is dangling,
+// never dropped.
 func TestFleetInventoryPlacesClaims(t *testing.T) {
-	r, slot, cardPath, _ := reclaimFixture(t, 471)
+	cards, details, paths := map[string]string{}, map[string]string{}, map[int]string{}
+	for _, n := range []int{471, 473, 474, 475} {
+		cp, c, dp, d := seededIssue(t, itoa6(n), "c"+itoa(n))
+		cards[cp], details[dp], paths[n] = c, d, cp
+	}
+	r := newTrackerRepo(t, cards, details)
+	claim := func(n int) {
+		t.Helper()
+		var out, errs bytes.Buffer
+		if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(n)); err != nil {
+			t.Fatalf("claim #%d: %v\n%s", n, err, errs.String())
+		}
+		invalidateIssueRecords(context.Background())
+	}
+	slot := filepath.Join(t.TempDir(), "slot")
+	testfix.Git(t, r.root, "worktree", "add", "-q", "-b", "000471-c471", slot)
+	t.Chdir(slot)
+	claim(471)
+	t.Chdir(r.root)
+	claim(473)
+	claim(474)
+	other, _ := ownerOf(t, r, paths[473])
+	other.Machine = issue.MachineFingerprint("another-machine")
+	env, err := openTrackerAt(context.Background(), r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.repo.ChangeCard("000473", paths[473], "owner", operationToken("set"), func(c []byte) ([]byte, error) {
+		return issue.SetCardClaimant(c, other)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	dropClaimant(t, r, "000474", paths[474])
+	cardPath := paths[471]
 	third := filepath.Join(t.TempDir(), "third") // a second worktree: reads stay one per repository
 	testfix.Git(t, r.root, "worktree", "add", "-q", "--detach", third)
 	owner, _ := ownerOf(t, r, cardPath)

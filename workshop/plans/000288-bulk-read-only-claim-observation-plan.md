@@ -35,8 +35,10 @@ the same derivation `claim` records.
   the row's `issues`.
 - **Placement:** a claim joins the row with the same `repo_identity` whose
   `tree_path` equals the claimant's canonical `worktree`. A this-machine claim
-  matching no row is a **`dangling_claims`** entry (removed slot, or a clone of
-  the repository outside the fleet root).
+  whose worktree is no row anywhere is a **`dangling_claims`** entry (removed
+  slot, or a checkout outside the fleet root), reported once per tracker issue
+  (claimant repository + ID) since clones of one repository read one tracker.
+  *(Revised at the M2 boundary, BR-9.)*
 - **Read quality is explicit, never "no claims":** each row carries
   `claims_state`: `present` (read; `claims` is complete), `stale` (tracker
   unreachable, answered from the last fetch; `claims_error` says why),
@@ -283,3 +285,14 @@ inventory, `atlas/workflow/issue-tracker.md` (quarantine semantics),
   never `present`, so existing literal-built rows keep working honestly. The
   stale case is its own test (`TestFleetInventoryStaleClaimsSaySo`) because
   fleet's records cache lives for the process.
+- 2026-10-02 — M2 boundary review (BR-9/10/11). Dangling is judged against every
+  row of the inventory and deduplicated per tracker issue (clones). Claims reads
+  now run for every repository with rows, so a checkout with no cutover marker
+  and no fetched tracker is `absent` without contacting its remote
+  (`tracker.CutOver`): remote probes are bounded to tracked repositories, one
+  fetch each — the same read their branch-prefix lookups already make.
+  `repoClaimsFrom` is table-tested over its state space through the now-exported
+  pure `tracker.ComposeRecords`; `Records.Get` is unexported so every outside
+  lookup goes through `Require` (the unreadable-card rule made structural).
+  Machine states have their own constants; the fingerprint validator is
+  `issue.ValidFingerprint`.

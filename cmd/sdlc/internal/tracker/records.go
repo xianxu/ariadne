@@ -106,7 +106,10 @@ type Records struct {
 }
 
 func (rs Records) All() []IssueRecord { return append([]IssueRecord(nil), rs.list...) }
-func (rs Records) Get(id string) (IssueRecord, bool) {
+// get is the raw lookup. It is unexported on purpose (#288): a caller outside
+// this package must go through Require, so an unreadable card can never be
+// read as an absent one.
+func (rs Records) get(id string) (IssueRecord, bool) {
 	i, ok := rs.byID[id]
 	if !ok {
 		return IssueRecord{}, false
@@ -114,11 +117,11 @@ func (rs Records) Get(id string) (IssueRecord, bool) {
 	return rs.list[i], true
 }
 
-// Require is Get for a reader that decides on card-owned fields: ok is false
+// Require is the lookup for every reader outside this package: ok is false
 // when no record exists, and err is the parse error when the tracker holds the
 // card but cannot read it (#288) — an unknown status is never answered.
 func (rs Records) Require(id string) (rec IssueRecord, ok bool, err error) {
-	rec, ok = rs.Get(id)
+	rec, ok = rs.get(id)
 	if ok && rec.CardErr != nil {
 		return rec, true, rec.CardErr
 	}
@@ -171,7 +174,7 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 		raw, err := os.ReadFile(p)
 		files = append(files, DetailFile{Path: p, Raw: raw, ReadErr: err})
 	}
-	return composeRecords(rs, cards, unreadable, files), nil
+	return ComposeRecords(rs, cards, unreadable, files), nil
 }
 
 // DetailFile is one details file as read from disk (ReadErr when unreadable).
@@ -181,9 +184,9 @@ type DetailFile struct {
 	ReadErr error
 }
 
-// composeRecords is the pure join: every card, every well-named details file,
+// ComposeRecords is the pure join: every card, every well-named details file,
 // by ID; later same-ID files become visible duplicates. No IO.
-func composeRecords(rs Records, cards []Record, unreadable []UnreadableCard, files []DetailFile) Records {
+func ComposeRecords(rs Records, cards []Record, unreadable []UnreadableCard, files []DetailFile) Records {
 	byID := map[string]*IssueRecord{}
 	for _, c := range cards {
 		card := c
