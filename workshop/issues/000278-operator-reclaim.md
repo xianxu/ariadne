@@ -60,4 +60,15 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   work on the same machine, using positive move evidence. Reclaim is the
   general, operator-directed transfer across workspaces and machines; move's
   relocation stays the narrow same-owner case.
+- Operator decisions:
+  - **CLI shape:** inspect, then confirm. `sdlc reclaim --issue N` shows the
+    current owner, the proposed owner and past reclaims, and prints the
+    confirm command. `--expect <card-rev> --reason '...'` performs it as a
+    CAS against that revision.
+  - **New owner:** only the running workspace.
+- side-quest: corrected #277's rollout procedure in the atlas and README.
+  Each environment builds `sdlc` from its own ariadne checkout, so the
+  procedure is: update ariadne:0, then `weave refresh` in every :1+ slot.
+  The earlier `weave compile` / `make weave-all` advice would not have
+  advanced any Git revision. The operator is running the refresh.
 

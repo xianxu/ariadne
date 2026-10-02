@@ -71,10 +71,14 @@ details like every card field.
 **Rollout is a flag day.** An `sdlc` built before #277 aborts the whole
 tracker snapshot on the first card it cannot parse
 (`internal/tracker/reader.go`). So once any card carries a `claimant`, every
-stale binary fails, loudly and closed, naming the field. After #277 lands,
-refresh each ariadne checkout and rebuild: `make weave-all`, or
-`weave compile` / `make tools` per checkout. Until it lands, claim only with
-an older binary, so that no claimant card reaches the shared tracker.
+stale binary fails, loudly and closed, naming the field. Each environment
+builds `sdlc` from its own ariadne checkout (the `construct/dev-aliases.sh`
+function). So after #277 lands, every environment's checkout has to advance:
+update ariadne:0, then run `weave refresh` on the resting branch of every :1+
+slot. Refresh fast-forwards the slot's private substrates and compiles.
+`weave compile` alone keeps existing Git revisions, so it does not pick the
+change up. Do this before the first claim from an updated environment. An
+issue branch builds from itself, so it needs main merged or rebased in.
 
 ## Storage boundary
 
