@@ -44,8 +44,12 @@ publish details to main directly. Every generated surface renders
   `renderLong`; the rendering lives in `recovery/page.go`.
 - **The executable example:** `recovery.Example` is data: actor, command,
   expectations as dot paths into `sdlc issue show N --json`, the "otherwise"
-  action, and a `TrackerUnreachable` condition. `TestSchedulingExampleRuns`
-  runs it from the same data.
+  action, a `TrackerUnreachable` condition, and an `IfVerdict` condition
+  (FIX-THEN-SHIP's fix-and-reconcile steps). `TestSchedulingExampleRuns`
+  runs it from the same data, once per legal close verdict (SHIP and
+  FIX-THEN-SHIP). An expectation must hold for every successful run, so one
+  that holds for only one variant fails. The fixture's own values (quick
+  flow, stubbed verdict) are checked separately, never as guidance.
   - The recipient runs each command. A convergent-retry command is
     delivered twice.
   - A coordinator in another checkout checks each expectation with

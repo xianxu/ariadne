@@ -27,12 +27,19 @@ var exampleHarnessFlags = map[string][]string{
 }
 
 // #280: the scheduling example in `sdlc help recovery` is executed, step by
-// step, from the same data that renders it. The recipient runs each command;
-// the coordinator, in another checkout, checks each expectation against
-// `sdlc issue show N --json`. Every convergent-retry step is delivered twice —
-// a duplicated message — and must still succeed.
+// step, from the same data that renders it, once per legal close verdict — so
+// an expectation that holds for only one variant fails (an Expect is guidance
+// for every successful run, never a fixture's value). The recipient runs each
+// command; the coordinator, in another checkout, checks each expectation
+// against `sdlc issue show N --json`. Every convergent-retry step is delivered
+// twice — a duplicated message — and must still succeed.
 func TestSchedulingExampleRuns(t *testing.T) {
-	const n = 420
+	for i, verdict := range []string{"SHIP", "FIX-THEN-SHIP"} {
+		t.Run(verdict, func(t *testing.T) { runSchedulingExample(t, 420+i, verdict) })
+	}
+}
+
+func runSchedulingExample(t *testing.T, n int, verdict string) {
 	pid := fmt.Sprintf("%06d", n)
 	full := fmt.Sprintf("---\nid: %s\nstatus: open\ndeps: []\ncreated: 2026-09-01\nupdated: 2026-09-01\n---\n\n# example\n\n"+
 		"## Problem\n\nA gap.\n\n## Spec\n\nA thing.\n\n## Done when\n\n- it works\n\n## Plan\n\n- [x] do it\n\n## Log\n", pid)
@@ -44,7 +51,7 @@ func TestSchedulingExampleRuns(t *testing.T) {
 		map[string]string{syncIssuesDir + "/" + pid + "-example.md": string(detail)})
 	coordinator := filepath.Join(t.TempDir(), "coordinator")
 	testfix.Git(t, r.root, "worktree", "add", "-q", "--detach", coordinator, "origin/main")
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	stubJudge(t, "VERDICT: "+verdict+" (confidence: high)\n\nfine\n")
 
 	observeJSON := func() map[string]any {
 		t.Helper()
@@ -68,16 +75,28 @@ func TestSchedulingExampleRuns(t *testing.T) {
 		t.Fatalf("before the claim: card.status = %q", got)
 	}
 
-	flowChecked := false
+	// The fixture's own facts, checked where the guidance observes the
+	// surrounding state — not guidance themselves: its one-box plan is the
+	// quick flow, and its stubbed judge returns this variant's verdict.
+	fixtureFacts := map[string][2]string{
+		"checkpoints.state": {"checkpoints.flow.kind", "quick"},
+		"completion.state":  {"checkpoints.reviews[close].verdict", verdict},
+	}
+	checked := map[string]bool{}
+	commits := 0
 	for i, step := range recovery.Example {
 		label := fmt.Sprintf("step %d (%s: %s)", i+1, step.Actor, step.Does)
+		if step.IfVerdict != "" && step.IfVerdict != verdict {
+			continue
+		}
 		switch {
 		case step.Actor == recovery.Coordinator && step.Command == "":
 			// The request itself: a Couch message, outside sdlc.
 		case step.Actor == recovery.Recipient && step.Command == "":
-			writeRepoFile(t, r.root, "cmd/a.go", "package a\n")
+			commits++
+			writeRepoFile(t, r.root, "cmd/a.go", fmt.Sprintf("package a // %d\n", commits))
 			r.git("add", "cmd/a.go")
-			r.git("commit", "-qm", fmt.Sprintf("#%d: implement", n))
+			r.git("commit", "-qm", fmt.Sprintf("#%d: %s", n, step.Does))
 		case step.Actor == recovery.Recipient:
 			args := exampleArgs(t, step.Command, n)
 			deliveries := 1
@@ -107,11 +126,10 @@ func TestSchedulingExampleRuns(t *testing.T) {
 				}
 			}
 			for _, e := range step.Expect {
-				if e.Path == "checkpoints.state" {
-					// The fixture's own fact, not guidance: its one-box plan is the quick flow.
-					flowChecked = true
-					if got, _ := recovery.Lookup(doc, "checkpoints.flow.kind"); got != "quick" {
-						t.Errorf("%s: the fixture's flow = %q, want quick", label, got)
+				if f, ok := fixtureFacts[e.Path]; ok {
+					checked[e.Path] = true
+					if got, _ := recovery.Lookup(doc, f[0]); got != f[1] {
+						t.Errorf("%s: the fixture's %s = %q, want %q", label, f[0], got, f[1])
 					}
 				}
 				if got, ok := recovery.Lookup(doc, e.Path); !ok || got != e.Equals {
@@ -122,8 +140,10 @@ func TestSchedulingExampleRuns(t *testing.T) {
 			t.Fatalf("%s: unknown actor", label)
 		}
 	}
-	if !flowChecked {
-		t.Error("no step observed the checkpoints; the recorded flow went unchecked")
+	for path := range fixtureFacts {
+		if !checked[path] {
+			t.Errorf("no step observed %s; the fixture's facts went unchecked", path)
+		}
 	}
 }
 

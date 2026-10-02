@@ -54,6 +54,8 @@ type Step struct {
 	Otherwise string   // what the coordinator does when the evidence differs
 	// TrackerUnreachable: the step happens with the tracker remote unreachable.
 	TrackerUnreachable bool
+	// IfVerdict: the step happens only after a close with this verdict.
+	IfVerdict string
 }
 
 // Example is the scheduling example: delegate an issue across slots and verify
@@ -72,8 +74,10 @@ var Example = []Step{
 		Otherwise: "no branch yet: the recipient has not reached start-plan. Activity is not progress — wait for checkpoints (checkpoints.flow says quick or full once change-code records it)."},
 	{Actor: Recipient, Does: "implements and commits the work", Command: ""},
 	{Actor: Recipient, Does: "closes it (the boundary review runs)", Command: "sdlc close --issue N --verified '<evidence>'"},
-	{Actor: Coordinator, Does: "sees the verdict and the close's evidence", Command: "sdlc issue show N --json",
-		Expect:    []Expect{{"checkpoints.reviews[close].verdict", "SHIP"}, {"completion.state", "present"}},
+	{Actor: Recipient, Does: "commits the review's fixes", IfVerdict: "FIX-THEN-SHIP"},
+	{Actor: Recipient, Does: "lands the close's evidence after the fixes", Command: "sdlc issue recovery reconcile --issue N", IfVerdict: "FIX-THEN-SHIP"},
+	{Actor: Coordinator, Does: "sees the close completed: its evidence, and no open blocking finding", Command: "sdlc issue show N --json",
+		Expect:    []Expect{{"completion.state", "present"}, {"checkpoints.reviews[close].open_blocking", "0"}},
 		Otherwise: "a close in progress or interrupted: never ask for it again (close is non-repeatable) — the recipient runs `sdlc issue recovery reconcile --issue N`."},
 	{Actor: Coordinator, Does: "with the tracker unreachable, reads a stale answer", Command: "sdlc issue show N --json", TrackerUnreachable: true,
 		Expect:    []Expect{{"tracker.state", "stale"}},
@@ -84,7 +88,11 @@ var Example = []Step{
 func ExampleText() string {
 	var b strings.Builder
 	for i, s := range Example {
-		b.WriteString(wrap(s.Does, fmt.Sprintf("  %2d. %-12s ", i+1, s.Actor+":"), strings.Repeat(" ", 19)))
+		does := s.Does
+		if s.IfVerdict != "" {
+			does = "(after a " + s.IfVerdict + " verdict only) " + does
+		}
+		b.WriteString(wrap(does, fmt.Sprintf("  %2d. %-12s ", i+1, s.Actor+":"), strings.Repeat(" ", 19)))
 		if s.Command != "" {
 			fmt.Fprintf(&b, "%s$ %s\n", strings.Repeat(" ", 19), s.Command)
 		}

@@ -68,3 +68,72 @@ findings:
     detail: |
       Real delegated work with a durable plan is the full flow, so a coordinator following the rendered example would read a correct state as a mismatch. Assert presence (or accept quick or full) in recovery.Example, and let the test check the fixture's specific value separately.
 ```
+
+---
+
+## Re-review — 2026-10-02T11:31:09-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 280 — Publish tested operation recovery contracts |
+| repo | ariadne |
+| issue file | workshop/issues/000280-operation-recovery-contracts.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3b7315b7fde5083f036e377d41e8053193e52ef3..563c32ef7b32b5085c81a920a60f67a15eeaf82c |
+| command | sdlc close --issue 280 |
+| reviewer | claude |
+| timestamp | 2026-10-02T11:31:09-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+BR-15 is fixed. In `cmd/sdlc/internal/recovery/page.go:71` the scheduling example now tells coordinators to expect `checkpoints.state = present` instead of `checkpoints.flow.kind = quick`. Its `Otherwise` text says the flow will read quick or full once `change-code` records it. The test (`cmd/sdlc/recovery_example_test.go:110-125`) still checks that this fixture recorded `quick`, but as the fixture's own fact rather than guidance. A `flowChecked` guard fails the test if no step reaches the checkpoints. `TestSchedulingExampleRuns` and the recovery package tests pass at HEAD.
+
+One sibling of the same class remains at `page.go:76`. The close-observation step expects `checkpoints.reviews[close].verdict = SHIP`, which only holds because the test fixture stubs the judge to SHIP (`recovery_example_test.go:47`). A FIX-THEN-SHIP close also completes; the close code handles it at `close.go:1406`, and `catalog.go:102` covers it. So a coordinator could see a correct, completed close as a mismatch. The `Otherwise` text then sends them to `sdlc issue recovery reconcile`, which is wrong advice. This is Minor and does not block the gate.
+
+1. **Strengths**
+   - The BR-15 fix keeps the two concerns apart: guidance says what any successful run produces, and the test checks the fixture's own value separately (`recovery_example_test.go:110-116`).
+   - The `flowChecked` guard keeps the fixture check reachable. If the step is ever reworded and stops looking at the checkpoints, the test fails instead of quietly passing.
+   - The new `Otherwise` text explains what a coordinator should expect from the flow without hard-coding a value.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** the `page.go:76` close-verdict expectation of `SHIP` (detailed in the findings block).
+
+5. **Test coverage notes:** The example test runs one fixture, so every `Expect` value in it is only proven for that one run. The structural fix is to run the example against each legal variant (quick and full flow, SHIP and FIX-THEN-SHIP verdict). A value that only one variant produces would then fail the test.
+
+6. **Architecture:**
+   - **ARCH-DRY:** pass.
+   - **ARCH-PURE:** pass. `Example` is pure data, and the test drives it through in-process commands.
+   - **ARCH-PURPOSE:** flagged under the BR-15 class. The previous round fixed the instance it named, but an enumerable sibling remains (the close verdict).
+   - **ARCH-MOCK:** pass. The fixture uses a stubbed judge behind the existing seam.
+   - **ARCH-CONSTRAINTS:** pass.
+   - **ARCH-SECURE:** not applicable. This window reads no untrusted input and touches no secrets.
+   - **ARCH-ORDER:** pass. Example steps are ordered and every observation is checked.
+   - **ARCH-FUNERAL:** not applicable. This window creates nothing durable beyond review artifacts that are archived with the issue.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-15
+    disposition: addressed
+    note: |
+      page.go:71 now expects checkpoints.state=present; the test checks the fixture's quick flow separately, guarded by flowChecked; TestSchedulingExampleRuns passes at HEAD.
+findings:
+  - id: new
+    severity: Minor
+    family: fixture-value-as-guidance
+    title: |
+      Close-observation step expects checkpoints.reviews[close].verdict = SHIP, which only the stubbed judge produces
+    detail: |
+      This is the 2nd finding in family fixture-value-as-guidance. Rule: every Expect value in recovery.Example must hold for every successful run, never just the fixture's run. Enforce it by running TestSchedulingExampleRuns over each legal variant (quick and full flow, SHIP and FIX-THEN-SHIP verdict), so a value that holds for only one variant fails. A FIX-THEN-SHIP close completes (close.go:1406, catalog.go:102), yet page.go:76 would read it as a mismatch and send the coordinator to reconcile. Expect a verdict that is present or non-blocking, and keep SHIP as a check on the fixture only.
+```

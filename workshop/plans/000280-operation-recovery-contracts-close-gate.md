@@ -182,6 +182,23 @@ rounds:
           round: 5
       recipe: milestone-review
       blocked: false
+    - "n": 6
+      timestamp: "2026-10-02T11:31:09-07:00"
+      agent: claude
+      dispose:
+        - id: BR-15
+          disposition: addressed
+          note: page.go:71 now expects checkpoints.state=present; the test checks the fixture's quick flow separately, guarded by flowChecked; TestSchedulingExampleRuns passes at HEAD.
+          round: 6
+      findings:
+        - id: BR-16
+          severity: Minor
+          title: Close-observation step expects checkpoints.reviews[close].verdict = SHIP, which only the stubbed judge produces
+          detail: 'This is the 2nd finding in family fixture-value-as-guidance. Rule: every Expect value in recovery.Example must hold for every successful run, never just the fixture''s run. Enforce it by running TestSchedulingExampleRuns over each legal variant (quick and full flow, SHIP and FIX-THEN-SHIP verdict), so a value that holds for only one variant fails. A FIX-THEN-SHIP close completes (close.go:1406, catalog.go:102), yet page.go:76 would read it as a mismatch and send the coordinator to reconcile. Expect a verdict that is present or non-blocking, and keep SHIP as a check on the fixture only.'
+          family: fixture-value-as-guidance
+          round: 6
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#280 (boundary-review)
@@ -263,6 +280,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-15** [Minor] `fixture-value-as-guidance` Scheduling example tells coordinators to expect checkpoints.flow.kind = quick, which only the fixture produces
   Real delegated work with a durable plan is the full flow, so a coordinator following the rendered example would read a correct state as a mismatch. Assert presence (or accept quick or full) in recovery.Example, and let the test check the fixture's specific value separately.
 
+## Round 6 — 2026-10-02T11:31:09-07:00 (claude) — passed
+
+### Disposed
+
+- BR-15 — addressed — page.go:71 now expects checkpoints.state=present; the test checks the fixture's quick flow separately, guarded by flowChecked; TestSchedulingExampleRuns passes at HEAD.
+
+### Raised
+
+- **BR-16** [Minor] `fixture-value-as-guidance` Close-observation step expects checkpoints.reviews[close].verdict = SHIP, which only the stubbed judge produces
+  This is the 2nd finding in family fixture-value-as-guidance. Rule: every Expect value in recovery.Example must hold for every successful run, never just the fixture's run. Enforce it by running TestSchedulingExampleRuns over each legal variant (quick and full flow, SHIP and FIX-THEN-SHIP verdict), so a value that holds for only one variant fails. A FIX-THEN-SHIP close completes (close.go:1406, catalog.go:102), yet page.go:76 would read it as a mismatch and send the coordinator to reconcile. Expect a verdict that is present or non-blocking, and keep SHIP as a check on the fixture only.
+
 ## Open findings
 
-- **BR-15** [Minor] `fixture-value-as-guidance` Scheduling example tells coordinators to expect checkpoints.flow.kind = quick, which only the fixture produces
+- **BR-16** [Minor] `fixture-value-as-guidance` Close-observation step expects checkpoints.reviews[close].verdict = SHIP, which only the stubbed judge produces
