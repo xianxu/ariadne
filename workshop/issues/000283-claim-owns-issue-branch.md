@@ -1,12 +1,20 @@
 ---
 id: 000283
-status: open
+status: working
 deps: [ariadne#277, ariadne#278]
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours:
-card_mirror: '301202070580bb0669ab50e909ef7dd73c6865a5' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '203c1590f4dd363293c66e52efd6f3e409bd8479' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-02T10:51:37-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Re-derive ownership from the claimant
@@ -87,3 +95,10 @@ The **claimant is the owner and the lock**. **Status is lifecycle only.**
 ### 2026-10-02
 
 Filed from a pair session that landed pair#365 by hand after `sdlc pr`, `reclaim` and `claim --adopt` all refused. Root cause traced to `transferguard.go` deriving the owner from the details basename. Operator review the same day: the claimant should be the owner and the lock (status-as-lock predates the claimant), and the scope is a rethink of the verbs and guards around the claimant. The issue is likely to split. Details left uncommitted on this resting branch, not moved.
+
+Design discussion (claimed in ariadne:2). Decided with the operator:
+- Unclaim is allowed from `blocked` as well as `working`; not from `codecomplete`.
+- Stale locks: explicit `reclaim` with a reason, plus `sdlc state` showing claim age. No leases or heartbeats.
+- Transfer guard condition: a details change lands only from the owner's checkout AND from a branch whose merge-base contains the latest published version (the handoff `MainCommit`). The content condition is what stops stale overwrites; branch names stop mattering.
+- **Claim does not create the branch; `start-plan` does.** Pre-implementation editing (follow-ups filed from a console, one brainstorm revising several related issues) must not need one branch per issue. A slot may hold several claims at once: claim the set, edit their details, publish narrowly to main (published can't be unpublished), unclaim.
+- Claimant = slot on a machine (the agent's durable workspace), operator = supervising human. This divergence from Jira-style person-assignment is intentional; an atlas terminology entry is still to be written.
