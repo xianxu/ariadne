@@ -219,6 +219,43 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 6
+      timestamp: "2026-10-02T01:01:41-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: observe.go records the rev-parse failure in TrackerRefErr, and assembleTracker emits it as tracker.ref_error in both the present and stale cases.
+          round: 6
+        - id: BR-5
+          disposition: addressed
+          note: Validate now has switches over relation and claimant_worktree, a claimant pairing invariant, and rejection rows in TestValidateRejectsEveryUnknownEnum.
+          round: 6
+        - id: BR-6
+          disposition: addressed
+          note: The "not observed by this build" placeholder is gone from code, atlas and README; M2 sections are now really assembled.
+          round: 6
+        - id: BR-17
+          disposition: addressed
+          note: json.go enforces that a verdict is set exactly when the read is present and the boundary is not plan; two rejection rows fail without the check.
+          round: 6
+        - id: BR-18
+          disposition: addressed
+          note: 'The scope is stated in the observe_test.go comment and in atlas/workflow/issue-tracker.md: the test bounds the collector, and the tracker load is bounded by the shared records scope.'
+          round: 6
+        - id: BR-19
+          disposition: addressed
+          note: plan.go now declares MilestoneTagPattern above the milestonePlanRE comment, so each comment sits on its own declaration.
+          round: 6
+      findings:
+        - id: BR-20
+          severity: Minor
+          title: issue.go puts the internal observe import inside the standard-library import group
+          detail: Move it into the github.com/xianxu imports group to match the rest of the file.
+          family: import-grouping
+          round: 6
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#279 (boundary-review)
@@ -306,11 +343,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   This is the 2nd finding in family operating-envelope-unmeasured. Rule: an envelope assertion covers the whole query path or states its scope; either count the tracker layer's runner or narrow the test comment and commit claim to the collector.
 - **BR-19** [Minor] `doc-comment-attachment` The milestonePlanRE doc comment in plan.go now attaches to the MilestoneTagPattern const
 
+## Round 6 — 2026-10-02T01:01:41-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — observe.go records the rev-parse failure in TrackerRefErr, and assembleTracker emits it as tracker.ref_error in both the present and stale cases.
+- BR-5 — addressed — Validate now has switches over relation and claimant_worktree, a claimant pairing invariant, and rejection rows in TestValidateRejectsEveryUnknownEnum.
+- BR-6 — addressed — The "not observed by this build" placeholder is gone from code, atlas and README; M2 sections are now really assembled.
+- BR-17 — addressed — json.go enforces that a verdict is set exactly when the read is present and the boundary is not plan; two rejection rows fail without the check.
+- BR-18 — addressed — The scope is stated in the observe_test.go comment and in atlas/workflow/issue-tracker.md: the test bounds the collector, and the tracker load is bounded by the shared records scope.
+- BR-19 — addressed — plan.go now declares MilestoneTagPattern above the milestonePlanRE comment, so each comment sits on its own declaration.
+
+### Raised
+
+- **BR-20** [Minor] `import-grouping` issue.go puts the internal observe import inside the standard-library import group
+  Move it into the github.com/xianxu imports group to match the rest of the file.
+
 ## Open findings
 
-- **BR-4** [Minor] `silent-error-swallow` rev-parse failure on the tracker ref is dropped, leaving tracker present with an empty ref
-- **BR-5** [Minor] `contract-enum-validation` Validate checks landing.outcome against its enum but not assignment.relation or claimant_worktree
-- **BR-6** [Minor] `state-semantics-overload` M2 sections are emitted as unknown ("not observed by this build"), overloading the read-failed meaning; remove in M2
-- **BR-17** [Minor] `contract-enum-validation` Validate does not tie a review's verdict to its read state; a present close review with an empty verdict validates
-- **BR-18** [Minor] `operating-envelope-unmeasured` The per-query git bound counts only collector calls; tracker loading (RepositoryForCheckout Resolve, fetch, card reads) bypasses observeGit
-- **BR-19** [Minor] `doc-comment-attachment` The milestonePlanRE doc comment in plan.go now attaches to the MilestoneTagPattern const
+- **BR-20** [Minor] `import-grouping` issue.go puts the internal observe import inside the standard-library import group
