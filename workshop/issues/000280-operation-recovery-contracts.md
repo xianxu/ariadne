@@ -47,10 +47,10 @@ Durable plan: `workshop/plans/000280-operation-recovery-contracts-plan.md`.
 
 - [x] M1 — the `internal/recovery` registry (class, effects, evidence,
       preconditions, repeat, lost-response, ends, and proofs naming tests),
-      rendered via `{{RECOVERY}}` into each verb's help;
+      appended to each verb's help by `attachRecoveryContracts`;
       `TestRecoveryContractsAreProven`; uncertain-publication guidance plus
       lost-ack tests for claim and set-status.
-- [ ] M2 — the `sdlc help recovery` topic (classes, agent guidance, table,
+- [x] M2 — the `sdlc help recovery` topic (classes, agent guidance, table,
       example; cross-links `issue recovery`); the executable scheduling
       example (`TestSchedulingExampleRuns` runs the rendered steps); docs.
 
@@ -81,7 +81,7 @@ Items, in order:
   1. the contract test (derived verb set, AST test-name scan);
   2. the `cardPublish` seam, uncertain helper and lost-ack tests;
   3. the two generation tests;
-  4. the help topic and `{{RECOVERY}}` rendering;
+  4. the help topic and the per-verb help sections;
   5. the executable scheduling example.
 - atlas-docs ×2: the catalog's contract text, rechecked against code; then
   the atlas, README and manual.
@@ -96,6 +96,7 @@ Items, in order:
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
 
 ### 2026-10-02 (implementation session)
+- 2026-10-02: closed M2 — sdlc help recovery topic rendered from internal/recovery; TestSchedulingExampleRuns executes recovery.Example across recipient and coordinator checkouts, double-delivering convergent steps (longest-prefix contract lookup), restoring the tracker right after the offline step, failing unknown actors; mutation-checked (flow, verdict, stale, bad command red); plan tables swept against the tree; issue recovery --help links the topic; README + atlas; full sharded suite green (processgroup ps test green outside the sandbox); actual = sdlc actual cumulative 3.29 minus M1's 3.08; --no-project: pair's project tracks ariadne#280 at issue granularity; review verdict: SHIP
 - 2026-10-02: closed M1 — recovery catalog (16 contracts over 26 derived commands, 8 reasoned exemptions) in every verb's help with a scope line (tracker repos; legacy unknown); TestRecoveryContractsAreProven (derived set, stale exemptions, help sections, declared tests; mutation-checked); cardPublish seam with caller guard over all initializers + uncertainCardWrite; proofs: claim/set-status lost-ack reruns, close re-run is a new generation, landing leaves a reopened card alone; plan Revisions match the code; full suite green; actual = sdlc actual (first milestone); --no-project: pair's project tracks ariadne#280 at issue granularity; review verdict: SHIP
 
 - Operator authorized the work ("work on #280"). Claimed in ariadne:1 (the
@@ -177,3 +178,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Docs: README, plus the atlas page (topic and example).
 
 - M2 review round 1: FIX-THEN-SHIP. BR-8 (the plan tables were rewritten to current reality after a full row sweep, and a lesson was added) and five Minors are fixed: the harness-flag description, longest-prefix class lookup, the immediate tracker restore, the unknown-actor default, the `issue recovery --help` link, and the 30 s guidance.
+- M2 closed (SHIP; 0.21h increment). Advisory BR-9 fixed: a sweep of the backticked identifiers in the plan's Core concepts and the Plan rows (Verb → Verbs, no JSON, `attachRecoveryContracts`). The plan steps are ticked. The process manual picks up `helptext/recovery.md` automatically, which `sdlc process-manual` confirms.

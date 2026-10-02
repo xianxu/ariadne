@@ -295,6 +295,7 @@ The simplest durable authority beats a clever scan of consequences.
 - A Revisions entry for one changed row leaves the others stale. When
   implementation diverges from a plan's Core-concepts table, check every row
   against the tree (does the path exist, does the symbol exist) at each
-  boundary. Rewrite the table to current reality in one Revisions entry
+  boundary. The same goes for every backticked identifier in the Core-concepts
+  prose and the Plan rows, not only the table cells. Rewrite the table to current reality in one Revisions entry
   rather than patching the row a reviewer named. #280 drifted twice: M1
   revised one row, and M2's review found four more absent files.

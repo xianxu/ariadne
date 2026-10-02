@@ -123,6 +123,44 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 4
+      timestamp: "2026-10-02T11:24:03-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: 'Both Core-concepts tables now match the tree: contracts.go holds Section/Scope/Validate/For/wrap, page.go holds Example/Step/Expect/Actor/Lookup and the renderers, attachRecoveryContracts is at main.go:197, cardpublish.go exists; a Revisions entry records the sweep and a lesson states the rule.'
+          round: 4
+        - id: BR-9
+          disposition: addressed
+          note: recovery_example_test.go:19-22 and atlas lines 52-53 now list judges, estimate, actual, worktree and atlas, which matches the map's set.
+          round: 4
+        - id: BR-10
+          disposition: addressed
+          note: contractFor (recovery_example_test.go:139) resolves the longest verb prefix through recovery.For; reachable from the recipient branch at :80.
+          round: 4
+        - id: BR-11
+          disposition: addressed
+          note: Origin is renamed back immediately after observeJSON (recovery_example_test.go:101-105); Cleanup remains only as a fallback.
+          round: 4
+        - id: BR-12
+          disposition: addressed
+          note: issuerecovery.go Long now points to `sdlc help recovery`; AGENT GUIDANCE in helptext/recovery.md carries the 30 s revisit heuristic (verified in rendered output).
+          round: 4
+        - id: BR-13
+          disposition: addressed
+          note: 'default: t.Fatalf("unknown actor") added at recovery_example_test.go:113.'
+          round: 4
+      findings:
+        - id: BR-14
+          severity: Minor
+          title: Core-concepts prose and the issue's M1 row still name superseded symbols (Contract field Verb, "the JSON", the RECOVERY placeholder)
+          detail: 'This is the 3rd finding in family plan-table-drift. The tables were fixed, but plan line 44 says the field is `Verb` (code: `Verbs`), line 53 says the source feeds "the JSON" (dropped in PQ-2), and the issue''s M1 row says "rendered via {{RECOVERY}}" (now attachRecoveryContracts). Rule: the per-boundary sweep in the new lesson covers every symbol named in the Core-concepts section and the Plan rows, not only the table cells. Grep each backticked identifier against the tree and fix all misses in one Revisions entry.'
+          family: plan-table-drift
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#280 (boundary-review)
@@ -176,12 +214,23 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-13** [Minor] `caller-guard-gaps` Example actor switch has no default; a step with an unknown Actor is silently skipped
   recovery_example_test.go:69; add a default t.Fatalf.
 
+## Round 4 — 2026-10-02T11:24:03-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — Both Core-concepts tables now match the tree: contracts.go holds Section/Scope/Validate/For/wrap, page.go holds Example/Step/Expect/Actor/Lookup and the renderers, attachRecoveryContracts is at main.go:197, cardpublish.go exists; a Revisions entry records the sweep and a lesson states the rule.
+- BR-9 — addressed — recovery_example_test.go:19-22 and atlas lines 52-53 now list judges, estimate, actual, worktree and atlas, which matches the map's set.
+- BR-10 — addressed — contractFor (recovery_example_test.go:139) resolves the longest verb prefix through recovery.For; reachable from the recipient branch at :80.
+- BR-11 — addressed — Origin is renamed back immediately after observeJSON (recovery_example_test.go:101-105); Cleanup remains only as a fallback.
+- BR-12 — addressed — issuerecovery.go Long now points to `sdlc help recovery`; AGENT GUIDANCE in helptext/recovery.md carries the 30 s revisit heuristic (verified in rendered output).
+- BR-13 — addressed — default: t.Fatalf("unknown actor") added at recovery_example_test.go:113.
+
+### Raised
+
+- **BR-14** [Minor] `plan-table-drift` Core-concepts prose and the issue's M1 row still name superseded symbols (Contract field Verb, "the JSON", the RECOVERY placeholder)
+  This is the 3rd finding in family plan-table-drift. The tables were fixed, but plan line 44 says the field is `Verb` (code: `Verbs`), line 53 says the source feeds "the JSON" (dropped in PQ-2), and the issue's M1 row says "rendered via {{RECOVERY}}" (now attachRecoveryContracts). Rule: the per-boundary sweep in the new lesson covers every symbol named in the Core-concepts section and the Plan rows, not only the table cells. Grep each backticked identifier against the tree and fix all misses in one Revisions entry.
+
 ## Open findings
 
 - **BR-7** [Minor] `contract-scope-unstated` atlas/workflow/recovery-contracts.md presents the contracts as the rulebook without their issue-tracker-only scope
-- **BR-8** [Important] `plan-table-drift` Core-concepts table still names Page()/render.go, example.go and recoverycmd.go; M2 built page.go + helptext placeholders + inline buildRoot topic
-- **BR-9** [Minor] `stale-doc-comment` Harness-flag comment and atlas claim the flags only stand in for judges and estimates, but --worktree=no and --no-atlas are neither
-- **BR-10** [Minor] `caller-guard-gaps` Duplicate-delivery class lookup uses recovery.For(args[0]), so a multi-word verb step (issue sync) would silently be delivered once
-- **BR-11** [Minor] `example-step-ordering` TrackerUnreachable restores the origin only at t.Cleanup; any step appended after it runs with no tracker
-- **BR-12** [Minor] `plan-claim-partially-delivered` Plan's two-way cross-link and the general 30 s revisit heuristic are only partly delivered
-- **BR-13** [Minor] `caller-guard-gaps` Example actor switch has no default; a step with an unknown Actor is silently skipped
+- **BR-14** [Minor] `plan-table-drift` Core-concepts prose and the issue's M1 row still name superseded symbols (Contract field Verb, "the JSON", the RECOVERY placeholder)

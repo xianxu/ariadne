@@ -120,3 +120,103 @@ findings:
     detail: |
       recovery_example_test.go:69; add a default t.Fatalf.
 ```
+
+---
+
+## Re-review — 2026-10-02T11:24:03-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 280 — Publish tested operation recovery contracts |
+| repo | ariadne |
+| issue file | workshop/issues/000280-operation-recovery-contracts.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 9933a3509db7ec9ff31563ba94c0a5b4701fd9bb..eb280a5191d809a96b6b3866d5377ed315623cb6 |
+| command | sdlc milestone-close --issue 280 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-10-02T11:24:03-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+M2 delivers what the plan asked for. `sdlc help recovery` renders the scope, the classes, the agent guidance (now including the 30 s revisit heuristic), one entry per contract and the scheduling example, all from the `recovery` registry. `TestSchedulingExampleRuns` runs the same `recovery.Example` data on a real-git fixture. The coordinator works in a separate worktree, steps of the convergent-retry class are delivered twice, and one step runs with the tracker remote unreachable. I ran `go test ./cmd/sdlc/internal/recovery/` and `go test ./cmd/sdlc/ -run 'TestSchedulingExampleRuns|TestEveryFlagAppearsInItsHelp|TestRecovery'`; both pass. I also rendered `sdlc help recovery` and checked that `sdlc process-manual` picks up `helptext/recovery.md`, which covers the plan's process-manual item. All six earlier findings are fixed in the tree. One new Minor remains: the plan-text drift family is fixed in the tables but not in the prose around them. Nothing blocks SHIP.
+
+**1. Strengths**
+- One source for documentation and test. `recovery.Example` (`cmd/sdlc/internal/recovery/page.go:62`) is both rendered by `ExampleText` and executed by the test. The help says "Executed step by step by TestSchedulingExampleRuns", and that claim is backed by the test.
+- The example tests ordering problems the caller cannot block (ARCH-ORDER). It checks the card before the claim (a lost or unread message), sends each convergent-retry command twice (a duplicate message), and observes with the tracker unreachable (expects `stale`). `contractFor` (`recovery_example_test.go:139`) finds a command's class through the registry's own verb identity, not a hand-written list.
+- `Lookup` (`page.go:106`) is pure. It returns false whenever a path doesn't resolve, so a missing or wrong field fails the expectation and is never read as a match. It is tested without IO, including the negative paths (`contracts_test.go:53`).
+- The harness flags are kept in one documented map (`recovery_example_test.go:23`). The atlas lists the same flags (`atlas/workflow/recovery-contracts.md:52`).
+
+**2. Critical:** none.
+
+**3. Important:** none.
+
+**4. Minor**
+- Prose drift around the Core-concepts tables (plan-table-drift, 3rd instance; details in the findings block):
+  - `workshop/plans/000280-operation-recovery-contracts-plan.md:44` lists a Contract field `Verb`, but the struct field is `Verbs []string` (`contracts.go:64`).
+  - `:53` says the source feeds "the JSON", but PQ-2 dropped JSON output.
+  - The issue's ticked M1 row still says "rendered via `{{RECOVERY}}`".
+  - Rule: the boundary sweep from the new lesson should cover every symbol named anywhere in the Core-concepts section and the Plan rows, not just the table cells.
+- README: the line "Older binaries refuse claimed" now breaks early (`README.md:38`). Cosmetic.
+
+**5. Test coverage**
+- The plan's four example phases are all exercised, plus the "otherwise" case before the claim.
+- `TestPageRenderingCoversEveryContractAndStep` checks that every contract, step and class appears in the rendered page.
+- An actor value the test doesn't know now fails (`default: t.Fatalf`).
+- The tracker origin is restored right after its step, and `t.Cleanup` remains as a fallback.
+
+**6. Architecture**
+- ARCH-DRY: pass. Example text and test share one data source, and classes are looked up through the registry.
+- ARCH-PURE: pass. `page.go` is pure; IO lives only in the test harness.
+- ARCH-PURPOSE: pass. The Done-when scheduling example covers claim, branch/activity and gate progress, and the guidance's scope is stated.
+- ARCH-MOCK: pass. The test runs real git fixtures with a stubbed judge behind the existing seam.
+- ARCH-CONSTRAINTS: N/A. These are static help strings plus a test-only fixture.
+- ARCH-SECURE: pass. `Lookup` refuses to resolve on malformed input instead of guessing a value.
+- ARCH-ORDER: pass. Duplicates and an unreachable tracker are injected deterministically from the step data.
+- ARCH-FUNERAL: pass. Nothing durable is created; the origin rename is undone at once, and `t.Cleanup` is a fallback.
+- Upcoming work: pair#362 will consume this page. If consumers start parsing the example, `Lookup`'s `\w+` index key will need widening for boundary names containing hyphens.
+
+**7. Plan revisions**
+- Add one Revisions line: "Core-concepts prose: `Verb` → `Verbs`; 'the JSON' removed (PQ-2); the issue's M1 row now says the sections are appended by `attachRecoveryContracts`."
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Both Core-concepts tables now match the tree: contracts.go holds Section/Scope/Validate/For/wrap, page.go holds Example/Step/Expect/Actor/Lookup and the renderers, attachRecoveryContracts is at main.go:197, cardpublish.go exists; a Revisions entry records the sweep and a lesson states the rule.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      recovery_example_test.go:19-22 and atlas lines 52-53 now list judges, estimate, actual, worktree and atlas, which matches the map's set.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      contractFor (recovery_example_test.go:139) resolves the longest verb prefix through recovery.For; reachable from the recipient branch at :80.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      Origin is renamed back immediately after observeJSON (recovery_example_test.go:101-105); Cleanup remains only as a fallback.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      issuerecovery.go Long now points to `sdlc help recovery`; AGENT GUIDANCE in helptext/recovery.md carries the 30 s revisit heuristic (verified in rendered output).
+  - id: BR-13
+    disposition: addressed
+    note: |
+      default: t.Fatalf("unknown actor") added at recovery_example_test.go:113.
+findings:
+  - id: new
+    severity: Minor
+    family: plan-table-drift
+    title: |
+      Core-concepts prose and the issue's M1 row still name superseded symbols (Contract field Verb, "the JSON", the RECOVERY placeholder)
+    detail: |
+      This is the 3rd finding in family plan-table-drift. The tables were fixed, but plan line 44 says the field is `Verb` (code: `Verbs`), line 53 says the source feeds "the JSON" (dropped in PQ-2), and the issue's M1 row says "rendered via {{RECOVERY}}" (now attachRecoveryContracts). Rule: the per-boundary sweep in the new lesson covers every symbol named in the Core-concepts section and the Plan rows, not only the table cells. Grep each backticked identifier against the tree and fix all misses in one Revisions entry.
+```
