@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000289-slot-readiness-in-sdlc-fleet-inventory.md
         source_blob: e32b6d8dcb4bae2d2c73db920e6cd71100a7dd6f
         destination: workshop/issues/000289-slot-readiness-in-sdlc-fleet-inventory.md
+        main_commit: 36fd7165c7ed6e9030d5801deb553d352ef494b3
 ---
 
 # Slot readiness in sdlc fleet inventory
