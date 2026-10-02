@@ -78,17 +78,16 @@ The **claimant is the owner and the lock**. **Status is lifecycle only.**
 
 ## Done when
 
-- The lifecycle model and help text state that the claimant is the owner and the lock, and that status is lifecycle only. "Owner" no longer means a branch anywhere in sdlc.
-- `sdlc claim` creates the issue branch in the claiming checkout, and refuses per #272.
-- Unclaim flips the card `working → open` and clears the claimant. It deletes a branch with nothing unlanded, publishes details-only edits before deleting, and refuses when the branch carries code.
-- The transfer guard accepts landings from the recorded owner's checkout, whatever the branch is named. A fixture reproduces pair#365 (close after the PR merged, on a renamed branch), and `sdlc pr` → `sdlc merge` then flips the card to done.
-- `claim --adopt` records an owner on a pre-#277 `codecomplete` issue.
-- A reopened issue gets a fresh issue-branch name and lands through the owner-based guard.
-- A merge done outside sdlc is detected: a fixture with a GitHub-merged issue branch and a card not `done` is reported by sdlc, and finished when the close evidence is on main.
+- `construct/vocabulary/issue.cue` states the owner is the lock and status is lifecycle only. Claim and unclaim change the owner, never the status. `open`-with-owner and active-without-owner are legal states, and their meaning is documented.
+- `claim` no longer changes status. `start-plan` requires the claim, sets `working`, and creates the issue branch from main (the #272 refusal stays there).
+- Unclaim from `working`/`blocked`/`codecomplete` is legal in the model (the verb itself is #284).
+- The atlas terminology defines slot = executor/owner and operator = supervisor, and no help text uses "owner" for a branch or a person.
+- Tests pin the legal (status, owner) combinations and the claim/start-plan split.
 
 ## Plan
 
-- [ ] Claim, run start-plan, settle the open questions and the child-issue split before designing the implementation.
+- [x] Claim, run start-plan, settle the open questions and the child-issue split before designing the implementation.
+- [ ] Design the model change (issue.cue states, claim/start-plan split, terminology); decide whether it needs a durable plan.
 
 ## Log
 
@@ -122,3 +121,19 @@ Fourth round:
 - Claiming several issues at once is atomic: one tracker commit compare-and-swaps all the cards, and on a race it re-reads, re-checks every card and retries.
 - `sdlc issue publish --issue a,b,c` republishes owned details edits narrowly to main. `move-detail` stays the first publication.
 - No `abandon` verb exists; `wontfix`/`punt` go through `set-status`, which leaves the branch, the remote branch and the owner behind. Proposed: `sdlc abandon` (sketch in the reply; to settle).
+
+## Revisions
+
+### 2026-10-02 — promoted to project `claimant-ownership`; #283 narrowed to the model
+
+Reason: four rounds of design with the operator (see Log) produced five separable pieces. #283 keeps the model; #284 (claims, handoff, takeover), #285 (transfer guard), #286 (boundary pushes, abandon) and #287 (reconcile merges done outside sdlc) carry the rest. The Spec above is the pre-design capture; the Log and the project PRD supersede it where they differ (notably: claim does not create the branch, and unclaim does not change status).
+
+Delta, the Done when before narrowing:
+
+> - The lifecycle model and help text state that the claimant is the owner and the lock, and that status is lifecycle only. "Owner" no longer means a branch anywhere in sdlc.
+> - `sdlc claim` creates the issue branch in the claiming checkout, and refuses per #272.
+> - Unclaim flips the card `working → open` and clears the claimant. It deletes a branch with nothing unlanded, publishes details-only edits before deleting, and refuses when the branch carries code.
+> - The transfer guard accepts landings from the recorded owner's checkout, whatever the branch is named. A fixture reproduces pair#365 (close after the PR merged, on a renamed branch), and `sdlc pr` → `sdlc merge` then flips the card to done.
+> - `claim --adopt` records an owner on a pre-#277 `codecomplete` issue.
+> - A reopened issue gets a fresh issue-branch name and lands through the owner-based guard.
+> - A merge done outside sdlc is detected: a fixture with a GitHub-merged issue branch and a card not `done` is reported by sdlc, and finished when the close evidence is on main.
