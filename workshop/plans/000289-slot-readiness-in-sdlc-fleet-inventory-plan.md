@@ -36,7 +36,8 @@ environment root), `pkg/layergraph` (the `construct/deps` grammar),
   root. An undeclared sibling directory is not a member. A declared path that
   does not exist is a `missing` member. `data` rows are out of scope: the issue
   asks for substrate dependencies, and weave's slot policy governs only those.
-- **`:0` slots are their host alone.** A primary's substrate paths
+- **`:0` slots are their host alone** (operator-confirmed: `:0` peers are
+  shared, not isolated; each `:1+` slot clones its own dependencies). A primary's substrate paths
   (`../ariadne`) resolve to other repositories' own primaries — themselves
   `:0` slots with their own rows. Counting them as members would report one
   checkout under two slots.
@@ -44,8 +45,12 @@ environment root), `pkg/layergraph` (the `construct/deps` grammar),
   for `:0`, `main-slotN` for `:N`). Dependency clone: `main` (weave clones and
   refreshes dependencies on `main`, `cmd/weave/internal/acquire/acquire.go:153`).
 - **Per-checkout verdict**, from that checkout's facts, first match wins:
-  1. `unknown` — a probe failed (facts unavailable, base unavailable, operation
-     probe failed) or the checkout is not a Git worktree of the fleet.
+  1. `unknown` — a probe the verdict depends on returned an error instead of
+     an answer: the facts' git reads (`rev-parse HEAD`, `status`), the base
+     lookup (no `origin/main`/`main` to count unlanded commits against), the
+     operation-marker lookup, reading a member's `construct/deps`, or a member
+     directory that exists but is not a Git checkout. (An absent declared
+     dependency directory is `missing`, not `unknown`.)
   2. `needs-recovery` — any dirty path (modified or untracked), an active Git
      operation, or a detached HEAD. Reasons and paths are listed.
   3. `holds-work` — on a branch other than its resting branch that has commits
@@ -61,7 +66,8 @@ environment root), `pkg/layergraph` (the `construct/deps` grammar),
   outranks something absent, which outranks something unread. Unknown is never
   ready. Every member keeps its own verdict and reasons, so the worst one never
   hides the others.
-- **Paths are bounded.** A needs-recovery member lists at most 20 dirty paths
+- **Paths are bounded** (dirty *files* per checkout — the number of members is
+  not capped). A needs-recovery member lists at most 20 dirty paths
   plus `dirty_paths_truncated` (the remainder count); `dirty_count` already
   gives the total. Paths are kept on the in-memory facts only (`json:"-"`), so
   rows' JSON does not grow.
