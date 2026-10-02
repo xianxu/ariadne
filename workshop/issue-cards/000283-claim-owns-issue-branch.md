@@ -7,6 +7,6 @@ estimate_hours:
 github_issue:
 ---
 
-# Claim owns issue branch
+# Re-derive ownership from the claimant
 
 ## Problem
