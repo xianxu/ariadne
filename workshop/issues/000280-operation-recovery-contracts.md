@@ -42,7 +42,16 @@ Put claim-before-work and owner-checked continuation in SDLC once, not in every 
 
 ## Plan
 
-Implementation plan to be designed after issue claim and start-plan; these are requirements, not an approved implementation plan.
+Durable plan: `workshop/plans/000280-operation-recovery-contracts-plan.md`.
+
+- [ ] M1 — the `internal/recovery` registry (class, effects, evidence,
+      preconditions, repeat, lost-response, ends, and proofs naming tests),
+      rendered via `{{RECOVERY}}` into each verb's help;
+      `TestRecoveryContractsAreProven`; uncertain-publication guidance plus
+      lost-ack tests for claim and set-status.
+- [ ] M2 — the `sdlc recovery [verb] [--json]` page (classes, agent
+      guidance, table, example); the executable scheduling example
+      (`TestSchedulingExampleRuns` runs the rendered steps); docs.
 
 ## Log
 
@@ -96,3 +105,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     for claim or set-status.
   - Precedent: the gate catalog (`GateCatalog`, rendered via
     `{{GATE_FLAGS}}`, guarded by registered-flag and help tests).
+- Wrote the durable plan (M1/M2). Awaiting operator approval.
