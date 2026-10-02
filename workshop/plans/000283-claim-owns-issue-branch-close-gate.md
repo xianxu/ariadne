@@ -37,6 +37,39 @@ rounds:
           round: 1
       recipe: milestone-review
       blocked: false
+    - "n": 2
+      timestamp: "2026-10-02T13:18:08-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: setstatus.go:282-286 rewritten; claim never moves status.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: statusDecision enforces owned on the start edge (setstatus.go:155); covered by TestStatusDecisionRecordsOrRefusesTheClaimant and the unforced verb-contract row.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: 'Intended per plan revision note 3 (plan.md:302); shaping-claim views handed to #284.'
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: 'Recorded in #284 Log, which owns move semantics for open claims.'
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: Imports regrouped in changecode.go, reclaim.go, startplan.go.
+          round: 2
+      findings:
+        - id: BR-6
+          severity: Minor
+          title: start-plan admits held blocked/codecomplete cards via CanHoldOwner, widening the old working-only gate
+          detail: startDecision (startdecision.go:24) gates on the ownership axis, so an owned codecomplete card now gets a fresh issue branch from main (possibly a retired name). A lifecycle verb's admission set should derive from the lifecycle axis; refuse codecomplete or record the widening as intended.
+          family: verb-admission-axis
+          round: 2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#283 (boundary-review)
@@ -57,10 +90,21 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   For an open held card that was moved (start-plan's card write lost, then sdlc move), claim refuses with "claimed by" instead of finishing the relocation.
 - **BR-5** [Minor] `import-grouping` Module imports placed inside the stdlib block in changecode.go, reclaim.go, startplan.go
 
+## Round 2 — 2026-10-02T13:18:08-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — setstatus.go:282-286 rewritten; claim never moves status.
+- BR-2 — addressed — statusDecision enforces owned on the start edge (setstatus.go:155); covered by TestStatusDecisionRecordsOrRefusesTheClaimant and the unforced verb-contract row.
+- BR-3 — addressed — Intended per plan revision note 3 (plan.md:302); shaping-claim views handed to #284.
+- BR-4 — addressed — Recorded in #284 Log, which owns move semantics for open claims.
+- BR-5 — addressed — Imports regrouped in changecode.go, reclaim.go, startplan.go.
+
+### Raised
+
+- **BR-6** [Minor] `verb-admission-axis` start-plan admits held blocked/codecomplete cards via CanHoldOwner, widening the old working-only gate
+  startDecision (startdecision.go:24) gates on the ownership axis, so an owned codecomplete card now gets a fresh issue branch from main (possibly a retired name). A lifecycle verb's admission set should derive from the lifecycle axis; refuse codecomplete or record the widening as intended.
+
 ## Open findings
 
-- **BR-1** [Minor] `stale-claim-semantics-prose` setstatus.go:276 comment still describes claim as an open→working lock broadcast
-- **BR-2** [Minor] `model-guard-unenforced` The `owned` guard on the start edge has no named enforcement; set-status working claims and starts in one step
-- **BR-3** [Minor] `in-flight-means-held` start-plan's contention warning counts only working cards, not open cards held by a shaping claim
-- **BR-4** [Minor] `relocation-hint-status-scope` requireCardOwnership's moved-here hint points at `sdlc claim`, which finishes relocations only for active statuses
-- **BR-5** [Minor] `import-grouping` Module imports placed inside the stdlib block in changecode.go, reclaim.go, startplan.go
+- **BR-6** [Minor] `verb-admission-axis` start-plan admits held blocked/codecomplete cards via CanHoldOwner, widening the old working-only gate

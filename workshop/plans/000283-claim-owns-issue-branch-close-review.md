@@ -91,3 +91,100 @@ findings:
     title: |
       Module imports placed inside the stdlib block in changecode.go, reclaim.go, startplan.go
 ```
+
+---
+
+## Re-review — 2026-10-02T13:18:08-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 283 — Re-derive ownership from the claimant |
+| repo | ariadne |
+| issue file | workshop/issues/000283-claim-owns-issue-branch.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3b7315b7fde5083f036e377d41e8053193e52ef3..e171d9569d3cb2c96a8d0888be7767194adcd6bd |
+| command | sdlc close --issue 283 |
+| reviewer | claude |
+| timestamp | 2026-10-02T13:18:08-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The issue's purpose is delivered, and so is every Done-when item. `issue.cue` now has a separate `ownership` axis. Two laws enforce it: ownership events must not share names with lifecycle events, and a terminal status cannot hold an owner. `claim` records the owner and leaves status alone. Only the owner can start work, and `start-plan` does it, branch first and card second, with the card write compare-and-swapped. Uncommitted edits to the issue's own details file carry onto the new branch; any other dirty tracked file blocks. `change-code` refuses an owned issue that hasn't started, and `reclaim` accepts an owned `open` card. The atlas defines the terminology. Of the five prior-round Minors, three are fixed with test evidence and two are justified deferrals to #284. One new Minor; nothing blocks the close.
+
+**Strengths**
+1. **The model is the single source for statuses.** `CanHoldOwner`, `OwnershipEvent("move").Statuses` and `TransitionForEvent(status,"start")` replace hand-written status lists in claim, adopt, reclaim, start-plan and the relocation check (`claim.go:145`, `reclaim.go:42`, `startdecision.go:24`). That passes ARCH-DRY and ARCH-PURPOSE.
+2. **Tests are generated from the model.** `TestStartDecision` (`startdecision_test.go:15`) covers every status × owner (none, me, other) and computes the expected result from the model rather than a literal table.
+3. **The dirty-tree check is pure and tested against tricky input.** `planningDirtyBlocking` (`planningbranch.go:145`) has cases for renames and copies on either side, paths with spaces and quotes, and another issue's details file (`planningdirty_test.go`).
+4. **Ordering is safe in start-plan.** The branch is created before the card write, and the write is a CAS with an explicit `ErrCardChanged` recovery message (`startplan.go:316-339`). A lost write leaves a re-runnable state, never a `working` card with no branch.
+
+**Prior findings**
+- **BR-1:** addressed. The comment at `setstatus.go:282-286` is rewritten.
+- **BR-2:** addressed. The guard is enforced in `statusDecision` (`setstatus.go:155-159`). `TestStatusDecisionRecordsOrRefusesTheClaimant` covers the unowned refusal, the `--force` waiver and the held start. The verb-contract table now runs unforced and expects "takes the lock first". Issue guards are hand-coded checks everywhere (the model has no runner registry for them), so enforcing it inline matches existing practice.
+- **BR-3:** addressed. The plan's revision note 3 (`plan.md:302`) makes "in-flight = working" deliberate and hands the views of claimed-but-unstarted issues to #284.
+- **BR-4:** addressed. The relocation-hint edge case is recorded in #284's Log, which is where the decision on `move` semantics for open claims belongs.
+- **BR-5:** addressed. Imports are regrouped in all three files.
+
+**Critical:** none.
+
+**Important:** none.
+
+**Minor**
+- **`start-plan` now accepts more statuses than before** (`startdecision.go:24`). It admits any status that can hold an owner, so an owned `blocked` or `codecomplete` card now passes. Before this change only `working` passed. On an owned `codecomplete` card from a resting branch, start-plan would create a fresh issue branch from main under the details-derived name. That could be a name #148 has retired. The rule: a lifecycle verb's accepted statuses should come from the lifecycle axis (startable or already in progress), not the ownership axis. Either refuse `codecomplete` here or record the widening as intended.
+
+**Test coverage notes:** the claim/start split is pinned at three levels:
+- the pure decisions (`TestClaimNeverMovesStatus`, `TestStartDecision`);
+- the verb-contract table;
+- the end-to-end claim-then-start test with a carried shaping edit.
+
+Two existing tests now pass `--force` deliberately, with a comment explaining why (`issue_test.go:111`, `planningreview_test.go:128`).
+
+**Architecture**
+- **ARCH-DRY:** pass. `transitionFor` is extracted and the project model reuses it.
+- **ARCH-PURE:** pass. `startDecision` and `planningDirtyBlocking` are pure; the IO stays in `startPlanBranch`.
+- **ARCH-PURPOSE:** pass. Every consumer of the status lists derives from the model.
+- **ARCH-MOCK:** pass. Card updates go through the existing tracker fake.
+- **ARCH-CONSTRAINTS:** N/A. The change only reads one card and one `git status`.
+- **ARCH-SECURE:** pass. The claimant is parsed by the existing fail-closed `CardClaimant`, and errors propagate.
+- **ARCH-ORDER:** pass. Transitions are explicit in the model; the CAS covers a second actor.
+- **ARCH-FUNERAL:** pass. The plan records that an unstarted claim has no expiry, and that `unclaim` (#284) and `reclaim` release it.
+
+**Plan revisions:** none needed. Optionally, a one-line Revision entry noting that start-plan accepts every status that can hold an owner, if that is intended.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      setstatus.go:282-286 rewritten; claim never moves status.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      statusDecision enforces owned on the start edge (setstatus.go:155); covered by TestStatusDecisionRecordsOrRefusesTheClaimant and the unforced verb-contract row.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Intended per plan revision note 3 (plan.md:302); shaping-claim views handed to #284.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Recorded in #284 Log, which owns move semantics for open claims.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Imports regrouped in changecode.go, reclaim.go, startplan.go.
+findings:
+  - id: new
+    severity: Minor
+    family: verb-admission-axis
+    title: |
+      start-plan admits held blocked/codecomplete cards via CanHoldOwner, widening the old working-only gate
+    detail: |
+      startDecision (startdecision.go:24) gates on the ownership axis, so an owned codecomplete card now gets a fresh issue branch from main (possibly a retired name). A lifecycle verb's admission set should derive from the lifecycle axis; refuse codecomplete or record the widening as intended.
+```

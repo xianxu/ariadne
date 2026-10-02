@@ -134,6 +134,7 @@ The design buffer is +15% because a thorough plan doc exists.
 ## Log
 
 ### 2026-10-02
+- 2026-10-02: closed — make test green after the minor fixes (898 cmd/sdlc tests + 19 pkgs; processgroup /bin/ps test is sandbox-only and passes unsandboxed); owned guard on start enforced in set-status with tests (unowned refuses, --force waives, held starts); swept every test calling set-status working; prior evidence: TestShapeUnderClaimThenStart e2e, TestClaimNeverMovesStatus and TestStartDecision over the model status x owner product, make vocab-embed clean; review verdict: SHIP
 - 2026-10-02: closed — make test green (898 cmd/sdlc tests + 19 pkgs; processgroup ps test sandbox-only, passes unsandboxed); make vocab-embed clean; TestShapeUnderClaimThenStart e2e: claim leaves card open+owner, shaping edit carried, start-plan starts card keeping stamp, rerun no-op; TestClaimNeverMovesStatus + TestStartDecision over the model status x owner product; review verdict: SHIP
 
 Filed from a pair session that landed pair#365 by hand after `sdlc pr`, `reclaim` and `claim --adopt` all refused. Root cause traced to `transferguard.go` deriving the owner from the details basename. Operator review the same day: the claimant should be the owner and the lock (status-as-lock predates the claimant), and the scope is a rethink of the verbs and guards around the claimant. The issue is likely to split. Details left uncommitted on this resting branch, not moved.
