@@ -43,6 +43,37 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-02T00:17:40-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: issueShowRepo anchors on the abs issues dir or --repo; TestObserveAnchorsOnTheIssuesDir fails under the old cwd anchor (both the non-repo and the wrong-repo halves).
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: testdata/observation-v1.golden.json, compared byte-for-byte by TestObservationGolden and strictly decoded.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: newTestDirs is a non-git temp dir, so root is empty and nothing is fetched; no other test calls runIssueShow with a cwd-relative dir inside the real checkout.
+          round: 2
+        - id: BR-4
+          disposition: not-addressed
+          note: TrackerRefErr/RefError is wired up, but no test reaches the rev-parse failure path.
+          round: 2
+        - id: BR-5
+          disposition: not-addressed
+          note: 'relation and claimant_worktree are now checked, but there is no rejection test, and Authority on every section, plus the fixed authority per section, is still unvalidated. Rule: every enum-typed contract field validates itself, with one table test covering all of them.'
+          round: 2
+        - id: BR-6
+          disposition: not-addressed
+          note: Still present by design until M2, and now also baked into the v1 golden fixture; M2 must update both.
+          round: 2
+      boundary: M1
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#279 (boundary-review)
@@ -64,11 +95,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Minor] `contract-enum-validation` Validate checks landing.outcome against its enum but not assignment.relation or claimant_worktree
 - **BR-6** [Minor] `state-semantics-overload` M2 sections are emitted as unknown ("not observed by this build"), overloading the read-failed meaning; remove in M2
 
+## Round 2 — 2026-10-02T00:17:40-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — issueShowRepo anchors on the abs issues dir or --repo; TestObserveAnchorsOnTheIssuesDir fails under the old cwd anchor (both the non-repo and the wrong-repo halves).
+- BR-2 — addressed — testdata/observation-v1.golden.json, compared byte-for-byte by TestObservationGolden and strictly decoded.
+- BR-3 — addressed — newTestDirs is a non-git temp dir, so root is empty and nothing is fetched; no other test calls runIssueShow with a cwd-relative dir inside the real checkout.
+- BR-4 — not-addressed — TrackerRefErr/RefError is wired up, but no test reaches the rev-parse failure path.
+- BR-5 — not-addressed — relation and claimant_worktree are now checked, but there is no rejection test, and Authority on every section, plus the fixed authority per section, is still unvalidated. Rule: every enum-typed contract field validates itself, with one table test covering all of them.
+- BR-6 — not-addressed — Still present by design until M2, and now also baked into the v1 golden fixture; M2 must update both.
+
 ## Open findings
 
-- **BR-1** [Critical] `repo-root-from-wrong-anchor` issue show resolves the observed repository from cwd, not the issues dir: dies outside a repo and observes the wrong repo with --issues-dir
-- **BR-2** [Important] `plan-deliverable-dropped` M1 promises a golden fixture for the schema_version 1 JSON; none is in the diff
-- **BR-3** [Important] `test-reaches-real-state` TestRunIssueShow_HeadersNotBodies now does a real tracker fetch against the developer's checkout
 - **BR-4** [Minor] `silent-error-swallow` rev-parse failure on the tracker ref is dropped, leaving tracker present with an empty ref
 - **BR-5** [Minor] `contract-enum-validation` Validate checks landing.outcome against its enum but not assignment.relation or claimant_worktree
 - **BR-6** [Minor] `state-semantics-overload` M2 sections are emitted as unknown ("not observed by this build"), overloading the read-failed meaning; remove in M2

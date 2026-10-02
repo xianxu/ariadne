@@ -114,3 +114,96 @@ findings:
     title: |
       M2 sections are emitted as unknown ("not observed by this build"), overloading the read-failed meaning; remove in M2
 ```
+
+---
+
+## Re-review — 2026-10-02T00:17:40-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 279 — Expose authoritative workflow observations for agents |
+| repo | ariadne |
+| issue file | workshop/issues/000279-workflow-observables.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 11ce13fafae075a7878bc68aadbe2db135975813..6140631c21a02a01fd5199f0953ce4dfe1a432d9 |
+| command | sdlc milestone-close --issue 279 --milestone M1 |
+| reviewer | claude |
+| timestamp | 2026-10-02T00:17:40-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The rework fixes the three blocking findings from round 1, and I checked each one in the code rather than relying on the commit message. `issueShowRepo` (`cmd/sdlc/issue.go:629`) now takes the repository from the issues directory it was given, or from `--repo`. It no longer uses the process cwd. An issues directory outside any repository falls back to the details-only read (root `""`). `TestObserveAnchorsOnTheIssuesDir` tests both halves: running outside a repository, and pointing at a loose issues directory from inside a tracked repository, with the tracker tip and remote refs checked to be unchanged. Both halves fail against the old `repoRootOf(".")` code. A v1 golden fixture now pins the wire format. `TestRunIssueShow_HeadersNotBodies` now runs on a temp directory that isn't a git repository, so it no longer fetches against the developer's checkout. `go test ./cmd/sdlc/internal/observe/` and `go test ./cmd/sdlc/ -run 'TestObserve|TestRunIssueShow'` both pass. What's left is Minor:
+- Two of the Minor fixes have no test that would fail without them.
+- The enum validation closed only the fields that were named, not the rest of that class.
+- The M2 placeholder is intentionally still there.
+
+1. **Strengths**
+   - The issues-directory anchor is a simple rule that's easy to explain. The new `workshop/lessons.md` entry states it as a general rule ("resolve from the path given, never the cwd"), not as a one-off fix.
+   - `TestObservationGolden` compares against a file that was written separately. It also decodes the golden through the strict decoder, so the fixture is itself checked against the contract.
+   - `Tracker.RefError` keeps a failed rev-parse separate from both the read state and the ref (`assemble.go:79-83`), so a failure no longer leaves an empty ref with no reason.
+   - `Validate` now requires `claimant_worktree` to be set exactly when a claimant is (`json.go:66`), which is a real cross-field rule.
+   - The stale-tracker test in `TestObserveStaleTrackerSaysSo` checks the error text, the stale state and the value, so it follows the "read quality separate from value" contract all the way through.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - BR-4: the `TrackerRefErr` path is wired up, but no test reaches it, at either the assembler level or the collector level.
+   - BR-5 (family `contract-enum-validation`): `relation` and `claimant_worktree` are now validated, but `Authority` on every section is not. Neither is the requirement that each section carries its own fixed authority (card, assignment, completion and landing are `tracker`; branch and checkpoints are `committed`; workspaces are `worktree`). Neither of these is covered by a test either.
+   - BR-6: the "not observed by this build" placeholders are now also baked into the golden fixture. M2 has to update both together.
+
+5. **Test coverage**
+   - The real-git tests cover the M1 plan items: the parked slot, the stale tracker, unchanged local state, landed, and `--repo`.
+   - The fuzz test covers malformed card bytes only. The ledger and details inputs it is meant to cover arrive in M2.
+   - The plan's subprocess-count budget test isn't written yet. It isn't an M1 checklist item, so carry it into M2.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** Judgments reuse the existing `issue.*` parsers.
+   - **ARCH-PURE: pass.** `internal/observe` does no IO, and the collector is a thin layer.
+   - **ARCH-PURPOSE: pass for M1.**
+   - **ARCH-MOCK: pass.** Tests run on the real-git fixture harness.
+   - **ARCH-CONSTRAINTS: pass.** In text mode, the records scope reuses the same root+dir key, so there is one fetch.
+   - **ARCH-SECURE: pass.** BR-3 is closed, and strict decoding rejects unknown and duplicate keys.
+   - **ARCH-ORDER: pass.** This is a single-shot read that holds no state between events.
+   - **ARCH-FUNERAL: pass.** It creates nothing durable. The only side effect is the existing remote-tracking ref update.
+   - For M2:
+     - Make each enum type validate itself, so new sections can't skip it.
+     - With `--repo` plus an absolute `--issues-dir` in a different repository, the tracker of one repository is paired with the details of another. Make that combination an error.
+
+7. **Plan revisions:** none needed. The plan still matches the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      issueShowRepo anchors on the abs issues dir or --repo; TestObserveAnchorsOnTheIssuesDir fails under the old cwd anchor (both the non-repo and the wrong-repo halves).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      testdata/observation-v1.golden.json, compared byte-for-byte by TestObservationGolden and strictly decoded.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      newTestDirs is a non-git temp dir, so root is empty and nothing is fetched; no other test calls runIssueShow with a cwd-relative dir inside the real checkout.
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      TrackerRefErr/RefError is wired up, but no test reaches the rev-parse failure path.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      relation and claimant_worktree are now checked, but there is no rejection test, and Authority on every section, plus the fixed authority per section, is still unvalidated. Rule: every enum-typed contract field validates itself, with one table test covering all of them.
+  - id: BR-6
+    disposition: not-addressed
+    note: |
+      Still present by design until M2, and now also baked into the v1 golden fixture; M2 must update both.
+```

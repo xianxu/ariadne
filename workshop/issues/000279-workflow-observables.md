@@ -43,7 +43,7 @@ For each observation expose its source/revision and freshness or collection time
 
 Durable plan: `workshop/plans/000279-workflow-observables-plan.md`.
 
-- [ ] M1 — the contract and its tracker sections: `internal/observe` types,
+- [x] M1 — the contract and its tracker sections: `internal/observe` types,
       strict JSON and golden; `Assemble` for card, assignment, completion and
       landing; `issue show --json`; parked-slot, stale-tracker and no-mutation
       tests.
@@ -86,6 +86,8 @@ Items, in order:
 
 ## Log
 
+
+- 2026-10-02: closed M1 — observation contract (schema_version 1) pinned by golden; strict JSON (unknown/duplicate keys, all enums, invariants); Assemble table + fuzz; issue show --json/--repo anchored on the issues dir (mutation-checked regression: loose dir outside a repo, given dir inside a tracked repo touches nothing); parked slot observed from another checkout, stale tracker+reason, landed via --repo; atlas Observations; full sharded suite green; actual = sdlc actual (first milestone); --no-project: pair's project tracks ariadne#279 at issue granularity; review verdict: SHIP
 ### 2026-10-01
 
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
@@ -166,3 +168,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     exactly when a claimant is.
   - Added a lesson on anchoring repositories to the given path.
 
+- M1 closed (SHIP after REWORK; 0.86h measured). Advisories BR-4 (ref-error test), BR-5 (validate every enum including authority, one rejection table) and BR-6 (placeholder sections and golden) are folded into M2's first steps.
