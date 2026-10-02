@@ -210,6 +210,24 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 8
+      timestamp: "2026-10-02T14:42:23-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: Records.Require added; all rs.Get card reads (repoguard, pr, observe, close, actual, push, issue, projectstatus, issuefiles) routed through it; guardIssueNotDone fail-closed asserted in malformedcard_test.go.
+          round: 8
+        - id: BR-15
+          disposition: not-addressed
+          note: Plan now states unbounded (good), but asserts the command ctx cancels the fetch; Presence/RemoteExists (nil ctx) and Snapshot take no ctx, ctx.Err() is only checked after. Delete that clause.
+          round: 8
+        - id: BR-16
+          disposition: addressed
+          note: render.go:137 and fleetclaims_test.go:99 now use MachinePresent; same string value so no behavioral test can fail, verified by inspection.
+          round: 8
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#288 (boundary-review)
@@ -306,8 +324,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   This is the 2nd finding in family undeclared-io-fanout. The rule: a network call on a read-only view path either takes the caller's ctx deadline or its budget says it is unbounded. Thread ctx into Repository.Presence/Initialized, or correct the plan's wording.
 - **BR-16** [Minor] `cross-enum-constant` renderMachineClaims and TestFleetInventoryPlacesClaims compare Machine.State against ClaimsPresent instead of MachinePresent
 
+## Round 8 — 2026-10-02T14:42:23-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — Records.Require added; all rs.Get card reads (repoguard, pr, observe, close, actual, push, issue, projectstatus, issuefiles) routed through it; guardIssueNotDone fail-closed asserted in malformedcard_test.go.
+- BR-15 — not-addressed — Plan now states unbounded (good), but asserts the command ctx cancels the fetch; Presence/RemoteExists (nil ctx) and Snapshot take no ctx, ctx.Err() is only checked after. Delete that clause.
+- BR-16 — addressed — render.go:137 and fleetclaims_test.go:99 now use MachinePresent; same string value so no behavioral test can fail, verified by inspection.
+
 ## Open findings
 
-- **BR-8** [Minor] `unreadable-card-read-as-absent` guardIssueNotDone reads an unreadable card's status as not-done, contrary to its fail-closed contract
 - **BR-15** [Minor] `undeclared-io-fanout` Plan budget says tracker fetches are bounded by Git's transport timeout, but Presence takes no ctx and git fetch has no default deadline
-- **BR-16** [Minor] `cross-enum-constant` renderMachineClaims and TestFleetInventoryPlacesClaims compare Machine.State against ClaimsPresent instead of MachinePresent
