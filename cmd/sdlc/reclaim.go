@@ -7,11 +7,17 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"io"
+	"path"
 	"strings"
 
+	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 const (
@@ -93,4 +99,140 @@ func parseReclaimTrailers(message string) (from, to, reason string, ok bool) {
 		}
 	}
 	return from, to, reason, from != "" && to != "" && reason != ""
+}
+
+type reclaimFlags struct {
+	Issue          int
+	Expect, Reason string
+	IssuesDir      string
+}
+
+func NewReclaimCmd() *cobra.Command {
+	var f reclaimFlags
+	cmd := markMutatingCommand(&cobra.Command{
+		Use: "reclaim", Args: cobra.NoArgs, SilenceUsage: true, SilenceErrors: true,
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return runReclaim(commandContext(cmd.Context()), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+		},
+	})
+	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID (required)")
+	cmd.Flags().StringVar(&f.Expect, "expect", "", "the card revision you inspected; without it, reclaim only shows the transfer")
+	cmd.Flags().StringVar(&f.Reason, "reason", "", "one line: why responsibility moves (recorded in tracker history)")
+	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue details")
+	return cmd
+}
+
+// reclaimEffect publishes one transfer. A variable only so a test can lose the
+// publication response after the effect landed; nothing but runReclaim calls it
+// (TestReclaimIsOnlyOperatorInvoked).
+var reclaimEffect = func(env *trackerEnv, card tracker.Record, next []byte, trailers []string) error {
+	return env.repo.UpdateCardWithTrailers(card, next, operationToken("reclaim"), trailers, func(string, string) error { return nil })
+}
+
+// runReclaim inspects (no --expect) or performs (--expect + --reason) a
+// transfer of #N's responsibility to this workspace. Both read one fresh card;
+// the decision and the compare-and-swap key on it.
+func runReclaim(ctx context.Context, stdout, stderr io.Writer, f *reclaimFlags) error {
+	if f.Issue <= 0 {
+		return errors.New("--issue is required and must be positive")
+	}
+	env, err := openTracker(ctx)
+	if err != nil {
+		return err
+	}
+	id := fmt.Sprintf("%06d", f.Issue)
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return err
+	}
+	card, ok := snap.Card(id)
+	if !ok {
+		return fmt.Errorf("no card #%s on the tracker", id)
+	}
+	me, err := claimantIdentity(env)
+	if err != nil {
+		return err
+	}
+	if f.Expect == "" {
+		return inspectReclaim(stdout, env, snap.Ref(), card, me)
+	}
+	next, from, err := reclaimDecision(card.Raw, card.BlobOID, f.Expect, f.Reason, me)
+	if errors.Is(err, errAlreadyMine) {
+		cok(stderr, fmt.Sprintf("#%s is already this workspace's (%s); nothing to reclaim — a retry of a reclaim that landed ends here", id, me.Worktree))
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	err = reclaimEffect(env, card, next, reclaimTrailers(from, me, f.Reason))
+	invalidateIssueRecords(env.ctx)
+	switch {
+	case errors.Is(err, tracker.ErrCardChanged):
+		return fmt.Errorf("#%s changed while reclaiming; nothing was transferred — inspect it again (`sdlc reclaim --issue %d`)", id, f.Issue)
+	case errors.Is(err, gitx.ErrPublicationUncertain):
+		return fmt.Errorf("%w\n      the transfer may or may not have published; rerun the same command — the card decides (already yours: done; unchanged: retried)", err)
+	case err != nil:
+		return err
+	}
+	cok(stderr, fmt.Sprintf("#%s reclaimed: %s → %s", id, describeClaimant(from), describeClaimant(me)))
+	if warn := refreshLocalMirror(env, path.Join(f.IssuesDir, path.Base(card.Path))); warn != "" {
+		cwarn(stderr, warn)
+	}
+	fmt.Fprintln(stdout, "reclaimed")
+	return nil
+}
+
+// inspectReclaim shows what a reclaim would do and writes nothing.
+func inspectReclaim(w io.Writer, env *trackerEnv, ref string, card tracker.Record, me issue.Claimant) error {
+	id := card.ID
+	status, _ := issue.GetField(card.Card.Frontmatter, "status")
+	fmt.Fprintf(w, "#%s %s — %s\n  revision:       %s\n", issue.CLIRef(id), card.Card.Title, status, card.BlobOID)
+	if recorded, has, err := issue.CardClaimant(card.Raw); err != nil {
+		return err
+	} else if has {
+		fmt.Fprintf(w, "  current owner:  %s\n", describeClaimant(recorded))
+	} else {
+		fmt.Fprintln(w, "  current owner:  (none recorded)")
+	}
+	fmt.Fprintf(w, "  proposed owner: %s (this workspace)\n", describeClaimant(me))
+	history, err := reclaimHistory(env, ref, card.Path)
+	if err != nil {
+		return err
+	}
+	if len(history) > 0 {
+		fmt.Fprintln(w, "  past reclaims:")
+		for _, e := range history {
+			fmt.Fprintf(w, "    %s %s  %s → %s: %s\n", e.Date, e.Commit, e.From, e.To, e.Reason)
+		}
+	}
+	_, _, err = reclaimDecision(card.Raw, card.BlobOID, card.BlobOID, "inspect", me)
+	if errors.Is(err, errAlreadyMine) {
+		fmt.Fprintln(w, "This workspace already owns it; nothing to reclaim.")
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(w, "To move responsibility here — only after agreeing it with the current owner out of band:\n  sdlc reclaim --issue %s --expect %s --reason '<why>'\n", issue.CLIRef(id), card.BlobOID)
+	return nil
+}
+
+// reclaimHistory lists the card's past transfers, newest first, from the
+// trailers in the tracker history (bounded).
+func reclaimHistory(env *trackerEnv, ref, cardPath string) ([]reclaimEvent, error) {
+	out, err := env.gitRaw(nil, "log", "--max-count=50", "--format=%h%x00%cs%x00%B%x01", ref, "--", cardPath)
+	if err != nil {
+		return nil, fmt.Errorf("read #%s's tracker history: %w", path.Base(cardPath), err)
+	}
+	var events []reclaimEvent
+	for _, rec := range strings.Split(string(out), "\x01") {
+		parts := strings.SplitN(strings.TrimLeft(rec, "\n"), "\x00", 3)
+		if len(parts) != 3 {
+			continue
+		}
+		if from, to, reason, ok := parseReclaimTrailers(parts[2]); ok {
+			events = append(events, reclaimEvent{Commit: parts[0], Date: parts[1], From: from, To: to, Reason: reason})
+		}
+	}
+	return events, nil
 }
