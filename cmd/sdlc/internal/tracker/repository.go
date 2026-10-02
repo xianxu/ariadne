@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"regexp"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -57,6 +58,18 @@ var tokenPattern = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$`)
 // token and records each candidate before publication. An uncertain publication
 // remains uncertain; this API never infers success from equal content.
 func (r *Repository) UpdateCard(expected Record, raw []byte, operationToken string, beforePush func(base, candidate string) error) error {
+	return r.UpdateCardWithTrailers(expected, raw, operationToken, nil, beforePush)
+}
+
+// UpdateCardWithTrailers is UpdateCard whose tracker commit also carries the
+// given trailer lines ("Key: value") after its Tracker-Operation — the record
+// of why the card changed, where the change itself is the record (#278).
+func (r *Repository) UpdateCardWithTrailers(expected Record, raw []byte, operationToken string, trailers []string, beforePush func(base, candidate string) error) error {
+	for _, t := range trailers {
+		if strings.ContainsAny(t, "\r\n") || !strings.Contains(t, ": ") {
+			return fmt.Errorf("malformed tracker trailer %q", t)
+		}
+	}
 	if !tokenPattern.MatchString(operationToken) || beforePush == nil {
 		return errors.New("tracker update requires an operation token and receipt callback")
 	}
@@ -71,7 +84,7 @@ func (r *Repository) UpdateCard(expected Record, raw []byte, operationToken stri
 		return errors.New("tracker update must preserve expected card identity")
 	}
 	content := bytes.Clone(raw)
-	message := cardMessage(card.ID, "update card", operationToken)
+	message := cardMessage(card.ID, "update card", operationToken, trailers...)
 	return r.trunk.UpdateManyPrepared(message, func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
 		snapshot, err := r.read(view)
 		if err != nil {

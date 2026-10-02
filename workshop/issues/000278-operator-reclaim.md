@@ -93,3 +93,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     workspace.
 - Wrote the durable plan (single pass, no milestones). Awaiting operator approval.
 - Operator approved the plan. change-code inferred the quick flow (no plan-quality, no estimate); close will upgrade to the full review if the diff leaves the shell. Implementing.
+- Done: `UpdateCardWithTrailers` (tracker commit trailers; plain messages unchanged) and the pure `reclaimDecision` plus trailer round trip. Both are table-tested.
