@@ -124,7 +124,8 @@ func TestPlanningReviewConcurrencySchedules(t *testing.T) {
 			repo, _, finish := startPlanningReviewCLI(t, binary, kind)
 			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 			defer cancel()
-			other := exec.CommandContext(ctx, binary, "issue", "set-status", "working", "--issue", "207")
+			// --force: the owned guard on start (#283) is not what this exercises.
+			other := exec.CommandContext(ctx, binary, "issue", "set-status", "working", "--issue", "207", "--force")
 			other.Dir = repo
 			out, err := other.CombinedOutput()
 			if err != nil {
