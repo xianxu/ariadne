@@ -1,6 +1,6 @@
 ---
 id: 000277
-status: codecomplete
+status: done
 created: 2026-10-01
 updated: 2026-10-01
 estimate_hours: 4.09
@@ -24,6 +24,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: d130b35c36108a69cfc375487325df8ad72c55e4
         evidence_commit: d5f9c2fe8dacfa95176a7a2bbbdd145b4776a45d
+        landed_commit: 3fb0517c9aff8d2b680c4159510bc10982b5d3be
 ---
 
 # Record claimant ownership atomically with issue reservation
