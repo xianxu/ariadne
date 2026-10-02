@@ -81,13 +81,21 @@ The **claimant is the owner and the lock**. **Status is lifecycle only.**
 - `construct/vocabulary/issue.cue` states the owner is the lock and status is lifecycle only. Claim and unclaim change the owner, never the status. `open`-with-owner and active-without-owner are legal states, and their meaning is documented.
 - `claim` no longer changes status. `start-plan` requires the claim, sets `working`, and creates the issue branch from main (the #272 refusal stays there).
 - Unclaim from `working`/`blocked`/`codecomplete` is legal in the model (the verb itself is #284).
+- `start-plan` carries uncommitted edits confined to the claimed issue's own details onto the new branch; any other dirty tracked file still refuses.
+- `change-code` refuses an owned but unstarted (`open`) issue, pointing at `start-plan`; `reclaim` accepts an owned `open` card.
 - The atlas terminology defines slot = executor/owner and operator = supervisor, and no help text uses "owner" for a branch or a person.
 - Tests pin the legal (status, owner) combinations and the claim/start-plan split.
 
 ## Plan
 
 - [x] Claim, run start-plan, settle the open questions and the child-issue split before designing the implementation.
-- [ ] Design the model change (issue.cue states, claim/start-plan split, terminology); decide whether it needs a durable plan.
+- [x] Design the model change; durable plan at `workshop/plans/000283-claimant-lock-model-plan.md` (full flow: >100 code lines).
+- [ ] Model: `ownership` axis in issue.cue + pkg/vocab; open→working is `start` (plan Task 1)
+- [ ] claim records the owner only (Task 2)
+- [ ] start-plan starts the lifecycle; carries own details edits (Task 3)
+- [ ] change-code refuses unstarted; reclaim derives holdable statuses (Task 4)
+- [ ] e2e fixtures: claim then start-plan (Task 5)
+- [ ] Help text, atlas, terminology (Task 6)
 
 ## Log
 
@@ -137,3 +145,7 @@ Delta, the Done when before narrowing:
 > - `claim --adopt` records an owner on a pre-#277 `codecomplete` issue.
 > - A reopened issue gets a fresh issue-branch name and lands through the owner-based guard.
 > - A merge done outside sdlc is detected: a fixture with a GitHub-merged issue branch and a card not `done` is reported by sdlc, and finished when the close evidence is on main.
+
+### 2026-10-02 — Done when: two additions from the durable plan
+
+Reason: writing the plan surfaced two consequences of splitting claim from start. Shaping under a claim on a resting branch must be able to reach `start-plan` (the friction hit in round 1), and a verb past planning must not run on an unstarted card. Delta: added the `start-plan` carry bullet and the `change-code`/`reclaim` bullet. Also decided in the plan (D1): `claim` keeps stamping `started`, so shaping time counts, per the operator's round-2 call; precise multi-claim attribution goes to #284.
