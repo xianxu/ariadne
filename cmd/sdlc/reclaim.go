@@ -154,11 +154,18 @@ func runReclaim(ctx context.Context, stdout, stderr io.Writer, f *reclaimFlags) 
 		return err
 	}
 	if f.Expect == "" {
+		if f.Reason != "" {
+			return errors.New("--reason needs --expect: inspect first (`sdlc reclaim --issue N`), then confirm the revision it shows")
+		}
 		return inspectReclaim(stdout, env, snap.Ref(), card, me)
 	}
+	detailPath := path.Join(f.IssuesDir, path.Base(card.Path))
 	next, from, err := reclaimDecision(card.Raw, card.BlobOID, f.Expect, f.Reason, me)
 	if errors.Is(err, errAlreadyMine) {
 		cok(stderr, fmt.Sprintf("#%s is already this workspace's (%s); nothing to reclaim — a retry of a reclaim that landed ends here", id, me.Worktree))
+		if warn := refreshLocalMirror(env, detailPath); warn != "" { // the landed reclaim's mirror, after a lost response
+			cwarn(stderr, warn)
+		}
 		return nil
 	}
 	if err != nil {
@@ -175,7 +182,7 @@ func runReclaim(ctx context.Context, stdout, stderr io.Writer, f *reclaimFlags) 
 		return err
 	}
 	cok(stderr, fmt.Sprintf("#%s reclaimed: %s → %s", id, describeClaimant(from), describeClaimant(me)))
-	if warn := refreshLocalMirror(env, path.Join(f.IssuesDir, path.Base(card.Path))); warn != "" {
+	if warn := refreshLocalMirror(env, detailPath); warn != "" {
 		cwarn(stderr, warn)
 	}
 	fmt.Fprintln(stdout, "reclaimed")
@@ -217,10 +224,14 @@ func inspectReclaim(w io.Writer, env *trackerEnv, ref string, card tracker.Recor
 	return nil
 }
 
-// reclaimHistory lists the card's past transfers, newest first, from the
-// trailers in the tracker history (bounded).
+// reclaimHistoryLimit bounds inspect's history: the most recent reclaims.
+const reclaimHistoryLimit = 20
+
+// reclaimHistory lists the card's most recent transfers, newest first, from
+// the trailers in the tracker history.
 func reclaimHistory(env *trackerEnv, ref, cardPath string) ([]reclaimEvent, error) {
-	out, err := env.gitRaw(nil, "log", "--max-count=50", "--format=%h%x00%cs%x00%B%x01", ref, "--", cardPath)
+	out, err := env.gitRaw(nil, "log", fmt.Sprintf("--max-count=%d", reclaimHistoryLimit), "--grep=^"+reclaimFromTrailer+": ",
+		"--format=%h%x00%cs%x00%B%x01", ref, "--", cardPath)
 	if err != nil {
 		return nil, fmt.Errorf("read #%s's tracker history: %w", path.Base(cardPath), err)
 	}

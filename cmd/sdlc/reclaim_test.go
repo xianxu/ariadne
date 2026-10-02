@@ -161,10 +161,13 @@ func TestReclaimTransfersResponsibility(t *testing.T) {
 			t.Errorf("tracker commit lacks %q:\n%s", want, msg)
 		}
 	}
-	// Wrong-owner resume: the old workspace is refused; the new one owns it.
+	// Wrong-owner resume: every continuation gate refuses the old workspace,
+	// before any review runs.
 	t.Chdir(slot)
-	if refusal, _ := ownershipGate(t, r, "start-plan", 380, detailPath); !strings.Contains(refusal, "owned by "+now.Operator) {
-		t.Fatalf("old workspace continued after reclaim: %q", refusal)
+	for _, gate := range []string{"start-plan", "change-code", "close"} {
+		if refusal, judged := ownershipGate(t, r, gate, 380, filepath.Join(slot, detailPath)); !strings.Contains(refusal, "owned by "+now.Operator) || judged {
+			t.Fatalf("old workspace's %s after reclaim: %q (judged %v)", gate, refusal, judged)
+		}
 	}
 	t.Chdir(r.root)
 	if statusAfter := testfix.Capture(t, slot, "status", "--porcelain") + testfix.Capture(t, r.root, "status", "--porcelain"); statusAfter != statusBefore {
@@ -181,12 +184,24 @@ func TestReclaimTransfersResponsibility(t *testing.T) {
 	if !strings.Contains(view, "past reclaims:") || !strings.Contains(view, "slot machine retired") || !strings.Contains(view, "already owns it") {
 		t.Fatalf("history not shown:\n%s", view)
 	}
+	if _, err := reclaimRun(t, 380, "", "a reason without a revision"); err == nil || !strings.Contains(err.Error(), "--reason needs --expect") {
+		t.Fatalf("--reason without --expect: %v", err)
+	}
+	// The new owner continues once the old worktree lets go of the branch (the
+	// operator's out-of-band handover): its start-plan takes the branch here.
+	testfix.Git(t, slot, "switch", "-q", "--detach")
+	if refusal, _ := ownershipGate(t, r, "start-plan", 380, detailPath); refusal != "" {
+		t.Fatalf("the new owner was refused: %s", refusal)
+	}
+	if branch := r.git("branch", "--show-current"); branch != "000380-reclaim" {
+		t.Fatalf("new owner's start-plan left it on %q", branch)
+	}
 }
 
 // #278: a card that changed after inspection refuses the stale confirm and
 // keeps its owner; a lost publication response is reconciled by rerunning.
 func TestReclaimStaleAndLostResponse(t *testing.T) {
-	r, _, cardPath, _ := reclaimFixture(t, 381)
+	r, slot, cardPath, detailPath := reclaimFixture(t, 381)
 	m := confirmRE.FindStringSubmatch(func() string { v, _ := reclaimRun(t, 381, "", ""); return v }())
 	var out, errs bytes.Buffer
 	if err := runCardUpdate(context.Background(), &out, &errs, "workshop/issues", 381, "estimate", false, func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
@@ -212,9 +227,21 @@ func TestReclaimStaleAndLostResponse(t *testing.T) {
 		t.Fatalf("lost response not reported: %v\n%s", err, got)
 	}
 	tip := trackerTip(t, r)
+	// The rerun happens where the details live on the issue branch; it must
+	// bring the landed owner into them, as the uninterrupted path would have.
+	testfix.Git(t, slot, "switch", "-q", "--detach")
+	r.git("switch", "-q", "000381-reclaim")
 	if got, err := reclaimRun(t, 381, m[2], "lost response"); err != nil || !strings.Contains(got, "nothing to reclaim") || trackerTip(t, r) != tip {
 		t.Fatalf("rerun after a lost response: %v\n%s", err, got)
 	}
+	mirrorsCard(t, string(must(os.ReadFile(filepath.Join(r.root, detailPath)))), r.card(cardPath), "working")
+}
+
+func must[T any](v T, err error) T {
+	if err != nil {
+		panic(err)
+	}
+	return v
 }
 
 // #278: two clones confirm the same inspected revision at once: exactly one
@@ -279,28 +306,40 @@ func TestReclaimIsOnlyOperatorInvoked(t *testing.T) {
 		t.Fatal(err)
 	}
 	seen := map[string]bool{}
+	check := func(file, owner string, body ast.Node) {
+		ast.Inspect(body, func(n ast.Node) bool {
+			id, ok := n.(*ast.Ident)
+			if !ok {
+				return true
+			}
+			callers, guarded := allowed[id.Name]
+			if !guarded {
+				return true
+			}
+			seen[id.Name] = true
+			if !regexp.MustCompile(`^(` + callers + `)$`).MatchString(owner) {
+				t.Errorf("%s:%s references %s; only %s may (reclaim is operator-invoked only)", file, owner, id.Name, callers)
+			}
+			return true
+		})
+	}
 	for _, pkg := range pkgs {
 		for name, file := range pkg.Files {
 			for _, decl := range file.Decls {
-				fn, ok := decl.(*ast.FuncDecl)
-				if !ok || fn.Body == nil {
-					continue
+				switch d := decl.(type) {
+				case *ast.FuncDecl:
+					if d.Body != nil {
+						check(name, d.Name.Name, d.Body)
+					}
+				case *ast.GenDecl: // package-level initializers (var x = func…) count too
+					for _, spec := range d.Specs {
+						if vs, ok := spec.(*ast.ValueSpec); ok {
+							for _, v := range vs.Values {
+								check(name, "package-level "+vs.Names[0].Name, v)
+							}
+						}
+					}
 				}
-				ast.Inspect(fn.Body, func(n ast.Node) bool {
-					id, ok := n.(*ast.Ident)
-					if !ok {
-						return true
-					}
-					callers, guarded := allowed[id.Name]
-					if !guarded {
-						return true
-					}
-					seen[id.Name] = true
-					if !regexp.MustCompile(`^(` + callers + `)$`).MatchString(fn.Name.Name) {
-						t.Errorf("%s:%s references %s; only %s may (reclaim is operator-invoked only)", name, fn.Name.Name, id.Name, callers)
-					}
-					return true
-				})
 			}
 		}
 	}

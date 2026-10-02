@@ -53,7 +53,7 @@
 |------|----------|--------|-------|
 | `NewReclaimCmd` / `runReclaim` | `cmd/sdlc/reclaim.go`, `helptext/reclaim.md` | new | tracker snapshot + CAS, identity seam |
 | `Repository.UpdateCard` (+ message trailers) | `cmd/sdlc/internal/tracker/repository.go` | modified | gitx `UpdateManyPrepared` |
-| `reclaimHistory` | `cmd/sdlc/reclaim.go` | new | `git log` of the card path on the snapshot's tracker ref (bounded to 20) |
+| `reclaimHistory` | `cmd/sdlc/reclaim.go` | new | `git log` of the card path on the snapshot's tracker ref (the last 20 reclaims, selected by their trailer) |
 
 - **UpdateCard** gains an optional message detail: trailers appended after `Tracker-Operation`. Existing callers pass none, so their message is unchanged.
 - **runReclaim** works as follows:

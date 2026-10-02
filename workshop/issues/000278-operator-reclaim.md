@@ -104,3 +104,14 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - The #277 refusal texts and help now name `sdlc reclaim`.
   - Atlas: a Reclaim subsection plus the verb row.
 - Regenerated the process manual (reclaim help). Full sharded suite: all cmd/sdlc tests pass; only the sandbox-only processgroup failure remains. Closing.
+- Close review round 1 returned FIX-THEN-SHIP. Fixed every finding:
+  - BR-1: the old workspace's start-plan, change-code and close are each
+    refused after reclaim, before any review. The new owner's start-plan
+    passes once the old worktree lets go of the branch.
+  - Minors:
+    - an "already yours" rerun refreshes the details mirror (lost-response
+      case; mutation-checked);
+    - history is bounded to the last 20 reclaims, selected by trailer, and the
+      help and plan say so;
+    - `--reason` without `--expect` refuses;
+    - the guard now also scans package-level initializers (mutation-checked).

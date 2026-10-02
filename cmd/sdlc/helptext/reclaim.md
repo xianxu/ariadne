@@ -10,8 +10,8 @@ operator's explicit instruction, never on its own judgment.
 TWO STEPS
 
   Inspect reads the card once. It shows the status, the card revision (REV),
-  the current owner, the proposed owner (this workspace), and every past
-  reclaim with its reason. It then prints the exact confirm command. It writes
+  the current owner, the proposed owner (this workspace), and the last 20
+  reclaims with their reasons. It then prints the exact confirm command. It writes
   nothing.
 
   Confirm re-reads the card and transfers the claimant by compare-and-swap,
@@ -55,7 +55,8 @@ FLAGS
 
   --issue <n>           required issue ID
   --expect <rev>        the card revision you inspected; without it, reclaim only inspects
-  --reason <line>       one line: why responsibility moves (recorded in tracker history)
+  --reason <line>       one line: why responsibility moves (recorded in tracker history);
+                        only with --expect
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues (details home)
 
 EXAMPLES
