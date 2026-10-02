@@ -118,3 +118,92 @@ findings:
     title: |
       snapshot_test.go puts the testfix import inside the standard-library import group
 ```
+
+---
+
+## Re-review — 2026-10-02T16:19:08-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 290 — Fleet inventory tracker reads are slow |
+| repo | ariadne |
+| issue file | workshop/issues/000290-fleet-inventory-tracker-reads-are-slow.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f16d418421e0ab1d8e4d6f5a1890888793305a69..bc926309a4a9b77976be560609ca7448a1de167b |
+| command | sdlc close --issue 290 |
+| reviewer | claude |
+| timestamp | 2026-10-02T16:19:08-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+All new tests pass under `-race` (`TestRecordsCache*`, `TestWarmRecordsIsBounded`, `TestHangingRemoteDegradesOnlyItsRepository`, `TestWarmedInventoryEqualsSequential`, `TestSnapshot*`). Round-1 findings BR-1, BR-3, BR-4 and BR-6 are fixed. BR-1 was closed by revising the plan to match the code, which the finding allowed as one of its two options. BR-3 now has real tests: two tracked repositories with bare origins, and a warmed run compared against a sequential one as JSON. Two items are still partly open, and neither is a correctness bug:
+- **BR-2:** the pure function `parseLsRemoteTip` is still described as "unit-tested" in the plan, but it has no direct test.
+- **BR-5:** the new line that clears `probedTip` inside `fetch()` has no test that would fail without it.
+
+Both are cheap to fix.
+
+1. **Strengths**
+   - The per-key-once `recordsCache` (`cmd/sdlc/internal/fleet/issues.go:93-133`) is small and correct. Each caller waits only on its own repository's load. A timed-out load stays cached, so the row walk never waits twice. Other errors are dropped from the cache so the next caller retries.
+   - The concurrency tests prove overlap and the bound through gates and channels, not timing (`recordscache_test.go:16-59`, `:81-122`), so they don't depend on scheduling luck.
+   - The fetch-skip is exact rather than a cache. It reads the probed tip only when the local tracking ref already points there, and uses it only once (`gitx/snapshot.go:22-30`). Writes still do a compare-and-swap against a fetched tip, through `refreshTip` → `fetch`.
+   - `TestHangingRemoteDegradesOnlyItsRepository` uses real git with a hanging ssh transport. It checks the time bound, the healthy repository reading `present`, and the stuck repository reading `unknown` with a reason that names the deadline.
+   - The help text, `atlas/workflow/sdlc-binary.md` and `atlas/workflow/issue-tracker.md` all now describe the probe-then-fetch-if-moved read.
+
+2. **Critical:** none.
+
+3. **Important:** none new. BR-2 is still open; see its disposition below.
+
+4. **Minor:** none new. BR-5 is still open; see its disposition below.
+
+5. **Test coverage notes**
+   - The fetch-skip test covers four cases: unchanged tip, moved tip, a probed tip used only once, and `--no-auto-maintenance`. It does not cover the sequence probe → `refreshTip` → `Snapshot`, which is the path the BR-5 change targets.
+   - `TestWarmedInventoryEqualsSequential` also asserts that its fixture actually reached tracker reads (`claims_state":"present"`). That guards against the comparison passing because both runs did nothing.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. `loadRepoRecords` is shared by production and the tests' `freshRecords`.
+   - **ARCH-PURE:** pass, with the BR-2 caveat. `parseLsRemoteTip` is pure but tested only through git integration.
+   - **ARCH-PURPOSE:** pass. All four Done-when items are delivered and measured (17.5s → 5.9s).
+   - **ARCH-MOCK:** pass. Tests use real git with bare origins and an ssh hang stub.
+   - **ARCH-CONSTRAINTS:** pass. At most 8 reads in flight, each with a 15s deadline. The warm-up is lexically bounded by `wg.Wait`.
+   - **ARCH-SECURE:** pass. `ls-remote` output is validated with `parseObjectID`, and malformed output falls back to a fetch.
+   - **ARCH-ORDER:** pass with a note. `probedTip` is implicit state carried between calls on `TrunkFile`. It is cleared in all three places that touch it (`RemoteExists`, `Snapshot`, `fetch`), which is acceptable for a single string. If this hand-off ever grows a second field, make it an explicit token returned by `RemoteExists` instead of hidden state on the struct.
+   - **ARCH-FUNERAL:** pass. Nothing durable is created; the cache lives for the process.
+
+7. **Plan revision recommendations**
+   - Either add a direct test for `parseLsRemoteTip` or change the Core concepts text "pure, unit-tested" so it no longer claims one.
+   - If the fetch-clear stays without a regression test, add a Revisions note saying it is a defensive tightening with no observable behavior change.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Plan Revisions now states that timeouts are cached and report unknown; this was one of the finding's two accepted options.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      The name is fixed in Revisions, but the plan still calls parseLsRemoteTip "pure, unit-tested" and no direct test exists. A table test (wrong ref, malformed OID, multi-line output) is cheap.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestWarmedInventoryEqualsSequential and TestHangingRemoteDegradesOnlyItsRepository (healthy repo reads present) pass under -race.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      issue-tracker.md lines 125, 142 and 260 now describe ls-remote plus a fetch only when the tracker moved.
+  - id: BR-5
+    disposition: not-addressed
+    note: |
+      The plan wording is fixed and fetch() clears probedTip (trunkfile.go:201), but no test runs the RemoteExists, refreshTip, Snapshot sequence, so reverting the clear stays green.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      The testfix import is now in its own group (snapshot_test.go:10).
+```

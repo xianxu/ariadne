@@ -44,6 +44,36 @@ rounds:
           round: 1
       recipe: milestone-review
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-02T16:19:09-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Plan Revisions now states that timeouts are cached and report unknown; this was one of the finding's two accepted options.
+          round: 2
+        - id: BR-2
+          disposition: not-addressed
+          note: The name is fixed in Revisions, but the plan still calls parseLsRemoteTip "pure, unit-tested" and no direct test exists. A table test (wrong ref, malformed OID, multi-line output) is cheap.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: TestWarmedInventoryEqualsSequential and TestHangingRemoteDegradesOnlyItsRepository (healthy repo reads present) pass under -race.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: issue-tracker.md lines 125, 142 and 260 now describe ls-remote plus a fetch only when the tracker moved.
+          round: 2
+        - id: BR-5
+          disposition: not-addressed
+          note: The plan wording is fixed and fetch() clears probedTip (trunkfile.go:201), but no test runs the RemoteExists, refreshTip, Snapshot sequence, so reverting the clear stays green.
+          round: 2
+        - id: BR-6
+          disposition: addressed
+          note: The testfix import is now in its own group (snapshot_test.go:10).
+          round: 2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#290 (boundary-review)
@@ -67,11 +97,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   Clear probedTip inside fetch(). The skip also reaches write verbs (Initialized then Snapshot), contrary to the plan's "write paths untouched"; this looks safe because CAS still fetches, but the plan should say so.
 - **BR-6** [Minor] `import-grouping` snapshot_test.go puts the testfix import inside the standard-library import group
 
+## Round 2 — 2026-10-02T16:19:09-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Plan Revisions now states that timeouts are cached and report unknown; this was one of the finding's two accepted options.
+- BR-2 — not-addressed — The name is fixed in Revisions, but the plan still calls parseLsRemoteTip "pure, unit-tested" and no direct test exists. A table test (wrong ref, malformed OID, multi-line output) is cheap.
+- BR-3 — addressed — TestWarmedInventoryEqualsSequential and TestHangingRemoteDegradesOnlyItsRepository (healthy repo reads present) pass under -race.
+- BR-4 — addressed — issue-tracker.md lines 125, 142 and 260 now describe ls-remote plus a fetch only when the tracker moved.
+- BR-5 — not-addressed — The plan wording is fixed and fetch() clears probedTip (trunkfile.go:201), but no test runs the RemoteExists, refreshTip, Snapshot sequence, so reverting the clear stays green.
+- BR-6 — addressed — The testfix import is now in its own group (snapshot_test.go:10).
+
 ## Open findings
 
-- **BR-1** [Important] `plan-code-drift` Deadline decision says timeouts are not cached and fall back to stale; code caches them and reports unknown
 - **BR-2** [Important] `plan-code-drift` Core concepts table names warmRepoRecords in inventory.go; the code has warmRecords in issues.go
-- **BR-3** [Important] `done-when-untested` Done-when items untested: concurrent output equals a sequential run; a hanging remote leaves other repositories unaffected
-- **BR-4** [Important] `atlas-stale-after-contract-change` atlas/workflow/issue-tracker.md still says every snapshot fetches; the fetch skip now applies to every Snapshot caller
 - **BR-5** [Minor] `implicit-cross-call-state` probedTip survives an intervening fetch or refreshTip, so the "right after a probe" rule is not enforced
-- **BR-6** [Minor] `import-grouping` snapshot_test.go puts the testfix import inside the standard-library import group

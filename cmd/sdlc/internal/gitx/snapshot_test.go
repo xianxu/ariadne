@@ -132,4 +132,18 @@ func TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged(t *testing.T) {
 	if n, _ := fetches(); n != 2 {
 		t.Fatalf("a probe's tip was reused by a later snapshot: %d fetches, want 2", n)
 	}
+
+	// Any fetch consumes the probe: a snapshot after probe → fetch fetches.
+	if _, err := tf.RemoteExists(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tf.Read("note.md"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tf.Snapshot(); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := fetches(); n != 4 {
+		t.Fatalf("a probe survived an intervening fetch: %d fetches, want 4", n)
+	}
 }

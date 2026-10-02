@@ -72,14 +72,17 @@ Log with the same trace script.
 | `parseLsRemoteTip` | `cmd/sdlc/internal/gitx/candidate.go` | new |
 
 - **parseLsRemoteTip** — the tip OID from `ls-remote --refs` output for exactly
-  the requested ref (validated with `parseObjectID`); pure, unit-tested.
+  the requested ref (validated with `parseObjectID`); pure.
 
 ### Integration points
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `TrunkFile.RemoteExists` / `.Snapshot` / `.fetch` | `cmd/sdlc/internal/gitx/{candidate,snapshot,trunkfile}.go` | modified | `git ls-remote`, `git fetch` |
-| `repoRecords` (per-key once) | `cmd/sdlc/internal/fleet/issues.go` | modified | tracker load |
-| `warmRepoRecords` | `cmd/sdlc/internal/fleet/inventory.go` | new | concurrent tracker loads |
+| `TrunkFile.probedTip` + `RemoteExists` / `Snapshot` / `fetch` | `cmd/sdlc/internal/gitx/{trunkfile,candidate,snapshot}.go` | modified | `git ls-remote`, `git fetch` |
+| `recordsCache` / `newRecordsCache` / `loadRepoRecords` / `recordsReadDeadline` | `cmd/sdlc/internal/fleet/issues.go` | new | tracker load |
+| `warmRecords` | `cmd/sdlc/internal/fleet/issues.go` | new | concurrent tracker loads |
+| `trackedRoots` / `recordsReadConcurrency` (warm-up call in `CollectInventory`) | `cmd/sdlc/internal/fleet/inventory.go` | new | `tracker.CutOver` (local) |
+
+*(Table rewritten to the as-built names at close, BR-2.)*
 
 ## Tasks (single pass — one boundary at close)
 
