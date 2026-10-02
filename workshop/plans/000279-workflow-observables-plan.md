@@ -173,3 +173,13 @@ Every observation names its source and authority, and distinguishes absent from 
   - **Minors:** fuzz plus table test strategy; an operating envelope (bounded
     fetch, per-issue git fan-out, budget assertion).
 
+- 2026-10-02 — implementation corrections.
+  - `open_blocking` = OpenBlocking + Demoted. `DecideScoped` demotes
+    blocking findings past the round cap, so OpenBlocking alone depends on
+    the cap. Computed collector-side with `openScopeFor`, which lives in
+    cmd/sdlc.
+  - M1 REWORK (BR-1): the repository resolves from the issues dir (or
+    `--repo`), never the cwd.
+  - The plan-quality boundary reports `open_blocking` only (it keeps a
+    ledger, not a verdict sidecar).
+

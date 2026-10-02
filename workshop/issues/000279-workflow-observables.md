@@ -192,3 +192,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     - worktree fates (elsewhere while a third worktree holds the branch,
       missing, other machine);
     - a subprocess bound of at most 20 git commands per query.
+- M2 docs: `issue show` help gains OBSERVATIONS (sections, read quality, authority, freshness, reach). Atlas: the Observations section extended plus a verb row. README sentence. Plan Revisions record the open_blocking correction.

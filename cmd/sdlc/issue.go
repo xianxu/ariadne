@@ -523,7 +523,48 @@ func newIssueShowCmd() *cobra.Command {
 		Short: "Show an issue's frontmatter + section headers (no bodies)",
 		Long: `Print issue <N>'s frontmatter and its body section headers (# / ## lines)
 without the section contents — a structured peek for orienting on an issue
-without loading the whole file.`,
+without loading the whole file — followed by its observations (#279).
+
+OBSERVATIONS
+
+  --json prints only the observation: a versioned (schema_version 1),
+  read-only answer to who owns the issue and where its work is, which
+  checkpoints passed, and whether it landed. Consumers reject other versions
+  and unknown keys. Sections:
+    - tracker: the tracker commit read;
+    - card: status, title and revision;
+    - assignment: the claimant, its relation to the queried checkout, and
+      where the owner's worktree stands;
+    - workspaces: local worktrees holding the issue branch, with dirty and
+      ahead/behind counts;
+    - branch: the branch head and its commits ahead of main;
+    - checkpoints: the flow, plan ticks, and each review boundary's verdict
+      and open blocking findings;
+    - completion: the close's evidence and reviewed commits;
+    - landing: whether the work landed, its landed commit, and its archive
+      path.
+
+  Every section's "state" is read quality, never the value: present, absent
+  (read, none recorded), stale (answered from the last tracker fetch; error
+  says why) or unknown (the read failed; error says why). A failed read is
+  never reported as absent.
+
+  Authority: "tracker" sections (card, assignment, completion, landing) are
+  authoritative for claim, status and landing. "committed" sections
+  (branch, checkpoints) read evidence on the issue branch, or on main's
+  archive once landed, so squash merges and deleted branches don't lose it.
+  "worktree" is activity only. Dirty files and unpushed commits are not
+  progress, and a working card proves a claim, not execution.
+
+  Every answer carries observed_at and the tracker commit. The query fetches
+  the tracker (updating the remote-tracking ref) and otherwise writes
+  nothing.
+
+  It runs from any checkout of the repository. Parked or agentless slots are
+  found through git, and another machine's worktree is reported as
+  other-machine without being probed. --repo <path> observes an issue of the
+  repository containing that path. The repository is always the one
+  containing the issues directory, never the shell's current directory.`,
 		Args:          cobra.ExactArgs(1),
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
