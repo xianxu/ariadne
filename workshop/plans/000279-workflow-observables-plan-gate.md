@@ -61,7 +61,11 @@ rounds:
           note: 'Operating envelope added: bounded fetch, per-issue git fan-out, budget asserted by counting runner calls.'
           round: 2
       blocked: false
-content_hash: 471f7de4b20572dc03b34c724d63c06dd9ea7d9464f655b027950e37d38d6184
+    - "n": 3
+      timestamp: "2026-10-02T00:00:36-07:00"
+      agent: claude
+      blocked: false
+content_hash: edc190455bcc15fad9904ac914ad0497ec25a2e0ddea8667e09afc9be52ffff7
 ---
 
 # Gate ledger — ariadne#279 (plan-quality)
@@ -91,6 +95,8 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-3 — addressed — state is read quality only in every section; landing.outcome, relation and verdict are separate fields; rule stated for future sections.
 - PQ-4 — addressed — Assemble now has fuzz plus one table; the remaining real-git bullets are lifecycle fixtures, not an enumeration of edge cases.
 - PQ-5 — addressed — Operating envelope added: bounded fetch, per-issue git fan-out, budget asserted by counting runner calls.
+
+## Round 3 — 2026-10-02T00:00:36-07:00 (claude) — passed
 
 ## Open findings
 
