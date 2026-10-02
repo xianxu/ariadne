@@ -189,6 +189,10 @@ func TestRelocationAfterMoveAndRepair(t *testing.T) {
 	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(371)); err != nil {
 		t.Fatalf("claim in the slot: %v\n%s", err, errs.String())
 	}
+	// #283: move relocates started work; the slot starts what it claimed.
+	if err := startPlanBranch(context.Background(), &out, 371); err != nil {
+		t.Fatalf("start-plan in the slot: %v", err)
+	}
 	source, _ := ownerOf(t, r, cardPath)
 	if source.Worktree != canonRoot(slot) {
 		t.Fatalf("owner %+v", source)

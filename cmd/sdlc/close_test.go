@@ -119,6 +119,9 @@ func TestCloseCmd_Registered(t *testing.T) {
 // (now hidden, deprecated) --milestone flag, but refuses it with a redirect to
 // milestone-close rather than silently doing a no-review milestone close (#146).
 func TestClose_MilestoneRefusesWithRedirect(t *testing.T) {
+	// Hermetic: `make test` exports a cwd-relative WF_ISSUES_DIR, which the
+	// spine guard resolves from cmd/sdlc and dies on before the redirect.
+	t.Setenv("WF_ISSUES_DIR", "")
 	cmd := NewCloseCmd()
 	f := cmd.Flags().Lookup("milestone")
 	if f == nil {

@@ -294,11 +294,13 @@ func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
 	if err != nil {
 		return err
 	}
-	// #283: the owner starts the lifecycle. Started work keeps #277's
-	// continuation gate (its relocation and adoption hints); an open card's
-	// ownership is judged by startDecision alone.
+	// #283: the owner starts the lifecycle. A held card keeps #277's
+	// continuation gate (its relocation and adoption hints); only an unowned
+	// open card — nobody has claimed it — is left to startDecision's refusal.
 	status, _ := issue.GetField(card.Card.Frontmatter, "status")
-	if !vocab.Issue().IsOpen(status) {
+	if _, held, err := issue.CardClaimant(card.Raw); err != nil {
+		return fmt.Errorf("card #%s: %w", id, err)
+	} else if held || !vocab.Issue().IsOpen(status) {
 		if err := requireCardOwnership(env, card); err != nil {
 			return err
 		}
