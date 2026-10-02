@@ -38,3 +38,17 @@ publish details to main directly. Every generated surface renders
   "rerun the same command — the card decides" (`uncertainCardWrite`).
   Lost-ack, race, duplicate and generation cases each name their tests in
   the catalog.
+- **The topic:** `sdlc help recovery` renders the scope, the classes, agent
+  guidance, one entry per contract, and the scheduling example. The topic is
+  `helptext/recovery.md` plus the `{{RECOVERY_*}}` placeholders in
+  `renderLong`; the rendering lives in `recovery/page.go`.
+- **The executable example:** `recovery.Example` is data: actor, command,
+  expectations as dot paths into `sdlc issue show N --json`, the "otherwise"
+  action, and a `TrackerUnreachable` condition. `TestSchedulingExampleRuns`
+  runs it from the same data.
+  - The recipient runs each command. A convergent-retry command is
+    delivered twice.
+  - A coordinator in another checkout checks each expectation with
+    `recovery.Lookup`.
+  - The only additions to the documented commands are the harness flags
+    standing in for model judges and estimates.

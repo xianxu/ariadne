@@ -55,6 +55,11 @@ func renderLong(name string) string {
 		"{{GATE_FLAGS}}", processmanual.GateTable(name),
 		// #277: the continuation gate's contract, said once.
 		"{{OWNERSHIP_GATE}}", ownershipGateHelp,
+		// #280: the recovery topic, from the contract registry.
+		"{{RECOVERY_SCOPE}}", recovery.ScopeText(),
+		"{{RECOVERY_CLASSES}}", recovery.ClassesText(),
+		"{{RECOVERY_TABLE}}", recovery.Table(),
+		"{{RECOVERY_EXAMPLE}}", recovery.ExampleText(),
 	).Replace(helptext.MustGet(name))
 }
 
@@ -157,6 +162,8 @@ func buildRoot() *cobra.Command {
 	add(NewJudgeCmd(), "judge", "Run an LLM-judge check against the diff (fresh-context)")
 	add(NewArchPrinciplesCmd(), "arch-principles", "Print the ARCH-* architecture principles (single source; pull for non-gate work)")
 	add(NewEstimateSourceCmd(), "estimate-source", "Name the shared estimate method + the repo-local calibration source (pull)")
+	// #280: a help topic (no Run): `sdlc help recovery`.
+	add(&cobra.Command{Use: "recovery"}, "recovery", "Recovery contracts: what each verb does when repeated, interrupted or unanswered")
 	add(NewProcessManualCmd(), "process-manual", "Unroll every injection source into a linked process manual (#153)")
 
 	// Hidden: deprecated aliases + the start stub. Order is irrelevant —

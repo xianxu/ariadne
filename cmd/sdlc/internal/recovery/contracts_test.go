@@ -49,3 +49,37 @@ func TestSectionMarksUnprovenClaims(t *testing.T) {
 		t.Fatalf("missing verb: %s", s)
 	}
 }
+
+func TestLookupReadsObservationPaths(t *testing.T) {
+	doc := map[string]any{"card": map[string]any{"status": "working"},
+		"checkpoints": map[string]any{"reviews": []any{map[string]any{"boundary": "M1", "verdict": "SHIP"}, map[string]any{"boundary": "close", "verdict": "REWORK", "open_blocking": float64(2)}}}}
+	for path, want := range map[string]string{"card.status": "working", "checkpoints.reviews[close].verdict": "REWORK", "checkpoints.reviews[close].open_blocking": "2"} {
+		if got, ok := Lookup(doc, path); !ok || got != want {
+			t.Errorf("%s = %q %v, want %q", path, got, ok, want)
+		}
+	}
+	for _, path := range []string{"card.missing", "checkpoints.reviews[M9].verdict", "card.status.deeper"} {
+		if _, ok := Lookup(doc, path); ok {
+			t.Errorf("%s resolved", path)
+		}
+	}
+}
+
+func TestPageRenderingCoversEveryContractAndStep(t *testing.T) {
+	table, example := Table(), ExampleText()
+	for _, c := range Catalog {
+		if !strings.Contains(table, c.Verbs[0]) {
+			t.Errorf("table lacks %s", c.Verbs[0])
+		}
+	}
+	for _, s := range Example {
+		if s.Command != "" && !strings.Contains(example, s.Command) {
+			t.Errorf("example lacks %q", s.Command)
+		}
+	}
+	for _, c := range Classes {
+		if !strings.Contains(ClassesText(), string(c)) {
+			t.Errorf("classes lack %s", c)
+		}
+	}
+}

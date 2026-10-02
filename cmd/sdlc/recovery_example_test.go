@@ -1,0 +1,125 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/recovery"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+)
+
+// exampleHarnessFlags stand in for what a test cannot run: the model judges and
+// the estimate. They are the only additions to the documented commands.
+var exampleHarnessFlags = map[string][]string{
+	"change-code": {"--worktree=no", "--no-judge", "--no-estimate", "--no-estimate-recon"},
+	"close":       {"--actual", "1", "--no-atlas"},
+}
+
+// #280: the scheduling example in `sdlc help recovery` is executed, step by
+// step, from the same data that renders it. The recipient runs each command;
+// the coordinator, in another checkout, checks each expectation against
+// `sdlc issue show N --json`. Every convergent-retry step is delivered twice —
+// a duplicated message — and must still succeed.
+func TestSchedulingExampleRuns(t *testing.T) {
+	const n = 420
+	pid := fmt.Sprintf("%06d", n)
+	full := fmt.Sprintf("---\nid: %s\nstatus: open\ndeps: []\ncreated: 2026-09-01\nupdated: 2026-09-01\n---\n\n# example\n\n"+
+		"## Problem\n\nA gap.\n\n## Spec\n\nA thing.\n\n## Done when\n\n- it works\n\n## Plan\n\n- [x] do it\n\n## Log\n", pid)
+	card, detail, err := issue.SplitCardWithFormat([]byte(full), "sha1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	r := newTrackerRepo(t, map[string]string{tracker.CardPath(pid, "example"): string(card)},
+		map[string]string{syncIssuesDir + "/" + pid + "-example.md": string(detail)})
+	coordinator := filepath.Join(t.TempDir(), "coordinator")
+	testfix.Git(t, r.root, "worktree", "add", "-q", "--detach", coordinator, "origin/main")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+
+	observeJSON := func() map[string]any {
+		t.Helper()
+		t.Chdir(coordinator)
+		defer t.Chdir(r.root)
+		invalidateIssueRecords(context.Background())
+		var out, errs bytes.Buffer
+		if err := runIssueShow(context.Background(), &out, &errs, &issueShowFlags{IssuesDir: "workshop/issues", JSON: true}, itoa(n)); err != nil {
+			t.Fatalf("issue show --json: %v\n%s", err, errs.String())
+		}
+		var doc map[string]any
+		if err := json.Unmarshal(out.Bytes(), &doc); err != nil {
+			t.Fatal(err)
+		}
+		return doc
+	}
+
+	// Before the recipient acts — the message lost or unread — the coordinator
+	// sees an open card: the "otherwise" of the claim check.
+	if got, _ := recovery.Lookup(observeJSON(), "card.status"); got != "open" {
+		t.Fatalf("before the claim: card.status = %q", got)
+	}
+
+	for i, step := range recovery.Example {
+		label := fmt.Sprintf("step %d (%s: %s)", i+1, step.Actor, step.Does)
+		switch {
+		case step.Actor == recovery.Coordinator && step.Command == "":
+			// The request itself: a Couch message, outside sdlc.
+		case step.Actor == recovery.Recipient && step.Command == "":
+			writeRepoFile(t, r.root, "cmd/a.go", "package a\n")
+			r.git("add", "cmd/a.go")
+			r.git("commit", "-qm", fmt.Sprintf("#%d: implement", n))
+		case step.Actor == recovery.Recipient:
+			args := exampleArgs(t, step.Command, n)
+			deliveries := 1
+			if c, ok := recovery.For(args[0]); ok && c.Class == recovery.ConvergentRetry {
+				deliveries = 2
+			}
+			for d := 0; d < deliveries; d++ {
+				invalidateIssueRecords(context.Background())
+				if _, stderr, err := executeSDLCTestCommand(args...); err != nil {
+					t.Fatalf("%s, delivery %d: %v\n%s", label, d+1, err, stderr)
+				}
+			}
+		case step.Actor == recovery.Coordinator:
+			if step.Command != "sdlc issue show N --json" {
+				t.Fatalf("%s: a coordinator only observes, got %q", label, step.Command)
+			}
+			if step.TrackerUnreachable {
+				if err := os.Rename(r.origin, r.origin+".gone"); err != nil {
+					t.Fatal(err)
+				}
+				t.Cleanup(func() { _ = os.Rename(r.origin+".gone", r.origin) })
+			}
+			doc := observeJSON()
+			for _, e := range step.Expect {
+				if got, ok := recovery.Lookup(doc, e.Path); !ok || got != e.Equals {
+					t.Errorf("%s: %s = %q (resolved %v), want %q", label, e.Path, got, ok, e.Equals)
+				}
+			}
+		}
+	}
+}
+
+// exampleArgs turns a documented command into the in-process arguments: N
+// becomes the issue, a placeholder becomes evidence, and the harness flags
+// that stand in for model calls are appended.
+func exampleArgs(t *testing.T, command string, n int) []string {
+	t.Helper()
+	fields := strings.Fields(strings.ReplaceAll(command, "'<evidence>'", "example-e2e"))
+	if len(fields) < 2 || fields[0] != "sdlc" {
+		t.Fatalf("not an sdlc command: %q", command)
+	}
+	args := fields[1:]
+	for i, a := range args {
+		if a == "N" {
+			args[i] = itoa(n)
+		}
+	}
+	return append(args, exampleHarnessFlags[args[0]]...)
+}

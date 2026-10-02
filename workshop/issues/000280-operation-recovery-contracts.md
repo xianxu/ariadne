@@ -164,3 +164,15 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Atlas: added `workflow/recovery-contracts.md` and its index link.
 - M1 review round 1: FIX-THEN-SHIP. Fixed BR-1 (the scope line on every section: tracker repositories; legacy is unknown) and BR-2 (plan-table Revisions), plus the Minors (stale doc, the caller guard over all initializers, the gitx lost-ack citation). The `sdlc help recovery` pointer resolves in M2.
 - M1 closed (SHIP; 3.08h measured, which includes this session's design time). Advisory BR-7 fixed first in M2: the atlas page now carries the scope line, and the M2 page renders `recovery.Scope`.
+- M2 steps done:
+  - `sdlc help recovery` is a cobra help topic: `helptext/recovery.md` plus
+    `{{RECOVERY_SCOPE/CLASSES/TABLE/EXAMPLE}}`, rendered from
+    `recovery/page.go`.
+  - `TestSchedulingExampleRuns` executes `recovery.Example` across two
+    checkouts and double-delivers convergent steps. Four mutations were
+    checked, and all go red: flow, verdict, stale, and a bad command. The
+    stale mutation first passed because the test derived its setup from the
+    expectation; the condition is now an explicit `TrackerUnreachable`
+    field.
+  - Docs: README, plus the atlas page (topic and example).
+
