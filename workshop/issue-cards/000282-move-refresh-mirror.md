@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000282-move-refresh-mirror.md
         source_blob: 50bf723b227a0eeefe0d5ab84a9d0cb7b492bdc6
         destination: workshop/issues/000282-move-refresh-mirror.md
+        main_commit: f132f6024a889ed6367f11981c8414dc99524bb8
 ---
 
 # sdlc move refreshes the destination's details mirror after relocating the owner
