@@ -249,7 +249,7 @@ func observeMoveSide(r execGitRunner, id workspace.Identity) (moveSide, error) {
 	s.Operation, err = gitOperationInProgress(func(args ...string) (string, error) {
 		out, err := r.GitInDir(s.Root, args...)
 		return strings.TrimSpace(string(out)), err
-	}, s.Root)
+	})
 	return s, err
 }
 

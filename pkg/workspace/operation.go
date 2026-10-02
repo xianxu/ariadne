@@ -1,4 +1,4 @@
-package gitx
+package workspace
 
 import (
 	"bytes"
@@ -12,7 +12,7 @@ import (
 // OperationMarkers are the files and directories Git keeps in a worktree's own
 // git directory while an operation is in progress: the index and HEAD are then
 // not the user's settled intent. The one list (#289) for every reader —
-// landing, move-detail and fleet readiness.
+// landing, move, move-detail, fleet readiness and weave refresh.
 var OperationMarkers = []string{
 	"MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD",
 	"rebase-merge", "rebase-apply", "sequencer", "BISECT_LOG", "BISECT_START",

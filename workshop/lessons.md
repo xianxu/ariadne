@@ -312,3 +312,7 @@ The simplest durable authority beats a clever scan of consequences.
   per-checkout rows: compute "unmatched" against all rows, and deduplicate by
   the authority's key. Per-checkout matching reports each clone's live records
   as the other's orphans (#288 `dangling_claims`).
+- Carry a read's outcome on the value it produced; never infer it from the
+  value's emptiness. "No issue association" is both "looked up, no match" and
+  "lookup failed" — #289 M1 judged the second from the first until the row
+  recorded the lookup's error next to its result (as `claims_state` does).

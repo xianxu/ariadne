@@ -1,11 +1,6 @@
 package fleet
 
-import (
-	"strings"
-
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
-	"github.com/xianxu/ariadne/pkg/vocab"
-)
+import "github.com/xianxu/ariadne/pkg/vocab"
 
 // Verdict is a checkout's or slot's readiness to take new work (#289). It is
 // an observation: an action that reuses a slot re-checks it at action time.
@@ -79,12 +74,10 @@ func JudgeCheckout(row TreeRow, resting string) MemberVerdict {
 	if row.Detached {
 		recovery = append(recovery, "detached")
 	}
+	if row.IssuesError != "" {
+		probe("issue", row.IssuesError) // the lookup failed; no match is not a failure
+	}
 	if row.Branch != "" && row.Branch != resting {
-		if len(row.Issues) == 0 {
-			if _, _, isIssue := issue.ParseFilename(issueBranchStem(row.Branch) + ".md"); isIssue {
-				probe("issue", "the issue named by branch "+row.Branch+" could not be read")
-			}
-		}
 		for _, a := range row.Issues {
 			if !vocab.Issue().IsTerminal(a.DeclaredStatus) {
 				holds = append(holds, "open-issue:"+a.Ref)
@@ -114,13 +107,4 @@ func JudgeCheckout(row TreeRow, resting string) MemberVerdict {
 
 func onlyClaimsUnread(probes []string) bool {
 	return len(probes) == 1 && probes[0] == "probe:claims"
-}
-
-// issueBranchStem is the leading component of an issue-prefixed branch name,
-// as AssociateBranchIssue reads it.
-func issueBranchStem(branch string) string {
-	if i := strings.IndexByte(branch, '/'); i >= 0 {
-		return branch[:i]
-	}
-	return branch
 }

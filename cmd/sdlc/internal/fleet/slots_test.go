@@ -39,13 +39,16 @@ func TestJudgeCheckout(t *testing.T) {
 		{"detached", with(func(r *TreeRow) { r.Branch, r.Detached = "", true }), VerdictNeedsRecovery, "detached"},
 		{"dirty and unlanded", with(func(r *TreeRow) { r.Facts.DirtyCount = n(1); r.Branch = "topic"; r.Facts.Ahead = n(1) }), VerdictNeedsRecovery, "dirty"},
 		{"facts unavailable", with(func(r *TreeRow) { r.Facts = MeasuredFacts{Error: "status failed"} }), VerdictUnknown, "probe:facts"},
-		{"base unavailable", with(func(r *TreeRow) { r.Facts.BaseAvailable, r.Facts.BaseError, r.Facts.Ahead, r.Facts.Behind = false, "no base", nil, nil }), VerdictUnknown, "probe:base"},
+		{"base unavailable", with(func(r *TreeRow) {
+			r.Facts.BaseAvailable, r.Facts.BaseError, r.Facts.Ahead, r.Facts.Behind = false, "no base", nil, nil
+		}), VerdictUnknown, "probe:base"},
 		{"base unavailable but dirty", with(func(r *TreeRow) {
 			r.Facts.BaseAvailable, r.Facts.BaseError, r.Facts.Ahead, r.Facts.Behind = false, "no base", nil, nil
 			r.Facts.DirtyCount = n(1)
 		}), VerdictNeedsRecovery, "dirty,probe:base"},
 		{"operation probe failed", with(func(r *TreeRow) { r.Facts.OperationError = "denied" }), VerdictUnknown, "probe:operation"},
-		{"issue branch, association unread", with(func(r *TreeRow) { r.Branch = "000007-x" }), VerdictUnknown, "probe:issue"},
+		{"issue branch, lookup failed", with(func(r *TreeRow) { r.Branch, r.IssuesError = "000007-x", "lookup issue 000007: tracker unreadable" }), VerdictUnknown, "probe:issue"},
+		{"issue branch, lookup ok, no match", with(func(r *TreeRow) { r.Branch = "000007-x" }), VerdictReady, ""},
 		{"claims unread, otherwise ready", with(func(r *TreeRow) { r.ClaimsState, r.ClaimsError = ClaimsUnknown, "x" }), VerdictUnknown, "probe:claims"},
 		{"claims unread, already holding work", with(func(r *TreeRow) {
 			r.ClaimsState, r.ClaimsError = ClaimsUnknown, "x"

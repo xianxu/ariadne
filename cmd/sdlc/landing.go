@@ -11,7 +11,6 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -127,7 +126,7 @@ func landingNoOperation(r gitRunner, root string) error {
 	if err != nil {
 		return err
 	}
-	operation, err := gitx.ActiveOperation(strings.TrimSpace(dir), gitx.Lstat)
+	operation, err := workspace.ActiveOperation(strings.TrimSpace(dir), workspace.Lstat)
 	if err != nil {
 		return err
 	}

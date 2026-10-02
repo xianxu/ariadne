@@ -214,6 +214,10 @@ type TreeRow struct {
 	Prunable     *string            `json:"prunable,omitempty"`
 	Facts        MeasuredFacts      `json:"facts"`
 	Issues       []IssueAssociation `json:"issues"`
+	// IssuesError is why the branch's issue lookup failed ("" when it
+	// answered, with or without a match). Readiness reads it (#289); the JSON
+	// reports the failure under diagnostics.
+	IssuesError string `json:"-"`
 	// Claims are this machine's tracker claims on this tree (#288);
 	// ClaimsState says how far they can be trusted (see claims.go).
 	Claims      []ClaimAssociation `json:"claims"`

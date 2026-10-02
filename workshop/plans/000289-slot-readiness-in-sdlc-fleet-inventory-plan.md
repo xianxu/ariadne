@@ -79,11 +79,11 @@ section; registers the recovery proof; updates help and atlas.
   unknown; `dirty_count` is already on the row. No file lists.
 - **Slot verdict** is the worst member verdict: ready < holds-work < unknown <
   missing < needs-recovery (operator-confirmed); every member keeps its own.
-- **One operation detector.** `gitx.OperationMarkers` is the union of today's
-  two lists (MERGE_HEAD, CHERRY_PICK_HEAD, REVERT_HEAD, REBASE_HEAD,
+- **One operation detector.** `workspace.OperationMarkers` (in `pkg/` so weave
+  shares it) is the union of today's three lists (MERGE_HEAD, CHERRY_PICK_HEAD, REVERT_HEAD, REBASE_HEAD,
   rebase-merge, rebase-apply, sequencer, BISECT_LOG, BISECT_START), checked with
-  `lstat` in the worktree's own git directory. `move-detail` and landing switch
-  to it, obtaining that directory with one `git rev-parse --absolute-git-dir`
+  `lstat` in the worktree's own git directory. `move-detail`, `move`, landing
+  and weave's refresh switch to it, obtaining that directory with one `git rev-parse --absolute-git-dir`
   (instead of a `--git-path` call per marker). Intended behavior change:
   landing now also refuses during REBASE_HEAD/BISECT_LOG, move-detail during
   sequencer/BISECT_START.
@@ -105,9 +105,10 @@ section; registers the recovery proof; updates help and atlas.
 
 | Name | Lives in | Status |
 |------|----------|--------|
-| `gitx.OperationMarkers` / `gitx.ActiveOperation` | `cmd/sdlc/internal/gitx/operation.go` | new |
-| `gitx.WorktreeGitDir` | `cmd/sdlc/internal/gitx/operation.go` | new |
+| `workspace.OperationMarkers` / `ActiveOperation` / `Lstat` | `pkg/workspace/operation.go` | new |
+| `workspace.WorktreeGitDir` / `ReadGitPointer` | `pkg/workspace/operation.go` | new |
 | `MeasuredFacts.Operation` / `.OperationError` | `cmd/sdlc/internal/fleet/types.go` | modified |
+| `TreeRow.IssuesError` | `cmd/sdlc/internal/fleet/types.go` | modified |
 | `Verdict` (+ constants, rank) / `MemberVerdict` | `cmd/sdlc/internal/fleet/slots.go` | new |
 | `JudgeCheckout` | `cmd/sdlc/internal/fleet/slots.go` | new |
 | `DeclaredMembers` | `cmd/sdlc/internal/fleet/membership.go` | new |
@@ -137,7 +138,7 @@ section; registers the recovery proof; updates help and atlas.
 | `CollectFacts` | `cmd/sdlc/internal/fleet/facts.go` | modified | `.git` pointer + marker `lstat`s |
 | `collectSlots` | `cmd/sdlc/internal/fleet/inventory.go` | new | `construct/deps` reads, dependency-clone rows |
 | `aliasRecords` | `cmd/sdlc/internal/fleet/issues.go` | new | `git config --get remote.origin.url` |
-| `gitOperationInProgress` / `landingNoOperation` | `cmd/sdlc/issuemovedetail.go`, `cmd/sdlc/landing.go` | modified | `git rev-parse --absolute-git-dir` |
+| `gitOperationInProgress` / `landingNoOperation` / weave `refresh` checkout check | `cmd/sdlc/issuemovedetail.go`, `cmd/sdlc/landing.go`, `cmd/weave/internal/refresh/git.go` | modified | `git rev-parse --absolute-git-dir` |
 
 ## Chunk 1 — M1: per-checkout readiness
 
@@ -227,3 +228,10 @@ section; registers the recovery proof; updates help and atlas.
   commits count on the resting branch too. A failed claims read makes an
   otherwise-ready checkout unknown, not a holding one. Decisions rewritten in
   place.
+- 2026-10-02 — M1 review BR-1: the verdict no longer infers a failed issue
+  lookup from an empty association; the row records the lookup's error
+  (`TreeRow.IssuesError`, `json:"-"`, the same failure already in
+  diagnostics), and an issue-prefixed branch whose lookup answered with no
+  match is ready. Minors: the detector moved to `pkg/workspace` and weave's
+  refresh uses it (weave gains REBASE_HEAD/BISECT_LOG); the unused `root`
+  parameter of `gitOperationInProgress` is gone. Core-concepts rows rewritten.

@@ -283,8 +283,9 @@ func collectInventoryRepo(inventory *Inventory, diagnosticKeys, rowKeys map[stri
 		issues, err := AssociateBranchIssue(worktree.Branch, func(id string) ([]IssueRecord, error) {
 			return lookupIssues(repoRoot, id)
 		})
+		issuesError := ""
 		if err != nil {
-			issues = make([]IssueAssociation, 0)
+			issues, issuesError = make([]IssueAssociation, 0), err.Error()
 			appendRepoDiagnostic(inventory, diagnosticKeys, RepoDiagnostic{RepoIdentity: repoIdentity, RepoPath: repoRoot, TreePath: worktree.Path, Stage: "issues", Message: err.Error()})
 		}
 
@@ -299,6 +300,7 @@ func collectInventoryRepo(inventory *Inventory, diagnosticKeys, rowKeys map[stri
 			Prunable:     cloneInventoryString(worktree.Prunable),
 			Facts:        facts,
 			Issues:       issues,
+			IssuesError:  issuesError,
 			Policy:       policy,
 		})
 	}

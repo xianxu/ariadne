@@ -12,6 +12,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/acquire"
 	"github.com/xianxu/ariadne/pkg/layergraph"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 const declarationLimit int64 = 1 << 20
@@ -101,18 +102,15 @@ func observe(ctx context.Context, g acquire.GitRunner, p string) (Snapshot, erro
 		return s, fmt.Errorf("invalid origin")
 	}
 	s.origin = source.Identity
-	for _, name := range []string{"MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-apply", "rebase-merge", "sequencer", "BISECT_START"} {
-		v, e := record(ctx, g, p, "rev-parse", "--path-format=absolute", "--git-path", name)
-		if e != nil {
-			return s, e
-		}
-		_, e = os.Lstat(v)
-		if e == nil {
-			return s, fmt.Errorf("active Git operation (%s); resolve or abort it explicitly", name)
-		}
-		if !os.IsNotExist(e) {
-			return s, e
-		}
+	// One marker list repository-wide (workspace.OperationMarkers, #289).
+	gitDir, e := record(ctx, g, p, "rev-parse", "--absolute-git-dir")
+	if e != nil {
+		return s, e
+	}
+	if name, e := workspace.ActiveOperation(gitDir, workspace.Lstat); e != nil {
+		return s, e
+	} else if name != "" {
+		return s, fmt.Errorf("active Git operation (%s); resolve or abort it explicitly", name)
 	}
 	status, e := g.Run(ctx, p, "status", "--porcelain=v1", "-z", "--untracked-files=all", "--ignore-submodules=none")
 	if e != nil {

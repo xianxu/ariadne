@@ -22,6 +22,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 type moveDetailFlags struct {
@@ -67,13 +68,13 @@ An interrupted run resumes with ` + "`sdlc issue recovery reconcile --issue N`" 
 }
 
 // gitOperationInProgress names the operation in progress in root's worktree
-// ("" for none), through the one marker list (gitx.OperationMarkers, #289).
-func gitOperationInProgress(git func(...string) (string, error), root string) (string, error) {
+// ("" for none), through the one marker list (workspace.OperationMarkers, #289).
+func gitOperationInProgress(git func(...string) (string, error)) (string, error) {
 	dir, err := git("rev-parse", "--absolute-git-dir")
 	if err != nil {
 		return "", err
 	}
-	return gitx.ActiveOperation(strings.TrimSpace(dir), gitx.Lstat)
+	return workspace.ActiveOperation(strings.TrimSpace(dir), workspace.Lstat)
 }
 
 func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailFlags) error {
@@ -96,7 +97,7 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	if env.branch == "" {
 		return errors.New("move-detail needs a checked-out branch (the source's home)")
 	}
-	if op, err := gitOperationInProgress(env.git, env.root); err != nil {
+	if op, err := gitOperationInProgress(env.git); err != nil {
 		return err
 	} else if op != "" {
 		return fmt.Errorf("a Git operation is in progress (%s); finish or abort it first — nothing was changed", op)
