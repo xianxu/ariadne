@@ -2,11 +2,12 @@ package gitx
 
 import (
 	"context"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestSnapshotPinsTreeAndBatchReadsLiteralBytes(t *testing.T) {

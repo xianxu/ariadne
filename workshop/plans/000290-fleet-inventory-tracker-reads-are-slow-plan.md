@@ -100,3 +100,26 @@ Log with the same trace script.
 - [ ] Measure before/after with the trace script; record both in the Log.
 - [ ] `make test`; atlas (`issue-tracker.md` read path, `sdlc-binary.md`
   fleet budget); help text network note; `sdlc close`.
+
+## Revisions
+
+- 2026-10-02 — close review (BR-1..4), plan brought to current reality:
+  - **Deadline (replaces the Decisions bullet).** A timed-out read *is* kept in
+    the cache (the walk must not wait twice); other errors are retried. A
+    timed-out repository reports `unknown` naming the deadline, not stale:
+    the local fallback read shares the expired context.
+  - **Fetch-skip scope (amends "write paths untouched").** The skip applies to
+    every `Snapshot` right after `RemoteExists`, including verbs that later
+    write; that is exact (the view is the tip the probe saw), and the
+    compare-and-swap push still fetches. Any fetch clears the probed tip.
+  - **Core concepts, as built:** `parseLsRemoteTip` (`internal/gitx/candidate.go`,
+    new); `TrunkFile.probedTip` + `RemoteExists`/`Snapshot`/`fetch`
+    (`internal/gitx/{trunkfile,candidate,snapshot}.go`, modified);
+    `recordsCache` / `newRecordsCache` / `loadRepoRecords` / `warmRecords` /
+    `recordsReadDeadline` (`internal/fleet/issues.go`, new); `trackedRoots` /
+    `recordsReadConcurrency` + the warm-up call in `CollectInventory`
+    (`internal/fleet/inventory.go`). There is no `warmRepoRecords`.
+  - **Tests for the two Done-when claims previously shown by hand:**
+    `TestWarmedInventoryEqualsSequential` and
+    `TestHangingRemoteDegradesOnlyItsRepository` (fleet package, real tracked
+    repositories with bare origins).

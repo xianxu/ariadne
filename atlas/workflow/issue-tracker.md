@@ -122,7 +122,8 @@ ways) and `Assemble`. `cmd/sdlc/observe.go` collects the inputs.
   `other-machine` and never probed. `--repo <path>` observes another
   repository.
 - **Freshness:** each answer carries the tracker commit and `observed_at`.
-  The tracker fetch's remote-tracking update is the only side effect.
+  The tracker fetch's remote-tracking update (when the tracker moved) is the
+  only side effect.
 - **Checkpoints (M2):** read from the issue branch's committed
   `workshop/plans` before landing, and from main's `history/plans` after.
   Review artifacts are archived with the issue, so squash merges and deleted
@@ -138,7 +139,8 @@ ways) and `Assemble`. `cmd/sdlc/observe.go` collects the inputs.
     boundary is omitted.
 - **Activity:** the worktrees holding the issue branch, with dirty count and
   ahead/behind main. The branch head and its commits ahead of main.
-- **Envelope:** one tracker fetch through the shared records layer. The
+- **Envelope:** one tracker read through the shared records layer: an
+  `ls-remote`, plus a fetch only when the tracker moved (#290). The
   collector's own git work is per issue: one worktree list, facts only for
   the holding worktrees, one listing plus a fixed set of `git show`s at the
   evidence location. A test bounds the collector (not the tracker load) at
@@ -255,8 +257,13 @@ Every reader of card-owned fields goes through `tracker.LoadRecords`
 status/started/dates/hours/GitHub link/title, details for deps, target, flow and
 plan; a missing half is unknown, never a stale mirror. The repository is the one
 containing the issues directory. Read-only views (`state`, `issue list/show`,
-fleet, project board) prefer a fresh fetch and label a stale last-fetched read;
-gates that authorize a write require a fresh fetch. A repository whose remote has
+fleet, project board) prefer a fresh read and label a stale last-fetched read;
+gates that authorize a write require a fresh read. "Fresh" is exact either way
+(#290): the presence probe's `ls-remote` returns the remote tracker tip, and the
+next `Snapshot` reads that commit directly when the local tracking ref already
+points there (consumed once; any fetch clears it), fetching only when it moved.
+A write still compares and pushes against a fetched tip. Tracker fetches pass
+`--no-auto-maintenance`. A repository whose remote has
 no tracker is pre-migration and its details are the record. Active-time reads the
 tracker ref beside HEAD and the card's `started`.
 

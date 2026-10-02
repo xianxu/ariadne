@@ -90,3 +90,12 @@ GIT_TRACE, moved tip fetched, probe tip used once, --no-auto-maintenance),
 note: the sandbox sets GIT_SSH_COMMAND, which overrides core.sshCommand. A
 timed-out read reports unknown, not stale: the local fallback read shares the
 expired context.
+
+Close review round 1 (BR-1..4) addressed: plan revised to the as-built deadline
+and fetch-skip scope and Core-concepts names; issue-tracker atlas describes the
+probe-then-maybe-fetch read; `TestWarmedInventoryEqualsSequential` and
+`TestHangingRemoteDegradesOnlyItsRepository` (real tracked repos, bare origins)
+replace the by-hand checks; any fetch clears the probed tip. One `make test` run
+saw `TestPlanningReviewCompetingResults` fail once (multi-process CLI test with
+a 25s budget, under shard load); it passed 3/3 alone, 3/3 under -race, and in
+the next full run — no shared TrunkFile is involved.

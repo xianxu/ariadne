@@ -198,6 +198,7 @@ func (t *TrunkFile) trackingRef() string {
 // `git fetch origin main`, which only guarantees FETCH_HEAD) is the same form
 // issueids.go uses.
 func (t *TrunkFile) fetch() ([]byte, error) {
+	t.probedTip = "" // a fetch supersedes what the last probe saw (#290)
 	// --no-auto-maintenance (#290): housekeeping belongs to the operator's own
 	// git; a tracker read should not pay for it on every fetch.
 	_, errOut, err := t.run(nil, "fetch", "--quiet", "--no-recurse-submodules", "--no-auto-maintenance", t.remote,

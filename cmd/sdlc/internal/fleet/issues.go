@@ -70,7 +70,10 @@ var recordsReadDeadline = 15 * time.Second
 
 // repoRecords loads (once per process) a repository's composed issue records.
 // Fleet inventory is a read-only view: a stale tracker read is acceptable.
-var repoRecords = newRecordsCache(func(ctx context.Context, repoRoot string) (tracker.Records, error) {
+var repoRecords = newRecordsCache(loadRepoRecords).get
+
+// loadRepoRecords is one repository's tracker read under the read deadline.
+func loadRepoRecords(ctx context.Context, repoRoot string) (tracker.Records, error) {
 	ctx, cancel := context.WithTimeout(ctx, recordsReadDeadline)
 	defer cancel()
 	repo, err := tracker.RepositoryForCheckout(ctx, repoRoot)
@@ -82,7 +85,7 @@ var repoRecords = newRecordsCache(func(ctx context.Context, repoRoot string) (tr
 		return tracker.Records{}, fmt.Errorf("read same-repo issues of %q: %w", repoRoot, err)
 	}
 	return rs, nil
-}).get
+}
 
 // recordsCache is per-key once (#290): one load per repository, and a caller
 // waits only on its own repository's load, so different repositories load
