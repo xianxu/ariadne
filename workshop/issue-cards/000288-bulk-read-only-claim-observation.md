@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000288-bulk-read-only-claim-observation.md
         source_blob: d79d353bee937e1ff168d53698a571dd9f3c69b9
         destination: workshop/issues/000288-bulk-read-only-claim-observation.md
+        main_commit: afe9485ae10316d9847ce29e82eedb3c1bcb0e84
 ---
 
 # Bulk read-only claim observation
