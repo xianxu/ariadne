@@ -5,8 +5,8 @@ deps: [ariadne#277]
 github_issue:
 created: 2026-10-01
 updated: 2026-10-01
-estimate_hours:
-card_mirror: '61002c0ce009892b53729176aef6fe04456996a6' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.31
+card_mirror: '5f84fce9011f0e40439a36a3d679304484ec05b6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-01T23:06:24-07:00
 claimant:
     operator: Xian Xu
@@ -50,6 +50,39 @@ Durable plan: `workshop/plans/000279-workflow-observables-plan.md`.
       workspaces and activity, `--repo`; conflicting, missing and
       other-machine cases; docs.
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec             design=0.6 impl=0.05
+item: greenfield-go-module   design=0.5 impl=0.22
+item: smaller-go-module      design=0.1 impl=0.14
+item: smaller-go-module      design=0.2 impl=0.14
+item: smaller-go-module      design=0.1 impl=0.14
+item: smaller-go-module      design=0.05 impl=0.14
+item: cross-cutting-refactor design=0.1 impl=0.14
+item: atlas-docs             design=0.1 impl=0.05
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+design-buffer: 0.15
+total: 3.31
+```
+
+Items, in order:
+- issue-spec: decisions plus two plan-quality rounds.
+- greenfield-go-module: `internal/observe` (types, strict JSON, Assemble,
+  text).
+- smaller-go-module ×4:
+  1. tracker-section collectors;
+  2. checkpoint collectors (sidecars and ledgers at a ref);
+  3. workspaces, branch activity and `--repo`;
+  4. `issue show --json` and the text view.
+- cross-cutting-refactor: lifecycle real-git fixtures.
+- atlas-docs, then two milestone reviews.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* The calibration source is flagged stale (#127). For reference, #277 (a similar shape) came in at 2.41h actual against 4.09h estimated.
+
 ## Log
 
 ### 2026-10-01
@@ -90,3 +123,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
      parked or no-agent slots). `--repo <path>` queries another repository.
 - Wrote the durable plan (M1/M2). Awaiting operator approval.
 - change-code plan-quality round 1: three Important findings (landed review evidence source, ledger semantics, state vs outcome) and two Minor. All folded into the plan (see its Revisions).
+- Plan-quality cleared (round 2). Estimate: 3.31h (v3.1).
