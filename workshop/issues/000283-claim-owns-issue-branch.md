@@ -116,3 +116,9 @@ Third round:
 - `move` stays its own verb: it relocates between worktrees on one machine, which share an object store, so it needs no push. Unclaim + claim is the cross-machine or cross-operator path, and it goes through origin.
 - Who resolves guard refusals: restoring main's version is mechanical, so sdlc does it. A semantic merge of details prose is the owner slot's LLM's job. Under the lock, stale-base conflicts only happen across a handoff, and the claim-time refresh from main prevents most of them.
 - Insight: the lock plus #272 (no stacking) means an owned issue branch has a single writer, so the owner can force-push it with lease. Pushing more often doesn't cost the ability to rebase. The push policy is still open.
+
+Fourth round:
+- Push policy: push the issue branch at every sdlc boundary (`start-plan`, `milestone-close`, `close`, `unclaim`). `merge` deletes the remote issue branch.
+- Claiming several issues at once is atomic: one tracker commit compare-and-swaps all the cards, and on a race it re-reads, re-checks every card and retries.
+- `sdlc issue publish --issue a,b,c` republishes owned details edits narrowly to main. `move-detail` stays the first publication.
+- No `abandon` verb exists; `wontfix`/`punt` go through `set-status`, which leaves the branch, the remote branch and the owner behind. Proposed: `sdlc abandon` (sketch in the reply; to settle).
