@@ -47,6 +47,22 @@ func TestChangeCodeRefusesTrackerIssueOnRest(t *testing.T) {
 	}
 }
 
+// #283: an owned card that start-plan never started refuses toward start-plan,
+// even from the issue's branch (made by hand, or left by a lost start write).
+func TestChangeCodeRefusesUnstartedClaim(t *testing.T) {
+	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
+	var out, errs bytes.Buffer
+	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9)); err != nil {
+		t.Fatal(err)
+	}
+	r.git("switch", "-q", "-c", "000009-nine")
+	err := runChangeCode(strings.NewReader(""), &out, &errs, trackerChangeCodeFlags())
+	if err == nil || !strings.Contains(err.Error(), "not started") || !strings.Contains(err.Error(), "start-plan --issue 9") {
+		t.Fatalf("change-code on an unstarted claim: %v", err)
+	}
+}
+
 func TestChangeCodeRefreshesCardFieldsAndCheckpointsLocally(t *testing.T) {
 	r, cardPath, detailPath := claimedOnBranch(t)
 	// The estimate is set on the card (as `issue set-estimate` does), not in details.

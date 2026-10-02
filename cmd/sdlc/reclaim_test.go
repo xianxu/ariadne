@@ -53,6 +53,7 @@ func TestReclaimDecision(t *testing.T) {
 		{"already mine (retry)", "working", &me, rev, "r", "mine"},
 		{"mine, stale expect still no-op", "working", &me, "2222222222222222222222222222222222222222", "", "mine"},
 		{"open", "open", nil, rev, "r", "sdlc claim --issue 31"},
+		{"open, held (shaping claim)", "open", &old, rev, "slot gone", "transfer"},
 		{"done", "done", &old, rev, "r", "no live responsibility"},
 		{"unattributed", "working", nil, rev, "r", "--adopt"},
 		{"no expect", "working", &old, "", "r", "--expect is required"},

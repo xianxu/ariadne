@@ -40,6 +40,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/pkg/vocab"
 	"io"
 	"os"
 	"path/filepath"
@@ -346,6 +347,10 @@ func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) ([]byte
 	// #277: the ownership verdict and the mirror read one card version.
 	if err := requireCardOwnership(env, card); err != nil {
 		return nil, err
+	}
+	// #283: holding the lock is not having started; the owner starts at start-plan.
+	if status, _ := issue.GetField(card.Card.Frontmatter, "status"); vocab.Issue().IsOpen(status) {
+		return nil, fmt.Errorf("#%s is claimed but not started (status %s); `sdlc start-plan --issue %s` starts it", id, status, issue.CLIRef(id))
 	}
 	refreshed, err := refreshMirrorFrom(env, card, details)
 	if err != nil {
