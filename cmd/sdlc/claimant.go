@@ -207,7 +207,7 @@ func relocateClaimant(env *trackerEnv, card tracker.Record, me issue.Claimant) e
 	if err != nil {
 		return err
 	}
-	err = env.repo.UpdateCard(card, next, operationToken("relocate"), func(string, string) error { return nil })
+	err = uncertainCardWrite(cardPublish(env, card, next, operationToken("relocate"), nil, nil), fmt.Sprintf("sdlc claim --issue %s", issue.CLIRef(card.ID)))
 	invalidateIssueRecords(env.ctx)
 	if err != nil && !errors.Is(err, tracker.ErrNoChange) {
 		return err

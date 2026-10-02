@@ -71,7 +71,7 @@ func runCardUpdate(ctx context.Context, stdout, stderr io.Writer, issuesDir stri
 		fmt.Fprintf(stdout, "Would update #%s: %s\n", id, what)
 		return nil
 	}
-	err = env.repo.UpdateCard(card, next, operationToken("set"), func(string, string) error { return nil })
+	err = uncertainCardWrite(cardPublish(env, card, next, operationToken("set"), nil, nil), fmt.Sprintf("the same `sdlc issue` setter for #%s", id))
 	invalidateIssueRecords(env.ctx)
 	switch {
 	case errors.Is(err, tracker.ErrNoChange):

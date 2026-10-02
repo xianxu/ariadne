@@ -127,3 +127,14 @@ The registry is static data: it creates nothing durable, and adds no runtime sta
     with a caller guard; `{{RECOVERY <verb>}}` for pages hosting several
     verbs.
 
+- 2026-10-02 — M1 implementation.
+  - **Change:** no `{{RECOVERY}}` placeholder. One `attachRecoveryContracts`
+    pass in `buildRoot` appends each contracted verb's section to its help.
+    That reaches every page, embedded or inline (the issue subcommands' Longs
+    are inline), and none can forget it. The contract test asserts the
+    section on every contracted verb.
+  - **Coverage:** the derived required set is 26 commands. Every one
+    without an `Exempt` reason has a contract. The top-level `set-status`
+    alias and the issue card setters share one contract with
+    `issue set-status`.
+

@@ -185,7 +185,7 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	}
 	// Readiness is re-verified against fresh main after the candidate is pinned,
 	// immediately before the only mutation.
-	err = env.repo.UpdateCard(card, claimed, operationToken("claim"), func(base, candidate string) error { return ready() })
+	err = uncertainCardWrite(cardPublish(env, card, claimed, operationToken("claim"), nil, func(base, candidate string) error { return ready() }), fmt.Sprintf("sdlc claim --issue %d", f.Issue))
 	invalidateIssueRecords(env.ctx)
 	if errors.Is(err, tracker.ErrCardChanged) {
 		return fmt.Errorf("card #%s changed while claiming (a peer may hold it); `sdlc issue show --issue %d` and retry only if it is still open", id, f.Issue)
@@ -582,7 +582,7 @@ func adoptClaim(stdout, stderr io.Writer, env *trackerEnv, card tracker.Record, 
 		cinfo(stderr, fmt.Sprintf("dry-run — would record this workspace (%s) as #%s's owner", me.Worktree, id))
 		return nil
 	}
-	err = env.repo.UpdateCard(card, next, operationToken("adopt"), func(string, string) error { return nil })
+	err = uncertainCardWrite(cardPublish(env, card, next, operationToken("adopt"), nil, nil), fmt.Sprintf("sdlc claim --issue %s --adopt", issue.CLIRef(id)))
 	invalidateIssueRecords(env.ctx)
 	if errors.Is(err, tracker.ErrCardChanged) {
 		return fmt.Errorf("card #%s changed while adopting (a peer may have adopted it); `sdlc issue show --issue %s` and retry only if it still has no owner", id, issue.CLIRef(id))

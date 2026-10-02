@@ -145,3 +145,20 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
 - change-code plan-quality round 1: the required set is now derived from the command tree; the surface is `sdlc help recovery`; Done-when proofs are named per class, with two new generation tests. The plan is revised.
 - Plan-quality cleared (round 2). Estimate: 3.51h (v3.1).
 - change-code passed (estimate-quality: expect well under 3.51h, given the calibration). Starting M1: the `internal/recovery` registry.
+- M1 steps done:
+  - `internal/recovery` holds the types, validation, wrapping and rendering,
+    plus the catalog: 16 contracts covering the 26 derived commands, and 8
+    exemptions with reasons.
+  - Every contracted verb's help carries its section (one pass in
+    `buildRoot`).
+  - `TestRecoveryContractsAreProven` is mutation-checked: a missing contract
+    and a contract for a non-command both go red.
+  - Gap fixes: `cardPublish` (one seam, caller-guarded) plus
+    `uncertainCardWrite`, used by claim, adopt, relocation, setters and
+    reclaim.
+  - New proofs: `TestClaimRerunSettlesALostResponse`,
+    `TestSetStatusRerunSettlesALostResponse`,
+    `TestCloseRerunAfterShipStartsANewGeneration` and
+    `TestLandingLeavesAReopenedCardAlone`.
+  - Atlas: added `workflow/recovery-contracts.md` and its index link.
+

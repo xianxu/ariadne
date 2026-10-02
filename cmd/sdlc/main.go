@@ -28,6 +28,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/recovery"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -178,9 +179,29 @@ func buildRoot() *cobra.Command {
 	wrapBrainDefaults(root)
 	wrapProjectDefaults(root)
 	wrapRepoLockCommands(root)
+	attachRecoveryContracts(root)
 
 	return root
 }
+
+// attachRecoveryContracts appends each contracted verb's recovery section
+// (#280) to its help — one pass over the tree, so no page, inline or embedded,
+// can forget it.
+func attachRecoveryContracts(root *cobra.Command) {
+	var walk func(*cobra.Command)
+	walk = func(c *cobra.Command) {
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+		if _, ok := recovery.For(commandVerb(c)); ok {
+			c.Long = strings.TrimRight(c.Long, "\n") + "\n\n" + recovery.Section(commandVerb(c)) + "\n"
+		}
+	}
+	walk(root)
+}
+
+// commandVerb is a command's path below `sdlc` ("issue set-status").
+func commandVerb(c *cobra.Command) string { return strings.TrimPrefix(c.CommandPath(), "sdlc ") }
 
 var cobraSortingOnce sync.Once
 

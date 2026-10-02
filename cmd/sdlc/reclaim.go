@@ -126,7 +126,7 @@ func NewReclaimCmd() *cobra.Command {
 // publication response after the effect landed; nothing but runReclaim calls it
 // (TestReclaimIsOnlyOperatorInvoked).
 var reclaimEffect = func(env *trackerEnv, card tracker.Record, next []byte, trailers []string) error {
-	return env.repo.UpdateCardWithTrailers(card, next, operationToken("reclaim"), trailers, func(string, string) error { return nil })
+	return cardPublish(env, card, next, operationToken("reclaim"), trailers, nil)
 }
 
 // runReclaim inspects (no --expect) or performs (--expect + --reason) a
@@ -177,7 +177,7 @@ func runReclaim(ctx context.Context, stdout, stderr io.Writer, f *reclaimFlags) 
 	case errors.Is(err, tracker.ErrCardChanged):
 		return fmt.Errorf("#%s changed while reclaiming; nothing was transferred — inspect it again (`sdlc reclaim --issue %d`)", id, f.Issue)
 	case errors.Is(err, gitx.ErrPublicationUncertain):
-		return fmt.Errorf("%w\n      the transfer may or may not have published; rerun the same command — the card decides (already yours: done; unchanged: retried)", err)
+		return uncertainCardWrite(err, "sdlc reclaim with the same --expect and --reason")
 	case err != nil:
 		return err
 	}
