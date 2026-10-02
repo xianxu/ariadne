@@ -1,12 +1,22 @@
 ---
 id: 000290
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours:
-card_mirror: 'ae2c762b0868fd8bb94e8ce5a4043c7dc6decb85' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e6963133bab60ae55c81818be04a09fa53f22ba3' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-02T15:58:13-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 0.36
 ---
 
 # Fleet inventory tracker reads are slow
@@ -54,12 +64,41 @@ unchanged. Prerequisite for ariadne#289, which adds dependency-clone rows.
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000290-fleet-inventory-tracker-reads-are-slow-plan.md`.
+
+- [x] Fetch-skip when the remote tracker tip equals the local tracking ref; `--no-auto-maintenance` on tracker fetches
+- [x] Per-key-once records cache + bounded concurrent warm-up of tracked repositories
+- [x] Per-read deadline; a hanging remote degrades only its repository
+- [x] Before/after trace in the Log; atlas + help; close
 
 ## Log
 
 ### 2026-10-02
+- 2026-10-02: closed — fleet inventory 17.83/17.31s -> 6.02/5.81s here, JSON byte-identical; after-trace 15 concurrent ls-remote, 0 fetch, 0 maintenance. Tests: TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged (incl. a fetch consumes the probe; verified to fail without the clear), TestRecordsCacheIsPerKeyOnce, TestRecordsCacheKeepsTimeoutsRetriesOtherErrors, TestWarmRecordsIsBounded (-race), TestHangingRemoteDegradesOnlyItsRepository, TestWarmedInventoryEqualsSequential. make test green (processgroup fails only in sandbox).; review verdict: SHIP
+- 2026-10-02: flow upgraded quick → full — 147 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Filed while designing ariadne#289 at the operator's direction ("it's already a
 bit slow"); to land before #289 resumes. Trace: 5.35s `ls-remote`, 5.13s
 `fetch`, rest local.
+
+Implemented. Measured on this machine, alternating builds, same fleet (46 rows,
+27 repositories): before 17.83s / 17.31s, after 6.02s / 5.81s; JSON output
+byte-identical. After-trace: 611 git processes, 15 `ls-remote` (concurrent),
+0 `fetch` (every tracker unchanged), 0 `maintenance`. Tests:
+`TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged` (real git, fetch counted via
+GIT_TRACE, moved tip fetched, probe tip used once, --no-auto-maintenance),
+`TestRecordsCacheIsPerKeyOnce`, `TestRecordsCacheKeepsTimeoutsRetriesOtherErrors`,
+`TestWarmRecordsIsBounded` (gated, -race), `TestHangingRemoteDegradesWithinTheDeadline`
+(ssh transport that sleeps → unknown naming the deadline in ~0.6s). Fixture
+note: the sandbox sets GIT_SSH_COMMAND, which overrides core.sshCommand. A
+timed-out read reports unknown, not stale: the local fallback read shares the
+expired context.
+
+Close review round 1 (BR-1..4) addressed: plan revised to the as-built deadline
+and fetch-skip scope and Core-concepts names; issue-tracker atlas describes the
+probe-then-maybe-fetch read; `TestWarmedInventoryEqualsSequential` and
+`TestHangingRemoteDegradesOnlyItsRepository` (real tracked repos, bare origins)
+replace the by-hand checks; any fetch clears the probed tip. One `make test` run
+saw `TestPlanningReviewCompetingResults` fail once (multi-process CLI test with
+a 25s budget, under shard load); it passed 3/3 alone, 3/3 under -race, and in
+the next full run — no shared TrunkFile is involved.

@@ -148,14 +148,32 @@ func (t *TrunkFile) BlobAt(commit, path string) (string, error) {
 // RemoteExists reports whether the destination branch exists on the remote.
 // Absent is a completed observation (ls-remote exit 2), never a transport error.
 func (t *TrunkFile) RemoteExists() (bool, error) {
+	t.probedTip = ""
 	out, diag, err := t.run(nil, "ls-remote", "--refs", "--exit-code", "--", t.remote, t.localRef())
 	if err == nil {
+		t.probedTip = parseLsRemoteTip(out, t.localRef())
 		return len(strings.TrimSpace(string(out))) > 0, nil
 	}
 	if gitExitCode(err) == 2 && len(out) == 0 {
 		return false, nil
 	}
 	return false, offlineError(t.remote, err, diag)
+}
+
+// parseLsRemoteTip is the tip `ls-remote` reported for exactly ref, or "" when
+// the output does not name it with a well-formed object ID (then nothing is
+// skipped: the snapshot fetches as before).
+func parseLsRemoteTip(out []byte, ref string) string {
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		oid, name, ok := strings.Cut(line, "\t")
+		if !ok || name != ref {
+			continue
+		}
+		if tip, err := parseObjectID([]byte(oid)); err == nil {
+			return tip
+		}
+	}
+	return ""
 }
 
 // LocalView pins the last-fetched tracking ref without network IO. ok is false

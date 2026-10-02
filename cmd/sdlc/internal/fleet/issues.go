@@ -2,10 +2,12 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
@@ -62,29 +64,90 @@ func LookupRepoIssues(ctx context.Context, repoRoot, id string) ([]IssueRecord, 
 	return records, nil
 }
 
+// recordsReadDeadline bounds one repository's tracker read (#290): a remote
+// that does not answer degrades that repository, never the whole inventory.
+var recordsReadDeadline = 15 * time.Second
+
 // repoRecords loads (once per process) a repository's composed issue records.
 // Fleet inventory is a read-only view: a stale tracker read is acceptable.
-var repoRecords = func() func(context.Context, string) (tracker.Records, error) {
-	var mu sync.Mutex
-	cache := map[string]tracker.Records{}
-	return func(ctx context.Context, repoRoot string) (tracker.Records, error) {
-		mu.Lock()
-		defer mu.Unlock()
-		if rs, ok := cache[repoRoot]; ok {
-			return rs, nil
-		}
-		repo, err := tracker.RepositoryForCheckout(ctx, repoRoot)
-		if err != nil {
-			return tracker.Records{}, err
-		}
-		rs, err := tracker.LoadRecords(ctx, repo, filepath.Join(repoRoot, vocab.Issue().Discovery().Home), tracker.PreferFresh)
-		if err != nil {
-			return tracker.Records{}, fmt.Errorf("read same-repo issues of %q: %w", repoRoot, err)
-		}
-		cache[repoRoot] = rs
-		return rs, nil
+var repoRecords = newRecordsCache(loadRepoRecords).get
+
+// loadRepoRecords is one repository's tracker read under the read deadline.
+func loadRepoRecords(ctx context.Context, repoRoot string) (tracker.Records, error) {
+	ctx, cancel := context.WithTimeout(ctx, recordsReadDeadline)
+	defer cancel()
+	repo, err := tracker.RepositoryForCheckout(ctx, repoRoot)
+	if err != nil {
+		return tracker.Records{}, err
 	}
-}()
+	rs, err := tracker.LoadRecords(ctx, repo, filepath.Join(repoRoot, vocab.Issue().Discovery().Home), tracker.PreferFresh)
+	if err != nil {
+		return tracker.Records{}, fmt.Errorf("read same-repo issues of %q: %w", repoRoot, err)
+	}
+	return rs, nil
+}
+
+// recordsCache is per-key once (#290): one load per repository, and a caller
+// waits only on its own repository's load, so different repositories load
+// concurrently. A load that ran out of time is kept (the walk must not wait
+// for it twice); other failures are retried by the next caller, as before.
+type recordsCache struct {
+	load    func(context.Context, string) (tracker.Records, error)
+	mu      sync.Mutex
+	entries map[string]*recordsEntry
+}
+
+type recordsEntry struct {
+	done chan struct{}
+	rs   tracker.Records
+	err  error
+}
+
+func newRecordsCache(load func(context.Context, string) (tracker.Records, error)) *recordsCache {
+	return &recordsCache{load: load, entries: map[string]*recordsEntry{}}
+}
+
+func (c *recordsCache) get(ctx context.Context, repoRoot string) (tracker.Records, error) {
+	c.mu.Lock()
+	e, loading := c.entries[repoRoot]
+	if !loading {
+		e = &recordsEntry{done: make(chan struct{})}
+		c.entries[repoRoot] = e
+	}
+	c.mu.Unlock()
+	if !loading {
+		e.rs, e.err = c.load(ctx, repoRoot)
+		if e.err != nil && !errors.Is(e.err, context.DeadlineExceeded) {
+			c.mu.Lock()
+			delete(c.entries, repoRoot)
+			c.mu.Unlock()
+		}
+		close(e.done)
+	}
+	select {
+	case <-e.done:
+		return e.rs, e.err
+	case <-ctx.Done():
+		return tracker.Records{}, ctx.Err()
+	}
+}
+
+// warmRecords loads roots through get with at most limit in flight, and
+// returns when every load has finished (#290). Results land in get's cache.
+func warmRecords(ctx context.Context, roots []string, limit int, get func(context.Context, string) (tracker.Records, error)) {
+	sem := make(chan struct{}, limit)
+	var wg sync.WaitGroup
+	for _, root := range roots {
+		wg.Add(1)
+		sem <- struct{}{}
+		go func(root string) {
+			defer wg.Done()
+			defer func() { <-sem }()
+			_, _ = get(ctx, root)
+		}(root)
+	}
+	wg.Wait()
+}
 
 // IssueAssociation is issue metadata carried alongside measured tree facts.
 type IssueAssociation struct {
