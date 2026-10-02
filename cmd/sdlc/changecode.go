@@ -335,7 +335,19 @@ func refreshChangeCodeMirror(f *changeCodeFlags, name, issuePath string) ([]byte
 	if env.branch != name {
 		return nil, fmt.Errorf("#%s's design belongs on its branch %s (this checkout is on %q); run `sdlc start-plan --issue %s` first", id, name, env.branch, issue.CLIRef(id))
 	}
-	refreshed, err := refreshMirror(env, id, details)
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	card, ok := snap.Card(id)
+	if !ok {
+		return nil, fmt.Errorf("no card #%s on the tracker", id)
+	}
+	// #277: the ownership verdict and the mirror read one card version.
+	if err := requireCardOwnership(env, card); err != nil {
+		return nil, err
+	}
+	refreshed, err := refreshMirrorFrom(env, card, details)
 	if err != nil {
 		return nil, err
 	}

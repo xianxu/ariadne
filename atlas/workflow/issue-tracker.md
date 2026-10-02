@@ -17,6 +17,65 @@ dependencies and evidence. `internal/issue/card.go` projects cards from details.
 fields before refreshing an unchanged old projection. Unknown detail fields and
 unrelated body bytes remain untouched. Transaction metadata is not mirrored.
 
+## Claimant: who owns the work (#277)
+
+A claim writes a `claimant` card field in the same compare-and-swap as
+open → working. It is a structured vocabulary kind (`issue.cue`), mirrored into
+details like every card field.
+- **Record:** operator (git `user.name`), machine (a keyed SHA-256
+  fingerprint of the OS machine ID; the raw ID is never published), a readable
+  machine name, an optional slot label, the canonical worktree, and the
+  repository.
+- **Pure core:** `internal/issue/claimant.go` holds parsing and validation,
+  which fail closed on unknown keys, non-strings and raw IDs. It also holds
+  `MatchClaimant`, `RelocationAllowed` and `MachineFingerprint`.
+- **IO seam:** `cmd/sdlc/claimant.go` provides `claimantIdentity`.
+- **Ownership** is the same repository, machine and worktree. Operator and
+  slot label are descriptive, and the slot label is recorded only where the
+  slot layout is in use, so Ariadne needs neither slots nor Couch.
+- **No extra fields:** there is no claim ID or timestamp. Git history and the
+  card blob already order claims.
+
+**Enforcement.**
+- **The gate.** `requireCardOwnership` is the one continuation gate, judged on the card each verb already read and used
+  by start-plan, change-code and `computeClose` (whole-issue close and
+  milestone-close alike, before any review).
+  - It passes the owner.
+  - It refuses another workspace's issue, naming the owner.
+  - It refuses an unattributed working card (claimed before #277) toward
+    `sdlc claim --issue N --adopt`.
+- **Adopt** writes a claimant only on an unattributed working or blocked
+  card, and never reassigns.
+- **set-status** into `working` records the claimant like claim does. It
+  refuses on another workspace's card even with `--force`.
+- **Relocation** is the owner moving its own work on the same machine
+  (`RelocationAllowed`). It requires **positive evidence**: `sdlc move`'s own
+  record (`issue.Relocation`, `cmd/sdlc/relocation.go`) naming the recorded
+  owner's worktree as the source and this one as the destination. The current
+  checkout must also be on the issue branch, and the old worktree must no
+  longer hold it. The branch's absence alone is never evidence, because that
+  is also the state right after a claim.
+  - **Record:** `<git-common-dir>/sdlc/relocations/<id>.json`, local and never
+    committed.
+    - Move writes it before switching and removes it if the first switch
+      fails.
+    - After the switches, move re-stamps and removes it, both on success and
+      when relocation doesn't apply (an unattributed or foreign card).
+    - A failed re-stamp keeps it for the repair: `sdlc claim` at the
+      destination relocates and removes it. The gate names that repair.
+    - A later move of the same issue overwrites it. The bound is one small
+      file per moved issue.
+- **Out of scope:** reassigning an owned card across workspaces, machines or
+  operators is reclaim (#278); structured observation is #279.
+
+**Rollout is a flag day.** An `sdlc` built before #277 aborts the whole
+tracker snapshot on the first card it cannot parse
+(`internal/tracker/reader.go`). So once any card carries a `claimant`, every
+stale binary fails, loudly and closed, naming the field. After #277 lands,
+refresh each ariadne checkout and rebuild: `make weave-all`, or
+`weave compile` / `make tools` per checkout. Until it lands, claim only with
+an older binary, so that no claimant card reaches the shared tracker.
+
 ## Storage boundary
 
 `internal/tracker.Repository` reads a fresh, pinned Git snapshot with a versioned
@@ -74,9 +133,9 @@ The publication remote is the resting branch's upstream
 | Verb | Card (tracker) | Details (checkout) | Main |
 |---|---|---|---|
 | `issue new` | reserved at `max(id)+1`, own commit; reallocates after a proven race | written locally; narrow commit on a feature branch, uncommitted on rest | untouched |
-| `claim` | open → working by CAS | mirror refreshed (never on rest) | must already hold the details, re-checked before push |
-| `start-plan` | must be working | branch `<details stem>` created at pinned main from a clean rest; an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
-| `change-code` | read (mirror refresh before gates) | design committed narrowly on the issue branch | never published |
+| `claim` | open → working + claimant by CAS; the owner's repeat is a no-op, others refuse (#277) | mirror refreshed (never on rest) | must already hold the details, re-checked before push |
+| `start-plan` | must be working and owned by this workspace (#277) | branch `<details stem>` created at pinned main from a clean rest; an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
+| `change-code` | read (mirror refresh before gates); owner only (#277) | design committed narrowly on the issue branch | never published |
 | `close` | codecomplete bound to the evidence commit | evidence commit, then a mirror commit (#275) | never published |
 | `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |

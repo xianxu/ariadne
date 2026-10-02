@@ -20,7 +20,7 @@ import (
 
 // cardUpdate is one setter's pure decision: from the current card (and the
 // local details body, "" when this checkout has none) to the next card bytes.
-type cardUpdate func(card tracker.Record, detailsBody string) ([]byte, error)
+type cardUpdate func(env *trackerEnv, card tracker.Record, detailsBody string) ([]byte, error)
 
 // runCardUpdate applies one decision by CAS on the tracker, then refreshes the
 // local mirror (never on the resting branch). A dry run decides and stops.
@@ -62,7 +62,7 @@ func runCardUpdate(ctx context.Context, stdout, stderr io.Writer, issuesDir stri
 	} else if !errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("read %s: %w", detailPath, err)
 	}
-	next, err := decide(card, body)
+	next, err := decide(env, card, body)
 	if err != nil {
 		return err
 	}
@@ -111,7 +111,7 @@ func newIssueSetTitleCmd() *cobra.Command {
 	return newCardSetterCmd("set-title <title>", "Retitle an issue's card (its path and branch keep their slug)", cobra.ExactArgs(1),
 		func(*cobra.Command) func([]string) (string, cardUpdate, error) {
 			return func(a []string) (string, cardUpdate, error) {
-				return "title → " + a[0], func(card tracker.Record, _ string) ([]byte, error) {
+				return "title → " + a[0], func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
 					return issue.SetCardTitle(card.Raw, a[0])
 				}, nil
 			}
@@ -128,7 +128,7 @@ func newIssueSetEstimateCmd() *cobra.Command {
 					return "", nil, errors.New("--hours must be a positive number")
 				}
 				value := strconv.FormatFloat(hours, 'f', -1, 64)
-				return "estimate_hours → " + value, func(card tracker.Record, _ string) ([]byte, error) {
+				return "estimate_hours → " + value, func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
 					return issue.SetCardField(card.Raw, "estimate_hours", value)
 				}, nil
 			}
@@ -145,7 +145,7 @@ func newIssueSetGitHubCmd() *cobra.Command {
 					return "", nil, errors.New("--number must be a positive GitHub issue number")
 				}
 				value := strconv.Itoa(number)
-				return "github_issue → " + value, func(card tracker.Record, _ string) ([]byte, error) {
+				return "github_issue → " + value, func(_ *trackerEnv, card tracker.Record, _ string) ([]byte, error) {
 					return issue.SetCardField(card.Raw, "github_issue", value)
 				}, nil
 			}

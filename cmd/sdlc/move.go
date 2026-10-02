@@ -4,13 +4,19 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
+	"os"
+	"path/filepath"
 	"reflect"
 	"strings"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -24,14 +30,14 @@ func NewMoveCmd() *cobra.Command {
 			if len(args) > 0 {
 				address = args[0]
 			}
-			return runMove(".", address, dryRun, cmd.OutOrStdout(), cmd.ErrOrStderr())
+			return runMove(commandContext(cmd.Context()), ".", address, dryRun, cmd.OutOrStdout(), cmd.ErrOrStderr())
 		},
 	})
 	cmd.Flags().BoolVar(&dryRun, "dry-run", false, "check both slots and print the move; change nothing")
 	return cmd
 }
 
-func runMove(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
+func runMove(ctx context.Context, dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 	if address == "" {
 		address = ":0"
 	}
@@ -47,6 +53,9 @@ func runMove(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 	moveReport(stderr, fmt.Sprintf("%s commits not in %s (they stay on %s, but are not in the test)", to.Resting, branch, to.Resting), facts.Parked)
 	moveReport(stderr, fmt.Sprintf("%s commits not on its upstream", to.Resting), facts.Unpublished)
 	if dryRun {
+		if _, _, ok := issue.ParseFilename(branch + ".md"); ok {
+			cinfo(stderr, fmt.Sprintf("would then record %s as the issue's owner, if this workspace owns it (#277)", to.Address))
+		}
 		cinfo(stderr, "dry-run — nothing was switched")
 		return nil
 	}
@@ -58,7 +67,17 @@ func runMove(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 		return fmt.Errorf("%s or %s changed since the preflight; nothing was switched, rerun sdlc move", from.Address, to.Address)
 	}
 	r := execGitRunner{}
+	// #277: the positive record that the owner moved this work, written before
+	// anything switches (a failure here leaves nothing moved).
+	if id, _, ok := issue.ParseFilename(branch + ".md"); ok {
+		if err := writeRelocation(from.Root, id, issue.Relocation{From: canonRoot(from.Root), To: canonRoot(to.Root)}); err != nil {
+			return fmt.Errorf("record the move of #%s: %w; nothing was moved", id, err)
+		}
+	}
 	if out, err := r.GitInDir(from.Root, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", from.Resting); err != nil {
+		if id, _, ok := issue.ParseFilename(branch + ".md"); ok {
+			removeRelocation(from.Root, id) // nothing moved: no evidence of a move
+		}
 		return fmt.Errorf("switch %s to %s: %v\n%s\nnothing was moved", from.Address, from.Resting, err, out)
 	}
 	if out, err := r.GitInDir(to.Root, "-c", "submodule.recurse=false", "switch", "--no-overwrite-ignore", branch); err != nil {
@@ -75,7 +94,69 @@ func runMove(dir, address string, dryRun bool, stdout, stderr io.Writer) error {
 		}
 	}
 	cok(stderr, fmt.Sprintf("%s is on %s in %s; %s is back on %s", branch, to.Address, to.Root, from.Address, from.Resting))
+	relocateAfterMove(ctx, to.Root, branch, stderr)
 	return nil
+}
+
+// relocateAfterMove records the destination as the owner of the issue the moved
+// branch carries (#277). It runs only after both switches are verified, so its
+// network step can never strand the branch: a failure leaves the move complete,
+// the claimant on the source, and names the convergent repair.
+func relocateAfterMove(ctx context.Context, dest, branch string, stderr io.Writer) {
+	id, _, ok := issue.ParseFilename(branch + ".md")
+	if !ok {
+		return // not an issue branch
+	}
+	err := moveRelocation(ctx, dest, id)
+	switch {
+	case err == nil:
+		removeRelocation(dest, id)
+	case errors.Is(err, errNoRelocation):
+		removeRelocation(dest, id)
+		cwarn(stderr, fmt.Sprintf("%s moved; #%s's owner is unchanged: %v", branch, id, err))
+	default:
+		cwarn(stderr, fmt.Sprintf("%s moved, but #%s's owner was not updated: %v\n      finish it with `sdlc claim --issue %s` in %s", branch, id, err, issue.CLIRef(id), dest))
+	}
+}
+
+// errNoRelocation marks a move whose owner update does not apply (the issue is
+// someone else's, or unattributed) — as opposed to one that failed and keeps
+// its record for the repair.
+var errNoRelocation = errors.New("relocation does not apply")
+
+// moveRelocation is relocateAfterMove's effect, a variable so a test can fail
+// it after the switches.
+var moveRelocation = func(ctx context.Context, dest, id string) error {
+	if _, err := os.Stat(filepath.Join(dest, filepath.FromSlash(tracker.CutoverMarkerPath))); errors.Is(err, os.ErrNotExist) {
+		return nil // a pre-tracker repository has no owners to move
+	}
+	env, err := openTrackerAt(ctx, dest)
+	if err != nil {
+		return err
+	}
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return err
+	}
+	card, ok := snap.Card(id)
+	if !ok {
+		return nil
+	}
+	own, recorded, me, err := ownership(env, card)
+	if err != nil || own == issue.OwnershipMine {
+		return err
+	}
+	if own == issue.OwnershipUnknown {
+		return fmt.Errorf("%w: it has no recorded owner; `sdlc claim --issue %s --adopt` here records one", errNoRelocation, issue.CLIRef(id))
+	}
+	allowed, err := relocatable(env, card, recorded, me)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return fmt.Errorf("%w: it is owned by %s, not the slot it moved from — moving never takes ownership (reclaim is #278)", errNoRelocation, describeClaimant(recorded))
+	}
+	return relocateClaimant(env, card, me)
 }
 
 func moveReport(w io.Writer, title string, commits []string) {

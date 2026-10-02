@@ -1,6 +1,7 @@
 Enter the implementation phase for an issue. Composes the gates
 between planning and code-changing work in any checkout:
 
+
   0. Flow                — infers the issue's flow (#231; see THE FLOW
                            below). On the quick flow, gates 1–3 do not run.
                            The flow is RECORDED in the frontmatter only
@@ -157,6 +158,8 @@ WHEN TO USE
   in practice the planning step takes hours-to-days, and the
   worktree decision wants to wait until you can size the work.
 
+{{OWNERSHIP_GATE}}
+
 FLAGS
 
   --issue <n>         workshop issue ID; derives branch name from
@@ -177,6 +180,10 @@ FLAGS
   --agent <cli>       agent for the plan-quality judge.
                       Default: explicit --agent, then AGENT_CMD, then
                       PAIR_AGENT/current known agent signals, then claude.
+  --sandbox           pass auto-approve flags to codex/gemini judges.
+  --issues-dir <path> directory holding issue files (default workshop/issues).
+  --plans-dir <path>  directory holding optional separate plan files
+                      (default workshop/plans).
 
 ENVIRONMENT
 

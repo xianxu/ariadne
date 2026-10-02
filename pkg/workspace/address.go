@@ -62,3 +62,21 @@ func SlotPath(fleet, repo string, slot int) (string, error) {
 	}
 	return filepath.Join(env, repo), nil
 }
+
+// UsesSlotLayout reports whether id's checkout takes part in the numbered slot
+// layout: a slot itself, or a primary with at least one slot checkout beside it
+// (#277: a claim records a `repo:N` label only there; a plain clone has none).
+func (id Identity) UsesSlotLayout() bool {
+	switch id.Kind {
+	case "slot":
+		return true
+	case "primary":
+		slots, _ := filepath.Glob(filepath.Join(id.FleetRoot, "worktree", id.Repo+"-slot*", id.Repo))
+		for _, s := range slots {
+			if slotNumber(Vantage{PrimaryRoot: id.PrimaryRoot, FleetRoot: id.FleetRoot, WorktreeRoot: s}) > 0 {
+				return true
+			}
+		}
+	}
+	return false
+}

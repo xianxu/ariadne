@@ -3,6 +3,9 @@ fresh-context code review (AGENTS.md §3). The canonical closing path
 for milestone work — bundles the mechanical close + the mandatory
 review into one invocation so neither half is skipped.
 
+{{OWNERSHIP_GATE}}
+The check runs before the review, so a refused milestone-close dispatches no judge.
+
 WHAT IT DOES
 
   1. Runs the mechanical milestone close:

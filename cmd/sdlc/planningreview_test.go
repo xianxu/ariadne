@@ -32,6 +32,12 @@ func startPlanningReviewCLI(t *testing.T, binary, pause string, prepare ...func(
 	if err != nil {
 		t.Fatal(err)
 	}
+	// #277: the card is claimed by this test repository's real workspace (the
+	// built binary resolves the same identity).
+	card206 = withOwner(t, card206, hostClaimant(t, repo))
+	if details206, err = issue.RefreshMirror(details206, mustSplitCard(t, legacy206), card206); err != nil {
+		t.Fatal(err)
+	}
 	writeSyncIssue(t, repo, filepath.Base(issuePath206), string(details206))
 	cardPath, card, _, details207 := seededIssue(t, "000207", "unrelated")
 	writeSyncIssue(t, repo, "000207-unrelated.md", details207)

@@ -4,6 +4,9 @@ steps. Edits files in place; for an issue whose details mirror a tracker card
 card (see TRACKER-ERA ISSUES); otherwise the agent commits, usually bundling
 close with other work.
 
+{{OWNERSHIP_GATE}}
+The check runs before the review, so a refused close dispatches no judge.
+
 `sdlc close` is the LOCAL ACCEPTANCE GATE (#160): it runs the fresh-context
 boundary review (all LLM review — code quality, requirements traceability, docs
 sync incl. README, architecture) and flips a full issue to `codecomplete`, NOT

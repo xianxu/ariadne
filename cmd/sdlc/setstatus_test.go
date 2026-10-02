@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -166,10 +167,10 @@ func TestCheckTransitionGuards_IllegalRejected(t *testing.T) {
 // transition through (the operator's logged escape hatch).
 func TestStatusDecision_ForceBypassesLifecycleGate(t *testing.T) {
 	card := []byte(openCard7)
-	if _, _, err := statusDecision(card, "", "blocked", false, "2026-09-25", "now"); err == nil {
+	if _, _, err := statusDecision(card, "", "blocked", false, "2026-09-25", "now", nil); err == nil {
 		t.Fatal("open→blocked should be refused without --force")
 	}
-	out, prev, err := statusDecision(card, "", "blocked", true, "2026-09-25", "now")
+	out, prev, err := statusDecision(card, "", "blocked", true, "2026-09-25", "now", nil)
 	if err != nil || prev != "open" || !strings.Contains(string(out), "status: blocked") {
 		t.Fatalf("--force: %s %s %v", out, prev, err)
 	}
@@ -202,12 +203,12 @@ func TestLogHasEntryToday_VariousShapes(t *testing.T) {
 // TestStatusDecision_StampsStartedOnce pins #116: open→working stamps an
 // engagement anchor; an existing stamp is never overwritten.
 func TestStatusDecision_StampsStartedOnce(t *testing.T) {
-	out, _, err := statusDecision([]byte(openCard7), "", "working", false, "2026-09-25", "2026-06-18T10:00:00-07:00")
+	out, _, err := statusDecision([]byte(openCard7), "", "working", false, "2026-09-25", "2026-06-18T10:00:00-07:00", nil)
 	if err != nil || !strings.Contains(string(out), "started: 2026-06-18T10:00:00-07:00") || !strings.Contains(string(out), "updated: 2026-09-25") {
 		t.Fatalf("open→working: %s %v", out, err)
 	}
 	stamped := strings.Replace(openCard7, "status: open", "status: open\nstarted: 2025-01-01T00:00:00-07:00", 1)
-	out, _, err = statusDecision([]byte(stamped), "", "working", false, "2026-09-25", "2099-12-31T23:59:59-07:00")
+	out, _, err = statusDecision([]byte(stamped), "", "working", false, "2026-09-25", "2099-12-31T23:59:59-07:00", nil)
 	if err != nil || strings.Contains(string(out), "2099") || !strings.Contains(string(out), "started: 2025-01-01T00:00:00-07:00") {
 		t.Fatalf("existing started moved: %s %v", out, err)
 	}
@@ -248,4 +249,32 @@ func TestRunSetStatus_UpdatesCardAndHonorsDryRun(t *testing.T) {
 // directly.)
 func todayIso() string {
 	return time.Now().Format("2006-01-02")
+}
+
+// #277: set-status into working records the workspace like claim does — on an
+// open card and on a reopen of unattributed or own work — and refuses when
+// another workspace owns the card, even forced.
+func TestStatusDecisionRecordsOrRefusesTheClaimant(t *testing.T) {
+	me := issue.Claimant{Operator: "Me", Machine: issue.MachineFingerprint("m1"), MachineName: "box", Worktree: "/w/a", Repository: "r"}
+	out, _, err := statusDecision([]byte(openCard7), "", "working", false, "2026-10-01", "2026-10-01T09:00:00-07:00", &me)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, ok, _ := issue.CardClaimant(out); !ok || got != me {
+		t.Fatalf("open → working not stamped:\n%s", out)
+	}
+	blocked := bytes.Replace(out, []byte("status: working"), []byte("status: blocked"), 1)
+	if again, _, err := statusDecision(blocked, "", "working", false, "2026-10-01", "2026-10-01T09:00:00-07:00", &me); err != nil || !bytes.Contains(again, []byte("status: working")) {
+		t.Fatalf("own blocked → working: %v", err)
+	}
+	other := me
+	other.Worktree = "/w/b"
+	for _, force := range []bool{false, true} {
+		if _, _, err := statusDecision(blocked, "", "working", force, "2026-10-01", "2026-10-01T09:00:00-07:00", &other); err == nil || !strings.Contains(err.Error(), "reclaim (#278)") {
+			t.Fatalf("foreign entry (force=%v) = %v", force, err)
+		}
+	}
+	if out, _, err := statusDecision(blocked, "", "open", true, "2026-10-01", "2026-10-01T09:00:00-07:00", &other); err != nil || !bytes.Contains(out, []byte("status: open")) {
+		t.Fatalf("leaving working is not an ownership question: %v", err)
+	}
 }

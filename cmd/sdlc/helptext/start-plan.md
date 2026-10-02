@@ -1,5 +1,7 @@
 Enter planning — deliver the architectural principles to design against (#75).
 
+{{OWNERSHIP_GATE}}
+
 The SDLC workflow has `claim` (start work) and `change-code` (the gate into
 implementation: it infers the flow and, on the full flow, runs the plan-quality
 review), but nothing marked the moment you start *designing* — which is the

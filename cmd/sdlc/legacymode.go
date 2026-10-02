@@ -272,7 +272,7 @@ func runLegacyClaim(stdout, stderr io.Writer, f *claimFlags) error {
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
-		claimed, err = claimDecision(raw, f.Issue, time.Now().Format("2006-01-02"), startedClock())
+		claimed, err = claimDecision(raw, f.Issue, time.Now().Format("2006-01-02"), startedClock(), nil)
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
