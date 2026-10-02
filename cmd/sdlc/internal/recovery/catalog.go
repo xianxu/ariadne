@@ -22,6 +22,7 @@ var Catalog = []Contract{
 			{"one winner among concurrent adopts", []string{"TestAdoptRaceHasExactlyOneWinner"}},
 			{"an owner's repeat is a no-op; others are refused", []string{"TestClaimDecisionOwnership", "TestVerbContractTable", "TestClaimDryRunOwnerRepeatWritesNothing"}},
 			{"a lost response is settled by rerunning", []string{"TestClaimRerunSettlesALostResponse"}},
+			{"a lost push acknowledgement is reported uncertain, never replayed", []string{"TestUpdateMany_LostAcknowledgmentIsUncertainWithoutReplay"}},
 			{"relocation needs move's record; a repeat is a no-op", []string{"TestRelocationAfterMoveAndRepair"}},
 			{"an unreachable tracker refuses without local mutation", []string{"TestClaimOfflineRefusesWithoutLocalMutation"}},
 		},

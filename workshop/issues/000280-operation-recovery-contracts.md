@@ -161,4 +161,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     `TestCloseRerunAfterShipStartsANewGeneration` and
     `TestLandingLeavesAReopenedCardAlone`.
   - Atlas: added `workflow/recovery-contracts.md` and its index link.
-
+- M1 review round 1: FIX-THEN-SHIP. Fixed BR-1 (the scope line on every section: tracker repositories; legacy is unknown) and BR-2 (plan-table Revisions), plus the Minors (stale doc, the caller guard over all initializers, the gitx lost-ack citation). The `sdlc help recovery` pointer resolves in M2.

@@ -133,12 +133,23 @@ func TestLandingLeavesAReopenedCardAlone(t *testing.T) {
 
 // cardPublish's callers are exactly the single-card CAS verbs.
 func TestCardPublishCallers(t *testing.T) {
-	allowed := map[string]bool{"runCardUpdate": true, "runClaim": true, "adoptClaim": true, "relocateClaimant": true}
+	allowed := map[string]bool{"runCardUpdate": true, "runClaim": true, "adoptClaim": true, "relocateClaimant": true, "reclaimEffect": true}
 	seen := map[string]bool{}
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, ".", func(info os.FileInfo) bool { return !strings.HasSuffix(info.Name(), "_test.go") }, 0)
 	if err != nil {
 		t.Fatal(err)
+	}
+	inspectOwner := func(file, owner string, body ast.Node) {
+		ast.Inspect(body, func(n ast.Node) bool {
+			if id, ok := n.(*ast.Ident); ok && id.Name == "cardPublish" {
+				seen[owner] = true
+				if !allowed[owner] {
+					t.Errorf("%s:%s publishes a card through cardPublish; only the single-card verbs may", file, owner)
+				}
+			}
+			return true
+		})
 	}
 	for _, pkg := range pkgs {
 		for name, file := range pkg.Files {
@@ -148,25 +159,20 @@ func TestCardPublishCallers(t *testing.T) {
 				switch d := decl.(type) {
 				case *ast.FuncDecl:
 					owner, body = d.Name.Name, d.Body
-				case *ast.GenDecl:
+				case *ast.GenDecl: // every package-level initializer, not just one known name
 					for _, spec := range d.Specs {
-						if vs, ok := spec.(*ast.ValueSpec); ok && vs.Names[0].Name == "reclaimEffect" {
-							owner, body = "reclaimEffect", vs
+						if vs, ok := spec.(*ast.ValueSpec); ok && len(vs.Values) > 0 {
+							for i, v := range vs.Values {
+								inspectOwner(name, vs.Names[i].Name, v)
+							}
 						}
 					}
+					continue
 				}
 				if body == nil {
 					continue
 				}
-				ast.Inspect(body, func(n ast.Node) bool {
-					if id, ok := n.(*ast.Ident); ok && id.Name == "cardPublish" {
-						seen[owner] = true
-						if !allowed[owner] && owner != "reclaimEffect" {
-							t.Errorf("%s:%s publishes a card through cardPublish; only the single-card verbs may", name, owner)
-						}
-					}
-					return true
-				})
+				inspectOwner(name, owner, body)
 			}
 		}
 	}

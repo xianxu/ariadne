@@ -1,9 +1,13 @@
 // Package recovery is the single source of the workflow verbs' operation
 // recovery contracts (#280): for each verb, what it does when repeated,
 // interrupted or answered by a lost response, how to observe its outcome, and
-// which tests prove each guarantee. The catalog renders into each verb's help
-// ({{RECOVERY}}) and into the `sdlc help recovery` topic; a contract test ties
-// every proof to a test that exists and every workflow verb to an entry.
+// which tests prove each guarantee. The catalog is appended to each verb's help
+// (attachRecoveryContracts in cmd/sdlc) and rendered in the `sdlc help
+// recovery` topic; a contract test ties every proof to a test that exists and
+// every workflow verb to an entry.
+//
+// Scope: repositories with an issue tracker (#252). A legacy repository's verbs
+// publish details to main directly; there the contracts are unknown.
 //
 // The contracts describe mechanisms that already exist (card compare-and-swap,
 // receipts, `issue recovery reconcile`, landing observations, #279
@@ -44,6 +48,9 @@ var ClassMeaning = map[Class]string{
 	ConvergentRetry:      "a repeat reaches the same end state: a no-op after success, the settled outcome after a lost response",
 	NonRepeatable:        "a repeat performs a new effect; recover through the named path, never by re-running",
 }
+
+// Scope bounds every contract: they describe issue-tracker repositories.
+const Scope = "repositories with an issue tracker (#252). In a legacy repository (no issue-tracker branch) these guarantees are unknown: its verbs publish details to main directly."
 
 // Proof is one guarantee and the tests that demonstrate it. A claim with no
 // tests is rendered as unproven — an unknown, never a promise.
@@ -125,6 +132,7 @@ func Section(verb string) string {
 	}
 	var b strings.Builder
 	fmt.Fprintf(&b, "RECOVERY (#280) — %s:\n%s", c.Class, wrap(ClassMeaning[c.Class], "  ", "  "))
+	b.WriteString(wrap(Scope, "  Scope:          ", strings.Repeat(" ", 18)))
 	field := func(label, text string) {
 		b.WriteString(wrap(text, fmt.Sprintf("  %-15s ", label), strings.Repeat(" ", 18)))
 	}

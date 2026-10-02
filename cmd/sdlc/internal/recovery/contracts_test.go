@@ -41,7 +41,8 @@ func TestValidateRefusesMalformedContracts(t *testing.T) {
 // An unproven claim renders as unknown, never as a guarantee.
 func TestSectionMarksUnprovenClaims(t *testing.T) {
 	s := Section("pr")
-	if !strings.Contains(s, "RECOVERY (#280) — convergent-retry") || !strings.Contains(s, "UNPROVEN (no test; treat as unknown)") {
+	if !strings.Contains(s, "RECOVERY (#280) — convergent-retry") || !strings.Contains(s, "UNPROVEN (no test; treat as unknown)") ||
+		!strings.Contains(s, "Scope:") || !strings.Contains(s, "legacy") || !strings.Contains(s, "unknown") {
 		t.Fatalf("section:\n%s", s)
 	}
 	if s := Section("no-such-verb"); !strings.Contains(s, "no contract recorded") {

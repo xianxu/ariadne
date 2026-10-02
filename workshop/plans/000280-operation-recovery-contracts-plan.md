@@ -138,3 +138,20 @@ The registry is static data: it creates nothing durable, and adds no runtime sta
     alias and the issue card setters share one contract with
     `issue set-status`.
 
+- 2026-10-02 — M1 review round 1 (BR-1 to BR-6).
+  - **BR-1 (scope):** every section and the package doc state the scope:
+    issue-tracker repositories (#252). In a legacy repository the
+    guarantees are unknown, because its verbs publish details to main
+    directly.
+  - **BR-2 (table drift):** the Core-concepts table is superseded as
+    follows.
+    - `render.go` does not exist: `Section` and the wrapping live in
+      `contracts.go`.
+    - `JSON()` was dropped in PQ-2.
+    - `Page()` and `Example` are M2 deliverables, as is `sdlc help recovery`.
+      M1 help sections point at it, and it lands on this branch in M2;
+      nothing ships between the two.
+  - **Minors:** the stale `{{RECOVERY}}` doc was fixed; the caller guard now
+    scans every package-level initializer and requires `reclaimEffect`; the
+    gitx lost-ack test is now cited under claim.
+
