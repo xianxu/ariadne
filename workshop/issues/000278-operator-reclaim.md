@@ -6,14 +6,14 @@ github_issue:
 created: 2026-10-01
 updated: 2026-10-01
 estimate_hours:
-card_mirror: '0adc570ec5f0c38a02d8c1e359ef1ca4ba08eb4c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f1169ba4aa8db5cc84ce8a000f93678a9d1f1884' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-01T17:25:01-07:00
 claimant:
     operator: Xian Xu
     machine: 4716879978a7b90f6b583da1716fd0e9
     machine_name: MacBook Pro
-    workspace: ariadne:1
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
 actual_hours: 1.42
@@ -119,3 +119,24 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     - `--reason` without `--expect` refuses;
     - the guard now also scans package-level initializers (mutation-checked).
 - Close review round 2: BR-6, the README ownership paragraph lacked reclaim. Added. The sweep found no other hand-written verb listing (the root help is generated from registered commands).
+- Smoke test on the real tracker (#278's own card), operator-requested:
+  1. `sdlc move :2` from :1: the claimant re-stamped to `ariadne:2` (#277
+     relocation) and the relocation record was removed.
+  2. Inspect from :2: "already owns it", no history.
+  3. Inspect from :1 (running :2's branch binary) showed owner :2, proposed
+     :1 and the confirm command. Confirm transferred the claimant to :1; the
+     tracker commit carries Reclaim-From/To/Reason. :1's worktree was
+     untouched.
+  4. Refusals:
+     - :2's `change-code` was refused as owned by :1 and pointed to
+       `sdlc reclaim --issue 278`.
+     - A confirm rerun from :1 was a no-op with no tracker commit.
+     - A stale `--expect` from :2 was refused ("changed since you inspected").
+     - (`start-plan` refused earlier, on codecomplete status, before
+       ownership.)
+  5. Reclaim back from :2: owner :2 again. Inspect lists both transfers
+     with reasons, newest first. :2's change-code passed the ownership gate.
+     Reclaim refreshed :2's details mirror (committed here).
+  - Observation (from #277, not this issue): `sdlc move` re-stamps the card
+    but does not refresh the destination's details mirror. It stays stale
+    until the next verb there. Cosmetic.
