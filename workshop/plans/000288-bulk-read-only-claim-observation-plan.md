@@ -80,7 +80,9 @@ the same derivation `claim` records.
   identity computed once per inventory. Tested with a counting loader.
   **Network budget (M2 revision, BR-11):** only tracked repositories (cutover
   marker or fetched tracker) are contacted — one tracker fetch each, run in
-  sequence, each bounded by Git's own transport timeout; an untracked checkout
+  sequence. A fetch has no deadline of its own (Git sets no default transport
+  timeout; the command's context cancels it): an unresponsive tracked remote
+  stalls inventory until it fails or is interrupted. An untracked checkout
   costs no network (`TestFleetClaimsSkipUntrackedRemotes`). For a tracked
   repository this is the same fetch its branch-prefix lookup already made
   whenever a worktree held an issue branch, so the worst case is one fetch per

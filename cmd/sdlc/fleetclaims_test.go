@@ -96,7 +96,7 @@ func TestFleetInventoryPlacesClaims(t *testing.T) {
 	owner, _ := ownerOf(t, r, cardPath)
 
 	inv, reads := fleetClaims(t, r.root)
-	if inv.Machine.State != fleet.ClaimsPresent || inv.Machine.Fingerprint != owner.Machine {
+	if inv.Machine.State != fleet.MachinePresent || inv.Machine.Fingerprint != owner.Machine {
 		t.Fatalf("machine %+v is not the identity claim recorded (%s)", inv.Machine, owner.Machine)
 	}
 	if len(reads) != 1 || reads[canonRoot(r.root)] != 1 {

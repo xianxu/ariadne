@@ -134,7 +134,7 @@ func renderClaims(w io.Writer, row TreeRow) error {
 func renderMachineClaims(w io.Writer, inventory Inventory) error {
 	m := inventory.Machine
 	line := "machine state=" + m.State
-	if m.State == ClaimsPresent {
+	if m.State == MachinePresent {
 		line += " name=" + quote(m.Name) + " fingerprint=" + quote(m.Fingerprint)
 	} else {
 		line += " error=" + quote(m.Error)
