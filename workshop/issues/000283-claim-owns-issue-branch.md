@@ -109,3 +109,10 @@ Second round:
 - Shaping time: the window anchors at `start-plan`, and each claim also counts the full shaping segments of the commits it rode in. Agents may record pre-claim shaping time as an estimate; drop that part if it proves too imprecise.
 - Order: model first. Doing it properly, not fast-tracking the guard for pair#365.
 - Merges outside sdlc: detect and reconcile. There must always be an escape hatch.
+
+Third round:
+- The handoff note goes in `## Log`, unstructured. The next agent needs the raw information, not a schema.
+- Unclaim pushes automatically.
+- `move` stays its own verb: it relocates between worktrees on one machine, which share an object store, so it needs no push. Unclaim + claim is the cross-machine or cross-operator path, and it goes through origin.
+- Who resolves guard refusals: restoring main's version is mechanical, so sdlc does it. A semantic merge of details prose is the owner slot's LLM's job. Under the lock, stale-base conflicts only happen across a handoff, and the claim-time refresh from main prevents most of them.
+- Insight: the lock plus #272 (no stacking) means an owned issue branch has a single writer, so the owner can force-push it with lease. Pushing more often doesn't cost the ability to rebase. The push policy is still open.
