@@ -72,3 +72,13 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   The earlier `weave compile` / `make weave-all` advice would not have
   advanced any Git revision. The operator is running the refresh.
 
+- **Correction** to the claim note above. The claim did *not* run pre-#277
+  code. `sdlc merge` for #277 had already fast-forwarded `main-slot1` to
+  include #277 (17:19), and `sdlc` builds from this slot's own checkout. So
+  the 17:25 claim wrote the first `claimant` card (tracker `4be6376a`), and
+  the #277 flag day began then, not at a later claim.
+  - The operator was told and has since refreshed the fleet: every live slot
+    is on #277 (checked with `couch --actors`). The idle ariadne-slot2,
+    ariadne-slot3 and pair-slot2 still need `weave refresh` before reuse.
+  - `sdlc claim --adopt` just now was a no-op; the card already names this
+    workspace.
