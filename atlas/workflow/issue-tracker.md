@@ -170,6 +170,10 @@ path. Its readers report it as unknown, never absent:
   the error.
 - PR, push and merge refuse repo-wide (`transferguard`) while any card is
   unreadable, since an unreadable card may hide a handoff record.
+- Landing and recovery (`ownedCompletions`) also refuse while any card is
+  unreadable, since it may hold a completion this landing owns. A healthy
+  post-merge completion is then deferred until the card is repaired; the next
+  settle re-derives it, so nothing is lost.
 
 This also softens the next card-schema rollout: a stale binary now quarantines
 the cards carrying a field it does not know, rather than failing every read.

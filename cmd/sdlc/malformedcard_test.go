@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
 	"strings"
 	"testing"
 
@@ -93,6 +94,12 @@ func TestOneMalformedCardDoesNotBlockOthers(t *testing.T) {
 	names("landing completions", err)
 	if _, _, _, warning := actualTrackerInputs(ctx, ".", "42"); !strings.Contains(warning, "card unreadable") {
 		t.Errorf("actual: want a warning naming the unreadable card, got %q", warning)
+	}
+	msg, died := expectDie(t, func() {
+		computeClose(io.Discard, &closeFlags{Context: ctx, Issue: 42, Milestone: "M1", Actual: "1", Verified: "x", IssuesDir: "workshop/issues", PlansDir: "workshop/plans"})
+	})
+	if !died || !strings.Contains(msg, "fingerprint") {
+		t.Errorf("milestone close of the malformed card: died=%v %q", died, msg)
 	}
 	out.Reset()
 	if err := runIssueShow(ctx, &out, &errs, &issueShowFlags{IssuesDir: "workshop/issues"}, "42"); err != nil || !strings.Contains(out.String(), "card unreadable") {
