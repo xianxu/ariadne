@@ -122,6 +122,14 @@ SDLC repo" — trigger not isolated (cwd/env were correct in 3 instrumented
 passing runs); made hermetic (scratch SDLC repo). `make test` then green except
 `processgroup` (sandbox blocks `/bin/ps`; passes unsandboxed).
 
+M2 implemented: `localMachine` extracted (claim and fleet share it); pure
+`fleet.PlaceClaims` + contract (claims, claims_state, claims_error per row;
+machine and dangling_claims top-level; strict JSON); `LookupRepoClaims` over the
+cached per-repository records; text rendering; catalog entry (read-only) with
+proofs; help + atlas. Live run on this machine: this slot shows #288, slot2
+#283, pair-slot1 #363/#367; brain repos `unknown` (remote unreachable from the
+sandbox, so tracker presence is unconfirmed — reworded to say exactly that).
+
 ## Revisions
 
 - 2026-10-02 — operator review. Scope delta: home moves from a new

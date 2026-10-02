@@ -256,6 +256,21 @@ var Catalog = []Contract{
 			{"stale reads say so", []string{"TestObserveStaleTrackerSaysSo"}},
 		},
 	},
+	{
+		Verbs:         []string{"fleet inventory"},
+		Class:         ReadOnly,
+		Effects:       "none besides each repository's tracker fetch updating its remote-tracking ref (the same read `issue show` performs).",
+		Evidence:      "its own output (`--json`): rows[].claims and claims_state, machine, dangling_claims (#288).",
+		Preconditions: "none; any path inside the fleet (--path).",
+		Repeat:        "a fresh observation.",
+		LostResponse:  "rerun.",
+		Ends:          "each answer is as of its tracker reads; stale, partial and unknown claims states are not negative evidence.",
+		Proofs: []Proof{
+			{"claims placed per worktree from one read per repository; a removed slot's claim is dangling", []string{"TestFleetInventoryPlacesClaims"}},
+			{"stale reads say so and keep the claims", []string{"TestFleetInventoryStaleClaimsSaySo"}},
+			{"a failed or partial read is never \"no claims\"", []string{"TestPlaceClaims"}},
+		},
+	},
 }
 
 // Exempt are mutating commands outside the issue workflow's recovery

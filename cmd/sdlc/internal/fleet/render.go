@@ -22,11 +22,13 @@ func RenderInventory(w io.Writer, inventory Inventory) error {
 }
 
 func renderInventory(w io.Writer, inventory Inventory) error {
+	inventory = inventory.withDefaults()
+	if err := inventory.validateClaims(); err != nil {
+		return fmt.Errorf("render inventory: %w", err)
+	}
 	rows := append([]TreeRow(nil), inventory.Rows...)
 	for i := range rows {
-		if rows[i].Issues == nil {
-			rows[i].Issues = []IssueAssociation{}
-		}
+		rows[i] = rows[i].withDefaults()
 		if err := rows[i].validate(); err != nil {
 			return fmt.Errorf("render inventory: %w", err)
 		}
@@ -82,9 +84,15 @@ func renderInventory(w io.Writer, inventory Inventory) error {
 				return err
 			}
 		}
+		if err := renderClaims(w, row); err != nil {
+			return err
+		}
 		if err := renderCapability(w, row.Policy); err != nil {
 			return err
 		}
+	}
+	if err := renderMachineClaims(w, inventory); err != nil {
+		return err
 	}
 	for _, diagnostic := range diagnostics {
 		if _, err := fmt.Fprintf(w, "diagnostic repo_path=%s stage=%s message=%s", quote(diagnostic.RepoPath), quote(diagnostic.Stage), quote(diagnostic.Message)); err != nil {
@@ -97,6 +105,45 @@ func renderInventory(w io.Writer, inventory Inventory) error {
 			fmt.Fprintf(w, " tree_path=%s", quote(diagnostic.TreePath))
 		}
 		if _, err := fmt.Fprintln(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// renderClaims prints a row's claims (#288); a read that is not plainly
+// present says so, so an empty list is never mistaken for "none".
+func renderClaims(w io.Writer, row TreeRow) error {
+	if row.ClaimsState != ClaimsPresent {
+		line := "  claims=" + row.ClaimsState
+		if row.ClaimsError != "" {
+			line += " error=" + quote(row.ClaimsError)
+		}
+		if _, err := fmt.Fprintln(w, line); err != nil {
+			return err
+		}
+	}
+	for _, c := range row.Claims {
+		if _, err := fmt.Fprintf(w, "  claim=%s status=%s revision=%s operator=%s\n", quote(c.Ref), quote(c.Status), quote(c.Revision), quote(c.Claimant.Operator)); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func renderMachineClaims(w io.Writer, inventory Inventory) error {
+	m := inventory.Machine
+	line := "machine state=" + m.State
+	if m.State == ClaimsPresent {
+		line += " name=" + quote(m.Name) + " fingerprint=" + quote(m.Fingerprint)
+	} else {
+		line += " error=" + quote(m.Error)
+	}
+	if _, err := fmt.Fprintln(w, line); err != nil {
+		return err
+	}
+	for _, d := range inventory.DanglingClaims {
+		if _, err := fmt.Fprintf(w, "dangling_claim=%s status=%s worktree=%s repo_identity=%s\n", quote(d.Ref), quote(d.Status), quote(d.Claimant.Worktree), quote(d.RepoIdentity)); err != nil {
 			return err
 		}
 	}

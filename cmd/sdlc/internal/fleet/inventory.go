@@ -2,6 +2,7 @@ package fleet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -20,6 +21,13 @@ type GitRepoPredicate func(repoDir string) (bool, error)
 // repoRoot. It is adapted to IssueLookup separately for every worktree.
 type RepoIssueLookup func(repoRoot, id string) ([]IssueRecord, error)
 
+// RepoClaimsLookup reads one repository's claims (#288), from the same single
+// tracker load as the branch-prefix lookup.
+type RepoClaimsLookup func(repoRoot string) RepoClaims
+
+// MachineSource names this machine as claims record it.
+type MachineSource func() (MachineIdentity, error)
+
 // PolicyLoader loads one repository declaration. A nil loader uses the shared
 // strict filesystem loader.
 type PolicyLoader func(declarationPath string) PolicyCapability
@@ -31,6 +39,10 @@ type InventoryOptions struct {
 	IsGitRepo    GitRepoPredicate
 	LoadPolicy   PolicyLoader
 	LookupIssues RepoIssueLookup
+	LookupClaims RepoClaimsLookup
+	// Machine is required for claims to be judged; nil leaves the machine
+	// unknown, so no claim is ever reported present without it.
+	Machine MachineSource
 }
 
 // FilesystemGitRepo recognizes ordinary and linked-worktree checkouts through
@@ -102,6 +114,7 @@ func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOp
 			appendRepoDiagnostic(&inventory, diagnosticKeys, *state.pending)
 		}
 	}
+	collectClaims(ctx, &inventory, options)
 
 	sort.Slice(inventory.Rows, func(i, j int) bool {
 		if inventory.Rows[i].RepoIdentity != inventory.Rows[j].RepoIdentity {
@@ -126,6 +139,27 @@ func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOp
 		return left.Message < right.Message
 	})
 	return inventory, nil
+}
+
+// collectClaims judges every repository's claims against this machine: one
+// claims read per repository with rows, the identity once per inventory.
+func collectClaims(ctx context.Context, inventory *Inventory, options InventoryOptions) {
+	if options.Machine == nil {
+		inventory.Machine = MachineFrom(MachineIdentity{}, errors.New("no machine identity source"))
+	} else {
+		inventory.Machine = MachineFrom(options.Machine())
+	}
+	lookup := options.LookupClaims
+	if lookup == nil {
+		lookup = func(repoRoot string) RepoClaims { return LookupRepoClaims(ctx, repoRoot) }
+	}
+	byRepo := map[string]RepoClaims{}
+	for _, row := range inventory.Rows {
+		if _, done := byRepo[row.RepoIdentity]; !done {
+			byRepo[row.RepoIdentity] = lookup(row.RepoRoot)
+		}
+	}
+	inventory.Rows, inventory.DanglingClaims = PlaceClaims(inventory.Rows, byRepo, inventory.Machine)
 }
 
 type inventoryRepoState struct {

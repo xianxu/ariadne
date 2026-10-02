@@ -209,18 +209,36 @@ type TreeRow struct {
 	Prunable     *string            `json:"prunable,omitempty"`
 	Facts        MeasuredFacts      `json:"facts"`
 	Issues       []IssueAssociation `json:"issues"`
-	Policy       PolicyCapability   `json:"policy"`
+	// Claims are this machine's tracker claims on this tree (#288);
+	// ClaimsState says how far they can be trusted (see claims.go).
+	Claims      []ClaimAssociation `json:"claims"`
+	ClaimsState string             `json:"claims_state"`
+	ClaimsError string             `json:"claims_error,omitempty"`
+	Policy      PolicyCapability   `json:"policy"`
 }
 
-func (r TreeRow) MarshalJSON() ([]byte, error) {
+// withDefaults fills the collections and an uncollected claims read: a row
+// built without claims says so (unknown), never "present, none".
+func (r TreeRow) withDefaults() TreeRow {
 	if r.Issues == nil {
 		r.Issues = []IssueAssociation{}
 	}
+	if r.Claims == nil {
+		r.Claims = []ClaimAssociation{}
+	}
+	if r.ClaimsState == "" {
+		r.ClaimsState, r.ClaimsError = ClaimsUnknown, "claims were not collected"
+	}
+	return r
+}
+
+func (r TreeRow) MarshalJSON() ([]byte, error) {
+	r = r.withDefaults()
 	if err := r.validate(); err != nil {
 		return nil, fmt.Errorf("marshal tree row: %w", err)
 	}
 	type wire TreeRow
-	return json.Marshal(wire{RepoIdentity: r.RepoIdentity, RepoRoot: r.RepoRoot, TreePath: r.TreePath, Branch: r.Branch, Detached: r.Detached, Bare: r.Bare, Locked: r.Locked, Prunable: r.Prunable, Facts: r.Facts, Issues: r.Issues, Policy: r.Policy})
+	return json.Marshal(wire(r))
 }
 
 func (r *TreeRow) UnmarshalJSON(raw []byte) error {
@@ -235,6 +253,9 @@ func (r *TreeRow) UnmarshalJSON(raw []byte) error {
 		Prunable     *string            `json:"prunable,omitempty"`
 		Facts        MeasuredFacts      `json:"facts"`
 		Issues       []IssueAssociation `json:"issues"`
+		Claims       []ClaimAssociation `json:"claims"`
+		ClaimsState  string             `json:"claims_state"`
+		ClaimsError  string             `json:"claims_error,omitempty"`
 		Policy       PolicyCapability   `json:"policy"`
 	}
 	if err := strictUnmarshal(raw, &wire); err != nil {
@@ -257,6 +278,9 @@ func (r *TreeRow) UnmarshalJSON(raw []byte) error {
 		Prunable:     wire.Prunable,
 		Facts:        wire.Facts,
 		Issues:       wire.Issues,
+		Claims:       wire.Claims,
+		ClaimsState:  wire.ClaimsState,
+		ClaimsError:  wire.ClaimsError,
 		Policy:       wire.Policy,
 	}
 	if err := value.validate(); err != nil {
@@ -290,6 +314,9 @@ func (r TreeRow) validate() error {
 		if err := validateIssueAssociation(association); err != nil {
 			return err
 		}
+	}
+	if err := validateClaims(r.ClaimsState, r.ClaimsError, r.Claims); err != nil {
+		return err
 	}
 	return validatePolicyCapability(r.Policy)
 }
@@ -345,55 +372,90 @@ type RepoDiagnostic struct {
 type Inventory struct {
 	Rows        []TreeRow        `json:"rows"`
 	Diagnostics []RepoDiagnostic `json:"diagnostics"`
+	// Machine is this machine as claims record it; DanglingClaims are its
+	// claims whose worktree is no row (#288).
+	Machine        Machine         `json:"machine"`
+	DanglingClaims []DanglingClaim `json:"dangling_claims"`
+}
+
+// withDefaults fills the collections and an uncollected machine section.
+func (i Inventory) withDefaults() Inventory {
+	if i.Rows == nil {
+		i.Rows = []TreeRow{}
+	}
+	if i.Diagnostics == nil {
+		i.Diagnostics = []RepoDiagnostic{}
+	}
+	if i.DanglingClaims == nil {
+		i.DanglingClaims = []DanglingClaim{}
+	}
+	if i.Machine.State == "" {
+		i.Machine = Machine{State: ClaimsUnknown, Error: "machine identity was not collected"}
+	}
+	return i
+}
+
+func (i Inventory) validateClaims() error {
+	if err := i.Machine.validate(); err != nil {
+		return err
+	}
+	for _, d := range i.DanglingClaims {
+		if d.RepoIdentity == "" || d.RepoRoot == "" {
+			return errors.New("dangling claim requires repo identity and root")
+		}
+		if err := d.validate(); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (i Inventory) MarshalJSON() ([]byte, error) {
+	i = i.withDefaults()
 	for _, diagnostic := range i.Diagnostics {
 		if err := diagnostic.validate(); err != nil {
 			return nil, fmt.Errorf("marshal inventory: %w", err)
 		}
 	}
-	rows := i.Rows
-	if rows == nil {
-		rows = []TreeRow{}
-	}
-	for _, row := range rows {
-		copy := row
-		if copy.Issues == nil {
-			copy.Issues = []IssueAssociation{}
-		}
-		if err := copy.validate(); err != nil {
+	for n, row := range i.Rows {
+		i.Rows[n] = row.withDefaults()
+		if err := i.Rows[n].validate(); err != nil {
 			return nil, fmt.Errorf("marshal inventory: %w", err)
 		}
 	}
-	diagnostics := i.Diagnostics
-	if diagnostics == nil {
-		diagnostics = []RepoDiagnostic{}
+	if err := i.validateClaims(); err != nil {
+		return nil, fmt.Errorf("marshal inventory: %w", err)
 	}
-	type wire struct {
-		Rows        []TreeRow        `json:"rows"`
-		Diagnostics []RepoDiagnostic `json:"diagnostics"`
-	}
-	return json.Marshal(wire{Rows: rows, Diagnostics: diagnostics})
+	type wire Inventory
+	return json.Marshal(wire(i))
 }
 
 func (i *Inventory) UnmarshalJSON(raw []byte) error {
 	var wire struct {
-		Rows        []TreeRow        `json:"rows"`
-		Diagnostics []RepoDiagnostic `json:"diagnostics"`
+		Rows           []TreeRow        `json:"rows"`
+		Diagnostics    []RepoDiagnostic `json:"diagnostics"`
+		Machine        *Machine         `json:"machine"`
+		DanglingClaims []DanglingClaim  `json:"dangling_claims"`
 	}
 	if err := strictUnmarshal(raw, &wire); err != nil {
 		return fmt.Errorf("unmarshal inventory: %w", err)
 	}
-	if wire.Rows == nil || wire.Diagnostics == nil {
-		return errors.New("unmarshal inventory: rows and diagnostics must be non-null")
+	if wire.Rows == nil || wire.Diagnostics == nil || wire.DanglingClaims == nil {
+		return errors.New("unmarshal inventory: rows, diagnostics and dangling_claims must be non-null")
+	}
+	if wire.Machine == nil {
+		return errors.New("unmarshal inventory: missing machine")
 	}
 	for _, diagnostic := range wire.Diagnostics {
 		if err := diagnostic.validate(); err != nil {
 			return fmt.Errorf("unmarshal inventory: %w", err)
 		}
 	}
-	*i = Inventory{Rows: wire.Rows, Diagnostics: wire.Diagnostics}
+	value := Inventory{Rows: wire.Rows, Diagnostics: wire.Diagnostics, Machine: *wire.Machine, DanglingClaims: wire.DanglingClaims}
+	if err := value.validateClaims(); err != nil {
+		return fmt.Errorf("unmarshal inventory: %w", err)
+	}
+	*i = value
 	return nil
 }
 

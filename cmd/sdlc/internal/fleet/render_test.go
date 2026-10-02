@@ -72,6 +72,7 @@ func TestRenderInventoryExactSemanticSnapshots(t *testing.T) {
 				"  locked=\"maintenance\"\n  prunable=\"gone\"\n" +
 				"  issue=\"ariadne#000200\" status=\"working\" provenance=\"branch-prefix\"\n" +
 				"  policy=capability version=1 digest=\"" + testPolicyDigest + "\" key_kind=\"repo\" roots= capacity=\"bounded\" limit=2 on_capacity=\"reject\"\n" +
+				"machine state=unknown error=\"machine identity was not collected\"\n" +
 				"diagnostic repo_path=\"/repo\" stage=\"facts\" message=\"later probe failed\" repo_identity=\"/repo/.git\" tree_path=\"/repo\"\n",
 		},
 		{
@@ -79,28 +80,39 @@ func TestRenderInventoryExactSemanticSnapshots(t *testing.T) {
 			value: Inventory{Rows: []TreeRow{baseMissing}, Diagnostics: []RepoDiagnostic{}},
 			want: "tree=\"/repo\"\trepo_identity=\"/repo/.git\"\trepo_root=\"/repo\"\tbranch=\"main\"\n" +
 				"  facts head=\"head\" commit_timestamp=\"2026-01-02T03:04:05Z\" dirty_count=1 base_unavailable error=\"no base reference available\"\n" +
-				"  policy=capability version=1 digest=\"" + testPolicyDigest + "\" key_kind=\"repo\" roots= capacity=\"unbounded\"\n",
+				"  policy=capability version=1 digest=\"" + testPolicyDigest + "\" key_kind=\"repo\" roots= capacity=\"unbounded\"\n" + "machine state=unknown error=\"machine identity was not collected\"\n",
 		},
 		{
 			name:  "detached selected base unavailable",
 			value: Inventory{Rows: []TreeRow{detached}},
 			want: "tree=\"/repo\"\trepo_identity=\"/repo/.git\"\trepo_root=\"/repo\"\tdetached\n" +
 				"  facts head=\"head\" commit_timestamp=\"2026-01-02T03:04:05Z\" dirty_count=1 base_unavailable error=\"rev-list failed\" base_ref=\"origin/main\"\n" +
-				"  policy=capability version=1 digest=\"" + testPolicyDigest + "\" key_kind=\"repo\" roots= capacity=\"unbounded\"\n",
+				"  policy=capability version=1 digest=\"" + testPolicyDigest + "\" key_kind=\"repo\" roots= capacity=\"unbounded\"\n" + "machine state=unknown error=\"machine identity was not collected\"\n",
 		},
 		{
 			name:  "bare staged head capability diagnostic",
 			value: Inventory{Rows: []TreeRow{bare}},
 			want: "tree=\"/repo\"\trepo_identity=\"/repo/.git\"\trepo_root=\"/repo\"\tbare\n" +
 				"  facts unavailable head=\"head\" error=\"show failed\"\n" +
-				"  policy diagnostic code=\"invalid-policy\" message=\"bad declaration\" path=\"/repo/.sdlc/fleet.json\" policy_version=1\n",
+				"  policy diagnostic code=\"invalid-policy\" message=\"bad declaration\" path=\"/repo/.sdlc/fleet.json\" policy_version=1\n" + "machine state=unknown error=\"machine identity was not collected\"\n",
 		},
 		{
 			name:  "staged dirty prefix",
 			value: Inventory{Rows: []TreeRow{staged}},
 			want: "tree=\"/repo\"\trepo_identity=\"/repo/.git\"\trepo_root=\"/repo\"\tbranch=\"main\"\n" +
 				"  facts unavailable head=\"head\" commit_timestamp=\"2026-01-02T03:04:05Z\" dirty_count=1 error=\"status failed\"\n" +
-				"  policy=capability version=1 digest=\"" + testPolicyDigest + "\" key_kind=\"repo\" roots= capacity=\"bounded\" limit=2 on_capacity=\"reject\"\n",
+				"  policy=capability version=1 digest=\"" + testPolicyDigest + "\" key_kind=\"repo\" roots= capacity=\"bounded\" limit=2 on_capacity=\"reject\"\n" + "machine state=unknown error=\"machine identity was not collected\"\n",
+		},
+		{
+			name:  "claims machine dangling",
+			value: claimsInventory(branch),
+			want: "tree=\"/repo\"\trepo_identity=\"/repo/.git\"\trepo_root=\"/repo\"\tbranch=\"main\"\n" +
+				"  facts head=\"head\" commit_timestamp=\"2026-01-02T03:04:05Z\" dirty_count=1 base_ref=\"main\" ahead=2 behind=1\n" +
+				"  claims=partial error=\"unreadable tracker cards, which may hold claims: repo#000009\"\n" +
+				"  claim=\"repo#000001\" status=\"working\" revision=\"r1\" operator=\"op\"\n" +
+				"  policy=capability version=1 digest=\"" + testPolicyDigest + "\" key_kind=\"repo\" roots= capacity=\"bounded\" limit=2 on_capacity=\"reject\"\n" +
+				"machine state=present name=\"here\" fingerprint=\"" + meFP + "\"\n" +
+				"dangling_claim=\"repo#000002\" status=\"blocked\" worktree=\"/gone\" repo_identity=\"/repo/.git\"\n",
 		},
 	}
 
@@ -280,3 +292,16 @@ func TestRenderDiagnosticOrderingUsesFieldTuple(t *testing.T) {
 }
 
 func stringRef(value string) *string { return &value }
+
+// claimsInventory places one claim on row, one dangling, under a partial read.
+func claimsInventory(row TreeRow) Inventory {
+	row.Locked, row.Prunable, row.Issues = nil, nil, []IssueAssociation{}
+	rows, dangling := PlaceClaims([]TreeRow{row}, map[string]RepoClaims{row.RepoIdentity: {
+		State: ClaimsPartial, Error: unreadableError([]string{"repo#000009"}), Unreadable: []string{"repo#000009"},
+		Cards: []ClaimCard{
+			{Ref: "repo#000001", Status: "working", Revision: "r1", Claimant: claimantOn(meFP, row.TreePath)},
+			{Ref: "repo#000002", Status: "blocked", Revision: "r2", Claimant: claimantOn(meFP, "/gone")},
+		},
+	}}, me)
+	return Inventory{Rows: rows, Machine: me, DanglingClaims: dangling}
+}

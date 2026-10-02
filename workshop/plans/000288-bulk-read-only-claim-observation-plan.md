@@ -272,3 +272,14 @@ inventory, `atlas/workflow/issue-tracker.md` (quarantine semantics),
   refuses; `overlayCardStatus` fails closed rather than showing "unreadable";
   transferguard names every unreadable card. Each reader branch is now
   exercised by `TestOneMalformedCardDoesNotBlockOthers`.
+- 2026-10-02 — M2 boundary, Core-concepts table checked against the tree: every
+  row exists at its path. Added during implementation, not in the table:
+  `Records.Require` (`internal/tracker/records.go`, the M1 review's structural
+  fix), `Machine` / `Claimant` / `ClaimCard` / `MachineFrom`
+  (`internal/fleet/claims.go`), `RepoClaimsLookup` / `MachineSource` /
+  `collectClaims` (`internal/fleet/inventory.go`), `repoClaimsFrom`
+  (`internal/fleet/issues.go`) and `fleetMachine` (`cmd/sdlc/fleet.go`). A row
+  or inventory built without claims marshals as `unknown` ("not collected"),
+  never `present`, so existing literal-built rows keep working honestly. The
+  stale case is its own test (`TestFleetInventoryStaleClaimsSaySo`) because
+  fleet's records cache lives for the process.
