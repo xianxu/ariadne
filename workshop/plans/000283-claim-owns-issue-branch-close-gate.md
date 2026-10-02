@@ -70,6 +70,16 @@ rounds:
           round: 2
       recipe: milestone-review
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-02T13:23:22-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: startdecision.go:28 admits only the start edge's From/To; the TestStartDecision table now expects refusal for blocked/codecomplete owned cells, which the old CanHoldOwner gate admitted, so a revert goes red. Remaining CanHoldOwner callers are the ownership verbs (claim/reclaim), correctly on the ownership axis.
+          round: 3
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#283 (boundary-review)
@@ -105,6 +115,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Minor] `verb-admission-axis` start-plan admits held blocked/codecomplete cards via CanHoldOwner, widening the old working-only gate
   startDecision (startdecision.go:24) gates on the ownership axis, so an owned codecomplete card now gets a fresh issue branch from main (possibly a retired name). A lifecycle verb's admission set should derive from the lifecycle axis; refuse codecomplete or record the widening as intended.
 
+## Round 3 — 2026-10-02T13:23:22-07:00 (claude) — passed
+
+### Disposed
+
+- BR-6 — addressed — startdecision.go:28 admits only the start edge's From/To; the TestStartDecision table now expects refusal for blocked/codecomplete owned cells, which the old CanHoldOwner gate admitted, so a revert goes red. Remaining CanHoldOwner callers are the ownership verbs (claim/reclaim), correctly on the ownership axis.
+
 ## Open findings
 
-- **BR-6** [Minor] `verb-admission-axis` start-plan admits held blocked/codecomplete cards via CanHoldOwner, widening the old working-only gate
+(none — every finding has been disposed)

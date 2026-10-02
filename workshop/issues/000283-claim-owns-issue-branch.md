@@ -134,6 +134,7 @@ The design buffer is +15% because a thorough plan doc exists.
 ## Log
 
 ### 2026-10-02
+- 2026-10-02: closed — make test green (898 cmd/sdlc tests + 19 pkgs; processgroup /bin/ps test sandbox-only, passes unsandboxed); round-2 Minor fixed: start-plan admits only the start edge source/target (open, working), asserted over the model status x owner product in TestStartDecision; earlier evidence stands: owned guard on start, TestShapeUnderClaimThenStart e2e, TestClaimNeverMovesStatus, make vocab-embed clean; review verdict: SHIP
 - 2026-10-02: closed — make test green after the minor fixes (898 cmd/sdlc tests + 19 pkgs; processgroup /bin/ps test is sandbox-only and passes unsandboxed); owned guard on start enforced in set-status with tests (unowned refuses, --force waives, held starts); swept every test calling set-status working; prior evidence: TestShapeUnderClaimThenStart e2e, TestClaimNeverMovesStatus and TestStartDecision over the model status x owner product, make vocab-embed clean; review verdict: SHIP
 - 2026-10-02: closed — make test green (898 cmd/sdlc tests + 19 pkgs; processgroup ps test sandbox-only, passes unsandboxed); make vocab-embed clean; TestShapeUnderClaimThenStart e2e: claim leaves card open+owner, shaping edit carried, start-plan starts card keeping stamp, rerun no-op; TestClaimNeverMovesStatus + TestStartDecision over the model status x owner product; review verdict: SHIP
 

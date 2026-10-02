@@ -188,3 +188,61 @@ findings:
     detail: |
       startDecision (startdecision.go:24) gates on the ownership axis, so an owned codecomplete card now gets a fresh issue branch from main (possibly a retired name). A lifecycle verb's admission set should derive from the lifecycle axis; refuse codecomplete or record the widening as intended.
 ```
+
+---
+
+## Re-review — 2026-10-02T13:23:21-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 283 — Re-derive ownership from the claimant |
+| repo | ariadne |
+| issue file | workshop/issues/000283-claim-owns-issue-branch.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3b7315b7fde5083f036e377d41e8053193e52ef3..d8f753db416fd51ff18829024e0e776b7df057e4 |
+| command | sdlc close --issue 283 |
+| reviewer | claude |
+| timestamp | 2026-10-02T13:23:21-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** BR-6, the only open finding, is fixed. `start-plan` now decides which statuses it accepts from the `start` edge of the lifecycle model, not from the ownership model. That edge is defined in `construct/vocabulary/issue.cue:168` and leads from `open` to `working`. So `startDecision` only accepts a card that is `open` (to start it) or `working` (already started). A held `blocked` or `codecomplete` card is now refused. Before this fix, such a card could get a new issue branch from main.
+
+I checked this rather than relying on the commit message:
+- **The test would catch a revert.** Under the old `CanHoldOwner` gate, a `blocked` or `codecomplete` card owned by "me" passed. The code then found no `start` edge from that status and returned the card unchanged, with no error. The updated table test expects "nothing to plan" for those cells, so going back to the old code fails it.
+- **The test passes:** `go test -run TestStartDecision` passes on HEAD.
+
+I also looked for other commands with the same mistake (the `verb-admission-axis` family). Only `claimdecision.go` and `reclaim.go` still gate on `CanHoldOwner`. Those are `claim` and `reclaim`, which take or transfer ownership, and the model's ownership table lists exactly those statuses for them (`issue.cue:216-218`). Gating them on ownership is correct, so there is nothing left to fix.
+
+**Strengths**
+- `cmd/sdlc/startdecision.go:28`: the accepted statuses come from the model's `start` edge (`FirstTransitionForEvent("start")`), not a hard-coded list, so they will change if the model changes.
+- `startdecision_test.go:32`: the test works out what to expect from the model and covers every status × owner combination.
+- The help text was updated in the same commit (`start-plan.md`).
+
+**Critical findings:** none.
+
+**Important findings:** none.
+
+**Minor findings**
+- `startdecision_test.go:13`: the doc-comment line is longer than the lines around it. Cosmetic only, so I didn't raise it as a finding.
+
+**Test coverage notes:** the status × owner table now covers the refused statuses (`blocked`, `codecomplete`, terminal), whoever owns the card.
+
+**Architectural notes:** there is a general rule here. A command that moves a card through its lifecycle should decide which statuses it accepts from its lifecycle edges. A command that changes who holds a card should decide from the ownership table. `start-plan` now follows that rule.
+
+**Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      startdecision.go:28 admits only the start edge's From/To; the TestStartDecision table now expects refusal for blocked/codecomplete owned cells, which the old CanHoldOwner gate admitted, so a revert goes red. Remaining CanHoldOwner callers are the ownership verbs (claim/reclaim), correctly on the ownership axis.
+```
