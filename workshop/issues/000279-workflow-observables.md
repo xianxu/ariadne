@@ -201,3 +201,19 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     which shares `milestonePlanRE` (the regex now captures the box). It is
     added to `planItemMatchers` and exempted like `MilestonesInPlanOrder`.
   - `assembleCheckpoints` filters the plan once through `PlanItemsBody`.
+- M2 review round 1: five Important findings, most of them repeat families
+  ("fix rules, not instances"):
+  - BR-7: read failures dropped to zero values (details parse or show, flow,
+    workspace.Resolve).
+  - BR-8: enums still unchecked (boundary, verdict, flow). The BR-5 Log line
+    overstated what was done.
+  - BR-9: the M1-milestone lifecycle test and the trailer cross-check were
+    dropped without a Revisions entry.
+  - BR-10: evidence paths came from env defaults instead of the given issues
+    dir or the authority.
+  - BR-11: artifact names were restated instead of using
+    `planGateSuffix` / `boundaryGateSuffix` / `sidecarPath` /
+    `reviewMilestoneRe`.
+  - Minors: Resolve bypassed the counted seam; sidecar rows used the last
+    match; the `--repo` test wasn't across two tracker repositories.
+  - Fixing each as a rule across the whole collector.

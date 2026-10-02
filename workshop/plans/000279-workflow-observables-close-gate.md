@@ -74,6 +74,58 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-02T00:37:25-07:00"
+      agent: claude
+      findings:
+        - id: BR-7
+          severity: Important
+          title: A details parse or read failure at the evidence location yields checkpoints present with plan 0/0 and hides unknown milestones
+          detail: 'This is the 2nd finding in this family. In assembleCheckpoints, failures from issue.Parse, flow.FromFrontmatter and PlanItemsBody, and nil Details, are all dropped while the read stays Present. The ticked-milestone set then comes out empty, so a closed milestone with no artifact is omitted instead of reported unknown. collectEvidence also merges a git show failure on the details into "not found". Rule: a read-fed value never falls back to its zero value on failure; it carries its own read quality or degrades the section to unknown with the error. Sweep Parse, FromFrontmatter, PlanItemsBody, the details derr, and workspace.Resolve.'
+          family: silent-error-swallow
+          round: 3
+        - id: BR-8
+          severity: Important
+          title: Validate leaves review boundary, verdict, and flow kind and provenance unchecked against their sets
+          detail: 'This is the 2nd finding in this family; the BR-5 Log claim overstates what was done. boundary is only checked for non-empty, verdict passes sidecar text straight through, and flow is not checked. Rule: every enum-typed contract field is validated against a set derived from its authority, through one table: vocab verdict tokens, flow kinds and provenances, and plan, close or Mx for boundaries. Add a rejection row per field; collector side, a verdict outside the set is unknown with an error.'
+          family: contract-enum-validation
+          round: 3
+        - id: BR-9
+          severity: Important
+          title: The M1-milestone lifecycle case and the Review-Verdict trailer cross-check were dropped with no Revisions entry; the milestone path is untested
+          detail: 'This is the 2nd finding in this family. No real-git test runs milestone-close, so these collector paths have zero fixtures: the m-x review filename parse, the per-milestone FilterBoundary and openScopeFor scoping, and the plan-gate ledger read. The trailer cross-check is not implemented and not withdrawn. Rule: every bullet a boundary claims maps to a named test or a Revisions entry; enumerate the M2 bullets before milestone-close.'
+          family: plan-deliverable-dropped
+          round: 3
+        - id: BR-10
+          severity: Important
+          title: collectEvidence reads the details from the WF_ISSUES_DIR env default, not the record DetailPath or the given --issues-dir
+          detail: 'This is the 2nd finding in this family. collectEvidence never receives issuesDir, so a non-default --issues-dir finds no details at the ref; with the silent-error-swallow finding, the output is present with plan 0/0. Rule (same as the M1 lesson): every path the collector reads derives from the given inputs or the authority''s record, never ambient cwd or env. Apply it to the plans and history roots too.'
+          family: repo-root-from-wrong-anchor
+          round: 3
+        - id: BR-11
+          severity: Important
+          title: The collector hard-codes sidecar and ledger file names and parses milestones by hand instead of using the existing single sources
+          detail: It hard-codes the plan-gate, close-gate and close-review suffixes, and classifies milestones with a HasPrefix "m" test. The single sources are planGateSuffix, boundaryGateSuffix, sidecarPath and sidecarPathFor (reviewsidecar.go), and reviewMilestoneRe and classifyFamily (resolve.go). The prefix test over-matches any stem-m*-review file, and a writer rename would silently empty the reviews list (ARCH-DRY).
+          family: artifact-layout-restated
+          round: 3
+        - id: BR-12
+          severity: Minor
+          title: workspace.Resolve goes around the counted observeGit seam, so the 20-command bound test undercounts
+          family: operating-envelope-unmeasured
+          round: 3
+        - id: BR-13
+          severity: Minor
+          title: sidecarRows keeps the last row match, so a verdict row inside a review body can override the metadata table
+          family: artifact-layout-restated
+          round: 3
+        - id: BR-14
+          severity: Minor
+          title: The --repo test queries from a non-repo temp dir, not from a second tracker repository as the plan states
+          family: plan-deliverable-dropped
+          round: 3
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#279 (boundary-review)
@@ -106,8 +158,34 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-5 — not-addressed — relation and claimant_worktree are now checked, but there is no rejection test, and Authority on every section, plus the fixed authority per section, is still unvalidated. Rule: every enum-typed contract field validates itself, with one table test covering all of them.
 - BR-6 — not-addressed — Still present by design until M2, and now also baked into the v1 golden fixture; M2 must update both.
 
+## Round 3 — 2026-10-02T00:37:25-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-7** [Important] `silent-error-swallow` A details parse or read failure at the evidence location yields checkpoints present with plan 0/0 and hides unknown milestones
+  This is the 2nd finding in this family. In assembleCheckpoints, failures from issue.Parse, flow.FromFrontmatter and PlanItemsBody, and nil Details, are all dropped while the read stays Present. The ticked-milestone set then comes out empty, so a closed milestone with no artifact is omitted instead of reported unknown. collectEvidence also merges a git show failure on the details into "not found". Rule: a read-fed value never falls back to its zero value on failure; it carries its own read quality or degrades the section to unknown with the error. Sweep Parse, FromFrontmatter, PlanItemsBody, the details derr, and workspace.Resolve.
+- **BR-8** [Important] `contract-enum-validation` Validate leaves review boundary, verdict, and flow kind and provenance unchecked against their sets
+  This is the 2nd finding in this family; the BR-5 Log claim overstates what was done. boundary is only checked for non-empty, verdict passes sidecar text straight through, and flow is not checked. Rule: every enum-typed contract field is validated against a set derived from its authority, through one table: vocab verdict tokens, flow kinds and provenances, and plan, close or Mx for boundaries. Add a rejection row per field; collector side, a verdict outside the set is unknown with an error.
+- **BR-9** [Important] `plan-deliverable-dropped` The M1-milestone lifecycle case and the Review-Verdict trailer cross-check were dropped with no Revisions entry; the milestone path is untested
+  This is the 2nd finding in this family. No real-git test runs milestone-close, so these collector paths have zero fixtures: the m-x review filename parse, the per-milestone FilterBoundary and openScopeFor scoping, and the plan-gate ledger read. The trailer cross-check is not implemented and not withdrawn. Rule: every bullet a boundary claims maps to a named test or a Revisions entry; enumerate the M2 bullets before milestone-close.
+- **BR-10** [Important] `repo-root-from-wrong-anchor` collectEvidence reads the details from the WF_ISSUES_DIR env default, not the record DetailPath or the given --issues-dir
+  This is the 2nd finding in this family. collectEvidence never receives issuesDir, so a non-default --issues-dir finds no details at the ref; with the silent-error-swallow finding, the output is present with plan 0/0. Rule (same as the M1 lesson): every path the collector reads derives from the given inputs or the authority's record, never ambient cwd or env. Apply it to the plans and history roots too.
+- **BR-11** [Important] `artifact-layout-restated` The collector hard-codes sidecar and ledger file names and parses milestones by hand instead of using the existing single sources
+  It hard-codes the plan-gate, close-gate and close-review suffixes, and classifies milestones with a HasPrefix "m" test. The single sources are planGateSuffix, boundaryGateSuffix, sidecarPath and sidecarPathFor (reviewsidecar.go), and reviewMilestoneRe and classifyFamily (resolve.go). The prefix test over-matches any stem-m*-review file, and a writer rename would silently empty the reviews list (ARCH-DRY).
+- **BR-12** [Minor] `operating-envelope-unmeasured` workspace.Resolve goes around the counted observeGit seam, so the 20-command bound test undercounts
+- **BR-13** [Minor] `artifact-layout-restated` sidecarRows keeps the last row match, so a verdict row inside a review body can override the metadata table
+- **BR-14** [Minor] `plan-deliverable-dropped` The --repo test queries from a non-repo temp dir, not from a second tracker repository as the plan states
+
 ## Open findings
 
 - **BR-4** [Minor] `silent-error-swallow` rev-parse failure on the tracker ref is dropped, leaving tracker present with an empty ref
 - **BR-5** [Minor] `contract-enum-validation` Validate checks landing.outcome against its enum but not assignment.relation or claimant_worktree
 - **BR-6** [Minor] `state-semantics-overload` M2 sections are emitted as unknown ("not observed by this build"), overloading the read-failed meaning; remove in M2
+- **BR-7** [Important] `silent-error-swallow` A details parse or read failure at the evidence location yields checkpoints present with plan 0/0 and hides unknown milestones
+- **BR-8** [Important] `contract-enum-validation` Validate leaves review boundary, verdict, and flow kind and provenance unchecked against their sets
+- **BR-9** [Important] `plan-deliverable-dropped` The M1-milestone lifecycle case and the Review-Verdict trailer cross-check were dropped with no Revisions entry; the milestone path is untested
+- **BR-10** [Important] `repo-root-from-wrong-anchor` collectEvidence reads the details from the WF_ISSUES_DIR env default, not the record DetailPath or the given --issues-dir
+- **BR-11** [Important] `artifact-layout-restated` The collector hard-codes sidecar and ledger file names and parses milestones by hand instead of using the existing single sources
+- **BR-12** [Minor] `operating-envelope-unmeasured` workspace.Resolve goes around the counted observeGit seam, so the 20-command bound test undercounts
+- **BR-13** [Minor] `artifact-layout-restated` sidecarRows keeps the last row match, so a verdict row inside a review body can override the metadata table
+- **BR-14** [Minor] `plan-deliverable-dropped` The --repo test queries from a non-repo temp dir, not from a second tracker repository as the plan states
