@@ -126,3 +126,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
 - change-code plan-quality round 1: three Important findings (landed review evidence source, ledger semantics, state vs outcome) and two Minor. All folded into the plan (see its Revisions).
 - Plan-quality cleared (round 2). Estimate: 3.31h (v3.1).
 - change-code passed (estimate-quality: reasonable). Starting M1: the `internal/observe` contract.
+- M1 step: `internal/observe` is in (types, strict JSON with duplicate-key rejection, `Assemble` for tracker, card, assignment, completion and landing). Scenario table plus round trip and rejection cases. `FuzzAssemble` ran about 700k execs with no invariant break.
