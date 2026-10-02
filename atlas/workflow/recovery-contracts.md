@@ -50,5 +50,5 @@ publish details to main directly. Every generated surface renders
     delivered twice.
   - A coordinator in another checkout checks each expectation with
     `recovery.Lookup`.
-  - The only additions to the documented commands are the harness flags
-    standing in for model judges and estimates.
+  - The only additions to the documented commands are fixture switches:
+    no judges or estimate, a given actual, no separate worktree, no atlas.

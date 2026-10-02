@@ -39,8 +39,8 @@
 |------|----------|--------|
 | `recovery.Contract`, `Class`, `Proof` | `cmd/sdlc/internal/recovery/contracts.go` | new |
 | `recovery.Catalog` (the per-verb entries) | `cmd/sdlc/internal/recovery/catalog.go` | new |
-| `recovery.Section(verb)`, `recovery.Page()`, `recovery.JSON()` | `cmd/sdlc/internal/recovery/render.go` | new |
-| `recovery.Example` (the scheduling example's steps) | `cmd/sdlc/internal/recovery/example.go` | new |
+| `recovery.Section(verb)`, `Scope`, `Validate`, `For`, `wrap` | `cmd/sdlc/internal/recovery/contracts.go` | new |
+| `recovery.Example`, `Step`, `Expect`, `Actor`, `Lookup`, `ScopeText`, `ClassesText`, `Table`, `ExampleText` | `cmd/sdlc/internal/recovery/page.go` | new |
 
 - **Contract** fields: `Verb`, `Class`, `Effects`, `Evidence`, `Preconditions`, `Repeat`, `LostResponse`, `Ends`, and `Proofs []Proof{Claim, Tests []string}`.
   - A claim with no test renders as **unproven**. That covers the issue's "unproven guarantees are explicitly unknown".
@@ -56,8 +56,8 @@
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `{{RECOVERY}}` placeholder | `cmd/sdlc/main.go renderLong` | modified | `recovery.Section(name)` |
-| `sdlc help recovery` (a help topic) | `cmd/sdlc/recoverycmd.go`, `helptext/recovery.md` | new | the registry |
+| `attachRecoveryContracts` (appends each contracted verb's section) | `cmd/sdlc/main.go buildRoot` | modified | `recovery.Section(verb)` |
+| `sdlc help recovery` (a help topic; `{{RECOVERY_SCOPE/CLASSES/TABLE/EXAMPLE}}`) | `cmd/sdlc/main.go` (inline topic in `buildRoot`, placeholders in `renderLong`), `helptext/recovery.md` | new | the registry |
 | `cardPublish` (one publication seam for single-card CAS verbs) | `cmd/sdlc/cardpublish.go` | new | `tracker.Repository.UpdateCardWithTrailers` |
 | uncertain-publication guidance | `cmd/sdlc/claim.go`, `cardsetters.go` (set-status) | modified | `gitx.ErrPublicationUncertain` |
 
@@ -154,4 +154,22 @@ The registry is static data: it creates nothing durable, and adds no runtime sta
   - **Minors:** the stale `{{RECOVERY}}` doc was fixed; the caller guard now
     scans every package-level initializer and requires `reclaimEffect`; the
     gitx lost-ack test is now cited under claim.
+
+- 2026-10-02 — M2 review round 1 (FIX-THEN-SHIP).
+  - **BR-8 (plan-table drift, second instance):** I swept every Core-concepts
+    row against the tree and rewrote the tables to match current reality.
+    - `render.go`, `Page()`, `example.go` and `recoverycmd.go` do not exist.
+    - The page rendering and `Example` live in `page.go`.
+    - The topic is an inline cobra command in `buildRoot`, with its
+      placeholders in `renderLong`.
+    - `{{RECOVERY}}` became `attachRecoveryContracts` (the M1 revision).
+    - Earlier rows in this section that name the superseded files are
+      historical.
+  - **Minors:**
+    - The harness-flag description now matches its set.
+    - The duplicate-delivery class lookup resolves the longest verb prefix.
+    - The offline tracker is restored right after its step.
+    - An unknown actor fails the test.
+    - `sdlc issue recovery --help` links to `sdlc help recovery`.
+    - The 30 s revisit heuristic moved into AGENT GUIDANCE.
 

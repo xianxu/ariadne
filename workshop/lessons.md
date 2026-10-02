@@ -292,3 +292,9 @@ The simplest durable authority beats a clever scan of consequences.
   #272's first start-plan guard refused a parent once it advanced past its
   child's fork, and #274's handoff guard refuses owner edits made off the
   owner's branch.
+- **A Revisions entry for one changed row leaves the others stale.** When
+  implementation diverges from a plan's Core-concepts table, check every row
+  against the tree (does the path exist, does the symbol exist) at each
+  boundary. Rewrite the table to current reality in one Revisions entry
+  rather than patching the row a reviewer named. #280 drifted twice: M1
+  revised one row, and M2's review found four more absent files.

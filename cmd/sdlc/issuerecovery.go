@@ -21,8 +21,12 @@ func newIssueRecoveryCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "recovery",
 		Short: "List or resume interrupted tracker operations in this checkout",
-		Args:  cobra.NoArgs,
-		RunE:  func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
+		Long: `List or resume interrupted tracker operations in this checkout.
+
+Which verbs recover through here, and what every workflow verb does when it is
+repeated, interrupted or answered by a lost response: ` + "`sdlc help recovery`" + ` (#280).`,
+		Args: cobra.NoArgs,
+		RunE: func(cmd *cobra.Command, _ []string) error { return cmd.Help() },
 	}
 	cmd.AddCommand(&cobra.Command{
 		Use:   "list",

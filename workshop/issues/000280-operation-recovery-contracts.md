@@ -176,3 +176,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     field.
   - Docs: README, plus the atlas page (topic and example).
 
+- M2 review round 1: FIX-THEN-SHIP. BR-8 (the plan tables were rewritten to current reality after a full row sweep, and a lesson was added) and five Minors are fixed: the harness-flag description, longest-prefix class lookup, the immediate tracker restore, the unknown-actor default, the `issue recovery --help` link, and the 30 s guidance.

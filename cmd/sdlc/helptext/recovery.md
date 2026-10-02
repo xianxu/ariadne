@@ -27,6 +27,8 @@ AGENT GUIDANCE
     `sdlc issue recovery reconcile --issue N`; `sdlc issue recovery list`
     shows unfinished receipts).
   - stale or unknown observations are not negative evidence. Look again.
+  - A request with no visible effect yet: look again after about 30 s before
+    concluding it was lost; resend only to a convergent-retry verb.
   - Activity (a busy slot) is not progress; checkpoints are.
 
 VERBS

@@ -80,6 +80,49 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-02T11:21:18-07:00"
+      agent: claude
+      findings:
+        - id: BR-8
+          severity: Important
+          title: Core-concepts table still names Page()/render.go, example.go and recoverycmd.go; M2 built page.go + helptext placeholders + inline buildRoot topic
+          detail: '2nd finding in plan-table-drift. Rule covering all instances: each boundary sweeps every Core-concepts row against the tree (path and symbol exist) and records all divergences in one Revisions entry, or rewrites the table to current reality. Rows wrong now: Page() and render.go (absent), Example in example.go (page.go), recoverycmd.go (absent; main.go:166); Lookup/Step/Expect/Actor unlisted.'
+          family: plan-table-drift
+          round: 3
+        - id: BR-9
+          severity: Minor
+          title: Harness-flag comment and atlas claim the flags only stand in for judges and estimates, but --worktree=no and --no-atlas are neither
+          detail: 'recovery_example_test.go:19-20 and atlas/workflow/recovery-contracts.md:52-53. Rule: a comment describing a set must match the set it describes.'
+          family: stale-doc-comment
+          round: 3
+        - id: BR-10
+          severity: Minor
+          title: Duplicate-delivery class lookup uses recovery.For(args[0]), so a multi-word verb step (issue sync) would silently be delivered once
+          detail: recovery_example_test.go:80. Resolve the longest verb prefix against Contract.Verbs, the same identity the registry uses.
+          family: caller-guard-gaps
+          round: 3
+        - id: BR-11
+          severity: Minor
+          title: TrackerUnreachable restores the origin only at t.Cleanup; any step appended after it runs with no tracker
+          detail: recovery_example_test.go:92-97; restore immediately after that step's observation.
+          family: example-step-ordering
+          round: 3
+        - id: BR-12
+          severity: Minor
+          title: Plan's two-way cross-link and the general 30 s revisit heuristic are only partly delivered
+          detail: sdlc issue recovery --help (parent) does not point to sdlc help recovery (reconcile does). The 30 s heuristic appears only in example step 3, not in AGENT GUIDANCE.
+          family: plan-claim-partially-delivered
+          round: 3
+        - id: BR-13
+          severity: Minor
+          title: Example actor switch has no default; a step with an unknown Actor is silently skipped
+          detail: recovery_example_test.go:69; add a default t.Fatalf.
+          family: caller-guard-gaps
+          round: 3
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#280 (boundary-review)
@@ -116,6 +159,29 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `contract-scope-unstated` atlas/workflow/recovery-contracts.md presents the contracts as the rulebook without their issue-tracker-only scope
   Repeat of the family. Rule: every surface describing the contracts states the scope; generated surfaces (help sections, M2 Page) render recovery.Scope, and the hand-written atlas page carries one scope line. Fix the class in M2 by rendering Scope in Page() and adding the line to the atlas.
 
+## Round 3 — 2026-10-02T11:21:18-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-8** [Important] `plan-table-drift` Core-concepts table still names Page()/render.go, example.go and recoverycmd.go; M2 built page.go + helptext placeholders + inline buildRoot topic
+  2nd finding in plan-table-drift. Rule covering all instances: each boundary sweeps every Core-concepts row against the tree (path and symbol exist) and records all divergences in one Revisions entry, or rewrites the table to current reality. Rows wrong now: Page() and render.go (absent), Example in example.go (page.go), recoverycmd.go (absent; main.go:166); Lookup/Step/Expect/Actor unlisted.
+- **BR-9** [Minor] `stale-doc-comment` Harness-flag comment and atlas claim the flags only stand in for judges and estimates, but --worktree=no and --no-atlas are neither
+  recovery_example_test.go:19-20 and atlas/workflow/recovery-contracts.md:52-53. Rule: a comment describing a set must match the set it describes.
+- **BR-10** [Minor] `caller-guard-gaps` Duplicate-delivery class lookup uses recovery.For(args[0]), so a multi-word verb step (issue sync) would silently be delivered once
+  recovery_example_test.go:80. Resolve the longest verb prefix against Contract.Verbs, the same identity the registry uses.
+- **BR-11** [Minor] `example-step-ordering` TrackerUnreachable restores the origin only at t.Cleanup; any step appended after it runs with no tracker
+  recovery_example_test.go:92-97; restore immediately after that step's observation.
+- **BR-12** [Minor] `plan-claim-partially-delivered` Plan's two-way cross-link and the general 30 s revisit heuristic are only partly delivered
+  sdlc issue recovery --help (parent) does not point to sdlc help recovery (reconcile does). The 30 s heuristic appears only in example step 3, not in AGENT GUIDANCE.
+- **BR-13** [Minor] `caller-guard-gaps` Example actor switch has no default; a step with an unknown Actor is silently skipped
+  recovery_example_test.go:69; add a default t.Fatalf.
+
 ## Open findings
 
 - **BR-7** [Minor] `contract-scope-unstated` atlas/workflow/recovery-contracts.md presents the contracts as the rulebook without their issue-tracker-only scope
+- **BR-8** [Important] `plan-table-drift` Core-concepts table still names Page()/render.go, example.go and recoverycmd.go; M2 built page.go + helptext placeholders + inline buildRoot topic
+- **BR-9** [Minor] `stale-doc-comment` Harness-flag comment and atlas claim the flags only stand in for judges and estimates, but --worktree=no and --no-atlas are neither
+- **BR-10** [Minor] `caller-guard-gaps` Duplicate-delivery class lookup uses recovery.For(args[0]), so a multi-word verb step (issue sync) would silently be delivered once
+- **BR-11** [Minor] `example-step-ordering` TrackerUnreachable restores the origin only at t.Cleanup; any step appended after it runs with no tracker
+- **BR-12** [Minor] `plan-claim-partially-delivered` Plan's two-way cross-link and the general 30 s revisit heuristic are only partly delivered
+- **BR-13** [Minor] `caller-guard-gaps` Example actor switch has no default; a step with an unknown Actor is silently skipped

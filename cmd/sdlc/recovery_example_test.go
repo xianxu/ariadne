@@ -16,8 +16,11 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
-// exampleHarnessFlags stand in for what a test cannot run: the model judges and
-// the estimate. They are the only additions to the documented commands.
+// exampleHarnessFlags are the only additions to the documented commands:
+// switches for what a disposable fixture cannot do or does not have — the model
+// judges and the estimate (--no-judge, --no-estimate, --no-estimate-recon),
+// a measured actual (--actual), a separate worktree (--worktree=no) and an
+// atlas (--no-atlas).
 var exampleHarnessFlags = map[string][]string{
 	"change-code": {"--worktree=no", "--no-judge", "--no-estimate", "--no-estimate-recon"},
 	"close":       {"--actual", "1", "--no-atlas"},
@@ -77,7 +80,7 @@ func TestSchedulingExampleRuns(t *testing.T) {
 		case step.Actor == recovery.Recipient:
 			args := exampleArgs(t, step.Command, n)
 			deliveries := 1
-			if c, ok := recovery.For(args[0]); ok && c.Class == recovery.ConvergentRetry {
+			if c, ok := contractFor(args); ok && c.Class == recovery.ConvergentRetry {
 				deliveries = 2
 			}
 			for d := 0; d < deliveries; d++ {
@@ -97,11 +100,18 @@ func TestSchedulingExampleRuns(t *testing.T) {
 				t.Cleanup(func() { _ = os.Rename(r.origin+".gone", r.origin) })
 			}
 			doc := observeJSON()
+			if step.TrackerUnreachable { // restored at once: a later step has a tracker
+				if err := os.Rename(r.origin+".gone", r.origin); err != nil {
+					t.Fatal(err)
+				}
+			}
 			for _, e := range step.Expect {
 				if got, ok := recovery.Lookup(doc, e.Path); !ok || got != e.Equals {
 					t.Errorf("%s: %s = %q (resolved %v), want %q", label, e.Path, got, ok, e.Equals)
 				}
 			}
+		default:
+			t.Fatalf("%s: unknown actor", label)
 		}
 	}
 }
@@ -122,4 +132,15 @@ func exampleArgs(t *testing.T, command string, n int) []string {
 		}
 	}
 	return append(args, exampleHarnessFlags[args[0]]...)
+}
+
+// contractFor resolves a command's contract by its longest verb prefix
+// ("issue sync --issue 4" → "issue sync"), the identity the registry uses.
+func contractFor(args []string) (recovery.Contract, bool) {
+	for n := len(args); n > 0; n-- {
+		if c, ok := recovery.For(strings.Join(args[:n], " ")); ok {
+			return c, true
+		}
+	}
+	return recovery.Contract{}, false
 }
