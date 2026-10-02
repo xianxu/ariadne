@@ -5,7 +5,7 @@
 **Goal:** `sdlc fleet inventory` reports one row per local slot: its address,
 its member checkouts (the host plus the substrate clones weave declares for
 it) and one readiness verdict (ready / holds-work / needs-recovery / missing /
-unknown), with the paths behind a needs-recovery verdict.
+unknown), with the reasons behind each member's verdict (no file lists).
 
 **Architecture:** Two milestones, both local (no new network reads).
 **M1** gives each checkout the one readiness fact inventory lacks — an active
@@ -145,10 +145,9 @@ section; registers the recovery proof; updates help and atlas.
   (their tests stay green).
 - [ ] **Facts.** `CollectFacts` records `Operation` / `OperationError` with no
   added git process (fake-git command log unchanged); row JSON unchanged.
-- [ ] **Verdict.** `TestJudgeCheckout`: one table over {probe ok, facts
-  unavailable, base unavailable, operation probe failed} × {clean, dirty,
-  operation, detached} × {resting, merged branch, unlanded commits,
-  zero-commit open-issue branch, closed-issue branch} × {claimed, not}.
+- [ ] **Verdict.** `TestJudgeCheckout`: one table over the cross product of
+  probe outcome, working-tree state, branch state and claim, asserting verdict
+  and reason codes against the precedence in Decisions.
 - [ ] `sdlc milestone-close --issue 289 --milestone M1`.
 
 ## Chunk 2 — M2: slots in inventory
@@ -164,13 +163,12 @@ section; registers the recovery proof; updates help and atlas.
   `:0` host-only); contract round trip + one rejection per invariant
   (version, unknown verdict, slot verdict ≠ worst member, reason-less
   non-ready member); render snapshot.
-- [ ] **Wiring.** Dependency clones collected as rows; tracker aliasing;
-  integration test `TestFleetInventorySlotReadiness` on a real fleet fixture
-  (`<fleet>/{prod,dep}` + `worktree/prod-slotN/{prod,dep}`, prod declaring
-  `substrate ../dep`), one slot per verdict cause, each needs-recovery cause
-  once in the host and once in the clone; a dirty undeclared sibling does not
-  change the verdict; a claim made in a dependency clone is placed, not
-  dangling; a clone of a fleet repository adds no tracker read (counted).
+- [ ] **Wiring.** Dependency clones collected as rows; tracker aliasing.
+  `TestFleetInventorySlotReadiness`: a real fleet fixture (`prod` declaring
+  `substrate ../dep`, one numbered slot per verdict cause, causes placed in
+  host and clone), asserting each slot's verdict, that an undeclared sibling
+  never counts, that a clone's claim is placed, and that a clone adds no
+  tracker read.
 - [ ] **Recovery, help, atlas.** Extend the `fleet inventory` entry's proofs;
   help (verdicts, observation-not-reservation); atlas (`sdlc-binary.md`).
 - [ ] `make test`; measure inventory time before/after (target: ≤ +1s here);

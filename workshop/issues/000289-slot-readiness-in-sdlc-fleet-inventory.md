@@ -5,8 +5,8 @@ deps: [ariadne#288]
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
-estimate_hours:
-card_mirror: 'e0b0f6d300080f1b3e621777ceec65a1f428bccd' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 2.25
+card_mirror: 'cdc06113c8ba04aca2697e19d8f78414bba5d7e8' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-02T14:54:16-07:00
 claimant:
     operator: Xian Xu
@@ -70,6 +70,31 @@ then `weave refresh`) must re-check it at action time.
 - Membership comes from weave's declared dependencies, tested against a slot
   with an undeclared sibling directory.
 - The command's recovery entry states read-only, with its proof.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module        design=0.1  impl=0.16
+item: greenfield-go-module     design=0.15 impl=0.24
+item: greenfield-go-module     design=0.2  impl=0.28
+item: smaller-go-module        design=0.1  impl=0.2
+item: atlas-docs               design=0.05 impl=0.05
+item: milestone-review         design=0.0  impl=0.14
+item: milestone-review         design=0.0  impl=0.14
+item: scope-pivot              design=0.3  impl=0.0
+design-buffer: 0.15
+total: 2.25
+```
+
+M1: shared operation detector + facts (smaller), `JudgeCheckout` (greenfield,
+settled by the plan). M2: membership + slot discovery + assembly + contract
+(greenfield), dependency-clone rows + tracker aliasing + real-git fixtures
+(smaller). The scope pivot (reasons not paths; the #290 detour's redesign) is
+design already spent after the claim.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 

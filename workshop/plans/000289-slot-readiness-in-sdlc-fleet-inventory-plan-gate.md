@@ -41,6 +41,43 @@ rounds:
           family: single-source-vocab
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-02T16:23:43-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Dependency clones are collected as rows via collectInventoryRepo; member-not-a-row now means collection failed, so unknown is correct.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Decisions state the landing and move-detail behavior change and that all markers use lstat; matches issuemovedetail.go:71 and landing.go:126.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: environment.go:43 always sets Policy, so the scoped branch at acquire.go:87,152 applies to weave slots.
+          round: 2
+        - id: PQ-4
+          disposition: not-addressed
+          note: The M1 Verdict and M2 Wiring bullets still enumerate case cross-products in prose instead of one strategy line per risky function.
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          note: A member outside the environment root is unknown, checked in DeclaredMembers.
+          round: 2
+        - id: PQ-6
+          disposition: addressed
+          note: Uses vocab.Issue().IsTerminal(DeclaredStatus) on the existing row association.
+          round: 2
+      findings:
+        - id: PQ-7
+          severity: Minor
+          title: Goal line still promises needs-recovery paths, contradicting the reasons-not-paths decision
+          detail: The plan header Goal says "with the paths behind a needs-recovery verdict"; Decisions and Done-when say reasons only. Update the Goal so implementers do not reintroduce path lists.
+          family: plan-self-consistency
+          round: 2
+      blocked: false
+content_hash: e8a77bdfe61ee028b0d6dd22320c5caf6d4ebf3b01347429b6e404b251521919
 ---
 
 # Gate ledger — ariadne#289 (plan-quality)
@@ -62,11 +99,23 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-5** [Minor] `untrusted-path-confinement` Substrate paths read from member construct/deps are not confined to the environment root
 - **PQ-6** [Minor] `single-source-vocab` issueOpen should derive terminality from the vocab model via rows' DeclaredStatus, not an ad-hoc predicate
 
+## Round 2 — 2026-10-02T16:23:43-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Dependency clones are collected as rows via collectInventoryRepo; member-not-a-row now means collection failed, so unknown is correct.
+- PQ-2 — addressed — Decisions state the landing and move-detail behavior change and that all markers use lstat; matches issuemovedetail.go:71 and landing.go:126.
+- PQ-3 — addressed — environment.go:43 always sets Policy, so the scoped branch at acquire.go:87,152 applies to weave slots.
+- PQ-4 — not-addressed — The M1 Verdict and M2 Wiring bullets still enumerate case cross-products in prose instead of one strategy line per risky function.
+- PQ-5 — addressed — A member outside the environment root is unknown, checked in DeclaredMembers.
+- PQ-6 — addressed — Uses vocab.Issue().IsTerminal(DeclaredStatus) on the existing row association.
+
+### Raised
+
+- **PQ-7** [Minor] `plan-self-consistency` Goal line still promises needs-recovery paths, contradicting the reasons-not-paths decision
+  The plan header Goal says "with the paths behind a needs-recovery verdict"; Decisions and Done-when say reasons only. Update the Goal so implementers do not reintroduce path lists.
+
 ## Open findings
 
-- **PQ-1** [Important] `unbacked-existing-behavior-claim` Dependency clones are not inventory rows; the member-to-row join makes every :N slot unknown
-- **PQ-2** [Minor] `unstated-behavior-change` Unioning the operation-marker lists changes landing and move-detail refusal behaviour without saying so
-- **PQ-3** [Minor] `unbacked-existing-behavior-claim` Dependency clones rest on main only when weave's scoped policy applies
 - **PQ-4** [Minor] `test-prose-enumeration` Tasks 3-6 enumerate test cases in prose; reduce to one strategy line per risky function
-- **PQ-5** [Minor] `untrusted-path-confinement` Substrate paths read from member construct/deps are not confined to the environment root
-- **PQ-6** [Minor] `single-source-vocab` issueOpen should derive terminality from the vocab model via rows' DeclaredStatus, not an ad-hoc predicate
+- **PQ-7** [Minor] `plan-self-consistency` Goal line still promises needs-recovery paths, contradicting the reasons-not-paths decision
