@@ -15,12 +15,15 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/vocab"
 	"io"
 	"os"
 	"path"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
@@ -291,13 +294,26 @@ func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
 	if err != nil {
 		return err
 	}
-	if status, _ := issue.GetField(card.Card.Frontmatter, "status"); status != "working" {
-		return fmt.Errorf("#%s is %s; planning starts after `sdlc claim --issue %d` reserves it", id, status, issueID)
+	// #283: the owner starts the lifecycle. Started work keeps #277's
+	// continuation gate (its relocation and adoption hints); an open card's
+	// ownership is judged by startDecision alone.
+	status, _ := issue.GetField(card.Card.Frontmatter, "status")
+	if !vocab.Issue().IsOpen(status) {
+		if err := requireCardOwnership(env, card); err != nil {
+			return err
+		}
 	}
-	if err := requireCardOwnership(env, card); err != nil { // #277: same card version as the status check
+	me, err := claimantIdentity(env)
+	if err != nil {
+		return err
+	}
+	next, changed, err := startDecision(card.Raw, id, me, time.Now().Format("2006-01-02"), startedClock())
+	if err != nil {
 		return err
 	}
 	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))
+	// Branch first, then card: a lost card write leaves an idempotent re-run,
+	// never a working card with no branch.
 	result, err := preparePlanningBranch(env, id, detailPath)
 	if err != nil {
 		return err
@@ -307,6 +323,18 @@ func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
 		cok(stdout, fmt.Sprintf("Created %s at main for #%s's design; the resting branch is unchanged.", env.branch, id))
 	case planningSwitchedBranch:
 		cok(stdout, fmt.Sprintf("Switched to #%s's existing branch %s.", id, env.branch))
+	}
+	if changed {
+		err := env.repo.UpdateCard(card, next, operationToken("start"), func(string, string) error { return nil })
+		invalidateIssueRecords(env.ctx)
+		if errors.Is(err, tracker.ErrCardChanged) {
+			return fmt.Errorf("card #%s changed while starting it (a peer may have reclaimed it); this checkout is on %s, which is this slot's to keep or delete.\n"+
+				"      `sdlc issue show --issue %d`, then re-run `sdlc start-plan --issue %d` if this workspace still owns it", id, env.branch, issueID, issueID)
+		}
+		if err != nil {
+			return err
+		}
+		cok(stdout, fmt.Sprintf("#%s started (open → working).", id))
 	}
 	if warn := refreshLocalMirror(env, detailPath); warn != "" {
 		cwarn(stdout, warn)

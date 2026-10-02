@@ -45,10 +45,14 @@ func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBran
 		return 0, fmt.Errorf("this checkout is on %s, not its resting branch %s or #%s's branch %s.\n"+
 			"      Plan #%s from another checkout (a free slot), or finish/park the work here first", current, env.resting, id, name, id)
 	}
-	if dirty, err := env.git("status", "--porcelain", "--untracked-files=no"); err != nil {
+	// #283: edits to this issue's own details (shaping under a claim) ride onto
+	// the new branch; anything else would be swept into the issue's history.
+	entries, err := env.statusEntries(env.root, "--untracked-files=no")
+	if err != nil {
 		return 0, err
-	} else if dirty != "" {
-		return 0, fmt.Errorf("%s has uncommitted tracked changes; commit or stash them before planning #%s (nothing was changed):\n%s", env.resting, id, dirty)
+	}
+	if blocking := planningDirtyBlocking(entries, detailPath); len(blocking) > 0 {
+		return 0, fmt.Errorf("%s has uncommitted tracked changes besides #%s's own details; commit or stash them before planning #%s (nothing was changed):\n  %s", env.resting, id, id, strings.Join(blocking, "\n  "))
 	}
 	view, err := env.main.Snapshot()
 	if err != nil {
@@ -132,4 +136,20 @@ func refuseUnlandedBase(env *trackerEnv, tip, mainTip, id, name string) error {
 		}
 	}
 	return nil
+}
+
+// planningDirtyBlocking returns the dirty tracked paths that block preparing an
+// issue branch: everything except a plain modification of exactly detailPath
+// (#283 D3). A rename or copy touching the details on either side blocks — the
+// carried file must be the same file. Pure.
+func planningDirtyBlocking(entries []gitx.StatusEntry, detailPath string) []string {
+	var blocking []string
+	for _, e := range entries {
+		modified := strings.Trim(strings.ReplaceAll(e.XY, "M", ""), " ") == ""
+		if e.Path == detailPath && e.Orig == "" && modified {
+			continue
+		}
+		blocking = append(blocking, e.Path)
+	}
+	return blocking
 }
