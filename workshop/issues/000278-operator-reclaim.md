@@ -1,12 +1,12 @@
 ---
 id: 000278
-status: working
+status: codecomplete
 deps: [ariadne#277]
 github_issue:
 created: 2026-10-01
 updated: 2026-10-01
 estimate_hours:
-card_mirror: '6bd7daaa803b59bf95092eced08f9f98e1d40935' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0adc570ec5f0c38a02d8c1e359ef1ca4ba08eb4c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-01T17:25:01-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.42
 ---
 
 # Add operator-directed reclaim for recovery
