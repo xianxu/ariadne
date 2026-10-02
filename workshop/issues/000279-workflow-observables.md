@@ -71,3 +71,12 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     observed-at or a source revision.
   - Fleet's JSON conventions (discriminator plus error, strict decode,
     goldens) are the precedent to reuse.
+- Operator decisions:
+  1. **Surface:** `sdlc issue show N --json`, a versioned observation; the
+     text view gains the same sections. `state` and `fleet` are unchanged.
+  2. **Freshness:** fetch the tracker, falling back to the last fetch marked
+     `stale` with the error. Every answer carries the tracker commit and
+     `observed_at`.
+  3. **Targeting:** the query is repo-wide from any checkout, finding the
+     local worktrees that hold the issue branch through git (including
+     parked or no-agent slots). `--repo <path>` queries another repository.
