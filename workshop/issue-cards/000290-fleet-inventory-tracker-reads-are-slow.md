@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000290-fleet-inventory-tracker-reads-are-slow.md
         source_blob: f84215bb1a7bdd86ab2d38b4ce917f0422819b52
         destination: workshop/issues/000290-fleet-inventory-tracker-reads-are-slow.md
+        main_commit: f16d418421e0ab1d8e4d6f5a1890888793305a69
 ---
 
 # Fleet inventory tracker reads are slow
