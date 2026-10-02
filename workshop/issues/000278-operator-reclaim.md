@@ -40,7 +40,15 @@ Do not infer abandonment from a timeout, shutdown, parking or unreachable machin
 
 ## Plan
 
-Implementation plan to be designed after issue claim and start-plan; these are requirements, not an approved implementation plan.
+Durable plan: `workshop/plans/000278-operator-reclaim-plan.md` (single pass).
+
+- [ ] Pure `reclaimDecision` and the trailers; `UpdateCard` message trailers.
+- [ ] `sdlc reclaim`: inspect (read-only), then confirm with `--expect` and
+      `--reason` (CAS; a retry decides from the card).
+- [ ] Real-git tests: transfer and wrong-owner refusal, dirty work preserved,
+      stale expect, identical retry and lost response, concurrent reclaim,
+      history; a no-automation guard.
+- [ ] Docs: reclaim help, #277 refusal pointers, atlas.
 
 ## Log
 
@@ -82,3 +90,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     ariadne-slot3 and pair-slot2 still need `weave refresh` before reuse.
   - `sdlc claim --adopt` just now was a no-op; the card already names this
     workspace.
+- Wrote the durable plan (single pass, no milestones). Awaiting operator approval.
