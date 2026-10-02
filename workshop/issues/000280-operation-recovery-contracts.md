@@ -58,3 +58,18 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   behavior lives today (CAS, receipts, recovery reconcile, observe) before
   designing the contract surface.
 
+- Operator decisions:
+  1. **Contract home:** one Go registry, like the gate catalog. Each verb's
+     entry gives its class (read-only, duplicate-safe refusal, convergent
+     retry, or uncertain), effects, evidence query (`issue show --json`
+     fields), preconditions, lost-response action, when guarantees end, and
+     the names of the tests proving each claim. It renders into each verb's
+     `--help` through a placeholder and into one `sdlc help recovery` page.
+     A contract test fails if a named test is missing or a verb lacks an
+     entry.
+  2. **Scheduling example:** executable. A worked example in the recovery
+     page (send work, verify claim, check branch and activity, check gate
+     progress, and handle unknown or stale) that a test runs step by step
+     against a real-git fixture.
+- An explorer is mapping each verb's actual recovery behavior and the tests
+  behind it.
