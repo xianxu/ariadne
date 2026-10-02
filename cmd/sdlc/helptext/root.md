@@ -5,13 +5,17 @@ state machine — stages stay prose; we codify the gates between them where drif
 recurs. `sdlc` manages the development life cycle; prefer it over `git`/`gh`.
 
 BEFORE WORK
-  - `sdlc claim --issue N` — the single start-of-work gesture, a CHEAP LOCK.
-    Flips an *open* issue card to `working` on the `issue-tracker` branch so peer
-    agents see it (#252); the issue must be fully created (details on main). No
-    estimate demanded (#113) — claim early. Already-working issues refuse,
-    including repeated claims; resume existing work without reclaiming it.
-    Then `sdlc start-plan --issue N` moves design onto the issue branch.
-  - Do NOT hand-edit an issue's `status:` — let `sdlc claim` or `sdlc issue
+  - `sdlc claim --issue N` — a CHEAP LOCK. It records this workspace (a slot) as
+    the issue's owner on the `issue-tracker` branch so peer agents see it
+    (#252, #277), and leaves the status `open` (#283: the owner is the lock,
+    status is lifecycle only). The issue must be fully created (details on
+    main). No estimate demanded (#113) — claim early, and shape the issue under
+    the claim. A held issue refuses another workspace's claim; the owner's
+    repeat is a no-op. A legacy repository (no tracker) has no owner, so its
+    claim flips open → working directly.
+  - `sdlc start-plan --issue N` — starts the issue (open → working) and moves
+    design onto the issue branch. Only the owner starts it.
+  - Do NOT hand-edit an issue's `status:` — let `sdlc start-plan` or `sdlc issue
     set-status` own that transition (it carries the reopen/`→ done` guards).
 
 ENTER IMPLEMENTATION

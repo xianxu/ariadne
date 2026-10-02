@@ -144,6 +144,34 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   *references* ("anything other than open") rather than enumerating. `TestNoCommandLongHasSurvivingPlaceholder`
   walks the assembled command tree so no Long can forget the seam.
 
+## Ownership axis (#283)
+
+`issue.cue`'s `ownership` block is a second axis beside `lifecycle`. **The owner
+is the lock; status is lifecycle only.** Ownership events (`claim`, `unclaim`,
+`reclaim`, `move`) change the owner and never the status; laws keep their names
+disjoint from lifecycle events and keep terminal statuses out of `holdable`.
+`open → working` is the owner's `start` (`sdlc start-plan`). So `open` with an
+owner is legal: a slot shaping the issue. An active issue with no owner is also
+legal: started work available for takeover. `pkg/vocab` exposes `Ownership()`,
+`CanHoldOwner` and `OwnershipEvent`; claim, adopt, start-plan, reclaim and the
+relocation check derive their statuses from it. Scope: issue tracker
+repositories. A legacy repository has no claimant, and its claim performs
+`start` in one step.
+
+**Terminology.**
+- **Owner (claimant):** a *slot*, meaning a workspace (repository + machine +
+  worktree). It is the durable home of one agent's thread of work and outlives
+  any session: compaction, restarts, a different CLI. The lock belongs to the
+  slot because collisions happen there.
+- **Operator:** the supervising human recorded on the claim. Descriptive, not a
+  lock; the escalation and grounding point.
+- **Issue branch:** the branch derived from the details filename. Never called
+  "owner".
+
+This intentionally departs from Jira-style person assignment, which combines
+executor and supervisor in one assignee. Project:
+`workshop/projects/claimant-ownership.md`.
+
 ## Instance conformance (#124 — M1–M3 landed)
 
 Where #122 vets the *model* and wires the *verbs*, #124 vets real artifact **files**

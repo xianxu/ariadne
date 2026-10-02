@@ -2,7 +2,13 @@ Enter planning — deliver the architectural principles to design against (#75).
 
 {{OWNERSHIP_GATE}}
 
-The SDLC workflow has `claim` (start work) and `change-code` (the gate into
+start-plan is where an issue STARTS (#283). `claim` took the lock (the owner)
+and left the card `open`; start-plan, run by the owner, moves it open → working
+along the lifecycle's `start` edge, after preparing the issue branch. Branch
+first, then card, so a lost card write leaves a re-run that finishes it. An
+already-started issue is left as it is.
+
+The SDLC workflow has `claim` (take the lock) and `change-code` (the gate into
 implementation: it infers the flow and, on the full flow, runs the plan-quality
 review), but nothing marked the moment you start *designing* — which is the
 highest-leverage point to surface architecture, because the design is still
@@ -48,14 +54,17 @@ OUTPUT
 FLAGS
 
   --issue <n>   the issue being planned (optional). With it, start-plan requires
-                a claimed (working) card and moves design onto the issue's own
+                that this workspace owns the card, starts it if it is still
+                open, and moves design onto the issue's own
                 branch (the details filename stem): from a clean resting branch
                 that main contains, it creates the branch at freshly fetched main
                 once the details are proven there; it reuses an existing issue
                 branch unless that branch carries another issue's unlanded
                 commits, read from their `#N` subject tags (one issue per
                 branch, based on main, #272); it refuses
-                a dirty, ahead or diverged rest and any other branch without
+                an ahead or diverged rest, any dirty tracked file other than
+                this issue's own details (shaping edits made under the claim,
+                which ride onto the new branch), and any other branch, without
                 changing anything. It never moves the resting
                 branch, then refreshes the details' card mirror.
 
@@ -64,4 +73,4 @@ RELATED
   sdlc change-code   infers the flow; on the full flow, the plan-quality gate that
                      checks the plan against the same principles (the backward
                      review)
-  sdlc claim         reserve the card first; start-plan requires it
+  sdlc claim         take the lock first; start-plan requires it

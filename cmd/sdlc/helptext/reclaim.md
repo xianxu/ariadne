@@ -21,8 +21,10 @@ TWO STEPS
   later. In a checkout that holds the details on a feature branch, the
   details' card mirror is refreshed.
 
-  Reclaimable: a working, blocked or codecomplete issue with a recorded owner.
-  An open issue is claimed (`sdlc claim`). An issue with no recorded owner is
+  Reclaimable: any issue whose status holds a lock (open, working, blocked,
+  codecomplete — the model's holdable statuses, #283) with a recorded owner,
+  including an open issue a slot claimed to shape. An unowned open issue is
+  claimed (`sdlc claim`). An issue with no recorded owner is
   adopted (`sdlc claim --issue N --adopt`). A terminal issue has nothing to
   own.
 
@@ -66,6 +68,6 @@ EXAMPLES
 
 RELATED
 
-  sdlc claim              reserve an open issue (records its claimant)
+  sdlc claim              take the lock on an issue (records its claimant)
   sdlc claim --adopt      record an owner for work claimed before #277
   sdlc move               relocate your own issue branch between slots

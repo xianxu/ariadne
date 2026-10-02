@@ -63,7 +63,7 @@ for the operator workflow and recovery contract.
 
 | Operation | Publication unit |
 |---|---|
-| `claim --issue N` | (#252) The card's open → working transition on `issue-tracker`; nothing on main |
+| `claim --issue N` | (#252, #283) The card's owner (the lock) on `issue-tracker`, status unchanged; nothing on main |
 | `issue new` | (#252) A new card on `issue-tracker` at `max(id)+1`; details stay local |
 | `change-code` | (#252) Nothing: the design is a local commit on the issue branch |
 | `issue move-detail` | (#252) One main-native commit adding the initial details, plus the card's handoff record |

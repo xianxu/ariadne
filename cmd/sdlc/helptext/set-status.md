@@ -4,9 +4,10 @@ branch (#252): set-status updates the card by compare-and-swap and bumps
 `updated` to today; this checkout's details mirror is then refreshed (never on
 the resting branch). A reopen reads this checkout's details Log for its entry.
 
-OWNERSHIP (#277): entering `working` records this workspace as the card's
-claimant, as claim does: from open, or when reopening an unattributed issue or
-one of your own. It refuses when another workspace owns the card, even with
+OWNERSHIP (#277, #283): the owner is the lock and status is lifecycle only.
+Entering `working` is the manual spelling of start-plan's `start`, and records
+this workspace as the card's claimant: from open (unowned, or already yours),
+or when reopening an unattributed issue or one of your own. It refuses when another workspace owns the card, even with
 --force, because that would be a takeover (`sdlc reclaim`).
 
 {{LIFECYCLE}}
@@ -18,8 +19,8 @@ TRANSITION GUARDS (refusable with --force)
 
   → working
     No guard (#113). The estimate gate moved to `sdlc change-code`, so
-    flipping to working — like `sdlc claim` — no longer demands an
-    estimate. Claim/start work early; estimate after the plan clears plan-quality
+    flipping to working — like `sdlc start-plan` — does not demand an
+    estimate. Claim and start work early; estimate after the plan clears plan-quality
     (full flow only — the quick flow has no estimate, #231).
 
   → codecomplete  (#160)
@@ -84,6 +85,6 @@ EXAMPLES
 RELATED
 
   sdlc close          close → codecomplete with the §5 contract (#160; merge/push then → done)
-  sdlc claim          reserve an open issue card before starting work
+  sdlc claim          take the lock (record the owner) before starting work
   sdlc issue set-title / set-estimate / set-github   the other card-field setters
   sdlc state          inspect current issue statuses
