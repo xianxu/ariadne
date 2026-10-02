@@ -91,12 +91,13 @@ design review.
 
 Durable plan: `workshop/plans/000288-bulk-read-only-claim-observation-plan.md`.
 
-- [ ] M1 — a malformed card is quarantined, not fatal (snapshot quarantine, `Require`, reader audit, transferguard fail-closed)
+- [x] M1 — a malformed card is quarantined, not fatal (snapshot quarantine, `Require`, reader audit, transferguard fail-closed)
 - [ ] M2 — fleet inventory reports this machine's claims per worktree (`localMachine`, pure `PlaceClaims`, contract, wiring, recovery catalog, atlas)
 
 ## Log
 
 ### 2026-10-02
+- 2026-10-02: closed M1 — make test green across 901 cmd/sdlc tests (processgroup fails only in sandbox: /bin/ps blocked; passes unsandboxed). Every CardErr reader exercised by TestOneMalformedCardDoesNotBlockOthers incl. close milestone-mode die (expectDie, message names the cause); TestAssembleUnreadableCardIsUnknown; atlas notes landing deferral.; review verdict: SHIP
 
 Filed from pair#367 at the operator's direction (the survey found no bulk
 claim query). pair#367 depends on this issue.
