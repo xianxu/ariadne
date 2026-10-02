@@ -43,7 +43,7 @@ Estimated per child at its `change-code`.
 
 Order: model first, done properly, with no fast-track for pair#365. #287 is independent and can run in parallel once its details are on main.
 
-- [ ] Model: claimant lock, status as lifecycle, slot/operator terminology [ariadne#283]
+- [x] Model: claimant lock, status as lifecycle, slot/operator terminology [ariadne#283]
 - [ ] Claims: multi-claim, publish, handoff, takeover [ariadne#284]
 - [ ] Transfer guard: owner plus based-on-latest [ariadne#285]
 - [ ] Boundary pushes and sdlc abandon [ariadne#286]
