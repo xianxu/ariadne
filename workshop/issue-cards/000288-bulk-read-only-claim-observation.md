@@ -1,6 +1,6 @@
 ---
 id: 000288
-status: codecomplete
+status: done
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours: 2.32
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: a356366940f08254cf9ad6b73e20c8de5fe82af7
         evidence_commit: 3e845aacff3e66cc8cd5103fe705219a898a878d
+        landed_commit: a716171e854912ef2536c907154e57de8c62851b
 ---
 
 # Bulk read-only claim observation
