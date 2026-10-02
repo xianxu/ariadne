@@ -49,9 +49,9 @@ Durable plan: `workshop/plans/000280-operation-recovery-contracts-plan.md`.
       rendered via `{{RECOVERY}}` into each verb's help;
       `TestRecoveryContractsAreProven`; uncertain-publication guidance plus
       lost-ack tests for claim and set-status.
-- [ ] M2 — the `sdlc recovery [verb] [--json]` page (classes, agent
-      guidance, table, example); the executable scheduling example
-      (`TestSchedulingExampleRuns` runs the rendered steps); docs.
+- [ ] M2 — the `sdlc help recovery` topic (classes, agent guidance, table,
+      example; cross-links `issue recovery`); the executable scheduling
+      example (`TestSchedulingExampleRuns` runs the rendered steps); docs.
 
 ## Log
 
@@ -106,3 +106,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Precedent: the gate catalog (`GateCatalog`, rendered via
     `{{GATE_FLAGS}}`, guarded by registered-flag and help tests).
 - Wrote the durable plan (M1/M2). Awaiting operator approval.
+- change-code plan-quality round 1: the required set is now derived from the command tree; the surface is `sdlc help recovery`; Done-when proofs are named per class, with two new generation tests. The plan is revised.

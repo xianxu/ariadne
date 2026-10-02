@@ -14,7 +14,7 @@
   - lost-response action;
   - when guarantees end;
   - proofs, each a claim plus the test names that demonstrate it.
-- **Help.** The registry renders into each verb's `--help` through a `{{RECOVERY}}` placeholder, and into one `sdlc recovery` page (`--json` for agents). That page also carries the agent guidance and an executable scheduling example.
+- **Help.** The registry renders into each verb's `--help` through a `{{RECOVERY}}` placeholder (`{{RECOVERY <verb>}}` where one page hosts several verbs). It also renders into one help topic, `sdlc help recovery`, as recorded in the operator's decision. That topic carries the agent guidance and an executable scheduling example, and cross-links `sdlc issue recovery reconcile`.
 - **Contract tests** fail when a verb lacks an entry, a named test does not exist, a page drops the placeholder, or the example stops working.
 - **Gap fixes.** The verbs that today return a bare "publication outcome uncertain" gain the same "rerun; the card decides" guidance as reclaim, plus lost-acknowledgement tests.
 
@@ -45,7 +45,10 @@
 - **Contract** fields: `Verb`, `Class`, `Effects`, `Evidence`, `Preconditions`, `Repeat`, `LostResponse`, `Ends`, and `Proofs []Proof{Claim, Tests []string}`.
   - A claim with no test renders as **unproven**. That covers the issue's "unproven guarantees are explicitly unknown".
   - **Class** is a closed set, validated: `read-only`, `duplicate-safe-refusal`, `convergent-retry`, `non-repeatable`.
-- **Catalog entries** cover claim (with `--adopt` and relocation repair), reclaim, start-plan, change-code, milestone-close, close (with `issue recovery reconcile`), pr, merge, `issue set-status`, move, and `issue show` (read-only). Each entry's text and test names come from the explorer map in the issue Log, rechecked against code while writing.
+- **The required verb set is derived, not listed.** It is every command in the cobra tree annotated `markMutatingCommand`, plus the workflow verbs that manage their own lock or take none (start-plan, change-code, milestone-close, close), plus `issue show` (the evidence query).
+  - Each one needs a catalog entry, or an entry in `recovery.Exempt` with a reason. Examples: the project verbs, `migrate`, `issue migrate`, `fetch`, and the retired `issue publish`.
+  - So a new mutating verb fails the contract test until someone decides its contract. The MVP entries include push, `issue sync`, `issue move-detail` and `issue new` alongside claim (with `--adopt` and relocation repair), reclaim, start-plan, change-code, milestone-close, close (with `issue recovery reconcile`), pr, merge, `issue set-status`, move and `issue show`.
+  - Each entry's text and test names come from the explorer map in the issue Log, rechecked against code while writing.
 - **Example** is a list of steps. Each step names an actor (coordinator or recipient), a command, the evidence to read (dot-paths into the observation JSON), the expected value, and what to do otherwise. It is both rendered into the page and executed by a test.
 - **DRY rationale:** one source for the contract text, the help, the JSON and the test links, as the gate catalog is for gate flags.
 
@@ -54,10 +57,12 @@
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
 | `{{RECOVERY}}` placeholder | `cmd/sdlc/main.go renderLong` | modified | `recovery.Section(name)` |
-| `sdlc recovery [verb] [--json]` | `cmd/sdlc/recoverycmd.go`, `helptext/recovery.md` | new | the registry |
+| `sdlc help recovery` (a help topic) | `cmd/sdlc/recoverycmd.go`, `helptext/recovery.md` | new | the registry |
+| `cardPublish` (one publication seam for single-card CAS verbs) | `cmd/sdlc/cardpublish.go` | new | `tracker.Repository.UpdateCardWithTrailers` |
 | uncertain-publication guidance | `cmd/sdlc/claim.go`, `cardsetters.go` (set-status) | modified | `gitx.ErrPublicationUncertain` |
 
-- **Uncertain-publication guidance.** One helper wraps `ErrPublicationUncertain` from a single-card CAS verb with "the change may or may not have published; rerun the same command — the card decides", matching reclaim. It is used by claim, adopt, relocation and set-status, and is single-sourced instead of written into each verb.
+- **Uncertain-publication guidance.** One helper wraps `ErrPublicationUncertain` from a single-card CAS verb with "the change may or may not have published; rerun the same command — the card decides". It is used by claim, adopt, relocation, set-status **and reclaim** (replacing its inline message), single-sourced instead of written into each verb.
+- **`cardPublish`.** It is the one injection seam those verbs publish through, so a lost-acknowledgement test injects once rather than through a package var per verb. `reclaimEffect` becomes a thin caller of it. A caller-guard test, like `TestReclaimIsOnlyOperatorInvoked`, pins its callers.
 
 ### Lifecycle and ordering
 
@@ -69,25 +74,32 @@ The registry is static data: it creates nothing durable, and adds no runtime sta
 - [ ] Write the catalog entries for all MVP verbs, rechecking each claim against the code.
 - [ ] `{{RECOVERY}}` in each verb's helptext, plus `recovery.Section`. `TestNoCommandLongHasSurvivingPlaceholder` keeps passing.
 - [ ] **Contract test `TestRecoveryContractsAreProven`:**
-  - every MVP verb has exactly one entry;
+  - every command in the derived required set has exactly one entry or one exemption with a reason; there are no stale entries or exemptions;
   - every named test exists as a `func TestX` somewhere under `cmd/sdlc` (AST scan);
   - every verb page renders its section.
   - Mutation check: rename a referenced test and the contract test must go red.
-- [ ] **Gap fixes:** the uncertain-publication helper, used by claim, adopt, relocation and set-status. New lost-acknowledgement tests:
+- [ ] **Gap fixes:** the uncertain-publication helper and the `cardPublish` seam, used by claim, adopt, relocation, set-status and reclaim. New lost-acknowledgement tests:
   - claim: an injected uncertain error after the effect lands, then a rerun gives "already claimed";
   - set-status: the same shape, the rerun gives "already has that status".
-  - Injection uses a package-var publish seam on each, as `reclaimEffect` does.
+- [ ] **Done-when coverage.** Each case class names its proof:
+  - **race:** `TestClaimRaceHasExactlyOneWinner`, `TestAdoptRaceHasExactlyOneWinner`, `TestReclaimRaceHasExactlyOneWinner`.
+  - **duplicate:** `TestVerbContractTable`, `TestClaimDryRunOwnerRepeatWritesNothing`, `TestRunMerge_ResumeMergedPR_FinishesCleanup`, and the move refusals.
+  - **lost acknowledgement:** the two new tests, `TestReclaimStaleAndLostResponse`, `TestUpdateMany_LostAcknowledgmentIsUncertainWithoutReplay`, and `TestReconcileRetriesAnInterruptedCloseMirror`.
+  - **reclaimed generation:** `TestReclaimTransfersResponsibility`, where the old owner's gates are refused.
+  - **re-closed generation:** `TestPublishFlipLeavesAReclosedGenerationAlone`, `TestTrackerReCloseSupersedesAnUnstartedClose`, `TestNewestCloseRefusesAnOlderReviewThanTheCardsClose`.
+  - **New tests where none exists:**
+    - `TestCloseRerunAfterShipStartsANewGeneration`: a second close rebinds the card to a new token; the first evidence commit stays in history.
+    - `TestLandingLeavesAReopenedCardAlone`: a card reopened after its close is not completed by a later landing of that close.
 - [ ] M1 milestone-close.
 
 ## M2 — The recovery page and the executable scheduling example
 
-- [ ] `sdlc recovery [verb] [--json]` (read-only), with `helptext/recovery.md`. The page holds:
+- [ ] `sdlc help recovery`, a cobra help topic (no Run, so it collides with nothing; `sdlc issue recovery` keeps its name and both cross-link), with `helptext/recovery.md`. The page holds:
   - the class definitions;
   - the agent guidance: verify effects through read-only queries; roughly 30 s is a revisit heuristic, not proof of loss; retry only under the verb's contract; unknown or stale is not negative evidence; claim reserves, it does not make later edits idempotent;
   - the per-verb table;
   - the example.
 
-  `--json` emits the catalog, versioned, for agents.
 - [ ] **Executable example** `TestSchedulingExampleRuns`, run on a real-git fixture with a coordinator checkout and a recipient worktree:
   - the recipient claims; the coordinator verifies with `issue show --json` (`card.status`, `assignment.relation`);
   - the recipient runs start-plan and change-code; the coordinator sees `branch` and `workspaces` activity and `checkpoints.flow`;
@@ -99,3 +111,19 @@ The registry is static data: it creates nothing durable, and adds no runtime sta
 - [ ] Close.
 
 ## Revisions
+
+- 2026-10-02 — plan-quality round 1 (PQ-1 to PQ-3 Important, three Minor).
+  - **PQ-1:** the required verb set is derived from the command tree
+    (mutating annotation, plus self-locking workflow verbs, plus
+    `issue show`), with reasoned exemptions. push, issue sync, move-detail
+    and issue new were added.
+  - **PQ-2:** the surface is `sdlc help recovery`, a help topic, as the
+    operator decided. There is no `recovery` verb to collide with
+    `issue recovery`; the two cross-link. `--json` was dropped (YAGNI): the
+    consumers (pair#362 and pair#367 skills) read help text.
+  - **PQ-3:** each Done-when case class names its proof. Two new tests cover
+    the close re-run after SHIP and a reopened card at landing.
+  - **Minors:** reclaim adopts the uncertain helper; one `cardPublish` seam
+    with a caller guard; `{{RECOVERY <verb>}}` for pages hosting several
+    verbs.
+
