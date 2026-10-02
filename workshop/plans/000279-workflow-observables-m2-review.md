@@ -301,3 +301,99 @@ findings:
     detail: |
       This is the 3rd finding in family artifact-layout-restated. Rule: a grammar the writer owns (milestone tags, artifact names) is matched by the writer's exported pattern or helper, never retyped. Export the tag pattern from internal/issue and build boundaryRE from it.
 ```
+
+---
+
+## Re-review — 2026-10-02T00:56:02-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 279 — Expose authoritative workflow observations for agents |
+| repo | ariadne |
+| issue file | workshop/issues/000279-workflow-observables.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 968f8408198faac235ef89372d483ac692dcee84..5b51a27c2f4bd143b2d0a355095479a6a5aba9e8 |
+| command | sdlc milestone-close --issue 279 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-10-02T00:56:02-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** The M2 boundary delivers what the Plan's M2 row promises: checkpoints (flow, plan ticks, review verdicts, open blocking findings), workspaces and branch activity, `--repo`, the elsewhere/missing/other-machine worktree cases, and the docs. All four open findings are fixed, and each fix has a test that pins it. The rejection table in `internal/observe/observe_test.go` now requires each row's error to name its own field. That closes the hole the round-2 Log admitted to: a nil `Reviews` copy made every row fail on "collections must be present". The flow and milestone grammars now come from one place each (`flow.ValidKind`/`ValidProvenance`, `issue.MilestoneTagPattern`). The workspace resolution in the collector goes through the counted `observeGit` seam. The `internal/observe`, `internal/issue` and `internal/flow` packages pass, as does `go test -run 'Observe|IssueShow|GuardScope|TickedMilestones' ./cmd/sdlc`. What remains are three Minors that don't block.
+
+**Strengths**
+1. `json.go:63-79`: every enum and grammar field is checked against its source: verdict tokens against `vocab.Verdict().IsEmitted`, flow values against `flow.Valid*`, boundaries against a pattern built from `issue.MilestoneTagPattern`. On the collector side, `checkpoints.go` (the `review` function) turns an out-of-set verdict into an `unknown` read with a reason, rather than passing the text through.
+2. `observe_test.go` (`TestValidateRejectsEveryUnknownEnum`): each row asserts that the refusal names its field, so a row can't pass because some other invariant failed.
+3. `plan.go`: `TickedMilestones` shares `milestonePlanRE`. It is listed in `planItemMatchers` and the guard now scans `internal/observe`, so the plan-item reader guard covers the new reader. `TestTickedMilestones` pins repeated rows, the in-progress `[.]` state and lettered tags.
+4. `checkpoints.go` (`assembleCheckpoints`): a failed details read, parse or flow read degrades the section to `unknown` with its reason, never a zero value. A boundary the record says closed but whose artifact is missing is `unknown`, not `absent`.
+5. `observe.go` (`collectEvidence`): artifact paths come from the writers' own helpers (`sidecarPathFor`, `sidecarPath`, the gate suffixes, `reviewMilestoneRe`) and from vocab discovery.
+
+**Critical:** none.
+
+**Important:** none.
+
+**Minor**
+- **Verdict not tied to read state.** `Validate` doesn't require a verdict on a present non-plan review. A review with state `present`, boundary `close` and verdict `""` validates, which leaves consumers an undefined shape. Add an invariant in the same style as relation/outcome: the verdict is set exactly when the read is present and the boundary isn't `plan`.
+- **Git-call bound undercounts.** `TestObserveWorktreeFatesAndBound` counts only the collector's own calls. Tracker loading (`RepositoryForCheckout` → `workspace.Resolve` via `gitDirReader`, the fetch, card reads in `internal/tracker`) runs `gitx.RunGit` directly, so "one query's git work is bounded" is measured only for the collector half. The head commit's "all git via the counted seam" claims more than it does.
+- **Doc comment attached to the wrong declaration.** In `plan.go:82-96`, the `milestonePlanRE` doc comment now sits directly above `MilestoneTagPattern`, so godoc attaches both paragraphs to the const. Move the `milestonePlanRE` paragraph below the const.
+
+**Test coverage notes:** The real-git tests cover the lifecycle (in progress, closed SHIP, close artifact lost, landed by squash with the branch deleted), the worktree fates, a two-repository `--repo` query, and the milestone ledger scoping. The fuzz and table tests cover `Assemble`. One gap: no test checks that a present review always carries a verdict (see the first Minor).
+
+**Architecture**
+- **ARCH-DRY: pass.** Grammars and enum sets are now defined once (BR-16, BR-8).
+- **ARCH-PURE: pass.** All assembly is in pure `internal/observe`; the collector is a thin IO shell.
+- **ARCH-PURPOSE: pass.** Every consumer of the enum and grammar sets derives from its source.
+- **ARCH-MOCK: pass.** Tests run against real-git fixtures through the same seam production uses.
+- **ARCH-CONSTRAINTS: minor flag.** The bound measures only the collector (second Minor).
+- **ARCH-SECURE: pass.** Persisted sidecars and details are parsed and degrade visibly; the first metadata row wins.
+- **ARCH-ORDER: pass.** The command is a one-shot read with no state carried between events, so there is no state machine to model.
+- **ARCH-FUNERAL: pass.** It creates nothing durable; the only write is the tracker fetch's remote-tracking ref update, which every read-only view already does.
+
+**Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      json.go validates boundary (grammar from issue.MilestoneTagPattern), verdict (vocab IsEmitted), flow kind/provenance (flow.Valid*); each has a rejection row asserting its own field; collector maps an out-of-set verdict to unknown.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      collectHolding passes observeGitReader to workspace.Resolve, so its reads hit the counted observeGit seam.
+  - id: BR-15
+    disposition: addressed
+    note: |
+      TestTickedMilestones in internal/issue/plan_test.go covers repeated rows, the in-progress state, lettered and bold tags.
+  - id: BR-16
+    disposition: addressed
+    note: |
+      boundaryRE is built from the exported issue.MilestoneTagPattern, which also builds milestonePlanRE.
+findings:
+  - id: new
+    severity: Minor
+    family: contract-enum-validation
+    title: |
+      Validate does not tie a review's verdict to its read state; a present close review with an empty verdict validates
+    detail: |
+      This is the 3rd finding in family contract-enum-validation. Rule: every conditionally-set contract field states its "set exactly when" invariant in Validate (relation and outcome already do); add verdict set exactly when the read is present and the boundary is not plan, plus a rejection row.
+  - id: new
+    severity: Minor
+    family: operating-envelope-unmeasured
+    title: |
+      The per-query git bound counts only collector calls; tracker loading (RepositoryForCheckout Resolve, fetch, card reads) bypasses observeGit
+    detail: |
+      This is the 2nd finding in family operating-envelope-unmeasured. Rule: an envelope assertion covers the whole query path or states its scope; either count the tracker layer's runner or narrow the test comment and commit claim to the collector.
+  - id: new
+    severity: Minor
+    family: doc-comment-attachment
+    title: |
+      The milestonePlanRE doc comment in plan.go now attaches to the MilestoneTagPattern const
+```

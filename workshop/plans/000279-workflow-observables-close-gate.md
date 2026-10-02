@@ -178,6 +178,47 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 5
+      timestamp: "2026-10-02T00:56:02-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: json.go validates boundary (grammar from issue.MilestoneTagPattern), verdict (vocab IsEmitted), flow kind/provenance (flow.Valid*); each has a rejection row asserting its own field; collector maps an out-of-set verdict to unknown.
+          round: 5
+        - id: BR-12
+          disposition: addressed
+          note: collectHolding passes observeGitReader to workspace.Resolve, so its reads hit the counted observeGit seam.
+          round: 5
+        - id: BR-15
+          disposition: addressed
+          note: TestTickedMilestones in internal/issue/plan_test.go covers repeated rows, the in-progress state, lettered and bold tags.
+          round: 5
+        - id: BR-16
+          disposition: addressed
+          note: boundaryRE is built from the exported issue.MilestoneTagPattern, which also builds milestonePlanRE.
+          round: 5
+      findings:
+        - id: BR-17
+          severity: Minor
+          title: Validate does not tie a review's verdict to its read state; a present close review with an empty verdict validates
+          detail: 'This is the 3rd finding in family contract-enum-validation. Rule: every conditionally-set contract field states its "set exactly when" invariant in Validate (relation and outcome already do); add verdict set exactly when the read is present and the boundary is not plan, plus a rejection row.'
+          family: contract-enum-validation
+          round: 5
+        - id: BR-18
+          severity: Minor
+          title: The per-query git bound counts only collector calls; tracker loading (RepositoryForCheckout Resolve, fetch, card reads) bypasses observeGit
+          detail: 'This is the 2nd finding in family operating-envelope-unmeasured. Rule: an envelope assertion covers the whole query path or states its scope; either count the tracker layer''s runner or narrow the test comment and commit claim to the collector.'
+          family: operating-envelope-unmeasured
+          round: 5
+        - id: BR-19
+          severity: Minor
+          title: The milestonePlanRE doc comment in plan.go now attaches to the MilestoneTagPattern const
+          family: doc-comment-attachment
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#279 (boundary-review)
@@ -248,12 +289,28 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-16** [Minor] `artifact-layout-restated` boundaryRE in json.go restates the milestone tag pattern from milestonePlanRE
   This is the 3rd finding in family artifact-layout-restated. Rule: a grammar the writer owns (milestone tags, artifact names) is matched by the writer's exported pattern or helper, never retyped. Export the tag pattern from internal/issue and build boundaryRE from it.
 
+## Round 5 — 2026-10-02T00:56:02-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — json.go validates boundary (grammar from issue.MilestoneTagPattern), verdict (vocab IsEmitted), flow kind/provenance (flow.Valid*); each has a rejection row asserting its own field; collector maps an out-of-set verdict to unknown.
+- BR-12 — addressed — collectHolding passes observeGitReader to workspace.Resolve, so its reads hit the counted observeGit seam.
+- BR-15 — addressed — TestTickedMilestones in internal/issue/plan_test.go covers repeated rows, the in-progress state, lettered and bold tags.
+- BR-16 — addressed — boundaryRE is built from the exported issue.MilestoneTagPattern, which also builds milestonePlanRE.
+
+### Raised
+
+- **BR-17** [Minor] `contract-enum-validation` Validate does not tie a review's verdict to its read state; a present close review with an empty verdict validates
+  This is the 3rd finding in family contract-enum-validation. Rule: every conditionally-set contract field states its "set exactly when" invariant in Validate (relation and outcome already do); add verdict set exactly when the read is present and the boundary is not plan, plus a rejection row.
+- **BR-18** [Minor] `operating-envelope-unmeasured` The per-query git bound counts only collector calls; tracker loading (RepositoryForCheckout Resolve, fetch, card reads) bypasses observeGit
+  This is the 2nd finding in family operating-envelope-unmeasured. Rule: an envelope assertion covers the whole query path or states its scope; either count the tracker layer's runner or narrow the test comment and commit claim to the collector.
+- **BR-19** [Minor] `doc-comment-attachment` The milestonePlanRE doc comment in plan.go now attaches to the MilestoneTagPattern const
+
 ## Open findings
 
 - **BR-4** [Minor] `silent-error-swallow` rev-parse failure on the tracker ref is dropped, leaving tracker present with an empty ref
 - **BR-5** [Minor] `contract-enum-validation` Validate checks landing.outcome against its enum but not assignment.relation or claimant_worktree
 - **BR-6** [Minor] `state-semantics-overload` M2 sections are emitted as unknown ("not observed by this build"), overloading the read-failed meaning; remove in M2
-- **BR-8** [Important] `contract-enum-validation` Validate leaves review boundary, verdict, and flow kind and provenance unchecked against their sets
-- **BR-12** [Minor] `operating-envelope-unmeasured` workspace.Resolve goes around the counted observeGit seam, so the 20-command bound test undercounts
-- **BR-15** [Minor] `pure-helper-untested` issue.TickedMilestones has no direct unit test for repeated milestone rows or the [.] state
-- **BR-16** [Minor] `artifact-layout-restated` boundaryRE in json.go restates the milestone tag pattern from milestonePlanRE
+- **BR-17** [Minor] `contract-enum-validation` Validate does not tie a review's verdict to its read state; a present close review with an empty verdict validates
+- **BR-18** [Minor] `operating-envelope-unmeasured` The per-query git bound counts only collector calls; tracker loading (RepositoryForCheckout Resolve, fetch, card reads) bypasses observeGit
+- **BR-19** [Minor] `doc-comment-attachment` The milestonePlanRE doc comment in plan.go now attaches to the MilestoneTagPattern const
