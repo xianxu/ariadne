@@ -161,6 +161,27 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 5
+      timestamp: "2026-10-02T11:29:00-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: atlas/workflow/recovery-contracts.md has a Scope line; helptext/recovery.md renders {{RECOVERY_SCOPE}} via recovery.ScopeText() (page.go:20), and the per-verb Section shows the scope.
+          round: 5
+        - id: BR-14
+          disposition: addressed
+          note: Plan Core concepts say `Verbs`, the DRY rationale drops JSON, and the issue M1 row names attachRecoveryContracts; every backticked identifier in Core concepts and Plan rows was grepped and resolves in the tree.
+          round: 5
+      findings:
+        - id: BR-15
+          severity: Minor
+          title: Scheduling example tells coordinators to expect checkpoints.flow.kind = quick, which only the fixture produces
+          detail: Real delegated work with a durable plan is the full flow, so a coordinator following the rendered example would read a correct state as a mismatch. Assert presence (or accept quick or full) in recovery.Example, and let the test check the fixture's specific value separately.
+          family: fixture-value-as-guidance
+          round: 5
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#280 (boundary-review)
@@ -230,7 +251,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-14** [Minor] `plan-table-drift` Core-concepts prose and the issue's M1 row still name superseded symbols (Contract field Verb, "the JSON", the RECOVERY placeholder)
   This is the 3rd finding in family plan-table-drift. The tables were fixed, but plan line 44 says the field is `Verb` (code: `Verbs`), line 53 says the source feeds "the JSON" (dropped in PQ-2), and the issue's M1 row says "rendered via {{RECOVERY}}" (now attachRecoveryContracts). Rule: the per-boundary sweep in the new lesson covers every symbol named in the Core-concepts section and the Plan rows, not only the table cells. Grep each backticked identifier against the tree and fix all misses in one Revisions entry.
 
+## Round 5 — 2026-10-02T11:29:00-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — atlas/workflow/recovery-contracts.md has a Scope line; helptext/recovery.md renders {{RECOVERY_SCOPE}} via recovery.ScopeText() (page.go:20), and the per-verb Section shows the scope.
+- BR-14 — addressed — Plan Core concepts say `Verbs`, the DRY rationale drops JSON, and the issue M1 row names attachRecoveryContracts; every backticked identifier in Core concepts and Plan rows was grepped and resolves in the tree.
+
+### Raised
+
+- **BR-15** [Minor] `fixture-value-as-guidance` Scheduling example tells coordinators to expect checkpoints.flow.kind = quick, which only the fixture produces
+  Real delegated work with a durable plan is the full flow, so a coordinator following the rendered example would read a correct state as a mismatch. Assert presence (or accept quick or full) in recovery.Example, and let the test check the fixture's specific value separately.
+
 ## Open findings
 
-- **BR-7** [Minor] `contract-scope-unstated` atlas/workflow/recovery-contracts.md presents the contracts as the rulebook without their issue-tracker-only scope
-- **BR-14** [Minor] `plan-table-drift` Core-concepts prose and the issue's M1 row still name superseded symbols (Contract field Verb, "the JSON", the RECOVERY placeholder)
+- **BR-15** [Minor] `fixture-value-as-guidance` Scheduling example tells coordinators to expect checkpoints.flow.kind = quick, which only the fixture produces
