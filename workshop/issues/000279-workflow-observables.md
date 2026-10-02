@@ -89,3 +89,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
      local worktrees that hold the issue branch through git (including
      parked or no-agent slots). `--repo <path>` queries another repository.
 - Wrote the durable plan (M1/M2). Awaiting operator approval.
+- change-code plan-quality round 1: three Important findings (landed review evidence source, ledger semantics, state vs outcome) and two Minor. All folded into the plan (see its Revisions).
