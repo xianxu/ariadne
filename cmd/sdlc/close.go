@@ -511,7 +511,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		if rerr != nil {
 			die(stderr, fmt.Sprintf("read #%s's card: %v", issueStr, rerr))
 		}
-		rec, ok := rs.Get(fmt.Sprintf("%06d", f.Issue))
+		rec, ok, cerr := rs.Require(fmt.Sprintf("%06d", f.Issue))
+		if cerr != nil {
+			die(stderr, fmt.Sprintf("#%s: %v", issueStr, cerr))
+		}
 		if !ok || rec.Card == nil {
 			die(stderr, fmt.Sprintf("#%s has mirrored details but no card on the tracker", issueStr))
 		}

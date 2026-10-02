@@ -36,6 +36,11 @@ type ownedCompletion struct {
 func ownedCompletions(env *trackerEnv, rs tracker.Records, head, base string, withDone bool) ([]ownedCompletion, error) {
 	var owned []ownedCompletion
 	for _, rec := range rs.All() {
+		if rec.CardErr != nil && !rec.Duplicate {
+			// It may hold a completion this landing owns (#288): refuse, as
+			// for a malformed completion binding, rather than skip it.
+			return nil, fmt.Errorf("card #%s: %w", rec.ID, rec.CardErr)
+		}
 		if rec.Duplicate || rec.Card == nil {
 			continue
 		}

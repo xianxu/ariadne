@@ -82,7 +82,9 @@ func overlayCardStatus(ctx context.Context, issuesDir string, refs []issueFileRe
 	for i := range refs {
 		refs[i].Status = ""
 		if id, _, ok := issue.ParseFilename(filepath.Base(refs[i].Path)); ok {
-			if rec, ok := rs.Get(id); ok && rec.Card != nil {
+			if rec, ok, err := rs.Require(id); err != nil {
+				return nil, err // an unknown status is never read as "none" (#288)
+			} else if ok && rec.Card != nil {
 				refs[i].Status = rec.Status()
 			}
 		}

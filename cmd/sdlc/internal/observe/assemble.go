@@ -23,6 +23,7 @@ type Inputs struct {
 	TrackerRefErr error  // the cards were read but their commit could not be named
 
 	Card     []byte // nil: no card for this id
+	CardErr  error  // the tracker holds this id's card but cannot parse it (#288)
 	CardPath string
 	CardBlob string
 
@@ -99,6 +100,10 @@ func assembleCard(in Inputs, t Tracker) Card {
 	c := Card{Authority: AuthorityTracker}
 	if t.State == Absent || t.State == Unknown {
 		c.Read = tracked(t, "")
+		return c
+	}
+	if in.CardErr != nil {
+		c.Read = Read{State: Unknown, Source: "issue-tracker", Error: "unreadable card: " + in.CardErr.Error()}
 		return c
 	}
 	if in.Card == nil {

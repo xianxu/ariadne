@@ -129,6 +129,11 @@ func TestClose_MilestoneRefusesWithRedirect(t *testing.T) {
 	}
 	cmd.SetOut(io.Discard)
 	cmd.SetErr(io.Discard)
+	// Hermetic: close takes the repository lock and runs the spine guard, so
+	// it must run in a scratch SDLC repo, never the real checkout (#288 saw
+	// the guard die there under sharded runs).
+	root := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	writeRepoFile(t, root, "workshop/issues/.keep", "")
 	cmd.SetArgs([]string{"--issue", "31", "--milestone", "M4", "--actual", "1", "--verified", "x"})
 	err := cmd.Execute()
 	if err == nil {

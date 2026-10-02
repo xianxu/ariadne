@@ -138,9 +138,11 @@ var moveRelocation = func(ctx context.Context, dest, id string) error {
 	if err != nil {
 		return err
 	}
-	card, ok := snap.Card(id)
-	if !ok {
+	card, err := snap.Require(id)
+	if errors.Is(err, tracker.ErrNoCard) {
 		return nil
+	} else if err != nil {
+		return err
 	}
 	own, recorded, me, err := ownership(env, card)
 	if err != nil || own == issue.OwnershipMine {

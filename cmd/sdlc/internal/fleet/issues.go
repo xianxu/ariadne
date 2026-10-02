@@ -44,6 +44,9 @@ func LookupRepoIssues(ctx context.Context, repoRoot, id string) ([]IssueRecord, 
 		if rec.ID != id {
 			continue
 		}
+		if rec.CardErr != nil {
+			return make([]IssueRecord, 0), fmt.Errorf("read same-repo issue %s: %w", ref, rec.CardErr)
+		}
 		if rec.DetailErr != nil {
 			return make([]IssueRecord, 0), fmt.Errorf("read same-repo issue %q: %w", rec.DetailPath, rec.DetailErr)
 		}
@@ -129,4 +132,86 @@ func AssociateBranchIssue(branch string, lookup IssueLookup) ([]IssueAssociation
 		return associations, fmt.Errorf("validate same-repo issue association %s: %w", id, err)
 	}
 	return append(associations, association), nil
+}
+
+// LookupRepoClaims reads one repository's claims from the same cached tracker
+// load the branch-prefix lookup uses (one read per repository, #288). Each
+// recorded worktree is re-canonicalized with the helper that produced the
+// inventory's tree paths, so placement compares like with like; a path that no
+// longer exists keeps its recorded spelling (it matches no row: dangling).
+//
+// A checkout with no tracker cutover marker and no fetched tracker has no
+// claims: it is absent without probing its remote (#288 BR-11), so inventory
+// contacts only the remotes of repositories that use the tracker — one fetch
+// each, the same read their branch-prefix lookups already make.
+func LookupRepoClaims(ctx context.Context, repoRoot string) RepoClaims {
+	if cut, err := tracker.CutOver(repoRoot); err != nil {
+		return RepoClaims{State: ClaimsUnknown, Error: err.Error()}
+	} else if !cut {
+		return RepoClaims{State: ClaimsAbsent}
+	}
+	rs, err := repoRecords(ctx, repoRoot)
+	if err != nil {
+		return RepoClaims{State: ClaimsUnknown, Error: err.Error()}
+	}
+	return repoClaimsFrom(rs, filepath.Base(filepath.Clean(repoRoot)), func(p string) string {
+		if c, err := canonicalPath(p); err == nil {
+			return c
+		}
+		return p
+	})
+}
+
+// repoClaimsFrom derives a repository's claim read from its composed records.
+func repoClaimsFrom(rs tracker.Records, repoName string, canon func(string) string) RepoClaims {
+	switch {
+	case !rs.Tracker && !rs.Stale:
+		return RepoClaims{State: ClaimsAbsent}
+	case !rs.Tracker && rs.FetchErr == nil:
+		return RepoClaims{State: ClaimsUnknown, Error: "could not confirm whether the publication remote has an issue tracker (unreachable, none fetched here, no cutover marker)"}
+	case !rs.Tracker:
+		return RepoClaims{State: ClaimsUnknown, Error: "tracker unreachable and never fetched here: " + rs.FetchErr.Error()}
+	}
+	out := RepoClaims{State: ClaimsPresent}
+	for _, rec := range rs.All() {
+		if rec.Duplicate {
+			continue
+		}
+		ref := repoName + "#" + rec.ID
+		if rec.CardErr != nil {
+			out.Unreadable = append(out.Unreadable, ref)
+			continue
+		}
+		if rec.Card == nil {
+			continue
+		}
+		card := ClaimCard{Ref: ref, Status: rec.Status(), Revision: rec.Card.BlobOID}
+		if c, ok, err := issue.CardClaimant(rec.Card.Raw); err != nil {
+			out.Unreadable = append(out.Unreadable, ref)
+			continue
+		} else if ok {
+			pub := ClaimantFrom(c)
+			pub.Worktree = canon(pub.Worktree)
+			card.Claimant = &pub
+		}
+		out.Cards = append(out.Cards, card)
+	}
+	var reasons []string
+	if rs.Stale {
+		out.State = ClaimsStale
+		reasons = append(reasons, "tracker unreachable, answered from the last fetch: "+errString(rs.FetchErr))
+	}
+	if len(out.Unreadable) > 0 {
+		out.State = ClaimsPartial
+		reasons = append(reasons, unreadableError(out.Unreadable))
+	}
+	out.Error = strings.Join(reasons, "; ")
+	return out
+}
+
+func errString(err error) string {
+	if err == nil {
+		return "no reason recorded"
+	}
+	return err.Error()
 }

@@ -44,6 +44,15 @@ func guardTransferredDetails(ctx context.Context) error {
 		return err
 	}
 	mainTip := view.Ref()
+	// An unreadable card may hide a handoff record (#288): fail closed, as
+	// for a malformed one.
+	if un := snap.Unreadable(); len(un) > 0 {
+		causes := make([]error, len(un))
+		for i, u := range un {
+			causes[i] = fmt.Errorf("tracker card #%s is malformed: %w", u.ID, u.Err)
+		}
+		return fmt.Errorf("%w\n      every PR, push and merge in this repository is refused until the card is repaired", errors.Join(causes...))
+	}
 	var paths []string
 	for _, rec := range snap.Records() {
 		h, ok, err := issue.CardHandoff(rec.Raw)

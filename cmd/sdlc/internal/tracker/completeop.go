@@ -123,9 +123,9 @@ func (op *CompletionOp) Prepare(e Effect, r Receipt) (Event, error) {
 		if err != nil {
 			return Event{}, err
 		}
-		card, ok := snap.Card(spec.IssueID)
-		if !ok {
-			return Event{}, fmt.Errorf("no card #%s on the tracker", spec.IssueID)
+		card, err := snap.Require(spec.IssueID)
+		if err != nil {
+			return Event{}, err
 		}
 		if err := op.newestClose(spec, card.Raw); err != nil {
 			return Event{}, err

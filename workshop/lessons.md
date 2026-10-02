@@ -299,3 +299,16 @@ The simplest durable authority beats a clever scan of consequences.
   prose and the Plan rows, not only the table cells. Rewrite the table to current reality in one Revisions entry
   rather than patching the row a reviewer named. #280 drifted twice: M1
   revised one row, and M2's review found four more absent files.
+- "Unreachable because guard X refuses first" is a claim about every caller,
+  not the ones you had in mind. Before skipping a branch on that argument,
+  list the function's callers and confirm each one passes through X. #288 M1
+  skipped unreadable cards in `ownedCompletions` as "behind transferguard",
+  but landing and recovery reach it without the guard.
+- When a rule has to be remembered at every call site, the fourth miss means
+  the API should enforce it. #288's "an unreadable card is unknown, never
+  absent" was re-found at a new `Records.Get` caller in three review rounds;
+  unexporting `Get` (only `Require` remains) ended the family.
+- Joining a shared authority's records (one tracker, read by every clone) onto
+  per-checkout rows: compute "unmatched" against all rows, and deduplicate by
+  the authority's key. Per-checkout matching reports each clone's live records
+  as the other's orphans (#288 `dangling_claims`).

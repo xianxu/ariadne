@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -93,16 +94,15 @@ func BenchmarkSnapshotTenThousandCards(b *testing.B) {
 
 func TestSnapshotRejectsMalformedAuthority(t *testing.T) {
 	for name, files := range map[string][]gitx.TreeFile{
-		"missing manifest":       {file(testPath, testCard)},
-		"unknown version":        {file(ManifestPath, `{"version":2}`)},
-		"duplicate version":      {file(ManifestPath, `{"version":1,"version":2}`)},
-		"trailing JSON":          {file(ManifestPath, `{"version":1}{}`)},
-		"unknown manifest field": {file(ManifestPath, `{"version":1,"other":true}`)},
-		"duplicate id":           {file(ManifestPath, string(ManifestBytes())), file(testPath, testCard), file("workshop/issue-cards/000252-other.md", testCard)},
-		"mismatched id":          {file(ManifestPath, string(ManifestBytes())), file("workshop/issue-cards/000251-test.md", testCard)},
-		"nested path":            {file(ManifestPath, string(ManifestBytes())), file("workshop/issue-cards/nested/000252-test.md", testCard)},
-		"unexpected file":        {file(ManifestPath, string(ManifestBytes())), file("README", "unexpected")},
-		"malformed card":         {file(ManifestPath, string(ManifestBytes())), file(testPath, strings.Replace(testCard, "status: open", "status: impossible", 1))},
+		"missing manifest":             {file(testPath, testCard)},
+		"unknown version":              {file(ManifestPath, `{"version":2}`)},
+		"duplicate version":            {file(ManifestPath, `{"version":1,"version":2}`)},
+		"trailing JSON":                {file(ManifestPath, `{"version":1}{}`)},
+		"unknown manifest field":       {file(ManifestPath, `{"version":1,"other":true}`)},
+		"duplicate id":                 {file(ManifestPath, string(ManifestBytes())), file(testPath, testCard), file("workshop/issue-cards/000252-other.md", testCard)},
+		"nested path":                  {file(ManifestPath, string(ManifestBytes())), file("workshop/issue-cards/nested/000252-test.md", testCard)},
+		"unexpected file":              {file(ManifestPath, string(ManifestBytes())), file("README", "unexpected")},
+		"duplicate id, one unreadable": {file(ManifestPath, string(ManifestBytes())), file(testPath, testCard), file("workshop/issue-cards/000252-other.md", strings.Replace(testCard, "status: open", "status: impossible", 1))},
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := parseSnapshot("tip", files); err == nil {
@@ -140,5 +140,68 @@ func TestSnapshotRecordsAreIsolated(t *testing.T) {
 	}
 	if snapshot.MaxID() != 252 || len(snapshot.Records()) != 1 {
 		t.Fatal("wrong inventory")
+	}
+}
+
+// #288: a card whose own content is malformed is quarantined — kept as an
+// unreadable card, never dropped — while every other card stays readable.
+// Structural errors (duplicate IDs, paths, manifest) still fail the read.
+func TestParseSnapshotQuarantine(t *testing.T) {
+	manifest := file(ManifestPath, string(ManifestBytes()))
+	good := file("workshop/issue-cards/000001-good.md", strings.ReplaceAll(testCard, "000252", "000001"))
+	badClaimant := strings.ReplaceAll(testCard, "000252", "000007")
+	badClaimant = strings.Replace(badClaimant, "status: open", "status: working\nclaimant:\n    operator: a\n    machine: RAW-MACHINE-ID\n    machine_name: m\n    worktree: /w\n    repository: r", 1)
+	for name, tc := range map[string]struct {
+		bad     gitx.TreeFile
+		badID   string
+		because string
+	}{
+		"malformed claimant": {file("workshop/issue-cards/000007-bad.md", badClaimant), "000007", "fingerprint"},
+		"invalid status":     {file("workshop/issue-cards/000009-bad.md", strings.Replace(strings.ReplaceAll(testCard, "000252", "000009"), "status: open", "status: impossible", 1)), "000009", "status"},
+		"filename disagrees": {file("workshop/issue-cards/000011-bad.md", testCard), "000011", "disagrees"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			s, err := parseSnapshot("tip", []gitx.TreeFile{manifest, good, tc.bad})
+			if err != nil {
+				t.Fatalf("one malformed card failed the whole read: %v", err)
+			}
+			if recs := s.Records(); len(recs) != 1 || recs[0].ID != "000001" {
+				t.Fatalf("readable records: %+v", recs)
+			}
+			un := s.Unreadable()
+			if len(un) != 1 || un[0].ID != tc.badID || un[0].Path != tc.bad.Path || un[0].BlobOID != tc.bad.OID || !strings.Contains(un[0].Err.Error(), tc.because) {
+				t.Fatalf("unreadable: %+v", un)
+			}
+			if want, _ := strconv.Atoi(tc.badID); s.MaxID() != want {
+				t.Fatalf("MaxID %d ignores the quarantined card %s", s.MaxID(), tc.badID)
+			}
+			if _, ok := s.Card(tc.badID); ok {
+				t.Fatal("Card returned an unreadable card")
+			}
+			if _, err := s.Require(tc.badID); !errors.Is(err, ErrUnreadableCard) || !strings.Contains(err.Error(), tc.bad.Path) {
+				t.Fatalf("Require(unreadable): %v", err)
+			}
+			if _, err := s.Require("000002"); !errors.Is(err, ErrNoCard) {
+				t.Fatalf("Require(missing): %v", err)
+			}
+			if r, err := s.Require("000001"); err != nil || r.ID != "000001" {
+				t.Fatalf("Require(readable): %+v %v", r, err)
+			}
+		})
+	}
+}
+
+// #288: a quarantined card still holds its ID and path against creation.
+func TestCreateRefusesAnUnreadableID(t *testing.T) {
+	bad := file("workshop/issue-cards/000011-bad.md", testCard)
+	s, err := parseSnapshot("tip", []gitx.TreeFile{file(ManifestPath, string(ManifestBytes())), bad})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.claimable("000011", "workshop/issue-cards/000011-fresh.md", nil); !errors.Is(err, ErrIDTaken) {
+		t.Fatalf("ID of an unreadable card: %v", err)
+	}
+	if err := s.validateAddition(bad.Path, nil); !errors.Is(err, ErrIDTaken) {
+		t.Fatalf("path of an unreadable card: %v", err)
 	}
 }

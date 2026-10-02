@@ -109,6 +109,13 @@ func newFleetInventoryCmd(deps fleetCommandDeps) *cobra.Command {
 	return cmd
 }
 
+// fleetMachine is this machine as `claim` records it (one derivation:
+// localMachine).
+func fleetMachine() (fleet.MachineIdentity, error) {
+	fp, name, err := localMachine()
+	return fleet.MachineIdentity{Fingerprint: fp, Name: name}, err
+}
+
 func runFleetInventory(ctx context.Context, stdout io.Writer, flags fleetCommandFlags, deps fleetCommandDeps) error {
 	vantage, err := deps.normalizeVantage(deps.git, flags.Path)
 	if err != nil {
@@ -117,6 +124,7 @@ func runFleetInventory(ctx context.Context, stdout io.Writer, flags fleetCommand
 	inventory, err := deps.collectInventory(ctx, vantage.FleetRoot, fleet.InventoryOptions{
 		Git:        deps.git,
 		LoadPolicy: deps.loadPolicy,
+		Machine:    fleetMachine, // #288: the identity claim records
 	})
 	if err != nil {
 		return fmt.Errorf("fleet inventory: %w", err)

@@ -20,9 +20,12 @@ import (
 // rest. Either half may be absent — a card-only issue is still being created,
 // and a repository without a tracker (pre-migration) has details only.
 type IssueRecord struct {
-	ID         string
-	Card       *Record // nil without a card
-	DetailPath string  // absolute; "" when this checkout has no details
+	ID   string
+	Card *Record // nil without a card
+	// CardErr: the tracker holds a card for this ID that cannot be parsed
+	// (#288). Card is then nil, and card-owned fields read as unknown.
+	CardErr    error
+	DetailPath string // absolute; "" when this checkout has no details
 	DetailFM   string
 	DetailBody string
 	DetailErr  error // unreadable or malformed details, reported rather than skipped
@@ -103,12 +106,26 @@ type Records struct {
 }
 
 func (rs Records) All() []IssueRecord { return append([]IssueRecord(nil), rs.list...) }
-func (rs Records) Get(id string) (IssueRecord, bool) {
+// get is the raw lookup. It is unexported on purpose (#288): a caller outside
+// this package must go through Require, so an unreadable card can never be
+// read as an absent one.
+func (rs Records) get(id string) (IssueRecord, bool) {
 	i, ok := rs.byID[id]
 	if !ok {
 		return IssueRecord{}, false
 	}
 	return rs.list[i], true
+}
+
+// Require is the lookup for every reader outside this package: ok is false
+// when no record exists, and err is the parse error when the tracker holds the
+// card but cannot read it (#288) — an unknown status is never answered.
+func (rs Records) Require(id string) (rec IssueRecord, ok bool, err error) {
+	rec, ok = rs.get(id)
+	if ok && rec.CardErr != nil {
+		return rec, true, rec.CardErr
+	}
+	return rec, ok, nil
 }
 
 // LoadRecords joins the tracker cards (via repo; nil means no publication
@@ -143,9 +160,10 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 		}
 	}
 	var cards []Record
+	var unreadable []UnreadableCard
 	if rs.Tracker {
 		rs.Ref = snap.Ref()
-		cards = snap.Records()
+		cards, unreadable = snap.Records(), snap.Unreadable()
 	}
 	matches, err := filepath.Glob(filepath.Join(detailsDir, issue.FilenamePattern))
 	if err != nil {
@@ -156,7 +174,7 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 		raw, err := os.ReadFile(p)
 		files = append(files, DetailFile{Path: p, Raw: raw, ReadErr: err})
 	}
-	return composeRecords(rs, cards, files), nil
+	return ComposeRecords(rs, cards, unreadable, files), nil
 }
 
 // DetailFile is one details file as read from disk (ReadErr when unreadable).
@@ -166,13 +184,16 @@ type DetailFile struct {
 	ReadErr error
 }
 
-// composeRecords is the pure join: every card, every well-named details file,
+// ComposeRecords is the pure join: every card, every well-named details file,
 // by ID; later same-ID files become visible duplicates. No IO.
-func composeRecords(rs Records, cards []Record, files []DetailFile) Records {
+func ComposeRecords(rs Records, cards []Record, unreadable []UnreadableCard, files []DetailFile) Records {
 	byID := map[string]*IssueRecord{}
 	for _, c := range cards {
 		card := c
 		byID[c.ID] = &IssueRecord{ID: c.ID, Card: &card, tracked: true}
+	}
+	for _, u := range unreadable {
+		byID[u.ID] = &IssueRecord{ID: u.ID, CardErr: u.Err, tracked: true}
 	}
 	var dups []*IssueRecord
 	for _, f := range files {
@@ -186,7 +207,7 @@ func composeRecords(rs Records, cards []Record, files []DetailFile) Records {
 			byID[id] = rec
 		}
 		if rec.DetailPath != "" {
-			dup := &IssueRecord{ID: id, Card: rec.Card, tracked: rs.Tracker, Duplicate: true}
+			dup := &IssueRecord{ID: id, Card: rec.Card, CardErr: rec.CardErr, tracked: rs.Tracker, Duplicate: true}
 			fillDetails(dup, f)
 			dups = append(dups, dup)
 			continue

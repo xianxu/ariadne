@@ -315,6 +315,16 @@ explicitly attributed with `branch-prefix` provenance. It reports observations
 only: neither the typed contract nor the human renderer derives `cold`, `drift`,
 `liveness`, `staleness`, or a similar judgment.
 
+Rows also carry this machine's tracker **claims** (#288): `fleet.PlaceClaims`
+(pure, `internal/fleet/claims.go`) joins each repository's claims — one
+`LookupRepoClaims` read per repository, sharing the branch-prefix lookup's
+cached records load — to the row whose tree is the claimant's worktree, judged
+against `machine` (the `localMachine` derivation `claim` records). Claims whose
+worktree matches no row are `dangling_claims`. Each row's `claims_state`
+(present/stale/partial/unknown/absent) is read quality, so an empty list is
+"none" only when the read carried value. This is the bulk, cross-slot
+counterpart of `issue show --json`'s per-issue assignment.
+
 Concurrency declarations live at `.sdlc/fleet.json`, but that spelling is owned
 by `construct/vocabulary/fleet-policy.cue` and reaches Go through
 `pkg/vocab.FleetPolicy().DeclarationPath`; inventory and the CLI share

@@ -169,7 +169,10 @@ func actualTrackerInputs(ctx context.Context, repoTop, issueNum string) (refs []
 	if rs.Stale {
 		warning = staleTrackerNote + "; measured against its last-fetched claim/close commits"
 	}
-	rec, ok := rs.Get(fmt.Sprintf("%06d", id))
+	rec, ok, cerr := rs.Require(fmt.Sprintf("%06d", id))
+	if cerr != nil {
+		return []string{repo.TrackingRef()}, "", false, "card unreadable, measured without its started stamp: " + cerr.Error()
+	}
 	if !ok || rec.Card == nil {
 		return []string{repo.TrackingRef()}, "", false, warning
 	}

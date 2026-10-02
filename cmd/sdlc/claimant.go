@@ -28,14 +28,14 @@ func resolveClaimantIdentity(env *trackerEnv) (issue.Claimant, error) {
 	if err != nil || strings.TrimSpace(operator) == "" {
 		return issue.Claimant{}, errors.New("claim ownership needs an operator name: set `git config user.name`")
 	}
-	raw, err := machineID()
+	machine, name, err := localMachine()
 	if err != nil {
-		return issue.Claimant{}, fmt.Errorf("machine identity unavailable: %w", err)
+		return issue.Claimant{}, err
 	}
 	c := issue.Claimant{
 		Operator:    strings.TrimSpace(operator),
-		Machine:     issue.MachineFingerprint(raw),
-		MachineName: machineName(),
+		Machine:     machine,
+		MachineName: name,
 		Worktree:    canonRoot(env.root),
 		Repository:  env.target.Repository,
 	}
@@ -43,6 +43,17 @@ func resolveClaimantIdentity(env *trackerEnv) (issue.Claimant, error) {
 		c.Workspace = slotLabel(id)
 	}
 	return c, nil
+}
+
+// localMachine is this machine as a claim records it: the fingerprint of the
+// OS machine ID and the human-facing name. The one derivation shared by claim
+// and every view that compares against claims (#288).
+func localMachine() (fingerprint, name string, err error) {
+	raw, err := machineID()
+	if err != nil {
+		return "", "", fmt.Errorf("machine identity unavailable: %w", err)
+	}
+	return issue.MachineFingerprint(raw), machineName(), nil
 }
 
 // slotLabel is the checkout's `repo:N` only where the slot layout is in use

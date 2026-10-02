@@ -599,7 +599,7 @@ func runIssueShow(ctx context.Context, stdout, stderr io.Writer, f *issueShowFla
 	if err != nil {
 		die(stderr, err.Error())
 	}
-	rec, ok := rs.Get(fmt.Sprintf("%06d", id))
+	rec, ok, cardErr := rs.Require(fmt.Sprintf("%06d", id))
 	if !ok {
 		die(stderr, fmt.Sprintf("no issue #%d: no card and no details under %s", id, f.IssuesDir))
 	}
@@ -610,6 +610,9 @@ func runIssueShow(ctx context.Context, stdout, stderr io.Writer, f *issueShowFla
 			stale = " (tracker unreachable — as last fetched)"
 		}
 		fmt.Fprintf(stdout, "card %s on %s%s\n---\n%s---\n", rec.Card.Path, vocab.Issue().Discovery().Tracker, stale, ensureTrailingNewline(rec.Card.Card.Frontmatter))
+	}
+	if cardErr != nil {
+		fmt.Fprintf(stdout, "card unreadable on %s: %v\n", vocab.Issue().Discovery().Tracker, cardErr)
 	}
 	if rec.DetailPath == "" {
 		fmt.Fprintln(stdout, "(details are not in this checkout — card only)")

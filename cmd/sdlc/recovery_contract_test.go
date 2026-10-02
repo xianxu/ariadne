@@ -17,7 +17,7 @@ import (
 // recoveryRequiredExtra are workflow verbs the repo-lock annotation does not
 // mark: start-plan takes no lock, and issue show is the evidence query every
 // contract points at.
-var recoveryRequiredExtra = []string{"start-plan", "issue show"}
+var recoveryRequiredExtra = []string{"start-plan", "issue show", "fleet inventory"}
 
 // testFuncNames is every Test function declared anywhere under cmd/sdlc.
 func testFuncNames(t *testing.T) map[string]bool {
