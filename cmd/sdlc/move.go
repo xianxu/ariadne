@@ -154,7 +154,7 @@ var moveRelocation = func(ctx context.Context, dest, id string) error {
 		return err
 	}
 	if !allowed {
-		return fmt.Errorf("%w: it is owned by %s, not the slot it moved from — moving never takes ownership (reclaim is #278)", errNoRelocation, describeClaimant(recorded))
+		return fmt.Errorf("%w: it is owned by %s, not the slot it moved from — moving never takes ownership (that is the operator-directed `sdlc reclaim`)", errNoRelocation, describeClaimant(recorded))
 	}
 	return relocateClaimant(env, card, me)
 }

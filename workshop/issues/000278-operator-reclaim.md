@@ -95,3 +95,11 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
 - Operator approved the plan. change-code inferred the quick flow (no plan-quality, no estimate); close will upgrade to the full review if the diff leaves the shell. Implementing.
 - Done: `UpdateCardWithTrailers` (tracker commit trailers; plain messages unchanged) and the pure `reclaimDecision` plus trailer round trip. Both are table-tested.
 - Done: the `sdlc reclaim` command (inspect/confirm, history from trailers, lost-response message, mirror refresh) and `helptext/reclaim.md`. Next: real-git tests and the no-automation guard.
+- Done:
+  - Real-git tests: transfer and wrong-owner refusal, dirty work preserved,
+    stale expect, identical rerun and lost response, a two-clone race, and
+    history.
+  - The no-automation AST guard. Its mutation check (a `move.go` reference)
+    goes red.
+  - The #277 refusal texts and help now name `sdlc reclaim`.
+  - Atlas: a Reclaim subsection plus the verb row.

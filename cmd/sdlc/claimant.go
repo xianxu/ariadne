@@ -161,7 +161,7 @@ func requireCardOwnership(env *trackerEnv, card tracker.Record) error {
 	if moved {
 		return fmt.Errorf("#%s was moved here by `sdlc move` from %s, whose owner update did not finish; record it with `sdlc claim --issue %s`", id, recorded.Worktree, issue.CLIRef(id))
 	}
-	return fmt.Errorf("#%s is owned by %s; this workspace (%s) may not continue it — coordinate with the owner (reassignment is operator-directed reclaim, #278)", id, describeClaimant(recorded), me.Worktree)
+	return fmt.Errorf("#%s is owned by %s; this workspace (%s) may not continue it — coordinate with the owner (reassignment is the operator-directed `sdlc reclaim --issue %s`)", id, describeClaimant(recorded), me.Worktree, issue.CLIRef(id))
 }
 
 // relocatable observes RelocationAllowed's facts locally: sdlc move's record

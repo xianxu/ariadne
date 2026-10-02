@@ -48,10 +48,10 @@ func TestVerbContractTable(t *testing.T) {
 	}{
 		{"open", card("open", nil), map[string]string{"claim": "stamp", "adopt": "plain `sdlc claim", "set-status working": "stamp"}},
 		{"working, mine", card("working", &me), map[string]string{"claim": "mine", "adopt": "mine", "set-status working": "stamp"}},
-		{"working, foreign", card("working", &other), map[string]string{"claim": "claimed by Them", "adopt": "never reassigns", "set-status working": "reclaim (#278)"}},
+		{"working, foreign", card("working", &other), map[string]string{"claim": "claimed by Them", "adopt": "never reassigns", "set-status working": "`sdlc reclaim`"}},
 		{"working, unknown", card("working", nil), map[string]string{"claim": "--adopt", "adopt": "stamp", "set-status working": "--adopt"}},
 		{"blocked, unknown (reopen)", card("blocked", nil), map[string]string{"claim": "not open", "adopt": "stamp", "set-status working": "stamp"}},
-		{"blocked, foreign (reopen)", card("blocked", &other), map[string]string{"claim": "not open", "adopt": "never reassigns", "set-status working": "reclaim (#278)"}},
+		{"blocked, foreign (reopen)", card("blocked", &other), map[string]string{"claim": "not open", "adopt": "never reassigns", "set-status working": "`sdlc reclaim`"}},
 	} {
 		for verb, decide := range verbs {
 			want := row.want[verb]

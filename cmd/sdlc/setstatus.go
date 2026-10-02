@@ -114,7 +114,7 @@ func runSetStatus(ctx context.Context, stdout, stderr io.Writer, f *setStatusFla
 // forced), then set status/updated and stamp `started` on open → working
 // without ever moving an existing stamp (#116). Entering working with an
 // identity (#277) records it as the claimant — refused when another workspace
-// owns the card, even under --force: reassignment is reclaim (#278).
+// owns the card, even under --force: reassignment is `sdlc reclaim` (#278).
 func statusDecision(card []byte, detailsBody, next string, force bool, today, started string, me *issue.Claimant) ([]byte, string, error) {
 	if !isValidStatus(next) {
 		return nil, "", fmt.Errorf("invalid status %q (valid: %s)", next, strings.Join(vocab.Issue().AllStatuses(), ", "))
@@ -144,7 +144,7 @@ func statusDecision(card []byte, detailsBody, next string, force bool, today, st
 			return nil, prev, cerr
 		}
 		if has && issue.MatchClaimant(&recorded, *me) == issue.OwnershipForeign {
-			return nil, prev, fmt.Errorf("owned by %s; entering working from another workspace is a takeover — operator-directed reclaim (#278), not set-status", describeClaimant(recorded))
+			return nil, prev, fmt.Errorf("owned by %s; entering working from another workspace is a takeover — operator-directed `sdlc reclaim`, not set-status", describeClaimant(recorded))
 		}
 		if !has && prev == "working" {
 			return nil, prev, fmt.Errorf("already working with no recorded owner (claimed before #277); record an owner with `sdlc claim --adopt`, not set-status")

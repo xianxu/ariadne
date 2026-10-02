@@ -29,7 +29,7 @@ type claimFlags struct {
 	NoStart   bool
 	// Adopt records this workspace as the owner of a working (or blocked) card
 	// that has none — one claimed before ownership existed (#277). It never
-	// takes an owned card: reassignment is operator-directed reclaim (#278).
+	// takes an owned card: reassignment is operator-directed `sdlc reclaim` (#278).
 	Adopt bool
 	// FirstPublication says this id has never been on the trunk, so re-allocating
 	// it is cheap. Only `issue new` sets it. Renumbering is safe ONLY before

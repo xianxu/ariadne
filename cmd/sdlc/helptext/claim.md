@@ -36,7 +36,7 @@ without writing anything. A repeat claim by any other workspace is refused,
 naming the owner. The one exception is the owner's own work that
 `sdlc move` brought here: when move's local record names the recorded owner
 as the source and this checkout as the destination, and the old worktree no
-longer holds the branch, a repeat claim finishes the move's owner update. Reassignment is operator-directed reclaim (#278). A working
+longer holds the branch, a repeat claim finishes the move's owner update. Reassignment is the operator-directed `sdlc reclaim` (#278). A working
 card with no recorded owner, claimed before #277, refuses toward
 `sdlc claim --issue N --adopt`. Every other non-open status refuses, as
 before. No estimate is required; change-code
@@ -51,7 +51,7 @@ FLAGS
   --dry-run             check readiness and describe the reservation; change nothing
   --adopt               record this workspace as the owner of a working (or
                         blocked) issue that has none — claimed before #277;
-                        never reassigns an owned issue (that is reclaim, #278)
+                        never reassigns an owned issue (that is `sdlc reclaim`)
 
 EXAMPLES
 

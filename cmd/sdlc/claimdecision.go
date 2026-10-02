@@ -73,7 +73,7 @@ func ownedBy(raw []byte, id int, me issue.Claimant) error {
 	case issue.OwnershipMine:
 		return errAlreadyMine
 	case issue.OwnershipForeign:
-		return fmt.Errorf("remote issue #%d is working, claimed by %s; coordinate with its owner — reassignment is operator-directed reclaim (#278), never a repeat claim", id, describeClaimant(recorded))
+		return fmt.Errorf("remote issue #%d is working, claimed by %s; coordinate with its owner — reassignment is the operator-directed `sdlc reclaim --issue %d`, never a repeat claim", id, describeClaimant(recorded), id)
 	default:
 		return fmt.Errorf("remote issue #%d is working with no recorded owner (claimed before ownership, #277); if this workspace holds that work, record it with `sdlc claim --issue %d --adopt`", id, id)
 	}
@@ -107,7 +107,7 @@ func adoptDecision(raw []byte, id string, me issue.Claimant) ([]byte, error) {
 		if issue.MatchClaimant(&recorded, me) == issue.OwnershipMine {
 			return nil, errAlreadyMine
 		}
-		return nil, fmt.Errorf("#%s is owned by %s; --adopt never reassigns — that is operator-directed reclaim (#278)", id, describeClaimant(recorded))
+		return nil, fmt.Errorf("#%s is owned by %s; --adopt never reassigns — that is the operator-directed `sdlc reclaim --issue %s`", id, describeClaimant(recorded), issue.CLIRef(id))
 	}
 	return issue.SetCardClaimant(raw, me)
 }

@@ -7,7 +7,7 @@ the resting branch). A reopen reads this checkout's details Log for its entry.
 OWNERSHIP (#277): entering `working` records this workspace as the card's
 claimant, as claim does: from open, or when reopening an unattributed issue or
 one of your own. It refuses when another workspace owns the card, even with
---force, because that would be a takeover (reclaim, #278).
+--force, because that would be a takeover (`sdlc reclaim`).
 
 {{LIFECYCLE}}
 

@@ -8,7 +8,7 @@ requires, because a branch merely missing from the owner's worktree proves
 nothing. After both switches are verified, move records the destination as the
 issue's owner, if the source slot owned it. A failure leaves the branch moved,
 keeps the record, and names the repair, which is `sdlc claim --issue N` at the
-destination. Move never takes another workspace's issue; that is reclaim (#278).
+destination. Move never takes another workspace's issue; that is `sdlc reclaim`.
 
   sdlc move                 move to :0
   sdlc move :2              move to slot 2
