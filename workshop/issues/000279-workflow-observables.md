@@ -40,7 +40,15 @@ For each observation expose its source/revision and freshness or collection time
 
 ## Plan
 
-Implementation plan to be designed after issue claim and start-plan; these are requirements, not an approved implementation plan.
+Durable plan: `workshop/plans/000279-workflow-observables-plan.md`.
+
+- [ ] M1 — the contract and its tracker sections: `internal/observe` types,
+      strict JSON and golden; `Assemble` for card, assignment, completion and
+      landing; `issue show --json`; parked-slot, stale-tracker and no-mutation
+      tests.
+- [ ] M2 — checkpoints (flow, plan, review verdicts, open blocking),
+      workspaces and activity, `--repo`; conflicting, missing and
+      other-machine cases; docs.
 
 ## Log
 
@@ -80,3 +88,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   3. **Targeting:** the query is repo-wide from any checkout, finding the
      local worktrees that hold the issue branch through git (including
      parked or no-agent slots). `--repo <path>` queries another repository.
+- Wrote the durable plan (M1/M2). Awaiting operator approval.
