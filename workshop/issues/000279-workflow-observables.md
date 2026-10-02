@@ -140,3 +140,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Running on #279 itself showed this workspace as owner, holding the
     branch.
 
+- M1 milestone-close needed an atlas update for the new surface. Added the atlas `issue-tracker.md` Observations section (M1 scope).

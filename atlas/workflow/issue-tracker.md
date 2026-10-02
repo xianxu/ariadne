@@ -100,6 +100,29 @@ slot. Refresh fast-forwards the slot's private substrates and compiles.
 change up. Do this before the first claim from an updated environment. An
 issue branch builds from itself, so it needs main merged or rebased in.
 
+## Observations (#279)
+
+`sdlc issue show N --json` is the versioned (`schema_version: 1`), read-only
+observation of one issue, for agents and humans. It reads the existing
+authorities and records nothing. `internal/observe` is pure: its types,
+strict JSON (unknown and duplicate keys refused, invariants validated both
+ways) and `Assemble`. `cmd/sdlc/observe.go` collects the inputs.
+
+- **Every section's `state` is read quality only:** `present`, `absent`
+  (read, none recorded), `stale` (as last fetched, with the fetch error) or
+  `unknown` (the read failed, with the error). Values live in their own
+  fields: `assignment.relation` and `claimant_worktree`, `landing.outcome`,
+  review `verdict`. `tracker.Records.FetchErr` keeps a stale read's reason.
+- **Authority classes:** `tracker` covers claim, status, completion and
+  landing. `committed` covers checkpoints. `worktree` covers activity only,
+  which is not progress: a working card proves a claim, not execution.
+- **Reach:** a query runs from any checkout. Worktrees (including parked,
+  agentless slots) come from git. Another machine's worktree is reported as
+  `other-machine` and never probed. `--repo <path>` observes another
+  repository.
+- **Freshness:** each answer carries the tracker commit and `observed_at`.
+  The tracker fetch's remote-tracking update is the only side effect.
+
 ## Storage boundary
 
 `internal/tracker.Repository` reads a fresh, pinned Git snapshot with a versioned
