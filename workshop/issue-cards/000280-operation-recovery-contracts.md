@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 3.33
+actual_hours: 3.42
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000280-operation-recovery-contracts.md
         main_commit: bb6221d84ecd5ba27a1336cb78515ecdb2e5d602
     completion:
-        token: close-f1682f62525a
+        token: close-56eb98439ce8
         repository: github.com/xianxu/ariadne
-        reviewed_head: 61713c0fd8ca4d3eb9d6515e8e0978127784c8ca
-        evidence_commit: d4f44a0bac85ead9a6d3e046dfd9d338a8b68a68
+        reviewed_head: 563c32ef7b32b5085c81a920a60f67a15eeaf82c
+        evidence_commit: a6b290adc55ed6b8d8d7cc00aae5e31f59da6c2d
 ---
 
 # Publish tested operation recovery contracts
