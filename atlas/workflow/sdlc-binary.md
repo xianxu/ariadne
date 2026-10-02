@@ -325,6 +325,15 @@ worktree matches no row are `dangling_claims`. Each row's `claims_state`
 "none" only when the read carried value. This is the bulk, cross-slot
 counterpart of `issue show --json`'s per-issue assignment.
 
+Tracker reads are the inventory's network cost (#290). `repoRecords` is a
+per-key-once cache, warmed for every tracked repository (`tracker.CutOver`,
+local) with at most 8 concurrent loads before the row walk, each under a 15s
+deadline (a timed-out load is kept, so the walk never waits twice). A read is
+one `ls-remote` when the tracker is unchanged: `TrunkFile.RemoteExists` hands
+the tip it saw to the next `Snapshot`, which reads it directly when the local
+tracking ref already points there, and fetches otherwise. Tracker fetches pass
+`--no-auto-maintenance`. Measured here: 17.5s → 5.9s, identical output.
+
 Concurrency declarations live at `.sdlc/fleet.json`, but that spelling is owned
 by `construct/vocabulary/fleet-policy.cue` and reaches Go through
 `pkg/vocab.FleetPolicy().DeclarationPath`; inventory and the CLI share

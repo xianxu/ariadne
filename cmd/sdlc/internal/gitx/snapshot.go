@@ -19,6 +19,15 @@ type TreeFile struct {
 
 // Snapshot fetches once and pins subsequent reads to one commit, not a moving ref.
 func (t *TrunkFile) Snapshot() (*TrunkView, error) {
+	// #290: right after a presence probe, an unchanged tracker is read at the
+	// tip the probe saw — exactly what a fetch would yield — without fetching.
+	// The probe's tip is used once; anything else fetches as before.
+	if tip := t.probedTip; tip != "" {
+		t.probedTip = ""
+		if local, err := t.resolveOpt(t.trackingRef()); err == nil && local == tip {
+			return t.ViewOf(tip), nil
+		}
+	}
 	ref, err := t.refreshTip()
 	if err != nil {
 		return nil, err

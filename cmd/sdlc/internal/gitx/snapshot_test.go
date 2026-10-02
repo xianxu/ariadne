@@ -2,8 +2,12 @@ package gitx
 
 import (
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestSnapshotPinsTreeAndBatchReadsLiteralBytes(t *testing.T) {
@@ -75,5 +79,71 @@ func TestSnapshotBatchRejectsMalformedFrames(t *testing.T) {
 		if _, err := parseSnapshotBlobs([]byte(raw), []TreeFile{{OID: "abc"}}); err == nil {
 			t.Fatalf("accepted %q", raw)
 		}
+	}
+}
+
+// #290: a snapshot right after an unchanged presence probe reads the tip the
+// probe saw without fetching; a moved remote is fetched; the probe's tip is used
+// once; and tracker fetches never trigger automatic maintenance.
+func TestSnapshotSkipsTheFetchWhenTheTipIsUnchanged(t *testing.T) {
+	repo, origin := trunkFixture(t, "seed\n")
+	trace := filepath.Join(t.TempDir(), "trace")
+	t.Setenv("GIT_TRACE", trace)
+	fetches := func() (n int, noMaint bool) {
+		raw, _ := os.ReadFile(trace)
+		noMaint = true
+		for _, l := range strings.Split(string(raw), "\n") {
+			if strings.Contains(l, "built-in: git fetch") {
+				n++
+				noMaint = noMaint && strings.Contains(l, "--no-auto-maintenance")
+			}
+		}
+		return n, noMaint
+	}
+	tf, err := NewTrunkFileContext(context.Background(), repo, "origin", "main")
+	if err != nil {
+		t.Fatal(err)
+	}
+	tip := strings.TrimSpace(testfix.Capture(t, origin, "rev-parse", "main"))
+	if ok, err := tf.RemoteExists(); !ok || err != nil {
+		t.Fatalf("presence: %v %v", ok, err)
+	}
+	view, err := tf.Snapshot()
+	if n, _ := fetches(); err != nil || n != 0 || view.Ref() != tip {
+		t.Fatalf("unchanged tip: %d fetches, ref %s want %s, %v", n, view.Ref(), tip, err)
+	}
+
+	other := filepath.Join(t.TempDir(), "other")
+	testfix.Git(t, "", "clone", "-q", origin, other)
+	testfix.Git(t, other, "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--allow-empty", "-m", "moved")
+	testfix.Git(t, other, "push", "-q", "origin", "main")
+	moved := strings.TrimSpace(testfix.Capture(t, origin, "rev-parse", "main"))
+	if _, err := tf.RemoteExists(); err != nil {
+		t.Fatal(err)
+	}
+	view, err = tf.Snapshot()
+	if n, noMaint := fetches(); err != nil || n != 1 || !noMaint || view.Ref() != moved {
+		t.Fatalf("moved tip: %d fetches (no-maintenance %v), ref %s want %s, %v", n, noMaint, view.Ref(), moved, err)
+	}
+
+	if _, err := tf.Snapshot(); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := fetches(); n != 2 {
+		t.Fatalf("a probe's tip was reused by a later snapshot: %d fetches, want 2", n)
+	}
+
+	// Any fetch consumes the probe: a snapshot after probe → fetch fetches.
+	if _, err := tf.RemoteExists(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tf.Read("note.md"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := tf.Snapshot(); err != nil {
+		t.Fatal(err)
+	}
+	if n, _ := fetches(); n != 4 {
+		t.Fatalf("a probe survived an intervening fetch: %d fetches, want 4", n)
 	}
 }
