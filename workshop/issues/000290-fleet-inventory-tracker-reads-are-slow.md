@@ -68,7 +68,7 @@ Durable plan: `workshop/plans/000290-fleet-inventory-tracker-reads-are-slow-plan
 - [x] Fetch-skip when the remote tracker tip equals the local tracking ref; `--no-auto-maintenance` on tracker fetches
 - [x] Per-key-once records cache + bounded concurrent warm-up of tracked repositories
 - [x] Per-read deadline; a hanging remote degrades only its repository
-- [ ] Before/after trace in the Log; atlas + help; close
+- [x] Before/after trace in the Log; atlas + help; close
 
 ## Log
 
