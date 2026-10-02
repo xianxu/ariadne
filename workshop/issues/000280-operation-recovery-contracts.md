@@ -45,7 +45,7 @@ Put claim-before-work and owner-checked continuation in SDLC once, not in every 
 
 Durable plan: `workshop/plans/000280-operation-recovery-contracts-plan.md`.
 
-- [ ] M1 — the `internal/recovery` registry (class, effects, evidence,
+- [x] M1 — the `internal/recovery` registry (class, effects, evidence,
       preconditions, repeat, lost-response, ends, and proofs naming tests),
       rendered via `{{RECOVERY}}` into each verb's help;
       `TestRecoveryContractsAreProven`; uncertain-publication guidance plus
@@ -96,6 +96,7 @@ Items, in order:
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
 
 ### 2026-10-02 (implementation session)
+- 2026-10-02: closed M1 — recovery catalog (16 contracts over 26 derived commands, 8 reasoned exemptions) in every verb's help with a scope line (tracker repos; legacy unknown); TestRecoveryContractsAreProven (derived set, stale exemptions, help sections, declared tests; mutation-checked); cardPublish seam with caller guard over all initializers + uncertainCardWrite; proofs: claim/set-status lost-ack reruns, close re-run is a new generation, landing leaves a reopened card alone; plan Revisions match the code; full suite green; actual = sdlc actual (first milestone); --no-project: pair's project tracks ariadne#280 at issue granularity; review verdict: SHIP
 
 - Operator authorized the work ("work on #280"). Claimed in ariadne:1 (the
   claimant is recorded) and ran start-plan; the branch sits at main, which
@@ -162,3 +163,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     `TestLandingLeavesAReopenedCardAlone`.
   - Atlas: added `workflow/recovery-contracts.md` and its index link.
 - M1 review round 1: FIX-THEN-SHIP. Fixed BR-1 (the scope line on every section: tracker repositories; legacy is unknown) and BR-2 (plan-table Revisions), plus the Minors (stale doc, the caller guard over all initializers, the gitx lost-ack citation). The `sdlc help recovery` pointer resolves in M2.
+- M1 closed (SHIP; 3.08h measured, which includes this session's design time). Advisory BR-7 fixed first in M2: the atlas page now carries the scope line, and the M2 page renders `recovery.Scope`.

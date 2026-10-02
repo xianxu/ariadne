@@ -126,3 +126,110 @@ findings:
     title: |
       The plan's lost-acknowledgement proof TestUpdateMany_LostAcknowledgmentIsUncertainWithoutReplay is cited by no catalog entry
 ```
+
+---
+
+## Re-review — 2026-10-02T11:10:43-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 280 — Publish tested operation recovery contracts |
+| repo | ariadne |
+| issue file | workshop/issues/000280-operation-recovery-contracts.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 3b7315b7fde5083f036e377d41e8053193e52ef3..135d7d4b60c8a24171b811930f9ea40fe5fcc3ff |
+| command | sdlc milestone-close --issue 280 --milestone M1 |
+| reviewer | claude |
+| timestamp | 2026-10-02T11:10:43-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All six round-1 findings are fixed, and I checked each one against the code and tests rather than the commit message. The one new finding is Minor and doesn't block.
+
+**What was fixed:**
+- **Legacy-repository scope (BR-1):** a single `recovery.Scope` constant is now rendered into every help section. `Section` writes the `Scope:` line at `contracts.go:135`, and `TestSectionMarksUnprovenClaims` checks that `Scope:`, `legacy` and `unknown` are present. That test fails if the scope line is removed.
+- **Caller guard (BR-5):** `reclaimEffect` is now in the allowed set, so the "no longer publishes" loop requires it. The guard now looks at every package-level initializer instead of one hard-coded name.
+- **Uncited lost-acknowledgement test (BR-6):** the catalog now cites the gitx test, and that test exists.
+  - `cardPublish` → `UpdateCardWithTrailers` → `UpdateManyPrepared` runs through the same `updateMany` core that the gitx test drives, so the citation is accurate.
+
+**What I ran:**
+- `go test ./cmd/sdlc/internal/recovery/` passes.
+- `go test ./cmd/sdlc -run 'TestRecoveryContractsAreProven|TestCardPublishCallers|TestNoCommandLongHasSurvivingPlaceholder|TestEveryFlagAppearsInItsHelp'` passes.
+- The gitx lost-acknowledgement test passes.
+- `sdlc claim --help` shows the scope line.
+- The git commands only worked with the sandbox disabled.
+
+1. **Strengths**
+   - The scope text is defined once (`contracts.go:53`) and shown through the one `Section` renderer. It isn't copied into each catalog entry, which would follow ARCH-DRY.
+   - The caller guard now encodes a general rule ("any initializer that calls `cardPublish` must be allowed") instead of naming one exception (`recovery_proofs_test.go:136-170`). It also works in both directions: the allowed callers must still use the seam.
+   - The lost-acknowledgement proof chain goes all the way down to the push. `TestUpdateMany_LostAcknowledgmentIsUncertainWithoutReplay` checks that a lost push response is reported as uncertain, that the change is not prepared a second time (`calls == 1`), and that the push really reached origin.
+   - The plan's Revisions entry clearly replaces the outdated table rows and records that M2 owns the `sdlc help recovery` page.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - The atlas page `atlas/workflow/recovery-contracts.md` never says that the contracts only cover issue-tracker repositories. It describes the catalog as the rulebook with no limit on where it applies. **This is the 2nd finding in family `contract-scope-unstated`.**
+     - The rule that covers both: every surface that describes the contracts states their scope, and generated surfaces take it from `recovery.Scope`. Today those surfaces are the help sections (done), the M2 `sdlc help recovery` page (should render `Scope`, not retype it) and the atlas (hand-written, so add one line there).
+     - Fix the class in M2: render `Scope` in `Page()`, and add the scope line to the atlas in the same round.
+
+5. **Test coverage notes**
+   - The scope assertion checks for words, not the whole line; that's fine for M1.
+   - The caller guard still credits any `cardPublish` use inside a function, closures included, to that function. That's acceptable.
+   - Legacy repositories have no recovery tests. That's consistent with their being declared out of scope.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. Scope is single-sourced. The command-tree walk is still written twice (once in `attachRecoveryContracts`, once in the test); that was already noted in round 1 and is trivial.
+   - **ARCH-PURE:** pass. The recovery package is pure data and rendering.
+   - **ARCH-PURPOSE:** pass. The legacy gap is now explicitly marked unknown, which fits the Done-when line "unproven guarantees are explicitly unknown". The scheduling example and the help page remain M2 work, as planned.
+   - **ARCH-MOCK:** pass. The lost-acknowledgement tests run the real git push against a real fixture.
+   - **ARCH-CONSTRAINTS:** pass. Negligible cost.
+   - **ARCH-SECURE:** N/A. The change only parses local Go sources and handles no secrets.
+   - **ARCH-ORDER:** pass. An uncertain publish stays uncertain and is never retried automatically.
+   - **ARCH-FUNERAL:** pass. Nothing durable is created; the catalog is static.
+
+7. **Plan revisions:** none beyond what was added. In M2, record that `Page()` renders `recovery.Scope`.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      recovery.Scope rendered by Section into every help section (contracts.go:135); TestSectionMarksUnprovenClaims asserts Scope/legacy/unknown; verified in sdlc claim --help.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Plan Revisions entry supersedes the table rows: no render.go, JSON dropped (PQ-2), Page/Example are M2.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Package doc now names attachRecoveryContracts; no placeholder reference remains.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Revisions records that sdlc help recovery lands on this branch in M2 before anything ships; acceptable at an intra-branch milestone.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      reclaimEffect added to allowed (so required by the not-seen loop); guard inspects every ValueSpec initializer.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      catalog.go:25 cites the test; it exists in internal/gitx and passes; it shares the updateMany core with UpdateCardWithTrailers.
+findings:
+  - id: new
+    severity: Minor
+    family: contract-scope-unstated
+    title: |
+      atlas/workflow/recovery-contracts.md presents the contracts as the rulebook without their issue-tracker-only scope
+    detail: |
+      Repeat of the family. Rule: every surface describing the contracts states the scope; generated surfaces (help sections, M2 Page) render recovery.Scope, and the hand-written atlas page carries one scope line. Fix the class in M2 by rendering Scope in Page() and adding the line to the atlas.
+```
