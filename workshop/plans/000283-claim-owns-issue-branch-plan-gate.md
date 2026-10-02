@@ -49,7 +49,36 @@ rounds:
           family: unbacked-code-claim
           round: 2
       blocked: false
-content_hash: 71ea9e52db00475c2efca3f40fc827bffbaf3e0caa8f6b5c35646f18c7aef4df
+    - "n": 3
+      timestamp: "2026-10-02T12:12:59-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Revision 1 routes adoptDecision (claimdecision.go:99) through IsActive, which covers codecomplete.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: Revision 2 adds a scope gloss on the ownership block; the help describes legacy claim-as-start keyed on issue-tracker.json.
+          round: 3
+        - id: PQ-3
+          disposition: addressed
+          note: 'Revision 3 decides it is intended (those reads concern started work); showing open claims goes to #284''s state view.'
+          round: 3
+        - id: PQ-4
+          disposition: addressed
+          note: Revision 4 gives one strategy line per decision (status x owner product from the model) and names the rename/copy -z class for planningDirtyAllowed.
+          round: 3
+        - id: PQ-5
+          disposition: addressed
+          note: Revision 5 states the FUNERAL, SECURE, CONSTRAINTS and ORDER positions, including the branch left behind on a lost start CAS.
+          round: 3
+        - id: PQ-6
+          disposition: addressed
+          note: Revision 6 adds TransitionFor, FirstTransitionForEvent and TransitionForEvent on IssueModel; the completeop.go path is corrected.
+          round: 3
+      blocked: false
+content_hash: 945e06273f3ac65d238805b6b76565e6d0960469954a0c76a813af97e701df1f
 ---
 
 # Gate ledger — ariadne#283 (plan-quality)
@@ -78,11 +107,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-6** [Minor] `unbacked-code-claim` TransitionFor/FirstTransitionForEvent exist only on ProjectModel, not IssueModel
   conformance_test.go:121 does not establish an IssueModel method; pkg/vocab/project.go:96,109 are the only definitions. Expect to add both (the plan's hedge covers it). Also completeop.go lives at cmd/sdlc/internal/tracker/.
 
+## Round 3 — 2026-10-02T12:12:59-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Revision 1 routes adoptDecision (claimdecision.go:99) through IsActive, which covers codecomplete.
+- PQ-2 — addressed — Revision 2 adds a scope gloss on the ownership block; the help describes legacy claim-as-start keyed on issue-tracker.json.
+- PQ-3 — addressed — Revision 3 decides it is intended (those reads concern started work); showing open claims goes to #284's state view.
+- PQ-4 — addressed — Revision 4 gives one strategy line per decision (status x owner product from the model) and names the rename/copy -z class for planningDirtyAllowed.
+- PQ-5 — addressed — Revision 5 states the FUNERAL, SECURE, CONSTRAINTS and ORDER positions, including the branch left behind on a lost start CAS.
+- PQ-6 — addressed — Revision 6 adds TransitionFor, FirstTransitionForEvent and TransitionForEvent on IssueModel; the completeop.go path is corrected.
+
 ## Open findings
 
-- **PQ-1** [Minor] `consumer-shadow-sweep` adoptDecision still hard-codes working/blocked; no task routes it through CanHoldOwner
-- **PQ-2** [Minor] `single-source-scope-divergence` Model and claim help will state claim never changes status, yet legacy repos still flip open→working
-- **PQ-3** [Minor] `consumer-shadow-sweep` Owned-open claims invisible to contention and state reads that count only working
-- **PQ-4** [Minor] `test-prose-enumeration` Plan enumerates test cases in prose instead of one strategy line per risky function
-- **PQ-5** [Minor] `arch-envelope-unstated` No explicit FUNERAL/SECURE/CONSTRAINTS statements; leftover branch on a lost start CAS unnamed
-- **PQ-6** [Minor] `unbacked-code-claim` TransitionFor/FirstTransitionForEvent exist only on ProjectModel, not IssueModel
+(none — every finding has been disposed)
