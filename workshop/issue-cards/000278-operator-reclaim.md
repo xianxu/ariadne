@@ -1,6 +1,6 @@
 ---
 id: 000278
-status: codecomplete
+status: done
 created: 2026-10-01
 updated: 2026-10-01
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 71ec9776d8a00879b4139be4286f90196b1395c8
         evidence_commit: ffefebdf8fb190febc779499c2a841ad4ca602f7
+        landed_commit: 7ad927c320c3c812b3b9f130827ce2f601e804c1
 ---
 
 # Add operator-directed reclaim for recovery
