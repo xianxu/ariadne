@@ -48,24 +48,26 @@ as read-only.
 
 ## Done when
 
-- One command returns every non-terminal issue's claim state for a repository
-  as versioned JSON, from a single tracker read; tested with a stateful
-  tracker fixture covering this-machine, other-machine, unattributed and
-  unreadable-owner cards.
-- This machine's identity is printable and matches what `claim` records.
-- Stale/unreachable tracker yields an explicit stale/unknown state, tested.
-- The command appears in `sdlc help recovery` as read-only, with its proof.
+- `sdlc fleet inventory --json` reports, per local worktree, the active claims
+  this machine holds there (from one tracker read per repository), claims whose
+  worktree is gone as `dangling_claims`, and this machine's identity; tested
+  with the real tracker fixture (placed, dangling, other-machine omitted,
+  unclaimed omitted).
+- This machine's identity matches what `claim` records (one shared derivation).
+- Stale/unreachable tracker, unreadable cards and unknown identity yield an
+  explicit `claims_state` (stale/partial/unknown), never an empty "no claims";
+  tested.
+- One malformed tracker card no longer fails the whole tracker read: it is
+  quarantined and reads as unknown; writes to it refuse naming the cause;
+  others proceed; tested end to end.
+- `fleet inventory` appears in `sdlc help recovery` as read-only, with proofs.
 
 ## Plan
 
 Durable plan: `workshop/plans/000288-bulk-read-only-claim-observation-plan.md`.
-New read-only verb `sdlc issue claims [--json] [--repo]`, pure assembly in
-`internal/observe/claims.go` reusing the per-issue observation's judgments.
 
-- [ ] Pure `observe.AssembleClaims` + strict claims contract (relations, unreadable owner, unknown machine, stale/unknown tracker)
-- [ ] Extract `localMachine`, `trackerReadInputs`, `localWorktrees` (shared with `claim` / `issue show`)
-- [ ] `collectClaims` + `sdlc issue claims` with fixture tests (this/other machine, unattributed, terminal excluded, bounded git reads, stale, unknown identity)
-- [ ] Recovery catalog entry (read-only, proofs) + atlas
+- [ ] M1 — a malformed card is quarantined, not fatal (snapshot quarantine, `Require`, reader audit, transferguard fail-closed)
+- [ ] M2 — fleet inventory reports this machine's claims per worktree (`localMachine`, pure `PlaceClaims`, contract, wiring, recovery catalog, atlas)
 
 ## Log
 
@@ -78,3 +80,16 @@ Claimed and planned. Finding: a malformed claimant fails the whole tracker
 snapshot parse (`validateCardScalar` → `parseClaimant`), so an unreadable owner
 surfaces as `tracker: unknown` with `issues: []`, never as "no claims"; the
 per-entry `unknown` path is kept and pure-tested.
+
+Operator review of the first plan: the question is local workspace state, so
+the observation moves into `sdlc fleet inventory` (no new verb); only claimed
+issues; orphaned claims are `dangling_claims`; a malformed card must not fail
+the whole tracker read (folded in as M1).
+
+## Revisions
+
+- 2026-10-02 — operator review. Scope delta: home moves from a new
+  `issue claims` verb to `sdlc fleet inventory`; unclaimed and other-machine
+  issues are out; adds `dangling_claims`; adds per-card quarantine of malformed
+  tracker cards (M1). `## Done when` rewritten to match; the original contract
+  is in commit afe9485a.

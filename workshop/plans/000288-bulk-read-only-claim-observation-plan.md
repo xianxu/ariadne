@@ -1,67 +1,69 @@
-# Bulk Read-Only Claim Observation Implementation Plan
+# Fleet Claim Observation Implementation Plan
 
 > **For agentic workers:** Consult AGENTS.md Section 3 (Subagent Strategy) to determine the appropriate execution approach: use superpowers-subagent-driven-development (if subagents are suitable per AGENTS.md) or superpowers-executing-plans to implement this plan. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** `sdlc issue claims [--json] [--repo PATH]` answers, from one tracker read,
-every non-terminal issue's claim state judged against **this machine**, and prints
-this machine's identity (fingerprint + name) exactly as `claim` records it.
+**Goal:** `sdlc fleet inventory` reports, per local worktree, the tracker claims
+this machine holds there (and claims whose worktree is gone), plus this machine's
+identity, from one tracker read per repository. And a single malformed tracker
+card no longer fails every tracker read.
 
-**Architecture:** A pure `observe.AssembleClaims(ClaimsInputs) Claims` in the
-existing `observe` package, reusing its `Read`/`State`/`Tracker`/`Card`/`Claimant`/
-`WorktreeFate` vocabulary and its tracker/card/worktree-fate judgments (ARCH-DRY:
-one judgment per question, shared by `issue show --json` and `issue claims`). A
-thin IO collector in `cmd/sdlc/claims.go` reads the tracker once
-(`loadIssueRecordsAt`, `PreferFresh`), resolves the tracker commit, the local
-machine identity and the worktree list — a constant number of reads, independent
-of the issue count — and feeds the assembler. The verb is registered in the #280
-recovery catalog as `read-only`.
+**Architecture:** Two milestones. **M1** quarantines an unparseable card inside
+the tracker snapshot (kept as an *unreadable card*, never silently dropped)
+instead of failing the whole snapshot; every reader is audited so an unreadable
+card reads as unknown, never as absent. **M2** adds a pure claim-placement step
+to `internal/fleet` fed by the inventory's existing per-repository records load
+(`repoRecords`, already cached and shared with branch-prefix lookups); the
+machine identity is injected from `cmd/sdlc` through `InventoryOptions`, using
+the same derivation `claim` records.
 
-**Tech Stack:** Go, cobra, git (via `observeGit`), the existing tracker fixture
-(`newTrackerRepo`, `reclaimFixture`, `seededIssue`).
+**Tech Stack:** Go, the tracker package (`internal/tracker`), the fleet package
+(`internal/fleet`), the real stateful tracker fixture (`newTrackerRepo`,
+`reclaimFixture`), the fleet fake git reader (`fakegit_test.go`).
 
 ---
 
-## Decisions
+## Decisions (operator-reviewed 2026-10-02)
 
-- **New subcommand, not `issue list --json`.** `issue list` is a details/status
-  listing of the cwd checkout; claims are tracker-only and judged against the
-  machine. Mixing them would give `list` two authorities. `issue claims` mirrors
-  `issue show`'s flags (`--json`, `--repo`, `--issues-dir`) and its anchoring rule
-  (the repository containing the issues dir / `--repo`, never the cwd).
-- **Own schema, own version.** `Claims` is a separate document from
-  `Observation` (`schema_version` 1 of the `claims` contract), validated on both
-  marshal and strict unmarshal (unknown and duplicate keys rejected — reusing
-  `rejectDuplicateKeys`).
-- **Relation is machine-relative:** `this-machine` (claimant.machine equals this
-  machine's fingerprint; the claimant's `worktree` path says where), `other-machine`,
-  `unattributed` (no claimant on the card), `unknown` (this machine's identity
-  unavailable, or the claimant unreadable). Repository is not part of the match:
-  the cards all come from this repository's tracker.
-- **Worktree fate included, local-only:** for this-machine claims, the existing
-  `worktreeFate` judgment from one `git worktree list` (holds-branch / elsewhere /
-  missing / unknown); other-machine claims get `other-machine`, never probed.
-- **Non-terminal = `!vocab.Issue().IsTerminal(status)`** — read from the model,
-  never a hardcoded enum. Open cards appear (as `unattributed` when unclaimed).
-- **Stale/unreachable is never "no claims":** a stale tracker yields
-  `tracker.state = stale` with every listed entry stale (as last fetched, with the
-  reason); an unreadable tracker yields `tracker.state = unknown`, error set, and
-  `issues: []` — the validator forbids entries unless the tracker read yielded
-  value, and consumers must gate on `tracker.state`. A tracker card with a
-  malformed claimant fails the whole snapshot parse today
-  (`issue.validateCardScalar` → `parseClaimant`), so in production an
-  unreadable owner surfaces as `tracker: unknown`; the per-entry `unknown` path
-  stays (defensive, pure-tested) because `CardClaimant` can still fail.
-- **Machine identity:** extract `localMachine() (fingerprint, name string, err)`
-  from `resolveClaimantIdentity` so `claims` and `claim` share one derivation
-  (the "matches what claim records" proof is then structural, and tested).
-  `machine` is a section with a `Read`: present with fingerprint + name, or
-  unknown with the error.
-- **ARCH-FUNERAL:** creates nothing durable — a read-only verb whose only side
-  effect is the tracker fetch's remote-tracking ref update, the same one
-  `issue show` performs.
-- **ARCH-CONSTRAINTS (operating envelope):** git commands on the request path are
-  constant: one tracker load (shared records layer) + `rev-parse` of the tracker
-  ref + `worktree list`. A test with N issues asserts `observeGit` calls ≤ 2.
+- **Home:** `sdlc fleet inventory`, not a new issue verb. The question is local
+  workspace state ("which of my worktrees hold which claims"); inventory is
+  already one row per local worktree across the fleet.
+- **Only claims:** cards in an *active* status (`vocab.Issue().IsActive`:
+  working/blocked/codecomplete) whose claimant's machine is this machine. Open
+  and terminal cards never appear. Other machines' claims are not local state
+  and are omitted. An active card with no claimant (pre-#277) cannot be placed
+  on a worktree and is omitted; its branch-prefix association still shows in
+  the row's `issues`.
+- **Placement:** a claim joins the row with the same `repo_identity` whose
+  `tree_path` equals the claimant's canonical `worktree`. A this-machine claim
+  matching no row is a **`dangling_claims`** entry (removed slot, or a clone of
+  the repository outside the fleet root).
+- **Read quality is explicit, never "no claims":** each row carries
+  `claims_state`: `present` (read; `claims` is complete), `stale` (tracker
+  unreachable, answered from the last fetch; `claims_error` says why),
+  `partial` (some cards unreadable; readable claims listed, `claims_error`
+  names the unreadable cards), `unknown` (tracker unreadable or this machine's
+  identity unavailable; `claims` is `[]`, `claims_error` says why), `absent`
+  (the repository has no issue tracker, so no claims exist).
+- **Machine identity:** top-level `machine` `{state, fingerprint, name, error}`.
+  `localMachine()` is extracted from `resolveClaimantIdentity` so `claim` and
+  inventory share one derivation (ARCH-DRY).
+- **Per-card quarantine scope (M1):** content errors of one card (`ParseCard`
+  failure, filename/card ID disagreement) quarantine that card. Structural
+  errors still fail the whole read: non-100644 mode, unexpected path, invalid
+  card filename, duplicate ID (unreadable cards count), missing/invalid
+  manifest, size limits. Quarantined cards still count toward `MaxID` (no ID
+  reuse by `issue new`) and toward ID/path collision checks on creation.
+- **Fail-closed where it guards something:** `transferguard` (the guard that
+  refuses PR/push/merge while a card's handoff record is malformed) refuses on
+  any unreadable card too — an unreadable card may hide a handoff. Every
+  write-path lookup of an unreadable card refuses naming the parse error
+  (instead of the misleading "no card").
+- **ARCH-FUNERAL:** creates nothing durable — read-only output; the only side
+  effect is the tracker fetch's remote-tracking ref update inventory already
+  performs. Quarantined cards are in-memory read results.
+- **ARCH-CONSTRAINTS:** one tracker read per repository (the existing
+  `repoRecords` cache), no per-issue or per-worktree probes for claims; machine
+  identity computed once per inventory. Tested with a counting loader.
 
 ## Core concepts
 
@@ -69,214 +71,190 @@ recovery catalog as `read-only`.
 
 | Name | Lives in | Status |
 |------|----------|--------|
-| `Claims` | `cmd/sdlc/internal/observe/claims.go` | new |
-| `ClaimEntry` | `cmd/sdlc/internal/observe/claims.go` | new |
-| `ClaimState` | `cmd/sdlc/internal/observe/claims.go` | new |
-| `MachineRelation` | `cmd/sdlc/internal/observe/claims.go` | new |
-| `Machine` | `cmd/sdlc/internal/observe/claims.go` | new |
-| `ClaimsInputs` | `cmd/sdlc/internal/observe/claims.go` | new |
-| `AssembleClaims` | `cmd/sdlc/internal/observe/claims.go` | new |
-| `Claims.Validate` / JSON codec | `cmd/sdlc/internal/observe/claims.go` | new |
-| `worktreeFate` | `cmd/sdlc/internal/observe/assemble.go` | modified (takes machine fingerprint + branch, not a full `Inputs`) |
+| `UnreadableCard` | `cmd/sdlc/internal/tracker/reader.go` | new |
+| `Snapshot` (`unreadable` set, `Unreadable()`, `Require()`) | `cmd/sdlc/internal/tracker/reader.go` | modified |
+| `ErrNoCard` / `ErrUnreadableCard` | `cmd/sdlc/internal/tracker/reader.go` | new |
+| `IssueRecord.CardErr` | `cmd/sdlc/internal/tracker/records.go` | modified |
+| `observe.Inputs.CardErr` | `cmd/sdlc/internal/observe/assemble.go` | modified |
+| `MachineIdentity` | `cmd/sdlc/internal/fleet/claims.go` | new |
+| `ClaimAssociation` | `cmd/sdlc/internal/fleet/claims.go` | new |
+| `DanglingClaim` | `cmd/sdlc/internal/fleet/claims.go` | new |
+| `RepoClaims` | `cmd/sdlc/internal/fleet/claims.go` | new |
+| `PlaceClaims` | `cmd/sdlc/internal/fleet/claims.go` | new |
+| `TreeRow` (`claims`, `claims_state`, `claims_error`) | `cmd/sdlc/internal/fleet/types.go` | modified |
+| `Inventory` (`machine`, `dangling_claims`) | `cmd/sdlc/internal/fleet/types.go` | modified |
 
-- **Claims** — the bulk answer: `schema_version`, `observed_at`, `repository`
-  (the observed root), `machine`, `tracker`, `issues` (sorted by id, never null).
-  - **Relationships:** 1 Claims : N ClaimEntry; each entry 1:1 with a tracker card.
-  - **DRY rationale:** reuses `Tracker`, `Card`, `Claimant`, `WorktreeFate`,
-    `Read` and their assemblers; adds only the machine-relative relation.
-  - **Future extensions:** more per-entry sections (branch, landing) would come
-    from the per-issue observation; this document stays the bulk, cheap one.
-- **ClaimState** — `Read` + `authority: tracker` + `claimant` +
-  `relation` + `relation_error` + `claimant_worktree`. Invariants as in
-  `Assignment`: relation set iff the read yielded value; `claimant_worktree` set
-  iff a claimant is.
-- **AssembleClaims** — builds a per-card `Inputs` and reuses
-  `assembleTracker`/`assembleCard`; filters terminal statuses; judges relation
-  against `ClaimsInputs.Machine`.
+- **UnreadableCard** — `{ID, Path, BlobOID string; Err error}`: a card whose
+  bytes the snapshot holds but cannot parse.
+  - **Relationships:** 0..N per Snapshot, disjoint from readable records by ID.
+  - **DRY rationale:** one representation every reader consults instead of each
+    re-parsing raw blobs.
+  - **Future extensions:** a repair verb would take one as input.
+- **Snapshot.Require(id) (Record, error)** — the write-path lookup: the record,
+  or `ErrNoCard` / an `ErrUnreadableCard`-wrapped error naming path and cause.
+  `Card(id)` keeps its readable-only contract for compare-and-swap sites (an
+  unreadable current card is "changed" — the expected one was readable).
+- **IssueRecord.CardErr** — the composed record of a quarantined card: `Card`
+  nil, `CardErr` set; `Field()` already returns unknown for a tracked record
+  without a card.
+- **RepoClaims** — one repository's claim read: `{State, Error, Cards []ClaimCard,
+  Unreadable []string}` where `ClaimCard` is `{Ref, Status, Revision string;
+  Claimant issue.Claimant}`. Built from `tracker.Records` by `RepoClaimsFrom`.
+- **PlaceClaims(rows, byRepo map[repoIdentity]RepoClaims, me MachineIdentity)
+  (rows, dangling)** — pure join; sets each row's `claims_state`/`claims`/
+  `claims_error`; collects unplaced this-machine claims. Unit-tested without IO.
+- **ClaimAssociation** — `{ref, status, revision, claimant{operator, machine,
+  machine_name, workspace?, worktree, repository}}`.
+- **DanglingClaim** — ClaimAssociation + `{repo_identity, repo_root}`.
 
 ### Integration points
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `collectClaims` | `cmd/sdlc/claims.go` | new | tracker load, git, OS machine id |
-| `newIssueClaimsCmd` / `runIssueClaims` | `cmd/sdlc/claims.go` | new | cobra, stdout |
+| `parseSnapshot` | `cmd/sdlc/internal/tracker/reader.go` | modified | tracker tree blobs |
+| `LookupRepoClaims` | `cmd/sdlc/internal/fleet/issues.go` | new | `repoRecords` (tracker load) |
+| `InventoryOptions.LookupClaims` / `.Machine` | `cmd/sdlc/internal/fleet/inventory.go` | new | claims load, OS machine id |
 | `localMachine` | `cmd/sdlc/claimant.go` | new (extracted) | `ioreg`/`/etc/machine-id`, `scutil`/hostname |
-| `localWorktrees` | `cmd/sdlc/observe.go` | new (extracted) | `git worktree list` |
-| `trackerReadInputs` | `cmd/sdlc/observe.go` | new (extracted) | records load result → tracker fields |
+| `transferguard` | `cmd/sdlc/transferguard.go` | modified | tracker snapshot |
 
-- **collectClaims** — the one read path; `claimsMachine` is a package var seam
-  (like `claimantIdentity`) so tests can make identity fail. Uses the real
-  stateful tracker fixture (a bare origin with an `issue-tracker` branch), not
-  mocks.
-- **localWorktrees / trackerReadInputs** — lifted out of `collectObservation`
-  so both collectors share them (no behavior change for `issue show`; its tests
-  are the regression net).
+- **LookupRepoClaims** — adapts the cached `repoRecords` load into `RepoClaims`
+  (same single read the branch-prefix lookup uses). Injected through
+  `InventoryOptions.LookupClaims`; fleet unit tests pass a fake returning canned
+  `RepoClaims`, integration tests use the real tracker fixture.
+- **InventoryOptions.Machine** — `func() (MachineIdentity, error)`; `cmd/sdlc/fleet.go`
+  passes one built on `localMachine`. Nil → machine `unknown` ("no machine
+  identity source"), so a library caller cannot silently get `present`.
 
-## Chunk 1: pure model
+## Chunk 1 — M1: per-card quarantine
 
-### Task 1: `AssembleClaims` + contract
+- [ ] M1 — a malformed card is quarantined, not fatal
 
-**Files:** Create `cmd/sdlc/internal/observe/claims.go`, `claims_test.go`;
-modify `assemble.go` (`worktreeFate` signature).
+### Task 1: snapshot quarantine
 
-- [ ] **Step 1: failing tests** (`claims_test.go`, pure, no IO):
-  - `TestAssembleClaimsRelations`: cards for open-unclaimed (unattributed),
-    working this-machine with the worktree holding the branch (holds-branch),
-    working this-machine whose worktree is gone (missing), working other-machine
-    (`other-machine` fate), and a `done` card (excluded). Assert entry order, relation,
-    `claimant.worktree`, and that the result round-trips through
-    `json.Marshal`/strict `json.Unmarshal`.
-  - `TestAssembleClaimsUnreadableOwnerAndUnknownMachine`: a card whose claimant
-    block is malformed (raw bytes built with a bad `machine`) → entry
-    `claim.state = unknown`, error names the claimant; `MachineErr` set → every
-    claimed entry `relation = unknown` with `relation_error`, machine section
-    `unknown`; unattributed entries stay `unattributed`.
-  - `TestAssembleClaimsTrackerQuality`: `TrackerStale` → tracker/card/claim
-    `stale` with reasons, entries still listed; `TrackerErr` without stale →
-    tracker `unknown`, `issues` is `[]` (not null) in JSON; not tracked →
-    tracker `absent`, `issues: []`.
-  - `TestClaimsValidateRejects`: wrong version, entries under an unknown
-    tracker, relation without value, unknown relation, `claimant_worktree`
-    without claimant, malformed machine fingerprint, unknown/duplicate keys.
-- [ ] **Step 2:** `go test ./cmd/sdlc/internal/observe/ -run Claims` → FAIL (undefined).
-- [ ] **Step 3: implement** `claims.go`:
+**Files:** modify `internal/tracker/reader.go`, `internal/tracker/candidates.go`
+(`validateAddition` + creation `taken` include unreadable); test
+`internal/tracker/reader_test.go`.
 
-```go
-const ClaimsSchemaVersion = 1
+- [ ] **Failing tests** (pure, `parseSnapshot` over `[]gitx.TreeFile`):
+  `TestParseSnapshotQuarantinesAMalformedCard` — manifest + one good card + one
+  card with a malformed claimant + one whose frontmatter id disagrees with its
+  filename → no error; `Records()` holds only the good card; `Unreadable()`
+  lists the two with path and cause; `MaxID()` counts all three;
+  `Require(bad)` errors with `ErrUnreadableCard` and the cause; `Require(missing)`
+  is `ErrNoCard`. `TestParseSnapshotStructuralErrorsStillFail` — a duplicate ID
+  where one copy is unreadable, a bad path, a missing manifest: whole read fails.
+  `TestCreateRefusesAnUnreadableID` — creating a card with a quarantined ID or
+  path is `ErrIDTaken`.
+- [ ] Run `go test ./cmd/sdlc/internal/tracker/ -run 'Quarantine|Structural|UnreadableID'` → FAIL.
+- [ ] Implement; run → PASS; whole tracker package green.
 
-type MachineRelation string
-const (
-	RelationThisMachine  MachineRelation = "this-machine"
-	RelationOtherMachine MachineRelation = "other-machine"
-	// unattributed / unknown reuse the Relation strings' spelling
-	MachineUnattributed MachineRelation = "unattributed"
-	MachineUnknown      MachineRelation = "unknown"
-)
+### Task 2: readers of the snapshot and of records
 
-type Machine struct {
-	Read
-	Fingerprint string `json:"fingerprint,omitempty"`
-	Name        string `json:"name,omitempty"`
-}
+**Files:** `internal/tracker/records.go` (compose `CardErr`), the write-path
+"no card" sites → `snap.Require(id)` (`claim.go:114,291`, `cardsetters.go:49`,
+`changecode.go:342`, `reclaim.go:148`, `move.go:141`, `closetracker.go:130,334`,
+`startplan.go:289`, `issuemovedetail.go:130`, `internal/tracker/completeop.go:126`),
+`transferguard.go` (refuse on any unreadable card), `issuelintids.go` (count
+unreadable IDs as carded), and the record readers below.
 
-type ClaimState struct {
-	Read
-	Authority        Authority       `json:"authority"`
-	Claimant         *Claimant       `json:"claimant,omitempty"`
-	Relation         MachineRelation `json:"relation,omitempty"`
-	RelationError    string          `json:"relation_error,omitempty"`
-	ClaimantWorktree WorktreeFate    `json:"claimant_worktree,omitempty"`
-}
+Record readers (`rec.Card == nil` sites) and their unreadable-card behavior:
 
-type ClaimEntry struct {
-	Issue string     `json:"issue"`
-	Card  Card       `json:"card"`
-	Claim ClaimState `json:"claim"`
-}
+| Site | Behavior |
+|------|----------|
+| `close.go:515` | refuse naming the parse error (not "no card") |
+| `actual.go:173` | refuse/measure-fails naming the parse error |
+| `push.go:561` | not terminal → the existing refusal path; message names the error |
+| `trackercompletion.go:39` | unreachable for publish (transferguard refuses first); skip stays |
+| `projectstatus.go:304` | error naming the parse error |
+| `issuefiles.go:85`, `issue.go:606` (`issue show` text) | status/card shown as unreadable |
+| `observe.go:50` → `observe.Inputs.CardErr` | card section `unknown`, never `absent` |
+| `internal/fleet/issues.go:54` | branch-prefix lookup returns an error → row diagnostic |
+| `state`/`issue list` (`listIssueStates`) | status `unreadable` (the existing sentinel) |
 
-type Claims struct {
-	SchemaVersion int          `json:"schema_version"`
-	ObservedAt    string       `json:"observed_at"`
-	Repository    string       `json:"repository"`
-	Machine       Machine      `json:"machine"`
-	Tracker       Tracker      `json:"tracker"`
-	Issues        []ClaimEntry `json:"issues"`
-}
+- [ ] **Failing integration test** `TestOneMalformedCardDoesNotBlockOthers`
+  (`tracker_e2e_test.go` style, real fixture): push a commit to the origin
+  tracker that corrupts #B's claimant. Then: `sdlc claim` of #A succeeds;
+  `claim`/`issue set-status` of #B refuse naming the parse error; `issue show B
+  --json` has `card.state = unknown`; `issue list` shows B `unreadable`;
+  `sdlc pr` refuses via transferguard naming B; `issue new` allocates past B.
+- [ ] Implement; `go test ./cmd/sdlc/ -run 'MalformedCard|Observe|Claim|Transfer|LintIDs'` → PASS.
+- [ ] `sdlc milestone-close --issue 288 --milestone M1`.
 
-type ClaimsCard struct{ ID, Path, Blob string; Raw []byte }
+## Chunk 2 — M2: claims in fleet inventory
 
-type ClaimsInputs struct {
-	ObservedAt    time.Time
-	Repository    string
-	Tracked       bool
-	TrackerRef    string
-	TrackerStale  bool
-	TrackerErr    error
-	TrackerRefErr error
-	Cards         []ClaimsCard
-	Machine       *MachineID // {Fingerprint, Name}
-	MachineErr    error
-	Worktrees     []LocalWorktree
-	WorktreesErr  error
-}
-```
+- [ ] M2 — fleet inventory reports this machine's claims per worktree
 
-  `AssembleClaims`: tracker via `assembleTracker(Inputs{Tracked…})`; when the
-  tracker read is not valued, `Issues = []ClaimEntry{}`. Otherwise per card build
-  `Inputs{Card, CardPath, CardBlob, tracker fields}` → `assembleCard`; skip when
-  `vocab.Issue().IsTerminal(card.Status)`; claim section: `CardClaimant` error →
-  unknown; none → `unattributed`; machine unknown → `unknown` + error, fate
-  `unknown`; else this/other-machine with `worktreeFate(fingerprint, worktrees,
-  worktreesErr, recorded, branch)`. `Validate` + `MarshalJSON` + strict
-  `UnmarshalJSON` following `json.go`'s pattern.
-  Refactor `worktreeFate` to take the machine fingerprint, worktrees/err and
-  branch stem; update `assembleAssignment`'s call.
-- [ ] **Step 4:** `go test ./cmd/sdlc/internal/observe/` → PASS (existing
-  observation tests too).
-- [ ] **Step 5:** commit `#288: observe: pure bulk claims model`.
+### Task 3: identity extraction
 
-## Chunk 2: collector, verb, catalog
+**Files:** `cmd/sdlc/claimant.go`.
 
-### Task 2: shared IO helpers + identity extraction
+- [ ] Extract `localMachine() (fingerprint, name string, err error)`;
+  `resolveClaimantIdentity` uses it. Existing claimant tests stay green.
 
-**Files:** modify `cmd/sdlc/claimant.go`, `cmd/sdlc/observe.go`.
+### Task 4: pure placement + contract
 
-- [ ] Extract `localMachine() (fingerprint, name string, err error)`; make
-  `resolveClaimantIdentity` use it. Extract `trackerReadInputs(rs, err)` (the
-  stale/unknown switch) and `localWorktrees(root)` from `collectObservation`.
-- [ ] `go test ./cmd/sdlc/ -run 'TestObserve|TestClaimant'` → PASS (no behavior change).
+**Files:** create `internal/fleet/claims.go`, `internal/fleet/claims_test.go`;
+modify `internal/fleet/types.go` (row + inventory fields, validate, strict
+unmarshal), `internal/fleet/render.go` (text: `  claim=… status=… revision=…`,
+`claims=<state>` with error, `machine …`, `dangling_claim …` lines).
 
-### Task 3: `collectClaims` + `sdlc issue claims`
+- [ ] **Failing tests** (pure): `TestPlaceClaims` — two repos, rows for main +
+  slot; claims: this-machine on the slot (placed), this-machine on a removed
+  path (dangling), other-machine (omitted), open/done statuses (omitted),
+  unattributed active (omitted). `TestPlaceClaimsReadQuality` — stale repo →
+  rows `stale` with error and claims listed; unknown repo → `unknown`, `[]`;
+  unreadable cards → `partial` naming them; machine error → every row
+  `unknown`; no-tracker repo → `absent`. `TestInventoryClaimsContract` —
+  marshal/strict-unmarshal round trip; validation rejects `claims: null`, an
+  unknown `claims_state`, `unknown` with listed claims, `present`/`absent` with
+  an error, `stale`/`partial`/`unknown` without one, a non-fingerprint machine.
+- [ ] Run `go test ./cmd/sdlc/internal/fleet/ -run 'Claims'` → FAIL; implement; → PASS.
+  Existing fleet tests (json, render goldens) updated for the new fields.
 
-**Files:** create `cmd/sdlc/claims.go`, `cmd/sdlc/claims_test.go`; modify
-`cmd/sdlc/issue.go` (`AddCommand`).
+### Task 5: collection wiring
 
-- [ ] **Failing integration tests** (`claims_test.go`, real tracker fixture):
-  - `TestIssueClaimsJoinsMachineAndWorktree`: `reclaimFixture(t, 470)` (claimed
-    in a slot) + a second seeded card claimed then re-stamped to another
-    machine's fingerprint via `env.repo.ChangeCard(... SetCardClaimant)` + an open
-    unclaimed card + a done card. Run `runIssueClaims(--json)` from `r.root`:
-    `machine.fingerprint` equals the slot claim's recorded `claimant.machine`;
-    #470 `this-machine` with `claimant.worktree == canonRoot(slot)` and fate
-    `holds-branch`; the re-stamped card `other-machine`; open card
-    `unattributed`; done card absent. `localState` unchanged before/after.
-  - `TestIssueClaimsBoundedReads`: wrap `observeGit` with a counter; with 4
-    cards, the collector runs ≤ 2 git commands (tracker load excluded, as in
-    `TestObserveWorktreeFatesAndBound`).
-  - `TestIssueClaimsStaleTrackerSaysSo`: rename the origin (pattern of
-    `TestObserveStaleTrackerSaysSo`) → `tracker.state = stale` with error, the
-    claimed entry still listed, `stale`, relation `this-machine`.
-  - `TestIssueClaimsUnknownIdentity`: override `claimsMachine` to fail →
-    `machine.state = unknown`, claimed entries `relation = unknown`.
-- [ ] **Implement** `collectClaims(ctx, root, issuesDir) observe.Claims` and the
-  cobra verb (`Use: "claims"`, `--json`, `--repo`, `--issues-dir`, anchored via
-  the existing `issueShowRepo` resolution); text mode prints `machine <name>
-  <fingerprint>` then one `ID  STATUS  RELATION  WORKTREE` line per entry, and a
-  stale/unknown tracker warning line.
-- [ ] `go test ./cmd/sdlc/ -run 'TestIssueClaims'` → PASS.
-- [ ] commit `#288: issue claims: bulk read-only claim observation`.
+**Files:** `internal/fleet/issues.go` (`LookupRepoClaims`),
+`internal/fleet/inventory.go` (options, call `PlaceClaims` after rows), `cmd/sdlc/fleet.go`
+(pass `Machine` from `localMachine`), `cmd/sdlc/helptext/fleet.md`.
 
-### Task 4: recovery catalog + docs
+- [ ] **Failing integration test** `TestFleetInventoryPlacesClaims`
+  (`fleet_integration_test.go`, real tracker fixture inside a fleet root):
+  claim #A in a slot → that row has claim A with `claims_state: present` and the
+  claimant worktree; `machine.fingerprint` equals the card's recorded
+  `claimant.machine`; remove the slot worktree → A is in `dangling_claims`;
+  rename the origin → rows `stale` with A still listed. A counting
+  `LookupClaims` wrapper proves one load per repository regardless of worktree
+  count.
+- [ ] Implement; `go test ./cmd/sdlc/ -run 'Fleet'` → PASS.
 
-**Files:** modify `cmd/sdlc/internal/recovery/catalog.go`,
-`cmd/sdlc/recovery_contract_test.go` (`recoveryRequiredExtra` += `"issue claims"`),
-`atlas/workflow/recovery-contracts.md`, `atlas/workflow/issue-tracker.md`.
+### Task 6: recovery catalog + atlas
 
-- [ ] Catalog entry: `Verbs: {"issue claims"}`, `Class: ReadOnly`, Effects as
-  `issue show`, Evidence "its own output (`--json`, claims schema_version 1,
-  #288)", Proofs: "writes nothing local" → `TestIssueClaimsJoinsMachineAndWorktree`;
-  "stale reads say so" → `TestIssueClaimsStaleTrackerSaysSo`; "one tracker read,
-  constant git" → `TestIssueClaimsBoundedReads`.
-- [ ] `go test ./cmd/sdlc/ -run 'TestRecovery|TestVerbContract'` → PASS;
-  `go run ./cmd/sdlc help recovery | grep 'issue claims'` shows read-only.
-- [ ] Atlas: document the verb, its schema and the machine-relative relation
-  next to `issue show --json`.
-- [ ] `make test` → PASS. commit `#288: recovery+atlas: issue claims`.
+**Files:** `internal/recovery/catalog.go`, `recovery_contract_test.go`
+(`recoveryRequiredExtra` += `"fleet inventory"`), atlas page documenting fleet
+inventory, `atlas/workflow/issue-tracker.md` (quarantine semantics),
+`atlas/workflow/recovery-contracts.md`.
+
+- [ ] Catalog entry: `Verbs: {"fleet inventory"}`, `Class: ReadOnly`, Effects
+  "none besides each repository's tracker fetch updating its remote-tracking
+  ref", Evidence "its own output (`--json`)", Proofs:
+  `TestFleetInventoryPlacesClaims` (claims placed, stale says so),
+  `TestPlaceClaimsReadQuality` (never "no claims" on a failed read).
+- [ ] `go run ./cmd/sdlc help recovery | grep -A3 'fleet inventory'` shows read-only.
+- [ ] `make test` → PASS.
+- [ ] `sdlc close --issue 288 --verified '…'`.
 
 ## Verification
 
 - `make test` green.
-- Manual: `go run ./cmd/sdlc issue claims --json` in this repo lists #288 as
-  `this-machine` with this slot's worktree and `holds-branch`, and its
-  `machine.fingerprint` equals the claimant on #288's card
-  (`sdlc issue show 288 --json | jq .assignment.claimant.machine`).
+- Manual: `go run ./cmd/sdlc fleet inventory --json | jq '.machine, (.rows[] |
+  select(.claims|length>0) | {tree_path, claims_state, claims})'` shows #288 on
+  this slot with `machine.fingerprint` equal to
+  `sdlc issue show 288 --json | jq -r .assignment.claimant.machine`.
+
+## Revisions
+
+- 2026-10-02 — operator review of the first draft (commit e23cfe82, a new
+  `sdlc issue claims` verb): the question is local workspace state, so claims
+  move into `fleet inventory`; unclaimed issues are out; orphaned claims are
+  `dangling_claims`; a malformed card must no longer fail the whole tracker read
+  (folded in as M1). The first draft's body is superseded and kept in history.
