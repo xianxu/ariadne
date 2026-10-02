@@ -1,12 +1,20 @@
 ---
 id: 000280
-status: open
+status: working
 deps: [ariadne#277, ariadne#278, ariadne#279]
 github_issue:
 created: 2026-10-01
-updated: 2026-10-01
+updated: 2026-10-02
 estimate_hours:
-card_mirror: '2a29b85f929dc28f654c28347603b3ab13882228' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9717bec607118ffcf4d936794f28518aacce5efb' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-02T10:21:50-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Publish tested operation recovery contracts
@@ -41,3 +49,12 @@ Implementation plan to be designed after issue claim and start-plan; these are r
 ### 2026-10-01
 
 Captured from the performance → messaging guarantees → SDLC ownership/observability → recovery discussion. No implementation started.
+
+### 2026-10-02 (implementation session)
+
+- Operator authorized the work ("work on #280"). Claimed in ariadne:1 (the
+  claimant is recorded) and ran start-plan; the branch sits at main, which
+  includes #277, #278 and #279. Mapping where each MVP command's recovery
+  behavior lives today (CAS, receipts, recovery reconcile, observe) before
+  designing the contract surface.
+
