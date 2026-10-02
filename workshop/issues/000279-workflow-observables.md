@@ -57,3 +57,17 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   `issue show/list`, `fleet`, `workspace`, `reclaim` inspect) before
   designing, so this extends them rather than adding a second state store.
 
+- Explorer map of the existing read-only surfaces:
+  - `state --json`: workspace, issues, worktrees, recent commits, drift and
+    `tracker_stale`. No timestamp in JSON; current repo only.
+  - `issue show`/`list`: text only.
+  - `fleet inventory --json`: strict JSON with `available` + `error`
+    discriminators and per-tree facts (head, dirty_count, ahead/behind), plus
+    a branch-prefix issue association.
+  - `workspace --json`: `schema_version` 2, the only verb taking an address.
+  - `reclaim` inspect: text; its revision is the card blob OID.
+  - Nothing exposes the flow record, gate-ledger decisions, verdict
+    trailers, the completion binding or landing. No output carries
+    observed-at or a source revision.
+  - Fleet's JSON conventions (discriminator plus error, strict decode,
+    goldens) are the precedent to reuse.
