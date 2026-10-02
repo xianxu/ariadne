@@ -16,10 +16,11 @@ type Inputs struct {
 
 	// Tracked is false when the repository's publication remote has no issue
 	// tracker: its details are the whole record and there is no card.
-	Tracked      bool
-	TrackerRef   string // the tracker commit the card was read at
-	TrackerStale bool   // read from the last fetch because the fresh one failed
-	TrackerErr   error  // the fetch failure (stale), or the read failure
+	Tracked       bool
+	TrackerRef    string // the tracker commit the card was read at
+	TrackerStale  bool   // read from the last fetch because the fresh one failed
+	TrackerErr    error  // the fetch failure (stale), or the read failure
+	TrackerRefErr error  // the cards were read but their commit could not be named
 
 	Card     []byte // nil: no card for this id
 	CardPath string
@@ -75,11 +76,11 @@ func assembleTracker(in Inputs) Tracker {
 	case !in.Tracked && in.TrackerErr == nil:
 		return Tracker{Read: Read{State: Absent, Source: "publication remote has no issue tracker; the details are the record"}}
 	case in.TrackerStale:
-		return Tracker{Read: Read{State: Stale, Error: "tracker unreachable, answered from the last fetch: " + errText(in.TrackerErr)}, Ref: in.TrackerRef}
+		return Tracker{Read: Read{State: Stale, Error: "tracker unreachable, answered from the last fetch: " + errText(in.TrackerErr)}, Ref: in.TrackerRef, RefError: errText(in.TrackerRefErr)}
 	case in.TrackerErr != nil:
 		return Tracker{Read: Read{State: Unknown, Error: errText(in.TrackerErr)}}
 	}
-	return Tracker{Read: Read{State: Present}, Ref: in.TrackerRef}
+	return Tracker{Read: Read{State: Present}, Ref: in.TrackerRef, RefError: errText(in.TrackerRefErr)}
 }
 
 // tracked derives a tracker-authority section's read from the tracker read:

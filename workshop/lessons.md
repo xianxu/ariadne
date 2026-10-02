@@ -36,6 +36,11 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Paths, processes, and integration
 
+- Resolve a verb's repository from the path it was given (`--issues-dir`,
+  `--repo`), never from the process cwd. A cwd fallback reads, or fetches, the
+  wrong repository silently, including the developer's own checkout during
+  `go test` (#279 BR-1).
+
 - A best-effort projection must not add a refusal to the verb that hosts it.
   If a cosmetic refresh's input cannot be read, the output should degrade to
   the unrefreshed bytes and stay deterministic for any proof; it should not

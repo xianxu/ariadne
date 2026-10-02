@@ -53,6 +53,19 @@ func (o Observation) Validate() error {
 	if o.Landing.Outcome != "" && o.Landing.Outcome != OutcomeLanded && o.Landing.Outcome != OutcomeNotLanded {
 		return fmt.Errorf("landing: unknown outcome %q", o.Landing.Outcome)
 	}
+	switch o.Assignment.Relation {
+	case "", RelationThisWorkspace, RelationOtherWorkspace, RelationUnattributed, RelationUnknown:
+	default:
+		return fmt.Errorf("assignment: unknown relation %q", o.Assignment.Relation)
+	}
+	switch o.Assignment.ClaimantWorktree {
+	case "", FateHoldsBranch, FateElsewhere, FateMissing, FateOtherMachine, FateUnknown:
+	default:
+		return fmt.Errorf("assignment: unknown claimant_worktree %q", o.Assignment.ClaimantWorktree)
+	}
+	if (o.Assignment.ClaimantWorktree != "") != (o.Assignment.Claimant != nil) {
+		return errors.New("assignment: claimant_worktree is set exactly when a claimant is")
+	}
 	return nil
 }
 

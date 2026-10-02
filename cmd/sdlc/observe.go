@@ -25,6 +25,13 @@ var observeNow = time.Now
 // read failure is carried into Inputs, never collapsed into "absent".
 func collectObservation(ctx context.Context, root, issuesDir, id string) observe.Observation {
 	in := observe.Inputs{Issue: id, ObservedAt: observeNow()}
+	if root == "" {
+		// Details outside any repository are the whole record: no tracker, no
+		// workspace identity, no worktrees — each said, none faked.
+		in.MeErr = errors.New("the issues directory is not inside a repository")
+		in.WorktreesErr = in.MeErr
+		return observe.Assemble(in)
+	}
 	rs, err := loadIssueRecordsAt(ctx, root, issuesDir, tracker.PreferFresh)
 	switch {
 	case err != nil:
@@ -47,6 +54,8 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 		if rs.Ref != "" {
 			if oid, rerr := gitx.RunGit("-C", root, "rev-parse", "--verify", rs.Ref+"^{commit}"); rerr == nil {
 				in.TrackerRef = strings.TrimSpace(string(oid))
+			} else {
+				in.TrackerRefErr = fmt.Errorf("resolve %s: %w", rs.Ref, rerr)
 			}
 		}
 	}

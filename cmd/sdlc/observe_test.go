@@ -103,3 +103,39 @@ func TestObserveLandedAndAnotherRepository(t *testing.T) {
 		t.Fatalf("--repo: %+v", o.Landing)
 	}
 }
+
+// #279 M1 BR-1: the observed repository is the one containing the issues dir,
+// never the process cwd. An issues dir outside any repository still shows (its
+// details are the record) with no tracker read; one given explicitly while
+// standing in a tracked repository observes that dir, not the repository's
+// same-numbered issue — and fetches nothing.
+func TestObserveAnchorsOnTheIssuesDir(t *testing.T) {
+	loose := t.TempDir()
+	writeRepoFile(t, loose, "workshop/issues/000393-loose.md", "---\nid: 000393\nstatus: open\n---\n\n# Loose\n\n## Problem\n\nx\n")
+	show := func(dir string, json bool) (string, error) {
+		var out, errs bytes.Buffer
+		err := runIssueShow(context.Background(), &out, &errs, &issueShowFlags{IssuesDir: dir, JSON: json}, "393")
+		return out.String() + errs.String(), err
+	}
+	t.Chdir(t.TempDir()) // not a repository
+	if out, err := show(filepath.Join(loose, "workshop/issues"), false); err != nil || !strings.Contains(out, "# Loose") || !strings.Contains(out, "observations") {
+		t.Fatalf("outside a repository: %v\n%s", err, out)
+	}
+	r, _, cardPath, _ := reclaimFixture(t, 393) // a tracked repository with its own #393
+	tip := trackerTip(t, r)
+	remoteRef := r.git("for-each-ref", "refs/remotes")
+	out, err := show(filepath.Join(loose, "workshop/issues"), true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var o observe.Observation
+	if err := json.Unmarshal([]byte(out), &o); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if o.Tracker.State != observe.Absent || o.Card.State != observe.Absent || strings.Contains(out, cardPath) {
+		t.Fatalf("observed the cwd's repository instead of the given issues dir: %+v %+v", o.Tracker, o.Card)
+	}
+	if trackerTip(t, r) != tip || r.git("for-each-ref", "refs/remotes") != remoteRef {
+		t.Fatal("an observation of a loose issues dir touched the cwd repository")
+	}
+}

@@ -141,3 +141,28 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     branch.
 
 - M1 milestone-close needed an atlas update for the new surface. Added the atlas `issue-tracker.md` Observations section (M1 scope).
+- M1 review round 1: **REWORK**.
+  - **BR-1 (Critical):** `issueShowRepo` resolved the repository from the
+    process cwd instead of the issues dir. Outside a repository the command
+    died; with `--issues-dir` it observed the wrong repository.
+  - **BR-3:** an existing test therefore fetched the real checkout's tracker
+    during `go test`.
+  - **BR-2:** the planned golden fixture was missing.
+  - Minors: a rev-parse failure was dropped; relation and claimant_worktree
+    enums went unvalidated; the "not observed by this build" placeholder
+    (removed in M2).
+  - Fixing all of them.
+- REWORK fixes:
+  - BR-1/BR-3: `issueShowRepo` resolves the repository from the issues dir,
+    or from `--repo`. An issues dir outside any repository degrades: the
+    tracker is absent and identity and worktrees are reported as such.
+    `TestObserveAnchorsOnTheIssuesDir` covers the loose dir, and a given
+    issues dir while standing in a tracked repo touches nothing there.
+    Mutation-checked.
+  - BR-2: golden `internal/observe/testdata/observation-v1.golden.json`, with
+    strict decode of the golden.
+  - Minors: `tracker.ref_error` keeps a rev-parse failure; relation and
+    claimant_worktree enums are validated, and claimant_worktree is set
+    exactly when a claimant is.
+  - Added a lesson on anchoring repositories to the given path.
+

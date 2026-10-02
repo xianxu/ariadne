@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "issue": "000279",
+  "observed_at": "2026-10-02T09:00:00Z",
+  "tracker": {
+    "state": "present",
+    "ref": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+  },
+  "card": {
+    "state": "present",
+    "source": "issue-tracker:workshop/issue-cards/000279-observe.md",
+    "authority": "tracker",
+    "revision": "ffffffffffffffffffffffffffffffffffffffff",
+    "status": "done",
+    "title": "Observe",
+    "updated": "2026-10-02"
+  },
+  "assignment": {
+    "state": "present",
+    "source": "issue-tracker:workshop/issue-cards/000279-observe.md",
+    "authority": "tracker",
+    "claimant": {
+      "operator": "Me",
+      "machine": "8dadc29170e2846e2b2ce50ee07bed9d",
+      "machine_name": "box",
+      "workspace": "r:2",
+      "worktree": "/w/slot2",
+      "repository": "github.com/x/r"
+    },
+    "relation": "other-workspace",
+    "claimant_worktree": "holds-branch"
+  },
+  "workspaces": {
+    "state": "unknown",
+    "error": "not observed by this build",
+    "authority": "worktree",
+    "holding": []
+  },
+  "branch": {
+    "state": "unknown",
+    "error": "not observed by this build",
+    "authority": "committed",
+    "commits_ahead_of_main": 0
+  },
+  "checkpoints": {
+    "state": "unknown",
+    "error": "not observed by this build",
+    "authority": "committed",
+    "plan": {
+      "total": 0,
+      "ticked": 0
+    },
+    "reviews": []
+  },
+  "completion": {
+    "state": "present",
+    "source": "issue-tracker:workshop/issue-cards/000279-observe.md",
+    "authority": "tracker",
+    "token": "close-aaaaaaaaaaaa",
+    "evidence_commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "reviewed_head": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "landed_commit": "cccccccccccccccccccccccccccccccccccccccc"
+  },
+  "landing": {
+    "state": "present",
+    "source": "issue-tracker:workshop/issue-cards/000279-observe.md",
+    "authority": "tracker",
+    "outcome": "landed",
+    "landed_commit": "cccccccccccccccccccccccccccccccccccccccc",
+    "archived": "workshop/history/issues/000279-observe.md"
+  }
+}

@@ -621,20 +621,24 @@ func trackedIssueSync(f *issueSyncFlags) error {
 	return nil
 }
 
-// issueShowRepo resolves the repository an issue show reads: the current
-// checkout's, or (--repo) the one containing that path (#279).
+// issueShowRepo resolves what an issue show reads (#279). The repository is
+// the one containing the issues dir — the data the verb was given, never the
+// process cwd — or, with --repo, the one containing that path, its issues dir
+// resolved inside it. An issues dir outside any repository yields root "": its
+// details are the whole record, as before.
 func issueShowRepo(f *issueShowFlags) (root, issuesDir string, err error) {
-	from := "."
 	if f.Repo != "" {
-		from = f.Repo
+		if root = repoRootOf(f.Repo); root == "" {
+			return "", "", fmt.Errorf("--repo %s is not inside a repository", f.Repo)
+		}
+		issuesDir = f.IssuesDir
+		if !filepath.IsAbs(issuesDir) {
+			issuesDir = filepath.Join(root, issuesDir)
+		}
+		return root, issuesDir, nil
 	}
-	root = repoRootOf(from)
-	if root == "" {
-		return "", "", fmt.Errorf("%s is not inside a repository", from)
+	if issuesDir, err = filepath.Abs(f.IssuesDir); err != nil {
+		return "", "", err
 	}
-	issuesDir = f.IssuesDir
-	if !filepath.IsAbs(issuesDir) {
-		issuesDir = filepath.Join(root, issuesDir)
-	}
-	return root, issuesDir, nil
+	return repoRootOf(issuesDir), issuesDir, nil
 }

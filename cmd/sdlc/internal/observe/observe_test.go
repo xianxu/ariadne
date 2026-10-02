@@ -3,6 +3,9 @@ package observe
 import (
 	"encoding/json"
 	"errors"
+	"flag"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -64,7 +67,11 @@ func TestAssembleTrackerSections(t *testing.T) {
 		{"parked slot holds it", base(card(t, "working", &slot, false)), Present, RelationOtherWorkspace, FateHoldsBranch, OutcomeNotLanded},
 		{"unattributed", base(card(t, "working", nil, false)), Present, RelationUnattributed, "", OutcomeNotLanded},
 		{"other machine (never probed)", base(card(t, "working", &other, false)), Present, RelationOtherWorkspace, FateOtherMachine, OutcomeNotLanded},
-		{"owner worktree gone", func() Inputs { in := base(card(t, "working", &slot, false)); in.Worktrees = in.Worktrees[:1]; return in }(), Present, RelationOtherWorkspace, FateMissing, OutcomeNotLanded},
+		{"owner worktree gone", func() Inputs {
+			in := base(card(t, "working", &slot, false))
+			in.Worktrees = in.Worktrees[:1]
+			return in
+		}(), Present, RelationOtherWorkspace, FateMissing, OutcomeNotLanded},
 		{"worktree list failed", func() Inputs {
 			in := base(card(t, "working", &slot, false))
 			in.WorktreesErr = errors.New("git worktree list: boom")
@@ -160,4 +167,38 @@ func FuzzAssemble(f *testing.F) {
 			}
 		}
 	})
+}
+
+var update = flag.Bool("update", false, "rewrite golden files")
+
+// The schema_version 1 wire format, pinned: any drift of keys, order or
+// encoding fails here (rewrite deliberately with -update and bump the version
+// for an incompatible change).
+func TestObservationGolden(t *testing.T) {
+	in := base(card(t, "done", &slot, true))
+	in.MainArchive = "workshop/history/issues/000279-observe.md"
+	got, err := json.MarshalIndent(Assemble(in), "", "  ")
+	if err != nil {
+		t.Fatal(err)
+	}
+	golden := filepath.Join("testdata", "observation-v1.golden.json")
+	if *update {
+		if err := os.MkdirAll("testdata", 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(golden, append(got, '\n'), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	want, err := os.ReadFile(golden)
+	if err != nil {
+		t.Fatalf("%v (run with -update to create it)", err)
+	}
+	if string(want) != string(got)+"\n" {
+		t.Fatalf("schema_version 1 drifted from %s:\n%s", golden, got)
+	}
+	var back Observation
+	if err := json.Unmarshal(want, &back); err != nil {
+		t.Fatalf("the golden is not a valid observation: %v", err)
+	}
 }

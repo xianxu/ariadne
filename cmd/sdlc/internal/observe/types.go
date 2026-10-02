@@ -62,7 +62,8 @@ type Observation struct {
 // answer was read at.
 type Tracker struct {
 	Read
-	Ref string `json:"ref,omitempty"`
+	Ref      string `json:"ref,omitempty"`
+	RefError string `json:"ref_error,omitempty"` // the cards were read, but their tracker commit could not be named
 }
 
 type Card struct {
