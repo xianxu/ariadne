@@ -1,6 +1,6 @@
 ---
 id: 000280
-status: codecomplete
+status: done
 created: 2026-10-01
 updated: 2026-10-02
 estimate_hours: 3.51
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 563c32ef7b32b5085c81a920a60f67a15eeaf82c
         evidence_commit: a6b290adc55ed6b8d8d7cc00aae5e31f59da6c2d
+        landed_commit: 1fb7930e3a6657e8d7497bc7f06b171f7dbcc7cb
 ---
 
 # Publish tested operation recovery contracts
