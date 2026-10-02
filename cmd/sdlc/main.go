@@ -28,6 +28,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/helptext"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/processmanual"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/recovery"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -54,6 +55,11 @@ func renderLong(name string) string {
 		"{{GATE_FLAGS}}", processmanual.GateTable(name),
 		// #277: the continuation gate's contract, said once.
 		"{{OWNERSHIP_GATE}}", ownershipGateHelp,
+		// #280: the recovery topic, from the contract registry.
+		"{{RECOVERY_SCOPE}}", recovery.ScopeText(),
+		"{{RECOVERY_CLASSES}}", recovery.ClassesText(),
+		"{{RECOVERY_TABLE}}", recovery.Table(),
+		"{{RECOVERY_EXAMPLE}}", recovery.ExampleText(),
 	).Replace(helptext.MustGet(name))
 }
 
@@ -156,6 +162,8 @@ func buildRoot() *cobra.Command {
 	add(NewJudgeCmd(), "judge", "Run an LLM-judge check against the diff (fresh-context)")
 	add(NewArchPrinciplesCmd(), "arch-principles", "Print the ARCH-* architecture principles (single source; pull for non-gate work)")
 	add(NewEstimateSourceCmd(), "estimate-source", "Name the shared estimate method + the repo-local calibration source (pull)")
+	// #280: a help topic (no Run): `sdlc help recovery`.
+	add(&cobra.Command{Use: "recovery"}, "recovery", "Recovery contracts: what each verb does when repeated, interrupted or unanswered")
 	add(NewProcessManualCmd(), "process-manual", "Unroll every injection source into a linked process manual (#153)")
 
 	// Hidden: deprecated aliases + the start stub. Order is irrelevant —
@@ -178,9 +186,29 @@ func buildRoot() *cobra.Command {
 	wrapBrainDefaults(root)
 	wrapProjectDefaults(root)
 	wrapRepoLockCommands(root)
+	attachRecoveryContracts(root)
 
 	return root
 }
+
+// attachRecoveryContracts appends each contracted verb's recovery section
+// (#280) to its help — one pass over the tree, so no page, inline or embedded,
+// can forget it.
+func attachRecoveryContracts(root *cobra.Command) {
+	var walk func(*cobra.Command)
+	walk = func(c *cobra.Command) {
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+		if _, ok := recovery.For(commandVerb(c)); ok {
+			c.Long = strings.TrimRight(c.Long, "\n") + "\n\n" + recovery.Section(commandVerb(c)) + "\n"
+		}
+	}
+	walk(root)
+}
+
+// commandVerb is a command's path below `sdlc` ("issue set-status").
+func commandVerb(c *cobra.Command) string { return strings.TrimPrefix(c.CommandPath(), "sdlc ") }
 
 var cobraSortingOnce sync.Once
 

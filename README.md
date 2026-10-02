@@ -32,7 +32,10 @@ first; then `--expect REV --reason '…'` transfers the issue to the workspace
 running it, refusing if the card changed since you looked (#278). `sdlc issue
 show N --json` answers who owns an issue, where its work is, which reviews
 passed and whether it landed. It is read-only, from any checkout, with each
-answer marked fresh, stale or unknown (#279). Older binaries refuse claimed
+answer marked fresh, stale or unknown (#279). What each verb does when it is
+repeated, interrupted or answered by a lost response, and which tests prove it,
+is in every workflow verb's `--help` and in `sdlc help recovery` (#280).
+Older binaries refuse claimed
 cards, so after this lands, update ariadne:0 and run `weave refresh` in every
 :1+ slot.
 

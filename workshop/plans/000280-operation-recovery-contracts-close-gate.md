@@ -1,0 +1,296 @@
+---
+gate: boundary-review
+issue: 280
+id_prefix: BR
+rounds:
+    - "n": 1
+      timestamp: "2026-10-02T11:08:23-07:00"
+      agent: claude
+      findings:
+        - id: BR-1
+          severity: Important
+          title: Recovery contracts describe tracker repositories only but render into every repository's help; claim, change-code and set-status are wrong in legacy repositories
+          detail: claim says "Never pushes main" and change-code says "Never pushes", but runLegacyClaim (legacymode.go) and syncLegacyIssue (changecode.go) publish to main. Either scope each Section to issue-tracker repositories (#252) and mark legacy as unknown, or add legacy wording to those contracts.
+          family: contract-scope-unstated
+          round: 1
+        - id: BR-2
+          severity: Important
+          title: The plan's Core concepts table names render.go, Page() and JSON(), which do not exist (Section is in contracts.go; JSON was dropped in PQ-2)
+          detail: Add a Revisions entry so the table matches the code, and mark Page() and Example as M2.
+          family: plan-table-drift
+          round: 1
+        - id: BR-3
+          severity: Minor
+          title: The recovery package doc still describes the dropped {{RECOVERY}} placeholder
+          family: stale-doc-comment
+          round: 1
+        - id: BR-4
+          severity: Minor
+          title: Every M1 help section points at sdlc help recovery, which does not exist until M2
+          family: dangling-help-pointer
+          round: 1
+        - id: BR-5
+          severity: Minor
+          title: TestCardPublishCallers does not require reclaimEffect and skips other var-declared function literals
+          family: caller-guard-gaps
+          round: 1
+        - id: BR-6
+          severity: Minor
+          title: The plan's lost-acknowledgement proof TestUpdateMany_LostAcknowledgmentIsUncertainWithoutReplay is cited by no catalog entry
+          family: plan-proof-omitted
+          round: 1
+      boundary: M1
+      recipe: milestone-review
+      blocked: true
+    - "n": 2
+      timestamp: "2026-10-02T11:10:43-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: recovery.Scope rendered by Section into every help section (contracts.go:135); TestSectionMarksUnprovenClaims asserts Scope/legacy/unknown; verified in sdlc claim --help.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: 'Plan Revisions entry supersedes the table rows: no render.go, JSON dropped (PQ-2), Page/Example are M2.'
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: Package doc now names attachRecoveryContracts; no placeholder reference remains.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: Revisions records that sdlc help recovery lands on this branch in M2 before anything ships; acceptable at an intra-branch milestone.
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: reclaimEffect added to allowed (so required by the not-seen loop); guard inspects every ValueSpec initializer.
+          round: 2
+        - id: BR-6
+          disposition: addressed
+          note: catalog.go:25 cites the test; it exists in internal/gitx and passes; it shares the updateMany core with UpdateCardWithTrailers.
+          round: 2
+      findings:
+        - id: BR-7
+          severity: Minor
+          title: atlas/workflow/recovery-contracts.md presents the contracts as the rulebook without their issue-tracker-only scope
+          detail: 'Repeat of the family. Rule: every surface describing the contracts states the scope; generated surfaces (help sections, M2 Page) render recovery.Scope, and the hand-written atlas page carries one scope line. Fix the class in M2 by rendering Scope in Page() and adding the line to the atlas.'
+          family: contract-scope-unstated
+          round: 2
+      boundary: M1
+      recipe: milestone-review
+      blocked: false
+    - "n": 3
+      timestamp: "2026-10-02T11:21:18-07:00"
+      agent: claude
+      findings:
+        - id: BR-8
+          severity: Important
+          title: Core-concepts table still names Page()/render.go, example.go and recoverycmd.go; M2 built page.go + helptext placeholders + inline buildRoot topic
+          detail: '2nd finding in plan-table-drift. Rule covering all instances: each boundary sweeps every Core-concepts row against the tree (path and symbol exist) and records all divergences in one Revisions entry, or rewrites the table to current reality. Rows wrong now: Page() and render.go (absent), Example in example.go (page.go), recoverycmd.go (absent; main.go:166); Lookup/Step/Expect/Actor unlisted.'
+          family: plan-table-drift
+          round: 3
+        - id: BR-9
+          severity: Minor
+          title: Harness-flag comment and atlas claim the flags only stand in for judges and estimates, but --worktree=no and --no-atlas are neither
+          detail: 'recovery_example_test.go:19-20 and atlas/workflow/recovery-contracts.md:52-53. Rule: a comment describing a set must match the set it describes.'
+          family: stale-doc-comment
+          round: 3
+        - id: BR-10
+          severity: Minor
+          title: Duplicate-delivery class lookup uses recovery.For(args[0]), so a multi-word verb step (issue sync) would silently be delivered once
+          detail: recovery_example_test.go:80. Resolve the longest verb prefix against Contract.Verbs, the same identity the registry uses.
+          family: caller-guard-gaps
+          round: 3
+        - id: BR-11
+          severity: Minor
+          title: TrackerUnreachable restores the origin only at t.Cleanup; any step appended after it runs with no tracker
+          detail: recovery_example_test.go:92-97; restore immediately after that step's observation.
+          family: example-step-ordering
+          round: 3
+        - id: BR-12
+          severity: Minor
+          title: Plan's two-way cross-link and the general 30 s revisit heuristic are only partly delivered
+          detail: sdlc issue recovery --help (parent) does not point to sdlc help recovery (reconcile does). The 30 s heuristic appears only in example step 3, not in AGENT GUIDANCE.
+          family: plan-claim-partially-delivered
+          round: 3
+        - id: BR-13
+          severity: Minor
+          title: Example actor switch has no default; a step with an unknown Actor is silently skipped
+          detail: recovery_example_test.go:69; add a default t.Fatalf.
+          family: caller-guard-gaps
+          round: 3
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
+    - "n": 4
+      timestamp: "2026-10-02T11:24:03-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: 'Both Core-concepts tables now match the tree: contracts.go holds Section/Scope/Validate/For/wrap, page.go holds Example/Step/Expect/Actor/Lookup and the renderers, attachRecoveryContracts is at main.go:197, cardpublish.go exists; a Revisions entry records the sweep and a lesson states the rule.'
+          round: 4
+        - id: BR-9
+          disposition: addressed
+          note: recovery_example_test.go:19-22 and atlas lines 52-53 now list judges, estimate, actual, worktree and atlas, which matches the map's set.
+          round: 4
+        - id: BR-10
+          disposition: addressed
+          note: contractFor (recovery_example_test.go:139) resolves the longest verb prefix through recovery.For; reachable from the recipient branch at :80.
+          round: 4
+        - id: BR-11
+          disposition: addressed
+          note: Origin is renamed back immediately after observeJSON (recovery_example_test.go:101-105); Cleanup remains only as a fallback.
+          round: 4
+        - id: BR-12
+          disposition: addressed
+          note: issuerecovery.go Long now points to `sdlc help recovery`; AGENT GUIDANCE in helptext/recovery.md carries the 30 s revisit heuristic (verified in rendered output).
+          round: 4
+        - id: BR-13
+          disposition: addressed
+          note: 'default: t.Fatalf("unknown actor") added at recovery_example_test.go:113.'
+          round: 4
+      findings:
+        - id: BR-14
+          severity: Minor
+          title: Core-concepts prose and the issue's M1 row still name superseded symbols (Contract field Verb, "the JSON", the RECOVERY placeholder)
+          detail: 'This is the 3rd finding in family plan-table-drift. The tables were fixed, but plan line 44 says the field is `Verb` (code: `Verbs`), line 53 says the source feeds "the JSON" (dropped in PQ-2), and the issue''s M1 row says "rendered via {{RECOVERY}}" (now attachRecoveryContracts). Rule: the per-boundary sweep in the new lesson covers every symbol named in the Core-concepts section and the Plan rows, not only the table cells. Grep each backticked identifier against the tree and fix all misses in one Revisions entry.'
+          family: plan-table-drift
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
+    - "n": 5
+      timestamp: "2026-10-02T11:29:00-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: atlas/workflow/recovery-contracts.md has a Scope line; helptext/recovery.md renders {{RECOVERY_SCOPE}} via recovery.ScopeText() (page.go:20), and the per-verb Section shows the scope.
+          round: 5
+        - id: BR-14
+          disposition: addressed
+          note: Plan Core concepts say `Verbs`, the DRY rationale drops JSON, and the issue M1 row names attachRecoveryContracts; every backticked identifier in Core concepts and Plan rows was grepped and resolves in the tree.
+          round: 5
+      findings:
+        - id: BR-15
+          severity: Minor
+          title: Scheduling example tells coordinators to expect checkpoints.flow.kind = quick, which only the fixture produces
+          detail: Real delegated work with a durable plan is the full flow, so a coordinator following the rendered example would read a correct state as a mismatch. Assert presence (or accept quick or full) in recovery.Example, and let the test check the fixture's specific value separately.
+          family: fixture-value-as-guidance
+          round: 5
+      recipe: milestone-review
+      blocked: false
+    - "n": 6
+      timestamp: "2026-10-02T11:31:09-07:00"
+      agent: claude
+      dispose:
+        - id: BR-15
+          disposition: addressed
+          note: page.go:71 now expects checkpoints.state=present; the test checks the fixture's quick flow separately, guarded by flowChecked; TestSchedulingExampleRuns passes at HEAD.
+          round: 6
+      findings:
+        - id: BR-16
+          severity: Minor
+          title: Close-observation step expects checkpoints.reviews[close].verdict = SHIP, which only the stubbed judge produces
+          detail: 'This is the 2nd finding in family fixture-value-as-guidance. Rule: every Expect value in recovery.Example must hold for every successful run, never just the fixture''s run. Enforce it by running TestSchedulingExampleRuns over each legal variant (quick and full flow, SHIP and FIX-THEN-SHIP verdict), so a value that holds for only one variant fails. A FIX-THEN-SHIP close completes (close.go:1406, catalog.go:102), yet page.go:76 would read it as a mismatch and send the coordinator to reconcile. Expect a verdict that is present or non-blocking, and keep SHIP as a check on the fixture only.'
+          family: fixture-value-as-guidance
+          round: 6
+      recipe: milestone-review
+      blocked: false
+---
+
+# Gate ledger — ariadne#280 (boundary-review)
+
+Findings this gate raised, the stable ids the binary assigned them, and how
+later rounds disposed of them. Generated — edit the gate, not this file.
+
+## Round 1 — 2026-10-02T11:08:23-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-1** [Important] `contract-scope-unstated` Recovery contracts describe tracker repositories only but render into every repository's help; claim, change-code and set-status are wrong in legacy repositories
+  claim says "Never pushes main" and change-code says "Never pushes", but runLegacyClaim (legacymode.go) and syncLegacyIssue (changecode.go) publish to main. Either scope each Section to issue-tracker repositories (#252) and mark legacy as unknown, or add legacy wording to those contracts.
+- **BR-2** [Important] `plan-table-drift` The plan's Core concepts table names render.go, Page() and JSON(), which do not exist (Section is in contracts.go; JSON was dropped in PQ-2)
+  Add a Revisions entry so the table matches the code, and mark Page() and Example as M2.
+- **BR-3** [Minor] `stale-doc-comment` The recovery package doc still describes the dropped {{RECOVERY}} placeholder
+- **BR-4** [Minor] `dangling-help-pointer` Every M1 help section points at sdlc help recovery, which does not exist until M2
+- **BR-5** [Minor] `caller-guard-gaps` TestCardPublishCallers does not require reclaimEffect and skips other var-declared function literals
+- **BR-6** [Minor] `plan-proof-omitted` The plan's lost-acknowledgement proof TestUpdateMany_LostAcknowledgmentIsUncertainWithoutReplay is cited by no catalog entry
+
+## Round 2 — 2026-10-02T11:10:43-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — recovery.Scope rendered by Section into every help section (contracts.go:135); TestSectionMarksUnprovenClaims asserts Scope/legacy/unknown; verified in sdlc claim --help.
+- BR-2 — addressed — Plan Revisions entry supersedes the table rows: no render.go, JSON dropped (PQ-2), Page/Example are M2.
+- BR-3 — addressed — Package doc now names attachRecoveryContracts; no placeholder reference remains.
+- BR-4 — addressed — Revisions records that sdlc help recovery lands on this branch in M2 before anything ships; acceptable at an intra-branch milestone.
+- BR-5 — addressed — reclaimEffect added to allowed (so required by the not-seen loop); guard inspects every ValueSpec initializer.
+- BR-6 — addressed — catalog.go:25 cites the test; it exists in internal/gitx and passes; it shares the updateMany core with UpdateCardWithTrailers.
+
+### Raised
+
+- **BR-7** [Minor] `contract-scope-unstated` atlas/workflow/recovery-contracts.md presents the contracts as the rulebook without their issue-tracker-only scope
+  Repeat of the family. Rule: every surface describing the contracts states the scope; generated surfaces (help sections, M2 Page) render recovery.Scope, and the hand-written atlas page carries one scope line. Fix the class in M2 by rendering Scope in Page() and adding the line to the atlas.
+
+## Round 3 — 2026-10-02T11:21:18-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-8** [Important] `plan-table-drift` Core-concepts table still names Page()/render.go, example.go and recoverycmd.go; M2 built page.go + helptext placeholders + inline buildRoot topic
+  2nd finding in plan-table-drift. Rule covering all instances: each boundary sweeps every Core-concepts row against the tree (path and symbol exist) and records all divergences in one Revisions entry, or rewrites the table to current reality. Rows wrong now: Page() and render.go (absent), Example in example.go (page.go), recoverycmd.go (absent; main.go:166); Lookup/Step/Expect/Actor unlisted.
+- **BR-9** [Minor] `stale-doc-comment` Harness-flag comment and atlas claim the flags only stand in for judges and estimates, but --worktree=no and --no-atlas are neither
+  recovery_example_test.go:19-20 and atlas/workflow/recovery-contracts.md:52-53. Rule: a comment describing a set must match the set it describes.
+- **BR-10** [Minor] `caller-guard-gaps` Duplicate-delivery class lookup uses recovery.For(args[0]), so a multi-word verb step (issue sync) would silently be delivered once
+  recovery_example_test.go:80. Resolve the longest verb prefix against Contract.Verbs, the same identity the registry uses.
+- **BR-11** [Minor] `example-step-ordering` TrackerUnreachable restores the origin only at t.Cleanup; any step appended after it runs with no tracker
+  recovery_example_test.go:92-97; restore immediately after that step's observation.
+- **BR-12** [Minor] `plan-claim-partially-delivered` Plan's two-way cross-link and the general 30 s revisit heuristic are only partly delivered
+  sdlc issue recovery --help (parent) does not point to sdlc help recovery (reconcile does). The 30 s heuristic appears only in example step 3, not in AGENT GUIDANCE.
+- **BR-13** [Minor] `caller-guard-gaps` Example actor switch has no default; a step with an unknown Actor is silently skipped
+  recovery_example_test.go:69; add a default t.Fatalf.
+
+## Round 4 — 2026-10-02T11:24:03-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — Both Core-concepts tables now match the tree: contracts.go holds Section/Scope/Validate/For/wrap, page.go holds Example/Step/Expect/Actor/Lookup and the renderers, attachRecoveryContracts is at main.go:197, cardpublish.go exists; a Revisions entry records the sweep and a lesson states the rule.
+- BR-9 — addressed — recovery_example_test.go:19-22 and atlas lines 52-53 now list judges, estimate, actual, worktree and atlas, which matches the map's set.
+- BR-10 — addressed — contractFor (recovery_example_test.go:139) resolves the longest verb prefix through recovery.For; reachable from the recipient branch at :80.
+- BR-11 — addressed — Origin is renamed back immediately after observeJSON (recovery_example_test.go:101-105); Cleanup remains only as a fallback.
+- BR-12 — addressed — issuerecovery.go Long now points to `sdlc help recovery`; AGENT GUIDANCE in helptext/recovery.md carries the 30 s revisit heuristic (verified in rendered output).
+- BR-13 — addressed — default: t.Fatalf("unknown actor") added at recovery_example_test.go:113.
+
+### Raised
+
+- **BR-14** [Minor] `plan-table-drift` Core-concepts prose and the issue's M1 row still name superseded symbols (Contract field Verb, "the JSON", the RECOVERY placeholder)
+  This is the 3rd finding in family plan-table-drift. The tables were fixed, but plan line 44 says the field is `Verb` (code: `Verbs`), line 53 says the source feeds "the JSON" (dropped in PQ-2), and the issue's M1 row says "rendered via {{RECOVERY}}" (now attachRecoveryContracts). Rule: the per-boundary sweep in the new lesson covers every symbol named in the Core-concepts section and the Plan rows, not only the table cells. Grep each backticked identifier against the tree and fix all misses in one Revisions entry.
+
+## Round 5 — 2026-10-02T11:29:00-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — atlas/workflow/recovery-contracts.md has a Scope line; helptext/recovery.md renders {{RECOVERY_SCOPE}} via recovery.ScopeText() (page.go:20), and the per-verb Section shows the scope.
+- BR-14 — addressed — Plan Core concepts say `Verbs`, the DRY rationale drops JSON, and the issue M1 row names attachRecoveryContracts; every backticked identifier in Core concepts and Plan rows was grepped and resolves in the tree.
+
+### Raised
+
+- **BR-15** [Minor] `fixture-value-as-guidance` Scheduling example tells coordinators to expect checkpoints.flow.kind = quick, which only the fixture produces
+  Real delegated work with a durable plan is the full flow, so a coordinator following the rendered example would read a correct state as a mismatch. Assert presence (or accept quick or full) in recovery.Example, and let the test check the fixture's specific value separately.
+
+## Round 6 — 2026-10-02T11:31:09-07:00 (claude) — passed
+
+### Disposed
+
+- BR-15 — addressed — page.go:71 now expects checkpoints.state=present; the test checks the fixture's quick flow separately, guarded by flowChecked; TestSchedulingExampleRuns passes at HEAD.
+
+### Raised
+
+- **BR-16** [Minor] `fixture-value-as-guidance` Close-observation step expects checkpoints.reviews[close].verdict = SHIP, which only the stubbed judge produces
+  This is the 2nd finding in family fixture-value-as-guidance. Rule: every Expect value in recovery.Example must hold for every successful run, never just the fixture's run. Enforce it by running TestSchedulingExampleRuns over each legal variant (quick and full flow, SHIP and FIX-THEN-SHIP verdict), so a value that holds for only one variant fails. A FIX-THEN-SHIP close completes (close.go:1406, catalog.go:102), yet page.go:76 would read it as a mismatch and send the coordinator to reconcile. Expect a verdict that is present or non-blocking, and keep SHIP as a check on the fixture only.
+
+## Open findings
+
+- **BR-16** [Minor] `fixture-value-as-guidance` Close-observation step expects checkpoints.reviews[close].verdict = SHIP, which only the stubbed judge produces
