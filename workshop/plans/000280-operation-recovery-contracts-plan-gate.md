@@ -42,6 +42,33 @@ rounds:
           family: help-page-granularity
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-02T10:55:45-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Required set derived from markMutatingCommand (21 sites) plus self-locking workflow verbs plus issue show, with reasoned exemptions; push/sync/move-detail/new added.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: Surface is the `sdlc help recovery` topic per operator decision; cross-links issue recovery; recorded in Revisions.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Each Done-when class names existing tests (all verified present) plus two new generation tests.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          round: 2
+        - id: PQ-6
+          disposition: addressed
+          round: 2
+      blocked: false
+content_hash: 41049e4672326894c8efe8536ddd6b42d3df882650287fa11692a637952100ff
 ---
 
 # Gate ledger — ariadne#280 (plan-quality)
@@ -64,11 +91,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   Add a caller-guard test like TestReclaimIsOnlyOperatorInvoked for any new seam.
 - **PQ-6** [Minor] `help-page-granularity` The plan does not say how {{RECOVERY}} renders several verb contracts on one page (issue.md hosts show/sync/move-detail/recovery)
 
+## Round 2 — 2026-10-02T10:55:45-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Required set derived from markMutatingCommand (21 sites) plus self-locking workflow verbs plus issue show, with reasoned exemptions; push/sync/move-detail/new added.
+- PQ-2 — addressed — Surface is the `sdlc help recovery` topic per operator decision; cross-links issue recovery; recorded in Revisions.
+- PQ-3 — addressed — Each Done-when class names existing tests (all verified present) plus two new generation tests.
+- PQ-4 — addressed
+- PQ-5 — addressed
+- PQ-6 — addressed
+
 ## Open findings
 
-- **PQ-1** [Important] `coverage-set-derives-from-source` The required verb set is never defined, so the coverage test is circular; push, issue sync and move-detail are missing
-- **PQ-2** [Important] `cli-surface-naming-collision` `sdlc recovery` clashes with the existing `sdlc issue recovery reconcile` and differs from the recorded `sdlc help recovery` decision
-- **PQ-3** [Important] `done-when-case-class-unproven` No proof is named for the reopened/reclaimed-generation case or the close-after-SHIP re-run that Done-when requires
-- **PQ-4** [Minor] `single-source-helper-adoption` The uncertain-publication helper should also replace reclaim's inline message at reclaim.go:178
-- **PQ-5** [Minor] `shared-test-seam` Use one injection seam around UpdateCard/trackerEnv, or the existing stateful tracker fake, instead of a package var per verb
-- **PQ-6** [Minor] `help-page-granularity` The plan does not say how {{RECOVERY}} renders several verb contracts on one page (issue.md hosts show/sync/move-detail/recovery)
+(none — every finding has been disposed)

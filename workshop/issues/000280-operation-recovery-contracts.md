@@ -5,8 +5,8 @@ deps: [ariadne#277, ariadne#278, ariadne#279]
 github_issue:
 created: 2026-10-01
 updated: 2026-10-02
-estimate_hours:
-card_mirror: '9717bec607118ffcf4d936794f28518aacce5efb' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.51
+card_mirror: 'a4818566365763c2342564af1874f7cd54a1e9f2' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-02T10:21:50-07:00
 claimant:
     operator: Xian Xu
@@ -52,6 +52,41 @@ Durable plan: `workshop/plans/000280-operation-recovery-contracts-plan.md`.
 - [ ] M2 — the `sdlc help recovery` topic (classes, agent guidance, table,
       example; cross-links `issue recovery`); the executable scheduling
       example (`TestSchedulingExampleRuns` runs the rendered steps); docs.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec             design=0.5 impl=0.05
+item: greenfield-go-module   design=0.4 impl=0.22
+item: smaller-go-module      design=0.2 impl=0.14
+item: smaller-go-module      design=0.1 impl=0.14
+item: smaller-go-module      design=0.1 impl=0.14
+item: smaller-go-module      design=0.1 impl=0.14
+item: smaller-go-module      design=0.2 impl=0.14
+item: atlas-docs             design=0.2 impl=0.08
+item: atlas-docs             design=0.05 impl=0.05
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+design-buffer: 0.15
+total: 3.51
+```
+
+Items, in order:
+- issue-spec: decisions plus two plan-quality rounds.
+- greenfield-go-module: `internal/recovery` (types, validation, rendering).
+- smaller-go-module ×5:
+  1. the contract test (derived verb set, AST test-name scan);
+  2. the `cardPublish` seam, uncertain helper and lost-ack tests;
+  3. the two generation tests;
+  4. the help topic and `{{RECOVERY}}` rendering;
+  5. the executable scheduling example.
+- atlas-docs ×2: the catalog's contract text, rechecked against code; then
+  the atlas, README and manual.
+- Two milestone reviews.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* The calibration source is flagged stale (#127). Recent rows: #277 came in at 2.41h actual against 4.09h estimated, and #279 at 1.59h against 3.31h.
 
 ## Log
 
@@ -107,3 +142,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     `{{GATE_FLAGS}}`, guarded by registered-flag and help tests).
 - Wrote the durable plan (M1/M2). Awaiting operator approval.
 - change-code plan-quality round 1: the required set is now derived from the command tree; the surface is `sdlc help recovery`; Done-when proofs are named per class, with two new generation tests. The plan is revised.
+- Plan-quality cleared (round 2). Estimate: 3.51h (v3.1).
