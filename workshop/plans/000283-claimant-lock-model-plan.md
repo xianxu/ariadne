@@ -292,3 +292,20 @@ func startDecision(card []byte, id string, me issue.Claimant, today, started str
 - [ ] `go test ./...`; `make vocab-embed` clean.
 - [ ] Manual smoke in a scratch tracker fixture (or this repo with `--dry-run`): `claim` → card `open` + claimant; `start-plan` → `working` + branch.
 - [ ] Log the outcome; `sdlc close --issue 283 --verified '…'`.
+
+## Revisions
+
+### 2026-10-02 — plan-quality round 2 (six Minor findings, all folded)
+
+1. **`adoptDecision` derives too.** Task 2 also replaces `claimdecision.go:99`'s `working`/`blocked` literal with `vocab.Issue().IsActive(status)`. That covers `codecomplete`, so a pre-#277 card stuck at `codecomplete` (pair#365) can be adopted now; #284 later folds `--adopt` into a plain claim.
+2. **Legacy repositories.** The model's `ownership` block carries a `scope` gloss: the lock axis applies to tracker repositories. A legacy repository has no claimant, so its `claim` performs `start` in one step (`open → working`, `legacymode.go:399`). Task 6's claim/root help states both behaviours, keyed on whether `workshop/issue-tracker.json` exists. No legacy code changes.
+3. **Shaping claims vs. "in flight".** Intended: start-plan's contention line (`startplan.go:476`) and the `state` drift finding (`state.go:322`) concern *started* work, so they keep counting `working`. Showing owned `open` claims (the slot and operator views) is #284's `sdlc state` deliverable. Recorded in #284's Log.
+4. **Test strategy, one line per risky function**, replacing the case-by-case prose in Tasks 2–4:
+   - `claimDecision`, `startDecision`, `reclaimDecision`: generated over the product of every status in `vocab.Issue().AllStatuses()` × owner {none, me, other}, each cell asserting (error class, status after, claimant after) against a small expected-outcome function written from the model, not a literal table.
+   - `planningDirtyAllowed`: the adversarial class is `-z` porcelain rename/copy entries carrying two paths. **Any entry that touches the details path on either side blocks unless it is a plain modification of exactly that path.** Also covered: paths with spaces and quotes, and another issue's details file.
+5. **ARCH envelope.**
+   - ARCH-FUNERAL: an unstarted claim has no expiry by decision; the release paths are `reclaim` (reason required) plus claim age in `sdlc state` (#284).
+   - ARCH-SECURE: the claimant comes from tracker bytes, parsed by the existing fail-closed `CardClaimant`; nothing new is parsed.
+   - ARCH-CONSTRAINTS: no new budgets.
+   - ARCH-ORDER: if a concurrent `reclaim` wins between `startDecision` and `UpdateCard`, the CAS fails with `ErrCardChanged` and the created issue branch is left behind with the card still `open` under its new owner. The refusal names the branch and says it is this slot's to delete or keep. Re-running `start-plan` then refuses on ownership.
+6. **Accessors.** `TransitionFor` and `FirstTransitionForEvent` exist only on `ProjectModel` (`pkg/vocab/project.go:96,109`). Task 1 adds them, plus `TransitionForEvent`, to `IssueModel` over the shared helpers in `lifecycle.go`. Close's `open` refusal lives at `cmd/sdlc/internal/tracker/completeop.go:93`.

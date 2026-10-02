@@ -5,8 +5,8 @@ deps: [ariadne#277, ariadne#278]
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
-estimate_hours:
-card_mirror: '203c1590f4dd363293c66e52efd6f3e409bd8479' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.48
+card_mirror: '57f7148aa65e08353b5095b8effe9b591ff61cbb' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-02T10:51:37-07:00
 claimant:
     operator: Xian Xu
@@ -86,6 +86,38 @@ The **claimant is the owner and the lock**. **Status is lifecycle only.**
 - `change-code` refuses an owned but unstarted (`open`) issue, pointing at `start-plan`; `reclaim` accepts an owned `open` card.
 - The atlas terminology defines slot = executor/owner and operator = supervisor, and no help text uses "owner" for a branch or a person.
 - Tests pin the legal (status, owner) combinations and the claim/start-plan split.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec             design=1.2 impl=0.08
+item: smaller-go-module      design=0.2 impl=0.16
+item: smaller-go-module      design=0.1 impl=0.14
+item: smaller-go-module      design=0.2 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.1
+item: cross-cutting-refactor design=0.1 impl=0.2
+item: atlas-docs             design=0.1 impl=0.08
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+design-buffer: 0.15
+total: 3.48
+```
+
+Items, in plan order:
+- the four-round design, the project and the plan;
+- Task 1, the vocab axis;
+- Task 2, claim;
+- Task 3, start-plan plus the dirty carry;
+- Task 4, change-code and reclaim;
+- Task 5, the e2e fixture sweep;
+- Task 6, docs;
+- the plan-quality and close reviews.
+
+The design buffer is +15% because a thorough plan doc exists.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
