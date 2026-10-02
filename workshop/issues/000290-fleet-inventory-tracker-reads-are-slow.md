@@ -1,12 +1,20 @@
 ---
 id: 000290
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours:
-card_mirror: 'ae2c762b0868fd8bb94e8ce5a4043c7dc6decb85' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7cd6cd49f714ba758e451bdf8eef3e8b4666fa48' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-02T15:58:13-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Fleet inventory tracker reads are slow
@@ -54,7 +62,12 @@ unchanged. Prerequisite for ariadne#289, which adds dependency-clone rows.
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000290-fleet-inventory-tracker-reads-are-slow-plan.md`.
+
+- [ ] Fetch-skip when the remote tracker tip equals the local tracking ref; `--no-auto-maintenance` on tracker fetches
+- [ ] Per-key-once records cache + bounded concurrent warm-up of tracked repositories
+- [ ] Per-read deadline; a hanging remote degrades only its repository
+- [ ] Before/after trace in the Log; atlas + help; close
 
 ## Log
 
