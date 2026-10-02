@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000283-claim-owns-issue-branch.md
         source_blob: b6edc87de4174bad51ed7d5fb189d4f34f86d90b
         destination: workshop/issues/000283-claim-owns-issue-branch.md
+        main_commit: 3b7315b7fde5083f036e377d41e8053193e52ef3
 ---
 
 # Re-derive ownership from the claimant
