@@ -101,12 +101,13 @@ design already spent after the claim.
 
 Durable plan: `workshop/plans/000289-slot-readiness-in-sdlc-fleet-inventory-plan.md`.
 
-- [ ] M1 — per-checkout readiness facts and verdict (shared file-based `gitx` operation detector, operation on facts, pure `JudgeCheckout`)
+- [x] M1 — per-checkout readiness facts and verdict (shared file-based `gitx` operation detector, operation on facts, pure `JudgeCheckout`)
 - [ ] M2 — fleet inventory reports one readiness row per slot (slots from paths, declared membership via `layergraph.ParseRows`, dependency clones as rows, `AssembleSlots`, versioned `slots`, real-git fixtures, recovery entry, help, atlas)
 
 ## Log
 
 ### 2026-10-02
+- 2026-10-02: closed M1 — make test green (904 cmd/sdlc tests; processgroup fails only in sandbox); go test ./cmd/weave/... ./pkg/... green. BR-4: atlas + issue Log name workspace.OperationMarkers (pkg/workspace) and list weave refresh; no gitx.* detector name remains (grep). Ambiguous match now ErrAmbiguousIssue -> TreeRow.IssuesError -> probe:issue (association table + property test). Rebase e2e test moved to pkg/workspace with plain git.; review verdict: SHIP
 
 Filed from pair#384's design review at the operator's direction (pair#384 closed
 wontfix; its slot facts belong to sdlc). To be picked up after ariadne#288.
