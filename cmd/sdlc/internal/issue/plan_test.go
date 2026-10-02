@@ -88,3 +88,24 @@ func TestMilestonesInPlanOrderSkipsFencedRows(t *testing.T) {
 		t.Errorf("got %v, want [M1] — a milestone quoted in a fence is not a milestone", got)
 	}
 }
+
+// #279: a milestone is closed only when every Plan row carrying its tag is
+// ticked; an in-progress ([.]) or open row keeps it open, however the rows are
+// ordered.
+func TestTickedMilestones(t *testing.T) {
+	plan := "- [x] M1 — first\n- [x] **M2** — done\n- [ ] M2 — reopened row\n- [.] M3 — in progress\n- [x] M4b: lettered\n- [x] M5 — a\n- [x] M5 — revised, also done\n"
+	got := TickedMilestones(plan)
+	for _, want := range []string{"M1", "M4b", "M5"} {
+		if !got[want] {
+			t.Errorf("%s should be closed: %v", want, got)
+		}
+	}
+	for _, open := range []string{"M2", "M3"} {
+		if got[open] {
+			t.Errorf("%s should be open: %v", open, got)
+		}
+	}
+	if len(got) != 3 {
+		t.Errorf("unexpected set %v", got)
+	}
+}

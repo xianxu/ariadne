@@ -279,23 +279,35 @@ func TestValidateRejectsEveryUnknownEnum(t *testing.T) {
 	if err := good.Validate(); err != nil {
 		t.Fatal(err)
 	}
-	for name, spoil := range map[string]func(*Observation){
-		"state":                 func(o *Observation) { o.Branch.State = "fine" },
-		"card authority":        func(o *Observation) { o.Card.Authority = AuthorityWorktree },
-		"workspaces authority":  func(o *Observation) { o.Workspaces.Authority = AuthorityTracker },
-		"checkpoints authority": func(o *Observation) { o.Checkpoints.Authority = "" },
-		"relation":              func(o *Observation) { o.Assignment.Relation = "friend" },
-		"claimant_worktree":     func(o *Observation) { o.Assignment.ClaimantWorktree = "nearby" },
-		"outcome":               func(o *Observation) { o.Landing.Outcome = "shipped" },
-		"review boundary": func(o *Observation) {
-			o.Checkpoints.Reviews = append(o.Checkpoints.Reviews, Review{Read: Read{State: Absent}})
-		},
+	review := func(r Review) func(*Observation) {
+		return func(o *Observation) { o.Checkpoints.Reviews = append(o.Checkpoints.Reviews, r) }
+	}
+	// Each row spoils one field and must be refused BY THAT FIELD's check: the
+	// error names it, so a row can't pass on some other invariant (a nil
+	// collection once made every row here vacuous).
+	for name, c := range map[string]struct {
+		spoil func(*Observation)
+		names string
+	}{
+		"state":                     {func(o *Observation) { o.Branch.State = "fine" }, "branch: unknown state"},
+		"card authority":            {func(o *Observation) { o.Card.Authority = AuthorityWorktree }, "card: authority"},
+		"workspaces authority":      {func(o *Observation) { o.Workspaces.Authority = AuthorityTracker }, "workspaces: authority"},
+		"checkpoints authority":     {func(o *Observation) { o.Checkpoints.Authority = "" }, "checkpoints: authority"},
+		"relation":                  {func(o *Observation) { o.Assignment.Relation = "friend" }, "unknown relation"},
+		"claimant_worktree":         {func(o *Observation) { o.Assignment.ClaimantWorktree = "nearby" }, "unknown claimant_worktree"},
+		"outcome":                   {func(o *Observation) { o.Landing.Outcome = "shipped" }, "unknown outcome"},
+		"review boundary empty":     {review(Review{Read: Read{State: Absent}}), "review boundary"},
+		"review boundary grammar":   {review(Review{Read: Read{State: Absent}, Boundary: "M"}), "review boundary"},
+		"review boundary lowercase": {review(Review{Read: Read{State: Absent}, Boundary: "m1"}), "review boundary"},
+		"verdict":                   {review(Review{Read: Read{State: Present}, Boundary: "close", Verdict: "MAYBE"}), "not a review verdict"},
+		"flow kind":                 {func(o *Observation) { o.Checkpoints.Flow = &Flow{Kind: "huge", Provenance: "inferred"} }, "flow kind"},
+		"flow provenance":           {func(o *Observation) { o.Checkpoints.Flow = &Flow{Kind: "full", Provenance: "x"} }, "flow provenance"},
 	} {
 		o := good
-		o.Checkpoints.Reviews = append([]Review(nil), good.Checkpoints.Reviews...)
-		spoil(&o)
-		if o.Validate() == nil {
-			t.Errorf("%s: an out-of-set value validated", name)
+		o.Checkpoints.Reviews = append([]Review{}, good.Checkpoints.Reviews...) // non-nil, independent
+		c.spoil(&o)
+		if err := o.Validate(); err == nil || !strings.Contains(err.Error(), c.names) {
+			t.Errorf("%s: want a refusal naming %q, got %v", name, c.names, err)
 		}
 	}
 }

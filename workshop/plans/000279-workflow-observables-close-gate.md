@@ -126,6 +126,58 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 4
+      timestamp: "2026-10-02T00:49:06-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: checkpoints.go:121-145 degrades on DetailsErr, nil Details, Parse and FromFrontmatter failures; collectEvidence keeps the git show error as DetailsErr; Resolve errors are propagated; TestCheckpointsDegradeOnFailedReads has one row per failure.
+          round: 4
+        - id: BR-8
+          disposition: not-addressed
+          note: Validate checks verdict and flow (json.go:63-78), but TestValidateRejectsEveryUnknownEnum has no verdict, flow kind or provenance row and only an empty boundary, so removing those checks leaves every test passing; the flow sets are restated from flow.go:169-173 instead of derived.
+          round: 4
+        - id: BR-9
+          disposition: addressed
+          note: TestObserveMilestonesThroughTheRealGates covers the m-x filename parse, the per-milestone scoping (M1 0, M2 1) and the plan ledger; the trailer cross-check is withdrawn with reasons in the plan Revisions.
+          round: 4
+        - id: BR-10
+          disposition: addressed
+          note: collectEvidence takes the issues dir relative to root; plans and history come from vocab discovery; TestObserveEvidenceFollowsTheGivenIssuesDir.
+          round: 4
+        - id: BR-11
+          disposition: addressed
+          note: Names come from sidecarPath, sidecarPathFor, planGateSuffix, boundaryGateSuffix and reviewMilestoneRe, with a round-trip check that a matched file maps back to the same name.
+          round: 4
+        - id: BR-12
+          disposition: not-addressed
+          note: Resolve now goes through observeGit, but observe.go:58, :75 and :111 (tracker rev-parse, worktree list, archivedOnMain ls-tree) still call gitx.RunGit directly, so the 20-command bound still undercounts; route every git command one observation runs through the seam.
+          round: 4
+        - id: BR-13
+          disposition: addressed
+          note: sidecarRows keeps the first row; the quoted-REWORK case in TestCheckpointsDegradeOnFailedReads.
+          round: 4
+        - id: BR-14
+          disposition: addressed
+          note: TestObserveAcrossTrackerRepositories queries repository bravo from inside repository alpha, and alpha without --repo.
+          round: 4
+      findings:
+        - id: BR-15
+          severity: Minor
+          title: issue.TickedMilestones has no direct unit test for repeated milestone rows or the [.] state
+          detail: It is only exercised through the observe tests, with single-row milestones. The rule that a milestone counts as closed only when every row with its tag is ticked is untested.
+          family: pure-helper-untested
+          round: 4
+        - id: BR-16
+          severity: Minor
+          title: boundaryRE in json.go restates the milestone tag pattern from milestonePlanRE
+          detail: 'This is the 3rd finding in family artifact-layout-restated. Rule: a grammar the writer owns (milestone tags, artifact names) is matched by the writer''s exported pattern or helper, never retyped. Export the tag pattern from internal/issue and build boundaryRE from it.'
+          family: artifact-layout-restated
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#279 (boundary-review)
@@ -176,16 +228,32 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-13** [Minor] `artifact-layout-restated` sidecarRows keeps the last row match, so a verdict row inside a review body can override the metadata table
 - **BR-14** [Minor] `plan-deliverable-dropped` The --repo test queries from a non-repo temp dir, not from a second tracker repository as the plan states
 
+## Round 4 — 2026-10-02T00:49:06-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-7 — addressed — checkpoints.go:121-145 degrades on DetailsErr, nil Details, Parse and FromFrontmatter failures; collectEvidence keeps the git show error as DetailsErr; Resolve errors are propagated; TestCheckpointsDegradeOnFailedReads has one row per failure.
+- BR-8 — not-addressed — Validate checks verdict and flow (json.go:63-78), but TestValidateRejectsEveryUnknownEnum has no verdict, flow kind or provenance row and only an empty boundary, so removing those checks leaves every test passing; the flow sets are restated from flow.go:169-173 instead of derived.
+- BR-9 — addressed — TestObserveMilestonesThroughTheRealGates covers the m-x filename parse, the per-milestone scoping (M1 0, M2 1) and the plan ledger; the trailer cross-check is withdrawn with reasons in the plan Revisions.
+- BR-10 — addressed — collectEvidence takes the issues dir relative to root; plans and history come from vocab discovery; TestObserveEvidenceFollowsTheGivenIssuesDir.
+- BR-11 — addressed — Names come from sidecarPath, sidecarPathFor, planGateSuffix, boundaryGateSuffix and reviewMilestoneRe, with a round-trip check that a matched file maps back to the same name.
+- BR-12 — not-addressed — Resolve now goes through observeGit, but observe.go:58, :75 and :111 (tracker rev-parse, worktree list, archivedOnMain ls-tree) still call gitx.RunGit directly, so the 20-command bound still undercounts; route every git command one observation runs through the seam.
+- BR-13 — addressed — sidecarRows keeps the first row; the quoted-REWORK case in TestCheckpointsDegradeOnFailedReads.
+- BR-14 — addressed — TestObserveAcrossTrackerRepositories queries repository bravo from inside repository alpha, and alpha without --repo.
+
+### Raised
+
+- **BR-15** [Minor] `pure-helper-untested` issue.TickedMilestones has no direct unit test for repeated milestone rows or the [.] state
+  It is only exercised through the observe tests, with single-row milestones. The rule that a milestone counts as closed only when every row with its tag is ticked is untested.
+- **BR-16** [Minor] `artifact-layout-restated` boundaryRE in json.go restates the milestone tag pattern from milestonePlanRE
+  This is the 3rd finding in family artifact-layout-restated. Rule: a grammar the writer owns (milestone tags, artifact names) is matched by the writer's exported pattern or helper, never retyped. Export the tag pattern from internal/issue and build boundaryRE from it.
+
 ## Open findings
 
 - **BR-4** [Minor] `silent-error-swallow` rev-parse failure on the tracker ref is dropped, leaving tracker present with an empty ref
 - **BR-5** [Minor] `contract-enum-validation` Validate checks landing.outcome against its enum but not assignment.relation or claimant_worktree
 - **BR-6** [Minor] `state-semantics-overload` M2 sections are emitted as unknown ("not observed by this build"), overloading the read-failed meaning; remove in M2
-- **BR-7** [Important] `silent-error-swallow` A details parse or read failure at the evidence location yields checkpoints present with plan 0/0 and hides unknown milestones
 - **BR-8** [Important] `contract-enum-validation` Validate leaves review boundary, verdict, and flow kind and provenance unchecked against their sets
-- **BR-9** [Important] `plan-deliverable-dropped` The M1-milestone lifecycle case and the Review-Verdict trailer cross-check were dropped with no Revisions entry; the milestone path is untested
-- **BR-10** [Important] `repo-root-from-wrong-anchor` collectEvidence reads the details from the WF_ISSUES_DIR env default, not the record DetailPath or the given --issues-dir
-- **BR-11** [Important] `artifact-layout-restated` The collector hard-codes sidecar and ledger file names and parses milestones by hand instead of using the existing single sources
 - **BR-12** [Minor] `operating-envelope-unmeasured` workspace.Resolve goes around the counted observeGit seam, so the 20-command bound test undercounts
-- **BR-13** [Minor] `artifact-layout-restated` sidecarRows keeps the last row match, so a verdict row inside a review body can override the metadata table
-- **BR-14** [Minor] `plan-deliverable-dropped` The --repo test queries from a non-repo temp dir, not from a second tracker repository as the plan states
+- **BR-15** [Minor] `pure-helper-untested` issue.TickedMilestones has no direct unit test for repeated milestone rows or the [.] state
+- **BR-16** [Minor] `artifact-layout-restated` boundaryRE in json.go restates the milestone tag pattern from milestonePlanRE

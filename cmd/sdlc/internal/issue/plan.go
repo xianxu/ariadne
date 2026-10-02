@@ -93,7 +93,11 @@ func TickMilestone(body, milestone string) (string, int) {
 // by any separator (em dash, colon, space) — accepting every form existing issue
 // files use is the point: #231 retired a colon-only sibling in sizing.go that
 // reported zero milestones for the dominant em-dash form.
-var milestonePlanRE = regexp.MustCompile(`(?m)^- \[([ x.])\] \*{0,2}(M\d+[a-z]?)\b`)
+// MilestoneTagPattern is a milestone tag's grammar (M1, M4b) — the one
+// definition plan parsing and the #279 observation contract match against.
+const MilestoneTagPattern = `M\d+[a-z]?`
+
+var milestonePlanRE = regexp.MustCompile(`(?m)^- \[([ x.])\] \*{0,2}(` + MilestoneTagPattern + `)\b`)
 
 // MilestonesInPlanOrder enumerates the milestone tags in a Plan body, in plan
 // order, de-duplicated (a milestone may appear twice if the plan was revised).

@@ -10,11 +10,12 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // boundaryRE is a review boundary: the plan, a milestone (as the plan names it) or the close.
-var boundaryRE = regexp.MustCompile(`^(plan|close|M\d+[a-z]?)$`)
+var boundaryRE = regexp.MustCompile(`^(plan|close|` + issue.MilestoneTagPattern + `)$`)
 
 // Validate enforces the contract's invariants, so a malformed observation can
 // neither be emitted nor accepted.
@@ -69,10 +70,10 @@ func (o Observation) Validate() error {
 		}
 	}
 	if f := o.Checkpoints.Flow; f != nil {
-		if f.Kind != string(flow.Full) && f.Kind != string(flow.Quick) {
+		if !flow.ValidKind(f.Kind) {
 			return fmt.Errorf("checkpoints: flow kind %q", f.Kind)
 		}
-		if f.Provenance != string(flow.Inferred) && f.Provenance != string(flow.Operator) {
+		if !flow.ValidProvenance(f.Provenance) {
 			return fmt.Errorf("checkpoints: flow provenance %q", f.Provenance)
 		}
 	}

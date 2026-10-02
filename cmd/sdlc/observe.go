@@ -55,7 +55,7 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 			}
 		}
 		if rs.Ref != "" {
-			if oid, rerr := gitx.RunGit("-C", root, "rev-parse", "--verify", rs.Ref+"^{commit}"); rerr == nil {
+			if oid, rerr := observeGit(root, "rev-parse", "--verify", rs.Ref+"^{commit}"); rerr == nil {
 				in.TrackerRef = strings.TrimSpace(string(oid))
 			} else {
 				in.TrackerRefErr = fmt.Errorf("resolve %s: %w", rs.Ref, rerr)
@@ -72,7 +72,7 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 	} else {
 		in.MeErr = envErr
 	}
-	if out, err := gitx.RunGit("-C", root, "worktree", "list", "--porcelain", "-z"); err != nil {
+	if out, err := observeGit(root, "worktree", "list", "--porcelain", "-z"); err != nil {
 		in.WorktreesErr = fmt.Errorf("git worktree list: %w", err)
 	} else if trees, perr := gitx.ParseWorktrees(out); perr != nil {
 		in.WorktreesErr = perr
@@ -108,7 +108,7 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 // remote's main as last fetched ("" when not archived there).
 func archivedOnMain(root, remote, stem string) (string, error) {
 	want := path.Join(vocab.ArchiveSubdir(vocab.Issue().Discovery().Archive, vocab.ArchiveIssues), stem+".md")
-	out, err := gitx.RunGit("-C", root, "ls-tree", "--name-only", "refs/remotes/"+remote+"/main", "--", want)
+	out, err := observeGit(root, "ls-tree", "--name-only", "refs/remotes/"+remote+"/main", "--", want)
 	if err != nil {
 		return "", fmt.Errorf("read %s/main: %w", remote, err)
 	}

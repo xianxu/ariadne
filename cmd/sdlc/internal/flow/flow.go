@@ -166,10 +166,10 @@ func Parse(value string) (Flow, error) {
 			return Flow{}, reject(ReasonUnknownKey, "flow record %q has unknown key %q", value, k)
 		}
 	}
-	if f.kind != Full && f.kind != Quick {
+	if !ValidKind(string(f.kind)) {
 		return Flow{}, reject(ReasonBadKind, "flow record %q: kind must be %s or %s", value, Full, Quick)
 	}
-	if f.provenance != Inferred && f.provenance != Operator {
+	if !ValidProvenance(string(f.provenance)) {
 		return Flow{}, reject(ReasonBadProvenance, "flow record %q: provenance must be %s or %s", value, Inferred, Operator)
 	}
 	// A hash key that is PRESENT must hold a hash — `spec: ""` is rejected, as the
@@ -286,3 +286,9 @@ func Decide(in DecideInput) (Flow, Rule, error) {
 	}
 	return Flow{kind: Quick, provenance: Inferred}, ruleInside, nil
 }
+
+// ValidKind and ValidProvenance are the flow record's value sets — the one
+// definition Parse and the #279 observation contract both check against.
+func ValidKind(k string) bool { return Kind(k) == Full || Kind(k) == Quick }
+
+func ValidProvenance(p string) bool { return Provenance(p) == Inferred || Provenance(p) == Operator }

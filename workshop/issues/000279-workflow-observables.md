@@ -230,4 +230,20 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Found while testing: an undisposed plan-quality finding is inherited by
     every boundary (`seedFromPlanGate`). That is real gate behavior, so the
     fixture disposes its plan finding.
+- M2 review round 2: BR-8 stayed open, and rightly. My earlier rejection
+  rows were never written (an unasserted scripted replace missed after
+  gofmt), and the Log claimed them. Worse, the existing table was vacuous:
+  its `append([]Review(nil), …)` copy produced a nil collection, so every
+  row failed on "collections must be present".
+  - Rewrote the table: every row asserts the refusal names its own field.
+    Each of the flow kind, provenance and boundary rows was mutation-checked
+    and goes red.
+  - DRY: `flow.ValidKind` / `flow.ValidProvenance` are shared with
+    `flow.Parse`, and `issue.MilestoneTagPattern` builds both
+    `milestonePlanRE` and the boundary grammar.
+  - BR-12: every collector git call goes through the counted seam.
+  - Added a direct `TestTickedMilestones` (repeated rows, `[.]`, lettered
+    tags).
+  - Added two lessons (table rows assert their own refusal; scripted edits
+    assert their anchor).
 

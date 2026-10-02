@@ -180,3 +180,124 @@ findings:
     title: |
       The --repo test queries from a non-repo temp dir, not from a second tracker repository as the plan states
 ```
+
+---
+
+## Re-review — 2026-10-02T00:49:06-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 279 — Expose authoritative workflow observations for agents |
+| repo | ariadne |
+| issue file | workshop/issues/000279-workflow-observables.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 968f8408198faac235ef89372d483ac692dcee84..873e8f6646dad70f80cdcd001b11e1dd4bc5f0ba |
+| command | sdlc milestone-close --issue 279 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-10-02T00:49:06-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+**VERDICT: FIX-THEN-SHIP**
+
+This round fixed most of the round-1 findings as general rules rather than one site at a time. Failed reads now set the checkpoints section to `unknown` with the reason, instead of showing zero values. Evidence paths come from the issues directory the caller passed and the vocab discovery. Artifact names come from the writers' own helpers (`sidecarPath`, `sidecarPathFor`, the gate suffixes, `reviewMilestoneRe`). There is a real-gate milestone test, and the trailer cross-check is withdrawn in a Revisions entry with its reasons. The targeted tests pass at HEAD (`internal/observe`, `internal/issue`, and `go test ./cmd/sdlc -run 'TestObserve|TestGuardScope|TestPlanItem'`).
+
+Two findings are still open:
+- **BR-8:** `Validate` now checks the review verdict and the flow kind and provenance. But no test rejects a bad value for any of them, so deleting those checks would leave every test passing. The plan's Revisions entry says each has a rejection row; none does. The flow value sets are also copied from `flow.go` instead of derived from it.
+- **BR-12:** `workspace.Resolve` now goes through the counted seam, but three other git calls in the same collector still bypass it. So the 20-command bound test still undercounts.
+
+Both are cheap to fix.
+
+1. **Strengths**
+   - `cmd/sdlc/internal/observe/checkpoints.go:121-145` — every failed read from the details sets the section to `unknown` with its reason, and no value falls back to zero. `TestCheckpointsDegradeOnFailedReads` has one row per failure kind.
+   - `cmd/sdlc/observe.go:226-283` — `collectEvidence` builds every artifact name from the writers' helpers. It accepts a milestone file only if `sidecarPath` maps it back to the same name, which fixes the old over-matching prefix test.
+   - `TestObserveMilestonesThroughTheRealGates` runs the plan-ledger writer, an M1 SHIP and an M2 with an open Important. It shows the boundary scoping is real: M1 has 0 open blocking, M2 has 1.
+   - `TestObserveCheckpointsAcrossTheLifecycle` covers a squash merge with the branch deleted, and still reads the verdict from main's archive.
+   - Adding `internal/observe` to the guard's scan list and single-sourcing `TickedMilestones` on `milestonePlanRE` fixed the whole class of hidden plan-item readers, not just one.
+
+2. **Critical:** none.
+
+3. **Important**
+   - **BR-8, not addressed** (`internal/observe/json.go:63-78`, `observe_test.go` `TestValidateRejectsEveryUnknownEnum`).
+     - No rejection row exists for verdict, flow kind or flow provenance. The only boundary row uses an empty boundary, which the old non-empty check already caught.
+     - The flow sets are restated from `flow.go:169-173` (ARCH-DRY).
+     - Fix: add rows for `Verdict="MAYBE"`, `Flow{Kind:"huge"}`, `Flow{Provenance:"x"}` and `Boundary="M"`. Have `flow` export its own validator and call it here.
+
+4. **Minor**
+   - **BR-12, not addressed:** `observe.go:58`, `:75` and `:111` still call `gitx.RunGit` directly (tracker rev-parse, `worktree list`, the `archivedOnMain` ls-tree). The rule is that every git command one observation runs goes through `observeGit`.
+   - `issue.TickedMilestones` has no unit test of its own. The rule that a milestone counts as closed only when all of its rows are ticked is untested, as is `[.]`.
+   - `boundaryRE` repeats the milestone tag pattern from `milestonePlanRE` instead of deriving it.
+
+5. **Test coverage**
+   - The tests use real git end to end, and the bad cases from the boundary scoping are pinned.
+   - The gaps are the BR-8 rejection rows and a direct test for `TickedMilestones`.
+
+6. **Architecture**
+   - **ARCH-DRY:** flag (the flow set and the boundary pattern are restated).
+   - **ARCH-PURE:** pass. Assembly is pure over `Inputs`, and the collectors are thin.
+   - **ARCH-PURPOSE:** flag (BR-8 tests are missing; the BR-12 sweep is incomplete).
+   - **ARCH-MOCK:** pass. Tests run against real git repositories with a stubbed judge.
+   - **ARCH-CONSTRAINTS:** flag (BR-12; the bound test undercounts).
+   - **ARCH-SECURE:** pass. Bad sidecar or details input reads as `unknown`, never as made-up evidence.
+   - **ARCH-ORDER:** pass. It holds no state between events, because each query is a single read-only pass.
+   - **ARCH-FUNERAL:** pass. It creates nothing durable; the only side effect is the existing tracker fetch updating its remote-tracking ref.
+
+7. **Plan revisions:** the M2 round-1 entry says the BR-8 fields were validated "with a rejection row each". Either add the rows or correct the entry.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      checkpoints.go:121-145 degrades on DetailsErr, nil Details, Parse and FromFrontmatter failures; collectEvidence keeps the git show error as DetailsErr; Resolve errors are propagated; TestCheckpointsDegradeOnFailedReads has one row per failure.
+  - id: BR-8
+    disposition: not-addressed
+    note: |
+      Validate checks verdict and flow (json.go:63-78), but TestValidateRejectsEveryUnknownEnum has no verdict, flow kind or provenance row and only an empty boundary, so removing those checks leaves every test passing; the flow sets are restated from flow.go:169-173 instead of derived.
+  - id: BR-9
+    disposition: addressed
+    note: |
+      TestObserveMilestonesThroughTheRealGates covers the m-x filename parse, the per-milestone scoping (M1 0, M2 1) and the plan ledger; the trailer cross-check is withdrawn with reasons in the plan Revisions.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      collectEvidence takes the issues dir relative to root; plans and history come from vocab discovery; TestObserveEvidenceFollowsTheGivenIssuesDir.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      Names come from sidecarPath, sidecarPathFor, planGateSuffix, boundaryGateSuffix and reviewMilestoneRe, with a round-trip check that a matched file maps back to the same name.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      Resolve now goes through observeGit, but observe.go:58, :75 and :111 (tracker rev-parse, worktree list, archivedOnMain ls-tree) still call gitx.RunGit directly, so the 20-command bound still undercounts; route every git command one observation runs through the seam.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      sidecarRows keeps the first row; the quoted-REWORK case in TestCheckpointsDegradeOnFailedReads.
+  - id: BR-14
+    disposition: addressed
+    note: |
+      TestObserveAcrossTrackerRepositories queries repository bravo from inside repository alpha, and alpha without --repo.
+findings:
+  - id: new
+    severity: Minor
+    family: pure-helper-untested
+    title: |
+      issue.TickedMilestones has no direct unit test for repeated milestone rows or the [.] state
+    detail: |
+      It is only exercised through the observe tests, with single-row milestones. The rule that a milestone counts as closed only when every row with its tag is ticked is untested.
+  - id: new
+    severity: Minor
+    family: artifact-layout-restated
+    title: |
+      boundaryRE in json.go restates the milestone tag pattern from milestonePlanRE
+    detail: |
+      This is the 3rd finding in family artifact-layout-restated. Rule: a grammar the writer owns (milestone tags, artifact names) is matched by the writer's exported pattern or helper, never retyped. Export the tag pattern from internal/issue and build boundaryRE from it.
+```

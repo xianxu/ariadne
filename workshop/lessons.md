@@ -19,6 +19,13 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Guards and proof
 
+- In a rejection table, each row must assert that it was refused by its own
+  check (for example, the error names the field). A shared invariant failing
+  first, such as a nil collection, makes every row pass vacuously (#279 BR-8).
+- A scripted edit (search and replace) must assert that its anchor matched.
+  An unmatched replace silently does nothing, and the work log then claims a
+  change that never happened (#279 BR-8).
+
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - A syntactic guard cannot support an absolute semantic claim. Bound the claim to
