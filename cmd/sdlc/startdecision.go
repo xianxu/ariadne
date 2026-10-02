@@ -13,7 +13,8 @@ import (
 
 // startDecision returns the card after start-plan, and whether it changed. An
 // owned open card becomes working (stamped `started` if it never was); an owned
-// started card is unchanged. Unowned, foreign and terminal cards refuse.
+// working card is unchanged. Unowned and foreign cards refuse, and so does any
+// status the start edge neither leaves nor reaches.
 func startDecision(card []byte, id string, me issue.Claimant, today, started string) ([]byte, bool, error) {
 	fm, _, err := issue.Parse(string(card))
 	if err != nil {
@@ -21,7 +22,11 @@ func startDecision(card []byte, id string, me issue.Claimant, today, started str
 	}
 	model := vocab.Issue()
 	status, _ := issue.GetField(fm, "status")
-	if !model.CanHoldOwner(status) {
+	// Admission is a lifecycle question: the start edge's source (to start it)
+	// or its target (already started, so a re-run or a resumed design). A
+	// blocked, codecomplete or terminal issue has nothing to plan.
+	tr := model.FirstTransitionForEvent("start")
+	if tr == nil || (status != tr.From && status != tr.To) {
 		return nil, false, fmt.Errorf("#%s is %s; there is nothing to plan", id, status)
 	}
 	recorded, has, err := issue.CardClaimant(card)
@@ -34,8 +39,7 @@ func startDecision(card []byte, id string, me issue.Claimant, today, started str
 	if issue.MatchClaimant(&recorded, me) != issue.OwnershipMine {
 		return nil, false, fmt.Errorf("#%s is owned by %s; planning belongs to its owner", id, describeClaimant(recorded))
 	}
-	tr := model.TransitionForEvent(status, "start")
-	if tr == nil {
+	if status == tr.To {
 		return card, false, nil // already started
 	}
 	out, err := issue.SetCardField(card, "status", tr.To)

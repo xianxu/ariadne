@@ -55,7 +55,8 @@ FLAGS
 
   --issue <n>   the issue being planned (optional). With it, start-plan requires
                 that this workspace owns the card, starts it if it is still
-                open, and moves design onto the issue's own
+                open (a blocked, codecomplete or closed issue refuses), and
+                moves design onto the issue's own
                 branch (the details filename stem): from a clean resting branch
                 that main contains, it creates the branch at freshly fetched main
                 once the details are proven there; it reuses an existing issue

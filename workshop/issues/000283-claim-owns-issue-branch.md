@@ -1,12 +1,12 @@
 ---
 id: 000283
-status: codecomplete
+status: working
 deps: [ariadne#277, ariadne#278]
 github_issue:
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours: 3.48
-card_mirror: '4d4955e8bcd8fbba9da2af25faaf8f03edd8d10b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2681a82beebb0f1f929fbcbde0fa2f60e57e2e17' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-02T10:51:37-07:00
 claimant:
     operator: Xian Xu
@@ -195,6 +195,8 @@ Close review round 1 (SHIP, five Minors), reopened to fix in the same round:
 3. The contention warning still counts only `working`. This is intended (plan revision 3); the shaping-claim views are #284's.
 4. The relocation hint for a moved open, held card is recorded in #284's Log, since move semantics for open claims belong there.
 5. Imports regrouped.
+
+Close review round 2 (SHIP; all five round-1 findings dispositioned, one new Minor), reopened again to fix it: `startDecision` had gated on the ownership axis (`CanHoldOwner`), which admitted held `blocked` and `codecomplete` cards. A codecomplete card could have got a fresh branch from main. Admission is now a lifecycle question: the `start` edge's source or target (open or working), as before #283's working-only gate plus open. The product test asserts this.
 
 ## Revisions
 

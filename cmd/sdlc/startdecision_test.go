@@ -10,7 +10,8 @@ import (
 )
 
 // #283: start-plan's decision over the model's status × owner product. Only
-// the owner starts; an owned open card moves along the model's `start` edge,
+// the start edge's source and target are admitted (blocked, codecomplete and
+// terminal refuse whoever holds them); only the owner starts; an owned open card moves along the model's `start` edge,
 // keeping an existing engagement stamp; an owned started card is unchanged.
 func TestStartDecision(t *testing.T) {
 	me := issue.Claimant{Operator: "Me", Machine: issue.MachineFingerprint("m1"), MachineName: "box", Worktree: "/w/a", Repository: "r"}
@@ -28,8 +29,9 @@ func TestStartDecision(t *testing.T) {
 			}
 			out, changed, err := startDecision(raw, "000031", me, "2026-10-02", "2026-10-02T10:00:00-07:00")
 			cell := status + " × " + map[*issue.Claimant]string{nil: "none", &me: "me", &other: "other"}[owner]
+			start := model.FirstTransitionForEvent("start")
 			switch {
-			case !model.CanHoldOwner(status):
+			case status != start.From && status != start.To:
 				if err == nil || !strings.Contains(err.Error(), "nothing to plan") {
 					t.Errorf("%s: want terminal refusal, got %v", cell, err)
 				}
