@@ -102,3 +102,10 @@ Design discussion (claimed in ariadne:2). Decided with the operator:
 - Transfer guard condition: a details change lands only from the owner's checkout AND from a branch whose merge-base contains the latest published version (the handoff `MainCommit`). The content condition is what stops stale overwrites; branch names stop mattering.
 - **Claim does not create the branch; `start-plan` does.** Pre-implementation editing (follow-ups filed from a console, one brainstorm revising several related issues) must not need one branch per issue. A slot may hold several claims at once: claim the set, edit their details, publish narrowly to main (published can't be unpublished), unclaim.
 - Claimant = slot on a machine (the agent's durable workspace), operator = supervising human. This divergence from Jira-style person-assignment is intentional; an atlas terminology entry is still to be written.
+
+Second round:
+- **Claim never touches status, and neither does unclaim.** Unclaiming started work is a handoff, not abandonment: the card keeps `working`/`blocked`/`codecomplete`, the owner is cleared, and the issue is open for takeover. Active-with-no-owner is a legal state. That replaces the planned `→ open` edge, and `claim --adopt` folds into an ordinary claim of an active, unowned card.
+- Handoff design (to settle): unclaim refuses on a dirty tree, pushes the issue branch, and records `{branch, head}` on the card plus a handoff note in `## Log`. A takeover claim fetches the branch, checks the head matches, and checks it out in a clean slot. `reclaim` (with a reason) is the forced path when the owner can't unclaim. `move` is the same-operator local fast path.
+- Shaping time: the window anchors at `start-plan`, and each claim also counts the full shaping segments of the commits it rode in. Agents may record pre-claim shaping time as an estimate; drop that part if it proves too imprecise.
+- Order: model first. Doing it properly, not fast-tracking the guard for pair#365.
+- Merges outside sdlc: detect and reconcile. There must always be an escape hatch.
