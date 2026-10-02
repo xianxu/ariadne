@@ -125,3 +125,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
 - Wrote the durable plan (M1/M2). Awaiting operator approval.
 - change-code plan-quality round 1: three Important findings (landed review evidence source, ledger semantics, state vs outcome) and two Minor. All folded into the plan (see its Revisions).
 - Plan-quality cleared (round 2). Estimate: 3.31h (v3.1).
+- change-code passed (estimate-quality: reasonable). Starting M1: the `internal/observe` contract.
