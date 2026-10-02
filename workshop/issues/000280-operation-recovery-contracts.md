@@ -144,3 +144,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
 - Wrote the durable plan (M1/M2). Awaiting operator approval.
 - change-code plan-quality round 1: the required set is now derived from the command tree; the surface is `sdlc help recovery`; Done-when proofs are named per class, with two new generation tests. The plan is revised.
 - Plan-quality cleared (round 2). Estimate: 3.51h (v3.1).
+- change-code passed (estimate-quality: expect well under 3.51h, given the calibration). Starting M1: the `internal/recovery` registry.
