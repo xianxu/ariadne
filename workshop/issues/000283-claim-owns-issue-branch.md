@@ -127,7 +127,7 @@ The design buffer is +15% because a thorough plan doc exists.
 - [x] claim records the owner only (Task 2)
 - [x] start-plan starts the lifecycle; carries own details edits (Task 3)
 - [x] change-code refuses unstarted; reclaim derives holdable statuses (Task 4)
-- [ ] e2e fixtures: claim then start-plan (Task 5)
+- [x] e2e fixtures: claim then start-plan (Task 5)
 - [x] Help text, atlas, terminology (Task 6)
 
 ## Log
@@ -176,6 +176,15 @@ Notes:
 - AGENTS.md/CLAUDE.md are weave outputs; the source edit is `AGENTS.base.md`. The local entry files refresh on the next `weave compile`.
 - Left for #285: the transfer guard's code still names the branch `owner` (`transferguard.go:60`).
 - Plan-quality ran three rounds. Round 1 hit a sandbox block on the reviewer's API host and recorded no findings; round 2 raised six Minors, all folded into the plan's Revisions; round 3 dispositioned them.
+
+Verification (Task 7):
+- The sharded `make test` (898 cmd/sdlc tests + 19 packages) is green. The one exception is `processgroup.TestCancellationKillsDescendants`, which the sandbox breaks by denying `/bin/ps`; it passes outside the sandbox.
+- `make vocab-embed` is clean.
+- The e2e `TestShapeUnderClaimThenStart` is the smoke test: claim leaves the card open with an owner, a shaping edit on rest is carried, start-plan starts the card keeping the claim's stamp, and a re-run is a no-op.
+
+Two finds while running the suite:
+- start-plan had dropped `requireCardOwnership`'s relocation hint for held open cards; fixed.
+- side-quest: `TestClose_MilestoneRefusesWithRedirect` died under `make test`, because `Makefile.workflow` exports a cwd-relative `WF_ISSUES_DIR`. It predates #283 (a main baseline run directly through `scripts/test-shard.py` skipped make), and the test now clears the variable.
 
 ## Revisions
 
