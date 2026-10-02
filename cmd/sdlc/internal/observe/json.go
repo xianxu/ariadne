@@ -6,8 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"regexp"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
+
+// boundaryRE is a review boundary: the plan, a milestone (as the plan names it) or the close.
+var boundaryRE = regexp.MustCompile(`^(plan|close|M\d+[a-z]?)$`)
 
 // Validate enforces the contract's invariants, so a malformed observation can
 // neither be emitted nor accepted.
@@ -54,8 +61,19 @@ func (o Observation) Validate() error {
 		}
 	}
 	for _, rv := range o.Checkpoints.Reviews {
-		if rv.Boundary == "" {
-			return errors.New("checkpoints: a review without a boundary")
+		if !boundaryRE.MatchString(rv.Boundary) {
+			return fmt.Errorf("checkpoints: review boundary %q is not plan, close or a milestone", rv.Boundary)
+		}
+		if rv.Verdict != "" && !vocab.Verdict().IsEmitted(rv.Verdict) {
+			return fmt.Errorf("checkpoints: review %s verdict %q is not a review verdict", rv.Boundary, rv.Verdict)
+		}
+	}
+	if f := o.Checkpoints.Flow; f != nil {
+		if f.Kind != string(flow.Full) && f.Kind != string(flow.Quick) {
+			return fmt.Errorf("checkpoints: flow kind %q", f.Kind)
+		}
+		if f.Provenance != string(flow.Inferred) && f.Provenance != string(flow.Operator) {
+			return fmt.Errorf("checkpoints: flow provenance %q", f.Provenance)
 		}
 	}
 	valued := func(r Read) bool { return r.State == Present || r.State == Stale }

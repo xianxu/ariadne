@@ -299,3 +299,50 @@ func TestValidateRejectsEveryUnknownEnum(t *testing.T) {
 		}
 	}
 }
+
+// #279 M2 BR-7: a value read from the details never falls back to its zero
+// value on a failed read — the checkpoints section degrades, with the reason.
+// A review artifact whose verdict is not a verdict is unknown, not a verdict.
+func TestCheckpointsDegradeOnFailedReads(t *testing.T) {
+	ok := Evidence{Source: "refs/heads/x:workshop/plans", Details: details("- [x] M1 — a\n"),
+		Artifacts: map[string]ArtifactFacts{"M1": {Found: true, Sidecar: sidecar("SHIP", "a..b")}}}
+	for name, c := range map[string]struct {
+		ev   func(Evidence) Evidence
+		want string
+	}{
+		"details unreadable": {func(e Evidence) Evidence { e.Details, e.DetailsErr = nil, errors.New("git show: boom"); return e }, "unreadable"},
+		"details missing":    {func(e Evidence) Evidence { e.Details = nil; return e }, "not its details"},
+		"details unparsable": {func(e Evidence) Evidence { e.Details = []byte("no frontmatter"); return e }, "do not parse"},
+		"flow malformed": {func(e Evidence) Evidence {
+			e.Details = []byte(strings.Replace(string(e.Details), "flow: {kind: full, provenance: inferred}", "flow: {kind: huge}", 1))
+			return e
+		}, "flow record is malformed"},
+	} {
+		in := base(card(t, "working", &me, false))
+		in.Evidence = c.ev(ok)
+		o := Assemble(in)
+		if o.Checkpoints.State != Unknown || !strings.Contains(o.Checkpoints.Error, c.want) || o.Validate() != nil {
+			t.Errorf("%s: %+v", name, o.Checkpoints.Read)
+		}
+	}
+	in := base(card(t, "codecomplete", &me, false))
+	in.Evidence = ok
+	in.Evidence.Artifacts = map[string]ArtifactFacts{"close": {Found: true, Sidecar: sidecar("unknown", "a..b")}}
+	if rv, _ := reviewFor(Assemble(in), "close"); rv.State != Unknown || rv.Verdict != "" {
+		t.Fatalf("a recorded non-verdict: %+v", rv)
+	}
+	quoted := sidecar("SHIP", "a..b") + "\n| verdict | REWORK |\n"
+	in.Evidence.Artifacts = map[string]ArtifactFacts{"close": {Found: true, Sidecar: quoted}}
+	if rv, _ := reviewFor(Assemble(in), "close"); rv.Verdict != "SHIP" {
+		t.Fatalf("a table quoted in the review body overrode the metadata: %+v", rv)
+	}
+}
+
+func reviewFor(o Observation, boundary string) (Review, bool) {
+	for _, r := range o.Checkpoints.Reviews {
+		if r.Boundary == boundary {
+			return r, true
+		}
+	}
+	return Review{}, false
+}

@@ -6,6 +6,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/flow"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // BranchFacts is the issue branch as read (Ref "" when it exists nowhere here).
@@ -37,11 +38,12 @@ type ArtifactFacts struct {
 // before landing, main's archive after (artifacts move with the issue, #143),
 // so squash merges and deleted branches don't strand them.
 type Evidence struct {
-	Source    string // e.g. "refs/heads/000279-x:workshop/plans"
-	Err       error  // the location could not be read
-	Details   []byte // the details file there (nil: not there)
-	Artifacts map[string]ArtifactFacts
-	PlanGate  *ArtifactFacts // the plan-quality ledger, if the issue has one
+	Source     string // e.g. "refs/heads/000279-x:workshop/plans"
+	Err        error  // the location could not be read
+	Details    []byte // the details file there (nil: not there, or unreadable — see DetailsErr)
+	DetailsErr error  // the details file is there but could not be read
+	Artifacts  map[string]ArtifactFacts
+	PlanGate   *ArtifactFacts // the plan-quality ledger, if the issue has one
 }
 
 func assembleBranch(in Inputs) Branch {
@@ -93,11 +95,15 @@ func expectedBoundaries(ticked map[string]bool, status string) map[string]bool {
 
 var sidecarRowRE = regexp.MustCompile(`(?m)^\|\s*(verdict|window|timestamp)\s*\|\s*(.*?)\s*\|\s*$`)
 
-// sidecarRows reads the verdict table a review sidecar opens with.
+// sidecarRows reads the metadata table a review sidecar opens with: the first
+// row of each key wins, so a table quoted later in the review body cannot
+// override it.
 func sidecarRows(text string) map[string]string {
 	rows := map[string]string{}
 	for _, m := range sidecarRowRE.FindAllStringSubmatch(text, -1) {
-		rows[m[1]] = m[2]
+		if _, seen := rows[m[1]]; !seen {
+			rows[m[1]] = m[2]
+		}
 	}
 	return rows
 }
@@ -117,16 +123,31 @@ func assembleCheckpoints(in Inputs, c Card) Checkpoints {
 		return cp
 	}
 	cp.Read = Read{State: Present, Source: ev.Source}
+	// Flow, plan and the ticked milestones are read from the details. A read
+	// that fails degrades the section to unknown with its reason — never a
+	// zero value standing in for an answer. (No Plan section at all is a real
+	// absence: 0/0.)
 	plan := "" // fence-filtered, as every milestone reader requires
-	if ev.Details != nil {
-		if fm, body, err := issue.Parse(string(ev.Details)); err == nil {
-			if f, recorded, ferr := flow.FromFrontmatter(fm); ferr == nil && recorded {
-				cp.Flow = &Flow{Kind: string(f.Kind()), Provenance: string(f.Provenance())}
-			}
-			cp.Plan.Total, cp.Plan.Ticked = issue.CountPlanItems(body)
-			if items, ok := issue.PlanItemsBody(body); ok {
-				plan = items
-			}
+	degrade := func(why string) { cp.Read = Read{State: Unknown, Source: ev.Source, Error: why} }
+	switch {
+	case ev.DetailsErr != nil:
+		degrade("the details at the evidence location are unreadable: " + ev.DetailsErr.Error())
+	case ev.Details == nil:
+		degrade("the evidence location holds this issue's review artifacts but not its details")
+	default:
+		fm, body, err := issue.Parse(string(ev.Details))
+		if err != nil {
+			degrade("the details at the evidence location do not parse: " + err.Error())
+			break
+		}
+		if f, recorded, ferr := flow.FromFrontmatter(fm); ferr != nil {
+			degrade("the details' flow record is malformed: " + ferr.Error())
+		} else if recorded {
+			cp.Flow = &Flow{Kind: string(f.Kind()), Provenance: string(f.Provenance())}
+		}
+		cp.Plan.Total, cp.Plan.Ticked = issue.CountPlanItems(body)
+		if items, ok := issue.PlanItemsBody(body); ok {
+			plan = items
 		}
 	}
 	if ev.PlanGate != nil {
@@ -163,9 +184,14 @@ func review(boundary string, a ArtifactFacts, expected bool, source string) Revi
 	default:
 		rows := sidecarRows(a.Sidecar)
 		r.Read = Read{State: Present, Source: source}
-		r.Verdict, r.Window, r.At = rows["verdict"], rows["window"], rows["timestamp"]
-		if strings.TrimSpace(r.Verdict) == "" {
+		r.Window, r.At = rows["window"], rows["timestamp"]
+		switch v := strings.TrimSpace(rows["verdict"]); {
+		case v == "":
 			r.Read = Read{State: Unknown, Source: source, Error: "review artifact has no verdict row"}
+		case !vocab.Verdict().IsEmitted(v):
+			r.Read = Read{State: Unknown, Source: source, Error: "review artifact records " + v + ", not a review verdict (the review produced none)"}
+		default:
+			r.Verdict = v
 		}
 	}
 	return r

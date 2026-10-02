@@ -4,14 +4,17 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/observe"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // observeIssue runs `sdlc issue show N --json` in-process from the current
@@ -259,5 +262,126 @@ func TestObserveWorktreeFatesAndBound(t *testing.T) {
 	invalidateIssueRecords(context.Background())
 	if o := observeIssue(t, 395, ""); o.Assignment.ClaimantWorktree != observe.FateOtherMachine {
 		t.Fatalf("another machine: %+v", o.Assignment)
+	}
+}
+
+// #279 M2 BR-9: the milestone path end to end through the real gates —
+// change-code's plan-quality ledger, a SHIP milestone, and a milestone whose
+// review left an open Important finding. Each boundary reads its own verdict
+// and its own open blocking findings (the issue-wide ledger, scoped).
+func TestObserveMilestonesThroughTheRealGates(t *testing.T) {
+	pid := "000396"
+	full := "---\nid: " + pid + "\nstatus: open\ndeps: []\ncreated: 2026-09-01\nupdated: 2026-09-01\n---\n\n# milestones\n\n" +
+		"## Problem\n\nA gap.\n\n## Spec\n\nA thing.\n\n## Done when\n\n- it works\n\n## Plan\n\n- [ ] M1 — first\n- [ ] M2 — second\n\n## Log\n"
+	card, detail, err := issue.SplitCardWithFormat([]byte(full), "sha1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	cardPath, detailPath := tracker.CardPath(pid, "ms"), syncIssuesDir+"/"+pid+"-ms.md"
+	r := newTrackerRepo(t, map[string]string{cardPath: string(card)}, map[string]string{detailPath: string(detail)})
+	run := func(args ...string) error {
+		t.Logf("sdlc %v", args)
+		var err error
+		var stderr string
+		msg, died := expectDie(t, func() { _, stderr, err = executeSDLCTestCommand(args...) })
+		if died {
+			return fmt.Errorf("died: %s", msg)
+		}
+		if err != nil {
+			return fmt.Errorf("%w\n%s", err, stderr)
+		}
+		return nil
+	}
+	commitAll := func(msg string) { r.git("add", "-A", "workshop"); r.git("commit", "-qm", msg) }
+	for _, args := range [][]string{{"claim", "--issue", "396"}, {"start-plan", "--issue", "396"}} {
+		if err := run(args...); err != nil {
+			t.Fatalf("%v: %v", args, err)
+		}
+	}
+	if err := run("change-code", "--issue", "396", "--worktree=no", "--flow", "full", "--no-judge", "--no-structural", "--no-estimate", "--no-estimate-recon"); err != nil {
+		t.Fatalf("change-code: %v", err)
+	}
+	// change-code's plan-quality dispatch exits the process (no in-process
+	// path, #191), so its ledger is written with the gate's own writer: a
+	// finding raised, then addressed. (An undisposed one would be inherited by
+	// every boundary, as the gate seeds it — real behavior, not this test's.)
+	planLedger := gatestate.Ledger{Gate: "plan-quality", IssueNum: 396, IDPrefix: "PQ", Rounds: []gatestate.Round{
+		{N: 1, Timestamp: "2026-10-02T09:00:00-07:00", Agent: "claude",
+			New: []gatestate.Finding{{ID: "PQ-1", Severity: "Important", Title: "a plan gap", Family: "plan-gap", Round: 1}}},
+		{N: 2, Timestamp: "2026-10-02T09:10:00-07:00", Agent: "claude",
+			Dispositions: []gatestate.Disposition{{ID: "PQ-1", State: "addressed", Round: 2}}},
+	}}
+	if err := writePlanGateLedger(filepath.Join(r.root, "workshop/plans"), pid+"-ms.md", planLedger, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, "cmd/a.go", "package a\n")
+	commitAll("#396: work")
+	r.git("add", "cmd/a.go")
+	r.git("commit", "-qm", "#396 M1: implement")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\n```findings\nfindings: []\n```\n")
+	if err := run("milestone-close", "--issue", "396", "--milestone", "M1", "--verified", "e2e", "--actual", "0.1", "--no-atlas", "--no-project"); err != nil {
+		t.Fatalf("M1: %v", err)
+	}
+	commitAll("#396 M1: milestone close")
+	writeRepoFile(t, r.root, "cmd/b.go", "package a\n")
+	r.git("add", "cmd/b.go")
+	r.git("commit", "-qm", "#396 M2: implement")
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\n```findings\nfindings:\n  - id: new\n    severity: Important\n    family: test-family\n    title: |\n      a thing to fix\n    detail: |\n      fix it\n```\n")
+	_ = run("milestone-close", "--issue", "396", "--milestone", "M2", "--verified", "e2e", "--actual", "0.1", "--no-atlas", "--no-project") // refused: open blocking
+	commitAll("#396 M2: review recorded")
+
+	other := filepath.Join(t.TempDir(), "other")
+	testfix.Git(t, r.root, "worktree", "add", "-q", "--detach", other, "origin/main")
+	t.Chdir(other)
+	o := observeIssue(t, 396, "")
+	plan, okPlan := reviewOf(o, "plan")
+	m1, okM1 := reviewOf(o, "M1")
+	m2, okM2 := reviewOf(o, "M2")
+	if !okPlan || plan.State != observe.Present || plan.OpenBlocking != 0 {
+		t.Errorf("plan boundary: %+v", plan)
+	}
+	if !okM1 || m1.Verdict != "SHIP" || m1.OpenBlocking != 0 {
+		t.Errorf("M1 (scoped away from M2's open finding): %+v", m1)
+	}
+	if !okM2 || m2.Verdict != "FIX-THEN-SHIP" || m2.OpenBlocking != 1 {
+		t.Errorf("M2: %+v", m2)
+	}
+	if _, reached := reviewOf(o, "close"); reached {
+		t.Errorf("an unclosed issue lists a close review: %+v", o.Checkpoints.Reviews)
+	}
+	if o.Checkpoints.Plan.Ticked != 1 || o.Checkpoints.Flow == nil || o.Checkpoints.Flow.Kind != "full" {
+		t.Errorf("plan/flow: %+v %+v", o.Checkpoints.Plan, o.Checkpoints.Flow)
+	}
+}
+
+// #279 M2 BR-10: the evidence is read at the issues dir the caller gave, not a
+// default — a repository keeping details elsewhere is still observed.
+func TestObserveEvidenceFollowsTheGivenIssuesDir(t *testing.T) {
+	r, _, detailPath := closeReady(t, 397)
+	alt := "notes/issues/" + filepath.Base(detailPath)
+	writeRepoFile(t, r.root, alt, string(must(os.ReadFile(filepath.Join(r.root, detailPath)))))
+	r.git("add", alt)
+	r.git("commit", "-qm", "#397: details also kept elsewhere")
+	ev := collectEvidence(r.root, "notes/issues", "origin", strings.TrimSuffix(filepath.Base(detailPath), ".md"), "working",
+		observe.BranchFacts{Ref: "refs/heads/" + r.git("branch", "--show-current")})
+	if ev.Details == nil || ev.DetailsErr != nil {
+		t.Fatalf("details at the given dir not read: %+v", ev)
+	}
+}
+
+// #279 M2 minor: --repo observes an issue of a second tracker repository from
+// inside the first.
+func TestObserveAcrossTrackerRepositories(t *testing.T) {
+	cardA, a, detailA, dA := seededIssue(t, "000398", "alpha")
+	ra := newTrackerRepo(t, map[string]string{cardA: a}, map[string]string{detailA: dA})
+	cardB, b, detailB, dB := seededIssue(t, "000398", "bravo")
+	rb := newTrackerRepo(t, map[string]string{cardB: b}, map[string]string{detailB: dB})
+	t.Chdir(ra.root)
+	o := observeIssue(t, 398, rb.root)
+	if !strings.Contains(o.Card.Source, "bravo") || o.Card.Title == "" {
+		t.Fatalf("--repo observed the wrong repository: %+v", o.Card)
+	}
+	if o := observeIssue(t, 398, ""); !strings.Contains(o.Card.Source, "alpha") {
+		t.Fatalf("without --repo: %+v", o.Card)
 	}
 }

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -91,7 +92,11 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 		if rec, ok := rs.Get(id); ok {
 			status = rec.Status()
 		}
-		in.Evidence = collectEvidence(root, remote, stem, status, in.Branch)
+		if rel, rerr := filepath.Rel(canonRoot(root), canonRoot(issuesDir)); rerr != nil || strings.HasPrefix(rel, "..") {
+			in.Evidence = observe.Evidence{Source: issuesDir, Err: fmt.Errorf("the issues directory %s is outside %s", issuesDir, root)}
+		} else {
+			in.Evidence = collectEvidence(root, filepath.ToSlash(rel), remote, stem, status, in.Branch)
+		}
 	} else if stem != "" {
 		in.MainArchiveErr, in.Branch.Err, in.Evidence.Err = envErr, envErr, envErr
 		in.Evidence.Source = "(publication remote unresolved)"
@@ -102,8 +107,7 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 // archivedOnMain is the issue's archived details path on the publication
 // remote's main as last fetched ("" when not archived there).
 func archivedOnMain(root, remote, stem string) (string, error) {
-	history := envOr("WF_HISTORY_DIR", "workshop/history")
-	want := path.Join(vocab.ArchiveSubdir(history, vocab.ArchiveIssues), stem+".md")
+	want := path.Join(vocab.ArchiveSubdir(vocab.Issue().Discovery().Archive, vocab.ArchiveIssues), stem+".md")
 	out, err := gitx.RunGit("-C", root, "ls-tree", "--name-only", "refs/remotes/"+remote+"/main", "--", want)
 	if err != nil {
 		return "", fmt.Errorf("read %s/main: %w", remote, err)
@@ -112,6 +116,14 @@ func archivedOnMain(root, remote, stem string) (string, error) {
 		return want, nil
 	}
 	return "", nil
+}
+
+// observeGitReader routes workspace.Resolve's git reads through observeGit,
+// so the operating-envelope count sees them too.
+type observeGitReader struct{}
+
+func (observeGitReader) GitInDir(dir string, args ...string) ([]byte, error) {
+	return observeGit(dir, args...)
 }
 
 // observeGit runs one read-only git command in dir (counted by tests for the
@@ -176,10 +188,17 @@ func collectHolding(trees []observe.LocalWorktree, remote, stem string) []observ
 			continue
 		}
 		h := observe.HoldingFacts{Path: w.Path, Branch: w.Branch}
-		if id, err := workspace.Resolve(execGitRunner{}, w.Path, ""); err == nil && id.Address != nil && id.UsesSlotLayout() {
+		var err error
+		if id, rerr := workspace.Resolve(observeGitReader{}, w.Path, ""); rerr != nil {
+			err = fmt.Errorf("resolve the workspace: %w", rerr)
+		} else if id.Address != nil && id.UsesSlotLayout() {
 			h.Address = *id.Address
 		}
-		var err error
+		if err != nil {
+			h.Err = err
+			out = append(out, h)
+			continue
+		}
 		if h.Head, err = gitLine(w.Path, "rev-parse", "HEAD"); err == nil {
 			var status []byte
 			if status, err = observeGit(w.Path, "status", "--porcelain=v1", "-z", "--untracked-files=all"); err == nil {
@@ -201,94 +220,96 @@ func collectHolding(trees []observe.LocalWorktree, remote, stem string) []observ
 
 // collectEvidence reads the committed review evidence: on the issue branch
 // before landing, on main after (archived with the issue, #143) — so a squash
-// merge or a deleted branch never strands it.
-func collectEvidence(root, remote, stem, status string, branch observe.BranchFacts) observe.Evidence {
-	history := envOr("WF_HISTORY_DIR", "workshop/history")
-	plans := envOr("WF_PLANS_DIR", "workshop/plans")
-	issues := envOr("WF_ISSUES_DIR", "workshop/issues")
+// merge or a deleted branch never strands it. Every path derives from the given
+// issues dir and the vocabulary's discovery; artifact names from the writers'
+// own path helpers (sidecarPath, sidecarPathFor, the gate suffixes).
+func collectEvidence(root, issuesRel, remote, stem, status string, branch observe.BranchFacts) observe.Evidence {
+	d := vocab.Issue().Discovery()
+	issueFile := stem + ".md"
 	type place struct{ ref, plans, details string }
 	var places []place
 	main := "refs/remotes/" + remote + "/main"
 	if status == "done" {
 		places = append(places,
-			place{main, vocab.ArchiveSubdir(history, vocab.ArchivePlans), path.Join(vocab.ArchiveSubdir(history, vocab.ArchiveIssues), stem+".md")},
-			place{main, plans, path.Join(issues, stem+".md")})
+			place{main, vocab.ArchiveSubdir(d.Archive, vocab.ArchivePlans), path.Join(vocab.ArchiveSubdir(d.Archive, vocab.ArchiveIssues), issueFile)},
+			place{main, d.Plans, path.Join(issuesRel, issueFile)})
 	}
 	if branch.Ref != "" {
-		places = append(places, place{branch.Ref, plans, path.Join(issues, stem+".md")})
+		places = append(places, place{branch.Ref, d.Plans, path.Join(issuesRel, issueFile)})
 	}
 	for _, p := range places {
 		ev := observe.Evidence{Source: p.ref + ":" + p.plans, Artifacts: map[string]observe.ArtifactFacts{}}
-		listing, err := observeGit(root, "ls-tree", "--name-only", p.ref, "--", p.plans+"/")
+		listing, err := observeGit(root, "ls-tree", "--name-only", p.ref, "--", p.plans+"/", p.details)
 		if err != nil {
 			ev.Err = fmt.Errorf("list %s: %w", ev.Source, err)
 			return ev
 		}
-		files := map[string]bool{}
+		present := map[string]bool{}
 		for _, f := range strings.Split(strings.TrimSpace(string(listing)), "\n") {
-			if strings.HasPrefix(path.Base(f), stem+"-") {
-				files[path.Base(f)] = true
+			present[f] = true
+		}
+		slash := func(p string) string { return filepath.ToSlash(p) }
+		planGate := slash(sidecarPathFor(p.plans, issueFile, planGateSuffix))
+		closeGate := slash(sidecarPathFor(p.plans, issueFile, boundaryGateSuffix))
+		reviews := map[string]string{} // boundary → artifact path
+		if close := slash(sidecarPath(p.plans, issueFile, "")); present[close] {
+			reviews["close"] = close
+		}
+		for f := range present {
+			if m := reviewMilestoneRe.FindStringSubmatch(f); m != nil {
+				if want := slash(sidecarPath(p.plans, issueFile, "M"+m[1])); want == f {
+					reviews["M"+m[1]] = f
+				}
 			}
 		}
-		details, derr := observeGit(root, "show", p.ref+":"+p.details)
-		if len(files) == 0 && derr != nil {
+		if !present[p.details] && !present[planGate] && !present[closeGate] && len(reviews) == 0 {
 			continue // nothing of this issue here; try the next place
 		}
-		if derr == nil {
-			ev.Details = details
-		}
-		show := func(name string) (string, error) {
-			out, err := observeGit(root, "show", p.ref+":"+path.Join(p.plans, name))
+		show := func(file string) (string, error) {
+			out, err := observeGit(root, "show", p.ref+":"+file)
 			return string(out), err
 		}
-		// The plan-quality ledger: the plan boundary's open blocking findings.
-		if files[stem+"-plan-gate.md"] {
+		if present[p.details] {
+			text, err := show(p.details)
+			ev.Details, ev.DetailsErr = []byte(text), err
+			if err != nil {
+				ev.Details = nil
+			}
+		}
+		readLedger := func(file string) (*gatestate.Ledger, error) {
+			text, err := show(file)
+			if err != nil {
+				return nil, err
+			}
+			l, err := gatestate.ParseSidecar(text)
+			return &l, err
+		}
+		// Open blocking-severity findings, independent of the round cap
+		// (DecideScoped demotes past it).
+		openBlocking := func(d gatestate.Decision) int { return len(d.OpenBlocking) + len(d.Demoted) }
+		if present[planGate] {
 			art := observe.ArtifactFacts{Found: true}
-			if text, err := show(stem + "-plan-gate.md"); err != nil {
-				art.LedgerErr = err
-			} else if l, err := gatestate.ParseSidecar(text); err != nil {
+			if l, err := readLedger(planGate); err != nil {
 				art.LedgerErr = err
 			} else {
-				d := gatestate.Decide(l, gatestate.DefaultRoundCap)
-				art.OpenBlocking = len(d.OpenBlocking) + len(d.Demoted) // cap-independent
+				art.OpenBlocking = openBlocking(gatestate.Decide(*l, gatestate.DefaultRoundCap))
 			}
 			ev.PlanGate = &art
 		}
-		// The issue-wide boundary ledger, scoped per boundary as its gate scopes it.
 		var ledger *gatestate.Ledger
 		var ledgerErr error
-		if files[stem+"-close-gate.md"] {
-			if text, err := show(stem + "-close-gate.md"); err != nil {
-				ledgerErr = err
-			} else if l, err := gatestate.ParseSidecar(text); err != nil {
-				ledgerErr = err
-			} else {
-				ledger = &l
-			}
+		if present[closeGate] {
+			ledger, ledgerErr = readLedger(closeGate)
 		}
-		for name := range files {
-			boundary := ""
-			switch {
-			case name == stem+"-close-review.md":
-				boundary = "close"
-			case strings.HasSuffix(name, "-review.md") && strings.HasPrefix(strings.TrimPrefix(name, stem+"-"), "m"):
-				boundary = "M" + strings.TrimSuffix(strings.TrimPrefix(name, stem+"-m"), "-review.md")
-			default:
-				continue
-			}
+		for boundary, file := range reviews {
 			art := observe.ArtifactFacts{Found: true, LedgerErr: ledgerErr}
-			if text, err := show(name); err != nil {
-				art.SidecarErr = err
-			} else {
-				art.Sidecar = text
-			}
-			if ledger != nil {
+			art.Sidecar, art.SidecarErr = show(file)
+			if ledger != nil && ledgerErr == nil {
 				milestone := boundary
 				if boundary == "close" {
 					milestone = ""
 				}
-				d := gatestate.DecideScoped(gatestate.FilterBoundary(*ledger, milestone), openScopeFor(*ledger, milestone), gatestate.DefaultRoundCap)
-				art.OpenBlocking = len(d.OpenBlocking) + len(d.Demoted) // cap-independent
+				art.OpenBlocking = openBlocking(gatestate.DecideScoped(gatestate.FilterBoundary(*ledger, milestone), openScopeFor(*ledger, milestone), gatestate.DefaultRoundCap))
 			}
 			ev.Artifacts[boundary] = art
 		}

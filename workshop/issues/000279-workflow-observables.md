@@ -217,3 +217,17 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
   - Minors: Resolve bypassed the counted seam; sidecar rows used the last
     match; the `--repo` test wasn't across two tracker repositories.
   - Fixing each as a rule across the whole collector.
+- M2 review fixes (all as rules, applied across the collector):
+  - BR-7: no zero-value fallbacks.
+  - BR-8: every enum validated against its authority.
+  - BR-9: a real milestone test (plan-ledger writer, M1 SHIP, M2 with an
+    open Important; scoping mutation-checked). The trailer cross-check is
+    withdrawn in Revisions.
+  - BR-10: paths come from the given dir or vocab.
+  - BR-11: names come from the writers' helpers.
+  - Minors: Resolve is counted; first metadata row wins; a two-repo
+    `--repo` test.
+  - Found while testing: an undisposed plan-quality finding is inherited by
+    every boundary (`seedFromPlanGate`). That is real gate behavior, so the
+    fixture disposes its plan finding.
+

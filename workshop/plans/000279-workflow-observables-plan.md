@@ -183,3 +183,28 @@ Every observation names its source and authority, and distinguishes absent from 
   - The plan-quality boundary reports `open_blocking` only (it keeps a
     ledger, not a verdict sidecar).
 
+- 2026-10-02 — M2 review round 1 (BR-7 to BR-14).
+  - **Trailer cross-check withdrawn.** The review artifacts are the source
+    of record, archived with the issue (#143). The `Review-Verdict` trailer
+    restates the same verdict on the evidence commit, which squash merges
+    and branch deletion can make unreachable, so the cross-check would have
+    worked only where it is redundant. A disagreement between the two is the
+    close gate's to prevent, not the observer's.
+  - **BR-7:** values read from the details degrade the checkpoints section
+    to `unknown` with their reason, never a zero value. A review artifact
+    recording a non-verdict ("unknown") is an `unknown` review. The first
+    metadata row wins.
+  - **BR-8:** boundary, verdict (vocab verdict set) and flow kind and
+    provenance (flow constants) are validated, with a rejection row each.
+  - **BR-9:** the milestone path is tested through the real gates
+    (change-code `--no-judge` plus the gate's own plan-ledger writer, since
+    the judging path exits in-process per #191; milestone-close for M1 SHIP
+    and for M2 with an open Important). The per-boundary scoping is
+    mutation-checked.
+  - **BR-10:** evidence paths derive from the given issues dir and vocab
+    discovery, never env.
+  - **BR-11:** artifact names come from `sidecarPath` / `sidecarPathFor` /
+    the gate suffixes / `reviewMilestoneRe`.
+  - **Minors:** `workspace.Resolve` goes through the counted seam; `--repo`
+    is tested across two tracker repositories.
+
