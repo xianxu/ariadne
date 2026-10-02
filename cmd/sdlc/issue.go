@@ -10,8 +10,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/observe"
 	"io"
 	"os"
 	"path"
@@ -510,6 +512,8 @@ func runIssueList(ctx context.Context, stdout, stderr io.Writer, f *issueListFla
 
 type issueShowFlags struct {
 	IssuesDir string
+	JSON      bool   // #279: emit the observation
+	Repo      string // #279: observe another repository's issue
 }
 
 func newIssueShowCmd() *cobra.Command {
@@ -527,6 +531,8 @@ without loading the whole file.`,
 		},
 	}
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
+	cmd.Flags().BoolVar(&f.JSON, "json", false, "print the issue's observation (schema_version 1) as JSON")
+	cmd.Flags().StringVar(&f.Repo, "repo", "", "observe an issue of the repository containing this path")
 	return cmd
 }
 
@@ -535,7 +541,20 @@ func runIssueShow(ctx context.Context, stdout, stderr io.Writer, f *issueShowFla
 	if err != nil || id <= 0 {
 		die(stderr, fmt.Sprintf("invalid issue id %q (want a positive number, e.g. 56)", arg))
 	}
-	rs, err := loadIssueRecords(ctx, f.IssuesDir, tracker.PreferFresh)
+	root, issuesDir, err := issueShowRepo(f)
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	if f.JSON { // #279: the observation alone, on stdout
+		raw, err := json.MarshalIndent(collectObservation(ctx, root, issuesDir, fmt.Sprintf("%06d", id)), "", "  ")
+		if err != nil {
+			die(stderr, err.Error())
+		}
+		fmt.Fprintln(stdout, string(raw))
+		return nil
+	}
+	defer func() { observe.RenderText(stdout, collectObservation(ctx, root, issuesDir, fmt.Sprintf("%06d", id))) }()
+	rs, err := loadIssueRecords(ctx, issuesDir, tracker.PreferFresh)
 	if err != nil {
 		die(stderr, err.Error())
 	}
@@ -600,4 +619,22 @@ func trackedIssueSync(f *issueSyncFlags) error {
 		return fmt.Errorf("this repository uses the issue tracker: checkpoint #%d on its issue branch (`sdlc start-plan --issue %d` prepares it), never on a resting branch", f.Issue, f.Issue)
 	}
 	return nil
+}
+
+// issueShowRepo resolves the repository an issue show reads: the current
+// checkout's, or (--repo) the one containing that path (#279).
+func issueShowRepo(f *issueShowFlags) (root, issuesDir string, err error) {
+	from := "."
+	if f.Repo != "" {
+		from = f.Repo
+	}
+	root = repoRootOf(from)
+	if root == "" {
+		return "", "", fmt.Errorf("%s is not inside a repository", from)
+	}
+	issuesDir = f.IssuesDir
+	if !filepath.IsAbs(issuesDir) {
+		issuesDir = filepath.Join(root, issuesDir)
+	}
+	return root, issuesDir, nil
 }

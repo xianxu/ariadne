@@ -94,9 +94,12 @@ const (
 type Records struct {
 	Tracker bool
 	Stale   bool
-	Ref     string
-	list    []IssueRecord
-	byID    map[string]int
+	// FetchErr is why a Stale read fell back to the last fetch (#279): a stale
+	// answer carries its reason, never a bare flag.
+	FetchErr error
+	Ref      string
+	list     []IssueRecord
+	byID     map[string]int
 }
 
 func (rs Records) All() []IssueRecord { return append([]IssueRecord(nil), rs.list...) }
@@ -124,9 +127,9 @@ func LoadRecords(ctx context.Context, repo *Repository, detailsDir string, mode 
 				// The marker says tracked, but nothing was fetched to read.
 				return rs, errors.Join(err, lerr)
 			}
-			rs.Stale, rs.Tracker, snap = true, true, local
+			rs.Stale, rs.Tracker, snap, rs.FetchErr = true, true, local, err
 		case stale:
-			rs.Stale = true
+			rs.Stale, rs.FetchErr = true, err
 		case exists:
 			if snap, err = repo.Snapshot(); err != nil {
 				return rs, err

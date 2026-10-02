@@ -127,3 +127,16 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
 - Plan-quality cleared (round 2). Estimate: 3.31h (v3.1).
 - change-code passed (estimate-quality: reasonable). Starting M1: the `internal/observe` contract.
 - M1 step: `internal/observe` is in (types, strict JSON with duplicate-key rejection, `Assemble` for tracker, card, assignment, completion and landing). Scenario table plus round trip and rejection cases. `FuzzAssemble` ran about 700k execs with no invariant break.
+- M1 step:
+  - The collector (`cmd/sdlc/observe.go`) and `issue show --json` / `--repo`
+    are in. The text view appends the observation block.
+  - `tracker.Records` now keeps `FetchErr`, so a stale answer carries its
+    reason.
+  - Real-git tests, querying from another checkout:
+    - a parked slot with uncommitted work (owner, owner worktree holding the
+      branch, and local state unchanged);
+    - an unreachable remote (stale with error, never absent);
+    - a landed card (outcome and commits), also through `--repo`.
+  - Running on #279 itself showed this workspace as owner, holding the
+    branch.
+
