@@ -103,3 +103,4 @@ Captured from the performance → messaging guarantees → SDLC ownership/observ
     goes red.
   - The #277 refusal texts and help now name `sdlc reclaim`.
   - Atlas: a Reclaim subsection plus the verb row.
+- Regenerated the process manual (reclaim help). Full sharded suite: all cmd/sdlc tests pass; only the sandbox-only processgroup failure remains. Closing.

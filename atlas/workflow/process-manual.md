@@ -253,6 +253,16 @@ cross-repository breakdown, and derives progress from the referenced issues.
 
 Ship from `main` — the direct-on-main commit + push verb.
 
+### [reclaim](../../cmd/sdlc/helptext/reclaim.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Move an issue's recorded responsibility, its #277 `claimant`, to the workspace
+running this command (#278). This is operator-directed recovery. Run it only
+after the operator has agreed the transfer with the current owner out of band,
+or has established that the owner's work is gone. An agent runs it only on the
+operator's explicit instruction, never on its own judgment.
+
 ### [resolve](../../cmd/sdlc/helptext/resolve.md)
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
