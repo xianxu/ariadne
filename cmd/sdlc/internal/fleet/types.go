@@ -100,6 +100,11 @@ type MeasuredFacts struct {
 	Ahead           *int   `json:"ahead,omitempty"`
 	Behind          *int   `json:"behind,omitempty"`
 	DirtyCount      *int   `json:"dirty_count,omitempty"`
+	// Operation is the Git operation in progress ("" for none), or
+	// OperationError why it could not be read (#289). Readiness uses them;
+	// rows' JSON does not carry them.
+	Operation      string `json:"-"`
+	OperationError string `json:"-"`
 }
 
 func (f *MeasuredFacts) UnmarshalJSON(raw []byte) error {

@@ -53,18 +53,23 @@ section; registers the recovery proof; updates help and atlas.
 - **Resting branch per member.** Host: per the slot rule. Dependency clone:
   `main` — weave's environment policy is scoped, so it clones with `--branch
   main` and refreshes to `origin/main` (`cmd/weave/internal/acquire/acquire.go:87,152`).
-- **Per-checkout verdict**, first match wins:
-  1. `unknown` — a probe the verdict depends on returned an error instead of an
-     answer: the facts' git reads (`rev-parse HEAD`, `status`), the base lookup
-     (no `origin/main`/`main` to count unlanded commits against), the operation
-     detector, reading a member's `construct/deps`, a member outside the
-     environment root, or a member directory that is not a Git checkout.
-  2. `needs-recovery` — dirty files (modified or untracked; `dirty_count`), an
-     active Git operation, or a detached HEAD.
-  3. `holds-work` — on a branch other than its resting branch with commits not
-     on main (`ahead > 0`), or whose issue association names a status that is
-     not terminal (`!vocab.Issue().IsTerminal(DeclaredStatus)`, even with zero
-     commits); or this machine holds a tracker claim on the checkout (#288).
+- **Per-checkout verdict** (`JudgeCheckout`), in this precedence:
+  1. `needs-recovery` — whenever the facts that show it were read: dirty files
+     (`dirty_count > 0`), an active Git operation, or a detached HEAD. Probes
+     that failed alongside are listed in its reasons (a known problem is never
+     downgraded to unknown; needs-recovery also outranks unknown in the fold).
+  2. `unknown` — otherwise, a probe the verdict depends on returned an error
+     instead of an answer: the facts' git reads, the base lookup (no
+     `origin/main`/`main` to count unlanded commits against), the operation
+     detector, the issue named by an issue-prefixed branch, this machine's
+     claims, reading a member's `construct/deps`, a member outside the
+     environment root, or a member directory that is not a Git checkout. One
+     exception: if only the claims are unread and the checkout already holds
+     work, it is holds-work (a claim could only add holds-work).
+  3. `holds-work` — commits not on main (`ahead > 0`, on any branch including
+     the resting one), an issue association on a non-resting branch whose
+     status is not terminal (`!vocab.Issue().IsTerminal`, even with zero
+     commits), or a claim this machine holds on the checkout (#288).
   4. `ready` — otherwise.
   Merged-ness is ancestry (`ahead == 0`): a squash-landed branch reads as
   holds-work — conservative, never wrongly ready.
@@ -216,3 +221,9 @@ section; registers the recovery proof; updates help and atlas.
 - 2026-10-02 — plan body rewritten to the revised design above (supersedes the
   first draft's tasks, Core-concepts table and dirty-path decisions; the draft
   is in commit 3324197a). Resumed after #290 landed.
+- 2026-10-02 — M1 implementation: verdict precedence puts needs-recovery first
+  whenever its facts were read (the previous text put unknown first, which
+  would report a dirty checkout with an unreachable base as unknown). Unlanded
+  commits count on the resting branch too. A failed claims read makes an
+  otherwise-ready checkout unknown, not a holding one. Decisions rewritten in
+  place.

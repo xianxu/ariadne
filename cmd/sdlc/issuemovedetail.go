@@ -66,26 +66,14 @@ An interrupted run resumes with ` + "`sdlc issue recovery reconcile --issue N`" 
 	return cmd
 }
 
-// gitOperationMarkers are the in-progress states during which the index and
-// HEAD are not the user's settled intent.
-var gitOperationMarkers = []string{"MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "rebase-merge", "rebase-apply", "BISECT_LOG"}
-
+// gitOperationInProgress names the operation in progress in root's worktree
+// ("" for none), through the one marker list (gitx.OperationMarkers, #289).
 func gitOperationInProgress(git func(...string) (string, error), root string) (string, error) {
-	for _, m := range gitOperationMarkers {
-		p, err := git("rev-parse", "--git-path", m)
-		if err != nil {
-			return "", err
-		}
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(root, p)
-		}
-		if _, err := os.Lstat(p); err == nil {
-			return m, nil
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return "", err
-		}
+	dir, err := git("rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return "", err
 	}
-	return "", nil
+	return gitx.ActiveOperation(strings.TrimSpace(dir), gitx.Lstat)
 }
 
 func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailFlags) error {

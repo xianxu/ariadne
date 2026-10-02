@@ -55,9 +55,28 @@ func CollectFacts(git GitReader, worktreeRoot string) MeasuredFacts {
 	}
 	facts.DirtyCount = &dirtyCount
 	facts.Available = true
+	facts.collectOperation(worktreeRoot)
 
 	facts.collectBase(git, worktreeRoot)
 	return facts
+}
+
+// The operation probe reads files only (#289); seams for tests.
+var (
+	readGitPointer = gitx.ReadGitPointer
+	lstatMarker    = gitx.Lstat
+)
+
+// collectOperation records the operation in progress from the worktree's own
+// git directory — no git process.
+func (facts *MeasuredFacts) collectOperation(worktreeRoot string) {
+	dir, err := gitx.WorktreeGitDir(worktreeRoot, readGitPointer)
+	if err == nil {
+		facts.Operation, err = gitx.ActiveOperation(dir, lstatMarker)
+	}
+	if err != nil {
+		facts.Operation, facts.OperationError = "", err.Error()
+	}
 }
 
 func (facts *MeasuredFacts) collectBase(git GitReader, worktreeRoot string) {
