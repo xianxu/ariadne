@@ -140,7 +140,7 @@ func TestAssociateBranchIssue(t *testing.T) {
 		{name: "missing same-repo issue", branch: "000149-opaque-tags", lookup: func(string) ([]IssueRecord, error) { return []IssueRecord{}, nil }, want: []IssueAssociation{}},
 		{name: "ambiguous same-repo issue", branch: "000149-opaque-tags", lookup: func(string) ([]IssueRecord, error) {
 			return []IssueRecord{{Ref: "#149", DeclaredStatus: "open"}, {Ref: "#149-copy", DeclaredStatus: "working"}}, nil
-		}, want: []IssueAssociation{}},
+		}, want: []IssueAssociation{}, wantErr: ErrAmbiguousIssue},
 		{name: "lookup failure preserves identity and drops partial record", branch: "000149-opaque-tags", lookup: func(string) ([]IssueRecord, error) {
 			return []IssueRecord{{Ref: "#149", DeclaredStatus: "working"}}, lookupErr
 		}, want: []IssueAssociation{}, wantErr: lookupErr},
@@ -183,10 +183,14 @@ func TestAssociateBranchIssueProperty(t *testing.T) {
 		validBranch := id + "-" + safeBranchSuffix(rawSuffix)
 
 		// Exercise the full lookup-cardinality partition for every generated valid
-		// branch. Exactly one same-repo record is the only associating case.
+		// branch. Exactly one same-repo record is the only associating case;
+		// more than one is reported as ambiguous (#289), never as no issue.
 		for cardinality := 0; cardinality <= 3; cardinality++ {
 			got, err, calls, lookupID := associateWithCardinality(validBranch, cardinality)
-			if err != nil || calls != 1 || lookupID != id || got == nil {
+			if errors.Is(err, ErrAmbiguousIssue) != (cardinality > 1) || calls != 1 || lookupID != id || got == nil {
+				return false
+			}
+			if cardinality > 1 && len(got) != 0 {
 				return false
 			}
 			if cardinality == 1 {

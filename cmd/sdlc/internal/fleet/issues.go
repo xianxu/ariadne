@@ -16,6 +16,10 @@ import (
 
 const IssueProvenanceBranchPrefix = "branch-prefix"
 
+// ErrAmbiguousIssue: more than one same-repository record answers to the
+// issue ID a branch names.
+var ErrAmbiguousIssue = errors.New("ambiguous same-repo issue")
+
 // IssueRecord is one same-repository lookup result for a six-digit issue ID.
 type IssueRecord struct {
 	Ref            string
@@ -182,7 +186,12 @@ func AssociateBranchIssue(branch string, lookup IssueLookup) ([]IssueAssociation
 	if err != nil {
 		return associations, fmt.Errorf("lookup issue %s: %w", id, err)
 	}
-	if len(matches) != 1 {
+	switch {
+	case len(matches) > 1:
+		// Several records answer to one ID: an outcome to report, never
+		// "no issue" (#289 — readiness would read it as nothing to resume).
+		return associations, fmt.Errorf("lookup issue %s: %w (%d records)", id, ErrAmbiguousIssue, len(matches))
+	case len(matches) == 0:
 		return associations, nil
 	}
 	association := IssueAssociation{

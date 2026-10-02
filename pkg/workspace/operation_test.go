@@ -3,7 +3,10 @@ package workspace
 import (
 	"errors"
 	"io/fs"
+	"os"
+	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -69,5 +72,43 @@ func TestWorktreeGitDir(t *testing.T) {
 		if _, err := WorktreeGitDir(filepath.Join(root, name), read); err == nil {
 			t.Errorf("%s: want an error", name)
 		}
+	}
+}
+
+// #289: end to end, a conflicted rebase in a linked worktree is seen through
+// that worktree's gitdir file (Git writes REBASE_HEAD and rebase-merge; the
+// first in marker order is reported), and not in the primary.
+func TestActiveOperationSeesARebaseInALinkedWorktree(t *testing.T) {
+	git := func(dir string, args ...string) error {
+		cmd := exec.Command("git", append([]string{"-C", dir, "-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false"}, args...)...)
+		cmd.Env = append(os.Environ(), "GIT_CONFIG_NOSYSTEM=1", "GIT_CONFIG_GLOBAL="+os.DevNull)
+		return cmd.Run()
+	}
+	must := func(err error) {
+		t.Helper()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	write := func(dir, body string) { must(os.WriteFile(filepath.Join(dir, "f.txt"), []byte(body), 0o644)) }
+	repo := filepath.Join(t.TempDir(), "repo")
+	must(git("", "init", "-q", "-b", "main", repo))
+	write(repo, "base\n")
+	must(git(repo, "add", "f.txt"))
+	must(git(repo, "commit", "-qm", "base"))
+	linked := filepath.Join(t.TempDir(), "linked")
+	must(git(repo, "worktree", "add", "-q", "-b", "topic", linked))
+	write(linked, "topic\n")
+	must(git(linked, "commit", "-qam", "topic"))
+	write(repo, "main\n")
+	must(git(repo, "commit", "-qam", "main"))
+	_ = git(linked, "rebase", "main") // conflicts by construction
+	dir, err := WorktreeGitDir(linked, ReadGitPointer)
+	must(err)
+	if op, err := ActiveOperation(dir, Lstat); !strings.Contains(strings.ToLower(op), "rebase") || err != nil {
+		t.Fatalf("operation %q, %v", op, err)
+	}
+	if op, _ := ActiveOperation(filepath.Join(repo, ".git"), Lstat); op != "" {
+		t.Fatalf("the primary is not rebasing, got %q", op)
 	}
 }

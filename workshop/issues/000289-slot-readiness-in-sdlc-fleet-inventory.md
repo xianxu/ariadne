@@ -119,9 +119,9 @@ operator's direction, then claimed. Design findings: membership is declared in
 clone set, so membership is re-derived; dependency clones rest on `main`;
 operation-marker detection exists twice with different lists (to be unified).
 
-M1 implemented: `gitx.OperationMarkers`/`ActiveOperation`/`WorktreeGitDir`
-(file reads; `move-detail`, `move` and landing switched to it via one
-`rev-parse --absolute-git-dir`), `MeasuredFacts.Operation`/`OperationError`
+M1 implemented: `workspace.OperationMarkers`/`ActiveOperation`/`WorktreeGitDir`
+(`pkg/workspace`, file reads; `move-detail`, `move`, landing and weave's
+refresh switched to it via one `rev-parse --absolute-git-dir`), `MeasuredFacts.Operation`/`OperationError`
 (no added git process, asserted by call count), pure `JudgeCheckout` + verdict
 order (`TestJudgeCheckout`, 18 cases). Precedence refined: needs-recovery wins
 whenever its facts were read.
