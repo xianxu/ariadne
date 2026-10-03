@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"path/filepath"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // Policy restricts source acquisition to independent siblings of a verified host.
@@ -14,11 +16,8 @@ type Policy struct{ EnvironmentRoot, HostRoot, HostCommonDir string }
 // validate receives lexical and physical evidence separately: canonicalization
 // must never conceal an unsupported manifest-relative destination.
 func (p Policy) validate(lexical, physical string, source Source) error {
-	if filepath.Dir(lexical) != p.EnvironmentRoot || filepath.Dir(physical) != p.EnvironmentRoot || lexical != physical {
-		return fmt.Errorf("source destination %s must be an ordinary direct child of environment %s; compose from the dependency primary", lexical, p.EnvironmentRoot)
-	}
-	if physical == p.HostRoot {
-		return fmt.Errorf("source destination %s collides with environment host", physical)
+	if err := workspace.ValidSlotDependency(p.EnvironmentRoot, p.HostRoot, lexical, physical); err != nil {
+		return err
 	}
 	if strings.HasPrefix(source.Identity, "file:") {
 		return fmt.Errorf("numbered environment requires a recorded remote source, not a local/file source")

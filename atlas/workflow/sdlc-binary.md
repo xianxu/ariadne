@@ -325,6 +325,20 @@ worktree matches no row are `dangling_claims`. Each row's `claims_state`
 "none" only when the read carried value. This is the bulk, cross-slot
 counterpart of `issue show --json`'s per-issue assignment.
 
+**Slots** (#289): `discoverSlots` finds each workspace from row paths
+(`repo:0` = a fleet primary, `repo:N` = `workspace.SlotPath`); a numbered slot's
+members come from `DeclaredMembers` (`internal/fleet/membership.go`), the
+transitive walk of the host's `construct/deps` substrate rows via
+`pkg/layergraph.ParseRows`, confined to the environment root. Declared clones are
+collected as rows (independent clones the fleet walk never sees) and read their
+tracker through the fleet primary with the same publication identity
+(`gitx.PublicationRepository`), so they add no network read. `JudgeCheckout`
+(pure, `slots.go`) judges each member from its facts — including the operation
+in progress, read from the worktree's git directory with no git process
+(`workspace.ActiveOperation`) — and its recorded issue-lookup outcome and
+claims; `AssembleSlots` folds the worst. The inventory JSON is versioned
+(`schema_version` 1). Measured here: 6.3s with 39 slots (+0.4s over #290).
+
 Tracker reads are the inventory's network cost (#290). `repoRecords` is a
 per-key-once cache, warmed for every tracked repository (`tracker.CutOver`,
 local) with at most 8 concurrent loads before the row walk, each under a 15s

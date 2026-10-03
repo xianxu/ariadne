@@ -27,6 +27,24 @@ reads run concurrently (at most 8), skip the fetch when the remote tracker is
 unchanged, and each has a 15s deadline — a remote that does not answer makes
 only its own repository's rows unknown.
 
+SLOTS (#289): `slots` gives one readiness verdict per workspace. A fleet
+primary is `repo:0`; `<fleet>/worktree/<repo>-slotN/<repo>` is `repo:N`. A
+numbered slot's members are its host plus the substrate dependencies its
+`construct/deps` declares, transitively (each slot clones its own); `:0` peers
+are shared, so a `:0` slot is its host alone. Dependency clones are also listed
+as rows. Each member's verdict, in precedence:
+  needs-recovery  dirty files, a Git operation in progress, or a detached HEAD
+  unknown         a probe the verdict needs failed (facts, base, operation,
+                  issue lookup, claims, construct/deps); never ready
+  holds-work      commits not on main, a branch naming an open issue, or this
+                  machine's claim on the checkout
+  ready           otherwise
+plus `missing` for a declared clone that is absent. The slot verdict is the
+worst member's (needs-recovery > missing > unknown > holds-work > ready); each
+member keeps its own verdict and reason codes. A verdict is an observation: an
+action that reuses a slot must re-check it at action time. `schema_version` is
+1; consumers reject other versions.
+
 This command reports measured Git facts, declared policy capability and
 recorded tracker claims only. It does not infer coldness, drift, actor
 liveness, worktree staleness, or admission keys.

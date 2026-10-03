@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -15,31 +14,39 @@ import (
 )
 
 // trackedRepo makes <fleet>/<name>: a migrated repository with a bare origin
-// that holds a manifest-only issue tracker, the cutover marker on main, and
-// the tracker fetched. ARCH-MOCK: real Git end to end.
-func trackedRepo(t *testing.T, fleetRoot, name string) string {
+// that holds an issue tracker (the manifest plus cards), the cutover marker on
+// main, and the tracker fetched. ARCH-MOCK: real Git end to end.
+func trackedRepo(t *testing.T, fleetRoot, name string, cards ...map[string][]byte) string {
 	t.Helper()
 	root := filepath.Join(fleetRoot, name)
 	origin := filepath.Join(t.TempDir(), name+".git")
 	testfix.Git(t, "", "init", "-q", "-b", "main", root)
 	testfix.Git(t, "", "init", "-q", "--bare", "-b", "main", origin)
-	for _, kv := range [][2]string{{"user.name", "t"}, {"user.email", "t@t"}, {"commit.gpgsign", "false"}} {
-		testfix.Git(t, root, "config", kv[0], kv[1])
-	}
+	configure(t, root)
 	testfix.Git(t, root, "remote", "add", "origin", origin)
-	manifestFile := filepath.Join(t.TempDir(), "manifest")
-	if err := os.WriteFile(manifestFile, tracker.ManifestBytes(), 0o644); err != nil {
-		t.Fatal(err)
+	// The tracker branch, built in a scratch repository and pushed.
+	scratch := filepath.Join(t.TempDir(), "tracker")
+	testfix.Git(t, "", "init", "-q", "-b", "issue-tracker", scratch)
+	configure(t, scratch)
+	files := map[string][]byte{tracker.ManifestPath: tracker.ManifestBytes()}
+	for _, set := range cards {
+		for p, b := range set {
+			files[p] = b
+		}
 	}
-	blob := strings.TrimSpace(testfix.Capture(t, root, "hash-object", "-w", manifestFile))
-	mktree := exec.Command("git", "-C", root, "mktree")
-	mktree.Stdin = strings.NewReader("100644 blob " + blob + "\t" + tracker.ManifestPath + "\n")
-	out, err := mktree.Output()
-	if err != nil {
-		t.Fatal(err)
+	for p, b := range files {
+		full := filepath.Join(scratch, filepath.FromSlash(p))
+		if err := os.MkdirAll(filepath.Dir(full), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(full, b, 0o644); err != nil {
+			t.Fatal(err)
+		}
 	}
-	tip := strings.TrimSpace(testfix.Capture(t, root, "commit-tree", strings.TrimSpace(string(out)), "-m", "tracker"))
-	testfix.Git(t, root, "push", "-q", "origin", tip+":refs/heads/issue-tracker")
+	testfix.Git(t, scratch, "add", "-A")
+	testfix.Git(t, scratch, "commit", "-qm", "tracker")
+	testfix.Git(t, scratch, "push", "-q", origin, "HEAD:refs/heads/issue-tracker")
+	tip := strings.TrimSpace(testfix.Capture(t, scratch, "rev-parse", "HEAD"))
 	testfix.Git(t, root, "fetch", "-q", "origin", "+refs/heads/issue-tracker:refs/remotes/origin/issue-tracker")
 	marker := filepath.Join(root, filepath.FromSlash(tracker.CutoverMarkerPath))
 	if err := os.MkdirAll(filepath.Dir(marker), 0o755); err != nil {
@@ -52,6 +59,13 @@ func trackedRepo(t *testing.T, fleetRoot, name string) string {
 	testfix.Git(t, root, "commit", "-qm", "migrate: cutover marker")
 	testfix.Git(t, root, "push", "-q", "-u", "origin", "main")
 	return root
+}
+
+func configure(t *testing.T, dir string) {
+	t.Helper()
+	for _, kv := range [][2]string{{"user.name", "t"}, {"user.email", "t@t"}, {"commit.gpgsign", "false"}, {"core.hooksPath", os.DevNull}} {
+		testfix.Git(t, dir, "config", kv[0], kv[1])
+	}
 }
 
 // hangRemote points root's origin at an ssh transport that never answers.

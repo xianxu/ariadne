@@ -5,8 +5,12 @@ import (
 	"errors"
 	"fmt"
 	"math/rand"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestCollectFacts_FakeAndRealGitConformance(t *testing.T) {
@@ -356,4 +360,40 @@ func fuzzNonNUL(raw []byte, salt int) string {
 		path[i] = value
 	}
 	return string(path)
+}
+
+type countingReader struct {
+	GitReader
+	calls int
+}
+
+func (r *countingReader) GitInDir(dir string, args ...string) ([]byte, error) {
+	r.calls++
+	return r.GitReader.GitInDir(dir, args...)
+}
+
+// #289: the facts carry the operation in progress, read from the worktree's
+// git directory with no extra git process; a failed probe is recorded as an
+// error, never as "no operation".
+func TestCollectFacts_ReadsTheOperationWithoutGit(t *testing.T) {
+	repo := testfix.Repo(t, testfix.InitialCommit())
+	before := &countingReader{GitReader: execGitReader{}}
+	clean := CollectFacts(before, repo)
+	if clean.Operation != "" || clean.OperationError != "" {
+		t.Fatalf("clean: %+v", clean)
+	}
+	if err := os.WriteFile(filepath.Join(repo, ".git", "MERGE_HEAD"), []byte("x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	after := &countingReader{GitReader: execGitReader{}}
+	merging := CollectFacts(after, repo)
+	if merging.Operation != "MERGE_HEAD" || after.calls != before.calls {
+		t.Fatalf("merging: %+v; git calls %d vs %d", merging, after.calls, before.calls)
+	}
+	prev := lstatMarker
+	lstatMarker = func(string) error { return errors.New("permission denied") }
+	t.Cleanup(func() { lstatMarker = prev })
+	if failed := CollectFacts(execGitReader{}, repo); failed.Operation != "" || !strings.Contains(failed.OperationError, "permission denied") {
+		t.Fatalf("failed probe: %+v", failed)
+	}
 }

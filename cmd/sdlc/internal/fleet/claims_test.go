@@ -115,7 +115,9 @@ func TestInventoryClaimsContract(t *testing.T) {
 		t.Fatalf("round trip: %s", raw)
 	}
 	for name, mutate := range map[string]func(string) string{
-		"null claims": func(s string) string { return strings.Replace(s, `"claims":[{`, `"claims":null,"x":[{`, 1) },
+		"null claims": func(s string) string {
+			return editJSON(t, s, func(m map[string]any) { m["rows"].([]any)[0].(map[string]any)["claims"] = nil })
+		},
 		"unknown state": func(s string) string {
 			return strings.Replace(s, `"claims_state":"present"`, `"claims_state":"maybe"`, 1)
 		},
@@ -128,12 +130,10 @@ func TestInventoryClaimsContract(t *testing.T) {
 		"unknown with claims": func(s string) string {
 			return strings.Replace(s, `"claims_state":"present"`, `"claims_state":"unknown","claims_error":"x"`, 1)
 		},
-		"raw machine id":  func(s string) string { return strings.Replace(s, `"fingerprint":"`+meFP, `"fingerprint":"RAW`, 1) },
-		"missing machine": func(s string) string { return strings.Replace(s, `"machine":{`, `"machinx":{`, 1) },
-		"null dangling claims": func(s string) string {
-			return strings.Replace(s, `"dangling_claims":[`, `"dangling_claims":null,"y":[`, 1)
-		},
-		"inactive claim": func(s string) string { return strings.Replace(s, `"status":"working"`, `"status":"open"`, 1) },
+		"raw machine id":       func(s string) string { return strings.Replace(s, `"fingerprint":"`+meFP, `"fingerprint":"RAW`, 1) },
+		"missing machine":      func(s string) string { return editJSON(t, s, func(m map[string]any) { delete(m, "machine") }) },
+		"null dangling claims": func(s string) string { return editJSON(t, s, func(m map[string]any) { m["dangling_claims"] = nil }) },
+		"inactive claim":       func(s string) string { return strings.Replace(s, `"status":"working"`, `"status":"open"`, 1) },
 	} {
 		t.Run(name, func(t *testing.T) {
 			bad := mutate(string(raw))
@@ -244,4 +244,23 @@ func TestInventoryMarshalDoesNotMutate(t *testing.T) {
 	if inv.Rows[0].ClaimsState != "" || inv.Rows[0].Claims != nil {
 		t.Fatalf("marshal mutated the caller's row: %+v", inv.Rows[0])
 	}
+}
+
+// editJSON changes exactly one thing in a JSON document — so a contract
+// rejection test isolates the invariant it names, with no unknown key that
+// strict decoding would reject on its own.
+func editJSON(t *testing.T, raw string, edit func(map[string]any)) string {
+	t.Helper()
+	dec := json.NewDecoder(strings.NewReader(raw))
+	dec.UseNumber()
+	var m map[string]any
+	if err := dec.Decode(&m); err != nil {
+		t.Fatal(err)
+	}
+	edit(m)
+	out, err := json.Marshal(m)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(out)
 }

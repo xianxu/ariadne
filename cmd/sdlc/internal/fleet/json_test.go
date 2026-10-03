@@ -12,7 +12,7 @@ func TestJSONContract_InventoryUsesNonNullCollectionsAndSnakeCase(t *testing.T) 
 	if err != nil {
 		t.Fatal(err)
 	}
-	if string(raw) != `{"rows":[],"diagnostics":[],"machine":{"state":"unknown","error":"machine identity was not collected"},"dangling_claims":[]}` {
+	if string(raw) != `{"schema_version":1,"rows":[],"diagnostics":[],"machine":{"state":"unknown","error":"machine identity was not collected"},"dangling_claims":[],"slots":[]}` {
 		t.Fatalf("empty Inventory JSON = %s, want non-null collections", raw)
 	}
 
@@ -198,7 +198,7 @@ func TestJSONContract_PolicySuccessUsesVocabularyAndDigestContract(t *testing.T)
 
 func TestJSONContract_RejectsDuplicateKeysAtEveryDepth(t *testing.T) {
 	validCapability := `{"ok":true,"value":{"policy_version":1,"policy_digest":"` + testPolicyDigest + `","key_kind":"repo","roots":[],"capacity":{"kind":"unbounded"}}}`
-	validInventory := `{"rows":[{"repo_identity":"/repo/.git","repo_root":"/repo","tree_path":"/repo","branch":"main","detached":false,"bare":false,"facts":{"available":false,"error":"git failed","base_available":false},"issues":[],"claims":[],"claims_state":"present","policy":` + validCapability + `}],"diagnostics":[]}`
+	validInventory := `{"schema_version":1,"rows":[{"repo_identity":"/repo/.git","repo_root":"/repo","tree_path":"/repo","branch":"main","detached":false,"bare":false,"facts":{"available":false,"error":"git failed","base_available":false},"issues":[],"claims":[],"claims_state":"present","policy":` + validCapability + `}],"diagnostics":[]}`
 	for _, raw := range []string{
 		`{"ok":true,"ok":true,"value":null,"diagnostic":{"code":"bad","message":"bad"}}`,
 		`{"ok":true,"value":{"policy_version":1,"policy_digest":"` + testPolicyDigest + `","policy_digest":"` + testPolicyDigest + `","key_kind":"repo","roots":[],"capacity":{"kind":"unbounded"}}}`,
@@ -277,8 +277,8 @@ func TestJSONContract_CanonicalGoldens(t *testing.T) {
 		{"result bounded", boundedResult, `{"ok":true,"value":{"policy_version":1,"policy_digest":"` + testPolicyDigest + `","repo_identity":"/repo/.git","admission_key":"/repo","capacity":{"kind":"bounded","limit":1},"on_capacity":"reject"}}`},
 		{"result unbounded", unboundedResult, `{"ok":true,"value":{"policy_version":1,"policy_digest":"` + testPolicyDigest + `","repo_identity":"/repo/.git","admission_key":"/repo","capacity":{"kind":"unbounded"}}}`},
 		{"result diagnostic", diagnosticResult, `{"ok":false,"diagnostic":{"code":"invalid-policy","message":"bad"}}`},
-		{"inventory available", Inventory{Rows: []TreeRow{available}, Diagnostics: []RepoDiagnostic{}}, `{"rows":[{"repo_identity":"/repo/.git","repo_root":"/repo","tree_path":"/repo","branch":"main","detached":false,"bare":false,"facts":{"available":true,"head":"head","commit_timestamp":"2026-01-02T03:04:05Z","base_available":true,"base_ref":"main","ahead":1,"behind":1,"dirty_count":1},"issues":[],"claims":[],"claims_state":"present","policy":{"ok":true,"value":{"policy_version":1,"policy_digest":"` + testPolicyDigest + `","key_kind":"repo","roots":[],"capacity":{"kind":"bounded","limit":1},"on_capacity":"reject"}}}],"diagnostics":[],"machine":{"state":"unknown","error":"machine identity was not collected"},"dangling_claims":[]}`},
-		{"inventory unavailable", Inventory{Rows: []TreeRow{unavailable}, Diagnostics: []RepoDiagnostic{}}, `{"rows":[{"repo_identity":"/repo/.git","repo_root":"/repo","tree_path":"/repo","branch":"main","detached":false,"bare":false,"facts":{"available":false,"error":"git failed","base_available":false},"issues":[],"claims":[],"claims_state":"present","policy":{"ok":false,"diagnostic":{"code":"invalid-policy","message":"bad"}}}],"diagnostics":[],"machine":{"state":"unknown","error":"machine identity was not collected"},"dangling_claims":[]}`},
+		{"inventory available", Inventory{Rows: []TreeRow{available}, Diagnostics: []RepoDiagnostic{}}, `{"schema_version":1,"rows":[{"repo_identity":"/repo/.git","repo_root":"/repo","tree_path":"/repo","branch":"main","detached":false,"bare":false,"facts":{"available":true,"head":"head","commit_timestamp":"2026-01-02T03:04:05Z","base_available":true,"base_ref":"main","ahead":1,"behind":1,"dirty_count":1},"issues":[],"claims":[],"claims_state":"present","policy":{"ok":true,"value":{"policy_version":1,"policy_digest":"` + testPolicyDigest + `","key_kind":"repo","roots":[],"capacity":{"kind":"bounded","limit":1},"on_capacity":"reject"}}}],"diagnostics":[],"machine":{"state":"unknown","error":"machine identity was not collected"},"dangling_claims":[],"slots":[]}`},
+		{"inventory unavailable", Inventory{Rows: []TreeRow{unavailable}, Diagnostics: []RepoDiagnostic{}}, `{"schema_version":1,"rows":[{"repo_identity":"/repo/.git","repo_root":"/repo","tree_path":"/repo","branch":"main","detached":false,"bare":false,"facts":{"available":false,"error":"git failed","base_available":false},"issues":[],"claims":[],"claims_state":"present","policy":{"ok":false,"diagnostic":{"code":"invalid-policy","message":"bad"}}}],"diagnostics":[],"machine":{"state":"unknown","error":"machine identity was not collected"},"dangling_claims":[],"slots":[]}`},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			raw, err := json.Marshal(tt.value)
@@ -293,7 +293,7 @@ func TestJSONContract_InventoryRejectsNullAndUnknownNestedFields(t *testing.T) {
 	for _, raw := range []string{
 		`{"rows":null,"diagnostics":[]}`,
 		`{"rows":[],"diagnostics":null}`,
-		`{"rows":[{"repo_identity":"/repo/.git","repo_root":"/repo","tree_path":"/repo","detached":false,"bare":false,"facts":{"available":false},"issues":[],"claims":[],"claims_state":"present","policy":{"ok":false,"diagnostic":{"code":"invalid","message":"bad"}}}],"diagnostics":[]}`,
+		`{"schema_version":1,"rows":[{"repo_identity":"/repo/.git","repo_root":"/repo","tree_path":"/repo","detached":false,"bare":false,"facts":{"available":false},"issues":[],"claims":[],"claims_state":"present","policy":{"ok":false,"diagnostic":{"code":"invalid","message":"bad"}}}],"diagnostics":[]}`,
 	} {
 		var inventory Inventory
 		if err := json.Unmarshal([]byte(raw), &inventory); err == nil {
@@ -405,8 +405,8 @@ func FuzzJSONContractAlgebra(f *testing.F) {
 		if mode&4 != 0 {
 			row.Facts = MeasuredFacts{Error: "git failed"}
 		}
-		inventory := Inventory{Rows: []TreeRow{row}, Diagnostics: []RepoDiagnostic{}, DanglingClaims: []DanglingClaim{},
-			Machine: Machine{State: ClaimsUnknown, Error: "no identity source"}}
+		inventory := Inventory{SchemaVersion: InventorySchemaVersion, Rows: []TreeRow{row}, Diagnostics: []RepoDiagnostic{}, DanglingClaims: []DanglingClaim{},
+			Machine: Machine{State: MachineUnknown, Error: "no identity source"}, Slots: []Slot{}}
 		assertJSONRoundTrip(t, inventory, new(Inventory))
 	})
 }

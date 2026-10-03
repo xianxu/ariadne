@@ -106,6 +106,7 @@ type Records struct {
 }
 
 func (rs Records) All() []IssueRecord { return append([]IssueRecord(nil), rs.list...) }
+
 // get is the raw lookup. It is unexported on purpose (#288): a caller outside
 // this package must go through Require, so an unreadable card can never be
 // read as an absent one.

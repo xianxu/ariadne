@@ -260,15 +260,16 @@ var Catalog = []Contract{
 		Verbs:         []string{"fleet inventory"},
 		Class:         ReadOnly,
 		Effects:       "none besides each repository's tracker fetch updating its remote-tracking ref (the same read `issue show` performs).",
-		Evidence:      "its own output (`--json`): rows[].claims and claims_state, machine, dangling_claims (#288).",
+		Evidence:      "its own output (`--json`, schema_version 1): rows[].claims and claims_state, machine, dangling_claims (#288); slots[] with each member's verdict and reasons (#289).",
 		Preconditions: "none; any path inside the fleet (--path).",
 		Repeat:        "a fresh observation.",
 		LostResponse:  "rerun.",
-		Ends:          "each answer is as of its tracker reads; stale, partial and unknown claims states are not negative evidence.",
+		Ends:          "each answer is as of its reads; stale, partial and unknown states are not negative evidence, and a slot verdict is an observation an action re-checks at action time.",
 		Proofs: []Proof{
 			{"claims placed per worktree from one read per repository; a removed slot's claim is dangling", []string{"TestFleetInventoryPlacesClaims"}},
 			{"stale reads say so and keep the claims", []string{"TestFleetInventoryStaleClaimsSaySo"}},
 			{"a failed or partial read is never \"no claims\"", []string{"TestPlaceClaims"}},
+			{"one readiness verdict per slot over its declared checkouts; a failed probe is never ready", []string{"TestFleetInventorySlotReadiness", "TestJudgeCheckout"}},
 		},
 	},
 }

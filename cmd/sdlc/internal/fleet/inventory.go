@@ -116,12 +116,25 @@ func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOp
 	for _, repoDir := range repoDirs {
 		collectInventoryRepo(&inventory, diagnosticKeys, rowKeys, repoStates, repoDir, options.Git, isGitRepo, loadPolicy, lookupIssues)
 	}
+	// #289: slots. Numbered slots' declared dependency clones join the rows
+	// (the fleet walk never sees independent clones), reading their tracker
+	// through the fleet primary of the same repository.
+	hosts := discoverSlots(inventory.Rows, canonicalFleetRoot)
+	aliases := map[string]string{}
+	decls := collectDependencyRows(&inventory, hosts, canonicalFleetRoot, aliases, func(repoDir string) {
+		collectInventoryRepo(&inventory, diagnosticKeys, rowKeys, repoStates, repoDir, options.Git, isGitRepo, loadPolicy, func(repoRoot, id string) ([]IssueRecord, error) {
+			return lookupIssues(aliasOf(aliases, repoRoot), id)
+		})
+	}, options.Git, readDeclaration, statPath, canonicalMember)
+	// After every collector, dependency clones included, so none of their
+	// pending repository diagnostics is dropped.
 	for _, state := range repoStates {
 		if !state.complete && state.pending != nil {
 			appendRepoDiagnostic(&inventory, diagnosticKeys, *state.pending)
 		}
 	}
-	collectClaims(ctx, &inventory, options)
+	collectClaims(ctx, &inventory, options, aliases)
+	inventory.Slots = AssembleSlots(hosts, decls, inventory.Rows)
 
 	sort.Slice(inventory.Rows, func(i, j int) bool {
 		if inventory.Rows[i].RepoIdentity != inventory.Rows[j].RepoIdentity {
@@ -150,7 +163,7 @@ func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOp
 
 // collectClaims judges every repository's claims against this machine: one
 // claims read per repository with rows, the identity once per inventory.
-func collectClaims(ctx context.Context, inventory *Inventory, options InventoryOptions) {
+func collectClaims(ctx context.Context, inventory *Inventory, options InventoryOptions, aliases map[string]string) {
 	if options.Machine == nil {
 		inventory.Machine = MachineFrom(MachineIdentity{}, errors.New("no machine identity source"))
 	} else {
@@ -163,7 +176,7 @@ func collectClaims(ctx context.Context, inventory *Inventory, options InventoryO
 	byRepo := map[string]RepoClaims{}
 	for _, row := range inventory.Rows {
 		if _, done := byRepo[row.RepoIdentity]; !done {
-			byRepo[row.RepoIdentity] = lookup(row.RepoRoot)
+			byRepo[row.RepoIdentity] = lookup(aliasOf(aliases, row.RepoRoot))
 		}
 	}
 	inventory.Rows, inventory.DanglingClaims = PlaceClaims(inventory.Rows, byRepo, inventory.Machine)
@@ -187,6 +200,65 @@ func trackedRoots(repoDirs []string) []string {
 		}
 	}
 	return roots
+}
+
+// collectDependencyRows walks every numbered slot's declared dependencies and
+// collects each present clone that is not already a row (through collect),
+// recording an alias to the fleet primary of the same repository when both
+// share an origin URL, so the clone reuses that primary's tracker read. It
+// returns each host's declaration for AssembleSlots.
+func collectDependencyRows(inventory *Inventory, hosts []SlotHost, fleetRoot string, aliases map[string]string, collect func(string), git GitReader,
+	read func(string) (string, bool, error), stat func(string) error, canon func(string) string) map[string]SlotDeclaration {
+	decls := map[string]SlotDeclaration{}
+	known := map[string]bool{}
+	for _, row := range inventory.Rows {
+		known[row.TreePath] = true
+	}
+	for _, h := range hosts {
+		if h.Slot == 0 {
+			continue // :0 peers are shared, not this slot's
+		}
+		members, errs := DeclaredMembers(h.HostPath, h.EnvRoot, read, stat, canon)
+		decls[h.HostPath] = SlotDeclaration{Members: members, Errors: errs}
+		for _, m := range members {
+			if m.State != MemberPresent || known[m.Path] {
+				continue
+			}
+			known[m.Path] = true
+			if primary := filepath.Join(fleetRoot, filepath.Base(m.Path)); sameOrigin(git, m.Path, primary) {
+				aliases[m.Path] = primary
+			}
+			collect(m.Path)
+		}
+	}
+	return decls
+}
+
+// sameOrigin reports whether two checkouts' origins are one repository —
+// compared as publication identities, so GitHub's SSH and HTTPS spellings
+// match (one local config read each; any failure means "not the same").
+func sameOrigin(git GitReader, a, b string) bool {
+	identity := func(dir string) string {
+		out, err := git.GitInDir(dir, "config", "--get", "remote.origin.url")
+		if err != nil {
+			return ""
+		}
+		id, err := gitx.PublicationRepository(dir, strings.TrimSpace(string(out)))
+		if err != nil {
+			return ""
+		}
+		return id
+	}
+	ia := identity(a)
+	return ia != "" && ia == identity(b)
+}
+
+// aliasOf is the root whose tracker records stand for repoRoot.
+func aliasOf(aliases map[string]string, repoRoot string) string {
+	if a, ok := aliases[repoRoot]; ok {
+		return a
+	}
+	return repoRoot
 }
 
 type inventoryRepoState struct {
@@ -283,8 +355,9 @@ func collectInventoryRepo(inventory *Inventory, diagnosticKeys, rowKeys map[stri
 		issues, err := AssociateBranchIssue(worktree.Branch, func(id string) ([]IssueRecord, error) {
 			return lookupIssues(repoRoot, id)
 		})
+		issuesError := ""
 		if err != nil {
-			issues = make([]IssueAssociation, 0)
+			issues, issuesError = make([]IssueAssociation, 0), err.Error()
 			appendRepoDiagnostic(inventory, diagnosticKeys, RepoDiagnostic{RepoIdentity: repoIdentity, RepoPath: repoRoot, TreePath: worktree.Path, Stage: "issues", Message: err.Error()})
 		}
 
@@ -299,6 +372,7 @@ func collectInventoryRepo(inventory *Inventory, diagnosticKeys, rowKeys map[stri
 			Prunable:     cloneInventoryString(worktree.Prunable),
 			Facts:        facts,
 			Issues:       issues,
+			IssuesError:  issuesError,
 			Policy:       policy,
 		})
 	}

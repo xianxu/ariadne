@@ -22,6 +22,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 type moveDetailFlags struct {
@@ -66,26 +67,14 @@ An interrupted run resumes with ` + "`sdlc issue recovery reconcile --issue N`" 
 	return cmd
 }
 
-// gitOperationMarkers are the in-progress states during which the index and
-// HEAD are not the user's settled intent.
-var gitOperationMarkers = []string{"MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "REBASE_HEAD", "rebase-merge", "rebase-apply", "BISECT_LOG"}
-
-func gitOperationInProgress(git func(...string) (string, error), root string) (string, error) {
-	for _, m := range gitOperationMarkers {
-		p, err := git("rev-parse", "--git-path", m)
-		if err != nil {
-			return "", err
-		}
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(root, p)
-		}
-		if _, err := os.Lstat(p); err == nil {
-			return m, nil
-		} else if !errors.Is(err, os.ErrNotExist) {
-			return "", err
-		}
+// gitOperationInProgress names the operation in progress in the worktree git runs in
+// ("" for none), through the one marker list (workspace.OperationMarkers, #289).
+func gitOperationInProgress(git func(...string) (string, error)) (string, error) {
+	dir, err := git("rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return "", err
 	}
-	return "", nil
+	return workspace.ActiveOperation(strings.TrimSpace(dir), workspace.Lstat)
 }
 
 func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailFlags) error {
@@ -108,7 +97,7 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	if env.branch == "" {
 		return errors.New("move-detail needs a checked-out branch (the source's home)")
 	}
-	if op, err := gitOperationInProgress(env.git, env.root); err != nil {
+	if op, err := gitOperationInProgress(env.git); err != nil {
 		return err
 	} else if op != "" {
 		return fmt.Errorf("a Git operation is in progress (%s); finish or abort it first — nothing was changed", op)

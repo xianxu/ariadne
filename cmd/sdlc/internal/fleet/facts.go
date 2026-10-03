@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // CollectFacts measures one canonical worktree through GitReader. It is total:
@@ -55,9 +56,28 @@ func CollectFacts(git GitReader, worktreeRoot string) MeasuredFacts {
 	}
 	facts.DirtyCount = &dirtyCount
 	facts.Available = true
+	facts.collectOperation(worktreeRoot)
 
 	facts.collectBase(git, worktreeRoot)
 	return facts
+}
+
+// The operation probe reads files only (#289); seams for tests.
+var (
+	readGitPointer = workspace.ReadGitPointer
+	lstatMarker    = workspace.Lstat
+)
+
+// collectOperation records the operation in progress from the worktree's own
+// git directory — no git process.
+func (facts *MeasuredFacts) collectOperation(worktreeRoot string) {
+	dir, err := workspace.WorktreeGitDir(worktreeRoot, readGitPointer)
+	if err == nil {
+		facts.Operation, err = workspace.ActiveOperation(dir, lstatMarker)
+	}
+	if err != nil {
+		facts.Operation, facts.OperationError = "", err.Error()
+	}
 }
 
 func (facts *MeasuredFacts) collectBase(git GitReader, worktreeRoot string) {

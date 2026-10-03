@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"regexp"
 	"strings"
 
@@ -123,19 +122,16 @@ func (t landingTarget) fetchMain(r gitRunner) (string, error) {
 	return landingGit(r, t.Root, "rev-parse", "--verify", t.mainRef()+"^{commit}")
 }
 func landingNoOperation(r gitRunner, root string) error {
-	for _, operation := range []string{"MERGE_HEAD", "CHERRY_PICK_HEAD", "REVERT_HEAD", "rebase-merge", "rebase-apply", "sequencer", "BISECT_START"} {
-		p, err := landingGit(r, root, "rev-parse", "--git-path", operation)
-		if err != nil {
-			return err
-		}
-		if !filepath.IsAbs(p) {
-			p = filepath.Join(root, p)
-		}
-		if _, err = os.Stat(p); err == nil {
-			return fmt.Errorf("active Git operation %s; finish it before landing", operation)
-		} else if !os.IsNotExist(err) {
-			return err
-		}
+	dir, err := landingGit(r, root, "rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return err
+	}
+	operation, err := workspace.ActiveOperation(strings.TrimSpace(dir), workspace.Lstat)
+	if err != nil {
+		return err
+	}
+	if operation != "" {
+		return fmt.Errorf("active Git operation %s; finish it before landing", operation)
 	}
 	return nil
 }

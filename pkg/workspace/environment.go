@@ -182,3 +182,18 @@ func exactRegistration(trees []Worktree, path string) error {
 	}
 	return nil
 }
+
+// ValidSlotDependency is weave's placement rule for a numbered environment's
+// substrate dependency, shared with fleet readiness (#289): the declared
+// (lexical) and resolved (physical) destinations are the same ordinary direct
+// child of the environment root, and not the host. Canonicalization must never
+// conceal a destination elsewhere — a symlink to another checkout is refused.
+func ValidSlotDependency(envRoot, hostRoot, lexical, physical string) error {
+	if filepath.Dir(lexical) != envRoot || filepath.Dir(physical) != envRoot || lexical != physical {
+		return fmt.Errorf("source destination %s must be an ordinary direct child of environment %s; compose from the dependency primary", lexical, envRoot)
+	}
+	if physical == hostRoot {
+		return fmt.Errorf("source destination %s collides with environment host", physical)
+	}
+	return nil
+}
