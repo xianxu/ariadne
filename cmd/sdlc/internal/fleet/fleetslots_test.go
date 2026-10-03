@@ -3,6 +3,7 @@ package fleet
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -150,9 +151,23 @@ func writeFile(t *testing.T, p, body string) {
 	}
 }
 
-// #289: a declared clone that exists but is not a usable Git checkout surfaces
-// as a repository diagnostic and an unknown member — never dropped, never
-// ready.
+// worktreeListFails fails `git worktree list` in one directory, after every
+// earlier probe of it succeeded — the failure inventory records as pending.
+type worktreeListFails struct {
+	GitReader
+	dir string
+}
+
+func (r worktreeListFails) GitInDir(dir string, args ...string) ([]byte, error) {
+	if dir == r.dir && len(args) > 0 && args[0] == "worktree" {
+		return nil, errors.New("worktree list failed")
+	}
+	return r.GitReader.GitInDir(dir, args...)
+}
+
+// #289: a declared clone whose worktree list fails surfaces as a repository
+// diagnostic (recorded as pending, so it must be flushed after dependency
+// collection) and an unknown member — never dropped, never ready.
 func TestBrokenDependencyCloneIsReported(t *testing.T) {
 	fleetRoot, err := filepath.EvalSymlinks(t.TempDir())
 	if err != nil {
@@ -166,18 +181,18 @@ func TestBrokenDependencyCloneIsReported(t *testing.T) {
 	testfix.Git(t, prod, "commit", "-qm", "base")
 	host := filepath.Join(fleetRoot, "worktree", "prod-slot1", "prod")
 	testfix.Git(t, prod, "worktree", "add", "-q", "-b", workspace.RestingBranch(1), host)
-	broken := filepath.Join(fleetRoot, "worktree", "prod-slot1", "dep")
-	if err := os.MkdirAll(filepath.Join(broken, ".git"), 0o755); err != nil { // a .git with nothing in it
-		t.Fatal(err)
-	}
+	clone := filepath.Join(fleetRoot, "worktree", "prod-slot1", "dep")
+	testfix.Git(t, "", "init", "-q", "-b", "main", clone)
+	configure(t, clone)
+	testfix.Git(t, clone, "commit", "-q", "--allow-empty", "-m", "base")
 	freshRecords(t)
-	inv, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: execGitReader{}})
+	inv, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: worktreeListFails{GitReader: execGitReader{}, dir: clone}})
 	if err != nil {
 		t.Fatal(err)
 	}
 	reported := false
 	for _, d := range inv.Diagnostics {
-		reported = reported || d.RepoPath == broken
+		reported = reported || (d.RepoPath == clone && d.Stage == "worktrees")
 	}
 	var dep SlotMember
 	for _, s := range inv.Slots {

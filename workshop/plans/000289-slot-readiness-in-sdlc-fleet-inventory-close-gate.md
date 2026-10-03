@@ -185,6 +185,28 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 7
+      timestamp: "2026-10-02T17:31:23-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: Issue line 104 now names the pkg/workspace detector; issuemovedetail.go:70 comment drops root; plan line 156 says REBASE_HEAD comes first.
+          round: 7
+        - id: BR-12
+          disposition: not-addressed
+          note: 'Still bypassing ReadDeclaration: pkg/layergraph/fs.go:43 (OSFS.ReadFile used by walk.go:96), cmd/weave/link.go:69 fs.ReadFile, acquire.go:410 os.ReadFile fallback; no guard test.'
+          round: 7
+        - id: BR-13
+          disposition: addressed
+          note: pkg/layergraph/read_test.go covers ordinary, symlink, FIFO, oversize and missing.
+          round: 7
+        - id: BR-14
+          disposition: not-addressed
+          note: 'Flush move is correct, but TestBrokenDependencyCloneIsReported passes with the old order (verified in a scratch worktree): an empty .git fails at rev-parse and is reported at once, never pending. Needs a test whose clone fails worktree list (injected GitReader).'
+          round: 7
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#289 (boundary-review)
@@ -272,9 +294,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-14** [Minor] `late-collector-skips-finalization` Dependency-clone rows are collected after the pending-diagnostic flush, so their worktree-list failures are dropped
   inventory.go flushes repoStates pending diagnostics before collectDependencyRows runs collectInventoryRepo on clones; a clone whose worktree list fails records a pending diagnostic that is never appended, and its member reports a misleading "not a Git checkout" error. Move the flush after dependency collection and add a test.
 
+## Round 7 — 2026-10-02T17:31:23-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — Issue line 104 now names the pkg/workspace detector; issuemovedetail.go:70 comment drops root; plan line 156 says REBASE_HEAD comes first.
+- BR-12 — not-addressed — Still bypassing ReadDeclaration: pkg/layergraph/fs.go:43 (OSFS.ReadFile used by walk.go:96), cmd/weave/link.go:69 fs.ReadFile, acquire.go:410 os.ReadFile fallback; no guard test.
+- BR-13 — addressed — pkg/layergraph/read_test.go covers ordinary, symlink, FIFO, oversize and missing.
+- BR-14 — not-addressed — Flush move is correct, but TestBrokenDependencyCloneIsReported passes with the old order (verified in a scratch worktree): an empty .git fails at rev-parse and is reported at once, never pending. Needs a test whose clone fails worktree list (injected GitReader).
+
 ## Open findings
 
-- **BR-7** [Minor] `docs-restate-moved-identifier` Issue Plan M1 row still says gitx detector; issuemovedetail comment names removed root param
 - **BR-12** [Minor] `single-source-marker-list` pkg/layergraph.Walk still reads construct/deps via OSFS os.ReadFile, beside the new guarded reader
-- **BR-13** [Minor] `test-placement` pkg/layergraph.ReadDeclaration has no colocated test; covered only through weave acquire's Restore
 - **BR-14** [Minor] `late-collector-skips-finalization` Dependency-clone rows are collected after the pending-diagnostic flush, so their worktree-list failures are dropped
