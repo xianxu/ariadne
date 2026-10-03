@@ -15,7 +15,7 @@ import (
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
-const declarationLimit int64 = 1 << 20
+const declarationLimit = layergraph.DeclarationLimit
 
 func canonical(p string) (string, error) {
 	p, e := filepath.Abs(p)

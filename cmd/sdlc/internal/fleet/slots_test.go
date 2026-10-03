@@ -192,7 +192,7 @@ func TestSlotsContract(t *testing.T) {
 	for name, mutate := range map[string]func(string) string{
 		"other version":   func(s string) string { return strings.Replace(s, `"schema_version":1`, `"schema_version":2`, 1) },
 		"no version":      func(s string) string { return strings.Replace(s, `"schema_version":1,`, ``, 1) },
-		"null slots":      func(s string) string { return strings.Replace(s, `"slots":[{`, `"slots":null,"z":[{`, 1) },
+		"null slots":      func(s string) string { return editJSON(t, s, func(m map[string]any) { m["slots"] = nil }) },
 		"unknown verdict": func(s string) string { return strings.Replace(s, `"verdict":"ready"`, `"verdict":"fine"`, 1) },
 		"slot not the worst": func(s string) string {
 			return strings.Replace(s, `"verdict":"needs-recovery","members"`, `"verdict":"ready","members"`, 1)

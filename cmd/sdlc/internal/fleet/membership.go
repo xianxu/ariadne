@@ -2,7 +2,6 @@ package fleet
 
 import (
 	"errors"
-	"io"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -82,26 +81,17 @@ func DeclaredMembers(host, envRoot string, read func(dir string) (string, bool, 
 	return members, declErrs
 }
 
-// readDeclaration reads a checkout's `construct/deps` with weave's bound.
+// readDeclaration reads a checkout's `construct/deps` through weave's reader
+// (no symlink, no FIFO, bounded): found is false when it does not exist.
 func readDeclaration(dir string) (string, bool, error) {
-	f, err := os.Open(filepath.Join(dir, "construct", "deps"))
+	b, err := layergraph.ReadDeclaration(filepath.Join(dir, "construct", "deps"), layergraph.DeclarationLimit)
 	if errors.Is(err, fs.ErrNotExist) {
 		return "", false, nil
 	}
 	if err != nil {
 		return "", false, err
 	}
-	defer f.Close()
-	const limit = 1 << 20
-	buf := make([]byte, limit+1)
-	n, err := io.ReadFull(f, buf)
-	if err != nil && !errors.Is(err, io.ErrUnexpectedEOF) && !errors.Is(err, io.EOF) {
-		return "", false, err
-	}
-	if n > limit {
-		return "", false, errors.New("construct/deps exceeds 1 MiB")
-	}
-	return string(buf[:n]), true, nil
+	return string(b), true, nil
 }
 
 func statPath(p string) error {

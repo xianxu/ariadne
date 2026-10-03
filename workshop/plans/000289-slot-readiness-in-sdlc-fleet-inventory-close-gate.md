@@ -90,6 +90,36 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-02T17:09:58-07:00"
+      agent: claude
+      findings:
+        - id: BR-8
+          severity: Important
+          title: membership.go re-implements weave's construct/deps reader, weaker (follows symlinks, blocks on a FIFO)
+          detail: 'readDeclaration (cmd/sdlc/internal/fleet/membership.go:85) duplicates acquire.ReadDeclarations (cmd/weave/internal/acquire/acquire.go:404) and its 1 MiB limit, without the regular-file check or O_NOFOLLOW/O_NONBLOCK, so a FIFO construct/deps hangs the read-only inventory. This is the 2nd finding in family single-source-marker-list (M1 unified the operation markers into pkg/workspace). Rule: any slot-state read both weave and sdlc perform lives once in pkg/; cmd/sdlc never re-implements cmd/weave/internal behavior. Fix the rule: move ReadDeclarations (+limit) to pkg/layergraph, use it from weave refresh/acquire and fleet membership, and search for other duplicates (the substrate walk: weave canonicalizes, DeclaredMembers is lexical).'
+          family: single-source-marker-list
+          round: 4
+        - id: BR-9
+          severity: Minor
+          title: '"null slots" contract mutation also adds an unknown key, so the non-null check is never what fails'
+          detail: slots_test.go TestSlotsContract replaces `"slots":[{` with `"slots":null,"z":[{`; strict decoding rejects "z" regardless, so validateSlots' nil check has no test that isolates it.
+          family: contract-rejection-test-isolates-invariant
+          round: 4
+        - id: BR-10
+          severity: Minor
+          title: DeclaredMembers builds member paths lexically while rows are canonical
+          detail: 'A symlinked member or environment does not match its row: the member reports unknown with a misleading "not a Git checkout" error, and the alias lookup misses (an extra tracker read). Conservative, never wrongly ready.'
+          family: lexical-vs-canonical-path-join
+          round: 4
+        - id: BR-11
+          severity: Minor
+          title: collectDependencyRows calls readDeclaration/statPath directly but has collect and git injected
+          family: io-not-injected
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#289 (boundary-review)
@@ -136,6 +166,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `docs-restate-moved-identifier` Issue Plan M1 row still says gitx detector; issuemovedetail comment names removed root param
   2nd in family. Rule: a commit that moves or renames an identifier, or drops a parameter, greps the issue, the plan, the atlas and nearby comments for the old name in the same commit. Remaining sites: issue line 104 ("`gitx` operation detector"), issuemovedetail.go:70 ("in root's worktree"), and plan Chunk 1 ("reports rebase-merge"; REBASE_HEAD is reported first).
 
+## Round 4 — 2026-10-02T17:09:58-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-8** [Important] `single-source-marker-list` membership.go re-implements weave's construct/deps reader, weaker (follows symlinks, blocks on a FIFO)
+  readDeclaration (cmd/sdlc/internal/fleet/membership.go:85) duplicates acquire.ReadDeclarations (cmd/weave/internal/acquire/acquire.go:404) and its 1 MiB limit, without the regular-file check or O_NOFOLLOW/O_NONBLOCK, so a FIFO construct/deps hangs the read-only inventory. This is the 2nd finding in family single-source-marker-list (M1 unified the operation markers into pkg/workspace). Rule: any slot-state read both weave and sdlc perform lives once in pkg/; cmd/sdlc never re-implements cmd/weave/internal behavior. Fix the rule: move ReadDeclarations (+limit) to pkg/layergraph, use it from weave refresh/acquire and fleet membership, and search for other duplicates (the substrate walk: weave canonicalizes, DeclaredMembers is lexical).
+- **BR-9** [Minor] `contract-rejection-test-isolates-invariant` "null slots" contract mutation also adds an unknown key, so the non-null check is never what fails
+  slots_test.go TestSlotsContract replaces `"slots":[{` with `"slots":null,"z":[{`; strict decoding rejects "z" regardless, so validateSlots' nil check has no test that isolates it.
+- **BR-10** [Minor] `lexical-vs-canonical-path-join` DeclaredMembers builds member paths lexically while rows are canonical
+  A symlinked member or environment does not match its row: the member reports unknown with a misleading "not a Git checkout" error, and the alias lookup misses (an extra tracker read). Conservative, never wrongly ready.
+- **BR-11** [Minor] `io-not-injected` collectDependencyRows calls readDeclaration/statPath directly but has collect and git injected
+
 ## Open findings
 
 - **BR-7** [Minor] `docs-restate-moved-identifier` Issue Plan M1 row still says gitx detector; issuemovedetail comment names removed root param
+- **BR-8** [Important] `single-source-marker-list` membership.go re-implements weave's construct/deps reader, weaker (follows symlinks, blocks on a FIFO)
+- **BR-9** [Minor] `contract-rejection-test-isolates-invariant` "null slots" contract mutation also adds an unknown key, so the non-null check is never what fails
+- **BR-10** [Minor] `lexical-vs-canonical-path-join` DeclaredMembers builds member paths lexically while rows are canonical
+- **BR-11** [Minor] `io-not-injected` collectDependencyRows calls readDeclaration/statPath directly but has collect and git injected

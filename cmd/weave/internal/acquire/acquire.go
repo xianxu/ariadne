@@ -4,11 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"io"
 	"os"
 	"path/filepath"
 	"strings"
-	"syscall"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
 	"github.com/xianxu/ariadne/pkg/layergraph"
@@ -411,44 +409,5 @@ func (c Client) readDeclarations(path string) ([]byte, error) {
 	if c.MaxDeclarationBytes <= 0 {
 		return os.ReadFile(path)
 	}
-	st, err := os.Lstat(path)
-	if err != nil {
-		return nil, err
-	}
-	if !st.Mode().IsRegular() {
-		return nil, fmt.Errorf("dependency declaration %s must be an ordinary file", path)
-	}
-	if st.Size() > c.MaxDeclarationBytes {
-		return nil, fmt.Errorf("dependency declaration %s exceeds byte limit %d", path, c.MaxDeclarationBytes)
-	}
-	// Avoid following a replacement symlink or blocking on a replacement FIFO.
-	fd, err := syscall.Open(path, syscall.O_RDONLY|syscall.O_NOFOLLOW|syscall.O_NONBLOCK|syscall.O_CLOEXEC, 0)
-	if err != nil {
-		return nil, fmt.Errorf("open dependency declaration %s: %w", path, err)
-	}
-	f := os.NewFile(uintptr(fd), path)
-	defer f.Close()
-	st, err = f.Stat()
-	if err != nil {
-		return nil, err
-	}
-	if !st.Mode().IsRegular() {
-		return nil, fmt.Errorf("dependency declaration %s must be an ordinary file", path)
-	}
-	if st.Size() > c.MaxDeclarationBytes {
-		return nil, fmt.Errorf("dependency declaration %s exceeds byte limit %d", path, c.MaxDeclarationBytes)
-	}
-	content, err := io.ReadAll(io.LimitReader(f, c.MaxDeclarationBytes))
-	if err != nil {
-		return nil, err
-	}
-	var extra [1]byte
-	n, err := f.Read(extra[:])
-	if n > 0 {
-		return nil, fmt.Errorf("dependency declaration %s exceeds byte limit %d", path, c.MaxDeclarationBytes)
-	}
-	if err != nil && err != io.EOF {
-		return nil, err
-	}
-	return content, nil
+	return layergraph.ReadDeclaration(path, c.MaxDeclarationBytes)
 }

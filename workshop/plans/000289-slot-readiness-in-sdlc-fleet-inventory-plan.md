@@ -138,7 +138,8 @@ section; registers the recovery proof; updates help and atlas.
 |------|----------|--------|-------|
 | `CollectFacts` | `cmd/sdlc/internal/fleet/facts.go` | modified | `.git` pointer + marker `lstat`s |
 | `collectDependencyRows` (+ slot assembly in `CollectInventory`) | `cmd/sdlc/internal/fleet/inventory.go` | new | `construct/deps` reads, dependency-clone rows |
-| `readDeclaration` / `statPath` | `cmd/sdlc/internal/fleet/membership.go` | new | bounded `construct/deps` read, `stat` |
+| `readDeclaration` / `statPath` | `cmd/sdlc/internal/fleet/membership.go` | new | `layergraph.ReadDeclaration`, `stat` |
+| `layergraph.ReadDeclaration` / `DeclarationLimit` | `pkg/layergraph/read.go` | new (moved from weave's acquire) | bounded, no-follow, no-FIFO file read |
 | `sameOrigin` / `aliasOf` | `cmd/sdlc/internal/fleet/inventory.go` | new | `git config --get remote.origin.url` |
 | `gitx.PublicationRepository` | `cmd/sdlc/internal/gitx/publicationtarget.go` | modified (exported) | remote URL → identity |
 | `gitOperationInProgress` / `landingNoOperation` / weave `refresh` checkout check | `cmd/sdlc/issuemovedetail.go`, `cmd/sdlc/landing.go`, `cmd/weave/internal/refresh/git.go` | modified | `git rev-parse --absolute-git-dir` |
@@ -247,3 +248,9 @@ section; registers the recovery proof; updates help and atlas.
   identities 6.3s, 15 `ls-remote` as before). A declaration error on a
   checkout already needing recovery stays needs-recovery with `probe:deps`
   listed.
+- 2026-10-02 — M2 review BR-8: the `construct/deps` reader is weave's, moved to
+  `pkg/layergraph.ReadDeclaration` (ordinary file only, `O_NOFOLLOW|O_NONBLOCK`,
+  1 MiB bound); weave's acquire delegates to it and fleet uses it. Minors:
+  present members are canonicalized before matching rows and aliases; the
+  membership read/stat are injected into `collectDependencyRows`; contract
+  "null"/"missing" rejection tests edit exactly one field (`editJSON`).
