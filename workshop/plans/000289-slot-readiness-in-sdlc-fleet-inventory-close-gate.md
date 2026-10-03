@@ -155,6 +155,36 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 6
+      timestamp: "2026-10-02T17:25:29-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: ReadDeclaration lives in pkg/layergraph/read.go; acquire.readDeclarations delegates (acquire.go:412); fleet readDeclaration uses it; placement rule shared via workspace.ValidSlotDependency.
+          round: 6
+        - id: BR-10
+          disposition: addressed
+          note: DeclaredMembers canonicalizes via canon and judges declared+canonical paths with ValidSlotDependency; TestDeclaredMembers "symlink to a checkout elsewhere" pins it.
+          round: 6
+        - id: BR-12
+          disposition: not-addressed
+          note: walk.go:96 (OSFS os.ReadFile), startplan.go:409 and weave/link.go:68 still read construct/deps directly; no guard test.
+          round: 6
+        - id: BR-13
+          disposition: not-addressed
+          note: pkg/layergraph/read_test.go absent; ReadDeclaration still covered only via weave acquire.
+          round: 6
+      findings:
+        - id: BR-14
+          severity: Minor
+          title: Dependency-clone rows are collected after the pending-diagnostic flush, so their worktree-list failures are dropped
+          detail: inventory.go flushes repoStates pending diagnostics before collectDependencyRows runs collectInventoryRepo on clones; a clone whose worktree list fails records a pending diagnostic that is never appended, and its member reports a misleading "not a Git checkout" error. Move the flush after dependency collection and add a test.
+          family: late-collector-skips-finalization
+          round: 6
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#289 (boundary-review)
@@ -228,10 +258,23 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   3rd finding in family. Rule: every construct/deps read goes through layergraph.ReadDeclaration. walk.go:96 and fs.go:43 follow symlinks, block on a FIFO and are unbounded (used by weave compile and cmd/datatype). Fix: route OSFS declaration reads through ReadDeclaration and add a guard test that no non-test code opens construct/deps another way.
 - **BR-13** [Minor] `test-placement` pkg/layergraph.ReadDeclaration has no colocated test; covered only through weave acquire's Restore
 
+## Round 6 — 2026-10-02T17:25:29-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — ReadDeclaration lives in pkg/layergraph/read.go; acquire.readDeclarations delegates (acquire.go:412); fleet readDeclaration uses it; placement rule shared via workspace.ValidSlotDependency.
+- BR-10 — addressed — DeclaredMembers canonicalizes via canon and judges declared+canonical paths with ValidSlotDependency; TestDeclaredMembers "symlink to a checkout elsewhere" pins it.
+- BR-12 — not-addressed — walk.go:96 (OSFS os.ReadFile), startplan.go:409 and weave/link.go:68 still read construct/deps directly; no guard test.
+- BR-13 — not-addressed — pkg/layergraph/read_test.go absent; ReadDeclaration still covered only via weave acquire.
+
+### Raised
+
+- **BR-14** [Minor] `late-collector-skips-finalization` Dependency-clone rows are collected after the pending-diagnostic flush, so their worktree-list failures are dropped
+  inventory.go flushes repoStates pending diagnostics before collectDependencyRows runs collectInventoryRepo on clones; a clone whose worktree list fails records a pending diagnostic that is never appended, and its member reports a misleading "not a Git checkout" error. Move the flush after dependency collection and add a test.
+
 ## Open findings
 
 - **BR-7** [Minor] `docs-restate-moved-identifier` Issue Plan M1 row still says gitx detector; issuemovedetail comment names removed root param
-- **BR-8** [Important] `single-source-marker-list` membership.go re-implements weave's construct/deps reader, weaker (follows symlinks, blocks on a FIFO)
-- **BR-10** [Minor] `lexical-vs-canonical-path-join` DeclaredMembers builds member paths lexically while rows are canonical
 - **BR-12** [Minor] `single-source-marker-list` pkg/layergraph.Walk still reads construct/deps via OSFS os.ReadFile, beside the new guarded reader
 - **BR-13** [Minor] `test-placement` pkg/layergraph.ReadDeclaration has no colocated test; covered only through weave acquire's Restore
+- **BR-14** [Minor] `late-collector-skips-finalization` Dependency-clone rows are collected after the pending-diagnostic flush, so their worktree-list failures are dropped

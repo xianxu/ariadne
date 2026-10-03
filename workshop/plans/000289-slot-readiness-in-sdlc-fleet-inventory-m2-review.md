@@ -196,3 +196,97 @@ findings:
     title: |
       pkg/layergraph.ReadDeclaration has no colocated test; covered only through weave acquire's Restore
 ```
+
+---
+
+## Re-review — 2026-10-02T17:25:29-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 289 — Slot readiness in sdlc fleet inventory |
+| repo | ariadne |
+| issue file | workshop/issues/000289-slot-readiness-in-sdlc-fleet-inventory.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 407bd61baa85197b041573f3b4560aa8c31fc9d1..35aa7ebd7725602a88f9fb4603c60e4c86db0a64 |
+| command | sdlc milestone-close --issue 289 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-10-02T17:25:29-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+M2 does what it promised. Fleet inventory now gives one row per slot, with the address, the member checkouts, the worst-of verdict and reason codes for each member. The versioned contract is validated in both directions, and the recovery entry carries its proof. The fleet, layergraph, workspace and weave suites pass at HEAD (`go test ./cmd/sdlc/internal/fleet/... ./pkg/layergraph/... ./pkg/workspace/... ./cmd/weave/...`). Two of the open findings are fixed: BR-8 and BR-10. The `construct/deps` reader and weave's placement rule each live once in `pkg/` now, and weave calls both. Two Minors are still open (BR-12 and BR-13), and I found one new Minor about a dropped diagnostic. None of them can make a slot look ready when it isn't, so nothing blocks the boundary. Per the fix-minors-in-round rule they are cheap to fix now.
+
+**1. Strengths**
+- `pkg/layergraph/read.go:17`: there is now one hardened reader. It refuses symlinks and FIFOs, is bounded, and checks the file both before and after opening. `acquire.readDeclarations` delegates to it (`acquire.go:412`) instead of keeping its own copy.
+- `pkg/workspace/environment.go:191` `ValidSlotDependency`: weave's placement rule is pulled out, and `Policy.validate` and `DeclaredMembers` share it. Because it checks the declared path and the resolved path together, a member that is a symlink to a checkout elsewhere is judged `outside`, never that other checkout. The "symlink to a checkout elsewhere" case in `TestDeclaredMembers` pins this.
+- `DeclaredMembers` and `AssembleSlots` are pure (read, stat and path canonicalization are passed in), and `collectDependencyRows` takes all of its IO as parameters (ARCH-PURE).
+- `slots.go:262` `withProbe`: a failed `construct/deps` read can only push a member toward unknown, never toward ready, which matches the spec's "Unknown is never ready".
+- `TestFleetInventorySlotReadiness` runs against a real git fleet and asserts that a dependency clone adds no tracker read of its own.
+
+**2. Critical:** none.
+
+**3. Important:** none.
+
+**4. Minor**
+- **BR-12 is still open.** Three places still read `construct/deps` without the shared reader:
+  - `pkg/layergraph/walk.go:96` through `OSFS.ReadFile`, which is `os.ReadFile` (`fs.go:43`).
+  - `cmd/sdlc/startplan.go:409`, a direct `os.ReadFile`.
+  - `cmd/weave/link.go:68`.
+
+  There is also no guard test that would catch a new one.
+- **BR-13 is still open.** `pkg/layergraph/read_test.go` does not exist. `ReadDeclaration` is only tested indirectly, through weave's acquire tests.
+- **New: a dependency clone can lose its diagnostic.** In `inventory.go`, the dependency clones are collected after the loop that writes out each repository's pending diagnostics (`inventory.go:119-123`). If `worktree list` fails for a clone, the diagnostic it records is never written. The member then shows as unknown with the wrong message "is not a Git checkout the inventory could read", and the real git failure is lost.
+- **Docs, no finding raised.** Two small mismatches with the code:
+  - The atlas says members are "confined to the environment root". The actual rule is weave's: the member must be a direct child of the environment root, and a symlink is refused.
+  - The help text's list of probes that can make a member unknown leaves out `probe:membership` (a member declared outside the environment).
+
+**5. Test coverage notes**
+- `ValidSlotDependency` has no test of its own. Weave's policy tests and the membership tests cover it indirectly, which is acceptable.
+- No test covers a dependency clone whose `worktree list` fails. A test there would catch the dropped diagnostic above.
+
+**6. Architectural notes, one per principle**
+- **ARCH-DRY:** passes for this diff. The reader and the placement rule are shared, and the remaining duplicates are BR-12.
+- **ARCH-PURE:** passes.
+- **ARCH-PURPOSE:** passes. Every item in the Done-when list is delivered.
+- **ARCH-MOCK:** passes. The tests run against real git fixtures, with tracker reads injected.
+- **ARCH-CONSTRAINTS:** passes. Inventory time was measured at 6.3s, 0.4s more than the #290 baseline, against a target of at most +1s.
+- **ARCH-SECURE:** passes. The fleet's membership walk now reads untrusted `construct/deps` files only through the guarded reader.
+- **ARCH-ORDER:** passes. The inventory keeps no state between events: each run is a single fresh observation, and the help text and recovery entry both say an action must re-check the verdict.
+- **ARCH-FUNERAL:** passes. Nothing durable is created, since the command only reads and renders.
+
+**7. Plan revision recommendations:** none. The Revisions section already records the round-2 design: the shared placement rule, and the membership walk kept separate from `acquire.Restore` on purpose.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      ReadDeclaration lives in pkg/layergraph/read.go; acquire.readDeclarations delegates (acquire.go:412); fleet readDeclaration uses it; placement rule shared via workspace.ValidSlotDependency.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      DeclaredMembers canonicalizes via canon and judges declared+canonical paths with ValidSlotDependency; TestDeclaredMembers "symlink to a checkout elsewhere" pins it.
+  - id: BR-12
+    disposition: not-addressed
+    note: |
+      walk.go:96 (OSFS os.ReadFile), startplan.go:409 and weave/link.go:68 still read construct/deps directly; no guard test.
+  - id: BR-13
+    disposition: not-addressed
+    note: |
+      pkg/layergraph/read_test.go absent; ReadDeclaration still covered only via weave acquire.
+findings:
+  - id: new
+    severity: Minor
+    family: late-collector-skips-finalization
+    title: |
+      Dependency-clone rows are collected after the pending-diagnostic flush, so their worktree-list failures are dropped
+    detail: |
+      inventory.go flushes repoStates pending diagnostics before collectDependencyRows runs collectInventoryRepo on clones; a clone whose worktree list fails records a pending diagnostic that is never appended, and its member reports a misleading "not a Git checkout" error. Move the flush after dependency collection and add a test.
+```

@@ -28,6 +28,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
 // NewStartPlanCmd returns the cobra command for `sdlc start-plan`.
@@ -406,7 +407,8 @@ func substrateChain(root string) []string {
 	seen[rootKey] = true
 	var walk func(declRoot string)
 	walk = func(declRoot string) {
-		data, err := os.ReadFile(filepath.Join(declRoot, "construct", "deps"))
+		// The shared reader (#289): ordinary file only, bounded, never a FIFO.
+		data, err := layergraph.ReadDeclaration(filepath.Join(declRoot, "construct", "deps"), layergraph.DeclarationLimit)
 		if err != nil {
 			return
 		}

@@ -116,11 +116,6 @@ func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOp
 	for _, repoDir := range repoDirs {
 		collectInventoryRepo(&inventory, diagnosticKeys, rowKeys, repoStates, repoDir, options.Git, isGitRepo, loadPolicy, lookupIssues)
 	}
-	for _, state := range repoStates {
-		if !state.complete && state.pending != nil {
-			appendRepoDiagnostic(&inventory, diagnosticKeys, *state.pending)
-		}
-	}
 	// #289: slots. Numbered slots' declared dependency clones join the rows
 	// (the fleet walk never sees independent clones), reading their tracker
 	// through the fleet primary of the same repository.
@@ -131,6 +126,13 @@ func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOp
 			return lookupIssues(aliasOf(aliases, repoRoot), id)
 		})
 	}, options.Git, readDeclaration, statPath, canonicalMember)
+	// After every collector, dependency clones included, so none of their
+	// pending repository diagnostics is dropped.
+	for _, state := range repoStates {
+		if !state.complete && state.pending != nil {
+			appendRepoDiagnostic(&inventory, diagnosticKeys, *state.pending)
+		}
+	}
 	collectClaims(ctx, &inventory, options, aliases)
 	inventory.Slots = AssembleSlots(hosts, decls, inventory.Rows)
 

@@ -265,3 +265,10 @@ section; registers the recovery proof; updates help and atlas.
   policy-gated IO); readiness needs a read-only walk over what exists. What
   they share — grammar (`layergraph.ParseRows`), reader
   (`layergraph.ReadDeclaration`) and placement rule — lives once in `pkg/`.
+- 2026-10-02 — M2 close (FIX-THEN-SHIP) fixes bundled with the close: the
+  pending-diagnostic flush runs after dependency-clone collection
+  (`TestBrokenDependencyCloneIsReported`); `pkg/layergraph/read_test.go` tests
+  the shared reader (ordinary, symlink, FIFO, oversize, missing); sdlc's
+  `substrateChain` reads through it. `layergraph.Walk` and weave's `link` keep
+  reading `construct/deps` through their injected FS abstractions on purpose
+  (their tests depend on those seams); only direct OS reads were switched.

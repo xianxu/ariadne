@@ -149,3 +149,43 @@ func writeFile(t *testing.T, p, body string) {
 		t.Fatal(err)
 	}
 }
+
+// #289: a declared clone that exists but is not a usable Git checkout surfaces
+// as a repository diagnostic and an unknown member — never dropped, never
+// ready.
+func TestBrokenDependencyCloneIsReported(t *testing.T) {
+	fleetRoot, err := filepath.EvalSymlinks(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	prod := filepath.Join(fleetRoot, "prod")
+	testfix.Git(t, "", "init", "-q", "-b", "main", prod)
+	configure(t, prod)
+	writeFile(t, filepath.Join(prod, "construct", "deps"), "substrate ../dep\n")
+	testfix.Git(t, prod, "add", "-A")
+	testfix.Git(t, prod, "commit", "-qm", "base")
+	host := filepath.Join(fleetRoot, "worktree", "prod-slot1", "prod")
+	testfix.Git(t, prod, "worktree", "add", "-q", "-b", workspace.RestingBranch(1), host)
+	broken := filepath.Join(fleetRoot, "worktree", "prod-slot1", "dep")
+	if err := os.MkdirAll(filepath.Join(broken, ".git"), 0o755); err != nil { // a .git with nothing in it
+		t.Fatal(err)
+	}
+	freshRecords(t)
+	inv, err := CollectInventory(context.Background(), fleetRoot, InventoryOptions{Git: execGitReader{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	reported := false
+	for _, d := range inv.Diagnostics {
+		reported = reported || d.RepoPath == broken
+	}
+	var dep SlotMember
+	for _, s := range inv.Slots {
+		if s.Address == "prod:1" && len(s.Members) == 2 {
+			dep = s.Members[1]
+		}
+	}
+	if !reported || dep.Verdict != VerdictUnknown {
+		t.Fatalf("broken clone: diagnostic %v, member %+v; diagnostics %+v", reported, dep, inv.Diagnostics)
+	}
+}

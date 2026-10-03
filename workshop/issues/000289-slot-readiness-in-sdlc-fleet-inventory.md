@@ -102,11 +102,12 @@ design already spent after the claim.
 Durable plan: `workshop/plans/000289-slot-readiness-in-sdlc-fleet-inventory-plan.md`.
 
 - [x] M1 — per-checkout readiness facts and verdict (shared file-based `pkg/workspace` operation detector, operation on facts, pure `JudgeCheckout`)
-- [ ] M2 — fleet inventory reports one readiness row per slot (slots from paths, declared membership via `layergraph.ParseRows`, dependency clones as rows, `AssembleSlots`, versioned `slots`, real-git fixtures, recovery entry, help, atlas)
+- [x] M2 — fleet inventory reports one readiness row per slot (slots from paths, declared membership via `layergraph.ParseRows`, dependency clones as rows, `AssembleSlots`, versioned `slots`, real-git fixtures, recovery entry, help, atlas)
 
 ## Log
 
 ### 2026-10-02
+- 2026-10-02: closed M2 — make test green (processgroup sandbox-only); weave + pkg green. BR-8: reader (layergraph.ReadDeclaration) and placement rule (workspace.ValidSlotDependency, weave Policy.validate calls it) shared; DeclaredMembers judges declared+canonical paths (symlink-elsewhere case tested -> outside); walk kept separate from acquire.Restore by design (recorded in plan). TestFleetInventorySlotReadiness all match; live 39 slots in 6.8s.; review verdict: FIX-THEN-SHIP
 - 2026-10-02: closed M1 — make test green (904 cmd/sdlc tests; processgroup fails only in sandbox); go test ./cmd/weave/... ./pkg/... green. BR-4: atlas + issue Log name workspace.OperationMarkers (pkg/workspace) and list weave refresh; no gitx.* detector name remains (grep). Ambiguous match now ErrAmbiguousIssue -> TreeRow.IssuesError -> probe:issue (association table + property test). Rebase e2e test moved to pkg/workspace with plain git.; review verdict: SHIP
 
 Filed from pair#384's design review at the operator's direction (pair#384 closed
