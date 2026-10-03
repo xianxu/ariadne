@@ -120,6 +120,41 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 5
+      timestamp: "2026-10-02T17:17:39-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: not-addressed
+          note: 'The reader half is fixed (layergraph.ReadDeclaration shared, weave limits_test pins it). Still open: the substrate walk is neither shared with acquire.Restore nor recorded as separate, and DeclaredMembers dedups and checks environment membership lexically (membership.go:59-75), so a member symlinked to a :0 checkout counts as in-environment and takes that checkout''s verdict, a layout weave''s canonical policy refuses.'
+          round: 5
+        - id: BR-9
+          disposition: addressed
+          note: editJSON sets slots to null alone (slots_test.go:195), so validateSlots' nil check (types.go:425) is what fails; the sweep also covered the claims contract mutations.
+          round: 5
+        - id: BR-10
+          disposition: not-addressed
+          note: The canonicalization was added (inventory.go:220-235) without a regression test; no fleet test creates a symlinked member or environment, so removing it stays green. The lexical visited set can also yield duplicate members after canonicalization.
+          round: 5
+        - id: BR-11
+          disposition: addressed
+          note: read and stat are now parameters of collectDependencyRows (inventory.go:208), passed from CollectInventory.
+          round: 5
+      findings:
+        - id: BR-12
+          severity: Minor
+          title: pkg/layergraph.Walk still reads construct/deps via OSFS os.ReadFile, beside the new guarded reader
+          detail: '3rd finding in family. Rule: every construct/deps read goes through layergraph.ReadDeclaration. walk.go:96 and fs.go:43 follow symlinks, block on a FIFO and are unbounded (used by weave compile and cmd/datatype). Fix: route OSFS declaration reads through ReadDeclaration and add a guard test that no non-test code opens construct/deps another way.'
+          family: single-source-marker-list
+          round: 5
+        - id: BR-13
+          severity: Minor
+          title: pkg/layergraph.ReadDeclaration has no colocated test; covered only through weave acquire's Restore
+          family: test-placement
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#289 (boundary-review)
@@ -178,10 +213,25 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   A symlinked member or environment does not match its row: the member reports unknown with a misleading "not a Git checkout" error, and the alias lookup misses (an extra tracker read). Conservative, never wrongly ready.
 - **BR-11** [Minor] `io-not-injected` collectDependencyRows calls readDeclaration/statPath directly but has collect and git injected
 
+## Round 5 — 2026-10-02T17:17:39-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-8 — not-addressed — The reader half is fixed (layergraph.ReadDeclaration shared, weave limits_test pins it). Still open: the substrate walk is neither shared with acquire.Restore nor recorded as separate, and DeclaredMembers dedups and checks environment membership lexically (membership.go:59-75), so a member symlinked to a :0 checkout counts as in-environment and takes that checkout's verdict, a layout weave's canonical policy refuses.
+- BR-9 — addressed — editJSON sets slots to null alone (slots_test.go:195), so validateSlots' nil check (types.go:425) is what fails; the sweep also covered the claims contract mutations.
+- BR-10 — not-addressed — The canonicalization was added (inventory.go:220-235) without a regression test; no fleet test creates a symlinked member or environment, so removing it stays green. The lexical visited set can also yield duplicate members after canonicalization.
+- BR-11 — addressed — read and stat are now parameters of collectDependencyRows (inventory.go:208), passed from CollectInventory.
+
+### Raised
+
+- **BR-12** [Minor] `single-source-marker-list` pkg/layergraph.Walk still reads construct/deps via OSFS os.ReadFile, beside the new guarded reader
+  3rd finding in family. Rule: every construct/deps read goes through layergraph.ReadDeclaration. walk.go:96 and fs.go:43 follow symlinks, block on a FIFO and are unbounded (used by weave compile and cmd/datatype). Fix: route OSFS declaration reads through ReadDeclaration and add a guard test that no non-test code opens construct/deps another way.
+- **BR-13** [Minor] `test-placement` pkg/layergraph.ReadDeclaration has no colocated test; covered only through weave acquire's Restore
+
 ## Open findings
 
 - **BR-7** [Minor] `docs-restate-moved-identifier` Issue Plan M1 row still says gitx detector; issuemovedetail comment names removed root param
 - **BR-8** [Important] `single-source-marker-list` membership.go re-implements weave's construct/deps reader, weaker (follows symlinks, blocks on a FIFO)
-- **BR-9** [Minor] `contract-rejection-test-isolates-invariant` "null slots" contract mutation also adds an unknown key, so the non-null check is never what fails
 - **BR-10** [Minor] `lexical-vs-canonical-path-join` DeclaredMembers builds member paths lexically while rows are canonical
-- **BR-11** [Minor] `io-not-injected` collectDependencyRows calls readDeclaration/statPath directly but has collect and git injected
+- **BR-12** [Minor] `single-source-marker-list` pkg/layergraph.Walk still reads construct/deps via OSFS os.ReadFile, beside the new guarded reader
+- **BR-13** [Minor] `test-placement` pkg/layergraph.ReadDeclaration has no colocated test; covered only through weave acquire's Restore

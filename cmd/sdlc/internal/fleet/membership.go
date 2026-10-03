@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 
 	"github.com/xianxu/ariadne/pkg/layergraph"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // MemberState is what the walk found at a declared member's path.
@@ -15,24 +16,27 @@ type MemberState string
 const (
 	MemberPresent MemberState = "present" // the directory exists
 	MemberMissing MemberState = "missing" // declared, not there
-	MemberOutside MemberState = "outside" // declared outside the environment root
+	MemberOutside MemberState = "outside" // breaks weave's placement rule (workspace.ValidSlotDependency)
 )
 
 // MemberDecl is one declared substrate dependency of a numbered slot.
 type MemberDecl struct {
-	Path  string
+	Path  string // physical (canonical) when placed; as declared otherwise
 	State MemberState
+	Error string // why an outside member breaks the rule
 }
 
 // DeclaredMembers walks a numbered slot's substrate dependencies from its
 // host (#289): weave's `construct/deps` grammar (layergraph.ParseRows),
 // `substrate` rows only, each path relative to the checkout declaring it,
-// transitively, in discovery order. A member must sit directly under envRoot
-// (weave's slot policy); an absent member is still returned (missing). Cycles
-// end on a visited set. A declaration that cannot be read or parsed is
+// transitively, in discovery order. A member must satisfy weave's placement
+// rule, judged on its declared and canonical (canon) paths together
+// (workspace.ValidSlotDependency): a symlink to a checkout elsewhere is
+// outside, never that checkout. An absent member is still returned (missing).
+// Cycles end on a visited set of canonical paths. A declaration that cannot be read or parsed is
 // returned per declaring directory, so its checkout can be judged unknown.
 // Pure over read (content, found, err) and stat.
-func DeclaredMembers(host, envRoot string, read func(dir string) (string, bool, error), stat func(string) error) ([]MemberDecl, map[string]string) {
+func DeclaredMembers(host, envRoot string, read func(dir string) (string, bool, error), stat func(string) error, canon func(string) string) ([]MemberDecl, map[string]string) {
 	var members []MemberDecl
 	declErrs := map[string]string{}
 	visited := map[string]bool{filepath.Clean(host): true}
@@ -57,18 +61,21 @@ func DeclaredMembers(host, envRoot string, read func(dir string) (string, bool, 
 			if row.Kind != "substrate" {
 				continue
 			}
-			p := row.Path
-			if !filepath.IsAbs(p) {
-				p = filepath.Join(dir, p)
+			lexical := row.Path
+			if !filepath.IsAbs(lexical) {
+				lexical = filepath.Join(dir, lexical)
 			}
-			p = filepath.Clean(p)
+			lexical = filepath.Clean(lexical)
+			p := canon(lexical)
 			if visited[p] {
 				continue
 			}
 			visited[p] = true
+			if err := workspace.ValidSlotDependency(filepath.Clean(envRoot), filepath.Clean(host), lexical, p); err != nil {
+				members = append(members, MemberDecl{Path: lexical, State: MemberOutside, Error: err.Error()})
+				continue
+			}
 			switch err := stat(p); {
-			case filepath.Dir(p) != filepath.Clean(envRoot):
-				members = append(members, MemberDecl{Path: p, State: MemberOutside})
 			case errors.Is(err, fs.ErrNotExist):
 				members = append(members, MemberDecl{Path: p, State: MemberMissing})
 			default:
@@ -97,4 +104,14 @@ func readDeclaration(dir string) (string, bool, error) {
 func statPath(p string) error {
 	_, err := os.Stat(p)
 	return err
+}
+
+// canonicalMember resolves a declared path's existing prefix through symlinks
+// (weave canonicalizes destinations the same way).
+func canonicalMember(p string) string {
+	c, _, err := CanonicalProspectivePath(p)
+	if err != nil {
+		return p
+	}
+	return c
 }

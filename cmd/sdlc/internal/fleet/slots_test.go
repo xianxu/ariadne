@@ -138,10 +138,10 @@ func TestAssembleSlots(t *testing.T) {
 		slot    Verdict
 		members string
 	}{
-		{"clean dependency", []MemberDecl{{env + "/ariadne", MemberPresent}}, nil, VerdictNeedsRecovery, "host:ready,dependency:needs-recovery"},
-		{"missing dependency", []MemberDecl{{env + "/gone", MemberMissing}}, nil, VerdictMissing, "host:ready,dependency:missing"},
-		{"outside", []MemberDecl{{"/f/elsewhere", MemberOutside}}, nil, VerdictUnknown, "host:ready,dependency:unknown"},
-		{"not a checkout", []MemberDecl{{env + "/plain-dir", MemberPresent}}, nil, VerdictUnknown, "host:ready,dependency:unknown"},
+		{"clean dependency", []MemberDecl{{Path: env + "/ariadne", State: MemberPresent}}, nil, VerdictNeedsRecovery, "host:ready,dependency:needs-recovery"},
+		{"missing dependency", []MemberDecl{{Path: env + "/gone", State: MemberMissing}}, nil, VerdictMissing, "host:ready,dependency:missing"},
+		{"outside", []MemberDecl{{Path: "/f/elsewhere", State: MemberOutside}}, nil, VerdictUnknown, "host:ready,dependency:unknown"},
+		{"not a checkout", []MemberDecl{{Path: env + "/plain-dir", State: MemberPresent}}, nil, VerdictUnknown, "host:ready,dependency:unknown"},
 		{"unreadable declaration", nil, map[string]string{env + "/pair": "permission denied"}, VerdictUnknown, "host:unknown"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
@@ -172,7 +172,7 @@ func sampleSlotsInventory(t *testing.T) Inventory {
 	dirty.Facts.DirtyCount = &two
 	rows := []TreeRow{slotRow("/f/pair", env+"/pair", "main-slot1"), dirty}
 	host := SlotHost{Repo: "pair", Slot: 1, Address: "pair:1", Resting: "main-slot1", HostPath: env + "/pair", EnvRoot: env}
-	slots := AssembleSlots([]SlotHost{host}, map[string]SlotDeclaration{host.HostPath: {Members: []MemberDecl{{env + "/ariadne", MemberPresent}}}}, rows)
+	slots := AssembleSlots([]SlotHost{host}, map[string]SlotDeclaration{host.HostPath: {Members: []MemberDecl{{Path: env + "/ariadne", State: MemberPresent}}}}, rows)
 	return Inventory{Rows: rows, Machine: me, Slots: slots}
 }
 

@@ -140,6 +140,8 @@ section; registers the recovery proof; updates help and atlas.
 | `collectDependencyRows` (+ slot assembly in `CollectInventory`) | `cmd/sdlc/internal/fleet/inventory.go` | new | `construct/deps` reads, dependency-clone rows |
 | `readDeclaration` / `statPath` | `cmd/sdlc/internal/fleet/membership.go` | new | `layergraph.ReadDeclaration`, `stat` |
 | `layergraph.ReadDeclaration` / `DeclarationLimit` | `pkg/layergraph/read.go` | new (moved from weave's acquire) | bounded, no-follow, no-FIFO file read |
+| `workspace.ValidSlotDependency` | `pkg/workspace/environment.go` | new (moved from weave's `Policy.validate`) | — (pure placement rule) |
+| `canonicalMember` | `cmd/sdlc/internal/fleet/membership.go` | new | `CanonicalProspectivePath` |
 | `sameOrigin` / `aliasOf` | `cmd/sdlc/internal/fleet/inventory.go` | new | `git config --get remote.origin.url` |
 | `gitx.PublicationRepository` | `cmd/sdlc/internal/gitx/publicationtarget.go` | modified (exported) | remote URL → identity |
 | `gitOperationInProgress` / `landingNoOperation` / weave `refresh` checkout check | `cmd/sdlc/issuemovedetail.go`, `cmd/sdlc/landing.go`, `cmd/weave/internal/refresh/git.go` | modified | `git rev-parse --absolute-git-dir` |
@@ -254,3 +256,12 @@ section; registers the recovery proof; updates help and atlas.
   present members are canonicalized before matching rows and aliases; the
   membership read/stat are injected into `collectDependencyRows`; contract
   "null"/"missing" rejection tests edit exactly one field (`editJSON`).
+- 2026-10-02 — M2 review round 2 (BR-8, walk half): membership is judged by
+  weave's own placement rule, moved to `pkg/workspace.ValidSlotDependency`
+  (weave's `Policy.validate` calls it), on the declared and canonical paths
+  together, so a member symlinked to a checkout elsewhere is `outside`, never
+  that checkout. The transitive walk itself stays separate from weave's
+  `acquire.Restore` on purpose: Restore performs acquisition (clones, staging,
+  policy-gated IO); readiness needs a read-only walk over what exists. What
+  they share — grammar (`layergraph.ParseRows`), reader
+  (`layergraph.ReadDeclaration`) and placement rule — lives once in `pkg/`.

@@ -316,3 +316,8 @@ The simplest durable authority beats a clever scan of consequences.
   value's emptiness. "No issue association" is both "looked up, no match" and
   "lookup failed" — #289 M1 judged the second from the first until the row
   recorded the lookup's error next to its result (as `claims_state` does).
+- A read sdlc and weave both perform on slot state lives once in `pkg/`;
+  `cmd/sdlc` never re-implements `cmd/weave/internal` behavior. #289 re-derived
+  weave's marker list, `construct/deps` reader and placement rule, each weaker
+  (lexical paths, symlink-following, FIFO-blocking) until moved to
+  `pkg/workspace` / `pkg/layergraph` and shared.

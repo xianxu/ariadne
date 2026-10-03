@@ -231,7 +231,7 @@ func AssembleSlots(hosts []SlotHost, decls map[string]SlotDeclaration, rows []Tr
 						MemberVerdict: MemberVerdict{Verdict: VerdictMissing, Reasons: []string{"missing"}}})
 				case MemberOutside:
 					s.Members = append(s.Members, SlotMember{Role: RoleDependency, Path: decl.Path, RestingBranch: workspace.RestingBranch(0),
-						MemberVerdict: MemberVerdict{Verdict: VerdictUnknown, Reasons: []string{"probe:membership"}, Errors: []string{decl.Path + " is declared outside the environment " + h.EnvRoot}}})
+						MemberVerdict: MemberVerdict{Verdict: VerdictUnknown, Reasons: []string{"probe:membership"}, Errors: []string{decl.Error}}})
 				default:
 					s.Members = append(s.Members, judge(RoleDependency, decl.Path, workspace.RestingBranch(0)))
 				}

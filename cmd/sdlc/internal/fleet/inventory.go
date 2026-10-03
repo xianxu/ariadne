@@ -130,7 +130,7 @@ func CollectInventory(ctx context.Context, fleetRoot string, options InventoryOp
 		collectInventoryRepo(&inventory, diagnosticKeys, rowKeys, repoStates, repoDir, options.Git, isGitRepo, loadPolicy, func(repoRoot, id string) ([]IssueRecord, error) {
 			return lookupIssues(aliasOf(aliases, repoRoot), id)
 		})
-	}, options.Git, readDeclaration, statPath)
+	}, options.Git, readDeclaration, statPath, canonicalMember)
 	collectClaims(ctx, &inventory, options, aliases)
 	inventory.Slots = AssembleSlots(hosts, decls, inventory.Rows)
 
@@ -206,7 +206,7 @@ func trackedRoots(repoDirs []string) []string {
 // share an origin URL, so the clone reuses that primary's tracker read. It
 // returns each host's declaration for AssembleSlots.
 func collectDependencyRows(inventory *Inventory, hosts []SlotHost, fleetRoot string, aliases map[string]string, collect func(string), git GitReader,
-	read func(string) (string, bool, error), stat func(string) error) map[string]SlotDeclaration {
+	read func(string) (string, bool, error), stat func(string) error, canon func(string) string) map[string]SlotDeclaration {
 	decls := map[string]SlotDeclaration{}
 	known := map[string]bool{}
 	for _, row := range inventory.Rows {
@@ -216,23 +216,7 @@ func collectDependencyRows(inventory *Inventory, hosts []SlotHost, fleetRoot str
 		if h.Slot == 0 {
 			continue // :0 peers are shared, not this slot's
 		}
-		members, errs := DeclaredMembers(h.HostPath, h.EnvRoot, read, stat)
-		// Rows are canonical; a member reached through a symlink must match
-		// its row (and its alias) by the same spelling.
-		canonical := map[string]string{}
-		for i, m := range members {
-			if m.State == MemberPresent {
-				if c, err := canonicalPath(m.Path); err == nil {
-					canonical[m.Path], members[i].Path = c, c
-				}
-			}
-		}
-		for dir, err := range errs {
-			if c, ok := canonical[dir]; ok {
-				delete(errs, dir)
-				errs[c] = err
-			}
-		}
+		members, errs := DeclaredMembers(h.HostPath, h.EnvRoot, read, stat, canon)
 		decls[h.HostPath] = SlotDeclaration{Members: members, Errors: errs}
 		for _, m := range members {
 			if m.State != MemberPresent || known[m.Path] {

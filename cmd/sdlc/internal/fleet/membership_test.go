@@ -19,17 +19,19 @@ func TestDeclaredMembers(t *testing.T) {
 		name  string
 		deps  map[string]string // dir -> construct/deps content
 		exist []string
-		want  string // "path:state[:declaring-error]" joined by ","
+		links map[string]string // declared path -> canonical target
+		want  string            // "path:state" joined by ","; "!dir" for a declaration error
 	}{
-		{"no deps", map[string]string{}, nil, ""},
-		{"direct", map[string]string{env + "/prod": "substrate ../dep https://x/dep.git\n"}, []string{env + "/dep"}, env + "/dep:present"},
+		{"no deps", map[string]string{}, nil, nil, ""},
+		{"direct", map[string]string{env + "/prod": "substrate ../dep https://x/dep.git\n"}, []string{env + "/dep"}, nil, env + "/dep:present"},
 		{"transitive", map[string]string{
 			env + "/prod": "substrate ../mid\n", env + "/mid": "substrate ../base\n# comment\ndata https://x/d.git ../data\n",
-		}, []string{env + "/mid", env + "/base"}, env + "/mid:present," + env + "/base:present"},
-		{"cycle", map[string]string{env + "/prod": "substrate ../a\n", env + "/a": "substrate ../prod\nsubstrate ../a\n"}, []string{env + "/a"}, env + "/a:present"},
-		{"absent", map[string]string{env + "/prod": "substrate ../dep\n"}, nil, env + "/dep:missing"},
-		{"outside the environment", map[string]string{env + "/prod": "substrate ../../../elsewhere\n"}, nil, "/f/elsewhere:outside"},
-		{"malformed", map[string]string{env + "/prod": "substrate\n"}, nil, "!" + env + "/prod"},
+		}, []string{env + "/mid", env + "/base"}, nil, env + "/mid:present," + env + "/base:present"},
+		{"cycle", map[string]string{env + "/prod": "substrate ../a\n", env + "/a": "substrate ../prod\nsubstrate ../a\n"}, []string{env + "/a"}, nil, env + "/a:present"},
+		{"absent", map[string]string{env + "/prod": "substrate ../dep\n"}, nil, nil, env + "/dep:missing"},
+		{"symlink to a checkout elsewhere", map[string]string{env + "/prod": "substrate ../dep\n"}, []string{"/f/dep"}, map[string]string{env + "/dep": "/f/dep"}, env + "/dep:outside"},
+		{"outside the environment", map[string]string{env + "/prod": "substrate ../../../elsewhere\n"}, nil, nil, "/f/elsewhere:outside"},
+		{"malformed", map[string]string{env + "/prod": "substrate\n"}, nil, nil, "!" + env + "/prod"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			exists := map[string]bool{env + "/prod": true, env + "/undeclared": true}
@@ -46,7 +48,13 @@ func TestDeclaredMembers(t *testing.T) {
 				}
 				return fs.ErrNotExist
 			}
-			members, declErrs := DeclaredMembers(env+"/prod", env, read, stat)
+			canon := func(p string) string {
+				if c, ok := tc.links[p]; ok {
+					return c
+				}
+				return p
+			}
+			members, declErrs := DeclaredMembers(env+"/prod", env, read, stat, canon)
 			var got []string
 			for _, m := range members {
 				got = append(got, m.Path+":"+string(m.State))
@@ -61,7 +69,7 @@ func TestDeclaredMembers(t *testing.T) {
 	}
 	t.Run("unreadable declaration", func(t *testing.T) {
 		read := func(string) (string, bool, error) { return "", false, errors.New("permission denied") }
-		_, declErrs := DeclaredMembers(env+"/prod", env, read, func(string) error { return nil })
+		_, declErrs := DeclaredMembers(env+"/prod", env, read, func(string) error { return nil }, func(p string) string { return p })
 		if !strings.Contains(declErrs[env+"/prod"], "permission denied") {
 			t.Fatalf("%v", declErrs)
 		}
