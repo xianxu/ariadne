@@ -94,6 +94,9 @@ func renderInventory(w io.Writer, inventory Inventory) error {
 	if err := renderMachineClaims(w, inventory); err != nil {
 		return err
 	}
+	if err := renderSlots(w, inventory.Slots); err != nil {
+		return err
+	}
 	for _, diagnostic := range diagnostics {
 		if _, err := fmt.Fprintf(w, "diagnostic repo_path=%s stage=%s message=%s", quote(diagnostic.RepoPath), quote(diagnostic.Stage), quote(diagnostic.Message)); err != nil {
 			return err
@@ -145,6 +148,35 @@ func renderMachineClaims(w io.Writer, inventory Inventory) error {
 	for _, d := range inventory.DanglingClaims {
 		if _, err := fmt.Fprintf(w, "dangling_claim=%s status=%s worktree=%s repo_identity=%s\n", quote(d.Ref), quote(d.Status), quote(d.Claimant.Worktree), quote(d.RepoIdentity)); err != nil {
 			return err
+		}
+	}
+	return nil
+}
+
+// renderSlots prints each slot's verdict and its members' reasons (#289).
+func renderSlots(w io.Writer, slots []Slot) error {
+	for _, s := range slots {
+		line := fmt.Sprintf("slot=%s verdict=%s resting_branch=%s", quote(s.Address), s.Verdict, quote(s.RestingBranch))
+		if s.EnvironmentRoot != "" {
+			line += " environment=" + quote(s.EnvironmentRoot)
+		}
+		if _, err := fmt.Fprintln(w, line); err != nil {
+			return err
+		}
+		for _, m := range s.Members {
+			line := fmt.Sprintf("  member=%s verdict=%s path=%s", m.Role, m.Verdict, quote(m.Path))
+			if m.Branch != "" {
+				line += " branch=" + quote(m.Branch)
+			}
+			if len(m.Reasons) > 0 {
+				line += " reasons=" + quote(strings.Join(m.Reasons, ","))
+			}
+			if len(m.Errors) > 0 {
+				line += " errors=" + quote(strings.Join(m.Errors, "; "))
+			}
+			if _, err := fmt.Fprintln(w, line); err != nil {
+				return err
+			}
 		}
 	}
 	return nil

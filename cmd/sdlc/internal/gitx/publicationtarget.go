@@ -79,6 +79,10 @@ func ResolvePublicationTarget(ctx context.Context, root, restingBranch string) (
 	return t, nil
 }
 
+// PublicationRepository is the stable identity of a remote URL as seen from
+// root (GitHub HTTPS and SSH spell one repository; local paths canonicalize).
+func PublicationRepository(root, raw string) (string, error) { return publicationRepository(root, raw) }
+
 func publicationRepository(root, raw string) (string, error) {
 	// GitHub's owner/repo identity is independent of HTTPS versus SSH transport
 	// and is case-insensitive. Do not apply that assumption to arbitrary hosts.

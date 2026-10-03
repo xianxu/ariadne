@@ -1,6 +1,8 @@
 package fleet
 
 import (
+	"bytes"
+	"encoding/json"
 	"strings"
 	"testing"
 )
@@ -77,5 +79,150 @@ func TestVerdictOrder(t *testing.T) {
 	}
 	if Worst(VerdictHoldsWork, VerdictMissing, VerdictReady) != VerdictMissing {
 		t.Fatal("worst-of")
+	}
+}
+
+func slotRow(repoRoot, tree, branch string) TreeRow {
+	row := validTreeRow()
+	zero := 0
+	row.RepoIdentity, row.RepoRoot, row.TreePath, row.Branch = repoRoot+"/.git", repoRoot, tree, branch
+	row.Facts.Ahead, row.Facts.Behind, row.Facts.DirtyCount = &zero, &zero, &zero
+	return row
+}
+
+// #289: slots come from row paths alone — a fleet primary is repo:0, the
+// canonical slot path of the row's own repository is repo:N; look-alikes,
+// feature worktrees and clones are not slots.
+func TestDiscoverSlots(t *testing.T) {
+	const f = "/f"
+	rows := []TreeRow{
+		slotRow(f+"/pair", f+"/pair", "main"),
+		slotRow(f+"/pair", f+"/worktree/pair-slot2/pair", "main-slot2"),
+		slotRow(f+"/pair", f+"/worktree/pair-slot1/pair", "main-slot1"),
+		slotRow(f+"/pair", f+"/worktree/pair-slot01/pair", "x"),                             // non-canonical number
+		slotRow(f+"/pair", f+"/worktree/ariadne-slot1/pair", "x"),                           // another repository's slot path
+		slotRow(f+"/pair", "/tmp/feature", "000001-x"),                                      // feature worktree
+		slotRow(f+"/worktree/pair-slot1/ariadne", f+"/worktree/pair-slot1/ariadne", "main"), // dependency clone
+		slotRow(f+"/ariadne", f+"/ariadne", "main"),
+	}
+	var got []string
+	for _, h := range discoverSlots(rows, f) {
+		got = append(got, h.Address+"@"+h.HostPath+"#"+h.Resting+"|"+h.EnvRoot)
+	}
+	want := []string{
+		"ariadne:0@/f/ariadne#main|",
+		"pair:0@/f/pair#main|",
+		"pair:1@/f/worktree/pair-slot1/pair#main-slot1|/f/worktree/pair-slot1",
+		"pair:2@/f/worktree/pair-slot2/pair#main-slot2|/f/worktree/pair-slot2",
+	}
+	if strings.Join(got, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("got\n%s\nwant\n%s", strings.Join(got, "\n"), strings.Join(want, "\n"))
+	}
+}
+
+// #289: a slot folds its members to the worst verdict; members keep their own.
+// A declared clone that is missing, outside the environment, or not a
+// checkout is judged without a row; a declaration error lands on its declarer.
+func TestAssembleSlots(t *testing.T) {
+	const env = "/f/worktree/pair-slot1"
+	host := SlotHost{Repo: "pair", Slot: 1, Address: "pair:1", Resting: "main-slot1", HostPath: env + "/pair", EnvRoot: env}
+	zero := SlotHost{Repo: "pair", Address: "pair:0", Resting: "main", HostPath: "/f/pair"}
+	dirty := slotRow(env+"/ariadne", env+"/ariadne", "main")
+	three := 3
+	dirty.Facts.DirtyCount = &three
+	rows := []TreeRow{slotRow("/f/pair", env+"/pair", "main-slot1"), dirty, slotRow("/f/pair", "/f/pair", "main")}
+	for _, tc := range []struct {
+		name    string
+		decls   []MemberDecl
+		declErr map[string]string
+		slot    Verdict
+		members string
+	}{
+		{"clean dependency", []MemberDecl{{env + "/ariadne", MemberPresent}}, nil, VerdictNeedsRecovery, "host:ready,dependency:needs-recovery"},
+		{"missing dependency", []MemberDecl{{env + "/gone", MemberMissing}}, nil, VerdictMissing, "host:ready,dependency:missing"},
+		{"outside", []MemberDecl{{"/f/elsewhere", MemberOutside}}, nil, VerdictUnknown, "host:ready,dependency:unknown"},
+		{"not a checkout", []MemberDecl{{env + "/plain-dir", MemberPresent}}, nil, VerdictUnknown, "host:ready,dependency:unknown"},
+		{"unreadable declaration", nil, map[string]string{env + "/pair": "permission denied"}, VerdictUnknown, "host:unknown"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			slots := AssembleSlots([]SlotHost{host, zero}, map[string]SlotDeclaration{host.HostPath: {Members: tc.decls, Errors: tc.declErr}}, rows)
+			s := slots[0]
+			var got []string
+			for _, m := range s.Members {
+				got = append(got, m.Role+":"+string(m.Verdict))
+				if m.Verdict != VerdictReady && len(m.Reasons) == 0 {
+					t.Fatalf("%s %s has no reasons", m.Role, m.Verdict)
+				}
+			}
+			if s.Verdict != tc.slot || strings.Join(got, ",") != tc.members {
+				t.Fatalf("slot %s %v, want %s %s", s.Verdict, got, tc.slot, tc.members)
+			}
+			if z := slots[1]; z.Address != "pair:0" || len(z.Members) != 1 || z.Verdict != VerdictReady {
+				t.Fatalf(":0 is its host alone: %+v", z)
+			}
+		})
+	}
+}
+
+func sampleSlotsInventory(t *testing.T) Inventory {
+	t.Helper()
+	const env = "/f/worktree/pair-slot1"
+	dirty := slotRow(env+"/ariadne", env+"/ariadne", "main")
+	two := 2
+	dirty.Facts.DirtyCount = &two
+	rows := []TreeRow{slotRow("/f/pair", env+"/pair", "main-slot1"), dirty}
+	host := SlotHost{Repo: "pair", Slot: 1, Address: "pair:1", Resting: "main-slot1", HostPath: env + "/pair", EnvRoot: env}
+	slots := AssembleSlots([]SlotHost{host}, map[string]SlotDeclaration{host.HostPath: {Members: []MemberDecl{{env + "/ariadne", MemberPresent}}}}, rows)
+	return Inventory{Rows: rows, Machine: me, Slots: slots}
+}
+
+// #289: the slots contract round-trips and each invariant has a rejection.
+func TestSlotsContract(t *testing.T) {
+	raw, err := json.Marshal(sampleSlotsInventory(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var back Inventory
+	if err := json.Unmarshal(raw, &back); err != nil {
+		t.Fatalf("%v\n%s", err, raw)
+	}
+	if len(back.Slots) != 1 || back.Slots[0].Verdict != VerdictNeedsRecovery || back.Slots[0].Members[1].Reasons[0] != "dirty" {
+		t.Fatalf("round trip: %s", raw)
+	}
+	for name, mutate := range map[string]func(string) string{
+		"other version":   func(s string) string { return strings.Replace(s, `"schema_version":1`, `"schema_version":2`, 1) },
+		"no version":      func(s string) string { return strings.Replace(s, `"schema_version":1,`, ``, 1) },
+		"null slots":      func(s string) string { return strings.Replace(s, `"slots":[{`, `"slots":null,"z":[{`, 1) },
+		"unknown verdict": func(s string) string { return strings.Replace(s, `"verdict":"ready"`, `"verdict":"fine"`, 1) },
+		"slot not the worst": func(s string) string {
+			return strings.Replace(s, `"verdict":"needs-recovery","members"`, `"verdict":"ready","members"`, 1)
+		},
+		"non-ready, no reasons": func(s string) string { return strings.Replace(s, `"reasons":["dirty"]`, `"reasons":[]`, 1) },
+		"host not first":        func(s string) string { return strings.Replace(s, `"role":"host"`, `"role":"dependency"`, 1) },
+	} {
+		t.Run(name, func(t *testing.T) {
+			bad := mutate(string(raw))
+			if bad == string(raw) {
+				t.Fatal("mutation did not apply")
+			}
+			var inv Inventory
+			if err := json.Unmarshal([]byte(bad), &inv); err == nil {
+				t.Fatalf("accepted %s", bad)
+			}
+		})
+	}
+}
+
+// #289: the human view names each slot, its verdict and each member's reasons.
+func TestRenderSlots(t *testing.T) {
+	var b bytes.Buffer
+	if err := RenderInventory(&b, sampleSlotsInventory(t)); err != nil {
+		t.Fatal(err)
+	}
+	want := "slot=\"pair:1\" verdict=needs-recovery resting_branch=\"main-slot1\" environment=\"/f/worktree/pair-slot1\"\n" +
+		"  member=host verdict=ready path=\"/f/worktree/pair-slot1/pair\" branch=\"main-slot1\"\n" +
+		"  member=dependency verdict=needs-recovery path=\"/f/worktree/pair-slot1/ariadne\" branch=\"main\" reasons=\"dirty\"\n"
+	if !strings.Contains(b.String(), want) {
+		t.Fatalf("render lacks the slot block:\n%s", b.String())
 	}
 }

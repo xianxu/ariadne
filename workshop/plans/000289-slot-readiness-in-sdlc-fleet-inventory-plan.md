@@ -111,9 +111,10 @@ section; registers the recovery proof; updates help and atlas.
 | `TreeRow.IssuesError` | `cmd/sdlc/internal/fleet/types.go` | modified |
 | `Verdict` (+ constants, rank) / `MemberVerdict` | `cmd/sdlc/internal/fleet/slots.go` | new |
 | `JudgeCheckout` | `cmd/sdlc/internal/fleet/slots.go` | new |
-| `DeclaredMembers` | `cmd/sdlc/internal/fleet/membership.go` | new |
+| `DeclaredMembers` / `MemberDecl` / `MemberState` | `cmd/sdlc/internal/fleet/membership.go` | new |
 | `SlotHost` / `discoverSlots` | `cmd/sdlc/internal/fleet/slots.go` | new |
-| `Slot` / `SlotMember` / `AssembleSlots` | `cmd/sdlc/internal/fleet/slots.go` | new |
+| `Slot` / `SlotMember` / `SlotDeclaration` / `AssembleSlots` / `withProbe` | `cmd/sdlc/internal/fleet/slots.go` | new |
+| `ErrAmbiguousIssue` (in `AssociateBranchIssue`) | `cmd/sdlc/internal/fleet/issues.go` | new |
 | `Inventory` (`schema_version`, `slots`) | `cmd/sdlc/internal/fleet/types.go` | modified |
 | `workspace.RestingBranch` | `pkg/workspace/identity.go` | new |
 
@@ -136,8 +137,10 @@ section; registers the recovery proof; updates help and atlas.
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
 | `CollectFacts` | `cmd/sdlc/internal/fleet/facts.go` | modified | `.git` pointer + marker `lstat`s |
-| `collectSlots` | `cmd/sdlc/internal/fleet/inventory.go` | new | `construct/deps` reads, dependency-clone rows |
-| `aliasRecords` | `cmd/sdlc/internal/fleet/issues.go` | new | `git config --get remote.origin.url` |
+| `collectDependencyRows` (+ slot assembly in `CollectInventory`) | `cmd/sdlc/internal/fleet/inventory.go` | new | `construct/deps` reads, dependency-clone rows |
+| `readDeclaration` / `statPath` | `cmd/sdlc/internal/fleet/membership.go` | new | bounded `construct/deps` read, `stat` |
+| `sameOrigin` / `aliasOf` | `cmd/sdlc/internal/fleet/inventory.go` | new | `git config --get remote.origin.url` |
+| `gitx.PublicationRepository` | `cmd/sdlc/internal/gitx/publicationtarget.go` | modified (exported) | remote URL → identity |
 | `gitOperationInProgress` / `landingNoOperation` / weave `refresh` checkout check | `cmd/sdlc/issuemovedetail.go`, `cmd/sdlc/landing.go`, `cmd/weave/internal/refresh/git.go` | modified | `git rev-parse --absolute-git-dir` |
 
 ## Chunk 1 — M1: per-checkout readiness
@@ -235,3 +238,12 @@ section; registers the recovery proof; updates help and atlas.
   match is ready. Minors: the detector moved to `pkg/workspace` and weave's
   refresh uses it (weave gains REBASE_HEAD/BISECT_LOG); the unused `root`
   parameter of `gitOperationInProgress` is gone. Core-concepts rows rewritten.
+- 2026-10-02 — M2 implementation: integration names as built (table rows
+  rewritten: `collectDependencyRows`, `sameOrigin`/`aliasOf` in
+  `inventory.go`, `readDeclaration` in `membership.go`). Origins are compared
+  as publication identities (`gitx.PublicationRepository`): this fleet's
+  primary uses the SSH spelling and weave's clones the HTTPS one, and a raw
+  URL comparison gave each clone its own tracker read (inventory 13.6s; with
+  identities 6.3s, 15 `ls-remote` as before). A declaration error on a
+  checkout already needing recovery stays needs-recovery with `probe:deps`
+  listed.

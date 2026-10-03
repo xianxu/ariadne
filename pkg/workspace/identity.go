@@ -86,10 +86,7 @@ func Classify(v Vantage, trees []Worktree, refs map[string]string) (Identity, er
 	}
 	id.Slot = pointer(n)
 	id.Address = pointer((Address{Repo: id.Repo, Slot: n}).String())
-	rest := "main"
-	if n > 0 {
-		rest += "-slot" + strconv.Itoa(n)
-	}
+	rest := RestingBranch(n)
 	id.RestingBranch = pointer(rest)
 	if n == 0 {
 		return id, nil
@@ -110,6 +107,14 @@ func Classify(v Vantage, trees []Worktree, refs map[string]string) (Identity, er
 	}
 	return id, nil
 }
+// RestingBranch is slot n's resting branch: main for :0, main-slotN otherwise.
+func RestingBranch(n int) string {
+	if n == 0 {
+		return "main"
+	}
+	return "main-slot" + strconv.Itoa(n)
+}
+
 func reservedSlot(branch string) bool {
 	s := strings.TrimPrefix(branch, "main-slot")
 	n, e := strconv.Atoi(s)

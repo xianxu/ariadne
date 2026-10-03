@@ -379,13 +379,21 @@ type RepoDiagnostic struct {
 // Inventory is a total fleet observation. Both collections are initialized so
 // its JSON representation uses [] rather than null even for an empty fleet.
 type Inventory struct {
-	Rows        []TreeRow        `json:"rows"`
-	Diagnostics []RepoDiagnostic `json:"diagnostics"`
+	// SchemaVersion is the inventory contract's version (#289); consumers
+	// reject any other.
+	SchemaVersion int              `json:"schema_version"`
+	Rows          []TreeRow        `json:"rows"`
+	Diagnostics   []RepoDiagnostic `json:"diagnostics"`
 	// Machine is this machine as claims record it; DanglingClaims are its
 	// claims whose worktree is no row (#288).
 	Machine        Machine         `json:"machine"`
 	DanglingClaims []DanglingClaim `json:"dangling_claims"`
+	// Slots are each workspace's readiness (#289).
+	Slots []Slot `json:"slots"`
 }
+
+// InventorySchemaVersion is the version this binary emits and accepts.
+const InventorySchemaVersion = 1
 
 // withDefaults fills the collections and an uncollected machine section.
 func (i Inventory) withDefaults() Inventory {
@@ -401,7 +409,28 @@ func (i Inventory) withDefaults() Inventory {
 	if i.Machine.State == "" {
 		i.Machine = Machine{State: MachineUnknown, Error: "machine identity was not collected"}
 	}
+	if i.Slots == nil {
+		i.Slots = []Slot{}
+	}
+	if i.SchemaVersion == 0 {
+		i.SchemaVersion = InventorySchemaVersion
+	}
 	return i
+}
+
+func (i Inventory) validateSlots() error {
+	if i.SchemaVersion != InventorySchemaVersion {
+		return fmt.Errorf("schema_version %d is not %d", i.SchemaVersion, InventorySchemaVersion)
+	}
+	if i.Slots == nil {
+		return errors.New("slots must be non-null")
+	}
+	for _, s := range i.Slots {
+		if err := s.validate(); err != nil {
+			return fmt.Errorf("slot %s: %w", s.Address, err)
+		}
+	}
+	return nil
 }
 
 func (i Inventory) validateClaims() error {
@@ -437,16 +466,21 @@ func (i Inventory) MarshalJSON() ([]byte, error) {
 	if err := i.validateClaims(); err != nil {
 		return nil, fmt.Errorf("marshal inventory: %w", err)
 	}
+	if err := i.validateSlots(); err != nil {
+		return nil, fmt.Errorf("marshal inventory: %w", err)
+	}
 	type wire Inventory
 	return json.Marshal(wire(i))
 }
 
 func (i *Inventory) UnmarshalJSON(raw []byte) error {
 	var wire struct {
+		SchemaVersion  *int             `json:"schema_version"`
 		Rows           []TreeRow        `json:"rows"`
 		Diagnostics    []RepoDiagnostic `json:"diagnostics"`
 		Machine        *Machine         `json:"machine"`
 		DanglingClaims []DanglingClaim  `json:"dangling_claims"`
+		Slots          []Slot           `json:"slots"`
 	}
 	if err := strictUnmarshal(raw, &wire); err != nil {
 		return fmt.Errorf("unmarshal inventory: %w", err)
@@ -457,13 +491,19 @@ func (i *Inventory) UnmarshalJSON(raw []byte) error {
 	if wire.Machine == nil {
 		return errors.New("unmarshal inventory: missing machine")
 	}
+	if wire.SchemaVersion == nil {
+		return errors.New("unmarshal inventory: missing schema_version")
+	}
 	for _, diagnostic := range wire.Diagnostics {
 		if err := diagnostic.validate(); err != nil {
 			return fmt.Errorf("unmarshal inventory: %w", err)
 		}
 	}
-	value := Inventory{Rows: wire.Rows, Diagnostics: wire.Diagnostics, Machine: *wire.Machine, DanglingClaims: wire.DanglingClaims}
+	value := Inventory{SchemaVersion: *wire.SchemaVersion, Rows: wire.Rows, Diagnostics: wire.Diagnostics, Machine: *wire.Machine, DanglingClaims: wire.DanglingClaims, Slots: wire.Slots}
 	if err := value.validateClaims(); err != nil {
+		return fmt.Errorf("unmarshal inventory: %w", err)
+	}
+	if err := value.validateSlots(); err != nil {
 		return fmt.Errorf("unmarshal inventory: %w", err)
 	}
 	*i = value

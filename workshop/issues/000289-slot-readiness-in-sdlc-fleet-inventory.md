@@ -127,6 +127,17 @@ refresh switched to it via one `rev-parse --absolute-git-dir`), `MeasuredFacts.O
 order (`TestJudgeCheckout`, 18 cases). Precedence refined: needs-recovery wins
 whenever its facts were read.
 
+M2 implemented: slots from row paths (`workspace.RestingBranch` exported),
+`DeclaredMembers` over `layergraph.ParseRows`, dependency clones as rows with
+tracker reads aliased to the fleet primary by publication identity,
+`AssembleSlots` worst-of fold, versioned contract (`schema_version` 1,
+`slots`), render, catalog proof, help, atlas. `TestFleetInventorySlotReadiness`
+(real fleet: 11 numbered slots, one cause each in host or clone, plus `:0`)
+all match. Live on this machine: 39 slots in 6.3s (#290 baseline 5.9s), e.g.
+pair:1 holds-work (claims #363/#367), parli:1 and tools:1 missing their
+declared ariadne clone. Found while measuring: origin spellings differ
+(SSH vs HTTPS), so origins compare as identities.
+
 ## Revisions
 
 - 2026-10-02 — operator: drop path listing from needs-recovery (reasons only).
