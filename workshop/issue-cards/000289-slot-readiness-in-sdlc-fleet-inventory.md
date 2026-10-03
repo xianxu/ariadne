@@ -1,6 +1,6 @@
 ---
 id: 000289
-status: codecomplete
+status: done
 created: 2026-10-02
 updated: 2026-10-02
 estimate_hours: 2.25
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 457b63372007b9f878131aef2b8865733374a1e5
         evidence_commit: 44e6d0f300477594ebdb7c5e363575f020244493
+        landed_commit: 5359df78c4c7807cc4e1380a81608aadf0b19da0
 ---
 
 # Slot readiness in sdlc fleet inventory
