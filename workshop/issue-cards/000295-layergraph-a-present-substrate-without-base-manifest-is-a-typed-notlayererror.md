@@ -1,6 +1,6 @@
 ---
 id: 000295
-status: codecomplete
+status: done
 created: 2026-10-05
 updated: 2026-10-05
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 6e8e4d8ca4f328fb6b912fdd650df2092f4c6f35
         evidence_commit: bd67ffda0b92cebd65606565b97085838f94da6f
+        landed_commit: b9bc9f32f5aead0a270182ca4ca228db64ddd9b3
 ---
 
 # layergraph: a present substrate without base.manifest is a typed NotLayerError
