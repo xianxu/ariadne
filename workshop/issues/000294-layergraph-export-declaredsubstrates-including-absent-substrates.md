@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "dc28fae9", done: "af9fed3e"}
 ---
 
 # layergraph: export DeclaredSubstrates, including absent substrates
