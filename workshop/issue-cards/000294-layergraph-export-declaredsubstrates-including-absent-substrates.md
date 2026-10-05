@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000294-layergraph-export-declaredsubstrates-including-absent-substrates.md
         source_blob: a8d1eef440e041b36a5ca59b7f95917f8e5077fc
         destination: workshop/issues/000294-layergraph-export-declaredsubstrates-including-absent-substrates.md
+        main_commit: f0723dbb8125834a74a949786bdf25323ad54fa0
 ---
 
 # layergraph: export DeclaredSubstrates, including absent substrates
