@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000293-fleet-record-a-clone-source-on-every-construct-deps-substrate-row.md
         source_blob: efab08b74d53808d050c0a15c8ae3d10128ce567
         destination: workshop/issues/000293-fleet-record-a-clone-source-on-every-construct-deps-substrate-row.md
+        main_commit: 2a839ee2e84112dfeb38690a3aa0704693c5a537
 ---
 
 # Fleet: record a clone source on every construct/deps substrate row
