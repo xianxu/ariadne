@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "bd6b0662", done: "48d968cc"}
 ---
 
 # layergraph: a present substrate without base.manifest is a typed NotLayerError
