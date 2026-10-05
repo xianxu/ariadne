@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000295-layergraph-a-present-substrate-without-base-manifest-is-a-typed-notlayererror.md
         source_blob: 3a88eeff27c5a01571ff8b978e68f909b46af400
         destination: workshop/issues/000295-layergraph-a-present-substrate-without-base-manifest-is-a-typed-notlayererror.md
+        main_commit: 6191354435032f7244790b92233983e969e23788
 ---
 
 # layergraph: a present substrate without base.manifest is a typed NotLayerError
