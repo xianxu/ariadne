@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.12
+actual_hours: 0.15
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000294-layergraph-export-declaredsubstrates-including-absent-substrates.md
         main_commit: f0723dbb8125834a74a949786bdf25323ad54fa0
     completion:
-        token: close-021cd92bf44a
+        token: close-e61635a0280f
         repository: github.com/xianxu/ariadne
-        reviewed_head: 866aac6358ce176d27004a1bd4488e777212b328
-        evidence_commit: 17537cbdf23778ecb15ceaa48c477dbdb36eb748
+        reviewed_head: 4f436c2d723cf0397eecea61aafd0736d3d6716e
+        evidence_commit: 87c1ad586df24718e760cde936d2cbbad181eeaa
 ---
 
 # layergraph: export DeclaredSubstrates, including absent substrates
