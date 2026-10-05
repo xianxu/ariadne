@@ -98,14 +98,14 @@ so `OSFS` refusing one changes nothing. Package stays stdlib-only.
 ARCH-FUNERAL: creates nothing durable (a read-only walk). ARCH-ORDER: no state
 between events.
 
-- [ ] Tests first (`walk_test.go`, existing in-memory FS fakes): transitive
+- [x] Tests first (`walk_test.go`, existing in-memory FS fakes): transitive
   present chain; absent substrate reported, not descended; source carried; a
   malformed row errors; an unresolvable parent skipped; dedup across two owners
   (first owner kept); `Walk`'s layer set equals the present, manifest-bearing
   subset of `DeclaredSubstrates`; an oversized declaration errors.
-- [ ] Refactor `discoverEdges` into `declaredGraph`; `substrateTargets` returns
+- [x] Refactor `discoverEdges` into `declaredGraph`; `substrateTargets` returns
   rows; export `DeclaredSubstrate` / `DeclaredSubstrates`.
-- [ ] `DeclarationReader` + `OSFS.ReadDeclaration`; bounded fallback.
+- [x] `DeclarationReader` + `OSFS.ReadDeclaration`; bounded fallback.
 - [ ] `go test ./pkg/... ./cmd/weave/... ./cmd/datatype/... ./cmd/vocabulary/...` + `make test`; atlas; close; land.
 
 ## Log
@@ -114,3 +114,15 @@ between events.
 
 Filed at the operator's request from pair#387 planning (its Task 1.3 imports
 this; Tasks 1.1–1.2 do not wait). Related: #293 (fleet substrate sources).
+
+Implemented. `declaredGraph` is the one BFS: `discoverEdges` (Walk) and
+`DeclaredSubstrates` are its two views. `substrateTargets` returns rows with
+`Source` via `ParseRows`. `DeclarationReader` (OSFS implements it with
+`ReadDeclaration`); other FS fall back to `ReadFile` + `DeclarationLimit`.
+Tests: `TestDeclaredSubstrates` (transitive chain, absent reported with source,
+unresolvable parent skipped, dedup first-owner, root never its own substrate),
+`TestDeclaredSubstratesErrors` (malformed row, present without manifest),
+`TestWalkIsThePresentSubsetOfDeclaredSubstrates`, `TestDeclarationReadsAreBounded`
+(oversized via OSFS and a plain FS; symlinked declaration refused by OSFS).
+`go list -deps ./pkg/layergraph`: stdlib only. weave, datatype, vocabulary,
+fleet tests green.
