@@ -155,7 +155,14 @@ real temporary-repository conformance tests.
   ports `deps_substrate_targets` + the `_seen_or_add` filters), `Resolve`
   (foundation-first topo-sort + dedup; ports `discover_ancestors`), `ParseDeps`
   (`construct/deps` substrate-edge parser; ports `lib-deps.sh:deps_substrate_targets`),
-  `FS` (the walk's IO seam). `cmd/weave/internal/layer` now carries only the
+  `FS` (the walk's IO seam). `DeclaredSubstrates` (#294) is the same traversal
+  (`declaredGraph`) reporting every declared substrate — present or absent,
+  with owner and source — for consumers that must see a missing clone (pair's
+  slot reconciler); `Walk`'s layers are exactly its present entries.
+  `construct/deps` reads are bounded: through `ReadDeclaration` when the FS is
+  a `DeclarationReader` (`OSFS` is), else `ReadFile` plus `DeclarationLimit`.
+  The package is stdlib-only, so other repositories can import it.
+  `cmd/weave/internal/layer` now carries only the
   resolved-layer value types (`Layer`, `ProseFragment`). `pkg/frontmatter` —
   flat-YAML `description:` parser, shared with weave's skill discovery. **[M1]**
 - `cmd/weave/internal/{intent,plan,walk,weavefs,golden}` + `main.go` —

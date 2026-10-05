@@ -1,12 +1,22 @@
 ---
 id: 000294
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-05
 updated: 2026-10-05
 estimate_hours:
-card_mirror: 'ccb79f725c7dc69c40a046249c8f5c54e330c5d4' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a611338caf0855b5dec46e083aea6e6ab7cb34d9' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-05T15:17:10-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 0.15
 ---
 
 # layergraph: export DeclaredSubstrates, including absent substrates
@@ -72,11 +82,57 @@ func DeclaredSubstrates(fs FS, root string) ([]DeclaredSubstrate, error)
 
 ## Plan
 
-- [ ]
+One traversal, two views (so `Walk` and `DeclaredSubstrates` cannot diverge):
+`declaredGraph(fs, root)` is the existing BFS from `discoverEdges`, extended to
+record every declared substrate (owner, physical path, source, present) as well
+as the edge map. `Walk` keeps using the edges; `DeclaredSubstrates` returns the
+declared list. `substrateTargets` returns rows (path + source, via `ParseRows`
+substrate rows) instead of paths. Self-exclusion and the present-but-no-manifest
+loud error stay exactly as `Walk` has them, so both views share them.
+
+Bounded reads: `construct/deps` is read through `ReadDeclaration` when the FS
+offers it (an optional `DeclarationReader` interface `OSFS` implements), else
+`ReadFile` with the `DeclarationLimit` length check — weave's fs and test fakes
+keep working unchanged. No fleet `construct/deps` is a symlink today (checked),
+so `OSFS` refusing one changes nothing. Package stays stdlib-only.
+
+ARCH-FUNERAL: creates nothing durable (a read-only walk). ARCH-ORDER: no state
+between events.
+
+- [x] Tests first (`walk_test.go`, existing in-memory FS fakes): transitive
+  present chain; absent substrate reported, not descended; source carried; a
+  malformed row errors; an unresolvable parent skipped; dedup across two owners
+  (first owner kept); `Walk`'s layer set equals the present, manifest-bearing
+  subset of `DeclaredSubstrates`; an oversized declaration errors.
+- [x] Refactor `discoverEdges` into `declaredGraph`; `substrateTargets` returns
+  rows; export `DeclaredSubstrate` / `DeclaredSubstrates`.
+- [x] `DeclarationReader` + `OSFS.ReadDeclaration`; bounded fallback.
+- [x] `go test ./pkg/... ./cmd/weave/... ./cmd/datatype/... ./cmd/vocabulary/...` + `make test`; atlas; close; land.
 
 ## Log
 
 ### 2026-10-05
+- 2026-10-05: closed — Re-close after fixing the three close-review Minors: TestUnreadableDeclarationIsLoudAndRootsAreAbsolute (construct/deps that exists but cannot be read is an error for Walk and DeclaredSubstrates under OSFS; relative root yields absolute Path/Owner); fallback bound documented. Earlier evidence: TestDeclaredSubstrates, TestDeclaredSubstratesErrors, TestWalkIsThePresentSubsetOfDeclaredSubstrates, TestDeclarationReadsAreBounded; stdlib-only; pkg/weave/datatype/vocabulary/fleet green; make test green.; review verdict: SHIP
+- 2026-10-05: closed — DeclaredSubstrates exported over the one traversal Walk uses (declaredGraph). Tests: TestDeclaredSubstrates (transitive present chain; absent reported with Present=false and source, not descended; unresolvable parent skipped; dedup across two owners, first kept; root never its own substrate), TestDeclaredSubstratesErrors (malformed row; present without manifest), TestWalkIsThePresentSubsetOfDeclaredSubstrates, TestDeclarationReadsAreBounded. go list -deps: stdlib only. pkg, weave, datatype, vocabulary, fleet tests green; make test green (processgroup sandbox-only).; review verdict: SHIP
+- 2026-10-05: flow upgraded quick → full — 105 added lines in code files (limit 100)
 
 Filed at the operator's request from pair#387 planning (its Task 1.3 imports
 this; Tasks 1.1–1.2 do not wait). Related: #293 (fleet substrate sources).
+
+Implemented. `declaredGraph` is the one BFS: `discoverEdges` (Walk) and
+`DeclaredSubstrates` are its two views. `substrateTargets` returns rows with
+`Source` via `ParseRows`. `DeclarationReader` (OSFS implements it with
+`ReadDeclaration`); other FS fall back to `ReadFile` + `DeclarationLimit`.
+Tests: `TestDeclaredSubstrates` (transitive chain, absent reported with source,
+unresolvable parent skipped, dedup first-owner, root never its own substrate),
+`TestDeclaredSubstratesErrors` (malformed row, present without manifest),
+`TestWalkIsThePresentSubsetOfDeclaredSubstrates`, `TestDeclarationReadsAreBounded`
+(oversized via OSFS and a plain FS; symlinked declaration refused by OSFS).
+`go list -deps ./pkg/layergraph`: stdlib only. weave, datatype, vocabulary,
+fleet tests green.
+
+Close review Minors fixed in round: with a safe reader (OSFS) a construct/deps
+that exists but cannot be read is now an error for Walk and DeclaredSubstrates
+(previously "no deps" — intended: a silently dropped layer chain was #155's
+failure mode), tested; the ReadFile fallback's bound is documented as a parse
+bound; a relative root is made absolute, tested.

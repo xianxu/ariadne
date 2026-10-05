@@ -44,5 +44,20 @@ func (OSFS) ReadFile(path string) ([]byte, error)       { return os.ReadFile(pat
 func (OSFS) ReadDir(path string) ([]os.DirEntry, error) { return os.ReadDir(path) }
 func (OSFS) Stat(path string) (os.FileInfo, error)      { return os.Stat(path) }
 
+// DeclarationReader is an FS that can read a construct/deps document safely
+// (#294). The walk prefers it; other FS implementations are read with
+// ReadFile and the byte limit.
+type DeclarationReader interface {
+	ReadDeclaration(path string) ([]byte, error)
+}
+
+// ReadDeclaration is OSFS's safe construct/deps read (ReadDeclaration's rules).
+func (OSFS) ReadDeclaration(path string) ([]byte, error) {
+	return ReadDeclaration(path, DeclarationLimit)
+}
+
 // ensure OSFS satisfies FS at compile time.
-var _ FS = OSFS{}
+var (
+	_ FS                = OSFS{}
+	_ DeclarationReader = OSFS{}
+)
