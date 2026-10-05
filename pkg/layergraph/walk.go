@@ -110,11 +110,7 @@ func declaredGraph(fs FS, root string) (map[string][]string, []DeclaredSubstrate
 				// 1-action no-op). Fail loud and actionable. An ABSENT target keeps
 				// the silent present-skip (a peer simply not checked out).
 				if present {
-					return nil, nil, fmt.Errorf(
-						"substrate %s (declared in %s) is present but not a compilable layer: "+
-							"missing %s — seed its base.manifest (`weave link` does this) or fix the construct/deps path",
-						dep, filepath.Join(cur, "construct", "deps"),
-						filepath.Join(dep, "construct", "base.manifest"))
+					return nil, nil, &NotLayerError{Path: dep, Owner: cur}
 				}
 				continue // absent peer — present-skip (not checked out)
 			}
@@ -125,6 +121,22 @@ func declaredGraph(fs FS, root string) (map[string][]string, []DeclaredSubstrate
 		}
 	}
 	return edges, declared, nil
+}
+
+// NotLayerError is a declared substrate that is present on disk but ships no
+// construct/base.manifest (#155's loud failure, typed by #295): an interrupted
+// or gutted dependency clone, which a consumer can set aside and re-clone.
+// Path is the physical substrate dir; Owner the layer root whose
+// construct/deps declares it.
+type NotLayerError struct {
+	Path, Owner string
+}
+
+func (e *NotLayerError) Error() string {
+	return fmt.Sprintf("substrate %s (declared in %s) is present but not a compilable layer: "+
+		"missing %s — seed its base.manifest (`weave link` does this) or fix the construct/deps path",
+		e.Path, filepath.Join(e.Owner, "construct", "deps"),
+		filepath.Join(e.Path, "construct", "base.manifest"))
 }
 
 // substrateRow is one resolved `substrate` row.

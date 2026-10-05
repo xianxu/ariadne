@@ -71,11 +71,11 @@ the #155 site with today's message (its `Error()` formats exactly the old
 string), passed through unwrapped by `Walk` and `DeclaredSubstrates`.
 ARCH-FUNERAL/ORDER: no state, nothing durable.
 
-- [ ] Test first: `errors.As` from `Walk` and `DeclaredSubstrates` with the right
+- [x] Test first: `errors.As` from `Walk` and `DeclaredSubstrates` with the right
   Path/Owner; message byte-identical to the pre-change string (asserted
   literally); a malformed row and an unreadable construct/deps are not
   `NotLayerError`.
-- [ ] Implement; consumers' tests (weave, datatype, vocabulary, fleet) + `make test`; atlas; close; land.
+- [x] Implement; consumers' tests (weave, datatype, vocabulary, fleet) + `make test`; atlas; close; land.
 
 ## Log
 
@@ -89,3 +89,10 @@ keeps stopping at a present non-layer; the reconciler sets that clone aside and
 re-runs, a short loop. The `Layer: false` variant would change #294's
 just-pinned contract (and its "Walk = the present entries" invariant) without
 a stated need for seeing every other dependency in the same pass.
+
+Implemented: `NotLayerError{Path, Owner}` whose `Error()` formats the old
+string; `declaredGraph` returns it, `Walk` and `DeclaredSubstrates` pass it
+through unwrapped. `TestNotLayerError` (errors.As + Path/Owner from both views;
+message asserted byte-identical against the literal old format);
+`TestOtherFailuresAreNotNotLayerError` (malformed row, unreadable
+construct/deps). Stdlib-only; weave, datatype, vocabulary, fleet green.

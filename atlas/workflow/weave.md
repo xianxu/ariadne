@@ -159,6 +159,9 @@ real temporary-repository conformance tests.
   (`declaredGraph`) reporting every declared substrate — present or absent,
   with owner and source — for consumers that must see a missing clone (pair's
   slot reconciler); `Walk`'s layers are exactly its present entries.
+  A present substrate without `construct/base.manifest` fails both views as a
+  typed `NotLayerError{Path, Owner}` (#295; message unchanged), so a consumer
+  can tell one gutted clone from a malformed or unreadable declaration.
   `construct/deps` reads are bounded: through `ReadDeclaration` when the FS is
   a `DeclarationReader` (`OSFS` is), else `ReadFile` plus `DeclarationLimit`.
   The package is stdlib-only, so other repositories can import it.
