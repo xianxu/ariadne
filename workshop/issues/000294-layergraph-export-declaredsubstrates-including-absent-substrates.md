@@ -106,7 +106,7 @@ between events.
 - [x] Refactor `discoverEdges` into `declaredGraph`; `substrateTargets` returns
   rows; export `DeclaredSubstrate` / `DeclaredSubstrates`.
 - [x] `DeclarationReader` + `OSFS.ReadDeclaration`; bounded fallback.
-- [ ] `go test ./pkg/... ./cmd/weave/... ./cmd/datatype/... ./cmd/vocabulary/...` + `make test`; atlas; close; land.
+- [x] `go test ./pkg/... ./cmd/weave/... ./cmd/datatype/... ./cmd/vocabulary/...` + `make test`; atlas; close; land.
 
 ## Log
 
