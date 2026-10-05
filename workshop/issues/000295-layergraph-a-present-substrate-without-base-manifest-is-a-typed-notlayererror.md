@@ -80,6 +80,7 @@ ARCH-FUNERAL/ORDER: no state, nothing durable.
 ## Log
 
 ### 2026-10-05
+- 2026-10-05: closed — NotLayerError{Path, Owner} exported; TestNotLayerError: errors.As succeeds from Walk and DeclaredSubstrates with the right Path/Owner, message byte-identical to the old format; TestOtherFailuresAreNotNotLayerError: malformed row and unreadable construct/deps fail but are not NotLayerError. Stdlib-only; weave/datatype/vocabulary/fleet green; make test green (processgroup sandbox-only).; review verdict: SHIP
 
 Filed at the operator's request from pair#387 planning, as a follow-up to
 #294 (`DeclaredSubstrates`). pair#387 Task 1.3 pins the sha that includes it.
