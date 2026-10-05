@@ -1,12 +1,22 @@
 ---
 id: 000295
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-05
 updated: 2026-10-05
 estimate_hours:
-card_mirror: '45fe449fde04ac1c22cd22d4121a296f8d02c1da' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '22339d6791afe5e5f937f2ee29d6d1d8a1ea1a01' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-05T15:56:34-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "bd6b0662", done: "48d968cc"}
+actual_hours: 0.03
 ---
 
 # layergraph: a present substrate without base.manifest is a typed NotLayerError
@@ -57,11 +67,34 @@ creation.
 
 ## Plan
 
-- [ ]
+`NotLayerError{Path, Owner}` in `pkg/layergraph`; `declaredGraph` returns it at
+the #155 site with today's message (its `Error()` formats exactly the old
+string), passed through unwrapped by `Walk` and `DeclaredSubstrates`.
+ARCH-FUNERAL/ORDER: no state, nothing durable.
+
+- [x] Test first: `errors.As` from `Walk` and `DeclaredSubstrates` with the right
+  Path/Owner; message byte-identical to the pre-change string (asserted
+  literally); a malformed row and an unreadable construct/deps are not
+  `NotLayerError`.
+- [x] Implement; consumers' tests (weave, datatype, vocabulary, fleet) + `make test`; atlas; close; land.
 
 ## Log
 
 ### 2026-10-05
+- 2026-10-05: closed — NotLayerError{Path, Owner} exported; TestNotLayerError: errors.As succeeds from Walk and DeclaredSubstrates with the right Path/Owner, message byte-identical to the old format; TestOtherFailuresAreNotNotLayerError: malformed row and unreadable construct/deps fail but are not NotLayerError. Stdlib-only; weave/datatype/vocabulary/fleet green; make test green (processgroup sandbox-only).; review verdict: SHIP
 
 Filed at the operator's request from pair#387 planning, as a follow-up to
 #294 (`DeclaredSubstrates`). pair#387 Task 1.3 pins the sha that includes it.
+
+Decision on the Spec's open option: typed error only. `DeclaredSubstrates`
+keeps stopping at a present non-layer; the reconciler sets that clone aside and
+re-runs, a short loop. The `Layer: false` variant would change #294's
+just-pinned contract (and its "Walk = the present entries" invariant) without
+a stated need for seeing every other dependency in the same pass.
+
+Implemented: `NotLayerError{Path, Owner}` whose `Error()` formats the old
+string; `declaredGraph` returns it, `Walk` and `DeclaredSubstrates` pass it
+through unwrapped. `TestNotLayerError` (errors.As + Path/Owner from both views;
+message asserted byte-identical against the literal old format);
+`TestOtherFailuresAreNotNotLayerError` (malformed row, unreadable
+construct/deps). Stdlib-only; weave, datatype, vocabulary, fleet green.
