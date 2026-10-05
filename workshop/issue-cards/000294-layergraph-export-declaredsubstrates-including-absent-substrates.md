@@ -1,6 +1,6 @@
 ---
 id: 000294
-status: codecomplete
+status: done
 created: 2026-10-05
 updated: 2026-10-05
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 4f436c2d723cf0397eecea61aafd0736d3d6716e
         evidence_commit: 87c1ad586df24718e760cde936d2cbbad181eeaa
+        landed_commit: 2177cecb15e0b858a12d819557e76a8324543cdc
 ---
 
 # layergraph: export DeclaredSubstrates, including absent substrates
