@@ -1,6 +1,6 @@
 ---
 id: 000295
-status: open
+status: working
 created: 2026-10-05
 updated: 2026-10-05
 estimate_hours:
@@ -17,6 +17,14 @@ tracker:
         source_blob: 3a88eeff27c5a01571ff8b978e68f909b46af400
         destination: workshop/issues/000295-layergraph-a-present-substrate-without-base-manifest-is-a-typed-notlayererror.md
         main_commit: 6191354435032f7244790b92233983e969e23788
+started: 2026-10-05T15:56:34-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # layergraph: a present substrate without base.manifest is a typed NotLayerError
