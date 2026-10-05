@@ -1,12 +1,12 @@
 ---
 id: 000295
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-05
 updated: 2026-10-05
 estimate_hours:
-card_mirror: '13255d78a45ef93e847e7ab6ec3b3ec5f5499c79' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '22339d6791afe5e5f937f2ee29d6d1d8a1ea1a01' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-05T15:56:34-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "bd6b0662", done: "48d968cc"}
+actual_hours: 0.03
 ---
 
 # layergraph: a present substrate without base.manifest is a typed NotLayerError
