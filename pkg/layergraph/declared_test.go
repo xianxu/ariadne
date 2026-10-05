@@ -154,3 +154,29 @@ func TestDeclarationReadsAreBounded(t *testing.T) {
 		t.Errorf("symlinked declaration: %v", err)
 	}
 }
+
+// #294: under OSFS a construct/deps that exists but cannot be read is an
+// error for Walk and DeclaredSubstrates alike, never "no dependencies"; and a
+// relative root still yields absolute paths.
+func TestUnreadableDeclarationIsLoudAndRootsAreAbsolute(t *testing.T) {
+	p := canon(t, t.TempDir())
+	layer(t, filepath.Join(p, "d"), "")
+	if err := os.MkdirAll(filepath.Join(p, "d", "construct", "deps"), 0o755); err != nil { // a directory, not a file
+		t.Fatal(err)
+	}
+	if _, err := Walk(OSFS{}, filepath.Join(p, "d")); err == nil {
+		t.Fatal("Walk read an unreadable construct/deps as none")
+	}
+	if _, err := DeclaredSubstrates(OSFS{}, filepath.Join(p, "d")); err == nil {
+		t.Fatal("DeclaredSubstrates read an unreadable construct/deps as none")
+	}
+
+	q := canon(t, t.TempDir())
+	layer(t, filepath.Join(q, "d"), "substrate ../b\n")
+	layer(t, filepath.Join(q, "b"), "")
+	t.Chdir(q)
+	got, err := DeclaredSubstrates(OSFS{}, "d")
+	if err != nil || len(got) != 1 || !filepath.IsAbs(got[0].Owner) || !filepath.IsAbs(got[0].Path) {
+		t.Fatalf("relative root: %+v %v", got, err)
+	}
+}

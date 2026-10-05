@@ -47,9 +47,15 @@ type DeclaredSubstrate struct {
 // or absent, deduplicated by Path, in discovery order. It is Walk's own
 // traversal (declaredGraph), so the two cannot diverge: Walk's layers minus
 // the root are exactly its present entries. Errors are Walk's: a malformed
-// row, or a present substrate without construct/base.manifest.
+// row, a present substrate without construct/base.manifest, or a
+// construct/deps the FS cannot read safely. A relative root is made absolute
+// first, so Path and Owner always are.
 func DeclaredSubstrates(fs FS, root string) ([]DeclaredSubstrate, error) {
-	_, declared, err := declaredGraph(fs, physical(root))
+	abs, err := filepath.Abs(root)
+	if err != nil {
+		return nil, err
+	}
+	_, declared, err := declaredGraph(fs, physical(abs))
 	return declared, err
 }
 
@@ -166,7 +172,11 @@ func substrateTargets(fs FS, repoRoot string) ([]substrateRow, error) {
 // readDeclaration reads a construct/deps document, bounded (#294): through the
 // FS's safe reader when it has one (OSFS: ReadDeclaration's ordinary-file,
 // no-follow, no-FIFO rules), else ReadFile with the byte limit. found is false
-// when there is none.
+// when there is none. With a safe reader, any failure other than absence is
+// an error (permission, not a directory, a symlink): before #294 OSFS read it
+// as "no deps", silently dropping the layer chain below; now Walk fails loud.
+// The ReadFile fallback (weave's FS, test fakes) bounds what is parsed, not
+// what ReadFile loads into memory, and keeps its read failures as "none".
 func readDeclaration(fs FS, path string) ([]byte, bool, error) {
 	if r, ok := fs.(DeclarationReader); ok {
 		b, err := r.ReadDeclaration(path)

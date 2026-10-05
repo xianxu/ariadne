@@ -129,3 +129,9 @@ unresolvable parent skipped, dedup first-owner, root never its own substrate),
 (oversized via OSFS and a plain FS; symlinked declaration refused by OSFS).
 `go list -deps ./pkg/layergraph`: stdlib only. weave, datatype, vocabulary,
 fleet tests green.
+
+Close review Minors fixed in round: with a safe reader (OSFS) a construct/deps
+that exists but cannot be read is now an error for Walk and DeclaredSubstrates
+(previously "no deps" — intended: a silently dropped layer chain was #155's
+failure mode), tested; the ReadFile fallback's bound is documented as a parse
+bound; a relative root is made absolute, tested.
