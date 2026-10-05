@@ -27,6 +27,24 @@ rounds:
           round: 1
       recipe: milestone-review
       blocked: false
+    - "n": 2
+      timestamp: "2026-10-05T15:29:47-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Logged in the issue Log; tested by TestUnreadableDeclarationIsLoudAndRootsAreAbsolute (a directory at construct/deps errors for both Walk and DeclaredSubstrates).
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: The readDeclaration comment now says the fallback bounds what is parsed, not what ReadFile loads.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: DeclaredSubstrates calls filepath.Abs before physical(), the doc says so, and a relative-root test after t.Chdir checks that the paths are absolute.
+          round: 2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#294 (boundary-review)
@@ -45,8 +63,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Minor] `api-precondition-doc` DeclaredSubstrates does not say root must be absolute, unlike Walk
   A relative root gives a relative Owner, contradicting the field doc's absolute-path promise.
 
+## Round 2 — 2026-10-05T15:29:47-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Logged in the issue Log; tested by TestUnreadableDeclarationIsLoudAndRootsAreAbsolute (a directory at construct/deps errors for both Walk and DeclaredSubstrates).
+- BR-2 — addressed — The readDeclaration comment now says the fallback bounds what is parsed, not what ReadFile loads.
+- BR-3 — addressed — DeclaredSubstrates calls filepath.Abs before physical(), the doc says so, and a relative-root test after t.Chdir checks that the paths are absolute.
+
 ## Open findings
 
-- **BR-1** [Minor] `undocumented-behavior-change` DeclarationReader path makes non-ENOENT construct/deps read errors loud for all Walk consumers
-- **BR-2** [Minor] `bounded-read-claim` Plain-FS fallback reads the whole file before applying DeclarationLimit
-- **BR-3** [Minor] `api-precondition-doc` DeclaredSubstrates does not say root must be absolute, unlike Walk
+(none — every finding has been disposed)

@@ -112,6 +112,7 @@ between events.
 ## Log
 
 ### 2026-10-05
+- 2026-10-05: closed — Re-close after fixing the three close-review Minors: TestUnreadableDeclarationIsLoudAndRootsAreAbsolute (construct/deps that exists but cannot be read is an error for Walk and DeclaredSubstrates under OSFS; relative root yields absolute Path/Owner); fallback bound documented. Earlier evidence: TestDeclaredSubstrates, TestDeclaredSubstratesErrors, TestWalkIsThePresentSubsetOfDeclaredSubstrates, TestDeclarationReadsAreBounded; stdlib-only; pkg/weave/datatype/vocabulary/fleet green; make test green.; review verdict: SHIP
 - 2026-10-05: closed — DeclaredSubstrates exported over the one traversal Walk uses (declaredGraph). Tests: TestDeclaredSubstrates (transitive present chain; absent reported with Present=false and source, not descended; unresolvable parent skipped; dedup across two owners, first kept; root never its own substrate), TestDeclaredSubstratesErrors (malformed row; present without manifest), TestWalkIsThePresentSubsetOfDeclaredSubstrates, TestDeclarationReadsAreBounded. go list -deps: stdlib only. pkg, weave, datatype, vocabulary, fleet tests green; make test green (processgroup sandbox-only).; review verdict: SHIP
 - 2026-10-05: flow upgraded quick → full — 105 added lines in code files (limit 100)
 
