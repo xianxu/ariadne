@@ -1,12 +1,12 @@
 ---
 id: 000294
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-05
 updated: 2026-10-05
 estimate_hours:
-card_mirror: 'ae090ed5755f25f2e7880eb55fb8f51a4affaf1a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '114dd6837d1dece62bb7fd1f847b5e9e80bb19de' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-05T15:17:10-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.12
 ---
 
 # layergraph: export DeclaredSubstrates, including absent substrates
