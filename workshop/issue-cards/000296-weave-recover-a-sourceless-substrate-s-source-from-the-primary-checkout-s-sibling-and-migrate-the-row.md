@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000296-weave-recover-a-sourceless-substrate-s-source-from-the-primary-checkout-s-sibling-and-migrate-the-row.md
         source_blob: 6cfe2bd32566dbc8173adad02746b67dddc67a64
         destination: workshop/issues/000296-weave-recover-a-sourceless-substrate-s-source-from-the-primary-checkout-s-sibling-and-migrate-the-row.md
+        main_commit: 0fb92aa4f4492026d003ef8fbdf9aa30f07fe49d
 ---
 
 # weave: recover a sourceless substrate's source from the primary checkout's sibling, and migrate the row
