@@ -1,6 +1,6 @@
 ---
 id: 000296
-status: codecomplete
+status: done
 created: 2026-10-06
 updated: 2026-10-06
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 66964e80d5bc5848c75a89d6dc6fc834d7e76fc6
         evidence_commit: 480149c6a947b01582aae3a6583b6e7fee4d61b7
+        landed_commit: baf48acdcaa8d0ab0bb84aa7c8faf8dc8f1322e6
 ---
 
 # weave: recover a sourceless substrate's source from the primary checkout's sibling, and migrate the row
