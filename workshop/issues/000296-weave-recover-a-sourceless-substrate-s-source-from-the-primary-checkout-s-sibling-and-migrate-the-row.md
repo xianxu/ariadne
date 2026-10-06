@@ -1,12 +1,12 @@
 ---
 id: 000296
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-06
 updated: 2026-10-06
 estimate_hours:
-card_mirror: 'a7904e910ebd87d62bfe25109259694c984f919d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '72d4c71687a5e25e26ec0c03d4f2ef01ca937bc1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-06T09:06:31-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.46
 ---
 
 # weave: recover a sourceless substrate's source from the primary checkout's sibling, and migrate the row
