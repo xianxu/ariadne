@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "22b771d5", done: "3afd7eec"}
 ---
 
 # weave: recover a sourceless substrate's source from the primary checkout's sibling, and migrate the row
