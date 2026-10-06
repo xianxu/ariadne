@@ -481,8 +481,8 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
 		root = resolved
 	}
-	restored, err := client.Restore(ctx, root, dryRun)
-	if err = finishRestore(ctx, fs, root, client, restored, err, dryRun, out); err != nil {
+	restored, err := restoreSetup(ctx, fs, client, root, dryRun, out)
+	if err != nil {
 		return err
 	}
 	if err := startup.Dependencies(fs, restored.Layers, runner, dryRun, out); err != nil {

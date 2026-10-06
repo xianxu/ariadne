@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,21 +12,21 @@ import (
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 )
 
-const sourcelessDeps = "substrate ../base # the base layer\nsubstrate ../local\n"
+const sourcelessDeps = "substrate ../base # the base layer\nsubstrate ../local\nsubstrate ../path\n"
 
-// migrationFleet is a primary checkout declaring two sourceless substrates:
-// base, whose checkout has a remote origin, and local, which has none (#296).
+// migrationFleet is a primary checkout declaring three sourceless substrate
+// layers: base, whose checkout has a remote origin; local, which has none; and
+// path, whose origin is a local path a slot cannot clone (#296).
 func migrationFleet(t *testing.T) string {
 	t.Helper()
 	fleet := t.TempDir()
 	root := filepath.Join(fleet, "host")
-	for _, dir := range []string{root, filepath.Join(fleet, "base"), filepath.Join(fleet, "local")} {
-		if err := os.MkdirAll(dir, 0755); err != nil {
-			t.Fatal(err)
-		}
+	for _, dir := range []string{root, filepath.Join(fleet, "base"), filepath.Join(fleet, "local"), filepath.Join(fleet, "path")} {
+		mkfile(t, filepath.Join(dir, "construct/base.manifest"), "# layer\n")
 		setupGit(t, dir, "init", "-q")
 	}
 	setupGit(t, filepath.Join(fleet, "base"), "remote", "add", "origin", "https://example.test/base.git")
+	setupGit(t, filepath.Join(fleet, "path"), "remote", "add", "origin", "/elsewhere/path")
 	writeDeps(t, root, sourcelessDeps)
 	setupGit(t, root, "add", ".")
 	setupGit(t, root, "commit", "-qm", "init")
@@ -56,20 +55,22 @@ func readDeps(t *testing.T, root string) string {
 func TestMigrateSourcelessRecordsOriginInPrimary(t *testing.T) {
 	root := migrationFleet(t)
 	var out bytes.Buffer
-	if err := migrateSourceless(context.Background(), weavefs.OSFS{}, root, &out); err != nil {
+	if err := migrateSourceless(context.Background(), weavefs.OSFS{}, acquire.Client{}, root, &out); err != nil {
 		t.Fatal(err)
 	}
-	want := "substrate ../base https://example.test/base.git # the base layer\nsubstrate ../local\n"
+	want := "substrate ../base https://example.test/base.git # the base layer\nsubstrate ../local\nsubstrate ../path\n"
 	if got := readDeps(t, root); got != want {
 		t.Fatalf("deps:\n%s\nwant:\n%s", got, want)
 	}
 	if !strings.Contains(out.String(), "recorded source https://example.test/base.git for substrate ../base") ||
-		!strings.Contains(out.String(), "warning: substrate ../local has no source") {
+		!strings.Contains(out.String(), "warning: substrate ../local has no source and a slot cannot restore it (") ||
+		!strings.Contains(out.String(), "local has no origin") ||
+		!strings.Contains(out.String(), "path has a local origin") {
 		t.Fatalf("output: %s", out.String())
 	}
 
 	out.Reset()
-	if err := migrateSourceless(context.Background(), weavefs.OSFS{}, root, &out); err != nil {
+	if err := migrateSourceless(context.Background(), weavefs.OSFS{}, acquire.Client{}, root, &out); err != nil {
 		t.Fatal(err)
 	}
 	if got := readDeps(t, root); got != want || strings.Contains(out.String(), "recorded") {
@@ -79,39 +80,36 @@ func TestMigrateSourcelessRecordsOriginInPrimary(t *testing.T) {
 
 func TestMigrateSourcelessNeverWritesOutsidePrimary(t *testing.T) {
 	root := migrationFleet(t)
+	ctx := context.Background()
 	linked := filepath.Join(filepath.Dir(root), "linked")
 	setupGit(t, root, "worktree", "add", "-q", "-b", "feature", linked)
-	if err := migrateSourceless(context.Background(), weavefs.OSFS{}, linked, &bytes.Buffer{}); err != nil {
+	if _, err := restoreSetup(ctx, weavefs.OSFS{}, acquire.Client{}, linked, false, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
 	if got := readDeps(t, linked); got != sourcelessDeps {
 		t.Fatalf("linked worktree rewritten: %s", got)
 	}
-
-	recovered := acquire.Result{Recovered: []acquire.Recovery{{Owner: root, Path: "../base", URL: "https://example.test/base.git", Sibling: "/fleet/base"}}}
-	for name, tc := range map[string]struct {
-		client acquire.Client
-		dryRun bool
-		err    error
-	}{
-		"slot":    {client: acquire.Client{Policy: &acquire.Policy{}}},
-		"dry run": {dryRun: true},
-		"failed":  {err: errors.New("restore failed")},
-	} {
-		var out bytes.Buffer
-		err := finishRestore(context.Background(), weavefs.OSFS{}, root, tc.client, recovered, tc.err, tc.dryRun, &out)
-		if !errors.Is(err, tc.err) {
-			t.Fatalf("%s: error %v", name, err)
-		}
-		if got := readDeps(t, root); got != sourcelessDeps {
-			t.Fatalf("%s rewrote deps: %s", name, got)
-		}
-		if !strings.Contains(out.String(), "recovered https://example.test/base.git from /fleet/base. Record it in construct/deps: substrate ../base https://example.test/base.git") {
-			t.Fatalf("%s: recovery notice missing: %s", name, out.String())
-		}
+	if err := migrateSourceless(ctx, weavefs.OSFS{}, acquire.Client{Policy: &acquire.Policy{}}, root, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
 	}
-	// Control: the same call in the primary, after a real restore, migrates.
-	if err := finishRestore(context.Background(), weavefs.OSFS{}, root, acquire.Client{}, recovered, nil, false, &bytes.Buffer{}); err != nil {
+	if _, err := restoreSetup(ctx, weavefs.OSFS{}, acquire.Client{}, root, true, &bytes.Buffer{}); err != nil {
+		t.Fatal(err)
+	}
+	manifest := filepath.Join(filepath.Dir(root), "base", "construct/base.manifest")
+	if err := os.Rename(manifest, manifest+".away"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := restoreSetup(ctx, weavefs.OSFS{}, acquire.Client{}, root, false, &bytes.Buffer{}); err == nil {
+		t.Fatal("restore of a non-layer succeeded")
+	}
+	if got := readDeps(t, root); got != sourcelessDeps {
+		t.Fatalf("slot, dry run or failed restore rewrote deps: %s", got)
+	}
+	// Control: a real restore in the primary migrates.
+	if err := os.Rename(manifest+".away", manifest); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := restoreSetup(ctx, weavefs.OSFS{}, acquire.Client{}, root, false, &bytes.Buffer{}); err != nil {
 		t.Fatal(err)
 	}
 	if got := readDeps(t, root); got == sourcelessDeps {

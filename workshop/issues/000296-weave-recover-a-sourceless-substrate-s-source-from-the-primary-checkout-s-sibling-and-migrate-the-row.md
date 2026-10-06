@@ -194,3 +194,10 @@ key on weave's identity (Spec), so other slots pick this up on
   name match before the clone, existing `origin/main` + manifest checks after it.
   Recovery scoped to numbered environments (the only place a sibling can be
   missing while its primary-side counterpart exists).
+- 2026-10-06 — Close review round 2 (FIX-THEN-SHIP): the error outside a
+  numbered environment is no longer "unchanged" as the Plan said; it gains
+  "(no source declared; no numbered environment to recover it from)", kept
+  deliberately because it says why recovery didn't apply. The remote-origin
+  probe is shared (`acquire.Client.RemoteOrigin`, `PrimaryCheckout`) and the
+  migration warning now carries its reason; README documents the behaviour.
+

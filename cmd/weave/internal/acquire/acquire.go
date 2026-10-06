@@ -392,9 +392,9 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 
 // recoverSource takes a missing substrate's source from its primary-side
 // sibling: a numbered environment mirrors the fleet directory, so dest's
-// counterpart is <dir(PrimaryRoot)>/<base(dest)>. The sibling must be its own
-// checkout whose remote origin names the same repository; after the clone,
-// Ensure's main-branch and manifest checks prove the layer as for any source.
+// counterpart is <dir(PrimaryRoot)>/<base(dest)>. Its remote origin must name
+// the same repository; after the clone, Ensure's main-branch and manifest
+// checks prove the layer as for any declared source.
 func (c Client) recoverSource(ctx context.Context, dest string) (string, Source, error) {
 	if c.Policy == nil || c.Policy.PrimaryRoot == "" {
 		return "", Source{}, fmt.Errorf("no numbered environment to recover it from")
@@ -403,27 +403,47 @@ func (c Client) recoverSource(ctx context.Context, dest string) (string, Source,
 	if _, err := os.Stat(sibling); err != nil {
 		return sibling, Source{}, fmt.Errorf("%s is not present", sibling)
 	}
-	if top, err := c.git(ctx, sibling, "rev-parse", "--show-toplevel"); err != nil || canonical(top) != canonical(sibling) {
-		return sibling, Source{}, fmt.Errorf("%s is not a repository checkout", sibling)
-	}
-	url, err := c.Origin(ctx, sibling)
+	src, err := c.RemoteOrigin(ctx, sibling)
 	if err != nil {
 		return sibling, Source{}, err
-	}
-	if url == "" {
-		return sibling, Source{}, fmt.Errorf("%s has no origin", sibling)
-	}
-	src, err := sourceAt(url, sibling)
-	if err != nil {
-		return sibling, Source{}, fmt.Errorf("%s has an invalid origin: %w", sibling, err)
-	}
-	if strings.HasPrefix(src.Identity, "file:") {
-		return sibling, Source{}, fmt.Errorf("%s has a local origin, not a remote source", sibling)
 	}
 	if src.Name != filepath.Base(dest) {
 		return sibling, Source{}, fmt.Errorf("%s origin names repository %s, not %s", sibling, src.Name, filepath.Base(dest))
 	}
 	return sibling, src, nil
+}
+
+// RemoteOrigin is dir's own remote origin, the source a slot could clone it
+// from (#296). The error names why dir has none: not its own checkout (a
+// subdirectory would report its parent's origin), no origin, an origin that
+// is not a recordable source, or a local path.
+func (c Client) RemoteOrigin(ctx context.Context, dir string) (Source, error) {
+	if top, err := c.git(ctx, dir, "rev-parse", "--show-toplevel"); err != nil || canonical(top) != canonical(dir) {
+		return Source{}, fmt.Errorf("%s is not a repository checkout", dir)
+	}
+	url, err := c.Origin(ctx, dir)
+	if err != nil {
+		return Source{}, err
+	}
+	if url == "" {
+		return Source{}, fmt.Errorf("%s has no origin", dir)
+	}
+	src, err := sourceAt(url, dir)
+	if err != nil {
+		return Source{}, fmt.Errorf("%s has an invalid origin: %w", dir, err)
+	}
+	if strings.HasPrefix(src.Identity, "file:") {
+		return Source{}, fmt.Errorf("%s has a local origin, not a remote source", dir)
+	}
+	return src, nil
+}
+
+// PrimaryCheckout reports whether dir is its repository's main worktree, where
+// an uncommitted edit is ordinary work, as opposed to a linked worktree.
+func (c Client) PrimaryCheckout(ctx context.Context, dir string) bool {
+	gitDir, e1 := c.git(ctx, dir, "rev-parse", "--absolute-git-dir")
+	common, e2 := c.git(ctx, dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	return e1 == nil && e2 == nil && canonical(gitDir) == canonical(common)
 }
 
 func mountTarget(owner, mount string) (string, error) {

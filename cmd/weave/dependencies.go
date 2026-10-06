@@ -24,8 +24,8 @@ func buildDependencies() *cobra.Command {
 				return err
 			}
 			defer func() { retErr = errors.Join(retErr, closeSetup()) }()
-			restored, err := client.Restore(cmd.Context(), root, dryRun)
-			if err = finishRestore(cmd.Context(), weavefs.OSFS{}, root, client, restored, err, dryRun, cmd.OutOrStdout()); err != nil {
+			restored, err := restoreSetup(cmd.Context(), weavefs.OSFS{}, client, root, dryRun, cmd.OutOrStdout())
+			if err != nil {
 				return err
 			}
 			return startup.Dependencies(weavefs.OSFS{}, restored.Layers, runner, dryRun, cmd.OutOrStdout())
