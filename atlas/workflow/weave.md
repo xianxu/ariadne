@@ -11,7 +11,10 @@ composition. The composition invariant lives in the
 `weave link <local-path|repo-address>` records `substrate <path> [source]` in
 `construct/deps`. Repository addresses clone into peer checkouts; local checkouts
 record their origin when present. Existing matching peers are reused without
-pull/reset. A missing local-only edge requires an explicit source.
+pull/reset. A missing local-only edge requires an explicit source. In a primary
+checkout, setup records the origin of each sourceless row's checkout the same way;
+in a slot, a sourceless row's source is recovered from the primary-side sibling
+(#296, see setup-and-replication.md).
 
 `weave dependencies [--dry-run]` restores transitive sources and installs each
 layer's root Brewfile through `brew bundle install --no-upgrade --file=Brewfile`

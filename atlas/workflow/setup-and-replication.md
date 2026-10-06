@@ -26,7 +26,7 @@ data https://github.com/example/content.git data/content
 ```
 
 The substrate source is optional while its local path exists; restoration of a
-missing checkout requires a source. Data rows declare a source and owner-relative
+missing checkout requires a source, recorded or recovered (below). Data rows declare a source and owner-relative
 mount. Paths and sources cannot contain whitespace or `#` in this format.
 
 ## Preparation and compilation
@@ -78,10 +78,21 @@ unpublished commits. Recorded origins must match. A source-less existing clone
 works, but needs a recorded URL before it can be restored. Explicit removal and
 recreation uses current remote main, not the prior selected SHA.
 
+A missing substrate whose row has no source is recovered from the primary side
+(#296): the environment mirrors the fleet directory, so `<env>/<name>`
+corresponds to `<fleet>/<name>`. Weave clones from that sibling's remote origin
+only when it is its own checkout and the origin names the same repository; any
+other case keeps the missing-substrate error with the reason. Every recovery
+prints a notice naming the row to add. The row itself converges from the other
+end: a real `weave compile`/`dependencies` in a primary checkout records each
+sourceless row's source from its checkout's remote origin (`weave link`'s row
+writer), and warns about rows it cannot. Slots and linked worktrees never write
+`construct/deps`.
+
 To choose another revision, use normal Git in the private dependency, then
 recompile the consuming checkout. Publish dependency changes using that clone's
 normal issue/review/PR flow, prerequisites first. There is no recursive merge,
-shared dependency shelf, lockfile, or local-primary source inference. Dependency
+shared dependency shelf or lockfile. Dependency
 feature worktrees retain SDLC context but may not satisfy literal relative
 manifest paths; compose from the environment's dependency primary in that case.
 

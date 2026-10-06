@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"fmt"
 	"os"
 
 	"github.com/spf13/cobra"
@@ -25,10 +24,7 @@ func buildDependencies() *cobra.Command {
 				return err
 			}
 			defer func() { retErr = errors.Join(retErr, closeSetup()) }()
-			restored, err := client.Restore(cmd.Context(), root, dryRun)
-			for _, missing := range restored.Missing {
-				fmt.Fprintf(cmd.OutOrStdout(), "weave: missing source %s (preview incomplete)\n", missing)
-			}
+			restored, err := restoreSetup(cmd.Context(), weavefs.OSFS{}, client, root, dryRun, cmd.OutOrStdout())
 			if err != nil {
 				return err
 			}

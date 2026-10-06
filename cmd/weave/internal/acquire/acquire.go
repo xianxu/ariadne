@@ -231,10 +231,15 @@ func (c Client) checkExisting(ctx context.Context, dir string, s Source, require
 }
 
 type Mount struct{ Owner, Source, Target string }
+
+// Recovery is a sourceless substrate row whose source was taken from the
+// primary-side sibling's origin (#296). Callers must report every one.
+type Recovery struct{ Owner, Path, URL, Sibling string }
 type Result struct {
-	Layers  []string
-	Mounts  []Mount
-	Missing []string
+	Layers    []string
+	Mounts    []Mount
+	Missing   []string
+	Recovered []Recovery
 }
 
 // Restore acquires every declared source, then delegates topology and cycle
@@ -339,17 +344,22 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 					}
 				}
 			}
+			_, statErr := os.Lstat(dest)
+			if os.IsNotExist(statErr) && row.Source == "" {
+				sibling, recovered, err := c.recoverSource(ctx, dest)
+				if err != nil {
+					return result, fmt.Errorf("missing substrate %s declared in %s: record its source in construct/deps (no source declared; %w)", dest, owner, err)
+				}
+				src = recovered
+				result.Recovered = append(result.Recovered, Recovery{Owner: owner, Path: row.Path, URL: src.URL, Sibling: sibling})
+			}
 			if src.Identity != "" {
 				if old, ok := destinations[dest]; ok && old != src.Identity {
 					return result, fmt.Errorf("destination %s has conflicting declared sources; fix construct/deps or choose another path", dest)
 				}
 				destinations[dest] = src.Identity
 			}
-			_, statErr := os.Lstat(dest)
 			if os.IsNotExist(statErr) {
-				if row.Source == "" {
-					return result, fmt.Errorf("missing substrate %s declared in %s: record its source in construct/deps", dest, owner)
-				}
 				if dryRun {
 					result.Missing = append(result.Missing, dest)
 					continue
@@ -378,6 +388,62 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 	var err error
 	result.Layers, err = layergraph.Resolve(root, edges)
 	return result, err
+}
+
+// recoverSource takes a missing substrate's source from its primary-side
+// sibling: a numbered environment mirrors the fleet directory, so dest's
+// counterpart is <dir(PrimaryRoot)>/<base(dest)>. Its remote origin must name
+// the same repository; after the clone, Ensure's main-branch and manifest
+// checks prove the layer as for any declared source.
+func (c Client) recoverSource(ctx context.Context, dest string) (string, Source, error) {
+	if c.Policy == nil || c.Policy.PrimaryRoot == "" {
+		return "", Source{}, fmt.Errorf("no numbered environment to recover it from")
+	}
+	sibling := filepath.Join(filepath.Dir(c.Policy.PrimaryRoot), filepath.Base(dest))
+	if _, err := os.Stat(sibling); err != nil {
+		return sibling, Source{}, fmt.Errorf("%s is not present", sibling)
+	}
+	src, err := c.RemoteOrigin(ctx, sibling)
+	if err != nil {
+		return sibling, Source{}, err
+	}
+	if src.Name != filepath.Base(dest) {
+		return sibling, Source{}, fmt.Errorf("%s origin names repository %s, not %s", sibling, src.Name, filepath.Base(dest))
+	}
+	return sibling, src, nil
+}
+
+// RemoteOrigin is dir's own remote origin, the source a slot could clone it
+// from (#296). The error names why dir has none: not its own checkout (a
+// subdirectory would report its parent's origin), no origin, an origin that
+// is not a recordable source, or a local path.
+func (c Client) RemoteOrigin(ctx context.Context, dir string) (Source, error) {
+	if top, err := c.git(ctx, dir, "rev-parse", "--show-toplevel"); err != nil || canonical(top) != canonical(dir) {
+		return Source{}, fmt.Errorf("%s is not a repository checkout", dir)
+	}
+	url, err := c.Origin(ctx, dir)
+	if err != nil {
+		return Source{}, err
+	}
+	if url == "" {
+		return Source{}, fmt.Errorf("%s has no origin", dir)
+	}
+	src, err := sourceAt(url, dir)
+	if err != nil {
+		return Source{}, fmt.Errorf("%s has an invalid origin: %w", dir, err)
+	}
+	if strings.HasPrefix(src.Identity, "file:") {
+		return Source{}, fmt.Errorf("%s has a local origin, not a remote source", dir)
+	}
+	return src, nil
+}
+
+// PrimaryCheckout reports whether dir is its repository's main worktree, where
+// an uncommitted edit is ordinary work, as opposed to a linked worktree.
+func (c Client) PrimaryCheckout(ctx context.Context, dir string) bool {
+	gitDir, e1 := c.git(ctx, dir, "rev-parse", "--absolute-git-dir")
+	common, e2 := c.git(ctx, dir, "rev-parse", "--path-format=absolute", "--git-common-dir")
+	return e1 == nil && e2 == nil && canonical(gitDir) == canonical(common)
 }
 
 func mountTarget(owner, mount string) (string, error) {

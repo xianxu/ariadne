@@ -81,8 +81,17 @@ data https://github.com/example/content.git data/content
 A substrate row takes a path and optional source; a data row takes a source and
 mount. Blank lines and `#` comments are supported. Other row kinds and malformed
 column counts fail with a line number. Existing two-column substrate rows remain
-valid while the local checkout exists; record a source to restore a missing one.
-Paths/sources cannot contain whitespace or `#` in this format.
+valid while the local checkout exists. Paths/sources cannot contain whitespace or
+`#` in this format.
+
+A two-column row converges to the explicit form on its own. In a primary
+checkout, `weave compile` and `weave dependencies` write the source of each such
+row into `construct/deps` from its checkout's remote origin, leaving an ordinary
+edit to commit; a row whose checkout has no remote origin gets a warning
+instead. In a Couch slot (`worktree/<repo>-slotN/`), where the sibling checkout
+is absent, weave recovers the source from the same-named checkout next to the
+primary, prints a notice naming the row to add, and never edits
+`construct/deps`. Without either, record a source to restore a missing checkout.
 
 With Homebrew on PATH (macOS or Linux), `weave dependencies` restores transitive sources
 and runs each layer's committed root `Brewfile` through `brew bundle install

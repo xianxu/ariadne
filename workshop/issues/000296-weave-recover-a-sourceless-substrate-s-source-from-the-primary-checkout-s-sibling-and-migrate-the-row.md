@@ -1,12 +1,22 @@
 ---
 id: 000296
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-06
 updated: 2026-10-06
 estimate_hours:
-card_mirror: 'f50aca0d6ff8fc2d9995a30f84c15de7292bdc4c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '72d4c71687a5e25e26ec0c03d4f2ef01ca937bc1' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-06T09:06:31-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 0.46
 ---
 
 # weave: recover a sourceless substrate's source from the primary checkout's sibling, and migrate the row
@@ -84,21 +94,117 @@ creation.
 - Each refusal (sibling missing, not a checkout, no `origin`, mismatched
   identity) keeps the missing-substrate error, extended with what was tried, and
   has a test.
-- The chosen migration behaviour (a/b/c) is implemented and tested: the row ends
-  up with an explicit source where the operator chose that it should.
+- Migration (a), the operator's choice: a real compile or dependencies run in
+  a primary checkout writes each sourceless row's source from its checkout's
+  remote origin (comment kept, idempotent) and warns, with the reason, about a
+  row it cannot; slots, linked worktrees, dry runs and failed restores never
+  write `construct/deps`. Tested, with a positive control.
+- README and atlas describe the recovery and the migration.
 - Live: `couch --reconcile tools:1` completes setup with no hand edit of tools'
   `construct/deps`.
 
 ## Plan
 
-- [ ]
+Design (operator chose migration (a) on 2026-10-06, see Revisions):
+
+- **Where recovery applies.** Only inside a numbered environment, where
+  `acquire.Policy` exists. The environment root mirrors the fleet directory:
+  `<fleet>/worktree/<repo>-slotN/<name>` corresponds to `<fleet>/<name>`, and
+  `ValidSlotDependency` already confines every substrate to a direct child of the
+  environment root. So the primary-side sibling of a missing destination is
+  `dir(Policy.PrimaryRoot)/base(dest)`; it holds for the host's rows and for rows
+  of substrates cloned into the environment alike. `PrimaryRoot` is the
+  Git-proved `env.Host.PrimaryRoot`, added to `Policy`. Outside an environment a
+  missing sourceless row keeps today's error unchanged.
+- **Evidence.** The sibling must exist, be its own git toplevel, have an
+  `origin`, that origin must not be a local/file source (the policy refuses
+  those), and the origin's repository name must equal `base(dest)`. Layer
+  identity is then proved by the existing post-clone checks (`origin/main`,
+  `construct/base.manifest`), so no separate `layergraph` identity probe is
+  needed (Simplicity First). Each failure extends the missing-substrate error
+  with `no source declared; <sibling> <reason>`.
+- **Effect.** `Restore` treats the recovered URL exactly as a declared source
+  (identity-conflict map, `Ensure`, dry-run `Missing`), and records a
+  `Recovery{Owner, Path, URL, Sibling}` in `Result.Recovered`. The command layer
+  prints one notice per recovery naming the row, URL, sibling and the line to
+  add to `construct/deps` (option (c)'s notice, in a slot).
+- **Migration (a).** After a successful non-dry-run restore, when weave runs in
+  the primary checkout (no environment policy; `--absolute-git-dir` equals the
+  common dir), each sourceless substrate row of the root's own `construct/deps`
+  whose destination is a git toplevel with a non-file `origin` is upgraded in
+  place with that origin, through the same row writer `weave link` uses
+  (`declareSubstrate`, extracted from `recordLink`, ARCH-DRY). One notice per
+  rewritten row. A row that can't be upgraded (no origin, local origin) gets a
+  warning that slots can't restore it: the warning half of #293.
+- ARCH-FUNERAL: creates nothing durable beyond the one-line edit to
+  `construct/deps`, which the operator commits like any other edit.
+
+Steps:
+
+- [x] `Policy.PrimaryRoot` from environment discovery; `recoverSource` +
+      `Result.Recovered` in `acquire.Restore`; refusal reasons in the error.
+- [x] Tests (real git, stateful sibling): slot restore clones from the
+      sibling's origin and reports the recovery; dry run reports it as missing
+      without cloning; each refusal (missing, not a checkout, no origin, local
+      origin, name mismatch) keeps the error with its reason.
+- [x] Extract `declareSubstrate` from `recordLink`; `migrateSourceless` in the
+      primary checkout; notices for recoveries and migrations shared by
+      `compile` and `dependencies`.
+- [x] Tests: primary compile rewrites the row (comment preserved) and is
+      idempotent; slot / linked worktree / dry run never write; an unrecoverable
+      row warns.
+- [x] Atlas: weave acquisition note; revise #293 to drop the manual fleet edit.
+- [x] Live: `couch --reconcile tools:1` completes setup with no hand edit.
 
 ## Log
 
 ### 2026-10-06
+- 2026-10-06: closed — go test ./cmd/weave/... ./pkg/workspace/... ./pkg/layergraph/... green; recover_test.go + migrate_test.go (real git, e2e numbered-env dependencies) mutation-checked incl. round-2 guards; live tools:1: branch weave recovered git@github.com:xianxu/ariadne.git from ~/workspace/ariadne, cloned tools-slot1/ariadne, deps untouched; couch --reconcile tools:1 -> prepared; review verdict: SHIP
+- 2026-10-06: flow upgraded quick → full — 180 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Filed from pair#387's smoke test of `tools:1`, at the operator's request. The
 fallback was first proposed during pair#387's planning and rejected (recorded in
 #293); the operator reversed that here, preferring migration automation inside the
 tool to a hand migration across every branch. The details are left local on `main`
 (not moved) for the operator to refine.
+
+Moved details to main from :0 and claimed in :1. Operator chose migration (a)
+(write the row in the primary checkout only; notice in a slot).
+
+Implemented (21209aed). Recovery lives in `acquire.Restore` (`recoverSource`,
+`Result.Recovered`), scoped by `Policy.PrimaryRoot`; migration + notices in
+`cmd/weave/migrate.go` (`finishRestore`, shared by `compile` and
+`dependencies`); `declareSubstrate` extracted from `recordLink` (ARCH-DRY).
+Tests: `recover_test.go` (real git; clone, dry run, warm reuse, five refusals,
+outside-environment), `migrate_test.go` (primary rewrite keeps comment +
+idempotent, linked worktree / slot / dry run / failed restore never write with a
+positive control, end-to-end `weave dependencies` in a numbered environment via
+`url.insteadOf`). Mutation-checked: dropping the file/name/no-origin checks, the
+primary-checkout check, the policy guard, or the `PrimaryRoot` wiring each fails
+a test.
+
+Live, `tools:1` (this branch's weave build, since the installed one predates it):
+`weave dependencies --dry-run` printed `recovered git@github.com:xianxu/ariadne.git
+from /Users/xianxu/workspace/ariadne`; the real run cloned
+`tools-slot1/ariadne` on `main` with that origin, and `construct/deps` stayed
+`substrate ../ariadne` (slot never writes). Then `couch --reconcile tools:1`:
+`dep:ariadne present`, `setup present`, "tools:1 prepared". Compile regenerated
+two base-layer files in tools:1 (`.gitignore` gains xx-couch, merge-check.yml),
+ordinary drift from a newer ariadne, left in place. pair's setup memo doesn't
+key on weave's identity (Spec), so other slots pick this up on
+`couch --reconcile` or a deps edit once the weave rollout lands.
+
+## Revisions
+
+- 2026-10-06 — Spec open question resolved by the operator: migration (a), plus
+  (c)'s notice in a slot. Layer-identity question resolved in the Plan: repository
+  name match before the clone, existing `origin/main` + manifest checks after it.
+  Recovery scoped to numbered environments (the only place a sibling can be
+  missing while its primary-side counterpart exists).
+- 2026-10-06 — Close review round 2 (FIX-THEN-SHIP): the error outside a
+  numbered environment is no longer "unchanged" as the Plan said; it gains
+  "(no source declared; no numbered environment to recover it from)", kept
+  deliberately because it says why recovery didn't apply. The remote-origin
+  probe is shared (`acquire.Client.RemoteOrigin`, `PrimaryCheckout`) and the
+  migration warning now carries its reason; README documents the behaviour.
+

@@ -26,6 +26,9 @@ Detailed incidents remain in their owning issue or review artifact.
   An unmatched replace silently does nothing, and the work log then claims a
   change that never happened (#279 BR-8).
 
+- A predicate that collapses several refusals into a bool forces its caller to
+  guess the reason, and the guess becomes a wrong message. Return the reason as
+  an error and share the one probe between callers (#296 BR-2).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - A syntactic guard cannot support an absolute semantic claim. Bound the claim to

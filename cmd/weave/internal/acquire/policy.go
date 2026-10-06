@@ -10,8 +10,10 @@ import (
 )
 
 // Policy restricts source acquisition to independent siblings of a verified host.
-// Callers obtain these paths from workspace environment discovery.
-type Policy struct{ EnvironmentRoot, HostRoot, HostCommonDir string }
+// Callers obtain these paths from workspace environment discovery. PrimaryRoot
+// is the host's primary checkout; its parent is the fleet directory the
+// environment mirrors, where a sourceless substrate's source is recovered.
+type Policy struct{ EnvironmentRoot, HostRoot, HostCommonDir, PrimaryRoot string }
 
 // validate receives lexical and physical evidence separately: canonicalization
 // must never conceal an unsupported manifest-relative destination.

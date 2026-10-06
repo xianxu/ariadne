@@ -481,10 +481,7 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 	if resolved, err := filepath.EvalSymlinks(root); err == nil {
 		root = resolved
 	}
-	restored, err := client.Restore(ctx, root, dryRun)
-	for _, missing := range restored.Missing {
-		fmt.Fprintf(out, "weave: missing source %s (preview incomplete)\n", missing)
-	}
+	restored, err := restoreSetup(ctx, fs, client, root, dryRun, out)
 	if err != nil {
 		return err
 	}
