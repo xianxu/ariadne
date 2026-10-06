@@ -43,6 +43,32 @@ rounds:
           round: 2
       recipe: milestone-review
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-06T09:28:21-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: README.md:84-94 now describes the primary-checkout write, the warning, the slot recovery notice and that slots never edit construct/deps.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: acquire.Client.RemoteOrigin (acquire.go:418) is used by both recoverSource and migrateSourceless via the c.git seam; the migration warning carries the reason, asserted in TestMigrateSourcelessRecordsOriginInPrimary.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: The issue's Revisions (2026-10-06, round 2) records the extended outside-environment message as deliberate; TestRestoreOutsideEnvironmentKeepsSourcelessError pins it.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: migrate.go:58 runs PrimaryCheckout only when len(sourceless) > 0.
+          round: 3
+        - id: BR-5
+          disposition: addressed
+          note: finishRestore is replaced by restoreSetup (6 params), which returns Restore's error alongside the result after printing notices; no wrapping is lost.
+          round: 3
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#296 (boundary-review)
@@ -67,10 +93,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `avoidable-repeated-work` migrateSourceless runs the primaryCheckout git probes on every compile, even with no sourceless rows
 - **BR-5** [Minor] `function-signature-shape` finishRestore takes eight parameters and passes Restore's err straight through
 
+## Round 3 — 2026-10-06T09:28:21-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — README.md:84-94 now describes the primary-checkout write, the warning, the slot recovery notice and that slots never edit construct/deps.
+- BR-2 — addressed — acquire.Client.RemoteOrigin (acquire.go:418) is used by both recoverSource and migrateSourceless via the c.git seam; the migration warning carries the reason, asserted in TestMigrateSourcelessRecordsOriginInPrimary.
+- BR-3 — addressed — The issue's Revisions (2026-10-06, round 2) records the extended outside-environment message as deliberate; TestRestoreOutsideEnvironmentKeepsSourcelessError pins it.
+- BR-4 — addressed — migrate.go:58 runs PrimaryCheckout only when len(sourceless) > 0.
+- BR-5 — addressed — finishRestore is replaced by restoreSetup (6 params), which returns Restore's error alongside the result after printing notices; no wrapping is lost.
+
 ## Open findings
 
-- **BR-1** [Important] `readme-user-surface-sync` README omits that compile/dependencies in a primary checkout rewrite construct/deps and that slots recover sourceless rows
-- **BR-2** [Important] `shared-helper-not-extracted` The "own checkout with a remote origin" check is written twice (recoverSource and remoteOrigin) with different reporting
-- **BR-3** [Minor] `plan-code-drift` The error outside a numbered environment is extended, but the plan says it stays unchanged
-- **BR-4** [Minor] `avoidable-repeated-work` migrateSourceless runs the primaryCheckout git probes on every compile, even with no sourceless rows
-- **BR-5** [Minor] `function-signature-shape` finishRestore takes eight parameters and passes Restore's err straight through
+(none — every finding has been disposed)

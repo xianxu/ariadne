@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "22b771d5", done: "3afd7eec"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # weave: recover a sourceless substrate's source from the primary checkout's sibling, and migrate the row
@@ -158,6 +158,8 @@ Steps:
 ## Log
 
 ### 2026-10-06
+- 2026-10-06: closed — go test ./cmd/weave/... ./pkg/workspace/... ./pkg/layergraph/... green; recover_test.go + migrate_test.go (real git, e2e numbered-env dependencies) mutation-checked incl. round-2 guards; live tools:1: branch weave recovered git@github.com:xianxu/ariadne.git from ~/workspace/ariadne, cloned tools-slot1/ariadne, deps untouched; couch --reconcile tools:1 -> prepared; review verdict: SHIP
+- 2026-10-06: flow upgraded quick → full — 180 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Filed from pair#387's smoke test of `tools:1`, at the operator's request. The
 fallback was first proposed during pair#387's planning and rejected (recorded in

@@ -119,3 +119,79 @@ findings:
     title: |
       finishRestore takes eight parameters and passes Restore's err straight through
 ```
+
+---
+
+## Re-review — 2026-10-06T09:28:20-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 296 — weave: recover a sourceless substrate's source from the primary checkout's sibling, and migrate the row |
+| repo | ariadne |
+| issue file | workshop/issues/000296-weave-recover-a-sourceless-substrate-s-source-from-the-primary-checkout-s-sibling-and-migrate-the-row.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 0fb92aa4f4492026d003ef8fbdf9aa30f07fe49d..66964e80d5bc5848c75a89d6dc6fc834d7e76fc6 |
+| command | sdlc close --issue 296 |
+| reviewer | claude |
+| timestamp | 2026-10-06T09:28:20-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All five findings from the earlier rounds are fixed, and I found nothing new worth raising. A slot now recovers a missing substrate whose row has no source inside `acquire.Restore`. Before cloning, it checks that the matching checkout next to the primary is its own checkout, has an origin, that the origin is not a local path, and that it names the same repository. After cloning, the existing `origin/main` and manifest checks prove it is the right layer. A real compile or `dependencies` run in a primary checkout writes each such row's source into `construct/deps`. It uses `weave link`'s row writer, which this change pulled out of `recordLink`. Slots, linked worktrees, dry runs and failed restores never write the file, and a test proves that with a positive control. README and atlas both describe the behaviour. `go test ./cmd/weave/...` passes.
+
+1. **Strengths**
+   - `acquire.go:418-438`: `Client.RemoteOrigin` is now the single check for "own checkout with a remote origin". It goes through the injected `c.git`/`c.Origin` seam and returns the reason it refused. Recovery and migration both use it, so the migration warning now states the real cause ("has a local origin", "has no origin").
+   - `acquire.go:347-355`: the recovered source is assigned to `src` before the conflicting-destination check, the dry-run `Missing` path and `Ensure`. A recovered URL therefore goes through exactly the same steps as a declared one.
+   - `link.go:69`: `declareSubstrate` gives `link` and the migration one row writer. It keeps the comment, refuses a conflicting source and does nothing on a second run.
+   - The tests use real git and a stateful sibling. They cover five refusals, a dry run that must not clone, warm reuse after the sibling is deleted, and the migration's never-write cases backed by a positive control.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new. (One observation, not raised: in a dry run, two graph rows pointing at the same missing destination would each print a recovery notice. That is cosmetic and matches how `Missing` already behaves.)
+
+5. **Test coverage notes:** each refusal reason is asserted by its text, and so is the extended error outside a numbered environment. The test that passes a non-nil `Policy` to `migrateSourceless` only exercises the early-return guard. The end-to-end slot test (`TestNumberedSetupRecoversSourcelessSubstrate`) covers the `PrimaryRoot` wiring.
+
+6. **Architectural notes (each ARCH lens)**
+   - **ARCH-DRY: pass.** `RemoteOrigin`, `PrimaryCheckout` and `declareSubstrate` are each written once and shared.
+   - **ARCH-PURE: pass.** The recovery is a thin IO probe that feeds the existing acquisition flow. The decision logic in `recoverSource` is a short chain of guards.
+   - **ARCH-PURPOSE: pass.** Recovery, the migration, the notices and the README/atlas updates are all delivered. The live check on tools:1 is recorded in the issue log.
+   - **ARCH-MOCK: pass.** Git calls go through `Client.Git`, and the tests use real repositories plus a `url.insteadOf` redirect.
+   - **ARCH-CONSTRAINTS: pass.** The `PrimaryCheckout` probes now run only when sourceless rows exist (the earlier BR-4).
+   - **ARCH-SECURE: pass.** The sibling's origin is parsed through `sourceAt`. Local `file:` origins are refused, and the repository name must match before anything is cloned.
+   - **ARCH-ORDER: pass.** This adds no state that persists between events; the recovered source enters the existing acquisition state machine.
+   - **ARCH-FUNERAL: pass.** Nothing durable is created except the one-line `construct/deps` edit, which the operator commits.
+
+7. **Plan revision recommendations:** none. The 2026-10-06 round-2 Revisions entry already records the changed error message and the shared probe.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:84-94 now describes the primary-checkout write, the warning, the slot recovery notice and that slots never edit construct/deps.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      acquire.Client.RemoteOrigin (acquire.go:418) is used by both recoverSource and migrateSourceless via the c.git seam; the migration warning carries the reason, asserted in TestMigrateSourcelessRecordsOriginInPrimary.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The issue's Revisions (2026-10-06, round 2) records the extended outside-environment message as deliberate; TestRestoreOutsideEnvironmentKeepsSourcelessError pins it.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      migrate.go:58 runs PrimaryCheckout only when len(sourceless) > 0.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      finishRestore is replaced by restoreSetup (6 params), which returns Restore's error alongside the result after printing notices; no wrapping is lost.
+```
