@@ -1,12 +1,20 @@
 ---
 id: 000296
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-06
 updated: 2026-10-06
 estimate_hours:
-card_mirror: 'f50aca0d6ff8fc2d9995a30f84c15de7292bdc4c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a7904e910ebd87d62bfe25109259694c984f919d' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-06T09:06:31-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # weave: recover a sourceless substrate's source from the primary checkout's sibling, and migrate the row
@@ -91,7 +99,56 @@ creation.
 
 ## Plan
 
-- [ ]
+Design (operator chose migration (a) on 2026-10-06, see Revisions):
+
+- **Where recovery applies.** Only inside a numbered environment, where
+  `acquire.Policy` exists. The environment root mirrors the fleet directory:
+  `<fleet>/worktree/<repo>-slotN/<name>` corresponds to `<fleet>/<name>`, and
+  `ValidSlotDependency` already confines every substrate to a direct child of the
+  environment root. So the primary-side sibling of a missing destination is
+  `dir(Policy.PrimaryRoot)/base(dest)`; it holds for the host's rows and for rows
+  of substrates cloned into the environment alike. `PrimaryRoot` is the
+  Git-proved `env.Host.PrimaryRoot`, added to `Policy`. Outside an environment a
+  missing sourceless row keeps today's error unchanged.
+- **Evidence.** The sibling must exist, be its own git toplevel, have an
+  `origin`, that origin must not be a local/file source (the policy refuses
+  those), and the origin's repository name must equal `base(dest)`. Layer
+  identity is then proved by the existing post-clone checks (`origin/main`,
+  `construct/base.manifest`), so no separate `layergraph` identity probe is
+  needed (Simplicity First). Each failure extends the missing-substrate error
+  with `no source declared; <sibling> <reason>`.
+- **Effect.** `Restore` treats the recovered URL exactly as a declared source
+  (identity-conflict map, `Ensure`, dry-run `Missing`), and records a
+  `Recovery{Owner, Path, URL, Sibling}` in `Result.Recovered`. The command layer
+  prints one notice per recovery naming the row, URL, sibling and the line to
+  add to `construct/deps` (option (c)'s notice, in a slot).
+- **Migration (a).** After a successful non-dry-run restore, when weave runs in
+  the primary checkout (no environment policy; `--absolute-git-dir` equals the
+  common dir), each sourceless substrate row of the root's own `construct/deps`
+  whose destination is a git toplevel with a non-file `origin` is upgraded in
+  place with that origin, through the same row writer `weave link` uses
+  (`declareSubstrate`, extracted from `recordLink`, ARCH-DRY). One notice per
+  rewritten row. A row that can't be upgraded (no origin, local origin) gets a
+  warning that slots can't restore it: the warning half of #293.
+- ARCH-FUNERAL: creates nothing durable beyond the one-line edit to
+  `construct/deps`, which the operator commits like any other edit.
+
+Steps:
+
+- [ ] `Policy.PrimaryRoot` from environment discovery; `recoverSource` +
+      `Result.Recovered` in `acquire.Restore`; refusal reasons in the error.
+- [ ] Tests (real git, stateful sibling): slot restore clones from the
+      sibling's origin and reports the recovery; dry run reports it as missing
+      without cloning; each refusal (missing, not a checkout, no origin, local
+      origin, name mismatch) keeps the error with its reason.
+- [ ] Extract `declareSubstrate` from `recordLink`; `migrateSourceless` in the
+      primary checkout; notices for recoveries and migrations shared by
+      `compile` and `dependencies`.
+- [ ] Tests: primary compile rewrites the row (comment preserved) and is
+      idempotent; slot / linked worktree / dry run never write; an unrecoverable
+      row warns.
+- [ ] Atlas: weave acquisition note; revise #293 to drop the manual fleet edit.
+- [ ] Live: `couch --reconcile tools:1` completes setup with no hand edit.
 
 ## Log
 
@@ -102,3 +159,14 @@ fallback was first proposed during pair#387's planning and rejected (recorded in
 #293); the operator reversed that here, preferring migration automation inside the
 tool to a hand migration across every branch. The details are left local on `main`
 (not moved) for the operator to refine.
+
+Moved details to main from :0 and claimed in :1. Operator chose migration (a)
+(write the row in the primary checkout only; notice in a slot).
+
+## Revisions
+
+- 2026-10-06 — Spec open question resolved by the operator: migration (a), plus
+  (c)'s notice in a slot. Layer-identity question resolved in the Plan: repository
+  name match before the clone, existing `origin/main` + manifest checks after it.
+  Recovery scoped to numbered environments (the only place a sibling can be
+  missing while its primary-side counterpart exists).
