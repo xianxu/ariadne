@@ -73,3 +73,14 @@ creation.
 Filed from pair#387 planning at the operator's request ("I think this is the
 migration that didn't finish"). Related open migration: #223 (untrack
 weave-lowered substrate symlinks in derivatives).
+
+## Revisions
+
+- 2026-10-06 — Superseded in part by #296 (operator reversed the rejection of a
+  weave fallback: migration belongs in the tool, not in a hand edit across every
+  branch). Weave now recovers a sourceless row's source in a slot from the
+  primary-side sibling's origin, records the source into the row when it runs
+  in a primary checkout, and warns about rows it cannot (the "weave flags a
+  sourceless row" half of this issue). The fleet-wide manual edit is dropped;
+  what remains here is only normalizing the four existing URL forms, if still
+  wanted. Candidate for `wontfix` or a narrowed retitle.
