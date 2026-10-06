@@ -231,10 +231,15 @@ func (c Client) checkExisting(ctx context.Context, dir string, s Source, require
 }
 
 type Mount struct{ Owner, Source, Target string }
+
+// Recovery is a sourceless substrate row whose source was taken from the
+// primary-side sibling's origin (#296). Callers must report every one.
+type Recovery struct{ Owner, Path, URL, Sibling string }
 type Result struct {
-	Layers  []string
-	Mounts  []Mount
-	Missing []string
+	Layers    []string
+	Mounts    []Mount
+	Missing   []string
+	Recovered []Recovery
 }
 
 // Restore acquires every declared source, then delegates topology and cycle
@@ -339,17 +344,22 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 					}
 				}
 			}
+			_, statErr := os.Lstat(dest)
+			if os.IsNotExist(statErr) && row.Source == "" {
+				sibling, recovered, err := c.recoverSource(ctx, dest)
+				if err != nil {
+					return result, fmt.Errorf("missing substrate %s declared in %s: record its source in construct/deps (no source declared; %w)", dest, owner, err)
+				}
+				src = recovered
+				result.Recovered = append(result.Recovered, Recovery{Owner: owner, Path: row.Path, URL: src.URL, Sibling: sibling})
+			}
 			if src.Identity != "" {
 				if old, ok := destinations[dest]; ok && old != src.Identity {
 					return result, fmt.Errorf("destination %s has conflicting declared sources; fix construct/deps or choose another path", dest)
 				}
 				destinations[dest] = src.Identity
 			}
-			_, statErr := os.Lstat(dest)
 			if os.IsNotExist(statErr) {
-				if row.Source == "" {
-					return result, fmt.Errorf("missing substrate %s declared in %s: record its source in construct/deps", dest, owner)
-				}
 				if dryRun {
 					result.Missing = append(result.Missing, dest)
 					continue
@@ -378,6 +388,42 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 	var err error
 	result.Layers, err = layergraph.Resolve(root, edges)
 	return result, err
+}
+
+// recoverSource takes a missing substrate's source from its primary-side
+// sibling: a numbered environment mirrors the fleet directory, so dest's
+// counterpart is <dir(PrimaryRoot)>/<base(dest)>. The sibling must be its own
+// checkout whose remote origin names the same repository; after the clone,
+// Ensure's main-branch and manifest checks prove the layer as for any source.
+func (c Client) recoverSource(ctx context.Context, dest string) (string, Source, error) {
+	if c.Policy == nil || c.Policy.PrimaryRoot == "" {
+		return "", Source{}, fmt.Errorf("no numbered environment to recover it from")
+	}
+	sibling := filepath.Join(filepath.Dir(c.Policy.PrimaryRoot), filepath.Base(dest))
+	if _, err := os.Stat(sibling); err != nil {
+		return sibling, Source{}, fmt.Errorf("%s is not present", sibling)
+	}
+	if top, err := c.git(ctx, sibling, "rev-parse", "--show-toplevel"); err != nil || canonical(top) != canonical(sibling) {
+		return sibling, Source{}, fmt.Errorf("%s is not a repository checkout", sibling)
+	}
+	url, err := c.Origin(ctx, sibling)
+	if err != nil {
+		return sibling, Source{}, err
+	}
+	if url == "" {
+		return sibling, Source{}, fmt.Errorf("%s has no origin", sibling)
+	}
+	src, err := sourceAt(url, sibling)
+	if err != nil {
+		return sibling, Source{}, fmt.Errorf("%s has an invalid origin: %w", sibling, err)
+	}
+	if strings.HasPrefix(src.Identity, "file:") {
+		return sibling, Source{}, fmt.Errorf("%s has a local origin, not a remote source", sibling)
+	}
+	if src.Name != filepath.Base(dest) {
+		return sibling, Source{}, fmt.Errorf("%s origin names repository %s, not %s", sibling, src.Name, filepath.Base(dest))
+	}
+	return sibling, src, nil
 }
 
 func mountTarget(owner, mount string) (string, error) {

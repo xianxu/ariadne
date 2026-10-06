@@ -40,7 +40,7 @@ func prepareSetup(ctx context.Context, root string, dryRun bool, out, errOut io.
 	if env == nil {
 		return client, runner, closeSetup, nil
 	}
-	client.Policy = &acquire.Policy{EnvironmentRoot: env.Root, HostRoot: env.Host.WorktreeRoot, HostCommonDir: env.Host.RepoIdentity}
+	client.Policy = &acquire.Policy{EnvironmentRoot: env.Root, HostRoot: env.Host.WorktreeRoot, HostCommonDir: env.Host.RepoIdentity, PrimaryRoot: env.Host.PrimaryRoot}
 	if !dryRun {
 		lease, err := staging.AcquireSetup(env.Root)
 		if err != nil {

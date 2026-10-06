@@ -482,10 +482,7 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 		root = resolved
 	}
 	restored, err := client.Restore(ctx, root, dryRun)
-	for _, missing := range restored.Missing {
-		fmt.Fprintf(out, "weave: missing source %s (preview incomplete)\n", missing)
-	}
-	if err != nil {
+	if err = finishRestore(ctx, fs, root, client, restored, err, dryRun, out); err != nil {
 		return err
 	}
 	if err := startup.Dependencies(fs, restored.Layers, runner, dryRun, out); err != nil {

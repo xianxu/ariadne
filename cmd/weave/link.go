@@ -54,24 +54,39 @@ func linkRepository(ctx context.Context, root, input string, out io.Writer) erro
 }
 
 func recordLink(fs weavefs.FS, root, path, source string, out io.Writer) error {
+	changed, err := declareSubstrate(fs, root, path, source)
+	if err != nil {
+		return err
+	}
+	if changed {
+		fmt.Fprintf(out, "weave: declared substrate %s in construct/deps\n", path)
+	} else {
+		fmt.Fprintf(out, "weave: substrate %s already present in construct/deps\n", path)
+	}
+	return ensureBaseManifest(fs, root, path, out)
+}
+
+// declareSubstrate adds a substrate row, or records a source on an existing
+// sourceless one (its comment kept). A conflicting recorded source refuses.
+func declareSubstrate(fs weavefs.FS, root, path, source string) (bool, error) {
 	// Whitespace-delimited deps cannot represent paths containing whitespace.
 	row := "substrate " + path
 	if source != "" {
 		row += " " + source
 	}
 	if len(strings.Fields(path)) != 1 || strings.ContainsAny(path, " #\t\r\n\v\f") {
-		return fmt.Errorf("link: dependency path cannot contain whitespace or #: %q", path)
+		return false, fmt.Errorf("link: dependency path cannot contain whitespace or #: %q", path)
 	}
 	if _, err := layergraph.ParseDeps(row); err != nil {
-		return err
+		return false, err
 	}
 	deps := filepath.Join(root, "construct", "deps")
 	content, err := fs.ReadFile(deps)
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("read %s: %w", deps, err)
+		return false, fmt.Errorf("read %s: %w", deps, err)
 	}
 	if _, err := layergraph.ParseRows(string(content)); err != nil {
-		return err
+		return false, err
 	}
 	lines := strings.Split(string(content), "\n")
 	found := false
@@ -87,7 +102,7 @@ func recordLink(fs weavefs.FS, root, path, source string, out io.Writer) error {
 			previous, e1 := acquire.ResolveSource(fields[2], root)
 			next, e2 := acquire.ResolveSource(source, root)
 			if e1 != nil || e2 != nil || previous.Identity != next.Identity {
-				return fmt.Errorf("link: conflicting source already recorded for %s", path)
+				return false, fmt.Errorf("link: conflicting source already recorded for %s", path)
 			}
 		} else if len(fields) == 2 && source != "" {
 			lines[i] = row
@@ -108,14 +123,11 @@ func recordLink(fs weavefs.FS, root, path, source string, out io.Writer) error {
 	}
 	if changed {
 		if err := fs.MkdirAll(filepath.Dir(deps)); err != nil {
-			return err
+			return false, err
 		}
 		if err := fs.WriteFile(deps, []byte(strings.Join(lines, "\n"))); err != nil {
-			return err
+			return false, err
 		}
-		fmt.Fprintf(out, "weave: declared substrate %s in construct/deps\n", path)
-	} else {
-		fmt.Fprintf(out, "weave: substrate %s already present in construct/deps\n", path)
 	}
-	return ensureBaseManifest(fs, root, path, out)
+	return changed, nil
 }
