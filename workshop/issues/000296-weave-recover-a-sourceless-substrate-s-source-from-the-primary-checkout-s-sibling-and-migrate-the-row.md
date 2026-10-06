@@ -136,20 +136,20 @@ Design (operator chose migration (a) on 2026-10-06, see Revisions):
 
 Steps:
 
-- [ ] `Policy.PrimaryRoot` from environment discovery; `recoverSource` +
+- [x] `Policy.PrimaryRoot` from environment discovery; `recoverSource` +
       `Result.Recovered` in `acquire.Restore`; refusal reasons in the error.
-- [ ] Tests (real git, stateful sibling): slot restore clones from the
+- [x] Tests (real git, stateful sibling): slot restore clones from the
       sibling's origin and reports the recovery; dry run reports it as missing
       without cloning; each refusal (missing, not a checkout, no origin, local
       origin, name mismatch) keeps the error with its reason.
-- [ ] Extract `declareSubstrate` from `recordLink`; `migrateSourceless` in the
+- [x] Extract `declareSubstrate` from `recordLink`; `migrateSourceless` in the
       primary checkout; notices for recoveries and migrations shared by
       `compile` and `dependencies`.
-- [ ] Tests: primary compile rewrites the row (comment preserved) and is
+- [x] Tests: primary compile rewrites the row (comment preserved) and is
       idempotent; slot / linked worktree / dry run never write; an unrecoverable
       row warns.
-- [ ] Atlas: weave acquisition note; revise #293 to drop the manual fleet edit.
-- [ ] Live: `couch --reconcile tools:1` completes setup with no hand edit.
+- [x] Atlas: weave acquisition note; revise #293 to drop the manual fleet edit.
+- [x] Live: `couch --reconcile tools:1` completes setup with no hand edit.
 
 ## Log
 
@@ -163,6 +163,29 @@ tool to a hand migration across every branch. The details are left local on `mai
 
 Moved details to main from :0 and claimed in :1. Operator chose migration (a)
 (write the row in the primary checkout only; notice in a slot).
+
+Implemented (21209aed). Recovery lives in `acquire.Restore` (`recoverSource`,
+`Result.Recovered`), scoped by `Policy.PrimaryRoot`; migration + notices in
+`cmd/weave/migrate.go` (`finishRestore`, shared by `compile` and
+`dependencies`); `declareSubstrate` extracted from `recordLink` (ARCH-DRY).
+Tests: `recover_test.go` (real git; clone, dry run, warm reuse, five refusals,
+outside-environment), `migrate_test.go` (primary rewrite keeps comment +
+idempotent, linked worktree / slot / dry run / failed restore never write with a
+positive control, end-to-end `weave dependencies` in a numbered environment via
+`url.insteadOf`). Mutation-checked: dropping the file/name/no-origin checks, the
+primary-checkout check, the policy guard, or the `PrimaryRoot` wiring each fails
+a test.
+
+Live, `tools:1` (this branch's weave build, since the installed one predates it):
+`weave dependencies --dry-run` printed `recovered git@github.com:xianxu/ariadne.git
+from /Users/xianxu/workspace/ariadne`; the real run cloned
+`tools-slot1/ariadne` on `main` with that origin, and `construct/deps` stayed
+`substrate ../ariadne` (slot never writes). Then `couch --reconcile tools:1`:
+`dep:ariadne present`, `setup present`, "tools:1 prepared". Compile regenerated
+two base-layer files in tools:1 (`.gitignore` gains xx-couch, merge-check.yml),
+ordinary drift from a newer ariadne, left in place. pair's setup memo doesn't
+key on weave's identity (Spec), so other slots pick this up on
+`couch --reconcile` or a deps edit once the weave rollout lands.
 
 ## Revisions
 
