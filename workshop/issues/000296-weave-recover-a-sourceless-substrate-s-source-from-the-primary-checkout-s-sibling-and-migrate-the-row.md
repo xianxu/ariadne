@@ -93,8 +93,12 @@ creation.
 - Each refusal (sibling missing, not a checkout, no `origin`, mismatched
   identity) keeps the missing-substrate error, extended with what was tried, and
   has a test.
-- The chosen migration behaviour (a/b/c) is implemented and tested: the row ends
-  up with an explicit source where the operator chose that it should.
+- Migration (a), the operator's choice: a real compile or dependencies run in
+  a primary checkout writes each sourceless row's source from its checkout's
+  remote origin (comment kept, idempotent) and warns, with the reason, about a
+  row it cannot; slots, linked worktrees, dry runs and failed restores never
+  write `construct/deps`. Tested, with a positive control.
+- README and atlas describe the recovery and the migration.
 - Live: `couch --reconcile tools:1` completes setup with no hand edit of tools'
   `construct/deps`.
 
