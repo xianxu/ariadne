@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000297-sdlc-verification-authority-and-an-operator-smoke-test-state.md
         source_blob: a39a96651e2ee751166116557d1d2cca07bf9ba6
         destination: workshop/issues/000297-sdlc-verification-authority-and-an-operator-smoke-test-state.md
+        main_commit: 098cd308058ca4a15cd3d66faa5e61d81724912f
 ---
 
 # sdlc: verification authority and an operator smoke-test state
