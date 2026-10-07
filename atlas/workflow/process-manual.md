@@ -263,6 +263,14 @@ after the operator has agreed the transfer with the current owner out of band,
 or has established that the owner's work is gone. An agent runs it only on the
 operator's explicit instruction, never on its own judgment.
 
+### [recovery](../../cmd/sdlc/helptext/recovery.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Operation recovery contracts (#280). For each workflow verb: what it does when
+it is repeated, interrupted, or answered by a lost response; how to observe its
+outcome without trusting the response; and which tests prove each guarantee.
+
 ### [resolve](../../cmd/sdlc/helptext/resolve.md)
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error

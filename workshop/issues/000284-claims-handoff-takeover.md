@@ -148,3 +148,14 @@ The previous Done when:
 > - A pre-#277 `codecomplete` card is taken over by a plain claim.
 > - `sdlc state` shows the slot and operator views with claim age.
 
+M1 implemented:
+- `tracker.ChangeCards` (one commit for N cards, re-deciding per attempt): `a41d5ab7`;
+- the claim set via the `cardsPublish` seam and pure `claimSetDecision`: `f50523ea`;
+- refresh after claim: `3656c010`.
+
+Test-fixture slips caught while writing the tests (not code bugs):
+- a decision oracle passed `"now"` as a timestamp;
+- a peer "retitle" set `title`, which lives in the H1, not the frontmatter.
+
+Design point surfaced: comparing local and main details must compare bodies only, since claim's mirror refresh rewrites the frontmatter by design.
+

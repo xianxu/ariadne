@@ -1,6 +1,19 @@
 Claim an issue: record this workspace as its owner, which is the lock (#283).
 
   sdlc claim --issue N
+  sdlc claim --issue 284,285,287
+
+A SET (#284). Several issues claim together in one tracker commit, all or
+nothing: every card is judged on the bytes each attempt reads, so a peer that
+claims one member while the set is in flight fails the whole set (naming it),
+while a harmless change to a member is decided again and the set lands. The
+owner's own repeats in a set are skipped. Finishing an `sdlc move` and
+`--adopt` take one issue at a time.
+
+REFRESH (#284). After the card lands, claim brings the checkout up to date: a
+resting branch fast-forwards to the fetched main (or warns why it cannot: the
+branch has commits main lacks, or a local change is in the way); on another
+branch, each issue whose details body differs from main's is named.
 
 An issue is claimable only once its creation is complete: its card is on the
 `issue-tracker` branch AND its details file has landed on main. A card-only or
@@ -54,7 +67,7 @@ branch.
 
 FLAGS
 
-  --issue <n>           required issue ID
+  --issue <n>[,<n>…]    required issue ID(s); a list is one all-or-nothing claim
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues (details home)
   --history-dir <path>  override $WF_HISTORY_DIR / workshop/history
   --dry-run             check readiness and describe the reservation; change nothing
@@ -66,6 +79,7 @@ FLAGS
 EXAMPLES
 
   sdlc claim --issue 31
+  sdlc claim --issue 31,32,33
   sdlc claim --issue 31 --dry-run
 
 RELATED

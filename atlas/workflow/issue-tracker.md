@@ -234,7 +234,7 @@ The publication remote is the resting branch's upstream
 | Verb | Card (tracker) | Details (checkout) | Main |
 |---|---|---|---|
 | `issue new` | reserved at `max(id)+1`, own commit; reallocates after a proven race | written locally; narrow commit on a feature branch, uncommitted on rest | untouched |
-| `claim` | claimant by CAS, status unchanged (#283); the owner's repeat is a no-op, others refuse (#277) | mirror refreshed (never on rest) | must already hold the details, re-checked before push |
+| `claim` | claimant by CAS, status unchanged (#283); a set `--issue a,b` is one all-or-nothing tracker commit (`tracker.ChangeCards`, #284); the owner's repeat is a no-op, others refuse (#277) | mirror refreshed (never on rest); rest fast-forwards to main after claiming (#284) | must already hold the details, re-checked before push |
 | `start-plan` | owned by this workspace (#277); open → working by CAS after the branch is ready (#283) | branch `<details stem>` created at pinned main from a rest clean except for this issue's own details, which ride along (#283); an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
 | `change-code` | read (mirror refresh before gates); owner only (#277), started only (#283) | design committed narrowly on the issue branch | never published |
 | `close` | codecomplete bound to the evidence commit | evidence commit, then a mirror commit (#275) | never published |
