@@ -277,7 +277,14 @@ repository, reviewed head, evidence commit}. FIX-THEN-SHIP stores the receipt
 unstarted so fixes land before the evidence; the deferred commit replays the
 bytes pinned at close only where HEAD still holds the reviewed version, so a fix
 that edits a pinned file is kept, warned and named in a `Close-Kept:` trailer
-(`EvidenceEntry.Replays`/`Superseded`). Publishing verbs own
+(`EvidenceEntry.Replays`/`Superseded`). A close, or a reconcile, refuses
+to replace a newer binding already on the card (`completeop.go` `newestClose`).
+The card's binding counts as older when its reviewed head is an ancestor of the
+new one, or (#283, pinned end to end by #301) when a rebase rewrote it off the
+branch while the new review is on it: reopening and re-closing after a rebase
+onto main lands. A commit the clone never had counts as off the branch
+(`closeAncestorOf`), and a stale receipt from before the rebase still loses.
+Publishing verbs own
 the closes whose evidence they carry (`trackercompletion.go`), anchor the
 reviewed-state check on it, and complete cards by compare-and-swap for the same
 token after a confirmed landing (never on an abandoned branch's cleanup); recovery is re-derivation ("codecomplete whose evidence is on main").

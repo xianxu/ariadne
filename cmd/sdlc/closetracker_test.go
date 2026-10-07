@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -287,4 +288,76 @@ func TestTrackerReCloseCommitsTheModifiedGateLedger(t *testing.T) {
 	if dirty := r.git("status", "--porcelain", "--", "workshop/plans"); dirty != "" {
 		t.Fatalf("the re-close left plan files uncommitted:\n%s", dirty)
 	}
+}
+
+// #301: a close survives a rebase, through both callers of the close-generation
+// rule. The first close binds the card to a reviewed commit; rebasing onto an
+// advanced main rewrites it off the branch; a reopen and a second close must
+// land their completion, not be released against the rewritten one. "pruned"
+// also drops the old commits from the clone (a rebase done elsewhere), which is
+// where each caller's closeAncestorOf wiring matters: a SHIP close judges the
+// generation itself, while a FIX-THEN-SHIP close defers it to reconcile.
+func TestTrackerCloseSurvivesARebase(t *testing.T) {
+	for i, tc := range []struct {
+		name    string
+		prune   bool
+		verdict string
+	}{
+		{"close, old review still in the clone", false, "SHIP"},
+		{"close, old review pruned", true, "SHIP"},
+		{"reconcile, old review pruned", true, "FIX-THEN-SHIP"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			id := 310 + i
+			idArg := fmt.Sprint(id)
+			r, cardPath, _ := closeReady(t, id)
+			stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+			if _, stderr, err := executeSDLCTestCommand("close", "--issue", idArg, "--verified", "first", "--actual", "1", "--no-atlas", "--no-ledger"); err != nil {
+				t.Fatalf("first close: %v\n%s", err, stderr)
+			}
+			first, ok, _ := issue.CardCompletion([]byte(r.card(cardPath)))
+			if !ok {
+				t.Fatal("first close bound nothing")
+			}
+
+			peerCommit(t, r, "other.go")
+			r.git("fetch", "-q", "origin")
+			r.git("rebase", "-q", "origin/main")
+			if gitSucceeds(r.root, "merge-base", "--is-ancestor", first.ReviewedHEAD, "HEAD") {
+				t.Fatal("fixture: the rebase did not rewrite the reviewed commit")
+			}
+			if tc.prune {
+				r.git("reflog", "expire", "--expire=now", "--all")
+				r.git("gc", "-q", "--prune=now")
+				if gitSucceeds(r.root, "cat-file", "-e", first.ReviewedHEAD+"^{commit}") {
+					t.Fatal("fixture: the old reviewed commit survived the prune")
+				}
+			}
+
+			if _, stderr, err := executeSDLCTestCommand("issue", "set-status", "working", "--issue", idArg); err != nil {
+				t.Fatalf("reopen: %v\n%s", err, stderr)
+			}
+			stubJudge(t, "VERDICT: "+tc.verdict+" (confidence: high)\n\nfine\n")
+			if _, stderr, err := executeSDLCTestCommand("close", "--issue", idArg, "--verified", "second", "--actual", "1", "--no-atlas", "--no-ledger"); err != nil {
+				t.Fatalf("second close: %v\n%s", err, stderr)
+			}
+			if tc.verdict == "FIX-THEN-SHIP" {
+				writeRepoFile(t, r.root, "cmd/a.go", "package a // fixed\n")
+				r.git("commit", "-qam", "#"+idArg+": fix review finding")
+				var out, errs bytes.Buffer
+				if err := runRecoveryReconcile(context.Background(), &out, &errs, id); err != nil {
+					t.Fatalf("reconcile: %v\n%s", err, errs.String())
+				}
+			}
+			second, ok, _ := issue.CardCompletion([]byte(r.card(cardPath)))
+			if !ok || second.Token == first.Token || second.EvidenceCommit != r.git("rev-parse", evidenceRev) || !strings.Contains(r.card(cardPath), "status: codecomplete") {
+				t.Fatalf("the close after the rebase did not land (first %s, now %+v):\n%s", first.Token, second, r.card(cardPath))
+			}
+		})
+	}
+}
+
+// gitSucceeds reports whether a git command in dir exits 0.
+func gitSucceeds(dir string, args ...string) bool {
+	return exec.Command("git", append([]string{"-C", dir}, args...)...).Run() == nil
 }

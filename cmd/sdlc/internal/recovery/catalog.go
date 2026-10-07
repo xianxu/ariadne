@@ -107,7 +107,7 @@ var Catalog = []Contract{
 			{"evidence before codecomplete, bound to the reviewed head", []string{"TestTrackerCloseCommitsEvidenceAndPublishesBoundCard", "TestCompletionCommitsEvidenceBeforeCodecomplete"}},
 			{"FIX-THEN-SHIP lands evidence after the fixes", []string{"TestTrackerCloseFixThenShipLandsEvidenceAfterTheFixes", "TestTrackerCloseFixThenShipSurvivesASweepingFixCommit"}},
 			{"a re-close supersedes an unstarted close; an older review cannot win", []string{"TestTrackerReCloseSupersedesAnUnstartedClose", "TestNewestCloseRefusesAnOlderReviewThanTheCardsClose"}},
-			{"after a rebase, a close the branch no longer contains is superseded by a re-close on the branch; a stale pre-rebase receipt still loses", []string{"TestNewestCloseAfterARebase", "TestCloseAncestorOfTreatsAnUnknownCommitAsNoAncestor"}},
+			{"after a rebase, a close the branch no longer contains is superseded by a re-close on the branch; a stale pre-rebase receipt still loses", []string{"TestNewestCloseAfterARebase", "TestCloseAncestorOfTreatsAnUnknownCommitAsNoAncestor", "TestTrackerCloseSurvivesARebase"}},
 			{"a re-run after SHIP is a new generation", []string{"TestCloseRerunAfterShipStartsANewGeneration"}},
 			{"an interrupted mirror commit is finished by reconcile", []string{"TestReconcileRetriesAnInterruptedCloseMirror"}},
 			{"preconditions refuse before the review runs", []string{"TestTrackerCloseRefusesPreconditionsBeforeReview", "TestOwnershipGatesRefuseForeignAndUnknown"}},
