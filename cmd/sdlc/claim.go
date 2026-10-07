@@ -235,25 +235,8 @@ func refreshAfterClaim(env *trackerEnv, stderr io.Writer, ids []string, detailPa
 		return
 	}
 	if env.onRest() {
-		head, err := env.git("rev-parse", "HEAD")
-		if err != nil {
-			cwarn(stderr, fmt.Sprintf("%s not fast-forwarded to main: reading HEAD failed: %v", env.resting, err))
-			return
-		}
-		if head == view.Ref() {
-			return
-		}
-		contained, err := env.gitTest("merge-base", "--is-ancestor", "HEAD", view.Ref())
-		if err != nil {
-			cwarn(stderr, fmt.Sprintf("%s not fast-forwarded to main: comparing it with main failed: %v", env.resting, err))
-			return
-		}
-		if !contained {
-			cwarn(stderr, fmt.Sprintf("%s not fast-forwarded to main: it has commits main lacks; reconcile them before shaping here", env.resting))
-			return
-		}
-		if _, err := env.git("merge", "-q", "--ff-only", view.Ref()); err != nil {
-			cwarn(stderr, fmt.Sprintf("%s not fast-forwarded to main (a local change is in the way): %v", env.resting, err))
+		if warn := fastForwardRest(env, view.Ref()); warn != "" {
+			cwarn(stderr, warn)
 		}
 		return
 	}
@@ -269,6 +252,30 @@ func refreshAfterClaim(env *trackerEnv, stderr io.Writer, ids []string, detailPa
 			cwarn(stderr, fmt.Sprintf("#%s's details here differ from main's; publish them with `sdlc issue publish --issue %s`, or bring main in", issue.CLIRef(id), issue.CLIRef(id)))
 		}
 	}
+}
+
+// fastForwardRest moves the resting branch to main's commit target (#284),
+// returning a warning — never an error — when it cannot: HEAD unreadable, the
+// rest carrying commits main lacks, or a local change in the way.
+func fastForwardRest(env *trackerEnv, target string) string {
+	head, err := env.git("rev-parse", "HEAD")
+	if err != nil {
+		return fmt.Sprintf("%s not fast-forwarded to main: reading HEAD failed: %v", env.resting, err)
+	}
+	if head == target {
+		return ""
+	}
+	contained, err := env.gitTest("merge-base", "--is-ancestor", "HEAD", target)
+	if err != nil {
+		return fmt.Sprintf("%s not fast-forwarded to main: comparing it with main failed: %v", env.resting, err)
+	}
+	if !contained {
+		return fmt.Sprintf("%s not fast-forwarded to main: it has commits main lacks; reconcile them before shaping here", env.resting)
+	}
+	if _, err := env.git("merge", "-q", "--ff-only", target); err != nil {
+		return fmt.Sprintf("%s not fast-forwarded to main (a local change is in the way): %v", env.resting, err)
+	}
+	return ""
 }
 
 // claimIssues is the issue set a claim names: the --issue list, else the
