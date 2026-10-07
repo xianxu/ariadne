@@ -1,6 +1,6 @@
 ---
 id: 000283
-status: codecomplete
+status: done
 created: 2026-10-02
 updated: 2026-10-07
 estimate_hours: 3.48
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: d3874b2f3e94d0496e5b342decceac6b354c04c5
         evidence_commit: d07e7d2cd928871b75d24d0a60b1dd4a07168620
+        landed_commit: 0d3860c850a6885f730ff5fdc9aac2c62de8ff76
 ---
 
 # Re-derive ownership from the claimant
