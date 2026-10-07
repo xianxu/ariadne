@@ -84,6 +84,19 @@ What shipped:
 - The `release` record (who let go) and an envelope that keeps unknown keys were pulled forward from M3, because unclaim's rerun depends on them.
 - The audit retired `issue sync` in tracker repositories: it was only `git commit -- <details>`. AGENTS.base gained the resting-branch rule.
 
+<a id="ariadne-284-m3"></a>
+### ariadne#284 M3 — Handoff and takeover
+
+**est:** ~1.5h (M3's share of #284's 6.1h, after Task 8 moved into M2)
+
+What shipped:
+- Unclaiming started work is a handoff: from the issue's branch with a clean tree, it commits the note, pushes the branch with a lease, and records the release's branch and tip.
+- A plain claim elsewhere takes it over. Every check runs before the card write: branch name, clean resting branch, fetched tip equal to the recorded head, no diverged local copy. Then it checks out exactly that tip.
+- `--adopt` folds into claim, since unowned started work, released or claimed before #277, is just taken over.
+- In the model, `move` covers open claims, which closed #283's moved-open repair.
+
+Decision worth keeping: the handoff returns the releasing checkout to rest, because a branch checked out in one worktree can't be checked out in another on the same machine.
+
 ## Log
 
 ### 2026-10-02
@@ -96,3 +109,4 @@ Promoted from #283 after a four-round design discussion with the operator (decis
 
 [ariadne#284 M1]: #ariadne-284-m1
 [ariadne#284 M2]: #ariadne-284-m2
+[ariadne#284 M3]: #ariadne-284-m3
