@@ -269,7 +269,12 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 			cwarn(stderr, fmt.Sprintf("%s not written: %v", it.path, err))
 			continue
 		}
-		if dirty, err := env.git("status", "--porcelain", "--", it.path); err != nil || dirty == "" {
+		dirty, err := env.git("status", "--porcelain", "--", it.path)
+		if err != nil {
+			cwarn(stderr, fmt.Sprintf("%s: reading its status failed, so the published bytes were not committed on %s: %v", it.path, env.branch, err))
+			continue
+		}
+		if dirty == "" {
 			continue
 		}
 		if _, err := env.git("add", "--", it.path); err != nil {

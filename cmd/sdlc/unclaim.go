@@ -173,10 +173,10 @@ func runUnclaim(ctx context.Context, stdout, stderr io.Writer, f *unclaimFlags) 
 	if len(pending) == 0 {
 		cok(stderr, fmt.Sprintf("%s already released by this workspace; nothing to do", claimRefs(ids)))
 		if !f.DryRun && env.onRest() {
-			if view, err := env.main.Snapshot(); err == nil {
-				if warn := fastForwardRest(env, view.Ref()); warn != "" {
-					cwarn(stderr, warn)
-				}
+			if view, err := env.main.Snapshot(); err != nil {
+				cwarn(stderr, fmt.Sprintf("%s not fast-forwarded to main: reading main failed: %v", env.resting, err))
+			} else if warn := fastForwardRest(env, view.Ref()); warn != "" {
+				cwarn(stderr, warn)
 			}
 		}
 		fmt.Fprintln(stdout, "released")
