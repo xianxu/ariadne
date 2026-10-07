@@ -63,14 +63,15 @@ var Catalog = []Contract{
 		},
 	},
 	{
-		Verbs:         []string{"change-code"},
-		Class:         ConvergentRetry,
-		Effects:       "runs the planning gates (plan-quality writes its ledger; estimate-quality dispatches a judge); records the flow and refreshes the mirror; one local commit of the design. Never pushes.",
-		Evidence:      observeEvidence + ": checkpoints.flow, checkpoints.reviews[plan].",
-		Preconditions: "on the issue branch (start-plan first); owned by this workspace and started — a claimed but still open card refuses toward start-plan (#283); on the full flow, a plan that clears plan-quality and a reconciled estimate.",
-		Repeat:        "an unchanged plan passes plan-quality without a new review; the branch and commit converge. estimate-quality re-dispatches each run, so its advisory text may differ.",
-		LostResponse:  "local only; rerun.",
-		Ends:          "ownership moves (reclaim).",
+		Verbs:    []string{"change-code"},
+		Class:    ConvergentRetry,
+		Effects:  "runs the planning gates (plan-quality writes its ledger; estimate-quality dispatches a judge); records the flow and refreshes the mirror; one local commit of the design. Never pushes.",
+		Evidence: observeEvidence + ": checkpoints.flow, checkpoints.reviews[plan].",
+		Preconditions: "on the issue branch (start-plan first); owned by this workspace and started — a claimed but still open card refuses toward start-plan (#283); " +
+			"on the full flow, a plan that clears plan-quality and a reconciled estimate.",
+		Repeat:       "an unchanged plan passes plan-quality without a new review; the branch and commit converge. estimate-quality re-dispatches each run, so its advisory text may differ.",
+		LostResponse: "local only; rerun.",
+		Ends:         "ownership moves (reclaim).",
 		Proofs: []Proof{
 			{"plan-quality converges across rounds", []string{"TestPlanQualityConvergesAcrossRounds"}},
 			{"the in-place branch is reused on a rerun", []string{"TestCreateInPlaceBranch_RealRepo_IdempotentRerun"}},
