@@ -97,7 +97,7 @@ The design buffer is +15% because a thorough plan doc exists.
 ## Plan
 
 - [x] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
-- [ ] M1 — atomic multi-claim and refresh on claim
+- [x] M1 — atomic multi-claim and refresh on claim
 - [ ] M2 — `issue publish` (first publication + republish), unclaim of an open claim, `issue sync` retirement, resting-branch rule
 - [ ] M3 — handoff and takeover, envelope keeps unknown keys, moved-open repair
 - [ ] M4 — `sdlc state` owner, claim age, by-slot and by-operator views
@@ -111,6 +111,7 @@ From #283's close review: `requireCardOwnership`'s "moved here, finish with `sdl
 Also from #283: the model's `unclaim` lists every holdable status, `codecomplete` included, following round 2's handoff decision (which supersedes round 1's "not from codecomplete"). Confirm that when building the verb.
 
 ### 2026-10-07
+- 2026-10-07: closed M1 — make test green (915 cmd/sdlc + 20 pkgs; processgroup /bin/ps sandbox-only); ChangeCards real-git tests (one commit, refusals, re-decide on named and unrelated races); claim set: TestClaimSetDecision over status x owner, TestClaimSetIsOneTrackerCommit, TestClaimSetRace (contested member fails whole, benign change re-decided); TestClaimRefreshesTheCheckout (rest ff, blocked ff warns, branch body-diff warns); catalog + help + atlas updated; review verdict: SHIP
 
 Design with the operator, after a code digest:
 - `tracker` has no multi-card CAS; build it on `gitx.UpdateMany`, which re-decides on every attempt.
