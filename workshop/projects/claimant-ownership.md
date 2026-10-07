@@ -46,9 +46,27 @@ Order: model first, done properly, with no fast-track for pair#365. #287 is inde
 - [x] Model: claimant lock, status as lifecycle, slot/operator terminology [ariadne#283]
 - [x] Pin the rebase-aware close rule: e2e test and atlas [ariadne#301]
 - [ ] Claims: multi-claim, publish, handoff, takeover [ariadne#284]
+- [x] Atomic multi-claim and refresh on claim [ariadne#284 M1]
+- [ ] `issue publish`, open unclaim, `issue sync` retirement [ariadne#284 M2]
+- [ ] Handoff and takeover [ariadne#284 M3]
+- [ ] `sdlc state` owner, claim age, views [ariadne#284 M4]
 - [ ] Transfer guard: owner plus based-on-latest [ariadne#285]
 - [ ] Boundary pushes and sdlc abandon [ariadne#286]
 - [ ] Reconcile merges done outside sdlc [ariadne#287]
+
+<a id="ariadne-284-m1"></a>
+### ariadne#284 M1 — Atomic multi-claim and refresh on claim
+
+**est:** ~1.1h (M1's share of #284's 6.1h)
+**actual:** 1.15h
+**closed:** 2026-10-07
+
+What shipped:
+- `tracker.ChangeCards` writes N cards in one tracker commit and re-decides every card over the bytes each attempt reads; the single-card `UpdateCard` could only refuse a changed card.
+- `claim --issue a,b,c` uses it through a `cardsPublish` seam and a pure `claimSetDecision`. A peer claiming a member fails the set whole; a benign change to a member is re-decided and the set lands.
+- After the card lands, claim fast-forwards a resting branch to main, or names each issue whose details body differs from main's.
+
+Decision worth keeping: compare details *bodies*, never whole files, because claim's mirror refresh rewrites the frontmatter by design.
 
 ## Log
 
@@ -60,3 +78,4 @@ Promoted from #283 after a four-round design discussion with the operator (decis
 
 #283 landed (PR #161), but landing it needed a scope revision: a close now survives a rebase (`completeop.go` `newestClose` treats a binding that the rebase rewrote off the branch as replaced). Its final review left two advisory Minors: no end-to-end test pins the close/reconcile wiring, and the atlas lacks the rule. Filed as #301 and added to scope at the operator's request. It's next in line, ahead of #284.
 
+[ariadne#284 M1]: #ariadne-284-m1
