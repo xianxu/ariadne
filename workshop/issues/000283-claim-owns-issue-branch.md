@@ -200,6 +200,8 @@ Close review round 1 (SHIP, five Minors), reopened to fix in the same round:
 Close review round 2 (SHIP; all five round-1 findings dispositioned, one new Minor), reopened again to fix it: `startDecision` had gated on the ownership axis (`CanHoldOwner`), which admitted held `blocked` and `codecomplete` cards. A codecomplete card could have got a fresh branch from main. Admission is now a lifecycle question: the `start` edge's source or target (open or working), as before #283's working-only gate plus open. The product test asserts this.
 
 ### 2026-10-07
+- 2026-10-07: closed — rebased onto origin/main; BR-7 fixed: recovery catalog contracts for claim/start-plan/reclaim/set-status and the scheduling example follow the lock model, with named proofs (recovery contract tests pass); make test green (909 cmd/sdlc + 20 pkgs; processgroup /bin/ps sandbox-only); fleet claims derive from CanHoldOwner; earlier evidence stands
+- 2026-10-07: closed — rebased onto origin/main; make test green (909 cmd/sdlc tests + 20 pkgs; processgroup /bin/ps test is sandbox-only and passes unsandboxed); make vocab-embed clean; fleet claims now derive from CanHoldOwner (fleet unit + TestFleetInventoryPlacesClaims), scheduling example expects open after claim (TestSchedulingExampleRuns); earlier evidence stands: TestShapeUnderClaimThenStart, TestClaimNeverMovesStatus, TestStartDecision over status x owner
 
 Rebased onto origin/main (114 commits). Conflicts:
 - `workshop/lessons.md`: both sides appended; kept both.
@@ -212,6 +214,12 @@ Code from main that treated an active status as the claim now derives from the o
 - #280's scheduling example, which expects `open` after claim.
 
 Five tests from main were updated to the new contract. `make test` is green (909 + 20 packages; processgroup is sandbox-only). Reopened to re-close, so a fresh review covers the rebased window.
+
+Close after the rebase:
+- Round 4 (FIX-THEN-SHIP, BR-7): the recovery catalog still described the old claim and start-plan; fixed.
+- Round 5 (FIX-THEN-SHIP, BR-8): my BR-7 edit's `str.replace` copied start-plan's proof rows into change-code's entry too; fixed (`6636b1a1`).
+
+Blocked landing: `sdlc issue recovery reconcile` releases every new receipt with "the card records a newer close than this receipt (close-a09782625336 reviewed d8f753db)". The cause is `tracker/completeop.go` `newestClose`, which judges the card's prior close superseded only if its reviewed HEAD is an ancestor of the new one. The rebase rewrote history, so the pre-rebase reviewed HEAD is no ancestor of anything, and the stale binding wins forever. Reopen (`set-status working`) does not clear the binding. This is a general gap from #252 M3: any rebase after a close permanently blocks re-closing. Waiting on the operator's call on where to fix it.
 
 ## Revisions
 
