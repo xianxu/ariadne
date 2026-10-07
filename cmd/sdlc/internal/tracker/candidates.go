@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"path"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -21,7 +22,16 @@ var ErrIDTaken = errors.New("tracker ID already allocated")
 // cardMessage follows the commit convention, "#N: tracker: <what>" with the
 // unpadded number agents and the activity window match on.
 func cardMessage(id, what, token string, trailers ...string) string {
-	msg := fmt.Sprintf("#%s: tracker: %s\n\nTracker-Operation: %s", issue.CLIRef(id), what, token)
+	return cardsMessage([]string{id}, what, token, trailers...)
+}
+
+// cardsMessage is cardMessage for one or more cards: "#252,#253: tracker: …".
+func cardsMessage(ids []string, what, token string, trailers ...string) string {
+	refs := make([]string, len(ids))
+	for i, id := range ids {
+		refs[i] = "#" + issue.CLIRef(id)
+	}
+	msg := fmt.Sprintf("%s: tracker: %s\n\nTracker-Operation: %s", strings.Join(refs, ","), what, token)
 	for _, t := range trailers {
 		msg += "\n" + t
 	}
