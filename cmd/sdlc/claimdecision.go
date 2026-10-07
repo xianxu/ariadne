@@ -69,7 +69,16 @@ func claimDecision(raw []byte, id int, today, started string, me *issue.Claimant
 	if me == nil {
 		return out, nil
 	}
-	return issue.SetCardClaimant(out, *me)
+	if out, err = issue.SetCardClaimant(out, *me); err != nil {
+		return nil, err
+	}
+	// A claim takes the lock; a release that left it open is spent (#284).
+	if _, released, err := issue.CardRelease(out); err != nil {
+		return nil, err
+	} else if released {
+		return issue.SetCardRelease(out, nil)
+	}
+	return out, nil
 }
 
 // claimSetDecision is claim's decision over a set (#284), made on the bytes one

@@ -43,6 +43,10 @@ type trackerEnvelope struct {
 	Version    int         `yaml:"version"`
 	Handoff    *Handoff    `yaml:"handoff,omitempty"`
 	Completion *Completion `yaml:"completion,omitempty"`
+	Release    *Release    `yaml:"release,omitempty"` // #284
+	// Extra keeps every member this binary does not know, so a rewrite never
+	// drops a record a newer sdlc wrote (#284).
+	Extra map[string]yaml.Node `yaml:",inline"`
 }
 
 var handoffOID = regexp.MustCompile(`^(?:[0-9a-f]{40}|[0-9a-f]{64})$`)
@@ -98,6 +102,11 @@ func cardEnvelope(d *cardDocument) (trackerEnvelope, error) {
 	}
 	if env.Completion != nil {
 		if err := env.Completion.validate(); err != nil {
+			return env, err
+		}
+	}
+	if env.Release != nil {
+		if err := env.Release.validate(); err != nil {
 			return env, err
 		}
 	}

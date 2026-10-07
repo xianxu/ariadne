@@ -242,3 +242,25 @@ func TestClaimSetLostResponseAndAdoptRefusal(t *testing.T) {
 		t.Fatalf("an unowned started member must point at a single --adopt: %v", err)
 	}
 }
+
+// #284: a claim takes the lock and spends any release that left the card open.
+func TestClaimClearsARelease(t *testing.T) {
+	me := issue.Claimant{Operator: "Me", Machine: issue.MachineFingerprint("m1"), MachineName: "box", Worktree: "/w/a", Repository: "r"}
+	them := me
+	them.Operator, them.Worktree = "Them", "/w/b"
+	raw := []byte("---\nid: 000031\nstatus: open\ncreated: 2026-10-01\nupdated: 2026-10-01\n---\n\n# t\n\n## Problem\n\nx\n")
+	released, err := issue.SetCardRelease(raw, &issue.Release{By: issue.ReleasedBy(them)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	out, err := claimDecision(released, 31, "2026-10-07", "2026-10-07T09:00:00-07:00", &me)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, _ := issue.CardRelease(out); ok {
+		t.Fatalf("the release survived the claim:\n%s", out)
+	}
+	if got, ok, _ := issue.CardClaimant(out); !ok || got != me {
+		t.Fatal("not claimed")
+	}
+}
