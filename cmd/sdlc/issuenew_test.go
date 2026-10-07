@@ -44,7 +44,7 @@ func TestIssueNewReservesCardAndLeavesRestUnpublished(t *testing.T) {
 	if r.originMain() != mainBefore || r.git("rev-parse", "HEAD") != headBefore {
 		t.Fatal("card-only filing moved main or committed on rest")
 	}
-	if !strings.Contains(errs.String(), "move-detail --issue 8`") {
+	if !strings.Contains(errs.String(), "issue publish --issue 8`") {
 		t.Errorf("no handoff next action:\n%s", errs.String())
 	}
 }

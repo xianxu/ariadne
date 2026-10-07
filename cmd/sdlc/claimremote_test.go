@@ -46,7 +46,7 @@ func TestClaimRefusesUntilDetailsLandOnMain(t *testing.T) {
 	writeRepoFile(t, r.root, detailPath, detail)
 	var out, errs bytes.Buffer
 	err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9))
-	if err == nil || !strings.Contains(err.Error(), "not claimable yet") || !strings.Contains(err.Error(), "move-detail --issue 9`") {
+	if err == nil || !strings.Contains(err.Error(), "not claimable yet") || !strings.Contains(err.Error(), "issue publish --issue 9`") {
 		t.Fatalf("claimed an incompletely created issue: %v", err)
 	}
 	if got := r.card(cardPath); got != card {
