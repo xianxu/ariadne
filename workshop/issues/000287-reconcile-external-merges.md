@@ -30,7 +30,7 @@ Independent of #284–#286: it needs only the merge detection and the existing c
 
 ## Plan
 
-- [ ]
+- [ ] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
 
 ## Log
 

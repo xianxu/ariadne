@@ -35,7 +35,7 @@ Part of project `claimant-ownership`. Started work is only recoverable after a h
 
 ## Plan
 
-- [ ]
+- [ ] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
 
 ## Log
 
