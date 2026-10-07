@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000299-dev-aliases-a-binary-whose-owner-needs-a-generated-input-fails-to-build-in-a-fresh-checkout.md
         source_blob: 42698c64445b2b07c039e9e0059621973d6e085e
         destination: workshop/issues/000299-dev-aliases-a-binary-whose-owner-needs-a-generated-input-fails-to-build-in-a-fresh-checkout.md
+        main_commit: 1b11fc83f9f2ecf656c2e70eadb2aed6a28a7d88
 ---
 
 # dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout
