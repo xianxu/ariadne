@@ -186,6 +186,7 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 		return claimSetDecision(current, ids, today, started, me)
 	}
 	refresh := func() {
+		refreshAfterClaim(env, stderr, ids, detailPaths)
 		for _, id := range ids {
 			if warn := refreshLocalMirror(env, detailPaths[id]); warn != "" {
 				cwarn(stderr, warn)
@@ -220,6 +221,45 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	refresh()
 	fmt.Fprintln(stdout, "claimed")
 	return nil
+}
+
+// refreshAfterClaim brings this checkout up to what it now holds (#284), so the
+// lock never protects a stale copy: a resting branch fast-forwards to the
+// fetched main; elsewhere, details whose body differs from main's are named
+// (the frontmatter carries the card mirror, which differs by design). It
+// warns and never fails: the claim has already landed.
+func refreshAfterClaim(env *trackerEnv, stderr io.Writer, ids []string, detailPaths map[string]string) {
+	view, err := env.main.Snapshot()
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("checkout not refreshed: reading main failed: %v", err))
+		return
+	}
+	if env.onRest() {
+		head, err := env.git("rev-parse", "HEAD")
+		if err != nil || head == view.Ref() {
+			return
+		}
+		if contained, err := env.gitTest("merge-base", "--is-ancestor", "HEAD", view.Ref()); err != nil || !contained {
+			cwarn(stderr, fmt.Sprintf("%s not fast-forwarded to main: it has commits main lacks; reconcile them before shaping here", env.resting))
+			return
+		}
+		if _, err := env.git("merge", "-q", "--ff-only", view.Ref()); err != nil {
+			cwarn(stderr, fmt.Sprintf("%s not fast-forwarded to main (a local change is in the way): %v", env.resting, err))
+		}
+		return
+	}
+	for _, id := range ids {
+		local, lerr := os.ReadFile(filepath.Join(env.root, filepath.FromSlash(detailPaths[id])))
+		published, perr := view.Read(detailPaths[id])
+		if lerr != nil || perr != nil {
+			continue
+		}
+		_, localBody, lerr := issue.Parse(string(local))
+		_, mainBody, perr := issue.Parse(string(published))
+		if lerr == nil && perr == nil && localBody != mainBody {
+			cwarn(stderr, fmt.Sprintf("#%s's details here differ from main's; publish them with `sdlc issue publish --issue %s`, or bring main in", issue.CLIRef(id), issue.CLIRef(id)))
+		}
+	}
 }
 
 // claimIssues is the issue set a claim names: the --issue list, else the

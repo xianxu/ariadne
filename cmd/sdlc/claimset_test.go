@@ -161,3 +161,50 @@ func TestClaimSetRace(t *testing.T) {
 		})
 	}
 }
+
+// #284: after claiming, a resting branch behind main fast-forwards to it, so
+// the lock never protects a stale copy; a dirty file the fast-forward would
+// overwrite leaves the rest where it is, with a warning. On an issue branch,
+// details that differ from main's are named.
+func TestClaimRefreshesTheCheckout(t *testing.T) {
+	t.Run("rest behind main fast-forwards", func(t *testing.T) {
+		r, _ := claimSetRepo(t)
+		peerAdd(t, r, "workshop/issues/000009-s09.md", "edited on main by a peer\n")
+		var out, errs bytes.Buffer
+		if err := runClaim(context.Background(), &out, &errs, &claimFlags{Issues: []int{10}, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}); err != nil {
+			t.Fatalf("%v\n%s", err, errs.String())
+		}
+		if r.git("rev-parse", "HEAD") != r.originMain() {
+			t.Fatalf("rest not fast-forwarded to main:\n%s", errs.String())
+		}
+	})
+	t.Run("a dirty file in the way stays, warned", func(t *testing.T) {
+		r, _ := claimSetRepo(t)
+		peerAdd(t, r, "workshop/issues/000009-s09.md", "edited on main by a peer\n")
+		head := r.git("rev-parse", "HEAD")
+		writeRepoFile(t, r.root, "workshop/issues/000009-s09.md", "local shaping\n")
+		var out, errs bytes.Buffer
+		if err := runClaim(context.Background(), &out, &errs, &claimFlags{Issues: []int{9}, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}); err != nil {
+			t.Fatalf("%v\n%s", err, errs.String())
+		}
+		if r.git("rev-parse", "HEAD") != head || !strings.Contains(errs.String(), "not fast-forwarded") {
+			t.Fatalf("a blocked fast-forward must leave the rest and warn:\n%s", errs.String())
+		}
+		if raw := r.git("show", ":workshop/issues/000009-s09.md"); strings.Contains(raw, "local shaping") {
+			t.Fatal("fixture: the local edit was staged")
+		}
+	})
+	t.Run("issue branch with differing details warns", func(t *testing.T) {
+		r, _ := claimSetRepo(t)
+		r.git("switch", "-q", "-c", "000010-s10")
+		detail := r.git("show", "HEAD:workshop/issues/000010-s10.md")
+		writeRepoFile(t, r.root, "workshop/issues/000010-s10.md", detail+"\nA branch-only edit.\n")
+		var out, errs bytes.Buffer
+		if err := runClaim(context.Background(), &out, &errs, &claimFlags{Issues: []int{10}, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}); err != nil {
+			t.Fatalf("%v\n%s", err, errs.String())
+		}
+		if !strings.Contains(errs.String(), "#10's details here differ from main's") {
+			t.Fatalf("no warning:\n%s", errs.String())
+		}
+	})
+}
