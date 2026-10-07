@@ -142,7 +142,7 @@ func TestLandingLeavesAReopenedCardAlone(t *testing.T) {
 // cardPublish's callers are exactly the single-card CAS verbs.
 func TestCardPublishCallers(t *testing.T) {
 	// #284: claim publishes its set through cardsPublish; the seams are pinned together.
-	allowed := map[string]bool{"runCardUpdate": true, "runClaim": true, "adoptClaim": true, "relocateClaimant": true, "reclaimEffect": true}
+	allowed := map[string]bool{"runCardUpdate": true, "runClaim": true, "runUnclaim": true, "adoptClaim": true, "relocateClaimant": true, "reclaimEffect": true}
 	seen := map[string]bool{}
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, ".", func(info os.FileInfo) bool { return !strings.HasSuffix(info.Name(), "_test.go") }, 0)

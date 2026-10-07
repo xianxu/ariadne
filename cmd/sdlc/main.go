@@ -140,6 +140,7 @@ func buildRoot() *cobra.Command {
 
 	// Workflow order (claim → ship), which is the order the verb list renders.
 	add(NewClaimCmd(), "claim", "Take the lock: record this workspace as the issue's owner (status unchanged)")
+	add(NewUnclaimCmd(), "unclaim", "Release the lock: clear this workspace's ownership (status unchanged)")
 	add(NewStartPlanCmd(), "start-plan", "Enter planning: deliver the architecture principles to design against (#75)")
 	add(NewChangeCodeCmd(), "change-code", "Enter implementation after the structural + plan-quality gates")
 	add(NewIssueCmd(), "issue", "Create + manage issues (new / sync / publish / set-status / list / show)")
