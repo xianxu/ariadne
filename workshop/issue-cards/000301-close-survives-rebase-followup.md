@@ -17,6 +17,14 @@ tracker:
         source_blob: 4f8e17be0cac0519b118b20b9d24fba6e7dc8e1a
         destination: workshop/issues/000301-close-survives-rebase-followup.md
         main_commit: 3b72bffdb5f5f15473154dc40832c8e0e1d47d9d
+started: 2026-10-07T13:10:34-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Pin the rebase-aware close rule: e2e test and atlas
