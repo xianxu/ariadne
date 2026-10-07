@@ -100,10 +100,15 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 		if it.publish, err = refreshMirror(env, id, it.read); err != nil {
 			return fmt.Errorf("%s: %w — nothing was published", it.path, err)
 		}
-		if raw, err := env.gitRaw(nil, "show", mergeBase+":"+it.path); err == nil {
-			if _, it.base, err = issue.Parse(string(raw)); err == nil {
-				it.baseOK = true
+		baseRaw, baseOK, err := detailsAt(env, mergeBase, it.path)
+		if err != nil {
+			return err
+		}
+		if baseOK {
+			if _, it.base, err = issue.Parse(string(baseRaw)); err != nil {
+				return fmt.Errorf("%s at the merge base: %w", it.path, err)
 			}
+			it.baseOK = true
 		}
 		mainRaw, err := view.Read(it.path)
 		if err != nil {
@@ -125,7 +130,6 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 			if !env.onRest() || !bringIn || dryRun {
 				return movedMainRefusal(env, id, it.path)
 			}
-			baseRaw, _ := env.gitRaw(nil, "show", mergeBase+":"+it.path)
 			moved = append(moved, movedDetail{item: it, base: baseRaw, main: mainRaw})
 			continue
 		case publishWrite:
@@ -158,7 +162,7 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 					return gitx.TrunkWrite{}, err
 				}
 				if curBody != it.base {
-					return gitx.TrunkWrite{}, fmt.Errorf("#%s: main's details changed while publishing; bring main in first — nothing was published", issue.CLIRef(it.id))
+					return gitx.TrunkWrite{}, fmt.Errorf("#%s: main's details changed while publishing; rerun `sdlc issue publish --issue %s` to judge them again — nothing was published", issue.CLIRef(it.id), issue.CLIRef(it.id))
 				}
 				w[it.path] = it.publish
 			}
@@ -239,13 +243,8 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 		ready = append(ready, it)
 	}
 	restore := func(it republishItem) bool {
-		if inHead, _ := env.gitTest("cat-file", "-e", "HEAD:"+it.path); inHead {
-			if _, err := env.git("checkout", "HEAD", "--", it.path); err != nil {
-				cwarn(stderr, fmt.Sprintf("%s not restored: %v", it.path, err))
-				return false
-			}
-		} else if err := os.Remove(filepath.Join(env.root, filepath.FromSlash(it.path))); err != nil {
-			cwarn(stderr, fmt.Sprintf("%s not cleared: %v", it.path, err))
+		if err := restoreToHead(env, it.path); err != nil {
+			cwarn(stderr, fmt.Sprintf("%s not restored: %v", it.path, err))
 			return false
 		}
 		return true
@@ -336,23 +335,18 @@ func bringMainIn(env *trackerEnv, stdout, stderr io.Writer, ids []string, issues
 	putBack := func(cause string) error {
 		var failed []string
 		for _, m := range moved {
-			if err := os.WriteFile(filepath.Join(env.root, filepath.FromSlash(m.item.path)), m.item.read, 0o644); err != nil {
+			if err := writeLocal(filepath.Join(env.root, filepath.FromSlash(m.item.path)), m.item.read, 0o644); err != nil {
 				failed = append(failed, fmt.Sprintf("%s (%v)", m.item.path, err))
 			}
 		}
 		if len(failed) > 0 {
 			return fmt.Errorf("%s, and putting the edits back failed for %s; copies of every edit are in %s", cause, strings.Join(failed, ", "), aside)
 		}
+		removeAside(aside, moved)
 		return fmt.Errorf("%s — the edits are as they were", cause)
 	}
 	for _, m := range moved {
-		var err error
-		if inHead, _ := env.gitTest("cat-file", "-e", "HEAD:"+m.item.path); inHead {
-			_, err = env.git("checkout", "HEAD", "--", m.item.path)
-		} else {
-			err = os.Remove(filepath.Join(env.root, filepath.FromSlash(m.item.path)))
-		}
-		if err != nil {
+		if err := restoreToHead(env, m.item.path); err != nil {
 			return putBack(fmt.Sprintf("main's details changed since this checkout's base, and setting %s aside to bring main in failed: %v", m.item.path, err))
 		}
 	}
@@ -360,10 +354,11 @@ func bringMainIn(env *trackerEnv, stdout, stderr io.Writer, ids []string, issues
 		return putBack("main's details changed since this checkout's base, and bringing main in failed: " + warn)
 	}
 	for p, b := range merged {
-		if err := os.WriteFile(filepath.Join(env.root, filepath.FromSlash(p)), b, 0o644); err != nil {
-			return err
+		if err := writeLocal(filepath.Join(env.root, filepath.FromSlash(p)), b, 0o644); err != nil {
+			return fmt.Errorf("main was brought in, but writing the merged %s failed: %w; copies of every edit are in %s", p, err, aside)
 		}
 	}
+	removeAside(aside, moved)
 	if len(conflicted) > 0 {
 		return fmt.Errorf("main's details changed since this checkout's base: main was brought in and merged into your edits, with conflicts in %s; resolve the markers, then rerun `sdlc issue publish --issue %s` — nothing was published", strings.Join(conflicted, ", "), issue.JoinRefs(ids, "", ","))
 	}
@@ -416,8 +411,50 @@ func hasConflictMarkers(body string) bool {
 // other branch, publishing belongs on a resting branch or the issue's own.
 func movedMainRefusal(env *trackerEnv, id, rel string) error {
 	issueStr := issue.CLIRef(id)
-	if env.branch == issue.BranchName(rel) {
-		return fmt.Errorf("#%s: main's details changed since this branch's base. Commit the edit (`git commit -m '#%s: plan: …' -- %s`), merge main (`git fetch && git merge origin/main`, resolving any conflict), then rerun `sdlc issue publish --issue %s` — nothing was published", issueStr, issueStr, rel, issueStr)
+	switch {
+	case env.onRest():
+		return fmt.Errorf("#%s: main's details changed since this checkout's base; rerun `sdlc issue publish --issue %s` (not a dry run): on a resting branch it brings main in and merges it into the edit — nothing was published", issueStr, issueStr)
+	case env.branch == issue.BranchName(rel):
+		return fmt.Errorf("#%s: main's details changed since this branch's base. Commit the edit (`git commit -m '#%s: plan: …' -- %s`), merge main (`git fetch %s && git merge %s/main`, resolving any conflict), then rerun `sdlc issue publish --issue %s` — nothing was published", issueStr, issueStr, rel, env.target.Remote, env.target.Remote, issueStr)
+	default:
+		return fmt.Errorf("#%s: main's details changed since this branch's base, and %s is not #%s's branch. Switch to a resting branch, where the uncommitted edit comes along (`git switch %s`), and rerun `sdlc issue publish --issue %s`: it brings main in there — nothing was published", issueStr, env.branch, issueStr, env.resting, issueStr)
 	}
-	return fmt.Errorf("#%s: main's details changed since this branch's base, and %s is not #%s's branch. Publish from a resting branch (where publish brings main in itself) or from #%s's own branch — nothing was published", issueStr, env.branch, issueStr, issueStr)
+}
+
+// detailsAt reads a details file at a commit; present is false when the
+// commit has none. A failed probe is an error, never absence.
+func detailsAt(env *trackerEnv, commit, rel string) ([]byte, bool, error) {
+	present, err := env.has(commit, rel)
+	if err != nil || !present {
+		return nil, false, err
+	}
+	raw, err := env.gitRaw(nil, "show", commit+":"+rel)
+	if err != nil {
+		return nil, false, err
+	}
+	return raw, true, nil
+}
+
+// restoreToHead sets a details file back to HEAD's copy, or removes it when
+// HEAD has none. A seam, so a test can fail it part-way through a set.
+var restoreToHead = func(env *trackerEnv, rel string) error {
+	inHead, err := env.has("HEAD", rel)
+	if err != nil {
+		return err
+	}
+	if inHead {
+		_, err = env.git("checkout", "HEAD", "--", rel)
+		return err
+	}
+	return os.Remove(filepath.Join(env.root, filepath.FromSlash(rel)))
+}
+
+// writeLocal writes a details file in the checkout; a seam for failure tests.
+var writeLocal = os.WriteFile
+
+// removeAside deletes the bring-in's copies once the edits are safe again.
+func removeAside(aside string, moved []movedDetail) {
+	for _, m := range moved {
+		_ = os.Remove(filepath.Join(aside, path.Base(m.item.path)))
+	}
 }

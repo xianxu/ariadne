@@ -7,6 +7,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // sidecarMeta is everything a fresh reader needs to orient on a persisted
@@ -33,7 +34,7 @@ type sidecarMeta struct {
 // stem derivation shared by the boundary-review sidecar (#136) and the plan-gate ledger
 // (#187), so both track the issue's slug from a single source (ARCH-DRY).
 func sidecarPathFor(plansDir, issueFileName, suffix string) string {
-	stem := strings.TrimSuffix(filepath.Base(issueFileName), ".md")
+	stem := issue.Stem(issueFileName)
 	return filepath.Join(plansDir, stem+"-"+suffix+".md")
 }
 

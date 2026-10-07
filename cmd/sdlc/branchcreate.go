@@ -8,13 +8,14 @@ package main
 
 import (
 	"fmt"
-	"github.com/xianxu/ariadne/pkg/workspace"
 	"io"
 	"os"
 	"path/filepath"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 // nameFlags is the subset of changeCodeFlags that name-resolution
@@ -73,7 +74,7 @@ func resolveBranchName(f *nameFlags, r gitRunner) (name, untrackedFile string, e
 		if info, err := os.Stat(matches[0]); err != nil || !info.Mode().IsRegular() {
 			return "", "", fmt.Errorf("issue file %s exists in glob but is not a readable regular file", matches[0])
 		}
-		base := strings.TrimSuffix(filepath.Base(matches[0]), ".md")
+		base := issue.BranchName(matches[0])
 		for _, u := range untracked {
 			if filepath.Base(u) == filepath.Base(matches[0]) {
 				return base, matches[0], nil
@@ -86,7 +87,7 @@ func resolveBranchName(f *nameFlags, r gitRunner) (name, untrackedFile string, e
 	case 0:
 		return "", "", fmt.Errorf("no untracked issue file found in %s; pass --name or --issue", f.IssuesDir)
 	case 1:
-		base := strings.TrimSuffix(filepath.Base(untracked[0]), ".md")
+		base := issue.BranchName(untracked[0])
 		return base, untracked[0], nil
 	default:
 		return "", "", fmt.Errorf("multiple untracked issue files found:\n  %s\npass --name or --issue to disambiguate",

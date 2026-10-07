@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -301,25 +302,94 @@ func TestPublishRefusesConflictMarkers(t *testing.T) {
 	}
 }
 
-// #284 BR-14: bringing main in fails at the fast-forward (the rest carries a
-// commit main lacks): every edit is put back exactly as it was.
-func TestPublishBringInPutsEditsBackOnFailure(t *testing.T) {
+// movedUnder moves main's copy of each issue's details under a local edit.
+func movedUnder(t *testing.T, r *trackerRepo, rels ...string) map[string]string {
+	t.Helper()
+	edits := map[string]string{}
+	for _, rel := range rels {
+		orig := r.git("show", "HEAD:"+rel) + "\n"
+		peerAdd(t, r, rel, strings.Replace(orig, "## Problem", "## Problem\n\nA peer's framing.", 1))
+		edits[rel] = orig + "\nShaped.\n"
+	}
+	for rel, edit := range edits {
+		writeRepoFile(t, r.root, rel, edit)
+	}
+	return edits
+}
+
+// #284 BR-14: setting edits aside is all or nothing — the second of two
+// set-asides fails, and both edits are put back exactly, their copies removed.
+func TestPublishBringInSetAsideIsAllOrNothing(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	claimFor(t, 9, 10)
+	edits := movedUnder(t, r, "workshop/issues/000009-s09.md", "workshop/issues/000010-s10.md")
+	prev := restoreToHead
+	t.Cleanup(func() { restoreToHead = prev })
+	calls := 0
+	restoreToHead = func(env *trackerEnv, rel string) error {
+		if calls++; calls == 2 {
+			return errors.New("injected set-aside failure")
+		}
+		return prev(env, rel)
+	}
+	out, err := publish(t, 9, 10)
+	if err == nil || !strings.Contains(err.Error(), "the edits are as they were") {
+		t.Fatalf("a part-way failure must put everything back: %v\n%s", err, out)
+	}
+	for rel, edit := range edits {
+		if got, _ := readFileString(r.root, rel); got != edit {
+			t.Fatalf("%s not put back exactly:\n%s", rel, got)
+		}
+	}
+	gitDir := r.git("rev-parse", "--absolute-git-dir")
+	if left, _ := os.ReadDir(filepath.Join(gitDir, "sdlc", "publish-aside")); len(left) != 0 {
+		t.Fatalf("copies left behind after a safe put-back: %d", len(left))
+	}
+}
+
+// #284 BR-14: writing the merge back fails after the fast-forward: the error
+// points at the kept copies, which hold the edit exactly.
+func TestPublishBringInWriteBackFailureNamesTheCopies(t *testing.T) {
 	r, _ := claimSetRepo(t)
 	claimFor(t, 9)
 	rel := "workshop/issues/000009-s09.md"
-	orig := r.git("show", "HEAD:"+rel) + "\n"
-	writeRepoFile(t, r.root, "local-only.txt", "x\n")
-	r.git("add", "local-only.txt")
-	r.git("commit", "-qm", "a commit main lacks")
-	peerAdd(t, r, rel, strings.Replace(orig, "## Problem", "## Problem\n\nA peer's framing.", 1))
-	edit := orig + "\nShaped nine.\n"
-	writeRepoFile(t, r.root, rel, edit)
+	edit := movedUnder(t, r, rel)[rel]
+	prev := writeLocal
+	t.Cleanup(func() { writeLocal = prev })
+	writeLocal = func(string, []byte, os.FileMode) error { return errors.New("injected write failure") }
 	out, err := publish(t, 9)
-	if err == nil || !strings.Contains(err.Error(), "the edits are as they were") {
-		t.Fatalf("a failed bring-in must say the edits are kept: %v\n%s", err, out)
+	if err == nil || !strings.Contains(err.Error(), "copies of every edit are in") {
+		t.Fatalf("the error must name the copies: %v\n%s", err, out)
 	}
-	if got, _ := readFileString(r.root, rel); got != edit {
-		t.Fatalf("the edit was not put back exactly:\n%s", got)
+	gitDir := r.git("rev-parse", "--absolute-git-dir")
+	if kept, err := os.ReadFile(filepath.Join(gitDir, "sdlc", "publish-aside", "000009-s09.md")); err != nil || string(kept) != edit {
+		t.Fatalf("the copy does not hold the edit: %v\n%s", err, kept)
+	}
+}
+
+// #284 BR-8: from another issue's branch, the refusal's remedy — switch to the
+// resting branch, which carries the edit, and rerun — publishes; a dry run on
+// a resting branch names the bring-in instead of refusing as off-branch.
+func TestPublishMovedMainFromAnotherBranchRemedy(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	claimFor(t, 9)
+	rel := "workshop/issues/000009-s09.md"
+	r.git("switch", "-q", "-c", "000010-s10")
+	movedUnder(t, r, rel)
+	out, err := publish(t, 9)
+	if err == nil || !strings.Contains(err.Error(), "git switch main") {
+		t.Fatalf("the refusal must name the switch: %v\n%s", err, out)
+	}
+	r.git("switch", "-q", "main")
+	var o, e bytes.Buffer
+	if err := runTrackedPublish(context.Background(), &o, &e, []int{9}, "workshop/issues", true); err == nil || !strings.Contains(err.Error(), "not a dry run") {
+		t.Fatalf("a dry run on rest must name the bring-in: %v", err)
+	}
+	if out, err := publish(t, 9); err != nil {
+		t.Fatalf("the named remedy did not publish: %v\n%s", err, out)
+	}
+	if !strings.Contains(r.git("show", r.originMain()+":"+rel), "Shaped.") {
+		t.Fatal("the edit is not on main")
 	}
 }
 

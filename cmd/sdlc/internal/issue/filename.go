@@ -42,8 +42,11 @@ func JoinRefs(ids []string, prefix, sep string) string {
 	return strings.Join(refs, sep)
 }
 
-// BranchName is an issue's branch: the stem of its details or card filename
-// (#284: one derivation for every caller).
-func BranchName(detailsOrCardPath string) string {
+// Stem is an issue's name: its details or card filename without ".md"
+// (#284: the one derivation; plans and review sidecars are named after it).
+func Stem(detailsOrCardPath string) string {
 	return strings.TrimSuffix(path.Base(detailsOrCardPath), ".md")
 }
+
+// BranchName is an issue's branch, which is its stem.
+func BranchName(detailsOrCardPath string) string { return Stem(detailsOrCardPath) }
