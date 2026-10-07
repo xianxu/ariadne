@@ -72,6 +72,8 @@ Decision worth keeping: compare details *bodies*, never whole files, because cla
 ### ariadne#284 M2 — `issue publish`, open unclaim, `issue sync` retirement
 
 **est:** ~1.3h (M2's share of #284's 6.1h)
+**closed:** 2026-10-07
+**actual:** 0.47h
 
 What shipped:
 - `issue publish --issue a,b` replaces both of the old publication paths: first publication (`move-detail`, no owner needed) and the owner's later edits.
