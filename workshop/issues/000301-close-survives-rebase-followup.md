@@ -50,6 +50,7 @@ flow: {kind: quick, provenance: inferred, spec: "0910e614", done: "44b4b072"}
 ## Log
 
 ### 2026-10-07
+- 2026-10-07: closed — TestTrackerCloseSurvivesARebase: three real-git variants of close → rebase onto advanced main → reopen → close (SHIP with old review present; SHIP with it pruned; FIX-THEN-SHIP via reconcile with it pruned) all land; reverting closetracker.go or issuerecovery.go to env.ancestorOf fails exactly its own variant (checked once each, restored); atlas issue-tracker.md states the rule; make test green (911 cmd/sdlc + 20 pkgs; processgroup /bin/ps sandbox-only); review verdict: SHIP
 
 Filed from #283's last close review (round 6, two advisory Minors), at the operator's request. Quick flow expected.
 Added #301 to project `claimant-ownership` (scope event in the project Log).
