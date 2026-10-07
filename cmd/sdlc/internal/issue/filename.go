@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -39,4 +40,10 @@ func JoinRefs(ids []string, prefix, sep string) string {
 		refs[i] = prefix + CLIRef(id)
 	}
 	return strings.Join(refs, sep)
+}
+
+// BranchName is an issue's branch: the stem of its details or card filename
+// (#284: one derivation for every caller).
+func BranchName(detailsOrCardPath string) string {
+	return strings.TrimSuffix(path.Base(detailsOrCardPath), ".md")
 }

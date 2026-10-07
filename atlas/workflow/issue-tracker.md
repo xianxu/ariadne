@@ -242,7 +242,7 @@ The publication remote is the resting branch's upstream
 | `issue show --json` | read: one card (fresh, else stale with its reason) | read at the issue branch or main's archive | read (archive) — writes nothing (#279) |
 | `reclaim` | owned card's claimant (any holdable status, an open shaping claim included, #283) → this workspace by CAS on the inspected revision; trailers record from/to/reason (#278) | mirror refreshed (never on rest) | untouched |
 | `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
-| `issue publish` | first publication: as `move-detail`; republish: ownership re-checked before the push, card untouched (#284) | rest fast-forwards; another branch commits the published bytes | one narrow commit for the set's edits, refused over a moved main copy |
+| `issue publish` | first publication: as `move-detail`; republish: ownership re-checked before the push, card untouched (#284) | rest fast-forwards (bringing a moved main in by three-way merge first); the issue's own branch commits the published bytes; another issue's branch takes its copy back | one narrow commit for the set's edits, never over a moved main copy or conflict markers |
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
 
 `move-detail` is add-then-remove relative to a merge base without the file, so
@@ -261,10 +261,10 @@ nothing is released rather than re-rendered.
 - **First publication** (details not on main): `move-detail`'s receipt-driven transfer. It needs no owner, and the issue becomes claimable.
 - **Republish** (details on main): the owner only. `republishDecision` judges the details *bodies*: the local copy against the one at this checkout's merge base with main, and main's. The frontmatter carries the card mirror, which differs by design.
   - main unchanged since the base → published;
-  - main moved → refused;
-  - equal → nothing to publish.
+  - equal → nothing to publish;
+  - main moved → on a resting branch, `bringMainIn` merges main into the edit three ways (`git merge-file`), sets the edits aside (all or nothing, with copies under `<git-dir>/sdlc/publish-aside/`), fast-forwards and writes the merge back. A clean merge publishes; a conflict leaves markers, and a body with markers is never published. Off a resting branch, the refusal names steps that run from that state (`movedMainRefusal`).
   - The set's edits go in one main commit through the `mainPublish` seam. The prepare step re-judges main on every attempt, and ownership is re-checked against a fresh tracker read in `beforePush`.
-- `finishPublished` then fast-forwards a resting branch (it never carries the edits as commits) or commits the same bytes on any other branch. A rerun after a lost push response only finishes.
+- `finishPublished` then fast-forwards a resting branch (it never carries the edits as commits), commits the same bytes on the issue's own branch, or takes another issue's branch's copy back (#272). It never overwrites a file changed since it was read. A rerun after a lost push response only finishes.
 - **Rules:**
   - a resting branch only fast-forwards to main;
   - `issue sync` is retired here (a pointer at git and `issue publish`);

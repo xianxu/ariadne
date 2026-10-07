@@ -15,6 +15,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/observe"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -51,10 +52,10 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 				in.CardErr = cerr
 			} else if rec.Card != nil {
 				in.Card, in.CardPath, in.CardBlob = rec.Card.Raw, rec.Card.Path, rec.Card.BlobOID
-				stem = strings.TrimSuffix(path.Base(rec.Card.Path), ".md")
+				stem = issue.BranchName(rec.Card.Path)
 			}
 			if rec.Card == nil && rec.DetailPath != "" {
-				stem = strings.TrimSuffix(path.Base(rec.DetailPath), ".md")
+				stem = issue.BranchName(rec.DetailPath)
 			}
 		}
 		if rs.Ref != "" {

@@ -113,6 +113,9 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 		if err != nil {
 			return fmt.Errorf("%s: %w", it.path, err)
 		}
+		if hasConflictMarkers(localBody) {
+			return fmt.Errorf("%s still has merge conflict markers; resolve them, then rerun `sdlc issue publish --issue %s` — nothing was published", it.path, issue.CLIRef(id))
+		}
 		_, mainBody, err := issue.Parse(string(mainRaw))
 		if err != nil {
 			return fmt.Errorf("main's %s: %w", it.path, err)
@@ -120,7 +123,7 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 		switch republishDecision(localBody, it.base, it.baseOK, mainBody) {
 		case publishRefuse:
 			if !env.onRest() || !bringIn || dryRun {
-				return fmt.Errorf("#%s: main's details changed since this checkout's base; merge main into %s, then rerun `sdlc issue publish --issue %s` — nothing was published", issue.CLIRef(id), env.branch, issue.CLIRef(id))
+				return movedMainRefusal(env, id, it.path)
 			}
 			baseRaw, _ := env.gitRaw(nil, "show", mergeBase+":"+it.path)
 			moved = append(moved, movedDetail{item: it, base: baseRaw, main: mainRaw})
@@ -259,7 +262,7 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 		return
 	}
 	for _, it := range ready {
-		if env.branch != strings.TrimSuffix(path.Base(it.path), ".md") {
+		if env.branch != issue.BranchName(it.path) {
 			restore(it) // another issue's branch carries none of #it's edits
 			continue
 		}
@@ -304,7 +307,7 @@ func bringMainIn(env *trackerEnv, stdout, stderr io.Writer, ids []string, issues
 	merged := map[string][]byte{}
 	var conflicted []string
 	for _, m := range moved {
-		out, conflicts, err := mergeDetails(m.item.read, m.base, m.main)
+		out, conflicts, err := mergeDetails(env, m.item.read, m.base, m.main)
 		if err != nil {
 			return fmt.Errorf("#%s: merging main into the local details failed: %w — nothing was changed", issue.CLIRef(m.item.id), err)
 		}
@@ -313,16 +316,48 @@ func bringMainIn(env *trackerEnv, stdout, stderr io.Writer, ids []string, issues
 			conflicted = append(conflicted, m.item.path)
 		}
 	}
+	// Set every edit aside, all or nothing. Each edit is first copied under the
+	// git directory, so no failure below can lose it; a failure puts every
+	// touched file back exactly as it was read, and says where the copies are
+	// if even that fails.
+	gitDir, err := env.git("rev-parse", "--absolute-git-dir")
+	if err != nil {
+		return err
+	}
+	aside := filepath.Join(gitDir, "sdlc", "publish-aside")
+	if err := os.MkdirAll(aside, 0o700); err != nil {
+		return fmt.Errorf("keeping a copy of the edits failed: %w — nothing was changed", err)
+	}
 	for _, m := range moved {
-		if _, err := env.git("checkout", "HEAD", "--", m.item.path); err != nil {
-			return fmt.Errorf("%s: setting the edit aside failed: %w — the local file is unchanged", m.item.path, err)
+		if err := os.WriteFile(filepath.Join(aside, path.Base(m.item.path)), m.item.read, 0o600); err != nil {
+			return fmt.Errorf("keeping a copy of %s failed: %w — nothing was changed", m.item.path, err)
+		}
+	}
+	putBack := func(cause string) error {
+		var failed []string
+		for _, m := range moved {
+			if err := os.WriteFile(filepath.Join(env.root, filepath.FromSlash(m.item.path)), m.item.read, 0o644); err != nil {
+				failed = append(failed, fmt.Sprintf("%s (%v)", m.item.path, err))
+			}
+		}
+		if len(failed) > 0 {
+			return fmt.Errorf("%s, and putting the edits back failed for %s; copies of every edit are in %s", cause, strings.Join(failed, ", "), aside)
+		}
+		return fmt.Errorf("%s — the edits are as they were", cause)
+	}
+	for _, m := range moved {
+		var err error
+		if inHead, _ := env.gitTest("cat-file", "-e", "HEAD:"+m.item.path); inHead {
+			_, err = env.git("checkout", "HEAD", "--", m.item.path)
+		} else {
+			err = os.Remove(filepath.Join(env.root, filepath.FromSlash(m.item.path)))
+		}
+		if err != nil {
+			return putBack(fmt.Sprintf("main's details changed since this checkout's base, and setting %s aside to bring main in failed: %v", m.item.path, err))
 		}
 	}
 	if warn := fastForwardRest(env, mainRef); warn != "" {
-		for _, m := range moved { // put the edits back exactly as they were
-			_ = os.WriteFile(filepath.Join(env.root, filepath.FromSlash(m.item.path)), m.item.read, 0o644)
-		}
-		return fmt.Errorf("main's details changed since this checkout's base, and bringing main in failed: %s — the edits are as they were", warn)
+		return putBack("main's details changed since this checkout's base, and bringing main in failed: " + warn)
 	}
 	for p, b := range merged {
 		if err := os.WriteFile(filepath.Join(env.root, filepath.FromSlash(p)), b, 0o644); err != nil {
@@ -337,22 +372,21 @@ func bringMainIn(env *trackerEnv, stdout, stderr io.Writer, ids []string, issues
 }
 
 // mergeDetails merges local and main over their base, as `git merge-file`
-// does; conflicts reports whether markers were left. An absent base is empty.
-func mergeDetails(local, base, main []byte) ([]byte, bool, error) {
+// does, through the env's git; conflicts reports whether markers were left. An
+// absent base is empty.
+func mergeDetails(env *trackerEnv, local, base, main []byte) ([]byte, bool, error) {
 	dir, err := os.MkdirTemp("", "sdlc-merge-")
 	if err != nil {
 		return nil, false, err
 	}
 	defer os.RemoveAll(dir)
-	files := map[string][]byte{"local": local, "base": base, "main": main}
-	for name, b := range files {
+	for name, b := range map[string][]byte{"local": local, "base": base, "main": main} {
 		if err := os.WriteFile(filepath.Join(dir, name), b, 0o600); err != nil {
 			return nil, false, err
 		}
 	}
-	cmd := exec.Command("git", "merge-file", "-p", "-L", "yours", "-L", "base", "-L", "main",
+	out, err := env.gitRaw(nil, "merge-file", "-p", "-L", "yours", "-L", "base", "-L", "main",
 		filepath.Join(dir, "local"), filepath.Join(dir, "base"), filepath.Join(dir, "main"))
-	out, err := cmd.Output()
 	var exit *exec.ExitError
 	switch {
 	case err == nil:
@@ -362,4 +396,28 @@ func mergeDetails(local, base, main []byte) ([]byte, bool, error) {
 	default:
 		return nil, false, err
 	}
+}
+
+// hasConflictMarkers reports whether a details body still holds a merge
+// conflict: an opening and a closing marker line (a lone "=======" is an
+// ordinary setext heading underline).
+func hasConflictMarkers(body string) bool {
+	open, closing := false, false
+	for _, line := range strings.Split(body, "\n") {
+		open = open || strings.HasPrefix(line, "<<<<<<< ")
+		closing = closing || strings.HasPrefix(line, ">>>>>>> ")
+	}
+	return open && closing
+}
+
+// movedMainRefusal is the main-moved refusal off a resting branch, naming steps
+// that run from this state (#284 BR-8): on the issue's own branch, commit the
+// edit and merge main, which git allows once the edit is committed; on any
+// other branch, publishing belongs on a resting branch or the issue's own.
+func movedMainRefusal(env *trackerEnv, id, rel string) error {
+	issueStr := issue.CLIRef(id)
+	if env.branch == issue.BranchName(rel) {
+		return fmt.Errorf("#%s: main's details changed since this branch's base. Commit the edit (`git commit -m '#%s: plan: …' -- %s`), merge main (`git fetch && git merge origin/main`, resolving any conflict), then rerun `sdlc issue publish --issue %s` — nothing was published", issueStr, issueStr, rel, issueStr)
+	}
+	return fmt.Errorf("#%s: main's details changed since this branch's base, and %s is not #%s's branch. Publish from a resting branch (where publish brings main in itself) or from #%s's own branch — nothing was published", issueStr, env.branch, issueStr, issueStr)
 }

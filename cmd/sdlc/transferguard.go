@@ -66,7 +66,7 @@ func guardTransferredDetails(ctx context.Context) error {
 		if !ok {
 			continue
 		}
-		owner := strings.TrimSuffix(path.Base(h.Destination), ".md")
+		owner := issue.BranchName(h.Destination)
 		if env.branch == owner {
 			continue
 		}

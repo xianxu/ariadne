@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
 	"runtime"
 	"strings"
@@ -187,7 +186,7 @@ func relocatable(env *trackerEnv, card tracker.Record, recorded, me issue.Claima
 	if err != nil || move == nil {
 		return false, err
 	}
-	branch := strings.TrimSuffix(path.Base(card.Path), ".md")
+	branch := issue.BranchName(card.Path)
 	holds, err := worktreeHoldsBranch(recorded.Worktree, branch)
 	if err != nil {
 		return false, err

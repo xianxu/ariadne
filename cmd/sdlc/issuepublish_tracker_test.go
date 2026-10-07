@@ -279,3 +279,72 @@ func TestPublishFromAnotherIssuesBranchCommitsNothingThere(t *testing.T) {
 		t.Fatal("the edit did not reach main")
 	}
 }
+
+// #284 BR-13: after a conflicted merge-in, a rerun without resolving the
+// markers refuses; main is untouched.
+func TestPublishRefusesConflictMarkers(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	claimFor(t, 9)
+	rel := "workshop/issues/000009-s09.md"
+	orig := r.git("show", "HEAD:"+rel) + "\n"
+	peerAdd(t, r, rel, orig+"\nThe peer's ending.\n")
+	writeRepoFile(t, r.root, rel, orig+"\nMy ending.\n")
+	if _, err := publish(t, 9); err == nil {
+		t.Fatal("fixture: the merge-in must conflict")
+	}
+	before := r.originMain()
+	if out, err := publish(t, 9); err == nil || !strings.Contains(err.Error(), "still has merge conflict markers") {
+		t.Fatalf("unresolved markers must refuse: %v\n%s", err, out)
+	}
+	if r.originMain() != before {
+		t.Fatal("conflict markers reached main")
+	}
+}
+
+// #284 BR-14: bringing main in fails at the fast-forward (the rest carries a
+// commit main lacks): every edit is put back exactly as it was.
+func TestPublishBringInPutsEditsBackOnFailure(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	claimFor(t, 9)
+	rel := "workshop/issues/000009-s09.md"
+	orig := r.git("show", "HEAD:"+rel) + "\n"
+	writeRepoFile(t, r.root, "local-only.txt", "x\n")
+	r.git("add", "local-only.txt")
+	r.git("commit", "-qm", "a commit main lacks")
+	peerAdd(t, r, rel, strings.Replace(orig, "## Problem", "## Problem\n\nA peer's framing.", 1))
+	edit := orig + "\nShaped nine.\n"
+	writeRepoFile(t, r.root, rel, edit)
+	out, err := publish(t, 9)
+	if err == nil || !strings.Contains(err.Error(), "the edits are as they were") {
+		t.Fatalf("a failed bring-in must say the edits are kept: %v\n%s", err, out)
+	}
+	if got, _ := readFileString(r.root, rel); got != edit {
+		t.Fatalf("the edit was not put back exactly:\n%s", got)
+	}
+}
+
+// #284 BR-8: off a resting branch, the main-moved refusal names steps that run
+// from the refused state: on the issue's own branch, commit, merge main, rerun.
+func TestPublishMovedMainOnTheIssueBranchRemedy(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	claimFor(t, 9)
+	rel := "workshop/issues/000009-s09.md"
+	r.git("switch", "-q", "-c", "000009-s09")
+	orig := r.git("show", "HEAD:"+rel) + "\n"
+	peerAdd(t, r, rel, strings.Replace(orig, "## Problem", "## Problem\n\nA peer's framing.", 1))
+	writeRepoFile(t, r.root, rel, orig+"\nShaped on the branch.\n")
+	out, err := publish(t, 9)
+	if err == nil || !strings.Contains(err.Error(), "Commit the edit") || !strings.Contains(err.Error(), "git merge origin/main") {
+		t.Fatalf("the refusal must name the runnable steps: %v\n%s", err, out)
+	}
+	r.git("commit", "-qm", "#9: plan: shaped", "--", rel)
+	r.git("fetch", "-q", "origin")
+	r.git("merge", "-q", "--no-edit", "origin/main")
+	if out, err := publish(t, 9); err != nil {
+		t.Fatalf("the named steps did not lead to a publish: %v\n%s", err, out)
+	}
+	onMain := r.git("show", r.originMain()+":"+rel)
+	if !strings.Contains(onMain, "A peer's framing.") || !strings.Contains(onMain, "Shaped on the branch.") {
+		t.Fatalf("both changes must be on main:\n%s", onMain)
+	}
+}
