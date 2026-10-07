@@ -34,7 +34,9 @@ func TestUnclaimDecision(t *testing.T) {
 						t.Fatal(err)
 					}
 				}
-				name := func(c *issue.Claimant) string { return map[*issue.Claimant]string{nil: "none", &me: "me", &other: "other"}[c] }
+				name := func(c *issue.Claimant) string {
+					return map[*issue.Claimant]string{nil: "none", &me: "me", &other: "other"}[c]
+				}
 				cell := status + " × owner " + name(owner) + " × released " + name(released)
 				out, err := unclaimDecision(raw, "000031", me, "", "")
 				switch {
