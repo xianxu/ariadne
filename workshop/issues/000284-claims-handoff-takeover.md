@@ -5,8 +5,8 @@ deps: [ariadne#283]
 github_issue:
 created: 2026-10-02
 updated: 2026-10-07
-estimate_hours:
-card_mirror: 'ca6f62abe87b99b35c71c34f7a92cbbc3f8d11f9' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 6.1
+card_mirror: 'f8ee27d3565872056e3a13966668f121b72e3643' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-07T13:45:08-07:00
 claimant:
     operator: Xian Xu
@@ -55,6 +55,43 @@ Part of project `claimant-ownership` (see its PRD; design rationale in #283's Lo
   - An older envelope rewrite keeps unknown internal keys.
   - Claim repairs a moved `open` claim.
 - **M4:** `sdlc state` shows each issue's owner and claim age (from tracker history), with views by slot and by operator.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec             design=1.0 impl=0.08
+item: smaller-go-module      design=0.2 impl=0.2
+item: smaller-go-module      design=0.1 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.12
+item: milestone-review       design=0.0 impl=0.14
+item: greenfield-go-module   design=0.3 impl=0.3
+item: smaller-go-module      design=0.1 impl=0.2
+item: atlas-docs             design=0.1 impl=0.08
+item: milestone-review       design=0.0 impl=0.14
+item: smaller-go-module      design=0.05 impl=0.12
+item: greenfield-go-module   design=0.3 impl=0.3
+item: greenfield-go-module   design=0.3 impl=0.3
+item: atlas-docs             design=0.05 impl=0.08
+item: milestone-review       design=0.0 impl=0.14
+item: smaller-go-module      design=0.1 impl=0.2
+item: smaller-go-module      design=0.1 impl=0.2
+item: milestone-review       design=0.0 impl=0.14
+design-buffer: 0.15
+total: 6.1
+```
+
+Items, in plan order:
+- the design (digest, three rounds with the operator, plan);
+- M1: `ChangeCards`, the claim set, refresh, its review;
+- M2: `issue publish` (greenfield: two paths plus the base check), open unclaim, the `issue sync`/AGENTS.base text, its review;
+- M3: the envelope, the handoff unclaim, the takeover claim, docs, its review;
+- M4: claim times, state views, the close review.
+
+The design buffer is +15% because a thorough plan doc exists.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
