@@ -7,8 +7,19 @@ A SET (#284). Several issues claim together in one tracker commit, all or
 nothing: every card is judged on the bytes each attempt reads, so a peer that
 claims one member while the set is in flight fails the whole set (naming it),
 while a harmless change to a member is decided again and the set lands. The
-owner's own repeats in a set are skipped. Finishing an `sdlc move` and
-`--adopt` take one issue at a time.
+owner's own repeats in a set are skipped. Finishing an `sdlc move` and taking
+over a handed-off issue (which checks its branch out) take one issue at a time.
+
+TAKEOVER (#284). An issue nobody owns but whose work has started — released by
+`sdlc unclaim`, or claimed before #277 — is taken over by a plain claim; its
+status stays. If its release names a branch (a handoff), claim resumes exactly
+there, checking everything before the card is written: the branch must be the
+issue's own, this checkout a clean resting branch, the branch fetched from the
+publication remote at the recorded tip (a tip pushed after the release refuses:
+inspect it first), and any local copy of the branch not diverged. After the card
+names this workspace, the branch is set at that tip and checked out; a rerun
+finishes a lost switch. Any claim spends the release. `--adopt` is a retired
+alias of a plain claim.
 
 REFRESH (#284). After the card lands, claim brings the checkout up to date: a
 resting branch fast-forwards to the fetched main (or warns why it cannot: the
@@ -59,8 +70,7 @@ owner's own work that `sdlc move` brought here: when move's local record names
 the recorded owner as the source and this checkout as the destination, and the
 old worktree no longer holds the branch, a repeat claim finishes the move's
 owner update. Reassignment is the operator-directed `sdlc reclaim` (#278).
-Started work with no recorded owner, claimed before #277, refuses toward
-`sdlc claim --issue N --adopt`. Terminal issues refuse. No estimate is
+Terminal issues refuse. No estimate is
 required; change-code owns the implementation gates. Next:
 `sdlc start-plan --issue N` starts the issue and moves design onto its own
 branch.
@@ -71,10 +81,6 @@ FLAGS
   --issues-dir <path>   override $WF_ISSUES_DIR / workshop/issues (details home)
   --history-dir <path>  override $WF_HISTORY_DIR / workshop/history
   --dry-run             check readiness and describe the reservation; change nothing
-  --adopt               record this workspace as the owner of a started
-                        (working, blocked or codecomplete) issue that has
-                        none — claimed before #277;
-                        never reassigns an owned issue (that is `sdlc reclaim`)
 
 EXAMPLES
 

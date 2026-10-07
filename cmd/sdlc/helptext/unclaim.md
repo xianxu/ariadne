@@ -15,9 +15,16 @@ that publication refuses (main moved since this checkout's base), the claim is
 kept and nothing is released. Several open claims release together in one
 tracker commit, all or nothing.
 
-STARTED WORK (working, blocked, codecomplete) is a handoff: the issue branch is
-pushed and its tip recorded, so a taker resumes exactly there. One issue at a
-time.
+STARTED WORK (working, blocked, codecomplete) is a handoff, one issue at a
+time. Run it from the issue's branch with a clean tree (untracked files
+included): a handoff carries only committed work. The note, if any, is
+committed on the branch so it travels; the branch is pushed to the publication
+remote (with a lease — the owner is its only writer); the card records the
+release with the branch and its tip; this checkout returns to its resting
+branch, freeing the branch for another worktree. A plain `sdlc claim` in any
+other checkout — slot, machine or operator — takes it over at exactly that tip.
+The pushed branch is the issue's own: it goes away when the issue lands (or is
+abandoned).
 
 --note adds a dated line to each issue's ## Log before publishing: where the
 work stands and what comes next, for whoever takes it.

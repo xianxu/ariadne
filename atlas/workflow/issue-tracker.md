@@ -45,10 +45,24 @@ card field.
   milestone-close alike, before any review).
   - It passes the owner.
   - It refuses another workspace's issue, naming the owner.
-  - It refuses an unattributed working card (claimed before #277) toward
-    `sdlc claim --issue N --adopt`.
-- **Adopt** writes a claimant only on an unattributed working or blocked
-  card, and never reassigns.
+  - It refuses an unowned started card (released, or claimed before #277)
+    toward a plain `sdlc claim --issue N`, which takes it over.
+- **Takeover (#284)** is a plain claim of an unowned started card; it never
+  reassigns an owned one. `--adopt` is its retired alias.
+- **Handoff (#284).** Unclaiming started work runs from the issue's branch with
+  a clean tree (`handoff.go` `runHandoff`). It commits the optional note,
+  pushes the branch with a lease (the owner is its only writer), records
+  `release {by, branch, head}` on the card while clearing the claimant, and
+  returns the checkout to rest. A claim elsewhere runs `prepareTakeover` before
+  any effect:
+  - the branch must be the issue's own and pass `check-ref-format`;
+  - the checkout must be a clean resting branch;
+  - the fetched tip must equal `head`;
+  - any local copy must not have diverged.
+  `finishTakeover` then sets the branch at that tip and checks it out. Reruns
+  finish a lost card write or a lost switch. The pushed branch is the issue's
+  own, so it goes away with the issue's landing (#286's remote cleanup) or
+  `abandon`.
 - **set-status** into `working` records the claimant like claim does. It
   refuses on another workspace's card even with `--force`.
 - **Relocation** is the owner moving its own work on the same machine

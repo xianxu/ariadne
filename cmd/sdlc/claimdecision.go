@@ -15,7 +15,6 @@ import (
 // working issue again: nothing to write, and not a failure (#277).
 var errAlreadyMine = errors.New("already claimed by this workspace")
 
-
 // claimDecision changes only reservation metadata on the observed remote record.
 // With an identity (an issue tracker repository) it is the ownership event
 // `claim` (#283): an unowned card on a status that holds the lock gets this
