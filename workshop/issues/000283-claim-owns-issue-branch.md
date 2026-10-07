@@ -85,6 +85,7 @@ The **claimant is the owner and the lock**. **Status is lifecycle only.**
 - Unclaim from `working`/`blocked`/`codecomplete` is legal in the model (the verb itself is #284).
 - `start-plan` carries uncommitted edits confined to the claimed issue's own details onto the new branch; any other dirty tracked file still refuses.
 - `change-code` refuses an owned but unstarted (`open`) issue, pointing at `start-plan`; `reclaim` accepts an owned `open` card.
+- A close survives a rebase: after a rebase onto main, reopening and re-closing the issue lands. The card's earlier close, whose reviewed commit the rebase rewrote off the branch, no longer blocks it; a stale receipt from before the rebase is still refused.
 - The atlas terminology defines slot = executor/owner and operator = supervisor, and no help text uses "owner" for a branch or a person.
 - Tests pin the legal (status, owner) combinations and the claim/start-plan split.
 
@@ -219,7 +220,7 @@ Close after the rebase:
 - Round 4 (FIX-THEN-SHIP, BR-7): the recovery catalog still described the old claim and start-plan; fixed.
 - Round 5 (FIX-THEN-SHIP, BR-8): my BR-7 edit's `str.replace` copied start-plan's proof rows into change-code's entry too; fixed (`6636b1a1`).
 
-Blocked landing: `sdlc issue recovery reconcile` releases every new receipt with "the card records a newer close than this receipt (close-a09782625336 reviewed d8f753db)". The cause is `tracker/completeop.go` `newestClose`, which judges the card's prior close superseded only if its reviewed HEAD is an ancestor of the new one. The rebase rewrote history, so the pre-rebase reviewed HEAD is no ancestor of anything, and the stale binding wins forever. Reopen (`set-status working`) does not clear the binding. This is a general gap from #252 M3: any rebase after a close permanently blocks re-closing. Waiting on the operator's call on where to fix it.
+Blocked landing: `sdlc issue recovery reconcile` releases every new receipt with "the card records a newer close than this receipt (close-a09782625336 reviewed d8f753db)". The cause is `tracker/completeop.go` `newestClose`, which judges the card's prior close superseded only if its reviewed HEAD is an ancestor of the new one. The rebase rewrote history, so the pre-rebase reviewed HEAD is no ancestor of anything, and the stale binding wins forever. Reopen (`set-status working`) does not clear the binding. This is a general gap from #252 M3: any rebase after a close permanently blocks re-closing. The operator chose to fold the fix into #283 (see Revisions).
 
 ## Revisions
 
@@ -240,3 +241,14 @@ Delta, the Done when before narrowing:
 ### 2026-10-02 — Done when: two additions from the durable plan
 
 Reason: writing the plan surfaced two consequences of splitting claim from start. Shaping under a claim on a resting branch must be able to reach `start-plan` (the friction hit in round 1), and a verb past planning must not run on an unstarted card. Delta: added the `start-plan` carry bullet and the `change-code`/`reclaim` bullet. Also decided in the plan (D1): `claim` keeps stamping `started`, so shaping time counts, per the operator's round-2 call; precise multi-claim attribution goes to #284.
+
+### 2026-10-07 — scope: a close survives a rebase
+
+Reason: after rebasing onto main, #283 could not land. Every close and reconcile was released against the card's pre-rebase close (`completeop.go` `newestClose` judged supersession by ancestry only). This is a general sdlc gap, since rebasing onto origin/main is routine. The operator chose a surgical fix inside #283 over a separate issue, because sdlc itself blocked landing.
+
+Delta:
+- `newestClose` also supersedes a binding the branch no longer contains, when the receipt's own review is on the branch.
+- The two completion-op callers use `closeAncestorOf`, which treats an unknown reviewed commit (rewritten away and never fetched) as preceding nothing.
+- The close recovery contract states the rule.
+- Done when gains the bullet above.
+

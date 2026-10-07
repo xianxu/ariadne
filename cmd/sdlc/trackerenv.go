@@ -145,6 +145,17 @@ func (e *trackerEnv) ancestorOf(a, b string) (bool, error) {
 	return e.gitTest("merge-base", "--is-ancestor", a, b)
 }
 
+// closeAncestorOf is ancestorOf for judging close generations (#283): a
+// reviewed commit this clone does not have — rewritten away by a rebase
+// elsewhere, never fetched — precedes nothing here, rather than failing the
+// close. Other callers keep ancestorOf's error for an unknown commit.
+func (e *trackerEnv) closeAncestorOf(a, b string) (bool, error) {
+	if known, err := e.gitTest("rev-parse", "-q", "--verify", a+"^{commit}"); err != nil || !known {
+		return false, err
+	}
+	return e.ancestorOf(a, b)
+}
+
 // branchRef is the checkout's current branch as a full ref ("" when detached).
 func (e *trackerEnv) branchRef() string {
 	if e.branch == "" {

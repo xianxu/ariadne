@@ -44,20 +44,35 @@ func NewCompletionOp(ctx context.Context, repo *Repository, branch string, evide
 }
 
 // newestClose proves, before an effect, that no newer close generation holds
-// the card: a different binding must have reviewed an ancestor of this one.
+// the card: a different binding must have reviewed an ancestor of this one, or
+// (#283) have been rewritten off this branch — a rebase after a close leaves
+// the card's review preceding nothing, which ancestry alone kept "newer"
+// forever. The binding is then superseded only by a receipt whose own review
+// the branch still contains, so a stale receipt from before the rebase is
+// still refused. A detached checkout has no branch to judge by.
 func (op *CompletionOp) newestClose(spec ReceiptSpec, card []byte) error {
 	b, ok, err := issue.CardCompletion(card)
 	if err != nil || !ok || b.Token == spec.Token {
 		return err
 	}
 	older, err := op.ancestor(b.ReviewedHEAD, spec.ReviewedHEAD)
-	if err != nil {
+	if err != nil || older {
 		return err
 	}
-	if !older {
-		return fmt.Errorf("%w (%s reviewed %s)", ErrSupersededClose, b.Token, b.ReviewedHEAD)
+	if op.branch != "" {
+		bindingLive, err := op.ancestor(b.ReviewedHEAD, op.branch)
+		if err != nil {
+			return err
+		}
+		receiptLive, err := op.ancestor(spec.ReviewedHEAD, op.branch)
+		if err != nil {
+			return err
+		}
+		if !bindingLive && receiptLive {
+			return nil
+		}
 	}
-	return nil
+	return fmt.Errorf("%w (%s reviewed %s)", ErrSupersededClose, b.Token, b.ReviewedHEAD)
 }
 
 // EvidenceCommit is the confirmed evidence commit, or "" before it exists.

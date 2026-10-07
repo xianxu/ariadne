@@ -101,11 +101,12 @@ var Catalog = []Contract{
 		Preconditions: "on the issue branch; owned by this workspace; no unfinished close in progress (finish it with `sdlc issue recovery reconcile --issue N`).",
 		Repeat:        "a new review and a new close generation that rebinds the card; the earlier evidence commit stays in history. Do not re-run to recover — reconcile.",
 		LostResponse:  "`sdlc issue recovery reconcile --issue N` drives the receipt, probing before repeating any effect.",
-		Ends:          "a landing completes the card (done); a reopen or a newer close supersedes this generation.",
+		Ends:          "a landing completes the card (done); a reopen or a newer close supersedes this generation — newer by ancestry, or (#283) a close on the branch over one a rebase rewrote off it.",
 		Proofs: []Proof{
 			{"evidence before codecomplete, bound to the reviewed head", []string{"TestTrackerCloseCommitsEvidenceAndPublishesBoundCard", "TestCompletionCommitsEvidenceBeforeCodecomplete"}},
 			{"FIX-THEN-SHIP lands evidence after the fixes", []string{"TestTrackerCloseFixThenShipLandsEvidenceAfterTheFixes", "TestTrackerCloseFixThenShipSurvivesASweepingFixCommit"}},
 			{"a re-close supersedes an unstarted close; an older review cannot win", []string{"TestTrackerReCloseSupersedesAnUnstartedClose", "TestNewestCloseRefusesAnOlderReviewThanTheCardsClose"}},
+			{"after a rebase, a close the branch no longer contains is superseded by a re-close on the branch; a stale pre-rebase receipt still loses", []string{"TestNewestCloseAfterARebase", "TestCloseAncestorOfTreatsAnUnknownCommitAsNoAncestor"}},
 			{"a re-run after SHIP is a new generation", []string{"TestCloseRerunAfterShipStartsANewGeneration"}},
 			{"an interrupted mirror commit is finished by reconcile", []string{"TestReconcileRetriesAnInterruptedCloseMirror"}},
 			{"preconditions refuse before the review runs", []string{"TestTrackerCloseRefusesPreconditionsBeforeReview", "TestOwnershipGatesRefuseForeignAndUnknown"}},

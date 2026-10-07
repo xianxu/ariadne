@@ -179,3 +179,25 @@ func TestGitTestSeparatesFalseFromFailure(t *testing.T) {
 		t.Fatalf("a failed probe read as absence: %v %v", ok, err)
 	}
 }
+
+// #283: judging close generations, a reviewed commit this clone lacks (a
+// rebase elsewhere rewrote it; it was never fetched) precedes nothing; the
+// plain ancestry check still errors on it for its other callers.
+func TestCloseAncestorOfTreatsAnUnknownCommitAsNoAncestor(t *testing.T) {
+	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
+	newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
+	env, err := openTracker(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	unknown := strings.Repeat("d", 40)
+	if on, err := env.closeAncestorOf(unknown, "HEAD"); err != nil || on {
+		t.Fatalf("unknown commit: %v %v", on, err)
+	}
+	if _, err := env.ancestorOf(unknown, "HEAD"); err == nil {
+		t.Fatal("ancestorOf must still refuse an unknown commit")
+	}
+	if on, err := env.closeAncestorOf("HEAD", "HEAD"); err != nil || !on {
+		t.Fatalf("a known commit: %v %v", on, err)
+	}
+}
