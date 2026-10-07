@@ -276,3 +276,30 @@ Tests use the existing real-git fixtures, not mocks:
   - real git: two workspaces' claims grouped apart.
 - [ ] Update `state.md` help and the atlas (`sdlc-binary.md` state row).
 - [ ] `make test` green; `sdlc close --issue 284`.
+
+## Revisions
+
+### 2026-10-07 — plan-quality round 1 (two Important, five Minor; all folded)
+
+1. **PQ-1, unclaim reruns.** `Release` becomes `{by: Claimant, branch?, head?}` and is written by **every** unclaim. `branch` and `head` are present only for started work.
+   - `unclaimDecision`: a card with no claimant whose `release.by` matches me is `errAlreadyReleased`. The IO shell treats that as success and finishes what's left: for started work, switch back to rest when still on the branch and HEAD == `release.head`; for an open claim, the rest fast-forward.
+   - Any claim (plain or takeover) clears `release`.
+   - A Task 9 test covers a lost card write followed by a rerun that finishes the switch. The same test runs for an open unclaim in Task 6.
+2. **PQ-2, move statuses in the model.** D9 becomes a model change: `issue.cue`'s `move` row gets `statuses: holdable`, since `moveRelocation` already relocates open cards. Claim's repair keeps deriving from `OwnershipEvent("move").Statuses` and doesn't switch to `CanHoldOwner`. `make vocab-embed`, and a `pkg/vocab` assertion that `move` covers `open`.
+3. **Test strategy, one line per risky function**, replacing the per-task case lists (the listed cases remain as examples, not the contract):
+   - `ChangeCards`: real git with injected interleavings via `beforePush` (peer write to a named card, to an unrelated card, none).
+   - `claimSetDecision`, `unclaimDecision`: generated over every status × owner {none, me, other} × release {none, mine, other's}.
+   - `republishDecision`: a property test over every (local, base, main) equality pattern.
+   - `claimTimes`: a fixture stream plus a fuzz target over malformed and truncated `git log` output (never panics; malformed records skipped).
+   - Verbs: one real-git happy path, plus one test per refusal and per lost-response rerun.
+4. **Claim times.** `operationToken(verb)` makes `verb-<hex>`, so the parser matches the prefix before the first `-` against {`claim`, `reclaim`, `relocate`, `adopt`, `takeover`}. Takeover uses `operationToken("takeover")`; unclaim uses `operationToken("unclaim")`. The scan streams `git log` and stops once every currently owned card has its time, so its cost is bounded by the age of the oldest live claim, not by the whole history.
+5. **Removal path for pushed issue branches (ARCH-FUNERAL).** The branch unclaim pushes is the issue's own branch, which the taker continues and `sdlc pr` reuses. It's removed with the branch's landing (`merge`; the remote deletion itself is #286's boundary work) or by #286's `abandon`. The unclaim help says so.
+6. **`release.branch` comes from another machine (ARCH-SECURE).**
+   - Validate it at parse time: `git check-ref-format --branch` and the issue's own branch name, the details filename stem.
+   - Takeover refuses any other branch.
+   - Fetch and checkout pass it as one argv element after `--`, never through a shell.
+   - Task 8 tests a release naming `../x`, `-x` or another issue's branch.
+7. **`issue publish` modes and reruns.**
+   - In a tracker repository, `--issue a,b` is the mode and `--commit SHA` keeps refusing as retired. In a legacy repository, `--commit` is unchanged and `--issue` refuses.
+   - Republishing's "nothing to publish" (local == main) still runs the local finish: rest fast-forward, or the branch's narrow commit when HEAD lacks the published bytes. A rerun after an uncertain main push completes.
+   - Task 5 tests the rerun after a stubbed uncertain push.
