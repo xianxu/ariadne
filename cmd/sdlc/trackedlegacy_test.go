@@ -14,9 +14,9 @@ import (
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
-// In a repository cut over to the issue tracker, `issue sync` stays a local
-// checkpoint on the issue branch; its legacy behaviors (a resting-branch
-// commit, --push to main) and `issue publish` refuse (#252).
+// In a repository cut over to the issue tracker, `issue sync` is retired to a
+// pointer (#284) and `issue publish --commit` refuses (#252); details are
+// committed with git and published with `issue publish --issue`.
 func TestLegacyIssueEntrypointsInATrackedRepository(t *testing.T) {
 	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
 	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
@@ -36,19 +36,19 @@ func TestLegacyIssueEntrypointsInATrackedRepository(t *testing.T) {
 			t.Fatalf("%s committed", name)
 		}
 	}
-	if _, stderr, err := executeSDLCTestCommand("issue", "publish", "--commit", r.git("rev-parse", "HEAD")); err == nil || !strings.Contains(err.Error()+stderr, "move-detail") {
+	if _, stderr, err := executeSDLCTestCommand("issue", "publish", "--commit", r.git("rev-parse", "HEAD")); err == nil || !strings.Contains(err.Error()+stderr, "issue publish --issue") {
 		t.Fatalf("issue publish ran in a tracked repository: %v", err)
 	}
 
+	// #284: on the issue branch too, `issue sync` points at git and publish.
 	r.git("switch", "-q", "-c", "000009-nine")
-	if _, stderr, err := executeSDLCTestCommand("issue", "sync", "--issue", "9"); err != nil {
-		t.Fatalf("checkpoint on the issue branch: %v\n%s", err, stderr)
+	head := r.git("rev-parse", "HEAD")
+	msg, died := expectDie(t, func() { _, _, _ = executeSDLCTestCommand("issue", "sync", "--issue", "9") })
+	if !died || !strings.Contains(msg, "git commit -m '#9: plan:") || !strings.Contains(msg, "sdlc issue publish --issue 9") {
+		t.Fatalf("issue sync on the issue branch: died=%v %q", died, msg)
 	}
-	if !strings.Contains(r.git("show", "HEAD:"+detailPath), "a design note") || !strings.HasPrefix(r.git("log", "-1", "--format=%s"), "#9: issue-sync") {
-		t.Fatal("the checkpoint did not commit the details on the issue branch")
-	}
-	if r.originMain() != mainBefore {
-		t.Fatal("the checkpoint published to main")
+	if r.git("rev-parse", "HEAD") != head || r.originMain() != mainBefore {
+		t.Fatal("the retired issue sync committed or published")
 	}
 }
 

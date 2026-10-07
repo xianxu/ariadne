@@ -109,7 +109,7 @@ func TestLeftoverBranchIsLockedUntilCaughtUpThenWorks(t *testing.T) {
 			mustSlotRun(t, r.root, "claim", "--issue", "1")
 			mustSlotRun(t, r.root, "start-plan", "--issue", "1")
 			designOn(t, r.root)
-			mustSlotRun(t, r.root, "issue", "sync", "--issue", "1")
+			r.git("commit", "-qm", "#1: plan: design", "--", leftoverIssue) // #284: details are committed with git
 			mustSlotRun(t, r.root, "change-code", "--issue", "1", "--worktree=no", "--no-judge", "--no-estimate", "--no-estimate-recon")
 			writeRepoFile(t, r.root, "cmd/one.go", "package one\n")
 			r.git("add", "cmd/one.go")
