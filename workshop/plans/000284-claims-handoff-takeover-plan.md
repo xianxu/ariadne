@@ -303,3 +303,12 @@ Tests use the existing real-git fixtures, not mocks:
    - In a tracker repository, `--issue a,b` is the mode and `--commit SHA` keeps refusing as retired. In a legacy repository, `--commit` is unchanged and `--issue` refuses.
    - Republishing's "nothing to publish" (local == main) still runs the local finish: rest fast-forward, or the branch's narrow commit when HEAD lacks the published bytes. A rerun after an uncertain main push completes.
    - Task 5 tests the rerun after a stubbed uncertain push.
+
+### 2026-10-07 — M2: Task 8's release record pulled forward
+
+Reason: PQ-1 made every unclaim (open claims included) write `release.by`, so a rerun recognises its own release. M2's open unclaim can't be rerun safely without the record.
+
+Delta:
+- Task 8 (the envelope keeps unknown keys; the `release` record; `ClearCardClaimant`) moved from M3 into M2, and any claim now spends a release.
+- M3 keeps the handoff (Task 9), takeover (Task 10) and the moved-open repair.
+- The `issue publish` Exempt entry is replaced by a recovery contract, and so are `unclaim`'s and `issue sync`'s.
