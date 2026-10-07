@@ -5,9 +5,9 @@ goal: "Re-derive sdlc ownership from the claimant: the slot that holds a claim i
 done_when: "Claim/unclaim/takeover/abandon run on the claimant lock with status as lifecycle only; the transfer guard decides by owner + based-on-latest; a pair#365-shaped landing and a merge done outside sdlc both finish through sdlc without hand edits."
 status: defined
 operator: Xian Xu
-mvp_scope: [ariadne#283, ariadne#284, ariadne#285, ariadne#286, ariadne#287]
+mvp_scope: [ariadne#283, ariadne#284, ariadne#285, ariadne#286, ariadne#287, ariadne#301]
 created: 2026-10-02
-updated: 2026-10-02
+updated: 2026-10-07
 sources: [workshop/issues/000283-claim-owns-issue-branch.md]
 ---
 
@@ -44,6 +44,7 @@ Estimated per child at its `change-code`.
 Order: model first, done properly, with no fast-track for pair#365. #287 is independent and can run in parallel once its details are on main.
 
 - [x] Model: claimant lock, status as lifecycle, slot/operator terminology [ariadne#283]
+- [ ] Pin the rebase-aware close rule: e2e test and atlas [ariadne#301]
 - [ ] Claims: multi-claim, publish, handoff, takeover [ariadne#284]
 - [ ] Transfer guard: owner plus based-on-latest [ariadne#285]
 - [ ] Boundary pushes and sdlc abandon [ariadne#286]
@@ -54,3 +55,8 @@ Order: model first, done properly, with no fast-track for pair#365. #287 is inde
 ### 2026-10-02
 
 Promoted from #283 after a four-round design discussion with the operator (decisions in #283's Log).
+
+### 2026-10-07 — scope: add #301
+
+#283 landed (PR #161), but landing it needed a scope revision: a close now survives a rebase (`completeop.go` `newestClose` treats a binding that the rebase rewrote off the branch as replaced). Its final review left two advisory Minors: no end-to-end test pins the close/reconcile wiring, and the atlas lacks the rule. Filed as #301 and added to scope at the operator's request. It's next in line, ahead of #284.
+
