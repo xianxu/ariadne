@@ -1,12 +1,12 @@
 ---
 id: 000301
-status: working
+status: codecomplete
 deps: [ariadne#283]
 github_issue:
 created: 2026-10-07
 updated: 2026-10-07
 estimate_hours:
-card_mirror: '253e628ffce9d125515e0ca41e850164f502f11f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '59924e26ad5ff98d84c4f97c4fceae98ba665449' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-07T13:10:34-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "0910e614", done: "44b4b072"}
+actual_hours: 0.13
 ---
 
 # Pin the rebase-aware close rule: e2e test and atlas
