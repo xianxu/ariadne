@@ -17,10 +17,13 @@ import (
 // render its value through issue.CLIRef or a variable known to hold a decimal.
 func TestIssueHintsRenderDecimalIDs(t *testing.T) {
 	hint := regexp.MustCompile(`--issue (%s|"\s*\+)`)
-	decimal := regexp.MustCompile(`CLIRef\(|\bissueStr\b|\bnum\)|unpadID\(|claimArg\(`)
-	// claimArg renders a set through CLIRef (#284); held to it here.
+	decimal := regexp.MustCompile(`CLIRef\(|\bissueStr\b|\bnum\)|unpadID\(|claimArg\(|JoinRefs\(`)
+	// claimArg and issue.JoinRefs render a set through CLIRef (#284); held to it here.
 	if got := claimArg([]string{"000253", "000008"}); got != "253,8" {
 		t.Fatalf("claimArg must render decimal IDs, got %q", got)
+	}
+	if got := issue.JoinRefs([]string{"000253", "000008"}, "", ","); got != "253,8" {
+		t.Fatalf("issue.JoinRefs must render decimal IDs, got %q", got)
 	}
 	err := filepath.Walk(".", func(p string, info os.FileInfo, err error) error {
 		if err != nil || info.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {

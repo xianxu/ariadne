@@ -18,7 +18,7 @@ branch, each issue whose details body differs from main's is named.
 An issue is claimable only once its creation is complete: its card is on the
 `issue-tracker` branch AND its details file has landed on main. A card-only or
 local-only issue is still being written by its creator; claim refuses it and
-names the next action (`sdlc issue move-detail --issue N` from the creating
+names the next action (`sdlc issue publish --issue N` from the creating
 checkout, or merging the branch that filed it). Readiness is checked against
 fresh main, and checked again immediately before the reservation is pushed.
 

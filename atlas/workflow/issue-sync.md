@@ -2,10 +2,13 @@
 
 > **Legacy repositories only (#252).** This page describes the pre-tracker
 > workflow, which runs until a repository's cutover. In an issue tracker
-> repository `claim` and `issue new` write cards and never publish to main,
-> `change-code` publishes nothing, `issue sync` is a local checkpoint on the
-> issue branch only, and `issue publish` refuses. See
-> [issue tracker](issue-tracker.md) and
+> repository:
+> - `claim` and `issue new` write cards and never publish to main;
+> - `change-code` publishes nothing;
+> - `issue sync` is retired to a pointer (#284): details are committed with git on the issue branch;
+> - details reach main with `issue publish --issue N` (#284): a first publication, or the owner's later edits.
+>
+> See [issue tracker § Publishing details](issue-tracker.md#publishing-details-284) and
 > [issue tracker migration](issue-tracker-migration.md).
 
 Issue reservation and documentation publication are separate operations. Both use

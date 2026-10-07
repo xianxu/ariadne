@@ -36,10 +36,9 @@ func newIssueMoveDetailCmd() *cobra.Command {
 	cmd := markMutatingCommand(&cobra.Command{
 		Use:   "move-detail",
 		Short: "Publish an issue's initial details to main so it becomes claimable",
-		Long: `Consult the operator before moving: this is an escape hatch, not for regular use.
-An issue filed on a branch normally waits for that branch to merge; only
-urgent work needs it claimable sooner, and that calls for human judgement
-(or for filing it on main directly).
+		Long: `The first-publication case of ` + "`sdlc issue publish`" + ` (#284), for one issue:
+publishing is how an issue becomes real and claimable. ` + "`sdlc issue publish --issue N`" + `
+does the same, and also publishes an owner's later edits.
 
 Complete an issue's creation by publishing its initial details to main
 (#252), without shipping the branch that filed it.

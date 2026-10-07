@@ -314,6 +314,13 @@ Inspect SDLC workflow state for this repo — a read-only "where am I"
 surface. Compaction recovery primitive: after a session resume, run
 `sdlc state` instead of re-inferring from issue files.
 
+### [unclaim](../../cmd/sdlc/helptext/unclaim.md)
+
+**When:** embedded help; printed by the matching `sdlc … --help` / on verb error
+
+Release the lock on issues this workspace owns (#284). The owner is cleared;
+the status never changes.
+
 ### [workspace](../../cmd/sdlc/helptext/workspace.md)
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error

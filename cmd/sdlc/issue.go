@@ -653,13 +653,13 @@ func trackedIssueSync(f *issueSyncFlags) error {
 	if err != nil || !cut {
 		return err
 	}
-	n := "N"
+	issueStr := "N" // decimal: an int, never a padded ID
 	if f.Issue > 0 {
-		n = fmt.Sprint(f.Issue)
+		issueStr = fmt.Sprint(f.Issue)
 	}
 	return fmt.Errorf("this repository uses the issue tracker, where `issue sync` is retired: commit details with git on the issue branch "+
 		"(`git commit -m '#%s: plan: …' -- <details>`), and publish them to main with `sdlc issue publish --issue %s`. "+
-		"Never commit on a resting branch: it only fast-forwards to main", n, n)
+		"Never commit on a resting branch: it only fast-forwards to main", issueStr, issueStr)
 }
 
 // issueShowRepo resolves what an issue show reads (#279). The repository is

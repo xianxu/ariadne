@@ -235,12 +235,14 @@ The publication remote is the resting branch's upstream
 |---|---|---|---|
 | `issue new` | reserved at `max(id)+1`, own commit; reallocates after a proven race | written locally; narrow commit on a feature branch, uncommitted on rest | untouched |
 | `claim` | claimant by CAS, status unchanged (#283); a set `--issue a,b` is one all-or-nothing tracker commit (`tracker.ChangeCards`, #284); the owner's repeat is a no-op, others refuse (#277) | mirror refreshed (never on rest); rest fast-forwards to main after claiming (#284) | must already hold the details, re-checked before push |
+| `unclaim` | claimant cleared and a release recorded (who let go) by one CAS over the set; status unchanged (#284) | an open claim's unpublished edits are published first (`issue publish`) | republished details, if any |
 | `start-plan` | owned by this workspace (#277); open → working by CAS after the branch is ready (#283) | branch `<details stem>` created at pinned main from a rest clean except for this issue's own details, which ride along (#283); an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
 | `change-code` | read (mirror refresh before gates); owner only (#277), started only (#283) | design committed narrowly on the issue branch | never published |
 | `close` | codecomplete bound to the evidence commit | evidence commit, then a mirror commit (#275) | never published |
 | `issue show --json` | read: one card (fresh, else stale with its reason) | read at the issue branch or main's archive | read (archive) — writes nothing (#279) |
 | `reclaim` | owned card's claimant (any holdable status, an open shaping claim included, #283) → this workspace by CAS on the inspected revision; trailers record from/to/reason (#278) | mirror refreshed (never on rest) | untouched |
 | `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
+| `issue publish` | first publication: as `move-detail`; republish: ownership re-checked before the push, card untouched (#284) | rest fast-forwards; another branch commits the published bytes | one narrow commit for the set's edits, refused over a moved main copy |
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
 
 `move-detail` is add-then-remove relative to a merge base without the file, so
@@ -252,6 +254,23 @@ conflict with, delete, re-add or rewrite them (`transferguard.go`); the issue's
 own branch is exempt. `sdlc issue recovery list|reconcile` resumes stopped
 operations, probing before repeating anything; a creation that published
 nothing is released rather than re-rendered.
+
+## Publishing details (#284)
+
+`sdlc issue publish --issue N[,N…]` (`issuepublish.go`, `republish.go`) is how details reach main without shipping a branch. Per issue:
+- **First publication** (details not on main): `move-detail`'s receipt-driven transfer. It needs no owner, and the issue becomes claimable.
+- **Republish** (details on main): the owner only. `republishDecision` judges the details *bodies*: the local copy against the one at this checkout's merge base with main, and main's. The frontmatter carries the card mirror, which differs by design.
+  - main unchanged since the base → published;
+  - main moved → refused;
+  - equal → nothing to publish.
+  - The set's edits go in one main commit through the `mainPublish` seam. The prepare step re-judges main on every attempt, and ownership is re-checked against a fresh tracker read in `beforePush`.
+- `finishPublished` then fast-forwards a resting branch (it never carries the edits as commits) or commits the same bytes on any other branch. A rerun after a lost push response only finishes.
+- **Rules:**
+  - a resting branch only fast-forwards to main;
+  - `issue sync` is retired here (a pointer at git and `issue publish`);
+  - `unclaim` of an open claim publishes before it releases;
+  - every release records who let go (the envelope's `release`), so a rerun recognises its own;
+  - envelope rewrites keep unknown keys (`trackerEnvelope.Extra`).
 
 ## Readers and completion (M3)
 
