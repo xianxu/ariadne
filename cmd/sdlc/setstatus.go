@@ -150,7 +150,7 @@ func statusDecision(card []byte, detailsBody, next string, force bool, today, st
 			return nil, prev, fmt.Errorf("owned by %s; entering working from another workspace is a takeover — operator-directed `sdlc reclaim`, not set-status", describeClaimant(recorded))
 		}
 		if !has && prev == "working" {
-			return nil, prev, fmt.Errorf("already working with no recorded owner (claimed before #277); record an owner with `sdlc claim --adopt`, not set-status")
+			return nil, prev, fmt.Errorf("already working with no owner; `sdlc claim` takes it over, not set-status")
 		}
 		// #283: the model's `start` edge is guarded `owned`. An unowned open card
 		// is claimed first — claim checks the details are on main — then started.

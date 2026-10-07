@@ -55,7 +55,7 @@ func TestReclaimDecision(t *testing.T) {
 		{"open", "open", nil, rev, "r", "sdlc claim --issue 31"},
 		{"open, held (shaping claim)", "open", &old, rev, "slot gone", "transfer"},
 		{"done", "done", &old, rev, "r", "no live responsibility"},
-		{"unattributed", "working", nil, rev, "r", "--adopt"},
+		{"unattributed", "working", nil, rev, "r", "takes it over"},
 		{"no expect", "working", &old, "", "r", "--expect is required"},
 		{"stale expect", "working", &old, "2222222222222222222222222222222222222222", "r", "changed since you inspected"},
 		{"empty reason", "working", &old, rev, "  ", "--reason is required"},

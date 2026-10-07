@@ -235,7 +235,7 @@ func TestClaimOfflineRefusesWithoutLocalMutation(t *testing.T) {
 
 // #277: claimDecision with an ownership identity — open is stamped; a working
 // card is the owner's (no-op), another workspace's (refused, naming the owner)
-// or unattributed (refused toward --adopt).
+// or unattributed (taken over, #284).
 func TestClaimDecisionOwnership(t *testing.T) {
 	me := issue.Claimant{Operator: "Me", Machine: issue.MachineFingerprint("m1"), MachineName: "box", Worktree: "/w/a", Repository: "r"}
 	open := []byte("---\nid: 000031\nstatus: open\ncreated: 2026-10-01\nupdated: 2026-10-01\n---\n\n# t\n\n## Problem\n\nx\n")
@@ -259,7 +259,6 @@ func TestClaimDecisionOwnership(t *testing.T) {
 		"owner repeats":  {claimed, "already claimed by this workspace"},
 		"started, mine":  {bytes.Replace(claimed, []byte("status: open"), []byte("status: blocked"), 1), "already claimed by this workspace"},
 		"another claims": {claimed, "claimed by Me on box at /w/a"},
-		"unattributed":   {unattributed, "--adopt"},
 		"terminal":       {bytes.Replace(open, []byte("status: open"), []byte("status: done"), 1), "not open"},
 	} {
 		who := me
@@ -270,6 +269,11 @@ func TestClaimDecisionOwnership(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%s: %v (want %q)", name, err, c.want)
 		}
+	}
+	if took, err := claimDecision(unattributed, 31, "2026-10-01", "2026-10-01T12:00:00Z", &me); err != nil || !bytes.Contains(took, []byte("status: working")) {
+		t.Fatalf("unattributed started work must be taken over, its status kept: %v", err)
+	} else if got, ok, _ := issue.CardClaimant(took); !ok || got != me {
+		t.Fatal("takeover did not record the owner")
 	}
 	if _, err := claimDecision(claimed, 31, "2026-10-01", "now", &me); !errors.Is(err, errAlreadyMine) {
 		t.Fatalf("owner's repeat is not the no-op sentinel: %v", err)

@@ -210,9 +210,9 @@ func TestClaimRefreshesTheCheckout(t *testing.T) {
 }
 
 // #284: a set whose publication response is lost asks for a rerun, and the
-// rerun is settled by the cards; an unowned started member is refused toward a
-// single-issue --adopt, which a set cannot take.
-func TestClaimSetLostResponseAndAdoptRefusal(t *testing.T) {
+// rerun is settled by the cards; an unowned started member with no handoff
+// branch is taken over within a set, its status kept.
+func TestClaimSetLostResponseAndTakeover(t *testing.T) {
 	r, paths := claimSetRepo(t)
 	restore := loseResponses(t)
 	var out, errs bytes.Buffer
@@ -237,9 +237,33 @@ func TestClaimSetLostResponseAndAdoptRefusal(t *testing.T) {
 		t.Fatal(err)
 	}
 	errs.Reset()
-	err = runClaim(context.Background(), &out, &errs, &claimFlags{Issues: []int{9, 11}, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"})
-	if err == nil || !strings.Contains(err.Error(), "claim #11 alone with `sdlc claim --issue 11 --adopt`") {
-		t.Fatalf("an unowned started member must point at a single --adopt: %v", err)
+	if err := runClaim(context.Background(), &out, &errs, &claimFlags{Issues: []int{9, 11}, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}); err != nil {
+		t.Fatalf("an unowned started member must be taken over in a set: %v\n%s", err, errs.String())
+	}
+	if owner, ok := ownerOf(t, r, paths["000011"]); !ok || owner.Worktree != canonRoot(r.root) || !strings.Contains(r.card(paths["000011"]), "status: working") {
+		t.Fatalf("#11 not taken over with its status kept:\n%s", r.card(paths["000011"]))
+	}
+}
+
+// #284: a member handed off on a branch is taken over by fetching and checking
+// that branch out, which a set cannot do: the set refuses, naming it.
+func TestClaimSetRefusesAHandedOffMember(t *testing.T) {
+	me := issue.Claimant{Operator: "Me", Machine: issue.MachineFingerprint("m1"), MachineName: "box", Worktree: "/w/a", Repository: "r"}
+	them := me
+	them.Worktree = "/w/b"
+	raw := func(id, status string) []byte {
+		return []byte("---\nid: " + id + "\nstatus: " + status + "\ncreated: 2026-10-01\nupdated: 2026-10-01\n---\n\n# t\n\n## Problem\n\nx\n")
+	}
+	handed, err := issue.SetCardRelease(raw("000032", "working"), &issue.Release{By: issue.ReleasedBy(them), Branch: "000032-x", Head: strings.Repeat("a", 40)})
+	if err != nil {
+		t.Fatal(err)
+	}
+	current := map[string]tracker.Record{"000031": {ID: "000031", Raw: raw("000031", "open")}, "000032": {ID: "000032", Raw: handed}}
+	if _, err := claimSetDecision(current, []string{"000031", "000032"}, "2026-10-07", "2026-10-07T09:00:00-07:00", me); err == nil || !strings.Contains(err.Error(), "claim it alone") {
+		t.Fatalf("a handed-off member in a set: %v", err)
+	}
+	if _, err := claimSetDecision(current, []string{"000032"}, "2026-10-07", "2026-10-07T09:00:00-07:00", me); err != nil {
+		t.Fatalf("alone, the decision takes it over (the shell fetches): %v", err)
 	}
 }
 

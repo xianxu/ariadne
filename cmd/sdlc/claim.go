@@ -79,7 +79,8 @@ func NewClaimCmd() *cobra.Command {
 	cmd.Flags().IntSliceVar(&f.Issues, "issue", nil, "issue ID(s) to claim, one tracker commit for the set (required): --issue 284 or --issue 284,285")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would happen; do not commit/push")
-	cmd.Flags().BoolVar(&f.Adopt, "adopt", false, "record this workspace as owner of a working issue that has none (claimed before #277)")
+	cmd.Flags().BoolVar(&f.Adopt, "adopt", false, "retired: a plain claim takes over unowned started work (#284)")
+	_ = cmd.Flags().MarkHidden("adopt")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
 	cmd.Flags().BoolVar(&f.NoStart, "no-start", false, "retired; use issue publish --commit SHA for documentation")
 	_ = cmd.Flags().MarkHidden("no-start") // retired: refused, kept only to explain itself
@@ -160,18 +161,13 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	if err != nil {
 		return err
 	}
+	// --adopt is a plain claim since #284: claiming unowned started work takes it over.
 	if len(ids) == 1 {
 		id := ids[0]
-		if f.Adopt {
-			return adoptClaim(stdout, stderr, env, cards[id], me, detailPaths[id], f.DryRun)
-		}
 		if done, err := finishRelocation(stdout, stderr, env, cards[id], me, detailPaths[id], f.DryRun); done || err != nil {
 			return err
 		}
 	} else {
-		if f.Adopt {
-			return fmt.Errorf("--adopt takes one issue")
-		}
 		// Finishing an `sdlc move` reads this machine's worktrees: one issue alone.
 		for _, id := range ids {
 			if rec, err := readRelocation(env.root, id); err != nil {
@@ -695,37 +691,4 @@ func findMainWorktree(r gitRunner) (string, error) {
 		return mainPath, nil
 	}
 	return "", fmt.Errorf("could not find a worktree on branch 'main'. Is main checked out somewhere?")
-}
-
-// adoptClaim records this workspace as the owner of a working or blocked card
-// with no recorded owner (#277), by compare-and-swap on the card it read. An
-// owned card refuses — adoption never reassigns.
-func adoptClaim(stdout, stderr io.Writer, env *trackerEnv, card tracker.Record, me issue.Claimant, detailPath string, dryRun bool) error {
-	id := card.ID
-	next, err := adoptDecision(card.Raw, id, me)
-	if errors.Is(err, errAlreadyMine) {
-		cok(stderr, fmt.Sprintf("#%s is already owned by this workspace; nothing to do", id))
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if dryRun {
-		cinfo(stderr, fmt.Sprintf("dry-run — would record this workspace (%s) as #%s's owner", me.Worktree, id))
-		return nil
-	}
-	err = uncertainCardWrite(cardPublish(env, card, next, operationToken("adopt"), nil, nil), fmt.Sprintf("sdlc claim --issue %s --adopt", issue.CLIRef(id)))
-	invalidateIssueRecords(env.ctx)
-	if errors.Is(err, tracker.ErrCardChanged) {
-		return fmt.Errorf("card #%s changed while adopting (a peer may have adopted it); `sdlc issue show --issue %s` and retry only if it still has no owner", id, issue.CLIRef(id))
-	}
-	if err != nil {
-		return err
-	}
-	cok(stderr, fmt.Sprintf("#%s adopted: this workspace (%s) is its recorded owner", id, me.Worktree))
-	if warn := refreshLocalMirror(env, detailPath); warn != "" {
-		cwarn(stderr, warn)
-	}
-	fmt.Fprintln(stdout, "adopted")
-	return nil
 }

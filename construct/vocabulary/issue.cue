@@ -216,7 +216,8 @@ ownership: {
 		{event: "claim", owner: "none→me", statuses: holdable, when: "take the lock: to shape an open issue, or to take over unowned started work"},
 		{event: "unclaim", owner: "me→none", statuses: holdable, when: "release the lock; started work stays started and is open for takeover"},
 		{event: "reclaim", owner: "other→me", statuses: holdable, when: "operator-directed transfer from another slot, with a reason"},
-		{event: "move", owner: "me→me", statuses: categories.active, when: "relocate the owner's own work between worktrees on one machine"},
+		// #284: any held claim can be relocated, an open (shaping) one included.
+		{event: "move", owner: "me→me", statuses: holdable, when: "relocate the owner's own work between worktrees on one machine"},
 	]
 }
 

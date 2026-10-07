@@ -51,7 +51,7 @@ func reclaimDecision(card []byte, rev, expect, reason string, me issue.Claimant)
 	case !has && vocab.Issue().IsOpen(status):
 		return nil, issue.Claimant{}, fmt.Errorf("#%s is open; nobody holds it — `sdlc claim --issue %s` takes it", id, issue.CLIRef(id))
 	case !has:
-		return nil, issue.Claimant{}, fmt.Errorf("#%s has no recorded owner (claimed before #277); record one with `sdlc claim --issue %s --adopt`", id, issue.CLIRef(id))
+		return nil, issue.Claimant{}, fmt.Errorf("#%s has no owner; nothing to reclaim — `sdlc claim --issue %s` takes it over", id, issue.CLIRef(id))
 	}
 	if issue.MatchClaimant(&recorded, me) == issue.OwnershipMine {
 		return nil, recorded, errAlreadyMine
