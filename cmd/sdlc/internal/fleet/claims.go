@@ -161,11 +161,12 @@ func trackerIssueKey(c ClaimAssociation) string {
 	return c.Claimant.Repository + "#" + c.Ref[strings.LastIndexByte(c.Ref, '#')+1:]
 }
 
-// mine is the repository's active claims recorded by this machine, by ref.
+// mine is the repository's live claims recorded by this machine, by ref: a
+// claimant on a status that holds the lock (#283 — an open shaping claim too).
 func mine(rc RepoClaims, me Machine) []ClaimAssociation {
 	var out []ClaimAssociation
 	for _, c := range rc.Cards {
-		if c.Claimant == nil || c.Claimant.Machine != me.Fingerprint || !vocab.Issue().IsActive(c.Status) {
+		if c.Claimant == nil || c.Claimant.Machine != me.Fingerprint || !vocab.Issue().CanHoldOwner(c.Status) {
 			continue
 		}
 		out = append(out, ClaimAssociation{Ref: c.Ref, Status: c.Status, Revision: c.Revision, Claimant: *c.Claimant})
@@ -209,8 +210,8 @@ func (c ClaimAssociation) validate() error {
 	if !validIssueRef(c.Ref) {
 		return fmt.Errorf("invalid claim reference %q", c.Ref)
 	}
-	if !vocab.Issue().IsActive(c.Status) {
-		return fmt.Errorf("claim %s: status %q is not an active status", c.Ref, c.Status)
+	if !vocab.Issue().CanHoldOwner(c.Status) {
+		return fmt.Errorf("claim %s: status %q holds no lock", c.Ref, c.Status)
 	}
 	if c.Revision == "" || c.Claimant.Worktree == "" || !issue.ValidFingerprint(c.Claimant.Machine) {
 		return fmt.Errorf("claim %s: revision, claimant worktree and machine fingerprint are required", c.Ref)

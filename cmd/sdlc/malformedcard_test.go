@@ -40,7 +40,7 @@ func TestOneMalformedCardDoesNotBlockOthers(t *testing.T) {
 	if o := observeIssue(t, 42, ""); o.Card.State != observe.Unknown || !strings.Contains(o.Card.Error, "unreadable card") {
 		t.Fatalf("issue show --json of the malformed card: %+v", o.Card)
 	}
-	if o := observeIssue(t, 41, ""); o.Card.Status != "working" || o.Assignment.Relation != observe.RelationThisWorkspace {
+	if o := observeIssue(t, 41, ""); o.Card.Status != "open" || o.Assignment.Relation != observe.RelationThisWorkspace {
 		t.Fatalf("issue show --json of the good card: %+v %+v", o.Card, o.Assignment)
 	}
 
@@ -52,7 +52,7 @@ func TestOneMalformedCardDoesNotBlockOthers(t *testing.T) {
 	for _, s := range states {
 		seen[s.ID] = s
 	}
-	if seen["000042"].Status != "unreadable" || !strings.Contains(seen["000042"].Unreadable, "fingerprint") || seen["000041"].Status != "working" {
+	if seen["000042"].Status != "unreadable" || !strings.Contains(seen["000042"].Unreadable, "fingerprint") || seen["000041"].Status != "open" {
 		t.Fatalf("issue list/state: %+v", states)
 	}
 	if d := detectDrift(states, "workshop/history", func(string) (string, string, bool) { return "", "", false }); !driftMentions(d, "000042", "card unreadable") {

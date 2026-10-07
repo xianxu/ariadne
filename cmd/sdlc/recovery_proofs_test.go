@@ -45,7 +45,7 @@ func TestClaimRerunSettlesALostResponse(t *testing.T) {
 		t.Fatalf("a lost response gave no recovery action: %v", err)
 	}
 	landed := r.card(cardPath)
-	if !strings.Contains(landed, "status: working") || !strings.Contains(landed, "claimant:") {
+	if !strings.Contains(landed, "status: open") || !strings.Contains(landed, "claimant:") { // #283: claim records the owner only
 		t.Fatalf("the claim did not land:\n%s", landed)
 	}
 	out.Reset()
@@ -63,7 +63,8 @@ func TestSetStatusRerunSettlesALostResponse(t *testing.T) {
 	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(411)); err != nil {
 		t.Fatal(err)
 	}
-	f := &setStatusFlags{Issue: 411, Status: "blocked", IssuesDir: "workshop/issues"}
+	// #283: claimed but open; the owner's start (open → working) is the change.
+	f := &setStatusFlags{Issue: 411, Status: "working", IssuesDir: "workshop/issues"}
 	restore := loseResponses(t)
 	err := runSetStatus(context.Background(), &out, &errs, f)
 	restore()
@@ -71,7 +72,7 @@ func TestSetStatusRerunSettlesALostResponse(t *testing.T) {
 		t.Fatalf("a lost response gave no recovery action: %v", err)
 	}
 	landed := r.card(cardPath)
-	if !strings.Contains(landed, "status: blocked") {
+	if !strings.Contains(landed, "status: working") {
 		t.Fatalf("the change did not land:\n%s", landed)
 	}
 	errs.Reset()
