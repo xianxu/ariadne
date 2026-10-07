@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 	"go.yaml.in/yaml/v3"
 )
@@ -65,6 +66,36 @@ func claimDecision(raw []byte, id int, today, started string, me *issue.Claimant
 		return out, nil
 	}
 	return issue.SetCardClaimant(out, *me)
+}
+
+// claimSetDecision is claim's decision over a set (#284), made on the bytes one
+// attempt read: each card is judged by claimDecision. Any refusal aborts the
+// whole set; the owner's own repeats are skipped; a set of nothing but repeats
+// is errAlreadyMine. A card missing from current refuses.
+func claimSetDecision(current map[string]tracker.Record, ids []string, today, started string, me issue.Claimant) (map[string][]byte, error) {
+	out := map[string][]byte{}
+	for _, id := range ids {
+		rec, ok := current[id]
+		if !ok {
+			return nil, fmt.Errorf("no readable card #%s on the tracker", id)
+		}
+		n, err := strconv.Atoi(id)
+		if err != nil {
+			return nil, fmt.Errorf("card id %q is not numeric", id)
+		}
+		next, err := claimDecision(rec.Raw, n, today, started, &me)
+		if errors.Is(err, errAlreadyMine) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		out[id] = next
+	}
+	if len(out) == 0 {
+		return nil, errAlreadyMine
+	}
+	return out, nil
 }
 
 // ownedBy explains a held card to a would-be claimant: errAlreadyMine for the
