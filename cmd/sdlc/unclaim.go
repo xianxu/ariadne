@@ -11,7 +11,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -156,7 +155,11 @@ func runUnclaim(ctx context.Context, stdout, stderr io.Writer, f *unclaimFlags) 
 		case !vocab.Issue().CanHoldOwner(status):
 			return fmt.Errorf("#%s is %s; it holds no lock to release", issue.CLIRef(id), status)
 		case !vocab.Issue().IsOpen(status):
-			return fmt.Errorf("#%s is %s: releasing started work is a handoff, which comes with #284 M3", issue.CLIRef(id), status)
+			// Started work is a handoff: its branch travels, one issue at a time.
+			if len(nums) > 1 {
+				return fmt.Errorf("#%s is %s: releasing started work hands its branch off, one issue at a time (`sdlc unclaim --issue %s`)", issue.CLIRef(id), status, issue.CLIRef(id))
+			}
+			return runHandoff(env, stdout, stderr, card, dirs.Rel[0], f.Note, me, f.DryRun)
 		}
 	}
 	// Decide on the cards as read: refusals stop here, before any effect, and
@@ -187,22 +190,10 @@ func runUnclaim(ctx context.Context, stdout, stderr io.Writer, f *unclaimFlags) 
 		return nil
 	}
 	if f.Note != "" {
-		line := fmt.Sprintf("- %s: unclaimed: %s", time.Now().Format("2006-01-02"), f.Note)
 		for _, id := range pending {
 			_, p := localDetail(env, dirs.Rel[0], cards[id].Path)
-			raw, err := os.ReadFile(p)
-			if err != nil {
+			if _, err := appendUnclaimNote(p, f.Note); err != nil { // once, whatever the reruns (#284 BR-7)
 				return fmt.Errorf("#%s: the note needs its local details: %w", issue.CLIRef(id), err)
-			}
-			fm, body, err := issue.Parse(string(raw))
-			if err != nil {
-				return err
-			}
-			if strings.Contains(body, line) {
-				continue // a rerun: the note is already there (#284 BR-7)
-			}
-			if err := os.WriteFile(p, []byte(issue.Compose(fm, insertLogLine(body, line))), 0o644); err != nil {
-				return err
 			}
 		}
 	}

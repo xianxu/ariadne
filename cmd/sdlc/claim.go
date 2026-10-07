@@ -162,9 +162,15 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 		return err
 	}
 	// --adopt is a plain claim since #284: claiming unowned started work takes it over.
+	var take *takeover
 	if len(ids) == 1 {
 		id := ids[0]
 		if done, err := finishRelocation(stdout, stderr, env, cards[id], me, detailPaths[id], f.DryRun); done || err != nil {
+			return err
+		}
+		// A handed-off issue resumes at the tip it was released at: every
+		// check that can refuse runs before the card is written.
+		if take, err = prepareTakeover(env, cards[id]); err != nil {
 			return err
 		}
 	} else {
@@ -192,6 +198,9 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	if _, err := decide(cards); errors.Is(err, errAlreadyMine) {
 		cok(stderr, fmt.Sprintf("%s already claimed by this workspace; nothing to do", claimRefs(ids)))
 		if !f.DryRun {
+			if len(ids) == 1 {
+				finishOwnedTakeover(env, stderr, cards[ids[0]]) // a takeover whose switch was lost
+			}
 			refresh()
 			fmt.Fprintln(stdout, "claimed")
 		}
@@ -212,7 +221,16 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 		return err
 	}
 	for _, id := range ids {
-		cok(stderr, fmt.Sprintf("Issue #%s claimed on %s: this workspace owns it; status stays open until `sdlc start-plan --issue %s` starts it.", id, vocab.Issue().Discovery().Tracker, issue.CLIRef(id)))
+		if status, _ := issue.GetField(cards[id].Card.Frontmatter, "status"); vocab.Issue().IsOpen(status) {
+			cok(stderr, fmt.Sprintf("Issue #%s claimed on %s: this workspace owns it; status stays open until `sdlc start-plan --issue %s` starts it.", id, vocab.Issue().Discovery().Tracker, issue.CLIRef(id)))
+		} else {
+			cok(stderr, fmt.Sprintf("Issue #%s taken over on %s: this workspace owns it; its status (%s) is unchanged.", id, vocab.Issue().Discovery().Tracker, status))
+		}
+	}
+	if take != nil {
+		finishTakeover(env, stderr, take)
+		fmt.Fprintln(stdout, "claimed")
+		return nil
 	}
 	refresh()
 	fmt.Fprintln(stdout, "claimed")
