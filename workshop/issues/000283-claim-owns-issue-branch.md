@@ -1,12 +1,12 @@
 ---
 id: 000283
-status: working
+status: codecomplete
 deps: [ariadne#277, ariadne#278]
 github_issue:
 created: 2026-10-02
 updated: 2026-10-07
 estimate_hours: 3.48
-card_mirror: 'cdb17dbbfbd10598b39347388f7094dfd48273f7' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b19ee64ed34a29b460d959144c46a59442930025' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-02T10:51:37-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
-actual_hours: 2.11
+actual_hours: 2.24
 ---
 
 # Re-derive ownership from the claimant
