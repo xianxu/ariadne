@@ -338,3 +338,12 @@ The simplest durable authority beats a clever scan of consequences.
   open → working and start-plan "pushes nothing" until the fourth close
   review. The contract test proves only that the named tests exist, not that
   the prose is true.
+- Every remedy a refusal names must run from the refused state, and a test
+  must run it from there. #284 M2's republish refused "main moved; `sdlc
+  claim` fast-forwards the rest", but the dirty file that caused the refusal
+  blocks exactly that fast-forward. Where the remedy is mechanical, have the
+  verb perform it (publish now merges main in itself). Where it isn't, name a
+  step that works from the refused state (resolve the markers, then rerun).
+- A note or log line written before a step that can fail must be convergent:
+  the error's "rerun the same command" otherwise duplicates it (#284 M2:
+  `unclaim --note`).

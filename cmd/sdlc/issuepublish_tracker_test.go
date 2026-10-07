@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -201,5 +203,79 @@ func TestPublishRefusesAReclaimBeforeThePush(t *testing.T) {
 	}
 	if r.originMain() != before {
 		t.Fatal("main was written after ownership moved")
+	}
+}
+
+// #284 BR-8: main moved under a resting branch's edit. Publishing brings main
+// in itself — the refusal's remedy runs from the refused state. A clean merge
+// publishes both changes; a conflict leaves markers, and after they are
+// resolved the rerun publishes.
+func TestPublishBringsAMovedMainIn(t *testing.T) {
+	t.Run("clean merge publishes", func(t *testing.T) {
+		r, _ := claimSetRepo(t)
+		claimFor(t, 9)
+		rel := "workshop/issues/000009-s09.md"
+		orig := r.git("show", "HEAD:"+rel) + "\n" // r.git trims; keep the file's final newline
+		peerAdd(t, r, rel, strings.Replace(orig, "## Problem", "## Problem\n\nA peer's framing.", 1))
+		writeRepoFile(t, r.root, rel, orig+"\nShaped nine.\n")
+		if out, err := publish(t, 9); err != nil {
+			t.Fatalf("%v\n%s", err, out)
+		}
+		onMain := r.git("show", r.originMain()+":"+rel)
+		if !strings.Contains(onMain, "A peer's framing.") || !strings.Contains(onMain, "Shaped nine.") {
+			t.Fatalf("both changes must be on main:\n%s", onMain)
+		}
+		if r.git("rev-parse", "HEAD") != r.originMain() || r.git("status", "--porcelain") != "" {
+			t.Fatal("the rest is not left equal to main")
+		}
+	})
+	t.Run("conflict leaves markers; resolving and rerunning publishes", func(t *testing.T) {
+		r, _ := claimSetRepo(t)
+		claimFor(t, 9)
+		rel := "workshop/issues/000009-s09.md"
+		orig := r.git("show", "HEAD:"+rel) + "\n" // r.git trims; keep the file's final newline
+		peerAdd(t, r, rel, orig+"\nThe peer's ending.\n")
+		writeRepoFile(t, r.root, rel, orig+"\nMy ending.\n")
+		before := r.originMain()
+		out, err := publish(t, 9)
+		if err == nil || !strings.Contains(err.Error(), "resolve the markers, then rerun `sdlc issue publish --issue 9`") {
+			t.Fatalf("a conflict must refuse with the runnable step: %v\n%s", err, out)
+		}
+		local := r.git("show", ":"+rel) // the index is main's copy now
+		body, _ := readFileString(r.root, rel)
+		if !strings.Contains(body, "<<<<<<< yours") || r.git("rev-parse", "HEAD") != before || !strings.Contains(local, "The peer's ending.") {
+			t.Fatalf("markers missing or rest not at main:\n%s", body)
+		}
+		writeRepoFile(t, r.root, rel, orig+"\nThe peer's ending.\nMy ending.\n")
+		if out, err := publish(t, 9); err != nil {
+			t.Fatalf("the rerun after resolving: %v\n%s", err, out)
+		}
+		if onMain := r.git("show", r.originMain()+":"+rel); !strings.Contains(onMain, "My ending.") || !strings.Contains(onMain, "The peer's ending.") {
+			t.Fatalf("resolved edit not on main:\n%s", onMain)
+		}
+	})
+}
+
+func readFileString(root, rel string) (string, error) {
+	b, err := os.ReadFile(filepath.Join(root, rel))
+	return string(b), err
+}
+
+// #284: publishing #9 from #10's branch commits nothing there (one issue, one
+// branch, #272): the branch's copy is taken back, main has the edit.
+func TestPublishFromAnotherIssuesBranchCommitsNothingThere(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	claimFor(t, 9)
+	r.git("switch", "-q", "-c", "000010-s10")
+	head := r.git("rev-parse", "HEAD")
+	appendDetail(t, r, "workshop/issues/000009-s09.md", "Shaped from the wrong branch.")
+	if out, err := publish(t, 9); err != nil {
+		t.Fatalf("%v\n%s", err, out)
+	}
+	if r.git("rev-parse", "HEAD") != head || r.git("status", "--porcelain") != "" {
+		t.Fatalf("another issue's branch was changed:\n%s", r.git("status", "--porcelain"))
+	}
+	if !strings.Contains(r.git("show", r.originMain()+":workshop/issues/000009-s09.md"), "Shaped from the wrong branch.") {
+		t.Fatal("the edit did not reach main")
 	}
 }

@@ -31,7 +31,8 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `propagate-base`  | (new #106; precheck #109)   | Re-weave every recursive DEPENDENT of this repo (downstream counterpart to `substrateChain`): discover dependents (Makefile.workflow + substrate chain), order foundation-first, then per repo a clean-tree precheck → `make weave` + verify-complete + commit (untracking now-generated files). A dependent with a DIRTY working tree (pre-existing uncommitted work — e.g. a concurrent session) is SKIPPED untouched (never `git add -A`'d) and the run exits non-zero. `--dry-run`/`--ref`. |
 | `judge`           | `make check-{dry,pure,plan,specs,lessons}` | Fresh-context LLM judge (anti-collusion) |
 | `fetch`           | `make fetch N`              | **Hidden deprecated alias** for `sdlc issue new --from-github` since #56 M2 (keeps `--github-issue`) |
-| `claim`           | (formerly `lock`, #39)      | Reserve one open issue card on `issue-tracker` (#252); refuses until the details are on main; never publishes to main |
+| `claim`           | (formerly `lock`, #39)      | Take the lock: record this workspace as owner on `issue-tracker` (#252, #283), status unchanged; a set `--issue a,b` is one all-or-nothing tracker commit (#284); refuses until the details are on main; never publishes to main |
+| `unclaim`         | (new #284)                  | Release the lock: clear the owner, record the release; an open claim publishes its edits first; status unchanged |
 | `start-plan`      | (new #75)                   | Planning-entry transition (with `--issue`, #252: requires a claimed card and moves design onto the issue branch at fresh main): delivers the `at-plan` architecture lens + the durable-plan pointer (`superpowers-writing-plans` → `workshop/plans/`, #72), sized against the quick-flow shell (#231) to design against |
 | `change-code`     | `make worktree` (partial)   | Planning → implementation gate. First it infers the issue's flow (#231: Mx rows or a design past the shell's design limit → full; neither → quick, which runs none of the gates that follow; `--flow` pins it); the flow is recorded after the gates pass, re-derived from the issue as it is then. Then, in this order (#187 B1): structural + **plan-quality (stateful, #187)** + estimate (#113) + estimate-reconciliation + estimate-quality (#117) + branching (in-place default, `--worktree=yes`/`=ask`; #39, #51) |
 | `set-status`      | (new)                       | Status-transition guards. Moved under `sdlc issue set-status` (#56 M2); **hidden deprecated flat alias** kept one cycle |
@@ -40,11 +41,11 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `merge`           | `make merge`                | PR landing with instance/publish gates and confirmation; :0/:N archive remotely and return to unchanged rest, ordinary worktrees/dependencies retain legacy cleanup |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| Reserve the next ID's card on `issue-tracker` and write details locally (#252; `--from-github N` seeds from GitHub) |
-| `issue move-detail` | (new #252)                | Complete creation early: publish initial details to main without shipping the filing branch; net-zero removal on the source |
+| `issue move-detail` | (new #252)                | The first-publication case of `issue publish` (#284), for one issue: publish initial details to main without shipping the filing branch; net-zero removal on the source |
 | `issue recovery`  | (new #252)                  | `list` / `reconcile --issue N` interrupted tracker operations, from the checkout that owns them |
 | `issue set-title` / `set-estimate` / `set-github` | (new #252) | Card-field setters (compare-and-swap on the card) |
-| `issue sync`      | `make issue-sync ISSUE=N`   | (Retiring at the #252 cutover) Commit one issue locally under `#N: issue-sync: <what>`; `--push` publishes only the commit created by this invocation |
-| `issue publish`   | (new #244)                  | (Retiring at the #252 cutover) Apply one explicitly selected documentation commit to fresh remote main with three-way merging and an exact-ref conditional push |
+| `issue sync`      | `make issue-sync ISSUE=N`   | Legacy repositories: commit one issue locally under `#N: issue-sync: <what>`. Retired in tracker repositories (#284): a pointer at `git commit` and `issue publish` |
+| `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (first publication, or the owner's edits in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
@@ -66,10 +67,12 @@ for the operator workflow and recovery contract.
 | `claim --issue N` | (#252, #283) The card's owner (the lock) on `issue-tracker`, status unchanged; nothing on main |
 | `issue new` | (#252) A new card on `issue-tracker` at `max(id)+1`; details stay local |
 | `change-code` | (#252) Nothing: the design is a local commit on the issue branch |
+| `unclaim --issue N` | (#284) The cleared owner and its release record on `issue-tracker`; an open claim's edits first go to main as `issue publish` |
+| `issue publish --issue N` | (#284) First publication: as `move-detail`. Republish: one main commit with the owned issues' details, `#a,#b: issue: publish details` |
 | `issue move-detail` | (#252) One main-native commit adding the initial details, plus the card's handoff record |
-| `issue sync --issue N` | (Retiring) One local issue-file commit; no network operation by default |
-| `issue sync --push` | (Retiring) Only the narrow issue commit created by that invocation |
-| `issue publish --commit SHA` | The selected non-merge commit's entire eligible Markdown change set, including deliberately grouped issue, plan and project files |
+| `issue sync --issue N` | Legacy repositories: one local issue-file commit; no network operation by default |
+| `issue sync --push` | Legacy repositories: only the narrow issue commit created by that invocation |
+| `issue publish --commit SHA` | Legacy repositories: the selected non-merge commit's entire eligible Markdown change set |
 
 `runClaim` owns remote status reservation. `syncIssuesToMain` dispatches local
 checkpointing, creation reservation, or publication of a newly created issue

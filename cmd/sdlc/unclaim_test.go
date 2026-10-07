@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -137,5 +138,27 @@ func TestUnclaimRerunAfterALostResponse(t *testing.T) {
 	}
 	if _, held, _ := issue.CardClaimant([]byte(r.card(paths["000009"]))); held {
 		t.Fatal("still held")
+	}
+}
+
+// #284 BR-7: the release's card write fails after the edits and the note were
+// published; the rerun the error asks for adds no second note.
+func TestUnclaimNoteIsConvergent(t *testing.T) {
+	r, _ := claimSetRepo(t)
+	claimFor(t, 9)
+	prev := cardsPublish
+	cardsPublish = func(*trackerEnv, []string, string, []string, func(map[string]tracker.Record) (map[string][]byte, error), func(string, string) error) error {
+		return errors.New("the tracker push failed")
+	}
+	if out, err := unclaim(t, "handing back", 9); err == nil {
+		t.Fatalf("the failed card write must surface:\n%s", out)
+	}
+	cardsPublish = prev
+	if out, err := unclaim(t, "handing back", 9); err != nil {
+		t.Fatalf("rerun: %v\n%s", err, out)
+	}
+	onMain := r.git("show", r.originMain()+":workshop/issues/000009-s09.md")
+	if n := strings.Count(onMain, "unclaimed: handing back"); n != 1 {
+		t.Fatalf("the note appears %d times on main:\n%s", n, onMain)
 	}
 }

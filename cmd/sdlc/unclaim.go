@@ -10,8 +10,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -154,7 +152,10 @@ func runUnclaim(ctx context.Context, stdout, stderr io.Writer, f *unclaimFlags) 
 			return err
 		}
 		ids[i], cards[id] = id, card
-		if status, _ := issue.GetField(card.Card.Frontmatter, "status"); !vocab.Issue().IsOpen(status) {
+		switch status, _ := issue.GetField(card.Card.Frontmatter, "status"); {
+		case !vocab.Issue().CanHoldOwner(status):
+			return fmt.Errorf("#%s is %s; it holds no lock to release", issue.CLIRef(id), status)
+		case !vocab.Issue().IsOpen(status):
 			return fmt.Errorf("#%s is %s: releasing started work is a handoff, which comes with #284 M3", issue.CLIRef(id), status)
 		}
 	}
@@ -188,7 +189,7 @@ func runUnclaim(ctx context.Context, stdout, stderr io.Writer, f *unclaimFlags) 
 	if f.Note != "" {
 		line := fmt.Sprintf("- %s: unclaimed: %s", time.Now().Format("2006-01-02"), f.Note)
 		for _, id := range pending {
-			p := filepath.Join(env.root, filepath.FromSlash(path.Join(dirs.Rel[0], path.Base(cards[id].Path))))
+			_, p := localDetail(env, dirs.Rel[0], cards[id].Path)
 			raw, err := os.ReadFile(p)
 			if err != nil {
 				return fmt.Errorf("#%s: the note needs its local details: %w", issue.CLIRef(id), err)
@@ -196,6 +197,9 @@ func runUnclaim(ctx context.Context, stdout, stderr io.Writer, f *unclaimFlags) 
 			fm, body, err := issue.Parse(string(raw))
 			if err != nil {
 				return err
+			}
+			if strings.Contains(body, line) {
+				continue // a rerun: the note is already there (#284 BR-7)
 			}
 			if err := os.WriteFile(p, []byte(issue.Compose(fm, insertLogLine(body, line))), 0o644); err != nil {
 				return err
@@ -207,7 +211,7 @@ func runUnclaim(ctx context.Context, stdout, stderr io.Writer, f *unclaimFlags) 
 	// an issue's details has nothing of it to publish.
 	var local []string
 	for _, id := range pending {
-		if _, err := os.Lstat(filepath.Join(env.root, filepath.FromSlash(path.Join(dirs.Rel[0], path.Base(cards[id].Path))))); err == nil {
+		if _, abs := localDetail(env, dirs.Rel[0], cards[id].Path); fileExists(abs) {
 			local = append(local, id)
 		}
 	}
@@ -233,3 +237,10 @@ func runUnclaim(ctx context.Context, stdout, stderr io.Writer, f *unclaimFlags) 
 	fmt.Fprintln(stdout, "released")
 	return nil
 }
+
+// fileExists reports whether p names anything, without following a link.
+func fileExists(p string) bool {
+	_, err := os.Lstat(p)
+	return err == nil
+}
+
