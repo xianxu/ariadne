@@ -246,3 +246,237 @@ dispose:
     note: |
       startdecision.go:28 admits only the start edge's From/To; the TestStartDecision table now expects refusal for blocked/codecomplete owned cells, which the old CanHoldOwner gate admitted, so a revert goes red. Remaining CanHoldOwner callers are the ownership verbs (claim/reclaim), correctly on the ownership axis.
 ```
+
+---
+
+## Re-review — 2026-10-07T11:35:27-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 283 — Re-derive ownership from the claimant |
+| repo | ariadne |
+| issue file | workshop/issues/000283-claim-owns-issue-branch.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1b11fc83f9f2ecf656c2e70eadb2aed6a28a7d88..a3628c46de2ce2ce41bcc2b4874864cced3af593 |
+| command | sdlc close --issue 283 |
+| reviewer | claude |
+| timestamp | 2026-10-07T11:35:27-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+This round adds the rebase fixup fd8aac13. It moves fleet inventory and the scheduling example onto the lock model. The code is correct. `mine()` and `ClaimAssociation.validate()` (`cmd/sdlc/internal/fleet/claims.go:169,213`) now take the claim's statuses from the model's ownership axis (`CanHoldOwner`) instead of `IsActive`, which is the right single source. The tests now treat an owned open card as a placed claim and a `done` card as holding no lock. The fleet, recovery and vocab packages pass, and so do the targeted `cmd/sdlc` tests (fleet, malformed card, lost-response reruns, recovery, start decision, the shape-under-claim e2e).
+
+One thing should be fixed first. The recovery contract catalog (`cmd/sdlc/internal/recovery/catalog.go`) is the per-verb recovery contract that agents read, and it still describes the pre-#283 behavior of claim, start-plan and reclaim. Most seriously, it says start-plan has no remote effect, but start-plan now writes the card on the tracker. The window touched `recovery/page.go` but not `catalog.go`.
+
+1. **Strengths**
+   - `fleet/claims.go:169,213`: fleet now reads which statuses hold a claim from the model (ARCH-DRY / ARCH-PURPOSE shadow-sweep: one more consumer derives from the ownership axis).
+   - `fleet/claims_test.go:40-41,136`: the tests flip the fixture classes in both directions. Owned open becomes placed, and the contract mutation now uses `done`, so the "holds no lock" refusal is still tested and not lost.
+   - `recovery_proofs_test.go:66`: the lost-response rerun test now runs on the open→working start edge, the transition #283 created, instead of an edge that is no longer reachable from a fresh claim.
+   - `startplan.go`: branch first, then card ("a lost card write leaves an idempotent re-run"). The ordering is explicit and the comment states the reason (ARCH-ORDER).
+
+2. **Critical:** none.
+
+3. **Important**
+   - `cmd/sdlc/internal/recovery/catalog.go:14-18,32,49-53`: the recovery contracts are stale for the verbs #283 changed. **This is the 2nd finding in family `stale-claim-semantics-prose`.**
+     - **The rule:** every rendered contract that states a verb's status effect, admission statuses or remote effects is part of that verb's surface. When a window changes the verb, the contract is swept in the same window.
+     - **The enumeration** is every catalog/page entry for claim, start-plan, reclaim, set-status and change-code, plus the `page.go` Example. I found these stale entries:
+       - **claim Effects** says "open → working, `started` and the claimant". Claim now records the owner and `started` only.
+       - **claim Ends** says "the card leaves working". The lock now ends at release, a terminal status or reclaim.
+       - **claim Repeat/Preconditions** says "A working card with no owner", but `--adopt` gates on `IsActive`.
+       - **start-plan Effects** says "Nothing is pushed", and its LostResponse says "no remote effect". start-plan now does an `UpdateCard` compare-and-swap, open → working, on the tracker.
+       - **start-plan Preconditions** says "the card is working … no tracked changes". It now admits an owned open card, and it carries edits confined to the issue's own details.
+       - **start-plan Proofs** name no test that covers the start write. `TestStartDecision` and `TestShapeUnderClaimThenStart` should be listed.
+       - **reclaim Preconditions** says "an owned working/blocked/codecomplete card". Owned open cards are now reclaimable.
+       - **`page.go:69` Otherwise** still says "still open: the request may be lost". After #283 a successful claim is also `open`. The step's `assignment.relation` expectation is what tells success from failure, so the text should say "no recorded owner yet".
+
+4. **Minor:** none beyond the above.
+
+5. **Test coverage notes**
+   - `TestRecoveryContractsAreProven` checks only that each named proof exists, not what the contract says. That is why this class can drift silently. A cheap guard would require start-plan's Proofs to include a test that exercises its card write.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. Fleet now derives from `CanHoldOwner`.
+   - ARCH-PURE: pass. `startDecision`, `claimDecision` and `reclaimDecision` remain pure.
+   - ARCH-PURPOSE: flag, as above. The catalog is a consumer of the lock model that the sweep missed.
+   - ARCH-MOCK: pass. The tracker fakes are unchanged.
+   - ARCH-CONSTRAINTS: pass, not material.
+   - ARCH-SECURE: pass. `validate()` still rejects lockless statuses on parsed inventory input.
+   - ARCH-ORDER: pass. start-plan writes the branch before the card, and a rerun converges.
+   - ARCH-FUNERAL: pass. Nothing new is durable beyond the existing card fields.
+   - For #284 (unclaim), give the catalog entry the full lifecycle from the start: release Effects, Ends, and LostResponse.
+
+7. **Plan revision recommendations**
+   - Add to `## Revisions`: "Recovery catalog contracts for claim/start-plan/reclaim (and the scheduling-example Otherwise text) updated to the lock model; start-plan's contract now records its tracker write."
+
+```findings
+findings:
+  - id: new
+    severity: Important
+    family: stale-claim-semantics-prose
+    title: |
+      Recovery catalog contracts for claim/start-plan/reclaim still state pre-283 semantics; start-plan claims no remote effect
+    detail: |
+      2nd finding in this family. Rule: a verb's rendered recovery contract (catalog.go Effects/Preconditions/Repeat/LostResponse/Ends/Proofs plus page.go Example text) is part of the verb's surface and is swept in the same window that changes the verb. Stale now: claim Effects (open to working), claim Ends (leaves working), claim Repeat/Preconditions (a working card with no owner, though adopt gates on IsActive), start-plan Effects (Nothing is pushed) and LostResponse (no remote effect) despite its UpdateCard start write, start-plan Preconditions (card is working, no tracked changes), start-plan Proofs naming no test of the start write, reclaim Preconditions (excludes owned open), page.go:69 Otherwise (still open now also means success).
+```
+
+---
+
+## Re-review — 2026-10-07T11:42:56-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 283 — Re-derive ownership from the claimant |
+| repo | ariadne |
+| issue file | workshop/issues/000283-claim-owns-issue-branch.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1b11fc83f9f2ecf656c2e70eadb2aed6a28a7d88..2c59070896e09f5e4e401e1148658e8550f96f1a |
+| command | sdlc close --issue 283 |
+| reviewer | claude |
+| timestamp | 2026-10-07T11:42:56-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+**Summary.** The one open finding, BR-7, has been fixed. Commit `2c590708` updates the recovery catalog entries for claim, reclaim, start-plan and set-status, and the scheduling example's `Otherwise` text in `page.go`, so they now describe the lock model. They match the code: claim no longer moves status, start-plan writes the card with a compare-and-swap after creating the branch, reclaim admits an owned open card, and set-status guards `owned` on the start edge. All five newly cited tests exist. But the same commit copied start-plan's two new Proof rows into the **change-code** entry as well. Those rows say change-code starts an open card and carries details edits. It does neither: change-code now *refuses* an owned open card (`changecode.go:351-354`). The change-code entry's Preconditions also don't mention that new refusal, and its real test, `TestChangeCodeRefusesUnstartedClaim`, isn't cited. So the published contract states behaviour the verb doesn't have. It's cheap to fix, and it's the third finding in its family, so the rule needs fixing, not just this instance.
+
+1. **Strengths**
+   - `catalog.go:49-64` (start-plan): the "branch first, then card" order and the rerun behaviour (`the card is started only if it is still open`) match `startplan.go:316-341` exactly. That includes the `ErrCardChanged` refusal naming the branch left in the checkout.
+   - `catalog.go:12-28` (claim): the legacy no-tracker carve-out is spelled out, and the `--adopt` precondition was widened to the model's started set. Both match what was fixed for BR-6.
+   - `startdecision.go` is a clean pure core. Admission comes from the model's `start` edge (`FirstTransitionForEvent("start")`), not from hardcoded statuses.
+   - `page.go:69` correctly says to judge a claim by assignment, not status, which is the one place an operator would most likely misread the new model.
+
+2. **Critical**: none.
+
+3. **Important**
+   - `cmd/sdlc/internal/recovery/catalog.go:78-79` (change-code entry): two Proof rows were copied from start-plan and claim behaviour change-code doesn't have. The entry is also missing its own new precondition. **This is the 3rd finding in family `stale-claim-semantics-prose`.** Rule: every Proof row in a verb's catalog entry describes that verb's own behaviour, and any verb whose code changes in a window gets its whole entry checked, not just the entries a finding named. Fix:
+     - Remove the two rows from change-code.
+     - Add "the card is started (an owned open card refuses toward start-plan, #283)" to change-code's Preconditions.
+     - Cite `TestChangeCodeRefusesUnstartedClaim` as its proof.
+     - Write the rule in `workshop/lessons.md`. The lesson added this round covers sweeping, not copy-paste across entries.
+     - Optionally enforce it: have `recovery_proofs_test` check that no two different verbs share an identical Proof claim string. That would have caught this one.
+
+4. **Minor**: none new.
+
+5. **Test coverage notes**
+   - The change-code refusal is pinned by `changecode_tracker_test.go:52`. The gap is only that the catalog doesn't cite it.
+   - The new start-plan proof is cited (`TestStartDecision`, `TestShapeUnderClaimThenStart`).
+   - The set-status `owned` guard is waived by `--force`, as the catalog now says. That waiver is consistent with the code comment at `setstatus.go:118-120`.
+
+6. **Architectural notes**
+   - ARCH-DRY: flag. Pasting the same Proof rows into two entries is the copy-paste failure, and this time it published false behaviour.
+   - ARCH-PURPOSE: flag. The BR-7 sweep was done but not checked against each verb's code; change-code's own change (a new refusal) was mis-stated.
+   - ARCH-PURE: pass (`startDecision` is pure; `startplan.go` is a thin shell).
+   - ARCH-MOCK: pass (tracker fakes, `loseResponses` seam).
+   - ARCH-CONSTRAINTS: pass (one compare-and-swap per verb).
+   - ARCH-SECURE: pass (card parse errors are surfaced, `CardClaimant` errors are wrapped).
+   - ARCH-ORDER: pass (the start edge is read from the model; the branch-then-card order is explicit and its rerun converges).
+   - ARCH-FUNERAL: pass (nothing new and durable beyond the review sidecars, which are archived with the issue).
+
+7. **Plan revisions**: none. The plan matches the code; only the catalog entry is wrong.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      claim/start-plan/reclaim/set-status catalog fields and page.go Otherwise now match claim.go, startplan.go:296-341, reclaim and setstatus.go:155-158; cited tests exist.
+findings:
+  - id: new
+    severity: Important
+    family: stale-claim-semantics-prose
+    title: |
+      change-code catalog entry carries start-plan's Proof rows and omits its own new open-card refusal
+    detail: |
+      catalog.go:78-79 claims change-code "starts the owner's open card" and "carries only this issue's own details edits", but changecode.go:351-354 refuses an open card toward start-plan; Preconditions omit that refusal and TestChangeCodeRefusesUnstartedClaim is uncited. 3rd in family: rule = each catalog Proof describes its own verb's behaviour and every changed verb's whole entry is swept; consider a recovery_proofs_test check that no Proof claim string appears under two different verbs.
+```
+
+---
+
+## Re-review — 2026-10-07T12:50:13-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 283 — Re-derive ownership from the claimant |
+| repo | ariadne |
+| issue file | workshop/issues/000283-claim-owns-issue-branch.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1b11fc83f9f2ecf656c2e70eadb2aed6a28a7d88..d3874b2f3e94d0496e5b342decceac6b354c04c5 |
+| command | sdlc close --issue 283 |
+| reviewer | claude |
+| timestamp | 2026-10-07T12:50:13-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+I recommend shipping. BR-8 is fixed. The change-code catalog entry (`cmd/sdlc/internal/recovery/catalog.go:66-80`) no longer carries start-plan's two Proof rows ("starts the owner's open card…" and "carries only this issue's own details edits"). Its Preconditions now state change-code's own refusal of a claimed card that is still open, and a new Proof row cites `TestChangeCodeRefusesUnstartedClaim` (`cmd/sdlc/changecode_tracker_test.go:52`). That test exercises the refusal at `changecode.go:351-353`.
+
+The window also adds one scope fold-in: "a close survives a rebase" (f50b6ab3). The issue's Revisions record it, the Spec carries it as a Done-when line, and the catalog's Ends text and Proof rows were updated. Targeted tests pass, including `TestRecoveryContractsAreProven`, `TestChangeCodeRefusesUnstartedClaim`, `TestNewestCloseAfterARebase` and `TestCloseAncestorOf…`. Nothing blocks the boundary.
+
+1. **Strengths**
+   - `completeop.go:53-77`: `newestClose` keeps ancestry as the first test. It falls back to a check of which close is still on the branch only when a branch exists, and that check is asymmetric: an earlier close the rebase rewrote off the branch loses to a receipt the branch contains. A stale receipt from before the rebase, or a detached checkout, still refuses. `TestNewestCloseAfterARebase` covers all four of those cases over a small injected commit graph, with no I/O (ARCH-PURE).
+   - `closeAncestorOf` (`trackerenv.go:148-157`) is scoped narrowly. Only the two close-generation call sites treat an unknown commit as preceding nothing; `ancestorOf` keeps its error for every other caller, and `TestCloseAncestorOfTreatsAnUnknownCommitAsNoAncestor` checks both behaviours.
+   - Each catalog entry's Proofs now describe that entry's own verb. start-plan keeps the start-edge and dirty-carry proofs; change-code keeps the refusal proof.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - No test fails if either wiring site, `closetracker.go:418` or `issuerecovery.go:164`, goes back to `env.ancestorOf`. The two helpers are tested separately but not together; an end-to-end test of rebasing and then re-closing would pin the wiring.
+   - The atlas does not mention the new supersession rule for close generations. Only the catalog's Ends text records it. One sentence in `atlas/workflow/issue-tracker.md`, next to the close/receipt prose, would cover it.
+
+5. **Test coverage notes:** the pure decision has table coverage, and the git-backed helper has a real-repository test. The only gap is the integration wiring noted above.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. The "refuses a non-owner" Proof row appears under several verbs legitimately, because each of them runs the shared ownership gate.
+   - **ARCH-PURE:** pass.
+   - **ARCH-PURPOSE:** pass. The fold-in is documented as a scope revision, and BR-8 was fixed across change-code's whole catalog entry (Preconditions and Proofs both), not just the line the finding named.
+   - **ARCH-MOCK:** pass. Git is reached through `gitTest`, and the test graph is injected through the existing `ancestor` seam.
+   - **ARCH-CONSTRAINTS:** pass. The fallback costs at most two `merge-base` probes per close.
+   - **ARCH-SECURE:** pass. Card bindings come from the tracker, and a reviewed commit this clone doesn't have now fails safe: it reads as "precedes nothing" instead of erroring.
+   - **ARCH-ORDER:** pass. Supersession stays a pure decision over (binding, receipt, branch), and a stale receipt is still refused.
+   - **ARCH-FUNERAL:** pass. Nothing durable is added.
+
+7. **Plan revision recommendations:** none. The 2026-10-07 Revisions entry already covers the rebase fold-in.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      catalog.go change-code entry now lists only its own proofs plus "refuses an owned card that start-plan never started" citing TestChangeCodeRefusesUnstartedClaim (changecode_tracker_test.go:52, exercising changecode.go:351-353); Preconditions name the open-card refusal; recovery contract test passes.
+findings:
+  - id: new
+    severity: Minor
+    family: rebase-close-wiring-untested
+    title: |
+      No test fails if closetracker.go or issuerecovery.go reverts to env.ancestorOf instead of closeAncestorOf
+    detail: |
+      newestClose and closeAncestorOf are unit-tested separately; an e2e close-rebase-reclose test would pin the two call-site wirings.
+  - id: new
+    severity: Minor
+    family: atlas-missing-surface
+    title: |
+      atlas does not mention the rebase-aware close-generation supersession rule
+    detail: |
+      Only the recovery catalog Ends text records it; add one sentence to atlas/workflow/issue-tracker.md near the close/receipt section.
+```
