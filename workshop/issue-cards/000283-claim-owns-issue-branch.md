@@ -1,6 +1,6 @@
 ---
 id: 000283
-status: working
+status: codecomplete
 created: 2026-10-02
 updated: 2026-10-07
 estimate_hours: 3.48
@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 2.11
+actual_hours: 2.24
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000283-claim-owns-issue-branch.md
         main_commit: 3b7315b7fde5083f036e377d41e8053193e52ef3
     completion:
-        token: close-a09782625336
+        token: close-52b8f6ede127
         repository: github.com/xianxu/ariadne
-        reviewed_head: d8f753db416fd51ff18829024e0e776b7df057e4
-        evidence_commit: 03d2f51f42ddf1ccaa2499dcb9408d4846751460
+        reviewed_head: d3874b2f3e94d0496e5b342decceac6b354c04c5
+        evidence_commit: d07e7d2cd928871b75d24d0a60b1dd4a07168620
 ---
 
 # Re-derive ownership from the claimant
