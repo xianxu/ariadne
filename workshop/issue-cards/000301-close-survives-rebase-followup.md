@@ -1,6 +1,6 @@
 ---
 id: 000301
-status: codecomplete
+status: done
 created: 2026-10-07
 updated: 2026-10-07
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 3451f75803d3e981212d0dc497c49c80f0f1b67e
         evidence_commit: 83a57e9f33672d6e3bea9fd98470b030eacaa943
+        landed_commit: 6331ba6200f05e96d9e7a1ca048c13144c66a1d1
 ---
 
 # Pin the rebase-aware close rule: e2e test and atlas
