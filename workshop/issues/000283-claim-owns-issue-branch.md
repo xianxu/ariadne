@@ -1,12 +1,12 @@
 ---
 id: 000283
-status: codecomplete
+status: working
 deps: [ariadne#277, ariadne#278]
 github_issue:
 created: 2026-10-02
-updated: 2026-10-02
+updated: 2026-10-07
 estimate_hours: 3.48
-card_mirror: '5a46328ab6cb52da65b9b0e65585bdf033d3d19b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'cdb17dbbfbd10598b39347388f7094dfd48273f7' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-02T10:51:37-07:00
 claimant:
     operator: Xian Xu
@@ -198,6 +198,20 @@ Close review round 1 (SHIP, five Minors), reopened to fix in the same round:
 5. Imports regrouped.
 
 Close review round 2 (SHIP; all five round-1 findings dispositioned, one new Minor), reopened again to fix it: `startDecision` had gated on the ownership axis (`CanHoldOwner`), which admitted held `blocked` and `codecomplete` cards. A codecomplete card could have got a fresh branch from main. Admission is now a lifecycle question: the `start` edge's source or target (open or working), as before #283's working-only gate plus open. The product test asserts this.
+
+### 2026-10-07
+
+Rebased onto origin/main (114 commits). Conflicts:
+- `workshop/lessons.md`: both sides appended; kept both.
+- `startplan.go`: imports; merged.
+
+A conflicted commit's `#283:` subject was dropped as a comment line; restored from the pre-rebase tag.
+
+Code from main that treated an active status as the claim now derives from the ownership axis:
+- #288's fleet claims (`internal/fleet/claims.go` `mine`/`validate`), help text included;
+- #280's scheduling example, which expects `open` after claim.
+
+Five tests from main were updated to the new contract. `make test` is green (909 + 20 packages; processgroup is sandbox-only). Reopened to re-close, so a fresh review covers the rebased window.
 
 ## Revisions
 
