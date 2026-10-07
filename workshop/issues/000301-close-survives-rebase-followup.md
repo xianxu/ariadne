@@ -1,12 +1,20 @@
 ---
 id: 000301
-status: open
+status: working
 deps: [ariadne#283]
 github_issue:
 created: 2026-10-07
 updated: 2026-10-07
 estimate_hours:
-card_mirror: '40b99a77782c38aabbd1f22246f8f158d49cda23' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '253e628ffce9d125515e0ca41e850164f502f11f' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-07T13:10:34-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Pin the rebase-aware close rule: e2e test and atlas
@@ -35,11 +43,24 @@ card_mirror: '40b99a77782c38aabbd1f22246f8f158d49cda23' # card fields mirrored f
 
 ## Plan
 
-- [ ] Write the close → rebase → reopen → close end-to-end test, including the reconcile path; check that it fails with either caller reverted.
-- [ ] Add the atlas sentence.
+- [x] Write the close → rebase → reopen → close end-to-end test, including the reconcile path; check that it fails with either caller reverted.
+- [x] Add the atlas sentence.
 
 ## Log
 
 ### 2026-10-07
 
 Filed from #283's last close review (round 6, two advisory Minors), at the operator's request. Quick flow expected.
+Added #301 to project `claimant-ownership` (scope event in the project Log).
+
+`TestTrackerCloseSurvivesARebase` (`closetracker_test.go`) runs three variants of close → rebase onto an advanced main → reopen → close again:
+- (a) SHIP, with the old reviewed commit still in the clone;
+- (b) SHIP, with it pruned;
+- (c) FIX-THEN-SHIP landed by `recovery reconcile`, with it pruned.
+
+The revert check:
+- My first draft had only (a) and (c), and reverting `closetracker.go` to `env.ancestorOf` went undetected. With the old commit present, plain ancestry works. FIX-THEN-SHIP defers the generation check to reconcile.
+- With (b) added, each revert fails exactly its own variant: closetracker → (b), issuerecovery → (c). Both pass restored.
+
+Atlas: the supersession rule is stated in `atlas/workflow/issue-tracker.md` § Readers and completion, beside the binding. The close recovery contract cites the new test.
+
