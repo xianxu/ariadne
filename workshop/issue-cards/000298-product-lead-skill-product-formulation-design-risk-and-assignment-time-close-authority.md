@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000298-product-lead-skill-product-formulation-design-risk-and-assignment-time-close-authority.md
         source_blob: 4e6a2c4bda7245262249e5f9852b8c4c30ef1c10
         destination: workshop/issues/000298-product-lead-skill-product-formulation-design-risk-and-assignment-time-close-authority.md
+        main_commit: 8a5014bc5a59b53da6d6b838ec019d256b4d5bf1
 ---
 
 # Product-lead skill: product formulation, design risk, and assignment-time close authority
