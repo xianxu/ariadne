@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000301-close-survives-rebase-followup.md
         source_blob: 4f8e17be0cac0519b118b20b9d24fba6e7dc8e1a
         destination: workshop/issues/000301-close-survives-rebase-followup.md
+        main_commit: 3b72bffdb5f5f15473154dc40832c8e0e1d47d9d
 ---
 
 # Pin the rebase-aware close rule: e2e test and atlas
