@@ -68,6 +68,20 @@ What shipped:
 
 Decision worth keeping: compare details *bodies*, never whole files, because claim's mirror refresh rewrites the frontmatter by design.
 
+<a id="ariadne-284-m2"></a>
+### ariadne#284 M2 — `issue publish`, open unclaim, `issue sync` retirement
+
+**est:** ~1.3h (M2's share of #284's 6.1h)
+
+What shipped:
+- `issue publish --issue a,b` replaces both of the old publication paths: first publication (`move-detail`, no owner needed) and the owner's later edits.
+  - A republish goes in one narrow main commit, judged on details bodies against the checkout's merge base, so it never overwrites a main copy that moved.
+  - Ownership is re-checked before the push.
+  - Afterwards a resting branch fast-forwards and an issue branch commits the same bytes.
+- `unclaim` releases open claims after publishing their edits.
+- The `release` record (who let go) and an envelope that keeps unknown keys were pulled forward from M3, because unclaim's rerun depends on them.
+- The audit retired `issue sync` in tracker repositories: it was only `git commit -- <details>`. AGENTS.base gained the resting-branch rule.
+
 ## Log
 
 ### 2026-10-02
@@ -79,3 +93,4 @@ Promoted from #283 after a four-round design discussion with the operator (decis
 #283 landed (PR #161), but landing it needed a scope revision: a close now survives a rebase (`completeop.go` `newestClose` treats a binding that the rebase rewrote off the branch as replaced). Its final review left two advisory Minors: no end-to-end test pins the close/reconcile wiring, and the atlas lacks the rule. Filed as #301 and added to scope at the operator's request. It's next in line, ahead of #284.
 
 [ariadne#284 M1]: #ariadne-284-m1
+[ariadne#284 M2]: #ariadne-284-m2
