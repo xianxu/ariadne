@@ -330,3 +330,11 @@ The simplest durable authority beats a clever scan of consequences.
   test that died only under make looked branch-caused until the env var was
   printed. When a guard says "not here", log cwd, the resolved top level and
   every `WF_*` override before suspecting the diff.
+- A verb's recovery contract (`internal/recovery/catalog.go` Effects,
+  Preconditions, Repeat, LostResponse, Ends, Proofs, and the `page.go`
+  example text) is part of that verb's surface. Sweep it in the same window
+  that changes the verb. #283 changed claim and start-plan semantics and
+  updated help, atlas and AGENTS, but the catalog still said claim flips
+  open → working and start-plan "pushes nothing" until the fourth close
+  review. The contract test proves only that the named tests exist, not that
+  the prose is true.

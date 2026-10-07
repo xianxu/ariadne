@@ -66,7 +66,7 @@ var Example = []Step{
 	{Actor: Recipient, Does: "claims it", Command: "sdlc claim --issue N"},
 	{Actor: Coordinator, Does: "verifies the claim landed, and whose it is", Command: "sdlc issue show N --json",
 		Expect:    []Expect{{"card.status", "open"}, {"assignment.relation", "other-workspace"}},
-		Otherwise: "still open: the request may be lost or unread — resending is safe (claim is a convergent retry; one claim wins). Look again after about 30 s before concluding anything."},
+		Otherwise: "no claimant (or another workspace's): the request may be lost or unread — resending is safe (claim is a convergent retry; one claim wins). A claimed card stays open until start-plan (#283), so judge the claim by assignment, not status. Look again after about 30 s before concluding anything."},
 	{Actor: Recipient, Does: "starts planning on the issue branch", Command: "sdlc start-plan --issue N"},
 	{Actor: Recipient, Does: "enters implementation", Command: "sdlc change-code --issue N"},
 	{Actor: Coordinator, Does: "sees the branch, the slot's activity and the recorded flow", Command: "sdlc issue show N --json",
