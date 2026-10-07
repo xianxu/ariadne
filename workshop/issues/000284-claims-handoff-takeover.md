@@ -160,3 +160,11 @@ Test-fixture slips caught while writing the tests (not code bugs):
 
 Design point surfaced: comparing local and main details must compare bodies only, since claim's mirror refresh rewrites the frontmatter by design.
 
+M1 close review (SHIP, six advisory Minors), all fixed in the same round:
+1. `refreshAfterClaim` surfaces rev-parse and merge-base errors instead of swallowing or misnaming them.
+2. One `issue.JoinRefs` for claim's refs and rerun hint and the tracker subject. `Snapshot.validateReplacements` holds the multi-card budget check, and `validateReplacement` is its one-element case.
+3. `ChangeCards` collapses duplicate IDs itself (test added).
+4. An unowned started member of a set is refused toward claiming it alone with `--adopt` (sentinel `errUnownedStarted`); test added.
+5. The milestone lines are nested under #284 in the project file. On the hand-recorded actual: it was the measured 1.15h, and the close rewrote the block.
+6. Test of a claim set through a lost response and a rerun.
+

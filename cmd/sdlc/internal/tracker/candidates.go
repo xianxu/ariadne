@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -27,11 +26,7 @@ func cardMessage(id, what, token string, trailers ...string) string {
 
 // cardsMessage is cardMessage for one or more cards: "#252,#253: tracker: …".
 func cardsMessage(ids []string, what, token string, trailers ...string) string {
-	refs := make([]string, len(ids))
-	for i, id := range ids {
-		refs[i] = "#" + issue.CLIRef(id)
-	}
-	msg := fmt.Sprintf("%s: tracker: %s\n\nTracker-Operation: %s", strings.Join(refs, ","), what, token)
+	msg := fmt.Sprintf("%s: tracker: %s\n\nTracker-Operation: %s", issue.JoinRefs(ids, "#", ","), what, token)
 	for _, t := range trailers {
 		msg += "\n" + t
 	}

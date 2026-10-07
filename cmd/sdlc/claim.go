@@ -236,10 +236,19 @@ func refreshAfterClaim(env *trackerEnv, stderr io.Writer, ids []string, detailPa
 	}
 	if env.onRest() {
 		head, err := env.git("rev-parse", "HEAD")
-		if err != nil || head == view.Ref() {
+		if err != nil {
+			cwarn(stderr, fmt.Sprintf("%s not fast-forwarded to main: reading HEAD failed: %v", env.resting, err))
 			return
 		}
-		if contained, err := env.gitTest("merge-base", "--is-ancestor", "HEAD", view.Ref()); err != nil || !contained {
+		if head == view.Ref() {
+			return
+		}
+		contained, err := env.gitTest("merge-base", "--is-ancestor", "HEAD", view.Ref())
+		if err != nil {
+			cwarn(stderr, fmt.Sprintf("%s not fast-forwarded to main: comparing it with main failed: %v", env.resting, err))
+			return
+		}
+		if !contained {
 			cwarn(stderr, fmt.Sprintf("%s not fast-forwarded to main: it has commits main lacks; reconcile them before shaping here", env.resting))
 			return
 		}
@@ -281,22 +290,10 @@ func claimIssues(f *claimFlags) []int {
 }
 
 // claimRefs names a set for humans: "#284" or "#284, #285".
-func claimRefs(ids []string) string {
-	refs := make([]string, len(ids))
-	for i, id := range ids {
-		refs[i] = "#" + issue.CLIRef(id)
-	}
-	return strings.Join(refs, ", ")
-}
+func claimRefs(ids []string) string { return issue.JoinRefs(ids, "#", ", ") }
 
 // claimArg is the --issue value that reruns the same claim.
-func claimArg(ids []string) string {
-	refs := make([]string, len(ids))
-	for i, id := range ids {
-		refs[i] = issue.CLIRef(id)
-	}
-	return strings.Join(refs, ",")
-}
+func claimArg(ids []string) string { return issue.JoinRefs(ids, "", ",") }
 
 // finishRelocation is a repeat claim finishing the owner's own `sdlc move`
 // whose owner update failed (#278); done reports it handled the claim.

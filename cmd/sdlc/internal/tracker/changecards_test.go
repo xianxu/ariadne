@@ -137,3 +137,16 @@ func TestChangeCardsRedecidesAfterARace(t *testing.T) {
 		})
 	}
 }
+
+// Duplicate IDs collapse: the card is decided and written once.
+func TestChangeCardsCollapsesDuplicateIDs(t *testing.T) {
+	r, _, _ := twoCards(t)
+	keys := 0
+	decide := func(cur map[string]Record) (map[string][]byte, error) {
+		keys = len(cur)
+		return working(cur)
+	}
+	if err := r.ChangeCards([]string{"000252", "000252", "000253"}, "claim-dup", nil, decide, func(string, string) error { return nil }); err != nil || keys != 2 {
+		t.Fatalf("duplicates: keys=%d err=%v", keys, err)
+	}
+}

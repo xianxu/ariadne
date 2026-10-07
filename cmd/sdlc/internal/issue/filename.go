@@ -29,3 +29,14 @@ func CLIRef(id string) string {
 	}
 	return id
 }
+
+// JoinRefs renders several issue IDs through CLIRef, each with prefix, joined
+// by sep: ("#", ", ") for humans, ("", ",") for a rerunnable --issue list,
+// ("#", ",") for a tracker commit subject (#284).
+func JoinRefs(ids []string, prefix, sep string) string {
+	refs := make([]string, len(ids))
+	for i, id := range ids {
+		refs[i] = prefix + CLIRef(id)
+	}
+	return strings.Join(refs, sep)
+}

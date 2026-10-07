@@ -15,7 +15,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
-// ChangeCards rewrites the named cards in one tracker commit. On every attempt
+// ChangeCards rewrites the named cards (duplicates collapse) in one tracker commit. On every attempt
 // it reads the current cards (a missing or unreadable one is absent from the
 // map) and calls decide, which returns only the cards to rewrite, by ID; an
 // error from decide aborts the whole set with nothing published. An empty
@@ -32,7 +32,14 @@ func (r *Repository) ChangeCards(ids []string, operationToken string, trailers [
 	if !tokenPattern.MatchString(operationToken) || beforePush == nil {
 		return errors.New("tracker update requires an operation token and receipt callback")
 	}
-	sorted := append([]string(nil), ids...)
+	seen := map[string]bool{}
+	var sorted []string
+	for _, id := range ids {
+		if !seen[id] {
+			seen[id] = true
+			sorted = append(sorted, id)
+		}
+	}
 	sort.Strings(sorted)
 	what := "update card"
 	if len(sorted) > 1 {
@@ -55,7 +62,7 @@ func (r *Repository) ChangeCards(ids []string, operationToken string, trailers [
 			return gitx.TrunkWrite{}, err
 		}
 		write := map[string][]byte{}
-		wire := snapshot.wireBytes
+		var replaced []replacement
 		for id, raw := range next {
 			rec, ok := current[id]
 			if !ok {
@@ -64,9 +71,6 @@ func (r *Repository) ChangeCards(ids []string, operationToken string, trailers [
 			if bytes.Equal(rec.Raw, raw) {
 				continue
 			}
-			if len(raw) > gitx.SnapshotBlobLimit {
-				return gitx.TrunkWrite{}, fmt.Errorf("%w: tracker replacement blob", gitx.ErrOutputLimit)
-			}
 			card, err := issue.ParseCard(raw)
 			if err != nil {
 				return gitx.TrunkWrite{}, err
@@ -74,14 +78,14 @@ func (r *Repository) ChangeCards(ids []string, operationToken string, trailers [
 			if card.ID != id {
 				return gitx.TrunkWrite{}, errors.New("tracker update must preserve expected card identity")
 			}
-			wire += blobWireBytes(rec.BlobOID, len(raw)) - blobWireBytes(rec.BlobOID, len(rec.Raw))
-			if wire > gitx.SnapshotOutputLimit {
-				return gitx.TrunkWrite{}, fmt.Errorf("%w: tracker replacements exceed batch budget", gitx.ErrOutputLimit)
-			}
+			replaced = append(replaced, replacement{rec, raw})
 			write[rec.Path] = bytes.Clone(raw)
 		}
 		if len(write) == 0 {
 			return gitx.TrunkWrite{}, ErrNoChange
+		}
+		if err := snapshot.validateReplacements(replaced); err != nil {
+			return gitx.TrunkWrite{}, err
 		}
 		return gitx.TrunkWrite{Write: write, ExactBytes: true}, nil
 	}, beforePush)

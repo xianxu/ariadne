@@ -208,3 +208,37 @@ func TestClaimRefreshesTheCheckout(t *testing.T) {
 		}
 	})
 }
+
+// #284: a set whose publication response is lost asks for a rerun, and the
+// rerun is settled by the cards; an unowned started member is refused toward a
+// single-issue --adopt, which a set cannot take.
+func TestClaimSetLostResponseAndAdoptRefusal(t *testing.T) {
+	r, paths := claimSetRepo(t)
+	restore := loseResponses(t)
+	var out, errs bytes.Buffer
+	err := runClaim(context.Background(), &out, &errs, &claimFlags{Issues: []int{9, 10}, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"})
+	restore()
+	if err == nil || !strings.Contains(err.Error(), "rerun the same command (sdlc claim --issue 9,10)") {
+		t.Fatalf("a lost response gave no rerun: %v", err)
+	}
+	landed := r.card(paths["000009"])
+	errs.Reset()
+	if err := runClaim(context.Background(), &out, &errs, &claimFlags{Issues: []int{9, 10}, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}); err != nil || !strings.Contains(errs.String(), "already claimed by this workspace") || r.card(paths["000009"]) != landed {
+		t.Fatalf("the rerun did not settle it: %v\n%s", err, errs.String())
+	}
+
+	env, err := openTrackerAt(context.Background(), r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.repo.ChangeCard("000011", paths["000011"], "status", operationToken("set"), func(c []byte) ([]byte, error) {
+		return issue.SetCardField(c, "status", "working")
+	}); err != nil {
+		t.Fatal(err)
+	}
+	errs.Reset()
+	err = runClaim(context.Background(), &out, &errs, &claimFlags{Issues: []int{9, 11}, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"})
+	if err == nil || !strings.Contains(err.Error(), "claim #11 alone with `sdlc claim --issue 11 --adopt`") {
+		t.Fatalf("an unowned started member must point at a single --adopt: %v", err)
+	}
+}

@@ -15,6 +15,10 @@ import (
 // working issue again: nothing to write, and not a failure (#277).
 var errAlreadyMine = errors.New("already claimed by this workspace")
 
+// errUnownedStarted marks the refusal of started work with no recorded owner
+// (claimed before #277), which only a single-issue --adopt records.
+var errUnownedStarted = errors.New("unowned started work")
+
 // claimDecision changes only reservation metadata on the observed remote record.
 // With an identity (an issue tracker repository) it is the ownership event
 // `claim` (#283): an unowned open card gets this workspace as its owner and
@@ -87,6 +91,9 @@ func claimSetDecision(current map[string]tracker.Record, ids []string, today, st
 		if errors.Is(err, errAlreadyMine) {
 			continue
 		}
+		if err != nil && len(ids) > 1 && errors.Is(err, errUnownedStarted) {
+			return nil, fmt.Errorf("%w; --adopt takes one issue: claim #%s alone with `sdlc claim --issue %s --adopt`", err, issue.CLIRef(id), issue.CLIRef(id))
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -115,7 +122,7 @@ func ownedBy(raw []byte, id int, status string, me issue.Claimant) error {
 	case issue.OwnershipForeign:
 		return fmt.Errorf("remote issue #%d is %s, claimed by %s; coordinate with its owner — reassignment is the operator-directed `sdlc reclaim --issue %d`, never a repeat claim", id, status, describeClaimant(recorded), id)
 	default:
-		return fmt.Errorf("remote issue #%d is %s with no recorded owner (claimed before #277); if this workspace holds that work, record it with `sdlc claim --issue %d --adopt`", id, status, id)
+		return fmt.Errorf("%w: remote issue #%d is %s with no recorded owner (claimed before #277); if this workspace holds that work, record it with `sdlc claim --issue %d --adopt`", errUnownedStarted, id, status, id)
 	}
 }
 
