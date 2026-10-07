@@ -8,7 +8,8 @@ The default output is a deterministic human view of the typed inventory.
 `diagnostics` while unaffected repositories and worktrees continue to render.
 
 CLAIMS (#288): each row's `claims` are the tracker claims this machine holds on
-that worktree: active cards (working, blocked, codecomplete) whose claimant is
+that worktree: cards whose status holds the lock (open, working, blocked,
+codecomplete — the model's ownership axis, #283) and whose claimant is
 this machine and this worktree path, with status, card revision and owner.
 Other machines' claims and cards with no recorded owner are not local state and
 are omitted. `machine` is this machine's fingerprint and name, exactly as

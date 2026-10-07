@@ -18,6 +18,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 const (
@@ -27,29 +28,29 @@ const (
 )
 
 // reclaimDecision is reclaim's pure core: the card with me as its claimant, and
-// the claimant it replaces. The card must be owned work (working, blocked or
-// codecomplete) with a recorded owner; rev is the card revision read now and
-// expect the one the operator inspected. The owner's repeat is errAlreadyMine —
-// so an identical retry, or one after a lost publication response, is decided
-// by the card itself.
+// the claimant it replaces. The card must hold a live lock (a holdable status
+// per the model, #283 — an open shaping claim included) with a recorded owner;
+// rev is the card revision read now and expect the one the operator inspected.
+// The owner's repeat is errAlreadyMine — so an identical retry, or one after a
+// lost publication response, is decided by the card itself.
 func reclaimDecision(card []byte, rev, expect, reason string, me issue.Claimant) ([]byte, issue.Claimant, error) {
 	fm, _, err := issue.Parse(string(card))
 	if err != nil {
 		return nil, issue.Claimant{}, err
 	}
 	id, _ := issue.GetField(fm, "id")
-	switch status, _ := issue.GetField(fm, "status"); status {
-	case "working", "blocked", "codecomplete":
-	case "open":
-		return nil, issue.Claimant{}, fmt.Errorf("#%s is open; nobody holds it — `sdlc claim --issue %s` takes it", id, issue.CLIRef(id))
-	default:
+	status, _ := issue.GetField(fm, "status")
+	if !vocab.Issue().CanHoldOwner(status) {
 		return nil, issue.Claimant{}, fmt.Errorf("#%s is %s; there is no live responsibility to reclaim", id, status)
 	}
 	recorded, has, err := issue.CardClaimant(card)
 	if err != nil {
 		return nil, issue.Claimant{}, err
 	}
-	if !has {
+	switch {
+	case !has && vocab.Issue().IsOpen(status):
+		return nil, issue.Claimant{}, fmt.Errorf("#%s is open; nobody holds it — `sdlc claim --issue %s` takes it", id, issue.CLIRef(id))
+	case !has:
 		return nil, issue.Claimant{}, fmt.Errorf("#%s has no recorded owner (claimed before #277); record one with `sdlc claim --issue %s --adopt`", id, issue.CLIRef(id))
 	}
 	if issue.MatchClaimant(&recorded, me) == issue.OwnershipMine {

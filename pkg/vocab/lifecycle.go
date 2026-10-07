@@ -37,6 +37,16 @@ func canTransition(l []Transition, from, to string) bool {
 	return false
 }
 
+// transitionFor returns l's declared from→to edge, or nil.
+func transitionFor(l []Transition, from, to string) *Transition {
+	for i := range l {
+		if l[i].From == from && l[i].To == to {
+			return &l[i]
+		}
+	}
+	return nil
+}
+
 func transitionForEvent(l []Transition, from, event string) *Transition {
 	for i := range l {
 		if l[i].From == from && l[i].Event == event {

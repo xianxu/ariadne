@@ -108,7 +108,7 @@ func TestSetStatusAlias_BothPathsMutate(t *testing.T) {
 			t.Fatalf("execute %v: %v", args, err)
 		}
 	}
-	run("issue", "set-status", "working", "--issue", "1")
+	run("issue", "set-status", "working", "--issue", "1", "--force") // #283: unowned; the alias, not the guard, is under test
 	if got := r.card(cardPath); !strings.Contains(got, "status: working") {
 		t.Errorf("grouped `issue set-status` left:\n%s", got)
 	}

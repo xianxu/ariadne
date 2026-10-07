@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -119,6 +120,57 @@ func TestStartPlanRequiresClaimAndPreparesBranch(t *testing.T) {
 	}
 	if local := r.git("diff", "--", detailPath); !strings.Contains(local, "+status: working") {
 		t.Fatalf("mirror not refreshed on the issue branch:\n%s", local)
+	}
+}
+
+// #283: shaping under a claim, then starting. Claim takes the lock and leaves
+// the card open; the claimed issue's details are edited on the resting branch;
+// start-plan carries that edit onto the new branch and only then starts the
+// card, keeping the claim's engagement stamp. A re-run changes nothing, and any
+// other dirty tracked file still refuses.
+func TestShapeUnderClaimThenStart(t *testing.T) {
+	cardPath, card, detailPath, detail := seededIssue(t, "000009", "nine")
+	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
+	var out, errs bytes.Buffer
+	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(9)); err != nil {
+		t.Fatalf("%v\n%s", err, errs.String())
+	}
+	claimed := r.card(cardPath)
+	if !strings.Contains(claimed, "status: open") || !strings.Contains(claimed, "claimant:") {
+		t.Fatalf("claim must record the owner and leave the card open:\n%s", claimed)
+	}
+	stamp := regexp.MustCompile(`(?m)^started: .*$`).FindString(claimed)
+	if stamp == "" {
+		t.Fatalf("claim did not stamp started:\n%s", claimed)
+	}
+	writeRepoFile(t, r.root, "notes.go", "package x\n")
+	r.git("add", "notes.go")
+	r.git("commit", "-qm", "fixture: tracked code file")
+	r.git("push", "-q", "origin", "HEAD:main")
+	writeRepoFile(t, r.root, detailPath, detail+"\nShaped under the claim.\n")
+	writeRepoFile(t, r.root, "notes.go", "package y\n")
+	if err := startPlanBranch(context.Background(), &out, 9); err == nil || !strings.Contains(err.Error(), "notes.go") {
+		t.Fatalf("a dirty code file must refuse, naming it: %v", err)
+	}
+	if r.card(cardPath) != claimed || r.git("branch", "--show-current") == "000009-nine" {
+		t.Fatal("a refused start-plan changed the card or the branch")
+	}
+	r.git("checkout", "--", "notes.go")
+	if err := startPlanBranch(context.Background(), &out, 9); err != nil {
+		t.Fatal(err)
+	}
+	if r.git("branch", "--show-current") != "000009-nine" {
+		t.Fatal("start-plan did not create the issue branch")
+	}
+	if diff := r.git("diff", "--", detailPath); !strings.Contains(diff, "+Shaped under the claim.") {
+		t.Fatalf("the shaping edit was not carried:\n%s", diff)
+	}
+	started := r.card(cardPath)
+	if !strings.Contains(started, "status: working") || !strings.Contains(started, stamp) {
+		t.Fatalf("start-plan must start the card and keep the claim's stamp %q:\n%s", stamp, started)
+	}
+	if err := startPlanBranch(context.Background(), &out, 9); err != nil || r.card(cardPath) != started {
+		t.Fatalf("re-run must be a no-op: %v", err)
 	}
 }
 

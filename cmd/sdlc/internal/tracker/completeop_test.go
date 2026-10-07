@@ -74,3 +74,44 @@ func TestNewestCloseRefusesAnOlderReviewThanTheCardsClose(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// #283: a rebase rewrites the reviewed commit of the card's close away. That
+// close no longer precedes anything, so ancestry alone kept it "newer" forever
+// and no later close of the issue could land. A binding the branch no longer
+// contains is superseded by a receipt whose review the branch does contain; a
+// stale receipt (its own review rewritten away) is still refused.
+func TestNewestCloseAfterARebase(t *testing.T) {
+	branch := "refs/heads/000001-x"
+	onBranch, rewritten, other := strings.Repeat("a", 40), strings.Repeat("b", 40), strings.Repeat("c", 40)
+	// ancestor over a tiny graph: the branch contains onBranch only; the two
+	// reviews are unrelated (a rewritten history).
+	graph := func(a, b string) (bool, error) {
+		return a == b || (b == branch && a == onBranch), nil
+	}
+	bind := func(reviewed string) []byte {
+		card, err := issue.SetCardCompletion([]byte(strings.Replace(testCard, "status: open", "status: working", 1)),
+			issue.Completion{Token: "close-card", Repository: "r", ReviewedHEAD: reviewed, EvidenceCommit: strings.Repeat("8", 40)})
+		if err != nil {
+			t.Fatal(err)
+		}
+		return card
+	}
+	for _, c := range []struct {
+		name          string
+		card, receipt string
+		branch        string
+		want          error
+	}{
+		{"card's review rewritten away, receipt on the branch", rewritten, onBranch, branch, nil},
+		{"stale receipt from before the rebase", onBranch, rewritten, branch, ErrSupersededClose},
+		{"neither on the branch", rewritten, other, branch, ErrSupersededClose},
+		{"detached: ancestry only", rewritten, onBranch, "", ErrSupersededClose},
+	} {
+		spec := operationSpec()
+		spec.ReviewedHEAD = c.receipt
+		op := &CompletionOp{branch: c.branch, ancestor: graph}
+		if err := op.newestClose(spec, bind(c.card)); !errors.Is(err, c.want) && !(c.want == nil && err == nil) {
+			t.Errorf("%s: %v", c.name, err)
+		}
+	}
+}

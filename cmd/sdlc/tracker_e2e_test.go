@@ -110,7 +110,8 @@ func TestTrackerFullSlotCycle(t *testing.T) {
 	if out, err := slotRun(t, slot2, "claim", "--issue", "2"); err == nil {
 		t.Fatalf("a competing claim succeeded:\n%s", out)
 	}
-	if got := mustSlotRun(t, slot2, "issue", "show", "2"); !strings.Contains(got, "status: working") {
+	// #283: the claim is the owner (the lock); status stays open until start-plan.
+	if got := mustSlotRun(t, slot2, "issue", "show", "2"); !strings.Contains(got, "status: open") || !strings.Contains(got, "claimant:") {
 		t.Fatalf("slot2 does not see the claim:\n%s", got)
 	}
 

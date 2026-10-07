@@ -53,6 +53,7 @@ func TestReclaimDecision(t *testing.T) {
 		{"already mine (retry)", "working", &me, rev, "r", "mine"},
 		{"mine, stale expect still no-op", "working", &me, "2222222222222222222222222222222222222222", "", "mine"},
 		{"open", "open", nil, rev, "r", "sdlc claim --issue 31"},
+		{"open, held (shaping claim)", "open", &old, rev, "slot gone", "transfer"},
 		{"done", "done", &old, rev, "r", "no live responsibility"},
 		{"unattributed", "working", nil, rev, "r", "--adopt"},
 		{"no expect", "working", &old, "", "r", "--expect is required"},
@@ -92,8 +93,8 @@ func TestReclaimTrailersRoundTrip(t *testing.T) {
 	}
 }
 
-// reclaimFixture: #N claimed by a slot worktree (the old owner) holding its
-// branch with uncommitted work; the primary checkout is the new workspace.
+// reclaimFixture: #N claimed and started by a slot worktree (the old owner)
+// holding its branch with uncommitted work; the primary checkout is the new workspace.
 func reclaimFixture(t *testing.T, n int) (r *trackerRepo, slot, cardPath, detailPath string) {
 	t.Helper()
 	id := itoa6(n)
@@ -105,6 +106,10 @@ func reclaimFixture(t *testing.T, n int) (r *trackerRepo, slot, cardPath, detail
 	var out, errs bytes.Buffer
 	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(n)); err != nil {
 		t.Fatalf("claim in the slot: %v\n%s", err, errs.String())
+	}
+	// #283: claim takes the lock; start-plan starts the work the slot holds.
+	if err := startPlanBranch(context.Background(), &out, n); err != nil {
+		t.Fatalf("start-plan in the slot: %v", err)
 	}
 	t.Chdir(r.root)
 	return r, slot, cardPath, detailPath

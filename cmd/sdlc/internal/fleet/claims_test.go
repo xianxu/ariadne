@@ -37,8 +37,8 @@ func TestPlaceClaims(t *testing.T) {
 		{Ref: "a#000002", Status: "blocked", Revision: "r2", Claimant: claimantOn(meFP, "/gone")},      // dangling
 		{Ref: "a#000003", Status: "working", Revision: "r3", Claimant: claimantOn(otherFP, "/a/slot")}, // other machine
 		{Ref: "a#000004", Status: "working", Revision: "r4"},                                           // unattributed
-		{Ref: "a#000005", Status: "open", Revision: "r5", Claimant: claimantOn(meFP, "/a/slot")},       // inactive
-		{Ref: "a#000006", Status: "done", Revision: "r6", Claimant: claimantOn(meFP, "/a/slot")},       // inactive
+		{Ref: "a#000005", Status: "open", Revision: "r5", Claimant: claimantOn(meFP, "/a/slot")},       // a shaping claim: holds the lock (#283)
+		{Ref: "a#000006", Status: "done", Revision: "r6", Claimant: claimantOn(meFP, "/a/slot")},       // terminal: attribution, no lock
 	}
 	unknownMe := MachineFrom(MachineIdentity{}, errors.New("ioreg failed"))
 	for _, tc := range []struct {
@@ -49,9 +49,9 @@ func TestPlaceClaims(t *testing.T) {
 		placed, dang []string
 		errHas       string
 	}{
-		{"present", RepoClaims{State: ClaimsPresent, Cards: classes}, me, ClaimsPresent, []string{"a#000001"}, []string{"a#000002"}, ""},
-		{"stale", RepoClaims{State: ClaimsStale, Error: "offline", Cards: classes}, me, ClaimsStale, []string{"a#000001"}, []string{"a#000002"}, "offline"},
-		{"partial", RepoClaims{State: ClaimsPartial, Error: unreadableError([]string{"a#000009"}), Cards: classes, Unreadable: []string{"a#000009"}}, me, ClaimsPartial, []string{"a#000001"}, []string{"a#000002"}, "a#000009"},
+		{"present", RepoClaims{State: ClaimsPresent, Cards: classes}, me, ClaimsPresent, []string{"a#000001", "a#000005"}, []string{"a#000002"}, ""},
+		{"stale", RepoClaims{State: ClaimsStale, Error: "offline", Cards: classes}, me, ClaimsStale, []string{"a#000001", "a#000005"}, []string{"a#000002"}, "offline"},
+		{"partial", RepoClaims{State: ClaimsPartial, Error: unreadableError([]string{"a#000009"}), Cards: classes, Unreadable: []string{"a#000009"}}, me, ClaimsPartial, []string{"a#000001", "a#000005"}, []string{"a#000002"}, "a#000009"},
 		{"unknown read", RepoClaims{State: ClaimsUnknown, Error: "no tracker read"}, me, ClaimsUnknown, nil, nil, "no tracker read"},
 		{"no tracker", RepoClaims{State: ClaimsAbsent}, me, ClaimsAbsent, nil, nil, ""},
 		{"present, identity unknown", RepoClaims{State: ClaimsPresent, Cards: classes}, unknownMe, ClaimsUnknown, nil, nil, "ioreg failed"},
@@ -133,7 +133,7 @@ func TestInventoryClaimsContract(t *testing.T) {
 		"raw machine id":       func(s string) string { return strings.Replace(s, `"fingerprint":"`+meFP, `"fingerprint":"RAW`, 1) },
 		"missing machine":      func(s string) string { return editJSON(t, s, func(m map[string]any) { delete(m, "machine") }) },
 		"null dangling claims": func(s string) string { return editJSON(t, s, func(m map[string]any) { m["dangling_claims"] = nil }) },
-		"inactive claim":       func(s string) string { return strings.Replace(s, `"status":"working"`, `"status":"open"`, 1) },
+		"lockless claim":       func(s string) string { return strings.Replace(s, `"status":"working"`, `"status":"done"`, 1) }, // #283: terminal holds no lock
 	} {
 		t.Run(name, func(t *testing.T) {
 			bad := mutate(string(raw))

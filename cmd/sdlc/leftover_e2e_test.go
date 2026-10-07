@@ -149,10 +149,13 @@ func TestInvisibleBranchWithCardEditsRecovers(t *testing.T) {
 	if err == nil || !strings.Contains(out+err.Error(), "status") || !strings.Contains(out+err.Error(), "from a caught-up checkout") {
 		t.Fatalf("reconcile did not name the edited field and where to apply it (err=%v):\n%s", err, out)
 	}
-	// Remedy: claim on the card from a caught-up checkout (here, main)...
+	// Remedy: set the field on the card from a caught-up checkout (here, main)...
 	testfix.Git(t, other, "switch", "-q", "main")
 	testfix.Git(t, other, "pull", "-q", "--ff-only")
+	// #283: claim takes the lock and set-status (start's manual spelling)
+	// restores the status the legacy branch had recorded.
 	mustSlotRun(t, other, "claim", "--issue", "1")
+	mustSlotRun(t, other, "issue", "set-status", "working", "--issue", "1")
 	// ...then revert the field on the branch and reconcile.
 	testfix.Git(t, other, "switch", "-q", "000001-one")
 	writeRepoFile(t, other, leftoverIssue, strings.Replace(claimed, "status: working", "status: open", 1))

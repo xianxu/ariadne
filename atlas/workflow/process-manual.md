@@ -106,7 +106,7 @@ between planning and code-changing work in any checkout:
 
 **When:** embedded help; printed by the matching `sdlc … --help` / on verb error
 
-Reserve an open issue card on the tracker (open → working).
+Claim an issue: record this workspace as its owner, which is the lock (#283).
 
 ### [close](../../cmd/sdlc/helptext/close.md)
 

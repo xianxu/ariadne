@@ -115,6 +115,9 @@ func runSetStatus(ctx context.Context, stdout, stderr io.Writer, f *setStatusFla
 // without ever moving an existing stamp (#116). Entering working with an
 // identity (#277) records it as the claimant — refused when another workspace
 // owns the card, even under --force: reassignment is `sdlc reclaim` (#278).
+// The `start` edge is guarded `owned` (#283): an unowned open card is claimed
+// first, so starting never skips claim's readiness check (--force waives it,
+// as it does every named guard; a foreign owner is never waivable).
 func statusDecision(card []byte, detailsBody, next string, force bool, today, started string, me *issue.Claimant) ([]byte, string, error) {
 	if !isValidStatus(next) {
 		return nil, "", fmt.Errorf("invalid status %q (valid: %s)", next, strings.Join(vocab.Issue().AllStatuses(), ", "))
@@ -148,6 +151,11 @@ func statusDecision(card []byte, detailsBody, next string, force bool, today, st
 		}
 		if !has && prev == "working" {
 			return nil, prev, fmt.Errorf("already working with no recorded owner (claimed before #277); record an owner with `sdlc claim --adopt`, not set-status")
+		}
+		// #283: the model's `start` edge is guarded `owned`. An unowned open card
+		// is claimed first — claim checks the details are on main — then started.
+		if tr := vocab.Issue().TransitionFor(prev, next); !force && !has && tr != nil && tr.Event == "start" {
+			return nil, prev, fmt.Errorf("unowned; `sdlc claim --issue N` takes the lock first, then `sdlc start-plan` (or this set-status) starts it")
 		}
 		out, err = issue.SetCardClaimant(out, *me)
 	}
@@ -272,11 +280,10 @@ func checkTransitionGuards(current, next, fm, body string) error {
 	}
 
 	// (#113) No estimate guard here. `→ working` used to require
-	// estimate_hours, but that made `sdlc claim` — whose real job is a cheap
-	// open→working lock broadcast early, before the estimate is knowable —
-	// demand a premature number. The estimate gate moved to `sdlc change-code`
-	// (issue.CheckEstimate), the universal implementation gate. `claim` and
-	// `set-status working` are now estimate-free.
+	// estimate_hours, which made starting work early demand a premature number.
+	// The estimate gate moved to `sdlc change-code` (issue.CheckEstimate), the
+	// universal implementation gate. Starting work — start-plan, or
+	// `set-status working` — is estimate-free; claim never moves status (#283).
 
 	// Guard 2: reopen (done → not-done) requires a fresh Log entry
 	// dated today. The xx-issues skill puts the reason for reopening

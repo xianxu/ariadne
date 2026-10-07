@@ -94,6 +94,26 @@ type IssueModel struct {
 	// Scaffold) so the Sections() accessor can carry the read name — mirrors Disc.
 	Scaf Scaffold  `json:"scaffold"`
 	Card CardModel `json:"card"`
+	// Own holds the ownership: block (#283) — the lock axis beside Lifecycle.
+	Own Ownership `json:"ownership"`
+}
+
+// Ownership is the issue's lock axis (#283): the card's claimant is the owner
+// and the lock; status is lifecycle only. Holdable lists the statuses whose
+// owner is a live lock (terminal ones keep it as attribution).
+type Ownership struct {
+	Lock     string           `json:"lock"`
+	Holdable []string         `json:"holdable"`
+	Events   []OwnershipEvent `json:"events"`
+}
+
+// OwnershipEvent changes the owner (Owner: "none→me", "me→none", "other→me",
+// "me→me") on the listed statuses and never the status.
+type OwnershipEvent struct {
+	Event    string   `json:"event"`
+	Owner    string   `json:"owner"`
+	Statuses []string `json:"statuses"`
+	When     string   `json:"when"`
 }
 
 var issueModel = mustLoadIssue()
@@ -160,6 +180,39 @@ func (m *IssueModel) InitialStatus() string {
 
 func (m *IssueModel) inCategory(cat, s string) bool {
 	return inCat(m.Categories, cat, s)
+}
+
+// Ownership returns the lock axis (#283).
+func (m *IssueModel) Ownership() Ownership { return m.Own }
+
+// CanHoldOwner reports whether an owner of status s is a live lock — the
+// statuses claim, unclaim and reclaim act on (#283).
+func (m *IssueModel) CanHoldOwner(s string) bool { return contains(m.Own.Holdable, s) }
+
+// OwnershipEvent returns the named ownership event, or nil.
+func (m *IssueModel) OwnershipEvent(name string) *OwnershipEvent {
+	for i := range m.Own.Events {
+		if m.Own.Events[i].Event == name {
+			return &m.Own.Events[i]
+		}
+	}
+	return nil
+}
+
+// TransitionFor returns the declared from→to edge, or nil.
+func (m *IssueModel) TransitionFor(from, to string) *Transition {
+	return transitionFor(m.Lifecycle, from, to)
+}
+
+// TransitionForEvent returns the edge leaving from on event, or nil — e.g.
+// whether start-plan's `start` applies to a status (#283).
+func (m *IssueModel) TransitionForEvent(from, event string) *Transition {
+	return transitionForEvent(m.Lifecycle, from, event)
+}
+
+// FirstTransitionForEvent returns the first edge carrying event, or nil.
+func (m *IssueModel) FirstTransitionForEvent(event string) *Transition {
+	return firstTransitionForEvent(m.Lifecycle, event)
 }
 
 // IsTerminal reports whether s is a closed status (done/wontfix/punt).

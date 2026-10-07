@@ -10,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -63,7 +64,7 @@ func NewClaimCmd() *cobra.Command {
 	f := claimFlags{}
 	cmd := markMutatingCommand(&cobra.Command{
 		Use:           "claim",
-		Short:         "Reserve an open issue card on the tracker",
+		Short:         "Claim an issue: record this workspace as its owner (the lock)",
 		Long:          "Placeholder — replaced by helptext.MustGet(\"lock\") in main.go.",
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
@@ -143,7 +144,7 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	if f.Adopt {
 		return adoptClaim(stdout, stderr, env, card, me, detailPath, f.DryRun)
 	}
-	if status, _ := issue.GetField(card.Card.Frontmatter, "status"); status == "working" {
+	if status, _ := issue.GetField(card.Card.Frontmatter, "status"); slices.Contains(vocab.Issue().OwnershipEvent("move").Statuses, status) {
 		// The owner's own work moved here (sdlc move whose re-stamp failed):
 		// a repeat claim finishes the relocation instead of refusing.
 		if own, recorded, _, err := ownership(env, card); err == nil && own == issue.OwnershipForeign {
@@ -182,7 +183,7 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 		return err
 	}
 	if f.DryRun {
-		cinfo(stderr, "dry-run — the card is open and its details are on main; would reserve it")
+		cinfo(stderr, "dry-run — the card is open and unowned, and its details are on main; would claim it")
 		return nil
 	}
 	// Readiness is re-verified against fresh main after the candidate is pinned,
@@ -195,7 +196,7 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	if err != nil {
 		return err
 	}
-	cok(stderr, fmt.Sprintf("Issue #%s reserved on %s (open → working).", id, vocab.Issue().Discovery().Tracker))
+	cok(stderr, fmt.Sprintf("Issue #%s claimed on %s: this workspace owns it; status stays open until `sdlc start-plan --issue %s` starts it.", id, vocab.Issue().Discovery().Tracker, issue.CLIRef(id)))
 	if warn := refreshLocalMirror(env, detailPath); warn != "" {
 		cwarn(stderr, warn)
 	}

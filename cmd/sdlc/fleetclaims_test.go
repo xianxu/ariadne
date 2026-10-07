@@ -53,8 +53,8 @@ func rowAt(t *testing.T, inv fleet.Inventory, path string) fleet.TreeRow {
 
 // #288: a claim made in a slot is reported on that slot's row, against this
 // machine's identity as claim recorded it, from one claims read per
-// repository; another machine's claim, an ownerless working card and an open
-// card are not local state; once the slot is removed the claim is dangling,
+// repository; another machine's claim, an ownerless working card and an
+// unclaimed open card are not local state (an owned open card is, #283); once the slot is removed the claim is dangling,
 // never dropped.
 func TestFleetInventoryPlacesClaims(t *testing.T) {
 	cards, details, paths := map[string]string{}, map[string]string{}, map[int]string{}

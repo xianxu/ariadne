@@ -415,7 +415,7 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 			"      (the evidence commit lands after your fixes; codecomplete is published bound to it)", env.branch, issue.CLIRef(id)))
 		return nil
 	}
-	op := tracker.NewCompletionOp(env.ctx, env.repo, env.branchRef(), gitEvidence{env, stderr}, time.Now().Format("2006-01-02"), env.ancestorOf)
+	op := tracker.NewCompletionOp(env.ctx, env.repo, env.branchRef(), gitEvidence{env, stderr}, time.Now().Format("2006-01-02"), env.closeAncestorOf)
 	final, err := tracker.Drive(c.Receipt(), tracker.CompletionStepper, op, receipts)
 	invalidateIssueRecords(env.ctx)
 	if err != nil {
