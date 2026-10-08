@@ -180,3 +180,5 @@ M3 review round 2 (one Important, three Minors), all fixed:
 
 M4: `TestIssueNewOnFeatureBranchCommitsOnlyItsDetails` failed once in a sharded run with a TempDir cleanup race (`.git: directory not empty`, likely a detached `git gc --auto`). It passes eight times running alone and is unrelated to #284.
 
+A second TempDir cleanup race (`origin.git: directory not empty`) hit `TestHandoffRecognisesItsNoteCommit` in a sharded run; it passes four times running alone. It is the same class as M4's `TestIssueNewOnFeatureBranchCommitsOnlyItsDetails` race, which predates this branch. Cause unconfirmed: a git process still writing into a temp repo at cleanup. No speculative fix was made; worth its own issue.
+
