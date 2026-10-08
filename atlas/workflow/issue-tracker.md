@@ -265,6 +265,16 @@ The publication remote is the resting branch's upstream
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
 | `issue restore` | none | one commit setting each copy of the issue's details to main's (#285) | none |
 
+**The issue branch on the remote (#286, `boundarypush.go`).** `start-plan`,
+`milestone-close`, `close` (and reconcile's close completion) and `unclaim`
+push the issue branch, so started work survives a lost machine. The push is
+leased on the last-fetched remote-tracking ref (`leasedBranchPush`): the owner
+is the branch's only writer (claim plus #272), so a rebase is force-pushed at
+the next boundary while a tip this checkout never fetched is refused. A failed
+boundary push warns; only `unclaim`'s fails the verb. `sdlc pr` uses the same
+push, and `sdlc merge` deletes the landed branch from the remote, leased on the
+PR's head.
+
 `move-detail` is add-then-remove relative to a merge base without the file, so
 the source branch's direct, merge-from-main or squash landing keeps main's copy
 and the new owner's edits. The card's `tracker.handoff` record (versioned

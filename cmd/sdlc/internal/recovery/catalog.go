@@ -141,13 +141,14 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"pr"},
 		Class:         ConvergentRetry,
-		Effects:       "pushes the issue branch and opens its pull request, or updates the open one.",
+		Effects:       "pushes the issue branch with a lease on the last-fetched copy (#286: a rebased branch publishes, an unseen remote tip refuses) and opens its pull request, or updates the open one.",
 		Evidence:      "the printed PR URL; `gh pr view`.",
 		Preconditions: "an issue branch (not a resting branch); handed-off details unchanged.",
 		Repeat:        "in a numbered workspace: \"updated PR #N\" (converges). In an ordinary checkout `gh pr create` refuses an existing PR — check for it before re-running.",
 		LostResponse:  "rerun in a numbered workspace; in an ordinary checkout check `gh pr view` first.",
 		Ends:          "the PR merges or closes; a merged branch name is never reused (#148).",
 		Proofs: []Proof{
+			{"a rewritten branch is published with the lease (#286)", []string{"TestLandingPRPublishesARewrittenBranch"}},
 			{"a repeat updates the open PR", []string{"TestLandingPRUpdatesOpenPR"}},
 			{"a changed head is detected", []string{"TestLandingPRChangedHead"}},
 			{"an ordinary checkout's repeat is refused by gh without change", nil},
@@ -156,13 +157,14 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"merge"},
 		Class:         ConvergentRetry,
-		Effects:       "merges the PR, completes the issue's card (done, landed commit), archives the issue family on main and cleans up the branch.",
+		Effects:       "merges the PR, completes the issue's card (done, landed commit), archives the issue family on main and cleans up the branch, locally and on the remote (leased on the PR head; a failed remote delete warns, #286).",
 		Evidence:      observeEvidence + ": landing.outcome, landing.archived; the printed `Recovery: sdlc merge --branch B --yes`.",
 		Preconditions: "a reviewed branch whose head is unchanged since close; a clean tree; confirmation (--yes without a TTY).",
 		Repeat:        "an already-merged PR resumes post-merge cleanup; a reused branch name is refused (#148); after full success from rest, refused.",
 		LostResponse:  "run the printed `sdlc merge --branch B --yes`: it observes merged / integrated / archived / at rest and continues from there.",
 		Ends:          "the card was reopened or closed again (another generation): completion is refused.",
 		Proofs: []Proof{
+			{"the landed branch leaves the remote (#286)", []string{"TestLandingDeletesTheRemoteBranch"}},
 			{"resumes cleanup after a merge already happened", []string{"TestRunMerge_ResumeMergedPR_FinishesCleanup"}},
 			{"refuses unmerged commits on a merged branch name", []string{"TestRunMerge_ResumeMergedPR_UnmergedCommits_Refuses"}},
 			{"interrupted landings resume from observation", []string{"TestLandingInterruptedCleanup", "TestLandingInterruptedIntegration", "TestLandingRefusesUncertainty"}},

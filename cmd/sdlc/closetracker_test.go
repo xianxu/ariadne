@@ -327,6 +327,9 @@ func TestTrackerCloseSurvivesARebase(t *testing.T) {
 				t.Fatal("fixture: the rebase did not rewrite the reviewed commit")
 			}
 			if tc.prune {
+				// The first close pushed the branch (#286); the owner's leased
+				// push of the rebase is what leaves the old commits unreferenced.
+				r.git("push", "-q", "--force-with-lease", "origin", r.git("branch", "--show-current"))
 				r.git("reflog", "expire", "--expire=now", "--all")
 				r.git("gc", "-q", "--prune=now")
 				if gitSucceeds(r.root, "cat-file", "-e", first.ReviewedHEAD+"^{commit}") {

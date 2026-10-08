@@ -69,10 +69,11 @@ func TestBoundaryPushLeases(t *testing.T) {
 
 func TestBoundaryPushSkipsTheRestingBranch(t *testing.T) {
 	r, _, _ := startedHere(t)
+	before := remoteTip(t, r, s09Branch) // start-plan's push; the work commit is not on origin
 	r.git("switch", "-q", "main")
 	var errs bytes.Buffer
 	boundaryPush(boundaryEnv(t), &errs, "test")
-	if errs.Len() != 0 || remoteTip(t, r, s09Branch) != "" {
+	if errs.Len() != 0 || remoteTip(t, r, s09Branch) != before || remoteTip(t, r, "main") != r.git("rev-parse", "origin/main") {
 		t.Fatalf("pushed from rest: %q", errs.String())
 	}
 }
@@ -83,13 +84,13 @@ func TestDeleteRemoteBranchLeasesOnItsHead(t *testing.T) {
 		t.Fatal(err)
 	}
 	head := r.git("rev-parse", "HEAD")
-	if err := deleteRemoteBranch(boundaryEnv(t), s09Branch, r.git("rev-parse", "HEAD~1")); err == nil || remoteTip(t, r, s09Branch) != head {
+	if err := deleteRemoteBranch(boundaryEnv(t).git, "origin", s09Branch, r.git("rev-parse", "HEAD~1")); err == nil || remoteTip(t, r, s09Branch) != head {
 		t.Fatalf("deleting a branch past its expected head: %v", err)
 	}
-	if err := deleteRemoteBranch(boundaryEnv(t), s09Branch, head); err != nil || remoteTip(t, r, s09Branch) != "" {
+	if err := deleteRemoteBranch(boundaryEnv(t).git, "origin", s09Branch, head); err != nil || remoteTip(t, r, s09Branch) != "" {
 		t.Fatalf("delete at its head: %v", err)
 	}
-	if err := deleteRemoteBranch(boundaryEnv(t), s09Branch, head); err != nil {
+	if err := deleteRemoteBranch(boundaryEnv(t).git, "origin", s09Branch, head); err != nil {
 		t.Fatalf("a branch already gone: %v", err)
 	}
 }

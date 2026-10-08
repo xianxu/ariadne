@@ -29,59 +29,60 @@ func boundaryPush(env *trackerEnv, stderr io.Writer, verb string) {
 	cok(stderr, fmt.Sprintf("%s pushed to %s", branch, env.target.Remote))
 }
 
-// pushIssueBranch publishes the issue branch to the publication remote. The
-// owner is its only writer (the claim, and no stacking, #272), so a rewritten
-// branch may replace the remote's — but only the copy this checkout last saw:
-// the lease is the last-fetched remote-tracking ref (absent: the branch must
-// not exist there yet), never a fresh read that would turn it into a blind
-// force (#284 BR-24).
+// gitFn runs one git command in a checkout, returning trimmed stdout. Both
+// the tracker environment and the landing runner supply one, so the issue
+// branch has one leased push and one leased delete (ARCH-DRY).
+type gitFn func(args ...string) (string, error)
+
+// pushIssueBranch publishes the issue branch from a tracker checkout.
 func pushIssueBranch(env *trackerEnv, branch string) error {
-	tracking := gitx.RemoteTrackingRef(env.target.Remote, branch)
-	expect, err := trackedTip(env, tracking)
+	return leasedBranchPush(env.git, env.target.Remote, branch)
+}
+
+// leasedBranchPush publishes branch to remote. The owner is its only writer
+// (the claim, and no stacking, #272), so a rewritten branch may replace the
+// remote's — but only the copy this checkout last saw: the lease is the
+// last-fetched remote-tracking ref (absent: the branch must not exist there
+// yet), never a fresh read that would turn it into a blind force (#284 BR-24).
+// It also records the upstream, so a plain `git push` works afterwards.
+func leasedBranchPush(git gitFn, remote, branch string) error {
+	tracking := gitx.RemoteTrackingRef(remote, branch)
+	expect, err := git("for-each-ref", "--format=%(objectname)", tracking)
 	if err != nil {
 		return err
 	}
 	ref := "refs/heads/" + branch
-	if _, err := env.git("push", "-q", "--force-with-lease="+ref+":"+expect, env.target.Remote, ref+":"+ref); err != nil {
+	if _, err := git("push", "-q", "-u", "--force-with-lease="+ref+":"+expect, remote, ref+":"+ref); err != nil {
 		if strings.Contains(err.Error(), "stale info") {
 			return fmt.Errorf("%w (the remote's %s is not the copy this checkout last fetched; fetch and inspect it before the next push)", err, branch)
 		}
 		return err
 	}
-	_, err = env.git("update-ref", tracking, ref)
+	_, err = git("update-ref", tracking, ref)
 	return err
 }
 
 // deleteRemoteBranch removes branch from the publication remote only while it
 // is still at head (the lease), then drops its remote-tracking ref. A branch
 // already gone is not an error.
-func deleteRemoteBranch(env *trackerEnv, branch, head string) error {
+func deleteRemoteBranch(git gitFn, remote, branch, head string) error {
 	ref := "refs/heads/" + branch
-	out, err := env.git("ls-remote", "--heads", env.target.Remote, ref)
+	out, err := git("ls-remote", "--heads", remote, ref)
 	if err != nil {
 		return err
 	}
-	if out != "" {
-		if _, err := env.git("push", "-q", "--force-with-lease="+ref+":"+head, env.target.Remote, ":"+ref); err != nil {
+	if strings.TrimSpace(out) != "" {
+		if _, err := git("push", "-q", "--force-with-lease="+ref+":"+head, remote, ":"+ref); err != nil {
 			if strings.Contains(err.Error(), "stale info") {
 				return fmt.Errorf("%w (the remote's %s moved past %s; inspect it before deleting)", err, branch, shortOID(head))
 			}
 			return err
 		}
 	}
-	tracking := gitx.RemoteTrackingRef(env.target.Remote, branch)
-	if present, err := env.gitTest("rev-parse", "-q", "--verify", tracking); err != nil || !present {
+	tracking := gitx.RemoteTrackingRef(remote, branch)
+	if seen, err := git("for-each-ref", "--format=%(objectname)", tracking); err != nil || seen == "" {
 		return err
 	}
-	_, err = env.git("update-ref", "-d", tracking)
+	_, err = git("update-ref", "-d", tracking)
 	return err
-}
-
-// trackedTip is the remote-tracking ref's commit, "" when absent.
-func trackedTip(env *trackerEnv, tracking string) (string, error) {
-	seen, err := env.gitTest("rev-parse", "-q", "--verify", tracking)
-	if err != nil || !seen {
-		return "", err
-	}
-	return env.git("rev-parse", tracking)
 }
