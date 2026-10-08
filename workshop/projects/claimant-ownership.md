@@ -52,6 +52,8 @@ Order: model first, done properly, with no fast-track for pair#365. #287 is inde
   - [x] `sdlc state` owner, claim age, views [ariadne#284 M4]
 - [x] Transfer guard: owner plus based-on-latest [ariadne#285]
 - [ ] Boundary pushes and sdlc abandon [ariadne#286]
+  - [ ] Boundary pushes and merge cleanup [ariadne#286 M1]
+  - [ ] `sdlc abandon` and reopen [ariadne#286 M2]
 - [ ] Reconcile merges done outside sdlc [ariadne#287]
 
 <a id="ariadne-284-m1"></a>
@@ -108,6 +110,17 @@ Decision worth keeping: the handoff returns the releasing checkout to rest, beca
 
 What shipped: `sdlc state` shows each issue's owner (the slot) and claim age, then claims grouped by slot and by operator. The age comes from tracker history: `tracker.ClaimTimes` streams one `git log` and stops once every owned card is resolved, keyed on claim-kind operation tokens and bounded at 5000 commits (a card whose owner predates operation trailers has no claim commit to find; past the bound its age is unknown). Card writes already record their operation, so this needs no new card field, which kept older binaries' strict claimant parse safe.
 
+<a id="ariadne-286-m1"></a>
+### ariadne#286 M1 — Boundary pushes and merge cleanup
+
+**est:** ~0.7h (M1's share of #286's 2.52h)
+**actual:** 0.93h
+**closed:** 2026-10-08
+
+What shipped: `start-plan`, `milestone-close`, `close` and reconcile's close completion push the issue branch, leased on the last-fetched remote-tracking ref (the handoff's push, generalized into `leasedBranchPush` over a plain git function so the landing runner shares it). `sdlc pr` uses the same push, so a rebased branch publishes without a blind force; `sdlc merge` deletes the landed branch from the remote, leased on the PR head. A failed boundary push warns rather than failing the verb, since the verb's own effect has landed.
+
+Surprising: two existing fixtures silently depended on the issue branch never reaching the remote (the #301 prune variant and the observe lifecycle's hand-landing); both now model the pushed world. A repeat push after a lost response succeeds, because git reports "up to date" before checking the lease — now pinned by a test.
+
 ## Log
 
 ### 2026-10-02
@@ -122,3 +135,4 @@ Promoted from #283 after a four-round design discussion with the operator (decis
 [ariadne#284 M2]: #ariadne-284-m2
 [ariadne#284 M3]: #ariadne-284-m3
 [ariadne#284 M4]: #ariadne-284-m4
+[ariadne#286 M1]: #ariadne-286-m1
