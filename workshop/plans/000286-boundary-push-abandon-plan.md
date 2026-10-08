@@ -90,7 +90,7 @@ All IO is exercised against real bare remotes in the existing fixtures (no mocks
 - [ ] Commit `#286 M1: boundary push helper`.
 
 ### Task 2: the boundary verbs push
-**Files:** `startplan.go` (~:344, also the rerun path that "re-checks and does nothing"), `closetracker.go` (`publishTrackerClose` end,), milestone-close finalize (`close.go`), the close completion in `issue recovery reconcile`; recovery contracts in `internal/recovery/catalog.go` (start-plan, milestone-close, close, reconcile, pr).
+**Files:** `startplan.go` (`startPlanBranch` end, which its rerun also reaches), `closetracker.go` (`publishTrackerClose` end; `retryCloseMirror` for reconcile), milestone-close finalize (`close.go` `finalizeBoundaryReview`, `milestoneclose.go` `runMilestoneClose`), the close completion in `issue recovery reconcile`; recovery contracts in `internal/recovery/catalog.go` (start-plan, milestone-close, close, reconcile, pr).
 - [ ] Test `TestBoundaryVerbsPushTheIssueBranch`: in `closeReady`'s flow assert `ls-remote` equals HEAD after start-plan, after a milestone-close, after close; then rebase onto an advanced main, reopen and close again (the #301 path: `set-status working`, then `close`, as `TestTrackerCloseSurvivesARebase` drives it) and assert origin equals the rewritten HEAD (lease force). Test that start-plan's rerun pushes when origin lacks the branch.
 - [ ] Insert `boundaryPush`; update the contracts' Effects ("pushes the issue branch with a lease; a failed push warns").
 - [ ] Commit `#286 M1: push the issue branch at every boundary`.
