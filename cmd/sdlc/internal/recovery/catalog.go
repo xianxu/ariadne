@@ -61,7 +61,7 @@ var Catalog = []Contract{
 		LostResponse:  "rerun the same command — branch first, then card: the branch converges, and the card is started only if it is still open. A concurrent card change (a reclaim) refuses, naming the branch left in this checkout.",
 		Ends:          "ownership moves (reclaim) — the old workspace is refused.",
 		Proofs: []Proof{
-			{"origin's issue branch equals HEAD after the verb; a rebase is force-pushed with the lease (#286)", []string{"TestBoundaryVerbsPushTheIssueBranch", "TestBoundaryPushLeases"}},
+			{"origin's issue branch equals HEAD after the verb, a rerun included; a rebase is force-pushed with the lease (#286)", []string{"TestBoundaryVerbsPushTheIssueBranch", "TestBoundaryPushLeases", "TestStartPlanRerunPushes"}},
 			{"creates or reuses the branch", []string{"TestPreparePlanningBranchRefusesMissingDetailsAndReusesBranch", "TestStartPlanRequiresClaimAndPreparesBranch"}},
 			{"refuses an unlanded base", []string{"TestPreparePlanningBranchRefusesAnUnlandedBase"}},
 			{"refuses a non-owner", []string{"TestOwnershipGatesRefuseForeignAndUnknown"}},
@@ -132,6 +132,7 @@ var Catalog = []Contract{
 		LostResponse:  "rerun — it re-probes from the durable receipt.",
 		Ends:          "a superseded close is released, never driven.",
 		Proofs: []Proof{
+			{"a close it finishes pushes the issue branch (#286)", []string{"TestReconciledClosePushes"}},
 			{"refuses another worktree", []string{"TestRecoveryReconcileRefusesAnotherWorktree"}},
 			{"an interrupted handoff is finished", []string{"TestMoveDetailInterruptedRecordIsFinishedByReconcile"}},
 			{"every declared effect survives interruption", []string{"TestReceiptGeneratedInterruptionsAtEveryDeclaredEffect"}},

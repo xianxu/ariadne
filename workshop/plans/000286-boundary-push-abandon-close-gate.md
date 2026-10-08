@@ -48,6 +48,40 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-08T16:23:27-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: not-addressed
+          note: Plan still cites landing.go:558, ghclient.go:149, landing.go:310, handoff.go:205 (pushIssueBranch has since moved to boundarypush.go).
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: TestBoundaryVerbsPushTheIssueBranch now runs a judged (stubJudge SHIP) M2 milestone-close and asserts origin == HEAD; removing close.go:1410 fails it.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: TestLandingDeletesTheRemoteBranch now runs a second runMerge with --branch after the remote branch is gone.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: landing.go:491 warning names `sdlc merge --branch B --yes`; the resume path reaches deleteRemoteBranch (exercised by the BR-3 test).
+          round: 3
+        - id: BR-5
+          disposition: addressed
+          note: boundaryPushTimeout plus process-group cancel in gitRaw; TestBoundaryPushIsBounded uses a sleeping pre-push hook.
+          round: 3
+      findings:
+        - id: BR-6
+          severity: Important
+          title: Reconcile's close-completion push (closetracker.go:149) and start-plan's rerun push have no regression test
+          detail: '2nd in family. Rule: every boundary-push call site needs an origin assertion that fails when that call is removed. Covered: startplan first run, milestoneclose.go:187, close.go:1410, closetracker.go:427, landing pr and merge. Uncovered: closetracker.go:149 (no proof row in the reconcile contract) and the plan''s start-plan-rerun test. Add both and list them in catalog Proofs.'
+          family: boundary-push-path-coverage
+          round: 3
+      boundary: M1
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#286 (boundary-review)
@@ -75,10 +109,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   Suggest naming `sdlc merge --branch B --yes`, which observation-resumes into deleteRemoteBranch.
 - **BR-5** [Minor] `operating-envelope-unbounded-io` A boundary push has no timeout, so a hanging network blocks the verb despite D2's warn-only intent
 
+## Round 3 — 2026-10-08T16:23:27-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — not-addressed — Plan still cites landing.go:558, ghclient.go:149, landing.go:310, handoff.go:205 (pushIssueBranch has since moved to boundarypush.go).
+- BR-2 — addressed — TestBoundaryVerbsPushTheIssueBranch now runs a judged (stubJudge SHIP) M2 milestone-close and asserts origin == HEAD; removing close.go:1410 fails it.
+- BR-3 — addressed — TestLandingDeletesTheRemoteBranch now runs a second runMerge with --branch after the remote branch is gone.
+- BR-4 — addressed — landing.go:491 warning names `sdlc merge --branch B --yes`; the resume path reaches deleteRemoteBranch (exercised by the BR-3 test).
+- BR-5 — addressed — boundaryPushTimeout plus process-group cancel in gitRaw; TestBoundaryPushIsBounded uses a sleeping pre-push hook.
+
+### Raised
+
+- **BR-6** [Important] `boundary-push-path-coverage` Reconcile's close-completion push (closetracker.go:149) and start-plan's rerun push have no regression test
+  2nd in family. Rule: every boundary-push call site needs an origin assertion that fails when that call is removed. Covered: startplan first run, milestoneclose.go:187, close.go:1410, closetracker.go:427, landing pr and merge. Uncovered: closetracker.go:149 (no proof row in the reconcile contract) and the plan's start-plan-rerun test. Add both and list them in catalog Proofs.
+
 ## Open findings
 
 - **BR-1** [Minor] `stale-line-anchor` runDurablePR is at landing.go:492 (plan says ~:558) and legacy --delete-branch at ghclient.go:154 (plan says :149)
-- **BR-2** [Important] `boundary-push-path-coverage` The judged milestone-close push (close.go:1409) has no regression test; only the --no-judge path is exercised
-- **BR-3** [Minor] `test-claim-exceeds-test` TestLandingDeletesTheRemoteBranch says it covers a resumed landing, but it runs only one merge
-- **BR-4** [Minor] `warning-names-recovery` Merge's remote-delete warning names no recovery command
-- **BR-5** [Minor] `operating-envelope-unbounded-io` A boundary push has no timeout, so a hanging network blocks the verb despite D2's warn-only intent
+- **BR-6** [Important] `boundary-push-path-coverage` Reconcile's close-completion push (closetracker.go:149) and start-plan's rerun push have no regression test

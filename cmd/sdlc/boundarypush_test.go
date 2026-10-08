@@ -166,3 +166,36 @@ func TestBoundaryPushIsBounded(t *testing.T) {
 		t.Fatalf("after %s: %q", elapsed, errs.String())
 	}
 }
+
+// #286: every boundary push site is pinned by its own test. A start-plan
+// rerun on the issue branch pushes it when origin lacks it.
+func TestStartPlanRerunPushes(t *testing.T) {
+	r, _, _ := startedHere(t)
+	r.git("push", "-q", "origin", "--delete", s09Branch)
+	var out bytes.Buffer
+	if err := startPlanBranch(context.Background(), &out, 9); err != nil {
+		t.Fatalf("rerun: %v\n%s", err, out.String())
+	}
+	if remoteTip(t, r, s09Branch) != r.git("rev-parse", "HEAD") {
+		t.Fatalf("the rerun did not push:\n%s", out.String())
+	}
+}
+
+// A FIX-THEN-SHIP close is finished by reconcile, which pushes the branch.
+func TestReconciledClosePushes(t *testing.T) {
+	r, _, _ := closeReady(t, 321)
+	branch := r.git("branch", "--show-current")
+	stubJudge(t, "VERDICT: FIX-THEN-SHIP (confidence: high)\n\nfix a nit\n")
+	if _, stderr, err := executeSDLCTestCommand("close", "--issue", "321", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project"); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	writeRepoFile(t, r.root, "cmd/a.go", "package a // fixed\n")
+	r.git("commit", "-qam", "#321: fix review finding")
+	var out, errs bytes.Buffer
+	if err := runRecoveryReconcile(context.Background(), &out, &errs, 321); err != nil {
+		t.Fatalf("reconcile: %v\n%s", err, errs.String())
+	}
+	if remoteTip(t, r, branch) != r.git("rev-parse", "HEAD") {
+		t.Fatalf("reconcile did not push the finished close:\n%s", errs.String())
+	}
+}
