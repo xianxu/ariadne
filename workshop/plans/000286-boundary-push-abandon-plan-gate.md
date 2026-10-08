@@ -52,6 +52,51 @@ rounds:
           family: unbacked-existing-behavior
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-08T15:51:35-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: D7 detects a rerun from the card's abandoned record before step 1; step 6 deletes the remote branch before switching; the test interrupts inside step 6.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: D9 writes the card (step 6) before deleting the ref (step 7), has a rerun check per step including MERGE_HEAD, and abandon step 3 accepts the orphan ref.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Step 5 reuses archiveDestination/archivedDetails generalized to terminal statuses (Task 4a) and moves plan files via planArtifactBelongsToIssue.
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          note: 'Non-goals section added: legacy repos and merge, done-reopen, non-owner abandon, archive-ref pruning.'
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          round: 2
+        - id: PQ-6
+          disposition: addressed
+          round: 2
+        - id: PQ-7
+          disposition: addressed
+          round: 2
+        - id: PQ-8
+          disposition: addressed
+          round: 2
+      blocked: false
+    - "n": 3
+      timestamp: "2026-10-08T15:52:28-07:00"
+      agent: claude
+      findings:
+        - id: PQ-9
+          severity: Minor
+          title: runDurablePR is at landing.go:492 (plan says ~:558) and legacy --delete-branch at ghclient.go:154 (plan says :149)
+          detail: The behavior claims are correct and only the line anchors have moved. Name the functions and drop the line numbers.
+          family: stale-line-anchor
+          round: 3
+      blocked: false
+content_hash: b191f4d3d07446a708b5e6f0ad405ed75177ab900a6dc500fc21a28017af5333
 ---
 
 # Gate ledger — ariadne#286 (plan-quality)
@@ -76,13 +121,26 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-7** [Minor] `operating-envelope` added network latency per boundary verb and offline behaviour are not stated
 - **PQ-8** [Minor] `unbacked-existing-behavior` Task 2's re-close after rebase assumes close can re-run on a codecomplete card; name the path or use milestone-close
 
+## Round 2 — 2026-10-08T15:51:35-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — D7 detects a rerun from the card's abandoned record before step 1; step 6 deletes the remote branch before switching; the test interrupts inside step 6.
+- PQ-2 — addressed — D9 writes the card (step 6) before deleting the ref (step 7), has a rerun check per step including MERGE_HEAD, and abandon step 3 accepts the orphan ref.
+- PQ-3 — addressed — Step 5 reuses archiveDestination/archivedDetails generalized to terminal statuses (Task 4a) and moves plan files via planArtifactBelongsToIssue.
+- PQ-4 — addressed — Non-goals section added: legacy repos and merge, done-reopen, non-owner abandon, archive-ref pruning.
+- PQ-5 — addressed
+- PQ-6 — addressed
+- PQ-7 — addressed
+- PQ-8 — addressed
+
+## Round 3 — 2026-10-08T15:52:28-07:00 (claude) — passed
+
+### Raised
+
+- **PQ-9** [Minor] `stale-line-anchor` runDurablePR is at landing.go:492 (plan says ~:558) and legacy --delete-branch at ghclient.go:154 (plan says :149)
+  The behavior claims are correct and only the line anchors have moved. Name the functions and drop the line numbers.
+
 ## Open findings
 
-- **PQ-1** [Important] `convergent-sequence-resume` abandon's rerun after a partial step 6 is refused by its own step-1 precondition
-- **PQ-2** [Important] `convergent-sequence-resume` reopen restore (D9) has no rerun design, and deletes the archive ref before the card CAS clears the record
-- **PQ-3** [Important] `reuse-archive-policy` abandon's main archive hardcodes history/issues/X instead of extending archiveDestination and archivedDetails, and ignores plan artifacts
-- **PQ-4** [Important] `stated-non-goals` no non-goals stated; boundary pushes are tracker-only but the Done-when says every boundary verb
-- **PQ-5** [Minor] `test-prose-enumeration` Tasks 1 and 5 enumerate test cases in prose; compress to one strategy line per risky function
-- **PQ-6** [Minor] `unstated-seam-change` set-status becomes an effect-heavy restore verb (fetch, merge, commit, push), and who may reopen is unstated
-- **PQ-7** [Minor] `operating-envelope` added network latency per boundary verb and offline behaviour are not stated
-- **PQ-8** [Minor] `unbacked-existing-behavior` Task 2's re-close after rebase assumes close can re-run on a codecomplete card; name the path or use milestone-close
+- **PQ-9** [Minor] `stale-line-anchor` runDurablePR is at landing.go:492 (plan says ~:558) and legacy --delete-branch at ghclient.go:154 (plan says :149)
