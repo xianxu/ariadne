@@ -5,10 +5,14 @@ import (
 	"context"
 	"errors"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
@@ -25,69 +29,85 @@ func handedOff(t *testing.T) *trackerRepo {
 	return r
 }
 
+const spinOffCard = "workshop/issue-cards/000008-spin-off.md"
+
+// The two workspaces of the guard fixtures: this checkout, and another slot.
+var (
+	thisSlot  = issue.Claimant{Operator: "me", Machine: issue.MachineFingerprint("m1"), MachineName: "box", Worktree: "/w/this", Repository: "r"}
+	otherSlot = issue.Claimant{Operator: "peer", Machine: issue.MachineFingerprint("m1"), MachineName: "box", Worktree: "/w/other", Repository: "r"}
+)
+
+// ownSpinOff makes this checkout thisSlot and records owner as #8's claimant.
+func ownSpinOff(t *testing.T, r *trackerRepo, owner issue.Claimant) {
+	t.Helper()
+	withClaimant(t, thisSlot)
+	env, err := openTrackerAt(context.Background(), r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := env.repo.ChangeCard("000008", spinOffCard, "fixture owner", operationToken("set"), func(c []byte) ([]byte, error) {
+		return issue.SetCardClaimant(c, owner)
+	}); err != nil {
+		t.Fatal(err)
+	}
+}
+
+const (
+	refuseNotOwner = "sdlc issue restore --issue 8"
+	refuseBehind   = "Merge main"
+)
+
 func TestTransferGuardOverBranchShapes(t *testing.T) {
 	for _, c := range []struct {
 		name   string
+		owner  bool
 		shape  func(t *testing.T, r *trackerRepo)
 		refuse string
 	}{
-		{"source branch after net-zero handoff", func(*testing.T, *trackerRepo) {}, ""},
-		{"source merged main then left details alone", func(t *testing.T, r *trackerRepo) {
+		{"source branch after net-zero handoff", false, func(*testing.T, *trackerRepo) {}, ""},
+		{"source merged main then left details alone", false, func(t *testing.T, r *trackerRepo) {
 			r.git("fetch", "-q", "origin")
 			r.git("merge", "-q", "--no-edit", "origin/main")
 		}, ""},
-		{"source re-adds its stale copy", func(t *testing.T, r *trackerRepo) {
-			stale := r.git("show", "HEAD~1:"+spinOffDetails)
-			writeRepoFile(t, r.root, spinOffDetails, stale+"\n")
-			r.git("add", spinOffDetails)
-			r.git("commit", "-qm", "re-add")
-		}, "conflicts"},
-		{"source deletes details after merging main", func(t *testing.T, r *trackerRepo) {
+		{"non-owner source re-adds its stale copy", false, reAddStale, refuseNotOwner},
+		{"owner's checkout re-adds a stale copy", true, reAddStale, refuseBehind},
+		{"non-owner deletes details after merging main", false, func(t *testing.T, r *trackerRepo) {
 			r.git("fetch", "-q", "origin")
 			r.git("merge", "-q", "--no-edit", "origin/main")
 			r.git("rm", "-q", spinOffDetails)
 			r.git("commit", "-qm", "drop details")
-		}, "would be deleted"},
-		{"source rewrites details after merging main", func(t *testing.T, r *trackerRepo) {
+		}, refuseNotOwner},
+		{"non-owner rewrites details after merging main", false, func(t *testing.T, r *trackerRepo) {
 			r.git("fetch", "-q", "origin")
 			r.git("merge", "-q", "--no-edit", "origin/main")
 			writeRepoFile(t, r.root, spinOffDetails, "rewritten\n")
 			r.git("commit", "-qam", "rewrite")
-		}, "would be overwritten"},
-		{"owner's own issue branch edits are exempt", func(t *testing.T, r *trackerRepo) {
-			r.git("fetch", "-q", "origin")
-			r.git("switch", "-q", "-c", "000008-spin-off", "origin/main")
-			writeRepoFile(t, r.root, spinOffDetails, "owner's next edit\n")
-			r.git("commit", "-qam", "owner works")
+		}, refuseNotOwner},
+		{"owner's edit on the issue branch", true, func(t *testing.T, r *trackerRepo) {
+			issueBranchEdit(t, r, "000008-spin-off")
 		}, ""},
-		{"main merges the owner's branch for a direct push", func(t *testing.T, r *trackerRepo) {
-			ownerBranchEdit(t, r)
+		// pair#365: the issue's branch name was retired; the owner lands anyway.
+		{"owner's edit on a renamed branch", true, func(t *testing.T, r *trackerRepo) {
+			issueBranchEdit(t, r, "000008-spin-off-close")
+		}, ""},
+		{"owner's local main merges the issue branch for a direct push", true, func(t *testing.T, r *trackerRepo) {
+			issueBranchEdit(t, r, "000008-spin-off")
 			r.git("switch", "-q", "-C", "main", "origin/main")
 			r.git("merge", "-q", "--no-ff", "--no-edit", "000008-spin-off")
 		}, ""},
-		{"a branch stacked on the owner's", func(t *testing.T, r *trackerRepo) {
-			ownerBranchEdit(t, r)
-			r.git("switch", "-q", "-c", "000012-stacked")
-			writeRepoFile(t, r.root, "stacked.go", "package stacked\n")
-			r.git("add", "stacked.go")
-			r.git("commit", "-qm", "stacked work")
+		{"owner's local main edits the details after that merge", true, func(t *testing.T, r *trackerRepo) {
+			issueBranchEdit(t, r, "000008-spin-off")
+			r.git("switch", "-q", "-C", "main", "origin/main")
+			r.git("merge", "-q", "--no-ff", "--no-edit", "000008-spin-off")
+			writeRepoFile(t, r.root, spinOffDetails, "the owner again\n")
+			r.git("commit", "-qam", "edit on main")
 		}, ""},
-		{"main merges a non-owner rewrite", func(t *testing.T, r *trackerRepo) {
-			r.git("fetch", "-q", "origin")
-			r.git("switch", "-q", "-c", "000013-meddler", "origin/main")
-			writeRepoFile(t, r.root, spinOffDetails, "rewritten by someone else\n")
-			r.git("commit", "-qam", "meddle")
+		{"non-owner's local main merges its rewrite", false, func(t *testing.T, r *trackerRepo) {
+			issueBranchEdit(t, r, "000013-meddler")
 			r.git("switch", "-q", "-C", "main", "origin/main")
 			r.git("merge", "-q", "--no-ff", "--no-edit", "000013-meddler")
-		}, "would be overwritten"},
-		{"main edits the details itself after merging the owner's work", func(t *testing.T, r *trackerRepo) {
-			ownerBranchEdit(t, r)
-			r.git("switch", "-q", "-C", "main", "origin/main")
-			r.git("merge", "-q", "--no-ff", "--no-edit", "000008-spin-off")
-			writeRepoFile(t, r.root, spinOffDetails, "not the owner's\n")
-			r.git("commit", "-qam", "edit on main")
-		}, "would be overwritten"},
-		{"unrelated branch", func(t *testing.T, r *trackerRepo) {
+		}, refuseNotOwner},
+		{"unrelated branch", false, func(t *testing.T, r *trackerRepo) {
 			r.git("fetch", "-q", "origin")
 			r.git("switch", "-q", "-c", "000011-other", "origin/main")
 			writeRepoFile(t, r.root, "other.go", "package other\n")
@@ -97,6 +117,11 @@ func TestTransferGuardOverBranchShapes(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			r := handedOff(t)
+			owner := otherSlot
+			if c.owner {
+				owner = thisSlot
+			}
+			ownSpinOff(t, r, owner)
 			c.shape(t, r)
 			err := guardTransferredDetails(context.Background())
 			if c.refuse == "" {
@@ -107,6 +132,52 @@ func TestTransferGuardOverBranchShapes(t *testing.T) {
 			}
 			if !errors.Is(err, errTransferredDetails) || !strings.Contains(err.Error(), c.refuse) {
 				t.Fatalf("want refusal %q, got %v", c.refuse, err)
+			}
+		})
+	}
+}
+
+// reAddStale keeps the filing branch's pre-handoff copy of #8's details.
+func reAddStale(t *testing.T, r *trackerRepo) {
+	stale := r.git("show", "HEAD~1:"+spinOffDetails)
+	writeRepoFile(t, r.root, spinOffDetails, stale+"\n")
+	r.git("add", spinOffDetails)
+	r.git("commit", "-qm", "re-add")
+}
+
+// An owner whose branch predates main's latest version of the details (another
+// slot published edit E) must merge main first, whether or not git could merge
+// the two edits cleanly; after the merge it lands.
+func TestTransferGuardOwnerBehindMainLatest(t *testing.T) {
+	for _, c := range []struct {
+		name     string
+		edit     func(before string) string
+		conflict bool
+	}{
+		{"edits merge cleanly", func(before string) string { return before + "\nThe owner's closing note.\n" }, false},
+		{"edits conflict", func(string) string { return "the owner's design\n" }, true},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			r := handedOff(t)
+			ownSpinOff(t, r, thisSlot)
+			r.git("fetch", "-q", "origin")
+			r.git("switch", "-q", "-c", "000008-spin-off", "origin/main~1")
+			writeRepoFile(t, r.root, spinOffDetails, c.edit(r.git("show", "HEAD:"+spinOffDetails)))
+			r.git("commit", "-qam", "owner edits")
+			err := guardTransferredDetails(context.Background())
+			if !errors.Is(err, errTransferredDetails) || !strings.Contains(err.Error(), refuseBehind) {
+				t.Fatalf("owner behind main's latest version: %v", err)
+			}
+			out, mergeErr := exec.Command("git", "-C", r.root, "merge", "-q", "--no-edit", "origin/main").CombinedOutput()
+			if (mergeErr != nil) != c.conflict {
+				t.Fatalf("fixture: merge conflict = %v, want %v: %s", mergeErr != nil, c.conflict, out)
+			}
+			if c.conflict {
+				writeRepoFile(t, r.root, spinOffDetails, "the owner's design, after E\n")
+				r.git("commit", "-qam", "merge main")
+			}
+			if err := guardTransferredDetails(context.Background()); err != nil {
+				t.Fatalf("owner after merging main: %v", err)
 			}
 		})
 	}
@@ -218,26 +289,33 @@ func TestTransferGuardProtectsAnUnrecordedPublication(t *testing.T) {
 	}
 }
 
-func TestTransferGuardRefusesMalformedHandoffRepoWide(t *testing.T) {
-	cardPath, card, _, _ := seededIssue(t, "000009", "nine")
-	oid := strings.Repeat("a", 40)
-	bad, err := issue.SetCardHandoff([]byte(card), issue.Handoff{Token: "move-x", Repository: "file:/x", SourceBranch: "refs/heads/x",
-		SourceBase: oid, SourceHEAD: oid, SourceBlob: oid, SourcePath: "../../etc/000009-nine.md", Destination: "../../etc/000009-nine.md", MainCommit: oid})
-	if err != nil {
-		t.Fatal(err)
-	}
-	newTrackerRepo(t, map[string]string{cardPath: string(bad)}, nil)
-	err = guardTransferredDetails(context.Background())
-	if err == nil || !strings.Contains(err.Error(), "#000009 is malformed") || !strings.Contains(err.Error(), "every PR, push and merge") {
-		t.Fatalf("malformed destination: %v", err)
-	}
-}
-
-// ownerBranchEdit is the claimed owner's design edit on the issue's own branch.
-func ownerBranchEdit(t *testing.T, r *trackerRepo) {
+// issueBranchEdit is an edit to #8's details on a fresh branch from main.
+func issueBranchEdit(t *testing.T, r *trackerRepo, branch string) {
 	t.Helper()
 	r.git("fetch", "-q", "origin")
-	r.git("switch", "-q", "-c", "000008-spin-off", "origin/main")
-	writeRepoFile(t, r.root, spinOffDetails, "owner's design\n")
-	r.git("commit", "-qam", "owner designs")
+	r.git("switch", "-q", "-c", branch, "origin/main")
+	writeRepoFile(t, r.root, spinOffDetails, "an edit on "+branch+"\n")
+	r.git("commit", "-qam", "edit on "+branch)
+}
+
+// #285: the owner is the card's claimant, never a branch. No command help and
+// neither guard refusal may say otherwise.
+func TestNoHelpCallsABranchTheOwner(t *testing.T) {
+	branchOwner := regexp.MustCompile(`(?i)owner'?s? (issue )?branch|owner branch|branch (is|as) the owner`)
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+		if m := branchOwner.FindString(c.Short + "\n" + c.Long); m != "" {
+			t.Errorf("`%s` help calls a branch the owner: %q", c.CommandPath(), m)
+		}
+	}
+	walk(buildRoot())
+	env := &trackerEnv{target: gitx.PublicationTarget{Remote: "origin"}}
+	for _, v := range []verdict{verdictNotOwner, verdictBehind} {
+		if m := branchOwner.FindString(detailsRefusal(env, changedDetail{ID: "000008", Path: spinOffDetails, Verdict: v}).Error()); m != "" {
+			t.Errorf("refusal %v calls a branch the owner: %q", v, m)
+		}
+	}
 }

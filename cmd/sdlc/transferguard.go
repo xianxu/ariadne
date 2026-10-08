@@ -1,20 +1,22 @@
-// transferguard.go — protect handed-off details at publication (#252). After
-// `issue move-detail`, the source branch's add-then-remove is net-zero, but a
-// branch that re-adds, deletes or rewrites the details (an unfinished removal,
-// a conflicting resolution, an edit from the wrong branch) would silently undo
-// the new owner's work when it lands. The prospective merge must leave every
-// handed-off issue's details exactly as main has them.
+// transferguard.go — optimistic concurrency on published details (#252, #285).
+// Once an issue's details are on main, a landing may change them only from the
+// owner's checkout (the card's claimant; commits don't carry it) and only from
+// a branch based on main's latest version of the file. Otherwise the
+// prospective merge must leave the file exactly as main has it. Branch names
+// play no part: a renamed or reopened issue branch lands from its owner.
 package main
 
 import (
 	"context"
 	"errors"
 	"fmt"
+	"os/exec"
 	"path"
+	"sort"
 	"strings"
 
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 // guardTransferredDetailsFn is the gates' seam: publish-gate unit fixtures model
@@ -22,13 +24,11 @@ import (
 // exercised against real remotes in transferguard_test.go.
 var guardTransferredDetailsFn = guardTransferredDetails
 
-// guardTransferredDetails checks HEAD's prospective merge into fresh main. The
-// claimed owner's edits are exempt, however they land: the issue's own branch,
-// or any HEAD (main after a local merge for a direct push, a stacked branch)
-// whose every change to the details since main was authored on that branch.
+// guardTransferredDetails refuses a landing (PR, push, merge) whose
+// prospective merge into fresh main changes published details it may not.
 func guardTransferredDetails(ctx context.Context) error {
 	// Decided before opening the tracker environment, which needs main's
-	// upstream: a legacy repository has no handoffs and needs no such setup.
+	// upstream: a legacy repository has no published-details protection.
 	if tracked, err := repositoryTracked(ctx, "."); err != nil || !tracked {
 		return err
 	}
@@ -36,175 +36,124 @@ func guardTransferredDetails(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	snap, err := env.repo.Snapshot()
-	if err != nil {
-		return err
-	}
 	view, err := env.main.Snapshot()
 	if err != nil {
 		return err
 	}
-	mainTip := view.Ref()
-	// An unreadable card may hide a handoff record (#288): fail closed, as
-	// for a malformed one.
-	if un := snap.Unreadable(); len(un) > 0 {
-		causes := make([]error, len(un))
-		for i, u := range un {
-			causes[i] = fmt.Errorf("tracker card #%s is malformed: %w", u.ID, u.Err)
+	changed, err := changedDetails(env, view.Ref())
+	if err != nil {
+		return err
+	}
+	var refusals []error
+	for _, c := range changed {
+		refusals = append(refusals, detailsRefusal(env, c))
+	}
+	return errors.Join(refusals...)
+}
+
+// changedDetail is one published details file a landing may not change as it
+// stands, with the verdict that says why.
+type changedDetail struct {
+	ID, Path string
+	Verdict  verdict
+}
+
+// changedDetails judges every issue details file that the prospective merge
+// of mainTip (fresh main) and HEAD changes, returning those it refuses
+// (sorted by path). guardTransferredDetails refuses them; `issue restore`
+// reverts them.
+func changedDetails(env *trackerEnv, mainTip string) ([]changedDetail, error) {
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	paths, err := prospectiveChanges(env, mainTip)
+	if err != nil {
+		return nil, err
+	}
+	// A details file is named after its card. An unreadable card's details
+	// cannot be judged (its owner is unknown): fail closed on those only.
+	cards := map[string]tracker.Record{}
+	for _, rec := range snap.Records() {
+		cards[path.Base(rec.Path)] = rec
+	}
+	unreadable := map[string]tracker.UnreadableCard{}
+	for _, u := range snap.Unreadable() {
+		unreadable[path.Base(u.Path)] = u
+	}
+	var out []changedDetail
+	for _, p := range paths {
+		name := path.Base(p)
+		if u, bad := unreadable[name]; bad {
+			return nil, fmt.Errorf("landing changes %s, but tracker card #%s is malformed: %w\n"+
+				"      the landing is refused until the card is repaired", p, u.ID, u.Err)
 		}
-		return fmt.Errorf("%w\n      every PR, push and merge in this repository is refused until the card is repaired", errors.Join(causes...))
+		rec, ok := cards[name]
+		if !ok {
+			continue // not an issue's details
+		}
+		last, err := env.git("rev-list", "-1", mainTip, "--", p)
+		if err != nil {
+			return nil, err
+		}
+		facts := detailsFacts{Published: last != ""}
+		if facts.Published {
+			own, _, _, err := ownership(env, rec)
+			if err != nil {
+				return nil, err
+			}
+			facts.Owner = own == issue.OwnershipMine
+			if facts.Based, err = env.ancestorOf(last, "HEAD"); err != nil {
+				return nil, err
+			}
+		}
+		if v := detailsVerdict(facts); v != verdictAccept {
+			out = append(out, changedDetail{ID: rec.ID, Path: p, Verdict: v})
+		}
+	}
+	return out, nil
+}
+
+// prospectiveChanges lists the paths whose content or presence in the merge
+// of mainTip and HEAD differs from mainTip. A conflicted path is among them:
+// merge-tree (exit 1) writes it with conflict markers.
+func prospectiveChanges(env *trackerEnv, mainTip string) ([]string, error) {
+	raw, err := env.gitRaw(nil, "merge-tree", "--write-tree", "--name-only", "--no-messages", "-z", mainTip, "HEAD")
+	var exit *exec.ExitError
+	if err != nil && !(errors.As(err, &exit) && exit.ExitCode() == 1) {
+		return nil, fmt.Errorf("compute the prospective merge with main: %w", err)
+	}
+	tree, _, _ := strings.Cut(string(raw), "\x00")
+	if tree == "" {
+		return nil, fmt.Errorf("compute the prospective merge with main: no tree (%v)", err)
+	}
+	diff, err := env.gitRaw(nil, "diff", "--name-only", "--no-renames", "-z", mainTip, tree)
+	if err != nil {
+		return nil, err
 	}
 	var paths []string
-	for _, rec := range snap.Records() {
-		h, ok, err := issue.CardHandoff(rec.Raw)
-		if err == nil && ok {
-			err = validHandoffDestination(h.Destination, rec.Path)
+	for _, p := range strings.Split(string(diff), "\x00") {
+		if p != "" {
+			paths = append(paths, p)
 		}
-		if err != nil {
-			return fmt.Errorf("tracker card #%s is malformed: %w\n"+
-				"      every PR, push and merge in this repository is refused until the card is repaired", rec.ID, err)
-		}
-		if !ok {
-			continue
-		}
-		owner := issue.BranchName(h.Destination)
-		if env.branch == owner {
-			continue
-		}
-		if owned, err := ownerAuthored(env, mainTip, h.Destination, owner); err != nil {
-			return err
-		} else if owned {
-			continue
-		}
-		// An interrupted handoff may have published to main before recording it
-		// on the card; the details on main are protected from that moment.
-		if h.MainCommit == "" {
-			onMain, err := env.has(mainTip, h.Destination)
-			if err != nil {
-				return err
-			}
-			if !onMain {
-				continue
-			}
-		}
-		paths = append(paths, h.Destination)
 	}
-	if len(paths) == 0 {
-		return nil
-	}
-	return checkTransferredPaths(env, mainTip, paths)
+	sort.Strings(paths)
+	return paths, nil
 }
 
-// ownerAuthored reports whether every commit in mainTip..HEAD that changes p
-// is on the owner's issue branch (local, or the publication remote's copy): the
-// changes a landing makes to handed-off details are then the owner's own work.
-// No such commit at all is false — the merge check below then has nothing of
-// HEAD's to object to anyway.
-func ownerAuthored(env *trackerEnv, mainTip, p, owner string) (bool, error) {
-	touched, err := env.git("rev-list", mainTip+"..HEAD", "--", p)
-	if err != nil {
-		return false, err
-	}
-	commits := strings.Fields(touched)
-	if len(commits) == 0 {
-		return false, nil
-	}
-	var refs []string
-	for _, ref := range []string{"refs/heads/" + owner, gitx.RemoteTrackingRef(env.target.Remote, owner)} {
-		present, err := env.gitTest("rev-parse", "--verify", "-q", ref+"^{commit}")
-		if err != nil {
-			return false, err
-		}
-		if present {
-			refs = append(refs, ref)
-		}
-	}
-	for _, c := range commits {
-		on := false
-		for _, ref := range refs {
-			if on, err = env.ancestorOf(c, ref); err != nil {
-				return false, err
-			} else if on {
-				break
-			}
-		}
-		if !on {
-			return false, nil
-		}
-	}
-	return true, nil
-}
+var errTransferredDetails = errors.New("landing would change published issue details")
 
-// checkTransferredPaths compares each handed-off path in the merge result of
-// main and HEAD against main. A conflict, deletion, re-addition or rewrite refuses.
-func checkTransferredPaths(env *trackerEnv, mainTip string, paths []string) error {
-	out, err := env.git("merge-tree", "--write-tree", "--name-only", "--no-messages", mainTip, "HEAD")
-	lines := strings.Split(out, "\n")
-	if lines[0] == "" {
-		return fmt.Errorf("compute the prospective merge with main: %v", err)
+// detailsRefusal names the next action for one refused change: a non-owner
+// restores main's version (or claims the issue to keep the edit); the owner
+// merges main and resolves the prose.
+func detailsRefusal(env *trackerEnv, c changedDetail) error {
+	issueStr := issue.CLIRef(c.ID)
+	if c.Verdict == verdictNotOwner {
+		return fmt.Errorf("%w: %s, from a checkout that does not own #%s.\n"+
+			"      Restore main's version with `sdlc issue restore --issue %s`; to keep the edit, `sdlc claim --issue %s` first",
+			errTransferredDetails, c.Path, issueStr, issueStr, issueStr)
 	}
-	result := lines[0]
-	if err != nil {
-		// Exit 1: conflicts, listed after the tree. A conflict on a handed-off
-		// path means the landing would need a resolution that could lose it.
-		for _, conflicted := range lines[1:] {
-			for _, p := range paths {
-				if conflicted == p {
-					return transferRefusal(p, "conflicts with main's copy")
-				}
-			}
-		}
-	}
-	for _, p := range paths {
-		onMain, err := env.has(mainTip, p)
-		if err != nil {
-			return err
-		}
-		inResult, err := env.has(result, p)
-		if err != nil {
-			return err
-		}
-		var want, got string
-		if onMain {
-			if want, err = env.git("rev-parse", "--verify", mainTip+":"+p); err != nil {
-				return err
-			}
-		}
-		if inResult {
-			if got, err = env.git("rev-parse", "--verify", result+":"+p); err != nil {
-				return err
-			}
-		}
-		switch {
-		case !onMain && !inResult:
-			continue // absent on both (archived by its owner)
-		case !inResult:
-			return transferRefusal(p, "would be deleted")
-		case !onMain:
-			return transferRefusal(p, "would be re-added after its owner archived it")
-		case want != got:
-			return transferRefusal(p, "would be overwritten")
-		}
-	}
-	return nil
-}
-
-// validHandoffDestination checks untrusted card data before it is used as a
-// path and as the exemption key: a clean repository-relative details path
-// named after the card.
-func validHandoffDestination(dest, cardPath string) error {
-	if dest == "" || path.IsAbs(dest) || path.Clean(dest) != dest || strings.HasPrefix(dest, "../") || dest == ".." ||
-		path.Base(dest) != path.Base(cardPath) || strings.ContainsAny(dest, "\\:*?[") {
-		return fmt.Errorf("handoff destination %q is not a details path for %s", dest, path.Base(cardPath))
-	}
-	return nil
-}
-
-var errTransferredDetails = errors.New("landing would change handed-off issue details")
-
-func transferRefusal(p, what string) error {
-	return fmt.Errorf("%w: %s %s by this branch.\n"+
-		"      Its details were handed off to main (`sdlc issue move-detail`) and may have a new owner.\n"+
-		"      Finish an interrupted handoff with `sdlc issue recovery reconcile --issue N`, or remove this\n"+
-		"      branch's change to %s (restore it to main's version)", errTransferredDetails, p, what, p)
+	return fmt.Errorf("%w: %s, from a branch not based on main's latest version of it.\n"+
+		"      Merge main (`git fetch %s && git merge %s/main`), resolve #%s's details, and rerun",
+		errTransferredDetails, c.Path, env.target.Remote, env.target.Remote, issueStr)
 }

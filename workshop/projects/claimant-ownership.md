@@ -50,7 +50,7 @@ Order: model first, done properly, with no fast-track for pair#365. #287 is inde
   - [x] `issue publish`, open unclaim, `issue sync` retirement [ariadne#284 M2]
   - [x] Handoff and takeover [ariadne#284 M3]
   - [x] `sdlc state` owner, claim age, views [ariadne#284 M4]
-- [ ] Transfer guard: owner plus based-on-latest [ariadne#285]
+- [x] Transfer guard: owner plus based-on-latest [ariadne#285]
 - [ ] Boundary pushes and sdlc abandon [ariadne#286]
 - [ ] Reconcile merges done outside sdlc [ariadne#287]
 

@@ -1,12 +1,22 @@
 ---
 id: 000285
-status: open
+status: codecomplete
 deps: [ariadne#283]
 github_issue:
 created: 2026-10-02
-updated: 2026-10-02
+updated: 2026-10-08
 estimate_hours:
-card_mirror: 'bd21c617969322579484cf734fbf6984b1165508' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '58348e9a40b3f0d3820a97cbe7f8bc5f63f9d491' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-08T13:01:20-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 1.12
 ---
 
 # Transfer guard: owner plus based-on-latest
@@ -34,8 +44,31 @@ Resolution: when a non-owner branch changed details, sdlc restores main's versio
 
 ## Plan
 
-- [ ] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
+- [x] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
+- [x] Durable plan: `workshop/plans/000285-transfer-guard-owner-latest-plan.md` (full flow: guard rewrite + `issue restore` exceed the quick-flow code limit). Single close, no Mx.
+  - [x] Task 1: pure verdict
+  - [x] Task 2: collector + guard rewrite
+  - [x] Task 3: `sdlc issue restore`
+  - [x] Task 4: pair#365 end to end
+  - [x] Task 5: retire owner-as-branch wording; atlas
 
 ## Log
 
+### 2026-10-08
+- 2026-10-08: closed — make test green except processgroup TestCancellationKillsDescendants (sandbox-only; passes unsandboxed, untouched). Done-when: TestCloseOnARenamedBranchAfterAnOutsideMergeLands (pair#365); TestIssueRestoreMakesAStaleFilingBranchLand + non-owner guard rows; TestTransferGuardOwnerBehindMainLatest; TestNoHelpCallsABranchTheOwner. Round-1 minors fixed: TestIssueRestoreRefusesTheOwnersOwnEdit.; review verdict: SHIP
+- 2026-10-08: closed — make test green except processgroup TestCancellationKillsDescendants (sandbox-only; passes unsandboxed, untouched). Done-when: TestCloseOnARenamedBranchAfterAnOutsideMergeLands (pair#365: outside merge, close on <branch>-close, pr, merge -> done; fails at sdlc pr with branch-name ownership restored); TestIssueRestoreMakesAStaleFilingBranchLand + TestTransferGuardOverBranchShapes non-owner rows (refusal offers restore, restore lands); TestTransferGuardOwnerBehindMainLatest (clean + conflicting, refused with merge-main, lands after merge); TestNoHelpCallsABranchTheOwner (all help + refusals). Mutation-checked owner/based/published facts.; review verdict: SHIP
+- 2026-10-08: flow upgraded quick → full — 315 added lines in code files (limit 100); an earlier round of this close already ran the full review
+
+Claimed in ariadne:2, start-plan. Design (plan D1–D7): protected set widens from handed-off to every *published* details file (main's history touched it); "changes" = prospective merge differs from main; owner = card claimant via `ownership()` (ARCH: branch names out entirely); based-on-latest = HEAD contains main's last commit to the path (Spec's literal condition, not a content compare); not-owner refusal offers a new narrow `sdlc issue restore --issue N`, owner-behind says merge main. Unreadable-card fail-closed narrows from repo-wide to the changed paths' cards. Survey: "owner = branch" lives only in `transferguard.go`; nothing else on close → pr → merge keys on the issue's branch name, so pair#365 is the guard alone.
+
 ### 2026-10-02
+
+Task 2: guard rewritten (`changedDetails` + `detailsRefusal`; `ownerAuthored`/`checkTransferredPaths`/`validHandoffDestination` gone). Mutation checks: forcing owner=true fails the four non-owner rows; forcing based=true first survived because every behind fixture also conflicted, so I added a clean-merge behind case, which now catches it; forcing published=false fails four tests. The Conflict fact was unobservable, so I dropped it (plan Revisions). Lesson-worthy: a behind check whose only fixtures also trip another check is vacuous (fits the existing 'each rejection row asserts its own check' lesson; no new entry).
+
+Task 3: `issue restore` shipped. The archived case found that merge-tree follows an archive's rename, so a stale edit to `workshop/issues/X` surfaces as a change to `workshop/history/issues/X`. Restore therefore makes every copy of a flagged issue's details equal main's (diff main..HEAD by basename), not only the path the guard named.
+
+Task 4: `TestCloseOnARenamedBranchAfterAnOutsideMergeLands` (pair365_e2e_test.go): outside merge leaves the card working, close on `<branch>-close`, `pr --dry-run`, `merge` → card done. Restoring branch-name ownership in the guard fails it at `sdlc pr`, as pair#365 did. No other branch-name dependency surfaced.
+
+Task 5: `TestNoHelpCallsABranchTheOwner` walks every command's help and both refusals (mutation-checked); its one hit was `move` help ("moving an issue branch is the owner relocating"), reworded to name the claimant. Atlas: the transfer-guard paragraph, the unreadable-card bullet (now scoped) and an `issue restore` verb row. `make test` also required (a) a recovery contract for `issue restore`. Writing it exposed that an interrupted restore (file reset, no commit) would refuse its own rerun as dirty, so restore now accepts a file already holding main's version (`TestIssueRestoreResumesAnInterruptedRestore`); and (b) the decimal-ID hint lint (`issueStr` idiom). make test: all green except processgroup `TestCancellationKillsDescendants`, which fails sandboxed only and passes unsandboxed (untouched here).
+
+Close review round 1: SHIP with three advisory Minors, all fixed in round: (1) `issue restore` would also revert an owner's own behind edit, so it now refuses there with the merge-main action (`TestIssueRestoreRefusesTheOwnersOwnEdit`, contract proof added); (2) the atlas transfer-guard paragraph was split from the recovery sentence; (3) set-status reopen help now says the Log entry lands only from the owner's checkout. The first close attempt got an `unknown` verdict because the sandbox blocked the reviewer's API host; reran with it allowed.
