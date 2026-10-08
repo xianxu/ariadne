@@ -225,8 +225,8 @@ func migrationBranchRefs(env *migrateEnv) ([]string, error) {
 	}
 	skip := map[string]bool{
 		"refs/heads/main": true, "refs/heads/" + env.resting: true,
-		"refs/remotes/" + remote + "/main": true, "refs/remotes/" + remote + "/HEAD": true,
-		"refs/heads/" + vocab.Issue().Discovery().Tracker: true, "refs/remotes/" + remote + "/" + vocab.Issue().Discovery().Tracker: true,
+		gitx.RemoteTrackingRef(remote, "main"): true, gitx.RemoteTrackingRef(remote, "HEAD"): true,
+		"refs/heads/" + vocab.Issue().Discovery().Tracker: true, gitx.RemoteTrackingRef(remote, vocab.Issue().Discovery().Tracker): true,
 	}
 	var refs []string
 	for _, ref := range strings.Fields(out) {

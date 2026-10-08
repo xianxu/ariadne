@@ -187,11 +187,27 @@ func blobWireBytes(oid string, size int) int {
 // validateReplacement checks the exact response size after replacing one
 // existing card. The object format and entry count do not change on update.
 func (s Snapshot) validateReplacement(current Record, raw []byte) error {
-	if len(raw) > gitx.SnapshotBlobLimit {
-		return fmt.Errorf("%w: tracker blob %s", gitx.ErrOutputLimit, current.Path)
+	return s.validateReplacements([]replacement{{current, raw}})
+}
+
+// replacement is one card's new bytes over the record it replaces.
+type replacement struct {
+	current Record
+	raw     []byte
+}
+
+// validateReplacements checks every replacement's blob limit and that the
+// snapshot, with all of them applied, stays within the read budget (#284:
+// a set changes several cards in one commit).
+func (s Snapshot) validateReplacements(rs []replacement) error {
+	wire := s.wireBytes
+	for _, r := range rs {
+		if len(r.raw) > gitx.SnapshotBlobLimit {
+			return fmt.Errorf("%w: tracker blob %s", gitx.ErrOutputLimit, r.current.Path)
+		}
+		wire += blobWireBytes(r.current.BlobOID, len(r.raw)) - blobWireBytes(r.current.BlobOID, len(r.current.Raw))
 	}
-	remaining := s.wireBytes - blobWireBytes(current.BlobOID, len(current.Raw))
-	if blobWireBytes(current.BlobOID, len(raw)) > gitx.SnapshotOutputLimit-remaining {
+	if wire > gitx.SnapshotOutputLimit {
 		return fmt.Errorf("%w: tracker replacement exceeds batch budget", gitx.ErrOutputLimit)
 	}
 	return nil

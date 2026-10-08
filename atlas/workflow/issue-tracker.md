@@ -45,10 +45,28 @@ card field.
   milestone-close alike, before any review).
   - It passes the owner.
   - It refuses another workspace's issue, naming the owner.
-  - It refuses an unattributed working card (claimed before #277) toward
-    `sdlc claim --issue N --adopt`.
-- **Adopt** writes a claimant only on an unattributed working or blocked
-  card, and never reassigns.
+  - It refuses an unowned started card (released, or claimed before #277)
+    toward a plain `sdlc claim --issue N`, which takes it over.
+- **Takeover (#284)** is a plain claim of an unowned started card; it never
+  reassigns an owned one. `--adopt` is its retired alias.
+- **Handoff (#284).** Unclaiming started work runs from the issue's branch with
+  a clean tree (`handoff.go` `runHandoff`). It commits the optional note,
+  pushes the branch leased on the copy this checkout last fetched (the owner
+  is its only writer, but an unseen remote tip is never overwritten), records
+  `release {by, branch, head}` on the card while clearing the claimant, and
+  returns the checkout to rest. A claim elsewhere runs `prepareTakeover` before
+  any effect:
+  - the branch must be the issue's own and pass `check-ref-format`;
+  - the checkout must be a clean resting branch;
+  - the fetched tip must equal `head`;
+  - any local copy must not have diverged.
+  The takeover's card write refuses if the release moved on since the fetch.
+  `finishTakeover` then sets the branch at that tip and checks it out. Reruns
+  finish a lost card write or a lost switch: the handoff by recognising its own
+  release, the takeover by resuming on the branch as the remote has it (the
+  spent release no longer names the tip). The pushed branch is the issue's
+  own, so it goes away with the issue's landing (#286's remote cleanup) or
+  `abandon`.
 - **set-status** into `working` records the claimant like claim does. It
   refuses on another workspace's card even with `--force`.
 - **Relocation** is the owner moving its own work on the same machine
@@ -234,13 +252,15 @@ The publication remote is the resting branch's upstream
 | Verb | Card (tracker) | Details (checkout) | Main |
 |---|---|---|---|
 | `issue new` | reserved at `max(id)+1`, own commit; reallocates after a proven race | written locally; narrow commit on a feature branch, uncommitted on rest | untouched |
-| `claim` | claimant by CAS, status unchanged (#283); the owner's repeat is a no-op, others refuse (#277) | mirror refreshed (never on rest) | must already hold the details, re-checked before push |
+| `claim` | claimant by CAS, status unchanged (#283); a set `--issue a,b` is one all-or-nothing tracker commit (`tracker.ChangeCards`, #284); the owner's repeat is a no-op, others refuse (#277) | mirror refreshed (never on rest); rest fast-forwards to main after claiming (#284) | must already hold the details, re-checked before push |
+| `unclaim` | claimant cleared and a release recorded (who let go) by one CAS over the set; status unchanged (#284) | an open claim's unpublished edits are published first (`issue publish`) | republished details, if any |
 | `start-plan` | owned by this workspace (#277); open → working by CAS after the branch is ready (#283) | branch `<details stem>` created at pinned main from a rest clean except for this issue's own details, which ride along (#283); an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
 | `change-code` | read (mirror refresh before gates); owner only (#277), started only (#283) | design committed narrowly on the issue branch | never published |
 | `close` | codecomplete bound to the evidence commit | evidence commit, then a mirror commit (#275) | never published |
 | `issue show --json` | read: one card (fresh, else stale with its reason) | read at the issue branch or main's archive | read (archive) — writes nothing (#279) |
 | `reclaim` | owned card's claimant (any holdable status, an open shaping claim included, #283) → this workspace by CAS on the inspected revision; trailers record from/to/reason (#278) | mirror refreshed (never on rest) | untouched |
 | `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
+| `issue publish` | first publication: as `move-detail`; republish: ownership re-checked before the push, card untouched (#284) | rest fast-forwards (bringing a moved main in by three-way merge first); the issue's own branch commits the published bytes; another issue's branch takes its copy back | one narrow commit for the set's edits, never over a moved main copy or conflict markers |
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
 
 `move-detail` is add-then-remove relative to a merge base without the file, so
@@ -252,6 +272,23 @@ conflict with, delete, re-add or rewrite them (`transferguard.go`); the issue's
 own branch is exempt. `sdlc issue recovery list|reconcile` resumes stopped
 operations, probing before repeating anything; a creation that published
 nothing is released rather than re-rendered.
+
+## Publishing details (#284)
+
+`sdlc issue publish --issue N[,N…]` (`issuepublish.go`, `republish.go`) is how details reach main without shipping a branch. Per issue:
+- **First publication** (details not on main): `move-detail`'s receipt-driven transfer. It needs no owner, and the issue becomes claimable.
+- **Republish** (details on main): the owner only. `republishDecision` judges the details *bodies*: the local copy against the one at this checkout's merge base with main, and main's. The frontmatter carries the card mirror, which differs by design.
+  - main unchanged since the base → published;
+  - equal → nothing to publish;
+  - main moved → on a resting branch, `bringMainIn` merges main into the edit three ways (`git merge-file`), sets the edits aside (all or nothing, with copies under `<git-dir>/sdlc/publish-aside/`), fast-forwards and writes the merge back. A clean merge publishes; a conflict leaves markers, and a body with markers is never published. Off a resting branch, the refusal names steps that run from that state (`movedMainRefusal`).
+  - The set's edits go in one main commit through the `mainPublish` seam. The prepare step re-judges main on every attempt, and ownership is re-checked against a fresh tracker read in `beforePush`.
+- `finishPublished` then fast-forwards a resting branch (it never carries the edits as commits), commits the same bytes on the issue's own branch, or takes another issue's branch's copy back (#272). It never overwrites a file changed since it was read. A rerun after a lost push response only finishes.
+- **Rules:**
+  - a resting branch only fast-forwards to main;
+  - `issue sync` is retired here (a pointer at git and `issue publish`);
+  - `unclaim` of an open claim publishes before it releases;
+  - every release records who let go (the envelope's `release`), so a rerun recognises its own;
+  - envelope rewrites keep unknown keys (`trackerEnvelope.Extra`).
 
 ## Readers and completion (M3)
 

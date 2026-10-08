@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"path"
 	"regexp"
 	"runtime"
 	"strings"
@@ -145,9 +144,10 @@ func ownership(env *trackerEnv, card tracker.Record) (issue.Ownership, issue.Cla
 const ownershipGateHelp = "OWNERSHIP (#277): this verb continues only an issue this workspace owns. That\n" +
 	"is the card's claimant, matched on repository, machine and worktree; a working\n" +
 	"status alone is not enough. Another workspace's issue is refused, naming the\n" +
-	"owner. An issue with no recorded owner is refused toward\n" +
-	"`sdlc claim --issue N --adopt`. Work that `sdlc move` brought here, whose\n" +
-	"owner update did not finish, is pointed to the `sdlc claim` repair."
+	"owner. An issue with no owner (released, #284, or claimed before #277) is\n" +
+	"refused toward `sdlc claim --issue N`, which takes it over. Work that\n" +
+	"`sdlc move` brought here, whose owner update did not finish, is pointed\n" +
+	"to the `sdlc claim` repair."
 
 // requireCardOwnership is the continuation gate (#277): start-plan,
 // change-code, close and milestone-close continue an issue only from the
@@ -163,7 +163,7 @@ func requireCardOwnership(env *trackerEnv, card tracker.Record) error {
 	case issue.OwnershipMine:
 		return nil
 	case issue.OwnershipUnknown:
-		return fmt.Errorf("#%s has no recorded owner (claimed before #277); if this workspace holds its work, record that with `sdlc claim --issue %s --adopt`", id, issue.CLIRef(id))
+		return fmt.Errorf("#%s has no owner (released, or claimed before #277); `sdlc claim --issue %s` takes it over", id, issue.CLIRef(id))
 	}
 	moved, err := relocatable(env, card, recorded, me)
 	if err != nil {
@@ -187,7 +187,7 @@ func relocatable(env *trackerEnv, card tracker.Record, recorded, me issue.Claima
 	if err != nil || move == nil {
 		return false, err
 	}
-	branch := strings.TrimSuffix(path.Base(card.Path), ".md")
+	branch := issue.BranchName(card.Path)
 	holds, err := worktreeHoldsBranch(recorded.Worktree, branch)
 	if err != nil {
 		return false, err
@@ -218,7 +218,7 @@ func relocateClaimant(env *trackerEnv, card tracker.Record, me issue.Claimant) e
 	if err != nil {
 		return err
 	}
-	err = uncertainCardWrite(cardPublish(env, card, next, operationToken("relocate"), nil, nil), fmt.Sprintf("sdlc claim --issue %s", issue.CLIRef(card.ID)))
+	err = uncertainCardWrite(cardPublish(env, card, next, operationToken(tracker.OpRelocate), nil, nil), fmt.Sprintf("sdlc claim --issue %s", issue.CLIRef(card.ID)))
 	invalidateIssueRecords(env.ctx)
 	if err != nil && !errors.Is(err, tracker.ErrNoChange) {
 		return err

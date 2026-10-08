@@ -1,6 +1,6 @@
-// cardpublish.go — the one publication path for verbs whose whole effect is a
-// single card compare-and-swap (#280): claim, adopt, relocation, reclaim and
-// the card setters. One seam means one place a lost-acknowledgement test
+// cardpublish.go — the publication paths for verbs whose whole effect is a
+// card compare-and-swap (#280): one card (adopt, relocation, reclaim, the card
+// setters) or a set decided together in one tracker commit (#284: claim). One seam means one place a lost-acknowledgement test
 // injects, and one wording for what an uncertain outcome means.
 package main
 
@@ -19,6 +19,16 @@ var cardPublish = func(env *trackerEnv, expected tracker.Record, next []byte, to
 		beforePush = func(string, string) error { return nil }
 	}
 	return env.repo.UpdateCardWithTrailers(expected, next, token, trailers, beforePush)
+}
+
+// cardsPublish publishes a decision over several cards in one tracker commit,
+// re-deciding over fresh bytes on every attempt (#284). Its callers are pinned
+// by TestCardPublishCallers.
+var cardsPublish = func(env *trackerEnv, ids []string, token string, trailers []string, decide func(map[string]tracker.Record) (map[string][]byte, error), beforePush func(base, candidate string) error) error {
+	if beforePush == nil {
+		beforePush = func(string, string) error { return nil }
+	}
+	return env.repo.ChangeCards(ids, token, trailers, decide, beforePush)
 }
 
 // uncertainCardWrite turns a lost publication response into the recovery

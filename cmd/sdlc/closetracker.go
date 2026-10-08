@@ -265,7 +265,7 @@ func closeEvidence(env *trackerEnv, r closeResult, plansDir string) ([]tracker.E
 		return nil, err
 	}
 	paths := []string{details}
-	stem := strings.TrimSuffix(filepath.Base(r.issuePath), ".md")
+	stem := issue.Stem(r.issuePath)
 	if plans, err := rel(plansDir); err == nil {
 		changed, err := env.statusEntries(env.root, "--untracked-files=all", "--", path.Join(plans, stem+"-*"))
 		if err != nil {

@@ -119,7 +119,7 @@ func TestTrackerFullSlotCycle(t *testing.T) {
 	mustSlotRun(t, slot1, "start-plan", "--issue", "2")
 	branch := git(t, slot1, "branch", "--show-current")
 	designed(t, slot1, detail2)
-	mustSlotRun(t, slot1, "issue", "sync", "--issue", "2")
+	git(t, slot1, "commit", "-qm", "#2: plan: design", "--", detail2) // #284: details are committed with git
 	mustSlotRun(t, slot1, "change-code", "--issue", "2", "--worktree=no", "--no-judge", "--no-estimate", "--no-estimate-recon")
 	writeRepoFile(t, slot1, "cmd/x.go", "package x\n")
 	git(t, slot1, "add", "cmd/x.go")

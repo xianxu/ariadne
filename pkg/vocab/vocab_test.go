@@ -254,7 +254,11 @@ func TestOwnershipAxis(t *testing.T) {
 			t.Errorf("%q is an ownership event; it must not be a lifecycle event", ev)
 		}
 	}
+	if mv := m.OwnershipEvent("move"); mv == nil || !contains(mv.Statuses, "open") {
+		t.Fatal("#284: move must cover an open (shaping) claim")
+	}
 	if tr := m.TransitionFor("open", "working"); tr == nil || tr.Event != "start" {
+
 		t.Fatalf("open→working must be event start, got %+v", tr)
 	}
 	if m.TransitionForEvent("open", "start") == nil || m.TransitionForEvent("working", "start") != nil {

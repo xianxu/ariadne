@@ -24,9 +24,8 @@ TWO STEPS
   Reclaimable: any issue whose status holds a lock (open, working, blocked,
   codecomplete — the model's holdable statuses, #283) with a recorded owner,
   including an open issue a slot claimed to shape. An unowned open issue is
-  claimed (`sdlc claim`). An issue with no recorded owner is
-  adopted (`sdlc claim --issue N --adopt`). A terminal issue has nothing to
-  own.
+  claimed (`sdlc claim`), and so is unowned started work, which a plain claim
+  takes over (#284). A terminal issue has nothing to own.
 
 GUARANTEES
 
@@ -69,5 +68,5 @@ EXAMPLES
 RELATED
 
   sdlc claim              take the lock on an issue (records its claimant)
-  sdlc claim --adopt      record an owner for work claimed before #277
+  sdlc unclaim            the owner's own release (a handoff for started work)
   sdlc move               relocate your own issue branch between slots

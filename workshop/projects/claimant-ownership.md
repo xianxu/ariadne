@@ -45,10 +45,68 @@ Order: model first, done properly, with no fast-track for pair#365. #287 is inde
 
 - [x] Model: claimant lock, status as lifecycle, slot/operator terminology [ariadne#283]
 - [x] Pin the rebase-aware close rule: e2e test and atlas [ariadne#301]
-- [ ] Claims: multi-claim, publish, handoff, takeover [ariadne#284]
+- [x] Claims: multi-claim, publish, handoff, takeover [ariadne#284]
+  - [x] Atomic multi-claim and refresh on claim [ariadne#284 M1]
+  - [x] `issue publish`, open unclaim, `issue sync` retirement [ariadne#284 M2]
+  - [x] Handoff and takeover [ariadne#284 M3]
+  - [x] `sdlc state` owner, claim age, views [ariadne#284 M4]
 - [ ] Transfer guard: owner plus based-on-latest [ariadne#285]
 - [ ] Boundary pushes and sdlc abandon [ariadne#286]
 - [ ] Reconcile merges done outside sdlc [ariadne#287]
+
+<a id="ariadne-284-m1"></a>
+### ariadne#284 M1 — Atomic multi-claim and refresh on claim
+
+**est:** ~1.1h (M1's share of #284's 6.1h)
+**actual:** 1.15h
+**closed:** 2026-10-07
+
+What shipped:
+- `tracker.ChangeCards` writes N cards in one tracker commit and re-decides every card over the bytes each attempt reads; the single-card `UpdateCard` could only refuse a changed card.
+- `claim --issue a,b,c` uses it through a `cardsPublish` seam and a pure `claimSetDecision`. A peer claiming a member fails the set whole; a benign change to a member is re-decided and the set lands.
+- After the card lands, claim fast-forwards a resting branch to main, or names each issue whose details body differs from main's.
+
+Decision worth keeping: compare details *bodies*, never whole files, because claim's mirror refresh rewrites the frontmatter by design.
+
+<a id="ariadne-284-m2"></a>
+### ariadne#284 M2 — `issue publish`, open unclaim, `issue sync` retirement
+
+**est:** ~1.3h (M2's share of #284's 6.1h)
+**closed:** 2026-10-07
+**actual:** 0.47h
+
+What shipped:
+- `issue publish --issue a,b` replaces both of the old publication paths: first publication (`move-detail`, no owner needed) and the owner's later edits.
+  - A republish goes in one narrow main commit, judged on details bodies against the checkout's merge base, so it never overwrites a main copy that moved.
+  - Ownership is re-checked before the push.
+  - Afterwards a resting branch fast-forwards and an issue branch commits the same bytes.
+- `unclaim` releases open claims after publishing their edits.
+- The `release` record (who let go) and an envelope that keeps unknown keys were pulled forward from M3, because unclaim's rerun depends on them.
+- The audit retired `issue sync` in tracker repositories: it was only `git commit -- <details>`. AGENTS.base gained the resting-branch rule.
+
+<a id="ariadne-284-m3"></a>
+### ariadne#284 M3 — Handoff and takeover
+
+**est:** ~1.5h (M3's share of #284's 6.1h, after Task 8 moved into M2)
+**closed:** 2026-10-07
+**actual:** 2.75h
+
+What shipped:
+- Unclaiming started work is a handoff: from the issue's branch with a clean tree, it commits the note, pushes the branch with a lease, and records the release's branch and tip.
+- A plain claim elsewhere takes it over. Every check runs before the card write: branch name, clean resting branch, fetched tip equal to the recorded head, no diverged local copy. Then it checks out exactly that tip.
+- `--adopt` folds into claim, since unowned started work, released or claimed before #277, is just taken over.
+- In the model, `move` covers open claims, which closed #283's moved-open repair.
+
+Decision worth keeping: the handoff returns the releasing checkout to rest, because a branch checked out in one worktree can't be checked out in another on the same machine.
+
+<a id="ariadne-284-m4"></a>
+### ariadne#284 M4 — `sdlc state` owner, claim age, views
+
+**est:** ~0.7h (M4's share of #284's 6.1h)
+**closed:** 2026-10-07
+**actual:** 0.7h
+
+What shipped: `sdlc state` shows each issue's owner (the slot) and claim age, then claims grouped by slot and by operator. The age comes from tracker history: `tracker.ClaimTimes` streams one `git log` and stops once every owned card is resolved, keyed on claim-kind operation tokens and bounded at 5000 commits (a card whose owner predates operation trailers has no claim commit to find; past the bound its age is unknown). Card writes already record their operation, so this needs no new card field, which kept older binaries' strict claimant parse safe.
 
 ## Log
 
@@ -60,3 +118,7 @@ Promoted from #283 after a four-round design discussion with the operator (decis
 
 #283 landed (PR #161), but landing it needed a scope revision: a close now survives a rebase (`completeop.go` `newestClose` treats a binding that the rebase rewrote off the branch as replaced). Its final review left two advisory Minors: no end-to-end test pins the close/reconcile wiring, and the atlas lacks the rule. Filed as #301 and added to scope at the operator's request. It's next in line, ahead of #284.
 
+[ariadne#284 M1]: #ariadne-284-m1
+[ariadne#284 M2]: #ariadne-284-m2
+[ariadne#284 M3]: #ariadne-284-m3
+[ariadne#284 M4]: #ariadne-284-m4

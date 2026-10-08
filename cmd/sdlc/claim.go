@@ -57,6 +57,9 @@ type claimFlags struct {
 	NoPush bool
 	// AllowNoChanges lets automatic callers leave previously authored commits local.
 	AllowNoChanges bool
+	// Issues is claim's --issue list (#284): the set claimed in one tracker
+	// commit. Issue stays the single ID that `issue new` and sync build with.
+	Issues []int
 }
 
 // NewClaimCmd returns the cobra command for `sdlc claim`.
@@ -73,10 +76,11 @@ func NewClaimCmd() *cobra.Command {
 			return runClaim(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
 		},
 	})
-	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID to reserve (required)")
+	cmd.Flags().IntSliceVar(&f.Issues, "issue", nil, "issue ID(s) to claim, one tracker commit for the set (required): --issue 284 or --issue 284,285")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print what would happen; do not commit/push")
-	cmd.Flags().BoolVar(&f.Adopt, "adopt", false, "record this workspace as owner of a working issue that has none (claimed before #277)")
+	cmd.Flags().BoolVar(&f.Adopt, "adopt", false, "retired: a plain claim takes over unowned started work (#284)")
+	_ = cmd.Flags().MarkHidden("adopt")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
 	cmd.Flags().BoolVar(&f.NoStart, "no-start", false, "retired; use issue publish --commit SHA for documentation")
 	_ = cmd.Flags().MarkHidden("no-start") // retired: refused, kept only to explain itself
@@ -91,13 +95,20 @@ var claimRunner gitRunner = execGitRunner{}
 // only once its creation is complete — its details have landed on main — so a
 // card-only or local-only issue can never be worked by a second thread.
 func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) error {
+	nums := claimIssues(f)
 	if tracked, err := repositoryTracked(ctx, f.IssuesDir); err != nil {
 		return err
 	} else if !tracked {
+		if len(nums) > 1 {
+			return fmt.Errorf("a legacy repository claims one issue at a time")
+		}
+		if len(nums) == 1 {
+			f.Issue = nums[0]
+		}
 		return runLegacyClaim(stdout, stderr, f)
 	}
-	if f.Issue <= 0 || f.NoStart {
-		return fmt.Errorf("claim requires --issue N and an open issue card")
+	if len(nums) == 0 || f.NoStart {
+		return fmt.Errorf("claim requires --issue N (or a list: --issue 284,285) and an open issue card")
 	}
 	dirs, err := resolveIDDirs(f.IssuesDir, f.HistoryDir)
 	if err != nil {
@@ -107,30 +118,39 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	if err != nil {
 		return err
 	}
-	id := fmt.Sprintf("%06d", f.Issue)
 	snap, err := env.repo.Snapshot()
 	if err != nil {
 		return err
 	}
-	card, err := snap.Require(id)
-	if errors.Is(err, tracker.ErrNoCard) {
-		return fmt.Errorf("no card #%s on %s; file issues with `sdlc issue new`", id, vocab.Issue().Discovery().Tracker)
-	} else if err != nil {
-		return err
+	ids := make([]string, len(nums))
+	cards := map[string]tracker.Record{}
+	detailPaths := map[string]string{}
+	for i, n := range nums {
+		id := fmt.Sprintf("%06d", n)
+		card, err := snap.Require(id)
+		if errors.Is(err, tracker.ErrNoCard) {
+			return fmt.Errorf("no card #%s on %s; file issues with `sdlc issue new`", id, vocab.Issue().Discovery().Tracker)
+		} else if err != nil {
+			return err
+		}
+		ids[i], cards[id], detailPaths[id] = id, card, path.Join(dirs.Rel[0], path.Base(card.Path))
 	}
-	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))
+	// Readiness — every issue's details on main — is checked now and again
+	// against fresh main after the candidate is pinned, before the only mutation.
 	ready := func() error {
 		view, err := env.main.Snapshot()
 		if err != nil {
 			return err
 		}
-		present, err := view.Exists(detailPath)
-		if err != nil {
-			return err
-		}
-		if !present {
-			return fmt.Errorf("#%s is not claimable yet: its details (%s) have not landed on main, so its creation is incomplete.\n"+
-				"      The creator finishes it with `sdlc issue move-detail --issue %s` (or by merging the branch that filed it)", id, detailPath, issue.CLIRef(id))
+		for _, id := range ids {
+			present, err := view.Exists(detailPaths[id])
+			if err != nil {
+				return err
+			}
+			if !present {
+				return fmt.Errorf("#%s is not claimable yet: its details (%s) have not landed on main, so its creation is incomplete.\n"+
+					"      The creator finishes it with `sdlc issue publish --issue %s` (or by merging the branch that filed it)", id, detailPaths[id], issue.CLIRef(id))
+			}
 		}
 		return nil
 	}
@@ -141,67 +161,199 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	if err != nil {
 		return err
 	}
-	if f.Adopt {
-		return adoptClaim(stdout, stderr, env, card, me, detailPath, f.DryRun)
-	}
-	if status, _ := issue.GetField(card.Card.Frontmatter, "status"); slices.Contains(vocab.Issue().OwnershipEvent("move").Statuses, status) {
-		// The owner's own work moved here (sdlc move whose re-stamp failed):
-		// a repeat claim finishes the relocation instead of refusing.
-		if own, recorded, _, err := ownership(env, card); err == nil && own == issue.OwnershipForeign {
-			if ok, err := relocatable(env, card, recorded, me); err != nil {
+	// --adopt is a plain claim since #284: claiming unowned started work takes it over.
+	var take *takeover
+	if len(ids) == 1 {
+		id := ids[0]
+		if done, err := finishRelocation(stdout, stderr, env, cards[id], me, detailPaths[id], f.DryRun); done || err != nil {
+			return err
+		}
+		// A handed-off issue resumes at the tip it was released at: every
+		// check that can refuse runs before the card is written.
+		if take, err = prepareTakeover(env, cards[id]); err != nil {
+			return err
+		}
+	} else {
+		// Finishing an `sdlc move` reads this machine's worktrees: one issue alone.
+		for _, id := range ids {
+			if rec, err := readRelocation(env.root, id); err != nil {
 				return err
-			} else if ok {
-				if f.DryRun {
-					cinfo(stderr, fmt.Sprintf("dry-run — would record #%s's owner as this workspace (relocated from %s)", id, recorded.Worktree))
-					return nil
-				}
-				if err := relocateClaimant(env, card, me); err != nil {
-					return err
-				}
-				cok(stderr, fmt.Sprintf("#%s relocated: owner %s → %s", id, recorded.Worktree, me.Worktree))
-				if warn := refreshLocalMirror(env, detailPath); warn != "" {
-					cwarn(stderr, warn)
-				}
-				fmt.Fprintln(stdout, "claimed")
-				return nil
+			} else if rec != nil {
+				return fmt.Errorf("#%s has an unfinished `sdlc move`; claim it alone (`sdlc claim --issue %s`) to finish it", id, issue.CLIRef(id))
 			}
 		}
 	}
-	claimed, err := claimDecision(card.Raw, f.Issue, time.Now().Format("2006-01-02"), startedClock(), &me)
-	if errors.Is(err, errAlreadyMine) {
-		cok(stderr, fmt.Sprintf("#%s is already claimed by this workspace; nothing to do", id))
-		if f.DryRun {
-			return nil
+	today, started := time.Now().Format("2006-01-02"), startedClock()
+	decide := func(current map[string]tracker.Record) (map[string][]byte, error) {
+		if take != nil {
+			// The takeover fetched one tip: the card must still hand off that
+			// tip, or a re-release moved it on (#284 BR-24).
+			if rel, ok, err := issue.CardRelease(current[ids[0]].Raw); err != nil {
+				return nil, err
+			} else if !ok || rel.Branch != take.branch || rel.Head != take.head {
+				return nil, fmt.Errorf("#%s was released again (or claimed) after %s was fetched at %s; rerun `sdlc claim --issue %s` to take over what is handed off now", issue.CLIRef(ids[0]), take.branch, shortOID(take.head), issue.CLIRef(ids[0]))
+			}
 		}
-		if warn := refreshLocalMirror(env, detailPath); warn != "" {
-			cwarn(stderr, warn)
-		}
-		fmt.Fprintln(stdout, "claimed")
-		return nil
+		return claimSetDecision(current, ids, today, started, me)
 	}
-	if err != nil {
+	refresh := func() {
+		refreshAfterClaim(env, stderr, ids, detailPaths)
+		for _, id := range ids {
+			if warn := refreshLocalMirror(env, detailPaths[id]); warn != "" {
+				cwarn(stderr, warn)
+			}
+		}
+	}
+	if _, err := decide(cards); errors.Is(err, errAlreadyMine) {
+		cok(stderr, fmt.Sprintf("%s already claimed by this workspace; nothing to do", claimRefs(ids)))
+		if !f.DryRun {
+			if len(ids) == 1 {
+				finishOwnedTakeover(env, stderr, cards[ids[0]]) // a takeover whose switch was lost
+			}
+			refresh()
+			fmt.Fprintln(stdout, "claimed")
+		}
+		return nil
+	} else if err != nil {
 		return err
 	}
 	if f.DryRun {
-		cinfo(stderr, "dry-run — the card is open and unowned, and its details are on main; would claim it")
+		cinfo(stderr, fmt.Sprintf("dry-run — %s claimable (open and unowned, details on main); would claim in one tracker commit", claimRefs(ids)))
 		return nil
 	}
-	// Readiness is re-verified against fresh main after the candidate is pinned,
-	// immediately before the only mutation.
-	err = uncertainCardWrite(cardPublish(env, card, claimed, operationToken("claim"), nil, func(base, candidate string) error { return ready() }), fmt.Sprintf("sdlc claim --issue %d", f.Issue))
+	err = cardsPublish(env, ids, operationToken(tracker.OpClaim), nil, decide, func(base, candidate string) error { return ready() })
 	invalidateIssueRecords(env.ctx)
-	if errors.Is(err, tracker.ErrCardChanged) {
-		return fmt.Errorf("card #%s changed while claiming (a peer may hold it); `sdlc issue show --issue %d` and retry only if it is still open", id, f.Issue)
+	if errors.Is(err, errAlreadyMine) {
+		err = nil // every card became this workspace's while retrying: settled
 	}
-	if err != nil {
+	if err = uncertainCardWrite(err, "sdlc claim --issue "+claimArg(ids)); err != nil {
 		return err
 	}
-	cok(stderr, fmt.Sprintf("Issue #%s claimed on %s: this workspace owns it; status stays open until `sdlc start-plan --issue %s` starts it.", id, vocab.Issue().Discovery().Tracker, issue.CLIRef(id)))
+	for _, id := range ids {
+		if status, _ := issue.GetField(cards[id].Card.Frontmatter, "status"); vocab.Issue().IsOpen(status) {
+			cok(stderr, fmt.Sprintf("Issue #%s claimed on %s: this workspace owns it; status stays open until `sdlc start-plan --issue %s` starts it.", id, vocab.Issue().Discovery().Tracker, issue.CLIRef(id)))
+		} else {
+			cok(stderr, fmt.Sprintf("Issue #%s taken over on %s: this workspace owns it; its status (%s) is unchanged.", id, vocab.Issue().Discovery().Tracker, status))
+		}
+	}
+	if take != nil {
+		finishTakeover(env, stderr, take)
+		fmt.Fprintln(stdout, "claimed")
+		return nil
+	}
+	refresh()
+	fmt.Fprintln(stdout, "claimed")
+	return nil
+}
+
+// refreshAfterClaim brings this checkout up to what it now holds (#284), so the
+// lock never protects a stale copy: a resting branch fast-forwards to the
+// fetched main; elsewhere, details whose body differs from main's are named
+// (the frontmatter carries the card mirror, which differs by design). It
+// warns and never fails: the claim has already landed.
+func refreshAfterClaim(env *trackerEnv, stderr io.Writer, ids []string, detailPaths map[string]string) {
+	view, err := env.main.Snapshot()
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("checkout not refreshed: reading main failed: %v", err))
+		return
+	}
+	if env.onRest() {
+		if warn := fastForwardRest(env, view.Ref()); warn != "" {
+			cwarn(stderr, warn)
+		}
+		return
+	}
+	for _, id := range ids {
+		local, lerr := os.ReadFile(filepath.Join(env.root, filepath.FromSlash(detailPaths[id])))
+		published, perr := view.Read(detailPaths[id])
+		if lerr != nil || perr != nil {
+			continue
+		}
+		_, localBody, lerr := issue.Parse(string(local))
+		_, mainBody, perr := issue.Parse(string(published))
+		if lerr == nil && perr == nil && localBody != mainBody {
+			cwarn(stderr, fmt.Sprintf("#%s's details here differ from main's; publish them with `sdlc issue publish --issue %s`, or bring main in", issue.CLIRef(id), issue.CLIRef(id)))
+		}
+	}
+}
+
+// fastForwardRest moves the resting branch to main's commit target (#284),
+// returning a warning — never an error — when it cannot: HEAD unreadable, the
+// rest carrying commits main lacks, or a local change in the way.
+func fastForwardRest(env *trackerEnv, target string) string {
+	head, err := env.git("rev-parse", "HEAD")
+	if err != nil {
+		return fmt.Sprintf("%s not fast-forwarded to main: reading HEAD failed: %v", env.resting, err)
+	}
+	if head == target {
+		return ""
+	}
+	contained, err := env.gitTest("merge-base", "--is-ancestor", "HEAD", target)
+	if err != nil {
+		return fmt.Sprintf("%s not fast-forwarded to main: comparing it with main failed: %v", env.resting, err)
+	}
+	if !contained {
+		return fmt.Sprintf("%s not fast-forwarded to main: it has commits main lacks; reconcile them before shaping here", env.resting)
+	}
+	if _, err := env.git("merge", "-q", "--ff-only", target); err != nil {
+		return fmt.Sprintf("%s not fast-forwarded to main (a local change is in the way): %v", env.resting, err)
+	}
+	return ""
+}
+
+// claimIssues is the issue set a claim names: the --issue list, else the
+// single Issue a caller built the flags with. Duplicates collapse, order kept.
+func claimIssues(f *claimFlags) []int {
+	nums := f.Issues
+	if len(nums) == 0 && f.Issue > 0 {
+		nums = []int{f.Issue}
+	}
+	seen := map[int]bool{}
+	var out []int
+	for _, n := range nums {
+		if n > 0 && !seen[n] {
+			seen[n] = true
+			out = append(out, n)
+		}
+	}
+	return out
+}
+
+// claimRefs names a set for humans: "#284" or "#284, #285".
+func claimRefs(ids []string) string { return issue.JoinRefs(ids, "#", ", ") }
+
+// claimArg is the --issue value that reruns the same claim.
+func claimArg(ids []string) string { return issue.JoinRefs(ids, "", ",") }
+
+// finishRelocation is a repeat claim finishing the owner's own `sdlc move`
+// whose owner update failed (#278); done reports it handled the claim.
+func finishRelocation(stdout, stderr io.Writer, env *trackerEnv, card tracker.Record, me issue.Claimant, detailPath string, dryRun bool) (bool, error) {
+	id := card.ID
+	status, _ := issue.GetField(card.Card.Frontmatter, "status")
+	if !slices.Contains(vocab.Issue().OwnershipEvent("move").Statuses, status) {
+		return false, nil
+	}
+	own, recorded, _, err := ownership(env, card)
+	if err != nil || own != issue.OwnershipForeign {
+		return false, nil
+	}
+	ok, err := relocatable(env, card, recorded, me)
+	if err != nil || !ok {
+		return false, err
+	}
+	if dryRun {
+		cinfo(stderr, fmt.Sprintf("dry-run — would record #%s's owner as this workspace (relocated from %s)", id, recorded.Worktree))
+		return true, nil
+	}
+	if err := relocateClaimant(env, card, me); err != nil {
+		return true, err
+	}
+	cok(stderr, fmt.Sprintf("#%s relocated: owner %s → %s", id, recorded.Worktree, me.Worktree))
 	if warn := refreshLocalMirror(env, detailPath); warn != "" {
 		cwarn(stderr, warn)
 	}
 	fmt.Fprintln(stdout, "claimed")
-	return nil
+	return true, nil
 }
 
 // refreshLocalMirror brings this checkout's copy of an issue's card fields up
@@ -566,37 +718,4 @@ func findMainWorktree(r gitRunner) (string, error) {
 		return mainPath, nil
 	}
 	return "", fmt.Errorf("could not find a worktree on branch 'main'. Is main checked out somewhere?")
-}
-
-// adoptClaim records this workspace as the owner of a working or blocked card
-// with no recorded owner (#277), by compare-and-swap on the card it read. An
-// owned card refuses — adoption never reassigns.
-func adoptClaim(stdout, stderr io.Writer, env *trackerEnv, card tracker.Record, me issue.Claimant, detailPath string, dryRun bool) error {
-	id := card.ID
-	next, err := adoptDecision(card.Raw, id, me)
-	if errors.Is(err, errAlreadyMine) {
-		cok(stderr, fmt.Sprintf("#%s is already owned by this workspace; nothing to do", id))
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if dryRun {
-		cinfo(stderr, fmt.Sprintf("dry-run — would record this workspace (%s) as #%s's owner", me.Worktree, id))
-		return nil
-	}
-	err = uncertainCardWrite(cardPublish(env, card, next, operationToken("adopt"), nil, nil), fmt.Sprintf("sdlc claim --issue %s --adopt", issue.CLIRef(id)))
-	invalidateIssueRecords(env.ctx)
-	if errors.Is(err, tracker.ErrCardChanged) {
-		return fmt.Errorf("card #%s changed while adopting (a peer may have adopted it); `sdlc issue show --issue %s` and retry only if it still has no owner", id, issue.CLIRef(id))
-	}
-	if err != nil {
-		return err
-	}
-	cok(stderr, fmt.Sprintf("#%s adopted: this workspace (%s) is its recorded owner", id, me.Worktree))
-	if warn := refreshLocalMirror(env, detailPath); warn != "" {
-		cwarn(stderr, warn)
-	}
-	fmt.Fprintln(stdout, "adopted")
-	return nil
 }

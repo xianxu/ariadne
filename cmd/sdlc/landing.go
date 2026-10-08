@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -82,7 +83,7 @@ func resolveLandingTarget(r gitRunner) (*landingTarget, error) {
 	if t.Remote == "." || !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`).MatchString(t.Remote) {
 		return nil, errors.New("resting upstream must use one named remote")
 	}
-	if _, err = landingGit(r, t.Root, "check-ref-format", "refs/remotes/"+t.Remote+"/main"); err != nil {
+	if _, err = landingGit(r, t.Root, "check-ref-format", gitx.RemoteTrackingRef(t.Remote, "main")); err != nil {
 		return nil, err
 	}
 	base, err := landingGit(r, t.Root, "config", "--get-all", "branch."+t.Rest+".merge")
@@ -114,7 +115,7 @@ func resolveLandingTarget(r gitRunner) (*landingTarget, error) {
 	}
 	return t, nil
 }
-func (t landingTarget) mainRef() string { return "refs/remotes/" + t.Remote + "/main" }
+func (t landingTarget) mainRef() string { return gitx.RemoteTrackingRef(t.Remote, "main") }
 func (t landingTarget) fetchMain(r gitRunner) (string, error) {
 	if _, err := landingGit(r, t.Root, "-c", "submodule.recurse=false", "fetch", "--no-tags", "--no-recurse-submodules", t.Remote, "+refs/heads/main:"+t.mainRef()); err != nil {
 		return "", err

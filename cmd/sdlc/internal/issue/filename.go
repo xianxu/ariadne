@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -29,3 +30,23 @@ func CLIRef(id string) string {
 	}
 	return id
 }
+
+// JoinRefs renders several issue IDs through CLIRef, each with prefix, joined
+// by sep: ("#", ", ") for humans, ("", ",") for a rerunnable --issue list,
+// ("#", ",") for a tracker commit subject (#284).
+func JoinRefs(ids []string, prefix, sep string) string {
+	refs := make([]string, len(ids))
+	for i, id := range ids {
+		refs[i] = prefix + CLIRef(id)
+	}
+	return strings.Join(refs, sep)
+}
+
+// Stem is an issue's name: its details or card filename without ".md"
+// (#284: the one derivation; plans and review sidecars are named after it).
+func Stem(detailsOrCardPath string) string {
+	return strings.TrimSuffix(path.Base(detailsOrCardPath), ".md")
+}
+
+// BranchName is an issue's branch, which is its stem.
+func BranchName(detailsOrCardPath string) string { return Stem(detailsOrCardPath) }

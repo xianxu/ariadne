@@ -190,8 +190,12 @@ func (t *TrunkFile) run(env []string, args ...string) ([]byte, []byte, error) {
 func (t *TrunkFile) localRef() string { return "refs/heads/" + t.branch }
 
 // trackingRef is the local remote-tracking ref this type treats as the base.
-func (t *TrunkFile) trackingRef() string {
-	return "refs/remotes/" + t.remote + "/" + t.branch
+func (t *TrunkFile) trackingRef() string { return RemoteTrackingRef(t.remote, t.branch) }
+
+// RemoteTrackingRef is the one constructor of a remote-tracking ref name
+// (#284): refs/remotes/<remote>/<branch>.
+func RemoteTrackingRef(remote, branch string) string {
+	return "refs/remotes/" + remote + "/" + branch
 }
 
 // fetch updates the tracking ref. Fetching INTO the ref explicitly (rather than
@@ -461,4 +465,35 @@ func writeTemp(content []byte) (string, func(), error) {
 		return "", cleanup, err
 	}
 	return p, cleanup, f.Close()
+}
+
+// HistoryStream streams `git log --name-only` over the tracking ref, limited to
+// pathspec and to the newest maxCommits commits, in the given format, newest
+// first (#284). The caller reads what it
+// needs and calls finish, saying whether it stopped before the end: an early
+// stop ends git without judging its exit; a full read reports git's failure,
+// so a failed read is never mistaken for an empty history.
+func (t *TrunkFile) HistoryStream(format, pathspec string, maxCommits int) (io.Reader, func(stoppedEarly bool) error, error) {
+	cmd := exec.CommandContext(t.operationContext(), "git", "-C", t.dir, "log", "--format="+format, "--name-only", fmt.Sprintf("--max-count=%d", maxCommits), t.trackingRef(), "--", pathspec)
+	var stderr bytes.Buffer
+	cmd.Stderr = &stderr
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, nil, err
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, nil, err
+	}
+	finish := func(stoppedEarly bool) error {
+		if stoppedEarly {
+			_ = cmd.Process.Kill()
+			_ = cmd.Wait()
+			return nil
+		}
+		if err := cmd.Wait(); err != nil {
+			return fmt.Errorf("git log %s: %w: %s", t.trackingRef(), err, strings.TrimSpace(stderr.String()))
+		}
+		return nil
+	}
+	return out, finish, nil
 }

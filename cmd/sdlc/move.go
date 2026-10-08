@@ -149,7 +149,7 @@ var moveRelocation = func(ctx context.Context, dest, id string) error {
 		return err
 	}
 	if own == issue.OwnershipUnknown {
-		return fmt.Errorf("%w: it has no recorded owner; `sdlc claim --issue %s --adopt` here records one", errNoRelocation, issue.CLIRef(id))
+		return fmt.Errorf("%w: it has no owner; `sdlc claim --issue %s` here takes it over", errNoRelocation, issue.CLIRef(id))
 	}
 	allowed, err := relocatable(env, card, recorded, me)
 	if err != nil {

@@ -1,8 +1,6 @@
 package observe
 
 import (
-	"path"
-	"strings"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -176,7 +174,7 @@ func worktreeFate(in Inputs, recorded issue.Claimant) WorktreeFate {
 	if in.WorktreesErr != nil {
 		return FateUnknown
 	}
-	branch := strings.TrimSuffix(path.Base(in.CardPath), ".md")
+	branch := issue.BranchName(in.CardPath)
 	for _, w := range in.Worktrees {
 		if w.Path == recorded.Worktree {
 			if w.Branch == branch {

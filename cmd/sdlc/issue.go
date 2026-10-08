@@ -351,7 +351,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	cok(stderr, created)
 	if env.onRest() {
 		cinfo(stderr, "details are uncommitted on the resting branch; the issue is claimable once they land on main — "+
-			"`sdlc issue move-detail --issue "+issue.CLIRef(spec.IssueID)+"` publishes them")
+			"`sdlc issue publish --issue "+issue.CLIRef(spec.IssueID)+"` publishes them")
 	} else if err := commitOnly(env, fmt.Sprintf("#%s: issue: new", issue.CLIRef(spec.IssueID)), spec.DestinationPath); err != nil {
 		return fmt.Errorf("card reserved and details written, but the local commit failed: %w", err)
 	}
@@ -639,10 +639,11 @@ func ensureTrailingNewline(s string) string {
 	return strings.TrimRight(s, "\n") + "\n"
 }
 
-// trackedIssueSync keeps `issue sync` a checkpoint in a repository cut over to
-// the issue tracker (#252): a local commit of the details on the issue branch.
-// Its two legacy behaviors refuse there — committing on a resting branch (the
-// divergence the tracker removes) and --push copying commits to main.
+// trackedIssueSync retires `issue sync` in a repository cut over to the issue
+// tracker (#284 audit). There it was only `git commit -- <details>` on the
+// issue branch; committing details on a resting branch diverges it from main,
+// and copying commits to main (--push) is `issue publish`'s job. It names both
+// instead of doing either.
 func trackedIssueSync(f *issueSyncFlags) error {
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
@@ -652,17 +653,13 @@ func trackedIssueSync(f *issueSyncFlags) error {
 	if err != nil || !cut {
 		return err
 	}
-	if f.Push {
-		return errors.New("this repository uses the issue tracker: details reach main with their issue branch (initial details: `sdlc issue move-detail`); `--push` is retired here")
+	issueStr := "N" // decimal: an int, never a padded ID
+	if f.Issue > 0 {
+		issueStr = fmt.Sprint(f.Issue)
 	}
-	env, err := openTrackerAt(commandContext(f.Context), root)
-	if err != nil {
-		return err
-	}
-	if env.branch == "" || env.onRest() {
-		return fmt.Errorf("this repository uses the issue tracker: checkpoint #%d on its issue branch (`sdlc start-plan --issue %d` prepares it), never on a resting branch", f.Issue, f.Issue)
-	}
-	return nil
+	return fmt.Errorf("this repository uses the issue tracker, where `issue sync` is retired: commit details with git on the issue branch "+
+		"(`git commit -m '#%s: plan: …' -- <details>`), and publish them to main with `sdlc issue publish --issue %s`. "+
+		"Never commit on a resting branch: it only fast-forwards to main", issueStr, issueStr)
 }
 
 // issueShowRepo resolves what an issue show reads (#279). The repository is

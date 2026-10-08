@@ -7,8 +7,10 @@ SUBCOMMANDS
 
   new            Reserve the next ID's card on the tracker and write the details
                  locally (`--from-github N` seeds it from a GitHub issue)
-  move-detail    Complete creation early: publish initial details to main
-                 without shipping the branch that filed the issue
+  publish        Publish details to main (#284): a first publication (no owner
+                 needed; makes the issue claimable) or the owner's later edits,
+                 one narrow main commit for a set (`--issue 284,285`)
+  move-detail    The first-publication case of `publish`, for one issue
   recovery       `list` / `reconcile --issue N` interrupted tracker operations
   migrate        One-time cutover of a legacy repository to the issue tracker
                  (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch)
@@ -16,9 +18,8 @@ SUBCOMMANDS
   set-title      Retitle an issue card (paths keep their slug)
   set-estimate   Record estimate_hours on the card (`--hours`)
   set-github     Link the card to a GitHub issue (`--number`)
-  sync           Commit an issue body locally (tracker repositories: on the
-                 issue branch only, no --push)
-  publish        (legacy repositories only) publish a selected doc commit
+  sync           (legacy repositories) commit an issue body; retired in tracker
+                 repositories: commit details with git, publish with `publish`
   list           List issues (ID, status, title), sorted by ID; --status filters
   show           Print an issue's frontmatter + section headers (no bodies)
 
@@ -87,9 +88,34 @@ refreshes; a hand edit to a mirrored field is refused with the setter to use.
 
 Details travel with the work: `issue new` writes them in the current checkout
 (a narrow commit on a feature branch; uncommitted on the resting branch), and
-they land on main through the branch's PR or `issue move-detail`. Only then is
-the issue claimable. Checkpoint design with ordinary commits on the issue
-branch; nothing publishes them early. An interrupted card/main publication
+they land on main through the branch's PR or `issue publish` (first
+publication). Only then is the issue claimable. Checkpoint design with ordinary
+git commits on the issue branch.
+
+PUBLISHING DETAILS (#284). `sdlc issue publish --issue N[,N…]` is how details
+reach main without shipping a branch. Per issue:
+  - first publication (details not yet on main): `move-detail`'s transfer —
+    the creator's checkout publishes, no owner needed; the filing branch's
+    copy is removed (narrow commit) or the rest fast-forwards, and the card
+    records the handoff.
+  - republish (details already on main): only the owner. The edits (details
+    bodies) are judged against the copy at this checkout's merge base with
+    main: main unchanged since → published; already equal → nothing to
+    publish; main moved → on a resting branch, publish brings main in itself
+    (a three-way merge of the details, then a fast-forward): a clean merge
+    publishes, a conflict leaves markers to resolve before a rerun (a body
+    with markers is never published); on the issue's own branch, commit the
+    edit, merge main, rerun; on another issue's branch, publish from a
+    resting branch or the issue's own. Every republished issue goes in ONE
+    main commit (`#a,#b: issue: publish details`), ownership re-checked
+    against the tracker just before the push. Afterwards a resting branch
+    fast-forwards (it never carries the edits as commits); the issue's own
+    branch commits the same bytes narrowly, so its later merge changes
+    nothing there; another issue's branch takes its copy back (main has the
+    edit). A file changed while publishing is never overwritten. A lost push
+    response: rerun — main already holds the details, and the rerun only
+    finishes the checkout.
+A resting branch only fast-forwards to main; never commit on it. An interrupted card/main publication
 keeps a receipt: `sdlc issue recovery list` shows it, and `reconcile` resumes
 it from the checkout that owns it, probing before repeating anything.
 
@@ -97,8 +123,8 @@ A tracker repository is marked by `workshop/issue-tracker.json` on main, naming
 the tracker's root commit. A checkout whose marker disagrees with the tracker
 (a tracker but no marker, a marker but no tracker, another root) refuses every
 card read and write with the next action; unmirrored details in such a
-repository refuse the legacy close/change-code paths. `sync` checkpoints on the
-issue branch only; `publish` and the Makefile/Python shell fallbacks refuse.
+repository refuse the legacy close/change-code paths. `sync` is retired to a
+pointer (#284); `publish --commit` and the Makefile/Python shell fallbacks refuse.
 
 MIGRATION (#252)
 

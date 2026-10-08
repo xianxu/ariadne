@@ -559,7 +559,7 @@ func findIssueFileByName(issuesDir, name string) (string, error) {
 	// Fall back to a glob in case the name has been altered post-claim.
 	matches, _ := filepath.Glob(filepath.Join(issuesDir, "*.md"))
 	for _, m := range matches {
-		if strings.TrimSuffix(filepath.Base(m), ".md") == name {
+		if issue.BranchName(m) == name {
 			return m, nil
 		}
 	}

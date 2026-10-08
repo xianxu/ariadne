@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // planningBranchResult says what preparation did, for the caller's report.
@@ -26,7 +27,7 @@ const (
 // the details are there, never moving the resting ref or dropping local work.
 // Any other branch refuses: it is someone's unrelated work.
 func preparePlanningBranch(env *trackerEnv, id, detailPath string) (planningBranchResult, error) {
-	name := strings.TrimSuffix(path.Base(detailPath), ".md")
+	name := issue.BranchName(detailPath)
 	if env.branch == name {
 		view, err := env.main.Snapshot()
 		if err != nil {

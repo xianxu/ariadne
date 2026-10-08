@@ -153,7 +153,7 @@ disjoint from lifecycle events and keep terminal statuses out of `holdable`.
 `open → working` is the owner's `start` (`sdlc start-plan`). So `open` with an
 owner is legal: a slot shaping the issue. An active issue with no owner is also
 legal: started work available for takeover. `pkg/vocab` exposes `Ownership()`,
-`CanHoldOwner` and `OwnershipEvent`; claim, adopt, start-plan, reclaim and the
+`CanHoldOwner` and `OwnershipEvent`; claim (takeover included, #284), unclaim, start-plan, reclaim and the
 relocation check derive their statuses from it. Scope: issue tracker
 repositories. A legacy repository has no claimant, and its claim performs
 `start` in one step.

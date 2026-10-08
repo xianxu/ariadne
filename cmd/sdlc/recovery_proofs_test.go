@@ -16,7 +16,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
-// loseResponses makes every single-card publication land, then report a lost
+// loseResponses makes every card publication (one card or a set) land, then report a lost
 // acknowledgement — the publication outcome an agent cannot see.
 func loseResponses(t *testing.T) (restore func()) {
 	t.Helper()
@@ -27,7 +27,14 @@ func loseResponses(t *testing.T) (restore func()) {
 		}
 		return fmt.Errorf("%w: push response lost", gitx.ErrPublicationUncertain)
 	}
-	restore = func() { cardPublish = prev }
+	prevSet := cardsPublish
+	cardsPublish = func(env *trackerEnv, ids []string, token string, trailers []string, decide func(map[string]tracker.Record) (map[string][]byte, error), before func(string, string) error) error {
+		if err := prevSet(env, ids, token, trailers, decide, before); err != nil {
+			return err
+		}
+		return fmt.Errorf("%w: push response lost", gitx.ErrPublicationUncertain)
+	}
+	restore = func() { cardPublish, cardsPublish = prev, prevSet }
 	t.Cleanup(restore)
 	return restore
 }
@@ -134,7 +141,8 @@ func TestLandingLeavesAReopenedCardAlone(t *testing.T) {
 
 // cardPublish's callers are exactly the single-card CAS verbs.
 func TestCardPublishCallers(t *testing.T) {
-	allowed := map[string]bool{"runCardUpdate": true, "runClaim": true, "adoptClaim": true, "relocateClaimant": true, "reclaimEffect": true}
+	// #284: claim publishes its set through cardsPublish; the seams are pinned together.
+	allowed := map[string]bool{"runCardUpdate": true, "runClaim": true, "runUnclaim": true, "runHandoff": true, "relocateClaimant": true, "reclaimEffect": true}
 	seen := map[string]bool{}
 	fset := token.NewFileSet()
 	pkgs, err := parser.ParseDir(fset, ".", func(info os.FileInfo) bool { return !strings.HasSuffix(info.Name(), "_test.go") }, 0)
@@ -143,10 +151,10 @@ func TestCardPublishCallers(t *testing.T) {
 	}
 	inspectOwner := func(file, owner string, body ast.Node) {
 		ast.Inspect(body, func(n ast.Node) bool {
-			if id, ok := n.(*ast.Ident); ok && id.Name == "cardPublish" {
+			if id, ok := n.(*ast.Ident); ok && (id.Name == "cardPublish" || id.Name == "cardsPublish") {
 				seen[owner] = true
 				if !allowed[owner] {
-					t.Errorf("%s:%s publishes a card through cardPublish; only the single-card verbs may", file, owner)
+					t.Errorf("%s:%s publishes cards through %s; only the card verbs may", file, owner, id.Name)
 				}
 			}
 			return true
@@ -179,7 +187,7 @@ func TestCardPublishCallers(t *testing.T) {
 	}
 	for owner := range allowed {
 		if !seen[owner] {
-			t.Errorf("%s no longer publishes through cardPublish", owner)
+			t.Errorf("%s no longer publishes through cardPublish/cardsPublish", owner)
 		}
 	}
 }

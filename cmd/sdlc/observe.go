@@ -15,6 +15,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/observe"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -51,10 +52,10 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 				in.CardErr = cerr
 			} else if rec.Card != nil {
 				in.Card, in.CardPath, in.CardBlob = rec.Card.Raw, rec.Card.Path, rec.Card.BlobOID
-				stem = strings.TrimSuffix(path.Base(rec.Card.Path), ".md")
+				stem = issue.BranchName(rec.Card.Path)
 			}
 			if rec.Card == nil && rec.DetailPath != "" {
-				stem = strings.TrimSuffix(path.Base(rec.DetailPath), ".md")
+				stem = issue.BranchName(rec.DetailPath)
 			}
 		}
 		if rs.Ref != "" {
@@ -113,7 +114,7 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 // remote's main as last fetched ("" when not archived there).
 func archivedOnMain(root, remote, stem string) (string, error) {
 	want := path.Join(vocab.ArchiveSubdir(vocab.Issue().Discovery().Archive, vocab.ArchiveIssues), stem+".md")
-	out, err := observeGit(root, "ls-tree", "--name-only", "refs/remotes/"+remote+"/main", "--", want)
+	out, err := observeGit(root, "ls-tree", "--name-only", gitx.RemoteTrackingRef(remote, "main"), "--", want)
 	if err != nil {
 		return "", fmt.Errorf("read %s/main: %w", remote, err)
 	}
@@ -154,7 +155,7 @@ func refExists(root, ref string) (bool, error) {
 // collectBranch finds the issue branch here: local, else the remote's copy.
 func collectBranch(root, remote, stem string) observe.BranchFacts {
 	var b observe.BranchFacts
-	for _, ref := range []string{"refs/heads/" + stem, "refs/remotes/" + remote + "/" + stem} {
+	for _, ref := range []string{"refs/heads/" + stem, gitx.RemoteTrackingRef(remote, stem)} {
 		ok, err := refExists(root, ref)
 		if err != nil {
 			b.Err = err
@@ -177,7 +178,7 @@ func collectBranch(root, remote, stem string) observe.BranchFacts {
 		b.Err = err
 		return b
 	}
-	count, err := gitLine(root, "rev-list", "--count", "refs/remotes/"+remote+"/main.."+b.Ref)
+	count, err := gitLine(root, "rev-list", "--count", gitx.RemoteTrackingRef(remote, "main")+".."+b.Ref)
 	if err == nil {
 		_, err = fmt.Sscan(count, &b.AheadOfMain)
 	}
@@ -233,7 +234,7 @@ func collectEvidence(root, issuesRel, remote, stem, status string, branch observ
 	issueFile := stem + ".md"
 	type place struct{ ref, plans, details string }
 	var places []place
-	main := "refs/remotes/" + remote + "/main"
+	main := gitx.RemoteTrackingRef(remote, "main")
 	if status == "done" {
 		places = append(places,
 			place{main, vocab.ArchiveSubdir(d.Archive, vocab.ArchivePlans), path.Join(vocab.ArchiveSubdir(d.Archive, vocab.ArchiveIssues), issueFile)},

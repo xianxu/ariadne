@@ -17,16 +17,19 @@ current or supplied session transcript, invoke `session-retro`; see
 In an issue tracker repository (#252; `workshop/issue-tracker.json` on main),
 each issue's card — id, status, dates, hours, title — lives on the
 `issue-tracker` branch and changes only through sdlc's verbs. `sdlc claim --issue
-N` reserves an open issue on its card; `sdlc start-plan` puts the design on the
-issue's own branch, where `sdlc issue sync --issue N` checkpoints it; the details
-reach main with that branch (initial details: `sdlc issue move-detail`). See
+N[,N…]` takes the lock on one issue or a set (#283, #284), and `sdlc unclaim`
+releases it. `sdlc start-plan` starts the issue on its own branch, where the
+design is committed with git. Details reach main with that branch, or directly
+with `sdlc issue publish --issue N`: a first publication, or the owner's later
+edits (#284). A resting branch only fast-forwards to main. See
 [issue tracker](atlas/workflow/issue-tracker.md).
 
 A claim also records its owner on the card (#277): the operator, a fingerprint
 of the machine, and the worktree. Only that workspace continues the issue
-through start-plan, change-code and close. A working issue claimed before then
-is adopted with `sdlc claim --issue N --adopt`, and `sdlc move` carries
-ownership with the branch. Moving responsibility between owners, after the
+through start-plan, change-code and close. `sdlc unclaim` releases it, handing
+started work off with its branch pushed, and a plain `sdlc claim` elsewhere
+takes it over at exactly that tip (#284); `sdlc move` carries ownership with
+the branch within one machine. Moving responsibility between owners, after the
 operator coordinates out of band, is `sdlc reclaim --issue N`. It inspects
 first; then `--expect REV --reason '…'` transfers the issue to the workspace
 running it, refusing if the card changed since you looked (#278). `sdlc issue
@@ -43,7 +46,8 @@ A legacy repository cuts over
 once with `sdlc issue migrate` — see
 [issue tracker migration](atlas/workflow/issue-tracker-migration.md); until then
 it keeps [issue publication](atlas/workflow/issue-sync.md): claim on main,
-`issue sync` locally, `sdlc issue publish --commit SHA` for selected doc commits.
+`issue sync` locally, `sdlc issue publish --commit SHA` for selected doc commits
+(legacy repositories only).
 
 Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent

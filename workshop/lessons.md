@@ -330,11 +330,29 @@ The simplest durable authority beats a clever scan of consequences.
   test that died only under make looked branch-caused until the env var was
   printed. When a guard says "not here", log cwd, the resolved top level and
   every `WF_*` override before suspecting the diff.
-- A verb's recovery contract (`internal/recovery/catalog.go` Effects,
-  Preconditions, Repeat, LostResponse, Ends, Proofs, and the `page.go`
-  example text) is part of that verb's surface. Sweep it in the same window
-  that changes the verb. #283 changed claim and start-plan semantics and
+- A verb's surface is its help text, its atlas section and its recovery
+  contract (`internal/recovery/catalog.go` Effects, Preconditions, Repeat,
+  LostResponse, Ends, Proofs, and the `page.go` example text). Update all
+  three in the same commit that changes the verb's behaviour, including a
+  review's fix round: #284 M2's fix made publish bring main in, but the help
+  and atlas still said "refused" until the next review. Sweep it in the same
+  window that changes the verb. #283 changed claim and start-plan semantics and
   updated help, atlas and AGENTS, but the catalog still said claim flips
   open → working and start-plan "pushes nothing" until the fourth close
   review. The contract test proves only that the named tests exist, not that
   the prose is true.
+- Every remedy a refusal names must run from the refused state, and a test
+  must run it from there. #284 M2's republish refused "main moved; `sdlc
+  claim` fast-forwards the rest", but the dirty file that caused the refusal
+  blocks exactly that fast-forward. Where the remedy is mechanical, have the
+  verb perform it (publish now merges main in itself). Where it isn't, name a
+  step that works from the refused state (resolve the markers, then rerun).
+- A note or log line written before a step that can fail must be convergent:
+  the error's "rerun the same command" otherwise duplicates it (#284 M2:
+  `unclaim --note`).
+- A rerun that promises to finish a step must find its target in state that
+  outlives the step it follows. #284 M3's takeover spent the release, the only
+  record of the tip to check out, in the same card write whose response could
+  be lost. The rerun then had nothing to finish at. Derive the target from
+  what survives (the remote branch), and give every effect boundary that
+  promises a rerun a lost-response test.

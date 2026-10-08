@@ -101,8 +101,9 @@ func ownershipGate(t *testing.T, r *trackerRepo, name string, id int, detailPath
 }
 
 // #277: every continuation gate refuses another workspace's issue (naming the
-// owner) and an unattributed one (toward --adopt), before any review runs; the
-// owner passes. Adoption then restores the owner's continuation.
+// owner) and an unattributed one (toward a plain claim, which takes it over,
+// #284), before any review runs; the owner passes. Taking it over restores the
+// owner's continuation.
 func TestOwnershipGatesRefuseForeignAndUnknown(t *testing.T) {
 	gates := []string{"start-plan", "change-code", "close", "milestone-close"}
 	for i, name := range gates {
@@ -123,12 +124,12 @@ func TestOwnershipGatesRefuseForeignAndUnknown(t *testing.T) {
 			withClaimant(t, owner)
 			dropClaimant(t, r, itoa6(id), cardPath)
 			refusal, judged = ownershipGate(t, r, name, id, detailPath)
-			if !strings.Contains(refusal, "--adopt") || judged {
+			if !strings.Contains(refusal, "takes it over") || judged {
 				t.Fatalf("unknown: refusal %q, judged %v", refusal, judged)
 			}
 			var out, errs bytes.Buffer
-			if err := runClaim(context.Background(), &out, &errs, &claimFlags{Issue: id, IssuesDir: "workshop/issues", HistoryDir: "workshop/history", Adopt: true}); err != nil {
-				t.Fatalf("adopt: %v\n%s", err, errs.String())
+			if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(id)); err != nil {
+				t.Fatalf("takeover: %v\n%s", err, errs.String())
 			}
 			if got, _ := ownerOf(t, r, cardPath); got != owner {
 				t.Fatalf("adopted owner %+v", got)
@@ -144,21 +145,17 @@ func TestOwnershipGatesRefuseForeignAndUnknown(t *testing.T) {
 
 func itoa6(id int) string { return strings.Repeat("0", 6-len(itoa(id))) + itoa(id) }
 
-// #277: --adopt records an owner only on an unattributed working card; it never
-// reassigns an owned card and does not claim an open one.
-func TestAdoptOnlyUnattributedWork(t *testing.T) {
+// #284: --adopt is a retired alias of a plain claim — it claims an open card,
+// is the owner's no-op, and never reassigns an owned card.
+func TestAdoptIsAPlainClaim(t *testing.T) {
 	cardPath, card, detailPath, detail := seededIssue(t, "000370", "adopt")
 	r := newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{detailPath: detail})
 	adopt := func() error {
 		var out, errs bytes.Buffer
 		return runClaim(context.Background(), &out, &errs, &claimFlags{Issue: 370, IssuesDir: "workshop/issues", HistoryDir: "workshop/history", Adopt: true})
 	}
-	if err := adopt(); err == nil || !strings.Contains(err.Error(), "plain `sdlc claim") {
-		t.Fatalf("adopt on an open card = %v", err)
-	}
-	var out, errs bytes.Buffer
-	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(370)); err != nil {
-		t.Fatal(err)
+	if err := adopt(); err != nil {
+		t.Fatalf("adopt on an open card is a plain claim now: %v", err)
 	}
 	owner, _ := ownerOf(t, r, cardPath)
 	if err := adopt(); err != nil {
@@ -168,7 +165,7 @@ func TestAdoptOnlyUnattributedWork(t *testing.T) {
 	other.Worktree = "/elsewhere/ariadne"
 	withClaimant(t, other)
 	before := r.card(cardPath)
-	if err := adopt(); err == nil || !strings.Contains(err.Error(), "never reassigns") || r.card(cardPath) != before {
+	if err := adopt(); err == nil || !strings.Contains(err.Error(), "claimed by") || r.card(cardPath) != before {
 		t.Fatalf("adopt took an owned card: %v", err)
 	}
 }
@@ -189,10 +186,7 @@ func TestRelocationAfterMoveAndRepair(t *testing.T) {
 	if err := runClaim(context.Background(), &out, &errs, claimFlagsFor(371)); err != nil {
 		t.Fatalf("claim in the slot: %v\n%s", err, errs.String())
 	}
-	// #283: move relocates started work; the slot starts what it claimed.
-	if err := startPlanBranch(context.Background(), &out, 371); err != nil {
-		t.Fatalf("start-plan in the slot: %v", err)
-	}
+	// #284: the claim stays open (a shaping claim); move relocates it all the same.
 	source, _ := ownerOf(t, r, cardPath)
 	if source.Worktree != canonRoot(slot) {
 		t.Fatalf("owner %+v", source)
@@ -363,7 +357,7 @@ func cardOwner(t *testing.T, root, cardPath string) (issue.Claimant, bool) {
 
 // #277 (BR-11): a real `sdlc move` relocates its owner after the switches and
 // retires its record; an unattributed issue moves with its owner unknown, a
-// warning toward --adopt, and no record left behind.
+// warning toward a plain claim (which takes it over), and no record left behind.
 func TestMoveRelocatesItsOwner(t *testing.T) {
 	roots, cardPath := moveTrackerFixture(t)
 	out, err := runMoveTest(t, roots[1], ":0", false)
@@ -396,7 +390,7 @@ func TestMoveLeavesAnUnattributedIssueUnknown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("move: %v\n%s", err, out)
 	}
-	if _, ok := cardOwner(t, roots[0], cardPath); ok || !strings.Contains(out, "--adopt") {
+	if _, ok := cardOwner(t, roots[0], cardPath); ok || !strings.Contains(out, "takes it over") {
 		t.Fatalf("unattributed move: owner recorded=%v\n%s", ok, out)
 	}
 	if rec, _ := readRelocation(roots[0], "000001"); rec != nil {
@@ -404,9 +398,9 @@ func TestMoveLeavesAnUnattributedIssueUnknown(t *testing.T) {
 	}
 }
 
-// #277: two clones adopting the same unattributed working card race through the
-// card's compare-and-swap: exactly one records its worktree, the other is
-// refused and publishes nothing.
+// #277/#284: two clones taking over the same unattributed working card race
+// through the card's compare-and-swap: exactly one records its worktree, the
+// other is refused and publishes nothing.
 func TestAdoptRaceHasExactlyOneWinner(t *testing.T) {
 	if _, err := machineID(); err != nil {
 		t.Skipf("adopt needs the host machine ID, unreadable here: %v", err)
@@ -419,13 +413,13 @@ func TestAdoptRaceHasExactlyOneWinner(t *testing.T) {
 	git(t, "", "clone", "-q", r.origin, peer)
 	git(t, peer, "config", "user.name", "Peer")
 	git(t, peer, "config", "user.email", "peer@example.com")
-	results := raceBuiltBinary(t, binary, []string{r.root, peer}, "claim", "--issue", "373", "--adopt")
+	results := raceBuiltBinary(t, binary, []string{r.root, peer}, "claim", "--issue", "373")
 	wins, winner := 0, ""
 	for _, res := range results {
 		if res.err == nil {
 			wins++
 			winner = res.dir
-		} else if !strings.Contains(res.out, "changed while adopting") && !strings.Contains(res.out, "never reassigns") {
+		} else if !strings.Contains(res.out, "claimed by") {
 			t.Errorf("loser was not a CAS/owner refusal: %v %s", res.err, res.out)
 		}
 	}

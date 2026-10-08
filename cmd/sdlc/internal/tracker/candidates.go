@@ -21,7 +21,12 @@ var ErrIDTaken = errors.New("tracker ID already allocated")
 // cardMessage follows the commit convention, "#N: tracker: <what>" with the
 // unpadded number agents and the activity window match on.
 func cardMessage(id, what, token string, trailers ...string) string {
-	msg := fmt.Sprintf("#%s: tracker: %s\n\nTracker-Operation: %s", issue.CLIRef(id), what, token)
+	return cardsMessage([]string{id}, what, token, trailers...)
+}
+
+// cardsMessage is cardMessage for one or more cards: "#252,#253: tracker: …".
+func cardsMessage(ids []string, what, token string, trailers ...string) string {
+	msg := fmt.Sprintf("%s: tracker: %s\n\nTracker-Operation: %s", issue.JoinRefs(ids, "#", ","), what, token)
 	for _, t := range trailers {
 		msg += "\n" + t
 	}
