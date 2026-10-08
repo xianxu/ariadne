@@ -177,3 +177,5 @@ M3 review round 2 (one Important, three Minors), all fixed:
 - The note dedupe identifies the attempt: same-day text, or a handoff's own note commit in the unpushed tail. Known residual: an *open* unclaim whose card write fails, rerun after midnight, files its note again.
 - Hours: the measurement engine undercounted M3's first close (0.07h) and corrected itself by the re-close (4.18h total); recorded as measured.
 
+M4: `TestIssueNewOnFeatureBranchCommitsOnlyItsDetails` failed once in a sharded run with a TempDir cleanup race (`.git: directory not empty`, likely a detached `git gc --auto`). It passes eight times running alone and is unrelated to #284.
+

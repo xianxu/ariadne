@@ -99,6 +99,13 @@ What shipped:
 
 Decision worth keeping: the handoff returns the releasing checkout to rest, because a branch checked out in one worktree can't be checked out in another on the same machine.
 
+<a id="ariadne-284-m4"></a>
+### ariadne#284 M4 — `sdlc state` owner, claim age, views
+
+**est:** ~0.7h (M4's share of #284's 6.1h)
+
+What shipped: `sdlc state` shows each issue's owner (the slot) and claim age, then claims grouped by slot and by operator. The age comes from tracker history: `tracker.ClaimTimes` streams one `git log` and stops once every owned card is resolved, keyed on claim-kind operation tokens. Card writes already record their operation, so this needs no new card field, which kept older binaries' strict claimant parse safe.
+
 ## Log
 
 ### 2026-10-02
@@ -112,3 +119,4 @@ Promoted from #283 after a four-round design discussion with the operator (decis
 [ariadne#284 M1]: #ariadne-284-m1
 [ariadne#284 M2]: #ariadne-284-m2
 [ariadne#284 M3]: #ariadne-284-m3
+[ariadne#284 M4]: #ariadne-284-m4
