@@ -125,3 +125,20 @@ func TestIssueRestoreResumesAnInterruptedRestore(t *testing.T) {
 		t.Fatalf("after the finished restore: %v", err)
 	}
 }
+
+// In the owner's checkout a refused change is the owner's own edit, behind
+// main: restore refuses with the merge-main action rather than drop it.
+func TestIssueRestoreRefusesTheOwnersOwnEdit(t *testing.T) {
+	r := handedOff(t)
+	ownSpinOff(t, r, thisSlot)
+	reAddStale(t, r)
+	before := r.git("rev-parse", "HEAD")
+	var out, errs bytes.Buffer
+	err := runIssueRestore(context.Background(), &out, &errs, []int{8})
+	if !errors.Is(err, errTransferredDetails) || !strings.Contains(err.Error(), refuseBehind) {
+		t.Fatalf("restore in the owner's checkout: %v", err)
+	}
+	if r.git("rev-parse", "HEAD") != before || r.git("status", "--porcelain") != "" {
+		t.Fatal("a refused restore changed the checkout")
+	}
+}

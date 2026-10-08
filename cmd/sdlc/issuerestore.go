@@ -28,7 +28,9 @@ func newIssueRestoreCmd() *cobra.Command {
 			"would change, the file is set to main's version (or removed, when main has\n" +
 			"archived it), in one commit `#N: issue: restore main's details`. A dirty\n" +
 			"details file is refused; with nothing to restore, nothing is committed.\n" +
-			"To keep the edit instead, `sdlc claim --issue N` and land it as the owner.",
+			"To keep the edit instead, `sdlc claim --issue N` and land it as the owner.\n" +
+			"In the owner's own checkout restore refuses (the edit is the owner's): merge\n" +
+			"main and resolve the details instead.",
 		Args: cobra.NoArgs, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guardSpineRepo(cmd.ErrOrStderr())
@@ -71,6 +73,13 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 	// wherever it lives on either side — so the merge keeps main's.
 	names := map[string]bool{}
 	var refs []string
+	for _, c := range changed {
+		if want[c.ID] && c.Verdict == verdictBehind {
+			// This checkout owns the issue: the edit is the owner's own work,
+			// which merging main keeps; restoring would drop it.
+			return detailsRefusal(env, c)
+		}
+	}
 	for _, c := range changed {
 		if want[c.ID] && !names[path.Base(c.Path)] {
 			names[path.Base(c.Path)] = true

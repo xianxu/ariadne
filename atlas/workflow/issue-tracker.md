@@ -281,7 +281,9 @@ renamed close branch (pair#365) or a reopened issue lands from its owner. A
 non-owner is offered `sdlc issue restore --issue N`, which makes every copy of
 the details match main in one commit (git follows an archive's rename, so the
 stale copy may surface under `history/`), or a claim to keep the edit. An owner
-behind main merges main and resolves the details. `sdlc issue recovery list|reconcile` resumes stopped
+behind main merges main and resolves the details.
+
+`sdlc issue recovery list|reconcile` resumes stopped
 operations, probing before repeating anything; a creation that published
 nothing is released rather than re-rendered.
 

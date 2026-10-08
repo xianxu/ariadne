@@ -46,6 +46,8 @@ TRANSITION GUARDS (refusable with --force)
     rationale; the log is where it lands. Add a line like:
       - YYYY-MM-DD: reopened — <reason>
     or a `### YYYY-MM-DD` subheading under ## Log before re-running.
+    The entry edits published details, so it lands only from the owner's
+    checkout (#285): reopen from the claimant's slot, or claim the issue first.
 
   lifecycle graph  (#122 M4)
     A status change must follow a declared edge — see LEGAL TRANSITIONS above.
