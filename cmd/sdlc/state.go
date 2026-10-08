@@ -20,7 +20,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"os/exec"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
@@ -60,6 +62,29 @@ type IssueState struct {
 	// Unreadable says why an "unreadable" status could not be read, when the
 	// reader knows (#288: an unparseable tracker card).
 	Unreadable string `json:"unreadable,omitempty"`
+	// Owner is the card's claimant, the lock (#283); absent when unowned.
+	Owner *IssueOwner `json:"owner,omitempty"`
+	// ClaimedAt is when the current owner took the card, from tracker history
+	// (#284); absent when unowned or not found there.
+	ClaimedAt string `json:"claimed_at,omitempty"`
+	cardPath  string // the card's tracker path, to find its claim time
+}
+
+// IssueOwner is a card's owner as state shows it: the slot (workspace label,
+// else worktree) and its supervising operator (#283).
+type IssueOwner struct {
+	Operator    string `json:"operator"`
+	MachineName string `json:"machine_name"`
+	Workspace   string `json:"workspace,omitempty"`
+	Worktree    string `json:"worktree"`
+}
+
+// slot names an owner's workspace for humans: its label, else its worktree.
+func (o IssueOwner) slot() string {
+	if o.Workspace != "" {
+		return o.Workspace
+	}
+	return o.Worktree
 }
 
 // WorktreeState describes one entry from `git worktree list --porcelain -z`.
@@ -143,6 +168,9 @@ func runState(ctx context.Context, stdout io.Writer, f *stateFlags) error {
 	issues, stale, err := listIssueStates(ctx, issuesDir)
 	if err != nil {
 		return fmt.Errorf("list issues: %w", err)
+	}
+	if err := fillClaimTimes(ctx, identity.WorktreeRoot, issues); err != nil {
+		s.Drift = append(s.Drift, DriftFinding{Severity: "info", Message: "claim ages unavailable: " + err.Error()})
 	}
 	s.Issues, s.TrackerStale = issues, stale
 	// gitx.ShippedWorkOnMain is the production ship probe; state_test fakes it.
@@ -239,6 +267,16 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 		return nil, false, err
 	}
 	var out []IssueState
+	owned := func(st IssueState, rec tracker.IssueRecord) IssueState {
+		if rec.Card == nil {
+			return st
+		}
+		st.cardPath = rec.Card.Path
+		if c, has, err := issue.CardClaimant(rec.Card.Raw); err == nil && has {
+			st.Owner = &IssueOwner{Operator: c.Operator, MachineName: c.MachineName, Workspace: c.Workspace, Worktree: c.Worktree}
+		}
+		return st
+	}
 	for _, rec := range rs.All() {
 		if rec.CardErr != nil {
 			// The card cannot be read (#288): its status is unknown, never the
@@ -252,7 +290,7 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 				continue
 			}
 			updated, _ := rec.Field("updated")
-			out = append(out, IssueState{ID: rec.ID, Status: rec.Status(), Title: rec.Title(), Updated: updated, CardOnly: true})
+			out = append(out, owned(IssueState{ID: rec.ID, Status: rec.Status(), Title: rec.Title(), Updated: updated, CardOnly: true}, rec))
 			continue
 		}
 		if rec.DetailErr != nil {
@@ -268,7 +306,7 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 		}
 		updated, _ := rec.Field("updated")
 		total, ticked := issue.CountPlanItems(rec.DetailBody)
-		out = append(out, IssueState{
+		out = append(out, owned(IssueState{
 			ID:         rec.ID,
 			Path:       rec.DetailPath,
 			Status:     rec.Status(),
@@ -276,7 +314,7 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 			PlanTotal:  total,
 			PlanTicked: ticked,
 			Updated:    updated,
-		})
+		}, rec))
 	}
 	return out, rs.Stale, nil
 }
@@ -399,6 +437,11 @@ func unpadID(id string) string { return issue.CLIRef(id) }
 // ── prose rendering ─────────────────────────────────────────────────────────
 
 func renderProse(w io.Writer, s State) error {
+	return renderProseAt(w, s, time.Now())
+}
+
+// renderProseAt renders state as of now (claim ages are relative to it).
+func renderProseAt(w io.Writer, s State, now time.Time) error {
 	fmt.Fprintf(w, "Repo:    %s\n", s.Repo)
 	fmt.Fprintf(w, "Branch:  %s\n", s.Branch)
 	if s.Workspace.SchemaVersion != 0 {
@@ -424,9 +467,13 @@ func renderProse(w io.Writer, s State) error {
 		if i.Title != "" {
 			fmt.Fprintf(w, "  — %s", truncate(i.Title, 60))
 		}
+		if i.Owner != nil {
+			fmt.Fprintf(w, "  [%s%s]", i.Owner.slot(), claimAge(i.ClaimedAt, now))
+		}
 		fmt.Fprintln(w)
 	}
 	fmt.Fprintln(w)
+	renderClaims(w, s.Issues, now)
 
 	fmt.Fprintln(w, "Worktrees:")
 	if len(s.Worktrees) == 0 {
@@ -460,9 +507,117 @@ func renderProse(w io.Writer, s State) error {
 	}
 
 	// Footer: timestamp so output is reproducible-ish for logging.
-	fmt.Fprintf(w, "\n(captured at %s)\n", time.Now().Format(time.RFC3339))
+	fmt.Fprintf(w, "\n(captured at %s)\n", now.Format(time.RFC3339))
 	return nil
 }
 
 // valueOr and truncate live in term.go (shared across the sdlc verbs).
 // M2 review I1's rune-aware truncate is preserved verbatim there.
+
+// claimAge renders ", claimed 3h ago" from an RFC3339 claim time ("" when
+// unknown). Pure.
+func claimAge(claimedAt string, now time.Time) string {
+	at, err := time.Parse(time.RFC3339, claimedAt)
+	if err != nil {
+		return ""
+	}
+	d := now.Sub(at)
+	switch {
+	case d < time.Hour:
+		return fmt.Sprintf(", claimed %dm ago", int(d.Minutes()))
+	case d < 48*time.Hour:
+		return fmt.Sprintf(", claimed %dh ago", int(d.Hours()))
+	default:
+		return fmt.Sprintf(", claimed %dd ago", int(d.Hours()/24))
+	}
+}
+
+// claimGroup is one line of a claims view: a slot or an operator, and the
+// issues it holds with their ages.
+type claimGroup struct {
+	key    string
+	issues []string
+}
+
+// claimViews groups owned issues by slot and by operator, each in key order
+// (#284: what is slot :2 doing; what is an operator supervising). Pure.
+func claimViews(issues []IssueState, now time.Time) (bySlot, byOperator []claimGroup) {
+	slots, operators := map[string][]string{}, map[string][]string{}
+	for _, i := range issues {
+		if i.Owner == nil {
+			continue
+		}
+		item := "#" + unpadID(i.ID)
+		if age := claimAge(i.ClaimedAt, now); age != "" { // ", claimed 3h ago" → " (3h)"
+			item += " (" + strings.TrimSuffix(strings.TrimPrefix(age, ", claimed "), " ago") + ")"
+		}
+		slots[i.Owner.slot()] = append(slots[i.Owner.slot()], item)
+		operators[i.Owner.Operator] = append(operators[i.Owner.Operator], item)
+	}
+	group := func(m map[string][]string) []claimGroup {
+		var out []claimGroup
+		for k, v := range m {
+			out = append(out, claimGroup{key: k, issues: v})
+		}
+		sort.Slice(out, func(a, b int) bool { return out[a].key < out[b].key })
+		return out
+	}
+	return group(slots), group(operators)
+}
+
+// renderClaims prints the claims views, or nothing when no issue is owned.
+func renderClaims(w io.Writer, issues []IssueState, now time.Time) {
+	bySlot, byOperator := claimViews(issues, now)
+	if len(bySlot) == 0 {
+		return
+	}
+	for _, view := range []struct {
+		title  string
+		groups []claimGroup
+	}{{"Claims by slot:", bySlot}, {"Claims by operator:", byOperator}} {
+		fmt.Fprintln(w, view.title)
+		for _, g := range view.groups {
+			fmt.Fprintf(w, "  %s  %s\n", g.key, strings.Join(g.issues, ", "))
+		}
+	}
+	fmt.Fprintln(w)
+}
+
+// fillClaimTimes sets each owned issue's ClaimedAt from tracker history: one
+// `git log` over the tracker's tracking ref, read until every owned card is
+// resolved (#284). No tracker, or no owned issue, reads nothing.
+func fillClaimTimes(ctx context.Context, root string, issues []IssueState) error {
+	want := map[string]bool{}
+	for _, i := range issues {
+		if i.Owner != nil && i.cardPath != "" {
+			want[i.cardPath] = true
+		}
+	}
+	if len(want) == 0 {
+		return nil
+	}
+	repo, err := recordsRepository(ctx, root)
+	if err != nil || repo == nil {
+		return err
+	}
+	cmd := exec.CommandContext(ctx, "git", "-C", root, "log", "--format="+tracker.ClaimLogFormat, "--name-only", repo.TrackingRef(), "--", vocab.Issue().Discovery().Cards)
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return err
+	}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	times, readErr := tracker.ClaimTimes(stdout, want)
+	_ = cmd.Process.Kill() // done reading: the rest of history is not needed
+	_ = cmd.Wait()
+	if readErr != nil {
+		return readErr
+	}
+	for k := range issues {
+		if at, ok := times[issues[k].cardPath]; ok {
+			issues[k].ClaimedAt = at.Format(time.RFC3339)
+		}
+	}
+	return nil
+}

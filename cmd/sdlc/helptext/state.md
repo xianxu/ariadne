@@ -5,7 +5,13 @@ surface. Compaction recovery primitive: after a session resume, run
 WHAT IT SHOWS
 
   - Current branch + repo root, workspace address and resting branch
-  - Issues in workshop/issues/ with status, plan-tick progress
+  - Issues in workshop/issues/ with status, plan-tick progress, and — for a
+    claimed issue — its owner (the slot: workspace label, else worktree) and
+    how long ago it was claimed (#284)
+  - Claims grouped by slot and by operator: what each slot holds, what each
+    operator supervises, with claim ages. The age is the newest claim-kind
+    commit (claim, takeover, reclaim, relocate) on the card in tracker
+    history; a later status change does not reset it
   - Active git worktrees (path + branch)
   - Recent commits on this branch (main..HEAD)
   - Drift checks (inconsistencies between issue status, plan ticks,
@@ -15,7 +21,8 @@ WHAT IT DOES NOT DO
 
   - Mutate anything. State is read-only. All mutations funnel through
     `sdlc close`, `sdlc issue set-status`, `sdlc milestone-close`.
-  - Touch network. Local git + filesystem only.
+  - Touch the network beyond the tracker read the issue list already makes;
+    claim ages read local tracker history.
 
 OUTPUT MODES
 

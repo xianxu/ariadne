@@ -24,7 +24,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked; on full-issue close auto-dispatches the one boundary review (#69, `--no-judge` to skip) |
 | `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over brain+repo transcript sources) |
 | `active-time`     | (new #110; was active-time-v3.py) | Standalone CLI over the same engine — the per-segment attribution table for manual inspection; preserves the 2/3/0 loud-fail exit codes |
-| `state`           | (new)                       | Workflow state inspection + drift detection |
+| `state`           | (new)                       | Workflow state inspection + drift detection; per-issue owner and claim age, claims by slot and by operator (#284, claim times from tracker history via `tracker.ClaimTimes`) |
 | `fleet inventory` / `fleet policy` | (new #200) | Read-only fleet worktree evidence and prospective-path admission-policy resolution; typed JSON is the contract and human output renders the same values |
 | `resolve`         | (new #144)                  | **Read-only** symbolic-ref → current path(s): the issue + its plan/review family, archive-correct + cross-repo. Locations from the `discovery:` model; grammar single-sourced as the parser. No lock (see below) |
 | `open`            | (new #144)                  | Sugar over `resolve`: open the primary artifact in `$EDITOR` |
