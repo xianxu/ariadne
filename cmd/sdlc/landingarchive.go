@@ -59,16 +59,17 @@ func trackedArchiveBytes(owned landingOwnedIssue, content []byte) []byte {
 }
 
 // archivedDetails is the one projection a tracked landing archive writes and
-// its proof re-derives (#275): the done card mirrored into the details, or the
-// details unchanged when they cannot take it (no baseline, a hand-edited
-// mirrored field, a card that is not done). It reads nothing but its inputs,
-// so a retry reproduces it without consulting the live card.
+// its proof re-derives (#275), and abandon's archive reuses (#286): the
+// terminal card mirrored into the details, or the details unchanged when they
+// cannot take it (no baseline, a hand-edited mirrored field, a card that is
+// not terminal). A landing only ever passes done cards. It reads nothing but
+// its inputs, so a retry reproduces it without consulting the live card.
 func archivedDetails(content, baseline, card []byte) []byte {
 	if baseline == nil || card == nil {
 		return content
 	}
 	fm, _, err := issue.Parse(string(card))
-	if status, _ := issue.GetField(fm, "status"); err != nil || status != "done" {
+	if status, _ := issue.GetField(fm, "status"); err != nil || !vocab.Issue().IsTerminal(status) {
 		return content
 	}
 	out, err := issue.RefreshMirror(content, baseline, card)

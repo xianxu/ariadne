@@ -241,6 +241,10 @@ func TestArchivedDetailsProjectsOrKeeps(t *testing.T) {
 	codecomplete := []byte(strings.Replace(string(baseline), "status: working", "status: codecomplete", 1))
 	refreshed := archivedDetails(details, baseline, done)
 	mirrorsCard(t, string(refreshed), string(done), "done")
+	// #286: abandon archives through the same projection, so a punt or
+	// wontfix card mirrors in too.
+	punt := []byte(strings.Replace(string(baseline), "status: working", "status: punt", 1))
+	mirrorsCard(t, string(archivedDetails(details, baseline, punt)), string(punt), "punt")
 	if !bytes.Equal(archivedDetails(details, baseline, done), refreshed) {
 		t.Fatal("the projection is not deterministic")
 	}
@@ -248,7 +252,7 @@ func TestArchivedDetailsProjectsOrKeeps(t *testing.T) {
 	for name, c := range map[string]struct{ details, baseline, card []byte }{
 		"hand-edited mirror":  {edited, baseline, done},
 		"no baseline":         {details, nil, done},
-		"card not done":       {details, baseline, codecomplete},
+		"card not terminal":   {details, baseline, codecomplete},
 		"unmirrored details":  {[]byte(full), baseline, done},
 		"baseline mismatched": {details, done, done},
 	} {

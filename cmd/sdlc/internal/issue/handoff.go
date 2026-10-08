@@ -43,7 +43,8 @@ type trackerEnvelope struct {
 	Version    int         `yaml:"version"`
 	Handoff    *Handoff    `yaml:"handoff,omitempty"`
 	Completion *Completion `yaml:"completion,omitempty"`
-	Release    *Release    `yaml:"release,omitempty"` // #284
+	Release    *Release    `yaml:"release,omitempty"`   // #284
+	Abandoned  *Abandoned  `yaml:"abandoned,omitempty"` // #286
 	// Extra keeps every member this binary does not know, so a rewrite never
 	// drops a record a newer sdlc wrote (#284).
 	Extra map[string]yaml.Node `yaml:",inline"`
@@ -107,6 +108,11 @@ func cardEnvelope(d *cardDocument) (trackerEnvelope, error) {
 	}
 	if env.Release != nil {
 		if err := env.Release.validate(); err != nil {
+			return env, err
+		}
+	}
+	if env.Abandoned != nil {
+		if err := env.Abandoned.validate(); err != nil {
 			return env, err
 		}
 	}
