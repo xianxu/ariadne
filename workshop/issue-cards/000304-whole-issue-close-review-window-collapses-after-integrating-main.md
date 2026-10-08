@@ -7,6 +7,6 @@ estimate_hours:
 github_issue:
 ---
 
-# Whole-issue close review window collapses after integrating main
+# Milestone review window absorbs integrated main; close's printed window misleads
 
 ## Problem
