@@ -3,8 +3,11 @@ package main
 import (
 	"bytes"
 	"context"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
@@ -116,11 +119,21 @@ func TestBoundaryVerbsPushTheIssueBranch(t *testing.T) {
 		}
 	}
 	raw := r.git("show", "HEAD:"+detailPath)
-	writeRepoFile(t, r.root, detailPath, strings.Replace(raw, "- [x] do it", "- [x] do it\n- [ ] M1 — part one", 1)+"\n")
-	r.git("commit", "-qam", "#320: plan: M1")
+	writeRepoFile(t, r.root, detailPath, strings.Replace(raw, "- [x] do it", "- [x] do it\n- [ ] M1 — part one\n- [ ] M2 — part two", 1)+"\n")
+	r.git("commit", "-qam", "#320: plan: M1, M2")
+	// Both of milestone-close's finishing paths push: the operator's skip...
 	run("milestone-close", "--issue", "320", "--milestone", "M1", "--verified", "e2e", "--actual", "0.1", "--no-atlas", "--no-project", "--no-judge")
-	atHead("milestone-close")
+	atHead("milestone-close --no-judge")
 	r.git("commit", "-qam", "#320 M1: milestone close")
+	// ...and a judged review's finalize.
+	writeRepoFile(t, r.root, "cmd/b.go", "package a\n")
+	r.git("add", "cmd/b.go")
+	r.git("commit", "-qm", "#320 M2: implement")
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\n```findings\nfindings: []\n```\n")
+	run("milestone-close", "--issue", "320", "--milestone", "M2", "--verified", "e2e", "--actual", "0.1", "--no-atlas", "--no-project")
+	atHead("a judged milestone-close")
+	r.git("add", "-A", "workshop")
+	r.git("commit", "-qm", "#320 M2: milestone close")
 
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
 	run("close", "--issue", "320", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project")
@@ -132,4 +145,24 @@ func TestBoundaryVerbsPushTheIssueBranch(t *testing.T) {
 	run("issue", "set-status", "working", "--issue", "320")
 	run("close", "--issue", "320", "--verified", "e2e again", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project")
 	atHead("a close after a rebase")
+}
+
+// #286: a hanging push delays a boundary by at most boundaryPushTimeout and
+// then warns; it never blocks the verb.
+func TestBoundaryPushIsBounded(t *testing.T) {
+	r, _, _ := startedHere(t)
+	hooks := t.TempDir()
+	if err := os.WriteFile(filepath.Join(hooks, "pre-push"), []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("config", "core.hooksPath", hooks)
+	prev := boundaryPushTimeout
+	boundaryPushTimeout = 300 * time.Millisecond
+	t.Cleanup(func() { boundaryPushTimeout = prev })
+	start := time.Now()
+	var errs bytes.Buffer
+	boundaryPush(boundaryEnv(t), &errs, "test")
+	if elapsed := time.Since(start); elapsed > 10*time.Second || !strings.Contains(errs.String(), "was not pushed") {
+		t.Fatalf("after %s: %q", elapsed, errs.String())
+	}
 }

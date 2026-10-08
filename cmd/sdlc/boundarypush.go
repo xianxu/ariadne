@@ -6,12 +6,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"strings"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
+
+// boundaryPushTimeout bounds one boundary push.
+var boundaryPushTimeout = 2 * time.Minute
 
 // boundaryPush pushes the checkout's issue branch after a boundary verb's own
 // effect has landed. It never fails the verb (#286 D2): the next boundary or
@@ -22,7 +27,13 @@ func boundaryPush(env *trackerEnv, stderr io.Writer, verb string) {
 	if branch == "" || env.onRest() || branch == "main" {
 		return
 	}
-	if err := pushIssueBranch(env, branch); err != nil {
+	// Bounded, so a hanging network delays the verb by at most this much
+	// instead of blocking it (D2: the push never holds the boundary hostage).
+	ctx, cancel := context.WithTimeout(env.ctx, boundaryPushTimeout)
+	defer cancel()
+	bounded := *env
+	bounded.ctx = ctx
+	if err := pushIssueBranch(&bounded, branch); err != nil {
 		cwarn(stderr, fmt.Sprintf("%s: %s was not pushed: %v — the %s itself is done; the next boundary or `sdlc pr` pushes it", verb, branch, err, verb))
 		return
 	}

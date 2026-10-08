@@ -777,6 +777,11 @@ func TestLandingDeletesTheRemoteBranch(t *testing.T) {
 	if heads := git(t, remote, "for-each-ref", "refs/heads/"+landingTestBranch); heads != "" {
 		t.Fatalf("the landed branch is still on the remote: %s", heads)
 	}
+	f := landingFlags()
+	f.Branch = landingTestBranch
+	if err := runMerge(io.Discard, io.Discard, f); err != nil {
+		t.Fatalf("a resumed landing with the remote branch gone: %v", err)
+	}
 }
 
 // #286: a pushed branch rewritten since (a rebase) is published by `sdlc pr`

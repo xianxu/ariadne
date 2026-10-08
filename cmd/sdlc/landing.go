@@ -488,7 +488,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	// #286: the landed branch leaves origin too, leased on the landed head so
 	// a push made after the PR merged is never thrown away.
 	if derr := deleteRemoteBranch(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, branch, pr.HeadOID); derr != nil {
-		cwarn(stderr, fmt.Sprintf("landed, but %s was not deleted on %s: %v", branch, t.Remote, derr))
+		cwarn(stderr, fmt.Sprintf("landed, but %s was not deleted on %s: %v — `sdlc merge --branch %s --yes` retries it", branch, t.Remote, derr, branch))
 	}
 	fmt.Fprintf(stdout, "Landed PR #%d; workspace retained on unchanged %s. Refresh is separate.\n", pr.Number, t.Rest)
 	return nil
