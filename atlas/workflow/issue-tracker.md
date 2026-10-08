@@ -264,6 +264,7 @@ The publication remote is the resting branch's upstream
 | `issue publish` | first publication: as `move-detail`; republish: ownership re-checked before the push, card untouched (#284) | rest fast-forwards (bringing a moved main in by three-way merge first); the issue's own branch commits the published bytes; another issue's branch takes its copy back | one narrow commit for the set's edits, never over a moved main copy or conflict markers |
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
 | `issue restore` | none | one commit setting each copy of the issue's details to main's (#285) | none |
+| `abandon` | terminal (wontfix/punt) with the `abandoned` record; owner kept (#286) | note commit; branch kept at `refs/ariadne/abandoned/NNNNNN`, then deleted | one narrow commit archiving details and plans |
 
 **The issue branch on the remote (#286, `boundarypush.go`).** `start-plan`,
 `milestone-close`, `close` (and reconcile's close completion) and `unclaim`
@@ -274,6 +275,25 @@ the next boundary while a tip this checkout never fetched is refused. A failed
 boundary push warns; only `unclaim`'s fails the verb. `sdlc pr` uses the same
 push, and `sdlc merge` deletes the landed branch from the remote, leased on the
 PR's head.
+
+### Abandon and reopen (#286)
+
+`sdlc abandon` (`abandon.go`) ends started work as `wontfix`/`punt` without
+losing it: the reason is committed under `## Log`, the tip is pushed to
+`refs/ariadne/abandoned/NNNNNN`, the card goes terminal with an `abandoned`
+record `{ref, branch, head}` (the owner stays as attribution), the details
+(mirrored through `archivedDetails`, now any terminal status) and the issue's
+plans on main move to history in one narrow main commit, and the branch is
+deleted on the remote (when the kept tip contains it) and locally. A rerun is
+recognised from the terminal card with its record, before the branch checks,
+so it finishes from the resting branch too. An open issue records an empty
+`abandoned` record and only archives. Reopening (`set-status working`) runs
+`restoreAbandoned` before the card write: fetch the ref, recreate the branch at
+the head, merge main (a conflict on the issue's own details against main's
+archive takes main's archived copy; any other conflict stops with the card
+unchanged), move the details and plans back out of the archive, push. The card
+write clears the record; the mirror refresh is committed, the branch pushed,
+and the ref deleted (a leftover ref is overwritten by a later abandon).
 
 `move-detail` is add-then-remove relative to a merge base without the file, so
 the source branch's direct, merge-from-main or squash landing keeps main's copy

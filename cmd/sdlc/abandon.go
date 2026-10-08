@@ -389,3 +389,179 @@ func dropAbandonedBranch(env *trackerEnv, stderr io.Writer, rec issue.Abandoned)
 	cok(stderr, fmt.Sprintf("%s deleted here and on %s; this checkout is on %s", rec.Branch, env.target.Remote, env.resting))
 	return nil
 }
+
+// restoreAbandoned is a reopen's work for an abandoned issue (#286 D9), run
+// before set-status's card write: the branch is recreated at the kept tip,
+// main is merged in, the archived details and plans move back out of the
+// archive, and the branch is pushed. Each step is recognised on rerun; a
+// merge conflict stops here with the card still terminal.
+func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, rec issue.Abandoned, issuesDir string) error {
+	issueStr := issue.CLIRef(card.ID)
+	own, recorded, _, err := ownership(env, card)
+	if err != nil {
+		return err
+	}
+	if own == issue.OwnershipForeign {
+		return fmt.Errorf("#%s was abandoned by %s; only that workspace reopens it (reassignment is `sdlc reclaim`)", issueStr, describeClaimant(recorded))
+	}
+	if merging, err := env.gitTest("rev-parse", "-q", "--verify", "MERGE_HEAD"); err != nil {
+		return err
+	} else if merging {
+		return fmt.Errorf("#%s: a merge of main is in progress on %s; resolve and commit it, then rerun", issueStr, rec.Branch)
+	}
+	if dirty, err := cleanTree(env); err != nil {
+		return err
+	} else if dirty != "" {
+		return fmt.Errorf("#%s: reopening restores a branch and needs a clean tree; commit or discard:\n%s", issueStr, dirty)
+	}
+	if env.branch != rec.Branch && !env.onRest() {
+		return fmt.Errorf("#%s: reopen from the resting branch (%s) or from %s, not %s", issueStr, env.resting, rec.Branch, valueOr(env.branch, "a detached HEAD"))
+	}
+	// 1–2: the branch at the kept tip.
+	if tip, err := env.git("for-each-ref", "--format=%(objectname)", "refs/heads/"+rec.Branch); err != nil {
+		return err
+	} else if tip == "" {
+		if _, err := env.git("fetch", "-q", env.target.Remote, rec.Ref); err != nil {
+			return fmt.Errorf("#%s: fetching the kept work %s failed: %w", issueStr, rec.Ref, err)
+		}
+		if fetched, err := env.git("rev-parse", "FETCH_HEAD"); err != nil {
+			return err
+		} else if fetched != rec.Head {
+			return fmt.Errorf("#%s: %s is at %s, not the recorded %s; inspect it before reopening", issueStr, rec.Ref, shortOID(fetched), shortOID(rec.Head))
+		}
+		if _, err := env.git("branch", "-q", rec.Branch, rec.Head); err != nil {
+			return err
+		}
+	} else if has, err := env.ancestorOf(rec.Head, "refs/heads/"+rec.Branch); err != nil {
+		return err
+	} else if !has {
+		return fmt.Errorf("#%s: local %s does not contain the kept tip %s; inspect it before reopening", issueStr, rec.Branch, shortOID(rec.Head))
+	}
+	if env.branch != rec.Branch {
+		if _, err := env.git("switch", "-q", rec.Branch); err != nil {
+			return err
+		}
+		env.branch = rec.Branch
+	}
+	// 3: merge main, which carries the archive commit.
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return err
+	}
+	historyDir := envOr("WF_HISTORY_DIR", "workshop/history")
+	plansDir := envOr("WF_PLANS_DIR", "workshop/plans")
+	base := path.Base(card.Path)
+	archivedRel := archiveDestination(historyDir, vocab.ArchiveIssues, base)
+	archiveCommit, err := env.git("rev-list", "-1", view.Ref(), "--", archivedRel)
+	if err != nil {
+		return err
+	}
+	if archiveCommit != "" {
+		if merged, err := env.ancestorOf(archiveCommit, "HEAD"); err != nil {
+			return err
+		} else if !merged {
+			if _, err := env.git("merge", "-q", "--no-edit", view.Ref()); err != nil {
+				if rerr := resolveArchiveConflicts(env, base, issuesDir, plansDir); rerr != nil {
+					return fmt.Errorf("#%s: merging main into %s stopped on a conflict: %v\n      resolve and commit the merge (for the issue's details, keep main's archived copy), then rerun `sdlc issue set-status working --issue %s`; the card is unchanged", issueStr, rec.Branch, rerr, issueStr)
+				}
+			}
+		}
+	}
+	// 4: the details and plans come back out of the archive.
+	liveRel := path.Join(issuesDir, base)
+	if archived, err := env.has("HEAD", archivedRel); err != nil {
+		return err
+	} else if archived {
+		moves := [][2]string{{archivedRel, liveRel}}
+		plans, err := env.git("ls-tree", "--name-only", "HEAD", vocab.ArchiveSubdir(historyDir, vocab.ArchivePlans)+"/")
+		if err != nil {
+			return err
+		}
+		for _, p := range strings.Fields(plans) {
+			if planArtifactBelongsToIssue(base, path.Base(p)) {
+				moves = append(moves, [2]string{p, path.Join(plansDir, path.Base(p))})
+			}
+		}
+		var paths []string
+		for _, m := range moves {
+			if live, err := env.has("HEAD", m[1]); err != nil {
+				return err
+			} else if live {
+				if _, err := env.git("rm", "-q", "--", m[1]); err != nil { // the archived copy is newer
+					return err
+				}
+			}
+			if _, err := env.git("mv", m[0], m[1]); err != nil {
+				return err
+			}
+			paths = append(paths, m[0], m[1])
+		}
+		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", fmt.Sprintf("#%s: reopen: restore from %s", issueStr, rec.Ref), "--"}, paths...)...); err != nil {
+			return err
+		}
+	}
+	// 5: the branch on the remote, before the card says it is back.
+	if err := pushIssueBranch(env, rec.Branch); err != nil {
+		return fmt.Errorf("#%s: pushing the restored %s failed: %w — the card is unchanged; rerun", issueStr, rec.Branch, err)
+	}
+	cok(stderr, fmt.Sprintf("#%s restored on %s from %s and pushed", issueStr, rec.Branch, rec.Ref))
+	return nil
+}
+
+// finishReopen commits the card mirror the reopen's card write refreshed (as
+// close commits its own), pushes the branch, and drops the archive ref, so a
+// reopen ends clean, on origin, with nothing left in the archive.
+func finishReopen(r *reopenedAbandon, stderr io.Writer, issuesDir string) {
+	env := r.env
+	detailRel := path.Join(issuesDir, path.Base(r.cardPath))
+	if dirty, err := env.git("status", "--porcelain", "--", detailRel); err != nil {
+		cwarn(stderr, fmt.Sprintf("reopen: the details mirror was not checked: %v", err))
+	} else if dirty != "" {
+		if err := commitOnly(env, fmt.Sprintf("#%s: mirror working card", issue.CLIRef(r.id)), detailRel); err != nil {
+			cwarn(stderr, fmt.Sprintf("reopen: the refreshed details mirror was not committed: %v", err))
+		}
+	}
+	boundaryPush(env, stderr, "reopen")
+	dropArchiveRef(env, stderr, r.rec)
+}
+
+// dropArchiveRef deletes a reopened issue's archive ref, leased on the kept
+// tip. Best-effort: a leftover ref is harmless (its work is on the branch) and
+// a later abandon overwrites it.
+func dropArchiveRef(env *trackerEnv, stderr io.Writer, rec issue.Abandoned) {
+	if _, err := env.git("push", "-q", "--force-with-lease="+rec.Ref+":"+rec.Head, env.target.Remote, ":"+rec.Ref); err != nil {
+		cwarn(stderr, fmt.Sprintf("%s was not deleted: %v — harmless: its work is on the branch", rec.Ref, err))
+	}
+}
+
+// resolveArchiveConflicts finishes a reopen's merge of main when the only
+// conflicts are the issue's own live details and plans against main's
+// archive of them: main's side (the archived copy, which holds the abandon
+// note and is newer) is taken, and the next step moves it back out. Any other
+// conflict is the agent's to resolve; the merge is left in progress.
+func resolveArchiveConflicts(env *trackerEnv, base, issuesDir, plansDir string) error {
+	out, err := env.git("diff", "--name-only", "--diff-filter=U")
+	if err != nil {
+		return err
+	}
+	var own, other []string
+	for _, p := range strings.Fields(out) {
+		dir, name := path.Dir(p), path.Base(p)
+		if (dir == issuesDir && name == base) || (dir == plansDir && planArtifactBelongsToIssue(base, name)) {
+			own = append(own, p)
+		} else {
+			other = append(other, p)
+		}
+	}
+	if len(other) > 0 {
+		return fmt.Errorf("conflicts in %s", strings.Join(other, ", "))
+	}
+	if len(own) == 0 {
+		return errors.New("the merge failed without a conflict")
+	}
+	if _, err := env.git(append([]string{"rm", "-q", "--"}, own...)...); err != nil {
+		return err
+	}
+	_, err = env.git("commit", "-q", "--no-verify", "--no-edit")
+	return err
+}

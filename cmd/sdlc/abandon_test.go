@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -229,5 +231,150 @@ func TestAbandonDecision(t *testing.T) {
 				t.Fatalf("%s as %s:\n%s", status, as, out)
 			}
 		}
+	}
+}
+
+func reopen9() (string, error) {
+	stdout, stderr, err := executeSDLCTestCommand("issue", "set-status", "working", "--issue", "9")
+	return stdout + stderr, err
+}
+
+// abandonedHere is #9's started work abandoned as punt, with main moved on.
+func abandonedHere(t *testing.T) (*trackerRepo, map[string]string, string) {
+	t.Helper()
+	r, paths, _ := startedHere(t)
+	if err := abandon9("punt", "after the freeze"); err != nil {
+		t.Fatal(err)
+	}
+	kept := remoteRef(t, r, s09Archive)
+	peerCommit(t, r, "unrelated.go")
+	return r, paths, kept
+}
+
+// assertReopened checks a reopen's whole end state.
+func assertReopened(t *testing.T, r *trackerRepo, cardPath, kept string) {
+	t.Helper()
+	if on := r.git("branch", "--show-current"); on != s09Branch {
+		t.Fatalf("on %s, not the restored branch", on)
+	}
+	r.git("fetch", "-q", "origin")
+	if !gitSucceeds(r.root, "merge-base", "--is-ancestor", kept, "HEAD") || !gitSucceeds(r.root, "merge-base", "--is-ancestor", "origin/main", "HEAD") {
+		t.Fatal("the branch lacks the kept tip or main")
+	}
+	if !gitSucceeds(r.root, "cat-file", "-e", "HEAD:"+handoffDetail) || gitSucceeds(r.root, "cat-file", "-e", "HEAD:"+s09History) {
+		t.Fatal("the details were not moved back out of the archive")
+	}
+	if !strings.Contains(r.git("show", "HEAD:"+handoffDetail), "abandoned (punt)") {
+		t.Fatal("the restored details lost the abandon note")
+	}
+	if tip := remoteTip(t, r, s09Branch); tip != r.git("rev-parse", "HEAD") {
+		t.Fatalf("origin's branch %q is not HEAD", tip)
+	}
+	if dirty := r.git("status", "--porcelain"); dirty != "" {
+		t.Fatalf("the reopen left changes: %s", dirty)
+	}
+	if remoteRef(t, r, s09Archive) != "" {
+		t.Fatal("the archive ref survived the reopen")
+	}
+	card := r.card(cardPath)
+	if _, ok, _ := issue.CardAbandoned([]byte(card)); ok || !strings.Contains(card, "status: working") {
+		t.Fatalf("card:\n%s", card)
+	}
+	if err := guardTransferredDetails(context.Background()); err != nil {
+		t.Fatalf("the reopened branch does not land: %v", err)
+	}
+}
+
+// #286 D9: reopening an abandoned issue restores its branch at the kept tip,
+// merges main and un-archives the details, so it lands cleanly.
+func TestReopenRestoresAnAbandonedIssue(t *testing.T) {
+	r, paths, kept := abandonedHere(t)
+	if out, err := reopen9(); err != nil {
+		t.Fatalf("reopen: %v\n%s", err, out)
+	}
+	assertReopened(t, r, paths["000009"], kept)
+}
+
+// A code conflict with main stops before the card changes; resolving it and
+// rerunning finishes the reopen.
+func TestReopenStopsOnAConflictThenResumes(t *testing.T) {
+	r, paths, _ := startedHere(t)
+	if err := abandon9("punt", "r"); err != nil {
+		t.Fatal(err)
+	}
+	kept := remoteRef(t, r, s09Archive)
+	peerAdd(t, r, "cmd/nine.go", "package nine // main's\n")
+	out, err := reopen9()
+	if err == nil || !strings.Contains(err.Error()+out, "conflict") {
+		t.Fatalf("want a conflict stop: %v\n%s", err, out)
+	}
+	if !strings.Contains(r.card(paths["000009"]), "status: punt") || !gitSucceeds(r.root, "rev-parse", "-q", "--verify", "MERGE_HEAD") {
+		t.Fatal("a conflicted reopen changed the card or abandoned the merge")
+	}
+	if out, err := reopen9(); err == nil || !strings.Contains(err.Error()+out, "in progress") {
+		t.Fatalf("a rerun mid-merge: %v", err)
+	}
+	if !strings.Contains(err.Error()+out, "keep main's archived copy") {
+		t.Fatalf("the stop does not say how to resolve the details: %v", err)
+	}
+	writeRepoFile(t, r.root, "cmd/nine.go", "package nine // both\n")
+	r.git("add", "cmd/nine.go")
+	r.git("rm", "-q", handoffDetail) // as the message says: keep main's archived copy
+	r.git("commit", "-q", "--no-edit")
+	if out, err := reopen9(); err != nil {
+		t.Fatalf("rerun after resolving: %v\n%s", err, out)
+	}
+	assertReopened(t, r, paths["000009"], kept)
+}
+
+// A push that fails after the restore commit leaves the card terminal; the
+// rerun pushes without restoring twice.
+func TestReopenRerunAfterAFailedPush(t *testing.T) {
+	r, paths, kept := abandonedHere(t)
+	hooks := t.TempDir()
+	if err := os.WriteFile(filepath.Join(hooks, "pre-push"), []byte("#!/bin/sh\nexit 1\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("config", "core.hooksPath", hooks)
+	if out, err := reopen9(); err == nil || !strings.Contains(r.card(paths["000009"]), "status: punt") {
+		t.Fatalf("want a refused reopen with the card unchanged: %v\n%s", err, out)
+	}
+	r.git("config", "--unset", "core.hooksPath")
+	if out, err := reopen9(); err != nil {
+		t.Fatalf("rerun: %v\n%s", err, out)
+	}
+	assertReopened(t, r, paths["000009"], kept)
+	if n := strings.Count(r.git("log", "--format=%s"), "reopen: restore"); n != 1 {
+		t.Fatalf("%d restore commits", n)
+	}
+}
+
+// An archive ref a reopen failed to delete is overwritten by the next abandon:
+// the branch contains its work.
+func TestAbandonOverwritesAnOrphanArchiveRef(t *testing.T) {
+	r, _, kept := abandonedHere(t)
+	if out, err := reopen9(); err != nil {
+		t.Fatalf("reopen: %v\n%s", err, out)
+	}
+	r.git("push", "-q", "origin", kept+":"+s09Archive) // the orphan
+	if err := abandon9("wontfix", "for good"); err != nil {
+		t.Fatalf("abandon over an orphan: %v", err)
+	}
+	if now := remoteRef(t, r, s09Archive); now == kept || !gitSucceeds(r.root, "merge-base", "--is-ancestor", kept, now) {
+		t.Fatalf("the archive ref was not moved to the new tip: %s", now)
+	}
+}
+
+// #286 D8: set-status cannot end started work as wontfix/punt, even forced;
+// an open issue still can.
+func TestSetStatusRedirectsStartedWorkToAbandon(t *testing.T) {
+	startedHere(t)
+	for _, args := range [][]string{{"issue", "set-status", "punt", "--issue", "9"}, {"issue", "set-status", "punt", "--issue", "9", "--force"}} {
+		if _, stderr, err := executeSDLCTestCommand(args...); err == nil || !strings.Contains(err.Error()+stderr, "sdlc abandon --issue N --as punt") {
+			t.Fatalf("%v: %v %s", args, err, stderr)
+		}
+	}
+	if _, stderr, err := executeSDLCTestCommand("issue", "set-status", "wontfix", "--issue", "10"); err != nil {
+		t.Fatalf("triage of an open issue: %v %s", err, stderr)
 	}
 }

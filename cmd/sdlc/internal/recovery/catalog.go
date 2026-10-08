@@ -208,13 +208,14 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"issue set-status", "set-status", "issue set-title", "issue set-estimate", "issue set-github"},
 		Class:         ConvergentRetry,
-		Effects:       "one compare-and-swap on the card field (entering working also stamps the claimant, #277); a local mirror refresh.",
+		Effects:       "one compare-and-swap on the card field (entering working also stamps the claimant, #277); a local mirror refresh. Reopening abandoned work (#286) first restores its branch from the archive ref (fetch, branch, merge main, un-archive commit, push), then after the card write commits the mirror, pushes and deletes the ref.",
 		Evidence:      observeEvidence + ": card.",
-		Preconditions: "the lifecycle guards, including `owned` on start: an unowned open card is claimed first (#283) (--force waives guards, never a foreign owner); done and codecomplete belong to close and merge.",
+		Preconditions: "the lifecycle guards, including `owned` on start: an unowned open card is claimed first (#283) (--force waives guards, never a foreign owner); done and codecomplete belong to close and merge; wontfix/punt from started work belong to `sdlc abandon` (#286, not waivable).",
 		Repeat:        "\"already has that …\" — no write.",
 		LostResponse:  "rerun the same command — the card decides. A concurrent change refuses (\"changed concurrently\").",
 		Ends:          "another card change since you read it.",
 		Proofs: []Proof{
+			{"started work ends only through abandon; a reopen restores, un-archives and resumes after a conflict or a failed push (#286)", []string{"TestSetStatusRedirectsStartedWorkToAbandon", "TestReopenRestoresAnAbandonedIssue", "TestReopenStopsOnAConflictThenResumes", "TestReopenRerunAfterAFailedPush"}},
 			{"guards and claimant stamping", []string{"TestStatusDecisionRecordsOrRefusesTheClaimant", "TestCheckTransitionGuards_ReopenNeedsLogEntry"}},
 			{"a lost response is settled by rerunning", []string{"TestSetStatusRerunSettlesALostResponse"}},
 		},
