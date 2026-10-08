@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "af3ac220", done: "674e29fb"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Transfer guard: owner plus based-on-latest
@@ -54,6 +54,8 @@ Resolution: when a non-owner branch changed details, sdlc restores main's versio
 ## Log
 
 ### 2026-10-08
+- 2026-10-08: closed — make test green except processgroup TestCancellationKillsDescendants (sandbox-only; passes unsandboxed, untouched). Done-when: TestCloseOnARenamedBranchAfterAnOutsideMergeLands (pair#365: outside merge, close on <branch>-close, pr, merge -> done; fails at sdlc pr with branch-name ownership restored); TestIssueRestoreMakesAStaleFilingBranchLand + TestTransferGuardOverBranchShapes non-owner rows (refusal offers restore, restore lands); TestTransferGuardOwnerBehindMainLatest (clean + conflicting, refused with merge-main, lands after merge); TestNoHelpCallsABranchTheOwner (all help + refusals). Mutation-checked owner/based/published facts.; review verdict: SHIP
+- 2026-10-08: flow upgraded quick → full — 315 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Claimed in ariadne:2, start-plan. Design (plan D1–D7): protected set widens from handed-off to every *published* details file (main's history touched it); "changes" = prospective merge differs from main; owner = card claimant via `ownership()` (ARCH: branch names out entirely); based-on-latest = HEAD contains main's last commit to the path (Spec's literal condition, not a content compare); not-owner refusal offers a new narrow `sdlc issue restore --issue N`, owner-behind says merge main. Unreadable-card fail-closed narrows from repo-wide to the changed paths' cards. Survey: "owner = branch" lives only in `transferguard.go`; nothing else on close → pr → merge keys on the issue's branch name, so pair#365 is the guard alone.
 
