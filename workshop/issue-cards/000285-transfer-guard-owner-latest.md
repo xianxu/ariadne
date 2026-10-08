@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.97
+actual_hours: 1.12
 tracker:
     version: 1
     completion:
-        token: close-65875d88c2ee
+        token: close-77f156fdcf71
         repository: github.com/xianxu/ariadne
-        reviewed_head: 1c3faf37eff30e2e5ea8a5cf23165ce278c76b7c
-        evidence_commit: 04bc500b6bd03255517fc8a71dbc2fe2ec1c9a15
+        reviewed_head: 6ba978914f53eec60271b3256cedfa4ffeb34035
+        evidence_commit: d87b1d847dae75bd4fd52254be5432c6560c90aa
 ---
 
 # Transfer guard: owner plus based-on-latest
