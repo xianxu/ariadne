@@ -15,18 +15,18 @@ type detailsFacts struct {
 	Published bool // main's history has touched the file
 	Owner     bool // this checkout is the card's claimant
 	Based     bool // HEAD contains main's last commit to the file
-	Conflict  bool // the prospective merge conflicts on the file
 }
 
 // detailsVerdict is optimistic concurrency on published details: a change is
-// the owner's to make, and only against main's latest version.
+// the owner's to make, and only against main's latest version. (A branch that
+// is based cannot conflict on the file: main has not touched it since.)
 func detailsVerdict(f detailsFacts) verdict {
 	switch {
 	case !f.Published:
 		return verdictAccept
 	case !f.Owner:
 		return verdictNotOwner
-	case f.Conflict || !f.Based:
+	case !f.Based:
 		return verdictBehind
 	}
 	return verdictAccept

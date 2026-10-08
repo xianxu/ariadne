@@ -110,3 +110,7 @@ ARCH notes: ARCH-DRY — one collector (`changedDetails`) feeds both the guard a
 ### Close
 
 - [ ] `sdlc close --issue 285 --verified '<make test + the four Done-when tests>'`.
+
+## Revisions
+
+- 2026-10-08 (Task 2): dropped the `Conflict` fact. A mutation check showed it can't be observed: a branch based on main's last commit to a file can't conflict on it, and a conflicted file already appears in the merge-result diff (it's written with markers). The verdict is the Spec's two conditions over 8 combinations. Also dropped D6's "published path with no card refuses": without a card a path isn't recognisable as details. The unreadable-card case moved into `malformedcard_test.go`, which held the old repo-wide assertion.

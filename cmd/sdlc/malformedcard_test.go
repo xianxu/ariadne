@@ -14,9 +14,9 @@ import (
 
 // #288: one malformed tracker card is quarantined, not fatal. Every other
 // card's verbs proceed; the bad card's own verbs refuse naming the cause;
-// read views report it unreadable/unknown (never absent); publishing refuses
-// repo-wide (an unreadable card may hide a handoff); and its ID is never
-// reallocated.
+// read views report it unreadable/unknown (never absent); a landing that
+// changes its details refuses (#285: its owner can't be judged); and its ID is
+// never reallocated.
 func TestOneMalformedCardDoesNotBlockOthers(t *testing.T) {
 	goodPath, goodCard, goodDetailPath, goodDetail := seededIssue(t, "000041", "good")
 	badPath, badCard, badDetailPath, badDetail := seededIssue(t, "000042", "bad")
@@ -59,9 +59,17 @@ func TestOneMalformedCardDoesNotBlockOthers(t *testing.T) {
 		t.Fatalf("state drift does not surface the malformed card: %+v", d)
 	}
 
-	if err := guardTransferredDetails(ctx); err == nil || !strings.Contains(err.Error(), "#000042 is malformed") {
-		t.Fatalf("publishing must refuse while a card is unreadable: %v", err)
+	// #285: whose the details are can't be judged, so a landing that changes
+	// the bad card's details refuses; other landings proceed.
+	if err := guardTransferredDetails(ctx); err != nil {
+		t.Fatalf("a landing that leaves the bad card's details alone: %v", err)
 	}
+	writeRepoFile(t, r.root, badDetailPath, badDetail+"\nedited\n")
+	r.git("commit", "-qam", "edit #42")
+	if err := guardTransferredDetails(ctx); err == nil || !strings.Contains(err.Error(), "#000042 is malformed") || !strings.Contains(err.Error(), badDetailPath) {
+		t.Fatalf("a landing that changes an unreadable card's details must refuse: %v", err)
+	}
+	r.git("reset", "-q", "--hard", "HEAD~1")
 
 	// Every reader of the composed records names the cause instead of reading
 	// the card as absent (M1 review BR-3/BR-4).

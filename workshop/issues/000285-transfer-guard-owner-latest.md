@@ -45,8 +45,8 @@ Resolution: when a non-owner branch changed details, sdlc restores main's versio
 
 - [x] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
 - [ ] Durable plan: `workshop/plans/000285-transfer-guard-owner-latest-plan.md` (full flow: guard rewrite + `issue restore` exceed the quick-flow code limit). Single close, no Mx.
-  - [ ] Task 1: pure verdict
-  - [ ] Task 2: collector + guard rewrite
+  - [x] Task 1: pure verdict
+  - [x] Task 2: collector + guard rewrite
   - [ ] Task 3: `sdlc issue restore`
   - [ ] Task 4: pair#365 end to end
   - [ ] Task 5: retire owner-as-branch wording; atlas
@@ -58,3 +58,5 @@ Resolution: when a non-owner branch changed details, sdlc restores main's versio
 Claimed in ariadne:2, start-plan. Design (plan D1–D7): protected set widens from handed-off to every *published* details file (main's history touched it); "changes" = prospective merge differs from main; owner = card claimant via `ownership()` (ARCH: branch names out entirely); based-on-latest = HEAD contains main's last commit to the path (Spec's literal condition, not a content compare); not-owner refusal offers a new narrow `sdlc issue restore --issue N`, owner-behind says merge main. Unreadable-card fail-closed narrows from repo-wide to the changed paths' cards. Survey: "owner = branch" lives only in `transferguard.go`; nothing else on close → pr → merge keys on the issue's branch name, so pair#365 is the guard alone.
 
 ### 2026-10-02
+
+Task 2: guard rewritten (`changedDetails` + `detailsRefusal`; `ownerAuthored`/`checkTransferredPaths`/`validHandoffDestination` gone). Mutation checks: forcing owner=true fails the four non-owner rows; forcing based=true first survived because every behind fixture also conflicted, so I added a clean-merge behind case, which now catches it; forcing published=false fails four tests. The Conflict fact was unobservable, so I dropped it (plan Revisions). Lesson-worthy: a behind check whose only fixtures also trip another check is vacuous (fits the existing 'each rejection row asserts its own check' lesson; no new entry).
