@@ -82,7 +82,7 @@ func TestIssueRestoreRefusesADirtyDetailsFile(t *testing.T) {
 	before := r.git("rev-parse", "HEAD")
 	var out, errs bytes.Buffer
 	err := runIssueRestore(context.Background(), &out, &errs, []int{8})
-	if err == nil || !strings.Contains(err.Error(), "uncommitted") || !strings.Contains(err.Error(), spinOffDetails) {
+	if err == nil || !strings.Contains(err.Error(), "uncommitted changes to "+spinOffDetails) {
 		t.Fatalf("dirty details: %v", err)
 	}
 	if r.git("rev-parse", "HEAD") != before {
@@ -103,4 +103,25 @@ func archiveOnMain(t *testing.T, r *trackerRepo) {
 	git(t, peer, "mv", spinOffDetails, "workshop/history/issues/000008-spin-off.md")
 	git(t, peer, "commit", "-qm", "archive completed issues to history")
 	git(t, peer, "push", "-q", "origin", "main")
+}
+
+// A restore interrupted after resetting the file but before its commit is
+// finished by the rerun, not refused as an uncommitted change.
+func TestIssueRestoreResumesAnInterruptedRestore(t *testing.T) {
+	r := handedOff(t)
+	ownSpinOff(t, r, otherSlot)
+	reAddStale(t, r)
+	r.git("fetch", "-q", "origin")
+	r.git("checkout", "origin/main", "--", spinOffDetails) // the interrupted half
+	before := r.git("rev-parse", "HEAD")
+	var out, errs bytes.Buffer
+	if err := runIssueRestore(context.Background(), &out, &errs, []int{8}); err != nil {
+		t.Fatalf("rerun after an interrupted restore: %v\n%s", err, errs.String())
+	}
+	if r.git("rev-parse", "HEAD~1") != before || r.git("status", "--porcelain") != "" {
+		t.Fatalf("the rerun did not finish the restore: %s", r.git("status", "--porcelain"))
+	}
+	if err := guardTransferredDetails(context.Background()); err != nil {
+		t.Fatalf("after the finished restore: %v", err)
+	}
 }

@@ -8,7 +8,9 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -89,12 +91,12 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 			paths = append(paths, p)
 		}
 	}
-	dirty, err := env.git(append([]string{"status", "--porcelain", "--"}, paths...)...)
-	if err != nil {
-		return err
-	}
-	if dirty != "" {
-		return fmt.Errorf("uncommitted changes to details to restore; commit or discard them first:\n%s", dirty)
+	// A dirty file is refused unless it already holds main's version: an
+	// interrupted restore, which the rerun finishes.
+	for _, p := range paths {
+		if err := restorable(env, mainTip, p); err != nil {
+			return err
+		}
 	}
 	for _, p := range paths {
 		onMain, err := env.has(mainTip, p)
@@ -104,7 +106,7 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 		if onMain {
 			_, err = env.git("checkout", mainTip, "--", p)
 		} else {
-			_, err = env.git("rm", "-q", "--", p)
+			_, err = env.git("rm", "-q", "--ignore-unmatch", "--", p)
 		}
 		if err != nil {
 			return err
@@ -118,4 +120,32 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 		fmt.Fprintf(stdout, "restored %s to main's version\n", p)
 	}
 	return nil
+}
+
+// restorable refuses a details file with uncommitted changes, unless the
+// working copy already is main's version (present or absent).
+func restorable(env *trackerEnv, mainTip, p string) error {
+	dirty, err := env.git("status", "--porcelain", "--", p)
+	if err != nil || dirty == "" {
+		return err
+	}
+	onMain, err := env.has(mainTip, p)
+	if err != nil {
+		return err
+	}
+	abs := filepath.Join(env.root, filepath.FromSlash(p))
+	_, statErr := os.Lstat(abs)
+	switch {
+	case !onMain && errors.Is(statErr, os.ErrNotExist):
+		return nil
+	case onMain && statErr == nil:
+		want, err := env.git("rev-parse", mainTip+":"+p)
+		if err != nil {
+			return err
+		}
+		if got, err := env.git("hash-object", "--", p); err != nil || got == want {
+			return err
+		}
+	}
+	return fmt.Errorf("uncommitted changes to %s, which restore would overwrite; commit or discard them first", p)
 }

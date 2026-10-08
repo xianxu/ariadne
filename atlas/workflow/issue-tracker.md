@@ -193,8 +193,9 @@ path. Its readers report it as unknown, never absent:
   reports the card `unknown`, `issue list`/`state` report `unreadable` with a
   drift warning, and `close`, `actual`, project status and fleet lookups name
   the error.
-- PR, push and merge refuse repo-wide (`transferguard`) while any card is
-  unreadable, since an unreadable card may hide a handoff record.
+- PR, push and merge refuse a landing that changes an unreadable card's
+  published details (`transferguard`, #285): its owner cannot be judged.
+  Other landings proceed.
 - Landing and recovery (`ownedCompletions`) also refuse while any card is
   unreadable, since it may hold a completion this landing owns. A healthy
   post-merge completion is then deferred until the card is repaired; the next
@@ -262,14 +263,25 @@ The publication remote is the resting branch's upstream
 | `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
 | `issue publish` | first publication: as `move-detail`; republish: ownership re-checked before the push, card untouched (#284) | rest fast-forwards (bringing a moved main in by three-way merge first); the issue's own branch commits the published bytes; another issue's branch takes its copy back | one narrow commit for the set's edits, never over a moved main copy or conflict markers |
 | `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
+| `issue restore` | none | one commit setting each copy of the issue's details to main's (#285) | none |
 
 `move-detail` is add-then-remove relative to a merge base without the file, so
 the source branch's direct, merge-from-main or squash landing keeps main's copy
 and the new owner's edits. The card's `tracker.handoff` record (versioned
-internal envelope, never mirrored) lets any clone recognise handed-off details:
-PR, push, merge and durable landing refuse when the prospective merge would
-conflict with, delete, re-add or rewrite them (`transferguard.go`); the issue's
-own branch is exempt. `sdlc issue recovery list|reconcile` resumes stopped
+internal envelope, never mirrored) makes a rerun of `move-detail` a no-op.
+
+**Transfer guard (#285, `transferguard.go`).** Optimistic concurrency on
+*published* details: any details file main's history has touched, archived
+copies included. PR, push, merge and durable landing compute the prospective
+merge of fresh main and HEAD. Each details file it changes must be changed
+from the owner's checkout (the card's claimant, matched on repository, machine
+and worktree) and from a branch that contains main's last commit to that file
+(`detailsVerdict`). Branch names and the handoff record play no part, so a
+renamed close branch (pair#365) or a reopened issue lands from its owner. A
+non-owner is offered `sdlc issue restore --issue N`, which makes every copy of
+the details match main in one commit (git follows an archive's rename, so the
+stale copy may surface under `history/`), or a claim to keep the edit. An owner
+behind main merges main and resolves the details. `sdlc issue recovery list|reconcile` resumes stopped
 operations, probing before repeating anything; a creation that published
 nothing is released rather than re-rendered.
 
@@ -381,7 +393,7 @@ Copies can still lag:
   ownership, peer rejection, cancellation; recovery refs surviving gc.
 - `internal/tracker/createop_test.go`: allocation race, lost acknowledgement
   resumed from a fresh process, never overwriting foreign details.
-- `cmd/sdlc/issuemovedetail_test.go`, `transferguard_test.go`: the A→B→R vs
+- `cmd/sdlc/issuemovedetail_test.go`, `transferguard_test.go`, `issuerestore_test.go`, `pair365_e2e_test.go`: the A→B→R vs
   A→D→E landings, rest fast-forward, card-derived details, interrupted record
   finished by reconcile, guard over branch shapes and from a fresh clone.
 - `cmd/sdlc/claimremote_test.go`: two-clone claim and filing races against the

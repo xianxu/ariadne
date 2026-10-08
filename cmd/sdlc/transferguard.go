@@ -147,13 +147,13 @@ var errTransferredDetails = errors.New("landing would change published issue det
 // restores main's version (or claims the issue to keep the edit); the owner
 // merges main and resolves the prose.
 func detailsRefusal(env *trackerEnv, c changedDetail) error {
-	ref := issue.CLIRef(c.ID)
+	issueStr := issue.CLIRef(c.ID)
 	if c.Verdict == verdictNotOwner {
 		return fmt.Errorf("%w: %s, from a checkout that does not own #%s.\n"+
 			"      Restore main's version with `sdlc issue restore --issue %s`; to keep the edit, `sdlc claim --issue %s` first",
-			errTransferredDetails, c.Path, ref, ref, ref)
+			errTransferredDetails, c.Path, issueStr, issueStr, issueStr)
 	}
 	return fmt.Errorf("%w: %s, from a branch not based on main's latest version of it.\n"+
 		"      Merge main (`git fetch %s && git merge %s/main`), resolve #%s's details, and rerun",
-		errTransferredDetails, c.Path, env.target.Remote, env.target.Remote, ref)
+		errTransferredDetails, c.Path, env.target.Remote, env.target.Remote, issueStr)
 }

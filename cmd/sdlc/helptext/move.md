@@ -1,7 +1,7 @@
 Move this slot's issue branch into another slot, usually :0 for testing, and
 return this slot to its resting branch (#260).
 
-OWNERSHIP (#277): moving an issue branch is the owner relocating its own work
+OWNERSHIP (#277): a move is the owner (the claimant) relocating its own work
 on this machine. Before switching, move records the relocation locally (the
 source and destination worktrees). That record is the evidence relocation
 requires, because a branch merely missing from the owner's worktree proves

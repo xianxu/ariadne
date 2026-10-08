@@ -7,9 +7,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
+	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
@@ -293,4 +296,26 @@ func issueBranchEdit(t *testing.T, r *trackerRepo, branch string) {
 	r.git("switch", "-q", "-c", branch, "origin/main")
 	writeRepoFile(t, r.root, spinOffDetails, "an edit on "+branch+"\n")
 	r.git("commit", "-qam", "edit on "+branch)
+}
+
+// #285: the owner is the card's claimant, never a branch. No command help and
+// neither guard refusal may say otherwise.
+func TestNoHelpCallsABranchTheOwner(t *testing.T) {
+	branchOwner := regexp.MustCompile(`(?i)owner'?s? (issue )?branch|owner branch|branch (is|as) the owner`)
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+		if m := branchOwner.FindString(c.Short + "\n" + c.Long); m != "" {
+			t.Errorf("`%s` help calls a branch the owner: %q", c.CommandPath(), m)
+		}
+	}
+	walk(buildRoot())
+	env := &trackerEnv{target: gitx.PublicationTarget{Remote: "origin"}}
+	for _, v := range []verdict{verdictNotOwner, verdictBehind} {
+		if m := branchOwner.FindString(detailsRefusal(env, changedDetail{ID: "000008", Path: spinOffDetails, Verdict: v}).Error()); m != "" {
+			t.Errorf("refusal %v calls a branch the owner: %q", v, m)
+		}
+	}
 }

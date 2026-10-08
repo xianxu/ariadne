@@ -49,7 +49,7 @@ Resolution: when a non-owner branch changed details, sdlc restores main's versio
   - [x] Task 2: collector + guard rewrite
   - [x] Task 3: `sdlc issue restore`
   - [x] Task 4: pair#365 end to end
-  - [ ] Task 5: retire owner-as-branch wording; atlas
+  - [x] Task 5: retire owner-as-branch wording; atlas
 
 ## Log
 
@@ -64,3 +64,5 @@ Task 2: guard rewritten (`changedDetails` + `detailsRefusal`; `ownerAuthored`/`c
 Task 3: `issue restore` shipped. The archived case found that merge-tree follows an archive's rename, so a stale edit to `workshop/issues/X` surfaces as a change to `workshop/history/issues/X`. Restore therefore makes every copy of a flagged issue's details equal main's (diff main..HEAD by basename), not only the path the guard named.
 
 Task 4: `TestCloseOnARenamedBranchAfterAnOutsideMergeLands` (pair365_e2e_test.go): outside merge leaves the card working, close on `<branch>-close`, `pr --dry-run`, `merge` → card done. Restoring branch-name ownership in the guard fails it at `sdlc pr`, as pair#365 did. No other branch-name dependency surfaced.
+
+Task 5: `TestNoHelpCallsABranchTheOwner` walks every command's help and both refusals (mutation-checked); its one hit was `move` help ("moving an issue branch is the owner relocating"), reworded to name the claimant. Atlas: the transfer-guard paragraph, the unreadable-card bullet (now scoped) and an `issue restore` verb row. `make test` also required (a) a recovery contract for `issue restore`. Writing it exposed that an interrupted restore (file reset, no commit) would refuse its own rerun as dirty, so restore now accepts a file already holding main's version (`TestIssueRestoreResumesAnInterruptedRestore`); and (b) the decimal-ID hint lint (`issueStr` idiom). make test: all green except processgroup `TestCancellationKillsDescendants`, which fails sandboxed only and passes unsandboxed (untouched here).
