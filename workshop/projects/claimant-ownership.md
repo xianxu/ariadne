@@ -125,7 +125,7 @@ Surprising: two existing fixtures silently depended on the issue branch never re
 ### ariadne#286 M2 — `sdlc abandon` and reopen
 
 **est:** ~1.8h (M2's share of #286's 2.52h)
-**actual:** see close
+**actual:** 0.74h
 **closed:** 2026-10-08
 
 What shipped: `sdlc abandon --issue N --as wontfix|punt --reason …` keeps started work under `refs/ariadne/abandoned/NNNNNN`, records `{ref, branch, head}` on the terminal card (owner kept), archives the details and plans on main through the landing's own projection (`archivedDetails`, now any terminal status), and deletes the branch everywhere; a rerun from any step, from the branch or from rest, finishes it. `set-status` refuses wontfix/punt for started work, even forced. Reopening restores the branch at the kept tip, merges main, moves the details back out of the archive, pushes, and drops the ref.
