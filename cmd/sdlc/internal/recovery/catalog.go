@@ -280,6 +280,22 @@ var Catalog = []Contract{
 		},
 	},
 	{
+		Verbs:         []string{"abandon"},
+		Class:         ConvergentRetry,
+		Effects:       "started work (#286): a `#N: log: abandon (…)` commit on the issue branch; the tip pushed to `refs/ariadne/abandoned/NNNNNN`; one card compare-and-swap to wontfix/punt recording {ref, branch, head} (owner kept as attribution); one narrow main commit archiving the details (mirroring the terminal card) and the issue's plan artifacts on main; the branch deleted on the remote (when the kept tip contains it), the checkout returned to rest, the local branch deleted. An open issue: the card (with an empty record) and the archive only.",
+		Evidence:      observeEvidence + ": card.status; `git ls-remote <remote> refs/ariadne/abandoned/NNNNNN`; main's history archive.",
+		Preconditions: "an issue tracker repository; owned by this workspace; a clean tree; the model has an abandon/defer edge from the status; started work runs from its issue branch.",
+		Repeat:        "a terminal card carrying the abandon record is recognised before the branch checks, so a rerun from the resting branch finishes the archive and the branch deletion; each step is skipped when done (the note commit is the tip, the archive ref already holds the tip, main has no live copy, the branch is gone).",
+		LostResponse:  "rerun the same command — the card decides: not yet terminal repeats from the note (recognised), terminal resumes at the archive.",
+		Ends:          "a reopen (`sdlc issue set-status working`) restores the branch from the archive ref and clears the record; otherwise the ref and the record stay as the work's archive.",
+		Proofs: []Proof{
+			{"started work is kept, the card ends, the details archive, the branch goes; a repeat changes nothing", []string{"TestAbandonStartedWork"}},
+			{"an open issue ends with an empty record and an archive", []string{"TestAbandonOpenIssue"}},
+			{"each refusal names its own check, before any effect", []string{"TestAbandonRefusals", "TestAbandonDecision"}},
+			{"an interruption at any step, from the branch or from rest, is finished by rerunning", []string{"TestAbandonRerunResumes"}},
+		},
+	},
+	{
 		Verbs:         []string{"issue publish"},
 		Class:         ConvergentRetry,
 		Effects:       "per issue (#284): a first publication (details not on main) is `move-detail`'s receipt-driven transfer; details already on main are the owner's edits, published to main in one narrow commit for the set (a moved main is first brought in on a resting branch). Then a resting branch fast-forwards, the issue's own branch commits the same bytes, and another issue's branch takes its copy back. Never touches the tracker.",

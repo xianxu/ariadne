@@ -6,13 +6,21 @@ package issue
 import (
 	"fmt"
 	"regexp"
+	"strings"
 )
 
-// Abandoned names the archive ref holding the abandoned branch's tip.
+// Abandoned names the archive ref holding the abandoned branch's tip, and the
+// branch it was. Its fields are set together; an issue abandoned before any
+// branch existed (from open) records them all empty — the record's presence
+// still marks the end as abandon's, which a rerun recognises.
 type Abandoned struct {
-	Ref  string `yaml:"ref"`
-	Head string `yaml:"head"`
+	Ref    string `yaml:"ref,omitempty"`
+	Branch string `yaml:"branch,omitempty"`
+	Head   string `yaml:"head,omitempty"`
 }
+
+// Started reports whether the record keeps a branch.
+func (a Abandoned) Started() bool { return a.Ref != "" }
 
 var abandonedRef = regexp.MustCompile(`^refs/ariadne/abandoned/[0-9]{6}$`)
 
@@ -20,8 +28,17 @@ var abandonedRef = regexp.MustCompile(`^refs/ariadne/abandoned/[0-9]{6}$`)
 func AbandonedRef(id string) string { return "refs/ariadne/abandoned/" + id }
 
 func (a Abandoned) validate() error {
+	if a == (Abandoned{}) {
+		return nil
+	}
+	if a.Ref == "" || a.Branch == "" || a.Head == "" {
+		return invalidCard("tracker.abandoned", "ref, branch and head are recorded together")
+	}
 	if !abandonedRef.MatchString(a.Ref) {
 		return invalidCard("tracker.abandoned.ref", fmt.Sprintf("expected %s", AbandonedRef("NNNNNN")))
+	}
+	if !releaseBranch.MatchString(a.Branch) || strings.Contains(a.Branch, "..") || strings.HasSuffix(a.Branch, ".lock") || strings.HasSuffix(a.Branch, ".") {
+		return invalidCard("tracker.abandoned.branch", "expected an issue branch name")
 	}
 	if !handoffOID.MatchString(a.Head) {
 		return invalidCard("tracker.abandoned.head", "expected a full object ID")
