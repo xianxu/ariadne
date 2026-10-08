@@ -356,6 +356,130 @@ rounds:
       boundary: M3
       recipe: milestone-review
       blocked: false
+    - "n": 9
+      timestamp: "2026-10-07T21:34:17-07:00"
+      agent: claude
+      findings:
+        - id: BR-32
+          severity: Important
+          title: runState overwrites the claim-ages drift info line with detectDrift's result
+          detail: 'state.go:172-177 appends "claim ages unavailable" to s.Drift, then s.Drift = detectDrift(...) discards it, so a failure never shows. This is the 5th finding in this family. Rule: IO-glue probes return failures as values and the caller accumulates them, with one assignment to s.Drift and appends after it. Add a test asserting the info line appears when the tracker log read fails.'
+          family: silent-error-in-io-glue
+          round: 9
+        - id: BR-33
+          severity: Important
+          title: fillClaimTimes ignores git log's exit status, so a failed read silently yields no ages
+          detail: state.go:609-611 always discards cmd.Wait(). Only ignore it when ClaimTimes stopped early with every wanted card resolved; otherwise report it through the accumulating drift path (same rule as the finding above).
+          family: silent-error-in-io-glue
+          round: 9
+        - id: BR-34
+          severity: Minor
+          title: fillClaimTimes runs git against the tracker ref outside tracker.Repository
+          detail: 'This is the 2nd finding in this family. Rule: git reads of tracker refs belong on tracker.Repository, which owns TrackingRef. Add repo.ClaimLog(ctx) and move ClaimLogFormat behind it.'
+          family: external-call-outside-seam
+          round: 9
+        - id: BR-35
+          severity: Minor
+          title: claimKinds restates the owner-setting verbs that call sites mint as string literals
+          detail: Share named verb constants between the operationToken call sites and claimKinds, so a new owner-setting verb cannot silently drop out of claim ages (ARCH-DRY).
+          family: hand-maintained-token-set
+          round: 9
+        - id: BR-36
+          severity: Minor
+          title: claimViews derives the short age by stripping claimAge's prose
+          detail: 'This is the 2nd finding in this family. Rule: each rendered fragment is formatted once and composed. Factor a shortAge(d) that claimAge wraps.'
+          family: duplicated-id-rendering
+          round: 9
+      boundary: M4
+      recipe: milestone-review
+      blocked: true
+    - "n": 10
+      timestamp: "2026-10-07T21:45:09-07:00"
+      agent: claude
+      dispose:
+        - id: BR-32
+          disposition: addressed
+          note: state.go:173-177 appends after the single detectDrift assignment; TestStateReportsAFailedClaimAgeRead injects the failure through claimTimesOf and asserts the drift line.
+          round: 10
+        - id: BR-33
+          disposition: addressed
+          note: HistoryStream finish(stoppedEarly) judges the exit status on a full read; TestRepositoryClaimTimesReportsAFailedRead deletes the tracking ref and would pass silently under the old discard.
+          round: 10
+        - id: BR-34
+          disposition: addressed
+          note: Repository.ClaimTimes over TrunkFile.HistoryStream (trackingRef owned by TrunkFile); state.go no longer runs git itself.
+          round: 10
+        - id: BR-35
+          disposition: addressed
+          note: tracker.OpClaim/OpReclaim/OpRelocate are used at claim.go:224, reclaim.go:130, claimant.go:221 and in claimKinds.
+          round: 10
+        - id: BR-36
+          disposition: addressed
+          note: shortAge (state.go) is used by both claimAge and claimViews.
+          round: 10
+      findings:
+        - id: BR-37
+          severity: Important
+          title: state never surfaces a card's release record, though the plan's ARCH-FUNERAL entry relies on it (M4)
+          detail: '2nd in family. Rule: a persisted record whose removal waits on a human action must be visible on a read surface that names it. owned() in state.go should read issue.CardRelease and expose it in JSON and prose (released by slot, age), with a test for a released, untaken card.'
+          family: artifact-without-removal
+          round: 10
+        - id: BR-38
+          severity: Important
+          title: owned() drops CardClaimant's parse error, so a malformed claimant renders as an unowned issue
+          detail: '7th in family. Rule: every fallible read in state''s gather phase returns its error to the one drift accumulator; no err==nil guard turns a failure into an absent value. Sweep the CardClaimant read and the new CardRelease read together.'
+          family: silent-error-in-io-glue
+          round: 10
+        - id: BR-39
+          severity: Minor
+          title: Repository.ClaimTimes calls finish(false), and so cmd.Wait, on a parser error before the pipe is drained, which can hang state
+          detail: A scanner error (e.g. ErrTooLong on a record over 16 MB in the shared tracker history) leaves git blocked on a full pipe. When readErr is non-nil, kill via finish(true) and return readErr.
+          family: pipe-wait-before-drain
+          round: 10
+        - id: BR-40
+          severity: Minor
+          title: Task 13's real-git two-workspace grouping test is missing; grouping is only tested on a fixed State
+          family: plan-test-not-delivered
+          round: 10
+      boundary: M4
+      recipe: milestone-review
+      blocked: true
+    - "n": 11
+      timestamp: "2026-10-07T21:51:17-07:00"
+      agent: claude
+      dispose:
+        - id: BR-37
+          disposition: addressed
+          note: withOwnership reads CardRelease into IssueState.Released (JSON + prose + "Released, awaiting a claim"); real-git test TestStateShowsReleasesAndGroupsTwoWorkspaces pins an untaken handoff.
+          round: 11
+        - id: BR-38
+          disposition: addressed
+          note: CardClaimant and CardRelease errors both set OwnerError and a warn drift line; TestWithOwnershipReportsAnUnreadableOwner fails without it.
+          round: 11
+        - id: BR-39
+          disposition: not-addressed
+          note: The code fix (finish(true) on readErr) is correct, but no test fails without it; a reader that errors mid-stream would pin it.
+          round: 11
+        - id: BR-40
+          disposition: addressed
+          note: 'TestStateShowsReleasesAndGroupsTwoWorkspaces claims under two workspaces in real git and asserts two slot groups plus the "ariadne:7  #11" prose line.'
+          round: 11
+      findings:
+        - id: BR-41
+          severity: Minor
+          title: Plan Revision 1 item 4 names a takeover operation token that the code does not mint
+          detail: Takeover publishes under OpClaim via claim.go, and claimKinds omits takeover. The code is consistent; the plan needs a Revisions entry so it stops claiming a separate takeover token.
+          family: plan-test-not-delivered
+          round: 11
+        - id: BR-42
+          severity: Minor
+          title: An owned card with no claim-kind commit makes every state call scan the whole card history
+          detail: The early stop needs every wanted path found. A pre-trailer owner never matches, so the bound "oldest live claim" does not hold. Small cost today.
+          family: unbounded-history-scan
+          round: 11
+      boundary: M4
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#284 (boundary-review)
@@ -500,6 +624,57 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-31** [Minor] `silent-error-in-io-glue` A failed check for the local branch is read as "absent" and followed by branch -f (handoff.go:270, :323-324)
   This is the 4th finding in family silent-error-in-io-glue. Rule: every existence check in the handoff glue returns three outcomes (present, absent, error) through env.gitTest, and an error stops with a warning; it is never folded into "absent". Apply it to both rev-parse --verify sites; the earlier-round sites already follow it.
 
+## Round 9 — 2026-10-07T21:34:17-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-32** [Important] `silent-error-in-io-glue` runState overwrites the claim-ages drift info line with detectDrift's result
+  state.go:172-177 appends "claim ages unavailable" to s.Drift, then s.Drift = detectDrift(...) discards it, so a failure never shows. This is the 5th finding in this family. Rule: IO-glue probes return failures as values and the caller accumulates them, with one assignment to s.Drift and appends after it. Add a test asserting the info line appears when the tracker log read fails.
+- **BR-33** [Important] `silent-error-in-io-glue` fillClaimTimes ignores git log's exit status, so a failed read silently yields no ages
+  state.go:609-611 always discards cmd.Wait(). Only ignore it when ClaimTimes stopped early with every wanted card resolved; otherwise report it through the accumulating drift path (same rule as the finding above).
+- **BR-34** [Minor] `external-call-outside-seam` fillClaimTimes runs git against the tracker ref outside tracker.Repository
+  This is the 2nd finding in this family. Rule: git reads of tracker refs belong on tracker.Repository, which owns TrackingRef. Add repo.ClaimLog(ctx) and move ClaimLogFormat behind it.
+- **BR-35** [Minor] `hand-maintained-token-set` claimKinds restates the owner-setting verbs that call sites mint as string literals
+  Share named verb constants between the operationToken call sites and claimKinds, so a new owner-setting verb cannot silently drop out of claim ages (ARCH-DRY).
+- **BR-36** [Minor] `duplicated-id-rendering` claimViews derives the short age by stripping claimAge's prose
+  This is the 2nd finding in this family. Rule: each rendered fragment is formatted once and composed. Factor a shortAge(d) that claimAge wraps.
+
+## Round 10 — 2026-10-07T21:45:09-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-32 — addressed — state.go:173-177 appends after the single detectDrift assignment; TestStateReportsAFailedClaimAgeRead injects the failure through claimTimesOf and asserts the drift line.
+- BR-33 — addressed — HistoryStream finish(stoppedEarly) judges the exit status on a full read; TestRepositoryClaimTimesReportsAFailedRead deletes the tracking ref and would pass silently under the old discard.
+- BR-34 — addressed — Repository.ClaimTimes over TrunkFile.HistoryStream (trackingRef owned by TrunkFile); state.go no longer runs git itself.
+- BR-35 — addressed — tracker.OpClaim/OpReclaim/OpRelocate are used at claim.go:224, reclaim.go:130, claimant.go:221 and in claimKinds.
+- BR-36 — addressed — shortAge (state.go) is used by both claimAge and claimViews.
+
+### Raised
+
+- **BR-37** [Important] `artifact-without-removal` state never surfaces a card's release record, though the plan's ARCH-FUNERAL entry relies on it (M4)
+  2nd in family. Rule: a persisted record whose removal waits on a human action must be visible on a read surface that names it. owned() in state.go should read issue.CardRelease and expose it in JSON and prose (released by slot, age), with a test for a released, untaken card.
+- **BR-38** [Important] `silent-error-in-io-glue` owned() drops CardClaimant's parse error, so a malformed claimant renders as an unowned issue
+  7th in family. Rule: every fallible read in state's gather phase returns its error to the one drift accumulator; no err==nil guard turns a failure into an absent value. Sweep the CardClaimant read and the new CardRelease read together.
+- **BR-39** [Minor] `pipe-wait-before-drain` Repository.ClaimTimes calls finish(false), and so cmd.Wait, on a parser error before the pipe is drained, which can hang state
+  A scanner error (e.g. ErrTooLong on a record over 16 MB in the shared tracker history) leaves git blocked on a full pipe. When readErr is non-nil, kill via finish(true) and return readErr.
+- **BR-40** [Minor] `plan-test-not-delivered` Task 13's real-git two-workspace grouping test is missing; grouping is only tested on a fixed State
+
+## Round 11 — 2026-10-07T21:51:17-07:00 (claude) — passed
+
+### Disposed
+
+- BR-37 — addressed — withOwnership reads CardRelease into IssueState.Released (JSON + prose + "Released, awaiting a claim"); real-git test TestStateShowsReleasesAndGroupsTwoWorkspaces pins an untaken handoff.
+- BR-38 — addressed — CardClaimant and CardRelease errors both set OwnerError and a warn drift line; TestWithOwnershipReportsAnUnreadableOwner fails without it.
+- BR-39 — not-addressed — The code fix (finish(true) on readErr) is correct, but no test fails without it; a reader that errors mid-stream would pin it.
+- BR-40 — addressed — TestStateShowsReleasesAndGroupsTwoWorkspaces claims under two workspaces in real git and asserts two slot groups plus the "ariadne:7  #11" prose line.
+
+### Raised
+
+- **BR-41** [Minor] `plan-test-not-delivered` Plan Revision 1 item 4 names a takeover operation token that the code does not mint
+  Takeover publishes under OpClaim via claim.go, and claimKinds omits takeover. The code is consistent; the plan needs a Revisions entry so it stops claiming a separate takeover token.
+- **BR-42** [Minor] `unbounded-history-scan` An owned card with no claim-kind commit makes every state call scan the whole card history
+  The early stop needs every wanted path found. A pre-trailer owner never matches, so the bound "oldest live claim" does not hold. Small cost today.
+
 ## Open findings
 
 - **BR-1** [Minor] `silent-error-in-io-glue` refreshAfterClaim swallows rev-parse errors and misreports merge-base failures as "commits main lacks"
@@ -512,3 +687,6 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-29** [Minor] `duplicated-path-derivation` The remote-tracking ref string is built three times in handoff.go and in at least three other files
 - **BR-30** [Minor] `rerun-not-idempotent` Note dedupe matches the same text at any date, so a later separate handoff's identical note is silently dropped
 - **BR-31** [Minor] `silent-error-in-io-glue` A failed check for the local branch is read as "absent" and followed by branch -f (handoff.go:270, :323-324)
+- **BR-39** [Minor] `pipe-wait-before-drain` Repository.ClaimTimes calls finish(false), and so cmd.Wait, on a parser error before the pipe is drained, which can hang state
+- **BR-41** [Minor] `plan-test-not-delivered` Plan Revision 1 item 4 names a takeover operation token that the code does not mint
+- **BR-42** [Minor] `unbounded-history-scan` An owned card with no claim-kind commit makes every state call scan the whole card history

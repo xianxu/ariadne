@@ -100,7 +100,7 @@ The design buffer is +15% because a thorough plan doc exists.
 - [x] M1 — atomic multi-claim and refresh on claim
 - [x] M2 — `issue publish` (first publication + republish), unclaim of an open claim, `issue sync` retirement, resting-branch rule
 - [x] M3 — handoff and takeover, envelope keeps unknown keys, moved-open repair
-- [ ] M4 — `sdlc state` owner, claim age, by-slot and by-operator views
+- [x] M4 — `sdlc state` owner, claim age, by-slot and by-operator views
 
 ## Log
 
@@ -111,6 +111,7 @@ From #283's close review: `requireCardOwnership`'s "moved here, finish with `sdl
 Also from #283: the model's `unclaim` lists every holdable status, `codecomplete` included, following round 2's handoff decision (which supersedes round 1's "not from codecomplete"). Confirm that when building the verb.
 
 ### 2026-10-07
+- 2026-10-07: closed M4 — make test green (954 cmd/sdlc + 20 pkgs; processgroup /bin/ps sandbox-only). Round-2: BR-37 TestStateShowsReleasesAndGroupsTwoWorkspaces (handoff release with branch/tip and an open release visible in JSON and prose; two workspaces group apart in real git); BR-38 TestWithOwnershipReportsAnUnreadableOwner (owner_error + drift warn, never unowned); history parse error stops git. Earlier M4 evidence stands (BR-32/33 mutation-proven, ClaimTimes + fuzz, views, real-git claimed_at); review verdict: SHIP
 - 2026-10-07: closed M3 — make test green (949 cmd/sdlc + 20 pkgs; processgroup /bin/ps sandbox-only). Round-2: BR-27 TestTakeoverRerunWithALocalCopy (diverged refuses, local copy unchanged, no switch; ahead resumed on); refusals classified (ahead vs diverged, stale-lease only, absent remote branch vs fetch failure); gitx.RemoteTrackingRef swept to 9 sites; note keyed to the attempt (TestUnclaimNoteIsKeyedToTheAttempt, TestHandoffRecognisesItsNoteCommit). Earlier M3 evidence stands, incl. mutation-proven BR-23/BR-24 tests; review verdict: FIX-THEN-SHIP
 - 2026-10-07: closed M2 — make test green (936 cmd/sdlc + 20 pkgs; processgroup /bin/ps sandbox-only). Round-4 fixes tested from their refused states: BR-8 TestPublishMovedMainFromAnotherBranchRemedy (switch to rest carries the edit, rerun publishes; dry-run on rest names the bring-in) + TestPublishMovedMainOnTheIssueBranchRemedy (remote from the publication target); BR-14 TestPublishBringInSetAsideIsAllOrNothing (fails on the pre-fix code: verified by mutation) + TestPublishBringInWriteBackFailureNamesTheCopies, copies removed once safe; BR-18 catalog Effects/Repeat swept by grep across helptext/atlas/catalog; minors: detailsAt (no probe without its error), issue.Stem/BranchName at every site. Earlier M2 evidence stands; review verdict: SHIP
 - 2026-10-07: closed M1 — make test green (915 cmd/sdlc + 20 pkgs; processgroup /bin/ps sandbox-only); ChangeCards real-git tests (one commit, refusals, re-decide on named and unrelated races); claim set: TestClaimSetDecision over status x owner, TestClaimSetIsOneTrackerCommit, TestClaimSetRace (contested member fails whole, benign change re-decided); TestClaimRefreshesTheCheckout (rest ff, blocked ff warns, branch body-diff warns); catalog + help + atlas updated; review verdict: SHIP

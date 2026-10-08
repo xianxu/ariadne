@@ -103,6 +103,8 @@ Decision worth keeping: the handoff returns the releasing checkout to rest, beca
 ### ariadne#284 M4 — `sdlc state` owner, claim age, views
 
 **est:** ~0.7h (M4's share of #284's 6.1h)
+**closed:** 2026-10-07
+**actual:** 0.7h
 
 What shipped: `sdlc state` shows each issue's owner (the slot) and claim age, then claims grouped by slot and by operator. The age comes from tracker history: `tracker.ClaimTimes` streams one `git log` and stops once every owned card is resolved, keyed on claim-kind operation tokens. Card writes already record their operation, so this needs no new card field, which kept older binaries' strict claimant parse safe.
 
