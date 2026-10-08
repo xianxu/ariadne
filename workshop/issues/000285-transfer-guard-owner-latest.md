@@ -48,7 +48,7 @@ Resolution: when a non-owner branch changed details, sdlc restores main's versio
   - [x] Task 1: pure verdict
   - [x] Task 2: collector + guard rewrite
   - [x] Task 3: `sdlc issue restore`
-  - [ ] Task 4: pair#365 end to end
+  - [x] Task 4: pair#365 end to end
   - [ ] Task 5: retire owner-as-branch wording; atlas
 
 ## Log
@@ -62,3 +62,5 @@ Claimed in ariadne:2, start-plan. Design (plan D1–D7): protected set widens fr
 Task 2: guard rewritten (`changedDetails` + `detailsRefusal`; `ownerAuthored`/`checkTransferredPaths`/`validHandoffDestination` gone). Mutation checks: forcing owner=true fails the four non-owner rows; forcing based=true first survived because every behind fixture also conflicted, so I added a clean-merge behind case, which now catches it; forcing published=false fails four tests. The Conflict fact was unobservable, so I dropped it (plan Revisions). Lesson-worthy: a behind check whose only fixtures also trip another check is vacuous (fits the existing 'each rejection row asserts its own check' lesson; no new entry).
 
 Task 3: `issue restore` shipped. The archived case found that merge-tree follows an archive's rename, so a stale edit to `workshop/issues/X` surfaces as a change to `workshop/history/issues/X`. Restore therefore makes every copy of a flagged issue's details equal main's (diff main..HEAD by basename), not only the path the guard named.
+
+Task 4: `TestCloseOnARenamedBranchAfterAnOutsideMergeLands` (pair365_e2e_test.go): outside merge leaves the card working, close on `<branch>-close`, `pr --dry-run`, `merge` → card done. Restoring branch-name ownership in the guard fails it at `sdlc pr`, as pair#365 did. No other branch-name dependency surfaced.
