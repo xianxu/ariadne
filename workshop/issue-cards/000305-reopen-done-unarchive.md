@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000305-reopen-done-unarchive.md
         source_blob: a2f32e4d2711f06f9ab4a131d5ffc950d66b3e17
         destination: workshop/issues/000305-reopen-done-unarchive.md
+        main_commit: ea98d0383fdea2673bdee300f76355e787dd4763
 ---
 
 # Reopening a done issue does not un-archive its details
