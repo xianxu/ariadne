@@ -28,7 +28,9 @@ The pushed branch is the issue's own: it goes away when the issue lands (or is
 abandoned).
 
 --note adds a dated line to each issue's ## Log before publishing: where the
-work stands and what comes next, for whoever takes it.
+work stands and what comes next, for whoever takes it. A rerun files it once:
+the same day's line, or a handoff's own note commit still unpushed, is
+recognised; an identical note at a later release is filed again.
 
 Every release records who let go. A rerun after a lost response finds the
 cards already released by this workspace and only finishes the checkout (a

@@ -23,7 +23,7 @@ var Catalog = []Contract{
 			{"the checkout is refreshed after claiming, never over a local change", []string{"TestClaimRefreshesTheCheckout"}},
 			{"one winner among concurrent takeovers of an unowned started card", []string{"TestAdoptRaceHasExactlyOneWinner"}},
 			{"a handoff is resumed at exactly its tip, after every check", []string{"TestHandoffAndTakeover", "TestTakeoverRefusals", "TestClaimSetRefusesAHandedOffMember"}},
-			{"a lost takeover switch or response is finished by rerunning", []string{"TestTakeoverRerunFinishesTheSwitch", "TestTakeoverLostResponseRerunResumes"}},
+			{"a lost takeover switch or response is finished by rerunning; a diverged local copy refuses, an ahead one is resumed on", []string{"TestTakeoverRerunFinishesTheSwitch", "TestTakeoverLostResponseRerunResumes", "TestTakeoverRerunWithALocalCopy"}},
 			{"a re-release after the fetch refuses the takeover", []string{"TestTakeoverRefusesAReReleaseBeforeTheWrite"}},
 			{"a card claimed before #277 is taken over in its status", []string{"TestPlainClaimTakesOverAPre277Codecomplete", "TestClaimSetLostResponseAndTakeover"}},
 			{"an owner's repeat is a no-op; others are refused", []string{"TestClaimDecisionOwnership", "TestVerbContractTable", "TestClaimDryRunOwnerRepeatWritesNothing"}},
@@ -295,7 +295,7 @@ var Catalog = []Contract{
 			{"a handoff pushes the branch and records its tip; refuses uncommitted work and the wrong branch", []string{"TestHandoffAndTakeover", "TestHandoffRefusals"}},
 			{"a handoff's lost card write is finished by rerunning", []string{"TestHandoffRerunAfterALostResponse"}},
 			{"the handoff lease refuses a remote tip this checkout never saw", []string{"TestHandoffLeaseRefusesAnUnseenRemoteTip"}},
-			{"a note is filed once, whatever the date of the rerun", []string{"TestUnclaimNoteIsConvergent", "TestUnclaimNoteDedupesAcrossDates"}},
+			{"a note is filed once per attempt: same-day text, or a handoff's own note commit across midnight; another release's identical note is filed again", []string{"TestUnclaimNoteIsConvergent", "TestUnclaimNoteIsKeyedToTheAttempt", "TestHandoffRecognisesItsNoteCommit"}},
 		},
 	},
 	{

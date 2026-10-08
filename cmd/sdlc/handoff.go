@@ -9,9 +9,10 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"regexp"
+	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -35,8 +36,10 @@ func appendUnclaimNote(abs, note string) (changed bool, err error) {
 		return false, err
 	}
 	line := fmt.Sprintf("- %s: unclaimed: %s", time.Now().Format("2006-01-02"), note)
-	// Any date: a rerun after midnight is still the same note (#284 BR-23).
-	if regexp.MustCompile(`(?m)^- \d{4}-\d{2}-\d{2}: unclaimed: ` + regexp.QuoteMeta(note) + `$`).MatchString(body) {
+	// Same day, same text: this attempt's note. An identical note on another
+	// day belongs to another release and is filed again. (A handoff also
+	// recognises its own note commit across midnight: handoffNoteCommitted.)
+	if strings.Contains(body, line) {
 		return false, nil
 	}
 	return true, os.WriteFile(abs, []byte(issue.Compose(fm, insertLogLine(body, line))), 0o644)
@@ -71,6 +74,13 @@ func runHandoff(env *trackerEnv, stdout, stderr io.Writer, card tracker.Record, 
 	if dryRun {
 		cinfo(stderr, fmt.Sprintf("dry-run — would push %s and release #%s with its tip", branch, issue.CLIRef(id)))
 		return nil
+	}
+	if note != "" {
+		if done, err := handoffNoteCommitted(env, branch, id); err != nil {
+			return err
+		} else if done {
+			note = "" // this attempt committed it already (a rerun)
+		}
 	}
 	if note != "" {
 		rel, abs := localDetail(env, issuesRel, card.Path)
@@ -112,6 +122,30 @@ func runHandoff(env *trackerEnv, stdout, stderr io.Writer, card tracker.Record, 
 	switchClean(env, stderr, env.resting)
 	fmt.Fprintln(stdout, "released")
 	return nil
+}
+
+// handoffNoteCommitted reports whether this handoff attempt already
+// committed its note: a "#N: log: handoff" commit in the branch's unpushed
+// tail (after the last-fetched remote copy, else after main). It identifies
+// the attempt, not the text, so a rerun after midnight finds it.
+func handoffNoteCommitted(env *trackerEnv, branch, id string) (bool, error) {
+	base := gitx.RemoteTrackingRef(env.target.Remote, branch)
+	if seen, err := env.gitTest("rev-parse", "-q", "--verify", base); err != nil {
+		return false, err
+	} else if !seen {
+		base = gitx.RemoteTrackingRef(env.target.Remote, "main")
+	}
+	subjects, err := env.git("log", "--format=%s", base+"..HEAD")
+	if err != nil {
+		return false, err
+	}
+	want := "#" + issue.CLIRef(id) + ": log: handoff"
+	for _, s := range strings.Split(subjects, "\n") {
+		if s == want {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // finishHandoff completes a handoff whose card already landed: the checkout
@@ -167,7 +201,7 @@ func switchClean(env *trackerEnv, stderr io.Writer, branch string) bool {
 // not exist there yet), never a fresh read that would turn it into a blind
 // force (#284 BR-24).
 func pushIssueBranch(env *trackerEnv, branch string) error {
-	tracking := "refs/remotes/" + env.target.Remote + "/" + branch
+	tracking := gitx.RemoteTrackingRef(env.target.Remote, branch)
 	expect := ""
 	if seen, err := env.gitTest("rev-parse", "-q", "--verify", tracking); err != nil {
 		return err
@@ -178,7 +212,10 @@ func pushIssueBranch(env *trackerEnv, branch string) error {
 	}
 	ref := "refs/heads/" + branch
 	if _, err := env.git("push", "-q", "--force-with-lease="+ref+":"+expect, env.target.Remote, ref+":"+ref); err != nil {
-		return fmt.Errorf("%w (the remote's %s is not the copy this checkout last fetched; fetch and inspect it before handing off)", err, branch)
+		if strings.Contains(err.Error(), "stale info") {
+			return fmt.Errorf("%w (the remote's %s is not the copy this checkout last fetched; fetch and inspect it before handing off)", err, branch)
+		}
+		return err
 	}
 	_, err := env.git("update-ref", tracking, ref)
 	return err
@@ -219,7 +256,7 @@ func prepareTakeover(env *trackerEnv, card tracker.Record) (*takeover, error) {
 	} else if dirty != "" {
 		return nil, fmt.Errorf("#%s is taken over by checking out %s: this checkout must be clean first (nothing was changed):\n%s", id, rel.Branch, dirty)
 	}
-	tracking := "refs/remotes/" + env.target.Remote + "/" + rel.Branch
+	tracking := gitx.RemoteTrackingRef(env.target.Remote, rel.Branch)
 	if _, err := env.git("fetch", "-q", env.target.Remote, "+refs/heads/"+rel.Branch+":"+tracking); err != nil {
 		return nil, fmt.Errorf("#%s: fetching %s failed: %w", id, rel.Branch, err)
 	}
@@ -234,7 +271,7 @@ func prepareTakeover(env *trackerEnv, card tracker.Record) (*takeover, error) {
 		if ahead, err := env.gitTest("merge-base", "--is-ancestor", local, rel.Head); err != nil {
 			return nil, err
 		} else if !ahead {
-			return nil, fmt.Errorf("#%s: the local %s has commits the handed-off tip lacks; reconcile them before taking over", id, rel.Branch)
+			return nil, fmt.Errorf("#%s: the local %s has commits the handed-off tip %s lacks (left from an earlier holding of it); reconcile them before taking over", id, rel.Branch, shortOID(rel.Head))
 		}
 	}
 	return &takeover{branch: rel.Branch, head: rel.Head}, nil
@@ -265,20 +302,48 @@ func finishOwnedTakeover(env *trackerEnv, stderr io.Writer, card tracker.Record)
 		return
 	}
 	branch := issue.BranchName(card.Path)
-	tracking := "refs/remotes/" + env.target.Remote + "/" + branch
-	if _, err := env.git("fetch", "-q", env.target.Remote, "+refs/heads/"+branch+":"+tracking); err != nil {
+	listed, err := env.git("ls-remote", env.target.Remote, "refs/heads/"+branch)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("not resuming on %s: reading the remote failed: %v", branch, err))
+		return
+	}
+	if listed == "" {
 		return // no branch to resume (work claimed before #277 lives where it is)
+	}
+	tracking := gitx.RemoteTrackingRef(env.target.Remote, branch)
+	if _, err := env.git("fetch", "-q", env.target.Remote, "+refs/heads/"+branch+":"+tracking); err != nil {
+		cwarn(stderr, fmt.Sprintf("not resuming on %s: fetching it failed: %v", branch, err))
+		return
 	}
 	tip, err := env.git("rev-parse", tracking)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("not resuming on %s: reading the fetched tip failed: %v", branch, err))
 		return
 	}
-	if local, err := env.git("rev-parse", "-q", "--verify", "refs/heads/"+branch); err == nil && local != "" && local != tip {
-		if ahead, err := env.gitTest("merge-base", "--is-ancestor", local, tip); err != nil || !ahead {
-			cwarn(stderr, fmt.Sprintf("not resuming on %s: the local copy has commits the remote's %s lacks; reconcile them first", branch, shortOID(tip)))
-			return
-		}
+	local, err := env.git("rev-parse", "-q", "--verify", "refs/heads/"+branch)
+	if err != nil || local == "" || local == tip {
+		finishTakeover(env, stderr, &takeover{branch: branch, head: tip})
+		return
 	}
-	finishTakeover(env, stderr, &takeover{branch: branch, head: tip})
+	behind, err := env.gitTest("merge-base", "--is-ancestor", local, tip)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("not resuming on %s: comparing the local copy with the remote's failed: %v", branch, err))
+		return
+	}
+	if behind {
+		finishTakeover(env, stderr, &takeover{branch: branch, head: tip})
+		return
+	}
+	ahead, err := env.gitTest("merge-base", "--is-ancestor", tip, local)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("not resuming on %s: comparing the local copy with the remote's failed: %v", branch, err))
+		return
+	}
+	if ahead { // the owner's own unpushed work: resume on it
+		if switchClean(env, stderr, branch) {
+			cok(stderr, fmt.Sprintf("resumed on %s (local work ahead of the remote's %s)", branch, shortOID(tip)))
+		}
+		return
+	}
+	cwarn(stderr, fmt.Sprintf("not resuming on %s: the local copy and the remote's %s have diverged; reconcile them first", branch, shortOID(tip)))
 }

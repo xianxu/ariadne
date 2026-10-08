@@ -160,7 +160,7 @@ func TestTakeoverRefusals(t *testing.T) {
 	testfix.Git(t, peer, "add", "other.txt")
 	testfix.Git(t, peer, "commit", "-qm", "#9: diverged")
 	testfix.Git(t, peer, "switch", "-q", "main")
-	if out, err := claimHere(t, 9); err == nil || !strings.Contains(err.Error(), "has commits the handed-off tip lacks") || r.card(paths["000009"]) != before {
+	if out, err := claimHere(t, 9); err == nil || !strings.Contains(err.Error(), "lacks (left from an earlier holding of it)") || r.card(paths["000009"]) != before {
 		t.Fatalf("diverged: %v\n%s", err, out)
 	}
 	testfix.Git(t, peer, "branch", "-D", "000009-s09")
@@ -321,15 +321,78 @@ func TestHandoffLeaseRefusesAnUnseenRemoteTip(t *testing.T) {
 	}
 }
 
-// #284 BR-23: a note already filed under another date is not filed again.
-func TestUnclaimNoteDedupesAcrossDates(t *testing.T) {
+// #284: an identical note on another day belongs to another release and is
+// filed again; the same day's is this attempt's and is not.
+func TestUnclaimNoteIsKeyedToTheAttempt(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "d.md")
 	writeRepoFile(t, dir, "d.md", "---\nid: 000009\n---\n\n# t\n\n## Log\n\n### 2026-01-01\n\n- 2026-01-01: unclaimed: hand back\n")
-	if changed, err := appendUnclaimNote(p, "hand back"); err != nil || changed {
-		t.Fatalf("an earlier-dated note was filed again: %v %v", changed, err)
+	if changed, err := appendUnclaimNote(p, "hand back"); err != nil || !changed {
+		t.Fatalf("another day's identical note must be filed: %v %v", changed, err)
 	}
-	if changed, err := appendUnclaimNote(p, "something else"); err != nil || !changed {
-		t.Fatalf("a new note was not filed: %v %v", changed, err)
+	if changed, err := appendUnclaimNote(p, "hand back"); err != nil || changed {
+		t.Fatalf("the same day's note was filed twice: %v %v", changed, err)
+	}
+}
+
+// #284: a handoff whose note commit is already in the branch's unpushed tail
+// (a rerun after a failed push, even across midnight) adds no second note.
+func TestHandoffRecognisesItsNoteCommit(t *testing.T) {
+	r, _, _ := startedHere(t)
+	body := r.git("show", "HEAD:"+handoffDetail) + "\n- 2026-01-01: unclaimed: lexer next\n"
+	writeRepoFile(t, r.root, handoffDetail, body)
+	r.git("commit", "-qm", "#9: log: handoff", "--", handoffDetail) // an earlier attempt's, dated before midnight
+	if out, err := unclaim(t, "lexer next", 9); err != nil {
+		t.Fatalf("handoff: %v\n%s", err, out)
+	}
+	if n := strings.Count(r.git("show", "origin/000009-s09:"+handoffDetail), "unclaimed: lexer next"); n != 1 {
+		t.Fatalf("the note appears %d times", n)
+	}
+}
+
+// #284 BR-27: a takeover's response is lost, then the taker's rerun meets a
+// local copy of the branch. Diverged: it warns and changes nothing. Ahead of
+// the remote (the owner's own unpushed work): it resumes on it, unchanged.
+func TestTakeoverRerunWithALocalCopy(t *testing.T) {
+	for _, ahead := range []bool{false, true} {
+		t.Run(map[bool]string{false: "diverged", true: "ahead"}[ahead], func(t *testing.T) {
+			r, _, owner := startedHere(t)
+			if out, err := unclaim(t, "", 9); err != nil {
+				t.Fatalf("handoff: %v\n%s", err, out)
+			}
+			head := strings.Fields(r.git("ls-remote", "origin", "refs/heads/000009-s09"))[0]
+			peer, them := anotherMachine(t, r, owner)
+			t.Chdir(peer)
+			withClaimant(t, them)
+			restore := loseResponses(t)
+			_, _ = claimHere(t, 9)
+			restore()
+			base := "main"
+			if ahead {
+				base = head
+			}
+			testfix.Git(t, peer, "fetch", "-q", "origin")
+			testfix.Git(t, peer, "branch", "000009-s09", base)
+			testfix.Git(t, peer, "switch", "-q", "000009-s09")
+			writeRepoFile(t, peer, "local.txt", "x\n")
+			testfix.Git(t, peer, "add", "local.txt")
+			testfix.Git(t, peer, "commit", "-qm", "#9: local work")
+			local := strings.TrimSpace(testfix.Capture(t, peer, "rev-parse", "HEAD"))
+			testfix.Git(t, peer, "switch", "-q", "main")
+			out, err := claimHere(t, 9)
+			if err != nil {
+				t.Fatalf("rerun: %v\n%s", err, out)
+			}
+			if got := strings.TrimSpace(testfix.Capture(t, peer, "rev-parse", "refs/heads/000009-s09")); got != local {
+				t.Fatal("the local copy was overwritten")
+			}
+			onBranch := strings.TrimSpace(testfix.Capture(t, peer, "branch", "--show-current")) == "000009-s09"
+			if ahead && (!onBranch || !strings.Contains(out, "local work ahead")) {
+				t.Fatalf("an ahead copy must be resumed on:\n%s", out)
+			}
+			if !ahead && (onBranch || !strings.Contains(out, "have diverged")) {
+				t.Fatalf("a diverged copy must refuse and stay off it:\n%s", out)
+			}
+		})
 	}
 }

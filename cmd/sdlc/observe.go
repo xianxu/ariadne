@@ -155,7 +155,7 @@ func refExists(root, ref string) (bool, error) {
 // collectBranch finds the issue branch here: local, else the remote's copy.
 func collectBranch(root, remote, stem string) observe.BranchFacts {
 	var b observe.BranchFacts
-	for _, ref := range []string{"refs/heads/" + stem, "refs/remotes/" + remote + "/" + stem} {
+	for _, ref := range []string{"refs/heads/" + stem, gitx.RemoteTrackingRef(remote, stem)} {
 		ok, err := refExists(root, ref)
 		if err != nil {
 			b.Err = err
@@ -234,7 +234,7 @@ func collectEvidence(root, issuesRel, remote, stem, status string, branch observ
 	issueFile := stem + ".md"
 	type place struct{ ref, plans, details string }
 	var places []place
-	main := "refs/remotes/" + remote + "/main"
+	main := gitx.RemoteTrackingRef(remote, "main")
 	if status == "done" {
 		places = append(places,
 			place{main, vocab.ArchiveSubdir(d.Archive, vocab.ArchivePlans), path.Join(vocab.ArchiveSubdir(d.Archive, vocab.ArchiveIssues), issueFile)},

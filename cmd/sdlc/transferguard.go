@@ -13,6 +13,7 @@ import (
 	"path"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
@@ -109,7 +110,7 @@ func ownerAuthored(env *trackerEnv, mainTip, p, owner string) (bool, error) {
 		return false, nil
 	}
 	var refs []string
-	for _, ref := range []string{"refs/heads/" + owner, "refs/remotes/" + env.target.Remote + "/" + owner} {
+	for _, ref := range []string{"refs/heads/" + owner, gitx.RemoteTrackingRef(env.target.Remote, owner)} {
 		present, err := env.gitTest("rev-parse", "--verify", "-q", ref+"^{commit}")
 		if err != nil {
 			return false, err

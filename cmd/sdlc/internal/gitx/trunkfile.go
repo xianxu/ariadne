@@ -190,8 +190,12 @@ func (t *TrunkFile) run(env []string, args ...string) ([]byte, []byte, error) {
 func (t *TrunkFile) localRef() string { return "refs/heads/" + t.branch }
 
 // trackingRef is the local remote-tracking ref this type treats as the base.
-func (t *TrunkFile) trackingRef() string {
-	return "refs/remotes/" + t.remote + "/" + t.branch
+func (t *TrunkFile) trackingRef() string { return RemoteTrackingRef(t.remote, t.branch) }
+
+// RemoteTrackingRef is the one constructor of a remote-tracking ref name
+// (#284): refs/remotes/<remote>/<branch>.
+func RemoteTrackingRef(remote, branch string) string {
+	return "refs/remotes/" + remote + "/" + branch
 }
 
 // fetch updates the tracking ref. Fetching INTO the ref explicitly (rather than

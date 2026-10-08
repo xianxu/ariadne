@@ -169,3 +169,10 @@ M1 close review (SHIP, six advisory Minors), all fixed in the same round:
 5. The milestone lines are nested under #284 in the project file. On the hand-recorded actual: it was the measured 1.15h, and the close rewrote the block.
 6. Test of a claim set through a lost response and a rerun.
 
+M3 review round 2 (one Important, three Minors), all fixed:
+- BR-27: the takeover rerun's diverged-copy refusal is tested, and a local copy *ahead* of the remote (the owner's unpushed work) is resumed on instead of refused.
+- Refusals name what was observed (ahead vs diverged; only a stale lease reads as a lease miss; a missing remote branch vs a failed fetch).
+- One `gitx.RemoteTrackingRef`, swept to every site.
+- The note dedupe identifies the attempt: same-day text, or a handoff's own note commit in the unpushed tail. Known residual: an *open* unclaim whose card write fails, rerun after midnight, files its note again.
+- Hours: the measurement engine undercounted M3's first close (0.07h) and corrected itself by the re-close (4.18h total); recorded as measured.
+

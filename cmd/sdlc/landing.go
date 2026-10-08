@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -114,7 +115,7 @@ func resolveLandingTarget(r gitRunner) (*landingTarget, error) {
 	}
 	return t, nil
 }
-func (t landingTarget) mainRef() string { return "refs/remotes/" + t.Remote + "/main" }
+func (t landingTarget) mainRef() string { return gitx.RemoteTrackingRef(t.Remote, "main") }
 func (t landingTarget) fetchMain(r gitRunner) (string, error) {
 	if _, err := landingGit(r, t.Root, "-c", "submodule.recurse=false", "fetch", "--no-tags", "--no-recurse-submodules", t.Remote, "+refs/heads/main:"+t.mainRef()); err != nil {
 		return "", err
