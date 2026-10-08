@@ -82,6 +82,21 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: true
+    - "n": 4
+      timestamp: "2026-10-08T16:26:06-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: 'Verified red-without: TestReconciledClosePushes fails with closetracker.go:149 removed; TestStartPlanRerunPushes fails with startplan.go:344 removed; both listed in catalog Proofs.'
+          round: 4
+        - id: BR-1
+          disposition: not-addressed
+          note: 'Plan still carries line anchors (landing.go:558/:310, ghclient.go:149 now :154, handoff.go:205 for a function now in boundarypush.go); Integration-points row says deleteLandingBranch gains deleteRemoteBranch but the call is in runDurableMerge. Rule: name functions, never lines; add a Revisions entry.'
+          round: 4
+      boundary: M1
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#286 (boundary-review)
@@ -124,7 +139,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Important] `boundary-push-path-coverage` Reconcile's close-completion push (closetracker.go:149) and start-plan's rerun push have no regression test
   2nd in family. Rule: every boundary-push call site needs an origin assertion that fails when that call is removed. Covered: startplan first run, milestoneclose.go:187, close.go:1410, closetracker.go:427, landing pr and merge. Uncovered: closetracker.go:149 (no proof row in the reconcile contract) and the plan's start-plan-rerun test. Add both and list them in catalog Proofs.
 
+## Round 4 — 2026-10-08T16:26:06-07:00 (claude) — passed
+
+### Disposed
+
+- BR-6 — addressed — Verified red-without: TestReconciledClosePushes fails with closetracker.go:149 removed; TestStartPlanRerunPushes fails with startplan.go:344 removed; both listed in catalog Proofs.
+- BR-1 — not-addressed — Plan still carries line anchors (landing.go:558/:310, ghclient.go:149 now :154, handoff.go:205 for a function now in boundarypush.go); Integration-points row says deleteLandingBranch gains deleteRemoteBranch but the call is in runDurableMerge. Rule: name functions, never lines; add a Revisions entry.
+
 ## Open findings
 
 - **BR-1** [Minor] `stale-line-anchor` runDurablePR is at landing.go:492 (plan says ~:558) and legacy --delete-branch at ghclient.go:154 (plan says :149)
-- **BR-6** [Important] `boundary-push-path-coverage` Reconcile's close-completion push (closetracker.go:149) and start-plan's rerun push have no regression test

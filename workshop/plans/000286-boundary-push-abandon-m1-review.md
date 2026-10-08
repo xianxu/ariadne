@@ -190,3 +190,76 @@ findings:
     detail: |
       2nd in family. Rule: every boundary-push call site needs an origin assertion that fails when that call is removed. Covered: startplan first run, milestoneclose.go:187, close.go:1410, closetracker.go:427, landing pr and merge. Uncovered: closetracker.go:149 (no proof row in the reconcile contract) and the plan's start-plan-rerun test. Add both and list them in catalog Proofs.
 ```
+
+---
+
+## Re-review — 2026-10-08T16:26:06-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 286 — Boundary pushes and sdlc abandon |
+| repo | ariadne |
+| issue file | workshop/issues/000286-boundary-push-abandon.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | 3f92e76e4940e04b23721d548148deab1874e130..005ced36f2ccd39ab3b66f1638a2608e901fd4b9 |
+| command | sdlc milestone-close --issue 286 --milestone M1 |
+| reviewer | claude |
+| timestamp | 2026-10-08T16:26:06-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Still reviewing: I've confirmed the two new tests fail without their push calls, and now I'm checking whether the plan's anchors are fixed.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+This round's fix holds up. I removed each push call in a scratch copy, and each of the two new tests fails without its call:
+
+- With `closetracker.go:149` removed, `TestReconciledClosePushes` fails ("reconcile did not push the finished close").
+- With `startplan.go:344` removed, `TestStartPlanRerunPushes` fails.
+
+With HEAD restored, both pass along with `TestBoundaryVerbsPushTheIssueBranch`. The catalog Proofs list both tests: start-plan's rerun under its existing push proof, and reconcile's under a new proof row. That makes every boundary-push call site pinned by a test that goes red without it, so BR-6 is addressed. The one thing left is BR-1, which is Minor and only affects the plan's text. The plan still cites line numbers, and two of its location claims are now wrong.
+
+1. **Strengths**
+   - `leasedBranchPush` (`boundarypush.go`) is now the only leased push. Unclaim, the boundaries and `sdlc pr` all go through it via the `gitFn` seam, which removed the copy that used to live in `handoff.go` (ARCH-DRY).
+   - `boundaryPush` is bounded by a timeout. `gitRaw` cancels the whole process group with a `WaitDelay`, so a hung transport helper can't hold the verb (D2, ARCH-CONSTRAINTS).
+   - The merge-time remote delete is leased on `pr.HeadOID`, so a push made after the PR merged is never silently discarded.
+   - The tests run against real bare origins and assert `ls-remote` state, not mocks (ARCH-MOCK).
+
+2. **Critical:** none.
+
+3. **Important:** none new.
+
+4. **Minor:** BR-1 is still open (see below).
+
+5. **Test coverage**
+   - The start-plan rerun test shares a call site with the first-run push. It would still catch the push being moved into the `planningCreatedBranch` arm only, because the rerun takes a different path.
+   - When the push is removed, the rerun test fails at its setup step (`push --delete`) rather than at its assertion. It still goes red, but the failure message would mislead someone debugging it.
+
+6. **Architecture**
+   - ARCH-DRY: pass. ARCH-PURE: pass (the push is a thin IO shell). ARCH-PURPOSE: pass for M1's scope.
+   - ARCH-MOCK: pass. ARCH-CONSTRAINTS: pass (timeout). ARCH-SECURE: pass (no credentials touched).
+   - ARCH-ORDER: pass. The lease guards stale observations, and a failed push is reported as "not pushed", not as success.
+   - ARCH-FUNERAL: pass. Remote branches are deleted at merge, and M2's abandon covers the other way work ends.
+   - For M2: abandon's remote delete should reuse `deleteRemoteBranch` and its lease rather than adding a new delete path.
+
+7. **Plan revisions**
+   - Add a `## Revisions` entry saying `pushIssueBranch` now lives in `boundarypush.go` (line 7 still says `handoff.go:205`).
+   - Say the remote delete is called from `runDurableMerge`. `deleteLandingBranch` is unchanged, so the Integration points table row naming it is wrong.
+   - Drop every `file:line` anchor in favor of function names (lines 7, 15, 30, 76, 77, 93, 99).
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Verified red-without: TestReconciledClosePushes fails with closetracker.go:149 removed; TestStartPlanRerunPushes fails with startplan.go:344 removed; both listed in catalog Proofs.
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      Plan still carries line anchors (landing.go:558/:310, ghclient.go:149 now :154, handoff.go:205 for a function now in boundarypush.go); Integration-points row says deleteLandingBranch gains deleteRemoteBranch but the call is in runDurableMerge. Rule: name functions, never lines; add a Revisions entry.
+```

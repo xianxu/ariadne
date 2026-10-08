@@ -4,7 +4,7 @@
 
 **Goal:** Started work is always on origin (the issue branch is pushed at every sdlc boundary and deleted remotely at merge), and ending active work as `wontfix`/`punt` goes through one verb, `sdlc abandon`, that keeps the work under an archive ref which a reopen restores.
 
-**Architecture:** One lease push (`pushIssueBranch`, `handoff.go:205`, already used by unclaim) becomes the boundary push, called at the end of start-plan, milestone-close, close (and close's reconcile completion), and by `sdlc pr`'s durable push. Merge deletes the remote branch with a lease on the landed head. `abandon` is a convergent sequence (note commit → archive ref → card CAS → narrow main archive → branch deletion) whose card record (`abandoned{ref, head}`) lets a rerun resume and a reopen restore.
+**Architecture:** One lease push (`pushIssueBranch`, now in `boundarypush.go` over `leasedBranchPush`, already used by unclaim) becomes the boundary push, called at the end of start-plan, milestone-close, close (and close's reconcile completion), and by `sdlc pr`'s durable push. Merge deletes the remote branch with a lease on the landed head. `abandon` is a convergent sequence (note commit → archive ref → card CAS → narrow main archive → branch deletion) whose card record (`abandoned{ref, head}`) lets a rerun resume and a reopen restore.
 
 **Tech Stack:** Go (`cmd/sdlc`), git (`push --force-with-lease`, custom refs), tracker envelope records (`internal/issue`), `env.main.UpdateManyPrepared` + `gitx.TrunkWrite` for the narrow main commit; fixtures `trackerRepo`, `startedHere`, `closeReady`, `procedureFixture` + `landingFakeGH`.
 
@@ -12,7 +12,7 @@
 
 ## Non-goals
 
-- Legacy repositories (no issue tracker): no boundary pushes (start-plan returns before its tracker steps there, `pushIssueBranch` needs a `trackerEnv`) and no `abandon`. Legacy `merge` keeps `gh pr merge --delete-branch` (`ghclient.go:149`).
+- Legacy repositories (no issue tracker): no boundary pushes (start-plan returns before its tracker steps there, `pushIssueBranch` needs a `trackerEnv`) and no `abandon`. Legacy `merge` keeps `gh pr merge --delete-branch` (`ghclient.go`).
 - Un-archiving a reopened `done` issue: the same gap D9 closes for abandoned issues, filed as a follow-up.
 - Abandon by a non-owner: claim first (`claim` takes over unowned work; `reclaim` reassigns owned work). A terminal card is not claimable, so a non-owner can't reopen another workspace's abandoned issue either; that is today's reopen rule, unchanged.
 - Pruning old archive refs: they are removed only by a reopen (D10).
@@ -27,14 +27,14 @@ One extra `git push` per boundary verb (start-plan, milestone-close, close), typ
 - **D2 — A failed boundary push warns; it never undoes or fails the boundary.** The verb's own effect (card write, close binding) has landed; the push is durability, and the next boundary or `sdlc pr` pushes again (lesson: a projection must not add a refusal to its host verb). A stale lease is the exception worth shouting about: the warning names the remote tip and says to fetch and inspect before the next boundary. Unclaim keeps its existing hard failure (a handoff without the push is no handoff).
 - **D3 — milestone-close pushes HEAD as it is.** It makes no commit (the agent commits the printed trailers), so its push carries the milestone's work and the trailer commit follows at the next boundary. The Done-when ("origin equals local HEAD after the verb") holds at the moment the verb returns.
 - **D4 — `sdlc pr` (durable path) uses the same lease push** instead of a plain `push -u`, so a rebase between boundaries doesn't make `pr` fail non-fast-forward. Its upstream config write stays as is. The legacy (untracked) pr path is untouched.
-- **D5 — merge deletes the remote branch with a lease on the landed head** (`push --force-with-lease=refs/heads/B:<head> <remote> :refs/heads/B`), after the local deletion in `deleteLandingBranch` (`landing.go:310`). Best-effort with a warning: the landing is done. A rerun (resume path) whose remote branch is already gone is a no-op.
+- **D5 — merge deletes the remote branch with a lease on the landed head** (`push --force-with-lease=refs/heads/B:<head> <remote> :refs/heads/B`), after the local deletion in `deleteLandingBranch` (`landing.go`). Best-effort with a warning: the landing is done. A rerun (resume path) whose remote branch is already gone is a no-op.
 - **D6 — `abandon` accepts any non-terminal status the owner holds** (`open`, `working`, `blocked`, `codecomplete`); from `open` there is no branch, so the branch steps are skipped. `--as wontfix|punt` maps to the model's `abandon`/`defer` events (the edge is checked against `construct/vocabulary/issue.cue`, not hardcoded).
 - **D7 — abandon's sequence, each step detectable on rerun.** First, rerun detection: a card already terminal (`wontfix`/`punt`) whose `abandoned` record names this issue's ref means "resume at step 5". The step-1 checks below don't apply to it (the checkout may already be on its resting branch), only ownership by attribution and a clean tree do. Otherwise:
   1. Refuse unless: owner (`requireCardOwnership`), a clean tree, and, when the issue has started work, the checkout is on a non-resting, non-main branch (the one being abandoned; the name is not checked, per #285).
   2. Append `- YYYY-MM-DD: abandoned (wontfix|punt) — <reason>` under `## Log` (same-day subheading rule as unclaim's note) and commit `#N: log: abandon (<as>)`. Skipped when that commit is already the tip.
   3. Push the tip to `refs/ariadne/abandoned/NNNNNN` on the publication remote. Lease: the ref must not exist, or already equal the tip (rerun), or hold an ancestor of the tip (an orphan left by an interrupted reopen, D9, whose content the branch contains); anything else refuses.
   4. One card CAS: status → `wontfix`/`punt`, record `abandoned: {ref, head}`, claimant kept as attribution, `updated` today. A card already terminal with the same record is the rerun case.
-  5. One narrow main commit `#N: issue: abandon (<as>) — archive details`, through the landing archive's own rules rather than a parallel archiver: destinations from `archiveDestination(historyDir, kind, base)` (`archivepolicy.go:13`), the details projected by `archivedDetails` (`landingarchive.go:66`) generalized from "done" to the model's terminal statuses (the landing archive only ever passes done cards, so its behavior is unchanged), and every plan artifact on main that `planArtifactBelongsToIssue` assigns to the issue moved to the plans archive too. One `TrunkWrite{Write, Delete}`; ownership re-checked in `beforePush`. Skipped when main has no live copy left.
+  5. One narrow main commit `#N: issue: abandon (<as>) — archive details`, through the landing archive's own rules rather than a parallel archiver: destinations from `archiveDestination(historyDir, kind, base)` (`archivepolicy.go`), the details projected by `archivedDetails` (`landingarchive.go`) generalized from "done" to the model's terminal statuses (the landing archive only ever passes done cards, so its behavior is unchanged), and every plan artifact on main that `planArtifactBelongsToIssue` assigns to the issue moved to the plans archive too. One `TrunkWrite{Write, Delete}`; ownership re-checked in `beforePush`. Skipped when main has no live copy left.
   6. Delete the remote issue branch (lease on the tip), switch to the resting branch, delete the local branch. Each skipped when already gone; the rerun detection above is what lets a rerun from the resting branch get here.
 - **D8 — `set-status` to `wontfix`/`punt` from `working`/`blocked`/`codecomplete` refuses toward `sdlc abandon --issue N --as … --reason …`.** From `open` (triage) it keeps working as today, and `--force` does not bypass the redirect (there would be no archive ref, so the work would be lost; this is ARCH "a gate the agent can skip is not a gate").
 - **D9 — Reopen restores and un-archives (operator decision 2026-10-08).** The seam: `set-status`'s reopen gains effects only when the card carries an `abandoned` record; the effects live in `abandon.go` (`restoreAbandoned`), which set-status calls before its card write. Who may reopen is today's rule (the attributed owner, or an unattributed card), from a resting branch or the restored branch. Steps, each detected on rerun:
@@ -73,8 +73,8 @@ One extra `git push` per boundary verb (start-plan, milestone-close, close), typ
 | `runAbandon` / `newAbandonCmd` | `cmd/sdlc/abandon.go` | new | git, tracker CAS, main publish |
 | `restoreAbandoned` | `cmd/sdlc/abandon.go` | new | git fetch/branch/merge/mv/commit/push |
 | `startPlanBranch`, `publishTrackerClose`, milestone-close finalize, close reconcile completion | `startplan.go`, `closetracker.go`, `close.go`/`milestoneclose.go`, recovery reconcile | modified | + `boundaryPush` |
-| `runDurablePR` | `landing.go:558` | modified | lease push |
-| `deleteLandingBranch` | `landing.go:310` | modified | + `deleteRemoteBranch` |
+| `runDurablePR` | `landing.go` | modified | lease push |
+| `runDurableMerge` | `landing.go` | modified | + `deleteRemoteBranch` after `deleteLandingBranch` |
 | `checkTransitionGuards` / reopen path | `setstatus.go` | modified | redirect; restore on reopen |
 
 All IO is exercised against real bare remotes in the existing fixtures (no mocks).
@@ -90,13 +90,13 @@ All IO is exercised against real bare remotes in the existing fixtures (no mocks
 - [ ] Commit `#286 M1: boundary push helper`.
 
 ### Task 2: the boundary verbs push
-**Files:** `startplan.go` (~:344, also the rerun path that "re-checks and does nothing"), `closetracker.go` (`publishTrackerClose` end, ~:425), milestone-close finalize (`close.go` ~:1410 and `milestoneclose.go` ~:183, opening a tracker env), the close completion in `issue recovery reconcile`; recovery contracts in `internal/recovery/catalog.go` (start-plan, milestone-close, close, reconcile, pr).
+**Files:** `startplan.go` (~:344, also the rerun path that "re-checks and does nothing"), `closetracker.go` (`publishTrackerClose` end,), milestone-close finalize (`close.go`), the close completion in `issue recovery reconcile`; recovery contracts in `internal/recovery/catalog.go` (start-plan, milestone-close, close, reconcile, pr).
 - [ ] Test `TestBoundaryVerbsPushTheIssueBranch`: in `closeReady`'s flow assert `ls-remote` equals HEAD after start-plan, after a milestone-close, after close; then rebase onto an advanced main, reopen and close again (the #301 path: `set-status working`, then `close`, as `TestTrackerCloseSurvivesARebase` drives it) and assert origin equals the rewritten HEAD (lease force). Test that start-plan's rerun pushes when origin lacks the branch.
 - [ ] Insert `boundaryPush`; update the contracts' Effects ("pushes the issue branch with a lease; a failed push warns").
 - [ ] Commit `#286 M1: push the issue branch at every boundary`.
 
 ### Task 3: `pr` lease push; merge deletes the remote branch
-**Files:** `landing.go` (`runDurablePR` ~:558, `deleteLandingBranch` ~:310), `tracker_e2e_test.go` or a new `landingcleanup_test.go`.
+**Files:** `landing.go` (`runDurablePR`, `deleteLandingBranch`), `tracker_e2e_test.go` or a new `landingcleanup_test.go`.
 - [ ] Tests: after a rebase, `sdlc pr` publishes the rewritten branch; `TestTrackerFullSlotCycle`'s landing leaves `ls-remote --heads <branch>` empty; the merge resume path with the remote branch already deleted succeeds.
 - [ ] Implement; contracts for pr/merge updated; atlas (`atlas/workflow/issue-tracker.md`, the verb table rows for start-plan, close, pr, merge).
 - [ ] `make test`; `sdlc milestone-close --issue 286 --milestone M1`.
@@ -135,3 +135,4 @@ All IO is exercised against real bare remotes in the existing fixtures (no mocks
 ## Revisions
 
 - 2026-10-08 (plan-quality round 1): added Non-goals and Operating envelope (PQ-4, PQ-7). D7 detects a rerun from the card record before step 1's branch checks, and step 6 deletes the remote branch before switching (PQ-1). D9 gained per-step rerun detection, the card write before the archive ref's deletion, and abandon's step 3 tolerates the orphan that ordering can leave (PQ-2). Step 5 reuses `archiveDestination`/`archivedDetails` generalized to terminal statuses and moves the issue's plan artifacts on main (PQ-3, new Task 4a). Re-close after a rebase goes through the #301 reopen path (PQ-8). The set-status seam and who may reopen are stated (PQ-6). Test prose compressed (PQ-5).
+- 2026-10-08 (M1 review, BR-1): line anchors removed in favor of function names; the remote delete sits in `runDurableMerge` after `deleteLandingBranch`, not inside it; `pushIssueBranch` now lives in `boundarypush.go` as a wrapper over `leasedBranchPush`.
