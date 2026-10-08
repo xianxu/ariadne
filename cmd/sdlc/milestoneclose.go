@@ -184,6 +184,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, judge.VerdictNotRun); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
 		}
+		milestonePush(commandContext(f.Context), stderr)
 		return nil
 	case f.DryRun:
 		cinfo(stderr, "dry-run — would dispatch judge milestone-review")
@@ -754,4 +755,20 @@ func (p boundaryReviewParams) recipe() judge.Category {
 		return judge.MilestoneReview
 	}
 	return p.Category
+}
+
+// milestonePush is milestone-close's boundary push (#286). The verb commits
+// nothing (the agent commits its trailers), so it pushes HEAD as it stands;
+// the trailer commit goes up at the next boundary. A legacy repository has no
+// tracker and no boundary pushes.
+func milestonePush(ctx context.Context, stderr io.Writer) {
+	if tracked, err := repositoryTracked(ctx, "."); err != nil || !tracked {
+		return
+	}
+	env, err := openTracker(ctx)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("milestone-close: the issue branch was not pushed: %v", err))
+		return
+	}
+	boundaryPush(env, stderr, "milestone-close")
 }

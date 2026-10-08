@@ -1406,6 +1406,9 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			emitLessonsReminder(stdout)
 			return nil
 		}
+		if f.Milestone != "" {
+			milestonePush(commandContext(f.Context), stderr)
+		}
 		if review.Verdict == judge.VerdictFixThenShip {
 			// #174: state the post-FIX-THEN-SHIP protocol at the moment of
 			// ambiguity — before the lessons reminder, so bookkeeping lands

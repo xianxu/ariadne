@@ -146,6 +146,7 @@ func retryCloseMirror(env *trackerEnv, stderr io.Writer, id string) {
 		return
 	}
 	commitCloseMirror(env, stderr, id, path.Join(envOr("WF_ISSUES_DIR", "workshop/issues"), path.Base(card.Path)))
+	boundaryPush(env, stderr, "close") // reconcile finished this branch's close (#286)
 }
 
 func closeMirrorCommit(env *trackerEnv, id, rel string) error {
@@ -423,6 +424,7 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 	}
 	cok(stderr, fmt.Sprintf("#%s codecomplete on %s, bound to evidence commit %s", id, env.branch, shortOID(tracker.EvidenceCommit(final))))
 	commitCloseMirror(env, stderr, id, entries[0].Path)
+	boundaryPush(env, stderr, "close")
 	fmt.Fprintln(stdout, tracker.EvidenceCommit(final))
 	return nil
 }

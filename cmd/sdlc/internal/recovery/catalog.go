@@ -54,13 +54,14 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"start-plan"},
 		Class:         ConvergentRetry,
-		Effects:       "creates the issue branch at main (or switches to it), carrying uncommitted edits to this issue's own details; then, on an open card, one compare-and-swap starting it (open → working, `started` if absent, #283); then refreshes the local mirror. The card write publishes to the tracker; main is never pushed.",
+		Effects:       "creates the issue branch at main (or switches to it), carrying uncommitted edits to this issue's own details; then, on an open card, one compare-and-swap starting it (open → working, `started` if absent, #283); then refreshes the local mirror, then pushes the issue branch with a lease on the last-fetched copy (#286; a failed push warns and the next boundary pushes again). The card write publishes to the tracker; main is never pushed.",
 		Evidence:      observeEvidence + ": card.status, branch, workspaces.",
 		Preconditions: "the card is open or working and owned by this workspace (claim first); on the resting branch or the issue branch; no tracked changes other than this issue's own details; the branch carries no other issue's unlanded commits (#272).",
 		Repeat:        "on the branch with the card working: re-checks and does nothing; the branch exists elsewhere: switches to it; the card still open (a lost start write): starts it.",
 		LostResponse:  "rerun the same command — branch first, then card: the branch converges, and the card is started only if it is still open. A concurrent card change (a reclaim) refuses, naming the branch left in this checkout.",
 		Ends:          "ownership moves (reclaim) — the old workspace is refused.",
 		Proofs: []Proof{
+			{"origin's issue branch equals HEAD after the verb; a rebase is force-pushed with the lease (#286)", []string{"TestBoundaryVerbsPushTheIssueBranch", "TestBoundaryPushLeases"}},
 			{"creates or reuses the branch", []string{"TestPreparePlanningBranchRefusesMissingDetailsAndReusesBranch", "TestStartPlanRequiresClaimAndPreparesBranch"}},
 			{"refuses an unlanded base", []string{"TestPreparePlanningBranchRefusesAnUnlandedBase"}},
 			{"refuses a non-owner", []string{"TestOwnershipGatesRefuseForeignAndUnknown"}},
@@ -88,13 +89,14 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"milestone-close"},
 		Class:         NonRepeatable,
-		Effects:       "dispatches the boundary review (a new round in the issue's gate ledger and review sidecar); on a finalizing verdict ticks the milestone and logs it. No commit and no card write: the agent commits with the printed trailers.",
+		Effects:       "dispatches the boundary review (a new round in the issue's gate ledger and review sidecar); on a finalizing verdict ticks the milestone and logs it. No commit and no card write: the agent commits with the printed trailers. Then pushes the issue branch as it stands, with a lease (#286; the trailer commit goes up at the next boundary; a failed push warns).",
 		Evidence:      observeEvidence + ": checkpoints.reviews[Mx] (verdict, open_blocking).",
 		Preconditions: "owned by this workspace; measured actual; the milestone's window since the previous verdict.",
 		Repeat:        "dispatches a new review round. A refused (REWORK/open blocking) close changes nothing durable but the ledger; fix and re-run.",
 		LostResponse:  "read the ledger and sidecar (checkpoints) before re-running — a finished review must not be re-dispatched just to learn its verdict.",
 		Ends:          "the milestone is ticked; later work belongs to the next boundary.",
 		Proofs: []Proof{
+			{"origin's issue branch equals HEAD after the verb; a rebase is force-pushed with the lease (#286)", []string{"TestBoundaryVerbsPushTheIssueBranch", "TestBoundaryPushLeases"}},
 			{"REWORK does not finalize; SHIP finalizes", []string{"TestRunMilestoneClose_REWORK_DoesNotFinalize", "TestRunMilestoneClose_SHIP_Finalizes"}},
 			{"an issue changed during the review does not finalize", []string{"TestCloseCommands_IssueChangedDuringBoundaryReview_DoesNotFinalize"}},
 			{"its verdict and scoped open findings are observable", []string{"TestObserveMilestonesThroughTheRealGates"}},
@@ -103,13 +105,14 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"close"},
 		Class:         NonRepeatable,
-		Effects:       "dispatches the whole-issue review; on SHIP, behind a recovery receipt: an evidence commit on the branch, codecomplete on the card bound to it {token, reviewed head, evidence commit}, then a mirror commit. FIX-THEN-SHIP stores the receipt unstarted.",
+		Effects:       "dispatches the whole-issue review; on SHIP, behind a recovery receipt: an evidence commit on the branch, codecomplete on the card bound to it {token, reviewed head, evidence commit}, then a mirror commit, then a leased push of the issue branch (#286; a failed push warns). FIX-THEN-SHIP stores the receipt unstarted.",
 		Evidence:      observeEvidence + ": completion (token, evidence_commit), checkpoints.reviews[close]; `sdlc issue recovery list`.",
 		Preconditions: "on the issue branch; owned by this workspace; no unfinished close in progress (finish it with `sdlc issue recovery reconcile --issue N`).",
 		Repeat:        "a new review and a new close generation that rebinds the card; the earlier evidence commit stays in history. Do not re-run to recover — reconcile.",
 		LostResponse:  "`sdlc issue recovery reconcile --issue N` drives the receipt, probing before repeating any effect.",
 		Ends:          "a landing completes the card (done); a reopen or a newer close supersedes this generation — newer by ancestry, or (#283) a close on the branch over one a rebase rewrote off it.",
 		Proofs: []Proof{
+			{"origin's issue branch equals HEAD after the verb; a rebase is force-pushed with the lease (#286)", []string{"TestBoundaryVerbsPushTheIssueBranch", "TestBoundaryPushLeases"}},
 			{"evidence before codecomplete, bound to the reviewed head", []string{"TestTrackerCloseCommitsEvidenceAndPublishesBoundCard", "TestCompletionCommitsEvidenceBeforeCodecomplete"}},
 			{"FIX-THEN-SHIP lands evidence after the fixes", []string{"TestTrackerCloseFixThenShipLandsEvidenceAfterTheFixes", "TestTrackerCloseFixThenShipSurvivesASweepingFixCommit"}},
 			{"a re-close supersedes an unstarted close; an older review cannot win", []string{"TestTrackerReCloseSupersedesAnUnstartedClose", "TestNewestCloseRefusesAnOlderReviewThanTheCardsClose"}},
@@ -122,7 +125,7 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"issue recovery reconcile"},
 		Class:         ConvergentRetry,
-		Effects:       "drives each unfinished receipt (close, issue new, move-detail) to its end, probing an uncertain effect before repeating it; settles closes whose evidence already landed; finishes an interrupted close mirror.",
+		Effects:       "drives each unfinished receipt (close, issue new, move-detail) to its end, probing an uncertain effect before repeating it; settles closes whose evidence already landed; finishes an interrupted close mirror and pushes the issue branch of a close it finished (#286).",
 		Evidence:      "`sdlc issue recovery list`; " + observeEvidence + ".",
 		Preconditions: "run from the checkout on the receipt's branch (another worktree is refused).",
 		Repeat:        "nothing left to do: reports so and changes nothing.",

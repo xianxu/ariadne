@@ -93,3 +93,42 @@ func TestDeleteRemoteBranchLeasesOnItsHead(t *testing.T) {
 		t.Fatalf("a branch already gone: %v", err)
 	}
 }
+
+// #286: after each boundary verb origin's issue branch equals local HEAD, and
+// a rebase followed by the next boundary force-pushes with the lease.
+func TestBoundaryVerbsPushTheIssueBranch(t *testing.T) {
+	r, _, detailPath := closeReady(t, 320)
+	branch := r.git("branch", "--show-current")
+	if remoteTip(t, r, branch) == "" {
+		t.Fatal("start-plan did not push the issue branch")
+	}
+	run := func(args ...string) {
+		t.Helper()
+		if _, stderr, err := executeSDLCTestCommand(args...); err != nil {
+			t.Fatalf("sdlc %s: %v\n%s", strings.Join(args, " "), err, stderr)
+		}
+	}
+	atHead := func(after string) {
+		t.Helper()
+		if tip, head := remoteTip(t, r, branch), r.git("rev-parse", "HEAD"); tip != head {
+			t.Fatalf("after %s: origin has %s, HEAD is %s", after, tip, head)
+		}
+	}
+	raw := r.git("show", "HEAD:"+detailPath)
+	writeRepoFile(t, r.root, detailPath, strings.Replace(raw, "- [x] do it", "- [x] do it\n- [ ] M1 — part one", 1)+"\n")
+	r.git("commit", "-qam", "#320: plan: M1")
+	run("milestone-close", "--issue", "320", "--milestone", "M1", "--verified", "e2e", "--actual", "0.1", "--no-atlas", "--no-project", "--no-judge")
+	atHead("milestone-close")
+	r.git("commit", "-qam", "#320 M1: milestone close")
+
+	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
+	run("close", "--issue", "320", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project")
+	atHead("close")
+
+	peerCommit(t, r, "other.go")
+	r.git("fetch", "-q", "origin")
+	r.git("rebase", "-q", "origin/main")
+	run("issue", "set-status", "working", "--issue", "320")
+	run("close", "--issue", "320", "--verified", "e2e again", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project")
+	atHead("a close after a rebase")
+}
