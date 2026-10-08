@@ -1,12 +1,20 @@
 ---
 id: 000286
-status: open
+status: working
 deps: [ariadne#283]
 github_issue:
 created: 2026-10-02
-updated: 2026-10-02
+updated: 2026-10-08
 estimate_hours:
-card_mirror: 'e9fa3d5ea24c81759cf1fdb8f43f909b557ca579' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '11706acc2d4a13c09c607b40feedae8dc3bc48ea' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-08T14:22:50-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Boundary pushes and sdlc abandon
@@ -35,8 +43,16 @@ Part of project `claimant-ownership`. Started work is only recoverable after a h
 
 ## Plan
 
-- [ ] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
+- [x] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
+- [ ] M1 — Boundary pushes at start-plan, milestone-close, close (and reconcile's close completion); lease push in `pr`; merge deletes the remote branch. Plan Tasks 1–3.
+- [ ] M2 — `sdlc abandon`, the set-status redirect, and a reopen that restores the branch and un-archives the details. Plan Tasks 4–7.
+
+Durable plan: `workshop/plans/000286-boundary-push-abandon-plan.md`.
 
 ## Log
+
+### 2026-10-08
+
+Claimed in ariadne:2. Survey: `pushIssueBranch` (handoff.go) is the lease push to reuse; nothing pushes at start-plan/close today; milestone-close makes no commit (it pushes HEAD as-is, D3); the durable merge (`gh pr merge` without `--delete-branch`) leaves the remote branch; set-status has no wontfix/punt guard; no reopen un-archives details. Operator decision: reopen of an abandoned issue restores the branch AND un-archives the details (merge main, move history/X back), so it lands cleanly; done-reopen's same gap goes to a follow-up. Boundary push failures warn, never fail the verb (D2); the set-status redirect can't be forced (D8).
 
 ### 2026-10-02
