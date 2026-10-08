@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"strings"
 	"testing"
 	"time"
@@ -76,5 +78,24 @@ func TestStateReportsOwnerAndClaimTime(t *testing.T) {
 	raw, err := json.Marshal(nine)
 	if err != nil || !strings.Contains(string(raw), `"owner":{`) || !strings.Contains(string(raw), `"claimed_at":"`) {
 		t.Fatalf("JSON: %s %v", raw, err)
+	}
+}
+
+// #284 BR-32: a failed claim-age read is reported in state's drift, not lost
+// to the drift computation that follows it.
+func TestStateReportsAFailedClaimAgeRead(t *testing.T) {
+	claimSetRepo(t)
+	claimFor(t, 9)
+	prev := claimTimesOf
+	t.Cleanup(func() { claimTimesOf = prev })
+	claimTimesOf = func(*tracker.Repository, map[string]bool) (map[string]time.Time, error) {
+		return nil, errors.New("injected history failure")
+	}
+	var out bytes.Buffer
+	if err := runState(context.Background(), &out, &stateFlags{JSON: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(out.String(), "claim ages unavailable: injected history failure") {
+		t.Fatalf("the failure is not in state's drift:\n%s", out.String())
 	}
 }

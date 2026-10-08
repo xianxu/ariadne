@@ -221,7 +221,7 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 		cinfo(stderr, fmt.Sprintf("dry-run — %s claimable (open and unowned, details on main); would claim in one tracker commit", claimRefs(ids)))
 		return nil
 	}
-	err = cardsPublish(env, ids, operationToken("claim"), nil, decide, func(base, candidate string) error { return ready() })
+	err = cardsPublish(env, ids, operationToken(tracker.OpClaim), nil, decide, func(base, candidate string) error { return ready() })
 	invalidateIssueRecords(env.ctx)
 	if errors.Is(err, errAlreadyMine) {
 		err = nil // every card became this workspace's while retrying: settled

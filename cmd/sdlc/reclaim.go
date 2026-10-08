@@ -127,7 +127,7 @@ func NewReclaimCmd() *cobra.Command {
 // publication response after the effect landed; nothing but runReclaim calls it
 // (TestReclaimIsOnlyOperatorInvoked).
 var reclaimEffect = func(env *trackerEnv, card tracker.Record, next []byte, trailers []string) error {
-	return cardPublish(env, card, next, operationToken("reclaim"), trailers, nil)
+	return cardPublish(env, card, next, operationToken(tracker.OpReclaim), trailers, nil)
 }
 
 // runReclaim inspects (no --expect) or performs (--expect + --reason) a

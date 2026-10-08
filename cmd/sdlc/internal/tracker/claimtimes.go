@@ -9,14 +9,25 @@ import (
 	"regexp"
 	"strings"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // ClaimLogFormat is the `git log` --format whose output ClaimTimes reads
 // (with --name-only): a record separator, the committer time, the message.
 const ClaimLogFormat = "%x01%cI%x00%B%x00"
 
+// The owner-setting operations, as their tokens' verbs (#284). Call sites mint
+// tokens from these names, so claim ages cannot lose a verb a writer uses.
+const (
+	OpClaim    = "claim"    // claim, takeover included
+	OpReclaim  = "reclaim"  // the operator's transfer
+	OpRelocate = "relocate" // the owner's own `sdlc move`
+	opAdopt    = "adopt"    // pre-#284 cards: recognised in history, no longer minted
+)
+
 // claimKinds are the operations that set a card's owner.
-var claimKinds = map[string]bool{"claim": true, "reclaim": true, "relocate": true, "adopt": true}
+var claimKinds = map[string]bool{OpClaim: true, OpReclaim: true, OpRelocate: true, opAdopt: true}
 
 var operationLine = regexp.MustCompile(`(?m)^Tracker-Operation: ([A-Za-z0-9][A-Za-z0-9._-]*)$`)
 
@@ -76,4 +87,22 @@ func ClaimTimes(r io.Reader, want map[string]bool) (map[string]time.Time, error)
 		}
 	}
 	return out, sc.Err()
+}
+
+// ClaimTimes reads this tracker's history for when each wanted card's current
+// owner took it (#284), stopping once all are found; a failed read is an
+// error, never an empty answer.
+func (r *Repository) ClaimTimes(want map[string]bool) (map[string]time.Time, error) {
+	if len(want) == 0 {
+		return map[string]time.Time{}, nil
+	}
+	stream, finish, err := r.trunk.HistoryStream(ClaimLogFormat, vocab.Issue().Discovery().Cards)
+	if err != nil {
+		return nil, err
+	}
+	times, readErr := ClaimTimes(stream, want)
+	if err := finish(len(times) == len(want)); err != nil {
+		return nil, err
+	}
+	return times, readErr
 }

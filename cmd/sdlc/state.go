@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"os/exec"
 	"regexp"
 	"sort"
 	"strings"
@@ -169,12 +168,13 @@ func runState(ctx context.Context, stdout io.Writer, f *stateFlags) error {
 	if err != nil {
 		return fmt.Errorf("list issues: %w", err)
 	}
-	if err := fillClaimTimes(ctx, identity.WorktreeRoot, issues); err != nil {
-		s.Drift = append(s.Drift, DriftFinding{Severity: "info", Message: "claim ages unavailable: " + err.Error()})
-	}
+	claimErr := fillClaimTimes(ctx, identity.WorktreeRoot, issues)
 	s.Issues, s.TrackerStale = issues, stale
 	// gitx.ShippedWorkOnMain is the production ship probe; state_test fakes it.
 	s.Drift = detectDrift(issues, historyDir, gitx.ShippedWorkOnMain)
+	if claimErr != nil { // accumulated after the one assignment (#284 BR-32)
+		s.Drift = append(s.Drift, DriftFinding{Severity: "info", Message: "claim ages unavailable: " + claimErr.Error()})
+	}
 	if baseRef == "" {
 		s.Drift = append(s.Drift, DriftFinding{
 			Severity: "info",
@@ -514,9 +514,9 @@ func renderProseAt(w io.Writer, s State, now time.Time) error {
 // valueOr and truncate live in term.go (shared across the sdlc verbs).
 // M2 review I1's rune-aware truncate is preserved verbatim there.
 
-// claimAge renders ", claimed 3h ago" from an RFC3339 claim time ("" when
-// unknown). Pure.
-func claimAge(claimedAt string, now time.Time) string {
+// shortAge renders a claim's age from an RFC3339 time: "42m", "3h", "5d"
+// ("" when unknown). Pure.
+func shortAge(claimedAt string, now time.Time) string {
 	at, err := time.Parse(time.RFC3339, claimedAt)
 	if err != nil {
 		return ""
@@ -524,12 +524,20 @@ func claimAge(claimedAt string, now time.Time) string {
 	d := now.Sub(at)
 	switch {
 	case d < time.Hour:
-		return fmt.Sprintf(", claimed %dm ago", int(d.Minutes()))
+		return fmt.Sprintf("%dm", int(d.Minutes()))
 	case d < 48*time.Hour:
-		return fmt.Sprintf(", claimed %dh ago", int(d.Hours()))
+		return fmt.Sprintf("%dh", int(d.Hours()))
 	default:
-		return fmt.Sprintf(", claimed %dd ago", int(d.Hours()/24))
+		return fmt.Sprintf("%dd", int(d.Hours()/24))
 	}
+}
+
+// claimAge renders ", claimed 3h ago" ("" when unknown). Pure.
+func claimAge(claimedAt string, now time.Time) string {
+	if age := shortAge(claimedAt, now); age != "" {
+		return ", claimed " + age + " ago"
+	}
+	return ""
 }
 
 // claimGroup is one line of a claims view: a slot or an operator, and the
@@ -548,8 +556,8 @@ func claimViews(issues []IssueState, now time.Time) (bySlot, byOperator []claimG
 			continue
 		}
 		item := "#" + unpadID(i.ID)
-		if age := claimAge(i.ClaimedAt, now); age != "" { // ", claimed 3h ago" → " (3h)"
-			item += " (" + strings.TrimSuffix(strings.TrimPrefix(age, ", claimed "), " ago") + ")"
+		if age := shortAge(i.ClaimedAt, now); age != "" {
+			item += " (" + age + ")"
 		}
 		slots[i.Owner.slot()] = append(slots[i.Owner.slot()], item)
 		operators[i.Owner.Operator] = append(operators[i.Owner.Operator], item)
@@ -583,9 +591,9 @@ func renderClaims(w io.Writer, issues []IssueState, now time.Time) {
 	fmt.Fprintln(w)
 }
 
-// fillClaimTimes sets each owned issue's ClaimedAt from tracker history: one
-// `git log` over the tracker's tracking ref, read until every owned card is
-// resolved (#284). No tracker, or no owned issue, reads nothing.
+// fillClaimTimes sets each owned issue's ClaimedAt from tracker history
+// (#284). No tracker, or no owned issue, reads nothing; a failed read is
+// returned for the caller to report, never an empty answer.
 func fillClaimTimes(ctx context.Context, root string, issues []IssueState) error {
 	want := map[string]bool{}
 	for _, i := range issues {
@@ -600,19 +608,9 @@ func fillClaimTimes(ctx context.Context, root string, issues []IssueState) error
 	if err != nil || repo == nil {
 		return err
 	}
-	cmd := exec.CommandContext(ctx, "git", "-C", root, "log", "--format="+tracker.ClaimLogFormat, "--name-only", repo.TrackingRef(), "--", vocab.Issue().Discovery().Cards)
-	stdout, err := cmd.StdoutPipe()
+	times, err := claimTimesOf(repo, want)
 	if err != nil {
 		return err
-	}
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	times, readErr := tracker.ClaimTimes(stdout, want)
-	_ = cmd.Process.Kill() // done reading: the rest of history is not needed
-	_ = cmd.Wait()
-	if readErr != nil {
-		return readErr
 	}
 	for k := range issues {
 		if at, ok := times[issues[k].cardPath]; ok {
@@ -620,4 +618,9 @@ func fillClaimTimes(ctx context.Context, root string, issues []IssueState) error
 		}
 	}
 	return nil
+}
+
+// claimTimesOf is the tracker history read, a seam so a test can fail it.
+var claimTimesOf = func(repo *tracker.Repository, want map[string]bool) (map[string]time.Time, error) {
+	return repo.ClaimTimes(want)
 }

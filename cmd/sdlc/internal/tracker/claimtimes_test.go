@@ -4,6 +4,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func record(when, op string, paths ...string) string {
@@ -63,4 +65,16 @@ func FuzzClaimTimes(f *testing.F) {
 	f.Fuzz(func(t *testing.T, s string) {
 		_, _ = ClaimTimes(strings.NewReader(s), map[string]bool{"p": true})
 	})
+}
+
+// #284 BR-33: a history read that fails is an error, never an empty answer.
+func TestRepositoryClaimTimesReportsAFailedRead(t *testing.T) {
+	r, root, _ := fixture(t)
+	if _, err := r.ClaimTimes(map[string]bool{testPath: true}); err != nil {
+		t.Fatalf("a readable history: %v", err)
+	}
+	testfix.Git(t, root, "update-ref", "-d", "refs/remotes/publication/issue-tracker")
+	if got, err := r.ClaimTimes(map[string]bool{testPath: true}); err == nil {
+		t.Fatalf("a failed read answered %v", got)
+	}
 }
