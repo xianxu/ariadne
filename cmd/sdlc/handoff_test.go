@@ -327,11 +327,16 @@ func TestUnclaimNoteIsKeyedToTheAttempt(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "d.md")
 	writeRepoFile(t, dir, "d.md", "---\nid: 000009\n---\n\n# t\n\n## Log\n\n### 2026-01-01\n\n- 2026-01-01: unclaimed: hand back\n")
-	if changed, err := appendUnclaimNote(p, "hand back"); err != nil || !changed {
+	if changed, err := appendUnclaimNote(p, "hand back", true); err != nil || !changed {
 		t.Fatalf("another day's identical note must be filed: %v %v", changed, err)
 	}
-	if changed, err := appendUnclaimNote(p, "hand back"); err != nil || changed {
+	if changed, err := appendUnclaimNote(p, "hand back", true); err != nil || changed {
 		t.Fatalf("the same day's note was filed twice: %v %v", changed, err)
+	}
+	// A handoff keys its attempt by its note commit, not the text: a second,
+	// separate handoff the same day files its identical note again.
+	if changed, err := appendUnclaimNote(p, "hand back", false); err != nil || !changed {
+		t.Fatalf("a handoff must not dedupe on text: %v %v", changed, err)
 	}
 }
 

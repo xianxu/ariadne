@@ -53,7 +53,7 @@ func ResolvePublicationTarget(ctx context.Context, root, restingBranch string) (
 	if !publicationRemoteName.MatchString(t.Remote) {
 		return t, errors.New("publication upstream must use one named remote")
 	}
-	if _, diag, err := runGitBoundedInputContext(ctx, root, nil, nil, diagnosticOutputLimit, "check-ref-format", "refs/remotes/"+t.Remote+"/main"); err != nil {
+	if _, diag, err := runGitBoundedInputContext(ctx, root, nil, nil, diagnosticOutputLimit, "check-ref-format", RemoteTrackingRef(t.Remote, "main")); err != nil {
 		return t, fmt.Errorf("invalid publication remote: %w: %s", err, diag)
 	}
 	base, err := query("config", "--get-all", "branch."+restingBranch+".merge")

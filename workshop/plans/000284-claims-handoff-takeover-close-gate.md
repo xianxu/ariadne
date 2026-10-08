@@ -244,6 +244,118 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 6
+      timestamp: "2026-10-07T16:09:08-07:00"
+      agent: claude
+      findings:
+        - id: BR-23
+          severity: Important
+          title: Takeover whose card write loses its response cannot be finished by rerunning claim
+          detail: 'uncertainCardWrite returns before finishTakeover runs. On rerun, prepareTakeover returns nil (the card is owned) and the decision gives errAlreadyMine. finishOwnedTakeover needs a local refs/heads/<branch> that a fresh clone never created, so it returns without a word ("nothing to do"). The release head was already spent, so nothing records the tip to finish at. The atlas and catalog LostResponse claim a rerun finishes this. Variant: if branch -f fails with a stale ancestor branch present, the rerun switches to the stale tip and prints resumed. 3rd in the family. Rule: a rerun-to-finish step must derive its target from state that outlives the effect it follows, and every effect boundary that promises a rerun needs a lost-response test. Fix: finishOwnedTakeover fetches the issue branch and creates or fast-forwards it (refusing divergence) before switching; add loseResponses tests. The same rule covers the handoff note''s date-keyed dedupe.'
+          family: rerun-not-idempotent
+          round: 6
+        - id: BR-24
+          severity: Important
+          title: Takeover CAS does not recheck the release head prepareTakeover observed; the handoff lease cannot catch it
+          detail: 'The single-issue claimSetDecision accepts any unowned card after a re-read. A re-release at a new head H2 between prepareTakeover (saw H1) and the CAS lands the claim, and finishTakeover sets the branch at stale H1. The next handoff''s force-with-lease uses a freshly read ls-remote tip, which is effectively a force push that overwrites H2 on origin. Fix: pass the expected release head into the decision and refuse on mismatch; lease the push on the last-fetched remote-tracking ref; add a beforePush interleaving test.'
+          family: stale-observation-not-rechecked-in-cas
+          round: 6
+        - id: BR-25
+          severity: Minor
+          title: finishHandoff and finishOwnedTakeover return early on errors (CardRelease, rev-parse, a dirty tree) without saying why
+          detail: The operator gets "nothing to release" or "nothing to do" with no hint about why the checkout did not move. A one-line cwarn per early return fixes it.
+          family: silent-error-in-io-glue
+          round: 6
+        - id: BR-26
+          severity: Minor
+          title: Three finish helpers repeat the same clean-check, switch and warn sequence
+          family: duplicated-restore-logic
+          round: 6
+      boundary: M3
+      recipe: milestone-review
+      blocked: true
+    - "n": 7
+      timestamp: "2026-10-07T21:11:08-07:00"
+      agent: claude
+      dispose:
+        - id: BR-23
+          disposition: addressed
+          note: finishOwnedTakeover fetches the remote branch and fast-forwards; TestTakeoverLostResponseRerunResumes fails without it (old code needed a local ref); note dedupe spans dates.
+          round: 7
+        - id: BR-24
+          disposition: addressed
+          note: decide rechecks release branch/head (claim.go:188); lease uses last-fetched tracking ref; both tests fail with the fix removed.
+          round: 7
+        - id: BR-25
+          disposition: not-addressed
+          note: Mostly fixed, but finishOwnedTakeover's fetch failure (handoff.go:269-271) still returns silently, conflating a network error with "no branch".
+          round: 7
+        - id: BR-26
+          disposition: addressed
+          note: switchClean (handoff.go:142) replaces the three switch sequences.
+          round: 7
+      findings:
+        - id: BR-27
+          severity: Important
+          title: finishOwnedTakeover's diverged-local-copy refusal has no test; removing it lets branch -f overwrite local commits
+          detail: '2nd in family. Rule: every refusal branch on a rerun-to-finish path gets a fixture, not just the happy resume. Add a lost-response rerun test where the peer holds a diverged local issue branch; assert warn, branch unchanged, no switch.'
+          family: test-gap-lost-response-set
+          round: 7
+        - id: BR-28
+          severity: Minor
+          title: Handoff and takeover warnings name the wrong cause (ahead treated as diverged, every push error treated as a lease miss)
+          detail: '2nd in family. Rule: a refusal names the condition actually observed and is classified before wording. Sites: handoff.go:278 (local ahead of remote, i.e. the owner''s unpushed work, and merge-base errors, both reported as needing reconcile); handoff.go:181 (every push error reworded as a lease mismatch); handoff.go:270 (fetch error read as "no branch").'
+          family: refusal-reason-mismatch
+          round: 7
+        - id: BR-29
+          severity: Minor
+          title: The remote-tracking ref string is built three times in handoff.go and in at least three other files
+          detail: '4th in family. Rule: each derived ref or path name has one constructor. Expose a remoteTrackingRef(remote, branch) (gitx/trunkfile.go:194 already has one) and use it in handoff.go:170,222,268, transferguard.go:112 and landing.go:117.'
+          family: duplicated-path-derivation
+          round: 7
+        - id: BR-30
+          severity: Minor
+          title: Note dedupe matches the same text at any date, so a later separate handoff's identical note is silently dropped
+          detail: '4th in family. Rule: a convergence key must identify this attempt, not just its content. Here, look only in the branch''s unpushed tail (commits after the tracking ref) for the note commit, instead of searching the whole Log for the text.'
+          family: rerun-not-idempotent
+          round: 7
+      boundary: M3
+      recipe: milestone-review
+      blocked: true
+    - "n": 8
+      timestamp: "2026-10-07T21:21:23-07:00"
+      agent: claude
+      dispose:
+        - id: BR-25
+          disposition: addressed
+          note: finishHandoff warns on an unreadable release and a HEAD read failure; finishOwnedTakeover warns on ls-remote, fetch, rev-parse and merge-base failures; dirty trees warn via switchClean. Remaining silent returns are genuine nothing-to-do cases.
+          round: 8
+        - id: BR-27
+          disposition: addressed
+          note: TestTakeoverRerunWithALocalCopy/diverged asserts the warning, the local ref unchanged and no switch; removing the refusal at handoff.go:348 makes branch -f overwrite the ref and the test fails.
+          round: 8
+        - id: BR-28
+          disposition: addressed
+          note: Ahead and diverged are now distinct (handoff.go:342-348), merge-base errors have their own message, the push error is classified on stale info (handoff.go:215, pinned by TestHandoffLeaseRefusesAnUnseenRemoteTip), and ls-remote separates a missing branch from a failed fetch.
+          round: 8
+        - id: BR-29
+          disposition: not-addressed
+          note: 'Constructor added and used at the named sites, but siblings remain: landing.go:86 (next to mainRef in the same file), observe.go:117 and :181 (same file as the converted :237), gitx/publicationtarget.go:56.'
+          round: 8
+        - id: BR-30
+          disposition: not-addressed
+          note: The commit-keyed check fixes the across-midnight rerun, but the handoff path still runs appendUnclaimNote's same-day text match, so a second separate handoff the same day with the same note is dropped; let the handoff rely on handoffNoteCommitted alone.
+          round: 8
+      findings:
+        - id: BR-31
+          severity: Minor
+          title: A failed check for the local branch is read as "absent" and followed by branch -f (handoff.go:270, :323-324)
+          detail: 'This is the 4th finding in family silent-error-in-io-glue. Rule: every existence check in the handoff glue returns three outcomes (present, absent, error) through env.gitTest, and an error stops with a warning; it is never folded into "absent". Apply it to both rev-parse --verify sites; the earlier-round sites already follow it.'
+          family: silent-error-in-io-glue
+          round: 8
+      boundary: M3
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#284 (boundary-review)
@@ -341,6 +453,53 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-21 — addressed — branchcreate.go:76,89 use issue.BranchName; closetracker.go uses issue.Stem for the plan glob, which is a stem, not a branch.
 - BR-22 — addressed — restoreToHead is the single helper returning an error, used by finishPublished and bringMainIn.
 
+## Round 6 — 2026-10-07T16:09:08-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-23** [Important] `rerun-not-idempotent` Takeover whose card write loses its response cannot be finished by rerunning claim
+  uncertainCardWrite returns before finishTakeover runs. On rerun, prepareTakeover returns nil (the card is owned) and the decision gives errAlreadyMine. finishOwnedTakeover needs a local refs/heads/<branch> that a fresh clone never created, so it returns without a word ("nothing to do"). The release head was already spent, so nothing records the tip to finish at. The atlas and catalog LostResponse claim a rerun finishes this. Variant: if branch -f fails with a stale ancestor branch present, the rerun switches to the stale tip and prints resumed. 3rd in the family. Rule: a rerun-to-finish step must derive its target from state that outlives the effect it follows, and every effect boundary that promises a rerun needs a lost-response test. Fix: finishOwnedTakeover fetches the issue branch and creates or fast-forwards it (refusing divergence) before switching; add loseResponses tests. The same rule covers the handoff note's date-keyed dedupe.
+- **BR-24** [Important] `stale-observation-not-rechecked-in-cas` Takeover CAS does not recheck the release head prepareTakeover observed; the handoff lease cannot catch it
+  The single-issue claimSetDecision accepts any unowned card after a re-read. A re-release at a new head H2 between prepareTakeover (saw H1) and the CAS lands the claim, and finishTakeover sets the branch at stale H1. The next handoff's force-with-lease uses a freshly read ls-remote tip, which is effectively a force push that overwrites H2 on origin. Fix: pass the expected release head into the decision and refuse on mismatch; lease the push on the last-fetched remote-tracking ref; add a beforePush interleaving test.
+- **BR-25** [Minor] `silent-error-in-io-glue` finishHandoff and finishOwnedTakeover return early on errors (CardRelease, rev-parse, a dirty tree) without saying why
+  The operator gets "nothing to release" or "nothing to do" with no hint about why the checkout did not move. A one-line cwarn per early return fixes it.
+- **BR-26** [Minor] `duplicated-restore-logic` Three finish helpers repeat the same clean-check, switch and warn sequence
+
+## Round 7 — 2026-10-07T21:11:08-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-23 — addressed — finishOwnedTakeover fetches the remote branch and fast-forwards; TestTakeoverLostResponseRerunResumes fails without it (old code needed a local ref); note dedupe spans dates.
+- BR-24 — addressed — decide rechecks release branch/head (claim.go:188); lease uses last-fetched tracking ref; both tests fail with the fix removed.
+- BR-25 — not-addressed — Mostly fixed, but finishOwnedTakeover's fetch failure (handoff.go:269-271) still returns silently, conflating a network error with "no branch".
+- BR-26 — addressed — switchClean (handoff.go:142) replaces the three switch sequences.
+
+### Raised
+
+- **BR-27** [Important] `test-gap-lost-response-set` finishOwnedTakeover's diverged-local-copy refusal has no test; removing it lets branch -f overwrite local commits
+  2nd in family. Rule: every refusal branch on a rerun-to-finish path gets a fixture, not just the happy resume. Add a lost-response rerun test where the peer holds a diverged local issue branch; assert warn, branch unchanged, no switch.
+- **BR-28** [Minor] `refusal-reason-mismatch` Handoff and takeover warnings name the wrong cause (ahead treated as diverged, every push error treated as a lease miss)
+  2nd in family. Rule: a refusal names the condition actually observed and is classified before wording. Sites: handoff.go:278 (local ahead of remote, i.e. the owner's unpushed work, and merge-base errors, both reported as needing reconcile); handoff.go:181 (every push error reworded as a lease mismatch); handoff.go:270 (fetch error read as "no branch").
+- **BR-29** [Minor] `duplicated-path-derivation` The remote-tracking ref string is built three times in handoff.go and in at least three other files
+  4th in family. Rule: each derived ref or path name has one constructor. Expose a remoteTrackingRef(remote, branch) (gitx/trunkfile.go:194 already has one) and use it in handoff.go:170,222,268, transferguard.go:112 and landing.go:117.
+- **BR-30** [Minor] `rerun-not-idempotent` Note dedupe matches the same text at any date, so a later separate handoff's identical note is silently dropped
+  4th in family. Rule: a convergence key must identify this attempt, not just its content. Here, look only in the branch's unpushed tail (commits after the tracking ref) for the note commit, instead of searching the whole Log for the text.
+
+## Round 8 — 2026-10-07T21:21:23-07:00 (claude) — passed
+
+### Disposed
+
+- BR-25 — addressed — finishHandoff warns on an unreadable release and a HEAD read failure; finishOwnedTakeover warns on ls-remote, fetch, rev-parse and merge-base failures; dirty trees warn via switchClean. Remaining silent returns are genuine nothing-to-do cases.
+- BR-27 — addressed — TestTakeoverRerunWithALocalCopy/diverged asserts the warning, the local ref unchanged and no switch; removing the refusal at handoff.go:348 makes branch -f overwrite the ref and the test fails.
+- BR-28 — addressed — Ahead and diverged are now distinct (handoff.go:342-348), merge-base errors have their own message, the push error is classified on stale info (handoff.go:215, pinned by TestHandoffLeaseRefusesAnUnseenRemoteTip), and ls-remote separates a missing branch from a failed fetch.
+- BR-29 — not-addressed — Constructor added and used at the named sites, but siblings remain: landing.go:86 (next to mainRef in the same file), observe.go:117 and :181 (same file as the converted :237), gitx/publicationtarget.go:56.
+- BR-30 — not-addressed — The commit-keyed check fixes the across-midnight rerun, but the handoff path still runs appendUnclaimNote's same-day text match, so a second separate handoff the same day with the same note is dropped; let the handoff rely on handoffNoteCommitted alone.
+
+### Raised
+
+- **BR-31** [Minor] `silent-error-in-io-glue` A failed check for the local branch is read as "absent" and followed by branch -f (handoff.go:270, :323-324)
+  This is the 4th finding in family silent-error-in-io-glue. Rule: every existence check in the handoff glue returns three outcomes (present, absent, error) through env.gitTest, and an error stops with a warning; it is never folded into "absent". Apply it to both rev-parse --verify sites; the earlier-round sites already follow it.
+
 ## Open findings
 
 - **BR-1** [Minor] `silent-error-in-io-glue` refreshAfterClaim swallows rev-parse errors and misreports merge-base failures as "commits main lacks"
@@ -350,3 +509,6 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Minor] `hand-recorded-actuals` project file ticks M1 with actual/closed before milestone-close measures it; M lines not nested under the #284 line
 - **BR-6** [Minor] `test-gap-lost-response-set` no test drives a claim set through a lost publication response and a rerun
 - **BR-19** [Minor] `silent-error-in-io-glue` gitTest errors discarded at republish.go:242,350 turn a failed probe into "not in HEAD" and then remove the file
+- **BR-29** [Minor] `duplicated-path-derivation` The remote-tracking ref string is built three times in handoff.go and in at least three other files
+- **BR-30** [Minor] `rerun-not-idempotent` Note dedupe matches the same text at any date, so a later separate handoff's identical note is silently dropped
+- **BR-31** [Minor] `silent-error-in-io-glue` A failed check for the local branch is read as "absent" and followed by branch -f (handoff.go:270, :323-324)

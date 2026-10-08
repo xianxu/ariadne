@@ -83,7 +83,7 @@ func resolveLandingTarget(r gitRunner) (*landingTarget, error) {
 	if t.Remote == "." || !regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._/-]*$`).MatchString(t.Remote) {
 		return nil, errors.New("resting upstream must use one named remote")
 	}
-	if _, err = landingGit(r, t.Root, "check-ref-format", "refs/remotes/"+t.Remote+"/main"); err != nil {
+	if _, err = landingGit(r, t.Root, "check-ref-format", gitx.RemoteTrackingRef(t.Remote, "main")); err != nil {
 		return nil, err
 	}
 	base, err := landingGit(r, t.Root, "config", "--get-all", "branch."+t.Rest+".merge")

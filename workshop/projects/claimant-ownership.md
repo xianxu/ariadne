@@ -88,6 +88,8 @@ What shipped:
 ### ariadne#284 M3 — Handoff and takeover
 
 **est:** ~1.5h (M3's share of #284's 6.1h, after Task 8 moved into M2)
+**closed:** 2026-10-07
+**actual:** 2.75h
 
 What shipped:
 - Unclaiming started work is a handoff: from the issue's branch with a clean tree, it commits the note, pushes the branch with a lease, and records the release's branch and tip.

@@ -192,7 +192,7 @@ func runUnclaim(ctx context.Context, stdout, stderr io.Writer, f *unclaimFlags) 
 	if f.Note != "" {
 		for _, id := range pending {
 			_, p := localDetail(env, dirs.Rel[0], cards[id].Path)
-			if _, err := appendUnclaimNote(p, f.Note); err != nil { // once, whatever the reruns (#284 BR-7)
+			if _, err := appendUnclaimNote(p, f.Note, true); err != nil { // once, whatever the reruns (#284 BR-7)
 				return fmt.Errorf("#%s: the note needs its local details: %w", issue.CLIRef(id), err)
 			}
 		}

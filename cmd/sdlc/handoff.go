@@ -24,9 +24,11 @@ func cleanTree(env *trackerEnv) (string, error) {
 	return env.git("status", "--porcelain", "--untracked-files=all")
 }
 
-// appendUnclaimNote files one dated note line in a details file's ## Log,
-// once: a rerun finds it there and adds nothing. changed reports a write.
-func appendUnclaimNote(abs, note string) (changed bool, err error) {
+// appendUnclaimNote files one dated note line in a details file's ## Log.
+// With sameDayKey (an open unclaim) the same day's identical line is this
+// attempt's and is not filed again; a handoff keys its attempt by its note
+// commit instead (handoffNoteCommitted). changed reports a write.
+func appendUnclaimNote(abs, note string, sameDayKey bool) (changed bool, err error) {
 	raw, err := os.ReadFile(abs)
 	if err != nil {
 		return false, err
@@ -39,7 +41,7 @@ func appendUnclaimNote(abs, note string) (changed bool, err error) {
 	// Same day, same text: this attempt's note. An identical note on another
 	// day belongs to another release and is filed again. (A handoff also
 	// recognises its own note commit across midnight: handoffNoteCommitted.)
-	if strings.Contains(body, line) {
+	if sameDayKey && strings.Contains(body, line) {
 		return false, nil
 	}
 	return true, os.WriteFile(abs, []byte(issue.Compose(fm, insertLogLine(body, line))), 0o644)
@@ -84,7 +86,7 @@ func runHandoff(env *trackerEnv, stdout, stderr io.Writer, card tracker.Record, 
 	}
 	if note != "" {
 		rel, abs := localDetail(env, issuesRel, card.Path)
-		if changed, err := appendUnclaimNote(abs, note); err != nil {
+		if changed, err := appendUnclaimNote(abs, note, false); err != nil { // keyed by handoffNoteCommitted
 			return err
 		} else if changed {
 			if _, err := env.git("commit", "-q", "-m", "#"+issue.CLIRef(id)+": log: handoff", "--", rel); err != nil {
@@ -267,7 +269,11 @@ func prepareTakeover(env *trackerEnv, card tracker.Record) (*takeover, error) {
 	if tip != rel.Head {
 		return nil, fmt.Errorf("#%s: %s is at %s, not the %s it was handed off at — someone pushed after the release; inspect it (`git log %s`) before taking over", id, rel.Branch, shortOID(tip), shortOID(rel.Head), tracking)
 	}
-	if local, err := env.git("rev-parse", "-q", "--verify", "refs/heads/"+rel.Branch); err == nil && local != "" && local != rel.Head {
+	if present, err := env.gitTest("rev-parse", "-q", "--verify", "refs/heads/"+rel.Branch); err != nil {
+		return nil, fmt.Errorf("#%s: checking for a local %s failed: %w", id, rel.Branch, err)
+	} else if local, err := env.git("rev-parse", "refs/heads/"+rel.Branch); present && err != nil {
+		return nil, err
+	} else if present && local != rel.Head {
 		if ahead, err := env.gitTest("merge-base", "--is-ancestor", local, rel.Head); err != nil {
 			return nil, err
 		} else if !ahead {
@@ -320,8 +326,19 @@ func finishOwnedTakeover(env *trackerEnv, stderr io.Writer, card tracker.Record)
 		cwarn(stderr, fmt.Sprintf("not resuming on %s: reading the fetched tip failed: %v", branch, err))
 		return
 	}
-	local, err := env.git("rev-parse", "-q", "--verify", "refs/heads/"+branch)
-	if err != nil || local == "" || local == tip {
+	present, err := env.gitTest("rev-parse", "-q", "--verify", "refs/heads/"+branch)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("not resuming on %s: checking for a local copy failed: %v", branch, err))
+		return
+	}
+	local := ""
+	if present {
+		if local, err = env.git("rev-parse", "refs/heads/"+branch); err != nil {
+			cwarn(stderr, fmt.Sprintf("not resuming on %s: reading the local copy failed: %v", branch, err))
+			return
+		}
+	}
+	if local == "" || local == tip {
 		finishTakeover(env, stderr, &takeover{branch: branch, head: tip})
 		return
 	}

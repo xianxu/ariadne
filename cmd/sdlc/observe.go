@@ -114,7 +114,7 @@ func collectObservation(ctx context.Context, root, issuesDir, id string) observe
 // remote's main as last fetched ("" when not archived there).
 func archivedOnMain(root, remote, stem string) (string, error) {
 	want := path.Join(vocab.ArchiveSubdir(vocab.Issue().Discovery().Archive, vocab.ArchiveIssues), stem+".md")
-	out, err := observeGit(root, "ls-tree", "--name-only", "refs/remotes/"+remote+"/main", "--", want)
+	out, err := observeGit(root, "ls-tree", "--name-only", gitx.RemoteTrackingRef(remote, "main"), "--", want)
 	if err != nil {
 		return "", fmt.Errorf("read %s/main: %w", remote, err)
 	}
@@ -178,7 +178,7 @@ func collectBranch(root, remote, stem string) observe.BranchFacts {
 		b.Err = err
 		return b
 	}
-	count, err := gitLine(root, "rev-list", "--count", "refs/remotes/"+remote+"/main.."+b.Ref)
+	count, err := gitLine(root, "rev-list", "--count", gitx.RemoteTrackingRef(remote, "main")+".."+b.Ref)
 	if err == nil {
 		_, err = fmt.Sscan(count, &b.AheadOfMain)
 	}
