@@ -19,7 +19,8 @@ STARTED WORK (working, blocked, codecomplete) is a handoff, one issue at a
 time. Run it from the issue's branch with a clean tree (untracked files
 included): a handoff carries only committed work. The note, if any, is
 committed on the branch so it travels; the branch is pushed to the publication
-remote (with a lease — the owner is its only writer); the card records the
+remote (leased on the copy this checkout last fetched — the owner is its only
+writer, but a tip it never saw is not overwritten); the card records the
 release with the branch and its tip; this checkout returns to its resting
 branch, freeing the branch for another worktree. A plain `sdlc claim` in any
 other checkout — slot, machine or operator — takes it over at exactly that tip.

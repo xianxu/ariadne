@@ -14,7 +14,7 @@ var Catalog = []Contract{
 		Effects:       "one tracker commit recording this workspace as owner, the lock (#277, #283), on every named card (#284: a set is all or nothing, each card decided on the bytes each attempt reads): the claimant, `updated` and a first `started`, spending any release; the status is unchanged (an open card stays open until start-plan; unowned started work is taken over in its status). A handed-off card (its release names a branch) is one issue at a time: the branch is fetched and checked out at the recorded tip. Afterwards a resting branch fast-forwards to the fetched main, or claim warns why not; elsewhere, details differing from main's are named. On the owner's own moved work it relocates the claimant. Never pushes main. A legacy repository (no tracker) has no owner, and its claim performs open → working.",
 		Evidence:      observeEvidence + ": card.status, assignment.claimant, assignment.relation.",
 		Preconditions: "every card exists, holds the lock's status (open, working, blocked, codecomplete), is unowned (or already this workspace's), and its details are on main (re-checked before the push). A handoff takeover also needs the release to name the issue's own branch, a clean resting branch here, the fetched tip equal to the recorded head, and no diverged local copy — all checked before the card is written; relocation needs `sdlc move`'s record.",
-		Repeat:        "the owning workspace, at any status that holds the lock: \"already claimed by this workspace; nothing to do\" (no write); a takeover whose switch was lost checks the branch out. Another workspace's card: refused, naming the owner.",
+		Repeat:        "the owning workspace, at any status that holds the lock: \"already claimed by this workspace; nothing to do\" (no write); a takeover whose response or switch was lost resumes on the issue's branch as the publication remote has it (its only writer is the owner), refusing a diverged local copy. Another workspace's card: refused, naming the owner.",
 		LostResponse:  "rerun the same command — the cards decide: if this workspace's claim landed, the rerun reports it; if not, it claims. A member claimed by a peer meanwhile fails the set, naming it.",
 		Ends:          "the card reaches a terminal status (the owner stays as attribution, no longer a lock) or is reclaimed (`sdlc reclaim`): the claim then names its new owner. start-plan and close move the status, not the claim.",
 		Proofs: []Proof{
@@ -23,7 +23,8 @@ var Catalog = []Contract{
 			{"the checkout is refreshed after claiming, never over a local change", []string{"TestClaimRefreshesTheCheckout"}},
 			{"one winner among concurrent takeovers of an unowned started card", []string{"TestAdoptRaceHasExactlyOneWinner"}},
 			{"a handoff is resumed at exactly its tip, after every check", []string{"TestHandoffAndTakeover", "TestTakeoverRefusals", "TestClaimSetRefusesAHandedOffMember"}},
-			{"a lost takeover switch is finished by rerunning", []string{"TestTakeoverRerunFinishesTheSwitch"}},
+			{"a lost takeover switch or response is finished by rerunning", []string{"TestTakeoverRerunFinishesTheSwitch", "TestTakeoverLostResponseRerunResumes"}},
+			{"a re-release after the fetch refuses the takeover", []string{"TestTakeoverRefusesAReReleaseBeforeTheWrite"}},
 			{"a card claimed before #277 is taken over in its status", []string{"TestPlainClaimTakesOverAPre277Codecomplete", "TestClaimSetLostResponseAndTakeover"}},
 			{"an owner's repeat is a no-op; others are refused", []string{"TestClaimDecisionOwnership", "TestVerbContractTable", "TestClaimDryRunOwnerRepeatWritesNothing"}},
 			{"claim never moves status, over the model's status × owner product", []string{"TestClaimNeverMovesStatus"}},
@@ -279,7 +280,7 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"unclaim"},
 		Class:         ConvergentRetry,
-		Effects:       "the owner's release (#284); the status never changes. An open claim: its unpublished edits are published (`issue publish`) while still held, then one tracker commit clears every named owner and records the release (who let go). Started work, one issue at a time: a handoff — the optional note is committed on the issue branch, the branch is pushed (with a lease: the owner is its only writer), the card records the release with branch and tip, and the checkout returns to rest.",
+		Effects:       "the owner's release (#284); the status never changes. An open claim: its unpublished edits are published (`issue publish`) while still held, then one tracker commit clears every named owner and records the release (who let go). Started work, one issue at a time: a handoff — the optional note is committed on the issue branch, the branch is pushed (leased on the copy this checkout last fetched: the owner is its only writer, but an unseen remote tip is never overwritten), the card records the release with branch and tip, and the checkout returns to rest.",
 		Evidence:      observeEvidence + ": assignment.claimant (absent once released).",
 		Preconditions: "this workspace owns every card, on a status that holds the lock; a refused publish keeps the claim. A handoff runs from the issue's branch with a clean tree, untracked files included.",
 		Repeat:        "cards this workspace already released: \"already released\" / \"already handed off by this workspace\" — the checkout is finished (rest fast-forwards; a handoff's checkout returns to rest).",
@@ -293,6 +294,8 @@ var Catalog = []Contract{
 			{"a claim spends the release", []string{"TestClaimClearsARelease"}},
 			{"a handoff pushes the branch and records its tip; refuses uncommitted work and the wrong branch", []string{"TestHandoffAndTakeover", "TestHandoffRefusals"}},
 			{"a handoff's lost card write is finished by rerunning", []string{"TestHandoffRerunAfterALostResponse"}},
+			{"the handoff lease refuses a remote tip this checkout never saw", []string{"TestHandoffLeaseRefusesAnUnseenRemoteTip"}},
+			{"a note is filed once, whatever the date of the rerun", []string{"TestUnclaimNoteIsConvergent", "TestUnclaimNoteDedupesAcrossDates"}},
 		},
 	},
 	{

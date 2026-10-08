@@ -17,8 +17,9 @@ there, checking everything before the card is written: the branch must be the
 issue's own, this checkout a clean resting branch, the branch fetched from the
 publication remote at the recorded tip (a tip pushed after the release refuses:
 inspect it first), and any local copy of the branch not diverged. After the card
-names this workspace, the branch is set at that tip and checked out; a rerun
-finishes a lost switch. Any claim spends the release. `--adopt` is a retired
+names this workspace, the branch is set at that tip and checked out. A release
+that moved on after the fetch refuses the takeover. A rerun finishes a lost
+response or switch by resuming on the branch as the remote has it. Any claim spends the release. `--adopt` is a retired
 alias of a plain claim.
 
 REFRESH (#284). After the card lands, claim brings the checkout up to date: a

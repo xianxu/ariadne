@@ -51,7 +51,8 @@ card field.
   reassigns an owned one. `--adopt` is its retired alias.
 - **Handoff (#284).** Unclaiming started work runs from the issue's branch with
   a clean tree (`handoff.go` `runHandoff`). It commits the optional note,
-  pushes the branch with a lease (the owner is its only writer), records
+  pushes the branch leased on the copy this checkout last fetched (the owner
+  is its only writer, but an unseen remote tip is never overwritten), records
   `release {by, branch, head}` on the card while clearing the claimant, and
   returns the checkout to rest. A claim elsewhere runs `prepareTakeover` before
   any effect:
@@ -59,8 +60,11 @@ card field.
   - the checkout must be a clean resting branch;
   - the fetched tip must equal `head`;
   - any local copy must not have diverged.
+  The takeover's card write refuses if the release moved on since the fetch.
   `finishTakeover` then sets the branch at that tip and checks it out. Reruns
-  finish a lost card write or a lost switch. The pushed branch is the issue's
+  finish a lost card write or a lost switch: the handoff by recognising its own
+  release, the takeover by resuming on the branch as the remote has it (the
+  spent release no longer names the tip). The pushed branch is the issue's
   own, so it goes away with the issue's landing (#286's remote cleanup) or
   `abandon`.
 - **set-status** into `working` records the claimant like claim does. It

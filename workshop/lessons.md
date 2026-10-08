@@ -350,3 +350,9 @@ The simplest durable authority beats a clever scan of consequences.
 - A note or log line written before a step that can fail must be convergent:
   the error's "rerun the same command" otherwise duplicates it (#284 M2:
   `unclaim --note`).
+- A rerun that promises to finish a step must find its target in state that
+  outlives the step it follows. #284 M3's takeover spent the release, the only
+  record of the tip to check out, in the same card write whose response could
+  be lost. The rerun then had nothing to finish at. Derive the target from
+  what survives (the remote branch), and give every effect boundary that
+  promises a rerun a lost-response test.

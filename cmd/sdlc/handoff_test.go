@@ -9,6 +9,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
 const handoffDetail = "workshop/issues/000009-s09.md"
@@ -220,5 +221,115 @@ func TestPlainClaimTakesOverAPre277Codecomplete(t *testing.T) {
 	card := r.card(paths["000009"])
 	if owner, ok := ownerOf(t, r, paths["000009"]); !ok || owner.Worktree != canonRoot(r.root) || !strings.Contains(card, "status: codecomplete") {
 		t.Fatalf("not taken over with its status kept:\n%s", card)
+	}
+}
+
+// #284 BR-23: the takeover's card write lands but its response is lost; the
+// release (and its tip) is spent and this fresh clone has no local branch. The
+// rerun resumes on the branch as the remote has it.
+func TestTakeoverLostResponseRerunResumes(t *testing.T) {
+	r, _, owner := startedHere(t)
+	if out, err := unclaim(t, "", 9); err != nil {
+		t.Fatalf("handoff: %v\n%s", err, out)
+	}
+	head := strings.Fields(r.git("ls-remote", "origin", "refs/heads/000009-s09"))[0]
+	peer, them := anotherMachine(t, r, owner)
+	t.Chdir(peer)
+	withClaimant(t, them)
+	restore := loseResponses(t)
+	out, err := claimHere(t, 9)
+	restore()
+	if err == nil || !strings.Contains(err.Error(), "rerun the same command") {
+		t.Fatalf("lost response: %v\n%s", err, out)
+	}
+	if out, err := claimHere(t, 9); err != nil || !strings.Contains(out, "resumed on 000009-s09") {
+		t.Fatalf("rerun: %v\n%s", err, out)
+	}
+	if strings.TrimSpace(testfix.Capture(t, peer, "branch", "--show-current")) != "000009-s09" || strings.TrimSpace(testfix.Capture(t, peer, "rev-parse", "HEAD")) != head {
+		t.Fatal("the rerun did not resume at the handed-off tip")
+	}
+}
+
+// #284 BR-24: the card is released again at a new tip after the takeover
+// fetched the old one: the claim refuses and nothing is checked out.
+func TestTakeoverRefusesAReReleaseBeforeTheWrite(t *testing.T) {
+	r, paths, owner := startedHere(t)
+	if out, err := unclaim(t, "", 9); err != nil {
+		t.Fatalf("handoff: %v\n%s", err, out)
+	}
+	peer, them := anotherMachine(t, r, owner)
+	t.Chdir(peer)
+	withClaimant(t, them)
+	prev := cardsPublish
+	t.Cleanup(func() { cardsPublish = prev })
+	cardsPublish = func(env *trackerEnv, ids []string, token string, trailers []string, decide func(map[string]tracker.Record) (map[string][]byte, error), before func(string, string) error) error {
+		calls := 0
+		return prev(env, ids, token, trailers, decide, func(base, candidate string) error {
+			if calls++; calls == 1 {
+				if err := env.repo.ChangeCard("000009", paths["000009"], "release", operationToken("set"), func(c []byte) ([]byte, error) {
+					rel, _, _ := issue.CardRelease(c)
+					rel.Head = strings.Repeat("e", 40)
+					return issue.SetCardRelease(c, &rel)
+				}); err != nil {
+					return err
+				}
+			}
+			if before != nil {
+				return before(base, candidate)
+			}
+			return nil
+		})
+	}
+	if out, err := claimHere(t, 9); err == nil || !strings.Contains(err.Error(), "was released again") {
+		t.Fatalf("a re-release must refuse: %v\n%s", err, out)
+	}
+	if _, held, _ := issue.CardClaimant([]byte(r.card(paths["000009"]))); held {
+		t.Fatal("the claim landed over a re-release")
+	}
+	if strings.TrimSpace(testfix.Capture(t, peer, "branch", "--show-current")) != "main" {
+		t.Fatal("something was checked out")
+	}
+}
+
+// #284 BR-24: the handoff's push leases on the copy this checkout last
+// fetched: a tip pushed meanwhile by someone else is not overwritten.
+func TestHandoffLeaseRefusesAnUnseenRemoteTip(t *testing.T) {
+	r, _, owner := startedHere(t)
+	if out, err := unclaim(t, "", 9); err != nil {
+		t.Fatalf("handoff: %v\n%s", err, out)
+	}
+	peer, them := anotherMachine(t, r, owner)
+	t.Chdir(peer)
+	withClaimant(t, them)
+	if out, err := claimHere(t, 9); err != nil {
+		t.Fatalf("takeover: %v\n%s", err, out)
+	}
+	r.git("switch", "-q", "000009-s09") // the old machine pushes without the lock
+	writeRepoFile(t, r.root, "rogue.txt", "x\n")
+	r.git("add", "rogue.txt")
+	r.git("commit", "-qm", "#9: rogue")
+	r.git("push", "-q", "origin", "000009-s09")
+	rogue := r.git("rev-parse", "HEAD")
+	writeRepoFile(t, peer, "mine.txt", "x\n")
+	testfix.Git(t, peer, "add", "mine.txt")
+	testfix.Git(t, peer, "commit", "-qm", "#9: mine")
+	if out, err := unclaim(t, "", 9); err == nil || !strings.Contains(err.Error(), "last fetched") {
+		t.Fatalf("the lease must refuse an unseen tip: %v\n%s", err, out)
+	}
+	if tip := strings.Fields(r.git("ls-remote", "origin", "refs/heads/000009-s09"))[0]; tip != rogue {
+		t.Fatal("the unseen tip was overwritten")
+	}
+}
+
+// #284 BR-23: a note already filed under another date is not filed again.
+func TestUnclaimNoteDedupesAcrossDates(t *testing.T) {
+	dir := t.TempDir()
+	p := filepath.Join(dir, "d.md")
+	writeRepoFile(t, dir, "d.md", "---\nid: 000009\n---\n\n# t\n\n## Log\n\n### 2026-01-01\n\n- 2026-01-01: unclaimed: hand back\n")
+	if changed, err := appendUnclaimNote(p, "hand back"); err != nil || changed {
+		t.Fatalf("an earlier-dated note was filed again: %v %v", changed, err)
+	}
+	if changed, err := appendUnclaimNote(p, "something else"); err != nil || !changed {
+		t.Fatalf("a new note was not filed: %v %v", changed, err)
 	}
 }

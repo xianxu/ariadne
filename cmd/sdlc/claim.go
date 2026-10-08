@@ -185,6 +185,15 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	}
 	today, started := time.Now().Format("2006-01-02"), startedClock()
 	decide := func(current map[string]tracker.Record) (map[string][]byte, error) {
+		if take != nil {
+			// The takeover fetched one tip: the card must still hand off that
+			// tip, or a re-release moved it on (#284 BR-24).
+			if rel, ok, err := issue.CardRelease(current[ids[0]].Raw); err != nil {
+				return nil, err
+			} else if !ok || rel.Branch != take.branch || rel.Head != take.head {
+				return nil, fmt.Errorf("#%s was released again (or claimed) after %s was fetched at %s; rerun `sdlc claim --issue %s` to take over what is handed off now", issue.CLIRef(ids[0]), take.branch, shortOID(take.head), issue.CLIRef(ids[0]))
+			}
+		}
 		return claimSetDecision(current, ids, today, started, me)
 	}
 	refresh := func() {

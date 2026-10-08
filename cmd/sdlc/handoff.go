@@ -9,7 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"strings"
+	"regexp"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -35,7 +35,8 @@ func appendUnclaimNote(abs, note string) (changed bool, err error) {
 		return false, err
 	}
 	line := fmt.Sprintf("- %s: unclaimed: %s", time.Now().Format("2006-01-02"), note)
-	if strings.Contains(body, line) {
+	// Any date: a rerun after midnight is still the same note (#284 BR-23).
+	if regexp.MustCompile(`(?m)^- \d{4}-\d{2}-\d{2}: unclaimed: ` + regexp.QuoteMeta(note) + `$`).MatchString(body) {
 		return false, nil
 	}
 	return true, os.WriteFile(abs, []byte(issue.Compose(fm, insertLogLine(body, line))), 0o644)
@@ -108,9 +109,7 @@ func runHandoff(env *trackerEnv, stdout, stderr io.Writer, card tracker.Record, 
 		return err
 	}
 	cok(stderr, fmt.Sprintf("#%s handed off: %s pushed at %s; no owner, status unchanged. A claim elsewhere resumes there.", issue.CLIRef(id), branch, shortOID(head)))
-	if _, err := env.git("switch", "-q", env.resting); err != nil {
-		cwarn(stderr, fmt.Sprintf("this checkout stays on %s: switching to %s failed: %v", branch, env.resting, err))
-	}
+	switchClean(env, stderr, env.resting)
 	fmt.Fprintln(stdout, "released")
 	return nil
 }
@@ -119,35 +118,69 @@ func runHandoff(env *trackerEnv, stdout, stderr io.Writer, card tracker.Record, 
 // returns to rest when it is still on the released tip and clean.
 func finishHandoff(env *trackerEnv, stderr io.Writer, card []byte, branch string) {
 	rel, ok, err := issue.CardRelease(card)
-	if err != nil || !ok || env.branch != branch {
+	switch {
+	case err != nil:
+		cwarn(stderr, fmt.Sprintf("this checkout stays where it is: the card's release is unreadable: %v", err))
 		return
+	case !ok || env.branch != branch:
+		return // nothing of this handoff is checked out here
 	}
 	head, err := env.git("rev-parse", "HEAD")
-	if err != nil || head != rel.Head {
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("this checkout stays on %s: reading HEAD failed: %v", branch, err))
 		return
 	}
-	if dirty, err := cleanTree(env); err != nil || dirty != "" {
+	if head != rel.Head {
+		cwarn(stderr, fmt.Sprintf("this checkout stays on %s: it moved past the handed-off tip %s", branch, shortOID(rel.Head)))
 		return
 	}
-	if _, err := env.git("switch", "-q", env.resting); err != nil {
-		cwarn(stderr, fmt.Sprintf("this checkout stays on %s: switching to %s failed: %v", branch, env.resting, err))
+	switchClean(env, stderr, env.resting)
+}
+
+// switchClean checks out branch when this checkout is clean, saying why not
+// otherwise; it reports whether the checkout is now on branch.
+func switchClean(env *trackerEnv, stderr io.Writer, branch string) bool {
+	if env.branch == branch {
+		return true
 	}
+	dirty, err := cleanTree(env)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("not switching to %s: reading the tree failed: %v", branch, err))
+		return false
+	}
+	if dirty != "" {
+		cwarn(stderr, fmt.Sprintf("not switching to %s: this checkout has uncommitted changes:\n%s", branch, dirty))
+		return false
+	}
+	if _, err := env.git("switch", "-q", branch); err != nil {
+		cwarn(stderr, fmt.Sprintf("not switched to %s: %v", branch, err))
+		return false
+	}
+	env.branch = branch
+	return true
 }
 
 // pushIssueBranch publishes the issue branch to the publication remote. The
 // owner is its only writer (the claim, and no stacking, #272), so a rewritten
-// branch is pushed with a lease on the tip the remote had.
+// branch may replace the remote's — but only the copy this checkout last saw:
+// the lease is the last-fetched remote-tracking ref (absent: the branch must
+// not exist there yet), never a fresh read that would turn it into a blind
+// force (#284 BR-24).
 func pushIssueBranch(env *trackerEnv, branch string) error {
-	remoteTip, err := env.git("ls-remote", env.target.Remote, "refs/heads/"+branch)
-	if err != nil {
-		return err
-	}
+	tracking := "refs/remotes/" + env.target.Remote + "/" + branch
 	expect := ""
-	if fields := strings.Fields(remoteTip); len(fields) > 0 {
-		expect = fields[0]
+	if seen, err := env.gitTest("rev-parse", "-q", "--verify", tracking); err != nil {
+		return err
+	} else if seen {
+		if expect, err = env.git("rev-parse", tracking); err != nil {
+			return err
+		}
 	}
 	ref := "refs/heads/" + branch
-	_, err = env.git("push", "-q", "--force-with-lease="+ref+":"+expect, env.target.Remote, ref+":"+ref)
+	if _, err := env.git("push", "-q", "--force-with-lease="+ref+":"+expect, env.target.Remote, ref+":"+ref); err != nil {
+		return fmt.Errorf("%w (the remote's %s is not the copy this checkout last fetched; fetch and inspect it before handing off)", err, branch)
+	}
+	_, err := env.git("update-ref", tracking, ref)
 	return err
 }
 
@@ -215,31 +248,37 @@ func finishTakeover(env *trackerEnv, stderr io.Writer, t *takeover) {
 		cwarn(stderr, fmt.Sprintf("%s not set at %s: %v; rerun `sdlc claim` to finish", t.branch, shortOID(t.head), err))
 		return
 	}
-	if _, err := env.git("switch", "-q", t.branch); err != nil {
-		cwarn(stderr, fmt.Sprintf("%s not checked out: %v; rerun `sdlc claim` to finish", t.branch, err))
-		return
+	if switchClean(env, stderr, t.branch) {
+		cok(stderr, fmt.Sprintf("resumed on %s at %s", t.branch, shortOID(t.head)))
 	}
-	cok(stderr, fmt.Sprintf("resumed on %s at %s", t.branch, shortOID(t.head)))
 }
 
-// finishOwnedTakeover completes a takeover whose card landed but whose switch
-// did not: a claim repeat on started work, from a clean resting branch, with
-// the issue's branch present locally, checks it out.
+// finishOwnedTakeover completes a takeover whose card landed but whose
+// checkout did not (a lost response, a lost switch): on a claim repeat of
+// started work from a resting branch, it resumes on the issue's branch as the
+// publication remote has it — the release that named the tip is spent, and
+// the owner is the branch's only writer, so the remote's tip is the work. A
+// local copy that diverged from it is refused, never overwritten.
 func finishOwnedTakeover(env *trackerEnv, stderr io.Writer, card tracker.Record) {
 	status, _ := issue.GetField(card.Card.Frontmatter, "status")
 	if !env.onRest() || vocab.Issue().IsOpen(status) {
 		return
 	}
 	branch := issue.BranchName(card.Path)
-	if has, err := env.gitTest("rev-parse", "-q", "--verify", "refs/heads/"+branch); err != nil || !has {
+	tracking := "refs/remotes/" + env.target.Remote + "/" + branch
+	if _, err := env.git("fetch", "-q", env.target.Remote, "+refs/heads/"+branch+":"+tracking); err != nil {
+		return // no branch to resume (work claimed before #277 lives where it is)
+	}
+	tip, err := env.git("rev-parse", tracking)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("not resuming on %s: reading the fetched tip failed: %v", branch, err))
 		return
 	}
-	if dirty, err := cleanTree(env); err != nil || dirty != "" {
-		return
+	if local, err := env.git("rev-parse", "-q", "--verify", "refs/heads/"+branch); err == nil && local != "" && local != tip {
+		if ahead, err := env.gitTest("merge-base", "--is-ancestor", local, tip); err != nil || !ahead {
+			cwarn(stderr, fmt.Sprintf("not resuming on %s: the local copy has commits the remote's %s lacks; reconcile them first", branch, shortOID(tip)))
+			return
+		}
 	}
-	if _, err := env.git("switch", "-q", branch); err != nil {
-		cwarn(stderr, fmt.Sprintf("%s not checked out: %v", branch, err))
-		return
-	}
-	cok(stderr, fmt.Sprintf("resumed on %s", branch))
+	finishTakeover(env, stderr, &takeover{branch: branch, head: tip})
 }
