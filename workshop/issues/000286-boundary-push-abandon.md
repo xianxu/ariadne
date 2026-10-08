@@ -5,8 +5,8 @@ deps: [ariadne#283]
 github_issue:
 created: 2026-10-02
 updated: 2026-10-08
-estimate_hours:
-card_mirror: '11706acc2d4a13c09c607b40feedae8dc3bc48ea' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 2.52
+card_mirror: 'e31a4406c39887c424a8dfc5840ddba68c1e827c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-08T14:22:50-07:00
 claimant:
     operator: Xian Xu
@@ -40,6 +40,28 @@ Part of project `claimant-ownership`. Started work is only recoverable after a h
 - After each boundary verb, origin's issue branch equals local HEAD; a rebase followed by the next boundary force-pushes with lease.
 - `merge` leaves no remote issue branch.
 - `abandon` leaves no issue branch locally or on origin, an archive ref holding the tip, a terminal card, and the details archived on main. Reopening a punted issue restores the branch at that tip.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module      design=0.1 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.12
+item: greenfield-go-module   design=0.3 impl=0.32
+item: greenfield-go-module   design=0.3 impl=0.28
+item: smaller-go-module      design=0.05 impl=0.16
+item: atlas-docs             design=0.05 impl=0.04
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+design-buffer: 0.15
+total: 2.52
+```
+
+Items, in order: the boundary push helper and its four call sites; merge's remote delete and pr's lease push; `sdlc abandon` (six convergent steps); the reopen restore (seven steps plus un-archive); the `Abandoned` record, the terminal-status archive policy and the set-status redirect; atlas; the M1, M2 and close reviews. Impl is 40% of the v2 table midpoints (v3.1); the design buffer is 15% because the plan is thorough.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
