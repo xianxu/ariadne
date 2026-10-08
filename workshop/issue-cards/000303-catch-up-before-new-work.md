@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000303-catch-up-before-new-work.md
         source_blob: 8c510114d712a26e29922a1336bf0c1bec78b63e
         destination: workshop/issues/000303-catch-up-before-new-work.md
+        main_commit: 8d8c8f947d876942ac28e0c7aabf26f6cf07fd63
 ---
 
 # Catch the slot and its dependencies up to main before new work
