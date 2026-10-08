@@ -473,11 +473,7 @@ func writeTemp(content []byte) (string, func(), error) {
 // stop ends git without judging its exit; a full read reports git's failure,
 // so a failed read is never mistaken for an empty history.
 func (t *TrunkFile) HistoryStream(format, pathspec string) (io.Reader, func(stoppedEarly bool) error, error) {
-	ctx := t.ctx
-	if ctx == nil {
-		ctx = context.Background()
-	}
-	cmd := exec.CommandContext(ctx, "git", "-C", t.dir, "log", "--format="+format, "--name-only", t.trackingRef(), "--", pathspec)
+	cmd := exec.CommandContext(t.operationContext(), "git", "-C", t.dir, "log", "--format="+format, "--name-only", t.trackingRef(), "--", pathspec)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.StdoutPipe()
