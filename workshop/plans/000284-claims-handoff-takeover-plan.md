@@ -312,3 +312,11 @@ Delta:
 - Task 8 (the envelope keeps unknown keys; the `release` record; `ClearCardClaimant`) moved from M3 into M2, and any claim now spends a release.
 - M3 keeps the handoff (Task 9), takeover (Task 10) and the moved-open repair.
 - The `issue publish` Exempt entry is replaced by a recovery contract, and so are `unclaim`'s and `issue sync`'s.
+
+### 2026-10-07 — as built: tokens, the claim-age bound
+
+Reason: the M4 close review's advisories.
+
+Delta:
+- Revision 1 item 4 named a `takeover` operation token. As built, a takeover is a plain claim and is minted as `claim` (`tracker.OpClaim`). The owner-setting verbs are named constants shared by minters and the claim-age parser, and `adopt` is still recognised in history.
+- The claim-age scan is bounded at `tracker.ClaimHistoryLimit` (5000 commits). A card whose owner predates operation trailers has no claim commit, so an unbounded scan would walk the whole history on every `state`; past the bound its age is unknown.

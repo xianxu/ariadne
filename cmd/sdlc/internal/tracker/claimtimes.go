@@ -89,14 +89,20 @@ func ClaimTimes(r io.Reader, want map[string]bool) (map[string]time.Time, error)
 	return out, sc.Err()
 }
 
+// ClaimHistoryLimit bounds the scan. A card whose owner was recorded before
+// operations carried trailers has no claim commit to find, so without a bound
+// every read would walk the whole history; past it, such a card's age is
+// simply unknown.
+const ClaimHistoryLimit = 5000
+
 // ClaimTimes reads this tracker's history for when each wanted card's current
-// owner took it (#284), stopping once all are found; a failed read is an
-// error, never an empty answer.
+// owner took it (#284), stopping once all are found or ClaimHistoryLimit
+// commits are read; a failed read is an error, never an empty answer.
 func (r *Repository) ClaimTimes(want map[string]bool) (map[string]time.Time, error) {
 	if len(want) == 0 {
 		return map[string]time.Time{}, nil
 	}
-	stream, finish, err := r.trunk.HistoryStream(ClaimLogFormat, vocab.Issue().Discovery().Cards)
+	stream, finish, err := r.trunk.HistoryStream(ClaimLogFormat, vocab.Issue().Discovery().Cards, ClaimHistoryLimit)
 	if err != nil {
 		return nil, err
 	}

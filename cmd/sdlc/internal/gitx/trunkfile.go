@@ -468,12 +468,13 @@ func writeTemp(content []byte) (string, func(), error) {
 }
 
 // HistoryStream streams `git log --name-only` over the tracking ref, limited to
-// pathspec, in the given format, newest first (#284). The caller reads what it
+// pathspec and to the newest maxCommits commits, in the given format, newest
+// first (#284). The caller reads what it
 // needs and calls finish, saying whether it stopped before the end: an early
 // stop ends git without judging its exit; a full read reports git's failure,
 // so a failed read is never mistaken for an empty history.
-func (t *TrunkFile) HistoryStream(format, pathspec string) (io.Reader, func(stoppedEarly bool) error, error) {
-	cmd := exec.CommandContext(t.operationContext(), "git", "-C", t.dir, "log", "--format="+format, "--name-only", t.trackingRef(), "--", pathspec)
+func (t *TrunkFile) HistoryStream(format, pathspec string, maxCommits int) (io.Reader, func(stoppedEarly bool) error, error) {
+	cmd := exec.CommandContext(t.operationContext(), "git", "-C", t.dir, "log", "--format="+format, "--name-only", fmt.Sprintf("--max-count=%d", maxCommits), t.trackingRef(), "--", pathspec)
 	var stderr bytes.Buffer
 	cmd.Stderr = &stderr
 	out, err := cmd.StdoutPipe()
