@@ -44,7 +44,7 @@ Resolution: when a non-owner branch changed details, sdlc restores main's versio
 ## Plan
 
 - [x] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
-- [ ] Durable plan: `workshop/plans/000285-transfer-guard-owner-latest-plan.md` (full flow: guard rewrite + `issue restore` exceed the quick-flow code limit). Single close, no Mx.
+- [x] Durable plan: `workshop/plans/000285-transfer-guard-owner-latest-plan.md` (full flow: guard rewrite + `issue restore` exceed the quick-flow code limit). Single close, no Mx.
   - [x] Task 1: pure verdict
   - [x] Task 2: collector + guard rewrite
   - [x] Task 3: `sdlc issue restore`

@@ -54,15 +54,15 @@ ARCH notes: ARCH-DRY — one collector (`changedDetails`) feeds both the guard a
 
 **Files:** Create `cmd/sdlc/transferverdict.go`, `cmd/sdlc/transferverdict_test.go`.
 
-- [ ] Write `TestDetailsVerdict` over all 16 fact combinations: unpublished → accept; published ∧ ¬owner → notOwner; published ∧ owner ∧ (conflict ∨ ¬based) → behind; published ∧ owner ∧ based ∧ ¬conflict → accept. Run `go test ./cmd/sdlc -run TestDetailsVerdict` → FAIL (undefined).
-- [ ] Implement `type verdict int` (`verdictAccept`, `verdictNotOwner`, `verdictBehind`), `detailsFacts`, `detailsVerdict`. Run → PASS.
-- [ ] Commit `#285: transfer guard: pure owner/based-on-latest verdict`.
+- [x] Write `TestDetailsVerdict` over all 16 fact combinations: unpublished → accept; published ∧ ¬owner → notOwner; published ∧ owner ∧ (conflict ∨ ¬based) → behind; published ∧ owner ∧ based ∧ ¬conflict → accept. Run `go test ./cmd/sdlc -run TestDetailsVerdict` → FAIL (undefined).
+- [x] Implement `type verdict int` (`verdictAccept`, `verdictNotOwner`, `verdictBehind`), `detailsFacts`, `detailsVerdict`. Run → PASS.
+- [x] Commit `#285: transfer guard: pure owner/based-on-latest verdict`.
 
 ### Task 2: Collector + guard rewrite (TDD against the existing fixtures)
 
 **Files:** Modify `cmd/sdlc/transferguard.go`, `cmd/sdlc/transferguard_test.go`.
 
-- [ ] Rewrite `TestTransferGuardOverBranchShapes` rows for the new semantics. Each row gains `owner bool` (the fixture checkout is #8's claimant via `withClaimant` + `withOwner` on the card, else another claimant) and asserts its own refusal text (lesson: each rejection row asserts its own check):
+- [x] Rewrite `TestTransferGuardOverBranchShapes` rows for the new semantics. Each row gains `owner bool` (the fixture checkout is #8's claimant via `withClaimant` + `withOwner` on the card, else another claimant) and asserts its own refusal text (lesson: each rejection row asserts its own check):
   - net-zero source, any owner → accept; source merged main and left details alone → accept; unrelated branch → accept.
   - source re-adds its stale copy, non-owner → `notOwner` text (`sdlc issue restore --issue 8`); same as owner → `behind` text (`merge main`).
   - source deletes / rewrites details after merging main, non-owner → `notOwner`.
@@ -70,42 +70,42 @@ ARCH notes: ARCH-DRY — one collector (`changedDetails`) feeds both the guard a
   - owner's checkout: local main merges the owner branch for a direct push → accept; main edits details after that merge → accept (owner's checkout; this row flips from the old guard, by design D3).
   - non-owner checkout: main merges a non-owner rewrite → `notOwner`.
   - drop "a branch stacked on the owner's" (#272 forbids stacking).
-- [ ] Add `TestTransferGuardOwnerBehindMainLatest`: owner branch from main; a direct commit to origin main edits #8's details (another slot's publish); owner edits details on the branch → refused with the merge-main text; `git merge origin/main` resolving to the owner's text → accepts.
-- [ ] Replace `TestTransferGuardRefusesMalformedHandoffRepoWide` with `TestTransferGuardUnreadableCardRefusesOnlyItsDetails`: an unreadable card #9 refuses a branch changing #9's published details, and does not refuse an unrelated branch.
-- [ ] Adapt `TestTransferGuardInterruptedRemovalProtectsOwnerEdits`, `TestTransferGuardFromAFreshCloneUsesOnlyTrackerRecords` (the fresh clone is a non-owner worktree → rewrite refused as `notOwner`) and `TestTransferGuardProtectsAnUnrecordedPublication` (still protected without a recorded handoff: now because main's history touched the path). Keep `TestPublishGateAndPRRefuseChangedHandedOffDetails` (production entry points).
-- [ ] Run `go test ./cmd/sdlc -run 'TransferGuard|PublishGateAndPR'` → FAIL.
-- [ ] Implement `changedDetails`: merge-tree result + conflicted names; index card records and unreadable cards by path basename; for each path changed vs main (`git diff --name-only <main> <result>` plus conflicts) whose basename matches a card: published probe (D1), `ownership` (D3), ancestry (D4); unreadable-match or published-without-card → error (D6). Rewrite `guardTransferredDetails` to format the first non-accept verdict per issue; delete `ownerAuthored`, `checkTransferredPaths`, `validHandoffDestination`; replace `transferRefusal` with two messages:
+- [x] Add `TestTransferGuardOwnerBehindMainLatest`: owner branch from main; a direct commit to origin main edits #8's details (another slot's publish); owner edits details on the branch → refused with the merge-main text; `git merge origin/main` resolving to the owner's text → accepts.
+- [x] Replace `TestTransferGuardRefusesMalformedHandoffRepoWide` with `TestTransferGuardUnreadableCardRefusesOnlyItsDetails`: an unreadable card #9 refuses a branch changing #9's published details, and does not refuse an unrelated branch.
+- [x] Adapt `TestTransferGuardInterruptedRemovalProtectsOwnerEdits`, `TestTransferGuardFromAFreshCloneUsesOnlyTrackerRecords` (the fresh clone is a non-owner worktree → rewrite refused as `notOwner`) and `TestTransferGuardProtectsAnUnrecordedPublication` (still protected without a recorded handoff: now because main's history touched the path). Keep `TestPublishGateAndPRRefuseChangedHandedOffDetails` (production entry points).
+- [x] Run `go test ./cmd/sdlc -run 'TransferGuard|PublishGateAndPR'` → FAIL.
+- [x] Implement `changedDetails`: merge-tree result + conflicted names; index card records and unreadable cards by path basename; for each path changed vs main (`git diff --name-only <main> <result>` plus conflicts) whose basename matches a card: published probe (D1), `ownership` (D3), ancestry (D4); unreadable-match or published-without-card → error (D6). Rewrite `guardTransferredDetails` to format the first non-accept verdict per issue; delete `ownerAuthored`, `checkTransferredPaths`, `validHandoffDestination`; replace `transferRefusal` with two messages:
   - notOwner: `landing would change published details of #N (<path>) from a checkout that does not own #N. Restore main's version with `sdlc issue restore --issue N`; to keep the edit, `sdlc claim --issue N` first.`
   - behind: `landing would change #N's details (<path>) from a branch not based on main's latest version of them. Merge main (`git fetch <remote> && git merge <remote>/main`), resolve the details prose, and rerun.`
   Both wrap `errTransferredDetails`.
-- [ ] Run the focused tests → PASS. Commit `#285: transfer guard: decide by owner and based-on-latest`.
+- [x] Run the focused tests → PASS. Commit `#285: transfer guard: decide by owner and based-on-latest`.
 
 ### Task 3: `sdlc issue restore`
 
 **Files:** Create `cmd/sdlc/issuerestore.go`, `cmd/sdlc/issuerestore_test.go`; modify `cmd/sdlc/issue.go` (AddCommand), `cmd/sdlc/helptext/issue.md`.
 
-- [ ] Test `TestIssueRestoreMakesAStaleFilingBranchLand`: `handedOff` fixture, non-owner checkout, source re-adds its stale copy → guard refuses naming `sdlc issue restore --issue 8`; run `runIssueRestore(ctx, out, errs, []int{8})` → one new commit `#8: issue: restore main's details`; guard → nil; `sdlc pr --dry-run` passes the guard.
-- [ ] Test restore removes a path main has archived (stale branch keeps `workshop/issues/X` after main moved it to history): restore `git rm`s it; guard → nil.
-- [ ] Test restore refuses a dirty details path, and reports "nothing to restore" when #N has no changed details (no commit created).
-- [ ] Implement: open tracker, `changedDetails`, filter by requested IDs, refuse dirty paths, write main's blob or remove, `git add`/`rm`, one commit per invocation naming every restored issue. Mark mutating. Help text section in `helptext/issue.md`.
-- [ ] Run → PASS. Commit `#285: issue restore: put main's details back on a non-owner branch`.
+- [x] Test `TestIssueRestoreMakesAStaleFilingBranchLand`: `handedOff` fixture, non-owner checkout, source re-adds its stale copy → guard refuses naming `sdlc issue restore --issue 8`; run `runIssueRestore(ctx, out, errs, []int{8})` → one new commit `#8: issue: restore main's details`; guard → nil; `sdlc pr --dry-run` passes the guard.
+- [x] Test restore removes a path main has archived (stale branch keeps `workshop/issues/X` after main moved it to history): restore `git rm`s it; guard → nil.
+- [x] Test restore refuses a dirty details path, and reports "nothing to restore" when #N has no changed details (no commit created).
+- [x] Implement: open tracker, `changedDetails`, filter by requested IDs, refuse dirty paths, write main's blob or remove, `git add`/`rm`, one commit per invocation naming every restored issue. Mark mutating. Help text section in `helptext/issue.md`.
+- [x] Run → PASS. Commit `#285: issue restore: put main's details back on a non-owner branch`.
 
 ### Task 4: pair#365 end to end
 
 **Files:** Test in `cmd/sdlc/transferguard_e2e_test.go` (new), reusing `closeReady`, `stubJudge`, `executeSDLCTestCommand` and the merge e2e gh fake (`merge_e2e_test.go` harness).
 
-- [ ] `TestPair365CloseOnRenamedBranchLands`: owned issue on its branch; push it and merge it into origin main outside sdlc (`git merge --no-ff` in a clone, push); card still `working`. In the owner checkout create `<id>-slug-close` from the old branch tip, run `sdlc close` there, then `sdlc pr` and `sdlc merge` (gh fake) → card `done`. Assert the old guard's failure mode is gone (pr not refused).
-- [ ] Fix any other branch-name dependency the run surfaces on the close → pr → merge path (the 2026-10-08 survey found none besides the guard: close, `ownedCompletions`, `newestClose` and PR matching key on the claimant, ancestry and the current branch) inside this issue — it is the issue's Done-when, not a follow-up.
-- [ ] Commit `#285: pin the pair#365 landing end to end`.
+- [x] `TestPair365CloseOnRenamedBranchLands`: owned issue on its branch; push it and merge it into origin main outside sdlc (`git merge --no-ff` in a clone, push); card still `working`. In the owner checkout create `<id>-slug-close` from the old branch tip, run `sdlc close` there, then `sdlc pr` and `sdlc merge` (gh fake) → card `done`. Assert the old guard's failure mode is gone (pr not refused).
+- [x] Fix any other branch-name dependency the run surfaces on the close → pr → merge path (the 2026-10-08 survey found none besides the guard: close, `ownedCompletions`, `newestClose` and PR matching key on the claimant, ancestry and the current branch) inside this issue — it is the issue's Done-when, not a follow-up.
+- [x] Commit `#285: pin the pair#365 landing end to end`.
 
 ### Task 5: Retire "owner = branch" wording; atlas
 
 **Files:** `cmd/sdlc/transferguard.go` (comments, identifiers), `cmd/sdlc/transferguard_test.go` (row names, `ownerBranchEdit` helper), `atlas/workflow/issue-tracker.md` (~196, ~269–273). A survey (2026-10-08) found "owner" meaning a branch *only* in `transferguard.go` (`owner := issue.BranchName(...)`, `ownerAuthored`, its comments); no helptext, embedded help or atlas file uses it — the claimant-meaning uses in `helptext/move.md`, `root.md`, `reclaim.md`, `unclaim.md`, `handoff.go`, `observe/text.go`, `recovery/catalog.go` stay.
 
-- [ ] After Task 2, `grep -n "owner" cmd/sdlc/transferguard.go` shows only claimant meanings; rename the test helper `ownerBranchEdit` → `issueBranchEdit` and row names accordingly.
-- [ ] Add `TestNoHelpCallsABranchTheOwner`: for every embedded help topic (`helptext` registry) and both guard refusal messages, assert no match for `(?i)owner'?s? (issue )?branch|owner branch`. Mutation check: temporarily put "owner's branch" in a refusal → test fails.
-- [ ] Atlas: rewrite the transferguard paragraph (published details; owner + based-on-latest; `issue restore`; no handoff-record dependency) and the repo-wide unreadable-card bullet (now scoped, D6). Add the `issue restore` row to the verb table.
-- [ ] `make test` green. Commit `#285: retire owner-as-branch wording; atlas`.
+- [x] After Task 2, `grep -n "owner" cmd/sdlc/transferguard.go` shows only claimant meanings; rename the test helper `ownerBranchEdit` → `issueBranchEdit` and row names accordingly.
+- [x] Add `TestNoHelpCallsABranchTheOwner`: for every embedded help topic (`helptext` registry) and both guard refusal messages, assert no match for `(?i)owner'?s? (issue )?branch|owner branch`. Mutation check: temporarily put "owner's branch" in a refusal → test fails.
+- [x] Atlas: rewrite the transferguard paragraph (published details; owner + based-on-latest; `issue restore`; no handoff-record dependency) and the repo-wide unreadable-card bullet (now scoped, D6). Add the `issue restore` row to the verb table.
+- [x] `make test` green. Commit `#285: retire owner-as-branch wording; atlas`.
 
 ### Close
 
