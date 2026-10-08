@@ -47,9 +47,9 @@ Order: model first, done properly, with no fast-track for pair#365. #287 is inde
 - [x] Pin the rebase-aware close rule: e2e test and atlas [ariadne#301]
 - [x] Claims: multi-claim, publish, handoff, takeover [ariadne#284]
   - [x] Atomic multi-claim and refresh on claim [ariadne#284 M1]
-  - [ ] `issue publish`, open unclaim, `issue sync` retirement [ariadne#284 M2]
-  - [ ] Handoff and takeover [ariadne#284 M3]
-  - [ ] `sdlc state` owner, claim age, views [ariadne#284 M4]
+  - [x] `issue publish`, open unclaim, `issue sync` retirement [ariadne#284 M2]
+  - [x] Handoff and takeover [ariadne#284 M3]
+  - [x] `sdlc state` owner, claim age, views [ariadne#284 M4]
 - [ ] Transfer guard: owner plus based-on-latest [ariadne#285]
 - [ ] Boundary pushes and sdlc abandon [ariadne#286]
 - [ ] Reconcile merges done outside sdlc [ariadne#287]
@@ -106,7 +106,7 @@ Decision worth keeping: the handoff returns the releasing checkout to rest, beca
 **closed:** 2026-10-07
 **actual:** 0.7h
 
-What shipped: `sdlc state` shows each issue's owner (the slot) and claim age, then claims grouped by slot and by operator. The age comes from tracker history: `tracker.ClaimTimes` streams one `git log` and stops once every owned card is resolved, keyed on claim-kind operation tokens. Card writes already record their operation, so this needs no new card field, which kept older binaries' strict claimant parse safe.
+What shipped: `sdlc state` shows each issue's owner (the slot) and claim age, then claims grouped by slot and by operator. The age comes from tracker history: `tracker.ClaimTimes` streams one `git log` and stops once every owned card is resolved, keyed on claim-kind operation tokens and bounded at 5000 commits (a card whose owner predates operation trailers has no claim commit to find; past the bound its age is unknown). Card writes already record their operation, so this needs no new card field, which kept older binaries' strict claimant parse safe.
 
 ## Log
 
