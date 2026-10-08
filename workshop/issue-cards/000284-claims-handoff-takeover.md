@@ -1,8 +1,8 @@
 ---
 id: 000284
-status: codecomplete
+status: done
 created: 2026-10-02
-updated: 2026-10-07
+updated: 2026-10-08
 estimate_hours: 6.1
 github_issue:
 started: 2026-10-07T13:45:08-07:00
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 8a53d19ce29869fbddbd2afa8a38d0e9f3adb837
         evidence_commit: a2d4f08989df8d18ea826cb50729808e7f77dad4
+        landed_commit: 1529e4468967ecff756285707419009a5ba2ade3
 ---
 
 # Claims: multi-claim, publish, handoff, takeover
