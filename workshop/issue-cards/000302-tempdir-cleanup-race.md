@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000302-tempdir-cleanup-race.md
         source_blob: 8d8eaafd888dde0b3129017af7b1bcfde9f4d92b
         destination: workshop/issues/000302-tempdir-cleanup-race.md
+        main_commit: ddc102977add38b0242f3bb5cc8b5bd5ec75b426
 ---
 
 # Test TempDir cleanup race: directory not empty under sharded make test
