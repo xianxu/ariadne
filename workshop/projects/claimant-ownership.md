@@ -121,6 +121,17 @@ What shipped: `start-plan`, `milestone-close`, `close` and reconcile's close com
 
 Surprising: two existing fixtures silently depended on the issue branch never reaching the remote (the #301 prune variant and the observe lifecycle's hand-landing); both now model the pushed world. A repeat push after a lost response succeeds, because git reports "up to date" before checking the lease — now pinned by a test.
 
+<a id="ariadne-286-m2"></a>
+### ariadne#286 M2 — `sdlc abandon` and reopen
+
+**est:** ~1.8h (M2's share of #286's 2.52h)
+**actual:** see close
+**closed:** 2026-10-08
+
+What shipped: `sdlc abandon --issue N --as wontfix|punt --reason …` keeps started work under `refs/ariadne/abandoned/NNNNNN`, records `{ref, branch, head}` on the terminal card (owner kept), archives the details and plans on main through the landing's own projection (`archivedDetails`, now any terminal status), and deletes the branch everywhere; a rerun from any step, from the branch or from rest, finishes it. `set-status` refuses wontfix/punt for started work, even forced. Reopening restores the branch at the kept tip, merges main, moves the details back out of the archive, pushes, and drops the ref.
+
+Surprising: the archive commit's mirror refresh defeats git's rename detection on small details files, so a reopen's merge of main conflicts on the details as modify/delete. It is mechanical (main's archived copy is the newer one), so restore resolves it. The pre-existing TempDir cleanup flake turned out to be detached auto-gc. The test binary now disables it.
+
 ## Log
 
 ### 2026-10-02
@@ -136,3 +147,4 @@ Promoted from #283 after a four-round design discussion with the operator (decis
 [ariadne#284 M3]: #ariadne-284-m3
 [ariadne#284 M4]: #ariadne-284-m4
 [ariadne#286 M1]: #ariadne-286-m1
+[ariadne#286 M2]: #ariadne-286-m2
