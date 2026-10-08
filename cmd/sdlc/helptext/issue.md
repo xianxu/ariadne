@@ -11,6 +11,8 @@ SUBCOMMANDS
                  needed; makes the issue claimable) or the owner's later edits,
                  one narrow main commit for a set (`--issue 284,285`)
   move-detail    The first-publication case of `publish`, for one issue
+  restore        Put main's version of published details back on this branch
+                 (`--issue N`): the transfer guard's offer to a non-owner (#285)
   recovery       `list` / `reconcile --issue N` interrupted tracker operations
   migrate        One-time cutover of a legacy repository to the issue tracker
                  (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch)
@@ -115,6 +117,15 @@ reach main without shipping a branch. Per issue:
     edit). A file changed while publishing is never overwritten. A lost push
     response: rerun — main already holds the details, and the rerun only
     finishes the checkout.
+PUBLISHED DETAILS ARE GUARDED (#285). Once main's history has an issue's details,
+`pr`, `push` and `merge` refuse a landing whose merge with main would change
+them unless it runs from the owner's checkout (the card's claimant, whatever
+the branch is called) and the branch contains main's last commit to the file.
+A non-owner restores main's version with `sdlc issue restore --issue N` (one
+commit; every copy of the details matches main, archived ones included), or
+claims the issue to keep the edit. An owner behind main merges main, resolves
+the details, and reruns.
+
 A resting branch only fast-forwards to main; never commit on it. An interrupted card/main publication
 keeps a receipt: `sdlc issue recovery list` shows it, and `reconcile` resumes
 it from the checkout that owns it, probing before repeating anything.

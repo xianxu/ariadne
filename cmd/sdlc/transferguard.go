@@ -36,7 +36,11 @@ func guardTransferredDetails(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	changed, err := changedDetails(env)
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return err
+	}
+	changed, err := changedDetails(env, view.Ref())
 	if err != nil {
 		return err
 	}
@@ -55,18 +59,14 @@ type changedDetail struct {
 }
 
 // changedDetails judges every issue details file that the prospective merge
-// of fresh main and HEAD changes, returning those it refuses (sorted by
-// path). guardTransferredDetails refuses them; `issue restore` reverts them.
-func changedDetails(env *trackerEnv) ([]changedDetail, error) {
+// of mainTip (fresh main) and HEAD changes, returning those it refuses
+// (sorted by path). guardTransferredDetails refuses them; `issue restore`
+// reverts them.
+func changedDetails(env *trackerEnv, mainTip string) ([]changedDetail, error) {
 	snap, err := env.repo.Snapshot()
 	if err != nil {
 		return nil, err
 	}
-	view, err := env.main.Snapshot()
-	if err != nil {
-		return nil, err
-	}
-	mainTip := view.Ref()
 	paths, err := prospectiveChanges(env, mainTip)
 	if err != nil {
 		return nil, err
