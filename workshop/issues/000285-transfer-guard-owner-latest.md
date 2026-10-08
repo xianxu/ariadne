@@ -55,6 +55,7 @@ Resolution: when a non-owner branch changed details, sdlc restores main's versio
 ## Log
 
 ### 2026-10-08
+- 2026-10-08: closed — make test green except processgroup TestCancellationKillsDescendants (sandbox-only; passes unsandboxed, untouched). Done-when: TestCloseOnARenamedBranchAfterAnOutsideMergeLands (pair#365); TestIssueRestoreMakesAStaleFilingBranchLand + non-owner guard rows; TestTransferGuardOwnerBehindMainLatest; TestNoHelpCallsABranchTheOwner. Round-1 minors fixed: TestIssueRestoreRefusesTheOwnersOwnEdit.; review verdict: SHIP
 - 2026-10-08: closed — make test green except processgroup TestCancellationKillsDescendants (sandbox-only; passes unsandboxed, untouched). Done-when: TestCloseOnARenamedBranchAfterAnOutsideMergeLands (pair#365: outside merge, close on <branch>-close, pr, merge -> done; fails at sdlc pr with branch-name ownership restored); TestIssueRestoreMakesAStaleFilingBranchLand + TestTransferGuardOverBranchShapes non-owner rows (refusal offers restore, restore lands); TestTransferGuardOwnerBehindMainLatest (clean + conflicting, refused with merge-main, lands after merge); TestNoHelpCallsABranchTheOwner (all help + refusals). Mutation-checked owner/based/published facts.; review verdict: SHIP
 - 2026-10-08: flow upgraded quick → full — 315 added lines in code files (limit 100); an earlier round of this close already ran the full review
 

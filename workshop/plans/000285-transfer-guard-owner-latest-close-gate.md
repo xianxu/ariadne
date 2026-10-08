@@ -31,6 +31,24 @@ rounds:
           round: 2
       recipe: milestone-review
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-08T14:06:32-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: issuerestore.go:76-82 refuses on verdictBehind before any write; TestIssueRestoreRefusesTheOwnersOwnEdit fails with the loop removed (verified in scratch worktree) and passes with it.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: atlas/workflow/issue-tracker.md now ends the Transfer guard paragraph and starts the recovery sentence as its own paragraph.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: helptext/set-status.md reopen guard now says the Log entry lands only from the owner's checkout, or claim first; this matches detailsVerdict's NotOwner branch.
+          round: 3
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#285 (boundary-review)
@@ -51,8 +69,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Minor] `atlas-prose-structure` atlas issue-tracker.md transfer-guard paragraph runs into the unrelated recovery sentence
 - **BR-3** [Minor] `behavior-change-undocumented-in-help` a reopen Log edit to published details now needs a claim; note it in set-status reopen help
 
+## Round 3 — 2026-10-08T14:06:32-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — issuerestore.go:76-82 refuses on verdictBehind before any write; TestIssueRestoreRefusesTheOwnersOwnEdit fails with the loop removed (verified in scratch worktree) and passes with it.
+- BR-2 — addressed — atlas/workflow/issue-tracker.md now ends the Transfer guard paragraph and starts the recovery sentence as its own paragraph.
+- BR-3 — addressed — helptext/set-status.md reopen guard now says the Log entry lands only from the owner's checkout, or claim first; this matches detailsVerdict's NotOwner branch.
+
 ## Open findings
 
-- **BR-1** [Minor] `verb-scope-wider-than-advertised` issue restore also reverts verdictBehind entries, discarding an owner's own edit
-- **BR-2** [Minor] `atlas-prose-structure` atlas issue-tracker.md transfer-guard paragraph runs into the unrelated recovery sentence
-- **BR-3** [Minor] `behavior-change-undocumented-in-help` a reopen Log edit to published details now needs a claim; note it in set-status reopen help
+(none — every finding has been disposed)
