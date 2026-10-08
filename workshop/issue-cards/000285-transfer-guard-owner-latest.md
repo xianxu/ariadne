@@ -1,6 +1,6 @@
 ---
 id: 000285
-status: codecomplete
+status: done
 created: 2026-10-02
 updated: 2026-10-08
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 6ba978914f53eec60271b3256cedfa4ffeb34035
         evidence_commit: d87b1d847dae75bd4fd52254be5432c6560c90aa
+        landed_commit: 9508ca5572148589ffaec4394508b1bf3d06dd9e
 ---
 
 # Transfer guard: owner plus based-on-latest
