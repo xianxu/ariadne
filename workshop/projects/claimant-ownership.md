@@ -45,7 +45,7 @@ Order: model first, done properly, with no fast-track for pair#365. #287 is inde
 
 - [x] Model: claimant lock, status as lifecycle, slot/operator terminology [ariadne#283]
 - [x] Pin the rebase-aware close rule: e2e test and atlas [ariadne#301]
-- [ ] Claims: multi-claim, publish, handoff, takeover [ariadne#284]
+- [x] Claims: multi-claim, publish, handoff, takeover [ariadne#284]
   - [x] Atomic multi-claim and refresh on claim [ariadne#284 M1]
   - [ ] `issue publish`, open unclaim, `issue sync` retirement [ariadne#284 M2]
   - [ ] Handoff and takeover [ariadne#284 M3]

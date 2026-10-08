@@ -480,6 +480,71 @@ rounds:
       boundary: M4
       recipe: milestone-review
       blocked: false
+    - "n": 12
+      timestamp: "2026-10-07T21:58:59-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: fastForwardRest (claim.go:283-294) surfaces rev-parse and merge-base errors with their actual cause.
+          round: 12
+        - id: BR-2
+          disposition: addressed
+          note: issue.JoinRefs backs claimRefs/claimArg/cardsMessage; ChangeCards calls snapshot.validateReplacements over the whole set.
+          round: 12
+        - id: BR-3
+          disposition: addressed
+          note: ChangeCards dedupes ids itself (changecards.go:35-41).
+          round: 12
+        - id: BR-4
+          disposition: addressed
+          note: --adopt folded into claim (M3); a handed-off member refuses with "claim it alone (sdlc claim --issue N)".
+          round: 12
+        - id: BR-5
+          disposition: addressed
+          note: M lines nested under the 284 row; actuals are measured values in the detail blocks.
+          round: 12
+        - id: BR-6
+          disposition: addressed
+          note: TestClaimSetLostResponseAndTakeover drives a lost set response and the rerun.
+          round: 12
+        - id: BR-19
+          disposition: addressed
+          note: republish.go uses env.has with errors (detailsAt, restoreToHead); merge-base failure returns an error.
+          round: 12
+        - id: BR-29
+          disposition: addressed
+          note: gitx.RemoteTrackingRef is used at all named sites (handoff, transferguard, landing, trackingRef).
+          round: 12
+        - id: BR-30
+          disposition: addressed
+          note: handoffNoteCommitted searches only the branch's unpushed tail for the note commit subject.
+          round: 12
+        - id: BR-31
+          disposition: addressed
+          note: handoff.go:272 and :329 use env.gitTest and stop on error.
+          round: 12
+        - id: BR-39
+          disposition: addressed
+          note: finish(true) on readErr; TestRepositoryClaimTimesStopsGitOnAParseError hangs without it (17 MB record past the 16 MB scanner cap).
+          round: 12
+        - id: BR-41
+          disposition: addressed
+          note: Plan revision 2026-10-07 "as built" records that a takeover is minted as claim.
+          round: 12
+        - id: BR-42
+          disposition: addressed
+          note: HistoryStream takes --max-count; ClaimTimes bounded at ClaimHistoryLimit=5000.
+          round: 12
+      findings:
+        - id: BR-43
+          severity: Minor
+          title: Project file leaves M2-M4 checkboxes unticked while their blocks record closed/actual
+          detail: 'workshop/projects/claimant-ownership.md:50-52 are unticked though each detail block has closed: 2026-10-07; the M4 block also omits the 5000-commit claim-age bound. Rule: a milestone-close updates both the checkbox and its detail block together.'
+          family: docs-sweep-missing
+          round: 12
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#284 (boundary-review)
@@ -675,18 +740,29 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-42** [Minor] `unbounded-history-scan` An owned card with no claim-kind commit makes every state call scan the whole card history
   The early stop needs every wanted path found. A pre-trailer owner never matches, so the bound "oldest live claim" does not hold. Small cost today.
 
+## Round 12 — 2026-10-07T21:58:59-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — fastForwardRest (claim.go:283-294) surfaces rev-parse and merge-base errors with their actual cause.
+- BR-2 — addressed — issue.JoinRefs backs claimRefs/claimArg/cardsMessage; ChangeCards calls snapshot.validateReplacements over the whole set.
+- BR-3 — addressed — ChangeCards dedupes ids itself (changecards.go:35-41).
+- BR-4 — addressed — --adopt folded into claim (M3); a handed-off member refuses with "claim it alone (sdlc claim --issue N)".
+- BR-5 — addressed — M lines nested under the 284 row; actuals are measured values in the detail blocks.
+- BR-6 — addressed — TestClaimSetLostResponseAndTakeover drives a lost set response and the rerun.
+- BR-19 — addressed — republish.go uses env.has with errors (detailsAt, restoreToHead); merge-base failure returns an error.
+- BR-29 — addressed — gitx.RemoteTrackingRef is used at all named sites (handoff, transferguard, landing, trackingRef).
+- BR-30 — addressed — handoffNoteCommitted searches only the branch's unpushed tail for the note commit subject.
+- BR-31 — addressed — handoff.go:272 and :329 use env.gitTest and stop on error.
+- BR-39 — addressed — finish(true) on readErr; TestRepositoryClaimTimesStopsGitOnAParseError hangs without it (17 MB record past the 16 MB scanner cap).
+- BR-41 — addressed — Plan revision 2026-10-07 "as built" records that a takeover is minted as claim.
+- BR-42 — addressed — HistoryStream takes --max-count; ClaimTimes bounded at ClaimHistoryLimit=5000.
+
+### Raised
+
+- **BR-43** [Minor] `docs-sweep-missing` Project file leaves M2-M4 checkboxes unticked while their blocks record closed/actual
+  workshop/projects/claimant-ownership.md:50-52 are unticked though each detail block has closed: 2026-10-07; the M4 block also omits the 5000-commit claim-age bound. Rule: a milestone-close updates both the checkbox and its detail block together.
+
 ## Open findings
 
-- **BR-1** [Minor] `silent-error-in-io-glue` refreshAfterClaim swallows rev-parse errors and misreports merge-base failures as "commits main lacks"
-- **BR-2** [Minor] `duplicated-id-rendering` claimRefs, claimArg and cardsMessage each re-implement the CLIRef join; ChangeCards inlines validateReplacement's budget math
-- **BR-3** [Minor] `api-trusts-caller-normalization` tracker.ChangeCards does not dedupe ids; relies on callers (claimIssues) to do so
-- **BR-4** [Minor] `refusal-points-at-unusable-action` a started unowned card in a set is refused toward --adopt, which itself refuses sets
-- **BR-5** [Minor] `hand-recorded-actuals` project file ticks M1 with actual/closed before milestone-close measures it; M lines not nested under the #284 line
-- **BR-6** [Minor] `test-gap-lost-response-set` no test drives a claim set through a lost publication response and a rerun
-- **BR-19** [Minor] `silent-error-in-io-glue` gitTest errors discarded at republish.go:242,350 turn a failed probe into "not in HEAD" and then remove the file
-- **BR-29** [Minor] `duplicated-path-derivation` The remote-tracking ref string is built three times in handoff.go and in at least three other files
-- **BR-30** [Minor] `rerun-not-idempotent` Note dedupe matches the same text at any date, so a later separate handoff's identical note is silently dropped
-- **BR-31** [Minor] `silent-error-in-io-glue` A failed check for the local branch is read as "absent" and followed by branch -f (handoff.go:270, :323-324)
-- **BR-39** [Minor] `pipe-wait-before-drain` Repository.ClaimTimes calls finish(false), and so cmd.Wait, on a parser error before the pipe is drained, which can hang state
-- **BR-41** [Minor] `plan-test-not-delivered` Plan Revision 1 item 4 names a takeover operation token that the code does not mint
-- **BR-42** [Minor] `unbounded-history-scan` An owned card with no claim-kind commit makes every state call scan the whole card history
+- **BR-43** [Minor] `docs-sweep-missing` Project file leaves M2-M4 checkboxes unticked while their blocks record closed/actual
