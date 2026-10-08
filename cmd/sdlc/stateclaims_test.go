@@ -99,3 +99,60 @@ func TestStateReportsAFailedClaimAgeRead(t *testing.T) {
 		t.Fatalf("the failure is not in state's drift:\n%s", out.String())
 	}
 }
+
+// #284 BR-38: an unreadable claimant is reported, never shown as unowned.
+func TestWithOwnershipReportsAnUnreadableOwner(t *testing.T) {
+	raw := []byte("---\nid: 000031\nstatus: open\nclaimant: not-a-mapping\n---\n\n# t\n")
+	st := withOwnership(IssueState{ID: "000031"}, tracker.IssueRecord{Card: &tracker.Record{ID: "000031", Path: "workshop/issue-cards/000031-t.md", Raw: raw}})
+	if st.Owner != nil || st.Released != nil || st.OwnerError == "" {
+		t.Fatalf("an unreadable owner must be reported: %+v", st)
+	}
+	var out bytes.Buffer
+	_ = renderProseAt(&out, State{Issues: []IssueState{st}}, time.Now())
+	if !strings.Contains(out.String(), "[owner unreadable]") {
+		t.Fatalf("prose:\n%s", out.String())
+	}
+}
+
+// #284 BR-37: released issues stay visible — a handoff with its branch and
+// tip, an open release by who let go — and real-git claims by two workspaces
+// group apart.
+func TestStateShowsReleasesAndGroupsTwoWorkspaces(t *testing.T) {
+	_, _, owner := startedHere(t)
+	if out, err := unclaim(t, "", 9); err != nil {
+		t.Fatalf("handoff: %v\n%s", err, out)
+	}
+	claimFor(t, 10)
+	if out, err := unclaim(t, "", 10); err != nil {
+		t.Fatalf("open release: %v\n%s", err, out)
+	}
+	claimFor(t, 10)
+	elsewhere := owner
+	elsewhere.Workspace, elsewhere.Worktree = "ariadne:7", "/elsewhere/ariadne"
+	withClaimant(t, elsewhere)
+	claimFor(t, 11)
+	withClaimant(t, owner)
+	issues, _, err := listIssueStates(context.Background(), "workshop/issues")
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := map[string]IssueState{}
+	for _, i := range issues {
+		seen[i.ID] = i
+	}
+	nine := seen["000009"]
+	if nine.Owner != nil || nine.Released == nil || nine.Released.Branch != "000009-s09" || nine.Released.Head == "" {
+		t.Fatalf("#9's handoff: %+v", nine)
+	}
+	bySlot, _ := claimViews(issues, time.Now())
+	if len(bySlot) != 2 {
+		t.Fatalf("two workspaces' claims must group apart: %+v", bySlot)
+	}
+	var out bytes.Buffer
+	_ = renderProseAt(&out, State{Issues: issues}, time.Now())
+	for _, want := range []string{"Released, awaiting a claim:", "#9  by ", "handoff 000009-s09@", "ariadne:7  #11"} {
+		if !strings.Contains(out.String(), want) {
+			t.Fatalf("prose lacks %q:\n%s", want, out.String())
+		}
+	}
+}

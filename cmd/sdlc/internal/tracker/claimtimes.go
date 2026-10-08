@@ -101,8 +101,12 @@ func (r *Repository) ClaimTimes(want map[string]bool) (map[string]time.Time, err
 		return nil, err
 	}
 	times, readErr := ClaimTimes(stream, want)
+	if readErr != nil { // stop git before reporting: never wait on a full pipe
+		_ = finish(true)
+		return nil, readErr
+	}
 	if err := finish(len(times) == len(want)); err != nil {
 		return nil, err
 	}
-	return times, readErr
+	return times, nil
 }

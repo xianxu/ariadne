@@ -66,7 +66,50 @@ type IssueState struct {
 	// ClaimedAt is when the current owner took the card, from tracker history
 	// (#284); absent when unowned or not found there.
 	ClaimedAt string `json:"claimed_at,omitempty"`
-	cardPath  string // the card's tracker path, to find its claim time
+	// Released is the card's release record when nobody owns it (#284): who
+	// let go and, for a handoff, the branch and tip a claim resumes at.
+	Released *IssueRelease `json:"released,omitempty"`
+	// OwnerError says why the owner or release could not be read: the issue
+	// is then neither shown as owned nor as unowned.
+	OwnerError string `json:"owner_error,omitempty"`
+	cardPath   string // the card's tracker path, to find its claim time
+}
+
+// IssueRelease is a release as state shows it.
+type IssueRelease struct {
+	By     IssueOwner `json:"by"`
+	Branch string     `json:"branch,omitempty"`
+	Head   string     `json:"head,omitempty"`
+}
+
+// withOwnership adds a card's owner, or its release when unowned, to its row
+// (#283, #284); an unreadable record is reported, never shown as unowned.
+func withOwnership(st IssueState, rec tracker.IssueRecord) IssueState {
+	if rec.Card == nil {
+		return st
+	}
+	st.cardPath = rec.Card.Path
+	c, has, err := issue.CardClaimant(rec.Card.Raw)
+	if err != nil {
+		st.OwnerError = err.Error()
+		return st
+	}
+	if has {
+		st.Owner = issueOwnerOf(c)
+		return st
+	}
+	rel, released, err := issue.CardRelease(rec.Card.Raw)
+	if err != nil {
+		st.OwnerError = err.Error()
+	} else if released {
+		st.Released = &IssueRelease{By: *issueOwnerOf(rel.By.Claimant()), Branch: rel.Branch, Head: rel.Head}
+	}
+	return st
+}
+
+// issueOwnerOf shows a claimant as state does.
+func issueOwnerOf(c issue.Claimant) *IssueOwner {
+	return &IssueOwner{Operator: c.Operator, MachineName: c.MachineName, Workspace: c.Workspace, Worktree: c.Worktree}
 }
 
 // IssueOwner is a card's owner as state shows it: the slot (workspace label,
@@ -172,6 +215,11 @@ func runState(ctx context.Context, stdout io.Writer, f *stateFlags) error {
 	s.Issues, s.TrackerStale = issues, stale
 	// gitx.ShippedWorkOnMain is the production ship probe; state_test fakes it.
 	s.Drift = detectDrift(issues, historyDir, gitx.ShippedWorkOnMain)
+	for _, i := range issues {
+		if i.OwnerError != "" {
+			s.Drift = append(s.Drift, DriftFinding{Severity: "warn", Issue: i.ID, Message: "owner unreadable: " + i.OwnerError})
+		}
+	}
 	if claimErr != nil { // accumulated after the one assignment (#284 BR-32)
 		s.Drift = append(s.Drift, DriftFinding{Severity: "info", Message: "claim ages unavailable: " + claimErr.Error()})
 	}
@@ -267,16 +315,7 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 		return nil, false, err
 	}
 	var out []IssueState
-	owned := func(st IssueState, rec tracker.IssueRecord) IssueState {
-		if rec.Card == nil {
-			return st
-		}
-		st.cardPath = rec.Card.Path
-		if c, has, err := issue.CardClaimant(rec.Card.Raw); err == nil && has {
-			st.Owner = &IssueOwner{Operator: c.Operator, MachineName: c.MachineName, Workspace: c.Workspace, Worktree: c.Worktree}
-		}
-		return st
-	}
+
 	for _, rec := range rs.All() {
 		if rec.CardErr != nil {
 			// The card cannot be read (#288): its status is unknown, never the
@@ -290,7 +329,7 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 				continue
 			}
 			updated, _ := rec.Field("updated")
-			out = append(out, owned(IssueState{ID: rec.ID, Status: rec.Status(), Title: rec.Title(), Updated: updated, CardOnly: true}, rec))
+			out = append(out, withOwnership(IssueState{ID: rec.ID, Status: rec.Status(), Title: rec.Title(), Updated: updated, CardOnly: true}, rec))
 			continue
 		}
 		if rec.DetailErr != nil {
@@ -306,7 +345,7 @@ func listIssueStates(ctx context.Context, issuesDir string) ([]IssueState, bool,
 		}
 		updated, _ := rec.Field("updated")
 		total, ticked := issue.CountPlanItems(rec.DetailBody)
-		out = append(out, owned(IssueState{
+		out = append(out, withOwnership(IssueState{
 			ID:         rec.ID,
 			Path:       rec.DetailPath,
 			Status:     rec.Status(),
@@ -467,8 +506,13 @@ func renderProseAt(w io.Writer, s State, now time.Time) error {
 		if i.Title != "" {
 			fmt.Fprintf(w, "  — %s", truncate(i.Title, 60))
 		}
-		if i.Owner != nil {
+		switch {
+		case i.Owner != nil:
 			fmt.Fprintf(w, "  [%s%s]", i.Owner.slot(), claimAge(i.ClaimedAt, now))
+		case i.Released != nil:
+			fmt.Fprintf(w, "  [released by %s%s]", i.Released.By.slot(), releaseTip(i.Released))
+		case i.OwnerError != "":
+			fmt.Fprint(w, "  [owner unreadable]")
 		}
 		fmt.Fprintln(w)
 	}
@@ -573,8 +617,31 @@ func claimViews(issues []IssueState, now time.Time) (bySlot, byOperator []claimG
 	return group(slots), group(operators)
 }
 
-// renderClaims prints the claims views, or nothing when no issue is owned.
+// releaseTip renders a handoff's branch and tip (" — handoff 000284-x@abc123")
+// or nothing for an open claim's release. Pure.
+func releaseTip(r *IssueRelease) string {
+	if r.Branch == "" {
+		return ""
+	}
+	return " — handoff " + r.Branch + "@" + shortOID(r.Head)
+}
+
+// renderClaims prints the claims views and the released issues awaiting a
+// claim, or nothing when there are none.
 func renderClaims(w io.Writer, issues []IssueState, now time.Time) {
+	var released []string
+	for _, i := range issues {
+		if i.Released != nil {
+			released = append(released, fmt.Sprintf("  #%s  by %s (%s)%s", unpadID(i.ID), i.Released.By.slot(), i.Released.By.Operator, releaseTip(i.Released)))
+		}
+	}
+	if len(released) > 0 {
+		fmt.Fprintln(w, "Released, awaiting a claim:")
+		for _, l := range released {
+			fmt.Fprintln(w, l)
+		}
+		fmt.Fprintln(w)
+	}
 	bySlot, byOperator := claimViews(issues, now)
 	if len(bySlot) == 0 {
 		return

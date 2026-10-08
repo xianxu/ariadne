@@ -8,6 +8,10 @@ WHAT IT SHOWS
   - Issues in workshop/issues/ with status, plan-tick progress, and — for a
     claimed issue — its owner (the slot: workspace label, else worktree) and
     how long ago it was claimed (#284)
+  - Released issues awaiting a claim: who let go and, for a handoff, the
+    branch and tip a claim resumes at — an abandoned handoff stays visible
+  - An owner or release that cannot be read is reported as such (a drift
+    warning and `owner_error`), never shown as unowned
   - Claims grouped by slot and by operator: what each slot holds, what each
     operator supervises, with claim ages. The age is the newest claim-kind
     commit (claim, takeover, reclaim, relocate) on the card in tracker
