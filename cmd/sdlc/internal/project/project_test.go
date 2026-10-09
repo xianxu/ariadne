@@ -308,3 +308,28 @@ func TestSkeleton_Render_Fallbacks(t *testing.T) {
 		t.Errorf("expected est fallback, got: %q", skel)
 	}
 }
+
+// #286: a milestone row nested under its issue's row is ticked by its
+// milestone close and by the issue close, without changing the Breakdown's
+// top-level task count the status board reads.
+func TestTickNestedMilestoneRows(t *testing.T) {
+	doc := "---\ntype: project\nname: \"p\"\n---\n\n## Breakdown\n\n" +
+		"- [ ] Feature [ariadne#286]\n" +
+		"  - [ ] Part one [ariadne#286 M1]\n" +
+		"  - [ ] Part two [ariadne#286 M2]\n"
+	m1, n := TickMilestoneTaskRow(doc, "ariadne", "286", "M1")
+	if n != 1 || !strings.Contains(m1, "  - [x] Part one [ariadne#286 M1]\n") || !strings.Contains(m1, "  - [ ] Part two") {
+		t.Fatalf("milestone tick (%d):\n%s", n, m1)
+	}
+	all, n := TickAllTaskRowsForIssue(m1, "ariadne", "286")
+	if n != 2 || strings.Contains(all, "[ ]") {
+		t.Fatalf("issue tick (%d):\n%s", n, all)
+	}
+	d, err := ParseDoc(doc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(d.Tasks) != 1 {
+		t.Fatalf("the board's tasks are the top-level rows: %d", len(d.Tasks))
+	}
+}

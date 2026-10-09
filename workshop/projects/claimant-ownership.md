@@ -52,8 +52,8 @@ Order: model first, done properly, with no fast-track for pair#365. #287 is inde
   - [x] `sdlc state` owner, claim age, views [ariadne#284 M4]
 - [x] Transfer guard: owner plus based-on-latest [ariadne#285]
 - [x] Boundary pushes and sdlc abandon [ariadne#286]
-  - [ ] Boundary pushes and merge cleanup [ariadne#286 M1]
-  - [ ] `sdlc abandon` and reopen [ariadne#286 M2]
+  - [x] Boundary pushes and merge cleanup [ariadne#286 M1]
+  - [x] `sdlc abandon` and reopen [ariadne#286 M2]
 - [ ] Reconcile merges done outside sdlc [ariadne#287]
 
 <a id="ariadne-284-m1"></a>
