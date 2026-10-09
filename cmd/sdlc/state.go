@@ -145,10 +145,19 @@ type CommitState struct {
 // DriftFinding is a single structural-consistency observation surfaced
 // by state. Severity is advisory; state never refuses, only reports.
 type DriftFinding struct {
-	Severity string `json:"severity"` // "info" or "warn"
-	Issue    string `json:"issue,omitempty"`
-	Message  string `json:"message"`
+	Severity string    `json:"severity"` // "info" or "warn"
+	Issue    string    `json:"issue,omitempty"`
+	Message  string    `json:"message"`
+	kind     driftKind // which check produced it; not part of the JSON contract
 }
+
+type driftKind int
+
+const (
+	driftOther driftKind = iota
+	driftCloseOff
+	driftExternalMerge
+)
 
 // State is the full snapshot — the root JSON object when --json is set.
 type State struct {
@@ -217,14 +226,14 @@ func runState(ctx context.Context, stdout io.Writer, f *stateFlags) error {
 	s.Drift = detectDrift(issues, historyDir, gitx.ShippedWorkOnMain)
 	// #287: an issue merged outside sdlc gets the precise finding instead of
 	// the commit-subject close-off guess.
-	if merges := externalMergeFindings(ctx, identity.WorktreeRoot); len(merges) > 0 {
+	if merges := externalMergeFindings(ctx, identity.WorktreeRoot, issuesDir); len(merges) > 0 {
 		judged := map[string]bool{}
 		for _, m := range merges {
 			judged[m.Issue] = true
 		}
 		kept := s.Drift[:0]
 		for _, d := range s.Drift {
-			if !judged[d.Issue] || !strings.HasPrefix(d.Message, "looks done") {
+			if !judged[d.Issue] || d.kind != driftCloseOff {
 				kept = append(kept, d)
 			}
 		}
@@ -461,6 +470,7 @@ func closeOffFinding(i IssueState, shipped shipProbe) (DriftFinding, bool) {
 	return DriftFinding{
 		Severity: "warn",
 		Issue:    i.ID,
+		kind:     driftCloseOff,
 		Message: fmt.Sprintf("looks done — plan %d/%d + shipped work on main (%s %q) — close it? (sdlc close --issue %s)",
 			i.PlanTicked, i.PlanTotal, abbrevSHA(sha), truncate(subj, 50), num),
 	}, true

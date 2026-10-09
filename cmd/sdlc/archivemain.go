@@ -16,9 +16,19 @@ import (
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
+// archiveDirs are the issue, plans and history roots one archive reads and
+// writes; each caller passes its own (a verb's flags, or the environment).
+type archiveDirs struct{ Issues, Plans, History string }
+
+// envArchiveDirs is the roots from the environment, for verbs without flags.
+func envArchiveDirs() archiveDirs {
+	return archiveDirs{Issues: envOr("WF_ISSUES_DIR", "workshop/issues"), Plans: plansDir(), History: historyDir()}
+}
+
 // mainArchive says what one archive commit carries and who may make it.
 type mainArchive struct {
 	Message string
+	Dirs    archiveDirs
 	Final   []byte            // the details to archive; nil archives main's copy
 	Plans   map[string][]byte // plan contents by basename, replacing main's copies
 	Note    string            // a ## Log line added to main's copy (Final nil only)
@@ -58,20 +68,20 @@ func archiveIssueOnMain(env *trackerEnv, stderr io.Writer, id, detailRel string,
 			}
 		}
 		w := gitx.TrunkWrite{Write: map[string][]byte{
-			archiveDestination(historyDir(), vocab.ArchiveIssues, base): mirrorTerminal(env, content, card.Raw),
+			archiveDestination(a.Dirs.History, vocab.ArchiveIssues, base): mirrorTerminal(env, content, card.Raw),
 		}, Delete: []string{detailRel}, ExactBytes: true}
-		plans, err := view.Files(plansDir())
+		plans, err := view.Files(a.Dirs.Plans)
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
 		for _, p := range plans {
 			if planArtifactBelongsToIssue(base, path.Base(p.Path)) {
-				w.Write[archiveDestination(historyDir(), vocab.ArchivePlans, path.Base(p.Path))] = p.Content
+				w.Write[archiveDestination(a.Dirs.History, vocab.ArchivePlans, path.Base(p.Path))] = p.Content
 				w.Delete = append(w.Delete, p.Path)
 			}
 		}
 		for name, content := range a.Plans {
-			w.Write[archiveDestination(historyDir(), vocab.ArchivePlans, name)] = content
+			w.Write[archiveDestination(a.Dirs.History, vocab.ArchivePlans, name)] = content
 		}
 		archived = true
 		return w, nil

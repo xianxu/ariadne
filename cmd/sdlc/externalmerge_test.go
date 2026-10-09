@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -174,4 +175,45 @@ func TestReconcileFinishesAnExternalMerge(t *testing.T) {
 			t.Fatal("reconcile changed an unclosed outside merge")
 		}
 	})
+}
+
+// A merged branch whose delete failed after the archive is deleted by the
+// next run: the branch sweep reads the remote's heads, not the live details.
+func TestReconcileRetriesAFailedBranchDelete(t *testing.T) {
+	r, _, _ := externalMergeFixture(t, "closed")
+	branch := r.git("branch", "--show-current")
+	hooks := t.TempDir()
+	hook := "#!/bin/sh\nwhile read l ls rr rs; do\n  case \"$ls\" in 0000000000000000000000000000000000000000) exit 1;; esac\ndone\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(hooks, "pre-push"), []byte(hook), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("config", "core.hooksPath", hooks)
+	var out, errs bytes.Buffer
+	if err := runRecoveryReconcile(context.Background(), &out, &errs, 330); err != nil {
+		t.Fatalf("reconcile: %v\n%s", err, errs.String())
+	}
+	if remoteTip(t, r, branch) == "" {
+		t.Fatal("fixture: the delete was not refused")
+	}
+	r.git("config", "--unset", "core.hooksPath")
+	if err := runRecoveryReconcile(context.Background(), &out, &errs, 330); err != nil {
+		t.Fatalf("rerun: %v\n%s", err, errs.String())
+	}
+	if remoteTip(t, r, branch) != "" {
+		t.Fatal("the rerun did not delete the merged branch")
+	}
+}
+
+// A remote-tracking ref left behind by newer local work is not mistaken for
+// the branch: the local tip, ahead of it and not on main, is what is judged.
+func TestStateJudgesTheNewestBranchTip(t *testing.T) {
+	r, _, _ := externalMergeFixture(t, "not closed")
+	writeRepoFile(t, r.root, "cmd/later.go", "package later\n")
+	r.git("add", "cmd/later.go")
+	r.git("commit", "-qm", "#330: later work, not pushed")
+	for _, d := range stateDrift(t) {
+		if d.Issue == "000330" && strings.Contains(d.Message, "outside sdlc") {
+			t.Fatalf("judged by a stale tracking ref: %+v", d)
+		}
+	}
 }

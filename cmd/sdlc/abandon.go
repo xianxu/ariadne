@@ -248,6 +248,7 @@ func pushArchiveRef(env *trackerEnv, ref, head string) error {
 func archiveAbandoned(env *trackerEnv, stderr io.Writer, id, detailRel string, f *abandonFlags, rec issue.Abandoned, note string) error {
 	spec := mainArchive{
 		Message: fmt.Sprintf("#%s: issue: abandon — archive details", issue.CLIRef(id)),
+		Dirs:    archiveDirs{Issues: f.IssuesDir, Plans: plansDir(), History: historyDir()},
 		Note:    note,
 		Allow:   func(c tracker.Record) error { return requireOwnedToPublish(env, c) },
 	}

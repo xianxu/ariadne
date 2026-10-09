@@ -18,14 +18,14 @@
 
 ## Design decisions
 
-- **D1 — "Merged outside sdlc" is ancestry on fetched refs.** For each card with a started, non-terminal status (working, blocked, codecomplete): the issue branch's pushed tip (`refs/remotes/<remote>/<details stem>`, which #286's boundary pushes keep current; the local branch as fallback) has commits beyond its base and is contained in fresh main. A codecomplete card whose completion binding's evidence commit is on main counts as landed whatever the branch. No network beyond the fetch the reader already does.
+- **D1 — "Merged outside sdlc" is ancestry on fetched refs.** For each card with a started, non-terminal status (working, blocked, codecomplete): the issue branch's pushed tip (`refs/remotes/<remote>/<details stem>`, which #286's boundary pushes keep current; the local branch as fallback) has commits beyond its base and is contained in fresh main. A codecomplete card whose completion binding's evidence commit is on main counts as landed whatever the branch. `sdlc state` adds no fetch: it judges the cards it already read (the command's cached records) against main as last fetched (Revisions).
 - **D2 — The verdict is pure** over `{status, evidenceOnMain, branchMerged, ownership}`:
   - evidence on main → **settle** (finish the bookkeeping);
   - branch merged, no evidence on main → **close needed**: from the owner's slot, `sdlc close --issue N` on a branch from main (the #285 guard lets a renamed close branch land); unowned → **claim first**;
   - otherwise → nothing.
 - **D3 — `sdlc state` reports, it never writes.** Each verdict becomes a `DriftFinding` (warn) naming the exact next action: `sdlc issue recovery reconcile --issue N` for settle, `sdlc close --issue N` or `sdlc claim --issue N` otherwise. It replaces the commit-subject close-off heuristic only for issues D1 classifies (the heuristic still covers branchless legacy work).
-- **D4 — The finisher is one convergent sequence**, each step skipped when done: card → done (`settleLandedCompletions`, existing), then the details and plans archived in one narrow main commit (`archiveIssueOnMain`, extracted from `abandon.go`'s `archiveAbandoned`; for an outside merge the final details are main's copy, mirrored to the done card), then the remote branch deleted, leased on its tip and only if main contains it (`deleteRemoteBranch`). The local branch is left for its slot (it may be checked out there).
-- **D5 — Callers.** `reconcile --issue N` runs the finisher for that issue (after its existing settle). `sdlc merge`, after its own landing completes, runs it for every settle verdict (the Spec's "next merge"), warning, never failing the landing. Ownership: settling needs none (the evidence binds the close, as `settleLandedCompletions` already assumes); the archive's `beforePush` keeps the existing check that the card's owner, if any, is this workspace or the card is done.
+- **D4 — The finisher is repository-wide and convergent** (Revisions): card → done stays `settleLandedCompletions`; then `finishLandedLeftovers` archives every done card whose details are still live on main (`archiveIssueOnMain`, extracted from `abandon.go`; main's copy mirrored to the done card), and deletes every done card's issue branch still on the remote once main contains it (one `ls-remote --heads`, so a failed delete is retried next run). The local branch is left for its slot (it may be checked out there).
+- **D5 — Callers.** `reconcile` runs the finisher after its existing settle, and prints the next action for the named issue if it was merged without a close. `sdlc merge` runs it at the end of its own landing (the Spec's "next merge"), with its own `--issues-dir/--plans-dir/--history-dir`, warning, never failing the landing. Ownership: settling needs none (the evidence binds the close, as `settleLandedCompletions` already assumes); the archive's `beforePush` keeps the existing check that the card's owner, if any, is this workspace or the card is done.
 - **D6 — Lifecycle (ARCH-FUNERAL).** Creates nothing durable: one archive commit per reconciled issue, and it removes a remote branch that would otherwise linger.
 
 ## Core concepts
@@ -42,8 +42,9 @@
 
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
-| `externalMerges(env)` | `cmd/sdlc/externalmerge.go` | new | tracker snapshot, git ancestry, `ownership` |
-| `finishExternalMerge(env, stderr, id)` | `cmd/sdlc/externalmerge.go` | new | `settleLandedCompletions`, `archiveIssueOnMain`, `deleteRemoteBranch` |
+| `externalMerges(env, rs, mainTip)` | `cmd/sdlc/externalmerge.go` | new | `ownedCompletions` (evidence on main), git ancestry, `ownership` |
+| `finishLandedLeftovers(env, stderr, dirs)` | `cmd/sdlc/externalmerge.go` | new | `archiveIssueOnMain`, `deleteRemoteBranch` (after `settleLandedCompletions`) |
+| `reportUnclosedMerge` | `cmd/sdlc/externalmerge.go` | new | `externalMerges` |
 | `archiveIssueOnMain` | `cmd/sdlc/archivemain.go` | new (extracted from `archiveAbandoned`) | `mainPublish` |
 | `archiveAbandoned` | `cmd/sdlc/abandon.go` | modified (calls `archiveIssueOnMain`) | — |
 | `detectDrift` / `runState` | `cmd/sdlc/state.go` | modified | + external-merge findings |
@@ -70,3 +71,7 @@
 
 ### Close
 - [ ] `make test`; `sdlc close --issue 287`.
+
+## Revisions
+
+- 2026-10-08 (close review round 1, REWORK): the finisher is repository-wide (`finishLandedLeftovers`), not per issue (`finishExternalMerge`): a landing settles outside merges inside `completeLandingPR`, before its own archive, so the settled IDs aren't available afterwards. "Every done card whose details are still live on main, after the landing archived its own" is the same set and converges (BR-1). Its branch sweep lists the remote's heads once, so a failed delete is retried (BR-3). `sdlc state` adds no fetch: it reuses the command's cached records and main as last fetched (BR-2). Evidence on main comes from `ownedCompletions`, one source with the settle (BR-5). The branch tip is the newer of local and remote-tracking (BR-4). Merge passes its own dirs (`archiveDirs`, BR-6). The settle finding names the interrupted-merge case too (BR-8). The close-off guess is suppressed by a finding kind, not a message prefix (BR-9).
