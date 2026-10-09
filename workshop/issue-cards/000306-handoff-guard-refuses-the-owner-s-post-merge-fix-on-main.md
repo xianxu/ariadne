@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000306-handoff-guard-refuses-the-owner-s-post-merge-fix-on-main.md
         source_blob: 57f22cbce5249700f8d75e72b974dd5b92ee67d9
         destination: workshop/issues/000306-handoff-guard-refuses-the-owner-s-post-merge-fix-on-main.md
+        main_commit: d8a331ce4a1d1c6f918d3db759bcf4a142e5f8c0
 ---
 
 # handoff guard refuses the owner's post-merge fix on main
