@@ -1,12 +1,20 @@
 ---
 id: 000287
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-02
-updated: 2026-10-02
+updated: 2026-10-08
 estimate_hours:
-card_mirror: 'dd197e6da8c6210c548643a357fe00e3ee5b78b9' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a8135e651c51bb2fc2853a37928136b7643cbe82' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-08T17:48:18-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Reconcile merges done outside sdlc
@@ -30,8 +38,17 @@ Independent of #284–#286: it needs only the merge detection and the existing c
 
 ## Plan
 
-- [ ] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
+- [x] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
+- [ ] Durable plan `workshop/plans/000287-reconcile-external-merges-plan.md`; single close, no Mx.
+  - [ ] Task 1: pure verdict
+  - [ ] Task 2: extract `archiveIssueOnMain` from abandon
+  - [ ] Task 3: detection and `sdlc state` findings
+  - [ ] Task 4: finisher via reconcile and merge; docs
 
 ## Log
+
+### 2026-10-08
+
+Claimed in ariadne:2. Survey: the evidence-on-main → done half exists (`settleLandedCompletions`, run by reconcile and after every merge), but it doesn't archive, doesn't delete the remote branch, and nothing reports it; `sdlc state` only has a commit-subject heuristic. Design: detect by ancestry of the pushed branch tip (kept current by #286) and of the completion's evidence; `state` reports with the next action and never writes; reconcile and the next merge finish (done, archive via the narrow main commit extracted from abandon, leased remote delete). Squash/rebase merges outside sdlc are a non-goal: ancestry can't see them without the GitHub API.
 
 ### 2026-10-02
