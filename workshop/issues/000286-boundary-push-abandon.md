@@ -68,13 +68,14 @@ Items, in order: the boundary push helper and its four call sites; merge's remot
 
 - [x] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
 - [x] M1 — Boundary pushes at start-plan, milestone-close, close (and reconcile's close completion); lease push in `pr`; merge deletes the remote branch. Plan Tasks 1–3.
-- [ ] M2 — `sdlc abandon`, the set-status redirect, and a reopen that restores the branch and un-archives the details. Plan Tasks 4–7.
+- [x] M2 — `sdlc abandon`, the set-status redirect, and a reopen that restores the branch and un-archives the details. Plan Tasks 4–7.
 
 Durable plan: `workshop/plans/000286-boundary-push-abandon-plan.md`.
 
 ## Log
 
 ### 2026-10-08
+- 2026-10-08: closed M2 — make test green (except sandbox-only processgroup); abandon: StartedWork/OpenIssue/Refusals/Decision/RerunResumes/KeepsTheBranchsPlans/OverwritesAnOrphanArchiveRef; reopen: RestoresAnAbandonedIssue/StopsOnAConflictThenResumes/RerunAfterAFailedPush/RerunVariants; set-status: RedirectsStartedWorkToAbandon, AbandonedWorkLeavesOnlyByReopen; every fix mutation-checked; review verdict: SHIP
 - 2026-10-08: closed M1 — make test green (except sandbox-only processgroup); each boundary push site pinned by its own mutation-checked test: TestBoundaryVerbsPushTheIssueBranch (start-plan, milestone-close --no-judge and judged, close, rebase+re-close), TestStartPlanRerunPushes, TestReconciledClosePushes, TestLandingPRPublishesARewrittenBranch, TestLandingDeletesTheRemoteBranch (+resume); TestBoundaryPushLeases, TestBoundaryPushIsBounded; review verdict: FIX-THEN-SHIP
 
 Claimed in ariadne:2. Survey: `pushIssueBranch` (handoff.go) is the lease push to reuse; nothing pushes at start-plan/close today; milestone-close makes no commit (it pushes HEAD as-is, D3); the durable merge (`gh pr merge` without `--delete-branch`) leaves the remote branch; set-status has no wontfix/punt guard; no reopen un-archives details. Operator decision: reopen of an abandoned issue restores the branch AND un-archives the details (merge main, move history/X back), so it lands cleanly; done-reopen's same gap goes to a follow-up. Boundary push failures warn, never fail the verb (D2); the set-status redirect can't be forced (D8).

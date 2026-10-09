@@ -146,3 +146,100 @@ findings:
     title: |
       reading a ref's tip from the remote via ls-remote is duplicated at abandon.go:216, abandon.go:355, boundarypush.go:81 and handoff.go:284
 ```
+
+---
+
+## Re-review — 2026-10-08T17:18:24-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 286 — Boundary pushes and sdlc abandon |
+| repo | ariadne |
+| issue file | workshop/issues/000286-boundary-push-abandon.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 3feb1add521deeb64b7b2bed6b12a70c0e622f7c..9c9340815519b6d73d86b68219d22d5c8f6796ab |
+| command | sdlc milestone-close --issue 286 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-10-08T17:18:24-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Round 4 holds up. I checked each claimed behavior fix the same way: I reverted it in a scratch worktree and ran its regression test. The BR-7, BR-12 and BR-13 tests all fail without their fix. The targeted suite passes at HEAD: `go test -run 'TestAbandon|TestReopen|TestSetStatus|TestRecovery|TestCatalog'`, ok in 88s. The README (BR-8), the plan table (BR-11) and the env-sourced roots (BR-10) all match the code. The one gap is BR-9. Its ownership check is in place, but no test covers it: I disabled the check and every `TestAbandon*` test still passed. BR-9 is Minor, so it does not block SHIP.
+
+**1. Strengths**
+- **Plans archived from the kept tip (BR-7):** `keptPlans` (`cmd/sdlc/abandon.go:350`) reads plans from the kept tip, the same source as the details, so there is one source of truth. `TestAbandonKeepsTheBranchsPlans` checks the archive and the reopen round trip. Reverted, it fails with `archived plan: "plan v1 (on main)"`.
+- **Reruns after a lost card write (BR-12):** `unfinishedReopen` (`cmd/sdlc/setstatus.go:409`) works out an unfinished reopen from evidence: the archive ref is still on the remote, and its tip is an ancestor of HEAD. It does not rely on a flag. Reverting it makes the "after the card write" case fail.
+- **Forced status changes on abandoned work (BR-13):** the refusal sits in the pure `statusDecision`, ahead of any effect. The record is now cleared only on the restoring `working` transition. The test fails without it, because a forced punt → open succeeds.
+- **One remote ref read (BR-14):** `remoteRefTip` matches the full ref name exactly instead of taking the first `ls-remote` field. That also closes a latent mismatch, since `ls-remote` patterns match on the tail of a ref name.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings**
+- **BR-9 is still open:** the foreign-workspace refusal on resume (`cmd/sdlc/abandon.go:165-169`) has no test. `TestAbandonRefusals` only covers "not owner" on the first run. One more case would close it: an abandoned card, then `withClaimant(t, otherSlot)`, then a rerun that expects "only that workspace finishes it".
+- **`landing.go:392` still reads a remote branch tip with raw `ls-remote --heads`:**
+  - This is the one remaining sibling of BR-14 in `cmd/sdlc`. It predates this window, and it uses `landingGit` rather than `gitFn`.
+  - The `gitx` sites (`refbootstrap.go` and `candidate.go`) are a separate seam in a separate package, with `--exit-code` semantics.
+  - I count BR-14 as addressed for the code in scope; this is worth folding in when `landing.go` is next touched.
+- **`unfinishedReopen` never checks the branch name:** it doesn't confirm that `env.branch == issue.BranchName(card.Path)`. The ancestor check limits the risk to a branch stacked on the abandoned work, which #272 forbids anyway.
+
+**5. Test coverage notes**
+- Reverting each fix makes its test fail for BR-7, BR-12 (after the card write) and BR-13.
+- The "after the branch is recreated" case in `TestReopenRerunVariants` covers behavior that already existed. That is fine as coverage, but it is not a regression test for a fix.
+- BR-9 has no test (see Minor).
+
+**6. Architectural notes**
+- **ARCH-DRY: pass.** `remoteRefTip` consolidates the four named sites, and `plansDir()`/`historyDir()` are a single source for both verbs.
+- **ARCH-PURE: pass.** The BR-13 guard is in the pure `statusDecision`, and `abandonDecision` stays pure.
+- **ARCH-PURPOSE: pass.** Started work's details and plans now both come from the tip, so the archive matches what the branch had.
+- **ARCH-MOCK: pass.** Tests run against real bare remotes, and failures are injected through the `cardPublish`/`mainPublish` seams.
+- **ARCH-CONSTRAINTS: pass.** The one cost added is a single `ls-remote` on `set-status working` reruns against a card that is already `working`, off the rest branch.
+- **ARCH-SECURE: pass.** Card records are validated: the ref pattern, the branch name, and the head as an object ID.
+- **ARCH-ORDER: pass.** Rerun detection now covers the window after the card write, and the record clears only on the restoring transition.
+- **ARCH-FUNERAL: pass.** The archive ref's end is named: the reopen deletes it, and a later abandon overwrites a leftover. BR-13 closes the path that would have orphaned it.
+
+**7. Plan revision recommendations:** none. The round-4 Revisions entry matches the code. It does say "a resume checks ownership (BR-9)", which is true, but nothing tests it yet.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      keptPlans archives plans from rec.Head; TestAbandonKeepsTheBranchsPlans goes red with the tip overlay removed (archived plan v1).
+  - id: BR-8
+    disposition: addressed
+    note: |
+      README.md:42-50 now covers boundary pushes, sdlc abandon, refs/ariadne/abandoned/NNNNNN and the set-status working restore.
+  - id: BR-9
+    disposition: not-addressed
+    note: |
+      The ownership check exists at abandon.go:165-169, but no test covers a foreign resume; with the check disabled every TestAbandon test still passes.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      The flags are removed; abandon and reopen both read plansDir()/historyDir() from WF_PLANS_DIR/WF_HISTORY_DIR, and helptext has no stale flags.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      The table now reads Abandoned {Ref, Branch, Head}, SetCardAbandoned (nil clears) and abandonDecision(card, as, today, rec), matching abandoned.go:16 and abandon.go:63.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      TestReopenRerunVariants covers both variants; disabling the working-status branch in reopenAbandoned turns "after the card write" red.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      statusDecision refuses leaving terminal except by working when the record is started; TestAbandonedWorkLeavesOnlyByReopen goes red without the guard.
+  - id: BR-14
+    disposition: addressed
+    note: |
+      The four named sites use remoteRefTip; the pre-existing landing.go:392 raw ls-remote (outside the window) is a sibling to fold in when that file is next touched.
+```

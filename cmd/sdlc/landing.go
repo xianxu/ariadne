@@ -389,12 +389,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 		if fetchErr != nil {
 			return fetchErr
 		}
-		remoteHead, err := landingGit(r, t.Root, "ls-remote", "--heads", t.Remote, "refs/heads/"+branch)
+		remoteHead, err := remoteRefTip(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, "refs/heads/"+branch)
 		if err != nil {
 			return err
 		}
-		fields := strings.Fields(remoteHead)
-		if len(fields) != 2 || fields[0] != head || fields[1] != "refs/heads/"+branch {
+		if remoteHead != head {
 			return errors.New("local, remote and PR heads must match; push selected branch before landing")
 		}
 		if f.NoValidate {

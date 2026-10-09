@@ -153,6 +153,45 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 6
+      timestamp: "2026-10-08T17:18:24-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: keptPlans archives plans from rec.Head; TestAbandonKeepsTheBranchsPlans goes red with the tip overlay removed (archived plan v1).
+          round: 6
+        - id: BR-8
+          disposition: addressed
+          note: README.md:42-50 now covers boundary pushes, sdlc abandon, refs/ariadne/abandoned/NNNNNN and the set-status working restore.
+          round: 6
+        - id: BR-9
+          disposition: not-addressed
+          note: The ownership check exists at abandon.go:165-169, but no test covers a foreign resume; with the check disabled every TestAbandon test still passes.
+          round: 6
+        - id: BR-10
+          disposition: addressed
+          note: The flags are removed; abandon and reopen both read plansDir()/historyDir() from WF_PLANS_DIR/WF_HISTORY_DIR, and helptext has no stale flags.
+          round: 6
+        - id: BR-11
+          disposition: addressed
+          note: The table now reads Abandoned {Ref, Branch, Head}, SetCardAbandoned (nil clears) and abandonDecision(card, as, today, rec), matching abandoned.go:16 and abandon.go:63.
+          round: 6
+        - id: BR-12
+          disposition: addressed
+          note: TestReopenRerunVariants covers both variants; disabling the working-status branch in reopenAbandoned turns "after the card write" red.
+          round: 6
+        - id: BR-13
+          disposition: addressed
+          note: statusDecision refuses leaving terminal except by working when the record is started; TestAbandonedWorkLeavesOnlyByReopen goes red without the guard.
+          round: 6
+        - id: BR-14
+          disposition: addressed
+          note: The four named sites use remoteRefTip; the pre-existing landing.go:392 raw ls-remote (outside the window) is a sibling to fold in when that file is next touched.
+          round: 6
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#286 (boundary-review)
@@ -223,13 +262,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-13** [Minor] `record-cleared-without-effect` a forced set-status from punt to open or blocked clears the abandoned record without restoring, leaving an archive ref nothing points to
 - **BR-14** [Minor] `shared-remote-ref-read` reading a ref's tip from the remote via ls-remote is duplicated at abandon.go:216, abandon.go:355, boundarypush.go:81 and handoff.go:284
 
+## Round 6 — 2026-10-08T17:18:24-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — keptPlans archives plans from rec.Head; TestAbandonKeepsTheBranchsPlans goes red with the tip overlay removed (archived plan v1).
+- BR-8 — addressed — README.md:42-50 now covers boundary pushes, sdlc abandon, refs/ariadne/abandoned/NNNNNN and the set-status working restore.
+- BR-9 — not-addressed — The ownership check exists at abandon.go:165-169, but no test covers a foreign resume; with the check disabled every TestAbandon test still passes.
+- BR-10 — addressed — The flags are removed; abandon and reopen both read plansDir()/historyDir() from WF_PLANS_DIR/WF_HISTORY_DIR, and helptext has no stale flags.
+- BR-11 — addressed — The table now reads Abandoned {Ref, Branch, Head}, SetCardAbandoned (nil clears) and abandonDecision(card, as, today, rec), matching abandoned.go:16 and abandon.go:63.
+- BR-12 — addressed — TestReopenRerunVariants covers both variants; disabling the working-status branch in reopenAbandoned turns "after the card write" red.
+- BR-13 — addressed — statusDecision refuses leaving terminal except by working when the record is started; TestAbandonedWorkLeavesOnlyByReopen goes red without the guard.
+- BR-14 — addressed — The four named sites use remoteRefTip; the pre-existing landing.go:392 raw ls-remote (outside the window) is a sibling to fold in when that file is next touched.
+
 ## Open findings
 
-- **BR-7** [Important] `archive-source-of-truth` abandon archives plan files from main, not the kept tip, so a reopen replaces the branch's plan edits
-- **BR-8** [Important] `readme-verb-surface` README update appears missing for sdlc abandon, the archive ref and the set-status redirect
 - **BR-9** [Minor] `rerun-skips-precondition` the abandon resume path skips the ownership check that plan D7 keeps for reruns
-- **BR-10** [Minor] `config-source-divergence` restoreAbandoned reads WF_HISTORY_DIR/WF_PLANS_DIR from the environment while abandon takes --history-dir/--plans-dir flags
-- **BR-11** [Minor] `plan-table-drift` the Core concepts table names ClearCardAbandoned, a 5-argument abandonDecision and a {Ref, Head} record, none of which match the code
-- **BR-12** [Minor] `test-claim-exceeds-test` reopen rerun variants after step 2 and after the card write are untested, and the after-card-write rerun never runs finishReopen
-- **BR-13** [Minor] `record-cleared-without-effect` a forced set-status from punt to open or blocked clears the abandoned record without restoring, leaving an archive ref nothing points to
-- **BR-14** [Minor] `shared-remote-ref-read` reading a ref's tip from the remote via ls-remote is duplicated at abandon.go:216, abandon.go:355, boundarypush.go:81 and handoff.go:284
