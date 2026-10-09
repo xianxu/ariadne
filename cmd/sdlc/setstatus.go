@@ -99,8 +99,17 @@ func runSetStatus(ctx context.Context, stdout, stderr io.Writer, f *setStatusFla
 		prev = p
 		return next, err
 	}
+	// #286: reopening abandoned work restores its branch first; the card
+	// write below then clears the record, and the archive ref goes last.
+	restored, err := reopenAbandoned(ctx, stderr, f)
+	if err != nil {
+		return err
+	}
 	if err := runCardUpdate(ctx, stdout, stderr, f.IssuesDir, f.Issue, "status → "+f.Status, f.DryRun, decide); err != nil {
 		return err
+	}
+	if restored != nil {
+		finishReopen(restored, stderr, f.IssuesDir)
 	}
 	// #122 M4: when --force masked the lifecycle gate on an illegal transition,
 	// log the override — the escape hatch is explicit and recorded, not silent.
@@ -127,12 +136,29 @@ func statusDecision(card []byte, detailsBody, next string, force bool, today, st
 		return nil, "", err
 	}
 	prev, _ := issue.GetField(fm, "status")
+	// #286: started work ends through `sdlc abandon`, which keeps it under an
+	// archive ref; --force cannot skip that (the work would be lost).
+	if _, ending := abandonEvent[next]; ending && !vocab.Issue().IsOpen(prev) && !vocab.Issue().IsTerminal(prev) {
+		return nil, prev, fmt.Errorf("refusing %s → %s: started work ends with `sdlc abandon --issue N --as %s --reason …`, which keeps it under an archive ref (#286); --force does not apply", prev, next, next)
+	}
 	if !force {
 		if err := checkTransitionGuards(prev, next, fm, detailsBody); err != nil {
 			return nil, prev, err
 		}
 	}
+	// #286 BR-13: abandoned work with a kept branch leaves its terminal status
+	// only by the reopen that restores it; anything else would orphan the ref.
+	rec, abandoned, err := issue.CardAbandoned(card)
+	if err != nil {
+		return nil, prev, err
+	}
+	if abandoned && rec.Started() && vocab.Issue().IsTerminal(prev) && next != prev && next != "working" {
+		return nil, prev, fmt.Errorf("refusing %s → %s: the work is kept at %s; reopen with `set-status working`, which restores it (--force does not apply)", prev, next, rec.Ref)
+	}
 	out, err := issue.SetCardField(card, "status", next)
+	if err == nil && abandoned && vocab.Issue().IsTerminal(prev) && next == "working" {
+		out, err = issue.SetCardAbandoned(out, nil) // the reopen ends the abandon record
+	}
 	if err == nil {
 		out, err = issue.SetCardField(out, "updated", today)
 	}
@@ -333,4 +359,67 @@ func isValidStatus(s string) bool {
 		}
 	}
 	return false
+}
+
+// reopenedAbandon is a restore that ran before set-status's card write.
+type reopenedAbandon struct {
+	env          *trackerEnv
+	rec          issue.Abandoned
+	id, cardPath string
+}
+
+// reopenAbandoned restores an abandoned issue's branch when set-status
+// reopens it (→ working from wontfix/punt with a kept branch); nil otherwise.
+func reopenAbandoned(ctx context.Context, stderr io.Writer, f *setStatusFlags) (*reopenedAbandon, error) {
+	if f.Status != "working" || f.DryRun {
+		return nil, nil
+	}
+	env, err := openTracker(ctx)
+	if err != nil {
+		return nil, err
+	}
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	card, err := snap.Require(fmt.Sprintf("%06d", f.Issue))
+	if err != nil {
+		return nil, err
+	}
+	status, _ := issue.GetField(card.Card.Frontmatter, "status")
+	if status == "working" {
+		// BR-12: a rerun after the reopen's card write (a lost response, an
+		// interruption) finishes it: on the restored branch, with the archive
+		// ref still holding work the branch contains.
+		return unfinishedReopen(env, card)
+	}
+	rec, ok, err := issue.CardAbandoned(card.Raw)
+	if err != nil || !ok || !rec.Started() || !vocab.Issue().IsTerminal(status) {
+		return nil, err
+	}
+	if err := restoreAbandoned(env, stderr, card, rec, f.IssuesDir); err != nil {
+		return nil, err
+	}
+	return &reopenedAbandon{env: env, rec: rec, id: card.ID, cardPath: card.Path}, nil
+}
+
+// unfinishedReopen recognises a reopen whose card write landed but whose
+// finish did not: the archive ref still exists and this checkout's branch
+// contains it. nil when there is nothing to finish.
+func unfinishedReopen(env *trackerEnv, card tracker.Record) (*reopenedAbandon, error) {
+	if env.branch == "" || env.onRest() {
+		return nil, nil
+	}
+	ref := issue.AbandonedRef(card.ID)
+	tip, err := remoteRefTip(env.git, env.target.Remote, ref)
+	if err != nil || tip == "" {
+		return nil, err
+	}
+	if have, err := env.gitTest("cat-file", "-e", tip+"^{commit}"); err != nil || !have {
+		return nil, err
+	}
+	if kept, err := env.ancestorOf(tip, "HEAD"); err != nil || !kept {
+		return nil, err
+	}
+	return &reopenedAbandon{env: env, rec: issue.Abandoned{Ref: ref, Branch: env.branch, Head: tip}, id: card.ID, cardPath: card.Path}, nil
 }

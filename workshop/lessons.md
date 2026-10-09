@@ -29,6 +29,10 @@ Detailed incidents remain in their owning issue or review artifact.
 - A predicate that collapses several refusals into a bool forces its caller to
   guess the reason, and the guess becomes a wrong message. Return the reason as
   an error and share the one probe between callers (#296 BR-2).
+- When one effect is added at several call sites, each site needs a test that
+  fails when that site alone is removed. A mutation that removes them all at
+  once passes as long as any one survives, and a later boundary can mask an
+  earlier one (#286 BR-2, BR-6).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - A syntactic guard cannot support an absolute semantic claim. Bound the claim to

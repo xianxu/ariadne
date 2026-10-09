@@ -148,6 +148,7 @@ func buildRoot() *cobra.Command {
 	add(NewActualCmd(), "actual", "Compute an issue's focused dev-hours via active-time-v3 (#68)")
 	add(NewActiveTimeCmd(), "active-time", "Per-issue active-time attribution table (the v3 engine, standalone)")
 	add(NewCloseCmd(), "close", "Close an issue or milestone (ACTUAL + VERIFIED + atlas/project sweep)")
+	add(NewAbandonCmd(), "abandon", "End an issue as wontfix or punt, keeping its work under an archive ref (#286)")
 	add(NewMilestoneCloseCmd(), "milestone-close", "Close one milestone + auto-dispatch its review")
 	add(NewPRCmd(), "pr", "Open a pull request from a feature branch")
 	add(NewMergeCmd(), "merge", "Merge the PR, archive done issues, clean up")

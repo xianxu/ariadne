@@ -341,6 +341,7 @@ func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
 	if warn := refreshLocalMirror(env, detailPath); warn != "" {
 		cwarn(stdout, warn)
 	}
+	boundaryPush(env, stdout, "start-plan")
 	return nil
 }
 

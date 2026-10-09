@@ -389,12 +389,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 		if fetchErr != nil {
 			return fetchErr
 		}
-		remoteHead, err := landingGit(r, t.Root, "ls-remote", "--heads", t.Remote, "refs/heads/"+branch)
+		remoteHead, err := remoteRefTip(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, "refs/heads/"+branch)
 		if err != nil {
 			return err
 		}
-		fields := strings.Fields(remoteHead)
-		if len(fields) != 2 || fields[0] != head || fields[1] != "refs/heads/"+branch {
+		if remoteHead != head {
 			return errors.New("local, remote and PR heads must match; push selected branch before landing")
 		}
 		if f.NoValidate {
@@ -485,6 +484,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if err = deleteLandingBranch(r, t, branch, head); err != nil {
 		return err
 	}
+	// #286: the landed branch leaves origin too, leased on the landed head so
+	// a push made after the PR merged is never thrown away.
+	if derr := deleteRemoteBranch(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, branch, pr.HeadOID); derr != nil {
+		cwarn(stderr, fmt.Sprintf("landed, but %s was not deleted on %s: %v — `sdlc merge --branch %s --yes` retries it", branch, t.Remote, derr, branch))
+	}
 	fmt.Fprintf(stdout, "Landed PR #%d; workspace retained on unchanged %s. Refresh is separate.\n", pr.Number, t.Rest)
 	return nil
 }
@@ -555,7 +559,9 @@ func runDurablePR(stdout, stderr io.Writer, f *prFlags, t landingTarget) error {
 	if len(open) > 1 {
 		return fmt.Errorf("found %d open PRs for %s; close all but one, then retry", len(open), branch)
 	}
-	if _, err = landingGit(prRunner, t.Root, "push", "-u", t.Remote, "refs/heads/"+branch+":refs/heads/"+branch); err != nil {
+	// #286: the same leased push as the boundaries, so a branch rebased since
+	// its last push publishes without a blind force.
+	if err = leasedBranchPush(func(args ...string) (string, error) { return landingGit(prRunner, t.Root, args...) }, t.Remote, branch); err != nil {
 		return err
 	}
 	// #267: git exits 0 when it pushes but cannot write the upstream config,

@@ -41,6 +41,19 @@ TRANSITION GUARDS (refusable with --force)
     §5 step 3+5. Start with:
       sdlc close --issue N --verified '<evidence>'
 
+  working | blocked | codecomplete → wontfix | punt  (#286, not --force-able)
+    Refused toward `sdlc abandon --issue N --as wontfix|punt --reason …`,
+    which keeps the work under an archive ref; set-status would lose it. An
+    open issue is still triaged here.
+
+  wontfix | punt → working  (reopen of abandoned work, #286)
+    When the card carries abandon's record, the branch is restored first: the
+    kept tip is fetched, the branch recreated, main merged, the details and
+    plans moved back out of the archive, and the branch pushed. Then the card
+    reopens, the mirror refresh is committed and pushed, and the archive ref
+    is deleted. Run it from the resting branch with a clean tree; a merge
+    conflict stops before the card changes (resolve, commit, rerun).
+
   done → <anything-not-done>  (reopen)
     Requires a fresh ## Log entry dated today. Reopens carry a
     rationale; the log is where it lands. Add a line like:

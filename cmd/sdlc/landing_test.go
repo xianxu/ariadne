@@ -766,3 +766,35 @@ func TestLandingRestingRecoveryRejectsGitOperation(t *testing.T) {
 		t.Fatal("changed active operation refs")
 	}
 }
+
+// #286: a landing leaves no issue branch on the remote; a resumed landing
+// whose remote branch is already gone still finishes.
+func TestLandingDeletesTheRemoteBranch(t *testing.T) {
+	_, remote, _ := landingFixture(t, 1)
+	if err := runMerge(io.Discard, io.Discard, landingFlags()); err != nil {
+		t.Fatal(err)
+	}
+	if heads := git(t, remote, "for-each-ref", "refs/heads/"+landingTestBranch); heads != "" {
+		t.Fatalf("the landed branch is still on the remote: %s", heads)
+	}
+	f := landingFlags()
+	f.Branch = landingTestBranch
+	if err := runMerge(io.Discard, io.Discard, f); err != nil {
+		t.Fatalf("a resumed landing with the remote branch gone: %v", err)
+	}
+}
+
+// #286: a pushed branch rewritten since (a rebase) is published by `sdlc pr`
+// with the lease, not refused as non-fast-forward.
+func TestLandingPRPublishesARewrittenBranch(t *testing.T) {
+	roots, remote, fake := landingFixture(t, 1)
+	git(t, roots[1], "commit", "--amend", "-qm", "close issue, rewritten")
+	head := procedureHead(t, roots[1])
+	ghClient = &recordingGH{existing: []landingPR{fake.pr}}
+	if err := runPR(io.Discard, io.Discard, &prFlags{IssuesDir: "workshop/issues"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := git(t, remote, "rev-parse", "refs/heads/"+landingTestBranch); got != head {
+		t.Fatalf("remote head %s, want the rewritten %s", got, head)
+	}
+}

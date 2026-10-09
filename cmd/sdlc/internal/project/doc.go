@@ -10,8 +10,11 @@ import (
 )
 
 var (
-	taskRowRE  = regexp.MustCompile(`^- \[([ x.\-~])\] (.*)$`)
-	refGroupRE = regexp.MustCompile(`\[([^\]]+)\]`)
+	taskRowRE = regexp.MustCompile(`^- \[([ x.\-~])\] (.*)$`)
+	// nestedRowRE is a milestone row nested under its issue's row (#286):
+	// ticked by close, but not a Breakdown task the status board counts.
+	nestedRowRE = regexp.MustCompile(`^[ \t]+- \[([ x.\-~])\] (.*)$`)
+	refGroupRE  = regexp.MustCompile(`\[([^\]]+)\]`)
 )
 
 // Task is one checkbox row in a project's Breakdown section. LineIdx is the
@@ -69,8 +72,12 @@ func parseDocBody(fm, body string) *Doc {
 		}
 
 		match := taskRowRE.FindStringSubmatch(line)
+		nested := false
 		if match == nil {
-			return
+			if match = nestedRowRE.FindStringSubmatch(line); match == nil {
+				return
+			}
+			nested = true
 		}
 		remainder := match[2]
 		title := strings.TrimSpace(remainder)
@@ -88,7 +95,7 @@ func parseDocBody(fm, body string) *Doc {
 			RefText: refText,
 		}
 		d.legacyTaskRows = append(d.legacyTaskRows, task)
-		if current == "Breakdown" {
+		if current == "Breakdown" && !nested {
 			d.Tasks = append(d.Tasks, task)
 		}
 	})
@@ -194,10 +201,11 @@ func (d *Doc) setTaskStateAtLine(lineIdx int, state byte) bool {
 		return false
 	}
 	line := d.lines[lineIdx]
-	if len(line) < 4 {
+	box := strings.Index(line, "- [") + 3 // past any nesting indent (#286)
+	if box < 3 || box >= len(line) {
 		return false
 	}
-	d.lines[lineIdx] = line[:3] + string(state) + line[4:]
+	d.lines[lineIdx] = line[:box] + string(state) + line[box+1:]
 	for i := range d.legacyTaskRows {
 		if d.legacyTaskRows[i].LineIdx == lineIdx {
 			d.legacyTaskRows[i].State = state

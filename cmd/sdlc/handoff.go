@@ -196,33 +196,6 @@ func switchClean(env *trackerEnv, stderr io.Writer, branch string) bool {
 	return true
 }
 
-// pushIssueBranch publishes the issue branch to the publication remote. The
-// owner is its only writer (the claim, and no stacking, #272), so a rewritten
-// branch may replace the remote's — but only the copy this checkout last saw:
-// the lease is the last-fetched remote-tracking ref (absent: the branch must
-// not exist there yet), never a fresh read that would turn it into a blind
-// force (#284 BR-24).
-func pushIssueBranch(env *trackerEnv, branch string) error {
-	tracking := gitx.RemoteTrackingRef(env.target.Remote, branch)
-	expect := ""
-	if seen, err := env.gitTest("rev-parse", "-q", "--verify", tracking); err != nil {
-		return err
-	} else if seen {
-		if expect, err = env.git("rev-parse", tracking); err != nil {
-			return err
-		}
-	}
-	ref := "refs/heads/" + branch
-	if _, err := env.git("push", "-q", "--force-with-lease="+ref+":"+expect, env.target.Remote, ref+":"+ref); err != nil {
-		if strings.Contains(err.Error(), "stale info") {
-			return fmt.Errorf("%w (the remote's %s is not the copy this checkout last fetched; fetch and inspect it before handing off)", err, branch)
-		}
-		return err
-	}
-	_, err := env.git("update-ref", tracking, ref)
-	return err
-}
-
 // takeover is the git side of claiming a handed-off issue: the branch and the
 // tip it must be fetched at, checked before the card is written.
 type takeover struct {
@@ -308,7 +281,7 @@ func finishOwnedTakeover(env *trackerEnv, stderr io.Writer, card tracker.Record)
 		return
 	}
 	branch := issue.BranchName(card.Path)
-	listed, err := env.git("ls-remote", env.target.Remote, "refs/heads/"+branch)
+	listed, err := remoteRefTip(env.git, env.target.Remote, "refs/heads/"+branch)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("not resuming on %s: reading the remote failed: %v", branch, err))
 		return

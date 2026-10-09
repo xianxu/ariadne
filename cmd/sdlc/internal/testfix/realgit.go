@@ -40,3 +40,20 @@ func PrependPath(dir, path string) string {
 	}
 	return dir + sep + path
 }
+
+// QuietBackgroundGit turns off git's detached auto-gc and auto-maintenance
+// for every git the test binary runs. A fetch or push may leave one running
+// after the command returns, still writing into a temp repository when
+// t.TempDir's cleanup removes it ("directory not empty"; #284, #286). A test
+// that sets GIT_CONFIG_COUNT itself overrides this for its own duration.
+func QuietBackgroundGit() {
+	for k, v := range map[string]string{
+		"GIT_CONFIG_COUNT":   "2",
+		"GIT_CONFIG_KEY_0":   "gc.auto",
+		"GIT_CONFIG_VALUE_0": "0",
+		"GIT_CONFIG_KEY_1":   "maintenance.auto",
+		"GIT_CONFIG_VALUE_1": "false",
+	} {
+		_ = os.Setenv(k, v)
+	}
+}

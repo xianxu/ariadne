@@ -202,6 +202,7 @@ func TestObserveCheckpointsAcrossTheLifecycle(t *testing.T) {
 	r.git("commit", "-qm", "#394: squash landing")
 	r.git("push", "-q", "origin", "main")
 	r.git("branch", "-q", "-D", branch)
+	r.git("push", "-q", "origin", "--delete", branch) // as merge does since #286
 	landed := r.git("rev-parse", "HEAD")
 	env, err := openTrackerAt(context.Background(), r.root)
 	if err != nil {

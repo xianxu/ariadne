@@ -152,6 +152,7 @@ func readSnapshot(root string) repoSnapshot {
 
 func TestMain(m *testing.M) {
 	testfix.PreferRealGit()
+	testfix.QuietBackgroundGit()
 	root := realRepoRoot()
 	before := readSnapshot(root)
 	code := m.Run()
