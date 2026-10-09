@@ -1,12 +1,12 @@
 ---
 id: 000286
-status: codecomplete
+status: working
 deps: [ariadne#283]
 github_issue:
 created: 2026-10-02
 updated: 2026-10-08
 estimate_hours: 2.52
-card_mirror: '21727558853dba284d5394621a207a387971be61' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'be2ad19c21ab039b37b573c978c5385c3c977a0c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-08T14:22:50-07:00
 claimant:
     operator: Xian Xu
@@ -76,6 +76,7 @@ Durable plan: `workshop/plans/000286-boundary-push-abandon-plan.md`.
 ## Log
 
 ### 2026-10-08
+- 2026-10-08: closed — make test green except sandbox-only processgroup (as before); reclose after the nested-row ticker fix: TestTickNestedMilestoneRows + project/close suites green; Done-when tests unchanged (TestBoundaryVerbsPushTheIssueBranch, TestLandingDeletesTheRemoteBranch, TestAbandonStartedWork, TestReopenRestoresAnAbandonedIssue); review verdict: SHIP
 - 2026-10-08: closed — make test green except sandbox-only processgroup. Done-when: TestBoundaryVerbsPushTheIssueBranch + TestStartPlanRerunPushes + TestReconciledClosePushes (origin==HEAD after each boundary; rebase then next boundary force-pushes with lease); TestLandingDeletesTheRemoteBranch (merge leaves no remote branch); TestAbandonStartedWork (no local/remote branch, archive ref at tip, terminal card, details archived on main); TestReopenRestoresAnAbandonedIssue (punted issue restored at that tip, details un-archived, lands). Every push site and abandon/reopen step mutation-checked.; review verdict: FIX-THEN-SHIP
 - 2026-10-08: closed M2 — make test green (except sandbox-only processgroup); abandon: StartedWork/OpenIssue/Refusals/Decision/RerunResumes/KeepsTheBranchsPlans/OverwritesAnOrphanArchiveRef; reopen: RestoresAnAbandonedIssue/StopsOnAConflictThenResumes/RerunAfterAFailedPush/RerunVariants; set-status: RedirectsStartedWorkToAbandon, AbandonedWorkLeavesOnlyByReopen; every fix mutation-checked; review verdict: SHIP
 - 2026-10-08: closed M1 — make test green (except sandbox-only processgroup); each boundary push site pinned by its own mutation-checked test: TestBoundaryVerbsPushTheIssueBranch (start-plan, milestone-close --no-judge and judged, close, rebase+re-close), TestStartPlanRerunPushes, TestReconciledClosePushes, TestLandingPRPublishesARewrittenBranch, TestLandingDeletesTheRemoteBranch (+resume); TestBoundaryPushLeases, TestBoundaryPushIsBounded; review verdict: FIX-THEN-SHIP

@@ -202,6 +202,16 @@ rounds:
           round: 7
       recipe: milestone-review
       blocked: false
+    - "n": 8
+      timestamp: "2026-10-08T17:46:49-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: abandon.go:162-169 refuses a foreign resume; TestAbandonResumeRefusesAnotherWorkspace interrupts after main's archive (via a pre-push hook) and asserts the refusal and that the branch survives; without the guard the resume would proceed, so the test would fail; it passes.
+          round: 8
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#286 (boundary-review)
@@ -291,6 +301,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-9 — not-addressed — The ownership guard on the resume path exists (abandon.go:164-169), but no test refuses a foreign resume, so nothing fails if the guard is removed.
 
+## Round 8 — 2026-10-08T17:46:49-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — addressed — abandon.go:162-169 refuses a foreign resume; TestAbandonResumeRefusesAnotherWorkspace interrupts after main's archive (via a pre-push hook) and asserts the refusal and that the branch survives; without the guard the resume would proceed, so the test would fail; it passes.
+
 ## Open findings
 
-- **BR-9** [Minor] `rerun-skips-precondition` the abandon resume path skips the ownership check that plan D7 keeps for reruns
+(none — every finding has been disposed)
