@@ -54,7 +54,7 @@ Order: model first, done properly, with no fast-track for pair#365. #287 is inde
 - [x] Boundary pushes and sdlc abandon [ariadne#286]
   - [x] Boundary pushes and merge cleanup [ariadne#286 M1]
   - [x] `sdlc abandon` and reopen [ariadne#286 M2]
-- [ ] Reconcile merges done outside sdlc [ariadne#287]
+- [x] Reconcile merges done outside sdlc [ariadne#287]
 
 <a id="ariadne-284-m1"></a>
 ### ariadne#284 M1 — Atomic multi-claim and refresh on claim

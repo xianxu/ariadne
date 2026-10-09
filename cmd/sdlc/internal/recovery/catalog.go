@@ -125,13 +125,14 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"issue recovery reconcile"},
 		Class:         ConvergentRetry,
-		Effects:       "drives each unfinished receipt (close, issue new, move-detail) to its end, probing an uncertain effect before repeating it; settles closes whose evidence already landed; finishes an interrupted close mirror and pushes the issue branch of a close it finished (#286).",
+		Effects:       "drives each unfinished receipt (close, issue new, move-detail) to its end, probing an uncertain effect before repeating it; settles closes whose evidence already landed; finishes an interrupted close mirror and pushes the issue branch of a close it finished (#286). Then it finishes work merged outside sdlc (#287): every done card whose details are still live on main gets them and its plans archived in a narrow main commit, and its merged branch deleted on the remote; for the named issue merged without a close it prints the next action and changes nothing.",
 		Evidence:      "`sdlc issue recovery list`; " + observeEvidence + ".",
 		Preconditions: "run from the checkout on the receipt's branch (another worktree is refused).",
 		Repeat:        "nothing left to do: reports so and changes nothing.",
 		LostResponse:  "rerun — it re-probes from the durable receipt.",
 		Ends:          "a superseded close is released, never driven.",
 		Proofs: []Proof{
+			{"a closed outside merge is finished (done, archived, branch deleted) and a rerun changes nothing; an unclosed one is only reported (#287)", []string{"TestReconcileFinishesAnExternalMerge"}},
 			{"a close it finishes pushes the issue branch (#286)", []string{"TestReconciledClosePushes"}},
 			{"refuses another worktree", []string{"TestRecoveryReconcileRefusesAnotherWorktree"}},
 			{"an interrupted handoff is finished", []string{"TestMoveDetailInterruptedRecordIsFinishedByReconcile"}},
@@ -158,13 +159,14 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"merge"},
 		Class:         ConvergentRetry,
-		Effects:       "merges the PR, completes the issue's card (done, landed commit), archives the issue family on main and cleans up the branch, locally and on the remote (leased on the PR head; a failed remote delete warns, #286).",
+		Effects:       "merges the PR, completes the issue's card (done, landed commit), archives the issue family on main and cleans up the branch, locally and on the remote (leased on the PR head; a failed remote delete warns, #286). Then it finishes earlier work merged outside sdlc, as reconcile does (#287; warns, never fails the landing).",
 		Evidence:      observeEvidence + ": landing.outcome, landing.archived; the printed `Recovery: sdlc merge --branch B --yes`.",
 		Preconditions: "a reviewed branch whose head is unchanged since close; a clean tree; confirmation (--yes without a TTY).",
 		Repeat:        "an already-merged PR resumes post-merge cleanup; a reused branch name is refused (#148); after full success from rest, refused.",
 		LostResponse:  "run the printed `sdlc merge --branch B --yes`: it observes merged / integrated / archived / at rest and continues from there.",
 		Ends:          "the card was reopened or closed again (another generation): completion is refused.",
 		Proofs: []Proof{
+			{"the next landing finishes earlier work merged outside sdlc (#287)", []string{"TestMergeFinishesEarlierExternalMerges"}},
 			{"the landed branch leaves the remote (#286)", []string{"TestLandingDeletesTheRemoteBranch"}},
 			{"resumes cleanup after a merge already happened", []string{"TestRunMerge_ResumeMergedPR_FinishesCleanup"}},
 			{"refuses unmerged commits on a merged branch name", []string{"TestRunMerge_ResumeMergedPR_UnmergedCommits_Refuses"}},

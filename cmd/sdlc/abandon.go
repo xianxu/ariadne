@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -243,90 +242,27 @@ func pushArchiveRef(env *trackerEnv, ref, head string) error {
 	return err
 }
 
-// archiveAbandoned archives the issue's details (and its plan artifacts on
-// main) in one narrow main commit, through the landing archive's rules: the
-// final details mirror the terminal card. Started work's final details are
-// the kept tip's; an issue abandoned from open gets the note in main's copy.
+// archiveAbandoned archives an abandoned issue on main. Started work's final
+// details and plans are the kept tip's; an issue abandoned from open gets the
+// note in main's copy. Only its owner publishes.
 func archiveAbandoned(env *trackerEnv, stderr io.Writer, id, detailRel string, f *abandonFlags, rec issue.Abandoned, note string) error {
-	snap, err := env.repo.Snapshot()
-	if err != nil {
-		return err
+	spec := mainArchive{
+		Message: fmt.Sprintf("#%s: issue: abandon — archive details", issue.CLIRef(id)),
+		Dirs:    archiveDirs{Issues: f.IssuesDir, Plans: plansDir(), History: historyDir()},
+		Note:    note,
+		Allow:   func(c tracker.Record) error { return requireOwnedToPublish(env, c) },
 	}
-	card, err := snap.Require(id)
-	if err != nil {
-		return err
-	}
-	var final []byte
-	tipPlans := map[string][]byte{}
 	if rec.Started() {
-		if final, err = abandonedDetails(env, rec, detailRel); err != nil {
+		var err error
+		if spec.Final, err = abandonedDetails(env, rec, detailRel); err != nil {
 			return err
 		}
-		if tipPlans, err = keptPlans(env, rec, path.Base(detailRel)); err != nil {
+		if spec.Plans, err = keptPlans(env, rec, path.Base(detailRel)); err != nil {
 			return err
 		}
+		spec.Note = ""
 	}
-	base := path.Base(detailRel)
-	archived := false
-	prepare := func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
-		live, err := view.Exists(detailRel)
-		if err != nil || !live {
-			return gitx.TrunkWrite{}, errors.Join(err, tracker.ErrNoChange)
-		}
-		content := final
-		if content == nil {
-			if content, err = view.Read(detailRel); err != nil {
-				return gitx.TrunkWrite{}, err
-			}
-			fm, body, err := issue.Parse(string(content))
-			if err != nil {
-				return gitx.TrunkWrite{}, err
-			}
-			content = []byte(issue.Compose(fm, insertLogLine(body, note)))
-		}
-		w := gitx.TrunkWrite{Write: map[string][]byte{
-			archiveDestination(historyDir(), vocab.ArchiveIssues, base): mirrorTerminal(env, content, card.Raw),
-		}, Delete: []string{detailRel}, ExactBytes: true}
-		plans, err := view.Files(plansDir())
-		if err != nil {
-			return gitx.TrunkWrite{}, err
-		}
-		for _, p := range plans {
-			if planArtifactBelongsToIssue(base, path.Base(p.Path)) {
-				w.Write[archiveDestination(historyDir(), vocab.ArchivePlans, path.Base(p.Path))] = p.Content
-				w.Delete = append(w.Delete, p.Path)
-			}
-		}
-		// Started work's plans are the kept tip's, like its details (BR-7):
-		// they replace main's copies in the archive.
-		for name, content := range tipPlans {
-			w.Write[archiveDestination(historyDir(), vocab.ArchivePlans, name)] = content
-		}
-		archived = true
-		return w, nil
-	}
-	msg := fmt.Sprintf("#%s: issue: abandon — archive details", issue.CLIRef(id))
-	err = mainPublish(env, msg, prepare, func(string, string) error {
-		fresh, err := env.repo.Snapshot()
-		if err != nil {
-			return err
-		}
-		c, err := fresh.Require(id)
-		if err != nil {
-			return err
-		}
-		return requireOwnedToPublish(env, c)
-	})
-	if errors.Is(err, tracker.ErrNoChange) {
-		return nil
-	}
-	if err != nil {
-		return err
-	}
-	if archived {
-		cok(stderr, fmt.Sprintf("#%s's details archived on main", issue.CLIRef(id)))
-	}
-	return nil
+	return archiveIssueOnMain(env, stderr, id, detailRel, spec)
 }
 
 // abandonedDetails is the kept tip's details, fetching the archive ref when

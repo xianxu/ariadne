@@ -489,6 +489,15 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 	if derr := deleteRemoteBranch(func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }, t.Remote, branch, pr.HeadOID); derr != nil {
 		cwarn(stderr, fmt.Sprintf("landed, but %s was not deleted on %s: %v — `sdlc merge --branch %s --yes` retries it", branch, t.Remote, derr, branch))
 	}
+	// #287: the next merge also finishes work merged outside sdlc — its card
+	// went done above (settled by its evidence); archive it and drop its branch.
+	if tracked, terr := repositoryTracked(ctx, t.Root); terr == nil && tracked {
+		if env, oerr := openTrackerAt(ctx, t.Root); oerr != nil {
+			cwarn(stderr, fmt.Sprintf("landed; work merged outside sdlc not checked: %v", oerr))
+		} else if ferr := finishLandedLeftovers(env, stderr, archiveDirs{Issues: f.IssuesDir, Plans: f.PlansDir, History: f.HistoryDir}); ferr != nil {
+			cwarn(stderr, fmt.Sprintf("landed; earlier work merged outside sdlc not archived: %v — `sdlc issue recovery reconcile --issue N` retries", ferr))
+		}
+	}
 	fmt.Fprintf(stdout, "Landed PR #%d; workspace retained on unchanged %s. Refresh is separate.\n", pr.Number, t.Rest)
 	return nil
 }
