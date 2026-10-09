@@ -146,9 +146,18 @@ func statusDecision(card []byte, detailsBody, next string, force bool, today, st
 			return nil, prev, err
 		}
 	}
+	// #286 BR-13: abandoned work with a kept branch leaves its terminal status
+	// only by the reopen that restores it; anything else would orphan the ref.
+	rec, abandoned, err := issue.CardAbandoned(card)
+	if err != nil {
+		return nil, prev, err
+	}
+	if abandoned && rec.Started() && vocab.Issue().IsTerminal(prev) && next != prev && next != "working" {
+		return nil, prev, fmt.Errorf("refusing %s → %s: the work is kept at %s; reopen with `set-status working`, which restores it (--force does not apply)", prev, next, rec.Ref)
+	}
 	out, err := issue.SetCardField(card, "status", next)
-	if err == nil && vocab.Issue().IsTerminal(prev) && !vocab.Issue().IsTerminal(next) {
-		out, err = issue.SetCardAbandoned(out, nil) // a reopen ends the abandon record
+	if err == nil && abandoned && vocab.Issue().IsTerminal(prev) && next == "working" {
+		out, err = issue.SetCardAbandoned(out, nil) // the reopen ends the abandon record
 	}
 	if err == nil {
 		out, err = issue.SetCardField(out, "updated", today)
@@ -378,6 +387,12 @@ func reopenAbandoned(ctx context.Context, stderr io.Writer, f *setStatusFlags) (
 		return nil, err
 	}
 	status, _ := issue.GetField(card.Card.Frontmatter, "status")
+	if status == "working" {
+		// BR-12: a rerun after the reopen's card write (a lost response, an
+		// interruption) finishes it: on the restored branch, with the archive
+		// ref still holding work the branch contains.
+		return unfinishedReopen(env, card)
+	}
 	rec, ok, err := issue.CardAbandoned(card.Raw)
 	if err != nil || !ok || !rec.Started() || !vocab.Issue().IsTerminal(status) {
 		return nil, err
@@ -386,4 +401,25 @@ func reopenAbandoned(ctx context.Context, stderr io.Writer, f *setStatusFlags) (
 		return nil, err
 	}
 	return &reopenedAbandon{env: env, rec: rec, id: card.ID, cardPath: card.Path}, nil
+}
+
+// unfinishedReopen recognises a reopen whose card write landed but whose
+// finish did not: the archive ref still exists and this checkout's branch
+// contains it. nil when there is nothing to finish.
+func unfinishedReopen(env *trackerEnv, card tracker.Record) (*reopenedAbandon, error) {
+	if env.branch == "" || env.onRest() {
+		return nil, nil
+	}
+	ref := issue.AbandonedRef(card.ID)
+	tip, err := remoteRefTip(env.git, env.target.Remote, ref)
+	if err != nil || tip == "" {
+		return nil, err
+	}
+	if have, err := env.gitTest("cat-file", "-e", tip+"^{commit}"); err != nil || !have {
+		return nil, err
+	}
+	if kept, err := env.ancestorOf(tip, "HEAD"); err != nil || !kept {
+		return nil, err
+	}
+	return &reopenedAbandon{env: env, rec: issue.Abandoned{Ref: ref, Branch: env.branch, Head: tip}, id: card.ID, cardPath: card.Path}, nil
 }

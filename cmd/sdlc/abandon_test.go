@@ -22,8 +22,7 @@ const (
 
 func abandon9(as, reason string) error {
 	var out, errs bytes.Buffer
-	err := runAbandon(context.Background(), &out, &errs, &abandonFlags{Issue: 9, As: as, Reason: reason,
-		IssuesDir: "workshop/issues", PlansDir: "workshop/plans", HistoryDir: "workshop/history"})
+	err := runAbandon(context.Background(), &out, &errs, &abandonFlags{Issue: 9, As: as, Reason: reason, IssuesDir: "workshop/issues"})
 	if err != nil {
 		return errors.Join(err, errors.New(errs.String()))
 	}
@@ -376,5 +375,71 @@ func TestSetStatusRedirectsStartedWorkToAbandon(t *testing.T) {
 	}
 	if _, stderr, err := executeSDLCTestCommand("issue", "set-status", "wontfix", "--issue", "10"); err != nil {
 		t.Fatalf("triage of an open issue: %v %s", err, stderr)
+	}
+}
+
+const s09Plan = "workshop/plans/000009-s09-plan.md"
+
+// BR-7: abandon archives started work's plans from the kept tip, not main's
+// older copy, and a reopen brings that version back.
+func TestAbandonKeepsTheBranchsPlans(t *testing.T) {
+	r, paths, _ := startedHere(t)
+	peerAdd(t, r, s09Plan, "plan v1 (on main)\n")
+	r.git("fetch", "-q", "origin")
+	r.git("merge", "-q", "--no-edit", "origin/main")
+	writeRepoFile(t, r.root, s09Plan, "plan v2 (the branch's)\n")
+	r.git("commit", "-qam", "#9: plan v2")
+	if err := abandon9("punt", "r"); err != nil {
+		t.Fatal(err)
+	}
+	r.git("fetch", "-q", "origin")
+	if got := r.git("show", "origin/main:workshop/history/plans/000009-s09-plan.md"); got != "plan v2 (the branch's)" {
+		t.Fatalf("archived plan: %q", got)
+	}
+	if out, err := reopen9(); err != nil {
+		t.Fatalf("reopen: %v\n%s", err, out)
+	}
+	if got := r.git("show", "HEAD:"+s09Plan); got != "plan v2 (the branch's)" || gitSucceeds(r.root, "cat-file", "-e", "HEAD:workshop/history/plans/000009-s09-plan.md") {
+		t.Fatalf("reopened plan: %q", got)
+	}
+	_ = paths
+}
+
+// BR-12: a reopen interrupted after recreating the branch, or after its card
+// write, is finished by the rerun.
+func TestReopenRerunVariants(t *testing.T) {
+	t.Run("after the branch is recreated", func(t *testing.T) {
+		r, paths, kept := abandonedHere(t)
+		r.git("fetch", "-q", "origin", s09Archive)
+		r.git("branch", "-q", s09Branch, kept)
+		if out, err := reopen9(); err != nil {
+			t.Fatalf("rerun: %v\n%s", err, out)
+		}
+		assertReopened(t, r, paths["000009"], kept)
+	})
+	t.Run("after the card write", func(t *testing.T) {
+		r, paths, kept := abandonedHere(t)
+		if out, err := reopen9(); err != nil {
+			t.Fatalf("reopen: %v\n%s", err, out)
+		}
+		// Undo the finish: the mirror commit, the push and the ref deletion.
+		r.git("reset", "-q", "--soft", "HEAD~1")
+		r.git("push", "-q", "origin", kept+":"+s09Archive)
+		if out, err := reopen9(); err != nil {
+			t.Fatalf("rerun: %v\n%s", err, out)
+		}
+		assertReopened(t, r, paths["000009"], kept)
+	})
+}
+
+// BR-13: abandoned work with a kept branch leaves its terminal status only by
+// the restoring reopen, even forced.
+func TestAbandonedWorkLeavesOnlyByReopen(t *testing.T) {
+	r, paths, _ := abandonedHere(t)
+	if _, stderr, err := executeSDLCTestCommand("issue", "set-status", "open", "--issue", "9", "--force"); err == nil || !strings.Contains(err.Error()+stderr, "reopen with `set-status working`") {
+		t.Fatalf("forced punt → open: %v %s", err, stderr)
+	}
+	if rec, ok, _ := issue.CardAbandoned([]byte(r.card(paths["000009"]))); !ok || !rec.Started() {
+		t.Fatal("the refused change cleared the record")
 	}
 }

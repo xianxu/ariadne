@@ -78,11 +78,11 @@ func leasedBranchPush(git gitFn, remote, branch string) error {
 // already gone is not an error.
 func deleteRemoteBranch(git gitFn, remote, branch, head string) error {
 	ref := "refs/heads/" + branch
-	out, err := git("ls-remote", "--heads", remote, ref)
+	cur, err := remoteRefTip(git, remote, ref)
 	if err != nil {
 		return err
 	}
-	if strings.TrimSpace(out) != "" {
+	if cur != "" {
 		if _, err := git("push", "-q", "--force-with-lease="+ref+":"+head, remote, ":"+ref); err != nil {
 			if strings.Contains(err.Error(), "stale info") {
 				return fmt.Errorf("%w (the remote's %s moved past %s; inspect it before deleting)", err, branch, shortOID(head))
@@ -96,4 +96,19 @@ func deleteRemoteBranch(git gitFn, remote, branch, head string) error {
 	}
 	_, err = git("update-ref", "-d", tracking)
 	return err
+}
+
+// remoteRefTip is the commit a full ref names on the remote, "" when absent:
+// the one read of a remote ref (BR-14).
+func remoteRefTip(git gitFn, remote, ref string) (string, error) {
+	out, err := git("ls-remote", remote, ref)
+	if err != nil {
+		return "", err
+	}
+	for _, line := range strings.Split(out, "\n") {
+		if f := strings.Fields(line); len(f) == 2 && f[1] == ref {
+			return f[0], nil
+		}
+	}
+	return "", nil
 }

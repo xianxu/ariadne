@@ -97,6 +97,62 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: false
+    - "n": 5
+      timestamp: "2026-10-08T17:03:42-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: The plan has no file.go:NNN anchors left (grep found none); functions are named and a Revisions entry records it.
+          round: 5
+      findings:
+        - id: BR-7
+          severity: Important
+          title: abandon archives plan files from main, not the kept tip, so a reopen replaces the branch's plan edits
+          detail: 'abandon.go:281-289 copies p.Content from main''s view, while the details come from rec.Head. Reopen''s resolveArchiveConflicts takes main''s side with git rm, and step 4 at abandon.go:490 removes the live copy and moves the stale archived plan back. Rule: for started work, everything abandon archives comes from the kept tip. No test covers plan files in abandon or reopen.'
+          family: archive-source-of-truth
+          round: 5
+        - id: BR-8
+          severity: Important
+          title: README update appears missing for sdlc abandon, the archive ref and the set-status redirect
+          detail: README's Concurrent issue work section lists every ownership and lifecycle verb (claim, unclaim, reclaim, move, issue show) but not abandon or the reopen restore.
+          family: readme-verb-surface
+          round: 5
+        - id: BR-9
+          severity: Minor
+          title: the abandon resume path skips the ownership check that plan D7 keeps for reruns
+          detail: abandon.go:128-162 checks only a clean tree on resume; a foreign workspace can run dropAbandonedBranch. The containment lease limits the harm.
+          family: rerun-skips-precondition
+          round: 5
+        - id: BR-10
+          severity: Minor
+          title: restoreAbandoned reads WF_HISTORY_DIR/WF_PLANS_DIR from the environment while abandon takes --history-dir/--plans-dir flags
+          family: config-source-divergence
+          round: 5
+        - id: BR-11
+          severity: Minor
+          title: the Core concepts table names ClearCardAbandoned, a 5-argument abandonDecision and a {Ref, Head} record, none of which match the code
+          family: plan-table-drift
+          round: 5
+        - id: BR-12
+          severity: Minor
+          title: reopen rerun variants after step 2 and after the card write are untested, and the after-card-write rerun never runs finishReopen
+          detail: 'This is the 2nd finding in this family. Rule: every test variant the plan lists maps to a named test in the contract''s Proofs or to a Revisions entry that drops it. After a lost response on the card write, the rerun returns "already has that" and skips the mirror commit and the archive-ref deletion.'
+          family: test-claim-exceeds-test
+          round: 5
+        - id: BR-13
+          severity: Minor
+          title: a forced set-status from punt to open or blocked clears the abandoned record without restoring, leaving an archive ref nothing points to
+          family: record-cleared-without-effect
+          round: 5
+        - id: BR-14
+          severity: Minor
+          title: reading a ref's tip from the remote via ls-remote is duplicated at abandon.go:216, abandon.go:355, boundarypush.go:81 and handoff.go:284
+          family: shared-remote-ref-read
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#286 (boundary-review)
@@ -146,6 +202,34 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-6 — addressed — Verified red-without: TestReconciledClosePushes fails with closetracker.go:149 removed; TestStartPlanRerunPushes fails with startplan.go:344 removed; both listed in catalog Proofs.
 - BR-1 — not-addressed — Plan still carries line anchors (landing.go:558/:310, ghclient.go:149 now :154, handoff.go:205 for a function now in boundarypush.go); Integration-points row says deleteLandingBranch gains deleteRemoteBranch but the call is in runDurableMerge. Rule: name functions, never lines; add a Revisions entry.
 
+## Round 5 — 2026-10-08T17:03:42-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — The plan has no file.go:NNN anchors left (grep found none); functions are named and a Revisions entry records it.
+
+### Raised
+
+- **BR-7** [Important] `archive-source-of-truth` abandon archives plan files from main, not the kept tip, so a reopen replaces the branch's plan edits
+  abandon.go:281-289 copies p.Content from main's view, while the details come from rec.Head. Reopen's resolveArchiveConflicts takes main's side with git rm, and step 4 at abandon.go:490 removes the live copy and moves the stale archived plan back. Rule: for started work, everything abandon archives comes from the kept tip. No test covers plan files in abandon or reopen.
+- **BR-8** [Important] `readme-verb-surface` README update appears missing for sdlc abandon, the archive ref and the set-status redirect
+  README's Concurrent issue work section lists every ownership and lifecycle verb (claim, unclaim, reclaim, move, issue show) but not abandon or the reopen restore.
+- **BR-9** [Minor] `rerun-skips-precondition` the abandon resume path skips the ownership check that plan D7 keeps for reruns
+  abandon.go:128-162 checks only a clean tree on resume; a foreign workspace can run dropAbandonedBranch. The containment lease limits the harm.
+- **BR-10** [Minor] `config-source-divergence` restoreAbandoned reads WF_HISTORY_DIR/WF_PLANS_DIR from the environment while abandon takes --history-dir/--plans-dir flags
+- **BR-11** [Minor] `plan-table-drift` the Core concepts table names ClearCardAbandoned, a 5-argument abandonDecision and a {Ref, Head} record, none of which match the code
+- **BR-12** [Minor] `test-claim-exceeds-test` reopen rerun variants after step 2 and after the card write are untested, and the after-card-write rerun never runs finishReopen
+  This is the 2nd finding in this family. Rule: every test variant the plan lists maps to a named test in the contract's Proofs or to a Revisions entry that drops it. After a lost response on the card write, the rerun returns "already has that" and skips the mirror commit and the archive-ref deletion.
+- **BR-13** [Minor] `record-cleared-without-effect` a forced set-status from punt to open or blocked clears the abandoned record without restoring, leaving an archive ref nothing points to
+- **BR-14** [Minor] `shared-remote-ref-read` reading a ref's tip from the remote via ls-remote is duplicated at abandon.go:216, abandon.go:355, boundarypush.go:81 and handoff.go:284
+
 ## Open findings
 
-- **BR-1** [Minor] `stale-line-anchor` runDurablePR is at landing.go:492 (plan says ~:558) and legacy --delete-branch at ghclient.go:154 (plan says :149)
+- **BR-7** [Important] `archive-source-of-truth` abandon archives plan files from main, not the kept tip, so a reopen replaces the branch's plan edits
+- **BR-8** [Important] `readme-verb-surface` README update appears missing for sdlc abandon, the archive ref and the set-status redirect
+- **BR-9** [Minor] `rerun-skips-precondition` the abandon resume path skips the ownership check that plan D7 keeps for reruns
+- **BR-10** [Minor] `config-source-divergence` restoreAbandoned reads WF_HISTORY_DIR/WF_PLANS_DIR from the environment while abandon takes --history-dir/--plans-dir flags
+- **BR-11** [Minor] `plan-table-drift` the Core concepts table names ClearCardAbandoned, a 5-argument abandonDecision and a {Ref, Head} record, none of which match the code
+- **BR-12** [Minor] `test-claim-exceeds-test` reopen rerun variants after step 2 and after the card write are untested, and the after-card-write rerun never runs finishReopen
+- **BR-13** [Minor] `record-cleared-without-effect` a forced set-status from punt to open or blocked clears the abandoned record without restoring, leaving an archive ref nothing points to
+- **BR-14** [Minor] `shared-remote-ref-read` reading a ref's tip from the remote via ls-remote is duplicated at abandon.go:216, abandon.go:355, boundarypush.go:81 and handoff.go:284

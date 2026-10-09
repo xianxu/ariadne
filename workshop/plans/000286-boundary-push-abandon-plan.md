@@ -54,13 +54,13 @@ One extra `git push` per boundary verb (start-plan, milestone-close, close), typ
 
 | Name | Lives in | Status |
 |------|----------|--------|
-| `Abandoned` record (`CardAbandoned`, `SetCardAbandoned`, `ClearCardAbandoned`) | `cmd/sdlc/internal/issue/abandoned.go` | new |
-| `abandonDecision` | `cmd/sdlc/abandon.go` | new |
+| `Abandoned` record `{Ref, Branch, Head}` (`CardAbandoned`, `SetCardAbandoned`; nil clears) | `cmd/sdlc/internal/issue/abandoned.go` | new |
+| `abandonDecision(card, as, today, rec)` | `cmd/sdlc/abandon.go` | new |
 | `abandonEvent` | `cmd/sdlc/abandon.go` | new |
 | `trackerEnvelope` | `cmd/sdlc/internal/issue/handoff.go` | modified (gains `Abandoned`) |
 
-- **Abandoned** — `{Ref, Head}` on the card's tracker envelope, validated like `Release` (ref matches `refs/ariadne/abandoned/\d{6}`, head is an OID). Unit tests in `abandoned_test.go`, colocated, no IO.
-- **abandonDecision(card, as, today, ref, head)** — the card bytes after abandon: status via the model's edge (refuses a status with no `abandon`/`defer` edge), the record, `updated`; the rerun case (already terminal with the same record) returns `tracker.ErrNoChange`. Table test over the model's statuses.
+- **Abandoned** — `{Ref, Branch, Head}` on the card's tracker envelope, all set or all empty (Revisions), validated like `Release` (ref matches `refs/ariadne/abandoned/\d{6}`, branch an issue branch name, head an OID). Unit tests in `abandoned_test.go`, colocated, no IO.
+- **abandonDecision(card, as, today, rec)** — the card bytes after abandon: status via the model's edge (refuses a status with no `abandon`/`defer` edge), the record, `updated`; the rerun case (already terminal with the same record) returns `tracker.ErrNoChange`. Table test over the model's statuses.
 - **abandonEvent(as)** — `wontfix` → `abandon`, `punt` → `defer`, via the vocabulary.
 
 ### Integration points
@@ -137,3 +137,4 @@ All IO is exercised against real bare remotes in the existing fixtures (no mocks
 - 2026-10-08 (plan-quality round 1): added Non-goals and Operating envelope (PQ-4, PQ-7). D7 detects a rerun from the card record before step 1's branch checks, and step 6 deletes the remote branch before switching (PQ-1). D9 gained per-step rerun detection, the card write before the archive ref's deletion, and abandon's step 3 tolerates the orphan that ordering can leave (PQ-2). Step 5 reuses `archiveDestination`/`archivedDetails` generalized to terminal statuses and moves the issue's plan artifacts on main (PQ-3, new Task 4a). Re-close after a rebase goes through the #301 reopen path (PQ-8). The set-status seam and who may reopen are stated (PQ-6). Test prose compressed (PQ-5).
 - 2026-10-08 (M1 review, BR-1): line anchors removed in favor of function names; the remote delete sits in `runDurableMerge` after `deleteLandingBranch`, not inside it; `pushIssueBranch` now lives in `boundarypush.go` as a wrapper over `leasedBranchPush`.
 - 2026-10-08 (Task 5): the `abandoned` record also carries the branch name (a rerun from rest and a reopen need it), and its fields are all set or all empty: an issue abandoned from open records an empty one, whose presence still lets a rerun recognise its own end. Step 6 deletes the remote branch when the kept tip contains whatever it holds (it is usually an earlier boundary push), not only when it equals the tip.
+- 2026-10-08 (M2 review, round 4): the plans abandon archives for started work come from the kept tip, like the details (BR-7). abandon's plans and history roots come from `WF_PLANS_DIR`/`WF_HISTORY_DIR`, the same source the reopen reads, so its `--plans-dir`/`--history-dir` flags are gone (BR-10). A resume checks ownership by attribution (BR-9). Abandoned work with a kept branch leaves its terminal status only by the restoring reopen, even forced (BR-13). A `set-status working` rerun on a working card whose archive ref the branch contains finishes the reopen (BR-12). Remote ref reads share `remoteRefTip` (BR-14). The reopen variant "after step 4" is covered by `TestReopenRerunAfterAFailedPush`, "after step 2" and "after the card write" by `TestReopenRerunVariants`.

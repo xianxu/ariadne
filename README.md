@@ -38,6 +38,17 @@ passed and whether it landed. It is read-only, from any checkout, with each
 answer marked fresh, stale or unknown (#279). What each verb does when it is
 repeated, interrupted or answered by a lost response, and which tests prove it,
 is in every workflow verb's `--help` and in `sdlc help recovery` (#280).
+
+The issue branch is pushed at every boundary (start-plan, milestone-close,
+close, unclaim), leased on the copy last fetched, so started work survives a
+lost machine; `sdlc merge` deletes it from the remote once landed (#286).
+Started work ends as `wontfix` or `punt` only through `sdlc abandon --issue N
+--as wontfix|punt --reason …`: the tip is kept under
+`refs/ariadne/abandoned/NNNNNN`, the card records it, the details are archived
+on main and the branch is deleted. `sdlc issue set-status working` reopens it,
+restoring the branch at that tip with the details moved back out of the
+archive.
+
 Older binaries refuse claimed
 cards, so after this lands, update ariadne:0 and run `weave refresh` in every
 :1+ slot.

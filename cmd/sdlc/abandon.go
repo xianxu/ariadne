@@ -25,10 +25,15 @@ import (
 )
 
 type abandonFlags struct {
-	Issue                           int
-	As, Reason                      string
-	IssuesDir, PlansDir, HistoryDir string
+	Issue      int
+	As, Reason string
+	IssuesDir  string
 }
+
+// The archive's plans and history roots come from the environment, as the
+// reopen that restores from them reads them (one source, BR-10).
+func plansDir() string   { return envOr("WF_PLANS_DIR", "workshop/plans") }
+func historyDir() string { return envOr("WF_HISTORY_DIR", "workshop/history") }
 
 func NewAbandonCmd() *cobra.Command {
 	f := abandonFlags{}
@@ -47,8 +52,6 @@ func NewAbandonCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.As, "as", "", "the terminal status: wontfix (rejected) or punt (deferred)")
 	cmd.Flags().StringVar(&f.Reason, "reason", "", "one line for the issue's ## Log: why it ends here")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue details")
-	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding plan artifacts")
-	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "archive root")
 	return cmd
 }
 
@@ -158,6 +161,12 @@ func runAbandon(ctx context.Context, stdout, stderr io.Writer, f *abandonFlags) 
 		cok(stderr, fmt.Sprintf("#%s is %s; the owner stays as attribution", issueStr, f.As))
 		status = f.As
 	} else {
+		// The owner stays as attribution: only that workspace finishes it.
+		if own, recorded, _, err := ownership(env, card); err != nil {
+			return err
+		} else if own == issue.OwnershipForeign {
+			return fmt.Errorf("#%s was abandoned by %s; only that workspace finishes it", issueStr, describeClaimant(recorded))
+		}
 		cinfo(stderr, fmt.Sprintf("#%s is already %s by abandon; finishing its remaining steps", issueStr, status))
 	}
 
@@ -213,13 +222,9 @@ func keepAbandonedWork(env *trackerEnv, stderr io.Writer, id, detailRel, as, rea
 // accepts the ref absent, already at head (a rerun), or at an ancestor of
 // head (an orphan an interrupted reopen left, whose work the branch holds).
 func pushArchiveRef(env *trackerEnv, ref, head string) error {
-	out, err := env.git("ls-remote", env.target.Remote, ref)
+	cur, err := remoteRefTip(env.git, env.target.Remote, ref)
 	if err != nil {
 		return err
-	}
-	cur := ""
-	if f := strings.Fields(out); len(f) > 0 {
-		cur = f[0]
 	}
 	switch {
 	case cur == head:
@@ -252,8 +257,12 @@ func archiveAbandoned(env *trackerEnv, stderr io.Writer, id, detailRel string, f
 		return err
 	}
 	var final []byte
+	tipPlans := map[string][]byte{}
 	if rec.Started() {
 		if final, err = abandonedDetails(env, rec, detailRel); err != nil {
+			return err
+		}
+		if tipPlans, err = keptPlans(env, rec, path.Base(detailRel)); err != nil {
 			return err
 		}
 	}
@@ -276,17 +285,22 @@ func archiveAbandoned(env *trackerEnv, stderr io.Writer, id, detailRel string, f
 			content = []byte(issue.Compose(fm, insertLogLine(body, note)))
 		}
 		w := gitx.TrunkWrite{Write: map[string][]byte{
-			archiveDestination(f.HistoryDir, vocab.ArchiveIssues, base): mirrorTerminal(env, content, card.Raw),
+			archiveDestination(historyDir(), vocab.ArchiveIssues, base): mirrorTerminal(env, content, card.Raw),
 		}, Delete: []string{detailRel}, ExactBytes: true}
-		plans, err := view.Files(f.PlansDir)
+		plans, err := view.Files(plansDir())
 		if err != nil {
 			return gitx.TrunkWrite{}, err
 		}
 		for _, p := range plans {
 			if planArtifactBelongsToIssue(base, path.Base(p.Path)) {
-				w.Write[archiveDestination(f.HistoryDir, vocab.ArchivePlans, path.Base(p.Path))] = p.Content
+				w.Write[archiveDestination(historyDir(), vocab.ArchivePlans, path.Base(p.Path))] = p.Content
 				w.Delete = append(w.Delete, p.Path)
 			}
+		}
+		// Started work's plans are the kept tip's, like its details (BR-7):
+		// they replace main's copies in the archive.
+		for name, content := range tipPlans {
+			w.Write[archiveDestination(historyDir(), vocab.ArchivePlans, name)] = content
 		}
 		archived = true
 		return w, nil
@@ -332,6 +346,26 @@ func abandonedDetails(env *trackerEnv, rec issue.Abandoned, detailRel string) ([
 	return raw, nil
 }
 
+// keptPlans is the kept tip's plan artifacts for the issue, by basename.
+func keptPlans(env *trackerEnv, rec issue.Abandoned, base string) (map[string][]byte, error) {
+	listed, err := env.git("ls-tree", "--name-only", rec.Head, plansDir()+"/")
+	if err != nil {
+		return nil, err
+	}
+	out := map[string][]byte{}
+	for _, p := range strings.Fields(listed) {
+		if !planArtifactBelongsToIssue(base, path.Base(p)) {
+			continue
+		}
+		content, err := env.gitRaw(nil, "show", rec.Head+":"+p)
+		if err != nil {
+			return nil, err
+		}
+		out[path.Base(p)] = content
+	}
+	return out, nil
+}
+
 // mirrorTerminal brings details to the terminal card through the archive's
 // one projection; details it cannot refresh are archived as they are.
 func mirrorTerminal(env *trackerEnv, content, card []byte) []byte {
@@ -352,12 +386,11 @@ func mirrorTerminal(env *trackerEnv, content, card []byte) []byte {
 func dropAbandonedBranch(env *trackerEnv, stderr io.Writer, rec issue.Abandoned) error {
 	// The remote copy may be any earlier push of the branch; it is deleted
 	// (leased on what it holds) only when the kept tip contains it.
-	out, err := env.git("ls-remote", "--heads", env.target.Remote, "refs/heads/"+rec.Branch)
+	remoteTip, err := remoteRefTip(env.git, env.target.Remote, "refs/heads/"+rec.Branch)
 	if err != nil {
 		return err
 	}
-	if f := strings.Fields(out); len(f) > 0 {
-		remoteTip := f[0]
+	if remoteTip != "" {
 		if _, err := env.git("fetch", "-q", env.target.Remote, "refs/heads/"+rec.Branch); err != nil {
 			return err
 		}
@@ -448,10 +481,8 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 	if err != nil {
 		return err
 	}
-	historyDir := envOr("WF_HISTORY_DIR", "workshop/history")
-	plansDir := envOr("WF_PLANS_DIR", "workshop/plans")
 	base := path.Base(card.Path)
-	archivedRel := archiveDestination(historyDir, vocab.ArchiveIssues, base)
+	archivedRel := archiveDestination(historyDir(), vocab.ArchiveIssues, base)
 	archiveCommit, err := env.git("rev-list", "-1", view.Ref(), "--", archivedRel)
 	if err != nil {
 		return err
@@ -461,7 +492,7 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 			return err
 		} else if !merged {
 			if _, err := env.git("merge", "-q", "--no-edit", view.Ref()); err != nil {
-				if rerr := resolveArchiveConflicts(env, base, issuesDir, plansDir); rerr != nil {
+				if rerr := resolveArchiveConflicts(env, base, issuesDir, plansDir()); rerr != nil {
 					return fmt.Errorf("#%s: merging main into %s stopped on a conflict: %v\n      resolve and commit the merge (for the issue's details, keep main's archived copy), then rerun `sdlc issue set-status working --issue %s`; the card is unchanged", issueStr, rec.Branch, rerr, issueStr)
 				}
 			}
@@ -473,13 +504,13 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 		return err
 	} else if archived {
 		moves := [][2]string{{archivedRel, liveRel}}
-		plans, err := env.git("ls-tree", "--name-only", "HEAD", vocab.ArchiveSubdir(historyDir, vocab.ArchivePlans)+"/")
+		plans, err := env.git("ls-tree", "--name-only", "HEAD", vocab.ArchiveSubdir(historyDir(), vocab.ArchivePlans)+"/")
 		if err != nil {
 			return err
 		}
 		for _, p := range strings.Fields(plans) {
 			if planArtifactBelongsToIssue(base, path.Base(p)) {
-				moves = append(moves, [2]string{p, path.Join(plansDir, path.Base(p))})
+				moves = append(moves, [2]string{p, path.Join(plansDir(), path.Base(p))})
 			}
 		}
 		var paths []string
@@ -490,6 +521,9 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 				if _, err := env.git("rm", "-q", "--", m[1]); err != nil { // the archived copy is newer
 					return err
 				}
+			}
+			if err := os.MkdirAll(filepath.Join(env.root, filepath.FromSlash(path.Dir(m[1]))), 0o755); err != nil {
+				return err // the merge may have removed the last file in it
 			}
 			if _, err := env.git("mv", m[0], m[1]); err != nil {
 				return err

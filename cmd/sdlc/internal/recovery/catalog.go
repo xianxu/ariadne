@@ -215,7 +215,8 @@ var Catalog = []Contract{
 		LostResponse:  "rerun the same command — the card decides. A concurrent change refuses (\"changed concurrently\").",
 		Ends:          "another card change since you read it.",
 		Proofs: []Proof{
-			{"started work ends only through abandon; a reopen restores, un-archives and resumes after a conflict or a failed push (#286)", []string{"TestSetStatusRedirectsStartedWorkToAbandon", "TestReopenRestoresAnAbandonedIssue", "TestReopenStopsOnAConflictThenResumes", "TestReopenRerunAfterAFailedPush"}},
+			{"started work ends only through abandon, and leaves an abandoned status only by the restoring reopen (#286)", []string{"TestSetStatusRedirectsStartedWorkToAbandon", "TestAbandonedWorkLeavesOnlyByReopen"}},
+			{"a reopen restores the branch and un-archives details and plans; a conflict, a failed push, a recreated branch or a lost card write is finished by rerunning (#286)", []string{"TestReopenRestoresAnAbandonedIssue", "TestAbandonKeepsTheBranchsPlans", "TestReopenStopsOnAConflictThenResumes", "TestReopenRerunAfterAFailedPush", "TestReopenRerunVariants"}},
 			{"guards and claimant stamping", []string{"TestStatusDecisionRecordsOrRefusesTheClaimant", "TestCheckTransitionGuards_ReopenNeedsLogEntry"}},
 			{"a lost response is settled by rerunning", []string{"TestSetStatusRerunSettlesALostResponse"}},
 		},
@@ -294,6 +295,7 @@ var Catalog = []Contract{
 			{"an open issue ends with an empty record and an archive", []string{"TestAbandonOpenIssue"}},
 			{"each refusal names its own check, before any effect", []string{"TestAbandonRefusals", "TestAbandonDecision"}},
 			{"an interruption at any step, from the branch or from rest, is finished by rerunning", []string{"TestAbandonRerunResumes"}},
+			{"started work's plans are archived from the kept tip; an orphan archive ref is overwritten", []string{"TestAbandonKeepsTheBranchsPlans", "TestAbandonOverwritesAnOrphanArchiveRef"}},
 		},
 	},
 	{

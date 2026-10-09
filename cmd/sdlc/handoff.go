@@ -281,7 +281,7 @@ func finishOwnedTakeover(env *trackerEnv, stderr io.Writer, card tracker.Record)
 		return
 	}
 	branch := issue.BranchName(card.Path)
-	listed, err := env.git("ls-remote", env.target.Remote, "refs/heads/"+branch)
+	listed, err := remoteRefTip(env.git, env.target.Remote, "refs/heads/"+branch)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("not resuming on %s: reading the remote failed: %v", branch, err))
 		return
