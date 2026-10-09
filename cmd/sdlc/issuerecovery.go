@@ -109,6 +109,11 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 				cok(stderr, fmt.Sprintf("#%s landed; its card is now done", issue.CLIRef(id)))
 			}
 		}
+		// #287: work merged outside sdlc is archived, its branch deleted.
+		if _, ferr := finishLandedLeftovers(env, stderr, envOr("WF_ISSUES_DIR", "workshop/issues")); ferr != nil {
+			cwarn(stderr, fmt.Sprintf("landed issues not archived: %v", ferr))
+		}
+		reportUnclosedMerge(env, stderr, fmt.Sprintf("%06d", issueID))
 	}()
 	if len(mine) == 0 {
 		cok(stderr, fmt.Sprintf("no unfinished operations for #%d here", issueID))

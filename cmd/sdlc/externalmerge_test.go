@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -127,4 +128,50 @@ func TestStateIgnoresAFreshBranch(t *testing.T) {
 			t.Fatalf("a fresh branch read as merged: %+v", d)
 		}
 	}
+}
+
+// #287: reconcile finishes a closed issue merged outside sdlc — card done,
+// details archived on main mirroring it, the branch gone from the remote — and
+// a rerun changes nothing. Without the close it names the next action and
+// changes nothing.
+func TestReconcileFinishesAnExternalMerge(t *testing.T) {
+	t.Run("closed", func(t *testing.T) {
+		r, cardPath, detailPath := externalMergeFixture(t, "closed")
+		branch := r.git("branch", "--show-current")
+		var out, errs bytes.Buffer
+		if err := runRecoveryReconcile(context.Background(), &out, &errs, 330); err != nil {
+			t.Fatalf("reconcile: %v\n%s", err, errs.String())
+		}
+		if !strings.Contains(r.card(cardPath), "status: done") {
+			t.Fatalf("card:\n%s", r.card(cardPath))
+		}
+		r.git("fetch", "-q", "origin")
+		archived := "workshop/history/issues/" + filepath.Base(detailPath)
+		tree := r.git("ls-tree", "-r", "--name-only", "origin/main")
+		if strings.Contains(tree, detailPath) || !strings.Contains(tree, archived) || !strings.Contains(r.git("show", "origin/main:"+archived), "status: done") {
+			t.Fatalf("not archived on main:\n%s", tree)
+		}
+		if remoteTip(t, r, branch) != "" {
+			t.Fatal("the merged branch is still on the remote")
+		}
+		before := r.originMain()
+		errs.Reset()
+		if err := runRecoveryReconcile(context.Background(), &out, &errs, 330); err != nil || r.originMain() != before {
+			t.Fatalf("rerun: %v (main moved: %v)\n%s", err, r.originMain() != before, errs.String())
+		}
+	})
+	t.Run("not closed", func(t *testing.T) {
+		r, cardPath, _ := externalMergeFixture(t, "not closed")
+		mainBefore, card := r.originMain(), r.card(cardPath)
+		var out, errs bytes.Buffer
+		if err := runRecoveryReconcile(context.Background(), &out, &errs, 330); err != nil {
+			t.Fatalf("reconcile: %v\n%s", err, errs.String())
+		}
+		if !strings.Contains(errs.String(), "`sdlc close --issue 330`") {
+			t.Fatalf("no next action:\n%s", errs.String())
+		}
+		if r.originMain() != mainBefore || r.card(cardPath) != card {
+			t.Fatal("reconcile changed an unclosed outside merge")
+		}
+	})
 }

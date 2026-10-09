@@ -40,11 +40,11 @@ Independent of #284–#286: it needs only the merge detection and the existing c
 ## Plan
 
 - [x] Claim, run start-plan, and design against the Spec and the project PRD (`workshop/projects/claimant-ownership.md`); size the flow at change-code.
-- [ ] Durable plan `workshop/plans/000287-reconcile-external-merges-plan.md`; single close, no Mx.
-  - [ ] Task 1: pure verdict
-  - [ ] Task 2: extract `archiveIssueOnMain` from abandon
-  - [ ] Task 3: detection and `sdlc state` findings
-  - [ ] Task 4: finisher via reconcile and merge; docs
+- [x] Durable plan `workshop/plans/000287-reconcile-external-merges-plan.md`; single close, no Mx.
+  - [x] Task 1: pure verdict
+  - [x] Task 2: extract `archiveIssueOnMain` from abandon
+  - [x] Task 3: detection and `sdlc state` findings
+  - [x] Task 4: finisher via reconcile and merge; docs
 
 ## Log
 
@@ -53,3 +53,5 @@ Independent of #284–#286: it needs only the merge detection and the existing c
 Claimed in ariadne:2. Survey: the evidence-on-main → done half exists (`settleLandedCompletions`, run by reconcile and after every merge), but it doesn't archive, doesn't delete the remote branch, and nothing reports it; `sdlc state` only has a commit-subject heuristic. Design: detect by ancestry of the pushed branch tip (kept current by #286) and of the completion's evidence; `state` reports with the next action and never writes; reconcile and the next merge finish (done, archive via the narrow main commit extracted from abandon, leased remote delete). Squash/rebase merges outside sdlc are a non-goal: ancestry can't see them without the GitHub API.
 
 ### 2026-10-02
+
+Built: `externalMergeVerdict` (pure); `archiveIssueOnMain` extracted from abandon; `externalMerges` detection. A branch counts as merged when its pushed tip is on main but off main's first-parent line, because a branch fresh from start-plan sits on that line; that rule is mutation-checked by `TestStateIgnoresAFreshBranch`. `sdlc state` reports with the next action and suppresses the commit-subject 'looks done' guess for the same issue. The finisher `finishLandedLeftovers` archives every done card whose details are still live on main, after a landing has archived its own issues. It runs from reconcile and at the end of merge (a landing settles before its own archive, so the IDs that settle returns can't drive it). The merge hook, the reconcile hook and the branch deletion are each mutation-checked. make test green except the sandbox-only processgroup test.

@@ -276,6 +276,19 @@ boundary push warns; only `unclaim`'s fails the verb. `sdlc pr` uses the same
 push, and `sdlc merge` deletes the landed branch from the remote, leased on the
 PR's head.
 
+### Merges done outside sdlc (#287)
+
+`externalmerge.go` notices work landed by the GitHub button instead of `sdlc
+merge`, from git alone: a started card's pushed branch tip is on main but off
+its first-parent line (a merge commit; a fresh branch with no work sits on that
+line), or a codecomplete card's evidence commit is on main. The pure
+`externalMergeVerdict` gives settle / close needed / claim needed. `sdlc state`
+reports each with its next action and never writes. `reconcile` and the next
+`sdlc merge` finish it: `settleLandedCompletions` marks the card done, and
+`finishLandedLeftovers` archives every done card's still-live details and plans
+in a narrow main commit (`archiveIssueOnMain`, shared with abandon), then
+deletes the merged branch on the remote. Squash and rebase merges are not seen.
+
 ### Abandon and reopen (#286)
 
 `sdlc abandon` (`abandon.go`) ends started work as `wontfix`/`punt` without

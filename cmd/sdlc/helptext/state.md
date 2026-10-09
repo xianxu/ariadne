@@ -48,6 +48,14 @@ State surfaces structural inconsistencies but does not enforce them
   - Issue files with no frontmatter / missing status field — broken state.
   - File-read failures (permission denied, broken symlink, etc.) —
     surfaced as warnings so the inventory remains complete.
+  - Merges done outside sdlc (#287): a started issue whose pushed branch
+    was merged into main by a merge commit (the GitHub button), or whose
+    close evidence is on main, while its card is not done. The finding
+    names the next action: `sdlc issue recovery reconcile --issue N` when
+    the close is on main (it marks the card done, archives the details,
+    deletes the branch), otherwise `sdlc close` from the owner's slot, or
+    `sdlc claim` first when no one owns it. State only reports; squash and
+    rebase merges leave nothing on main for it to see.
 
 Drift checks are warnings, not errors. Use the surfaced output to
 decide whether to flip status, tick a plan box, or move a done issue

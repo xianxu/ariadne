@@ -9,10 +9,13 @@ package main
 import (
 	"context"
 	"fmt"
+	"io"
+	"path"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -131,15 +134,15 @@ func firstParentSet(env *trackerEnv, mainTip string) (map[string]bool, error) {
 // externalMergeFinding is `sdlc state`'s report for one verdict: what
 // happened and the exact next action. state never acts on it.
 func externalMergeFinding(m externalMerge) DriftFinding {
-	n := issue.CLIRef(m.ID)
+	issueStr := issue.CLIRef(m.ID)
 	msg := ""
 	switch m.Verdict {
 	case mergeSettle:
-		msg = fmt.Sprintf("merged outside sdlc with its close on main — finish the bookkeeping (done, archive, branch) with `sdlc issue recovery reconcile --issue %s`", n)
+		msg = fmt.Sprintf("merged outside sdlc with its close on main — finish the bookkeeping (done, archive, branch) with `sdlc issue recovery reconcile --issue %s`", issueStr)
 	case mergeCloseNeeded:
-		msg = fmt.Sprintf("%s was merged into main outside sdlc without a close — from the owner's slot, `sdlc close --issue %s` on a branch from main, then `sdlc pr` and `sdlc merge`", m.Branch, n)
+		msg = fmt.Sprintf("%s was merged into main outside sdlc without a close — from the owner's slot, `sdlc close --issue %s` on a branch from main, then `sdlc pr` and `sdlc merge`", m.Branch, issueStr)
 	case mergeClaimNeeded:
-		msg = fmt.Sprintf("%s was merged into main outside sdlc, and #%s has no owner — `sdlc claim --issue %s`, then `sdlc close --issue %s`", m.Branch, n, n, n)
+		msg = fmt.Sprintf("%s was merged into main outside sdlc, and #%s has no owner — `sdlc claim --issue %s`, then `sdlc close --issue %s`", m.Branch, issueStr, issueStr, issueStr)
 	}
 	return DriftFinding{Severity: "warn", Issue: m.ID, Message: msg}
 }
@@ -167,4 +170,86 @@ func externalMergeFindings(ctx context.Context, root string) []DriftFinding {
 		out = append(out, externalMergeFinding(m))
 	}
 	return out
+}
+
+// finishLandedLeftovers finishes the bookkeeping a merge done outside sdlc
+// left (#287): every done card whose details are still live on main gets them
+// (and its plans) archived in a narrow main commit, and its issue branch is
+// deleted on the remote once main contains it. A landing archives its own
+// issues first, so what remains is exactly what landed elsewhere. Convergent:
+// a rerun finds nothing live. It returns the issues it archived.
+func finishLandedLeftovers(env *trackerEnv, stderr io.Writer, issuesDir string) ([]string, error) {
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	live := map[string]bool{}
+	files, err := view.Files(issuesDir)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range files {
+		live[path.Base(f.Path)] = true
+	}
+	var finished []string
+	for _, rec := range snap.Records() {
+		status, _ := issue.GetField(rec.Card.Frontmatter, "status")
+		base := path.Base(rec.Path)
+		if status != "done" || !live[base] {
+			continue
+		}
+		spec := mainArchive{
+			Message: fmt.Sprintf("#%s: issue: archive after a merge outside sdlc", issue.CLIRef(rec.ID)),
+			Allow: func(c tracker.Record) error { // the card is the authority: archive done work only
+				if s, _ := issue.GetField(c.Card.Frontmatter, "status"); s != "done" {
+					return fmt.Errorf("#%s is %s, no longer done; not archiving", issue.CLIRef(c.ID), s)
+				}
+				return nil
+			},
+		}
+		if err := archiveIssueOnMain(env, stderr, rec.ID, path.Join(issuesDir, base), spec); err != nil {
+			return finished, fmt.Errorf("archive #%s: %w", issue.CLIRef(rec.ID), err)
+		}
+		finished = append(finished, rec.ID)
+		branch := issue.BranchName(rec.Path)
+		tip, err := remoteRefTip(env.git, env.target.Remote, "refs/heads/"+branch)
+		if err != nil || tip == "" {
+			continue
+		}
+		if have, err := env.gitTest("cat-file", "-e", tip+"^{commit}"); err != nil || !have {
+			continue // never fetched here: leave it rather than guess
+		}
+		if merged, err := env.ancestorOf(tip, view.Ref()); err == nil && merged {
+			if err := deleteRemoteBranch(env.git, env.target.Remote, branch, tip); err != nil {
+				cwarn(stderr, fmt.Sprintf("#%s archived, but %s was not deleted on %s: %v", issue.CLIRef(rec.ID), branch, env.target.Remote, err))
+			} else {
+				cok(stderr, fmt.Sprintf("%s (merged into main) deleted on %s", branch, env.target.Remote))
+			}
+		}
+	}
+	return finished, nil
+}
+
+// reportUnclosedMerge prints reconcile's next action for an issue merged
+// outside sdlc without its close: there is no bookkeeping to finish until the
+// owner closes it, so nothing changes.
+func reportUnclosedMerge(env *trackerEnv, stderr io.Writer, id string) {
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return
+	}
+	merges, err := externalMerges(env, view.Ref())
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("merges outside sdlc not checked: %v", err))
+		return
+	}
+	for _, m := range merges {
+		if m.ID == id && m.Verdict != mergeSettle {
+			cwarn(stderr, externalMergeFinding(m).Message)
+		}
+	}
 }
