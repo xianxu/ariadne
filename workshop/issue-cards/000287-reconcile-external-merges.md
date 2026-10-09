@@ -1,6 +1,6 @@
 ---
 id: 000287
-status: codecomplete
+status: done
 created: 2026-10-02
 updated: 2026-10-08
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 68c1fc2e3accf4531b4ce04dec2c3f5f3e8db5ce
         evidence_commit: ca5bc3eb77a626ec7b2f37a1c7b6c2b2f8dd6eae
+        landed_commit: 10caf7026bac001340932cc15af22800746b984b
 ---
 
 # Reconcile merges done outside sdlc
