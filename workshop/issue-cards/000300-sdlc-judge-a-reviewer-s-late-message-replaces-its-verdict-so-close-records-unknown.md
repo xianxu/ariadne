@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown.md
         source_blob: 381447e96acecdac158d6bf08b54af16701380fe
         destination: workshop/issues/000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown.md
+        main_commit: cfb35e614fd014d81df3e875da167021822a2eda
 ---
 
 # sdlc judge: a reviewer's late message replaces its verdict, so close records 'unknown'
