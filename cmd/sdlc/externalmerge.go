@@ -279,17 +279,20 @@ func finishLandedLeftovers(env *trackerEnv, stderr io.Writer, dirs archiveDirs) 
 // outside sdlc without its close: there is no bookkeeping to finish until the
 // owner closes it, so nothing changes.
 func reportUnclosedMerge(ctx context.Context, env *trackerEnv, stderr io.Writer, issuesDir, id string) {
+	notChecked := func(err error) { cwarn(stderr, fmt.Sprintf("merges outside sdlc not checked: %v", err)) }
 	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
 	if err != nil {
+		notChecked(err)
 		return
 	}
 	view, err := env.main.Snapshot()
 	if err != nil {
+		notChecked(err)
 		return
 	}
 	merges, err := externalMerges(env, rs, view.Ref())
 	if err != nil {
-		cwarn(stderr, fmt.Sprintf("merges outside sdlc not checked: %v", err))
+		notChecked(err)
 		return
 	}
 	for _, m := range merges {

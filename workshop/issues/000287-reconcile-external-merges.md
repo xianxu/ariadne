@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "9f0d7c07", done: "bb26c6af"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Reconcile merges done outside sdlc
@@ -49,6 +49,8 @@ Independent of #284–#286: it needs only the merge detection and the existing c
 ## Log
 
 ### 2026-10-08
+- 2026-10-08: closed — make test green except sandbox-only processgroup (rerun after round-1 fixes; stale-guard included). Done-when: TestStateReportsExternalMerges (closed/not closed/unowned, remote unchanged), TestStateIgnoresAFreshBranch, TestStateJudgesTheNewestBranchTip; TestReconcileFinishesAnExternalMerge (done+archived+branch deleted, rerun no-op; unclosed: next action, no change), TestReconcileRetriesAFailedBranchDelete; TestMergeFinishesEarlierExternalMerges. Hooks, branch deletion, first-parent and freshness rules mutation-checked.; review verdict: FIX-THEN-SHIP
+- 2026-10-08: flow upgraded quick → full — 478 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Claimed in ariadne:2. Survey: the evidence-on-main → done half exists (`settleLandedCompletions`, run by reconcile and after every merge), but it doesn't archive, doesn't delete the remote branch, and nothing reports it; `sdlc state` only has a commit-subject heuristic. Design: detect by ancestry of the pushed branch tip (kept current by #286) and of the completion's evidence; `state` reports with the next action and never writes; reconcile and the next merge finish (done, archive via the narrow main commit extracted from abandon, leased remote delete). Squash/rebase merges outside sdlc are a non-goal: ancestry can't see them without the GitHub API.
 
@@ -57,3 +59,5 @@ Claimed in ariadne:2. Survey: the evidence-on-main → done half exists (`settle
 Built: `externalMergeVerdict` (pure); `archiveIssueOnMain` extracted from abandon; `externalMerges` detection. A branch counts as merged when its pushed tip is on main but off main's first-parent line, because a branch fresh from start-plan sits on that line; that rule is mutation-checked by `TestStateIgnoresAFreshBranch`. `sdlc state` reports with the next action and suppresses the commit-subject 'looks done' guess for the same issue. The finisher `finishLandedLeftovers` archives every done card whose details are still live on main, after a landing has archived its own issues. It runs from reconcile and at the end of merge (a landing settles before its own archive, so the IDs that settle returns can't drive it). The merge hook, the reconcile hook and the branch deletion are each mutation-checked. make test green except the sandbox-only processgroup test.
 
 Close review round 1 was REWORK, with 9 findings; all are fixed (see plan Revisions). BR-1, Critical: the plan described a per-issue finisher, but the code is repo-wide. The repo-wide one is deliberate, since a landing settles before its own archive, and the plan is now corrected. BR-2: state no longer fetches; it reuses the command's cached records and main as last fetched, and labels a stale read. BR-3: the branch sweep reads `ls-remote --heads`, so a failed delete is retried (`TestReconcileRetriesAFailedBranchDelete`). BR-4: the branch tip is the newer of local and remote-tracking (`TestStateJudgesTheNewestBranchTip`, mutation-checked). BR-5: evidence comes from `ownedCompletions`. BR-6: `archiveDirs`. BR-7: no unused return. BR-8: the settle message names the interrupted-merge case. BR-9: the close-off guess is suppressed by a finding kind, not a message prefix.
+
+Close review round 2 (FIX-THEN-SHIP, two Minors, both fixed). The plan's Architecture paragraph and its runDurableMerge row now name `finishLandedLeftovers`; a grep for the old name finds only the Revisions history. `reportUnclosedMerge` now warns 'not checked' on every failure path.

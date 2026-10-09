@@ -4,7 +4,7 @@
 
 **Goal:** An issue branch merged into main outside sdlc (the GitHub web button) is reported by `sdlc state` and, when its close evidence is on main, finished by `reconcile` or the next `sdlc merge` (card done, details and plans archived, remote branch deleted); without the evidence, sdlc names the next action and changes nothing.
 
-**Architecture:** One pure classifier, `externalMergeVerdict`, over facts observed per started issue (card status, completion binding on main, pushed branch merged into main, ownership). `sdlc state` renders its findings read-only. A finisher, `finishExternalMerge`, reuses `settleLandedCompletions` for the card, and a narrow main archive commit extracted from `abandon` (`archiveIssueOnMain`) for the details and plans, then deletes the remote branch with the #286 lease. `reconcile --issue N` and `sdlc merge` (after its own landing) call it.
+**Architecture:** One pure classifier, `externalMergeVerdict`, over facts observed per started issue (card status, completion binding on main, pushed branch merged into main, ownership). `sdlc state` renders its findings read-only. After `settleLandedCompletions` marks the card done, a repository-wide finisher, `finishLandedLeftovers`, archives every done card's still-live details and plans in a narrow main commit extracted from `abandon` (`archiveIssueOnMain`) and deletes merged issue branches from the remote with the #286 lease. `reconcile` and `sdlc merge` (at the end of its own landing) call it.
 
 **Tech Stack:** Go (`cmd/sdlc`), git ancestry against fetched refs only (no GitHub API), fixtures `procedureFixture`/`closeReady` and the #286 boundary-push remote.
 
@@ -49,7 +49,7 @@
 | `archiveAbandoned` | `cmd/sdlc/abandon.go` | modified (calls `archiveIssueOnMain`) | — |
 | `detectDrift` / `runState` | `cmd/sdlc/state.go` | modified | + external-merge findings |
 | `runRecoveryReconcile` | `cmd/sdlc/issuerecovery.go` | modified | + finisher |
-| `runDurableMerge` | `cmd/sdlc/landing.go` | modified | + finisher for settle verdicts |
+| `runDurableMerge` | `cmd/sdlc/landing.go` | modified | + `finishLandedLeftovers` at the end of the landing |
 
 ## Tasks
 
@@ -75,3 +75,4 @@
 ## Revisions
 
 - 2026-10-08 (close review round 1, REWORK): the finisher is repository-wide (`finishLandedLeftovers`), not per issue (`finishExternalMerge`): a landing settles outside merges inside `completeLandingPR`, before its own archive, so the settled IDs aren't available afterwards. "Every done card whose details are still live on main, after the landing archived its own" is the same set and converges (BR-1). Its branch sweep lists the remote's heads once, so a failed delete is retried (BR-3). `sdlc state` adds no fetch: it reuses the command's cached records and main as last fetched (BR-2). Evidence on main comes from `ownedCompletions`, one source with the settle (BR-5). The branch tip is the newer of local and remote-tracking (BR-4). Merge passes its own dirs (`archiveDirs`, BR-6). The settle finding names the interrupted-merge case too (BR-8). The close-off guess is suppressed by a finding kind, not a message prefix (BR-9).
+- 2026-10-08 (close review round 2): the Architecture paragraph and the `runDurableMerge` row now name `finishLandedLeftovers` too (grep for the old name finds no other).

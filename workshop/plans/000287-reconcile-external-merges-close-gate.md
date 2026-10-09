@@ -61,6 +61,61 @@ rounds:
           round: 1
       recipe: milestone-review
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-08T18:43:42-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Table row, D4, D5 and a Revisions entry now describe finishLandedLeftovers; the stale Architecture paragraph is raised below as the class sweep.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: externalMergeFindings reads the records state already cached (PreferFresh key) and env.main.LocalView, with no Snapshot or fetch; D1 is amended.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: The branch sweep reads ls-remote --heads over all done cards; TestReconcileRetriesAFailedBranchDelete refuses the delete with a pre-push hook and asserts that the rerun deletes the branch.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: branchTip prefers the local tip when it contains the remote-tracking one; covered by TestStateJudgesTheNewestBranchTip.
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: externalMerges derives EvidenceOnMain from ownedCompletions(env, rs, mainTip, "", false).
+          round: 2
+        - id: BR-6
+          disposition: addressed
+          note: The merge hook passes archiveDirs{f.IssuesDir, f.PlansDir, f.HistoryDir}.
+          round: 2
+        - id: BR-7
+          disposition: addressed
+          note: finishLandedLeftovers returns only an error.
+          round: 2
+        - id: BR-8
+          disposition: addressed
+          note: The settle message names the interrupted merge or push case and the `sdlc merge --branch B --yes` alternative.
+          round: 2
+        - id: BR-9
+          disposition: addressed
+          note: The new driftKind field driftCloseOff replaces the message-prefix match; the exactly-one-finding assertion in TestStateReportsExternalMerges covers it.
+          round: 2
+      findings:
+        - id: BR-10
+          severity: Minor
+          title: The plan's Architecture paragraph and the runDurableMerge row still describe the per-issue finishExternalMerge
+          detail: 'This is the 2nd finding in family plan-table-matches-code. Rule: when a design revision renames or rescopes an entity, sweep every plan passage that names it (Architecture header, Goal, table rows, D-entries, Tasks), not only the passage the finding cited. Grepping the plan for the old name finds them all.'
+          family: plan-table-matches-code
+          round: 2
+        - id: BR-11
+          severity: Minor
+          title: reportUnclosedMerge silently returns on record-load or main-snapshot errors but warns on externalMerges errors
+          detail: cmd/sdlc/externalmerge.go:272-279. When a fetch fails, reconcile prints no next action and no "not checked" line; warn the same way as the externalMerges branch.
+          family: failure-degrades-visibly
+          round: 2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#287 (boundary-review)
@@ -89,14 +144,28 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   For an interrupted sdlc merge the documented recovery is sdlc merge --branch B --yes, not reconcile.
 - **BR-9** [Minor] `structured-not-string-match` state suppresses the close-off finding by matching the message prefix looks done
 
+## Round 2 — 2026-10-08T18:43:42-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Table row, D4, D5 and a Revisions entry now describe finishLandedLeftovers; the stale Architecture paragraph is raised below as the class sweep.
+- BR-2 — addressed — externalMergeFindings reads the records state already cached (PreferFresh key) and env.main.LocalView, with no Snapshot or fetch; D1 is amended.
+- BR-3 — addressed — The branch sweep reads ls-remote --heads over all done cards; TestReconcileRetriesAFailedBranchDelete refuses the delete with a pre-push hook and asserts that the rerun deletes the branch.
+- BR-4 — addressed — branchTip prefers the local tip when it contains the remote-tracking one; covered by TestStateJudgesTheNewestBranchTip.
+- BR-5 — addressed — externalMerges derives EvidenceOnMain from ownedCompletions(env, rs, mainTip, "", false).
+- BR-6 — addressed — The merge hook passes archiveDirs{f.IssuesDir, f.PlansDir, f.HistoryDir}.
+- BR-7 — addressed — finishLandedLeftovers returns only an error.
+- BR-8 — addressed — The settle message names the interrupted merge or push case and the `sdlc merge --branch B --yes` alternative.
+- BR-9 — addressed — The new driftKind field driftCloseOff replaces the message-prefix match; the exactly-one-finding assertion in TestStateReportsExternalMerges covers it.
+
+### Raised
+
+- **BR-10** [Minor] `plan-table-matches-code` The plan's Architecture paragraph and the runDurableMerge row still describe the per-issue finishExternalMerge
+  This is the 2nd finding in family plan-table-matches-code. Rule: when a design revision renames or rescopes an entity, sweep every plan passage that names it (Architecture header, Goal, table rows, D-entries, Tasks), not only the passage the finding cited. Grepping the plan for the old name finds them all.
+- **BR-11** [Minor] `failure-degrades-visibly` reportUnclosedMerge silently returns on record-load or main-snapshot errors but warns on externalMerges errors
+  cmd/sdlc/externalmerge.go:272-279. When a fetch fails, reconcile prints no next action and no "not checked" line; warn the same way as the externalMerges branch.
+
 ## Open findings
 
-- **BR-1** [Critical] `plan-table-matches-code` Plan core-concepts table and D5 name a per-issue finishExternalMerge; code ships repo-wide finishLandedLeftovers
-- **BR-2** [Important] `declared-envelope-enforced` sdlc state now fetches main and the tracker every run, contradicting D1's no-extra-network claim
-- **BR-3** [Minor] `cleanup-is-convergent` A failed remote-branch delete after archiving is never retried
-- **BR-4** [Minor] `observation-freshness` branchTip prefers a possibly stale remote-tracking ref over the local branch
-- **BR-5** [Minor] `single-source-predicate` externalMerges re-implements ownedCompletions' evidence-on-main check
-- **BR-6** [Minor] `flags-thread-through` merge's finisher ignores f.PlansDir and f.HistoryDir
-- **BR-7** [Minor] `unused-api-surface` finishLandedLeftovers returns archived IDs that both callers discard
-- **BR-8** [Minor] `accurate-next-action` The settle finding says merged outside sdlc for interrupted sdlc merges and sdlc push closes
-- **BR-9** [Minor] `structured-not-string-match` state suppresses the close-off finding by matching the message prefix looks done
+- **BR-10** [Minor] `plan-table-matches-code` The plan's Architecture paragraph and the runDurableMerge row still describe the per-issue finishExternalMerge
+- **BR-11** [Minor] `failure-degrades-visibly` reportUnclosedMerge silently returns on record-load or main-snapshot errors but warns on externalMerges errors
