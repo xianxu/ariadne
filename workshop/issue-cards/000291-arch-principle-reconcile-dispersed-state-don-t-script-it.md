@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000291-arch-principle-reconcile-dispersed-state-don-t-script-it.md
         source_blob: 4ae393db90e065c265151b11eaa7264f20f0974a
         destination: workshop/issues/000291-arch-principle-reconcile-dispersed-state-don-t-script-it.md
+        main_commit: 782f4dad3d244fe930ea92a63b178b2e4a758f9e
 ---
 
 # ARCH principle: reconcile dispersed state, don't script it
