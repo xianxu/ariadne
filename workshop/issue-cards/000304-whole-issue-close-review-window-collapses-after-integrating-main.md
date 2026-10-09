@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000304-whole-issue-close-review-window-collapses-after-integrating-main.md
         source_blob: ec0746a773c01ff0d9d8d1fb78309994420357e9
         destination: workshop/issues/000304-whole-issue-close-review-window-collapses-after-integrating-main.md
+        main_commit: 63faa79c69c0e9862ee6bda2fc303e588760a4e9
 ---
 
 # Milestone review window absorbs integrated main; close's printed window misleads
