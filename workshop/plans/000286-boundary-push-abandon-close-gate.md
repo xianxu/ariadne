@@ -192,6 +192,16 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 7
+      timestamp: "2026-10-08T17:22:48-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: not-addressed
+          note: The ownership guard on the resume path exists (abandon.go:164-169), but no test refuses a foreign resume, so nothing fails if the guard is removed.
+          round: 7
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#286 (boundary-review)
@@ -274,6 +284,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-12 — addressed — TestReopenRerunVariants covers both variants; disabling the working-status branch in reopenAbandoned turns "after the card write" red.
 - BR-13 — addressed — statusDecision refuses leaving terminal except by working when the record is started; TestAbandonedWorkLeavesOnlyByReopen goes red without the guard.
 - BR-14 — addressed — The four named sites use remoteRefTip; the pre-existing landing.go:392 raw ls-remote (outside the window) is a sibling to fold in when that file is next touched.
+
+## Round 7 — 2026-10-08T17:22:48-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — not-addressed — The ownership guard on the resume path exists (abandon.go:164-169), but no test refuses a foreign resume, so nothing fails if the guard is removed.
 
 ## Open findings
 

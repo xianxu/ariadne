@@ -294,7 +294,7 @@ var Catalog = []Contract{
 			{"started work is kept, the card ends, the details archive, the branch goes; a repeat changes nothing", []string{"TestAbandonStartedWork"}},
 			{"an open issue ends with an empty record and an archive", []string{"TestAbandonOpenIssue"}},
 			{"each refusal names its own check, before any effect", []string{"TestAbandonRefusals", "TestAbandonDecision"}},
-			{"an interruption at any step, from the branch or from rest, is finished by rerunning", []string{"TestAbandonRerunResumes"}},
+			{"an interruption at any step, from the branch or from rest, is finished by rerunning — only by the attributed workspace", []string{"TestAbandonRerunResumes", "TestAbandonResumeRefusesAnotherWorkspace"}},
 			{"started work's plans are archived from the kept tip; an orphan archive ref is overwritten", []string{"TestAbandonKeepsTheBranchsPlans", "TestAbandonOverwritesAnOrphanArchiveRef"}},
 		},
 	},

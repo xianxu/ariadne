@@ -443,3 +443,35 @@ func TestAbandonedWorkLeavesOnlyByReopen(t *testing.T) {
 		t.Fatal("the refused change cleared the record")
 	}
 }
+
+// BR-9: an interrupted abandon is finished only by the workspace it is
+// attributed to. Interrupted after main's archive (the remote branch deletion
+// refused), nothing later would stop another workspace: the resume's own
+// ownership check must.
+func TestAbandonResumeRefusesAnotherWorkspace(t *testing.T) {
+	r, _, _ := startedHere(t)
+	if err := pushIssueBranch(boundaryEnv(t), s09Branch); err != nil {
+		t.Fatal(err)
+	}
+	hooks := t.TempDir()
+	hook := "#!/bin/sh\nwhile read l ls rr rs; do\n  case \"$rr:$ls\" in refs/heads/" + s09Branch + ":0000000000000000000000000000000000000000) exit 1;; esac\ndone\nexit 0\n"
+	if err := os.WriteFile(filepath.Join(hooks, "pre-push"), []byte(hook), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("config", "core.hooksPath", hooks)
+	if err := abandon9("punt", "r"); err == nil {
+		t.Fatal("fixture did not interrupt")
+	}
+	r.git("config", "--unset", "core.hooksPath")
+	r.git("fetch", "-q", "origin")
+	if !strings.Contains(r.git("ls-tree", "-r", "--name-only", "origin/main"), s09History) || remoteTip(t, r, s09Branch) == "" {
+		t.Fatal("fixture: want main archived and the remote branch kept")
+	}
+	withClaimant(t, otherSlot)
+	if err := abandon9("punt", "r"); err == nil || !strings.Contains(err.Error(), "only that workspace finishes it") {
+		t.Fatalf("a foreign resume: %v", err)
+	}
+	if remoteTip(t, r, s09Branch) == "" || r.git("for-each-ref", "refs/heads/"+s09Branch) == "" {
+		t.Fatal("a refused resume deleted the branch")
+	}
+}
