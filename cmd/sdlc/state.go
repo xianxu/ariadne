@@ -215,6 +215,21 @@ func runState(ctx context.Context, stdout io.Writer, f *stateFlags) error {
 	s.Issues, s.TrackerStale = issues, stale
 	// gitx.ShippedWorkOnMain is the production ship probe; state_test fakes it.
 	s.Drift = detectDrift(issues, historyDir, gitx.ShippedWorkOnMain)
+	// #287: an issue merged outside sdlc gets the precise finding instead of
+	// the commit-subject close-off guess.
+	if merges := externalMergeFindings(ctx, identity.WorktreeRoot); len(merges) > 0 {
+		judged := map[string]bool{}
+		for _, m := range merges {
+			judged[m.Issue] = true
+		}
+		kept := s.Drift[:0]
+		for _, d := range s.Drift {
+			if !judged[d.Issue] || !strings.HasPrefix(d.Message, "looks done") {
+				kept = append(kept, d)
+			}
+		}
+		s.Drift = append(kept, merges...)
+	}
 	for _, i := range issues {
 		if i.OwnerError != "" {
 			s.Drift = append(s.Drift, DriftFinding{Severity: "warn", Issue: i.ID, Message: "owner unreadable: " + i.OwnerError})

@@ -6,7 +6,15 @@
 // merge. Squash and rebase merges leave neither on main and are not seen.
 package main
 
-import "github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+import (
+	"context"
+	"fmt"
+	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/pkg/vocab"
+)
 
 type mergeVerdict int
 
@@ -36,4 +44,127 @@ func externalMergeVerdict(f mergeFacts) mergeVerdict {
 		return mergeClaimNeeded
 	}
 	return mergeCloseNeeded
+}
+
+// externalMerge is one started issue judged against main.
+type externalMerge struct {
+	ID, CardPath, Branch, Tip string
+	Verdict                   mergeVerdict
+}
+
+// externalMerges judges every started, unfinished card against mainTip. A
+// branch counts as merged when its pushed tip (the local branch when it was
+// never pushed) is on main but off main's first-parent line: the GitHub
+// button merges with a merge commit, while a fresh branch with no work of its
+// own sits on that line and is not mistaken for a merge.
+func externalMerges(env *trackerEnv, mainTip string) ([]externalMerge, error) {
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return nil, err
+	}
+	var firstParent map[string]bool
+	var out []externalMerge
+	for _, rec := range snap.Records() {
+		status, _ := issue.GetField(rec.Card.Frontmatter, "status")
+		if vocab.Issue().IsOpen(status) || vocab.Issue().IsTerminal(status) {
+			continue
+		}
+		f := mergeFacts{}
+		if b, ok, err := issue.CardCompletion(rec.Raw); err != nil {
+			return nil, fmt.Errorf("card #%s: %w", rec.ID, err)
+		} else if ok && status == "codecomplete" && b.Repository == env.target.Repository {
+			if f.EvidenceOnMain, err = env.closeAncestorOf(b.EvidenceCommit, mainTip); err != nil {
+				return nil, err
+			}
+		}
+		branch := issue.BranchName(rec.Path)
+		tip, err := branchTip(env, branch)
+		if err != nil {
+			return nil, err
+		}
+		if tip != "" {
+			if onMain, err := env.ancestorOf(tip, mainTip); err != nil {
+				return nil, err
+			} else if onMain {
+				if firstParent == nil {
+					if firstParent, err = firstParentSet(env, mainTip); err != nil {
+						return nil, err
+					}
+				}
+				f.BranchMerged = !firstParent[tip]
+			}
+		}
+		if f.Owner, _, _, err = ownership(env, rec); err != nil {
+			return nil, err
+		}
+		if v := externalMergeVerdict(f); v != mergeNone {
+			out = append(out, externalMerge{ID: rec.ID, CardPath: rec.Path, Branch: branch, Tip: tip, Verdict: v})
+		}
+	}
+	return out, nil
+}
+
+// branchTip is the issue branch's pushed tip, else its local one, else "".
+func branchTip(env *trackerEnv, branch string) (string, error) {
+	for _, ref := range []string{gitx.RemoteTrackingRef(env.target.Remote, branch), "refs/heads/" + branch} {
+		tip, err := env.git("for-each-ref", "--format=%(objectname)", ref)
+		if err != nil || tip != "" {
+			return tip, err
+		}
+	}
+	return "", nil
+}
+
+// firstParentSet is main's first-parent line, read once per judgement.
+func firstParentSet(env *trackerEnv, mainTip string) (map[string]bool, error) {
+	out, err := env.git("rev-list", "--first-parent", mainTip)
+	if err != nil {
+		return nil, err
+	}
+	set := map[string]bool{}
+	for _, c := range strings.Fields(out) {
+		set[c] = true
+	}
+	return set, nil
+}
+
+// externalMergeFinding is `sdlc state`'s report for one verdict: what
+// happened and the exact next action. state never acts on it.
+func externalMergeFinding(m externalMerge) DriftFinding {
+	n := issue.CLIRef(m.ID)
+	msg := ""
+	switch m.Verdict {
+	case mergeSettle:
+		msg = fmt.Sprintf("merged outside sdlc with its close on main — finish the bookkeeping (done, archive, branch) with `sdlc issue recovery reconcile --issue %s`", n)
+	case mergeCloseNeeded:
+		msg = fmt.Sprintf("%s was merged into main outside sdlc without a close — from the owner's slot, `sdlc close --issue %s` on a branch from main, then `sdlc pr` and `sdlc merge`", m.Branch, n)
+	case mergeClaimNeeded:
+		msg = fmt.Sprintf("%s was merged into main outside sdlc, and #%s has no owner — `sdlc claim --issue %s`, then `sdlc close --issue %s`", m.Branch, n, n, n)
+	}
+	return DriftFinding{Severity: "warn", Issue: m.ID, Message: msg}
+}
+
+// externalMergeFindings is state's read of outside merges in a tracked
+// repository; anything that keeps it from judging is reported, never fatal.
+func externalMergeFindings(ctx context.Context, root string) []DriftFinding {
+	if tracked, err := repositoryTracked(ctx, root); err != nil || !tracked {
+		return nil
+	}
+	env, err := openTrackerAt(ctx, root)
+	if err != nil {
+		return []DriftFinding{{Severity: "info", Message: "merges outside sdlc not checked: " + err.Error()}}
+	}
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return []DriftFinding{{Severity: "info", Message: "merges outside sdlc not checked: " + err.Error()}}
+	}
+	merges, err := externalMerges(env, view.Ref())
+	if err != nil {
+		return []DriftFinding{{Severity: "info", Message: "merges outside sdlc not checked: " + err.Error()}}
+	}
+	out := make([]DriftFinding, 0, len(merges))
+	for _, m := range merges {
+		out = append(out, externalMergeFinding(m))
+	}
+	return out
 }
