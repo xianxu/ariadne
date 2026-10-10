@@ -1,12 +1,20 @@
 ---
 id: 000096
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-06-14
-updated: 2026-06-14
+updated: 2026-10-09
 estimate_hours:
-card_mirror: 'bec7efeee7cf6f783c58e944d4c6d98fc43e02f9' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '9eb8ae940b921e0e36976fbbbb90e1f0a9ffc9b7' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Peer-repo work legibility: make cross-repo base-layer edits visible at the gate
@@ -157,6 +165,8 @@ under speed pressure — *speed is exactly why edits got skipped.*
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): obsolete: premise was one shared checkout edited in place, replaced by slots, worktrees and claims; also an ID collision with history 000096-weave-prune-stale (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-06-14
 
 - Brainstorm held in a brain session (started 2026-06-13). Parked to do the ariadne
