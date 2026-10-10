@@ -54,7 +54,11 @@ squash dropped the token. Before #304 a rebase made the card unowned and the gat
 reported "nothing to verify", which failed open. The reviewed commit stays resolvable
 through `refs/sdlc/reviewed/<id>/<boundary>`, which is removed at done, at abandon and
 by both legacy archives, and swept by settle. A clone without it refuses with a
-re-close.
+re-close. **Known limit:** a legacy (no-tracker) repository has no sweep, because pin
+refs are shared across worktrees and no single checkout can tell whether one is live.
+A hand-archived legacy issue therefore keeps its (milestones + 1) pins until someone
+deletes them with `git update-ref -d`. A sweep would need liveness across every
+worktree (`git worktree list`) and an age bound (#304 close review, round 4).
 
 **Doc-only tolerance (#174).** A post-anchor delta with **no code surface**
 (`publishGateHasCodeSurface`: the #177 `hasCodePath` docs classifier — `*.md`,

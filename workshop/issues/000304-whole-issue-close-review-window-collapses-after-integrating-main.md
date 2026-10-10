@@ -157,3 +157,4 @@ Durable plan: `workshop/plans/000304-whole-issue-close-review-window-collapses-a
   - the legacy archives unpin exactly what they moved, never by local liveness of shared refs;
   - the done and settle sites warn on pin failures.
   These are post-close code changes, so a re-close follows.
+- **Re-closed** (SHIP; evidence `5890aae2`; actual 2.23h). Round-4 advisory Minor: legacy repositories have no removal path for a hand-archived issue's pins. It is recorded as a named known limit in `atlas/workflow/pre-merge-checks.md` rather than fixed, because another fix means another full re-close. Each round has surfaced a new Minor, and that loop is the cost #183's interdiff re-review exists to cut. Flagged to the TL as a candidate for #183 or a follow-up.
