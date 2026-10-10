@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "6d3c6f44", done: "e5bf0e1c"}
 ---
 
 # sdlc judge plan-quality renders an empty issue — no --issue path populates IssueContent/PlanContent
