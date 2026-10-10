@@ -103,3 +103,7 @@ report). These are the difference between "the gate runs" and "the gate can't be
 
 ### 2026-05-31 — CI fix: symlinked runner absent in isolated checkouts (found via #53 Phase E)
 The first real PR exercise (you-decide PR #4) showed the mechanism was broken in CI: `scripts/run-merge-checks.sh` is a sibling symlink into `../<upstream>`, which the GitHub Actions checkout (consumer repo only) does not have → `bash: scripts/run-merge-checks.sh: No such file or directory` (exit 127). Same root cause the workflow shim already dodges by being a real file. **Fix (operator's call):** the seeded `.github/workflows/merge-check.yml` now runs `BOOTSTRAP_CLONE_ONLY=1 ./bootstrap.sh` before the checks — the single-script mechanism every ariadne-style repo uses to clone its upstream peer chain as siblings; CLONE_ONLY skips the `make bootstrap` handoff. Guarded on `bootstrap.sh` presence (root repo = no-op). Applied to the ariadne seed template here AND to you-decide's already-seeded copy. **Verified live: you-decide PR #4 CI green, both gates ran.** Caveat: seed is write-once, so any *other* already-seeded derivative using CI needs the same patch applied by hand.
+
+## Log
+
+- 2026-10-09: abandoned (wontfix): superseded by #309 (local gates vs server CI; merge refuses red CI). M1 shipped in May (a39b0336, 14bbe679, merge-check.yml) but was never ticked; M2 is stale (ariadne-robustness-1 triage, 2026-10-09)
