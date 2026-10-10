@@ -54,6 +54,14 @@ Detailed incidents remain in their owning issue or review artifact.
   milestone's not-run trailer, the legacy boundary grep took a skipped review as a
   review boundary (#304 BR-2).
 
+- Define a main-relative check on the branch patch (`merge-base(main,HEAD)..HEAD`) or
+  on the reviewed patch replayed onto today's main, never on commits after an anchor.
+  Merging or rebasing main changes commits, not the patch. A commit count read every
+  integration as unreviewed work, and an ancestry test silently disowned a rebased
+  close (#304).
+- A per-process cache of remote state needs the local view in its key. Keyed on the
+  checkout alone, it returned the main of the first call after a later fetch (#304).
+
 ## Paths, processes, and integration
 
 - Resolve a verb's repository from the path it was given (`--issues-dir`,

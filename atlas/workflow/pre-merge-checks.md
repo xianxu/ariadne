@@ -28,10 +28,33 @@ moved to close.
 commit that leaves the issue at `status: codecomplete` (a content read of the
 issue file's git history). Because `sdlc close` is the **sole writer** of
 `codecomplete` (`set-status` refuses it), that commit is a trustworthy anchor; a
-re-close after drift produces a newer such commit, so the anchor advances. merge/push
-refuse if any commit landed after the latest anchor, pointing you to re-run `sdlc
-close`. Deterministic — it *forces* a real re-review rather than silently re-judging
-a delta (the elegance that replaced #142's proposed post-close LLM delta-review).
+re-close after drift produces a newer such commit, so the anchor advances. In a
+tracker repository the anchor is the card binding's evidence commit. Deterministic —
+it *forces* a real re-review rather than silently re-judging a delta (the elegance
+that replaced #142's proposed post-close LLM delta-review).
+
+**On the branch patch, not a commit count (#304, A4).** The gate replays each issue's
+reviewed patch (the anchor, against its own merge-base with main) onto today's main
+with `gitx.RebasedReviewedBase` and diffs that against HEAD (`classifyPublishDelta`).
+Merging or rebasing main after close therefore needs no re-close. Only the branch's
+own post-close code refuses, and the refusal names those paths, never main's. A
+conflict refuses with its paths, because the resolution is unreviewed. On a branch
+carrying several closes, any reviewed patch that covers HEAD passes: the newest
+close reviewed the whole branch patch. That generalizes the old newest-anchor rule.
+Refusals share the `publishGateRefusal` prefix, which `gatesig` keys on.
+
+**The close binding survives a rebase (#304, B3).** A tracker close's evidence
+message carries `Close-Token: <binding token>`. A rebase rewrites the evidence commit
+but never its message, so `ownedCompletions` still owns the close: its evidence is in
+the head, or a commit in range carries the card's *current* token. One rule serves
+publish, PR landing and settle. A reopen-and-close mints a new token, so an older
+close never claims a newer one. A codecomplete card this branch's patch touches, but
+that no rule owns, refuses loudly (`refuseUnownedCompletions`), for example after a
+squash dropped the token. Before #304 a rebase made the card unowned and the gate
+reported "nothing to verify", which failed open. The reviewed commit stays resolvable
+through `refs/sdlc/reviewed/<id>/<boundary>`, which is removed at done, at abandon and
+by both legacy archives, and swept by settle. A clone without it refuses with a
+re-close.
 
 **Doc-only tolerance (#174).** A post-anchor delta with **no code surface**
 (`publishGateHasCodeSurface`: the #177 `hasCodePath` docs classifier — `*.md`,
