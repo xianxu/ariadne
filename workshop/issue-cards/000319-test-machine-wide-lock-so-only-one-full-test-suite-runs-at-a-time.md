@@ -1,6 +1,6 @@
 ---
 id: 000319
-status: codecomplete
+status: done
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ab40f8a68c8262a6cd829d16b1b78ad0661e4a27
         evidence_commit: f371152a35d6bccdf89cce75377d6353a3c29225
+        landed_commit: 0e11a21ef163afa07cc4882048a862395f2a8d9c
 ---
 
 # test: machine-wide lock so only one full test suite runs at a time
