@@ -1,6 +1,6 @@
 ---
 id: 000304
-status: codecomplete
+status: done
 created: 2026-10-08
 updated: 2026-10-09
 estimate_hours: 6.27
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 8470f8eba30208ef56bc70307273647e2e57d428
         evidence_commit: 85394ff5cc23b73f703035a44363bb8a4b9aa9de
+        landed_commit: 624aa939aec4f1c81a364ea763c5bda359f57e60
 ---
 
 # Milestone review window absorbs integrated main; close's printed window misleads
