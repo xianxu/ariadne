@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000319-test-machine-wide-lock-so-only-one-full-test-suite-runs-at-a-time.md
         source_blob: 4f2f0ab6f0fac8582f9584fb933d42b3e93b0c39
         destination: workshop/issues/000319-test-machine-wide-lock-so-only-one-full-test-suite-runs-at-a-time.md
+        main_commit: 5d364c69e8ffda6f5416e3f3dbd236625f299964
 ---
 
 # test: machine-wide lock so only one full test suite runs at a time
