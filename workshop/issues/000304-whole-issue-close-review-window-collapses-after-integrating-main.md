@@ -120,7 +120,7 @@ Durable plan: `workshop/plans/000304-whole-issue-close-review-window-collapses-a
 (tasks 1–7 → M1, tasks 8–12 → M2).
 
 - [x] M1 — review windows on the branch patch: `Round.Reviewed` stamped on finalize, rebased-reviewed-base primitive, milestone interdiff, printed window, milestone-close commits its own evidence + reviewed-head pin (#197, A2, A3)
-- [ ] M2 — publish gate compares the rebased reviewed patch (A4); close binding survives a rebase and unowned codecomplete details refuse (B3); pin lifecycle end
+- [x] M2 — publish gate compares the rebased reviewed patch (A4); close binding survives a rebase and unowned codecomplete details refuse (B3); pin lifecycle end
 
 ## Log
 
