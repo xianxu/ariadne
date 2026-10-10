@@ -1,6 +1,6 @@
 ---
 id: 000254
-status: codecomplete
+status: done
 created: 2026-09-27
 updated: 2026-10-09
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ed83e9f8f32f53c89a49e6793b73e1f1f48add0a
         evidence_commit: 1334cfb297c9247d54e281e8ada85c90aada0bb6
+        landed_commit: e2cf19bad9d75bb71befb49b0f907f0cc918e840
 ---
 
 # Hours attribution: ignore GitHub PR numbers; window starts at the claim
