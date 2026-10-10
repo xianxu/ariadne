@@ -1,12 +1,20 @@
 ---
 id: 000320
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
-card_mirror: 'c333f6862ed1b103471b03079a644bbc687e1683' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'beba17b44afd910ef04b6cc85a2884d2cb75364b' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T16:53:09-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Merging main with conflicts never forces a full re-close: union-merge append-only files, pass non-code resolutions, review only a code resolution
