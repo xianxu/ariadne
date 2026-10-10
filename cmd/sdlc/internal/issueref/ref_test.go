@@ -132,3 +132,31 @@ func mustCompileAnchored(t *testing.T) *regexp.Regexp {
 	t.Helper()
 	return regexp.MustCompile(`^` + QualifiedIDPattern + `( M[0-9]+[a-z]?)?$`)
 }
+
+// ariadne#254: GitHub's merge-commit lead names a pull request, not an issue,
+// so it must not become a peer, a boundary claimant or a mention. A trailing
+// ` (#N)` is kept: in these repos it is how a subject cites a real issue.
+func TestFindMasksMergePullRequestNumbers(t *testing.T) {
+	cases := []struct {
+		name, text string
+		want       []string
+	}{
+		{"merge commit subject", "Merge pull request #204 from xianxu/000264-tracker-cutover", nil},
+		{"merge lead inside transcript text", "landed: Merge pull request #171 from xianxu/x; next #254", []string{"254"}},
+		{"merge subject citing an issue", "Merge pull request #12 from x/y — closes #290", []string{"290"}},
+		{"plain issue ref", "#290: close", []string{"290"}},
+		{"trailing issue citation stays a ref", "lessons: os.Getwd logical-$PWD vs git resolved paths (#179)", []string{"179"}},
+		{"PR mention outside the merge lead stays", "PR #106", []string{"106"}},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := LocalNums(c.text, "ariadne"); !reflect.DeepEqual(got, c.want) {
+				t.Errorf("LocalNums(%q) = %v, want %v", c.text, got, c.want)
+			}
+			counts := CountLocal(c.text, "ariadne", map[string]bool{"204": true, "171": true, "12": true})
+			if len(counts) != 0 {
+				t.Errorf("CountLocal(%q) counted PR numbers as mentions: %v", c.text, counts)
+			}
+		})
+	}
+}

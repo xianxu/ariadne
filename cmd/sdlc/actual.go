@@ -63,7 +63,7 @@ type actualResult struct {
 	Issue    string
 	Peers    []string
 	Dirs     []string
-	Window   string // "<shortSHA> → HEAD"
+	Window   string // "<start ISO> → HEAD": the resolved left edge (#254)
 	Detail   string // diagnostic for the error path
 	Warnings []string
 }
@@ -92,7 +92,6 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 		res.Status = actualNoWindow
 		return res
 	}
-	res.Window = firstSHA[:8] + " → HEAD"
 
 	// #113/#254: the window starts at the claim when there is one, so design
 	// attention after it lands in-window and nothing before it does.
@@ -107,6 +106,11 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 			firstISO = resolveWindowStart(firstISO, startedAnchor(path), wtISO)
 		}
 	}
+
+	// The label names the resolved start, not the first #N commit: since the
+	// claim anchor (#254, via #270) that commit is often the filing, outside
+	// the window.
+	res.Window = firstISO + " → HEAD"
 
 	// #270: on an issue branch, only the branch's own commits and commits naming
 	// this issue bound segments, so integrating main can't hand this session's

@@ -55,8 +55,17 @@ type Ref struct {
 	Num       string
 }
 
-// Find returns every `#N` in text, in order, each tagged with its qualifier.
+// prMergeRE is GitHub's merge-commit subject lead. Its `#N` is a pull request
+// number, not an issue, so Find masks it for every attribution consumer
+// (ariadne#254: `Merge pull request #204` made a peer "#204" and took minutes).
+// A squash merge's trailing ` (#N)` is deliberately NOT masked: in these repos
+// that suffix is the convention for a real issue ref, and none squash-merge.
+var prMergeRE = regexp.MustCompile(`Merge pull request #[0-9]+`)
+
+// Find returns every `#N` in text, in order, each tagged with its qualifier,
+// except the pull request number in a `Merge pull request #N` lead.
 func Find(text string) []Ref {
+	text = prMergeRE.ReplaceAllLiteralString(text, "Merge pull request")
 	var out []Ref
 	for _, m := range ScanRE.FindAllStringSubmatch(text, -1) {
 		out = append(out, Ref{Qualifier: m[1], Num: m[2]})

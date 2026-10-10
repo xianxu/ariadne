@@ -50,6 +50,11 @@ Detailed incidents remain in their owning issue or review artifact.
 
 ## Paths, processes, and integration
 
+- A before/after measurement needs a baseline binary built from the baseline
+  commit. In a slot, `sdlc` is a shell function that rebuilds from the slot's
+  working tree on every call, so "the installed binary" is whatever is
+  checked out. Build the old version from `git archive <sha>` (#254).
+
 - Resolve a verb's repository from the path it was given (`--issues-dir`,
   `--repo`), never from the process cwd. A cwd fallback reads, or fetches, the
   wrong repository silently, including the developer's own checkout during

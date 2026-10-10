@@ -59,7 +59,9 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
   not one qualified one. The grammar is single-sourced in `cmd/sdlc/internal/issueref`
   (`parseRef` in `helptext/resolve.md` remains the canonical *validator*). Before this,
   `pair#127` matched as local 127 and charged 46 minutes of #187's work to an unrelated
-  archived issue.
+  archived issue. GitHub's `Merge pull request #N` lead is masked in `issueref.Find` (#254):
+  its `#N` is a PR number, so it is never a peer, a boundary claimant or a mention. A trailing
+  ` (#N)` stays a ref, since that is how these repos cite issues (none squash-merge).
 - *Known limit (#118):* span matching is **per-transcript-file** — a subagent run whose dispatch and return straddle a session-compaction boundary (dispatch in file A, return in file B) is not paired, so that gap truncates at 15 min. Forward-looking only (all historical spans were within-file and sub-cap); when long delegated runs routinely cross files, aggregate the pending-dispatch map across files in `loadEvents`.
 
 **"Did the plan-quality gate earn its cost on this issue?"** (#187)
