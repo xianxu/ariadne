@@ -1,12 +1,20 @@
 ---
 id: 000271
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-09-28
-updated: 2026-09-28
+updated: 2026-10-09
 estimate_hours:
-card_mirror: '4cc6a8c312ac1fa900b8416b78f7cc8bc009808e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'de4ff529372391e91e5dd66fdf4636f3b377e2fc' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T22:06:04-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Boundary reviewer can background a command and end with no verdict
@@ -51,6 +59,8 @@ chooses to background its test run (parley's full suite takes minutes).
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): fixed by #300 (landed PR #173): the reviewer is denied background tools and its stream-json run keeps the latest verdict block, with one retry when none arrives; #300 tests cover #271's Done-when. wontfix stands in for a missing fixed/dup status (#212, #312)
 - Filed from parley.nvim #282's close (operator request, 2026-09-28).
 
 ### 2026-09-28
