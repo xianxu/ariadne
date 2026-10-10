@@ -1,12 +1,12 @@
 ---
 id: 000304
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-08
 updated: 2026-10-09
 estimate_hours: 6.27
-card_mirror: 'c0bf5b24040365dafcc9fba2a720a906c40edf0e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '777846fad743d425585efb14c6248df08a409a90' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-09T20:01:24-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 2.08
 ---
 
 # Milestone review window absorbs integrated main; close's printed window misleads
