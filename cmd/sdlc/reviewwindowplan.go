@@ -31,10 +31,10 @@ import (
 type windowKind int
 
 const (
-	windowNone          windowKind = iota // no commit anchors a window (no #N commit yet)
-	windowBranchPatch                     // whole issue, or a first milestone
-	windowInterdiff                       // since the last finalized review
-	windowBranchFallback                  // a stamped review exists but cannot be replayed
+	windowNone           windowKind = iota // no commit anchors a window (no #N commit yet)
+	windowBranchPatch                      // whole issue, or a first milestone
+	windowInterdiff                        // since the last finalized review
+	windowBranchFallback                   // a stamped review exists but cannot be replayed
 )
 
 // windowFacts is everything the planner needs, gathered by gatherWindowFacts.

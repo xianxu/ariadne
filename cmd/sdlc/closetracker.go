@@ -70,22 +70,94 @@ func (g gitEvidence) Prepare(spec tracker.ReceiptSpec) (string, error) {
 		if !e.Replays(base, current) {
 			continue // already pinned, or edited in a later commit that must survive
 		}
-		if e.Blob == "" {
-			if _, err := env.gitEnv(withIndex, "update-index", "--force-remove", "--", e.Path); err != nil {
-				return "", err
-			}
-			continue
-		}
-		if mode != "100755" {
-			mode = "100644"
-		}
-		if _, err := env.gitEnv(withIndex, "update-index", "--add", "--cacheinfo", mode+","+e.Blob+","+e.Path); err != nil {
+		if err := indexEvidenceEntry(env, withIndex, mode, e); err != nil {
 			return "", err
 		}
 	}
 	// An unchanged tree is legitimate: a fix commit may already carry the pinned
 	// evidence. The commit still records the verdict trailers and the anchor.
 	return commitIndexOnto(env, withIndex, head, message)
+}
+
+// indexEvidenceEntry writes one evidence entry into the temporary index: removed when
+// the close deleted it, else its pinned blob, keeping an executable bit the file had.
+func indexEvidenceEntry(env *trackerEnv, withIndex []string, mode string, e tracker.EvidenceEntry) error {
+	if e.Blob == "" {
+		_, err := env.gitEnv(withIndex, "update-index", "--force-remove", "--", e.Path)
+		return err
+	}
+	if mode != "100755" {
+		mode = "100644"
+	}
+	_, err := env.gitEnv(withIndex, "update-index", "--add", "--cacheinfo", mode+","+e.Blob+","+e.Path)
+	return err
+}
+
+// applyEvidenceCommit moves branch from commit's parent to commit by compare-and-swap
+// (refusing if the branch moved meanwhile), then points only the evidence paths' index
+// entries at the new HEAD — the worktree already holds these bytes, and other staged
+// work stays staged.
+func applyEvidenceCommit(env *trackerEnv, branch, commit string, paths []string) error {
+	parent, err := env.git("rev-parse", "--verify", commit+"^")
+	if err != nil {
+		return err
+	}
+	if _, err := env.git("update-ref", "-m", "sdlc close", branch, commit, parent); err != nil {
+		return err
+	}
+	if len(paths) == 0 {
+		return nil // `git reset -q --` with no paths would reset the WHOLE index
+	}
+	_, err = env.git(append([]string{"reset", "-q", "--"}, paths...)...)
+	return err
+}
+
+// commitMilestoneEvidence commits a finalized milestone close's own evidence (#304,
+// #197): the details, the issue's plans-dir records (ledger, sidecar) and project
+// edits, under subject `#N Mx: close` with the verdict trailers. That subject and
+// trailer are exactly what close's milestone-verdict gate looks for, so no hand-pasted
+// trailer is needed. Built in a temporary index, like the whole-issue evidence.
+func commitMilestoneEvidence(env *trackerEnv, r closeResult, plansDir, milestone string, review reviewResult) (string, error) {
+	if env.branch == "" {
+		return "", errors.New("a milestone close commits its evidence on a branch; check out the issue branch")
+	}
+	entries, err := closeEvidence(env, r, plansDir)
+	if err != nil {
+		return "", err
+	}
+	head, err := env.git("rev-parse", "--verify", "HEAD^{commit}")
+	if err != nil {
+		return "", err
+	}
+	idx, cleanup, err := tempIndexFile()
+	defer cleanup()
+	if err != nil {
+		return "", err
+	}
+	withIndex := []string{"GIT_INDEX_FILE=" + idx}
+	if _, err := env.gitEnv(withIndex, "read-tree", head); err != nil {
+		return "", err
+	}
+	paths := make([]string, 0, len(entries))
+	for _, e := range entries {
+		_, mode, err := gitEvidence{env: env}.treeEntry(head, e.Path)
+		if err != nil {
+			return "", err
+		}
+		if err := indexEvidenceEntry(env, withIndex, mode, e); err != nil {
+			return "", err
+		}
+		paths = append(paths, e.Path)
+	}
+	message := fmt.Sprintf("#%d %s: close\n\n%s", issueIDFromPath(r.issuePath), milestone, strings.Join(reviewTrailers(review), "\n"))
+	commit, err := commitIndexOnto(env, withIndex, head, message)
+	if err != nil {
+		return "", err
+	}
+	if err := applyEvidenceCommit(env, env.branchRef(), commit, paths); err != nil {
+		return "", err
+	}
+	return commit, nil
 }
 
 // commitIndexOnto writes the temporary index as a commit on head, honouring the
@@ -221,17 +293,7 @@ func (g gitEvidence) treeEntry(commit, p string) (blob, mode string, err error) 
 }
 
 func (g gitEvidence) Apply(spec tracker.ReceiptSpec, commit string) error {
-	env := g.env
-	parent, err := env.git("rev-parse", "--verify", commit+"^")
-	if err != nil {
-		return err
-	}
-	if _, err := env.git("update-ref", "-m", "sdlc close", spec.SourceBranch, commit, parent); err != nil {
-		return err
-	}
-	// The worktree already holds these bytes; only their index entries follow HEAD.
-	_, err = env.git(append([]string{"reset", "-q", "--"}, spec.EvidencePathList()...)...)
-	return err
+	return applyEvidenceCommit(g.env, spec.SourceBranch, commit, spec.EvidencePathList())
 }
 
 func (g gitEvidence) Applied(spec tracker.ReceiptSpec, commit string) (bool, error) {
@@ -412,6 +474,9 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 		if err := receipts.Save(c.Receipt()); err != nil {
 			return err
 		}
+		if w := pinReviewed(id, "", reviewed); w != "" {
+			cwarn(stderr, w)
+		}
 		cwarn(stderr, fmt.Sprintf("FIX-THEN-SHIP: commit the fixes on %s, then `sdlc issue recovery reconcile --issue %s` records this close\n"+
 			"      (the evidence commit lands after your fixes; codecomplete is published bound to it)", env.branch, issue.CLIRef(id)))
 		return nil
@@ -423,6 +488,9 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 		return fmt.Errorf("%w\n      the close is recorded; finish it with `sdlc issue recovery reconcile --issue %s`", err, issue.CLIRef(id))
 	}
 	cok(stderr, fmt.Sprintf("#%s codecomplete on %s, bound to evidence commit %s", id, env.branch, shortOID(tracker.EvidenceCommit(final))))
+	if w := pinReviewed(id, "", tracker.EvidenceCommit(final)); w != "" {
+		cwarn(stderr, w)
+	}
 	commitCloseMirror(env, stderr, id, entries[0].Path)
 	boundaryPush(env, stderr, "close")
 	fmt.Fprintln(stdout, tracker.EvidenceCommit(final))
