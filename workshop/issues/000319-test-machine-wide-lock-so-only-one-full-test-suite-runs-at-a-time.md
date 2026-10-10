@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
-card_mirror: 'b8899c488918cfbcb74484059c224e9e12a56e7a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fff7eb9a0f8fe26e792e7283a0cc78d81902b20b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-10T11:23:39-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 0.23
+actual_hours: 0.25
 ---
 
 # test: machine-wide lock so only one full test suite runs at a time
