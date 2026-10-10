@@ -4,9 +4,17 @@ status: open
 deps: []
 github_issue:
 created: 2026-09-28
-updated: 2026-09-28
+updated: 2026-10-09
 estimate_hours:
-card_mirror: 'b161c09e525b0b4cdc2c7675ce7cd58be28fc4e8' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e7c43810f995ee5555d84b919dc5851e601f497e' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T20:51:35-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc close: integrate a moved origin/main before the boundary review
@@ -62,6 +70,8 @@ Also worth deciding at design time:
 Related: #249 (resting branch diverges after issue sync) is the resting-branch
 side of the same staleness; this issue is the issue-branch side, at close.
 
+- **Interaction with #304:** milestone review windows are the interdiff since the last finalized review, replayed onto today's main. Integrating main (merge or rebase) therefore no longer widens a milestone window, and a conflict shows only its resolution. The freshness rule here can integrate main daily without resetting review cost. Project direction (ariadne-robustness-1): the rule is "the branch contains every origin/main commit older than the most recent noon in the repo timezone", applied at review boundaries, with #303 applying the same rule at claim/start-plan.
+
 ## Done when
 
 - `sdlc close` refuses when the configured main has moved in code since the
@@ -83,3 +93,7 @@ side of the same staleness; this issue is the issue-branch side, at close.
   whether to rebase before close. Checked the current behavior: milestone
   verdicts survive a rebase (message-matched), and a post-close rebase trips
   the publish gate.
+
+### 2026-10-09
+
+Spec line added by the TL (ariadne:1) at #304's request (its Done-when), with the previous-noon freshness direction from the ariadne-robustness-1 review.
