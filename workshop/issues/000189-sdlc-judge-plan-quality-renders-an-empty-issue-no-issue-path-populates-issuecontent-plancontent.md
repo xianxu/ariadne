@@ -1,12 +1,20 @@
 ---
 id: 000189
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-07-29
-updated: 2026-07-29
+updated: 2026-10-10
 estimate_hours:
-card_mirror: '6c996d55150d2df85965267666f6f449fee99452' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '15d773045dcacbf9279177c1c80aacb64aafe1d4' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T16:53:12-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc judge plan-quality renders an empty issue — no --issue path populates IssueContent/PlanContent
@@ -54,13 +62,33 @@ out of that issue's scope (recorded in its plan's Task 14 rationale).
   never quietly return.
 - Categories that take no issue context render byte-identically to today.
 
+### Decision (2026-10-10)
+
+- **plan-quality: render read-only, refuse to dispatch.** `sdlc judge plan-quality --issue N
+  --dry-run` renders exactly the prompt `change-code` would send — issue, durable plan, and
+  the ledger's prior findings, read and never written. A live run refuses and points at
+  `sdlc change-code`: the gate's decision is the ledger's, and a dispatch nobody records is
+  the stateless pre-#187 review this repo removed.
+- **estimate-quality** has the same empty-render defect (`{{ISSUE_CONTENT}}`) and is stateless
+  in `change-code` too, so it is folded in: populated from the same resolution, live run allowed.
+- Both refuse without `--issue N` (they judge one issue; an empty render is the bug).
+- Shared resolution (`ARCH-DRY`): `resolveChangeCodeName` (issue file by id), one
+  `planArtifactPath` (also behind `readOptionalPlanFile`), one `planningIssueRef`, and one
+  `planQualityPromptInput` that both verbs build the prompt through. `judge` reads the issue's
+  disk bytes; `change-code` reads them with the card mirror refreshed (card fields only).
+- ARCH-FUNERAL: creates nothing durable — the judge path reads the ledger and writes nothing.
+
 ## Plan
 
-- [ ] Failing test: `sdlc judge plan-quality --issue N` renders a prompt containing the
-      issue's `## Spec` text — currently empty
-- [ ] Populate `IssueContent`/`PlanContent` from the shared resolution
-- [ ] Settle the no-ledger question above and implement the chosen answer
-- [ ] Golden-prompt coverage so an empty render cannot pass again
+- [ ] Failing test: `sdlc judge plan-quality --issue N --dry-run` renders a prompt containing
+      the issue's `## Spec` text and the plan body — currently empty
+- [ ] Extract the shared resolution + prompt input; `change-code` and `judge` both use it
+- [ ] plan-quality live run refuses → `change-code`; prior findings shown read-only on dry-run
+      (test asserts both, and that the ledger file is untouched)
+- [ ] estimate-quality renders the issue; both refuse without `--issue`
+- [ ] Pin: judge's plan-quality prompt is byte-equal to `change-code --dry-run`'s for the same
+      fixture; no-issue categories unchanged (existing `internal/judge` golden + dry test)
+- [ ] Helptext + atlas
 
 ## Log
 
