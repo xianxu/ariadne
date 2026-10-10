@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.23
+actual_hours: 0.25
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000319-test-machine-wide-lock-so-only-one-full-test-suite-runs-at-a-time.md
         main_commit: 5d364c69e8ffda6f5416e3f3dbd236625f299964
     completion:
-        token: close-6b9ba23d371a
+        token: close-20b09095d785
         repository: github.com/xianxu/ariadne
-        reviewed_head: 67d51fbebd8b7fc37eb7592647326fc68f6c8391
-        evidence_commit: 734b5d233259d0d28bf5bd6c6bd884ebb31c3d1d
+        reviewed_head: ab40f8a68c8262a6cd829d16b1b78ad0661e4a27
+        evidence_commit: f371152a35d6bccdf89cce75377d6353a3c29225
 ---
 
 # test: machine-wide lock so only one full test suite runs at a time
