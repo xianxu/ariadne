@@ -1348,6 +1348,28 @@ package needs the same `TestMain`
 fast inner-loop tier is #261; the single git seam it and in-process parallelism
 need is #262.
 
+### One full suite per machine (#319)
+
+A full `make test` in any woven repo (ariadne, pair, parley.nvim, …) first takes
+a machine-wide lock, so suites from parallel slots and repos run one at a time
+instead of oversubscribing the cores. `Makefile.workflow` takes it at parse time
+whenever `test` is a goal, through ariadne's `scripts/test-lock.py`, resolved
+beside `Makefile.workflow`'s real path (so a woven repo needs no copy, and a
+missing helper warns that the run is unlocked):
+`flock` on `${XDG_STATE_HOME:-~/.local/state}/ariadne/test-suite.lock`, held by a
+forked watcher until that `make` exits, so a crash or kill releases it at once.
+Parse time matters: a prerequisite would run after the test target's own
+prerequisites, which are pair's whole suite. Targeted runs (`go test -run …`, a
+single `make test-*` target) never take it. A nested `make test` under a locked
+run passes through (`WF_TEST_LOCK_HELD_BY`).
+
+While waiting it prints `[test-lock] waiting Ns … held by <repo> (<worktree>),
+make pid P, since T`, repeated every 30s. `WF_TEST_LOCK=off` skips the lock
+(loudly). `WF_TEST_LOCK_TIMEOUT=<seconds>` bounds the wait and then fails make
+with "full-suite lock not taken (timeout)" — a lock wait, not a test failure.
+Agents running the pre-close suite should run `make test` in the background so a
+wait can't trip the tool's timeout. Tests: `scripts/test-lock.test.sh`.
+
 ### Downstream staleness gotcha
 
 Downstream repos ship a *prebuilt* `bin/sdlc` — they have no `cmd/sdlc` source
