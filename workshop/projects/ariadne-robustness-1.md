@@ -75,7 +75,7 @@ Order: judge robustness first, because every close below depends on it. Then the
 
 **2. Main integration**
 - [x] Active time on the branch's own commits, author date [ariadne#270]
-- [ ] Window starts at claim; ignore GitHub PR numbers [ariadne#254]
+- [x] Window starts at claim; ignore GitHub PR numbers [ariadne#254]
 - [ ] Branch-patch review windows, publish anchor and close binding [ariadne#304]
 - [ ] `--fixed-then-ship`: interdiff review after FIX-THEN-SHIP [ariadne#183]
 - [ ] Previous-noon freshness rule at review boundaries [ariadne#269]

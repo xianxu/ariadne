@@ -91,6 +91,7 @@ parley.nvim#290 in the #252 A4 canary; both parts pre-date #252.
   #252 regression.
 
 ### 2026-10-09
+- 2026-10-09: closed — make test green except processgroup TestCancellationKillsDescendants (sandbox blocks /bin/ps; passes unsandboxed). TestFindMasksMergePullRequestNumbers: Merge pull request #N never a peer/boundary/mention, plain #N and trailing (#N) kept; mask removal fails 3 cases. Claim-anchored window landed with #270 (TestWindowStart). parley.nvim#290 rerun: window 2026-09-27T15:41 -> HEAD, peers #290 only (pre-#270: #203 #204 #205 #264 #281 #289 #290 #291); ariadne#287 drops PR #166. Squash-suffix rule dropped per Revisions.; review verdict: SHIP
 
 - Claimed in ariadne:3 after #270 landed (TL dispatch, ariadne-robustness-1).
 - Spec 2 (claim-anchored window) shipped in #270: scoped boundaries made it
