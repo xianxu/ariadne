@@ -95,5 +95,6 @@ side of the same staleness; this issue is the issue-branch side, at close.
   the publish gate.
 
 ### 2026-10-09
+- 2026-10-09: unclaimed: TL edit published; not started
 
 Spec line added by the TL (ariadne:1) at #304's request (its Done-when), with the previous-noon freshness direction from the ariadne-robustness-1 review.
