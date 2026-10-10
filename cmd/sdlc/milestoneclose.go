@@ -178,6 +178,8 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		// implies --no-judge per its "bypass ALL gates" contract (#139 I2), matching
 		// full-issue close's f.skip("judge"); otherwise a --force milestone-close would
 		// still dispatch and could halt/rework, defeating the emergency bypass.
+		// No review ran, so no ledger round is persisted and no reviewed head is
+		// stamped (#304 D5): the next boundary's window still covers this one's work.
 		cinfo(stderr, "skipping milestone-review per --no-judge (or --force)")
 		applyClose(stdout, stderr, closeRunner, closeF, r)
 		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong}, "milestone-close")

@@ -185,6 +185,9 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	// Cap per boundary; open findings from the WHOLE issue at the final boundary (BR-37).
 	d := gatestate.DecideScoped(gatestate.FilterBoundary(l, p.Milestone), openScopeFor(l, p.Milestone),
 		roundCapFromEnvVar("WF_BOUNDARY_ROUND_CAP"))
+	if last := &l.Rounds[len(l.Rounds)-1]; roundAdvancesBoundary(review, *last, d, p.ForcedRationale != "") {
+		last.Reviewed = review.Head
+	}
 	// Stamp the outcome onto the round BEFORE writing (mirrors changecode.go:536-537).
 	// Without this the one durable record of "did this gate refuse" says `passed` for a
 	// round that refused, and PassesUnchanged — which #183's --fixed-to-ship pass-through
@@ -242,4 +245,21 @@ func openScopeFor(l gatestate.Ledger, milestone string) gatestate.Ledger {
 		return l
 	}
 	return gatestate.FilterBoundary(l, milestone)
+}
+
+// roundAdvancesBoundary reports whether this round finalizes the boundary, so its
+// reviewed head becomes where the next window starts (#304 D5). It must be exactly the
+// condition under which finalizeBoundaryReview finalizes: a finalizing verdict, a round
+// that carried a valid findings block, a resolved head, and a ledger decision that does
+// not block — or whose block --no-ledger (or --force) waived. Anything else (REWORK, a
+// halt, a protocol error, a never-ran dispatch) must not advance it, or the next window
+// would skip work no finalized review read.
+func roundAdvancesBoundary(review reviewResult, round gatestate.Round, d gatestate.Decision, waived bool) bool {
+	if closeVerdictOutcome(review.Verdict) != closeFinalize || review.Round == nil || round.ProtocolError != "" {
+		return false
+	}
+	if !isResolvedSHA(review.Head) {
+		return false
+	}
+	return !d.Block || waived
 }

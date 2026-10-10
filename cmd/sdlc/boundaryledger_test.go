@@ -786,3 +786,45 @@ func TestGatePersist_ReportsTheDecisionOnBothOutcomes(t *testing.T) {
 		})
 	}
 }
+
+// #304 D5: only a FINALIZING round advances the boundary. The reviewed head is stamped
+// iff the verdict finalizes and the ledger decision does not block (or its block was
+// waived); every other round leaves it empty, so the next window still covers it.
+func TestPersistBoundaryRound_StampsReviewedOnlyWhenFinalizing(t *testing.T) {
+	head := strings.Repeat("e", 40)
+	important := func() *gatestate.RoundReport {
+		return &gatestate.RoundReport{New: []gatestate.Finding{{ID: "new", Severity: "Important", Title: "open important"}}}
+	}
+	clean := func() *gatestate.RoundReport { return &gatestate.RoundReport{} }
+	cases := []struct {
+		name   string
+		review reviewResult
+		forced string
+		want   string
+	}{
+		{"SHIP, nothing open", reviewResult{Verdict: judge.VerdictShip, Head: head, Round: clean()}, "", head},
+		{"FIX-THEN-SHIP", reviewResult{Verdict: judge.VerdictFixThenShip, Head: head, Round: clean()}, "", head},
+		{"REWORK", reviewResult{Verdict: judge.VerdictRework, Head: head, Round: clean()}, "", ""},
+		{"SHIP with an open Important", reviewResult{Verdict: judge.VerdictShip, Head: head, Round: important()}, "", ""},
+		{"SHIP with an open Important, waived", reviewResult{Verdict: judge.VerdictShip, Head: head, Round: important()}, "--no-ledger: why", head},
+		{"protocol error", reviewResult{Verdict: judge.VerdictShip, Head: head, ProtocolError: "no valid findings block"}, "", ""},
+		{"unresolved head", reviewResult{Verdict: judge.VerdictShip, Head: "HEAD", Round: clean()}, "", ""},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			issuesDir := closeRepo(t, 69)
+			plansDir := t.TempDir()
+			p := boundaryReviewParams{IssuesDir: issuesDir, IssueNum: 69, Milestone: "M1", PlansDir: plansDir, ForcedRationale: c.forced}
+			c.review.Agent = "claude"
+			var stderr strings.Builder
+			persistBoundaryRound(&stderr, p, c.review, "2026-10-09T18:00:00-07:00")
+			l, err := readBoundaryGateLedger(plansDir, "000069-x.md", 69)
+			if err != nil || len(l.Rounds) == 0 {
+				t.Fatalf("ledger not written: %v (%d rounds)\n%s", err, len(l.Rounds), stderr.String())
+			}
+			if got := l.Rounds[len(l.Rounds)-1].Reviewed; got != c.want {
+				t.Fatalf("reviewed = %q, want %q\n%s", got, c.want, stderr.String())
+			}
+		})
+	}
+}
