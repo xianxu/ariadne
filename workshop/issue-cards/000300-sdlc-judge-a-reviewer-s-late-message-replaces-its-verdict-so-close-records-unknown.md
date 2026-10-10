@@ -5,6 +5,7 @@ created: 2026-10-06
 updated: 2026-10-09
 estimate_hours:
 github_issue:
+started: 2026-10-09T18:33:10-07:00
 tracker:
     version: 1
     handoff:
@@ -17,14 +18,16 @@ tracker:
         source_blob: 381447e96acecdac158d6bf08b54af16701380fe
         destination: workshop/issues/000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown.md
         main_commit: cfb35e614fd014d81df3e875da167021822a2eda
-started: 2026-10-09T18:33:10-07:00
-claimant:
-    operator: Xian Xu
-    machine: 4716879978a7b90f6b583da1716fd0e9
-    machine_name: MacBook Pro
-    workspace: ariadne:1
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
-    repository: github.com/xianxu/ariadne
+    release:
+        by:
+            operator: Xian Xu
+            machine: 4716879978a7b90f6b583da1716fd0e9
+            machine_name: MacBook Pro
+            workspace: ariadne:1
+            worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+            repository: github.com/xianxu/ariadne
+        branch: 000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown
+        head: 9fdc7d7e2ece2fb91292f186b85af67b3e58973b
 ---
 
 # sdlc judge: a reviewer's late message replaces its verdict, so close records 'unknown'
