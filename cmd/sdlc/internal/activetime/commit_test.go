@@ -38,7 +38,7 @@ func TestLoadWindowCommits(t *testing.T) {
 		return []byte(out), nil
 	})
 
-	commits, err := loadWindowCommits("/repo", "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z")
+	commits, err := loadWindowCommits("/repo", "2026-01-01T00:00:00Z", "2026-01-02T00:00:00Z", Scope{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func TestLoadWindowCommitsParsesAllIssueRefsForClaimants(t *testing.T) {
 		return []byte(out), nil
 	})
 
-	commits, err := loadWindowCommits("/repo", wideSince, wideUntil)
+	commits, err := loadWindowCommits("/repo", wideSince, wideUntil, Scope{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,7 +91,7 @@ func TestLoadWindowCommitsParsesAllIssueRefsForClaimants(t *testing.T) {
 
 func TestLoadWindowCommitsEmpty(t *testing.T) {
 	withGitRun(t, func(repo string, args ...string) ([]byte, error) { return []byte(""), nil })
-	commits, err := loadWindowCommits("/repo", "", "")
+	commits, err := loadWindowCommits("/repo", "", "", Scope{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestCommitIssuesExcludeForeignRefs(t *testing.T) {
 		return []byte("abc1234\t2026-07-29T10:30:00-07:00\t#187 M2: pair#127 replay harness\n"), nil
 	})
 
-	commits, err := loadWindowCommits("/tmp/workspace/ariadne", "", "")
+	commits, err := loadWindowCommits("/tmp/workspace/ariadne", "", "", Scope{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -129,7 +129,7 @@ func TestSelfQualifierComesFromGitRepo(t *testing.T) {
 		return []byte("abc1234\t2026-07-29T10:30:00-07:00\tpair#129 M1: fix it (see ariadne#180)\n"), nil
 	})
 
-	commits, err := loadWindowCommits("/tmp/workspace/pair", "", "")
+	commits, err := loadWindowCommits("/tmp/workspace/pair", "", "", Scope{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -164,7 +164,7 @@ func TestSelfQualifierLinkedCheckout(t *testing.T) {
 	if got, err := selfQualifier(nested); got != "pair" || err != nil {
 		t.Fatalf("selfQualifier(nested linked worktree) = %q, want pair", got)
 	}
-	commits, err := loadWindowCommits(nested, "", "")
+	commits, err := loadWindowCommits(nested, "", "", Scope{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -183,5 +183,23 @@ func TestComputeRefusesUnverifiedIdentity(t *testing.T) {
 	}
 	if _, err := Compute(Options{GitRepo: "/unverified"}); err == nil {
 		t.Fatal("Compute accepted unverified repository identity")
+	}
+}
+
+// The end-to-end guard on the entry point of the #190 chain: a foreign ref in a
+// commit subject must not enter the tracked set that becomes the mention
+// pattern. Ported from gitx.DiscoverWindowIssues, which WindowIssues replaced
+// (#270).
+func TestWindowIssuesExcludesForeignRefs(t *testing.T) {
+	withGitRun(t, func(repo string, args ...string) ([]byte, error) {
+		return []byte("a\t2026-07-29T10:00:00Z\t#187 M2: pair#127 replay harness\n" +
+			"b\t2026-07-29T11:00:00Z\tariadne#180: a self-qualified ref stays local\n"), nil
+	})
+	got, err := WindowIssues("/tmp/workspace/ariadne", "", "", Scope{Issue: "4"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := []string{"4", "180", "187"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("WindowIssues = %v, want %v (measured issue always in, sorted numerically, no pair#127)", got, want)
 	}
 }

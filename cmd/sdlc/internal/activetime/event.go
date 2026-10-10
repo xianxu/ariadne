@@ -316,22 +316,11 @@ func loadEvents(dirs []string, sc mentionScope, includeAssistant bool, sinceISO,
 }
 
 func loadEventsWithFiles(dirs, files []string, sc mentionScope, includeAssistant bool, sinceISO, untilISO string) ([]Event, []TaskSpan, error) {
-	var since, until time.Time
+	since, until, err := windowBounds(sinceISO, untilISO)
+	if err != nil {
+		return nil, nil, err
+	}
 	haveSince, haveUntil := sinceISO != "", untilISO != ""
-	if haveSince {
-		t, err := parseISO(sinceISO)
-		if err != nil {
-			return nil, nil, err
-		}
-		since = t
-	}
-	if haveUntil {
-		t, err := parseISO(untilISO)
-		if err != nil {
-			return nil, nil, err
-		}
-		until = t
-	}
 	var events []Event
 	var spans []TaskSpan
 	for _, d := range dirs {

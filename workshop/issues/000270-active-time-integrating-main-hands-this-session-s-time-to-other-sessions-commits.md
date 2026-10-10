@@ -95,15 +95,15 @@ the peer set):
   #190 foreign-ref test moves with it.
 
 Steps:
-- [ ] Failing real-git fixture test: branch with own #N commits, interleaved
+- [x] Failing real-git fixture test: branch with own #N commits, interleaved
       foreign #M commits on main; integrate by rebase, rebase
       `--committer-date-is-author-date`, and merge; boundary set (and peers)
       identical across all four states, and no #M boundary.
-- [ ] Author-date window filter + branch scope in `loadWindowCommits`.
-- [ ] `WindowIssues` replaces `DiscoverWindowIssues`; wire `computeActual`.
-- [ ] End-to-end check: `Compute` minutes equal before/after on the fixture.
-- [ ] Re-measure pair#247 (branch tip in a temp worktree) and log the value.
-- [ ] Atlas note on boundary scoping.
+- [x] Author-date window filter + branch scope in `loadWindowCommits`.
+- [x] `WindowIssues` replaces `DiscoverWindowIssues`; wire `computeActual`.
+- [x] End-to-end check: `Compute` minutes equal before/after on the fixture.
+- [x] Re-measure pair#247 (branch tip in a temp worktree) and log the value.
+- [x] Atlas note on boundary scoping.
 
 ## Log
 
@@ -112,3 +112,51 @@ Steps:
 - Filed from pair#247 at the operator's request. pair#247's M2 close is on
   hold for this fix, so the calibration row gets a true measured value
   instead of a hand-typed one.
+
+### 2026-10-09
+
+- Dispatched by the ariadne-robustness-1 TL (ariadne:1); evidence finding A1.
+  Claimed in ariadne:3.
+- Fixture `TestBoundariesSurviveIntegratingMain` (real git): not integrated,
+  plain rebase, rebase `--committer-date-is-author-date`, merge at the end,
+  merge mid-work. All five give boundaries `[#9 a, #9 b]`, peers `[9]`, and
+  `Compute` #9 = 50 min, #5 = 0. Mutation-checked: dropping the scope filter
+  fails the 4 integrated states; keeping merges fails merge-mid-work; putting
+  back `--since/--until` fails the plain rebase; dropping the
+  issue-named-trunk exception fails
+  `TestScopedBoundaryKeepsTrunkCommitsNamingTheIssue`.
+- Scope decision: with a branch point, other issues' **tracker** card commits
+  also stop being boundaries. Another slot's claim is the same foreign-boundary
+  bug as a main commit. The measured issue's own claim/close commits still
+  count. Merge commits are excluded from the branch's own set, since they are
+  integration, not work.
+- `gitx.DiscoverWindowIssues` (committer date, HEAD only) is replaced by
+  `activetime.WindowIssues` over the same scoped commits (ARCH-DRY). Its #190
+  foreign-ref test moved with it. Event and commit window parsing share
+  `windowBounds`.
+- pair#247 replay (local clone at its close commit 93994d3d, pair-slot1 and
+  brain transcripts, branch point 25233cdf = main before its PR merge, window
+  claim 21:31:56 → close 23:59:36):
+  - old engine (installed `sdlc active-time`): #247 0.60 h, #341 1.50 h. The
+    81.5 min design+M1 run (21:32–22:53, 14 #247 mentions) went to #341 via
+    `d7699cb`.
+  - new, unscoped (author-date only): #247 1.96 h.
+  - new, scoped: #247 2.33 h = all of the slot's in-window activity, with no
+    #341.
+  - M1 window only (→ 22:20:04), scoped: 0.86 h. The pre-rebase 1.24 h opened
+    the window at the branch's old parent `6f62a7ec` (20:54), i.e. 38 min
+    before the claim; see Revisions.
+- Residual rebase sensitivity, handed to #254: `CommitWindow`'s left edge is
+  the parent of the first `#N` commit when that is earlier than the claim, and
+  a rebase moves that parent. #254 anchors the window at the claim, which
+  removes it. #254 is next in this slot.
+
+## Revisions
+
+- 2026-10-09 — Done-when 3's "≈1.3–1.5 h" was a pre-rebase figure whose window
+  opened 38 min before the claim, at the old branch parent. With boundaries
+  scoped and the window at the claim, pair#247 measures 0.86 h for M1 and
+  2.33 h for the whole issue, against 1.81 h hand-composed at close (M2's
+  0.57 h was itself measured after the rebase). Done-when 1 holds for the
+  engine (boundaries, peers and window filter). The window's left edge becomes
+  rebase-invariant with #254.

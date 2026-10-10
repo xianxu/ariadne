@@ -111,9 +111,16 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 		}
 	}
 
-	// selfRepo is the canonical name of the repository being scanned, so a
-	// self-qualified `ariadne#180` counts as local while `pair#127` does not (#190).
-	res.Peers, _ = gitx.DiscoverWindowIssues(firstISO, lastISO, issueNum, identity.Repo)
+	// #270: on an issue branch, only the branch's own commits and commits naming
+	// this issue bound segments, so integrating main can't hand this session's
+	// time to the issues main's commits name. Peers come from the same commits.
+	scope := activetime.Scope{BranchPoint: gitx.MergeBaseWithMain(), Issue: issueNum}
+	peers, err := activetime.WindowIssues(repoTop, firstISO, lastISO, scope, trackerRefs...)
+	if err != nil {
+		res.Status, res.Detail = actualError, err.Error()
+		return res
+	}
+	res.Peers = peers
 	src := transcripts.Select(nonEmpty(brainAbs, repoTop), transcripts.DefaultHarnesses())
 	res.Dirs = src.Dirs
 	if len(src.Dirs) == 0 && len(src.Files) == 0 {
@@ -126,6 +133,7 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 		Files:            src.Files,
 		GitRepo:          repoTop,
 		ExtraRefs:        trackerRefs,
+		Scope:            scope,
 		SinceISO:         firstISO,
 		UntilISO:         lastISO,
 		Issues:           res.Peers,

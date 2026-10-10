@@ -44,7 +44,7 @@ func TestCommitWindow_ExtendedCapIncludes45Days(t *testing.T) {
 	}
 }
 
-// TestDiscoveryRefParsing exercises the ref scan used by DiscoverWindowIssues, in isolation
+// TestDiscoveryRefParsing exercises the ref scan used by activetime.WindowIssues, in isolation
 // from git. Formerly TestIssueRefRE_DiscoveryParsing, against the deleted local issueRefRE.
 //
 // NOTE the changed expectation, and that it is a FIX rather than a relaxation. This test
@@ -80,30 +80,6 @@ func TestDiscoveryRefParsing(t *testing.T) {
 				t.Errorf("LocalNums(%q, %q) = %v want %v", tt.subject, tt.selfRepo, got, tt.want)
 			}
 		})
-	}
-}
-
-// The end-to-end guard on the entry point of the #190 chain: a foreign ref in a real commit
-// subject must not enter the tracked set that becomes activetime's mention pattern.
-func TestDiscoverWindowIssuesExcludesForeignRefs(t *testing.T) {
-	orig := run
-	t.Cleanup(func() { run = orig })
-	run = func(name string, args ...string) ([]byte, error) {
-		return []byte("#187 M2: pair#127 replay harness + round 1 evidence\n" +
-			"#187 M2: churn — four-bucket classification\n" +
-			"ariadne#180: a self-qualified ref stays local\n"), nil
-	}
-	got, err := DiscoverWindowIssues("2026-07-29T00:00:00Z", "2026-07-30T00:00:00Z", "187", "ariadne")
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, iss := range got {
-		if iss == "127" {
-			t.Errorf("pair#127 admitted 127 to the tracked set: %v", got)
-		}
-	}
-	if want := []string{"180", "187"}; !reflect.DeepEqual(got, want) {
-		t.Errorf("DiscoverWindowIssues = %v, want %v (sorted numerically)", got, want)
 	}
 }
 
