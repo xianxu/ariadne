@@ -143,6 +143,24 @@ rounds:
       recipe: milestone-review
       reviewed: 0f4e1bf53e5a94705da8e339df20d16aab0c7912
       blocked: false
+    - "n": 6
+      timestamp: "2026-10-09T22:26:24-07:00"
+      agent: claude
+      dispose:
+        - id: BR-10
+          disposition: not-addressed
+          note: Documented as a known limit in atlas/workflow/pre-merge-checks.md (b99fe13d), but legacy pins still have no removal path except a manual update-ref; Minor, non-blocking.
+          round: 6
+      findings:
+        - id: BR-11
+          severity: Minor
+          title: Boundary-review dispatch line prints the synthetic rebased base S instead of the human base
+          detail: milestoneclose.go:642 formats shortSHA(p.BaseLong); for an interdiff window BaseLong is the gc-collectable synthetic S. Print p.WindowBase when it is set, as the trailer and sidecar already do.
+          family: synthetic-base-shown-to-human
+          round: 6
+      recipe: milestone-review
+      reviewed: 8470f8eba30208ef56bc70307273647e2e57d428
+      blocked: false
 ---
 
 # Gate ledger — ariadne#304 (boundary-review)
@@ -210,6 +228,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-10** [Minor] `residue-without-removal-path` Legacy repos now have no removal path for pins of issues archived by hand or abandoned elsewhere
   Dropping sweepLegacyPins (correctly, for worktree-shared refs) leaves only push/merge archives to end legacy pins; a hand-archived issue keeps up to milestones+1 refs forever. Name the end, e.g. a sweep keyed on refs older than N days whose id has no live file in ANY worktree (git worktree list).
 
+## Round 6 — 2026-10-09T22:26:24-07:00 (claude) — passed
+
+### Disposed
+
+- BR-10 — not-addressed — Documented as a known limit in atlas/workflow/pre-merge-checks.md (b99fe13d), but legacy pins still have no removal path except a manual update-ref; Minor, non-blocking.
+
+### Raised
+
+- **BR-11** [Minor] `synthetic-base-shown-to-human` Boundary-review dispatch line prints the synthetic rebased base S instead of the human base
+  milestoneclose.go:642 formats shortSHA(p.BaseLong); for an interdiff window BaseLong is the gc-collectable synthetic S. Print p.WindowBase when it is set, as the trailer and sidecar already do.
+
 ## Open findings
 
 - **BR-10** [Minor] `residue-without-removal-path` Legacy repos now have no removal path for pins of issues archived by hand or abandoned elsewhere
+- **BR-11** [Minor] `synthetic-base-shown-to-human` Boundary-review dispatch line prints the synthetic rebased base S instead of the human base

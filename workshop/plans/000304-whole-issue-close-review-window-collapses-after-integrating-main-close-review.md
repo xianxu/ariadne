@@ -190,3 +190,79 @@ findings:
     detail: |
       Dropping sweepLegacyPins (correctly, for worktree-shared refs) leaves only push/merge archives to end legacy pins; a hand-archived issue keeps up to milestones+1 refs forever. Name the end, e.g. a sweep keyed on refs older than N days whose id has no live file in ANY worktree (git worktree list).
 ```
+
+---
+
+## Re-review — 2026-10-09T22:26:24-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 304 — Milestone review window absorbs integrated main; close's printed window misleads |
+| repo | ariadne |
+| issue file | workshop/issues/000304-whole-issue-close-review-window-collapses-after-integrating-main.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3fddafdf62537fad75054489a9f0e6a577fa6354..8470f8eba30208ef56bc70307273647e2e57d428 |
+| command | sdlc close --issue 304 |
+| reviewer | claude |
+| timestamp | 2026-10-09T22:26:24-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Targeted tests pass after the merge. Now checking that the merge didn't leave contradictions in the help text or ledger.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Summary.** This round's window adds three commits since the round-4 review: an atlas note naming the legacy pin-sweep limit (`b99fe13d`), a log line (`7885ed1e`), and a clean merge of origin/main (`8470f8eb`, bringing in #300 and #270). The merge needed no conflict resolution. Where #300 touches #304's code, the result is consistent:
+- `roundAdvancesBoundary` now has a comment explaining why it is deliberately stricter than #300's `Round.ProducedNothing` (`cmd/sdlc/boundaryledger.go:261-264`).
+- #300's window-scaled review timeout reads `p.BaseLong` (`cmd/sdlc/milestoneclose.go:789-802`). That is the base the #304 planner picked, so the timeout is sized from the branch patch or interdiff, not from a commit range that merges inflate.
+
+Results: `go build ./cmd/sdlc/...` and `go vet` on the new packages are clean. `gitx` and `gatestate` tests pass. The targeted `cmd/sdlc` run (`ReviewWindow|ReviewPin|Pin|PublishGate|TrackerRebase|CloseTracker|BoundaryLedger|MilestoneWindow|Abandon|Landing`) passed in 236s. The only open prior finding is BR-10, which is Minor. It is now documented as a known limit but has no removal path, so I keep it open. Nothing blocks SHIP.
+
+1. **Strengths**
+   - `planReviewWindow` (`cmd/sdlc/reviewwindowplan.go:78`) is a pure function with no gaps: every combination of facts maps to exactly one window kind. Each fallback carries a named reason (`MainBaseErr`, `LedgerErr`, `RebaseErr`, `MainStale`), so no window silently degrades.
+   - `gitx.RebasedReviewedBase` builds the synthetic base with `merge-tree --write-tree --merge-base` plus a fixed-identity `commit-tree`. That makes S deterministic and keeps conflict paths visible. `SoleMergeBase` reports a criss-cross history as an error instead of returning "".
+   - `latestReviewedFor` returns a ledger value it can't use as a stated reason, not as absence. That shuts the mislabelled pre-#304 trailer fallback (BR-7). It also checks the recorded head is a real commit id before passing it to git (BR-5).
+   - The merge resolution with #300 is careful. The deliberate divergence between the two predicates is written down, and the timeout sizing uses the same planned window as everything else (the #58 "same window" property).
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `cmd/sdlc/milestoneclose.go:642`: the "dispatching boundary review (X..Y)" line prints `shortSHA(p.BaseLong)`. For an interdiff that is the synthetic S, which the design says a person never reads (`reviewWindow.HumanBase` comment, `reviewwindowplan.go:57-58`). It should print `p.WindowBase` when it is set. This is a new family: the human-facing base is a separate field from the diff base, and every printed line should use it.
+   - BR-10 is still open (disposition below).
+
+5. **Test coverage notes.** The planner's fact-to-kind mapping, criss-cross handling, rebased-patch conflicts, the publish-gate rebased comparison and pin lifecycle are all exercised directly (`reviewwindowplan_test.go`, `rebasedpatch_test.go`, `trackerrebase_test.go`, `reviewpin_test.go`). No test pins the interaction between #300's timeout sizing and an interdiff window (for example, that a merged-main milestone gets the default limit and not a range-inflated one). It's cheap to add next to `boundaryReviewTimeout`.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. One `reviewWindow` value drives the atlas gate, manifest, trailer and printed line.
+   - ARCH-PURE: pass. The planner and formatter are pure; `gatherWindowFacts` and `planBoundaryWindow` are the IO shell.
+   - ARCH-PURPOSE: pass. Whole-issue close, milestones and the publish gate all derive from the branch patch.
+   - ARCH-MOCK: pass. Git goes through the `run`/`runEnv` shims; the tests use real temporary repositories.
+   - ARCH-CONSTRAINTS: pass. The main fetch is cached once per checkout and main tip, and the timeout is sized by the window.
+   - ARCH-SECURE: pass. Ledger SHAs are validated before they reach git.
+   - ARCH-ORDER: pass. Only a round that finalizes moves the boundary forward; anything else over-covers the next window, which is the safe direction.
+   - ARCH-FUNERAL: flag. In a legacy (no-tracker) repository, pin refs of a hand-archived issue still have no removal path except an operator running `git update-ref -d` (BR-10). It's documented now, but nothing removes them.
+
+7. **Plan revision recommendations:** none. The plan matches the code. The BR-10 known limit is already recorded in `atlas/workflow/pre-merge-checks.md`.
+
+```findings
+dispose:
+  - id: BR-10
+    disposition: not-addressed
+    note: |
+      Documented as a known limit in atlas/workflow/pre-merge-checks.md (b99fe13d), but legacy pins still have no removal path except a manual update-ref; Minor, non-blocking.
+findings:
+  - id: new
+    severity: Minor
+    family: synthetic-base-shown-to-human
+    title: |
+      Boundary-review dispatch line prints the synthetic rebased base S instead of the human base
+    detail: |
+      milestoneclose.go:642 formats shortSHA(p.BaseLong); for an interdiff window BaseLong is the gc-collectable synthetic S. Print p.WindowBase when it is set, as the trailer and sidecar already do.
+```
