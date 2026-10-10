@@ -140,8 +140,12 @@ primitive delivered here.
     an ancestor of `head`, **or** a commit in the scan range carries
     `Close-Token: <the card's current binding token>`. The scan range is:
     - `merge-base(base, head)..head` when a base is given (publish, PR landing);
-    - `head` limited to `--since=<the card's close date − 1 day>` when it isn't
-      (settle against main), so the grep stays bounded.
+    - `head` limited to `--since=<T − 1 day>` when it isn't (settle against
+      main), so the grep stays bounded. `T` is the committer date of the
+      tracker commit that introduced the binding's token:
+      `git log -1 -S<token> --format=%cI <tracker ref> -- <card path>`. The card
+      has no close-date field, and `updated` moves on later setter edits, which
+      could start the scan after the evidence commit (plan-quality round 2).
   - **#283/#301 supersession composes.** The rule matches only the card's
     *current* binding token. A reopen-and-close mints a new token, so an older
     close's commits never claim the newer close. A rebase keeps the same token,
@@ -567,7 +571,10 @@ the `reviewWindow`, and its three call sites take it.
       the new HEAD, so other staged work stays staged. Share Apply's body as
       `applyEvidenceCommit(env, branch, commit, paths)` instead of copying it.
   - In `finalizeBoundaryReview`'s finalize branch, when `r.tracker && f.Milestone != ""`,
-    call it, then call `pinReviewed(id, Mx, newCommit)`. For a whole-issue
+    call it, then call `pinReviewed(id, Mx, newCommit)`. Both run **after**
+    `applyClose` and **before** `milestonePush`, so the push carries the
+    evidence commit (plan-quality round 2). A test asserts the pushed tip
+    equals the evidence commit. For a whole-issue
     tracker close, call `pinReviewed(id, "close", evidence)` after
     `tracker.Drive` succeeds, and `pinReviewed(id, "close", review.Head)` on the
     FIX-THEN-SHIP deferral. In legacy mode, call
@@ -705,7 +712,9 @@ anchor" approximation as well.
   - **`ownedCompletions(env, rs, head, base, withDone)`:** after the `inHead`
     check fails, compute the scan range:
     - `merge-base(base, head)..head` when `base != ""`;
-    - otherwise `head --since=<card closed date − 1 day>`.
+    - otherwise `head --since=<T − 1 day>`, with `T` from the tracker commit
+      that introduced the token (D8). A test edits the card after close (moving
+      `updated`), and settle must still match.
 
     Call `gitx.CommitsWithCloseToken(range, b.Token)`. On a match, the card is
     owned, with `cinfo("#N: close recognised by its Close-Token after a rebase (evidence <old8> → <new8>)")`.
@@ -815,4 +824,10 @@ The design keeps its shape. The deltas:
   - the main-revert semantic gap and the #194 limitation go into the atlas;
   - squash/amend fixtures (Task 9 h/i, Task 10 d);
   - legacy anchor re-find stated as a content read, with test (g).
+- **Plan-quality round 2 (advisory Minors), folded:**
+  - the settle scan's `--since` comes from the tracker commit that introduced
+    the token; the card has no close date;
+  - the milestone evidence commit and the pin come before `milestonePush`.
+  - Not folded: the test-case enumeration Minor. The lists stay as the
+    TL-approved contract.
 

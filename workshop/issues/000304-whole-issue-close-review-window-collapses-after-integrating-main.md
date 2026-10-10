@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-08
 updated: 2026-10-09
-estimate_hours:
-card_mirror: 'd699dd716771272a715cc3501e08d5173af26a6e' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 6.27
+card_mirror: 'c0bf5b24040365dafcc9fba2a720a906c40edf0e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-09T20:01:24-07:00
 claimant:
     operator: Xian Xu
@@ -73,6 +73,45 @@ inside the segment), #197 (review boundary from ledger).
 
 - The fixture passes for both milestone and whole-issue closes.
 - #269's spec notes the milestone-window interaction.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec              design=1.0 impl=0.04
+item: smaller-go-module       design=0.0 impl=0.08
+item: smaller-go-module       design=0.1 impl=0.12
+item: greenfield-go-module    design=0.5 impl=0.32
+item: greenfield-go-module    design=0.3 impl=0.32
+item: smaller-go-module       design=0.2 impl=0.2
+item: greenfield-go-module    design=0.3 impl=0.24
+item: greenfield-go-module    design=0.5 impl=0.32
+item: smaller-go-module       design=0.1 impl=0.16
+item: atlas-docs              design=0.1 impl=0.08
+item: atlas-docs              design=0.1 impl=0.08
+item: milestone-review        design=0.1 impl=0.2
+item: milestone-review        design=0.1 impl=0.2
+design-buffer: 0.15
+total: 6.27
+```
+
+Items, in plan order:
+1. design/brainstorm + TL loop;
+2. gatestate `Reviewed`;
+3. finalize-only stamping;
+4. gitx rebased base + Close-Token lookup (git semantics: conflicts, criss-cross);
+5. window planner + fresh main + printed line;
+6. milestone evidence commit + pins;
+7. publish gate on the rebased patch;
+8. B3 ownership across publish/landing/settle + supersession;
+9. pin lifecycle + sweep;
+10. M1 atlas;
+11. M2 atlas;
+12. M1 review;
+13. M2 review.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* (Calibration is flagged stale, so treat it as provisional.)
 
 ## Plan
 
