@@ -119,7 +119,7 @@ Items, in plan order:
 Durable plan: `workshop/plans/000304-whole-issue-close-review-window-collapses-after-integrating-main-plan.md`
 (tasks 1–7 → M1, tasks 8–12 → M2).
 
-- [ ] M1 — review windows on the branch patch: `Round.Reviewed` stamped on finalize, rebased-reviewed-base primitive, milestone interdiff, printed window, milestone-close commits its own evidence + reviewed-head pin (#197, A2, A3)
+- [x] M1 — review windows on the branch patch: `Round.Reviewed` stamped on finalize, rebased-reviewed-base primitive, milestone interdiff, printed window, milestone-close commits its own evidence + reviewed-head pin (#197, A2, A3)
 - [ ] M2 — publish gate compares the rebased reviewed patch (A4); close binding survives a rebase and unowned codecomplete details refuse (B3); pin lifecycle end
 
 ## Log
@@ -127,6 +127,7 @@ Durable plan: `workshop/plans/000304-whole-issue-close-review-window-collapses-a
 ### 2026-10-08
 
 ### 2026-10-09
+- 2026-10-09: closed M1 — Round-2 fixes for BR-2/BR-3 + Minors (1f37e2ea). Full sharded suite: 1004 cmd/sdlc tests + 20 packages green except TestPlanningReviewConcurrencySchedules, a load-timing flake that passes alone (planning review untouched by #304). New tests: NotRunEvidenceIsNotABoundary, CrissCrossIsANamedFallback, FIX-THEN-SHIP milestone evidence, legacy stamp without commit; clean mutations fail each. Actual = measured 1.01h (M1 is all work so far). --no-project: the project tracks issues; its file is TL-owned.; review verdict: SHIP
 - Claimed + start-plan from the TL dispatch (ariadne:1). Read the evidence pensive (Part 1 #304/#197, Part 2 §A) and the source: `boundaryWindowBase`/`previousReviewBoundary`, `judge/reviewwindow.go`, `publishgate.go` `validatePublishAnchors`, `trackercompletion.go` `ownedCompletions`, `closetracker.go` evidence commit, `gatestate.Round`.
 - Found B3 fails *open*: after a rebase, `ownedCompletions` drops the card (evidence commit not an ancestor), so the publish gate reports "nothing to verify". Plan D8 makes it fail closed.
 - Design: the identity is the reviewed head only, with the base derived as merge-base(main, H_r) (ARCH-DRY, no card schema change); `merge-tree --merge-base` replays the patch; a deterministic synthetic base commit, collected by gc; pin ref `refs/sdlc/reviewed/<id>` with its removal at done/abandon/archive (ARCH-FUNERAL).

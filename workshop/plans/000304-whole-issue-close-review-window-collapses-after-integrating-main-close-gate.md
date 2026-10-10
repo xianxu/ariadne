@@ -1,0 +1,127 @@
+---
+gate: boundary-review
+issue: 304
+id_prefix: BR
+rounds:
+    - "n": 1
+      timestamp: "2026-10-09T21:18:02-07:00"
+      agent: sdlc
+      findings:
+        - id: BR-1
+          severity: Minor
+          title: Tasks 1, 2, 3, 6, 9 and 10 list test cases in prose; compress each to one strategy line plus its mutation guard
+          detail: (carried from plan-quality PQ-3, deferred to the boundary review)
+          family: prose-test-enumeration
+          round: 1
+      boundary: '*'
+      no_cap: true
+      blocked: false
+    - "n": 2
+      timestamp: "2026-10-09T21:18:02-07:00"
+      agent: claude
+      findings:
+        - id: BR-2
+          severity: Important
+          title: Legacy trailer fallback treats a binary-committed not-run milestone as a review boundary
+          detail: With no stamped round, gatherWindowFacts uses previousReviewBoundary, which matches the not-run evidence commit that milestone-close --no-judge now writes itself (7dfde264). M1 closed with --no-judge, then M2, means M2's window starts after M1's unreviewed work, which breaks D5. Exclude not-run trailers (or gate the fallback to pre-#304 ledgers) and add a fixture.
+          family: unreviewed-work-escapes-window
+          round: 2
+        - id: BR-3
+          severity: Important
+          title: reviewMainBase silently returns empty on criss-cross or merge-base error, mislabelling an over-covering window as interdiff
+          detail: len(bases) != 1 or a git error returns empty; the milestone path then sets Rebased = H_r and prints "interdiff since Mx review" while diffing H_r..HEAD including merged main. D2 requires an error naming the bases and branchPatchFallback; the comment claiming RebasedReviewedBase names it is false on this path. Reuse an exported gitx.SoleMergeBase and route its error into RebaseErr.
+          family: window-fallback-must-be-named
+          round: 2
+        - id: BR-4
+          severity: Minor
+          title: reviewMainRef falls back to the stale MergeBaseWithMain without a warning when the tracker or snapshot fails
+          family: silent-degrade-to-stale-main
+          round: 2
+        - id: BR-5
+          severity: Minor
+          title: Ledger reviewed value is passed to git without a hex SHA check
+          detail: Validate with isResolvedSHA in latestReviewedFor so a hand-edited ledger cannot hand git an option-like or ref-like argument.
+          family: untrusted-persisted-input-parse
+          round: 2
+        - id: BR-6
+          severity: Minor
+          title: milestone-close help says only pre-#304 milestones use the trailer boundary; it omits that --no-judge now commits not-run evidence
+          family: help-text-drift
+          round: 2
+      boundary: M1
+      recipe: milestone-review
+      blocked: true
+    - "n": 3
+      timestamp: "2026-10-09T21:33:52-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: withdrawn
+          note: Declined on purpose in Revisions (TL-approved contract); the named tests exist and are mutation-checked, so reshaping the plan prose after implementation adds nothing.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: The grep is anchored to the finalizing set from the verdict model (milestoneclose.go:357-363); TestMilestoneWindow_NotRunEvidenceIsNotABoundary fails when the old grep is restored.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: SoleMergeBase is exported and its error goes to MainBaseErr, giving a named windowBranchFallback; TestReviewWindow_CrissCrossIsANamedFallback fails with the branch removed.
+          round: 3
+        - id: BR-4
+          disposition: not-addressed
+          note: Code fixed (reviewMainRef returns a stale note that joinNotes adds to the window note), but no test fails without it; add a fixture whose openTracker or Snapshot fails.
+          round: 3
+        - id: BR-5
+          disposition: not-addressed
+          note: Code fixed (isResolvedSHA guard in latestReviewedFor), but no test covers the call site; add a ledger with a hand-edited reviewed value and assert the branch-patch fallback.
+          round: 3
+        - id: BR-6
+          disposition: addressed
+          note: helptext/milestone-close.md now says a --no-judge skip commits its not-run evidence, pins nothing, and never bounds a window; it matches previousReviewBoundary.
+          round: 3
+      boundary: M1
+      recipe: milestone-review
+      reviewed: 1f37e2eab9fd366ca11908bfd897f3154287f18f
+      blocked: false
+---
+
+# Gate ledger — ariadne#304 (boundary-review)
+
+Findings this gate raised, the stable ids the binary assigned them, and how
+later rounds disposed of them. Generated — edit the gate, not this file.
+
+## Round 1 — 2026-10-09T21:18:02-07:00 (sdlc) — passed
+
+### Raised
+
+- **BR-1** [Minor] `prose-test-enumeration` Tasks 1, 2, 3, 6, 9 and 10 list test cases in prose; compress each to one strategy line plus its mutation guard
+  (carried from plan-quality PQ-3, deferred to the boundary review)
+
+## Round 2 — 2026-10-09T21:18:02-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-2** [Important] `unreviewed-work-escapes-window` Legacy trailer fallback treats a binary-committed not-run milestone as a review boundary
+  With no stamped round, gatherWindowFacts uses previousReviewBoundary, which matches the not-run evidence commit that milestone-close --no-judge now writes itself (7dfde264). M1 closed with --no-judge, then M2, means M2's window starts after M1's unreviewed work, which breaks D5. Exclude not-run trailers (or gate the fallback to pre-#304 ledgers) and add a fixture.
+- **BR-3** [Important] `window-fallback-must-be-named` reviewMainBase silently returns empty on criss-cross or merge-base error, mislabelling an over-covering window as interdiff
+  len(bases) != 1 or a git error returns empty; the milestone path then sets Rebased = H_r and prints "interdiff since Mx review" while diffing H_r..HEAD including merged main. D2 requires an error naming the bases and branchPatchFallback; the comment claiming RebasedReviewedBase names it is false on this path. Reuse an exported gitx.SoleMergeBase and route its error into RebaseErr.
+- **BR-4** [Minor] `silent-degrade-to-stale-main` reviewMainRef falls back to the stale MergeBaseWithMain without a warning when the tracker or snapshot fails
+- **BR-5** [Minor] `untrusted-persisted-input-parse` Ledger reviewed value is passed to git without a hex SHA check
+  Validate with isResolvedSHA in latestReviewedFor so a hand-edited ledger cannot hand git an option-like or ref-like argument.
+- **BR-6** [Minor] `help-text-drift` milestone-close help says only pre-#304 milestones use the trailer boundary; it omits that --no-judge now commits not-run evidence
+
+## Round 3 — 2026-10-09T21:33:52-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — withdrawn — Declined on purpose in Revisions (TL-approved contract); the named tests exist and are mutation-checked, so reshaping the plan prose after implementation adds nothing.
+- BR-2 — addressed — The grep is anchored to the finalizing set from the verdict model (milestoneclose.go:357-363); TestMilestoneWindow_NotRunEvidenceIsNotABoundary fails when the old grep is restored.
+- BR-3 — addressed — SoleMergeBase is exported and its error goes to MainBaseErr, giving a named windowBranchFallback; TestReviewWindow_CrissCrossIsANamedFallback fails with the branch removed.
+- BR-4 — not-addressed — Code fixed (reviewMainRef returns a stale note that joinNotes adds to the window note), but no test fails without it; add a fixture whose openTracker or Snapshot fails.
+- BR-5 — not-addressed — Code fixed (isResolvedSHA guard in latestReviewedFor), but no test covers the call site; add a ledger with a hand-edited reviewed value and assert the branch-patch fallback.
+- BR-6 — addressed — helptext/milestone-close.md now says a --no-judge skip commits its not-run evidence, pins nothing, and never bounds a window; it matches previousReviewBoundary.
+
+## Open findings
+
+- **BR-4** [Minor] `silent-degrade-to-stale-main` reviewMainRef falls back to the stale MergeBaseWithMain without a warning when the tracker or snapshot fails
+- **BR-5** [Minor] `untrusted-persisted-input-parse` Ledger reviewed value is passed to git without a hex SHA check
