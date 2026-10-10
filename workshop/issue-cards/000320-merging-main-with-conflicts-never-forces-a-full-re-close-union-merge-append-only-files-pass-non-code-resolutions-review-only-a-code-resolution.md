@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000320-merging-main-with-conflicts-never-forces-a-full-re-close-union-merge-append-only-files-pass-non-code-resolutions-review-only-a-code-resolution.md
         source_blob: dec168bb5791335941200e7364f344c137ef382a
         destination: workshop/issues/000320-merging-main-with-conflicts-never-forces-a-full-re-close-union-merge-append-only-files-pass-non-code-resolutions-review-only-a-code-resolution.md
+        main_commit: 8b9052040674db7b431ad3db3844837e0c561366
 ---
 
 # Merging main with conflicts never forces a full re-close: union-merge append-only files, pass non-code resolutions, review only a code resolution
