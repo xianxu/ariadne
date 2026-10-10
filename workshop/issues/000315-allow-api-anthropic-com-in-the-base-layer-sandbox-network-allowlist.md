@@ -46,6 +46,7 @@ The sdlc boundary reviewer (`claude -p`) runs inside the project sandbox, whose 
 ## Log
 
 ### 2026-10-09
+- 2026-10-09: closed — weave compile merged api.anthropic.com into .claude/settings.json (grep count 1); settings.ariadne.json parses; settingsx tests pass. --no-atlas: one allowlist entry, no new architectural surface; review verdict: SHIP
 
 Operator decision: do it in ariadne:1, the TL slot, as an exception to the implementation-in-:2–:4 rule, because it's a one-line base-layer change. Stopgap for D2 until #300 lands; part of ariadne-robustness-1's judge-robustness phase.
 
