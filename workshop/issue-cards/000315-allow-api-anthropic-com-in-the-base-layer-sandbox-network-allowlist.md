@@ -17,6 +17,14 @@ tracker:
         source_blob: d45e8d2204a968fae4d69579fa48785a7a12c2b3
         destination: workshop/issues/000315-allow-api-anthropic-com-in-the-base-layer-sandbox-network-allowlist.md
         main_commit: e2ef66b10bdf9a62bd2781fd016a7caef56e05d4
+started: 2026-10-09T20:30:47-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Allow api.anthropic.com in the base-layer sandbox network allowlist
