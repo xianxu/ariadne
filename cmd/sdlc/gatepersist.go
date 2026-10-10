@@ -50,12 +50,15 @@ type gatePersist struct {
 // statement of what it concluded — which is how four advisory findings shipped
 // unannounced from the boundary gate.
 func stampAndPersist(stderr io.Writer, g gatePersist, l gatestate.Ledger, d gatestate.Decision, forced string) gatestate.Decision {
+	// One effective outcome for the round, read by every reader below: the
+	// stored flag, the waiver stamp and the reported line (#300 BR-9).
+	blocked := d.Block || g.Blocked
 	if n := len(l.Rounds); n > 0 {
-		l.Rounds[n-1].Blocked = d.Block || g.Blocked
+		l.Rounds[n-1].Blocked = blocked
 		// Only when the gate actually blocked — Round.Forced's documented contract, and
 		// --force is a GLOBAL bypass, so an unconditional stamp records a waiver here for
 		// a refusal that happened at some other gate.
-		l.Rounds[n-1].Forced = forcedRationale(forced, d.Block)
+		l.Rounds[n-1].Forced = forcedRationale(forced, blocked)
 	}
 	if g.Extra != nil {
 		g.Extra(d)
@@ -65,6 +68,10 @@ func stampAndPersist(stderr io.Writer, g gatePersist, l gatestate.Ledger, d gate
 	}
 	if d.Block {
 		cwarn(stderr, g.Label+": "+d.Reason)
+		return d
+	}
+	if blocked {
+		cwarn(stderr, g.Label+": this round's review produced no findings block, so it is not a pass ("+d.Reason+")")
 		return d
 	}
 	cok(stderr, g.Label+": "+d.Reason)

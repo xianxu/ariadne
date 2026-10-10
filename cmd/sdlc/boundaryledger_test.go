@@ -810,4 +810,8 @@ func TestBoundaryRoundWithoutFindingsIsNotPassed(t *testing.T) {
 	if strings.Contains(string(raw), "passed") {
 		t.Fatalf("the rendered ledger says passed:\n%s", raw)
 	}
+	// Every reader agrees (BR-9): no "Converging", no [ok] line.
+	if out := stderr.String(); strings.Contains(out, "Converging.") || strings.Contains(out, "[ok]") || !strings.Contains(out, "not a pass") {
+		t.Fatalf("the gate's report still reads as a pass:\n%s", out)
+	}
 }

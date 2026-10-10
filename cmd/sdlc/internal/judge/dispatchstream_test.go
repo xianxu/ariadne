@@ -161,7 +161,7 @@ func TestDispatchTimeout(t *testing.T) {
 		{"", 45 * time.Minute, 45 * time.Minute},
 		{"75m", 45 * time.Minute, 75 * time.Minute},
 	} {
-		if got, err := dispatchTimeout(c.env, c.sized); err != nil || got != c.want {
+		if got, err := EffectiveTimeout(c.env, c.sized); err != nil || got != c.want {
 			t.Errorf("%+v: %v %v", c, got, err)
 		}
 	}

@@ -190,7 +190,7 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 // if that one has none either, both runs' text is returned, labelled, for the
 // caller's fail-safe and the sidecar (#300).
 func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err error) {
-	timeout, err := dispatchTimeout(os.Getenv("WF_REVIEW_TIMEOUT"), opts.Timeout)
+	timeout, err := EffectiveTimeout(os.Getenv("WF_REVIEW_TIMEOUT"), opts.Timeout)
 	if err != nil {
 		return "", err
 	}
@@ -357,9 +357,10 @@ func ReviewTimeout(addedLines int) time.Duration {
 	return min(d, 2*time.Hour)
 }
 
-// dispatchTimeout is the dispatch's limit: WF_REVIEW_TIMEOUT when set, else
-// the caller's sized limit, else the 30-minute default.
-func dispatchTimeout(env string, sized time.Duration) (time.Duration, error) {
+// EffectiveTimeout is the dispatch's limit, the one statement of its
+// precedence: WF_REVIEW_TIMEOUT when set, else the caller's sized limit, else
+// the 30-minute default. Callers that report the limit read it from here.
+func EffectiveTimeout(env string, sized time.Duration) (time.Duration, error) {
 	if env == "" && sized > 0 {
 		return sized, nil
 	}

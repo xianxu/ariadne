@@ -33,6 +33,13 @@ Detailed incidents remain in their owning issue or review artifact.
   fails when that site alone is removed. A mutation that removes them all at
   once passes as long as any one survives, and a later boundary can mask an
   earlier one (#286 BR-2, BR-6).
+- When a fix changes one reader of an outcome (a stored flag), compute the
+  outcome once and have every reader consume it: the reported line, the waiver
+  stamp and the convergence summary too. A fix to one reader leaves the others
+  reporting the old answer (#300 BR-9).
+- Ticking a Plan row checks it: every test the row names exists under that
+  name and asserts each clause, and a step not yet done (a close) sits in its
+  own unticked row (#300, three findings in one family).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - A syntactic guard cannot support an absolute semantic claim. Bound the claim to

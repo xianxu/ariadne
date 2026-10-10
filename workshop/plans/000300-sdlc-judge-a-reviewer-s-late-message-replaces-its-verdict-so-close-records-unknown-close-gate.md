@@ -101,6 +101,31 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-09T21:36:38-07:00"
+      agent: claude
+      findings:
+        - id: BR-9
+          severity: Important
+          title: A findings-less boundary round is BLOCKED in the ledger but still reported as Converging, ok, and unforced
+          detail: 'gatePersist.Blocked only feeds the stored Blocked flag. ConvergenceLine (gatestate/family.go:154) prints "Converging." for 0 new / 0 repeats, stampAndPersist picks cok vs cwarn by d.Block alone, and forcedRationale(forced, d.Block) drops a --force waiver on a round now recorded blocked. Plan Task 5 is ticked as "doesn''t count as convergence". Rule: one effective outcome per round, consumed by every reader. Compute blocked := d.Block || g.Blocked once in stampAndPersist for Blocked, Forced and the warn/ok line, and have ConvergenceLine report a protocol-error round as not converging. Extend the D6 test to assert the stderr convergence line.'
+          family: one-round-outcome-all-readers
+          round: 4
+        - id: BR-10
+          severity: Minor
+          title: Plan Task 5 names TestProtocolErrorRoundBlocks; the shipped test is TestBoundaryRoundWithoutFindingsIsNotPassed
+          detail: '3rd finding in this family. Rule: ticking a Plan row requires that every named test exists under that name and asserts every clause of the row; check it when the row is ticked rather than fixing rows one at a time.'
+          family: plan-claims-match-tests
+          round: 4
+        - id: BR-11
+          severity: Minor
+          title: reviewLimitLabel restates dispatchTimeout's precedence and the 30m default (ARCH-DRY)
+          detail: milestoneclose.go reviewLimitLabel repeats the env-over-sized precedence and the 30m default, which now lives in three places. Export judge.EffectiveTimeout(env, sized) and label from its result, which also stops an invalid override from being printed as the limit.
+          family: single-source-timeout
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#300 (boundary-review)
@@ -146,6 +171,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-7 — addressed — Atlas sdlc-binary.md (#300 paragraph), judge-output-contract.md, plan D5 and the Core concepts row now describe RunFailure, ErrReviewDidNotRun, per-agent hosts, claude-only stream and the verdict-first guard; Revisions records the change. Checked against apifailure.go/dispatch.go.
 - BR-8 — addressed — Dispatch returns attempt 1's labelled text with any error from attempt 2; TestDispatchRetryErrorKeepsTheFirstAttempt fails under the old (second, err) return; all four callers print the output on error.
 
+## Round 4 — 2026-10-09T21:36:38-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-9** [Important] `one-round-outcome-all-readers` A findings-less boundary round is BLOCKED in the ledger but still reported as Converging, ok, and unforced
+  gatePersist.Blocked only feeds the stored Blocked flag. ConvergenceLine (gatestate/family.go:154) prints "Converging." for 0 new / 0 repeats, stampAndPersist picks cok vs cwarn by d.Block alone, and forcedRationale(forced, d.Block) drops a --force waiver on a round now recorded blocked. Plan Task 5 is ticked as "doesn't count as convergence". Rule: one effective outcome per round, consumed by every reader. Compute blocked := d.Block || g.Blocked once in stampAndPersist for Blocked, Forced and the warn/ok line, and have ConvergenceLine report a protocol-error round as not converging. Extend the D6 test to assert the stderr convergence line.
+- **BR-10** [Minor] `plan-claims-match-tests` Plan Task 5 names TestProtocolErrorRoundBlocks; the shipped test is TestBoundaryRoundWithoutFindingsIsNotPassed
+  3rd finding in this family. Rule: ticking a Plan row requires that every named test exists under that name and asserts every clause of the row; check it when the row is ticked rather than fixing rows one at a time.
+- **BR-11** [Minor] `single-source-timeout` reviewLimitLabel restates dispatchTimeout's precedence and the 30m default (ARCH-DRY)
+  milestoneclose.go reviewLimitLabel repeats the env-over-sized precedence and the 30m default, which now lives in three places. Export judge.EffectiveTimeout(env, sized) and label from its result, which also stops an invalid override from being printed as the limit.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-9** [Important] `one-round-outcome-all-readers` A findings-less boundary round is BLOCKED in the ledger but still reported as Converging, ok, and unforced
+- **BR-10** [Minor] `plan-claims-match-tests` Plan Task 5 names TestProtocolErrorRoundBlocks; the shipped test is TestBoundaryRoundWithoutFindingsIsNotPassed
+- **BR-11** [Minor] `single-source-timeout` reviewLimitLabel restates dispatchTimeout's precedence and the 30m default (ARCH-DRY)

@@ -61,26 +61,27 @@ The fake reviewer in the judge tests (a script printing a recorded stream) is th
 - [ ] M1 — stream capture, latest block wins, one retry, the unattended rule
 
 ### Task 1: `ReadStream`
-- [x] Record a short live stream and hand-edited variants as fixtures; a table test over each shape the decisions name (clean, postscript, background-wait, error result, truncated, not a stream). Implement; `ParseVerdictToken` last-match with its test. Commit.
+- [x] Live-recorded fixtures plus hand-edited variants (`testdata/stream/`); `TestReadStream` over every shape (clean, postscript, background-wait, error result, verdict-then-error, truncated, not a stream); `TestHasVerdict`; `TestParseVerdictTokenTakesTheLastLine`.
 
 ### Task 2: dispatch through the stream, with one retry
-- [x] Fake-reviewer tests drive `Dispatch` and the close end to end: the Done-when shape (verdict, then postscript), the retry path, and the two-failures fail-safe with its sidecar. Implement in `BuildArgs`/`Dispatch`; update `FormatCommandLine` goldens and the live conformance test. Commit.
+- [x] `Dispatch`: `TestDispatchKeepsAVerdictBeforeAPostscript` (the Done-when shape), `TestDispatchRetriesARunWithoutAVerdict`, `TestDispatchTwoRunsWithoutAVerdictStayUnknown`, `TestDispatchRetryDeadlineKeepsTheFirstAttempt`, `TestDispatchRetryErrorKeepsTheFirstAttempt`. Close end to end: `TestCloseRecordsTheVerdictBeforeAPostscript`, `TestCloseWithoutAVerdictKeepsBothRuns` (sidecar holds both runs). Args: `TestBuildArgs_Claude`; live: `TestLiveAgentStreamConformance` (stream mode).
 
 ### Task 3: the unattended rule
-- [x] Add the rule to `ContractPreamble`; regenerate goldens (`-update-golden`); the output-contract drift check stays green. Commit; `sdlc milestone-close --issue 300 --milestone M1`.
+- [x] `UnattendedRule`, embedded in both `ContractPreamble` and `BoundaryReviewContract`; goldens regenerated (`TestBuildPrompt_Golden`: the diff is exactly the rule in 8 prompts); `TestContractDoc_InSyncWithTokens` green; M1 closed.
 
 ## M2 — Honest failures and a sized timeout (D5–D7)
 
 - [ ] M2 — API failure is "did not run", protocol errors block, timeout scales with the window
 
 ### Task 4: API failure
-- [x] `APIFailure` table test, including a review whose prose quotes the signatures (must not trip); a fake-reviewer dispatch with an error result reads "review did not run" with the sandbox action, persists nothing and doesn't retry. Commit.
+- [x] `TestRunFailure` (prose quoting the signatures doesn't trip; a verdict followed by an error result keeps the verdict; a non-network error isn't a sandbox issue; each agent's host); `TestDispatchAPIErrorIsReviewDidNotRun` (error, sandbox action, no retry; the boundary caller's existing dispatch-error path persists nothing); `TestDispatchParsesOnlyClaudeAsAStream`.
 
 ### Task 5: protocol errors block
-- [x] A boundary round with no findings block renders as blocked, not "passed", and doesn't count as convergence (`TestProtocolErrorRoundBlocks`). Commit.
+- [x] `TestBoundaryRoundWithoutFindingsIsNotPassed`: stored blocked, the rendered ledger never says passed, and the gate's report has no "Converging." or `[ok]` line (one outcome for every reader, BR-9).
 
 ### Task 6: sized timeout
-- [x] `ReviewTimeout` table test, and a test that the boundary caller passes the window's size and one deadline spans the retry. Help text in `root.md`, `close.md`, `milestone-close.md`, `change-code.md`; atlas (judge section). Commit; `make test`; `sdlc milestone-close --issue 300 --milestone M2`; `sdlc close --issue 300`.
+- [x] `TestReviewTimeout`; `TestCloseSizesTheReviewTimeout` (the boundary caller passes the window's size; the override wins); `TestDispatchTimeout` (`EffectiveTimeout` precedence); `TestDispatchRetryDeadlineKeepsTheFirstAttempt` (one deadline spans the retry). Help (`root.md`, `close.md`, `milestone-close.md`, `change-code.md`) and atlas.
+- [ ] `make test`; `sdlc milestone-close --issue 300 --milestone M2`; `sdlc close --issue 300`.
 - [ ] Close #271 as absorbed (its Done-when is covered by Tasks 2–3): `sdlc issue set-status` per the lifecycle, with a Log line pointing here; tick its project row.
 
 ## Revisions
@@ -90,3 +91,4 @@ The fake reviewer in the judge tests (a script printing a recorded stream) is th
 - 2026-10-09 (M1 build): the type is `AgentRun` (the package already had a `Run` process seam). `HasVerdict` also accepts the legacy sentinels `Classify` reads and `ParseVerdict`'s bare boundary token: an existing dispatch test showed that 'No DRY violations found.' would otherwise be retried. Task 4 (API failure) and `dispatchTimeout`'s precedence landed in M1, since they live in the same dispatch function; M2 keeps the boundary ledger (D6) and the callers' sized timeout (D7).
 - 2026-10-09 (M1 review rounds 1–2): `APIFailure` became `RunFailure`. It never overrides a verdict, it separates `ErrReviewDidNotRun` from `ErrAPIUnreachable`, and it names a host per agent. Stream parsing is claude-only. An error from a retry carries attempt 1's text, and all four `Dispatch` callers show it. The atlas, the contract doc and this table were updated in the same commit (the review's rule: a contract change updates every artifact that describes it).
 - 2026-10-09 (M2 build): D6 is a stamp on the ledger record (`gatePersist.Blocked`), not a change to the gate decision. A findings-less boundary round renders as blocked, and the close still halts on its `unknown` verdict as before. Forcing the decision instead would also have blocked a SHIP close whose dispositions merely failed validation, and printed 'N open blocking findings' with an empty list. D7 sizes boundary reviews only: plan reviews keep the flat 30 minutes, since a plan is bounded by the design limit (≤500 lines). The dispatch line shows the limit in use.
+- 2026-10-09 (M2 review round 1): one effective outcome per round (`stampAndPersist` and `ConvergenceLine`; BR-9). `EffectiveTimeout` is exported as the one statement of the timeout precedence. Every ticked row now names its tests as they exist, and the closes moved to their own unticked row (the review's rule: check a row's named tests when ticking it).

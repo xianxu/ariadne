@@ -797,14 +797,16 @@ func boundaryReviewTimeout(stderr io.Writer, p boundaryReviewParams) time.Durati
 	return judge.ReviewTimeout(added)
 }
 
-// reviewLimitLabel is the limit a review runs under, as the heartbeat reader
-// sees it: the override when set, else the sized limit.
+// reviewLimitLabel is the limit a review runs under, read from the judge's
+// own precedence (judge.EffectiveTimeout), so it can't disagree with it.
 func reviewLimitLabel(sized time.Duration) string {
-	if v := os.Getenv("WF_REVIEW_TIMEOUT"); v != "" {
-		return v + " (WF_REVIEW_TIMEOUT)"
+	env := os.Getenv("WF_REVIEW_TIMEOUT")
+	d, err := judge.EffectiveTimeout(env, sized)
+	switch {
+	case err != nil:
+		return "invalid WF_REVIEW_TIMEOUT"
+	case env != "":
+		return d.String() + " (WF_REVIEW_TIMEOUT)"
 	}
-	if sized == 0 {
-		sized = 30 * time.Minute
-	}
-	return sized.String()
+	return d.String()
 }
