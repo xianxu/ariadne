@@ -3,7 +3,7 @@ type: target
 slug: review-convention
 status: active
 created: 2026-05-23
-updated: 2026-07-22
+updated: 2026-10-09
 ---
 
 # Target: Review convention for human-robot collaboration in markdown
@@ -69,10 +69,9 @@ disambiguates, and context tells the agent how to read it.
 of the file. A line break inside a `[]`/`{}` turn — a multi-paragraph proposal, a
 two-line reply — is written `<br>` (`🤖{first line<br>second line}`), and
 resolution turns it back into a real line break (§5). An anchor (`<X>`,
-`~D~`) quotes a single line of the document verbatim and is never encoded. Editors can then render a
-marker compactly and re-render it line by line; parley.nvim shows the chain as
-`🤖[…]` / `🤖{…}` (or just the highlighted `<X>` / struck `~D~`) and opens it in a
-thread view. Writers — humans, agents, tools — always emit single-line markers;
+`~D~`) quotes a single line of the document verbatim and is never encoded. Being line-local is what lets an editor render a
+marker compactly and re-render it line by line (for example, collapsing the
+chain and opening it in a thread view). Writers — humans, agents, tools — always emit single-line markers;
 readers may still tolerate a legacy marker that spans lines, but render it as
 broken. `Alt+q` on a selection spanning lines is refused rather than quoting
 across a line break.

@@ -88,7 +88,8 @@ After the optional reference, any chain of `[]`/`{}` sections in any order:
 
 **One line.** Every marker you write opens and closes on the same line. A line
 break inside a `[]`/`{}` turn is written `<br>` (`🤖{first<br>second}`); never
-let a marker span lines. Quote `<X>` / strike `~D~` text from a single line —
+let a marker span lines. When you apply a turn's text, decode `<br>` back to a
+line break (step 4, bulk resolution). Quote `<X>` / strike `~D~` text from a single line —
 it is the document's own prose and stays verbatim. (Legacy markers that span
 lines may still exist; read them, but write single-line ones.)
 
@@ -133,7 +134,9 @@ Markers inside fenced code blocks are ignored.
 3. **Parse all 🤖 markers** (and `㊷` aliases), checking the rightmost section
    to decide actionability. Skip non-actionable markers.
 4. **For each actionable marker** (last section is non-empty `[]`), read the
-   full chain, then:
+   full chain, then (wherever you apply text taken from a `[]`/`{}` turn —
+   `N`, `R`, `H` — turn each `<br>` into a real line break; `X` and `D` are the
+   document's own prose and stay verbatim):
    - **Replacement form** `🤖~D~[N]` (no robot reply after): the operator
      authored a literal replacement — substitute `D` with `N` in the surrounding
      text and remove the marker. This is the §5 accept path.
