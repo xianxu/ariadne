@@ -117,6 +117,32 @@ rounds:
       recipe: milestone-review
       reviewed: cd2ad8c07bf609e362a308cc6be7b799a3a41fd5
       blocked: false
+    - "n": 5
+      timestamp: "2026-10-09T22:12:50-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: LedgerErr routes to a named windowBranchFallback before the trailer case; table row plus RejectsANonSHAReviewedValue fail without the fix.
+          round: 5
+        - id: BR-8
+          disposition: addressed
+          note: unpinArchived unpins exactly the moved issue ids; TestLegacyArchivesEndPins pins 000777 (live elsewhere) and would go red under the old sweep.
+          round: 5
+        - id: BR-9
+          disposition: addressed
+          note: Both discards now cwarn; grep shows no remaining blank-assigned pin/unpin/sweep result. Warn-only change, no dedicated test.
+          round: 5
+      findings:
+        - id: BR-10
+          severity: Minor
+          title: Legacy repos now have no removal path for pins of issues archived by hand or abandoned elsewhere
+          detail: Dropping sweepLegacyPins (correctly, for worktree-shared refs) leaves only push/merge archives to end legacy pins; a hand-archived issue keeps up to milestones+1 refs forever. Name the end, e.g. a sweep keyed on refs older than N days whose id has no live file in ANY worktree (git worktree list).
+          family: residue-without-removal-path
+          round: 5
+      recipe: milestone-review
+      reviewed: 0f4e1bf53e5a94705da8e339df20d16aab0c7912
+      blocked: false
 ---
 
 # Gate ledger — ariadne#304 (boundary-review)
@@ -171,8 +197,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-9** [Minor] `pin-failure-must-warn` completeOnCard and settleLandedCompletions discard unpin and sweep warnings with a blank assignment
   Contradicts the reviewpin.go header ("every failure is a warning"); the abandon, push and merge sites cwarn theirs.
 
+## Round 5 — 2026-10-09T22:12:50-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — LedgerErr routes to a named windowBranchFallback before the trailer case; table row plus RejectsANonSHAReviewedValue fail without the fix.
+- BR-8 — addressed — unpinArchived unpins exactly the moved issue ids; TestLegacyArchivesEndPins pins 000777 (live elsewhere) and would go red under the old sweep.
+- BR-9 — addressed — Both discards now cwarn; grep shows no remaining blank-assigned pin/unpin/sweep result. Warn-only change, no dedicated test.
+
+### Raised
+
+- **BR-10** [Minor] `residue-without-removal-path` Legacy repos now have no removal path for pins of issues archived by hand or abandoned elsewhere
+  Dropping sweepLegacyPins (correctly, for worktree-shared refs) leaves only push/merge archives to end legacy pins; a hand-archived issue keeps up to milestones+1 refs forever. Name the end, e.g. a sweep keyed on refs older than N days whose id has no live file in ANY worktree (git worktree list).
+
 ## Open findings
 
-- **BR-7** [Minor] `window-fallback-must-be-named` A rejected ledger reviewed value falls through to the trailer fallback, mislabelled as a pre-#304 boundary
-- **BR-8** [Minor] `shared-ref-swept-by-local-view` sweepLegacyPins decides liveness from the local checkout's issuesDir but deletes worktree-shared refs/sdlc/reviewed pins
-- **BR-9** [Minor] `pin-failure-must-warn` completeOnCard and settleLandedCompletions discard unpin and sweep warnings with a blank assignment
+- **BR-10** [Minor] `residue-without-removal-path` Legacy repos now have no removal path for pins of issues archived by hand or abandoned elsewhere
