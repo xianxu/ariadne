@@ -1,12 +1,12 @@
 ---
 id: 000249
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-09-24
-updated: 2026-09-24
+updated: 2026-09-28
 estimate_hours:
-card_mirror: 'add97d845302c62c5f0cfa99a30c5fcdb2b5c88a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'bddc73040206ec4afadee9f431205bd659010a44' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Issue sync and publish leave a slot's resting branch diverged from origin/main
@@ -92,3 +92,7 @@ to end 0 ahead / 0 behind. That covers this issue's first two Done-when
 items. The `sdlc state` divergence report was dropped (planning now refuses
 from a resting branch with commits not on main, `cmd/sdlc/planningbranch.go`),
 and #240's feature-branch case is left to #240.
+
+### 2026-10-09
+
+Archived by hand (ariadne-robustness-1 housekeeping). The card was already `wontfix` (superseded by #252/#284); `set-status` had left these details live, and no verb archives an already-terminal card (#305). The mirror was set to match the card (`status`, `updated`, `card_mirror` = the card blob).

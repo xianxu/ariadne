@@ -65,8 +65,8 @@ Order: judge robustness first, because every close below depends on it. Then the
 
 **0. Housekeeping (no code)**
 - [x] Close superseded or fixed issues: #220, #221, #222, #219, #210, #306, #223, #096; #198 (folded into #202); #052 (superseded by #309); #197 (folded into #304); #273 (superseded by #308); #251 (fold into #237)
-- [.] Archive #249/#293's details (wontfix cards with live details)
-- [.] Reset pair's local git identity `T <t@e.com>`, and find the test that wrote it (evidence H1)
+- [x] Archive #249/#293's details (wontfix cards with live details)
+- [x] Reset pair's local git identity `T <t@e.com>`, and find the test that wrote it (evidence H1)
 
 **1. Judge robustness**
 - [ ] Verdict survives late messages, backgrounding, network blocks and timeouts [ariadne#300]
@@ -119,11 +119,15 @@ Order: judge robustness first, because every close below depends on it. Then the
 
 **Archive #249/#293 — blocked:** no verb can archive the details of an issue whose card is *already* terminal. `abandon` says "already wontfix; nothing to abandon", and `claim` refuses non-open cards. Hand-editing would leave the mirror saying `open`. These two stay as live test cases for #305, which absorbs "set-status wontfix|punt leaves details live".
 
+**Resolved 2026-10-09:** at the operator's direction both were archived by hand on a plain-git branch. The details moved to `workshop/history/issues/`, with the mirrored `status`/`updated`/`card_mirror` set to match the card. #305 still owns the verb gap; reproduce it with any new open issue.
+
 **pair identity — blocked on the operator:** the shared `.git/config` of pair (all slots) has `user.name=T`, `user.email=t@e.com`, and the sandbox can't write `.git/config`. To fix, run `git -C ~/workspace/pair config --local --unset user.name; git -C ~/workspace/pair config --local --unset user.email`.
 
-Likely cause: pair's shell tests (`tests/review-readiness-cli-test.sh`, `review-indicator-test.sh`, `review-*-restore-test.sh`, `review-observation-test.sh`) run `git config user.name T` after `cd`/`git init` without stopping on failure. If either step fails, the write lands in the enclosing real repo. The first T-authored commits (2026-06-21, pair#66 M4a') coincide with these tests being added. Needs a pair fix: use `git -C "$REPO" config` or `set -e`. Out of this project's scope; file it in pair.
+Likely cause: pair's shell tests (`tests/review-readiness-cli-test.sh`, `review-indicator-test.sh`, `review-*-restore-test.sh`, `review-observation-test.sh`) run `git config user.name T` after `cd`/`git init` without stopping on failure. If either step fails, the write lands in the enclosing real repo. The first T-authored commits (2026-06-21, pair#66 M4a') coincide with these tests being added. Needs a pair fix: use `git -C "$REPO" config` or `set -e`. Out of this project's scope.
 
-**Gaps hit while doing housekeeping:**
+**Resolved 2026-10-09:** the operator unset both keys. All 7 pair checkouts now author as `Xian Xu <xianxu@gmail.com>` (`git var GIT_AUTHOR_IDENT`). No pair issue was filed; the operator chose to watch for recurrence instead. Recheck scheduled as ariadne#313 (on or after 2026-11-09).
+
+**Gaps hit while doing housekeeping** (filed as #312, a batch-2 candidate):
 - Ending an open, unowned issue takes `claim` and then `abandon`: 13 claims and 13 abandons for a triage pass. A batch "triage close" path, or `abandon` accepting unowned open issues, would help.
 - #052 was `working` with no branch (a legacy card). `abandon` insists on running from the issue's branch, so the branch had to be created by hand, from main, just to run it.
 

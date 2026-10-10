@@ -1,12 +1,12 @@
 ---
 id: 000293
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-10-05
-updated: 2026-10-05
+updated: 2026-10-06
 estimate_hours:
-card_mirror: '296dbf7971c5cc6bb83f086522b2b707aa7afa5f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fcab6d7e1b41f2457fae46a64a36c42bbbde7ff7' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # Fleet: record a clone source on every construct/deps substrate row
@@ -73,3 +73,7 @@ creation.
 Filed from pair#387 planning at the operator's request ("I think this is the
 migration that didn't finish"). Related open migration: #223 (untrack
 weave-lowered substrate symlinks in derivatives).
+
+### 2026-10-09
+
+Archived by hand (ariadne-robustness-1 housekeeping). The card was already `wontfix` (set wontfix 2026-10-06); `set-status` had left these details live, and no verb archives an already-terminal card (#305). The mirror was set to match the card (`status`, `updated`, `card_mirror` = the card blob).
