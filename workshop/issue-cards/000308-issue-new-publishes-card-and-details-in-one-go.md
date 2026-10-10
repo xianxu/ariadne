@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000308-issue-new-publishes-card-and-details-in-one-go.md
         source_blob: 1dc6c55205fb2c41bf1675a24e1b624428a0c6db
         destination: workshop/issues/000308-issue-new-publishes-card-and-details-in-one-go.md
+        main_commit: daa215189ad80f16e5ac3e0909c4f93b773fecbe
 ---
 
 # issue new publishes card and details in one go
