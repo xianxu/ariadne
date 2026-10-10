@@ -1,6 +1,6 @@
 ---
 id: 000300
-status: codecomplete
+status: done
 created: 2026-10-06
 updated: 2026-10-09
 estimate_hours: 2.29
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 8b812fd64dc6d3a06d68139061ee1ad599c72b62
         evidence_commit: 8d793a91f61cf39900444f298a3c2077f35afc06
+        landed_commit: 40a34f5bb34663813685660c17f48ee6303b3c9e
 ---
 
 # sdlc judge: a reviewer's late message replaces its verdict, so close records 'unknown'
