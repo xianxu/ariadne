@@ -1,6 +1,6 @@
 ---
 id: 000315
-status: codecomplete
+status: done
 created: 2026-10-09
 updated: 2026-10-09
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 6c94a173b626aa192e92654489d2f1b2748bc3e6
         evidence_commit: 833a9a455a41027e21c6b4088f61be64213f9110
+        landed_commit: 48f2016b0f947e2ba1c781db356990f0c3acc573
 ---
 
 # Allow api.anthropic.com in the base-layer sandbox network allowlist
