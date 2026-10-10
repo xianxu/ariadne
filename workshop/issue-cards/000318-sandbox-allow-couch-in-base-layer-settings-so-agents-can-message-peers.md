@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000318-sandbox-allow-couch-in-base-layer-settings-so-agents-can-message-peers.md
         source_blob: c634ddcf5ee324fc7b409069a68c80e6ffe3c3f1
         destination: workshop/issues/000318-sandbox-allow-couch-in-base-layer-settings-so-agents-can-message-peers.md
+        main_commit: 9a97ca5a33dc4d6dbdbfa87c7e2ac57c891f6ff4
 ---
 
 # sandbox: allow couch in base-layer settings so agents can message peers
