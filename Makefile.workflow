@@ -5,6 +5,23 @@
 WF_WORKFLOW_SOURCE_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 WF_HELP_TARGETS := help-workflow
 
+# #319: a full `make test` takes a machine-wide lock so suites from different
+# slots and repos run one at a time. It is taken here, at parse time, because a
+# prerequisite would run after the test target's own prerequisites; $$PPID in
+# $(shell) is this make, whose exit releases the lock. WF_TEST_LOCK=off skips it;
+# WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait. Targeted runs never come here.
+ifneq ($(filter test,$(MAKECMDGOALS)),)
+ifneq ($(wildcard scripts/test-lock.py),)
+WF_TEST_LOCK_STATE := $(shell python3 scripts/test-lock.py acquire --watch $$PPID)
+ifeq ($(filter acquired reentrant skipped,$(WF_TEST_LOCK_STATE)),)
+$(error full-suite lock not taken ($(or $(WF_TEST_LOCK_STATE),helper failed)); see the [test-lock] lines above)
+endif
+ifeq ($(WF_TEST_LOCK_STATE),acquired)
+export WF_TEST_LOCK_HELD_BY := $(shell echo $$PPID)
+endif
+endif
+endif
+
 # Include openshell targets if available
 ifneq ($(wildcard .openshell/Makefile),)
 include .openshell/Makefile

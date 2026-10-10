@@ -114,6 +114,8 @@ symlink   scripts/parallel-checks.sh
 symlink   scripts/pre-merge-checks.sh
 symlink   scripts/close-issue.py
 symlink   scripts/sdlc-install.sh
+# #319: machine-wide full-suite lock, taken by Makefile.workflow on `make test`.
+symlink   scripts/test-lock.py
 # docflow (#79) — branch-scoped prose review with per-round git journaling,
 # companion to the xx-fix skill. Test (scripts/docflow.test.sh) stays ariadne-local.
 symlink   scripts/docflow.sh
