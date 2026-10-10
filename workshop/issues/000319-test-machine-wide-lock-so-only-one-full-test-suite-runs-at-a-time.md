@@ -64,12 +64,17 @@ repo's `make test` takes it after `weave refresh` (ARCH-DRY: one helper, one wir
   the wait as such (default: wait forever; agents run `make test` in the background).
 - Durable artifact: one lock file per user, rewritten per run, never grows; removed
   with `~/.local/state` (ARCH lifecycle).
-- [ ] `scripts/test-lock.py` + `Makefile.workflow` wiring + manifest symlink row
-- [ ] `scripts/test-lock.test.sh`: serialization with holder shown, kill releases,
+- [x] `scripts/test-lock.py` + `Makefile.workflow` wiring + manifest symlink row
+- [x] `scripts/test-lock.test.sh`: serialization with holder shown, kill releases,
       re-entrant, off, timeout, and `make test` wiring via `make -n`
-- [ ] atlas: `atlas/workflow/sdlc-binary.md` test-suite section (lock + hatch)
-- [ ] `weave refresh` in pair, confirm `make -n test` there takes the lock
+- [x] atlas: `atlas/workflow/sdlc-binary.md` test-suite section (lock + hatch)
+- [x] pair wiring: simulated (pair's Makefile + Makefile.local, this branch's Makefile.workflow + helper): `make -n test` blocks before any prerequisite. pair's `Makefile.workflow` symlinks `../ariadne/Makefile.workflow`, so it picks the wiring up when ariadne:0 fast-forwards; `weave refresh` adds the `scripts/test-lock.py` symlink (until then the `wildcard` guard skips the lock).
 
 ## Log
 
 ### 2026-10-10
+
+- Re-entrancy first walked `ps` ancestry; `ps` is denied in the agent sandbox, so
+  Makefile.workflow exports `WF_TEST_LOCK_HELD_BY` (the holder's make pid) instead.
+- `scripts/test-lock.test.sh`: 12/12 pass (serialize + holder shown, kill -9 of the
+  watcher releases, re-entrant, off, timeout, make wiring).
