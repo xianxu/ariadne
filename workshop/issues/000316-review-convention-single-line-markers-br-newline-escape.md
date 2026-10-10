@@ -46,7 +46,7 @@ Revise `construct/local/fix/review-convention.md`:
 
 ## Plan
 
-- [ ] Edit §3 / §5 + Revisions in `construct/local/fix/review-convention.md`
+- [x] Edit §3 / §5 + Revisions in `construct/local/fix/review-convention.md`
 
 ## Log
 
