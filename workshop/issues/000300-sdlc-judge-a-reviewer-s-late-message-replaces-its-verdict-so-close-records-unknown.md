@@ -113,7 +113,7 @@ Items, in order:
 Durable plan: `workshop/plans/000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown-plan.md`.
 
 - [x] M1 — Verdict capture: claude stream-json, the latest verdict/findings block wins, one retry when no verdict, the unattended rule in the contract (D1, #271). Plan Tasks 1–3.
-- [ ] M2 — Honest failures: an unreachable API is "review did not run", a protocol-error round is never "passed", the timeout scales with the window (D2, D3). Plan Tasks 4–6.
+- [x] M2 — Honest failures: an unreachable API is "review did not run", a protocol-error round is never "passed", the timeout scales with the window (D2, D3). Plan Tasks 4–6.
 
 ## Log
 
@@ -125,6 +125,7 @@ The recovered pair#362 round is in pair's
 local for the operator to refine.
 
 ### 2026-10-09
+- 2026-10-09: closed M2 — make test green except sandbox-only processgroup. M2: TestBoundaryRoundWithoutFindingsIsNotPassed (stored blocked, never passed, no Converging/[ok] line, waiver stamped; one ProducedNothing predicate), TestReviewTimeout, TestCloseSizesTheReviewTimeout (~60m for 2,000 added lines; 10m under WF_REVIEW_TIMEOUT), TestDispatchTimeout; every WF_REVIEW_TIMEOUT mention swept (README, error text).; review verdict: SHIP
 - 2026-10-09: closed M1 — make test green except sandbox-only processgroup. M1: TestDispatchKeepsAVerdictBeforeAPostscript, TestDispatchRetriesARunWithoutAVerdict, TestDispatchTwoRunsWithoutAVerdictStayUnknown, TestDispatchRetryDeadlineKeepsTheFirstAttempt, TestDispatchRetryErrorKeepsTheFirstAttempt, TestDispatchAPIErrorIsReviewDidNotRun, TestRunFailure, TestDispatchParsesOnlyClaudeAsAStream, TestCloseRecordsTheVerdictBeforeAPostscript, TestCloseWithoutAVerdictKeepsBothRuns; unattended rule in all 8 goldens; live claude stream conformance passes.; review verdict: SHIP
 - 2026-10-09: unclaimed: TL slot hands off: shaped scope recorded in Log; implement in :2-:4
 

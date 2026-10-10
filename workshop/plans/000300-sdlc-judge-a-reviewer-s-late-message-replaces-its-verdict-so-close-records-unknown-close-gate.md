@@ -164,6 +164,25 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 6
+      timestamp: "2026-10-09T21:55:59-07:00"
+      agent: claude
+      dispose:
+        - id: BR-12
+          disposition: addressed
+          note: README.md:65 now describes the window-sized limit; a repo-wide git grep for WF_REVIEW_TIMEOUT finds no remaining "defaults to 30m" wording.
+          round: 6
+        - id: BR-13
+          disposition: addressed
+          note: Round.ProducedNothing is read by both the Blocked stamp (boundaryledger.go:195) and ConvergenceLine (family.go:158); reverting either the forcedRationale reader or the ConvergenceLine check turns TestBoundaryRoundWithoutFindingsIsNotPassed red (scratch mutation).
+          round: 6
+        - id: BR-14
+          disposition: addressed
+          note: gatePersist.BlockedReason carries the gate's own wording; stampAndPersist holds no boundary-specific text.
+          round: 6
+      boundary: M2
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#300 (boundary-review)
@@ -237,8 +256,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-14** [Minor] `channel-vs-prose-separation` The shared stampAndPersist hard-codes the boundary-specific "produced no findings block" wording for gatePersist.Blocked
   Carry a BlockedReason alongside Blocked so the shared tail holds no gate-specific prose.
 
+## Round 6 — 2026-10-09T21:55:59-07:00 (claude) — passed
+
+### Disposed
+
+- BR-12 — addressed — README.md:65 now describes the window-sized limit; a repo-wide git grep for WF_REVIEW_TIMEOUT finds no remaining "defaults to 30m" wording.
+- BR-13 — addressed — Round.ProducedNothing is read by both the Blocked stamp (boundaryledger.go:195) and ConvergenceLine (family.go:158); reverting either the forcedRationale reader or the ConvergenceLine check turns TestBoundaryRoundWithoutFindingsIsNotPassed red (scratch mutation).
+- BR-14 — addressed — gatePersist.BlockedReason carries the gate's own wording; stampAndPersist holds no boundary-specific text.
+
 ## Open findings
 
-- **BR-12** [Important] `single-source-timeout` README.md:65 still says WF_REVIEW_TIMEOUT defaults to 30m; boundary reviews now scale with the window
-- **BR-13** [Minor] `one-round-outcome-all-readers` ConvergenceLine decides "no readable findings" with its own predicate, separate from the Blocked stamp's review.Round == nil
-- **BR-14** [Minor] `channel-vs-prose-separation` The shared stampAndPersist hard-codes the boundary-specific "produced no findings block" wording for gatePersist.Blocked
+(none — every finding has been disposed)

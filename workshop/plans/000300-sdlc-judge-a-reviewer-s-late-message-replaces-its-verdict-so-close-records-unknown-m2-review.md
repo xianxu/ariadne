@@ -205,3 +205,74 @@ findings:
     detail: |
       Carry a BlockedReason alongside Blocked so the shared tail holds no gate-specific prose.
 ```
+
+---
+
+## Re-review — 2026-10-09T21:55:58-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 300 — sdlc judge: a reviewer's late message replaces its verdict, so close records 'unknown' |
+| repo | ariadne |
+| issue file | workshop/issues/000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 6eae019e1525207f085e65687e3f64ba4d4f09b8..ef1e65066ec06fb2d4c4518f8bbeb02066fb21dc |
+| command | sdlc milestone-close --issue 300 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-10-09T21:55:58-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Disposing prior findings now; running the targeted tests and a scratch mutation for the Forced-stamp reader (BR-13).
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three open findings are fixed, and checks run against the code confirm each one. BR-12: a repo-wide `git grep WF_REVIEW_TIMEOUT` finds no remaining "defaults to 30m" wording; README, atlas, the four help texts and the error string all describe the window-sized limit. BR-13: `Round.ProducedNothing()` (`gatestate/ledger.go:130`) is now the only predicate. The Blocked stamp (`boundaryledger.go:195`) and `ConvergenceLine` (`family.go:158`) both read it. In a scratch worktree I made two separate changes and ran `TestBoundaryRoundWithoutFindingsIsNotPassed` after each. Reverting the waiver stamp to `forcedRationale(forced, d.Block)` turns it red. Disabling the `ConvergenceLine` check also turns it red. So both readers are covered now, which was the gap BR-13 named. BR-14: `gatePersist.BlockedReason` carries the gate's own wording, so the shared tail in `stampAndPersist` has no boundary-specific text. The targeted tests pass (`cmd/sdlc` for the three named tests, plus the full `judge` and `gatestate` packages). Every test the Plan rows name exists under that name. Nothing blocks shipping.
+
+1. **Strengths**
+   - Each round now has one outcome: `blocked := d.Block || g.Blocked` (`gatepersist.go:57`) drives the stored flag, the waiver stamp and the reported line. The decision returned to the caller is unchanged, and the plan's Revisions entry explains why.
+   - `judge.EffectiveTimeout` is the only place that states the timeout precedence. Both `Dispatch` and `reviewLimitLabel` read it, so they cannot disagree (fixes the earlier ARCH-DRY finding, BR-11).
+   - `ReviewTimeout` is a pure function with a table test that covers the boundaries (500/501/1500/cap).
+   - `TestCloseSizesTheReviewTimeout` runs a full close and reads the deadline the reviewer actually received. It does not just check an argument.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `TestBoundaryRoundWithoutFindingsIsNotPassed` only exercises a round with no findings block at all (`review.Round == nil`). It does not cover the case BR-13 itself described: a block whose only disposition is invalid, so `ApplyChecked` errors. A unit test of `ConvergenceLine`/`ProducedNothing` in `gatestate` on such a round would pin that case. I am not raising it as a finding, because both paths now go through the same predicate.
+
+5. **Test coverage notes:** the mutation runs above confirm that the D6 test protects both readers (the waiver stamp and convergence). D7 is covered by a unit test (`TestReviewTimeout`), the precedence test (`TestDispatchTimeout`) and the end-to-end close test (including the env override).
+
+6. **Architecture**
+   - ARCH-DRY passes: one predicate for "produced nothing", one statement of the timeout precedence.
+   - ARCH-PURE passes: `ReviewTimeout`, `EffectiveTimeout` and `ProducedNothing` are pure. Measuring the window (`boundaryReviewTimeout`) is a thin IO step.
+   - ARCH-PURPOSE passes: every reader of the round's outcome and every place that mentions the timeout was swept.
+   - ARCH-MOCK passes: the judge's `Run` seam is used in the end-to-end test.
+   - ARCH-CONSTRAINTS passes: the timeout is bounded at 2h and an unmeasurable window falls back to the default.
+   - ARCH-SECURE passes: an invalid env value is reported as invalid and then rejected in `Dispatch`.
+   - ARCH-ORDER passes: a round's outcome is computed once and then read, so no two flags can disagree.
+   - ARCH-FUNERAL passes: nothing new is persisted beyond a field on an existing ledger round.
+
+7. **Plan revisions:** none. The plan still matches the code.
+
+```findings
+dispose:
+  - id: BR-12
+    disposition: addressed
+    note: |
+      README.md:65 now describes the window-sized limit; a repo-wide git grep for WF_REVIEW_TIMEOUT finds no remaining "defaults to 30m" wording.
+  - id: BR-13
+    disposition: addressed
+    note: |
+      Round.ProducedNothing is read by both the Blocked stamp (boundaryledger.go:195) and ConvergenceLine (family.go:158); reverting either the forcedRationale reader or the ConvergenceLine check turns TestBoundaryRoundWithoutFindingsIsNotPassed red (scratch mutation).
+  - id: BR-14
+    disposition: addressed
+    note: |
+      gatePersist.BlockedReason carries the gate's own wording; stampAndPersist holds no boundary-specific text.
+```
