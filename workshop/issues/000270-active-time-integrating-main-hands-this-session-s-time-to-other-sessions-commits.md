@@ -1,12 +1,20 @@
 ---
 id: 000270
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-28
-updated: 2026-09-28
+updated: 2026-10-09
 estimate_hours:
-card_mirror: '1d02414ef5aa552d1815e46c018f3f3aa1630762' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '89dbeaf6d7230579d668516b59a9bd68f576f7aa' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T20:01:25-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # active-time: integrating main hands this session's time to other sessions' commits
@@ -68,7 +76,33 @@ first, or #269's gate makes the undercount routine.
 
 ## Plan
 
-- [ ]
+Design (ARCH-DRY: one boundary loader feeds both the segment boundaries and
+the peer set):
+
+- `activetime.Options` gains `Scope{BranchPoint, Issue}`. `computeActual`
+  fills it from `gitx.MergeBaseWithMain()` ("" on main / no divergence →
+  legacy, unscoped behavior, so the direct-on-main flow is unchanged).
+- `loadWindowCommits` reads `git log HEAD <extraRefs>` with no
+  `--since/--until` and filters by author date in Go (ariadne's full history
+  walk is ~50 ms). With a scope, a commit is a boundary iff it is the
+  branch's own (`git rev-list HEAD ^<branch point>`) or its subject
+  references `Scope.Issue`. That drops merged/rebased-in main commits **and**
+  other issues' tracker card commits (another slot's claim at 14:00 is the
+  same foreign-boundary bug); this issue's tracker claim/close commits stay.
+- Peers come from the same scoped commit set (`activetime.WindowIssues`),
+  replacing `gitx.DiscoverWindowIssues` (committer-date, HEAD-only); its
+  #190 foreign-ref test moves with it.
+
+Steps:
+- [ ] Failing real-git fixture test: branch with own #N commits, interleaved
+      foreign #M commits on main; integrate by rebase, rebase
+      `--committer-date-is-author-date`, and merge; boundary set (and peers)
+      identical across all four states, and no #M boundary.
+- [ ] Author-date window filter + branch scope in `loadWindowCommits`.
+- [ ] `WindowIssues` replaces `DiscoverWindowIssues`; wire `computeActual`.
+- [ ] End-to-end check: `Compute` minutes equal before/after on the fixture.
+- [ ] Re-measure pair#247 (branch tip in a temp worktree) and log the value.
+- [ ] Atlas note on boundary scoping.
 
 ## Log
 
