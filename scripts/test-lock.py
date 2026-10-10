@@ -52,7 +52,7 @@ def holder(fd):
 
 def describe(rec):
     if not rec:
-        return "an unidentified holder (record not yet written)"
+        return "an unidentified holder (record not yet written, or not one of ours)"
     return f"{rec['repo']} ({rec['worktree']}), make pid {rec['pid']}, since {rec['started']}"
 
 
