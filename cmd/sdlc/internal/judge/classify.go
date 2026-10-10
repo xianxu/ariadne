@@ -55,11 +55,14 @@ var infoRE = regexp.MustCompile(`(?i)REMINDER:`)
 // quoted token. Tolerant of leading markdown markup (stripped by the caller).
 var verdictTokenLineRE = regexp.MustCompile("(?i)^VERDICT:[ \t]*(CLEAN|INFO|FAILURE|SHIP|FIX-THEN-SHIP|REWORK|BLOCK)[ \t*_`]*(\\(|$)")
 
-// ParseVerdictToken scans output for the first `VERDICT:` line and returns its
-// upper-cased token (e.g. "CLEAN", "SHIP"). ok=false when no VERDICT: line is
+// ParseVerdictToken scans output for the last `VERDICT:` line and returns its
+// upper-cased token (e.g. "CLEAN", "SHIP"). The latest line wins, as the
+// last ```verdict and ```findings blocks do (#300: the output is every message
+// of the run, and a reviewer may revise). ok=false when no VERDICT: line is
 // present anywhere — the caller decides the fallback (legacy sentinels) or
 // fail-closed. Pure; the single robust parse both Classify and ParseVerdict use.
 func ParseVerdictToken(output string) (string, bool) {
+	token, ok := "", false
 	for _, line := range strings.Split(output, "\n") {
 		t := strings.TrimSpace(line)
 		if t == "" {
@@ -67,10 +70,10 @@ func ParseVerdictToken(output string) (string, bool) {
 		}
 		stripped := leadingMarkupRE.ReplaceAllString(t, "")
 		if m := verdictTokenLineRE.FindStringSubmatch(stripped); m != nil {
-			return strings.ToUpper(m[1]), true
+			token, ok = strings.ToUpper(m[1]), true
 		}
 	}
-	return "", false
+	return token, ok
 }
 
 // Classify returns the Outcome for a single agent's output. Empty output is

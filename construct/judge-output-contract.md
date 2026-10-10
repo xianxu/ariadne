@@ -21,6 +21,17 @@ Do not put a title, heading, or preamble above the VERDICT line; it must lead.
 (The parser tolerates a stray preamble defensively, but the contract is "lead
 with the verdict".)
 
+Every contract also carries the **unattended rule** (`judge.UnattendedRule`,
+#300): the reviewer runs non-interactively and receives no notifications, so it
+runs every command in the foreground and ends with its verdict. The claude
+reviewer's whole run is read as a `stream-json` event stream: the review text is
+every assistant message in order, so the latest verdict and findings blocks win
+and a later message without them erases nothing. A run with no verdict anywhere
+is dispatched once more. A run that never reviewed (its stream reports an error,
+or a text-mode agent exits non-zero with a failure signature) is "review did not
+run", never a verdict, unless it already gave one; an unreachable API names the
+agent's host to allow.
+
 ## Tokens
 
 | TOKEN           | gate     | meaning                                             |

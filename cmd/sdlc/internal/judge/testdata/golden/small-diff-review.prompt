@@ -323,6 +323,10 @@ reads (its `verdict:` value is one of the listed tokens). Everything after the b
 is advisory: a non-blocking verdict WITH findings still PASSES the gate. A bare
 `VERDICT: <TOKEN>` line is accepted only as a FALLBACK when the block is absent.
 
+RUN UNATTENDED. You run non-interactively: no one answers questions and you
+receive no notifications. Run every command in the foreground (never in the
+background), within the review's time limit, and end with your verdict.
+
 Review window:
 PINNED-REVIEW-WINDOW
 

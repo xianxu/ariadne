@@ -786,3 +786,44 @@ func TestGatePersist_ReportsTheDecisionOnBothOutcomes(t *testing.T) {
 		})
 	}
 }
+
+// #300 D6 (D2 of the 2026-10-09 evidence): a boundary round whose review
+// produced no findings block is recorded as blocked, never "passed", although
+// it carries no finding to block on.
+func TestBoundaryRoundWithoutFindingsIsNotPassed(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	p := boundaryReviewParams{
+		Label: "#69 M1", Base: "abc1234", BaseLong: "abc1234", Head: "def5678",
+		IssuesDir: issuesDir, IssueNum: 69, Milestone: "M1", PlansDir: plansDir,
+	}
+	var stderr strings.Builder
+	persistBoundaryRound(&stderr, p, reviewResult{Agent: "claude", ProtocolError: "no valid findings block"}, "2026-10-09T18:00:00-07:00")
+	l, err := readBoundaryGateLedger(plansDir, "000069-x.md", 69)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(l.Rounds) != 1 || !l.Rounds[0].Blocked {
+		t.Fatalf("a findings-less round was recorded as passed: %+v", l.Rounds)
+	}
+	raw, _ := os.ReadFile(filepath.Join(plansDir, "000069-x-close-gate.md"))
+	if strings.Contains(string(raw), "passed") {
+		t.Fatalf("the rendered ledger says passed:\n%s", raw)
+	}
+	// Every reader agrees (BR-9): no "Converging", no [ok] line.
+	if out := stderr.String(); strings.Contains(out, "Converging.") || strings.Contains(out, "[ok]") || !strings.Contains(out, "not a pass") {
+		t.Fatalf("the gate's report still reads as a pass:\n%s", out)
+	}
+	// The waiver stamp reads the same outcome: a forced close records its
+	// rationale on this round.
+	plansDir2 := t.TempDir()
+	p.PlansDir, p.ForcedRationale = plansDir2, "operator waived the review"
+	persistBoundaryRound(&stderr, p, reviewResult{Agent: "claude", ProtocolError: "no valid findings block"}, "2026-10-09T18:05:00-07:00")
+	l2, err := readBoundaryGateLedger(plansDir2, "000069-x.md", 69)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := l2.Rounds[len(l2.Rounds)-1]; got.Forced == "" {
+		t.Fatalf("the waiver was not stamped on a blocked round: %+v", got)
+	}
+}
