@@ -1,12 +1,20 @@
 ---
 id: 000251
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-09-24
-updated: 2026-09-24
+updated: 2026-10-09
 estimate_hours:
-card_mirror: '996addaebb6ffccbe066a8c7cc477bdaf635632e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '07ab72a9060bed2c293ec5be6029acd6c59213d0' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Phased issue lifecycle: spec, plan and code phases land on main
@@ -169,6 +177,8 @@ open ──────────────► working ───────
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): landing/storage half superseded by #252/#283/#284/#231; the phase model (per-phase locks, parked, verdict-backed spec-complete) folds into #237 (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-09-24
 
 Designed in conversation from ariadne slot 1 while reviewing #249. Key steps:
