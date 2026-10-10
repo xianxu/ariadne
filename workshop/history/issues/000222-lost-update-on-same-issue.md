@@ -1,12 +1,20 @@
 ---
 id: 000222
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-09-11
-updated: 2026-09-11
+updated: 2026-10-09
 estimate_hours:
-card_mirror: 'b1ac10050b18b9b7a2f17900cb32e45a8c23df8a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '55c30b59222dbc7a23629296fe787b8699febd3e' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Same-issue concurrent trunk edits are last-writer-wins
@@ -89,6 +97,8 @@ not an implementation of a choice nobody has made yet.
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): superseded by #252/#283/#284/#285: card CAS writes, owner as lock, owner-only republish against the merge base; the unclaimed case moves to #274 (optimistic publish) (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-09-11
 
 ### 2026-09-11
