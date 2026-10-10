@@ -92,6 +92,9 @@ func runPublishGate(ctx context.Context, baseRef, issuesDir string, stderr io.Wr
 		if err != nil {
 			return err
 		}
+		if err := refuseUnownedCompletions(ctx, env, rs, owned); err != nil {
+			return err
+		}
 		return validatePublishAnchors(ctx, ownedPublishIssues(owned), stderr)
 	}
 	issues, err := mergedCodecompleteIssues(ctx, baseRef, issuesDir)
@@ -99,6 +102,52 @@ func runPublishGate(ctx context.Context, baseRef, issuesDir string, stderr io.Wr
 		return err
 	}
 	return validatePublishIssues(ctx, issues, stderr)
+}
+
+// refuseUnownedCompletions makes an orphaned close LOUD (#304 D8). A codecomplete card
+// bound to this repository whose details this branch's patch changes, but which no rule
+// owns, is a close the branch no longer carries (a squash or an amend dropped its
+// Close-Token). Skipping it would publish code with no gate and leave the card
+// codecomplete forever, which is how a rebase used to fail open.
+func refuseUnownedCompletions(ctx context.Context, env *trackerEnv, rs tracker.Records, owned []ownedCompletion) error {
+	mainBase, _, err := reviewMainBase(ctx, gitx.Capture("rev-parse", "HEAD"))
+	if err != nil || mainBase == "" {
+		return err // on main there is no branch patch; a criss-cross is refused below anyway
+	}
+	changed, err := gitx.DiffNames(mainBase, "HEAD")
+	if err != nil {
+		return fmt.Errorf("publish gate: could not list the branch patch (%v) — refusing to publish unverified", err)
+	}
+	inPatch := map[string]bool{}
+	for _, p := range changed {
+		inPatch[p] = true
+	}
+	isOwned := map[string]bool{}
+	for _, oc := range owned {
+		isOwned[oc.ID] = true
+	}
+	var orphans []string
+	for _, rec := range rs.All() {
+		if rec.Card == nil || rec.Duplicate || rec.Status() != "codecomplete" || isOwned[rec.ID] || rec.DetailPath == "" {
+			continue
+		}
+		b, ok, err := issue.CardCompletion(rec.Card.Raw)
+		if err != nil || !ok || b.Repository != env.target.Repository {
+			continue
+		}
+		rel, err := filepath.Rel(canonRoot(env.root), canonRoot(rec.DetailPath))
+		if err != nil || !inPatch[filepath.ToSlash(rel)] {
+			continue
+		}
+		orphans = append(orphans, issue.CLIRef(rec.ID))
+	}
+	if len(orphans) == 0 {
+		return nil
+	}
+	return fmt.Errorf("publish gate: #%s is codecomplete but this branch carries no close for it "+
+		"(a squash or an amend dropped its Close-Token, #304).\n"+
+		"  Re-run `sdlc close --issue %s --verified '<evidence>'`, then retry the publish.",
+		strings.Join(orphans, ", #"), orphans[0])
 }
 
 // ownedPublishIssues anchors each owned completion on its evidence commit.

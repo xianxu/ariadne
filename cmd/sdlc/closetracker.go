@@ -23,6 +23,10 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
+// closeTokenTrailer names the close generation in its evidence message (#304 D8);
+// gitx.CommitsWithCloseToken reads the same key.
+const closeTokenTrailer = "Close-Token"
+
 // gitEvidence commits a close's files on the source branch. It builds the
 // commit in a temporary index from HEAD, so staged unrelated work is neither
 // committed nor disturbed, and moves the branch by compare-and-swap. A pinned
@@ -453,8 +457,12 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 	if actual == "" {
 		actual = issue.ActualNotApplicableSentinel
 	}
-	message := fmt.Sprintf("#%s: close\n\n%s\nClose-Actual: %s", issue.CLIRef(id), strings.Join(reviewTrailers(review), "\n"), actual)
-	spec := tracker.ReceiptSpec{Token: operationToken("close"), Repository: env.target.Repository, IssueID: id,
+	// #304 D8: the close's token rides in its evidence message as a trailer — the one
+	// identity a rebase or a merge of main cannot rewrite, so the landing still finds
+	// the close after the evidence commit's SHA changed.
+	token := operationToken("close")
+	message := fmt.Sprintf("#%s: close\n\n%s\nClose-Actual: %s\n%s: %s", issue.CLIRef(id), strings.Join(reviewTrailers(review), "\n"), actual, closeTokenTrailer, token)
+	spec := tracker.ReceiptSpec{Token: token, Repository: env.target.Repository, IssueID: id,
 		CardPath: card.Path, SourcePath: entries[0].Path, DestinationPath: entries[0].Path, SourceBranch: env.branchRef(),
 		SourceBase: reviewed, SourceHEAD: reviewed, ReviewedHEAD: reviewed, SourceBlob: blob, CardOID: card.BlobOID,
 		TrackerBase: prep.trackerRef, MainBase: mainView.Ref(), Source: tracker.LocalSource,

@@ -265,10 +265,15 @@ func reviewMainBase(ctx context.Context, head string) (base, stale string, err e
 // against the local tracking ref and SAYS so. Fetched at most once per process and
 // checkout.
 func reviewMainRef(ctx context.Context) (ref, stale string) {
-	root := gitx.Capture("rev-parse", "--show-toplevel")
+	// Keyed by the checkout AND its local view of main: any fetch moves the tracking
+	// tip and so misses, while repeated calls within one invocation share one fetch.
+	// A root-only key returned the main of the process's first call even after a
+	// later fetch, which pulled main's own changes into the branch patch.
+	key := gitx.Capture("rev-parse", "--show-toplevel") + "@" + gitx.Capture("rev-parse", "-q", "--verify", gitx.TrunkRef())
+	root := strings.SplitN(key, "@", 2)[0]
 	reviewMainMu.Lock()
 	defer reviewMainMu.Unlock()
-	if c, ok := reviewMainCache[root]; ok {
+	if c, ok := reviewMainCache[key]; ok {
 		return c.ref, c.stale
 	}
 	var c reviewMainEntry
@@ -284,7 +289,9 @@ func reviewMainRef(ctx context.Context) (ref, stale string) {
 			c.stale = "main as last fetched (fetch failed: " + firstLine(err.Error()) + ")"
 		}
 	}
-	reviewMainCache[root] = c
+	// The snapshot's fetch just moved the tracking tip: cache under the new key too.
+	reviewMainCache[key] = c
+	reviewMainCache[root+"@"+gitx.Capture("rev-parse", "-q", "--verify", gitx.TrunkRef())] = c
 	return c.ref, c.stale
 }
 

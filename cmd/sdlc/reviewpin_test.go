@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -36,20 +38,20 @@ func TestPinReviewed(t *testing.T) {
 		t.Fatal("an unresolved commit must not be pinned")
 	}
 
-	if w := sweepReviewedPins(func(id string) bool { return id == "000304" }); w != "" {
+	if w := sweepReviewedPins("", func(id string) bool { return id == "000304" }); w != "" {
 		t.Fatal(w)
 	}
 	refs := testfix.Capture(t, dir, "for-each-ref", "--format=%(refname)", "refs/sdlc/reviewed/")
 	if strings.Contains(refs, "000305") || !strings.Contains(refs, "000304/M1") {
 		t.Fatalf("sweep must drop only non-live ids:\n%s", refs)
 	}
-	if w := unpinReviewed("000304"); w != "" {
+	if w := unpinReviewed("", "000304"); w != "" {
 		t.Fatal(w)
 	}
 	if refs := strings.TrimSpace(testfix.Capture(t, dir, "for-each-ref", "refs/sdlc/reviewed/")); refs != "" {
 		t.Fatalf("unpin left refs:\n%s", refs)
 	}
-	if w := unpinReviewed("000304"); w != "" {
+	if w := unpinReviewed("", "000304"); w != "" {
 		t.Fatalf("unpinning nothing must be a no-op: %s", w)
 	}
 }
@@ -85,5 +87,41 @@ func TestMilestoneClose_LegacyStampsWithoutCommitting(t *testing.T) {
 	}
 	if pin := strings.TrimSpace(testfix.Capture(t, "", "rev-parse", "refs/sdlc/reviewed/000069/M1")); pin != head {
 		t.Fatalf("pin = %q, want %s", pin, head)
+	}
+}
+
+// #304 D4, one test per end site (lesson #286 BR-2): both legacy archives end the pins
+// of the issues they archive, and keep a live issue's.
+func TestLegacyArchivesEndPins(t *testing.T) {
+	for _, site := range []string{"merge", "push"} {
+		t.Run(site, func(t *testing.T) {
+			dir := testfix.Repo(t, testfix.Chdir(), testfix.InitialCommit())
+			issues := filepath.Join("workshop", "issues")
+			if err := os.MkdirAll(issues, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			os.WriteFile(filepath.Join(issues, "000160-done.md"), []byte("---\nid: 000160\nstatus: done\nactual_hours: 1\n---\n# d\n"), 0o644)
+			os.WriteFile(filepath.Join(issues, "000004-live.md"), []byte("---\nid: 000004\nstatus: working\n---\n# w\n"), 0o644)
+			head := strings.TrimSpace(testfix.Capture(t, dir, "rev-parse", "HEAD"))
+			for _, id := range []string{"000160", "000004"} {
+				if w := pinReviewed(id, "M1", head); w != "" {
+					t.Fatal(w)
+				}
+			}
+			var stderr bytes.Buffer
+			var err error
+			if site == "merge" {
+				_, err = archiveDoneIssuesInDir(context.Background(), &stderr, "o/r", dir, issues, "workshop/history", "workshop/plans")
+			} else {
+				_, err = archiveDoneIssues(context.Background(), &stderr, "", issues, "workshop/history", "workshop/plans")
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			refs := testfix.Capture(t, dir, "for-each-ref", "--format=%(refname)", "refs/sdlc/reviewed/")
+			if strings.Contains(refs, "000160") || !strings.Contains(refs, "000004") {
+				t.Fatalf("the %s archive must end only the archived issue's pins:\n%s\n%s", site, refs, stderr.String())
+			}
+		})
 	}
 }

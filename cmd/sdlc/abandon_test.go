@@ -73,10 +73,14 @@ func assertAbandoned(t *testing.T, r *trackerRepo, cardPath, as, tipBefore strin
 func TestAbandonStartedWork(t *testing.T) {
 	r, paths, _ := startedHere(t)
 	tip := r.git("rev-parse", "HEAD")
+	r.git("update-ref", "refs/sdlc/reviewed/000009/M1", tip)
 	if err := abandon9("punt", "after the freeze"); err != nil {
 		t.Fatal(err)
 	}
 	assertAbandoned(t, r, paths["000009"], "punt", tip)
+	if pins := r.git("for-each-ref", "refs/sdlc/reviewed/000009/"); pins != "" {
+		t.Fatalf("abandon must end the issue's reviewed-head pins (#304 D4):\n%s", pins)
+	}
 	// A rerun finds everything done.
 	before := r.git("rev-parse", "origin/main")
 	if err := abandon9("punt", "after the freeze"); err != nil {

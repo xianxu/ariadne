@@ -706,5 +706,9 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 		}
 		moves = append(moves, planMoves...)
 	}
+	// #304 D4: the archived issues ended; so do their reviewed-head pins.
+	if w := sweepLegacyPins(ctx, mainPath, issuesFull); w != "" {
+		cwarn(stderr, w)
+	}
 	return moves, nil
 }

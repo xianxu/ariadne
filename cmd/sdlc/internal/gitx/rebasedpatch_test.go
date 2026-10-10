@@ -243,7 +243,7 @@ func TestCommitsWithCloseToken(t *testing.T) {
 
 	check := func(label string, rangeArgs []string, token string, want int) {
 		t.Helper()
-		got, err := CommitsWithCloseToken(rangeArgs, token)
+		got, err := CommitsWithCloseToken("", rangeArgs, token)
 		if err != nil {
 			t.Fatalf("%s: %v", label, err)
 		}
@@ -273,7 +273,7 @@ func TestCommitsWithCloseToken(t *testing.T) {
 	testfix.Git(t, f.dir, "commit", "-q", "-m", "#304: squashed landing")
 	check("after squash", []string{"main..HEAD"}, "tokA", 0)
 
-	if _, err := CommitsWithCloseToken([]string{"HEAD"}, ""); err == nil {
+	if _, err := CommitsWithCloseToken("", []string{"HEAD"}, ""); err == nil {
 		t.Error("empty token should be an error")
 	}
 }

@@ -9,7 +9,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -54,26 +56,85 @@ func ownedCompletions(env *trackerEnv, rs tracker.Records, head, base string, wi
 		if !ok || b.Repository != env.target.Repository {
 			continue
 		}
-		if present, err := env.gitTest("rev-parse", "-q", "--verify", b.EvidenceCommit+"^{commit}"); err != nil {
+		inHead, err := evidenceInHead(env, b.EvidenceCommit, head)
+		if err != nil {
 			return nil, err
-		} else if !present {
-			continue
 		}
-		if inHead, err := env.gitTest("merge-base", "--is-ancestor", b.EvidenceCommit, head); err != nil {
-			return nil, err
-		} else if !inHead {
-			continue
-		}
-		if base != "" {
+		if inHead && base != "" {
 			if onBase, err := env.gitTest("merge-base", "--is-ancestor", b.EvidenceCommit, base); err != nil {
 				return nil, err
 			} else if onBase {
 				continue
 			}
 		}
+		if !inHead {
+			// #304 D8: a rebase or a merge rewrites the evidence commit but never its
+			// message, so the close is still this head's when a commit in range carries
+			// the card's CURRENT binding token. A reopen-and-close mints a new token, so
+			// an older close's commits never claim a newer one (#283/#301).
+			carried, err := closeTokenCarried(env, b.Token, rec.Card.Path, head, base)
+			if err != nil {
+				return nil, err
+			}
+			if !carried {
+				continue
+			}
+		}
 		owned = append(owned, ownedCompletion{ID: rec.ID, Card: *rec.Card, Binding: b, DetailPath: rec.DetailPath})
 	}
 	return owned, nil
+}
+
+// evidenceInHead reports whether the evidence commit is present and an ancestor of
+// head. A missing object is simply not in head.
+func evidenceInHead(env *trackerEnv, evidence, head string) (bool, error) {
+	if present, err := env.gitTest("rev-parse", "-q", "--verify", evidence+"^{commit}"); err != nil || !present {
+		return false, err
+	}
+	return env.gitTest("merge-base", "--is-ancestor", evidence, head)
+}
+
+// closeTokenCarried reports whether a commit carrying `Close-Token: <token>` is in
+// head beyond base — merge-base(base, head)..head when a base is given (a publish, a
+// PR landing). Settling against main has no base, so the scan is bounded by time: from
+// a day before the tracker commit that introduced the token (the card has no close
+// date, and `updated` moves on later setter edits).
+func closeTokenCarried(env *trackerEnv, token, cardPath, head, base string) (bool, error) {
+	if token == "" {
+		return false, nil
+	}
+	var rangeArgs []string
+	if base != "" {
+		mb, err := env.git("merge-base", base, head)
+		if err != nil {
+			return false, err
+		}
+		rangeArgs = []string{mb + ".." + head}
+	} else {
+		since, err := closeTokenSince(env, token, cardPath)
+		if err != nil || since == "" {
+			return false, err
+		}
+		rangeArgs = []string{head, "--since=" + since}
+	}
+	shas, err := gitx.CommitsWithCloseToken(env.root, rangeArgs, token)
+	return len(shas) > 0, err
+}
+
+// closeTokenSince is a day before the tracker commit that introduced token on the card,
+// or "" when no such commit is reachable (nothing to scan from).
+func closeTokenSince(env *trackerEnv, token, cardPath string) (string, error) {
+	// --reverse lists oldest first (a -1 limit would apply BEFORE the reversal and
+	// return the newest), so the first line is the commit that introduced it.
+	when, err := env.git("log", "--reverse", "-S"+token, "--format=%cI", env.repo.TrackingRef(), "--", cardPath)
+	if err != nil || when == "" {
+		return "", err
+	}
+	t, err := time.Parse(time.RFC3339, strings.Fields(when)[0])
+	if err != nil {
+		return "", fmt.Errorf("read the close time of %s: %w", token, err)
+	}
+	return t.Add(-24 * time.Hour).Format(time.RFC3339), nil
 }
 
 // doneCard is the pure landing change: codecomplete → done for the same close
@@ -119,7 +180,12 @@ func completeOnCard(env *trackerEnv, oc ownedCompletion, landed string) error {
 	})
 	invalidateIssueRecords(env.ctx) // the archive that follows must see done
 	if errors.Is(err, tracker.ErrNoChange) {
-		return nil
+		err = nil
+	}
+	if err == nil {
+		// #304 D4: the issue is done; its reviewed-head pins end. Best effort —
+		// a pin is retention, and the settle sweep catches a miss.
+		_ = unpinReviewed(env.root, oc.ID)
 	}
 	return err
 }
@@ -148,6 +214,10 @@ func settleLandedCompletions(ctx context.Context, env *trackerEnv, issuesDir str
 		}
 		settled = append(settled, oc.ID)
 	}
+	// #304 D4: also end the pins of issues landed and settled elsewhere, or archived by
+	// hand — the per-site unpins only run inside sdlc verbs here. (Recovery reconcile
+	// runs this settle, so it sweeps too.)
+	_ = sweepTrackedPins(env, rs)
 	return settled, nil
 }
 

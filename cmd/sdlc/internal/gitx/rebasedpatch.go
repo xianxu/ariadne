@@ -141,16 +141,21 @@ func requireGit240() error {
 	return nil
 }
 
-// CommitsWithCloseToken returns the commits in `git log <rangeArgs...>` (newest
+// CommitsWithCloseToken returns the commits in `git -C dir log <rangeArgs...>` (newest
 // first) carrying a `Close-Token:` trailer whose value equals token exactly.
 // Trailers survive a rebase and a merge of main but not a squash that rewrites
 // the message. Exact match, never a body grep: a substring search is the #194
 // self-reference trap.
-func CommitsWithCloseToken(rangeArgs []string, token string) ([]string, error) {
+func CommitsWithCloseToken(dir string, rangeArgs []string, token string) ([]string, error) {
 	if strings.TrimSpace(token) == "" {
 		return nil, fmt.Errorf("empty Close-Token")
 	}
-	args := append([]string{"log"}, rangeArgs...)
+	var args []string
+	if dir != "" {
+		args = append(args, "-C", dir) // the checkout a caller names, never the process cwd
+	}
+	args = append(args, "log")
+	args = append(args, rangeArgs...)
 	args = append(args, "--format=%H%x00%(trailers:key=Close-Token,valueonly,separator=%x2C)")
 	out, err := run("git", args...)
 	if err != nil {
