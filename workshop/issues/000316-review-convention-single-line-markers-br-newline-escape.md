@@ -45,9 +45,12 @@ Revise `construct/local/fix/review-convention.md`:
 
 ## Done when
 
-- The target carries the single-line rule, the `<br>` escape, the resolve
-  decoding note and a Revisions entry; parley's weaved copy picks it up on the
-  next weave.
+- The target carries the single-line rule, `<br>` for line breaks inside
+  turns and `\<br>` for a literal `<br>`, anchors verbatim, turn-only decoding
+  on resolve, and a Revisions entry.
+- xx-fix `SKILL.md` writes single-line markers and decodes turn text on both
+  its per-marker and bulk resolution paths.
+- parley's weaved copy picks both up on the next weave.
 
 ## Plan
 
