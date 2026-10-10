@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000315-allow-api-anthropic-com-in-the-base-layer-sandbox-network-allowlist.md
         source_blob: d45e8d2204a968fae4d69579fa48785a7a12c2b3
         destination: workshop/issues/000315-allow-api-anthropic-com-in-the-base-layer-sandbox-network-allowlist.md
+        main_commit: e2ef66b10bdf9a62bd2781fd016a7caef56e05d4
 ---
 
 # Allow api.anthropic.com in the base-layer sandbox network allowlist
