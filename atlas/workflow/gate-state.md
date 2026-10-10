@@ -34,6 +34,12 @@ The file is two projections of one `Ledger`:
 
 Neither is hand-maintained, so the document cannot disagree with itself.
 
+**The boundary ledger is also the review boundary's record (#304, #197).** A boundary
+round that FINALIZES carries `reviewed:`, the head commit the review read. The next
+milestone's window is the interdiff from that head, replayed onto today's main (see
+`sdlc-binary.md`, "Window base"). REWORK, halt, protocol-error and never-ran rounds
+leave it empty (`roundAdvancesBoundary`), so they never advance the boundary.
+
 ## The vocabulary
 
 `construct/vocabulary/finding.cue` (Go binding: `pkg/vocab/finding.go`) is the single

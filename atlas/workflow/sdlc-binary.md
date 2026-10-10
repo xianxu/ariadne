@@ -950,7 +950,7 @@ The milestone-verdict gate demands per-milestone `Review-Verdict:` evidence,
 EXCEPT for **trailing** unclosed milestones (#175): Mx rows after the last
 verdict-carrying one — or all rows, when none carries a verdict (the
 single-pass over-split shape) — are accepted with a loud info line, because
-the issue-close boundary review's window (branch-point→HEAD) covers their
+the issue-close boundary review's window (the branch patch) covers their
 work and the close *is* their first boundary. `partitionMissingVerdicts`
 (pure, `close.go`) does the split; **midstream** misses (a later milestone
 closed WITH review) still refuse — that boundary was genuinely crossed
@@ -1224,21 +1224,51 @@ boundary **appends** a timestamped `## Re-review` section rather than overwritin
 after scrollback loss or compaction (the path is echoed as `review sidecar: …`).
 `--no-judge`/`--dry-run`/not-run boundaries write nothing — no body to persist.
 
-**Window base — prior review boundary (#58).** `boundaryWindowBase`
-(`milestoneclose.go`) is the single source for *both* the atlas-coverage gate
-(`computeClose`) and the boundary review's window, so they provably cover the same
-commits (ARCH-DRY). A milestone window bases on the **previous review boundary**
-— the most recent prior commit touching the issue file that carries a
-`Review-Verdict:` trailer (the prior milestone close), found by
-`previousReviewBoundary` — not on the first `#N Mx` commit. This closes a gap
-where an inter-milestone `#N`-but-not-`Mx` commit (a `side-quest:`, a fix) landed
-between M(x-1)'s close and Mx's first commit would slip *both* windows and escape
-review. The first milestone (no prior boundary) uses the feature branch point,
-so an issue filed early cannot pull unrelated main history into M1. If a prior
-close's trailer was never pasted, the lookup likewise uses that branch point —
-over-covering prior branch work rather than under-covering. Only direct-on-main /
-no-divergence work falls back to the parent of the first `#N` implementation
-commit.
+**Window base: the branch patch and the interdiff (#304; #58, #77, #197).**
+`planReviewWindow` (`reviewwindowplan.go`, pure; `planBoundaryWindow` is the IO
+shell) is the single source for the atlas-coverage gate, the boundary review's
+manifest, the churn report, the publish gate's quick-flow re-measure, the
+`Review-Window:` trailer and the line close prints. They all provably cover the same
+diff (ARCH-DRY). Every window is defined on the **branch patch**,
+`diff(merge-base(main, HEAD), HEAD)`, never on a commit range. Merging or rebasing
+main changes commits, not the patch, so neither widens a window.
+
+- **Whole-issue close, and a first milestone:** the branch patch. Printed as
+  `branch patch vs main@<base>: <n> issue commit(s), <f> file(s)`, where the count
+  is first-parent with merges excluded.
+- **Later milestones:** the **interdiff** since the last finalized review.
+  - That review's head `H_r` is stamped on its gate-ledger round (`Round.Reviewed`,
+    only when the round finalizes: D5) and found by `gatestate.LatestReviewed`.
+  - `gitx.RebasedReviewedBase` replays the reviewed patch onto today's main with
+    `git merge-tree --write-tree --merge-base=<merge-base(main,H_r)> <merge-base(main,HEAD)> H_r`
+    and wraps the tree in a deterministic, unreferenced commit `S`, which gc
+    collects. `diff(S, HEAD)` is the issue's own work since that review.
+  - Inter-milestone side-quests and fixes still land in exactly one window (#58).
+  - A **conflict** keeps git's conflicted tree, so the window shows only the
+    resolution and is labelled "includes conflict resolutions in …".
+  - A reviewed head that can't be resolved, or a criss-cross history, over-covers
+    to the branch patch with a warning.
+  - A milestone closed before #304 has no stamped round, so its `Review-Verdict:`
+    trailer commit (`previousReviewBoundary`) stands in. Remove that fallback once no
+    open issue predates #304.
+- **One fresh main (D11):** `reviewMainBase` measures against main as freshly
+  fetched in an issue tracker repository, so a stale tracking ref can't push the base
+  behind a main the branch already merged.
+- **Pins (D4):** each finalized boundary pins the newest commit its review produced
+  at `refs/sdlc/reviewed/<id>/<boundary>` (`reviewpin.go`), so `H_r` survives a
+  rebase. The pins are removed when the issue ends (done, abandon, archive) and
+  swept by settle and recovery reconcile.
+- **Milestone evidence (#197):** in a tracker repository `milestone-close` commits
+  its own evidence (`commitMilestoneEvidence`: details plus `<stem>-*` plans
+  records, subject `#N Mx: close`, verdict trailers), built in a temporary index
+  and swapped in by compare-and-swap. The milestone-verdict gate finds that commit,
+  so nothing is hand-pasted. A legacy repository keeps the paste protocol.
+- **Known limits:**
+  - `Review-Window:` trailers record commit ids as of the review, and a rebase
+    leaves them historical.
+  - #194's in-review anchor still refuses a rebase made *during* a review.
+  - A main revert of code the branch depends on merges cleanly, giving an empty
+    interdiff. That is a semantic gap only CI catches.
 
 The **whole-issue** close (the end-of-issue integration review) bases on the
 **branch point** — `gitx.MergeBaseWithMain()` = `merge-base(main, HEAD)` — so it
