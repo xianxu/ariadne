@@ -1,12 +1,20 @@
 ---
 id: 000219
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-09-09
-updated: 2026-09-09
+updated: 2026-10-09
 estimate_hours:
-card_mirror: '5587eb9436f1e6a087cea655658e66cf2a906fe0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f9c9fa547fccffc7c8632440b92b7e10c9e7bb35' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # close_test flag assertion takes the real repo lock, so the suite cannot run inside an sdlc transaction
@@ -82,4 +90,6 @@ before implementing** — this issue exists partly because the two were confusab
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): already fixed: the test runs in testfix.Repo(...Chdir()) (close_test.go:138), lock waits announce themselves (repolock.go:212) (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-09-09
