@@ -125,7 +125,7 @@ Order: judge robustness first, because every close below depends on it. Then the
 
 Likely cause: pair's shell tests (`tests/review-readiness-cli-test.sh`, `review-indicator-test.sh`, `review-*-restore-test.sh`, `review-observation-test.sh`) run `git config user.name T` after `cd`/`git init` without stopping on failure. If either step fails, the write lands in the enclosing real repo. The first T-authored commits (2026-06-21, pair#66 M4a') coincide with these tests being added. Needs a pair fix: use `git -C "$REPO" config` or `set -e`. Out of this project's scope.
 
-**Resolved 2026-10-09:** the operator unset both keys. All 7 pair checkouts now author as `Xian Xu <xianxu@gmail.com>` (`git var GIT_AUTHOR_IDENT`). No pair issue was filed; the operator chose to watch for recurrence instead.
+**Resolved 2026-10-09:** the operator unset both keys. All 7 pair checkouts now author as `Xian Xu <xianxu@gmail.com>` (`git var GIT_AUTHOR_IDENT`). No pair issue was filed; the operator chose to watch for recurrence instead. Recheck scheduled as ariadne#313 (on or after 2026-11-09).
 
 **Gaps hit while doing housekeeping** (filed as #312, a batch-2 candidate):
 - Ending an open, unowned issue takes `claim` and then `abandon`: 13 claims and 13 abandons for a triage pass. A batch "triage close" path, or `abandon` accepting unowned open issues, would help.
