@@ -167,7 +167,8 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 }
 
 // Dispatch invokes the agent CLI with the given prompt and returns semantic
-// stdout only. Captured process stderr is forwarded to opts.Stderr when one is
+// stdout only (#300: on an error from a retry, the text still carries the
+// first attempt, so a caller that shows output on error loses no evidence). Captured process stderr is forwarded to opts.Stderr when one is
 // configured; it never enters verdict parsing or durable review artifacts.
 // Outcome classification is the caller's responsibility via Classify().
 //
@@ -205,13 +206,19 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	again := opts
 	again.Prompt = opts.Prompt + retryNotice
 	second, err := dispatchOnce(ctx, again)
-	if errors.Is(err, context.DeadlineExceeded) {
-		// The retry ran out of time: keep the first attempt as the fail-safe's
-		// evidence (no verdict, so the caller halts) rather than lose it.
-		return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (retry; " + err.Error() + ")\n", nil
+	if err != nil {
+		// Once a retry has started, nothing may drop attempt 1: the returned
+		// text carries it with the error. Running out of time is the fail-safe
+		// (no verdict, so the caller halts and the sidecar keeps the text);
+		// any other error is returned beside that text for the caller to show.
+		kept := "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (retry; " + err.Error() + ")\n"
+		if errors.Is(err, context.DeadlineExceeded) {
+			return kept, nil
+		}
+		return kept, err
 	}
-	if err != nil || HasVerdict(second) {
-		return second, err
+	if HasVerdict(second) {
+		return second, nil
 	}
 	return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (retry; also without a verdict)\n\n" + second, nil
 }

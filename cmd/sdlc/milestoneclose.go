@@ -639,6 +639,9 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	}
 	output, derr := judge.Dispatch(ctx, opts)
 	if derr != nil {
+		if output != "" { // a failed retry still carries the first attempt (#300)
+			fmt.Fprint(stdout, output)
+		}
 		// Dispatch error → VerdictNotRun → the caller halts (does NOT finalize); the
 		// outcome message is the caller's, not a false "close succeeded" here (#139 I1).
 		cwarn(stderr, fmt.Sprintf("boundary review failed: %v", derr))

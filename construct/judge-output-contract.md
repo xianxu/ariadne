@@ -27,8 +27,10 @@ runs every command in the foreground and ends with its verdict. The claude
 reviewer's whole run is read as a `stream-json` event stream: the review text is
 every assistant message in order, so the latest verdict and findings blocks win
 and a later message without them erases nothing. A run with no verdict anywhere
-is dispatched once more; a run whose stream reports an error (an unreachable
-API) is "review did not run", never a verdict.
+is dispatched once more. A run that never reviewed (its stream reports an error,
+or a text-mode agent exits non-zero with a failure signature) is "review did not
+run", never a verdict, unless it already gave one; an unreachable API names the
+agent's host to allow.
 
 ## Tokens
 

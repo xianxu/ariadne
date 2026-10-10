@@ -880,8 +880,8 @@ line, so `PAIR_AGENT=codex` is inspectable as `codex exec` before any subprocess
 runs.
 
 **The reviewer's whole run, and when it didn't run (#300).** The claude
-reviewer runs `-p --output-format stream-json --verbose`; `judge.ReadStream`
-reads the event stream into an `AgentRun` (every assistant message's text, any
+reviewer runs `-p --output-format stream-json --verbose`; for claude only,
+`judge.ReadStream` reads the event stream into an `AgentRun` (every assistant message's text, any
 unparsed tail, the terminal `result`). `Dispatch` returns the messages joined
 in order, so the existing last-block-wins parsers (`ParseVerdictBlock`,
 `gatestate.ParseFindingsBlock`, and `ParseVerdictToken`, now last-match too)
@@ -889,10 +889,14 @@ take the latest verdict and findings: a block-less postscript after a
 backgrounded job erases nothing. A run with no verdict signal anywhere
 (`HasVerdict`, which recognises everything any parser reads) is dispatched once
 more inside the same deadline; two such runs return both texts, labelled, and
-keep the `unknown` fail-safe. A stream `result` with `is_error` (or, for
-text-mode agents, a failure signature on stderr without a verdict) is
-`ErrAPIUnreachable`: "review did not run", naming the sandbox fix, persisted as
-nothing and not retried. Every contract carries `UnattendedRule` (foreground
+keep the `unknown` fail-safe; an error from the retry still returns the first
+attempt's text, which every caller shows. `judge.RunFailure` decides "review did
+not run", never over a verdict the run already gave: a stream `result` with
+`is_error`, or for codex and gemini (read as plain text) a non-zero exit with a
+failure signature on stderr or in the output. A network cause is
+`ErrAPIUnreachable`, naming the agent's own API host to allow in the sandbox;
+any other is `ErrReviewDidNotRun`. Either is persisted as nothing and not
+retried. Every contract carries `UnattendedRule` (foreground
 only, no notifications). Output that isn't a stream reads as plain text, as
 before.
 

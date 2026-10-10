@@ -166,3 +166,13 @@ func TestDispatchTimeout(t *testing.T) {
 		}
 	}
 }
+
+// Any error from a retry carries the first attempt's text (the evidence),
+// beside the error.
+func TestDispatchRetryErrorKeepsTheFirstAttempt(t *testing.T) {
+	fakeRuns(t, streamOut(t, "background_wait.jsonl"), streamOut(t, "api_error.jsonl"))
+	out, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "review"})
+	if !errors.Is(err, ErrAPIUnreachable) || !strings.Contains(out, "I'll wait") || !strings.Contains(out, "## Attempt 2") {
+		t.Fatalf("err %v, out:\n%s", err, out)
+	}
+}

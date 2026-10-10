@@ -108,3 +108,121 @@ findings:
     title: |
       A stderr API signature on a clean-exit, verdict-less run suppresses the intended retry
 ```
+
+---
+
+## Re-review — 2026-10-09T21:06:47-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 300 — sdlc judge: a reviewer's late message replaces its verdict, so close records 'unknown' |
+| repo | ariadne |
+| issue file | workshop/issues/000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | b51060b253657fa9a2c6827e330eb1e4c995f12e..3476268f6010d6f12550ba91ba065c8a11c2366e |
+| command | sdlc milestone-close --issue 300 --milestone M1 |
+| reviewer | claude |
+| timestamp | 2026-10-09T21:06:47-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Still reviewing: prior findings check out on the diff so far. Next I'm checking how `ParseVerdict` handles the joined multi-message text, then running the tests.
+
+Tests pass and the three fix mutations each turn red. Last step: checking whether the atlas and contract doc kept up with the round-1 fix commit.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+**Summary.** All six round-1 findings are fixed, and I checked each against the code. Three of the fixes are behavior changes: putting `HasVerdict` first in `RunFailure`, reading only claude's output as a stream, and requiring a non-zero exit before a stderr signature counts. I reverted each one in a scratch worktree, and each time a test went red (`TestRunFailure` for the first and third, `TestDispatchParsesOnlyClaude` for the second). The judge package and the two new close-level tests pass at HEAD. The remaining problem is that the fix round changed the code's contract but not the prose that describes it. The atlas paragraph, the contract doc and the plan's Core concepts table and D5 still describe the code before round 1. That is cheap to fix and is the only Important finding. One Minor finding in the evidence family is still open.
+
+1. **Strengths**
+   - `RunFailure` (`cmd/sdlc/internal/judge/apifailure.go:38`) decides failure from the run's channel (the result event, the exit code, stderr) and never from the review's prose. It also never overrides a verdict the run already gave, so a late error result is handled the same way as a late postscript. That is the correct rule for the `late-signal-erases-verdict` family.
+   - `HasVerdict` (`stream.go`) is one retry predicate built from the existing parsers, so every recipe shares one definition of "has a verdict" (ARCH-DRY).
+   - `ReadStream` falls back gracefully. A truncated stream keeps its unparsed lines as the tail, and output with no stream events is read as plain text.
+   - One deadline covers both attempts, and a retry that runs out of time still returns attempt 1 (`dispatch.go`, Dispatch's retry branch).
+   - The tests run at two levels: `Dispatch` through the `Run` seam, and the close command end to end through `stubJudgeSeq`. The live conformance test now checks stream mode.
+
+2. **Critical findings:** none.
+
+3. **Important findings**
+   - **The atlas, the contract doc and the plan describe the code as it was before round 1.**
+     - `atlas/workflow/sdlc-binary.md:892-895` says any `is_error` result is `ErrAPIUnreachable` and names "the sandbox fix".
+     - `construct/judge-output-contract.md` says "a run whose stream reports an error … is 'review did not run', never a verdict".
+     - Both are now wrong in three ways:
+       - A run that already gave its verdict keeps it.
+       - A non-network error is `ErrReviewDidNotRun`.
+       - Only claude's output is read as a stream.
+     - The plan's Core concepts table lists `APIFailure(run, stderr, exitErr) (cause string, ok bool)`, but the code has `RunFailure(agent, run, stderr, nonZeroExit) error`. The table places `HasVerdict` in `classify.go`; it is in `stream.go`.
+     - D5 still hard-codes the `api.anthropic.com` remedy for every agent.
+     - This is the 2nd finding in family `plan-claims-match-tests`. **The rule:** a commit that changes a contract also changes every artifact that describes that contract (the plan's decisions and Core concepts, the atlas, the contract doc), in the same commit. Fix all three now, not one at a time.
+
+4. **Minor findings**
+   - **A retry that fails for any reason except a timeout still drops attempt 1.**
+     - In `Dispatch`, `if err != nil || HasVerdict(second) { return second, err }` returns only the retry's error.
+     - The cases are `ErrAPIUnreachable`, `ErrReviewDidNotRun`, an interrupt, and a launch failure on attempt 2.
+     - `milestoneclose.go:641` discards the output whenever there is an error, so attempt 1's text is lost.
+     - This is the 2nd finding in family `fail-safe-keeps-evidence`. **The rule:** once a retry has started, nothing that comes back without a verdict may drop attempt 1; any error from attempt 2 carries attempt 1's text.
+   - The "## Attempt 1 (ended without a verdict)" label is built twice in `Dispatch`. A small helper would remove the duplication.
+   - `RunFailure` returns `ErrAPIUnreachable` if stderr matches a network signature even when the cause came from the result event, for example a max-turns run with a stray `ENOTFOUND` from a tool. This is unlikely to matter.
+
+5. **Test coverage notes.** The Done-when shapes are pinned at both the `Dispatch` level and the close level: verdict then postscript, and two runs without a verdict that keep the fail-safe with both runs in the sidecar. The round-1 fixes are mutation-verified. Nothing covers attempt 2 failing with an error (see the first Minor).
+
+6. **Architectural notes for upcoming work.** These cover the 8 ARCH principles; seven pass and one is flagged.
+   - **ARCH-DRY: pass.** The only nit is the duplicated label (Minor).
+   - **ARCH-PURE: pass.** `ReadStream`, `RunFailure` and `HasVerdict` are pure.
+   - **ARCH-PURPOSE: pass for M1.**
+   - **ARCH-MOCK: pass.** The tests use the `Run` seam, and the live conformance test runs in stream mode.
+   - **ARCH-CONSTRAINTS: pass.** One deadline covers the retry.
+   - **ARCH-SECURE: pass.** Stream input degrades to plain text when it doesn't parse, and since BR-2 only claude's stdout is treated as a stream.
+   - **ARCH-ORDER: flagged at Minor.** The retry is lexically bounded, but a failed attempt 2 drops attempt 1.
+   - **ARCH-FUNERAL: pass.** The sidecar grows by at most one extra run per round.
+   - **Note for M2 (D6).** When the retry runs out of time it now returns a nil error with no verdict. Until D6 lands, the boundary ledger will stamp that round `blocked: false`, so make sure D6 covers that path too.
+
+7. **Plan revision recommendations.** Append to `## Revisions`: "2026-10-09 (M1 review round 1): `APIFailure` became `RunFailure(agent, run, stderr, nonZeroExit) error`, which returns nil when the run carries a verdict. A non-network error is `ErrReviewDidNotRun`. The remedy names each agent's own API host. `HasVerdict` lives in `stream.go`. Only claude's stdout is read as a stream. A stderr signature counts only with a non-zero exit." Update the Core concepts rows to match.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      RunFailure checks HasVerdict first; verdict_then_error.jsonl and maxTurns cases in TestRunFailure; reverting the guard turns the test red.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      classifyRunResult reads only claude stdout as a stream; TestDispatchParsesOnlyClaudeAsAStream goes red when the gate is removed.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      apiHosts maps each agent to its host; TestRunFailure asserts the codex and gemini remedies.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The retry's DeadlineExceeded branch returns attempt 1 labelled; TestDispatchRetryDeadlineKeepsTheFirstAttempt pins it.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      TestCloseRecordsTheVerdictBeforeAPostscript and TestCloseWithoutAVerdictKeepsBothRuns exist in cmd/sdlc/closestream_test.go and pass.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      The stderr case requires nonZeroExit; dropping that condition turns TestRunFailure red.
+findings:
+  - id: new
+    severity: Important
+    family: plan-claims-match-tests
+    title: |
+      Atlas, contract doc and plan Core concepts/D5 still describe the code before round 1
+    detail: |
+      atlas sdlc-binary.md:892 and construct/judge-output-contract.md say any is_error result is ErrAPIUnreachable with the sandbox fix. The plan table lists APIFailure(...)(cause, ok) with HasVerdict in classify.go, and D5 hard-codes api.anthropic.com. The code now keeps a verdict before an error, has ErrReviewDidNotRun, reads only claude as a stream, and names a host per agent. 2nd in family. Rule: a commit that changes a contract also updates every artifact describing it (plan, atlas, contract doc) in the same commit.
+  - id: new
+    severity: Minor
+    family: fail-safe-keeps-evidence
+    title: |
+      A retry that fails with an error (not a timeout) drops attempt 1's text
+    detail: |
+      Dispatch returns (second, err) for ErrAPIUnreachable, ErrReviewDidNotRun, an interrupt or a launch failure on attempt 2, and milestoneclose.go:641 discards the output on any error. 2nd in family. Rule: once a retry has started, nothing that comes back without a verdict may drop attempt 1; any error from attempt 2 carries attempt 1's text.
+```

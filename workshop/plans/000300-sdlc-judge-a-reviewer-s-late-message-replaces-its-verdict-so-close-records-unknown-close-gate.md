@@ -42,6 +42,50 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-09T21:06:47-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: RunFailure checks HasVerdict first; verdict_then_error.jsonl and maxTurns cases in TestRunFailure; reverting the guard turns the test red.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: classifyRunResult reads only claude stdout as a stream; TestDispatchParsesOnlyClaudeAsAStream goes red when the gate is removed.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: apiHosts maps each agent to its host; TestRunFailure asserts the codex and gemini remedies.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: The retry's DeadlineExceeded branch returns attempt 1 labelled; TestDispatchRetryDeadlineKeepsTheFirstAttempt pins it.
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: TestCloseRecordsTheVerdictBeforeAPostscript and TestCloseWithoutAVerdictKeepsBothRuns exist in cmd/sdlc/closestream_test.go and pass.
+          round: 2
+        - id: BR-6
+          disposition: addressed
+          note: The stderr case requires nonZeroExit; dropping that condition turns TestRunFailure red.
+          round: 2
+      findings:
+        - id: BR-7
+          severity: Important
+          title: Atlas, contract doc and plan Core concepts/D5 still describe the code before round 1
+          detail: 'atlas sdlc-binary.md:892 and construct/judge-output-contract.md say any is_error result is ErrAPIUnreachable with the sandbox fix. The plan table lists APIFailure(...)(cause, ok) with HasVerdict in classify.go, and D5 hard-codes api.anthropic.com. The code now keeps a verdict before an error, has ErrReviewDidNotRun, reads only claude as a stream, and names a host per agent. 2nd in family. Rule: a commit that changes a contract also updates every artifact describing it (plan, atlas, contract doc) in the same commit.'
+          family: plan-claims-match-tests
+          round: 2
+        - id: BR-8
+          severity: Minor
+          title: A retry that fails with an error (not a timeout) drops attempt 1's text
+          detail: 'Dispatch returns (second, err) for ErrAPIUnreachable, ErrReviewDidNotRun, an interrupt or a launch failure on attempt 2, and milestoneclose.go:641 discards the output on any error. 2nd in family. Rule: once a retry has started, nothing that comes back without a verdict may drop attempt 1; any error from attempt 2 carries attempt 1''s text.'
+          family: fail-safe-keeps-evidence
+          round: 2
+      boundary: M1
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#300 (boundary-review)
@@ -62,11 +106,25 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Minor] `plan-claims-match-tests` Task 2 claims close-level end-to-end and sidecar tests; the tests stop at Dispatch
 - **BR-6** [Minor] `late-signal-erases-verdict` A stderr API signature on a clean-exit, verdict-less run suppresses the intended retry
 
+## Round 2 — 2026-10-09T21:06:47-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — RunFailure checks HasVerdict first; verdict_then_error.jsonl and maxTurns cases in TestRunFailure; reverting the guard turns the test red.
+- BR-2 — addressed — classifyRunResult reads only claude stdout as a stream; TestDispatchParsesOnlyClaudeAsAStream goes red when the gate is removed.
+- BR-3 — addressed — apiHosts maps each agent to its host; TestRunFailure asserts the codex and gemini remedies.
+- BR-4 — addressed — The retry's DeadlineExceeded branch returns attempt 1 labelled; TestDispatchRetryDeadlineKeepsTheFirstAttempt pins it.
+- BR-5 — addressed — TestCloseRecordsTheVerdictBeforeAPostscript and TestCloseWithoutAVerdictKeepsBothRuns exist in cmd/sdlc/closestream_test.go and pass.
+- BR-6 — addressed — The stderr case requires nonZeroExit; dropping that condition turns TestRunFailure red.
+
+### Raised
+
+- **BR-7** [Important] `plan-claims-match-tests` Atlas, contract doc and plan Core concepts/D5 still describe the code before round 1
+  atlas sdlc-binary.md:892 and construct/judge-output-contract.md say any is_error result is ErrAPIUnreachable with the sandbox fix. The plan table lists APIFailure(...)(cause, ok) with HasVerdict in classify.go, and D5 hard-codes api.anthropic.com. The code now keeps a verdict before an error, has ErrReviewDidNotRun, reads only claude as a stream, and names a host per agent. 2nd in family. Rule: a commit that changes a contract also updates every artifact describing it (plan, atlas, contract doc) in the same commit.
+- **BR-8** [Minor] `fail-safe-keeps-evidence` A retry that fails with an error (not a timeout) drops attempt 1's text
+  Dispatch returns (second, err) for ErrAPIUnreachable, ErrReviewDidNotRun, an interrupt or a launch failure on attempt 2, and milestoneclose.go:641 discards the output on any error. 2nd in family. Rule: once a retry has started, nothing that comes back without a verdict may drop attempt 1; any error from attempt 2 carries attempt 1's text.
+
 ## Open findings
 
-- **BR-1** [Important] `late-signal-erases-verdict` APIFailure treats any is_error result as "review did not run" even when the run already carries a verdict
-- **BR-2** [Important] `channel-vs-prose-separation` ReadStream runs on codex/gemini text output, so a quoted stream-event JSON line can trip ErrAPIUnreachable
-- **BR-3** [Minor] `agent-specific-remedy` The "allow api.anthropic.com" remedy is hard-coded for every agent
-- **BR-4** [Minor] `fail-safe-keeps-evidence` A retry that hits the deadline drops the first attempt's text from the error/sidecar
-- **BR-5** [Minor] `plan-claims-match-tests` Task 2 claims close-level end-to-end and sidecar tests; the tests stop at Dispatch
-- **BR-6** [Minor] `late-signal-erases-verdict` A stderr API signature on a clean-exit, verdict-less run suppresses the intended retry
+- **BR-7** [Important] `plan-claims-match-tests` Atlas, contract doc and plan Core concepts/D5 still describe the code before round 1
+- **BR-8** [Minor] `fail-safe-keeps-evidence` A retry that fails with an error (not a timeout) drops attempt 1's text

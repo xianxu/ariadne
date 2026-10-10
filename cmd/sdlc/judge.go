@@ -176,6 +176,7 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 	}
 	output, dispatchErr := judge.Dispatch(ctx, opts)
 	if dispatchErr != nil {
+		fmt.Fprint(stdout, output) // a failed retry still carries the first attempt (#300)
 		return fmt.Errorf("dispatch failed: %w", dispatchErr)
 	}
 
