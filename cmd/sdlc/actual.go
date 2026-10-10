@@ -111,7 +111,7 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 	// #270: on an issue branch, only the branch's own commits and commits naming
 	// this issue bound segments, so integrating main can't hand this session's
 	// time to the issues main's commits name. Peers come from the same commits.
-	scope := activetime.Scope{BranchPoint: gitx.MergeBaseWithMain(), Issue: issueNum}
+	scope := actualScope(issueNum)
 	peers, err := activetime.WindowIssues(repoTop, firstISO, lastISO, scope, trackerRefs...)
 	if err != nil {
 		res.Status, res.Detail = actualError, err.Error()
@@ -147,6 +147,27 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 		res.Warnings = append(res.Warnings, formatAttributionWarning(w))
 	}
 	return res
+}
+
+// actualScope is the boundary scope for measuring issueNum from the cwd's HEAD
+// (#270): scoped at the branch point when HEAD has diverged from main, and also
+// on the issue's own branch before its first commit, where the branch point is
+// HEAD itself. On main (or any branch that hasn't diverged) it stays unscoped.
+func actualScope(issueNum string) activetime.Scope {
+	bp := gitx.MergeBaseWithMain()
+	if bp == "" && onIssueBranch(issueNum) {
+		bp = gitx.BranchPoint()
+	}
+	return activetime.Scope{BranchPoint: bp, Issue: issueNum}
+}
+
+// onIssueBranch reports whether HEAD is the issue's branch (`NNNNNN-slug`).
+func onIssueBranch(issueNum string) bool {
+	id, err := strconv.Atoi(issueNum)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(gitx.Capture("branch", "--show-current")+"-", fmt.Sprintf("%06d-", id))
 }
 
 // actualTrackerInputs reads the tracker for active-time (#252): the tracking ref

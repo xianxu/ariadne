@@ -154,6 +154,23 @@ Steps:
   the parent of the first `#N` commit when that is earlier than the claim, and
   a rebase moves that parent. #254 anchors the window at the claim, which
   removes it. #254 is next in this slot.
+- Close review rounds 1–2 (round 1 never ran: the sandbox proxy refused the
+  reviewer's API call, so the verdict was "unknown"; round 2 rerun with the
+  API host allowed): FIX-THEN-SHIP.
+  - BR-1 (Important), stale atlas text: fixed. sdlc-binary.md now says "claim
+    when present, else parent" and names `activetime.WindowIssues`.
+  - BR-2: fixed with gofmt.
+  - BR-3: fixed. `sdlc active-time --branch-point <rev>` applies the same
+    scope, and the first `--issue` is the measured one. This is the replay
+    tool pair#247 needed.
+  - BR-4 + BR-6: fixed. `actualScope` also scopes the issue's own branch
+    before its first commit (where the branch point is HEAD).
+    `TestActualScope` pins the wiring and fails when that branch is removed.
+  - BR-5 (prefilter with `--since`): declined. The full walk is about 50 ms,
+    twice. git's `--since` stops the walk at the first commit with an
+    old-enough committer date, so a `--committer-date-is-author-date` rebase
+    can hide in-window commits behind older-dated ones. That reopens the
+    rebase sensitivity this issue removes.
 
 ## Revisions
 

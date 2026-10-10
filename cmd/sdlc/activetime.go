@@ -196,7 +196,7 @@ func joinCounts[V any](m map[string]V, fmtFn func(string, V) string) string {
 // NewActiveTimeCmd returns the cobra command for `sdlc active-time`.
 func NewActiveTimeCmd() *cobra.Command {
 	var dirs, issues []string
-	var gitRepo, since, until string
+	var gitRepo, since, until, branchPoint string
 	var commitWeight, prefixWeight float64
 	var thresholdMin int
 	var includeAssistant bool
@@ -219,6 +219,12 @@ func NewActiveTimeCmd() *cobra.Command {
 				ThresholdMin:     thresholdMin,
 				IncludeAssistant: includeAssistant,
 			}
+			if branchPoint != "" {
+				if len(issues) == 0 {
+					return fmt.Errorf("--branch-point needs --issue: the first one is the measured issue")
+				}
+				opts.Scope = activetime.Scope{BranchPoint: branchPoint, Issue: issues[0]}
+			}
 			// PrefixWeight is set only when the flag was given, so an explicit 0
 			// is honored (nil = fall back to commit-weight).
 			if cmd.Flags().Changed("prefix-commit-weight") {
@@ -232,6 +238,7 @@ func NewActiveTimeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&gitRepo, "git-repo", "", "repo to read commits from (required)")
 	cmd.Flags().StringVar(&since, "since", "", "ISO timestamp; events/commits before are skipped")
 	cmd.Flags().StringVar(&until, "until", "", "ISO timestamp; events/commits after are skipped")
+	cmd.Flags().StringVar(&branchPoint, "branch-point", "", "scope boundaries to an issue branch forked here, as `sdlc actual` does (#270); the first --issue is the measured issue")
 	cmd.Flags().StringArrayVar(&issues, "issue", nil, "issue number to track (without #); repeatable")
 	cmd.Flags().Float64Var(&commitWeight, "commit-weight", 1.0, "fraction of a segment's active time attributed by commit refs")
 	cmd.Flags().Float64Var(&prefixWeight, "prefix-commit-weight", 0, "commit-weight for the pre-first-commit prefix segment (defaults to --commit-weight)")

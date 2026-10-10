@@ -712,7 +712,7 @@ cmd/sdlc/
                        acquire/release IO shell
     gitx/              git invocation seam (`run` shim, Capture, DiffBase,
                        MainRef, CommitWindow, WorkingTransitionISO (#113 claim
-                       anchor), DiscoverWindowIssues, RunGit,
+                       anchor), RunGit,
                        IsShippedWorkSubject/ShippedWorkOnMain — #76 ship probe;
                        TrunkFile + the `runGitIn` shim — #209, see below)
     issue/             frontmatter parse/edit + plan-section regexes +
@@ -977,7 +977,8 @@ The convention generalizes `merge`'s pre-existing `--no-judge`.
 actual --issue N` (`actual.go`'s `computeActual`, shared with close's
 missing-`--actual` explainer) runs the native **`internal/activetime`** engine
 (`activetime.Compute`, in-process — no python3) over the issue's `CommitWindow` +
-`DiscoverWindowIssues` peers, feeding it **brain + the issue's repo** transcript
+`activetime.WindowIssues` peers (the same branch-scoped commits the engine
+segments on, #270), feeding it **brain + the issue's repo** transcript
 sources. Source selection is a **harness abstraction** (`internal/transcripts`,
 #134), not a Claude-only path convention: each agent CLI implements a `Harness`
 (`Name()` + `Sources(cwds) → Sources{Dirs,Files}`); `DefaultHarnesses()` is the
@@ -1001,9 +1002,9 @@ time boundaries. Suspicious attribution is surfaced as `Result.Warnings` and
 rendered by `actual` / `active-time`. Dir-selection is deliberately narrow (NOT all
 folders/sessions) — an unrelated concurrently-edited repo inflates the count.
 `WindowCapDays` is 61 (was 31) so month-long issues keep their window. The
-window-**start** is the *earlier* of `CommitWindow`'s parent-of-first-`#N`-commit
-and the **engagement anchor** (`resolveWindowStart`), anchoring at the cheap early
-`claim` so DESIGN attention (brainstorm / spec / plan / reviews) before the first
+window-**start** is the **engagement anchor** (`resolveWindowStart`) when one
+exists, else `CommitWindow`'s parent-of-first-`#N`-commit. It anchors at the
+cheap early `claim` so DESIGN attention (brainstorm / spec / plan / reviews) before the first
 code commit is in-window instead of cut off; gap-truncation keeps a dormant
 claim→work gap from inflating the actual. The anchor is resolved in robustness
 order (#116): the explicit `started:` stamp (written once at the open→working
@@ -1011,10 +1012,9 @@ flip — on the tracker card since #252, whose claim/close commits are read besi
 HEAD so a freshly claimed issue has a window; local-offset RFC3339 to match `%aI`) →
 `gitx.WorkingTransitionISO` (the #113 git-log heuristic, now the legacy fallback)
 → commit-parent. The explicit stamp survives rebases/moves where the heuristic's
-"best-effort" history scan could silently miss and drop design time. Since #270
-(folding #254's window half) the claim **is** the left edge whenever it exists,
-even when the first `#N` commit (the filing) is earlier: filing is not design,
-and with boundaries scoped to the issue branch (#270) the issue's own commits
+"best-effort" history scan could silently miss and drop design time. The claim
+wins even when the first `#N` commit (the filing) is earlier (#270, folding
+#254's window half): filing is not design, and with boundaries scoped to the issue branch (#270) the issue's own commits
 would otherwise claim every other piece of work the slot did between filing and
 claim.
 
