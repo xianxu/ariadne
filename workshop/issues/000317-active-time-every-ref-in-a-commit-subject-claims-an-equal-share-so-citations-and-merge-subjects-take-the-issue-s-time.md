@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "5bdcac5d", done: "0655980a"}
 ---
 
 # active-time: every ref in a commit subject claims an equal share, so citations and merge subjects take the issue's time
