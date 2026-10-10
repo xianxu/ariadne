@@ -72,8 +72,10 @@ func TestHasVerdict(t *testing.T) {
 		"VERDICT: FAILURE (because)": true,
 		"VERDICT: INFO":              true,
 		"I'll wait for the background test run to notify.": false,
-		"":                                false,
-		"```verdict\nverdict: MAYBE\n```": false,
+		"":                                      false,
+		"```verdict\nverdict: MAYBE\n```":       false,
+		"No DRY violations found.":              true, // legacy sentinel Classify reads
+		"SHIP (confidence: high)\n\nlooks fine": true, // ParseVerdict's bare token
 	} {
 		if got := HasVerdict(text); got != want {
 			t.Errorf("HasVerdict(%q) = %v, want %v", text, got, want)

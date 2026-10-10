@@ -42,8 +42,15 @@ func TestLiveAgentStreamConformance(t *testing.T) {
 			if err != nil {
 				t.Fatalf("%s invocation failed: %v\nstderr:\n%s", name, err, out.Stderr)
 			}
-			if got := strings.TrimSpace(string(out.Stdout)); got != "STREAM_OK" {
-				t.Fatalf("%s semantic stdout = %q, want exactly STREAM_OK; stderr:\n%s", name, got, out.Stderr)
+			// #300: claude answers as a stream-json event stream; ReadStream
+			// recovers the run's text and a non-error result from it, and
+			// text-mode agents still read as plain text.
+			run := ReadStream(out.Stdout)
+			if got := strings.TrimSpace(run.Text()); got != "STREAM_OK" {
+				t.Fatalf("%s run text = %q, want exactly STREAM_OK; stdout:\n%s\nstderr:\n%s", name, got, out.Stdout, out.Stderr)
+			}
+			if agent == AgentClaude && (!run.Stream || run.Result == nil || run.Result.IsError) {
+				t.Fatalf("claude did not answer as a clean stream: %+v", run)
 			}
 			t.Logf("stdout bytes=%d, stderr bytes=%d", len(out.Stdout), len(out.Stderr))
 		})

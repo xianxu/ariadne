@@ -863,7 +863,7 @@ func TestBuildArgs_Claude(t *testing.T) {
 	if name != "claude" {
 		t.Errorf("name = %q want claude", name)
 	}
-	want := []string{"-p", "--allowedTools", "Read,Grep", "--permission-mode", "bypassPermissions", "review this"}
+	want := []string{"-p", "--output-format", "stream-json", "--verbose", "--allowedTools", "Read,Grep", "--permission-mode", "bypassPermissions", "review this"}
 	if strings.Join(args, " ") != strings.Join(want, " ") {
 		t.Errorf("args = %v\nwant: %v", args, want)
 	}

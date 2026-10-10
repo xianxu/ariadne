@@ -34,6 +34,10 @@ type DispatchOptions struct {
 	IsSandbox    bool   // if true, codex/gemini get auto-approve flags
 	Stdout       io.Writer
 	Stderr       io.Writer
+	// Timeout is the caller's limit for the whole dispatch, retry included
+	// (#300: sized by ReviewTimeout); zero is the 30-minute default.
+	// WF_REVIEW_TIMEOUT, when set, overrides it.
+	Timeout time.Duration
 }
 
 // ownerBinDir is the directory of the running sdlc binary — i.e. the owner
@@ -132,6 +136,9 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 	case AgentClaude, "":
 		args = []string{
 			"-p",
+			// #300: the whole run as events, so a late message can't erase
+			// the verdict and a failed run is told apart from its prose.
+			"--output-format", "stream-json", "--verbose",
 			"--allowedTools", opts.AllowedTools,
 			"--permission-mode", "bypassPermissions",
 			opts.Prompt,
@@ -176,13 +183,41 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 // In particular: empty-output + non-zero exit is *not* a launch failure
 // — Classify() will mark it as Failure based on the empty-output rule.
 // This keeps the binary/agent failure modes cleanly separated.
+//
+// A run whose text carries no verdict (#271: a reviewer ending on "I'll wait
+// for the background run") is dispatched once more, inside the same deadline;
+// if that one has none either, both runs' text is returned, labelled, for the
+// caller's fail-safe and the sidecar (#300).
 func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err error) {
-	timeout, err := reviewTimeout(os.Getenv("WF_REVIEW_TIMEOUT"))
+	timeout, err := dispatchTimeout(os.Getenv("WF_REVIEW_TIMEOUT"), opts.Timeout)
 	if err != nil {
 		return "", err
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	first, err := dispatchOnce(ctx, opts)
+	if err != nil || HasVerdict(first) {
+		return first, err
+	}
+	if opts.Stderr != nil {
+		fmt.Fprintln(opts.Stderr, "    … the reviewer ended without a verdict; dispatching it once more")
+	}
+	again := opts
+	again.Prompt = opts.Prompt + retryNotice
+	second, err := dispatchOnce(ctx, again)
+	if err != nil || HasVerdict(second) {
+		return second, err
+	}
+	return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (retry; also without a verdict)\n\n" + second, nil
+}
+
+// retryNotice is appended to a retried review's prompt (#300).
+const retryNotice = "\n\nNOTE: a previous attempt of this review ended without a verdict. You run " +
+	"non-interactively and receive no notifications: run every command in the foreground, " +
+	"and end your final message with the verdict and findings blocks."
+
+// dispatchOnce runs the agent once and returns its review text.
+func dispatchOnce(ctx context.Context, opts DispatchOptions) (string, error) {
 	if err := ctx.Err(); err != nil {
 		return "", fmt.Errorf("review interrupted: %w", err)
 	}
@@ -249,17 +284,22 @@ func classifyRunResult(ctx context.Context, out ProcessOutput, runErr error, nam
 	if errors.Is(runErr, context.Canceled) || errors.Is(runErr, context.DeadlineExceeded) {
 		return "", fmt.Errorf("review interrupted: %w", runErr)
 	}
-	if _, ok := runErr.(*exec.ExitError); ok {
-		return string(out.Stdout), nil
+	run := ReadStream(out.Stdout)
+	_, exited := runErr.(*exec.ExitError)
+	if cause, failed := APIFailure(run, out.Stderr, exited); failed {
+		return "", fmt.Errorf("%w (%s); in an agent sandbox, allow api.anthropic.com for this command, then rerun", ErrAPIUnreachable, cause)
+	}
+	if exited {
+		return run.Text(), nil
 	}
 	if runErr != nil {
 		dir, derr := ownerBinDir()
 		if derr != nil || dir == "" {
 			dir = "?"
 		}
-		return string(out.Stdout), fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
+		return run.Text(), fmt.Errorf("dispatch %s (owner bin %q prepended to PATH=%s): %w", name, dir, os.Getenv("PATH"), runErr)
 	}
-	return string(out.Stdout), nil
+	return run.Text(), nil
 }
 
 // FormatCommandLine returns a shell-safe rendering of the would-be
@@ -286,6 +326,15 @@ func shellQuote(s string) string {
 		return s
 	}
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
+}
+
+// dispatchTimeout is the dispatch's limit: WF_REVIEW_TIMEOUT when set, else
+// the caller's sized limit, else the 30-minute default.
+func dispatchTimeout(env string, sized time.Duration) (time.Duration, error) {
+	if env == "" && sized > 0 {
+		return sized, nil
+	}
+	return reviewTimeout(env)
 }
 
 // reviewTimeout keeps the operating bound independent of command callers.

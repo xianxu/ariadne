@@ -38,7 +38,17 @@ MUST be exactly:
 
 The parser reads ONLY this <TOKEN>. Findings, notes, and severity tags below it
 are advisory — a non-blocking verdict WITH notes still PASSES the gate. Do not
-put a title, heading, or any preamble above the VERDICT line; it must lead.`
+put a title, heading, or any preamble above the VERDICT line; it must lead.
+
+` + UnattendedRule
+
+// UnattendedRule tells every reviewer how it runs (#300, #271): no one is
+// there to answer and nothing notifies it, so a command backgrounded "to wait
+// for" never reports back, and an answer that ends on such a wait carries no
+// verdict. Both contracts embed it.
+const UnattendedRule = `RUN UNATTENDED. You run non-interactively: no one answers questions and you
+receive no notifications. Run every command in the foreground (never in the
+background), within the review's time limit, and end with your verdict.`
 
 // BoundaryReviewContract is the output contract for the boundary review (#147).
 // Unlike the shared ContractPreamble (used by the pre-merge tri-state judges, which
@@ -50,7 +60,8 @@ const BoundaryReviewContract = "OUTPUT CONTRACT (machine-read — do not deviate
 	"fenced ```verdict block shown above — that is the authoritative handoff the binary\n" +
 	"reads (its `verdict:` value is one of the listed tokens). Everything after the block\n" +
 	"is advisory: a non-blocking verdict WITH findings still PASSES the gate. A bare\n" +
-	"`VERDICT: <TOKEN>` line is accepted only as a FALLBACK when the block is absent."
+	"`VERDICT: <TOKEN>` line is accepted only as a FALLBACK when the block is absent.\n\n" +
+	UnattendedRule
 
 // blockingTokens are the verdict tokens that fail a gate.
 var blockingTokens = map[string]bool{

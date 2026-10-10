@@ -89,14 +89,19 @@ func (r AgentRun) Text() string {
 	return strings.Join(parts, "\n\n")
 }
 
-// HasVerdict reports whether text carries a verdict any recipe emits: a
-// valid ```verdict block, or a `VERDICT:` line (plan-quality's CLEAN, INFO
-// and FAILURE included). It is the retry predicate, so one rule serves every
-// caller.
+// HasVerdict reports whether text carries a verdict signal any parser
+// recognises: a valid ```verdict block, a `VERDICT:` line (plan-quality's
+// CLEAN, INFO and FAILURE included), a legacy sentinel Classify still reads,
+// or a boundary verdict ParseVerdict finds without a VERDICT: line. It is the
+// retry predicate, so one rule serves every recipe: a run is retried only when
+// none of them would read anything.
 func HasVerdict(text string) bool {
 	if _, _, ok := ParseVerdictBlock(text); ok {
 		return true
 	}
-	_, ok := ParseVerdictToken(text)
-	return ok
+	if _, ok := ParseVerdictToken(text); ok {
+		return true
+	}
+	s := strings.TrimSpace(text)
+	return infoRE.MatchString(s) || cleanRE.MatchString(s) || ParseVerdict(text) != VerdictUnknown
 }

@@ -19,6 +19,10 @@ The parser reads ONLY this <TOKEN>. Findings, notes, and severity tags below it
 are advisory — a non-blocking verdict WITH notes still PASSES the gate. Do not
 put a title, heading, or any preamble above the VERDICT line; it must lead.
 
+RUN UNATTENDED. You run non-interactively: no one answers questions and you
+receive no notifications. Run every command in the foreground (never in the
+background), within the review's time limit, and end with your verdict.
+
 Tokens for this check:
   CLEAN   = no issues; ready to ship.
   INFO    = informational/non-blocking notes only (minor nits, stylistic).
