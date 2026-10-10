@@ -1,12 +1,20 @@
 ---
 id: 000304
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-09
 estimate_hours:
-card_mirror: '6cdf36050950af29b84a4df3fb3587fd723cbe83' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd699dd716771272a715cc3501e08d5173af26a6e' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T20:01:24-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Milestone review window absorbs integrated main; close's printed window misleads
@@ -48,6 +56,15 @@ Measured on pair#410 (2026-10-08). M1 closed at `24112709`; M2's work landed;
   more issue commits. The milestone diff shows only issue changes; the
   whole-issue diff shows all issue changes and no foreign ones.
 
+**Scope (2026-10-09, TL dispatch from ariadne:1, project ariadne-robustness-1 requirement 5):**
+umbrella for the branch patch `diff(merge-base(main,HEAD),HEAD)`. Absorbs #197
+(milestone-close commits its own evidence; the ledger stores the reviewed head),
+A4 (the publish gate counts merged-in main commits), A2 (stale Review-Window
+trailers) and B3's close binding (a rebase orphans the card's evidence commit, and
+the publish then skips it silently). Later reviews are the interdiff since the last
+reviewed patch: the reviewed head rebased onto today's main with `git merge-tree`.
+Design: the durable plan (D1–D10).
+
 Related: #269 (integrate before close), #270 (active-time after integration;
 measured on pair#410: ~60 min of #410 work credited to #411, which was filed
 inside the segment), #197 (review boundary from ledger).
@@ -59,8 +76,18 @@ inside the segment), #197 (review boundary from ledger).
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000304-whole-issue-close-review-window-collapses-after-integrating-main-plan.md`
+(tasks 1–7 → M1, tasks 8–12 → M2).
+
+- [ ] M1 — review windows on the branch patch: `Round.Reviewed` stamped on finalize, rebased-reviewed-base primitive, milestone interdiff, printed window, milestone-close commits its own evidence + reviewed-head pin (#197, A2, A3)
+- [ ] M2 — publish gate compares the rebased reviewed patch (A4); close binding survives a rebase and unowned codecomplete details refuse (B3); pin lifecycle end
 
 ## Log
 
 ### 2026-10-08
+
+### 2026-10-09
+- Claimed + start-plan from the TL dispatch (ariadne:1). Read the evidence pensive (Part 1 #304/#197, Part 2 §A) and the source: `boundaryWindowBase`/`previousReviewBoundary`, `judge/reviewwindow.go`, `publishgate.go` `validatePublishAnchors`, `trackercompletion.go` `ownedCompletions`, `closetracker.go` evidence commit, `gatestate.Round`.
+- Found B3 fails *open*: after a rebase, `ownedCompletions` drops the card (evidence commit not an ancestor), so the publish gate reports "nothing to verify". Plan D8 makes it fail closed.
+- Design: the identity is the reviewed head only, with the base derived as merge-base(main, H_r) (ARCH-DRY, no card schema change); `merge-tree --merge-base` replays the patch; a deterministic synthetic base commit, collected by gc; pin ref `refs/sdlc/reviewed/<id>` with its removal at done/abandon/archive (ARCH-FUNERAL).
+- Plan file is named after the issue stem so the boundary reviewer finds it (`reviewPlanPaths`).
