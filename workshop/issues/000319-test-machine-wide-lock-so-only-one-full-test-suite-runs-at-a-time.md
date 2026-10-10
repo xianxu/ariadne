@@ -74,6 +74,7 @@ repo's `make test` takes it after `weave refresh` (ARCH-DRY: one helper, one wir
 ## Log
 
 ### 2026-10-10
+- 2026-10-10: closed — Delta since reviewed close: one message string in test-lock.py (advisory finding wording). scripts/test-lock.test.sh 14/14. Prior evidence: make test 12 shards/1020 tests green, processgroup ps test sandbox-only failure passes unsandboxed.; review verdict: SHIP
 - 2026-10-10: closed — make test under the new lock: 12 shards / 1020 cmd/sdlc tests green (fix round touched only Makefile.workflow/test-lock.py/manifest, no Go); only failure processgroup TestCancellationKillsDescendants = sandbox denies /bin/ps, passes unsandboxed. Lock file named this worktree during the run and was free after. scripts/test-lock.test.sh 14/14 (serialize+holder shown, kill releases, SIGINT/HUP survive, reentrant, off, timeout, foreign record, make wiring). Pair Makefile simulated with only the Makefile.workflow symlink: make -n test blocks before prerequisites.; review verdict: SHIP
 - 2026-10-10: flow upgraded quick → full — 160 added lines in code files (limit 100); an earlier round of this close already ran the full review
 

@@ -53,6 +53,30 @@ rounds:
       recipe: milestone-review
       reviewed: 67d51fbebd8b7fc37eb7592647326fc68f6c8391
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-10T11:40:46-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: describe(None) now reads "an unidentified holder (record not yet written, or not one of ours)" at scripts/test-lock.py:54; the foreign-record test greps "unidentified holder" and passes.
+          round: 3
+      findings:
+        - id: BR-5
+          severity: Minor
+          title: scripts/test-lock.test.sh is not run by any make target, so lock regressions go unnoticed
+          detail: harness-assumptions.test.sh is wired in at Makefile.local:21; this script is not. It already unsets WF_TEST_LOCK_HELD_BY, so running it under make test is safe.
+          family: test-not-wired-into-suite
+          round: 3
+        - id: BR-6
+          severity: Minor
+          title: The Plan still claims a manifest symlink row and an ancestor-walk re-entrancy that the code no longer has
+          detail: Round 1 replaced both with a helper resolved beside Makefile.workflow and the WF_TEST_LOCK_HELD_BY env var. Add a Revisions entry so the Plan matches the code.
+          family: plan-drift-after-fix-round
+          round: 3
+      recipe: milestone-review
+      reviewed: ab40f8a68c8262a6cd829d16b1b78ad0661e4a27
+      blocked: false
 ---
 
 # Gate ledger — ariadne#319 (boundary-review)
@@ -84,6 +108,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `untrusted-persisted-record-shape` describe(None) says "record not yet written" for a foreign or malformed record too
   This is message wording only; the rule (validate the shape before use) is already applied in holder(). "unidentified holder" alone would be accurate.
 
+## Round 3 — 2026-10-10T11:40:46-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — describe(None) now reads "an unidentified holder (record not yet written, or not one of ours)" at scripts/test-lock.py:54; the foreign-record test greps "unidentified holder" and passes.
+
+### Raised
+
+- **BR-5** [Minor] `test-not-wired-into-suite` scripts/test-lock.test.sh is not run by any make target, so lock regressions go unnoticed
+  harness-assumptions.test.sh is wired in at Makefile.local:21; this script is not. It already unsets WF_TEST_LOCK_HELD_BY, so running it under make test is safe.
+- **BR-6** [Minor] `plan-drift-after-fix-round` The Plan still claims a manifest symlink row and an ancestor-walk re-entrancy that the code no longer has
+  Round 1 replaced both with a helper resolved beside Makefile.workflow and the WF_TEST_LOCK_HELD_BY env var. Add a Revisions entry so the Plan matches the code.
+
 ## Open findings
 
-- **BR-4** [Minor] `untrusted-persisted-record-shape` describe(None) says "record not yet written" for a foreign or malformed record too
+- **BR-5** [Minor] `test-not-wired-into-suite` scripts/test-lock.test.sh is not run by any make target, so lock regressions go unnoticed
+- **BR-6** [Minor] `plan-drift-after-fix-round` The Plan still claims a manifest symlink row and an ancestor-walk re-entrancy that the code no longer has

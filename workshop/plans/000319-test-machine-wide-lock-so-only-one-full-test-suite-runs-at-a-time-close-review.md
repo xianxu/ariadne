@@ -174,3 +174,89 @@ findings:
     detail: |
       This is message wording only; the rule (validate the shape before use) is already applied in holder(). "unidentified holder" alone would be accurate.
 ```
+
+---
+
+## Re-review — 2026-10-10T11:40:46-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 319 — test: machine-wide lock so only one full test suite runs at a time |
+| repo | ariadne |
+| issue file | workshop/issues/000319-test-machine-wide-lock-so-only-one-full-test-suite-runs-at-a-time.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 5d364c69e8ffda6f5416e3f3dbd236625f299964..ab40f8a68c8262a6cd829d16b1b78ad0661e4a27 |
+| command | sdlc close --issue 319 |
+| reviewer | claude |
+| timestamp | 2026-10-10T11:40:46-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Review checks are done and the lock tests pass. Writing up the verdict now.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The issue's purpose is delivered. `Makefile.workflow` takes the machine-wide lock at parse time whenever `test` is a make goal, so it is held before any of the test target's prerequisites run. The lock is a `flock` held by a forked watcher, so the kernel releases it on any exit, crash or kill. While waiting, the helper names the holder. It has an escape hatch, a bounded wait whose expiry is reported as a lock wait rather than a test failure, and re-entrancy for nested runs. I ran `bash scripts/test-lock.test.sh` and all 14 cases passed. All three findings from earlier rounds are fixed, and BR-4's wording is now accurate (`scripts/test-lock.py:54`). The remaining findings are Minor: some plan text no longer matches the code, and the lock tests are not run by any make target.
+
+1. **Strengths**
+   - Parse-time acquisition (`Makefile.workflow:16-28`) is the right choice. A prerequisite would run after pair's heavy prerequisites, and parse time needs no change in each woven repo (ARCH-DRY).
+   - The helper is found beside `Makefile.workflow`'s real path, which removes the manifest and `weave refresh` dependency. If the helper is missing, make prints a loud `$(warning)`, which closes the `silent-guard-bypass` family.
+   - `holder()` validates the record's shape at the trust boundary and degrades to "unidentified holder" (`scripts/test-lock.py:43-50`), which closes the `untrusted-persisted-record-shape` family.
+   - The watcher redirects its stdio to /dev/null so `$(shell)` returns, ignores SIGINT and SIGHUP, and waits with kqueue NOTE_EXIT. Its lifetime is tied to the make process (ARCH-FUNERAL, ARCH-ORDER).
+   - The tests use a private lock file and real processes, and they exercise the make wiring with `make -n`.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **Lock tests are not in any suite.** `scripts/test-lock.test.sh` is not run by any make target. By contrast, `harness-assumptions.test.sh` is wired in at `Makefile.local:21`, so this script will drift silently. It already unsets `WF_TEST_LOCK_HELD_BY`, so wiring it into the local test target is safe.
+   - **Plan text has drifted.** The ticked step "+ manifest symlink row" no longer matches the code. Round 1 removed the symlink and the helper now resolves beside `Makefile.workflow`. The Re-entrant bullet still describes an ancestor walk, but the code uses `WF_TEST_LOCK_HELD_BY`. The Log explains both changes, but the Plan body still states the old design.
+   - **Bad env values crash the helper.** Setting `WF_TEST_LOCK_TIMEOUT` or `WF_TEST_LOCK_HELD_BY` to something that isn't a number makes the helper raise ValueError. Make then fails with "helper failed", which is a visible failure. A clearer message would help.
+   - **Scope gaps.** A bare `make` whose default goal is `test`, and aggregate goals that depend on `test`, do not take the lock. This is consistent with the Spec's "make test" scope, but worth noting.
+   - **Linux PID reuse.** The polling fallback on Linux can keep the watcher alive if the make PID is reused. This doesn't affect the kqueue path used on macOS.
+
+5. **Test coverage:** the tests cover serialization, naming the holder, prompt handoff, a killed holder, signal survival, re-entrancy (same make and nested), timeout, the escape hatch, a foreign record, and the make wiring for `test` versus `help`. No test covers a targeted `go test -run`, but it is unlocked by construction because only `Makefile.workflow` goals take the lock.
+
+6. **Architecture**
+
+   | Principle | Result |
+   |---|---|
+   | ARCH-DRY | Pass. One helper, one wiring point. |
+   | ARCH-PURE | Pass. A small IO script; there is no business logic to separate out. |
+   | ARCH-PURPOSE | Pass. Every woven repo's `make test` uses the lock through the shared `Makefile.workflow`. pair was simulated rather than run, as the Log records. |
+   | ARCH-MOCK | Pass. `flock` is a kernel primitive, and the tests run it for real. |
+   | ARCH-CONSTRAINTS | Pass. Waiters poll once a second, and the wait can be bounded. |
+   | ARCH-SECURE | Pass. The shape check at the boundary is in place. The file mode is 0644 and holds only a path and pids. |
+   | ARCH-ORDER | Pass. The kernel lock is the single authority, and the record is advisory. A waiter that reads the record mid-write sees "unidentified", which is accurate. |
+   | ARCH-FUNERAL | Pass. There is one bounded file rewritten each run, and the watcher dies with make. |
+
+7. **Plan revisions:** add a `## Revisions` entry recording two changes. The helper is now resolved beside `Makefile.workflow`'s real path, with no manifest symlink. Re-entrancy now uses `WF_TEST_LOCK_HELD_BY` instead of the `ps` ancestor walk.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      describe(None) now reads "an unidentified holder (record not yet written, or not one of ours)" at scripts/test-lock.py:54; the foreign-record test greps "unidentified holder" and passes.
+findings:
+  - id: new
+    severity: Minor
+    family: test-not-wired-into-suite
+    title: |
+      scripts/test-lock.test.sh is not run by any make target, so lock regressions go unnoticed
+    detail: |
+      harness-assumptions.test.sh is wired in at Makefile.local:21; this script is not. It already unsets WF_TEST_LOCK_HELD_BY, so running it under make test is safe.
+  - id: new
+    severity: Minor
+    family: plan-drift-after-fix-round
+    title: |
+      The Plan still claims a manifest symlink row and an ancestor-walk re-entrancy that the code no longer has
+    detail: |
+      Round 1 replaced both with a helper resolved beside Makefile.workflow and the WF_TEST_LOCK_HELD_BY env var. Add a Revisions entry so the Plan matches the code.
+```
