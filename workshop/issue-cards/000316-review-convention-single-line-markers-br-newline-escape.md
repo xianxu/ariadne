@@ -1,8 +1,8 @@
 ---
 id: 000316
-status: codecomplete
+status: done
 created: 2026-10-09
-updated: 2026-10-09
+updated: 2026-10-10
 estimate_hours:
 github_issue:
 started: 2026-10-09T21:20:31-07:00
@@ -30,6 +30,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: e68c507c9dbeaae98d6ba761b463b0147ddc8e29
         evidence_commit: 02c105a3e001d7ebf510d19bfedb8001eb83022b
+        landed_commit: 4164e66ece11b2eee8b8d957b6ccb59bd45470ed
 ---
 
 # review-convention: single-line markers + <br> newline escape
