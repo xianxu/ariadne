@@ -47,6 +47,8 @@ type windowFacts struct {
 	// The last finalized review outside this boundary (#304 D6), from the ledger.
 	Reviewed      string
 	PriorBoundary string
+	MainBaseErr   string   // merge-base(main, HEAD) is not single (criss-cross, unrelated)
+	MainStale     string   // main could not be fetched; measured as last fetched
 	Rebased       string   // S: H_r replayed onto MainBase (or H_r itself on main)
 	Conflicted    []string // paths where main rewrote lines the review read
 	RebaseErr     string   // why H_r could not be replayed ("" when it was)
@@ -75,7 +77,7 @@ type reviewWindow struct {
 func planReviewWindow(f windowFacts) reviewWindow {
 	w := reviewWindow{Head: f.Head, MainBase: f.MainBase}
 	branchPatch := func(kind windowKind, note string) reviewWindow {
-		w.Kind, w.Note = kind, note
+		w.Kind, w.Note = kind, joinNotes(note, f.MainStale)
 		w.Base = f.MainBase
 		if w.Base == "" {
 			w.Base = f.BranchStart
@@ -85,6 +87,9 @@ func planReviewWindow(f windowFacts) reviewWindow {
 		}
 		w.HumanBase = w.Base
 		return w
+	}
+	if f.MainBaseErr != "" {
+		return branchPatch(windowBranchFallback, f.MainBaseErr)
 	}
 	if f.Milestone == "" {
 		return branchPatch(windowBranchPatch, "")
@@ -96,16 +101,27 @@ func planReviewWindow(f windowFacts) reviewWindow {
 		if len(f.Conflicted) > 0 {
 			w.Note = "includes conflict resolutions in " + strings.Join(f.Conflicted, ", ")
 		}
+		w.Note = joinNotes(w.Note, f.MainStale)
 		return w
 	case f.Reviewed != "":
 		return branchPatch(windowBranchFallback, f.RebaseErr)
 	case f.LegacyTrailerBase != "":
 		w.Kind, w.Base, w.HumanBase = windowInterdiff, f.LegacyTrailerBase, f.LegacyTrailerBase
-		w.Note = "pre-#304 boundary from the Review-Verdict trailer"
+		w.Note = joinNotes("pre-#304 boundary from the Review-Verdict trailer", f.MainStale)
 		return w
 	default:
 		return branchPatch(windowBranchPatch, "")
 	}
+}
+
+func joinNotes(a, b string) string {
+	switch {
+	case a == "":
+		return b
+	case b == "":
+		return a
+	}
+	return a + "; " + b
 }
 
 // formatReviewWindow renders the line close prints (D10). It shares no vocabulary with
@@ -160,11 +176,15 @@ func gatherWindowFacts(ctx context.Context, issueStr, milestone, issuePath, plan
 	if f.Head == "" {
 		f.Head = "HEAD"
 	}
-	f.MainBase = reviewMainBase(ctx, f.Head)
+	base, stale, err := reviewMainBase(ctx, f.Head)
+	f.MainBase, f.MainStale = base, stale
+	if err != nil {
+		f.MainBaseErr = err.Error()
+	}
 	if f.MainBase == "" {
 		f.BranchStart = branchStartByIssue(issueStr)
 	}
-	if milestone == "" {
+	if milestone == "" || f.MainBaseErr != "" {
 		return f
 	}
 	if sha, boundary, ok := latestReviewedFor(issuePath, plansDir, milestone); ok {
@@ -203,52 +223,74 @@ func latestReviewedFor(issuePath, plansDir, milestone string) (sha, boundary str
 	if err != nil {
 		return "", "", false
 	}
-	return gatestate.LatestReviewed(l, milestone)
+	sha, boundary, ok = gatestate.LatestReviewed(l, milestone)
+	if ok && !isResolvedSHA(sha) {
+		// A hand-edited ledger must not hand git an option- or ref-like argument;
+		// an unusable value reads as "not in this repository" (branch-patch fallback).
+		return "", boundary, false
+	}
+	return sha, boundary, ok
 }
 
 // reviewMainBase is merge-base(main, HEAD) against the ONE main every branch-patch
 // consumer measures from (#304 D11), or "" on main / with no divergence. In an issue
 // tracker repository main is freshly fetched (the view the publish gate already uses),
 // so a stale tracking ref cannot put the base behind a main the branch already merged.
-// Elsewhere it is gitx.MergeBaseWithMain, which has no fetch source — as before.
-func reviewMainBase(ctx context.Context, head string) string {
-	ref := reviewMainRef(ctx)
+// Elsewhere it is gitx.MergeBaseWithMain, which has no fetch source, as before. A
+// criss-cross or unrelated history is an ERROR naming the bases, never a silent "" —
+// the caller turns it into a named branch-patch fallback (D2). stale names a fetch that
+// failed, so the window says it was measured against main as last fetched.
+func reviewMainBase(ctx context.Context, head string) (base, stale string, err error) {
+	ref, stale := reviewMainRef(ctx)
 	if ref == "" {
-		return gitx.MergeBaseWithMain()
+		if trunk := gitx.TrunkRef(); trunk != "" {
+			if _, err := gitx.SoleMergeBase(trunk, "HEAD"); err != nil {
+				return "", stale, err
+			}
+		}
+		return gitx.MergeBaseWithMain(), stale, nil
 	}
-	out, err := gitx.RunGit("merge-base", "--all", ref, "HEAD")
+	b, err := gitx.SoleMergeBase(ref, "HEAD")
 	if err != nil {
-		return ""
+		return "", stale, err
 	}
-	bases := strings.Fields(string(out))
-	if len(bases) != 1 || bases[0] == head {
-		return "" // criss-cross (RebasedReviewedBase names it) or no divergence
+	if b == head {
+		return "", stale, nil // no divergence: on main
 	}
-	return bases[0]
+	return b, stale, nil
 }
 
 // reviewMainRef is main as freshly fetched in an issue tracker repository, else "".
-// Fetched at most once per process and checkout.
-func reviewMainRef(ctx context.Context) string {
+// A tracker repository whose fetch fails returns "" with a note, so the caller measures
+// against the local tracking ref and SAYS so. Fetched at most once per process and
+// checkout.
+func reviewMainRef(ctx context.Context) (ref, stale string) {
 	root := gitx.Capture("rev-parse", "--show-toplevel")
 	reviewMainMu.Lock()
 	defer reviewMainMu.Unlock()
-	if ref, ok := reviewMainCache[root]; ok {
-		return ref
+	if c, ok := reviewMainCache[root]; ok {
+		return c.ref, c.stale
 	}
-	ref := ""
+	var c reviewMainEntry
 	if _, tracked, err := tracker.ReadCutoverMarker(root); err == nil && tracked {
-		if env, err := openTracker(ctx); err == nil {
-			if view, err := env.main.Snapshot(); err == nil {
-				ref = view.Ref()
+		env, err := openTracker(ctx)
+		if err == nil {
+			var view *gitx.TrunkView
+			if view, err = env.main.Snapshot(); err == nil {
+				c.ref = view.Ref()
 			}
 		}
+		if err != nil {
+			c.stale = "main as last fetched (fetch failed: " + firstLine(err.Error()) + ")"
+		}
 	}
-	reviewMainCache[root] = ref
-	return ref
+	reviewMainCache[root] = c
+	return c.ref, c.stale
 }
+
+type reviewMainEntry struct{ ref, stale string }
 
 var (
 	reviewMainMu    sync.Mutex
-	reviewMainCache = map[string]string{}
+	reviewMainCache = map[string]reviewMainEntry{}
 )

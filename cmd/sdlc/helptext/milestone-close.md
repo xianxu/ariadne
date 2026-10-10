@@ -31,7 +31,10 @@ WHAT IT DOES
        inter-milestone side-quests and fixes, lands in exactly one window
        (#58). Matches close's atlas check window exactly. A milestone closed
        before #304 has no recorded head; its Review-Verdict: trailer commit
-       is the boundary instead.
+       is the boundary instead, but only for a finalizing verdict (SHIP /
+       FIX-THEN-SHIP). A --no-judge skip reviewed nothing, so it never bounds
+       a window. A criss-cross history has no single branch point, so the
+       window falls back to the branch patch and says so.
      - Builds the milestone-review prompt with issue/plan paths, immutable
        base/head commits, and exact read-only Git inspection commands; the
        unified patch stays in Git instead of entering the agent argv/prompt
@@ -50,7 +53,8 @@ WHAT IT DOES
      commit `sdlc close` looks for when it verifies each milestone was
      reviewed, so there is nothing to paste. It then pins the reviewed head
      at refs/sdlc/reviewed/<id>/<milestone>, so a rebase cannot orphan it,
-     and pushes. A legacy repository (no tracker) still prints the block for
+     and pushes. A --no-judge skip commits its not-run evidence the same way
+     but pins nothing. A legacy repository (no tracker) still prints the block for
      you to paste into the close commit message. Review-Window records commit
      ids as of the review; a later rebase leaves them historical, and the
      gate ledger plus the pin are the record:

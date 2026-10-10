@@ -214,3 +214,56 @@ func TestReviewTrailers_InterdiffNamesReviewedHead(t *testing.T) {
 		t.Fatalf("without a window base the trailer keeps the diff base:\n%s", plain)
 	}
 }
+
+// #304 BR-2: a --no-judge milestone's binary-committed `Review-Verdict: not-run`
+// evidence is NOT a review boundary. With no stamped round, the next milestone's
+// window must still cover the skipped milestone's work.
+func TestMilestoneWindow_NotRunEvidenceIsNotABoundary(t *testing.T) {
+	runGit, _, issuePath := windowRepo(t, 304)
+	commitTouchingIssue(t, runGit, issuePath, "filed", "#304: file", "")
+	runGit("switch", "-q", "-c", "issue-304")
+	commitTouchingIssue(t, runGit, issuePath, "m1.go", "#304 M1: close", "Review-Verdict: not-run\nReview-Window: a..b\nReview-Reason: --no-judge")
+	commitMarkerOnly(t, runGit, "m2.go", "#304 M2: work")
+
+	w := planBoundaryWindow(context.Background(), "304", "M2", issuePath, "workshop/plans")
+	if w.Kind != windowBranchPatch {
+		t.Fatalf("a not-run trailer became a boundary: %s", formatReviewWindow(w))
+	}
+	if out := captureGit(t, "diff", "--name-only", w.Base, "HEAD"); !strings.Contains(out, "m1.go") {
+		t.Fatalf("the skipped M1's work escaped M2's window:\n%s", out)
+	}
+	// A finalizing trailer (pre-#304 history) still is one.
+	commitTouchingIssue(t, runGit, issuePath, "m2b.go", "#304 M2: close", "Review-Verdict: SHIP\nReview-Window: a..b")
+	commitMarkerOnly(t, runGit, "m3.go", "#304 M3: work")
+	if w := planBoundaryWindow(context.Background(), "304", "M3", issuePath, "workshop/plans"); w.Kind != windowInterdiff || !strings.Contains(w.Note, "pre-#304") {
+		t.Fatalf("a SHIP trailer must still bound a pre-#304 window: %s", formatReviewWindow(w))
+	}
+}
+
+// #304 BR-3: a criss-cross history has no single branch point. The window must SAY so
+// and over-cover, never silently diff from a guessed base under an "interdiff" label.
+func TestReviewWindow_CrissCrossIsANamedFallback(t *testing.T) {
+	runGit, _, issuePath := windowRepo(t, 304)
+	commitTouchingIssue(t, runGit, issuePath, "filed", "#304: file", "")
+	runGit("switch", "-q", "-c", "issue-304")
+	commitMarkerOnly(t, runGit, "b.go", "#304: b")
+	runGit("switch", "-q", "main")
+	commitMarkerOnly(t, runGit, "a.go", "#999: a")
+	a := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+	runGit("merge", "-q", "--no-edit", "issue-304~0")
+	runGit("switch", "-q", "issue-304")
+	runGit("merge", "-q", "--no-edit", a)
+	runGit("switch", "-q", "main")
+	commitMarkerOnly(t, runGit, "a2.go", "#999: a2")
+	runGit("switch", "-q", "issue-304")
+	commitMarkerOnly(t, runGit, "b2.go", "#304: b2")
+	if bases := strings.Fields(captureGit(t, "merge-base", "--all", "main", "HEAD")); len(bases) < 2 {
+		t.Skipf("fixture did not produce a criss-cross (%v)", bases)
+	}
+	for _, m := range []string{"", "M2"} {
+		w := planBoundaryWindow(context.Background(), "304", m, issuePath, "workshop/plans")
+		if w.Kind != windowBranchFallback || !strings.Contains(w.Note, "criss-cross") {
+			t.Fatalf("milestone %q: want a named criss-cross fallback, got %s", m, formatReviewWindow(w))
+		}
+	}
+}

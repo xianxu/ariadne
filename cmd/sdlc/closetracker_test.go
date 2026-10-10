@@ -383,11 +383,17 @@ func gitSucceeds(dir string, args ...string) bool {
 // `#N Mx: close`, the verdict trailers, only the issue's files — pins it, and pushes it,
 // so the whole-issue close's milestone-verdict gate passes with nothing pasted.
 func TestMilestoneClose_CommitsItsOwnEvidence(t *testing.T) {
+	for _, verdict := range []string{"SHIP", "FIX-THEN-SHIP"} {
+		t.Run(verdict, func(t *testing.T) { milestoneCommitsItsOwnEvidence(t, verdict) })
+	}
+}
+
+func milestoneCommitsItsOwnEvidence(t *testing.T, verdict string) {
 	r, _, detailPath := closeReadyWithPlan(t, 304, "- [ ] M1 — part one\n")
 	writeRepoFile(t, r.root, "unrelated.go", "package u\n")
 	r.git("add", "unrelated.go") // staged unrelated work must stay staged and uncommitted
 	reviewed := r.git("rev-parse", "HEAD")
-	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n\n```findings\nfindings: []\n```\n")
+	stubJudge(t, "VERDICT: "+verdict+" (confidence: high)\n\nfine\n\n```findings\nfindings: []\n```\n")
 	var stderr string
 	var err error
 	if msg, died := expectDie(t, func() {
@@ -400,7 +406,13 @@ func TestMilestoneClose_CommitsItsOwnEvidence(t *testing.T) {
 		t.Fatal("the milestone evidence commit is not directly on the reviewed commit")
 	}
 	msg := r.git("log", "-1", "--format=%B")
-	for _, want := range []string{"#304 M1: close", "Review-Verdict: SHIP"} {
+	// FIX-THEN-SHIP commits its evidence at once too: the reviewed head is the
+	// pre-fix commit, so the fixes land in the NEXT interdiff (#304 D5).
+	l, lerr := readBoundaryGateLedger("workshop/plans", filepath.Base(detailPath), 304)
+	if lerr != nil || len(l.Rounds) == 0 || l.Rounds[len(l.Rounds)-1].Reviewed != reviewed {
+		t.Fatalf("the finalized round must record the reviewed head %s: %+v %v", reviewed, l.Rounds, lerr)
+	}
+	for _, want := range []string{"#304 M1: close", "Review-Verdict: " + verdict} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("evidence message lacks %q:\n%s", want, msg)
 		}

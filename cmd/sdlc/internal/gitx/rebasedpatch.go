@@ -51,11 +51,11 @@ func RebasedReviewedBase(mainRef, reviewed string) (s string, conflicted []strin
 	if _, err := run("git", "rev-parse", "--verify", "-q", reviewed+"^{commit}"); err != nil {
 		return "", nil, fmt.Errorf("reviewed head %q does not resolve to a commit", reviewed)
 	}
-	bR, err := soleMergeBase(mainRef, reviewed)
+	bR, err := SoleMergeBase(mainRef, reviewed)
 	if err != nil {
 		return "", nil, fmt.Errorf("reviewed head %s: %w", reviewed, err)
 	}
-	bNow, err := soleMergeBase(mainRef, "HEAD")
+	bNow, err := SoleMergeBase(mainRef, "HEAD")
 	if err != nil {
 		return "", nil, fmt.Errorf("HEAD: %w", err)
 	}
@@ -102,9 +102,9 @@ func RebasedReviewedBase(mainRef, reviewed string) (s string, conflicted []strin
 	return s, conflicted, nil
 }
 
-// soleMergeBase returns the single merge base of a and b, refusing an empty
+// SoleMergeBase returns the single merge base of a and b, refusing an empty
 // answer (no shared history) and a criss-cross one (several bases).
-func soleMergeBase(a, b string) (string, error) {
+func SoleMergeBase(a, b string) (string, error) {
 	out, err := run("git", "merge-base", "--all", a, b)
 	if err != nil && gitExitCode(err) != 1 {
 		return "", fmt.Errorf("git merge-base --all %s %s: %v", a, b, err)

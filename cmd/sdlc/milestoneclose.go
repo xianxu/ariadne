@@ -19,6 +19,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -349,7 +350,17 @@ func previousReviewBoundary(issuePath string) string {
 	// very issue's history — whose body reads "the Review-Verdict trailer" — was one
 	// character away from silently re-basing a review window. Same class as the lesson
 	// this issue added to lessons.md: a substring anchor in a self-referential document.
-	out, err := gitx.RunGit("log", "--grep=^Review-Verdict:", "--max-count=1", "--pretty=format:%H", "--", issuePath)
+	// #304 BR-2: only a FINALIZING verdict is a boundary. Since #197 the binary commits a
+	// --no-judge milestone's not-run evidence itself; matching that trailer would start
+	// the next window after work no review read (D5). The set comes from the verdict
+	// model, never a hand-written list.
+	tokens := vocab.Verdict().Categories["finalizing"]
+	quoted := make([]string, len(tokens))
+	for i, tok := range tokens {
+		quoted[i] = regexp.QuoteMeta(tok)
+	}
+	out, err := gitx.RunGit("log", "-E", "--grep=^Review-Verdict: ("+strings.Join(quoted, "|")+")$",
+		"--max-count=1", "--pretty=format:%H", "--", issuePath)
 	if err != nil {
 		return ""
 	}

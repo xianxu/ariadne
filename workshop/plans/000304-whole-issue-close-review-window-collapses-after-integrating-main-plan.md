@@ -831,3 +831,15 @@ The design keeps its shape. The deltas:
   - Not folded: the test-case enumeration Minor. The lists stay as the
     TL-approved contract.
 
+### 2026-10-09 — M1 boundary review, round 1 (FIX-THEN-SHIP; BR-2, BR-3 Important)
+
+- **D6 delta:** the legacy trailer fallback (`previousReviewBoundary`) now matches
+  only a finalizing verdict, using the verdict model's finalizing set. Since
+  `7dfde264` a `--no-judge` milestone commits its own not-run evidence, and that
+  must never bound a window (BR-2).
+- **D2/D11 delta:** `reviewMainBase` uses `gitx.SoleMergeBase` (exported, one
+  parser). A criss-cross or unrelated history is a named `branchPatchFallback` for
+  both whole-issue and milestone windows, never a silent `""` mislabelled as an
+  interdiff (BR-3). A tracker fetch failure is named in the window note.
+- A ledger `reviewed:` value is validated as a SHA before it reaches git (Minor).
+

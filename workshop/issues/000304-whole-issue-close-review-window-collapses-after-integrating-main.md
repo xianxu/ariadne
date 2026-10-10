@@ -139,3 +139,10 @@ Durable plan: `workshop/plans/000304-whole-issue-close-review-window-collapses-a
 - Proposed #269 spec line (Done-when; asked TL ariadne:1 how to land it, since #269 is unclaimed): "Interaction with #304: milestone review windows are the interdiff since the last finalized review, replayed onto today's main, so integrating main (merge or rebase) no longer widens a milestone window, and a conflict shows only its resolution. The freshness rule here can therefore integrate main daily without resetting review cost."
 - Done-when "#269's spec notes the milestone-window interaction": satisfied. The TL published the line to main (`1b2f56b1`, option A); #269 is unclaimed again.
 - Done-when "fixture passes for milestone and whole-issue closes": `TestMilestoneWindow_ExcludesIntegratedMain` (merge, rebase and conflict sub-tests) passes.
+- M1 boundary review round 1: FIX-THEN-SHIP, with BR-2 and BR-3 (Important) blocking.
+  - BR-2 fixed: the legacy trailer grep counts only finalizing verdicts. Test `TestMilestoneWindow_NotRunEvidenceIsNotABoundary`; a clean mutation fails it.
+  - BR-3 fixed: `SoleMergeBase` is shared, and criss-cross gives a named fallback. Test `TestReviewWindow_CrissCrossIsANamedFallback`; mutation-checked.
+  - Minors fixed in the same round: stale-main note, `reviewed:` SHA validation, help text.
+  - Tests added: FIX-THEN-SHIP milestone evidence (Task 6c); legacy no-commit stamp + pin (6d).
+  - Lesson added: re-read readers when a verb starts producing an artifact.
+- Process note: milestone-close needed `--actual` (measured 1.01h) and `--no-project` (the project tracks issues; TL-owned file).

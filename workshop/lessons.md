@@ -48,6 +48,12 @@ Detailed incidents remain in their owning issue or review artifact.
 - Optional evidence stays optional only when unavailable is distinguishable from
   unsupported and from a negative result.
 
+- When a verb starts writing an artifact that only a person used to write, re-read
+  every existing reader of that artifact. Readers written for the old producer may
+  now match cases they never saw: once the binary committed a `--no-judge`
+  milestone's not-run trailer, the legacy boundary grep took a skipped review as a
+  review boundary (#304 BR-2).
+
 ## Paths, processes, and integration
 
 - Resolve a verb's repository from the path it was given (`--issues-dir`,
