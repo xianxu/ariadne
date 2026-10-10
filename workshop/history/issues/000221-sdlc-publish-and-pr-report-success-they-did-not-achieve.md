@@ -1,12 +1,20 @@
 ---
 id: 000221
-status: open
+status: wontfix
 deps: [ariadne#207]
 github_issue:
 created: 2026-09-11
-updated: 2026-09-11
+updated: 2026-10-09
 estimate_hours:
-card_mirror: '9a5435b0992876296dcbdd582132c2d68c7b5552' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '046a8484cf97c8935b4a7ada7aa631b9e2fe0475' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc publish and pr report success they did not achieve
@@ -97,6 +105,8 @@ Each verb reports what it actually did.
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): already fixed: trunk subject synctrunk.go:166, success printed only when onTrunk (:117-126), pr updates an open PR (TestLandingPRUpdatesOpenPR); wontfix stands in for a missing dup/fixed status (#212) (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-09-11
 
 Split out of ariadne#220 at the operator's request, after they declined folding
