@@ -1,6 +1,6 @@
 ---
 id: 000219
-status: open
+status: wontfix
 created: 2026-09-09
 updated: 2026-10-09
 estimate_hours:
@@ -13,6 +13,9 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+tracker:
+    version: 1
+    abandoned: {}
 ---
 
 # close_test flag assertion takes the real repo lock, so the suite cannot run inside an sdlc transaction
