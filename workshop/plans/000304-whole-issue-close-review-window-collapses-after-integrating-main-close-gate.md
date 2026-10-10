@@ -83,6 +83,40 @@ rounds:
       recipe: milestone-review
       reviewed: 1f37e2eab9fd366ca11908bfd897f3154287f18f
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-09T22:04:19-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: reviewMainRef sets a "main as last fetched" note that joinNotes threads into every window kind, and the publish gate cwarns it; TestReviewWindow_NamesAStaleMainWhenTheFetchFails fails without it.
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: latestReviewedFor rejects non-SHA values via isResolvedSHA; TestMilestoneWindow_RejectsANonSHAReviewedValue goes red without it (rev-parse fails, giving BranchFallback, not BranchPatch).
+          round: 4
+      findings:
+        - id: BR-7
+          severity: Minor
+          title: A rejected ledger reviewed value falls through to the trailer fallback, mislabelled as a pre-#304 boundary
+          detail: '2nd in family. Rule: a ledger fact that is discarded must reach planReviewWindow as a reason, never as absence. Fix: on a bad SHA, set Reviewed and RebaseErr so the window is the named windowBranchFallback; also fix the code comment at reviewwindowplan.go:227.'
+          family: window-fallback-must-be-named
+          round: 4
+        - id: BR-8
+          severity: Minor
+          title: sweepLegacyPins decides liveness from the local checkout's issuesDir but deletes worktree-shared refs/sdlc/reviewed pins
+          detail: A push in one slot can delete pins of an issue live only on another slot's branch. It degrades to over-cover or a publish refusal that asks for a re-close, never to unreviewed code passing.
+          family: shared-ref-swept-by-local-view
+          round: 4
+        - id: BR-9
+          severity: Minor
+          title: completeOnCard and settleLandedCompletions discard unpin and sweep warnings with a blank assignment
+          detail: Contradicts the reviewpin.go header ("every failure is a warning"); the abandon, push and merge sites cwarn theirs.
+          family: pin-failure-must-warn
+          round: 4
+      recipe: milestone-review
+      reviewed: cd2ad8c07bf609e362a308cc6be7b799a3a41fd5
+      blocked: false
 ---
 
 # Gate ledger — ariadne#304 (boundary-review)
@@ -121,7 +155,24 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-5 — not-addressed — Code fixed (isResolvedSHA guard in latestReviewedFor), but no test covers the call site; add a ledger with a hand-edited reviewed value and assert the branch-patch fallback.
 - BR-6 — addressed — helptext/milestone-close.md now says a --no-judge skip commits its not-run evidence, pins nothing, and never bounds a window; it matches previousReviewBoundary.
 
+## Round 4 — 2026-10-09T22:04:19-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — reviewMainRef sets a "main as last fetched" note that joinNotes threads into every window kind, and the publish gate cwarns it; TestReviewWindow_NamesAStaleMainWhenTheFetchFails fails without it.
+- BR-5 — addressed — latestReviewedFor rejects non-SHA values via isResolvedSHA; TestMilestoneWindow_RejectsANonSHAReviewedValue goes red without it (rev-parse fails, giving BranchFallback, not BranchPatch).
+
+### Raised
+
+- **BR-7** [Minor] `window-fallback-must-be-named` A rejected ledger reviewed value falls through to the trailer fallback, mislabelled as a pre-#304 boundary
+  2nd in family. Rule: a ledger fact that is discarded must reach planReviewWindow as a reason, never as absence. Fix: on a bad SHA, set Reviewed and RebaseErr so the window is the named windowBranchFallback; also fix the code comment at reviewwindowplan.go:227.
+- **BR-8** [Minor] `shared-ref-swept-by-local-view` sweepLegacyPins decides liveness from the local checkout's issuesDir but deletes worktree-shared refs/sdlc/reviewed pins
+  A push in one slot can delete pins of an issue live only on another slot's branch. It degrades to over-cover or a publish refusal that asks for a re-close, never to unreviewed code passing.
+- **BR-9** [Minor] `pin-failure-must-warn` completeOnCard and settleLandedCompletions discard unpin and sweep warnings with a blank assignment
+  Contradicts the reviewpin.go header ("every failure is a warning"); the abandon, push and merge sites cwarn theirs.
+
 ## Open findings
 
-- **BR-4** [Minor] `silent-degrade-to-stale-main` reviewMainRef falls back to the stale MergeBaseWithMain without a warning when the tracker or snapshot fails
-- **BR-5** [Minor] `untrusted-persisted-input-parse` Ledger reviewed value is passed to git without a hex SHA check
+- **BR-7** [Minor] `window-fallback-must-be-named` A rejected ledger reviewed value falls through to the trailer fallback, mislabelled as a pre-#304 boundary
+- **BR-8** [Minor] `shared-ref-swept-by-local-view` sweepLegacyPins decides liveness from the local checkout's issuesDir but deletes worktree-shared refs/sdlc/reviewed pins
+- **BR-9** [Minor] `pin-failure-must-warn` completeOnCard and settleLandedCompletions discard unpin and sweep warnings with a blank assignment
