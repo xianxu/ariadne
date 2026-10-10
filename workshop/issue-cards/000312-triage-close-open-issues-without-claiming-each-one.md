@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000312-triage-close-open-issues-without-claiming-each-one.md
         source_blob: 819ced31576def240f9515ef239a6ca2a75e780b
         destination: workshop/issues/000312-triage-close-open-issues-without-claiming-each-one.md
+        main_commit: 29362af1a53eb2d5f04b85fee586338c75ee5e59
 ---
 
 # Triage-close open issues without claiming each one
