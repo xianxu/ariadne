@@ -1,12 +1,20 @@
 ---
 id: 000220
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-09-11
-updated: 2026-09-11
+updated: 2026-10-09
 estimate_hours:
-card_mirror: 'c5b913531ed947e77144ad69fc3396cf7bead283' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5a6d068e4f027af1bc695ba5872813dfa3dea8e9' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Issue publishes from a feature branch: false success, empty subjects, add/add at merge
@@ -157,6 +165,8 @@ fixes, now ariadne#221: they should not wait on this issue's design.
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): superseded by #252/#284/#285: issue new commits details once, first publication moves them to main, the transfer guard pre-merges against fresh main (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-09-11
 
 Filed from parley.nvim#227's wrap-up. Evidence was confirmed against parley's
