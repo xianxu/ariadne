@@ -86,6 +86,12 @@ After the optional reference, any chain of `[]`/`{}` sections in any order:
 🤖~old text~[new text]             -- human-authored replacement
 ```
 
+**One line.** Every marker you write opens and closes on the same line. A line
+break inside a `[]`/`{}` turn is written `<br>` (`🤖{first<br>second}`); never
+let a marker span lines. Quote `<X>` / strike `~D~` text from a single line —
+it is the document's own prose and stays verbatim. (Legacy markers that span
+lines may still exist; read them, but write single-line ones.)
+
 ### Examples
 
 | Marker | Meaning |
@@ -397,7 +403,9 @@ outstanding markers"*, you are explicitly authorized to walk every remaining
 chain and apply the §5 accept/reject table from the review convention. For
 each chain, read the *last* commentary block — typically the trailing `[H]` —
 and interpret it as accept or reject. Do **not** resolve markers the operator
-has not acknowledged; resolution is always operator-initiated. §5 summary:
+has not acknowledged; resolution is always operator-initiated. When the result
+comes from a `{}`/`[]` turn (`R`, `Y`, `N`), turn each `<br>` into a real line
+break; `X` and `D` are the document's own text and stay verbatim. §5 summary:
 
 | Marker | Accept to | Reject to |
 |---|---|---|

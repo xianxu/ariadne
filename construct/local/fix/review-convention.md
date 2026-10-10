@@ -66,9 +66,10 @@ commenting" and "please insert N"; the operator's accept/reject gesture is what
 disambiguates, and context tells the agent how to read it.
 
 **One line.** A marker never spans lines: it opens and closes on the same line
-of the file. A line break inside a block — a multi-paragraph proposal, a
+of the file. A line break inside a `[]`/`{}` turn — a multi-paragraph proposal, a
 two-line reply — is written `<br>` (`🤖{first line<br>second line}`), and
-resolution turns it back into a real line break (§5). Editors can then render a
+resolution turns it back into a real line break (§5). An anchor (`<X>`,
+`~D~`) quotes a single line of the document verbatim and is never encoded. Editors can then render a
 marker compactly and re-render it line by line; parley.nvim shows the chain as
 `🤖[…]` / `🤖{…}` (or just the highlighted `<X>` / struck `~D~`) and opens it in a
 thread view. Writers — humans, agents, tools — always emit single-line markers;
@@ -85,8 +86,10 @@ across a line break.
 
 ### 5. `Alt+a` — accept marker, `Alt+r` — reject marker
 
-Resolution collapses a marker into its final text (any `<br>` in the result
-becomes a line break):
+Resolution collapses a marker into its final text. Text taken from a `[]`/`{}`
+turn (`R`, `N` below) has each `<br>` turned back into a line break; an
+anchor's `X` or `D` is the document's own prose and is restored verbatim (a
+markdown table may legitimately contain `<br>`):
 
 | Marker | Accept to | Reject to |
 |---|---|---|
@@ -112,5 +115,5 @@ One case *is* operator-initiated the moment it's written: a `🤖[H]` the operat
 
 ## Revisions
 
-- **2026-10-09** — markers are single-line; a line break inside a block is `<br>`, decoded on resolve (§3 "One line", §5). Earned by parley.nvim#312, which renders markers compactly and opens chains in a thread view — both need a marker to be line-local, and agents write markers too, so the rule belongs here rather than in one editor.
+- **2026-10-09** — markers are single-line; a line break inside a `[]`/`{}` turn is `<br>`, decoded on resolve; anchors stay verbatim (§3 "One line", §5). Earned by parley.nvim#312, which renders markers compactly and opens chains in a thread view — both need a marker to be line-local, and agents write markers too, so the rule belongs here rather than in one editor.
 - **2026-07-22** — added the "fold into clean prose, not a narrated reply" light-touch default to §6 (earned resolving light `🤖[]` review markers on a framing doc outside the full docflow — the first-pass resolutions had leaked reply-narration into the documentation prose).
