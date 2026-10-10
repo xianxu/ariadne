@@ -66,8 +66,9 @@ This validation precedes every verdict, including REWORK and malformed output.
 
 A failed dispatch, interruption, stale input or failed lock reacquisition
 refuses without writing a review round, sidecar or close result. --force cannot
-waive these safety checks. WF_REVIEW_TIMEOUT defaults to 30m and accepts Go
-durations from 1s through 2h; reviewer shutdown/pipe draining is bounded by a
+waive these safety checks. The review's timeout scales with its window (30m up to
+500 added lines, +15m per further 1,000, at most 2h; #300); WF_REVIEW_TIMEOUT
+overrides it with a Go duration from 1s through 2h; reviewer shutdown/pipe draining is bounded by a
 five-second grace interval.
 
 FLAGS

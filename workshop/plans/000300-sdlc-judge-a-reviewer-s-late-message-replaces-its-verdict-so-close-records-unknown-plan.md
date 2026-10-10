@@ -77,10 +77,10 @@ The fake reviewer in the judge tests (a script printing a recorded stream) is th
 - [x] `APIFailure` table test, including a review whose prose quotes the signatures (must not trip); a fake-reviewer dispatch with an error result reads "review did not run" with the sandbox action, persists nothing and doesn't retry. Commit.
 
 ### Task 5: protocol errors block
-- [ ] A boundary round with no findings block renders as blocked, not "passed", and doesn't count as convergence (`TestProtocolErrorRoundBlocks`). Commit.
+- [x] A boundary round with no findings block renders as blocked, not "passed", and doesn't count as convergence (`TestProtocolErrorRoundBlocks`). Commit.
 
 ### Task 6: sized timeout
-- [ ] `ReviewTimeout` table test, and a test that the boundary caller passes the window's size and one deadline spans the retry. Help text in `root.md`, `close.md`, `milestone-close.md`, `change-code.md`; atlas (judge section). Commit; `make test`; `sdlc milestone-close --issue 300 --milestone M2`; `sdlc close --issue 300`.
+- [x] `ReviewTimeout` table test, and a test that the boundary caller passes the window's size and one deadline spans the retry. Help text in `root.md`, `close.md`, `milestone-close.md`, `change-code.md`; atlas (judge section). Commit; `make test`; `sdlc milestone-close --issue 300 --milestone M2`; `sdlc close --issue 300`.
 - [ ] Close #271 as absorbed (its Done-when is covered by Tasks 2–3): `sdlc issue set-status` per the lifecycle, with a Log line pointing here; tick its project row.
 
 ## Revisions
@@ -89,3 +89,4 @@ The fake reviewer in the judge tests (a script printing a recorded stream) is th
 - 2026-10-09 (plan-quality round 2, PQ-7): the retry predicate is a new `HasVerdict` (a valid verdict block or a `VERDICT:` line, so plan-quality's CLEAN/INFO/FAILURE count), not `ParseVerdict != VerdictUnknown`, which knows only the boundary set. Every existing-behavior claim in the decisions now carries its file:line.
 - 2026-10-09 (M1 build): the type is `AgentRun` (the package already had a `Run` process seam). `HasVerdict` also accepts the legacy sentinels `Classify` reads and `ParseVerdict`'s bare boundary token: an existing dispatch test showed that 'No DRY violations found.' would otherwise be retried. Task 4 (API failure) and `dispatchTimeout`'s precedence landed in M1, since they live in the same dispatch function; M2 keeps the boundary ledger (D6) and the callers' sized timeout (D7).
 - 2026-10-09 (M1 review rounds 1–2): `APIFailure` became `RunFailure`. It never overrides a verdict, it separates `ErrReviewDidNotRun` from `ErrAPIUnreachable`, and it names a host per agent. Stream parsing is claude-only. An error from a retry carries attempt 1's text, and all four `Dispatch` callers show it. The atlas, the contract doc and this table were updated in the same commit (the review's rule: a contract change updates every artifact that describes it).
+- 2026-10-09 (M2 build): D6 is a stamp on the ledger record (`gatePersist.Blocked`), not a change to the gate decision. A findings-less boundary round renders as blocked, and the close still halts on its `unknown` verdict as before. Forcing the decision instead would also have blocked a SHIP close whose dispositions merely failed validation, and printed 'N open blocking findings' with an empty list. D7 sizes boundary reviews only: plan reviews keep the flat 30 minutes, since a plan is bounded by the design limit (≤500 lines). The dispatch line shows the limit in use.

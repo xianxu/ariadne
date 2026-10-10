@@ -786,3 +786,28 @@ func TestGatePersist_ReportsTheDecisionOnBothOutcomes(t *testing.T) {
 		})
 	}
 }
+
+// #300 D6 (D2 of the 2026-10-09 evidence): a boundary round whose review
+// produced no findings block is recorded as blocked, never "passed", although
+// it carries no finding to block on.
+func TestBoundaryRoundWithoutFindingsIsNotPassed(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	p := boundaryReviewParams{
+		Label: "#69 M1", Base: "abc1234", BaseLong: "abc1234", Head: "def5678",
+		IssuesDir: issuesDir, IssueNum: 69, Milestone: "M1", PlansDir: plansDir,
+	}
+	var stderr strings.Builder
+	persistBoundaryRound(&stderr, p, reviewResult{Agent: "claude", ProtocolError: "no valid findings block"}, "2026-10-09T18:00:00-07:00")
+	l, err := readBoundaryGateLedger(plansDir, "000069-x.md", 69)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(l.Rounds) != 1 || !l.Rounds[0].Blocked {
+		t.Fatalf("a findings-less round was recorded as passed: %+v", l.Rounds)
+	}
+	raw, _ := os.ReadFile(filepath.Join(plansDir, "000069-x-close-gate.md"))
+	if strings.Contains(string(raw), "passed") {
+		t.Fatalf("the rendered ledger says passed:\n%s", raw)
+	}
+}

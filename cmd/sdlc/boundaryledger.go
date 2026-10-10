@@ -190,7 +190,8 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	// round that refused, and PassesUnchanged — which #183's --fixed-to-ship pass-through
 	// will read at exactly this gate — reads that field.
 	return stampAndPersist(stderr, gatePersist{
-		Label: "boundary gate",
+		Label:   "boundary gate",
+		Blocked: review.Round == nil, // no findings block: not a pass (#300, D2)
 		Write: func(out gatestate.Ledger) error {
 			return writeBoundaryGateLedger(p.PlansDir, issueFileName, out, repoIdentity())
 		},

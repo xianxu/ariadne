@@ -345,6 +345,18 @@ func shellQuote(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'"
 }
 
+// ReviewTimeout sizes a review's limit by the lines it reads (#300, D3 of the
+// 2026-10-09 evidence: reviews of large windows routinely outran a flat 30
+// minutes): 30 minutes up to 500 added lines, 15 more per further 1,000
+// (rounded up), at most the 2-hour ceiling WF_REVIEW_TIMEOUT also has.
+func ReviewTimeout(addedLines int) time.Duration {
+	d := 30 * time.Minute
+	if extra := addedLines - 500; extra > 0 {
+		d += time.Duration((extra+999)/1000) * 15 * time.Minute
+	}
+	return min(d, 2*time.Hour)
+}
+
 // dispatchTimeout is the dispatch's limit: WF_REVIEW_TIMEOUT when set, else
 // the caller's sized limit, else the 30-minute default.
 func dispatchTimeout(env string, sized time.Duration) (time.Duration, error) {

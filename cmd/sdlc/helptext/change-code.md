@@ -187,7 +187,8 @@ FLAGS
 
 ENVIRONMENT
 
-  WF_REVIEW_TIMEOUT  timeout per external review, default 30m; accepts 1s–2h.
+  WF_REVIEW_TIMEOUT  timeout per external review (plan reviews default to 30m;
+                     boundary reviews scale with their window, #300); 1s–2h.
                       Interrupted reviews record no result; shutdown and pipe
                       draining have a five-second grace bound.
 

@@ -176,3 +176,16 @@ func TestDispatchRetryErrorKeepsTheFirstAttempt(t *testing.T) {
 		t.Fatalf("err %v, out:\n%s", err, out)
 	}
 }
+
+// D3: 30 minutes up to 500 added lines, 15 more per further 1,000, capped at
+// two hours.
+func TestReviewTimeout(t *testing.T) {
+	for lines, want := range map[int]time.Duration{
+		0: 30 * time.Minute, 500: 30 * time.Minute, 501: 45 * time.Minute,
+		1500: 45 * time.Minute, 2600: 75 * time.Minute, 100000: 2 * time.Hour,
+	} {
+		if got := ReviewTimeout(lines); got != want {
+			t.Errorf("ReviewTimeout(%d) = %v, want %v", lines, got, want)
+		}
+	}
+}

@@ -153,8 +153,10 @@ MODES
   or ledger round. Stale inputs, cancellation, failed dispatch and failed lock
   reacquisition cannot be waived by --force.
 
-  External reviews run without holding the repository lock. WF_REVIEW_TIMEOUT
-  defaults to 30m and accepts Go durations from 1s through 2h. Interruption stops
+  External reviews run without holding the repository lock. The review's
+  timeout scales with its window (30m up to 500 added lines, +15m per further
+  1,000, at most 2h; #300); WF_REVIEW_TIMEOUT overrides it with a Go duration
+  from 1s through 2h. Interruption stops
   without a review result; reviewer shutdown and pipe draining have a five-second
   grace bound.
 

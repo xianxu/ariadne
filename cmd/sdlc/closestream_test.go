@@ -1,10 +1,14 @@
 package main
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
 )
 
 func judgeStream(t *testing.T, name string) string {
@@ -62,4 +66,37 @@ func readSidecar(t *testing.T, root, detailPath string) string {
 		t.Fatalf("sidecar %s: %v", path, err)
 	}
 	return string(b)
+}
+
+// D3 end to end: a close over a large window gives its reviewer the sized
+// limit; WF_REVIEW_TIMEOUT still overrides it.
+func TestCloseSizesTheReviewTimeout(t *testing.T) {
+	for _, c := range []struct {
+		env      string
+		min, max time.Duration
+	}{
+		{"", 55 * time.Minute, 61 * time.Minute}, // ~2,000 added lines → 60m
+		{"10m", 0, 10 * time.Minute},
+	} {
+		t.Run("env="+c.env, func(t *testing.T) {
+			t.Setenv("WF_REVIEW_TIMEOUT", c.env)
+			r, _, _ := closeReady(t, 342)
+			writeRepoFile(t, r.root, "cmd/big.go", "package big\n"+strings.Repeat("// line\n", 2000))
+			r.git("add", "cmd/big.go")
+			r.git("commit", "-qm", "#342: a large change")
+			orig := judge.Run
+			t.Cleanup(func() { judge.Run = orig })
+			var left time.Duration
+			judge.Run = func(ctx context.Context, onStart func(int), name string, args ...string) (judge.ProcessOutput, error) {
+				if d, ok := ctx.Deadline(); ok {
+					left = time.Until(d)
+				}
+				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n")}, nil
+			}
+			_, stderr, _ := executeSDLCTestCommand("close", "--issue", "342", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project")
+			if left <= c.min || left > c.max {
+				t.Fatalf("the reviewer had %v, want (%v, %v]:\n%s", left, c.min, c.max, stderr)
+			}
+		})
+	}
 }

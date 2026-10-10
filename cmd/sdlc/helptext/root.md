@@ -51,8 +51,10 @@ LOCAL REPO TRANSACTION LOCK
     Stale or interrupted reviews refuse; rerun against the current state.
     `merge` and `push` still hold the lock through their ship transactions;
     wait or retry rather than removing a live holder's lock.
-  - Review dispatch defaults to a 30-minute timeout. WF_REVIEW_TIMEOUT accepts
-    a Go duration from 1s through 2h. Cancellation bounds shutdown/pipe draining
+  - Review dispatch's timeout scales with the review window (#300): 30 minutes
+    up to 500 added lines, 15 more per further 1,000, at most 2h; plan reviews
+    get 30 minutes. WF_REVIEW_TIMEOUT overrides it with a Go duration from 1s
+    through 2h. Cancellation bounds shutdown/pipe draining
     to five seconds and reaps the reviewer; it cannot become a passing verdict.
   - A dead same-host holder is reclaimed automatically; initializing metadata
     is waited through. Other stale/timeout errors tell you how to inspect

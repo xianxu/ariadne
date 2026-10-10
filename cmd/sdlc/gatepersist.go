@@ -36,6 +36,10 @@ type gatePersist struct {
 	// means something different at a gate with no successor, which is a real difference
 	// rather than drift.
 	Extra func(gatestate.Decision)
+	// Blocked stamps the round as blocked whatever the decision (#300): a round
+	// whose review produced no findings block has nothing to block on, yet it
+	// never passed. The decision returned to the caller is unchanged.
+	Blocked bool
 }
 
 // stampAndPersist applies a Decision to the ledger's last round, writes it, and reports.
@@ -47,7 +51,7 @@ type gatePersist struct {
 // unannounced from the boundary gate.
 func stampAndPersist(stderr io.Writer, g gatePersist, l gatestate.Ledger, d gatestate.Decision, forced string) gatestate.Decision {
 	if n := len(l.Rounds); n > 0 {
-		l.Rounds[n-1].Blocked = d.Block
+		l.Rounds[n-1].Blocked = d.Block || g.Blocked
 		// Only when the gate actually blocked — Round.Forced's documented contract, and
 		// --force is a GLOBAL bypass, so an unconditional stamp records a waiver here for
 		// a refusal that happened at some other gate.

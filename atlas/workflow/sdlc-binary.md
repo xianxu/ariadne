@@ -424,7 +424,9 @@ against one ledger cannot both advance it.
 `planningreview.go` owns change-code's prepare/unlock/relock phases while keeping
 plan-quality before estimate checks. Cancellation, dispatch failure, stale inputs
 and failed reacquisition stop without new authority writes; `--force` cannot waive
-these safety failures. Review timeout defaults to 30m (`WF_REVIEW_TIMEOUT`, 1s–2h).
+these safety failures. Review timeout: boundary reviews scale with the window's added lines
+(`judge.ReviewTimeout`: 30m up to 500, +15m per further 1,000, at most 2h; #300),
+plan reviews get 30m; `WF_REVIEW_TIMEOUT` (1s–2h) overrides both.
 The process runner bounds graceful shutdown and pipe draining to five seconds;
 Unix reviewers have owned process groups so cancellation also kills descendants,
 and the direct reviewer is reaped before returning. CLI interruption is carried
