@@ -61,20 +61,20 @@ The fake reviewer in the judge tests (a script printing a recorded stream) is th
 - [ ] M1 — stream capture, latest block wins, one retry, the unattended rule
 
 ### Task 1: `ReadStream`
-- [ ] Record a short live stream and hand-edited variants as fixtures; a table test over each shape the decisions name (clean, postscript, background-wait, error result, truncated, not a stream). Implement; `ParseVerdictToken` last-match with its test. Commit.
+- [x] Record a short live stream and hand-edited variants as fixtures; a table test over each shape the decisions name (clean, postscript, background-wait, error result, truncated, not a stream). Implement; `ParseVerdictToken` last-match with its test. Commit.
 
 ### Task 2: dispatch through the stream, with one retry
-- [ ] Fake-reviewer tests drive `Dispatch` and the close end to end: the Done-when shape (verdict, then postscript), the retry path, and the two-failures fail-safe with its sidecar. Implement in `BuildArgs`/`Dispatch`; update `FormatCommandLine` goldens and the live conformance test. Commit.
+- [x] Fake-reviewer tests drive `Dispatch` and the close end to end: the Done-when shape (verdict, then postscript), the retry path, and the two-failures fail-safe with its sidecar. Implement in `BuildArgs`/`Dispatch`; update `FormatCommandLine` goldens and the live conformance test. Commit.
 
 ### Task 3: the unattended rule
-- [ ] Add the rule to `ContractPreamble`; regenerate goldens (`-update-golden`); the output-contract drift check stays green. Commit; `sdlc milestone-close --issue 300 --milestone M1`.
+- [x] Add the rule to `ContractPreamble`; regenerate goldens (`-update-golden`); the output-contract drift check stays green. Commit; `sdlc milestone-close --issue 300 --milestone M1`.
 
 ## M2 — Honest failures and a sized timeout (D5–D7)
 
 - [ ] M2 — API failure is "did not run", protocol errors block, timeout scales with the window
 
 ### Task 4: API failure
-- [ ] `APIFailure` table test, including a review whose prose quotes the signatures (must not trip); a fake-reviewer dispatch with an error result reads "review did not run" with the sandbox action, persists nothing and doesn't retry. Commit.
+- [x] `APIFailure` table test, including a review whose prose quotes the signatures (must not trip); a fake-reviewer dispatch with an error result reads "review did not run" with the sandbox action, persists nothing and doesn't retry. Commit.
 
 ### Task 5: protocol errors block
 - [ ] A boundary round with no findings block renders as blocked, not "passed", and doesn't count as convergence (`TestProtocolErrorRoundBlocks`). Commit.
@@ -87,3 +87,4 @@ The fake reviewer in the judge tests (a script printing a recorded stream) is th
 
 - 2026-10-09 (plan-quality round 1): `Dispatch` keeps a string contract (the joined messages), so the existing last-block-wins parsers do D2 and `RunVerdict` is dropped; `Dispatch` owns the retry with the shared `ParseVerdict` predicate, and `ParseVerdictToken` becomes last-match (PQ-1). D6 is scoped to the boundary path; plan-quality's rule is unchanged (PQ-2). D5 judges the stream's error flag and stderr, never the review's prose (PQ-3). One deadline spans the retry (PQ-4). A truncated stream keeps what parsed, and the live conformance test moves to stream mode (PQ-5). Test prose compressed (PQ-6).
 - 2026-10-09 (plan-quality round 2, PQ-7): the retry predicate is a new `HasVerdict` (a valid verdict block or a `VERDICT:` line, so plan-quality's CLEAN/INFO/FAILURE count), not `ParseVerdict != VerdictUnknown`, which knows only the boundary set. Every existing-behavior claim in the decisions now carries its file:line.
+- 2026-10-09 (M1 build): the type is `AgentRun` (the package already had a `Run` process seam). `HasVerdict` also accepts the legacy sentinels `Classify` reads and `ParseVerdict`'s bare boundary token: an existing dispatch test showed that 'No DRY violations found.' would otherwise be retried. Task 4 (API failure) and `dispatchTimeout`'s precedence landed in M1, since they live in the same dispatch function; M2 keeps the boundary ledger (D6) and the callers' sized timeout (D7).
