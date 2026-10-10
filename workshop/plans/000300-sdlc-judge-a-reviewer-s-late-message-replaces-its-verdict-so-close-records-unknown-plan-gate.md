@@ -84,6 +84,11 @@ rounds:
           note: D3 now uses HasVerdict, which is ParseVerdictBlock ok or ParseVerdictToken ok. The token pattern at classify.go:56 covers CLEAN/INFO/FAILURE, and every claim in the decisions is now backed by a file:line.
           round: 3
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-09T20:25:57-07:00"
+      agent: claude
+      blocked: false
+      protocol_error: no valid findings block
 content_hash: c7df715bd60c7bb5f349fd703643be7d72cbaf13ef463c58d7d2f2c1599b2793
 ---
 
@@ -129,6 +134,10 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - PQ-7 — addressed — D3 now uses HasVerdict, which is ParseVerdictBlock ok or ParseVerdictToken ok. The token pattern at classify.go:56 covers CLEAN/INFO/FAILURE, and every claim in the decisions is now backed by a file:line.
+
+## Round 4 — 2026-10-09T20:25:57-07:00 (claude) — passed
+
+**Protocol error:** no valid findings block — this round contributed no findings.
 
 ## Open findings
 
