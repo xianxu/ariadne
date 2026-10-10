@@ -4,7 +4,7 @@
 
 **Goal:** A boundary or plan-quality review either yields the verdict the reviewer actually gave, or reads "review did not run" with the cause, never `unknown` from a late postscript and never "passed" from a blocked API (#300, absorbing #271, D2, D3 of the 2026-10-09 evidence pensive).
 
-**Architecture:** The claude reviewer runs with `--output-format stream-json`, and a new pure reader turns the event stream into a run record: every assistant message's text, the run's terminal result and its error flag. The verdict and findings are taken from the latest message that carries each block, so a later block-less message erases nothing. A run with no verdict anywhere is dispatched once more; an API or network failure is a dispatch failure ("review did not run"), never a round; and a round with a protocol error is recorded as blocking. The review timeout scales with the window's added lines.
+**Architecture:** The claude reviewer runs with `--output-format stream-json`, and a new pure reader turns the event stream into a run record: every assistant message's text, the run's terminal result and its error flag. `Dispatch` keeps returning one text, now all assistant messages joined in order, so the existing last-block-wins parsers take the latest verdict and findings and a later block-less message erases nothing. Inside `Dispatch`, a run with no verdict anywhere is dispatched once more, and a run whose stream reports an API or network error is a dispatch failure ("review did not run"), never a round. On the boundary path a round with a protocol error is recorded as blocking. The review timeout scales with the window's added lines.
 
 **Tech Stack:** Go (`cmd/sdlc/internal/judge`, `internal/gatestate`, `cmd/sdlc` close/milestone-close/change-code), recorded stream fixtures under `internal/judge/testdata/`, the opt-in live conformance test pattern of `live_stream_conformance_test.go`.
 
@@ -18,12 +18,12 @@
 
 ## Design decisions
 
-- **D1 — Stream capture for claude.** `BuildArgs` adds `--output-format stream-json --verbose` for claude. A pure `ReadStream(stdout) (Run, error)` parses the newline-delimited events: the text parts of each `assistant` message in order, and the terminal `result` event (`subtype`, `is_error`, `result`). A stream that doesn't parse (an older CLI, a crash mid-line) falls back to treating stdout as text, as today, so capture never gets worse.
-- **D2 — Latest block wins, per kind.** The verdict is parsed from the latest assistant message that carries a verdict (the existing `ParseVerdict` rules applied per message, newest first); findings from the latest message with a valid `findings` block. A block-less later message, the pair#362 and pair#387 shape, changes neither. The sidecar's review text is all assistant messages joined, so a human sees the whole run.
-- **D3 — No verdict anywhere: retry once, then `unknown`.** A completed run with no verdict in any message (#271's "I'll wait for the background run to notify") is dispatched once more, with the same prompt and a one-line notice that the previous attempt ended without a verdict. If the second also has none, today's fail-safe stands: `unknown`, the close doesn't finalize, and the sidecar keeps both runs' text. Only the run that produced the verdict becomes the round.
+- **D1 — Stream capture for claude.** `BuildArgs` adds `--output-format stream-json --verbose` for claude. A pure `ReadStream(stdout) Run` parses the newline-delimited events: the text parts of each `assistant` message in order (decoded from JSON, so fenced blocks arrive intact), and the terminal `result` event (`subtype`, `is_error`, `result`). Lines that don't parse are kept as raw text after the messages parsed so far, so a truncated stream loses nothing; only when no line parses at all is the whole stdout treated as text, as today.
+- **D2 — Latest block wins, through the existing parsers (ARCH-DRY).** `Dispatch`'s return contract is unchanged in type: one string, now the run's assistant messages joined in order (`Run.Text()`). The existing parsers already take the last block of each kind (`ParseVerdictBlock`, `gatestate.ParseFindingsBlock`), so a block-less later message, the pair#362 and pair#387 shape, changes neither, and no per-message parser or judge→gatestate import is added. The one parser that takes the first match, the `VERDICT:` line fallback (`ParseVerdictToken`), becomes last-match so all three agree on "latest wins". The sidecar's review text is that same joined text.
+- **D3 — No verdict anywhere: retry once, then `unknown`. `Dispatch` owns the retry.** The predicate is the shared one every caller uses, `ParseVerdict(text) != VerdictUnknown` (it covers the boundary and plan-quality tokens alike), so no caller decides it. A completed run without a verdict (#271's "I'll wait for the background run to notify") is dispatched once more, with the same prompt and a one-line notice that the previous attempt ended without a verdict. One deadline covers both attempts (the retry gets what is left of D7's limit), so the worst case stays the sized limit, not double. If the second run also has none, today's fail-safe stands: `unknown`, the close doesn't finalize, and the returned text holds both runs, separated and labelled, so the sidecar keeps them.
 - **D4 — The reviewer is told it runs unattended.** `ContractPreamble` (shared by every recipe) gains: you run non-interactively and receive no notifications; run commands in the foreground within the time limit; your final message must carry the verdict and findings blocks. Allowed tools stay `Read,Grep,Glob,Bash`: Claude Code can't deny Bash's background parameter alone, so this is the prompt rule plus D2/D3's capture making a late message harmless.
-- **D5 — An unreachable API is "review did not run".** A run is a dispatch failure, not a verdict, when its terminal result is an error, or when its output (stream result, or text) matches the API-failure signatures seen in the evidence: `API Error`, `ERR_PROXY_TUNNEL`, `Connection blocked by network allowlist`, `403 … blocked`, `ECONNREFUSED`, `ENOTFOUND`. The error names the cause and the next action: "the reviewer could not reach its API (…); in an agent sandbox, allow `api.anthropic.com` for this command, then rerun". Like today's dispatch errors, nothing is persisted and the round cap isn't spent. It isn't retried: the block would repeat.
-- **D6 — A protocol-error round is never "passed".** `persistBoundaryRound` and `stampAndPersist` stamp `Blocked = d.Block || round.ProtocolError != ""`, so a round whose review produced no findings block renders as blocked in the ledger and gate output, matching plan-quality's existing behavior. This is the ledger half of D2: even an unforeseen failure shape can't read as a pass.
+- **D5 — An unreachable API is "review did not run", judged on the channel, not the prose.** The review's own text can quote these strings (this issue's diff will), so assistant messages are never scanned. A run is a dispatch failure when the stream's terminal `result` event has `is_error: true` (its `result` text names the cause), or, for text-mode agents (codex, gemini) and a claude run whose stream didn't parse, only when no verdict parsed AND the exit was non-zero or stderr matches the API-failure signatures from the evidence (`API Error`, `ERR_PROXY_TUNNEL`, `Connection blocked by network allowlist`, `ECONNREFUSED`, `ENOTFOUND`). The error names the cause and the next action: "the reviewer could not reach its API (…); in an agent sandbox, allow `api.anthropic.com` for this command, then rerun". Like today's dispatch errors, nothing is persisted and the round cap isn't spent. It isn't retried: the block would repeat.
+- **D6 — A boundary protocol-error round is never "passed".** On the boundary path only: `persistBoundaryRound` writes `Blocked: true` for a round without a findings block, and `stampAndPersist` then overwrites it with `d.Block`. The boundary caller stamps `Blocked = d.Block || round.ProtocolError != ""`, so such a round renders as blocked and isn't convergence. `stampAndPersist` stays shared and unchanged in contract (it feeds `PassesUnchanged`); plan-quality keeps its own rule (blocked when its verdict can't be classified), which this issue doesn't change. This is the ledger half of D2.
 - **D7 — The timeout scales with the window.** Default = 30 min for a window of up to 500 added lines, plus 15 min per further 1,000 added lines, capped at 2 h (the existing ceiling). The callers compute the added lines of the review window with `git diff --numstat base..head` (boundary) or the durable plan's line count (plan-quality) and pass `DispatchOptions.Timeout`. `WF_REVIEW_TIMEOUT` still overrides. The heartbeat line shows the limit in use.
 
 ARCH-FUNERAL: creates nothing durable beyond the existing sidecar, which grows by the retried run's text when a retry happens (at most one extra run per round).
@@ -35,12 +35,12 @@ ARCH-FUNERAL: creates nothing durable beyond the existing sidecar, which grows b
 | Name | Lives in | Status |
 |------|----------|--------|
 | `Run` / `ReadStream` | `cmd/sdlc/internal/judge/stream.go` | new |
-| `RunVerdict(run) (Verdict, findings)` | `cmd/sdlc/internal/judge/stream.go` | new |
-| `APIFailure(run) (cause string, ok bool)` | `cmd/sdlc/internal/judge/apifailure.go` | new |
+| `APIFailure(run, stderr, exitErr) (cause string, ok bool)` | `cmd/sdlc/internal/judge/apifailure.go` | new |
+| `ParseVerdictToken` | `cmd/sdlc/internal/judge/classify.go` | modified (last match) |
 | `ReviewTimeout(addedLines int) time.Duration` | `cmd/sdlc/internal/judge/dispatch.go` | modified (`reviewTimeout` gains the size input) |
 | `ContractPreamble` | `cmd/sdlc/internal/judge/contract.go` | modified |
 
-Each is unit-tested without IO: `ReadStream` and `RunVerdict` against recorded streams in `internal/judge/testdata/stream/` (a clean run; verdict then postscript; findings then block-less message; background-wait only; API error result; garbage falling back to text).
+Each is unit-tested without IO; `ReadStream` against recorded streams in `internal/judge/testdata/stream/`.
 
 ### Integration points
 
@@ -53,17 +53,17 @@ Each is unit-tested without IO: `ReadStream` and `RunVerdict` against recorded s
 | plan-quality dispatch | `cmd/sdlc/changecode.go` | modified | plan size → timeout |
 | `persistBoundaryRound` / `stampAndPersist` | `cmd/sdlc/boundaryledger.go`, `gatepersist.go` | modified | protocol error blocks |
 
-The fake reviewer in the judge tests (a script printing a recorded stream) is the seam; an opt-in live conformance test (`SDLC_LIVE_AGENT_STREAM_CONFORMANCE=1`) checks that the real `claude` emits the event shapes `ReadStream` reads.
+The fake reviewer in the judge tests (a script printing a recorded stream) is the seam. The existing opt-in live conformance test (`live_stream_conformance_test.go`, which asserts claude's stdout is exactly `STREAM_OK`) moves to stream mode: it asserts `ReadStream` recovers `STREAM_OK` as the run's text and a non-error result, and that stderr stays separate.
 
 ## M1 — Verdict capture (D1–D4)
 
 - [ ] M1 — stream capture, latest block wins, one retry, the unattended rule
 
-### Task 1: `ReadStream` and `RunVerdict`
-- [ ] Record fixture streams (a short live `claude -p --output-format stream-json --verbose` run trimmed by hand, plus hand-edited variants); table tests for every shape above, including the text fallback. Implement. Commit.
+### Task 1: `ReadStream`
+- [ ] Record a short live stream and hand-edited variants as fixtures; a table test over each shape the decisions name (clean, postscript, background-wait, error result, truncated, not a stream). Implement; `ParseVerdictToken` last-match with its test. Commit.
 
 ### Task 2: dispatch through the stream, with one retry
-- [ ] Tests with a fake reviewer: verdict-then-postscript parses to the earlier verdict and findings (the Done-when); background-wait-only is retried once and the second run's verdict is used; two verdict-less runs record `unknown`, refuse to finalize, and the sidecar holds both runs. Implement in `BuildArgs`/`Dispatch`; update `FormatCommandLine` goldens. Commit.
+- [ ] Fake-reviewer tests drive `Dispatch` and the close end to end: the Done-when shape (verdict, then postscript), the retry path, and the two-failures fail-safe with its sidecar. Implement in `BuildArgs`/`Dispatch`; update `FormatCommandLine` goldens and the live conformance test. Commit.
 
 ### Task 3: the unattended rule
 - [ ] Add the rule to `ContractPreamble`; regenerate goldens (`-update-golden`); the output-contract drift check stays green. Commit; `sdlc milestone-close --issue 300 --milestone M1`.
@@ -73,11 +73,15 @@ The fake reviewer in the judge tests (a script printing a recorded stream) is th
 - [ ] M2 — API failure is "did not run", protocol errors block, timeout scales with the window
 
 ### Task 4: API failure
-- [ ] `APIFailure` table test over the evidence's signatures and a clean run; a dispatch test where the fake reviewer emits an `API Error … ERR_PROXY_TUNNEL` result → "review did not run" naming the sandbox action, nothing persisted, round cap unspent, no retry. Commit.
+- [ ] `APIFailure` table test, including a review whose prose quotes the signatures (must not trip); a fake-reviewer dispatch with an error result reads "review did not run" with the sandbox action, persists nothing and doesn't retry. Commit.
 
 ### Task 5: protocol errors block
 - [ ] A boundary round with no findings block renders as blocked, not "passed", and doesn't count as convergence (`TestProtocolErrorRoundBlocks`). Commit.
 
 ### Task 6: sized timeout
-- [ ] `ReviewTimeout` table (≤500 → 30m; 1,500 → 45m; huge → 2h; `WF_REVIEW_TIMEOUT` wins); the boundary caller passes the window's added lines (test via the dispatch options a fake records). Help text in `root.md`, `close.md`, `milestone-close.md`, `change-code.md`; atlas (judge section). Commit; `make test`; `sdlc milestone-close --issue 300 --milestone M2`; `sdlc close --issue 300`.
+- [ ] `ReviewTimeout` table test, and a test that the boundary caller passes the window's size and one deadline spans the retry. Help text in `root.md`, `close.md`, `milestone-close.md`, `change-code.md`; atlas (judge section). Commit; `make test`; `sdlc milestone-close --issue 300 --milestone M2`; `sdlc close --issue 300`.
 - [ ] Close #271 as absorbed (its Done-when is covered by Tasks 2–3): `sdlc issue set-status` per the lifecycle, with a Log line pointing here; tick its project row.
+
+## Revisions
+
+- 2026-10-09 (plan-quality round 1): `Dispatch` keeps a string contract (the joined messages), so the existing last-block-wins parsers do D2 and `RunVerdict` is dropped; `Dispatch` owns the retry with the shared `ParseVerdict` predicate, and `ParseVerdictToken` becomes last-match (PQ-1). D6 is scoped to the boundary path; plan-quality's rule is unchanged (PQ-2). D5 judges the stream's error flag and stderr, never the review's prose (PQ-3). One deadline spans the retry (PQ-4). A truncated stream keeps what parsed, and the live conformance test moves to stream mode (PQ-5). Test prose compressed (PQ-6).
