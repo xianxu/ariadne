@@ -139,15 +139,19 @@ func refuseUnownedCompletions(ctx context.Context, env *trackerEnv, rs tracker.R
 		if err != nil || !inPatch[filepath.ToSlash(rel)] {
 			continue
 		}
-		orphans = append(orphans, issue.CLIRef(rec.ID))
+		orphans = append(orphans, rec.ID)
 	}
 	if len(orphans) == 0 {
 		return nil
 	}
+	refs := make([]string, len(orphans))
+	for i, id := range orphans {
+		refs[i] = issue.CLIRef(id)
+	}
 	return fmt.Errorf("publish gate: #%s is codecomplete but this branch carries no close for it "+
 		"(a squash or an amend dropped its Close-Token, #304).\n"+
 		"  Re-run `sdlc close --issue %s --verified '<evidence>'`, then retry the publish.",
-		strings.Join(orphans, ", #"), orphans[0])
+		strings.Join(refs, ", #"), issue.CLIRef(orphans[0]))
 }
 
 // ownedPublishIssues anchors each owned completion on its evidence commit.
