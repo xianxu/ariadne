@@ -226,3 +226,77 @@ findings:
     detail: |
       Dispatch returns (second, err) for ErrAPIUnreachable, ErrReviewDidNotRun, an interrupt or a launch failure on attempt 2, and milestoneclose.go:641 discards the output on any error. 2nd in family. Rule: once a retry has started, nothing that comes back without a verdict may drop attempt 1; any error from attempt 2 carries attempt 1's text.
 ```
+
+---
+
+## Re-review — 2026-10-09T21:19:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 300 — sdlc judge: a reviewer's late message replaces its verdict, so close records 'unknown' |
+| repo | ariadne |
+| issue file | workshop/issues/000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown.md |
+| boundary | milestone M1 |
+| milestone | M1 |
+| window | b51060b253657fa9a2c6827e330eb1e4c995f12e..fb54b7f5c20dc04766de599dbb0e3dba4ecde1df |
+| command | sdlc milestone-close --issue 300 --milestone M1 |
+| reviewer | claude |
+| timestamp | 2026-10-09T21:19:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Focus on the round-2 commit first.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both open findings from round 2 are fixed, and I found nothing new that blocks the boundary. The round-2 commit (`fb54b7f5`) makes `Dispatch` keep attempt 1's text for any error from attempt 2, not only a timeout. All four callers (`judge.go:177`, `milestoneclose.go:640`, and the two plan-review paths through `planningreview.go:116`) now show that text when dispatch fails. The atlas paragraph, `construct/judge-output-contract.md`, the plan's D5 and Core concepts table, and a new `## Revisions` entry now describe the code as it stands: `RunFailure`, `ErrReviewDidNotRun` vs `ErrAPIUnreachable`, a host per agent, stream parsing for claude only, and the retry keeping its evidence. The judge package tests and the close-level stream tests pass at HEAD.
+
+1. **Strengths**
+   - `dispatch.go`'s retry branch now covers the whole class "an error once a retry has started", not just the timeout instance. Only `DeadlineExceeded` turns into the fail-safe with a nil error; every other error is returned alongside the kept text. This is the rule BR-8 stated, applied to the class.
+   - All four `Dispatch` callers were swept, including `dispatchPlanningReview`, which used to return `""` on error (ARCH-PURPOSE: the class, not the one site named).
+   - D5 was rewritten with the original wording kept underneath it, and Revisions records the delta (BR-7's rule followed).
+   - `RunFailure` never overrides a verdict the run already gave, and it decides only from the run's channel (result event, exit code, stderr), never from the review's prose.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings** (all three are notes only; none is filed as a finding)
+   - The callers that print the kept text (`milestoneclose.go:642`, `changecode.go:652/890`, `judge.go:179`) have no test. `TestDispatchRetryErrorKeepsTheFirstAttempt` pins the `Dispatch` half only; reverting the old `(second, err)` return turns it red. A caller that went back to dropping the output would pass every test.
+   - The atlas limits the stderr-signature rule to "codex and gemini". In the code, the stderr branch (`apifailure.go`, `nonZeroExit && apiFailureRE.Match(stderr)`) also applies to a claude run that exits non-zero with no result event. The difference is small; fix the wording when the text is next edited.
+   - Plan Task 4 is ticked and still names `APIFailure`. Revisions explains the rename, so this is cosmetic.
+
+5. **Test coverage notes.** Covered:
+   - Dispatch-level: verdict then postscript; two runs without a verdict; a retry that times out; a retry that errors; an error after a verdict; prose that quotes the failure signatures.
+   - Close-level: `closestream_test.go`.
+
+   Not covered: how callers present the text on error (the first Minor).
+
+6. **Architectural notes.**
+   - **ARCH-DRY: pass.** The "## Attempt 1" label is still built twice in `Dispatch`. A small helper would clean that up.
+   - **ARCH-PURE: pass.** `ReadStream`, `HasVerdict` and `RunFailure` are pure.
+   - **ARCH-PURPOSE: pass.** All callers were swept.
+   - **ARCH-MOCK: pass.** The tests use the `Run` seam, and the live conformance test now runs in stream mode.
+   - **ARCH-CONSTRAINTS: pass.** One deadline covers the retry.
+   - **ARCH-SECURE: pass.** Only claude's stdout is read as a stream, and output that isn't a stream degrades to plain text.
+   - **ARCH-ORDER: pass.** The retry is lexically bounded, and every outcome of attempt 2 keeps attempt 1.
+   - **ARCH-FUNERAL: pass.** The sidecar gains at most one extra run per round.
+   - **For M2 (D6):** a retry that times out returns a nil error without a verdict, so make sure the boundary ledger stamps that round as blocked.
+
+7. **Plan revision recommendations:** none needed. When Task 4 is next touched, the `APIFailure` name could be updated in place.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Atlas sdlc-binary.md (#300 paragraph), judge-output-contract.md, plan D5 and the Core concepts row now describe RunFailure, ErrReviewDidNotRun, per-agent hosts, claude-only stream and the verdict-first guard; Revisions records the change. Checked against apifailure.go/dispatch.go.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Dispatch returns attempt 1's labelled text with any error from attempt 2; TestDispatchRetryErrorKeepsTheFirstAttempt fails under the old (second, err) return; all four callers print the output on error.
+```

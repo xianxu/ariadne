@@ -86,6 +86,21 @@ rounds:
       boundary: M1
       recipe: milestone-review
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-09T21:19:42-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: Atlas sdlc-binary.md (#300 paragraph), judge-output-contract.md, plan D5 and the Core concepts row now describe RunFailure, ErrReviewDidNotRun, per-agent hosts, claude-only stream and the verdict-first guard; Revisions records the change. Checked against apifailure.go/dispatch.go.
+          round: 3
+        - id: BR-8
+          disposition: addressed
+          note: Dispatch returns attempt 1's labelled text with any error from attempt 2; TestDispatchRetryErrorKeepsTheFirstAttempt fails under the old (second, err) return; all four callers print the output on error.
+          round: 3
+      boundary: M1
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#300 (boundary-review)
@@ -124,7 +139,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `fail-safe-keeps-evidence` A retry that fails with an error (not a timeout) drops attempt 1's text
   Dispatch returns (second, err) for ErrAPIUnreachable, ErrReviewDidNotRun, an interrupt or a launch failure on attempt 2, and milestoneclose.go:641 discards the output on any error. 2nd in family. Rule: once a retry has started, nothing that comes back without a verdict may drop attempt 1; any error from attempt 2 carries attempt 1's text.
 
+## Round 3 — 2026-10-09T21:19:42-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — Atlas sdlc-binary.md (#300 paragraph), judge-output-contract.md, plan D5 and the Core concepts row now describe RunFailure, ErrReviewDidNotRun, per-agent hosts, claude-only stream and the verdict-first guard; Revisions records the change. Checked against apifailure.go/dispatch.go.
+- BR-8 — addressed — Dispatch returns attempt 1's labelled text with any error from attempt 2; TestDispatchRetryErrorKeepsTheFirstAttempt fails under the old (second, err) return; all four callers print the output on error.
+
 ## Open findings
 
-- **BR-7** [Important] `plan-claims-match-tests` Atlas, contract doc and plan Core concepts/D5 still describe the code before round 1
-- **BR-8** [Minor] `fail-safe-keeps-evidence` A retry that fails with an error (not a timeout) drops attempt 1's text
+(none — every finding has been disposed)

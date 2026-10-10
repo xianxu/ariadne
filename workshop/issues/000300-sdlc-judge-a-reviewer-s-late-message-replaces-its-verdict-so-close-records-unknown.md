@@ -112,7 +112,7 @@ Items, in order:
 
 Durable plan: `workshop/plans/000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown-plan.md`.
 
-- [ ] M1 — Verdict capture: claude stream-json, the latest verdict/findings block wins, one retry when no verdict, the unattended rule in the contract (D1, #271). Plan Tasks 1–3.
+- [x] M1 — Verdict capture: claude stream-json, the latest verdict/findings block wins, one retry when no verdict, the unattended rule in the contract (D1, #271). Plan Tasks 1–3.
 - [ ] M2 — Honest failures: an unreachable API is "review did not run", a protocol-error round is never "passed", the timeout scales with the window (D2, D3). Plan Tasks 4–6.
 
 ## Log
@@ -125,6 +125,7 @@ The recovered pair#362 round is in pair's
 local for the operator to refine.
 
 ### 2026-10-09
+- 2026-10-09: closed M1 — make test green except sandbox-only processgroup. M1: TestDispatchKeepsAVerdictBeforeAPostscript, TestDispatchRetriesARunWithoutAVerdict, TestDispatchTwoRunsWithoutAVerdictStayUnknown, TestDispatchRetryDeadlineKeepsTheFirstAttempt, TestDispatchRetryErrorKeepsTheFirstAttempt, TestDispatchAPIErrorIsReviewDidNotRun, TestRunFailure, TestDispatchParsesOnlyClaudeAsAStream, TestCloseRecordsTheVerdictBeforeAPostscript, TestCloseWithoutAVerdictKeepsBothRuns; unattended rule in all 8 goldens; live claude stream conformance passes.; review verdict: SHIP
 - 2026-10-09: unclaimed: TL slot hands off: shaped scope recorded in Log; implement in :2-:4
 
 Claimed in ariadne:1 as the first issue of project `ariadne-robustness-1` (`workshop/projects/ariadne-robustness-1.md`). The project file and the evidence pensive (`workshop/pensive/2026-10-09-01-pensive-sdlc-robustness-evidence.md`) land separately, on the plain-git branch `project-ariadne-robustness-1`.
