@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000311-repair-a-codecomplete-card-whose-branch-merged-outside-the-detector-239.md
         source_blob: acf8e399c33cbf591607965d079818d03207859f
         destination: workshop/issues/000311-repair-a-codecomplete-card-whose-branch-merged-outside-the-detector-239.md
+        main_commit: b51060b253657fa9a2c6827e330eb1e4c995f12e
 ---
 
 # Repair a codecomplete card whose branch merged outside the detector (#239)
