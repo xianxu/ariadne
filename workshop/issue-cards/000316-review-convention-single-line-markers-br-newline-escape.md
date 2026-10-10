@@ -17,6 +17,13 @@ tracker:
         source_blob: d1b91f9fe7d4048f1545d8dad532084bd943520f
         destination: workshop/issues/000316-review-convention-single-line-markers-br-newline-escape.md
         main_commit: 03fbeaa7eed29aecbb52205372cdfaac07c256f7
+started: 2026-10-09T21:20:31-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    worktree: /Users/xianxu/workspace/worktree/parley.nvim-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # review-convention: single-line markers + <br> newline escape
