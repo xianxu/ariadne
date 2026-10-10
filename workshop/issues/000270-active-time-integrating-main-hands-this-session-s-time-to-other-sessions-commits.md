@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "bf161b4f", done: "17b1d9e7"}
 ---
 
 # active-time: integrating main hands this session's time to other sessions' commits
