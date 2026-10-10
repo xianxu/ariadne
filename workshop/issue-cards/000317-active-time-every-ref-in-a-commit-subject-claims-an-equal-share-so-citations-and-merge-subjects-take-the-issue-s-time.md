@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000317-active-time-every-ref-in-a-commit-subject-claims-an-equal-share-so-citations-and-merge-subjects-take-the-issue-s-time.md
         source_blob: a51532ab9d6f25f2fb9b3db9d26699f8d3b022fa
         destination: workshop/issues/000317-active-time-every-ref-in-a-commit-subject-claims-an-equal-share-so-citations-and-merge-subjects-take-the-issue-s-time.md
+        main_commit: 1eed30730a6734d69c8fb52fe462552138aa4dff
 ---
 
 # active-time: every ref in a commit subject claims an equal share, so citations and merge subjects take the issue's time
