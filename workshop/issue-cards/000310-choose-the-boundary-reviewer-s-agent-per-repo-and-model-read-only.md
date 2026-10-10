@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000310-choose-the-boundary-reviewer-s-agent-per-repo-and-model-read-only.md
         source_blob: 4af5019edc6e73916fa3ced42a48535b2c09c2ac
         destination: workshop/issues/000310-choose-the-boundary-reviewer-s-agent-per-repo-and-model-read-only.md
+        main_commit: 61f4537dd993f12fcef553ef7328e24f84c20d5a
 ---
 
 # Choose the boundary reviewer's agent per repo, and model read-only
