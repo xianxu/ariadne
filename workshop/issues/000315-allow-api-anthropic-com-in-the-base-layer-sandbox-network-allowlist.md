@@ -1,12 +1,20 @@
 ---
 id: 000315
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-09
 updated: 2026-10-09
 estimate_hours:
-card_mirror: '1273ae2fdc6c155bec391670fb55868fb6816d4d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '862d39aeebcd3abfbd969e756a837839a96fc2ee' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T20:30:47-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Allow api.anthropic.com in the base-layer sandbox network allowlist
@@ -31,11 +39,13 @@ The sdlc boundary reviewer (`claude -p`) runs inside the project sandbox, whose 
 
 ## Plan
 
-- [ ] Add the domain to `.claude/settings.ariadne.json`
-- [ ] `weave compile` and confirm the merged `.claude/settings.json`
+- [x] Add the domain to `.claude/settings.ariadne.json`
+- [x] `weave compile` and confirm the merged `.claude/settings.json`
 
 ## Log
 
 ### 2026-10-09
 
 Operator decision: do it in ariadne:1, the TL slot, as an exception to the implementation-in-:2–:4 rule, because it's a one-line base-layer change. Stopgap for D2 until #300 lands; part of ariadne-robustness-1's judge-robustness phase.
+
+Built: added `api.anthropic.com` to `.claude/settings.ariadne.json`. `weave compile` (67 actions) merges it into `.claude/settings.json`, which is untracked and generated; verified with `grep`. The `settingsx` tests pass.

@@ -40,6 +40,7 @@
     "network": {
       "allowedDomains": [
         "www.lua.org",
+        "api.anthropic.com",
         "github.com",
         "*.github.com",
         "*.githubusercontent.com",
