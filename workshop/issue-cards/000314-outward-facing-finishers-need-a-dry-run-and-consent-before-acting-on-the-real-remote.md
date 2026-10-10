@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000314-outward-facing-finishers-need-a-dry-run-and-consent-before-acting-on-the-real-remote.md
         source_blob: 2854ecc7b52c6f595c84827664f681aa545668dc
         destination: workshop/issues/000314-outward-facing-finishers-need-a-dry-run-and-consent-before-acting-on-the-real-remote.md
+        main_commit: b963c0d743b8fa5896ddbe602555800f7b42bec1
 ---
 
 # Outward-facing finishers need a dry run and consent before acting on the real remote
