@@ -1,10 +1,19 @@
 ---
 id: 000319
-status: working
+status: codecomplete
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
 github_issue:
+started: 2026-10-10T11:23:39-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
+actual_hours: 0.23
 tracker:
     version: 1
     handoff:
@@ -17,14 +26,11 @@ tracker:
         source_blob: 4f2f0ab6f0fac8582f9584fb933d42b3e93b0c39
         destination: workshop/issues/000319-test-machine-wide-lock-so-only-one-full-test-suite-runs-at-a-time.md
         main_commit: 5d364c69e8ffda6f5416e3f3dbd236625f299964
-started: 2026-10-10T11:23:39-07:00
-claimant:
-    operator: Xian Xu
-    machine: 4716879978a7b90f6b583da1716fd0e9
-    machine_name: MacBook Pro
-    workspace: ariadne:4
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
-    repository: github.com/xianxu/ariadne
+    completion:
+        token: close-6b9ba23d371a
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 67d51fbebd8b7fc37eb7592647326fc68f6c8391
+        evidence_commit: 734b5d233259d0d28bf5bd6c6bd884ebb31c3d1d
 ---
 
 # test: machine-wide lock so only one full test suite runs at a time
