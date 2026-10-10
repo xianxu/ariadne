@@ -1,13 +1,13 @@
 ---
 id: 000316
-status: working
+status: codecomplete
 deps: []
 github_issue:
 target: review-convention
 created: 2026-10-09
 updated: 2026-10-09
 estimate_hours:
-card_mirror: 'b6e58b731c46d5fc90aaf86b9c9b7b16a6a68189' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '92ce69dc38f0a05e98c4088872024bf266ced8e6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-09T21:20:31-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/parley.nvim-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "8ebc71b7", done: "b55b6c6a"}
+actual_hours: N/A
 ---
 
 # review-convention: single-line markers + <br> newline escape
