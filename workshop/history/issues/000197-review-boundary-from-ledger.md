@@ -1,12 +1,20 @@
 ---
 id: 000197
-status: open
+status: wontfix
 deps: [ariadne#194]
 github_issue:
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-10-09
 estimate_hours:
-card_mirror: 'ec0a0e12f025447b88585a308e8e7973cf0314bf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '90d5b4eee7a9ca66c0fb4d4daec7ff6b2286172e' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # derive the boundary-review window from the gate ledger, not a hand-pasted Review-Verdict trailer
@@ -137,6 +145,8 @@ a line.
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): folded into #304: milestone-close commits its own evidence and the ledger stores the reviewed branch-patch identity (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-08-20
 
 Found while closing ariadne#194 M2, by reading why that review's window base was the
