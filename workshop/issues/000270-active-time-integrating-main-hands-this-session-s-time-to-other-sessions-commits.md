@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "bf161b4f", done: "17b1d9e7"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # active-time: integrating main hands this session's time to other sessions' commits
@@ -118,6 +118,8 @@ Steps:
   instead of a hand-typed one.
 
 ### 2026-10-09
+- 2026-10-09: closed — make test green except load/sandbox flakes (processgroup /bin/ps blocked by sandbox; TestPlanningReviewConcurrencySchedules and TestCLISignalCancelsOwnedReviewer pass in isolation, review-dispatch timing). TestBoundariesSurviveIntegratingMain: not integrated / rebase / rebase --committer-date-is-author-date / merge-end / merge-mid give identical boundaries, peers, Compute minutes; mutation-checked. TestActualScope pins scope wiring (mutation-checked). Claim anchor pinned by TestWindowStart/TestResolveWindowStart; #270 measures from its 20:01 claim instead of the 09-28 filing (23.26h -> minutes). pair#247 replay: #247 0.60h -> 2.33h, #341 0. Review round 2 fixes: BR-1..4, BR-6; BR-5 declined (see Log).; review verdict: FIX-THEN-SHIP
+- 2026-10-09: flow upgraded quick → full — 177 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Dispatched by the ariadne-robustness-1 TL (ariadne:1); evidence finding A1.
   Claimed in ariadne:3.
@@ -171,6 +173,10 @@ Steps:
     old-enough committer date, so a `--committer-date-is-author-date` rebase
     can hide in-window commits behind older-dated ones. That reopens the
     rebase sensitivity this issue removes.
+- Close review round 3: FIX-THEN-SHIP, no blocking findings. The one advisory
+  was BR-3's missing test. Fixed in the same round: `activeTimeScope` is
+  extracted, and `TestActiveTimeScope` covers the scope, the unscoped default,
+  and the `--issue` refusal through the CLI.
 
 ## Revisions
 

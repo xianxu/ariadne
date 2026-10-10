@@ -193,6 +193,19 @@ func joinCounts[V any](m map[string]V, fmtFn func(string, V) string) string {
 	return strings.Join(parts, ",")
 }
 
+// activeTimeScope maps `--branch-point` to the boundary scope `sdlc actual`
+// applies on an issue branch (#270); the first --issue is the measured issue.
+// No branch point leaves every commit a boundary.
+func activeTimeScope(branchPoint string, issues []string) (activetime.Scope, error) {
+	if branchPoint == "" {
+		return activetime.Scope{}, nil
+	}
+	if len(issues) == 0 {
+		return activetime.Scope{}, fmt.Errorf("--branch-point needs --issue: the first one is the measured issue")
+	}
+	return activetime.Scope{BranchPoint: branchPoint, Issue: issues[0]}, nil
+}
+
 // NewActiveTimeCmd returns the cobra command for `sdlc active-time`.
 func NewActiveTimeCmd() *cobra.Command {
 	var dirs, issues []string
@@ -219,12 +232,11 @@ func NewActiveTimeCmd() *cobra.Command {
 				ThresholdMin:     thresholdMin,
 				IncludeAssistant: includeAssistant,
 			}
-			if branchPoint != "" {
-				if len(issues) == 0 {
-					return fmt.Errorf("--branch-point needs --issue: the first one is the measured issue")
-				}
-				opts.Scope = activetime.Scope{BranchPoint: branchPoint, Issue: issues[0]}
+			scope, err := activeTimeScope(branchPoint, issues)
+			if err != nil {
+				return err
 			}
+			opts.Scope = scope
 			// PrefixWeight is set only when the flag was given, so an explicit 0
 			// is honored (nil = fall back to commit-weight).
 			if cmd.Flags().Changed("prefix-commit-weight") {

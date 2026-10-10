@@ -4,6 +4,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -28,5 +29,25 @@ func TestActualScope(t *testing.T) {
 	git("commit", "-q", "--allow-empty", "-m", "#9 work")
 	if got := actualScope("9"); got.BranchPoint != base {
 		t.Errorf("diverged issue branch: %+v, want branch point %s", got, base)
+	}
+}
+
+// BR-3: `sdlc active-time --branch-point` applies the same scope as `sdlc
+// actual`, measuring the first --issue, and refuses without an --issue.
+func TestActiveTimeScope(t *testing.T) {
+	got, err := activeTimeScope("abc123", []string{"9", "5"})
+	if err != nil || got != (activetime.Scope{BranchPoint: "abc123", Issue: "9"}) {
+		t.Errorf("activeTimeScope = %+v, %v; want branch point abc123, issue 9", got, err)
+	}
+	if got, err := activeTimeScope("", []string{"9"}); err != nil || got != (activetime.Scope{}) {
+		t.Errorf("no branch point: %+v, %v; want unscoped", got, err)
+	}
+	if _, err := activeTimeScope("abc123", nil); err == nil || !strings.Contains(err.Error(), "--issue") {
+		t.Errorf("branch point without --issue: err = %v, want a refusal naming --issue", err)
+	}
+	cmd := NewActiveTimeCmd()
+	cmd.SetArgs([]string{"--git-repo", t.TempDir(), "--branch-point", "abc123"})
+	if err := cmd.Execute(); err == nil || !strings.Contains(err.Error(), "--branch-point needs --issue") {
+		t.Errorf("CLI with --branch-point and no --issue: err = %v, want the refusal", err)
 	}
 }
