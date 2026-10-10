@@ -88,6 +88,7 @@ The recovered pair#362 round is in pair's
 local for the operator to refine.
 
 ### 2026-10-09
+- 2026-10-09: unclaimed: TL slot hands off: shaped scope recorded in Log; implement in :2-:4
 
 Claimed in ariadne:1 as the first issue of project `ariadne-robustness-1` (`workshop/projects/ariadne-robustness-1.md`). The project file and the evidence pensive (`workshop/pensive/2026-10-09-01-pensive-sdlc-robustness-evidence.md`) land separately, on the plain-git branch `project-ariadne-robustness-1`.
 
