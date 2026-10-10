@@ -1,12 +1,12 @@
 ---
 id: 000315
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-09
 updated: 2026-10-09
 estimate_hours:
-card_mirror: '862d39aeebcd3abfbd969e756a837839a96fc2ee' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ea0f29ada7192e69d19c77db461555d0ad5e8466' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-09T20:30:47-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "81d2119f", done: "e41d3db1"}
+actual_hours: 0.02
 ---
 
 # Allow api.anthropic.com in the base-layer sandbox network allowlist
