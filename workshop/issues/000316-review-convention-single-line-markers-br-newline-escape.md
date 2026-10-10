@@ -15,6 +15,7 @@ claimant:
     machine_name: MacBook Pro
     worktree: /Users/xianxu/workspace/worktree/parley.nvim-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "8ebc71b7", done: "b55b6c6a"}
 ---
 
 # review-convention: single-line markers + <br> newline escape
