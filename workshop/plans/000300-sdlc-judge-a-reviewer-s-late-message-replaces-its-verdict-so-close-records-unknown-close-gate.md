@@ -183,6 +183,18 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: false
+    - "n": 7
+      timestamp: "2026-10-09T21:59:10-07:00"
+      agent: claude
+      findings:
+        - id: BR-15
+          severity: Minor
+          title: stampAndPersist stamps Forced from the combined blocked flag, recording a waiver for a gate that did not refuse
+          detail: 'gatepersist.go:63 now calls forcedRationale(forced, blocked), where blocked = d.Block || g.Blocked. A findings-less round with a SHIP verdict, closed under the global --force for some other gate, gets a boundary-gate waiver stamped although the decision never blocked (the BR-42 contract). Rule: Blocked and Forced record only the gate''s decision; produced-nothing is a separate round property that every reader takes from Round.ProducedNothing(). Cheapest fix: forcedRationale(forced, d.Block), plus a regression test.'
+          family: one-round-outcome-all-readers
+          round: 7
+      recipe: milestone-review
+      blocked: false
 ---
 
 # Gate ledger — ariadne#300 (boundary-review)
@@ -264,6 +276,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-13 — addressed — Round.ProducedNothing is read by both the Blocked stamp (boundaryledger.go:195) and ConvergenceLine (family.go:158); reverting either the forcedRationale reader or the ConvergenceLine check turns TestBoundaryRoundWithoutFindingsIsNotPassed red (scratch mutation).
 - BR-14 — addressed — gatePersist.BlockedReason carries the gate's own wording; stampAndPersist holds no boundary-specific text.
 
+## Round 7 — 2026-10-09T21:59:10-07:00 (claude) — passed
+
+### Raised
+
+- **BR-15** [Minor] `one-round-outcome-all-readers` stampAndPersist stamps Forced from the combined blocked flag, recording a waiver for a gate that did not refuse
+  gatepersist.go:63 now calls forcedRationale(forced, blocked), where blocked = d.Block || g.Blocked. A findings-less round with a SHIP verdict, closed under the global --force for some other gate, gets a boundary-gate waiver stamped although the decision never blocked (the BR-42 contract). Rule: Blocked and Forced record only the gate's decision; produced-nothing is a separate round property that every reader takes from Round.ProducedNothing(). Cheapest fix: forcedRationale(forced, d.Block), plus a regression test.
+
 ## Open findings
 
-(none — every finding has been disposed)
+- **BR-15** [Minor] `one-round-outcome-all-readers` stampAndPersist stamps Forced from the combined blocked flag, recording a waiver for a gate that did not refuse
