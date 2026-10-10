@@ -6,14 +6,14 @@ github_issue:
 created: 2026-10-06
 updated: 2026-10-09
 estimate_hours:
-card_mirror: '4526cb287f697105c3b36757384fb7296f85a73d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5d93cfd5130b91d08b7013c5911d3f4a2b5680aa' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-09T18:33:10-07:00
 claimant:
     operator: Xian Xu
     machine: 4716879978a7b90f6b583da1716fd0e9
     machine_name: MacBook Pro
-    workspace: ariadne:1
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 ---
 
@@ -76,7 +76,10 @@ creation.
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown-plan.md`.
+
+- [ ] M1 — Verdict capture: claude stream-json, the latest verdict/findings block wins, one retry when no verdict, the unattended rule in the contract (D1, #271). Plan Tasks 1–3.
+- [ ] M2 — Honest failures: an unreachable API is "review did not run", a protocol-error round is never "passed", the timeout scales with the window (D2, D3). Plan Tasks 4–6.
 
 ## Log
 
@@ -97,3 +100,5 @@ Scope event: absorbs #271 (a backgrounded command leaves no verdict; same failur
 - **D3:** the 30-minute review timeout is routinely overridden to `WF_REVIEW_TIMEOUT=2h`.
 
 Evidence and citations are in the pensive, Part 2 §D.
+
+Taken over in ariadne:2 on the ariadne:1 lead slot's dispatch (Couch receipt verified). Survey of the judge: claude runs `-p` in text mode, so only the final message is captured; allowed tools are `Read,Grep,Glob,Bash`, with nothing against background Bash; nothing reads stderr or looks for API errors; a boundary round without a findings block is stamped `blocked: false` by `stampAndPersist` (D2's "passed"); the 30-minute timeout is fixed, and no size reaches dispatch. The durable plan sets out D1–D7.
