@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000313-recheck-pair-s-git-identity-on-2026-11-09-h1-recurrence-watch.md
         source_blob: b6ba6140a3c68aa13b3a9d81a9a8fd26b9338a79
         destination: workshop/issues/000313-recheck-pair-s-git-identity-on-2026-11-09-h1-recurrence-watch.md
+        main_commit: 77809a485924ece8f48b2170d0a7cef16e60671a
 ---
 
 # Recheck pair's git identity on 2026-11-09 (H1 recurrence watch)
