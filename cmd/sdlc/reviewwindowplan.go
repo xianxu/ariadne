@@ -49,6 +49,7 @@ type windowFacts struct {
 	PriorBoundary string
 	MainBaseErr   string   // merge-base(main, HEAD) is not single (criss-cross, unrelated)
 	MainStale     string   // main could not be fetched; measured as last fetched
+	LedgerErr     string   // the ledger's boundary record could not be used (named fallback)
 	Rebased       string   // S: H_r replayed onto MainBase (or H_r itself on main)
 	Conflicted    []string // paths where main rewrote lines the review read
 	RebaseErr     string   // why H_r could not be replayed ("" when it was)
@@ -93,6 +94,9 @@ func planReviewWindow(f windowFacts) reviewWindow {
 	}
 	if f.Milestone == "" {
 		return branchPatch(windowBranchPatch, "")
+	}
+	if f.LedgerErr != "" {
+		return branchPatch(windowBranchFallback, f.LedgerErr)
 	}
 	switch {
 	case f.Reviewed != "" && f.RebaseErr == "" && f.Rebased != "":
@@ -187,7 +191,12 @@ func gatherWindowFacts(ctx context.Context, issueStr, milestone, issuePath, plan
 	if milestone == "" || f.MainBaseErr != "" {
 		return f
 	}
-	if sha, boundary, ok := latestReviewedFor(issuePath, plansDir, milestone); ok {
+	sha, boundary, unusable, ok := latestReviewedFor(issuePath, plansDir, milestone)
+	if unusable != "" {
+		f.LedgerErr = unusable
+		return f
+	}
+	if ok {
 		f.Reviewed, f.PriorBoundary = sha, boundary
 		switch {
 		case gitx.Capture("rev-parse", "--verify", "-q", sha+"^{commit}") == "":
@@ -212,24 +221,25 @@ func gatherWindowFacts(ctx context.Context, issueStr, milestone, issuePath, plan
 	return f
 }
 
-// latestReviewedFor reads where review last stopped outside this boundary. An unreadable
-// ledger over-covers (branch patch) rather than refusing: the review is still worth
-// running, matching boundaryPriorFindings.
-func latestReviewedFor(issuePath, plansDir, milestone string) (sha, boundary string, ok bool) {
+// latestReviewedFor reads where review last stopped outside this boundary. A ledger
+// fact it cannot use comes back as a REASON (unusable), never as absence: absence
+// sends the planner to the pre-#304 trailer fallback, which would mislabel the window.
+// The caller over-covers to a named branch patch rather than refusing — the review is
+// still worth running, matching boundaryPriorFindings.
+func latestReviewedFor(issuePath, plansDir, milestone string) (sha, boundary, unusable string, ok bool) {
 	if issuePath == "" || plansDir == "" {
-		return "", "", false
+		return "", "", "", false
 	}
 	l, err := readBoundaryGateLedger(plansDir, filepath.Base(issuePath), issueIDFromPath(issuePath))
 	if err != nil {
-		return "", "", false
+		return "", "", "the boundary ledger is unreadable: " + firstLine(err.Error()), false
 	}
 	sha, boundary, ok = gatestate.LatestReviewed(l, milestone)
 	if ok && !isResolvedSHA(sha) {
-		// A hand-edited ledger must not hand git an option- or ref-like argument;
-		// an unusable value reads as "not in this repository" (branch-patch fallback).
-		return "", boundary, false
+		// A hand-edited ledger must not hand git an option- or ref-like argument.
+		return "", boundary, fmt.Sprintf("the %s review's recorded head %q is not a commit id", boundary, sha), false
 	}
-	return sha, boundary, ok
+	return sha, boundary, "", ok
 }
 
 // reviewMainBase is merge-base(main, HEAD) against the ONE main every branch-patch

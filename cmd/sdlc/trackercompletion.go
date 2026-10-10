@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"os"
 	"path/filepath"
 	"strings"
 	"time"
@@ -185,7 +186,9 @@ func completeOnCard(env *trackerEnv, oc ownedCompletion, landed string) error {
 	if err == nil {
 		// #304 D4: the issue is done; its reviewed-head pins end. Best effort —
 		// a pin is retention, and the settle sweep catches a miss.
-		_ = unpinReviewed(env.root, oc.ID)
+		if w := unpinReviewed(env.root, oc.ID); w != "" {
+			cwarn(os.Stderr, w)
+		}
 	}
 	return err
 }
@@ -217,7 +220,9 @@ func settleLandedCompletions(ctx context.Context, env *trackerEnv, issuesDir str
 	// #304 D4: also end the pins of issues landed and settled elsewhere, or archived by
 	// hand — the per-site unpins only run inside sdlc verbs here. (Recovery reconcile
 	// runs this settle, so it sweeps too.)
-	_ = sweepTrackedPins(env, rs)
+	if w := sweepTrackedPins(env, rs); w != "" {
+		cwarn(os.Stderr, w)
+	}
 	return settled, nil
 }
 

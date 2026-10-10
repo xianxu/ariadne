@@ -62,6 +62,10 @@ Detailed incidents remain in their owning issue or review artifact.
 - A per-process cache of remote state needs the local view in its key. Keyed on the
   checkout alone, it returned the main of the first call after a later fetch (#304).
 
+- Refs under `refs/` are shared by every linked worktree (every slot). Never judge
+  whether a ref is live from one checkout's files: delete exactly what this operation
+  ended, or decide from shared state such as the tracker's cards (#304 close review).
+
 ## Paths, processes, and integration
 
 - Resolve a verb's repository from the path it was given (`--issues-dir`,

@@ -103,7 +103,9 @@ func TestLegacyArchivesEndPins(t *testing.T) {
 			os.WriteFile(filepath.Join(issues, "000160-done.md"), []byte("---\nid: 000160\nstatus: done\nactual_hours: 1\n---\n# d\n"), 0o644)
 			os.WriteFile(filepath.Join(issues, "000004-live.md"), []byte("---\nid: 000004\nstatus: working\n---\n# w\n"), 0o644)
 			head := strings.TrimSpace(testfix.Capture(t, dir, "rev-parse", "HEAD"))
-			for _, id := range []string{"000160", "000004"} {
+			// 000777 is live only on ANOTHER slot's branch (no file here): refs are
+			// worktree-shared, so this archive must not judge it dead.
+			for _, id := range []string{"000160", "000004", "000777"} {
 				if w := pinReviewed(id, "M1", head); w != "" {
 					t.Fatal(w)
 				}
@@ -119,7 +121,7 @@ func TestLegacyArchivesEndPins(t *testing.T) {
 				t.Fatal(err)
 			}
 			refs := testfix.Capture(t, dir, "for-each-ref", "--format=%(refname)", "refs/sdlc/reviewed/")
-			if strings.Contains(refs, "000160") || !strings.Contains(refs, "000004") {
+			if strings.Contains(refs, "000160") || !strings.Contains(refs, "000004") || !strings.Contains(refs, "000777") {
 				t.Fatalf("the %s archive must end only the archived issue's pins:\n%s\n%s", site, refs, stderr.String())
 			}
 		})

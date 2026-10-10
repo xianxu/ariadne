@@ -151,3 +151,8 @@ Durable plan: `workshop/plans/000304-whole-issue-close-review-window-collapses-a
 - Process note: milestone-close needed `--actual` (measured 1.01h) and `--no-project` (the project tracks issues; TL-owned file).
 - **M1 closed** (round 2 SHIP; the binary's own evidence commit `1b01de5b`, pushed). Advisory BR-4/BR-5 now have tests (`NamesAStaleMainWhenTheFetchFails`, `RejectsANonSHAReviewedValue`), both mutation-checked. Starting M2.
 - M2 Tasks 8–12 committed (`e2ebcb09`, `1ca3c2b3`). The publish gate replays the reviewed patch; the Close-Token binding works across publish, landing and settle; pins end with the issue; atlas and lessons updated. Mutation-checked: replay, token rule, unowned refusal, and each of the five pin end sites. The done-site unpin was masked by the settle sweep until `TestCompleteOnCardEndsPins` drove it alone. Found and fixed: the main-ref cache went stale after an in-process fetch.
+- **Closed** (SHIP; evidence `792a583b`; actual 2.08h vs estimate 6.27, ratio 3.0×). Its three advisory Minors are fixed in the same round:
+  - a rejected or unreadable ledger fact is now a named fallback, not a pre-#304 label (fixing the class);
+  - the legacy archives unpin exactly what they moved, never by local liveness of shared refs;
+  - the done and settle sites warn on pin failures.
+  These are post-close code changes, so a re-close follows.

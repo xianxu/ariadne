@@ -31,6 +31,7 @@ func TestPlanReviewWindow(t *testing.T) {
 		{"later milestone: interdiff from S, read as H_r", windowFacts{Milestone: "M2", MainBase: mb, Head: head, Reviewed: hr, PriorBoundary: "M1", Rebased: s}, windowInterdiff, s, hr, ""},
 		{"conflict: still the interdiff, labelled", windowFacts{Milestone: "M2", MainBase: mb, Head: head, Reviewed: hr, Rebased: s, Conflicted: []string{"a.go"}}, windowInterdiff, s, hr, "conflict resolutions in a.go"},
 		{"unreplayable: branch patch fallback", windowFacts{Milestone: "M2", MainBase: mb, Head: head, Reviewed: hr, RebaseErr: "reviewed head x is not in this repository"}, windowBranchFallback, mb, mb, "not in this repository"},
+		{"unusable ledger: named fallback", windowFacts{Milestone: "M2", MainBase: mb, Head: head, LedgerErr: "the boundary ledger is unreadable: x", LegacyTrailerBase: trailer}, windowBranchFallback, mb, mb, "unreadable"},
 		{"pre-#304 ledger: trailer boundary", windowFacts{Milestone: "M2", MainBase: mb, Head: head, LegacyTrailerBase: trailer}, windowInterdiff, trailer, trailer, "pre-#304"},
 	}
 	for _, c := range cases {
@@ -281,8 +282,8 @@ func TestMilestoneWindow_RejectsANonSHAReviewedValue(t *testing.T) {
 		t.Fatal(err)
 	}
 	w := planBoundaryWindow(context.Background(), "304", "M2", issuePath, "workshop/plans")
-	if w.Kind != windowBranchPatch {
-		t.Fatalf("a non-SHA reviewed value must not drive the window: %s", formatReviewWindow(w))
+	if w.Kind != windowBranchFallback || !strings.Contains(w.Note, "not a commit id") {
+		t.Fatalf("a non-SHA reviewed value must be a NAMED fallback, not a pre-#304 boundary: %s", formatReviewWindow(w))
 	}
 }
 

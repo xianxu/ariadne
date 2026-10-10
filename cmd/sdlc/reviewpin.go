@@ -14,8 +14,8 @@
 package main
 
 import (
-	"context"
 	"fmt"
+	"io"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -100,20 +100,21 @@ func inDir(dir string, args ...string) []string {
 	return append([]string{"-C", dir}, args...)
 }
 
-// sweepLegacyPins ends the pins of every issue without a live (non-terminal) details
-// file under issuesDir: the legacy repositories' archive has no card to consult.
-func sweepLegacyPins(ctx context.Context, dir, issuesDir string) string {
-	refs, err := scanIssueFiles(ctx, "", issuesDir, nil)
-	if err != nil {
-		return "reviewed-head pins not swept: " + err.Error()
-	}
-	live := map[string]bool{}
-	for _, ref := range refs {
-		if !vocab.Issue().IsTerminal(ref.Status) {
-			live[fmt.Sprintf("%06d", issueIDFromPath(ref.Path))] = true
+// unpinArchived ends the pins of exactly the issues an archive moved. Refs are shared
+// by every linked worktree, so liveness judged from THIS checkout's issues dir could
+// delete a pin another slot's branch still needs; the moved set is this archive's own.
+func unpinArchived(stderr io.Writer, dir string, moves []preparedArchiveMove) {
+	seen := map[int]bool{}
+	for _, m := range moves {
+		id := issueIDFromPath(m.IssuePath)
+		if id <= 0 || seen[id] {
+			continue // a plan artifact or sidecar move, or an issue already handled
+		}
+		seen[id] = true
+		if w := unpinReviewed(dir, fmt.Sprintf("%06d", id)); w != "" {
+			cwarn(stderr, w)
 		}
 	}
-	return sweepReviewedPins(dir, func(id string) bool { return live[id] })
 }
 
 // sweepTrackedPins ends the pins of every issue whose card is terminal or gone — the
