@@ -60,6 +60,7 @@ Revise `construct/local/fix/review-convention.md`:
 ## Log
 
 ### 2026-10-09
+- 2026-10-09: closed — review-convention.md §3 "One line" (single-line markers; <br> line breaks inside []/{} turns, \<br> for a literal <br>; anchors verbatim; legacy multi-line rendered broken; Alt+q refuses multi-line), §5 decodes turn text only, updated + Revisions (parley.nvim#312, whose codec implements and tests the escape). xx-fix SKILL.md: one-line rule + decode scope on step 4 and bulk paths. Issue Spec/Done-when/Log/Revisions synced. Docs-only. No actual: authored inside the parley.nvim#312 session.; review verdict: FIX-THEN-SHIP
 - Close review round 1: BR-1 (decoding every resolved result would corrupt an
   anchor's verbatim prose, e.g. table `<br>`) → decode turn text only; BR-2
   (xx-fix writes markers too) → SKILL.md carries the rule.
@@ -67,8 +68,11 @@ Revise `construct/local/fix/review-convention.md`:
   `updated:` bumped.
 - Round 3: BR-6 — no literal `<br>` in a turn (a table-row edit would split on
   accept) → `\<br>` escape; parley.nvim#312's codec implements it.
+- Round 4 (post-close fixes): the decode rule is defined once in xx-fix's
+  "One line" paragraph and both resolution sites point to it (the restated
+  copies had drifted and missed `\<br>`); the Alt+q multi-line refusal moved
+  to §4; the editor-specific "render it as broken" wording dropped.
 
-### 2026-10-09
 
 ## Revisions
 

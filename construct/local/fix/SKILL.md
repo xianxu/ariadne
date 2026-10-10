@@ -86,13 +86,15 @@ After the optional reference, any chain of `[]`/`{}` sections in any order:
 🤖~old text~[new text]             -- human-authored replacement
 ```
 
-**One line.** Every marker you write opens and closes on the same line. A line
-break inside a `[]`/`{}` turn is written `<br>` (`🤖{first<br>second}`); never
-let a marker span lines. A literal `<br>` that belongs in the text (a table
-cell) is written `\<br>`. When you apply a turn's text, decode `<br>` back to a
-line break and `\<br>` to a literal `<br>` (step 4, bulk resolution). Quote `<X>` / strike `~D~` text from a single line —
-it is the document's own prose and stays verbatim. (Legacy markers that span
-lines may still exist; read them, but write single-line ones.)
+**One line** (review-convention §3, §5). Every marker you write opens and
+closes on the same line; never let a marker span lines. Inside a `[]`/`{}`
+turn, a line break is written `<br>` (`🤖{first<br>second}`) and a literal
+`<br>` that belongs in the text (a table cell) is written `\<br>`.
+**Decoding turn text** — whenever you apply text taken from a turn: `<br>`
+becomes a line break and `\<br>` becomes a literal `<br>`. An anchor's `<X>` /
+`~D~` text is quoted from a single line of the document and is applied
+verbatim, never decoded. (Legacy markers that span lines may still exist; read
+them, but write single-line ones.)
 
 ### Examples
 
@@ -135,9 +137,8 @@ Markers inside fenced code blocks are ignored.
 3. **Parse all 🤖 markers** (and `㊷` aliases), checking the rightmost section
    to decide actionability. Skip non-actionable markers.
 4. **For each actionable marker** (last section is non-empty `[]`), read the
-   full chain, then (wherever you apply text taken from a `[]`/`{}` turn —
-   `N`, `R`, `H` — turn each `<br>` into a real line break; `X` and `D` are the
-   document's own prose and stay verbatim):
+   full chain, then (applying turn text per **Decoding turn text** under
+   "One line" above):
    - **Replacement form** `🤖~D~[N]` (no robot reply after): the operator
      authored a literal replacement — substitute `D` with `N` in the surrounding
      text and remove the marker. This is the §5 accept path.
@@ -407,9 +408,9 @@ outstanding markers"*, you are explicitly authorized to walk every remaining
 chain and apply the §5 accept/reject table from the review convention. For
 each chain, read the *last* commentary block — typically the trailing `[H]` —
 and interpret it as accept or reject. Do **not** resolve markers the operator
-has not acknowledged; resolution is always operator-initiated. When the result
-comes from a `{}`/`[]` turn (`R`, `Y`, `N`), turn each `<br>` into a real line
-break; `X` and `D` are the document's own text and stay verbatim. §5 summary:
+has not acknowledged; resolution is always operator-initiated. Results taken
+from a turn are decoded per **Decoding turn text** under "One line" above.
+§5 summary:
 
 | Marker | Accept to | Reject to |
 |---|---|---|

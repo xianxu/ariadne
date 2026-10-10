@@ -71,12 +71,10 @@ two-line reply — is written `<br>` (`🤖{first line<br>second line}`), and
 resolution turns it back into a real line break (§5). A literal `<br>` that
 belongs in the text — a markdown table cell — is written `\<br>` inside a turn
 and restored as `<br>`. An anchor (`<X>`, `~D~`) quotes a single line of the
-document verbatim and is never encoded. Being line-local is what lets an editor render a
-marker compactly and re-render it line by line (for example, collapsing the
-chain and opening it in a thread view). Writers — humans, agents, tools — always emit single-line markers;
-readers may still tolerate a legacy marker that spans lines, but render it as
-broken. `Alt+q` on a selection spanning lines is refused rather than quoting
-across a line break.
+document verbatim and is never encoded. Writers — humans, agents, tools —
+always emit single-line markers; readers may still tolerate a legacy marker
+that spans lines. Being line-local is what lets an editor render a marker
+compactly and re-render it line by line.
 
 ### 4. `Alt+q` — insert human commentary (parley.nvim, pair's scrollback viewer)
 
@@ -84,6 +82,9 @@ across a line break.
 |---|---|
 | text selected | `🤖<selected text>[human comment]` |
 | nothing selected | `🤖[human comment]` |
+
+A selection spanning lines is refused rather than quoted across a line break
+(an anchor quotes a single line, §3).
 
 ### 5. `Alt+a` — accept marker, `Alt+r` — reject marker
 
