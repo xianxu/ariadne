@@ -1,6 +1,6 @@
 ---
 id: 000096
-status: open
+status: wontfix
 created: 2026-06-14
 updated: 2026-10-09
 estimate_hours:
@@ -13,6 +13,9 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+tracker:
+    version: 1
+    abandoned: {}
 ---
 
 # Peer-repo work legibility: make cross-repo base-layer edits visible at the gate
