@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "1eb9b6cf", done: "88861740"}
 ---
 
 # Hours attribution: ignore GitHub PR numbers; window starts at the claim
@@ -74,13 +75,13 @@ parley.nvim#290 in the #252 A4 canary; both parts pre-date #252.
 
 ## Plan
 
-- [ ] `issueref.Find` masks GitHub's `Merge pull request #N` lead, so every
+- [x] `issueref.Find` masks GitHub's `Merge pull request #N` lead, so every
       consumer drops it: commit boundaries and peers (`LocalNums`), foreign-ref
       warnings, and transcript mentions (`CountLocal`). Table test covers
       merge, a plain `#N`, a trailing ` (#N)` issue ref (kept, see Revisions)
       and a merge subject that also names an issue.
 - [x] Claim-anchored window start — landed with #270 (folded there).
-- [ ] Re-measure parley.nvim#290 before/after; note the delta in the Log.
+- [x] Re-measure parley.nvim#290 before/after; note the delta in the Log.
 
 ## Log
 
@@ -95,6 +96,29 @@ parley.nvim#290 in the #252 A4 canary; both parts pre-date #252.
 - Spec 2 (claim-anchored window) shipped in #270: scoped boundaries made it
   necessary there (a 23.26 h first measure). #113's intent holds, since design
   after the claim is in-window.
+- `issueref.Find` masks `Merge pull request #N`. `TestFindMasksMergePullRequestNumbers`
+  covers boundaries/peers (`LocalNums`) and mentions (`CountLocal`); removing
+  the mask fails 3 cases.
+- The `actual` window label now names the resolved start (`<ISO> → HEAD`),
+  not the first `#N` commit, which since the claim anchor is often the
+  filing and lies outside the window.
+- Re-measure. The baseline binaries were built from pre-#270 main (77e55b81^1)
+  and from #270 (dfee8323), because the `sdlc` on PATH rebuilds from this
+  slot's working tree. #270's Log calls its pair#247 baseline the "installed
+  binary", but it was the unscoped author-date engine; its #341 conclusion
+  holds.
+
+  | Issue | pre-#270 | #270 | #254 |
+  |---|---|---|---|
+  | parley.nvim#290 hours | 0.60 h | 0.60 h | 0.60 h |
+  | parley.nvim#290 peers | #203 #204 #205 #264 #281 #289 #290 #291 | #205 #290 | #290 only |
+  | ariadne#287 hours | 0.26 h | 0.26 h | 0.26 h |
+  | ariadne#287 peers | 37 issues | #166 #287 #300 #304 #306 | #166 (PR merge) dropped |
+
+  - parley.nvim#290's window now opens at 15:41, its claim.
+  - Hours are unchanged because these runs read the :0 transcript dirs, and
+    the work happened in slots. The peer sets are the measurable delta here.
+    pair#247 (in #270) carries the hours delta.
 
 ## Revisions
 
