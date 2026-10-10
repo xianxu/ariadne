@@ -78,28 +78,75 @@ func TestDispatchAPIErrorIsReviewDidNotRun(t *testing.T) {
 	}
 }
 
-// The failure is judged on the channel: a review quoting the signatures is a
-// review; a text-mode agent's stderr signature without a verdict is not.
-func TestAPIFailure(t *testing.T) {
+// The failure is judged on the channel and never over a verdict: a review
+// quoting the signatures is a review, a verdict followed by an error result
+// keeps its verdict (BR-1), and only a network cause names the sandbox fix,
+// with the agent's own host.
+func TestRunFailure(t *testing.T) {
 	quoting := AgentRun{Stream: true, Messages: []string{"The fix detects `API Error` and ERR_PROXY_TUNNEL.\n\nVERDICT: SHIP"}, Result: &Result{Text: "VERDICT: SHIP"}}
+	maxTurns := AgentRun{Stream: true, Messages: []string{"Still reading the diff."}, Result: &Result{Subtype: "error_max_turns", IsError: true, Text: "reached max turns"}}
 	for _, c := range []struct {
 		name    string
+		agent   AgentCLI
 		run     AgentRun
 		stderr  string
 		nonZero bool
-		want    bool
+		want    error // nil: not a failure
+		host    string
 	}{
-		{"stream error result", ReadStream(fixture(t, "api_error.jsonl")), "", true, true},
-		{"review quoting the strings", quoting, "", false, false},
-		{"clean stream", ReadStream(fixture(t, "clean.jsonl")), "", false, false},
-		{"text agent, stderr signature, no verdict", AgentRun{Tail: "error"}, "fetch failed: ENOTFOUND api.example", true, true},
-		{"text agent, stdout signature, non-zero exit", AgentRun{Tail: "API Error: 403 forbidden"}, "", true, true},
-		{"text agent, stdout signature, clean exit", AgentRun{Tail: "API Error: 403 forbidden"}, "", false, false},
-		{"text agent with a verdict", AgentRun{Tail: "API Error mentioned\nVERDICT: CLEAN"}, "ECONNREFUSED", true, false},
+		{"stream error result", AgentClaude, ReadStream(fixture(t, "api_error.jsonl")), "", true, ErrAPIUnreachable, "api.anthropic.com"},
+		{"verdict, then an error result", AgentClaude, ReadStream(fixture(t, "verdict_then_error.jsonl")), "", true, nil, ""},
+		{"error result without a network cause", AgentClaude, maxTurns, "", true, ErrReviewDidNotRun, ""},
+		{"review quoting the strings", AgentClaude, quoting, "", false, nil, ""},
+		{"clean stream", AgentClaude, ReadStream(fixture(t, "clean.jsonl")), "", false, nil, ""},
+		{"codex, stderr signature, non-zero exit", AgentCodex, AgentRun{Tail: "error"}, "fetch failed: ENOTFOUND api.example", true, ErrAPIUnreachable, "api.openai.com"},
+		{"stderr signature on a clean exit is left to the retry", AgentCodex, AgentRun{Tail: "error"}, "ECONNREFUSED", false, nil, ""},
+		{"gemini, output signature, non-zero exit", AgentGemini, AgentRun{Tail: "API Error: 403 forbidden"}, "", true, ErrAPIUnreachable, "generativelanguage.googleapis.com"},
+		{"output signature on a clean exit", AgentGemini, AgentRun{Tail: "API Error: 403 forbidden"}, "", false, nil, ""},
+		{"text agent with a verdict", AgentCodex, AgentRun{Tail: "API Error mentioned\nVERDICT: CLEAN"}, "ECONNREFUSED", true, nil, ""},
 	} {
-		if _, got := APIFailure(c.run, []byte(c.stderr), c.nonZero); got != c.want {
-			t.Errorf("%s: got %v, want %v", c.name, got, c.want)
+		err := RunFailure(c.agent, c.run, []byte(c.stderr), c.nonZero)
+		switch {
+		case c.want == nil && err != nil:
+			t.Errorf("%s: %v, want no failure", c.name, err)
+		case c.want != nil && !errors.Is(err, c.want):
+			t.Errorf("%s: %v, want %v", c.name, err, c.want)
+		case c.want == ErrReviewDidNotRun && errors.Is(err, ErrAPIUnreachable):
+			t.Errorf("%s: %v names the network for a non-network cause", c.name, err)
+		case c.host != "" && !strings.Contains(err.Error(), "allow "+c.host):
+			t.Errorf("%s: %v, want the %s remedy", c.name, err, c.host)
 		}
+	}
+}
+
+// BR-2: codex and gemini prose is never parsed as stream events, so a
+// quoted event line can't fail their review.
+func TestDispatchParsesOnlyClaudeAsAStream(t *testing.T) {
+	quoted := "The fixture has this line:\n{\"type\":\"result\",\"is_error\":true,\"result\":\"API Error\"}\n\nVERDICT: CLEAN"
+	fakeRuns(t, ProcessOutput{Stdout: []byte(quoted)})
+	out, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentCodex, Prompt: "review"})
+	if err != nil || !strings.Contains(out, `{"type":"result"`) {
+		t.Fatalf("codex review read as a stream: %v\n%s", err, out)
+	}
+}
+
+// A retry that runs out of time keeps the first attempt as evidence and
+// leaves the fail-safe (no verdict) to the caller.
+func TestDispatchRetryDeadlineKeepsTheFirstAttempt(t *testing.T) {
+	orig := Run
+	t.Cleanup(func() { Run = orig })
+	n := 0
+	Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (ProcessOutput, error) {
+		n++
+		if n == 1 {
+			return streamOut(t, "background_wait.jsonl"), nil
+		}
+		<-ctx.Done()
+		return ProcessOutput{}, ctx.Err()
+	}
+	out, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "review", Timeout: 300 * time.Millisecond})
+	if err != nil || !strings.Contains(out, "I'll wait") || !strings.Contains(out, "## Attempt 2") || HasVerdict(out) {
+		t.Fatalf("err %v, out:\n%s", err, out)
 	}
 }
 

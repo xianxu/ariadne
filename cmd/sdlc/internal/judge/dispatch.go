@@ -205,6 +205,11 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	again := opts
 	again.Prompt = opts.Prompt + retryNotice
 	second, err := dispatchOnce(ctx, again)
+	if errors.Is(err, context.DeadlineExceeded) {
+		// The retry ran out of time: keep the first attempt as the fail-safe's
+		// evidence (no verdict, so the caller halts) rather than lose it.
+		return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (retry; " + err.Error() + ")\n", nil
+	}
 	if err != nil || HasVerdict(second) {
 		return second, err
 	}
@@ -235,7 +240,7 @@ func dispatchOnce(ctx context.Context, opts DispatchOptions) (string, error) {
 	// path (unit tests, quick dispatches) and stays free of goroutines/tickers.
 	if opts.Stderr == nil {
 		out, runErr := Run(ctx, onStart, name, args...)
-		return classifyRunResult(ctx, out, runErr, name, nil)
+		return classifyRunResult(ctx, out, runErr, name, opts.Agent, nil)
 	}
 
 	// Progress path (#140): the agent can run for minutes. Run it on a background
@@ -260,7 +265,7 @@ func dispatchOnce(ctx context.Context, opts DispatchOptions) (string, error) {
 	for {
 		select {
 		case r := <-done:
-			return classifyRunResult(ctx, r.out, r.runErr, name, opts.Stderr)
+			return classifyRunResult(ctx, r.out, r.runErr, name, opts.Agent, opts.Stderr)
 		case <-ticks:
 			fmt.Fprintln(opts.Stderr, heartbeatLine(sinceStart(start), string(opts.Agent), int(pid.Load())))
 		}
@@ -272,7 +277,7 @@ func dispatchOnce(ctx context.Context, opts DispatchOptions) (string, error) {
 // returns semantic stdout, and applies Dispatch's existing exit-code policy: a
 // non-zero exit is swallowed so Classify can interpret the response, while a
 // real launch failure returns a diagnosable error naming owner bin/ + PATH.
-func classifyRunResult(ctx context.Context, out ProcessOutput, runErr error, name string, diagnostics io.Writer) (string, error) {
+func classifyRunResult(ctx context.Context, out ProcessOutput, runErr error, name string, agent AgentCLI, diagnostics io.Writer) (string, error) {
 	if diagnostics != nil && len(out.Stderr) > 0 {
 		_, _ = diagnostics.Write(out.Stderr)
 	}
@@ -284,10 +289,15 @@ func classifyRunResult(ctx context.Context, out ProcessOutput, runErr error, nam
 	if errors.Is(runErr, context.Canceled) || errors.Is(runErr, context.DeadlineExceeded) {
 		return "", fmt.Errorf("review interrupted: %w", runErr)
 	}
-	run := ReadStream(out.Stdout)
+	// Only claude answers as a stream; codex and gemini prose is never parsed
+	// as events, so a quoted event line in their review can't fail it.
+	run := AgentRun{Tail: string(out.Stdout)}
+	if agent == AgentClaude || agent == "" {
+		run = ReadStream(out.Stdout)
+	}
 	_, exited := runErr.(*exec.ExitError)
-	if cause, failed := APIFailure(run, out.Stderr, exited); failed {
-		return "", fmt.Errorf("%w (%s); in an agent sandbox, allow api.anthropic.com for this command, then rerun", ErrAPIUnreachable, cause)
+	if err := RunFailure(agent, run, out.Stderr, exited); err != nil {
+		return "", err
 	}
 	if exited {
 		return run.Text(), nil
