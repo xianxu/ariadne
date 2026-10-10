@@ -1,12 +1,20 @@
 ---
 id: 000300
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-09
 estimate_hours:
-card_mirror: 'c11ebf4089f282088ac168dc63e8835e87c51094' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4526cb287f697105c3b36757384fb7296f85a73d' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:33:10-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc judge: a reviewer's late message replaces its verdict, so close records 'unknown'
@@ -78,3 +86,13 @@ Filed at the operator's request after the second occurrence (pair#387, pair#362)
 The recovered pair#362 round is in pair's
 `workshop/plans/000362-couch-schedule-this-close-review.md` history. Details left
 local for the operator to refine.
+
+### 2026-10-09
+
+Claimed in ariadne:1 as the first issue of project `ariadne-robustness-1` (`workshop/projects/ariadne-robustness-1.md`). The project file and the evidence pensive (`workshop/pensive/2026-10-09-01-pensive-sdlc-robustness-evidence.md`) land separately, on the plain-git branch `project-ariadne-robustness-1`.
+
+Scope event: absorbs #271 (a backgrounded command leaves no verdict; same failure family, designed together), plus two transcript findings:
+- **D2:** the sandbox blocks the judge's API host, and the ledger records the failed round as `blocked: false … passed`;
+- **D3:** the 30-minute review timeout is routinely overridden to `WF_REVIEW_TIMEOUT=2h`.
+
+Evidence and citations are in the pensive, Part 2 §D.
