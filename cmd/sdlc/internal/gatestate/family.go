@@ -156,7 +156,7 @@ func ConvergenceLine(l Ledger, round int) string {
 		verdict = "Not converging: fix rules, not instances."
 	}
 	for _, r := range l.Rounds {
-		if r.N == round && r.ProtocolError != "" && len(r.New) == 0 && len(r.Dispositions) == 0 {
+		if r.N == round && r.ProducedNothing() {
 			// A round that produced nothing to read is not evidence of convergence (#300).
 			verdict = "Not converging: the review produced no readable findings (" + r.ProtocolError + ")."
 		}

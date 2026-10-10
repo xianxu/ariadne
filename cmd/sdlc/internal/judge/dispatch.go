@@ -375,7 +375,7 @@ func reviewTimeout(value string) (time.Duration, error) {
 	}
 	d, err := time.ParseDuration(value)
 	if err != nil || d < time.Second || d > 2*time.Hour {
-		return 0, fmt.Errorf("WF_REVIEW_TIMEOUT must be a Go duration from 1s through 2h (default 30m)")
+		return 0, fmt.Errorf("WF_REVIEW_TIMEOUT must be a Go duration from 1s through 2h (unset, the limit scales with the review window)")
 	}
 	return d, nil
 }

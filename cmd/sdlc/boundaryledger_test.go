@@ -814,4 +814,16 @@ func TestBoundaryRoundWithoutFindingsIsNotPassed(t *testing.T) {
 	if out := stderr.String(); strings.Contains(out, "Converging.") || strings.Contains(out, "[ok]") || !strings.Contains(out, "not a pass") {
 		t.Fatalf("the gate's report still reads as a pass:\n%s", out)
 	}
+	// The waiver stamp reads the same outcome: a forced close records its
+	// rationale on this round.
+	plansDir2 := t.TempDir()
+	p.PlansDir, p.ForcedRationale = plansDir2, "operator waived the review"
+	persistBoundaryRound(&stderr, p, reviewResult{Agent: "claude", ProtocolError: "no valid findings block"}, "2026-10-09T18:05:00-07:00")
+	l2, err := readBoundaryGateLedger(plansDir2, "000069-x.md", 69)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := l2.Rounds[len(l2.Rounds)-1]; got.Forced == "" {
+		t.Fatalf("the waiver was not stamped on a blocked round: %+v", got)
+	}
 }

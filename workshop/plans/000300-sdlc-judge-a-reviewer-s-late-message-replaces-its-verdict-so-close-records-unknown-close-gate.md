@@ -126,6 +126,44 @@ rounds:
       boundary: M2
       recipe: milestone-review
       blocked: true
+    - "n": 5
+      timestamp: "2026-10-09T21:46:02-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: 'stampAndPersist computes blocked once for the flag, the Forced stamp and the warn/ok line, and ConvergenceLine reports not converging. Mutation-checked: reverting either half fails TestBoundaryRoundWithoutFindingsIsNotPassed.'
+          round: 5
+        - id: BR-10
+          disposition: addressed
+          note: All 21 tests named in the Plan Tasks 1-6 rows exist under those names; the close steps sit in their own unticked row.
+          round: 5
+        - id: BR-11
+          disposition: addressed
+          note: reviewLimitLabel reads judge.EffectiveTimeout; an invalid override is labelled invalid rather than printed as the limit.
+          round: 5
+      findings:
+        - id: BR-12
+          severity: Important
+          title: README.md:65 still says WF_REVIEW_TIMEOUT defaults to 30m; boundary reviews now scale with the window
+          detail: '3rd finding in family single-source-timeout. Rule: a timeout-policy change sweeps every hit of grep -rn WF_REVIEW_TIMEOUT in the same commit; helptext and atlas were swept, README was missed.'
+          family: single-source-timeout
+          round: 5
+        - id: BR-13
+          severity: Minor
+          title: ConvergenceLine decides "no readable findings" with its own predicate, separate from the Blocked stamp's review.Round == nil
+          detail: '3rd finding in family. A findings block holding only an invalid disposition gets ProtocolError from ApplyChecked, so ConvergenceLine says "Not converging: no readable findings" while the gate prints [ok]. Rule: one predicate (a gatestate Round method or a stored flag) read by the stamp and by ConvergenceLine. The Forced-stamp reader also has no test: reverting it to d.Block keeps the D6 test green.'
+          family: one-round-outcome-all-readers
+          round: 5
+        - id: BR-14
+          severity: Minor
+          title: The shared stampAndPersist hard-codes the boundary-specific "produced no findings block" wording for gatePersist.Blocked
+          detail: Carry a BlockedReason alongside Blocked so the shared tail holds no gate-specific prose.
+          family: channel-vs-prose-separation
+          round: 5
+      boundary: M2
+      recipe: milestone-review
+      blocked: true
 ---
 
 # Gate ledger — ariadne#300 (boundary-review)
@@ -182,8 +220,25 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-11** [Minor] `single-source-timeout` reviewLimitLabel restates dispatchTimeout's precedence and the 30m default (ARCH-DRY)
   milestoneclose.go reviewLimitLabel repeats the env-over-sized precedence and the 30m default, which now lives in three places. Export judge.EffectiveTimeout(env, sized) and label from its result, which also stops an invalid override from being printed as the limit.
 
+## Round 5 — 2026-10-09T21:46:02-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-9 — addressed — stampAndPersist computes blocked once for the flag, the Forced stamp and the warn/ok line, and ConvergenceLine reports not converging. Mutation-checked: reverting either half fails TestBoundaryRoundWithoutFindingsIsNotPassed.
+- BR-10 — addressed — All 21 tests named in the Plan Tasks 1-6 rows exist under those names; the close steps sit in their own unticked row.
+- BR-11 — addressed — reviewLimitLabel reads judge.EffectiveTimeout; an invalid override is labelled invalid rather than printed as the limit.
+
+### Raised
+
+- **BR-12** [Important] `single-source-timeout` README.md:65 still says WF_REVIEW_TIMEOUT defaults to 30m; boundary reviews now scale with the window
+  3rd finding in family single-source-timeout. Rule: a timeout-policy change sweeps every hit of grep -rn WF_REVIEW_TIMEOUT in the same commit; helptext and atlas were swept, README was missed.
+- **BR-13** [Minor] `one-round-outcome-all-readers` ConvergenceLine decides "no readable findings" with its own predicate, separate from the Blocked stamp's review.Round == nil
+  3rd finding in family. A findings block holding only an invalid disposition gets ProtocolError from ApplyChecked, so ConvergenceLine says "Not converging: no readable findings" while the gate prints [ok]. Rule: one predicate (a gatestate Round method or a stored flag) read by the stamp and by ConvergenceLine. The Forced-stamp reader also has no test: reverting it to d.Block keeps the D6 test green.
+- **BR-14** [Minor] `channel-vs-prose-separation` The shared stampAndPersist hard-codes the boundary-specific "produced no findings block" wording for gatePersist.Blocked
+  Carry a BlockedReason alongside Blocked so the shared tail holds no gate-specific prose.
+
 ## Open findings
 
-- **BR-9** [Important] `one-round-outcome-all-readers` A findings-less boundary round is BLOCKED in the ledger but still reported as Converging, ok, and unforced
-- **BR-10** [Minor] `plan-claims-match-tests` Plan Task 5 names TestProtocolErrorRoundBlocks; the shipped test is TestBoundaryRoundWithoutFindingsIsNotPassed
-- **BR-11** [Minor] `single-source-timeout` reviewLimitLabel restates dispatchTimeout's precedence and the 30m default (ARCH-DRY)
+- **BR-12** [Important] `single-source-timeout` README.md:65 still says WF_REVIEW_TIMEOUT defaults to 30m; boundary reviews now scale with the window
+- **BR-13** [Minor] `one-round-outcome-all-readers` ConvergenceLine decides "no readable findings" with its own predicate, separate from the Blocked stamp's review.Round == nil
+- **BR-14** [Minor] `channel-vs-prose-separation` The shared stampAndPersist hard-codes the boundary-specific "produced no findings block" wording for gatePersist.Blocked

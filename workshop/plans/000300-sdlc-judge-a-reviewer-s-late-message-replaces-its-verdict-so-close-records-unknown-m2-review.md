@@ -99,3 +99,109 @@ findings:
     detail: |
       milestoneclose.go reviewLimitLabel repeats the env-over-sized precedence and the 30m default, which now lives in three places. Export judge.EffectiveTimeout(env, sized) and label from its result, which also stops an invalid override from being printed as the limit.
 ```
+
+---
+
+## Re-review — 2026-10-09T21:46:02-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 300 — sdlc judge: a reviewer's late message replaces its verdict, so close records 'unknown' |
+| repo | ariadne |
+| issue file | workshop/issues/000300-sdlc-judge-a-reviewer-s-late-message-replaces-its-verdict-so-close-records-unknown.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 6eae019e1525207f085e65687e3f64ba4d4f09b8..ecee5aabaf6142c76b3c3faf029769d170a47848 |
+| command | sdlc milestone-close --issue 300 --milestone M2 |
+| reviewer | claude |
+| timestamp | 2026-10-09T21:46:02-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Reviewing the M2 diff for #300. Next I'm checking the plan rows and the ledger edge cases.
+
+All the test names the plan cites exist. Next I'm running the targeted tests and a mutation check on the BR-9 fix.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+Round 1 asked for three fixes, and all three landed with real evidence. BR-9 now computes the round's outcome once in `stampAndPersist`, and that one value sets the stored flag, the waiver stamp and the reported line. `ConvergenceLine` no longer says "Converging." for a findings-less round. I reverted each half of that fix in a scratch worktree, and `TestBoundaryRoundWithoutFindingsIsNotPassed` failed both times. BR-10: all 21 tests named in Plan Tasks 1–6 exist under those names, and the close steps moved to their own unticked row. BR-11: `reviewLimitLabel` now reads `judge.EffectiveTimeout`, and an invalid override shows as invalid. Nothing blocks the boundary, but two cheap items should be fixed first. `README.md:65` still says the timeout defaults to 30m. And `ConvergenceLine` decides "no readable findings" with its own test, separate from the one that sets the stored flag, so the readers can still disagree in one edge case.
+
+1. **Strengths**
+   - `cmd/sdlc/gatepersist.go:55` — `blocked := d.Block || g.Blocked` is the single statement of the round's outcome. The decision returned to the caller is deliberately unchanged, and the Revisions entry explains why: forcing it would block a SHIP close whose dispositions only failed validation.
+   - `cmd/sdlc/closestream_test.go:73` `TestCloseSizesTheReviewTimeout` checks the reviewer's real context deadline through the `judge.Run` seam, not a mocked value. It covers both the sized limit and the override (ARCH-MOCK pass).
+   - `judge.ReviewTimeout` is a pure function with a table test over the boundary values: 500, 501, 1500 and the cap (ARCH-PURE pass).
+   - The help text, the atlas and `lessons.md` were updated in the same commit, and the two new lessons state rules rather than single cases.
+
+2. **Critical:** none.
+
+3. **Important**
+   - `README.md:65` still says "`WF_REVIEW_TIMEOUT` defaults to `30m`". Boundary reviews now scale with the window (`judge.ReviewTimeout`), and every other description (`root.md`, `close.md`, `milestone-close.md`, `change-code.md`, the atlas) was updated. This is the 3rd finding in family `single-source-timeout`. Earlier rounds fixed instances. The rule: when the timeout policy changes, run `grep -rn WF_REVIEW_TIMEOUT` across the repo and update every hit in the same commit.
+
+4. **Minor**
+   - **Two tests for one outcome (3rd finding in family `one-round-outcome-all-readers`).**
+     - The boundary sets `Blocked` from `review.Round == nil`.
+     - `ConvergenceLine` (`gatestate/family.go:158`) uses a different test: `ProtocolError != "" && no New && no Dispositions`.
+     - They disagree in one case: a findings block whose only content is an invalid disposition. `ApplyChecked` drops it and sets `ProtocolError`. The convergence line then says "Not converging: the review produced no readable findings (…dropped 1 invalid disposition…)", while the gate prints `[ok]`.
+     - The rule: make it one predicate, for example a `gatestate.Round` method or a stored flag, that both the stamp and `ConvergenceLine` read.
+     - Separately, the waiver-stamp reader, `forcedRationale(forced, blocked)`, has no test. If it were reverted to `d.Block`, the D6 test would still pass, because it passes no forced rationale.
+   - `stampAndPersist` is shared by both gates, but its warning hard-codes "this round's review produced no findings block". A `BlockedReason` field next to `Blocked` would keep the gate-specific wording out of the shared tail.
+   - `dispatch.go` writes the 30m default and the 2h ceiling as literals twice each (`ReviewTimeout` and `reviewTimeout`). Named constants would fix it. This is in one file and harmless for now.
+
+5. **Test coverage**
+   - Mutation checks (reverting the `ConvergenceLine` branch, and reverting `blocked` to `d.Block`) both turn the D6 test red, so the fix is pinned.
+   - `ConvergenceLine`'s new branch has no unit test in `family_test.go`; only the end-to-end test covers it.
+   - Targeted tests pass: the `cmd/sdlc` subset, and the `judge` and `gatestate` packages.
+
+6. **Architecture**
+   - ARCH-DRY: flag (Minor), the duplicated literals above. The precedence itself is now defined once (`EffectiveTimeout`).
+   - ARCH-PURE: pass.
+   - ARCH-PURPOSE: pass. D6 and D7 are delivered.
+   - ARCH-MOCK: pass. The test goes through the `judge.Run` seam.
+   - ARCH-CONSTRAINTS: pass. The timeout scales with the window and stays capped at 2h; measuring the window costs one extra git call.
+   - ARCH-SECURE: pass. The environment variable is validated, and an invalid value is labeled as such rather than displayed as a limit.
+   - ARCH-ORDER: flag (Minor), the two tests for one outcome above.
+   - ARCH-FUNERAL: pass. Nothing new is durable.
+
+7. **Plan revisions:** none needed. The plan matches the code.
+
+```findings
+dispose:
+  - id: BR-9
+    disposition: addressed
+    note: |
+      stampAndPersist computes blocked once for the flag, the Forced stamp and the warn/ok line, and ConvergenceLine reports not converging. Mutation-checked: reverting either half fails TestBoundaryRoundWithoutFindingsIsNotPassed.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      All 21 tests named in the Plan Tasks 1-6 rows exist under those names; the close steps sit in their own unticked row.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      reviewLimitLabel reads judge.EffectiveTimeout; an invalid override is labelled invalid rather than printed as the limit.
+findings:
+  - id: new
+    severity: Important
+    family: single-source-timeout
+    title: |
+      README.md:65 still says WF_REVIEW_TIMEOUT defaults to 30m; boundary reviews now scale with the window
+    detail: |
+      3rd finding in family single-source-timeout. Rule: a timeout-policy change sweeps every hit of grep -rn WF_REVIEW_TIMEOUT in the same commit; helptext and atlas were swept, README was missed.
+  - id: new
+    severity: Minor
+    family: one-round-outcome-all-readers
+    title: |
+      ConvergenceLine decides "no readable findings" with its own predicate, separate from the Blocked stamp's review.Round == nil
+    detail: |
+      3rd finding in family. A findings block holding only an invalid disposition gets ProtocolError from ApplyChecked, so ConvergenceLine says "Not converging: no readable findings" while the gate prints [ok]. Rule: one predicate (a gatestate Round method or a stored flag) read by the stamp and by ConvergenceLine. The Forced-stamp reader also has no test: reverting it to d.Block keeps the D6 test green.
+  - id: new
+    severity: Minor
+    family: channel-vs-prose-separation
+    title: |
+      The shared stampAndPersist hard-codes the boundary-specific "produced no findings block" wording for gatePersist.Blocked
+    detail: |
+      Carry a BlockedReason alongside Blocked so the shared tail holds no gate-specific prose.
+```
