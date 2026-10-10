@@ -1,13 +1,20 @@
 ---
 id: 000316
-status: open
+status: working
 deps: []
 github_issue:
 target: review-convention
 created: 2026-10-09
 updated: 2026-10-09
 estimate_hours:
-card_mirror: '8e7b6c296865c7d2084347bb1db943332c068853' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b6e58b731c46d5fc90aaf86b9c9b7b16a6a68189' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T21:20:31-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    worktree: /Users/xianxu/workspace/worktree/parley.nvim-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # review-convention: single-line markers + <br> newline escape
