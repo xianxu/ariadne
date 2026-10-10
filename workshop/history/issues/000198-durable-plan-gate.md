@@ -1,12 +1,20 @@
 ---
 id: 000198
-status: open
+status: wontfix
 deps: [ariadne#194]
 github_issue:
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-10-09
 estimate_hours:
-card_mirror: 'b032449abc62c681239d1b366a92144beccb97b2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'cbca336db22441929c39932a92effde7e8676eb1' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # the durable plan in workshop/plans/ has no close gate, so it silently drifts from the code it specifies
@@ -77,6 +85,8 @@ To be designed, but the shape is constrained by what already exists:
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): folded into #202: drop the plan gate; the reviewer prompt states the plan is pre-implementation intent and the diff is authoritative (code is the eventual source of truth) (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-08-20
 
 Filed from ariadne#194's M3 boundary review (BR-32), which declined to accept a row-by-row
