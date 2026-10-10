@@ -1,12 +1,20 @@
 ---
 id: 000210
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-09-02
-updated: 2026-09-02
+updated: 2026-10-09
 estimate_hours:
-card_mirror: '1b15a61332ff87b075040328b0cf3de3b8d27956' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7a54bb17a13caeb871bced28f484083ba1a5b30c' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # fleet plan test reads a hardcoded workshop/plans path that archiving breaks
@@ -60,6 +68,8 @@ the ordinary act of closing the issue it belongs to.
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): already fixed: fleet_plan_test.go reads the terminal archive path and passes; no sibling literal-path reads remain (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-09-02
 
 Filed from the #206 close review, which found it while measuring whether that
