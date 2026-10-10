@@ -1,0 +1,15 @@
+Reviewed the window.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+```findings
+findings:
+  - id: new
+    severity: Minor
+    family: naming
+    title: |
+      a name
+```

@@ -53,6 +53,9 @@ FLAGS
                              Codex: a ~/.codex/sessions/YYYY/MM/DD dir); repeatable, required
   --git-repo <path>          repo to read commits from (required)
   --since / --until <iso>    window bounds (ISO-8601); events/commits outside are skipped
+  --branch-point <rev>       scope boundaries to an issue branch forked at <rev> (#270):
+                             only its own commits and commits naming the first --issue
+                             bound segments, as `sdlc actual` does on an issue branch
   --issue <n>                issue number to track (without #); repeatable, required
   --commit-weight <f>        fraction attributed by commit refs (default 1.0)
   --prefix-commit-weight <f> commit-weight for the prefix segment (defaults to --commit-weight)

@@ -32,11 +32,11 @@ func TestLoadWindowCommitsReadsExtraRefsOnce(t *testing.T) {
 	resolveCommitWorkspace = func(r string) (workspace.Identity, error) { return workspace.Identity{Repo: filepath.Base(r)}, nil }
 	t.Cleanup(func() { resolveCommitWorkspace = orig })
 
-	head, err := loadWindowCommits(repo, "", "")
+	head, err := loadWindowCommits(repo, "", "", Scope{})
 	if err != nil || len(head) != 1 {
 		t.Fatalf("HEAD only: %v %v", head, err)
 	}
-	both, err := loadWindowCommits(repo, "", "", "refs/heads/tracker", "refs/heads/main")
+	both, err := loadWindowCommits(repo, "", "", Scope{}, "refs/heads/tracker", "refs/heads/main")
 	if err != nil || len(both) != 2 {
 		t.Fatalf("with the tracker ref (and HEAD twice): %+v %v", both, err)
 	}

@@ -1,0 +1,5 @@
+{"type": "system", "subtype": "init", "model": "claude-test"}
+{"type": "assistant", "message": {"type": "message", "role": "assistant", "content": [{"type": "tool_use", "id": "t1", "name": "Bash", "input": {"command": "make test", "run_in_background": true}}]}}
+{"type": "user", "message": {"role": "user", "content": [{"type": "tool_result", "tool_use_id": "t1", "content": "started in background"}]}}
+{"type": "assistant", "message": {"type": "message", "role": "assistant", "content": [{"type": "text", "text": "I'll wait for the background test run to notify."}]}}
+{"type": "result", "subtype": "success", "is_error": false, "api_error_status": null, "num_turns": 3, "result": "I'll wait for the background test run to notify."}

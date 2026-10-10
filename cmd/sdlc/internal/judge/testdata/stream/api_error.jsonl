@@ -1,0 +1,5 @@
+{"type": "system", "subtype": "init", "model": "claude-test"}
+{"type": "system", "subtype": "api_retry"}
+{"type": "system", "subtype": "api_retry"}
+{"type": "assistant", "message": {"type": "message", "role": "assistant", "content": [{"type": "text", "text": "API Error: Couldn't connect through your proxy (ERR_PROXY_TUNNEL) \u2014 the proxy refused the tunnel: check its credentials and that it allows this host"}]}}
+{"type": "result", "subtype": "success", "is_error": true, "api_error_status": null, "num_turns": 3, "result": "API Error: Couldn't connect through your proxy (ERR_PROXY_TUNNEL) \u2014 the proxy refused the tunnel: check its credentials and that it allows this host"}

@@ -194,6 +194,9 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	// will read at exactly this gate — reads that field.
 	return stampAndPersist(stderr, gatePersist{
 		Label: "boundary gate",
+		// Not a pass (#300, D2): the same predicate ConvergenceLine reads.
+		Blocked:       l.Rounds[len(l.Rounds)-1].ProducedNothing(),
+		BlockedReason: "this round's review produced no readable findings, so it is not a pass",
 		Write: func(out gatestate.Ledger) error {
 			return writeBoundaryGateLedger(p.PlansDir, issueFileName, out, repoIdentity())
 		},
@@ -255,6 +258,10 @@ func openScopeFor(l gatestate.Ledger, milestone string) gatestate.Ledger {
 // halt, a protocol error, a never-ran dispatch) must not advance it, or the next window
 // would skip work no finalized review read.
 func roundAdvancesBoundary(review reviewResult, round gatestate.Round, d gatestate.Decision, waived bool) bool {
+	// Deliberately STRICTER than #300's Round.ProducedNothing, which marks a round
+	// blocked only when nothing at all was readable: a round with ANY protocol error
+	// may have dropped a finding, so it never advances the boundary. The cost is an
+	// over-covering next window, the safe direction.
 	if closeVerdictOutcome(review.Verdict) != closeFinalize || review.Round == nil || round.ProtocolError != "" {
 		return false
 	}

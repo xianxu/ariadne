@@ -23,6 +23,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
@@ -637,13 +638,17 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	}
 
 	agent := opts.Agent
-	cinfo(stderr, fmt.Sprintf("dispatching boundary review (%s..%s) via %s …", shortSHA(p.BaseLong), abbrevSHA(p.Head), agent))
+	opts.Timeout = boundaryReviewTimeout(stderr, p)
+	cinfo(stderr, fmt.Sprintf("dispatching boundary review (%s..%s) via %s, limit %s …", shortSHA(p.BaseLong), abbrevSHA(p.Head), agent, reviewLimitLabel(opts.Timeout)))
 	ctx := p.Context
 	if ctx == nil {
 		ctx = context.Background()
 	}
 	output, derr := judge.Dispatch(ctx, opts)
 	if derr != nil {
+		if output != "" { // a failed retry still carries the first attempt (#300)
+			fmt.Fprint(stdout, output)
+		}
 		// Dispatch error → VerdictNotRun → the caller halts (does NOT finalize); the
 		// outcome message is the caller's, not a false "close succeeded" here (#139 I1).
 		cwarn(stderr, fmt.Sprintf("boundary review failed: %v", derr))
@@ -776,4 +781,37 @@ func milestonePush(ctx context.Context, stderr io.Writer) {
 		return
 	}
 	boundaryPush(env, stderr, "milestone-close")
+}
+
+// boundaryReviewTimeout sizes the review's limit by the window's added lines
+// (#300, judge.ReviewTimeout). A window that can't be measured gets the
+// default; WF_REVIEW_TIMEOUT, when set, overrides either inside Dispatch.
+func boundaryReviewTimeout(stderr io.Writer, p boundaryReviewParams) time.Duration {
+	if p.BaseLong == "" || p.Head == "" {
+		return 0
+	}
+	stats, err := windowFileStats(p.BaseLong, p.Head)
+	if err != nil {
+		cwarn(stderr, fmt.Sprintf("boundary review: window not measured (%v); the default limit applies", err))
+		return 0
+	}
+	added := 0
+	for _, st := range stats {
+		added += st.Insertions
+	}
+	return judge.ReviewTimeout(added)
+}
+
+// reviewLimitLabel is the limit a review runs under, read from the judge's
+// own precedence (judge.EffectiveTimeout), so it can't disagree with it.
+func reviewLimitLabel(sized time.Duration) string {
+	env := os.Getenv("WF_REVIEW_TIMEOUT")
+	d, err := judge.EffectiveTimeout(env, sized)
+	switch {
+	case err != nil:
+		return "invalid WF_REVIEW_TIMEOUT"
+	case env != "":
+		return d.String() + " (WF_REVIEW_TIMEOUT)"
+	}
+	return d.String()
 }

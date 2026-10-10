@@ -62,7 +62,7 @@ it keeps [issue publication](atlas/workflow/issue-sync.md): claim on main,
 
 Planning and close reviews release the local repository lock while the reviewer
 runs. SDLC checks the prepared inputs again before recording a result; concurrent
-edits require a rerun. `WF_REVIEW_TIMEOUT` defaults to `30m` (allowed `1s`–`2h`).
+edits require a rerun. A review's timeout scales with its window (30m up to 500 added lines, +15m per further 1,000, at most `2h`; plan reviews get 30m, #300); `WF_REVIEW_TIMEOUT` (allowed `1s`–`2h`) overrides it.
 
 ## Standalone weave startup
 

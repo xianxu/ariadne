@@ -63,7 +63,7 @@ type actualResult struct {
 	Issue    string
 	Peers    []string
 	Dirs     []string
-	Window   string // "<shortSHA> → HEAD"
+	Window   string // "<start ISO> → HEAD": the resolved left edge (#254)
 	Detail   string // diagnostic for the error path
 	Warnings []string
 }
@@ -92,15 +92,11 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 		res.Status = actualNoWindow
 		return res
 	}
-	res.Window = firstSHA[:8] + " → HEAD"
 
-	// #113: pull the window-start back to the claim (working-transition) commit
-	// when it's earlier than the parent-of-first-#N anchor, so DESIGN attention
-	// after the claim (brainstorm / spec / plan / reviews) lands in-window.
+	// #113/#254: the window starts at the claim when there is one, so design
+	// attention after it lands in-window and nothing before it does.
 	// Best-effort — a locate/parse miss just keeps the commit-based start.
-	// Widening the start also widens DiscoverWindowIssues' peer membership (a
-	// deliberate attribution change, not just this issue's minutes), so Peers is
-	// derived AFTER the override.
+	// Peers are derived AFTER the override, from the same window.
 	if carded {
 		firstISO = resolveWindowStart(firstISO, cardStarted, "")
 	} else if id, err := strconv.Atoi(issueNum); err == nil {
@@ -111,9 +107,21 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 		}
 	}
 
-	// selfRepo is the canonical name of the repository being scanned, so a
-	// self-qualified `ariadne#180` counts as local while `pair#127` does not (#190).
-	res.Peers, _ = gitx.DiscoverWindowIssues(firstISO, lastISO, issueNum, identity.Repo)
+	// The label names the resolved start, not the first #N commit: since the
+	// claim anchor (#254, via #270) that commit is often the filing, outside
+	// the window.
+	res.Window = firstISO + " → HEAD"
+
+	// #270: on an issue branch, only the branch's own commits and commits naming
+	// this issue bound segments, so integrating main can't hand this session's
+	// time to the issues main's commits name. Peers come from the same commits.
+	scope := actualScope(issueNum)
+	peers, err := activetime.WindowIssues(repoTop, firstISO, lastISO, scope, trackerRefs...)
+	if err != nil {
+		res.Status, res.Detail = actualError, err.Error()
+		return res
+	}
+	res.Peers = peers
 	src := transcripts.Select(nonEmpty(brainAbs, repoTop), transcripts.DefaultHarnesses())
 	res.Dirs = src.Dirs
 	if len(src.Dirs) == 0 && len(src.Files) == 0 {
@@ -126,6 +134,7 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 		Files:            src.Files,
 		GitRepo:          repoTop,
 		ExtraRefs:        trackerRefs,
+		Scope:            scope,
 		SinceISO:         firstISO,
 		UntilISO:         lastISO,
 		Issues:           res.Peers,
@@ -142,6 +151,27 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 		res.Warnings = append(res.Warnings, formatAttributionWarning(w))
 	}
 	return res
+}
+
+// actualScope is the boundary scope for measuring issueNum from the cwd's HEAD
+// (#270): scoped at the branch point when HEAD has diverged from main, and also
+// on the issue's own branch before its first commit, where the branch point is
+// HEAD itself. On main (or any branch that hasn't diverged) it stays unscoped.
+func actualScope(issueNum string) activetime.Scope {
+	bp := gitx.MergeBaseWithMain()
+	if bp == "" && onIssueBranch(issueNum) {
+		bp = gitx.BranchPoint()
+	}
+	return activetime.Scope{BranchPoint: bp, Issue: issueNum}
+}
+
+// onIssueBranch reports whether HEAD is the issue's branch (`NNNNNN-slug`).
+func onIssueBranch(issueNum string) bool {
+	id, err := strconv.Atoi(issueNum)
+	if err != nil {
+		return false
+	}
+	return strings.HasPrefix(gitx.Capture("branch", "--show-current")+"-", fmt.Sprintf("%06d-", id))
 }
 
 // actualTrackerInputs reads the tracker for active-time (#252): the tracking ref
@@ -198,18 +228,10 @@ func startedAnchor(path string) string {
 	return strings.TrimSpace(v)
 }
 
-// resolveWindowStart picks the active-time window's left edge from three anchor
-// candidates in robustness order: the explicit `started:` stamp (#116) when
-// present, else the WorkingTransitionISO claim heuristic (#113), both delegated
-// to windowStart against the commit-parent default. Pure — the IO (file read +
-// git) stays in computeActual's glue, so both anchor paths are unit-testable
-// without fakes (ARCH-PURE, per the #116 plan-quality review).
-//
-// Caveat (inherited from windowStart): the ISO strings are compared lexically, so
-// they must share a UTC offset to sort chronologically. started: (local RFC3339)
-// and the git %aI anchors are same-machine/same-offset in the realistic case; a
-// DST boundary inside a long issue could skew the compare by the offset delta, but
-// gap-truncation bounds the blast radius to minutes.
+// resolveWindowStart picks the active-time window's left edge: the explicit
+// `started:` claim stamp (#116), else the WorkingTransitionISO claim heuristic
+// (#113), else the commit-parent default. Pure — the IO (file read + git) stays
+// in computeActual's glue (ARCH-PURE, per the #116 plan-quality review).
 func resolveWindowStart(parentISO, startedISO, wtISO string) string {
 	anchor := startedISO
 	if anchor == "" {
@@ -218,24 +240,18 @@ func resolveWindowStart(parentISO, startedISO, wtISO string) string {
 	return windowStart(parentISO, anchor)
 }
 
-// windowStart picks the active-time window's left edge from the two candidate
-// anchors: parentISO (parent-of-first-#N-commit, CommitWindow's default) and
-// wtISO (the claim's working-transition commit, #113). Returns the EARLIER of
-// the two non-empty ISOs — claim-early ⇒ wt is earlier ⇒ design attention is
-// captured; a late claim ⇒ parent is earlier ⇒ no regression; either empty ⇒
-// the other. Pure (ISO-8601 strings sort chronologically given a stable offset,
-// matching CommitWindow's own WindowCapDays compare).
-func windowStart(parentISO, wtISO string) string {
-	switch {
-	case wtISO == "":
-		return parentISO
-	case parentISO == "":
-		return wtISO
-	case wtISO < parentISO:
-		return wtISO
-	default:
-		return parentISO
+// windowStart starts the window at the claim when there is one, else at
+// parentISO (the parent of the first `#N` commit). The claim wins even when
+// the parent is earlier (#254, folded into #270): the parent moves whenever
+// main is integrated, and an issue filed days before its claim would otherwise
+// absorb all the slot's work in between — which, with boundaries scoped to the
+// branch, its own commits would claim. Design attention after the claim is
+// still in-window, which is what #113 widened the start for.
+func windowStart(parentISO, claimISO string) string {
+	if claimISO != "" {
+		return claimISO
 	}
+	return parentISO
 }
 
 // statusFromResult maps an activetime.Result to the actual outcome for issueNum.

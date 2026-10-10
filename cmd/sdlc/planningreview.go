@@ -122,7 +122,8 @@ func dispatchPlanningReview(f *changeCodeFlags, opts judge.DispatchOptions) (str
 		return "", err
 	}
 	if dispatchErr != nil {
-		return "", planningReviewUnsafe(fmt.Errorf("review dispatch failed: %w", dispatchErr))
+		// The text a failed retry carries (#300) goes back with the error.
+		return output, planningReviewUnsafe(fmt.Errorf("review dispatch failed: %w", dispatchErr))
 	}
 	return output, nil
 }

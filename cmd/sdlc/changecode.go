@@ -649,6 +649,7 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	cinfo(stderr, fmt.Sprintf("invoking %s for plan-quality check …", agent))
 	output, dispatchErr := dispatchPlanningReview(f, opts)
 	if dispatchErr != nil {
+		fmt.Fprint(stdout, output) // a failed retry still carries the first attempt (#300)
 		return fmt.Errorf("plan-quality dispatch failed: %w", dispatchErr)
 	}
 
@@ -886,6 +887,7 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 	cinfo(stderr, fmt.Sprintf("invoking %s for estimate-quality check …", agent))
 	output, dispatchErr := dispatchPlanningReview(f, opts)
 	if dispatchErr != nil {
+		fmt.Fprint(stdout, output) // a failed retry still carries the first attempt (#300)
 		return fmt.Errorf("estimate-quality dispatch failed: %w", dispatchErr)
 	}
 

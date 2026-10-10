@@ -424,7 +424,9 @@ against one ledger cannot both advance it.
 `planningreview.go` owns change-code's prepare/unlock/relock phases while keeping
 plan-quality before estimate checks. Cancellation, dispatch failure, stale inputs
 and failed reacquisition stop without new authority writes; `--force` cannot waive
-these safety failures. Review timeout defaults to 30m (`WF_REVIEW_TIMEOUT`, 1s–2h).
+these safety failures. Review timeout: boundary reviews scale with the window's added lines
+(`judge.ReviewTimeout`: 30m up to 500, +15m per further 1,000, at most 2h; #300),
+plan reviews get 30m; `WF_REVIEW_TIMEOUT` (1s–2h) overrides both.
 The process runner bounds graceful shutdown and pipe draining to five seconds;
 Unix reviewers have owned process groups so cancellation also kills descendants,
 and the direct reviewer is reaped before returning. CLI interruption is carried
@@ -712,7 +714,7 @@ cmd/sdlc/
                        acquire/release IO shell
     gitx/              git invocation seam (`run` shim, Capture, DiffBase,
                        MainRef, CommitWindow, WorkingTransitionISO (#113 claim
-                       anchor), DiscoverWindowIssues, RunGit,
+                       anchor), RunGit,
                        IsShippedWorkSubject/ShippedWorkOnMain — #76 ship probe;
                        TrunkFile + the `runGitIn` shim — #209, see below)
     issue/             frontmatter parse/edit + plan-section regexes +
@@ -879,6 +881,27 @@ review prompt/options builder as real dispatch and prints the would-be command
 line, so `PAIR_AGENT=codex` is inspectable as `codex exec` before any subprocess
 runs.
 
+**The reviewer's whole run, and when it didn't run (#300).** The claude
+reviewer runs `-p --output-format stream-json --verbose`; for claude only,
+`judge.ReadStream` reads the event stream into an `AgentRun` (every assistant message's text, any
+unparsed tail, the terminal `result`). `Dispatch` returns the messages joined
+in order, so the existing last-block-wins parsers (`ParseVerdictBlock`,
+`gatestate.ParseFindingsBlock`, and `ParseVerdictToken`, now last-match too)
+take the latest verdict and findings: a block-less postscript after a
+backgrounded job erases nothing. A run with no verdict signal anywhere
+(`HasVerdict`, which recognises everything any parser reads) is dispatched once
+more inside the same deadline; two such runs return both texts, labelled, and
+keep the `unknown` fail-safe; an error from the retry still returns the first
+attempt's text, which every caller shows. `judge.RunFailure` decides "review did
+not run", never over a verdict the run already gave: a stream `result` with
+`is_error`, or for codex and gemini (read as plain text) a non-zero exit with a
+failure signature on stderr or in the output. A network cause is
+`ErrAPIUnreachable`, naming the agent's own API host to allow in the sandbox;
+any other is `ErrReviewDidNotRun`. Either is persisted as nothing and not
+retried. Every contract carries `UnattendedRule` (foreground
+only, no notifications). Output that isn't a stream reads as plain text, as
+before.
+
 **Dispatch progress heartbeat (#140).** A boundary review can run silently for
 minutes; `internal/judge.Dispatch` now emits a heartbeat to `opts.Stderr` every
 `heartbeatInterval` (30s) while the agent subprocess runs — elapsed + agent +
@@ -977,7 +1000,8 @@ The convention generalizes `merge`'s pre-existing `--no-judge`.
 actual --issue N` (`actual.go`'s `computeActual`, shared with close's
 missing-`--actual` explainer) runs the native **`internal/activetime`** engine
 (`activetime.Compute`, in-process — no python3) over the issue's `CommitWindow` +
-`DiscoverWindowIssues` peers, feeding it **brain + the issue's repo** transcript
+`activetime.WindowIssues` peers (the same branch-scoped commits the engine
+segments on, #270), feeding it **brain + the issue's repo** transcript
 sources. Source selection is a **harness abstraction** (`internal/transcripts`,
 #134), not a Claude-only path convention: each agent CLI implements a `Harness`
 (`Name()` + `Sources(cwds) → Sources{Dirs,Files}`); `DefaultHarnesses()` is the
@@ -1001,9 +1025,9 @@ time boundaries. Suspicious attribution is surfaced as `Result.Warnings` and
 rendered by `actual` / `active-time`. Dir-selection is deliberately narrow (NOT all
 folders/sessions) — an unrelated concurrently-edited repo inflates the count.
 `WindowCapDays` is 61 (was 31) so month-long issues keep their window. The
-window-**start** is the *earlier* of `CommitWindow`'s parent-of-first-`#N`-commit
-and the **engagement anchor** (`resolveWindowStart`), anchoring at the cheap early
-`claim` so DESIGN attention (brainstorm / spec / plan / reviews) before the first
+window-**start** is the **engagement anchor** (`resolveWindowStart`) when one
+exists, else `CommitWindow`'s parent-of-first-`#N`-commit. It anchors at the
+cheap early `claim` so DESIGN attention (brainstorm / spec / plan / reviews) before the first
 code commit is in-window instead of cut off; gap-truncation keeps a dormant
 claim→work gap from inflating the actual. The anchor is resolved in robustness
 order (#116): the explicit `started:` stamp (written once at the open→working
@@ -1011,7 +1035,11 @@ flip — on the tracker card since #252, whose claim/close commits are read besi
 HEAD so a freshly claimed issue has a window; local-offset RFC3339 to match `%aI`) →
 `gitx.WorkingTransitionISO` (the #113 git-log heuristic, now the legacy fallback)
 → commit-parent. The explicit stamp survives rebases/moves where the heuristic's
-"best-effort" history scan could silently miss and drop design time.
+"best-effort" history scan could silently miss and drop design time. The claim
+wins even when the first `#N` commit (the filing) is earlier (#270, folding
+#254's window half): filing is not design, and with boundaries scoped to the issue branch (#270) the issue's own commits
+would otherwise claim every other piece of work the slot did between filing and
+claim.
 
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full attribution table and warnings. It preserves

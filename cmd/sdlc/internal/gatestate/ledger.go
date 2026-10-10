@@ -129,6 +129,14 @@ type Round struct {
 	ProtocolError string `yaml:"protocol_error,omitempty"`
 }
 
+// ProducedNothing reports whether a round's review yielded nothing the gate
+// can read: a protocol error, and no finding or disposition kept. Such a round
+// is never a pass and never convergence; the one predicate every reader uses
+// (#300 BR-9).
+func (r Round) ProducedNothing() bool {
+	return r.ProtocolError != "" && len(r.New) == 0 && len(r.Dispositions) == 0
+}
+
 // BoundaryAll marks a round that belongs to EVERY boundary rather than one (#194 D5).
 // Its use is the plan-gate seed round: those findings were deferred to "the boundary
 // review" generically, not to whichever milestone happened to close first, so scoping
