@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 2.23
+actual_hours: 1.01
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000304-whole-issue-close-review-window-collapses-after-integrating-main.md
         main_commit: 63faa79c69c0e9862ee6bda2fc303e588760a4e9
     completion:
-        token: close-2b9d779e9cb7
+        token: close-a590cfa57992
         repository: github.com/xianxu/ariadne
-        reviewed_head: 0f4e1bf53e5a94705da8e339df20d16aab0c7912
-        evidence_commit: 5890aae2132a9f57b0ff559a81296a3a13e66060
+        reviewed_head: 8470f8eba30208ef56bc70307273647e2e57d428
+        evidence_commit: 85394ff5cc23b73f703035a44363bb8a4b9aa9de
 ---
 
 # Milestone review window absorbs integrated main; close's printed window misleads
