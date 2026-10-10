@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "81d2119f", done: "e41d3db1"}
 ---
 
 # Allow api.anthropic.com in the base-layer sandbox network allowlist
