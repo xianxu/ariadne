@@ -1,12 +1,20 @@
 ---
 id: 000254
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-27
-updated: 2026-09-27
+updated: 2026-10-09
 estimate_hours:
-card_mirror: '1a5081591614b6df57a8b3565b309d3e22c35bde' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fdec70ad27d57893c50dee12bc9a3daf3e831e0a' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T21:04:12-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Hours attribution: ignore GitHub PR numbers; window starts at the claim
@@ -56,18 +64,23 @@ parley.nvim#290 in the #252 A4 canary; both parts pre-date #252.
 
 ## Done when
 
-- A merge or squash subject's PR number never becomes a peer issue (tests
-  cover merge, squash, and a plain `#N` reference).
+- A `Merge pull request #N` subject's PR number never becomes a peer issue,
+  boundary or mention (tests cover merge, a plain `#N`, and a trailing
+  ` (#N)` issue ref that stays a ref).
 - A claimed issue's hours window starts at its claim; a test pins it with an
-  issue filed hours before its claim, with other issues' work in between.
+  issue filed hours before its claim, with other issues' work in between. (Landed with #270: `TestWindowStart`.)
 - `sdlc actual --issue 290` in parley.nvim, run again, shows no #203/#204
   peers and a window starting at 15:41.
 
 ## Plan
 
-- [ ] PR-aware extractor in `issueref`, used by `DiscoverWindowIssues` and the activetime mention attribution
-- [ ] Claim-anchored window start in `windowStart`/`resolveWindowStart`
-- [ ] Before/after measurement noted in the Log
+- [ ] `issueref.Find` masks GitHub's `Merge pull request #N` lead, so every
+      consumer drops it: commit boundaries and peers (`LocalNums`), foreign-ref
+      warnings, and transcript mentions (`CountLocal`). Table test covers
+      merge, a plain `#N`, a trailing ` (#N)` issue ref (kept, see Revisions)
+      and a merge subject that also names an issue.
+- [x] Claim-anchored window start — landed with #270 (folded there).
+- [ ] Re-measure parley.nvim#290 before/after; note the delta in the Log.
 
 ## Log
 
@@ -75,3 +88,23 @@ parley.nvim#290 in the #252 A4 canary; both parts pre-date #252.
 
 - Filed from #252's A4 canary (parley.nvim#290's close). Pre-existing; not a
   #252 regression.
+
+### 2026-10-09
+
+- Claimed in ariadne:3 after #270 landed (TL dispatch, ariadne-robustness-1).
+- Spec 2 (claim-anchored window) shipped in #270: scoped boundaries made it
+  necessary there (a 23.26 h first measure). #113's intent holds, since design
+  after the claim is in-window.
+
+## Revisions
+
+- 2026-10-09 — Dropped the squash-suffix rule from Spec 1. A trailing
+  ` (#N)` is the fleet's own convention for real issue refs (e.g.
+  `lessons: … (#179)` in ariadne, `… (#264)` in parley.nvim), and none of
+  these repos squash-merge: all 170 GitHub merges in ariadne are merge
+  commits. Stripping the suffix would drop real attribution to remove a PR
+  number that never occurs. The `Merge pull request #N` lead is unambiguous
+  and is still masked. The branch name inside it is not parsed into an issue:
+  under #270's scoping a merge commit is never one of the branch's own
+  commits, so it would add surface for no measurement. Done-when 1 now pins
+  the trailing ` (#N)` as a kept ref instead of a squash case.
