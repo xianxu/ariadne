@@ -72,8 +72,11 @@ first, or #269's gate makes the undercount routine.
   merging main in, both with and without restamped committer dates.
 - A foreign-issue commit reachable only through main never bounds a segment
   that this session's issue commits enclose.
-- pair#247's measurement returns to its pre-rebase value (≈1.3–1.5 h) without
-  undoing its rebase.
+- pair#247's measurement, replayed at its branch tip without undoing its
+  rebase, credits #341 nothing and gives #247 the slot's whole in-window time.
+- A claimed issue's window starts at its claim, even when it was filed
+  earlier, so scoped boundaries can't sweep the slot's other work since the
+  filing into the issue. `windowStart`/`resolveWindowStart` tests pin it.
 
 ## Plan
 
@@ -104,6 +107,7 @@ Steps:
 - [x] End-to-end check: `Compute` minutes equal before/after on the fixture.
 - [x] Re-measure pair#247 (branch tip in a temp worktree) and log the value.
 - [x] Atlas note on boundary scoping.
+- [x] Claim-anchored window start (from #254; see Revisions).
 
 ## Log
 
@@ -160,3 +164,11 @@ Steps:
   0.57 h was itself measured after the rebase). Done-when 1 holds for the
   engine (boundaries, peers and window filter). The window's left edge becomes
   rebase-invariant with #254.
+- 2026-10-09 — Folded #254's window-start half (Spec 2) into this issue. The
+  first `sdlc close` measured 23.26 h. The window opened at the 09-28 filing
+  commit, and with main's other-issue commits no longer boundaries, all of
+  ariadne:3's work since then flowed to #270's commits. So scoped boundaries
+  are only safe with a claim-anchored window. `windowStart` now returns the
+  claim whenever one exists, and the commit parent only without one. #270
+  measures 0.14 h at 20:17 (claimed 20:01). #254 keeps the PR-number
+  extraction half (Spec 1) and its before/after re-measure.

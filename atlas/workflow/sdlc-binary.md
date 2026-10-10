@@ -1011,7 +1011,12 @@ flip — on the tracker card since #252, whose claim/close commits are read besi
 HEAD so a freshly claimed issue has a window; local-offset RFC3339 to match `%aI`) →
 `gitx.WorkingTransitionISO` (the #113 git-log heuristic, now the legacy fallback)
 → commit-parent. The explicit stamp survives rebases/moves where the heuristic's
-"best-effort" history scan could silently miss and drop design time.
+"best-effort" history scan could silently miss and drop design time. Since #270
+(folding #254's window half) the claim **is** the left edge whenever it exists,
+even when the first `#N` commit (the filing) is earlier: filing is not design,
+and with boundaries scoped to the issue branch (#270) the issue's own commits
+would otherwise claim every other piece of work the slot did between filing and
+claim.
 
 `sdlc active-time` (#110) is the standalone CLI over the same engine — the
 manual-inspection sibling that prints the full attribution table and warnings. It preserves
