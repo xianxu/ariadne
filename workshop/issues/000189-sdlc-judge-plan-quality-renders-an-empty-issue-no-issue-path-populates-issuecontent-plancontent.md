@@ -70,27 +70,39 @@ out of that issue's scope (recorded in its plan's Task 14 rationale).
   the ledger's prior findings, read and never written. A live run refuses and points at
   `sdlc change-code`: the gate's decision is the ledger's, and a dispatch nobody records is
   the stateless pre-#187 review this repo removed.
-- **estimate-quality** has the same empty-render defect (`{{ISSUE_CONTENT}}`) and is stateless
-  in `change-code` too, so it is folded in: populated from the same resolution, live run allowed.
-- Both refuse without `--issue N` (they judge one issue; an empty render is the bug).
+- Refuses without `--issue N` (it judges one issue; an empty render is the bug).
+- estimate-quality was considered and is out: it renders `{{ISSUE_CONTENT}}` too, but it is not
+  a `sdlc judge` category (`judge.IsValid` rejects it), so it has no manual surface to fix.
 - Shared resolution (`ARCH-DRY`): `resolveChangeCodeName` (issue file by id), one
   `planArtifactPath` (also behind `readOptionalPlanFile`), one `planningIssueRef`, and one
-  `planQualityPromptInput` that both verbs build the prompt through. `judge` reads the issue's
+  `planQualityPromptInput` that both verbs build the prompt through. The other categories' path
+  is untouched (the `internal/judge` golden and the `dry` dry-run tests still pin it). `judge` reads the issue's
   disk bytes; `change-code` reads them with the card mirror refreshed (card fields only).
 - ARCH-FUNERAL: creates nothing durable — the judge path reads the ledger and writes nothing.
 
 ## Plan
 
-- [ ] Failing test: `sdlc judge plan-quality --issue N --dry-run` renders a prompt containing
+- [x] Failing test: `sdlc judge plan-quality --issue N --dry-run` renders a prompt containing
       the issue's `## Spec` text and the plan body — currently empty
-- [ ] Extract the shared resolution + prompt input; `change-code` and `judge` both use it
-- [ ] plan-quality live run refuses → `change-code`; prior findings shown read-only on dry-run
-      (test asserts both, and that the ledger file is untouched)
-- [ ] estimate-quality renders the issue; both refuse without `--issue`
-- [ ] Pin: judge's plan-quality prompt is byte-equal to `change-code --dry-run`'s for the same
-      fixture; no-issue categories unchanged (existing `internal/judge` golden + dry test)
-- [ ] Helptext + atlas
+      (`TestJudgePlanQuality_DryRunRendersChangeCodePrompt`, red before the fix)
+- [x] Extract the shared resolution + prompt input; `change-code` and `judge` both use it
+- [x] plan-quality live run refuses → `change-code`, no dispatch
+      (`TestJudgePlanQuality_LiveRunRefuses`); prior findings shown read-only on dry-run and
+      the ledger bytes unchanged (asserted in the dry-run test)
+- [x] Refuses without `--issue` (`TestJudgePlanQuality_RefusesWithoutIssue`)
+- [x] Pin: judge's plan-quality prompt is byte-equal to `change-code --dry-run`'s for the same
+      fixture (same dry-run test); no-issue categories unchanged (existing `internal/judge`
+      golden + `TestJudgeAgentDefault_*` dry tests)
+- [x] Helptext (`helptext/judge.md`) + atlas (`workflow/sdlc-binary.md`)
+- [ ] Full `make test`, then `sdlc close`
 
 ## Log
 
 ### 2026-07-29
+
+### 2026-10-10
+- Claimed from ops:0 TL dispatch (ariadne-robustness-1, batch 2).
+- estimate-quality fold dropped mid-implementation: the test showed `sdlc judge` rejects the
+  category outright — no manual surface, no defect there.
+- Smoke: `sdlc judge plan-quality --issue 189 --dry-run` renders this issue's Decision section;
+  the live run refuses with the change-code pointer.

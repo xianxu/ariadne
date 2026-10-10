@@ -20,6 +20,10 @@ CATEGORIES
   milestone-review Boundary code review per AGENTS.md §3. Resolves --base and
                    optional --head to immutable commits, then supplies exact
                    read-only Git inspection commands instead of patch bytes.
+  plan-quality     Render the plan-quality prompt `sdlc change-code` sends for
+                   --issue N: issue, durable plan and the ledger's prior
+                   findings, read-only. --dry-run only — a live run refuses,
+                   since change-code owns the gate's ledger (#189).
 
 USAGE
 
@@ -27,6 +31,7 @@ USAGE
   sdlc judge specs                                   review and update atlas/
   sdlc judge milestone-review --base SHA --head SHA  bounded fresh-eyes review
   sdlc judge dry --dry-run                           print prompt + would-be command line
+  sdlc judge plan-quality --issue N --dry-run        show change-code's plan-quality prompt
   sdlc judge dry --agent codex                       use codex CLI instead of claude
 
 FLAGS
@@ -50,9 +55,10 @@ FLAGS
   --history-dir <path>  directory holding archived issues. Default:
                         $WF_HISTORY_DIR or "workshop/history".
   --plans-dir <path>    directory holding optional durable plans for a manual
-                        milestone-review. Default: $WF_PLANS_DIR or
-                        "workshop/plans". Used only when --issue is present.
-  --issue <n>           optional issue identity for milestone-review. When set,
+                        milestone-review or plan-quality. Default: $WF_PLANS_DIR
+                        or "workshop/plans". Used only when --issue is present.
+  --issue <n>           the issue plan-quality renders (required there).
+                        Optional issue identity for milestone-review. When set,
                         the issue path must resolve and an optional canonical
                         plan is named; when omitted, the prompt visibly says
                         <unspecified> and performs an ad-hoc range review.

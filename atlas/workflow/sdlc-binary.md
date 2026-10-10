@@ -1101,6 +1101,12 @@ file, embedded per fresh context). Today: the **plan-quality** judge renders the
 The **estimate-quality** judge (#117) is a change-code-time-only sibling of
 plan-quality — deliberately NOT in `AllCategories()` so it never enters push/merge
 bulk dispatch; it checks the `## Estimate` derivation was *applied*, not back-fit.
+Run by hand, `sdlc judge plan-quality --issue N --dry-run` renders exactly the
+prompt the gate sends — issue, durable plan and the ledger's prior findings, read
+through change-code's own resolution (`planArtifactPath`, `planQualityPromptInput`)
+and never written. A live `judge plan-quality` refuses and points at `change-code`:
+the gate's decision is its ledger's, and an unrecorded review is the stateless
+pre-#187 behavior (#189).
 Cite the marker (`ARCH-DRY`) in plans/Logs/findings.
 
 **Adding an `ARCH-*` entry** flows into every RUNTIME consumer with no other edit

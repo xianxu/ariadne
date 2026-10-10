@@ -147,7 +147,7 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		gateContent = string(refreshed)
 	}
 
-	planArtifact, err := captureReviewArtifact(filepath.Join(f.PlansDir, name+"-plan.md"))
+	planArtifact, err := captureReviewArtifact(planArtifactPath(f.PlansDir, name))
 	if err != nil {
 		return fmt.Errorf("read optional plan: %w", err)
 	}
@@ -571,12 +571,38 @@ func findIssueFileByName(issuesDir, name string) (string, error) {
 // plan-quality judge to consume detailed designs that live outside
 // the issue file.
 func readOptionalPlanFile(plansDir, name string) string {
-	path := filepath.Join(plansDir, name+"-plan.md")
-	b, err := os.ReadFile(path)
+	b, err := os.ReadFile(planArtifactPath(plansDir, name))
 	if err != nil {
 		return ""
 	}
 	return string(b)
+}
+
+// planArtifactPath is the durable plan's path for an issue name: the one lookup
+// change-code, close and `sdlc judge` read the plan through (#189, ARCH-DRY).
+func planArtifactPath(plansDir, name string) string {
+	return filepath.Join(plansDir, name+"-plan.md")
+}
+
+// planningIssueRef labels the issue a planning judge reviews: ariadne#N when the
+// number is known, else the issue name.
+func planningIssueRef(name string, issueNum int) string {
+	if issueNum > 0 {
+		return fmt.Sprintf("ariadne#%d", issueNum)
+	}
+	return name
+}
+
+// planQualityPromptInput is the plan-quality prompt's one construction, shared by
+// change-code's gate and `sdlc judge plan-quality --dry-run` (#189), so the manual
+// render cannot drift from what the gate sends.
+func planQualityPromptInput(issueRef, issueContent, planContent string, ledger gatestate.Ledger) judge.PromptInput {
+	return judge.PromptInput{
+		IssueRef:      issueRef,
+		IssueContent:  issueContent,
+		PlanContent:   planContent,
+		PriorFindings: gatestate.RenderPriorFindings(ledger),
+	}
 }
 
 // runPlanQualityJudge dispatches the STATEFUL plan-quality judge (#187).
@@ -591,10 +617,7 @@ func readOptionalPlanFile(plansDir, name string) string {
 // The thin IO seam over internal/gatestate (ARCH-PURE): this function owns the filesystem,
 // the clock, and the subprocess; every decision is pure and unit-tested next door.
 func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, issuePath, issueContent, planContent string) error {
-	issueRef := name
-	if f.Issue > 0 {
-		issueRef = fmt.Sprintf("ariadne#%d", f.Issue)
-	}
+	issueRef := planningIssueRef(name, f.Issue)
 	issueFile := filepath.Base(issuePath)
 
 	ledger, lerr := readPlanGateLedger(f.PlansDir, issueFile, f.Issue)
@@ -616,12 +639,7 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 		return nil
 	}
 
-	prompt := judge.BuildPrompt(judge.PlanQuality, judge.PromptInput{
-		IssueRef:      issueRef,
-		IssueContent:  issueContent,
-		PlanContent:   planContent,
-		PriorFindings: gatestate.RenderPriorFindings(ledger),
-	})
+	prompt := judge.BuildPrompt(judge.PlanQuality, planQualityPromptInput(issueRef, issueContent, planContent, ledger))
 
 	agent := judge.ResolveAgentCLI(f.Agent, f.AgentExplicit, judge.CurrentAgentDefaultEnv())
 	tools := judge.PlanQuality.AllowedTools()
@@ -852,13 +870,8 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 		return nil
 	}
 
-	issueRef := name
-	if f.Issue > 0 {
-		issueRef = fmt.Sprintf("ariadne#%d", f.Issue)
-	}
-
 	prompt := judge.BuildPrompt(judge.EstimateQuality, judge.PromptInput{
-		IssueRef:     issueRef,
+		IssueRef:     planningIssueRef(name, f.Issue),
 		IssueContent: issueContent,
 	})
 

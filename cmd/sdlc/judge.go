@@ -14,6 +14,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -35,9 +36,9 @@ type judgeFlags struct {
 	Sandbox       bool
 	AgentExplicit bool
 
-	// Milestone-review-only flags. --issue is the ariadne workshop ID
-	// (per the convention codified in the lift table), used to label
-	// the review.
+	// --issue is the ariadne workshop ID (per the convention codified in
+	// the lift table): it labels a milestone-review and names the issue
+	// plan-quality judges. --milestone is milestone-review only.
 	Issue     int
 	Milestone string
 }
@@ -62,10 +63,10 @@ func NewJudgeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.Tools, "tools", "", "tool allowlist for claude (default: per-category, see --help)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
-	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding optional durable plans (milestone-review only)")
+	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding optional durable plans (milestone-review, plan-quality)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print prompt + would-be command; do not invoke agent")
 	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", isSandbox(), "pass auto-approve flags to codex/gemini")
-	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (milestone-review only)")
+	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (milestone-review; required by plan-quality)")
 	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag e.g. M4 (milestone-review only)")
 	return cmd
 }
@@ -124,6 +125,8 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 			IssueRef: o.IssueRef, Repo: o.Repo, RepoRoot: o.RepoRoot,
 			IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
 		})
+	} else if cat == judge.PlanQuality {
+		prompt = planQualityJudgePrompt(stderr, f)
 	} else {
 		diff, changed, err := collectDiff(cat, base, head, f.IssuesDir, f.HistoryDir)
 		if err != nil {
@@ -263,4 +266,36 @@ func categoryNames() []string {
 		out = append(out, string(c))
 	}
 	return out
+}
+
+// planQualityJudgePrompt renders the plan-quality prompt from the issue, its
+// durable plan and its ledger through change-code's own resolution (#189).
+// plan-quality is change-code's stateful gate: `judge` holds no ledger it may
+// write, so it renders the gate's prompt with prior findings read-only and
+// refuses a live dispatch whose findings nobody would record.
+func planQualityJudgePrompt(stderr io.Writer, f *judgeFlags) string {
+	if f.Issue <= 0 {
+		die(stderr, "judge plan-quality reviews one issue: pass --issue N")
+	}
+	if !f.DryRun {
+		die(stderr, "judge plan-quality is the stateful gate `sdlc change-code` runs and records; "+
+			"run `sdlc change-code`, or `sdlc judge plan-quality --issue N --dry-run` to see its prompt")
+	}
+	name, issuePath, err := resolveChangeCodeName(&changeCodeFlags{Issue: f.Issue, IssuesDir: f.IssuesDir}, changeCodeRunner)
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	issueBytes, err := os.ReadFile(issuePath)
+	if err != nil {
+		die(stderr, fmt.Sprintf("read issue file %s: %v", issuePath, err))
+	}
+	plan, err := captureReviewArtifact(planArtifactPath(f.PlansDir, name))
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	ledger, err := readPlanGateLedger(f.PlansDir, filepath.Base(issuePath), f.Issue)
+	if err != nil {
+		die(stderr, "plan-gate ledger: "+err.Error())
+	}
+	return judge.BuildPrompt(judge.PlanQuality, planQualityPromptInput(planningIssueRef(name, f.Issue), string(issueBytes), plan.text, ledger))
 }
