@@ -78,3 +78,10 @@ repo's `make test` takes it after `weave refresh` (ARCH-DRY: one helper, one wir
   Makefile.workflow exports `WF_TEST_LOCK_HELD_BY` (the holder's make pid) instead.
 - `scripts/test-lock.test.sh`: 12/12 pass (serialize + holder shown, kill -9 of the
   watcher releases, re-entrant, off, timeout, make wiring).
+- Close review round 1 (FIX-THEN-SHIP): [BR-1] Important, a valid-JSON record of the
+  wrong shape crashed the waiter → `holder()` validates shape, reads as unidentified.
+  Minors fixed in round: the helper now resolves beside `Makefile.workflow`'s real path
+  (no manifest symlink, no weave-refresh dependency; a missing helper warns instead of
+  silently skipping), and the watcher ignores SIGINT/SIGHUP (make's exit releases) and
+  its poll fallback treats PermissionError as alive. Regression tests added; 14/14 pass.
+  Pair re-simulated with only the `Makefile.workflow` symlink: `make -n test` blocks.

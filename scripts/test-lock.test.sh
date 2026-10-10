@@ -23,6 +23,12 @@ kill $a; t0=$(date +%s)
 wait $waiter
 check "holder exit hands the lock over promptly" '[ $(( $(date +%s) - t0 )) -le 2 ] && [ "$(cat "$tmp/b.out")" = acquired ]'
 
+# ^C or a hangup to make's process group reaches the watcher; make's exit, not
+# the signal, releases the lock.
+watcher=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["holder"])' "$WF_TEST_LOCK_FILE")
+kill -INT "$watcher"; kill -HUP "$watcher"; sleep 0.2
+check "watcher survives SIGINT and SIGHUP" 'kill -0 "$watcher" 2>/dev/null'
+
 # Killing the holder process itself releases at once.
 holder=$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["holder"])' "$WF_TEST_LOCK_FILE")
 kill -9 "$holder"; sleep 0.2
@@ -36,6 +42,11 @@ check "nested make test is re-entrant" '[ "$(WF_TEST_LOCK_HELD_BY=$c lock $d)" =
 out=$(WF_TEST_LOCK_TIMEOUT=1 lock $d 2>"$tmp/d.err")
 check "bounded wait times out" '[ "$out" = timeout ] && grep -q "a lock wait, not a test failure" "$tmp/d.err"'
 check "escape hatch skips loudly" '[ "$(WF_TEST_LOCK=off lock $d 2>"$tmp/e.err")" = skipped ] && grep -q "WF_TEST_LOCK=off" "$tmp/e.err"'
+
+# A record that isn't ours (valid JSON, wrong shape) reads as unidentified, not a crash.
+printf '[1, 2]' >"$WF_TEST_LOCK_FILE"
+out=$(WF_TEST_LOCK_TIMEOUT=1 lock $d 2>"$tmp/f.err")
+check "foreign record reads as unidentified" '[ "$out" = timeout ] && grep -q "unidentified holder" "$tmp/f.err"'
 
 # Makefile.workflow wiring: `make test` blocks on the held lock; other goals don't.
 check "make test fails on a lock wait timeout" '! WF_TEST_LOCK_TIMEOUT=1 make -n test >/dev/null 2>"$tmp/m.err" && grep -q "full-suite lock not taken (timeout)" "$tmp/m.err"'

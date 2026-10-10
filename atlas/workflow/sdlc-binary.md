@@ -1353,7 +1353,9 @@ need is #262.
 A full `make test` in any woven repo (ariadne, pair, parley.nvim, …) first takes
 a machine-wide lock, so suites from parallel slots and repos run one at a time
 instead of oversubscribing the cores. `Makefile.workflow` takes it at parse time
-whenever `test` is a goal, through the base-layer helper `scripts/test-lock.py`:
+whenever `test` is a goal, through ariadne's `scripts/test-lock.py`, resolved
+beside `Makefile.workflow`'s real path (so a woven repo needs no copy, and a
+missing helper warns that the run is unlocked):
 `flock` on `${XDG_STATE_HOME:-~/.local/state}/ariadne/test-suite.lock`, held by a
 forked watcher until that `make` exits, so a crash or kill releases it at once.
 Parse time matters: a prerequisite would run after the test target's own

@@ -8,11 +8,16 @@ WF_HELP_TARGETS := help-workflow
 # #319: a full `make test` takes a machine-wide lock so suites from different
 # slots and repos run one at a time. It is taken here, at parse time, because a
 # prerequisite would run after the test target's own prerequisites; $$PPID in
-# $(shell) is this make, whose exit releases the lock. WF_TEST_LOCK=off skips it;
-# WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait. Targeted runs never come here.
+# $(shell) is this make, whose exit releases the lock. The helper resolves beside
+# this file's real path (ariadne's), so a woven repo needs no copy of it.
+# WF_TEST_LOCK=off skips it; WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait.
+# Targeted runs never come here.
+WF_TEST_LOCK_HELPER := $(WF_WORKFLOW_SOURCE_DIR)scripts/test-lock.py
 ifneq ($(filter test,$(MAKECMDGOALS)),)
-ifneq ($(wildcard scripts/test-lock.py),)
-WF_TEST_LOCK_STATE := $(shell python3 scripts/test-lock.py acquire --watch $$PPID)
+ifeq ($(wildcard $(WF_TEST_LOCK_HELPER)),)
+$(warning [test-lock] $(WF_TEST_LOCK_HELPER) missing: running WITHOUT the machine-wide full-suite lock)
+else
+WF_TEST_LOCK_STATE := $(shell python3 $(WF_TEST_LOCK_HELPER) acquire --watch $$PPID)
 ifeq ($(filter acquired reentrant skipped,$(WF_TEST_LOCK_STATE)),)
 $(error full-suite lock not taken ($(or $(WF_TEST_LOCK_STATE),helper failed)); see the [test-lock] lines above)
 endif

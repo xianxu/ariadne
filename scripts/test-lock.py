@@ -20,6 +20,7 @@ import fcntl
 import json
 import os
 import select
+import signal
 import subprocess
 import sys
 import time
@@ -40,10 +41,13 @@ def lock_path():
 
 
 def holder(fd):
+    """The holder's record, or None while it is unwritten or not one of ours."""
     try:
-        return json.loads(os.pread(fd, 65536, 0) or b"null")
+        rec = json.loads(os.pread(fd, 65536, 0) or b"null")
     except ValueError:
         return None
+    keys = ("repo", "worktree", "pid", "started")
+    return rec if isinstance(rec, dict) and all(k in rec for k in keys) else None
 
 
 def describe(rec):
@@ -66,6 +70,8 @@ def wait_for_exit(pid):
             os.kill(pid, 0)
         except ProcessLookupError:
             return
+        except PermissionError:  # alive, owned by someone else
+            pass
         time.sleep(0.5)
 
 
@@ -104,6 +110,10 @@ def acquire(watch):
         log(f"lock acquired after {int(time.time() - start)}s")
     child = os.fork()
     if child == 0:  # watcher: hold the inherited lock until make exits
+        # Make's process group gets ^C and hangups too; make's exit, not the
+        # signal, is what releases the lock.
+        for sig in (signal.SIGINT, signal.SIGHUP):
+            signal.signal(sig, signal.SIG_IGN)
         null = os.open(os.devnull, os.O_RDWR)
         for std in (0, 1, 2):
             os.dup2(null, std)
