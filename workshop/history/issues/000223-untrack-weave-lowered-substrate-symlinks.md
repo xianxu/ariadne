@@ -1,12 +1,20 @@
 ---
 id: 000223
-status: open
+status: wontfix
 deps: []
 github_issue:
 created: 2026-09-11
-updated: 2026-09-11
+updated: 2026-10-09
 estimate_hours:
-card_mirror: 'c5813e3024e354ef4c8b4ef908054690821b019a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0894b12a4011b340621c2871bc2596a757a6c8a2' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # weave-lowered substrate symlinks are tracked in every derivative, so weave's own prune and refresh show up as git churn
@@ -111,6 +119,8 @@ in couch.
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): obsolete: #241 untracked the inherited weave links (pair 2347d2c7); no tracked weave symlinks remain in pair, parley.nvim, tools, kbench, nous (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-09-11
 
 - Filed from the brain advisor session. Inventory by `git ls-files -s | awk
