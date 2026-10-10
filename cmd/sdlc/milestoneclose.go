@@ -170,7 +170,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 	if perr != nil {
 		cwarn(stderr, fmt.Sprintf("resolve issue file for review window: %v", perr))
 	}
-	base, baseLong, head, windowBase := resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath, resolvePlansDir(f.PlansDir))
+	base, baseLong, head, windowBase := resolveReviewWindow(commandContext(f.Context), strconv.Itoa(f.Issue), f.Milestone, issuePath, resolvePlansDir(f.PlansDir))
 
 	// Step 3: dispatch → finalize-on-verdict, or short-circuit the explicit skips.
 	switch {
@@ -183,10 +183,15 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		// stamped (#304 D5): the next boundary's window still covers this one's work.
 		cinfo(stderr, "skipping milestone-review per --no-judge (or --force)")
 		applyClose(stdout, stderr, closeRunner, closeF, r)
-		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong, WindowBase: windowBase}, "milestone-close")
+		skipped := reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong, WindowBase: windowBase}
+		emitTrailerBlock(stdout, skipped, "milestone-close")
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, judge.VerdictNotRun); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
 		}
+		// The skip is still a boundary the issue close verifies: commit its not-run
+		// evidence too (#197), after every write it records, but pin nothing — no
+		// review read anything.
+		finalizeMilestoneEvidence(stderr, closeF, r, skipped, false)
 		milestonePush(commandContext(f.Context), stderr)
 		return nil
 	case f.DryRun:
@@ -229,7 +234,7 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 		if perr != nil {
 			cwarn(stderr, fmt.Sprintf("resolve issue file for review window: %v", perr))
 		}
-		base, baseLong, head, windowBase = resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath, resolvePlansDir(f.PlansDir))
+		base, baseLong, head, windowBase = resolveReviewWindow(commandContext(f.Context), strconv.Itoa(f.Issue), f.Milestone, issuePath, resolvePlansDir(f.PlansDir))
 		captured, captureErr := captureCloseReviewSnapshot(r, head, f.Milestone, resolvePlansDir(f.PlansDir))
 		if captureErr != nil {
 			return captureErr
@@ -280,8 +285,8 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 //
 // Returns ("?", "", "HEAD") when no commit anchors the window (e.g., a docs-only
 // milestone with no #N commits) so the trailer still has something to write.
-func resolveReviewWindow(issueStr, milestone, issuePath, plansDir string) (base, baseLong, head, windowBase string) {
-	w := planBoundaryWindow(context.Background(), issueStr, milestone, issuePath, plansDir)
+func resolveReviewWindow(ctx context.Context, issueStr, milestone, issuePath, plansDir string) (base, baseLong, head, windowBase string) {
+	w := planBoundaryWindow(ctx, issueStr, milestone, issuePath, plansDir)
 	head = w.Head
 	if w.Kind == windowNone {
 		return "?", "", head, ""
@@ -299,8 +304,8 @@ func resolveReviewWindow(issueStr, milestone, issuePath, plansDir string) (base,
 // start. A later milestone diffs from the last finalized review's head replayed onto
 // today's main, so integrating main never widens it. Returns "" when no anchor
 // exists (no #N commit yet).
-func boundaryWindowBase(issueStr, milestone, issuePath, plansDir string) string {
-	return planBoundaryWindow(context.Background(), issueStr, milestone, issuePath, plansDir).Base
+func boundaryWindowBase(ctx context.Context, issueStr, milestone, issuePath, plansDir string) string {
+	return planBoundaryWindow(ctx, issueStr, milestone, issuePath, plansDir).Base
 }
 
 // branchStartByIssue returns the parent of the first commit referencing #N (the

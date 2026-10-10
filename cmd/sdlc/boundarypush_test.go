@@ -124,7 +124,12 @@ func TestBoundaryVerbsPushTheIssueBranch(t *testing.T) {
 	// Both of milestone-close's finishing paths push: the operator's skip...
 	run("milestone-close", "--issue", "320", "--milestone", "M1", "--verified", "e2e", "--actual", "0.1", "--no-atlas", "--no-project", "--no-judge")
 	atHead("milestone-close --no-judge")
-	r.git("commit", "-qam", "#320 M1: milestone close")
+	if gitSucceeds(r.root, "rev-parse", "-q", "--verify", "refs/sdlc/reviewed/000320/M1") {
+		t.Fatal("a --no-judge milestone reviewed nothing and must not pin a reviewed head (#304 D5)")
+	}
+	if msg := r.git("log", "-1", "--format=%B"); !strings.Contains(msg, "#320 M1: close") || !strings.Contains(msg, "Review-Verdict: not-run") {
+		t.Fatalf("the skipped milestone must still commit its not-run evidence (#197):\n%s", msg)
+	}
 	// ...and a judged review's finalize.
 	writeRepoFile(t, r.root, "cmd/b.go", "package a\n")
 	r.git("add", "cmd/b.go")
@@ -132,8 +137,6 @@ func TestBoundaryVerbsPushTheIssueBranch(t *testing.T) {
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\n```findings\nfindings: []\n```\n")
 	run("milestone-close", "--issue", "320", "--milestone", "M2", "--verified", "e2e", "--actual", "0.1", "--no-atlas", "--no-project")
 	atHead("a judged milestone-close")
-	r.git("add", "-A", "workshop")
-	r.git("commit", "-qm", "#320 M2: milestone close")
 
 	stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nfine\n")
 	run("close", "--issue", "320", "--verified", "e2e", "--actual", "1", "--no-atlas", "--no-ledger", "--no-project")

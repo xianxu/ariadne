@@ -341,6 +341,9 @@ func TestTrackerCloseSurvivesARebase(t *testing.T) {
 				// The first close pushed the branch (#286); the owner's leased
 				// push of the rebase is what leaves the old commits unreferenced.
 				r.git("push", "-q", "--force-with-lease", "origin", r.git("branch", "--show-current"))
+				// #304's reviewed-head pin keeps it alive in THIS checkout; the case
+				// models a checkout without it (another clone), so drop the pin.
+				r.git("update-ref", "-d", "refs/sdlc/reviewed/"+fmt.Sprintf("%06d", id)+"/close")
 				r.git("reflog", "expire", "--expire=now", "--all")
 				r.git("gc", "-q", "--prune=now")
 				if gitSucceeds(r.root, "cat-file", "-e", first.ReviewedHEAD+"^{commit}") {

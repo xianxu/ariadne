@@ -91,13 +91,13 @@ func runPublishGate(ctx context.Context, baseRef, issuesDir string, stderr io.Wr
 		if err != nil {
 			return err
 		}
-		return validatePublishAnchors(ownedPublishIssues(owned), stderr)
+		return validatePublishAnchors(ctx, ownedPublishIssues(owned), stderr)
 	}
 	issues, err := mergedCodecompleteIssues(ctx, baseRef, issuesDir)
 	if err != nil {
 		return err
 	}
-	return validatePublishIssues(issues, stderr)
+	return validatePublishIssues(ctx, issues, stderr)
 }
 
 // ownedPublishIssues anchors each owned completion on its evidence commit.
@@ -111,7 +111,7 @@ func ownedPublishIssues(owned []ownedCompletion) []publishIssue {
 
 // validatePublishIssues anchors pre-tracker issues on the newest commit that
 // left them codecomplete, then applies the shared checks.
-func validatePublishIssues(issues []string, stderr io.Writer) error {
+func validatePublishIssues(ctx context.Context, issues []string, stderr io.Writer) error {
 	entries := make([]publishIssue, 0, len(issues))
 	for _, p := range issues {
 		a := codecompleteAnchorCommit(p)
@@ -122,13 +122,13 @@ func validatePublishIssues(issues []string, stderr io.Writer) error {
 		}
 		entries = append(entries, publishIssue{Path: p, Anchor: a})
 	}
-	return validatePublishAnchors(entries, stderr)
+	return validatePublishAnchors(ctx, entries, stderr)
 }
 
 // validatePublishAnchors shares the reviewed-head, docs-only and quick-flow
 // checks across ordinary diff selection, immutable landing ownership and card
 // completion bindings (#252).
-func validatePublishAnchors(entries []publishIssue, stderr io.Writer) error {
+func validatePublishAnchors(ctx context.Context, entries []publishIssue, stderr io.Writer) error {
 	issues := make([]string, 0, len(entries))
 	for _, e := range entries {
 		if e.Path != "" {
@@ -166,7 +166,7 @@ func validatePublishAnchors(entries []publishIssue, stderr io.Writer) error {
 		}
 		if !publishGateHasCodeSurface(paths) {
 			cinfo(stderr, formatPublishGateDocsOnly(minAhead, shortSHA(newestAnchor)))
-			return quickGrewPastReview(issues)
+			return quickGrewPastReview(ctx, issues)
 		}
 		return fmt.Errorf(
 			"publish gate: %d commit(s) landed after `sdlc close` (anchor %s) — the boundary review no longer covers HEAD.\n"+
@@ -174,7 +174,7 @@ func validatePublishAnchors(entries []publishIssue, stderr io.Writer) error {
 				"  (Next time: bundle post-close bookkeeping into the close commit — doc-only deltas pass on their own, #174.)",
 			minAhead, shortSHA(newestAnchor))
 	}
-	if err := quickGrewPastReview(issues); err != nil {
+	if err := quickGrewPastReview(ctx, issues); err != nil {
 		return err
 	}
 	cok(stderr, fmt.Sprintf("publish gate: HEAD unchanged since close (anchor %s) — reviewed-HEAD-unchanged ✓", shortSHA(newestAnchor)))
@@ -191,7 +191,7 @@ func validatePublishAnchors(entries []publishIssue, stderr io.Writer) error {
 // Deterministic, like the rest of the gate: the review runs in close. A full
 // issue (or one without a readable quick record) is not the quick flow's to
 // re-measure.
-func quickGrewPastReview(issues []string) error {
+func quickGrewPastReview(ctx context.Context, issues []string) error {
 	for _, p := range issues {
 		content, err := os.ReadFile(p)
 		if err != nil {
@@ -206,7 +206,7 @@ func quickGrewPastReview(issues []string) error {
 			continue
 		}
 		n := issueIDFromPath(p)
-		base := boundaryWindowBase(strconv.Itoa(n), "", "", "")
+		base := boundaryWindowBase(ctx, strconv.Itoa(n), "", "", "")
 		if base == "" {
 			continue // no #N commit anchors a window: nothing was measured at close either
 		}

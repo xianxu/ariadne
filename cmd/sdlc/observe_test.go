@@ -331,7 +331,7 @@ func TestObserveMilestonesThroughTheRealGates(t *testing.T) {
 	if err := run("milestone-close", "--issue", "396", "--milestone", "M1", "--verified", "e2e", "--actual", "0.1", "--no-atlas", "--no-project"); err != nil {
 		t.Fatalf("M1: %v", err)
 	}
-	commitAll("#396 M1: milestone close")
+	// #304/#197: milestone-close committed its own evidence; nothing to commit here.
 	writeRepoFile(t, r.root, "cmd/b.go", "package a\n")
 	r.git("add", "cmd/b.go")
 	r.git("commit", "-qm", "#396 M2: implement")
