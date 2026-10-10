@@ -92,9 +92,9 @@ func TestPrintActualWarnings(t *testing.T) {
 	}
 }
 
-// TestWindowStart pins the #113 window-start picker: the EARLIER of the
-// parent-of-first-#N anchor and the claim's working-transition, with either
-// empty falling back to the other.
+// TestWindowStart pins the claim anchor (#113, #254 folded into #270): the
+// claim wins whenever it exists, earlier or later than the parent-of-first-#N
+// anchor, which only stands in without a claim.
 func TestWindowStart(t *testing.T) {
 	const (
 		early = "2026-06-10T09:00:00-07:00"
@@ -104,12 +104,11 @@ func TestWindowStart(t *testing.T) {
 		name             string
 		parent, wt, want string
 	}{
-		{"claim-early: wt earlier wins", late, early, early},
-		{"late claim: parent earlier wins", early, late, early},
-		{"no working-transition: parent", late, "", late},
-		{"no commit anchor: wt", "", early, early},
+		{"claim after design commits: claim", early, late, late},
+		{"claim before the first commit: claim", late, early, early},
+		{"no claim: parent", late, "", late},
+		{"no commit anchor: claim", "", early, early},
 		{"both empty", "", "", ""},
-		{"equal: either (parent)", early, early, early},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -120,10 +119,8 @@ func TestWindowStart(t *testing.T) {
 	}
 }
 
-// TestResolveWindowStart pins the #116 three-anchor preference: explicit
-// `started:` → WorkingTransitionISO heuristic → commit-parent, all delegated to
-// windowStart's earlier-of pick (so a `started:` later than the commit window
-// never regresses the start).
+// TestResolveWindowStart pins the anchor preference: explicit `started:` →
+// WorkingTransitionISO heuristic → commit-parent.
 func TestResolveWindowStart(t *testing.T) {
 	const (
 		t0 = "2026-06-10T08:00:00-07:00" // earliest
@@ -134,10 +131,10 @@ func TestResolveWindowStart(t *testing.T) {
 		name                      string
 		parent, started, wt, want string
 	}{
-		{"started supersedes wt (earliest wins)", t2, t0, t1, t0},
+		{"started supersedes wt", t2, t0, t1, t0},
 		{"no started: falls back to wt heuristic", t2, "", t1, t1},
 		{"neither: commit-parent default", t2, "", "", t2},
-		{"started later than parent: no regression", t0, t2, t1, t0},
+		{"started later than parent: started (filing is not design)", t0, t2, t1, t2},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

@@ -13,12 +13,8 @@ import (
 	"os"
 	"os/exec"
 	"regexp"
-	"sort"
-	"strconv"
 	"strings"
 	"time"
-
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
 )
 
 // run is the package-level command runner. Test code in this package
@@ -446,57 +442,6 @@ func windowCapISO() string {
 	return time.Now().UTC().
 		Add(-time.Duration(WindowCapDays) * 24 * time.Hour).
 		Format("2006-01-02T15:04:05-07:00")
-}
-
-// DiscoverWindowIssues returns every distinct LOCAL issue number referenced in commit
-// subjects within [since, until]. `primary` is always included, even if no commits match it.
-//
-// Why all of them: the active-time-v3 algorithm anchors segments by commit-subject issue ref;
-// unrecognized refs fall into mention-fallback and inflate the closing issue's share by
-// 3-10x.
-//
-// selfRepo is this repo's name — the qualifier that counts as LOCAL, so `ariadne#180` inside
-// ariadne is kept while `pair#127` is not. It is a PARAMETER rather than a RepoTopLevel() call
-// here for two reasons: RepoTopLevel shells out via exec.Command directly, bypassing the `run`
-// shim, so a self-qualifier resolved internally would be untestable — the self-qualified case
-// would ship with no guard at all; and the single caller already holds the repo root, so
-// passing it makes the dependency explicit rather than implicit in the process cwd. "" means
-// unknown, which keeps only bare refs (ariadne#190).
-//
-// This is the entry point of the #190 chain: whatever lands here becomes activetime's tracked
-// issue set, and therefore its mention pattern.
-func DiscoverWindowIssues(sinceISO, untilISO, primary, selfRepo string) ([]string, error) {
-	// Via the package `run` shim, not exec.Command directly — the shim is the documented path
-	// for callers in this package, and it is what makes the ref filtering testable.
-	out, err := run("git", "log",
-		"--since="+sinceISO, "--until="+untilISO, "--pretty=%s",
-	)
-	if err != nil {
-		return []string{primary}, nil
-	}
-	text := strings.TrimRight(string(out), "\n")
-	seen := map[string]struct{}{}
-	for _, line := range strings.Split(text, "\n") {
-		for _, num := range issueref.LocalNums(line, selfRepo) {
-			seen[num] = struct{}{}
-		}
-	}
-	if _, ok := seen[primary]; !ok {
-		seen[primary] = struct{}{}
-	}
-	keys := make([]string, 0, len(seen))
-	for k := range seen {
-		keys = append(keys, k)
-	}
-	sort.Slice(keys, func(i, j int) bool {
-		ai, _ := strconv.Atoi(keys[i])
-		aj, _ := strconv.Atoi(keys[j])
-		return ai < aj
-	})
-	// close-issue.py: sorted set keyed by int, then primary appended if
-	// not present. Our sort already gives the numerically-sorted set;
-	// primary lands wherever its number sorts.
-	return keys, nil
 }
 
 // DiffNames returns the list of file paths changed between sinceRef and

@@ -39,7 +39,10 @@ type Options struct {
 	Files   []string
 	GitRepo string
 	// ExtraRefs are histories read beside HEAD, e.g. the issue tracker (#252).
-	ExtraRefs        []string
+	ExtraRefs []string
+	// Scope keeps another session's commits, integrated from main, from
+	// bounding this branch's segments (#270). Zero = every commit counts.
+	Scope            Scope
 	SinceISO         string
 	UntilISO         string
 	Issues           []string
@@ -92,7 +95,7 @@ func Compute(opts Options) (Result, error) {
 	if err != nil {
 		return Result{}, err
 	}
-	commits, err := loadWindowCommits(opts.GitRepo, opts.SinceISO, opts.UntilISO, opts.ExtraRefs...)
+	commits, err := loadWindowCommits(opts.GitRepo, opts.SinceISO, opts.UntilISO, opts.Scope, opts.ExtraRefs...)
 	if err != nil {
 		return Result{}, err
 	}

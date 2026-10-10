@@ -74,7 +74,7 @@ Order: judge robustness first, because every close below depends on it. Then the
 - [ ] `judge plan-quality` renders the real issue, or refuses [ariadne#189]
 
 **2. Main integration**
-- [ ] Active time on the branch's own commits, author date [ariadne#270]
+- [x] Active time on the branch's own commits, author date [ariadne#270]
 - [ ] Window starts at claim; ignore GitHub PR numbers [ariadne#254]
 - [ ] Branch-patch review windows, publish anchor and close binding [ariadne#304]
 - [ ] `--fixed-then-ship`: interdiff review after FIX-THEN-SHIP [ariadne#183]
