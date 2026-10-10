@@ -129,7 +129,7 @@ func TestRunPublishGate(t *testing.T) {
 		writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
 		commitCode(t, git, "late.go")
 		err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard)
-		if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
+		if err == nil || !strings.Contains(err.Error(), publishGateRefusal) {
 			t.Fatalf("post-close drift should refuse with a re-run-close message, got: %v", err)
 		}
 		assertGatesigAttributes(t, err.Error(), "no-judge", "merge", "push")
@@ -237,7 +237,7 @@ func TestRunPublishGate_DocsOnly(t *testing.T) {
 		commitDocs(t, git, "lessons.md")
 		commitCode(t, git, "late.go")
 		err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard)
-		if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
+		if err == nil || !strings.Contains(err.Error(), publishGateRefusal) {
 			t.Errorf("mixed delta should refuse with the pinned message, got: %v", err)
 		}
 	})
@@ -255,7 +255,7 @@ func TestRunPublishGate_DocsOnly(t *testing.T) {
 
 // TestFormatPublishGateDocsOnly_ContractElements pins the pass line's content
 // and, critically, that it collides with no gatesig classifier pattern — the
-// refusal vocabulary ("landed after") lives one branch away (#172).
+// refusal vocabulary (publishGateRefusal) lives one branch away (#172).
 func TestFormatPublishGateDocsOnly_ContractElements(t *testing.T) {
 	msg := formatPublishGateDocsOnly(3, "abc1234")
 	for _, w := range []string{"3", "abc1234", "doc-only", "#174"} {
@@ -279,7 +279,7 @@ func TestRunPublishGate_EmbeddedHelptextIsCodeSurface(t *testing.T) {
 	git("add", "cmd/sdlc/helptext/close.md")
 	git("commit", "-q", "-m", "docs: helptext tweak")
 	err := runPublishGate(context.Background(), base, "workshop/issues", io.Discard)
-	if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
+	if err == nil || !strings.Contains(err.Error(), publishGateRefusal) {
 		t.Errorf("embedded-helptext delta should refuse, got: %v", err)
 	}
 }
@@ -386,4 +386,112 @@ func TestRunPublishGate_QuickGrewPastReview(t *testing.T) {
 			assertGatesigAttributes(t, err.Error(), "no-judge", "merge", "push")
 		})
 	}
+}
+
+func TestClassifyPublishDelta(t *testing.T) {
+	a := strings.Repeat("a", 40)
+	cases := []struct {
+		name  string
+		d     publishDelta
+		pass  bool
+		token string // each row asserts its OWN cause (lesson BR-8)
+	}{
+		{"exact", publishDelta{Anchor: a}, true, "exactly the reviewed patch"},
+		{"docs only", publishDelta{Anchor: a, Paths: []string{"workshop/lessons.md", "atlas/x.md"}}, true, "doc-only"},
+		{"code", publishDelta{Anchor: a, Paths: []string{"atlas/x.md", "cmd/a.go"}}, false, "code changed after `sdlc close` (reviewed aaaaaaaaaaaa): cmd/a.go."},
+		{"conflict", publishDelta{Anchor: a, Conflicted: []string{"shared.go"}, Paths: []string{"shared.go"}}, false, "conflict with the reviewed patch in shared.go"},
+		{"unresolvable", publishDelta{Anchor: a, Unresolvable: "the reviewed commit x is not in this repository"}, false, "not in this repository"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			pass, msg := classifyPublishDelta(c.d)
+			if pass != c.pass || !strings.Contains(msg, c.token) {
+				t.Fatalf("got (%v, %q), want pass=%v containing %q", pass, msg, c.pass, c.token)
+			}
+			if !pass && (!strings.HasPrefix(msg, publishGateRefusal) || !strings.Contains(msg, "Re-run `sdlc close")) {
+				t.Fatalf("a refusal carries the shared prefix and the next action: %q", msg)
+			}
+		})
+	}
+}
+
+// #304 A4: the publish gate compares HEAD with the REVIEWED PATCH replayed onto today's
+// main, so integrating main after close (merge or rebase) needs no re-close, while the
+// branch's own post-close code still refuses — naming only the branch's files.
+func TestRunPublishGate_BranchPatch(t *testing.T) {
+	setup := func(t *testing.T, conflict bool) (func(...string), string) {
+		git, _ := publishRepo(t)
+		os.WriteFile("shared.go", []byte("l1\nl2\nl3\n"), 0o644)
+		git("add", "shared.go")
+		git("commit", "-q", "-m", "seed")
+		base := strings.TrimSpace(gitx.Capture("rev-parse", "HEAD"))
+		git("switch", "-q", "-c", "issue-69")
+		commitCode(t, git, "mine.go")
+		if conflict {
+			os.WriteFile("shared.go", []byte("l1\nISSUE\nl3\n"), 0o644)
+			git("commit", "-q", "-am", "#69: shared")
+		}
+		writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
+		git("switch", "-q", "main")
+		commitCode(t, git, "foreign.go")
+		if conflict {
+			os.WriteFile("shared.go", []byte("l1\nMAIN\nl3\n"), 0o644)
+			git("commit", "-q", "-am", "#999: shared")
+		}
+		git("switch", "-q", "issue-69")
+		return git, base
+	}
+	gate := func(base string) error {
+		return runPublishGate(context.Background(), base, "workshop/issues", io.Discard)
+	}
+	t.Run("merge of main after close passes", func(t *testing.T) {
+		git, base := setup(t, false)
+		git("merge", "-q", "--no-edit", "main")
+		if err := gate(base); err != nil {
+			t.Fatalf("a clean merge of main must not force a re-close: %v", err)
+		}
+	})
+	t.Run("rebase onto main after close passes", func(t *testing.T) {
+		git, base := setup(t, false)
+		git("rebase", "-q", "main")
+		if err := gate(base); err != nil {
+			t.Fatalf("a rebase onto main must not force a re-close: %v", err)
+		}
+	})
+	t.Run("own code after a merge refuses, naming only it", func(t *testing.T) {
+		git, base := setup(t, false)
+		git("merge", "-q", "--no-edit", "main")
+		commitCode(t, git, "late.go")
+		err := gate(base)
+		if err == nil || !strings.Contains(err.Error(), "late.go") || strings.Contains(err.Error(), "foreign.go") {
+			t.Fatalf("want a refusal naming late.go only, got: %v", err)
+		}
+	})
+	t.Run("docs after close pass", func(t *testing.T) {
+		git, base := setup(t, false)
+		git("merge", "-q", "--no-edit", "main")
+		commitDocs(t, git, "notes.md")
+		if err := gate(base); err != nil {
+			t.Fatalf("doc-only delta must pass: %v", err)
+		}
+	})
+	t.Run("a conflicting merge refuses, naming the conflict", func(t *testing.T) {
+		git, base := setup(t, true)
+		_ = exec.Command("git", "merge", "-q", "--no-edit", "main").Run()
+		os.WriteFile("shared.go", []byte("l1\nRESOLVED\nl3\n"), 0o644)
+		git("commit", "-q", "-am", "#69: merge main")
+		err := gate(base)
+		if err == nil || !strings.Contains(err.Error(), "conflict with the reviewed patch in shared.go") {
+			t.Fatalf("want the conflict refusal, got: %v", err)
+		}
+	})
+	t.Run("several closes: the newest covers the rest", func(t *testing.T) {
+		git, base := publishRepo(t)
+		writeIssueStatus(t, git, 69, "codecomplete", "#69 close")
+		commitCode(t, git, "seventy.go")
+		writeIssueStatus(t, git, 70, "codecomplete", "#70 close")
+		if err := gate(base); err != nil {
+			t.Fatalf("#70's close reviewed #69's patch too: %v", err)
+		}
+	})
 }
