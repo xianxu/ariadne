@@ -1,12 +1,20 @@
 ---
 id: 000306
-status: open
+status: wontfix
 deps: [ariadne#274]
 github_issue:
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-09
 estimate_hours:
-card_mirror: '1eaefb542a1bc8697c473af50faee27854d76c55' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7209e61f981d79904b693c7f1d0ed92443e825fc' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:40:42-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # handoff guard refuses the owner's post-merge fix on main
@@ -51,6 +59,8 @@ close → push) should not need a branch-ref trick to publish.
 
 ## Log
 
+
+- 2026-10-09: abandoned (wontfix): fixed by #285 (merged 2026-10-08): ownership comes from the card claimant; tools#83 ran the pre-#285 guard; the post-merge owner edit is a transferguard_test.go row (ariadne-robustness-1 triage, 2026-10-09)
 ### 2026-10-08
 
 Filed from tools#83 at the operator's request; see ariadne#274 for the shared rule.
