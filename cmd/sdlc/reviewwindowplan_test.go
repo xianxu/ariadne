@@ -267,3 +267,36 @@ func TestReviewWindow_CrissCrossIsANamedFallback(t *testing.T) {
 		}
 	}
 }
+
+// #304 BR-5: a hand-edited ledger value is never handed to git. An option-like
+// `reviewed:` reads as unusable, and the window over-covers to the branch patch.
+func TestMilestoneWindow_RejectsANonSHAReviewedValue(t *testing.T) {
+	runGit, _, issuePath := windowRepo(t, 304)
+	commitTouchingIssue(t, runGit, issuePath, "filed", "#304: file", "")
+	runGit("switch", "-q", "-c", "issue-304")
+	commitMarkerOnly(t, runGit, "m1.go", "#304 M1: work")
+	l := gatestate.Ledger{Gate: boundaryGateKind.Gate, IssueNum: 304, IDPrefix: boundaryGateKind.IDPrefix,
+		Rounds: []gatestate.Round{{N: 1, Boundary: "M1", Agent: "claude", Timestamp: "t", Reviewed: "--output=/tmp/x"}}}
+	if err := writeBoundaryGateLedger("workshop/plans", filepath.Base(issuePath), l, "repo"); err != nil {
+		t.Fatal(err)
+	}
+	w := planBoundaryWindow(context.Background(), "304", "M2", issuePath, "workshop/plans")
+	if w.Kind != windowBranchPatch {
+		t.Fatalf("a non-SHA reviewed value must not drive the window: %s", formatReviewWindow(w))
+	}
+}
+
+// #304 BR-4: a tracker repository whose main cannot be fetched measures against main
+// as last fetched, and the window SAYS so.
+func TestReviewWindow_NamesAStaleMainWhenTheFetchFails(t *testing.T) {
+	r := newTrackerRepo(t, nil, nil)
+	r.git("switch", "-q", "-c", "issue-304")
+	writeRepoFile(t, r.root, "mine.go", "package mine\n")
+	r.git("add", "mine.go")
+	r.git("commit", "-qm", "#304: mine")
+	r.git("remote", "set-url", "origin", filepath.Join(t.TempDir(), "gone.git"))
+	w := planBoundaryWindow(context.Background(), "304", "", "", "")
+	if !strings.Contains(w.Note, "last fetched") {
+		t.Fatalf("a failed fetch must be named in the window: %s", formatReviewWindow(w))
+	}
+}

@@ -147,3 +147,4 @@ Durable plan: `workshop/plans/000304-whole-issue-close-review-window-collapses-a
   - Tests added: FIX-THEN-SHIP milestone evidence (Task 6c); legacy no-commit stamp + pin (6d).
   - Lesson added: re-read readers when a verb starts producing an artifact.
 - Process note: milestone-close needed `--actual` (measured 1.01h) and `--no-project` (the project tracks issues; TL-owned file).
+- **M1 closed** (round 2 SHIP; the binary's own evidence commit `1b01de5b`, pushed). Advisory BR-4/BR-5 now have tests (`NamesAStaleMainWhenTheFetchFails`, `RejectsANonSHAReviewedValue`), both mutation-checked. Starting M2.
