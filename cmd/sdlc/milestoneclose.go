@@ -68,6 +68,7 @@ type reviewResult struct {
 	Base          string // short SHA
 	Head          string // reviewed head: long SHA (falls back to "HEAD" only when rev-parse fails)
 	BaseLong      string // long SHA, used by trailer-verifier lookups in close
+	WindowBase    string // #304: the base a person reads (B or H_r); BaseLong may be a synthetic S
 	SidecarPath   string // #136: durable final-review-response path ("" when no review ran)
 	Output        string // semantic review body, retained when sidecar writing is deferred
 	Agent         string // resolved reviewer CLI, retained for deferred sidecar metadata
@@ -169,7 +170,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 	if perr != nil {
 		cwarn(stderr, fmt.Sprintf("resolve issue file for review window: %v", perr))
 	}
-	base, baseLong, head := resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath)
+	base, baseLong, head, windowBase := resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath, resolvePlansDir(f.PlansDir))
 
 	// Step 3: dispatch → finalize-on-verdict, or short-circuit the explicit skips.
 	switch {
@@ -182,7 +183,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		// stamped (#304 D5): the next boundary's window still covers this one's work.
 		cinfo(stderr, "skipping milestone-review per --no-judge (or --force)")
 		applyClose(stdout, stderr, closeRunner, closeF, r)
-		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong}, "milestone-close")
+		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong, WindowBase: windowBase}, "milestone-close")
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, judge.VerdictNotRun); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
 		}
@@ -191,7 +192,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 	case f.DryRun:
 		cinfo(stderr, "dry-run — would dispatch judge milestone-review")
 		printCloseDryRun(stderr, r)
-		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--dry-run", Base: base, Head: head, BaseLong: baseLong}, "milestone-close")
+		emitTrailerBlock(stdout, reviewResult{Verdict: judge.VerdictNotRun, Reason: "--dry-run", Base: base, Head: head, BaseLong: baseLong, WindowBase: windowBase}, "milestone-close")
 		return nil
 	}
 
@@ -199,6 +200,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		Label:         fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
 		Base:          base,
 		BaseLong:      baseLong,
+		WindowBase:    windowBase,
 		Head:          head,
 		IssuesDir:     f.IssuesDir,
 		Agent:         f.Agent,
@@ -219,7 +221,7 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 
 	closeF := f.closeFlags()
 	var r closeResult
-	var base, baseLong, head, prior string
+	var base, baseLong, head, windowBase, prior string
 	var snapshot closeReviewSnapshot
 	if err := withRequiredRepoTransactionLock(cmd, func() error {
 		r = computeClose(stderr, closeF)
@@ -227,7 +229,7 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 		if perr != nil {
 			cwarn(stderr, fmt.Sprintf("resolve issue file for review window: %v", perr))
 		}
-		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath)
+		base, baseLong, head, windowBase = resolveReviewWindow(strconv.Itoa(f.Issue), f.Milestone, issuePath, resolvePlansDir(f.PlansDir))
 		captured, captureErr := captureCloseReviewSnapshot(r, head, f.Milestone, resolvePlansDir(f.PlansDir))
 		if captureErr != nil {
 			return captureErr
@@ -245,6 +247,7 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 		Label:         fmt.Sprintf("#%d %s", f.Issue, f.Milestone),
 		Base:          base,
 		BaseLong:      baseLong,
+		WindowBase:    windowBase,
 		Head:          head,
 		IssuesDir:     f.IssuesDir,
 		Agent:         f.Agent,
@@ -277,54 +280,27 @@ func runMilestoneCloseLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *mi
 //
 // Returns ("?", "", "HEAD") when no commit anchors the window (e.g., a docs-only
 // milestone with no #N commits) so the trailer still has something to write.
-func resolveReviewWindow(issueStr, milestone, issuePath string) (base, baseLong, head string) {
-	// Degrade to the literal only when rev-parse cannot answer (empty repo, or a
-	// dry-run outside a work tree) — the window still needs SOMETHING to print.
-	head = "HEAD"
-	if sha := gitx.Capture("rev-parse", "HEAD"); sha != "" {
-		head = sha
+func resolveReviewWindow(issueStr, milestone, issuePath, plansDir string) (base, baseLong, head, windowBase string) {
+	w := planBoundaryWindow(context.Background(), issueStr, milestone, issuePath, plansDir)
+	head = w.Head
+	if w.Kind == windowNone {
+		return "?", "", head, ""
 	}
-	baseLong = boundaryWindowBase(issueStr, milestone, issuePath)
-	if baseLong == "" {
-		return "?", "", head
-	}
-	base = shortSHA(baseLong)
-	return base, baseLong, head
+	return shortSHA(w.Base), w.Base, head, w.HumanBase
 }
 
 // boundaryWindowBase returns the base ref of a close/review window — the commit
-// the diff runs *from* (exclusive in `base..HEAD`) — for both the atlas-coverage
-// gate (close.go) and the boundary review (milestoneclose.go). Keeping the two
-// on one window source means they provably cover the same commits (ARCH-DRY).
+// the diff runs *from* — for the atlas-coverage gate (close.go), the churn report,
+// the publish gate's quick-flow re-measure and the boundary review. One window
+// source means they provably cover the same diff (ARCH-DRY, #58).
 //
-// Milestone close: the PREVIOUS review boundary — the most recent prior commit
-// touching the issue file that carries a Review-Verdict: trailer (the prior
-// milestone close). Everything since that boundary, including inter-milestone
-// #N-but-not-Mx commits (side-quests, fixes), then lands in exactly one window
-// (#58) — previously such commits could slip between the M(x-1) and Mx windows
-// and escape review entirely.
-//
-// Whole-issue close (milestone == ""): the branch point — `merge-base(main,
-// HEAD)` — so the end-of-issue integration review covers exactly this branch's
-// commits, not unrelated history merged before the issue's first commit (#77).
-// On main (no divergence) merge-base == HEAD, so it falls back to the issue's
-// branch start. A first milestone (no prior boundary) uses that same feature-
-// branch point; only direct-on-main/no-divergence work uses the issue-specific
-// fallback. Returns "" when no anchor exists (no #N commit yet).
-func boundaryWindowBase(issueStr, milestone, issuePath string) string {
-	if milestone != "" {
-		// A prior milestone boundary wins. Without one, continue to the shared
-		// feature-branch point below (#58/#162).
-		if prev := previousReviewBoundary(issuePath); prev != "" {
-			return prev
-		}
-	}
-	// Whole-issue close or first milestone: the branch point, else (on main)
-	// the issue's own branch start.
-	if mb := gitx.MergeBaseWithMain(); mb != "" {
-		return mb
-	}
-	return branchStartByIssue(issueStr)
+// #304: the window is the BRANCH PATCH (planReviewWindow). Whole-issue close and a
+// first milestone diff from merge-base(main, HEAD) — or, on main, the issue's branch
+// start. A later milestone diffs from the last finalized review's head replayed onto
+// today's main, so integrating main never widens it. Returns "" when no anchor
+// exists (no #N commit yet).
+func boundaryWindowBase(issueStr, milestone, issuePath, plansDir string) string {
+	return planBoundaryWindow(context.Background(), issueStr, milestone, issuePath, plansDir).Base
 }
 
 // branchStartByIssue returns the parent of the first commit referencing #N (the
@@ -344,7 +320,11 @@ func branchStartByIssue(issueStr string) string {
 	return resolvedParent
 }
 
-// previousReviewBoundary returns the SHA of the most recent commit touching
+// previousReviewBoundary is the LEGACY boundary source (#304 D6): used only when the
+// ledger has no round stamped with a reviewed head, i.e. for issues whose milestones
+// closed before #304. Remove it once no open issue predates #304.
+//
+// It returns the SHA of the most recent commit touching
 // issuePath whose message carries a Review-Verdict: trailer — the prior
 // milestone-close boundary on this branch — or "" if none. Scoping to the issue
 // file means only this issue's close commits qualify (the same scoping
@@ -467,6 +447,12 @@ func reviewTrailers(r reviewResult) []string {
 	if r.BaseLong != "" {
 		base = abbrevSHA(r.BaseLong)
 	}
+	if r.WindowBase != "" {
+		// #304: an interdiff's diff base is a synthetic, unreferenced commit; the
+		// trailer names the reviewed head it stands for. Commit ids are as of the
+		// review — a later rebase leaves them historical; the ledger is the record.
+		base = abbrevSHA(r.WindowBase)
+	}
 	lines = append(lines, fmt.Sprintf("Review-Window: %s..%s", base, abbrevSHA(r.Head)))
 	if r.Reason != "" {
 		lines = append(lines, fmt.Sprintf("Review-Reason: %s", r.Reason))
@@ -564,6 +550,7 @@ type boundaryReviewParams struct {
 	// Milestone + the repo root), so it names the actual repo (e.g. pair#69).
 	Label                string // commit-subject substring for messages, e.g. "#69 M1"
 	Base, BaseLong, Head string // review window (short base, long base, long reviewed head — #194)
+	WindowBase           string // #304: human base for trailer/sidecar; "" means BaseLong
 	IssuesDir            string
 	Agent                string
 	AgentExplicit        bool
@@ -621,7 +608,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		// review never started" — both reach persistBoundaryRound with Round == nil, and
 		// a ledger that cannot tell them apart mis-reports why a round contributed
 		// nothing (#194 M2 review).
-		return reviewResult{Verdict: v, Reason: reason, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong,
+		return reviewResult{Verdict: v, Reason: reason, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, WindowBase: p.WindowBase,
 			DispatchError: fmt.Errorf("boundary review did not run: %s", reason),
 			ProtocolError: "review did not run: " + reason}
 	}
@@ -665,7 +652,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		cwarn(stderr, fmt.Sprintf("boundary review: no '%s' verdict found (block or line) — recording verdict as 'unknown'",
 			strings.Join(vocab.Verdict().Emitted(), " | ")))
 	}
-	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, Output: output, Agent: string(agent)}
+	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, WindowBase: p.WindowBase, Output: output, Agent: string(agent)}
 	// #194 M2: capture the structured findings handoff. Persisting it is the caller's
 	// job (it holds the lock); parsing here keeps the raw output in one place.
 	if round, ok := gatestate.ParseFindingsBlock(output); ok {

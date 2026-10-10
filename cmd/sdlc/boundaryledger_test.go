@@ -493,7 +493,7 @@ func TestBoundaryWindowBase_WholeIssueStaysAtMergeBase(t *testing.T) {
 	commitTouchingIssue(t, runGit, issuePath, "w3", "#194 M2: more work", "")
 
 	mergeBase := strings.TrimSpace(captureGit(t, "merge-base", "main", "HEAD"))
-	if got := boundaryWindowBase("194", "", issuePath); got != mergeBase {
+	if got := boundaryWindowBase("194", "", issuePath, ""); got != mergeBase {
 		t.Fatalf("a whole-issue close must review the WHOLE branch: base = %q, want merge-base %q\n"+
 			"(M4 — round-scoping a re-review — was rejected precisely so no reviewer ever "+
 			"sees less than the integrated result)", got, mergeBase)

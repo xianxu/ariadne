@@ -206,7 +206,7 @@ func quickGrewPastReview(issues []string) error {
 			continue
 		}
 		n := issueIDFromPath(p)
-		base := boundaryWindowBase(strconv.Itoa(n), "", "")
+		base := boundaryWindowBase(strconv.Itoa(n), "", "", "")
 		if base == "" {
 			continue // no #N commit anchors a window: nothing was measured at close either
 		}

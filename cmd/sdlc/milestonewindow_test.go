@@ -92,7 +92,7 @@ func TestBoundaryWindowBase_MilestoneBasesOnPriorBoundary(t *testing.T) {
 	}
 
 	// boundaryWindowBase for M2 bases on that boundary (not the first #58 M2 commit).
-	base := boundaryWindowBase("58", "M2", issuePath)
+	base := boundaryWindowBase("58", "M2", issuePath, "")
 	if base != m1Close {
 		t.Fatalf("boundaryWindowBase(M2) = %q, want prior boundary %q", base, m1Close)
 	}
@@ -121,7 +121,7 @@ func TestBoundaryWindowBase_FirstMilestoneBasesOnFeatureBranchPoint(t *testing.T
 		t.Fatalf("previousReviewBoundary = %q, want empty (no prior boundary)", got)
 	}
 
-	base := boundaryWindowBase("58", "M1", issuePath)
+	base := boundaryWindowBase("58", "M1", issuePath, "")
 	gotResolved := strings.TrimSpace(captureGit(t, "rev-parse", base))
 	if gotResolved != branchPoint {
 		t.Fatalf("boundaryWindowBase(M1) resolved to %q, want branch point %q", gotResolved, branchPoint)
@@ -155,7 +155,7 @@ func TestBoundaryWindowBase_MissingPriorTrailerFallsBackToBranchStart(t *testing
 		t.Fatalf("previousReviewBoundary = %q, want empty (no trailer on prior close)", got)
 	}
 
-	base := boundaryWindowBase("58", "M2", issuePath)
+	base := boundaryWindowBase("58", "M2", issuePath, "")
 	wantParent := strings.TrimSpace(captureGit(t, "rev-parse", firstWork+"^"))
 	gotResolved := strings.TrimSpace(captureGit(t, "rev-parse", base))
 	if gotResolved != wantParent {
@@ -175,7 +175,7 @@ func TestBoundaryWindowBase_WholeIssueIgnoresPriorBoundary(t *testing.T) {
 	commitTouchingIssue(t, runGit, issuePath, "m1close", "#58 M1: close",
 		"Done.\n\nReview-Verdict: SHIP\nReview-Window: abc1234..HEAD")
 
-	base := boundaryWindowBase("58", "", issuePath) // milestone "" → whole-issue, on main
+	base := boundaryWindowBase("58", "", issuePath, "") // milestone "" → whole-issue, on main
 	wantParent := strings.TrimSpace(captureGit(t, "rev-parse", firstWork+"^"))
 	gotResolved := strings.TrimSpace(captureGit(t, "rev-parse", base))
 	if gotResolved != wantParent {
@@ -203,7 +203,7 @@ func TestBoundaryWindowBase_WholeIssueBasesOnBranchPoint(t *testing.T) {
 	runGit("switch", "-c", "feature-77")
 	impl := commitTouchingIssue(t, runGit, issuePath, "impl", "#77: implement the thing", "")
 
-	base := boundaryWindowBase("77", "", issuePath)
+	base := boundaryWindowBase("77", "", issuePath, "")
 	if gotBase := strings.TrimSpace(captureGit(t, "rev-parse", base)); gotBase != branchPoint {
 		t.Fatalf("whole-issue base = %q (→ %q), want branch point (merge-base) %q", base, gotBase, branchPoint)
 	}
@@ -229,7 +229,7 @@ func TestResolveReviewWindow_HeadIsConcreteSHA(t *testing.T) {
 	runGit, _, issuePath := windowRepo(t, 194)
 	commitTouchingIssue(t, runGit, issuePath, "work", "#194: build the thing", "")
 
-	_, _, head := resolveReviewWindow("194", "", issuePath)
+	_, _, head, _ := resolveReviewWindow("194", "", issuePath, "")
 	if head == "HEAD" {
 		t.Fatal(`resolveReviewWindow head is the literal "HEAD"; it must resolve to a SHA`)
 	}

@@ -95,7 +95,7 @@ type closeCostMetrics struct {
 func closeMetrics(stderr io.Writer, f *closeFlags, res closeResult) closeCostMetrics {
 	var m closeCostMetrics
 
-	base := boundaryWindowBase(res.issueStr, f.Milestone, res.issuePath)
+	base := boundaryWindowBase(res.issueStr, f.Milestone, res.issuePath, resolvePlansDir(f.PlansDir))
 	if r, err := churnForWindow(base); err != nil {
 		cwarn(stderr, fmt.Sprintf("churn not measured (%v)", err))
 	} else {
