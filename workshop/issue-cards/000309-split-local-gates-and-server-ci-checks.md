@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000309-split-local-gates-and-server-ci-checks.md
         source_blob: 69b2af753ae615a1a677c56993fdcd084feb145c
         destination: workshop/issues/000309-split-local-gates-and-server-ci-checks.md
+        main_commit: fe67a9a46322c1ae37c5da14e21c954c2f41afb8
 ---
 
 # Split local gates and server CI checks
