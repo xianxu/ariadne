@@ -55,6 +55,24 @@ Detailed incidents remain in their owning issue or review artifact.
 - Optional evidence stays optional only when unavailable is distinguishable from
   unsupported and from a negative result.
 
+- When a verb starts writing an artifact that only a person used to write, re-read
+  every existing reader of that artifact. Readers written for the old producer may
+  now match cases they never saw: once the binary committed a `--no-judge`
+  milestone's not-run trailer, the legacy boundary grep took a skipped review as a
+  review boundary (#304 BR-2).
+
+- Define a main-relative check on the branch patch (`merge-base(main,HEAD)..HEAD`) or
+  on the reviewed patch replayed onto today's main, never on commits after an anchor.
+  Merging or rebasing main changes commits, not the patch. A commit count read every
+  integration as unreviewed work, and an ancestry test silently disowned a rebased
+  close (#304).
+- A per-process cache of remote state needs the local view in its key. Keyed on the
+  checkout alone, it returned the main of the first call after a later fetch (#304).
+
+- Refs under `refs/` are shared by every linked worktree (every slot). Never judge
+  whether a ref is live from one checkout's files: delete exactly what this operation
+  ended, or decide from shared state such as the tracker's cards (#304 close review).
+
 ## Paths, processes, and integration
 
 - A before/after measurement needs a baseline binary built from the baseline

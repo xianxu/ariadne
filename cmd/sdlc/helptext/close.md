@@ -58,7 +58,9 @@ MODES
    estimates. See the --actual flag note.)
 
   THE BOUNDARY REVIEW (#69). A standalone full-issue close auto-dispatches the
-  one binary-owned fresh-context review on the whole-issue window (the same
+  one binary-owned fresh-context review on the whole-issue window — the branch
+  patch, diff(merge-base(main, HEAD), HEAD), which main merged in never enters
+  (#304); close prints it as "branch patch vs main@<base>: <n> issue commit(s)" (the same
   reviewer `milestone-close` runs per-milestone). For a no-milestone issue this
   is the single review the boundary gets; for a multi-milestone issue it's the
   end-of-issue integration review on top of the per-milestone ones. The agent

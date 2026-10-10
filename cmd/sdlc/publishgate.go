@@ -10,6 +10,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -91,13 +92,66 @@ func runPublishGate(ctx context.Context, baseRef, issuesDir string, stderr io.Wr
 		if err != nil {
 			return err
 		}
-		return validatePublishAnchors(ownedPublishIssues(owned), stderr)
+		if err := refuseUnownedCompletions(ctx, env, rs, owned); err != nil {
+			return err
+		}
+		return validatePublishAnchors(ctx, ownedPublishIssues(owned), stderr)
 	}
 	issues, err := mergedCodecompleteIssues(ctx, baseRef, issuesDir)
 	if err != nil {
 		return err
 	}
-	return validatePublishIssues(issues, stderr)
+	return validatePublishIssues(ctx, issues, stderr)
+}
+
+// refuseUnownedCompletions makes an orphaned close LOUD (#304 D8). A codecomplete card
+// bound to this repository whose details this branch's patch changes, but which no rule
+// owns, is a close the branch no longer carries (a squash or an amend dropped its
+// Close-Token). Skipping it would publish code with no gate and leave the card
+// codecomplete forever, which is how a rebase used to fail open.
+func refuseUnownedCompletions(ctx context.Context, env *trackerEnv, rs tracker.Records, owned []ownedCompletion) error {
+	mainBase, _, err := reviewMainBase(ctx, gitx.Capture("rev-parse", "HEAD"))
+	if err != nil || mainBase == "" {
+		return err // on main there is no branch patch; a criss-cross is refused below anyway
+	}
+	changed, err := gitx.DiffNames(mainBase, "HEAD")
+	if err != nil {
+		return fmt.Errorf("publish gate: could not list the branch patch (%v) — refusing to publish unverified", err)
+	}
+	inPatch := map[string]bool{}
+	for _, p := range changed {
+		inPatch[p] = true
+	}
+	isOwned := map[string]bool{}
+	for _, oc := range owned {
+		isOwned[oc.ID] = true
+	}
+	var orphans []string
+	for _, rec := range rs.All() {
+		if rec.Card == nil || rec.Duplicate || rec.Status() != "codecomplete" || isOwned[rec.ID] || rec.DetailPath == "" {
+			continue
+		}
+		b, ok, err := issue.CardCompletion(rec.Card.Raw)
+		if err != nil || !ok || b.Repository != env.target.Repository {
+			continue
+		}
+		rel, err := filepath.Rel(canonRoot(env.root), canonRoot(rec.DetailPath))
+		if err != nil || !inPatch[filepath.ToSlash(rel)] {
+			continue
+		}
+		orphans = append(orphans, rec.ID)
+	}
+	if len(orphans) == 0 {
+		return nil
+	}
+	refs := make([]string, len(orphans))
+	for i, id := range orphans {
+		refs[i] = issue.CLIRef(id)
+	}
+	return fmt.Errorf("publish gate: #%s is codecomplete but this branch carries no close for it "+
+		"(a squash or an amend dropped its Close-Token, #304).\n"+
+		"  Re-run `sdlc close --issue %s --verified '<evidence>'`, then retry the publish.",
+		strings.Join(refs, ", #"), issue.CLIRef(orphans[0]))
 }
 
 // ownedPublishIssues anchors each owned completion on its evidence commit.
@@ -111,7 +165,7 @@ func ownedPublishIssues(owned []ownedCompletion) []publishIssue {
 
 // validatePublishIssues anchors pre-tracker issues on the newest commit that
 // left them codecomplete, then applies the shared checks.
-func validatePublishIssues(issues []string, stderr io.Writer) error {
+func validatePublishIssues(ctx context.Context, issues []string, stderr io.Writer) error {
 	entries := make([]publishIssue, 0, len(issues))
 	for _, p := range issues {
 		a := codecompleteAnchorCommit(p)
@@ -122,13 +176,13 @@ func validatePublishIssues(issues []string, stderr io.Writer) error {
 		}
 		entries = append(entries, publishIssue{Path: p, Anchor: a})
 	}
-	return validatePublishAnchors(entries, stderr)
+	return validatePublishAnchors(ctx, entries, stderr)
 }
 
 // validatePublishAnchors shares the reviewed-head, docs-only and quick-flow
 // checks across ordinary diff selection, immutable landing ownership and card
 // completion bindings (#252).
-func validatePublishAnchors(entries []publishIssue, stderr io.Writer) error {
+func validatePublishAnchors(ctx context.Context, entries []publishIssue, stderr io.Writer) error {
 	issues := make([]string, 0, len(entries))
 	for _, e := range entries {
 		if e.Path != "" {
@@ -141,44 +195,118 @@ func validatePublishAnchors(entries []publishIssue, stderr io.Writer) error {
 		cinfo(stderr, "publish gate: no codecomplete issues in this window — nothing to verify")
 		return nil
 	}
-	newestAnchor, minAhead := "", -1
+	// #304 D9: each issue is checked against ITS OWN reviewed patch, replayed onto
+	// today's main — never a commit count after an anchor, which reads every main
+	// commit merged in after the close as unreviewed (A4). The anchor is the close's
+	// evidence commit: under the FIX-THEN-SHIP protocol the fixes ride into it (#174).
+	mainBase, stale, merr := reviewMainBase(ctx, gitx.Capture("rev-parse", "HEAD"))
+	if stale != "" {
+		cwarn(stderr, "publish gate: measured against "+stale)
+	}
+	deltas := make([]publishDelta, 0, len(entries))
 	for _, e := range entries {
-		a := e.Anchor
-		ahead, ok := revCount(a + "..HEAD")
-		if !ok {
-			// Fail-closed: if we can't verify HEAD vs the anchor, refuse rather than
-			// silently pass (unreachable in practice — the anchor is from HEAD's log).
-			return fmt.Errorf("publish gate: could not compute rev-list %s..HEAD (git error) — refusing to publish unverified", shortSHA(a))
+		d := publishDelta{Anchor: e.Anchor}
+		switch {
+		case merr != nil:
+			d.Unresolvable = merr.Error()
+		case !isResolvedSHA(e.Anchor) || gitx.Capture("rev-parse", "--verify", "-q", e.Anchor+"^{commit}") == "":
+			d.Unresolvable = fmt.Sprintf("the reviewed commit %s is not in this repository (rebased in another clone, or its pin was removed)", shortOID(e.Anchor))
+		default:
+			base := e.Anchor // on main: nothing to replay onto
+			if mainBase != "" {
+				s, conflicted, err := gitx.RebasedReviewedBase(mainBase, e.Anchor)
+				if err != nil {
+					d.Unresolvable = err.Error()
+					break
+				}
+				base, d.Conflicted = s, conflicted
+			}
+			paths, err := gitx.DiffNames(base, "HEAD")
+			if err != nil {
+				return fmt.Errorf("publish gate: could not diff the reviewed patch %s against HEAD (%v) — refusing to publish unverified", shortOID(e.Anchor), err)
+			}
+			d.Paths = paths
 		}
-		if minAhead < 0 || ahead < minAhead {
-			minAhead, newestAnchor = ahead, a
+		deltas = append(deltas, d)
+	}
+	// Every whole-issue close reviewed the ENTIRE branch patch, so on a branch carrying
+	// several closes the newest one covers the rest: HEAD passes when any reviewed patch
+	// covers it (the "newest anchor" rule, generalized off commit counts). A refusal
+	// reports the closest — the patch with the fewest code paths left uncovered.
+	best := deltas[0]
+	for _, d := range deltas[1:] {
+		if publishDeltaRank(d) < publishDeltaRank(best) {
+			best = d
 		}
 	}
-	if minAhead > 0 {
-		// #174: a post-close delta with no code surface (lessons.md, plan
-		// ticks, atlas — the bookkeeping the close itself invites) does not
-		// weaken the review's claims, which are about code behavior. Same
-		// "no code surface" definition as the atlas gate's auto-satisfy
-		// (#177, hasCodePath). Git errors keep the fail-closed posture.
-		paths, derr := gitx.DiffNames(newestAnchor, "HEAD")
-		if derr != nil {
-			return fmt.Errorf("publish gate: could not diff %s..HEAD (%v) — refusing to publish unverified", shortSHA(newestAnchor), derr)
-		}
-		if !publishGateHasCodeSurface(paths) {
-			cinfo(stderr, formatPublishGateDocsOnly(minAhead, shortSHA(newestAnchor)))
-			return quickGrewPastReview(issues)
-		}
-		return fmt.Errorf(
-			"publish gate: %d commit(s) landed after `sdlc close` (anchor %s) — the boundary review no longer covers HEAD.\n"+
-				"  Re-run `sdlc close --issue <N> --verified '<evidence>'` to re-review the code delta, then retry the publish.\n"+
-				"  (Next time: bundle post-close bookkeeping into the close commit — doc-only deltas pass on their own, #174.)",
-			minAhead, shortSHA(newestAnchor))
+	pass, msg := classifyPublishDelta(best)
+	if !pass {
+		return errors.New(msg)
 	}
-	if err := quickGrewPastReview(issues); err != nil {
-		return err
+	cinfo(stderr, msg)
+	return quickGrewPastReview(ctx, issues)
+}
+
+// publishDeltaRank orders deltas from best covered to worst: an exact match, then
+// doc-only, then by the number of uncovered code paths; unreplayable or conflicting
+// patches rank last.
+func publishDeltaRank(d publishDelta) int {
+	if d.Unresolvable != "" || len(d.Conflicted) > 0 {
+		return 1 << 30
 	}
-	cok(stderr, fmt.Sprintf("publish gate: HEAD unchanged since close (anchor %s) — reviewed-HEAD-unchanged ✓", shortSHA(newestAnchor)))
-	return nil
+	code := 0
+	for _, p := range d.Paths {
+		if publishGateHasCodeSurface([]string{p}) {
+			code++
+		}
+	}
+	if code > 0 {
+		return 2 + code
+	}
+	if len(d.Paths) > 0 {
+		return 1
+	}
+	return 0
+}
+
+// publishDelta is what HEAD carries beyond one issue's reviewed patch.
+type publishDelta struct {
+	Anchor       string
+	Conflicted   []string // main rewrote lines the review read; the resolution is unreviewed
+	Paths        []string // diff(reviewed patch on today's main, HEAD)
+	Unresolvable string   // why the reviewed patch could not be replayed
+}
+
+// publishGateRefusal prefixes every branch-patch refusal, the token gatesig keys on.
+const publishGateRefusal = "publish gate: the reviewed patch no longer covers HEAD"
+
+// classifyPublishDelta decides one issue's publish (#304 D9). Pure. Each refusal names
+// its own cause and the one next action, a re-close of the code delta.
+func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
+	reclose := "\n  Re-run `sdlc close --issue <N> --verified '<evidence>'` to review it, then retry the publish."
+	switch {
+	case d.Unresolvable != "":
+		return false, fmt.Sprintf("%s: %s.%s", publishGateRefusal, d.Unresolvable, reclose)
+	case len(d.Conflicted) > 0:
+		return false, fmt.Sprintf("%s: main's changes conflict with the reviewed patch in %s — the resolution is unreviewed.%s",
+			publishGateRefusal, strings.Join(d.Conflicted, ", "), reclose)
+	}
+	var code []string
+	for _, p := range d.Paths {
+		if publishGateHasCodeSurface([]string{p}) {
+			code = append(code, p)
+		}
+	}
+	switch {
+	case len(code) > 0:
+		return false, fmt.Sprintf("%s: code changed after `sdlc close` (reviewed %s): %s.%s\n"+
+			"  (Merging or rebasing main never counts — only the branch's own changes do, #304. Doc-only deltas pass on their own, #174.)",
+			publishGateRefusal, shortOID(d.Anchor), strings.Join(code, ", "), reclose)
+	case len(d.Paths) > 0:
+		return true, formatPublishGateDocsOnly(len(d.Paths), shortOID(d.Anchor))
+	default:
+		return true, fmt.Sprintf("publish gate: HEAD carries exactly the reviewed patch (%s) — reviewed-HEAD-unchanged ✓", shortOID(d.Anchor))
+	}
 }
 
 // quickGrewPastReview refuses the publish of a quick-flow issue whose final diff
@@ -191,7 +319,7 @@ func validatePublishAnchors(entries []publishIssue, stderr io.Writer) error {
 // Deterministic, like the rest of the gate: the review runs in close. A full
 // issue (or one without a readable quick record) is not the quick flow's to
 // re-measure.
-func quickGrewPastReview(issues []string) error {
+func quickGrewPastReview(ctx context.Context, issues []string) error {
 	for _, p := range issues {
 		content, err := os.ReadFile(p)
 		if err != nil {
@@ -206,7 +334,7 @@ func quickGrewPastReview(issues []string) error {
 			continue
 		}
 		n := issueIDFromPath(p)
-		base := boundaryWindowBase(strconv.Itoa(n), "", "")
+		base := boundaryWindowBase(ctx, strconv.Itoa(n), "", "", "")
 		if base == "" {
 			continue // no #N commit anchors a window: nothing was measured at close either
 		}
@@ -279,7 +407,7 @@ func publishGateHasCodeSurface(paths []string) bool {
 // classifies transcripts by substring, so a pass line echoing refusal words
 // would corrupt friction attribution (#172). Pure.
 func formatPublishGateDocsOnly(n int, anchorShort string) string {
-	return fmt.Sprintf("publish gate: %d doc-only commit(s) since close (anchor %s) — no code surface, "+
+	return fmt.Sprintf("publish gate: %d doc-only file(s) beyond the reviewed patch (%s) — no code surface, "+
 		"reviewed-HEAD-unchanged holds for code (#174)", n, anchorShort)
 }
 

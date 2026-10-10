@@ -177,6 +177,9 @@ func runAbandon(ctx context.Context, stdout, stderr io.Writer, f *abandonFlags) 
 			return fmt.Errorf("%w\n      the work is kept at %s; rerun `sdlc abandon --issue %s --as %s --reason …` to finish", err, rec.Ref, issueStr, status)
 		}
 	}
+	if w := unpinReviewed(env.root, id); w != "" { // #304 D4: the issue ended
+		cwarn(stderr, w)
+	}
 	fmt.Fprintf(stdout, "abandoned #%s as %s\n", issueStr, status)
 	return nil
 }

@@ -706,5 +706,7 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 		}
 		moves = append(moves, planMoves...)
 	}
+	// #304 D4: the archived issues ended; so do their reviewed-head pins.
+	unpinArchived(stderr, mainPath, moves)
 	return moves, nil
 }

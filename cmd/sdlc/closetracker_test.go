@@ -24,9 +24,15 @@ const evidenceRev = "HEAD^"
 
 func closeReady(t *testing.T, id int) (*trackerRepo, string, string) {
 	t.Helper()
+	return closeReadyWithPlan(t, id, "- [x] do it\n")
+}
+
+// closeReadyWithPlan is closeReady with the given ## Plan body (milestone rows, say).
+func closeReadyWithPlan(t *testing.T, id int, plan string) (*trackerRepo, string, string) {
+	t.Helper()
 	pid := fmt.Sprintf("%06d", id)
 	full := fmt.Sprintf("---\nid: %s\nstatus: open\ndeps: []\ncreated: 2026-09-01\nupdated: 2026-09-01\n---\n\n# e2e\n\n"+
-		"## Problem\n\nA gap.\n\n## Spec\n\nA thing.\n\n## Done when\n\n- it works\n\n## Plan\n\n- [x] do it\n\n## Log\n", pid)
+		"## Problem\n\nA gap.\n\n## Spec\n\nA thing.\n\n## Done when\n\n- it works\n\n## Plan\n\n%s\n## Log\n", pid, plan)
 	card, detail, err := issue.SplitCardWithFormat([]byte(full), "sha1")
 	if err != nil {
 		t.Fatal(err)
@@ -42,7 +48,12 @@ func closeReady(t *testing.T, id int) (*trackerRepo, string, string) {
 	idArg := fmt.Sprint(id)
 	run("claim", "--issue", idArg)
 	run("start-plan", "--issue", idArg)
-	run("change-code", "--issue", idArg, "--worktree=no", "--no-judge", "--no-estimate", "--no-estimate-recon")
+	ccArgs := []string{"change-code", "--issue", idArg, "--worktree=no", "--no-judge", "--no-estimate", "--no-estimate-recon"}
+	if strings.Contains(plan, "M1") {
+		// Milestone rows infer the full flow; this fixture has no durable plan.
+		ccArgs = append(ccArgs, "--force", "fixture: milestone plan without a durable plan")
+	}
+	run(ccArgs...)
 	writeRepoFile(t, r.root, "cmd/a.go", "package a\n")
 	r.git("add", "cmd/a.go")
 	r.git("commit", "-qm", fmt.Sprintf("#%d: implement", id))
@@ -330,6 +341,9 @@ func TestTrackerCloseSurvivesARebase(t *testing.T) {
 				// The first close pushed the branch (#286); the owner's leased
 				// push of the rebase is what leaves the old commits unreferenced.
 				r.git("push", "-q", "--force-with-lease", "origin", r.git("branch", "--show-current"))
+				// #304's reviewed-head pin keeps it alive in THIS checkout; the case
+				// models a checkout without it (another clone), so drop the pin.
+				r.git("update-ref", "-d", "refs/sdlc/reviewed/"+fmt.Sprintf("%06d", id)+"/close")
 				r.git("reflog", "expire", "--expire=now", "--all")
 				r.git("gc", "-q", "--prune=now")
 				if gitSucceeds(r.root, "cat-file", "-e", first.ReviewedHEAD+"^{commit}") {
@@ -363,4 +377,80 @@ func TestTrackerCloseSurvivesARebase(t *testing.T) {
 // gitSucceeds reports whether a git command in dir exits 0.
 func gitSucceeds(dir string, args ...string) bool {
 	return exec.Command("git", append([]string{"-C", dir}, args...)...).Run() == nil
+}
+
+// #304/#197: a tracker-era milestone close commits its OWN evidence — subject
+// `#N Mx: close`, the verdict trailers, only the issue's files — pins it, and pushes it,
+// so the whole-issue close's milestone-verdict gate passes with nothing pasted.
+func TestMilestoneClose_CommitsItsOwnEvidence(t *testing.T) {
+	for _, verdict := range []string{"SHIP", "FIX-THEN-SHIP"} {
+		t.Run(verdict, func(t *testing.T) { milestoneCommitsItsOwnEvidence(t, verdict) })
+	}
+}
+
+func milestoneCommitsItsOwnEvidence(t *testing.T, verdict string) {
+	r, _, detailPath := closeReadyWithPlan(t, 304, "- [ ] M1 — part one\n")
+	writeRepoFile(t, r.root, "unrelated.go", "package u\n")
+	r.git("add", "unrelated.go") // staged unrelated work must stay staged and uncommitted
+	reviewed := r.git("rev-parse", "HEAD")
+	stubJudge(t, "VERDICT: "+verdict+" (confidence: high)\n\nfine\n\n```findings\nfindings: []\n```\n")
+	var stderr string
+	var err error
+	if msg, died := expectDie(t, func() {
+		_, stderr, err = executeSDLCTestCommand("milestone-close", "--issue", "304", "--milestone", "M1", "--verified", "e2e", "--actual", "0.5", "--no-atlas")
+	}); died || err != nil {
+		t.Fatalf("milestone-close: died=%v %q err=%v\n%s", died, msg, err, stderr)
+	}
+	head := r.git("rev-parse", "HEAD")
+	if r.git("rev-parse", "HEAD^") != reviewed {
+		t.Fatal("the milestone evidence commit is not directly on the reviewed commit")
+	}
+	msg := r.git("log", "-1", "--format=%B")
+	// FIX-THEN-SHIP commits its evidence at once too: the reviewed head is the
+	// pre-fix commit, so the fixes land in the NEXT interdiff (#304 D5).
+	l, lerr := readBoundaryGateLedger("workshop/plans", filepath.Base(detailPath), 304)
+	if lerr != nil || len(l.Rounds) == 0 || l.Rounds[len(l.Rounds)-1].Reviewed != reviewed {
+		t.Fatalf("the finalized round must record the reviewed head %s: %+v %v", reviewed, l.Rounds, lerr)
+	}
+	for _, want := range []string{"#304 M1: close", "Review-Verdict: " + verdict} {
+		if !strings.Contains(msg, want) {
+			t.Errorf("evidence message lacks %q:\n%s", want, msg)
+		}
+	}
+	for _, f := range strings.Fields(r.git("show", "--name-only", "--format=", "HEAD")) {
+		if f != detailPath && !strings.HasPrefix(f, "workshop/plans/000304-") {
+			t.Errorf("milestone evidence carried a foreign file %q", f)
+		}
+	}
+	if staged := r.git("diff", "--cached", "--name-only"); staged != "unrelated.go" {
+		t.Fatalf("unrelated staged work disturbed: %q", staged)
+	}
+	if pin := r.git("rev-parse", "refs/sdlc/reviewed/000304/M1"); pin != head {
+		t.Fatalf("pin = %s, want the evidence commit %s", pin, head)
+	}
+	if tip := remoteTip(t, r, r.git("branch", "--show-current")); tip != head {
+		t.Fatalf("pushed tip %s is not the evidence commit %s", tip, head)
+	}
+	ok, err := milestoneHasVerdictCommit("304", "M1", detailPath)
+	if err != nil || !ok {
+		t.Fatalf("the milestone-verdict gate must find the binary's own commit: %v %v", ok, err)
+	}
+}
+
+// applyEvidenceCommit is a compare-and-swap: a branch that moved after the evidence
+// commit was built on its old tip is left alone, and the swap refuses.
+func TestApplyEvidenceCommit_RefusesAMovedBranch(t *testing.T) {
+	r := newTrackerRepo(t, nil, nil)
+	r.git("switch", "-q", "-c", "issue-1")
+	env := boundaryEnv(t)
+	head := r.git("rev-parse", "HEAD")
+	evidence := r.git("commit-tree", r.git("rev-parse", "HEAD^{tree}"), "-p", head, "-m", "#1 M1: close")
+	r.git("commit", "-q", "--allow-empty", "-m", "moved meanwhile")
+	moved := r.git("rev-parse", "HEAD")
+	if err := applyEvidenceCommit(env, "refs/heads/issue-1", evidence, nil); err == nil {
+		t.Fatal("the swap must refuse a branch that moved off the evidence commit's parent")
+	}
+	if got := r.git("rev-parse", "HEAD"); got != moved {
+		t.Fatalf("the moved branch was overwritten: %s", got)
+	}
 }

@@ -75,5 +75,5 @@ func runLandingPublishGate(ctx context.Context, pr landingPR, issuesDir string, 
 	for _, item := range selected {
 		entries = append(entries, publishIssue{Path: item.path, Anchor: item.anchor})
 	}
-	return validatePublishAnchors(entries, stderr)
+	return validatePublishAnchors(ctx, entries, stderr)
 }

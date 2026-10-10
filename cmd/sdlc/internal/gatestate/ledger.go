@@ -85,6 +85,12 @@ type Round struct {
 	// and on every boundary round before #231 — when milestone-review was the only
 	// recipe, so an empty value on a boundary round reads as the full review.
 	Recipe string `yaml:"recipe,omitempty"`
+	// Reviewed is the head commit a FINALIZED boundary review read (#304, #197): the
+	// identity of the reviewed branch patch, whose base is merge-base(main, Reviewed)
+	// because main only grows. Only a round that finalized carries it — REWORK, halt,
+	// protocol-error and never-ran rounds leave it empty, so they never advance the
+	// boundary. omitempty keeps every pre-#304 ledger byte-identical.
+	Reviewed string `yaml:"reviewed,omitempty"`
 	// NoCap marks a round that did NOT consume a review cycle, so it does not count
 	// toward the round cap (ariadne#194 M2). Exactly TWO kinds qualify, and both are
 	// cases where no reviewer was invoked at all:

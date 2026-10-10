@@ -80,7 +80,7 @@ func TestLandingPublishGateIndependentlyPublishedBody(t *testing.T) {
 			}
 			err = runLandingPublishGate(context.Background(), pr, "workshop/issues", io.Discard)
 			if delta == "code" {
-				if err == nil || !strings.Contains(err.Error(), "landed after `sdlc close`") {
+				if err == nil || !strings.Contains(err.Error(), publishGateRefusal) || !strings.Contains(err.Error(), "late.go") {
 					t.Fatalf("post-close code escaped review: %v", err)
 				}
 			} else if err != nil {

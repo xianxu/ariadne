@@ -21,14 +21,20 @@ WHAT IT DOES
        The milestone review is always the full recipe.
 
   2. Auto-dispatches `sdlc judge milestone-review`:
-     - Review window: the PREVIOUS review boundary..the reviewed commit — the prior
-       milestone close's commit (the one carrying its Review-Verdict:
-       trailer), or the branch start for the first milestone. Basing on
-       the prior boundary (not the first `#<issue> <milestone>` commit)
-       means inter-milestone `#<issue>`-but-not-`<milestone>` commits
-       (side-quests, fixes) land in exactly one window instead of
-       slipping the gap between two milestones (#58). Matches close's
-       atlas check window exactly.
+     - Review window (#304): the INTERDIFF since the last finalized review.
+       The head that review read (recorded in the gate ledger) is replayed
+       onto today's main, and the window is the diff from that to the
+       reviewed commit. Merging or rebasing main never widens it, and a
+       conflict shows only its resolution ("includes conflict resolutions
+       in …"). The first milestone reviews the branch patch, the diff from
+       merge-base(main, HEAD). Everything since the last review, including
+       inter-milestone side-quests and fixes, lands in exactly one window
+       (#58). Matches close's atlas check window exactly. A milestone closed
+       before #304 has no recorded head; its Review-Verdict: trailer commit
+       is the boundary instead, but only for a finalizing verdict (SHIP /
+       FIX-THEN-SHIP). A --no-judge skip reviewed nothing, so it never bounds
+       a window. A criss-cross history has no single branch point, so the
+       window falls back to the branch patch and says so.
      - Builds the milestone-review prompt with issue/plan paths, immutable
        base/head commits, and exact read-only Git inspection commands; the
        unified patch stays in Git instead of entering the agent argv/prompt
@@ -40,9 +46,18 @@ WHAT IT DOES
      - Surfaces findings + classifies clean / info / failure
      - Parses the first line for SHIP | FIX-THEN-SHIP | REWORK
 
-  3. Emits a trailer block to stdout — paste verbatim into the close
-     commit message so `sdlc close` (full-issue close) can later verify
-     each milestone was reviewed:
+  3. Records the boundary (#304, #197). In an issue tracker repository it
+     COMMITS its own evidence: the issue details and plans records, subject
+     `#<issue> <milestone>: close`, with the trailers below, built in a
+     temporary index so staged unrelated work stays staged. That is the
+     commit `sdlc close` looks for when it verifies each milestone was
+     reviewed, so there is nothing to paste. It then pins the reviewed head
+     at refs/sdlc/reviewed/<id>/<milestone>, so a rebase cannot orphan it,
+     and pushes. A --no-judge skip commits its not-run evidence the same way
+     but pins nothing. A legacy repository (no tracker) still prints the block for
+     you to paste into the close commit message. Review-Window records commit
+     ids as of the review; a later rebase leaves them historical, and the
+     gate ledger plus the pin are the record:
 
          Review-Verdict: SHIP
          Review-Window: abc1234..def5678

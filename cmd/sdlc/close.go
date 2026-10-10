@@ -548,18 +548,22 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// the boundary review uses — the prior review boundary for a milestone close,
 	// the branch start otherwise — so the atlas-coverage check and the review
 	// cover exactly the same commits, including inter-milestone side-quests/fixes.
-	windowBase := boundaryWindowBase(issueStr, f.Milestone, issuePath)
+	// #304: the window is the branch patch (or a milestone's interdiff since the last
+	// finalized review), printed as what it is — not a commit range, which reads as
+	// truncated once main has been merged in.
+	window := planBoundaryWindow(commandContext(f.Context), issueStr, f.Milestone, issuePath, f.plansDir())
+	windowBase := window.Base
 	// #194 M1 review: pin the window's upper end the same way the review does, so
 	// "the same commits" is structural rather than a consequence of both running
 	// under one lock. Falls back to the literal when rev-parse cannot answer.
-	windowHead := "HEAD"
-	if sha := gitx.Capture("rev-parse", "HEAD"); sha != "" {
-		windowHead = sha
-	}
-	if windowBase != "" {
-		cinfo(stderr, fmt.Sprintf("commit window: %s → %s", shortSHA(windowBase), abbrevSHA(windowHead)))
-	} else {
+	windowHead := window.Head
+	switch {
+	case windowBase == "":
 		cwarn(stderr, fmt.Sprintf("no commits reference '#%s' on this branch", issueStr))
+	case window.Kind == windowBranchFallback:
+		cwarn(stderr, formatReviewWindow(window))
+	default:
+		cinfo(stderr, formatReviewWindow(window))
 	}
 
 	var diffFiles []string
@@ -1125,7 +1129,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 
 	// Window spans the whole branch (milestone "" → branch start), so issuePath
 	// isn't consulted for the base — pass "" (#58).
-	base, baseLong, head := resolveReviewWindow(strconv.Itoa(f.Issue), "", "")
+	base, baseLong, head, _ := resolveReviewWindow(commandContext(f.Context), strconv.Itoa(f.Issue), "", "", "")
 	switch {
 	case f.skip("judge"):
 		// Explicit operator skip → finalize (this runs BEFORE dispatch, so only a
@@ -1186,7 +1190,7 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	var prior string
 	if err := withRequiredRepoTransactionLock(cmd, func() error {
 		r = computeClose(stderr, f)
-		base, baseLong, head = resolveReviewWindow(strconv.Itoa(f.Issue), "", "")
+		base, baseLong, head, _ = resolveReviewWindow(commandContext(f.Context), strconv.Itoa(f.Issue), "", "", "")
 		captured, captureErr := captureCloseReviewSnapshot(r, head, "", f.plansDir())
 		if captureErr != nil {
 			return captureErr
@@ -1300,6 +1304,36 @@ func reviewThenFinalizeLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	})
 }
 
+// finalizeMilestoneEvidence records a finalized milestone (#304 D4, D7). Tracker-era
+// repositories commit the evidence themselves, so there is no trailer to paste; a
+// legacy repository keeps the paste protocol. Either way the boundary's pin follows
+// the newest commit this review produced — only when a review ran (pin), since a
+// --no-judge skip reviewed nothing and must not advance anything. A failed evidence
+// commit degrades to the paste protocol rather than undoing a finalized close.
+func finalizeMilestoneEvidence(stderr io.Writer, f *closeFlags, r closeResult, review reviewResult, pin bool) {
+	id := fmt.Sprintf("%06d", f.Issue)
+	pinned := review.Head
+	if r.tracker {
+		env, err := openTracker(commandContext(f.Context))
+		if err == nil {
+			var commit string
+			if commit, err = commitMilestoneEvidence(env, r, f.plansDir(), f.Milestone, review); err == nil {
+				pinned = commit
+				cok(stderr, fmt.Sprintf("milestone evidence committed: %s (#%d %s: close) — nothing to paste", shortOID(commit), f.Issue, f.Milestone))
+			}
+		}
+		if err != nil {
+			cwarn(stderr, fmt.Sprintf("milestone evidence not committed (%v) — commit the issue/plans files with the trailers above", err))
+		}
+	}
+	if !pin {
+		return
+	}
+	if w := pinReviewed(id, f.Milestone, pinned); w != "" {
+		cwarn(stderr, w)
+	}
+}
+
 func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResult, review reviewResult, p boundaryReviewParams, validate func() (string, error)) error {
 	kind := "close"
 	if f.Milestone != "" {
@@ -1407,7 +1441,12 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			return nil
 		}
 		if f.Milestone != "" {
+			// #304/#197: the evidence commit and its pin come BEFORE the push, so
+			// the pushed tip carries the binary's own Review-Verdict commit.
+			finalizeMilestoneEvidence(stderr, f, r, review, true)
 			milestonePush(commandContext(f.Context), stderr)
+		} else if w := pinReviewed(fmt.Sprintf("%06d", f.Issue), "", review.Head); w != "" {
+			cwarn(stderr, w) // legacy whole-issue close: the agent commits; pin the reviewed head
 		}
 		if review.Verdict == judge.VerdictFixThenShip {
 			// #174: state the post-FIX-THEN-SHIP protocol at the moment of
