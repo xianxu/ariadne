@@ -1,6 +1,6 @@
 ---
 id: 000052
-status: working
+status: wontfix
 created: 2026-05-31
 updated: 2026-10-09
 estimate_hours: 3
@@ -12,6 +12,12 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+tracker:
+    version: 1
+    abandoned:
+        ref: refs/ariadne/abandoned/000052
+        branch: 000052-generic-ci-merge-check-mechanism
+        head: 06b60f14604289e986c86cc494c5188e46657e84
 ---
 
 # Generic CI merge-check mechanism (pluggable publish gate for derivatives)
