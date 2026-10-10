@@ -88,8 +88,9 @@ After the optional reference, any chain of `[]`/`{}` sections in any order:
 
 **One line.** Every marker you write opens and closes on the same line. A line
 break inside a `[]`/`{}` turn is written `<br>` (`🤖{first<br>second}`); never
-let a marker span lines. When you apply a turn's text, decode `<br>` back to a
-line break (step 4, bulk resolution). Quote `<X>` / strike `~D~` text from a single line —
+let a marker span lines. A literal `<br>` that belongs in the text (a table
+cell) is written `\<br>`. When you apply a turn's text, decode `<br>` back to a
+line break and `\<br>` to a literal `<br>` (step 4, bulk resolution). Quote `<X>` / strike `~D~` text from a single line —
 it is the document's own prose and stays verbatim. (Legacy markers that span
 lines may still exist; read them, but write single-line ones.)
 

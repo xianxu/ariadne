@@ -32,10 +32,15 @@ agent-written markers keep spanning lines.
 ## Spec
 
 Revise `construct/local/fix/review-convention.md`:
-- §3: a marker is a single line; a newline inside a `[]`/`{}`/`<>` block is
-  written `<br>`. (Supersedes the #125-era multi-line allowance for writers;
-  readers may still tolerate legacy multi-line markers.)
-- §5: accept/reject decode `<br>` back to a newline in the resolved text.
+- §3: a marker is a single line; a newline inside a `[]`/`{}` turn is written
+  `<br>` (a literal `<br>` is `\<br>`); anchors (`<X>`, `~D~`) quote one line
+  verbatim and are never encoded. (Supersedes the #125-era multi-line allowance
+  for writers; readers may still tolerate legacy multi-line markers.)
+- §5: resolution decodes `<br>` (and `\<br>`) in turn text only; anchor text
+  is restored verbatim.
+- xx-fix `SKILL.md`: the one-line writing rule and the decode scope on both the
+  per-marker (step 4) and bulk resolution paths — xx-fix writes and resolves
+  markers too.
 - `## Revisions` entry naming parley.nvim#312.
 
 ## Done when
@@ -47,7 +52,23 @@ Revise `construct/local/fix/review-convention.md`:
 ## Plan
 
 - [x] Edit §3 / §5 + Revisions in `construct/local/fix/review-convention.md`
+- [x] Carry the one-line rule + decode scope into `construct/local/fix/SKILL.md`
 
 ## Log
 
 ### 2026-10-09
+- Close review round 1: BR-1 (decoding every resolved result would corrupt an
+  anchor's verbatim prose, e.g. table `<br>`) → decode turn text only; BR-2
+  (xx-fix writes markers too) → SKILL.md carries the rule.
+- Round 2: step 4 of xx-fix also decodes; grammar paragraph made tool-neutral;
+  `updated:` bumped.
+- Round 3: BR-6 — no literal `<br>` in a turn (a table-row edit would split on
+  accept) → `\<br>` escape; parley.nvim#312's codec implements it.
+
+### 2026-10-09
+
+## Revisions
+
+- **2026-10-09** — scope grew from the target file alone to the target + xx-fix
+  `SKILL.md` (close review BR-2), and the grammar gained the `\<br>` escape and
+  the anchors-verbatim rule (BR-1, BR-6).
