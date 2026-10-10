@@ -75,6 +75,16 @@ rounds:
           family: unbacked-existing-behavior-claim
           round: 2
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-09T20:25:18-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-7
+          disposition: addressed
+          note: D3 now uses HasVerdict, which is ParseVerdictBlock ok or ParseVerdictToken ok. The token pattern at classify.go:56 covers CLEAN/INFO/FAILURE, and every claim in the decisions is now backed by a file:line.
+          round: 3
+      blocked: false
+content_hash: c7df715bd60c7bb5f349fd703643be7d72cbaf13ef463c58d7d2f2c1599b2793
 ---
 
 # Gate ledger — ariadne#300 (plan-quality)
@@ -114,6 +124,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-7** [Important] `unbacked-existing-behavior-claim` D3's retry predicate ParseVerdict(text) != VerdictUnknown is always Unknown for plan-quality CLEAN/INFO/FAILURE, so every plan-quality round would be retried
   verdictFor (classify.go:148-153) accepts only SHIP/FIX-THEN-SHIP/REWORK (verdict.cue:16-17), and classify.go:215 notes that CLEAN/INFO/FAILURE fall through. 2nd finding in this family. The rule for the class: every existing-behavior claim a decision rests on carries a file:line. For this instance, the predicate must match the recipe's verdict set (a predicate passed in DispatchOptions, or ParseVerdictToken ok or ParseVerdictBlock ok).
 
+## Round 3 — 2026-10-09T20:25:18-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-7 — addressed — D3 now uses HasVerdict, which is ParseVerdictBlock ok or ParseVerdictToken ok. The token pattern at classify.go:56 covers CLEAN/INFO/FAILURE, and every claim in the decisions is now backed by a file:line.
+
 ## Open findings
 
-- **PQ-7** [Important] `unbacked-existing-behavior-claim` D3's retry predicate ParseVerdict(text) != VerdictUnknown is always Unknown for plan-quality CLEAN/INFO/FAILURE, so every plan-quality round would be retried
+(none — every finding has been disposed)

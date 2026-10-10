@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-06
 updated: 2026-10-09
-estimate_hours:
-card_mirror: '5d93cfd5130b91d08b7013c5911d3f4a2b5680aa' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 2.29
+card_mirror: 'f57df793f5bb3e022d6145a2b82f58617db15588' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-09T18:33:10-07:00
 claimant:
     operator: Xian Xu
@@ -73,6 +73,39 @@ creation.
 - A run with no verdict anywhere still records `unknown` and refuses to finalize,
   and its sidecar points at the run's full output.
 - The contract preamble tells reviewers not to start background work.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.2 impl=0.32
+item: smaller-go-module      design=0.1 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.12
+item: smaller-go-module      design=0.05 impl=0.12
+item: smaller-go-module      design=0.05 impl=0.1
+item: smaller-go-module      design=0.05 impl=0.16
+item: real-api-discovery     design=0.0 impl=0.18
+item: atlas-docs             design=0.05 impl=0.04
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+item: milestone-review       design=0.0 impl=0.14
+design-buffer: 0.15
+total: 2.29
+```
+
+Items, in order:
+- `ReadStream`;
+- `Dispatch` through the stream, with the retry;
+- `HasVerdict`, the last-match token and the unattended rule with goldens;
+- `APIFailure`;
+- the boundary ledger fix;
+- the sized timeout and its plumbing;
+- the live stream-format check;
+- atlas;
+- the M1, M2 and close reviews.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
 
 ## Plan
 
