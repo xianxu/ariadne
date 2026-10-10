@@ -1,11 +1,19 @@
 ---
 id: 000052
-status: working
+status: wontfix
 deps: []
 created: 2026-05-31
-updated: 2026-05-31
+updated: 2026-10-09
 estimate_hours: 3
-card_mirror: 'ebd022f1a806ec987aaa728f0a8fe70db906a11b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '10efbb2a8ecda8addd7db1e79d60c651c14d11ae' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-09T18:42:17-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Generic CI merge-check mechanism (pluggable publish gate for derivatives)
@@ -103,3 +111,7 @@ report). These are the difference between "the gate runs" and "the gate can't be
 
 ### 2026-05-31 — CI fix: symlinked runner absent in isolated checkouts (found via #53 Phase E)
 The first real PR exercise (you-decide PR #4) showed the mechanism was broken in CI: `scripts/run-merge-checks.sh` is a sibling symlink into `../<upstream>`, which the GitHub Actions checkout (consumer repo only) does not have → `bash: scripts/run-merge-checks.sh: No such file or directory` (exit 127). Same root cause the workflow shim already dodges by being a real file. **Fix (operator's call):** the seeded `.github/workflows/merge-check.yml` now runs `BOOTSTRAP_CLONE_ONLY=1 ./bootstrap.sh` before the checks — the single-script mechanism every ariadne-style repo uses to clone its upstream peer chain as siblings; CLONE_ONLY skips the `make bootstrap` handoff. Guarded on `bootstrap.sh` presence (root repo = no-op). Applied to the ariadne seed template here AND to you-decide's already-seeded copy. **Verified live: you-decide PR #4 CI green, both gates ran.** Caveat: seed is write-once, so any *other* already-seeded derivative using CI needs the same patch applied by hand.
+
+## Log
+
+- 2026-10-09: abandoned (wontfix): superseded by #309 (local gates vs server CI; merge refuses red CI). M1 shipped in May (a39b0336, 14bbe679, merge-check.yml) but was never ticked; M2 is stale (ariadne-robustness-1 triage, 2026-10-09)
