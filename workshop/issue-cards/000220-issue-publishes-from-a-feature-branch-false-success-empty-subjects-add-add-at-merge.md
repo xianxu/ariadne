@@ -1,6 +1,6 @@
 ---
 id: 000220
-status: open
+status: wontfix
 created: 2026-09-11
 updated: 2026-10-09
 estimate_hours:
@@ -13,6 +13,9 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+tracker:
+    version: 1
+    abandoned: {}
 ---
 
 # Issue publishes from a feature branch: false success, empty subjects, add/add at merge
