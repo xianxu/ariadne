@@ -43,6 +43,38 @@ rounds:
           family: test-prose-enumeration
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-09T20:24:34-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Dispatch keeps a string contract (joined messages); Dispatch owns the retry; ParseVerdictToken goes last-match. The predicate it names is wrong for plan-quality — see the new finding.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: 'Scoped to the boundary path. Minor residue: stampAndPersist overwrites Blocked from d.Block (gatepersist.go:50), so the plan should say whether the returned Decision blocks or only the ledger field changes.'
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          round: 2
+        - id: PQ-4
+          disposition: addressed
+          round: 2
+        - id: PQ-5
+          disposition: addressed
+          round: 2
+        - id: PQ-6
+          disposition: addressed
+          round: 2
+      findings:
+        - id: PQ-7
+          severity: Important
+          title: D3's retry predicate ParseVerdict(text) != VerdictUnknown is always Unknown for plan-quality CLEAN/INFO/FAILURE, so every plan-quality round would be retried
+          detail: 'verdictFor (classify.go:148-153) accepts only SHIP/FIX-THEN-SHIP/REWORK (verdict.cue:16-17), and classify.go:215 notes that CLEAN/INFO/FAILURE fall through. 2nd finding in this family. The rule for the class: every existing-behavior claim a decision rests on carries a file:line. For this instance, the predicate must match the recipe''s verdict set (a predicate passed in DispatchOptions, or ParseVerdictToken ok or ParseVerdictBlock ok).'
+          family: unbacked-existing-behavior-claim
+          round: 2
+      blocked: true
 ---
 
 # Gate ledger — ariadne#300 (plan-quality)
@@ -66,11 +98,22 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   live_stream_conformance_test.go:47 asserts stdout == STREAM_OK for claude. The text fallback on a truncated stream loses messages that already parsed, and JSON-escaped blocks don't parse as text.
 - **PQ-6** [Minor] `test-prose-enumeration` Tasks 2 and 6 list test cases; replace with one strategy line per risky function
 
+## Round 2 — 2026-10-09T20:24:34-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- PQ-1 — addressed — Dispatch keeps a string contract (joined messages); Dispatch owns the retry; ParseVerdictToken goes last-match. The predicate it names is wrong for plan-quality — see the new finding.
+- PQ-2 — addressed — Scoped to the boundary path. Minor residue: stampAndPersist overwrites Blocked from d.Block (gatepersist.go:50), so the plan should say whether the returned Decision blocks or only the ledger field changes.
+- PQ-3 — addressed
+- PQ-4 — addressed
+- PQ-5 — addressed
+- PQ-6 — addressed
+
+### Raised
+
+- **PQ-7** [Important] `unbacked-existing-behavior-claim` D3's retry predicate ParseVerdict(text) != VerdictUnknown is always Unknown for plan-quality CLEAN/INFO/FAILURE, so every plan-quality round would be retried
+  verdictFor (classify.go:148-153) accepts only SHIP/FIX-THEN-SHIP/REWORK (verdict.cue:16-17), and classify.go:215 notes that CLEAN/INFO/FAILURE fall through. 2nd finding in this family. The rule for the class: every existing-behavior claim a decision rests on carries a file:line. For this instance, the predicate must match the recipe's verdict set (a predicate passed in DispatchOptions, or ParseVerdictToken ok or ParseVerdictBlock ok).
+
 ## Open findings
 
-- **PQ-1** [Important] `unstated-seam-change` Dispatch's return contract and the owner of the D3 retry decision are unstated
-- **PQ-2** [Important] `unbacked-existing-behavior-claim` D6 says plan-quality already blocks protocol-error rounds; it falls back to the verdict token
-- **PQ-3** [Important] `classifier-scope` D5 matches API-failure strings anywhere in the output, so reviews quoting them read as "did not run"
-- **PQ-4** [Minor] `operating-envelope-unstated` The plan doesn't say whether the sized timeout applies per attempt or across the D3 retry
-- **PQ-5** [Minor] `stream-fallback-lossy` The existing live conformance test breaks under stream-json, and a partial-stream fallback discards parsed messages
-- **PQ-6** [Minor] `test-prose-enumeration` Tasks 2 and 6 list test cases; replace with one strategy line per risky function
+- **PQ-7** [Important] `unbacked-existing-behavior-claim` D3's retry predicate ParseVerdict(text) != VerdictUnknown is always Unknown for plan-quality CLEAN/INFO/FAILURE, so every plan-quality round would be retried
