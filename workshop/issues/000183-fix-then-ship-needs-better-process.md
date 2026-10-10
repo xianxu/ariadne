@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "985aba4d", done: "02bb6d4b"}
 ---
 
 # FIX-THEN-SHIP needs better process
