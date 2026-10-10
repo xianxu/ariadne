@@ -85,3 +85,92 @@ findings:
     detail: |
       Ignore SIGINT and SIGHUP in the watcher and rely on watching make's exit; separately, the Linux polling fallback should treat PermissionError as the pid still being alive.
 ```
+
+---
+
+## Re-review — 2026-10-10T11:38:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 319 — test: machine-wide lock so only one full test suite runs at a time |
+| repo | ariadne |
+| issue file | workshop/issues/000319-test-machine-wide-lock-so-only-one-full-test-suite-runs-at-a-time.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 5d364c69e8ffda6f5416e3f3dbd236625f299964..67d51fbebd8b7fc37eb7592647326fc68f6c8391 |
+| command | sdlc close --issue 319 |
+| reviewer | claude |
+| timestamp | 2026-10-10T11:38:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Environment restricts temp dirs; use a repo-local scratch dir.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All three prior findings are fixed, and the fixes are confirmed. `holder()` now validates the record's shape: it must be a dict with all four keys, and anything else reads as unidentified. I reproduced BR-1's exact `{"pid":1}` case against HEAD. The waiter now prints "unidentified holder" and returns `timeout` instead of crashing with a traceback. The new `[1, 2]` regression case would fail without the fix, because the old code called `rec.get` on a list and raised AttributeError. The helper path now comes from `$(WF_WORKFLOW_SOURCE_DIR)`, and a missing helper produces a `$(warning …)` instead of a silent skip. The watcher ignores SIGINT and SIGHUP, which a test covers, and the poll fallback treats PermissionError as alive. `scripts/test-lock.test.sh` passes 15/15 locally. Nothing blocks SHIP.
+
+1. **Strengths**
+   - Taking the lock at parse time (`Makefile.workflow:15-28`) runs it before any prerequisite, with one wiring point for every woven repo (ARCH-DRY).
+   - The lock is released by the kernel through a forked watcher that holds the inherited descriptor, so there is never a stale lock. The kill -9 test proves this.
+   - Lock waits stay separate from test failures: the `timeout` outcome surfaces as "full-suite lock not taken (timeout)" with a "lock wait, not a test failure" line on stderr.
+   - The tests use a private `WF_TEST_LOCK_FILE` and never touch the real machine-wide lock (ARCH-SECURE). They drive the real Makefile wiring through `make -n`.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `describe(None)` says "record not yet written" even when the file holds a foreign or malformed record. "unidentified holder" alone would be accurate. This is cosmetic only.
+   - A malformed `WF_TEST_LOCK_TIMEOUT` (e.g. `5m`) makes the helper fail with a traceback, and make then reports "helper failed". The failure is visible, but the message is crude.
+
+5. **Test coverage notes:** The tests cover:
+   - two runs serializing, with the waiter naming the holder;
+   - prompt handover when the holder exits;
+   - the watcher surviving SIGINT and SIGHUP;
+   - a kill -9 of the watcher releasing the lock;
+   - re-entry for the same make and for a nested make;
+   - timeout, the `off` escape hatch, and a foreign record;
+   - make wiring both ways (`test` locks, `help` doesn't).
+
+   The missing-keys dict case (`{"pid":1}`) has no test of its own, but the same validation path covers it, and I verified it by hand.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. There is one helper and one wiring point.
+   - **ARCH-PURE:** pass. This is a thin IO script with no business logic to separate out.
+   - **ARCH-PURPOSE:** pass. Every Done-when item is delivered. Pair picks the change up through its `Makefile.workflow` symlink, and the issue Log records that this was simulated.
+   - **ARCH-MOCK:** pass. The only external dependency is the kernel's flock, and the tests exercise the real thing on private files.
+   - **ARCH-CONSTRAINTS:** pass. The wait is unbounded by default but optionally bounded, and it reports every 30s. The atlas tells agents to run the suite in the background.
+   - **ARCH-SECURE:** pass after BR-1. The persisted record is validated before use, and the tests can't touch real state.
+   - **ARCH-ORDER:** pass. The only state is the kernel lock plus a single holder record, and the reentrant, timeout and handover orderings are tested.
+   - **ARCH-FUNERAL:** pass. There is one per-user file, rewritten on each run, so it never grows.
+
+7. **Plan revisions:** The Plan's first checkbox still mentions a "manifest symlink row" and says the helper is "symlinked". Round 1 replaced that with resolving the helper beside `Makefile.workflow`'s real path. The Log records the change, but a one-line `## Revisions` entry would keep the Plan in step with the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      holder() requires a dict with all four keys; the {"pid":1} repro now reads as unidentified and returns timeout. The [1, 2] regression case would raise AttributeError without the fix.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The helper resolves via $(WF_WORKFLOW_SOURCE_DIR), and a missing helper emits $(warning) that the run is unlocked (Makefile.workflow:15-18).
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The watcher ignores SIGINT and SIGHUP (tested by "watcher survives SIGINT and SIGHUP"), and the poll fallback treats PermissionError as alive.
+findings:
+  - id: new
+    severity: Minor
+    family: untrusted-persisted-record-shape
+    title: |
+      describe(None) says "record not yet written" for a foreign or malformed record too
+    detail: |
+      This is message wording only; the rule (validate the shape before use) is already applied in holder(). "unidentified holder" alone would be accurate.
+```
