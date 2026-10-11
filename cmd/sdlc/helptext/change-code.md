@@ -127,7 +127,9 @@ THE PLAN GATE (stateful since #187)
   The plan-quality gate REMEMBERS. Its findings persist to
   `workshop/plans/NNNNNN-slug-plan-gate.md` with binary-assigned stable
   ids, and each re-run must dispose of every prior finding
-  (addressed / not-addressed / withdrawn) before raising new ones.
+  (addressed / not-addressed / withdrawn) before raising new ones. A finding
+  you can show is wrong, or not worth its fix, you dispute instead
+  (`sdlc finding dispute`, #202): the next round answers your evidence.
 
   A finding names one instance; what disposes of it is the class it belongs
   to — see ARCH-PURPOSE (`sdlc arch-principles`), which the gate's own

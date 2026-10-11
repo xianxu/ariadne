@@ -787,6 +787,23 @@ func TestGatePersist_ReportsTheDecisionOnBothOutcomes(t *testing.T) {
 	}
 }
 
+// #202: a finding settled by dispute is announced at warning level on a PASSING gate —
+// the escape hatch is loud whether or not anything still blocks — and only once.
+func TestGatePersist_AnnouncesDisputesOnAPass(t *testing.T) {
+	var stderr strings.Builder
+	d := gatestate.Decision{Reason: "no open blocking findings after 2 round(s)", Raised: 3,
+		Disputed: []gatestate.Finding{{ID: "BR-1"}, {ID: "BR-2"}}}
+	stampAndPersist(&stderr, gatePersist{Label: "boundary gate", Write: func(gatestate.Ledger) error { return nil }},
+		gatestate.Ledger{Rounds: []gatestate.Round{{N: 1}}}, d, "")
+	const want = "boundary gate: 2 of 3 finding(s) settled by implementer DISPUTE, not a fix: BR-1, BR-2"
+	if got := strings.Count(stderr.String(), want); got != 1 {
+		t.Fatalf("want the dispute line once, got %d:\n%s", got, stderr.String())
+	}
+	if !strings.Contains(stderr.String(), "[!]") {
+		t.Errorf("the dispute line must be a warning:\n%s", stderr.String())
+	}
+}
+
 // #304 D5: only a FINALIZING round advances the boundary. The reviewed head is stamped
 // iff the verdict finalizes and the ledger decision does not block (or its block was
 // waived); every other round leaves it empty, so the next window still covers it.

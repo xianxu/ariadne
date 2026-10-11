@@ -1165,9 +1165,9 @@ func TestPlanQualityPromptRendersFindingModel(t *testing.T) {
 			t.Errorf("plan-quality prompt omits severity %q", s)
 		}
 	}
-	// AllDispositions(), not .Dispositions — the latter is map[string][]string since the
-	// closing/open partition landed.
-	for _, d := range m.AllDispositions() {
+	// The JUDGE's dispositions only (#202): an implementer disposition is not the
+	// judge's to emit, so the prompt must not offer it.
+	for _, d := range m.JudgeDispositions() {
 		if !strings.Contains(p, d) {
 			t.Errorf("plan-quality prompt omits disposition %q", d)
 		}
