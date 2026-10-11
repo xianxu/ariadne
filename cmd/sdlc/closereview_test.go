@@ -71,7 +71,7 @@ func stubJudgeCommand(t *testing.T, output string) (*int, *string) {
 	var lastName string
 	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
 		calls++
-		lastName = name
+		lastName, _, _ = unwrapReviewArgv(t, name, args)
 		return judge.ProcessOutput{Stdout: []byte(output)}, nil
 	}
 	return &calls, &lastName

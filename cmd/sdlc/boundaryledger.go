@@ -181,6 +181,7 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	if !neverRan {
 		l.Rounds[len(l.Rounds)-1].Recipe = string(p.recipe())
 		l.Rounds[len(l.Rounds)-1].Dispatched = review.Dispatched
+		l.Rounds[len(l.Rounds)-1].Isolation = review.Isolation
 	}
 
 	// Cap per boundary; open findings from the WHOLE issue at the final boundary (BR-37).

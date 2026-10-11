@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/pkg/testgate"
 )
@@ -155,6 +156,7 @@ func TestMain(m *testing.M) {
 	testgate.Enter() // one machine-wide test slot, and the -parallel cap (#324)
 	testfix.PreferRealGit()
 	testfix.QuietBackgroundGit()
+	cleanupReviewBox := hermeticReviewBox()
 	root := realRepoRoot()
 	before := readSnapshot(root)
 	code := m.Run()
@@ -173,5 +175,20 @@ func TestMain(m *testing.M) {
 			fmt.Fprintf(os.Stderr, "(the run already failed; not overriding its exit — but fix the mutation above too)\n")
 		}
 	}
+	cleanupReviewBox()
 	os.Exit(exit)
+}
+
+// hermeticReviewBox keeps boundary-review checkouts (#204) out of the user's
+// cache dir and makes the fence deterministic: no test depends on whether the
+// host can apply sandbox-exec. A test that exercises a fence sets Probe itself.
+func hermeticReviewBox() (cleanup func()) {
+	dir, err := os.MkdirTemp("", "sdlc-review-checkouts-")
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "review checkout root: %v\n", err)
+		os.Exit(1)
+	}
+	os.Setenv("WF_REVIEW_CHECKOUT_ROOT", dir)
+	reviewbox.Probe = func() (reviewbox.Fence, string) { return reviewbox.FenceNone, "tests run checkout-only by default" }
+	return func() { os.RemoveAll(dir) }
 }

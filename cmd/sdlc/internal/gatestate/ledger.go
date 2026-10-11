@@ -90,6 +90,11 @@ type Round struct {
 	// and on every boundary round before #231 — when milestone-review was the only
 	// recipe, so an empty value on a boundary round reads as the full review.
 	Recipe string `yaml:"recipe,omitempty"`
+	// Isolation is the containment a boundary round's reviewer ran under (#204):
+	// "fenced" (a disposable checkout plus an OS write fence on the source) or
+	// "checkout" (the checkout only, because the fence could not nest). Empty on
+	// plan-quality rounds, never-ran rounds and every round before #204.
+	Isolation string `yaml:"isolation,omitempty"`
 	// Reviewed is the head commit a FINALIZED boundary review read (#304, #197): the
 	// identity of the reviewed branch patch, whose base is merge-base(main, Reviewed)
 	// because main only grows. Only a round that finalized carries it — REWORK, halt,

@@ -79,7 +79,7 @@ func TestDispatchBoundaryReview_AgentDefaultUsesPairAgent(t *testing.T) {
 
 	var seenName string
 	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
-		seenName = name
+		seenName, _, _ = unwrapReviewArgv(t, name, args)
 		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
 	}
 
