@@ -38,9 +38,9 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
 
 ## Done when
 
-- [ ] `make test` passes on main from a clean slot, twice in a row, with wall time recorded.
-- [ ] Every quarantined test has an owning issue.
-- [ ] The CI decision is recorded, and the job exists or is filed.
+- [x] `make test` passes on main from a clean slot, twice in a row, with wall time recorded.
+- [x] Every quarantined test has an owning issue.
+- [x] The CI decision is recorded, and the job exists or is filed.
 
 ## Plan
 
@@ -51,7 +51,7 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
 - [x] Coverage gap: `make test` runs only `cmd/sdlc/...` → its `packages` job now runs every module package.
 - [x] Fix the testgate self-deadlock the widened run exposed (nested helper binaries).
 - [x] CI decision recorded; job filed as #331.
-- [ ] `make test` green ×2 with wall time + shard count in the Log.
+- [x] `make test` green ×2 with wall time + shard count in the Log.
 
 ## Log
 
@@ -113,4 +113,14 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
   Mechanism: new `testfix.Quarantine(t, issue, why)`, a loud `t.Skipf` naming the issue; `WF_TEST_QUARANTINED=run`
   runs them. #325's fix must delete both calls (reported to the TL to fold into #325's Done when).
 - #302 (TempDir cleanup race): not seen in any run here; nothing to fold.
+
+### 2026-10-11
+- **Green ×2, back to back**, on the final tree (b4b918a3 = main + this branch), `make test` from ariadne:3:
+  - Run C: lock wait 1134s (pair:5, ariadne:2 suites ahead), then **wall 469.0s**, exit 0.
+  - Run D: no wait, **wall 448.8s**, exit 0 (load ~16–28 at start).
+  - Both: **12 shards** (one per core) over 1048 cmd/sdlc tests + 44 other packages, 2 quarantined (#325).
+- Shard-count input for the recap: at 12 shards the cmd/sdlc shards finish at 400–480s each, and the whole-module
+  `packages` job (~230s) fits inside them. The wall is set by the slowest shard, so fewer shards cost roughly
+  linearly. The "about 4 minutes" in the atlas predates the current test count and the load from parallel slots.
+  The suite lock queue costs more than the suite: 177–1452s of waiting per run tonight.
 

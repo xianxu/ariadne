@@ -1427,7 +1427,7 @@ core, balanced from the last run's per-test times
 `cmd/sdlc/...` ran, and a cmd/weave hang went unseen).
 `cmd/sdlc`'s tests change cwd and swap package seams, so they cannot run in
 parallel inside one process; separate processes share neither. About 4 minutes
-against about 25 serially. Plain `go test ./cmd/sdlc/...` still works but runs
+against about 25 serially (#330 measured 7.5–8 minutes with 12 shards on a busy machine, whole module). Plain `go test ./cmd/sdlc/...` still works but runs
 `cmd/sdlc` serially and needs `-timeout 60m` (it exceeds go's 10-minute default).
 `scripts/test-timing.py` reports per-test times from either run's `-json` output.
 
