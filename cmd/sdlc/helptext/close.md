@@ -220,6 +220,15 @@ WHAT THE GUARD DEFENDS
                        Required.
 
   Plus structural checks:
+    - integrate (#269, close and milestone-close; runs first, before any
+      review): the branch must contain every commit that landed on main
+      (first parent, freshly fetched) by the most recent noon, in the zone of
+      .sdlc/freshness.json ({"version":1,"timezone":"<IANA>"}; absent → the
+      local zone). Missing code refuses with the remedy: `git merge <main>`
+      for a pushed branch, `git rebase <main>` for an unpushed one; then
+      re-run the suite and the close. Missing docs only → an info line. A
+      failed fetch warns "could not check", never "up to date". Integrating
+      never widens the review window (#304).
     - atlas/ must have changed in the issue's commit window (§5 step 5) —
       auto-satisfied when the window has NO code surface (docs/workshop-only
       deltas have nothing to map, #177)

@@ -1,20 +1,22 @@
 ---
 id: 000269
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-28
-updated: 2026-10-09
+updated: 2026-10-11
 estimate_hours:
-card_mirror: 'e7c43810f995ee5555d84b919dc5851e601f497e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '18d46f19a71a77f9d865e8687c1b018a031800f6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-09T20:51:35-07:00
 claimant:
     operator: Xian Xu
     machine: 4716879978a7b90f6b583da1716fd0e9
     machine_name: MacBook Pro
-    workspace: ariadne:1
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 6.56
 ---
 
 # sdlc close: integrate a moved origin/main before the boundary review
@@ -83,10 +85,21 @@ side of the same staleness; this issue is the issue-branch side, at close.
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000269-integrate-gate-plan.md` (previous-noon rule, tri-state probe, shared `internal/freshness` for #303, gate at close + milestone-close).
+
+- [x] `internal/freshness` (Cutoff, LoadLocation, Check) with unit and real-git tests
+- [x] `integrategate.go` wired into `computeClose`; `--no-integrate` on close and milestone-close; fixture tests incl. remedy-from-refused-state
+- [x] gatesig catalog, help text, recovery catalog, atlas, `.sdlc/freshness.json`
+- [x] targeted tests, then full `make test`
 
 ## Log
 
+
+
+
+- 2026-10-11: closed — fixed both close-review Minors: legacy fetch bounded by ctx+timeout (inconclusive on hang), upstream==main no longer counts as pushed; tests TestIntegrateGate_FetchTimeoutIsInconclusive / _UpstreamOfMainIsNotPushed pass; clean merge of main (#202) (fixed-then-ship); review verdict: SHIP
+- 2026-10-11: closed — integrate gate refuses a stale branch before review (rebase/merge by push state; remedy run from refused state passes), docs-only info, net-empty range fresh, fetch failure inconclusive, --no-integrate in gate catalog; real-git fixtures w/ bare remote incl. tracker repo; full make test on merged main green (1059 tests, 0 failed); review verdict: SHIP
+- 2026-10-11: flow upgraded quick → full — 324 added lines in code files (limit 100)
 ### 2026-09-28
 
 - Filed from pair#247 at the operator's request, after a discussion of
@@ -98,3 +111,8 @@ side of the same staleness; this issue is the issue-branch side, at close.
 - 2026-10-09: unclaimed: TL edit published; not started
 
 Spec line added by the TL (ariadne:1) at #304's request (its Done-when), with the previous-noon freshness direction from the ariadne-robustness-1 review.
+
+### 2026-10-10
+- Claimed at ariadne:4 (TL dispatch). Design: the previous-noon rule from project req. 6 subsumes the spec's "main moved since merge base". Only main commits landed before the most recent noon must be in the branch, and docs-only staleness passes. Applied at both boundaries, since #304 made milestone integration free. Fetch failure is inconclusive: warn, never the up-to-date line.
+- Implemented: `internal/freshness` and `integrategate.go`, wired into `computeClose` before the window. The gatesig row, help, recovery catalog and atlas are updated. `.sdlc/freshness.json` is set to America/Los_Angeles. Targeted tests pass (fixtures with a bare remote: rebase and merge remedies run from the refused state, docs-only, embedded md, fetch failure, bypass, bad zone, computeClose wiring).
+- Full `make test` (unsandboxed; the sandbox blocks `/bin/ps` and reviewer signals): 1056/1057 passed. The one failure, `TestPlanningReviewConcurrencySchedules`, is load-sensitive plan-review scheduling (#325's class) and passes alone. A sandboxed run also tripped the HEAD-moved hermeticity guard, because I committed mid-run; don't commit while a suite runs.

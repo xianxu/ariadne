@@ -154,3 +154,5 @@ THE GATE LEDGER (#194)
   WF_BOUNDARY_ROUND_CAP (default 3) bounds the rounds.
 
   See `sdlc close --help` for the full contract — it is the same gate.
+  The integrate gate (#269) runs here too, before the review: main's code
+  landed by the most recent noon must be in the branch (`--no-integrate`).
