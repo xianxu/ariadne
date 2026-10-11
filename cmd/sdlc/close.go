@@ -57,6 +57,9 @@ type closeFlags struct {
 	Issue     int
 	Milestone string
 	Actual    string
+	// Split is the measured build/converge division of an ADOPTED Actual (#234);
+	// nil when --actual was typed, which the ledger records as split_source manual.
+	Split *actualSplit
 	Verified  string
 	Force     bool
 	DryRun    bool
@@ -438,7 +441,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// the engine can't measure — and for an ADOPTED value (#178): comparing
 		// the measurement against itself would just re-run the engine.
 		if !adopted && !f.skip("actual") {
-			if derr := checkActualDeviation(commandContext(f.Context), stderr, issueStr, v, mode); derr != nil {
+			if derr := checkActualDeviation(commandContext(f.Context), stderr, issueStr, v, f.Milestone); derr != nil {
 				die(stderr, derr.Error())
 			}
 		}
@@ -1586,12 +1589,12 @@ func emitLessonsReminder(stdout io.Writer) {
 // computeActualForCloseFn is the measurement seam for the omit-path (#178) —
 // a package var so tests can stub the engine (the file's validateChangedInstancesFn
 // pattern). Production resolves roots and runs the same engine as `sdlc actual`.
-var computeActualForCloseFn = func(ctx context.Context, issueStr string) actualResult {
+var computeActualForCloseFn = func(ctx context.Context, issueStr, milestone string) actualResult {
 	repoTop, brainAbs, err := resolveActualRoots()
 	if err != nil {
 		return actualResult{Status: actualError, Issue: issueStr, Detail: err.Error()}
 	}
-	return computeActual(ctx, repoTop, brainAbs, issueStr)
+	return computeActualFor(ctx, repoTop, brainAbs, issueStr, milestone)
 }
 
 // resolveOmittedActual is the pure omit-path decision (#178): adopt a measured
@@ -1605,9 +1608,9 @@ func resolveOmittedActual(res actualResult) (string, bool) {
 	return strconv.FormatFloat(res.Hours, 'f', 2, 64), true
 }
 
-// formatAdoptLine renders the adoption info line (issue mode only — milestone
-// closes keep the suggest flow, see adoptOmittedActual). Must never match a
-// GateCatalog ACK/refusal pattern (TestAdoptLineNoGatesigCollision).
+// formatAdoptLine renders the adoption info line, for an issue or (since #234
+// E1) a milestone increment. Must never match a GateCatalog ACK/refusal
+// pattern (TestAdoptLineNoGatesigCollision).
 func formatAdoptLine(res actualResult) string {
 	line := fmt.Sprintf("using measured actual: %.2fh (window %s", res.Hours, res.Window)
 	if len(res.Peers) > 1 {
@@ -1621,22 +1624,17 @@ func formatAdoptLine(res actualResult) string {
 // compare the measurement with itself), print the info line. On unmeasurable
 // statuses it returns ok=false with NO side effects — the caller explains
 // (reusing the same measurement) and exits.
+//
+// A milestone close adopts its own increment (#234 E1): the measurement keeps
+// only that milestone's phases, so per-milestone values never double-count
+// across project detail blocks (the #178 reason milestones once refused).
 func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) (actualResult, bool) {
-	res := computeActualForCloseFn(commandContext(f.Context), issueStr)
-	if mode == "milestone" {
-		// #178 close-review Important #1: per-milestone project detail blocks
-		// record per-milestone hours, but computeActual's window is ISSUE-scoped
-		// (claim → HEAD) — auto-adopting the cumulative value at M2+ would
-		// double-count across blocks (lessons.md increments rule). Milestones
-		// keep the suggest-then-decide flow (the agent applies the increment
-		// arithmetic) until a windowed per-milestone measurement lands.
-		return res, false
-	}
+	res := computeActualForCloseFn(commandContext(f.Context), issueStr, f.Milestone)
 	v, ok := resolveOmittedActual(res)
 	if !ok {
 		return res, false
 	}
-	f.Actual = v
+	f.Actual, f.Split = v, res.Split
 	cinfo(stderr, formatAdoptLine(res))
 	for _, w := range res.Warnings {
 		cwarn(stderr, w)
@@ -1723,16 +1721,12 @@ func actualDeviation(passed, measured float64) (devVerdict, float64) {
 	}
 }
 
-// checkActualDeviation is the thin IO glue for issue-close values: measure via
+// checkActualDeviation is the thin IO glue for a typed --actual: measure via
 // the shared engine, run the pure comparator, and warn (to stderr) or return a
-// refusal error. Milestone values are increments but the available measurement
-// is cumulative claim→HEAD, so they are deliberately skipped until a windowed
-// milestone measurement exists. Unavailable issue measurements also never gate.
-func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, mode string) error {
-	if mode == "milestone" {
-		return nil
-	}
-	res := computeActualForCloseFn(ctx, issueStr)
+// refusal error. A milestone value is compared with that milestone's measured
+// increment (#234 E1). Unavailable measurements never gate.
+func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, milestone string) error {
+	res := computeActualForCloseFn(ctx, issueStr, milestone)
 	if res.Status != actualMeasured {
 		return nil // can't measure → don't block (judgment path owns this)
 	}

@@ -116,7 +116,8 @@ func TestSplitForBoundary(t *testing.T) {
 	if !near(m2.Build, 26) || m2.Converge != 0 {
 		t.Errorf("M2 = %+v, want build 26 (34 → 60)", m2)
 	}
-	m1 := Split([]Segment{seg(0, 60)}, "9", tl.For("M1"))
+	// M1 measured after it finalized: M2's work is not M1's.
+	m1 := Split([]Segment{seg(0, 60)}, "9", BuildTimeline(rounds, []time.Time{at(10), at(30), at(50)}, "M1", at(0), at(60)).For("M1"))
 	if !near(m1.Build, 20) || !near(m1.Converge, 10) {
 		t.Errorf("M1 = %+v, want build 20, converge 10", m1)
 	}

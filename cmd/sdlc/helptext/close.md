@@ -329,7 +329,11 @@ measured value in the same invocation (#178) — a loud info line shows the hour
 window, and peer attribution. When the telemetry isn't available it refuses and
 points you to a labeled judgment estimate. Attribution warnings print alongside
 the adoption; inspect them, because they identify dominant long runs or mention
-fallback where commit boundary evidence was weak. If
+fallback where commit boundary evidence was weak. The measured value is BUILD
++ CONVERGE (#234): it is split at each boundary review's first dispatch, and the
+verification after a finalized boundary's last #N commit (the final test run and
+review) is not counted, at every boundary. `sdlc actual --issue N` shows the
+split. If
 --verified is missing, the explainer shows a worked example of a
 behavior-grounded VERIFIED string. Read the explainer; the contract is
 load-bearing.
@@ -345,7 +349,8 @@ e.g. a typed estimate where the measurement is minutes) is REFUSED — re-run
 `sdlc actual` and pass the measured value, or `--force '<why>'` if the
 measurement is genuinely wrong. Small absolute gaps (< 0.5h) never trip it.
 This is the backstop for the "hand-type a plausible number" failure that a
-guessed --actual would otherwise sail through. (milestone-close inherits it.)
+guessed --actual would otherwise sail through. (milestone-close inherits it,
+comparing against the milestone's own measured increment, #234.)
 
 CALIBRATION LEDGER (#117 — closing the estimate↔actual loop)
 

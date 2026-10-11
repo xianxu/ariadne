@@ -28,10 +28,19 @@ WHAT IT DOES
      dominates the issue total, or the engine had to use mention fallback because
      no issue commit boundary existed), warning lines are printed before the
      close suggestion.
+  4. Splits the measurement at the issue's boundary reviews (#234), read from
+     its boundary gate ledger: **build** runs to each boundary's first review
+     dispatch; **converge** runs from there to the boundary's last #N commit at
+     or before its final dispatch. The verification after that commit (the
+     final test run and review) is the uncounted **tail**, at every boundary.
+     The actual is build + converge. With `--milestone Mx` it is Mx's phases
+     only, the increment `milestone-close` adopts.
 
 OUTPUT
 
-  - measured            → "measured actual for #N: <h>h" + the `--actual <h>` to use.
+  - measured            → "measured actual for #N: <h>h", then the build /
+                            converge / uncounted-tail line and which evidence cut it
+                            (dispatch stamps, finalize times, or no-review).
   - telemetry unavailable → window has commits but no transcript events (work
                             lived in cwds/worktrees not under brain/repo, or aged
                             out / in an unsupported harness transcript shape).
@@ -45,6 +54,7 @@ FLAGS
 
   --issue <n>         issue ID to measure (required)
   --brain-dir <path>  brain repo path (transcript dir always included; default ../brain)
+  --milestone <Mx>    measure one milestone's increment (#234)
 
 RELATED
 

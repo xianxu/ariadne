@@ -79,7 +79,9 @@ func (tl Timeline) For(boundary string) Timeline {
 //     cut to the window end.
 //
 // Time after the last finalized boundary is build toward current, the
-// boundary being measured now.
+// boundary being measured now, unless current has itself finalized (a past
+// milestone measured later): then that time belongs to a boundary not yet
+// reviewed, and is tagged "".
 func BuildTimeline(rounds []BoundaryRound, issueCommits []time.Time, current string, since, until time.Time) Timeline {
 	commits := append([]time.Time(nil), issueCommits...)
 	sort.Slice(commits, func(i, j int) bool { return commits[i].Before(commits[j]) })
@@ -99,6 +101,7 @@ func BuildTimeline(rounds []BoundaryRound, issueCommits []time.Time, current str
 		last = end
 	}
 	cursor := since
+	finalized := map[string]bool{}
 	for _, b := range groupBoundaries(rounds) {
 		first := b[0]
 		cut, stamped := dispatchOf(first)
@@ -127,9 +130,13 @@ func BuildTimeline(rounds []BoundaryRound, issueCommits []time.Time, current str
 			emit(cursor, tailStart, Build, first.Boundary)
 		}
 		emit(tailStart, final.Finalized, Tail, first.Boundary)
+		finalized[first.Boundary] = true
 		if final.Finalized.After(cursor) {
 			cursor = final.Finalized
 		}
+	}
+	if finalized[current] {
+		current = ""
 	}
 	emit(cursor, until, Build, current)
 	return tl
