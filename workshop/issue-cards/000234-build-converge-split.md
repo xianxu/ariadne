@@ -1,6 +1,6 @@
 ---
 id: 000234
-status: codecomplete
+status: done
 created: 2026-09-17
 updated: 2026-10-10
 estimate_hours: 2.7
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: af69846a44bf681ae80a81031f39000a2dc26093
         evidence_commit: a21a5f2862eec59f1e3760ec2c40373a1dcef6d8
+        landed_commit: fc01f051850c5838f15c895bd125521bd48641de
 ---
 
 # Split actuals at the first boundary review: build time vs converge time
