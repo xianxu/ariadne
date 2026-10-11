@@ -114,6 +114,46 @@ rounds:
       recipe: milestone-review
       reviewed: d82aa822db9d442f59c9d11bef857259ae69cbaf
       blocked: false
+    - "n": 5
+      timestamp: "2026-10-10T19:07:20-07:00"
+      dispatched: "2026-10-10T19:06:54-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Already disposed in an earlier round; the interdiff touches no production code, so nothing regresses.
+          round: 5
+        - id: BR-2
+          disposition: addressed
+          note: Already disposed in an earlier round; the interdiff does not touch it.
+          round: 5
+        - id: BR-3
+          disposition: addressed
+          note: Already disposed in an earlier round; the interdiff does not touch it.
+          round: 5
+        - id: BR-4
+          disposition: addressed
+          note: Already disposed in an earlier round; the interdiff does not touch it.
+          round: 5
+        - id: BR-5
+          disposition: addressed
+          note: Already disposed in an earlier round; the interdiff does not touch it.
+          round: 5
+        - id: BR-6
+          disposition: addressed
+          note: Already disposed in an earlier round; the interdiff does not touch it.
+          round: 5
+        - id: BR-7
+          disposition: addressed
+          note: Already disposed in an earlier round; the interdiff does not touch it.
+          round: 5
+        - id: BR-8
+          disposition: addressed
+          note: Disposed in round 4 (d82aa822 added estimate.Dash); the interdiff only records that round.
+          round: 5
+      recipe: fix-review
+      reviewed: af69846a44bf681ae80a81031f39000a2dc26093
+      blocked: false
 ---
 
 # Gate ledger — ariadne#234 (boundary-review)
@@ -166,6 +206,19 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - BR-8 — addressed — d82aa822 deletes dashIfEmpty and exports estimate.Dash (ledger.go:262); a tree-wide sweep finds no other empty-to-dash helper, and the estimate and cmd/sdlc tests pass.
+
+## Round 5 — 2026-10-10T19:07:20-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Already disposed in an earlier round; the interdiff touches no production code, so nothing regresses.
+- BR-2 — addressed — Already disposed in an earlier round; the interdiff does not touch it.
+- BR-3 — addressed — Already disposed in an earlier round; the interdiff does not touch it.
+- BR-4 — addressed — Already disposed in an earlier round; the interdiff does not touch it.
+- BR-5 — addressed — Already disposed in an earlier round; the interdiff does not touch it.
+- BR-6 — addressed — Already disposed in an earlier round; the interdiff does not touch it.
+- BR-7 — addressed — Already disposed in an earlier round; the interdiff does not touch it.
+- BR-8 — addressed — Disposed in round 4 (d82aa822 added estimate.Dash); the interdiff only records that round.
 
 ## Open findings
 

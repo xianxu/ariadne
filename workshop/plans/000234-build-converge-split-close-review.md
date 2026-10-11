@@ -123,3 +123,78 @@ dispose:
     note: |
       d82aa822 deletes dashIfEmpty and exports estimate.Dash (ledger.go:262); a tree-wide sweep finds no other empty-to-dash helper, and the estimate and cmd/sdlc tests pass.
 ```
+
+---
+
+## Re-review — 2026-10-10T19:07:20-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 234 — Split actuals at the first boundary review: build time vs converge time |
+| repo | ariadne |
+| issue file | workshop/issues/000234-build-converge-split.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8d7fcb3ae03310c932d2f180af8bd102b7b5e6ad..af69846a44bf681ae80a81031f39000a2dc26093 |
+| command | sdlc close --issue 234 |
+| reviewer | claude |
+| timestamp | 2026-10-10T19:07:20-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This fix review is SHIP. All eight earlier findings (BR-1 to BR-8) were already disposed, and nothing in this window reopens any of them. The window adds no production code. It holds the round-4 gate-ledger and close-review records, the merge of `origin/main` into `workshop/lessons.md`, and one new table case in `cmd/sdlc/internal/activetime/split_test.go:71-82`. That case pins how #183's narrow re-close interacts with the split: after a FIX-THEN-SHIP, a second finalizing round extends converge to the last fix commit. I worked through its numbers by hand: build runs 0 to 30 (the first dispatch), converge runs 30 to 45 (the last fix commit), and the tail runs 45 to 52. The package test passes (`go test ./internal/activetime/ -run TestBuildTimelineAndSplit`: ok). `## Spec`, `## Revisions` and `## Done when` are unchanged; the issue diff only touches the card mirror, `actual_hours` and the close log line. So the scope has not changed.
+
+1. **Strengths**
+   - `split_test.go:71-82`: the new case covers the interaction between this issue and #183's narrow re-close. It is a pure table case with no input or output, in line with ARCH-PURE.
+   - `workshop/lessons.md`: the conflict resolution keeps both sides. Main's two #324 entries and its "reviewer instruction" entry are kept, and so is #234's "one usability predicate" entry, which moved below main's entry. Nothing was lost.
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none.
+5. **Test coverage:** the only executable change is a test, and it passes. It adds coverage without changing any behaviour.
+6. **Architecture:**
+   - **ARCH-DRY:** passes; no duplicated logic was added.
+   - **ARCH-PURE:** passes; the test drives the pure split directly.
+   - **ARCH-PURPOSE:** passes; the window adds no new surface or deferral.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Already disposed in an earlier round; the interdiff touches no production code, so nothing regresses.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Already disposed in an earlier round; the interdiff does not touch it.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Already disposed in an earlier round; the interdiff does not touch it.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Already disposed in an earlier round; the interdiff does not touch it.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Already disposed in an earlier round; the interdiff does not touch it.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      Already disposed in an earlier round; the interdiff does not touch it.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Already disposed in an earlier round; the interdiff does not touch it.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Disposed in round 4 (d82aa822 added estimate.Dash); the interdiff only records that round.
+```
