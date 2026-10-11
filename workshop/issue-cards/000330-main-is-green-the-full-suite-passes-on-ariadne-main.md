@@ -1,6 +1,6 @@
 ---
 id: 000330
-status: codecomplete
+status: done
 created: 2026-10-10
 updated: 2026-10-11
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 67ac9bf641eceacafc05ffa042198acea603217e
         evidence_commit: 8115e97a92edca6fd4d124f9916cc8bc8399d8f9
+        landed_commit: 4e0f9605e90261b2ca5c8deeb22cb89123203f25
 ---
 
 # Main is green: the full suite passes on ariadne main
