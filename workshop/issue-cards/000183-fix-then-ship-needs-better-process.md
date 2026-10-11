@@ -1,6 +1,6 @@
 ---
 id: 000183
-status: codecomplete
+status: done
 created: 2026-07-16
 updated: 2026-10-10
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 972baa66aa67bfc7527d4f087e0708e32ff4eaed
         evidence_commit: de97646b03d135c325a374802887d495e160a8e5
+        landed_commit: d73ac0add7907c0aca4272cd1c8d7b40b4a6fb8b
 ---
 
 # FIX-THEN-SHIP needs better process
