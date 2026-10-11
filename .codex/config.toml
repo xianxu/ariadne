@@ -10,6 +10,10 @@
 #   - session hooks
 # - Network control in Codex is coarse-grained. You can allow or block network
 #   access for `workspace-write`, but not maintain Claude-style domain allowlists.
+# - Claude pre-allows `sdlc` and `couch` and runs them outside its sandbox (#318).
+#   Codex needs no counterpart: it has no per-command sandbox exclusion, but
+#   `network_access = true` below already lets couch dial its peer-message
+#   socket, and `on-request` approval has no classifier to pre-allow against.
 
 approval_policy = "on-request"
 sandbox_mode = "workspace-write"

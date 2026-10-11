@@ -1,5 +1,5 @@
 {
-  "$comment": "Ariadne base-layer settings. Symlinked into every adopted repo; deep-merged UNDER settings.local.json by weave (cmd/weave/internal/settingsx) into .claude/settings.json. (Was construct/scripts/merge-settings.sh, retired in #95.)",
+  "$comment": "Ariadne base-layer settings. Symlinked into every adopted repo; deep-merged UNDER settings.local.json by weave (cmd/weave/internal/settingsx) into .claude/settings.json. (Was construct/scripts/merge-settings.sh, retired in #95.) sdlc and couch are the workbench's own verbs: they run outside the sandbox (couch dials its peer-message socket) and are pre-allowed so the auto-mode classifier does not re-judge them; each binary keeps its own gates (#318).",
   "$merge_keys": [
     "permissions.allow",
     "permissions.deny",
@@ -18,6 +18,8 @@
       "Bash(mv:*)",
       "Bash(rm:*)",
       "Bash(ln:*)",
+      "Bash(sdlc:*)",
+      "Bash(couch:*)",
       "WebSearch"
     ],
     "deny": [
@@ -97,6 +99,7 @@
       "git",
       "gh",
       "sdlc",
+      "couch",
       "docker",
       "npm",
       "npx",
