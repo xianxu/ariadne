@@ -43,8 +43,8 @@ var gitRun = func(repo string, args ...string) ([]byte, error) {
 // commit (in BranchPoint..HEAD) or its subject names Issue (the filing commit
 // on main, the issue's tracker claim/close). The zero Scope keeps every commit
 // in the window: work done directly on main has no branch to scope to. Since
-// #317 "names" means the subject's lead, and a merge is never a scoped
-// boundary: its lead would make the integration a boundary the unintegrated
+// #317 "names" means the subject's lead, and a merge in BranchPoint..HEAD is
+// never a boundary: its lead would make the integration a boundary the unintegrated
 // branch lacked (ariadne#304: `#304: merge origin/main (#300, #270 landed)`).
 type Scope struct {
 	BranchPoint string

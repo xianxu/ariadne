@@ -22,8 +22,8 @@ THE V3 METHOD (global commit-boundary attribution)
   (`#N:`, `#N Mx:`, `#174-#176:`, `sdlc: #N`, `close #N`) are its claimants,
   even when --issue names only the primary issue. A ref later in the subject is
   a citation: it counts as a mention, never as a claimant (#317). Commits with
-  no leading ref cut time but do not claim it. With --branch-point, merge
-  commits are not boundaries. Each run is attributed to the
+  no leading ref cut time but do not claim it. With --branch-point, the
+  branch's own merge commits (BranchPoint..HEAD) are not boundaries. Each run is attributed to the
   nearest plausible issue commit, with next-commit ties winning because commits
   usually close the work that preceded them.
 
