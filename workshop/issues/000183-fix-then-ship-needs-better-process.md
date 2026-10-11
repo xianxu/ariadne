@@ -69,18 +69,23 @@ A finding fixed after a finalizing review has no proportionate gate. The publish
 
 Durable plan: `workshop/plans/000183-fix-then-ship-needs-better-process-plan.md`. Single pass, one close.
 
-- [ ] Ledger: `LatestFinalizedAt(l, boundary)`; `fix-review` rounds are not full rounds
-- [ ] Window planner: `FixedThenShip` fact → interdiff since the last whole-issue review
-- [ ] `fix-review` prompt recipe + category
-- [ ] close: `--fixed-then-ship` / `--full-suite` flags, refusals, branch-patch atlas and shell measurement, recipe selection
-- [ ] F3: done-when-fresh deferral to the review, prompt note, log line
-- [ ] Publish gate refusal text, FIX-THEN-SHIP protocol text
-- [ ] Help, recovery catalog, atlas, process-manual
+- [x] Ledger: `LatestFinalizedAt(l, boundary)`; `fix-review` rounds are not full rounds
+- [x] Window planner: `FixedThenShip` fact → interdiff since the last whole-issue review
+- [x] `fix-review` prompt recipe + category
+- [x] close: `--fixed-then-ship` / `--full-suite` flags, refusals, branch-patch atlas and shell measurement, recipe selection
+- [x] F3: done-when-fresh deferral to the review, prompt note, log line
+- [x] Publish gate refusal text, FIX-THEN-SHIP protocol text
+- [x] Help, recovery catalog, atlas, process-manual
 
 ## Log
 
 ### 2026-10-10
 - Claimed at ariadne:4 (TL batch 2). TL approved (10-10): #183 owns #320's layer 3; F3 becomes a reviewer check, with the conditions recorded in ## Revisions.
+- change-code inferred the quick flow (the design is short), but the code passes 100 added lines, so close upgrades it to the full review. I didn't pin `--flow full`: that pin is recorded as the operator's decision.
+- The log tags (fixed-then-ship, done-when) go AFTER the verified evidence. `appendVerdictSuffix` matches `closed — `, so a tag before the dash silently dropped the verdict annotation (caught by the F3 test).
+- The publish gate's next action now names the issue number (`publishIssueRef`) instead of `<N>`.
+- I did not regenerate `atlas/process-manual.md`: in this slot it drops about 2,000 lines of environment-dependent sources (memories, agent files). The `fix-review` recipe joins it at the next `docs: refresh`.
+- A hermeticity guard tripped once on a combined targeted run, then never reproduced. The real repo showed only my own edits.
 
 ## Revisions
 

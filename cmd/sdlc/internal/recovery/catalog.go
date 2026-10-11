@@ -105,7 +105,7 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"close"},
 		Class:         NonRepeatable,
-		Effects:       "dispatches the whole-issue review; on SHIP, behind a recovery receipt: an evidence commit on the branch, codecomplete on the card bound to it {token, reviewed head, evidence commit}, then a mirror commit, then a leased push of the issue branch (#286; a failed push warns). FIX-THEN-SHIP stores the receipt unstarted.",
+		Effects:       "dispatches the whole-issue review; on SHIP, behind a recovery receipt: an evidence commit on the branch, codecomplete on the card bound to it {token, reviewed head, evidence commit}, then a mirror commit, then a leased push of the issue branch (#286; a failed push warns). FIX-THEN-SHIP stores the receipt unstarted. --fixed-then-ship (#183) runs the fix-review recipe over the interdiff since the last finalized close review instead of the branch patch, then records exactly as a close does; it supersedes an unstarted FIX-THEN-SHIP receipt.",
 		Evidence:      observeEvidence + ": completion (token, evidence_commit), checkpoints.reviews[close]; `sdlc issue recovery list`.",
 		Preconditions: "on the issue branch; owned by this workspace; no unfinished close in progress (finish it with `sdlc issue recovery reconcile --issue N`).",
 		Repeat:        "a new review and a new close generation that rebinds the card; the earlier evidence commit stays in history. Do not re-run to recover — reconcile.",
@@ -118,6 +118,7 @@ var Catalog = []Contract{
 			{"a re-close supersedes an unstarted close; an older review cannot win", []string{"TestTrackerReCloseSupersedesAnUnstartedClose", "TestNewestCloseRefusesAnOlderReviewThanTheCardsClose"}},
 			{"after a rebase, a close the branch no longer contains is superseded by a re-close on the branch; a stale pre-rebase receipt still loses", []string{"TestNewestCloseAfterARebase", "TestCloseAncestorOfTreatsAnUnknownCommitAsNoAncestor", "TestTrackerCloseSurvivesARebase"}},
 			{"a re-run after SHIP is a new generation", []string{"TestCloseRerunAfterShipStartsANewGeneration"}},
+			{"--fixed-then-ship reviews only the post-close interdiff, rebinds the card and passes the publish gate; REWORK publishes nothing; it refuses without a finalized close review (#183)", []string{"TestFixedThenShip_PostCloseFixPublishes", "TestFixedThenShip_AfterFixThenShipVerdict", "TestFixedThenShip_RefusesWithoutACloseReview"}},
 			{"an interrupted mirror commit is finished by reconcile", []string{"TestReconcileRetriesAnInterruptedCloseMirror"}},
 			{"preconditions refuse before the review runs", []string{"TestTrackerCloseRefusesPreconditionsBeforeReview", "TestOwnershipGatesRefuseForeignAndUnknown"}},
 		},

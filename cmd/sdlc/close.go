@@ -2112,8 +2112,8 @@ func formatFixThenShipProtocol(verb string, quick bool) string {
 	if verb == "sdlc close" {
 		// Anchor semantics are issue-close/publish-gate territory; a milestone
 		// close writes no codecomplete anchor (close review #174 M-finding).
-		lines = append(lines, fmt.Sprintf("      Only if fixes must land AFTER the close commit: re-run `%s` so the", verb))
-		lines = append(lines, "      delta is re-reviewed and the anchor advances (doc-only deltas pass on their own).")
+		lines = append(lines, "      Only if fixes must land AFTER the close commit: `sdlc close --fixed-then-ship` reviews")
+		lines = append(lines, "      just that delta and the anchor advances (#183; doc-only deltas pass on their own).")
 	} else {
 		lines = append(lines, "      Fixes that land after this milestone-close commit are covered by the")
 		lines = append(lines, "      NEXT boundary review — its window starts at this boundary (#58).")

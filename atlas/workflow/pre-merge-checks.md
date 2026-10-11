@@ -41,7 +41,11 @@ own post-close code refuses, and the refusal names those paths, never main's. A
 conflict refuses with its paths, because the resolution is unreviewed. On a branch
 carrying several closes, any reviewed patch that covers HEAD passes: the newest
 close reviewed the whole branch patch. That generalizes the old newest-anchor rule.
-Refusals share the `publishGateRefusal` prefix, which `gatesig` keys on.
+Refusals share the `publishGateRefusal` prefix, which `gatesig` keys on. A code
+delta or a conflict names the narrow re-close as its next action, `sdlc close
+--issue N --fixed-then-ship` (#183), which reviews only the interdiff since the
+close. A conflict in a code file also asks for `--full-suite` evidence. Only an
+unreplayable reviewed patch still names the full close.
 
 **The close binding survives a rebase (#304, B3).** A tracker close's evidence
 message carries `Close-Token: <binding token>`. A rebase rewrites the evidence commit
