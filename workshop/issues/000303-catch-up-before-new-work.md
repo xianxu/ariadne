@@ -53,6 +53,7 @@ Decided (2026-10-11):
 ## Log
 
 ### 2026-10-11
+- 2026-10-11: closed — Post-close delta is comments/help/atlas only (round-2 Minors): catchup.go doc comments, start-plan helptext, atlas paragraph. go build ok; Help/Catch/RunInstalledWeave tests green. (fixed-then-ship); review verdict: SHIP
 - 2026-10-11: closed — make test: 12 sdlc shards green (1077 tests); processgroup fails only in the sandbox (/bin/ps denied) and passes unsandboxed. Round 1 fixes: targeted catch-up/start-plan/propagate suites green. catchup_test.go: stale slot + stale dependency both caught up before the issue branch (fake weave), re-run runs no weave; stale-code refresh failure refuses naming dep + missing code; post-cutoff and docs-only lags warn and plan; a failed refresh that advanced a checkout stops for re-run; absent/no-origin/fetch-failed checkouts warn unchecked; real weave invoked from PATH in root. Mutation: disabling the start-plan wiring fails the fixture tests.; review verdict: SHIP
 - 2026-10-11: flow upgraded quick → full — 199 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Claimed at ariadne:4 (TL dispatch). `weave refresh` already is the catch-up transaction; pair#434's prepare already delegates to it. Design reuses both rather than a parallel fast-forward.

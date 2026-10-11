@@ -70,6 +70,30 @@ rounds:
       isolation: checkout
       reviewed: 34545b375f2727108d7b89aea95ba1c8c158fe1d
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-11T09:33:51-07:00"
+      dispatched: "2026-10-11T09:33:17-07:00"
+      agent: claude
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: catchup.go:4-5 header now says refresh keeps completed updates on a later failure; catchup.go:118-120 says no-origin is reported unchecked, matching line 124.
+          round: 3
+        - id: BR-6
+          disposition: addressed
+          note: helptext/start-plan.md CATCH-UP section and atlas/workflow/sdlc-binary.md:1107-1110 now describe the stop after a partial refresh and the absent/no-origin/failed-fetch unchecked warnings, matching catchup.go:51,124,129 and 76-88.
+          round: 3
+      findings:
+        - id: BR-7
+          severity: Minor
+          title: New comment and help-text lines are not wrapped to the surrounding width
+          detail: catchup.go:5 and one added line in helptext/start-plan.md (CATCH-UP section) run to about 130-150 characters, while neighbouring lines wrap at about 80. Cosmetic only.
+          family: prose-line-wrap
+          round: 3
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 1ec8628e5997a7db47ca4040c903a7ca3dff6423
+      blocked: false
 ---
 
 # Gate ledger — ariadne#303 (boundary-review)
@@ -103,7 +127,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   catchup.go:116-118 still says a no-origin checkout has nothing to trail (it now warns as unchecked), and the header's "or nothing moves" implies full rollback, which BR-1 showed is false after a compile failure.
 - **BR-6** [Minor] `docs-surface-gap` start-plan help and atlas omit the unchecked-checkout warning and the stop after a partial refresh
 
+## Round 3 — 2026-10-11T09:33:51-07:00 (claude) — passed
+
+### Disposed
+
+- BR-5 — addressed — catchup.go:4-5 header now says refresh keeps completed updates on a later failure; catchup.go:118-120 says no-origin is reported unchecked, matching line 124.
+- BR-6 — addressed — helptext/start-plan.md CATCH-UP section and atlas/workflow/sdlc-binary.md:1107-1110 now describe the stop after a partial refresh and the absent/no-origin/failed-fetch unchecked warnings, matching catchup.go:51,124,129 and 76-88.
+
+### Raised
+
+- **BR-7** [Minor] `prose-line-wrap` New comment and help-text lines are not wrapped to the surrounding width
+  catchup.go:5 and one added line in helptext/start-plan.md (CATCH-UP section) run to about 130-150 characters, while neighbouring lines wrap at about 80. Cosmetic only.
+
 ## Open findings
 
-- **BR-5** [Minor] `stale-doc-comment` behindOrigin and file-header comments contradict the round-1 behavior
-- **BR-6** [Minor] `docs-surface-gap` start-plan help and atlas omit the unchecked-checkout warning and the stop after a partial refresh
+- **BR-7** [Minor] `prose-line-wrap` New comment and help-text lines are not wrapped to the surrounding width

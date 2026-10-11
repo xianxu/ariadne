@@ -198,3 +198,79 @@ findings:
     title: |
       start-plan help and atlas omit the unchecked-checkout warning and the stop after a partial refresh
 ```
+
+---
+
+## Re-review — 2026-10-11T09:33:51-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 303 — Catch the slot and its dependencies up to main before new work |
+| repo | ariadne |
+| issue file | workshop/issues/000303-catch-up-before-new-work.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1829f2fa25299d3f803b0ad6c63bb9faf9abb1e1..1ec8628e5997a7db47ca4040c903a7ca3dff6423 |
+| command | sdlc close --issue 303 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-11T09:33:51-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both open findings are fixed, and this fix window adds no Critical or Important problems.
+
+- **Comments (BR-5):** the `behindOrigin` comment now says a checkout with no origin is reported unchecked, never current. The file header now says a failed `weave refresh` keeps the updates it already completed. Both match the code at `cmd/sdlc/catchup.go:76-88` and `:123-125`.
+- **Help text and atlas (BR-6):** both now describe the stop after a partial refresh. They also list the three kinds of checkout the probe cannot read, each matched to its code path:
+  - absent from disk: `substrateWalk`, line 51
+  - no origin: line 124
+  - failed fetch: line 129
+
+The issue file changes only the status, the card mirror hash, the flow, `actual_hours` and Log entries. `## Spec`, `## Revisions` and `## Done when` are untouched, so the scope did not change. There were no conflict resolutions to judge. The changes are comments, help text and atlas text only, so no new regression test was needed. I did not re-run the test suite: only comments and prose changed, and `gofmt -l` is clean.
+
+1. **Strengths**
+   - The new comments describe what the code actually does now. For example, the header's "keeps the updates it completed if a later step fails" is the reason the code reads HEADs before and after the refresh (`catchup.go:73-80`).
+   - The atlas paragraph (`atlas/workflow/sdlc-binary.md:1107-1110`) names the code that does each thing: HEAD comparison, `substrateWalk`, and `freshness.Check`.
+   - The help text's three unchecked cases match the code paths exactly.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - The new prose is not wrapped. `catchup.go:5` and one added line in `cmd/sdlc/helptext/start-plan.md` (CATCH-UP section) run to about 130–150 characters, while the lines around them wrap at about 80. That is purely cosmetic.
+
+5. **Test coverage:** no runtime behaviour changed. The existing tests from round 2 (`TestStartPlanStopsWhenAFailedRefreshAdvancedACheckout` and `TestCatchUpWarnsUncheckedCheckouts`) still cover the behaviour these docs describe.
+
+6. **Architecture** (checked against this fix window only)
+   - ARCH-DRY: pass. Nothing is duplicated.
+   - ARCH-PURE: pass. No code changed.
+   - ARCH-PURPOSE: pass. Both places BR-6 named (help text and atlas) were updated, and so were both comments BR-5 named. The `stale-doc-comment` and `docs-surface-gap` families each still have only their original finding: the fixes covered every instance, and I found nothing left to repeat.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      catchup.go:4-5 header now says refresh keeps completed updates on a later failure; catchup.go:118-120 says no-origin is reported unchecked, matching line 124.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      helptext/start-plan.md CATCH-UP section and atlas/workflow/sdlc-binary.md:1107-1110 now describe the stop after a partial refresh and the absent/no-origin/failed-fetch unchecked warnings, matching catchup.go:51,124,129 and 76-88.
+findings:
+  - id: new
+    severity: Minor
+    family: prose-line-wrap
+    title: |
+      New comment and help-text lines are not wrapped to the surrounding width
+    detail: |
+      catchup.go:5 and one added line in helptext/start-plan.md (CATCH-UP section) run to about 130-150 characters, while neighbouring lines wrap at about 80. Cosmetic only.
+```
