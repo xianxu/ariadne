@@ -17,6 +17,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // A real process waits on a FIFO; the test decides exactly when its review may
@@ -135,6 +136,8 @@ func TestReviewConcurrencySchedules(t *testing.T) {
 					case <-time.After(7 * time.Second):
 						t.Fatal("review did not stop after start timeout")
 					}
+					// Only this fixed start deadline is load-sensitive; the schedules stay covered.
+					testfix.Quarantine(t, "#325", "reviewer process did not start within 20s (load-sensitive start deadline)")
 					t.Fatal("reviewer process did not start")
 				}
 				switch change {

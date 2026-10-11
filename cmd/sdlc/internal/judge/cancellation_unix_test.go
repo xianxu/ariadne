@@ -10,10 +10,11 @@ import (
 	"os/signal"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // Reexec the test binary, never a real agent. Both processes intentionally
@@ -98,9 +99,9 @@ func TestReviewProcessCancellationKillsGroupAndReaps(t *testing.T) {
 		t.Errorf("direct reviewer was not reaped: %v", err)
 	}
 	// A dead orphan may briefly remain a zombie until its system reaper collects it.
-	// It must not still be executing or holding the pipe after Run has returned.
-	if out, _ := exec.Command("ps", "-o", "stat=", "-p", strconv.Itoa(child)).Output(); strings.TrimSpace(string(out)) != "" && !strings.HasPrefix(strings.TrimSpace(string(out)), "Z") {
-		t.Errorf("descendant survived shutdown: %s", out)
+	// It must stop executing (and holding the pipe) once Run has returned.
+	if err := testfix.AwaitExit(child, 2*time.Second); err != nil {
+		t.Errorf("descendant survived shutdown: %v", err)
 	}
 }
 
@@ -154,7 +155,7 @@ func TestReviewProcessBoundsPipeDrainAfterNormalExit(t *testing.T) {
 		t.Fatal(parseErr)
 	}
 	defer syscall.Kill(child, syscall.SIGKILL)
-	if out, _ := exec.Command("ps", "-o", "stat=", "-p", strconv.Itoa(child)).Output(); strings.TrimSpace(string(out)) != "" && !strings.HasPrefix(strings.TrimSpace(string(out)), "Z") {
-		t.Errorf("descendant survived pipe-drain cleanup: %s", out)
+	if err := testfix.AwaitExit(child, 2*time.Second); err != nil {
+		t.Errorf("descendant survived pipe-drain cleanup: %v", err)
 	}
 }

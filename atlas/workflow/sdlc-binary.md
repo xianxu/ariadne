@@ -450,6 +450,9 @@ conservative but not wedging:
 `meta.json` during the tiny mkdir-before-write window is treated as holder
 initialization and polled through, and a confirmed-dead same-host holder is
 reclaimed by atomically renaming the stale lock directory before removal.
+"Dead" means `kill(pid, 0)` answers ESRCH; EPERM is a live process this one may
+not signal, which is every peer slot's process when sdlc runs in an agent
+sandbox (#330: counting it dead let a sandboxed verb take a live peer's lock).
 Cross-host or over-age uncertainty still produces operator-facing recovery
 guidance rather than silent deletion; a live same-host pid overrides the age
 ceiling.
@@ -1532,10 +1535,13 @@ owns its richer toolchain (Homebrew/GPG/gh/…) separately.
 `make test` (`scripts/test-shard.py`) is the full run: it compiles the
 `cmd/sdlc` test binary once and splits its top-level tests over one process per
 core, balanced from the last run's per-test times
-(`<git-common-dir>/sdlc-test-timings.json`), with the other packages alongside.
+(`<git-common-dir>/sdlc-test-timings.json`), with every other package in the module
+(cmd/weave, pkg/…, the other tools) alongside in one `go test` (#330; before, only
+`cmd/sdlc/...` ran, and a cmd/weave hang went unseen).
 `cmd/sdlc`'s tests change cwd and swap package seams, so they cannot run in
-parallel inside one process; separate processes share neither. About 4 minutes
-against about 25 serially. Plain `go test ./cmd/sdlc/...` still works but runs
+parallel inside one process; separate processes share neither. About 8 minutes
+with 12 shards (#330 measured 7.5–8 on a busy machine, whole module), against about
+25 serially. Plain `go test ./cmd/sdlc/...` still works but runs
 `cmd/sdlc` serially and needs `-timeout 60m` (it exceeds go's 10-minute default).
 `scripts/test-timing.py` reports per-test times from either run's `-json` output.
 
@@ -1546,6 +1552,18 @@ package needs the same `TestMain`
 (`TestGitDrivingPackagesPreferRealGit` fails without it). The in-memory git fake that would make a
 fast inner-loop tier is #261; the single git seam it and in-process parallelism
 need is #262.
+
+A test known to fail for a tracked reason is quarantined by name:
+`testfix.Quarantine(t, "#N", why)` as its first line skips it with a `QUARANTINED (#N)`
+message naming the owning issue, whose fix deletes the call; `WF_TEST_QUARANTINED=run`
+runs quarantined tests anyway. Place it at the failing step when only that step is
+the known problem (a load-sensitive deadline), so the rest stays covered.
+`grep -rn 'testfix.Quarantine(' cmd` lists them (#330).
+
+Cancellation tests prove a descendant stopped with `testfix.AwaitExit(pid, ceiling)`,
+which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instead of
+running `ps`: agent sandboxes deny exec of `/bin/ps` (#330). It waits, because a
+group SIGKILL lands asynchronously after the runner returns.
 
 ### One full suite per machine (#319)
 
@@ -1595,6 +1613,11 @@ flags:
   and `WF_TEST_LOCK_TIMEOUT` gives up as "a lock wait, not a test failure".
 - **Under `make test`:** `WF_TEST_LOCK_HELD_BY` makes the gate stand aside, because
   the suite has its own lock and shards.
+- **Nested helpers (#330):** `Enter` exports `WF_TEST_GATE_HELD_BY=<pid>`, so a test
+  binary the gated one starts (a re-exec'd `os.Args[0] -test.run=…` helper) stands
+  aside under its ancestor's slot. Gated again, it would queue behind its own
+  parent's slot with no `-test.timeout`, so with no wait budget, and hang (cmd/weave's
+  `TestCompileRecoversAfterProcessDeathDuringGeneration` did, for 22 minutes).
 
 **Waits are invisible on a pass.** In package-list mode (`go test ./pkg/…`), `go`
 drops a passing binary's output, so the `[test-gate] waiting … held by …` lines

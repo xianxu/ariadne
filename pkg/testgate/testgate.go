@@ -21,7 +21,11 @@
 //	WF_TEST_GATE_DIR=<dir>    where the slot files live (tests)
 //
 // Under `make test` (WF_TEST_LOCK_HELD_BY set) the gate stands aside: the full
-// suite holds #319's lock and sizes its own shards.
+// suite holds #319's lock and sizes its own shards. A test binary the gated
+// binary starts (a re-exec'd helper) stands aside too: Enter exports
+// WF_TEST_GATE_HELD_BY, and the ancestor's slot covers its process tree.
+// Gating the child would queue it behind its own parent's slot, unbounded,
+// since a helper carries no -test.timeout (#330).
 //
 // In package-list mode `go test` drops a passing binary's output, so the wait lines
 // show only with -v, on a failure, or in local-directory mode. The slot files and
@@ -45,6 +49,9 @@ import (
 
 const reportEvery = 30 * time.Second
 
+// heldByEnv marks a process tree whose root test binary already passed the gate.
+const heldByEnv = "WF_TEST_GATE_HELD_BY"
+
 // held keeps the slot's descriptor open, and so the flock, until the process exits.
 var held *os.File
 
@@ -62,7 +69,7 @@ func configFromEnv() config {
 	sw := strings.ToLower(os.Getenv("WF_TEST_LOCK"))
 	c := config{
 		off:      sw == "off" || sw == "0" || sw == "no",
-		bypass:   os.Getenv("WF_TEST_LOCK_HELD_BY") != "",
+		bypass:   os.Getenv("WF_TEST_LOCK_HELD_BY") != "" || os.Getenv(heldByEnv) != "",
 		slots:    max(1, runtime.NumCPU()/4),
 		parallel: "2",
 		dir:      os.Getenv("WF_TEST_GATE_DIR"),
@@ -110,6 +117,9 @@ func Enter() {
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "[test-gate] %v\n", err)
 		os.Exit(1)
+	}
+	if os.Getenv(heldByEnv) == "" {
+		_ = os.Setenv(heldByEnv, strconv.Itoa(os.Getpid()))
 	}
 	if runTimeout > 0 && waited > 0 {
 		_ = flag.Set("test.timeout", (runTimeout - waited).String())

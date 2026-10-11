@@ -2,6 +2,7 @@ package testgate
 
 import (
 	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"os"
@@ -28,13 +29,23 @@ func TestHelperReport(t *testing.T) {
 		t.Skip("helper process only")
 	}
 	fmt.Printf("parallel=%s held=%v timeout=%s\n", flag.Lookup("test.parallel").Value, held != nil, flag.Lookup("test.timeout").Value)
+	if os.Getenv("TESTGATE_NESTED") == "1" {
+		// Re-exec this binary as a test helper, inheriting the environment the
+		// way cmd/weave's and judge's subprocess helpers do.
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		child := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestHelperReport$", "-test.v")
+		child.Env = append(os.Environ(), "TESTGATE_NESTED=")
+		out, err := child.CombinedOutput()
+		fmt.Printf("nested err=%v\n%s", err, strings.ReplaceAll(string(out), "parallel=", "nested parallel="))
+	}
 }
 
 func runHelper(t *testing.T, dir string, env []string, args ...string) string {
 	t.Helper()
 	cmd := exec.Command(os.Args[0], append([]string{"-test.run=^TestHelperReport$", "-test.v"}, args...)...)
 	cmd.Env = append(os.Environ(), append([]string{"TESTGATE_HELPER=1", "WF_TEST_GATE_DIR=" + dir,
-		"WF_TEST_GATE_SLOTS=1", "WF_TEST_LOCK=", "WF_TEST_LOCK_HELD_BY=", "WF_TEST_PARALLEL=", "WF_TEST_LOCK_FILE="}, env...)...)
+		"WF_TEST_GATE_SLOTS=1", "WF_TEST_LOCK=", "WF_TEST_LOCK_HELD_BY=", "WF_TEST_GATE_HELD_BY=", "WF_TEST_PARALLEL=", "WF_TEST_LOCK_FILE="}, env...)...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("helper: %v\n%s", err, out)
@@ -61,6 +72,19 @@ func TestDirectRunHonorsCapAndGate(t *testing.T) {
 	}
 	if out := runHelper(t, dir, []string{"WF_TEST_LOCK=off", "GOMAXPROCS=7"}); !strings.Contains(out, "parallel=7 held=false") || !strings.Contains(out, "WF_TEST_LOCK=off: NOT taking") {
 		t.Fatalf("the hatch stands aside loudly:\n%s", out)
+	}
+}
+
+// A gated binary that re-execs itself as a helper must not queue its child
+// behind the slot it holds: with no -test.timeout the child's wait is unbounded,
+// and with every slot taken it never ends (#330: cmd/weave's
+// TestCompileRecoversAfterProcessDeathDuringGeneration hung 22 minutes).
+func TestNestedHelperStandsAside(t *testing.T) {
+	dir := t.TempDir()
+	out := runHelper(t, dir, []string{"TESTGATE_NESTED=1", "GOMAXPROCS=7"})
+	if !strings.Contains(out, "parallel=2 held=true") || !strings.Contains(out, "nested err=<nil>") ||
+		!strings.Contains(out, "nested parallel=7 held=false") || strings.Count(out, "[test-gate]") != 0 {
+		t.Fatalf("the parent holds the slot; its helper child must stand aside silently:\n%s", out)
 	}
 }
 

@@ -426,6 +426,13 @@ The simplest durable authority beats a clever scan of consequences.
   `## Spec` changes, but `reviewCommands` excludes `workshop/issues/`, so the rule
   could never fire. Where the input sits outside the window, compute the fact
   deterministically and pass it as a review note.
+- Code and tests run inside agent sandboxes (macOS Seatbelt): exec of `ps` is
+  denied, and `kill(pid, 0)` on any process outside the sandbox answers EPERM.
+  Ask the kernel without exec'ing a tool, and read EPERM as "exists"; only ESRCH
+  means gone. #330 found both: a cancellation test failed in every sandboxed slot
+  (and two siblings ignored the `ps` error and passed vacuously), and the repo
+  lock reclaimed a live peer slot's `.git/sdlc.lock` as "dead". An error ignored
+  from an environment probe is a check that silently passes; fail on it instead.
 - A ref you compute against is not always a ref a person can type. #269's tracker
   main came back as a pinned SHA (`TrunkView.Ref()`), and the first version put
   it into the `git merge <ref>` remedy and parsed a remote out of it for the
