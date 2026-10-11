@@ -41,16 +41,16 @@ Every Go test run an agent starts in a woven repo goes through one machine-level
 
 Mechanism (decided 10-10): gate **inside the test binary**, not in the slot env. Env is fixed at launch and differs per harness (pair#203 makes the same point). A `go -exec` shim needs an executable on PATH, and slots only have shell functions. A `TestMain` runs on every invocation of the package's tests, whatever the harness, shell or flags.
 
-- [ ] `pkg/testgate` (module-level, so cmd/sdlc, cmd/weave and later pair can import it): `Enter()` at the top of `TestMain`:
+- [x] `pkg/testgate` (module-level, so cmd/sdlc, cmd/weave and later pair can import it): `Enter()` at the top of `TestMain`:
   - Takes one of N machine-wide slots: flock(2) on `test-gate.<k>.lock` beside #319's `test-suite.lock`. N comes from `WF_TEST_GATE_SLOTS`, default NCPU/4, at least 1. Each slot file holds the holder's JSON (repo, worktree, package, pid, started). The descriptor is close-on-exec, so the slot is released when the test binary exits, however it exits.
   - Waits loudly: `[test-gate] waiting Ns for a test slot; held by …`, repeated every 30s.
   - Caps `-test.parallel` at `WF_TEST_PARALLEL` (default 2) unless the run set it explicitly.
   - Uses #319's hatches: `WF_TEST_LOCK=off` skips with a loud line, and `WF_TEST_LOCK_TIMEOUT=<s>` gives up with "a lock wait, not a test failure".
   - `WF_TEST_LOCK_HELD_BY`, which `make test` exports, bypasses the gate: the full suite has its own lock and sharding.
-- [ ] Wire `testgate.Enter()` into the heavy packages' `TestMain`: cmd/sdlc, internal/{gitx,tracker,fleet,activetime}, cmd/weave, weave internal/{refresh,acquire}. Light packages stay ungated, so they don't queue for slots.
-- [ ] Tests (re-exec helper process): a held slot makes a second run wait and print the holder; the escape hatch skips loudly; the timeout gives up with its message; the parallel cap applies only when unset; the make-test bypass works.
-- [ ] Measure load and wall time with 4 concurrent targeted-run loops, gate off vs on.
-- [ ] Atlas (sdlc-binary.md "Running the test suite") and the hatch documented in the package doc.
+- [x] Wire `testgate.Enter()` into the heavy packages' `TestMain`: cmd/sdlc, internal/{gitx,tracker,fleet,activetime}, cmd/weave, weave internal/{refresh,acquire}. Light packages stay ungated, so they don't queue for slots.
+- [x] Tests (re-exec helper process): a held slot makes a second run wait and print the holder; the escape hatch skips loudly; the timeout gives up with its message; the parallel cap applies only when unset; the make-test bypass works.
+- [x] Measure load and wall time with 4 concurrent targeted-run loops, gate off vs on.
+- [x] Atlas (sdlc-binary.md "Running the test suite") and the hatch documented in the package doc.
 
 ARCH-FUNERAL: N slot files of one JSON record each, rewritten on acquire and never appended. The count is bounded by `WF_TEST_GATE_SLOTS`, and they live in `~/.local/state/ariadne/` beside #319's lock file.
 
@@ -58,3 +58,13 @@ ARCH-FUNERAL: N slot files of one JSON record each, rewritten on acquire and nev
 
 ### 2026-10-10
 - Baseline load at claim (17:53): 43.96 / 55.24 / 52.41 on 12 cores. The agent env already has GOFLAGS=-p=3 GOMAXPROCS=3 from the operator's shell, so the env cap exists but doesn't bound the number of concurrent test binaries machine-wide, nor the git forks inside them.
+- Implemented `pkg/testgate`. It is wired into the 5 git-driving cmd/sdlc packages (now enforced by `TestGitDrivingPackagesPreferRealGit`) and into cmd/weave plus weave's refresh/acquire.
+- Ambient load (18:12) was mostly ariadne:2's full `make test` (12 `sdlc.test` shards) plus targeted runs, so a gate that only counted targeted runs would miss the biggest source. Added the spec's "take the #319 lock" half: gated binaries wait while a full suite holds `test-suite.lock`. They probe with a shared flock and drop it at once, so targeted runs can't starve a waiting suite.
+- The measurement caught a real bug: the wait spends `go test`'s timeout (cmd/go kills the binary at timeout + 1m from its start). Two runs that queued 10+ min behind a pair suite were SIGQUIT-killed. Fix: wait at most timeout/4, then go ahead without a slot (loudly), and shrink `-test.timeout` by the wait. Both are tested.
+- Limitation: in package-list mode `go test` drops a passing binary's output, so wait lines show only with -v, on a failure, or in local-directory mode. A binary can't reach the go command's terminal. Documented with how to see the holders (the slot files and test-suite.lock).
+- Measurements, 4 concurrent loops x 2 runs of `go test ./cmd/sdlc/internal/fleet/ ./cmd/sdlc/internal/activetime/` (8 binaries at once), load sampled every 5s:
+  - quiet machine, gate off (off3): 71s total, load mean 7.7 / max 8.4; earlier off2: 54s, 14.4 / 16.7.
+  - quiet machine, gate on (on3): 85s total, load mean 8.6 / max 10.6, at most 3 binaries at once.
+  - during full suites, gate on (on2): the targeted runs held back. Load fell 43 → 12 while ariadne:2's suite finished and stayed around 12–16 under pair:3's suite. This run surfaced the timeout bug above.
+  - during full suites, gate off (first run): load mean 34.9 / max 52.8, and one #325-shape deadline flake (fleet `TestHangingRemoteDegradesOnlyItsRepository`).
+  - Reading: targeted loops alone stay well under 2×NCPU (24). The spikes are full suites overlapping with targeted runs, which the gate now separates. The full suite's own 12 shards on 12 cores stay #319's design; reducing them is a follow-up for the TL to decide.

@@ -438,11 +438,11 @@ func TestClassifyPublishDelta(t *testing.T) {
 
 func TestHasConflictMarkers(t *testing.T) {
 	cases := map[string]bool{
-		"a\n<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> main\nb\n": true,
+		"a\n<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> main\nb\n":                 true,
 		"a\n<<<<<<< ours\nx\n||||||| base\nw\n=======\ny\n>>>>>>> theirs\n": true,
-		"# Lessons\n- quote a marker: `<<<<<<< HEAD`\n":              false,
-		"<<<<<<< HEAD\nonly an opener\n":                              false,
-		"=======\nsetext heading rule\n":                              false,
+		"# Lessons\n- quote a marker: `<<<<<<< HEAD`\n":                     false,
+		"<<<<<<< HEAD\nonly an opener\n":                                    false,
+		"=======\nsetext heading rule\n":                                    false,
 	}
 	for in, want := range cases {
 		if got := hasConflictMarkers(in); got != want {
