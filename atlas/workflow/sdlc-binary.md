@@ -450,6 +450,9 @@ conservative but not wedging:
 `meta.json` during the tiny mkdir-before-write window is treated as holder
 initialization and polled through, and a confirmed-dead same-host holder is
 reclaimed by atomically renaming the stale lock directory before removal.
+"Dead" means `kill(pid, 0)` answers ESRCH; EPERM is a live process this one may
+not signal, which is every peer slot's process when sdlc runs in an agent
+sandbox (#330: counting it dead let a sandboxed verb take a live peer's lock).
 Cross-host or over-age uncertainty still produces operator-facing recovery
 guidance rather than silent deletion; a live same-host pid overrides the age
 ceiling.

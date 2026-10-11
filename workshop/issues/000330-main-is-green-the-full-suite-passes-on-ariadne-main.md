@@ -46,10 +46,11 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
 
 - [x] Baseline: `make test` ×2 on the issue branch (= main + this body), plus the Go packages `make test` never runs.
 - [x] Sandbox failure: replace the three `ps -o stat=` probes (processgroup, judge ×2) with one exec-free helper in `testfix` (`AwaitExit`).
+- [x] Fix `processAlive` treating EPERM as dead (repo lock reclaimed a live peer's lock under the sandbox).
 - [ ] Load-sensitive deadline failures: point at #325 (add the new instance to its Log), no duplicate fix here.
 - [x] Coverage gap: `make test` runs only `cmd/sdlc/...` → its `packages` job now runs every module package.
 - [x] Fix the testgate self-deadlock the widened run exposed (nested helper binaries).
-- [ ] CI decision recorded; job added or filed.
+- [x] CI decision recorded; job filed as #331.
 - [ ] `make test` green ×2 with wall time + shard count in the Log.
 
 ## Log
@@ -90,4 +91,20 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
   exec-free inspection is the point.
 - `make test` widened from `go list ./cmd/sdlc/...` (21 pkgs) to `go list ./...` minus the sharded cmd/sdlc
   package: the cmd/weave hang above was invisible to every "green" suite. Cost measured below.
+- Run B (`make test`, tree with the fixes above + the widened package list): waited 1452s for the lock (pair:4,
+  ariadne:4, ariadne:1 suites ahead), then **wall 487.0s, 12 shards over 1047 cmd/sdlc tests + 44 other packages**
+  (real 1940s with the wait). The widened `packages` job (now incl. cmd/weave, pkg/*) passed in 232.6s, inside the
+  shard wall: whole-module coverage costs no wall time at 12 shards. Failures:
+  - `TestPlanningReviewConcurrencySchedules` again (#325).
+  - shard11: the hermeticity guard (#149/#165) reported "leaked .git/sdlc.lock" in a passing shard. Root cause is a
+    real lock-safety bug, not a test leak: `processAlive` was `kill(pid, 0) == nil`, and from inside Claude Code's
+    Seatbelt sandbox `kill -0` on any process outside it answers EPERM (verified: a live parley.nvim `make` pid →
+    "operation not permitted"). So a peer slot's live sdlc holding the shared `.git/sdlc.lock` (the common dir is
+    shared by all slots) read as dead: the guard counted it as ours, and in production `repolock.Acquire`
+    renames a "dead" holder's lock away and takes it — two slots' verbs inside one transaction lock. Fix: EPERM
+    counts as alive (ESRCH is the only "gone"); `TestProcessAliveCountsUnsignalableProcesses` (pid 1) failed
+    before, passes after. The other liveness checks were already right: weave staging tests `!ESRCH`,
+    `test-lock.py` treats `PermissionError` as alive.
+- CI decision: yes, main should run the full suite in CI, but not added here. The suite has never run on Linux
+  (darwin-tuned helpers), and a 4-core hosted runner would run ~3× the 12-shard wall. Filed as #331.
 

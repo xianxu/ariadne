@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -164,9 +165,14 @@ func repoLockGitCommonDir() (string, error) {
 	return abs, nil
 }
 
+// processAlive reports whether pid exists. EPERM means it does, but this process
+// may not signal it: a sandboxed agent (macOS Seatbelt) gets EPERM for every
+// process outside its sandbox, including a peer slot's live sdlc holding the
+// shared lock, which counting as dead let it reclaim (#330). Only ESRCH is gone.
 func processAlive(pid int) bool {
 	if pid <= 0 {
 		return false
 	}
-	return syscall.Kill(pid, 0) == nil
+	err := syscall.Kill(pid, 0)
+	return err == nil || errors.Is(err, syscall.EPERM)
 }
