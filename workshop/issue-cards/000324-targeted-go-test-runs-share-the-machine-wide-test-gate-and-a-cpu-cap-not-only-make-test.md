@@ -1,6 +1,6 @@
 ---
 id: 000324
-status: codecomplete
+status: done
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: e3eb0022320a5089f50d7019fbf8365f98b94161
         evidence_commit: 50cdc4873a0fb6e4ab63912decc50283cc9f5a7d
+        landed_commit: 4860023d5cf62fcbdb9ca2890e6593b59d67297f
 ---
 
 # Targeted go test runs share the machine-wide test gate and a CPU cap, not only make test
