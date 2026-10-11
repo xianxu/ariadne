@@ -170,3 +170,75 @@ dispose:
     note: |
       atlas sdlc-binary.md and AGENTS.local.md say about 8 minutes; CLAUDE.md is a gitignored generated overlay of AGENTS.local.md.
 ```
+
+---
+
+## Re-review — 2026-10-11T15:24:54-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 330 — Main is green: the full suite passes on ariadne main |
+| repo | ariadne |
+| issue file | workshop/issues/000330-main-is-green-the-full-suite-passes-on-ariadne-main.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 091c6de6fa2d5aa12458b39d8cb3de79d923611f..67ac9bf641eceacafc05ffa042198acea603217e |
+| command | sdlc close --issue 330 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-11T15:24:54-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the conflict resolution: main already has an equivalent test, so I'm building and running the related tests now.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window is the merge with main (adcea408) plus resolving one conflict, and the resolution is correct. The base commit (091c6de6) had unresolved conflict markers in `cmd/sdlc/repolock.go`, so it would not have compiled. Main's #310 side-quest had already fixed the same EPERM-means-alive bug in `processAlive`. The head keeps this branch's reading, `!errors.Is(syscall.Kill(pid, 0), syscall.ESRCH)` (`cmd/sdlc/repolock.go:176`). BR-3 asked for that reading so it matches the weave staging check. The head also keeps main's comment with both issue references and drops the branch's duplicate test, since main's `TestProcessAliveTreatsEPERMAsAlive` (`cmd/sdlc/repolock_alive_test.go:10`) checks the same three cases and also skips when run as root. `go vet ./cmd/sdlc/` is clean, and the targeted tests (`ProcessAlive|RepoLock|LockMayBeOurs`) pass. No conflict markers remain in any Go source. Spec, Revisions and Done-when are unchanged. The issue edits are close bookkeeping plus one Landing entry in the Log, so scope has not changed.
+
+1. **Strengths**
+   - The conflict resolution keeps what both sides meant: main's EPERM fix and comment, and this branch's only-ESRCH-means-gone reading from BR-3, written as one `processAlive` (`cmd/sdlc/repolock.go:172-177`).
+   - The duplicate test was deleted rather than kept beside main's equivalent (ARCH-DRY), and main's version is the better of the two because of its root skip.
+   - The Landing entry in the issue Log records the overlap with #310 and how it was resolved, so the deleted test name cited in the close entry can still be traced.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - `workshop/lessons.md`: the sandbox-probe lesson only moved up the list (to line 429). Its text is unchanged and appears once. Nothing to do.
+   - The close Log entry still names `TestProcessAliveCountsUnsignalableProcesses`, which the merge deleted. That is acceptable for a historical record, and the Landing entry explains the replacement.
+
+5. **Test coverage notes**
+   - Main's `TestProcessAliveTreatsEPERMAsAlive` covers the EPERM, self and non-positive pid cases. It passes under both main's reading and this branch's, so nothing pins errors other than EPERM and ESRCH. That reading was settled under BR-3, which is disposed, so I'm not raising it again.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. One `processAlive` and one test remain, and the duplicate is gone.
+   - ARCH-PURE: pass. `processAlive` is still the thin IO check, passed into `repolock.Observe` (`cmd/sdlc/internal/repolock/repolock.go:101`) and `lockMayBeOurs`.
+   - ARCH-PURPOSE: pass. This interdiff adds nothing new. The `single-liveness-predicate` family stays covered because both kill(0) checks now read only ESRCH as gone.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; this window does not change it.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; this window does not change it.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The merge keeps the only-ESRCH-is-gone reading (repolock.go:176), the same one weave staging uses.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Disposed in an earlier round; this window does not change it.
+```

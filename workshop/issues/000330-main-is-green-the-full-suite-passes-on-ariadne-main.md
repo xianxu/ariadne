@@ -116,6 +116,7 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
 - #302 (TempDir cleanup race): not seen in any run here; nothing to fold.
 
 ### 2026-10-11
+- 2026-10-11: closed — conflict resolution in cmd/sdlc/repolock.go keeps the ESRCH-only processAlive (main #310 reached the same fix) with main comment; duplicate test dropped for main repolock_alive_test.go TestProcessAliveTreatsEPERMAsAlive; full suite green (fixed-then-ship; full suite: make test on 67ac9bf6 (merged origin/main): exit 0, wall 355.9s, 12 shards over 1086 cmd/sdlc tests + 46 other packages, 0 failed); review verdict: SHIP
 - 2026-10-11: closed — make test green twice back to back on b4b918a3 (run C wall 469.0s, run D wall 448.8s; 12 shards, 1048 cmd/sdlc tests + 44 other packages, now whole-module). Fixes: testgate nested-helper deadlock (TestNestedHelperStandsAside red→green; cmd/weave hung test passes), repolock processAlive only-ESRCH-is-gone (TestProcessAliveCountsUnsignalableProcesses red→green), exec-free AwaitExit replacing ps probes (mutation: non-group kill fails all 3 sites). #325 quarantines owned by #325 Done-when; CI filed as #331. Round-1 fixes re-verified: TestReviewConcurrencySchedules + TestProcessAlive pass targeted.; review verdict: SHIP
 - 2026-10-11: flow upgraded quick → full — 148 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - **Green ×2, back to back**, on the final tree (b4b918a3 = main + this branch), `make test` from ariadne:3:

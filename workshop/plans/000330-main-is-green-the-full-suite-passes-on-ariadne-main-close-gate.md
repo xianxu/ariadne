@@ -57,6 +57,31 @@ rounds:
       recipe: milestone-review
       reviewed: 86401ddf688ac0b18a2437972d81e411ec6658be
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-11T15:24:55-07:00"
+      dispatched: "2026-10-11T15:24:03-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Disposed in an earlier round; this window does not change it.
+          round: 3
+        - id: BR-2
+          disposition: addressed
+          note: Disposed in an earlier round; this window does not change it.
+          round: 3
+        - id: BR-3
+          disposition: addressed
+          note: The merge keeps the only-ESRCH-is-gone reading (repolock.go:176), the same one weave staging uses.
+          round: 3
+        - id: BR-4
+          disposition: addressed
+          note: Disposed in an earlier round; this window does not change it.
+          round: 3
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 67ac9bf641eceacafc05ffa042198acea603217e
+      blocked: false
 ---
 
 # Gate ledger — ariadne#330 (boundary-review)
@@ -84,6 +109,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-2 — addressed — Quarantine moved inside the 20s start-timeout branch (review_concurrency_unix_test.go:140) after cancel/release; other subtests unskipped.
 - BR-3 — addressed — repolock.go:176 now returns !errors.Is(kill0, ESRCH), matching comment and weave staging; pid-1 EPERM test pins it.
 - BR-4 — addressed — atlas sdlc-binary.md and AGENTS.local.md say about 8 minutes; CLAUDE.md is a gitignored generated overlay of AGENTS.local.md.
+
+## Round 3 — 2026-10-11T15:24:55-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Disposed in an earlier round; this window does not change it.
+- BR-2 — addressed — Disposed in an earlier round; this window does not change it.
+- BR-3 — addressed — The merge keeps the only-ESRCH-is-gone reading (repolock.go:176), the same one weave staging uses.
+- BR-4 — addressed — Disposed in an earlier round; this window does not change it.
 
 ## Open findings
 
