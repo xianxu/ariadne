@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "605774e3", done: "b1990bf8"}
 ---
 
 # sandbox: allow couch in base-layer settings so agents can message peers
