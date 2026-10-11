@@ -48,10 +48,13 @@ func TestLoadWindowCommits(t *testing.T) {
 	if commits[0].SHA != "aaaaaaa" {
 		t.Fatalf("SHA should be short7, got %q", commits[0].SHA)
 	}
-	// Order-preserving dedupe: #8 appears twice in commit 2 but once in Issues,
-	// and #8 precedes #10 in the subject.
-	if got := commits[1].Issues; len(got) != 2 || got[0] != "8" || got[1] != "10" {
-		t.Fatalf("want issues [8 10] order-preserving deduped, got %v", got)
+	// Order-preserving dedupe: #8 appears twice in commit 2 but once in Refs,
+	// and #8 precedes #10 in the subject. Only the lead #8 claims (#317).
+	if got := commits[1].Refs; len(got) != 2 || got[0] != "8" || got[1] != "10" {
+		t.Fatalf("want refs [8 10] order-preserving deduped, got %v", got)
+	}
+	if got := commits[1].Issues; !reflect.DeepEqual(got, []string{"8"}) {
+		t.Fatalf("want claimants [8] (#10 is a citation), got %v", got)
 	}
 	// A commit with no tracked refs has empty Issues.
 	if len(commits[2].Issues) != 0 {
@@ -86,6 +89,30 @@ func TestLoadWindowCommitsParsesAllIssueRefsForClaimants(t *testing.T) {
 	}
 	if got := commits[4].Issues; len(got) != 0 {
 		t.Fatalf("no-ref commit should remain a neutral boundary, got %v", got)
+	}
+}
+
+// #317: only the lead claims. Issues are the lead's local refs; Refs keep
+// every local ref for the mention scope. A subject with no lead is neutral.
+func TestLoadWindowCommitsLeadClaimsCitationsDont(t *testing.T) {
+	out := strings.Join([]string{
+		"aaaaaaaaaaaaaaaa\t2026-01-01T00:00:00Z\t#304: log: --no-validate rationale for the landing (F1, #308)",
+		"bbbbbbbbbbbbbbbb\t2026-01-01T00:20:00Z\t#304: merge origin/main (#300, #270 landed)",
+		"cccccccccccccccc\t2026-01-01T00:40:00Z\tchore: bump (refs #1, #2)",
+	}, "\n")
+	withGitRun(t, func(repo string, args ...string) ([]byte, error) { return []byte(out), nil })
+	commits, err := loadWindowCommits("/repo", wideSince, wideUntil, Scope{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for i, want := range []struct{ issues, refs []string }{
+		{[]string{"304"}, []string{"304", "308"}},
+		{[]string{"304"}, []string{"304", "300", "270"}},
+		{nil, []string{"1", "2"}},
+	} {
+		if !reflect.DeepEqual(commits[i].Issues, want.issues) || !reflect.DeepEqual(commits[i].Refs, want.refs) {
+			t.Errorf("%q: Issues %v Refs %v, want %v / %v", commits[i].Subject, commits[i].Issues, commits[i].Refs, want.issues, want.refs)
+		}
 	}
 }
 

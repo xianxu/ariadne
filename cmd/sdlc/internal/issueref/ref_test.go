@@ -160,3 +160,41 @@ func TestFindMasksMergePullRequestNumbers(t *testing.T) {
 		})
 	}
 }
+
+// ariadne#317: only a subject's LEAD claims active time. Refs later in the
+// subject are citations: `#304: log: … (F1, #308)` handed #308 66 minutes of
+// #304's work, and an integration merge's `(#300, #270 landed)` split its run
+// three ways. Shapes are from real history.
+func TestLeadLocalNums(t *testing.T) {
+	cases := []struct {
+		name, subject string
+		want          []string
+	}{
+		{"plain lead", "#304: close", []string{"304"}},
+		{"milestone lead", "#304 M2: publish gate compares the rebased reviewed patch (A4)", []string{"304"}},
+		{"integration merge cites what landed", "#304: merge origin/main (#300, #270 landed)", []string{"304"}},
+		{"parenthesised citation", "#304: log: --no-validate rationale for the landing (F1, #308)", []string{"304"}},
+		{"self-qualified lead", "ariadne#304: close", []string{"304"}},
+		{"range lead", "#174-#176: archive", []string{"174", "176"}},
+		{"en-dash range lead", "#174–#176: archive", []string{"174", "176"}},
+		{"list lead", "#284, #285: claim", []string{"284", "285"}},
+		{"area label then lead", "sdlc: #306 release locks on raw exits", []string{"306"}},
+		{"two labels then lead", "issues: #272: record stacked landing recovery", []string{"272"}},
+		{"close verb", "close #290", []string{"290"}},
+		{"file verb after a label", "side-quest: file #313 (atlas auto-skip) + #314", []string{"313"}},
+		{"issue verb", "issue #221: split sdlc's publish defects out of #220", []string{"221"}},
+		{"no lead: citations only", "chore: bump (refs #1, #2)", nil},
+		{"no lead: open verb is not a lead", "side-quest: follow #212's plan into history", nil},
+		{"no lead: prose before the ref", "retro: file sdlc tooling-feedback issues #200–#203", nil},
+		{"merge pull request is masked", "Merge pull request #174 from xianxu/000304-whole-issue", nil},
+		{"foreign lead claims nothing here", "pair#127: replay harness (#187)", nil},
+		{"no refs", "archive completed issues to history", nil},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := LeadLocalNums(c.subject, "ariadne"); !reflect.DeepEqual(got, c.want) {
+				t.Errorf("LeadLocalNums(%q) = %v, want %v", c.subject, got, c.want)
+			}
+		})
+	}
+}

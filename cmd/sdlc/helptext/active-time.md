@@ -18,9 +18,12 @@ THE V3 METHOD (global commit-boundary attribution)
   within the same transcript source. Overlapping sessions can each count as
   issue work.
 
-  Commits are global temporal boundaries. Every issue ref in commit subjects is
-  parsed as a claimant, even when --issue names only the primary issue. Commits
-  with no issue refs cut time but do not claim it. Each run is attributed to the
+  Commits are global temporal boundaries. The issue refs that lead a subject
+  (`#N:`, `#N Mx:`, `#174-#176:`, `sdlc: #N`, `close #N`) are its claimants,
+  even when --issue names only the primary issue. A ref later in the subject is
+  a citation: it counts as a mention, never as a claimant (#317). Commits with
+  no leading ref cut time but do not claim it. With --branch-point, the
+  branch's own merge commits (BranchPoint..HEAD) are not boundaries. Each run is attributed to the
   nearest plausible issue commit, with next-commit ties winning because commits
   usually close the work that preceded them.
 

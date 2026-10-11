@@ -41,8 +41,8 @@ func branchCommit(t *testing.T, repo, iso, file, msg string) {
 // integrationFixture returns a repo whose `main` carries the foreign commit and
 // whose `issue` branch carries this session's commits, not yet integrated.
 // When mergeMid is set, main is merged into the branch between `#9 a` and
-// `#9 b` (the merge-main-mid-work practice).
-func integrationFixture(t *testing.T, mergeMid bool) string {
+// `#9 b` (the merge-main-mid-work practice), with mergeMid as its subject.
+func integrationFixture(t *testing.T, mergeMid string) string {
 	repo := gitInit(t)
 	branchCommit(t, repo, "2025-12-31T23:00:00+00:00", "base", "base")
 	gitAt(t, repo, "", "branch", "-M", "main")
@@ -51,8 +51,8 @@ func integrationFixture(t *testing.T, mergeMid bool) string {
 	gitAt(t, repo, "", "switch", "-q", "main")
 	branchCommit(t, repo, "2026-01-01T00:30:00+00:00", "theirs", "#5 foreign")
 	gitAt(t, repo, "", "switch", "-q", "issue")
-	if mergeMid {
-		gitAt(t, repo, "2026-01-01T00:35:00+00:00", "merge", "-q", "--no-edit", "main")
+	if mergeMid != "" {
+		gitAt(t, repo, "2026-01-01T00:35:00+00:00", "merge", "-q", "-m", mergeMid, "main")
 	}
 	branchCommit(t, repo, "2026-01-01T00:50:00+00:00", "own", "#9 b")
 	return repo
@@ -75,23 +75,28 @@ func TestBoundariesSurviveIntegratingMain(t *testing.T) {
 	want := []string{"00:20 #9 a", "00:50 #9 b"}
 
 	states := map[string]func(t *testing.T) string{
-		"not integrated": func(t *testing.T) string { return integrationFixture(t, false) },
+		"not integrated": func(t *testing.T) string { return integrationFixture(t, "") },
 		"rebased": func(t *testing.T) string {
-			repo := integrationFixture(t, false)
+			repo := integrationFixture(t, "")
 			gitAt(t, repo, "", "rebase", "-q", "main") // restamps committer dates to now
 			return repo
 		},
 		"rebased, committer date kept": func(t *testing.T) string {
-			repo := integrationFixture(t, false)
+			repo := integrationFixture(t, "")
 			gitAt(t, repo, "", "rebase", "-q", "--committer-date-is-author-date", "main")
 			return repo
 		},
 		"merged at the end": func(t *testing.T) string {
-			repo := integrationFixture(t, false)
+			repo := integrationFixture(t, "")
 			gitAt(t, repo, "2026-01-01T00:55:00+00:00", "merge", "-q", "--no-edit", "main")
 			return repo
 		},
-		"merged mid-work": func(t *testing.T) string { return integrationFixture(t, true) },
+		"merged mid-work": func(t *testing.T) string { return integrationFixture(t, "Merge branch 'main' into issue") },
+		// #317: ariadne#304's merge subject. Naming the issue kept it a
+		// boundary, and its citations split the run with #5.
+		"merged mid-work, subject names the issue": func(t *testing.T) string {
+			return integrationFixture(t, "#9: merge main (#5 landed)")
+		},
 	}
 	for name, build := range states {
 		t.Run(name, func(t *testing.T) {
@@ -131,7 +136,7 @@ func TestBoundariesSurviveIntegratingMain(t *testing.T) {
 // Without a branch point (working directly on main) every commit in the window
 // stays a boundary, as before #270.
 func TestBoundariesUnscopedOnMain(t *testing.T) {
-	repo := integrationFixture(t, false)
+	repo := integrationFixture(t, "")
 	gitAt(t, repo, "", "switch", "-q", "main")
 	commits, err := loadWindowCommits(repo, "2026-01-01T00:00:00Z", "2026-01-01T00:50:00Z", Scope{})
 	if err != nil {
@@ -158,6 +163,53 @@ func TestScopedBoundaryKeepsTrunkCommitsNamingTheIssue(t *testing.T) {
 	want := []string{"00:05 #9: issue-sync: new issue", "00:20 #9 a"}
 	if got := boundaryShape(commits); !reflect.DeepEqual(got, want) {
 		t.Errorf("boundaries = %v, want %v", got, want)
+	}
+}
+
+// #317: a citation names an issue without claiming for it. A main commit that
+// cites #9 is not #9's boundary, and the branch's own commit citing #5 claims
+// for #9 only, while #5 stays in the mention scope.
+func TestCitationsDoNotClaim(t *testing.T) {
+	repo := gitInit(t)
+	branchCommit(t, repo, "2025-12-31T23:00:00+00:00", "base", "base")
+	gitAt(t, repo, "", "branch", "-M", "main")
+	gitAt(t, repo, "", "switch", "-q", "-c", "issue")
+	branchCommit(t, repo, "2026-01-01T00:20:00+00:00", "own", "#9 a")
+	gitAt(t, repo, "", "switch", "-q", "main")
+	branchCommit(t, repo, "2026-01-01T00:30:00+00:00", "theirs", "#5: fix the thing #9 found (#9)")
+	gitAt(t, repo, "", "switch", "-q", "issue")
+	gitAt(t, repo, "", "rebase", "-q", "main")
+	branchCommit(t, repo, "2026-01-01T00:50:00+00:00", "own", "#9: log: rationale (F1, #5)")
+	const since, until = "2026-01-01T00:00:00Z", "2026-01-01T00:50:00Z"
+	scope := scopeOf(t, repo)
+	commits, err := loadWindowCommits(repo, since, until, scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"00:20 #9 a", "00:50 #9: log: rationale (F1, #5)"}
+	if got := boundaryShape(commits); !reflect.DeepEqual(got, want) {
+		t.Fatalf("boundaries = %v, want %v", got, want)
+	}
+	if got := commits[1].Issues; !reflect.DeepEqual(got, []string{"9"}) {
+		t.Errorf("claimants = %v, want [9]: (F1, #5) is a citation", got)
+	}
+	peers, err := WindowIssues(repo, since, until, scope)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !reflect.DeepEqual(peers, []string{"5", "9"}) {
+		t.Errorf("peers = %v, want [5 9]: a citation stays in the mention scope", peers)
+	}
+	res, err := Compute(Options{
+		Dirs: []string{eventsDir(t, sessionEvents()...)}, GitRepo: repo, Scope: scope,
+		SinceISO: since, UntilISO: until, Issues: peers,
+		CommitWeight: 1.0, ThresholdMin: 15, IncludeAssistant: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !approx(res.PerIssue["9"], 50) || res.PerIssue["5"] != 0 {
+		t.Errorf("per issue = %v, want #9 = 50 min and nothing for #5", res.PerIssue)
 	}
 }
 

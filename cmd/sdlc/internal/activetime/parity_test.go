@@ -89,7 +89,9 @@ func TestComputeGuardEmptyWindow(t *testing.T) {
 func TestAttributionGolden(t *testing.T) {
 	repo := gitInit(t)
 	gitCommit(t, repo, "2026-03-01T10:30:00+00:00", "#8 first bit")
-	gitCommit(t, repo, "2026-03-01T11:30:00+00:00", "#10 second (#8)")
+	// A lead list: since #317 only a subject's lead claims, so `#10 second
+	// (#8)` would give #10 the whole run. The split is what this pins.
+	gitCommit(t, repo, "2026-03-01T11:30:00+00:00", "#10, #8: second")
 
 	tdir := t.TempDir()
 	writeJSONL(t, filepath.Join(tdir, "s.jsonl"), []string{
