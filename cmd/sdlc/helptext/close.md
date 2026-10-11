@@ -203,6 +203,13 @@ MODES
   without a review result; reviewer shutdown and pipe draining have a five-second
   grace bound.
 
+  The reviewer runs in a disposable shared clone of the pinned head (#204),
+  removed when it exits; a crashed owner's clone is swept by the next review.
+  An OS write fence (sandbox-exec / bwrap) keeps it out of the source checkout
+  and its git dir; where the fence cannot nest (inside an agent sandbox) the
+  round runs clone-only with a warning. The round and sidecar record
+  `isolation: fenced|checkout`. WF_REVIEW_CHECKOUT_ROOT relocates the clones.
+
   (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/
    merge/push — also carry the repo guard (#176): they refuse in a brain
    (capture) repo and in repos without workshop/issues/. WF_SPINE_GUARD=off is

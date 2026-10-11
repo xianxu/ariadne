@@ -41,7 +41,10 @@ WHAT IT DOES
        unified patch stays in Git instead of entering the agent argv/prompt
      - Snapshots every mutable prose artifact named to the unlocked reviewer;
        issue/project/plan edits or plan presence changes refuse finalization
-     - Invokes the configured agent (claude by default)
+     - Invokes the configured agent (claude by default) inside a disposable
+       shared clone of the pinned head, under an OS write fence on the source
+       checkout when one applies; clone-only (with a warning) where it cannot
+       nest. The round and sidecar record `isolation: fenced|checkout` (#204)
      - Routes harness diagnostics/progress to terminal stderr; verdict parsing
        and the durable `-m<x>-review.md` consume only the semantic final response
      - Surfaces findings + classifies clean / info / failure

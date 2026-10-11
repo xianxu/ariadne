@@ -447,8 +447,9 @@ For executable behavior changes, a fix is complete only when a test FAILS WITHOU
   - Locate the regression test. Without one, a behavior-changing disposition is
     `not-addressed`, however plausible the diff looks.
   - Check the fix is reachable — no field with zero consumers, unreachable guard,
-    or branch that no fixture enters. Where cheap, revert the fix in a scratch
-    copy and confirm the regression goes red.
+    or branch that no fixture enters. Where cheap, revert the fix and confirm
+    the regression goes red: you run in a disposable checkout of the pinned
+    head, removed after this review, so revert and test there (foreground).
   - Prompts, schemas, configuration, and scripts that drive behavior are executable contracts
     even when stored as Markdown or other text. Do not classify them as prose-only
     to waive meaningful regression evidence.
@@ -1731,8 +1732,9 @@ For executable behavior changes, a fix is complete only when a test FAILS WITHOU
   - Locate the regression test. Without one, a behavior-changing disposition is
     `not-addressed`, however plausible the diff looks.
   - Check the fix is reachable — no field with zero consumers, unreachable guard,
-    or branch that no fixture enters. Where cheap, revert the fix in a scratch
-    copy and confirm the regression goes red.
+    or branch that no fixture enters. Where cheap, revert the fix and confirm
+    the regression goes red: you run in a disposable checkout of the pinned
+    head, removed after this review, so revert and test there (foreground).
   - Prompts, schemas, configuration, and scripts that drive behavior are executable contracts
     even when stored as Markdown or other text. Do not classify them as prose-only
     to waive meaningful regression evidence.

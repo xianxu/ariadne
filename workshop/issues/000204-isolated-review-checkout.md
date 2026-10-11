@@ -75,12 +75,12 @@ Durable plan: `workshop/plans/000204-isolated-review-checkout-plan.md`.
 - [x] Brainstorm the reviewer operations that require Git history versus a Head
       snapshot and select the smallest isolation primitive that supports them.
 - [x] Define checkout ownership, cleanup, and crash-recovery semantics.
-- [ ] reviewbox pure argv + Seatbelt profile (plan Task 1).
-- [ ] Checkout lifecycle + flock sweep (Task 2).
-- [ ] Fence probe + live conformance (Task 3).
-- [ ] judge `Wrap`/`Fenced` dispatch hooks (Task 4).
-- [ ] Boundary wiring + `isolation` stamp on round and sidecar (Task 5).
-- [ ] Update the boundary-review atlas/help/prompt contract (Task 6).
+- [x] reviewbox pure argv + Seatbelt profile (plan Task 1).
+- [x] Checkout lifecycle + flock sweep (Task 2).
+- [x] Fence probe + live conformance (Task 3).
+- [x] judge `Wrap`/`Fenced` dispatch hooks (Task 4).
+- [x] Boundary wiring + `isolation` stamp on round and sidecar (Task 5).
+- [x] Update the boundary-review atlas/help/prompt contract (Task 6).
 
 ## Log
 
@@ -178,3 +178,27 @@ round; apply the full write fence when not nested. Under the fence, each
 agent's own sandbox is turned off (claude `--settings` sandbox disabled, codex
 `-s danger-full-access`), because Seatbelt cannot nest inside our fence. One
 outer fence is what makes the three agents' writable scope equivalent.
+
+### 2026-10-11 — implementation (ariadne:2)
+
+- `cmd/sdlc/internal/reviewbox`: the pure `Isolation.Wrap` / Seatbelt profile;
+  `Create`/`Close`/`Sweep`, a shared clone under a flock; `Probe`. The live
+  fence test skips inside an agent sandbox. It measured
+  `sandbox_apply: Operation not permitted` here, so the fenced path is proven
+  by argv assertions plus that test wherever sdlc runs unsandboxed.
+- Isolation is an argv transform (`judge.DispatchOptions.Wrap`), not a new Run
+  seam. The 61 `judge.Run` fakes keep their signature, and `--dry-run` prints
+  the wrapped command. Under the fence, `Fenced` turns each agent's own sandbox
+  off.
+- Mutation check: a test that pushes to `HEAD:main` passed even without
+  `remote remove origin`, because the source refuses a push to its checked-out
+  branch. The test now pushes to a new ref and fails without the removal.
+- `atlas/process-manual.md` is generated, but regenerating rewrote about 2,000
+  unrelated lines (the checked-in copy is stale against main). Only the
+  changed review-prompt passage was edited; a full regen belongs to its own
+  change.
+- Out of scope, as the Spec names boundary reviews: `sdlc judge
+  milestone-review` and plan-quality reviews still run in the caller's
+  checkout.
+- cmd/sdlc `TestMain` pins `WF_REVIEW_CHECKOUT_ROOT` to a temp dir and the
+  probe to checkout-only, so no test depends on the host's sandbox.

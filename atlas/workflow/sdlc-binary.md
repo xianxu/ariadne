@@ -923,6 +923,48 @@ retried. Every contract carries `UnattendedRule` (foreground
 only, no notifications). Output that isn't a stream reads as plain text, as
 before.
 
+**The reviewer runs in a disposable checkout (#204).** Every close and
+milestone boundary review round runs its reviewer in a fresh shared clone of the
+pinned Head (`internal/reviewbox`). It is made by `git clone --shared
+--no-checkout`, then `remote remove origin`, then `checkout --detach <head>`.
+Objects are read through alternates. Refs, config, index and hooks are the
+clone's own, and it has no remote back to the source. The live issue and plan
+files are overlaid at their paths, since they can be uncommitted at close. The
+prompt's `repository root:` and its `git -C` recipes name the clone, so the
+reviewer's diffs, mutation and revert-the-fix checks, and builds happen there.
+The process is one argv transform shared by every agent (`Isolation.Wrap`,
+applied through `judge.DispatchOptions.Wrap`):
+
+    [sandbox-exec -p <profile> | bwrap --ro-bind …] env -C <clone> <agent> …
+
+The write fence is a deny list on the source checkout and its git common dir.
+On macOS it is Seatbelt; on Linux it is `bwrap --ro-bind`. Under the fence,
+each agent's own sandbox is turned off (`DispatchOptions.Fenced`: claude
+`--settings` sandbox disabled, codex `--sandbox danger-full-access`, gemini
+`--sandbox=false`). Seatbelt cannot nest, so one outer fence is what gives the
+three agents the same writable scope. `reviewbox.Probe` runs a no-op inside the
+fence first. When that fails (inside Claude Code's Bash sandbox, where slot
+agents run sdlc, `sandbox_apply` is refused), the round degrades to the clone
+alone, with a warning. The ledger round's `isolation:` and the sidecar's
+`| isolation |` row record `fenced` or `checkout`. Degrading was the TL's
+decision on #204. `--dry-run` prints the wrapped command with a
+`<review-checkout>` placeholder.
+
+Lifecycle: `<WF_REVIEW_CHECKOUT_ROOT | user cache dir/sdlc/review-checkouts>/<id>/`
+plus `<id>.lock`.
+- The lock is flocked before its name is visible, and held for the round.
+- `dispatchBoundaryReview` removes both in a defer once the reviewer has exited.
+  Success, reviewer failure, timeout and interruption (SIGINT/SIGTERM via the
+  CLI context) all unwind through it. The review text is in memory by then.
+- A SIGKILLed owner's lock is free. The next review's `Create` sweeps it and
+  any lockless directory. The kernel drops the flock with its holder, so there
+  is no pid-reuse guess.
+- What a SIGKILLed sdlc cannot do is reap its reviewer, which ends with its
+  own turn.
+
+Bound: one clone per live review. `sdlc judge milestone-review` (the ad-hoc
+path) and plan reviews still run in the caller's checkout.
+
 **Dispatch progress heartbeat (#140).** A boundary review can run silently for
 minutes; `internal/judge.Dispatch` now emits a heartbeat to `opts.Stderr` every
 `heartbeatInterval` (30s) while the agent subprocess runs — elapsed + agent +
