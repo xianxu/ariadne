@@ -207,4 +207,19 @@ The counts above were taken at filing and will move.
   - the tail is uncounted at every boundary;
   - build + converge == actual, as a time-proportional split of one
     `Compute` result.
+- M1 implementation:
+  - The dispatch stamp is `Round.Dispatched`, set through the `dispatchNow`
+    seam.
+  - The pure `activetime.BuildTimeline`/`Split` live in `split.go`, with a
+    table test plus a 500-case property test (ordered, contiguous, conserving).
+  - `Result.IssueCommitTimes` added.
+  - `computeActualFor` splits, and `--milestone` was added to `sdlc actual`.
+  - `adoptOmittedActual` adopts the milestone increment (E1), and the
+    deviation check compares a milestone value with its own increment.
+  - Ledger block 23–27, plus `rowSplitMeta`/`rowSplitSource` (PQ-1) and E3.
+  - Help and atlas updated.
+- Bug caught by the integration test: measuring a *past* milestone tagged the
+  trailing build (after its finalize) as that milestone's, which gave M1 all
+  of M2's work. The trailing build now goes to `current` only while `current`
+  is unfinalized.
 
