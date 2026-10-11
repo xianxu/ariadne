@@ -15,7 +15,9 @@ it showed — or the invariant and the test that pins it. An opinion is not
 evidence.
 
 WHAT IT DOES TO THE GATE.
-  - An Important or Minor finding stops blocking.
+  - An Important or Minor finding stops blocking the gate LEDGER. The judge's
+    verdict is the other half of a boundary: a REWORK verdict still holds
+    the close, whatever the ledger says.
   - A Critical (appeal-only: the hard-blocking set) is recorded and put to
     the judge, but keeps blocking until the judge withdraws it.
   - The next review round lists each live dispute with its rationale and
