@@ -223,4 +223,12 @@ The counts above were taken at filing and will move.
   trailing build (after its finalize) as that milestone's, which gave M1 all
   of M2's work. The trailing build now goes to `current` only while `current`
   is unfinalized.
+- M1 closed: SHIP in round 2.
+  - Round 1 was FIX-THEN-SHIP with BR-1 (the split ignored `--plans-dir`)
+    and 5 Minors; all were fixed.
+  - The advisory Minor from round 2 (a second round filter) was fixed
+    afterwards, with a lesson.
+  - The derived increment was adopted: 0.75h → 0.95h, because round 1's
+    fixes counted as converge (0.08h). The feature measured its own loop.
+  - `--no-project`: the ops project tracks #234 as one row.
 
