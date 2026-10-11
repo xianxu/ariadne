@@ -68,6 +68,19 @@ rounds:
       recipe: small-diff-review
       isolation: checkout
       blocked: true
+    - "n": 4
+      timestamp: "2026-10-11T10:57:40-07:00"
+      dispatched: "2026-10-11T10:53:42-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: not-addressed
+          note: 'The regex blacklist misses remaining owner-only statements. atlas/workflow/issue-tracker.md:351 "Republish (details on main): the owner only."; recovery/catalog.go:253 "the owner publishes later edits"; recovery/catalog.go:328 "Republish: this workspace owns each card"; helptext/set-status.md:62-63 "lands only from the owner''s checkout ... or claim the issue first"; minor republish.go:46 "one owned issue''s publication". Fix all of them, and make the test assert that the policy is present (e.g. "unclaimed"/#274 on every republish/later-edit statement) rather than blacklisting past phrasings.'
+          round: 4
+      recipe: small-diff-review
+      isolation: checkout
+      reviewed: e9a4f1b0696d3185b58530fb07c74227e6951825
+      blocked: false
 ---
 
 # Gate ledger — ariadne#274 (boundary-review)
@@ -104,6 +117,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 ### Disposed
 
 - BR-4 — not-addressed — Listed sites fixed and a placeholder plus wording test added, but the test regex misses "an owner's" and skips README.md; remaining: issuepublish.go:21 Short, issuemovedetail.go:41, README.md:23, republish.go:2.
+
+## Round 4 — 2026-10-11T10:57:40-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — not-addressed — The regex blacklist misses remaining owner-only statements. atlas/workflow/issue-tracker.md:351 "Republish (details on main): the owner only."; recovery/catalog.go:253 "the owner publishes later edits"; recovery/catalog.go:328 "Republish: this workspace owns each card"; helptext/set-status.md:62-63 "lands only from the owner's checkout ... or claim the issue first"; minor republish.go:46 "one owned issue's publication". Fix all of them, and make the test assert that the policy is present (e.g. "unclaimed"/#274 on every republish/later-edit statement) rather than blacklisting past phrasings.
 
 ## Open findings
 

@@ -257,3 +257,88 @@ dispose:
     note: |
       Listed sites fixed and a placeholder plus wording test added, but the test regex misses "an owner's" and skips README.md; remaining: issuepublish.go:21 Short, issuemovedetail.go:41, README.md:23, republish.go:2.
 ```
+
+---
+
+## Re-review — 2026-10-11T10:57:39-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 274 — Handoff guard judges detail ownership by branch name |
+| repo | ariadne |
+| issue file | workshop/issues/000274-handoff-guard-ownership-by-branch-name.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | c663f84a6ee901174cbe7403da74c97870a68557..e9a4f1b0696d3185b58530fb07c74227e6951825 |
+| command | sdlc close --issue 274 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-11T10:57:39-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Checking the remaining policy statements across the tree for BR-4.
+
+Checking the background test run, then writing the verdict.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The behaviour change is right and well tested. `mayNotEditDetails` (`cmd/sdlc/transferguard.go`) is now the one policy that both the guard (`changedDetails`) and publish (`requireOwnedToPublish`) read. The verdict was cleanly renamed from `NotOwner` to `Foreign`. The foreign refusal names the owner and no longer recommends `claim`. `mayRestore` never offers to drop this workspace's own record. The Done-when clauses are each covered: an unclaimed issue's edit lands and publishes; the owner's edit from another issue's branch lands; a foreign overwrite is refused.
+
+What still blocks a clean SHIP is BR-4, which is not addressed. The fix put `{{DETAILS_EDITORS}}` into the `issue` help, which is good. But its enforcement is a blacklist of past phrasings (`TestNoTextSaysOnlyTheOwnerEditsDetails`), which only catches sentences already reported. A grep for the policy's words across the scanned surfaces still finds four owner-only statements that the regex misses. One of them is in the atlas section that the README links to.
+
+1. **Strengths**
+   - `transferverdict.go`: `detailsFacts.Foreign` plus `detailsVerdict` stay a small pure table, and `TestDetailsVerdict` tests it without IO (ARCH-PURE passes).
+   - One predicate, `mayNotEditDetails`, is shared by both writers of published details (ARCH-DRY passes for code).
+   - `TestTransferGuardOverBranchShapes` asserts on every refusal row that the refusal never says `sdlc claim`, and that restore is offered exactly when the holder is not this workspace. The family is tested, not just one instance.
+   - `TestPublishUnclaimedDetails` checks that main received the edit and that publishing did not claim the issue.
+   - Fail-closed is kept: a malformed claimant makes `ownership` return an error, which propagates, so a bad card is never treated as unclaimed.
+
+2. **Critical**: none.
+
+3. **Important**
+   - BR-4 (`doc-claims-track-policy`) is not addressed. These sites still state the owner-only rule:
+     - `atlas/workflow/issue-tracker.md:351`: "**Republish** (details on main): the owner only."
+     - `cmd/sdlc/internal/recovery/catalog.go:253` (move-detail `Ends`): "the owner publishes later edits with `issue publish`"
+     - `cmd/sdlc/internal/recovery/catalog.go:328` (issue publish `Preconditions`): "Republish: this workspace owns each card". This is now false for an unclaimed card.
+     - `cmd/sdlc/helptext/set-status.md:62-63`: "lands only from the owner's checkout (#285) … or claim the issue first". An unclaimed issue now lands from anywhere, and a foreign one cannot be claimed.
+     - Lesser: `republish.go:46` "one owned issue's publication".
+     
+     Fix sketch: patch every site above. Then change the test so it checks the rule rather than past phrasings. Either:
+     - assert that each surface naming republish or later edits also contains the policy marker (`unclaimed` / `#274`), or
+     - generate the catalog strings from the same help text (exported from a small shared package).
+
+4. **Minor**
+   - `ownership()` returns `OwnershipUnknown` both for "never claimed" and for "claimed before #277 with no claimant recorded". Both are now editable by anyone. That matches `ownershipGateHelp`, which already treats the two the same, but the atlas could say so.
+
+5. **Test coverage**
+   - A targeted run of `TestNoTextSaysOnlyTheOwnerEditsDetails|TestDetailsVerdict|TestPublishUnclaimed` passed.
+   - The wider targeted run (`TestTransferGuard|…|TestIssueRestore|TestPublish`) took longer than the 120 s tool timeout. I moved it to the background, and it had not reported a result when I wrote this, so I did not observe it passing.
+   - The guard rows cover all three holders (another workspace, this workspace, unclaimed) for both the based and behind cases.
+
+6. **Architecture**
+   - **ARCH-DRY: flag (documentation only).** The policy is still restated by hand in the atlas, the README, `AGENTS.base.md` and the catalog.
+   - **ARCH-PURE: pass.**
+   - **ARCH-PURPOSE: flag.** This is the BR-4 shadow-sweep: the catalog and atlas consumers are not derived from the policy text and are not enforced by the test.
+
+7. **Plan revisions**: none needed. The Plan matches the code. The Log's round-3 claim of having "Fixed all four sites" should note the additional sites listed above once they are fixed.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      The regex blacklist misses remaining owner-only statements. atlas/workflow/issue-tracker.md:351 "Republish (details on main): the owner only."; recovery/catalog.go:253 "the owner publishes later edits"; recovery/catalog.go:328 "Republish: this workspace owns each card"; helptext/set-status.md:62-63 "lands only from the owner's checkout ... or claim the issue first"; minor republish.go:46 "one owned issue's publication". Fix all of them, and make the test assert that the policy is present (e.g. "unclaimed"/#274 on every republish/later-edit statement) rather than blacklisting past phrasings.
+```
+
+The wider targeted test run that was still going in the background has now passed: `ok github.com/xianxu/ariadne/cmd/sdlc 189.854s`. It covered `TestTransferGuard`, `TestDetailsVerdict`, `TestNoHelpCallsABranchTheOwner`, `TestNoTextSaysOnlyTheOwnerEditsDetails`, `TestIssueRestore` and `TestPublish`.
+
+So the code passes its tests, but the verdict stays **FIX-THEN-SHIP**, because BR-4 is not about failing tests. The wording test passes while four places still state the old rule that only the owner may publish later edits:
+- `atlas/workflow/issue-tracker.md:351`
+- `cmd/sdlc/internal/recovery/catalog.go:253`
+- `cmd/sdlc/internal/recovery/catalog.go:328`
+- `cmd/sdlc/helptext/set-status.md:62-63`

@@ -250,7 +250,7 @@ var Catalog = []Contract{
 		Preconditions: "no unfinished receipt; a free destination; no hand-edited card field.",
 		Repeat:        "refused once the handoff exists (inference: the destination is occupied).",
 		LostResponse:  "`sdlc issue recovery reconcile` finishes an interrupted handoff.",
-		Ends:          "the details are on main; the owner publishes later edits with `issue publish` (#284), or they ride the issue branch.",
+		Ends:          "the details are on main; later edits are published with `issue publish` by the owner, or anyone while unclaimed (#284, #274), or they ride the issue branch.",
 		Proofs: []Proof{
 			{"an interrupted handoff is finished by reconcile", []string{"TestMoveDetailInterruptedRecordIsFinishedByReconcile"}},
 			{"issue publish's first publication is this transfer", []string{"TestPublishFirstPublicationIsMoveDetail"}},
@@ -325,7 +325,7 @@ var Catalog = []Contract{
 		Class:         ConvergentRetry,
 		Effects:       "per issue (#284): a first publication (details not on main) is `move-detail`'s receipt-driven transfer; details already on main are edits by the owner or, while unclaimed, anyone (#274), published to main in one narrow commit for the set (a moved main is first brought in on a resting branch). Then a resting branch fast-forwards, the issue's own branch commits the same bytes, and another issue's branch takes its copy back. Never touches the tracker.",
 		Evidence:      "the details on main (`git log origin/main -- <details>`); " + observeEvidence + ".",
-		Preconditions: "first publication: a free destination, no unfinished receipt. Republish: this workspace owns each card (re-checked against a fresh tracker read before the push), local details present without conflict markers, and main's copy unchanged since this checkout's merge base — on a resting branch a moved main is brought in by a three-way merge first (a conflict leaves markers and refuses); elsewhere the refusal names the steps.",
+		Preconditions: "first publication: a free destination, no unfinished receipt. Republish: no card is another workspace's — this workspace's own, or unclaimed (#274; re-checked against a fresh tracker read before the push), local details present without conflict markers, and main's copy unchanged since this checkout's merge base — on a resting branch a moved main is brought in by a three-way merge first (a conflict leaves markers and refuses); elsewhere the refusal names the steps.",
 		Repeat:        "main already holds the details: nothing is written; the checkout is finished as after a publish (rest fast-forwards; the issue's own branch commits; another issue's branch takes its copy back).",
 		LostResponse:  "rerun the same command — main decides: the details already there make the rerun a finish-only pass. An interrupted first publication finishes with `sdlc issue recovery reconcile`.",
 		Ends:          "the details are on main; a later publish needs the claim again.",

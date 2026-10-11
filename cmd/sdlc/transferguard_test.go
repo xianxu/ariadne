@@ -375,7 +375,7 @@ func TestNoHelpCallsABranchTheOwner(t *testing.T) {
 // source comment may say only the owner publishes or that restore is a
 // non-owner's offer.
 func TestNoTextSaysOnlyTheOwnerEditsDetails(t *testing.T) {
-	ownerOnly := regexp.MustCompile(`(?i)only the owner (re)?publish|only its owner publish|(the|an) owner's (later )?edits|owned issues' (edited )?details|offer to a non-owner|publishes owned`)
+	ownerOnly := regexp.MustCompile(`(?i)only the owner (re)?publish|only its owner publish|(the|an) owner's (later )?edits|owned issues' (edited )?details|offer to a non-owner|publishes owned|the owner only|owner publishes later edits|this workspace owns each card|only from the owner's checkout|owned issue's publication`)
 	check := func(where, text string) {
 		if m := ownerOnly.FindString(text); m != "" {
 			t.Errorf("%s states the pre-#274 owner-only policy: %q", where, m)
@@ -390,6 +390,17 @@ func TestNoTextSaysOnlyTheOwnerEditsDetails(t *testing.T) {
 	}
 	walk(buildRoot())
 	check("recovery table", recovery.Table())
+	// The policy is stated, not merely unrefuted: every help that says who
+	// publishes later edits names the unclaimed case.
+	for _, args := range [][]string{{"issue"}, {"issue", "publish"}, {"issue", "move-detail"}, {"issue", "restore"}} {
+		c, _, err := buildRoot().Find(args)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(c.Short+c.Long, "unclaimed") {
+			t.Errorf("`%s` help does not state the unclaimed case (#274)", c.CommandPath())
+		}
+	}
 	root := repoRootForTest(t)
 	docs, err := filepath.Glob(filepath.Join(root, "atlas", "workflow", "*.md"))
 	if err != nil || len(docs) == 0 {

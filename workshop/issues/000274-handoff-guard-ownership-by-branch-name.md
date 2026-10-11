@@ -98,6 +98,7 @@ Split out of ariadne#272 (ban stacked development), where both refusals were
 observed.
 
 ### 2026-10-11
+- 2026-10-11: closed — make test: all 12 cmd/sdlc shards green (1081 tests); processgroup/repolock fail only under the sandbox and pass x3 unsandboxed (untouched). Round-3 fix: owner-only wording test widened ((the|an) owner's; README + recursive cmd/sdlc .go/.md), teeth verified at README and publish Short. Targeted guard/restore/publish/help/recovery green; mutations on mayNotEditDetails and mayRestore caught. Done-when: TestPublishUnclaimedDetails + unclaimed guard rows; owner edit on 000013 branch accepted; heldByOther rows + FollowsTheSlot still refused.; review verdict: FIX-THEN-SHIP
 
 Claimed at ariadne:4 (TL dispatch). Implemented the plan: `mayNotEditDetails`
 is the single policy read by `changedDetails` (pr/push/merge/restore) and
@@ -136,3 +137,11 @@ The scan covers every non-test `.go`/`.md` under `cmd/sdlc` (recursive),
 `atlas/workflow`, `AGENTS.base.md` and `README.md`. Fixed all four sites.
 Teeth: reintroducing "an owner's edits" in the README and in the publish
 `Short` fails the test at each site.
+
+Close review round 4: BR-4 hit the round cap and was demoted, not blocking.
+The close is recorded FIX-THEN-SHIP. The five sites it still named are fixed
+anyway: the atlas Republish line, two recovery catalog contracts, the
+set-status reopen note (now `{{DETAILS_EDITORS}}`) and a republish comment.
+The wording test now also asserts the policy is *present*: the `issue`,
+`issue publish`, `issue move-detail` and `issue restore` help each name the
+unclaimed case. It no longer only blacklists past phrasings.

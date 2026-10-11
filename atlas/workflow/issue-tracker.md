@@ -348,7 +348,7 @@ nothing is released rather than re-rendered.
 
 `sdlc issue publish --issue N[,N…]` (`issuepublish.go`, `republish.go`) is how details reach main without shipping a branch. Per issue:
 - **First publication** (details not on main): `move-detail`'s receipt-driven transfer. It needs no owner, and the issue becomes claimable.
-- **Republish** (details on main): the owner only. `republishDecision` judges the details *bodies*: the local copy against the one at this checkout's merge base with main, and main's. The frontmatter carries the card mirror, which differs by design.
+- **Republish** (details on main): the owner, or anyone while the issue is unclaimed; never another workspace (#274, `mayNotEditDetails`). `republishDecision` judges the details *bodies*: the local copy against the one at this checkout's merge base with main, and main's. The frontmatter carries the card mirror, which differs by design.
   - main unchanged since the base → published;
   - equal → nothing to publish;
   - main moved → on a resting branch, `bringMainIn` merges main into the edit three ways (`git merge-file`), sets the edits aside (all or nothing, with copies under `<git-dir>/sdlc/publish-aside/`), fast-forwards and writes the merge back. A clean merge publishes; a conflict leaves markers, and a body with markers is never published. Off a resting branch, the refusal names steps that run from that state (`movedMainRefusal`).

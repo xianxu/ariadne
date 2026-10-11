@@ -43,7 +43,7 @@ func republishDecision(local, base string, baseOK bool, main string) publishVerd
 	}
 }
 
-// republishItem is one owned issue's publication, read before any effect.
+// republishItem is one issue's publication, read before any effect.
 type republishItem struct {
 	id, path string
 	read     []byte // the local file as read, to prove it unchanged at the finish
