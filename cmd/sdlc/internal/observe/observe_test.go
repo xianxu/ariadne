@@ -377,3 +377,26 @@ func TestAssembleUnreadableCardIsUnknown(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// #307: the claimant's checkout is any checkout of its slot; without a slot
+// on either side, the recorded worktree.
+func TestIsClaimantCheckoutFollowsTheSlot(t *testing.T) {
+	slotted := &Claimant{Workspace: "pair:1", Worktree: "/w/pair-slot1/ariadne"}
+	plain := &Claimant{Worktree: "/w/ariadne"}
+	for name, c := range map[string]struct {
+		claimant *Claimant
+		holding  HoldingFacts
+		want     bool
+	}{
+		"no claimant":                {nil, HoldingFacts{Path: "/w/ariadne"}, false},
+		"same slot, other checkout":  {slotted, HoldingFacts{Path: "/w/pair-slot1/.worktrees/ariadne/x", Address: "pair:1"}, true},
+		"other slot, recorded path":  {slotted, HoldingFacts{Path: "/w/pair-slot1/ariadne", Address: "ariadne:1"}, false},
+		"unslotted holding, path":    {slotted, HoldingFacts{Path: "/w/pair-slot1/ariadne"}, true},
+		"unslotted claim, same path": {plain, HoldingFacts{Path: "/w/ariadne", Address: "ariadne:0"}, true},
+		"unslotted claim, elsewhere": {plain, HoldingFacts{Path: "/w/other", Address: "ariadne:0"}, false},
+	} {
+		if got := isClaimantCheckout(c.claimant, c.holding); got != c.want {
+			t.Errorf("%s: %v, want %v", name, got, c.want)
+		}
+	}
+}

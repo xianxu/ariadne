@@ -90,6 +90,10 @@ Detailed incidents remain in their owning issue or review artifact.
   working tree on every call, so "the installed binary" is whatever is
   checked out. Build the old version from `git archive <sha>` (#254).
 
+- The test hermeticity guard's "leaked .git/sdlc.lock" can be another slot's
+  verb: every slot of a repository shares one Git common dir, so the lock is
+  fleet-wide. Rerun the named tests alone before blaming the diff (#307).
+
 - Resolve a verb's repository from the path it was given (`--issues-dir`,
   `--repo`), never from the process cwd. A cwd fallback reads, or fetches, the
   wrong repository silently, including the developer's own checkout during

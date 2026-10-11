@@ -41,7 +41,11 @@ card field.
   still match on the worktree. When either side has no slot (a plain clone, or
   a card that recorded none), the same repository, machine and worktree
   decide, so Ariadne needs neither slots nor Couch. Operator, repository and
-  worktree are otherwise descriptive.
+  worktree are otherwise descriptive. A slot address is unique per fleet, so
+  two fleet roots on one machine with same-named slots (`ariadne:1` in each)
+  share ownership; run one fleet per machine. `sdlc fleet` still places a
+  claim on the checkout it recorded and calls it dangling once that checkout
+  is gone, even while the slot owns it.
 - **No extra fields:** there is no claim ID or timestamp. Git history and the
   card blob already order claims.
 

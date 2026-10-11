@@ -60,6 +60,19 @@ func assembleBranch(in Inputs) Branch {
 	return b
 }
 
+// isClaimantCheckout reports whether a checkout holding the branch is the
+// owner's: its slot when the claim names one (#307: the slot owns, from any of
+// its checkouts), else the recorded worktree.
+func isClaimantCheckout(c *Claimant, h HoldingFacts) bool {
+	if c == nil {
+		return false
+	}
+	if c.Workspace != "" && h.Address != "" {
+		return c.Workspace == h.Address
+	}
+	return c.Worktree == h.Path
+}
+
 func assembleWorkspaces(in Inputs, a Assignment) Workspaces {
 	w := Workspaces{Authority: AuthorityWorktree, Holding: []Workspace{}}
 	if in.WorktreesErr != nil {
@@ -69,7 +82,7 @@ func assembleWorkspaces(in Inputs, a Assignment) Workspaces {
 	for _, h := range in.Holding {
 		ws := Workspace{Path: h.Path, Address: h.Address, Branch: h.Branch, Head: h.Head,
 			DirtyCount: h.DirtyCount, Ahead: h.Ahead, Behind: h.Behind,
-			IsClaimant: a.Claimant != nil && a.Claimant.Worktree == h.Path, Error: errText(h.Err)}
+			IsClaimant: isClaimantCheckout(a.Claimant, h), Error: errText(h.Err)}
 		w.Holding = append(w.Holding, ws)
 	}
 	w.Read = Read{State: Present, Source: "git worktree list"}

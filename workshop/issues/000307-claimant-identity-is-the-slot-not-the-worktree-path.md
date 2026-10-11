@@ -79,3 +79,8 @@ Filed from the robustness evidence review (ariadne-robustness-1). The operator d
 - Prose sweep: claim help, `ownershipGateHelp`, atlas issue-tracker (ownership + transfer guard), atlas vocabulary, `issue.cue` comment.
 - Live probe (scratch build): `sdlc issue show 307` reads `this-workspace` from ariadne-slot1 and `other-workspace` from `pair-slot1/ariadne` (pair:1), the card naming ariadne:1.
 - A targeted run tripped the hermeticity guard on a leaked `.git/sdlc.lock`. That lock lives in the common dir shared by every ariadne slot; rerunning only the new tests was clean, so another slot's verb held it at the check.
+- Close review round 1: SHIP, 3 Minors, all handled in-round:
+  - observe's `IsClaimant` and holding label re-derived the old slot rule (`Address` + `UsesSlotLayout`). Fixed: holdings use `HomeSlot()`, and `isClaimantCheckout` matches by slot, else worktree (`TestIsClaimantCheckoutFollowsTheSlot`). Fleet placement stays on the recorded checkout: rows carry no slot, and threading one through is its own change. Documented in atlas and the `PlaceClaims` comment.
+  - Same-named slots in two fleet roots on one machine share ownership: documented in atlas (one fleet per machine).
+  - `TestOwnershipGatesFollowTheSlot` now asserts that close and milestone-close let the owning slot through to the review dispatch.
+

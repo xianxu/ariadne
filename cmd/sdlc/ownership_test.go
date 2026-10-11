@@ -505,12 +505,18 @@ func TestOwnershipGatesFollowTheSlot(t *testing.T) {
 			if !strings.Contains(refusal, "owned by "+owner.Operator) || !strings.Contains(refusal, "pair:1") || !strings.Contains(refusal, "ariadne:1") || judged {
 				t.Fatalf("other slot, same path: refusal %q, judged %v", refusal, judged)
 			}
-			if name == "start-plan" || name == "change-code" {
-				sameSlot := owner
-				sameSlot.Worktree = "/w/pair-slot1/.worktrees/ariadne/feature"
-				withClaimant(t, sameSlot)
-				if refusal, _ := ownershipGate(t, r, name, id, detailPath); refusal != "" {
+			sameSlot := owner
+			sameSlot.Worktree = "/w/pair-slot1/.worktrees/ariadne/feature"
+			withClaimant(t, sameSlot)
+			refusal, judged = ownershipGate(t, r, name, id, detailPath)
+			switch name {
+			case "start-plan", "change-code":
+				if refusal != "" {
 					t.Fatalf("owning slot refused from another checkout: %s", refusal)
+				}
+			default: // past the ownership gate, the boundary review runs
+				if strings.Contains(refusal, "may not continue") || !judged {
+					t.Fatalf("owning slot not let through to the review: refusal %q, judged %v", refusal, judged)
 				}
 			}
 		})

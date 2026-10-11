@@ -99,7 +99,8 @@ type RepoClaims struct {
 
 // PlaceClaims joins each repository's claims to the inventory rows (pure).
 // A claim belongs to a row when its card is active, its claimant is this
-// machine, and its worktree is the row's tree in the same repository. A claim
+// machine, and its worktree is the row's tree in the same repository: the
+// checkout the claim recorded, though since #307 the slot owns it. A claim
 // of this machine is dangling only when its worktree is no row at all — two
 // clones of one repository read the same tracker, and each one's claims are
 // live on the other's rows — and is reported once per tracker issue. Other
