@@ -42,10 +42,10 @@ const rebasedPatchMessage = "sdlc: reviewed patch rebased (#304)"
 // so diff(S, HEAD) shows the resolution hunks plus any new work.
 //
 // S is never referenced; git gc collects it after gc.pruneExpire. Requires git
-// >= 2.40 (merge-tree --write-tree --merge-base). A criss-cross history (more
+// >= 2.42 (merge-tree --write-tree --merge-base, and --attr-source). A criss-cross history (more
 // than one merge base on either side) is an error naming the bases.
 func RebasedReviewedBase(mainRef, reviewed string) (s string, conflicted []string, err error) {
-	if err := requireGit240(); err != nil {
+	if err := requireGit242(); err != nil {
 		return "", nil, err
 	}
 	if _, err := run("git", "rev-parse", "--verify", "-q", reviewed+"^{commit}"); err != nil {
@@ -60,7 +60,9 @@ func RebasedReviewedBase(mainRef, reviewed string) (s string, conflicted []strin
 		return "", nil, fmt.Errorf("HEAD: %w", err)
 	}
 
-	out, err := run("git", "merge-tree", "--write-tree", "--name-only", "-z",
+	// Merge attributes (a merge=union file, #320) come from B_now's tree, not the
+	// working tree: main's attributes decide, and S stays a function of its inputs.
+	out, err := run("git", "--attr-source="+bNow, "merge-tree", "--write-tree", "--name-only", "-z",
 		"--merge-base="+bR, bNow, reviewed)
 	status := 0
 	if err != nil {
@@ -122,8 +124,9 @@ func SoleMergeBase(a, b string) (string, error) {
 
 var gitVersionRE = regexp.MustCompile(`git version (\d+)\.(\d+)`)
 
-// requireGit240 refuses a git that predates merge-tree --merge-base (2.40).
-func requireGit240() error {
+// requireGit242 refuses a git that predates merge-tree --merge-base (2.40) and
+// --attr-source (2.42).
+func requireGit242() error {
 	out, err := run("git", "version")
 	if err != nil {
 		return fmt.Errorf("git version: %v", err)
@@ -131,12 +134,12 @@ func requireGit240() error {
 	v := strings.TrimSpace(string(out))
 	m := gitVersionRE.FindStringSubmatch(v)
 	if m == nil {
-		return fmt.Errorf("git >= 2.40 required for review windows (found %q)", v)
+		return fmt.Errorf("git >= 2.42 required for review windows (found %q)", v)
 	}
 	major, _ := strconv.Atoi(m[1])
 	minor, _ := strconv.Atoi(m[2])
-	if major < 2 || (major == 2 && minor < 40) {
-		return fmt.Errorf("git >= 2.40 required for review windows (found %s.%s)", m[1], m[2])
+	if major < 2 || (major == 2 && minor < 42) {
+		return fmt.Errorf("git >= 2.42 required for review windows (found %s.%s)", m[1], m[2])
 	}
 	return nil
 }

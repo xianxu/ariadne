@@ -36,6 +36,8 @@ import (
 //   - EnsureGitignore → replace the delimited generated block, preserving
 //     authored rules and their precedence. ApplyManaged derives its entries
 //     from the scoped inventory rather than this display action.
+//   - EnsureGitattributes → the same block replace in .gitattributes, for the
+//     union-merge entries (#320).
 //
 // The retired `tool` verb (#95 M5) has no Action and no IO here: Go-tool
 // ownership is location-based (construct/dev-aliases.sh scans sibling cmd/X dirs)
@@ -63,6 +65,8 @@ func Apply(fs weavefs.FS, repoRoot string, actions []Action) error {
 			err = applyMergeSettings(fs, repoRoot, act)
 		case EnsureGitignore:
 			err = applyEnsureGitignore(fs, filepath.Join(repoRoot, ".gitignore"), act.Entries)
+		case EnsureGitattributes:
+			err = applyEnsureGitattributes(fs, repoRoot, act.Entries)
 		default:
 			err = fmt.Errorf("apply: unknown action type %T", a)
 		}

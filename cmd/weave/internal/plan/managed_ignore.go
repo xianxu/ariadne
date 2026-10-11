@@ -122,7 +122,13 @@ func managedIgnore(fs weavefs.FS, root string, old, ids []outputIdentity, migrat
 	return managedIgnoreText(string(b), entries, migrate)
 }
 func writeManagedIgnore(fs weavefs.FS, root, next string) error {
-	p := filepath.Join(root, ".gitignore")
+	return writeManagedFile(fs, root, ".gitignore", next)
+}
+
+// writeManagedFile publishes a managed-block file at the repository root, skipping
+// the write when its content already matches.
+func writeManagedFile(fs weavefs.FS, root, name, next string) error {
+	p := filepath.Join(root, name)
 	current, e := fs.ReadFile(p)
 	if e != nil && !os.IsNotExist(e) {
 		return e

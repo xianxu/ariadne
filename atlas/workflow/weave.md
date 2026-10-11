@@ -54,6 +54,10 @@ owned runtime outputs without replacing authored ignore rules. Only the
 artifacts pass retires the pre-inventory fixed ignore list, in the write that
 records its replacement, and a pass with nothing to apply or retire writes
 nothing — so a refused compile leaves an unmigrated `.gitignore` intact (#264).
+The same block mechanism writes `.gitattributes` from `plan.UnionMergeAttributes`:
+append-only workshop lists (`workshop/lessons.md`) merge with git's `union`
+driver, so parallel landings never conflict on them (#320). It is committed, not
+generated runtime output; authored attribute lines after the block override it.
 Without prior inventory, compilation does not guess historical ownership. Compile dry-run
 performs no writes, package operations, builds, or generators and explicitly
 omits generator output and retirement from the preview.

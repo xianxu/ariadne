@@ -45,11 +45,11 @@ Three layers, cheapest first:
 
 Quick flow (layers 1–2 only after the revision).
 
-- [ ] Layer 1, weave: a new `EnsureGitattributes` action writes a `# BEGIN weave generated` … `# END weave generated` block into `.gitattributes` (block-replace like `.gitignore`, authored lines kept). Entries are a fixed list single-sourced in weave: `workshop/lessons.md merge=union`. Wired in `planActions`, `Apply`, the dry-run formatter and the golden classifier. Tests: block create, idempotent, authored lines preserved.
-- [ ] Layer 1, sdlc: `gitx.RebasedReviewedBase` runs `merge-tree` with `--attr-source=<B_now>` so the replay honors main's merge attributes, and S stays a pure function of its inputs instead of depending on the worktree's `.gitattributes`. Git floor 2.40 → 2.42 (`--attr-source`). Test: a union-attributed file appended on both sides replays with no conflict.
-- [ ] Layer 2, publish gate: `classifyPublishDelta` refuses a conflict only when a conflicted path has code surface (`publishGateHasCodeSurface`). A non-code conflict falls through to the normal path classification, and the pass line names the resolved files. `publishDeltaRank` ranks only code conflicts last. Unit tests on both.
-- [ ] Commit `.gitattributes` in ariadne (run weave), and check lessons.md isn't edited in place by any tool (union duplicates a line edited on both sides).
-- [ ] Real-branch check: two branches append to `workshop/lessons.md`; `git merge` is clean and the publish gate passes.
+- [x] Layer 1, weave: a new `EnsureGitattributes` action writes a `# BEGIN weave generated` … `# END weave generated` block into `.gitattributes` (block-replace like `.gitignore`, authored lines kept). Entries are a fixed list single-sourced in weave: `workshop/lessons.md merge=union`. Wired in `planActions`, `Apply`, the dry-run formatter and the golden classifier. Tests: block create, idempotent, authored lines preserved.
+- [x] Layer 1, sdlc: `gitx.RebasedReviewedBase` runs `merge-tree` with `--attr-source=<B_now>` so the replay honors main's merge attributes, and S stays a pure function of its inputs instead of depending on the worktree's `.gitattributes`. Git floor 2.40 → 2.42 (`--attr-source`). Test: a union-attributed file appended on both sides replays with no conflict.
+- [x] Layer 2, publish gate: `classifyPublishDelta` refuses a conflict only when a conflicted path has code surface (`publishGateHasCodeSurface`). A non-code conflict falls through to the normal path classification, and the pass line names the resolved files. `publishDeltaRank` ranks only code conflicts last. Unit tests on both.
+- [x] Commit `.gitattributes` in ariadne (run weave), and check lessons.md isn't edited in place by any tool (union duplicates a line edited on both sides).
+- [x] Real-branch check: two branches append to `workshop/lessons.md`; `git merge` is clean and the publish gate passes.
 
 ARCH-FUNERAL: creates nothing durable beyond one managed block in `.gitattributes`, which weave rewrites every compile, so it never grows.
 
@@ -58,6 +58,11 @@ ARCH-FUNERAL: creates nothing durable beyond one managed block in `.gitattribute
 ### 2026-10-10
 - Claimed and started from ariadne:1 (TL batch 2).
 - `git merge-tree --write-tree` honors `merge=union` from the worktree `.gitattributes`, or from `--attr-source=<tree>` when given. Without either it conflicts. Verified in a scratch repo, git 2.54.
+- Layer 2 done: `classifyPublishDelta` refuses only code-surface conflicts, names the non-code resolved files in the pass line, and the pass line is tested against gatesig's refusal pattern so it can't be misread as a refusal (#172).
+- Layer 1 done: `RebasedReviewedBase` passes `--attr-source=<B_now>`. The replay unions lessons.md cleanly, but its line order can differ from the branch's own merge (each side puts its own lines first), so the file shows up as a doc-only delta, which passes. Git floor raised to 2.42.
+- weave: `EnsureGitattributes` reuses the managed-block text and `writeManagedFile` (extracted from `writeManagedIgnore`, ARCH-DRY). `weave compile` could not finish in the sandbox (`.claude/settings.json` is write-protected), so ariadne's `.gitattributes` was written by hand, byte-identical to the block the test pins. The dry-run lists `gitattr .gitattributes (1 entries)`.
+- lessons.md is sectioned and occasionally compacted, which is an in-place rewrite. Under union, a compaction that lands while someone else appends keeps both versions without a conflict, so compactions should land alone. No tool writes lessons.md.
+- e2e (`TestRunPublishGate_BranchPatch`): the pair#426 shape passes the gate both hand-resolved (no attribute) and with union (no conflict at all). A code conflict still refuses with the plain re-close hint.
 - Close re-review always reviews the whole branch patch (no path filter exists); layer 3 would have needed a new window, which #183 now builds.
 
 ## Revisions

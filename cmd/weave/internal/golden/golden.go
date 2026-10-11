@@ -224,6 +224,11 @@ func classifyAction(root string, a plan.Action, obs map[string]Observed) Diverge
 		return Divergence{Expected, "gitignore", ".gitignore",
 			fmt.Sprintf("weave ensures %d generated-runtime ignore entr(ies) (not a setup.sh behavior)", len(act.Entries))}
 
+	case plan.EnsureGitattributes:
+		// Like EnsureGitignore: a weave behavior setup.sh never had (#320).
+		return Divergence{Expected, "gitattributes", ".gitattributes",
+			fmt.Sprintf("weave ensures %d union-merge attribute entr(ies) (not a setup.sh behavior)", len(act.Entries))}
+
 	default:
 		// Reaching here means a lowering started emitting an Action the harness
 		// does not classify yet. Flag loudly rather than silently pass.
