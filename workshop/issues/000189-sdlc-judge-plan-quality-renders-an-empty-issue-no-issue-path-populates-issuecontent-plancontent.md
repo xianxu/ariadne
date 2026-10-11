@@ -101,6 +101,7 @@ out of that issue's scope (recorded in its plan's Task 14 rationale).
 ### 2026-07-29
 
 ### 2026-10-10
+- 2026-10-10: closed — TDD: the judge plan-quality dry-run test was red before the fix and is green after it, byte-equal to change-code --dry-run, with and without a plan or ledger, and the ledger is never written. A live run refuses (no dispatch); a run without --issue refuses. Smoke on #189 itself. Round-1 findings fixed: planArtifactPath now behind changecode commit paths and reviewPlanPaths. Targeted judge/review-window/change-code tests are green after the fix. make test: green except load/sandbox flakes (concurrency 2s deadline, 4/4 on rerun and on main; processgroup /bin/ps sandbox-blocked; peer slot sdlc.lock seen by the hermeticity guard); review verdict: SHIP
 - Claimed from ops:0 TL dispatch (ariadne-robustness-1, batch 2).
 - estimate-quality fold dropped mid-implementation: the test showed `sdlc judge` rejects the
   category outright — no manual surface, no defect there.
