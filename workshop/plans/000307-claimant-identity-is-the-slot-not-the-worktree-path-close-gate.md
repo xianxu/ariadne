@@ -74,6 +74,18 @@ rounds:
       recipe: fix-review
       reviewed: deb5d336487b4a9b1afbb4e2de05b5c03c6ead16
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-11T02:08:53-07:00"
+      dispatched: "2026-10-11T02:02:57-07:00"
+      agent: claude
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: All three hand-copies (observe checkpoints.go:71, assemble.go:150, fleet claims.go:182) now use direct struct conversion, so a field added to one Claimant fails to compile instead of being dropped. The fields match exactly across issue, observe and fleet; build, vet and the observe and fleet tests pass.
+          round: 4
+      recipe: fix-review
+      reviewed: 124de8b635a55d249587925391912b821d042637
+      blocked: false
 ---
 
 # Gate ledger — ariadne#307 (boundary-review)
@@ -116,6 +128,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Minor] `ownership-shadow-consumer` Claimant is copied field by field between the observe and issue types in two places
   checkpoints.go:72 and assemble.go:150 hand-copy the same six fields in opposite directions. A single converter would stop a new Claimant field from being dropped in one of them. Cosmetic: ownership is still decided only in MatchClaimant.
 
+## Round 4 — 2026-10-11T02:08:53-07:00 (claude) — passed
+
+### Disposed
+
+- BR-5 — addressed — All three hand-copies (observe checkpoints.go:71, assemble.go:150, fleet claims.go:182) now use direct struct conversion, so a field added to one Claimant fails to compile instead of being dropped. The fields match exactly across issue, observe and fleet; build, vet and the observe and fleet tests pass.
+
 ## Open findings
 
-- **BR-5** [Minor] `ownership-shadow-consumer` Claimant is copied field by field between the observe and issue types in two places
+(none — every finding has been disposed)

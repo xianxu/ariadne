@@ -218,3 +218,55 @@ findings:
     detail: |
       checkpoints.go:72 and assemble.go:150 hand-copy the same six fields in opposite directions. A single converter would stop a new Claimant field from being dropped in one of them. Cosmetic: ownership is still decided only in MatchClaimant.
 ```
+
+---
+
+## Re-review — 2026-10-11T02:08:52-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 307 — Claimant identity is the slot, not the worktree path |
+| repo | ariadne |
+| issue file | workshop/issues/000307-claimant-identity-is-the-slot-not-the-worktree-path.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ceb4d3c6e57e9d1c4fd4409228ee127429249559..124de8b635a55d249587925391912b821d042637 |
+| command | sdlc close --issue 307 |
+| reviewer | claude |
+| timestamp | 2026-10-11T02:08:52-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This fix review covers six files and only one finding was still open: BR-5, the Minor about the six `Claimant` fields being copied by hand. It is addressed for the whole class, not just the two sites it named. All three hand-copies now use Go's direct struct conversion:
+- `cmd/sdlc/internal/observe/checkpoints.go:71`: `issue.Claimant(*c)`
+- `cmd/sdlc/internal/observe/assemble.go:150`: `Claimant(recorded)`
+- `cmd/sdlc/internal/fleet/claims.go:182`: `Claimant(c)`
+
+The fleet site was not named in the finding but belongs to the same class. That conversion only compiles when the field names, types and order match exactly (struct tags don't count). I confirmed the three structs match: `issue/claimant.go:25`, `observe/types.go:103`, `fleet/claims.go:60`. So adding a field to one struct without the others now fails at compile time instead of silently dropping the field. `go build ./...` and `go vet` pass, and `go test ./internal/observe ./internal/fleet` passes. The window has no conflict resolutions. The other changes are generated ledger and review files, and they change no scope (`## Spec`, `## Revisions` or `## Done when`).
+
+1. **Strengths**
+   - The struct conversion lets the compiler enforce that the fields stay in step, which no hand-copy can do. The comments added at `observe/types.go:100-102` and `fleet/claims.go:179-181` say why the conversion is used.
+   - The sweep went past the two sites the finding named and also caught the fleet converter (ARCH-PURPOSE).
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new. Two similar copies are outside this window and predate it, so they are not in scope. `issue/release.go:26,31` copies into `ReleaseBy`, a different type. `state.go:112` builds `IssueOwner`, which deliberately holds only some of the fields.
+5. **Test coverage:** this is a refactor that keeps behaviour the same. The compiler enforces the mirrored fields, and the existing observe and fleet tests pass.
+6. **Architecture:**
+   - **ARCH-DRY: pass.** No hand-copies remain between the three `Claimant` types.
+   - **ARCH-PURE: pass.** The conversions are pure, and no IO was added.
+   - **ARCH-PURPOSE: pass.** The whole class was swept.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      All three hand-copies (observe checkpoints.go:71, assemble.go:150, fleet claims.go:182) now use direct struct conversion, so a field added to one Claimant fails to compile instead of being dropped. The fields match exactly across issue, observe and fleet; build, vet and the observe and fleet tests pass.
+```
