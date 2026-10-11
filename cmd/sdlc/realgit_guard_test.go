@@ -21,7 +21,9 @@ func TestGitDrivingPackagesPreferRealGit(t *testing.T) {
 		if d.IsDir() && d.Name() == "testdata" {
 			return filepath.SkipDir
 		}
-		if d.IsDir() || !strings.HasSuffix(path, "_test.go") {
+		// Skip this guard's own file: it names the calls it looks for, and would
+		// otherwise satisfy itself for its own directory.
+		if d.IsDir() || !strings.HasSuffix(path, "_test.go") || path == "realgit_guard_test.go" {
 			return nil
 		}
 		src, err := os.ReadFile(path)

@@ -77,3 +77,4 @@ ARCH-FUNERAL: N slot files of one JSON record each, rewritten on acquire and nev
   - BR-2 fixed: the slot record no longer forks `git rev-parse`. The package dir names the repo.
   - BR-3 fixed: `TestGitDrivingPackagesTakeTheTestGate` in cmd/weave enforces the gate on git-driving weave packages. Today's set matches exactly.
   - BR-4 kept: the gofmt change in publishgate_test.go fixes my own #320 table, and reverting it would leave main misformatted.
+- Close review round 2: SHIP. BR-5 fixed: both source guards skip their own file, since they contain the literal they search for. Proven by deleting each root TestMain's call: red, then restored: green. Two lessons added (self-matching guards; waits spend go test's timeout).
