@@ -76,6 +76,21 @@ rounds:
       recipe: milestone-review
       reviewed: 0369e343aa665a4fbe0ca401be503dd4ce99c05c
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-10T18:30:08-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: not-addressed
+          note: reviewanchor.go:156-160 at 4a5f5730 still loops publishGateHasCodeSurface([]string{p}) by hand; replace with codeSurfacePaths(d.Paths). Minor, non-blocking.
+          round: 3
+        - id: BR-7
+          disposition: not-addressed
+          note: closefixed.go clipNote still returns s[:maxContractNoteSection]; back up to a utf8.RuneStart boundary. Minor, non-blocking.
+          round: 3
+      recipe: fix-review
+      reviewed: 4a5f5730e9c4f04c31678f317334752ed13dec90
+      blocked: false
 ---
 
 # Gate ledger — ariadne#183 (boundary-review)
@@ -111,6 +126,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
   Rule: every path-list-to-code-paths filter goes through codeSurfacePaths, so the only per-path call to publishGateHasCodeSurface is inside it. reviewanchor.go is the one remaining copy (older code, outside the window).
 - **BR-7** [Minor] `byte-slice-utf8` clipNote cuts at byte 4000 and can split a multi-byte character
   Back up to the nearest character boundary (utf8.RuneStart) before s[:max], so a clipped Spec containing em-dashes or arrows stays valid UTF-8.
+
+## Round 3 — 2026-10-10T18:30:08-07:00 (claude) — passed
+
+### Disposed
+
+- BR-6 — not-addressed — reviewanchor.go:156-160 at 4a5f5730 still loops publishGateHasCodeSurface([]string{p}) by hand; replace with codeSurfacePaths(d.Paths). Minor, non-blocking.
+- BR-7 — not-addressed — closefixed.go clipNote still returns s[:maxContractNoteSection]; back up to a utf8.RuneStart boundary. Minor, non-blocking.
 
 ## Open findings
 

@@ -201,3 +201,63 @@ findings:
     detail: |
       Back up to the nearest character boundary (utf8.RuneStart) before s[:max], so a clipped Spec containing em-dashes or arrows stays valid UTF-8.
 ```
+
+---
+
+## Re-review — 2026-10-10T18:30:08-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 183 — FIX-THEN-SHIP needs better process |
+| repo | ariadne |
+| issue file | workshop/issues/000183-fix-then-ship-needs-better-process.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e93aeb07243ba62e061a891289ab04a8ea9c37f3..4a5f5730e9c4f04c31678f317334752ed13dec90 |
+| command | sdlc close --issue 183 |
+| reviewer | claude |
+| timestamp | 2026-10-10T18:30:08-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window is mostly the resolution of the #320 conflict in `cmd/sdlc/publishgate.go`, and the resolution keeps both sides' intent. Main's #320 behaviour is intact: a conflict in non-code files passes, conflict markers still left in a file refuse, and only conflicted code paths are named. The #183 side is intact too: the `Issue` field fills in the next-action command, a code delta asks for `--fixed-then-ship`, and a code conflict asks for `--fixed-then-ship --full-suite`. The resolution also removes the copy of `codeSurfacePaths` that #183 had added to `closefixed.go`. Main's copy in `publishgate.go:326` is now the only one. The binary builds and `go vet` is clean at `4a5f5730`. The targeted tests (`ClassifyPublishDelta|HasConflictMarkers|PublishDeltaRank|FixedThenShip|CodeSurface`) pass. The two open Minors (BR-6 and BR-7) are not touched in this window. Neither blocks the gate.
+
+**Strengths**
+- `publishgate.go:296-302`: a conflict in a code file uses #183's next action (`--fixed-then-ship --full-suite`) and lists only the code paths from `codeSurfacePaths(d.Conflicted)`. That is what main's #320 intended.
+- `publishgate_test.go`: the test case removed here expected a non-code conflict to refuse with a narrow re-close. Main's #320 contradicts that. Main's cases at lines 416-419 already cover the new behaviour: a non-code conflict passes, code beyond it refuses, mixed conflicts name the code path, and leftover markers refuse. So the removal is correct.
+- `codeSurfacePaths` is defined once, which settles family `code-surface-predicate-dup` (ARCH-DRY) at the definition.
+- The atlas text at `pre-merge-checks.md:44-48` now says a non-code conflict passes on its own (#320), which matches the resolved code.
+
+**Critical:** none.
+
+**Important:** none.
+
+**Minor:** none new.
+- `TestHasConflictMarkers` changes only by `gofmt` alignment.
+
+**Test coverage:** the resolved `classifyPublishDelta` is a pure function, and table cases pin both #320's branches and #183's next-action wording. No gaps were introduced.
+
+**Architecture**
+- **ARCH-DRY: pass.** The duplicate helper is removed. BR-6 is a leftover in older code and stays open.
+- **ARCH-PURE: pass.** The classifier is still pure.
+- **ARCH-PURPOSE: pass.** All three next actions agree: `--fixed-then-ship` for a code delta, `--fixed-then-ship --full-suite` for a code conflict, and the full re-close only for an unreplayable patch.
+
+**Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: not-addressed
+    note: |
+      reviewanchor.go:156-160 at 4a5f5730 still loops publishGateHasCodeSurface([]string{p}) by hand; replace with codeSurfacePaths(d.Paths). Minor, non-blocking.
+  - id: BR-7
+    disposition: not-addressed
+    note: |
+      closefixed.go clipNote still returns s[:maxContractNoteSection]; back up to a utf8.RuneStart boundary. Minor, non-blocking.
+```
