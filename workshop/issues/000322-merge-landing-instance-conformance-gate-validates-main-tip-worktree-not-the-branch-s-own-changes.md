@@ -1,12 +1,21 @@
 ---
 id: 000322
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
-card_mirror: '75acd5e091b68c0c2072b82d29c2ac56afe1d2a1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'cdd56d5767c3cd2531e60781b3aa69206a83b2d7' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T17:46:02-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "3f11ad44", done: "a58b67bd"}
 ---
 
 # merge: landing instance-conformance gate validates main-tip..worktree, not the branch's own changes
