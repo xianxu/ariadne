@@ -1,6 +1,6 @@
 ---
 id: 000202
-status: codecomplete
+status: done
 created: 2026-08-21
 updated: 2026-10-11
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: c0024c1c547016f95a1f5f61d50e49497302fc4f
         evidence_commit: 3d21e3ca4b47db259da199e34819e8eee76df5e5
+        landed_commit: b4bd1dac7fe76dc88cf8fc1643ec5eb606919305
 ---
 
 # A finding has no implementer-side disposition: only the judge can retract
