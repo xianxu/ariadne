@@ -176,10 +176,10 @@ func mine(rc RepoClaims, me Machine) []ClaimAssociation {
 	return out
 }
 
-// ClaimantFrom converts the card's record to its published form.
-func ClaimantFrom(c issue.Claimant) Claimant {
-	return Claimant{Operator: c.Operator, Machine: c.Machine, MachineName: c.MachineName, Workspace: c.Workspace, Worktree: c.Worktree, Repository: c.Repository}
-}
+// ClaimantFrom converts the card's record to its published form. The fields
+// mirror issue.Claimant's exactly, so a field added to one fails this
+// conversion at compile time instead of being dropped.
+func ClaimantFrom(c issue.Claimant) Claimant { return Claimant(c) }
 
 // unreadableError names a repository's unreadable cards for claims_error.
 func unreadableError(refs []string) string {

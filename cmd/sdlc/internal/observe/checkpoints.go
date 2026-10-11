@@ -68,8 +68,7 @@ func isClaimantCheckout(in Inputs, c *Claimant, h HoldingFacts) bool {
 	if c == nil || in.Me == nil {
 		return false
 	}
-	recorded := issue.Claimant{Operator: c.Operator, Machine: c.Machine, MachineName: c.MachineName,
-		Workspace: c.Workspace, Worktree: c.Worktree, Repository: c.Repository}
+	recorded := issue.Claimant(*c)
 	there := *in.Me
 	there.Workspace, there.Worktree = h.Address, h.Path
 	return issue.MatchClaimant(&recorded, there) == issue.OwnershipMine

@@ -85,4 +85,5 @@ Filed from the robustness evidence review (ariadne-robustness-1). The operator d
   - Same-named slots in two fleet roots on one machine share ownership: documented in atlas (one fleet per machine).
   - `TestOwnershipGatesFollowTheSlot` now asserts that close and milestone-close let the owning slot through to the review dispatch.
 - Close review round 2 (fixed-then-ship), BR-4 Important: my `isClaimantCheckout` re-implemented the match without the machine check. Fixed the class: it now moves the queried identity to the holding checkout and asks `issue.MatchClaimant`, and an unknown identity is never the claimant. Test rows added for another machine and an unknown identity. A sweep for hand-rolled claimant comparisons leaves only fleet placement, a location join over this machine's claims (documented).
+- Close review round 3: SHIP, 1 cosmetic Minor (the observe/fleet Claimant views hand-copied issue.Claimant's six fields). Fixed: they convert directly (`Claimant(recorded)`), so a field added to one fails to compile rather than being dropped.
 
