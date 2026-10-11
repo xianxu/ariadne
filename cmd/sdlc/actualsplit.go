@@ -83,3 +83,58 @@ func splitActual(out activetime.Result, issue, milestone string, rounds []active
 	s := activetime.Split(out.Segments, issue, tl)
 	return actualSplit{Build: s.Build / 60, Converge: s.Converge / 60, Tail: s.Tail / 60, Source: tl.Source}, nil
 }
+
+// splitMeta is what a calibration row records about the boundary reviews
+// (#234): how many rounds ran, which recipes, and whether every one carries a
+// dispatch stamp.
+type splitMeta struct {
+	Rounds  int
+	Recipe  string
+	Stamped bool
+}
+
+// rowSplitMeta reads it from the boundary gate ledger AS PERSISTED when the row
+// is written (PQ-1): the measurement runs before this close dispatches its
+// review, so only the ledger has the finalizing round. Rounds that consumed no
+// review (the plan-gate seed, a dispatch that never started) are not counted.
+// An empty recipe on a boundary round is the full review (pre-#231).
+func rowSplitMeta(l gatestate.Ledger) splitMeta {
+	meta := splitMeta{Stamped: true}
+	seen := map[string]bool{}
+	var recipes []string
+	for _, r := range l.Rounds {
+		if r.NoCap {
+			continue
+		}
+		meta.Rounds++
+		if _, err := time.Parse(time.RFC3339, r.Dispatched); err != nil {
+			meta.Stamped = false
+		}
+		recipe := r.Recipe
+		if recipe == "" {
+			recipe = "milestone-review"
+		}
+		if !seen[recipe] {
+			seen[recipe] = true
+			recipes = append(recipes, recipe)
+		}
+	}
+	meta.Recipe = strings.Join(recipes, "+")
+	return meta
+}
+
+// rowSplitSource is the row's split_source: manual for a typed --actual (no
+// measurement, so no split), no-review when no boundary review ran, finalize
+// when some cut had to fall back to a round's finalize time, else dispatch.
+func rowSplitSource(measured *actualSplit, meta splitMeta) string {
+	switch {
+	case measured == nil:
+		return "manual"
+	case meta.Rounds == 0:
+		return activetime.SplitNoReview
+	case !meta.Stamped || measured.Source == activetime.SplitFinalize:
+		return activetime.SplitFinalize
+	default:
+		return activetime.SplitDispatch
+	}
+}

@@ -1051,6 +1051,15 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		FlowKind:       string(fl.flow.Kind()),
 		FlowProvenance: string(fl.flow.Provenance()),
 		FlowUpgraded:   fl.upgraded(),
+
+		// #234: the actual split at the boundary reviews. The minutes come from
+		// the measurement; rounds, recipe and source from the persisted ledger.
+		BoundaryRounds: m.Boundary.Rounds,
+		ReviewRecipe:   m.Boundary.Recipe,
+		SplitSource:    rowSplitSource(f.Split, m.Boundary),
+	}
+	if f.Split != nil {
+		row.BuildHours, row.ConvergeHours = f.Split.Build, f.Split.Converge
 	}
 
 	existing, rerr := os.ReadFile(ledgerPath)
@@ -1088,12 +1097,27 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 	if row.WindowTrusted {
 		trust = "trusted-window"
 	}
-	cok(stderr, fmt.Sprintf("calibration ledger: %s est %.2f / actual %.2f (ratio %.1f×, %s)",
-		row.Issue, row.Estimate, row.Actual, row.Ratio(), trust))
+	cok(stderr, calibrationLine(row, trust))
 
 	if warn, msg := estimate.DriftVerdict(estimate.ParseRows(buf.String()), 5); warn {
 		cwarn(stderr, msg)
 	}
+}
+
+// calibrationLine is the close's ledger report. A row with no estimate is no
+// calibration point (#234 E3), so it shows no ratio; a split row shows its
+// build and converge.
+func calibrationLine(row estimate.LedgerRow, trust string) string {
+	var line string
+	if row.Estimate == 0 {
+		line = fmt.Sprintf("calibration ledger: %s actual %.2f (no estimate — not a calibration point, %s)", row.Issue, row.Actual, trust)
+	} else {
+		line = fmt.Sprintf("calibration ledger: %s est %.2f / actual %.2f (ratio %.1f×, %s)", row.Issue, row.Estimate, row.Actual, row.Ratio(), trust)
+	}
+	if row.HasSplit() {
+		line += fmt.Sprintf("; build %.2f / converge %.2f over %d review round(s), cuts: %s", row.BuildHours, row.ConvergeHours, row.BoundaryRounds, row.SplitSource)
+	}
+	return line
 }
 
 // runCloseWithReview runs the mechanical close, then — for a standalone whole-issue

@@ -10,6 +10,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/activetime"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
@@ -98,5 +100,53 @@ func TestComputeActualSplitsAtBoundaries(t *testing.T) {
 		if res.Split.Source != "dispatch" {
 			t.Errorf("%q: source %q, want dispatch", c.milestone, res.Split.Source)
 		}
+	}
+}
+
+// #234 PQ-1: the row's round metadata comes from the ledger as persisted at
+// row-write time, after this close's own round. A first-round pass measured
+// before any dispatch (no-review) is a dispatch-cut row once its round is
+// there; an older unstamped round makes the cut a finalize fallback.
+func TestRowSplitMetaAndSource(t *testing.T) {
+	stamped := gatestate.Round{N: 1, Timestamp: "2026-10-10T17:00:00-07:00", Dispatched: "2026-10-10T16:55:00-07:00", Recipe: "small-diff-review", Reviewed: "abc"}
+	unstamped := gatestate.Round{N: 1, Timestamp: "2026-10-09T10:00:00-07:00", Boundary: "M1"}
+	seed := gatestate.Round{N: 1, Timestamp: "2026-10-09T10:00:00-07:00", NoCap: true}
+	measured := &actualSplit{Build: 1, Source: activetime.SplitNoReview}
+	cases := []struct {
+		name   string
+		rounds []gatestate.Round
+		split  *actualSplit
+		n      int
+		recipe string
+		source string
+	}{
+		{"first-round pass", []gatestate.Round{stamped}, measured, 1, "small-diff-review", "dispatch"},
+		{"typed --actual", []gatestate.Round{stamped}, nil, 1, "small-diff-review", "manual"},
+		{"no review ran", []gatestate.Round{seed}, measured, 0, "", "no-review"},
+		{"an unstamped earlier round", []gatestate.Round{unstamped, stamped}, measured, 2, "milestone-review+small-diff-review", "finalize"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			meta := rowSplitMeta(gatestate.Ledger{Rounds: c.rounds})
+			if meta.Rounds != c.n || meta.Recipe != c.recipe {
+				t.Errorf("meta = %+v, want %d rounds, recipe %q", meta, c.n, c.recipe)
+			}
+			if got := rowSplitSource(c.split, meta); got != c.source {
+				t.Errorf("source = %q, want %q", got, c.source)
+			}
+		})
+	}
+}
+
+// #234 E3: the close line for a row without an estimate shows no ratio.
+func TestCalibrationLine(t *testing.T) {
+	quick := estimate.LedgerRow{Issue: "ariadne#321", Actual: 0.17, BuildHours: 0.17, BoundaryRounds: 1, SplitSource: "dispatch"}
+	got := calibrationLine(quick, "trusted-window")
+	if strings.Contains(got, "×") || !strings.Contains(got, "no estimate — not a calibration point") || !strings.Contains(got, "build 0.17 / converge 0.00") {
+		t.Errorf("quick close line: %q", got)
+	}
+	full := estimate.LedgerRow{Issue: "ariadne#234", Estimate: 2.7, Actual: 3, SplitSource: "manual"}
+	if got := calibrationLine(full, "trusted-window"); !strings.Contains(got, "ratio 0.9×") || strings.Contains(got, "build") {
+		t.Errorf("typed-actual line: %q", got)
 	}
 }

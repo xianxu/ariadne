@@ -1,6 +1,7 @@
 package estimate
 
 import (
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -315,12 +316,64 @@ func TestParseRowsKeepsChurnOnTwentyColumnRow(t *testing.T) {
 // TestUpgradeHeaderAddsFlowColumns: a ledger whose header is the #187 one is
 // upgraded in place to the #231 header (a prefix-compatible append).
 func TestUpgradeHeaderAddsFlowColumns(t *testing.T) {
-	old := strings.TrimSuffix(Header(), "\tflow_kind\tflow_provenance\tflow_upgraded")
-	if old == Header() {
-		t.Fatal("the header does not end with the flow columns")
+	old := strings.Join(strings.Split(Header(), "\t")[:20], "\t") // the #187 header
+	if !strings.HasSuffix(old, "\tgate_open") {
+		t.Fatalf("columns 0–19 are not the #187 block: %q", old)
 	}
 	got, changed := UpgradeHeader(old + "\nrow\n")
 	if !changed || !strings.HasPrefix(got, Header()+"\n") {
 		t.Errorf("UpgradeHeader did not append the flow columns:\n%s", got)
+	}
+}
+
+// #234: the build/converge block (indices 23–27) round-trips, and every older
+// width still parses with the block absent (split_source "").
+func TestLedgerSplitColumns(t *testing.T) {
+	r := LedgerRow{Issue: "ariadne#234", Estimate: 2.7, Actual: 3.1, Model: "estimate-logic-v3.1", WindowTrusted: true, Date: "2026-10-10",
+		FlowKind: "full", FlowProvenance: "inferred",
+		BuildHours: 2.4, ConvergeHours: 0.7, BoundaryRounds: 3, SplitSource: "dispatch", ReviewRecipe: "milestone-review"}
+	line := FormatRow(r)
+	if n := len(strings.Split(line, "\t")); n != len(strings.Split(Header(), "\t")) || n != 28 {
+		t.Fatalf("row has %d columns, header %d, want 28", n, len(strings.Split(Header(), "\t")))
+	}
+	got := ParseRows(line)
+	if len(got) != 1 || got[0].BuildHours != 2.4 || got[0].ConvergeHours != 0.7 || got[0].BoundaryRounds != 3 ||
+		got[0].SplitSource != "dispatch" || got[0].ReviewRecipe != "milestone-review" {
+		t.Fatalf("round trip = %+v", got)
+	}
+	cols := strings.Split(line, "\t")
+	for _, width := range []int{10, 20, 23} {
+		rows := ParseRows(strings.Join(cols[:width], "\t"))
+		if len(rows) != 1 || rows[0].SplitSource != "" || rows[0].BuildHours != 0 {
+			t.Errorf("a %d-column row: %+v", width, rows)
+		}
+	}
+	if up, changed := UpgradeHeader(strings.Join(strings.Split(Header(), "\t")[:23], "\t") + "\n"); !changed || !strings.HasPrefix(up, Header()) {
+		t.Errorf("a 23-column header is not upgraded: %q", up)
+	}
+}
+
+// #234 E3: a row without an estimate is not a calibration point, whatever its
+// flow, and its ratio cell says so instead of 0.00.
+func TestNoEstimateRowIsNotACalibrationPoint(t *testing.T) {
+	quick := LedgerRow{Issue: "a#1", Actual: 0.4, WindowTrusted: true, FlowKind: "quick"}
+	full := LedgerRow{Issue: "a#2", Actual: 0.4, WindowTrusted: true, FlowKind: "full"}
+	for _, r := range []LedgerRow{quick, full} {
+		if !r.ExcludedFromCalibration() {
+			t.Errorf("%s (est 0, %s) is a calibration point", r.Issue, r.FlowKind)
+		}
+		if cells := strings.Split(FormatRow(r), "\t"); cells[5] != "-" {
+			t.Errorf("%s ratio cell = %q, want -", r.Issue, cells[5])
+		}
+	}
+	// A trailing full est-0 row (no model) must not become drift's "latest" and
+	// switch drift off for the model before it.
+	var rows []LedgerRow
+	for i := 0; i < 5; i++ {
+		rows = append(rows, LedgerRow{Issue: "a#" + strconv.Itoa(10+i), Estimate: 5, Actual: 1, Model: "estimate-logic-v3.1", WindowTrusted: true})
+	}
+	rows = append(rows, full)
+	if warn, _ := DriftVerdict(rows, 5); !warn {
+		t.Error("drift went silent behind a trailing est-0 row")
 	}
 }

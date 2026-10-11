@@ -934,7 +934,35 @@ the latest recognized model revision — pre-#116 rows are `window-trusted=no` a
 excluded (a truncated actual isn't a clean point; `actual_hours: N/A` rows are
 excluded; duplicate append rows for the same issue/model count once;
 skip-with-warning when no brain/ ledger dir exists downstream). This
-closes the loop the hand-kept validation log never did. Grammar + closed
+closes the loop the hand-kept validation log never did.
+
+**Build vs converge (#234).** A measured actual is split at the issue's
+boundary reviews.
+- **Build** runs to each boundary's first review dispatch.
+- **Converge** runs from that dispatch to the boundary's last `#N` commit at
+  or before its final dispatch.
+- **Tail** is the verification after that commit (the final test run and
+  review). It is uncounted at *every* boundary (operator, 10-10).
+
+The actual is build + converge, so milestone issues measure lower than under
+the pre-#234 rule, which counted every earlier milestone's tail.
+- **Where it lives:** `activetime.BuildTimeline` / `Split` (pure, `split.go`)
+  encode the rule over one `Compute` result. The time-proportional cut is exact
+  because runs are contiguous. `computeActualFor` (`actual.go`) and
+  `actualsplit.go` are the IO shell.
+- **Cut evidence:** the boundary gate ledger's rounds. Each round stamps
+  `dispatched` beside its finalize `timestamp`. A round without the stamp falls
+  back to the finalize time, and the row's source says so.
+- **E1:** `milestone-close` adopts its own increment, which is that
+  milestone's phases (`sdlc actual --milestone Mx` previews it).
+- **Ledger:** rows gain `build_hours converge_hours boundary_rounds
+  split_source review_recipe` (indices 23–27). `split_source` is one of
+  `dispatch`, `finalize`, `no-review`, `manual` (typed `--actual`), or `-`
+  (pre-#234, not comparable). The round metadata is read from the persisted
+  ledger at row-write time, because the measurement runs before this close's
+  dispatch.
+- **E3:** a row with no estimate is not a calibration point whatever its flow.
+  Its ratio cell is `-`. The historical backfill is ariadne#323. Grammar + closed
 vocabulary: `helptext/estimate.md` (canonical slugs in
 `internal/estimate/vocab.go`, a bidirectional drift test guards the mirror).
 

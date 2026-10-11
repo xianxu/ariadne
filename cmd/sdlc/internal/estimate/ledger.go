@@ -59,14 +59,38 @@ type LedgerRow struct {
 	FlowKind       string
 	FlowProvenance string
 	FlowUpgraded   bool
+
+	// ── #234: the actual split at the boundary reviews (indices 23–27) ─────────
+	// BuildHours runs to each boundary's first review dispatch, ConvergeHours from
+	// there to the boundary's last #N commit; on a measured row they sum to Actual.
+	// BoundaryRounds counts the boundary-review rounds; ReviewRecipe names the
+	// recipes they ran ("+"-joined when mixed). SplitSource is the evidence for the
+	// cuts: dispatch | finalize | no-review | manual (typed --actual, no split), or
+	// "" on a row written before #234 — whose Actual still counts every earlier
+	// boundary's verification tail and is not comparable with a split row.
+	BuildHours     float64
+	ConvergeHours  float64
+	BoundaryRounds int
+	SplitSource    string
+	ReviewRecipe   string
+}
+
+// HasSplit reports a row whose actual was measured and split at its boundary
+// reviews (#234): the only rows est-vs-build and converge factors read.
+func (r LedgerRow) HasSplit() bool {
+	return r.SplitSource != "" && r.SplitSource != "manual"
 }
 
 // ExcludedFromCalibration reports a row that is no estimate↔actual data point:
 // a quick-flow close (no estimate at all) or one upgraded from quick (it started
 // without one). Drift and any future est/actual reader skip it; throughput
 // (SpanThroughput) does not (#231).
+//
+// A row with no estimate is excluded whatever its flow (#234 E3): a full-flow
+// close that skipped the estimate gate wrote est 0, ratio 0 and passed as a data
+// point — and as drift's "latest" row, its empty model switched drift off.
 func (r LedgerRow) ExcludedFromCalibration() bool {
-	return r.FlowKind == "quick" || r.FlowUpgraded
+	return r.FlowKind == "quick" || r.FlowUpgraded || r.Estimate == 0
 }
 
 // Ratio is estimate/actual (0 when actual is 0, to avoid div-by-zero).
@@ -85,7 +109,8 @@ func (r LedgerRow) Ratio() float64 {
 const ledgerHeader = "issue\testimate\test_design\test_impl\tactual\tratio\tmodel\tmode\twindow_trusted\tdate" +
 	"\tchurn_prod\tchurn_test\tchurn_atlas\tchurn_workshop\trework" +
 	"\tgate_rounds\tgate_forced\tgate_addressed\tgate_withdrawn\tgate_open" +
-	"\tflow_kind\tflow_provenance\tflow_upgraded"
+	"\tflow_kind\tflow_provenance\tflow_upgraded" +
+	"\tbuild_hours\tconverge_hours\tboundary_rounds\tsplit_source\treview_recipe"
 
 // legacyCols is the column count before #187's append — the boundary between "row from an
 // older binary" and "row carrying cost metrics".
@@ -97,6 +122,13 @@ const legacyCols = 10
 // would zero every older row's metrics the day a new block is appended.
 const costCols = 20
 
+// flowCols is the width through #231's flow block (indices 20–22); splitCols
+// through #234's build/converge block (23–27).
+const (
+	flowCols  = 23
+	splitCols = 28
+)
+
 // Header returns the ledger's TSV header line (written when the file is created).
 func Header() string { return ledgerHeader }
 
@@ -104,12 +136,22 @@ func Header() string { return ledgerHeader }
 func FormatRow(r LedgerRow) string {
 	return strings.Join([]string{
 		r.Issue,
-		ftoa(r.Estimate), ftoa(r.EstDesign), ftoa(r.EstImpl), ftoa(r.Actual), ftoa(r.Ratio()),
+		ftoa(r.Estimate), ftoa(r.EstDesign), ftoa(r.EstImpl), ftoa(r.Actual), ratioCell(r),
 		r.Model, dash(r.Mode), yesno(r.WindowTrusted), r.Date,
 		itoa(r.ChurnProd), itoa(r.ChurnTest), itoa(r.ChurnAtlas), itoa(r.ChurnWorkshop), ftoa(r.Rework),
 		itoa(r.GateRounds), itoa(r.GateForced), itoa(r.GateAddressed), itoa(r.GateWithdrawn), itoa(r.GateOpen),
 		dash(r.FlowKind), dash(r.FlowProvenance), yesno(r.FlowUpgraded),
+		ftoa(r.BuildHours), ftoa(r.ConvergeHours), itoa(r.BoundaryRounds), dash(r.SplitSource), dash(r.ReviewRecipe),
 	}, "\t")
+}
+
+// ratioCell is the ratio column: "-" for a row with no estimate, which is no
+// calibration point (#234 E3). ParseRows recomputes the ratio, never reads it.
+func ratioCell(r LedgerRow) string {
+	if r.Estimate == 0 {
+		return "-"
+	}
+	return ftoa(r.Ratio())
 }
 
 // ParseRows parses ledger lines into rows, skipping the header, blanks, and
@@ -169,10 +211,17 @@ func ParseRows(text string) []LedgerRow {
 			row.GateWithdrawn = atoiOrZero(c[18])
 			row.GateOpen = atoiOrZero(c[19])
 		}
-		if len(c) >= len(strings.Split(ledgerHeader, "\t")) { // #231's flow block
+		if len(c) >= flowCols { // #231's flow block
 			row.FlowKind = undash(c[20])
 			row.FlowProvenance = undash(c[21])
 			row.FlowUpgraded = c[22] == "yes"
+		}
+		if len(c) >= splitCols { // #234's build/converge block
+			row.BuildHours, _ = parseLedgerFloat(c[23])
+			row.ConvergeHours, _ = parseLedgerFloat(c[24])
+			row.BoundaryRounds = atoiOrZero(c[25])
+			row.SplitSource = undash(c[26])
+			row.ReviewRecipe = undash(c[27])
 		}
 		rows = append(rows, row)
 	}

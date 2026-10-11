@@ -194,8 +194,10 @@ func TestAppendCalibrationRow_FlowColumns(t *testing.T) {
 		appendCalibrationRow(&errb, &closeFlags{Actual: "1.0"}, "id: 1\n", "# T\n", "ariadne", "231", "2026-09-17", closeCostMetrics{}, c.fl)
 		data, _ := os.ReadFile(path)
 		lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-		if row := lines[len(lines)-1]; !strings.HasSuffix(row, c.want) {
-			t.Errorf("%s: row %q does not end with %q", c.name, row, c.want)
+		// The flow block is indices 20–22; #234's split block follows it.
+		cells := strings.Split(lines[len(lines)-1], "\t")
+		if got := "\t" + strings.Join(cells[20:23], "\t"); got != c.want {
+			t.Errorf("%s: flow cells %q, want %q", c.name, got, c.want)
 		}
 	}
 }
