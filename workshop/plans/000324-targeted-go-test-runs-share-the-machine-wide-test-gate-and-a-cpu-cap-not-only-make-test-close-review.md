@@ -179,3 +179,64 @@ findings:
     detail: |
       cmd/weave/testgate_guard_test.go and cmd/sdlc/realgit_guard_test.go both contain "testgate.Enter()" (and sdlc "testfix.PreferRealGit()") and are read as part of their own directory, so deleting the root testmain_test.go stays green. Rule: a source guard must skip its own file (or match only a call statement in a TestMain), not a bare substring.
 ```
+
+---
+
+## Re-review — 2026-10-10T19:04:39-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 324 — Targeted go test runs share the machine-wide test gate and a CPU cap, not only make test |
+| repo | ariadne |
+| issue file | workshop/issues/000324-targeted-go-test-runs-share-the-machine-wide-test-gate-and-a-cpu-cap-not-only-make-test.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 19a4cf454e4fb41f738bc8b198076508f005a2df..e3eb0022320a5089f50d7019fbf8365f98b94161 |
+| command | sdlc close --issue 324 |
+| reviewer | claude |
+| timestamp | 2026-10-10T19:04:39-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I'm verifying the BR-5 fix in a scratch copy: I removed the guarded call and am checking that the guard goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The only open finding, BR-5, is fixed, and I checked the fix by running the guards against a broken tree rather than relying on the commit message. Both source guards now skip their own file: `cmd/sdlc/realgit_guard_test.go:26` and `cmd/weave/testgate_guard_test.go:27`. Both walk from `.`, so the bare filename comparison matches the right path. I exported HEAD to a scratch directory and replaced the calls in the package-root TestMains with non-call references (`_ = testgate.Enter`, `_ = testfix.PreferRealGit`), which keeps the imports used and the build working. Both guards then failed as expected. In weave the output was `.: tests spawn git but no TestMain calls testgate.Enter()`. In sdlc both checks failed: PreferRealGit and testgate.Enter. Before this fix, the same edit left them green. I also checked the rest of the tree for the same mistake. The only other source guard, `cmd/sdlc/commitpathspec_guard_test.go`, parses non-test files through the AST and cannot match its own text, so no other instances exist. The rule is now in `workshop/lessons.md`, along with the method that proves a guard works: delete the call it protects and watch it fail. Nothing else blocks shipping.
+
+1. **Strengths**
+   - The BR-5 fix covers the whole class. Both guards get the same skip with the same comment, and the lesson states a general rule (delete the protected call and watch the guard fail) instead of a note about one file.
+   - The second new lesson, about a wait inside a test binary spending `go test -timeout`, records an operating-envelope fact that can't be read off the code (ARCH-CONSTRAINTS).
+   - The earlier rounds' fixes (BR-1, BR-2, BR-3) hold. The last commit only touches the guards, lessons and the issue.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new.
+
+5. **Test coverage notes:** I confirmed by mutation that the guards fail when their package-root TestMain loses the call. The `pkg/testgate` unit tests have not changed since the previous rounds reviewed them.
+
+6. **Architecture pass:**
+   - **ARCH-DRY:** pass. The two guards are near-identical walkers in separate `main` packages. A shared helper would be possible but isn't needed at two sites.
+   - **ARCH-PURE:** pass.
+   - **ARCH-PURPOSE:** pass. The sweep for sibling guards turned up none.
+   - **ARCH-MOCK:** pass, nothing new.
+   - **ARCH-CONSTRAINTS:** pass.
+   - **ARCH-SECURE:** pass, not applicable to this change.
+   - **ARCH-ORDER:** pass, nothing new.
+   - **ARCH-FUNERAL:** pass. The only things this commit creates are a guard change and lessons text, neither of which leaves anything durable to clean up.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Both guards skip their own file (realgit_guard_test.go:26, testgate_guard_test.go:27); mutation check — removing the calls from the root TestMains turns both guards red. Sweep found no other source guard of this class (commitpathspec_guard uses the AST over non-test files).
+```

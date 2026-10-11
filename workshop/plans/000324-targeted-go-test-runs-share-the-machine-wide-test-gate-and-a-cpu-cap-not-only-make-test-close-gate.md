@@ -63,6 +63,17 @@ rounds:
       recipe: milestone-review
       reviewed: f28f494e3ba2de9bc5f9f378caba894f1cfdbeca
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-10T19:04:39-07:00"
+      agent: claude
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: Both guards skip their own file (realgit_guard_test.go:26, testgate_guard_test.go:27); mutation check — removing the calls from the root TestMains turns both guards red. Sweep found no other source guard of this class (commitpathspec_guard uses the AST over non-test files).
+          round: 3
+      recipe: milestone-review
+      reviewed: e3eb0022320a5089f50d7019fbf8365f98b94161
+      blocked: false
 ---
 
 # Gate ledger — ariadne#324 (boundary-review)
@@ -96,6 +107,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Minor] `source-guard-matches-own-literal` Source guards are satisfied by their own string literal, so the package-root TestMain is unguarded
   cmd/weave/testgate_guard_test.go and cmd/sdlc/realgit_guard_test.go both contain "testgate.Enter()" (and sdlc "testfix.PreferRealGit()") and are read as part of their own directory, so deleting the root testmain_test.go stays green. Rule: a source guard must skip its own file (or match only a call statement in a TestMain), not a bare substring.
 
+## Round 3 — 2026-10-10T19:04:39-07:00 (claude) — passed
+
+### Disposed
+
+- BR-5 — addressed — Both guards skip their own file (realgit_guard_test.go:26, testgate_guard_test.go:27); mutation check — removing the calls from the root TestMains turns both guards red. Sweep found no other source guard of this class (commitpathspec_guard uses the AST over non-test files).
+
 ## Open findings
 
-- **BR-5** [Minor] `source-guard-matches-own-literal` Source guards are satisfied by their own string literal, so the package-root TestMain is unguarded
+(none — every finding has been disposed)
