@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "a83ae72a", done: "4eebc762"}
 ---
 
 # Issue and milestone close skip projects that name a TL (tl: frontmatter)
