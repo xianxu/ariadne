@@ -1,6 +1,6 @@
 ---
 id: 000310
-status: codecomplete
+status: done
 created: 2026-10-09
 updated: 2026-10-11
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 96ccbb2345825ccbd5fde1782076759fdd3879e6
         evidence_commit: e9e4d79a0c247d748dc35615112b74ef9aa08abe
+        landed_commit: 2f8b819dfeb76f96b852226064b94825ac97df09
 ---
 
 # Choose the boundary reviewer's agent per repo, and model read-only
