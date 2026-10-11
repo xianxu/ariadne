@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000324-targeted-go-test-runs-share-the-machine-wide-test-gate-and-a-cpu-cap-not-only-make-test.md
         source_blob: e14729e63641d8f905f0e99622753e48f9517cb9
         destination: workshop/issues/000324-targeted-go-test-runs-share-the-machine-wide-test-gate-and-a-cpu-cap-not-only-make-test.md
+        main_commit: 825007f9d291826bdfc362684d23f82cf9686264
 ---
 
 # Targeted go test runs share the machine-wide test gate and a CPU cap, not only make test
