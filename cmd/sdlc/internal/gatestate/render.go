@@ -57,6 +57,16 @@ func canonical(l Ledger) Ledger {
 	if len(out.Rounds) == 0 {
 		out.Rounds = nil
 	}
+	// Disputes too (#202): rationale and evidence are agent-authored free text.
+	out.Disputes = nil
+	for _, d := range l.Disputes {
+		d.ID = strings.TrimSpace(d.ID)
+		d.Rationale = normalizeText(d.Rationale)
+		d.Evidence = normalizeText(d.Evidence)
+		d.Timestamp = normalizeText(d.Timestamp)
+		d.By = normalizeText(d.By)
+		out.Disputes = append(out.Disputes, d)
+	}
 	return out
 }
 
@@ -114,6 +124,18 @@ func Render(rawLedger Ledger, repo string) string {
 					fmt.Fprintf(&b, "  %s\n", strings.ReplaceAll(f.Detail, "\n", "\n  "))
 				}
 			}
+		}
+	}
+
+	if len(l.Disputes) > 0 {
+		b.WriteString("\n## Disputes\n\nFindings the implementer declined (`sdlc finding dispute`), each answered by the\nnext review round.\n\n")
+		for _, d := range l.Disputes {
+			fmt.Fprintf(&b, "- **%s** — after round %d (%s", d.ID, d.After, d.Timestamp)
+			if d.By != "" {
+				fmt.Fprintf(&b, ", %s", d.By)
+			}
+			fmt.Fprintf(&b, ")\n  rationale: %s\n  evidence: %s\n",
+				strings.ReplaceAll(d.Rationale, "\n", "\n  "), strings.ReplaceAll(d.Evidence, "\n", "\n  "))
 		}
 	}
 
