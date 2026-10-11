@@ -97,6 +97,9 @@ const (
 	FateUnknown      WorktreeFate = "unknown"
 )
 
+// Claimant is issue.Claimant's JSON view. Its fields mirror issue.Claimant's
+// exactly so the two convert directly; a field added to one breaks that
+// conversion at compile time instead of being dropped (#307).
 type Claimant struct {
 	Operator    string `json:"operator"`
 	Machine     string `json:"machine"`

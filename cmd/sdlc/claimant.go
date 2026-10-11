@@ -39,7 +39,7 @@ func resolveClaimantIdentity(env *trackerEnv) (issue.Claimant, error) {
 		Repository:  env.target.Repository,
 	}
 	if id, err := workspace.Resolve(execGitRunner{}, env.root, ""); err == nil {
-		c.Workspace = slotLabel(id)
+		c.Workspace = id.HomeSlot()
 	}
 	return c, nil
 }
@@ -53,16 +53,6 @@ func localMachine() (fingerprint, name string, err error) {
 		return "", "", fmt.Errorf("machine identity unavailable: %w", err)
 	}
 	return issue.MachineFingerprint(raw), machineName(), nil
-}
-
-// slotLabel is the checkout's `repo:N` only where the slot layout is in use
-// (pkg/workspace owns that question). A plain clone gets none — Ariadne works
-// without slots (or Couch), and the label is never matched.
-func slotLabel(id workspace.Identity) string {
-	if id.Address == nil || !id.UsesSlotLayout() {
-		return ""
-	}
-	return *id.Address
 }
 
 // machineID reads the OS's stable per-install identifier. It is fingerprinted
@@ -142,7 +132,9 @@ func ownership(env *trackerEnv, card tracker.Record) (issue.Ownership, issue.Cla
 // ownershipGateHelp states requireCardOwnership's contract for every verb help
 // that runs it ({{OWNERSHIP_GATE}}).
 const ownershipGateHelp = "OWNERSHIP (#277): this verb continues only an issue this workspace owns. That\n" +
-	"is the card's claimant, matched on repository, machine and worktree; a working\n" +
+	"is the card's claimant: the same slot on the same machine (#307), from any of\n" +
+	"the slot's checkouts (a dependency clone in pair-slot1 is pair:1); without a\n" +
+	"slot on either side, the same repository, machine and worktree. A working\n" +
 	"status alone is not enough. Another workspace's issue is refused, naming the\n" +
 	"owner. An issue with no owner (released, #284, or claimed before #277) is\n" +
 	"refused toward `sdlc claim --issue N`, which takes it over. Work that\n" +
@@ -172,7 +164,7 @@ func requireCardOwnership(env *trackerEnv, card tracker.Record) error {
 	if moved {
 		return fmt.Errorf("#%s was moved here by `sdlc move` from %s, whose owner update did not finish; record it with `sdlc claim --issue %s`", id, recorded.Worktree, issue.CLIRef(id))
 	}
-	return fmt.Errorf("#%s is owned by %s; this workspace (%s) may not continue it — coordinate with the owner (reassignment is the operator-directed `sdlc reclaim --issue %s`)", id, describeClaimant(recorded), me.Worktree, issue.CLIRef(id))
+	return fmt.Errorf("#%s is owned by %s; this workspace (%s) may not continue it — coordinate with the owner (reassignment is the operator-directed `sdlc reclaim --issue %s`)", id, describeClaimant(recorded), claimantWhere(me), issue.CLIRef(id))
 }
 
 // relocatable observes RelocationAllowed's facts locally: sdlc move's record

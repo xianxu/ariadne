@@ -319,3 +319,36 @@ func TestNoHelpCallsABranchTheOwner(t *testing.T) {
 		}
 	}
 }
+
+// #307: the guard judges the owner by slot. The owning slot lands from a
+// checkout other than the one the card names; another slot is refused even
+// with the card's own path.
+func TestTransferGuardFollowsTheSlot(t *testing.T) {
+	here := thisSlot
+	here.Workspace = "pair:1"
+	for _, c := range []struct {
+		name   string
+		owner  issue.Claimant
+		refuse string
+	}{
+		{"owning slot, another checkout", func() issue.Claimant { o := here; o.Worktree = "/w/pair-slot1/ariadne"; return o }(), ""},
+		{"another slot, this path", func() issue.Claimant { o := here; o.Workspace = "ariadne:1"; return o }(), refuseNotOwner},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			r := handedOff(t)
+			ownSpinOff(t, r, c.owner)
+			withClaimant(t, here)
+			issueBranchEdit(t, r, "000008-spin-off")
+			err := guardTransferredDetails(context.Background())
+			if c.refuse == "" {
+				if err != nil {
+					t.Fatalf("refused the owning slot: %v", err)
+				}
+				return
+			}
+			if !errors.Is(err, errTransferredDetails) || !strings.Contains(err.Error(), c.refuse) {
+				t.Fatalf("want refusal %q, got %v", c.refuse, err)
+			}
+		})
+	}
+}

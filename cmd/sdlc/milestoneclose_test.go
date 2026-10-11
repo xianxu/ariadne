@@ -317,3 +317,10 @@ func TestMilestoneCloseFlagSurface(t *testing.T) {
 		t.Errorf("--milestone should NOT use MarkFlagRequired (use runtime die() instead)")
 	}
 }
+
+// milestone-close forwards --no-integrate into the computeClose that runs the gate (#269).
+func TestMilestoneCloseForwardsNoIntegrate(t *testing.T) {
+	if !(&milestoneCloseFlags{NoIntegrate: true}).closeFlags().skip("integrate") {
+		t.Fatal("milestone-close --no-integrate must reach computeClose's integrate gate")
+	}
+}

@@ -147,8 +147,8 @@ func assembleAssignment(in Inputs, c Card) Assignment {
 		a.Relation = RelationUnattributed
 		return a
 	}
-	a.Claimant = &Claimant{Operator: recorded.Operator, Machine: recorded.Machine, MachineName: recorded.MachineName,
-		Workspace: recorded.Workspace, Worktree: recorded.Worktree, Repository: recorded.Repository}
+	view := Claimant(recorded)
+	a.Claimant = &view
 	if in.Me == nil {
 		a.Relation, a.ClaimantWorktree = RelationUnknown, FateUnknown
 		a.RelationError = "this checkout's identity is unavailable: " + errText(in.MeErr)

@@ -90,6 +90,10 @@ Detailed incidents remain in their owning issue or review artifact.
   working tree on every call, so "the installed binary" is whatever is
   checked out. Build the old version from `git archive <sha>` (#254).
 
+- The test hermeticity guard's "leaked .git/sdlc.lock" can be another slot's
+  verb: every slot of a repository shares one Git common dir, so the lock is
+  fleet-wide. Rerun the named tests alone before blaming the diff (#307).
+
 - Resolve a verb's repository from the path it was given (`--issues-dir`,
   `--repo`), never from the process cwd. A cwd fallback reads, or fetches, the
   wrong repository silently, including the developer's own checkout during
@@ -413,3 +417,8 @@ The simplest durable authority beats a clever scan of consequences.
   `## Spec` changes, but `reviewCommands` excludes `workshop/issues/`, so the rule
   could never fire. Where the input sits outside the window, compute the fact
   deterministically and pass it as a review note.
+- A ref you compute against is not always a ref a person can type. #269's tracker
+  main came back as a pinned SHA (`TrunkView.Ref()`), and the first version put
+  it into the `git merge <ref>` remedy and parsed a remote out of it for the
+  push-state check. Keep two values: the ref the probe reads and the name the
+  message shows.

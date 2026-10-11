@@ -99,7 +99,8 @@ type RepoClaims struct {
 
 // PlaceClaims joins each repository's claims to the inventory rows (pure).
 // A claim belongs to a row when its card is active, its claimant is this
-// machine, and its worktree is the row's tree in the same repository. A claim
+// machine, and its worktree is the row's tree in the same repository: the
+// checkout the claim recorded, though since #307 the slot owns it. A claim
 // of this machine is dangling only when its worktree is no row at all — two
 // clones of one repository read the same tracker, and each one's claims are
 // live on the other's rows — and is reported once per tracker issue. Other
@@ -175,10 +176,10 @@ func mine(rc RepoClaims, me Machine) []ClaimAssociation {
 	return out
 }
 
-// ClaimantFrom converts the card's record to its published form.
-func ClaimantFrom(c issue.Claimant) Claimant {
-	return Claimant{Operator: c.Operator, Machine: c.Machine, MachineName: c.MachineName, Workspace: c.Workspace, Worktree: c.Worktree, Repository: c.Repository}
-}
+// ClaimantFrom converts the card's record to its published form. The fields
+// mirror issue.Claimant's exactly, so a field added to one fails this
+// conversion at compile time instead of being dropped.
+func ClaimantFrom(c issue.Claimant) Claimant { return Claimant(c) }
 
 // unreadableError names a repository's unreadable cards for claims_error.
 func unreadableError(refs []string) string {
