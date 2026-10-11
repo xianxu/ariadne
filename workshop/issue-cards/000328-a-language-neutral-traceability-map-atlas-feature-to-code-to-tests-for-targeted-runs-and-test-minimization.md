@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000328-a-language-neutral-traceability-map-atlas-feature-to-code-to-tests-for-targeted-runs-and-test-minimization.md
         source_blob: 882df1c2cf7c0b45e2ec7872108b9d26771e8a89
         destination: workshop/issues/000328-a-language-neutral-traceability-map-atlas-feature-to-code-to-tests-for-targeted-runs-and-test-minimization.md
+        main_commit: 6bbb521b736f2f71ca3c760aa545663e62dd7ba8
 ---
 
 # A language-neutral traceability map: atlas feature to code to tests, for targeted runs and test minimization
