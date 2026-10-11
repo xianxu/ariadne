@@ -67,3 +67,72 @@ findings:
     detail: |
       Not window-bounded; negligible now and git log already reads it all, but worth noting if the tracker grows.
 ```
+
+---
+
+## Re-review — 2026-10-10T17:37:04-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 321 — active-time: off the issue branch, every slot's tracker card commits bound and claim runs, so sdlc actual after landing hands an issue's run to an unrelated card write |
+| repo | ariadne |
+| issue file | workshop/issues/000321-active-time-off-the-issue-branch-every-slot-s-tracker-card-commits-bound-and-claim-runs-so-sdlc-actual-after-landing-hands-an-issue-s-run-to-an-unrelated-card-write.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 0f4aaae841e56e941c2b707e612cda74745165d8..b2d2fdee2d724bb31d17f4cba1174dcdfa07ba29 |
+| command | sdlc close --issue 321 |
+| reviewer | claude |
+| timestamp | 2026-10-10T17:37:04-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I'm checking that the scratch revert test I just tried left the repo untouched. Its temp directory couldn't be created, so the test never ran.
+
+The failed `mktemp` left `$d` empty, so git created a scratch worktree at `./b2d2fdee`. I'll run the revert test there and then remove it.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The change is small and correct, and the regression test proves it. `besideHead` uses `rev-list <extraRefs> ^HEAD` to collect the commits that only the tracker reaches. `loadWindowCommits` then drops each of those unless its lead names `Scope.Issue`, and it does this in every scope. That is the root cause the Spec names. The fix changes nothing on an issue branch, where the `own`/`names` rule already filtered these commits. When `Scope.Issue` is empty, `besideHead` returns nil, so the zero Scope still keeps every commit.
+
+I checked that the test goes red. In a scratch worktree I disabled the new guard (`if false && beside[...]`), and `TestTrackerCommitsOfOtherIssuesDoNotClaim` failed: #5's 00:09:58 card became a boundary and `PerIssue = map[5:40]`. On the real tree it passes. The scratch worktree is removed and the tree is clean.
+
+1. **Strengths**
+   - `commit.go:160-176`: the "beside HEAD" set comes from git's own reachability, not from guessing at subject text. Tracker commits that HEAD can reach keep the normal rules.
+   - `commit.go:117-121`: `names` is computed once and shared by both filters. That keeps a single lead rule, the same one #270 and #317 use.
+   - The test pins both the boundary set and the per-issue split that `Compute` returns. The second is the symptom a user would see.
+   - The Scope comment and the atlas now both say the lead-less case is dropped, which matches the code.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - The `#321` sentences added to the Scope comment (`commit.go:53`) and the atlas paragraph (`atlas/workflow/sdlc-binary.md:1031-1032`) aren't re-wrapped to the width of the surrounding lines. Style only.
+
+5. **Test coverage**
+   - The unscoped case where another issue's card claims a run is pinned, and the test fails without the fix.
+   - No test pins the lead-less tracker card being dropped when the measurement is unscoped. That behaviour is now documented, and it follows from the same `names` predicate. Adding a lead-less card to the existing fixture would pin it cheaply.
+   - The Done-when replay for #317 (0.39h) depends on live transcripts. The only evidence for it is the Log entry, and I did not reproduce it.
+
+6. **Architecture**
+   - ARCH-DRY: pass. It reuses `LeadLocalNums` and the existing `names` rule.
+   - ARCH-PURE: pass. The new git IO is one thin helper next to `branchCommits`, and the filtering is a pure set lookup.
+   - ARCH-PURPOSE: pass. The fix applies in every scope, as the issue requires. Landed-branch scoping and the `selectClaimant` change are separate extensions, and the Log records the TL's decision to leave them out.
+
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Scope comment (commit.go:53, "one with no lead is dropped too") and atlas ("or a card with no lead, is not a boundary at all") now match the code: names is false for an empty lead, so beside-only lead-less commits are skipped.
+  - id: BR-2
+    disposition: withdrawn
+    note: |
+      git log over the same refs already reads the whole tracker history; Log records about 50 ms on ariadne. Not worth window-bounding now.
+```

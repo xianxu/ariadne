@@ -99,6 +99,7 @@ whether that is intended.
 ## Log
 
 ### 2026-10-10
+- 2026-10-10: closed — Re-close after the close-review Minor (comment and atlas wording only). Prior evidence stands: make test passes except the sandbox-only processgroup ps test; the activetime package passes; `sdlc actual --issue 317` unscoped after landing = 0.39h (was 0).; review verdict: SHIP
 - 2026-10-10: closed — make test: all cmd/sdlc shards pass; the only failure is processgroup TestCancellationKillsDescendants, which fails only under the agent sandbox (fork/exec /bin/ps not permitted) and passed unsandboxed in #317. New TestTrackerCommitsOfOtherIssuesDoNotClaim fails before the fix (#5 card write 2 s before the run took all 40 min) and passes after it. Done-when: `sdlc actual --issue 317`, unscoped from HEAD = main with #317 landed, measures 0.39h (it said "no measurable activity" before).; review verdict: SHIP
 
 - Filed by ariadne:3, a TL-requested diagnosis of the low #317 measurement
