@@ -64,7 +64,7 @@ Evidence: `workshop/pensive/2026-10-09-01-pensive-sdlc-robustness-evidence.md`, 
 - [x] `MatchClaimant` slot rule with the legacy fallback; table rows: same slot other worktree (mine), other slot same machine (foreign), same slot other machine (foreign), unlabeled sides (legacy)
 - [x] In-process gate tests (`TestOwnershipGatesFollowTheSlot`, `TestTransferGuardFollowsTheSlot`): `requireCardOwnership` and the transfer guard accept the slot owner from another checkout path and refuse another slot
 - [x] Messages name the slot (`claimantWhere`); sweep help, atlas, recovery catalog (no stale claim there), AGENTS (none)
-- [ ] close
+- [x] close
 
 ## Log
 
