@@ -83,3 +83,138 @@ findings:
     detail: |
       TestOwnershipGatesFollowTheSlot tests acceptance only for start-plan and change-code; all four share requireCardOwnership.
 ```
+
+---
+
+## Re-review — 2026-10-11T01:57:35-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 307 — Claimant identity is the slot, not the worktree path |
+| repo | ariadne |
+| issue file | workshop/issues/000307-claimant-identity-is-the-slot-not-the-worktree-path.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ab4f690039d8f0f845a14baf4d8083d628fb1895..c8583dc12ed1c5f5e2ad8b666a0c3c5554f2fac6 |
+| command | sdlc close --issue 307 |
+| reviewer | claude |
+| timestamp | 2026-10-11T01:57:35-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Clean merge with no conflict hunks. Now checking whether the new observe matcher duplicates the ownership gate's rule.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+This fix window responds to all three prior Minors, and the merge from main was clean (`git show --cc` shows no conflict hunks). BR-2 and BR-3 are fully addressed. For BR-1, the fleet half is now a documented limitation. The observe half adds `isClaimantCheckout`, and that new matcher brings in a defect: it rewrites the ownership rule instead of calling `issue.MatchClaimant`, and it drops the machine check. So when the claim comes from a same-named slot on another machine, the local checkout of that slot is marked `IsClaimant`. This is display only, not a gate, and it is cheap to fix, so the verdict is FIX-THEN-SHIP.
+
+1. **Strengths**
+   - `cmd/sdlc/observe.go:200`: holdings now get their address from `id.HomeSlot()`, the same source `claimantIdentity` uses (`cmd/sdlc/claimant.go:42`). A slot's dependency clones now label the same way on both sides.
+   - `cmd/sdlc/ownership_test.go:508-521`: `close` and `milestone-close` are now tested for acceptance from another checkout of the owning slot. The test checks that the ownership refusal ("may not continue") is absent and that the review actually ran (`judged`).
+   - `atlas/workflow/issue-tracker.md:44-48`: the docs now state both the one-fleet-per-machine limit and how fleet treats a dangling claim.
+
+2. **Critical:** none.
+
+3. **Important**
+   - `cmd/sdlc/internal/observe/checkpoints.go:66-74`: `isClaimantCheckout` rewrites the slot-then-worktree switch from `issue.MatchClaimant` (`internal/issue/claimant.go:173`) but leaves out the `Machine` and `Repository` checks. Failure case: an issue claimed by `pair:1` on laptop B, observed on laptop A while A's `pair:1` holds the branch. That checkout gets `IsClaimant=true`, which contradicts `Relation=other-workspace` and `ClaimantWorktree=other-machine` in the same output. Slot names repeat across machines by design, so this is much more likely than the old path collision. Fix: for each holding, build `issue.Claimant{Machine: in.Me.Machine, Repository: in.Me.Repository, Workspace: h.Address, Worktree: h.Path}` and test `issue.MatchClaimant(&recorded, that) == OwnershipMine`, returning false when `in.Me == nil`. Then delete `isClaimantCheckout`, or reduce it to that call. Add a test case for a claimant on another machine (ARCH-DRY, ARCH-PURPOSE).
+
+4. **Minor:** `cmd/sdlc/internal/fleet/claims.go:102`: the comment change is documentation only. That is acceptable because fleet placement places a claim on a checkout row, which is a different question from who owns it.
+
+5. **Test coverage notes:** `TestIsClaimantCheckoutFollowsTheSlot` covers slot versus path well but has no case where the machine differs. That gap is how the defect above got through.
+
+6. **Architectural notes:** every "is this the claimant?" decision should go through `issue.MatchClaimant`. Today observe's `assembleAssignment` calls it, while `assembleWorkspaces` has its own copy. That copy is the second instance in the `ownership-shadow-consumer` family.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      observe now keys IsClaimant on the slot (with a new defect, raised below); fleet placement is documented as recorded-checkout inventory in the atlas and the PlaceClaims comment.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      atlas/workflow/issue-tracker.md:44-46 documents that slot addresses are unique per fleet and that a machine should run one fleet.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      ownership_test.go:508-521 now tests that close and milestone-close from another checkout of the owning slot get past the ownership gate to the review.
+findings:
+  - id: new
+    severity: Important
+    family: ownership-shadow-consumer
+    title: |
+      observe isClaimantCheckout rewrites MatchClaimant without the machine check, so a same-named slot on another machine counts as claimant
+    detail: |
+      This is the 2nd finding in family ownership-shadow-consumer. Rule: every claimant/ownership judgment goes through issue.MatchClaimant; no consumer re-implements the slot/worktree comparison. checkpoints.go:66 should build a Claimant from in.Me (Machine, Repository) plus h.Address and h.Path and call MatchClaimant (false when in.Me is nil). Add a test case for a claimant on another machine. Today a pair:1 claim from laptop B marks laptop A's pair:1 checkout IsClaimant=true, which contradicts Relation=other-workspace in the same output.
+```
+
+---
+
+## Re-review — 2026-10-11T01:59:05-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 307 — Claimant identity is the slot, not the worktree path |
+| repo | ariadne |
+| issue file | workshop/issues/000307-claimant-identity-is-the-slot-not-the-worktree-path.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ab4f690039d8f0f845a14baf4d8083d628fb1895..deb5d336487b4a9b1afbb4e2de05b5c03c6ead16 |
+| command | sdlc close --issue 307 |
+| reviewer | claude |
+| timestamp | 2026-10-11T01:59:05-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking that `HomeSlot` is defined the same way for observe and for the claimant identity.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The only open finding was BR-4, and it is fixed in a way that covers the whole problem, not just the one line it named. `isClaimantCheckout` (`cmd/sdlc/internal/observe/checkpoints.go:63-76`) now hands the decision to `issue.MatchClaimant`. It starts from the queried identity (`in.Me`), which carries the machine and repository, and replaces only its slot and path with the holding checkout's. So a slot with the same name on another machine falls through to `OwnershipForeign` at `MatchClaimant`'s machine check. When `in.Me` is unknown, the function returns false. The new table test covers the BR-4 case ("same slot, other machine" → false), along with the no-slot fallbacks. `collectHolding` now uses `id.HomeSlot()`, the same function `claimantIdentity` uses (`cmd/sdlc/claimant.go:42`). Before, the two sides worked out "slot" differently. The interdiff makes no scope change and resolves no conflicts. The rest of the window is comments, atlas text, a lesson entry and the BR-3 acceptance test that was already disposed.
+
+1. **Strengths**
+   - `checkpoints.go:72-74` builds the identity to compare from `*in.Me` and overrides only the slot and path. The machine and repository come from the real identity, so the rule set by the earlier ownership findings now holds here: ownership is decided only in `MatchClaimant`.
+   - `observe.go:201` and `claimant.go:42` both work out the slot with `HomeSlot()`. That leaves one definition of "the slot that owns claims from here" (ARCH-DRY).
+   - `observe_test.go:381-409` checks both the slotted and no-slot branches and both outcomes of each. That includes the machine mismatch that BR-4 asked to have tested.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `isClaimantCheckout` copies the observe `Claimant` field by field into an `issue.Claimant`, and `assemble.go:150` does the same copy in the other direction. A small converter would keep the two from drifting apart. This is cosmetic.
+
+5. **Test coverage:** The BR-4 regression test would fail if the fix were reverted: the old `Worktree == h.Path` comparison gives true for "same slot, other machine", because the paths match. The ownership acceptance path also has coverage now (`ownership_test.go:508-521`).
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** The decision goes through `MatchClaimant`, and the slot comes from `HomeSlot`.
+   - **ARCH-PURE: pass.** `isClaimantCheckout` is a pure function of its inputs and is tested without any IO. The IO stays in `collectHolding`.
+   - **ARCH-PURPOSE: pass.** I counted three places that decide ownership: the gates, the observe relation and observe's per-checkout claimant flag. All three now go through `MatchClaimant`. The fleet's placement of claims by recorded checkout is a decision that is written down and disclosed in the atlas, not a copy of the ownership rule.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      isClaimantCheckout builds the comparison from in.Me (machine and repository) with the holding checkout's slot and path, calls issue.MatchClaimant, and returns false when in.Me is nil. The test case "same slot, other machine" pins this, and collectHolding now uses HomeSlot like claimantIdentity.
+findings:
+  - id: new
+    severity: Minor
+    family: ownership-shadow-consumer
+    title: |
+      Claimant is copied field by field between the observe and issue types in two places
+    detail: |
+      checkpoints.go:72 and assemble.go:150 hand-copy the same six fields in opposite directions. A single converter would stop a new Claimant field from being dropped in one of them. Cosmetic: ownership is still decided only in MatchClaimant.
+```
