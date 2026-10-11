@@ -91,6 +91,21 @@ rounds:
       recipe: fix-review
       reviewed: 4a5f5730e9c4f04c31678f317334752ed13dec90
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-10T18:31:56-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: reviewanchor.go:155 now calls codeSurfacePaths(d.Paths); every other publishGateHasCodeSurface caller outside the helper uses it as a whole-list boolean or a non-code conflict-marker check, so the rule holds across the tree.
+          round: 4
+        - id: BR-7
+          disposition: addressed
+          note: clipNote backs up to a utf8.RuneStart boundary; the new TestContractChangeNotes case puts é across the 4000-byte cut and fails on the old s[:max].
+          round: 4
+      recipe: fix-review
+      reviewed: 972baa66aa67bfc7527d4f087e0708e32ff4eaed
+      blocked: false
 ---
 
 # Gate ledger — ariadne#183 (boundary-review)
@@ -134,7 +149,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-6 — not-addressed — reviewanchor.go:156-160 at 4a5f5730 still loops publishGateHasCodeSurface([]string{p}) by hand; replace with codeSurfacePaths(d.Paths). Minor, non-blocking.
 - BR-7 — not-addressed — closefixed.go clipNote still returns s[:maxContractNoteSection]; back up to a utf8.RuneStart boundary. Minor, non-blocking.
 
+## Round 4 — 2026-10-10T18:31:56-07:00 (claude) — passed
+
+### Disposed
+
+- BR-6 — addressed — reviewanchor.go:155 now calls codeSurfacePaths(d.Paths); every other publishGateHasCodeSurface caller outside the helper uses it as a whole-list boolean or a non-code conflict-marker check, so the rule holds across the tree.
+- BR-7 — addressed — clipNote backs up to a utf8.RuneStart boundary; the new TestContractChangeNotes case puts é across the 4000-byte cut and fails on the old s[:max].
+
 ## Open findings
 
-- **BR-6** [Minor] `code-surface-predicate-dup` reviewanchor.go:156-161 still filters code paths by hand instead of calling codeSurfacePaths
-- **BR-7** [Minor] `byte-slice-utf8` clipNote cuts at byte 4000 and can split a multi-byte character
+(none — every finding has been disposed)

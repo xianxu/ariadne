@@ -261,3 +261,66 @@ dispose:
     note: |
       closefixed.go clipNote still returns s[:maxContractNoteSection]; back up to a utf8.RuneStart boundary. Minor, non-blocking.
 ```
+
+---
+
+## Re-review — 2026-10-10T18:31:56-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 183 — FIX-THEN-SHIP needs better process |
+| repo | ariadne |
+| issue file | workshop/issues/000183-fix-then-ship-needs-better-process.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3333a36a26b3560bca7bfbdb5825a37b9d468e5a..972baa66aa67bfc7527d4f087e0708e32ff4eaed |
+| command | sdlc close --issue 183 |
+| reviewer | claude |
+| timestamp | 2026-10-10T18:31:56-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both open Minors are fixed in this window, and the fixes introduce no new defects. The window touches only `reviewanchor.go`, `closefixed.go` and its test, plus the generated gate and review ledgers. It changes nothing in `## Spec`, `## Revisions` or `## Done when`, and it adds no behaviour that a finding didn't ask for. There are no conflict resolutions to judge. `go test ./cmd/sdlc/ -run 'TestContractChangeNotes|Anchor'` passes at the reviewed head.
+
+**Strengths**
+- **BR-6 (`reviewanchor.go:155`):** the hand-written loop is now one call to `codeSurfacePaths(d.Paths)`. I checked every remaining non-test caller of `publishGateHasCodeSurface`:
+  - `issuemigrate.go:371`, `reviewanchor.go:78` and `publishgate.go` (outside the window) pass a whole path list and get back one boolean.
+  - `publishgate.go:329` is inside `codeSurfacePaths` itself.
+  - `publishgate.go:224` (#320 code from main) checks one path at a time, but only to decide whether a non-code file still has conflict markers. It is not a filter that builds a list of code paths.
+
+  So the rule (every path-list-to-code-paths filter goes through `codeSurfacePaths`) now holds across the tree, not just at the cited site.
+- **BR-7 (`closefixed.go:74-78`):** the cut point backs up with `utf8.RuneStart` until it reaches the start of a character. The loop can't underflow because of the `cut > 0` guard.
+- **BR-7 test:** the new case in `closefixed_test.go` puts `é` across bytes 3999–4000. Byte 4000 is then the second byte of `é`, so the old `s[:4000]` would split the character and fail `utf8.ValidString`. The test fails without the fix, which makes it a real regression test.
+
+**Critical:** none.
+
+**Important:** none.
+
+**Minor:** none.
+
+**Test coverage:** BR-7 has a regression test that fails without the fix. BR-6 is a refactor that keeps the same behaviour; the existing anchor tests still pass.
+
+**Architecture**
+- **ARCH-DRY: pass.** The last copy of the per-path code filter is gone.
+- **ARCH-PURE: pass.** `clipNote` and `formatAnchorRefusal` are still pure.
+- **ARCH-PURPOSE: pass.** For `code-surface-predicate-dup`, the whole class was swept, not just the cited site. `byte-slice-utf8` had a single site (`clipNote`) in the window's files.
+
+**Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      reviewanchor.go:155 now calls codeSurfacePaths(d.Paths); every other publishGateHasCodeSurface caller outside the helper uses it as a whole-list boolean or a non-code conflict-marker check, so the rule holds across the tree.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      clipNote backs up to a utf8.RuneStart boundary; the new TestContractChangeNotes case puts é across the 4000-byte cut and fails on the old s[:max].
+```
