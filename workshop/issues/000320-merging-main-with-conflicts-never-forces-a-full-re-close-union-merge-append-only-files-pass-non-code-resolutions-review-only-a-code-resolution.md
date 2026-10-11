@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
-card_mirror: 'a5c38296cfd2983c753507cd80aa6d6a39d081b8' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ef4157321b3a1d9bc8b7a8c555e1e3676f43954b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-10T16:53:09-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 0.21
+actual_hours: 0.90
 ---
 
 # Merging main with conflicts never forces a full re-close: union-merge append-only files, pass non-code resolutions, review only a code resolution
