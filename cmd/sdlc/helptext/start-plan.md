@@ -66,8 +66,25 @@ FLAGS
                 an ahead or diverged rest, any dirty tracked file other than
                 this issue's own details (shaping edits made under the claim,
                 which ride onto the new branch), and any other branch, without
-                changing anything. It never moves the resting
-                branch, then refreshes the details' card mirror.
+                changing anything. Apart from the catch-up below it never
+                moves the resting branch; it then refreshes the details' card
+                mirror.
+
+CATCH-UP BEFORE NEW WORK (#303)
+
+  With --issue on the resting branch, start-plan first fetches origin/main for
+  this checkout and every substrate on its construct/deps path. If any trails it,
+  start-plan runs the installed `weave refresh`, which advances them only when
+  every checkout is clean and fast-forwardable, then compiles. After a catch-up it
+  stops, with nothing branched or started, because the running sdlc predates it:
+  re-run the same start-plan. It also stops when a failed refresh had already
+  advanced a checkout. A checkout it cannot probe (a declared dependency not on
+  disk, no origin remote, a failed fetch) is warned as NOT verified as current. If the refresh fails, the freshness rule of close's
+  integrate gate decides (#269). A checkout that lacks code main had by the last
+  noon refuses, and weave's output names what is dirty or diverged. A lag of
+  later or docs-only landings warns, and planning goes on. `couch --prepare`
+  (pair#434) runs the same refresh from the TL side before dispatch, and also
+  reloads the agent's context.
 
 RELATED
 

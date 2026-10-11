@@ -6,7 +6,7 @@
 > - `claim` and `issue new` write cards and never publish to main;
 > - `change-code` publishes nothing;
 > - `issue sync` is retired to a pointer (#284): details are committed with git on the issue branch;
-> - details reach main with `issue publish --issue N` (#284): a first publication, or the owner's later edits.
+> - details reach main with `issue publish --issue N` (#284): a first publication, or a later edit by the owner (anyone, while unclaimed, #274).
 >
 > See [issue tracker § Publishing details](issue-tracker.md#publishing-details-284) and
 > [issue tracker migration](issue-tracker-migration.md).

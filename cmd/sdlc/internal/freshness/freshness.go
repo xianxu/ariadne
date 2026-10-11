@@ -2,7 +2,8 @@
 // main" (ariadne-robustness-1 requirement 6): the branch contains every
 // first-parent commit of main that landed at or before the most recent noon in
 // the repository's timezone. Close and milestone-close apply it before a
-// boundary review (#269); claim and start-plan apply it before new work (#303).
+// boundary review (#269); start-plan applies it when a catch-up before new work
+// fails (#303).
 //
 // A fixed past cutoff is deterministic and does not chase a moving main: a push
 // after the cutoff cannot move the requirement, and integrating once a day

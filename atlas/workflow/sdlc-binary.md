@@ -46,7 +46,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `issue recovery`  | (new #252)                  | `list` / `reconcile --issue N` interrupted tracker operations, from the checkout that owns them |
 | `issue set-title` / `set-estimate` / `set-github` | (new #252) | Card-field setters (compare-and-swap on the card) |
 | `issue sync`      | `make issue-sync ISSUE=N`   | Legacy repositories: commit one issue locally under `#N: issue-sync: <what>`. Retired in tracker repositories (#284): a pointer at `git commit` and `issue publish` |
-| `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (first publication, or the owner's edits in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
+| `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (first publication, or later edits by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
@@ -69,7 +69,7 @@ for the operator workflow and recovery contract.
 | `issue new` | (#252) A new card on `issue-tracker` at `max(id)+1`; details stay local |
 | `change-code` | (#252) Nothing: the design is a local commit on the issue branch |
 | `unclaim --issue N` | (#284) The cleared owner and its release record on `issue-tracker`; an open claim's edits first go to main as `issue publish` |
-| `issue publish --issue N` | (#284) First publication: as `move-detail`. Republish: one main commit with the owned issues' details, `#a,#b: issue: publish details` |
+| `issue publish --issue N` | (#284) First publication: as `move-detail`. Republish: one main commit with the issues' edited details (never another workspace's, #274), `#a,#b: issue: publish details` |
 | `issue move-detail` | (#252) One main-native commit adding the initial details, plus the card's handoff record |
 | `issue sync --issue N` | Legacy repositories: one local issue-file commit; no network operation by default |
 | `issue sync --push` | Legacy repositories: only the narrow issue commit created by that invocation |
@@ -985,6 +985,21 @@ plus `<id>.lock`.
 
 Bound: one clone per live review, plus whatever the sweep has warned about.
 
+**Which agent reviews, and its permission mode (#310).** `workshop/review.json`
+(repo-local) sets `boundary_reviewer`: `same` (default), `other` (claude and
+codex review each other) or `explicit` with `reviewer_pairs`. The pure
+`judge.ReviewerPolicy` maps the main agent (`judge.MainAgent`: `PAIR_AGENT`,
+codex env, claude) to its reviewer; `--agent` and `AGENT_CMD` stay above it, and
+`ResolveAgentCLI` is the `same` case. `loadReviewerPolicy` reads the source
+checkout's file in `boundaryReviewOptionsFor`; an invalid file halts the review.
+The ledger round's `agent` records who reviewed. `DispatchOptions.Containment`
+(none / checkout / fenced) replaced `IsSandbox` + `Fenced`, and `agentArgs` maps
+it to each CLI's own mode: claude `--permission-mode dontAsk` (the tool list
+is enforced, so Edit/Write are refused; Bash stays unrestricted, so shell
+writes are stopped only by the #204 fence), codex `--sandbox read-only | workspace-write |
+danger-full-access`, gemini without `--yolo`. No judge gets an auto-approve mode;
+`--sandbox` on `judge`/`change-code` is a deprecated no-op.
+
 **Dispatch progress heartbeat (#140).** A boundary review can run silently for
 minutes; `internal/judge.Dispatch` now emits a heartbeat to `opts.Stderr` every
 `heartbeatInterval` (30s) while the agent subprocess runs — elapsed + agent +
@@ -1089,7 +1104,7 @@ everything else is surface (#177; docs-only closes had an incoherent demand).
 contain every first-parent commit of freshly fetched main whose committer date
 is at or before the most recent noon (ariadne-robustness-1 requirement 6). The
 definition lives in **`internal/freshness`** (`Cutoff`, `LoadLocation`, `Check`),
-shared with #303's catch-up at claim/start-plan. The zone comes from the tracked
+shared with #303's catch-up at start-plan. The zone comes from the tracked
 `.sdlc/freshness.json` (absent → local; malformed refuses). Main is
 `reviewMainRef` in a tracker repo, so the gate and the window share one fetch,
 else `TrunkRef` after `git fetch`. The probe is tri-state:
@@ -1097,6 +1112,20 @@ else `TrunkRef` after `git fetch`. The probe is tri-state:
 - DocsOnly (`publishGateHasCodeSurface`, the publish gate's predicate): an info line.
 - Inconclusive (a fetch or git failure): a "could not check" warning, never a pass
   line.
+
+**Catch-up before new work (#303, `catchup.go`).** `start-plan --issue N` on the
+resting branch fetches origin/main for the slot and each `substrateChain` repo.
+If any trails it, start-plan runs the installed `weave refresh` (the `weaveRefresh`
+seam; TestMain stubs it), which owns the all-or-nothing fast-forward and compile.
+sdlc never fast-forwards a dependency itself. A successful catch-up stops before
+the branch or card changes, because the running binary predates it; the re-run
+plans; so does a failed refresh that had already moved a checkout (HEADs are
+compared before and after). Checkouts the probe cannot read (absent per
+`substrateWalk`, no origin, a failed fetch) warn as unchecked. A failed refresh
+that moved nothing refuses only for a checkout `freshness.Check` calls Stale,
+and otherwise warns. `claim` keeps only its #284 fast-forward of the slot's own
+rest. `couch --prepare` (pair#434) is the TL-side twin: same refresh, plus an idle
+check and a context reload.
 
 The cutoff is a past instant, so a landing after it never moves the requirement.
 A fast-forwarded landing counts from its own commit date, which is stricter but

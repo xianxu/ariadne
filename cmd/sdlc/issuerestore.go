@@ -1,6 +1,7 @@
 // issuerestore.go — `sdlc issue restore` (#285): put main's version of
 // published details back on this branch, the mechanical resolution of a
-// transfer-guard refusal from a checkout that does not own the issue.
+// transfer-guard refusal for another workspace's issue, or an unclaimed
+// issue's stale copy (#274).
 package main
 
 import (
@@ -23,14 +24,14 @@ func newIssueRestoreCmd() *cobra.Command {
 		Use:   "restore --issue N[,N…]",
 		Short: "Put main's version of published issue details back on this branch (#285)",
 		Long: "Undo this branch's change to published issue details, as the transfer guard\n" +
-			"offers when a landing changes details from a checkout that does not own the\n" +
-			"issue. For each named issue whose details the prospective merge with main\n" +
-			"would change, the file is set to main's version (or removed, when main has\n" +
-			"archived it), in one commit `#N: issue: restore main's details`. A dirty\n" +
-			"details file is refused; with nothing to restore, nothing is committed.\n" +
-			"To keep the edit instead, `sdlc claim --issue N` and land it as the owner.\n" +
-			"In the owner's own checkout restore refuses (the edit is the owner's): merge\n" +
-			"main and resolve the details instead.",
+			"offers when a landing changes another workspace's issue, or an unclaimed\n" +
+			"issue's details from a branch behind main (#274). For each named issue whose\n" +
+			"details the prospective merge with main would change, the file is set to\n" +
+			"main's version (or removed, when main has archived it), in one commit\n" +
+			"`#N: issue: restore main's details`. A dirty details file is refused; with\n" +
+			"nothing to restore, nothing is committed. To keep an edit to another\n" +
+			"workspace's issue, hand it to its owner. For this workspace's own issue\n" +
+			"restore refuses (the edit is its record): merge main and resolve instead.",
 		Args: cobra.NoArgs, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guardSpineRepo(cmd.ErrOrStderr())
@@ -74,9 +75,9 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 	names := map[string]bool{}
 	var refs []string
 	for _, c := range changed {
-		if want[c.ID] && c.Verdict == verdictBehind {
-			// This checkout owns the issue: the edit is the owner's own work,
-			// which merging main keeps; restoring would drop it.
+		if want[c.ID] && !mayRestore(c) {
+			// This workspace's own issue: the edit is its record, which
+			// merging main keeps; restoring would drop it.
 			return detailsRefusal(env, c)
 		}
 	}

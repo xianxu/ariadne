@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -164,9 +165,14 @@ func repoLockGitCommonDir() (string, error) {
 	return abs, nil
 }
 
+// processAlive reports whether pid exists. EPERM means it exists but we may
+// not signal it: another user's process, or one outside the Seatbelt sandbox
+// slot agents run in. Only ESRCH means gone; reading EPERM as dead let a slot
+// reclaim a live peer's lock (side-quest of #310).
 func processAlive(pid int) bool {
 	if pid <= 0 {
 		return false
 	}
-	return syscall.Kill(pid, 0) == nil
+	err := syscall.Kill(pid, 0)
+	return err == nil || errors.Is(err, syscall.EPERM)
 }

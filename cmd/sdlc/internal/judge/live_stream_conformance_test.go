@@ -26,7 +26,6 @@ func TestLiveAgentStreamConformance(t *testing.T) {
 				Agent:        agent,
 				Prompt:       "Reply with exactly STREAM_OK and no other text.",
 				AllowedTools: "",
-				IsSandbox:    true,
 			}
 			name, args, err := BuildArgs(opts)
 			if err != nil {

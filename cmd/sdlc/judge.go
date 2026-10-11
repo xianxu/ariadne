@@ -65,7 +65,8 @@ func NewJudgeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
 	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding optional durable plans (milestone-review, plan-quality)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print prompt + would-be command; do not invoke agent")
-	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", isSandbox(), "pass auto-approve flags to codex/gemini")
+	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", false, "retired (#310): judges never get an auto-approve mode")
+	_ = cmd.Flags().MarkDeprecated("sandbox", "judges never get an auto-approve mode (#310); the flag has no effect")
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (milestone-review; required by plan-quality)")
 	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag e.g. M4 (milestone-review only)")
 	return cmd
@@ -153,7 +154,6 @@ func runJudge(stdout, stderr io.Writer, categoryArg string, f *judgeFlags) error
 		Agent:        agent,
 		Prompt:       prompt,
 		AllowedTools: tools,
-		IsSandbox:    f.Sandbox,
 		Stdout:       stdout,
 		Stderr:       stderr,
 	}
@@ -257,7 +257,7 @@ func collectDiff(cat judge.Category, base, head, issuesDir, historyDir string) (
 
 // ── helpers ─────────────────────────────────────────────────────────────────
 
-// orStr / envOr / isSandbox moved to term.go in M4 (shared with the
+// orStr / envOr moved to term.go in M4 (shared with the
 // fetch / start / lock / set-status verbs).
 
 func categoryNames() []string {

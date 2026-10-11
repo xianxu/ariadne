@@ -41,10 +41,12 @@ WHAT IT DOES
        unified patch stays in Git instead of entering the agent argv/prompt
      - Snapshots every mutable prose artifact named to the unlocked reviewer;
        issue/project/plan edits or plan presence changes refuse finalization
-     - Invokes the configured agent (claude by default) inside a disposable
-       shared clone of the pinned head, under an OS write fence on the source
-       checkout when one applies; clone-only (with a warning) where it cannot
-       nest. The round and sidecar record `isolation: fenced|checkout` (#204)
+     - Invokes the repo's reviewer (#310; the main agent by default; no
+       auto-approve mode, see REVIEWER in `sdlc close --help`) inside a
+       disposable shared clone of the pinned head, under an OS write fence
+       on the source checkout when one applies; clone-only (with a warning)
+       where it cannot nest. The round and sidecar record
+       `isolation: fenced|checkout` (#204)
      - Routes harness diagnostics/progress to terminal stderr; verdict parsing
        and the durable `-m<x>-review.md` consume only the semantic final response
      - Surfaces findings + classifies clean / info / failure
@@ -111,8 +113,10 @@ FLAGS
                         close's gates), each waiving exactly one:
 {{GATE_FLAGS}}
   --agent <name>        agent CLI for the judge: claude | codex | gemini.
-                        Default: explicit --agent, then AGENT_CMD, then
-                        PAIR_AGENT/current known agent signals, then claude.
+                        Default: explicit --agent, then AGENT_CMD, then the
+                        repo's reviewer policy (workshop/review.json; see
+                        REVIEWER in `sdlc close --help`) applied to the main
+                        agent: PAIR_AGENT/current agent signals, or claude.
   --brain-dir <path>    brain root for the calibration ledger (default ../brain);
                         project files are discovered across the fleet (#171)
   --issues-dir <path>   directory holding issue files

@@ -314,6 +314,12 @@ func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
 		return err
 	}
 	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))
+	// #303: new work starts from a slot and dependencies caught up to main.
+	if env.onRest() {
+		if err := catchUpBeforeWork(ctx, stdout, env.root, issueID); err != nil {
+			return err
+		}
+	}
 	// Branch first, then card: a lost card write leaves an idempotent re-run,
 	// never a working card with no branch.
 	result, err := preparePlanningBranch(env, id, detailPath)
@@ -424,7 +430,13 @@ func parseSubstrateTargets(depsContent string) []string {
 // peers are skipped (present-walker semantics, like lib-deps.sh — don't abort on
 // a missing sibling). The seen-set also guards against dependency cycles.
 func substrateChain(root string) []string {
-	var order []string
+	present, _ := substrateWalk(root)
+	return present
+}
+
+// substrateWalk is substrateChain plus the declared targets that are absent on
+// disk (resolved, deduped), for callers that must not read absence as current.
+func substrateWalk(root string) (order, absent []string) {
 	seen := map[string]bool{}
 	// Seed the cycle-guard with the root's CANONICAL key (EvalSymlinks, matching
 	// how upstream entries are keyed below) so a cycle resolving back to root via
@@ -456,6 +468,8 @@ func substrateChain(root string) []string {
 				continue
 			}
 			if info, err := os.Stat(resolved); err != nil || !info.IsDir() {
+				seen[resolved] = true
+				absent = append(absent, resolved)
 				continue // absent peer → skip, keep walking the rest
 			}
 			seen[resolved] = true
@@ -464,7 +478,7 @@ func substrateChain(root string) []string {
 		}
 	}
 	walk(root)
-	return order
+	return order, absent
 }
 
 // gatherBaseContention is the thin IO seam that builds baseContention for ONE

@@ -40,6 +40,15 @@ Detailed incidents remain in their owning issue or review artifact.
 - Ticking a Plan row checks it: every test the row names exists under that
   name and asserts each clause, and a step not yet done (a close) sits in its
   own unticked row (#300, three findings in one family).
+- When delegating to a transaction that keeps partial progress on error (weave
+  refresh), read what happened from the state it acts on, not from its exit
+  status. A failure can follow real effects (#303 BR-1).
+- Changing who a guard admits changes every sentence that states the old rule.
+  Grep the policy's words (help, recovery catalog, comments, refusal text) across
+  every verb that offers the guard's next action, not only the guard's own help:
+  the restore help still told a refused user to claim (#274 BR-1). Then state the
+  policy once (a help placeholder) and add a wording test over help, catalog and
+  atlas, or the next review finds the next copy (#274 BR-4).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - Scope a guard's failure to the input it actually reads. A fail-closed check that
@@ -431,3 +440,9 @@ The simplest durable authority beats a clever scan of consequences.
 - A retry inherits every piece of mutable state the first attempt touched.
   When an attempt may mutate a resource (a review checkout), give the retry a
   reset hook and test it with residue left by attempt 1 (#204 BR-2).
+- A word like "read-only" in help, flag usage or deprecation text is a claim
+  about enforcement. Before writing it, name the mechanism that enforces it for
+  every caller the text covers. #310 called every judge read-only while claude's
+  Bash stayed unrestricted outside the #204 fence. Rewording the one paragraph
+  the review cited left the same claim in four other strings. Grep the diff for
+  the word and fix every string in one pass.

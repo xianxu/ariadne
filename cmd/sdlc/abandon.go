@@ -247,7 +247,7 @@ func pushArchiveRef(env *trackerEnv, ref, head string) error {
 
 // archiveAbandoned archives an abandoned issue on main. Started work's final
 // details and plans are the kept tip's; an issue abandoned from open gets the
-// note in main's copy. Only its owner publishes.
+// note in main's copy. Another workspace's card is refused (requireOwnedToPublish).
 func archiveAbandoned(env *trackerEnv, stderr io.Writer, id, detailRel string, f *abandonFlags, rec issue.Abandoned, note string) error {
 	spec := mainArchive{
 		Message: fmt.Sprintf("#%s: issue: abandon — archive details", issue.CLIRef(id)),
