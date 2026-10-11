@@ -67,13 +67,13 @@ milestone-close run through it, and everything downstream — tick, detail-block
 peer-write, and the review snapshot (`captureCloseReviewSnapshot` reads `projectEdits`) — consumes that loop's output.
 So a TL-owned match `continue`s before any of it (ARCH-DRY: one decision point, not four).
 
-- [ ] `project.TLOwners(text) ([]string, error)` in `internal/project/metadata.go`: `tl:` as a string or a list of strings;
+- [x] `project.TLOwners(text) ([]string, error)` in `internal/project/metadata.go`: `tl:` as a string or a list of strings;
   no frontmatter or no/empty `tl:` → not owned; any other shape → error. `Metadata` gains `TL any`. Unit tests.
-- [ ] Close loop: TL-owned → `cinfo` skip line naming project + TL(s), `continue`. Unreadable `tl:` → warn and skip (fail
+- [x] Close loop: TL-owned → `cinfo` skip line naming project + TL(s), `continue`. Unreadable `tl:` → warn and skip (fail
   closed: don't write a file whose ownership can't be read).
-- [ ] Tests: close + milestone-close leave a `tl:` project byte-identical and print the skip line (milestone-close also
+- [x] Tests: close + milestone-close leave a `tl:` project byte-identical and print the skip line (milestone-close also
   must not refuse on the missing detail block); an edit to a `tl:` project during the review doesn't void SHIP.
-- [ ] Docs: `construct/vocabulary/project.cue` (`tl?`), `construct/datatype/project.md` table, `sdlc close --help` /
+- [x] Docs: `construct/vocabulary/project.cue` (`tl?`), `construct/datatype/project.md` table, `sdlc close --help` /
   `milestone-close --help` mention the skip; atlas line if the close flow is mapped there.
 - [ ] Close.
 
@@ -83,3 +83,11 @@ only decides *which* projects a close touches; #308 keeps *how* the remaining on
 ## Log
 
 ### 2026-10-10
+- Implemented. `TLOwners` tells "no frontmatter" apart via a new `frontmatter.ErrNoFrontmatter` sentinel instead of
+  string-matching the error. Unit test `TestTLOwners` (owned / not-owned / malformed rows, each asserting its own error).
+- `TestCloseCommands_TLOwnedProjectUntouched` (close + milestone-close × with/without a TL edit during the review): the
+  `tl:` file stays byte-identical, the skip line prints, SHIP finalizes, and a sibling project without `tl:` is still
+  ticked. It passes no `--no-project` (the plain project carries its M1 detail block), so it proves the TL project
+  doesn't trip that gate. Mutation (filter disabled) fails it.
+- `project.cue`'s `#Project` is a definition, so the exported `pkg/vocab/project.json` doesn't change (`go generate` → no
+  diff); vet_test.sh green.

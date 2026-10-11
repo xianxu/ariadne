@@ -42,3 +42,42 @@ func TestNumberValueDistinguishesMissingNAAndMalformed(t *testing.T) {
 		}
 	}
 }
+
+func TestTLOwners(t *testing.T) {
+	owned := []struct {
+		name, text, want string
+	}{
+		{"scalar", "---\nname: p\ntl: xian-xu@ops:0\n---\nbody\n", "xian-xu@ops:0"},
+		{"flow list", "---\ntl: [a@ops:0, b@ops:1]\n---\n", "a@ops:0,b@ops:1"},
+		{"block list", "---\ntl:\n  - a@ops:0\n---\n", "a@ops:0"},
+	}
+	for _, c := range owned {
+		got, err := TLOwners(c.text)
+		if err != nil || strings.Join(got, ",") != c.want {
+			t.Errorf("%s: TLOwners = %v, %v; want %q", c.name, got, err, c.want)
+		}
+	}
+	notOwned := []struct{ name, text string }{
+		{"no frontmatter", "# roadmap\n\n- [ ] x [ariadne#1]\n"},
+		{"absent", "---\nname: p\n---\n"},
+		{"null", "---\ntl:\n---\n"},
+		{"empty string", "---\ntl: ''\n---\n"},
+		{"empty list", "---\ntl: []\n---\n"},
+	}
+	for _, c := range notOwned {
+		got, err := TLOwners(c.text)
+		if err != nil || len(got) != 0 {
+			t.Errorf("%s: TLOwners = %v, %v; want not owned", c.name, got, err)
+		}
+	}
+	malformed := []struct{ name, text, wantErr string }{
+		{"map", "---\ntl: {a: b}\n---\n", "invalid tl YAML type"},
+		{"number in list", "---\ntl: [a@ops:0, 3]\n---\n", "invalid tl YAML type"},
+		{"bad yaml", "---\ntl: [unterminated\n---\n", "decode YAML frontmatter"},
+	}
+	for _, c := range malformed {
+		if _, err := TLOwners(c.text); err == nil || !strings.Contains(err.Error(), c.wantErr) {
+			t.Errorf("%s: TLOwners err = %v; want %q", c.name, err, c.wantErr)
+		}
+	}
+}

@@ -1,10 +1,13 @@
 package project
 
 import (
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 
+	"github.com/xianxu/ariadne/pkg/frontmatter"
 	"go.yaml.in/yaml/v3"
 )
 
@@ -20,6 +23,7 @@ type Metadata struct {
 	Deps          []string `yaml:"deps"`
 	EstimateHours any      `yaml:"estimate_hours"`
 	ActualHours   any      `yaml:"actual_hours"`
+	TL            any      `yaml:"tl"`
 }
 
 func DecodeMetadata(frontmatter string) (Metadata, error) {
@@ -65,4 +69,47 @@ func NumberValue(value any, field string) (number float64, present, notApplicabl
 	default:
 		return 0, true, false, fmt.Errorf("invalid %s YAML type %T", field, value)
 	}
+}
+
+// TLOwners returns the project's `tl:` owners (a string or a list of strings).
+// A TL-owned project is written only by its TL: closes skip it (#326). No
+// frontmatter, or an absent or empty `tl:`, means not TL-owned. Any other shape
+// is an error, so a caller can't mistake an unreadable owner for none.
+func TLOwners(text string) ([]string, error) {
+	d, err := ParseDoc(text)
+	if err != nil {
+		if errors.Is(err, frontmatter.ErrNoFrontmatter) {
+			return nil, nil
+		}
+		return nil, err
+	}
+	m, err := d.Metadata()
+	if err != nil {
+		return nil, err
+	}
+	var owners []string
+	add := func(v any) error {
+		s, ok := v.(string)
+		if !ok {
+			return fmt.Errorf("invalid tl YAML type %T; want a string or a list of strings", v)
+		}
+		if s = strings.TrimSpace(s); s != "" {
+			owners = append(owners, s)
+		}
+		return nil
+	}
+	switch v := m.TL.(type) {
+	case nil:
+	case []any:
+		for _, item := range v {
+			if err := add(item); err != nil {
+				return nil, err
+			}
+		}
+	default:
+		if err := add(v); err != nil {
+			return nil, err
+		}
+	}
+	return owners, nil
 }
