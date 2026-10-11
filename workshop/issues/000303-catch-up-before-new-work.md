@@ -1,12 +1,20 @@
 ---
 id: 000303
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-11
 estimate_hours:
-card_mirror: '0e82656033603f789dde5c37cd26b6e62f9549c2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'db1303a6d82bbc2843328cce4cb1ee0382c920da' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-11T08:51:25-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Catch the slot and its dependencies up to main before new work
@@ -19,14 +27,14 @@ Operator idea (2026-10-08): the very start of new work should check that the slo
 
 ## Spec
 
-To settle in design:
-- **Where the check lives:** `claim` already fast-forwards a resting branch after claiming (#284). Starting work is `start-plan` (it creates the branch at fresh main). Candidates: at `claim`, at `start-plan`, or both. Plus a dependency sweep.
-- **Dependencies:** walk `construct/deps` (start-plan's `substrateChain` already does, for its contention line). For each dependency's checkout:
-  - clean and fast-forwardable → fast-forward;
-  - dirty or diverged → refuse or warn with the next action.
-  Decide refuse vs warn: a stale dependency silently changes what this slot builds against.
-- **The binary:** the `sdlc` that runs is built from the checkout, so catching the checkout up changes the next invocation's binary. Decide whether start-plan re-execs or just reports "rebuilt; rerun".
-- **Relationship to `weave refresh`:** reuse its refresh where it overlaps (ARCH-DRY) rather than a parallel catch-up.
+Decided (2026-10-11):
+- **Where:** `start-plan`, on the resting branch, before the issue branch is created. `claim` stays a cheap lock: it keeps its #284 fast-forward of the slot's own resting branch and does no dependency sweep (N fetches plus a compile is not cheap).
+- **Probe:** for the slot root and each repo on `substrateChain` (construct/deps, transitive), fetch `origin main` (bounded) and ask whether `HEAD` lacks commits of `origin/main`. A repo with no `origin`, or a fetch that fails, is reported as unchecked: a warning, never "up to date".
+- **Catch-up = `weave refresh` (ARCH-DRY):** if anything is behind, start-plan runs the installed `weave refresh` in the slot. Refresh already owns the transaction: it fetches the slot and its substrates, refuses before any branch moves unless every checkout is clean and fast-forwardable, then advances and compiles. sdlc never fast-forwards a dependency itself.
+- **Refuse vs warn when refresh fails:** #269's `internal/freshness` decides, so start-plan never refuses what close's integrate gate accepts. A behind repo that is `Stale` (it lacks code that landed on main before the last noon) refuses, and the error carries refresh's output, which names what is dirty or diverged, plus the next action. A repo behind only by today's or docs-only landings warns, and planning continues.
+- **The binary:** the running `sdlc` was built before the refresh. After a successful catch-up, start-plan stops before it branches or starts the card, and asks for a re-run so the refreshed build plans the issue. The re-run is idempotent and finds everything current.
+- **Boundary with pair#434 (`couch --prepare`, landed):** prepare is the TL's outside-in step before dispatch: it checks the slot is idle, runs the same `weave refresh`, then reloads the agent's context. #303 is the agent's inside-out guard at the start of work, for slots nobody prepared. Both delegate the catch-up to `weave refresh`; only prepare reloads context, only start-plan applies the freshness tolerance. After a prepare, start-plan's probe finds nothing behind and adds one fetch per repo.
+- ARCH-FUNERAL: creates nothing durable. The fetch updates remote-tracking refs, which git already owns.
 
 ## Done when
 
@@ -35,8 +43,14 @@ To settle in design:
 
 ## Plan
 
-- [ ] Design: where the check lives (claim / start-plan), refuse vs warn for dependencies, reuse of `weave refresh`.
+- [x] Design: where the check lives (claim / start-plan), refuse vs warn for dependencies, reuse of `weave refresh`.
+- [ ] `catchup.go`: probe slot + substrate chain against origin/main; run `weave refresh` through a seam when behind; freshness decides refuse vs warn; stop for a re-run after a catch-up. Wire it into `startPlanBranch` on the resting branch.
+- [ ] Tests: a stale slot and a stale dependency are both caught up before the issue branch is created (fake weave); a failed refresh with code-stale input refuses and names refresh's output, and nothing changed; a failed refresh on a docs-only lag warns and plans; a current fleet doesn't run weave; the seam is stubbed in TestMain so no test runs a real weave.
+- [ ] Atlas + start-plan help text.
 
 ## Log
+
+### 2026-10-11
+- Claimed at ariadne:4 (TL dispatch). `weave refresh` already is the catch-up transaction; pair#434's prepare already delegates to it. Design reuses both rather than a parallel fast-forward.
 
 ### 2026-10-08
