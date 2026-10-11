@@ -1,0 +1,117 @@
+# Boundary Review — ariadne#317 (whole-issue close)
+
+| field | value |
+|-------|-------|
+| issue | 317 — active-time: every ref in a commit subject claims an equal share, so citations and merge subjects take the issue's time |
+| repo | ariadne |
+| issue file | workshop/issues/000317-active-time-every-ref-in-a-commit-subject-claims-an-equal-share-so-citations-and-merge-subjects-take-the-issue-s-time.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8b9052040674db7b431ad3db3844837e0c561366..57bb1c283b62ec2b90139fada28f40d2d98a2f83 |
+| command | sdlc close --issue 317 |
+| reviewer | claude |
+| timestamp | 2026-10-10T17:14:29-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Still reviewing: checking that the commit subjects sdlc writes itself still start with the issue ref.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The diff does what the issue asks. `issueref.Lead` defines a lead grammar with a closed list of verbs, and `Commit.Issues` now holds only a subject's lead refs, so only those claim time. `Commit.Refs` keeps every local ref so cited issues stay in the mention scope. In scoped mode, a main commit counts only when its lead names the issue, and the branch's own merges are dropped. The two regression tests I traced fail on the pre-fix code and pass after it:
+- **Integration merge:** in `merged mid-work, subject names the issue`, the old code kept the `#9: merge main (#5 landed)` merge as a boundary at 00:35.
+- **Citation:** in `TestCitationsDoNotClaim`, the old code kept the main commit `#5: … (#9)` as a boundary and gave #5 a share.
+
+`go test` passes for `activetime` and `issueref`. Nothing blocks the close. Two doc comments slightly overstate the code (see Minor).
+
+1. **Strengths**
+   - The lead extractor lives in one place, `issueref.Lead` / `LeadLocalNums` (`ref.go:76-99`). It reuses `Find`, so the merge-PR masking from #254 carries over, and the private `localNums` is shared with `LocalNums` (ARCH-DRY: pass).
+   - The verb list is closed on purpose and its comment says why. The test table (`ref_test.go:168`) includes the negative cases that matter: an open verb, prose before the ref, and a foreign lead whose citation must not claim.
+   - `branchCommits` gets own commits and merges from one `rev-list --parents` call, instead of adding a second git call.
+   - I checked the subjects sdlc writes itself. Tracker commits (`#N: tracker: …`), issue-new commits (`#N: issue: …`) and close commits all lead with the ref, so the claim and close anchors still work as boundaries.
+   - `TestAttributionGolden` was changed on purpose (`#10, #8: second`), and the comment says why the old subject now encodes the old rule.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **Merge claim is too broad.** The help text says "With --branch-point, merge commits are not boundaries", and the `Scope` doc says "a merge is never a scoped boundary". The code only drops merges inside `BranchPoint..HEAD`. A main-side merge outside that range whose lead names the issue is still kept. PR merges are masked, so this is mostly theoretical, but the claim should say "the branch's merges". The atlas wording ("On an issue branch…") is already accurate.
+   - **Atlas verb list is incomplete.** It lists `close`/`file`/`issue`/`plan`, but the regex also accepts `closes`.
+
+5. **Test coverage**
+   - The table test covers every subject shape the Spec names, including the no-lead subject (it stays a neutral boundary).
+   - The integration test checks both the boundary list and `Compute` hours (pre == post, #9 = 50 min, #5 = 0) across the not-integrated, rebased, merged-at-end and both merged-mid-work cases. So the "same before and after merging main" clause is tested both ways.
+   - Not tested: a `Revert "#N: …"` subject. It now becomes neutral, which is arguably right.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** There is one lead extractor, and no other subject-lead regex exists in `cmd/sdlc` or `pkg`.
+   - **ARCH-PURE: pass.** `Lead` is pure and tested without IO. The git IO stays in `branchCommits` / `loadWindowCommits`, which are tested through the `gitRun` shim and real temp repos.
+   - **ARCH-PURPOSE: pass.** Both places that read claimants were updated: boundaries and attribution read `Issues`, and `WindowIssues` reads `Refs`. The re-measurement and calibration deltas the Done-when asks for are recorded in the Log.
+
+7. **Plan revisions:** none. The plan matches the code.
+
+```findings
+findings:
+  - id: new
+    severity: Minor
+    family: doc-claim-matches-code
+    title: |
+      Help text and Scope doc say merges are never scoped boundaries; only BranchPoint..HEAD merges are dropped
+    detail: |
+      helptext/active-time.md "With --branch-point, merge commits are not boundaries" and commit.go Scope doc "a merge is never a scoped boundary". A main-side merge outside the branch range whose lead names the issue is still kept. Reword both to "the branch's own merges" (as the atlas does), or drop merges by parent count for every window commit. Same family: the atlas verb list omits `closes`, which leadRE accepts.
+```
+
+---
+
+## Re-review — 2026-10-10T17:16:28-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 317 — active-time: every ref in a commit subject claims an equal share, so citations and merge subjects take the issue's time |
+| repo | ariadne |
+| issue file | workshop/issues/000317-active-time-every-ref-in-a-commit-subject-claims-an-equal-share-so-citations-and-merge-subjects-take-the-issue-s-time.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8b9052040674db7b431ad3db3844837e0c561366..ed89620af14a2b72377ccdf49f9d10c588a00a23 |
+| command | sdlc close --issue 317 |
+| reviewer | claude |
+| timestamp | 2026-10-10T17:16:28-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've finished checking the window: I ran the stat, name-status and full diff, reran the package tests, and read the issue's Done-when and Log.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The diff does what #317 asks. `issueref.Lead` / `LeadLocalNums` pull out a subject's lead using a fixed verb list, and only those lead refs become `Commit.Issues`, the issues that claim time. `Commit.Refs` keeps every local ref, so `WindowIssues` still includes cited issues as mentions. In a scoped measurement, the branch's own merges are dropped, and a main commit counts as a boundary for the issue only when its lead names the issue. The follow-up commit (ed89620a) changes the help text, the `Scope` doc and the atlas to say "the branch's own merges (BranchPoint..HEAD)", and adds `closes` to the atlas verb list. That settles BR-1. `go test` passes for `activetime` and `issueref`. The Log covers every Done-when clause: the #304 replay before and after its merge (2.48h vs 2.50h, all to #304, nothing to #308/#300/#270), the table test, and the recalibration deltas (#283 6.28→7.35h, the rest unchanged).
+
+1. **Strengths**
+   - There is one source for the lead rule (`issueref/ref.go` `leadRE`/`Lead`). It reuses `Find`, so it keeps the masking of merge-PR numbers, and `LocalNums` and `LeadLocalNums` share the private `localNums` helper (ARCH-DRY: pass).
+   - The table test (`ref_test.go` `TestLeadLocalNums`) uses real subjects, including the negative cases that matter: an open verb, prose before the ref, a foreign lead, and a masked merge PR.
+   - `branchCommits` splits the branch's own commits from its merges with one `rev-list --parents` call (ARCH-PURE: pass; the parsing in `issueref` is pure and tested without IO).
+   - The regression fixtures (`merged mid-work, subject names the issue`, `TestCitationsDoNotClaim`) use the real #304 subject shapes and run end-to-end through `Compute`.
+   - The `TestAttributionGolden` rewrite is deliberate, and its comment explains why the old subject encoded the rule this issue retires.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new.
+5. **Test coverage:** The table test pins lead-versus-citation extraction. The tests pin both settings: scoped, where merges are dropped, and the zero Scope (`TestBoundariesUnscopedOnMain`). `WindowIssues` keeping citations has its own assertion.
+6. **Architectural notes:** ARCH-DRY pass, ARCH-PURE pass, ARCH-PURPOSE pass. Every consumer of `Commit.Issues`/`Refs` now reads from the lead/ref split, and the help text, atlas and `Scope` doc all describe the same rule.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      ed89620a: helptext says "the branch's own merge commits (BranchPoint..HEAD)", Scope doc says "a merge in BranchPoint..HEAD", atlas says "its own merge commits (branch point..HEAD)" and its verb list now includes closes, matching leadRE and the branchCommits filter.
+```
