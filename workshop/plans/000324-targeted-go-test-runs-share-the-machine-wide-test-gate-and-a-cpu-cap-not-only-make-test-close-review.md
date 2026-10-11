@@ -95,3 +95,87 @@ findings:
     title: |
       gofmt-only whitespace change in cmd/sdlc/publishgate_test.go rides along in the diff
 ```
+
+---
+
+## Re-review — 2026-10-10T19:02:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 324 — Targeted go test runs share the machine-wide test gate and a CPU cap, not only make test |
+| repo | ariadne |
+| issue file | workshop/issues/000324-targeted-go-test-runs-share-the-machine-wide-test-gate-and-a-cpu-cap-not-only-make-test.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 19a4cf454e4fb41f738bc8b198076508f005a2df..f28f494e3ba2de9bc5f9f378caba894f1cfdbeca |
+| command | sdlc close --issue 324 |
+| reviewer | claude |
+| timestamp | 2026-10-10T19:02:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Tests pass; verifying the BR-3 guard's coverage, then the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Round 2 confirms all four round-1 Minors are resolved. Three were fixed, and each fix has a test that would fail without it. BR-4 is withdrawn because the rationale given for keeping it is sound. `pkg/testgate` is a clean, small gate built on flock. The make-test bypass and `WF_TEST_LOCK=off` now skip it completely, with no parallel cap. Slot records no longer fork git, and cmd/weave has a source guard for its git-driving packages. The targeted tests pass at HEAD: `pkg/testgate`, the cmd/weave guard, and the cmd/sdlc guard plus `TestHasConflictMarkers`. One new Minor came up: both source guards can be satisfied by their own string literal.
+
+1. **Strengths**
+   - **BR-1 fix is checked against Go's own default.** `pkg/testgate/testgate_test.go:59-64` sets `GOMAXPROCS=7` and expects `parallel=7`. Before the fix the cap would have printed `parallel=2`, so this test fails without the fix. It covers both the silent bypass and the loud off-switch.
+   - **BR-2 fix:** `writeRecord` (`testgate.go:243`) no longer forks a process. `Repo` is now `omitempty`, so suite records written by `scripts/test-lock.py` are still described correctly.
+   - **BR-3 fix:** the guard pattern finds exactly the 5 weave test files that spawn git. Those files sit in 3 directories, and every one of them has a `TestMain` that calls `testgate.Enter()`.
+   - The budget for waiting and shrinking `-test.timeout` is tested, and the Log grounds it in a real SIGQUIT kill seen during measurement.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **The source guards match their own literal.** `cmd/weave/testgate_guard_test.go` contains the string `"testgate.Enter()"`. `cmd/sdlc/realgit_guard_test.go` contains both `"testgate.Enter()"` and `"testfix.PreferRealGit()"`. Each guard reads every `_test.go` file in its directory, including itself, so the package root always counts as compliant. Deleting `cmd/weave/testmain_test.go` or `cmd/sdlc/testmain_test.go` would leave the guard green.
+
+5. **Test coverage notes:** the helper process re-runs the test binary for real, so it exercises `TestMain`, flag handling and the slot lock end to end. That is a strong test. The guards are the weak spot, as described in the Minor above.
+
+6. **Architecture**
+   - **Passes:**
+     - ARCH-DRY: the weave guard mirrors the sdlc guard. That is acceptable for two small, separate command trees.
+     - ARCH-PURE: the `enter` logic takes an injected sleep function and output writer, so it is testable.
+     - ARCH-MOCK: the BR-2 git call is gone.
+     - ARCH-CONSTRAINTS: the slot count, parallel cap and wait budget are all stated and measured.
+     - ARCH-SECURE: a malformed record degrades to "an unidentified holder".
+     - ARCH-ORDER: the flock is released by the kernel, the suite probe never keeps the shared lock, and the wait loop is bounded by `timeout/4`.
+     - ARCH-FUNERAL: there are N slot files, each rewritten in place and never appended.
+   - **Flag:** the self-matching guard (the Minor above) is a weakness in how coverage is enforced.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      testgate.go:104 gates capParallel on !bypass && !off; testgate_test.go:59-64 asserts parallel=7 (GOMAXPROCS) for both hatches — red without the fix.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      writeRecord no longer execs git; os/exec import removed; holdSlot fixture and describe() expectation updated.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      cmd/weave/testgate_guard_test.go walks weave test files; the 3 git-spawning dirs all call testgate.Enter(); guard passes.
+  - id: BR-4
+    disposition: withdrawn
+    note: |
+      The change only gofmt-aligns a table this implementor added in #320; reverting would leave main misformatted. Acceptable housekeeping.
+findings:
+  - id: new
+    severity: Minor
+    family: source-guard-matches-own-literal
+    title: |
+      Source guards are satisfied by their own string literal, so the package-root TestMain is unguarded
+    detail: |
+      cmd/weave/testgate_guard_test.go and cmd/sdlc/realgit_guard_test.go both contain "testgate.Enter()" (and sdlc "testfix.PreferRealGit()") and are read as part of their own directory, so deleting the root testmain_test.go stays green. Rule: a source guard must skip its own file (or match only a call statement in a TestMain), not a bare substring.
+```
