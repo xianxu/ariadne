@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "9403771f", done: "5037d7ec"}
 ---
 
 # Choose the boundary reviewer's agent per repo, and model read-only
