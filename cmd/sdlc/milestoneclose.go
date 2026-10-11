@@ -29,6 +29,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
@@ -76,6 +77,7 @@ type reviewResult struct {
 	SidecarPath   string // #136: durable final-review-response path ("" when no review ran)
 	Output        string // semantic review body, retained when sidecar writing is deferred
 	Agent         string // resolved reviewer CLI, retained for deferred sidecar metadata
+	Isolation     string // #204: reviewbox.LevelFenced | LevelCheckout; "" when no reviewer ran
 	// Round is the findings block this review emitted (#194 M2), parsed but NOT yet
 	// applied: dispatch runs with the repo transaction lock released, and the ledger is
 	// a repo write, so it is persisted at finalize time — the same deferral the sidecar
@@ -567,7 +569,7 @@ func appendVerdictSuffix(text, milestone string, verdict judge.Verdict) (string,
 type boundaryReviewParams struct {
 	Context context.Context // caller cancellation follows the unlocked review
 	// The prompt's issue ref is no longer carried here — it's derived from the
-	// live git context in boundaryReviewDispatchOptions (#137, via IssueNum +
+	// live git context in boundaryReviewOptionsFor (#137, via IssueNum +
 	// Milestone + the repo root), so it names the actual repo (e.g. pair#69).
 	Label                string // commit-subject substring for messages, e.g. "#69 M1"
 	Base, BaseLong, Head string // review window (short base, long base, long reviewed head — #194)
@@ -607,12 +609,15 @@ type boundaryReviewParams struct {
 	// captureCloseReviewSnapshot also makes the ledger and the snapshot provably see the
 	// same repo state, which is M1's anchor argument applied one artifact over.
 	PriorFindings string
+	// Isolation is the containment the reviewer ran under (#204), set by
+	// dispatchBoundaryReview for the sidecar it writes.
+	Isolation string
 }
 
 func printBoundaryReviewDryRun(stdout, stderr io.Writer, p boundaryReviewParams) error {
-	opts, ok, reason := boundaryReviewDispatchOptions(stdout, stderr, p)
-	if !ok {
-		return errors.New(reason)
+	opts, err := plannedBoundaryReviewOptions(stdout, stderr, p)
+	if err != nil {
+		return err
 	}
 	cmdLine, err := judge.FormatCommandLine(opts)
 	if err != nil {
@@ -640,13 +645,33 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 			DispatchError: fmt.Errorf("boundary review did not run: %s", reason),
 			ProtocolError: "review did not run: " + reason}
 	}
-	opts, ok, reason := boundaryReviewDispatchOptions(stdout, stderr, p)
-	if !ok {
+	notRun := func(reason string) reviewResult {
 		// The caller (reviewThenFinalize) maps this VerdictNotRun → closeHalt and
 		// prints the outcome ("close NOT finalized") — so don't claim success here (#139 I1).
 		cwarn(stderr, "boundary review could not run: "+reason)
 		return res(judge.VerdictNotRun, reason)
 	}
+	manifest, reason := boundaryReviewManifest(p)
+	if reason != "" {
+		return notRun(reason)
+	}
+	// #204: a fresh disposable checkout per round, removed once the reviewer has
+	// exited — on success, reviewer failure, timeout and cancellation alike. The
+	// review text is captured in memory; nothing after this reads the checkout.
+	checkout, iso, err := openReviewIsolation(stderr, manifest)
+	if err != nil {
+		return notRun(err.Error())
+	}
+	defer func() {
+		if cerr := checkout.Close(); cerr != nil {
+			cwarn(stderr, cerr.Error())
+		}
+	}()
+	opts, ok, reason := boundaryReviewOptionsFor(stdout, stderr, p, manifest, &iso)
+	if !ok {
+		return notRun(reason)
+	}
+	opts.BeforeRetry = checkout.Reset // a retried attempt starts pristine too
 
 	agent := opts.Agent
 	opts.Timeout = boundaryReviewTimeout(stderr, p)
@@ -685,7 +710,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		cwarn(stderr, fmt.Sprintf("boundary review: no '%s' verdict found (block or line) — recording verdict as 'unknown'",
 			strings.Join(vocab.Verdict().Emitted(), " | ")))
 	}
-	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, WindowBase: p.WindowBase, Output: output, Agent: string(agent), Dispatched: dispatched}
+	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, WindowBase: p.WindowBase, Output: output, Agent: string(agent), Dispatched: dispatched, Isolation: iso.Level()}
 	// #194 M2: capture the structured findings handoff. Persisting it is the caller's
 	// job (it holds the lock); parsing here keeps the raw output in one place.
 	if round, ok := gatestate.ParseFindingsBlock(output); ok {
@@ -699,6 +724,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	// Record the RESOLVED reviewer (opts.Agent), not the raw --agent flag — the
 	// latter defaults to "" so the sidecar's reviewer cell would otherwise be empty.
 	p.Agent = string(agent)
+	p.Isolation = rr.Isolation
 	if p.PlansDir != "" {
 		if path, werr := writeReviewSidecar(p, string(verdict), output, nowRFC3339()); werr != nil {
 			cwarn(stderr, fmt.Sprintf("review sidecar not written: %v", werr))
@@ -710,9 +736,29 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	return rr
 }
 
-func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewParams) (judge.DispatchOptions, bool, string) {
+// plannedBoundaryReviewOptions is the dispatch a review of p would run, minus
+// the checkout itself: the probed fence around a placeholder checkout path.
+// --dry-run prints it; it creates nothing.
+func plannedBoundaryReviewOptions(stdout, stderr io.Writer, p boundaryReviewParams) (judge.DispatchOptions, error) {
+	manifest, reason := boundaryReviewManifest(p)
+	if reason != "" {
+		return judge.DispatchOptions{}, errors.New(reason)
+	}
+	iso, err := plannedReviewIsolation(manifest)
+	if err != nil {
+		return judge.DispatchOptions{}, err
+	}
+	opts, ok, reason := boundaryReviewOptionsFor(stdout, stderr, p, manifest, &iso)
+	if !ok {
+		return judge.DispatchOptions{}, errors.New(reason)
+	}
+	return opts, nil
+}
+
+// boundaryReviewManifest resolves the pinned window p reviews, or the reason it can't.
+func boundaryReviewManifest(p boundaryReviewParams) (judge.ReviewWindowManifest, string) {
 	if p.BaseLong == "" {
-		return judge.DispatchOptions{}, false, fmt.Sprintf("no commits reference '%s' — cannot determine review window", p.Label)
+		return judge.ReviewWindowManifest{}, fmt.Sprintf("no commits reference '%s' — cannot determine review window", p.Label)
 	}
 
 	// p.Head, not "HEAD" (#194): this runs after reviewThenFinalizeLocked released
@@ -728,27 +774,38 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 		IssueNum: p.IssueNum, PlansDir: plansDir,
 	})
 	if err != nil {
-		return judge.DispatchOptions{}, false, fmt.Sprintf("resolve review manifest: %v", err)
+		return judge.ReviewWindowManifest{}, fmt.Sprintf("resolve review manifest: %v", err)
 	}
 	// Automatic close captures concrete anchors under the repo lock. Resolving a
 	// symbolic ref here would reintroduce the moving-window race #194 removed.
 	if manifest.BaseSHA != p.BaseLong || manifest.HeadSHA != p.Head {
-		return judge.DispatchOptions{}, false, "automatic boundary review requires concrete base/head commit object ids"
+		return judge.ReviewWindowManifest{}, "automatic boundary review requires concrete base/head commit object ids"
+	}
+	return manifest, ""
+}
+
+// boundaryReviewOptionsFor builds the dispatch for manifest. With iso, the
+// reviewer runs in iso's checkout (#204): the prompt's repository root and Git
+// recipes name the checkout, and the argv carries the wrap and fence.
+func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, manifest judge.ReviewWindowManifest, iso *reviewbox.Isolation) (judge.DispatchOptions, bool, string) {
+	// Orient the fresh reviewer to the ACTUAL repo (#137) — derived from the live
+	// git context, not a hardcoded "ariadne". Computed once here, the single site
+	// both close and milestone-close funnel through (ARCH-DRY). The name comes
+	// from the source checkout, before the root moves to the review checkout.
+	o := boundaryOrientation(p.IssuesDir, p.IssueNum, p.Milestone)
+	var err error
+	o.Repo, err = workspaceRepoName(manifest.RepoRoot)
+	if err != nil {
+		return judge.DispatchOptions{}, false, fmt.Sprintf("resolve review repository: %v", err)
+	}
+	if iso != nil {
+		manifest.RepoRoot = iso.Dir
 	}
 	reviewWindow, err := judge.RenderReviewWindow(manifest)
 	if err != nil {
 		return judge.DispatchOptions{}, false, fmt.Sprintf("render review manifest: %v", err)
 	}
-
-	// Orient the fresh reviewer to the ACTUAL repo (#137) — derived from the live
-	// git context, not a hardcoded "ariadne". Computed once here, the single site
-	// both close and milestone-close funnel through (ARCH-DRY).
-	o := boundaryOrientation(p.IssuesDir, p.IssueNum, p.Milestone)
 	o.RepoRoot = manifest.RepoRoot
-	o.Repo, err = workspaceRepoName(manifest.RepoRoot)
-	if err != nil {
-		return judge.DispatchOptions{}, false, fmt.Sprintf("resolve review repository: %v", err)
-	}
 	o.IssueFile = manifest.IssueFile
 	in := judge.PromptInput{
 		ReviewWindow: reviewWindow, Base: manifest.BaseSHA, Head: manifest.HeadSHA,
@@ -756,18 +813,24 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 		IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
 		PriorFindings: p.PriorFindings,
 		ReviewNotes:   p.ReviewNotes,
+		Isolated:      iso != nil,
 	}
 	cat := p.recipe()
 	prompt := judge.BuildPrompt(cat, in)
 
-	return judge.DispatchOptions{
+	opts := judge.DispatchOptions{
 		Agent:        judge.ResolveAgentCLI(p.Agent, p.AgentExplicit, judge.CurrentAgentDefaultEnv()),
 		Prompt:       prompt,
 		AllowedTools: cat.AllowedTools(),
 		IsSandbox:    isSandbox(),
 		Stdout:       stdout,
 		Stderr:       stderr,
-	}, true, ""
+	}
+	if iso != nil {
+		opts.Wrap = iso.Wrap
+		opts.Fenced = iso.Level() == reviewbox.LevelFenced
+	}
+	return opts, true, ""
 }
 
 // recipe is the review recipe these params dispatch: Category, defaulting to the

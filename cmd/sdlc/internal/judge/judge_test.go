@@ -471,9 +471,11 @@ func TestContractDoc_InSyncWithTokens(t *testing.T) {
 // TestRunArchPrinciples_RendersRegistry asserts the command derives every marker from
 // architecture.md) — that's where "every consumer derives" is now enforced.
 func TestArchitecture_NarrativeRoutesToArchPrinciples(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "AGENTS.md"))
+	// AGENTS.base.md is the tracked source; AGENTS.md is assembled and gitignored,
+	// so it is absent from a clean checkout (a review checkout, #204).
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "AGENTS.base.md"))
 	if err != nil {
-		t.Fatalf("read AGENTS.md: %v", err)
+		t.Fatalf("read AGENTS.base.md: %v", err)
 	}
 	agents := string(data)
 	if !strings.Contains(agents, "sdlc arch-principles") {
@@ -1250,5 +1252,74 @@ func TestBuildPrompt_ClaimedFixEvidenceByChangeKind(t *testing.T) {
 	}
 	if strings.Contains(p, "If there is none, the\n    disposition is `not-addressed`, however plausible the diff looks.") {
 		t.Error("unconditional test requirement still overrides prose evidence")
+	}
+}
+
+// #204: under an outer fence every agent's own sandbox is off (it cannot nest),
+// and without one the argv is unchanged.
+func TestBuildArgs_FencedTurnsOffInnerSandbox(t *testing.T) {
+	cases := map[AgentCLI][]string{
+		AgentClaude: {"--settings", `{"sandbox":{"enabled":false}}`},
+		AgentCodex:  {"--sandbox", "danger-full-access"},
+		AgentGemini: {"--sandbox=false"},
+	}
+	for agent, flag := range cases {
+		_, plain, _ := BuildArgs(DispatchOptions{Agent: agent, Prompt: "p", IsSandbox: true})
+		_, fenced, _ := BuildArgs(DispatchOptions{Agent: agent, Prompt: "p", IsSandbox: true, Fenced: true})
+		joined := strings.Join(fenced, "\x00")
+		if !strings.Contains(joined, strings.Join(flag, "\x00")) {
+			t.Errorf("%s fenced args %q lack %q", agent, fenced, flag)
+		}
+		if strings.Contains(strings.Join(plain, "\x00"), strings.Join(flag, "\x00")) {
+			t.Errorf("%s unfenced args %q carry %q", agent, plain, flag)
+		}
+		if fenced[len(fenced)-1] != "p" {
+			t.Errorf("%s: the prompt must stay last, got %q", agent, fenced)
+		}
+	}
+	_, codex, _ := BuildArgs(DispatchOptions{Agent: AgentCodex, Prompt: "p", IsSandbox: true, Fenced: true})
+	for _, a := range codex {
+		if a == "--full-auto" {
+			t.Errorf("fenced codex must not also ask for its workspace sandbox: %q", codex)
+		}
+	}
+}
+
+// #204: Wrap prefixes every agent identically, and the dry-run line shows it.
+func TestBuildArgs_WrapAppliesToEveryAgent(t *testing.T) {
+	wrap := func(name string, args []string) (string, []string) {
+		return "env", append([]string{"-C", "/box", name}, args...)
+	}
+	for _, agent := range []AgentCLI{AgentClaude, AgentCodex, AgentGemini} {
+		plainName, plainArgs, _ := BuildArgs(DispatchOptions{Agent: agent, Prompt: "p"})
+		name, args, err := BuildArgs(DispatchOptions{Agent: agent, Prompt: "p", Wrap: wrap})
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := append([]string{"-C", "/box", plainName}, plainArgs...)
+		if name != "env" || strings.Join(args, "\x00") != strings.Join(want, "\x00") {
+			t.Errorf("%s: got %s %q, want env %q", agent, name, args, want)
+		}
+	}
+	line, err := FormatCommandLine(DispatchOptions{Agent: AgentCodex, Prompt: "p", Wrap: wrap})
+	if err != nil || !strings.HasPrefix(line, "env -C /box codex exec") {
+		t.Fatalf("dry-run line %q (err %v) does not show the wrap", line, err)
+	}
+}
+
+// #204 close review BR-1: only an isolated dispatch tells the reviewer to
+// revert in place; an unisolated one (sdlc judge, the goldens) keeps the
+// scratch-copy instruction, so no reviewer in the operator's checkout is told
+// to mutate it.
+func TestRevertCheckFollowsIsolation(t *testing.T) {
+	for _, c := range []Category{MilestoneReview, SmallDiffReview, FixReview} {
+		plain := BuildPrompt(c, PromptInput{IssueRef: "r#1"})
+		isolated := BuildPrompt(c, PromptInput{IssueRef: "r#1", Isolated: true})
+		if !strings.Contains(plain, "revert the fix in a scratch\n    copy") || strings.Contains(plain, "disposable checkout") {
+			t.Errorf("%s: an unisolated prompt must keep the scratch-copy instruction", c)
+		}
+		if !strings.Contains(isolated, "you run in a disposable checkout") || strings.Contains(isolated, "in a scratch\n    copy") {
+			t.Errorf("%s: an isolated prompt must say where to revert", c)
+		}
 	}
 }

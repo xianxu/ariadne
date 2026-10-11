@@ -1510,6 +1510,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 	}
 	if review.Output != "" && review.SidecarPath == "" && p.PlansDir != "" {
 		p.Agent = review.Agent
+		p.Isolation = review.Isolation
 		if path, werr := writeReviewSidecar(p, string(review.Verdict), review.Output, nowRFC3339()); werr != nil {
 			cwarn(stderr, fmt.Sprintf("review sidecar not written: %v", werr))
 		} else {

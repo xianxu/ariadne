@@ -89,7 +89,7 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"milestone-close"},
 		Class:         NonRepeatable,
-		Effects:       "dispatches the boundary review (a new round in the issue's gate ledger and review sidecar); on a finalizing verdict ticks the milestone and logs it. No commit and no card write: the agent commits with the printed trailers. Then pushes the issue branch as it stands, with a lease (#286; the trailer commit goes up at the next boundary; a failed push warns).",
+		Effects:       "dispatches the boundary review in a disposable checkout of the pinned head, removed when the reviewer exits (#204; a new round in the issue's gate ledger and review sidecar, recording its isolation); on a finalizing verdict ticks the milestone and logs it. No commit and no card write: the agent commits with the printed trailers. Then pushes the issue branch as it stands, with a lease (#286; the trailer commit goes up at the next boundary; a failed push warns).",
 		Evidence:      observeEvidence + ": checkpoints.reviews[Mx] (verdict, open_blocking).",
 		Preconditions: "owned by this workspace; measured actual; the milestone's window since the previous verdict; the branch contains main's code landed by the most recent noon (#269, refused before any review; --no-integrate).",
 		Repeat:        "dispatches a new review round. A refused (REWORK/open blocking) close changes nothing durable but the ledger; fix and re-run.",
@@ -100,13 +100,14 @@ var Catalog = []Contract{
 			{"REWORK does not finalize; SHIP finalizes", []string{"TestRunMilestoneClose_REWORK_DoesNotFinalize", "TestRunMilestoneClose_SHIP_Finalizes"}},
 			{"a branch missing main's code from before the last noon refuses with the merge remedy when pushed; the remedy then passes (#269)", []string{"TestIntegrateGate_PushedStaleRefusesWithMerge", "TestMilestoneCloseForwardsNoIntegrate"}},
 			{"an issue changed during the review does not finalize", []string{"TestCloseCommands_IssueChangedDuringBoundaryReview_DoesNotFinalize"}},
+			{"the reviewer runs in a fresh checkout per round, removed on success, failure and interruption; the source stays untouched (#204)", []string{"TestBoundaryReviewRunsInDisposableCheckout", "TestBoundaryReviewCheckoutIsRemovedOnFailureAndCancellation", "TestBoundaryReviewRoundsGetFreshCheckouts"}},
 			{"its verdict and scoped open findings are observable", []string{"TestObserveMilestonesThroughTheRealGates"}},
 		},
 	},
 	{
 		Verbs:         []string{"close"},
 		Class:         NonRepeatable,
-		Effects:       "dispatches the whole-issue review; on SHIP, behind a recovery receipt: an evidence commit on the branch, codecomplete on the card bound to it {token, reviewed head, evidence commit}, then a mirror commit, then a leased push of the issue branch (#286; a failed push warns). FIX-THEN-SHIP stores the receipt unstarted. --fixed-then-ship (#183) runs the fix-review recipe over the interdiff since the last finalized close review instead of the branch patch, then records exactly as a close does; it supersedes an unstarted FIX-THEN-SHIP receipt.",
+		Effects:       "dispatches the whole-issue review in a disposable checkout of the pinned head, removed when the reviewer exits (#204); on SHIP, behind a recovery receipt: an evidence commit on the branch, codecomplete on the card bound to it {token, reviewed head, evidence commit}, then a mirror commit, then a leased push of the issue branch (#286; a failed push warns). FIX-THEN-SHIP stores the receipt unstarted. --fixed-then-ship (#183) runs the fix-review recipe over the interdiff since the last finalized close review instead of the branch patch, then records exactly as a close does; it supersedes an unstarted FIX-THEN-SHIP receipt.",
 		Evidence:      observeEvidence + ": completion (token, evidence_commit), checkpoints.reviews[close]; `sdlc issue recovery list`.",
 		Preconditions: "on the issue branch; owned by this workspace; no unfinished close in progress (finish it with `sdlc issue recovery reconcile --issue N`); the branch contains main's code landed by the most recent noon (#269, refused before any review; a failed fetch only warns; --no-integrate).",
 		Repeat:        "a new review and a new close generation that rebinds the card; the earlier evidence commit stays in history. Do not re-run to recover — reconcile.",
@@ -123,6 +124,7 @@ var Catalog = []Contract{
 			{"--fixed-then-ship reviews only the post-close interdiff, rebinds the card and passes the publish gate; REWORK publishes nothing; it refuses without a finalized close review (#183)", []string{"TestFixedThenShip_PostCloseFixPublishes", "TestFixedThenShip_AfterFixThenShipVerdict", "TestFixedThenShip_RefusesWithoutACloseReview"}},
 			{"an interrupted mirror commit is finished by reconcile", []string{"TestReconcileRetriesAnInterruptedCloseMirror"}},
 			{"preconditions refuse before the review runs", []string{"TestTrackerCloseRefusesPreconditionsBeforeReview", "TestOwnershipGatesRefuseForeignAndUnknown"}},
+			{"the reviewer runs in a fresh checkout per round, removed on success, failure and interruption; the source stays untouched (#204)", []string{"TestBoundaryReviewRunsInDisposableCheckout", "TestBoundaryReviewCheckoutIsRemovedOnFailureAndCancellation", "TestBoundaryReviewRoundsGetFreshCheckouts"}},
 		},
 	},
 	{

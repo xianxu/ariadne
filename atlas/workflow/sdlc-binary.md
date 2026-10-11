@@ -923,6 +923,68 @@ retried. Every contract carries `UnattendedRule` (foreground
 only, no notifications). Output that isn't a stream reads as plain text, as
 before.
 
+**The reviewer runs in a disposable checkout (#204).** Every close and
+milestone boundary review round runs its reviewer in a fresh shared clone of the
+pinned Head (`internal/reviewbox`). It is made by `git clone --shared
+--no-checkout`, then `remote remove origin`, then `checkout --detach <head>`.
+Objects are read through alternates. Refs, config, index and hooks are the
+clone's own, and it has no remote back to the source. The live issue and plan
+files are overlaid at their paths, since they can be uncommitted at close. The
+prompt's `repository root:` and its `git -C` recipes name the clone, and only
+such an isolated prompt (`PromptInput.Isolated`) tells the reviewer to revert
+in place. `sdlc judge` and plan reviews still run in the caller's checkout and
+keep the scratch-copy instruction. A no-verdict retry resets the clone first
+(`DispatchOptions.BeforeRetry` → `Checkout.Reset`), so attempt 2 never reads
+attempt 1's mutations. The process is one argv transform shared by every
+agent (`Isolation.Wrap`, applied through `judge.DispatchOptions.Wrap`):
+
+    [sandbox-exec -p <profile> | bwrap --ro-bind …] env -C <clone> <agent> …
+
+The write fence is a deny list over every worktree of the source repository
+(the reviewed slot, `:0`, sibling slots) and its git common dir. Paths are
+canonicalized, since macOS `/var` and `/tmp` are symlinks. On macOS the fence
+is Seatbelt; on Linux it is `bwrap --ro-bind`. Under the fence, each agent's
+own sandbox is turned off (`DispatchOptions.Fenced`: claude `--settings`
+sandbox disabled, codex `--sandbox danger-full-access`, gemini
+`--sandbox=false`). Seatbelt cannot nest, so one outer fence is what gives the
+three agents the same writable scope.
+
+That scope is wider than the agents' own sandboxes in one direction: HOME and
+other repositories stay writable, because agents write their own state there.
+It is narrower where it matters, since the reviewed repository and all its
+worktrees are fenced.
+
+`reviewbox.Probe` reports a fence only after seeing it work. Through the same
+`Wrap`, it must write an allowed scratch directory and be refused a protected
+one, so every `fenced` round had a live denial behind it. When the probe fails,
+the round degrades to the clone alone, with a warning. Inside Claude Code's
+Bash sandbox, where slot agents run sdlc, `sandbox_apply` is refused, so
+those rounds run clone-only. The ledger round's `isolation:` and the
+sidecar's `| isolation |` row record `fenced` or `checkout`. Degrading was the
+TL's decision on #204. `--dry-run` prints the wrapped command with a
+`<review-checkout>` placeholder.
+
+Lifecycle: `<WF_REVIEW_CHECKOUT_ROOT | user cache dir/sdlc/review-checkouts>/<id>/`
+plus `<id>.lock`.
+- The lock is flocked as `<id>.lock.tmp` and renamed into place, and held for
+  the round.
+- `dispatchBoundaryReview` removes both in a defer once the reviewer has
+  exited. Success, reviewer failure, timeout and interruption (SIGINT/SIGTERM
+  via the CLI context) all unwind through it. The review text is in memory by
+  then.
+- If the clone can't be removed, its lock file stays (only the flock drops),
+  so a later sweep retries.
+- Each dispatch first sweeps the root, best effort: an unheld lock or
+  `.lock.tmp` means a dead owner. It removes that checkout, along with any
+  lockless directory, restoring write permission on read-only trees. The
+  kernel drops the flock with its holder, so there is no pid-reuse guess.
+  Entries it cannot remove are warned about and skipped, never a reason to
+  refuse the review.
+- What a SIGKILLed sdlc cannot do is reap its reviewer, which ends with its
+  own turn.
+
+Bound: one clone per live review, plus whatever the sweep has warned about.
+
 **Dispatch progress heartbeat (#140).** A boundary review can run silently for
 minutes; `internal/judge.Dispatch` now emits a heartbeat to `opts.Stderr` every
 `heartbeatInterval` (30s) while the agent subprocess runs — elapsed + agent +
@@ -1286,7 +1348,7 @@ ARCH-PURE, ARCH-MOCK).
 note (base detected via `construct/base.manifest`); these are passed as plain
 strings into the pure `internal/judge` layer (`PromptInput` → `code-review.md`
 header), keeping git IO at the cmd boundary (ARCH-PURE). Computed once in the
-shared `boundaryReviewDispatchOptions` (ARCH-DRY); the same derivation feeds the
+shared `boundaryReviewOptionsFor` (ARCH-DRY); the same derivation feeds the
 sidecar H1.
 
 **Two-phase close, finalize-after-verdict (#139).** `sdlc close` and
