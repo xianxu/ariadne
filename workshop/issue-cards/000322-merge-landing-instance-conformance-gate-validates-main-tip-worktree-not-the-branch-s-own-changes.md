@@ -1,10 +1,19 @@
 ---
 id: 000322
-status: working
+status: codecomplete
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
 github_issue:
+started: 2026-10-10T17:46:02-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+actual_hours: 0.47
 tracker:
     version: 1
     handoff:
@@ -17,14 +26,11 @@ tracker:
         source_blob: 9406624d2af7ddbfbb2f3909175d3df79ade6244
         destination: workshop/issues/000322-merge-landing-instance-conformance-gate-validates-main-tip-worktree-not-the-branch-s-own-changes.md
         main_commit: 368314170c805e8be5280e6c8e4ba323e0a9e792
-started: 2026-10-10T17:46:02-07:00
-claimant:
-    operator: Xian Xu
-    machine: 4716879978a7b90f6b583da1716fd0e9
-    machine_name: MacBook Pro
-    workspace: ariadne:2
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
-    repository: github.com/xianxu/ariadne
+    completion:
+        token: close-8aaec6f38689
+        repository: github.com/xianxu/ariadne
+        reviewed_head: dfa7d125af64faf13feb320e0cd95e1328337862
+        evidence_commit: 4bfb5cd0f962e6b1c1eeea478f95d71a3f874a5d
 ---
 
 # merge: landing instance-conformance gate validates main-tip..worktree, not the branch's own changes
