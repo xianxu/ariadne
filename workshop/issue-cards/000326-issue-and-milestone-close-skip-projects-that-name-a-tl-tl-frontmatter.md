@@ -1,6 +1,6 @@
 ---
 id: 000326
-status: codecomplete
+status: done
 created: 2026-10-10
 updated: 2026-10-11
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f221a2aeb46970dd8c97b0295d10bcce39f20a8a
         evidence_commit: f3baa4f61a9e4cdf012610e390e3d90363bba79c
+        landed_commit: 60c8a315805a9f0d64b75e905cd5071ebcc04b96
 ---
 
 # Issue and milestone close skip projects that name a TL (tl: frontmatter)
