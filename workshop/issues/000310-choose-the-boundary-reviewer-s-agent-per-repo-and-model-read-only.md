@@ -1,12 +1,20 @@
 ---
 id: 000310
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-09
-updated: 2026-10-09
+updated: 2026-10-11
 estimate_hours:
-card_mirror: '097855c3a3a0bfe93096cc9878b1a06b1225dbda' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '48ea532cecf1488eff351a5f46e2d7a2dbd6bd35' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-11T08:51:05-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Choose the boundary reviewer's agent per repo, and model read-only
@@ -37,6 +45,38 @@ Reviewers have mutated the checkout, e.g. left it detached, so close refused (ev
 - `sdlc close --help` documents the config.
 
 ## Plan
+
+Design (2026-10-11, ariadne:2):
+
+- **Config.** `workshop/review.json` (repo-local, like `issue-tracker.json`; not base-layer):
+  `{"boundary_reviewer": "same" | "other" | "explicit", "reviewer_pairs": {"claude": "codex", …}}`.
+  Absent file = `same`. A malformed file or unknown mode/agent makes the boundary review
+  *not run* with a named error (the close halts), never a silent `same`.
+- **Resolution** (pure, `judge.ReviewerPolicy`): `--agent`, then `AGENT_CMD` stay operator
+  overrides above the policy. Otherwise the *main* agent is detected as today
+  (`PAIR_AGENT`, codex env, claude env, claude) and the policy maps it: `same` → itself;
+  `other` → claude↔codex, gemini→claude; `explicit` → `reviewer_pairs[main]`, else itself.
+  `ResolveAgentCLI` becomes the `same` case of it (ARCH-DRY). Scope: the boundary review
+  (close + milestone-close); plan-quality/`sdlc judge` keep `same`.
+- **Ledger.** The round already stamps the resolved reviewer (`Agent`); the dispatch line
+  names the policy (`via codex (reviewer: other of claude)`). No new ledger field.
+- **Read-only.** `DispatchOptions.Fenced bool` + `IsSandbox` auto-approve become one
+  `Containment` (none / checkout / fenced) mapped per agent; no auto-approve flag for any
+  judge:
+  - claude: `--permission-mode dontAsk` (only `--allowedTools` run; Edit/Write are refused),
+    never `bypassPermissions`; fenced keeps its own sandbox off (can't nest).
+  - codex: none → `--sandbox read-only`; checkout → `--sandbox workspace-write` (cwd is the
+    disposable clone); fenced → `danger-full-access` under the OS fence. Never `--full-auto`.
+  - gemini: never `--yolo` (headless refuses tools needing approval); fenced → `--sandbox=false`.
+  - `--sandbox` on `sdlc judge`/`change-code` is deprecated (hidden, no effect).
+- ARCH-FUNERAL: creates nothing durable — one optional repo config file, owned by the operator.
+
+- [ ] `judge.ReviewerPolicy` + `ResolveReviewerCLI`, unit tests (same/other/explicit/overrides)
+- [ ] `workshop/review.json` loader + validation, tests (absent, other, explicit, malformed)
+- [ ] `Containment` argv mapping replaces Fenced/IsSandbox; argv tests per agent × level
+- [ ] Wire boundary review: policy from the source root; integration test: claude main + `other` → codex dispatched, ledger round `Agent: codex`, and vice versa
+- [ ] Help: close.md / milestone-close.md document the config; atlas (sdlc-binary, openshell-sandbox)
+- [ ] Live check: claude `dontAsk` reviewer asked to Write is refused
 
 ## Log
 
