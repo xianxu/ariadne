@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing.md
         source_blob: c95ddf7f8da3eb3f8fb3bac2807c0d2aa67012d1
         destination: workshop/issues/000332-sdlc-merge-integrates-a-moved-main-itself-then-re-runs-the-suite-before-landing.md
+        main_commit: 7c3cf44e20946bc0f5a0e3150dfd51b4c480e93d
 ---
 
 # sdlc merge integrates a moved main itself, then re-runs the suite before landing
