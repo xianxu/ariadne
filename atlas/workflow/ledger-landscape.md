@@ -73,6 +73,10 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
   excludes them (`LedgerRow.ExcludedFromCalibration`, read by the one `calibratable`
   test), while throughput keeps their hours. Each appended block is parsed by its OWN
   width (`costCols` for #187), so widening the header never zeroes an older row's metrics.
+- *#202 appended block (indices 28–29):* `gate_disputed` (plan gate, beside
+  `gate_addressed` / `gate_withdrawn`) and `boundary_disputed` (the boundary review) —
+  findings settled by an implementer's `sdlc finding dispute` rather than a fix. The
+  dispute is the gates' escape hatch; these columns are how its use shows up in history.
 - *Cut-over (#231):* `churn_test` now also counts the fleet's non-Go test layouts (Lua
   `*_spec.lua`, Python, JS/TS, shell `*.test.sh`, `test/` / `tests/` / `spec/` dirs).
   Rows before and after #231 are not comparable on `churn_prod` / `churn_test` for

@@ -114,7 +114,9 @@ MODES
   stable ids (`BR-1`, `BR-2`, …), and the next review is shown them and must
   dispose of each — `addressed`, `not-addressed`, or `withdrawn` — before
   raising anything new. That is what stops a re-run renumbering the same
-  finding forever.
+  finding forever. The implementer's answer is `sdlc finding dispute` (#202):
+  a rationale plus a counter-measurement, which the next review must withdraw
+  the finding over or re-raise it against.
 
   A MILESTONE review is shown its own boundary's findings. The WHOLE-ISSUE
   close is shown ALL of them, from every milestone: it is the last gate before

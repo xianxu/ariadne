@@ -20,9 +20,10 @@ WHAT IT DOES TO THE GATE.
     the judge, but keeps blocking until the judge withdraws it.
   - The next review round lists each live dispute with its rationale and
     evidence. The judge answers it: `withdrawn` (the evidence holds) or
-    `not-addressed` (re-raised; the finding blocks again, and you may fix it
-    or dispute it again with new evidence). A dispute it leaves unanswered
-    stands.
+    `not-addressed` (re-raised; the finding blocks again, and you fix it —
+    the CLASS it names, not the site: ARCH-PURPOSE (`sdlc arch-principles`)
+    — or dispute it again with new evidence). A dispute it leaves
+    unanswered stands.
   - It is loud. This verb warns, every gate line reports "N of M finding(s)
     settled by implementer DISPUTE, not a fix", and `sdlc close` records the
     counts in the calibration ledger (gate_disputed, boundary_disputed).

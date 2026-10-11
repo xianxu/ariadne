@@ -1,12 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gatestate"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // disputeReady is closeReady plus a committed boundary ledger raising BR-1 (Important)
@@ -161,4 +163,41 @@ func findingIDs(fs []gatestate.Finding) []string {
 		out = append(out, f.ID)
 	}
 	return out
+}
+
+// #202: every ledger-gate refusal tells the fixer the dispute exists — one subtest per
+// site, each driven end-to-end, so removing the line at any one site fails here.
+func TestLedgerGateRefusalsRouteToDispute(t *testing.T) {
+	const fence = "```findings\nfindings:\n  - id: new\n    severity: Important\n    title: |\n      the byte path is unasserted\n```\n"
+
+	t.Run("plan-quality ledger block", func(t *testing.T) {
+		testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir()) // the ledger write takes the repo lock
+		stubJudgeSeq(t, "VERDICT: FINDINGS (confidence: high)\n\n"+fence)
+		var stderr bytes.Buffer
+		f := &changeCodeFlags{PlansDir: t.TempDir()}
+		if err := runPlanQualityJudge(&bytes.Buffer{}, &stderr, f, "issue", "000001-issue.md", "## Spec\n\nx", ""); err == nil {
+			t.Fatal("expected the plan-quality ledger to block")
+		}
+		if !strings.Contains(stderr.String(), disputeLine()) {
+			t.Errorf("plan-quality refusal lacks the dispute route:\n%s", stderr.String())
+		}
+	})
+
+	for _, c := range []struct{ name, verdict string }{
+		{"boundary SHIP with an open Important", "VERDICT: SHIP (confidence: high)"},
+		{"boundary REWORK", "VERDICT: REWORK (confidence: high)"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			t.Setenv("WF_PLANS_DIR", "")
+			closeReady(t, 374)
+			stubJudgeSeq(t, c.verdict+"\n\n"+fence)
+			_, stderr, err := executeSDLCTestCommand("close", "--issue", "374", "--verified", "e2e", "--actual", "1", "--no-atlas")
+			if err == nil {
+				t.Fatal("expected the close to refuse")
+			}
+			if !strings.Contains(stderr, disputeLine()) {
+				t.Errorf("close refusal lacks the dispute route:\n%s", stderr)
+			}
+		})
+	}
 }
