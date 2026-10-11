@@ -1419,7 +1419,9 @@ owns its richer toolchain (Homebrew/GPG/gh/…) separately.
 `make test` (`scripts/test-shard.py`) is the full run: it compiles the
 `cmd/sdlc` test binary once and splits its top-level tests over one process per
 core, balanced from the last run's per-test times
-(`<git-common-dir>/sdlc-test-timings.json`), with the other packages alongside.
+(`<git-common-dir>/sdlc-test-timings.json`), with every other package in the module
+(cmd/weave, pkg/…, the other tools) alongside in one `go test` (#330; before, only
+`cmd/sdlc/...` ran, and a cmd/weave hang went unseen).
 `cmd/sdlc`'s tests change cwd and swap package seams, so they cannot run in
 parallel inside one process; separate processes share neither. About 4 minutes
 against about 25 serially. Plain `go test ./cmd/sdlc/...` still works but runs
@@ -1433,6 +1435,11 @@ package needs the same `TestMain`
 (`TestGitDrivingPackagesPreferRealGit` fails without it). The in-memory git fake that would make a
 fast inner-loop tier is #261; the single git seam it and in-process parallelism
 need is #262.
+
+Cancellation tests prove a descendant stopped with `testfix.AwaitExit(pid, ceiling)`,
+which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instead of
+running `ps`: agent sandboxes deny exec of `/bin/ps` (#330). It waits, because a
+group SIGKILL lands asynchronously after the runner returns.
 
 ### One full suite per machine (#319)
 
@@ -1482,6 +1489,11 @@ flags:
   and `WF_TEST_LOCK_TIMEOUT` gives up as "a lock wait, not a test failure".
 - **Under `make test`:** `WF_TEST_LOCK_HELD_BY` makes the gate stand aside, because
   the suite has its own lock and shards.
+- **Nested helpers (#330):** `Enter` exports `WF_TEST_GATE_HELD_BY=<pid>`, so a test
+  binary the gated one starts (a re-exec'd `os.Args[0] -test.run=…` helper) stands
+  aside under its ancestor's slot. Gated again, it would queue behind its own
+  parent's slot with no `-test.timeout`, so with no wait budget, and hang (cmd/weave's
+  `TestCompileRecoversAfterProcessDeathDuringGeneration` did, for 22 minutes).
 
 **Waits are invisible on a pass.** In package-list mode (`go test ./pkg/…`), `go`
 drops a passing binary's output, so the `[test-gate] waiting … held by …` lines

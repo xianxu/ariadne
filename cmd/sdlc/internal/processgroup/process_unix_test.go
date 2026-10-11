@@ -10,10 +10,11 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestCancellationKillsDescendants(t *testing.T) {
@@ -76,15 +77,8 @@ func TestCancellationKillsDescendants(t *testing.T) {
 		t.Errorf("parent not reaped: %v", err)
 	}
 	// An orphan zombie may await the system reaper, but must not be running.
-	state, err := exec.Command("ps", "-o", "stat=", "-p", strconv.Itoa(child)).Output()
-	if err != nil {
-		var exit *exec.ExitError
-		if !errors.As(err, &exit) || exit.ExitCode() != 1 {
-			t.Fatalf("inspect child: %v", err)
-		}
-	}
-	if stat := strings.TrimSpace(string(state)); stat != "" && !strings.HasPrefix(stat, "Z") {
-		t.Errorf("descendant survived cancellation: %s", stat)
+	if err := testfix.AwaitExit(child, 2*time.Second); err != nil {
+		t.Errorf("descendant survived cancellation: %v", err)
 	}
 }
 

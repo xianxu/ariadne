@@ -45,9 +45,10 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
 ## Plan
 
 - [x] Baseline: `make test` ×2 on the issue branch (= main + this body), plus the Go packages `make test` never runs.
-- [ ] Sandbox failure: replace the three `ps -o stat=` probes (processgroup, judge ×2) with one exec-free helper in `testfix`.
+- [x] Sandbox failure: replace the three `ps -o stat=` probes (processgroup, judge ×2) with one exec-free helper in `testfix` (`AwaitExit`).
 - [ ] Load-sensitive deadline failures: point at #325 (add the new instance to its Log), no duplicate fix here.
-- [ ] Coverage gap: `make test` runs only `cmd/sdlc/...`; decide whether it runs `./...`.
+- [x] Coverage gap: `make test` runs only `cmd/sdlc/...` → its `packages` job now runs every module package.
+- [x] Fix the testgate self-deadlock the widened run exposed (nested helper binaries).
 - [ ] CI decision recorded; job added or filed.
 - [ ] `make test` green ×2 with wall time + shard count in the Log.
 
@@ -68,4 +69,25 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
     load-sensitive deadline family; recorded on #325 rather than fixed here.
 - `make test` covers only `go list ./cmd/sdlc/...`. cmd/weave (14 pkgs), pkg/* (6), cmd/datatype, cmd/doc-review,
   cmd/vocabulary have no suite entry point; run separately here.
+- Non-sdlc packages, run once by hand (`go test -count=1 -timeout 30m`, gated): all pass except **cmd/weave, which
+  hung**: `TestCompileRecoversAfterProcessDeathDuringGeneration` sat 22m18s in `CombinedOutput` on its re-exec'd
+  helper until the 30m timeout. Root cause in `pkg/testgate` (#324): the helper is the same test binary, so its
+  `TestMain` calls `Enter()` again; it carries no `-test.timeout`, so its wait budget is 0 = unbounded, and it queues
+  behind full suites and slots, including the slot its own parent holds (reproduced with `WF_TEST_GATE_SLOTS=1`:
+  the child waits on the parent's pid). Under `make test` `WF_TEST_LOCK_HELD_BY` bypasses the gate, so only targeted
+  runs (agents' inner loop) hang. Fix: `Enter` exports `WF_TEST_GATE_HELD_BY=<pid>`; a descendant stands aside under
+  its ancestor's slot. New `TestNestedHelperStandsAside` failed before (child killed at 10s, waiting on the parent),
+  passes after; the weave test then passes (151s, of which ~150s was the gate's quarter-timeout wait behind a suite).
+  Other re-exec helpers covered by the same fix: cmd/weave generator_lifetime, staging, weavefs, release, plan;
+  cmd/sdlc cli_signal, judge cancellation.
+- `ps` probes → `testfix.AwaitExit(pid, 2s)`: kernel query (sysctl `kern.proc.pid` via `golang.org/x/sys/unix` on
+  darwin, `/proc/<pid>/stat` on linux, `ps` fallback elsewhere). Making the probe actually work exposed a second
+  latent bug: the two judge checks failed immediately, because a group SIGKILL lands asynchronously after `Run`
+  returns and the old `ps` spawn (~10ms) hid that race. So it is a condition wait with a ceiling (#325's pattern),
+  not an instant probe. Mutation check: `Kill(pid)` instead of `Kill(-pgid)` in processgroup fails all three sites
+  ("pid N still running after 2s"), sandboxed — the judge ones used to pass silently there.
+- New dependency `golang.org/x/sys` (v0.47.0, test-only use): the stdlib exposes no kinfo_proc sysctl, and
+  exec-free inspection is the point.
+- `make test` widened from `go list ./cmd/sdlc/...` (21 pkgs) to `go list ./...` minus the sharded cmd/sdlc
+  package: the cmd/weave hang above was invisible to every "green" suite. Cost measured below.
 

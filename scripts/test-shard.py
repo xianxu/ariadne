@@ -7,7 +7,9 @@
 # cmd/sdlc's tests cannot run in parallel inside one process: they change the
 # working directory and swap package-level seams. Separate processes share
 # neither, so this compiles the cmd/sdlc test binary once, splits its top-level
-# tests over N processes, and runs the other cmd/sdlc/... packages alongside.
+# tests over N processes, and runs every other package in the module alongside
+# (cmd/weave, pkg/..., the other tools: #330 found a hang that only ran outside
+# this suite).
 #
 # Shards are balanced longest-first (LPT) from the previous run's per-test
 # times, kept in <git-common-dir>/sdlc-test-timings.json: overwritten by every
@@ -114,7 +116,7 @@ def main() -> int:
 
 
 def git_list(root):
-    out = subprocess.check_output(["go", "list", "./cmd/sdlc/..."], cwd=root, text=True)
+    out = subprocess.check_output(["go", "list", "./..."], cwd=root, text=True)
     return out.split()
 
 
