@@ -8,7 +8,7 @@
 //	REPLAY_ISSUE_NUM=263 REPLAY_OUT=$TMPDIR/sd-263-r1.md \
 //	  go test ./cmd/sdlc -tags manual -run TestReplaySmallDiff -v -timeout 30m
 //
-// It builds the dispatch through boundaryReviewDispatchOptions — the path close
+// It builds the dispatch through boundaryReviewOptionsFor in a real review checkout — the path close
 // takes — with Category set to the small-diff recipe, so the prompt, the pinned
 // review window and the tool allowlist are exactly what a quick-flow close sends.
 // It does not touch any ledger: this is an aim check on the recipe, not a gate.
@@ -42,11 +42,21 @@ func TestReplaySmallDiff(t *testing.T) {
 		return strings.TrimSpace(string(b))
 	}
 	baseLong, headLong := full(base), full(head)
-	opts, ok, why := boundaryReviewDispatchOptions(io.Discard, os.Stderr, boundaryReviewParams{
+	p := boundaryReviewParams{
 		Label: "#" + strconv.Itoa(num), Base: base, BaseLong: baseLong, Head: headLong,
 		IssuesDir: "workshop/issues", IssueNum: num, PlansDir: "workshop/plans",
 		Category: judge.SmallDiffReview,
-	})
+	}
+	manifest, why := boundaryReviewManifest(p)
+	if why != "" {
+		t.Fatalf("review manifest: %s", why)
+	}
+	checkout, iso, err := openReviewIsolation(os.Stderr, manifest)
+	if err != nil {
+		t.Fatalf("review checkout: %v", err)
+	}
+	defer checkout.Close()
+	opts, ok, why := boundaryReviewOptionsFor(io.Discard, os.Stderr, p, manifest, &iso)
 	if !ok {
 		t.Fatalf("dispatch options: %s", why)
 	}

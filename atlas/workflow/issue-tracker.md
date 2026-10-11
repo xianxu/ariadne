@@ -27,15 +27,25 @@ a structured vocabulary kind (`issue.cue`), mirrored into details like every
 card field.
 - **Record:** operator (git `user.name`), machine (a keyed SHA-256
   fingerprint of the OS machine ID; the raw ID is never published), a readable
-  machine name, an optional slot label, the canonical worktree, and the
+  machine name, an optional home slot, the canonical worktree, and the
   repository.
 - **Pure core:** `internal/issue/claimant.go` holds parsing and validation,
   which fail closed on unknown keys, non-strings and raw IDs. It also holds
   `MatchClaimant`, `RelocationAllowed` and `MachineFingerprint`.
 - **IO seam:** `cmd/sdlc/claimant.go` provides `claimantIdentity`.
-- **Ownership** is the same repository, machine and worktree. Operator and
-  slot label are descriptive, and the slot label is recorded only where the
-  slot layout is in use, so Ariadne needs neither slots nor Couch.
+- **Ownership** is the same slot on the same machine (#307). The home slot is
+  `workspace.Identity.HomeSlot()`: the environment's host, so pair:1's
+  dependency clone of ariadne (`pair-slot1/ariadne`) records and matches
+  `pair:1`, and any of the slot's checkouts continues its claims. It rides in
+  the existing `workspace` key, so older binaries still parse the card and
+  still match on the worktree. When either side has no slot (a plain clone, or
+  a card that recorded none), the same repository, machine and worktree
+  decide, so Ariadne needs neither slots nor Couch. Operator, repository and
+  worktree are otherwise descriptive. A slot address is unique per fleet, so
+  two fleet roots on one machine with same-named slots (`ariadne:1` in each)
+  share ownership; run one fleet per machine. `sdlc fleet` still places a
+  claim on the checkout it recorded and calls it dangling once that checkout
+  is gone, even while the slot owns it.
 - **No extra fields:** there is no claim ID or timestamp. Git history and the
   card blob already order claims.
 
@@ -317,8 +327,8 @@ internal envelope, never mirrored) makes a rerun of `move-detail` a no-op.
 *published* details: any details file main's history has touched, archived
 copies included. PR, push, merge and durable landing compute the prospective
 merge of fresh main and HEAD. Each details file it changes must be changed
-from the owner's checkout (the card's claimant, matched on repository, machine
-and worktree) and from a branch that contains main's last commit to that file
+from the owner's checkout (the card's claimant: the same slot and machine,
+#307) and from a branch that contains main's last commit to that file
 (`detailsVerdict`). Branch names and the handoff record play no part, so a
 renamed close branch (pair#365) or a reopened issue lands from its owner. A
 non-owner is offered `sdlc issue restore --issue N`, which makes every copy of

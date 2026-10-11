@@ -29,6 +29,7 @@ A project is where the Phase-A calibration loop closes: referenced issues carry 
 | `deadline` | required for committed/executing/paused | ISO date. The time-bound baseline set by the `defined` → `committed` transition. Not required for `done` — a record archived from the pre-baseline era may lack it (#171). |
 | `planned_finish` | required for committed/executing/paused | ISO date. The committed forecast paired with `deadline`. Not required for `done` (see `deadline`). |
 | `operator` | optional | Persona / name of the single human running this project. Default = self. **Exactly one** — see Single-operator discipline below. |
+| `tl` | optional | The TL driving the project: a slot handle (`xian-xu@ops:0`) or a list of them. A TL-owned project is written only by its TL: `sdlc close` and `milestone-close` skip it entirely (no tick, no detail block, no review snapshot) and print an info line, so workers report landings to the TL instead (ariadne#326). |
 | `mvp_scope` | optional | List of issue refs (`[<repo>#<id>, ...]`) declared in MVP at project start. Anchors what counts as "done." |
 | `explicitly_out` | optional | List of issue refs deliberately excluded from MVP. The conversation about what's *out* is more useful than the in-list — record it here. |
 | `created` | yes | ISO date. |

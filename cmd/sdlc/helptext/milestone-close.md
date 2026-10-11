@@ -10,7 +10,8 @@ WHAT IT DOES
 
   1. Runs the mechanical milestone close:
      - ticks the `- [ ] Mx — ...` item in ## Plan
-     - updates the project file's task row + detail block (if any)
+     - updates the project file's task row + detail block (if any); a
+       TL-owned project (`tl:` frontmatter, #326) is skipped, not edited
      - appends a verification log entry
      - refuses without --actual / --verified (unless --force)
      - refuses if atlas/ wasn't touched in the window (unless --force);
@@ -40,7 +41,10 @@ WHAT IT DOES
        unified patch stays in Git instead of entering the agent argv/prompt
      - Snapshots every mutable prose artifact named to the unlocked reviewer;
        issue/project/plan edits or plan presence changes refuse finalization
-     - Invokes the configured agent (claude by default)
+     - Invokes the configured agent (claude by default) inside a disposable
+       shared clone of the pinned head, under an OS write fence on the source
+       checkout when one applies; clone-only (with a warning) where it cannot
+       nest. The round and sidecar record `isolation: fenced|checkout` (#204)
      - Routes harness diagnostics/progress to terminal stderr; verdict parsing
        and the durable `-m<x>-review.md` consume only the semantic final response
      - Surfaces findings + classifies clean / info / failure
@@ -153,3 +157,5 @@ THE GATE LEDGER (#194)
   WF_BOUNDARY_ROUND_CAP (default 3) bounds the rounds.
 
   See `sdlc close --help` for the full contract — it is the same gate.
+  The integrate gate (#269) runs here too, before the review: main's code
+  landed by the most recent noon must be in the branch (`--no-integrate`).

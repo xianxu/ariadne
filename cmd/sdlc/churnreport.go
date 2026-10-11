@@ -68,6 +68,7 @@ func churnForWindow(baseLong string) (churn.Report, error) {
 const (
 	dispAddressed = "addressed"
 	dispWithdrawn = "withdrawn"
+	dispDisputed  = gatestate.Disputed // #202
 )
 
 // closeCostMetrics is the cost picture of one close window: the churn split and the plan
@@ -79,7 +80,11 @@ type closeCostMetrics struct {
 	Forced    int
 	Addressed int
 	Withdrawn int
+	Disputed  int
 	Open      int
+	// BoundaryDisputed counts the boundary review's findings settled by implementer
+	// dispute (#202) — where disputes mostly land, so the abuse signal lives here.
+	BoundaryDisputed int
 	// Boundary is the boundary-review metadata for the calibration row (#234),
 	// read from the gate ledger after this close's own round persisted.
 	Boundary splitMeta
@@ -114,6 +119,8 @@ func closeMetrics(stderr io.Writer, f *closeFlags, res closeResult) closeCostMet
 		cwarn(stderr, fmt.Sprintf("boundary-review metadata not measured (%v)", err))
 	} else {
 		m.Boundary = rowSplitMeta(bl)
+		bc, _ := gatestate.DispositionCounts(bl)
+		m.BoundaryDisputed = bc[dispDisputed]
 	}
 	l, err := readPlanGateLedger(f.plansDir(), issueFile, f.Issue)
 	if err != nil {
@@ -127,7 +134,7 @@ func closeMetrics(stderr io.Writer, f *closeFlags, res closeResult) closeCostMet
 		}
 	}
 	counts, open := gatestate.DispositionCounts(l)
-	m.Addressed, m.Withdrawn, m.Open = counts[dispAddressed], counts[dispWithdrawn], open
+	m.Addressed, m.Withdrawn, m.Disputed, m.Open = counts[dispAddressed], counts[dispWithdrawn], counts[dispDisputed], open
 	return m
 }
 
@@ -144,8 +151,8 @@ func (m closeCostMetrics) ChurnLine() string {
 // addressed/withdrawn/open (did the findings get acted on) — because both are free from
 // the ledger and picking one would leave the other unanswerable.
 func (m closeCostMetrics) GateLine() string {
-	return fmt.Sprintf("plan gate: %d round(s), %d forced; findings %d addressed / %d withdrawn / %d still open",
-		m.Rounds, m.Forced, m.Addressed, m.Withdrawn, m.Open)
+	return fmt.Sprintf("plan gate: %d round(s), %d forced; findings %d addressed / %d withdrawn / %d disputed / %d still open",
+		m.Rounds, m.Forced, m.Addressed, m.Withdrawn, m.Disputed, m.Open)
 }
 
 // modelClosingDispositions returns the model's closing dispositions — the set the ledger

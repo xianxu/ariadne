@@ -63,6 +63,21 @@ func SlotPath(fleet, repo string, slot int) (string, error) {
 	return filepath.Join(env, repo), nil
 }
 
+// HomeSlot is the address of the slot whose environment holds id's checkout
+// (#307): the environment host for a slot, a dependency clone or a feature
+// worktree inside it (`pair-slot1/ariadne` is `pair:1`), and a primary's own
+// address where the slot layout is in use. Empty when there is none (a plain
+// clone, a fleet-level feature worktree). Claims are owned by this slot.
+func (id Identity) HomeSlot() string {
+	if h := id.EnvironmentHost; h != nil {
+		return Address{Repo: h.Repo, Slot: h.Slot}.String()
+	}
+	if id.Address == nil || !id.UsesSlotLayout() {
+		return ""
+	}
+	return *id.Address
+}
+
 // UsesSlotLayout reports whether id's checkout takes part in the numbered slot
 // layout: a slot itself, or a primary with at least one slot checkout beside it
 // (#277: a claim records a `repo:N` label only there; a plain clone has none).

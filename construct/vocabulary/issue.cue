@@ -197,7 +197,7 @@ lifecycle: [...#Transition] & [
 ]
 
 // ── ownership: the lock axis (#283), orthogonal to lifecycle. The card's
-// claimant (a slot: repository + machine + worktree) is the owner AND the lock;
+// claimant (a slot on a machine, #307) is the owner AND the lock;
 // status is lifecycle only. Ownership events change the owner, never the status.
 // Terminal statuses keep the last owner as attribution, never as a lock.
 // Scope: issue tracker repositories. A legacy repository has no claimant, so its

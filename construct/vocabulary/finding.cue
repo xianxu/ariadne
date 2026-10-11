@@ -39,11 +39,28 @@ hardBlocking: ["Critical"]
 // make the round validator accept it while the open-set computation had no case for it,
 // wedging the finding open forever.
 dispositions: {
-	closing: ["addressed", "withdrawn"] // the finding is settled; it stops blocking
-	open: ["not-addressed"]             // still open; it keeps blocking
+	closing: ["addressed", "withdrawn", "disputed"] // the finding is settled; it stops blocking
+	open: ["not-addressed"]                         // still open; it keeps blocking
 }
 
 #Disposition: or(list.Concat([dispositions.closing, dispositions.open]))
+
+// ── authority: WHO may assign each disposition (ariadne#202) ──
+// PARTITIONS the dispositions (a conformance test pins it). The judge disposes in its
+// findings fence; the implementer disposes through `sdlc finding dispute`. Without this
+// axis the only closing exit an implementer had was a fix, so a WRONG finding and a
+// correct-but-not-worth-it one both left by the round cap, unadjudicated. A judge fence
+// that emits an implementer disposition is a protocol error, exactly as an unknown id is.
+authority: {
+	judge: ["addressed", "withdrawn", "not-addressed"]
+	implementer: ["disputed"]
+}
+
+// appealOnly: severities an IMPLEMENTER disposition cannot settle. A dispute of one is
+// recorded and put to the next judge, but the finding keeps blocking until the judge
+// withdraws it. The hard-blocking set by reference, not a copy: what blocks past the round
+// cap is exactly what the implementer may not wave through themselves.
+appealOnly: hardBlocking
 
 // ── when: one-line semantics per severity (the documented-value source) ──
 when: {
@@ -57,6 +74,7 @@ whenDisposed: {
 	"addressed":     "the plan changed to satisfy this finding"
 	"not-addressed": "still open — the judge re-raises it this round"
 	"withdrawn":     "the judge retracts it (mistaken, or overtaken by a design change)"
+	"disputed":      "the implementer declines it with a rationale and a counter-measurement; it settles unless its severity is appeal-only, and the next judge answers it"
 }
 
 // ── discovery: where instances of this noun live. A gate ledger sidecar carries its

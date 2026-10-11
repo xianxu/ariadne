@@ -69,6 +69,12 @@ var runGitInContext = func(ctx context.Context, dir string, env []string, args .
 	return runGitInputContext(ctx, dir, env, nil, args...)
 }
 
+// RunGitContext runs `git <args>` in the current directory under ctx: cancellation
+// or a deadline terminates git's process group. stderr is returned for messages.
+func RunGitContext(ctx context.Context, args ...string) (stdout, stderr []byte, err error) {
+	return runGitInContext(ctx, "", nil, args...)
+}
+
 var runGitInputContext = func(ctx context.Context, dir string, env []string, input io.Reader, args ...string) (stdout, stderr []byte, err error) {
 	var out, errBuf bytes.Buffer
 	err = executeGitInputContext(ctx, dir, env, input, &out, &errBuf, args...)

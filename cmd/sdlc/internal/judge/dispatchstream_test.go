@@ -189,3 +189,29 @@ func TestReviewTimeout(t *testing.T) {
 		}
 	}
 }
+
+// #204 close review BR-2: the retry's attempt 2 starts only after BeforeRetry
+// (the checkout reset), never on attempt 1's tree; a failed reset stops the
+// dispatch with attempt 1 kept.
+func TestDispatchRunsBeforeRetryBetweenAttempts(t *testing.T) {
+	resets := 0
+	calls := fakeRuns(t, streamOut(t, "background_wait.jsonl"), streamOut(t, "clean.jsonl"))
+	_, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "review",
+		BeforeRetry: func() error {
+			if *calls != 1 {
+				t.Errorf("BeforeRetry ran after %d attempts, want 1", *calls)
+			}
+			resets++
+			return nil
+		}})
+	if err != nil || resets != 1 || *calls != 2 {
+		t.Fatalf("err %v, %d resets, %d dispatches", err, resets, *calls)
+	}
+
+	calls = fakeRuns(t, streamOut(t, "background_wait.jsonl"))
+	out, err := Dispatch(context.Background(), DispatchOptions{Agent: AgentClaude, Prompt: "review",
+		BeforeRetry: func() error { return errors.New("reset failed") }})
+	if err == nil || *calls != 1 || !strings.Contains(out, "I'll wait") || !strings.Contains(out, "not started: reset failed") {
+		t.Fatalf("err %v, %d dispatches, out:\n%s", err, *calls, out)
+	}
+}

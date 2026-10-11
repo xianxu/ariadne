@@ -38,6 +38,18 @@ type DispatchOptions struct {
 	// (#300: sized by ReviewTimeout); zero is the 30-minute default.
 	// WF_REVIEW_TIMEOUT, when set, overrides it.
 	Timeout time.Duration
+	// Wrap, when set, transforms the agent argv last (#204: run it inside a
+	// disposable checkout, under an OS write fence when one applies). It is
+	// applied in BuildArgs, so the dispatch and the --dry-run line agree.
+	Wrap func(name string, args []string) (string, []string)
+	// Fenced turns off the agent's own sandbox because an outer write fence
+	// replaces it: a Seatbelt sandbox cannot nest inside another (#204).
+	Fenced bool
+	// BeforeRetry, when set, runs before the no-verdict retry's attempt 2 (#204:
+	// it resets the review checkout, so attempt 2 never reads attempt 1's
+	// reverted or half-mutated tree). An error ends the dispatch with attempt 1's
+	// text kept.
+	BeforeRetry func() error
 }
 
 // ownerBinDir is the directory of the running sdlc binary — i.e. the owner
@@ -132,6 +144,18 @@ func runProcess(ctx context.Context, onStart func(pid int), name string, args ..
 // invoking the chosen agent. Exposed for tests + --dry-run callers
 // that want to print the would-be command line.
 func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
+	name, args, err = agentArgs(opts)
+	if err != nil || opts.Wrap == nil {
+		return name, args, err
+	}
+	name, args = opts.Wrap(name, args)
+	return name, args, nil
+}
+
+// fencedClaudeSettings turns off Claude Code's Bash sandbox under an outer fence.
+const fencedClaudeSettings = `{"sandbox":{"enabled":false}}`
+
+func agentArgs(opts DispatchOptions) (name string, args []string, err error) {
 	switch opts.Agent {
 	case AgentClaude, "":
 		args = []string{
@@ -141,13 +165,18 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 			"--output-format", "stream-json", "--verbose",
 			"--allowedTools", opts.AllowedTools,
 			"--permission-mode", "bypassPermissions",
-			opts.Prompt,
 		}
-		return "claude", args, nil
+		if opts.Fenced {
+			args = append(args, "--settings", fencedClaudeSettings)
+		}
+		return "claude", append(args, opts.Prompt), nil
 
 	case AgentCodex:
 		args = []string{"exec"}
-		if opts.IsSandbox {
+		switch {
+		case opts.Fenced:
+			args = append(args, "--sandbox", "danger-full-access")
+		case opts.IsSandbox:
 			args = append(args, "--full-auto")
 		}
 		args = append(args, opts.Prompt)
@@ -155,6 +184,9 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 
 	case AgentGemini:
 		args = []string{}
+		if opts.Fenced {
+			args = append(args, "--sandbox=false")
+		}
 		if opts.IsSandbox {
 			args = append(args, "--yolo")
 		}
@@ -202,6 +234,11 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	}
 	if opts.Stderr != nil {
 		fmt.Fprintln(opts.Stderr, "    … the reviewer ended without a verdict; dispatching it once more")
+	}
+	if opts.BeforeRetry != nil {
+		if err := opts.BeforeRetry(); err != nil {
+			return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (not started: " + err.Error() + ")\n", err
+		}
 	}
 	again := opts
 	again.Prompt = opts.Prompt + retryNotice

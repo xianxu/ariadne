@@ -79,6 +79,10 @@ scaffold: sections: [...#ScaffoldSection] & [
 	deadline?:       string | null
 	planned_finish?: string | null
 	operator?:       string | null
+	// the TL who drives this project (a slot handle, or a list of them).
+	// A TL-owned project is written only by its TL: close and milestone-close
+	// skip it (ariadne#326).
+	tl?: string | [...string] | null
 	// issue refs ("repo#id"); the MVP commitment. explicitly_out is the
 	// load-bearing half of the scoping conversation.
 	mvp_scope?:      [...string] | null

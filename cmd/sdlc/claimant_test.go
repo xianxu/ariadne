@@ -10,7 +10,6 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
-	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 func TestParseMachineIdentitySources(t *testing.T) {
@@ -32,30 +31,6 @@ func TestParseMachineIdentitySources(t *testing.T) {
 		if _, ok := parseMachineIDFile(bad); ok {
 			t.Errorf("machine-id %q accepted", bad)
 		}
-	}
-}
-
-func TestSlotLabelOnlyWhereSlotsExist(t *testing.T) {
-	fleet := t.TempDir()
-	addr := "ariadne:0"
-	primary := workspace.Identity{Kind: "primary", Repo: "ariadne", FleetRoot: fleet, PrimaryRoot: fleet + "/ariadne", Address: &addr}
-	if got := slotLabel(primary); got != "" {
-		t.Fatalf("a plain primary (no slots) got a slot label %q", got)
-	}
-	writeRepoFile(t, fleet, "worktree/ariadne-slotX/ariadne/.keep", "") // not a slot number
-	if got := slotLabel(primary); got != "" {
-		t.Fatalf("a malformed slot dir made a slot label %q", got)
-	}
-	writeRepoFile(t, fleet, "worktree/ariadne-slot1/ariadne/.keep", "")
-	if got := slotLabel(primary); got != "ariadne:0" {
-		t.Fatalf("primary beside slots: %q", got)
-	}
-	one := "ariadne:1"
-	if got := slotLabel(workspace.Identity{Kind: "slot", Address: &one}); got != "ariadne:1" {
-		t.Fatalf("slot: %q", got)
-	}
-	if got := slotLabel(workspace.Identity{Kind: "worktree"}); got != "" {
-		t.Fatalf("plain worktree: %q", got)
 	}
 }
 

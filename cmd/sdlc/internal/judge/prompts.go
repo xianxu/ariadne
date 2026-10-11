@@ -225,6 +225,10 @@ type PromptInput struct {
 	// moved-contract note (F3). Rendered by the boundary tail just before the window;
 	// empty renders nothing, so a window without notes reads as before.
 	ReviewNotes []string
+	// Isolated says the reviewer runs in a disposable checkout of the pinned head
+	// (#204). It changes only the revert-the-fix instruction; false renders the
+	// prompt byte-identical to before #204.
+	Isolated bool
 }
 
 // renderReviewNotes is the {{REVIEW_NOTES}} value: a headed list ending in a blank

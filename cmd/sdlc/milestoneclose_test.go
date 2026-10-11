@@ -79,7 +79,7 @@ func TestDispatchBoundaryReview_AgentDefaultUsesPairAgent(t *testing.T) {
 
 	var seenName string
 	judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
-		seenName = name
+		seenName, _, _ = unwrapReviewArgv(t, name, args)
 		return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
 	}
 
@@ -315,5 +315,12 @@ func TestMilestoneCloseFlagSurface(t *testing.T) {
 	}
 	if _, ok := f.Annotations["cobra_annotation_bash_completion_one_required_flag"]; ok {
 		t.Errorf("--milestone should NOT use MarkFlagRequired (use runtime die() instead)")
+	}
+}
+
+// milestone-close forwards --no-integrate into the computeClose that runs the gate (#269).
+func TestMilestoneCloseForwardsNoIntegrate(t *testing.T) {
+	if !(&milestoneCloseFlags{NoIntegrate: true}).closeFlags().skip("integrate") {
+		t.Fatal("milestone-close --no-integrate must reach computeClose's integrate gate")
 	}
 }

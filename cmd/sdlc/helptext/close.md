@@ -114,7 +114,9 @@ MODES
   stable ids (`BR-1`, `BR-2`, …), and the next review is shown them and must
   dispose of each — `addressed`, `not-addressed`, or `withdrawn` — before
   raising anything new. That is what stops a re-run renumbering the same
-  finding forever.
+  finding forever. The implementer's answer is `sdlc finding dispute` (#202):
+  a rationale plus a counter-measurement, which the next review must withdraw
+  the finding over or re-raise it against.
 
   A MILESTONE review is shown its own boundary's findings. The WHOLE-ISSUE
   close is shown ALL of them, from every milestone: it is the last gate before
@@ -183,7 +185,8 @@ MODES
   So committing `workshop/lessons.md`, `atlas/` and `workshop/plans/` bookkeeping
   during a review is safe. Landing code is not, and the refusal now tells you which
   commits to re-review. Every mutable prose artifact named to the reviewer is
-  separately snapshotted: the **issue file**, any **project file**, and the
+  separately snapshotted: the **issue file**, any **project file** the close
+  edits (a TL-owned one is skipped and not snapshotted, #326), and the
   canonical durable **plan** (including whether that plan exists). Any edit,
   creation, deletion, or replacement refuses finalization — the review READ that
   prose — so write your `## Log` line AFTER the close, not during it.
@@ -199,6 +202,14 @@ MODES
   from 1s through 2h. Interruption stops
   without a review result; reviewer shutdown and pipe draining have a five-second
   grace bound.
+
+  The reviewer runs in a disposable shared clone of the pinned head (#204),
+  removed when it exits; a crashed owner's clone is swept by the next review.
+  An OS write fence (sandbox-exec / bwrap), verified live before each review,
+  keeps it out of every worktree of the repository and its git dir; where the
+  fence cannot nest (inside an agent sandbox) the round runs clone-only with a
+  warning. A no-verdict retry starts from a reset clone. The round and sidecar record
+  `isolation: fenced|checkout`. WF_REVIEW_CHECKOUT_ROOT relocates the clones.
 
   (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/
    merge/push — also carry the repo guard (#176): they refuse in a brain
@@ -217,6 +228,15 @@ WHAT THE GUARD DEFENDS
                        Required.
 
   Plus structural checks:
+    - integrate (#269, close and milestone-close; runs first, before any
+      review): the branch must contain every commit that landed on main
+      (first parent, freshly fetched) by the most recent noon, in the zone of
+      .sdlc/freshness.json ({"version":1,"timezone":"<IANA>"}; absent → the
+      local zone). Missing code refuses with the remedy: `git merge <main>`
+      for a pushed branch, `git rebase <main>` for an unpushed one; then
+      re-run the suite and the close. Missing docs only → an info line. A
+      failed fetch warns "could not check", never "up to date". Integrating
+      never widens the review window (#304).
     - atlas/ must have changed in the issue's commit window (§5 step 5) —
       auto-satisfied when the window has NO code surface (docs/workshop-only
       deltas have nothing to map, #177)
@@ -239,6 +259,10 @@ WHAT THE GUARD DEFENDS
       ticked + detail block updated; a PEER repo's edit is committed
       there only when git state is unambiguous (main, clean), else
       reported with the exact finish command
+    - a TL-OWNED project (frontmatter `tl:`, #326) is skipped entirely: no
+      tick, no detail block (so no --no-project refusal), no peer-write, no
+      review snapshot. An info line names it and its TL; report the landing
+      to the TL, who owns the file
 
   BYPASSING A GATE (#67) — each gate has its own --no-<gate> flag, so you
   can waive exactly the one that doesn't apply (and acknowledge it) instead
@@ -263,7 +287,7 @@ WHAT IT DOES
   - Emits the no-LLM `lessons` reminder on a whole-issue close (#160 Q4 — moved
     here from the publish gate so it fires while findings are fresh)
   - Ticks the project task row + upserts **actual:** and **closed:** in the
-    detail block
+    detail block (skipping TL-owned projects, those with `tl:`, #326)
   - Prints the COST REPORT (#187) — see below
   - Does NOT git-commit (except a tracker-era issue's evidence commit, #252),
     does NOT move the file to workshop/history/
@@ -318,7 +342,7 @@ THE COST REPORT (#187)
   Two lines, over the same window the boundary review saw:
 
     [ok] churn: prod 554 / test 300 / atlas 20 / workshop 778 (final 1652, rework 2.4×)
-    [ok] plan gate: 6 round(s), 1 forced; findings 4 addressed / 1 withdrawn / 2 still open
+    [ok] plan gate: 6 round(s), 1 forced; findings 4 addressed / 1 withdrawn / 0 disputed / 2 still open
 
   rework is insertions-across-commits over insertions-in-the-final-diff: 1.0
   means every line written survived; 2.4× means 2.4 lines written per line kept.

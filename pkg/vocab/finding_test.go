@@ -97,7 +97,7 @@ func TestFindingRenderBlockInstruction(t *testing.T) {
 			t.Errorf("instruction omits the gloss for severity %q", s)
 		}
 	}
-	for _, d := range m.AllDispositions() {
+	for _, d := range m.JudgeDispositions() {
 		if !strings.Contains(out, d) {
 			t.Errorf("instruction omits disposition %q", d)
 		}
@@ -135,6 +135,60 @@ func TestRenderBlockInstruction_NamesTheFamilyKey(t *testing.T) {
 	for _, want := range []string{"family: <slug>", "underlying RULE", "REUSE the matching slug"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("the emitted fence instruction must carry %q, or families are never populated", want)
+		}
+	}
+}
+
+// #202: authority PARTITIONS the dispositions — every disposition has exactly one actor
+// that may assign it — so a new disposition cannot reach the judge's fence or the dispute
+// verb without someone deciding who owns it.
+func TestFindingAuthorityPartitionsDispositions(t *testing.T) {
+	m := Finding()
+	for _, d := range m.AllDispositions() {
+		if m.JudgeMay(d) == m.ImplementerMay(d) {
+			t.Errorf("disposition %q: JudgeMay=%v ImplementerMay=%v, want exactly one actor", d, m.JudgeMay(d), m.ImplementerMay(d))
+		}
+	}
+	for actor, ds := range m.Authority {
+		for _, d := range ds {
+			if !m.IsDisposition(d) {
+				t.Errorf("authority.%s names unmodeled disposition %q", actor, d)
+			}
+		}
+	}
+	if !m.ImplementerMay("disputed") || m.JudgeMay("disputed") {
+		t.Error("`disputed` must be implementer-only")
+	}
+	if !m.Closes("disputed") {
+		t.Error("`disputed` must be a closing disposition (#202)")
+	}
+	if len(m.JudgeDispositions()) == 0 {
+		t.Fatal("no judge dispositions — every judge-side check would pass vacuously")
+	}
+}
+
+// #202: appeal-only is the hard-blocking set — what blocks past the round cap is exactly
+// what the implementer may not settle by dispute.
+func TestFindingAppealOnlyIsHardBlocking(t *testing.T) {
+	m := Finding()
+	for _, s := range m.Severities() {
+		if m.IsAppealOnly(s) != m.BlocksPastCap(s) {
+			t.Errorf("IsAppealOnly(%q)=%v, BlocksPastCap=%v", s, m.IsAppealOnly(s), m.BlocksPastCap(s))
+		}
+	}
+}
+
+// #202: the judge's fence instruction offers only the judge's dispositions. Offering
+// `disputed` would invite the judge to settle its own finding on the implementer's behalf.
+func TestRenderBlockInstruction_OmitsImplementerDispositions(t *testing.T) {
+	m := Finding()
+	out := m.RenderBlockInstruction()
+	for _, d := range m.AllDispositions() {
+		if m.JudgeMay(d) {
+			continue
+		}
+		if strings.Contains(out, d) || strings.Contains(out, m.WhenDisposed[d]) {
+			t.Errorf("judge instruction offers implementer-only disposition %q", d)
 		}
 	}
 }

@@ -42,6 +42,9 @@ Detailed incidents remain in their owning issue or review artifact.
   own unticked row (#300, three findings in one family).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
+- Scope a guard's failure to the input it actually reads. A fail-closed check that
+  decodes a whole record trips on an unrelated malformed field, and the failure
+  changes behavior for records the guard was never about (#326 BR-1).
 - A syntactic guard cannot support an absolute semantic claim. Bound the claim to
   the language actually inspected and state what remains outside it.
 - Distinguish what a guard computes from what it takes on faith. Negative scans
@@ -86,6 +89,10 @@ Detailed incidents remain in their owning issue or review artifact.
   commit. In a slot, `sdlc` is a shell function that rebuilds from the slot's
   working tree on every call, so "the installed binary" is whatever is
   checked out. Build the old version from `git archive <sha>` (#254).
+
+- The test hermeticity guard's "leaked .git/sdlc.lock" can be another slot's
+  verb: every slot of a repository shares one Git common dir, so the lock is
+  fleet-wide. Rerun the named tests alone before blaming the diff (#307).
 
 - Resolve a verb's repository from the path it was given (`--issues-dir`,
   `--repo`), never from the process cwd. A cwd fallback reads, or fetches, the
@@ -417,3 +424,17 @@ The simplest durable authority beats a clever scan of consequences.
   (and two siblings ignored the `ps` error and passed vacuously), and the repo
   lock reclaimed a live peer slot's `.git/sdlc.lock` as "dead". An error ignored
   from an environment probe is a check that silently passes; fail on it instead.
+- A ref you compute against is not always a ref a person can type. #269's tracker
+  main came back as a pinned SHA (`TrunkView.Ref()`), and the first version put
+  it into the `git merge <ref>` remedy and parsed a remote out of it for the
+  push-state check. Keep two values: the ref the probe reads and the name the
+  message shows.
+- A prompt sentence that describes the reviewer's environment ("you run in a
+  disposable checkout, revert there") must be rendered only by callers that
+  provide that environment. #204 edited the shared code-review template, and
+  the unisolated `sdlc judge milestone-review` path started telling reviewers
+  to revert in the operator's tree. Make it a substitution keyed on the
+  caller's fact (`PromptInput.Isolated`), and pin both renderings.
+- A retry inherits every piece of mutable state the first attempt touched.
+  When an attempt may mutate a resource (a review checkout), give the retry a
+  reset hook and test it with residue left by attempt 1 (#204 BR-2).

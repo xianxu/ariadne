@@ -41,3 +41,12 @@ func fixTheClassLine() string {
 func fixTheClassNote() string {
 	return "\n  " + fixTheClassLine()
 }
+
+// disputeLine routes the OTHER answer to a ledger finding (#202): one you can show is
+// wrong, or not worth its fix, is disputed with a counter-measurement rather than
+// patched or waited out by the round cap. Only the ledger gates (plan-quality, the
+// boundary review) carry it — a finding elsewhere has no ledger to record a dispute in.
+// Pure.
+func disputeLine() string {
+	return "a finding you can show is wrong: `sdlc finding dispute --id ID` with a counter-measurement (#202)"
+}

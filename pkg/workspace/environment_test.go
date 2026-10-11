@@ -60,6 +60,9 @@ func TestEnvironmentIndependentConformance(t *testing.T) {
 			if id.SchemaVersion != 2 || id.EnvironmentRoot != env || id.FleetRoot != f.root || id.EnvironmentHost == nil || id.EnvironmentHost.WorktreeRoot != f.slot {
 				t.Fatalf("context %+v", id)
 			}
+			if got := id.HomeSlot(); got != "repo:1" {
+				t.Fatalf("%s: home slot %q, want the host's repo:1", dir, got)
+			}
 			if dir != f.slot {
 				if id.PrimaryRoot != dep || id.RepoIdentity != filepath.Join(dep, ".git") || id.Address != nil || id.Slot != nil || id.RestingBranch != nil {
 					t.Fatalf("clone identity lost: %+v", id)
@@ -90,6 +93,21 @@ func TestEnvironmentIndependentConformance(t *testing.T) {
 	git(t, f.primary, "branch", "-D", "main-slot1")
 	if _, e := workspace.Resolve(f.real, dep, ""); e != nil {
 		t.Fatal(e)
+	}
+}
+
+// A primary beside slots is its own home slot; an ordinary worktree outside
+// any environment has none (#307).
+func TestHomeSlotOutsideEnvironments(t *testing.T) {
+	f := setup(t)
+	for dir, want := range map[string]string{f.primary: "repo:0", f.ordinary: ""} {
+		id, e := workspace.Resolve(f.real, dir, "")
+		if e != nil {
+			t.Fatal(e)
+		}
+		if got := id.HomeSlot(); got != want {
+			t.Errorf("%s: home slot %q, want %q", dir, got, want)
+		}
 	}
 }
 func TestEnvironmentCandidateFailsClosed(t *testing.T) {

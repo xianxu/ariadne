@@ -90,6 +90,11 @@ type Round struct {
 	// and on every boundary round before #231 — when milestone-review was the only
 	// recipe, so an empty value on a boundary round reads as the full review.
 	Recipe string `yaml:"recipe,omitempty"`
+	// Isolation is the containment a boundary round's reviewer ran under (#204):
+	// "fenced" (a disposable checkout plus an OS write fence on the source) or
+	// "checkout" (the checkout only, because the fence could not nest). Empty on
+	// plan-quality rounds, never-ran rounds and every round before #204.
+	Isolation string `yaml:"isolation,omitempty"`
 	// Reviewed is the head commit a FINALIZED boundary review read (#304, #197): the
 	// identity of the reviewed branch patch, whose base is merge-base(main, Reviewed)
 	// because main only grows. Only a round that finalized carries it — REWORK, halt,
@@ -224,6 +229,10 @@ type Ledger struct {
 	// where today it costs milliseconds. #183's --fixed-to-ship is the same mechanism at
 	// the close boundary, which is why this lives on the shared Ledger (ARCH-DRY).
 	ContentHash string `yaml:"content_hash,omitempty"`
+	// Disputes is the implementer's stream (ariadne#202): findings declined with a
+	// rationale and a counter-measurement. omitempty keeps every pre-#202 ledger
+	// byte-identical. See Dispute for why it is not a Round.
+	Disputes []Dispute `yaml:"disputes,omitempty"`
 }
 
 // trimIDPrefix strips "<prefix>-" from an ID, returning the remainder (the sequence
@@ -311,6 +320,9 @@ func ApplyChecked(l Ledger, r Round) (Ledger, error) {
 			rejected = append(rejected, fmt.Sprintf("%s (unknown finding)", d.ID))
 		case !m.IsDisposition(d.State):
 			rejected = append(rejected, fmt.Sprintf("%s (unmodeled disposition %q)", d.ID, d.State))
+		case !m.JudgeMay(d.State):
+			// #202: the judge may not settle a finding with the implementer's disposition.
+			rejected = append(rejected, fmt.Sprintf("%s (implementer-only disposition %q)", d.ID, d.State))
 		default:
 			kept = append(kept, d)
 		}
@@ -328,15 +340,16 @@ func ApplyChecked(l Ledger, r Round) (Ledger, error) {
 // disposition added to finding.cue must not be able to reach here as an unhandled case
 // that silently leaves a finding open forever.
 //
-// Later rounds override earlier ones, so a finding disposed `addressed` and then
-// re-disposed `not-addressed` is open again.
+// Later dispositions override earlier ones on the merged timeline (judge rounds and
+// implementer disputes, #202), so a finding disposed `addressed` and then re-disposed
+// `not-addressed` is open again. An appeal-only finding a dispute names stays open: see
+// settles.
 func closedSet(l Ledger) map[string]bool {
 	m := vocab.Finding()
+	sev := findingByID(l)
 	closed := map[string]bool{}
-	for _, r := range l.Rounds {
-		for _, d := range r.Dispositions {
-			closed[d.ID] = m.Closes(d.State)
-		}
+	for id, state := range latestStates(l) {
+		closed[id] = settles(m, state, sev[id].Severity)
 	}
 	return closed
 }
@@ -367,13 +380,8 @@ func OpenFindings(l Ledger) []Finding {
 // this silently counted the finding as open — under-reporting settled findings in the one
 // metric meant to answer "did the gate's findings get acted on, or worked around?".
 func DispositionCounts(l Ledger) (counts map[string]int, open int) {
-	// Last disposition wins, matching closedSet.
-	state := map[string]string{}
-	for _, r := range l.Rounds {
-		for _, d := range r.Dispositions {
-			state[d.ID] = d.State
-		}
-	}
+	// Last disposition wins, matching closedSet — and over the same merged timeline.
+	state := latestStates(l)
 	m := vocab.Finding()
 	counts = map[string]int{}
 	// Seed only the CLOSING dispositions. An open one (`not-addressed`) can never be
@@ -388,7 +396,7 @@ func DispositionCounts(l Ledger) (counts map[string]int, open int) {
 	for _, r := range l.Rounds {
 		for _, f := range r.New {
 			s := state[f.ID]
-			if s == "" || !m.Closes(s) {
+			if s == "" || !settles(m, s, f.Severity) {
 				open++
 				continue
 			}

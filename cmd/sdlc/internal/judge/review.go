@@ -45,8 +45,23 @@ func CodeReviewBody(in PromptInput, markers []string) string {
 		"{{REPO_NOTE}}", in.RepoNote,
 		"{{VERDICT_BLOCK}}", vocab.Verdict().RenderBlockInstruction(),
 		"{{ARCH_STAR}}", strings.Join(markers, ", "),
+		"{{REVERT_CHECK}}", revertCheck(in.Isolated),
 	)
 	return r.Replace(codeReviewTemplate)
+}
+
+// revertCheck is the revert-the-fix instruction. Only a dispatch that really
+// runs the reviewer in a disposable checkout (#204: close and milestone-close)
+// may tell it to revert in place; every other caller still runs in the
+// operator's checkout and keeps the scratch-copy instruction.
+func revertCheck(isolated bool) string {
+	if isolated {
+		return `Where cheap, revert the fix and confirm
+    the regression goes red: you run in a disposable checkout of the pinned
+    head, removed after this review, so revert and test there (foreground).`
+	}
+	return `Where cheap, revert the fix in a scratch
+    copy and confirm the regression goes red.`
 }
 
 // orDefault returns s, or def when s is empty.

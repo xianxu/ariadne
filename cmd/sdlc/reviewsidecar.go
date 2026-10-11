@@ -25,6 +25,7 @@ type sidecarMeta struct {
 	Head      string
 	Command   string
 	Agent     string
+	Isolation string // #204: fenced | checkout; "" on sidecars written before it
 	Timestamp string // RFC3339
 	Verdict   string
 	Body      string
@@ -96,6 +97,9 @@ func renderReviewEntry(m sidecarMeta, isRevision bool) string {
 	fmt.Fprintf(&b, "| window | %s..%s |\n", m.Base, m.Head)
 	fmt.Fprintf(&b, "| command | %s |\n", m.Command)
 	fmt.Fprintf(&b, "| reviewer | %s |\n", m.Agent)
+	if m.Isolation != "" {
+		fmt.Fprintf(&b, "| isolation | %s |\n", m.Isolation)
+	}
 	fmt.Fprintf(&b, "| timestamp | %s |\n", m.Timestamp)
 	fmt.Fprintf(&b, "| verdict | %s |\n", m.Verdict)
 	b.WriteString("\n## Review\n\n")
@@ -167,6 +171,7 @@ func writeReviewSidecar(p boundaryReviewParams, verdict, body, timestamp string)
 		Head:      p.Head,
 		Command:   sidecarCommand(p.IssueNum, p.Milestone),
 		Agent:     p.Agent,
+		Isolation: p.Isolation,
 		Timestamp: timestamp,
 		Verdict:   verdict,
 		Body:      body,
