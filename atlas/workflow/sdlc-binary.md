@@ -985,6 +985,21 @@ plus `<id>.lock`.
 
 Bound: one clone per live review, plus whatever the sweep has warned about.
 
+**Which agent reviews, and its permission mode (#310).** `workshop/review.json`
+(repo-local) sets `boundary_reviewer`: `same` (default), `other` (claude and
+codex review each other) or `explicit` with `reviewer_pairs`. The pure
+`judge.ReviewerPolicy` maps the main agent (`judge.MainAgent`: `PAIR_AGENT`,
+codex env, claude) to its reviewer; `--agent` and `AGENT_CMD` stay above it, and
+`ResolveAgentCLI` is the `same` case. `loadReviewerPolicy` reads the source
+checkout's file in `boundaryReviewOptionsFor`; an invalid file halts the review.
+The ledger round's `agent` records who reviewed. `DispatchOptions.Containment`
+(none / checkout / fenced) replaced `IsSandbox` + `Fenced`, and `agentArgs` maps
+it to each CLI's own mode: claude `--permission-mode dontAsk` (the tool list
+is enforced, so Edit/Write are refused; Bash stays unrestricted, so shell
+writes are stopped only by the #204 fence), codex `--sandbox read-only | workspace-write |
+danger-full-access`, gemini without `--yolo`. No judge gets an auto-approve mode;
+`--sandbox` on `judge`/`change-code` is a deprecated no-op.
+
 **Dispatch progress heartbeat (#140).** A boundary review can run silently for
 minutes; `internal/judge.Dispatch` now emits a heartbeat to `opts.Stderr` every
 `heartbeatInterval` (30s) while the agent subprocess runs — elapsed + agent +

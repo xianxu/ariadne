@@ -94,6 +94,10 @@ func TestBuildArgs_ReadOnly(t *testing.T) {
 		t.Fatalf("claude name = %q", name)
 	}
 	joined = strings.Join(args, " ")
+	// #310: under bypassPermissions the allowlist is moot; dontAsk enforces it.
+	if !strings.Contains(joined, "--permission-mode dontAsk") {
+		t.Errorf("claude must run under dontAsk so the allowlist holds: %v", args)
+	}
 	for _, banned := range []string{"Edit", "Write", "Bash"} {
 		if strings.Contains(joined, banned) {
 			t.Errorf("claude allowlist must not contain %q: %v", banned, args)

@@ -1,7 +1,6 @@
 // term.go — terminal + small-string helpers shared across sdlc subcommands.
 //
-// Lifted out of close.go (cinfo/cok/cwarn/die), judge.go (orStr/envOr/
-// isSandbox), and state.go (valueOr/truncate) in M4. The duplication
+// Lifted out of close.go (cinfo/cok/cwarn/die), judge.go (orStr/envOr), and state.go (valueOr/truncate) in M4. The duplication
 // was already visible at M3 review (close + judge each had their own
 // orStr); adding four more subcommands in M4 (fetch/start/lock/setstatus)
 // would have turned the implicit cross-file coupling into a maintenance
@@ -127,13 +126,4 @@ func truncate(s string, n int) string {
 		return s
 	}
 	return string(runes[:n-1]) + "…"
-}
-
-// isSandbox detects whether the binary is running inside a Docker-style
-// sandbox (used by codex/gemini to gate their auto-approve flags).
-func isSandbox() bool {
-	if _, err := os.Stat("/.dockerenv"); err == nil {
-		return true
-	}
-	return false
 }

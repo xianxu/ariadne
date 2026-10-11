@@ -359,6 +359,35 @@ THE COST REPORT (#187)
   (churn_prod … gate_open, indices 10–19). Columns are APPENDED, never
   reordered — ParseRows indexes positionally and legacy rows must keep parsing.
 
+REVIEWER (#310)
+
+  The boundary reviewer (close and milestone-close) is chosen per repo by
+  workshop/review.json, a repo-local file the base layer never carries:
+
+    {"boundary_reviewer": "other"}
+    {"boundary_reviewer": "explicit", "reviewer_pairs": {"claude": "codex"}}
+
+  same (the default; no file) — the main agent reviews itself
+  other    — claude and codex review each other; gemini is reviewed by claude
+  explicit — reviewer_pairs[main agent]; an unpaired main agent reviews itself
+
+  The main agent is detected from PAIR_AGENT, then codex's env, then claude.
+  --agent and AGENT_CMD override the file. An unknown mode, agent or key halts
+  the review with the file named. The ledger round records the reviewer.
+
+  No judge runs in an auto-approve mode. claude gets `--permission-mode
+  dontAsk`: only Read,Grep,Glob,Bash run, so Edit/Write are refused, but Bash
+  itself is unrestricted. codex gets `--sandbox workspace-write` in the review
+  checkout (writes only the checkout), `danger-full-access` under the OS fence,
+  `read-only` outside a checkout. gemini runs without --yolo (headless, it
+  refuses tools needing approval). What stops a shell write to the source
+  checkout is the OS fence (#204), whatever the agent; without it, only
+  codex's own sandbox does. Plan-quality and `sdlc judge` run in the operator's
+  tree with no fence, so a claude judge's Bash can still write there.
+  Codex's sandbox is its own Seatbelt on macOS, which cannot nest where the
+  fence probe failed (sdlc inside Claude Code's sandbox): its commands are then
+  refused and close warns. Run a codex reviewer from an unsandboxed sdlc.
+
 WARMUP
 
   On the first 2 invocations per shell session, prints the close-issue
@@ -375,8 +404,9 @@ FLAGS
                         table under BYPASSING A GATE; docs-only windows
                         auto-satisfy the atlas gate (#177)
   --agent <cli>         agent CLI for the boundary review (claude | codex | gemini)
-                        Default: explicit --agent, then AGENT_CMD, then
-                        PAIR_AGENT/current known agent signals, then claude.
+                        Default: explicit --agent, then AGENT_CMD, then the
+                        repo's reviewer policy (see REVIEWER) applied to the
+                        main agent: PAIR_AGENT/current agent signals, or claude.
   --dry-run             print what would change, write nothing
   --fixed-then-ship     review only the changes since the last finalized close
                         review, with the fix-review recipe (see FIXED-THEN-SHIP)
