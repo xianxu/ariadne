@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
-card_mirror: 'c4445da8a58f0f38f367a02c57bc14ca2526ecf2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '62a9283e615220022532573198e033c73b3599f2' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-10T17:46:02-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "3f11ad44", done: "a58b67bd"}
-actual_hours: 0.47
+actual_hours: 0.59
 ---
 
 # merge: landing instance-conformance gate validates main-tip..worktree, not the branch's own changes
