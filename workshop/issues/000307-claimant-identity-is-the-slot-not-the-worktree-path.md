@@ -1,12 +1,20 @@
 ---
 id: 000307
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-09
-updated: 2026-10-09
+updated: 2026-10-11
 estimate_hours:
-card_mirror: '598a8dea371696d260b6400f5ca05f85414fa3c5' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '432175185a420438eb48741fc62bfde9bf59c326' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-11T00:28:33-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Claimant identity is the slot, not the worktree path
@@ -36,7 +44,26 @@ Evidence: `workshop/pensive/2026-10-09-01-pensive-sdlc-robustness-evidence.md`, 
 - The same issue edited from `ariadne-slot1` (a different slot) is refused as not-owner.
 - Existing claimant cards keep working, with no flag day for older binaries (cf. G1 in the evidence).
 
+### Design (2026-10-11)
+
+- **Home slot** = the slot whose environment holds the checkout. `pkg/workspace` already proves it: a dependency clone (`pair-slot1/ariadne`, kind `dependency`) and a feature worktree inside an environment carry `EnvironmentHost` = `pair:1`; a slot's host is itself; a `:0` primary has no host, so its own address counts where the slot layout is in use (today's rule). New `workspace.Identity.HomeSlot()` owns this read (one place, `pkg/`, per the #289 lesson). A plain clone or a fleet-level feature worktree has none.
+- **The card schema does not change.** The existing optional `workspace` key holds the home slot. A new key would fail older binaries' closed schema parse (the G1 flag day); a value change in a descriptive field does not. Older binaries keep matching on the worktree, which is still recorded, so a claim made by a new binary stays theirs in the same checkout.
+- **Decision** (`issue.MatchClaimant`): same machine, and
+  - both sides name a slot → same slot (repository and worktree are descriptive);
+  - either side has none (a plain clone, a card claimed before the label covered dependencies) → today's rule, same repository and worktree. This is the migration: such a card keeps working from the checkout that claimed it. No lazy re-stamp; a repeat claim stays a no-op.
+- Every gate already funnels through `MatchClaimant` (`ownership()`: continuation gate, transfer guard, move, set-status, unclaim/reclaim, claim, observe), so one change covers them.
+- Not changed: `:0` stays its own slot per repository (an operator editing from `:0` an issue held by `:1` is still refused; that is reclaim's job). `sdlc move` from a dependency (the ambiguous-address refusal) is out of scope.
+- Output: the continuation refusal and the claim success line name the slot; `describeClaimant` already does. Sweep help/atlas/recovery prose that says "repository, machine and worktree".
+- ARCH: creates nothing durable (no new record or field).
+
 ## Plan
+
+- [ ] `workspace.Identity.HomeSlot()` + table test, and assertions in `TestEnvironmentIndependentConformance` (slot, dependency, feature worktree → host address)
+- [ ] `resolveClaimantIdentity` records `HomeSlot()`; replace `slotLabel` and its test
+- [ ] `MatchClaimant` slot rule with the legacy fallback; table rows: same slot other worktree (mine), other slot same machine (foreign), same slot other machine (foreign), unlabeled sides (legacy)
+- [ ] In-process gate tests: `requireCardOwnership` and the transfer guard accept the slot owner from another checkout path and refuse another slot
+- [ ] Messages name the slot; sweep help, atlas, recovery catalog, AGENTS restatements
+- [ ] close
 
 ## Log
 
