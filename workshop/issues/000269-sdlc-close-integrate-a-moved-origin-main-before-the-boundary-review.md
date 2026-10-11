@@ -6,7 +6,7 @@ github_issue:
 created: 2026-09-28
 updated: 2026-10-11
 estimate_hours:
-card_mirror: '84c3490b8dbf3f3d92c0c786ba074ccd8238cf86' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '18d46f19a71a77f9d865e8687c1b018a031800f6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-09T20:51:35-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 6.48
+actual_hours: 6.56
 ---
 
 # sdlc close: integrate a moved origin/main before the boundary review
