@@ -1020,8 +1020,19 @@ returns a structured `Result.Status`: `TelemetryGap`
 `Measured` (`PerIssue[N]` → hours). Attribution is global-boundary based (#92):
 source-scoped activity runs are claimed by nearby issue-referenced commits;
 overlaps collapse within one transcript source but not across parallel sources;
-all commit-subject issue refs become claimants, while no-ref commits are neutral
-time boundaries. Suspicious attribution is surfaced as `Result.Warnings` and
+only a subject's **lead** refs become claimants (#317, `issueref.Lead`: after
+`area:` labels and at most one of `close`/`closes`/`file`/`issue`/`plan`, the leading ref
+plus refs chained to it, as in `#174-#176` or `#284, #285:`). Later refs are
+citations: they stay in the mention scope (`Commit.Refs` → `WindowIssues`) but
+claim nothing, so `#304: log: … (F1, #308)` no longer hands #308 a share. A
+subject with no lead is a neutral time boundary. On an issue branch its own
+merge commits (branch point..HEAD) are never boundaries, and a main commit bounds the issue's runs only when
+its lead names the issue. Integrating main therefore leaves the boundary set
+unchanged. The tracker history read beside HEAD is filtered the same way in every
+scope (#321): a card commit counts only when its lead names the measured
+issue; another issue's card, or a card with no lead, is not a boundary at all. The tracker interleaves every slot's card writes, so off the issue
+branch (a resting branch, or main after landing) another slot's card write
+would otherwise claim the run beside it. Suspicious attribution is surfaced as `Result.Warnings` and
 rendered by `actual` / `active-time`. Dir-selection is deliberately narrow (NOT all
 folders/sessions) — an unrelated concurrently-edited repo inflates the count.
 `WindowCapDays` is 61 (was 31) so month-long issues keep their window. The
