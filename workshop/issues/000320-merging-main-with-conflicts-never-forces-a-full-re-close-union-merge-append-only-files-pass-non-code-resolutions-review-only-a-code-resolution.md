@@ -73,6 +73,8 @@ ARCH-FUNERAL: creates nothing durable beyond one managed block in `.gitattribute
   - The compaction caveat is in `UnionMergeAttributes`' doc comment and in atlas weave.md.
   - A non-code conflicted path whose HEAD still carries conflict markers refuses ("conflict markers remain in …"). This reuses republish.go's `hasConflictMarkers` (ARCH-DRY) and has an e2e row.
 
+- Close review round 2: SHIP, with one new Minor fixed: the git 2.42 floor is now documented in atlas sdlc-binary.md. Finalization was refused once as stale because the ops project file changed while the review ran.
+
 ## Revisions
 
 ### 2026-10-10 — layer 3 moves to #183

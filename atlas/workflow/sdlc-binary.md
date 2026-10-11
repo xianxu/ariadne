@@ -1271,6 +1271,10 @@ main changes commits, not the patch, so neither widens a window.
     `git merge-tree --write-tree --merge-base=<merge-base(main,H_r)> <merge-base(main,HEAD)> H_r`
     and wraps the tree in a deterministic, unreferenced commit `S`, which gc
     collects. `diff(S, HEAD)` is the issue's own work since that review.
+  - Merge attributes come from main's tree (`git --attr-source=<merge-base(main,HEAD)>`),
+    not the working tree, so a `merge=union` file (#320) replays without a conflict
+    and `S` stays a function of its inputs. This raises sdlc's git floor to **2.42**:
+    review windows and the publish gate refuse older git.
   - Inter-milestone side-quests and fixes still land in exactly one window (#58).
   - A **conflict** keeps git's conflicted tree, so the window shows only the
     resolution and is labelled "includes conflict resolutions in …".
