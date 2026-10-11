@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000329-project-datatype-a-tl-driven-coordination-plane-tl-owner-trains-and-decisions-sections-lifecycle-without-a-deadline-derived-forecast.md
         source_blob: 0ae6e27e235e9b358d806494e45563f31e08f3b0
         destination: workshop/issues/000329-project-datatype-a-tl-driven-coordination-plane-tl-owner-trains-and-decisions-sections-lifecycle-without-a-deadline-derived-forecast.md
+        main_commit: a04a5419800c8fa25d823914e72af3b7db51f219
 ---
 
 # Project datatype: a TL-driven coordination plane (tl: owner, Trains and Decisions sections, lifecycle without a deadline, derived forecast)
