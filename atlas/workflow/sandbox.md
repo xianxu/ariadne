@@ -10,6 +10,8 @@ Claude Code runs commands in a **permission-controlled sandbox** managed by the 
 
 This sandbox is always active during Claude Code sessions. It cannot be disabled by the agent — the user controls it via `/sandbox` or by approving individual commands.
 
+The policy is single-sourced in `.claude/settings.ariadne.json` (base layer). weave merges it under each repo's `settings.local.json` into `.claude/settings.json`. The workbench's own verbs, `sdlc` and `couch`, are treated as trusted (#318). They sit in `sandbox.excludedCommands`, so couch can dial its peer-message socket and sdlc's git can write `.git/config`, and they are in `permissions.allow` as `Bash(sdlc:*)`/`Bash(couch:*)`, so the auto-mode classifier doesn't re-judge them. Each binary keeps its own gates. The exclusion matches only when the verb is the leading command, so run `sdlc merge`, not `cd … && sdlc merge`. Regenerating `.claude/settings.json` (`weave compile`/`refresh`) is deliberately left to the operator. It is the harness's permission store, and auto mode refuses an agent rewriting it. Codex's `.codex/config.toml` has no per-command counterpart and needs none.
+
 **Key distinction**: this is a *policy layer* on the host machine. You're still on the host OS, just with restricted permissions.
 
 ## 2. OpenShell Sandbox (`.openshell/`)
