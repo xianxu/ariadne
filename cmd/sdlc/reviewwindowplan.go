@@ -3,6 +3,9 @@
 // rebasing main changes the commits, not the patch, so neither widens a window.
 //
 //   - Whole-issue close reviews the branch patch.
+//   - `close --fixed-then-ship` (#183) reviews the interdiff since the close's OWN last
+//     finalized review, the same replay as a milestone's — the fixes made after that
+//     verdict plus any conflict resolution, main's changes excluded.
 //   - A milestone reviews the INTERDIFF since the last finalized review: the reviewed
 //     head H_r (stamped on its ledger round, D5) replayed onto today's main by
 //     gitx.RebasedReviewedBase gives a synthetic base S, and diff(S, HEAD) is exactly
@@ -39,10 +42,15 @@ const (
 
 // windowFacts is everything the planner needs, gathered by gatherWindowFacts.
 type windowFacts struct {
-	Milestone   string
-	MainBase    string // merge-base(main, HEAD); "" on main / no divergence
-	BranchStart string // the issue's first-commit parent (on-main fallback)
-	Head        string
+	Milestone string
+	// FixedThenShip plans the whole-issue interdiff since the close boundary's own last
+	// finalized review (#183). It never falls back to the branch patch: a fix review
+	// over the whole branch is mis-scoped, so an unplannable interdiff is windowNone
+	// with the reason in Note, which close turns into a refusal.
+	FixedThenShip bool
+	MainBase      string // merge-base(main, HEAD); "" on main / no divergence
+	BranchStart   string // the issue's first-commit parent (on-main fallback)
+	Head          string
 
 	// The last finalized review outside this boundary (#304 D6), from the ledger.
 	Reviewed      string
@@ -89,6 +97,32 @@ func planReviewWindow(f windowFacts) reviewWindow {
 		w.HumanBase = w.Base
 		return w
 	}
+	interdiff := func() reviewWindow {
+		w.Kind, w.Base, w.HumanBase = windowInterdiff, f.Rebased, f.Reviewed
+		w.PriorBoundary, w.Conflicted = f.PriorBoundary, f.Conflicted
+		if len(f.Conflicted) > 0 {
+			w.Note = "includes conflict resolutions in " + strings.Join(f.Conflicted, ", ")
+		}
+		w.Note = joinNotes(w.Note, f.MainStale)
+		return w
+	}
+	if f.FixedThenShip {
+		none := func(why string) reviewWindow {
+			w.Kind, w.Note = windowNone, why
+			return w
+		}
+		switch {
+		case f.MainBaseErr != "":
+			return none(f.MainBaseErr)
+		case f.LedgerErr != "":
+			return none(f.LedgerErr)
+		case f.Reviewed == "":
+			return none("no finalized close review to fix against")
+		case f.RebaseErr != "" || f.Rebased == "":
+			return none(orPlaceholder(f.RebaseErr, "the close review's head could not be replayed"))
+		}
+		return interdiff()
+	}
 	if f.MainBaseErr != "" {
 		return branchPatch(windowBranchFallback, f.MainBaseErr)
 	}
@@ -100,13 +134,7 @@ func planReviewWindow(f windowFacts) reviewWindow {
 	}
 	switch {
 	case f.Reviewed != "" && f.RebaseErr == "" && f.Rebased != "":
-		w.Kind, w.Base, w.HumanBase = windowInterdiff, f.Rebased, f.Reviewed
-		w.PriorBoundary, w.Conflicted = f.PriorBoundary, f.Conflicted
-		if len(f.Conflicted) > 0 {
-			w.Note = "includes conflict resolutions in " + strings.Join(f.Conflicted, ", ")
-		}
-		w.Note = joinNotes(w.Note, f.MainStale)
-		return w
+		return interdiff()
 	case f.Reviewed != "":
 		return branchPatch(windowBranchFallback, f.RebaseErr)
 	case f.LegacyTrailerBase != "":
@@ -139,7 +167,7 @@ func formatReviewWindow(w reviewWindow) string {
 	case windowBranchPatch:
 		line = fmt.Sprintf("branch patch vs main@%s: %d issue commit(s), %s", abbrevSHA(w.Base), w.IssueCommits, files)
 	case windowInterdiff:
-		since := "the previous review"
+		since := "the close review"
 		if w.PriorBoundary != "" {
 			since = w.PriorBoundary + " review"
 		}
@@ -160,8 +188,17 @@ func formatReviewWindow(w reviewWindow) string {
 
 // planBoundaryWindow is the IO shell: it gathers the facts, plans, and measures.
 func planBoundaryWindow(ctx context.Context, issueStr, milestone, issuePath, plansDir string) reviewWindow {
-	f := gatherWindowFacts(ctx, issueStr, milestone, issuePath, plansDir)
-	w := planReviewWindow(f)
+	return measureWindow(planReviewWindow(gatherWindowFacts(ctx, issueStr, milestone, issuePath, plansDir, false)))
+}
+
+// planFixedThenShipWindow is `close --fixed-then-ship`'s window (#183): the interdiff
+// since the close boundary's last finalized review, or windowNone with the reason.
+func planFixedThenShipWindow(ctx context.Context, issueStr, issuePath, plansDir string) reviewWindow {
+	return measureWindow(planReviewWindow(gatherWindowFacts(ctx, issueStr, "", issuePath, plansDir, true)))
+}
+
+// measureWindow counts a planned window's files and the issue's own commits.
+func measureWindow(w reviewWindow) reviewWindow {
 	if w.Kind != windowNone && isResolvedSHA(w.Head) {
 		if names, err := gitx.DiffNames(w.Base, w.Head); err == nil {
 			w.Files = len(names)
@@ -175,8 +212,8 @@ func planBoundaryWindow(ctx context.Context, issueStr, milestone, issuePath, pla
 	return w
 }
 
-func gatherWindowFacts(ctx context.Context, issueStr, milestone, issuePath, plansDir string) windowFacts {
-	f := windowFacts{Milestone: milestone, Head: gitx.Capture("rev-parse", "HEAD")}
+func gatherWindowFacts(ctx context.Context, issueStr, milestone, issuePath, plansDir string, fixedThenShip bool) windowFacts {
+	f := windowFacts{Milestone: milestone, FixedThenShip: fixedThenShip, Head: gitx.Capture("rev-parse", "HEAD")}
 	if f.Head == "" {
 		f.Head = "HEAD"
 	}
@@ -188,7 +225,17 @@ func gatherWindowFacts(ctx context.Context, issueStr, milestone, issuePath, plan
 	if f.MainBase == "" {
 		f.BranchStart = branchStartByIssue(issueStr)
 	}
-	if milestone == "" || f.MainBaseErr != "" {
+	if f.MainBaseErr != "" {
+		return f
+	}
+	if fixedThenShip {
+		sha, unusable, ok := latestFinalizedClose(issuePath, plansDir)
+		if f.LedgerErr = unusable; ok {
+			replayReviewed(&f, sha)
+		}
+		return f
+	}
+	if milestone == "" {
 		return f
 	}
 	sha, boundary, unusable, ok := latestReviewedFor(issuePath, plansDir, milestone)
@@ -197,28 +244,46 @@ func gatherWindowFacts(ctx context.Context, issueStr, milestone, issuePath, plan
 		return f
 	}
 	if ok {
-		f.Reviewed, f.PriorBoundary = sha, boundary
-		switch {
-		case gitx.Capture("rev-parse", "--verify", "-q", sha+"^{commit}") == "":
-			f.RebaseErr = fmt.Sprintf("reviewed head %s is not in this repository", abbrevSHA(sha))
-		case f.MainBase == "":
-			f.Rebased = sha // on main: no main to replay onto; diff from the reviewed head itself
-		default:
-			// MainBase is an ancestor of HEAD, so passing it as "main" gives
-			// merge-base(main, HEAD) = MainBase and merge-base(main, H_r) = H_r's own
-			// base (the branch only ever integrates main forward).
-			s, conflicted, err := gitx.RebasedReviewedBase(f.MainBase, sha)
-			if err != nil {
-				f.RebaseErr = err.Error()
-			} else {
-				f.Rebased, f.Conflicted = s, conflicted
-			}
-		}
+		f.PriorBoundary = boundary
+		replayReviewed(&f, sha)
 		return f
 	}
 	// D6 fallback, removable once no open issue predates #304 (no stamped round exists).
 	f.LegacyTrailerBase = previousReviewBoundary(issuePath)
 	return f
+}
+
+// replayReviewed records the reviewed head sha and replays it onto the branch's main
+// base (#304), the one replay both the milestone interdiff and --fixed-then-ship use.
+func replayReviewed(f *windowFacts, sha string) {
+	f.Reviewed = sha
+	switch {
+	case gitx.Capture("rev-parse", "--verify", "-q", sha+"^{commit}") == "":
+		f.RebaseErr = fmt.Sprintf("reviewed head %s is not in this repository", abbrevSHA(sha))
+	case f.MainBase == "":
+		f.Rebased = sha // on main: no main to replay onto; diff from the reviewed head itself
+	default:
+		// MainBase is an ancestor of HEAD, so passing it as "main" gives
+		// merge-base(main, HEAD) = MainBase and merge-base(main, H_r) = H_r's own
+		// base (the branch only ever integrates main forward).
+		s, conflicted, err := gitx.RebasedReviewedBase(f.MainBase, sha)
+		if err != nil {
+			f.RebaseErr = err.Error()
+		} else {
+			f.Rebased, f.Conflicted = s, conflicted
+		}
+	}
+}
+
+// latestFinalizedClose reads the head the close boundary's last finalized review read
+// (#183), under latestReviewedFor's rules: an unusable ledger fact is a reason, never
+// absence.
+func latestFinalizedClose(issuePath, plansDir string) (sha, unusable string, ok bool) {
+	sha, _, unusable, ok = readReviewedHead(issuePath, plansDir, func(l gatestate.Ledger) (string, string, bool) {
+		sha, ok := gatestate.LatestFinalizedAt(l, "")
+		return sha, "", ok
+	})
+	return sha, unusable, ok
 }
 
 // latestReviewedFor reads where review last stopped outside this boundary. A ledger
@@ -227,6 +292,14 @@ func gatherWindowFacts(ctx context.Context, issueStr, milestone, issuePath, plan
 // The caller over-covers to a named branch patch rather than refusing — the review is
 // still worth running, matching boundaryPriorFindings.
 func latestReviewedFor(issuePath, plansDir, milestone string) (sha, boundary, unusable string, ok bool) {
+	return readReviewedHead(issuePath, plansDir, func(l gatestate.Ledger) (string, string, bool) {
+		return gatestate.LatestReviewed(l, milestone)
+	})
+}
+
+// readReviewedHead reads one reviewed head from the boundary ledger with pick, and
+// validates it: the shared read behind latestReviewedFor and latestFinalizedClose.
+func readReviewedHead(issuePath, plansDir string, pick func(gatestate.Ledger) (sha, boundary string, ok bool)) (sha, boundary, unusable string, ok bool) {
 	if issuePath == "" || plansDir == "" {
 		return "", "", "", false
 	}
@@ -234,10 +307,14 @@ func latestReviewedFor(issuePath, plansDir, milestone string) (sha, boundary, un
 	if err != nil {
 		return "", "", "the boundary ledger is unreadable: " + firstLine(err.Error()), false
 	}
-	sha, boundary, ok = gatestate.LatestReviewed(l, milestone)
+	sha, boundary, ok = pick(l)
 	if ok && !isResolvedSHA(sha) {
 		// A hand-edited ledger must not hand git an option- or ref-like argument.
-		return "", boundary, fmt.Sprintf("the %s review's recorded head %q is not a commit id", boundary, sha), false
+		name := boundary
+		if name == "" {
+			name = "close"
+		}
+		return "", boundary, fmt.Sprintf("the %s review's recorded head %q is not a commit id", name, sha), false
 	}
 	return sha, boundary, "", ok
 }

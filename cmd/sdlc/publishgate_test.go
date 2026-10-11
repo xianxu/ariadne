@@ -419,6 +419,10 @@ func TestClassifyPublishDelta(t *testing.T) {
 		{"non-code conflict left unresolved", publishDelta{Anchor: a, Conflicted: []string{"workshop/lessons.md"}, Paths: []string{"workshop/lessons.md"}, Markers: []string{"workshop/lessons.md"}}, false, "conflict markers remain in workshop/lessons.md"},
 		{"embedded helptext conflict is code", publishDelta{Anchor: a, Conflicted: []string{"cmd/sdlc/helptext/x.md"}, Paths: []string{"cmd/sdlc/helptext/x.md"}}, false, "conflict with the reviewed patch in cmd/sdlc/helptext/x.md"},
 		{"unresolvable", publishDelta{Anchor: a, Unresolvable: "the reviewed commit x is not in this repository"}, false, "not in this repository"},
+		// #183: past a reviewed patch, the next action is the narrow re-close.
+		{"code names --fixed-then-ship", publishDelta{Anchor: a, Issue: "42", Paths: []string{"cmd/a.go"}}, false, "sdlc close --issue 42 --fixed-then-ship --verified"},
+		{"code conflict also needs the full suite", publishDelta{Anchor: a, Issue: "42", Conflicted: []string{"cmd/a.go"}, Paths: []string{"cmd/a.go"}}, false, "--fixed-then-ship --full-suite"},
+		{"unresolvable keeps the full re-close", publishDelta{Anchor: a, Issue: "42", Unresolvable: "x"}, false, "sdlc close --issue 42 --verified"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

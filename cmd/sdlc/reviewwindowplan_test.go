@@ -33,6 +33,12 @@ func TestPlanReviewWindow(t *testing.T) {
 		{"unreplayable: branch patch fallback", windowFacts{Milestone: "M2", MainBase: mb, Head: head, Reviewed: hr, RebaseErr: "reviewed head x is not in this repository"}, windowBranchFallback, mb, mb, "not in this repository"},
 		{"unusable ledger: named fallback", windowFacts{Milestone: "M2", MainBase: mb, Head: head, LedgerErr: "the boundary ledger is unreadable: x", LegacyTrailerBase: trailer}, windowBranchFallback, mb, mb, "unreadable"},
 		{"pre-#304 ledger: trailer boundary", windowFacts{Milestone: "M2", MainBase: mb, Head: head, LegacyTrailerBase: trailer}, windowInterdiff, trailer, trailer, "pre-#304"},
+		{"fixed-then-ship: interdiff since the close review", windowFacts{FixedThenShip: true, MainBase: mb, Head: head, Reviewed: hr, Rebased: s}, windowInterdiff, s, hr, ""},
+		{"fixed-then-ship: conflict labelled", windowFacts{FixedThenShip: true, MainBase: mb, Head: head, Reviewed: hr, Rebased: s, Conflicted: []string{"a.go"}}, windowInterdiff, s, hr, "conflict resolutions in a.go"},
+		{"fixed-then-ship: no close review, no window", windowFacts{FixedThenShip: true, MainBase: mb, Head: head}, windowNone, "", "", "no finalized close review"},
+		{"fixed-then-ship: unreplayable never widens to the branch", windowFacts{FixedThenShip: true, MainBase: mb, Head: head, Reviewed: hr, RebaseErr: "not in this repository"}, windowNone, "", "", "not in this repository"},
+		{"fixed-then-ship: unusable ledger", windowFacts{FixedThenShip: true, MainBase: mb, Head: head, LedgerErr: "the boundary ledger is unreadable: x"}, windowNone, "", "", "unreadable"},
+		{"fixed-then-ship: criss-cross", windowFacts{FixedThenShip: true, MainBaseErr: "criss-cross", Head: head, Reviewed: hr, Rebased: s}, windowNone, "", "", "criss-cross"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -164,6 +170,81 @@ func TestMilestoneWindow_ExcludesIntegratedMain(t *testing.T) {
 				t.Errorf("whole-issue window %q must carry m1.go and m2.go", all)
 			}
 		})
+	}
+}
+
+// #183: after a finalized close review at H_r, main moves (and conflicts), the branch
+// merges it, then a fix lands. The --fixed-then-ship window is the fix plus the
+// conflict resolution — never main's foreign change, never the work H_r already read.
+func TestFixedThenShipWindow_IsTheFixesSinceTheCloseReview(t *testing.T) {
+	runGit, _, issuePath := windowRepo(t, 183)
+	plansDir := "workshop/plans"
+	write := func(name, body string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(name), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(name, []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	commit := func(msg string) string {
+		t.Helper()
+		runGit("add", "-A")
+		runGit("commit", "-q", "-m", msg)
+		return strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+	}
+	write("shared.go", "line1\nline2\nline3\n")
+	commitTouchingIssue(t, runGit, issuePath, "filed", "#183: file", "")
+	runGit("switch", "-q", "-c", "issue-183")
+	write("work.go", "package work\n")
+	write("shared.go", "line1\nISSUE\nline3\n")
+	hr := commit("#183: work")
+
+	if w := planFixedThenShipWindow(context.Background(), "183", issuePath, plansDir); w.Kind != windowNone || !strings.Contains(w.Note, "no finalized close review") {
+		t.Fatalf("before any close review: %+v, want windowNone naming the missing review", w)
+	}
+	l := gatestate.Ledger{Gate: boundaryGateKind.Gate, IssueNum: 183, IDPrefix: boundaryGateKind.IDPrefix,
+		Rounds: []gatestate.Round{
+			{N: 1, Boundary: "M1", Agent: "claude", Timestamp: "t", Reviewed: hr}, // a milestone never anchors it
+		}}
+	if err := writeBoundaryGateLedger(plansDir, filepath.Base(issuePath), l, "repo"); err != nil {
+		t.Fatal(err)
+	}
+	if w := planFixedThenShipWindow(context.Background(), "183", issuePath, plansDir); w.Kind != windowNone {
+		t.Fatalf("a milestone round anchored the close's fix window: %s", formatReviewWindow(w))
+	}
+	l.Rounds = append(l.Rounds, gatestate.Round{N: 2, Boundary: "", Agent: "claude", Timestamp: "t", Reviewed: hr})
+	if err := writeBoundaryGateLedger(plansDir, filepath.Base(issuePath), l, "repo"); err != nil {
+		t.Fatal(err)
+	}
+	commit("#183: close")
+
+	runGit("switch", "-q", "main")
+	write("foreign.go", "package foreign\n")
+	write("shared.go", "line1\nMAIN\nline3\n")
+	commit("#999: main moves on")
+	runGit("switch", "-q", "issue-183")
+	_ = exec.Command("git", "merge", "-q", "--no-edit", "main").Run() // conflicts by design
+	write("shared.go", "line1\nRESOLVED\nline3\n")
+	commit("#183: merge main")
+	write("work.go", "package work // fixed\n")
+	commit("#183: fix BR-1")
+
+	w := planFixedThenShipWindow(context.Background(), "183", issuePath, plansDir)
+	if w.Kind != windowInterdiff || w.HumanBase != hr {
+		t.Fatalf("window = %s, want the interdiff since %s", formatReviewWindow(w), hr)
+	}
+	out := strings.Fields(captureGit(t, "diff", "--name-only", w.Base, "HEAD"))
+	sort.Strings(out)
+	if got, want := strings.Join(out, " "), "shared.go work.go "+plansDir+"/000183-x-close-gate.md"; got != want {
+		t.Errorf("fix window files = %q, want %q (%s)", got, want, formatReviewWindow(w))
+	}
+	if len(w.Conflicted) != 1 || w.Conflicted[0] != "shared.go" {
+		t.Errorf("Conflicted = %v, want [shared.go]", w.Conflicted)
+	}
+	if !strings.Contains(formatReviewWindow(w), "interdiff since the close review") {
+		t.Errorf("window line %q does not say what it is", formatReviewWindow(w))
 	}
 }
 

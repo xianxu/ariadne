@@ -65,7 +65,8 @@ func DoneWhenFresh(rec Flow, body string) error {
 	if spec != rec.spec && done == rec.done {
 		return fmt.Errorf("quick flow: `## Spec` or `## Revisions` changed since change-code but " +
 			"`## Done when` did not — restate the acceptance criteria for what is being built now, " +
-			"or pass --no-done-when-fresh (or --force) with the reason in --verified")
+			"or pass --no-done-when-fresh (or --force) with the reason in --verified " +
+			"(with the close review running, the reviewer judges this instead, #183)")
 	}
 	return nil
 }

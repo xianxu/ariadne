@@ -68,6 +68,9 @@ WHAT IT DOES
      milestone-close commit, do NOT re-run milestone-close. Each finding
      names one instance; fix the CLASS it belongs to (ARCH-PURPOSE,
      `sdlc arch-principles`).
+     Fixes that land after the evidence commit fall in the NEXT boundary's
+     interdiff, so they are reviewed there; milestone-close has no
+     --fixed-then-ship (that is the whole-issue close's narrow re-close, #183).
 
   4. Appends "; review verdict: <verdict>" to the just-written log line
      in the issue file so a human grep finds it.

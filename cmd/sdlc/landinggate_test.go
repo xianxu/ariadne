@@ -30,19 +30,19 @@ func TestLandingDuplicateGateConfiguredTarget(t *testing.T) {
 	mkArtifact(t, filepath.Join(root, "workshop/issues/000001-local.md"), "local reservation\n")
 	testfix.Git(t, root, "add", ".")
 	testfix.Git(t, root, "commit", "-qm", "local claimant")
-	if err := runLandingDuplicateGate(main, "workshop/issues", "workshop/history", execGitRunner{}); err == nil || !strings.Contains(err.Error(), "000001") {
+	if err := runLandingDuplicateGate(main, "HEAD", "workshop/issues", "workshop/history", execGitRunner{}); err == nil || !strings.Contains(err.Error(), "000001") {
 		t.Fatalf("missed configured target collision: %v", err)
 	}
-	if err := runLandingDuplicateGate(base, "workshop/issues", "workshop/history", execGitRunner{}); err != nil {
+	if err := runLandingDuplicateGate(base, "HEAD", "workshop/issues", "workshop/history", execGitRunner{}); err != nil {
 		t.Fatalf("safe pinned target: %v", err)
 	}
-	if err := runLandingDuplicateGate(main, "workshop/issues", "workshop/history", &lsTreeFailRunner{}); err == nil {
+	if err := runLandingDuplicateGate(main, "HEAD", "workshop/issues", "workshop/history", &lsTreeFailRunner{}); err == nil {
 		t.Fatal("silently skipped failed tree read")
 	}
-	if err := runLandingDuplicateGate(strings.Repeat("f", 40), "workshop/issues", "workshop/history", execGitRunner{}); err == nil {
+	if err := runLandingDuplicateGate(strings.Repeat("f", 40), "HEAD", "workshop/issues", "workshop/history", execGitRunner{}); err == nil {
 		t.Fatal("accepted missing main commit")
 	}
-	if err := runLandingDuplicateGate(main, "../outside", "workshop/history", execGitRunner{}); err == nil {
+	if err := runLandingDuplicateGate(main, "HEAD", "../outside", "workshop/history", execGitRunner{}); err == nil {
 		t.Fatal("silently skipped invalid configured root")
 	}
 }

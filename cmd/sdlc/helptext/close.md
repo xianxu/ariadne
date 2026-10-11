@@ -20,9 +20,9 @@ findings NOW (before committing), bundle fixes + the issue-file mutations +
 bookkeeping (lessons, plan ticks) into ONE commit so the publish anchor is
 HEAD, and do NOT re-run close. On the quick flow, one exception:
 {{QUICK_AFTER_REVIEW}}. Fixes that must land after the close commit:
-re-run close (re-reviews the delta, advances the anchor — no bypass flag
-needed at codecomplete). Doc-only post-close commits pass the publish gate
-on their own. "Fix the findings" means the CLASS each one names, not only the
+`sdlc close --fixed-then-ship` reviews only that delta and advances the anchor
+(see FIXED-THEN-SHIP; no bypass flag needed at codecomplete). Doc-only
+post-close commits pass the publish gate on their own. "Fix the findings" means the CLASS each one names, not only the
 site it points at — ARCH-PURPOSE (`sdlc arch-principles`).
 
 TRACKER-ERA ISSUES (#252)
@@ -44,7 +44,45 @@ TRACKER-ERA ISSUES (#252)
 
   On FIX-THEN-SHIP close publishes nothing yet: commit the fixes on the branch,
   then run `sdlc issue recovery reconcile --issue N`, which lands the evidence
-  commit after them and publishes the card bound to it.
+  commit after them and publishes the card bound to it. To have the fixes
+  reviewed instead, `sdlc close --issue N --fixed-then-ship` reviews just them
+  and supersedes the pending close.
+
+FIXED-THEN-SHIP (#183)
+
+  `sdlc close --issue N --fixed-then-ship --verified '<evidence>'` is the narrow
+  re-close, run after a finalized close review (SHIP or FIX-THEN-SHIP) when code
+  landed after it: the review's fixes, a post-close change, or a resolution of a
+  conflict with main (the publish gate names this path when it refuses).
+
+    - Window: the interdiff since the head that close review read, replayed onto
+      today's main (the same replay as a later milestone's window, #304). Main's
+      own changes never enter it; a conflict shows only its resolution.
+    - Review: the fix-review recipe. It disposes of each prior finding, raises
+      only defects the interdiff introduces, judges every conflict resolution,
+      and returns REWORK for a scope change (`## Spec`, `## Revisions` or
+      `## Done when` changed beyond recording the fix): run a full close then.
+      The window's diff excludes the issues directory, so close compares those
+      sections itself (the issue as the close review read it, against now) and
+      hands each changed section to the reviewer, before and after.
+    - The atlas gate and the quick-flow shell are measured on the branch patch,
+      which the earlier close already held to them.
+    - Finalizing is an ordinary close: a new evidence commit, the card rebound to
+      it, so the publish gate's anchor advances.
+
+  It refuses, before any review:
+    - when no close review has finalized (nothing to fix against), naming the
+      full close;
+    - on the quick flow, when the branch patch has left the shell (the full
+      review is due);
+    - when the window resolves a conflict with main in a code file and no
+      `--full-suite '<evidence>'` records a full test run. Only the review
+      narrows; the suite still runs (operator decision, #320). The evidence
+      goes into the close's ## Log line.
+    - with the review skipped (its bypass, or --force), because it IS a review.
+
+  A milestone has no such flag: fixes after a milestone close fall in the next
+  boundary's interdiff.
 
 MODES
 
@@ -256,11 +294,17 @@ THE QUICK FLOW (#231)
   records its recipe in the boundary ledger, and a round that already ran the
   full review keeps the issue on it, even if the fix shrinks the diff.
 
-  Before that one review, two deterministic checks (issue close only):
+  Before that one review, two checks (issue close only):
     - `## Done when` has a bullet — it is the review's only oracle.
     - If `## Spec` or `## Revisions` changed since change-code but `## Done when`
-      did not, close refuses: restate the acceptance criteria, or pass the
-      Done-when freshness bypass (BYPASSING A GATE) with the reason in --verified.
+      did not (F3, #183), the close review judges whether Done-when still covers
+      the work. Its prompt says so, a stale Done-when blocks the verdict, and
+      the ## Log line records "done-when: contract moved since change-code;
+      judged by the close review" with the verdict. A deterministic check cannot tell a
+      reframe from a review-fix Revisions entry; the reviewer can. With the
+      review skipped there is no reviewer, so close refuses: restate the
+      acceptance criteria, or pass the Done-when freshness bypass (BYPASSING A
+      GATE) with the reason in --verified.
 
   Fixes made after the verdict ride into the close commit, which close does
   not measure, so the publish check (`sdlc merge`/`push`) re-measures over
@@ -310,6 +354,10 @@ FLAGS
                         Default: explicit --agent, then AGENT_CMD, then
                         PAIR_AGENT/current known agent signals, then claude.
   --dry-run             print what would change, write nothing
+  --fixed-then-ship     review only the changes since the last finalized close
+                        review, with the fix-review recipe (see FIXED-THEN-SHIP)
+  --full-suite '<line>' with --fixed-then-ship: evidence the full test suite
+                        passed; required when the window resolves a code conflict
   --brain-dir <path>    brain root for the calibration ledger (default ../brain);
                         project files are discovered across the fleet (#171)
   --issues-dir <path>   issues directory (default workshop/issues)
