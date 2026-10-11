@@ -1,12 +1,20 @@
 ---
 id: 000326
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
-card_mirror: 'e5ea94db9005806284ee27e0d95c0e2b9d50792b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3a4f5d3dd04372cb0b191d5188e7f976d87144b3' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T23:14:00-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Issue and milestone close skip projects that name a TL (tl: frontmatter)
@@ -53,7 +61,23 @@ this one which owns what.
 
 ## Plan
 
-- [ ]
+Design: one filter at the single fleet-discovery loop in `close.go` (`buildCloseResult`'s project section). Both close and
+milestone-close run through it, and everything downstream — tick, detail-block upsert and its `--no-project` gate, the
+peer-write, and the review snapshot (`captureCloseReviewSnapshot` reads `projectEdits`) — consumes that loop's output.
+So a TL-owned match `continue`s before any of it (ARCH-DRY: one decision point, not four).
+
+- [ ] `project.TLOwners(text) ([]string, error)` in `internal/project/metadata.go`: `tl:` as a string or a list of strings;
+  no frontmatter or no/empty `tl:` → not owned; any other shape → error. `Metadata` gains `TL any`. Unit tests.
+- [ ] Close loop: TL-owned → `cinfo` skip line naming project + TL(s), `continue`. Unreadable `tl:` → warn and skip (fail
+  closed: don't write a file whose ownership can't be read).
+- [ ] Tests: close + milestone-close leave a `tl:` project byte-identical and print the skip line (milestone-close also
+  must not refuse on the missing detail block); an edit to a `tl:` project during the review doesn't void SHIP.
+- [ ] Docs: `construct/vocabulary/project.cue` (`tl?`), `construct/datatype/project.md` table, `sdlc close --help` /
+  `milestone-close --help` mention the skip; atlas line if the close flow is mapped there.
+- [ ] Close.
+
+Overlap: ariadne#308 reworks the peer project tick (writes to the peer's origin instead of its checkout). This issue
+only decides *which* projects a close touches; #308 keeps *how* the remaining ones are written. Not absorbed.
 
 ## Log
 
