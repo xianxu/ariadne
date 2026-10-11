@@ -1,6 +1,6 @@
 ---
 id: 000189
-status: codecomplete
+status: done
 created: 2026-07-29
 updated: 2026-10-10
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f4fd6f8e55fd687d6d6dced68fcd2e5b11d38e9f
         evidence_commit: 96d7258f45ade26378f95d17647f296e0062dca4
+        landed_commit: c3bfdab55565a1a1cff1b8db8996528031460aa5
 ---
 
 # sdlc judge plan-quality renders an empty issue — no --issue path populates IssueContent/PlanContent
