@@ -1,8 +1,8 @@
 ---
 id: 000269
-status: working
+status: codecomplete
 created: 2026-09-28
-updated: 2026-10-10
+updated: 2026-10-11
 estimate_hours:
 github_issue:
 started: 2026-10-09T20:51:35-07:00
@@ -13,6 +13,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 6.48
 tracker:
     version: 1
     handoff:
@@ -25,6 +26,11 @@ tracker:
         source_blob: edab72395bf5419f88aab5c10d3702508e117901
         destination: workshop/issues/000269-sdlc-close-integrate-a-moved-origin-main-before-the-boundary-review.md
         main_commit: ce0a928ef5c1e4f42a3ab26e1c89e2b95f77a409
+    completion:
+        token: close-536c0a63da8e
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 92b6bf38fe85138a0b0a28547e3e607092d4c52e
+        evidence_commit: 7d5996c05ff057ca96f1610786baaa2f69b2fa85
 ---
 
 # sdlc close: integrate a moved origin/main before the boundary review
