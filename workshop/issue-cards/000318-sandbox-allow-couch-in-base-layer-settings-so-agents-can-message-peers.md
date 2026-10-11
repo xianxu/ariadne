@@ -1,6 +1,6 @@
 ---
 id: 000318
-status: codecomplete
+status: done
 created: 2026-10-10
 updated: 2026-10-11
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 3ac15bafe3d8c4094cd9660a223d992a85e1980d
         evidence_commit: b7dffaef439b020054dd01ab65e5fc06ca7640f7
+        landed_commit: 656168e0f12d9aa60123303ab577c1b5ed20d16f
 ---
 
 # sandbox: allow couch in base-layer settings so agents can message peers
