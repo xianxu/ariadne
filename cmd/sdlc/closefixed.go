@@ -9,6 +9,7 @@ package main
 import (
 	"fmt"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
@@ -70,7 +71,11 @@ func clipNote(s string) string {
 		return "(empty)"
 	}
 	if len(s) > maxContractNoteSection {
-		return s[:maxContractNoteSection] + " … (clipped; read the issue file)"
+		cut := maxContractNoteSection
+		for cut > 0 && !utf8.RuneStart(s[cut]) {
+			cut-- // never split a multi-byte rune
+		}
+		return s[:cut] + " … (clipped; read the issue file)"
 	}
 	return s
 }

@@ -152,13 +152,7 @@ func formatAnchorRefusal(d reviewAnchorDelta, outcome anchorOutcome, verb string
 	for _, c := range d.Commits {
 		fmt.Fprintf(&b, "\n    %s  %s", abbrevSHA(c.SHA), c.Subject)
 	}
-	var code []string
-	for _, p := range d.Paths {
-		if publishGateHasCodeSurface([]string{p}) {
-			code = append(code, p)
-		}
-	}
-	if len(code) > 0 {
+	if code := codeSurfacePaths(d.Paths); len(code) > 0 {
 		fmt.Fprintf(&b, "\n  code surface: %s", strings.Join(code, ", "))
 	}
 	fmt.Fprintf(&b, "\n  Re-run `%s` so the review covers them. (Doc-only commits during a review "+

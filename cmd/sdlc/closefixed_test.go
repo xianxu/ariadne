@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"unicode/utf8"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
@@ -196,6 +197,9 @@ func TestContractChangeNotes(t *testing.T) {
 	if len(n) != 2 || !strings.Contains(n[0], "`## Spec` changed") || !strings.Contains(n[0], "A bigger thing.") ||
 		!strings.Contains(n[0], "A thing.") || !strings.Contains(n[1], "`## Revisions` changed") || !strings.Contains(n[1], "(empty)") {
 		t.Errorf("Spec and Revisions changes must each carry before/after: %q", n)
+	}
+	if got := clipNote(strings.Repeat("x", maxContractNoteSection-1) + "é tail"); !utf8.ValidString(got) {
+		t.Errorf("clipping split a multi-byte rune: %q", got[len(got)-40:])
 	}
 	long := strings.Repeat("x", maxContractNoteSection+50)
 	if got := contractChangeNotes(before, body(long, "", "- it works")); len(got) != 1 || !strings.Contains(got[0], "clipped") {
