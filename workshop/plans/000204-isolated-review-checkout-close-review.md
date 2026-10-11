@@ -280,3 +280,61 @@ findings:
     detail: |
       closereview_test.go and smalldiffreplay_test.go check prompts that production never sends; point them at boundaryReviewOptionsFor with an isolation, or delete the helper.
 ```
+
+---
+
+## Re-review — 2026-10-11T08:46:19-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 204 — Run each boundary reviewer in a disposable isolated checkout |
+| repo | ariadne |
+| issue file | workshop/issues/000204-isolated-review-checkout.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e16261185bbfac3b191edb05c21fce4f6ff1c6d8..09a5b7643d10dcb84a430d5ee30ad7a8fbd1b485 |
+| command | sdlc close --issue 204 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-11T08:46:19-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Both fixes look right on reading. Next I'm running the tests, then reverting the BR-9 fix to confirm its test fails without it.
+
+The BR-9 test passes as committed and goes red with the grace check reverted (4 removed instead of 3). Last check: whether the issue file's Spec or Done-when changed.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both open prior findings are fixed. The interdiff adds no new Critical or Important defect and does not widen scope. The issue file's Spec, Revisions and Done-when are unchanged; the window only changes status and flow metadata and adds Log entries. The reviewbox package tests and the `cmd/sdlc` BoundaryReview/DryRun tests pass at head. `go vet -tags manual ./cmd/sdlc/` also passes, so the rewritten replay harness compiles. I removed the grace check from `Sweep` and `TestSweepReclaimsDeadOwnerAndSparesLiveOne` failed: 4 entries removed instead of 3, because the fresh `f00d.lock.tmp` was reclaimed. With the fix restored the test passes again, and the checkout is clean.
+
+1. **Strengths**
+   - `checkout.go:175-177`: the grace period applies the rule "the sweep acts only on a name whose owner is provably dead" to the one unheld name, `.lock.tmp`. The `.lock` path was already held from the moment it became visible, so this covers the whole class, not just the reported site.
+   - `checkout_test.go:183-209` tests both sides: a stale tmp (back-dated with Chtimes) is still reclaimed, and a fresh tmp is spared.
+   - `milestoneclose.go:742`: `plannedBoundaryReviewOptions` is now the single builder behind `--dry-run`, and it goes through `boundaryReviewOptionsFor` with a probed isolation. The prompt tests therefore check what production actually builds. The old no-isolation helper is deleted, with no remaining references.
+   - `smalldiffreplay_test.go` now opens a real review checkout through `openReviewIsolation`, the same path `dispatchBoundaryReview` uses.
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none raised. A nit: the re-wrapped doc comment at `checkout.go:154-155` breaks its line early.
+5. **Test coverage:** BR-9's regression test is confirmed by the revert. For BR-10, the two prompt tests now go through the production builder; in production the only difference is the checkout path, which is a placeholder here.
+6. **Architecture:**
+   - ARCH-DRY: pass. `printBoundaryReviewDryRun` and the tests share `plannedBoundaryReviewOptions`, and the atlas reference was updated to `boundaryReviewOptionsFor`.
+   - ARCH-PURE: pass. The time check sits inside the existing IO sweep, and no logic moved into IO.
+   - ARCH-PURPOSE: pass. Each fix covers the class of its finding: the sweep rule for all unheld names, and the only test-only builder removed.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-9
+    disposition: addressed
+    note: |
+      Sweep skips .lock.tmp younger than tmpLockGrace (checkout.go:175); the comment at Create was corrected; the test spares a fresh tmp and fails (4 removed vs 3) when the grace check is reverted.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      boundaryReviewDispatchOptions deleted; tests use plannedBoundaryReviewOptions (the production dry-run builder via boundaryReviewOptionsFor with isolation); the replay harness opens a real checkout.
+```

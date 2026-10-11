@@ -110,6 +110,23 @@ rounds:
       isolation: checkout
       reviewed: 388cceb8bbf6cdce4b428171d7705d3801b785cf
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-11T08:46:20-07:00"
+      dispatched: "2026-10-11T08:44:31-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: Sweep skips .lock.tmp younger than tmpLockGrace (checkout.go:175); the comment at Create was corrected; the test spares a fresh tmp and fails (4 removed vs 3) when the grace check is reverted.
+          round: 3
+        - id: BR-10
+          disposition: addressed
+          note: boundaryReviewDispatchOptions deleted; tests use plannedBoundaryReviewOptions (the production dry-run builder via boundaryReviewOptionsFor with isolation); the replay harness opens a real checkout.
+          round: 3
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 09a5b7643d10dcb84a430d5ee30ad7a8fbd1b485
+      blocked: false
 ---
 
 # Gate ledger — ariadne#204 (boundary-review)
@@ -155,7 +172,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-10** [Minor] `tests-pin-unused-path` boundaryReviewDispatchOptions (no isolation) is now called only by tests
   closereview_test.go and smalldiffreplay_test.go check prompts that production never sends; point them at boundaryReviewOptionsFor with an isolation, or delete the helper.
 
+## Round 3 — 2026-10-11T08:46:20-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — addressed — Sweep skips .lock.tmp younger than tmpLockGrace (checkout.go:175); the comment at Create was corrected; the test spares a fresh tmp and fails (4 removed vs 3) when the grace check is reverted.
+- BR-10 — addressed — boundaryReviewDispatchOptions deleted; tests use plannedBoundaryReviewOptions (the production dry-run builder via boundaryReviewOptionsFor with isolation); the replay harness opens a real checkout.
+
 ## Open findings
 
-- **BR-9** [Minor] `sweep-failure-blocks-dispatch` A concurrent sweep can reclaim a just-created <id>.lock.tmp before Create locks it, so that review fails as NotRun
-- **BR-10** [Minor] `tests-pin-unused-path` boundaryReviewDispatchOptions (no isolation) is now called only by tests
+(none — every finding has been disposed)
