@@ -92,3 +92,83 @@ findings:
     title: |
       A non-code conflict resolution that still contains conflict markers passes the publish gate
 ```
+
+---
+
+## Re-review — 2026-10-10T17:50:12-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 320 — Merging main with conflicts never forces a full re-close: union-merge append-only files, pass non-code resolutions, review only a code resolution |
+| repo | ariadne |
+| issue file | workshop/issues/000320-merging-main-with-conflicts-never-forces-a-full-re-close-union-merge-append-only-files-pass-non-code-resolutions-review-only-a-code-resolution.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8b9052040674db7b431ad3db3844837e0c561366..94dbc3d8a9f7450d44e1a04240df8ca1e55aff22 |
+| command | sdlc close --issue 320 |
+| reviewer | claude |
+| timestamp | 2026-10-10T17:50:12-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Verifying the four prior findings against the diff, then running the targeted tests.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** I found no new issues, and all four findings from the last round are fixed and backed by tests.
+
+**Layer 1 (stop the conflict).** Weave now writes a managed block into `.gitattributes` that marks `workshop/lessons.md` as `merge=union`, so appends from parallel branches merge without conflict. It reuses the same block code as `.gitignore` and is committed in ariadne. The review replay (`RebasedReviewedBase`) now takes merge attributes from main's tree rather than the working tree. That keeps the replay a pure function of its inputs, but it raises the minimum git version to 2.42. The code, the doc comment and the atlas all say 2.42 now, and no stale 2.40 floor remains.
+
+**Layer 2 (don't re-review non-code conflicts).** The publish gate now refuses a conflict only when a conflicted path is code. A conflict confined to non-code files passes with a line naming those files. A non-code file that still has conflict markers at `HEAD` is refused with its own message.
+
+**Tests.** The targeted tests all pass on git 2.54: gitx `RebasedReviewedBase*`, sdlc `ClassifyPublishDelta|HasConflictMarkers|PublishDeltaRank|RunPublishGate_BranchPatch`, and weave compile/golden/gitattributes.
+
+1. **Strengths**
+   - `publishgate.go:318`: `codeSurfacePaths` replaces two copies of the same "which paths are code" loop, and both the rank and the classify function use it.
+   - `publishgate.go:223`: the marker check reuses the existing `hasConflictMarkers` (`republish.go:404`) instead of adding a second detector.
+   - `TestClassifyPublishDelta` checks every pass line against the gate catalog's refusal pattern, so the new "merge resolution … has no code surface" line can't be misread as a refusal.
+   - `TestRunPublishGate_BranchPatch` covers three real-branch cases: a conflict resolved by hand, a resolution committed with its markers, and a union merge.
+   - `TestRebasedReviewedBase_UnionAttributeFromMain` deletes the working-tree `.gitattributes` before checking the replay. That proves the attributes really come from main's tree.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new. One known limit, not raised as a finding: if a non-code file legitimately contains real conflict-marker lines, such as a quoted example in a lessons entry, the marker check would refuse it. That is unlikely, and the refusal is visible.
+5. **Test coverage:** each piece of new behavior has a test that would fail without it:
+   - marker refusal → the "committed with its markers" subtest;
+   - non-code pass → the hand-resolved subtest;
+   - compile wiring → `TestCompileEnsuresGitattributes`;
+   - attributes taken from main → the gitx test.
+6. **Architecture:**
+   - **ARCH-DRY** pass: `codeSurfacePaths`, `writeManagedFile` and `hasConflictMarkers` are all reused.
+   - **ARCH-PURE** pass: `classifyPublishDelta` and `publishDeltaRank` stay pure. Git input is collected in the thin loop that calls them.
+   - **ARCH-PURPOSE** pass: Done-when layers 1–2 are delivered. Layer 3 was moved to #183 by a recorded revision.
+   - **ARCH-MOCK** pass: git is called through the existing `gitx` seam, and tests run against real temp repos, as elsewhere in the repo.
+   - **ARCH-CONSTRAINTS** pass: the change adds one `git show` per non-code conflicted path, which is bounded.
+   - **ARCH-SECURE** pass: the `HEAD` content it reads is only used as a refuse/pass signal.
+   - **ARCH-ORDER** pass: no state is kept between events.
+   - **ARCH-FUNERAL** pass: the `.gitattributes` block is rewritten on every compile, so it never grows. The temporary replay commit is unreferenced and garbage-collected.
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      TestCompileEnsuresGitattributes (cmd/weave/main_test.go) runs a real compile twice and pins the exact block; passes.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      splitIgnore errors now say "weave generated block" (managed_ignore.go:35,41,55), neutral across both files.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Caveat now in the UnionMergeAttributes doc comment (gitattributes.go:14-16) and atlas/workflow/weave.md.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      d.Markers populated at publishgate.go:223 and refused in classifyPublishDelta; the integration subtest "committed with its markers refuses" goes red without it.
+```

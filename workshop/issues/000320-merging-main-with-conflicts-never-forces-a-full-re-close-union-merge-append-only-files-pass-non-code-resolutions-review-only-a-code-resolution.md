@@ -57,6 +57,7 @@ ARCH-FUNERAL: creates nothing durable beyond one managed block in `.gitattribute
 ## Log
 
 ### 2026-10-10
+- 2026-10-10: closed — Round 3: docs-only change on top of round 2 (atlas: the git 2.42 floor). The round-2 evidence stands: targeted sdlc publish/merge/landing/gate tests ok, weave suite green (generator lifetime timing flake passes -count=5), the earlier full make test green apart from the sandbox-only processgroup ps denial.; review verdict: SHIP
 - 2026-10-10: closed — make test: 12 sdlc shards 0 failed (1021 tests); packages green except processgroup TestCancellationKillsDescendants, which fails only because the sandbox denies fork/exec /bin/ps, and passes outside the sandbox (package untouched). New tests: TestClassifyPublishDelta non-code/mixed/helptext conflict rows plus a pass-line-vs-gatesig check, TestPublishDeltaRank_NonCodeConflict, TestRunPublishGate_BranchPatch pair#426 shape (hand-resolved lessons-only conflict passes; union-attributed lessons merges with no conflict and passes; code conflict still refuses), TestRebasedReviewedBase_UnionAttributeFromMain (attributes read from B_now, not the worktree), weave gitattributes block tests; go test ./cmd/weave/... green. weave compile --dry-run lists gitattr .gitattributes (1 entries); git check-attr shows lessons.md merge=union.; review verdict: SHIP
 - 2026-10-10: flow upgraded quick → full — 103 added lines in code files (limit 100)
 - Claimed and started from ariadne:1 (TL batch 2).
