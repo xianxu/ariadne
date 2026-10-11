@@ -410,3 +410,8 @@ The simplest durable authority beats a clever scan of consequences.
   `## Spec` changes, but `reviewCommands` excludes `workshop/issues/`, so the rule
   could never fire. Where the input sits outside the window, compute the fact
   deterministically and pass it as a review note.
+- A ref you compute against is not always a ref a person can type. #269's tracker
+  main came back as a pinned SHA (`TrunkView.Ref()`), and the first version put
+  it into the `git merge <ref>` remedy and parsed a remote out of it for the
+  push-state check. Keep two values: the ref the probe reads and the name the
+  message shows.

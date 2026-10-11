@@ -98,7 +98,7 @@ var Catalog = []Contract{
 		Proofs: []Proof{
 			{"origin's issue branch equals HEAD after the verb; a rebase is force-pushed with the lease (#286)", []string{"TestBoundaryVerbsPushTheIssueBranch", "TestBoundaryPushLeases"}},
 			{"REWORK does not finalize; SHIP finalizes", []string{"TestRunMilestoneClose_REWORK_DoesNotFinalize", "TestRunMilestoneClose_SHIP_Finalizes"}},
-			{"a branch missing main's code from before the last noon refuses with the merge remedy when pushed; the remedy then passes (#269)", []string{"TestIntegrateGate_PushedStaleRefusesWithMerge"}},
+			{"a branch missing main's code from before the last noon refuses with the merge remedy when pushed; the remedy then passes (#269)", []string{"TestIntegrateGate_PushedStaleRefusesWithMerge", "TestMilestoneCloseForwardsNoIntegrate"}},
 			{"an issue changed during the review does not finalize", []string{"TestCloseCommands_IssueChangedDuringBoundaryReview_DoesNotFinalize"}},
 			{"its verdict and scoped open findings are observable", []string{"TestObserveMilestonesThroughTheRealGates"}},
 		},

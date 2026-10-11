@@ -199,6 +199,23 @@ func TestCheck(t *testing.T) {
 			t.Fatalf("old.go landed after the cutoff, so it is not required: %+v", r)
 		}
 	})
+	t.Run("fresh when the missing landings net to no change", func(t *testing.T) {
+		f := newFixture(t)
+		f.commit("a.go", before(48))
+		f.git("branch", "feature")
+		f.commit("b.go", before(3))
+		f.git("rm", "-q", "b.go")
+		f.git("-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "-m", "revert", "--date", before(2).Format(time.RFC3339))
+		cmd := exec.Command("git", "-c", "user.name=t", "-c", "user.email=t@t", "commit", "-q", "--amend", "--no-edit")
+		cmd.Dir = f.dir
+		cmd.Env = append(os.Environ(), "GIT_COMMITTER_DATE="+before(2).Format(time.RFC3339), "GIT_CONFIG_GLOBAL=/dev/null")
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("amend: %v\n%s", err, out)
+		}
+		if r := Check(f.run, "main", "feature", cutoff, isCode); r.State != Fresh || r.Docs != 0 || len(r.Code) != 0 {
+			t.Fatalf("got %+v", r)
+		}
+	})
 	t.Run("inconclusive without a main ref", func(t *testing.T) {
 		f, _ := setup(t)
 		r := Check(f.run, "origin/main", "feature", cutoff, isCode)

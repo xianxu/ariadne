@@ -138,9 +138,13 @@ func Check(git Git, mainRef, head string, cutoff time.Time, isCode func([]string
 			r.Docs++
 		}
 	}
-	r.State = DocsOnly
-	if len(r.Code) > 0 {
+	switch {
+	case len(r.Code) > 0:
 		r.State = Stale
+	case r.Docs > 0:
+		r.State = DocsOnly
+	default:
+		r.State = Fresh // the missing landings net to no change (say, landed and reverted)
 	}
 	return r
 }

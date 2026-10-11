@@ -94,16 +94,20 @@ and renders pass, info, warn or refusal. Rendering is a pure `formatIntegrate*`.
 
 ## Steps
 
-- [ ] `internal/freshness`: Cutoff + LoadLocation + Check, with unit tests (Cutoff
+- [x] `internal/freshness`: Cutoff + LoadLocation + Check, with unit tests (Cutoff
   table incl. DST; LoadLocation absent, valid, bad) and real-git Check tests:
   fresh; main moved after the cutoff only (fresh); docs-only before the cutoff;
   code before the cutoff (stale); a missing main ref (inconclusive).
-- [ ] `integrategate.go` + wiring into `computeClose`, `--no-integrate` on close and
+- [x] `integrategate.go` + wiring into `computeClose`, `--no-integrate` on close and
   milestone-close, and `skip("integrate")`. Tests drive `computeClose` against a
   fixture with a bare remote: refused with the rebase hint when unpushed and the
   merge hint when pushed; after running the named remedy it passes; a fetch
   failure prints "could not check" and proceeds; `--no-integrate` prints the ack.
-- [ ] gatesig catalog entry; help text (`close.md` and `milestone-close.md` gate
+- [x] gatesig catalog entry; help text (`close.md` and `milestone-close.md` gate
   lists); recovery catalog preconditions for close and milestone-close; atlas
   `workflow/sdlc-binary.md`; `.sdlc/freshness.json` for ariadne.
-- [ ] Targeted tests, then a full `make test` before close.
+- [x] Targeted tests, then a full `make test` before close.
+
+## Revisions
+
+- 2026-10-11 (close review, Minors): the `Git` seam is `func(args ...string) ([]byte, error)`, not `(string, error)`. A non-zero exit carries `*exec.ExitError`, so the probe reads `merge-base --is-ancestor`'s exit 1 as "no". A missing range whose diff nets to nothing (landed, then reverted) is Fresh, not DocsOnly with zero files. In a tracker repository the probe reads the pinned commit, and the remedy names the tracking ref. `freshness` gets a TestMain (machine test slot, real git).
