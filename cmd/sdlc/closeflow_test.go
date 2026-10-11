@@ -244,21 +244,47 @@ func TestCloseQuickEmptyDoneWhenRefuses(t *testing.T) {
 	}
 }
 
-// TestCloseQuickStaleDoneWhenRefuses: the contract moved (a Spec reframe) but
-// Done-when did not — refused, with the skip flag named; the skip lets it through.
-func TestCloseQuickStaleDoneWhenRefuses(t *testing.T) {
+// TestCloseQuickStaleDoneWhenDefersToTheReview (F3, #183): the contract moved (a
+// Spec reframe, or a review-fix Revisions entry) but Done-when did not. With the close
+// review running, the reviewer judges it: the prompt carries the note, the close
+// finalizes on the verdict, and the log line records the judgement. With no review
+// (--no-judge) the deterministic refusal stands; --no-done-when-fresh waives it.
+func TestCloseQuickStaleDoneWhenDefersToTheReview(t *testing.T) {
+	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5)})
+	path := filepath.Join(dir, "000231-x.md")
+	stale := strings.Replace(readQuick(t, dir), "Thing.", "A reframed thing.", 1)
+	os.WriteFile(path, []byte(stale), 0o644)
+	calls, prompt := stubJudge(t, "VERDICT: SHIP (confidence: high)\n\nDone-when: current — the reframe is wording only\n")
+
+	noJudge := quickFlags(dir, 231)
+	noJudge.NoJudge = true
+	msg, died := expectDie(t, func() { runCloseWithReview(io.Discard, io.Discard, noJudge) })
+	if !died || !strings.Contains(msg, "--no-done-when-fresh") || *calls != 0 {
+		t.Fatalf("--no-judge: died=%v calls=%d msg=%q; want the deterministic refusal", died, *calls, msg)
+	}
+
+	if err := runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)); err != nil {
+		t.Fatalf("with the review running, a stale Done-when must not refuse: %v", err)
+	}
+	if *calls != 1 || !strings.Contains(*prompt, "changed since change-code while `## Done when` did not") {
+		t.Fatalf("calls=%d; the review prompt must carry the done-when note:\n%s", *calls, *prompt)
+	}
+	if text := readQuick(t, dir); !strings.Contains(text, "done-when: contract moved since change-code; judged by the review") ||
+		!strings.Contains(text, "review verdict: SHIP") {
+		t.Errorf("the close log line must record the deferred judgement and its verdict:\n%s", text)
+	}
+}
+
+// TestCloseQuickStaleDoneWhenWaivedWithoutReview: no review, but the bypass flag.
+func TestCloseQuickStaleDoneWhenWaivedWithoutReview(t *testing.T) {
 	dir := quickCloseRepo(t, 231, "", map[string]string{"cmd/a.go": goLines(5)})
 	path := filepath.Join(dir, "000231-x.md")
 	os.WriteFile(path, []byte(strings.Replace(readQuick(t, dir), "Thing.", "A reframed thing.", 1)), 0o644)
 	calls, _ := stubJudge(t, "VERDICT: SHIP (confidence: high)\n")
-	msg, died := expectDie(t, func() { runCloseWithReview(io.Discard, io.Discard, quickFlags(dir, 231)) })
-	if !died || !strings.Contains(msg, "--no-done-when-fresh") || *calls != 0 {
-		t.Fatalf("died=%v calls=%d msg=%q; want a refusal naming --no-done-when-fresh", died, *calls, msg)
-	}
 	f := quickFlags(dir, 231)
-	f.NoDoneWhenFresh = true
-	if err := runCloseWithReview(io.Discard, io.Discard, f); err != nil || *calls != 1 {
-		t.Errorf("with --no-done-when-fresh: err=%v calls=%d, want the review to run", err, *calls)
+	f.NoJudge, f.NoDoneWhenFresh = true, true
+	if err := runCloseWithReview(io.Discard, io.Discard, f); err != nil || *calls != 0 {
+		t.Errorf("--no-judge --no-done-when-fresh: err=%v calls=%d, want a close with no review", err, *calls)
 	}
 }
 

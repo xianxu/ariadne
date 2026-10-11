@@ -205,7 +205,7 @@ func validatePublishAnchors(ctx context.Context, entries []publishIssue, stderr 
 	}
 	deltas := make([]publishDelta, 0, len(entries))
 	for _, e := range entries {
-		d := publishDelta{Anchor: e.Anchor}
+		d := publishDelta{Anchor: e.Anchor, Issue: publishIssueRef(e.Path)}
 		switch {
 		case merr != nil:
 			d.Unresolvable = merr.Error()
@@ -272,6 +272,7 @@ func publishDeltaRank(d publishDelta) int {
 // publishDelta is what HEAD carries beyond one issue's reviewed patch.
 type publishDelta struct {
 	Anchor       string
+	Issue        string   // the issue's CLI ref for the next action; "" renders <N>
 	Conflicted   []string // main rewrote lines the review read; the resolution is unreviewed
 	Paths        []string // diff(reviewed patch on today's main, HEAD)
 	Unresolvable string   // why the reviewed patch could not be replayed
@@ -283,13 +284,24 @@ const publishGateRefusal = "publish gate: the reviewed patch no longer covers HE
 // classifyPublishDelta decides one issue's publish (#304 D9). Pure. Each refusal names
 // its own cause and the one next action, a re-close of the code delta.
 func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
-	reclose := "\n  Re-run `sdlc close --issue <N> --verified '<evidence>'` to review it, then retry the publish."
+	n := orPlaceholder(d.Issue, "<N>")
+	reclose := fmt.Sprintf("\n  Re-run `sdlc close --issue %s --verified '<evidence>'` to review it, then retry the publish.", n)
+	// #183: a delta past a reviewed patch is reviewed as the interdiff since that review,
+	// not as the whole branch again.
+	fixed := fmt.Sprintf("\n  Re-run `sdlc close --issue %s --fixed-then-ship --verified '<evidence>'`: it reviews only the change since that close, then retry the publish.", n)
 	switch {
 	case d.Unresolvable != "":
 		return false, fmt.Sprintf("%s: %s.%s", publishGateRefusal, d.Unresolvable, reclose)
 	case len(d.Conflicted) > 0:
+		next := fixed
+		if code := conflictedCode(d.Conflicted); len(code) > 0 {
+			// Operator decision (#320): only the review narrows; the full suite still runs.
+			next = fmt.Sprintf("\n  Run the full test suite (`make test`; only the review narrows), then\n"+
+				"  Re-run `sdlc close --issue %s --fixed-then-ship --full-suite '<evidence>' --verified '<evidence>'`:\n"+
+				"  it reviews only the change since that close, the conflict resolution included; then retry the publish.", n)
+		}
 		return false, fmt.Sprintf("%s: main's changes conflict with the reviewed patch in %s — the resolution is unreviewed.%s",
-			publishGateRefusal, strings.Join(d.Conflicted, ", "), reclose)
+			publishGateRefusal, strings.Join(d.Conflicted, ", "), next)
 	}
 	var code []string
 	for _, p := range d.Paths {
@@ -301,7 +313,7 @@ func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
 	case len(code) > 0:
 		return false, fmt.Sprintf("%s: code changed after `sdlc close` (reviewed %s): %s.%s\n"+
 			"  (Merging or rebasing main never counts — only the branch's own changes do, #304. Doc-only deltas pass on their own, #174.)",
-			publishGateRefusal, shortOID(d.Anchor), strings.Join(code, ", "), reclose)
+			publishGateRefusal, shortOID(d.Anchor), strings.Join(code, ", "), fixed)
 	case len(d.Paths) > 0:
 		return true, formatPublishGateDocsOnly(len(d.Paths), shortOID(d.Anchor))
 	default:
@@ -478,4 +490,16 @@ func publishTrackerCompletions(ctx context.Context, issuesDir string) (done []st
 		return done, true, err
 	}
 	return done, true, nil
+}
+
+// publishIssueRef is the issue's CLI ref from its details path, or "" when the path
+// names none (the refusal then reads <N>).
+func publishIssueRef(path string) string {
+	if path == "" {
+		return ""
+	}
+	if n := issueIDFromPath(path); n > 0 {
+		return strconv.Itoa(n)
+	}
+	return ""
 }
