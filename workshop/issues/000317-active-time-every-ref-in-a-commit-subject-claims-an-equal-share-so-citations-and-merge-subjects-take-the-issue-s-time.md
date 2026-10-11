@@ -1,12 +1,22 @@
 ---
 id: 000317
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-09
-updated: 2026-10-09
+updated: 2026-10-10
 estimate_hours:
-card_mirror: '0ae42c5431df6cd03b06f32d3085b4828b32aaf7' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a676275adc50be3d9392112f049655ffed377a3c' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T16:53:10-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "5bdcac5d", done: "0655980a"}
+actual_hours: 0.36
 ---
 
 # active-time: every ref in a commit subject claims an equal share, so citations and merge subjects take the issue's time
@@ -62,9 +72,38 @@ commit, and branch points b77e9718 (pre) / 3fddafdf (post, main before PR 174).
 - Re-measure two or three recent closes before/after and record the deltas
   for calibration consumers.
 
+### Decisions (2026-10-10, ariadne:3)
+
+- **Lead grammar** (`issueref.Lead`): after any `area:` labels (`sdlc: `,
+  `issues: `), optionally one lead verb from a closed list (`close`, `closes`,
+  `file`, `issue`, `plan`), the subject must start with a ref; the lead is
+  that ref plus refs chained to it by `-`, `–`, `,`, `/`, `+`, `&`
+  (`#174-#176`, `#N, #M:`). Anything after is a citation. The verb list is
+  closed on purpose: an open "any word" verb would read
+  `side-quest: follow #N's plan` as a claim, which is the leak.
+- **No-lead subject → neutral boundary.** By the commit convention (§12) the
+  issue a commit works for leads; `chore: bump (refs #1, #2)` names no owner.
+  Claiming its refs is the citation leak again. Neutral still ends a
+  claimant's reach and leaves the run to mentions.
+- **Citations stay in the mention scope:** `Commit.Refs` keeps every local
+  ref (feeds `WindowIssues`); `Commit.Issues` becomes the lead claimants
+  (feeds boundaries/attribution).
+- **Scoped boundaries use the lead:** a main commit is a boundary only if its
+  *lead* names the issue (a main commit that cites #N no longer bounds #N's
+  sessions), and **merge commits are never boundaries in a scoped
+  measurement**. Integration is not work (#270's rule for `branchOwn`); with
+  it the boundary set before and after integrating main is identical by
+  construction, not just leak-free.
+
 ## Plan
 
-- [ ]
+- [x] `issueref.Lead` / `LeadLocalNums` + table test over real subject shapes
+- [x] activetime: `Commit.Refs` (mention scope) vs `Commit.Issues` (lead
+      claimants); scoped filter uses the lead and drops merges
+- [x] Tests: commit-load test for citation/merge subjects; #304-shaped
+      regression (pre == post, no share to #308/#300/#270)
+- [x] Replay #304 (pre/post) and 2–3 recent closes old vs new; record deltas
+- [x] atlas: active-time attribution section
 
 ## Log
 
@@ -72,3 +111,35 @@ commit, and branch points b77e9718 (pre) / 3fddafdf (post, main before PR 174).
 
 - Filed by ariadne:3 at the ariadne:1 TL's request, investigating ariadne:4's
   #304 hours report. Not fixed yet (TL: file, don't fix).
+
+### 2026-10-10
+- 2026-10-10: closed — Re-close after the close-review Minor fix (doc/comment wording only: helptext, Scope comment, atlas). Prior evidence stands: make test 12 shards 0 failed; processgroup fails only under the sandbox (ps fork denied), passes unsandboxed; targeted activetime/issueref tests pass; #304 replay pre 2.48h / post 2.50h all #304.; review verdict: SHIP
+- 2026-10-10: closed — make test: 12 cmd/sdlc shards 0 failed; other packages pass except processgroup TestCancellationKillsDescendants, which fails only under the agent sandbox (fork/exec /bin/ps not permitted) and passes unsandboxed. New tests: issueref TestLeadLocalNums (19 real subject shapes), activetime TestLoadWindowCommitsLeadClaimsCitationsDont, TestCitationsDoNotClaim, TestBoundariesSurviveIntegratingMain/"subject names the issue" (#304 merge shape). Replay of #304 through Compute as sdlc actual calls it: pre-merge 1.37h(+#308 1.10h) -> 2.48h all #304; post-merge 1.01h(+#300/#270 0.74h each) -> 2.50h all #304. Recent closes old->new: #319/#300/#270/#315/#296 unchanged, #283 6.28->7.35h.; review verdict: SHIP
+
+- ariadne:3 claimed (TL dispatch, batch 2). Replay reproduced through
+  `Compute` exactly as `sdlc actual` calls it (clones at 7885ed1e / 8470f8eb,
+  slot-4 + brain transcript dirs, tracker ref, since 20:01:24): pre #304
+  82.4m + #308 66.2m (2.48h total); post #304 60.8m, #300 44.6m, #270 44.6m.
+- Implemented: `issueref.Lead`/`LeadLocalNums` (closed-verb lead grammar);
+  `Commit.Issues` = lead claimants, `Commit.Refs` = all local refs (mention
+  scope); `branchCommits` reads `rev-list --parents` once and the scoped filter
+  drops merges and keys main commits on the lead. `TestAttributionGolden`'s
+  `#10 second (#8)` encoded the old citation-claims rule; it is now the lead
+  list `#10, #8: second`, which keeps the split it pins. Help text
+  (`helptext/active-time.md`) and atlas (`sdlc-binary.md`) updated.
+- **Replay after the fix** (same harness, scoped as `sdlc actual`):
+  | #304 head | old | new |
+  |---|---|---|
+  | pre-merge 7885ed1e | #304 1.37h, #308 1.10h | #304 2.48h (all) |
+  | post-merge 8470f8eb | #304 1.01h, #300 0.74h, #270 0.74h | #304 2.50h (all) |
+  | close 85394ff5 | #304 2.68h | #304 2.68h |
+  Pre vs post differ only by the window end (22:14 vs 22:15). At close the
+  old engine already gave 2.68h: the merge sat inside a run whose next
+  boundary was the close. The 1.01h reading depends on when you measure.
+- **Calibration deltas (old → new), recent closes:** #319 0.26 → 0.26,
+  #300 1.92 → 1.92, #270 0.79 → 0.79, #315 0.01 → 0.01, #296 0.33 → 0.33 (no
+  cited subjects in a claiming position); **#283 6.28 → 7.35h** (`#283:
+  project: … file #284-#287` had handed #284/#287 1.07h; #284 keeps 0.54h
+  from its own filing commits on the branch). Recorded actuals on cards
+  differ from both because they were measured at other heads/times.
+

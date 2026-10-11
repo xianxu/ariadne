@@ -73,6 +73,31 @@ func Find(text string) []Ref {
 	return out
 }
 
+// leadRE matches a commit subject's LEAD (ariadne#317): any `area:` labels, at
+// most one verb from a closed list, then a ref and the refs chained to it by a
+// range or list separator (`#174-#176`, `#284, #285:`). The verb list is closed
+// on purpose: reading any word as a verb would make `side-quest: follow #N's
+// plan` a claim, which is the citation leak this exists to stop.
+var leadRE = regexp.MustCompile(`^(?:[A-Za-z][\w.-]*:\s+)*(?:(?i:close|closes|file|issue|plan)\s+)?` +
+	`(` + QualifiedIDPattern + `\b(?:\s*[-–,/+&]\s*` + QualifiedIDPattern + `\b)*)`)
+
+// Lead returns the refs at the start of a commit subject: the issue(s) the
+// commit works for, by the `#N: …` convention. Refs later in the subject are
+// citations (`#304: merge origin/main (#300, #270 landed)` works for #304
+// only); a subject with no lead returns nil.
+func Lead(subject string) []Ref {
+	m := leadRE.FindStringSubmatch(subject)
+	if m == nil {
+		return nil
+	}
+	return Find(m[1])
+}
+
+// LeadLocalNums is LocalNums over the subject's lead only.
+func LeadLocalNums(subject, selfRepo string) []string {
+	return localNums(Lead(subject), selfRepo)
+}
+
 // IsLocal reports whether r names an issue in the repo called selfRepo. A bare ref is always
 // local; a qualified one is local only when the qualifier IS this repo (`ariadne#180` inside
 // ariadne). selfRepo "" means "unknown", so only bare refs count.
@@ -92,9 +117,13 @@ func (r Ref) IsLocal(selfRepo string) bool {
 // That ordering contract is inherited from the uniqueRefs it replaces, whose callers pass the
 // result straight into commit attribution.
 func LocalNums(text, selfRepo string) []string {
+	return localNums(Find(text), selfRepo)
+}
+
+func localNums(refs []Ref, selfRepo string) []string {
 	seen := map[string]bool{}
 	var out []string
-	for _, r := range Find(text) {
+	for _, r := range refs {
 		if !r.IsLocal(selfRepo) || seen[r.Num] {
 			continue
 		}

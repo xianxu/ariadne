@@ -13,15 +13,18 @@ import (
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
-// Commit is a window commit with its subject issue refs (deduped,
-// order-preserving). Time is the author date (%aI). Commits define global time
-// boundaries; commits with issue refs can claim nearby activity runs, while
-// no-ref commits remain neutral boundaries.
+// Commit is a window commit. Time is the author date (%aI). Commits define
+// global time boundaries; a commit whose subject leads with an issue claims
+// nearby activity runs for it, and any other commit is a neutral boundary.
+// Issues are the lead's local refs, the claimants; Refs are every local ref
+// in the subject, so a citation stays in the mention scope without claiming
+// (#317). Both are deduped and order-preserving.
 type Commit struct {
 	Time    time.Time
 	SHA     string // short (7)
 	Subject string
 	Issues  []string
+	Refs    []string
 }
 
 // gitRun is the package-level git runner (mirrors gitx's run shim) so
@@ -39,7 +42,10 @@ var gitRun = func(repo string, args ...string) ([]byte, error) {
 // BranchPoint, a commit is a boundary only if it is the branch's own non-merge
 // commit (in BranchPoint..HEAD) or its subject names Issue (the filing commit
 // on main, the issue's tracker claim/close). The zero Scope keeps every commit
-// in the window: work done directly on main has no branch to scope to.
+// in the window: work done directly on main has no branch to scope to. Since
+// #317 "names" means the subject's lead, and a merge in BranchPoint..HEAD is
+// never a boundary: its lead would make the integration a boundary the unintegrated
+// branch lacked (ariadne#304: `#304: merge origin/main (#300, #270 landed)`).
 type Scope struct {
 	BranchPoint string
 	Issue       string
@@ -72,7 +78,7 @@ func loadWindowCommits(repo, sinceISO, untilISO string, scope Scope, extraRefs .
 	if text == "" {
 		return nil, nil
 	}
-	own, err := branchOwn(repo, scope)
+	own, merges, err := branchCommits(repo, scope)
 	if err != nil {
 		return nil, err
 	}
@@ -97,8 +103,8 @@ func loadWindowCommits(repo, sinceISO, untilISO string, scope Scope, extraRefs .
 		if (!since.IsZero() && ts.Before(since)) || (!until.IsZero() && ts.After(until)) {
 			continue
 		}
-		issues := issueref.LocalNums(parts[2], self)
-		if own != nil && !own[parts[0]] && !slices.Contains(issues, scope.Issue) {
+		issues := issueref.LeadLocalNums(parts[2], self)
+		if own != nil && !own[parts[0]] && (merges[parts[0]] || !slices.Contains(issues, scope.Issue)) {
 			continue
 		}
 		commits = append(commits, Commit{
@@ -106,27 +112,35 @@ func loadWindowCommits(repo, sinceISO, untilISO string, scope Scope, extraRefs .
 			SHA:     short7(parts[0]),
 			Subject: parts[2],
 			Issues:  issues,
+			Refs:    issueref.LocalNums(parts[2], self),
 		})
 	}
 	return commits, nil
 }
 
-// branchOwn returns the full SHAs of the branch's own non-merge commits, or nil
-// for the zero Scope. A merge commit is integration, not work: merging main in
-// mid-issue must not add a boundary the unintegrated branch lacked.
-func branchOwn(repo string, scope Scope) (map[string]bool, error) {
+// branchCommits splits the commits in BranchPoint..HEAD into the branch's own
+// non-merge commits and its merges, by full SHA; both are nil for the zero
+// Scope. A merge commit is integration, not work: merging main in mid-issue
+// must not add a boundary the unintegrated branch lacked.
+func branchCommits(repo string, scope Scope) (own, merges map[string]bool, err error) {
 	if scope.BranchPoint == "" {
-		return nil, nil
+		return nil, nil, nil
 	}
-	out, err := gitRun(expandUser(repo), "rev-list", "--no-merges", "HEAD", "^"+scope.BranchPoint)
+	out, err := gitRun(expandUser(repo), "rev-list", "--parents", "HEAD", "^"+scope.BranchPoint)
 	if err != nil {
-		return nil, fmt.Errorf("branch commits since %s: %w", scope.BranchPoint, err)
+		return nil, nil, fmt.Errorf("branch commits since %s: %w", scope.BranchPoint, err)
 	}
-	own := map[string]bool{}
-	for _, sha := range strings.Fields(string(out)) {
-		own[sha] = true
+	own, merges = map[string]bool{}, map[string]bool{}
+	for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
+		f := strings.Fields(line)
+		switch {
+		case len(f) > 2:
+			merges[f[0]] = true
+		case len(f) > 0:
+			own[f[0]] = true
+		}
 	}
-	return own, nil
+	return own, merges, nil
 }
 
 // windowBounds parses the window edges; "" leaves that side open.
@@ -145,7 +159,7 @@ func windowBounds(sinceISO, untilISO string) (since, until time.Time, err error)
 }
 
 // WindowIssues returns the distinct local issues the window's boundary commits
-// reference plus scope.Issue (measured even before its first commit),
+// reference, citations included (#317), plus scope.Issue (measured even before its first commit),
 // numerically sorted. It reads the same commits Compute segments on,
 // so the tracked set and the boundaries cannot disagree: an issue that reached
 // the branch only through main is in neither (#270).
@@ -161,7 +175,7 @@ func WindowIssues(repo, sinceISO, untilISO string, scope Scope, extraRefs ...str
 		out = append(out, scope.Issue)
 	}
 	for _, c := range commits {
-		for _, iss := range c.Issues {
+		for _, iss := range c.Refs {
 			if !seen[iss] {
 				seen[iss] = true
 				out = append(out, iss)
