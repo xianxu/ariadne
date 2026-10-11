@@ -994,8 +994,9 @@ codex env, claude) to its reviewer; `--agent` and `AGENT_CMD` stay above it, and
 checkout's file in `boundaryReviewOptionsFor`; an invalid file halts the review.
 The ledger round's `agent` records who reviewed. `DispatchOptions.Containment`
 (none / checkout / fenced) replaced `IsSandbox` + `Fenced`, and `agentArgs` maps
-it to each CLI's read-only mode: claude `--permission-mode dontAsk` (the tool
-list is enforced), codex `--sandbox read-only | workspace-write |
+it to each CLI's own mode: claude `--permission-mode dontAsk` (the tool list
+is enforced, so Edit/Write are refused; Bash stays unrestricted, so shell
+writes are stopped only by the #204 fence), codex `--sandbox read-only | workspace-write |
 danger-full-access`, gemini without `--yolo`. No judge gets an auto-approve mode;
 `--sandbox` on `judge`/`change-code` is a deprecated no-op.
 

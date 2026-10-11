@@ -162,7 +162,7 @@ func buildArgs(agent AgentCLI, prompt string) (name string, args []string, fromF
 		return "claude", []string{
 			"-p",
 			"--allowedTools", "Read Grep Glob WebSearch WebFetch",
-			"--permission-mode", "bypassPermissions",
+			"--permission-mode", "dontAsk", // #310: reviewers never auto-approve
 			prompt,
 		}, false, ""
 

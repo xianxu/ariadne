@@ -375,12 +375,15 @@ REVIEWER (#310)
   --agent and AGENT_CMD override the file. An unknown mode, agent or key halts
   the review with the file named. The ledger round records the reviewer.
 
-  Every judge runs read-only, never in an auto-approve mode: claude with
-  `--permission-mode dontAsk` (only Read,Grep,Glob,Bash run; Edit/Write are
-  refused); codex with `--sandbox workspace-write` in the review checkout
-  (`danger-full-access` under the OS fence, `read-only` outside a checkout);
-  gemini without --yolo (headless, it refuses tools needing approval). Under
-  the OS fence (#204) a write to the source checkout fails whatever the agent.
+  No judge runs in an auto-approve mode. claude gets `--permission-mode
+  dontAsk`: only Read,Grep,Glob,Bash run, so Edit/Write are refused, but Bash
+  itself is unrestricted. codex gets `--sandbox workspace-write` in the review
+  checkout (writes only the checkout), `danger-full-access` under the OS fence,
+  `read-only` outside a checkout. gemini runs without --yolo (headless, it
+  refuses tools needing approval). What stops a shell write to the source
+  checkout is the OS fence (#204), whatever the agent; without it, only
+  codex's own sandbox does. Plan-quality and `sdlc judge` run in the operator's
+  tree with no fence, so a claude judge's Bash can still write there.
   Codex's read-only mode is its own Seatbelt, which cannot nest where the
   fence probe failed (sdlc inside Claude Code's sandbox): its commands are then
   refused and close warns. Run a codex reviewer from an unsandboxed sdlc.

@@ -76,7 +76,7 @@ Design (2026-10-11, ariadne:2):
 - [x] `workshop/review.json` loader + validation, tests (absent, other, explicit, malformed)
 - [x] `Containment` argv mapping replaces Fenced/IsSandbox; argv tests per agent × level
 - [x] Wire boundary review: policy from the source root; integration test: claude main + `other` → codex dispatched, ledger round `Agent: codex`, and vice versa
-- [x] Help: close.md / milestone-close.md document the config; atlas (sdlc-binary, openshell-sandbox)
+- [x] Help: close.md / milestone-close.md document the config; atlas (sdlc-binary; openshell-sandbox describes the main agents, not judges, so it is unchanged)
 - [x] Live check: claude `dontAsk` reviewer asked to Write is refused
 
 ## Log
@@ -86,6 +86,7 @@ Design (2026-10-11, ariadne:2):
 - Removed `isSandbox()` (its only consumer was the auto-approve gate); `--sandbox` on `judge`/`change-code` is deprecated, hidden by cobra, no effect.
 - Live checks (this slot, inside Claude Code's sandbox): `claude -p --allowedTools Read,Grep,Glob,Bash --permission-mode dontAsk` asked to Write → "Permission to use Write has been denied because Claude Code is running in don't ask mode", no file. `codex exec --sandbox read-only` asked to `echo hi > probe.txt` → `sandbox-exec: sandbox_apply: Operation not permitted`, no file: fails closed, but it also means a codex reviewer can run *no* command where the #204 fence probe fails (the same nesting). Pre-existing (codex exec already defaulted to a read-only seatbelt); now warned at dispatch and documented under REVIEWER in `sdlc close --help`. `other` with a claude main is only useful from an unsandboxed sdlc until the fleet runs sdlc outside the seatbelt.
 - side-quest: `make test` failed twice on the hermeticity guard ("leaked .git/sdlc.lock") with no lock left behind. Cause: `processAlive` read `kill(pid,0)` EPERM as dead. Inside the Seatbelt sandbox, a peer slot's live sdlc is not signalable, so the guard (and `repolock.Observe`'s dead-holder reclaim, in production) saw a live holder as dead. Fixed to ESRCH-only death, as `weave/internal/staging` already does; `TestProcessAliveTreatsEPERMAsAlive` (pid 1) fails without it. The `processgroup` TestCancellationKillsDescendants failure is the sandbox denying `/bin/ps` (environmental, not this diff).
+- Close review round 1: FIX-THEN-SHIP. BR-1 (Important): the help and atlas claimed every judge runs read-only, but claude's Bash stays unrestricted under `dontAsk`. Reworded `sdlc close --help` REVIEWER, the atlas and the `Containment` doc: Edit/Write are refused, and only the #204 fence stops shell writes. Narrowing Bash to patterns would break reviewers that run tests in the checkout. Minors: the codex nesting warning is now darwin-only (Seatbelt); the Validate wording was changed; the plan row no longer claims an openshell-sandbox atlas edit (that page describes the main agents); `cmd/doc-review`'s claude reviewer moved from bypassPermissions to dontAsk (its allowlist was moot before), pinned in `TestBuildArgs_ReadOnly`.
 
 ### 2026-10-09
 Filed from the robustness evidence review (ariadne-robustness-1). Revives #129's unbuilt modes; pairs with #204.

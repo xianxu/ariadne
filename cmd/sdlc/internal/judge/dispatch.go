@@ -153,12 +153,14 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 
 // Containment is what bounds a judge's writes (#310). Every judge is a
 // reviewer, so no level grants an auto-approve mode (bypassPermissions,
-// --full-auto, --yolo): each maps to the CLI's own read-only behavior, scoped
-// by what surrounds the agent.
+// --full-auto, --yolo). Each maps to the CLI's own permission mode, scoped by
+// what surrounds the agent. claude's Bash stays unrestricted at every level:
+// only the fence stops its shell writes.
 type Containment int
 
 const (
-	// ContainNone runs in the operator's tree: the agent may write nothing.
+	// ContainNone runs in the operator's tree: codex is read-only, claude's
+	// Edit/Write are refused.
 	ContainNone Containment = iota
 	// ContainCheckout runs in a disposable checkout with no OS fence (#204):
 	// the agent's sandbox, where it has one, may write only its working

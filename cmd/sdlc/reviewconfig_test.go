@@ -5,6 +5,7 @@ import (
 	"context"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -79,7 +80,7 @@ func TestBoundaryReviewOtherPolicySwapsReviewer(t *testing.T) {
 			if agent != tc.want || res.Agent != tc.want {
 				t.Fatalf("%s main: dispatched %q (result %q), want %q\n%s", tc.main, agent, res.Agent, tc.want, errb.String())
 			}
-			if warned := strings.Contains(errb.String(), "codex's own sandbox"); warned != (tc.want == "codex") {
+			if warned := strings.Contains(errb.String(), "codex's own sandbox"); warned != (tc.want == "codex" && runtime.GOOS == "darwin") {
 				t.Errorf("codex-cannot-nest warning shown=%v for a %s reviewer:\n%s", warned, tc.want, errb.String())
 			}
 			if !strings.Contains(strings.Join(agentArgs, " "), tc.mode) {

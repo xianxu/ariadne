@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -672,8 +673,8 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		return notRun(reason)
 	}
 	opts.BeforeRetry = checkout.Reset // a retried attempt starts pristine too
-	if opts.Agent == judge.AgentCodex && opts.Containment == judge.ContainCheckout {
-		// #310: codex's read-only mode is its own sandbox, which fails where the
+	if opts.Agent == judge.AgentCodex && opts.Containment == judge.ContainCheckout && runtime.GOOS == "darwin" {
+		// #310: on macOS codex's sandbox is Seatbelt too, which fails where the
 		// fence probe did; every command it runs is then refused (fail closed).
 		cwarn(stderr, "boundary review: codex's own sandbox likely cannot apply here either ("+iso.Reason+"), so its commands will fail; run sdlc outside the outer sandbox, or pass --agent claude")
 	}

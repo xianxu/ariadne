@@ -101,7 +101,7 @@ func (p ReviewerPolicy) Validate() error {
 	switch p.Mode {
 	case "", ReviewerSame, ReviewerOther:
 		if len(p.Pairs) > 0 {
-			return fmt.Errorf("reviewer_pairs is read only with boundary_reviewer %q", ReviewerExplicit)
+			return fmt.Errorf("reviewer_pairs applies only to boundary_reviewer %q", ReviewerExplicit)
 		}
 	case ReviewerExplicit:
 		if len(p.Pairs) == 0 {
