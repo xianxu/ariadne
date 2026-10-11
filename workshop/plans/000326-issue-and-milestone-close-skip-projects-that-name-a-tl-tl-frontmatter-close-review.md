@@ -77,3 +77,79 @@ findings:
       the Spec clause "Projects without tl: behave exactly as today". Decode only the tl key (a minimal
       struct{TL any}) and add a not-owned unit row with deps as a scalar. This is the only instance in the window.
 ```
+
+---
+
+## Re-review — 2026-10-11T00:14:40-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 326 — Issue and milestone close skip projects that name a TL (tl: frontmatter) |
+| repo | ariadne |
+| issue file | workshop/issues/000326-issue-and-milestone-close-skip-projects-that-name-a-tl-tl-frontmatter.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 3e80818d6213ac3e9f7c55306a9ccce111cf7cd4..f221a2aeb46970dd8c97b0295d10bcce39f20a8a |
+| command | sdlc close --issue 326 |
+| reviewer | claude |
+| timestamp | 2026-10-11T00:14:40-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've checked the fix and the tests pass, so I'm writing the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-1 is fixed. `TLOwners` (`cmd/sdlc/internal/project/metadata.go:79-118`) now decodes only the `tl` key into `struct{ TL any }`. A wrong type in another field, such as `deps: ariadne#5` or `mvp_scope: {a: b}`, no longer makes a project without `tl:` look unreadable. The new not-owned row `unrelated field malformed` covers this. It would fail under the old decode: `Metadata.Deps` is a `[]string` (`metadata.go:23`), and yaml v3 refuses to unmarshal a plain string into a slice. `TestTLOwners` and the frontmatter tests pass. The rest of the design is unchanged and correct: one filter at the close discovery loop (`close.go:799-811`), whose output feeds the tick, the detail-block gate, the peer-write and the review snapshot. Two small documentation problems remain, and neither blocks shipping.
+
+1. **Strengths**
+   - **Narrow decode.** The fail-closed check now only fails on the input it actually reads (`metadata.go:87-91`). Only a malformed `tl:`, or frontmatter that won't parse as YAML at all, skips a project.
+   - **`ErrNoFrontmatter` sentinel** (`pkg/frontmatter/frontmatter.go:22-24`). `TLOwners` recognises "no frontmatter" with `errors.Is` instead of matching the error message.
+   - **Unused field removed.** `Metadata.TL` is gone, so no field is left without a reader.
+   - **Integration test.** It runs close and milestone-close, each with and without a TL edit during the review. It also checks that a sibling project without `tl:` is still ticked, and it passes no `--no-project` waiver.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **`workshop/lessons.md:44-47`: the new lesson splits an existing one.** It was inserted between the first line of "A guard must fail closed…" and that lesson's second line. "A catalogued flag may waive only the refusal named by that catalog entry." now reads as the end of the #326 lesson. Move the new bullet below that line. This is the only misplaced edit in the window.
+   - **The issue's `## Plan` still says "`Metadata` gains `TL any`".** The BR-1 fix removed that field, as the Log records. Make the plan row match the code.
+
+5. **Test coverage**
+   - Every `## Done when` clause is tested in both modes (close and milestone-close) and both states (with and without a concurrent edit).
+   - The BR-1 regression row has a real effect: it would fail against the old decode.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** There is one filter site, and `TLOwners` reuses `ParseDoc`.
+   - **ARCH-PURE: pass.** `TLOwners` is a pure function of the file text and is tested without IO.
+   - **ARCH-PURPOSE: pass.** Every downstream step works from the one filtered list, read paths are untouched, and projects without `tl:` are handled as before.
+
+7. **Plan revisions:** add a `## Revisions` entry saying the `Metadata.TL any` step was replaced by a decode of only the `tl` key (BR-1).
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      TLOwners decodes only struct{TL any} (metadata.go:87-91); the not-owned row "unrelated field malformed" (deps scalar) would fail under the old Metadata decode because Deps is []string.
+findings:
+  - id: new
+    severity: Minor
+    family: edit-splits-neighbour
+    title: |
+      New lessons.md bullet was inserted inside an existing bullet, splitting it
+    detail: |
+      workshop/lessons.md:44-47. The line "A catalogued flag may waive only the refusal named by that catalog entry." now continues the 326 bullet instead of the fail-closed bullet above it. Move the new bullet below that line. This is the only instance in the window.
+  - id: new
+    severity: Minor
+    family: plan-row-drifts-from-code
+    title: |
+      Plan row still says Metadata gains TL any, but the BR-1 fix removed that field
+    detail: |
+      The issue's Plan, first ticked row. Reword it to match the decode of only the tl key, or add a Revisions entry.
+```

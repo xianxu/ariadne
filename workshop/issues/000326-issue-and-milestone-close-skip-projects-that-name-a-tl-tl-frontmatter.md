@@ -82,6 +82,8 @@ only decides *which* projects a close touches; #308 keeps *how* the remaining on
 
 ## Log
 
+
+- 2026-10-11: closed — TestTLOwners (incl. unrelated-malformed-field row, BR-1) + TestCloseCommands_TLOwnedProjectUntouched (close & milestone-close, with/without a TL edit mid-review: tl: file byte-identical, skip line, SHIP finalizes, sibling non-tl project still ticked; filter mutation fails it). make test: all green except TestCancellationKillsDescendants (sandbox blocks /bin/ps; passes unsandboxed) and TestPlanningReviewConcurrencySchedules (load timing flake; passes alone). vocab vet green. --no-plan-check: the only unticked row is this close itself.; review verdict: SHIP
 ### 2026-10-10
 - Implemented. `TLOwners` tells "no frontmatter" apart via a new `frontmatter.ErrNoFrontmatter` sentinel instead of
   string-matching the error. Unit test `TestTLOwners` (owned / not-owned / malformed rows, each asserting its own error).
