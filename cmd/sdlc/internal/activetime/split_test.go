@@ -69,6 +69,18 @@ func TestBuildTimelineAndSplit(t *testing.T) {
 			build: 20 + 36, tail: 4, source: SplitDispatch,
 		},
 		{
+			// #183: --fixed-then-ship re-reviews a finalized boundary after its
+			// fixes; the last finalizing round is the final one, so converge
+			// runs to the last fix commit.
+			name: "narrow re-close after FIX-THEN-SHIP extends converge",
+			rounds: []BoundaryRound{
+				{Boundary: "", Dispatched: at(30), Finalized: at(35), Finalizing: true},
+				{Boundary: "", Dispatched: at(50), Finalized: at(52), Finalizing: true},
+			},
+			commits: []int{25, 45}, since: 0, until: 52,
+			build: 30, converge: 15, tail: 7, source: SplitDispatch,
+		},
+		{
 			name:    "open REWORK at measurement: converge to the window end",
 			rounds:  []BoundaryRound{{Boundary: "", Dispatched: at(30), Finalized: at(35)}},
 			commits: []int{25, 50}, since: 0, until: 50,
