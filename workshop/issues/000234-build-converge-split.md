@@ -145,7 +145,7 @@ The M2 rows are drift, the converge-report verb, the docs and the review.
 
 Durable plan: `workshop/plans/000234-build-converge-split-plan.md`.
 
-- [ ] M1 — dispatch stamp on boundary rounds; pure timeline + split; actual =
+- [x] M1 — dispatch stamp on boundary rounds; pure timeline + split; actual =
       build + converge (tails excluded at every boundary); milestone-close
       derives its increment (E1); five appended ledger columns; est-0 rows
       excluded from calibration (E3)
@@ -179,6 +179,7 @@ its columns after #231 M3's flow columns and reads the per-round `Recipe` stamp
 The counts above were taken at filing and will move.
 
 ### 2026-10-10
+- 2026-10-10: closed M1 — Round 2 after fixing BR-1 + all 5 Minors (plans dir threaded through computeActualFor/the close seam + TestComputeActualReadsTheGivenPlansDir; cutTimes shared parse rule + parity case; REWORK fixture TestComputeActualCountsConvergeAfterRework 20m build/30m converge; converge-ends-at-commit property; godoc; growth note). Targeted activetime/estimate/close-actual tests pass; make test passed before the fixes (only the sandbox-only processgroup ps test fails). --no-project: the TL-owned ops project tracks #234 as one task row, with no per-milestone detail block.; review verdict: SHIP
 
 - ariadne:3 claimed (measurement train, after #317/#321). The project folds
   apply: E1 (milestone-close derives its increment), E3 (no-estimate closes
