@@ -1,10 +1,19 @@
 ---
 id: 000318
-status: working
+status: codecomplete
 created: 2026-10-10
 updated: 2026-10-11
 estimate_hours:
 github_issue:
+started: 2026-10-11T08:58:34-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+actual_hours: 1.97
 tracker:
     version: 1
     handoff:
@@ -17,14 +26,11 @@ tracker:
         source_blob: c634ddcf5ee324fc7b409069a68c80e6ffe3c3f1
         destination: workshop/issues/000318-sandbox-allow-couch-in-base-layer-settings-so-agents-can-message-peers.md
         main_commit: 9a97ca5a33dc4d6dbdbfa87c7e2ac57c891f6ff4
-started: 2026-10-11T08:58:34-07:00
-claimant:
-    operator: Xian Xu
-    machine: 4716879978a7b90f6b583da1716fd0e9
-    machine_name: MacBook Pro
-    workspace: ariadne:1
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
-    repository: github.com/xianxu/ariadne
+    completion:
+        token: close-88b56a207a6b
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 3ac15bafe3d8c4094cd9660a223d992a85e1980d
+        evidence_commit: b7dffaef439b020054dd01ab65e5fc06ca7640f7
 ---
 
 # sandbox: allow couch in base-layer settings so agents can message peers
