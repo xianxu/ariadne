@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000330-main-is-green-the-full-suite-passes-on-ariadne-main.md
         source_blob: 561c42c5f2f82cf4794e48cf2bebcc95bcdd42de
         destination: workshop/issues/000330-main-is-green-the-full-suite-passes-on-ariadne-main.md
+        main_commit: 3e80818d6213ac3e9f7c55306a9ccce111cf7cd4
 ---
 
 # Main is green: the full suite passes on ariadne main
