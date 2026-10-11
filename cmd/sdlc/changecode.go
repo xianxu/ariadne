@@ -748,7 +748,7 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 	}, ledger, d, f.Force)
 
 	if d.Block {
-		cwarn(stderr, "address the findings above and re-run — the gate remembers what you fixed; OR re-run with --force <reason>"+fixTheClassNote())
+		cwarn(stderr, "address the findings above and re-run — the gate remembers what you fixed; OR re-run with --force <reason>"+fixTheClassNote()+"\n  "+disputeLine())
 		return fmt.Errorf("plan-quality failure")
 	}
 	return nil

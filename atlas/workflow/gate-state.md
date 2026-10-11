@@ -50,8 +50,11 @@ source for:
 | `categories.blocking` | `Critical`, `Important` | undisposed ⇒ the gate refuses |
 | `categories.advisory` | `Minor` | recorded; never blocks |
 | `hardBlocking` | `Critical` | still blocks past the round cap |
-| `dispositions.closing` | `addressed`, `withdrawn` | settled; stops blocking |
+| `dispositions.closing` | `addressed`, `withdrawn`, `disputed` | settled; stops blocking |
 | `dispositions.open` | `not-addressed` | still open; keeps blocking |
+| `authority.judge` | `addressed`, `withdrawn`, `not-addressed` | what the judge's fence may emit |
+| `authority.implementer` | `disputed` | what `sdlc finding dispute` records (#202) |
+| `appealOnly` | `Critical` (= `hardBlocking`) | a dispute is put to the judge but does not settle it |
 
 Severity names are `code-review.md`'s existing three — the boundary review and the plan
 gate share one taxonomy, pinned by a drift test.
@@ -59,6 +62,30 @@ gate share one taxonomy, pinned by a drift test.
 Dispositions are **partitioned**, not listed flat, and that is load-bearing: a flat list
 plus a prose gloss would leave the closes-vs-leaves-open decision in a Go switch, so adding
 `deferred` later would pass validation, match no case, and wedge a finding open forever.
+
+## Implementer disputes (#202)
+
+The judge settles findings; before #202 the implementer could only fix them, so a wrong
+finding and a correct-but-not-worth-it one both left by the round cap. `sdlc finding
+dispute --issue N --id ID --rationale … --evidence …` records a `disputed` disposition in
+the ledger the id's prefix names (`PQ` plan gate, `BR` boundary review) and commits it
+narrowly on the issue branch.
+
+- **Second stream, one timeline.** Disputes live in the ledger's `disputes:` list, not as
+  rounds (a round is a reviewer invocation; it feeds the cap, id numbering and
+  pass-through). `gatestate.timeline` orders both streams — a dispute recorded after round
+  N takes effect after round N's dispositions and before round N+1's — and every reader of
+  a finding's state (`closedSet`, `DispositionCounts`, the prompt) goes through it.
+- **Evidence, not opinion.** `--rationale` and `--evidence` are both required.
+- **The next judge answers.** The prior-findings block lists each live dispute with its
+  evidence under `DISPUTED BY THE IMPLEMENTER`; the judge disposes it `withdrawn` or
+  `not-addressed` (which re-opens it). A judge fence emitting `disputed` is dropped as a
+  protocol error. An unanswered dispute stands.
+- **Appeal-only.** A dispute on a `Critical` is recorded and shown, but the finding keeps
+  blocking until the judge withdraws it.
+- **Loud.** The verb warns; `stampAndPersist` prints `N of M finding(s) settled by
+  implementer DISPUTE` at warning level on every round of either gate; the calibration
+  ledger records `gate_disputed` and `boundary_disputed` per close.
 
 ## The handoff
 

@@ -115,6 +115,10 @@ var GateCatalog = []GateSig{
 	{Commands: []string{"close"}, Flag: "no-done-when-fresh", Gate: "quick-flow Done-when fresh (#231)", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-done-when-fresh \(or --force\): skipping the Done-when freshness check`,
 		RefusalPat: `pass --no-done-when-fresh \(or --force\) with the reason in --verified`},
+	// #269: main's code landed before the most recent noon must be in the branch.
+	{Commands: closeMclose, Flag: "no-integrate", Gate: "branch integrates main as of the last noon (#269)", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
+		AckPat:     `--no-integrate \(or --force\): skipping the integrate gate`,
+		RefusalPat: `pass --no-integrate \(or --force\) with the reason in --verified`},
 	{Commands: closeMclose, Flag: "no-judge", Gate: "the boundary review (#69)", Grammar: grammarCinfo, HasRefusal: false,
 		AckPat: `skipping (issue boundary review|milestone-review) per --no-judge \(or --force\)`},
 

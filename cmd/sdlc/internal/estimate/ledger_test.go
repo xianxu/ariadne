@@ -333,8 +333,8 @@ func TestLedgerSplitColumns(t *testing.T) {
 		FlowKind: "full", FlowProvenance: "inferred",
 		BuildHours: 2.4, ConvergeHours: 0.7, BoundaryRounds: 3, SplitSource: "dispatch", ReviewRecipe: "milestone-review"}
 	line := FormatRow(r)
-	if n := len(strings.Split(line, "\t")); n != len(strings.Split(Header(), "\t")) || n != 28 {
-		t.Fatalf("row has %d columns, header %d, want 28", n, len(strings.Split(Header(), "\t")))
+	if n := len(strings.Split(line, "\t")); n != len(strings.Split(Header(), "\t")) || n != disputeCols {
+		t.Fatalf("row has %d columns, header %d, want %d", n, len(strings.Split(Header(), "\t")), disputeCols)
 	}
 	got := ParseRows(line)
 	if len(got) != 1 || got[0].BuildHours != 2.4 || got[0].ConvergeHours != 0.7 || got[0].BoundaryRounds != 3 ||
@@ -350,6 +350,29 @@ func TestLedgerSplitColumns(t *testing.T) {
 	}
 	if up, changed := UpgradeHeader(strings.Join(strings.Split(Header(), "\t")[:23], "\t") + "\n"); !changed || !strings.HasPrefix(up, Header()) {
 		t.Errorf("a 23-column header is not upgraded: %q", up)
+	}
+}
+
+// #202: the dispute block (indices 28–29) round-trips, and a #234-width row parses
+// with no disputes.
+func TestLedgerDisputeColumns(t *testing.T) {
+	r := LedgerRow{Issue: "ariadne#202", Estimate: 2, Actual: 3, Model: "m", WindowTrusted: true, Date: "2026-10-10",
+		GateDisputed: 1, BoundaryDisputed: 4}
+	line := FormatRow(r)
+	got := ParseRows(line)
+	if len(got) != 1 || got[0].GateDisputed != 1 || got[0].BoundaryDisputed != 4 {
+		t.Fatalf("round trip = %+v", got)
+	}
+	cells := strings.Split(Header(), "\t")
+	if cells[28] != "gate_disputed" || cells[29] != "boundary_disputed" {
+		t.Errorf("dispute columns must be APPENDED at 28–29; header tail %v", cells[27:])
+	}
+	old := ParseRows(strings.Join(strings.Split(line, "\t")[:splitCols], "\t"))
+	if len(old) != 1 || old[0].GateDisputed != 0 || old[0].BoundaryDisputed != 0 || old[0].Actual != 3 {
+		t.Errorf("a %d-column row: %+v", splitCols, old)
+	}
+	if up, changed := UpgradeHeader(strings.Join(cells[:splitCols], "\t") + "\n"); !changed || !strings.HasPrefix(up, Header()) {
+		t.Errorf("a %d-column header is not upgraded: %q", splitCols, up)
 	}
 }
 

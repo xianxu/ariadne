@@ -48,9 +48,11 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
 - `construct/vocabulary/finding.cue` — the `finding` noun (#187): the judgments a gate
   reviewer may emit. An **atomic** noun like `verdict` — no lifecycle — but with TWO
   partitions the binary branches on: `categories` (`blocking` = Critical/Important,
-  `advisory` = Minor) and `dispositions` (`closing` = addressed/withdrawn, `open` =
+  `advisory` = Minor) and `dispositions` (`closing` = addressed/withdrawn/disputed, `open` =
   not-addressed), plus `hardBlocking` (`["Critical"]`) — the subset that still blocks PAST
-  the round cap. Both partitions are modeled rather than glossed in prose because a Go
+  the round cap. #202 adds `authority` (which actor may assign each disposition: the judge's
+  three, the implementer's `disputed`, a partition) and `appealOnly` (= `hardBlocking`: the
+  severities a dispute cannot settle without the judge). Both partitions are modeled rather than glossed in prose because a Go
   switch on disposition literals was the exact failure mode: adding a closing disposition
   would pass validation and hit no case in the open-set computation, wedging a finding open
   forever. Consumers: the plan-quality prompt renders the emitted set from it

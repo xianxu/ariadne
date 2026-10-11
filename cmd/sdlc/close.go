@@ -59,7 +59,7 @@ type closeFlags struct {
 	Actual    string
 	// Split is the measured build/converge division of an ADOPTED Actual (#234);
 	// nil when --actual was typed, which the ledger records as split_source manual.
-	Split *actualSplit
+	Split     *actualSplit
 	Verified  string
 	Force     bool
 	DryRun    bool
@@ -89,6 +89,8 @@ type closeFlags struct {
 	NoJudge     bool // skip the issue boundary review (#69)
 	// NoDoneWhenFresh skips the quick flow's Done-when freshness check (#231).
 	NoDoneWhenFresh bool
+	// NoIntegrate skips the integrate gate (#269): main's code before the last noon.
+	NoIntegrate bool
 
 	// FixedThenShip is the narrow re-close (#183): review only the interdiff since the
 	// last finalized close review, with the fix-review recipe. FullSuite is the
@@ -144,6 +146,8 @@ func (f *closeFlags) skip(gate string) bool {
 		return f.NoJudge
 	case "done-when-fresh":
 		return f.NoDoneWhenFresh
+	case "integrate":
+		return f.NoIntegrate
 	}
 	return false
 }
@@ -195,6 +199,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
 	cmd.Flags().BoolVar(&f.NoDoneWhenFresh, "no-done-when-fresh", false, "quick flow: skip the Done-when freshness check (#231); say why in --verified")
+	cmd.Flags().BoolVar(&f.NoIntegrate, "no-integrate", false, "bypass the integrate gate: main's code landed before the most recent noon must be in the branch (#269)")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the issue boundary review auto-dispatched on full-issue close (#69)")
 	cmd.Flags().BoolVar(&f.FixedThenShip, "fixed-then-ship", false, "review only the changes since the last finalized close review (fixes, conflict resolutions) with the fix-review recipe (#183)")
 	cmd.Flags().StringVar(&f.FullSuite, "full-suite", "", "with --fixed-then-ship: evidence the full test suite passed — required when the window resolves a code conflict with main")
@@ -570,6 +575,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		}
 		cwarn(stderr, fmt.Sprintf("--no-reclose-guard (or --force): re-closing %s#%s (already done)", repoName, issueStr))
 	}
+
+	// ── Integrate gate (#269) ───────────────────────────────────────────────
+	// Before the window is planned, so a stale branch refuses before any review cost.
+	integrateGate(commandContext(f.Context), stderr, f, issueStr)
 
 	// ── Commit window + atlas check ─────────────────────────────────────────
 	// One window source (ARCH-DRY, #58): boundaryWindowBase gives the same base
@@ -1114,6 +1123,9 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		GateAddressed: m.Addressed,
 		GateWithdrawn: m.Withdrawn,
 		GateOpen:      m.Open,
+		// #202: findings settled by dispute, plan gate and boundary review.
+		GateDisputed:     m.Disputed,
+		BoundaryDisputed: m.BoundaryDisputed,
 
 		// #231: the flow the issue closed under — quick and upgraded rows carry no
 		// estimate, so drift skips them; throughput keeps their hours.
@@ -1542,7 +1554,8 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			}
 			cwarn(stderr, fmt.Sprintf("address them, or have the review dispose them explicitly, then re-run `%s`.\n"+
 				"  %s\n"+
-				"  Or pass --no-ledger (or --force); record why in --verified.", verb, fixTheClassLine()))
+				"  %s\n"+
+				"  Or pass --no-ledger (or --force); record why in --verified.", verb, fixTheClassLine(), disputeLine()))
 			return fmt.Errorf("boundary gate: %d open blocking finding(s) despite verdict %s", len(ledger.OpenBlocking), review.Verdict)
 		}
 
@@ -1581,7 +1594,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 	case closeRework:
 		emitTrailerBlock(stdout, review, kind)
 		cwarn(stderr, "boundary review: REWORK — close NOT finalized; issue left at status: working")
-		cwarn(stderr, fmt.Sprintf("address the findings, then re-run `%s` (no --no-reclose-guard needed)%s", verb, fixTheClassNote()))
+		cwarn(stderr, fmt.Sprintf("address the findings, then re-run `%s` (no --no-reclose-guard needed)%s\n  %s", verb, fixTheClassNote(), disputeLine()))
 		return fmt.Errorf("boundary review verdict REWORK — close not finalized")
 	default: // closeHalt
 		emitTrailerBlock(stdout, review, kind)

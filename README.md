@@ -298,6 +298,20 @@ when `--issue` is present; it defaults to `$WF_PLANS_DIR` or
 `workshop/plans`. The review prompt carries pinned, read-only Git inspection
 recipes rather than embedding the patch.
 
+## Disputing a gate finding
+
+A plan-quality (`PQ-n`) or boundary-review (`BR-n`) finding you can show is wrong,
+or not worth its fix, is disputed rather than patched or left to the round cap:
+
+```sh
+sdlc finding dispute --issue <n> --id BR-4 \
+  --rationale "<why it is wrong>" --evidence "<the command you re-ran and what it showed>"
+```
+
+The dispute is committed in the gate ledger; the next review round answers it
+against the evidence, and a Critical keeps blocking until it does. See
+`sdlc finding dispute --help` and `atlas/workflow/gate-state.md`.
+
 ## Project records
 
 Projects live in `workshop/projects/` and coordinate issue-backed work across

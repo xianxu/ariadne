@@ -14,12 +14,26 @@
     "dispositions": {
         "closing": [
             "addressed",
-            "withdrawn"
+            "withdrawn",
+            "disputed"
         ],
         "open": [
             "not-addressed"
         ]
     },
+    "authority": {
+        "judge": [
+            "addressed",
+            "withdrawn",
+            "not-addressed"
+        ],
+        "implementer": [
+            "disputed"
+        ]
+    },
+    "appealOnly": [
+        "Critical"
+    ],
     "when": {
         "Critical": "must fix before the gate is crossed",
         "Important": "fix before the gate if cheap; blocks until disposed",
@@ -28,7 +42,8 @@
     "whenDisposed": {
         "addressed": "the plan changed to satisfy this finding",
         "not-addressed": "still open — the judge re-raises it this round",
-        "withdrawn": "the judge retracts it (mistaken, or overtaken by a design change)"
+        "withdrawn": "the judge retracts it (mistaken, or overtaken by a design change)",
+        "disputed": "the implementer declines it with a rationale and a counter-measurement; it settles unless its severity is appeal-only, and the next judge answers it"
     },
     "discovery": {
         "home": "workshop/plans",

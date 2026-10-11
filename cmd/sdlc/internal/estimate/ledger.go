@@ -73,6 +73,14 @@ type LedgerRow struct {
 	BoundaryRounds int
 	SplitSource    string
 	ReviewRecipe   string
+
+	// ── #202: findings settled by implementer dispute (indices 28–29) ──────────
+	// GateDisputed sits beside GateAddressed/GateWithdrawn for the plan gate;
+	// BoundaryDisputed counts the boundary review's, where disputes mostly land. A
+	// high count against the gate's findings is the abuse signal: a dispute is the
+	// gate's escape hatch, and its use must show up in history.
+	GateDisputed     int
+	BoundaryDisputed int
 }
 
 // HasSplit reports a row whose actual was measured and split at its boundary
@@ -115,8 +123,8 @@ func (r LedgerRow) Ratio() float64 {
 // would silently re-interpret every historical row. The #187 block (churn_prod onward)
 // occupies indices 10–19.
 //
-// Growth (ARCH-FUNERAL): one row per close, about 150 bytes at 28 columns, so roughly
-// 150 KB per thousand closes (#234 added five cells, ~25 bytes). Nothing removes rows: the
+// Growth (ARCH-FUNERAL): one row per close, about 155 bytes at 30 columns, so roughly
+// 150 KB per thousand closes (#234 added five cells, ~25 bytes; #202 two, ~4). Nothing removes rows: the
 // ledger is the calibration history. Its reader is ParseRows over the whole file at each
 // close, linear and well under a millisecond at that size; a split by year would be the
 // remedy if it ever is not.
@@ -124,7 +132,8 @@ const ledgerHeader = "issue\testimate\test_design\test_impl\tactual\tratio\tmode
 	"\tchurn_prod\tchurn_test\tchurn_atlas\tchurn_workshop\trework" +
 	"\tgate_rounds\tgate_forced\tgate_addressed\tgate_withdrawn\tgate_open" +
 	"\tflow_kind\tflow_provenance\tflow_upgraded" +
-	"\tbuild_hours\tconverge_hours\tboundary_rounds\tsplit_source\treview_recipe"
+	"\tbuild_hours\tconverge_hours\tboundary_rounds\tsplit_source\treview_recipe" +
+	"\tgate_disputed\tboundary_disputed"
 
 // legacyCols is the column count before #187's append — the boundary between "row from an
 // older binary" and "row carrying cost metrics".
@@ -139,8 +148,9 @@ const costCols = 20
 // flowCols is the width through #231's flow block (indices 20–22); splitCols
 // through #234's build/converge block (23–27).
 const (
-	flowCols  = 23
-	splitCols = 28
+	flowCols    = 23
+	splitCols   = 28
+	disputeCols = 30 // #202's block (28–29)
 )
 
 // Header returns the ledger's TSV header line (written when the file is created).
@@ -156,6 +166,7 @@ func FormatRow(r LedgerRow) string {
 		itoa(r.GateRounds), itoa(r.GateForced), itoa(r.GateAddressed), itoa(r.GateWithdrawn), itoa(r.GateOpen),
 		Dash(r.FlowKind), Dash(r.FlowProvenance), yesno(r.FlowUpgraded),
 		ftoa(r.BuildHours), ftoa(r.ConvergeHours), itoa(r.BoundaryRounds), Dash(r.SplitSource), Dash(r.ReviewRecipe),
+		itoa(r.GateDisputed), itoa(r.BoundaryDisputed),
 	}, "\t")
 }
 
@@ -236,6 +247,10 @@ func ParseRows(text string) []LedgerRow {
 			row.BoundaryRounds = atoiOrZero(c[25])
 			row.SplitSource = undash(c[26])
 			row.ReviewRecipe = undash(c[27])
+		}
+		if len(c) >= disputeCols { // #202's dispute block
+			row.GateDisputed = atoiOrZero(c[28])
+			row.BoundaryDisputed = atoiOrZero(c[29])
 		}
 		rows = append(rows, row)
 	}
