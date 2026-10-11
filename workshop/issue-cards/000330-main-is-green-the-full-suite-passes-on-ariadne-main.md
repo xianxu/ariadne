@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 1.60
+actual_hours: 1.88
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000330-main-is-green-the-full-suite-passes-on-ariadne-main.md
         main_commit: 3e80818d6213ac3e9f7c55306a9ccce111cf7cd4
     completion:
-        token: close-6e095fafc335
+        token: close-1b1103338158
         repository: github.com/xianxu/ariadne
-        reviewed_head: 86401ddf688ac0b18a2437972d81e411ec6658be
-        evidence_commit: c1ceebccdaa8b1c1da49d46c93b831ef28510150
+        reviewed_head: 67ac9bf641eceacafc05ffa042198acea603217e
+        evidence_commit: 8115e97a92edca6fd4d124f9916cc8bc8399d8f9
 ---
 
 # Main is green: the full suite passes on ariadne main
