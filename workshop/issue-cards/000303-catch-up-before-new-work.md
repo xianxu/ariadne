@@ -1,6 +1,6 @@
 ---
 id: 000303
-status: codecomplete
+status: done
 created: 2026-10-08
 updated: 2026-10-11
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 1ec8628e5997a7db47ca4040c903a7ca3dff6423
         evidence_commit: 2d60766eecdb9facb9e915a872ff7381582e9424
+        landed_commit: 54388281c35de03aa2f71b1b0f606601af918455
 ---
 
 # Catch the slot and its dependencies up to main before new work
