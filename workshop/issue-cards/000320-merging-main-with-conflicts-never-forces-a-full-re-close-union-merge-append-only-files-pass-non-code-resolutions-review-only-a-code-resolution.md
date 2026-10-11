@@ -1,6 +1,6 @@
 ---
 id: 000320
-status: codecomplete
+status: done
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 94dbc3d8a9f7450d44e1a04240df8ca1e55aff22
         evidence_commit: 839813ad6d247c0d00a9427b5d9bf97f6e3244c2
+        landed_commit: c81c0876155d353a6cde62be58d0efca3422832c
 ---
 
 # Merging main with conflicts never forces a full re-close: union-merge append-only files, pass non-code resolutions, review only a code resolution
