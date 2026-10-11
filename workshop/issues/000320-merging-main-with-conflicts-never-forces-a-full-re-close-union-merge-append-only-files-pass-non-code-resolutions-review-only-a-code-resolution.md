@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "6cf465e4", done: "c6e95d30"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Merging main with conflicts never forces a full re-close: union-merge append-only files, pass non-code resolutions, review only a code resolution
@@ -56,6 +56,8 @@ ARCH-FUNERAL: creates nothing durable beyond one managed block in `.gitattribute
 ## Log
 
 ### 2026-10-10
+- 2026-10-10: closed — make test: 12 sdlc shards 0 failed (1021 tests); packages green except processgroup TestCancellationKillsDescendants, which fails only because the sandbox denies fork/exec /bin/ps, and passes outside the sandbox (package untouched). New tests: TestClassifyPublishDelta non-code/mixed/helptext conflict rows plus a pass-line-vs-gatesig check, TestPublishDeltaRank_NonCodeConflict, TestRunPublishGate_BranchPatch pair#426 shape (hand-resolved lessons-only conflict passes; union-attributed lessons merges with no conflict and passes; code conflict still refuses), TestRebasedReviewedBase_UnionAttributeFromMain (attributes read from B_now, not the worktree), weave gitattributes block tests; go test ./cmd/weave/... green. weave compile --dry-run lists gitattr .gitattributes (1 entries); git check-attr shows lessons.md merge=union.; review verdict: SHIP
+- 2026-10-10: flow upgraded quick → full — 103 added lines in code files (limit 100)
 - Claimed and started from ariadne:1 (TL batch 2).
 - `git merge-tree --write-tree` honors `merge=union` from the worktree `.gitattributes`, or from `--attr-source=<tree>` when given. Without either it conflicts. Verified in a scratch repo, git 2.54.
 - Layer 2 done: `classifyPublishDelta` refuses only code-surface conflicts, names the non-code resolved files in the pass line, and the pass line is tested against gatesig's refusal pattern so it can't be misread as a refusal (#172).
