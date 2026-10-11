@@ -183,13 +183,13 @@ func (c Category) NeedsAgent() bool {
 }
 
 // AllowedTools returns the tool allowlist for this category's agent
-// invocation. ALL judges are READ-ONLY reviewers (#62 M2): they report
+// invocation. ALL judges are reviewers, not doers (#62 M2): they report
 // findings; the main agent — which has full session context — applies the
 // fixes, commits, and re-runs. A gate that mutates the tree (the old Specs
 // auto-edit) could pass while leaving uncommitted changes, stranding the
-// subsequent merge; read-only removes that failure mode by construction.
-// (Bash stays for read-only inspection — grep, go vet — matching the other
-// review categories' long-standing posture.)
+// subsequent merge. The list has no Edit/Write, and --permission-mode dontAsk
+// enforces it (#310). Bash stays for inspection (grep, go vet, tests) and is
+// not restricted: only the boundary review's #204 fence stops its writes.
 func (c Category) AllowedTools() string {
 	return "Read,Grep,Glob,Bash"
 }

@@ -13,8 +13,9 @@ import (
 // AgentCLI names the second-vendor reviewer CLI. Mirrors the set in
 // cmd/sdlc/internal/judge/dispatch.go (claude/codex/gemini); we keep our own
 // copy rather than import across the sdlc internal/ boundary because the review
-// contract differs from the judge contract (read-only + report capture, not
-// --full-auto) — a thin, intentional duplication (ARCH-DRY: noted, not shared).
+// contract differs from the judge contract (no Bash, codex report capture via
+// -o, no containment levels) — a thin, intentional duplication (ARCH-DRY:
+// noted, not shared).
 type AgentCLI string
 
 const (
