@@ -318,7 +318,7 @@ THE COST REPORT (#187)
   Two lines, over the same window the boundary review saw:
 
     [ok] churn: prod 554 / test 300 / atlas 20 / workshop 778 (final 1652, rework 2.4×)
-    [ok] plan gate: 6 round(s), 1 forced; findings 4 addressed / 1 withdrawn / 2 still open
+    [ok] plan gate: 6 round(s), 1 forced; findings 4 addressed / 1 withdrawn / 0 disputed / 2 still open
 
   rework is insertions-across-commits over insertions-in-the-final-diff: 1.0
   means every line written survived; 2.4× means 2.4 lines written per line kept.

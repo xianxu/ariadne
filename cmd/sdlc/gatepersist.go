@@ -65,6 +65,11 @@ func stampAndPersist(stderr io.Writer, g gatePersist, l gatestate.Ledger, d gate
 	if g.Extra != nil {
 		g.Extra(d)
 	}
+	// #202: a finding settled by dispute is announced on every round, passing or not —
+	// the escape hatch is loud by construction, not by the caller remembering.
+	if line := d.DisputeLine(); line != "" {
+		cwarn(stderr, g.Label+": "+line)
+	}
 	if err := g.Write(l); err != nil {
 		cwarn(stderr, fmt.Sprintf("%s ledger not persisted: %v", g.Label, err))
 	}

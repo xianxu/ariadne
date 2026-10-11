@@ -178,7 +178,7 @@ func TestDecideReportsDisputes(t *testing.T) {
 	l.Disputes = []Dispute{dispute("PQ-1", 1)}
 	l.Rounds = append(l.Rounds, round(2, dispose("PQ-2", "addressed"), nil))
 	d := Decide(l, 0)
-	if d.Block || len(d.Disputed) != 1 || !strings.Contains(d.Reason, "1 of 3 finding(s) settled by implementer DISPUTE, not a fix: PQ-1") {
+	if d.Block || len(d.Disputed) != 1 || d.DisputeLine() != "1 of 3 finding(s) settled by implementer DISPUTE, not a fix: PQ-1" {
 		t.Fatalf("decision = %+v", d)
 	}
 

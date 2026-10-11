@@ -105,9 +105,6 @@ func DecideScoped(capScope, openScope Ledger, roundCap int) Decision {
 		if d.OpenMinor > 0 {
 			d.Reason += fmt.Sprintf("; %d advisory finding(s) recorded for the close review", d.OpenMinor)
 		}
-		if line := d.DisputeLine(); line != "" {
-			d.Reason += "; " + line
-		}
 		return d
 	}
 
@@ -120,16 +117,16 @@ func DecideScoped(capScope, openScope Ledger, roundCap int) Decision {
 			b.WriteString(" (disputed — appeal-only, so it blocks until the judge answers)")
 		}
 	}
-	if line := d.DisputeLine(); line != "" {
-		b.WriteString("\n  " + line)
-	}
+
 	d.Reason = b.String()
 	return d
 }
 
 // DisputeLine is the operator-facing count of findings settled by dispute rather than a
 // fix, or "" when there are none (ariadne#202). Loud by design: every structure needs a
-// bypass, and using it must be announced. Pure.
+// bypass, and using it must be announced. Kept out of Reason so the one reporter,
+// stampAndPersist, prints it once and at warning level whether or not the gate passed.
+// Pure.
 func (d Decision) DisputeLine() string {
 	if len(d.Disputed) == 0 {
 		return ""

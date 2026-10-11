@@ -59,7 +59,7 @@ type closeFlags struct {
 	Actual    string
 	// Split is the measured build/converge division of an ADOPTED Actual (#234);
 	// nil when --actual was typed, which the ledger records as split_source manual.
-	Split *actualSplit
+	Split     *actualSplit
 	Verified  string
 	Force     bool
 	DryRun    bool
@@ -1100,6 +1100,9 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		GateAddressed: m.Addressed,
 		GateWithdrawn: m.Withdrawn,
 		GateOpen:      m.Open,
+		// #202: findings settled by dispute, plan gate and boundary review.
+		GateDisputed:     m.Disputed,
+		BoundaryDisputed: m.BoundaryDisputed,
 
 		// #231: the flow the issue closed under — quick and upgraded rows carry no
 		// estimate, so drift skips them; throughput keeps their hours.

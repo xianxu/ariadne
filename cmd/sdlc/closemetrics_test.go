@@ -123,6 +123,7 @@ func TestCloseLedgerRowCarriesCostMetrics(t *testing.T) {
 	r1 := gatestate.AssignIDs(l, gatestate.RoundReport{New: []gatestate.Finding{
 		{Severity: "Critical", Title: "one"},
 		{Severity: "Important", Title: "two"},
+		{Severity: "Important", Title: "three"},
 	}}, 1, "2026-07-29T00:00:00Z", "claude")
 	r1.Blocked = true
 	l = gatestate.Apply(l, r1)
@@ -132,7 +133,17 @@ func TestCloseLedgerRowCarriesCostMetrics(t *testing.T) {
 	}}, 2, "2026-07-29T01:00:00Z", "claude")
 	r2.Forced = "shipping the hotfix"
 	l = gatestate.Apply(l, r2)
+	// #202: the third is disputed by the implementer after round 2.
+	l.Disputes = []gatestate.Dispute{{ID: "PQ-3", Rationale: "wrong", Evidence: "re-ran: ok", After: 2}}
 	if err := writePlanGateLedger("workshop/plans", "000187-x.md", l, "ariadne"); err != nil {
+		t.Fatal(err)
+	}
+	// And the boundary review has one finding disputed, which lands in its own column.
+	bl := gatestate.Ledger{Gate: boundaryGateKind.Gate, IssueNum: 187, IDPrefix: boundaryGateKind.IDPrefix}
+	bl = gatestate.Apply(bl, gatestate.Round{N: 1, Timestamp: "2026-07-29T02:00:00Z", Agent: "claude",
+		New: []gatestate.Finding{{ID: "BR-1", Severity: "Important", Title: "b", Round: 1}}})
+	bl.Disputes = []gatestate.Dispute{{ID: "BR-1", Rationale: "wrong", Evidence: "re-ran: ok", After: 1}}
+	if err := writeBoundaryGateLedger("workshop/plans", "000187-x.md", bl, "ariadne"); err != nil {
 		t.Fatal(err)
 	}
 
@@ -175,12 +186,15 @@ func TestCloseLedgerRowCarriesCostMetrics(t *testing.T) {
 	if got.GateRounds != 2 || got.GateForced != 1 {
 		t.Errorf("gate_rounds/gate_forced = %d/%d, want 2/1", got.GateRounds, got.GateForced)
 	}
-	if got.GateAddressed != 1 || got.GateWithdrawn != 1 || got.GateOpen != 0 {
-		t.Errorf("dispositions = %d addressed / %d withdrawn / %d open, want 1/1/0",
-			got.GateAddressed, got.GateWithdrawn, got.GateOpen)
+	if got.GateAddressed != 1 || got.GateWithdrawn != 1 || got.GateDisputed != 1 || got.GateOpen != 0 {
+		t.Errorf("dispositions = %d addressed / %d withdrawn / %d disputed / %d open, want 1/1/1/0",
+			got.GateAddressed, got.GateWithdrawn, got.GateDisputed, got.GateOpen)
+	}
+	if got.BoundaryDisputed != 1 {
+		t.Errorf("boundary_disputed = %d, want 1", got.BoundaryDisputed)
 	}
 	// And the operator saw the same numbers the ledger recorded.
-	if !strings.Contains(errb.String(), "findings 1 addressed / 1 withdrawn / 0 still open") {
+	if !strings.Contains(errb.String(), "findings 1 addressed / 1 withdrawn / 1 disputed / 0 still open") {
 		t.Errorf("operator line disagrees with the ledger row:\n%s", errb.String())
 	}
 }
@@ -191,7 +205,7 @@ func TestCloseLedgerRowCarriesCostMetrics(t *testing.T) {
 // would silently drop those findings out of gate_addressed/gate_withdrawn, under-reporting
 // the one metric meant to answer "did the gate's findings get acted on?".
 func TestLedgerCoversEveryClosingDisposition(t *testing.T) {
-	haveColumn := map[string]bool{dispAddressed: true, dispWithdrawn: true}
+	haveColumn := map[string]bool{dispAddressed: true, dispWithdrawn: true, dispDisputed: true}
 	closing := modelClosingDispositions()
 	if len(closing) == 0 {
 		t.Fatal("the finding model declares no closing dispositions — the guard would pass vacuously")
