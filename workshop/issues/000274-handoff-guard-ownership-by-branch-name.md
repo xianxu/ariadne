@@ -70,23 +70,23 @@ Design: one policy, read by both writers of published details (ARCH-DRY):
 **a foreign claimant blocks; mine or unclaimed may edit**, always subject to
 optimistic concurrency (based on main's latest version of the file).
 
-- [ ] `detailsFacts.Owner` → `Foreign` (another workspace holds the card);
+- [x] `detailsFacts.Owner` → `Foreign` (another workspace holds the card);
       `verdictNotOwner` → `verdictForeign`. Unclaimed + based accepts;
       unclaimed + behind is `verdictBehind` (merge main, resolve, rerun).
       `TestDetailsVerdict` table rewritten.
-- [ ] Foreign refusal names the owner and drops the `claim` advice:
+- [x] Foreign refusal names the owner and drops the `claim` advice:
       coordinate with the owner (or operator `sdlc reclaim`), or drop this
       edit with `sdlc issue restore`. Restore is only offered for another
       workspace's issue, never for this workspace's own record.
-- [ ] `requireOwnedToPublish` accepts an unclaimed card (refuses only a
+- [x] `requireOwnedToPublish` accepts an unclaimed card (refuses only a
       foreign claimant); the publish's own main-moved check is the
       concurrency guard.
-- [ ] Tests: `TestTransferGuardOverBranchShapes` gains unclaimed rows
+- [x] Tests: `TestTransferGuardOverBranchShapes` gains unclaimed rows
       (rewrite after merging main accepts; stale re-add is behind) and an
       assertion that the foreign refusal names the owner and not `claim`;
       the owner's edit from another issue's branch (`000013-…`) accepts;
       a publish test for an unclaimed card succeeds.
-- [ ] Docs: helptext `issue.md`, `atlas/workflow/issue-tracker.md`,
+- [x] Docs: helptext `issue.md`, `atlas/workflow/issue-tracker.md`,
       `AGENTS.base.md` "Later edits" line.
 - [ ] Close.
 
@@ -96,3 +96,15 @@ optimistic concurrency (based on main's latest version of the file).
 
 Split out of ariadne#272 (ban stacked development), where both refusals were
 observed.
+
+### 2026-10-11
+
+Claimed at ariadne:4 (TL dispatch). Implemented the plan: `mayNotEditDetails`
+is the single policy read by `changedDetails` (pr/push/merge/restore) and
+`requireOwnedToPublish` (publish, abandon's archive). Two older tests
+(`TestPublishGateAndPRRefuseChangedHandedOffDetails`,
+`…FromAFreshCloneUsesOnlyTrackerRecords`) relied on an unclaimed card being
+refused; they now set a foreign owner, which is what they mean to protect.
+Mutation check: restoring "unclaimed is refused" fails
+`TestPublishUnclaimedDetails` and all three `unclaimed:` guard rows.
+Targeted run green (`TestTransferGuard|TestDetailsVerdict|TestNoHelpCallsABranchTheOwner|TestIssueRestore|TestPublish`).

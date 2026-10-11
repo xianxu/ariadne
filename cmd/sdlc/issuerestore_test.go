@@ -16,7 +16,7 @@ func TestIssueRestoreMakesAStaleFilingBranchLand(t *testing.T) {
 	r := handedOff(t)
 	ownSpinOff(t, r, otherSlot)
 	reAddStale(t, r)
-	if err := guardTransferredDetails(context.Background()); !errors.Is(err, errTransferredDetails) || !strings.Contains(err.Error(), refuseNotOwner) {
+	if err := guardTransferredDetails(context.Background()); !errors.Is(err, errTransferredDetails) || !strings.Contains(err.Error(), "sdlc issue restore --issue 8") {
 		t.Fatalf("fixture: want the restore offer, got %v", err)
 	}
 	before := r.git("rev-parse", "HEAD")

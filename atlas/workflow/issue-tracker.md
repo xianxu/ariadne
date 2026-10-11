@@ -326,15 +326,18 @@ internal envelope, never mirrored) makes a rerun of `move-detail` a no-op.
 **Transfer guard (#285, `transferguard.go`).** Optimistic concurrency on
 *published* details: any details file main's history has touched, archived
 copies included. PR, push, merge and durable landing compute the prospective
-merge of fresh main and HEAD. Each details file it changes must be changed
-from the owner's checkout (the card's claimant: the same slot and machine,
-#307) and from a branch that contains main's last commit to that file
-(`detailsVerdict`). Branch names and the handoff record play no part, so a
-renamed close branch (pair#365) or a reopened issue lands from its owner. A
-non-owner is offered `sdlc issue restore --issue N`, which makes every copy of
-the details match main in one commit (git follows an archive's rename, so the
-stale copy may surface under `history/`), or a claim to keep the edit. An owner
-behind main merges main and resolves the details.
+merge of fresh main and HEAD. Each details file it changes must not belong to
+another workspace (the card's claimant: the same slot and machine, #307) and
+must come from a branch that contains main's last commit to that file
+(`detailsVerdict`). An unclaimed issue has no owner to protect, so its edits
+land from any checkout (#274); `issue publish` applies the same policy
+(`mayNotEditDetails`). Branch names and the handoff record play no part, so a
+renamed close branch (pair#365), a reopened issue, or the owner's work on
+another branch lands. Another workspace's edit is refused naming the owner and
+offered `sdlc issue restore --issue N`, which makes every copy of the details
+match main in one commit (git follows an archive's rename, so the stale copy
+may surface under `history/`). A branch behind main merges main and resolves
+the details.
 
 `sdlc issue recovery list|reconcile` resumes stopped
 operations, probing before repeating anything; a creation that published

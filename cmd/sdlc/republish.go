@@ -202,21 +202,18 @@ var mainPublish = func(env *trackerEnv, msg string, prepare func(*gitx.TrunkView
 	return env.main.UpdateManyPrepared(msg, prepare, beforePush)
 }
 
-// requireOwnedToPublish refuses republishing a card this workspace does not
-// hold: an unowned card is claimed first, another workspace's is theirs.
+// requireOwnedToPublish refuses republishing another workspace's card; this
+// workspace's own and an unclaimed one publish (mayNotEditDetails, #274), with
+// main's movement since the read as the concurrency check.
 func requireOwnedToPublish(env *trackerEnv, card tracker.Record) error {
 	own, recorded, _, err := ownership(env, card)
 	if err != nil {
 		return err
 	}
-	switch own {
-	case issue.OwnershipMine:
-		return nil
-	case issue.OwnershipForeign:
+	if mayNotEditDetails(own) {
 		return fmt.Errorf("#%s is owned by %s; only its owner republishes its details", issue.CLIRef(card.ID), describeClaimant(recorded))
-	default:
-		return fmt.Errorf("#%s has no owner; claim it first (`sdlc claim --issue %s`), then publish", issue.CLIRef(card.ID), issue.CLIRef(card.ID))
 	}
+	return nil
 }
 
 // finishPublished makes this checkout agree with what main now holds. A

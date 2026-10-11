@@ -75,8 +75,8 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 	var refs []string
 	for _, c := range changed {
 		if want[c.ID] && c.Verdict == verdictBehind {
-			// This checkout owns the issue: the edit is the owner's own work,
-			// which merging main keeps; restoring would drop it.
+			// This checkout may edit the issue (its own, or unclaimed): the
+			// edit is work merging main keeps; restoring would drop it.
 			return detailsRefusal(env, c)
 		}
 	}

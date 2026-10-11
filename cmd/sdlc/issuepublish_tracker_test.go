@@ -81,16 +81,27 @@ func TestPublishFromAnIssueBranch(t *testing.T) {
 	}
 }
 
-// #284: refusals publish nothing — not owned, unowned, and a main copy that
-// moved since this checkout's base.
-func TestPublishRefusals(t *testing.T) {
+// #274: an unclaimed issue has no owner to protect: anyone publishes an edit
+// to its details, and nobody becomes its owner by doing so.
+func TestPublishUnclaimedDetails(t *testing.T) {
 	r, paths := claimSetRepo(t)
 	appendDetail(t, r, "workshop/issues/000009-s09.md", "Unclaimed edit.")
-	before := r.originMain()
-	if out, err := publish(t, 9); err == nil || !strings.Contains(err.Error(), "claim it first") {
-		t.Fatalf("unowned: %v\n%s", err, out)
+	if out, err := publish(t, 9); err != nil {
+		t.Fatalf("unclaimed: %v\n%s", err, out)
 	}
-	r.git("checkout", "--", "workshop/issues/000009-s09.md")
+	if !strings.Contains(r.git("show", r.originMain()+":workshop/issues/000009-s09.md"), "Unclaimed edit.") {
+		t.Fatal("main lacks the unclaimed issue's edit")
+	}
+	if _, has := ownerOf(t, r, paths["000009"]); has {
+		t.Fatal("publishing claimed the issue")
+	}
+}
+
+// #284: refusals publish nothing — another workspace's issue, and a main copy
+// that moved since this checkout's base.
+func TestPublishRefusals(t *testing.T) {
+	r, paths := claimSetRepo(t)
+	before := r.originMain()
 	claimFor(t, 10)
 	owner, _ := ownerOf(t, r, paths["000010"])
 	elsewhere := owner

@@ -1,9 +1,10 @@
 // transferguard.go — optimistic concurrency on published details (#252, #285).
-// Once an issue's details are on main, a landing may change them only from the
-// owner's checkout (the card's claimant; commits don't carry it) and only from
-// a branch based on main's latest version of the file. Otherwise the
-// prospective merge must leave the file exactly as main has it. Branch names
-// play no part: a renamed or reopened issue branch lands from its owner.
+// Once an issue's details are on main, a landing may change them only when no
+// other workspace owns the issue (the card's claimant; commits don't carry it,
+// and an unclaimed issue has no owner to protect, #274) and only from a branch
+// based on main's latest version of the file. Otherwise the prospective merge
+// must leave the file exactly as main has it. Branch names play no part: a
+// renamed or reopened issue branch, or another branch of the owner's, lands.
 package main
 
 import (
@@ -56,6 +57,7 @@ func guardTransferredDetails(ctx context.Context) error {
 type changedDetail struct {
 	ID, Path string
 	Verdict  verdict
+	Owner    issue.Claimant // the card's claimant when Verdict is verdictForeign
 }
 
 // changedDetails judges every issue details file that the prospective merge
@@ -97,18 +99,19 @@ func changedDetails(env *trackerEnv, mainTip string) ([]changedDetail, error) {
 			return nil, err
 		}
 		facts := detailsFacts{Published: last != ""}
+		var owner issue.Claimant
 		if facts.Published {
-			own, _, _, err := ownership(env, rec)
+			own, recorded, _, err := ownership(env, rec)
 			if err != nil {
 				return nil, err
 			}
-			facts.Owner = own == issue.OwnershipMine
+			facts.Foreign, owner = mayNotEditDetails(own), recorded
 			if facts.Based, err = env.ancestorOf(last, "HEAD"); err != nil {
 				return nil, err
 			}
 		}
 		if v := detailsVerdict(facts); v != verdictAccept {
-			out = append(out, changedDetail{ID: rec.ID, Path: p, Verdict: v})
+			out = append(out, changedDetail{ID: rec.ID, Path: p, Verdict: v, Owner: owner})
 		}
 	}
 	return out, nil
@@ -143,15 +146,24 @@ func prospectiveChanges(env *trackerEnv, mainTip string) ([]string, error) {
 
 var errTransferredDetails = errors.New("landing would change published issue details")
 
-// detailsRefusal names the next action for one refused change: a non-owner
-// restores main's version (or claims the issue to keep the edit); the owner
-// merges main and resolves the prose.
+// mayNotEditDetails is the one policy both writers of published details apply
+// (this guard and `issue publish`, #274): another workspace's issue is theirs;
+// this workspace's own and an unclaimed one are editable.
+func mayNotEditDetails(own issue.Ownership) bool {
+	return own == issue.OwnershipForeign
+}
+
+// detailsRefusal names the next action for one refused change. Another
+// workspace's issue: hand the edit to its owner, or drop it here (restore is
+// offered only then — the edit is not this workspace's record to keep).
+// Otherwise the branch merges main and resolves the prose.
 func detailsRefusal(env *trackerEnv, c changedDetail) error {
 	issueStr := issue.CLIRef(c.ID)
-	if c.Verdict == verdictNotOwner {
-		return fmt.Errorf("%w: %s, from a checkout that does not own #%s.\n"+
-			"      Restore main's version with `sdlc issue restore --issue %s`; to keep the edit, `sdlc claim --issue %s` first",
-			errTransferredDetails, c.Path, issueStr, issueStr, issueStr)
+	if c.Verdict == verdictForeign {
+		return fmt.Errorf("%w: %s, but #%s is owned by %s.\n"+
+			"      Hand the edit to its owner (reassignment is the operator-directed `sdlc reclaim --issue %s`), "+
+			"or drop it here with `sdlc issue restore --issue %s`",
+			errTransferredDetails, c.Path, issueStr, describeClaimant(c.Owner), issueStr, issueStr)
 	}
 	return fmt.Errorf("%w: %s, from a branch not based on main's latest version of it.\n"+
 		"      Merge main (`git fetch %s && git merge %s/main`), resolve #%s's details, and rerun",

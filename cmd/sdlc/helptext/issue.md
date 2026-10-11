@@ -100,7 +100,8 @@ reach main without shipping a branch. Per issue:
     the creator's checkout publishes, no owner needed; the filing branch's
     copy is removed (narrow commit) or the rest fast-forwards, and the card
     records the handoff.
-  - republish (details already on main): only the owner. The edits (details
+  - republish (details already on main): the owner, or anyone while the
+    issue is unclaimed (#274); another workspace's issue is refused. The edits (details
     bodies) are judged against the copy at this checkout's merge base with
     main: main unchanged since → published; already equal → nothing to
     publish; main moved → on a resting branch, publish brings main in itself
@@ -119,12 +120,13 @@ reach main without shipping a branch. Per issue:
     finishes the checkout.
 PUBLISHED DETAILS ARE GUARDED (#285). Once main's history has an issue's details,
 `pr`, `push` and `merge` refuse a landing whose merge with main would change
-them unless it runs from the owner's checkout (the card's claimant, whatever
-the branch is called) and the branch contains main's last commit to the file.
-A non-owner restores main's version with `sdlc issue restore --issue N` (one
-commit; every copy of the details matches main, archived ones included), or
-claims the issue to keep the edit. An owner behind main merges main, resolves
-the details, and reruns.
+them if another workspace owns the issue (the card's claimant, whatever the
+branch is called), or if the branch lacks main's last commit to the file. An
+unclaimed issue has no owner to protect (#274): its edits land from anywhere.
+Another workspace's issue: hand the edit to its owner, or drop it with
+`sdlc issue restore --issue N` (one commit; every copy of the details matches
+main, archived ones included). A branch behind main merges main, resolves the
+details, and reruns.
 
 A resting branch only fast-forwards to main; never commit on it. An interrupted card/main publication
 keeps a receipt: `sdlc issue recovery list` shows it, and `reconcile` resumes
