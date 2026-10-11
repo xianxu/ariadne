@@ -76,3 +76,50 @@ findings:
     detail: |
       Trivial duplication; export one helper or accept the two-line copy.
 ```
+
+---
+
+## Re-review — 2026-10-10T19:04:23-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 234 — Split actuals at the first boundary review: build time vs converge time |
+| repo | ariadne |
+| issue file | workshop/issues/000234-build-converge-split.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 9769e3c79f91c3b761e43176375699b03dd94ecb..d82aa822db9d442f59c9d11bef857259ae69cbaf |
+| command | sdlc close --issue 234 |
+| reviewer | claude |
+| timestamp | 2026-10-10T19:04:23-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This is round 4, and the only open item was BR-8, a Minor. Commit `d82aa822` fixes it properly. It removes `dashIfEmpty` from `cmd/sdlc/convergereport.go`, exports `estimate.dash` as the documented `estimate.Dash` at `cmd/sdlc/internal/estimate/ledger.go:262-263`, and switches every ledger-cell caller (`FormatRow` and `renderConvergeReport`) to that one helper. I ran the inspection commands for the pinned window (stat, name-status, the targeted fix diff) and a tree-wide sweep for any other empty-string-to-`"-"` helper. `estimate.Dash` is now the only one in `cmd/sdlc`, so this fixes the whole family (`dash-helper-reuse`), not just the one site. The build, the `estimate` and `activetime` package tests, and the targeted `cmd/sdlc` tests (`-run 'Converge|Split|Actual'`) all pass. The window's other commits since the last round only mirror the tracker card and close the issue, so they bring no new code to review. Nothing blocks SHIP.
+
+1. **Strengths**
+   - The BR-8 fix removes the duplicate helper entirely; it doesn't just paper over it. The exported helper has a doc comment that says what `-` means in the ledger (`ledger.go:262`).
+   - All seven earlier findings (BR-1 to BR-7) stay addressed, and the latest commit doesn't regress any of them. The full split/converge path still passes its targeted tests.
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new.
+5. **Test coverage:** BR-8 changes no behaviour: it is a pure rename and dedupe, and the output strings are the same. The existing `convergereport_test.go` and `ledger_test.go` already cover the rendered output and still pass. No new test is needed.
+6. **Architecture:**
+   - **ARCH-DRY:** pass. There is now one source for ledger dash rendering.
+   - **ARCH-PURE:** pass. `Dash` and `FormatRow` are pure, and the report renderer writes to an injected `io.Writer`.
+   - **ARCH-PURPOSE, ARCH-MOCK, ARCH-CONSTRAINTS, ARCH-SECURE, ARCH-ORDER, ARCH-FUNERAL:** pass. The last commit has no new surface for these. They were assessed in earlier rounds, and the ARCH-FUNERAL growth-bound note was settled under BR-6.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      d82aa822 deletes dashIfEmpty and exports estimate.Dash (ledger.go:262); a tree-wide sweep finds no other empty-to-dash helper, and the estimate and cmd/sdlc tests pass.
+```

@@ -102,6 +102,18 @@ rounds:
       recipe: milestone-review
       reviewed: 9f5d9e7b53585e4e6106e7ebd1eddcae6e26ed06
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-10T19:04:23-07:00"
+      dispatched: "2026-10-10T19:03:39-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: d82aa822 deletes dashIfEmpty and exports estimate.Dash (ledger.go:262); a tree-wide sweep finds no other empty-to-dash helper, and the estimate and cmd/sdlc tests pass.
+          round: 4
+      recipe: milestone-review
+      reviewed: d82aa822db9d442f59c9d11bef857259ae69cbaf
+      blocked: false
 ---
 
 # Gate ledger — ariadne#234 (boundary-review)
@@ -149,6 +161,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `dash-helper-reuse` convergereport.go dashIfEmpty duplicates estimate.dash (ledger.go:262)
   Trivial duplication; export one helper or accept the two-line copy.
 
+## Round 4 — 2026-10-10T19:04:23-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — d82aa822 deletes dashIfEmpty and exports estimate.Dash (ledger.go:262); a tree-wide sweep finds no other empty-to-dash helper, and the estimate and cmd/sdlc tests pass.
+
 ## Open findings
 
-- **BR-8** [Minor] `dash-helper-reuse` convergereport.go dashIfEmpty duplicates estimate.dash (ledger.go:262)
+(none — every finding has been disposed)
