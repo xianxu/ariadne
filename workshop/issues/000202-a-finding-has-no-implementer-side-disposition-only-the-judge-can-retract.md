@@ -187,3 +187,8 @@ Durable plan: `workshop/plans/000202-a-finding-has-no-implementer-side-dispositi
   `TestPlanningReviewConcurrencySchedules` (2s budget at load average ~30, passes alone);
   a hermeticity lock "leak" (`.git/sdlc.lock` lives in the common dir every slot shares;
   not reproduced by the #202 tests alone).
+- 2026-10-11: close review (full, upgraded from quick): info, 3 Minor. Fixed BR-1 (dispute
+  text quoted as labeled data) and BR-2 (help scopes the settle to the ledger half). Disputed
+  BR-3 with `sdlc finding dispute` itself — the first real dispute: the fixed-then-ship judge
+  re-ran the cited `TestPlanningReviewStaleBeforePersistence/{plan,estimate}/ledger` and
+  withdrew it. Round 2: 0 new, 3 disposed.
