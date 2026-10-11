@@ -83,7 +83,8 @@ func TestCLISignalCancelsOwnedReviewer(t *testing.T) {
 				if err := os.WriteFile(filepath.Join(dir, "claude"), []byte(script), 0700); err != nil {
 					t.Fatal(err)
 				}
-				args := []string{"judge", "plan-quality", "--agent", "claude", "--base", "HEAD^", "--head", "HEAD"}
+				// Any live-dispatching category; plan-quality only renders since #189.
+				args := []string{"judge", "dry", "--agent", "claude", "--base", "HEAD^", "--head", "HEAD"}
 				if verb == "close" {
 					args = []string{"close", "--issue", "69", "--actual", "1", "--verified", "signal fixture", "--no-atlas", "--agent", "claude", "--brain-dir", "../nonexistent-brain"}
 				}

@@ -106,3 +106,8 @@ out of that issue's scope (recorded in its plan's Task 14 rationale).
   category outright — no manual surface, no defect there.
 - Smoke: `sdlc judge plan-quality --issue 189 --dry-run` renders this issue's Decision section;
   the live run refuses with the change-code pointer.
+- Full `make test`: `TestCLISignalCancelsOwnedReviewer/judge/*` drove a LIVE
+  `judge plan-quality` dispatch to exercise signal cancellation — the very stateless path now
+  refused. Its judge leg moved to `judge dry` (any live-dispatching category serves).
+  `TestPlanningReviewConcurrencySchedules` failed once under the sharded load and passes in
+  isolation; untouched by this diff.
