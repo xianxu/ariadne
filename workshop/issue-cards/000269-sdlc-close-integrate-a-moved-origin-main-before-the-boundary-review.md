@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 6.48
+actual_hours: 6.56
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000269-sdlc-close-integrate-a-moved-origin-main-before-the-boundary-review.md
         main_commit: ce0a928ef5c1e4f42a3ab26e1c89e2b95f77a409
     completion:
-        token: close-536c0a63da8e
+        token: close-1616e3f433e7
         repository: github.com/xianxu/ariadne
-        reviewed_head: 92b6bf38fe85138a0b0a28547e3e607092d4c52e
-        evidence_commit: 7d5996c05ff057ca96f1610786baaa2f69b2fa85
+        reviewed_head: 4687acd352ca33175804525cf91d8e913809d9da
+        evidence_commit: 60f5f4571225d0fd7782dbdd0950340c0407a983
 ---
 
 # sdlc close: integrate a moved origin/main before the boundary review
