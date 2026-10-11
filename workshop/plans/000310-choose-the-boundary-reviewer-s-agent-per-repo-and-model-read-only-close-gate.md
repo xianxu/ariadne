@@ -65,6 +65,32 @@ rounds:
       recipe: milestone-review
       isolation: checkout
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-11T10:05:13-07:00"
+      dispatched: "2026-10-11T10:00:30-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: close.md:376-384, sdlc-binary.md:996-1000, judge.md, change-code.md, milestone-close.md and the --sandbox strings now state Edit/Write refused, Bash unrestricted, fence-only containment; matches dispatch.go agentArgs.
+          round: 3
+      findings:
+        - id: BR-6
+          severity: Minor
+          title: prompts.go AllowedTools comment still claims judges are read-only by construction
+          detail: '3rd finding in this family. Rule: any judge read-only claim names its enforcing mechanism (tool list stops Edit/Write, agent sandbox stops codex, fence stops Bash) and claims no more. This comment (prompts.go:186-192) is the one remaining instance under cmd/, atlas/ and README.md.'
+          family: read-only-claim-exceeds-enforcement
+          round: 3
+        - id: BR-7
+          severity: Minor
+          title: doc-review header still says the judge contract uses --full-auto
+          detail: 'cmd/doc-review/review.go:13-17 justifies the duplicate AgentCLI by a --full-auto judge contract that #310 removed; update the rationale.'
+          family: stale-rationale-after-contract-change
+          round: 3
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: c707d179591146e36e6e6302c63195233d9c7478
+      blocked: false
 ---
 
 # Gate ledger — ariadne#310 (boundary-review)
@@ -93,6 +119,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - BR-4 — addressed — agent_resolver.go:99 now reads "reviewer_pairs applies only to boundary_reviewer \"explicit\"".
 - BR-5 — addressed — doc-review/review.go:165 now uses dontAsk; TestBuildArgs_ReadOnly asserts --permission-mode dontAsk and fails without the fix.
 
+## Round 3 — 2026-10-11T10:05:13-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — close.md:376-384, sdlc-binary.md:996-1000, judge.md, change-code.md, milestone-close.md and the --sandbox strings now state Edit/Write refused, Bash unrestricted, fence-only containment; matches dispatch.go agentArgs.
+
+### Raised
+
+- **BR-6** [Minor] `read-only-claim-exceeds-enforcement` prompts.go AllowedTools comment still claims judges are read-only by construction
+  3rd finding in this family. Rule: any judge read-only claim names its enforcing mechanism (tool list stops Edit/Write, agent sandbox stops codex, fence stops Bash) and claims no more. This comment (prompts.go:186-192) is the one remaining instance under cmd/, atlas/ and README.md.
+- **BR-7** [Minor] `stale-rationale-after-contract-change` doc-review header still says the judge contract uses --full-auto
+  cmd/doc-review/review.go:13-17 justifies the duplicate AgentCLI by a --full-auto judge contract that #310 removed; update the rationale.
+
 ## Open findings
 
-- **BR-1** [Important] `read-only-claim-exceeds-enforcement` Help/atlas say every judge runs read-only, but claude's unrestricted Bash (and codex workspace-write) still let shell writes through
+- **BR-6** [Minor] `read-only-claim-exceeds-enforcement` prompts.go AllowedTools comment still claims judges are read-only by construction
+- **BR-7** [Minor] `stale-rationale-after-contract-change` doc-review header still says the judge contract uses --full-auto

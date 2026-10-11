@@ -192,3 +192,93 @@ dispose:
     note: |
       doc-review/review.go:165 now uses dontAsk; TestBuildArgs_ReadOnly asserts --permission-mode dontAsk and fails without the fix.
 ```
+
+---
+
+## Re-review — 2026-10-11T10:05:13-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 310 — Choose the boundary reviewer's agent per repo, and model read-only |
+| repo | ariadne |
+| issue file | workshop/issues/000310-choose-the-boundary-reviewer-s-agent-per-repo-and-model-read-only.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 15b365d31f1d17f8217476a7baf62fb741f47549..c707d179591146e36e6e6302c63195233d9c7478 |
+| command | sdlc close --issue 310 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-11T10:05:13-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking whether the BR-1 "read-only" sweep is complete across the tree.
+
+Nearly done — checking whether a boundary review can ever dispatch with no checkout isolation.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Summary.** #310 does what the issue asks for. A repo can set `same`, `other` or `explicit` in `workshop/review.json`. The pure `judge.ReviewerPolicy` and `ResolveReviewerCLI` choose the reviewer from the main agent, with `ResolveAgentCLI` handling the `same` case. The old `IsSandbox` + `Fenced` pair became a single `Containment` value, and each level maps to that CLI's own permission mode. No judge gets `bypassPermissions`, `--full-auto` or `--yolo` any more. An end-to-end test shows `other` swapping claude and codex, and the ledger round records who reviewed. `sdlc close --help` documents the config under REVIEWER.
+
+Round 2's sweep fixes BR-1. Every "read-only" string the diff added, plus judge.md's older one, now says what is actually enforced: Edit/Write are refused and Bash is unrestricted. Build, vet and the targeted tests pass (`internal/judge`, `doc-review`, and in `cmd/sdlc` the Reviewer/Policy/ProcessAlive/BoundaryReview tests). Two old code comments still state the outdated contract. Both are Minor and don't block shipping.
+
+1. **Strengths**
+   - `agent_resolver.go:43-52`: the `--agent`/`AGENT_CMD` overrides sit above the policy, and the old resolver is now the zero-policy case. That avoids a second resolver (ARCH-DRY).
+   - `reviewconfig.go:37-46`: `DisallowUnknownFields` plus `Validate` means a typo in the config halts the review with the file named, instead of quietly falling back to `same`. `TestBoundaryReviewInvalidPolicyDoesNotRun` covers this.
+   - `judge_test.go` `TestBuildArgs_ReadOnlyPerContainment` pins the exact argv for each agent at each containment level, and fails if any auto-approve flag appears.
+   - `milestoneclose.go:807-814`: the policy is read from the source checkout before the root moves to the review checkout. That is the right trust choice: the config is the operator's, not what the reviewer sees.
+   - `repolock.go`: the side fix that treats EPERM as "alive" comes with a test that fails without it (pid 1).
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `cmd/sdlc/internal/judge/prompts.go:186-192`: the `AllowedTools` comment still says judges are read-only "by construction". That isn't true when the judge runs in the operator's own tree with no checkout or fence (plan-quality and `sdlc judge`), because claude's Bash can still write there. This is the 3rd finding in family `read-only-claim-exceeds-enforcement`. The rule that covers all of them: any statement that a judge is read-only must name the mechanism that enforces it — the tool list stops Edit/Write, the agent's own sandbox stops codex, the fence stops Bash — and must not claim more than that mechanism does. Measured prevalence: this comment is the one remaining instance under `cmd/`, `atlas/` and `README.md`.
+   - `cmd/doc-review/review.go:13-17`: the header says the judge contract uses `--full-auto`, which #310 removed. The justification for keeping a duplicate `AgentCLI` should be updated.
+
+5. **Test coverage notes**
+   - The policy, the config loader and the argv mapping are tested as pure code with no IO.
+   - The integration test runs the real dispatch path against the fake reviewer.
+   - The darwin-only warning is checked in both directions.
+   - Nothing automated checks that `dontAsk` really refuses a Write. The Log records a manual live check, which is acceptable here.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. doc-review's duplicate `AgentCLI` was already acknowledged; only its comment is stale.
+   - ARCH-PURE: pass. The policy and argv mapping are pure, and `loadReviewerPolicy` is a thin IO shell.
+   - ARCH-PURPOSE: pass. All three Done-when items are delivered. When a claude reviewer's Bash attempts a write, the fence or the disposable checkout contains it, which matches what the help now says.
+   - ARCH-MOCK: pass. Tests use the existing `judge.Run` and `reviewbox.Probe` seams, and the live stream conformance test still exists.
+   - ARCH-CONSTRAINTS: N/A. The only new work is reading one small config file per review.
+   - ARCH-SECURE: pass. The config is parsed into a typed, validated value at the boundary and fails visibly on bad input.
+   - ARCH-ORDER: pass. The change holds no state between events; `Containment` turned a pair of booleans into one enum, which is an improvement.
+   - ARCH-FUNERAL: pass. Nothing durable is created besides the operator-owned config file.
+   - For later work: plan-quality and `sdlc judge` still use `same` with containment none. If they ever adopt the policy, a codex judge's read-only Seatbelt has the same can't-nest limit and would need the same warning.
+
+7. **Plan revision recommendations:** none. The plan's checklist and Log match the code, including the dropped "dispatch line names the policy" item.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      close.md:376-384, sdlc-binary.md:996-1000, judge.md, change-code.md, milestone-close.md and the --sandbox strings now state Edit/Write refused, Bash unrestricted, fence-only containment; matches dispatch.go agentArgs.
+findings:
+  - id: new
+    severity: Minor
+    family: read-only-claim-exceeds-enforcement
+    title: |
+      prompts.go AllowedTools comment still claims judges are read-only by construction
+    detail: |
+      3rd finding in this family. Rule: any judge read-only claim names its enforcing mechanism (tool list stops Edit/Write, agent sandbox stops codex, fence stops Bash) and claims no more. This comment (prompts.go:186-192) is the one remaining instance under cmd/, atlas/ and README.md.
+  - id: new
+    severity: Minor
+    family: stale-rationale-after-contract-change
+    title: |
+      doc-review header still says the judge contract uses --full-auto
+    detail: |
+      cmd/doc-review/review.go:13-17 justifies the duplicate AgentCLI by a --full-auto judge contract that #310 removed; update the rationale.
+```

@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "9403771f", done: "5037d7ec"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Choose the boundary reviewer's agent per repo, and model read-only
@@ -82,6 +82,8 @@ Design (2026-10-11, ariadne:2):
 ## Log
 
 ### 2026-10-11
+- 2026-10-11: closed — make test: all 12 cmd/sdlc shards pass (processgroup TestCancellationKillsDescendants fails only because the sandbox denies /bin/ps). New tests: TestBoundaryReviewOtherPolicySwapsReviewer (claude main + other -> codex dispatched, ledger agent codex; and vice versa), TestBuildArgs_ReadOnlyPerContainment, TestResolveReviewerCLI_Policy, TestLoadReviewerPolicy, TestBoundaryReviewInvalidPolicyDoesNotRun, TestProcessAliveTreatsEPERMAsAlive, doc-review dontAsk pin. Live: claude -p dontAsk Write -> denied by harness, no file; codex --sandbox read-only write -> refused, no file. Round 1-2 findings fixed in 4ea45451 and c707d179 (every read-only claim swept to the enforced scope).; review verdict: SHIP
+- 2026-10-11: flow upgraded quick → full — 238 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Implemented on ariadne:2 (quick flow). Dropped the plan's "dispatch line names the policy": the ledger round's `agent` and the `via <agent>` line already say who reviewed; threading the policy label through `boundaryReviewOptionsFor` bought nothing.
 - Removed `isSandbox()` (its only consumer was the auto-approve gate); `--sandbox` on `judge`/`change-code` is deprecated, hidden by cobra, no effect.
 - Live checks (this slot, inside Claude Code's sandbox): `claude -p --allowedTools Read,Grep,Glob,Bash --permission-mode dontAsk` asked to Write → "Permission to use Write has been denied because Claude Code is running in don't ask mode", no file. `codex exec --sandbox read-only` asked to `echo hi > probe.txt` → `sandbox-exec: sandbox_apply: Operation not permitted`, no file: fails closed, but it also means a codex reviewer can run *no* command where the #204 fence probe fails (the same nesting). Pre-existing (codex exec already defaulted to a read-only seatbelt); now warned at dispatch and documented under REVIEWER in `sdlc close --help`. `other` with a claude main is only useful from an unsandboxed sdlc until the fleet runs sdlc outside the seatbelt.
