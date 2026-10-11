@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "a3ac40f1", done: "1629a611"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Run each boundary reviewer in a disposable isolated checkout
@@ -125,6 +125,8 @@ harness must refuse background tasks in a review invocation. And the review's
 process tree must be owned and reaped when it ends, with a verdict or without.
 
 ### 2026-10-11 — design start (ariadne:2), one fork open with the TL
+- 2026-10-11: closed — Round-1 REWORK findings BR-1..BR-5 + 3 minors fixed with regression tests (TestRevertCheckFollowsIsolation, TestDispatchRunsBeforeRetryBetweenAttempts, TestBoundaryReviewRetryStartsFromAPristineCheckout, TestBoundaryReviewRunsDespiteSweepProblem, TestCloseFailureLeavesLockForSweep, TestResetRestoresPristineCheckout, TestProbeRejectsAFenceThatDoesNotDeny, sibling-worktree assertion in TestBoundaryReviewFencedArgvAndStamp). make test: 12 shards / 1074 cmd/sdlc tests + 22 packages green except processgroup TestCancellationKillsDescendants (sandbox blocks /bin/ps; fails identically on origin/main). One earlier full run failed TestCLISignalCancelsOwnedReviewer once under shard load with no captured detail; it passed 4/4 standalone and in the following full run. Live fence conformance cannot run in this sandboxed slot (Seatbelt cannot nest; unsandboxed execution refused); the probe now proves a denial on every dispatch before stamping fenced.; review verdict: SHIP
+- 2026-10-11: flow upgraded quick → full — 753 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 Measured surface: `judge.runProcess` (`cmd/sdlc/internal/judge/dispatch.go`)
 launches every reviewer (plan-quality, `sdlc judge`, boundary) with the
