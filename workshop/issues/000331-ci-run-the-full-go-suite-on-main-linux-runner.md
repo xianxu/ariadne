@@ -34,7 +34,9 @@ run on Linux, and its cost on a hosted runner is unknown.
 
 ## Plan
 
-- [ ]
+- [ ] Run `make test` in a Linux container (or a throwaway Actions run); fix or quarantine Linux-only failures.
+- [ ] Add a `test` workflow on push to main running `make test`; record its wall time and runner size.
+- [ ] Decide PR gating (required check vs. main-only) from the measured time; record it in the Log.
 
 ## Log
 
