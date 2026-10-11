@@ -59,3 +59,60 @@ findings:
     detail: |
       landinggate.go:30 calls landingMergeBase(r, mainOID, "HEAD"); landing.go:406 now passes the pinned head to the instance gate. They are equal after landingClean, but threading head into runLandingDuplicateGate would make both gates measure the same pinned window by construction. Only these two landing gates are in this family.
 ```
+
+---
+
+## Re-review — 2026-10-10T18:22:10-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 322 — merge: landing instance-conformance gate validates main-tip..worktree, not the branch's own changes |
+| repo | ariadne |
+| issue file | workshop/issues/000322-merge-landing-instance-conformance-gate-validates-main-tip-worktree-not-the-branch-s-own-changes.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 368314170c805e8be5280e6c8e4ba323e0a9e792..588c5a5a70951299eb78c4e8635e2c14423e1411 |
+| command | sdlc close --issue 322 |
+| reviewer | claude |
+| timestamp | 2026-10-10T18:22:10-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This change fixes the problem the issue describes. `runDurableMerge` now calls `runLandingInstanceGate(targetMain, head, …)`, which validates `merge-base(targetMain, head)..head`. Before, it validated `pr.BaseOID`..worktree, which meant main's tip to the working tree. Both landing gates now take the merge-base from one helper, `landingMergeBase`, and fail closed when it can't be found. For BR-1, the round-1 fix passes the pinned `head` into `runLandingDuplicateGate` (`landing.go:409`, `landinggate.go:15,27,31`), so both gates measure the same pinned window by construction. Nothing blocks SHIP.
+
+1. **Strengths**
+   - `cmd/sdlc/landinggate.go:46-56`: `landingMergeBase` is the single probe both gates use (ARCH-DRY). It fails closed, and its comment says why no gate may fall back to main's tip.
+   - `cmd/sdlc/landinggate_instance_test.go`: a real-git fixture rebuilds the #189/#317 case, where main archives a nonconforming issue after the branch point. The assertion `1 changed instance file(s) conform` catches a regression to the main-tip window even with frontmatter stubbed.
+   - Each `## Done when` clause is tested in both of its states: main's archived issue is ignored, and the branch's own nonconforming issue is refused. A third test covers failing closed when there is no merge-base.
+   - `TestLandingPassesBranchWindowToInstanceGate` drives `runMerge` after main has moved on and checks that the gate receives branch point..PR head. The old arguments (`pr.BaseOID`, `""`) would fail both checks.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - `landinggate.go:29`: the error prefix still reads `landing duplicate-id HEAD:` although the value is now the pinned `headOID`. This is cosmetic only. I'm not raising it as a finding.
+
+5. **Test coverage notes**
+   - The BR-1 fix changes no behaviour, because `HEAD == head` after the clean-checkout check. The existing duplicate-gate tests pass `"HEAD"` and still exercise the new parameter. No new regression test is needed for a refactor that keeps behaviour the same.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. The two merge-base copies are now one helper, and both callers use it.
+   - **ARCH-PURE:** pass. The gates are thin git glue over the injectable `validateChangedInstancesFn`.
+   - **ARCH-PURPOSE:** pass. The production call site is fixed and covered by a test. Only these two gates share the landing pinned window, and both now derive it from the same source.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      runLandingDuplicateGate now takes headOID (landinggate.go:15,27,31) and landing.go:409 passes the pinned head, so both gates use landingMergeBase(targetMain, head).
+```
