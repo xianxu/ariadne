@@ -1104,7 +1104,10 @@ If any trails it, start-plan runs the installed `weave refresh` (the `weaveRefre
 seam; TestMain stubs it), which owns the all-or-nothing fast-forward and compile.
 sdlc never fast-forwards a dependency itself. A successful catch-up stops before
 the branch or card changes, because the running binary predates it; the re-run
-plans. A failed refresh refuses only for a checkout `freshness.Check` calls Stale,
+plans; so does a failed refresh that had already moved a checkout (HEADs are
+compared before and after). Checkouts the probe cannot read (absent per
+`substrateWalk`, no origin, a failed fetch) warn as unchecked. A failed refresh
+that moved nothing refuses only for a checkout `freshness.Check` calls Stale,
 and otherwise warns. `claim` keeps only its #284 fast-forward of the slot's own
 rest. `couch --prepare` (pair#434) is the TL-side twin: same refresh, plus an idle
 check and a context reload.

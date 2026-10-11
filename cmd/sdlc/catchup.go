@@ -1,8 +1,8 @@
 // catchup.go — #303: before new work, catch the slot and its substrate
 // dependencies up to origin/main. start-plan probes each checkout on the
 // dependency path; when any trails origin/main it runs `weave refresh`, which owns
-// the catch-up transaction (every checkout clean and fast-forwardable, or nothing
-// moves). A failed refresh refuses only when a checkout lacks code main had by the
+// the catch-up transaction (it advances nothing unless every checkout is clean and
+// fast-forwardable, but keeps the updates it completed if a later step fails). A failed refresh refuses only when a checkout lacks code main had by the
 // freshness cutoff (#269), so start-plan never refuses what close would accept.
 package main
 
@@ -116,8 +116,8 @@ func catchUpBeforeWork(ctx context.Context, stdout io.Writer, root string, issue
 }
 
 // behindOrigin fetches dir's origin main and counts the commits HEAD lacks. why
-// is non-empty when the probe could not decide; a checkout with no origin has
-// nothing to trail.
+// is non-empty when the probe could not decide, a checkout with no origin
+// included: it is reported unchecked, never current.
 func behindOrigin(ctx context.Context, dir string) (n int, why string) {
 	git := checkoutGit(ctx, dir)
 	if _, err := git("remote", "get-url", "origin"); err != nil {
