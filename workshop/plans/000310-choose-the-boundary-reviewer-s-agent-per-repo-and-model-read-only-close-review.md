@@ -282,3 +282,69 @@ findings:
     detail: |
       cmd/doc-review/review.go:13-17 justifies the duplicate AgentCLI by a --full-auto judge contract that #310 removed; update the rationale.
 ```
+
+---
+
+## Re-review — 2026-10-11T10:07:27-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 310 — Choose the boundary reviewer's agent per repo, and model read-only |
+| repo | ariadne |
+| issue file | workshop/issues/000310-choose-the-boundary-reviewer-s-agent-per-repo-and-model-read-only.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 531f3665589f976d39d7ed8b39d669d220c919c2..96ccbb2345825ccbd5fde1782076759fdd3879e6 |
+| command | sdlc close --issue 310 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-11T10:07:27-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Still checking the tree for any other stale read-only or `--full-auto` wording.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Summary.** This window contains two comment edits, which address the two open Minor findings BR-6 and BR-7, plus the generated gate-ledger and review-plan files. I checked both edited comments against the code in `dispatch.go` `agentArgs` and in doc-review's `buildArgs`, and both now say only what the code enforces. No `## Spec`, `## Revisions` or `## Done when` section changed, and no new behaviour was added. There were no conflict resolutions to judge. `go build ./cmd/...` and `go vet` on `cmd/doc-review` and `cmd/sdlc/internal/judge` pass. Nothing blocks SHIP.
+
+1. **Strengths**
+   - `cmd/sdlc/internal/judge/prompts.go:186-192` now names each enforcing mechanism. The allowlist has no Edit/Write, `--permission-mode dontAsk` enforces that (`dispatch.go:186-188`), and Bash is unrestricted except under the boundary review's #204 fence. This applies the family rule BR-6 stated, and it agrees with the `Containment` doc at `dispatch.go:154-158`.
+   - `cmd/doc-review/review.go:13-18` now gives true reasons for keeping its own copy of `AgentCLI`, each matching the code:
+     - its claude allowlist has no Bash (`review.go:165`);
+     - codex writes its report to a file via `-o` (`review.go:152-154`);
+     - it has no `Containment` levels.
+   - The class sweep is complete. Searching `cmd/`, `atlas/` and `README.md` for "by construction" and `--full-auto` finds no other read-only claim about a judge.
+     - `dispatch.go:156` mentions `--full-auto` only to say it is forbidden.
+     - `atlas/workflow/openshell-sandbox.md:37` describes interactive agents in openshell, not judges, so it is out of scope.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none.
+
+5. **Test coverage notes.** Both changes are comment-only, so no regression test is needed. `TestBuildArgs_ReadOnlyPerContainment` and `TestBuildArgs_ReadOnly`, outside this window, still pin the argv behaviour the comments describe.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. The duplicate `AgentCLI` in doc-review is still a declared, intentional duplication, and its reasons are now accurate.
+   - ARCH-PURE: pass. No code changed.
+   - ARCH-PURPOSE: pass. BR-6 was fixed across the whole class: the full sweep found no other judge read-only claim beyond the site the finding named.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      prompts.go:186-192 now names tool list + dontAsk for Edit/Write and says Bash is restricted only by the #204 fence; matches dispatch.go:154-190; sweep of cmd/ atlas/ README.md finds no other judge read-only claim.
+  - id: BR-7
+    disposition: addressed
+    note: |
+      review.go:13-18 rationale now cites no Bash (review.go:165), codex -o capture (review.go:152-154), no containment levels; --full-auto reference removed.
+```

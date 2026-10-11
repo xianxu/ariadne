@@ -83,6 +83,7 @@ Design (2026-10-11, ariadne:2):
 ## Log
 
 ### 2026-10-11
+- 2026-10-11: closed — Comment-only delta for advisories BR-6/BR-7 (prompts.go AllowedTools comment, doc-review AgentCLI rationale); go build ./cmd/... passes; no behavior change. (fixed-then-ship); review verdict: SHIP
 - 2026-10-11: closed — make test: all 12 cmd/sdlc shards pass (processgroup TestCancellationKillsDescendants fails only because the sandbox denies /bin/ps). New tests: TestBoundaryReviewOtherPolicySwapsReviewer (claude main + other -> codex dispatched, ledger agent codex; and vice versa), TestBuildArgs_ReadOnlyPerContainment, TestResolveReviewerCLI_Policy, TestLoadReviewerPolicy, TestBoundaryReviewInvalidPolicyDoesNotRun, TestProcessAliveTreatsEPERMAsAlive, doc-review dontAsk pin. Live: claude -p dontAsk Write -> denied by harness, no file; codex --sandbox read-only write -> refused, no file. Round 1-2 findings fixed in 4ea45451 and c707d179 (every read-only claim swept to the enforced scope).; review verdict: SHIP
 - 2026-10-11: flow upgraded quick → full — 238 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Implemented on ariadne:2 (quick flow). Dropped the plan's "dispatch line names the policy": the ledger round's `agent` and the `via <agent>` line already say who reviewed; threading the policy label through `boundaryReviewOptionsFor` bought nothing.

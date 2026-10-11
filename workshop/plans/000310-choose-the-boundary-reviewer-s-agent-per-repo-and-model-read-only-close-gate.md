@@ -91,6 +91,23 @@ rounds:
       isolation: checkout
       reviewed: c707d179591146e36e6e6302c63195233d9c7478
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-11T10:07:27-07:00"
+      dispatched: "2026-10-11T10:06:44-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: 'prompts.go:186-192 now names tool list + dontAsk for Edit/Write and says Bash is restricted only by the #204 fence; matches dispatch.go:154-190; sweep of cmd/ atlas/ README.md finds no other judge read-only claim.'
+          round: 4
+        - id: BR-7
+          disposition: addressed
+          note: review.go:13-18 rationale now cites no Bash (review.go:165), codex -o capture (review.go:152-154), no containment levels; --full-auto reference removed.
+          round: 4
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 96ccbb2345825ccbd5fde1782076759fdd3879e6
+      blocked: false
 ---
 
 # Gate ledger — ariadne#310 (boundary-review)
@@ -132,7 +149,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `stale-rationale-after-contract-change` doc-review header still says the judge contract uses --full-auto
   cmd/doc-review/review.go:13-17 justifies the duplicate AgentCLI by a --full-auto judge contract that #310 removed; update the rationale.
 
+## Round 4 — 2026-10-11T10:07:27-07:00 (claude) — passed
+
+### Disposed
+
+- BR-6 — addressed — prompts.go:186-192 now names tool list + dontAsk for Edit/Write and says Bash is restricted only by the #204 fence; matches dispatch.go:154-190; sweep of cmd/ atlas/ README.md finds no other judge read-only claim.
+- BR-7 — addressed — review.go:13-18 rationale now cites no Bash (review.go:165), codex -o capture (review.go:152-154), no containment levels; --full-auto reference removed.
+
 ## Open findings
 
-- **BR-6** [Minor] `read-only-claim-exceeds-enforcement` prompts.go AllowedTools comment still claims judges are read-only by construction
-- **BR-7** [Minor] `stale-rationale-after-contract-change` doc-review header still says the judge contract uses --full-auto
+(none — every finding has been disposed)
