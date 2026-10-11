@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000333-full-suite-lock-a-sandboxed-make-test-should-fail-its-preflight-before-queueing-for-the-lock.md
         source_blob: fd841ac8c69cc71e3baa2cd7e06580f7521e80b4
         destination: workshop/issues/000333-full-suite-lock-a-sandboxed-make-test-should-fail-its-preflight-before-queueing-for-the-lock.md
+        main_commit: 1c1144a43928df983f8af4c5d69bd0ce6d69fd19
 ---
 
 # Full-suite lock: a sandboxed make test should fail its preflight before queueing for the lock
