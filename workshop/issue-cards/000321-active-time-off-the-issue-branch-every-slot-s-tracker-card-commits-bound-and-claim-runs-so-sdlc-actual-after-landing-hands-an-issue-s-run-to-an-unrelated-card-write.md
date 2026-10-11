@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.03
+actual_hours: 0.17
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000321-active-time-off-the-issue-branch-every-slot-s-tracker-card-commits-bound-and-claim-runs-so-sdlc-actual-after-landing-hands-an-issue-s-run-to-an-unrelated-card-write.md
         main_commit: 0f4aaae841e56e941c2b707e612cda74745165d8
     completion:
-        token: close-4fcd9c046ae0
+        token: close-858d018c73f3
         repository: github.com/xianxu/ariadne
-        reviewed_head: a975fa97db1c2aab24ad6a5bd31181ad87d7b431
-        evidence_commit: 4fe21309ca913f9e82b032db8e494f6b577397ab
+        reviewed_head: b2d2fdee2d724bb31d17f4cba1174dcdfa07ba29
+        evidence_commit: 513ba5146eef888bf4355577bb7ec84d420df54c
 ---
 
 # active-time: off the issue branch, every slot's tracker card commits bound and claim runs, so sdlc actual after landing hands an issue's run to an unrelated card write
