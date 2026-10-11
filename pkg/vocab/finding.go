@@ -25,6 +25,8 @@ type FindingModel struct {
 	Dispositions map[string][]string `json:"dispositions"` // "closing"/"open" → dispositions
 	When         map[string]string   `json:"when"`         // severity → one-line semantics
 	WhenDisposed map[string]string   `json:"whenDisposed"` // disposition → one-line semantics
+	Authority    map[string][]string `json:"authority"`    // "judge"/"implementer" → dispositions it may assign (#202)
+	AppealOnly   []string            `json:"appealOnly"`   // severities an implementer disposition cannot settle (#202)
 }
 
 var findingModel = mustLoadFinding()
@@ -75,6 +77,27 @@ func (m *FindingModel) IsDisposition(d string) bool { return contains(m.AllDispo
 // reach the open-set computation as an unhandled case that silently wedges a finding open.
 func (m *FindingModel) Closes(d string) bool { return inCat(m.Dispositions, "closing", d) }
 
+// JudgeMay reports whether the judge may assign disposition d in its findings fence.
+func (m *FindingModel) JudgeMay(d string) bool { return inCat(m.Authority, "judge", d) }
+
+// ImplementerMay reports whether the implementer may assign d (`sdlc finding dispute`).
+func (m *FindingModel) ImplementerMay(d string) bool { return inCat(m.Authority, "implementer", d) }
+
+// JudgeDispositions returns the dispositions the judge may emit, in AllDispositions order.
+func (m *FindingModel) JudgeDispositions() []string {
+	var out []string
+	for _, d := range m.AllDispositions() {
+		if m.JudgeMay(d) {
+			out = append(out, d)
+		}
+	}
+	return out
+}
+
+// IsAppealOnly reports whether an implementer disposition leaves a finding at severity s
+// OPEN: the dispute is put to the next judge, which alone can settle it (#202).
+func (m *FindingModel) IsAppealOnly(s string) bool { return contains(m.AppealOnly, s) }
+
 // RenderBlockInstruction renders the structured findings-handoff instruction for the
 // plan-quality prompt — the fenced ```findings block template plus the per-severity and
 // per-disposition gloss — entirely from the model, so the prompt's accepted set never
@@ -95,7 +118,7 @@ func (m *FindingModel) RenderBlockInstruction() string {
 	// live on ariadne#187 round 1, where a detail lost its second half. Block scalars are
 	// immune to `#` and `:` alike.
 	b.WriteString("```findings\ndispose:\n  - id: <a prior finding's id>\n    disposition: <" +
-		strings.Join(m.AllDispositions(), " | ") + ">\n    note: |\n      <optional, one line>\nfindings:\n" +
+		strings.Join(m.JudgeDispositions(), " | ") + ">\n    note: |\n      <optional, one line>\nfindings:\n" +
 		"  - id: new\n    severity: <" + strings.Join(m.Severities(), " | ") + ">\n" +
 		"    family: <slug>\n" +
 		"    title: |\n      <one line>\n    detail: |\n      <a sentence or two, optional>\n```\n\n")
@@ -122,7 +145,9 @@ func (m *FindingModel) RenderBlockInstruction() string {
 	b.WriteString("unquoted `## Estimate` or `issue #187` would silently truncate your finding.\n\n")
 
 	width := 0
-	for _, t := range append(append([]string{}, m.Severities()...), m.AllDispositions()...) {
+	// Only the JUDGE's dispositions (#202): offering `disputed` here would invite the judge
+	// to settle a finding on the implementer's behalf.
+	for _, t := range append(append([]string{}, m.Severities()...), m.JudgeDispositions()...) {
 		if len(t) > width {
 			width = len(t)
 		}
@@ -131,7 +156,7 @@ func (m *FindingModel) RenderBlockInstruction() string {
 		fmt.Fprintf(&b, "  %-*s  %s\n", width, s, m.When[s])
 	}
 	b.WriteString("\n")
-	for _, d := range m.AllDispositions() {
+	for _, d := range m.JudgeDispositions() {
 		fmt.Fprintf(&b, "  %-*s  %s\n", width, d, m.WhenDisposed[d])
 	}
 	return strings.TrimRight(b.String(), "\n")
