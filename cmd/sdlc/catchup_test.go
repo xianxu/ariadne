@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -160,5 +161,81 @@ func TestStartPlanToleratesALagFreshnessAccepts(t *testing.T) {
 				t.Fatal("start-plan did not plan the issue")
 			}
 		})
+	}
+}
+
+// BR-1: refresh keeps updates it completed before failing. A checkout that moved
+// means the running sdlc predates it, so start-plan stops for a re-run instead of
+// reading the failure as "nothing moved".
+func TestStartPlanStopsWhenAFailedRefreshAdvancedACheckout(t *testing.T) {
+	f := newCatchUpFixture(t)
+	peerAdd(t, f.dep, "dep.go", "package dep\n")
+	claimed := f.slot.card(f.cardPath)
+	fakeWeave(t, f, func(io.Writer) error {
+		f.dep.git("merge", "-q", "--ff-only", "origin/main")
+		return errors.New("compile failed")
+	})
+	var out bytes.Buffer
+	err := startPlanBranch(context.Background(), &out, 9)
+	if err == nil || !strings.Contains(err.Error(), "caught up "+f.dep.root) || !strings.Contains(err.Error(), "compile failed") {
+		t.Fatalf("a partial catch-up must stop for a re-run naming the moved checkout: %v", err)
+	}
+	if f.slot.git("branch", "--show-current") != "main" || f.slot.card(f.cardPath) != claimed {
+		t.Fatal("a partial catch-up must not branch or start the card")
+	}
+}
+
+// BR-2: a checkout the probe cannot read is warned as unchecked, never passed as
+// current: a declared dependency that is absent, one with no origin, and one
+// whose fetch fails.
+func TestCatchUpWarnsUncheckedCheckouts(t *testing.T) {
+	f := newCatchUpFixture(t)
+	noOrigin := testfix.Repo(t, testfix.InitialCommit())
+	if resolved, err := filepath.EvalSymlinks(noOrigin); err == nil {
+		noOrigin = resolved
+	}
+	absent := filepath.Join(t.TempDir(), "gone")
+	writeRepoFile(t, f.slot.root, "construct/deps", fmt.Sprintf("substrate %s\nsubstrate %s\nsubstrate %s\n", f.dep.root, noOrigin, absent))
+	f.dep.git("remote", "set-url", "origin", filepath.Join(t.TempDir(), "missing.git"))
+	calls := fakeWeave(t, f, func(io.Writer) error { return nil })
+	var out bytes.Buffer
+	if err := catchUpBeforeWork(context.Background(), &out, f.slot.root, 9); err != nil {
+		t.Fatalf("nothing known to be behind must not stop: %v", err)
+	}
+	for _, want := range []string{
+		absent + " against origin/main (declared in construct/deps but not checked out)",
+		noOrigin + " against origin/main (no origin remote)",
+		f.dep.root + " against origin/main (fetch origin main:",
+	} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("missing unchecked warning %q in:\n%s", want, out.String())
+		}
+	}
+	if len(*calls) != 0 {
+		t.Fatalf("weave ran with nothing known to be behind: %q", *calls)
+	}
+}
+
+// The production seam runs `weave refresh` from PATH in the slot root.
+func TestRunInstalledWeaveRunsRefreshInRoot(t *testing.T) {
+	bin, root := t.TempDir(), t.TempDir()
+	if resolved, err := filepath.EvalSymlinks(root); err == nil {
+		root = resolved
+	}
+	writeRepoFile(t, bin, "weave", "#!/bin/sh\necho \"$(pwd -P) $*\"\n")
+	if err := os.Chmod(filepath.Join(bin, "weave"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", testfix.PrependPath(bin, os.Getenv("PATH")))
+	var out bytes.Buffer
+	if err := runInstalledWeave(context.Background(), root, &out); err != nil {
+		t.Fatal(err)
+	}
+	if got := strings.TrimSpace(out.String()); got != root+" refresh" {
+		t.Fatalf("ran %q, want %q", got, root+" refresh")
+	}
+	t.Setenv("PATH", t.TempDir())
+	if err := runInstalledWeave(context.Background(), root, &out); err == nil || !strings.Contains(err.Error(), "find installed weave") {
+		t.Fatalf("a missing weave must be named: %v", err)
 	}
 }

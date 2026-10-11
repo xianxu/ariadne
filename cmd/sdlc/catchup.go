@@ -19,9 +19,13 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 )
 
-// weaveRefresh runs the installed `weave refresh` in root, writing its output to
-// out. Tests replace it; TestMain stubs it so no test runs a real weave.
-var weaveRefresh = func(ctx context.Context, root string, out io.Writer) error {
+// weaveRefresh is the catch-up seam. Tests replace it; TestMain stubs it so no
+// test runs a real weave.
+var weaveRefresh = runInstalledWeave
+
+// runInstalledWeave runs the installed `weave refresh` in root, writing its output
+// to out.
+func runInstalledWeave(ctx context.Context, root string, out io.Writer) error {
 	bin, err := exec.LookPath("weave")
 	if err != nil {
 		return fmt.Errorf("find installed weave: %w", err)
@@ -40,15 +44,25 @@ var catchUpFetchTimeout = time.Minute
 // after a catch-up (the running sdlc predates it) or when a checkout that cannot
 // be caught up lacks main's code.
 func catchUpBeforeWork(ctx context.Context, stdout io.Writer, root string, issueID int) error {
+	unchecked := func(dir, why string) {
+		cwarn(stdout, fmt.Sprintf("catch-up: could not check %s against origin/main (%s); NOT verified as current", dir, why))
+	}
+	present, absent := substrateWalk(root)
+	for _, dir := range absent {
+		unchecked(dir, "declared in construct/deps but not checked out")
+	}
+	repos := append([]string{root}, present...)
 	var behind []string
-	for _, dir := range append([]string{root}, substrateChain(root)...) {
+	heads := map[string]string{}
+	for _, dir := range repos {
 		n, why := behindOrigin(ctx, dir)
 		switch {
 		case why != "":
-			cwarn(stdout, fmt.Sprintf("catch-up: could not check %s against origin/main (%s); NOT verified as current", dir, why))
+			unchecked(dir, why)
 		case n > 0:
 			behind = append(behind, dir)
 		}
+		heads[dir] = headOf(ctx, dir)
 	}
 	if len(behind) == 0 {
 		return nil
@@ -56,9 +70,24 @@ func catchUpBeforeWork(ctx context.Context, stdout io.Writer, root string, issue
 	rerun := fmt.Sprintf("sdlc start-plan --issue %d", issueID)
 	cinfo(stdout, fmt.Sprintf("catch-up: behind origin/main: %s — running `weave refresh`", strings.Join(behind, ", ")))
 	refreshErr := weaveRefresh(ctx, root, stdout)
+	// Refresh keeps the updates it completed before an error, so what moved is
+	// read from the checkouts, not from its exit status.
+	var moved []string
+	for _, dir := range repos {
+		if headOf(ctx, dir) != heads[dir] {
+			moved = append(moved, dir)
+		}
+	}
+	if len(moved) > 0 {
+		failed := ""
+		if refreshErr != nil {
+			failed = fmt.Sprintf(" before `weave refresh` failed (%v; its output above says why)", refreshErr)
+		}
+		return fmt.Errorf("caught up %s to origin/main%s; this sdlc was built before that, so nothing was branched or started.\n"+
+			"      Re-run `%s` to plan with the refreshed build", strings.Join(moved, ", "), failed, rerun)
+	}
 	if refreshErr == nil {
-		return fmt.Errorf("caught up %s to origin/main; this sdlc was built before that, so nothing was branched or started.\n"+
-			"      Re-run `%s` to plan with the refreshed build", strings.Join(behind, ", "), rerun)
+		return fmt.Errorf("`weave refresh` succeeded but left %s behind origin/main; nothing was branched or started. Inspect them, then re-run `%s`", strings.Join(behind, ", "), rerun)
 	}
 	loc, zone, err := freshness.LoadLocation(root)
 	if err != nil {
@@ -92,11 +121,11 @@ func catchUpBeforeWork(ctx context.Context, stdout io.Writer, root string, issue
 func behindOrigin(ctx context.Context, dir string) (n int, why string) {
 	git := checkoutGit(ctx, dir)
 	if _, err := git("remote", "get-url", "origin"); err != nil {
-		return 0, ""
+		return 0, "no origin remote"
 	}
 	fetchCtx, cancel := context.WithTimeout(ctx, catchUpFetchTimeout)
 	defer cancel()
-	if _, err := checkoutGit(fetchCtx, dir)("fetch", "--quiet", "origin", "main"); err != nil {
+	if _, err := checkoutGit(fetchCtx, dir)("fetch", "--quiet", "origin", "+refs/heads/main:refs/remotes/origin/main"); err != nil {
 		return 0, "fetch origin main: " + err.Error()
 	}
 	out, err := git("rev-list", "--count", "HEAD..refs/remotes/origin/main", "--")
@@ -108,6 +137,15 @@ func behindOrigin(ctx context.Context, dir string) (n int, why string) {
 		return 0, "compare HEAD with origin/main: " + err.Error()
 	}
 	return n, ""
+}
+
+// headOf is dir's HEAD commit, or "" when it cannot be read.
+func headOf(ctx context.Context, dir string) string {
+	out, err := checkoutGit(ctx, dir)("rev-parse", "HEAD")
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(out))
 }
 
 // checkoutGit adapts gitx's cancellable runner to freshness.Git for one checkout,
