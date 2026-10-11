@@ -20,6 +20,10 @@ import (
 // integrateNow is the clock the gate's cutoff reads; tests pin it.
 var integrateNow = time.Now
 
+// integrateFetchTimeout bounds the legacy-repository fetch: an unresponsive remote
+// makes the check inconclusive rather than hanging the close.
+var integrateFetchTimeout = time.Minute
+
 // integrateGate runs the gate for computeClose: a stale branch refuses through die,
 // a check that could not decide warns, and nothing else is printed for a fresh one.
 func integrateGate(ctx context.Context, stderr io.Writer, f *closeFlags, issueStr string) {
@@ -75,17 +79,21 @@ func integrateMainRef(ctx context.Context, root string) (ref, name, why string) 
 	if !ok || gitx.Capture("remote", "get-url", remote) == "" {
 		return trunk, trunk, "" // a local main is already current
 	}
-	if out, err := gitx.RunGit("fetch", "--quiet", remote, branch); err != nil {
-		return "", "", fmt.Sprintf("fetch %s %s failed: %v %s", remote, branch, err, strings.TrimSpace(string(out)))
+	fetchCtx, cancel := context.WithTimeout(ctx, integrateFetchTimeout)
+	defer cancel()
+	if _, errOut, err := gitx.RunGitContext(fetchCtx, "fetch", "--quiet", remote, branch); err != nil {
+		return "", "", fmt.Sprintf("fetch %s %s failed: %v %s", remote, branch, err, firstLine(strings.TrimSpace(string(errOut))))
 	}
 	return trunk, trunk, ""
 }
 
 // integrateBranchPushed reports whether the current branch has a counterpart on
-// main's remote (or an upstream), so the remedy is a merge: a rebase would need a
+// main's remote (or an upstream other than main), so the remedy is a merge: a rebase would need a
 // force-push, which fights the publish's local/remote/PR head check.
 func integrateBranchPushed(mainRef string) bool {
-	if gitx.Capture("rev-parse", "-q", "--verify", "@{upstream}") != "" {
+	// An upstream that is main itself (a branch made with `-b x origin/main`) says
+	// nothing about whether this branch was pushed.
+	if up := gitx.Capture("rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{upstream}"); up != "" && up != mainRef {
 		return true
 	}
 	branch := gitx.Capture("symbolic-ref", "-q", "--short", "HEAD")

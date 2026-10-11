@@ -235,3 +235,35 @@ func TestIntegrateGate_TrackerRepository(t *testing.T) {
 		t.Fatalf("unreachable tracker origin: refused=%v %q\n%s", refused, msg, out)
 	}
 }
+
+// A branch whose upstream is main itself (`-b x origin/main`) was never pushed, so
+// it is told to rebase.
+func TestIntegrateGate_UpstreamOfMainIsNotPushed(t *testing.T) {
+	fx := newIntegrateFixture(t)
+	testfix.Git(t, fx.work, "branch", "-q", "--set-upstream-to=origin/main")
+	fx.land("pkg/new.go")
+	if _, msg, refused := runIntegrateGate(t, &closeFlags{}); !refused || !strings.Contains(msg, "git rebase origin/main") {
+		t.Fatalf("upstream = main: want the rebase remedy; refused=%v\n%s", refused, msg)
+	}
+}
+
+// A fetch that outlives its deadline is inconclusive, not a hang.
+func TestIntegrateGate_FetchTimeoutIsInconclusive(t *testing.T) {
+	fx := newIntegrateFixture(t)
+	hang := filepath.Join(t.TempDir(), "hang-upload-pack")
+	if err := os.WriteFile(hang, []byte("#!/bin/sh\nsleep 30\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, fx.work, "config", "remote.origin.uploadpack", hang)
+	prev := integrateFetchTimeout
+	integrateFetchTimeout = 500 * time.Millisecond
+	t.Cleanup(func() { integrateFetchTimeout = prev })
+	start := time.Now()
+	out, msg, refused := runIntegrateGate(t, &closeFlags{})
+	if refused || !strings.Contains(out, "could not check") {
+		t.Fatalf("hung fetch: refused=%v %q\n%s", refused, msg, out)
+	}
+	if took := time.Since(start); took > 20*time.Second {
+		t.Fatalf("the fetch deadline did not bound the gate: %s", took)
+	}
+}
