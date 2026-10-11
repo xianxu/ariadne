@@ -1,6 +1,6 @@
 ---
 id: 000234
-status: working
+status: codecomplete
 created: 2026-09-17
 updated: 2026-10-10
 estimate_hours: 2.7
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.31
+tracker:
+    version: 1
+    completion:
+        token: close-172c27511d04
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 9f5d9e7b53585e4e6106e7ebd1eddcae6e26ed06
+        evidence_commit: 672d0f0410866c14fd95da1a92532f4782101654
 ---
 
 # Split actuals at the first boundary review: build time vs converge time
