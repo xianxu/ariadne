@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.75
+actual_hours: 0.98
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000324-targeted-go-test-runs-share-the-machine-wide-test-gate-and-a-cpu-cap-not-only-make-test.md
         main_commit: 825007f9d291826bdfc362684d23f82cf9686264
     completion:
-        token: close-6c887ab1a55b
+        token: close-d75d81ef5c7d
         repository: github.com/xianxu/ariadne
-        reviewed_head: 3a8bb9c28e6932b608696ee7476cdba98ed1cbc3
-        evidence_commit: 1e479125590eb220f8b7e000acb67d87a0555d3d
+        reviewed_head: f28f494e3ba2de9bc5f9f378caba894f1cfdbeca
+        evidence_commit: f13c99bdae04aec33552da9c597e0c10d7de535b
 ---
 
 # Targeted go test runs share the machine-wide test gate and a CPU cap, not only make test
