@@ -55,8 +55,12 @@ func TestDirectRunHonorsCapAndGate(t *testing.T) {
 	if out := runHelper(t, dir, nil, "-test.parallel=5"); !strings.Contains(out, "parallel=5 held=true") {
 		t.Fatalf("an explicit -parallel must win:\n%s", out)
 	}
-	if out := runHelper(t, dir, []string{"WF_TEST_LOCK_HELD_BY=123"}); !strings.Contains(out, "held=false") || strings.Contains(out, "[test-gate]") {
+	// Standing aside means no slot and no cap: go's own -parallel default (GOMAXPROCS).
+	if out := runHelper(t, dir, []string{"WF_TEST_LOCK_HELD_BY=123", "GOMAXPROCS=7"}); !strings.Contains(out, "parallel=7 held=false") || strings.Contains(out, "[test-gate]") {
 		t.Fatalf("under make test the gate stands aside silently:\n%s", out)
+	}
+	if out := runHelper(t, dir, []string{"WF_TEST_LOCK=off", "GOMAXPROCS=7"}); !strings.Contains(out, "parallel=7 held=false") || !strings.Contains(out, "WF_TEST_LOCK=off: NOT taking") {
+		t.Fatalf("the hatch stands aside loudly:\n%s", out)
 	}
 }
 
@@ -70,7 +74,7 @@ func holdSlot(t *testing.T, dir string, k int) *os.File {
 	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
 		t.Fatal(err)
 	}
-	f.WriteString(`{"repo":"pair","dir":"/w/pair/cmd","pid":4242,"started":"2026-10-10T18:00:00-07:00"}`)
+	f.WriteString(`{"dir":"/w/pair/cmd","pid":4242,"started":"2026-10-10T18:00:00-07:00"}`)
 	t.Cleanup(func() { f.Close() })
 	return f
 }
@@ -100,7 +104,7 @@ func TestEnterWaitsLoudlyThenAcquires(t *testing.T) {
 	}
 	t.Cleanup(func() { held.Close(); held = nil })
 	out := stderr.String()
-	for _, want := range []string{"waiting 0s for one of 1 test slots, or a full suite to finish", "pair test binary in /w/pair/cmd, pid 4242", "slot acquired after"} {
+	for _, want := range []string{"waiting 0s for one of 1 test slots, or a full suite to finish", "test binary in /w/pair/cmd, pid 4242", "slot acquired after"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("stderr missing %q:\n%s", want, out)
 		}

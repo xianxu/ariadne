@@ -35,7 +35,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"runtime"
 	"strconv"
@@ -102,7 +101,9 @@ func configFromEnv() config {
 // fires before that kill.
 func Enter() {
 	c := configFromEnv()
-	capParallel(c.parallel)
+	if !c.bypass && !c.off {
+		capParallel(c.parallel)
+	}
 	runTimeout := testTimeout()
 	c.budget = runTimeout / 4
 	waited, err := enter(c, os.Stderr, time.Sleep)
@@ -232,7 +233,7 @@ func suiteRunning(path string) (string, error) {
 // record is a slot's holder; a full suite's record (scripts/test-lock.py) carries
 // worktree instead of dir.
 type record struct {
-	Repo     string `json:"repo"`
+	Repo     string `json:"repo,omitempty"` // a suite's; a slot's dir already names it
 	Dir      string `json:"dir"`
 	Worktree string `json:"worktree,omitempty"`
 	PID      int    `json:"pid"`
@@ -240,10 +241,8 @@ type record struct {
 }
 
 func writeRecord(f *os.File) error {
-	dir, _ := os.Getwd()
-	top, _ := exec.Command("git", "rev-parse", "--show-toplevel").Output()
-	b, _ := json.Marshal(record{Repo: filepath.Base(strings.TrimSpace(string(top))), Dir: dir,
-		PID: os.Getpid(), Started: time.Now().Format(time.RFC3339)})
+	dir, _ := os.Getwd() // the package directory: go test runs a binary there
+	b, _ := json.Marshal(record{Dir: dir, PID: os.Getpid(), Started: time.Now().Format(time.RFC3339)})
 	if err := f.Truncate(0); err != nil {
 		return err
 	}
@@ -259,5 +258,5 @@ func describe(b []byte) string {
 	if r.Dir == "" {
 		return fmt.Sprintf("the full %s suite (make test) in %s, make pid %d, since %s", r.Repo, r.Worktree, r.PID, r.Started)
 	}
-	return fmt.Sprintf("%s test binary in %s, pid %d, since %s", r.Repo, r.Dir, r.PID, r.Started)
+	return fmt.Sprintf("test binary in %s, pid %d, since %s", r.Dir, r.PID, r.Started)
 }

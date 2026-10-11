@@ -71,3 +71,8 @@ ARCH-FUNERAL: N slot files of one JSON record each, rewritten on acquire and nev
   - during full suites, gate on (on2): the targeted runs held back. Load fell 43 → 12 while ariadne:2's suite finished and stayed around 12–16 under pair:3's suite. This run surfaced the timeout bug above.
   - during full suites, gate off (first run): load mean 34.9 / max 52.8, and one #325-shape deadline flake (fleet `TestHangingRemoteDegradesOnlyItsRepository`).
   - Reading: targeted loops alone stay well under 2×NCPU (24). The spikes are full suites overlapping with targeted runs, which the gate now separates. The full suite's own 12 shards on 12 cores stay #319's design; reducing them is a follow-up for the TL to decide.
+- Close review round 1: SHIP with 4 Minors.
+  - BR-1 fixed: the make-test bypass and `WF_TEST_LOCK=off` now stand aside entirely, with no parallel cap. The helper test asserts go's own default (GOMAXPROCS=7 → parallel=7).
+  - BR-2 fixed: the slot record no longer forks `git rev-parse`. The package dir names the repo.
+  - BR-3 fixed: `TestGitDrivingPackagesTakeTheTestGate` in cmd/weave enforces the gate on git-driving weave packages. Today's set matches exactly.
+  - BR-4 kept: the gofmt change in publishgate_test.go fixes my own #320 table, and reverting it would leave main misformatted.
