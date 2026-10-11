@@ -59,14 +59,21 @@ Evidence: `workshop/pensive/2026-10-09-01-pensive-sdlc-robustness-evidence.md`, 
 
 ## Plan
 
-- [ ] `workspace.Identity.HomeSlot()` + table test, and assertions in `TestEnvironmentIndependentConformance` (slot, dependency, feature worktree → host address)
-- [ ] `resolveClaimantIdentity` records `HomeSlot()`; replace `slotLabel` and its test
-- [ ] `MatchClaimant` slot rule with the legacy fallback; table rows: same slot other worktree (mine), other slot same machine (foreign), same slot other machine (foreign), unlabeled sides (legacy)
-- [ ] In-process gate tests: `requireCardOwnership` and the transfer guard accept the slot owner from another checkout path and refuse another slot
-- [ ] Messages name the slot; sweep help, atlas, recovery catalog, AGENTS restatements
+- [x] `workspace.Identity.HomeSlot()` + table test (`TestHomeSlotOnlyWhereSlotsExist`, `TestHomeSlotOutsideEnvironments`), and assertions in `TestEnvironmentIndependentConformance` (slot, dependency, feature worktree → host address)
+- [x] `resolveClaimantIdentity` records `HomeSlot()`; replace `slotLabel` and its test (moved to pkg/workspace)
+- [x] `MatchClaimant` slot rule with the legacy fallback; table rows: same slot other worktree (mine), other slot same machine (foreign), same slot other machine (foreign), unlabeled sides (legacy)
+- [x] In-process gate tests (`TestOwnershipGatesFollowTheSlot`, `TestTransferGuardFollowsTheSlot`): `requireCardOwnership` and the transfer guard accept the slot owner from another checkout path and refuse another slot
+- [x] Messages name the slot (`claimantWhere`); sweep help, atlas, recovery catalog (no stale claim there), AGENTS (none)
 - [ ] close
 
 ## Log
 
 ### 2026-10-09
 Filed from the robustness evidence review (ariadne-robustness-1). The operator decided the claimant is the slot (`pair:1`).
+
+### 2026-10-11
+- Probed real identities with a scratch build: `pair-slot1/ariadne` resolves as kind `dependency`, no address, `environment_host` pair:1. So the home slot was already provable; only the claimant read ignored it (`slotLabel` needed `Address`).
+- Messages: `claimantWhere` (slot + checkout) shared by `describeClaimant`, the continuation refusal and the claim success line.
+- Prose sweep: claim help, `ownershipGateHelp`, atlas issue-tracker (ownership + transfer guard), atlas vocabulary, `issue.cue` comment.
+- Live probe (scratch build): `sdlc issue show 307` reads `this-workspace` from ariadne-slot1 and `other-workspace` from `pair-slot1/ariadne` (pair:1), the card naming ariadne:1.
+- A targeted run tripped the hermeticity guard on a leaked `.git/sdlc.lock`. That lock lives in the common dir shared by every ariadne slot; rerunning only the new tests was clean, so another slot's verb held it at the check.

@@ -464,3 +464,55 @@ func TestMoveFirstSwitchFailureLeavesNoRecord(t *testing.T) {
 		t.Fatalf("a move that moved nothing left its record: %+v %v", rec, rerr)
 	}
 }
+
+// setOwner records c as the card's claimant, as a claim from c's checkout would.
+func setOwner(t *testing.T, r *trackerRepo, id, cardPath string, c issue.Claimant) {
+	t.Helper()
+	env, err := openTrackerAt(context.Background(), r.root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	err = env.repo.ChangeCard(id, cardPath, "fixture owner", operationToken("set"), func(card []byte) ([]byte, error) {
+		return issue.SetCardClaimant(card, c)
+	})
+	invalidateIssueRecords(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// #307: the claimant is a slot on a machine. Every continuation gate refuses
+// another slot even from the claim's own path, before any review runs; the
+// owning slot continues from another of its checkouts (pair:1 working an
+// ariadne issue from its dependency clone, the card naming its slot checkout).
+func TestOwnershipGatesFollowTheSlot(t *testing.T) {
+	gates := []string{"start-plan", "change-code", "close", "milestone-close"}
+	for i, name := range gates {
+		t.Run(name, func(t *testing.T) {
+			id := 370 + i
+			r, cardPath, detailPath := closeReady(t, id)
+			owner, ok := ownerOf(t, r, cardPath)
+			if !ok {
+				t.Fatal("closeReady's claim recorded no owner")
+			}
+			owner.Workspace, owner.Worktree = "pair:1", "/w/pair-slot1/ariadne"
+			setOwner(t, r, itoa6(id), cardPath, owner)
+
+			otherSlot := owner
+			otherSlot.Workspace = "ariadne:1"
+			withClaimant(t, otherSlot)
+			refusal, judged := ownershipGate(t, r, name, id, detailPath)
+			if !strings.Contains(refusal, "owned by "+owner.Operator) || !strings.Contains(refusal, "pair:1") || !strings.Contains(refusal, "ariadne:1") || judged {
+				t.Fatalf("other slot, same path: refusal %q, judged %v", refusal, judged)
+			}
+			if name == "start-plan" || name == "change-code" {
+				sameSlot := owner
+				sameSlot.Worktree = "/w/pair-slot1/.worktrees/ariadne/feature"
+				withClaimant(t, sameSlot)
+				if refusal, _ := ownershipGate(t, r, name, id, detailPath); refusal != "" {
+					t.Fatalf("owning slot refused from another checkout: %s", refusal)
+				}
+			}
+		})
+	}
+}

@@ -55,11 +55,15 @@ mirror. It holds:
   - a keyed fingerprint of the OS machine ID (macOS IOPlatformUUID, Linux
     /etc/machine-id) and a readable machine name. The raw ID is never
     published, because the tracker may be public.
-  - the slot label `repo:N`, recorded only where the slot layout is in use;
+  - the home slot `repo:N`, recorded only where the slot layout is in use. It
+    is the environment's slot, so a dependency clone in pair-slot1 records
+    pair:1 (#307);
   - the canonical worktree path;
   - the repository.
-A workspace owns the issue when its repository, machine and worktree match the
-record. The operator and slot label are only descriptive. Claim refuses if
+A workspace owns the issue when it is the same slot on the same machine, from
+any of that slot's checkouts. When either side has no slot (a plain clone, or
+a card that recorded none), the repository, machine and worktree must match
+instead. The operator, worktree and repository are otherwise descriptive. Claim refuses if
 user.name is unset or the machine ID is unreadable.
 
 A competing claim has one winner. The loser sees a changed card or, if it reads

@@ -159,8 +159,9 @@ repositories. A legacy repository has no claimant, and its claim performs
 `start` in one step.
 
 **Terminology.**
-- **Owner (claimant):** a *slot*, meaning a workspace (repository + machine +
-  worktree). It is the durable home of one agent's thread of work and outlives
+- **Owner (claimant):** a *slot* on a machine (`pair:1`), matched from any of
+  the slot's checkouts, its dependency clones included (#307). Where there is
+  no slot layout, the workspace is repository + machine + worktree. It is the durable home of one agent's thread of work and outlives
   any session: compaction, restarts, a different CLI. The lock belongs to the
   slot because collisions happen there.
 - **Operator:** the supervising human recorded on the claim. Descriptive, not a

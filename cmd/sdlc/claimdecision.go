@@ -140,9 +140,14 @@ func ownedBy(raw []byte, id int, status string, me issue.Claimant) error {
 
 // describeClaimant names an owner for humans: operator, machine, slot, path.
 func describeClaimant(c issue.Claimant) string {
-	where := c.Worktree
+	return fmt.Sprintf("%s on %s at %s", c.Operator, c.MachineName, claimantWhere(c))
+}
+
+// claimantWhere is a workspace's slot and checkout, or its checkout alone when
+// it has no slot (#307: the slot is what owns).
+func claimantWhere(c issue.Claimant) string {
 	if c.Workspace != "" {
-		where = c.Workspace + " (" + c.Worktree + ")"
+		return c.Workspace + " (" + c.Worktree + ")"
 	}
-	return fmt.Sprintf("%s on %s at %s", c.Operator, c.MachineName, where)
+	return c.Worktree
 }
