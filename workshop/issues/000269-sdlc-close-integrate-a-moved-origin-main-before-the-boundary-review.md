@@ -96,6 +96,8 @@ Durable plan: `workshop/plans/000269-integrate-gate-plan.md` (previous-noon rule
 
 
 
+
+- 2026-10-11: closed — fixed both close-review Minors: legacy fetch bounded by ctx+timeout (inconclusive on hang), upstream==main no longer counts as pushed; tests TestIntegrateGate_FetchTimeoutIsInconclusive / _UpstreamOfMainIsNotPushed pass; clean merge of main (#202) (fixed-then-ship); review verdict: SHIP
 - 2026-10-11: closed — integrate gate refuses a stale branch before review (rebase/merge by push state; remedy run from refused state passes), docs-only info, net-empty range fresh, fetch failure inconclusive, --no-integrate in gate catalog; real-git fixtures w/ bare remote incl. tracker repo; full make test on merged main green (1059 tests, 0 failed); review verdict: SHIP
 - 2026-10-11: flow upgraded quick → full — 324 added lines in code files (limit 100)
 ### 2026-09-28

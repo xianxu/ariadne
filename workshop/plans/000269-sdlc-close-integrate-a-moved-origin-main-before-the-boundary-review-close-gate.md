@@ -23,6 +23,22 @@ rounds:
       recipe: milestone-review
       reviewed: 92b6bf38fe85138a0b0a28547e3e607092d4c52e
       blocked: false
+    - "n": 2
+      timestamp: "2026-10-11T01:15:24-07:00"
+      dispatched: "2026-10-11T01:11:13-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Fetch now runs via gitx.RunGitContext under context.WithTimeout(ctx, integrateFetchTimeout); TestIntegrateGate_FetchTimeoutIsInconclusive pins it with a hanging uploadpack.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: Upstream is compared by abbrev-ref against mainName and ignored when equal; TestIntegrateGate_UpstreamOfMainIsNotPushed asserts the rebase remedy.
+          round: 2
+      recipe: fix-review
+      reviewed: 4687acd352ca33175804525cf91d8e913809d9da
+      blocked: false
 ---
 
 # Gate ledger — ariadne#269 (boundary-review)
@@ -39,7 +55,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Minor] `push-state-heuristic` integrateBranchPushed treats any @{upstream} as pushed
   An unpushed issue branch created with -b x origin/main tracks main as its upstream, so the gate names git merge instead of git rebase. Ignore an upstream equal to main's ref.
 
+## Round 2 — 2026-10-11T01:15:24-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — Fetch now runs via gitx.RunGitContext under context.WithTimeout(ctx, integrateFetchTimeout); TestIntegrateGate_FetchTimeoutIsInconclusive pins it with a hanging uploadpack.
+- BR-2 — addressed — Upstream is compared by abbrev-ref against mainName and ignored when equal; TestIntegrateGate_UpstreamOfMainIsNotPushed asserts the rebase remedy.
+
 ## Open findings
 
-- **BR-1** [Minor] `unbounded-external-call` Legacy-repo integrate fetch runs without a context or timeout
-- **BR-2** [Minor] `push-state-heuristic` integrateBranchPushed treats any @{upstream} as pushed
+(none — every finding has been disposed)
