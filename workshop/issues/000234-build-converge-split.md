@@ -117,12 +117,31 @@ checks, then the whole ledger. Document the method in brain's `velocity/SKILL.md
 
 ## Plan
 
-- [ ] Design: the dispatch stamp, the split function and its milestone-issue
-      summing, and the column contract after #231 M3.
-- [ ] Stamp dispatch time on boundary rounds; ledger columns; drift reads est
-      against build; the k report.
-- [ ] Backfill: cut-point precedence, a dry-run on a sample for operator review,
-      then the full ledger; brain `velocity/SKILL.md`.
+Durable plan: `workshop/plans/000234-build-converge-split-plan.md`.
+
+- [ ] M1 — dispatch stamp on boundary rounds; pure timeline + split; actual =
+      build + converge (tails excluded at every boundary); milestone-close
+      derives its increment (E1); five appended ledger columns; est-0 rows
+      excluded from calibration (E3)
+- [ ] M2 — drift reads est vs build (split rows only); `sdlc converge-report`
+      (k per model/flow/recipe); brain `velocity/SKILL.md`
+
+## Revisions
+
+- 2026-10-10 (TL Q1/Q2, project folds). The **backfill moves out** to
+  ariadne#323, because historical actuals can't be reproduced: slot cwds were
+  not recorded. Old rows keep `split_source -`, and drift reads only rows
+  that have a split.
+  - **The actual itself changes:** the tail is uncounted at every boundary,
+    and build + converge == actual. Milestone issues' actuals drop versus
+    today's rule.
+  - Folded in: E1 (milestone-close derives its increment) and E3 (est-0 rows
+    are not calibration points).
+  - Added the column `review_recipe`, because k per recipe needs it on the
+    row.
+  - The cut is the first round's *dispatch*. Converge ends at the last `#N`
+    commit at or before the final round's dispatch, which is the operator's
+    consistent end point.
 
 ## Log
 
