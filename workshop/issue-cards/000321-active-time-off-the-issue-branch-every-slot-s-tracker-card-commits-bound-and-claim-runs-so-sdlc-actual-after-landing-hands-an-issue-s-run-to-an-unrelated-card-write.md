@@ -1,6 +1,6 @@
 ---
 id: 000321
-status: codecomplete
+status: done
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: b2d2fdee2d724bb31d17f4cba1174dcdfa07ba29
         evidence_commit: 513ba5146eef888bf4355577bb7ec84d420df54c
+        landed_commit: aca42dbe44c0dcdffe38fd90812d958b137198e1
 ---
 
 # active-time: off the issue branch, every slot's tracker card commits bound and claim runs, so sdlc actual after landing hands an issue's run to an unrelated card write
