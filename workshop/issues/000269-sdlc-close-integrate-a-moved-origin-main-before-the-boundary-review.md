@@ -86,9 +86,9 @@ side of the same staleness; this issue is the issue-branch side, at close.
 
 Durable plan: `workshop/plans/000269-integrate-gate-plan.md` (previous-noon rule, tri-state probe, shared `internal/freshness` for #303, gate at close + milestone-close).
 
-- [ ] `internal/freshness` (Cutoff, LoadLocation, Check) with unit and real-git tests
-- [ ] `integrategate.go` wired into `computeClose`; `--no-integrate` on close and milestone-close; fixture tests incl. remedy-from-refused-state
-- [ ] gatesig catalog, help text, recovery catalog, atlas, `.sdlc/freshness.json`
+- [x] `internal/freshness` (Cutoff, LoadLocation, Check) with unit and real-git tests
+- [x] `integrategate.go` wired into `computeClose`; `--no-integrate` on close and milestone-close; fixture tests incl. remedy-from-refused-state
+- [x] gatesig catalog, help text, recovery catalog, atlas, `.sdlc/freshness.json`
 - [ ] targeted tests, then full `make test`
 
 ## Log
@@ -107,3 +107,4 @@ Spec line added by the TL (ariadne:1) at #304's request (its Done-when), with th
 
 ### 2026-10-10
 - Claimed at ariadne:4 (TL dispatch). Design: the previous-noon rule from project req. 6 subsumes the spec's "main moved since merge base". Only main commits landed before the most recent noon must be in the branch, and docs-only staleness passes. Applied at both boundaries, since #304 made milestone integration free. Fetch failure is inconclusive: warn, never the up-to-date line.
+- Implemented: `internal/freshness` and `integrategate.go`, wired into `computeClose` before the window. The gatesig row, help, recovery catalog and atlas are updated. `.sdlc/freshness.json` is set to America/Los_Angeles. Targeted tests pass (fixtures with a bare remote: rebase and merge remedies run from the refused state, docs-only, embedded md, fetch failure, bypass, bad zone, computeClose wiring).

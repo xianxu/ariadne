@@ -56,6 +56,7 @@ type milestoneCloseFlags struct {
 	NoLedger    bool
 	NoPlanCheck bool
 	NoProject   bool
+	NoIntegrate bool
 }
 
 // reviewResult bundles the outputs of the post-milestone judge call that
@@ -64,7 +65,7 @@ type milestoneCloseFlags struct {
 // errored — the operator should still be able to reconstruct what
 // happened from the trailer alone.
 type reviewResult struct {
-	DispatchError error // failed/cancelled dispatch may not persist a round
+	DispatchError error  // failed/cancelled dispatch may not persist a round
 	Dispatched    string // #234: when the reviewer was dispatched (RFC3339)
 	Verdict       judge.Verdict
 	Reason        string // populated for not-run / unknown
@@ -117,6 +118,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict check")
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
+	cmd.Flags().BoolVar(&f.NoIntegrate, "no-integrate", false, "bypass the integrate gate: main's code landed before the most recent noon must be in the branch (#269)")
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for judge dispatch (claude | codex | gemini)")
 	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "path to the brain repo (for project-file lookup)")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
@@ -146,6 +148,7 @@ func (f *milestoneCloseFlags) closeFlags() *closeFlags {
 		NoLedger:      f.NoLedger,
 		NoPlanCheck:   f.NoPlanCheck,
 		NoProject:     f.NoProject,
+		NoIntegrate:   f.NoIntegrate,
 	}
 }
 

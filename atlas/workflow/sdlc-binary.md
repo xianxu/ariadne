@@ -1018,6 +1018,24 @@ the window contains no code surface — `hasCodePath`, the single docs
 classifier: `*.md` / `workshop/` / `atlas/` / `docs/` are documentation,
 everything else is surface (#177; docs-only closes had an incoherent demand).
 
+**Integrate gate (#269, `integrategate.go`).** Before planning the window,
+`close` and `milestone-close` (fixed-then-ship included) require the branch to
+contain every first-parent commit of freshly fetched main whose committer date
+is at or before the most recent noon (ariadne-robustness-1 requirement 6). The
+definition lives in **`internal/freshness`** (`Cutoff`, `LoadLocation`, `Check`),
+shared with #303's catch-up at claim/start-plan. The zone comes from the tracked
+`.sdlc/freshness.json` (absent → local; malformed refuses). Main is
+`reviewMainRef` in a tracker repo, so the gate and the window share one fetch,
+else `TrunkRef` after `git fetch`. The probe is tri-state:
+- Stale: refuses, naming `git merge` (pushed) or `git rebase` (unpushed).
+- DocsOnly (`publishGateHasCodeSurface`, the publish gate's predicate): an info line.
+- Inconclusive (a fetch or git failure): a "could not check" warning, never a pass
+  line.
+
+The cutoff is a past instant, so a landing after it never moves the requirement.
+A fast-forwarded landing counts from its own commit date, which is stricter but
+never looser.
+
 The milestone-verdict gate demands per-milestone `Review-Verdict:` evidence,
 EXCEPT for **trailing** unclosed milestones (#175): Mx rows after the last
 verdict-carrying one — or all rows, when none carries a verdict (the
