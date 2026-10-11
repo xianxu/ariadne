@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "d435729b", done: "42f98b54"}
 ---
 
 # Targeted go test runs share the machine-wide test gate and a CPU cap, not only make test
