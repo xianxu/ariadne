@@ -45,13 +45,6 @@ func renderConvergeReport(w io.Writer, groups []estimate.ConvergeFactor) {
 	}
 	fmt.Fprintf(w, "%-6s %-22s %-36s %4s %8s %10s %6s\n", "flow", "model", "recipe", "n", "build h", "converge h", "k")
 	for _, g := range groups {
-		fmt.Fprintf(w, "%-6s %-22s %-36s %4d %8.2f %10.2f %6.2f\n", dashIfEmpty(g.Flow), dashIfEmpty(g.Model), dashIfEmpty(g.Recipe), g.N, g.Build, g.Converge, g.K())
+		fmt.Fprintf(w, "%-6s %-22s %-36s %4d %8.2f %10.2f %6.2f\n", estimate.Dash(g.Flow), estimate.Dash(g.Model), estimate.Dash(g.Recipe), g.N, g.Build, g.Converge, g.K())
 	}
-}
-
-func dashIfEmpty(s string) string {
-	if s == "" {
-		return "-"
-	}
-	return s
 }

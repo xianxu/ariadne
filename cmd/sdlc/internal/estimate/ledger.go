@@ -151,11 +151,11 @@ func FormatRow(r LedgerRow) string {
 	return strings.Join([]string{
 		r.Issue,
 		ftoa(r.Estimate), ftoa(r.EstDesign), ftoa(r.EstImpl), ftoa(r.Actual), ratioCell(r),
-		r.Model, dash(r.Mode), yesno(r.WindowTrusted), r.Date,
+		r.Model, Dash(r.Mode), yesno(r.WindowTrusted), r.Date,
 		itoa(r.ChurnProd), itoa(r.ChurnTest), itoa(r.ChurnAtlas), itoa(r.ChurnWorkshop), ftoa(r.Rework),
 		itoa(r.GateRounds), itoa(r.GateForced), itoa(r.GateAddressed), itoa(r.GateWithdrawn), itoa(r.GateOpen),
-		dash(r.FlowKind), dash(r.FlowProvenance), yesno(r.FlowUpgraded),
-		ftoa(r.BuildHours), ftoa(r.ConvergeHours), itoa(r.BoundaryRounds), dash(r.SplitSource), dash(r.ReviewRecipe),
+		Dash(r.FlowKind), Dash(r.FlowProvenance), yesno(r.FlowUpgraded),
+		ftoa(r.BuildHours), ftoa(r.ConvergeHours), itoa(r.BoundaryRounds), Dash(r.SplitSource), Dash(r.ReviewRecipe),
 	}, "\t")
 }
 
@@ -259,7 +259,8 @@ func parseLedgerFloat(s string) (float64, bool) {
 	return v, err == nil
 }
 
-func dash(s string) string {
+// Dash renders an empty ledger cell as "-" (the ledger's absent marker).
+func Dash(s string) string {
 	if s == "" {
 		return "-"
 	}
