@@ -70,7 +70,7 @@ point, and `sdlc push` is on main, so only the landing path is wrong.
 - [x] Mutation-checked: reverting the call site fails the call-site test; diffing from
       main's tip inside the gate fails the archive test
 - [x] Atlas (`workflow/sdlc-binary.md`, validategate entry)
-- [ ] Full `make test`, close
+- [x] Full `make test`: green except the sandbox-blocked processgroup `/bin/ps` test, then close
 
 ## Log
 
