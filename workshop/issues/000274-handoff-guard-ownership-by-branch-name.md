@@ -88,7 +88,7 @@ optimistic concurrency (based on main's latest version of the file).
       a publish test for an unclaimed card succeeds.
 - [x] Docs: helptext `issue.md`, `atlas/workflow/issue-tracker.md`,
       `AGENTS.base.md` "Later edits" line.
-- [ ] Close.
+- [x] Close.
 
 ## Log
 
