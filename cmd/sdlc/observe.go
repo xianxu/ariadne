@@ -197,8 +197,8 @@ func collectHolding(trees []observe.LocalWorktree, remote, stem string) []observ
 		var err error
 		if id, rerr := workspace.Resolve(observeGitReader{}, w.Path, ""); rerr != nil {
 			err = fmt.Errorf("resolve the workspace: %w", rerr)
-		} else if id.Address != nil && id.UsesSlotLayout() {
-			h.Address = *id.Address
+		} else {
+			h.Address = id.HomeSlot() // the slot that owns claims from here (#307)
 		}
 		if err != nil {
 			h.Err = err

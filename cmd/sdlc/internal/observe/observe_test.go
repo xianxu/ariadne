@@ -377,3 +377,33 @@ func TestAssembleUnreadableCardIsUnknown(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+// #307: the claimant's checkout is any checkout of its slot on its machine;
+// without a slot on either side, the recorded worktree. The judgment is
+// issue.MatchClaimant's, so another machine's same-named slot never counts.
+func TestIsClaimantCheckoutFollowsTheSlot(t *testing.T) {
+	m1, m2 := issue.MachineFingerprint("m1"), issue.MachineFingerprint("m2")
+	me := &issue.Claimant{Operator: "o", Machine: m1, MachineName: "a", Workspace: "ariadne:1", Worktree: "/w/ariadne-slot1/ariadne", Repository: "r"}
+	slotted := &Claimant{Machine: m1, Workspace: "pair:1", Worktree: "/w/pair-slot1/ariadne", Repository: "r"}
+	elsewhere := &Claimant{Machine: m2, Workspace: "pair:1", Worktree: "/w/pair-slot1/ariadne", Repository: "r"}
+	plain := &Claimant{Machine: m1, Worktree: "/w/ariadne", Repository: "r"}
+	for name, c := range map[string]struct {
+		me       *issue.Claimant
+		claimant *Claimant
+		holding  HoldingFacts
+		want     bool
+	}{
+		"no claimant":                {me, nil, HoldingFacts{Path: "/w/ariadne"}, false},
+		"identity unknown":           {nil, slotted, HoldingFacts{Path: "/w/pair-slot1/ariadne", Address: "pair:1"}, false},
+		"same slot, other checkout":  {me, slotted, HoldingFacts{Path: "/w/pair-slot1/.worktrees/ariadne/x", Address: "pair:1"}, true},
+		"same slot, other machine":   {me, elsewhere, HoldingFacts{Path: "/w/pair-slot1/ariadne", Address: "pair:1"}, false},
+		"other slot, recorded path":  {me, slotted, HoldingFacts{Path: "/w/pair-slot1/ariadne", Address: "ariadne:1"}, false},
+		"unslotted holding, path":    {me, slotted, HoldingFacts{Path: "/w/pair-slot1/ariadne"}, true},
+		"unslotted claim, same path": {me, plain, HoldingFacts{Path: "/w/ariadne", Address: "ariadne:0"}, true},
+		"unslotted claim, elsewhere": {me, plain, HoldingFacts{Path: "/w/other", Address: "ariadne:0"}, false},
+	} {
+		if got := isClaimantCheckout(Inputs{Me: c.me}, c.claimant, c.holding); got != c.want {
+			t.Errorf("%s: %v, want %v", name, got, c.want)
+		}
+	}
+}

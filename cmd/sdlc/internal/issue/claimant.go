@@ -16,15 +16,17 @@ import (
 // ClaimantField is the card field holding the responsibility record.
 const ClaimantField = "claimant"
 
-// Claimant identifies a workspace. Repository, Machine and Worktree decide
-// ownership; Operator, MachineName and Workspace are descriptive. Workspace is
-// a slot label (`repo:N`) when the checkout has one — optional, never required:
-// Ariadne works without slots or Couch.
+// Claimant identifies a workspace. Machine and Workspace decide ownership
+// (#307); Operator, MachineName, Repository and Worktree are descriptive.
+// Workspace is the checkout's home slot (`repo:N`, the environment's host, so
+// a dependency clone in `pair-slot1` records `pair:1`) — optional, never
+// required: Ariadne works without slots or Couch. Without it on either side,
+// Repository, Machine and Worktree decide, as before #307.
 type Claimant struct {
 	Operator    string
 	Machine     string // MachineFingerprint of the OS machine ID, never the raw ID
 	MachineName string
-	Workspace   string // optional
+	Workspace   string // optional home slot
 	Worktree    string // canonical absolute path
 	Repository  string
 }
@@ -161,14 +163,25 @@ func (o Ownership) String() string {
 	return [...]string{"unknown", "mine", "foreign"}[o]
 }
 
-// MatchClaimant decides ownership. The same repository, machine and worktree
-// make a workspace the owner; operator and slot label are descriptive, and
-// matching operator or machine alone never does.
+// MatchClaimant decides ownership. The claimant is a slot on a machine
+// (#307): when both sides name a home slot, the same machine and slot make a
+// workspace the owner from any of the slot's checkouts. When either side has
+// none (a plain clone, or a card claimed from a checkout that recorded no
+// slot), the same repository, machine and worktree decide, so such a card
+// keeps working from where it was claimed. Matching operator or machine alone
+// never does.
 func MatchClaimant(recorded *Claimant, current Claimant) Ownership {
 	switch {
 	case recorded == nil:
 		return OwnershipUnknown
-	case recorded.Repository == current.Repository && recorded.Machine == current.Machine && recorded.Worktree == current.Worktree:
+	case recorded.Machine != current.Machine:
+		return OwnershipForeign
+	case recorded.Workspace != "" && current.Workspace != "":
+		if recorded.Workspace == current.Workspace {
+			return OwnershipMine
+		}
+		return OwnershipForeign
+	case recorded.Repository == current.Repository && recorded.Worktree == current.Worktree:
 		return OwnershipMine
 	default:
 		return OwnershipForeign

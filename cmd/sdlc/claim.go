@@ -231,9 +231,9 @@ func runClaim(ctx context.Context, stdout, stderr io.Writer, f *claimFlags) erro
 	}
 	for _, id := range ids {
 		if status, _ := issue.GetField(cards[id].Card.Frontmatter, "status"); vocab.Issue().IsOpen(status) {
-			cok(stderr, fmt.Sprintf("Issue #%s claimed on %s: this workspace owns it; status stays open until `sdlc start-plan --issue %s` starts it.", id, vocab.Issue().Discovery().Tracker, issue.CLIRef(id)))
+			cok(stderr, fmt.Sprintf("Issue #%s claimed on %s: this workspace (%s) owns it; status stays open until `sdlc start-plan --issue %s` starts it.", id, vocab.Issue().Discovery().Tracker, claimantWhere(me), issue.CLIRef(id)))
 		} else {
-			cok(stderr, fmt.Sprintf("Issue #%s taken over on %s: this workspace owns it; its status (%s) is unchanged.", id, vocab.Issue().Discovery().Tracker, status))
+			cok(stderr, fmt.Sprintf("Issue #%s taken over on %s: this workspace (%s) owns it; its status (%s) is unchanged.", id, vocab.Issue().Discovery().Tracker, claimantWhere(me), status))
 		}
 	}
 	if take != nil {

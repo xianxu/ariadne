@@ -81,14 +81,32 @@ func TestMatchClaimant(t *testing.T) {
 		"absent":                       {nil, OwnershipUnknown},
 		"same workspace":               {&me, OwnershipMine},
 		"another operator, same place": {ptr(other(func(c *Claimant) { c.Operator = "Someone" })), OwnershipMine},
-		"slot label differs":           {ptr(other(func(c *Claimant) { c.Workspace = "" })), OwnershipMine},
-		"other worktree, same machine": {ptr(other(func(c *Claimant) { c.Worktree = "/w/ariadne-slot2/ariadne" })), OwnershipForeign},
-		"other machine, same path":     {ptr(other(func(c *Claimant) { c.Machine = MachineFingerprint("UUID-2") })), OwnershipForeign},
-		"other repository":             {ptr(other(func(c *Claimant) { c.Repository = "github.com/x/fork" })), OwnershipForeign},
+		// #307: the slot decides; worktree and repository are descriptive.
+		"same slot, other checkout": {ptr(other(func(c *Claimant) {
+			c.Worktree, c.Repository = "/w/pair-slot1/ariadne", "git@github.com:xianxu/ariadne"
+		})), OwnershipMine},
+		"other slot, same path":      {ptr(other(func(c *Claimant) { c.Workspace = "ariadne:2" })), OwnershipForeign},
+		"same slot, other machine":   {ptr(other(func(c *Claimant) { c.Machine = MachineFingerprint("UUID-2") })), OwnershipForeign},
+		"other slot, other worktree": {ptr(other(func(c *Claimant) { c.Workspace, c.Worktree = "ariadne:2", "/w/ariadne-slot2/ariadne" })), OwnershipForeign},
+		// Either side unlabeled: the pre-#307 rule (repository, machine, worktree).
+		"unlabeled card, same place":     {ptr(other(func(c *Claimant) { c.Workspace = "" })), OwnershipMine},
+		"unlabeled card, other worktree": {ptr(other(func(c *Claimant) { c.Workspace, c.Worktree = "", "/w/ariadne-slot2/ariadne" })), OwnershipForeign},
+		"unlabeled card, other repo":     {ptr(other(func(c *Claimant) { c.Workspace, c.Repository = "", "github.com/x/fork" })), OwnershipForeign},
+		"unlabeled card, other machine":  {ptr(other(func(c *Claimant) { c.Workspace, c.Machine = "", MachineFingerprint("UUID-2") })), OwnershipForeign},
 	} {
 		if got := MatchClaimant(c.recorded, me); got != c.want {
 			t.Errorf("%s: %v, want %v", name, got, c.want)
 		}
+	}
+	// An unlabeled checkout (a plain clone) judges a labeled card by the old rule.
+	plain := me
+	plain.Workspace = ""
+	if got := MatchClaimant(&me, plain); got != OwnershipMine {
+		t.Errorf("plain checkout, same place: %v", got)
+	}
+	plain.Worktree = "/elsewhere"
+	if got := MatchClaimant(&me, plain); got != OwnershipForeign {
+		t.Errorf("plain checkout, other worktree: %v", got)
 	}
 }
 

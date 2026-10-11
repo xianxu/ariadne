@@ -2,6 +2,7 @@ package workspace
 
 import (
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -191,4 +192,40 @@ func FuzzNestedSlotRoundTrip(f *testing.F) {
 			t.Fatal("sibling acquired numbered identity")
 		}
 	})
+}
+
+// HomeSlot (#307): a primary is a slot only beside slot checkouts; a slot or
+// any checkout in an environment is its host's; a plain worktree has none.
+func TestHomeSlotOnlyWhereSlotsExist(t *testing.T) {
+	fleet := t.TempDir()
+	addr := "ariadne:0"
+	primary := Identity{Kind: "primary", Repo: "ariadne", FleetRoot: fleet, PrimaryRoot: fleet + "/ariadne", Address: &addr}
+	if got := primary.HomeSlot(); got != "" {
+		t.Fatalf("a plain primary (no slots) got a home slot %q", got)
+	}
+	mkdir := func(p string) {
+		if err := os.MkdirAll(filepath.Join(fleet, p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	mkdir("worktree/ariadne-slotX/ariadne") // not a slot number
+	if got := primary.HomeSlot(); got != "" {
+		t.Fatalf("a malformed slot dir made a home slot %q", got)
+	}
+	mkdir("worktree/ariadne-slot1/ariadne")
+	if got := primary.HomeSlot(); got != "ariadne:0" {
+		t.Fatalf("primary beside slots: %q", got)
+	}
+	one := "ariadne:1"
+	host := &EnvironmentHost{Repo: "ariadne", Slot: 1}
+	if got := (Identity{Kind: "slot", Address: &one, EnvironmentHost: host}).HomeSlot(); got != "ariadne:1" {
+		t.Fatalf("slot: %q", got)
+	}
+	dep := Identity{Kind: "dependency", Repo: "ariadne", EnvironmentHost: &EnvironmentHost{Repo: "pair", Slot: 1}}
+	if got := dep.HomeSlot(); got != "pair:1" {
+		t.Fatalf("dependency clone in pair-slot1: %q", got)
+	}
+	if got := (Identity{Kind: "worktree"}).HomeSlot(); got != "" {
+		t.Fatalf("plain worktree: %q", got)
+	}
 }

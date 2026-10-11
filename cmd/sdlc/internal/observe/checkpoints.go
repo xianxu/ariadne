@@ -60,6 +60,20 @@ func assembleBranch(in Inputs) Branch {
 	return b
 }
 
+// isClaimantCheckout reports whether a checkout holding the branch is the
+// owner's: the queried identity moved to that checkout (its slot and path),
+// judged by issue.MatchClaimant like every ownership decision (#307). Unknown
+// identity is never the claimant.
+func isClaimantCheckout(in Inputs, c *Claimant, h HoldingFacts) bool {
+	if c == nil || in.Me == nil {
+		return false
+	}
+	recorded := issue.Claimant(*c)
+	there := *in.Me
+	there.Workspace, there.Worktree = h.Address, h.Path
+	return issue.MatchClaimant(&recorded, there) == issue.OwnershipMine
+}
+
 func assembleWorkspaces(in Inputs, a Assignment) Workspaces {
 	w := Workspaces{Authority: AuthorityWorktree, Holding: []Workspace{}}
 	if in.WorktreesErr != nil {
@@ -69,7 +83,7 @@ func assembleWorkspaces(in Inputs, a Assignment) Workspaces {
 	for _, h := range in.Holding {
 		ws := Workspace{Path: h.Path, Address: h.Address, Branch: h.Branch, Head: h.Head,
 			DirtyCount: h.DirtyCount, Ahead: h.Ahead, Behind: h.Behind,
-			IsClaimant: a.Claimant != nil && a.Claimant.Worktree == h.Path, Error: errText(h.Err)}
+			IsClaimant: isClaimantCheckout(in, a.Claimant, h), Error: errText(h.Err)}
 		w.Holding = append(w.Holding, ws)
 	}
 	w.Read = Read{State: Present, Source: "git worktree list"}
