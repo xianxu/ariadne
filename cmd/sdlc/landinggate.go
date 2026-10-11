@@ -10,8 +10,9 @@ import (
 )
 
 // runLandingDuplicateGate reads the already-fetched configured destination. It
-// neither fetches origin nor silently waives an unreadable collision check.
-func runLandingDuplicateGate(mainOID, issuesDir, historyDir string, r gitRunner) error {
+// neither fetches origin nor silently waives an unreadable collision check. It
+// measures the pinned head being landed, the same window as the instance gate.
+func runLandingDuplicateGate(mainOID, headOID, issuesDir, historyDir string, r gitRunner) error {
 	if !landingOIDValid(mainOID) {
 		return fmt.Errorf("landing duplicate-id gate requires pinned main commit")
 	}
@@ -23,14 +24,13 @@ func runLandingDuplicateGate(mainOID, issuesDir, historyDir string, r gitRunner)
 	if err != nil {
 		return fmt.Errorf("landing duplicate-id target: %w", err)
 	}
-	head, err := refIDSpace("HEAD", dirs, r)
+	head, err := refIDSpace(headOID, dirs, r)
 	if err != nil {
 		return fmt.Errorf("landing duplicate-id HEAD: %w", err)
 	}
-	out, err := r.Git("merge-base", mainOID, "HEAD")
-	baseOID := strings.TrimSpace(string(out))
-	if err != nil || !landingOIDValid(baseOID) {
-		return fmt.Errorf("landing duplicate-id merge-base unavailable: %v: %s", err, out)
+	baseOID, err := landingMergeBase(r, mainOID, headOID)
+	if err != nil {
+		return fmt.Errorf("landing duplicate-id %w", err)
 	}
 	base, err := refIDSpace(baseOID, dirs, r)
 	if err != nil {
@@ -41,6 +41,30 @@ func runLandingDuplicateGate(mainOID, issuesDir, historyDir string, r gitRunner)
 		return fmt.Errorf("landing would introduce %d duplicate issue ID(s) against configured main %s:\n%s", len(clashes), shortSHA(mainOID), strings.Join(clashes, "\n"))
 	}
 	return nil
+}
+
+// landingMergeBase is the branch point the landing gates measure the branch from:
+// merge-base(main, ref). Unavailable fails closed — no gate may fall back to main's
+// tip, whose window holds every change main made since the branch was cut (#322).
+func landingMergeBase(r gitRunner, mainOID, ref string) (string, error) {
+	out, err := r.Git("merge-base", mainOID, ref)
+	base := strings.TrimSpace(string(out))
+	if err != nil || !landingOIDValid(base) {
+		return "", fmt.Errorf("merge-base unavailable: %v: %s", err, out)
+	}
+	return base, nil
+}
+
+// runLandingInstanceGate validates the instance files the branch itself changed:
+// merge-base(main, head)..head. It used to diff main's tip against the working
+// tree, so an issue main archived after the branch point read as ADDED by the
+// branch and refused the landing on a file the branch never touched (#322).
+func runLandingInstanceGate(mainOID, headOID string, gates []nounGate, stdout, stderr io.Writer, r gitRunner) error {
+	base, err := landingMergeBase(r, mainOID, headOID)
+	if err != nil {
+		return fmt.Errorf("landing instance-conformance gate %w", err)
+	}
+	return validateChangedInstancesFn(base, headOID, gates, stdout, stderr)
 }
 
 // Ownership follows close ancestry, not a body diff: an independently published

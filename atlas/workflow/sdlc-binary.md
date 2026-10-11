@@ -675,7 +675,10 @@ cmd/sdlc/
                        validate frontmatter on every changed instance, with
                        added-only section checks for issues; shells
                        `vocabulary validate-instance --type <noun>`; `--no-validate`
-                       remains the loud escape hatch
+                       remains the loud escape hatch. Landing validates the
+                       branch's own window, merge-base(main, head)..head, via
+                       landinggate.go's `landingMergeBase`, shared with the
+                       duplicate-id gate (#322)
   start.go             migration stub (REMOVED in #39 — errors with
                        "use claim + change-code")
   claim.go             fresh remote status claim + local issue checkpoint (#244)

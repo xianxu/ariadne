@@ -1,12 +1,22 @@
 ---
 id: 000322
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
-card_mirror: '75acd5e091b68c0c2072b82d29c2ac56afe1d2a1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '62a9283e615220022532573198e033c73b3599f2' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T17:46:02-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "3f11ad44", done: "a58b67bd"}
+actual_hours: 0.59
 ---
 
 # merge: landing instance-conformance gate validates main-tip..worktree, not the branch's own changes
@@ -47,15 +57,32 @@ point, and `sdlc push` is on main, so only the landing path is wrong.
 
 ## Plan
 
-- [ ] Failing test: real-git fixture where main archives a nonconforming issue after the
-      branch point; the landing instance gate must pass. Second case: the branch's own
-      nonconforming issue refuses
-- [ ] `landingMergeBase` helper shared with `runLandingDuplicateGate`;
+- [x] Failing test: real-git fixture where main archives a nonconforming issue after the
+      branch point; the landing instance gate must pass
+      (`TestLandingInstanceGate_IgnoresMainsChangesSinceBranchPoint`). Second case: the
+      branch's own nonconforming issue refuses
+      (`TestLandingInstanceGate_RefusesBranchsOwnNonconformingIssue`). No merge-base fails
+      closed (`TestLandingInstanceGate_FailsClosedWithoutMergeBase`)
+- [x] `landingMergeBase` helper shared with `runLandingDuplicateGate`;
       `runLandingInstanceGate(mainOID, head, …)` validates `merge-base..head`
-- [ ] `landing.go` calls it with `targetMain` and the pinned head
-- [ ] Targeted tests, full `make test`, close
+- [x] `landing.go` calls it with `targetMain` and the pinned head. The call site is pinned
+      by `TestLandingPassesBranchWindowToInstanceGate`: `runMerge` after main moved on, and
+      the gate must receive branch point..PR head
+- [x] Mutation-checked: reverting the call site fails the call-site test; diffing from
+      main's tip inside the gate fails the archive test
+- [x] Atlas (`workflow/sdlc-binary.md`, validategate entry)
+- [x] Full `make test`: green except the sandbox-blocked processgroup `/bin/ps` test, then close
 
 ## Log
 
 ### 2026-10-10
+- 2026-10-10: closed — Round-1 Minor fixed: runLandingDuplicateGate takes the pinned head, so both landing gates measure the same window. Targeted landing/duplicate/merge tests green. Prior evidence stands: the regression and call-site tests are mutation-checked, and make test is green except the sandbox-blocked processgroup /bin/ps test; review verdict: SHIP
+- 2026-10-10: closed — Regression: TestLandingInstanceGate_IgnoresMainsChangesSinceBranchPoint (a real-git branch cut before main archives a nonconforming issue lands without that file being validated); it fails when the gate diffs from main tip. TestLandingPassesBranchWindowToInstanceGate runs runMerge after main moved on and asserts the gate gets branch point..PR head; it fails when the landing.go call site is reverted. The branch-own nonconforming issue still refuses; no merge-base fails closed. Targeted landing/merge/duplicate tests green. make test: all 12 cmd/sdlc shards green; only processgroup TestCancellationKillsDescendants fails, because the sandbox blocks /bin/ps (unrelated); review verdict: SHIP
 - Filed from ariadne#189's landing, at the TL's direction (ops:0); fix before #202.
+- Targeted: `TestLanding|Duplicate|TestValidateChanged|TestRunMerge` all green (423s).
+- head is the pinned commit, not the working tree. `readIssueFileFn` still reads the
+  checkout, which `revalidateLanding` holds at that same head.
+- Close round 1: SHIP plus one Minor, fixed in the same round. The duplicate-id gate measured
+  from `"HEAD"` while the instance gate used the pinned head; `runLandingDuplicateGate` now
+  takes the pinned head, so both landing gates measure one window by construction. Targeted
+  `TestLanding|Duplicate|TestRunMerge` green (314s).
