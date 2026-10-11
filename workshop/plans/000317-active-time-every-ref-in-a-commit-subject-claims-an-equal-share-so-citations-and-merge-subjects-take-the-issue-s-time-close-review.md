@@ -65,3 +65,53 @@ findings:
     detail: |
       helptext/active-time.md "With --branch-point, merge commits are not boundaries" and commit.go Scope doc "a merge is never a scoped boundary". A main-side merge outside the branch range whose lead names the issue is still kept. Reword both to "the branch's own merges" (as the atlas does), or drop merges by parent count for every window commit. Same family: the atlas verb list omits `closes`, which leadRE accepts.
 ```
+
+---
+
+## Re-review — 2026-10-10T17:16:28-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 317 — active-time: every ref in a commit subject claims an equal share, so citations and merge subjects take the issue's time |
+| repo | ariadne |
+| issue file | workshop/issues/000317-active-time-every-ref-in-a-commit-subject-claims-an-equal-share-so-citations-and-merge-subjects-take-the-issue-s-time.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8b9052040674db7b431ad3db3844837e0c561366..ed89620af14a2b72377ccdf49f9d10c588a00a23 |
+| command | sdlc close --issue 317 |
+| reviewer | claude |
+| timestamp | 2026-10-10T17:16:28-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've finished checking the window: I ran the stat, name-status and full diff, reran the package tests, and read the issue's Done-when and Log.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The diff does what #317 asks. `issueref.Lead` / `LeadLocalNums` pull out a subject's lead using a fixed verb list, and only those lead refs become `Commit.Issues`, the issues that claim time. `Commit.Refs` keeps every local ref, so `WindowIssues` still includes cited issues as mentions. In a scoped measurement, the branch's own merges are dropped, and a main commit counts as a boundary for the issue only when its lead names the issue. The follow-up commit (ed89620a) changes the help text, the `Scope` doc and the atlas to say "the branch's own merges (BranchPoint..HEAD)", and adds `closes` to the atlas verb list. That settles BR-1. `go test` passes for `activetime` and `issueref`. The Log covers every Done-when clause: the #304 replay before and after its merge (2.48h vs 2.50h, all to #304, nothing to #308/#300/#270), the table test, and the recalibration deltas (#283 6.28→7.35h, the rest unchanged).
+
+1. **Strengths**
+   - There is one source for the lead rule (`issueref/ref.go` `leadRE`/`Lead`). It reuses `Find`, so it keeps the masking of merge-PR numbers, and `LocalNums` and `LeadLocalNums` share the private `localNums` helper (ARCH-DRY: pass).
+   - The table test (`ref_test.go` `TestLeadLocalNums`) uses real subjects, including the negative cases that matter: an open verb, prose before the ref, a foreign lead, and a masked merge PR.
+   - `branchCommits` splits the branch's own commits from its merges with one `rev-list --parents` call (ARCH-PURE: pass; the parsing in `issueref` is pure and tested without IO).
+   - The regression fixtures (`merged mid-work, subject names the issue`, `TestCitationsDoNotClaim`) use the real #304 subject shapes and run end-to-end through `Compute`.
+   - The `TestAttributionGolden` rewrite is deliberate, and its comment explains why the old subject encoded the rule this issue retires.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new.
+5. **Test coverage:** The table test pins lead-versus-citation extraction. The tests pin both settings: scoped, where merges are dropped, and the zero Scope (`TestBoundariesUnscopedOnMain`). `WindowIssues` keeping citations has its own assertion.
+6. **Architectural notes:** ARCH-DRY pass, ARCH-PURE pass, ARCH-PURPOSE pass. Every consumer of `Commit.Issues`/`Refs` now reads from the lead/ref split, and the help text, atlas and `Scope` doc all describe the same rule.
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      ed89620a: helptext says "the branch's own merge commits (BranchPoint..HEAD)", Scope doc says "a merge in BranchPoint..HEAD", atlas says "its own merge commits (branch point..HEAD)" and its verb list now includes closes, matching leadRE and the branchCommits filter.
+```

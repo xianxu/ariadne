@@ -113,6 +113,7 @@ commit, and branch points b77e9718 (pre) / 3fddafdf (post, main before PR 174).
   #304 hours report. Not fixed yet (TL: file, don't fix).
 
 ### 2026-10-10
+- 2026-10-10: closed — Re-close after the close-review Minor fix (doc/comment wording only: helptext, Scope comment, atlas). Prior evidence stands: make test 12 shards 0 failed; processgroup fails only under the sandbox (ps fork denied), passes unsandboxed; targeted activetime/issueref tests pass; #304 replay pre 2.48h / post 2.50h all #304.; review verdict: SHIP
 - 2026-10-10: closed — make test: 12 cmd/sdlc shards 0 failed; other packages pass except processgroup TestCancellationKillsDescendants, which fails only under the agent sandbox (fork/exec /bin/ps not permitted) and passes unsandboxed. New tests: issueref TestLeadLocalNums (19 real subject shapes), activetime TestLoadWindowCommitsLeadClaimsCitationsDont, TestCitationsDoNotClaim, TestBoundariesSurviveIntegratingMain/"subject names the issue" (#304 merge shape). Replay of #304 through Compute as sdlc actual calls it: pre-merge 1.37h(+#308 1.10h) -> 2.48h all #304; post-merge 1.01h(+#300/#270 0.74h each) -> 2.50h all #304. Recent closes old->new: #319/#300/#270/#315/#296 unchanged, #283 6.28->7.35h.; review verdict: SHIP
 
 - ariadne:3 claimed (TL dispatch, batch 2). Replay reproduced through
