@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000323-backfill-build-converge-split-for-historical-calibration-rows-needs-per-slot-transcript-provenance.md
         source_blob: 3e47086a54ea52151f5fcbbcd12c1b6ac6a4b16b
         destination: workshop/issues/000323-backfill-build-converge-split-for-historical-calibration-rows-needs-per-slot-transcript-provenance.md
+        main_commit: 3b0960e35bb8b40507359e6b7c8d991d9f2798af
 ---
 
 # Backfill build/converge split for historical calibration rows (needs per-slot transcript provenance)
