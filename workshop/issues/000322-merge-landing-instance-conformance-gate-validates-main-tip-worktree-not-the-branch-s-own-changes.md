@@ -75,6 +75,7 @@ point, and `sdlc push` is on main, so only the landing path is wrong.
 ## Log
 
 ### 2026-10-10
+- 2026-10-10: closed — Regression: TestLandingInstanceGate_IgnoresMainsChangesSinceBranchPoint (a real-git branch cut before main archives a nonconforming issue lands without that file being validated); it fails when the gate diffs from main tip. TestLandingPassesBranchWindowToInstanceGate runs runMerge after main moved on and asserts the gate gets branch point..PR head; it fails when the landing.go call site is reverted. The branch-own nonconforming issue still refuses; no merge-base fails closed. Targeted landing/merge/duplicate tests green. make test: all 12 cmd/sdlc shards green; only processgroup TestCancellationKillsDescendants fails, because the sandbox blocks /bin/ps (unrelated); review verdict: SHIP
 - Filed from ariadne#189's landing, at the TL's direction (ops:0); fix before #202.
 - Targeted: `TestLanding|Duplicate|TestValidateChanged|TestRunMerge` all green (423s).
 - head is the pinned commit, not the working tree. `readIssueFileFn` still reads the
