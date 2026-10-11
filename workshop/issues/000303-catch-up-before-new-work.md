@@ -45,9 +45,9 @@ Decided (2026-10-11):
 ## Plan
 
 - [x] Design: where the check lives (claim / start-plan), refuse vs warn for dependencies, reuse of `weave refresh`.
-- [ ] `catchup.go`: probe slot + substrate chain against origin/main; run `weave refresh` through a seam when behind; freshness decides refuse vs warn; stop for a re-run after a catch-up. Wire it into `startPlanBranch` on the resting branch.
-- [ ] Tests: a stale slot and a stale dependency are both caught up before the issue branch is created (fake weave); a failed refresh with code-stale input refuses and names refresh's output, and nothing changed; a failed refresh on a docs-only lag warns and plans; a current fleet doesn't run weave; the seam is stubbed in TestMain so no test runs a real weave.
-- [ ] Atlas + start-plan help text.
+- [x] `catchup.go`: probe slot + substrate chain against origin/main; run `weave refresh` through a seam when behind; freshness decides refuse vs warn; stop for a re-run after a catch-up. Wire it into `startPlanBranch` on the resting branch.
+- [x] Tests: a stale slot and a stale dependency are both caught up before the issue branch is created (fake weave); a failed refresh with code-stale input refuses and names refresh's output, and nothing changed; a failed refresh on a docs-only lag warns and plans; a current fleet doesn't run weave; the seam is stubbed in TestMain so no test runs a real weave.
+- [x] Atlas + start-plan help text.
 
 ## Log
 
@@ -55,3 +55,6 @@ Decided (2026-10-11):
 - Claimed at ariadne:4 (TL dispatch). `weave refresh` already is the catch-up transaction; pair#434's prepare already delegates to it. Design reuses both rather than a parallel fast-forward.
 
 ### 2026-10-08
+- Implemented `cmd/sdlc/catchup.go` and wired it into `startPlanBranch` on the resting branch. Tests in `catchup_test.go` cover: TestStartPlanCatchesUpSlotAndDependency (the Done-when fixture: both caught up before the branch; the re-run with nothing behind runs no weave), TestStartPlanRefusesAStaleCheckoutRefreshCannotCatchUp, and TestStartPlanToleratesALagFreshnessAccepts (code after the cutoff; docs before it). Mutation check: with the wiring disabled, all three fail. TestMain stubs `weaveRefresh` so no test runs the installed weave.
+- Edge noted: shaping under a claim leaves the details dirty on the rest, so `weave refresh` refuses if main moved since the claim. That refusal is only blocking when freshness calls the lag Stale; publish the details (`sdlc issue publish`) and re-run.
+- Revision to Done when (2026-10-11): "otherwise stops" is narrowed by the freshness tolerance. A checkout that cannot be caught up stops only when it lacks code main had by the last noon, matching close's integrate gate; a later or docs-only lag warns.

@@ -314,6 +314,12 @@ func startPlanBranch(ctx context.Context, stdout io.Writer, issueID int) error {
 		return err
 	}
 	detailPath := path.Join(dirs.Rel[0], path.Base(card.Path))
+	// #303: new work starts from a slot and dependencies caught up to main.
+	if env.onRest() {
+		if err := catchUpBeforeWork(ctx, stdout, env.root, issueID); err != nil {
+			return err
+		}
+	}
 	// Branch first, then card: a lost card write leaves an idempotent re-run,
 	// never a working card with no branch.
 	result, err := preparePlanningBranch(env, id, detailPath)
