@@ -1,12 +1,20 @@
 ---
 id: 000234
-status: open
+status: working
 deps: [ariadne#231]
 github_issue:
 created: 2026-09-17
-updated: 2026-09-17
+updated: 2026-10-10
 estimate_hours:
-card_mirror: '366a7d2cef67348b77b4ed6a8df3586961b1dbc0' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '69ebaf178b86f40c74d733bfefb96d92818e46e9' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T17:41:18-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Split actuals at the first boundary review: build time vs converge time
@@ -124,3 +132,34 @@ Filed from #231's review loop. #231 depends-on relationship: this issue appends
 its columns after #231 M3's flow columns and reads the per-round `Recipe` stamp
 #231 added to the boundary ledger, which is what makes k per recipe computable.
 The counts above were taken at filing and will move.
+
+### 2026-10-10
+
+- ariadne:3 claimed (measurement train, after #317/#321). The project folds
+  apply: E1 (milestone-close derives its increment), E3 (no-estimate closes
+  stop writing est 0.00 / ratio 0× rows), and the operator decision of 10-10
+  (the verification tail stays uncounted; one consistent end point per
+  boundary).
+- Surface facts (read for the design):
+  - close and milestone-close measure *before* they dispatch the review, and
+    the window ends at the last `#N` commit (`gitx.CommitWindow`'s lastISO).
+    So the final round's review is already outside the actual.
+  - No dispatch time is stored; `gatestate.Round.Timestamp` is the finalize
+    time. One `*-close-gate.md` per issue holds the rounds, tagged by
+    `boundary`.
+  - Activity runs are contiguous (`Active == End−Start`), so a
+    time-proportional split of a segment's allocation is exact in minutes.
+  - milestone-close refuses to adopt (`adoptOmittedActual`), so its
+    `--actual` is hand-typed today.
+  - 25 full-flow, non-upgraded est-0 rows pass `calibratable()`, and one of
+    them as "latest" disables drift.
+- Draft design (pending TL answers on (Q1) whether milestone tails leave the
+  actual too, and (Q2) whether the backfill splits out to its own issue):
+  - build = window start (or the previous boundary's finalize) → the
+    boundary's first dispatch;
+  - converge = first dispatch → the last `#N` commit before that boundary's
+    final dispatch;
+  - the tail is uncounted at every boundary;
+  - build + converge == actual, as a time-proportional split of one
+    `Compute` result.
+
