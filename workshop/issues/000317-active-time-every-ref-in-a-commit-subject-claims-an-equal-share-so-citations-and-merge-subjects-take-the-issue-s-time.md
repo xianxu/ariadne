@@ -96,13 +96,13 @@ commit, and branch points b77e9718 (pre) / 3fddafdf (post, main before PR 174).
 
 ## Plan
 
-- [ ] `issueref.Lead` / `LeadLocalNums` + table test over real subject shapes
-- [ ] activetime: `Commit.Refs` (mention scope) vs `Commit.Issues` (lead
+- [x] `issueref.Lead` / `LeadLocalNums` + table test over real subject shapes
+- [x] activetime: `Commit.Refs` (mention scope) vs `Commit.Issues` (lead
       claimants); scoped filter uses the lead and drops merges
-- [ ] Tests: commit-load test for citation/merge subjects; #304-shaped
+- [x] Tests: commit-load test for citation/merge subjects; #304-shaped
       regression (pre == post, no share to #308/#300/#270)
-- [ ] Replay #304 (pre/post) and 2–3 recent closes old vs new; record deltas
-- [ ] atlas: active-time attribution section
+- [x] Replay #304 (pre/post) and 2–3 recent closes old vs new; record deltas
+- [x] atlas: active-time attribution section
 
 ## Log
 
@@ -117,3 +117,26 @@ commit, and branch points b77e9718 (pre) / 3fddafdf (post, main before PR 174).
   `Compute` exactly as `sdlc actual` calls it (clones at 7885ed1e / 8470f8eb,
   slot-4 + brain transcript dirs, tracker ref, since 20:01:24): pre #304
   82.4m + #308 66.2m (2.48h total); post #304 60.8m, #300 44.6m, #270 44.6m.
+- Implemented: `issueref.Lead`/`LeadLocalNums` (closed-verb lead grammar);
+  `Commit.Issues` = lead claimants, `Commit.Refs` = all local refs (mention
+  scope); `branchCommits` reads `rev-list --parents` once and the scoped filter
+  drops merges and keys main commits on the lead. `TestAttributionGolden`'s
+  `#10 second (#8)` encoded the old citation-claims rule; it is now the lead
+  list `#10, #8: second`, which keeps the split it pins. Help text
+  (`helptext/active-time.md`) and atlas (`sdlc-binary.md`) updated.
+- **Replay after the fix** (same harness, scoped as `sdlc actual`):
+  | #304 head | old | new |
+  |---|---|---|
+  | pre-merge 7885ed1e | #304 1.37h, #308 1.10h | #304 2.48h (all) |
+  | post-merge 8470f8eb | #304 1.01h, #300 0.74h, #270 0.74h | #304 2.50h (all) |
+  | close 85394ff5 | #304 2.68h | #304 2.68h |
+  Pre vs post differ only by the window end (22:14 vs 22:15). At close the
+  old engine already gave 2.68h: the merge sat inside a run whose next
+  boundary was the close. The 1.01h reading depends on when you measure.
+- **Calibration deltas (old → new), recent closes:** #319 0.26 → 0.26,
+  #300 1.92 → 1.92, #270 0.79 → 0.79, #315 0.01 → 0.01, #296 0.33 → 0.33 (no
+  cited subjects in a claiming position); **#283 6.28 → 7.35h** (`#283:
+  project: … file #284-#287` had handed #284/#287 1.07h; #284 keeps 0.54h
+  from its own filing commits on the branch). Recorded actuals on cards
+  differ from both because they were measured at other heads/times.
+
