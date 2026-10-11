@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "f44944de", done: "b6eed3bb"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Main is green: the full suite passes on ariadne main
@@ -115,6 +115,8 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
 - #302 (TempDir cleanup race): not seen in any run here; nothing to fold.
 
 ### 2026-10-11
+- 2026-10-11: closed — make test green twice back to back on b4b918a3 (run C wall 469.0s, run D wall 448.8s; 12 shards, 1048 cmd/sdlc tests + 44 other packages, now whole-module). Fixes: testgate nested-helper deadlock (TestNestedHelperStandsAside red→green; cmd/weave hung test passes), repolock processAlive only-ESRCH-is-gone (TestProcessAliveCountsUnsignalableProcesses red→green), exec-free AwaitExit replacing ps probes (mutation: non-group kill fails all 3 sites). #325 quarantines owned by #325 Done-when; CI filed as #331. Round-1 fixes re-verified: TestReviewConcurrencySchedules + TestProcessAlive pass targeted.; review verdict: SHIP
+- 2026-10-11: flow upgraded quick → full — 148 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - **Green ×2, back to back**, on the final tree (b4b918a3 = main + this branch), `make test` from ariadne:3:
   - Run C: lock wait 1134s (pair:5, ariadne:2 suites ahead), then **wall 469.0s**, exit 0.
   - Run D: no wait, **wall 448.8s**, exit 0 (load ~16–28 at start).
