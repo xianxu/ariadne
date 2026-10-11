@@ -69,6 +69,7 @@ the review finds a reason not to.
 
 ### 2026-10-11 — TL addendum: items (4) and (5) from the 10-10 project scope
 - (4) `sdlc merge`'s local branch cleanup writes `.git/config` (ops kink 52): no new allowance. `sdlc` was already in `sandbox.excludedCommands` before #318, so a plain `sdlc merge` and the git it spawns run unsandboxed. Kink 52 most likely came from an invocation the exclusion doesn't match, such as a compound command (`cd … && sdlc merge`). Run sdlc as the leading command. This issue's own `sdlc merge` is the live check (Log).
+  - Update 10-11 (Log): falsified. A bare `sdlc pr` still ran sandboxed, so the exclusion itself isn't taking effect in this session, and the invocation shape isn't the cause. Item (4) is not fixed by #318.
 - (5) weave compile's `.claude/settings.json` write (#320): deliberately not folded. That file is the harness's permission store, and the sandbox protects it on purpose. An allowance for weave would let an agent rewrite its own permissions without a prompt, which is what auto mode denied twice during this issue ("Self-Modification"). Regenerating settings stays an operator step (`! weave compile` / `weave refresh`).
 
 ## Log
@@ -76,6 +77,7 @@ the review finds a reason not to.
 ### 2026-10-11
 - 2026-10-11: closed — settings.ariadne.json adds Bash(sdlc:*), Bash(couch:*) to permissions.allow and couch to sandbox.excludedCommands ($merge_keys, so downstream locals union); operator-run weave compile regenerated .claude/settings.json carrying all three; go test ./cmd/weave/... exit 0 after integrating main. Codex comment-only; Gemini not woven. Addendum (4) covered by the pre-existing sdlc exclusion, (5) deliberately not folded (permission-store self-modification). atlas/workflow/sandbox.md updated. --no-plan-check: the 3 unticked rows (live couch receipt + merge-without-denial, ops weave refresh, close+merge) are post-close by construction and are ticked in the Log after merge. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 - Auto mode denied the agent's commit of `settings.ariadne.json` and its unsandboxed `weave compile` as Self-Modification. The operator ran both (`a9055859`). The regenerated `.claude/settings.json` carries `Bash(sdlc:*)`, `Bash(couch:*)` and `couch` in `excludedCommands`.
+- `sdlc pr` (PR #195), once compound and once bare: both warned that git couldn't record the upstream (write-protected `.git/config`). `sdlc` is in `excludedCommands` (it was before #318), yet it ran sandboxed. The compound-command hypothesis for kink 52 is falsified. The exclusion mechanism isn't effective in this auto-mode session, for a reason not yet known; the same may hold for `couch`.
 - Close refused on the integrate gate; merged origin/main (`e64df5d1`) and re-ran `go test ./cmd/weave/...`: exit 0.
 
 ### 2026-10-10
