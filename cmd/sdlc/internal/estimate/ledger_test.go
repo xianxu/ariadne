@@ -370,7 +370,7 @@ func TestNoEstimateRowIsNotACalibrationPoint(t *testing.T) {
 	// switch drift off for the model before it.
 	var rows []LedgerRow
 	for i := 0; i < 5; i++ {
-		rows = append(rows, LedgerRow{Issue: "a#" + strconv.Itoa(10+i), Estimate: 5, Actual: 1, Model: "estimate-logic-v3.1", WindowTrusted: true})
+		rows = append(rows, LedgerRow{Issue: "a#" + strconv.Itoa(10+i), Estimate: 5, Actual: 1, BuildHours: 1, SplitSource: "dispatch", Model: "estimate-logic-v3.1", WindowTrusted: true})
 	}
 	rows = append(rows, full)
 	if warn, _ := DriftVerdict(rows, 5); !warn {

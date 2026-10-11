@@ -93,6 +93,14 @@ func (r LedgerRow) ExcludedFromCalibration() bool {
 	return r.FlowKind == "quick" || r.FlowUpgraded || r.Estimate == 0
 }
 
+// BuildRatio is estimate/build (#234), the ratio drift reads: 0 when build is 0.
+func (r LedgerRow) BuildRatio() float64 {
+	if r.BuildHours == 0 {
+		return 0
+	}
+	return r.Estimate / r.BuildHours
+}
+
 // Ratio is estimate/actual (0 when actual is 0, to avoid div-by-zero).
 func (r LedgerRow) Ratio() float64 {
 	if r.Actual == 0 {

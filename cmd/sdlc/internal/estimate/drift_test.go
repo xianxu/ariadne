@@ -2,12 +2,37 @@ package estimate
 
 import "testing"
 
+// trustedRow is a split row (#234) whose build equals its actual, so these
+// tests read the same as they did when drift compared est with actual.
 func trustedRow(est, act float64) LedgerRow {
-	return LedgerRow{Estimate: est, Actual: act, WindowTrusted: true, Model: "estimate-logic-v2"}
+	return LedgerRow{Estimate: est, Actual: act, WindowTrusted: true, Model: "estimate-logic-v2", BuildHours: act, SplitSource: "dispatch"}
 }
 
 func trustedModelRow(issue, model string, est, act float64) LedgerRow {
-	return LedgerRow{Issue: issue, Estimate: est, Actual: act, WindowTrusted: true, Model: model}
+	return LedgerRow{Issue: issue, Estimate: est, Actual: act, WindowTrusted: true, Model: model, BuildHours: act, SplitSource: "dispatch"}
+}
+
+// #234: drift compares the estimate with BUILD, the part an estimate predicts,
+// and reads only rows that carry a split. A legacy row's actual counts every
+// earlier boundary's verification tail (the pre-#234 rule) and must not mix in.
+func TestDrift_EstimateAgainstBuild(t *testing.T) {
+	split := func(est, build, converge float64) LedgerRow {
+		return LedgerRow{Estimate: est, Actual: build + converge, BuildHours: build, ConvergeHours: converge,
+			WindowTrusted: true, Model: "estimate-logic-v3.1", SplitSource: "dispatch"}
+	}
+	// est/actual is ~1 (no drift), but est/build is 3 (estimates run high
+	// against what they predict): drift must warn.
+	over := []LedgerRow{split(3, 1, 2), split(3, 1, 2), split(3, 1, 2)}
+	if warn, _ := DriftVerdict(over, 3); !warn {
+		t.Error("est 3 vs build 1 is 3x over; drift must read build, not actual")
+	}
+	// Legacy and typed-actual rows interleaved do not count toward n.
+	legacy := LedgerRow{Estimate: 3, Actual: 1, WindowTrusted: true, Model: "estimate-logic-v3.1"}
+	manual := LedgerRow{Estimate: 3, Actual: 1, WindowTrusted: true, Model: "estimate-logic-v3.1", SplitSource: "manual"}
+	mixed := []LedgerRow{split(3, 1, 0), legacy, split(3, 1, 0), manual}
+	if warn, _ := DriftVerdict(mixed, 3); warn {
+		t.Error("only two split rows: fewer than n, no verdict")
+	}
 }
 
 func TestDrift_AllOver(t *testing.T) {
