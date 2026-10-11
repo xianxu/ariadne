@@ -1,12 +1,20 @@
 ---
 id: 000204
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-08-25
-updated: 2026-08-25
+updated: 2026-10-11
 estimate_hours:
-card_mirror: 'f71102a52867d27e36b271173008a590c0bc02ba' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '68d318ca540df36aa0c807a7036095e42d440169' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-11T00:56:11-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Run each boundary reviewer in a disposable isolated checkout
@@ -109,3 +117,49 @@ scratch worktrees (`~/.cache/parley-review-wt*`) it had already deleted.
 For the Spec: the reviewer must run its checks in the foreground, or the
 harness must refuse background tasks in a review invocation. And the review's
 process tree must be owned and reaped when it ends, with a verdict or without.
+
+### 2026-10-11 — design start (ariadne:2), one fork open with the TL
+
+Measured surface: `judge.runProcess` (`cmd/sdlc/internal/judge/dispatch.go`)
+launches every reviewer (plan-quality, `sdlc judge`, boundary) with the
+caller's cwd; the boundary prompt and its `git -C <RepoRoot>` recipes name
+the source checkout. `processgroup` already reaps the reviewer's group on
+normal exit and on cancellation.
+
+Settled direction:
+
+- **Primitive: a disposable `git clone --shared --no-checkout` + detached
+  checkout of the pinned Head.** The reviewer needs history (the diff recipes
+  run `git diff <base> <head>`, and revert-the-fix checks need the parent
+  state), so an archived snapshot is too small. A linked worktree shares refs
+  and config, so a `git checkout`/`branch -f`/`config` in it reaches the
+  source. A shared clone reads objects through alternates (no copy) and keeps
+  refs, config and index private. The clone becomes the reviewer's cwd and the
+  manifest's `RepoRoot`. The live issue and plan files are overlaid at the
+  same relative paths, so the reviewer reads the same text it reads today.
+- **Ownership (ARCH-FUNERAL):** `<UserCacheDir>/sdlc/review-checkouts/<id>/`
+  plus a sibling `<id>.lock` held under an exclusive flock for the review's
+  lifetime. sdlc creates it per round and removes it in a defer after the
+  output is captured (success, reviewer failure, cancellation and SIGINT/TERM
+  all unwind through that defer). Each dispatch sweeps first: any `<id>`
+  whose lock can be acquired has a dead owner (SIGKILL/crash) and is removed.
+  No pid-reuse ambiguity, because the kernel drops the flock with its holder.
+  Bound: one directory per live review.
+- **Enforcement:** macOS uses `sandbox-exec` with `(allow default)` and
+  `(deny file-write* (subpath <source root>) (subpath <git common dir>))`
+  around the agent process. That is outside the agent, so claude, codex and
+  gemini get the same writable scope. Linux uses `bwrap --ro-bind` of the
+  same two paths.
+
+Open fork, asked of the TL: **Seatbelt does not nest.** Inside Claude Code's
+Bash sandbox, which is where slot agents run `sdlc close`, `sandbox-exec`
+fails with `sandbox_apply: Operation not permitted` (measured). Options:
+
+- (A) Fail closed, with an explicit `WF_REVIEW_ISOLATION=checkout`
+  downgrade.
+- (B) Degrade automatically to checkout-only isolation, with a loud warning
+  and `isolation: checkout` stamped on the round and sidecar.
+
+Recommended (B). Couch delivery to ops:0 failed: the sandbox blocks the
+socket, and the classifier refused the unsandboxed retry. The question was
+relayed to the operator instead.
