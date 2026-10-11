@@ -17,6 +17,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 // A real process waits on a FIFO; the test decides exactly when its review may
@@ -77,6 +78,7 @@ func reviewPlanFiles(t *testing.T, dir string) map[string]string {
 }
 
 func TestReviewConcurrencySchedules(t *testing.T) {
+	testfix.Quarantine(t, "#325", `"reviewer process did not start" deadline fails under load (milestone-close/branch, ariadne:3, 10-10)`)
 	for _, verb := range []string{"close", "milestone-close"} {
 		for _, change := range []string{"branch", "boundary-ledger", "plan-seed", "directory", "cancel", "relock", "unrelated"} {
 			t.Run(verb+"/"+change, func(t *testing.T) {

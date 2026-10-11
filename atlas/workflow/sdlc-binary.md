@@ -1439,6 +1439,11 @@ package needs the same `TestMain`
 fast inner-loop tier is #261; the single git seam it and in-process parallelism
 need is #262.
 
+A test known to fail for a tracked reason is quarantined by name:
+`testfix.Quarantine(t, "#N", why)` as its first line skips it with a `QUARANTINED (#N)`
+message naming the owning issue, whose fix deletes the call; `WF_TEST_QUARANTINED=run`
+runs quarantined tests anyway. `grep -rn 'testfix.Quarantine(' cmd` lists them (#330).
+
 Cancellation tests prove a descendant stopped with `testfix.AwaitExit(pid, ceiling)`,
 which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instead of
 running `ps`: agent sandboxes deny exec of `/bin/ps` (#330). It waits, because a

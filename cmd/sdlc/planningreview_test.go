@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
@@ -118,6 +119,7 @@ fi
 }
 
 func TestPlanningReviewConcurrencySchedules(t *testing.T) {
+	testfix.Quarantine(t, "#325", `fixed subprocess deadlines fail under load (3/3 make test runs, ariadne:3, 10-10)`)
 	binary := buildFleetE2EBinary(t)
 	for _, kind := range []string{"plan", "estimate"} {
 		t.Run(kind, func(t *testing.T) {

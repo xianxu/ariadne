@@ -47,7 +47,7 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
 - [x] Baseline: `make test` ×2 on the issue branch (= main + this body), plus the Go packages `make test` never runs.
 - [x] Sandbox failure: replace the three `ps -o stat=` probes (processgroup, judge ×2) with one exec-free helper in `testfix` (`AwaitExit`).
 - [x] Fix `processAlive` treating EPERM as dead (repo lock reclaimed a live peer's lock under the sandbox).
-- [ ] Load-sensitive deadline failures: point at #325 (add the new instance to its Log), no duplicate fix here.
+- [x] Load-sensitive deadline failures: quarantined by name under #325 (`testfix.Quarantine`), no duplicate fix here.
 - [x] Coverage gap: `make test` runs only `cmd/sdlc/...` → its `packages` job now runs every module package.
 - [x] Fix the testgate self-deadlock the widened run exposed (nested helper binaries).
 - [x] CI decision recorded; job filed as #331.
@@ -107,4 +107,10 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
     `test-lock.py` treats `PermissionError` as alive.
 - CI decision: yes, main should run the full suite in CI, but not added here. The suite has never run on Linux
   (darwin-tuned helpers), and a 4-core hosted runner would run ~3× the 12-shard wall. Filed as #331.
+- Quarantine (the spec's named exception), owner #325, both unowned at the time:
+  - `TestPlanningReviewConcurrencySchedules`: failed in 3 of 3 full runs here (runs A, B, and the TL-reported 4/4).
+  - `TestReviewConcurrencySchedules`: failed in 1 of 2 (milestone-close/branch, "reviewer process did not start").
+  Mechanism: new `testfix.Quarantine(t, issue, why)`, a loud `t.Skipf` naming the issue; `WF_TEST_QUARANTINED=run`
+  runs them. #325's fix must delete both calls (reported to the TL to fold into #325's Done when).
+- #302 (TempDir cleanup race): not seen in any run here; nothing to fold.
 
