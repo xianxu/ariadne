@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-09
 updated: 2026-10-10
 estimate_hours:
-card_mirror: '5d2f11457284eae40d02fa6288be5e086f0a0e6f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a676275adc50be3d9392112f049655ffed377a3c' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-10T16:53:10-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "5bdcac5d", done: "0655980a"}
-actual_hours: 0.17
+actual_hours: 0.36
 ---
 
 # active-time: every ref in a commit subject claims an equal share, so citations and merge subjects take the issue's time
