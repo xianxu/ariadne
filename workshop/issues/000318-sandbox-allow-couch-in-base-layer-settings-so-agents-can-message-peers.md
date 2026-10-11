@@ -65,6 +65,14 @@ the review finds a reason not to.
 - Agent-neutral: cover Codex/Gemini wherever weave generates their config, or record why not (see Plan).
 - Done-when adds: `sdlc merge` runs in auto mode without a classifier denial.
 
+### 2026-10-11 — TL addendum: items (4) and (5) from the 10-10 project scope
+- (4) `sdlc merge`'s local branch cleanup writes `.git/config` (ops kink 52): no new allowance. `sdlc` was already in `sandbox.excludedCommands` before #318, so a plain `sdlc merge` and the git it spawns run unsandboxed. Kink 52 most likely came from an invocation the exclusion doesn't match, such as a compound command (`cd … && sdlc merge`). Run sdlc as the leading command. This issue's own `sdlc merge` is the live check (Log).
+- (5) weave compile's `.claude/settings.json` write (#320): deliberately not folded. That file is the harness's permission store, and the sandbox protects it on purpose. An allowance for weave would let an agent rewrite its own permissions without a prompt, which is what auto mode denied twice during this issue ("Self-Modification"). Regenerating settings stays an operator step (`! weave compile` / `weave refresh`).
+
 ## Log
+
+### 2026-10-11
+- Auto mode denied the agent's commit of `settings.ariadne.json` and its unsandboxed `weave compile` as Self-Modification. The operator ran both (`a9055859`). The regenerated `.claude/settings.json` carries `Bash(sdlc:*)`, `Bash(couch:*)` and `couch` in `excludedCommands`.
+- Close refused on the integrate gate; merged origin/main (`e64df5d1`) and re-ran `go test ./cmd/weave/...`: exit 0.
 
 ### 2026-10-10
