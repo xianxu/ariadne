@@ -229,6 +229,26 @@ func TestCompileEnsuresGitignore(t *testing.T) {
 	}
 }
 
+// TestCompileEnsuresGitattributes pins the planActions → ApplyManaged wiring of
+// the union-merge block (#320): a real compile writes it, and a re-compile is a no-op.
+func TestCompileEnsuresGitattributes(t *testing.T) {
+	_, _, derived := buildFixture(t)
+	var out bytes.Buffer
+	for i := 0; i < 2; i++ {
+		if err := run(weavefs.OSFS{}, derived, plan.TargetClaude, false, &out); err != nil {
+			t.Fatalf("run %d: %v", i+1, err)
+		}
+	}
+	got, err := os.ReadFile(filepath.Join(derived, ".gitattributes"))
+	if err != nil {
+		t.Fatalf("read .gitattributes (compile should have created it): %v", err)
+	}
+	want := "# BEGIN weave generated\nworkshop/lessons.md merge=union\n# END weave generated\n"
+	if string(got) != want {
+		t.Fatalf(".gitattributes = %q, want %q", got, want)
+	}
+}
+
 func TestCompileMultiLayerVisibility(t *testing.T) {
 	// The 𝒜(R) invariant end-to-end (workshop/targets/weave-composition-
 	// algebra.md, #99): a synthetic 3-layer stack — foundation with BOTH an

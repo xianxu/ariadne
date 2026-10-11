@@ -220,6 +220,11 @@ func validatePublishAnchors(ctx context.Context, entries []publishIssue, stderr 
 					break
 				}
 				base, d.Conflicted = s, conflicted
+				for _, p := range conflicted {
+					if !publishGateHasCodeSurface([]string{p}) && hasConflictMarkers(gitx.Capture("show", "HEAD:"+p)) {
+						d.Markers = append(d.Markers, p)
+					}
+				}
 			}
 			paths, err := gitx.DiffNames(base, "HEAD")
 			if err != nil {
@@ -267,6 +272,7 @@ func publishDeltaRank(d publishDelta) int {
 type publishDelta struct {
 	Anchor       string
 	Conflicted   []string // main rewrote lines the review read; a code path's resolution is unreviewed
+	Markers      []string // non-code conflicted paths whose HEAD still carries conflict markers
 	Paths        []string // diff(reviewed patch on today's main, HEAD)
 	Unresolvable string   // why the reviewed patch could not be replayed
 }
@@ -286,6 +292,10 @@ func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
 	if code := codeSurfacePaths(d.Conflicted); len(code) > 0 {
 		return false, fmt.Sprintf("%s: main's changes conflict with the reviewed patch in %s — the resolution is unreviewed.%s",
 			publishGateRefusal, strings.Join(code, ", "), reclose)
+	}
+	if len(d.Markers) > 0 {
+		return false, fmt.Sprintf("%s: conflict markers remain in %s — finish resolving the merge of main, commit it, and retry the publish.",
+			publishGateRefusal, strings.Join(d.Markers, ", "))
 	}
 	resolved := ""
 	if len(d.Conflicted) > 0 {

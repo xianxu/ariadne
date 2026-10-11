@@ -416,6 +416,7 @@ func TestClassifyPublishDelta(t *testing.T) {
 		{"non-code conflict", publishDelta{Anchor: a, Conflicted: []string{"workshop/lessons.md"}, Paths: []string{"workshop/lessons.md"}}, true, "merge resolution in workshop/lessons.md has no code surface"},
 		{"non-code conflict, code beyond it", publishDelta{Anchor: a, Conflicted: []string{"workshop/lessons.md"}, Paths: []string{"workshop/lessons.md", "cmd/a.go"}}, false, "code changed after `sdlc close` (reviewed aaaaaaaaaaaa): cmd/a.go."},
 		{"mixed conflict names the code path", publishDelta{Anchor: a, Conflicted: []string{"shared.go", "workshop/lessons.md"}, Paths: []string{"shared.go", "workshop/lessons.md"}}, false, "conflict with the reviewed patch in shared.go — the resolution"},
+		{"non-code conflict left unresolved", publishDelta{Anchor: a, Conflicted: []string{"workshop/lessons.md"}, Paths: []string{"workshop/lessons.md"}, Markers: []string{"workshop/lessons.md"}}, false, "conflict markers remain in workshop/lessons.md"},
 		{"embedded helptext conflict is code", publishDelta{Anchor: a, Conflicted: []string{"cmd/sdlc/helptext/x.md"}, Paths: []string{"cmd/sdlc/helptext/x.md"}}, false, "conflict with the reviewed patch in cmd/sdlc/helptext/x.md"},
 		{"unresolvable", publishDelta{Anchor: a, Unresolvable: "the reviewed commit x is not in this repository"}, false, "not in this repository"},
 	}
@@ -428,10 +429,25 @@ func TestClassifyPublishDelta(t *testing.T) {
 			if pass != c.pass || !strings.Contains(msg, c.token) {
 				t.Fatalf("got (%v, %q), want pass=%v containing %q", pass, msg, c.pass, c.token)
 			}
-			if !pass && (!strings.HasPrefix(msg, publishGateRefusal) || !strings.Contains(msg, "Re-run `sdlc close")) {
+			if !pass && (!strings.HasPrefix(msg, publishGateRefusal) || !strings.Contains(msg, "retry the publish")) {
 				t.Fatalf("a refusal carries the shared prefix and the next action: %q", msg)
 			}
 		})
+	}
+}
+
+func TestHasConflictMarkers(t *testing.T) {
+	cases := map[string]bool{
+		"a\n<<<<<<< HEAD\nx\n=======\ny\n>>>>>>> main\nb\n": true,
+		"a\n<<<<<<< ours\nx\n||||||| base\nw\n=======\ny\n>>>>>>> theirs\n": true,
+		"# Lessons\n- quote a marker: `<<<<<<< HEAD`\n":              false,
+		"<<<<<<< HEAD\nonly an opener\n":                              false,
+		"=======\nsetext heading rule\n":                              false,
+	}
+	for in, want := range cases {
+		if got := hasConflictMarkers(in); got != want {
+			t.Errorf("hasConflictMarkers(%q) = %v, want %v", in, got, want)
+		}
 	}
 }
 
@@ -548,6 +564,15 @@ func TestRunPublishGate_BranchPatch(t *testing.T) {
 		git("commit", "-q", "-am", "#69: merge main")
 		if err := gate(base); err != nil {
 			t.Fatalf("a non-code conflict resolution must not force a re-close: %v", err)
+		}
+	})
+	t.Run("a lessons-only conflict committed with its markers refuses", func(t *testing.T) {
+		git, base := lessons(t, false)
+		_ = exec.Command("git", "merge", "-q", "--no-edit", "main").Run()
+		git("commit", "-q", "-am", "#69: merge main")
+		err := gate(base)
+		if err == nil || !strings.Contains(err.Error(), "conflict markers remain in workshop/lessons.md") {
+			t.Fatalf("want the leftover-markers refusal, got: %v", err)
 		}
 	})
 	t.Run("a union-merge lessons file never conflicts and passes", func(t *testing.T) {

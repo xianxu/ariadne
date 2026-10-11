@@ -32,13 +32,13 @@ func splitIgnore(current string, migrate bool) (string, []string, error) {
 		switch trimmed {
 		case ignoreBegin:
 			if inside || seen {
-				return "", nil, fmt.Errorf("malformed weave gitignore block")
+				return "", nil, fmt.Errorf("malformed weave generated block")
 			}
 			inside = true
 			seen = true
 		case ignoreEnd:
 			if !inside {
-				return "", nil, fmt.Errorf("malformed weave gitignore block")
+				return "", nil, fmt.Errorf("malformed weave generated block")
 			}
 			inside = false
 		default:
@@ -52,7 +52,7 @@ func splitIgnore(current string, migrate bool) (string, []string, error) {
 		}
 	}
 	if inside {
-		return "", nil, fmt.Errorf("unterminated weave gitignore block")
+		return "", nil, fmt.Errorf("unterminated weave generated block")
 	}
 	return kept.String(), block, nil
 }

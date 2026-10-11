@@ -58,6 +58,8 @@ The same block mechanism writes `.gitattributes` from `plan.UnionMergeAttributes
 append-only workshop lists (`workshop/lessons.md`) merge with git's `union`
 driver, so parallel landings never conflict on them (#320). It is committed, not
 generated runtime output; authored attribute lines after the block override it.
+A rewrite of a listed file (a lessons.md compaction) must land alone, since union
+would interleave it with a parallel append instead of conflicting.
 Without prior inventory, compilation does not guess historical ownership. Compile dry-run
 performs no writes, package operations, builds, or generators and explicitly
 omits generator output and retirement from the preview.

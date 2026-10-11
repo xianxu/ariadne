@@ -67,6 +67,11 @@ ARCH-FUNERAL: creates nothing durable beyond one managed block in `.gitattribute
 - lessons.md is sectioned and occasionally compacted, which is an in-place rewrite. Under union, a compaction that lands while someone else appends keeps both versions without a conflict, so compactions should land alone. No tool writes lessons.md.
 - e2e (`TestRunPublishGate_BranchPatch`): the pair#426 shape passes the gate both hand-resolved (no attribute) and with union (no conflict at all). A code conflict still refuses with the plain re-close hint.
 - Close re-review always reviews the whole branch patch (no path filter exists); layer 3 would have needed a new window, which #183 now builds.
+- Close review round 1: SHIP with 4 Minors, all fixed in the same round:
+  - `TestCompileEnsuresGitattributes` pins the planActions → ApplyManaged wiring.
+  - The shared block errors now say "weave generated block" instead of "gitignore block".
+  - The compaction caveat is in `UnionMergeAttributes`' doc comment and in atlas weave.md.
+  - A non-code conflicted path whose HEAD still carries conflict markers refuses ("conflict markers remain in …"). This reuses republish.go's `hasConflictMarkers` (ARCH-DRY) and has an e2e row.
 
 ## Revisions
 

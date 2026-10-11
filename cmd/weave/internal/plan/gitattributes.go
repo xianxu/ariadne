@@ -12,7 +12,9 @@ import (
 // with git's built-in union driver (#320). Parallel landings append to them on both
 // sides, and keeping both is the right resolution, so no conflict is ever raised.
 // Only files whose lines are appended, never edited in place, belong here: union
-// keeps both versions of a line edited on both sides.
+// keeps both versions of a line edited on both sides. A whole-file rewrite (a
+// lessons.md compaction) must land alone: merged against a parallel append, union
+// interleaves both versions without raising a conflict.
 var UnionMergeAttributes = []string{
 	"workshop/lessons.md merge=union",
 }
