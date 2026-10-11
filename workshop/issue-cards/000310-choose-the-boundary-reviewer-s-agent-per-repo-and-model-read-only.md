@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 1.41
+actual_hours: 1.42
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000310-choose-the-boundary-reviewer-s-agent-per-repo-and-model-read-only.md
         main_commit: 61f4537dd993f12fcef553ef7328e24f84c20d5a
     completion:
-        token: close-e18ec9f0830e
+        token: close-462da468112a
         repository: github.com/xianxu/ariadne
-        reviewed_head: c707d179591146e36e6e6302c63195233d9c7478
-        evidence_commit: 7a3ddae929979a043fc740f879857e3046c67f2e
+        reviewed_head: 96ccbb2345825ccbd5fde1782076759fdd3879e6
+        evidence_commit: e9e4d79a0c247d748dc35615112b74ef9aa08abe
 ---
 
 # Choose the boundary reviewer's agent per repo, and model read-only
