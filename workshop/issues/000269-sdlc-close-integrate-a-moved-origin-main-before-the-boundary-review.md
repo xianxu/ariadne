@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "997c3fb5", done: "c0761a16"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc close: integrate a moved origin/main before the boundary review
@@ -93,6 +93,10 @@ Durable plan: `workshop/plans/000269-integrate-gate-plan.md` (previous-noon rule
 
 ## Log
 
+
+
+- 2026-10-11: closed — integrate gate refuses a stale branch before review (rebase/merge by push state; remedy run from refused state passes), docs-only info, net-empty range fresh, fetch failure inconclusive, --no-integrate in gate catalog; real-git fixtures w/ bare remote incl. tracker repo; full make test on merged main green (1059 tests, 0 failed); review verdict: SHIP
+- 2026-10-11: flow upgraded quick → full — 324 added lines in code files (limit 100)
 ### 2026-09-28
 
 - Filed from pair#247 at the operator's request, after a discussion of
