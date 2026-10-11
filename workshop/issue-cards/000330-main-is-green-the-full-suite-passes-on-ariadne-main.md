@@ -17,6 +17,14 @@ tracker:
         source_blob: 561c42c5f2f82cf4794e48cf2bebcc95bcdd42de
         destination: workshop/issues/000330-main-is-green-the-full-suite-passes-on-ariadne-main.md
         main_commit: 3e80818d6213ac3e9f7c55306a9ccce111cf7cd4
+started: 2026-10-10T23:14:05-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Main is green: the full suite passes on ariadne main
