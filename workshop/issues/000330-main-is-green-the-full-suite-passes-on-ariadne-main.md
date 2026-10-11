@@ -131,3 +131,6 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
   deleting both quarantine calls (BR-1); the `TestReviewConcurrencySchedules` quarantine narrowed to its 20s
   start-deadline step, so the schedules stay covered (it passed in full, 68s, at lower load); `processAlive` reads
   only ESRCH as gone, the same reading as weave staging; the atlas and AGENTS.local timings now say about 8 minutes.
+- Landing: main moved twice under the PR. On the second merge, #310's side-quest (3c84da0a) had independently fixed
+  the same `processAlive` EPERM bug. Resolution: kept this branch's only-ESRCH-is-gone reading (close-review BR-3)
+  with main's comment, and dropped this branch's duplicate test for main's `TestProcessAliveTreatsEPERMAsAlive`.

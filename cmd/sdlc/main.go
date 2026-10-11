@@ -55,6 +55,8 @@ func renderLong(name string) string {
 		"{{GATE_FLAGS}}", processmanual.GateTable(name),
 		// #277: the continuation gate's contract, said once.
 		"{{OWNERSHIP_GATE}}", ownershipGateHelp,
+		// #274: who may change an issue's published details, said once.
+		"{{DETAILS_EDITORS}}", detailsEditorsHelp,
 		// #280: the recovery topic, from the contract registry.
 		"{{RECOVERY_SCOPE}}", recovery.ScopeText(),
 		"{{RECOVERY_CLASSES}}", recovery.ClassesText(),

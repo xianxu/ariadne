@@ -11,38 +11,43 @@ import (
 )
 
 // The guard's offered restore makes a stale filing branch land: one commit
-// puts main's version of #8's details back, and nothing else changes.
+// puts main's version of #8's details back, and nothing else changes. It is
+// offered for another workspace's issue and for an unclaimed one (#274).
 func TestIssueRestoreMakesAStaleFilingBranchLand(t *testing.T) {
-	r := handedOff(t)
-	ownSpinOff(t, r, otherSlot)
-	reAddStale(t, r)
-	if err := guardTransferredDetails(context.Background()); !errors.Is(err, errTransferredDetails) || !strings.Contains(err.Error(), refuseNotOwner) {
-		t.Fatalf("fixture: want the restore offer, got %v", err)
-	}
-	before := r.git("rev-parse", "HEAD")
-	var out, errs bytes.Buffer
-	if err := runIssueRestore(context.Background(), &out, &errs, []int{8}); err != nil {
-		t.Fatalf("restore: %v\n%s", err, errs.String())
-	}
-	if parent := r.git("rev-parse", "HEAD~1"); parent != before {
-		t.Fatalf("restore made %s, want one commit on %s", r.git("log", "--oneline", before+"..HEAD"), before)
-	}
-	if subject := r.git("log", "-1", "--format=%s"); subject != "#8: issue: restore main's details" {
-		t.Fatalf("subject %q", subject)
-	}
-	if files := r.git("diff", "--name-only", "HEAD~1", "HEAD"); files != spinOffDetails {
-		t.Fatalf("restore touched %q", files)
-	}
-	if err := guardTransferredDetails(context.Background()); err != nil {
-		t.Fatalf("after restore: %v", err)
-	}
-	// A rerun has nothing left to restore and commits nothing.
-	out.Reset()
-	if err := runIssueRestore(context.Background(), &out, &errs, []int{8}); err != nil || !strings.Contains(out.String(), "nothing to restore") {
-		t.Fatalf("rerun: %v %q", err, out.String())
-	}
-	if r.git("rev-parse", "HEAD~1") != before {
-		t.Fatal("rerun committed")
+	for name, h := range map[string]holder{"held by another slot": heldByOther, "unclaimed": unclaimed} {
+		t.Run(name, func(t *testing.T) {
+			r := handedOff(t)
+			holdSpinOff(t, r, h)
+			reAddStale(t, r)
+			if err := guardTransferredDetails(context.Background()); !errors.Is(err, errTransferredDetails) || !strings.Contains(err.Error(), "sdlc issue restore --issue 8") {
+				t.Fatalf("fixture: want the restore offer, got %v", err)
+			}
+			before := r.git("rev-parse", "HEAD")
+			var out, errs bytes.Buffer
+			if err := runIssueRestore(context.Background(), &out, &errs, []int{8}); err != nil {
+				t.Fatalf("restore: %v\n%s", err, errs.String())
+			}
+			if parent := r.git("rev-parse", "HEAD~1"); parent != before {
+				t.Fatalf("restore made %s, want one commit on %s", r.git("log", "--oneline", before+"..HEAD"), before)
+			}
+			if subject := r.git("log", "-1", "--format=%s"); subject != "#8: issue: restore main's details" {
+				t.Fatalf("subject %q", subject)
+			}
+			if files := r.git("diff", "--name-only", "HEAD~1", "HEAD"); files != spinOffDetails {
+				t.Fatalf("restore touched %q", files)
+			}
+			if err := guardTransferredDetails(context.Background()); err != nil {
+				t.Fatalf("after restore: %v", err)
+			}
+			// A rerun has nothing left to restore and commits nothing.
+			out.Reset()
+			if err := runIssueRestore(context.Background(), &out, &errs, []int{8}); err != nil || !strings.Contains(out.String(), "nothing to restore") {
+				t.Fatalf("rerun: %v %q", err, out.String())
+			}
+			if r.git("rev-parse", "HEAD~1") != before {
+				t.Fatal("rerun committed")
+			}
+		})
 	}
 }
 

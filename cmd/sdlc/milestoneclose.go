@@ -20,6 +20,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -672,6 +673,11 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		return notRun(reason)
 	}
 	opts.BeforeRetry = checkout.Reset // a retried attempt starts pristine too
+	if opts.Agent == judge.AgentCodex && opts.Containment == judge.ContainCheckout && runtime.GOOS == "darwin" {
+		// #310: on macOS codex's sandbox is Seatbelt too, which fails where the
+		// fence probe did; every command it runs is then refused (fail closed).
+		cwarn(stderr, "boundary review: codex's own sandbox likely cannot apply here either ("+iso.Reason+"), so its commands will fail; run sdlc outside the outer sandbox, or pass --agent claude")
+	}
 
 	agent := opts.Agent
 	opts.Timeout = boundaryReviewTimeout(stderr, p)
@@ -798,6 +804,12 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 	if err != nil {
 		return judge.DispatchOptions{}, false, fmt.Sprintf("resolve review repository: %v", err)
 	}
+	// The repo's reviewer policy (#310) is read from the source checkout, the
+	// operator's config, before the root moves to the review checkout.
+	policy, err := loadReviewerPolicy(manifest.RepoRoot)
+	if err != nil {
+		return judge.DispatchOptions{}, false, err.Error()
+	}
 	if iso != nil {
 		manifest.RepoRoot = iso.Dir
 	}
@@ -819,16 +831,18 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 	prompt := judge.BuildPrompt(cat, in)
 
 	opts := judge.DispatchOptions{
-		Agent:        judge.ResolveAgentCLI(p.Agent, p.AgentExplicit, judge.CurrentAgentDefaultEnv()),
+		Agent:        judge.ResolveReviewerCLI(p.Agent, p.AgentExplicit, judge.CurrentAgentDefaultEnv(), policy),
 		Prompt:       prompt,
 		AllowedTools: cat.AllowedTools(),
-		IsSandbox:    isSandbox(),
 		Stdout:       stdout,
 		Stderr:       stderr,
 	}
 	if iso != nil {
 		opts.Wrap = iso.Wrap
-		opts.Fenced = iso.Level() == reviewbox.LevelFenced
+		opts.Containment = judge.ContainCheckout
+		if iso.Level() == reviewbox.LevelFenced {
+			opts.Containment = judge.ContainFenced
+		}
 	}
 	return opts, true, ""
 }

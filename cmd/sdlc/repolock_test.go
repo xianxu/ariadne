@@ -517,19 +517,3 @@ type testError struct {
 }
 
 func (e *testError) Error() string { return e.msg }
-
-// A process this one may not signal still exists: kill(pid, 0) answers EPERM for
-// it. Agent sandboxes (macOS Seatbelt) deny signals to processes outside them, so
-// a peer slot's live sdlc looked dead and its lock was reclaimed (#330). pid 1 is
-// never signalable by an unprivileged process, and never gone.
-func TestProcessAliveCountsUnsignalableProcesses(t *testing.T) {
-	if !processAlive(1) {
-		t.Fatal("pid 1 reported dead: EPERM must mean alive")
-	}
-	if !processAlive(os.Getpid()) {
-		t.Fatal("self reported dead")
-	}
-	if processAlive(0) || processAlive(-1) {
-		t.Fatal("non-positive pids must never be alive")
-	}
-}

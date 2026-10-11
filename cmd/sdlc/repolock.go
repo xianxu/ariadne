@@ -165,10 +165,10 @@ func repoLockGitCommonDir() (string, error) {
 	return abs, nil
 }
 
-// processAlive reports whether pid exists. EPERM means it does, but this process
-// may not signal it: a sandboxed agent (macOS Seatbelt) gets EPERM for every
-// process outside its sandbox, including a peer slot's live sdlc holding the
-// shared lock, which counting as dead let it reclaim (#330). Only ESRCH is gone.
+// processAlive reports whether pid exists. EPERM means it exists but we may
+// not signal it: another user's process, or one outside the Seatbelt sandbox
+// slot agents run in. Only ESRCH means gone; reading EPERM as dead let a slot
+// reclaim a live peer's lock (side-quest of #310; #330).
 func processAlive(pid int) bool {
 	if pid <= 0 {
 		return false
