@@ -144,3 +144,48 @@ func TestDisputeRenderParseRoundTrip(t *testing.T) {
 		t.Error("the human projection must show the disputes")
 	}
 }
+
+// The next judge sees each live dispute with its evidence and is told how to answer it;
+// a disputed finding is not in the do-not-re-raise list, and an answered one is gone.
+func TestPromptCarriesLiveDisputes(t *testing.T) {
+	l := ledgerWith(round(1, nil, findings("Important/byte path unasserted", "Important/b")), round(2, dispose("PQ-2", "withdrawn"), nil))
+	l.Disputes = []Dispute{
+		{ID: "PQ-1", Rationale: "the full suite asserts it", Evidence: "TestEditorLoopCtrlCExitsZero: exit = 9, want 0", After: 1},
+		{ID: "PQ-2", Rationale: "answered", Evidence: "x", After: 1},
+	}
+	p := RenderPriorFindings(l)
+	section, rest, ok := strings.Cut(p, "DISPUTED BY THE IMPLEMENTER")
+	if !ok {
+		t.Fatalf("prompt has no dispute section:\n%s", p)
+	}
+	for _, want := range []string{"PQ-1", "the full suite asserts it", "exit = 9, want 0", "`withdrawn`", "`not-addressed`"} {
+		if !strings.Contains(rest, want) {
+			t.Errorf("dispute section lacks %q", want)
+		}
+	}
+	if strings.Contains(rest, "id: PQ-2") {
+		t.Error("an answered dispute must not be put to the judge again")
+	}
+	if _, disposed, _ := strings.Cut(section, "ALREADY DISPOSED"); strings.Contains(disposed, "PQ-1") {
+		t.Error("a live dispute must not be listed as settled — the judge would be told not to touch it")
+	}
+}
+
+// The operator line counts dispute-settled findings against those raised; an appealed
+// Critical still blocks and says why.
+func TestDecideReportsDisputes(t *testing.T) {
+	l := ledgerWith(round(1, nil, findings("Important/a", "Important/b", "Minor/c")))
+	l.Disputes = []Dispute{dispute("PQ-1", 1)}
+	l.Rounds = append(l.Rounds, round(2, dispose("PQ-2", "addressed"), nil))
+	d := Decide(l, 0)
+	if d.Block || len(d.Disputed) != 1 || !strings.Contains(d.Reason, "1 of 3 finding(s) settled by implementer DISPUTE, not a fix: PQ-1") {
+		t.Fatalf("decision = %+v", d)
+	}
+
+	c := ledgerWith(round(1, nil, findings("Critical/a")))
+	c.Disputes = []Dispute{dispute("PQ-1", 1)}
+	d = Decide(c, 0)
+	if !d.Block || len(d.Disputed) != 0 || !strings.Contains(d.Reason, "appeal-only, so it blocks until the judge answers") {
+		t.Fatalf("appealed Critical: decision = %+v", d)
+	}
+}
