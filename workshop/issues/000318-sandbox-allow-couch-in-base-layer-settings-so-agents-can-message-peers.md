@@ -1,12 +1,12 @@
 ---
 id: 000318
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-10
 updated: 2026-10-11
 estimate_hours:
-card_mirror: '2d07ebc4f6504d2be7ee4cc12342f296b10e5701' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '40e37d6d3809916dbc21cbf33db3f05b7ca64507' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-11T08:58:34-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "605774e3", done: "b1990bf8"}
+actual_hours: 1.97
 ---
 
 # sandbox: allow couch in base-layer settings so agents can message peers
