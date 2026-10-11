@@ -869,3 +869,44 @@ func TestBoundaryRoundWithoutFindingsIsNotPassed(t *testing.T) {
 		t.Fatalf("the waiver was not stamped on a blocked round: %+v", got)
 	}
 }
+
+// #234: a boundary round records when its review was DISPATCHED, beside the
+// finalize time. The build/converge cut is the boundary's first dispatch;
+// Timestamp alone is taken after the review returns.
+func TestBoundaryRound_StampsDispatchTime(t *testing.T) {
+	issuesDir := closeRepo(t, 69)
+	plansDir := t.TempDir()
+	p := boundaryReviewParams{Label: "#69 M1", IssuesDir: issuesDir, IssueNum: 69, Milestone: "M1", PlansDir: plansDir}
+	base := strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+	if err := os.WriteFile("m1.go", []byte("package main // work\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, "", "add", "m1.go")
+	git(t, "", "commit", "-q", "-m", "#69 M1: the work under review")
+	p.BaseLong, p.Base = base, shortSHA(base)
+	p.Head = strings.TrimSpace(captureGit(t, "rev-parse", "HEAD"))
+	(&fakeReviewer{}).install(t)
+	orig := dispatchNow
+	dispatchNow = func() string { return "2026-08-20T17:40:00-07:00" }
+	t.Cleanup(func() { dispatchNow = orig })
+
+	var out, errb bytes.Buffer
+	r := dispatchBoundaryReview(&out, &errb, p)
+	persistBoundaryRound(&errb, p, r, "2026-08-20T18:00:00-07:00")
+	// A review that never started carries no dispatch time.
+	persistBoundaryRound(&errb, p, reviewResult{Agent: "claude", ProtocolError: "review did not run: no agent"}, "2026-08-20T18:05:00-07:00")
+
+	l, err := readBoundaryGateLedger(plansDir, "000069-x.md", 69)
+	if err != nil || len(l.Rounds) != 2 {
+		t.Fatalf("ledger: %v %+v\n%s", err, l.Rounds, errb.String())
+	}
+	if got := l.Rounds[0].Dispatched; got != "2026-08-20T17:40:00-07:00" {
+		t.Errorf("round 1 dispatched = %q, want the dispatch clock", got)
+	}
+	if l.Rounds[0].Timestamp != "2026-08-20T18:00:00-07:00" {
+		t.Errorf("round 1 timestamp = %q, want the finalize clock", l.Rounds[0].Timestamp)
+	}
+	if got := l.Rounds[1].Dispatched; got != "" {
+		t.Errorf("a never-ran round carries dispatched %q", got)
+	}
+}

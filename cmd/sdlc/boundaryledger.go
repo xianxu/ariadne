@@ -180,6 +180,7 @@ func persistBoundaryRound(stderr io.Writer, p boundaryReviewParams, review revie
 	// ran — fence or not — ran under it; one that never started ran nothing.
 	if !neverRan {
 		l.Rounds[len(l.Rounds)-1].Recipe = string(p.recipe())
+		l.Rounds[len(l.Rounds)-1].Dispatched = review.Dispatched
 	}
 
 	// Cap per boundary; open findings from the WHOLE issue at the final boundary (BR-37).

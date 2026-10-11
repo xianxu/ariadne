@@ -156,6 +156,7 @@ func TestAppendCalibrationRow_DriftWarns(t *testing.T) {
 		sb.WriteString(estimate.FormatRow(estimate.LedgerRow{
 			Issue: "ariadne#" + strconv.Itoa(i), Estimate: 5, Actual: 0.5,
 			Model: "estimate-logic-v2", WindowTrusted: true, Date: "2026-06-17",
+			BuildHours: 0.5, SplitSource: "dispatch", // drift reads split rows only (#234)
 		}) + "\n")
 	}
 	if err := os.WriteFile(path, []byte(sb.String()), 0o644); err != nil {
@@ -164,9 +165,10 @@ func TestAppendCalibrationRow_DriftWarns(t *testing.T) {
 
 	// Append a 5th trusted, >2× over row → last 5 trusted all over → drift.
 	var errb bytes.Buffer
-	f := &closeFlags{Actual: "0.3"}
+	f := &closeFlags{Actual: "0.3", Split: &actualSplit{Build: 0.3, Source: "dispatch"}}
 	fm := "estimate_hours: 3.4\nstarted: 2026-06-17T10:00:00Z\n"
-	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", closeCostMetrics{}, closeFlowOutcome{})
+	m := closeCostMetrics{Boundary: splitMeta{Rounds: 1, Recipe: "milestone-review", Stamped: true}}
+	appendCalibrationRow(&errb, f, fm, ledgerTestBody(), "ariadne", "117", "2026-06-17", m, closeFlowOutcome{})
 
 	if !strings.Contains(errb.String(), "drift") {
 		t.Errorf("expected a drift warning, got %q", errb.String())
@@ -194,8 +196,10 @@ func TestAppendCalibrationRow_FlowColumns(t *testing.T) {
 		appendCalibrationRow(&errb, &closeFlags{Actual: "1.0"}, "id: 1\n", "# T\n", "ariadne", "231", "2026-09-17", closeCostMetrics{}, c.fl)
 		data, _ := os.ReadFile(path)
 		lines := strings.Split(strings.TrimRight(string(data), "\n"), "\n")
-		if row := lines[len(lines)-1]; !strings.HasSuffix(row, c.want) {
-			t.Errorf("%s: row %q does not end with %q", c.name, row, c.want)
+		// The flow block is indices 20–22; #234's split block follows it.
+		cells := strings.Split(lines[len(lines)-1], "\t")
+		if got := "\t" + strings.Join(cells[20:23], "\t"); got != c.want {
+			t.Errorf("%s: flow cells %q, want %q", c.name, got, c.want)
 		}
 	}
 }

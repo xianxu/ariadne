@@ -3,8 +3,10 @@ package estimate
 import "fmt"
 
 // DriftVerdict inspects the latest n unique rows for the latest model revision:
-// if they all miss in the same direction by >2× (estimate/actual > 2, or < 0.5),
-// it warns. Untrusted rows are excluded — a truncated actual isn't a real data
+// if they all miss in the same direction by >2× (estimate/build > 2, or < 0.5),
+// it warns. Since #234 the comparison is against BUILD, the part of the actual
+// an estimate predicts (converge is calibrated as a factor instead, see
+// ConvergeFactors), and only rows with a split count. Untrusted rows are excluded — a truncated actual isn't a real data
 // point (the #68 posture applied to calibration). Returns (false, "") when
 // there's no systematic drift or fewer than n trusted rows for the latest model.
 // Pure.
@@ -18,7 +20,7 @@ func DriftVerdict(rows []LedgerRow, n int) (warn bool, msg string) {
 	}
 	over, under := 0, 0
 	for _, r := range trusted {
-		switch ratio := r.Ratio(); {
+		switch ratio := r.BuildRatio(); {
 		case ratio > 2.0:
 			over++
 		case ratio < 0.5:
@@ -27,9 +29,9 @@ func DriftVerdict(rows []LedgerRow, n int) (warn bool, msg string) {
 	}
 	switch {
 	case over == n:
-		return true, fmt.Sprintf("calibration drift: last %d trusted estimates all >2× OVER actual — estimates running high; add a Model-Revision note", n)
+		return true, fmt.Sprintf("calibration drift: last %d trusted estimates all >2× OVER build time — estimates running high; add a Model-Revision note", n)
 	case under == n:
-		return true, fmt.Sprintf("calibration drift: last %d trusted estimates all >2× UNDER actual — estimates running low; add a Model-Revision note", n)
+		return true, fmt.Sprintf("calibration drift: last %d trusted estimates all >2× UNDER build time — estimates running low; add a Model-Revision note", n)
 	}
 	return false, ""
 }
@@ -71,10 +73,11 @@ func latestTrustedActual(rows []LedgerRow) int {
 	return -1
 }
 
-// calibratable is the one test for "an estimate↔actual data point": a trusted,
-// positive actual on a row that is not quick-flow or upgraded (#231). Both the
-// sample filter and the latest-row selection read it — a trailing quick row
-// (no estimate, so no model) must not become the "latest" and switch drift off.
+// calibratable is the one test for "an estimate↔build data point": a trusted
+// row with an estimate (#231, #234 E3) and a measured split with positive build
+// (#234; legacy rows measured under the old rule never mix in). Both the sample
+// filter and the latest-row selection read it — a trailing row without one must
+// not become the "latest" and switch drift off.
 func calibratable(r LedgerRow) bool {
-	return r.WindowTrusted && r.Actual > 0 && !r.ExcludedFromCalibration()
+	return r.WindowTrusted && r.Actual > 0 && !r.ExcludedFromCalibration() && r.HasSplit() && r.BuildHours > 0
 }

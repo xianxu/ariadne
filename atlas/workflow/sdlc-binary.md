@@ -22,7 +22,8 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | Verb              | Replaces (Make target)      | Defends |
 |-------------------|-----------------------------|---------|
 | `close`           | `make close-issue`          | Issue close: actual + verified + atlas + plan ticked; on full-issue close auto-dispatches the one boundary review (#69, `--no-judge` to skip) |
-| `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over brain+repo transcript sources) |
+| `actual`          | (new #68)                   | Compute an issue's focused dev-hours (in-binary active-time-v3 engine over brain+repo transcript sources), split into build vs converge at the boundary reviews; `--milestone Mx` measures one milestone's increment (#234) |
+| `converge-report` | (new #234)                  | **Read-only** converge factor k = converge/build per model, flow and review recipe, over ledger rows that carry a split |
 | `active-time`     | (new #110; was active-time-v3.py) | Standalone CLI over the same engine — the per-segment attribution table for manual inspection; preserves the 2/3/0 loud-fail exit codes |
 | `state`           | (new)                       | Workflow state inspection + drift detection; per-issue owner and claim age, claims by slot and by operator (#284, claim times from tracker history via `tracker.Repository.ClaimTimes`) |
 | `fleet inventory` / `fleet policy` | (new #200) | Read-only fleet worktree evidence and prospective-path admission-policy resolution; typed JSON is the contract and human output renders the same values |
@@ -717,6 +718,9 @@ cmd/sdlc/
   ghlanding.go         typed GitHub PR identity and expected-head merge
   landingarchive.go    PR-owned remote archive and retry provenance
   milestoneclose.go    composition over close + judge milestone-review
+  actualsplit.go       #234: the build/converge split's IO shell (gate ledger → rounds,
+                       cutTimes, row metadata); the rule itself is activetime/split.go
+  convergereport.go    #234: `sdlc converge-report` (estimate.ConvergeFactors)
   estimatesource.go    new (#134): `sdlc estimate-source` pull — names the shared
                        method + repo-local calibration doc (estimateSourceStatus
                        seam over estimate.SourceGuidance); start-plan/change-code push it
@@ -947,7 +951,39 @@ the latest recognized model revision — pre-#116 rows are `window-trusted=no` a
 excluded (a truncated actual isn't a clean point; `actual_hours: N/A` rows are
 excluded; duplicate append rows for the same issue/model count once;
 skip-with-warning when no brain/ ledger dir exists downstream). This
-closes the loop the hand-kept validation log never did. Grammar + closed
+closes the loop the hand-kept validation log never did.
+
+**Build vs converge (#234).** A measured actual is split at the issue's
+boundary reviews.
+- **Build** runs to each boundary's first review dispatch.
+- **Converge** runs from that dispatch to the boundary's last `#N` commit at
+  or before its final dispatch.
+- **Tail** is the verification after that commit (the final test run and
+  review). It is uncounted at *every* boundary (operator, 10-10).
+
+The actual is build + converge, so milestone issues measure lower than under
+the pre-#234 rule, which counted every earlier milestone's tail.
+- **Where it lives:** `activetime.BuildTimeline` / `Split` (pure, `split.go`)
+  encode the rule over one `Compute` result. The time-proportional cut is exact
+  because runs are contiguous. `computeActualFor` (`actual.go`) and
+  `actualsplit.go` are the IO shell.
+- **Cut evidence:** the boundary gate ledger's rounds. Each round stamps
+  `dispatched` beside its finalize `timestamp`. A round without the stamp falls
+  back to the finalize time, and the row's source says so.
+- **E1:** `milestone-close` adopts its own increment, which is that
+  milestone's phases (`sdlc actual --milestone Mx` previews it).
+- **Ledger:** rows gain `build_hours converge_hours boundary_rounds
+  split_source review_recipe` (indices 23–27). `split_source` is one of
+  `dispatch`, `finalize`, `no-review`, `manual` (typed `--actual`), or `-`
+  (pre-#234, not comparable). The round metadata is read from the persisted
+  ledger at row-write time, because the measurement runs before this close's
+  dispatch.
+- **E3:** a row with no estimate is not a calibration point whatever its flow.
+  Its ratio cell is `-`. The historical backfill is ariadne#323.
+- **Drift and k:** drift (`estimate.DriftVerdict`) compares the estimate with
+  **build**, and reads only rows that carry a split. Converge is calibrated as a
+  factor, k = Σconverge/Σbuild per model, flow and recipe
+  (`estimate.ConvergeFactors`, `sdlc converge-report`). Grammar + closed
 vocabulary: `helptext/estimate.md` (canonical slugs in
 `internal/estimate/vocab.go`, a bidirectional drift test guards the mirror).
 

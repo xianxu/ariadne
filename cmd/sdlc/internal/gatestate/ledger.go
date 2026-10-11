@@ -61,8 +61,13 @@ type RoundReport struct {
 // Round is one gate invocation's durable record: what it disposed, what it raised, whether
 // the gate blocked, and whether the operator forced past it.
 type Round struct {
-	N            int           `yaml:"n"`
-	Timestamp    string        `yaml:"timestamp"`
+	N         int    `yaml:"n"`
+	Timestamp string `yaml:"timestamp"`
+	// Dispatched is when the round's review was dispatched (#234); Timestamp is
+	// taken after it returns. A boundary's first Dispatched is its build/converge
+	// cut. Empty on plan-quality rounds, never-ran rounds and every round before
+	// #234; omitempty keeps those ledgers byte-identical.
+	Dispatched   string        `yaml:"dispatched,omitempty"`
 	Agent        string        `yaml:"agent"`
 	Dispositions []Disposition `yaml:"dispose,omitempty"`
 	New          []Finding     `yaml:"findings,omitempty"`

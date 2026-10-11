@@ -90,3 +90,33 @@ func TestTrackerCommitsOfOtherIssuesDoNotClaim(t *testing.T) {
 		t.Errorf("per issue = %v, want #9 = 40 min and nothing for #5", res.PerIssue)
 	}
 }
+
+// #234: Compute reports the times of the commits whose lead names the
+// measured issue, the tailStart evidence for the build/converge split.
+// Citations and other issues' card writes are not among them.
+func TestComputeReportsIssueCommitTimes(t *testing.T) {
+	repo := gitInit(t)
+	branchCommit(t, repo, "2025-12-31T23:00:00+00:00", "base", "base")
+	gitAt(t, repo, "", "branch", "-M", "main")
+	gitAt(t, repo, "", "switch", "-q", "--orphan", "tracker")
+	branchCommit(t, repo, "2026-01-01T00:05:00+00:00", "card9", "#9: tracker: update card")
+	branchCommit(t, repo, "2026-01-01T00:06:00+00:00", "card5", "#5: tracker: update card")
+	gitAt(t, repo, "", "switch", "-q", "main")
+	branchCommit(t, repo, "2026-01-01T00:20:00+00:00", "own", "#9 a")
+	branchCommit(t, repo, "2026-01-01T00:30:00+00:00", "own", "#5: fix (cites #9)")
+	res, err := Compute(Options{
+		Dirs: []string{eventsDir(t, sessionEvents()...)}, GitRepo: repo, ExtraRefs: []string{"refs/heads/tracker"},
+		Scope: Scope{Issue: "9"}, SinceISO: "2026-01-01T00:00:00Z", UntilISO: "2026-01-01T00:50:00Z",
+		Issues: []string{"5", "9"}, CommitWeight: 1.0, ThresholdMin: 15, IncludeAssistant: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, c := range res.IssueCommitTimes {
+		got = append(got, c.UTC().Format("15:04"))
+	}
+	if want := []string{"00:05", "00:20"}; !reflect.DeepEqual(got, want) {
+		t.Errorf("issue commit times = %v, want %v", got, want)
+	}
+}

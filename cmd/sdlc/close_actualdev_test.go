@@ -43,7 +43,7 @@ func TestActualDeviation(t *testing.T) {
 func TestCheckActualDeviation_SkipsWhenUnmeasurable(t *testing.T) {
 	var buf bytes.Buffer
 	// #99999 has no commits referencing it → computeActualForCloseFn → actualNoWindow.
-	if err := checkActualDeviation(context.Background(), &buf, "99999", 13.5, "issue"); err != nil {
+	if err := checkActualDeviation(context.Background(), &buf, "99999", 13.5, "", ""); err != nil {
 		t.Fatalf("expected nil (skip) when unmeasurable, got: %v", err)
 	}
 	if out := strings.TrimSpace(buf.String()); out != "" {
@@ -51,25 +51,23 @@ func TestCheckActualDeviation_SkipsWhenUnmeasurable(t *testing.T) {
 	}
 }
 
-// Milestone actuals are per-boundary increments, while the active-time engine
-// currently returns a cumulative claim→HEAD issue measurement. Those values are
-// not comparable: checking 0.37h M2 against 5.14h cumulative falsely refuses as
-// a 14× deviation. Until the engine has a milestone window, the pass-path must
-// skip this issue-close-only backstop.
-func TestCheckActualDeviation_MilestoneSkipsCumulativeMeasurement(t *testing.T) {
+// A milestone value is compared with that milestone's own measured increment
+// (#234 E1), never the cumulative issue measurement: 0.37h M2 against 5.14h
+// cumulative once refused falsely as a 14x deviation.
+func TestCheckActualDeviation_MilestoneComparesItsIncrement(t *testing.T) {
 	orig := computeActualForCloseFn
-	calls := 0
-	computeActualForCloseFn = func(context.Context, string) actualResult {
-		calls++
-		return actualResult{Status: actualMeasured, Hours: 5.14}
+	var asked []string
+	computeActualForCloseFn = func(_ context.Context, _ string, milestone, _ string) actualResult {
+		asked = append(asked, milestone)
+		return actualResult{Status: actualMeasured, Hours: 0.40}
 	}
 	t.Cleanup(func() { computeActualForCloseFn = orig })
 
 	var buf bytes.Buffer
-	if err := checkActualDeviation(context.Background(), &buf, "180", 0.37, "milestone"); err != nil {
-		t.Fatalf("milestone increment must not be compared with cumulative actual: %v", err)
+	if err := checkActualDeviation(context.Background(), &buf, "180", 0.37, "M2", ""); err != nil {
+		t.Fatalf("0.37 against the measured 0.40 increment must pass: %v", err)
 	}
-	if calls != 0 {
-		t.Fatalf("milestone mode ran cumulative measurement %d time(s), want 0", calls)
+	if len(asked) != 1 || asked[0] != "M2" {
+		t.Fatalf("measured %v, want one measurement of M2's increment", asked)
 	}
 }

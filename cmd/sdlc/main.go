@@ -164,6 +164,7 @@ func buildRoot() *cobra.Command {
 	add(NewJudgeCmd(), "judge", "Run an LLM-judge check against the diff (fresh-context)")
 	add(NewArchPrinciplesCmd(), "arch-principles", "Print the ARCH-* architecture principles (single source; pull for non-gate work)")
 	add(NewEstimateSourceCmd(), "estimate-source", "Name the shared estimate method + the repo-local calibration source (pull)")
+	add(NewConvergeReportCmd(), "converge-report", "Converge factor k = converge/build per model, flow and review recipe (#234)")
 	// #280: a help topic (no Run): `sdlc help recovery`.
 	add(&cobra.Command{Use: "recovery"}, "recovery", "Recovery contracts: what each verb does when repeated, interrupted or unanswered")
 	add(NewProcessManualCmd(), "process-manual", "Unroll every injection source into a linked process manual (#153)")

@@ -2,6 +2,7 @@ package activetime
 
 import (
 	"fmt"
+	"slices"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueref"
@@ -64,6 +65,10 @@ type Result struct {
 	Warnings    []AttributionWarning
 	NumEvents   int
 	NumCommits  int
+	// IssueCommitTimes are the author times of the window commits whose lead
+	// names Scope.Issue, oldest first (#234): the evidence for where each
+	// boundary's converge ends.
+	IssueCommitTimes []time.Time
 }
 
 const suspiciousSpanMin = 120.0
@@ -104,6 +109,11 @@ func Compute(opts Options) (Result, error) {
 		PerIssue:   map[string]float64{},
 		NumEvents:  len(events),
 		NumCommits: len(commits),
+	}
+	for _, c := range commits {
+		if opts.Scope.Issue != "" && slices.Contains(c.Issues, opts.Scope.Issue) {
+			res.IssueCommitTimes = append(res.IssueCommitTimes, c.Time)
+		}
 	}
 
 	if len(events) == 0 {

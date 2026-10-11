@@ -80,6 +80,9 @@ type closeCostMetrics struct {
 	Addressed int
 	Withdrawn int
 	Open      int
+	// Boundary is the boundary-review metadata for the calibration row (#234),
+	// read from the gate ledger after this close's own round persisted.
+	Boundary splitMeta
 }
 
 // closeMetrics gathers the cost report. It NEVER returns an error: every measurement that
@@ -107,6 +110,11 @@ func closeMetrics(stderr io.Writer, f *closeFlags, res closeResult) closeCostMet
 	// yields an empty ledger with no error, so the gate columns are honestly zero. A
 	// sidecar that exists but does not PARSE is different, and it warns.
 	issueFile := filepath.Base(res.issuePath)
+	if bl, err := readBoundaryGateLedger(f.plansDir(), issueFile, f.Issue); err != nil {
+		cwarn(stderr, fmt.Sprintf("boundary-review metadata not measured (%v)", err))
+	} else {
+		m.Boundary = rowSplitMeta(bl)
+	}
 	l, err := readPlanGateLedger(f.plansDir(), issueFile, f.Issue)
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("plan-gate metrics not measured (%v)", err))

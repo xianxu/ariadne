@@ -45,28 +45,30 @@ func TestFormatAdoptLine(t *testing.T) {
 	}
 }
 
-// Milestone mode NEVER adopts (#178 close-review Important #1): computeActual's
-// window is issue-scoped, so the cumulative value would double-count across
-// per-milestone project detail blocks (lessons.md increments rule). The
-// measurement is still returned — it feeds the suggest flow unchanged.
-func TestAdoptOmittedActualMilestoneKeepsSuggestFlow(t *testing.T) {
+// A milestone close adopts its own increment (#234 E1): the seam is asked for
+// that milestone's phases, so the value never double-counts across
+// per-milestone project detail blocks (the #178 reason milestones refused).
+func TestAdoptOmittedActualMilestoneAdoptsItsIncrement(t *testing.T) {
 	orig := computeActualForCloseFn
-	computeActualForCloseFn = func(context.Context, string) actualResult {
-		return actualResult{Status: actualMeasured, Hours: 6.57, Window: "abcd1234 → HEAD"}
+	var asked string
+	split := &actualSplit{Build: 0.30, Converge: 0.10, Source: "dispatch"}
+	computeActualForCloseFn = func(_ context.Context, _ string, milestone, _ string) actualResult {
+		asked = milestone
+		return actualResult{Status: actualMeasured, Hours: 0.40, Window: "abcd1234 → HEAD (M2's phases)", Split: split}
 	}
 	t.Cleanup(func() { computeActualForCloseFn = orig })
 
 	var stderr bytes.Buffer
-	f := &closeFlags{Issue: 172}
-	res, ok := adoptOmittedActual(&stderr, f, "172", "milestone")
-	if ok || f.Actual != "" {
-		t.Fatalf("milestone mode must not adopt, got ok=%v f.Actual=%q", ok, f.Actual)
+	f := &closeFlags{Issue: 172, Milestone: "M2"}
+	_, ok := adoptOmittedActual(&stderr, f, "172", "milestone")
+	if !ok || f.Actual != "0.40" || asked != "M2" {
+		t.Fatalf("want M2's increment adopted, got ok=%v f.Actual=%q asked=%q", ok, f.Actual, asked)
 	}
-	if res.Status != actualMeasured || res.Hours != 6.57 {
-		t.Errorf("measurement must be returned for the suggest flow, got %+v", res)
+	if f.Split != split {
+		t.Errorf("the split must ride along to the ledger row, got %+v", f.Split)
 	}
-	if stderr.Len() != 0 {
-		t.Errorf("no side effects on the milestone arm, got %q", stderr.String())
+	if !strings.Contains(stderr.String(), "M2's phases") {
+		t.Errorf("the adopt line must name the milestone window: %q", stderr.String())
 	}
 }
 
@@ -75,7 +77,7 @@ func TestAdoptOmittedActualMilestoneKeepsSuggestFlow(t *testing.T) {
 func TestAdoptOmittedActual(t *testing.T) {
 	calls := 0
 	orig := computeActualForCloseFn
-	computeActualForCloseFn = func(_ context.Context, issueStr string) actualResult {
+	computeActualForCloseFn = func(_ context.Context, issueStr, _, _ string) actualResult {
 		calls++
 		return actualResult{Status: actualMeasured, Hours: 0.65, Window: "abcd1234 → HEAD", Issue: issueStr}
 	}
@@ -96,7 +98,7 @@ func TestAdoptOmittedActual(t *testing.T) {
 
 	// unmeasurable → no adoption, no output side effects (the caller then runs
 	// explainActual + exit; that arm's decision is pinned by TestResolveOmittedActual)
-	computeActualForCloseFn = func(context.Context, string) actualResult { return actualResult{Status: actualTelemetryGap} }
+	computeActualForCloseFn = func(context.Context, string, string, string) actualResult { return actualResult{Status: actualTelemetryGap} }
 	var stderr2 bytes.Buffer
 	f2 := &closeFlags{Issue: 178}
 	res, ok2 := adoptOmittedActual(&stderr2, f2, "178", "issue")

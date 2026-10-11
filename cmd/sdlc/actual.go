@@ -66,6 +66,8 @@ type actualResult struct {
 	Window   string // "<start ISO> → HEAD": the resolved left edge (#254)
 	Detail   string // diagnostic for the error path
 	Warnings []string
+	// Split divides Hours at the boundary reviews (#234); nil unless measured.
+	Split *actualSplit
 }
 
 // computeActual is the engine glue: resolve the commit window + peer issues + the
@@ -73,6 +75,16 @@ type actualResult struct {
 // Runs git via the cwd (gitx.CommitWindow), so the caller should be inside
 // repoTop.
 func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actualResult {
+	return computeActualFor(ctx, repoTop, brainAbs, issueNum, "", "")
+}
+
+// computeActualFor measures the whole issue (milestone "") or one milestone's
+// increment: the same window and attribution, kept to that boundary's phases
+// (#234 E1). Hours is build + converge in both modes; the verification tail
+// after each finalized boundary's last commit is not counted (#234 D2). plans
+// is the plans dir holding the boundary gate ledger ("" for the default); a
+// close passes its own --plans-dir, so the split reads the rounds it persists.
+func computeActualFor(ctx context.Context, repoTop, brainAbs, issueNum, milestone, plans string) actualResult {
 	res := actualResult{Issue: issueNum}
 	identity, err := resolveWorkspace(repoTop)
 	if err != nil {
@@ -147,6 +159,23 @@ func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actu
 		return res
 	}
 	res.Status, res.Hours = statusFromResult(out, issueNum)
+	if res.Status == actualMeasured {
+		id, _ := strconv.Atoi(issueNum)
+		ledger, _, lerr := issueBoundaryLedger(repoTop, plans, id)
+		if lerr != nil {
+			res.Status, res.Detail = actualError, "boundary gate ledger: "+lerr.Error()
+			return res
+		}
+		split, serr := splitActual(out, issueNum, milestone, splitRounds(ledger), firstISO, lastISO)
+		if serr != nil {
+			res.Status, res.Detail = actualError, serr.Error()
+			return res
+		}
+		res.Hours, res.Split = split.Build+split.Converge, &split
+		if milestone != "" {
+			res.Window += " (" + milestone + "'s phases)"
+		}
+	}
 	for _, w := range out.Warnings {
 		res.Warnings = append(res.Warnings, formatAttributionWarning(w))
 	}
@@ -278,10 +307,13 @@ func printActual(w io.Writer, res actualResult) {
 	switch res.Status {
 	case actualMeasured:
 		cok(w, fmt.Sprintf("measured actual for #%s: %.2fh   (window %s)", res.Issue, res.Hours, res.Window))
+		if s := res.Split; s != nil {
+			fmt.Fprintf(w, "  build %.2fh · converge %.2fh · uncounted tail %.2fh (cuts: %s)\n", s.Build, s.Converge, s.Tail, s.Source)
+		}
 		for _, warning := range res.Warnings {
 			fmt.Fprintf(w, "  attribution warning: %s\n", warning)
 		}
-		fmt.Fprintf(w, "  → issue close ADOPTS this when --actual is omitted (#178); milestone close: pass the per-milestone increment\n")
+		fmt.Fprintf(w, "  → close (or milestone-close, for a --milestone measurement) ADOPTS this when --actual is omitted (#178, #234)\n")
 		if len(res.Peers) > 1 {
 			fmt.Fprintf(w, "  (attributed across window issues: %s)\n", strings.Join(prefixHash(res.Peers), ", "))
 		}
@@ -312,7 +344,7 @@ func prefixHash(ss []string) []string {
 // NewActualCmd returns the cobra command for `sdlc actual`.
 func NewActualCmd() *cobra.Command {
 	var issue int
-	var brainDir string
+	var brainDir, milestone string
 	cmd := &cobra.Command{
 		Use:           "actual",
 		Short:         "Compute an issue's focused dev-hours (runs the activetime engine with the right transcript dirs)",
@@ -329,12 +361,13 @@ func NewActualCmd() *cobra.Command {
 				die(stderr, err.Error())
 			}
 			brainAbs, _ := filepath.Abs(brainDir)
-			res := computeActual(cmd.Context(), repoTop, brainAbs, strconv.Itoa(issue))
+			res := computeActualFor(cmd.Context(), repoTop, brainAbs, strconv.Itoa(issue), milestone, "")
 			printActual(stderr, res)
 			return nil
 		},
 	}
 	cmd.Flags().IntVar(&issue, "issue", 0, "issue ID to measure (numeric, required)")
 	cmd.Flags().StringVar(&brainDir, "brain-dir", "../brain", "path to the brain repo (transcript dir always included)")
+	cmd.Flags().StringVar(&milestone, "milestone", "", "measure one milestone's increment, Mx (#234): what milestone-close adopts")
 	return cmd
 }
