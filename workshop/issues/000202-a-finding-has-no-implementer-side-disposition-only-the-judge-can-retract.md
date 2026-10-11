@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "4f0b0194", done: "e3b0c442"}
 ---
 
 # A finding has no implementer-side disposition: only the judge can retract
