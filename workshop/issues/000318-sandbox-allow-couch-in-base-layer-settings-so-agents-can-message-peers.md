@@ -64,6 +64,7 @@ the review finds a reason not to.
 - Was: `couch` in `excludedCommands` only.
 - Now also: `Bash(sdlc:*)` and `Bash(couch:*)` in `permissions.allow`, so the auto-mode classifier stops judging the workbench's own verbs. It denied #330's `sdlc merge --yes` as "Merge Without Review", although the binary runs its own review gates. Both binaries keep their own guards.
 - Agent-neutral: cover Codex/Gemini wherever weave generates their config, or record why not (see Plan).
+- Gemini: not covered. weave doesn't generate its config (`construct/base.manifest` has no `.gemini` row; it is ariadne-local), and Gemini is deprecated in favor of agy.
 - Done-when adds: `sdlc merge` runs in auto mode without a classifier denial.
 
 ### 2026-10-11 — TL addendum: items (4) and (5) from the 10-10 project scope
