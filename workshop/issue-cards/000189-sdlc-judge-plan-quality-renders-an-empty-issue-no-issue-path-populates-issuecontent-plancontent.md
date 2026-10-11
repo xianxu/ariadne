@@ -1,6 +1,6 @@
 ---
 id: 000189
-status: working
+status: codecomplete
 created: 2026-07-29
 updated: 2026-10-10
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.77
+tracker:
+    version: 1
+    completion:
+        token: close-37bf4cac8d74
+        repository: github.com/xianxu/ariadne
+        reviewed_head: f4fd6f8e55fd687d6d6dced68fcd2e5b11d38e9f
+        evidence_commit: 96d7258f45ade26378f95d17647f296e0062dca4
 ---
 
 # sdlc judge plan-quality renders an empty issue — no --issue path populates IssueContent/PlanContent
