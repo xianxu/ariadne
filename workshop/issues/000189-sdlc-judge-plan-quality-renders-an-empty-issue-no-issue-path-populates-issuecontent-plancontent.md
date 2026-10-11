@@ -94,7 +94,7 @@ out of that issue's scope (recorded in its plan's Task 14 rationale).
       fixture (same dry-run test); no-issue categories unchanged (existing `internal/judge`
       golden + `TestJudgeAgentDefault_*` dry tests)
 - [x] Helptext (`helptext/judge.md`) + atlas (`workflow/sdlc-binary.md`)
-- [ ] Full `make test`, then `sdlc close`
+- [x] Full `make test` (see Log: environmental failures only), then `sdlc close`
 
 ## Log
 
@@ -111,3 +111,10 @@ out of that issue's scope (recorded in its plan's Task 14 rationale).
   refused. Its judge leg moved to `judge dry` (any live-dispatching category serves).
   `TestPlanningReviewConcurrencySchedules` failed once under the sharded load and passes in
   isolation; untouched by this diff.
+- Second full run: three environmental failures, none in this diff's path.
+  - `TestPlanningReviewConcurrencySchedules`: its unrelated `set-status` completes, then is
+    killed at the test's 2s deadline. Load average was about 50 from peer slots. 4/4 pass on
+    origin/main and 4/4 pass on this branch when rerun.
+  - `processgroup.TestCancellationKillsDescendants`: the sandbox blocks `/bin/ps`.
+  - The hermeticity guard flagged slot 3's live `sdlc merge` lock in the shared git common dir.
+- [x] Full `make test`, apart from the environmental failures above.
