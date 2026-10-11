@@ -1,6 +1,6 @@
 ---
 id: 000317
-status: codecomplete
+status: done
 created: 2026-10-09
 updated: 2026-10-10
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ed89620af14a2b72377ccdf49f9d10c588a00a23
         evidence_commit: 654e9966a99abd14cbeeb1b78d345536eb7deb11
+        landed_commit: bccdb9145b3ea19bb76d4235da1be9b5e3ab3f53
 ---
 
 # active-time: every ref in a commit subject claims an equal share, so citations and merge subjects take the issue's time
