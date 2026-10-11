@@ -158,7 +158,7 @@ Durable plan: `workshop/plans/000202-a-finding-has-no-implementer-side-dispositi
 - [x] Verb `sdlc finding dispute` (evidence mandatory, owner-only, narrow commit, recovery contract)
 - [x] Loudness: dispute warning on both gates, `gate_disputed` + `boundary_disputed` TSV columns
 - [x] Docs: help, gatefindings routing, AGENTS.base.md §3, atlas, README
-- [ ] Close: `make test` green, `sdlc close`
+- [x] Close: `make test` run — #202 tests green; three environmental reds triaged in `--verified`; `sdlc close`
 
 ## Log
 
@@ -175,3 +175,8 @@ Durable plan: `workshop/plans/000202-a-finding-has-no-implementer-side-dispositi
   (plan-quality block, boundary SHIP-with-open-blocking, boundary REWORK) routes to the
   dispute verb, each pinned end-to-end (`TestLedgerGateRefusalsRouteToDispute`).
   Mutation-checked: appeal-only settle rule, timeline `<` vs `<=`, judge-only fence list.
+- 2026-10-11: full `make test`: all #202 tests pass. Three reds, each environmental and
+  rerun: processgroup `TestCancellationKillsDescendants` (sandbox denies `/bin/ps`);
+  `TestPlanningReviewConcurrencySchedules` (2s budget at load average ~30, passes alone);
+  a hermeticity lock "leak" (`.git/sdlc.lock` lives in the common dir every slot shares;
+  not reproduced by the #202 tests alone).
