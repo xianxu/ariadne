@@ -41,6 +41,28 @@ func TestLatestReviewed(t *testing.T) {
 	}
 }
 
+func TestLatestFinalizedAt(t *testing.T) {
+	a := strings.Repeat("a", 40)
+	b := strings.Repeat("b", 40)
+	m := strings.Repeat("d", 40)
+	l := Ledger{Gate: "boundary-review", IDPrefix: "BR", Rounds: []Round{
+		{N: 1, Boundary: BoundaryAll, Reviewed: m}, // never a whole-issue anchor
+		{N: 2, Boundary: "", Reviewed: a},
+		{N: 3, Boundary: "M1", Reviewed: m}, // a milestone's head is not the close's
+		{N: 4, Boundary: ""},                // REWORK: no reviewed head
+	}}
+	if sha, ok := LatestFinalizedAt(l, ""); !ok || sha != a {
+		t.Fatalf("LatestFinalizedAt = (%q, %v), want the round-2 close head", sha, ok)
+	}
+	l.Rounds = append(l.Rounds, Round{N: 5, Boundary: "", Reviewed: b})
+	if sha, _ := LatestFinalizedAt(l, ""); sha != b {
+		t.Fatalf("LatestFinalizedAt = %q, want the newest finalized close head", sha)
+	}
+	if _, ok := LatestFinalizedAt(Ledger{Rounds: []Round{{Boundary: ""}, {Boundary: "M1", Reviewed: m}}}, ""); ok {
+		t.Fatal("no finalized whole-issue round: no anchor")
+	}
+}
+
 // A round without a reviewed head must render byte-identically to its pre-#304 form,
 // so no historical ledger changes on rewrite.
 func TestRoundReviewedOmittedWhenEmpty(t *testing.T) {

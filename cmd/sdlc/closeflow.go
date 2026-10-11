@@ -153,11 +153,12 @@ func earlierFullReview(plansDir, issueFileName string, issueNum int, boundary st
 }
 
 // fullRoundIn: did any of these boundary rounds run the full review? A round
-// that never ran (NoCap) ran nothing; an unstamped round predates #231, when
+// that never ran (NoCap) ran nothing; a fix-review round (#183) read only an
+// interdiff; an unstamped round predates #231, when
 // milestone-review was the only boundary recipe, so it was the full review.
 func fullRoundIn(rounds []gatestate.Round) bool {
 	for _, r := range rounds {
-		if !r.NoCap && r.Recipe != string(judge.SmallDiffReview) {
+		if !r.NoCap && r.Recipe != string(judge.SmallDiffReview) && r.Recipe != string(judge.FixReview) {
 			return true
 		}
 	}

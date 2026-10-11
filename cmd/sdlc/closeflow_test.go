@@ -357,6 +357,7 @@ func TestFullRoundIn(t *testing.T) {
 		{"a full round", []gatestate.Round{{Recipe: string(judge.MilestoneReview)}}, true},
 		{"an unstamped round predates #231: full", []gatestate.Round{{}}, true},
 		{"a round that never ran", []gatestate.Round{{NoCap: true}}, false},
+		{"a fix-review round read an interdiff: not full", []gatestate.Round{{Recipe: string(judge.FixReview)}}, false},
 	} {
 		if got := fullRoundIn(c.rounds); got != c.want {
 			t.Errorf("%s: fullRoundIn = %v, want %v", c.name, got, c.want)
