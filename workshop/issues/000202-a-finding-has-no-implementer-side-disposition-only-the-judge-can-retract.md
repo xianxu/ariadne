@@ -1,12 +1,20 @@
 ---
 id: 000202
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-10-10
 estimate_hours:
-card_mirror: '5b810997d763927c576281b6f2987009192c2aef' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '69fec401f3599fc6000c4ea7e6973a852f20c411' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T23:14:43-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # A finding has no implementer-side disposition: only the judge can retract
@@ -117,3 +125,22 @@ with these properties:
 - `construct/vocabulary/finding.cue` is the single source; `cmd/sdlc/boundaryledger.go`,
   `cmd/sdlc/churnreport.go` and the judge prompt are the consumers that must derive
   from it rather than restate it.
+
+## Plan
+
+Durable plan: `workshop/plans/000202-a-finding-has-no-implementer-side-disposition-only-the-judge-can-retract-plan.md`
+(single boundary — closes in one `sdlc close`).
+
+- [ ] Model: `authority` (judge vs implementer), `appealOnly: hardBlocking`, closing `disputed`
+- [ ] Ledger: `Disputes` stream merged into one round-ordered timeline; judge may not emit `disputed`
+- [ ] Prompt + decision: next judge answers each live dispute; gate line counts disputes
+- [ ] Verb `sdlc finding dispute` (evidence mandatory, owner-only, narrow commit, recovery contract)
+- [ ] Loudness: dispute warning on both gates, `gate_disputed` + `boundary_disputed` TSV columns
+- [ ] Docs: help, gatefindings routing, AGENTS.base.md §3, atlas, README
+- [ ] Close: `make test` green, `sdlc close`
+
+## Log
+
+- 2026-10-10: claimed (ops:0 dispatch); design in the durable plan. Critical is appeal-only
+  (dispute recorded and shown to the judge, keeps blocking) rather than refused or
+  operator-acknowledged — an ack flag is a bypass the agent can pass itself.
