@@ -56,15 +56,26 @@ point, and `sdlc push` is on main, so only the landing path is wrong.
 
 ## Plan
 
-- [ ] Failing test: real-git fixture where main archives a nonconforming issue after the
-      branch point; the landing instance gate must pass. Second case: the branch's own
-      nonconforming issue refuses
-- [ ] `landingMergeBase` helper shared with `runLandingDuplicateGate`;
+- [x] Failing test: real-git fixture where main archives a nonconforming issue after the
+      branch point; the landing instance gate must pass
+      (`TestLandingInstanceGate_IgnoresMainsChangesSinceBranchPoint`). Second case: the
+      branch's own nonconforming issue refuses
+      (`TestLandingInstanceGate_RefusesBranchsOwnNonconformingIssue`). No merge-base fails
+      closed (`TestLandingInstanceGate_FailsClosedWithoutMergeBase`)
+- [x] `landingMergeBase` helper shared with `runLandingDuplicateGate`;
       `runLandingInstanceGate(mainOID, head, …)` validates `merge-base..head`
-- [ ] `landing.go` calls it with `targetMain` and the pinned head
-- [ ] Targeted tests, full `make test`, close
+- [x] `landing.go` calls it with `targetMain` and the pinned head. The call site is pinned
+      by `TestLandingPassesBranchWindowToInstanceGate`: `runMerge` after main moved on, and
+      the gate must receive branch point..PR head
+- [x] Mutation-checked: reverting the call site fails the call-site test; diffing from
+      main's tip inside the gate fails the archive test
+- [x] Atlas (`workflow/sdlc-binary.md`, validategate entry)
+- [ ] Full `make test`, close
 
 ## Log
 
 ### 2026-10-10
 - Filed from ariadne#189's landing, at the TL's direction (ops:0); fix before #202.
+- Targeted: `TestLanding|Duplicate|TestValidateChanged|TestRunMerge` all green (423s).
+- head is the pinned commit, not the working tree. `readIssueFileFn` still reads the
+  checkout, which `revalidateLanding` holds at that same head.

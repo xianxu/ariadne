@@ -403,7 +403,7 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 			cwarn(stderr, "--no-judge: skipping reviewed-HEAD publish gate")
 		}
 		if !f.NoValidate {
-			if err = validateChangedInstancesFn(pr.BaseOID, "", nounGates(f.IssuesDir), stdout, stderr); err != nil {
+			if err = runLandingInstanceGate(targetMain, head, nounGates(f.IssuesDir), stdout, stderr, r); err != nil {
 				return err
 			}
 			if err = runLandingDuplicateGate(targetMain, f.IssuesDir, f.HistoryDir, r); err != nil {
