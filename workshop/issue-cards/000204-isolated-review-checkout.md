@@ -1,6 +1,6 @@
 ---
 id: 000204
-status: codecomplete
+status: done
 created: 2026-08-25
 updated: 2026-10-11
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 09a5b7643d10dcb84a430d5ee30ad7a8fbd1b485
         evidence_commit: 770750e3dc9212dbecdeda464e761bf40b57da43
+        landed_commit: da5d9c3748e1159f4823b2f4fcb9717e2609d55e
 ---
 
 # Run each boundary reviewer in a disposable isolated checkout
