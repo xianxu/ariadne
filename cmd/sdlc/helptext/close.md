@@ -62,6 +62,9 @@ FIXED-THEN-SHIP (#183)
       only defects the interdiff introduces, judges every conflict resolution,
       and returns REWORK for a scope change (`## Spec`, `## Revisions` or
       `## Done when` changed beyond recording the fix): run a full close then.
+      The window's diff excludes the issues directory, so close compares those
+      sections itself (the issue as the close review read it, against now) and
+      hands each changed section to the reviewer, before and after.
     - The atlas gate and the quick-flow shell are measured on the branch patch,
       which the earlier close already held to them.
     - Finalizing is an ordinary close: a new evidence commit, the card rebound to
@@ -297,7 +300,7 @@ THE QUICK FLOW (#231)
       did not (F3, #183), the close review judges whether Done-when still covers
       the work. Its prompt says so, a stale Done-when blocks the verdict, and
       the ## Log line records "done-when: contract moved since change-code;
-      judged by the review" with the verdict. A deterministic check cannot tell a
+      judged by the close review" with the verdict. A deterministic check cannot tell a
       reframe from a review-fix Revisions entry; the reviewer can. With the
       review skipped there is no reviewer, so close refuses: restate the
       acceptance criteria, or pass the Done-when freshness bypass (BYPASSING A

@@ -269,7 +269,7 @@ func TestCloseQuickStaleDoneWhenDefersToTheReview(t *testing.T) {
 	if *calls != 1 || !strings.Contains(*prompt, "changed since change-code while `## Done when` did not") {
 		t.Fatalf("calls=%d; the review prompt must carry the done-when note:\n%s", *calls, *prompt)
 	}
-	if text := readQuick(t, dir); !strings.Contains(text, "done-when: contract moved since change-code; judged by the review") ||
+	if text := readQuick(t, dir); !strings.Contains(text, "done-when: contract moved since change-code; judged by the close review") ||
 		!strings.Contains(text, "review verdict: SHIP") {
 		t.Errorf("the close log line must record the deferred judgement and its verdict:\n%s", text)
 	}

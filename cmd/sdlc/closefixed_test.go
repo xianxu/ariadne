@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -119,8 +120,12 @@ func TestFixedThenShip_PostCloseFixPublishes(t *testing.T) {
 	if err != nil || len(l.Rounds) == 0 {
 		t.Fatalf("ledger: %v", err)
 	}
-	if last := l.Rounds[len(l.Rounds)-1]; last.Recipe != string(judge.FixReview) || last.Reviewed != r.git("rev-parse", evidenceRev+"^") && last.Reviewed == "" {
-		t.Errorf("the fix round must stamp the fix-review recipe and its reviewed head: %+v", last)
+	last := l.Rounds[len(l.Rounds)-1]
+	if last.Recipe != string(judge.FixReview) {
+		t.Errorf("the fix round must stamp the fix-review recipe: %+v", last)
+	}
+	if want := r.git("rev-parse", evidenceRev+"^"); last.Reviewed != want {
+		t.Errorf("the fix round reviewed %q, want the fix head %q", last.Reviewed, want)
 	}
 	second, ok, _ := issue.CardCompletion([]byte(r.card(cardPath)))
 	if !ok || second.EvidenceCommit == first.EvidenceCommit || second.EvidenceCommit != r.git("rev-parse", evidenceRev) {
@@ -176,5 +181,47 @@ func TestFixedThenShip_RefusesWithoutACloseReview(t *testing.T) {
 		if msg, died := expectDie(t, func() { executeSDLCTestCommand(closeArgs("403", extra...)...) }); !died || *calls != 0 {
 			t.Errorf("%v: died=%v calls=%d msg=%q, want a refusal before any review", extra, died, *calls, msg)
 		}
+	}
+}
+
+func TestContractChangeNotes(t *testing.T) {
+	body := func(spec, rev, done string) string {
+		return "# x\n\n## Spec\n\n" + spec + "\n\n## Done when\n\n" + done + "\n\n## Plan\n\n- [x] a\n\n## Log\n\n- l\n" + rev
+	}
+	before := body("A thing.", "", "- it works")
+	if n := contractChangeNotes(before, body("A   thing.", "", "- it works")+"- another log line\n"); n != nil {
+		t.Errorf("re-wrapping and Log lines are not contract changes: %v", n)
+	}
+	n := contractChangeNotes(before, body("A bigger thing.", "\n## Revisions\n\n- 10-10: scope grew\n", "- it works"))
+	if len(n) != 2 || !strings.Contains(n[0], "`## Spec` changed") || !strings.Contains(n[0], "A bigger thing.") ||
+		!strings.Contains(n[0], "A thing.") || !strings.Contains(n[1], "`## Revisions` changed") || !strings.Contains(n[1], "(empty)") {
+		t.Errorf("Spec and Revisions changes must each carry before/after: %q", n)
+	}
+	long := strings.Repeat("x", maxContractNoteSection+50)
+	if got := contractChangeNotes(before, body(long, "", "- it works")); len(got) != 1 || !strings.Contains(got[0], "clipped") {
+		t.Errorf("a long section must be clipped: %d notes", len(got))
+	}
+}
+
+// BR-1: the fix review's window excludes the issues directory, so a Spec change made
+// after the close review reaches the reviewer only as a review note.
+func TestFixedThenShip_ScopeChangeReachesTheReviewer(t *testing.T) {
+	r, _, detailPath := closeReady(t, 404)
+	stubJudge(t, fixedReview("SHIP"))
+	if _, stderr, err := executeSDLCTestCommand(closeArgs("404")...); err != nil {
+		t.Fatalf("close: %v\n%s", err, stderr)
+	}
+	raw, err := os.ReadFile(filepath.Join(r.root, detailPath))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, detailPath, strings.Replace(string(raw), "A thing.", "A much bigger thing.", 1))
+	writeRepoFile(t, r.root, "cmd/a.go", "package a // more\n")
+	r.git("add", "-A")
+	r.git("commit", "-qm", "#404: grow the scope")
+	_, prompt := stubJudge(t, fixedReview("REWORK"))
+	executeSDLCTestCommand(closeArgs("404", "--fixed-then-ship")...)
+	if !strings.Contains(*prompt, "`## Spec` changed since the close review") || !strings.Contains(*prompt, "A much bigger thing.") {
+		t.Fatalf("the scope change did not reach the fix review:\n%s", *prompt)
 	}
 }

@@ -9,6 +9,8 @@ package main
 import (
 	"fmt"
 	"strings"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // fixedThenShipRefusal decides whether a --fixed-then-ship close may proceed, over
@@ -25,7 +27,7 @@ func fixedThenShipRefusal(issueStr string, w reviewWindow, upgraded bool, fullSu
 	case upgraded:
 		return fmt.Sprintf("--fixed-then-ship: the branch patch has left the quick-flow shell, so the full review is due.\n  %s", full)
 	}
-	if code := conflictedCode(w.Conflicted); len(code) > 0 && strings.TrimSpace(fullSuite) == "" {
+	if code := codeSurfacePaths(w.Conflicted); len(code) > 0 && strings.TrimSpace(fullSuite) == "" {
 		return fmt.Sprintf("--fixed-then-ship: this window resolves a conflict with main in code (%s).\n"+
 			"  Only the review narrows; the full test suite still runs (operator decision, #320).\n"+
 			"  Run it (`make test`), then re-run with --full-suite '<evidence>'.", strings.Join(code, ", "))
@@ -33,16 +35,60 @@ func fixedThenShipRefusal(issueStr string, w reviewWindow, upgraded bool, fullSu
 	return ""
 }
 
-// conflictedCode is the conflicted paths with code surface — the publish gate's own
-// predicate, so the gate and this refusal agree on what counts as code.
-func conflictedCode(conflicted []string) []string {
+// codeSurfacePaths keeps the paths publishGateHasCodeSurface counts as code — the one
+// filter the publish gate's arms and this refusal share, so they agree on what code is.
+func codeSurfacePaths(paths []string) []string {
 	var code []string
-	for _, p := range conflicted {
+	for _, p := range paths {
 		if publishGateHasCodeSurface([]string{p}) {
 			code = append(code, p)
 		}
 	}
 	return code
+}
+
+// contractSections are the issue sections a fix must not change beyond recording the
+// fix (#183 BR-1): the contract and its acceptance oracle.
+var contractSections = []string{"Spec", "Revisions", "Done when"}
+
+// maxContractNoteSection bounds one section's text in a review note, so a long Spec
+// cannot crowd the prompt; the reviewer reads the rest from the issue file.
+const maxContractNoteSection = 4000
+
+// contractChangeNotes compares the contract sections of the issue body the close
+// review read (before) with the body now (after) and returns one review note per
+// changed section, carrying both texts (#183 BR-1). The reviewer's window excludes the
+// issues directory, so without this note it could never see a scope change in the
+// issue body, and the fix-review's REWORK-on-scope-change rule could not fire. Section
+// text is whitespace-squashed for the comparison, so re-wrapping is no change. Pure.
+func contractChangeNotes(before, after string) []string {
+	var notes []string
+	for _, sec := range contractSections {
+		b, _ := issue.SectionBody(before, sec)
+		a, _ := issue.SectionBody(after, sec)
+		if strings.Join(strings.Fields(b), " ") == strings.Join(strings.Fields(a), " ") {
+			continue
+		}
+		notes = append(notes, fmt.Sprintf("`## %s` changed since the close review (the issue body is outside the window's diff). "+
+			"Judge whether this records the fix or changes scope (scope → REWORK).\n  BEFORE:\n%s\n  AFTER:\n%s",
+			sec, indentNote(clipNote(b)), indentNote(clipNote(a))))
+	}
+	return notes
+}
+
+func clipNote(s string) string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return "(empty)"
+	}
+	if len(s) > maxContractNoteSection {
+		return s[:maxContractNoteSection] + " … (clipped; read the issue file)"
+	}
+	return s
+}
+
+func indentNote(s string) string {
+	return "    " + strings.ReplaceAll(s, "\n", "\n    ")
 }
 
 // fixedThenShipNotes are the review notes a fix window carries: the conflict
@@ -98,4 +144,4 @@ const doneWhenReviewNote = "the contract (`## Spec` / `## Revisions`) changed si
 
 // doneWhenLogTag is the close log line's record of a deferred check (the verdict
 // annotation that follows it names the judging review).
-const doneWhenLogTag = " (done-when: contract moved since change-code; judged by the review)"
+const doneWhenLogTag = " (done-when: contract moved since change-code; judged by the close review)"

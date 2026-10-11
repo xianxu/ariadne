@@ -254,13 +254,7 @@ func publishDeltaRank(d publishDelta) int {
 	if d.Unresolvable != "" || len(d.Conflicted) > 0 {
 		return 1 << 30
 	}
-	code := 0
-	for _, p := range d.Paths {
-		if publishGateHasCodeSurface([]string{p}) {
-			code++
-		}
-	}
-	if code > 0 {
+	if code := len(codeSurfacePaths(d.Paths)); code > 0 {
 		return 2 + code
 	}
 	if len(d.Paths) > 0 {
@@ -293,7 +287,7 @@ func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
 		return false, fmt.Sprintf("%s: %s.%s", publishGateRefusal, d.Unresolvable, reclose)
 	case len(d.Conflicted) > 0:
 		next := fixed
-		if code := conflictedCode(d.Conflicted); len(code) > 0 {
+		if code := codeSurfacePaths(d.Conflicted); len(code) > 0 {
 			// Operator decision (#320): only the review narrows; the full suite still runs.
 			next = fmt.Sprintf("\n  Run the full test suite (`make test`; only the review narrows), then\n"+
 				"  Re-run `sdlc close --issue %s --fixed-then-ship --full-suite '<evidence>' --verified '<evidence>'`:\n"+
@@ -302,13 +296,7 @@ func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
 		return false, fmt.Sprintf("%s: main's changes conflict with the reviewed patch in %s — the resolution is unreviewed.%s",
 			publishGateRefusal, strings.Join(d.Conflicted, ", "), next)
 	}
-	var code []string
-	for _, p := range d.Paths {
-		if publishGateHasCodeSurface([]string{p}) {
-			code = append(code, p)
-		}
-	}
-	switch {
+	switch code := codeSurfacePaths(d.Paths); {
 	case len(code) > 0:
 		return false, fmt.Sprintf("%s: code changed after `sdlc close` (reviewed %s): %s.%s\n"+
 			"  (Merging or rebasing main never counts — only the branch's own changes do, #304. Doc-only deltas pass on their own, #174.)",

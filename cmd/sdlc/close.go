@@ -646,6 +646,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			die(stderr, why)
 		}
 		reviewNotes = append(reviewNotes, fixedThenShipNotes(review)...)
+		reviewNotes = append(reviewNotes, contractChangeNotes(issueBodyAt(stderr, repoTop, issuePath, review.HumanBase), body)...)
 	}
 	if flowOutcome.doneWhenDeferred {
 		reviewNotes = append(reviewNotes, doneWhenReviewNote)
@@ -2164,4 +2165,26 @@ func orPlaceholder(s, fallback string) string {
 		return fallback
 	}
 	return s
+}
+
+// issueBodyAt is the issue body as of commit rev (#183 BR-1): what the close review
+// read, for contractChangeNotes. A file the commit cannot show (renamed since) warns
+// and compares as empty, which over-reports a change rather than hiding one.
+func issueBodyAt(stderr io.Writer, repoTop, issuePath, rev string) string {
+	abs, err := filepath.Abs(issuePath)
+	if err == nil {
+		var rel string
+		if rel, err = filepath.Rel(canonRoot(repoTop), canonRoot(abs)); err == nil {
+			var out []byte
+			if out, err = gitx.RunGit("show", rev+":"+filepath.ToSlash(rel)); err == nil {
+				_, body, perr := issue.Parse(string(out))
+				if perr == nil {
+					return body
+				}
+				err = perr
+			}
+		}
+	}
+	cwarn(stderr, fmt.Sprintf("fixed-then-ship: the issue as of the close review (%s) is unreadable (%v) — its contract compares as empty", abbrevSHA(rev), err))
+	return ""
 }

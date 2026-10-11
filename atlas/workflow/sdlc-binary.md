@@ -314,7 +314,7 @@ not. That is either a reframe or a review-fix Revisions entry, and only a reader
 the diff can tell which. So `doneWhenDecision` (`closefixed.go`) defers to the
 close review whenever one runs. The prompt carries the note through
 `ReviewNotes`, the reviewer states `Done-when: current|stale`, and the close log
-line records `done-when: … judged by the review` before its verdict annotation.
+line records `done-when: … judged by the close review` before its verdict annotation.
 Under `--no-judge` the deterministic refusal stands (`--no-done-when-fresh` waives
 it). A review that did not run never finalizes, so it cannot pass the check.
 
@@ -1307,7 +1307,9 @@ main changes commits, not the patch, so neither widens a window.
   unplannable window is `windowNone`, and close refuses, naming the full close. The
   `fix-review` recipe (`internal/judge/prompts/fix-review.md`) disposes the prior
   findings, judges listed conflict resolutions (`PromptInput.ReviewNotes`), and
-  treats a scope change as REWORK. The atlas gate and the quick-flow shell stay on
+  treats a scope change as REWORK. The window excludes the issues directory, so
+  `contractChangeNotes` compares Spec/Revisions/Done-when, as the issue stood at the
+  reviewed head, with now, and passes each changed section as a note (BR-1). The atlas gate and the quick-flow shell stay on
   the branch patch. A code-conflict resolution needs `--full-suite '<evidence>'`
   (`fixedThenShipRefusal`, `closefixed.go`; only the review narrows). Finalizing is
   an ordinary close: a new evidence commit rebinds the card, so the publish anchor

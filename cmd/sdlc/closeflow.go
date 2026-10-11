@@ -88,7 +88,7 @@ func closeFlowStep(stderr io.Writer, f *closeFlags, mode, issuePath, fm, body, w
 
 // checkQuickDoneWhen runs the quick flow's two checks before its one review:
 // Done-when must have a bullet (it is the review's only oracle), and must have moved
-// if the contract did since change-code — judged by the review when one runs (F3,
+// if the contract did since change-code — judged by the close review when one runs (F3,
 // doneWhenDecision), which it reports by returning true.
 func checkQuickDoneWhen(stderr io.Writer, f *closeFlags, rec flow.Flow, body string) (deferred bool) {
 	if err := flow.DoneWhenPresent(body); err != nil {
