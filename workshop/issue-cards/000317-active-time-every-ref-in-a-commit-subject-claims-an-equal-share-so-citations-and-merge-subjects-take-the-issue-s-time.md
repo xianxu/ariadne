@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.17
+actual_hours: 0.36
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000317-active-time-every-ref-in-a-commit-subject-claims-an-equal-share-so-citations-and-merge-subjects-take-the-issue-s-time.md
         main_commit: 1eed30730a6734d69c8fb52fe462552138aa4dff
     completion:
-        token: close-f8065782811b
+        token: close-76b260e4c239
         repository: github.com/xianxu/ariadne
-        reviewed_head: 57bb1c283b62ec2b90139fada28f40d2d98a2f83
-        evidence_commit: 9e559e32438c20aba17857ac6a684ab63a1cd110
+        reviewed_head: ed89620af14a2b72377ccdf49f9d10c588a00a23
+        evidence_commit: 654e9966a99abd14cbeeb1b78d345536eb7deb11
 ---
 
 # active-time: every ref in a commit subject claims an equal share, so citations and merge subjects take the issue's time
