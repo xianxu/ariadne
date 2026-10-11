@@ -44,7 +44,9 @@ FLAGS
                         Default: explicit --agent, then AGENT_CMD, then
                         PAIR_AGENT/current known agent signals, then claude.
   --tools <list>        comma-separated tool allowlist for claude. Default:
-                        Read,Grep,Glob,Bash — read-only for ALL categories
+                        Read,Grep,Glob,Bash — no Edit/Write for ALL categories
+                        (enforced by --permission-mode dontAsk, #310; Bash
+                        itself is not restricted)
                         (#62 M2: a judge is a reviewer, not a doer; it reports
                         findings and the main agent applies fixes). `specs`
                         used to get Edit,Write to auto-fix docs, which could
@@ -67,7 +69,7 @@ FLAGS
   --dry-run             print the prompt + would-be command line; do not
                         invoke the agent. Useful for verifying behavior
                         in restricted environments.
-  --sandbox             retired (#310): judges always run read-only; no effect.
+  --sandbox             retired (#310): no judge gets an auto-approve mode; no effect.
 
 OUTPUT CLASSIFICATION
 

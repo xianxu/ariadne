@@ -871,7 +871,7 @@ func TestBuildArgs_Claude(t *testing.T) {
 	}
 }
 
-// TestBuildArgs_ReadOnlyPerContainment pins each CLI's read-only mode at each
+// TestBuildArgs_ReadOnlyPerContainment pins each CLI's permission mode at each
 // containment level (#310): no judge ever gets an auto-approve mode.
 func TestBuildArgs_ReadOnlyPerContainment(t *testing.T) {
 	cases := []struct {

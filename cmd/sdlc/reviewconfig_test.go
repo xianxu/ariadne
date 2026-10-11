@@ -48,7 +48,7 @@ func TestLoadReviewerPolicy(t *testing.T) {
 
 // #310's contract end to end: with `other` configured, a claude-driven boundary
 // is reviewed by codex and a codex-driven one by claude, the reviewer runs in
-// its read-only mode, and the ledger round records who reviewed.
+// its non-auto-approve mode, and the ledger round records who reviewed.
 func TestBoundaryReviewOtherPolicySwapsReviewer(t *testing.T) {
 	for _, tc := range []struct{ main, want, mode string }{
 		{"claude", "codex", "--sandbox workspace-write"},
@@ -84,7 +84,7 @@ func TestBoundaryReviewOtherPolicySwapsReviewer(t *testing.T) {
 				t.Errorf("codex-cannot-nest warning shown=%v for a %s reviewer:\n%s", warned, tc.want, errb.String())
 			}
 			if !strings.Contains(strings.Join(agentArgs, " "), tc.mode) {
-				t.Errorf("%s reviewer argv lacks its read-only mode %q: %q", tc.want, tc.mode, agentArgs)
+				t.Errorf("%s reviewer argv lacks its permission mode %q: %q", tc.want, tc.mode, agentArgs)
 			}
 			persistBoundaryRound(&errb, p, res, "2026-10-11T12:00:00-07:00")
 			l, err := readBoundaryGateLedger(p.PlansDir, "000069-x.md", 69)

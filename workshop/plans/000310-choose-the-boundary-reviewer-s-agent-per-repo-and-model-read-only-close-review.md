@@ -98,3 +98,97 @@ findings:
     title: |
       cmd/doc-review still passes claude bypassPermissions to its reviewer (outside #310's scope)
 ```
+
+---
+
+## Re-review — 2026-10-11T09:55:58-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 310 — Choose the boundary reviewer's agent per repo, and model read-only |
+| repo | ariadne |
+| issue file | workshop/issues/000310-choose-the-boundary-reviewer-s-agent-per-repo-and-model-read-only.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 15b365d31f1d17f8217476a7baf62fb741f47549..4ea45451f02a6104f95f63ca7048c7c2d34c75b0 |
+| command | sdlc close --issue 310 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-11T09:55:58-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Checking the fix round now: four of the five prior findings look addressed. The remaining question is whether the new "judges always run read-only" flag text repeats BR-1. Next I'm running the tests.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The issue's purpose is delivered and tested, and four of the five prior findings are fixed. BR-1 is only partly fixed:
+
+- **What's done.** A repo can choose its reviewer in `workshop/review.json` (`same`, `other` or `explicit`). An invalid file halts the review and names the file. A claude-driven close is reviewed by codex, and the reverse, with the reviewer recorded in the ledger round. `Containment` maps each CLI to its own no-auto-approve mode.
+- **What's checked.** Build and vet are clean. These all pass: `go test ./cmd/sdlc/internal/judge/`, `./cmd/doc-review/`, and the targeted `cmd/sdlc` tests (`TestLoadReviewerPolicy`, `TestBoundaryReview*`, `TestProcessAlive*`).
+- **What blocks SHIP.** BR-1 was fixed at the two places the finding named, and those two now say plainly that Bash writes still go through. But the same range added four more user-facing strings that say "judges always run read-only". They sit on exactly the judges where that is least true: `sdlc judge` and `change-code` (plan-quality) run in the operator's tree with no fence. The new `close.md` text itself admits a claude judge's Bash can still write there.
+
+1. **Strengths**
+   - `agent_resolver.go`: `ResolveAgentCLI` is now just the `same` case of `ResolveReviewerCLI`, so the resolution order lives in one place (ARCH-DRY). The policy is pure, and its zero value is `same`.
+   - `reviewconfig.go:39`: `DisallowUnknownFields` plus `Validate` means a typo in the file fails loudly instead of quietly reviewing with `same`.
+   - `milestoneclose.go:806`: the policy is read from the source checkout before the root moves to the review clone, so config is trusted from the operator's tree.
+   - `TestBuildArgs_ReadOnlyPerContainment` checks every agent × containment level and asserts that no auto-approve flag appears.
+   - `TestBoundaryReviewOtherPolicySwapsReviewer` covers the Done-when end to end: the swap, the argv, the darwin-only warning and the ledger `Agent` field.
+
+2. **Critical**: none.
+
+3. **Important**
+   - BR-1 is re-raised below (`not-addressed`): the class of overclaiming strings wasn't swept.
+   - The sites still overclaiming: `cmd/sdlc/judge.go:68-69` and `cmd/sdlc/changecode.go:104-105` (flag usage and `MarkDeprecated` message), `cmd/sdlc/helptext/judge.md:70`, `cmd/sdlc/helptext/change-code.md:185`, and loosely `cmd/sdlc/helptext/milestone-close.md:44` ("read-only, inside a disposable clone").
+   - **This is the 3rd finding in family `read-only-claim-exceeds-enforcement`**, so the rule matters more than another instance fix. The rule: no user-facing text may call a judge "read-only" without the enforced scope, which is "Edit/Write refused, no auto-approve; shell writes bounded only by the review checkout / #204 fence".
+   - Fix: grep the help text, flag text and deprecation messages for `read-only` claims about judges. Replace each with the scoped wording, or with "no auto-approve mode", which is true everywhere.
+
+4. **Minor**
+   - `term.go:3`: the reflowed header comment is now one overlong line.
+   - The darwin-gated codex warning still fires for any unfenced darwin review, whatever `iso.Reason` says. That is acceptable, since on darwin the only realistic reason is a nested Seatbelt.
+
+5. **Test coverage**
+   - BR-2: `TestBoundaryReviewOtherPolicySwapsReviewer` pins the warning to `runtime.GOOS == "darwin"`, so on Linux it would fail if the gate were dropped.
+   - BR-5: `TestBuildArgs_ReadOnly` asserts `--permission-mode dontAsk`, so it fails without the fix.
+   - Still missing: a test that a claude judge cannot write through Bash. It can, by design, so the fix belongs in the docs, not in a new test.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.**
+   - **ARCH-PURE: pass.** The policy and argv mapping are pure; the loader is a thin IO shell.
+   - **ARCH-PURPOSE: flag.** The BR-1 class sweep is incomplete, as above.
+   - **ARCH-MOCK: pass.** Tests go through the `judge.Run` seam and the `reviewbox.Probe` fake.
+   - **ARCH-CONSTRAINTS: pass.** Nothing new runs on a hot path.
+   - **ARCH-SECURE: flag.** Same finding: the trust claim is wider than what's enforced. The config parsing itself is strict and typed.
+   - **ARCH-ORDER: pass.** Two booleans collapsed into one enum, and nothing new holds state between events.
+   - **ARCH-FUNERAL: pass.** The only new artifact is one optional config file the operator owns.
+
+7. **Plan revisions**
+   - Add a `## Revisions` line: "read-only" for judges means no auto-approve mode and Edit/Write refused; shell writes are bounded by the review checkout or fence, not refused, and all help and flag text says so.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: not-addressed
+    note: |
+      close.md REVIEWER and atlas sdlc-binary.md were reworded honestly, but the same range added "judges always run read-only" to the --sandbox flag usage and MarkDeprecated text (judge.go:68-69, changecode.go:104-105) and helptext judge.md:70 / change-code.md:185, which are exactly the unfenced ContainNone judges whose claude Bash can write the operator tree; milestone-close.md:44 also says "read-only". 3rd instance of read-only-claim-exceeds-enforcement. Rule: no user-facing text calls a judge read-only without the enforced scope (Edit/Write refused, no auto-approve; shell writes bounded only by checkout/fence). Sweep every such string.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      milestoneclose.go:676 gates the warning on runtime.GOOS == "darwin"; TestBoundaryReviewOtherPolicySwapsReviewer asserts warned == (codex and darwin).
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The plan checkbox now says openshell-sandbox describes the main agents and is unchanged; no atlas claim remains for that file.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      agent_resolver.go:99 now reads "reviewer_pairs applies only to boundary_reviewer \"explicit\"".
+  - id: BR-5
+    disposition: addressed
+    note: |
+      doc-review/review.go:165 now uses dontAsk; TestBuildArgs_ReadOnly asserts --permission-mode dontAsk and fails without the fix.
+```

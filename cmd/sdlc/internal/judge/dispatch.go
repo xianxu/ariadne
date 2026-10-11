@@ -42,7 +42,7 @@ type DispatchOptions struct {
 	// applied in BuildArgs, so the dispatch and the --dry-run line agree.
 	Wrap func(name string, args []string) (string, []string)
 	// Containment is what bounds the agent's writes; agentArgs maps it to each
-	// CLI's read-only mode (#310).
+	// CLI's own permission mode (#310).
 	Containment Containment
 	// BeforeRetry, when set, runs before the no-verdict retry's attempt 2 (#204:
 	// it resets the review checkout, so attempt 2 never reads attempt 1's

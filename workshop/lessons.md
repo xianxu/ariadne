@@ -431,3 +431,9 @@ The simplest durable authority beats a clever scan of consequences.
 - A retry inherits every piece of mutable state the first attempt touched.
   When an attempt may mutate a resource (a review checkout), give the retry a
   reset hook and test it with residue left by attempt 1 (#204 BR-2).
+- A word like "read-only" in help, flag usage or deprecation text is a claim
+  about enforcement. Before writing it, name the mechanism that enforces it for
+  every caller the text covers. #310 called every judge read-only while claude's
+  Bash stayed unrestricted outside the #204 fence. Rewording the one paragraph
+  the review cited left the same claim in four other strings. Grep the diff for
+  the word and fix every string in one pass.

@@ -41,10 +41,12 @@ WHAT IT DOES
        unified patch stays in Git instead of entering the agent argv/prompt
      - Snapshots every mutable prose artifact named to the unlocked reviewer;
        issue/project/plan edits or plan presence changes refuse finalization
-     - Invokes the repo's reviewer (#310; the main agent by default),
-       read-only, inside a disposable shared clone of the pinned head, under
-       an OS write fence on the source checkout when one applies; clone-only
-       (with a warning) where it cannot nest. The round and sidecar record `isolation: fenced|checkout` (#204)
+     - Invokes the repo's reviewer (#310; the main agent by default; no
+       auto-approve mode, see REVIEWER in `sdlc close --help`) inside a
+       disposable shared clone of the pinned head, under an OS write fence
+       on the source checkout when one applies; clone-only (with a warning)
+       where it cannot nest. The round and sidecar record
+       `isolation: fenced|checkout` (#204)
      - Routes harness diagnostics/progress to terminal stderr; verdict parsing
        and the durable `-m<x>-review.md` consume only the semantic final response
      - Surfaces findings + classifies clean / info / failure

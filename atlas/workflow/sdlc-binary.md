@@ -985,7 +985,7 @@ plus `<id>.lock`.
 
 Bound: one clone per live review, plus whatever the sweep has warned about.
 
-**Which agent reviews, and its read-only mode (#310).** `workshop/review.json`
+**Which agent reviews, and its permission mode (#310).** `workshop/review.json`
 (repo-local) sets `boundary_reviewer`: `same` (default), `other` (claude and
 codex review each other) or `explicit` with `reviewer_pairs`. The pure
 `judge.ReviewerPolicy` maps the main agent (`judge.MainAgent`: `PAIR_AGENT`,

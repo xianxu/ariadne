@@ -37,6 +37,34 @@ rounds:
       recipe: milestone-review
       isolation: checkout
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-11T09:55:58-07:00"
+      dispatched: "2026-10-11T09:54:42-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: not-addressed
+          note: 'close.md REVIEWER and atlas sdlc-binary.md were reworded honestly, but the same range added "judges always run read-only" to the --sandbox flag usage and MarkDeprecated text (judge.go:68-69, changecode.go:104-105) and helptext judge.md:70 / change-code.md:185, which are exactly the unfenced ContainNone judges whose claude Bash can write the operator tree; milestone-close.md:44 also says "read-only". 3rd instance of read-only-claim-exceeds-enforcement. Rule: no user-facing text calls a judge read-only without the enforced scope (Edit/Write refused, no auto-approve; shell writes bounded only by checkout/fence). Sweep every such string.'
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: milestoneclose.go:676 gates the warning on runtime.GOOS == "darwin"; TestBoundaryReviewOtherPolicySwapsReviewer asserts warned == (codex and darwin).
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: The plan checkbox now says openshell-sandbox describes the main agents and is unchanged; no atlas claim remains for that file.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: agent_resolver.go:99 now reads "reviewer_pairs applies only to boundary_reviewer \"explicit\"".
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: doc-review/review.go:165 now uses dontAsk; TestBuildArgs_ReadOnly asserts --permission-mode dontAsk and fails without the fix.
+          round: 2
+      recipe: milestone-review
+      isolation: checkout
+      blocked: true
 ---
 
 # Gate ledger — ariadne#310 (boundary-review)
@@ -55,10 +83,16 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `error-message-clarity` Validate's "reviewer_pairs is read only with" wording can be misread as read-only
 - **BR-5** [Minor] `read-only-claim-exceeds-enforcement` cmd/doc-review still passes claude bypassPermissions to its reviewer (outside #310's scope)
 
+## Round 2 — 2026-10-11T09:55:58-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — not-addressed — close.md REVIEWER and atlas sdlc-binary.md were reworded honestly, but the same range added "judges always run read-only" to the --sandbox flag usage and MarkDeprecated text (judge.go:68-69, changecode.go:104-105) and helptext judge.md:70 / change-code.md:185, which are exactly the unfenced ContainNone judges whose claude Bash can write the operator tree; milestone-close.md:44 also says "read-only". 3rd instance of read-only-claim-exceeds-enforcement. Rule: no user-facing text calls a judge read-only without the enforced scope (Edit/Write refused, no auto-approve; shell writes bounded only by checkout/fence). Sweep every such string.
+- BR-2 — addressed — milestoneclose.go:676 gates the warning on runtime.GOOS == "darwin"; TestBoundaryReviewOtherPolicySwapsReviewer asserts warned == (codex and darwin).
+- BR-3 — addressed — The plan checkbox now says openshell-sandbox describes the main agents and is unchanged; no atlas claim remains for that file.
+- BR-4 — addressed — agent_resolver.go:99 now reads "reviewer_pairs applies only to boundary_reviewer \"explicit\"".
+- BR-5 — addressed — doc-review/review.go:165 now uses dontAsk; TestBuildArgs_ReadOnly asserts --permission-mode dontAsk and fails without the fix.
+
 ## Open findings
 
 - **BR-1** [Important] `read-only-claim-exceeds-enforcement` Help/atlas say every judge runs read-only, but claude's unrestricted Bash (and codex workspace-write) still let shell writes through
-- **BR-2** [Minor] `warning-scope-too-broad` The codex cannot-nest warning fires on any unfenced review, including Linux without bwrap where codex's sandbox works
-- **BR-3** [Minor] `plan-claims-undelivered-item` Plan checkbox claims an atlas update to openshell-sandbox; the range does not touch that file
-- **BR-4** [Minor] `error-message-clarity` Validate's "reviewer_pairs is read only with" wording can be misread as read-only
-- **BR-5** [Minor] `read-only-claim-exceeds-enforcement` cmd/doc-review still passes claude bypassPermissions to its reviewer (outside #310's scope)

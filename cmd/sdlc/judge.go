@@ -65,8 +65,8 @@ func NewJudgeCmd() *cobra.Command {
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
 	cmd.Flags().StringVar(&f.PlansDir, "plans-dir", envOr("WF_PLANS_DIR", "workshop/plans"), "directory holding optional durable plans (milestone-review, plan-quality)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print prompt + would-be command; do not invoke agent")
-	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", false, "retired (#310): judges always run read-only")
-	_ = cmd.Flags().MarkDeprecated("sandbox", "judges always run read-only (#310); the flag has no effect")
+	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", false, "retired (#310): judges never get an auto-approve mode")
+	_ = cmd.Flags().MarkDeprecated("sandbox", "judges never get an auto-approve mode (#310); the flag has no effect")
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "ariadne workshop issue ID (milestone-review; required by plan-quality)")
 	cmd.Flags().StringVar(&f.Milestone, "milestone", "", "milestone tag e.g. M4 (milestone-review only)")
 	return cmd

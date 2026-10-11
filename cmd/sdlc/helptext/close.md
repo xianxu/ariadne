@@ -384,7 +384,7 @@ REVIEWER (#310)
   checkout is the OS fence (#204), whatever the agent; without it, only
   codex's own sandbox does. Plan-quality and `sdlc judge` run in the operator's
   tree with no fence, so a claude judge's Bash can still write there.
-  Codex's read-only mode is its own Seatbelt, which cannot nest where the
+  Codex's sandbox is its own Seatbelt on macOS, which cannot nest where the
   fence probe failed (sdlc inside Claude Code's sandbox): its commands are then
   refused and close warns. Run a codex reviewer from an unsandboxed sdlc.
 
