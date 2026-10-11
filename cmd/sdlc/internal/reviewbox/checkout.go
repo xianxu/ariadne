@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 // Checkout is one review round's disposable clone. Its lifecycle (ARCH-FUNERAL):
@@ -28,6 +29,9 @@ type Checkout struct {
 const (
 	lockSuffix    = ".lock"
 	tmpLockSuffix = ".lock.tmp"
+	// tmpLockGrace is how old an unheld .lock.tmp must be before Sweep calls its
+	// creator dead. Create renames it within microseconds; a minute is margin.
+	tmpLockGrace = time.Minute
 )
 
 // Root is where review checkouts live: WF_REVIEW_CHECKOUT_ROOT, else
@@ -63,8 +67,10 @@ func Create(root, src, head string, overlays []string) (co *Checkout, err error)
 	if err != nil {
 		return nil, err
 	}
-	// Hold the lock before its name is visible, so a concurrent sweep can never
-	// see an unheld lock for a live checkout.
+	// The published <id>.lock is held from the moment it is visible. The
+	// <id>.lock.tmp it is renamed from is unheld for the instant between create
+	// and flock; Sweep leaves any .lock.tmp younger than tmpLockGrace alone, so
+	// it never reclaims one a live Create is still locking.
 	tmp := filepath.Join(root, id+tmpLockSuffix)
 	f, err := os.OpenFile(tmp, os.O_CREATE|os.O_EXCL|os.O_RDWR, 0o600)
 	if err != nil {
@@ -145,7 +151,8 @@ func (c *Checkout) lockPath() string { return c.Dir + lockSuffix }
 // be taken is held by nobody, because the kernel drops a flock when its holder
 // dies (no pid-reuse ambiguity). A directory without a lock is debris from a
 // sweep or a create that was killed midway; an unheld <id>.lock.tmp is a create
-// killed before it published its lock. Best effort: one entry that cannot be
+// killed before it published its lock, once it is older than tmpLockGrace.
+// Best effort: one entry that cannot be
 // removed is reported and skipped, never a reason to refuse the next review.
 func Sweep(root string) (removed int, problems []error) {
 	entries, err := os.ReadDir(root)
@@ -165,6 +172,9 @@ func Sweep(root string) (removed int, problems []error) {
 		var err error
 		switch {
 		case strings.HasSuffix(name, tmpLockSuffix):
+			if info, ierr := e.Info(); ierr != nil || time.Since(info.ModTime()) < tmpLockGrace {
+				continue // possibly a Create between its create and its flock
+			}
 			gone, err = reclaim(root, strings.TrimSuffix(name, tmpLockSuffix), name)
 		case strings.HasSuffix(name, lockSuffix):
 			gone, err = reclaim(root, strings.TrimSuffix(name, lockSuffix), name)

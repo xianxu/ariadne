@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
@@ -179,6 +180,13 @@ func TestSweepReclaimsDeadOwnerAndSparesLiveOne(t *testing.T) {
 		t.Fatal(err)
 	}
 	write(t, filepath.Join(root, "cafe"+tmpLockSuffix), "")
+	stale := time.Now().Add(-2 * tmpLockGrace)
+	if err := os.Chtimes(filepath.Join(root, "cafe"+tmpLockSuffix), stale, stale); err != nil {
+		t.Fatal(err)
+	}
+	// A fresh .lock.tmp may be a live Create between its create and its flock.
+	fresh := filepath.Join(root, "f00d"+tmpLockSuffix)
+	write(t, fresh, "")
 	// An entry the sweep cannot handle must not stop it or a later Create.
 	if err := os.MkdirAll(filepath.Join(root, "bad"+lockSuffix), 0o755); err != nil {
 		t.Fatal(err)
@@ -195,6 +203,9 @@ func TestSweepReclaimsDeadOwnerAndSparesLiveOne(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(live.Dir, "a.txt")); err != nil {
 		t.Fatalf("the sweep removed a live review's checkout: %v", err)
+	}
+	if _, err := os.Stat(fresh); err != nil {
+		t.Fatalf("the sweep reclaimed a fresh .lock.tmp a live Create may be locking: %v", err)
 	}
 	next, err := Create(root, src, h2, nil)
 	if err != nil {

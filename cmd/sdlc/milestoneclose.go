@@ -569,7 +569,7 @@ func appendVerdictSuffix(text, milestone string, verdict judge.Verdict) (string,
 type boundaryReviewParams struct {
 	Context context.Context // caller cancellation follows the unlocked review
 	// The prompt's issue ref is no longer carried here — it's derived from the
-	// live git context in boundaryReviewDispatchOptions (#137, via IssueNum +
+	// live git context in boundaryReviewOptionsFor (#137, via IssueNum +
 	// Milestone + the repo root), so it names the actual repo (e.g. pair#69).
 	Label                string // commit-subject substring for messages, e.g. "#69 M1"
 	Base, BaseLong, Head string // review window (short base, long base, long reviewed head — #194)
@@ -615,17 +615,9 @@ type boundaryReviewParams struct {
 }
 
 func printBoundaryReviewDryRun(stdout, stderr io.Writer, p boundaryReviewParams) error {
-	manifest, reason := boundaryReviewManifest(p)
-	if reason != "" {
-		return errors.New(reason)
-	}
-	iso, err := plannedReviewIsolation(manifest)
+	opts, err := plannedBoundaryReviewOptions(stdout, stderr, p)
 	if err != nil {
 		return err
-	}
-	opts, ok, reason := boundaryReviewOptionsFor(stdout, stderr, p, manifest, &iso)
-	if !ok {
-		return errors.New(reason)
 	}
 	cmdLine, err := judge.FormatCommandLine(opts)
 	if err != nil {
@@ -744,12 +736,23 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	return rr
 }
 
-func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewParams) (judge.DispatchOptions, bool, string) {
+// plannedBoundaryReviewOptions is the dispatch a review of p would run, minus
+// the checkout itself: the probed fence around a placeholder checkout path.
+// --dry-run prints it; it creates nothing.
+func plannedBoundaryReviewOptions(stdout, stderr io.Writer, p boundaryReviewParams) (judge.DispatchOptions, error) {
 	manifest, reason := boundaryReviewManifest(p)
 	if reason != "" {
-		return judge.DispatchOptions{}, false, reason
+		return judge.DispatchOptions{}, errors.New(reason)
 	}
-	return boundaryReviewOptionsFor(stdout, stderr, p, manifest, nil)
+	iso, err := plannedReviewIsolation(manifest)
+	if err != nil {
+		return judge.DispatchOptions{}, err
+	}
+	opts, ok, reason := boundaryReviewOptionsFor(stdout, stderr, p, manifest, &iso)
+	if !ok {
+		return judge.DispatchOptions{}, errors.New(reason)
+	}
+	return opts, nil
 }
 
 // boundaryReviewManifest resolves the pinned window p reviews, or the reason it can't.

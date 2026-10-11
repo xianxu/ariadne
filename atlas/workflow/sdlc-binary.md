@@ -1348,7 +1348,7 @@ ARCH-PURE, ARCH-MOCK).
 note (base detected via `construct/base.manifest`); these are passed as plain
 strings into the pure `internal/judge` layer (`PromptInput` → `code-review.md`
 header), keeping git IO at the cmd boundary (ARCH-PURE). Computed once in the
-shared `boundaryReviewDispatchOptions` (ARCH-DRY); the same derivation feeds the
+shared `boundaryReviewOptionsFor` (ARCH-DRY); the same derivation feeds the
 sidecar H1.
 
 **Two-phase close, finalize-after-verdict (#139).** `sdlc close` and

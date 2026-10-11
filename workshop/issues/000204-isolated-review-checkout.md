@@ -213,3 +213,17 @@ the plan's Revisions). BR-4: the fenced path can't be run live from a sandboxed
 slot. The probe now proves the fence on every dispatch, through the production
 argv, before claiming `fenced`. `TestProbeRejectsAFenceThatDoesNotDeny` pins
 that check, and `TestFenceDeniesSourceWrites` remains for an unsandboxed run.
+
+### 2026-10-11 — post-SHIP: the two advisory Minors fixed
+
+- **Sweep race:** a concurrent sweep could reclaim a just-created
+  `.lock.tmp` before Create locked it. The rule is that the sweep acts only on
+  a name whose owner is provably dead, so it now skips `.lock.tmp` younger
+  than `tmpLockGrace` (1m). The test asserts that a fresh tmp survives a sweep.
+- **Test-only helper:** `boundaryReviewDispatchOptions` (no isolation) was
+  reached only from tests. It became `plannedBoundaryReviewOptions` (the
+  dry-run builder, with the probed fence and a placeholder checkout), so the
+  prompt tests check what production sends. The small-diff replay harness
+  opens a real checkout.
+
+Landed through `sdlc close --fixed-then-ship`.

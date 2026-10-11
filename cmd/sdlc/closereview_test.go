@@ -687,7 +687,7 @@ func TestClose_RecloseRefusal_NamesNewIssuePath(t *testing.T) {
 	}
 }
 
-// #194 M1 review I4: the milestone's ACTUAL defect fix — boundaryReviewDispatchOptions
+// #194 M1 review I4: the milestone's ACTUAL defect fix — the boundary dispatch options
 // spending p.Head rather than re-resolving "HEAD" — had no test. It runs AFTER
 // reviewThenFinalizeLocked releases the repo lock, so a literal "HEAD" there could
 // collect a diff naming a different commit than the snapshot pinned. The two
@@ -715,12 +715,12 @@ func TestBoundaryReviewDispatchOptions_DiffIsPinnedToHead(t *testing.T) {
 	git(t, "", "commit", "-q", "-m", "#69: landed during the review")
 
 	var stdout, stderr bytes.Buffer
-	opts, ok, reason := boundaryReviewDispatchOptions(&stdout, &stderr, boundaryReviewParams{
+	opts, err := plannedBoundaryReviewOptions(&stdout, &stderr, boundaryReviewParams{
 		Label: "#69", Base: shortSHA(base), BaseLong: base, Head: reviewed,
 		IssuesDir: issuesDir, IssueNum: 69,
 	})
-	if !ok {
-		t.Fatalf("dispatch options not built: %s", reason)
+	if err != nil {
+		t.Fatalf("dispatch options not built: %v", err)
 	}
 	if strings.Contains(opts.Prompt, "REVIEWED_MARKER") {
 		t.Error("the prompt must not embed the reviewed patch")
@@ -752,12 +752,12 @@ func TestBoundaryReviewDispatchOptions_LargePinnedPatchDoesNotEnterPrompt(t *tes
 		t.Fatal("fixture does not put the sentinel inside the pinned Git range")
 	}
 
-	opts, ok, reason := boundaryReviewDispatchOptions(io.Discard, io.Discard, boundaryReviewParams{
+	opts, err := plannedBoundaryReviewOptions(io.Discard, io.Discard, boundaryReviewParams{
 		Label: "#69", Base: shortSHA(base), BaseLong: base, Head: reviewed,
 		IssuesDir: issuesDir, IssueNum: 69,
 	})
-	if !ok {
-		t.Fatalf("dispatch options not built: %s", reason)
+	if err != nil {
+		t.Fatalf("dispatch options not built: %v", err)
 	}
 	if strings.Contains(opts.Prompt, marker) {
 		t.Fatal("boundary prompt contains bytes from the large pinned patch")
