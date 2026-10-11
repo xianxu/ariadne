@@ -132,12 +132,12 @@ with these properties:
 Durable plan: `workshop/plans/000202-a-finding-has-no-implementer-side-disposition-only-the-judge-can-retract-plan.md`
 (single boundary — closes in one `sdlc close`).
 
-- [ ] Model: `authority` (judge vs implementer), `appealOnly: hardBlocking`, closing `disputed`
-- [ ] Ledger: `Disputes` stream merged into one round-ordered timeline; judge may not emit `disputed`
-- [ ] Prompt + decision: next judge answers each live dispute; gate line counts disputes
-- [ ] Verb `sdlc finding dispute` (evidence mandatory, owner-only, narrow commit, recovery contract)
-- [ ] Loudness: dispute warning on both gates, `gate_disputed` + `boundary_disputed` TSV columns
-- [ ] Docs: help, gatefindings routing, AGENTS.base.md §3, atlas, README
+- [x] Model: `authority` (judge vs implementer), `appealOnly: hardBlocking`, closing `disputed`
+- [x] Ledger: `Disputes` stream merged into one round-ordered timeline; judge may not emit `disputed`
+- [x] Prompt + decision: next judge answers each live dispute; gate line counts disputes
+- [x] Verb `sdlc finding dispute` (evidence mandatory, owner-only, narrow commit, recovery contract)
+- [x] Loudness: dispute warning on both gates, `gate_disputed` + `boundary_disputed` TSV columns
+- [x] Docs: help, gatefindings routing, AGENTS.base.md §3, atlas, README
 - [ ] Close: `make test` green, `sdlc close`
 
 ## Log
@@ -145,3 +145,13 @@ Durable plan: `workshop/plans/000202-a-finding-has-no-implementer-side-dispositi
 - 2026-10-10: claimed (ops:0 dispatch); design in the durable plan. Critical is appeal-only
   (dispute recorded and shown to the judge, keeps blocking) rather than refused or
   operator-acknowledged — an ack flag is a bypass the agent can pass itself.
+- 2026-10-10: change-code inferred the QUICK flow (design under 500 lines). The code is past
+  the 100-line shell, but `--flow` is the operator's pin, so I left it: close upgrades to the
+  full boundary review once the diff leaves the shell. No plan-quality round or estimate ran.
+- 2026-10-10: built in six commits (model, ledger, prompt/decision, verb, loudness, docs).
+  Design deltas from the plan: the dispute line lives on `Decision.DisputeLine()` and is
+  printed only by `stampAndPersist` (in Reason too, it printed twice); `AdmitDispute`
+  (not `DecideDispute`) is the verb's pure admission check. Every ledger-gate refusal
+  (plan-quality block, boundary SHIP-with-open-blocking, boundary REWORK) routes to the
+  dispute verb, each pinned end-to-end (`TestLedgerGateRefusalsRouteToDispute`).
+  Mutation-checked: appeal-only settle rule, timeline `<` vs `<=`, judge-only fence list.
