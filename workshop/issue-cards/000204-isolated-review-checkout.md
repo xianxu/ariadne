@@ -1,6 +1,6 @@
 ---
 id: 000204
-status: working
+status: codecomplete
 created: 2026-08-25
 updated: 2026-10-11
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.99
+tracker:
+    version: 1
+    completion:
+        token: close-05a16b1950a1
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 388cceb8bbf6cdce4b428171d7705d3801b785cf
+        evidence_commit: 3e8cadc387dfabd3616a25674aa3d191e6bd9437
 ---
 
 # Run each boundary reviewer in a disposable isolated checkout
