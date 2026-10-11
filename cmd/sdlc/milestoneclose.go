@@ -679,6 +679,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	if !ok {
 		return notRun(reason)
 	}
+	opts.BeforeRetry = checkout.Reset // a retried attempt starts pristine too
 
 	agent := opts.Agent
 	opts.Timeout = boundaryReviewTimeout(stderr, p)
@@ -809,6 +810,7 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 		IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
 		PriorFindings: p.PriorFindings,
 		ReviewNotes:   p.ReviewNotes,
+		Isolated:      iso != nil,
 	}
 	cat := p.recipe()
 	prompt := judge.BuildPrompt(cat, in)

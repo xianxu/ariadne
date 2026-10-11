@@ -471,9 +471,11 @@ func TestContractDoc_InSyncWithTokens(t *testing.T) {
 // TestRunArchPrinciples_RendersRegistry asserts the command derives every marker from
 // architecture.md) — that's where "every consumer derives" is now enforced.
 func TestArchitecture_NarrativeRoutesToArchPrinciples(t *testing.T) {
-	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "AGENTS.md"))
+	// AGENTS.base.md is the tracked source; AGENTS.md is assembled and gitignored,
+	// so it is absent from a clean checkout (a review checkout, #204).
+	data, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "AGENTS.base.md"))
 	if err != nil {
-		t.Fatalf("read AGENTS.md: %v", err)
+		t.Fatalf("read AGENTS.base.md: %v", err)
 	}
 	agents := string(data)
 	if !strings.Contains(agents, "sdlc arch-principles") {
@@ -1302,5 +1304,22 @@ func TestBuildArgs_WrapAppliesToEveryAgent(t *testing.T) {
 	line, err := FormatCommandLine(DispatchOptions{Agent: AgentCodex, Prompt: "p", Wrap: wrap})
 	if err != nil || !strings.HasPrefix(line, "env -C /box codex exec") {
 		t.Fatalf("dry-run line %q (err %v) does not show the wrap", line, err)
+	}
+}
+
+// #204 close review BR-1: only an isolated dispatch tells the reviewer to
+// revert in place; an unisolated one (sdlc judge, the goldens) keeps the
+// scratch-copy instruction, so no reviewer in the operator's checkout is told
+// to mutate it.
+func TestRevertCheckFollowsIsolation(t *testing.T) {
+	for _, c := range []Category{MilestoneReview, SmallDiffReview, FixReview} {
+		plain := BuildPrompt(c, PromptInput{IssueRef: "r#1"})
+		isolated := BuildPrompt(c, PromptInput{IssueRef: "r#1", Isolated: true})
+		if !strings.Contains(plain, "revert the fix in a scratch\n    copy") || strings.Contains(plain, "disposable checkout") {
+			t.Errorf("%s: an unisolated prompt must keep the scratch-copy instruction", c)
+		}
+		if !strings.Contains(isolated, "you run in a disposable checkout") || strings.Contains(isolated, "in a scratch\n    copy") {
+			t.Errorf("%s: an isolated prompt must say where to revert", c)
+		}
 	}
 }

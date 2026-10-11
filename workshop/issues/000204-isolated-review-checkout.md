@@ -202,3 +202,11 @@ outer fence is what makes the three agents' writable scope equivalent.
   checkout.
 - cmd/sdlc `TestMain` pins `WF_REVIEW_CHECKOUT_ROOT` to a temp dir and the
   probe to checkout-only, so no test depends on the host's sandbox.
+
+### 2026-10-11 — close review round 1: REWORK, all findings fixed
+
+BR-1 through BR-5 and the three Minors are fixed, with regression tests (see
+the plan's Revisions). BR-4: the fenced path can't be run live from a sandboxed
+slot. The probe now proves the fence on every dispatch, through the production
+argv, before claiming `fenced`. `TestProbeRejectsAFenceThatDoesNotDeny` pins
+that check, and `TestFenceDeniesSourceWrites` remains for an unsandboxed run.

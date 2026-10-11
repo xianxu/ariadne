@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -23,7 +24,11 @@ func TestFenceDeniesSourceWrites(t *testing.T) {
 	}
 	defer co.Close()
 	before := snapshot(t, src)
-	iso := Isolation{Fence: fence, Dir: co.Dir, Protect: []string{src}}
+	protect, err := Canonical([]string{src})
+	if err != nil {
+		t.Fatal(err)
+	}
+	iso := Isolation{Fence: fence, Dir: co.Dir, Protect: protect}
 
 	run := func(script string) error {
 		name, args := iso.Wrap("sh", []string{"-c", script})
@@ -43,5 +48,20 @@ func TestFenceDeniesSourceWrites(t *testing.T) {
 	}
 	if after := snapshot(t, src); after != before {
 		t.Fatal("the fenced command changed the source checkout")
+	}
+}
+
+// The probe claims a fence only after seeing it deny a write: a "fence" that
+// runs the command but enforces nothing is reported as none.
+func TestProbeRejectsAFenceThatDoesNotDeny(t *testing.T) {
+	fence, reason := verifyFence(FenceNone, "env") // Wrap with FenceNone is env -C: no enforcement
+	if fence != FenceNone || !strings.Contains(reason, "did not deny") {
+		t.Fatalf("verifyFence = %q, %q; want none, did not deny", fence, reason)
+	}
+}
+
+func TestProbeReportsAMissingBinary(t *testing.T) {
+	if fence, reason := verifyFence(FenceSeatbelt, "no-such-fence-binary"); fence != FenceNone || !strings.Contains(reason, "not found") {
+		t.Fatalf("verifyFence = %q, %q", fence, reason)
 	}
 }

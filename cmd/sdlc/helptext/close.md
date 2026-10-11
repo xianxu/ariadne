@@ -205,9 +205,10 @@ MODES
 
   The reviewer runs in a disposable shared clone of the pinned head (#204),
   removed when it exits; a crashed owner's clone is swept by the next review.
-  An OS write fence (sandbox-exec / bwrap) keeps it out of the source checkout
-  and its git dir; where the fence cannot nest (inside an agent sandbox) the
-  round runs clone-only with a warning. The round and sidecar record
+  An OS write fence (sandbox-exec / bwrap), verified live before each review,
+  keeps it out of every worktree of the repository and its git dir; where the
+  fence cannot nest (inside an agent sandbox) the round runs clone-only with a
+  warning. A no-verdict retry starts from a reset clone. The round and sidecar record
   `isolation: fenced|checkout`. WF_REVIEW_CHECKOUT_ROOT relocates the clones.
 
   (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/

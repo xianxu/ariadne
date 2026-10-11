@@ -422,3 +422,12 @@ The simplest durable authority beats a clever scan of consequences.
   it into the `git merge <ref>` remedy and parsed a remote out of it for the
   push-state check. Keep two values: the ref the probe reads and the name the
   message shows.
+- A prompt sentence that describes the reviewer's environment ("you run in a
+  disposable checkout, revert there") must be rendered only by callers that
+  provide that environment. #204 edited the shared code-review template, and
+  the unisolated `sdlc judge milestone-review` path started telling reviewers
+  to revert in the operator's tree. Make it a substitution keyed on the
+  caller's fact (`PromptInput.Isolated`), and pin both renderings.
+- A retry inherits every piece of mutable state the first attempt touched.
+  When an attempt may mutate a resource (a review checkout), give the retry a
+  reset hook and test it with residue left by attempt 1 (#204 BR-2).

@@ -104,11 +104,14 @@ func TestBoundaryReviewRunsInDisposableCheckout(t *testing.T) {
 	if res.Verdict != judge.VerdictShip {
 		t.Fatalf("verdict = %s (%s)\n%s", res.Verdict, res.Reason, stderr.String())
 	}
-	if filepath.Dir(dir) != os.Getenv("WF_REVIEW_CHECKOUT_ROOT") {
+	if root, _ := filepath.EvalSymlinks(os.Getenv("WF_REVIEW_CHECKOUT_ROOT")); filepath.Dir(dir) != root {
 		t.Fatalf("reviewer ran in %q, not a checkout under the review root", dir)
 	}
 	if !strings.Contains(prompt, "repository root: "+dir) || !strings.Contains(prompt, "git -C "+dir+" diff") {
 		t.Errorf("the prompt does not point the reviewer at its checkout %s", dir)
+	}
+	if !strings.Contains(prompt, "you run in a disposable checkout") {
+		t.Error("an isolated dispatch must tell the reviewer it may revert in place")
 	}
 	if _, err := os.Stat(dir); !os.IsNotExist(err) {
 		t.Errorf("the checkout outlived the review: %v", err)
@@ -197,6 +200,10 @@ func TestBoundaryReviewFencedArgvAndStamp(t *testing.T) {
 	t.Cleanup(func() { judge.Run, reviewbox.Probe = orig, origProbe })
 	reviewbox.Probe = func() (reviewbox.Fence, string) { return reviewbox.FenceSeatbelt, "" }
 	root, _ := filepath.EvalSymlinks(strings.TrimSpace(captureGit(t, "rev-parse", "--show-toplevel")))
+	// A sibling worktree (another slot, or the operator's :0) is protected too.
+	sibling := filepath.Join(t.TempDir(), "sibling")
+	git(t, "", "worktree", "add", "-q", "--detach", sibling)
+	sibling, _ = filepath.EvalSymlinks(sibling)
 
 	var name string
 	var args []string
@@ -212,7 +219,7 @@ func TestBoundaryReviewFencedArgvAndStamp(t *testing.T) {
 		t.Fatalf("fenced review argv starts with %q, want sandbox-exec", name)
 	}
 	profile := args[1]
-	for _, protected := range []string{root, filepath.Join(root, ".git")} {
+	for _, protected := range []string{root, filepath.Join(root, ".git"), sibling} {
 		if !strings.Contains(profile, `(subpath "`+protected+`")`) {
 			t.Errorf("profile does not write-deny %s: %s", protected, profile)
 		}
@@ -249,5 +256,59 @@ func TestBoundaryReviewDryRunShowsIsolation(t *testing.T) {
 	}
 	if entries := reviewRootEntries(t); len(entries) != 0 {
 		t.Errorf("dry-run created %d entries", len(entries))
+	}
+}
+
+// #204 close review BR-2: the no-verdict retry's second attempt runs in a reset
+// checkout, not on the tree attempt 1 left mutated.
+func TestBoundaryReviewRetryStartsFromAPristineCheckout(t *testing.T) {
+	t.Setenv("WF_REVIEW_CHECKOUT_ROOT", t.TempDir())
+	p := boundaryWindow(t)
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	attempt := 0
+	judge.Run = func(_ context.Context, _ func(int), n string, args ...string) (judge.ProcessOutput, error) {
+		attempt++
+		_, _, dir := unwrapReviewArgv(t, n, args)
+		if attempt == 1 {
+			os.WriteFile(filepath.Join(dir, "m1.go"), []byte("package main // reverted fix\n"), 0o644)
+			os.WriteFile(filepath.Join(dir, "residue"), []byte("x"), 0o644)
+			return judge.ProcessOutput{Stdout: []byte("Reverting the fix; I'll wait for the suite.\n")}, nil
+		}
+		if _, err := os.Stat(filepath.Join(dir, "residue")); !os.IsNotExist(err) {
+			t.Error("attempt 2 found attempt 1's residue")
+		}
+		if got, _ := os.ReadFile(filepath.Join(dir, "m1.go")); string(got) != "package main // work\n" {
+			t.Errorf("attempt 2 read attempt 1's mutation: %q", got)
+		}
+		return judge.ProcessOutput{Stdout: []byte(shipReview)}, nil
+	}
+	res := dispatchBoundaryReview(&bytes.Buffer{}, &bytes.Buffer{}, p)
+	if attempt != 2 || res.Verdict != judge.VerdictShip {
+		t.Fatalf("%d attempts, verdict %s", attempt, res.Verdict)
+	}
+}
+
+// #204 close review BR-3: debris the sweep cannot remove is a warning, not a
+// review that refuses to run.
+func TestBoundaryReviewRunsDespiteSweepProblem(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("WF_REVIEW_CHECKOUT_ROOT", root)
+	if err := os.MkdirAll(filepath.Join(root, "stuck.lock"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	p := boundaryWindow(t)
+	orig := judge.Run
+	t.Cleanup(func() { judge.Run = orig })
+	judge.Run = func(context.Context, func(int), string, ...string) (judge.ProcessOutput, error) {
+		return judge.ProcessOutput{Stdout: []byte(shipReview)}, nil
+	}
+	var stderr bytes.Buffer
+	res := dispatchBoundaryReview(&bytes.Buffer{}, &stderr, p)
+	if res.Verdict != judge.VerdictShip {
+		t.Fatalf("verdict %s (%s); a sweep problem blocked the review", res.Verdict, res.Reason)
+	}
+	if !strings.Contains(stderr.String(), "stuck.lock") {
+		t.Errorf("the sweep problem was not reported:\n%s", stderr.String())
 	}
 }

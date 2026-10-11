@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -163,28 +164,100 @@ func TestSweepReclaimsDeadOwnerAndSparesLiveOne(t *testing.T) {
 	defer live.Close()
 
 	// A crashed owner: lock file and checkout present, nobody holding the lock.
+	// Its tree has a read-only directory, as a Go module cache would.
 	dead := filepath.Join(root, "deadbeef")
-	if err := os.MkdirAll(filepath.Join(dead, "sub"), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Join(dead, "ro", "pkg"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	write(t, filepath.Join(dead, "ro", "pkg", "f"), "x")
+	if err := os.Chmod(filepath.Join(dead, "ro"), 0o555); err != nil {
 		t.Fatal(err)
 	}
 	write(t, dead+lockSuffix, "")
-	// Debris: a checkout whose lock is gone.
+	// Debris: a checkout whose lock is gone, and a create killed before rename.
 	if err := os.MkdirAll(filepath.Join(root, "orphan"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-
-	next, err := Create(root, src, h2, nil) // Create sweeps first
-	if err != nil {
+	write(t, filepath.Join(root, "cafe"+tmpLockSuffix), "")
+	// An entry the sweep cannot handle must not stop it or a later Create.
+	if err := os.MkdirAll(filepath.Join(root, "bad"+lockSuffix), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	defer next.Close()
-	for _, gone := range []string{dead, dead + lockSuffix, filepath.Join(root, "orphan")} {
+
+	removed, problems := Sweep(root)
+	if removed != 3 || len(problems) != 1 || !strings.Contains(problems[0].Error(), "bad"+lockSuffix) {
+		t.Fatalf("Sweep removed %d, problems %v; want 3 removed and one problem naming bad.lock", removed, problems)
+	}
+	for _, gone := range []string{dead, dead + lockSuffix, filepath.Join(root, "orphan"), filepath.Join(root, "cafe"+tmpLockSuffix)} {
 		if _, err := os.Stat(gone); !os.IsNotExist(err) {
 			t.Errorf("%s survived the sweep", gone)
 		}
 	}
 	if _, err := os.Stat(filepath.Join(live.Dir, "a.txt")); err != nil {
 		t.Fatalf("the sweep removed a live review's checkout: %v", err)
+	}
+	next, err := Create(root, src, h2, nil)
+	if err != nil {
+		t.Fatalf("Create after a sweep problem: %v", err)
+	}
+	next.Close()
+}
+
+// A checkout Close cannot remove keeps its lock file, so the next sweep finds
+// an unheld lock and finishes the job instead of leaving lockless debris.
+func TestCloseFailureLeavesLockForSweep(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("uses chflags uchg to make a file unremovable")
+	}
+	src, _, h2 := sourceRepo(t)
+	root := t.TempDir()
+	co, err := Create(root, src, h2, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	pinned := filepath.Join(co.Dir, "a.txt")
+	if out, err := exec.Command("chflags", "uchg", pinned).CombinedOutput(); err != nil {
+		t.Skipf("chflags unavailable: %v %s", err, out)
+	}
+	t.Cleanup(func() { exec.Command("chflags", "nouchg", pinned).Run() })
+	if err := co.Close(); err == nil {
+		t.Fatal("Close reported success with an unremovable file")
+	}
+	if _, err := os.Stat(co.Dir + lockSuffix); err != nil {
+		t.Fatalf("Close dropped the lock file of a checkout it could not remove: %v", err)
+	}
+	exec.Command("chflags", "nouchg", pinned).Run()
+	if removed, problems := Sweep(root); removed != 1 || len(problems) != 0 {
+		t.Fatalf("Sweep removed %d (%v); want the leftover reclaimed", removed, problems)
+	}
+	if entries, _ := os.ReadDir(root); len(entries) != 0 {
+		t.Fatalf("%d entries remain", len(entries))
+	}
+}
+
+func TestResetRestoresPristineCheckout(t *testing.T) {
+	src, _, h2 := sourceRepo(t)
+	co, err := Create(t.TempDir(), src, h2, []string{"README"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer co.Close()
+	write(t, filepath.Join(co.Dir, "residue"), "attempt one")
+	write(t, filepath.Join(co.Dir, "README"), "attempt one edit")
+	if err := reviewerGit(co.Dir, "commit", "-q", "-am", "attempt one"); err != nil {
+		t.Fatal(err)
+	}
+	if err := co.Reset(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(co.Dir, "residue")); !os.IsNotExist(err) {
+		t.Error("residue survived Reset")
+	}
+	if got := strings.TrimSpace(testfix.Capture(t, co.Dir, "rev-parse", "HEAD")); got != h2 {
+		t.Errorf("HEAD after Reset = %s, want %s", got, h2)
+	}
+	if got := readFile(t, filepath.Join(co.Dir, "README")); got != "operator wip\n" {
+		t.Errorf("overlay after Reset = %q, want the live text", got)
 	}
 }
 

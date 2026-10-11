@@ -26,6 +26,12 @@ func openReviewIsolation(stderr io.Writer, m judge.ReviewWindowManifest) (*revie
 	if err != nil {
 		return nil, reviewbox.Isolation{}, err
 	}
+	// Reclaim crashed owners' checkouts first. Best effort: debris that cannot
+	// be removed is reported, never a reason to refuse this review.
+	_, problems := reviewbox.Sweep(root)
+	for _, p := range problems {
+		cwarn(stderr, "boundary review: "+p.Error())
+	}
 	checkout, err := reviewbox.Create(root, m.RepoRoot, m.HeadSHA, reviewOverlays(m))
 	if err != nil {
 		return nil, reviewbox.Isolation{}, err
@@ -57,15 +63,42 @@ func plannedReviewIsolation(m judge.ReviewWindowManifest) (reviewbox.Isolation, 
 	return reviewbox.Isolation{Fence: fence, Dir: filepath.Join(root, "<review-checkout>"), Protect: protect, Reason: reason}, nil
 }
 
-// reviewProtectPaths are what the reviewer must not write: the source
-// checkout and its Git common dir (refs, config, objects, every worktree's
-// index). For a linked worktree the common dir lies outside the checkout.
+// reviewProtectPaths are what the reviewer must not write: every worktree of
+// the source repository (the reviewed one, the operator's :0, sibling slots)
+// and its Git common dir (refs, config, objects, every worktree's index). Each
+// is canonical, because the fence matches the paths the kernel resolves. A
+// worktree whose directory is gone (prunable) has nothing to protect.
 func reviewProtectPaths(repoRoot string) ([]string, error) {
-	out, err := exec.Command("git", "-C", repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir").Output()
+	common, err := exec.Command("git", "-C", repoRoot, "rev-parse", "--path-format=absolute", "--git-common-dir").Output()
 	if err != nil {
 		return nil, fmt.Errorf("resolve review git common dir: %w", err)
 	}
-	return []string{repoRoot, strings.TrimSpace(string(out))}, nil
+	list, err := exec.Command("git", "-C", repoRoot, "worktree", "list", "--porcelain").Output()
+	if err != nil {
+		return nil, fmt.Errorf("list review worktrees: %w", err)
+	}
+	paths := []string{repoRoot, strings.TrimSpace(string(common))}
+	for _, line := range strings.Split(string(list), "\n") {
+		if wt, ok := strings.CutPrefix(line, "worktree "); ok {
+			paths = append(paths, wt)
+		}
+	}
+	var out []string
+	seen := map[string]bool{}
+	for _, p := range paths {
+		c, err := reviewbox.Canonical([]string{p})
+		if err != nil {
+			if p == repoRoot {
+				return nil, fmt.Errorf("resolve review repository root: %w", err)
+			}
+			continue
+		}
+		if !seen[c[0]] {
+			seen[c[0]] = true
+			out = append(out, c[0])
+		}
+	}
+	return out, nil
 }
 
 // reviewOverlays are the live issue and plan files, copied into the checkout

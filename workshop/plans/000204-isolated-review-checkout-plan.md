@@ -177,3 +177,36 @@ States per id: `absent → locked (lock named, held) → checked-out → removed
 - [ ] Targeted `go test` per package while iterating; `make test` before close.
 - [ ] Manual check: `sdlc close --dry-run` (or `milestone-close --dry-run`) shows the `env -C <review-checkout>` command.
 - [ ] The live fence test runs where the probe succeeds (unsandboxed operator or CI). It skips inside an agent sandbox, which the test's skip message says.
+
+## Revisions
+
+### 2026-10-11 — close review round 1 (REWORK)
+
+Reason: the boundary review found 1 Critical, 4 Important and 3 Minor.
+
+Delta:
+- **Revert instruction (BR-1):** the in-place revert instruction is rendered
+  only for isolated dispatches (`PromptInput.Isolated`). Unisolated prompts
+  keep the pre-#204 scratch-copy text byte for byte, and the goldens are
+  unchanged.
+- **Retries (BR-2):** `DispatchOptions.BeforeRetry` gets `Checkout.Reset`,
+  which re-clones in place, so a no-verdict retry starts pristine.
+- **Sweep (BR-3):**
+  - `Sweep` moved out of `Create` and is best effort: problems are warned
+    about, never a refusal.
+  - `removeTree` restores write permission.
+  - `Close` keeps the lock file when removal fails.
+  - An unheld `.lock.tmp` is swept (the Minor).
+- **Probe (BR-4):** the probe is self-verifying. It must see a protected write
+  refused through the production `Wrap` before reporting a fence. Protect paths
+  and the root are canonicalized. The live conformance test still needs an
+  unsandboxed run, which this slot cannot do (the classifier refused
+  unsandboxed execution).
+- **Protect set (BR-5):** it covers every `git worktree list` path. The atlas
+  states the remaining HOME widening.
+- **Gemini (Minor):** fenced gemini gets `--sandbox=false`. This plan's
+  "gemini unchanged" was wrong, because a gemini config can turn its sandbox
+  on.
+- **Untracked file (Minor):** `TestArchitecture_NarrativeRoutesToArchPrinciples`
+  reads the tracked `AGENTS.base.md`. `AGENTS.md` is assembled and gitignored,
+  so it is absent in a clean clone.

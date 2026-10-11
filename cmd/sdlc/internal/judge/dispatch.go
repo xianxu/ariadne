@@ -45,6 +45,11 @@ type DispatchOptions struct {
 	// Fenced turns off the agent's own sandbox because an outer write fence
 	// replaces it: a Seatbelt sandbox cannot nest inside another (#204).
 	Fenced bool
+	// BeforeRetry, when set, runs before the no-verdict retry's attempt 2 (#204:
+	// it resets the review checkout, so attempt 2 never reads attempt 1's
+	// reverted or half-mutated tree). An error ends the dispatch with attempt 1's
+	// text kept.
+	BeforeRetry func() error
 }
 
 // ownerBinDir is the directory of the running sdlc binary — i.e. the owner
@@ -229,6 +234,11 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	}
 	if opts.Stderr != nil {
 		fmt.Fprintln(opts.Stderr, "    … the reviewer ended without a verdict; dispatching it once more")
+	}
+	if opts.BeforeRetry != nil {
+		if err := opts.BeforeRetry(); err != nil {
+			return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (not started: " + err.Error() + ")\n", err
+		}
 	}
 	again := opts
 	again.Prompt = opts.Prompt + retryNotice
