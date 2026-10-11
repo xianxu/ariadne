@@ -127,6 +127,26 @@ with these properties:
   `cmd/sdlc/churnreport.go` and the judge prompt are the consumers that must derive
   from it rather than restate it.
 
+## Done when
+
+- `finding.cue` models a closing, implementer-only `disputed` disposition (an `authority`
+  partition) and `appealOnly` (= `hardBlocking`); the judge's fence offers only the judge's
+  dispositions, and a judge fence emitting `disputed` is dropped as a protocol error.
+- `sdlc finding dispute --issue N --id ID --rationale … --evidence …` records the dispute in
+  the gate ledger named by the id's prefix (PQ plan gate, BR boundary review) and commits it
+  narrowly on the issue branch; it refuses a blank rationale or evidence, an unknown or
+  unissued id, a finding already disputed and not yet answered, a judge-settled finding, a
+  foreign owner, and a checkout off the issue branch, writing nothing on any refusal.
+- A dispute settles an Important/Minor finding; on a Critical it is recorded but the finding
+  keeps blocking until the judge withdraws it. A later judge `not-addressed` re-opens it.
+- The next review round's prompt lists each live dispute with its rationale and evidence and
+  asks the judge to withdraw or re-raise it against the evidence; it is not listed as settled.
+- Disputes are loud: the verb warns; both gates print "N of M finding(s) settled by
+  implementer DISPUTE" at warning level on every round; the close's plan-gate line and the
+  calibration ledger (appended `gate_disputed`, `boundary_disputed`) count them.
+- Every ledger-gate refusal names the dispute verb; help, AGENTS.base.md §3, atlas and README
+  describe it.
+
 ## Plan
 
 Durable plan: `workshop/plans/000202-a-finding-has-no-implementer-side-disposition-only-the-judge-can-retract-plan.md`
