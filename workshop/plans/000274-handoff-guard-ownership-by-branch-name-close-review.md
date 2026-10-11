@@ -84,3 +84,102 @@ findings:
     detail: |
       issuerestore.go:77 treats unclaimed+behind like the owner's own work. This matches the plan, but a user who explicitly asks to drop an unclaimed stale copy is refused toward merging main; consider allowing it, or pin the refusal with a test.
 ```
+
+---
+
+## Re-review — 2026-10-11T10:39:39-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 274 — Handoff guard judges detail ownership by branch name |
+| repo | ariadne |
+| issue file | workshop/issues/000274-handoff-guard-ownership-by-branch-name.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | c663f84a6ee901174cbe7403da74c97870a68557..2858f8d226353c932a5090659a9fed76a37215b1 |
+| command | sdlc close --issue 274 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-11T10:39:39-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Diff read; now running the targeted tests and grepping for leftover old-policy wording.
+
+Found leftover "owner's edits" wording in the publish summaries. Waiting on the test run.
+
+Tests pass. Running one quick mutation check to confirm the unclaimed-restore fix has a test that would catch its removal.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+**Verdict: fix-then-ship.** The policy change is right and the targeted tests pass (`go test -run 'TestTransferGuard|TestDetailsVerdict|TestNoHelpCallsABranchTheOwner|TestIssueRestore|TestPublish'` → ok, 295s). One rule, `mayNotEditDetails` (`transferguard.go:153`), now decides both who may land an edit (the guard, through `changedDetails`) and who may publish one (`issue publish`, through `requireOwnedToPublish`). All three prior findings are fixed. I reverted the unclaimed-restore fix and ran the test: `TestIssueRestoreMakesAStaleFilingBranchLand/unclaimed` fails without it, so the test really guards the fix. What keeps this from a clean ship is one more case in the `doc-claims-track-policy` family. Several short summaries of `issue publish` still say only the owner publishes later edits.
+
+### 1. Strengths
+- **One rule, two writers:** a single predicate is read by the guard and by publish (ARCH-DRY passes). `requireOwnedToPublish` dropped its separate switch and now just calls it (`republish.go:211`).
+- **Logic kept apart from IO:** `detailsVerdict` stays a pure function of `detailsFacts`. `TestDetailsVerdict` covers all 8 combinations of the inputs ("AHAFAAAF") with no IO (ARCH-PURE passes).
+- **Both cases of each Done-when clause are tested:**
+  - Unclaimed edits: accepted when the branch is up to date with main, refused when it is behind, and accepted on a direct push from local main.
+  - Owner editing from another issue's branch (`000013-meddler`): accepted.
+  - Another workspace's overwrite: still refused, and the refusal names the owner.
+- **Refusal text is checked mechanically** (`transferguard_test.go:175-180`): no refusal may recommend `sdlc claim`, and `restore` is offered exactly when the issue isn't this workspace's own.
+- **Old tests fixed for the right reason:** two tests had depended on an unclaimed card being refused. They now set a card held by another slot, which is the case they were written to protect.
+
+### 2. Critical
+None.
+
+### 3. Important
+- **Short summaries of `issue publish` still state the old rule.** This is the **3rd finding in family `doc-claims-track-policy`.**
+  - **Rule:** any text saying who may publish or land an edit to published details must state the `mayNotEditDetails` policy: refused only for another workspace's issue.
+  - **Fix the rule, not one sentence:** put the policy in one shared help constant, the way `ownershipGateHelp` / `{{OWNERSHIP_GATE}}` already works (`claimant.go:134`). Have the help and atlas lines use or quote it, and add a test that rejects "owner's later edits" / "owned issues'" wording in those surfaces.
+  - **Instances still in the tree (5):**
+    - `cmd/sdlc/helptext/issue.md:11`: "or the owner's later edits"
+    - `atlas/workflow/issue-sync.md:9`: "or the owner's later edits"
+    - `atlas/workflow/sdlc-binary.md:49`: "or the owner's edits in one narrow commit"
+    - `atlas/workflow/sdlc-binary.md:72`: "the owned issues' details"
+    - `cmd/sdlc/republish.go:56`: the name `republishOwned` and "publishes owned issues'"; only the second half of that comment was updated.
+  - `helptext/issue.md:15` ("offer to a non-owner") is still literally true and can stay.
+
+### 4. Minor
+None new.
+
+### 5. Test coverage
+- Every Done-when clause is covered in both of its states.
+- The unclaimed restore change fails its test when reverted (I ran this).
+- Per the Log, setting `mayRestore` to always true fails `TestIssueRestoreRefusesTheOwnersOwnEdit` and the "owner is behind main" row of the guard test.
+- `issue.OwnershipUnknown` covers both never-claimed cards and legacy cards claimed before #277 (no claimant recorded), so both are now editable. This matches how `ownershipGateHelp` already treats them, so it's consistent rather than a defect.
+
+### 6. Architecture
+- **ARCH-DRY:** passes. One predicate serves both writers.
+- **ARCH-PURE:** passes. The verdict is a pure function, and the IO stays in `changedDetails`.
+- **ARCH-PURPOSE:** passes for the code, which delivers the purpose (both refusals are lifted and the protection is kept). The written policy still doesn't come from one source, which is the Important finding above.
+
+### 7. Plan revisions
+None. The Plan and Log match the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      issuerestore.go:26-34 help now names foreign/unclaimed-behind cases and "hand it to its owner"; no claim advice; catalog.go:295 updated too.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      abandon.go:250 now reads "Another workspace's card is refused (requireOwnedToPublish)", matching mayNotEditDetails.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      mayRestore (transferguard.go:180) allows unclaimed; TestIssueRestoreMakesAStaleFilingBranchLand/unclaimed fails when reverted (verified by mutation).
+findings:
+  - id: new
+    severity: Important
+    family: doc-claims-track-policy
+    title: |
+      publish summaries still say only the owner publishes later edits
+    detail: |
+      3rd in family. Rule: every statement of who may publish/land published-details edits must state the mayNotEditDetails policy (refused only for another workspace's issue); derive it from one shared help constant (like ownershipGateHelp/{{OWNERSHIP_GATE}}) plus a test rejecting owner-only wording. Remaining instances: helptext/issue.md:11, atlas/workflow/issue-sync.md:9, atlas/workflow/sdlc-binary.md:49 and :72, republish.go:56 (republishOwned "publishes owned issues'").
+```

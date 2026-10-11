@@ -53,7 +53,7 @@ type republishItem struct {
 	write    bool // false: main already has these details (finish only)
 }
 
-// republishOwned publishes owned issues' edited details to main in one narrow
+// republishOwned publishes issues' edited details (mayNotEditDetails) to main in one narrow
 // commit, then finishes this checkout (#284). It never writes main for another
 // workspace's issue (#274: an unclaimed one publishes) — re-checked against a fresh tracker read before
 // the push — nor over a main copy that moved since the checkout's base, judged

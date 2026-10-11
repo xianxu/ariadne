@@ -8,11 +8,13 @@ SUBCOMMANDS
   new            Reserve the next ID's card on the tracker and write the details
                  locally (`--from-github N` seeds it from a GitHub issue)
   publish        Publish details to main (#284): a first publication (no owner
-                 needed; makes the issue claimable) or the owner's later edits,
+                 needed; makes the issue claimable) or a later edit, by
+                 {{DETAILS_EDITORS}};
                  one narrow main commit for a set (`--issue 284,285`)
   move-detail    The first-publication case of `publish`, for one issue
   restore        Put main's version of published details back on this branch
-                 (`--issue N`): the transfer guard's offer to a non-owner (#285)
+                 (`--issue N`): the transfer guard's offer for an edit that is
+                 not this workspace's own record (#285)
   recovery       `list` / `reconcile --issue N` interrupted tracker operations
   migrate        One-time cutover of a legacy repository to the issue tracker
                  (dry run; `--apply --expect DIGEST`; `--reconcile` on a branch)
@@ -100,9 +102,8 @@ reach main without shipping a branch. Per issue:
     the creator's checkout publishes, no owner needed; the filing branch's
     copy is removed (narrow commit) or the rest fast-forwards, and the card
     records the handoff.
-  - republish (details already on main): the owner, or anyone while the
-    issue is unclaimed (#274); another workspace's issue is refused. The edits (details
-    bodies) are judged against the copy at this checkout's merge base with
+  - republish (details already on main): by {{DETAILS_EDITORS}}.
+    The edits (details bodies) are judged against the copy at this checkout's merge base with
     main: main unchanged since → published; already equal → nothing to
     publish; main moved → on a resting branch, publish brings main in itself
     (a three-way merge of the details, then a fast-forward): a clean merge
@@ -120,9 +121,9 @@ reach main without shipping a branch. Per issue:
     finishes the checkout.
 PUBLISHED DETAILS ARE GUARDED (#285). Once main's history has an issue's details,
 `pr`, `push` and `merge` refuse a landing whose merge with main would change
-them if another workspace owns the issue (the card's claimant, whatever the
-branch is called), or if the branch lacks main's last commit to the file. An
-unclaimed issue has no owner to protect (#274): its edits land from anywhere.
+them unless the change is by {{DETAILS_EDITORS}}
+(the owner is the card's claimant, whatever the branch is called) and the
+branch contains main's last commit to the file.
 Another workspace's issue: hand the edit to its owner, or drop it with
 `sdlc issue restore --issue N` (one commit; every copy of the details matches
 main, archived ones included). A branch behind main merges main, resolves the

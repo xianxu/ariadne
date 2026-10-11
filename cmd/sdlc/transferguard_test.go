@@ -14,6 +14,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/recovery"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
@@ -364,6 +365,39 @@ func TestNoHelpCallsABranchTheOwner(t *testing.T) {
 		if m := branchOwner.FindString(detailsRefusal(env, changedDetail{ID: "000008", Path: spinOffDetails, Verdict: v}).Error()); m != "" {
 			t.Errorf("refusal %v calls a branch the owner: %q", v, m)
 		}
+	}
+}
+
+// #274: published details are editable by mayNotEditDetails' policy, stated
+// once ({{DETAILS_EDITORS}}). No help, recovery contract or map may say only
+// the owner publishes or that restore is a non-owner's offer.
+func TestNoTextSaysOnlyTheOwnerEditsDetails(t *testing.T) {
+	ownerOnly := regexp.MustCompile(`(?i)only the owner (re)?publish|only its owner publish|the owner's (later )?edits|owned issues' (edited )?details|offer to a non-owner|publishes owned`)
+	check := func(where, text string) {
+		if m := ownerOnly.FindString(text); m != "" {
+			t.Errorf("%s states the pre-#274 owner-only policy: %q", where, m)
+		}
+	}
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+		check("`"+c.CommandPath()+"` help", c.Short+"\n"+c.Long)
+	}
+	walk(buildRoot())
+	check("recovery table", recovery.Table())
+	root := repoRootForTest(t)
+	docs, err := filepath.Glob(filepath.Join(root, "atlas", "workflow", "*.md"))
+	if err != nil || len(docs) == 0 {
+		t.Fatalf("no atlas workflow docs under %s: %v", root, err)
+	}
+	for _, p := range append(docs, filepath.Join(root, "AGENTS.base.md")) {
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		check(p, string(raw))
 	}
 }
 

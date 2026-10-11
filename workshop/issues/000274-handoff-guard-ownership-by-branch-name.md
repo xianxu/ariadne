@@ -119,3 +119,12 @@ behind refusal for an unclaimed issue offers it too. Tests:
 guard rows assert that restore is offered except to the owner. Mutation
 (`mayRestore` always true) fails `TestIssueRestoreRefusesTheOwnersOwnEdit` and
 the owner-behind row. Lesson added.
+
+Close review round 2: BR-1..3 disposed addressed; BR-4 Important, the same
+family in the `issue` help summary, the atlas and the recovery catalog. Fixed
+the rule, not the instances: `detailsEditorsHelp` ({{DETAILS_EDITORS}}) states
+the policy once in help. `TestNoTextSaysOnlyTheOwnerEditsDetails` rejects the
+owner-only phrasings in every command's help, the recovery table,
+`atlas/workflow/*.md` and `AGENTS.base.md`. Teeth: restoring "the owner's later
+edits" in the help fails it. The recovery catalog line, which the reviewer did
+not list, is fixed too.

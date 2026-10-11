@@ -147,6 +147,10 @@ func prospectiveChanges(env *trackerEnv, mainTip string) ([]string, error) {
 
 var errTransferredDetails = errors.New("landing would change published issue details")
 
+// detailsEditorsHelp states mayNotEditDetails for every help that says who
+// changes published details ({{DETAILS_EDITORS}}).
+const detailsEditorsHelp = "its owner, or anyone while it is unclaimed — never another workspace (#274)"
+
 // mayNotEditDetails is the one policy both writers of published details apply
 // (this guard and `issue publish`, #274): another workspace's issue is theirs;
 // this workspace's own and an unclaimed one are editable.
