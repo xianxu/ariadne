@@ -1,6 +1,6 @@
 ---
 id: 000307
-status: codecomplete
+status: done
 created: 2026-10-09
 updated: 2026-10-11
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 124de8b635a55d249587925391912b821d042637
         evidence_commit: 29d5a0a6ab07d1840fac30979568484b49d76538
+        landed_commit: db64590bf235cc4258162b599d9761fb8947968a
 ---
 
 # Claimant identity is the slot, not the worktree path
