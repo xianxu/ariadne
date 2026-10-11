@@ -50,7 +50,7 @@ var gitRun = func(repo string, args ...string) ([]byte, error) {
 // Issue also filters the histories read beside HEAD in every scope, branch
 // point or not (#321): the tracker interleaves every slot's card writes, so a
 // commit reachable only from an extra ref bounds segments only when its lead
-// names Issue. Unfiltered, another slot's card write seconds before a run took
+// names Issue; one with no lead is dropped too, never a neutral boundary. Unfiltered, another slot's card write seconds before a run took
 // the whole run once the measurement ran off the issue branch.
 type Scope struct {
 	BranchPoint string

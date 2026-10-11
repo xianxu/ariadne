@@ -1030,7 +1030,7 @@ merge commits (branch point..HEAD) are never boundaries, and a main commit bound
 its lead names the issue. Integrating main therefore leaves the boundary set
 unchanged. The tracker history read beside HEAD is filtered the same way in every
 scope (#321): a card commit counts only when its lead names the measured
-issue. The tracker interleaves every slot's card writes, so off the issue
+issue; another issue's card, or a card with no lead, is not a boundary at all. The tracker interleaves every slot's card writes, so off the issue
 branch (a resting branch, or main after landing) another slot's card write
 would otherwise claim the run beside it. Suspicious attribution is surfaced as `Result.Warnings` and
 rendered by `actual` / `active-time`. Dir-selection is deliberately narrow (NOT all

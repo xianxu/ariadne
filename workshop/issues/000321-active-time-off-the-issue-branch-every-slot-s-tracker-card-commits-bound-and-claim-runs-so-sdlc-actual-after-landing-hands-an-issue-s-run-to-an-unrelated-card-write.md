@@ -112,4 +112,12 @@ whether that is intended.
   Done-when, so it is left out. `sdlc actual --issue 317` from this branch
   (HEAD = main with #317 landed, not diverged, so unscoped): **0.39h**, was
   "no measurable activity".
+- Close review: SHIP, with 2 Minors. (1) The docs didn't say that a tracker
+  commit with no lead is also dropped: fixed in the Scope comment and atlas.
+  (2) `besideHead` reads the whole tracker history: acknowledged, no change.
+  `git log` already reads it all, and it costs about 50 ms on ariadne's
+  history. The close adopted 0.03h: claim 17:24:16 → last code commit
+  17:26:30. The design was done during the unclaimed diagnosis, and the
+  `make test` and review tail is the verification-tail question that is with
+  the operator.
 
