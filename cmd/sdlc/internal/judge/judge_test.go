@@ -865,24 +865,43 @@ func TestBuildArgs_Claude(t *testing.T) {
 	if name != "claude" {
 		t.Errorf("name = %q want claude", name)
 	}
-	want := []string{"-p", "--output-format", "stream-json", "--verbose", "--allowedTools", "Read,Grep", "--permission-mode", "bypassPermissions", "review this"}
+	want := []string{"-p", "--output-format", "stream-json", "--verbose", "--allowedTools", "Read,Grep", "--permission-mode", "dontAsk", "review this"}
 	if strings.Join(args, " ") != strings.Join(want, " ") {
 		t.Errorf("args = %v\nwant: %v", args, want)
 	}
 }
 
-func TestBuildArgs_Codex_SandboxAddsFullAuto(t *testing.T) {
-	_, args, _ := BuildArgs(DispatchOptions{Agent: AgentCodex, Prompt: "p", IsSandbox: true})
-	if args[1] != "--full-auto" {
-		t.Errorf("expected --full-auto in sandbox mode, got %v", args)
+// TestBuildArgs_ReadOnlyPerContainment pins each CLI's read-only mode at each
+// containment level (#310): no judge ever gets an auto-approve mode.
+func TestBuildArgs_ReadOnlyPerContainment(t *testing.T) {
+	cases := []struct {
+		agent AgentCLI
+		level Containment
+		want  string // the argv, prompt last
+	}{
+		{AgentClaude, ContainNone, "-p --output-format stream-json --verbose --allowedTools Read --permission-mode dontAsk p"},
+		{AgentClaude, ContainCheckout, "-p --output-format stream-json --verbose --allowedTools Read --permission-mode dontAsk p"},
+		{AgentClaude, ContainFenced, `-p --output-format stream-json --verbose --allowedTools Read --permission-mode dontAsk --settings {"sandbox":{"enabled":false}} p`},
+		{AgentCodex, ContainNone, "exec --sandbox read-only p"},
+		{AgentCodex, ContainCheckout, "exec --sandbox workspace-write p"},
+		{AgentCodex, ContainFenced, "exec --sandbox danger-full-access p"},
+		{AgentGemini, ContainNone, "-p p"},
+		{AgentGemini, ContainCheckout, "-p p"},
+		{AgentGemini, ContainFenced, "--sandbox=false -p p"},
 	}
-}
-
-func TestBuildArgs_Gemini_NoSandboxFlag(t *testing.T) {
-	_, args, _ := BuildArgs(DispatchOptions{Agent: AgentGemini, Prompt: "p"})
-	for _, a := range args {
-		if a == "--yolo" {
-			t.Errorf("--yolo should not be present without sandbox flag: %v", args)
+	for _, c := range cases {
+		_, args, err := BuildArgs(DispatchOptions{Agent: c.agent, Prompt: "p", AllowedTools: "Read", Containment: c.level})
+		if err != nil {
+			t.Fatal(err)
+		}
+		got := strings.Join(args, " ")
+		if got != c.want {
+			t.Errorf("%s at level %d: argv %q, want %q", c.agent, c.level, got, c.want)
+		}
+		for _, bad := range []string{"bypassPermissions", "--full-auto", "--yolo"} {
+			if strings.Contains(got, bad) {
+				t.Errorf("%s at level %d grants %s: %q", c.agent, c.level, bad, got)
+			}
 		}
 	}
 }
@@ -1255,36 +1274,6 @@ func TestBuildPrompt_ClaimedFixEvidenceByChangeKind(t *testing.T) {
 	}
 }
 
-// #204: under an outer fence every agent's own sandbox is off (it cannot nest),
-// and without one the argv is unchanged.
-func TestBuildArgs_FencedTurnsOffInnerSandbox(t *testing.T) {
-	cases := map[AgentCLI][]string{
-		AgentClaude: {"--settings", `{"sandbox":{"enabled":false}}`},
-		AgentCodex:  {"--sandbox", "danger-full-access"},
-		AgentGemini: {"--sandbox=false"},
-	}
-	for agent, flag := range cases {
-		_, plain, _ := BuildArgs(DispatchOptions{Agent: agent, Prompt: "p", IsSandbox: true})
-		_, fenced, _ := BuildArgs(DispatchOptions{Agent: agent, Prompt: "p", IsSandbox: true, Fenced: true})
-		joined := strings.Join(fenced, "\x00")
-		if !strings.Contains(joined, strings.Join(flag, "\x00")) {
-			t.Errorf("%s fenced args %q lack %q", agent, fenced, flag)
-		}
-		if strings.Contains(strings.Join(plain, "\x00"), strings.Join(flag, "\x00")) {
-			t.Errorf("%s unfenced args %q carry %q", agent, plain, flag)
-		}
-		if fenced[len(fenced)-1] != "p" {
-			t.Errorf("%s: the prompt must stay last, got %q", agent, fenced)
-		}
-	}
-	_, codex, _ := BuildArgs(DispatchOptions{Agent: AgentCodex, Prompt: "p", IsSandbox: true, Fenced: true})
-	for _, a := range codex {
-		if a == "--full-auto" {
-			t.Errorf("fenced codex must not also ask for its workspace sandbox: %q", codex)
-		}
-	}
-}
-
 // #204: Wrap prefixes every agent identically, and the dry-run line shows it.
 func TestBuildArgs_WrapAppliesToEveryAgent(t *testing.T) {
 	wrap := func(name string, args []string) (string, []string) {
@@ -1320,6 +1309,57 @@ func TestRevertCheckFollowsIsolation(t *testing.T) {
 		}
 		if !strings.Contains(isolated, "you run in a disposable checkout") || strings.Contains(isolated, "in a scratch\n    copy") {
 			t.Errorf("%s: an isolated prompt must say where to revert", c)
+		}
+	}
+}
+
+// TestResolveReviewerCLI_Policy pins #310's reviewer modes: the policy maps
+// the detected main agent, and --agent / AGENT_CMD stay above it.
+func TestResolveReviewerCLI_Policy(t *testing.T) {
+	claudeMain := AgentDefaultEnv{ClaudeCode: "1"}
+	codexMain := AgentDefaultEnv{CodexThreadID: "t"}
+	geminiMain := AgentDefaultEnv{PairAgent: "gemini"}
+	other := ReviewerPolicy{Mode: ReviewerOther}
+	pairs := ReviewerPolicy{Mode: ReviewerExplicit, Pairs: map[AgentCLI]AgentCLI{AgentClaude: AgentGemini}}
+	tests := []struct {
+		name        string
+		explicit    string
+		explicitSet bool
+		env         AgentDefaultEnv
+		policy      ReviewerPolicy
+		want        AgentCLI
+	}{
+		{"zero policy is same", "", false, codexMain, ReviewerPolicy{}, AgentCodex},
+		{"same", "", false, claudeMain, ReviewerPolicy{Mode: ReviewerSame}, AgentClaude},
+		{"other: claude reviewed by codex", "", false, claudeMain, other, AgentCodex},
+		{"other: codex reviewed by claude", "", false, codexMain, other, AgentClaude},
+		{"other: gemini reviewed by claude", "", false, geminiMain, other, AgentClaude},
+		{"explicit pair", "", false, claudeMain, pairs, AgentGemini},
+		{"explicit, unpaired main reviews itself", "", false, codexMain, pairs, AgentCodex},
+		{"--agent beats the policy", "claude", true, claudeMain, other, AgentClaude},
+		{"AGENT_CMD beats the policy", "", false, AgentDefaultEnv{AgentCmd: "claude", ClaudeCode: "1"}, other, AgentClaude},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := ResolveReviewerCLI(tt.explicit, tt.explicitSet, tt.env, tt.policy); got != tt.want {
+				t.Errorf("ResolveReviewerCLI() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestReviewerPolicy_Validate(t *testing.T) {
+	for _, ok := range []ReviewerPolicy{{}, {Mode: ReviewerSame}, {Mode: ReviewerOther},
+		{Mode: ReviewerExplicit, Pairs: map[AgentCLI]AgentCLI{AgentCodex: AgentClaude}}} {
+		if err := ok.Validate(); err != nil {
+			t.Errorf("%+v: %v", ok, err)
+		}
+	}
+	for _, bad := range []ReviewerPolicy{{Mode: "others"}, {Mode: ReviewerExplicit},
+		{Mode: ReviewerOther, Pairs: map[AgentCLI]AgentCLI{AgentCodex: AgentClaude}},
+		{Mode: ReviewerExplicit, Pairs: map[AgentCLI]AgentCLI{AgentCodex: "cladue"}}} {
+		if err := bad.Validate(); err == nil {
+			t.Errorf("%+v validated", bad)
 		}
 	}
 }

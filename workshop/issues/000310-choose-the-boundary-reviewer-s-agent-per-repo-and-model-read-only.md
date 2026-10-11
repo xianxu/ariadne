@@ -72,14 +72,19 @@ Design (2026-10-11, ariadne:2):
   - `--sandbox` on `sdlc judge`/`change-code` is deprecated (hidden, no effect).
 - ARCH-FUNERAL: creates nothing durable — one optional repo config file, owned by the operator.
 
-- [ ] `judge.ReviewerPolicy` + `ResolveReviewerCLI`, unit tests (same/other/explicit/overrides)
-- [ ] `workshop/review.json` loader + validation, tests (absent, other, explicit, malformed)
-- [ ] `Containment` argv mapping replaces Fenced/IsSandbox; argv tests per agent × level
-- [ ] Wire boundary review: policy from the source root; integration test: claude main + `other` → codex dispatched, ledger round `Agent: codex`, and vice versa
-- [ ] Help: close.md / milestone-close.md document the config; atlas (sdlc-binary, openshell-sandbox)
-- [ ] Live check: claude `dontAsk` reviewer asked to Write is refused
+- [x] `judge.ReviewerPolicy` + `ResolveReviewerCLI`, unit tests (same/other/explicit/overrides)
+- [x] `workshop/review.json` loader + validation, tests (absent, other, explicit, malformed)
+- [x] `Containment` argv mapping replaces Fenced/IsSandbox; argv tests per agent × level
+- [x] Wire boundary review: policy from the source root; integration test: claude main + `other` → codex dispatched, ledger round `Agent: codex`, and vice versa
+- [x] Help: close.md / milestone-close.md document the config; atlas (sdlc-binary, openshell-sandbox)
+- [x] Live check: claude `dontAsk` reviewer asked to Write is refused
 
 ## Log
+
+### 2026-10-11
+- Implemented on ariadne:2 (quick flow). Dropped the plan's "dispatch line names the policy": the ledger round's `agent` and the `via <agent>` line already say who reviewed; threading the policy label through `boundaryReviewOptionsFor` bought nothing.
+- Removed `isSandbox()` (its only consumer was the auto-approve gate); `--sandbox` on `judge`/`change-code` is deprecated, hidden by cobra, no effect.
+- Live checks (this slot, inside Claude Code's sandbox): `claude -p --allowedTools Read,Grep,Glob,Bash --permission-mode dontAsk` asked to Write → "Permission to use Write has been denied because Claude Code is running in don't ask mode", no file. `codex exec --sandbox read-only` asked to `echo hi > probe.txt` → `sandbox-exec: sandbox_apply: Operation not permitted`, no file: fails closed, but it also means a codex reviewer can run *no* command where the #204 fence probe fails (the same nesting). Pre-existing (codex exec already defaulted to a read-only seatbelt); now warned at dispatch and documented under REVIEWER in `sdlc close --help`. `other` with a claude main is only useful from an unsandboxed sdlc until the fleet runs sdlc outside the seatbelt.
 
 ### 2026-10-09
 Filed from the robustness evidence review (ariadne-robustness-1). Revives #129's unbuilt modes; pairs with #204.

@@ -101,7 +101,8 @@ func NewChangeCodeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoEstimateRecon, "no-estimate-recon", false, "skip the ## Estimate reconciliation gate (#117)")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do nothing")
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for plan-quality judge: claude | codex | gemini (default AGENT_CMD, PAIR_AGENT/current agent, or claude)")
-	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", isSandbox(), "pass auto-approve flags to codex/gemini")
+	cmd.Flags().BoolVar(&f.Sandbox, "sandbox", false, "retired (#310): judges always run read-only")
+	_ = cmd.Flags().MarkDeprecated("sandbox", "judges always run read-only (#310); the flag has no effect")
 	cmd.Flags().StringVar(&f.Flow, "flow", "", "pin the flow: quick | full — the operator's decision; default: inferred (#231)")
 	return cmd
 }
@@ -648,7 +649,6 @@ func runPlanQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name, iss
 		Agent:        agent,
 		Prompt:       prompt,
 		AllowedTools: tools,
-		IsSandbox:    f.Sandbox,
 		Stdout:       stdout,
 		Stderr:       stderr,
 	}
@@ -881,7 +881,6 @@ func runEstimateQualityJudge(stdout, stderr io.Writer, f *changeCodeFlags, name,
 		Agent:        agent,
 		Prompt:       prompt,
 		AllowedTools: judge.EstimateQuality.AllowedTools(),
-		IsSandbox:    f.Sandbox,
 		Stdout:       stdout,
 		Stderr:       stderr,
 	}

@@ -67,8 +67,7 @@ FLAGS
   --dry-run             print the prompt + would-be command line; do not
                         invoke the agent. Useful for verifying behavior
                         in restricted environments.
-  --sandbox             pass auto-approve flags to codex/gemini (no-op for
-                        claude). Set automatically when /.dockerenv exists.
+  --sandbox             retired (#310): judges always run read-only; no effect.
 
 OUTPUT CLASSIFICATION
 

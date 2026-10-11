@@ -31,7 +31,6 @@ type DispatchOptions struct {
 	Agent        AgentCLI
 	Prompt       string
 	AllowedTools string // for claude; ignored by codex/gemini
-	IsSandbox    bool   // if true, codex/gemini get auto-approve flags
 	Stdout       io.Writer
 	Stderr       io.Writer
 	// Timeout is the caller's limit for the whole dispatch, retry included
@@ -42,9 +41,9 @@ type DispatchOptions struct {
 	// disposable checkout, under an OS write fence when one applies). It is
 	// applied in BuildArgs, so the dispatch and the --dry-run line agree.
 	Wrap func(name string, args []string) (string, []string)
-	// Fenced turns off the agent's own sandbox because an outer write fence
-	// replaces it: a Seatbelt sandbox cannot nest inside another (#204).
-	Fenced bool
+	// Containment is what bounds the agent's writes; agentArgs maps it to each
+	// CLI's read-only mode (#310).
+	Containment Containment
 	// BeforeRetry, when set, runs before the no-verdict retry's attempt 2 (#204:
 	// it resets the review checkout, so attempt 2 never reads attempt 1's
 	// reverted or half-mutated tree). An error ends the dispatch with attempt 1's
@@ -152,6 +151,25 @@ func BuildArgs(opts DispatchOptions) (name string, args []string, err error) {
 	return name, args, nil
 }
 
+// Containment is what bounds a judge's writes (#310). Every judge is a
+// reviewer, so no level grants an auto-approve mode (bypassPermissions,
+// --full-auto, --yolo): each maps to the CLI's own read-only behavior, scoped
+// by what surrounds the agent.
+type Containment int
+
+const (
+	// ContainNone runs in the operator's tree: the agent may write nothing.
+	ContainNone Containment = iota
+	// ContainCheckout runs in a disposable checkout with no OS fence (#204):
+	// the agent's sandbox, where it has one, may write only its working
+	// directory, the checkout.
+	ContainCheckout
+	// ContainFenced runs under an OS write fence that already denies the
+	// source tree, so the agent's own sandbox is off: a Seatbelt sandbox
+	// cannot nest inside another (#204).
+	ContainFenced
+)
+
 // fencedClaudeSettings turns off Claude Code's Bash sandbox under an outer fence.
 const fencedClaudeSettings = `{"sandbox":{"enabled":false}}`
 
@@ -164,31 +182,30 @@ func agentArgs(opts DispatchOptions) (name string, args []string, err error) {
 			// the verdict and a failed run is told apart from its prose.
 			"--output-format", "stream-json", "--verbose",
 			"--allowedTools", opts.AllowedTools,
-			"--permission-mode", "bypassPermissions",
+			// #310: only the allowed tools run; Edit/Write are refused.
+			"--permission-mode", "dontAsk",
 		}
-		if opts.Fenced {
+		if opts.Containment == ContainFenced {
 			args = append(args, "--settings", fencedClaudeSettings)
 		}
 		return "claude", append(args, opts.Prompt), nil
 
 	case AgentCodex:
-		args = []string{"exec"}
-		switch {
-		case opts.Fenced:
-			args = append(args, "--sandbox", "danger-full-access")
-		case opts.IsSandbox:
-			args = append(args, "--full-auto")
+		sandbox := "read-only"
+		switch opts.Containment {
+		case ContainCheckout:
+			sandbox = "workspace-write"
+		case ContainFenced:
+			sandbox = "danger-full-access"
 		}
-		args = append(args, opts.Prompt)
-		return "codex", args, nil
+		return "codex", []string{"exec", "--sandbox", sandbox, opts.Prompt}, nil
 
 	case AgentGemini:
+		// Headless gemini refuses every tool that needs approval, and a
+		// reviewer never gets --yolo, so it can read but not write.
 		args = []string{}
-		if opts.Fenced {
+		if opts.Containment == ContainFenced {
 			args = append(args, "--sandbox=false")
-		}
-		if opts.IsSandbox {
-			args = append(args, "--yolo")
 		}
 		args = append(args, "-p", opts.Prompt)
 		return "gemini", args, nil
