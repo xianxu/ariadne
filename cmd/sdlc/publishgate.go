@@ -284,11 +284,10 @@ const publishGateRefusal = "publish gate: the reviewed patch no longer covers HE
 // classifyPublishDelta decides one issue's publish (#304 D9). Pure. Each refusal names
 // its own cause and the one next action, a re-close of the code delta.
 func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
-	n := orPlaceholder(d.Issue, "<N>")
-	reclose := fmt.Sprintf("\n  Re-run `sdlc close --issue %s --verified '<evidence>'` to review it, then retry the publish.", n)
+	reclose := fmt.Sprintf("\n  Re-run `sdlc close --issue %s --verified '<evidence>'` to review it, then retry the publish.", publishCLIRef(d.Issue))
 	// #183: a delta past a reviewed patch is reviewed as the interdiff since that review,
 	// not as the whole branch again.
-	fixed := fmt.Sprintf("\n  Re-run `sdlc close --issue %s --fixed-then-ship --verified '<evidence>'`: it reviews only the change since that close, then retry the publish.", n)
+	fixed := fmt.Sprintf("\n  Re-run `sdlc close --issue %s --fixed-then-ship --verified '<evidence>'`: it reviews only the change since that close, then retry the publish.", publishCLIRef(d.Issue))
 	switch {
 	case d.Unresolvable != "":
 		return false, fmt.Sprintf("%s: %s.%s", publishGateRefusal, d.Unresolvable, reclose)
@@ -298,7 +297,7 @@ func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
 			// Operator decision (#320): only the review narrows; the full suite still runs.
 			next = fmt.Sprintf("\n  Run the full test suite (`make test`; only the review narrows), then\n"+
 				"  Re-run `sdlc close --issue %s --fixed-then-ship --full-suite '<evidence>' --verified '<evidence>'`:\n"+
-				"  it reviews only the change since that close, the conflict resolution included; then retry the publish.", n)
+				"  it reviews only the change since that close, the conflict resolution included; then retry the publish.", publishCLIRef(d.Issue))
 		}
 		return false, fmt.Sprintf("%s: main's changes conflict with the reviewed patch in %s — the resolution is unreviewed.%s",
 			publishGateRefusal, strings.Join(d.Conflicted, ", "), next)
@@ -492,14 +491,20 @@ func publishTrackerCompletions(ctx context.Context, issuesDir string) (done []st
 	return done, true, nil
 }
 
-// publishIssueRef is the issue's CLI ref from its details path, or "" when the path
-// names none (the refusal then reads <N>).
+// publishIssueRef is the issue's canonical id from its details path, or "" when the
+// path names none.
 func publishIssueRef(path string) string {
-	if path == "" {
-		return ""
-	}
-	if n := issueIDFromPath(path); n > 0 {
-		return strconv.Itoa(n)
+	if n := issueIDFromPath(path); path != "" && n > 0 {
+		return fmt.Sprintf("%06d", n)
 	}
 	return ""
+}
+
+// publishCLIRef renders an id for a `--issue` hint (decimal, never the octal-looking
+// padded form), or <N> when the publish could not name the issue.
+func publishCLIRef(id string) string {
+	if id == "" {
+		return "<N>"
+	}
+	return issue.CLIRef(id)
 }
