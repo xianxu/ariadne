@@ -1,12 +1,12 @@
 ---
 id: 000204
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-08-25
 updated: 2026-10-11
 estimate_hours:
-card_mirror: '68d318ca540df36aa0c807a7036095e42d440169' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '05b9098d083bc82a688a4f8fb477859ebfa14908' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-11T00:56:11-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.99
 ---
 
 # Run each boundary reviewer in a disposable isolated checkout
