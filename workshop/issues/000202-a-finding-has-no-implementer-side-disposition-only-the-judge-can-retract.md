@@ -165,6 +165,8 @@ Durable plan: `workshop/plans/000202-a-finding-has-no-implementer-side-dispositi
 
 
 
+
+- 2026-10-11: closed — BR-1 fixed (dispute text quoted line-by-line as labeled data; TestPromptCarriesLiveDisputes asserts an injection-shaped evidence line is quoted). BR-2 fixed (finding-dispute help: a dispute settles the ledger half; a REWORK verdict still holds the close). BR-3 disputed via sdlc finding dispute with counter-measurement: TestPlanningReviewStaleBeforePersistence/{plan,estimate}/ledger PASS. go test ./cmd/sdlc/internal/gatestate/ green. (fixed-then-ship); review verdict: SHIP
 - 2026-10-11: closed — make test: every #202 test green (gatestate dispute/timeline/prompt/decide incl. mutation checks on appeal-only, timeline ordering, judge-only fence; vocab authority partition; finding dispute e2e records/commits/refuses/rerun/ownership; per-site refusal routing e2e; calibration columns e2e through runClose). Suite reds are environmental, each rerun: processgroup TestCancellationKillsDescendants = sandbox denies /bin/ps; TestPlanningReviewConcurrencySchedules = 2s budget at load avg 30, passes alone; hermeticity lock leak = shared common-dir .git/sdlc.lock held by another slot, not reproduced by the #202 tests alone.; review verdict: SHIP
 - 2026-10-11: flow upgraded quick → full — 648 added lines in code files (limit 100)
 - 2026-10-10: claimed (ops:0 dispatch); design in the durable plan. Critical is appeal-only
