@@ -83,6 +83,25 @@ rounds:
       recipe: milestone-review
       reviewed: a7b840c0a5fed76374beec640a8babbf542874f3
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-10T19:02:52-07:00"
+      dispatched: "2026-10-10T19:01:52-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: cutTimes (actualsplit.go:72) now excludes gatestate.BoundaryAll; groupBoundaries no longer filters; TestRowSplitMetaAndSource "a round for every boundary" case fails without the fix (counted 2 rounds before, 1 now).
+          round: 3
+      findings:
+        - id: BR-8
+          severity: Minor
+          title: convergereport.go dashIfEmpty duplicates estimate.dash (ledger.go:262)
+          detail: Trivial duplication; export one helper or accept the two-line copy.
+          family: dash-helper-reuse
+          round: 3
+      recipe: milestone-review
+      reviewed: 9f5d9e7b53585e4e6106e7ebd1eddcae6e26ed06
+      blocked: false
 ---
 
 # Gate ledger — ariadne#234 (boundary-review)
@@ -119,6 +138,17 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-7** [Minor] `split-meta-parse-parity` groupBoundaries skips BoundaryAll rounds but rowSplitMeta counts them, a second usability filter outside cutTimes
   This is the 2nd finding in family split-meta-parse-parity. The rule: every predicate that decides whether a round can cut the split lives in cutTimes, and nothing downstream filters again. Fix it by moving the Boundary == "*" exclusion into cutTimes (or splitRounds) and dropping it from groupBoundaries. Prevalence: there is one other filter site. Production is unaffected today because the only BoundaryAll producer (the plan-gate seed, boundaryledger.go:124) is NoCap.
 
+## Round 3 — 2026-10-10T19:02:52-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — cutTimes (actualsplit.go:72) now excludes gatestate.BoundaryAll; groupBoundaries no longer filters; TestRowSplitMetaAndSource "a round for every boundary" case fails without the fix (counted 2 rounds before, 1 now).
+
+### Raised
+
+- **BR-8** [Minor] `dash-helper-reuse` convergereport.go dashIfEmpty duplicates estimate.dash (ledger.go:262)
+  Trivial duplication; export one helper or accept the two-line copy.
+
 ## Open findings
 
-- **BR-7** [Minor] `split-meta-parse-parity` groupBoundaries skips BoundaryAll rounds but rowSplitMeta counts them, a second usability filter outside cutTimes
+- **BR-8** [Minor] `dash-helper-reuse` convergereport.go dashIfEmpty duplicates estimate.dash (ledger.go:262)
