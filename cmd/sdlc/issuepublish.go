@@ -18,7 +18,7 @@ func newIssuePublishCmd() *cobra.Command {
 	var dryRun bool
 	cmd := markMutatingCommand(&cobra.Command{
 		Use:   "publish --issue N[,N…] | --commit SHA",
-		Short: "Publish issue details to main: first publication or an owner's edits (#284)",
+		Short: "Publish issue details to main: first publication or later edits (#284, #274)",
 		Args:  cobra.NoArgs, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guardSpineRepo(cmd.ErrOrStderr())

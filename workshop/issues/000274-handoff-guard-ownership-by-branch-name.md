@@ -128,3 +128,11 @@ owner-only phrasings in every command's help, the recovery table,
 `atlas/workflow/*.md` and `AGENTS.base.md`. Teeth: restoring "the owner's later
 edits" in the help fails it. The recovery catalog line, which the reviewer did
 not list, is fixed too.
+
+Close review round 3: BR-4 not-addressed. The wording test missed "an owner's"
+and skipped README.md and the Go sources (issuepublish `Short`, the move-detail
+Long text, the republish header). The pattern now matches `(the|an) owner's`.
+The scan covers every non-test `.go`/`.md` under `cmd/sdlc` (recursive),
+`atlas/workflow`, `AGENTS.base.md` and `README.md`. Fixed all four sites.
+Teeth: reintroducing "an owner's edits" in the README and in the publish
+`Short` fails the test at each site.

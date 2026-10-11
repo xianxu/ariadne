@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -54,7 +55,8 @@ func ownSpinOff(t *testing.T, r *trackerRepo, owner issue.Claimant) {
 }
 
 // The guard's two refusals. A foreign one names the owner (otherSlot's
-// checkout) and offers restore, never a claim the owner's hold would refuse.
+// checkout); the table also asserts it never offers a claim the owner's hold
+// would refuse, and offers restore except over this workspace's own record.
 const (
 	refuseForeign = "is owned by peer on box at /w/other"
 	refuseBehind  = "Merge main"
@@ -369,10 +371,11 @@ func TestNoHelpCallsABranchTheOwner(t *testing.T) {
 }
 
 // #274: published details are editable by mayNotEditDetails' policy, stated
-// once ({{DETAILS_EDITORS}}). No help, recovery contract or map may say only
-// the owner publishes or that restore is a non-owner's offer.
+// once ({{DETAILS_EDITORS}}). No help, recovery contract, map, README or sdlc
+// source comment may say only the owner publishes or that restore is a
+// non-owner's offer.
 func TestNoTextSaysOnlyTheOwnerEditsDetails(t *testing.T) {
-	ownerOnly := regexp.MustCompile(`(?i)only the owner (re)?publish|only its owner publish|the owner's (later )?edits|owned issues' (edited )?details|offer to a non-owner|publishes owned`)
+	ownerOnly := regexp.MustCompile(`(?i)only the owner (re)?publish|only its owner publish|(the|an) owner's (later )?edits|owned issues' (edited )?details|offer to a non-owner|publishes owned`)
 	check := func(where, text string) {
 		if m := ownerOnly.FindString(text); m != "" {
 			t.Errorf("%s states the pre-#274 owner-only policy: %q", where, m)
@@ -392,7 +395,15 @@ func TestNoTextSaysOnlyTheOwnerEditsDetails(t *testing.T) {
 	if err != nil || len(docs) == 0 {
 		t.Fatalf("no atlas workflow docs under %s: %v", root, err)
 	}
-	for _, p := range append(docs, filepath.Join(root, "AGENTS.base.md")) {
+	if err := filepath.WalkDir(filepath.Join(root, "cmd", "sdlc"), func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && !strings.HasSuffix(p, "_test.go") && (strings.HasSuffix(p, ".go") || strings.HasSuffix(p, ".md")) {
+			docs = append(docs, p)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range append(docs, filepath.Join(root, "AGENTS.base.md"), filepath.Join(root, "README.md")) {
 		raw, err := os.ReadFile(p)
 		if err != nil {
 			t.Fatal(err)

@@ -20,8 +20,8 @@ each issue's card — id, status, dates, hours, title — lives on the
 N[,N…]` takes the lock on one issue or a set (#283, #284), and `sdlc unclaim`
 releases it. `sdlc start-plan` starts the issue on its own branch, where the
 design is committed with git. Details reach main with that branch, or directly
-with `sdlc issue publish --issue N`: a first publication, or the owner's later
-edits (#284). A resting branch only fast-forwards to main. See
+with `sdlc issue publish --issue N`: a first publication, or a later edit by the
+owner (anyone, while unclaimed: #274) (#284). A resting branch only fast-forwards to main. See
 [issue tracker](atlas/workflow/issue-tracker.md).
 
 A claim also records its owner on the card (#277): the operator, a fingerprint

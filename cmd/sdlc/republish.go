@@ -1,5 +1,5 @@
 // republish.go — `sdlc issue publish` for details already on main (#284): the
-// owner's edits reach main by one narrow commit, never by overwriting a main
+// edits (the owner's, or anyone's while unclaimed, #274) reach main by one narrow commit, never by overwriting a main
 // copy that moved since the edits were based on it.
 package main
 

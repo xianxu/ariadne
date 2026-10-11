@@ -183,3 +183,77 @@ findings:
     detail: |
       3rd in family. Rule: every statement of who may publish/land published-details edits must state the mayNotEditDetails policy (refused only for another workspace's issue); derive it from one shared help constant (like ownershipGateHelp/{{OWNERSHIP_GATE}}) plus a test rejecting owner-only wording. Remaining instances: helptext/issue.md:11, atlas/workflow/issue-sync.md:9, atlas/workflow/sdlc-binary.md:49 and :72, republish.go:56 (republishOwned "publishes owned issues'").
 ```
+
+---
+
+## Re-review — 2026-10-11T10:52:29-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 274 — Handoff guard judges detail ownership by branch name |
+| repo | ariadne |
+| issue file | workshop/issues/000274-handoff-guard-ownership-by-branch-name.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | c663f84a6ee901174cbe7403da74c97870a68557..ab95ac3bcad9c297c2b4d01560ecabe4b951f812 |
+| command | sdlc close --issue 274 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-11T10:52:29-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+I've read the review window and I'm now checking the BR-4 sites, sweeping for leftover owner-only wording, and running the tests.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+The code change is correct and well tested. One policy, `mayNotEditDetails` (`cmd/sdlc/transferguard.go:157`), now decides both who may land published details and who may publish them: a foreign claimant blocks, while this workspace's own issue and an unclaimed one may be edited, always only against main's latest version. All three `## Done when` clauses have tests. Unclaimed edits succeed in the guard rows and in `TestPublishUnclaimedDetails`. The owner's edit lands from another issue's branch (`000013-meddler`). A stale overwrite is refused both for a foreign owner and, for an unclaimed issue, as behind main. The targeted test run passes: `ok github.com/xianxu/ariadne/cmd/sdlc 309.644s`.
+
+BR-1, BR-2 and BR-3 hold up. BR-4 is only half done. The sites it listed are all fixed, and the right mechanism is in place: the `{{DETAILS_EDITORS}}` placeholder plus `TestNoTextSaysOnlyTheOwnerEditsDetails`. But that test's pattern only matches "**the** owner's (later )?edits". It misses "**an** owner's edits", and it doesn't scan README.md. So four owner-only statements are still in the tree and the test passes anyway. Fixing these is cheap and doesn't block shipping, which is why the verdict is FIX-THEN-SHIP.
+
+1. **Strengths**
+   - `transferverdict.go:26` is pure, and `TestDetailsVerdict` covers all eight combinations of its inputs. The foreign/behind split is easy to follow.
+   - The guard and `issue publish` share one predicate, and restore's eligibility (`mayRestore`) is a separate predicate. Ownership and restore offers are not conflated.
+   - The guard test rows now also check that a refusal never suggests `sdlc claim`, and that it offers restore exactly when the issue isn't this workspace's own (`transferguard_test.go:176-181`). This tests the purpose of the change, not just its happy path.
+   - Two old tests depended on an unclaimed card being refused. They now set a foreign owner, which is the case they actually mean to protect.
+   - Who may edit published details is now stated once, in help, as a placeholder, and a test enforces it.
+
+2. **Critical:** none.
+
+3. **Important**
+   - BR-4, re-raised as not-addressed. **This is the 4th finding in family `doc-claims-track-policy`.**
+     - **The rule:** any text that says who publishes published-details edits must either use `{{DETAILS_EDITORS}}` or state the unclaimed exception. `TestNoTextSaysOnlyTheOwnerEditsDetails` must match "an owner's" as well as "the owner's", and must scan README.md.
+     - **Remaining instances:**
+       - `cmd/sdlc/issuepublish.go:21`: the `Short` text says "first publication or an owner's edits". It reaches users through command listings.
+       - `cmd/sdlc/issuemovedetail.go:41`: "also publishes an owner's later edits".
+       - `README.md:23`: "or the owner's later edits (#284)". The test doesn't scan README.md.
+       - `cmd/sdlc/republish.go:2`: the file header says "the owner's edits reach main".
+     - **Fix sketch:** widen the pattern to `(?i)(the|an) owner's (later )?edits`, add README.md to the files the test checks, and fix those four lines.
+
+4. **Minor**
+   - `republish.go:214`: "only its owner republishes its details" is still accurate, because this message is only reached for a foreign claimant. No change needed.
+   - `transferguard_test.go:59`: the comment on `refuseForeign` says the foreign refusal "offers restore". It does, but the constant only checks that the owner is named.
+
+5. **Test coverage notes**
+   - The guard rows cover all three holders: another workspace's, this workspace's own, and unclaimed. Restore is tested for both foreign and unclaimed holders. The publish tests cover an unclaimed card succeeding and a foreign card being refused.
+   - The wording test is the only enforcement for the doc family, and it has a blind spot, described in item 3.
+   - I did not revert any fix to confirm a test goes red. The implementor's Log records mutation checks, and the test design is consistent with them.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** One predicate serves both writers, and the help text has a single source.
+   - **ARCH-PURE: pass.** The verdict and predicates are pure. Only `ownership()` and `ancestorOf` do IO, and they stay in `changedDetails`.
+   - **ARCH-PURPOSE: flag (BR-4).** The help-text source is enforced for `issue.md`, but the `Short`/`Long` strings in Go and the README restate the policy by hand, and the test doesn't catch them.
+
+7. **Plan revision recommendations:** none. The plan's checked items match the code.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      Listed sites fixed and a placeholder plus wording test added, but the test regex misses "an owner's" and skips README.md; remaining: issuepublish.go:21 Short, issuemovedetail.go:41, README.md:23, republish.go:2.
+```

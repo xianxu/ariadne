@@ -56,6 +56,18 @@ rounds:
       recipe: small-diff-review
       isolation: checkout
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-11T10:52:29-07:00"
+      dispatched: "2026-10-11T10:46:14-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: not-addressed
+          note: 'Listed sites fixed and a placeholder plus wording test added, but the test regex misses "an owner''s" and skips README.md; remaining: issuepublish.go:21 Short, issuemovedetail.go:41, README.md:23, republish.go:2.'
+          round: 3
+      recipe: small-diff-review
+      isolation: checkout
+      blocked: true
 ---
 
 # Gate ledger — ariadne#274 (boundary-review)
@@ -86,6 +98,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - **BR-4** [Important] `doc-claims-track-policy` publish summaries still say only the owner publishes later edits
   3rd in family. Rule: every statement of who may publish/land published-details edits must state the mayNotEditDetails policy (refused only for another workspace's issue); derive it from one shared help constant (like ownershipGateHelp/{{OWNERSHIP_GATE}}) plus a test rejecting owner-only wording. Remaining instances: helptext/issue.md:11, atlas/workflow/issue-sync.md:9, atlas/workflow/sdlc-binary.md:49 and :72, republish.go:56 (republishOwned "publishes owned issues'").
+
+## Round 3 — 2026-10-11T10:52:29-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-4 — not-addressed — Listed sites fixed and a placeholder plus wording test added, but the test regex misses "an owner's" and skips README.md; remaining: issuepublish.go:21 Short, issuemovedetail.go:41, README.md:23, republish.go:2.
 
 ## Open findings
 
