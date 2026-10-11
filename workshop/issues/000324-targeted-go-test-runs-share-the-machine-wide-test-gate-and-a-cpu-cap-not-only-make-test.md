@@ -1,12 +1,20 @@
 ---
 id: 000324
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
-card_mirror: 'e3c0c5a1d3e99aaeb91d08e9121bbb337b17d75a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'edfa164a5c3c8a8cd647f80700a791486584a490' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T17:53:34-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Targeted go test runs share the machine-wide test gate and a CPU cap, not only make test
@@ -30,8 +38,22 @@ Every Go test run an agent starts in a woven repo goes through one machine-level
 
 ## Plan
 
-- [ ]
+Mechanism (decided 10-10): gate **inside the test binary**, not in the slot env. Env is fixed at launch and differs per harness (pair#203 makes the same point). A `go -exec` shim needs an executable on PATH, and slots only have shell functions. A `TestMain` runs on every invocation of the package's tests, whatever the harness, shell or flags.
+
+- [ ] `pkg/testgate` (module-level, so cmd/sdlc, cmd/weave and later pair can import it): `Enter()` at the top of `TestMain`:
+  - Takes one of N machine-wide slots: flock(2) on `test-gate.<k>.lock` beside #319's `test-suite.lock`. N comes from `WF_TEST_GATE_SLOTS`, default NCPU/4, at least 1. Each slot file holds the holder's JSON (repo, worktree, package, pid, started). The descriptor is close-on-exec, so the slot is released when the test binary exits, however it exits.
+  - Waits loudly: `[test-gate] waiting Ns for a test slot; held by …`, repeated every 30s.
+  - Caps `-test.parallel` at `WF_TEST_PARALLEL` (default 2) unless the run set it explicitly.
+  - Uses #319's hatches: `WF_TEST_LOCK=off` skips with a loud line, and `WF_TEST_LOCK_TIMEOUT=<s>` gives up with "a lock wait, not a test failure".
+  - `WF_TEST_LOCK_HELD_BY`, which `make test` exports, bypasses the gate: the full suite has its own lock and sharding.
+- [ ] Wire `testgate.Enter()` into the heavy packages' `TestMain`: cmd/sdlc, internal/{gitx,tracker,fleet,activetime}, cmd/weave, weave internal/{refresh,acquire}. Light packages stay ungated, so they don't queue for slots.
+- [ ] Tests (re-exec helper process): a held slot makes a second run wait and print the holder; the escape hatch skips loudly; the timeout gives up with its message; the parallel cap applies only when unset; the make-test bypass works.
+- [ ] Measure load and wall time with 4 concurrent targeted-run loops, gate off vs on.
+- [ ] Atlas (sdlc-binary.md "Running the test suite") and the hatch documented in the package doc.
+
+ARCH-FUNERAL: N slot files of one JSON record each, rewritten on acquire and never appended. The count is bounded by `WF_TEST_GATE_SLOTS`, and they live in `~/.local/state/ariadne/` beside #319's lock file.
 
 ## Log
 
 ### 2026-10-10
+- Baseline load at claim (17:53): 43.96 / 55.24 / 52.41 on 12 cores. The agent env already has GOFLAGS=-p=3 GOMAXPROCS=3 from the operator's shell, so the env cap exists but doesn't bound the number of concurrent test binaries machine-wide, nor the git forks inside them.
