@@ -142,15 +142,12 @@ func BuildTimeline(rounds []BoundaryRound, issueCommits []time.Time, current str
 	return tl
 }
 
-// groupBoundaries groups rounds by boundary in order of first appearance.
-// Rounds that belong to every boundary carry no cut of their own.
+// groupBoundaries groups rounds by boundary in order of first appearance. The
+// caller passes only rounds that can cut (cmd/sdlc's cutTimes decides that).
 func groupBoundaries(rounds []BoundaryRound) [][]BoundaryRound {
 	idx := map[string]int{}
 	var out [][]BoundaryRound
 	for _, r := range rounds {
-		if r.Boundary == "*" {
-			continue
-		}
 		i, ok := idx[r.Boundary]
 		if !ok {
 			i = len(out)

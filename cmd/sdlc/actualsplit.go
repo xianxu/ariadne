@@ -64,12 +64,14 @@ func splitRounds(l gatestate.Ledger) []activetime.BoundaryRound {
 	return out
 }
 
-// cutTimes is the one rule for which rounds can cut a split and with what
-// times, shared by the split and the row's metadata so they cannot disagree:
-// a round that consumed no review, or whose finalize time does not parse, is
-// unusable; an unparseable dispatch stamp reads as zero (missing).
+// cutTimes is the ONE rule for which rounds can cut a split and with what
+// times, shared by the split and the row's metadata so they cannot disagree;
+// nothing downstream filters rounds again. Unusable: a round that consumed no
+// review, one that belongs to every boundary (gatestate.BoundaryAll: no cut
+// of its own), or one whose finalize time does not parse. An unparseable
+// dispatch stamp reads as zero (missing).
 func cutTimes(r gatestate.Round) (fin, disp time.Time, ok bool) {
-	if r.NoCap {
+	if r.NoCap || r.Boundary == gatestate.BoundaryAll {
 		return fin, disp, false
 	}
 	fin, err := time.Parse(time.RFC3339, r.Timestamp)

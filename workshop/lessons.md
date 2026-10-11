@@ -390,3 +390,10 @@ The simplest durable authority beats a clever scan of consequences.
   be lost. The rerun then had nothing to finish at. Derive the target from
   what survives (the remote branch), and give every effect boundary that
   promises a rerun a lost-response test.
+- When two readers of one record must agree (a split and the row that
+  describes it), put the "is this record usable" predicate in ONE function
+  that both call, and filter nowhere else. #234 M1's review found the
+  split dropping unparseable rounds that the row metadata still counted, and
+  then found a second filter (`BoundaryAll`) left in the pure grouping step
+  after the first was unified. Each extra filter site is a disagreement
+  waiting for an input that only one of them excludes.

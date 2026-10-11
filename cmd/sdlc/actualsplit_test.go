@@ -157,6 +157,7 @@ func TestRowSplitMetaAndSource(t *testing.T) {
 		{"an unstamped earlier round", []gatestate.Round{unstamped, stamped}, measured, 2, "milestone-review+small-diff-review", "finalize"},
 		// The split cannot use a round whose finalize time does not parse, so
 		// the row does not count it either (one rule, cutTimes).
+		{"a round for every boundary", []gatestate.Round{{N: 1, Timestamp: "2026-10-10T16:00:00-07:00", Boundary: gatestate.BoundaryAll}, stamped}, measured, 1, "small-diff-review", "dispatch"},
 		{"an unparseable round", []gatestate.Round{{N: 1, Timestamp: "yesterday", Dispatched: "2026-10-10T16:55:00-07:00"}, stamped}, measured, 1, "small-diff-review", "dispatch"},
 	}
 	for _, c := range cases {
