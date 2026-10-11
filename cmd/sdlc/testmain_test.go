@@ -1,7 +1,10 @@
 package main
 
 import (
+	"context"
+	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -157,6 +160,11 @@ func TestMain(m *testing.M) {
 	testfix.PreferRealGit()
 	testfix.QuietBackgroundGit()
 	cleanupReviewBox := hermeticReviewBox()
+	// #303: no test runs the installed weave; a test that reaches the catch-up
+	// installs its own fake.
+	weaveRefresh = func(context.Context, string, io.Writer) error {
+		return errors.New("test: weave refresh is not faked in this test")
+	}
 	root := realRepoRoot()
 	before := readSnapshot(root)
 	code := m.Run()

@@ -1089,7 +1089,7 @@ everything else is surface (#177; docs-only closes had an incoherent demand).
 contain every first-parent commit of freshly fetched main whose committer date
 is at or before the most recent noon (ariadne-robustness-1 requirement 6). The
 definition lives in **`internal/freshness`** (`Cutoff`, `LoadLocation`, `Check`),
-shared with #303's catch-up at claim/start-plan. The zone comes from the tracked
+shared with #303's catch-up at start-plan. The zone comes from the tracked
 `.sdlc/freshness.json` (absent → local; malformed refuses). Main is
 `reviewMainRef` in a tracker repo, so the gate and the window share one fetch,
 else `TrunkRef` after `git fetch`. The probe is tri-state:
@@ -1097,6 +1097,20 @@ else `TrunkRef` after `git fetch`. The probe is tri-state:
 - DocsOnly (`publishGateHasCodeSurface`, the publish gate's predicate): an info line.
 - Inconclusive (a fetch or git failure): a "could not check" warning, never a pass
   line.
+
+**Catch-up before new work (#303, `catchup.go`).** `start-plan --issue N` on the
+resting branch fetches origin/main for the slot and each `substrateChain` repo.
+If any trails it, start-plan runs the installed `weave refresh` (the `weaveRefresh`
+seam; TestMain stubs it), which owns the all-or-nothing fast-forward and compile.
+sdlc never fast-forwards a dependency itself. A successful catch-up stops before
+the branch or card changes, because the running binary predates it; the re-run
+plans; so does a failed refresh that had already moved a checkout (HEADs are
+compared before and after). Checkouts the probe cannot read (absent per
+`substrateWalk`, no origin, a failed fetch) warn as unchecked. A failed refresh
+that moved nothing refuses only for a checkout `freshness.Check` calls Stale,
+and otherwise warns. `claim` keeps only its #284 fast-forward of the slot's own
+rest. `couch --prepare` (pair#434) is the TL-side twin: same refresh, plus an idle
+check and a context reload.
 
 The cutoff is a past instant, so a landing after it never moves the requirement.
 A fast-forwarded landing counts from its own commit date, which is stricter but
