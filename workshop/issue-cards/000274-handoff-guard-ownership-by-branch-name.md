@@ -2,7 +2,7 @@
 id: 000274
 status: open
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-11
 estimate_hours:
 github_issue:
 tracker:
@@ -17,6 +17,14 @@ tracker:
         source_blob: 2aafbbb5db900c5aa78ca15e6986e0d27a2569ff
         destination: workshop/issues/000274-handoff-guard-ownership-by-branch-name.md
         main_commit: 259024b6a5cb94d7b932ced3fa1bd712e1d5ced0
+started: 2026-10-11T09:37:30-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Handoff guard judges detail ownership by branch name
