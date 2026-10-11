@@ -10,7 +10,8 @@ WHAT IT DOES
 
   1. Runs the mechanical milestone close:
      - ticks the `- [ ] Mx — ...` item in ## Plan
-     - updates the project file's task row + detail block (if any)
+     - updates the project file's task row + detail block (if any); a
+       TL-owned project (`tl:` frontmatter, #326) is skipped, not edited
      - appends a verification log entry
      - refuses without --actual / --verified (unless --force)
      - refuses if atlas/ wasn't touched in the window (unless --force);

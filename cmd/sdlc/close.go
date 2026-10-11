@@ -165,7 +165,8 @@ func NewCloseCmd() *cobra.Command {
 			"milestone: enforces ACTUAL + VERIFIED, checks atlas/ was touched in " +
 			"the commit window, ticks the issue's ## Plan, flips status, appends a " +
 			"verification log line, and updates the matching brain-side project " +
-			"file (task tick + detail-block field upsert). Does NOT commit — the " +
+			"file (task tick + detail-block field upsert; a TL-owned `tl:` project " +
+			"is skipped). Does NOT commit — the " +
 			"agent commits, usually bundling the close with other work. The main " +
 			"session's helptext package replaces this Long text with the full " +
 			"checkpoint contract once wired up.",
@@ -804,6 +805,19 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			die(stderr, fmt.Sprintf("read %s: %v", m.Path, rerr))
 		}
 		pt := string(projBytes)
+		// A TL-owned project is written only by its TL (#326): no tick, no
+		// detail block, no peer-write, and no review snapshot, which all read
+		// projectEdits. An unreadable owner skips too, since writing could
+		// trample a TL's file.
+		owners, oerr := project.TLOwners(pt)
+		if oerr != nil {
+			cwarn(stderr, fmt.Sprintf("cannot read tl: in %s (%v) — skipping project update", label, oerr))
+			continue
+		}
+		if len(owners) > 0 {
+			cinfo(stderr, fmt.Sprintf("project %s is TL-owned (tl: %s) — not ticked; report the landing to the TL", label, strings.Join(owners, ", ")))
+			continue
+		}
 		newPT := pt
 
 		if mode == "milestone" {
