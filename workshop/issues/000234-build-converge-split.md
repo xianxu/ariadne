@@ -231,4 +231,12 @@ The counts above were taken at filing and will move.
   - The derived increment was adopted: 0.75h → 0.95h, because round 1's
     fixes counted as converge (0.08h). The feature measured its own loop.
   - `--no-project`: the ops project tracks #234 as one row.
+- M2 implementation:
+  - drift reads est/build on split rows only (`calibratable` requires a split
+    and positive build, via `BuildRatio`);
+  - `estimate.ConvergeFactors` and `sdlc converge-report`;
+  - brain `velocity/SKILL.md` documents columns 23–27 (brain auto-commits);
+  - atlas: verb table, file map, drift/k.
+  - Live: `sdlc converge-report` reports no split rows yet, which is correct
+    until this close writes the first one.
 
