@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "a3ac40f1", done: "1629a611"}
 ---
 
 # Run each boundary reviewer in a disposable isolated checkout
