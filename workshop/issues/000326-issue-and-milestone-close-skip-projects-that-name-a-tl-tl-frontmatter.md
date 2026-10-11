@@ -1,12 +1,12 @@
 ---
 id: 000326
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 estimate_hours:
-card_mirror: '3a4f5d3dd04372cb0b191d5188e7f976d87144b3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e44d3af17d0efffd271c6d63a490346ee447503e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-10T23:14:00-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "a83ae72a", done: "4eebc762"}
+actual_hours: 0.93
 ---
 
 # Issue and milestone close skip projects that name a TL (tl: frontmatter)
