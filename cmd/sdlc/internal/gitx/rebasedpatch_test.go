@@ -166,6 +166,40 @@ func TestRebasedReviewedBase_ConflictResolutionInterdiff(t *testing.T) {
 	}
 }
 
+// #320: the replay honors main's merge attributes, read from B_now and not from the
+// working tree, so a union-merge file appended on both sides replays cleanly and S
+// stays a pure function of its inputs.
+func TestRebasedReviewedBase_UnionAttributeFromMain(t *testing.T) {
+	dir := testfix.Repo(t, testfix.Chdir())
+	writeFile(t, dir, ".gitattributes", "lessons.md merge=union\n")
+	writeFile(t, dir, "lessons.md", "l1\n")
+	commitAll(t, dir, "base")
+	testfix.Git(t, dir, "checkout", "-q", "-b", "feat")
+	writeFile(t, dir, "lessons.md", "l1\nBRANCH\n")
+	h1 := commitAll(t, dir, "#320: branch lesson")
+	testfix.Git(t, dir, "checkout", "-q", "main")
+	writeFile(t, dir, "lessons.md", "l1\nMAIN\n")
+	commitAll(t, dir, "main lesson")
+	testfix.Git(t, dir, "checkout", "-q", "feat")
+	if _, err := runEnv(nil, "git", "merge", "-q", "--no-edit", "main"); err != nil {
+		t.Fatalf("fixture: a union-attributed append must merge cleanly: %v", err)
+	}
+	// A working tree without the attributes must not change the answer.
+	if err := os.Remove(filepath.Join(dir, ".gitattributes")); err != nil {
+		t.Fatal(err)
+	}
+	s, conflicted := mustRebased(t, h1)
+	if len(conflicted) != 0 {
+		t.Errorf("conflicted = %v, want none (union merge)", conflicted)
+	}
+	// Both sides' lines survive. Their order can differ from the branch's own merge
+	// (ours-first on each side), which the publish gate reads as a doc-only delta.
+	got := testfix.Capture(t, dir, "show", s+":lessons.md")
+	if !strings.Contains(got, "MAIN\n") || !strings.Contains(got, "BRANCH\n") || strings.Contains(got, "<<<<<<<") {
+		t.Errorf("S:lessons.md = %q, want both appended lines and no markers", got)
+	}
+}
+
 // (f) an unresolvable reviewed head is an error naming it as such.
 func TestRebasedReviewedBase_UnresolvableReviewed(t *testing.T) {
 	patchRepo(t)
