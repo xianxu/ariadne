@@ -1,12 +1,20 @@
 ---
 id: 000274
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-29
-updated: 2026-09-29
+updated: 2026-10-11
 estimate_hours:
-card_mirror: '5000f7c3cb9ae2dbfe1561b97f046c95cd2fb489' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e3f8fbc5ca6e79ba8690b79bdf81da0ba4dd0706' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-11T09:37:30-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Handoff guard judges detail ownership by branch name
@@ -49,6 +57,37 @@ overwrites:
   rewritten by another branch) are still refused; tests cover all three.
 
 ## Plan
+
+Revised against today's code (2026-10-11): #285 already replaced branch names
+with the card's claimant, and #307 made the claimant the home slot. Case 2 of
+the Problem (the owner's edits from a branch not named for #N) is therefore
+accepted already; what remains is that an **unclaimed** card is judged "not
+the owner" and refused, and that the refusal recommends `claim`, which cannot
+take an issue another workspace holds.
+
+Design: one policy, read by both writers of published details (ARCH-DRY):
+**a foreign claimant blocks; mine or unclaimed may edit**, always subject to
+optimistic concurrency (based on main's latest version of the file).
+
+- [ ] `detailsFacts.Owner` → `Foreign` (another workspace holds the card);
+      `verdictNotOwner` → `verdictForeign`. Unclaimed + based accepts;
+      unclaimed + behind is `verdictBehind` (merge main, resolve, rerun).
+      `TestDetailsVerdict` table rewritten.
+- [ ] Foreign refusal names the owner and drops the `claim` advice:
+      coordinate with the owner (or operator `sdlc reclaim`), or drop this
+      edit with `sdlc issue restore`. Restore is only offered for another
+      workspace's issue, never for this workspace's own record.
+- [ ] `requireOwnedToPublish` accepts an unclaimed card (refuses only a
+      foreign claimant); the publish's own main-moved check is the
+      concurrency guard.
+- [ ] Tests: `TestTransferGuardOverBranchShapes` gains unclaimed rows
+      (rewrite after merging main accepts; stale re-add is behind) and an
+      assertion that the foreign refusal names the owner and not `claim`;
+      the owner's edit from another issue's branch (`000013-…`) accepts;
+      a publish test for an unclaimed card succeeds.
+- [ ] Docs: helptext `issue.md`, `atlas/workflow/issue-tracker.md`,
+      `AGENTS.base.md` "Later edits" line.
+- [ ] Close.
 
 ## Log
 
