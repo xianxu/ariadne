@@ -5,8 +5,8 @@ deps: [ariadne#231]
 github_issue:
 created: 2026-09-17
 updated: 2026-10-10
-estimate_hours:
-card_mirror: '69ebaf178b86f40c74d733bfefb96d92818e46e9' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 2.7
+card_mirror: 'a60158de90ae10bd06751b1b421acff61df5a05d' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-10T17:41:18-07:00
 claimant:
     operator: Xian Xu
@@ -114,6 +114,31 @@ checks, then the whole ledger. Document the method in brain's `velocity/SKILL.md
   evidence and marked the rest `none`. It ran as a dry-run on a sample first, its
   cut-point precedence is unit-tested, and the method is documented in brain's
   `velocity/SKILL.md`.
+
+## Estimate
+
+> *Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` (stale; provisional) against the durable plan. Design was largely done in planning, so the buffer is 0.15; impl is 40% of the v2 ranges.*
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: greenfield-go-module   design=0.3  impl=0.32
+item: smaller-go-module      design=0.0  impl=0.16
+item: smaller-go-module      design=0.1  impl=0.2
+item: smaller-go-module      design=0.1  impl=0.2
+item: atlas-docs             design=0.1  impl=0.08
+item: milestone-review       design=0.0  impl=0.2
+item: smaller-go-module      design=0.05 impl=0.12
+item: smaller-go-module      design=0.1  impl=0.16
+item: atlas-docs             design=0.1  impl=0.08
+item: milestone-review       design=0.0  impl=0.2
+design-buffer: 0.15
+total: 2.70
+```
+
+The M1 rows are the timeline/split (greenfield), the dispatch stamp, the
+computeActual + E1 wiring, the ledger columns + E3, the atlas and the review.
+The M2 rows are drift, the converge-report verb, the docs and the review.
 
 ## Plan
 
