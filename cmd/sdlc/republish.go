@@ -1,5 +1,5 @@
 // republish.go — `sdlc issue publish` for details already on main (#284): the
-// owner's edits reach main by one narrow commit, never by overwriting a main
+// edits (the owner's, or anyone's while unclaimed, #274) reach main by one narrow commit, never by overwriting a main
 // copy that moved since the edits were based on it.
 package main
 
@@ -43,7 +43,7 @@ func republishDecision(local, base string, baseOK bool, main string) publishVerd
 	}
 }
 
-// republishItem is one owned issue's publication, read before any effect.
+// republishItem is one issue's publication, read before any effect.
 type republishItem struct {
 	id, path string
 	read     []byte // the local file as read, to prove it unchanged at the finish
@@ -53,9 +53,9 @@ type republishItem struct {
 	write    bool // false: main already has these details (finish only)
 }
 
-// republishOwned publishes owned issues' edited details to main in one narrow
-// commit, then finishes this checkout (#284). It never writes main for an issue
-// this workspace does not own — re-checked against a fresh tracker read before
+// republishOwned publishes issues' edited details (mayNotEditDetails) to main in one narrow
+// commit, then finishes this checkout (#284). It never writes main for another
+// workspace's issue (#274: an unclaimed one publishes) — re-checked against a fresh tracker read before
 // the push — nor over a main copy that moved since the checkout's base, judged
 // again on every attempt. A rerun after an uncertain push finds main already
 // holding the details and only finishes the checkout.
@@ -202,21 +202,18 @@ var mainPublish = func(env *trackerEnv, msg string, prepare func(*gitx.TrunkView
 	return env.main.UpdateManyPrepared(msg, prepare, beforePush)
 }
 
-// requireOwnedToPublish refuses republishing a card this workspace does not
-// hold: an unowned card is claimed first, another workspace's is theirs.
+// requireOwnedToPublish refuses republishing another workspace's card; this
+// workspace's own and an unclaimed one publish (mayNotEditDetails, #274), with
+// main's movement since the read as the concurrency check.
 func requireOwnedToPublish(env *trackerEnv, card tracker.Record) error {
 	own, recorded, _, err := ownership(env, card)
 	if err != nil {
 		return err
 	}
-	switch own {
-	case issue.OwnershipMine:
-		return nil
-	case issue.OwnershipForeign:
+	if mayNotEditDetails(own) {
 		return fmt.Errorf("#%s is owned by %s; only its owner republishes its details", issue.CLIRef(card.ID), describeClaimant(recorded))
-	default:
-		return fmt.Errorf("#%s has no owner; claim it first (`sdlc claim --issue %s`), then publish", issue.CLIRef(card.ID), issue.CLIRef(card.ID))
 	}
+	return nil
 }
 
 // finishPublished makes this checkout agree with what main now holds. A
