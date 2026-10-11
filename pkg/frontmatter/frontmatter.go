@@ -19,6 +19,10 @@ import (
 // cmd/sdlc/internal/issue.Parse delegates here.
 var frontmatterRE = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n(.*)$`)
 
+// ErrNoFrontmatter is Split's error for a document without a leading fence, so
+// a caller that treats "no frontmatter" as a valid state can tell it apart.
+var ErrNoFrontmatter = errors.New("no YAML frontmatter")
+
 // Split separates a markdown document into its leading YAML frontmatter and its
 // body. Returns an error when the document doesn't open with a "---\n…\n---\n"
 // fence — the contract cmd/sdlc/internal/issue.Parse relies on (it now delegates
@@ -26,7 +30,7 @@ var frontmatterRE = regexp.MustCompile(`(?s)^---\n(.*?)\n---\n(.*)$`)
 func Split(content string) (fm, body string, err error) {
 	m := frontmatterRE.FindStringSubmatch(content)
 	if m == nil {
-		return "", "", errors.New("no YAML frontmatter")
+		return "", "", ErrNoFrontmatter
 	}
 	return m[1], m[2], nil
 }

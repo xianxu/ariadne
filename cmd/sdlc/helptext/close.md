@@ -185,7 +185,8 @@ MODES
   So committing `workshop/lessons.md`, `atlas/` and `workshop/plans/` bookkeeping
   during a review is safe. Landing code is not, and the refusal now tells you which
   commits to re-review. Every mutable prose artifact named to the reviewer is
-  separately snapshotted: the **issue file**, any **project file**, and the
+  separately snapshotted: the **issue file**, any **project file** the close
+  edits (a TL-owned one is skipped and not snapshotted, #326), and the
   canonical durable **plan** (including whether that plan exists). Any edit,
   creation, deletion, or replacement refuses finalization — the review READ that
   prose — so write your `## Log` line AFTER the close, not during it.
@@ -241,6 +242,10 @@ WHAT THE GUARD DEFENDS
       ticked + detail block updated; a PEER repo's edit is committed
       there only when git state is unambiguous (main, clean), else
       reported with the exact finish command
+    - a TL-OWNED project (frontmatter `tl:`, #326) is skipped entirely: no
+      tick, no detail block (so no --no-project refusal), no peer-write, no
+      review snapshot. An info line names it and its TL; report the landing
+      to the TL, who owns the file
 
   BYPASSING A GATE (#67) — each gate has its own --no-<gate> flag, so you
   can waive exactly the one that doesn't apply (and acknowledge it) instead
@@ -265,7 +270,7 @@ WHAT IT DOES
   - Emits the no-LLM `lessons` reminder on a whole-issue close (#160 Q4 — moved
     here from the publish gate so it fires while findings are fresh)
   - Ticks the project task row + upserts **actual:** and **closed:** in the
-    detail block
+    detail block (skipping TL-owned projects, those with `tl:`, #326)
   - Prints the COST REPORT (#187) — see below
   - Does NOT git-commit (except a tracker-era issue's evidence commit, #252),
     does NOT move the file to workshop/history/

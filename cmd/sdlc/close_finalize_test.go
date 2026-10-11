@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	project "github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 )
 
 // TestCloseVerdictOutcome pins the finalize policy (#139), derived from the #147
@@ -621,5 +623,94 @@ func TestCloseCommand_DocOnlyCommitDuringBoundaryReview_Finalizes(t *testing.T) 
 	}
 	if !strings.Contains(got.stderr, "doc-only commit(s) arrived since") {
 		t.Fatalf("expected the anchored pass line on stderr:\n%s", got.stderr)
+	}
+}
+
+// TestCloseCommands_TLOwnedProjectUntouched pins #326: close and milestone-close
+// leave a `tl:` project byte-identical (no tick; milestone-close doesn't demand
+// its detail block), print the skip line, and a TL edit during the review
+// doesn't void SHIP, because the file isn't in the snapshot. A sibling project
+// without `tl:` is still ticked, so the filter is per project.
+func TestCloseCommands_TLOwnedProjectUntouched(t *testing.T) {
+	commands := map[string][]string{
+		"close":           {"close", "--issue", "69", "--actual", "1", "--verified", "tests pass", "--no-atlas"},
+		"milestone-close": {"milestone-close", "--issue", "69", "--milestone", "M1", "--actual", "1", "--verified", "tests pass", "--no-atlas"},
+	}
+	for name, args := range commands {
+		for _, concurrentEdit := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/edit=%v", name, concurrentEdit), func(t *testing.T) {
+				issuesDir := closeRepo(t, 69)
+				brainDir := t.TempDir()
+				repoRoot, _ := os.Getwd()
+				projectDir := filepath.Join(repoRoot, "workshop", "projects")
+				if err := os.MkdirAll(projectDir, 0o755); err != nil {
+					t.Fatal(err)
+				}
+				ref := repoIdentity() + "#69"
+				tlPath := filepath.Join(projectDir, "tl-run.md")
+				tlText := "---\ntype: project\nname: tl-run\nstatus: ideation\ntl: xian-xu@ops:0\n---\n# tl-run\n\n- [ ] ship [" + ref + "]\n- [ ] M1 [" + ref + " M1]\n"
+				plainPath := filepath.Join(projectDir, "roadmap.md")
+				// The plain project carries its M1 detail block, so no --no-project
+				// waiver is needed: the TL project must not trip that gate itself.
+				anchor := project.AnchorFor(repoIdentity(), "69", "M1")
+				plainText := "# roadmap\n\n- [ ] ship [" + ref + "]\n- [ ] M1 [" + ref + " M1]\n\n## details\n\n<a id=\"" + anchor + "\"></a>\n### M1\n\nprose\n"
+				for p, text := range map[string]string{tlPath: tlText, plainPath: plainText} {
+					if err := os.WriteFile(p, []byte(text), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+
+				started := make(chan struct{})
+				releaseReview := make(chan struct{})
+				orig := judge.Run
+				t.Cleanup(func() { judge.Run = orig })
+				judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
+					close(started)
+					<-releaseReview
+					return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+				}
+				done := make(chan error, 1)
+				var stderr string
+				go func() {
+					var err error
+					_, stderr, err = executeSDLCTestCommand(append(args, "--issues-dir", issuesDir, "--brain-dir", brainDir)...)
+					done <- err
+				}()
+				waitForSignal(t, started, "boundary review to start")
+				wantTL := tlText
+				if concurrentEdit {
+					wantTL = tlText + "\nTL ticked the row itself\n"
+					if err := os.WriteFile(tlPath, []byte(wantTL), 0o644); err != nil {
+						t.Fatal(err)
+					}
+				}
+				close(releaseReview)
+				select {
+				case err := <-done:
+					if err != nil {
+						t.Fatalf("%s refused: %v\n%s", name, err, stderr)
+					}
+				case <-time.After(5 * time.Second):
+					t.Fatal("timeout waiting for close")
+				}
+
+				if got, _ := os.ReadFile(tlPath); string(got) != wantTL {
+					t.Fatalf("TL-owned project changed:\n%s", got)
+				}
+				if !strings.Contains(stderr, "tl-run.md is TL-owned (tl: xian-xu@ops:0)") {
+					t.Fatalf("missing skip line:\n%s", stderr)
+				}
+				if got, _ := os.ReadFile(plainPath); !strings.Contains(string(got), "- [x]") {
+					t.Fatalf("project without tl: was not ticked:\n%s", got)
+				}
+				want := "closed — tests pass"
+				if name == "milestone-close" {
+					want = "closed M1 — tests pass"
+				}
+				if text := readIssue(t, issuesDir); !strings.Contains(text, want) {
+					t.Fatalf("%s did not finalize; want %q:\n%s", name, want, text)
+				}
+			})
+		}
 	}
 }
