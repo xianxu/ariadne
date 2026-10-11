@@ -72,6 +72,13 @@ Detailed incidents remain in their owning issue or review artifact.
 - Refs under `refs/` are shared by every linked worktree (every slot). Never judge
   whether a ref is live from one checkout's files: delete exactly what this operation
   ended, or decide from shared state such as the tracker's cards (#304 close review).
+- A source guard that greps for a call must skip its own file. The guard names
+  the call it looks for, so it satisfies itself for its own directory, and that
+  directory's real TestMain goes unguarded. Prove a guard by deleting the call
+  it protects and watching it go red (#324 BR-5).
+- A wait inside a test binary spends `go test`'s timeout: cmd/go kills the binary
+  at `-timeout` plus a minute from its start, however long it queued. Bound the
+  wait below that and shrink the binary's own timeout by it (#324).
 
 ## Paths, processes, and integration
 

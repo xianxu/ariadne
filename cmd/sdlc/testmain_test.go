@@ -11,6 +11,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 // Test hermeticity guard (#149/#165). cmd/sdlc tests run with cwd inside the REAL
@@ -151,6 +152,7 @@ func readSnapshot(root string) repoSnapshot {
 }
 
 func TestMain(m *testing.M) {
+	testgate.Enter() // one machine-wide test slot, and the -parallel cap (#324)
 	testfix.PreferRealGit()
 	testfix.QuietBackgroundGit()
 	root := realRepoRoot()

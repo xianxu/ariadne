@@ -1410,7 +1410,7 @@ missing helper warns that the run is unlocked):
 forked watcher until that `make` exits, so a crash or kill releases it at once.
 Parse time matters: a prerequisite would run after the test target's own
 prerequisites, which are pair's whole suite. Targeted runs (`go test -run …`, a
-single `make test-*` target) never take it. A nested `make test` under a locked
+single `make test-*` target) never take it; they go through the test gate below. A nested `make test` under a locked
 run passes through (`WF_TEST_LOCK_HELD_BY`).
 
 While waiting it prints `[test-lock] waiting Ns … held by <repo> (<worktree>),
@@ -1419,6 +1419,44 @@ make pid P, since T`, repeated every 30s. `WF_TEST_LOCK=off` skips the lock
 with "full-suite lock not taken (timeout)" — a lock wait, not a test failure.
 Agents running the pre-close suite should run `make test` in the background so a
 wait can't trip the tool's timeout. Tests: `scripts/test-lock.test.sh`.
+
+### Targeted runs share a machine budget (#324)
+
+Heavy test packages call `testgate.Enter()` (`pkg/testgate`) first in their
+`TestMain`, so every run of their tests is gated, whatever the harness, shell or
+flags:
+- **Covered packages:** every git-driving `cmd/sdlc` package
+  (`TestGitDrivingPackagesPreferRealGit` enforces it), plus `cmd/weave` and weave's
+  `refresh` and `acquire`.
+- **Full suite first:** the gate waits while a full suite holds #319's lock. It
+  probes with a shared flock and drops it at once, so targeted runs never starve
+  a waiting suite.
+- **Slots:** it then takes one of `WF_TEST_GATE_SLOTS` slots (default NCPU/4),
+  `test-gate.<k>.lock` beside `test-suite.lock`, each holding its holder's record,
+  until the binary exits.
+- **Parallel cap:** it caps `-test.parallel` at `WF_TEST_PARALLEL` (default 2)
+  unless the run set it.
+- **Wait budget:** the wait spends the run's `-test.timeout`, because `cmd/go` kills
+  a binary at that timeout plus a minute from its start, however long it queued.
+  So the gate waits at most a quarter of it, then goes ahead without a slot
+  (loudly), and shrinks `-test.timeout` by the wait so the binary's own alarm, which
+  names the running tests, fires first. The measurement caught this: runs queued
+  10+ minutes behind a pair suite were SIGQUIT-killed.
+- **Hatches:** the same as #319's lock. `WF_TEST_LOCK=off` skips the gate loudly,
+  and `WF_TEST_LOCK_TIMEOUT` gives up as "a lock wait, not a test failure".
+- **Under `make test`:** `WF_TEST_LOCK_HELD_BY` makes the gate stand aside, because
+  the suite has its own lock and shards.
+
+**Waits are invisible on a pass.** In package-list mode (`go test ./pkg/…`), `go`
+drops a passing binary's output, so the `[test-gate] waiting … held by …` lines
+show only with `-v`, on a failure, or in local-directory mode. A run that looks
+hung is usually queued: `cat ~/.local/state/ariadne/test-gate.*.lock
+~/.local/state/ariadne/test-suite.lock` names the holders. Run long targeted
+batches in the background, like the full suite.
+
+Why in the binary and not the slot env: env is fixed when a harness launches and
+differs per harness (pair#203), and a `go -exec` shim needs an executable on PATH,
+which slots don't have.
 
 ### Downstream staleness gotcha
 
