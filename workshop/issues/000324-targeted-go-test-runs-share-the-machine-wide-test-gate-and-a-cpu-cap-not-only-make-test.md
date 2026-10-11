@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "d435729b", done: "42f98b54"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Targeted go test runs share the machine-wide test gate and a CPU cap, not only make test
@@ -57,6 +57,8 @@ ARCH-FUNERAL: N slot files of one JSON record each, rewritten on acquire and nev
 ## Log
 
 ### 2026-10-10
+- 2026-10-10: closed — make test (waited 184s on #319 lock behind a pair suite): 12 sdlc shards 0 failed (1026 tests), packages green incl. pkg/testgate, except processgroup TestCancellationKillsDescendants which fails only on the sandbox fork/exec /bin/ps denial and passes outside it (untouched). pkg/testgate tests: free slot, loud wait naming holders then acquire, full-suite yield (names make test holder; probe never keeps suite lock), timeout as lock wait, budget go-ahead, off hatch loud + creates nothing, env config, re-exec helper proving a direct run of a gated binary takes a slot + parallel cap (explicit -parallel wins, make-test bypass silent) + shrinks -test.timeout by the wait. TestGitDrivingPackagesPreferRealGit now enforces testgate.Enter in git-driving packages. Measurements in Log: quiet machine 4 loops gate off load mean 7.7/max 8.4 (71s) vs on 8.6/10.6 (85s); with full suites the gate held targeted runs back (load 43 to ~12-16); gate-off under suites hit max 52.8 + a #325 deadline flake.; review verdict: SHIP
+- 2026-10-10: flow upgraded quick → full — 263 added lines in code files (limit 100)
 - Baseline load at claim (17:53): 43.96 / 55.24 / 52.41 on 12 cores. The agent env already has GOFLAGS=-p=3 GOMAXPROCS=3 from the operator's shell, so the env cap exists but doesn't bound the number of concurrent test binaries machine-wide, nor the git forks inside them.
 - Implemented `pkg/testgate`. It is wired into the 5 git-driving cmd/sdlc packages (now enforced by `TestGitDrivingPackagesPreferRealGit`) and into cmd/weave plus weave's refresh/acquire.
 - Ambient load (18:12) was mostly ariadne:2's full `make test` (12 `sdlc.test` shards) plus targeted runs, so a gate that only counted targeted runs would miss the biggest source. Added the spec's "take the #319 lock" half: gated binaries wait while a full suite holds `test-suite.lock`. They probe with a shared flock and drop it at once, so targeted runs can't starve a waiting suite.
