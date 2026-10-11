@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.93
+actual_hours: 1.51
 tracker:
     version: 1
     completion:
-        token: close-722b3633793c
+        token: close-fc26849c7607
         repository: github.com/xianxu/ariadne
-        reviewed_head: 0369e343aa665a4fbe0ca401be503dd4ce99c05c
-        evidence_commit: 1e08d0e817944982efd80f78e99cb2c616d06fab
+        reviewed_head: 4a5f5730e9c4f04c31678f317334752ed13dec90
+        evidence_commit: ba074a70810cf249fc74f614979758148358dab2
 ---
 
 # FIX-THEN-SHIP needs better process
