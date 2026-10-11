@@ -72,6 +72,7 @@ Evidence: `workshop/pensive/2026-10-09-01-pensive-sdlc-robustness-evidence.md`, 
 Filed from the robustness evidence review (ariadne-robustness-1). The operator decided the claimant is the slot (`pair:1`).
 
 ### 2026-10-11
+- 2026-10-11: closed — make test: 12 shards / 1049 cmd/sdlc tests pass; only processgroup failed in-sandbox (ps blocked), passes unsandboxed. New: TestHomeSlotOnlyWhereSlotsExist, TestHomeSlotOutsideEnvironments, HomeSlot asserts in TestEnvironmentIndependentConformance (real git: dependency clone + feature worktree -> host slot), TestMatchClaimant slot/legacy rows, TestOwnershipGatesFollowTheSlot (all 4 gates refuse other slot at same path; owning slot passes from another checkout), TestTransferGuardFollowsTheSlot. Live probe: issue show 307 = this-workspace from ariadne-slot1, other-workspace from pair-slot1/ariadne.; review verdict: SHIP
 - Probed real identities with a scratch build: `pair-slot1/ariadne` resolves as kind `dependency`, no address, `environment_host` pair:1. So the home slot was already provable; only the claimant read ignored it (`slotLabel` needed `Address`).
 - Messages: `claimantWhere` (slot + checkout) shared by `describeClaimant`, the continuation refusal and the claim success line.
 - Prose sweep: claim help, `ownershipGateHelp`, atlas issue-tracker (ownership + transfer guard), atlas vocabulary, `issue.cue` comment.
