@@ -122,6 +122,8 @@ func FuzzRenderParseRoundTrip(f *testing.F) {
 				N: 1, Timestamp: testTimestamp, Agent: testAgent, Blocked: true,
 				New: []Finding{{ID: "PQ-1", Severity: "Critical", Title: title, Detail: detail, Family: family, Round: 1}},
 			}},
+			// #202: a dispute's rationale and evidence are agent-authored free text too.
+			Disputes: []Dispute{{ID: "PQ-1", Rationale: title, Evidence: detail, After: 1, Timestamp: testTimestamp, By: family}},
 		}
 		got, err := ParseSidecar(Render(l, "ariadne"))
 		if err != nil {

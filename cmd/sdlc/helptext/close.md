@@ -114,7 +114,9 @@ MODES
   stable ids (`BR-1`, `BR-2`, …), and the next review is shown them and must
   dispose of each — `addressed`, `not-addressed`, or `withdrawn` — before
   raising anything new. That is what stops a re-run renumbering the same
-  finding forever.
+  finding forever. The implementer's answer is `sdlc finding dispute` (#202):
+  a rationale plus a counter-measurement, which the next review must withdraw
+  the finding over or re-raise it against.
 
   A MILESTONE review is shown its own boundary's findings. The WHOLE-ISSUE
   close is shown ALL of them, from every milestone: it is the last gate before
@@ -323,7 +325,7 @@ THE COST REPORT (#187)
   Two lines, over the same window the boundary review saw:
 
     [ok] churn: prod 554 / test 300 / atlas 20 / workshop 778 (final 1652, rework 2.4×)
-    [ok] plan gate: 6 round(s), 1 forced; findings 4 addressed / 1 withdrawn / 2 still open
+    [ok] plan gate: 6 round(s), 1 forced; findings 4 addressed / 1 withdrawn / 0 disputed / 2 still open
 
   rework is insertions-across-commits over insertions-in-the-final-diff: 1.0
   means every line written survived; 2.4× means 2.4 lines written per line kept.

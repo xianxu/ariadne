@@ -59,7 +59,7 @@ type closeFlags struct {
 	Actual    string
 	// Split is the measured build/converge division of an ADOPTED Actual (#234);
 	// nil when --actual was typed, which the ledger records as split_source manual.
-	Split *actualSplit
+	Split     *actualSplit
 	Verified  string
 	Force     bool
 	DryRun    bool
@@ -1114,6 +1114,9 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		GateAddressed: m.Addressed,
 		GateWithdrawn: m.Withdrawn,
 		GateOpen:      m.Open,
+		// #202: findings settled by dispute, plan gate and boundary review.
+		GateDisputed:     m.Disputed,
+		BoundaryDisputed: m.BoundaryDisputed,
 
 		// #231: the flow the issue closed under — quick and upgraded rows carry no
 		// estimate, so drift skips them; throughput keeps their hours.
@@ -1542,7 +1545,8 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			}
 			cwarn(stderr, fmt.Sprintf("address them, or have the review dispose them explicitly, then re-run `%s`.\n"+
 				"  %s\n"+
-				"  Or pass --no-ledger (or --force); record why in --verified.", verb, fixTheClassLine()))
+				"  %s\n"+
+				"  Or pass --no-ledger (or --force); record why in --verified.", verb, fixTheClassLine(), disputeLine()))
 			return fmt.Errorf("boundary gate: %d open blocking finding(s) despite verdict %s", len(ledger.OpenBlocking), review.Verdict)
 		}
 
@@ -1581,7 +1585,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 	case closeRework:
 		emitTrailerBlock(stdout, review, kind)
 		cwarn(stderr, "boundary review: REWORK — close NOT finalized; issue left at status: working")
-		cwarn(stderr, fmt.Sprintf("address the findings, then re-run `%s` (no --no-reclose-guard needed)%s", verb, fixTheClassNote()))
+		cwarn(stderr, fmt.Sprintf("address the findings, then re-run `%s` (no --no-reclose-guard needed)%s\n  %s", verb, fixTheClassNote(), disputeLine()))
 		return fmt.Errorf("boundary review verdict REWORK — close not finalized")
 	default: // closeHalt
 		emitTrailerBlock(stdout, review, kind)

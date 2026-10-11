@@ -254,6 +254,21 @@ var Catalog = []Contract{
 		},
 	},
 	{
+		Verbs:         []string{"finding dispute"},
+		Class:         DuplicateSafeRefusal,
+		Effects:       "appends one dispute (rationale, counter-measurement, the round it follows) to the gate ledger the id's prefix names, then one narrow local commit of that ledger on the issue branch (#202). Never pushes.",
+		Evidence:      "the ledger's `disputes:` frontmatter; `git log --grep '^#N: dispute'`.",
+		Preconditions: "a tracker repository; the issue owned by this workspace and checked out on its branch; a non-blank --rationale and --evidence; a finding the ledger issued that is neither already disputed and unanswered nor settled by the judge.",
+		Repeat:        "refused: the finding is already disputed until a review round answers it. Nothing is written.",
+		LostResponse:  "rerun the same command — a refusal naming the recorded dispute means it landed; an admission records it. A written but uncommitted ledger is named in the error; commit it with git.",
+		Ends:          "the next review round's answer: `withdrawn` settles it for good, `not-addressed` re-opens the finding and admits a new dispute.",
+		Proofs: []Proof{
+			{"records, commits narrowly, and warns", []string{"TestFindingDisputeRecordsAndCommits"}},
+			{"a rerun refuses and writes nothing", []string{"TestFindingDisputeRerunRefuses"}},
+			{"refusals change nothing", []string{"TestFindingDisputeRefusals", "TestAdmitDispute"}},
+		},
+	},
+	{
 		Verbs:         []string{"issue sync"},
 		Class:         ConvergentRetry,
 		Effects:       "in a tracker repository, nothing: retired to a pointer (#284) — commit details with git on the issue branch, publish them with `issue publish`. In a legacy repository, commits the issue's details locally; pushes nothing.",

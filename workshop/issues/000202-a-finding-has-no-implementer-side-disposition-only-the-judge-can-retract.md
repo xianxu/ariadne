@@ -1,12 +1,22 @@
 ---
 id: 000202
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-08-21
-updated: 2026-08-21
+updated: 2026-10-11
 estimate_hours:
-card_mirror: '5b810997d763927c576281b6f2987009192c2aef' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1ad32f3208122b9f7f6ce3a907d75b4d617978b8' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T23:14:43-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
+actual_hours: 1.28
 ---
 
 # A finding has no implementer-side disposition: only the judge can retract
@@ -117,3 +127,68 @@ with these properties:
 - `construct/vocabulary/finding.cue` is the single source; `cmd/sdlc/boundaryledger.go`,
   `cmd/sdlc/churnreport.go` and the judge prompt are the consumers that must derive
   from it rather than restate it.
+
+## Done when
+
+- `finding.cue` models a closing, implementer-only `disputed` disposition (an `authority`
+  partition) and `appealOnly` (= `hardBlocking`); the judge's fence offers only the judge's
+  dispositions, and a judge fence emitting `disputed` is dropped as a protocol error.
+- `sdlc finding dispute --issue N --id ID --rationale … --evidence …` records the dispute in
+  the gate ledger named by the id's prefix (PQ plan gate, BR boundary review) and commits it
+  narrowly on the issue branch; it refuses a blank rationale or evidence, an unknown or
+  unissued id, a finding already disputed and not yet answered, a judge-settled finding, a
+  foreign owner, and a checkout off the issue branch, writing nothing on any refusal.
+- A dispute settles an Important/Minor finding; on a Critical it is recorded but the finding
+  keeps blocking until the judge withdraws it. A later judge `not-addressed` re-opens it.
+- The next review round's prompt lists each live dispute with its rationale and evidence and
+  asks the judge to withdraw or re-raise it against the evidence; it is not listed as settled.
+- Disputes are loud: the verb warns; both gates print "N of M finding(s) settled by
+  implementer DISPUTE" at warning level on every round; the close's plan-gate line and the
+  calibration ledger (appended `gate_disputed`, `boundary_disputed`) count them.
+- Every ledger-gate refusal names the dispute verb; help, AGENTS.base.md §3, atlas and README
+  describe it.
+
+## Plan
+
+Durable plan: `workshop/plans/000202-a-finding-has-no-implementer-side-disposition-only-the-judge-can-retract-plan.md`
+(single boundary — closes in one `sdlc close`).
+
+- [x] Model: `authority` (judge vs implementer), `appealOnly: hardBlocking`, closing `disputed`
+- [x] Ledger: `Disputes` stream merged into one round-ordered timeline; judge may not emit `disputed`
+- [x] Prompt + decision: next judge answers each live dispute; gate line counts disputes
+- [x] Verb `sdlc finding dispute` (evidence mandatory, owner-only, narrow commit, recovery contract)
+- [x] Loudness: dispute warning on both gates, `gate_disputed` + `boundary_disputed` TSV columns
+- [x] Docs: help, gatefindings routing, AGENTS.base.md §3, atlas, README
+- [x] Close: `make test` run — #202 tests green; three environmental reds triaged in `--verified`; `sdlc close`
+
+## Log
+
+
+
+
+- 2026-10-11: closed — BR-1 fixed (dispute text quoted line-by-line as labeled data; TestPromptCarriesLiveDisputes asserts an injection-shaped evidence line is quoted). BR-2 fixed (finding-dispute help: a dispute settles the ledger half; a REWORK verdict still holds the close). BR-3 disputed via sdlc finding dispute with counter-measurement: TestPlanningReviewStaleBeforePersistence/{plan,estimate}/ledger PASS. go test ./cmd/sdlc/internal/gatestate/ green. (fixed-then-ship); review verdict: SHIP
+- 2026-10-11: closed — make test: every #202 test green (gatestate dispute/timeline/prompt/decide incl. mutation checks on appeal-only, timeline ordering, judge-only fence; vocab authority partition; finding dispute e2e records/commits/refuses/rerun/ownership; per-site refusal routing e2e; calibration columns e2e through runClose). Suite reds are environmental, each rerun: processgroup TestCancellationKillsDescendants = sandbox denies /bin/ps; TestPlanningReviewConcurrencySchedules = 2s budget at load avg 30, passes alone; hermeticity lock leak = shared common-dir .git/sdlc.lock held by another slot, not reproduced by the #202 tests alone.; review verdict: SHIP
+- 2026-10-11: flow upgraded quick → full — 648 added lines in code files (limit 100)
+- 2026-10-10: claimed (ops:0 dispatch); design in the durable plan. Critical is appeal-only
+  (dispute recorded and shown to the judge, keeps blocking) rather than refused or
+  operator-acknowledged — an ack flag is a bypass the agent can pass itself.
+- 2026-10-10: change-code inferred the QUICK flow (design under 500 lines). The code is past
+  the 100-line shell, but `--flow` is the operator's pin, so I left it: close upgrades to the
+  full boundary review once the diff leaves the shell. No plan-quality round or estimate ran.
+- 2026-10-10: built in six commits (model, ledger, prompt/decision, verb, loudness, docs).
+  Design deltas from the plan: the dispute line lives on `Decision.DisputeLine()` and is
+  printed only by `stampAndPersist` (in Reason too, it printed twice); `AdmitDispute`
+  (not `DecideDispute`) is the verb's pure admission check. Every ledger-gate refusal
+  (plan-quality block, boundary SHIP-with-open-blocking, boundary REWORK) routes to the
+  dispute verb, each pinned end-to-end (`TestLedgerGateRefusalsRouteToDispute`).
+  Mutation-checked: appeal-only settle rule, timeline `<` vs `<=`, judge-only fence list.
+- 2026-10-11: full `make test`: all #202 tests pass. Three reds, each environmental and
+  rerun: processgroup `TestCancellationKillsDescendants` (sandbox denies `/bin/ps`);
+  `TestPlanningReviewConcurrencySchedules` (2s budget at load average ~30, passes alone);
+  a hermeticity lock "leak" (`.git/sdlc.lock` lives in the common dir every slot shares;
+  not reproduced by the #202 tests alone).
+- 2026-10-11: close review (full, upgraded from quick): info, 3 Minor. Fixed BR-1 (dispute
+  text quoted as labeled data) and BR-2 (help scopes the settle to the ledger half). Disputed
+  BR-3 with `sdlc finding dispute` itself — the first real dispute: the fixed-then-ship judge
+  re-ran the cited `TestPlanningReviewStaleBeforePersistence/{plan,estimate}/ledger` and
+  withdrew it. Round 2: 0 new, 3 disposed.
