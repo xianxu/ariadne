@@ -500,7 +500,11 @@ uses `ActiveOnly` (and drops terminal-status legacy matches so an archived
 (`*.bak`, `worktree`, dot-dirs) that the exact-match resolver was immune to.
 `sdlc close` loops the existing tick/upsert helpers over every match
 (`closeResult.projectEdits []projectEdit`), each carrying its `repoDir` for the
-safe peer-write commit decision below.
+safe peer-write commit decision below. A **TL-owned** match (frontmatter
+`tl:`, read by `project.TLOwners`, #326) is skipped before it reaches
+`projectEdits`, so the tick, the detail-block gate, the peer-write and the
+review snapshot all pass it by; the close prints an info line naming the TL,
+and the worker reports the landing there. `find`/`resolve` still list it.
 
 ### Safe peer-write commit mechanics (`peerwrite.go`, #171 M3)
 

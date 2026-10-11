@@ -1,12 +1,22 @@
 ---
 id: 000326
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 estimate_hours:
-card_mirror: 'e5ea94db9005806284ee27e0d95c0e2b9d50792b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e44d3af17d0efffd271c6d63a490346ee447503e' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T23:14:00-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "a83ae72a", done: "4eebc762"}
+actual_hours: 0.93
 ---
 
 # Issue and milestone close skip projects that name a TL (tl: frontmatter)
@@ -53,8 +63,45 @@ this one which owns what.
 
 ## Plan
 
-- [ ]
+Design: one filter at the single fleet-discovery loop in `close.go` (`buildCloseResult`'s project section). Both close and
+milestone-close run through it, and everything downstream — tick, detail-block upsert and its `--no-project` gate, the
+peer-write, and the review snapshot (`captureCloseReviewSnapshot` reads `projectEdits`) — consumes that loop's output.
+So a TL-owned match `continue`s before any of it (ARCH-DRY: one decision point, not four).
+
+- [x] `project.TLOwners(text) ([]string, error)` in `internal/project/metadata.go`: `tl:` as a string or a list of strings;
+  no frontmatter or no/empty `tl:` → not owned; any other shape → error. Decodes only the `tl` key (see Revisions).
+  Unit tests.
+- [x] Close loop: TL-owned → `cinfo` skip line naming project + TL(s), `continue`. Unreadable `tl:` → warn and skip (fail
+  closed: don't write a file whose ownership can't be read).
+- [x] Tests: close + milestone-close leave a `tl:` project byte-identical and print the skip line (milestone-close also
+  must not refuse on the missing detail block); an edit to a `tl:` project during the review doesn't void SHIP.
+- [x] Docs: `construct/vocabulary/project.cue` (`tl?`), `construct/datatype/project.md` table, `sdlc close --help` /
+  `milestone-close --help` mention the skip; atlas line if the close flow is mapped there.
+- [ ] Close.
+
+Overlap: ariadne#308 reworks the peer project tick (writes to the peer's origin instead of its checkout). This issue
+only decides *which* projects a close touches; #308 keeps *how* the remaining ones are written. Not absorbed.
 
 ## Log
 
+
+- 2026-10-11: closed — TestTLOwners (incl. unrelated-malformed-field row, BR-1) + TestCloseCommands_TLOwnedProjectUntouched (close & milestone-close, with/without a TL edit mid-review: tl: file byte-identical, skip line, SHIP finalizes, sibling non-tl project still ticked; filter mutation fails it). make test: all green except TestCancellationKillsDescendants (sandbox blocks /bin/ps; passes unsandboxed) and TestPlanningReviewConcurrencySchedules (load timing flake; passes alone). vocab vet green. --no-plan-check: the only unticked row is this close itself.; review verdict: SHIP
 ### 2026-10-10
+- Implemented. `TLOwners` tells "no frontmatter" apart via a new `frontmatter.ErrNoFrontmatter` sentinel instead of
+  string-matching the error. Unit test `TestTLOwners` (owned / not-owned / malformed rows, each asserting its own error).
+- `TestCloseCommands_TLOwnedProjectUntouched` (close + milestone-close × with/without a TL edit during the review): the
+  `tl:` file stays byte-identical, the skip line prints, SHIP finalizes, and a sibling project without `tl:` is still
+  ticked. It passes no `--no-project` (the plain project carries its M1 detail block), so it proves the TL project
+  doesn't trip that gate. Mutation (filter disabled) fails it.
+- `project.cue`'s `#Project` is a definition, so the exported `pkg/vocab/project.json` doesn't change (`go generate` → no
+  diff); vet_test.sh green.
+- Close review round 1, FIX-THEN-SHIP. BR-1 (Important): `TLOwners` decoded the full typed `Metadata`, so a malformed
+  unrelated field (`deps:` as a scalar) made a project without `tl:` unreadable and skipped it, which broke "projects
+  without `tl:` behave as today". Fixed: decode only the `tl` key; `Metadata.TL` dropped (the Minor). New not-owned row
+  `unrelated field malformed` fails against the old decode. CRLF frontmatter (Minor) is pre-existing in every
+  frontmatter reader and stays out of scope.
+
+## Revisions
+
+- 2026-10-11: plan row 1 originally said `Metadata` gains `TL any`; the BR-1 fix replaced that with a decode of only the
+  `tl` key, so a malformed unrelated field can't skip a project without `tl:`.
