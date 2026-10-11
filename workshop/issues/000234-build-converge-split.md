@@ -1,12 +1,12 @@
 ---
 id: 000234
-status: working
+status: codecomplete
 deps: [ariadne#231]
 github_issue:
 created: 2026-09-17
 updated: 2026-10-10
 estimate_hours: 2.7
-card_mirror: 'a60158de90ae10bd06751b1b421acff61df5a05d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4d66934f3bc004c1df17701c7c74b1cf6bf8a996' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-10T17:41:18-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.31
 ---
 
 # Split actuals at the first boundary review: build time vs converge time
