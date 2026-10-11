@@ -23,7 +23,6 @@ type Metadata struct {
 	Deps          []string `yaml:"deps"`
 	EstimateHours any      `yaml:"estimate_hours"`
 	ActualHours   any      `yaml:"actual_hours"`
-	TL            any      `yaml:"tl"`
 }
 
 func DecodeMetadata(frontmatter string) (Metadata, error) {
@@ -74,7 +73,9 @@ func NumberValue(value any, field string) (number float64, present, notApplicabl
 // TLOwners returns the project's `tl:` owners (a string or a list of strings).
 // A TL-owned project is written only by its TL: closes skip it (#326). No
 // frontmatter, or an absent or empty `tl:`, means not TL-owned. Any other shape
-// is an error, so a caller can't mistake an unreadable owner for none.
+// is an error, so a caller can't mistake an unreadable owner for none. Only the
+// `tl` key is decoded: a malformed unrelated field must not make a project
+// without `tl:` look unreadable.
 func TLOwners(text string) ([]string, error) {
 	d, err := ParseDoc(text)
 	if err != nil {
@@ -83,9 +84,11 @@ func TLOwners(text string) ([]string, error) {
 		}
 		return nil, err
 	}
-	m, err := d.Metadata()
-	if err != nil {
-		return nil, err
+	var m struct {
+		TL any `yaml:"tl"`
+	}
+	if err := yaml.Unmarshal([]byte(d.fm), &m); err != nil {
+		return nil, fmt.Errorf("decode YAML frontmatter: %w", err)
 	}
 	var owners []string
 	add := func(v any) error {

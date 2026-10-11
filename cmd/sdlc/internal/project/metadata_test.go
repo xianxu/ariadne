@@ -63,6 +63,7 @@ func TestTLOwners(t *testing.T) {
 		{"null", "---\ntl:\n---\n"},
 		{"empty string", "---\ntl: ''\n---\n"},
 		{"empty list", "---\ntl: []\n---\n"},
+		{"unrelated field malformed", "---\ndeps: ariadne#5\nmvp_scope: {a: b}\n---\n"},
 	}
 	for _, c := range notOwned {
 		got, err := TLOwners(c.text)

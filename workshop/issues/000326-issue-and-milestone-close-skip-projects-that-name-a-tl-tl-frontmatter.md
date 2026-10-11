@@ -91,3 +91,8 @@ only decides *which* projects a close touches; #308 keeps *how* the remaining on
   doesn't trip that gate. Mutation (filter disabled) fails it.
 - `project.cue`'s `#Project` is a definition, so the exported `pkg/vocab/project.json` doesn't change (`go generate` → no
   diff); vet_test.sh green.
+- Close review round 1, FIX-THEN-SHIP. BR-1 (Important): `TLOwners` decoded the full typed `Metadata`, so a malformed
+  unrelated field (`deps:` as a scalar) made a project without `tl:` unreadable and skipped it, which broke "projects
+  without `tl:` behave as today". Fixed: decode only the `tl` key; `Metadata.TL` dropped (the Minor). New not-owned row
+  `unrelated field malformed` fails against the old decode. CRLF frontmatter (Minor) is pre-existing in every
+  frontmatter reader and stays out of scope.

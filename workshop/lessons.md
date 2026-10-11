@@ -41,6 +41,9 @@ Detailed incidents remain in their owning issue or review artifact.
   name and asserts each clause, and a step not yet done (a close) sits in its
   own unticked row (#300, three findings in one family).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
+- Scope a guard's failure to the input it actually reads. A fail-closed check that
+  decodes a whole record trips on an unrelated malformed field, and the failure
+  changes behavior for records the guard was never about (#326 BR-1).
   A catalogued flag may waive only the refusal named by that catalog entry.
 - A syntactic guard cannot support an absolute semantic claim. Bound the claim to
   the language actually inspected and state what remains outside it.
