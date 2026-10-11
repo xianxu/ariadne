@@ -72,6 +72,7 @@ the review finds a reason not to.
 ## Log
 
 ### 2026-10-11
+- 2026-10-11: closed — settings.ariadne.json adds Bash(sdlc:*), Bash(couch:*) to permissions.allow and couch to sandbox.excludedCommands ($merge_keys, so downstream locals union); operator-run weave compile regenerated .claude/settings.json carrying all three; go test ./cmd/weave/... exit 0 after integrating main. Codex comment-only; Gemini not woven. Addendum (4) covered by the pre-existing sdlc exclusion, (5) deliberately not folded (permission-store self-modification). atlas/workflow/sandbox.md updated. --no-plan-check: the 3 unticked rows (live couch receipt + merge-without-denial, ops weave refresh, close+merge) are post-close by construction and are ticked in the Log after merge. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
 - Auto mode denied the agent's commit of `settings.ariadne.json` and its unsandboxed `weave compile` as Self-Modification. The operator ran both (`a9055859`). The regenerated `.claude/settings.json` carries `Bash(sdlc:*)`, `Bash(couch:*)` and `couch` in `excludedCommands`.
 - Close refused on the integrate gate; merged origin/main (`e64df5d1`) and re-ran `go test ./cmd/weave/...`: exit 0.
 
