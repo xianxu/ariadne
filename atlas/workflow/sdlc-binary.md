@@ -1426,8 +1426,9 @@ core, balanced from the last run's per-test times
 (cmd/weave, pkg/…, the other tools) alongside in one `go test` (#330; before, only
 `cmd/sdlc/...` ran, and a cmd/weave hang went unseen).
 `cmd/sdlc`'s tests change cwd and swap package seams, so they cannot run in
-parallel inside one process; separate processes share neither. About 4 minutes
-against about 25 serially (#330 measured 7.5–8 minutes with 12 shards on a busy machine, whole module). Plain `go test ./cmd/sdlc/...` still works but runs
+parallel inside one process; separate processes share neither. About 8 minutes
+with 12 shards (#330 measured 7.5–8 on a busy machine, whole module), against about
+25 serially. Plain `go test ./cmd/sdlc/...` still works but runs
 `cmd/sdlc` serially and needs `-timeout 60m` (it exceeds go's 10-minute default).
 `scripts/test-timing.py` reports per-test times from either run's `-json` output.
 
@@ -1442,7 +1443,9 @@ need is #262.
 A test known to fail for a tracked reason is quarantined by name:
 `testfix.Quarantine(t, "#N", why)` as its first line skips it with a `QUARANTINED (#N)`
 message naming the owning issue, whose fix deletes the call; `WF_TEST_QUARANTINED=run`
-runs quarantined tests anyway. `grep -rn 'testfix.Quarantine(' cmd` lists them (#330).
+runs quarantined tests anyway. Place it at the failing step when only that step is
+the known problem (a load-sensitive deadline), so the rest stays covered.
+`grep -rn 'testfix.Quarantine(' cmd` lists them (#330).
 
 Cancellation tests prove a descendant stopped with `testfix.AwaitExit(pid, ceiling)`,
 which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instead of

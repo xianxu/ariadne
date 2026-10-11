@@ -78,7 +78,6 @@ func reviewPlanFiles(t *testing.T, dir string) map[string]string {
 }
 
 func TestReviewConcurrencySchedules(t *testing.T) {
-	testfix.Quarantine(t, "#325", `"reviewer process did not start" deadline fails under load (milestone-close/branch, ariadne:3, 10-10)`)
 	for _, verb := range []string{"close", "milestone-close"} {
 		for _, change := range []string{"branch", "boundary-ledger", "plan-seed", "directory", "cancel", "relock", "unrelated"} {
 			t.Run(verb+"/"+change, func(t *testing.T) {
@@ -137,6 +136,8 @@ func TestReviewConcurrencySchedules(t *testing.T) {
 					case <-time.After(7 * time.Second):
 						t.Fatal("review did not stop after start timeout")
 					}
+					// Only this fixed start deadline is load-sensitive; the schedules stay covered.
+					testfix.Quarantine(t, "#325", "reviewer process did not start within 20s (load-sensitive start deadline)")
 					t.Fatal("reviewer process did not start")
 				}
 				switch change {

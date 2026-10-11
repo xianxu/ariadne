@@ -124,3 +124,7 @@ failures by "it also fails on main", and full suites flaked under load (ops kink
   linearly. The "about 4 minutes" in the atlas predates the current test count and the load from parallel slots.
   The suite lock queue costs more than the suite: 177–1452s of waiting per run tonight.
 
+- Close review round 1: FIX-THEN-SHIP, 1 Important + 3 Minor, all fixed in round: #325's Done when now requires
+  deleting both quarantine calls (BR-1); the `TestReviewConcurrencySchedules` quarantine narrowed to its 20s
+  start-deadline step, so the schedules stay covered (it passed in full, 68s, at lower load); `processAlive` reads
+  only ESRCH as gone, the same reading as weave staging; the atlas and AGENTS.local timings now say about 8 minutes.

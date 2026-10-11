@@ -23,6 +23,7 @@ Find tests whose pass/fail depends on a short wall-clock deadline (subprocess ti
 
 - `TestPlanningReviewConcurrencySchedules` passes 10/10 with the load near 50 (e.g. a CPU burner running alongside it), and still fails if concurrency is broken (mutation check).
 - A sweep lists the other deadline-sensitive tests in `## Log`, each fixed or justified.
+- The #330 quarantines are gone: both `testfix.Quarantine(t, "#325", …)` calls deleted (`TestPlanningReviewConcurrencySchedules`, and the start deadline in `TestReviewConcurrencySchedules`), and both pass under load. `grep -rn 'Quarantine(t, "#325"' cmd` is empty.
 
 ## Plan
 
