@@ -6,7 +6,7 @@ github_issue:
 created: 2026-07-16
 updated: 2026-10-10
 estimate_hours:
-card_mirror: 'cd80bca0bc5d7f4124be160eb581865b7bafa229' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '05c38ce2ad06b3a3d66efe490ef4e2d0cda39e4b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-10T16:53:19-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
-actual_hours: 1.51
+actual_hours: 1.88
 ---
 
 # FIX-THEN-SHIP needs better process
