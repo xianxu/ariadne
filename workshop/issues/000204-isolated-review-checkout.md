@@ -69,12 +69,17 @@ are outside the reviewer's writable boundary.
 
 ## Plan
 
-- [ ] Brainstorm the reviewer operations that require Git history versus a Head
+Durable plan: `workshop/plans/000204-isolated-review-checkout-plan.md`.
+
+- [x] Brainstorm the reviewer operations that require Git history versus a Head
       snapshot and select the smallest isolation primitive that supports them.
-- [ ] Define checkout ownership, cleanup, and crash-recovery semantics.
-- [ ] Implement the shared review-checkout lifecycle around boundary dispatch.
-- [ ] Add cross-agent isolation and residue regression tests.
-- [ ] Update the boundary-review atlas/help contract.
+- [x] Define checkout ownership, cleanup, and crash-recovery semantics.
+- [ ] reviewbox pure argv + Seatbelt profile (plan Task 1).
+- [ ] Checkout lifecycle + flock sweep (Task 2).
+- [ ] Fence probe + live conformance (Task 3).
+- [ ] judge `Wrap`/`Fenced` dispatch hooks (Task 4).
+- [ ] Boundary wiring + `isolation` stamp on round and sidecar (Task 5).
+- [ ] Update the boundary-review atlas/help/prompt contract (Task 6).
 
 ## Log
 
@@ -163,3 +168,12 @@ fails with `sandbox_apply: Operation not permitted` (measured). Options:
 Recommended (B). Couch delivery to ops:0 failed: the sandbox blocks the
 socket, and the classifier refused the unsandboxed retry. The question was
 relayed to the operator instead.
+
+### 2026-10-11 — TL decision: option B
+
+The TL (ops:0) chose B: when nested, degrade automatically to clone-only
+isolation, with a loud warning and `isolation: checkout` recorded on the review
+round; apply the full write fence when not nested. Under the fence, each
+agent's own sandbox is turned off (claude `--settings` sandbox disabled, codex
+`-s danger-full-access`), because Seatbelt cannot nest inside our fence. One
+outer fence is what makes the three agents' writable scope equivalent.
