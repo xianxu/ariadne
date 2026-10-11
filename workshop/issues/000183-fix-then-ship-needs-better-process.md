@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "985aba4d", done: "02bb6d4b"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # FIX-THEN-SHIP needs better process
@@ -80,6 +80,8 @@ Durable plan: `workshop/plans/000183-fix-then-ship-needs-better-process-plan.md`
 ## Log
 
 ### 2026-10-10
+- 2026-10-10: closed — make test: 1030 cmd/sdlc tests; two timing tests (TestPlanningReviewConcurrencySchedules, fleet TestHangingRemoteDegradesOnlyItsRepository) failed only under suite+review load and pass 3/3 alone; round-2 review SHIP voided only by a concurrent TL project-file edit; BR-1..5 addressed; e2e: post-close fix → publish names --fixed-then-ship → fix-review over interdiff rebinds card → publish passes; scope change reaches the fix review as a note; FIX-THEN-SHIP receipt superseded; REWORK publishes nothing; refusals tested; F3 deferral logged, refuses under --no-judge (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-10: flow upgraded quick → full — 578 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Claimed at ariadne:4 (TL batch 2). TL approved (10-10): #183 owns #320's layer 3; F3 becomes a reviewer check, with the conditions recorded in ## Revisions.
 - change-code inferred the quick flow (the design is short), but the code passes 100 added lines, so close upgrades it to the full review. I didn't pin `--flow full`: that pin is recorded as the operator's decision.
 - The log tags (fixed-then-ship, done-when) go AFTER the verified evidence. `appendVerdictSuffix` matches `closed — `, so a tag before the dash silently dropped the verdict annotation (caught by the F3 test).

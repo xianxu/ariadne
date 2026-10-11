@@ -101,3 +101,103 @@ findings:
     title: |
       The publish gate's code-arm loop re-implements conflictedCode; share one code-paths helper
 ```
+
+---
+
+## Re-review — 2026-10-10T18:01:18-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 183 — FIX-THEN-SHIP needs better process |
+| repo | ariadne |
+| issue file | workshop/issues/000183-fix-then-ship-needs-better-process.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 9769e3c79f91c3b761e43176375699b03dd94ecb..0369e343aa665a4fbe0ca401be503dd4ce99c05c |
+| command | sdlc close --issue 183 |
+| reviewer | claude |
+| timestamp | 2026-10-10T18:01:18-07:00 |
+| verdict | SHIP |
+
+## Review
+
+The latest commit carries the fix for this round, so I'll start there and then read the issue file.
+
+Prior findings mostly check out. I'm now running the targeted tests to confirm before writing the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All five findings from round 1 are fixed, and the fix for each holds up when I check it against the code. BR-1 now really reaches the reviewer. The new `contractChangeNotes` helper (`closefixed.go:63`) compares `## Spec`, `## Revisions` and `## Done when` as they stood when the close review ran with the current issue body. It passes each changed section to the fix review as a note showing the text before and after. It gets the earlier text from `review.HumanBase` (`close.go:649`), the real commit the close review read, not the head rebased onto main. `TestFixedThenShip_ScopeChangeReachesTheReviewer` exercises the whole close path, and it would fail without the fix: no other code produces the text "`## Spec` changed since the close review". The targeted tests pass: `TestContractChangeNotes`, `TestFixedThenShip*`, `TestCloseQuickStaleDoneWhen*` and `TestPublish*` in `./cmd/sdlc`, plus all of `internal/judge` and `internal/gatestate`. I found nothing that blocks the close. There is one Minor finding: a remaining copy of the code-path filter that the BR-5 fix missed.
+
+Done-when: current — the BR-1 fix makes a promise the Spec already made (fix-review returns REWORK when the scope changes) actually work, without adding scope. The Done-when bullet that says "dispatches the fix-review recipe over the interdiff" covers it, and the new test exercises it.
+
+1. **Strengths**
+   - `contractChangeNotes` is a pure function that takes the issue text before and after, and its tests are pure too. Re-wrapped text doesn't count as a change, because whitespace is collapsed before comparing. Changes to `## Log` are ignored by design.
+   - `issueBodyAt` (`close.go:2173`) fails safely. If the old issue file can't be read, it warns and treats the old text as empty, so the reviewer sees every section as changed rather than missing a real change.
+   - BR-5: `codeSurfacePaths` is now the single code-path filter for both parts of the publish gate (`publishgate.go:257` and `:299`) and for `fixedThenShipRefusal`.
+   - The new entry in `workshop/lessons.md` states the general rule behind BR-1 (a reviewer can only act on what its window shows it), not just this one case. ARCH-PURPOSE is applied properly here.
+   - BR-2's test is split into two separate assertions, so the reviewed-head check now actually runs (`closefixed_test.go:123-129`).
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - This is the second finding in family `code-surface-predicate-dup`, so it gets a rule rather than another one-off fix. **Rule:** any filter that turns a list of paths into its code paths must call `codeSurfacePaths`. The only loop calling `publishGateHasCodeSurface([]string{p})` directly should be the one inside `codeSurfacePaths`. One copy remains at `reviewanchor.go:156-161`: it is older code, outside this window, and builds the same list by hand. Replace it with `code := codeSurfacePaths(d.Paths)`. A grep for `publishGateHasCodeSurface([]string{` should then find only `closefixed.go`.
+   - `clipNote` (`closefixed.go:84`) cuts at byte 4000, which can split a multi-byte character such as `—` or `→` and leave invalid UTF-8 in the prompt. Back up to the nearest character boundary before cutting.
+
+5. **Test coverage:** the new code is covered at both levels: unit tests for the pure helper and a test of the whole close command for the review note. The publish gate's code-delta and code-conflict refusals are still covered by the existing `publishgate_test` cases. I didn't revert the fix and rerun to see the test go red. I judged it unnecessary, because the string the test asserts is only produced by the new code.
+
+6. **Architecture notes**
+   - ARCH-DRY: flagged; the remaining copy in `reviewanchor.go` is listed under Minor.
+   - ARCH-PURE: pass. The comparison logic is pure, and reading git happens in a thin `issueBodyAt` wrapper.
+   - ARCH-PURPOSE: pass. The REWORK rule now fires, and the lesson states the general rule.
+   - ARCH-MOCK: pass. Tests run against real temporary git repos, and the judge is replaced by a stub at its existing seam.
+   - ARCH-CONSTRAINTS: pass. Each section's note is capped at 4000 bytes.
+   - ARCH-SECURE: pass. An old issue file that can't be parsed produces a visible warning, and the fallback over-reports changes rather than hiding them.
+   - ARCH-ORDER: pass. The change keeps no state between events.
+   - ARCH-FUNERAL: pass. The change creates no files or records that outlive the run; the notes exist only in the prompt.
+
+7. **Plan revisions:** none needed. The existing `## Revisions` entry already records the two wording changes, the "close review" log tag and what "cataloged by process-manual" means.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      contractChangeNotes compares the issue body at review.HumanBase with now; TestFixedThenShip_ScopeChangeReachesTheReviewer fails without it.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Split into two assertions at closefixed_test.go:123-129; the reviewed-head equality is now checked.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      FixReview is in AllInjectedCategories (prompts.go:138), so process-manual renders it; regeneration deferred with a recorded reason in Revisions.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The tag now reads "judged by the close review", followed by the verdict annotation; the Revisions entry records the change.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      codeSurfacePaths is shared by publishDeltaRank, classifyPublishDelta and fixedThenShipRefusal.
+findings:
+  - id: new
+    severity: Minor
+    family: code-surface-predicate-dup
+    title: |
+      reviewanchor.go:156-161 still filters code paths by hand instead of calling codeSurfacePaths
+    detail: |
+      Rule: every path-list-to-code-paths filter goes through codeSurfacePaths, so the only per-path call to publishGateHasCodeSurface is inside it. reviewanchor.go is the one remaining copy (older code, outside the window).
+  - id: new
+    severity: Minor
+    family: byte-slice-utf8
+    title: |
+      clipNote cuts at byte 4000 and can split a multi-byte character
+    detail: |
+      Back up to the nearest character boundary (utf8.RuneStart) before s[:max], so a clipped Spec containing em-dashes or arrows stays valid UTF-8.
+```

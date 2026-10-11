@@ -36,6 +36,46 @@ rounds:
           round: 1
       recipe: milestone-review
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-10T18:01:18-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: contractChangeNotes compares the issue body at review.HumanBase with now; TestFixedThenShip_ScopeChangeReachesTheReviewer fails without it.
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: Split into two assertions at closefixed_test.go:123-129; the reviewed-head equality is now checked.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: FixReview is in AllInjectedCategories (prompts.go:138), so process-manual renders it; regeneration deferred with a recorded reason in Revisions.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: The tag now reads "judged by the close review", followed by the verdict annotation; the Revisions entry records the change.
+          round: 2
+        - id: BR-5
+          disposition: addressed
+          note: codeSurfacePaths is shared by publishDeltaRank, classifyPublishDelta and fixedThenShipRefusal.
+          round: 2
+      findings:
+        - id: BR-6
+          severity: Minor
+          title: reviewanchor.go:156-161 still filters code paths by hand instead of calling codeSurfacePaths
+          detail: 'Rule: every path-list-to-code-paths filter goes through codeSurfacePaths, so the only per-path call to publishGateHasCodeSurface is inside it. reviewanchor.go is the one remaining copy (older code, outside the window).'
+          family: code-surface-predicate-dup
+          round: 2
+        - id: BR-7
+          severity: Minor
+          title: clipNote cuts at byte 4000 and can split a multi-byte character
+          detail: Back up to the nearest character boundary (utf8.RuneStart) before s[:max], so a clipped Spec containing em-dashes or arrows stays valid UTF-8.
+          family: byte-slice-utf8
+          round: 2
+      recipe: milestone-review
+      reviewed: 0369e343aa665a4fbe0ca401be503dd4ce99c05c
+      blocked: false
 ---
 
 # Gate ledger — ariadne#183 (boundary-review)
@@ -55,10 +95,24 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `spec-wording-drift` Log tag reads "judged by the review" where the Spec says "judged by the <verdict> review"
 - **BR-5** [Minor] `code-surface-predicate-dup` The publish gate's code-arm loop re-implements conflictedCode; share one code-paths helper
 
+## Round 2 — 2026-10-10T18:01:18-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — contractChangeNotes compares the issue body at review.HumanBase with now; TestFixedThenShip_ScopeChangeReachesTheReviewer fails without it.
+- BR-2 — addressed — Split into two assertions at closefixed_test.go:123-129; the reviewed-head equality is now checked.
+- BR-3 — addressed — FixReview is in AllInjectedCategories (prompts.go:138), so process-manual renders it; regeneration deferred with a recorded reason in Revisions.
+- BR-4 — addressed — The tag now reads "judged by the close review", followed by the verdict annotation; the Revisions entry records the change.
+- BR-5 — addressed — codeSurfacePaths is shared by publishDeltaRank, classifyPublishDelta and fixedThenShipRefusal.
+
+### Raised
+
+- **BR-6** [Minor] `code-surface-predicate-dup` reviewanchor.go:156-161 still filters code paths by hand instead of calling codeSurfacePaths
+  Rule: every path-list-to-code-paths filter goes through codeSurfacePaths, so the only per-path call to publishGateHasCodeSurface is inside it. reviewanchor.go is the one remaining copy (older code, outside the window).
+- **BR-7** [Minor] `byte-slice-utf8` clipNote cuts at byte 4000 and can split a multi-byte character
+  Back up to the nearest character boundary (utf8.RuneStart) before s[:max], so a clipped Spec containing em-dashes or arrows stays valid UTF-8.
+
 ## Open findings
 
-- **BR-1** [Important] `reviewer-input-not-in-window` The fix-review's REWORK-on-scope-change rule can't fire: every window command excludes workshop/issues/
-- **BR-2** [Minor] `test-assertion-precedence` closefixed_test.go:117 boolean precedence means the reviewed-head equality is never checked
-- **BR-3** [Minor] `generated-doc-deferred` process-manual not regenerated although Done when says it catalogs fix-review
-- **BR-4** [Minor] `spec-wording-drift` Log tag reads "judged by the review" where the Spec says "judged by the <verdict> review"
-- **BR-5** [Minor] `code-surface-predicate-dup` The publish gate's code-arm loop re-implements conflictedCode; share one code-paths helper
+- **BR-6** [Minor] `code-surface-predicate-dup` reviewanchor.go:156-161 still filters code paths by hand instead of calling codeSurfacePaths
+- **BR-7** [Minor] `byte-slice-utf8` clipNote cuts at byte 4000 and can split a multi-byte character
