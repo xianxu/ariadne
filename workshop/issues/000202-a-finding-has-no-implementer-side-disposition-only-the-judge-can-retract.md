@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "4f0b0194", done: "e3b0c442"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # A finding has no implementer-side disposition: only the judge can retract
@@ -162,6 +162,10 @@ Durable plan: `workshop/plans/000202-a-finding-has-no-implementer-side-dispositi
 
 ## Log
 
+
+
+- 2026-10-11: closed — make test: every #202 test green (gatestate dispute/timeline/prompt/decide incl. mutation checks on appeal-only, timeline ordering, judge-only fence; vocab authority partition; finding dispute e2e records/commits/refuses/rerun/ownership; per-site refusal routing e2e; calibration columns e2e through runClose). Suite reds are environmental, each rerun: processgroup TestCancellationKillsDescendants = sandbox denies /bin/ps; TestPlanningReviewConcurrencySchedules = 2s budget at load avg 30, passes alone; hermeticity lock leak = shared common-dir .git/sdlc.lock held by another slot, not reproduced by the #202 tests alone.; review verdict: SHIP
+- 2026-10-11: flow upgraded quick → full — 648 added lines in code files (limit 100)
 - 2026-10-10: claimed (ops:0 dispatch); design in the durable plan. Critical is appeal-only
   (dispute recorded and shown to the judge, keeps blocking) rather than refused or
   operator-acknowledged — an ack flag is a bypass the agent can pass itself.
