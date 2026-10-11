@@ -68,6 +68,19 @@ const (
 	unclaimed
 )
 
+// holdSpinOff makes this checkout thisSlot and gives #8's card holder h.
+func holdSpinOff(t *testing.T, r *trackerRepo, h holder) {
+	t.Helper()
+	switch h {
+	case heldByOther:
+		ownSpinOff(t, r, otherSlot)
+	case heldByThis:
+		ownSpinOff(t, r, thisSlot)
+	default:
+		withClaimant(t, thisSlot)
+	}
+}
+
 func TestTransferGuardOverBranchShapes(t *testing.T) {
 	for _, c := range []struct {
 		name   string
@@ -147,14 +160,7 @@ func TestTransferGuardOverBranchShapes(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			r := handedOff(t)
-			switch c.owner {
-			case heldByOther:
-				ownSpinOff(t, r, otherSlot)
-			case heldByThis:
-				ownSpinOff(t, r, thisSlot)
-			case unclaimed:
-				withClaimant(t, thisSlot)
-			}
+			holdSpinOff(t, r, c.owner)
 			c.shape(t, r)
 			err := guardTransferredDetails(context.Background())
 			if c.refuse == "" {
@@ -168,6 +174,9 @@ func TestTransferGuardOverBranchShapes(t *testing.T) {
 			}
 			if strings.Contains(err.Error(), "sdlc claim") {
 				t.Fatalf("refusal recommends a claim: %v", err)
+			}
+			if offers := strings.Contains(err.Error(), "sdlc issue restore"); offers == (c.owner == heldByThis) {
+				t.Fatalf("restore offered = %v for holder %v: %v", offers, c.owner, err)
 			}
 		})
 	}

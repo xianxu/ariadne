@@ -126,7 +126,8 @@ unclaimed issue has no owner to protect (#274): its edits land from anywhere.
 Another workspace's issue: hand the edit to its owner, or drop it with
 `sdlc issue restore --issue N` (one commit; every copy of the details matches
 main, archived ones included). A branch behind main merges main, resolves the
-details, and reruns.
+details, and reruns; an unclaimed issue's stale copy may be restored instead.
+Restore never drops this workspace's own issue's edit.
 
 A resting branch only fast-forwards to main; never commit on it. An interrupted card/main publication
 keeps a receipt: `sdlc issue recovery list` shows it, and `reconcile` resumes

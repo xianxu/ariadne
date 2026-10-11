@@ -292,7 +292,7 @@ var Catalog = []Contract{
 		Class:         ConvergentRetry,
 		Effects:       "one local commit on the current branch setting every copy of each named issue's details to main's version (removing a copy main lacks), for the issues the transfer guard refuses here (#285). Pushes nothing; the card is untouched.",
 		Evidence:      "`git log -1` on the branch; `sdlc pr --dry-run` passes the transfer guard.",
-		Preconditions: "an issue tracker repository; a checkout that does not own the issue (the owner merges main instead); each details file to restore is clean, or already holds main's version (an interrupted restore).",
+		Preconditions: "an issue tracker repository; an issue this workspace does not own — another workspace's, or unclaimed (#274) — (the owner merges main instead); each details file to restore is clean, or already holds main's version (an interrupted restore).",
 		Repeat:        "nothing left to restore: \"nothing to restore\", no commit.",
 		LostResponse:  "local only; rerun — a file already reset to main's version is committed, not refused.",
 		Ends:          "not applicable: a local commit only.",

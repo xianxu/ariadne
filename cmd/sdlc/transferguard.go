@@ -57,7 +57,8 @@ func guardTransferredDetails(ctx context.Context) error {
 type changedDetail struct {
 	ID, Path string
 	Verdict  verdict
-	Owner    issue.Claimant // the card's claimant when Verdict is verdictForeign
+	Own      issue.Ownership // this workspace's relation to the card
+	Owner    issue.Claimant  // the card's claimant, zero when unclaimed
 }
 
 // changedDetails judges every issue details file that the prospective merge
@@ -99,19 +100,19 @@ func changedDetails(env *trackerEnv, mainTip string) ([]changedDetail, error) {
 			return nil, err
 		}
 		facts := detailsFacts{Published: last != ""}
+		var own issue.Ownership
 		var owner issue.Claimant
 		if facts.Published {
-			own, recorded, _, err := ownership(env, rec)
-			if err != nil {
+			if own, owner, _, err = ownership(env, rec); err != nil {
 				return nil, err
 			}
-			facts.Foreign, owner = mayNotEditDetails(own), recorded
+			facts.Foreign = mayNotEditDetails(own)
 			if facts.Based, err = env.ancestorOf(last, "HEAD"); err != nil {
 				return nil, err
 			}
 		}
 		if v := detailsVerdict(facts); v != verdictAccept {
-			out = append(out, changedDetail{ID: rec.ID, Path: p, Verdict: v, Owner: owner})
+			out = append(out, changedDetail{ID: rec.ID, Path: p, Verdict: v, Own: own, Owner: owner})
 		}
 	}
 	return out, nil
@@ -154,9 +155,9 @@ func mayNotEditDetails(own issue.Ownership) bool {
 }
 
 // detailsRefusal names the next action for one refused change. Another
-// workspace's issue: hand the edit to its owner, or drop it here (restore is
-// offered only then — the edit is not this workspace's record to keep).
-// Otherwise the branch merges main and resolves the prose.
+// workspace's issue: hand the edit to its owner, or drop it here. Behind main:
+// merge main and resolve the prose; an unclaimed issue's stale copy may also be
+// dropped, but restore is never offered over this workspace's own record.
 func detailsRefusal(env *trackerEnv, c changedDetail) error {
 	issueStr := issue.CLIRef(c.ID)
 	if c.Verdict == verdictForeign {
@@ -165,7 +166,17 @@ func detailsRefusal(env *trackerEnv, c changedDetail) error {
 			"or drop it here with `sdlc issue restore --issue %s`",
 			errTransferredDetails, c.Path, issueStr, describeClaimant(c.Owner), issueStr, issueStr)
 	}
+	drop := ""
+	if mayRestore(c) {
+		drop = fmt.Sprintf("; or drop this branch's copy with `sdlc issue restore --issue %s`", issueStr)
+	}
 	return fmt.Errorf("%w: %s, from a branch not based on main's latest version of it.\n"+
-		"      Merge main (`git fetch %s && git merge %s/main`), resolve #%s's details, and rerun",
-		errTransferredDetails, c.Path, env.target.Remote, env.target.Remote, issueStr)
+		"      Merge main (`git fetch %s && git merge %s/main`), resolve #%s's details, and rerun%s",
+		errTransferredDetails, c.Path, env.target.Remote, env.target.Remote, issueStr, drop)
+}
+
+// mayRestore says whether `issue restore` may drop a refused change: anything
+// but this workspace's own issue, whose edit is a record merging main keeps.
+func mayRestore(c changedDetail) bool {
+	return c.Own != issue.OwnershipMine
 }

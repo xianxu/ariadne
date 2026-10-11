@@ -54,8 +54,8 @@ type republishItem struct {
 }
 
 // republishOwned publishes owned issues' edited details to main in one narrow
-// commit, then finishes this checkout (#284). It never writes main for an issue
-// this workspace does not own — re-checked against a fresh tracker read before
+// commit, then finishes this checkout (#284). It never writes main for another
+// workspace's issue (#274: an unclaimed one publishes) — re-checked against a fresh tracker read before
 // the push — nor over a main copy that moved since the checkout's base, judged
 // again on every attempt. A rerun after an uncertain push finds main already
 // holding the details and only finishes the checkout.

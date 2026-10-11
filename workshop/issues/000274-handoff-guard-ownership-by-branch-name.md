@@ -108,3 +108,14 @@ refused; they now set a foreign owner, which is what they mean to protect.
 Mutation check: restoring "unclaimed is refused" fails
 `TestPublishUnclaimedDetails` and all three `unclaimed:` guard rows.
 Targeted run green (`TestTransferGuard|TestDetailsVerdict|TestNoHelpCallsABranchTheOwner|TestIssueRestore|TestPublish`).
+
+Close review round 1 (FIX-THEN-SHIP): BR-1 Important, `issue restore --help`
+still recommended `sdlc claim`. Fixed the family: restore help, recovery
+catalog precondition, the abandon/republish comments. Minor (restore refused an
+unclaimed stale copy): `changedDetail` now carries `Own`, and `mayRestore`
+offers restore for anything but this workspace's own record. The guard's
+behind refusal for an unclaimed issue offers it too. Tests:
+`TestIssueRestoreMakesAStaleFilingBranchLand` runs for both a foreign holder and an unclaimed one, and
+guard rows assert that restore is offered except to the owner. Mutation
+(`mayRestore` always true) fails `TestIssueRestoreRefusesTheOwnersOwnEdit` and
+the owner-behind row. Lesson added.

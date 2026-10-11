@@ -337,7 +337,8 @@ another branch lands. Another workspace's edit is refused naming the owner and
 offered `sdlc issue restore --issue N`, which makes every copy of the details
 match main in one commit (git follows an archive's rename, so the stale copy
 may surface under `history/`). A branch behind main merges main and resolves
-the details.
+the details; an unclaimed issue's stale copy may be restored instead
+(`mayRestore`: never this workspace's own record).
 
 `sdlc issue recovery list|reconcile` resumes stopped
 operations, probing before repeating anything; a creation that published
