@@ -1028,7 +1028,11 @@ claim nothing, so `#304: log: … (F1, #308)` no longer hands #308 a share. A
 subject with no lead is a neutral time boundary. On an issue branch its own
 merge commits (branch point..HEAD) are never boundaries, and a main commit bounds the issue's runs only when
 its lead names the issue. Integrating main therefore leaves the boundary set
-unchanged. Suspicious attribution is surfaced as `Result.Warnings` and
+unchanged. The tracker history read beside HEAD is filtered the same way in every
+scope (#321): a card commit counts only when its lead names the measured
+issue; another issue's card, or a card with no lead, is not a boundary at all. The tracker interleaves every slot's card writes, so off the issue
+branch (a resting branch, or main after landing) another slot's card write
+would otherwise claim the run beside it. Suspicious attribution is surfaced as `Result.Warnings` and
 rendered by `actual` / `active-time`. Dir-selection is deliberately narrow (NOT all
 folders/sessions) — an unrelated concurrently-edited repo inflates the count.
 `WindowCapDays` is 61 (was 31) so month-long issues keep their window. The
