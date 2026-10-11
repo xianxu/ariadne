@@ -152,8 +152,7 @@ func reviewPlanPaths(root, plansDir, issueFile string) (displayPath, statPath st
 	if plansDir == "" || issueFile == "" {
 		return "", ""
 	}
-	name := strings.TrimSuffix(filepath.Base(issueFile), filepath.Ext(issueFile)) + "-plan.md"
-	displayPath = filepath.Join(plansDir, name)
+	displayPath = planArtifactPath(plansDir, strings.TrimSuffix(filepath.Base(issueFile), filepath.Ext(issueFile)))
 	statPath = displayPath
 	if !filepath.IsAbs(statPath) {
 		statPath = filepath.Join(root, statPath)

@@ -74,3 +74,21 @@ func TestBuildPrompt_EmptyIssueRefFallback(t *testing.T) {
 		}
 	}
 }
+
+// TestBuildPrompt_ReviewNotes: the notes render as a headed list right before the
+// review window in every boundary recipe, and an empty list renders nothing (#183) —
+// the goldens above, which carry no notes, pin that byte-for-byte.
+func TestBuildPrompt_ReviewNotes(t *testing.T) {
+	in := goldenInput
+	in.ReviewNotes = []string{"NOTE-ONE", "NOTE-TWO"}
+	for _, c := range []Category{MilestoneReview, SmallDiffReview, FixReview} {
+		got := BuildPrompt(c, in)
+		want := "Review notes — facts about this window you must weigh:\n- NOTE-ONE\n- NOTE-TWO\n\nReview window:"
+		if !strings.Contains(got, want) {
+			t.Errorf("%s: review notes not rendered before the window:\n%s", c, got)
+		}
+		if strings.Contains(BuildPrompt(c, goldenInput), "Review notes — facts") {
+			t.Errorf("%s: an empty notes list must render nothing", c)
+		}
+	}
+}

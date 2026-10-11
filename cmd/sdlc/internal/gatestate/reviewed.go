@@ -15,3 +15,17 @@ func LatestReviewed(l Ledger, exclude string) (sha, boundary string, ok bool) {
 	}
 	return "", "", false
 }
+
+// LatestFinalizedAt returns the head the newest finalized round AT `boundary` read
+// (#183): the anchor `sdlc close --fixed-then-ship` diffs from. LatestReviewed answers
+// a different question (the last review OUTSIDE a boundary, for a milestone's
+// interdiff); this one is the boundary's own last finalized review. A round with no
+// Reviewed head (REWORK, halt, never ran) never finalized, so it never anchors.
+func LatestFinalizedAt(l Ledger, boundary string) (sha string, ok bool) {
+	for i := len(l.Rounds) - 1; i >= 0; i-- {
+		if r := l.Rounds[i]; r.Boundary == boundary && r.Reviewed != "" {
+			return r.Reviewed, true
+		}
+	}
+	return "", false
+}

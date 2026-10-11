@@ -397,3 +397,9 @@ The simplest durable authority beats a clever scan of consequences.
   then found a second filter (`BoundaryAll`) left in the pure grouping step
   after the first was unified. Each extra filter site is a disagreement
   waiting for an input that only one of them excludes.
+- A reviewer instruction is only as good as the input it is shown. Before adding
+  "if X changed, return REWORK" to a review prompt, check that X is inside what the
+  window's commands show the reviewer. #183's fix-review told the reviewer to judge
+  `## Spec` changes, but `reviewCommands` excludes `workshop/issues/`, so the rule
+  could never fire. Where the input sits outside the window, compute the fact
+  deterministically and pass it as a review note.

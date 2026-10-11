@@ -581,8 +581,11 @@ type boundaryReviewParams struct {
 	// dispatch while PlansDir is blanked to defer sidecar writes until relock.
 	ReviewPlansDir string
 	// Category is the review recipe (#231): the small-diff review for a quick
-	// issue inside the shell, milestone-review otherwise (the zero value).
+	// issue inside the shell, fix-review for --fixed-then-ship (#183),
+	// milestone-review otherwise (the zero value).
 	Category judge.Category
+	// ReviewNotes are facts about the window the reviewer must weigh (#183).
+	ReviewNotes []string
 	// ForcedRationale records a bypass of the ledger's refusal (--no-ledger / --force),
 	// stamped onto the round so the durable record does not read a waived refusal as a
 	// clean pass (#194 close review BR-17/BR-39). NOT the gate_forced metric — that reads
@@ -749,6 +752,7 @@ func boundaryReviewDispatchOptions(stdout, stderr io.Writer, p boundaryReviewPar
 		IssueRef: o.IssueRef, Repo: o.Repo, RepoRoot: o.RepoRoot,
 		IssueFile: o.IssueFile, Boundary: o.Boundary, RepoNote: o.RepoNote,
 		PriorFindings: p.PriorFindings,
+		ReviewNotes:   p.ReviewNotes,
 	}
 	cat := p.recipe()
 	prompt := judge.BuildPrompt(cat, in)
