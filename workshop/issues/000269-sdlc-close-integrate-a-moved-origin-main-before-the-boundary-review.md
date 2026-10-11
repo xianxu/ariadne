@@ -1,19 +1,19 @@
 ---
 id: 000269
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-28
-updated: 2026-10-09
+updated: 2026-10-10
 estimate_hours:
-card_mirror: 'e7c43810f995ee5555d84b919dc5851e601f497e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3cc07113d66c1c71a3916d9fab5e464949e32112' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-09T20:51:35-07:00
 claimant:
     operator: Xian Xu
     machine: 4716879978a7b90f6b583da1716fd0e9
     machine_name: MacBook Pro
-    workspace: ariadne:1
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 ---
 
@@ -83,7 +83,12 @@ side of the same staleness; this issue is the issue-branch side, at close.
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000269-integrate-gate-plan.md` (previous-noon rule, tri-state probe, shared `internal/freshness` for #303, gate at close + milestone-close).
+
+- [ ] `internal/freshness` (Cutoff, LoadLocation, Check) with unit and real-git tests
+- [ ] `integrategate.go` wired into `computeClose`; `--no-integrate` on close and milestone-close; fixture tests incl. remedy-from-refused-state
+- [ ] gatesig catalog, help text, recovery catalog, atlas, `.sdlc/freshness.json`
+- [ ] targeted tests, then full `make test`
 
 ## Log
 
@@ -98,3 +103,6 @@ side of the same staleness; this issue is the issue-branch side, at close.
 - 2026-10-09: unclaimed: TL edit published; not started
 
 Spec line added by the TL (ariadne:1) at #304's request (its Done-when), with the previous-noon freshness direction from the ariadne-robustness-1 review.
+
+### 2026-10-10
+- Claimed at ariadne:4 (TL dispatch). Design: the previous-noon rule from project req. 6 subsumes the spec's "main moved since merge base". Only main commits landed before the most recent noon must be in the branch, and docs-only staleness passes. Applied at both boundaries, since #304 made milestone integration free. Fetch failure is inconclusive: warn, never the up-to-date line.
