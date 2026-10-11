@@ -118,3 +118,12 @@ out of that issue's scope (recorded in its plan's Task 14 rationale).
   - `processgroup.TestCancellationKillsDescendants`: the sandbox blocks `/bin/ps`.
   - The hermeticity guard flagged slot 3's live `sdlc merge` lock in the shared git common dir.
 - [x] Full `make test`, apart from the environmental failures above.
+- Close review round 1: FIX-THEN-SHIP.
+  - Important: `planArtifactPath` was billed as the one lookup, but `changecode.go` (choosing
+    files to commit) and `reviewwindow.go` (`reviewPlanPaths`) still built `-plan.md` by hand.
+    Both now go through it. The sweep was `grep -- '-plan.md"'`; `resolve.go`'s suffix
+    classifier is a different concern and stays.
+  - Minor: added `TestJudgePlanQuality_DryRunWithoutPlanMatchesChangeCode` for the no-plan,
+    no-ledger case.
+  - Minor (not changed): the "byte-equal" claim holds while the card mirror is current. The
+    Decision section already records that `judge` reads disk bytes.

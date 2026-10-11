@@ -98,6 +98,39 @@ func TestJudgePlanQuality_DryRunRendersChangeCodePrompt(t *testing.T) {
 	}
 }
 
+// The other state of the plan clause: with no durable plan and no ledger the judge
+// still renders change-code's prompt — the plan placeholder and no prior findings.
+func TestJudgePlanQuality_DryRunWithoutPlanMatchesChangeCode(t *testing.T) {
+	issuePath, planPath, ledgerPath := planningJudgeRepo(t)
+	for _, p := range []string{planPath, ledgerPath} {
+		if err := os.Remove(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	var stdout, stderr bytes.Buffer
+	if err := runJudge(&stdout, &stderr, "plan-quality", planningJudgeFlags(true)); err != nil {
+		t.Fatalf("runJudge: %v\n%s", err, stderr.String())
+	}
+	got := promptBetween(t, stdout.String(), "── prompt ──")
+	for _, want := range []string{"SPEC-SENTINEL the judge must see.", "(no separate plan file)"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("plan-less prompt missing %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "PRIOR-FINDING-SENTINEL") || strings.Contains(got, "PLAN-SENTINEL") {
+		t.Errorf("plan-less prompt carries removed plan or ledger content:\n%s", got)
+	}
+	issueBytes, _ := os.ReadFile(issuePath)
+	var ccOut, ccErr bytes.Buffer
+	cf := &changeCodeFlags{Issue: 69, IssuesDir: "workshop/issues", PlansDir: "workshop/plans", DryRun: true}
+	if err := runPlanQualityJudge(&ccOut, &ccErr, cf, "000069-x", issuePath, string(issueBytes), ""); err != nil {
+		t.Fatalf("runPlanQualityJudge: %v", err)
+	}
+	if want := promptBetween(t, ccOut.String(), "── plan-quality prompt ──"); got != want {
+		t.Errorf("plan-less renders differ\n--- judge ---\n%s\n--- change-code ---\n%s", got, want)
+	}
+}
+
 // A live plan-quality run would be a review nobody records; it refuses and names the
 // verb that owns the gate, before any dispatch.
 func TestJudgePlanQuality_LiveRunRefuses(t *testing.T) {

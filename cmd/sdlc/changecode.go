@@ -281,7 +281,7 @@ func checkpointDesign(f *changeCodeFlags, name, issuePath string) error {
 		return fmt.Errorf("this checkout is on %q, not %s", current, name)
 	}
 	var paths []string
-	for _, p := range []string{issuePath, filepath.Join(f.PlansDir, name+"-plan.md"), planGatePath(f.PlansDir, filepath.Base(issuePath))} {
+	for _, p := range []string{issuePath, planArtifactPath(f.PlansDir, name), planGatePath(f.PlansDir, filepath.Base(issuePath))} {
 		if _, err := os.Stat(p); err == nil {
 			paths = append(paths, p)
 		}
@@ -579,7 +579,8 @@ func readOptionalPlanFile(plansDir, name string) string {
 }
 
 // planArtifactPath is the durable plan's path for an issue name: the one lookup
-// change-code, close and `sdlc judge` read the plan through (#189, ARCH-DRY).
+// change-code, close and both manual judges (plan-quality, milestone-review's
+// review window) read the plan through (#189, ARCH-DRY).
 func planArtifactPath(plansDir, name string) string {
 	return filepath.Join(plansDir, name+"-plan.md")
 }
