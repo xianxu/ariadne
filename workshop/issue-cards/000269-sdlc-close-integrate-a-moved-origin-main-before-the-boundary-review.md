@@ -1,6 +1,6 @@
 ---
 id: 000269
-status: codecomplete
+status: done
 created: 2026-09-28
 updated: 2026-10-11
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 4687acd352ca33175804525cf91d8e913809d9da
         evidence_commit: 60f5f4571225d0fd7782dbdd0950340c0407a983
+        landed_commit: 67dbed123529f05a308ea0954e8d4f84f170d4f0
 ---
 
 # sdlc close: integrate a moved origin/main before the boundary review
