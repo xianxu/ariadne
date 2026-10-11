@@ -1,12 +1,20 @@
 ---
 id: 000318
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 estimate_hours:
-card_mirror: 'fc1be9075c568ca1e8147ec5eca08f44873a47e1' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '2d07ebc4f6504d2be7ee4cc12342f296b10e5701' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-11T08:58:34-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sandbox: allow couch in base-layer settings so agents can message peers
@@ -34,12 +42,27 @@ the review finds a reason not to.
 
 ## Done when
 
+- `sdlc merge` runs in auto mode without a classifier denial.
 - A sandboxed `couch --send-to <slot> --message …` from a woven repo delivers, and `couch --message-status ID --json` shows a receipt.
 - The setting lives in the ariadne base layer and reaches peer repos through `weave refresh` (checked in ops).
 
 ## Plan
 
-- [ ]
+- [ ] `.claude/settings.ariadne.json`: add `couch` to `sandbox.excludedCommands`; add `Bash(sdlc:*)` and `Bash(couch:*)` to `permissions.allow` (both keys are `$merge_keys`, so downstream locals union with them).
+- [ ] Codex (`.codex/config.toml`, woven as a symlink): no change needed, with the reason recorded in the file's comments. Codex has no per-command sandbox exclusion. `workspace-write` with `network_access = true` already permits the socket dial, and `approval_policy = "on-request"` has no classifier to bypass.
+- [ ] Gemini: not woven (no `.gemini` row in `construct/base.manifest`; ariadne-local only, and Gemini is deprecated in favor of agy). Leave it alone; record why in `## Revisions`.
+- [ ] `weave refresh` here, then confirm the regenerated `.claude/settings.json` carries the change.
+- [ ] Verify: a sandboxed `couch --send-to` delivers with a receipt (the final report to ops:0 is the live check), and `sdlc merge` runs in auto mode without a classifier denial.
+- [ ] After the merge: `weave refresh` in ops, and confirm ops' `.claude/settings.json` carries both changes.
+- [ ] close + merge
+
+## Revisions
+
+### 2026-10-11 — scope widened (TL dispatch from ops:0, operator-approved)
+- Was: `couch` in `excludedCommands` only.
+- Now also: `Bash(sdlc:*)` and `Bash(couch:*)` in `permissions.allow`, so the auto-mode classifier stops judging the workbench's own verbs. It denied #330's `sdlc merge --yes` as "Merge Without Review", although the binary runs its own review gates. Both binaries keep their own guards.
+- Agent-neutral: cover Codex/Gemini wherever weave generates their config, or record why not (see Plan).
+- Done-when adds: `sdlc merge` runs in auto mode without a classifier denial.
 
 ## Log
 
