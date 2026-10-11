@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.97
+actual_hours: 1.08
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000307-claimant-identity-is-the-slot-not-the-worktree-path.md
         main_commit: 43f9ae7431be38dde8226c84b43f3f0ea4674e0b
     completion:
-        token: close-b9c34d911019
+        token: close-70c72f3843c1
         repository: github.com/xianxu/ariadne
-        reviewed_head: deb5d336487b4a9b1afbb4e2de05b5c03c6ead16
-        evidence_commit: 7642d2c3568c2479b2f12702993f47e420def882
+        reviewed_head: 124de8b635a55d249587925391912b821d042637
+        evidence_commit: 29d5a0a6ab07d1840fac30979568484b49d76538
 ---
 
 # Claimant identity is the slot, not the worktree path
