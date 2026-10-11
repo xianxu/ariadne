@@ -1,12 +1,12 @@
 ---
 id: 000183
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-16
 updated: 2026-10-10
 estimate_hours:
-card_mirror: 'a4d8d27e2dcab2b891cb856f183bafb382d30f47' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '65c86a7020d77cebee4ff1760b30cae8da25c9b1' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-10T16:53:19-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.93
 ---
 
 # FIX-THEN-SHIP needs better process
