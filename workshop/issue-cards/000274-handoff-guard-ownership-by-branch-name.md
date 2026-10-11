@@ -1,6 +1,6 @@
 ---
 id: 000274
-status: codecomplete
+status: done
 created: 2026-09-29
 updated: 2026-10-11
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: e9a4f1b0696d3185b58530fb07c74227e6951825
         evidence_commit: 157865629527c0be40ed4baadd0c401f6359fe3a
+        landed_commit: e4c3fbe94d9dec847cc69f55f1bee3b3b88387b3
 ---
 
 # Handoff guard judges detail ownership by branch name
