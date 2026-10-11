@@ -19,6 +19,9 @@ type closeFlowOutcome struct {
 	flow      flow.Flow // the flow this close runs under — and records, when upgraded
 	crossings []string  // non-empty: a quick issue left the shell and is upgraded to full
 	size      flow.Size // the measured window (quick flow only)
+	// doneWhenDeferred: the contract moved without Done-when, and the review judges
+	// whether it still covers the work (F3, #183) — carried to the prompt and log line.
+	doneWhenDeferred bool
 }
 
 func (o closeFlowOutcome) upgraded() bool { return len(o.crossings) > 0 }
@@ -73,21 +76,21 @@ func closeFlowStep(stderr io.Writer, f *closeFlags, mode, issuePath, fm, body, w
 		}
 		return closeFlowOutcome{flow: fl}
 	}
-	if mode == "issue" {
-		checkQuickDoneWhen(stderr, f, *rec, body)
-	}
+	deferred := mode == "issue" && checkQuickDoneWhen(stderr, f, *rec, body)
 	plan := readOptionalPlanFile(f.plansDir(), strings.TrimSuffix(filepath.Base(issuePath), filepath.Ext(issuePath)))
 	size := measureCloseWindow(stderr, windowBase, windowHead, body, plan)
 	size.EarlierFullReview, size.LedgerErr = earlierFullReview(f.plansDir(), filepath.Base(issuePath), f.Issue, f.Milestone)
 	o := decideCloseFlow(*rec, size)
+	o.doneWhenDeferred = deferred
 	cinfo(stderr, closeFlowLine(o))
 	return o
 }
 
-// checkQuickDoneWhen runs the quick flow's two deterministic checks before its
-// one review: Done-when must have a bullet (it is the review's only oracle), and
-// must have moved if the contract did since change-code.
-func checkQuickDoneWhen(stderr io.Writer, f *closeFlags, rec flow.Flow, body string) {
+// checkQuickDoneWhen runs the quick flow's two checks before its one review:
+// Done-when must have a bullet (it is the review's only oracle), and must have moved
+// if the contract did since change-code — judged by the close review when one runs (F3,
+// doneWhenDecision), which it reports by returning true.
+func checkQuickDoneWhen(stderr io.Writer, f *closeFlags, rec flow.Flow, body string) (deferred bool) {
 	if err := flow.DoneWhenPresent(body); err != nil {
 		// No --no-<gate> flag: only --force waives the review's missing oracle.
 		if !f.Force {
@@ -95,12 +98,17 @@ func checkQuickDoneWhen(stderr io.Writer, f *closeFlags, rec flow.Flow, body str
 		}
 		cwarn(stderr, "--force: closing a quick-flow issue with no `## Done when` bullet")
 	}
-	if err := flow.DoneWhenFresh(rec, body); err != nil {
-		if !f.skip("done-when-fresh") {
-			die(stderr, err.Error())
-		}
+	err := flow.DoneWhenFresh(rec, body)
+	switch doneWhenDecision(err != nil, !f.skip("judge"), f.skip("done-when-fresh")) {
+	case doneWhenDefer:
+		cinfo(stderr, "done-when: the contract moved since change-code but `## Done when` did not — the close review judges whether it still covers the work")
+		return true
+	case doneWhenRefuse:
+		die(stderr, err.Error())
+	case doneWhenWaived:
 		cwarn(stderr, "--no-done-when-fresh (or --force): skipping the Done-when freshness check — rationale in --verified")
 	}
+	return false
 }
 
 // measureCloseWindow gathers the shell's facts: the numstat of the window, the
@@ -153,11 +161,12 @@ func earlierFullReview(plansDir, issueFileName string, issueNum int, boundary st
 }
 
 // fullRoundIn: did any of these boundary rounds run the full review? A round
-// that never ran (NoCap) ran nothing; an unstamped round predates #231, when
+// that never ran (NoCap) ran nothing; a fix-review round (#183) read only an
+// interdiff; an unstamped round predates #231, when
 // milestone-review was the only boundary recipe, so it was the full review.
 func fullRoundIn(rounds []gatestate.Round) bool {
 	for _, r := range rounds {
-		if !r.NoCap && r.Recipe != string(judge.SmallDiffReview) {
+		if !r.NoCap && r.Recipe != string(judge.SmallDiffReview) && r.Recipe != string(judge.FixReview) {
 			return true
 		}
 	}

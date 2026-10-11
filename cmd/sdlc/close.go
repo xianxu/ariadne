@@ -86,6 +86,12 @@ type closeFlags struct {
 	NoJudge     bool // skip the issue boundary review (#69)
 	// NoDoneWhenFresh skips the quick flow's Done-when freshness check (#231).
 	NoDoneWhenFresh bool
+
+	// FixedThenShip is the narrow re-close (#183): review only the interdiff since the
+	// last finalized close review, with the fix-review recipe. FullSuite is the
+	// full-suite evidence it requires when that interdiff resolves a code conflict.
+	FixedThenShip bool
+	FullSuite     string
 }
 
 // resolvePlansDir is the SINGLE resolution of the durable-plans directory: the explicit
@@ -186,6 +192,8 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
 	cmd.Flags().BoolVar(&f.NoDoneWhenFresh, "no-done-when-fresh", false, "quick flow: skip the Done-when freshness check (#231); say why in --verified")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the issue boundary review auto-dispatched on full-issue close (#69)")
+	cmd.Flags().BoolVar(&f.FixedThenShip, "fixed-then-ship", false, "review only the changes since the last finalized close review (fixes, conflict resolutions) with the fix-review recipe (#183)")
+	cmd.Flags().StringVar(&f.FullSuite, "full-suite", "", "with --fixed-then-ship: evidence the full test suite passed — required when the window resolves a code conflict with main")
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for the boundary-review dispatch (claude | codex | gemini)")
 	// Don't use MarkFlagRequired("issue"): cobra emits an uncolored,
 	// differently-formatted error that conflicts with die()'s red prefix.
@@ -393,6 +401,12 @@ type closeResult struct {
 	// an evidence commit it creates itself.
 	tracker     bool
 	trackerPrep *trackerClosePrep // tracker-era issue close: checked before the review
+	// review is the window the boundary review reads: the branch patch, or under
+	// --fixed-then-ship the interdiff since the last finalized close review (#183).
+	review reviewWindow
+	// reviewNotes are facts about the window the reviewer must weigh (#183): conflict
+	// resolutions, and a deferred Done-when freshness check (F3).
+	reviewNotes []string
 }
 
 // computeClose runs every close gate and composes the new issue/project text in
@@ -448,6 +462,16 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// Reachable only via --no-actual/--force (the omit-path above either
 		// adopted or exited): genuinely nothing to measure.
 		cwarn(stderr, fmt.Sprintf("--no-actual (or --force): closing with actual_hours: %s — velocity calibration skipped", issue.ActualNotApplicableSentinel))
+	}
+	if f.FixedThenShip || f.FullSuite != "" {
+		switch {
+		case f.Milestone != "":
+			die(stderr, "--fixed-then-ship is a whole-issue close; fixes after a milestone close fall in the next boundary's review window (#304)")
+		case !f.FixedThenShip:
+			die(stderr, "--full-suite is the evidence --fixed-then-ship asks for; pass it with --fixed-then-ship")
+		case f.skip("judge"):
+			die(stderr, "--fixed-then-ship IS a review (of the fixes); it cannot be combined with --no-judge or --force")
+		}
 	}
 	if f.Verified == "" {
 		if !f.skip("verified") {
@@ -552,6 +576,16 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// finalized review), printed as what it is — not a commit range, which reads as
 	// truncated once main has been merged in.
 	window := planBoundaryWindow(commandContext(f.Context), issueStr, f.Milestone, issuePath, f.plansDir())
+	review := window
+	if f.FixedThenShip {
+		// #183: the review narrows to the fixes; the atlas gate and the quick-flow shell
+		// below stay on the branch patch, which the earlier close already held them to.
+		review = planFixedThenShipWindow(commandContext(f.Context), issueStr, issuePath, f.plansDir())
+		if review.Kind == windowNone {
+			die(stderr, fixedThenShipRefusal(issueStr, review, false, f.FullSuite))
+		}
+		cinfo(stderr, "fixed-then-ship review: "+formatReviewWindow(review))
+	}
 	windowBase := window.Base
 	// #194 M1 review: pin the window's upper end the same way the review does, so
 	// "the same commits" is structural rather than a consequence of both running
@@ -606,6 +640,17 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// Same window as the atlas gate and the review. Writes nothing: an upgrade is
 	// composed into newFM below and recorded by applyClose at finalize.
 	flowOutcome := closeFlowStep(stderr, f, mode, issuePath, fm, body, windowBase, windowHead)
+	var reviewNotes []string
+	if f.FixedThenShip {
+		if why := fixedThenShipRefusal(issueStr, review, flowOutcome.upgraded(), f.FullSuite); why != "" {
+			die(stderr, why)
+		}
+		reviewNotes = append(reviewNotes, fixedThenShipNotes(review)...)
+		reviewNotes = append(reviewNotes, contractChangeNotes(issueBodyAt(stderr, repoTop, issuePath, review.HumanBase), body)...)
+	}
+	if flowOutcome.doneWhenDeferred {
+		reviewNotes = append(reviewNotes, doneWhenReviewNote)
+	}
 
 	// ── Milestone-review verdict check (issue close only) ──────────────────
 	//
@@ -704,7 +749,15 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		if f.Milestone != "" {
 			logLine += " " + f.Milestone
 		}
+		// The tags FOLLOW the evidence: "closed[ Mx] — " is the shape the verdict
+		// annotation and every log reader match.
 		logLine += " — " + f.Verified
+		if f.FixedThenShip {
+			logLine += fixedThenShipLogTag(f.FullSuite)
+		}
+		if flowOutcome.doneWhenDeferred {
+			logLine += doneWhenLogTag
+		}
 		newBody = insertLogLine(newBody, logLine)
 		applied = append(applied, "appended verification line to ## Log")
 	}
@@ -823,6 +876,8 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		flow:         flowOutcome,
 		tracker:      trackerEra,
 		trackerPrep:  trackerPrep,
+		review:       review,
+		reviewNotes:  reviewNotes,
 	}
 }
 
@@ -1127,9 +1182,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 	// fires only after a finalizing verdict.
 	r := computeClose(stderr, f)
 
-	// Window spans the whole branch (milestone "" → branch start), so issuePath
-	// isn't consulted for the base — pass "" (#58).
-	base, baseLong, head, _ := resolveReviewWindow(commandContext(f.Context), strconv.Itoa(f.Issue), "", "", "")
+	base, baseLong, head, windowBase := closeReviewAnchors(f, r)
 	switch {
 	case f.skip("judge"):
 		// Explicit operator skip → finalize (this runs BEFORE dispatch, so only a
@@ -1157,7 +1210,9 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 			AgentExplicit: f.AgentExplicit,
 			IssueNum:      f.Issue, // #137: the dry-run prompt orientation needs this too
 			Milestone:     "",
-			Category:      r.flow.category(),
+			Category:      closeRecipe(f, r),
+			ReviewNotes:   r.reviewNotes,
+			WindowBase:    windowBase,
 		})
 	}
 
@@ -1171,9 +1226,31 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		AgentExplicit: f.AgentExplicit,
 		IssueNum:      f.Issue,
 		Milestone:     "",
-		Category:      r.flow.category(),
+		Category:      closeRecipe(f, r),
+		ReviewNotes:   r.reviewNotes,
+		WindowBase:    windowBase,
 		PlansDir:      f.plansDir(),
 	})
+}
+
+// closeReviewAnchors is the whole-issue review's (base, baseLong, head). A plain close
+// reviews the branch patch, resolved without the ledger (milestone "" → branch start,
+// #58); --fixed-then-ship reviews the fix window computeClose planned and checked
+// (#183), with the reviewed head as the human base.
+func closeReviewAnchors(f *closeFlags, r closeResult) (base, baseLong, head, windowBase string) {
+	if f.FixedThenShip {
+		return shortSHA(r.review.Base), r.review.Base, r.review.Head, r.review.HumanBase
+	}
+	return resolveReviewWindow(commandContext(f.Context), strconv.Itoa(f.Issue), "", "", "")
+}
+
+// closeRecipe is the whole-issue review's recipe: fix-review for --fixed-then-ship
+// (#183), else the flow's (#231).
+func closeRecipe(f *closeFlags, r closeResult) judge.Category {
+	if f.FixedThenShip {
+		return judge.FixReview
+	}
+	return r.flow.category()
 }
 
 func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *closeFlags) error {
@@ -1185,12 +1262,12 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 	}
 
 	var r closeResult
-	var base, baseLong, head string
+	var base, baseLong, head, windowBase string
 	var snapshot closeReviewSnapshot
 	var prior string
 	if err := withRequiredRepoTransactionLock(cmd, func() error {
 		r = computeClose(stderr, f)
-		base, baseLong, head, _ = resolveReviewWindow(commandContext(f.Context), strconv.Itoa(f.Issue), "", "", "")
+		base, baseLong, head, windowBase = closeReviewAnchors(f, r)
 		captured, captureErr := captureCloseReviewSnapshot(r, head, "", f.plansDir())
 		if captureErr != nil {
 			return captureErr
@@ -1216,7 +1293,9 @@ func runCloseWithReviewLocked(cmd *cobra.Command, stdout, stderr io.Writer, f *c
 		Milestone:     "",
 		PlansDir:      f.plansDir(),
 		PriorFindings: prior,
-		Category:      r.flow.category(),
+		Category:      closeRecipe(f, r),
+		ReviewNotes:   r.reviewNotes,
+		WindowBase:    windowBase,
 	}, snapshot)
 }
 
@@ -2034,8 +2113,8 @@ func formatFixThenShipProtocol(verb string, quick bool) string {
 	if verb == "sdlc close" {
 		// Anchor semantics are issue-close/publish-gate territory; a milestone
 		// close writes no codecomplete anchor (close review #174 M-finding).
-		lines = append(lines, fmt.Sprintf("      Only if fixes must land AFTER the close commit: re-run `%s` so the", verb))
-		lines = append(lines, "      delta is re-reviewed and the anchor advances (doc-only deltas pass on their own).")
+		lines = append(lines, "      Only if fixes must land AFTER the close commit: `sdlc close --fixed-then-ship` reviews")
+		lines = append(lines, "      just that delta and the anchor advances (#183; doc-only deltas pass on their own).")
 	} else {
 		lines = append(lines, "      Fixes that land after this milestone-close commit are covered by the")
 		lines = append(lines, "      NEXT boundary review — its window starts at this boundary (#58).")
@@ -2086,4 +2165,26 @@ func orPlaceholder(s, fallback string) string {
 		return fallback
 	}
 	return s
+}
+
+// issueBodyAt is the issue body as of commit rev (#183 BR-1): what the close review
+// read, for contractChangeNotes. A file the commit cannot show (renamed since) warns
+// and compares as empty, which over-reports a change rather than hiding one.
+func issueBodyAt(stderr io.Writer, repoTop, issuePath, rev string) string {
+	abs, err := filepath.Abs(issuePath)
+	if err == nil {
+		var rel string
+		if rel, err = filepath.Rel(canonRoot(repoTop), canonRoot(abs)); err == nil {
+			var out []byte
+			if out, err = gitx.RunGit("show", rev+":"+filepath.ToSlash(rel)); err == nil {
+				_, body, perr := issue.Parse(string(out))
+				if perr == nil {
+					return body
+				}
+				err = perr
+			}
+		}
+	}
+	cwarn(stderr, fmt.Sprintf("fixed-then-ship: the issue as of the close review (%s) is unreadable (%v) — its contract compares as empty", abbrevSHA(rev), err))
+	return ""
 }

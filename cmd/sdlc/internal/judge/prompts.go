@@ -73,6 +73,7 @@ func promptSubstitutions(c Category, in PromptInput) *strings.Replacer {
 		"{{CODE_REVIEW_BODY}}", CodeReviewBody(in, markers),
 		"{{DIFF}}", in.Diff,
 		"{{REVIEW_WINDOW}}", in.ReviewWindow,
+		"{{REVIEW_NOTES}}", renderReviewNotes(in.ReviewNotes),
 		"{{CHANGED_ISSUES}}", strings.Join(in.ChangedIssues, "\n"),
 		"{{ISSUE_CONTENT}}", in.IssueContent,
 		"{{PRIOR_FINDINGS}}", orDefault(in.PriorFindings, "(no prior rounds)"),
@@ -101,12 +102,17 @@ const (
 	// re-aimed at the bug classes small diffs ship, over the registry's quick-flow
 	// principles only. Dispatched by close; not a standalone `sdlc judge` check.
 	SmallDiffReview Category = "small-diff-review"
+	// FixReview is `sdlc close --fixed-then-ship`'s review (#183): the interdiff since
+	// the last finalized close review — the fixes, plus any resolution of a conflict
+	// with main — checked against the prior round's findings. Dispatched by close;
+	// not a standalone `sdlc judge` check.
+	FixReview Category = "fix-review"
 )
 
 // ReviewMarkers is the ARCH-* set a category's review applies: the registry's
 // quick-flow set for the small-diff review, every principle otherwise.
 func ReviewMarkers(c Category) []string {
-	if c == SmallDiffReview {
+	if c == SmallDiffReview || c == FixReview {
 		return QuickMarkers()
 	}
 	return ArchitectureMarkers()
@@ -129,7 +135,7 @@ func AllCategories() []Category {
 // source it here so a future change-code-only category can't silently drop from
 // the manual (#153 M2 boundary-review Minor).
 func AllInjectedCategories() []Category {
-	return append(append([]Category{}, AllCategories()...), EstimateQuality, SmallDiffReview)
+	return append(append([]Category{}, AllCategories()...), EstimateQuality, SmallDiffReview, FixReview)
 }
 
 // IsValid reports whether s names a known category.
@@ -164,6 +170,8 @@ func (c Category) Label() string {
 		return "Post-milestone code review (AGENTS.md §3)"
 	case SmallDiffReview:
 		return "Quick-flow small-diff review at close (#231)"
+	case FixReview:
+		return "Fix review of the interdiff since the close review (#183)"
 	}
 	return string(c)
 }
@@ -212,6 +220,27 @@ type PromptInput struct {
 	IssueFile string // path to the issue file under review
 	Boundary  string // "whole-issue close" | "milestone Mx close"
 	RepoNote  string // base-vs-downstream orientation note
+	// ReviewNotes are facts about this window the reviewer must weigh (#183): the
+	// paths where a conflict with main was resolved, and the quick flow's
+	// moved-contract note (F3). Rendered by the boundary tail just before the window;
+	// empty renders nothing, so a window without notes reads as before.
+	ReviewNotes []string
+}
+
+// renderReviewNotes is the {{REVIEW_NOTES}} value: a headed list ending in a blank
+// line, or "" when there is nothing to say (the token sits flush against the line
+// after it, so the empty case is byte-identical to the template without it).
+func renderReviewNotes(notes []string) string {
+	if len(notes) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString("Review notes — facts about this window you must weigh:\n")
+	for _, n := range notes {
+		b.WriteString("- " + n + "\n")
+	}
+	b.WriteString("\n")
+	return b.String()
 }
 
 // BuildPrompt renders the prompt for one category by loading its embedded

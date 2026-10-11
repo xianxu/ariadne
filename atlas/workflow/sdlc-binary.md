@@ -308,6 +308,16 @@ past `flow.MaxAddedLinesAfterReview` (twice the line limit) it refuses and
 sends the issue back to close, which upgrades it and runs the full review. The
 gate itself stays LLM-free.
 
+**Done-when freshness (F3, #183).** `flow.DoneWhenFresh` flags a contract
+(`## Spec`/`## Revisions`) that moved since change-code while `## Done when` did
+not. That is either a reframe or a review-fix Revisions entry, and only a reader of
+the diff can tell which. So `doneWhenDecision` (`closefixed.go`) defers to the
+close review whenever one runs. The prompt carries the note through
+`ReviewNotes`, the reviewer states `Done-when: current|stale`, and the close log
+line records `done-when: … judged by the close review` before its verdict annotation.
+Under `--no-judge` the deterministic refusal stands (`--no-done-when-fresh` waives
+it). A review that did not run never finalizes, so it cannot pass the check.
+
 ## Fleet inventory and policy (`sdlc fleet`, #200)
 
 The read-only `sdlc fleet inventory` command owns assembly of canonical
@@ -1303,6 +1313,22 @@ main changes commits, not the patch, so neither widens a window.
   - A milestone closed before #304 has no stamped round, so its `Review-Verdict:`
     trailer commit (`previousReviewBoundary`) stands in. Remove that fallback once no
     open issue predates #304.
+- **`close --fixed-then-ship` (#183):** the narrow re-close after a finalized close
+  review. `planFixedThenShipWindow` plans the same interdiff, anchored on the close
+  boundary's own last finalized round (`gatestate.LatestFinalizedAt`), so the window
+  is the fixes plus any conflict resolution with main. It never over-covers: an
+  unplannable window is `windowNone`, and close refuses, naming the full close. The
+  `fix-review` recipe (`internal/judge/prompts/fix-review.md`) disposes the prior
+  findings, judges listed conflict resolutions (`PromptInput.ReviewNotes`), and
+  treats a scope change as REWORK. The window excludes the issues directory, so
+  `contractChangeNotes` compares Spec/Revisions/Done-when, as the issue stood at the
+  reviewed head, with now, and passes each changed section as a note (BR-1). The atlas gate and the quick-flow shell stay on
+  the branch patch. A code-conflict resolution needs `--full-suite '<evidence>'`
+  (`fixedThenShipRefusal`, `closefixed.go`; only the review narrows). Finalizing is
+  an ordinary close: a new evidence commit rebinds the card, so the publish anchor
+  advances. The publish gate's code-delta and conflict refusals name this path. A
+  `fix-review` round never counts as a full review (`fullRoundIn`). Milestones have
+  no such flag, because fixes after a milestone close fall in the next interdiff.
 - **One fresh main (D11):** `reviewMainBase` measures against main as freshly
   fetched in an issue tracker repository, so a stale tracking ref can't push the base
   behind a main the branch already merged.

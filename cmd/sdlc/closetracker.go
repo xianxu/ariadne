@@ -486,7 +486,9 @@ func publishTrackerClose(stdout, stderr io.Writer, f *closeFlags, r closeResult,
 			cwarn(stderr, w)
 		}
 		cwarn(stderr, fmt.Sprintf("FIX-THEN-SHIP: commit the fixes on %s, then `sdlc issue recovery reconcile --issue %s` records this close\n"+
-			"      (the evidence commit lands after your fixes; codecomplete is published bound to it)", env.branch, issue.CLIRef(id)))
+			"      (the evidence commit lands after your fixes; codecomplete is published bound to it).\n"+
+			"      To have the fixes reviewed instead, `sdlc close --issue %s --fixed-then-ship` reviews only them and supersedes this pending close (#183).",
+			env.branch, issue.CLIRef(id), issue.CLIRef(id)))
 		return nil
 	}
 	op := tracker.NewCompletionOp(env.ctx, env.repo, env.branchRef(), gitEvidence{env, stderr}, time.Now().Format("2006-01-02"), env.closeAncestorOf)

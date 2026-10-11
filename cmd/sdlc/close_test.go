@@ -743,11 +743,11 @@ func TestFormatFixThenShipProtocol_ContractElements(t *testing.T) {
 	msg := formatFixThenShipProtocol("sdlc close", false)
 	for _, w := range []string{
 		"FIX-THEN-SHIP",
-		"before committing",   // fix NOW, pre-commit
-		"ONE commit",          // bundle fixes + close mutations
-		"Do NOT re-run",       // the anti-loop instruction
-		"publish gate",        // the why (anchor semantics)
-		"re-run `sdlc close`", // the post-commit escape hatch
+		"before committing",              // fix NOW, pre-commit
+		"ONE commit",                     // bundle fixes + close mutations
+		"Do NOT re-run",                  // the anti-loop instruction
+		"publish gate",                   // the why (anchor semantics)
+		"`sdlc close --fixed-then-ship`", // the post-commit escape hatch reviews only the delta (#183)
 	} {
 		if !strings.Contains(msg, w) {
 			t.Errorf("formatFixThenShipProtocol missing %q in:\n%s", w, msg)
