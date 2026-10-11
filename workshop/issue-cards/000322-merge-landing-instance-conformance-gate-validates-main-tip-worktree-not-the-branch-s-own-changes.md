@@ -1,6 +1,6 @@
 ---
 id: 000322
-status: codecomplete
+status: done
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 588c5a5a70951299eb78c4e8635e2c14423e1411
         evidence_commit: 89154972d5ebfbe48e895b669c622e1e42712930
+        landed_commit: 1264fab19079ab1f6aeca429f46e72f4a7d1dfc4
 ---
 
 # merge: landing instance-conformance gate validates main-tip..worktree, not the branch's own changes
