@@ -69,7 +69,8 @@ peer-write, and the review snapshot (`captureCloseReviewSnapshot` reads `project
 So a TL-owned match `continue`s before any of it (ARCH-DRY: one decision point, not four).
 
 - [x] `project.TLOwners(text) ([]string, error)` in `internal/project/metadata.go`: `tl:` as a string or a list of strings;
-  no frontmatter or no/empty `tl:` → not owned; any other shape → error. `Metadata` gains `TL any`. Unit tests.
+  no frontmatter or no/empty `tl:` → not owned; any other shape → error. Decodes only the `tl` key (see Revisions).
+  Unit tests.
 - [x] Close loop: TL-owned → `cinfo` skip line naming project + TL(s), `continue`. Unreadable `tl:` → warn and skip (fail
   closed: don't write a file whose ownership can't be read).
 - [x] Tests: close + milestone-close leave a `tl:` project byte-identical and print the skip line (milestone-close also
@@ -99,3 +100,8 @@ only decides *which* projects a close touches; #308 keeps *how* the remaining on
   without `tl:` behave as today". Fixed: decode only the `tl` key; `Metadata.TL` dropped (the Minor). New not-owned row
   `unrelated field malformed` fails against the old decode. CRLF frontmatter (Minor) is pre-existing in every
   frontmatter reader and stays out of scope.
+
+## Revisions
+
+- 2026-10-11: plan row 1 originally said `Metadata` gains `TL any`; the BR-1 fix replaced that with a decode of only the
+  `tl` key, so a malformed unrelated field can't skip a project without `tl:`.
