@@ -32,6 +32,18 @@ cut is exact in minutes. Tails are dropped, so the adopted actual is
     boundary, which is the operator's 10-10 consistency rule.
   - A boundary still open at measurement time (it was reviewed, but REWORK is
     pending) is converge from its first dispatch to the window end.
+  - **Precedence (PQ-2):** for each boundary,
+    - build ends at `min(firstDispatch, tailStart)`;
+    - converge is `[firstDispatch, tailStart]` when
+      `tailStart > firstDispatch`, and empty otherwise;
+    - the tail is `(min(firstDispatch, tailStart), finalize]` minus
+      converge.
+
+    A boundary that passes on its first round therefore has no converge, and
+    its pre-dispatch verification after the last commit is tail. That is the
+    same as today's single-boundary rule, where the window ends at the last
+    commit. Phases never overlap: `BuildTimeline` emits them in time order and
+    clamps each to its predecessor's end.
 - **D2. The actual itself changes (Q1).** The adopted actual is `build +
   converge`, and that sum holds exactly.
   - **Milestone issues' actuals drop compared with today's rule.** Today each
@@ -93,13 +105,19 @@ cut is exact in minutes. Tails are dropped, so the adopted actual is
 
 - **Round.Dispatched**: an RFC3339 time taken immediately before
   `judge.Dispatch`. It is `omitempty`, so pre-#234 ledgers stay
-  byte-identical. It is empty on plan-quality rounds and on never-ran
-  rounds.
+  byte-identical. It is empty on plan-quality rounds and on never-ran rounds.
+  A failed dispatch returns before persist, so no round carries it.
+  - **Malformed or hand-edited value:** it does not parse as RFC3339, so the
+    cut falls back to the round's finalize time and the source becomes
+    `finalize`. A dispatch later than its finalize is treated the same way.
 - **BoundaryRounds → Timeline**:
   `BuildTimeline(rounds []BoundaryRound, issueCommits []time.Time, since, until time.Time) (Timeline, source string)`.
   - `BoundaryRound` is a small activetime-local view: Boundary, Dispatched,
     Finalized, Finalizing. activetime must not import gatestate; the caller
     maps between them.
+    - `Finalizing` maps from `Round.Reviewed != ""`.
+    - The **last** finalizing round per boundary is the final one, so a
+      re-close (#183's narrow re-close) extends converge.
   - It returns ordered, non-overlapping `Phase{Start, End, Kind}` with Kind
     one of build, converge or tail, covering [since, until].
   - The fallback (dispatch → finalize time) sets `source = "finalize"`.
@@ -134,13 +152,13 @@ cut is exact in minutes. Tails are dropped, so the adopted actual is
 | `sdlc converge-report` | `cmd/sdlc/convergereport.go` | new (M2) | ledger read |
 
 - **dispatchBoundaryReview**:
-  - stamps `reviewResult.Dispatched = nowRFC3339()` just before
-    `judge.Dispatch`, including on a failed dispatch, because the reviewer
-    did start;
+  - stamps `reviewResult.Dispatched = dispatchNow()` just before
+    `judge.Dispatch`;
   - `persistBoundaryRound` copies it onto the round unless the round never
     ran.
-  - The clock is the package's `nowRFC3339` seam, faked in tests the way
-    `persistBoundaryRound`'s timestamp already is.
+  - `nowRFC3339` is a plain function, so this adds a package var
+    `dispatchNow = nowRFC3339` as the test seam. It is swapped in tests the
+    same way `gitRun`/`computeActualForCloseFn` are.
 - **computeActual** reads the gate ledger through `readBoundaryGateLedger`
   (a missing file means no rounds, so `split_source = no-review`), maps the
   rounds to `[]activetime.BoundaryRound`, builds the timeline and splits. It
@@ -151,9 +169,18 @@ cut is exact in minutes. Tails are dropped, so the adopted actual is
 
   The fakes are the existing real-git fixtures plus a gate ledger written
   into the test's temp `workshop/plans`.
-- **appendCalibrationRow** gets the split from `closeFlags`:
-  - set by `adoptOmittedActual`;
-  - `manual` when `--actual` was typed.
+- **appendCalibrationRow** gets the **minutes** (build, converge) from
+  `closeFlags.Split`. That is set by `adoptOmittedActual` from the
+  pre-dispatch measurement, or is `manual` when `--actual` was typed.
+  - **Round metadata (PQ-1):** it reads `boundary_rounds`, `review_recipe` and
+    the cut `split_source` from the **persisted gate ledger at row-write
+    time** (`applyClose` runs after `persistBoundaryRound`), so the
+    finalizing round is counted.
+  - A first-round pass therefore writes `boundary_rounds 1` and the round's
+    recipe. Its source is the measurement's (`no-review` before the first
+    dispatch), upgraded to `dispatch` once the ledger holds a stamped round.
+  - One pure helper, `rowSplitMeta(ledger, boundary)`, computes them, with a
+    unit test.
 
 ## Chunk 1: M1 — dispatch stamp, timeline, split, columns, E1, E3
 
@@ -182,21 +209,14 @@ test in `boundaryledger_test.go`.
 
 **Files:** create `internal/activetime/split.go` and `split_test.go`.
 
-- [ ] Write table tests (no IO), each asserting phases and
-      Build/Converge/Tail:
-  - (a) one boundary, one passing round, all before since/until → all build;
-  - (b) the #321 shape: REWORK at d1, fix commits, then the final round at
-    d2 → converge = d1 → last commit ≤ d2;
-  - (c) M1 then M2: M1's tail (lastCommit ≤ M1 final dispatch, M1 finalize]
-    is excluded, and M2's build starts at M1's finalize;
-  - (d) an open boundary at measurement time (REWORK pending) → converge to
-    `until`;
-  - (e) a round with no `Dispatched` → its finalize time is the cut, and the
-    source is `finalize`;
-  - (f) no rounds → all build, source `no-review`;
-  - (g) a segment straddling a cut splits by time;
-  - (h) the invariant Build + Converge + Tail == ΣAlloc over random
-    segments.
+- [ ] Tests (no IO).
+  - **Strategy:** a table over the D1 shapes: single-round pass; REWORK with
+    fix commits; REWORK without fix commits; a single-round M1 then M2; open
+    REWORK; undispatched or malformed stamp → finalize source; no rounds.
+  - Plus a **property test** over random rounds and segments:
+    - phases are ordered and non-overlapping and cover [since, until];
+    - Build + Converge + Tail == ΣAlloc;
+    - no converge when there is no commit after the first dispatch.
 - [ ] Run `go test ./cmd/sdlc/internal/activetime/ -run 'TestBuildTimeline|TestSplit'` (FAIL).
 - [ ] Implement `BoundaryRound`, `Phase`, `Timeline`, `BuildTimeline`,
       `Split` and `SplitResult`.
@@ -221,12 +241,12 @@ test in `boundaryledger_test.go`.
 **Files:** `actual.go`, `close.go` (`adoptOmittedActual`, `closeFlags`),
 `actual_test.go`, `close_adopt_test.go`.
 
-- [ ] Write failing tests:
-  - computeActual over a temp repo with a gate ledger reports
-    Build/Converge/Source, and Hours == (Build+Converge)/60 to 2 dp;
-  - computeActual with milestone `M2` reports only M2's phases;
-  - milestone-close with `--actual` omitted adopts the increment and prints
-    the adopt line naming the milestone window. Today it exits 1.
+- [ ] Tests.
+  - **Strategy:** one real-git fixture with a temp gate ledger drives three
+    assertions:
+    - the issue-mode split sums to Hours;
+    - M2 mode keeps only M2's phases;
+    - milestone-close adopts its increment instead of exiting 1.
 - [ ] Implement:
   - read the ledger (`readBoundaryGateLedger(plansDir(), …)`) and map the
     rounds;
@@ -248,16 +268,16 @@ test in `boundaryledger_test.go`.
 **Files:** `internal/estimate/ledger.go`, `ledger_test.go`, `close.go`
 (`appendCalibrationRow`, the OK line), `close_ledger_test.go`.
 
-- [ ] Write failing tests:
-  - `FormatRow`/`ParseRows` round-trip the five new columns;
-  - 10-, 20- and 23-column rows still parse, with `SplitSource` reading as
-    `-`;
-  - `UpgradeHeader` extends the header;
-  - `ExcludedFromCalibration` is true for `Estimate == 0`;
-  - the ratio cell is `-` when the estimate is 0;
-  - the close OK line for a quick close reads `no estimate — not a
-    calibration point` plus build/converge;
-  - a full-flow est-0 row no longer becomes drift's "latest".
+- [ ] Tests.
+  - **Strategy:** a round-trip table over every historical width (10, 20,
+    23, 28) plus `rowSplitMeta` over a ledger whose only round is the
+    finalizing one (PQ-1).
+  - E3 assertions:
+    - est-0 → excluded and ratio `-`;
+    - a trailing full est-0 row does not disable drift;
+    - the quick close line wording.
+  - The ratio column has no programmatic reader beyond `ParseRows`, which
+    recomputes it; brain velocity only cites the ledger in prose (checked).
 - [ ] Implement: append the header columns and `splitCols = 28`; the block is
       read only when `len(c) >= 28`. Update FormatRow, ParseRows,
       `ExcludedFromCalibration` and the writer.
@@ -276,12 +296,10 @@ test in `boundaryledger_test.go`.
 
 ### Task 7: drift reads est against build
 
-- [ ] Write failing tests:
-  - `driftSample` ignores rows without a split (`split_source ∈ {-, manual}`)
-    and rows with build 0;
-  - the ratio used is est/build;
-  - 5 new-rule rows all >2× over build → a warning;
-  - old rows interleaved do not count toward n.
+- [ ] Tests.
+  - **Strategy:** a drift table mixing legacy and split rows.
+  - Only split rows with build > 0 count toward n, and the ratio is
+    est/build.
 - [ ] Implement `LedgerRow.BuildRatio()` and have `calibratable` require a
       split. Run (PASS) and commit.
 
@@ -291,12 +309,10 @@ test in `boundaryledger_test.go`.
 `cmd/sdlc/convergereport.go`, `helptext/converge-report.md`, a main.go
 registration, and an entry in the verb catalog.
 
-- [ ] Write failing tests:
-  - `ConvergeFactors` groups by (model, flow, recipe), dedupes with
-    `NewestPerIssue`, skips legacy rows, and computes k = Σconverge/Σbuild
-    with n;
-  - the CLI renders a table and, with zero split rows, says
-    `no rows with a build/converge split yet (ariadne#234; backfill #323)`.
+- [ ] Tests.
+  - **Strategy:** grouping and dedupe over a mixed ledger, plus the empty
+    case: `no rows with a build/converge split yet (ariadne#234; backfill
+    #323)`.
 - [ ] Implement. Run (PASS) and commit.
 
 ### Task 9: docs + close
@@ -316,3 +332,14 @@ registration, and an entry in the verb catalog.
   without code here. Whichever lands second checks this via ops:0.
 
 ## Revisions
+
+- 2026-10-10, change-code plan-quality round 1:
+  - PQ-1: row metadata is read from the persisted ledger at row-write time.
+  - PQ-2: the D1 precedence is stated, and phases never overlap.
+  - Minors:
+    - `dispatchNow` seam;
+    - no stamp on a failed dispatch;
+    - Finalizing ← Reviewed, the last one per boundary;
+    - a malformed stamp falls back to finalize;
+    - the test prose is compressed into strategies plus a property test;
+    - the ratio-column consumer sweep is done (none).
