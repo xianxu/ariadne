@@ -65,6 +65,7 @@ type milestoneCloseFlags struct {
 // happened from the trailer alone.
 type reviewResult struct {
 	DispatchError error // failed/cancelled dispatch may not persist a round
+	Dispatched    string // #234: when the reviewer was dispatched (RFC3339)
 	Verdict       judge.Verdict
 	Reason        string // populated for not-run / unknown
 	Base          string // short SHA
@@ -619,6 +620,10 @@ func printBoundaryReviewDryRun(stdout, stderr io.Writer, p boundaryReviewParams)
 // dispatchBoundaryReview invokes the one fresh-context review on p's window.
 // Returns a reviewResult capturing the verdict + reason. Dispatch errors carry
 // DispatchError so callers stop before finalization or durable writes.
+// dispatchNow is the boundary-review dispatch clock (#234), a seam so tests
+// can pin it.
+var dispatchNow = nowRFC3339
+
 func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) reviewResult {
 	res := func(v judge.Verdict, reason string) reviewResult {
 		// ProtocolError distinguishes "the reviewer ran and emitted no fence" from "the
@@ -644,6 +649,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	dispatched := dispatchNow()
 	output, derr := judge.Dispatch(ctx, opts)
 	if derr != nil {
 		if output != "" { // a failed retry still carries the first attempt (#300)
@@ -673,7 +679,7 @@ func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) re
 		cwarn(stderr, fmt.Sprintf("boundary review: no '%s' verdict found (block or line) — recording verdict as 'unknown'",
 			strings.Join(vocab.Verdict().Emitted(), " | ")))
 	}
-	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, WindowBase: p.WindowBase, Output: output, Agent: string(agent)}
+	rr := reviewResult{Verdict: verdict, Base: p.Base, Head: p.Head, BaseLong: p.BaseLong, WindowBase: p.WindowBase, Output: output, Agent: string(agent), Dispatched: dispatched}
 	// #194 M2: capture the structured findings handoff. Persisting it is the caller's
 	// job (it holds the lock); parsing here keeps the raw output in one place.
 	if round, ok := gatestate.ParseFindingsBlock(output); ok {
