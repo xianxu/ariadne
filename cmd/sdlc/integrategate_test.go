@@ -198,3 +198,40 @@ func TestCloseRefusesAStaleBranchBeforeTheReview(t *testing.T) {
 		t.Fatalf("close on a stale branch: refused=%v\n%s", refused, msg)
 	}
 }
+
+// In a tracker repository the gate reads the review window's fetched main (a pinned
+// commit) but names the tracking ref in the remedy, and an unreachable origin is
+// inconclusive.
+func TestIntegrateGate_TrackerRepository(t *testing.T) {
+	r := newTrackerRepo(t, nil, nil)
+	testfix.Git(t, r.root, "checkout", "-q", "-b", "feature")
+	peer := filepath.Join(t.TempDir(), "peer")
+	testfix.Git(t, "", "clone", "-q", r.origin, peer)
+	if err := os.WriteFile(filepath.Join(peer, "new.go"), []byte("package x\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	testfix.Git(t, peer, "add", "new.go")
+	testfix.Git(t, peer, "-c", "user.email=t@t", "-c", "user.name=t", "-c", "commit.gpgsign=false", "commit", "-q", "-m", "land new.go")
+	testfix.Git(t, peer, "push", "-q", "origin", "main")
+	prev := integrateNow
+	integrateNow = func() time.Time { return time.Now().Add(48 * time.Hour) }
+	t.Cleanup(func() { integrateNow = prev })
+
+	_, msg, refused := runIntegrateGate(t, &closeFlags{})
+	if !refused || !strings.Contains(msg, "new.go") || !strings.Contains(msg, "git rebase origin/main") {
+		t.Fatalf("tracker repo, stale branch: refused=%v\n%s", refused, msg)
+	}
+
+	if err := os.Rename(r.origin, r.origin+".gone"); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = os.Rename(r.origin+".gone", r.origin) })
+	// A new process: main is fetched once per process and checkout.
+	reviewMainMu.Lock()
+	reviewMainCache = map[string]reviewMainEntry{}
+	reviewMainMu.Unlock()
+	out, msg, refused := runIntegrateGate(t, &closeFlags{})
+	if refused || !strings.Contains(out, "could not check") {
+		t.Fatalf("unreachable tracker origin: refused=%v %q\n%s", refused, msg, out)
+	}
+}

@@ -32,7 +32,7 @@ func integrateGate(ctx context.Context, stderr io.Writer, f *closeFlags, issueSt
 	if err != nil {
 		die(stderr, fmt.Sprintf("integrate gate: %v — fix it, or pass --no-integrate (or --force) with the reason in --verified", err))
 	}
-	mainRef, why := integrateMainRef(ctx, root)
+	mainRef, mainName, why := integrateMainRef(ctx, root)
 	if mainRef == "" {
 		cwarn(stderr, formatIntegrateUnknown(why))
 		return
@@ -42,36 +42,43 @@ func integrateGate(ctx context.Context, stderr io.Writer, f *closeFlags, issueSt
 	case freshness.Inconclusive:
 		cwarn(stderr, formatIntegrateUnknown(r.Why))
 	case freshness.DocsOnly:
-		cinfo(stderr, fmt.Sprintf("integrate gate: %d doc-only file(s) on %s since this branch's base; no code surface to integrate", r.Docs, mainRef))
+		cinfo(stderr, fmt.Sprintf("integrate gate: %d doc-only file(s) on %s since this branch's base; no code surface to integrate", r.Docs, mainName))
 	case freshness.Stale:
-		die(stderr, formatIntegrateRefusal(r, mainRef, zone, integrateBranchPushed(mainRef), rerunCmd(issueStr, f.Milestone, "")))
+		die(stderr, formatIntegrateRefusal(r, mainName, zone, integrateBranchPushed(mainName), rerunCmd(issueStr, f.Milestone, "")))
 	}
 }
 
 // integrateMainRef is main freshly fetched: the review window's main in a tracker
 // repository (one cached fetch, so the gate and the window agree), else the trunk
-// ref after fetching its remote. A local-only main needs no fetch. ref is "" with a
+// ref after fetching its remote. A local-only main needs no fetch. ref is what the
+// probe reads (a pinned commit in a tracker repository); name is the ref a person
+// merges or rebases onto, which that fetch just moved to ref. ref is "" with a
 // reason when main could not be brought up to date.
-func integrateMainRef(ctx context.Context, root string) (ref, why string) {
+func integrateMainRef(ctx context.Context, root string) (ref, name, why string) {
+	trunk := gitx.TrunkRef()
 	if _, tracked, err := tracker.ReadCutoverMarker(root); err == nil && tracked {
 		ref, stale := reviewMainRef(ctx)
-		if stale != "" {
-			return "", stale
+		switch {
+		case stale != "":
+			return "", "", stale
+		case ref == "":
+			return "", "", "the issue tracker gave no main"
+		case trunk == "":
+			return ref, ref, ""
 		}
-		return ref, ""
+		return ref, trunk, ""
 	}
-	trunk := gitx.TrunkRef()
 	if trunk == "" {
-		return "", "no main branch found"
+		return "", "", "no main branch found"
 	}
 	remote, branch, ok := strings.Cut(trunk, "/")
 	if !ok || gitx.Capture("remote", "get-url", remote) == "" {
-		return trunk, "" // a local main is already current
+		return trunk, trunk, "" // a local main is already current
 	}
 	if out, err := gitx.RunGit("fetch", "--quiet", remote, branch); err != nil {
-		return "", fmt.Sprintf("fetch %s %s failed: %v %s", remote, branch, err, strings.TrimSpace(string(out)))
+		return "", "", fmt.Sprintf("fetch %s %s failed: %v %s", remote, branch, err, strings.TrimSpace(string(out)))
 	}
-	return trunk, ""
+	return trunk, trunk, ""
 }
 
 // integrateBranchPushed reports whether the current branch has a counterpart on
