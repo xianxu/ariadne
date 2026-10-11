@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000322-merge-landing-instance-conformance-gate-validates-main-tip-worktree-not-the-branch-s-own-changes.md
         source_blob: 9406624d2af7ddbfbb2f3909175d3df79ade6244
         destination: workshop/issues/000322-merge-landing-instance-conformance-gate-validates-main-tip-worktree-not-the-branch-s-own-changes.md
+        main_commit: 368314170c805e8be5280e6c8e4ba323e0a9e792
 ---
 
 # merge: landing instance-conformance gate validates main-tip..worktree, not the branch's own changes
