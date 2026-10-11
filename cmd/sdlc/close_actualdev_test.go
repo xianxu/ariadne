@@ -43,7 +43,7 @@ func TestActualDeviation(t *testing.T) {
 func TestCheckActualDeviation_SkipsWhenUnmeasurable(t *testing.T) {
 	var buf bytes.Buffer
 	// #99999 has no commits referencing it → computeActualForCloseFn → actualNoWindow.
-	if err := checkActualDeviation(context.Background(), &buf, "99999", 13.5, ""); err != nil {
+	if err := checkActualDeviation(context.Background(), &buf, "99999", 13.5, "", ""); err != nil {
 		t.Fatalf("expected nil (skip) when unmeasurable, got: %v", err)
 	}
 	if out := strings.TrimSpace(buf.String()); out != "" {
@@ -57,14 +57,14 @@ func TestCheckActualDeviation_SkipsWhenUnmeasurable(t *testing.T) {
 func TestCheckActualDeviation_MilestoneComparesItsIncrement(t *testing.T) {
 	orig := computeActualForCloseFn
 	var asked []string
-	computeActualForCloseFn = func(_ context.Context, _ string, milestone string) actualResult {
+	computeActualForCloseFn = func(_ context.Context, _ string, milestone, _ string) actualResult {
 		asked = append(asked, milestone)
 		return actualResult{Status: actualMeasured, Hours: 0.40}
 	}
 	t.Cleanup(func() { computeActualForCloseFn = orig })
 
 	var buf bytes.Buffer
-	if err := checkActualDeviation(context.Background(), &buf, "180", 0.37, "M2"); err != nil {
+	if err := checkActualDeviation(context.Background(), &buf, "180", 0.37, "M2", ""); err != nil {
 		t.Fatalf("0.37 against the measured 0.40 increment must pass: %v", err)
 	}
 	if len(asked) != 1 || asked[0] != "M2" {

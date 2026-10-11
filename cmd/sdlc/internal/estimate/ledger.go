@@ -106,6 +106,12 @@ func (r LedgerRow) Ratio() float64 {
 // fleet are full of rows written by older binaries, so an insertion would not fail — it
 // would silently re-interpret every historical row. The #187 block (churn_prod onward)
 // occupies indices 10–19.
+//
+// Growth (ARCH-FUNERAL): one row per close, about 150 bytes at 28 columns, so roughly
+// 150 KB per thousand closes (#234 added five cells, ~25 bytes). Nothing removes rows: the
+// ledger is the calibration history. Its reader is ParseRows over the whole file at each
+// close, linear and well under a millisecond at that size; a split by year would be the
+// remedy if it ever is not.
 const ledgerHeader = "issue\testimate\test_design\test_impl\tactual\tratio\tmodel\tmode\twindow_trusted\tdate" +
 	"\tchurn_prod\tchurn_test\tchurn_atlas\tchurn_workshop\trework" +
 	"\tgate_rounds\tgate_forced\tgate_addressed\tgate_withdrawn\tgate_open" +

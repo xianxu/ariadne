@@ -617,13 +617,13 @@ func printBoundaryReviewDryRun(stdout, stderr io.Writer, p boundaryReviewParams)
 	return nil
 }
 
-// dispatchBoundaryReview invokes the one fresh-context review on p's window.
-// Returns a reviewResult capturing the verdict + reason. Dispatch errors carry
-// DispatchError so callers stop before finalization or durable writes.
 // dispatchNow is the boundary-review dispatch clock (#234), a seam so tests
 // can pin it.
 var dispatchNow = nowRFC3339
 
+// dispatchBoundaryReview invokes the one fresh-context review on p's window.
+// Returns a reviewResult capturing the verdict + reason. Dispatch errors carry
+// DispatchError so callers stop before finalization or durable writes.
 func dispatchBoundaryReview(stdout, stderr io.Writer, p boundaryReviewParams) reviewResult {
 	res := func(v judge.Verdict, reason string) reviewResult {
 		// ProtocolError distinguishes "the reviewer ran and emitted no fence" from "the

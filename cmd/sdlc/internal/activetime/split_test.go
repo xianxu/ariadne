@@ -153,6 +153,21 @@ func TestSplitProperties(t *testing.T) {
 		if !prev.Equal(at(120)) {
 			t.Fatalf("phases end at %v, not the window end: %+v", prev, tl.Phases)
 		}
+		// Converge ends at one of the issue's own commits (the last one at or
+		// before the final dispatch) or, for a boundary still open, at the
+		// window end: no commit after a dispatch, no converge.
+		for _, p := range tl.Phases {
+			if p.Kind != Converge || p.End.Equal(at(120)) {
+				continue
+			}
+			found := false
+			for _, c := range commits {
+				found = found || c.Equal(p.End)
+			}
+			if !found {
+				t.Fatalf("converge %+v does not end at an issue commit %v", p, commits)
+			}
+		}
 		var segs []Segment
 		total := 0.0
 		for k := r.Intn(6); k >= 0; k-- {

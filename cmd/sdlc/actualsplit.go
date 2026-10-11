@@ -21,11 +21,15 @@ type actualSplit struct {
 }
 
 // issueBoundaryLedger reads the issue's boundary gate ledger: the live one
-// under the plans dir, else the archived one under workshop/history/plans (an
-// issue measured after it landed). found is false when the issue has none; a
-// ledger that exists but cannot be read is an error, never "no rounds".
-func issueBoundaryLedger(repoTop string, id int) (l gatestate.Ledger, found bool, err error) {
-	live := plansDir()
+// under plans (the caller's plans dir, the same one the close persists rounds
+// to; "" for the default), else the archived one under workshop/history/plans
+// (an issue measured after it landed). found is false when the issue has none;
+// a ledger that exists but cannot be read is an error, never "no rounds".
+func issueBoundaryLedger(repoTop, plans string, id int) (l gatestate.Ledger, found bool, err error) {
+	live := plans
+	if live == "" {
+		live = plansDir()
+	}
 	if !filepath.IsAbs(live) {
 		live = filepath.Join(repoTop, live)
 	}
@@ -49,19 +53,31 @@ func issueBoundaryLedger(repoTop string, id int) (l gatestate.Ledger, found bool
 func splitRounds(l gatestate.Ledger) []activetime.BoundaryRound {
 	var out []activetime.BoundaryRound
 	for _, r := range l.Rounds {
-		if r.NoCap {
+		fin, disp, ok := cutTimes(r)
+		if !ok {
 			continue
 		}
-		fin, err := time.Parse(time.RFC3339, r.Timestamp)
-		if err != nil {
-			continue
-		}
-		disp, _ := time.Parse(time.RFC3339, r.Dispatched)
 		out = append(out, activetime.BoundaryRound{
 			Boundary: r.Boundary, Dispatched: disp, Finalized: fin, Finalizing: r.Reviewed != "",
 		})
 	}
 	return out
+}
+
+// cutTimes is the one rule for which rounds can cut a split and with what
+// times, shared by the split and the row's metadata so they cannot disagree:
+// a round that consumed no review, or whose finalize time does not parse, is
+// unusable; an unparseable dispatch stamp reads as zero (missing).
+func cutTimes(r gatestate.Round) (fin, disp time.Time, ok bool) {
+	if r.NoCap {
+		return fin, disp, false
+	}
+	fin, err := time.Parse(time.RFC3339, r.Timestamp)
+	if err != nil {
+		return fin, disp, false
+	}
+	disp, _ = time.Parse(time.RFC3339, r.Dispatched)
+	return fin, disp, true
 }
 
 // splitActual divides a measured result for issue at its boundary reviews.
@@ -95,19 +111,20 @@ type splitMeta struct {
 
 // rowSplitMeta reads it from the boundary gate ledger AS PERSISTED when the row
 // is written (PQ-1): the measurement runs before this close dispatches its
-// review, so only the ledger has the finalizing round. Rounds that consumed no
-// review (the plan-gate seed, a dispatch that never started) are not counted.
+// review, so only the ledger has the finalizing round. It counts exactly the
+// rounds the split can use (cutTimes).
 // An empty recipe on a boundary round is the full review (pre-#231).
 func rowSplitMeta(l gatestate.Ledger) splitMeta {
 	meta := splitMeta{Stamped: true}
 	seen := map[string]bool{}
 	var recipes []string
 	for _, r := range l.Rounds {
-		if r.NoCap {
+		_, disp, ok := cutTimes(r)
+		if !ok {
 			continue
 		}
 		meta.Rounds++
-		if _, err := time.Parse(time.RFC3339, r.Dispatched); err != nil {
+		if disp.IsZero() {
 			meta.Stamped = false
 		}
 		recipe := r.Recipe

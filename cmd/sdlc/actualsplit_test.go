@@ -16,10 +16,11 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
-// splitFixture is issue #9 worked 00:00–00:50 in one session. M1 passed its
-// only review round (dispatched 00:20, finalized 00:25) after its last commit
-// at 00:15; M2's work runs on to 00:50.
-func splitFixture(t *testing.T) string {
+// splitFixture is issue #9 worked 00:00–00:50 in one session, with commits at
+// 00:10, 00:15 (M1), 00:40 and 00:50 (M2). rounds builds the boundary gate
+// ledger from a minute→RFC3339 clock; it is written under plans, relative to
+// the repo.
+func splitFixture(t *testing.T, plans string, rounds func(ts func(int) string) []gatestate.Round) string {
 	t.Helper()
 	// Recent times: CommitWindow ignores commits older than WindowCapDays.
 	base := time.Now().UTC().Add(-3 * time.Hour).Truncate(time.Hour)
@@ -50,11 +51,8 @@ func splitFixture(t *testing.T) string {
 	commit(ts(40), "#9 M2: c")
 	commit(ts(50), "#9 M2: d")
 
-	l := gatestate.Ledger{Gate: "boundary-review", IssueNum: 9, IDPrefix: "BR", Rounds: []gatestate.Round{{
-		N: 1, Timestamp: ts(25), Dispatched: ts(20),
-		Agent: "claude", Boundary: "M1", Recipe: "milestone-review", Reviewed: strings.Repeat("e", 40),
-	}}}
-	if err := writeBoundaryGateLedger(filepath.Join(dir, "workshop/plans"), "000009-x.md", l, dir); err != nil {
+	l := gatestate.Ledger{Gate: "boundary-review", IssueNum: 9, IDPrefix: "BR", Rounds: rounds(ts)}
+	if err := writeBoundaryGateLedger(filepath.Join(dir, plans), "000009-x.md", l, dir); err != nil {
 		t.Fatal(err)
 	}
 
@@ -75,11 +73,18 @@ func splitFixture(t *testing.T) string {
 	return top
 }
 
+// m1PassedFirstRound: M1 passed its only review round (dispatched 00:20,
+// finalized 00:25) after its last commit at 00:15.
+func m1PassedFirstRound(ts func(int) string) []gatestate.Round {
+	return []gatestate.Round{{N: 1, Timestamp: ts(25), Dispatched: ts(20), Agent: "claude", Boundary: "M1",
+		Recipe: "milestone-review", Reviewed: strings.Repeat("e", 40)}}
+}
+
 // #234: the measured actual is build + converge, and M1's verification after
 // its last commit (00:15 → 00:25) is not counted. A milestone's increment is
 // its own phases (E1).
 func TestComputeActualSplitsAtBoundaries(t *testing.T) {
-	top := splitFixture(t)
+	top := splitFixture(t, "workshop/plans", m1PassedFirstRound)
 	hours := func(m float64) float64 { return m / 60 }
 	near := func(a, b float64) bool { return math.Abs(a-b) < 1e-6 }
 	for _, c := range []struct {
@@ -90,7 +95,7 @@ func TestComputeActualSplitsAtBoundaries(t *testing.T) {
 		{"M1", hours(15), 0},
 		{"M2", hours(25), 0},
 	} {
-		res := computeActualFor(context.Background(), top, "", "9", c.milestone)
+		res := computeActualFor(context.Background(), top, "", "9", c.milestone, "")
 		if res.Status != actualMeasured || res.Split == nil {
 			t.Fatalf("%q: status %v split %+v detail %s", c.milestone, res.Status, res.Split, res.Detail)
 		}
@@ -100,6 +105,32 @@ func TestComputeActualSplitsAtBoundaries(t *testing.T) {
 		if res.Split.Source != "dispatch" {
 			t.Errorf("%q: source %q, want dispatch", c.milestone, res.Split.Source)
 		}
+	}
+}
+
+// A review sent back with REWORK at 00:20, then fixed by the commits at 00:40
+// and 00:50: the boundary is still open, so converge runs from the first
+// dispatch to the window end.
+func TestComputeActualCountsConvergeAfterRework(t *testing.T) {
+	top := splitFixture(t, "workshop/plans", func(ts func(int) string) []gatestate.Round {
+		return []gatestate.Round{{N: 1, Timestamp: ts(25), Dispatched: ts(20), Agent: "claude", Recipe: "milestone-review"}}
+	})
+	res := computeActualFor(context.Background(), top, "", "9", "", "")
+	if res.Split == nil || math.Abs(res.Split.Build-20.0/60) > 1e-6 || math.Abs(res.Split.Converge-30.0/60) > 1e-6 {
+		t.Fatalf("split %+v (%v %s), want build 20m, converge 30m", res.Split, res.Status, res.Detail)
+	}
+}
+
+// BR-1: the split reads the rounds from the plans dir the close persists them
+// to (--plans-dir), not only the default.
+func TestComputeActualReadsTheGivenPlansDir(t *testing.T) {
+	top := splitFixture(t, "elsewhere/plans", m1PassedFirstRound)
+	res := computeActualFor(context.Background(), top, "", "9", "", filepath.Join(top, "elsewhere/plans"))
+	if res.Split == nil || res.Split.Source != "dispatch" || math.Abs(res.Hours-40.0/60) > 1e-6 {
+		t.Fatalf("given plans dir: hours %v split %+v (%s)", res.Hours, res.Split, res.Detail)
+	}
+	if res := computeActualFor(context.Background(), top, "", "9", "", ""); res.Split == nil || res.Split.Source != "no-review" {
+		t.Fatalf("the default plans dir has no ledger here, want no-review: %+v", res.Split)
 	}
 }
 
@@ -124,6 +155,9 @@ func TestRowSplitMetaAndSource(t *testing.T) {
 		{"typed --actual", []gatestate.Round{stamped}, nil, 1, "small-diff-review", "manual"},
 		{"no review ran", []gatestate.Round{seed}, measured, 0, "", "no-review"},
 		{"an unstamped earlier round", []gatestate.Round{unstamped, stamped}, measured, 2, "milestone-review+small-diff-review", "finalize"},
+		// The split cannot use a round whose finalize time does not parse, so
+		// the row does not count it either (one rule, cutTimes).
+		{"an unparseable round", []gatestate.Round{{N: 1, Timestamp: "yesterday", Dispatched: "2026-10-10T16:55:00-07:00"}, stamped}, measured, 1, "small-diff-review", "dispatch"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

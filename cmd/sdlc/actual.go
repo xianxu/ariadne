@@ -75,14 +75,16 @@ type actualResult struct {
 // Runs git via the cwd (gitx.CommitWindow), so the caller should be inside
 // repoTop.
 func computeActual(ctx context.Context, repoTop, brainAbs, issueNum string) actualResult {
-	return computeActualFor(ctx, repoTop, brainAbs, issueNum, "")
+	return computeActualFor(ctx, repoTop, brainAbs, issueNum, "", "")
 }
 
 // computeActualFor measures the whole issue (milestone "") or one milestone's
 // increment: the same window and attribution, kept to that boundary's phases
 // (#234 E1). Hours is build + converge in both modes; the verification tail
-// after each finalized boundary's last commit is not counted (#234 D2).
-func computeActualFor(ctx context.Context, repoTop, brainAbs, issueNum, milestone string) actualResult {
+// after each finalized boundary's last commit is not counted (#234 D2). plans
+// is the plans dir holding the boundary gate ledger ("" for the default); a
+// close passes its own --plans-dir, so the split reads the rounds it persists.
+func computeActualFor(ctx context.Context, repoTop, brainAbs, issueNum, milestone, plans string) actualResult {
 	res := actualResult{Issue: issueNum}
 	identity, err := resolveWorkspace(repoTop)
 	if err != nil {
@@ -159,7 +161,7 @@ func computeActualFor(ctx context.Context, repoTop, brainAbs, issueNum, mileston
 	res.Status, res.Hours = statusFromResult(out, issueNum)
 	if res.Status == actualMeasured {
 		id, _ := strconv.Atoi(issueNum)
-		ledger, _, lerr := issueBoundaryLedger(repoTop, id)
+		ledger, _, lerr := issueBoundaryLedger(repoTop, plans, id)
 		if lerr != nil {
 			res.Status, res.Detail = actualError, "boundary gate ledger: "+lerr.Error()
 			return res
@@ -359,7 +361,7 @@ func NewActualCmd() *cobra.Command {
 				die(stderr, err.Error())
 			}
 			brainAbs, _ := filepath.Abs(brainDir)
-			res := computeActualFor(cmd.Context(), repoTop, brainAbs, strconv.Itoa(issue), milestone)
+			res := computeActualFor(cmd.Context(), repoTop, brainAbs, strconv.Itoa(issue), milestone, "")
 			printActual(stderr, res)
 			return nil
 		},

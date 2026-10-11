@@ -52,7 +52,7 @@ func TestAdoptOmittedActualMilestoneAdoptsItsIncrement(t *testing.T) {
 	orig := computeActualForCloseFn
 	var asked string
 	split := &actualSplit{Build: 0.30, Converge: 0.10, Source: "dispatch"}
-	computeActualForCloseFn = func(_ context.Context, _ string, milestone string) actualResult {
+	computeActualForCloseFn = func(_ context.Context, _ string, milestone, _ string) actualResult {
 		asked = milestone
 		return actualResult{Status: actualMeasured, Hours: 0.40, Window: "abcd1234 → HEAD (M2's phases)", Split: split}
 	}
@@ -77,7 +77,7 @@ func TestAdoptOmittedActualMilestoneAdoptsItsIncrement(t *testing.T) {
 func TestAdoptOmittedActual(t *testing.T) {
 	calls := 0
 	orig := computeActualForCloseFn
-	computeActualForCloseFn = func(_ context.Context, issueStr, _ string) actualResult {
+	computeActualForCloseFn = func(_ context.Context, issueStr, _, _ string) actualResult {
 		calls++
 		return actualResult{Status: actualMeasured, Hours: 0.65, Window: "abcd1234 → HEAD", Issue: issueStr}
 	}
@@ -98,7 +98,7 @@ func TestAdoptOmittedActual(t *testing.T) {
 
 	// unmeasurable → no adoption, no output side effects (the caller then runs
 	// explainActual + exit; that arm's decision is pinned by TestResolveOmittedActual)
-	computeActualForCloseFn = func(context.Context, string, string) actualResult { return actualResult{Status: actualTelemetryGap} }
+	computeActualForCloseFn = func(context.Context, string, string, string) actualResult { return actualResult{Status: actualTelemetryGap} }
 	var stderr2 bytes.Buffer
 	f2 := &closeFlags{Issue: 178}
 	res, ok2 := adoptOmittedActual(&stderr2, f2, "178", "issue")

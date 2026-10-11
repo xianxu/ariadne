@@ -441,7 +441,7 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// the engine can't measure — and for an ADOPTED value (#178): comparing
 		// the measurement against itself would just re-run the engine.
 		if !adopted && !f.skip("actual") {
-			if derr := checkActualDeviation(commandContext(f.Context), stderr, issueStr, v, f.Milestone); derr != nil {
+			if derr := checkActualDeviation(commandContext(f.Context), stderr, issueStr, v, f.Milestone, f.plansDir()); derr != nil {
 				die(stderr, derr.Error())
 			}
 		}
@@ -1613,12 +1613,12 @@ func emitLessonsReminder(stdout io.Writer) {
 // computeActualForCloseFn is the measurement seam for the omit-path (#178) —
 // a package var so tests can stub the engine (the file's validateChangedInstancesFn
 // pattern). Production resolves roots and runs the same engine as `sdlc actual`.
-var computeActualForCloseFn = func(ctx context.Context, issueStr, milestone string) actualResult {
+var computeActualForCloseFn = func(ctx context.Context, issueStr, milestone, plans string) actualResult {
 	repoTop, brainAbs, err := resolveActualRoots()
 	if err != nil {
 		return actualResult{Status: actualError, Issue: issueStr, Detail: err.Error()}
 	}
-	return computeActualFor(ctx, repoTop, brainAbs, issueStr, milestone)
+	return computeActualFor(ctx, repoTop, brainAbs, issueStr, milestone, plans)
 }
 
 // resolveOmittedActual is the pure omit-path decision (#178): adopt a measured
@@ -1653,7 +1653,7 @@ func formatAdoptLine(res actualResult) string {
 // only that milestone's phases, so per-milestone values never double-count
 // across project detail blocks (the #178 reason milestones once refused).
 func adoptOmittedActual(stderr io.Writer, f *closeFlags, issueStr, mode string) (actualResult, bool) {
-	res := computeActualForCloseFn(commandContext(f.Context), issueStr, f.Milestone)
+	res := computeActualForCloseFn(commandContext(f.Context), issueStr, f.Milestone, f.plansDir())
 	v, ok := resolveOmittedActual(res)
 	if !ok {
 		return res, false
@@ -1749,8 +1749,8 @@ func actualDeviation(passed, measured float64) (devVerdict, float64) {
 // the shared engine, run the pure comparator, and warn (to stderr) or return a
 // refusal error. A milestone value is compared with that milestone's measured
 // increment (#234 E1). Unavailable measurements never gate.
-func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, milestone string) error {
-	res := computeActualForCloseFn(ctx, issueStr, milestone)
+func checkActualDeviation(ctx context.Context, stderr io.Writer, issueStr string, passed float64, milestone, plans string) error {
+	res := computeActualForCloseFn(ctx, issueStr, milestone, plans)
 	if res.Status != actualMeasured {
 		return nil // can't measure → don't block (judgment path owns this)
 	}
