@@ -1122,6 +1122,12 @@ file, embedded per fresh context). Today: the **plan-quality** judge renders the
 The **estimate-quality** judge (#117) is a change-code-time-only sibling of
 plan-quality — deliberately NOT in `AllCategories()` so it never enters push/merge
 bulk dispatch; it checks the `## Estimate` derivation was *applied*, not back-fit.
+Run by hand, `sdlc judge plan-quality --issue N --dry-run` renders exactly the
+prompt the gate sends — issue, durable plan and the ledger's prior findings, read
+through change-code's own resolution (`planArtifactPath`, `planQualityPromptInput`)
+and never written. A live `judge plan-quality` refuses and points at `change-code`:
+the gate's decision is its ledger's, and an unrecorded review is the stateless
+pre-#187 behavior (#189).
 Cite the marker (`ARCH-DRY`) in plans/Logs/findings.
 
 **Adding an `ARCH-*` entry** flows into every RUNTIME consumer with no other edit
@@ -1292,6 +1298,10 @@ main changes commits, not the patch, so neither widens a window.
     `git merge-tree --write-tree --merge-base=<merge-base(main,H_r)> <merge-base(main,HEAD)> H_r`
     and wraps the tree in a deterministic, unreferenced commit `S`, which gc
     collects. `diff(S, HEAD)` is the issue's own work since that review.
+  - Merge attributes come from main's tree (`git --attr-source=<merge-base(main,HEAD)>`),
+    not the working tree, so a `merge=union` file (#320) replays without a conflict
+    and `S` stays a function of its inputs. This raises sdlc's git floor to **2.42**:
+    review windows and the publish gate refuse older git.
   - Inter-milestone side-quests and fixes still land in exactly one window (#58).
   - A **conflict** keeps git's conflicted tree, so the window shows only the
     resolution and is labelled "includes conflict resolutions in …".

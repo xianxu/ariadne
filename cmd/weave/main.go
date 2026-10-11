@@ -655,6 +655,7 @@ func planActions(fs weavefs.FS, layers []layer.Layer, target plan.Target) ([]pla
 		}
 	}
 	actions = append(actions, plan.EnsureGitignore{Entries: plan.GeneratedGitignoreEntries(actions)})
+	actions = append(actions, plan.EnsureGitattributes{Entries: plan.UnionMergeAttributes})
 	return actions, nil
 }
 
@@ -757,6 +758,8 @@ func formatActions(actions []plan.Action) string {
 			b = append(b, fmt.Sprintf("merge     %s -> %s\n", strings.Join(act.Sources, ", "), act.Target)...)
 		case plan.EnsureGitignore:
 			b = append(b, fmt.Sprintf("gitignore .gitignore (%d entries)\n", len(act.Entries))...)
+		case plan.EnsureGitattributes:
+			b = append(b, fmt.Sprintf("gitattr   .gitattributes (%d entries)\n", len(act.Entries))...)
 		default:
 			b = append(b, fmt.Sprintf("unknown   %T\n", a)...)
 		}

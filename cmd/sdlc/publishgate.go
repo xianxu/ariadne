@@ -220,6 +220,11 @@ func validatePublishAnchors(ctx context.Context, entries []publishIssue, stderr 
 					break
 				}
 				base, d.Conflicted = s, conflicted
+				for _, p := range conflicted {
+					if !publishGateHasCodeSurface([]string{p}) && hasConflictMarkers(gitx.Capture("show", "HEAD:"+p)) {
+						d.Markers = append(d.Markers, p)
+					}
+				}
 			}
 			paths, err := gitx.DiffNames(base, "HEAD")
 			if err != nil {
@@ -251,7 +256,7 @@ func validatePublishAnchors(ctx context.Context, entries []publishIssue, stderr 
 // doc-only, then by the number of uncovered code paths; unreplayable or conflicting
 // patches rank last.
 func publishDeltaRank(d publishDelta) int {
-	if d.Unresolvable != "" || len(d.Conflicted) > 0 {
+	if d.Unresolvable != "" || len(codeSurfacePaths(d.Conflicted)) > 0 {
 		return 1 << 30
 	}
 	if code := len(codeSurfacePaths(d.Paths)); code > 0 {
@@ -267,7 +272,8 @@ func publishDeltaRank(d publishDelta) int {
 type publishDelta struct {
 	Anchor       string
 	Issue        string   // the issue's CLI ref for the next action; "" renders <N>
-	Conflicted   []string // main rewrote lines the review read; the resolution is unreviewed
+	Conflicted   []string // main rewrote lines the review read; a code path's resolution is unreviewed
+	Markers      []string // non-code conflicted paths whose HEAD still carries conflict markers
 	Paths        []string // diff(reviewed patch on today's main, HEAD)
 	Unresolvable string   // why the reviewed patch could not be replayed
 }
@@ -276,25 +282,33 @@ type publishDelta struct {
 const publishGateRefusal = "publish gate: the reviewed patch no longer covers HEAD"
 
 // classifyPublishDelta decides one issue's publish (#304 D9). Pure. Each refusal names
-// its own cause and the one next action, a re-close of the code delta.
+// its own cause and the one next action, a re-close of the code delta. A conflict
+// confined to files with no code surface (#320) is classified like any other doc-only
+// delta: the resolved files sit in Paths, and the pass line names them.
 func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
 	reclose := fmt.Sprintf("\n  Re-run `sdlc close --issue %s --verified '<evidence>'` to review it, then retry the publish.", publishCLIRef(d.Issue))
 	// #183: a delta past a reviewed patch is reviewed as the interdiff since that review,
 	// not as the whole branch again.
 	fixed := fmt.Sprintf("\n  Re-run `sdlc close --issue %s --fixed-then-ship --verified '<evidence>'`: it reviews only the change since that close, then retry the publish.", publishCLIRef(d.Issue))
-	switch {
-	case d.Unresolvable != "":
+	if d.Unresolvable != "" {
 		return false, fmt.Sprintf("%s: %s.%s", publishGateRefusal, d.Unresolvable, reclose)
-	case len(d.Conflicted) > 0:
-		next := fixed
-		if code := codeSurfacePaths(d.Conflicted); len(code) > 0 {
-			// Operator decision (#320): only the review narrows; the full suite still runs.
-			next = fmt.Sprintf("\n  Run the full test suite (`make test`; only the review narrows), then\n"+
-				"  Re-run `sdlc close --issue %s --fixed-then-ship --full-suite '<evidence>' --verified '<evidence>'`:\n"+
-				"  it reviews only the change since that close, the conflict resolution included; then retry the publish.", publishCLIRef(d.Issue))
-		}
-		return false, fmt.Sprintf("%s: main's changes conflict with the reviewed patch in %s — the resolution is unreviewed.%s",
-			publishGateRefusal, strings.Join(d.Conflicted, ", "), next)
+	}
+	if code := codeSurfacePaths(d.Conflicted); len(code) > 0 {
+		// #320 layer 3, wired by #183: only the review narrows; the full suite still runs.
+		return false, fmt.Sprintf("%s: main's changes conflict with the reviewed patch in %s — the resolution is unreviewed.\n"+
+			"  Run the full test suite (`make test`; only the review narrows), then\n"+
+			"  Re-run `sdlc close --issue %s --fixed-then-ship --full-suite '<evidence>' --verified '<evidence>'`:\n"+
+			"  it reviews only the change since that close, the conflict resolution included; then retry the publish.",
+			publishGateRefusal, strings.Join(code, ", "), publishCLIRef(d.Issue))
+	}
+	if len(d.Markers) > 0 {
+		return false, fmt.Sprintf("%s: conflict markers remain in %s — finish resolving the merge of main, commit it, and retry the publish.",
+			publishGateRefusal, strings.Join(d.Markers, ", "))
+	}
+	resolved := ""
+	if len(d.Conflicted) > 0 {
+		resolved = fmt.Sprintf("publish gate: the merge resolution in %s has no code surface, so it needs no review (#320)\n",
+			strings.Join(d.Conflicted, ", "))
 	}
 	switch code := codeSurfacePaths(d.Paths); {
 	case len(code) > 0:
@@ -302,10 +316,21 @@ func classifyPublishDelta(d publishDelta) (pass bool, msg string) {
 			"  (Merging or rebasing main never counts — only the branch's own changes do, #304. Doc-only deltas pass on their own, #174.)",
 			publishGateRefusal, shortOID(d.Anchor), strings.Join(code, ", "), fixed)
 	case len(d.Paths) > 0:
-		return true, formatPublishGateDocsOnly(len(d.Paths), shortOID(d.Anchor))
+		return true, resolved + formatPublishGateDocsOnly(len(d.Paths), shortOID(d.Anchor))
 	default:
-		return true, fmt.Sprintf("publish gate: HEAD carries exactly the reviewed patch (%s) — reviewed-HEAD-unchanged ✓", shortOID(d.Anchor))
+		return true, resolved + fmt.Sprintf("publish gate: HEAD carries exactly the reviewed patch (%s) — reviewed-HEAD-unchanged ✓", shortOID(d.Anchor))
 	}
+}
+
+// codeSurfacePaths keeps the paths publishGateHasCodeSurface counts as code. Pure.
+func codeSurfacePaths(paths []string) []string {
+	var code []string
+	for _, p := range paths {
+		if publishGateHasCodeSurface([]string{p}) {
+			code = append(code, p)
+		}
+	}
+	return code
 }
 
 // quickGrewPastReview refuses the publish of a quick-flow issue whose final diff

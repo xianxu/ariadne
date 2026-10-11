@@ -35,18 +35,6 @@ func fixedThenShipRefusal(issueStr string, w reviewWindow, upgraded bool, fullSu
 	return ""
 }
 
-// codeSurfacePaths keeps the paths publishGateHasCodeSurface counts as code — the one
-// filter the publish gate's arms and this refusal share, so they agree on what code is.
-func codeSurfacePaths(paths []string) []string {
-	var code []string
-	for _, p := range paths {
-		if publishGateHasCodeSurface([]string{p}) {
-			code = append(code, p)
-		}
-	}
-	return code
-}
-
 // contractSections are the issue sections a fix must not change beyond recording the
 // fix (#183 BR-1): the contract and its acceptance oracle.
 var contractSections = []string{"Spec", "Revisions", "Done when"}
