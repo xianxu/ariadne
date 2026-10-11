@@ -10,8 +10,9 @@ import (
 )
 
 // runLandingDuplicateGate reads the already-fetched configured destination. It
-// neither fetches origin nor silently waives an unreadable collision check.
-func runLandingDuplicateGate(mainOID, issuesDir, historyDir string, r gitRunner) error {
+// neither fetches origin nor silently waives an unreadable collision check. It
+// measures the pinned head being landed, the same window as the instance gate.
+func runLandingDuplicateGate(mainOID, headOID, issuesDir, historyDir string, r gitRunner) error {
 	if !landingOIDValid(mainOID) {
 		return fmt.Errorf("landing duplicate-id gate requires pinned main commit")
 	}
@@ -23,11 +24,11 @@ func runLandingDuplicateGate(mainOID, issuesDir, historyDir string, r gitRunner)
 	if err != nil {
 		return fmt.Errorf("landing duplicate-id target: %w", err)
 	}
-	head, err := refIDSpace("HEAD", dirs, r)
+	head, err := refIDSpace(headOID, dirs, r)
 	if err != nil {
 		return fmt.Errorf("landing duplicate-id HEAD: %w", err)
 	}
-	baseOID, err := landingMergeBase(r, mainOID, "HEAD")
+	baseOID, err := landingMergeBase(r, mainOID, headOID)
 	if err != nil {
 		return fmt.Errorf("landing duplicate-id %w", err)
 	}

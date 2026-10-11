@@ -81,3 +81,7 @@ point, and `sdlc push` is on main, so only the landing path is wrong.
 - Targeted: `TestLanding|Duplicate|TestValidateChanged|TestRunMerge` all green (423s).
 - head is the pinned commit, not the working tree. `readIssueFileFn` still reads the
   checkout, which `revalidateLanding` holds at that same head.
+- Close round 1: SHIP plus one Minor, fixed in the same round. The duplicate-id gate measured
+  from `"HEAD"` while the instance gate used the pinned head; `runLandingDuplicateGate` now
+  takes the pinned head, so both landing gates measure one window by construction. Targeted
+  `TestLanding|Duplicate|TestRunMerge` green (314s).
