@@ -149,7 +149,7 @@ Durable plan: `workshop/plans/000234-build-converge-split-plan.md`.
       build + converge (tails excluded at every boundary); milestone-close
       derives its increment (E1); five appended ledger columns; est-0 rows
       excluded from calibration (E3)
-- [ ] M2 — drift reads est vs build (split rows only); `sdlc converge-report`
+- [x] M2 — drift reads est vs build (split rows only); `sdlc converge-report`
       (k per model/flow/recipe); brain `velocity/SKILL.md`
 
 ## Revisions
