@@ -1,12 +1,12 @@
 ---
 id: 000330
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-11
 estimate_hours:
-card_mirror: '2908a6d17a9d5b0bdae3d95ba0d05e3c931982a8' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c988e891d18f8360b73281bbb73ea7ca9c874008' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-10T23:14:05-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.60
 ---
 
 # Main is green: the full suite passes on ariadne main
