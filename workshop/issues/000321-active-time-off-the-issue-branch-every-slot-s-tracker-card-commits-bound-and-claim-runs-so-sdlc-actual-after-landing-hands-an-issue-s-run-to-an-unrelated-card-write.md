@@ -1,12 +1,20 @@
 ---
 id: 000321
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-10
 updated: 2026-10-10
 estimate_hours:
-card_mirror: '93a9a5e0a07f4d4dbff9ee525045d601677beb28' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ccf2a1f538e056809c37bbc6e1f19d3340b50270' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-10T17:24:16-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # active-time: off the issue branch, every slot's tracker card commits bound and claim runs, so sdlc actual after landing hands an issue's run to an unrelated card write
@@ -78,7 +86,13 @@ whether that is intended.
 
 ## Plan
 
-- [ ]
+- [x] Failing test: an unscoped window whose tracker carries another issue's
+      card write 2 s before a run (`TestTrackerCommitsOfOtherIssuesDoNotClaim`)
+- [x] `loadWindowCommits`: commits reachable only from extra refs
+      (`besideHead`, `rev-list <refs> ^HEAD`) bound only when their lead
+      names `Scope.Issue`, in every scope
+- [x] Verify `sdlc actual --issue 317` unscoped after landing
+- [x] atlas
 
 ## Log
 
@@ -86,3 +100,13 @@ whether that is intended.
 
 - Filed by ariadne:3, a TL-requested diagnosis of the low #317 measurement
   after #317 landed. Diagnosis only (TL: file, don't fix).
+- 2026-10-10 TL: fix it now. In scope: the tracker filter in every scope,
+  plus Done-when. Landed-branch scoping only if it falls out naturally. The
+  selectClaimant change (#92) and the verification-tail question are out.
+- Implemented the filter. The zero `Scope.Issue` keeps every commit, which
+  matches the zero Scope's contract and the standalone `active-time` CLI,
+  which reads no extra refs. Landed-branch scoping was not needed for
+  Done-when, so it is left out. `sdlc actual --issue 317` from this branch
+  (HEAD = main with #317 landed, not diverged, so unscoped): **0.39h**, was
+  "no measurable activity".
+

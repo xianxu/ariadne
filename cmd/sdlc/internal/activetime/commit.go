@@ -46,6 +46,12 @@ var gitRun = func(repo string, args ...string) ([]byte, error) {
 // #317 "names" means the subject's lead, and a merge in BranchPoint..HEAD is
 // never a boundary: its lead would make the integration a boundary the unintegrated
 // branch lacked (ariadne#304: `#304: merge origin/main (#300, #270 landed)`).
+//
+// Issue also filters the histories read beside HEAD in every scope, branch
+// point or not (#321): the tracker interleaves every slot's card writes, so a
+// commit reachable only from an extra ref bounds segments only when its lead
+// names Issue. Unfiltered, another slot's card write seconds before a run took
+// the whole run once the measurement ran off the issue branch.
 type Scope struct {
 	BranchPoint string
 	Issue       string
@@ -82,6 +88,10 @@ func loadWindowCommits(repo, sinceISO, untilISO string, scope Scope, extraRefs .
 	if err != nil {
 		return nil, err
 	}
+	beside, err := besideHead(repo, scope, extraRefs)
+	if err != nil {
+		return nil, err
+	}
 	// Resolved once from the repo the commits came from, not per line.
 	self, err := selfQualifier(repo)
 	if err != nil {
@@ -104,7 +114,11 @@ func loadWindowCommits(repo, sinceISO, untilISO string, scope Scope, extraRefs .
 			continue
 		}
 		issues := issueref.LeadLocalNums(parts[2], self)
-		if own != nil && !own[parts[0]] && (merges[parts[0]] || !slices.Contains(issues, scope.Issue)) {
+		names := slices.Contains(issues, scope.Issue)
+		if beside[parts[0]] && !names {
+			continue
+		}
+		if own != nil && !own[parts[0]] && (merges[parts[0]] || !names) {
 			continue
 		}
 		commits = append(commits, Commit{
@@ -141,6 +155,24 @@ func branchCommits(repo string, scope Scope) (own, merges map[string]bool, err e
 		}
 	}
 	return own, merges, nil
+}
+
+// besideHead returns the full SHAs reachable from extraRefs but not from HEAD
+// (the tracker's card commits, #252), or nil when there is nothing to filter:
+// no extra refs, or no measured issue to filter them to (#321).
+func besideHead(repo string, scope Scope, extraRefs []string) (map[string]bool, error) {
+	if len(extraRefs) == 0 || scope.Issue == "" {
+		return nil, nil
+	}
+	out, err := gitRun(expandUser(repo), append(append([]string{"rev-list"}, extraRefs...), "^HEAD")...)
+	if err != nil {
+		return nil, fmt.Errorf("commits beside HEAD in %v: %w", extraRefs, err)
+	}
+	beside := map[string]bool{}
+	for _, sha := range strings.Fields(string(out)) {
+		beside[sha] = true
+	}
+	return beside, nil
 }
 
 // windowBounds parses the window edges; "" leaves that side open.
