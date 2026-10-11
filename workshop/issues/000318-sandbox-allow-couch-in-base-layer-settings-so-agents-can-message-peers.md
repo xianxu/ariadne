@@ -49,10 +49,10 @@ the review finds a reason not to.
 
 ## Plan
 
-- [ ] `.claude/settings.ariadne.json`: add `couch` to `sandbox.excludedCommands`; add `Bash(sdlc:*)` and `Bash(couch:*)` to `permissions.allow` (both keys are `$merge_keys`, so downstream locals union with them).
-- [ ] Codex (`.codex/config.toml`, woven as a symlink): no change needed, with the reason recorded in the file's comments. Codex has no per-command sandbox exclusion. `workspace-write` with `network_access = true` already permits the socket dial, and `approval_policy = "on-request"` has no classifier to bypass.
-- [ ] Gemini: not woven (no `.gemini` row in `construct/base.manifest`; ariadne-local only, and Gemini is deprecated in favor of agy). Leave it alone; record why in `## Revisions`.
-- [ ] `weave refresh` here, then confirm the regenerated `.claude/settings.json` carries the change.
+- [x] `.claude/settings.ariadne.json`: add `couch` to `sandbox.excludedCommands`; add `Bash(sdlc:*)` and `Bash(couch:*)` to `permissions.allow` (both keys are `$merge_keys`, so downstream locals union with them).
+- [x] Codex (`.codex/config.toml`, woven as a symlink): no change needed, with the reason recorded in the file's comments. Codex has no per-command sandbox exclusion. `workspace-write` with `network_access = true` already permits the socket dial, and `approval_policy = "on-request"` has no classifier to bypass.
+- [x] Gemini: not woven (no `.gemini` row in `construct/base.manifest`; ariadne-local only, and Gemini is deprecated in favor of agy). Leave it alone; record why in `## Revisions`.
+- [x] `weave compile` here (operator-run, see Log), then confirm the regenerated `.claude/settings.json` carries the change.
 - [ ] Verify: a sandboxed `couch --send-to` delivers with a receipt (the final report to ops:0 is the live check), and `sdlc merge` runs in auto mode without a classifier denial.
 - [ ] After the merge: `weave refresh` in ops, and confirm ops' `.claude/settings.json` carries both changes.
 - [ ] close + merge
