@@ -120,3 +120,97 @@ findings:
     title: |
       Confine runs exec.Command("git","rev-parse") directly, without ctx and outside reviewbox's git helper
 ```
+
+---
+
+## Re-review — 2026-10-12T14:31:19-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 339 — boundary reviewer wrote outside its checkout (created ~/.git) when mktemp failed: no write fence under a nested sandbox |
+| repo | ariadne |
+| issue file | workshop/issues/000339-boundary-reviewer-wrote-outside-its-checkout-created-git-when-mktemp-failed-no-write-fence-under-a-nested-sandbox.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | e1a463ec6875969047968d05b01e05031f0776af..717a39a265dd89af4772469f88326bafea25b1ec |
+| command | sdlc close --issue 339 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T14:31:19-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Tests pass; now checking that the round-1 shim tests go red when the fix is reverted, and probing the remaining git paths.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+All five round-1 findings are fixed, and I checked each one against the code. The tests pass: `go test ./cmd/sdlc/internal/reviewbox/ ./cmd/sdlc/internal/judge/` is green. I reverted the new git-dir/work-tree/`GIT_DIR` check in the shim, and both `TestGitShimRefusesRepositoriesOutside` and `TestGitShimChecksGitDirEnv` failed. Then I restored the file and the tree is clean. So BR-1 has a regression test that catches a revert. I also ran the rendered shim against real git. `git init ../out/rel` and `GIT_DIR=../out/gd2 git init` are refused. Two siblings outside init/clone still get through: `git worktree add <outside>` and an alias that runs `init`. That is one Minor finding below. It doesn't block, because the post-run check backs up the shim for this incident's class (a new `.git` above the root or in `$HOME`).
+
+1. **Strengths**
+   - `confine.go` `resolve()` handles relative paths and `..` correctly. If a path climbs out of its deepest existing directory, it resolves to nothing, so the shim refuses it.
+   - The env file now re-sets every variable from `Env()` after sourcing an inherited env file (`claudeEnvFile`). The test sets an inherited `TMPDIR` and checks that ours wins.
+   - `TakeSnapshot` now returns an error when home is unknown or can't be listed, and both `Confine` and `Check` pass that error up. The new `TestTakeSnapshotFailsWhenHomeCannotBeListed` covers it.
+   - All four reviewer callers get confinement through the one `judge.Dispatch` path (ARCH-DRY). The retry calls `Prepare()` again after the checkout is reset.
+   - The plan's Revisions section records the corrected cause (macOS `mktemp` ignoring TMPDIR), the move to `CLAUDE_ENV_FILE` and the signature change. The atlas and `close.md` both describe the new behaviour.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - The git shim only checks `init` and `clone`. I ran it live: `git worktree add $OUT/wt` and `git -c alias.mk=init mk $OUT/al` both created a repository or working tree outside the reviewer's directories. `Check` misses both unless the path is a new top-level entry in `$HOME` or an ancestor of the root or base. A reviewer adding a worktree at `/tmp/base` to compare against the base commit is a plausible, non-malicious case. This is the 2nd finding in this family (below).
+
+5. **Test coverage notes**
+   - The shim tests use a fake git that records its arguments, plus the real-subprocess incident test in `judge/confine_unix_test.go`. That is good coverage.
+   - No test covers `worktree add` or alias expansion.
+   - `TakeSnapshot` still treats an `Lstat` error on an ancestor's `.git` as "absent". That is harmless for readable ancestors, so I'm not raising it.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** `gitOutput` sits next to the existing `git()` helper.
+   - **ARCH-PURE: pass.** `Diff`, `GitShim`, `MktempShim`, `claudeEnvFile` and `overlayEnv` are pure.
+   - **ARCH-PURPOSE: flag (Minor).** The shim covers a list of commands rather than the class "git commands that create a repository or working tree".
+   - **ARCH-MOCK: pass.** BR-5 moved the call to `gitOutput`. It still takes no `ctx`, which is acceptable for a single `rev-parse`.
+   - **ARCH-CONSTRAINTS: pass.** The deadline test was widened, with the reason written down.
+   - **ARCH-SECURE: pass.** Values written into the shims and env file are quoted with `shQuote`, and setup fails closed.
+   - **ARCH-ORDER: pass.** Dispatch scopes the confinement's lifetime: it is created first, the retry calls `Prepare()` again, then `Check` runs and `Close` is deferred. A concurrent writer to `$HOME` produces a false positive, and the error message tells the operator to rerun.
+   - **ARCH-FUNERAL: pass.** `Close` is deferred. A killed process leaves one small directory in the OS temp dir, which the OS cleans up.
+
+7. **Plan revision recommendations**
+   - Leave the plan's Core concepts and Task 3 text as they are. They still describe the old shim ("any absolute-path argument"), the old `pathPrefix` signature and the CLAUDE_CODE_TMPDIR stand-in, but the Revisions entries already record those changes, so this is not a new finding.
+   - If the shim is widened to cover `worktree add` and alias expansion, add a Revisions entry for it.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Relative operands, --git-dir/--work-tree (both forms) and GIT_DIR/GIT_WORK_TREE are now checked; reverting the check turns TestGitShimRefusesRepositoriesOutside and TestGitShimChecksGitDirEnv red; a live run against real git refused ../out/rel and a relative GIT_DIR.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      claudeEnvFile re-exports every Env() var after sourcing the inherited file; TestClaudeEnvFileSourcesAnInheritedOne sets an inherited TMPDIR and asserts ours wins.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TakeSnapshot returns an error for an unknown or unlistable home, Confine and Check propagate it, and TestTakeSnapshotFailsWhenHomeCannotBeListed covers it.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      The plan Cause section is marked superseded and points to Revisions; the incidentScript comment in judge/confine_unix_test.go now states the mktemp/var-folders cause.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Confine now calls the reviewbox gitOutput helper next to git(); it takes no ctx, which is acceptable for one rev-parse at setup.
+findings:
+  - id: new
+    severity: Minor
+    family: confinement-shim-path-coverage
+    title: |
+      Git shim guards only init/clone; worktree add and alias-expanded init still create repos outside
+    detail: |
+      This is the 2nd finding in family confinement-shim-path-coverage. Verified live against real git: `git worktree add $OUT/wt` and `git -c alias.mk=init mk $OUT/al` both succeeded outside the root, and Check misses them unless they land as a new top-level entry in $HOME or an ancestor of the root or base. Rule: the shim guards the class "git commands that create a repository or working tree at a path" (init, clone, worktree add, and any alias that expands to one of them, by refusing -c alias.* and config-defined aliases of those), not a hand-kept list of two commands. Add test cases for each.
+```
