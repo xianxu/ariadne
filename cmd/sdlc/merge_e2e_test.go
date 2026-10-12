@@ -219,13 +219,13 @@ func TestRunMerge_UntrackedAfterJudge_Proceeds(t *testing.T) {
 	}
 }
 
-// ── #82 M2: a dirty TRACKED tracker file does not block the merge ─────────────
+// ── #82 M2: a dirty tracker file git would carry does not block the merge ─────
 //
 // The complement of TestRunMerge_DirtyAfterJudge_RefusesPreMerge (dirty tracked
 // CODE → refuse). tempRepo commits 000999-done.md on both main and feature; we
-// dirty it (tracked-modified, status kept `done`) before merging. assessDirty
-// buckets it as Tracker — never Blocking — so the merge proceeds: tracker state
-// is append-only shared state synced to main out-of-band, not code contention.
+// dirty it (tracked-modified, status kept `done`) before merging. It is identical
+// on main, HEAD and origin/main, so the switch and pull carry it and the merge
+// lands end to end (#196 refuses only the ones git would not carry).
 func TestRunMerge_DirtyTrackerFile_Proceeds(t *testing.T) {
 	dir := tempRepo(t)
 	gh := &e2eGH{openPR: "42"}
@@ -431,5 +431,133 @@ func TestRunMerge_CodecompleteFlippedToDoneAndArchived(t *testing.T) {
 	}
 	if _, err := os.Stat(filepath.Join(dir, "workshop/issues/000160-cc.md")); !os.IsNotExist(err) {
 		t.Error("codecomplete issue should have moved out of workshop/issues/")
+	}
+}
+
+// ── #196: a dirty tracker file git would refuse on the switch → refuse PRE-merge ──
+//
+// The observed tools-repo sequence: the feature branch changed an issue file, the
+// working tree then dirtied it again, and merge exempted it as "tracker state" —
+// merged server-side, then `git switch main` refused and stranded the checkout.
+// The file differs between main and HEAD, so git would refuse it: merge must
+// refuse before the irreversible merge, never "remote merged, local stranded".
+func TestRunMerge_DirtyTrackerFileDiffersFromMain_RefusesPreMerge(t *testing.T) {
+	dir := tempRepo(t)
+	gh := &e2eGH{openPR: "42"}
+	swapMergeDeps(t, gh, nil)
+	issuePath := filepath.Join(dir, "workshop", "issues", "000002-repl.md")
+	if err := os.WriteFile(issuePath, []byte("---\nid: 2\nstatus: open\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-m", "file issue 2 on the branch")
+	git(t, dir, "push", "origin", "feature")
+	if err := os.WriteFile(issuePath, []byte("---\nid: 2\nstatus: working\n---\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
+	if !died {
+		t.Fatal("merge should refuse a dirty tracker file that differs from main")
+	}
+	if !strings.Contains(msg, "post-merge switch") {
+		t.Errorf("refusal = %q, want it to name the post-merge switch hazard", msg)
+	}
+	if gh.prMergeCalls != 0 {
+		t.Errorf("PRMerge called %d times — must be 0 (refusal is PRE-merge)", gh.prMergeCalls)
+	}
+	if got := git(t, dir, "branch", "--show-current"); got != "feature" {
+		t.Errorf("ended on %q, want feature (nothing switched)", got)
+	}
+}
+
+// ── #196: main moves a dirty tracker file after step 2 → 9b refuses ───────────
+//
+// Step 2 passes (the file matches main and the stale origin/main). A peer then
+// pushes a change to that file on main. The pull after the merge would refuse it,
+// so step 9b fetches origin/main and refuses before the merge.
+func TestRunMerge_TrackerFileChangedOnMainAfterCheck_RefusesPreMerge(t *testing.T) {
+	dir := tempRepo(t)
+	gh := &e2eGH{openPR: "42"}
+	origin := strings.TrimSpace(git(t, dir, "remote", "get-url", "origin"))
+	peerPush := func(_ context.Context, _, _ string, _ io.Writer) error {
+		peer := filepath.Join(t.TempDir(), "peer")
+		git(t, "", "clone", "-q", origin, peer)
+		git(t, peer, "config", "user.email", "peer@example.com")
+		git(t, peer, "config", "user.name", "peer")
+		git(t, peer, "config", "commit.gpgsign", "false")
+		if err := os.WriteFile(filepath.Join(peer, "workshop", "issues", "000999-done.md"), []byte("---\nid: 999\nstatus: done\n---\n\n# edited on main\n"), 0o644); err != nil {
+			return err
+		}
+		git(t, peer, "commit", "-qam", "peer edits the issue on main")
+		git(t, peer, "push", "-q", "origin", "main")
+		return nil
+	}
+	swapMergeDeps(t, gh, peerPush)
+	if err := os.WriteFile(filepath.Join(dir, "workshop", "issues", "000999-done.md"), []byte("---\nid: 999\nstatus: done\n---\n\nlocal edit\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	f := &mergeFlags{Yes: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
+	if !died || !strings.Contains(msg, "before the irreversible merge") {
+		t.Fatalf("want the 9b refusal, got died=%v msg=%q", died, msg)
+	}
+	if gh.prMergeCalls != 0 {
+		t.Errorf("PRMerge called %d times — must be 0", gh.prMergeCalls)
+	}
+}
+
+// failingGitRunner fails one git verb so a test can strand the post-merge steps.
+type failingGitRunner struct {
+	execGitRunner
+	verb string
+}
+
+func (r failingGitRunner) Git(args ...string) ([]byte, error) {
+	if len(args) > 0 && args[0] == r.verb {
+		return []byte("simulated " + r.verb + " refusal"), os.ErrPermission
+	}
+	return r.execGitRunner.Git(args...)
+}
+
+func (r failingGitRunner) GitInDir(dir string, args ...string) ([]byte, error) {
+	if len(args) > 0 && args[0] == r.verb {
+		return []byte("simulated " + r.verb + " refusal"), os.ErrPermission
+	}
+	return r.execGitRunner.GitInDir(dir, args...)
+}
+
+// ── #196: a local failure after the remote merge names the state + recovery ───
+func TestRunMerge_StrandedAfterMerge_NamesRecovery(t *testing.T) {
+	for _, tc := range []struct {
+		verb, wantBack string
+	}{
+		{"switch", ""},                   // still on feature: re-run directly
+		{"pull", "`git switch feature`"}, // already on main: go back first
+	} {
+		t.Run(tc.verb, func(t *testing.T) {
+			tempRepo(t)
+			gh := &e2eGH{openPR: "42"}
+			swapMergeDeps(t, gh, nil)
+			prev := mergeRunner
+			mergeRunner = failingGitRunner{verb: tc.verb}
+			t.Cleanup(func() { mergeRunner = prev })
+
+			f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+			msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
+			if !died || gh.prMergeCalls != 1 {
+				t.Fatalf("want a post-merge failure, got died=%v prMergeCalls=%d", died, gh.prMergeCalls)
+			}
+			for _, want := range []string{"IS MERGED on GitHub", "re-run `sdlc merge --yes`", tc.wantBack} {
+				if !strings.Contains(msg, want) {
+					t.Errorf("stranded message %q lacks %q", msg, want)
+				}
+			}
+			if tc.wantBack == "" && strings.Contains(msg, "git switch feature") {
+				t.Errorf("switch failure left us on feature; message should not say switch back: %q", msg)
+			}
+		})
 	}
 }

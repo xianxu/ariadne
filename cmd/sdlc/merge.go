@@ -145,29 +145,24 @@ func statusLine(e gitx.StatusEntry) string {
 // dirtyAssessment splits a `git status --porcelain` result into the classes that
 // matter to the merge guard: Blocking (tracked code modifications — staged,
 // modified, renamed, deleted, unmerged), Untracked (`??` non-tracker lines), and
-// Tracker (workshop issue/history markdown — never blocks, #82 M2).
+// Tracker (workshop issue/history markdown, #82 M2).
 type dirtyAssessment struct {
-	Blocking  []string // tracked code changes that MUST block the merge
-	Untracked []string // untracked files — surfaced, but not a blocker (#78)
-	Tracker   []string // workshop/issues|history/*.md — tracker state, never blocks (#82 M2)
+	Blocking     []string // tracked code changes that MUST block the merge
+	Untracked    []string // untracked files — surfaced, but not a blocker (#78)
+	Tracker      []string // workshop/issues|history/*.md — tracker state (#82 M2)
+	TrackerPaths []string // the paths Tracker names, rename sources included (#196)
 }
 
-// Refuse reports whether the tree state must block the merge. The single source
-// of the merge-block decision (#78): both the step-2 check and the step-9b
-// re-assert ask Refuse() rather than re-deriving `len(...) > 0` inline, so the
-// two guards can't diverge (the Spec's elevated invariant). Tracker files are
-// out of Blocking by construction (#82 M2), so they can't flip this.
+// Refuse reports whether tracked CODE blocks. Whether a tracker file strands the
+// switch is a question about bytes, not meaning: mergeRefusal adds it (#196).
 func (d dirtyAssessment) Refuse() bool { return len(d.Blocking) > 0 }
 
 // assessDirty classifies parsed status entries. Pure (mirrors decideMergeAction's
-// extracted-decision pattern). Only tracked CODE modifications block a merge: a
-// dirty tracked file makes the post-merge `git switch main` / `git pull` refuse,
-// stranding the server-side merge. Two classes are non-blocking: untracked `??`
-// files carry across the branch switch untouched (#78), and tracker files
-// (workshop issue/history markdown) are append-only shared state synced to main
-// out-of-band (#82 M1) — a dirty issue file is never code contention, whether
-// tracked-modified or untracked (#82 M2). Both are surfaced as warnings, not
-// refusals.
+// extracted-decision pattern). A dirty tracked file makes the post-merge `git
+// switch main` / `git pull` refuse, stranding the server-side merge, so tracked
+// CODE always blocks. Untracked `??` files survive the switch (#78). Tracker files
+// are never code contention (#82 M2), but git does not know that, so they are
+// bucketed apart for mergeRefusal to ask whether git would carry them (#196).
 func assessDirty(entries []gitx.StatusEntry, issuesDir, historyDir string) dirtyAssessment {
 	var d dirtyAssessment
 	for _, e := range entries {
@@ -176,6 +171,10 @@ func assessDirty(entries []gitx.StatusEntry, issuesDir, historyDir string) dirty
 		// file lands in Tracker regardless of its tracked/untracked status code.
 		if isTrackerPath(e.Path, issuesDir, historyDir) || isTrackerPath(e.Orig, issuesDir, historyDir) {
 			d.Tracker = append(d.Tracker, line)
+			d.TrackerPaths = append(d.TrackerPaths, e.Path)
+			if e.Orig != "" {
+				d.TrackerPaths = append(d.TrackerPaths, e.Orig)
+			}
 			continue
 		}
 		if e.XY == "??" {
@@ -185,6 +184,46 @@ func assessDirty(entries []gitx.StatusEntry, issuesDir, historyDir string) dirty
 		}
 	}
 	return d
+}
+
+// strandingTracker returns the dirty tracker paths git would refuse across the
+// in-place `git switch main` (differs between main and HEAD) or the pull after it
+// (differs between main and mainRef; the branch's side is in the first diff).
+func strandingTracker(r gitRunner, paths []string, mainRef string) ([]string, error) {
+	seen := map[string]bool{}
+	var out []string
+	for _, rng := range [][2]string{{"main", "HEAD"}, {"main", mainRef}} {
+		args := append([]string{"diff", "--name-only", "--no-renames", "-z", rng[0], rng[1], "--"}, paths...)
+		raw, err := r.Git(args...)
+		if err != nil {
+			return nil, fmt.Errorf("git diff %s %s: %v\n%s", rng[0], rng[1], err, raw)
+		}
+		for _, p := range strings.Split(string(raw), "\x00") {
+			if p != "" && !seen[p] {
+				seen[p] = true
+				out = append(out, p)
+			}
+		}
+	}
+	return out, nil
+}
+
+// mergeRefusal is the one merge-block decision for step 2 and the 9b re-assert
+// (#78): tracked code, plus in place the tracker paths that strand the switch
+// (#196). A linked worktree never switches, so its tracker dirt stays exempt.
+func mergeRefusal(r gitRunner, d dirtyAssessment, inPlace bool, mainRef string) ([]string, error) {
+	refuse := append([]string(nil), d.Blocking...)
+	if !inPlace || len(d.TrackerPaths) == 0 { // no paths: a bare `git diff --` would list every file
+		return refuse, nil
+	}
+	stranding, err := strandingTracker(r, d.TrackerPaths, mainRef)
+	if err != nil {
+		return nil, err
+	}
+	for _, p := range stranding {
+		refuse = append(refuse, "tracker file differs from main: "+p)
+	}
+	return refuse, nil
 }
 
 // isTrackerPath reports whether p is a tracker file — a workshop issue or its
@@ -267,23 +306,29 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// ── 2. No uncommitted TRACKED changes ───────────────────────────────────
 	// Untracked files don't block: they survive `git switch main`, so they can't
 	// strand the post-merge cleanup the way a dirty tracked file does (#78). They
-	// are surfaced as a warning so the operator still sees them.
+	// are surfaced as a warning so the operator still sees them. Only an in-place
+	// checkout switches, so topology is known first (#196).
+	inPlace := isInPlaceCheckout(gitx.Capture("rev-parse", "--git-dir"))
 	dirty, err := worktreeDirty(mergeRunner)
 	if err != nil {
 		die(stderr, err.Error())
 	}
 	assessment := assessDirty(dirty, f.IssuesDir, f.HistoryDir)
-	if assessment.Refuse() {
+	refusal, err := mergeRefusal(mergeRunner, assessment, inPlace, "origin/main")
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	if len(refusal) > 0 {
 		fmt.Fprintf(stderr, "  %s[x]%s Uncommitted tracked changes found — cannot merge\n", ansiRed, ansiReset)
-		fmt.Fprintln(stderr, strings.Join(assessment.Blocking, "\n"))
-		die(stderr, "commit or stash these tracked changes before merging")
+		fmt.Fprintln(stderr, strings.Join(refusal, "\n"))
+		die(stderr, "commit or stash these tracked changes before merging (git would refuse them on the post-merge switch to main)")
 	}
 	if len(assessment.Untracked) > 0 {
 		cwarn(stderr, fmt.Sprintf("%d untracked file(s) present — not blocking the merge (they survive the branch switch):", len(assessment.Untracked)))
 		fmt.Fprintln(stderr, strings.Join(assessment.Untracked, "\n"))
 	}
 	if len(assessment.Tracker) > 0 {
-		cwarn(stderr, fmt.Sprintf("%d tracker file(s) dirty — not blocking the merge (tracker state syncs to main out-of-band, #82):", len(assessment.Tracker)))
+		cwarn(stderr, fmt.Sprintf("%d tracker file(s) dirty — not blocking the merge (they match main, so the switch carries them; #82, #196):", len(assessment.Tracker)))
 		fmt.Fprintln(stderr, strings.Join(assessment.Tracker, "\n"))
 	}
 	cok(stderr, "No uncommitted tracked changes")
@@ -375,8 +420,6 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// reached by switching here). Worktree = a linked worktree (main lives in
 	// a separate dir). A linked worktree's git-dir is under .git/worktrees/.
 	wtPath, _ := gitx.RepoTopLevel()
-	gitDir := gitx.Capture("rev-parse", "--git-dir")
-	inPlace := isInPlaceCheckout(gitDir)
 	var mainPath string
 	if inPlace {
 		mainPath = wtPath // same checkout; we switch it back to main post-merge
@@ -458,15 +501,24 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	// tree breaks both `gh pr merge`'s downstream `git switch main` and the
 	// resume cleanup. (With read-only judges (#62 M2) the tree stays clean; this
 	// is the defense-in-depth that makes the irreversible boundary safe.)
-	// Only tracked changes refuse here, via the same assessDirty.Refuse()
-	// decision as step 2 (#78) — untracked files were already surfaced above and
-	// don't strand the merge. A pre-merge judge/hook that dirties a tracked file
-	// is the real risk this re-assert defends against.
-	if redirty, derr := worktreeDirty(mergeRunner); derr != nil {
+	// Same mergeRefusal decision as step 2 (#78); in place, against a freshly
+	// fetched origin/main so main's newer tracker edits refuse here (#196).
+	if inPlace {
+		if out, ferr := mergeRunner.Git("fetch", "origin", "main"); ferr != nil {
+			die(stderr, fmt.Sprintf("git fetch origin main (to check dirty tracker files against it): %v\n%s", ferr, out))
+		}
+	}
+	redirty, derr := worktreeDirty(mergeRunner)
+	if derr != nil {
 		die(stderr, derr.Error())
-	} else if reassess := assessDirty(redirty, f.IssuesDir, f.HistoryDir); reassess.Refuse() {
-		fmt.Fprintf(stderr, "  %s[x]%s Tracked files dirtied after the initial check (likely a pre-merge judge/hook):\n", ansiRed, ansiReset)
-		fmt.Fprintln(stderr, strings.Join(reassess.Blocking, "\n"))
+	}
+	rerefusal, derr := mergeRefusal(mergeRunner, assessDirty(redirty, f.IssuesDir, f.HistoryDir), inPlace, "origin/main")
+	if derr != nil {
+		die(stderr, derr.Error())
+	}
+	if len(rerefusal) > 0 {
+		fmt.Fprintf(stderr, "  %s[x]%s Tracked files that would strand the post-merge switch (likely a pre-merge judge/hook):\n", ansiRed, ansiReset)
+		fmt.Fprintln(stderr, strings.Join(rerefusal, "\n"))
 		die(stderr, "review + commit (or discard) these changes, then re-run `sdlc merge` — refusing before the irreversible merge")
 	}
 
@@ -529,12 +581,12 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		if inPlace {
 			cinfo(stderr, "Switching to main...")
 			if out, gerr := mergeRunner.Git("switch", "main"); gerr != nil {
-				die(stderr, fmt.Sprintf("git switch main: %v\n%s", gerr, out))
+				die(stderr, strandedMessage(branch, fmt.Sprintf("git switch main: %v\n%s", gerr, out), false))
 			}
 		}
 		cinfo(stderr, "Pulling main...")
 		if out, gerr := mergeRunner.GitInDir(mainPath, "pull"); gerr != nil {
-			die(stderr, fmt.Sprintf("git -C %s pull: %v\n%s", mainPath, gerr, out))
+			die(stderr, strandedMessage(branch, fmt.Sprintf("git -C %s pull: %v\n%s", mainPath, gerr, out), inPlace))
 		}
 	} else {
 		cwarn(stderr, fmt.Sprintf("No open or merged PR for branch %s", branch))
@@ -632,6 +684,19 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	}
 	cok(stderr, "Done. Run: g (to cd back to main)")
 	return nil
+}
+
+// strandedMessage names the state a failed post-merge local step leaves and the
+// recovery: a re-run from the branch resumes from the merged PR (#62 M3, #196).
+func strandedMessage(branch, cause string, onMain bool) string {
+	back := ""
+	if onMain {
+		back = fmt.Sprintf("`git switch %s`, then ", branch)
+	}
+	return fmt.Sprintf("%s\n  The PR for %s IS MERGED on GitHub, but the local cleanup (pull, publish flip,\n"+
+		"  archive, branch delete) did not run. Fix what git reports (commit, move aside or\n"+
+		"  `git restore` files it would overwrite), then %sre-run `sdlc merge --yes`: it resumes.",
+		cause, branch, back)
 }
 
 // mergeNeedsTTY reports whether merge's confirmation prompts require an

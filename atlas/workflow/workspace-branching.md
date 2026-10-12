@@ -189,6 +189,12 @@ branch; ordinary feature worktrees are removed. For coordinated Ariadne/Pair
 work, land the Ariadne dependency through its normal SDLC flow first, verify
 Pair against that merged dependency, then land Pair. Driving both from a Pair
 thread does not recursively publish, refresh or clean sibling repositories.
+In that legacy flow a dirty issue or history file is exempt from the dirt
+guards only where git would carry it: a linked feature worktree never switches,
+and an in-place clone refuses before the merge any tracker file that differs
+between `main` and `HEAD` or a fresh `origin/main` (#196). If a local step still
+fails after the server-side merge, the error says the PR is merged and that a
+re-run of `sdlc merge --yes` from the issue branch resumes the cleanup.
 
 Ref-only recovery while already on rest preserves staged, unstaged and untracked
 work there. Active Git operations still refuse; fresh integration and switching

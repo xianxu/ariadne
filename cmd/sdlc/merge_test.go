@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -95,7 +96,7 @@ func TestWorktreeDirty(t *testing.T) {
 	}
 }
 
-// ── #78: untracked files don't block; #82 M2: tracker files never block ──────
+// ── #78: untracked files don't block; #82 M2: tracker files are never Blocking (code) ──
 func TestAssessDirty(t *testing.T) {
 	cases := []struct {
 		name          string
@@ -376,5 +377,54 @@ func TestMergeUsesFindMainWorktree_ViaStub(t *testing.T) {
 	}
 	if got != "/repo/main" {
 		t.Errorf("got %q, want /repo/main", got)
+	}
+}
+
+// diffRunner answers `git diff` by its two refs, recording the calls.
+type diffRunner struct {
+	countRunner
+	out   map[string]string // "main HEAD" → NUL-separated names
+	err   error
+	calls *int
+}
+
+func (r diffRunner) Git(args ...string) ([]byte, error) {
+	*r.calls++
+	if r.err != nil {
+		return nil, r.err
+	}
+	return []byte(r.out[args[4]+" "+args[5]]), nil
+}
+
+// ── #196: the merge-block decision asks git's question only in place ─────────
+func TestMergeRefusal(t *testing.T) {
+	d := assessDirty(statusOf(t, " M cmd/x.go\n M workshop/issues/000002-a.md\nR  workshop/issues/000003-b.md -> workshop/history/000003-b.md\n"), "workshop/issues", "workshop/history")
+	if got := strings.Join(d.TrackerPaths, ","); got != "workshop/issues/000002-a.md,workshop/history/000003-b.md,workshop/issues/000003-b.md" {
+		t.Fatalf("TrackerPaths = %q, want the rename source included", got)
+	}
+	calls := 0
+	r := diffRunner{out: map[string]string{
+		"main HEAD":        "workshop/issues/000002-a.md\x00",
+		"main origin/main": "workshop/issues/000002-a.md\x00workshop/history/000003-b.md\x00",
+	}, calls: &calls}
+
+	got, err := mergeRefusal(r, d, false, "origin/main")
+	if err != nil || len(got) != 1 || calls != 0 {
+		t.Errorf("worktree topology: got %q err=%v calls=%d, want only the code file and no git", got, err, calls)
+	}
+	got, err = mergeRefusal(r, d, true, "origin/main")
+	want := []string{" M cmd/x.go", "tracker file differs from main: workshop/issues/000002-a.md", "tracker file differs from main: workshop/history/000003-b.md"}
+	if err != nil || strings.Join(got, "|") != strings.Join(want, "|") {
+		t.Errorf("in place: got %q err=%v, want %q (deduplicated across both diffs)", got, err, want)
+	}
+
+	calls = 0
+	clean := assessDirty(statusOf(t, " M cmd/x.go\n"), "workshop/issues", "workshop/history")
+	if got, _ := mergeRefusal(r, clean, true, "origin/main"); len(got) != 1 || calls != 0 {
+		t.Errorf("no tracker paths: got %q calls=%d, want no bare `git diff --`", got, calls)
+	}
+	failing := diffRunner{err: errors.New("boom"), calls: &calls}
+	if _, err := mergeRefusal(failing, d, true, "origin/main"); err == nil {
+		t.Error("a failed diff must surface as an error (refuse), not as no stranding paths")
 	}
 }
