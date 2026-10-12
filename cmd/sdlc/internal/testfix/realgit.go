@@ -1,6 +1,8 @@
 package testfix
 
 import (
+	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -42,11 +44,21 @@ func PrependPath(dir, path string) string {
 }
 
 // QuietBackgroundGit turns off git's detached auto-gc and auto-maintenance
-// for every git the test binary runs. A fetch or push may leave one running
-// after the command returns, still writing into a temp repository when
-// t.TempDir's cleanup removes it ("directory not empty"; #284, #286). A test
-// that sets GIT_CONFIG_COUNT itself overrides this for its own duration.
-func QuietBackgroundGit() {
+// for every git the test binary runs and every repository it creates, and
+// returns the cleanup for TestMain to run after m.Run. A fetch or push may
+// leave one running after the command returns, still writing into a temp
+// repository when t.TempDir's cleanup removes it ("directory not empty";
+// #284, #286, #302).
+//
+// It takes two channels because neither reaches every git. The GIT_CONFIG_*
+// environment covers git run in any repository, but git strips it from the far
+// end of a local transport (`unset GIT_CONFIG_COUNT …; git-receive-pack`), so a
+// push into a test's bare origin would still start `git maintenance run --auto
+// --detach` there (#302). GIT_TEMPLATE_DIR's config is copied into every
+// repository `git init` and `git clone` create, and repository config survives
+// the strip. A test that sets either variable itself overrides this for its own
+// duration.
+func QuietBackgroundGit() (cleanup func()) {
 	for k, v := range map[string]string{
 		"GIT_CONFIG_COUNT":   "2",
 		"GIT_CONFIG_KEY_0":   "gc.auto",
@@ -56,4 +68,18 @@ func QuietBackgroundGit() {
 	} {
 		_ = os.Setenv(k, v)
 	}
+	// hooks/ and info/ stand in for the default template's: tests write hooks
+	// and info/exclude into the repositories they create.
+	dir, err := os.MkdirTemp("", "testfix-git-template-")
+	if err == nil {
+		err = errors.Join(os.Mkdir(filepath.Join(dir, "hooks"), 0o755), os.Mkdir(filepath.Join(dir, "info"), 0o755),
+			os.WriteFile(filepath.Join(dir, "config"), []byte(quietTemplateConfig), 0o644))
+	}
+	if err != nil {
+		panic(fmt.Sprintf("testfix: quiet git template: %v", err))
+	}
+	_ = os.Setenv("GIT_TEMPLATE_DIR", dir)
+	return func() { _ = os.RemoveAll(dir) }
 }
+
+const quietTemplateConfig = "[gc]\n\tauto = 0\n[maintenance]\n\tauto = false\n[receive]\n\tautogc = false\n"
