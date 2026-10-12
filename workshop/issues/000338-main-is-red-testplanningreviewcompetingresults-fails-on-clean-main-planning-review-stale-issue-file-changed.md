@@ -1,12 +1,12 @@
 ---
 id: 000338
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
-card_mirror: '54c9dd6aaddbc31d05ec7e47985cb6e45787e288' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f8c8ed65c3fe233b1e29e354d1cb41414f3d6814' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T12:00:04-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.31
 ---
 
 # main is red: TestPlanningReviewCompetingResults fails on clean main (planning review stale: issue file changed)
