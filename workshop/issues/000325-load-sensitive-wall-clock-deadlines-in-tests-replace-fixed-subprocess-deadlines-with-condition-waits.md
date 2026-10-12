@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-10
 updated: 2026-10-12
 estimate_hours:
-card_mirror: '08864e6b3e243cac38a424e4abe8d90e2027c7ab' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f23b562b053b6ad889d3eb45dc650c9397549761' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-11T15:37:33-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "4e38862a", done: "70bbe13f"}
-actual_hours: 1.12
+actual_hours: 1.73
 ---
 
 # Load-sensitive wall-clock deadlines in tests: replace fixed subprocess deadlines with condition waits
