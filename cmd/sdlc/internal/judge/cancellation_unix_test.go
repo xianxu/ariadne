@@ -39,7 +39,7 @@ func TestJudgeControlledProcess(t *testing.T) {
 		}
 	}
 	if mode == "exiting-parent" {
-		deadline := time.Now().Add(3 * time.Second)
+		deadline := time.Now().Add(testfix.HangCeiling)
 		for time.Now().Before(deadline) {
 			if raw, err := os.ReadFile(os.Getenv("JUDGE_TEST_READY")); err == nil && len(raw) > 0 {
 				os.Exit(0)
@@ -82,32 +82,34 @@ func TestReviewProcessCancellationKillsGroupAndReaps(t *testing.T) {
 		if err == nil {
 			t.Error("cancelled process reported success")
 		}
-	case <-time.After(2 * time.Second):
+	case <-time.After(testfix.HangCeiling):
 		t.Error("review cancellation left inherited pipes/processes alive beyond shutdown bound")
 		_ = syscall.Kill(child, syscall.SIGKILL)
 		_ = syscall.Kill(parent, syscall.SIGKILL)
 		select {
 		case <-done:
-		case <-time.After(2 * time.Second):
+		case <-time.After(testfix.HangCeiling):
 			t.Fatal("runner did not return after emergency cleanup")
 		}
 	}
-	if elapsed := time.Since(start); elapsed > time.Second {
-		t.Errorf("shutdown took %v", elapsed)
+	// Under the production grace proves the injected 50 ms one governed; a
+	// tighter bound measures the machine's load, not the runner (#325).
+	if elapsed := time.Since(start); elapsed >= oldGrace {
+		t.Errorf("shutdown took %v, not bounded by the injected grace", elapsed)
 	}
 	if err := syscall.Kill(parent, 0); err != syscall.ESRCH {
 		t.Errorf("direct reviewer was not reaped: %v", err)
 	}
 	// A dead orphan may briefly remain a zombie until its system reaper collects it.
 	// It must stop executing (and holding the pipe) once Run has returned.
-	if err := testfix.AwaitExit(child, 2*time.Second); err != nil {
+	if err := testfix.AwaitExit(child, testfix.HangCeiling); err != nil {
 		t.Errorf("descendant survived shutdown: %v", err)
 	}
 }
 
 func waitReviewChild(t *testing.T, path string, parent int) int {
 	t.Helper()
-	deadline := time.NewTimer(3 * time.Second)
+	deadline := time.NewTimer(testfix.HangCeiling)
 	defer deadline.Stop()
 	tick := time.NewTicker(5 * time.Millisecond)
 	defer tick.Stop()
@@ -136,15 +138,14 @@ func TestReviewProcessBoundsPipeDrainAfterNormalExit(t *testing.T) {
 	t.Setenv("GORACE", os.Getenv("GORACE")+" atexit_sleep_ms=0")
 	t.Setenv("JUDGE_TEST_PROCESS", "exiting-parent")
 	t.Setenv("JUDGE_TEST_READY", ready)
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	// ErrWaitDelay is the evidence that the drain bound fired; the descendant
+	// never closes its pipes, so without it Run would hang to this ceiling. The
+	// window includes two process starts, so no elapsed bound (#325).
+	ctx, cancel := context.WithTimeout(context.Background(), testfix.HangCeiling)
 	defer cancel()
-	start := time.Now()
 	_, err := Run(ctx, nil, os.Args[0], "-test.run=^TestJudgeControlledProcess$")
 	if err != exec.ErrWaitDelay {
 		t.Errorf("unclosed inherited pipes: err=%v, want ErrWaitDelay", err)
-	}
-	if elapsed := time.Since(start); elapsed > time.Second {
-		t.Errorf("pipe draining exceeded bound: %v", elapsed)
 	}
 	raw, readErr := os.ReadFile(ready)
 	if readErr != nil {
@@ -155,7 +156,7 @@ func TestReviewProcessBoundsPipeDrainAfterNormalExit(t *testing.T) {
 		t.Fatal(parseErr)
 	}
 	defer syscall.Kill(child, syscall.SIGKILL)
-	if err := testfix.AwaitExit(child, 2*time.Second); err != nil {
+	if err := testfix.AwaitExit(child, testfix.HangCeiling); err != nil {
 		t.Errorf("descendant survived pipe-drain cleanup: %v", err)
 	}
 }

@@ -148,7 +148,8 @@ func TestLandingGHFailuresAndCancellation(t *testing.T) {
 		defer cancel()
 		start := time.Now()
 		_, err := (realGH{}).LandingPRs(ctx, "example/repo", "issue")
-		if !errors.Is(err, context.DeadlineExceeded) || time.Since(start) > 3*time.Second {
+		// Unkilled, the fake gh sleeps 30 s; half that bounds a healthy kill under load (#325).
+		if !errors.Is(err, context.DeadlineExceeded) || time.Since(start) > 15*time.Second {
 			t.Fatalf("cancellation: %v elapsed %s", err, time.Since(start))
 		}
 	})

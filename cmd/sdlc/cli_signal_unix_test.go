@@ -113,12 +113,12 @@ func TestCLISignalCancelsOwnedReviewer(t *testing.T) {
 						_ = cmd.Process.Kill()
 						select {
 						case <-done:
-						case <-time.After(3 * time.Second):
+						case <-time.After(hangGuard):
 							t.Error("CLI cleanup did not finish")
 						}
 					}
 				})
-				timer := time.NewTimer(20 * time.Second)
+				timer := time.NewTimer(hangGuard)
 				defer timer.Stop()
 				tick := time.NewTicker(10 * time.Millisecond)
 				defer tick.Stop()
@@ -149,7 +149,7 @@ func TestCLISignalCancelsOwnedReviewer(t *testing.T) {
 					if err == nil {
 						t.Error("signal returned success")
 					}
-				case <-time.After(8 * time.Second):
+				case <-time.After(hangGuard):
 					t.Fatal("CLI did not complete bounded cancellation")
 				}
 				if !strings.Contains(output.String(), "interrupted") && !strings.Contains(output.String(), "context canceled") {
@@ -199,7 +199,7 @@ func TestCLISignalOwnershipKeepsLockUntilUnwind(t *testing.T) {
 					<-done
 				}
 			})
-			deadline := time.NewTimer(5 * time.Second)
+			deadline := time.NewTimer(hangGuard)
 			defer deadline.Stop()
 			tick := time.NewTicker(10 * time.Millisecond)
 			defer tick.Stop()
@@ -226,7 +226,7 @@ func TestCLISignalOwnershipKeepsLockUntilUnwind(t *testing.T) {
 				if err == nil {
 					t.Error("signal returned success")
 				}
-			case <-time.After(3 * time.Second):
+			case <-time.After(hangGuard):
 				t.Fatal("signal cleanup did not finish")
 			}
 			_, err := os.Stat(proof)

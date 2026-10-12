@@ -9,10 +9,9 @@
 //	REPLAY_DIR=$TMPDIR/replay REPLAY_ISSUE=/path/to/edited.md go test ... -run TestReplayPair127 -v
 //
 // It drives runPlanQualityJudge DIRECTLY, not runChangeCode. runChangeCode iterates
-// changeCodeGates and calls exitWithCode(1) on any gate failure (changecode.go → term.go →
-// os.Exit), so it never RETURNS a gate failure — an `err := runChangeCode(…)` loop would
-// os.Exit(1) the test process on round 1, precisely the round whose blocking is the point.
-// (expectDie doesn't help: it swaps the `die` var, which this path bypasses.)
+// changeCodeGates and calls exitWithCode(1) on any gate failure, so it never RETURNS a gate
+// failure: a round is countable only by swapping the exit (expectExit, #191), and only the
+// plan gate's result matters here, so the harness calls that gate rather than the loop.
 // runPlanQualityJudge owns the entire ledger path — read → dispatch → parse → assign ids →
 // Decide → write — and returns an error, so rounds stay countable in-process.
 //

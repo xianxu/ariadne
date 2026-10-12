@@ -133,9 +133,11 @@ Its companion `TestVerbsWireTheirCommitHelpers` asserts the CALL SITES. Three
 close-review rounds converged on the rule behind both: *a fix at a call site is
 pinned only by a test entering through the production entry point* — a real-git
 test that hand-builds the argv proves the helper and mocks the wiring. Where the
-entry point is not in-process drivable (`runChangeCode`, #191; `runPush` /
-`runMerge` / `runMigrate` die through gates a unit test cannot satisfy), the
-source guard asserts the edge instead. Weaker than driving the verb, strictly
+entry point is not in-process drivable (`runPush` / `runMerge` / `runMigrate`
+die through gates a unit test cannot satisfy), the source guard asserts the edge
+instead. `runChangeCode` was the first such verb until #191 made `exitWithCode` a
+swappable var like `die` (`expectExit` in `die_test.go`); its gate loop is now
+driven in-process, and its source guard stays as a cheap net. Weaker than driving the verb, strictly
 stronger than a call site that can be deleted with the suite still green.
 
 **Behavior changes worth knowing about**, both introduced here:
@@ -1561,6 +1563,13 @@ message naming the owning issue, whose fix deletes the call; `WF_TEST_QUARANTINE
 runs quarantined tests anyway. Place it at the failing step when only that step is
 the known problem (a load-sensitive deadline), so the rest stays covered.
 `grep -rn 'testfix.Quarantine(' cmd` lists them (#330).
+
+Under load (several slots' suites at once) spawning a binary or running git is
+many times slower, so a test's verdict must not ride on elapsed time. Bound waits
+with `testgate.HangCeiling` (`pkg/testgate`, so cmd/weave shares it; cmd/sdlc's
+`testfix.HangCeiling` and `hangGuard` alias it): it catches a hang, not a slow machine. Prove ordering with an event instead: `testfix.Watch`
+signals when a command's output contains a needle, e.g. `repolock.WaitMessagePrefix`
+to fail the moment one command waits for the repo lock behind another (#325).
 
 Cancellation tests prove a descendant stopped with `testfix.AwaitExit(pid, ceiling)`,
 which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instead of

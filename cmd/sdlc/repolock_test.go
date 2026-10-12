@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -504,14 +505,22 @@ func (l *serializingTestLock) waitMessages() string {
 }
 
 func executeSDLCTestCommand(args ...string) (stdout, stderr string, err error) {
+	var errOut bytes.Buffer
+	stdout, err = executeSDLCTestCommandWith(context.Background(), &errOut, args...)
+	return stdout, errOut.String(), err
+}
+
+// executeSDLCTestCommandWith runs the CLI in-process under ctx, streaming its
+// stderr to w (e.g. a testfix.Watch for the repo lock's wait line).
+func executeSDLCTestCommandWith(ctx context.Context, w io.Writer, args ...string) (stdout string, err error) {
 	root := buildRoot()
-	var out, errOut bytes.Buffer
+	var out bytes.Buffer
 	root.SetOut(&out)
-	root.SetErr(&errOut)
+	root.SetErr(w)
 	root.SetArgs(args)
-	root.SetContext(context.Background())
+	root.SetContext(ctx)
 	err = root.Execute()
-	return out.String(), errOut.String(), err
+	return out.String(), err
 }
 
 type testError struct {

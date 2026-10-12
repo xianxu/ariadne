@@ -9,6 +9,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestMetadataRoundTrip(t *testing.T) {
@@ -312,7 +314,7 @@ func TestConcurrentAcquireSerializesRealMkdirLock(t *testing.T) {
 		Now:           time.Now,
 		ProcessAlive:  func(int) bool { return true },
 		Stderr:        &bytes.Buffer{},
-		WaitTimeout:   time.Second,
+		WaitTimeout:   testfix.HangCeiling, // not under test (#325)
 		StaleDuration: time.Hour,
 		PollInterval:  10 * time.Millisecond,
 	})
@@ -345,7 +347,7 @@ func TestConcurrentAcquireSerializesRealMkdirLock(t *testing.T) {
 				}
 			},
 			Stderr:        &bytes.Buffer{},
-			WaitTimeout:   time.Second,
+			WaitTimeout:   testfix.HangCeiling, // not under test (#325)
 			StaleDuration: time.Hour,
 			PollInterval:  10 * time.Millisecond,
 		})
@@ -358,7 +360,7 @@ func TestConcurrentAcquireSerializesRealMkdirLock(t *testing.T) {
 
 	select {
 	case <-waiting:
-	case <-time.After(time.Second):
+	case <-time.After(testfix.HangCeiling):
 		t.Fatal("second Acquire did not wait on first holder")
 	}
 	if err := first.Release(); err != nil {
@@ -394,7 +396,7 @@ func TestConcurrentAcquireReclaimsDeadHolderOnce(t *testing.T) {
 				Now:           time.Now,
 				ProcessAlive:  func(int) bool { return false },
 				Stderr:        &bytes.Buffer{},
-				WaitTimeout:   time.Second,
+				WaitTimeout:   testfix.HangCeiling, // not under test (#325)
 				StaleDuration: time.Hour,
 				PollInterval:  10 * time.Millisecond,
 			})

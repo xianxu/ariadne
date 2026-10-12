@@ -185,8 +185,10 @@ func TestFlowInfoLineNoGatesigCollision(t *testing.T) {
 	}
 }
 
-// flowWirings: runChangeCode is not in-process drivable (#191), so the two
-// call sites that make the flow real are asserted at the source.
+// flowWirings: the call sites that make the flow real, asserted at the source.
+// Since #191 runChangeCode's gate loop is drivable in-process (expectExit), and
+// TestChangeCodeGateLoop* drive it; these source guards stay as the cheap net
+// that fails the moment a call is deleted.
 var flowWirings = []wiring{
 	{"changecode.go", "runChangeCode", "reportChangeCodeFlow",
 		"the flow is decided before the gates run, which it decides between (#231)"},
@@ -212,8 +214,8 @@ func TestChangeCodeHelpShowsTheShell(t *testing.T) {
 // in runChangeCode the flow is recorded after the gate loop, after the dry-run
 // return, and before the sync commit. A refused or dry run therefore leaves the
 // issue byte-identical, and the record lands in the same commit as the design
-// (#231 BR-5). runChangeCode is not in-process drivable (#191), so the order is
-// asserted at the source.
+// (#231 BR-5). The order is asserted at the source: it predates #191's exit
+// seam, and a source check covers every branch of the order in one place.
 func TestRunChangeCodeRecordsFlowAfterGates(t *testing.T) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "changecode.go", nil, 0)

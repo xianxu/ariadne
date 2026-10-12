@@ -202,9 +202,9 @@ type wiring struct {
 // by a test entering through the production entry point — a real-git test that
 // hand-builds the argv proves the helper and mocks the wiring. Where the entry
 // point is not in-process drivable, that leaves the call site unpinned, and
-// deleting it keeps the suite green. runChangeCode is the standing example
-// (#191: exitWithCode bypasses the die seam), and runPush / runMerge / runMigrate
-// each die() through gates a unit test cannot satisfy.
+// deleting it keeps the suite green. runPush / runMerge / runMigrate each die()
+// through gates a unit test cannot satisfy. runChangeCode was the first example
+// until #191 made exitWithCode swappable; its edge stays here as a cheap guard.
 //
 // So the wiring is asserted at the source instead. This is weaker than driving
 // the verb — it proves the call exists, not that it runs — but it is strictly

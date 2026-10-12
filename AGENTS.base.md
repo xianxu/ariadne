@@ -93,6 +93,14 @@
 - When the harness reports that the active context is more than 60% full, proactively checkpoint the session before starting another substantial unit of work. Finish the current atomic action and update its durable issue/plan/log state first. Then **commit** it, which is what makes "durable" true rather than merely written: an uncommitted issue body does not survive the compaction you are checkpointing against. On the issue branch, use git (§2). For details shaped under a claim on a resting branch, use `sdlc issue publish --issue N`. If an exact percentage is unavailable, treat a harness context-pressure or compaction warning as the trigger.
 - Apply the canonical **`continuation` datatype** for the checkpoint; it owns what to preserve and how to finalize the handoff. Use the available continuation writer. The writer owns the restart after a successful durable write, so don't separately restart the session. If no writer is available, follow the datatype's existing no-writer stop behavior.
 
+### 15. Couch Slots
+- In a Couch slot (the environment has `COUCH_TREE` set), the **hub** is the slot Couch started from, where the TL works. Address it as `couch --send-to hub` (#336). If Couch refuses `hub` (an older Couch, or one started outside a checkout), use the slot that dispatched your work. With neither, these rules don't apply. The hub itself skips them.
+- **Report every item's outcome to the hub**, whoever started the work, the hub by dispatch or the operator by hand: landed (with the PR), blocked (on what), or waiting for the operator (on what). Send one message per outcome, not progress chatter.
+- **Ask the hub, not an in-pane question prompt.** An in-pane prompt blocks silently until Couch's waiting notice. The hub answers what it can and brings the operator in when the call is theirs. Use an in-pane prompt only while the operator is shaping the work live in that slot.
+- **Call `couch` and `sdlc` as the whole Bash call** (#334, #336). Only that form matches the sandbox exemption, and a sandboxed `couch --send-to` can't reach the supervisor's socket. Measured:
+  - **Nothing before it or after it:** no `cd x &&`, no full path, no `| tail`, no `; …`, no `> file`. A trailing `2>&1` is the one thing that passes.
+  - **No substitution text in an argument, even quoted:** `$(`, `$((`, backticks, `<(` and `>(` all defeat the match. Write a code span in a message as plain words or in single quotes, not in backticks. Any other punctuation in a quoted message is fine: `;`, `(`, `#`, `,`, newlines, `$VAR`, `&`, `|`, `<`, `>`, `*`, quotes.
+
 ## Core Design Principles
 The architectural taste — the `ARCH-*` principles — is single-sourced in a registry and
 delivered by **`sdlc arch-principles`**. It's also PUSHED at the gates: `sdlc start-plan`

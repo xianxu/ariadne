@@ -47,3 +47,30 @@ func expectDie(t *testing.T, fn func()) (msg string, died bool) {
 	fn()
 	return "", false
 }
+
+// exitSignal is the panic payload expectExit uses to unwind an exitWithCode call.
+type exitSignal struct{ code int }
+
+// expectExit is expectDie's counterpart for code that exits through exitWithCode
+// directly rather than through die (#191: runChangeCode's gate loop). It swaps the
+// exitWithCode var for a panic it recovers, so code after the exit does not run,
+// exactly as in production, and returns the exit code. The same defer caveat as
+// expectDie applies, and the swap does not run the die cleanups: a test that needs
+// them registered and fired is testing the registry, not the exit.
+func expectExit(t *testing.T, fn func()) (code int, exited bool) {
+	t.Helper()
+	prev := exitWithCode
+	exitWithCode = func(c int) { panic(&exitSignal{c}) }
+	defer func() {
+		exitWithCode = prev
+		if r := recover(); r != nil {
+			if es, ok := r.(*exitSignal); ok {
+				code, exited = es.code, true
+				return
+			}
+			panic(r) // not ours — a genuine panic in the code under test
+		}
+	}()
+	fn()
+	return 0, false
+}

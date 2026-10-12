@@ -113,7 +113,7 @@ func TestCloseCommands_IssueChangedDuringBoundaryReview_DoesNotFinalize(t *testi
 			}
 			select {
 			case got = <-done:
-			case <-time.After(2 * time.Second):
+			case <-time.After(hangGuard):
 				t.Fatal("timeout waiting for stale close command")
 			}
 			if got.err == nil || !strings.Contains(got.err.Error(), tc.wantErr) {
@@ -176,7 +176,7 @@ func TestCloseCommand_HEADChangedDuringBoundaryReview_DoesNotFinalize(t *testing
 	}
 	select {
 	case got = <-done:
-	case <-time.After(2 * time.Second):
+	case <-time.After(hangGuard):
 		t.Fatal("timeout waiting for stale HEAD close command")
 	}
 	if got.err == nil || !strings.Contains(got.err.Error(), "boundary review stale") {
@@ -253,7 +253,7 @@ func TestCloseCommand_ProjectChangedDuringBoundaryReview_DoesNotFinalize(t *test
 	}
 	select {
 	case got = <-done:
-	case <-time.After(2 * time.Second):
+	case <-time.After(hangGuard):
 		t.Fatal("timeout waiting for stale project close command")
 	}
 	if got.err == nil || !strings.Contains(got.err.Error(), "boundary review stale") {
@@ -356,7 +356,7 @@ func TestCloseCommand_PlanChangedDuringBoundaryReview_DoesNotFinalize(t *testing
 					if err == nil || !strings.Contains(err.Error(), "boundary review stale") {
 						t.Fatalf("plan %s during %s must invalidate the review, got %v", mutationName, commandName, err)
 					}
-				case <-time.After(5 * time.Second):
+				case <-time.After(hangGuard):
 					t.Fatal("timeout waiting for stale close command")
 				}
 				if text := readIssue(t, issuesDir); !strings.Contains(text, "status: working") {
@@ -609,7 +609,7 @@ func TestCloseCommand_DocOnlyCommitDuringBoundaryReview_Finalizes(t *testing.T) 
 	}
 	select {
 	case got = <-done:
-	case <-time.After(2 * time.Second):
+	case <-time.After(hangGuard):
 		t.Fatal("timeout waiting for close command")
 	}
 	if got.err != nil {
@@ -690,7 +690,7 @@ func TestCloseCommands_TLOwnedProjectUntouched(t *testing.T) {
 					if err != nil {
 						t.Fatalf("%s refused: %v\n%s", name, err, stderr)
 					}
-				case <-time.After(5 * time.Second):
+				case <-time.After(hangGuard):
 					t.Fatal("timeout waiting for close")
 				}
 

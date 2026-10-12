@@ -14,6 +14,8 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 type partialPublicationFS struct {
@@ -162,7 +164,7 @@ func TestKilledPartialPublicationRecoversWithAndWithoutActions(t *testing.T) {
 		t.Run(map[bool]string{false: "retire", true: "retry"}[retry], func(t *testing.T) {
 			root := t.TempDir()
 			managedApply(t, root, []Action{WriteFile{Path: "out", Content: "old complete"}}, ScopeArtifacts)
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), testgate.HangCeiling)
 			defer cancel()
 			cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestPublicationWriterProcess$")
 			cmd.Env = append(os.Environ(), "WEAVE_PUBLICATION_TEST_ROOT="+root)

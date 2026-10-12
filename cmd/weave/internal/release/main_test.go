@@ -17,6 +17,8 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 func TestReleaseProcess(t *testing.T) {
@@ -33,7 +35,7 @@ func TestReleaseProcess(t *testing.T) {
 
 func await(t *testing.T, predicate func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(testgate.HangCeiling)
 	for time.Now().Before(deadline) {
 		if predicate() {
 			return
