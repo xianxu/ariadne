@@ -1655,7 +1655,7 @@ flags:
   `refresh` and `acquire`.
 - **Never behind a full suite (#341):** the gate ignores the full-suite slots.
   A targeted run is small next to a suite, and full suites have their own cap.
-- **Slots:** it then takes one of `WF_TEST_GATE_SLOTS` slots (default NCPU/4),
+- **Slots:** it takes one of `WF_TEST_GATE_SLOTS` slots (default NCPU/4),
   `test-gate.<k>.lock` beside `test-suite.lock`, each holding its holder's record,
   until the binary exits.
 - **Parallel cap:** it caps `-test.parallel` at `WF_TEST_PARALLEL` (default 2)

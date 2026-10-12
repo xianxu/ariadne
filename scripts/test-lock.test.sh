@@ -20,7 +20,7 @@ sleep 30 & b=$!
 lock $b >"$tmp/b.out" 2>"$tmp/b.err" & waiter=$!
 sleep 1.5
 check "second run waits" 'kill -0 $waiter 2>/dev/null'
-check "waiter names the holder" 'grep -q "  - ariadne (.*), make pid $a" "$tmp/b.err"'
+check "waiter names the holder" 'grep -q "  - $(basename "$(git rev-parse --show-toplevel)") (.*), make pid $a" "$tmp/b.err"'
 kill $a; t0=$(date +%s)
 wait $waiter
 check "holder exit hands the lock over promptly" '[ $(( $(date +%s) - t0 )) -le 2 ] && [ "$(cat "$tmp/b.out")" = acquired ]'
