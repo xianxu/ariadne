@@ -138,6 +138,7 @@ switches the issue checkout, so its exemption stays.
 ## Log
 
 ### 2026-10-12
+- 2026-10-12: closed — make test on 505a771a..e1703785: 12 shards, 1092 cmd/sdlc tests + 46 packages, 0 failed. After review round 1 fixes (7c48c569): make test 0 failed except two load-sensitive tests outside merge (TestCLISignalCancelsOwnedReviewer, TestLegacyRepoLockSetStatusMutationWaits; known flake class #325), both pass 3/3 in isolation; merge tests all pass. New e2e: dirty tracker file differing from main refuses pre-merge, PRMerge never called; main moving the file after step 2 refused at 9b after fetch; switch and pull failures after merge name the merged state and the resuming re-run, never a commit. Mutation: disabling the in-place tracker check fails all three new refusal tests.; review verdict: SHIP
 
 Claimed at ariadne:2 (Merge and CI train). The spec's preferred fix, committing
 tracker files at the top of merge, no longer fits: merge requires HEAD synced
