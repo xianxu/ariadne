@@ -65,3 +65,11 @@ Claude Code's Bash tool sets `TMPDIR` from `CLAUDE_CODE_TMPDIR`, which the revie
 ## Limits (stated, not hidden)
 
 - Without an OS fence, a reviewer that calls `/usr/bin/git` directly, or writes files with plain shell commands, is not prevented; the post-check catches a new `.git` above its root or a new non-hidden entry in `$HOME`, which covers this incident's class, not every possible write. Claude Code's Bash may rebuild PATH from the shell snapshot; if so, the shim is bypassed and the ceiling + post-check remain. Task 3's live check (if a real `claude` can run here) records which.
+
+## Revisions
+
+- 2026-10-12, during implementation:
+  - **Cause corrected.** macOS `mktemp` without a template ignores TMPDIR and writes under `_CS_DARWIN_USER_TEMP_DIR`, which the inherited agent sandbox denies. The inherited CLAUDE_CODE_TMPDIR was not the cause. Delta: `bin/` also holds a macOS-only `mktemp` shim, which gives template-less calls a template in TMPDIR.
+  - **PATH route.** Claude Code's Bash rebuilds PATH from the shell snapshot, measured live. Delta: the base also holds `env.sh`, named by `CLAUDE_ENV_FILE`, which puts `bin/` first on PATH and sources any inherited env file first. The PATH prepend in the process environment stays in place for codex and gemini.
+  - **Signature.** `Confine(root, inside)` dropped `pathPrefix`; `runProcess` prepends `BinDir()` with the existing `binAugmentedEnv`.
+  - **Test change.** `TestDispatchParentDeadlineCannotBecomeVerdict` deadline went from 20 ms to 500 ms, because confinement setup comes before the reviewer starts.
