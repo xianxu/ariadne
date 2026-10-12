@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "4e38862a", done: "70bbe13f"}
 ---
 
 # Load-sensitive wall-clock deadlines in tests: replace fixed subprocess deadlines with condition waits
@@ -47,3 +48,27 @@ Design: the short deadlines in both tests are hang guards standing in for concur
 ## Log
 
 ### 2026-10-10
+
+### 2026-10-12 — ariadne:3
+
+Shared pieces: `testfix.HangCeiling` (2 min) is the one hang bound for cmd/sdlc tests, and `closereview_test.go`'s `hangGuard` now aliases it (ARCH-DRY). `testfix.Watch` signals when output contains a needle. `repolock.WaitMessagePrefix` single-sources the lock's wait line so tests key on it.
+
+Sweep (grep of `time.After`/`WithTimeout`/`Now().Add`/`Since`/`Sleep` across `*_test.go`, classified A = verdict rides on how long real work takes, B = hang guard, C = fine):
+
+| Site | Was | Now |
+|---|---|---|
+| `planningreview_test.go` TestPlanningReviewConcurrencySchedules | 2 s for a built-binary `set-status`; 15 s barrier; 30 s CLI; ~20 s reviewer spin | fails on the lock-wait line; everything else `HangCeiling`; quarantine deleted |
+| `review_concurrency_unix_test.go` TestReviewConcurrencySchedules | 20 s reviewer start; 3 s unrelated sync; 7 s termination | sync fails on the lock-wait line; ceiling elsewhere; quarantine deleted |
+| `close_finalize_test.go` (6 sites) | 2 s / 5 s for an in-process close after release (real git) | `hangGuard` |
+| `judge/cancellation_unix_test.go` | elapsed < 1 s including two re-exec starts; 2–3 s waits | cancel test: elapsed (from cancel, both processes up) < production grace, which still proves the injected 50 ms governed; drain test: `ErrWaitDelay` is the evidence, no elapsed bound; waits at ceiling |
+| `processgroup/process_unix_test.go` | 3 s ready, 4 s select, 2 s cleanup/AwaitExit | ceiling; the 5 s shutdown check is kept: it is the product contract, not a guard |
+| `cli_signal_unix_test.go` (5 sites) | 3/5/8/20 s around a spawned CLI | `hangGuard` |
+| `weave/acquire/git_refresh_test.go` | elapsed < 3 s | overflow: the error names the limit that fired, timeout raised to 1 min, elapsed check dropped; cancel: < 15 s against the fixture's 30 s sleep |
+| `ghlanding_test.go` cancel | < 3 s | < 15 s against the fake gh's 30 s sleep |
+| `weavefs/runner_owned_test.go` | 5 s ctx (normal mode fails if it fires), 3 s | 1 min hang ceilings (weave cannot import cmd/sdlc's testfix) |
+| `weave/acquire` TestRestoreWithRawGitPaths (found failing under load during this work: `git clone … context deadline exceeded`) | `ExecGit.Timeout: 1 s` per git op | 1 min: the test is about raw paths, not timeouts |
+| `repolock_test.go` real-clock concurrency tests | `WaitTimeout: 1 s` (not under test) and a 1 s wait for the second acquirer to queue | 1 min hang ceilings |
+| `testgate_test.go` TestDirectRunShrinksTimeoutByTheWait | release after `sleep 1.5s` (helper might not have queued yet) | release on the helper's `[test-gate] waiting` line |
+
+B-class hang guards of 10–15 s on subprocess work became 1 min (weave: generator_lifetime ×3, release, staging, runner_setup, plan/publication) or `hangGuard` (fleet_e2e's git call); testgate's nested re-exec too (its `nested err=<nil>` is asserted). Justified, left as is: fleet_e2e's 30 s binary run; fleet/recordsdeadline (< 5 s around a 500 ms injected deadline) and boundarypush (< 10 s) assert the injected deadline bounded git, so their slack is the margin, not the guard. Late-writer negative checks (sleep 150 ms then assert absent) can only pass falsely under load, never fail. Fake-clock and injected-sleep tests (integrategate, catchup, estimatesource, processmanual, reviewbox, plan/apply, heartbeat, repolock) do not read the wall clock. If one of the B rows flakes it gets the same treatment.
+
