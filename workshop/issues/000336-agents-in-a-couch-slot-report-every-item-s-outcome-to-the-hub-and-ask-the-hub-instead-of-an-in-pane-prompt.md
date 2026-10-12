@@ -54,3 +54,4 @@ Side quest from #334's report: pin `gh *` in `TestBaseSettingsExcludedVerbsMatch
 - Discovery: backticks inside a quoted `couch --send-to` message keep the call sandboxed, like `$(` (#334). Two sends to ops:0 failed this way (one with backticks, one with a literal dollar-paren in prose); neither was delivered (receipt unavailable). The rule bans both.
 - Asked the TL (ops:0) which pair checkout files the pair issue, and whether the live check moves into it.
 - TL (ops:0) answered: file from pair-slot1, hold #336 open with a dep on the pair issue, and close with the live check after pair ships, so the rule never names a target that doesn't exist yet. Filed pair#463 and set deps.
+- pair#463 landed (pair PR #254). The live check waits for the operator to restart Couch onto a build with it; the TL messages ariadne:1 after the relaunch. Parked until then.
