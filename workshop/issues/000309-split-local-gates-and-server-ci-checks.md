@@ -52,7 +52,7 @@ Replaces #052 (close it as superseded).
 Durable plan: `workshop/plans/000309-split-local-gates-and-server-ci-checks-plan.md`.
 
 - [x] M1 — `sdlc merge` refuses red or pending CI on the PR head, both landing paths; `--no-ci` bypass
-- [ ] M2 — `local-gates-guard.yml` on `pull_request_target` with the `local-gates-verified` label; merge-check on push to main; labels in four repos; atlas + AGENTS
+- [x] M2 — `local-gates-guard.yml` on `pull_request_target` with the `local-gates-verified` label; merge-check on push to main; labels in four repos; atlas + AGENTS
 - [ ] After landing: live check with a DO-NOT-MERGE PR; report seeded files to the hub
 
 ## Estimate
@@ -80,6 +80,7 @@ total: 2.76
 Filed from the robustness evidence review (ariadne-robustness-1). Supersedes #052.
 
 ### 2026-10-12
+- 2026-10-12: closed M2 — Round 3. make test: exit 0 (1113 cmd/sdlc tests + 46 packages). BR-11: guard posts pending first, EXIT trap posts failure on any undecided exit (local-gates-guard.test.sh: pending-then-exactly-one-final; unfetchable PR ref ends in failure; deleting the trap fails the test); merge requires local-gates-guard/verdict when the target main carries the guard (TestRunCIGate missing/present/pending/unreadable-main-tree). Runner merge-checks.d/20-ci-workflow-tests.sh globs scripts/test/*.test.sh with two named exclusions; both included tests PASS. Classifier case added for the missing-verdict refusal. Earlier rounds: -z/quotePath, live labels, substring and matcher mutations all caught.; review verdict: SHIP
 - 2026-10-12: closed M1 — Round 2. go test -run CIGate|TestRunMerge|TestLanding|DecideCIGate|ParsePRChecks: ok (399s); merge/tracker/landing/external-merge e2e set: ok (412s); processmanual ok. Mutation: removing either merge path runCIGate call alone fails its per-site test. BR-1 covered by TestRunCIGate lag/move/bound cases and TestRunMerge_LaggingPRHeadRefuses. make test (round 1): all shards pass except TestPlanningReviewCompetingResults, which fails identically on clean origin/main c1afb049 (pre-existing, reported to hub).; review verdict: SHIP
 Claimed at ariadne:2. Measured: merge-check is green on recent PRs in all four repos (no red CI to fix); only pair runs CI on push to main; `sdlc merge` reads no checks on either path. TL answers: label marker default (operator confirming), honest limit goes into the atlas verbatim; I create labels in all four repos, the TL runs the peer weave refreshes; one DO-NOT-MERGE live-check PR after landing is approved; push-to-main trigger approved.
 M1 implemented: `cmd/sdlc/cigate.go` (pure `decideCIGate`, `parsePRChecks`, `runCIGate`), `PRChecks` on the `ghCaller` seam, `PRMerge` pinned with `--match-head-commit`, `--no-ci` in the gate catalog. Mutation-checked: removing either site's `runCIGate` call alone fails `TestRunMerge_RedCIRefusesPreMerge` / `TestLandingRedCIRefusesBeforeMerge`. Revision: dropped "dry-run reports what the gate would say" — neither path's dry-run contacts GitHub for PR state today, and adding that is out of this issue's contour.
