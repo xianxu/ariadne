@@ -1,6 +1,6 @@
 ---
 id: 000309
-status: codecomplete
+status: done
 created: 2026-10-09
 updated: 2026-10-12
 estimate_hours: 2.76
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 1a7aa8de60c4245f06267e2b9e94241f221dc895
         evidence_commit: 523127295f5aa750eb67a699d008600f08c581ac
+        landed_commit: 539eb7932e6290501bbf995745b61b31f8ebae55
 ---
 
 # Split local gates and server CI checks
