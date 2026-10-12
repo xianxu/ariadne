@@ -110,6 +110,15 @@ M1 implemented (commits 3ec07b8b..HEAD):
 
 Evidence: `make test` ran 12 shards. 5 tests failed: 4 were this change's fixtures (e2e/fetch/legacy alias), fixed; `TestCLISignalCancelsOwnedReviewer` was load-flaky. A targeted rerun of all 5 is green. The live check runs the real binary in the e2e slot fleet instead of filing a scratch issue on ariadne's tracker: `TestTrackerFullSlotCycle` (`issue new` from slot1 leaves the checkout untouched, slot1 holds the claim, and a competing slot2 claim refuses).
 
+M2 implemented:
+- **`projectCloseEdit`** (`projecttick.go`) is the one pure per-project edit. Close previews it locally, and `publishPeerProject` (`peerproject.go`) re-derives it on the peer's origin main through `TrunkFile.Update`: symlink-resolved, `tl:` re-checked fail-closed, refusing a brain or a missing upstream, warn-only.
+- Peer projects leave the review snapshot.
+- **`--no-project`** skips the whole project update, and the process-manual gate signature now uses the info-line grammar. `--force` only waives a missing detail block.
+- **Deleted:** `peerwrite.go`, its tests, and the unused `closeRunner` seam.
+- **Changed tests:** `TestWorkspaceCloseKeepsPrimaryProjectUntouched` and `TestPrivateEnvironmentCloseWritesOnlySelectedProjects` now expect the tick on the peer's or environment's origin, with the checkouts untouched. Before, they expected a local write in the environment slot.
+
+Evidence: `make test` green, 12 shards and 1097 cmd/sdlc tests, 0 failed. Done-when 4 is `TestClose_PeerProjectLandsOnOriginAndLeavesCheckoutUntouched`, plus the symlink, moved-origin, gained-TL and no-origin rows. Done-when 5 (F1) is `TestLandingInstanceGate_IgnoresMainsChangesSinceBranchPoint` (#322) plus `…AcceptsAnOpenSkeleton`. The #326 skip is unchanged and its tests are green.
+
 ## Revisions
 
 ### 2026-10-12: scope revision at start-plan (TL decision, ops:0)
