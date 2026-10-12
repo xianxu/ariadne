@@ -1,12 +1,20 @@
 ---
 id: 000308
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-09
-updated: 2026-10-09
+updated: 2026-10-12
 estimate_hours:
-card_mirror: '04acfdcb4f6e8be18cfd87711170f5c010933926' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '79db0adf41f16b06ea6122d78eeb152fe767ae39' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T07:19:01-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # issue new publishes card and details in one go
@@ -43,7 +51,25 @@ Operator design D-1 (revised) with round-3/4 decisions:
 
 ## Plan
 
+Durable plan: `workshop/plans/000308-issue-new-publishes-card-and-details-in-one-go-plan.md`.
+
+- [ ] M1 — `issue new` publishes card + details to origin (creation.main stage), claims from a slot `:N`, writes no working tree; status-aware section presence for skeletons; C5 root guard; `move-detail` hidden deprecated alias; F1 regression row
+- [ ] M2 — close ticks peer projects through a CAS trunk write to the peer's origin main (symlinks resolved, tl: re-checked); peer projects leave the review snapshot; `--no-project` skips the whole project update
+
 ## Log
 
 ### 2026-10-09
 Filed from the robustness evidence review (ariadne-robustness-1). Absorbs evidence items C1, C2–C5, F1, and #273's remainder. Depends on #307 (slot claimant) and #274 (content-based Behind).
+
+### 2026-10-12
+Claimed at ariadne:4 (TL dispatch). Design questions went to the TL (ops:0), who chose option (a) for point 3. F1 is already fixed by #322 (`runLandingInstanceGate` diffs merge-base..head), and the tl: skip by #326; both are verified here, not rebuilt.
+
+## Revisions
+
+### 2026-10-12: scope revision at start-plan (TL decision, ops:0)
+- **Point 3 dropped.** It said to commit identical bytes on an issue branch, assuming #274's content-based Behind. #274 shipped ownership only: `transferverdict.go` still judges Behind by ancestry. A separate identical-bytes commit has no common base with main's copy, so a later branch edit is refused as Behind, and git merges it as an add/add conflict (checked in a scratch repo). Now `issue new` never touches the branch or the working tree. Details reach a branch with its next main merge, and later edits go through `issue publish`.
+- **F1, the tl: skip:** verification only (landed in #322 and #326).
+- **C1:** peer ticks become a CAS write to the peer's origin main that re-derives from fetched bytes and refuses when the fetched copy is now `tl:`-owned. `--no-project` skips the whole project update.
+- **Skeletons:** structure only while `open`; Plan and Done-when content are required from `working` on.
+- **move-detail:** a hidden deprecated alias of `issue publish`. Publish keeps first publication only to finish an incomplete creation (a pre-#308 card, or a failed creation's main stage).
+
