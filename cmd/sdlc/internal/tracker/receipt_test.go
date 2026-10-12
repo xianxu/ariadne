@@ -12,7 +12,7 @@ func preparedCandidate(binding Binding, oid string) Event {
 	switch binding.Stage {
 	case "creation.reserve", "transfer.handoff", "transfer.record", "completion.codecomplete":
 		event.CandidateBaseOID = binding.TrackerBase
-	case "transfer.main":
+	case "transfer.main", "creation.main":
 		event.CandidateBaseOID = binding.MainBase
 	}
 	return event
@@ -44,7 +44,7 @@ func TestCandidatePreparationBindsObservedParentAcrossStages(t *testing.T) {
 					after := h.receipt().Spec()
 					want := before
 					if remote {
-						if effect.Stage == "transfer.main" {
+						if effect.Stage == "transfer.main" || effect.Stage == "creation.main" {
 							want.MainBase = event.CandidateBaseOID
 						} else {
 							want.TrackerBase = event.CandidateBaseOID
@@ -80,7 +80,7 @@ func TestCandidatePreparationBindsObservedParentAcrossStages(t *testing.T) {
 					continue
 				case PersistReceipt:
 					event.Kind = EventReceiptSaved
-				case PublishCard, PublishMain, MaterializeDetail, WriteEvidence, RemoveSource:
+				case PublishCard, PublishMain, WriteEvidence, RemoveSource:
 					event.Kind = EventConfirmed
 					event.CandidateOID = effect.CandidateOID
 					if effect.Kind == PublishCard {
@@ -309,7 +309,7 @@ func transactionForTest(t *testing.T, kind string) transactionHarness {
 
 func TestReceiptGeneratedInterruptionsAtEveryDeclaredEffect(t *testing.T) {
 	oracles := map[string][]EffectKind{
-		"creation":           {PublishCard, MaterializeDetail},
+		"creation":           {PublishCard, PublishMain},
 		"transfer":           {PublishCard, PublishMain, PublishCard, RemoveSource},
 		"transfer-from-card": {PublishCard, PublishMain, PublishCard},
 		"completion":         {WriteEvidence, PublishCard},
@@ -387,7 +387,7 @@ func TestReceiptGeneratedInterruptionsAtEveryDeclaredEffect(t *testing.T) {
 								break
 							}
 							fallthrough
-						case PublishCard, PublishMain, MaterializeDetail, WriteEvidence, RemoveSource:
+						case PublishCard, PublishMain, WriteEvidence, RemoveSource:
 							want := expected[mutationIndex]
 							if effect.Kind != ProbePublication && effect.Kind != want {
 								t.Fatalf("out of order: got %s want %s", effect.Kind, want)

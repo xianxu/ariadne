@@ -154,7 +154,6 @@ const (
 	PersistReceipt    EffectKind = "persist-receipt"
 	PublishCard       EffectKind = "publish-card"
 	PublishMain       EffectKind = "publish-main"
-	MaterializeDetail EffectKind = "materialize-detail"
 	WriteEvidence     EffectKind = "write-evidence"
 	RemoveSource      EffectKind = "remove-source"
 	RefreshInputs     EffectKind = "refresh-inputs"

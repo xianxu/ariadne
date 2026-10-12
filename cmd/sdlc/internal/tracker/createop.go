@@ -1,20 +1,17 @@
 package tracker
 
 import (
-	"bytes"
 	"context"
 	"errors"
 	"fmt"
-	"os"
 	"path"
-	"path/filepath"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 // Draft is one rendered issue for a candidate ID: the card for the tracker and
-// its mirrored details for the checkout. Paths are repository-relative.
+// its mirrored details for main. Paths are repository-relative.
 type Draft struct {
 	CardPath, DetailPath string
 	Card, Detail         []byte
@@ -26,7 +23,7 @@ type Render func(id string) (Draft, error)
 
 // Checkout pins the caller's repository identity and branch for an operation.
 type Checkout struct {
-	Root         string // worktree root; details are written beneath it
+	Root         string // worktree root: its object database holds the pinned blobs
 	Repository   string // publication identity (gitx.PublicationTarget.Repository)
 	Branch       string // refs/heads/<name>
 	HEAD         string
@@ -34,19 +31,21 @@ type Checkout struct {
 	ObjectFormat string
 }
 
-// CreationOp adapts the creation receipt to Git: publish the card, then
-// materialize the details locally. Bytes are read back from the object database
-// by the OIDs the receipt pins, so a later process can resume from the receipt.
+// CreationOp adapts the creation receipt to Git: publish the card, then the
+// details as a main-native commit (#308). No checkout is written. Bytes are
+// read back from the object database by the OIDs the receipt pins, so a later
+// process can resume from the receipt.
 type CreationOp struct {
 	diagnostics
 	ctx    context.Context
 	repo   *Repository
+	main   *gitx.TrunkFile
 	co     Checkout
 	render Render
 }
 
-func NewCreationOp(ctx context.Context, repo *Repository, co Checkout, render Render) *CreationOp {
-	return &CreationOp{ctx: ctx, repo: repo, co: co, render: render}
+func NewCreationOp(ctx context.Context, repo *Repository, main *gitx.TrunkFile, co Checkout, render Render) *CreationOp {
+	return &CreationOp{ctx: ctx, repo: repo, main: main, co: co, render: render}
 }
 
 // Start allocates max(id)+1 from a fresh snapshot and returns the queued receipt.
@@ -122,9 +121,17 @@ func (op *CreationOp) Prepare(e Effect, r Receipt) (Event, error) {
 			return Event{}, err
 		}
 		return Event{Kind: EventCandidatePrepared, Binding: e.Expected, CandidateOID: c.OID, CandidateBaseOID: c.Base}, nil
-	case "creation.detail":
-		// A local effect's candidate is the exact detail blob it materializes.
-		return Event{Kind: EventCandidatePrepared, Binding: e.Expected, CandidateOID: spec.SourceBlob}, nil
+	case "creation.main":
+		detail, err := gitx.ReadBlob(op.ctx, op.co.Root, spec.SourceBlob)
+		if err != nil {
+			return Event{}, err
+		}
+		msg := fmt.Sprintf("#%s: issue: new\n\nTracker-Operation: %s", issue.CLIRef(spec.IssueID), spec.Token)
+		c, err := DetailPublication(op.main, spec.DestinationPath, detail, msg)
+		if err != nil {
+			return Event{}, err
+		}
+		return Event{Kind: EventCandidatePrepared, Binding: e.Expected, CandidateOID: c.OID, CandidateBaseOID: c.Base}, nil
 	}
 	return Event{}, fmt.Errorf("creation cannot prepare stage %s", e.Stage)
 }
@@ -133,8 +140,8 @@ func (op *CreationOp) Apply(e Effect, r Receipt) (Event, error) {
 	switch e.Stage {
 	case "creation.reserve":
 		return publishCardEvent(op.repo, &op.diagnostics, e, r.Spec().CardPath)
-	case "creation.detail":
-		return op.materialize(e, r.Spec())
+	case "creation.main":
+		return publishEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
 	}
 	return Event{}, fmt.Errorf("creation cannot apply stage %s", e.Stage)
 }
@@ -143,69 +150,25 @@ func (op *CreationOp) Probe(e Effect, r Receipt) (Event, error) {
 	switch e.Stage {
 	case "creation.reserve":
 		return probeCardEvent(op.repo, &op.diagnostics, e, r.Spec().CardPath)
-	case "creation.detail":
-		ev, err := op.materialize(e, r.Spec())
-		if err != nil {
-			return Event{Kind: EventProbeUnknown, Binding: e.Expected}, err
-		}
-		return ev, nil
+	case "creation.main":
+		return probeEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
 	}
 	return Event{}, fmt.Errorf("creation cannot probe stage %s", e.Stage)
 }
 
-// Refresh follows a lost reservation: allocate a fresh ID on the new tip. The
-// engine accepts a new identity only before the reservation is proven.
+// Refresh follows a lost race. A lost reservation allocates a fresh ID on the
+// new tip (the engine accepts a new identity only before the reservation is
+// proven); a moved main keeps the intent, re-pinned at the next prepare.
 func (op *CreationOp) Refresh(e Effect, r Receipt) (Event, error) {
+	if e.Stage != "creation.reserve" {
+		spec := r.Spec()
+		return Event{Kind: EventRevalidated, Binding: e.Expected, Replacement: &spec}, nil
+	}
 	next, err := op.allocate(r.Spec().Token)
 	if err != nil {
 		return Event{}, err
 	}
 	return Event{Kind: EventRevalidated, Binding: e.Expected, Replacement: &next}, nil
-}
-
-// materialize writes the details exactly once. An existing file with other
-// bytes is someone's work and is never overwritten.
-func (op *CreationOp) materialize(e Effect, spec ReceiptSpec) (Event, error) {
-	if err := requireSourceCheckout(spec, op.co.Branch); err != nil {
-		return Event{}, err
-	}
-	want, err := gitx.ReadBlob(op.ctx, op.co.Root, e.CandidateOID)
-	if err != nil {
-		return Event{}, err
-	}
-	dest := filepath.Join(op.co.Root, filepath.FromSlash(spec.DestinationPath))
-	info, err := os.Lstat(dest)
-	switch {
-	case err == nil:
-		if !info.Mode().IsRegular() {
-			return Event{}, fmt.Errorf("%s exists and is not an ordinary file", spec.DestinationPath)
-		}
-		have, err := os.ReadFile(dest)
-		if err != nil {
-			return Event{}, err
-		}
-		if !bytes.Equal(have, want) {
-			return Event{}, fmt.Errorf("%s exists with other content; card #%s is reserved — reconcile the file, then `sdlc issue recovery reconcile --issue %s`", spec.DestinationPath, spec.IssueID, issue.CLIRef(spec.IssueID))
-		}
-	case errors.Is(err, os.ErrNotExist):
-		if err := os.MkdirAll(filepath.Dir(dest), 0o755); err != nil {
-			return Event{}, err
-		}
-		f, err := os.OpenFile(dest, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o644)
-		if err != nil {
-			return Event{}, err
-		}
-		_, werr := f.Write(want)
-		if cerr := f.Close(); werr == nil {
-			werr = cerr
-		}
-		if werr != nil {
-			return Event{}, werr
-		}
-	default:
-		return Event{}, err
-	}
-	return Event{Kind: EventConfirmed, Binding: e.Expected, CandidateOID: e.CandidateOID}, nil
 }
 
 // publisher is one destination ref's candidate steps (tracker or main).

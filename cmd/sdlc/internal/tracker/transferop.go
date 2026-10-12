@@ -79,16 +79,7 @@ func (op *TransferOp) Prepare(e Effect, r Receipt) (Event, error) {
 			return Event{}, err
 		}
 		msg := fmt.Sprintf("#%s: issue: initial details\n\nTracker-Operation: %s\nDetail-Handoff: #%s", issue.CLIRef(spec.IssueID), spec.Token, spec.IssueID)
-		c, err = op.main.PrepareCandidate(msg, func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
-			present, err := view.Exists(spec.DestinationPath)
-			if err != nil {
-				return gitx.TrunkWrite{}, err
-			}
-			if present {
-				return gitx.TrunkWrite{}, fmt.Errorf("%w: %s", ErrDestinationExists, spec.DestinationPath)
-			}
-			return gitx.TrunkWrite{Write: map[string][]byte{spec.DestinationPath: detail}, ExactBytes: true}, nil
-		})
+		c, err = DetailPublication(op.main, spec.DestinationPath, detail, msg)
 	case "transfer.record":
 		h := op.handoff(spec)
 		h.MainCommit = MainCommit(r)
@@ -113,7 +104,7 @@ func (op *TransferOp) Apply(e Effect, r Receipt) (Event, error) {
 	case PublishCard:
 		return publishCardEvent(op.repo, &op.diagnostics, e, spec.CardPath)
 	case PublishMain:
-		return publishEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, op.confirmMain(e))
+		return publishEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
 	case RemoveSource:
 		if err := op.removeSource(r); err != nil {
 			return Event{}, err
@@ -129,7 +120,7 @@ func (op *TransferOp) Probe(e Effect, r Receipt) (Event, error) {
 	case "transfer.handoff", "transfer.record":
 		return probeCardEvent(op.repo, &op.diagnostics, e, spec.CardPath)
 	case "transfer.main":
-		return probeEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, op.confirmMain(e))
+		return probeEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
 	case "transfer.remove":
 		// The remover is idempotent: it confirms an earlier removal or finishes it.
 		if err := op.removeSource(r); err != nil {
@@ -140,7 +131,8 @@ func (op *TransferOp) Probe(e Effect, r Receipt) (Event, error) {
 	return Event{}, fmt.Errorf("transfer cannot probe stage %s", e.Stage)
 }
 
-func (op *TransferOp) confirmMain(e Effect) func() (Event, error) {
+// confirmedMain confirms a main publication: the candidate itself is the proof.
+func confirmedMain(e Effect) func() (Event, error) {
 	return func() (Event, error) {
 		return Event{Kind: EventConfirmed, Binding: e.Expected, CandidateOID: e.CandidateOID}, nil
 	}

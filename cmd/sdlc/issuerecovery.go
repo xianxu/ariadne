@@ -132,6 +132,14 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 			return fmt.Errorf("%w: #%d's %s must be finished from the checkout on %s (this one is on %q)",
 				tracker.ErrForeignCheckout, issueID, r.Operation(), r.Spec().SourceBranch, env.branch)
 		}
+		if r.LegacyCreationDetail() {
+			// Pre-#308 receipts materialized details locally; that stage is retired.
+			if err := receipts.Delete(r); err != nil {
+				return err
+			}
+			cwarn(stderr, fmt.Sprintf("#%d's card is reserved, but its creation was started by an older sdlc that wrote details locally; released that record — finish the creation with `sdlc issue publish --issue %d`", issueID, issueID))
+			continue
+		}
 		if r.Discardable() && r.Operation() == "creation" {
 			if err := receipts.Discard(r); err != nil {
 				return err
@@ -149,7 +157,7 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 			}
 			r = resumed.Receipt()
 			step = tracker.CreationStepper
-			adapter = tracker.NewCreationOp(ctx, env.repo, env.checkout(mainView.Ref()), func(string) (tracker.Draft, error) {
+			adapter = tracker.NewCreationOp(ctx, env.repo, env.main, env.checkout(mainView.Ref()), func(string) (tracker.Draft, error) {
 				return tracker.Draft{}, errors.New("the reserved ID was lost; nothing was published — rerun `sdlc issue new`")
 			})
 		case "transfer":
