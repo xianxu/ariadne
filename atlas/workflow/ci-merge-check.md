@@ -63,6 +63,59 @@ merge button; direct pushes to `main` stay open). Making `merge-check` a *requir
 status check — and creating the remote repo — is the `make remote-init` operator verb
 (#52 M2; needs `gh` auth). Mechanism works advisory-only without it.
 
+## Local gates and server CI: the split (#309)
+
+Local sdlc gates do the heavy checks (review, plan quality, tests), because
+ariadne controls the local process. Server CI does cheap deterministic checks,
+and `sdlc merge` will not land over it:
+
+- **Merge reads CI** (`cmd/sdlc/cigate.go`). Both landing paths read the checks
+  GitHub reports on the PR head (`gh pr checks --json`) and refuse unless every
+  one passed or was skipped, naming each failing or pending check. An unknown
+  state or an unreadable list refuses (fail closed). No checks while the head
+  carries `.github/workflows/` is pending; no checks and no workflows passes.
+  The merge is pinned to the read head with `--match-head-commit`. `--no-ci`
+  waives only this gate. gh exits 1 (failing) or 8 (pending) while still
+  printing the JSON, so the adapter reads stdout before the exit status.
+- **The local-gates guard** (`.github/workflows/local-gates-guard.yml`, seeded).
+  It runs on `pull_request_target`, so main's copy of the guard decides and a
+  PR cannot weaken the guard within itself; it never checks out or runs PR
+  code, only the changed-path list of `refs/pull/<N>/head`, and takes PR values
+  through `env:`. A PR touching a protected path fails unless it carries the
+  `local-gates-verified` label. It reads the changed paths NUL-delimited and
+  unquoted (`-z`, `core.quotePath=false`), so a non-ASCII or quoted path is
+  still matched; it reads the labels live from the API at decision time, not
+  from the event payload, and fails closed when it cannot; one run per PR at a
+  time (`concurrency`, newer cancels older); a run whose event head is no
+  longer the PR head decides nothing. It also posts a `local-gates-guard/verdict`
+  commit status on the PR head, so `gh pr checks` (and merge's CI gate) see the
+  latest verdict for that head whichever way GitHub attaches the job's check.
+  Tested by executing the real run block: `scripts/test/local-gates-guard.test.sh`,
+  run in CI by ariadne's `merge-checks.d/20-ci-workflow-tests.sh`, which runs
+  every `scripts/test/*.test.sh` except two named exclusions.
+- **Absence is not green.** The guard posts `pending` first and turns any exit
+  before a decision into `failure`; merge's CI gate requires the
+  `local-gates-guard/verdict` status whenever the target main carries the
+  guard, so a run that never reported refuses.
+- **The label is the operator's marker.** Only the operator applies
+  `local-gates-verified`; no sdlc verb does and agents are told never to. A
+  local-gates change is its own issue with operator-held verification. Honest
+  limit: agents share the operator's gh identity, so the label is an explicit,
+  audited acknowledgment, not a cryptographic one.
+- **How the protected list is derived** (re-sweep from these, don't hand-pick):
+  `construct/base.manifest` rows whose file runs or configures a merge-blocking
+  check, or the agent's sandbox and permissions; repo-root config that sdlc and
+  weave read (`.sdlc/`, `workshop/review.json`, `construct/deps`, the manifest
+  itself); CI-only hooks (`scripts/ci-setup.sh`, `.claude/hooks/`). Gate code
+  (`cmd/sdlc`, vocabulary) is out: changing it is ordinary ariadne work and the
+  boundary review owns it. The list lives once, in the guard workflow.
+- **merge-check runs on push to main too**, over `before..after` (a new ref
+  checks nothing), so main has a CI status of its own.
+- **Not covered:** `sdlc push` lands on main with no PR, so no PR CI gates it;
+  the push run reports after the fact. Branch protection (required checks) is
+  not configured: merge's refusal is the gate for agents, the guard the
+  server's detector.
+
 ## Not the same as the publish gate or the close review
 
 Three distinct tiers, none an LLM at merge-time (#160):

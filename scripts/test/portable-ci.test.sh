@@ -23,10 +23,9 @@ with tempfile.TemporaryDirectory(prefix='portable ci ') as tmp:
     hook=leaf/'scripts/ci-setup.sh'; executable(hook,'test -f scripts/run-merge-checks.sh\necho setup >> events\n')
     executable(leaf/'scripts/merge-checks.d/01-product.sh','echo checked >> events\n')
     env=dict(os.environ,PATH=f'{commands}:/usr/bin:/bin',SOURCE=str(source),FIXTURE=str(root),RUNNER_TEMP=str(runner_temp),GITHUB_PATH=str(root/'path'))
-    def run(code=0):
-        (root/'path').write_text(''); current=dict(env)
+    def run(code=0,event=None):
+        (root/'path').write_text(''); current=dict(env,**(event or {'EVENT':'pull_request','PR_BASE':sha,'PR_HEAD':sha}))
         for block in blocks:
-            block=block.replace('${{ github.event.pull_request.base.sha }}',sha).replace('${{ github.event.pull_request.head.sha }}',sha)
             result=subprocess.run(['bash','-c',block],cwd=leaf,env=current,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
             if result.returncode: break
             paths=(root/'path').read_text().splitlines()
@@ -39,9 +38,13 @@ with tempfile.TemporaryDirectory(prefix='portable ci ') as tmp:
     rows=run(); assert rows==['brew:bundle --file=Brewfile','candidate-build','compile','setup','checked'],rows
     executable(hook,'exit 9\n'); run(9)
     hook.unlink(); rows=run(); assert rows[-1]=='checked'
+    # #309: a push to main checks before..after; a new ref (zero before) checks nothing.
+    (leaf/'events').write_text(''); rows=run(event={'EVENT':'push','PUSH_BEFORE':sha,'PUSH_AFTER':sha}); assert rows[-1]=='checked',rows
+    (leaf/'events').write_text(''); rows=run(event={'EVENT':'push','PUSH_BEFORE':'0'*40,'PUSH_AFTER':sha}); assert 'checked' not in rows,rows
     env['FAIL_COMPILE']='1'; (leaf/'events').write_text(''); (leaf/'scripts/run-merge-checks.sh').unlink(); rows=run(7); assert rows[-1]=='compile' and not (leaf/'scripts/run-merge-checks.sh').exists()
 for name in ('merge-check.yml', 'weave-release.yml'):
     assert 'Homebrew/actions/setup-homebrew@main' in (source/'.github/workflows'/name).read_text()
+assert '${{' not in ''.join(blocks), 'event values reach run blocks through env:'
 assert 'brew tap' not in workflow and 'ariadne-source' not in workflow
 assert 'actions/setup-go' not in workflow and 'BOOTSTRAP_CLONE_ONLY' not in workflow
 assert '../ariadne/scripts/run-merge-checks.sh' not in workflow
