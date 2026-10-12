@@ -220,8 +220,6 @@ var commitWirings = []wiring{
 		"the archive commit in the MAIN worktree, where merge's dirty check never looked"},
 	{"migrate.go", "runMigrate", "migrateCommitArgs",
 		"both migrate commits and both --no-commit hints share one argv builder"},
-	{"issue.go", "runIssueNew", "commitOnly",
-		"a feature-branch filing checkpoints exactly its new details (#252); the card is the tracker's"},
 	{"issue.go", "runIssueSync", "syncIssuesToMain",
 		"the verb is a thin exposure of the shared dispatch, not a second sync path"},
 	{"startplan.go", "runStartPlan", "syncPointer",

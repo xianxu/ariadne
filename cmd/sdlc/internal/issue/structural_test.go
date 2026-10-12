@@ -221,3 +221,29 @@ func TestSplitFences(t *testing.T) {
 		})
 	}
 }
+
+// A freshly filed skeleton is published to main at creation (#308), so the
+// presence gates must accept it while the issue is not started, and must still
+// demand Plan and Done-when content once it is.
+func TestSectionsPresenceIsStatusAware(t *testing.T) {
+	skeleton := Render(ScaffoldSpec{ID: "000042", Title: "A skeleton", Today: "2026-10-12"})
+	if got := CheckSectionsPresence(skeleton); len(got) != 0 {
+		t.Fatalf("an open skeleton should conform, got %+v", got)
+	}
+	working := strings.Replace(skeleton, "status: open", "status: working", 1)
+	if working == skeleton {
+		t.Fatal("fixture: the scaffold no longer seeds `status: open`")
+	}
+	names := map[string]bool{}
+	for _, f := range CheckSectionsPresence(working) {
+		names[f.Name] = true
+	}
+	if !names["plan-present"] || !names["done-when-present"] {
+		t.Fatalf("a started skeleton must owe Plan and Done-when content, got %v", names)
+	}
+	// Structure is still owed while open.
+	noSpec := strings.Replace(skeleton, "## Spec", "## Other", 1)
+	if got := CheckSectionsPresence(noSpec); len(got) != 1 || got[0].Name != "spec-present" {
+		t.Fatalf("an open issue without ## Spec: %+v", got)
+	}
+}

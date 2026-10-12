@@ -18,7 +18,7 @@ func newIssuePublishCmd() *cobra.Command {
 	var dryRun bool
 	cmd := markMutatingCommand(&cobra.Command{
 		Use:   "publish --issue N[,N…] | --commit SHA",
-		Short: "Publish issue details to main: first publication or later edits (#284, #274)",
+		Short: "Publish later edits to issue details on main (#284, #274); finishes an incomplete creation",
 		Args:  cobra.NoArgs, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			guardSpineRepo(cmd.ErrOrStderr())
@@ -53,10 +53,11 @@ func newIssuePublishCmd() *cobra.Command {
 	return cmd
 }
 
-// runTrackedPublish publishes each issue's details to main (#284): the first
-// publication — details not yet on main — is `move-detail`'s transfer, one
-// issue at a time, needing no owner; details already on main are the owner's
-// edits, published together by republishOwned.
+// runTrackedPublish publishes each issue's details to main (#284). Details
+// already on main are edits (by the owner, or anyone while unclaimed),
+// published together by republishOwned. Details not yet on main are an
+// incomplete creation — filed before #308, when issue new wrote them locally —
+// finished by the transfer, one issue at a time, needing no owner.
 func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int, issuesDir string, dryRun bool) error {
 	nums = claimIssues(&claimFlags{Issues: nums})
 	if len(nums) == 0 {
@@ -105,7 +106,7 @@ func runTrackedPublish(ctx context.Context, stdout, stderr io.Writer, nums []int
 		return nil
 	}
 	if len(first) > 0 {
-		if env, err = openTracker(ctx); err != nil { // a first publication may have moved this checkout
+		if env, err = openTracker(ctx); err != nil { // finishing a creation may have moved this checkout
 			return err
 		}
 	}

@@ -12,8 +12,10 @@ import (
 )
 
 const (
-	instanceGateGood   = "---\nid: 2\nstatus: open\n---\n## Spec\nspec\n## Done when\n- it works\n## Plan\n- [ ] do it\n"
-	instanceGateNoPlan = "---\nid: 1\nstatus: open\n---\n## Spec\nspec\n## Done when\n- it works\n"
+	instanceGateGood = "---\nid: 2\nstatus: open\n---\n## Spec\nspec\n## Done when\n- it works\n## Plan\n- [ ] do it\n"
+	// A started issue owes Plan content; an open one does not (#308).
+	instanceGateNoPlan       = "---\nid: 1\nstatus: working\n---\n## Spec\nspec\n## Done when\n- it works\n"
+	instanceGateOpenSkeleton = "---\nid: 2\nstatus: open\n---\n## Spec\n\n## Done when\n\n-\n\n## Plan\n\n- [ ]\n"
 )
 
 // instanceGateRepo cuts a branch that adds branchIssue, then moves main on: main
@@ -91,6 +93,17 @@ func TestLandingInstanceGate_RefusesBranchsOwnNonconformingIssue(t *testing.T) {
 	}
 	if listed := out.String(); !strings.Contains(listed, "000002-new.md") || strings.Contains(listed, "000001-old.md") {
 		t.Errorf("refusal is not about the branch's own issue alone:\n%s", listed)
+	}
+}
+
+// #308: issue new publishes skeletons to main with placeholder Plan and
+// Done-when; a branch carrying one (as filed, not yet started) must land.
+func TestLandingInstanceGate_AcceptsAnOpenSkeleton(t *testing.T) {
+	stubConformingFrontmatter(t)
+	mainOID, headOID := instanceGateRepo(t, instanceGateOpenSkeleton)
+	var out, errw bytes.Buffer
+	if err := runLandingInstanceGate(mainOID, headOID, nounGates("workshop/issues"), &out, &errw, execGitRunner{}); err != nil {
+		t.Fatalf("an open skeleton refused the landing: %v\n%s%s", err, out.String(), errw.String())
 	}
 }
 

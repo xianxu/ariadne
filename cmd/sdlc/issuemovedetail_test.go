@@ -9,6 +9,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
@@ -29,11 +30,31 @@ func spinOffOnCodeBranch(t *testing.T) *trackerRepo {
 	writeRepoFile(t, r.root, "code.go", "package code\n")
 	r.git("add", "code.go")
 	r.git("commit", "-qm", "A: unshipped code")
-	var out, errs bytes.Buffer
-	if err := runIssueNew(context.Background(), &out, &errs, newIssueFlags(), []string{"Spin Off"}); err != nil {
-		t.Fatalf("%v\n%s", err, errs.String())
-	}
+	filedLocally(t, r)
 	return r
+}
+
+// filedLocally reproduces a pre-#308 filing, the state publish's first
+// publication still finishes: the card reserved on the tracker and the
+// details written to this checkout — committed on a feature branch, left
+// uncommitted on the resting branch.
+func filedLocally(t *testing.T, r *trackerRepo) {
+	t.Helper()
+	full := issue.Render(issue.ScaffoldSpec{ID: "000008", Title: "Spin Off", Today: "2026-09-01"})
+	card, detail, err := issue.SplitCardWithFormat([]byte(full), "sha1")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := r.tracker.UpdateMany("#8: issue: reserve\n\nTracker-Operation: new-prefiling", func(*gitx.TrunkView) (gitx.TrunkWrite, error) {
+		return gitx.TrunkWrite{Write: map[string][]byte{tracker.CardPath("000008", "spin-off"): card}, ExactBytes: true}, nil
+	}); err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, spinOffDetails, string(detail))
+	if r.git("rev-parse", "--abbrev-ref", "HEAD") != "main" {
+		r.git("add", "--", spinOffDetails)
+		r.git("commit", "-qm", "#8: issue: new")
+	}
 }
 
 // ownerEdit is the new owner's later edit E, landed on main from another clone.
@@ -114,9 +135,7 @@ func TestMoveDetailFromCodeBranchIsNetZeroForTheEventualMerge(t *testing.T) {
 func TestMoveDetailOnRestFastForwardsToThePublication(t *testing.T) {
 	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
 	var out, errs bytes.Buffer
-	if err := runIssueNew(context.Background(), &out, &errs, newIssueFlags(), []string{"Spin Off"}); err != nil {
-		t.Fatal(err)
-	}
+	filedLocally(t, r)
 	local, _ := os.ReadFile(filepath.Join(r.root, spinOffDetails))
 	if err := runMoveDetail(context.Background(), &out, &errs, moveFlags(8)); err != nil {
 		t.Fatalf("%v\n%s", err, errs.String())

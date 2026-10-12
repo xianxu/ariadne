@@ -38,7 +38,7 @@ Until a repository cuts over, the #252 binary runs its pre-#252 workflow
 on the publication remote), then `issue new`, `claim`, `set-status` and
 `change-code`'s publication run the code restored from `pre-252-freeze`,
 `start-plan` gives the `issue sync` advice without moving the checkout, and the
-tracker-only verbs (`issue set-*`, `move-detail`) refuse with the legacy way.
+tracker-only verbs (`issue set-*`, `issue publish --issue`) refuse with the legacy way.
 `cmd/sdlc/testdata/legacy-equivalence.sh` proves it differentially against the
 pre-#252 binary. Deleted with the legacy writers after the fleet cutover.
 

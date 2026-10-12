@@ -69,6 +69,12 @@ Detailed incidents remain in their owning issue or review artifact.
 - Optional evidence stays optional only when unavailable is distinguishable from
   unsupported and from a negative result.
 
+- When a new path replaces an old one, list every case the old one decided and say
+  what the new one does with each. The old peer-write had a brain row ("write in
+  place, nous commits it"); the origin publish classified a brain's legacy project
+  as a peer and silently dropped its tick (#308 BR-7). A decision table being
+  deleted is the checklist for its replacement.
+
 - When a verb starts writing an artifact that only a person used to write, re-read
   every existing reader of that artifact. Readers written for the old producer may
   now match cases they never saw: once the binary committed a `--no-judge`

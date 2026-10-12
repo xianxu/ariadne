@@ -195,7 +195,7 @@ path. Its readers report it as unknown, never absent:
 
 - `Snapshot.Require(id)` is the lookup for a verb acting on one card. It returns
   `ErrNoCard` or `ErrUnreadableCard` naming the path and the cause, so claim,
-  setters, start-plan, change-code, close, reclaim, move and move-detail refuse
+  setters, start-plan, change-code, close, reclaim, move and publish refuse
   with the cause. `Snapshot.Card` stays readable-only for compare-and-swap.
 - `IssueRecord.CardErr` carries it into the composed records, and
   `Records.Require(id)` is the point lookup for a reader that decides on card
@@ -262,7 +262,7 @@ The publication remote is the resting branch's upstream
 
 | Verb | Card (tracker) | Details (checkout) | Main |
 |---|---|---|---|
-| `issue new` | reserved at `max(id)+1`, own commit; reallocates after a proven race | written locally; narrow commit on a feature branch, uncommitted on rest | untouched |
+| `issue new` | reserved at `max(id)+1`, own commit; reallocates after a proven race; from a numbered slot, then claimed by it (claim-kind commit, #308) | untouched (#308) | details published by a commit of their own (`creation.main`, #308) |
 | `claim` | claimant by CAS, status unchanged (#283); a set `--issue a,b` is one all-or-nothing tracker commit (`tracker.ChangeCards`, #284); the owner's repeat is a no-op, others refuse (#277) | mirror refreshed (never on rest); rest fast-forwards to main after claiming (#284) | must already hold the details, re-checked before push |
 | `unclaim` | claimant cleared and a release recorded (who let go) by one CAS over the set; status unchanged (#284) | an open claim's unpublished edits are published first (`issue publish`) | republished details, if any |
 | `start-plan` | owned by this workspace (#277); open → working by CAS after the branch is ready (#283) | branch `<details stem>` created at pinned main from a rest clean except for this issue's own details, which ride along (#283); an existing issue branch carrying another issue's unlanded commits is refused (#272) | untouched |
@@ -271,8 +271,8 @@ The publication remote is the resting branch's upstream
 | `issue show --json` | read: one card (fresh, else stale with its reason) | read at the issue branch or main's archive | read (archive) — writes nothing (#279) |
 | `reclaim` | owned card's claimant (any holdable status, an open shaping claim included, #283) → this workspace by CAS on the inspected revision; trailers record from/to/reason (#278) | mirror refreshed (never on rest) | untouched |
 | `issue set-status/-title/-estimate/-github` | CAS update, guards on card status (+ details Log for reopen) | mirror refreshed | untouched |
-| `issue publish` | first publication: as `move-detail`; republish: ownership re-checked before the push, card untouched (#284) | rest fast-forwards (bringing a moved main in by three-way merge first); the issue's own branch commits the published bytes; another issue's branch takes its copy back | one narrow commit for the set's edits, never over a moved main copy or conflict markers |
-| `issue move-detail` | handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
+| `issue publish` | finishing an incomplete creation (pre-#308 local details): the transfer below; republish: ownership re-checked before the push, card untouched (#284) | rest fast-forwards (bringing a moved main in by three-way merge first); the issue's own branch commits the published bytes; another issue's branch takes its copy back | one narrow commit for the set's edits, never over a moved main copy or conflict markers |
+| `issue move-detail` | hidden deprecated alias of `issue publish --issue N` (#308): handoff record, then its main commit | source removed by a narrow commit (branch) or fast-forward (rest) | new main-native details commit |
 | `issue restore` | none | one commit setting each copy of the issue's details to main's (#285) | none |
 | `abandon` | terminal (wontfix/punt) with the `abandoned` record; owner kept (#286) | note commit; branch kept at `refs/ariadne/abandoned/NNNNNN`, then deleted | one narrow commit archiving details and plans |
 
@@ -318,10 +318,13 @@ unchanged), move the details and plans back out of the archive, push. The card
 write clears the record; the mirror refresh is committed, the branch pushed,
 and the ref deleted (a leftover ref is overwritten by a later abandon).
 
-`move-detail` is add-then-remove relative to a merge base without the file, so
-the source branch's direct, merge-from-main or squash landing keeps main's copy
-and the new owner's edits. The card's `tracker.handoff` record (versioned
-internal envelope, never mirrored) makes a rerun of `move-detail` a no-op.
+Finishing a pre-#308 creation (the transfer) is add-then-remove relative to a
+merge base without the file, so the source branch's direct, merge-from-main or
+squash landing keeps main's copy and the new owner's edits. The card's
+`tracker.handoff` record (versioned internal envelope, never mirrored) makes a
+rerun a no-op. Since #308, `issue new` publishes details at creation and never
+writes a checkout, so no branch carries a copy main lacks; the add/add case
+the transfer handles arises only from issues filed earlier.
 
 **Transfer guard (#285, `transferguard.go`).** Optimistic concurrency on
 *published* details: any details file main's history has touched, archived
@@ -347,7 +350,7 @@ nothing is released rather than re-rendered.
 ## Publishing details (#284)
 
 `sdlc issue publish --issue N[,N…]` (`issuepublish.go`, `republish.go`) is how details reach main without shipping a branch. Per issue:
-- **First publication** (details not on main): `move-detail`'s receipt-driven transfer. It needs no owner, and the issue becomes claimable.
+- **Finishing an incomplete creation** (details not on main: filed before #308, when `issue new` wrote them locally): the receipt-driven transfer (`move-detail` is its deprecated alias). It needs no owner, and the issue becomes claimable.
 - **Republish** (details on main): the owner, or anyone while the issue is unclaimed; never another workspace (#274, `mayNotEditDetails`). `republishDecision` judges the details *bodies*: the local copy against the one at this checkout's merge base with main, and main's. The frontmatter carries the card mirror, which differs by design.
   - main unchanged since the base → published;
   - equal → nothing to publish;
@@ -423,7 +426,7 @@ Refreshes are warnings, never failures: the card has already been published.
 
 Copies can still lag:
 
-- **Main's active copy.** Written by `move-detail`, it keeps its creation-time
+- **Main's active copy.** Written at creation (#308), it keeps its creation-time
   mirror until the issue branch lands. The resting branch is never edited, and
   a main-side refresh commit would conflict with the branch's own frontmatter.
 - **A checkout that has run no SDLC verb since a card change.** A plain

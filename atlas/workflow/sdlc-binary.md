@@ -41,12 +41,12 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | PR landing with instance/publish gates and confirmation; :0/:N archive remotely and return to unchanged rest, ordinary worktrees/dependencies retain legacy cleanup |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
-| `issue new`       | (new; xx-issues skill prose)| Reserve the next ID's card on `issue-tracker` and write details locally (#252; `--from-github N` seeds from GitHub) |
-| `issue move-detail` | (new #252)                | The first-publication case of `issue publish` (#284), for one issue: publish initial details to main without shipping the filing branch; net-zero removal on the source |
+| `issue new`       | (new; xx-issues skill prose)| File on origin: the next ID's card on `issue-tracker` and the details on main, writing no checkout; a numbered slot claims what it files (#252, #308; `--from-github N` seeds from GitHub) |
+| `issue move-detail` | (new #252; hidden #308)   | Deprecated alias of `issue publish --issue N`: finishes a pre-#308 creation by publishing its local details to main; net-zero removal on the source |
 | `issue recovery`  | (new #252)                  | `list` / `reconcile --issue N` interrupted tracker operations, from the checkout that owns them |
 | `issue set-title` / `set-estimate` / `set-github` | (new #252) | Card-field setters (compare-and-swap on the card) |
 | `issue sync`      | `make issue-sync ISSUE=N`   | Legacy repositories: commit one issue locally under `#N: issue-sync: <what>`. Retired in tracker repositories (#284): a pointer at `git commit` and `issue publish` |
-| `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (first publication, or later edits by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
+| `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (later edits, or finishing a pre-#308 creation by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
@@ -66,10 +66,10 @@ for the operator workflow and recovery contract.
 | Operation | Publication unit |
 |---|---|
 | `claim --issue N` | (#252, #283) The card's owner (the lock) on `issue-tracker`, status unchanged; nothing on main |
-| `issue new` | (#252) A new card on `issue-tracker` at `max(id)+1`; details stay local |
+| `issue new` | (#252, #308) A new card on `issue-tracker` at `max(id)+1`, then the details on main (own commit); from `repo:N`, a claim commit |
 | `change-code` | (#252) Nothing: the design is a local commit on the issue branch |
 | `unclaim --issue N` | (#284) The cleared owner and its release record on `issue-tracker`; an open claim's edits first go to main as `issue publish` |
-| `issue publish --issue N` | (#284) First publication: as `move-detail`. Republish: one main commit with the issues' edited details (never another workspace's, #274), `#a,#b: issue: publish details` |
+| `issue publish --issue N` | (#284) Finishing a pre-#308 creation: the transfer (`move-detail`). Republish: one main commit with the issues' edited details (never another workspace's, #274), `#a,#b: issue: publish details` |
 | `issue move-detail` | (#252) One main-native commit adding the initial details, plus the card's handoff record |
 | `issue sync --issue N` | Legacy repositories: one local issue-file commit; no network operation by default |
 | `issue sync --push` | Legacy repositories: only the narrow issue commit created by that invocation |
@@ -504,38 +504,38 @@ uses `ActiveOnly` (and drops terminal-status legacy matches so an archived
 `ActiveAndArchive`. A fleet-glob skip-list excludes non-fleet siblings
 (`*.bak`, `worktree`, dot-dirs) that the exact-match resolver was immune to.
 `sdlc close` loops the existing tick/upsert helpers over every match
-(`closeResult.projectEdits []projectEdit`), each carrying its `repoDir` for the
-safe peer-write commit decision below. A **TL-owned** match (frontmatter
+(`closeResult.projectEdits []projectEdit`), each carrying its `repoDir` and,
+for a peer repository, the `peer` mark and the edit's inputs for the origin
+publish below. A **TL-owned** match (frontmatter
 `tl:`, read by `project.TLOwners`, #326) is skipped before it reaches
-`projectEdits`, so the tick, the detail-block gate, the peer-write and the
+`projectEdits`, so the tick, the detail-block gate, the peer publish and the
 review snapshot all pass it by; the close prints an info line naming the TL,
 and the worker reports the landing there. `find`/`resolve` still list it.
 
-### Safe peer-write commit mechanics (`peerwrite.go`, #171 M3)
+### Peer projects publish to their origin (`peerproject.go`, #308)
 
-A close that edits a project file in a *peer* repo must not strand the edit
-uncommitted in that peer's working tree — but blindly committing into someone
-else's checkout is worse. `planPeerWrites(edits, states, curRepoDir,
-closingRef)` is the genuinely-pure decision core: per peer repo it authorizes
-a **scoped auto-commit** only when git state makes the commit unambiguous —
-on `main`, clean index, clean *target files*, and not a brain capture repo
-(`RepoGitState.IsBrain` via `gitx.IsBrainRepo`, #176). Anything else —
-off-main, pre-existing staged changes, pre-existing uncommitted edits to the
-very files being committed (`TargetFilesDirty`, snapshotted BEFORE the close's
-file writes so another session's work is never absorbed), undeterminable
-branch, unknown state, brain — is **report-only**: the file stays written and
-the operator gets the reason plus the exact `cd … && git add … && git commit`
-next action (for a brain: leave it — nous sweeps it). The current repo is always omitted (its edit rides the normal
-close commit), and a report-only outcome never fails the close.
-`readRepoGitState` + `applyPeerWrites` are the thin shell over the shared
-`gitRunner` seam (`runner.go`); the close path owns a package-level
-`closeRunner` and `applyClose(stdout, stderr, gitRunner, …)` runs the
-plan→apply pair after its file writes. The peer commit is scoped by pathspec
-(`git commit -m … -- <files>`) and its message cites the closing ref
-(`project: close-time update (<repo>#<id>)`), so peer history says which close
-produced it. Pinned end-to-end by real multi-repo git fixtures
-(`peerwrite_apply_test.go`), including the cross-repo close case where the
-matched project lives in a different repo than the closing one.
+A close never edits a *peer* repository's checkout: that tree is someone
+else's (the TL's live ops checkout, kink 38), and a local commit there
+diverges it from origin. `projectCloseEdit` (`projecttick.go`) is the one pure
+edit — tick the rows, upsert a milestone's detail block, or refuse a missing
+block with the authoring skeleton. `computeClose` previews it on the local copy
+(messages, the missing-block refusal, the dry run), and `applyClose` writes
+this repository's projects locally (they ride the close commit). Last, after
+the local writes, `publishPeerProject` re-derives the same edit on the peer's
+fetched main and publishes it with one `TrunkFile.Update` compare-and-swap
+commit (`project: close-time update (<repo>#<id>)`) to the upstream of the
+peer's resting branch. The path is symlink-resolved (`peerProjectPath`), so
+the commit changes the real file. A moved origin is re-read and the edit
+recomputed on its bytes, within `TrunkFile`'s bounded attempts. A copy that
+became TL-owned on origin, or whose `tl:` cannot be read, refuses; so does a
+brain, or a peer with no upstream. A refusal is a warning naming the file and
+never fails the close. A brain's legacy `data/project` home is the exception:
+it is not a peer, and its tick is written in place, uncommitted, for nous to
+commit on its own rhythm, as before #308. A peer is always published, because
+origin's bytes decide whether there is a change; the local copy only previews. Peer projects are not in the review snapshot, so a TL's
+mid-review edit cannot void a SHIP (kink 55). `--no-project` skips the whole
+project update; `--force` only waives a missing detail block. Pinned by real
+multi-repo fixtures with bare origins (`peerproject_test.go`).
 - **Read-only ⟹ lock-free by construction.** `resolve`/`open` are never tagged
   `markMutatingCommand`, so `wrapRepoLockCommands` skips them and they never touch
   `.git/sdlc.lock` (proven structurally + under a held lock). That's what makes it
