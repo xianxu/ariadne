@@ -12,7 +12,7 @@ import (
 
 const (
 	gateGood   = "---\nid: 1\nstatus: open\n---\n## Spec\nsome spec\n## Plan\n- [ ] do the thing\n## Done when\n- it works\n"
-	gateNoPlan = "---\nid: 1\nstatus: open\n---\n## Spec\nsome spec\n## Done when\n- it works\n"
+	gateNoPlan = "---\nid: 1\nstatus: working\n---\n## Spec\nsome spec\n## Done when\n- it works\n"
 )
 
 // stubGate swaps the three seams and returns a restore func. fmOK/fmRunErr drive the

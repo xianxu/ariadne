@@ -41,12 +41,12 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | PR landing with instance/publish gates and confirmation; :0/:N archive remotely and return to unchanged rest, ordinary worktrees/dependencies retain legacy cleanup |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
-| `issue new`       | (new; xx-issues skill prose)| Reserve the next ID's card on `issue-tracker` and write details locally (#252; `--from-github N` seeds from GitHub) |
-| `issue move-detail` | (new #252)                | The first-publication case of `issue publish` (#284), for one issue: publish initial details to main without shipping the filing branch; net-zero removal on the source |
+| `issue new`       | (new; xx-issues skill prose)| File on origin: the next ID's card on `issue-tracker` and the details on main, writing no checkout; a numbered slot claims what it files (#252, #308; `--from-github N` seeds from GitHub) |
+| `issue move-detail` | (new #252; hidden #308)   | Deprecated alias of `issue publish --issue N`: finishes a pre-#308 creation by publishing its local details to main; net-zero removal on the source |
 | `issue recovery`  | (new #252)                  | `list` / `reconcile --issue N` interrupted tracker operations, from the checkout that owns them |
 | `issue set-title` / `set-estimate` / `set-github` | (new #252) | Card-field setters (compare-and-swap on the card) |
 | `issue sync`      | `make issue-sync ISSUE=N`   | Legacy repositories: commit one issue locally under `#N: issue-sync: <what>`. Retired in tracker repositories (#284): a pointer at `git commit` and `issue publish` |
-| `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (first publication, or later edits by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
+| `issue publish`   | (new #244; tracker mode #284) | Tracker repositories: `--issue a,b` publishes details to main (later edits, or finishing a pre-#308 creation by the owner (anyone, while unclaimed, #274) in one narrow commit, never over a moved main). Legacy repositories: `--commit SHA` applies one selected documentation commit to fresh remote main |
 | `issue set-status`| ← flat `set-status`         | Status-transition guards (relocated #56 M2) |
 | `issue list`      | (new)                       | List issues (ID/status/title), sorted by ID; `--status` filters; reuses `listIssues` |
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
@@ -66,10 +66,10 @@ for the operator workflow and recovery contract.
 | Operation | Publication unit |
 |---|---|
 | `claim --issue N` | (#252, #283) The card's owner (the lock) on `issue-tracker`, status unchanged; nothing on main |
-| `issue new` | (#252) A new card on `issue-tracker` at `max(id)+1`; details stay local |
+| `issue new` | (#252, #308) A new card on `issue-tracker` at `max(id)+1`, then the details on main (own commit); from `repo:N`, a claim commit |
 | `change-code` | (#252) Nothing: the design is a local commit on the issue branch |
 | `unclaim --issue N` | (#284) The cleared owner and its release record on `issue-tracker`; an open claim's edits first go to main as `issue publish` |
-| `issue publish --issue N` | (#284) First publication: as `move-detail`. Republish: one main commit with the issues' edited details (never another workspace's, #274), `#a,#b: issue: publish details` |
+| `issue publish --issue N` | (#284) Finishing a pre-#308 creation: the transfer (`move-detail`). Republish: one main commit with the issues' edited details (never another workspace's, #274), `#a,#b: issue: publish details` |
 | `issue move-detail` | (#252) One main-native commit adding the initial details, plus the card's handoff record |
 | `issue sync --issue N` | Legacy repositories: one local issue-file commit; no network operation by default |
 | `issue sync --push` | Legacy repositories: only the narrow issue commit created by that invocation |

@@ -1,6 +1,7 @@
-// issuemovedetail.go — `sdlc issue move-detail` (#252): finish an issue's
-// creation early by publishing its initial details to main, without shipping
-// the branch that filed it. Details are published as a new main-native commit
+// issuemovedetail.go — finishing an incomplete creation (#252, #308): an issue
+// filed before #308 has its details only in the filing checkout; `issue
+// publish` (and its deprecated alias `move-detail`) publishes them to main
+// without shipping the branch that filed it. Details are published as a new main-native commit
 // and the source is removed by a narrow commit on the source branch: relative
 // to a base without the file that is add-then-remove, so the branch's eventual
 // merge keeps main's details and every later edit to them.
@@ -31,33 +32,24 @@ type moveDetailFlags struct {
 	DryRun    bool
 }
 
+// newIssueMoveDetailCmd keeps `move-detail` as a hidden, deprecated alias of
+// `issue publish --issue N` (#308): `issue new` now publishes details at
+// creation, so the only first publication left is finishing an incomplete
+// creation filed before #308 — which publish does.
 func newIssueMoveDetailCmd() *cobra.Command {
 	f := moveDetailFlags{}
 	cmd := markMutatingCommand(&cobra.Command{
-		Use:   "move-detail",
-		Short: "Publish an issue's initial details to main so it becomes claimable",
-		Long: `The first-publication case of ` + "`sdlc issue publish`" + ` (#284), for one issue:
-publishing is how an issue becomes real and claimable. ` + "`sdlc issue publish --issue N`" + `
-does the same, and also publishes later edits (by the owner, or anyone while unclaimed).
-
-Complete an issue's creation by publishing its initial details to main
-(#252), without shipping the branch that filed it.
-
-With local details (the creator's checkout), their current bytes are published
-as a new commit on main, then removed here: by a narrow commit on a feature
-branch, or by fast-forwarding a resting branch to that publication. The
-branch's later merge keeps main's copy and every edit made to it since.
-
-Without local details, initial details are derived from the card.
-
-Refuses when details already exist on main (creation is complete and someone
-may own them), during a merge/rebase, when the source changed after it was
-read, or when the source file is also on the branch's merge base with main.
-An interrupted run resumes with ` + "`sdlc issue recovery reconcile --issue N`" + `.`,
+		Use:           "move-detail",
+		Short:         "Deprecated alias of `sdlc issue publish --issue N`",
+		Hidden:        true,
+		Deprecated:    "use `sdlc issue publish --issue N` (issue new publishes details at creation since #308)",
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runMoveDetail(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f)
+			if f.Issue <= 0 {
+				return errors.New("--issue is required and must be positive")
+			}
+			return runTrackedPublish(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), []int{f.Issue}, f.IssuesDir, f.DryRun)
 		},
 	})
 	cmd.Flags().IntVar(&f.Issue, "issue", 0, "issue ID (required)")

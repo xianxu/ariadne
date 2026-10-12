@@ -95,8 +95,9 @@ EXAMPLES
 
 RELATED
 
-  sdlc issue new          file an issue (card on the tracker, details locally)
-  sdlc issue move-detail  complete creation by publishing initial details to main
+  sdlc issue new          file an issue on origin (card + details); from a
+                          numbered slot it is claimed by that slot
+  sdlc issue publish      publish later edits to details on main
   sdlc start-plan         start the issue (open → working), prepare its branch,
                           deliver design principles
   sdlc issue set-status   guarded lifecycle transition on the card

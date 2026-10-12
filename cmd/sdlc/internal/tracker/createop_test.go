@@ -87,7 +87,6 @@ func trackerCards(t *testing.T, op *CreationOp) []string {
 	return ids
 }
 
-
 func TestCreationPublishesCardThenDetailsAndReleasesReceipt(t *testing.T) {
 	op, receipts, root, _, main := creationFixture(t)
 	head := strings.TrimSpace(testfix.Capture(t, root, "rev-parse", "HEAD"))
@@ -313,7 +312,8 @@ func TestCreationNeverOverwritesForeignDetails(t *testing.T) {
 	// confirmation persists with the next stage's); recovery probes it either way.
 	if left, _ := receipts.List(); len(left) != 1 || left[0].Discardable() {
 		t.Fatal("reserved card lost its recovery receipt")
-	}}
+	}
+}
 
 func TestUncertainStopReportsTheGitError(t *testing.T) {
 	op, receipts, root, _, _ := creationFixture(t)

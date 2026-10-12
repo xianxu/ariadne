@@ -4,6 +4,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // Section names the presence gates validate. Constants so the names are
@@ -80,6 +82,12 @@ func CheckStructural(text string) []StructuralFailure {
 //	plan-present        — ## Plan has ≥ 1 non-empty checklist item
 //	done-when-present   — ## Done when has ≥ 1 non-empty bullet OR `related:` populated
 //
+// Content is owed only once work starts (#308): an issue whose status is the
+// not-yet-started one (vocab IsOpen) is checked for structure alone — frontmatter
+// and ## Spec present — so a freshly filed skeleton, published to main at
+// creation, conforms with its placeholder Plan and Done-when. From `working` on,
+// the Plan and Done-when content checks apply.
+//
 // Pure — no IO. Note `## Done when` is optional-with-`related:`-fallback (NOT a hard
 // required section): #124's flat-required design was disproved against the corpus.
 func CheckSectionsPresence(text string) []StructuralFailure {
@@ -97,6 +105,9 @@ func CheckSectionsPresence(text string) []StructuralFailure {
 
 	if f := checkSpecPresent(body); f != nil {
 		out = append(out, *f)
+	}
+	if status, _ := GetField(fm, "status"); vocab.Issue().IsOpen(status) {
+		return out
 	}
 	if f := checkPlan(body); f != nil {
 		out = append(out, *f)
