@@ -12,6 +12,8 @@ import (
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/reviewbox"
 )
 
 // AgentCLI names a coding-agent CLI. The default is "claude"; the
@@ -49,6 +51,10 @@ type DispatchOptions struct {
 	// reverted or half-mutated tree). An error ends the dispatch with attempt 1's
 	// text kept.
 	BeforeRetry func() error
+	// Checkout is the review checkout the agent runs in (#204), empty when it
+	// runs in the operator's tree. Dispatch confines the agent around it, or
+	// around the working directory's repository (#339).
+	Checkout string
 }
 
 // ownerBinDir is the directory of the running sdlc binary — i.e. the owner
@@ -120,6 +126,12 @@ func runProcess(ctx context.Context, onStart func(pid int), name string, args ..
 	cmd.WaitDelay = reviewShutdownGrace
 	if dir, err := ownerBinDir(); err == nil {
 		cmd.Env = binAugmentedEnv(dir, os.Environ())
+	}
+	if c, ok := ctx.Value(confinementKey{}).(*reviewbox.Confinement); ok {
+		if cmd.Env == nil {
+			cmd.Env = os.Environ()
+		}
+		cmd.Env = binAugmentedEnv(c.BinDir(), overlayEnv(cmd.Env, c.Env()))
 	}
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
@@ -221,6 +233,11 @@ func agentArgs(opts DispatchOptions) (name string, args []string, err error) {
 // stdout only (#300: on an error from a retry, the text still carries the
 // first attempt, so a caller that shows output on error loses no evidence). Captured process stderr is forwarded to opts.Stderr when one is
 // configured; it never enters verdict parsing or durable review artifacts.
+//
+// Every agent runs confined (#339): its TMPDIR is a directory Dispatch made
+// and proved writable, git can't find or create a repository outside its
+// directories, and a change outside them afterward is an error, with the text.
+// A failure to confine it means the review did not run.
 // Outcome classification is the caller's responsibility via Classify().
 //
 // Exit-code policy (review I3):
@@ -247,6 +264,55 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 	}
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
+	conf, err := confine(opts)
+	if err != nil {
+		return "", fmt.Errorf("reviewer confinement (#339), the review did not run: %w", err)
+	}
+	defer conf.Close()
+	ctx = context.WithValue(ctx, confinementKey{}, conf)
+	output, err = dispatchAttempts(ctx, opts, conf)
+	if cerr := conf.Check(); cerr != nil {
+		return output, errors.Join(err, cerr)
+	}
+	return output, err
+}
+
+// confine prepares the agent's confinement (#339): around its review checkout
+// when it has one, else around the working directory's repository.
+func confine(opts DispatchOptions) (*reviewbox.Confinement, error) {
+	if opts.Checkout != "" {
+		return reviewbox.Confine(opts.Checkout, true)
+	}
+	wd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	return reviewbox.Confine(wd, false)
+}
+
+// confinementKey carries the dispatch's confinement to Run, so the agent's
+// environment is confined without changing Run's argv or signature.
+type confinementKey struct{}
+
+// overlayEnv returns env with each KEY=value of over replacing env's KEY. Pure.
+func overlayEnv(env, over []string) []string {
+	keys := map[string]bool{}
+	for _, kv := range over {
+		k, _, _ := strings.Cut(kv, "=")
+		keys[k] = true
+	}
+	out := make([]string, 0, len(env)+len(over))
+	for _, kv := range env {
+		if k, _, _ := strings.Cut(kv, "="); !keys[k] {
+			out = append(out, kv)
+		}
+	}
+	return append(out, over...)
+}
+
+// dispatchAttempts is the dispatch proper: one attempt, and the no-verdict
+// retry (#271, #300).
+func dispatchAttempts(ctx context.Context, opts DispatchOptions, conf *reviewbox.Confinement) (string, error) {
 	first, err := dispatchOnce(ctx, opts)
 	if err != nil || HasVerdict(first) {
 		return first, err
@@ -258,6 +324,10 @@ func Dispatch(ctx context.Context, opts DispatchOptions) (output string, err err
 		if err := opts.BeforeRetry(); err != nil {
 			return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (not started: " + err.Error() + ")\n", err
 		}
+	}
+	// The reset checkout lost the base inside it; a retry is confined too.
+	if err := conf.Prepare(); err != nil {
+		return "## Attempt 1 (ended without a verdict)\n\n" + first + "\n\n## Attempt 2 (not started: " + err.Error() + ")\n", err
 	}
 	again := opts
 	again.Prompt = opts.Prompt + retryNotice

@@ -839,6 +839,7 @@ func boundaryReviewOptionsFor(stdout, stderr io.Writer, p boundaryReviewParams, 
 	}
 	if iso != nil {
 		opts.Wrap = iso.Wrap
+		opts.Checkout = iso.Dir // its temp dir and git shim live there (#339)
 		opts.Containment = judge.ContainCheckout
 		if iso.Level() == reviewbox.LevelFenced {
 			opts.Containment = judge.ContainFenced
