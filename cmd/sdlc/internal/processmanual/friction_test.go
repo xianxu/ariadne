@@ -138,6 +138,7 @@ func TestClassifyOutputLine(t *testing.T) {
 		{"ci head lag", "CI gate: PR #7's head on GitHub is not the pushed head merge pins, so its checks belong to another commit", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
 		{"ci unread", "CI gate: could not read PR #7's checks (refusing; unread is not green): HTTP 502", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
 		{"ci head tree", "CI gate: read abc's tree for .github/workflows: bad object", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
+		{"ci missing verdict", "CI gate: PR #7 has not reported local-gates-guard/verdict, which main's local-gates guard posts on every PR head", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
 		{"ci cannot pin", "CI gate: cannot pin the merge (head \"\", PR \"42\")", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
 		{"ci green is not a refusal", "  " + esc + "[1;32m[ok]" + esc + "[0m CI checks: 2 green on PR #7", "merge", false, 0, "", 0},
 		{"ci none is not a refusal", "  " + esc + "[1;32m[ok]" + esc + "[0m CI checks: none, and no workflows on the head — nothing to wait for", "merge", false, 0, "", 0},

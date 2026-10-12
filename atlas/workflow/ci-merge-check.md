@@ -91,8 +91,12 @@ and `sdlc merge` will not land over it:
   commit status on the PR head, so `gh pr checks` (and merge's CI gate) see the
   latest verdict for that head whichever way GitHub attaches the job's check.
   Tested by executing the real run block: `scripts/test/local-gates-guard.test.sh`,
-  run with `portable-ci.test.sh` by ariadne's `merge-checks.d/20-ci-workflow-tests.sh`
-  on every PR and push.
+  run in CI by ariadne's `merge-checks.d/20-ci-workflow-tests.sh`, which runs
+  every `scripts/test/*.test.sh` except two named exclusions.
+- **Absence is not green.** The guard posts `pending` first and turns any exit
+  before a decision into `failure`; merge's CI gate requires the
+  `local-gates-guard/verdict` status whenever the target main carries the
+  guard, so a run that never reported refuses.
 - **The label is the operator's marker.** Only the operator applies
   `local-gates-verified`; no sdlc verb does and agents are told never to. A
   local-gates change is its own issue with operator-held verification. Honest

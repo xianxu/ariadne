@@ -41,6 +41,16 @@ const (
 	ciNotRegistered                 // no checks yet, but the head carries workflows
 	ciUnknown                       // a bucket this gate does not know
 	ciHeadLag                       // GitHub's PR head is not (or stopped being) the head merge pins
+	ciMissing                       // a check main requires has not reported on the head
+)
+
+// localGatesWorkflow is the seeded local-gates guard (#309). It runs main's copy on
+// pull_request_target and posts localGatesVerdict on the PR head; while main carries
+// it, merge requires that status, because a run that never reported must not
+// read as green (BR-11).
+const (
+	localGatesWorkflow = ".github/workflows/local-gates-guard.yml"
+	localGatesVerdict  = "local-gates-guard/verdict"
 )
 
 func (r ciReason) passes() bool { return r == ciGreen || r == ciNoWorkflows }
@@ -95,6 +105,8 @@ func (v ciVerdict) refusal(pr int) error {
 		fmt.Fprintf(&b, "CI gate: PR #%d has checks in a state this gate does not know (refusing, fail closed)", pr)
 	case ciNotRegistered:
 		fmt.Fprintf(&b, "CI gate: PR #%d reports no checks yet, but its head carries .github/workflows (GitHub has not registered them)", pr)
+	case ciMissing:
+		fmt.Fprintf(&b, "CI gate: PR #%d has not reported %s, which main's local-gates guard posts on every PR head", pr, localGatesVerdict)
 	case ciHeadLag:
 		fmt.Fprintf(&b, "CI gate: PR #%d's head on GitHub is not the pushed head merge pins, so its checks belong to another commit", pr)
 	default:
@@ -190,6 +202,19 @@ func (realGH) PRChecks(ctx context.Context, repo string, number int) ([]prCheck,
 	return parsePRChecks(stdout.Bytes(), stderr.Bytes(), runErr)
 }
 
+// requiredChecks names the checks main requires on every PR head: the guard's
+// verdict while main (base) carries the guard workflow.
+func requiredChecks(git func(args ...string) (string, error), base string) ([]string, error) {
+	out, err := git("ls-tree", "--name-only", base, localGatesWorkflow)
+	if err != nil {
+		return nil, fmt.Errorf("read %s's tree for %s: %w", base, localGatesWorkflow, err)
+	}
+	if strings.TrimSpace(out) == "" {
+		return nil, nil
+	}
+	return []string{localGatesVerdict}, nil
+}
+
 // headHasWorkflows reports whether head's tree carries .github/workflows, via
 // the given git call (each merge path has its own runner).
 func headHasWorkflows(git func(args ...string) (string, error), head string) (bool, error) {
@@ -202,7 +227,7 @@ func headHasWorkflows(git func(args ...string) (string, error), head string) (bo
 
 // runCIGate reads PR number's checks and refuses unless they are green. A query
 // failure refuses too: unable to read is not green. noCI waives only this gate.
-func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, head string, git func(args ...string) (string, error), noCI bool, stderr io.Writer) error {
+func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, head string, git func(args ...string) (string, error), noCI bool, stderr io.Writer) error {
 	if noCI {
 		cwarn(stderr, "⚠️  --no-ci: SKIPPING the CI gate (#309) — landing without reading the PR's checks. Escape hatch for a broken CI system: say why in your log.")
 		return nil
@@ -236,10 +261,28 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, head s
 	if !v.Reason.passes() {
 		return v.refusal(number)
 	}
+	required, err := requiredChecks(git, base)
+	if err != nil {
+		return fmt.Errorf("CI gate: %w", err)
+	}
+	for _, name := range required {
+		if !hasCheck(checks, name) {
+			return ciVerdict{Reason: ciMissing}.refusal(number)
+		}
+	}
 	if v.Reason == ciNoWorkflows {
 		cok(stderr, "CI checks: none, and no workflows on the head — nothing to wait for")
 	} else {
 		cok(stderr, fmt.Sprintf("CI checks: %d green on PR #%d", len(checks), number))
 	}
 	return nil
+}
+
+func hasCheck(checks []prCheck, name string) bool {
+	for _, c := range checks {
+		if c.Name == name {
+			return true
+		}
+	}
+	return false
 }

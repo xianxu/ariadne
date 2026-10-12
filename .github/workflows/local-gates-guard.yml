@@ -73,10 +73,26 @@ jobs:
           )
           case "$PR_NUMBER" in ''|*[!0-9]*) echo "local-gates-guard: bad PR number '$PR_NUMBER'" >&2; exit 2 ;; esac
           case "$HEAD_SHA" in *[!0-9a-f]*|'') echo "local-gates-guard: bad head SHA" >&2; exit 2 ;; esac
+          decided=""
+          verdict() {
+            decided=1
+            gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" \
+              -f state="$1" -f context=local-gates-guard/verdict -f description="$2" >/dev/null
+          }
+          # Absence must never read as green: the verdict is pending from the
+          # start, and any exit before a decision (an error, a cancellation)
+          # turns it into a failure. sdlc merge also requires this status
+          # whenever main carries this guard.
+          trap '[ -n "$decided" ] || verdict failure "local-gates-guard stopped before deciding"' EXIT
+          gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" \
+            -f state=pending -f context=local-gates-guard/verdict -f description="deciding" >/dev/null
           git fetch --no-tags --quiet origin "+refs/pull/${PR_NUMBER}/head:refs/remotes/pr/head"
           head="$(git rev-parse refs/remotes/pr/head)"
           if [ "$head" != "$HEAD_SHA" ]; then
             echo "local-gates-guard: the PR head moved to $head; the run for that push decides it"
+            # The event head is no longer mergeable (merge pins the PR head), so
+            # this run decides nothing; its pending status stays on the old head.
+            decided=1
             exit 0
           fi
           base="$(git merge-base "$BASE_SHA" "$head")"
@@ -90,10 +106,6 @@ jobs:
               fi
             done
           done < <(git -c core.quotePath=false diff -z --name-only --no-renames "$base" "$head")
-          verdict() {
-            gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" \
-              -f state="$1" -f context=local-gates-guard/verdict -f description="$2" >/dev/null
-          }
           if [ "${#touched[@]}" -eq 0 ]; then
             echo "local-gates-guard: no local-gates paths touched"
             verdict success "no local-gates paths touched"

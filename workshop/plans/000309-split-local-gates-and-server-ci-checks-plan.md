@@ -204,7 +204,14 @@ and a workflow file; check runs age out under GitHub's retention.
     newer head's own run posts its verdict, and merge's gate reads the head.
   - Changed paths are read with `-z` and `core.quotePath=false` (BR-5).
   - D7: merge-check run blocks take event values through `env:` too.
-  - Tests are wired: `scripts/merge-checks.d/20-ci-workflow-tests.sh` runs the
-    guard and portable-ci tests in CI and pre-push (ariadne-local).
+  - Tests are wired: `scripts/merge-checks.d/20-ci-workflow-tests.sh` runs
+    every `scripts/test/*.test.sh` in CI (ariadne has no pre-push hook calling
+    the runner), excluding by name only release-weave (weave-release.yml runs
+    it) and slot-dependencies (manual product acceptance).
   - README documents the guard, the label and the push run (BR-7).
   - The live check also confirms whether a failed guard job marks main's tip.
+- 2026-10-12, M2 review round 2 (BR-11): absence of a verdict must not read as
+  green. The guard posts `pending` before any work and an EXIT trap turns any
+  undecided exit into `failure`; merge's CI gate requires the
+  `local-gates-guard/verdict` status whenever the target main carries the
+  guard workflow (a run that never started is pending, not green).

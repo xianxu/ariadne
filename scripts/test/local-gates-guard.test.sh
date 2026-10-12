@@ -45,7 +45,8 @@ with tempfile.TemporaryDirectory(prefix='guard ') as tmp:
         guard=root/f'guard{num}'; g('clone','-q',str(server),str(guard))
         statuses.write_text('')
         env=dict(os.environ,PATH=f'{bin_}:{os.environ["PATH"]}',STATUS_LOG=str(statuses),GH_TOKEN='t',REPO='o/r',
-                 PR_NUMBER=str(num),BASE_SHA=base,HEAD_SHA=head_override or head,GH_LABELS='\n'.join(labels)+'\n',**(extra or {}))
+                 PR_NUMBER=str(num),BASE_SHA=base,HEAD_SHA=head_override or head,GH_LABELS='\n'.join(labels)+'\n')
+        env.update(extra or {})
         r=subprocess.run(['bash','-c',block],cwd=guard,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         return r.returncode,r.stdout,statuses.read_text()
 
@@ -63,7 +64,11 @@ with tempfile.TemporaryDirectory(prefix='guard ') as tmp:
     # Labels unreadable: refuse and say so (fail closed).
     code,out,st=pr(['bootstrap.sh'],['local-gates-verified'],extra={'GH_LABELS_FAIL':'1'}); assert code==2 and 'state=failure' in st,(code,out)
     # The PR head moved since the event: this run decides nothing and posts nothing.
-    code,out,st=pr(['bootstrap.sh'],[],head_override='0'*40); assert code==0 and 'moved' in out and st=='',(code,out,st)
+    code,out,st=pr(['bootstrap.sh'],[],head_override='0'*40); assert code==0 and 'moved' in out and st.count('state=')==1 and 'state=pending' in st,(code,out,st)
+    # Every decided run starts pending and ends with exactly one final verdict.
+    code,out,st=pr(['README'],[]); assert st.splitlines()[0].count('state=pending')==1 and st.count('state=')==2 and 'state=success' in st.splitlines()[-1],st
+    # A run that stops before deciding (the PR ref cannot be fetched) leaves a failure, never silence.
+    code,out,st=pr(['README'],[],extra={'PR_NUMBER':'999'}); assert code!=0 and 'state=failure' in st.splitlines()[-1] and 'stopped before deciding' in st,(code,out,st)
     # Gate code is not protected.
     code,out,st=pr(['cmd/sdlc/merge.go'],[]); assert code==0,out
     # Decision: touched x labeled.

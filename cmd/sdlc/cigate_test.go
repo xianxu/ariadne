@@ -147,28 +147,42 @@ func (g *checksGH) PRChecks(context.Context, string, int) ([]prCheck, error) {
 }
 
 func TestRunCIGate(t *testing.T) {
-	withWF := func(args ...string) (string, error) { return ".github/workflows\n", nil }
-	noWF := func(args ...string) (string, error) { return "", nil }
+	// tree answers ls-tree: the head's .github/workflows, and main's guard workflow.
+	tree := func(workflows, guard bool) func(args ...string) (string, error) {
+		return func(args ...string) (string, error) {
+			if args[len(args)-1] == localGatesWorkflow {
+				if guard && args[len(args)-2] == "b" {
+					return localGatesWorkflow + "\n", nil
+				}
+				return "", nil
+			}
+			if workflows {
+				return ".github/workflows\n", nil
+			}
+			return "", nil
+		}
+	}
+	withWF, noWF, guardMain := tree(true, false), tree(false, false), tree(true, true)
 	brokenGit := func(args ...string) (string, error) { return "", errors.New("bad object") }
 	ctx := context.Background()
 
 	g := &checksGH{err: errors.New("HTTP 502")}
-	if err := runCIGate(ctx, g, "o/r", 3, "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "could not read") {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "could not read") {
 		t.Fatalf("query failure: %v", err)
 	}
 	g = &checksGH{err: errors.New("HTTP 502")}
 	var warn bytes.Buffer
-	if err := runCIGate(ctx, g, "o/r", 3, "h", withWF, true, &warn); err != nil || g.calls != 0 || !strings.Contains(warn.String(), "--no-ci") {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, true, &warn); err != nil || g.calls != 0 || !strings.Contains(warn.String(), "--no-ci") {
 		t.Fatalf("--no-ci: err %v calls %d warn %q", err, g.calls, warn.String())
 	}
 	g = &checksGH{}
-	if err := runCIGate(ctx, g, "o/r", 3, "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "no checks yet") {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "no checks yet") {
 		t.Fatalf("unregistered: %v", err)
 	}
-	if err := runCIGate(ctx, g, "o/r", 3, "h", noWF, false, io.Discard); err != nil {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", noWF, false, io.Discard); err != nil {
 		t.Fatalf("no workflows: %v", err)
 	}
-	if err := runCIGate(ctx, g, "o/r", 3, "h", brokenGit, false, io.Discard); err == nil {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", brokenGit, false, io.Discard); err == nil {
 		t.Fatal("unreadable head tree passed")
 	}
 	// BR-1: GitHub's PR head lags the push, or moves during the read — the
@@ -176,16 +190,39 @@ func TestRunCIGate(t *testing.T) {
 	green := []prCheck{{Name: "merge-check", Bucket: "pass"}}
 	for _, heads := range [][]string{{"old", "old"}, {"h", "new"}, {"old", "h"}} {
 		g = &checksGH{checks: green, heads: heads}
-		if err := runCIGate(ctx, g, "o/r", 3, "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "another commit") {
+		if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "another commit") {
 			t.Fatalf("heads %v: %v", heads, err)
 		}
 	}
 	g = &checksGH{checks: green, heads: []string{"h", "h"}}
-	if err := runCIGate(ctx, g, "o/r", 3, "h", withWF, false, io.Discard); err != nil {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, false, io.Discard); err != nil {
 		t.Fatalf("bound green: %v", err)
 	}
+	// BR-11: while main carries the guard, its verdict must be reported; an
+	// absent verdict is not green, a pending one is pending.
+	g = &checksGH{checks: green}
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", guardMain, false, io.Discard); err == nil || !strings.Contains(err.Error(), localGatesVerdict) {
+		t.Fatalf("missing verdict: %v", err)
+	}
+	g = &checksGH{checks: append(green, prCheck{Name: localGatesVerdict, Bucket: "pass"})}
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", guardMain, false, io.Discard); err != nil {
+		t.Fatalf("verdict present: %v", err)
+	}
+	g = &checksGH{checks: append(green, prCheck{Name: localGatesVerdict, Bucket: "pending"})}
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", guardMain, false, io.Discard); err == nil || !strings.Contains(err.Error(), "still running") {
+		t.Fatalf("verdict pending: %v", err)
+	}
+	g = &checksGH{checks: green}
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", func(args ...string) (string, error) {
+		if args[len(args)-1] == localGatesWorkflow {
+			return "", errors.New("bad object")
+		}
+		return "", nil
+	}, false, io.Discard); err == nil {
+		t.Fatal("unreadable main tree passed")
+	}
 	g = &checksGH{checks: []prCheck{{Name: "local-gates-guard", Bucket: "fail", Link: "https://x/9"}}}
-	if err := runCIGate(ctx, g, "o/r", 3, "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "local-gates-guard") || !strings.Contains(err.Error(), "https://x/9") {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "local-gates-guard") || !strings.Contains(err.Error(), "https://x/9") {
 		t.Fatalf("red: %v", err)
 	}
 }

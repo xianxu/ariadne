@@ -560,7 +560,7 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			out, err := mergeRunner.Git(args...)
 			return string(out), err
 		}
-		if err := runCIGate(ctx, ghClient, repo, prNum, head, gitCall, f.NoCI, stderr); err != nil {
+		if err := runCIGate(ctx, ghClient, repo, prNum, "origin/main", head, gitCall, f.NoCI, stderr); err != nil {
 			die(stderr, err.Error())
 		}
 		cinfo(stderr, fmt.Sprintf("Merging PR #%s (%s) into main via GitHub...", prNumber, branch))
