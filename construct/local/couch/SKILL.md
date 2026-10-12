@@ -17,9 +17,8 @@ Loading this skill sends nothing and starts no work. Message a peer only when
 your task calls for it, and only as `couch --skill` describes.
 
 **In a Couch slot**, the constitution's §15 (Couch Slots) applies on top of the
-protocol: report every item's outcome to the hub (`couch --send-to hub`), ask the
-hub rather than an in-pane question prompt, and call `couch` as a plain leading
-command (nothing piped or chained after it) with no `$(`, `<(` or backticks in its arguments.
+protocol. It covers reporting to and asking the hub, and the exact form of a
+`couch` call that stays outside the sandbox. Read it there; it is not restated here.
 
 **If `couch` is not installed** (`command -v couch` finds nothing), stop. Tell
 the operator that Couch peer messaging is unavailable in this environment
