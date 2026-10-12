@@ -46,7 +46,7 @@ Durable plan: `workshop/plans/000339-reviewer-confinement-plan.md`. Single pass,
 - [x] Pure pieces: outside-write snapshot diff, git shim (refuses init/clone outside the reviewer's roots)
 - [x] Confinement: base dir (inside the checkout, else temp), TMPDIR/CLAUDE_CODE_TMPDIR, GIT_CEILING_DIRECTORIES, shim on PATH; setup failure aborts
 - [x] Dispatch wiring for every judge + incident repro test (forced mktemp failure)
-- [ ] Atlas/helptext; make test
+- [x] Atlas/helptext; make test
 
 ## Log
 
@@ -56,3 +56,4 @@ Durable plan: `workshop/plans/000339-reviewer-confinement-plan.md`. Single pass,
 - Repro tests (`judge/confine_unix_test.go`, a real subprocess fake claude): the incident script (mktemp failing) gets no `~/.git` and the outside write `~/scripts` fails the dispatch, naming the path; an unwritable temp parent aborts before the reviewer runs; plain `mktemp -d` + a scratch repo work in the reviewer's own TMPDIR (red on macOS before the mktemp shim). Mutation: with the shim dropped from PATH, the incident test fails ("created a repository in HOME").
 - Live check (real `claude -p` through `Dispatch`, throwaway test): claude's Bash rebuilds PATH from the shell snapshot, so a PATH shim in the process env never reached its commands (`command -v git` → /usr/bin/git); TMPDIR did reach them (via CLAUDE_CODE_TMPDIR). Fix: the confinement writes `env.sh` and sets CLAUDE_ENV_FILE (sourced by claude before each Bash command; an inherited env file is sourced first). After it: TMPDIR = the base's tmp, git and mktemp resolve to the shims, `mktemp -d` + `git init` inside worked, `git init` in an outside dir was refused (rc 128), and the no-verdict retry re-prepared the base. The nested claude's own sandbox still fails to start (EPERM on its socket), as in production.
 - `TestDispatchParentDeadlineCannotBecomeVerdict` used a 20 ms parent deadline, which confinement setup now uses up before the fake reviewer starts; widened to 500 ms so the deadline still lands while the reviewer runs.
+- make test (12 shards): every failure outside my diff. `TestPlanningReviewCompetingResults` is #338 (main red; ariadne:1 fixing). `TestVerbContextsReachTrackerReads` flags `internal/testfix/blockingorigin.go`, identical to origin/main, so a static guard red on main. `repolock` TestConcurrentAcquireReclaimsDeadHolderOnce and `weave` TestCompileCancellationStopsLateGeneratorChild failed under load and pass alone. Mine: `TestGitDrivingPackagesPreferRealGit` (judge tests now spawn git) is fixed with a judge TestMain (testgate.Enter + PreferRealGit) and now passes.
