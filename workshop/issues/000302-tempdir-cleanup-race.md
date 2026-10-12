@@ -1,12 +1,12 @@
 ---
 id: 000302
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-08
 updated: 2026-10-12
 estimate_hours:
-card_mirror: '685fdb50fe8e74a834d7f3d6c7bd9afc72118c30' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '55cfb6d1a27ca92a30b54f9fdcd65faadcc3183b' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T10:29:38-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "0c704fd7", done: "ad3fb0e6"}
+actual_hours: 1.53
 ---
 
 # Test TempDir cleanup race: directory not empty under sharded make test
