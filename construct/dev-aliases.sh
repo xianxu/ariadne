@@ -12,7 +12,7 @@
 #   X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }
 #
 # An owner whose build needs a generated input (a gitignored embed tree, say)
-# declares a `dev-prepare:` rule in its Makefile or Makefile.local (#299). Its
+# declares a `dev-prepare` rule in its Makefile or Makefile.local (#299). Its
 # functions then run that step first, with make's stdout sent to stderr so the
 # binary's own stdout stays clean; a failed step fails the call:
 #
@@ -220,9 +220,12 @@ fi
 final="$(printf '%s\n' "$candidates" | awk -F'\t' 'NF{last[$1]=$2} END{for (k in last) printf "%s\t%s\n", k, last[k]}' | LC_ALL=C sort)"
 
 # owner_prepares: the owner declares a dev-prepare step (#299). Checked where the
-# base layer's Makefile looks for local rules, so declaring it is one rule.
+# base layer's Makefile looks for local rules (it includes Makefile.local, so
+# `make dev-prepare` finds the rule there), so declaring it is one rule. Accepted:
+# a rule line naming dev-prepare among its targets (`dev-prepare: deps`, `a
+# dev-prepare :`). Not a declaration: `.PHONY: dev-prepare`, `dev-prepare := x`.
 owner_prepares() {
-	grep -qsE '^dev-prepare:' "$1/Makefile" "$1/Makefile.local"
+	grep -qsE '^([^#=:]*[[:space:]])?dev-prepare[[:space:]]*:([^=]|$)' "$1/Makefile" "$1/Makefile.local"
 }
 
 printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do

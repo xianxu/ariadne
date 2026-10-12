@@ -76,6 +76,10 @@ printf '.PHONY: dev-prepare\n' > "$WS/prepd/Makefile.local"
 assert_not_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a .PHONY mention alone does not declare the step"
 printf 'dev-prepare:\n\t@true\n' > "$WS/prepd/Makefile"; rm -f "$WS/prepd/Makefile.local"
 assert_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a dev-prepare rule in Makefile also declares it"
+printf 'dev-prepare := x\n' > "$WS/prepd/Makefile.local"; rm -f "$WS/prepd/Makefile"
+assert_not_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a dev-prepare variable assignment is not a declaration"
+printf 'assets dev-prepare : gen.stamp\n' > "$WS/prepd/Makefile.local"
+assert_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a multi-target rule naming dev-prepare declares it"
 
 # Run the emitted function against stub make/go: preparation runs first, its
 # stdout stays off the binary's stdout, and a failed step fails the call loudly

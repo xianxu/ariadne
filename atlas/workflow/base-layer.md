@@ -90,11 +90,13 @@ the **caller's** cwd, so it's always fresh and works for both repo-bound tools
 emitted form is `X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o
 bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }` (the `rm -f` mirrors the owner
 Makefiles' code-signing-inode safety). An owner whose build needs a generated
-input (pair's gitignored runtime-bundle embed tree) declares a `dev-prepare:`
+input (pair's gitignored runtime-bundle embed tree) declares a `dev-prepare`
 rule in its `Makefile` or `Makefile.local` (#299); its functions then run `make
 -s dev-prepare >&2` before `go build`, so a fresh slot builds without a manual
 `make`. A failed step fails the call. The owner keeps the step cheap when its
-inputs are up to date, and owners without the rule keep the plain form. The function only **builds + runs** — it
+inputs are up to date, and owners without the rule keep the plain form. The
+function is emitted when the shell sources the aliases, so a newly declared
+rule takes effect in the next shell. The function only **builds + runs** — it
 does **not** manage services (no `launchctl bootout`); use the owner's `make
 <name>-dev` target for the stop-prod-then-serve flow. It's also a *shell
 function* — not on PATH and not reachable from cron/launchd; a derivative that
