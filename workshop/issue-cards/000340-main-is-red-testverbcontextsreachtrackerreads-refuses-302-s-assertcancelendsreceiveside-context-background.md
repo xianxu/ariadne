@@ -1,6 +1,6 @@
 ---
 id: 000340
-status: codecomplete
+status: done
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: ee93f7511b6ad73d4523da37369c47624881b9a4
         evidence_commit: 0b200b44116ebd11b4b58cda368af30d496bee85
+        landed_commit: f5594b92ccd22f68587c08f40905e4782e7e5323
 ---
 
 # main is red: TestVerbContextsReachTrackerReads refuses #302's AssertCancelEndsReceiveSide (context.Background)
