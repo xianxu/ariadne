@@ -6,7 +6,7 @@ Use this template when dispatching a plan document reviewer subagent.
 
 **Purpose:** Verify the plan chunk is complete, matches the spec, and has proper task decomposition.
 
-**Dispatch after:** Each plan chunk is written
+**Dispatch (optional, at most once per chunk) after:** a plan chunk is written
 
 ```
 Task tool (general-purpose):

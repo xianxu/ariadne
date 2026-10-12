@@ -257,7 +257,7 @@ AI: Brainstorming's step 8, the process graph and the "Spec Review Loop" section
 the spec review optional and advisory, run once, only for broad, ambiguous or high-risk
 work; step 9 and the User Review Gate make the user's agreement the design approval. A
 "Who approves what" block names the chain: brainstorming/spec → durable plan →
-`change-code` plan-quality → code → milestone/close review. writing-plans' "Plan Review
+`change-code` plan-quality gate → code → milestone/close review. writing-plans' "Plan Review
 Loop" became "Plan Review": `change-code`'s plan-quality gate is the mandatory review and
 owns the ledger; the plan-document reviewer is an optional editing aid, at most once per
 chunk. The Execution Handoff runs `sdlc change-code` before executing. Both reviewer
@@ -269,6 +269,6 @@ ones logged in `## Log`, so `change-code` sees them without a repeat review.
 - Brainstorming has no "re-dispatch until approved" loop; the spec review is optional, with criteria
 - The user's agreement to the written spec is named as the design approval
 - writing-plans names `sdlc change-code`'s plan-quality gate as the mandatory plan review; its own reviewer is advisory, with no "Repeat until ✅ Approved"
-- Both skills state the chain brainstorming/spec → durable plan → `change-code` plan-quality → code → milestone/close review
+- Both skills state the chain brainstorming/spec → durable plan → `change-code` plan-quality gate → code → milestone/close review
 - Neither reviewer template reports "Approved"
 - All previous verify clauses (Conv 1-11) still hold, except Conversation 1's spec-reviewer location clause now applies to an optional reviewer

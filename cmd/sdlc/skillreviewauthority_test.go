@@ -77,3 +77,16 @@ func TestDocumentReviewersDoNotApprove(t *testing.T) {
 		}
 	}
 }
+
+// The atlas names the same chain in the same words, so the map and the skills
+// cannot drift apart.
+func TestLifecycleAtlasNamesReviewChain(t *testing.T) {
+	path := filepath.Join("..", "..", "atlas", "workflow", "issue-lifecycle.md")
+	body, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("read %s: %v", path, err)
+	}
+	if !strings.Contains(string(body), reviewChain) {
+		t.Errorf("%s no longer states the review chain %q (#228)", path, reviewChain)
+	}
+}
