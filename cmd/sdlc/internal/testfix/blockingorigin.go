@@ -1,6 +1,7 @@
 package testfix
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,5 +46,31 @@ func BlockingOrigin(t *testing.T) (origin string, hookPID func() int) {
 		}
 		t.Fatalf("the pre-receive hook never started within %v", HangCeiling)
 		return 0
+	}
+}
+
+// AssertCancelEndsReceiveSide proves that cancelling push (one git runner,
+// pushing root's HEAD to origin's main under ctx) ends the receive side with it:
+// the call returns an error, and the blocked pre-receive hook dies (#302).
+func AssertCancelEndsReceiveSide(t *testing.T, push func(ctx context.Context, root, origin string) error) {
+	t.Helper()
+	root := Repo(t, InitialCommit())
+	origin, hookPID := BlockingOrigin(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	done := make(chan error, 1)
+	go func() { done <- push(ctx, root, origin) }()
+	pid := hookPID()
+	cancel()
+	select {
+	case err := <-done:
+		if err == nil {
+			t.Fatal("a cancelled push reported success")
+		}
+	case <-time.After(HangCeiling):
+		t.Fatalf("the cancelled push did not return within %v", HangCeiling)
+	}
+	if err := AwaitExit(pid, HangCeiling); err != nil {
+		t.Fatalf("the receive side outlived the cancelled push: %v", err)
 	}
 }

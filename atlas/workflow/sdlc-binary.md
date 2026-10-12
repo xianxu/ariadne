@@ -1565,9 +1565,11 @@ and through a `GIT_TEMPLATE_DIR` config for every repository it creates. The
 template is needed because git unsets the config environment for the receive
 side of a local push (#302). Late writers into a temp repo race `t.TempDir`'s
 cleanup ("directory not empty"). The one #302 found was a cancelled git whose
-local-transport far end (receive-pack) kept writing. Every context-bound git
-runner therefore kills the whole process group (`processgroup.Terminate`); a
-new one must too, and `testfix.BlockingOrigin` tests it.
+local-transport far end (receive-pack) kept writing. So every context-bound
+git runner that pushes or fetches, or otherwise spawns hooks or transports,
+kills the whole process group (`processgroup.Terminate`). A read-only `git log`
+stream has no far end and is exempt. A new runner of that kind adds one
+`testfix.AssertCancelEndsReceiveSide` test.
 
 A test known to fail for a tracked reason is quarantined by name:
 `testfix.Quarantine(t, "#N", why)` as its first line skips it with a `QUARANTINED (#N)`
