@@ -178,6 +178,23 @@ rounds:
       isolation: checkout
       reviewed: 719cf451355b8661b6662d69d8d0fc20f32e8c20
       blocked: false
+    - "n": 6
+      timestamp: "2026-10-12T14:21:35-07:00"
+      dispatched: "2026-10-12T14:16:28-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: 'RefusalPat is now the `CI gate: ` prefix (gatesig.go:164); friction_test.go adds rows for the head-tree read and cannot-pin plus every other refusal and negative success lines.'
+          round: 6
+        - id: BR-13
+          disposition: not-addressed
+          note: The fix at merge.go:563-566 is correct, but TestRunMerge_GuardOnFreshMainRequiresVerdict still passes with it reverted (checked; the step 9b in-place fetch refreshes the ref). Add a linked-worktree fixture that goes red without the fetch.
+          round: 6
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: 1a7aa8de60c4245f06267e2b9e94241f221dc895
+      blocked: false
 ---
 
 # Gate ledger — ariadne#309 (boundary-review)
@@ -254,7 +271,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-13** [Minor] `guard-decides-on-live-state` Legacy merge path reads a possibly stale origin/main to decide whether the guard verdict is required
   merge.go:563 passes origin/main to runCIGate, but it is fetched only when inPlace (merge.go:534 admits it is stale). A local origin/main that predates the guard skips the requirement, so a guard run that never reported passes again. Rule: every runCIGate caller passes a freshly fetched base. Fix: fetch origin main before the gate, as lines 507 and 539 already do.
 
+## Round 6 — 2026-10-12T14:21:35-07:00 (claude) — passed
+
+### Disposed
+
+- BR-3 — addressed — RefusalPat is now the `CI gate: ` prefix (gatesig.go:164); friction_test.go adds rows for the head-tree read and cannot-pin plus every other refusal and negative success lines.
+- BR-13 — not-addressed — The fix at merge.go:563-566 is correct, but TestRunMerge_GuardOnFreshMainRequiresVerdict still passes with it reverted (checked; the step 9b in-place fetch refreshes the ref). Add a linked-worktree fixture that goes red without the fetch.
+
 ## Open findings
 
-- **BR-3** [Minor] `gate-catalog-covers-all-refusals` no-ci RefusalPat misses the head-tree-read and cannot-pin refusals
 - **BR-13** [Minor] `guard-decides-on-live-state` Legacy merge path reads a possibly stale origin/main to decide whether the guard verdict is required
