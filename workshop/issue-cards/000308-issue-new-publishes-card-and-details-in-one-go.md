@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 2.89
+actual_hours: 3.04
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000308-issue-new-publishes-card-and-details-in-one-go.md
         main_commit: daa215189ad80f16e5ac3e0909c4f93b773fecbe
     completion:
-        token: close-a441db3283a6
+        token: close-a8e1115a64fa
         repository: github.com/xianxu/ariadne
-        reviewed_head: ab8a8dfbbf6287ac56354d19ace0ae65958d29d6
-        evidence_commit: 5c0c6832878fee06af9a68fe0837eefe403a3f39
+        reviewed_head: 6c63b9a685046aea5e62c469684a60f7a83b60c5
+        evidence_commit: b511dc0ee225cae9d52b0b2fd2ffbecf018c4a3b
 ---
 
 # issue new publishes card and details in one go
