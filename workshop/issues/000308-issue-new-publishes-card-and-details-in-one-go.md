@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-09
 updated: 2026-10-12
-estimate_hours:
-card_mirror: '79db0adf41f16b06ea6122d78eeb152fe767ae39' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 2.88
+card_mirror: '756dd4b5587c77837b2594a2e673a522f315eacc' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T07:19:01-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # issue new publishes card and details in one go
@@ -48,6 +49,40 @@ Operator design D-1 (revised) with round-3/4 decisions:
 - `move-detail` is gone or a deprecated alias, and help text no longer mentions an escape hatch.
 - Closing an issue tracked by a peer repo's project leaves the peer's checkout untouched; the tick lands on the peer's origin.
 - A merge never refuses on an issue file the branch didn't change.
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec               design=0.5  impl=0.05
+item: smaller-go-module        design=0.15 impl=0.2
+item: smaller-go-module        design=0.1  impl=0.16
+item: smaller-go-module        design=0.05 impl=0.1
+item: cross-cutting-refactor   design=0.1  impl=0.14
+item: smaller-go-module        design=0.05 impl=0.14
+item: greenfield-go-module     design=0.2  impl=0.24
+item: smaller-go-module        design=0.05 impl=0.08
+item: atlas-docs               design=0.05 impl=0.05
+item: milestone-review         design=0.0  impl=0.14
+item: milestone-review         design=0.0  impl=0.14
+design-buffer: 0.15
+total: 2.88
+```
+
+Items, in order:
+- issue-spec: exploration, the TL question, the plan, and a plan-quality round.
+- smaller-go-module ×3:
+  1. `DetailPublication` + the `creation.main` stage + legacy receipts;
+  2. `runIssueNew` claim from a slot + the C5 guard;
+  3. status-aware section presence.
+- cross-cutting-refactor: retire `move-detail` and sweep its wording.
+- smaller-go-module: extract `projectCloseEdit`.
+- greenfield-go-module: `publishPeerProject` + the apply path, and delete `peerwrite`.
+- smaller-go-module: `--no-project`.
+- atlas-docs, then two milestone reviews.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* The calibration source is flagged stale (#127).
 
 ## Plan
 
