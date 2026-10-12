@@ -52,7 +52,12 @@ var die = func(stderr io.Writer, msg string) {
 	exitWithCode(1)
 }
 
-func exitWithCode(code int) {
+// exitWithCode runs the registered die cleanups and exits the process. It is a
+// package var for the same reason die is: a verb that exits WITHOUT going through
+// die (runChangeCode's gate loop, #191) is drivable in-process only if the exit
+// itself can be swapped. See expectExit in die_test.go; die's own exit goes
+// through here, so this stays the one process-exit seam.
+var exitWithCode = func(code int) {
 	runDieCleanups()
 	os.Exit(code)
 }
