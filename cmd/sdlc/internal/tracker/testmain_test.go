@@ -11,5 +11,8 @@ import (
 func TestMain(m *testing.M) {
 	testgate.Enter() // one machine-wide test slot, and the -parallel cap (#324)
 	testfix.PreferRealGit()
-	os.Exit(m.Run())
+	cleanupQuietGit := testfix.QuietBackgroundGit() // pushes into bare origins (#302)
+	code := m.Run()
+	cleanupQuietGit()
+	os.Exit(code)
 }
