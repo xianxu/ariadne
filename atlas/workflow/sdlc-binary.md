@@ -133,9 +133,11 @@ Its companion `TestVerbsWireTheirCommitHelpers` asserts the CALL SITES. Three
 close-review rounds converged on the rule behind both: *a fix at a call site is
 pinned only by a test entering through the production entry point* — a real-git
 test that hand-builds the argv proves the helper and mocks the wiring. Where the
-entry point is not in-process drivable (`runChangeCode`, #191; `runPush` /
-`runMerge` / `runMigrate` die through gates a unit test cannot satisfy), the
-source guard asserts the edge instead. Weaker than driving the verb, strictly
+entry point is not in-process drivable (`runPush` / `runMerge` / `runMigrate`
+die through gates a unit test cannot satisfy), the source guard asserts the edge
+instead. `runChangeCode` was the first such verb until #191 made `exitWithCode` a
+swappable var like `die` (`expectExit` in `die_test.go`); its gate loop is now
+driven in-process, and its source guard stays as a cheap net. Weaker than driving the verb, strictly
 stronger than a call site that can be deleted with the suite still green.
 
 **Behavior changes worth knowing about**, both introduced here:
