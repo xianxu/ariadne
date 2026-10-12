@@ -10,6 +10,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -41,8 +42,20 @@ type ghCaller interface {
 	PRListForBranch(repo, headRef string) (number string, err error)
 
 	// PRMerge merges PR for branch on repo via the GitHub API
-	// (--merge --delete-branch). Used by `sdlc merge`.
-	PRMerge(repo, branch string) error
+	// (--merge --delete-branch), only while the PR head is expectedHead
+	// (--match-head-commit): the head whose checks the CI gate read (#309).
+	// Used by `sdlc merge`.
+	PRMerge(repo, branch, expectedHead string) error
+
+	// PRChecks returns the checks GitHub reports on PR number's head (#309).
+	// Used by `sdlc merge`'s CI gate (cigate.go).
+	PRChecks(ctx context.Context, repo string, number int) ([]prCheck, error)
+
+	// PRHeadOID returns the head commit GitHub currently records for PR
+	// number. `gh pr checks` reads checks of that head, not of a SHA we name,
+	// so the CI gate brackets its read with this to bind the checks to the
+	// head it pins (#309 BR-1).
+	PRHeadOID(ctx context.Context, repo string, number int) (string, error)
 
 	// PRMergedForBranch reports whether a MERGED PR exists for headRef in
 	// repo. `sdlc merge` uses it to detect + resume an interrupted run — PR
@@ -146,15 +159,20 @@ func (realGH) PRMergedForBranch(repo, headRef string) (bool, error) {
 	return strings.TrimSpace(string(out)) != "", nil
 }
 
-func (realGH) PRMerge(repo, branch string) error {
+func (realGH) PRMerge(repo, branch, expectedHead string) error {
 	if _, err := exec.LookPath("gh"); err != nil {
 		return fmt.Errorf("gh CLI not on PATH: %w", err)
 	}
-	out, err := exec.Command("gh", "pr", "merge",
-		"--repo", repo, "--merge", "--delete-branch", branch,
-	).CombinedOutput()
+	out, err := exec.Command("gh", prMergeArgs(repo, branch, expectedHead)...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("gh pr merge: %w\n%s", err, string(out))
 	}
 	return nil
+}
+
+// prMergeArgs is PRMerge's argv: it merges only while the PR head is
+// expectedHead, so a push after the CI gate read the checks cannot land
+// unchecked (#309).
+func prMergeArgs(repo, branch, expectedHead string) []string {
+	return []string{"pr", "merge", "--repo", repo, "--merge", "--delete-branch", "--match-head-commit", expectedHead, branch}
 }

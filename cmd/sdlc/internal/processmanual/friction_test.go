@@ -127,6 +127,22 @@ func TestClassifyOutputLine(t *testing.T) {
 		{"no-actual refusal", "  Pass --no-actual (or --force) only when measurement is not applicable; close records actual_hours: N/A.",
 			"close", true, GateRefusal, "no-actual", ObsFull},
 
+		// ---- #309 CI gate: every refusal carries the `CI gate: ` prefix (cigate.go,
+		// merge.go); the flag is not named, so attribution is best-effort ----
+		{"no-ci ack", "  " + esc + "[1;33m[!]" + esc + "[0m ⚠️  --no-ci: SKIPPING the CI gate (#309) — landing without reading the PR's checks.",
+			"merge", true, GateBypass, "no-ci", ObsFlagOmitted},
+		{"ci red", "CI gate: PR #7 has failing checks on its head", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
+		{"ci pending (durable path, cobra Error:)", "Error: CI gate: PR #7 has checks still running on its head", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
+		{"ci unknown", "CI gate: PR #7 has checks in a state this gate does not know (refusing, fail closed)", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
+		{"ci not registered", "CI gate: PR #7 reports no checks yet, but its head carries .github/workflows (GitHub has not registered them)", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
+		{"ci head lag", "CI gate: PR #7's head on GitHub is not the pushed head merge pins, so its checks belong to another commit", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
+		{"ci unread", "CI gate: could not read PR #7's checks (refusing; unread is not green): HTTP 502", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
+		{"ci head tree", "CI gate: read abc's tree for .github/workflows: bad object", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
+		{"ci missing verdict", "CI gate: PR #7 has not reported local-gates-guard/verdict, which main's local-gates guard posts on every PR head", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
+		{"ci cannot pin", "CI gate: cannot pin the merge (head \"\", PR \"42\")", "merge", true, GateRefusal, "no-ci", ObsFlagOmitted},
+		{"ci green is not a refusal", "  " + esc + "[1;32m[ok]" + esc + "[0m CI checks: 2 green on PR #7", "merge", false, 0, "", 0},
+		{"ci none is not a refusal", "  " + esc + "[1;32m[ok]" + esc + "[0m CI checks: none, and no workflows on the head — nothing to wait for", "merge", false, 0, "", 0},
+
 		// ---- contamination: MUST classify as none ----
 		{"warmup success line (not a refusal)", "             Pass --no-actual (or --force) only if there's genuinely nothing",
 			"close", false, 0, "", 0},

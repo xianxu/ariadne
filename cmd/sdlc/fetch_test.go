@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"os/exec"
 	"strings"
 	"testing"
@@ -23,8 +24,20 @@ func (s stubGH) TitleAndBody(repo, issueNum string) (string, string, error) {
 func (s stubGH) IssueClose(repo, issueNum, comment string) error        { return nil }
 func (s stubGH) PRCreate(repo, base, head, body string) (string, error) { return "", nil }
 func (s stubGH) PRListForBranch(repo, headRef string) (string, error)   { return "", nil }
-func (s stubGH) PRMerge(repo, branch string) error                      { return nil }
-func (s stubGH) PRMergedForBranch(repo, headRef string) (bool, error)   { return false, nil }
+func (s stubGH) PRMerge(repo, branch, expectedHead string) error        { return nil }
+
+// PRChecks defaults to one green check, so a merge test that is not about CI
+// passes the gate; the CI gate's own tests override it (cigate_test.go).
+func (s stubGH) PRChecks(context.Context, string, int) ([]prCheck, error) {
+	return []prCheck{{Name: "merge-check", Bucket: "pass"}}, nil
+}
+
+// PRHeadOID: the stub knows no PR head; a fake that reaches the CI gate
+// answers with the head its PR carries (e2eGH, landingFakeGH).
+func (s stubGH) PRHeadOID(context.Context, string, int) (string, error) {
+	return "", errors.New("stubGH has no PR head")
+}
+func (s stubGH) PRMergedForBranch(repo, headRef string) (bool, error) { return false, nil }
 
 // TestFetchAlias_ThroughTree: the hidden `fetch --github-issue N` alias still
 // delegates to `issue new --from-github`, now reserving a tracker card (#252).
