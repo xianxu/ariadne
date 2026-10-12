@@ -960,9 +960,11 @@ worktrees are fenced.
 `reviewbox.Probe` reports a fence only after seeing it work. Through the same
 `Wrap`, it must write an allowed scratch directory and be refused a protected
 one, so every `fenced` round had a live denial behind it. When the probe fails,
-the round degrades to the clone alone, with a warning. Inside Claude Code's
-Bash sandbox, where slot agents run sdlc, `sandbox_apply` is refused, so
-those rounds run clone-only. The ledger round's `isolation:` and the
+the round degrades to the clone alone, with a warning. Slot agents normally run
+sdlc outside Claude Code's Bash sandbox (`sdlc *` is in `excludedCommands`,
+#334), so the fence can apply. When sdlc is called in a form that stays
+sandboxed (after `cd x &&`, piped, by full path), `sandbox_apply` is refused
+and the round runs clone-only. The ledger round's `isolation:` and the
 sidecar's `| isolation |` row record `fenced` or `checkout`. Degrading was the
 TL's decision on #204. `--dry-run` prints the wrapped command with a
 `<review-checkout>` placeholder.
