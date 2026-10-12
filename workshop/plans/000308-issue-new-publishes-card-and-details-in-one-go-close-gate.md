@@ -118,6 +118,19 @@ rounds:
       isolation: checkout
       reviewed: ab8a8dfbbf6287ac56354d19ace0ae65958d29d6
       blocked: false
+    - "n": 5
+      timestamp: "2026-10-12T10:48:44-07:00"
+      dispatched: "2026-10-12T10:47:36-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: not-addressed
+          note: 'The publish-gate half is fixed. TestClose_PeerPublishesWhenOnlyTheLocalCopyIsTicked fails when the || peer gate is reverted (verified). The die half remains: close.go:842-845 dies on errMissingDetailBlock computed from the stale local copy before origin is read (milestone close). Minor, so it does not block.'
+          round: 5
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 6c63b9a685046aea5e62c469684a60f7a83b60c5
+      blocked: false
 ---
 
 # Gate ledger — ariadne#308 (boundary-review)
@@ -171,6 +184,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 
 - BR-7 — addressed — close.go:856 excludes m.Legacy from peer; the in-place write is kept. TestClose_BrainLegacyProjectIsWrittenInPlace goes red when the fix is reverted (verified). Atlas and close help updated.
 - BR-8 — not-addressed — The || peer gate is in, but no test fails when it is reverted (verified). A stale local copy missing the detail block still dies at close.go:848 before origin is read.
+
+## Round 5 — 2026-10-12T10:48:44-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — not-addressed — The publish-gate half is fixed. TestClose_PeerPublishesWhenOnlyTheLocalCopyIsTicked fails when the || peer gate is reverted (verified). The die half remains: close.go:842-845 dies on errMissingDetailBlock computed from the stale local copy before origin is read (milestone close). Minor, so it does not block.
 
 ## Open findings
 

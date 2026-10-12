@@ -177,3 +177,66 @@ dispose:
     note: |
       The || peer gate is in, but no test fails when it is reverted (verified). A stale local copy missing the detail block still dies at close.go:848 before origin is read.
 ```
+
+---
+
+## Re-review — 2026-10-12T10:48:44-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 308 — issue new publishes card and details in one go |
+| repo | ariadne |
+| issue file | workshop/issues/000308-issue-new-publishes-card-and-details-in-one-go.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 5af2b2b94560a1383f6849b292ddef912141c156..6c63b9a685046aea5e62c469684a60f7a83b60c5 |
+| command | sdlc close --issue 308 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T10:48:44-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've confirmed the new test fails when the `|| peer` gate is reverted. Now I'm checking whether the other half of BR-8 (dying on a stale local copy that lacks the detail block) is still there.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This change only adds a regression test and a note in `lessons.md`. The issue file changes only in close bookkeeping (status, mirror hash, hours, log line), so `## Spec`, `## Revisions` and `## Done when` are unchanged and the scope is the same. The new test, `TestClose_PeerPublishesWhenOnlyTheLocalCopyIsTicked` (`cmd/sdlc/peerproject_test.go:404-423`), does what the last round asked for. I ran it here, along with the `TestClose_BrainLegacy*` and `TestClose_PeerProject*` tests, and they pass. Then I changed `close.go:857` from `if newPT != pt || peer` back to `if newPT != pt`, and the new test failed. That proves the "peers always publish" gate now has a regression test. I restored `close.go` afterwards.
+
+BR-8 is still only partly fixed. Its detail names two problems. One is skipping a publish that origin still needs, and that is now fixed and tested. The other is still there. For a milestone close, `projectCloseEdit` runs on the **local** copy (`close.go:842`). If that copy has no detail block, the function returns `errMissingDetailBlock` (`projecttick.go:30-75`), and `close.go:843-845` calls `die` before origin is ever read. That happens even when origin already has the block. BR-8 is Minor, so this does not block. I dispose it `not-addressed` with the remaining part described, as the rules require.
+
+1. **Strengths**
+   - The regression test is real and goes red without the fix. It uses a real bare origin and a local commit that is never pushed, then checks the bytes on origin (`peerproject_test.go:404-423`).
+   - The new `lessons.md` entry states the rule behind the `replaced-path-case-dropped` family ("a decision table being deleted is the checklist for its replacement") instead of just recording one incident.
+   - The issue file has no scope changes.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - BR-8, remaining part (see the dispose note): `close.go:842-845` can still `die` because the local peer copy has no detail block, before origin is read. Fix sketch: for `peer` matches, don't `die` on `errMissingDetailBlock` here. Pass the error on to `publishPeerProject`, which already re-runs `projectCloseEdit` against origin's bytes (`peerproject.go:73`), and only fail if origin also lacks the block. Pin it with a milestone-close fixture where origin has the block and the local copy doesn't.
+
+5. **Test coverage notes**
+   - The `|| peer` gate is now covered: I confirmed the test fails when the gate is reverted.
+   - Not covered: a milestone close where the local copy has no detail block but origin does.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. The test reuses the existing fixtures (`fleetCloseFixture`, `seedPeerProject`, `withOrigin`, `originFile`).
+   - ARCH-PURE: pass. No production code changed.
+   - ARCH-PURPOSE: flag, Minor. The fix covers the gating half of BR-8's class ("decide on origin's bytes, not the local copy"). The `die` decision at `close.go:843` is the one remaining place that still decides on local bytes. That is the same class, already recorded under BR-8, so I raise no new finding for it.
+
+7. **Plan revision recommendations**
+   - Add a `## Revisions` note that peers always publish and that the publish decision is made on origin's bytes. Also note that, until the remaining part of BR-8 is fixed, a stale local copy with no detail block still aborts a milestone close.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: not-addressed
+    note: |
+      The publish-gate half is fixed. TestClose_PeerPublishesWhenOnlyTheLocalCopyIsTicked fails when the || peer gate is reverted (verified). The die half remains: close.go:842-845 dies on errMissingDetailBlock computed from the stale local copy before origin is read (milestone close). Minor, so it does not block.
+```
