@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "0b544354", done: "86e1e63e"}
 ---
 
 # weave overwrites generated outputs instead of refusing on mismatch
