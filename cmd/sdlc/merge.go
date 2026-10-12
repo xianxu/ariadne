@@ -560,6 +560,11 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 			out, err := mergeRunner.Git(args...)
 			return string(out), err
 		}
+		// The gate decides from main's tree whether the guard's verdict is
+		// required, so it reads a freshly fetched main, never a stale ref.
+		if out, ferr := mergeRunner.Git("fetch", "origin", "+refs/heads/main:refs/remotes/origin/main"); ferr != nil {
+			die(stderr, fmt.Sprintf("CI gate: git fetch origin main: %v\n%s", ferr, out))
+		}
 		if err := runCIGate(ctx, ghClient, repo, prNum, "origin/main", head, gitCall, f.NoCI, stderr); err != nil {
 			die(stderr, err.Error())
 		}

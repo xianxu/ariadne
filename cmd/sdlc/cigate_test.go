@@ -5,7 +5,9 @@ import (
 	"context"
 	"errors"
 	"io"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
@@ -252,6 +254,36 @@ func TestRunMerge_LaggingPRHeadRefuses(t *testing.T) {
 	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
 	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
 	if !died || !strings.Contains(msg, "another commit") || gh.prMergeCalls != 0 {
+		t.Fatalf("died=%v calls=%d msg=%q", died, gh.prMergeCalls, msg)
+	}
+}
+
+// The legacy path decides the guard requirement from main as fetched now:
+// main gained the guard after this checkout last fetched, and the PR has no
+// verdict, so merge refuses. In this in-place fixture step 9b's fetch already
+// refreshes origin/main; the gate's own fetch is what covers a linked worktree,
+// which 9b does not fetch for and which has no e2e fixture here.
+func TestRunMerge_GuardOnFreshMainRequiresVerdict(t *testing.T) {
+	dir := tempRepo(t)
+	origin := strings.TrimSpace(git(t, dir, "remote", "get-url", "origin"))
+	other := t.TempDir()
+	git(t, "", "clone", "-q", origin, other)
+	git(t, other, "config", "user.email", "e2e@example.com")
+	git(t, other, "config", "user.name", "e2e")
+	if err := os.MkdirAll(filepath.Join(other, ".github", "workflows"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(other, localGatesWorkflow), []byte("name: local-gates-guard\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, other, "add", "-A")
+	git(t, other, "commit", "-qm", "main gains the guard")
+	git(t, other, "push", "-q", "origin", "main")
+	gh := &e2eGH{openPR: "42"}
+	swapMergeDeps(t, gh, nil)
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
+	if !died || !strings.Contains(msg, localGatesVerdict) || gh.prMergeCalls != 0 {
 		t.Fatalf("died=%v calls=%d msg=%q", died, gh.prMergeCalls, msg)
 	}
 }
