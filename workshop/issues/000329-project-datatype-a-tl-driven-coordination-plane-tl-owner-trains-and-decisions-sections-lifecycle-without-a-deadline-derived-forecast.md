@@ -61,8 +61,15 @@ Open (from the note): one file or several as a project grows; where cross-operat
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000329-project-datatype-tl-plan.md` (decisions D1–D10).
+
+- [ ] M1 — Vocabulary and lifecycle: cue statuses/guards/field ban, set-status and close rework, calendar forecast and fog ledger removal, datatype prose, help and atlas
+- [ ] M2 — Trains parser, find/resolve train and car, `sdlc project forecast` range, ops conformance patch for the TL
 
 ## Log
 
 ### 2026-10-10
+
+### 2026-10-12
+- Claimed at ariadne:3. The hub confirmed the lifecycle (defined → executing → closing → closed, plus dropped) and that the ops item ships as a patch the TL applies (workers don't edit ops project files).
+- Fleet migration list for the TL: `ideation` in pair couch-slots-v2, parley.nvim parley-packaging and parley-v1-release; deadline fields in metis arena3-rogii-wellbore and ml-research-workflow; no `paused` anywhere.
