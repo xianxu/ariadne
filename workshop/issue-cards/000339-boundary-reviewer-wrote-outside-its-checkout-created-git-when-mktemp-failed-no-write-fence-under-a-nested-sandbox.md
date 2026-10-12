@@ -1,6 +1,6 @@
 ---
 id: 000339
-status: codecomplete
+status: done
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 717a39a265dd89af4772469f88326bafea25b1ec
         evidence_commit: c3362c2b5b86394159e6f0b12f43e663ad86a16f
+        landed_commit: 0929f06254100e1ee4ea3bf4aaed883b72df96cc
 ---
 
 # boundary reviewer wrote outside its checkout (created ~/.git) when mktemp failed: no write fence under a nested sandbox
