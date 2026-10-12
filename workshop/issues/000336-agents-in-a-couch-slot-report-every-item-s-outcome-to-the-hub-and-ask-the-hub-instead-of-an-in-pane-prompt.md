@@ -1,7 +1,7 @@
 ---
 id: 000336
 status: working
-deps: []
+deps: [pair#463]
 github_issue:
 created: 2026-10-12
 updated: 2026-10-12
@@ -44,8 +44,8 @@ Side quest from #334's report: pin `gh *` in `TestBaseSettingsExcludedVerbsMatch
 - [x] Constitution §15 Couch Slots in `AGENTS.base.md`: hub address, report outcomes, ask the hub, plain leading command (no `$(` or backticks in arguments).
 - [x] `construct/local/couch/SKILL.md` points at §15; atlas (`sandbox.md`, `index.md`) updated.
 - [x] Guard test pins `gh *` (green at tip; red when the entry is reverted to bare `gh`).
-- [ ] Pair issue: Couch resolves `couch --send-to hub` live to the hub slot (awaiting the TL on which checkout files it).
-- [ ] Live check: an operator-started slot reports its outcome to the hub unprompted (blocked on the pair issue; TL asked whether to move it there).
+- [x] Pair issue filed: pair#463 (`couch --send-to hub`, resolved live), from pair-slot1 and published on pair main.
+- [ ] Live check: an operator-started slot reports its outcome to the hub unprompted (blocked on pair#463; the TL says hold #336 open and close it with this check once pair ships).
 
 ## Log
 
@@ -53,3 +53,4 @@ Side quest from #334's report: pin `gh *` in `TestBaseSettingsExcludedVerbsMatch
 - Hub address: Couch already knows its hub (pair `cmd/internal/couchcmd/message_service.go` `hubWorktree`, the tree Couch started in; used for the TL's 64-message allowance and waiting notices) but exposes it to no slot: no env var, no query. Decision: pair resolves a reserved `couch --send-to hub` target live in the supervisor. A `COUCH_HUB` env var was rejected, since it goes stale when a detached thread is resumed under a Couch started elsewhere. The rule falls back to the dispatching slot until pair ships it.
 - Discovery: backticks inside a quoted `couch --send-to` message keep the call sandboxed, like `$(` (#334). Two sends to ops:0 failed this way (one with backticks, one with a literal dollar-paren in prose); neither was delivered (receipt unavailable). The rule bans both.
 - Asked the TL (ops:0) which pair checkout files the pair issue, and whether the live check moves into it.
+- TL (ops:0) answered: file from pair-slot1, hold #336 open with a dep on the pair issue, and close with the live check after pair ships, so the rule never names a target that doesn't exist yet. Filed pair#463 and set deps.
