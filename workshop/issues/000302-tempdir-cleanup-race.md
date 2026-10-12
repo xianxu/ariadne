@@ -49,8 +49,8 @@ Approach: run the affected tests under `-count=N` in parallel shards with a clea
 ## Plan
 
 - [x] Reproduce under load with a diagnostic cleanup hook; identify the writer.
-- [ ] Regression test: a cancelled push through `trackerEnv.gitRaw` leaves no receive-side process (hook pid dies; `testfix.AwaitExit`).
-- [ ] QuietBackgroundGit: template config so receive-side maintenance is off too; test that a local push spawns no `maintenance run`.
+- [x] Regression test: a cancelled push through `trackerEnv.gitRaw` leaves no receive-side process (hook pid dies; `testfix.AwaitExit`).
+- [x] QuietBackgroundGit: template config so receive-side maintenance is off too; test that a local push spawns no `maintenance run`.
 - [ ] Verify with repeated sharded runs (make test, one at a time).
 
 ## Log
@@ -67,3 +67,5 @@ Approach: run the affected tests under `-count=N` in parallel shards with a clea
 - Before #286 M1 (`f21fbf4a`, 2026-10-08 16:21 — after both sightings) `trackerEnv.gitRaw` used CommandContext's default Cancel (direct child only); M1 moved it to `processgroup.Terminate` (gitx's trunk writes already were). Under sharded load, read/push deadlines fire, so a tracker test's cancelled push left receive-pack writing into the TempDir. That fix is the source fix; nothing pinned it to this mechanism, so #302 adds the regression test. The `.git` (checkout) sighting is the same class on the fetching side; not reproduced individually.
 - Residual hole in #286 M2, measured above: env config is stripped on local transport, so receive-side detached maintenance still runs. Its only write on these repos is nested (`objects/maintenance.lock`), but QuietBackgroundGit claims to cover pushes. Fix: also set `GIT_TEMPLATE_DIR` to a template whose `config` turns off gc.auto / maintenance.auto / receive.autogc — repo-local config survives the strip (verified: 0 maintenance spawns on push vs 1).
 - Post-#286 sightings: none found (ops project log, issues, lessons).
+- Fix (16ce7f3a): `testfix.BlockingOrigin` (pre-receive hook records pid, blocks) + `TestTrackerGitCancelEndsTheReceiveSide` (cmd/sdlc, trackerEnv.gitRaw) and `TestGitCancelEndsTheReceiveSide` (gitx, executeGitInputContext). Sensitivity: with gitx's group kill removed the test fails — `the receive side outlived the cancelled push: pid … still running after 2m0s`; restored, passes. `QuietBackgroundGit` now also sets GIT_TEMPLATE_DIR (config: gc.auto=0, maintenance.auto=false, receive.autogc=false; empty hooks/ and info/ since tests write there) and returns a cleanup; installed in cmd/sdlc, gitx, tracker, fleet TestMains. `TestQuietBackgroundGitReachesTheReceiveSide` asserts a baseline push spawns receive-side maintenance and a quieted one doesn't.
+- Full `make test` #1 (diag hook in, pre-fix code): no cleanup race in any shard; every shard tripped the hermeticity guard because I committed in this worktree mid-run (HEAD moved + an untracked diag file) — self-inflicted, not a test failure.
