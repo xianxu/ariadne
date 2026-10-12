@@ -128,7 +128,7 @@ func runRecoveryReconcile(ctx context.Context, stdout, stderr io.Writer, issueID
 	for _, r := range mine {
 		// Receipts are visible from every linked worktree; a remaining local effect
 		// belongs to the one on the source branch. Refuse before touching anything.
-		if r.NeedsSourceCheckout() && r.Spec().SourceBranch != here && !(r.Discardable() && r.Operation() == "creation") {
+		if r.NeedsSourceCheckout() && r.Spec().SourceBranch != here {
 			return fmt.Errorf("%w: #%d's %s must be finished from the checkout on %s (this one is on %q)",
 				tracker.ErrForeignCheckout, issueID, r.Operation(), r.Spec().SourceBranch, env.branch)
 		}
