@@ -76,6 +76,48 @@ rounds:
       isolation: checkout
       reviewed: 8d6c22b9a9d0ac0d9aec23283c1c22891a5c1520
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-12T10:23:44-07:00"
+      dispatched: "2026-10-12T10:16:01-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: c929e244 removes the creation clause at issuerecovery.go:131; no other creation-specific checkout exception remains (store.go NeedsSourceCheckout has no creation case). Dead-clause removal, no behaviour test needed.
+          round: 3
+      findings:
+        - id: BR-7
+          severity: Important
+          title: 'Close no longer ticks a brain repo''s legacy data/project project: it is classed as a peer, skipped locally, then refused as a brain'
+          detail: close.go:851 marks every match outside repoTop as a peer, applyClose skips its local write (close.go:926) and publishPeerProject refuses IsBrainRepo (peerproject.go:81). The base wrote the brain file and left it for nous to sweep. The atlas line saying so was deleted, the close Long text still promises a brain-side update, and no test covers data/project. Either exclude brains from peer (keep the local write) or record the retirement in Revisions, atlas and help, and add a data/project fixture test.
+          family: replaced-path-case-dropped
+          round: 3
+        - id: BR-8
+          severity: Minor
+          title: Peer publish is gated on the stale local copy (newPT != pt) rather than on origin's bytes
+          detail: A stale peer checkout can die on a missing detail block that origin has, or skip a publish that origin still needs.
+          family: replaced-path-case-dropped
+          round: 3
+      recipe: milestone-review
+      isolation: checkout
+      blocked: true
+    - "n": 4
+      timestamp: "2026-10-12T10:38:35-07:00"
+      dispatched: "2026-10-12T10:26:23-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: close.go:856 excludes m.Legacy from peer; the in-place write is kept. TestClose_BrainLegacyProjectIsWrittenInPlace goes red when the fix is reverted (verified). Atlas and close help updated.
+          round: 4
+        - id: BR-8
+          disposition: not-addressed
+          note: The || peer gate is in, but no test fails when it is reverted (verified). A stale local copy missing the detail block still dies at close.go:848 before origin is read.
+          round: 4
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: ab8a8dfbbf6287ac56354d19ace0ae65958d29d6
+      blocked: false
 ---
 
 # Gate ledger — ariadne#308 (boundary-review)
@@ -110,6 +152,26 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Minor] `retired-stage-restated-in-model` issuerecovery.go:131 keeps a creation exemption in the foreign-checkout guard that can no longer fire
   2nd in family. Rule: NeedsSourceCheckout alone says where a receipt must be finished; no caller adds per-operation exceptions. Delete the clause and grep issuerecovery.go for other creation-specific checkout exceptions.
 
+## Round 3 — 2026-10-12T10:23:44-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-6 — addressed — c929e244 removes the creation clause at issuerecovery.go:131; no other creation-specific checkout exception remains (store.go NeedsSourceCheckout has no creation case). Dead-clause removal, no behaviour test needed.
+
+### Raised
+
+- **BR-7** [Important] `replaced-path-case-dropped` Close no longer ticks a brain repo's legacy data/project project: it is classed as a peer, skipped locally, then refused as a brain
+  close.go:851 marks every match outside repoTop as a peer, applyClose skips its local write (close.go:926) and publishPeerProject refuses IsBrainRepo (peerproject.go:81). The base wrote the brain file and left it for nous to sweep. The atlas line saying so was deleted, the close Long text still promises a brain-side update, and no test covers data/project. Either exclude brains from peer (keep the local write) or record the retirement in Revisions, atlas and help, and add a data/project fixture test.
+- **BR-8** [Minor] `replaced-path-case-dropped` Peer publish is gated on the stale local copy (newPT != pt) rather than on origin's bytes
+  A stale peer checkout can die on a missing detail block that origin has, or skip a publish that origin still needs.
+
+## Round 4 — 2026-10-12T10:38:35-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — close.go:856 excludes m.Legacy from peer; the in-place write is kept. TestClose_BrainLegacyProjectIsWrittenInPlace goes red when the fix is reverted (verified). Atlas and close help updated.
+- BR-8 — not-addressed — The || peer gate is in, but no test fails when it is reverted (verified). A stale local copy missing the detail block still dies at close.go:848 before origin is read.
+
 ## Open findings
 
-- **BR-6** [Minor] `retired-stage-restated-in-model` issuerecovery.go:131 keeps a creation exemption in the foreign-checkout guard that can no longer fire
+- **BR-8** [Minor] `replaced-path-case-dropped` Peer publish is gated on the stale local copy (newPT != pt) rather than on origin's bytes
