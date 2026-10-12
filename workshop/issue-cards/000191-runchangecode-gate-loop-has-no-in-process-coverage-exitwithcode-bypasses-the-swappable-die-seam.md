@@ -1,6 +1,6 @@
 ---
 id: 000191
-status: codecomplete
+status: done
 created: 2026-07-29
 updated: 2026-10-12
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 891711ba3f7f864161f4907434d966a65870d527
         evidence_commit: c81f3d27f3d8092abccbbe63d2beda9c00185d93
+        landed_commit: 4c300bbb6191010c89bbe86165d90094d60b2558
 ---
 
 # runChangeCode gate loop has no in-process coverage — exitWithCode bypasses the swappable die seam
