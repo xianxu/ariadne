@@ -117,6 +117,7 @@ automated spec review is optional. `sdlc change-code` remains the mandatory owne
 of plan-quality review before implementation. No implementation changes made.
 
 ### 2026-10-12
+- 2026-10-12: closed — New doc tests in cmd/sdlc/skillreviewauthority_test.go fail against main skill text (18 error lines) and pass on the branch; neighbouring skill tests (TestReceivingCodeReview*, TestRequestingCodeReview*, weave skill/walk, processmanual) pass. Full make test: 1 failure, TestVerbContextsReachTrackerReads, pre-existing on main (#340, ariadne:1 fixing), unrelated to this diff. change-code gates and boundary reviews unchanged; only skill prose, reviewer templates, intent record and one atlas line edited.; review verdict: SHIP
 
 Claimed at ariadne:2 (TL dispatch, Merge and CI train). Quick flow: prose in two adapted
 skills, their reviewer templates, the intent record (Conversation 12), one atlas line, and
