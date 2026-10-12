@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "9096fb8a", done: "021e0f35"}
 ---
 
 # test gate: allow two full suites at once; targeted tests never wait for full suites
