@@ -158,7 +158,7 @@ func readSnapshot(root string) repoSnapshot {
 func TestMain(m *testing.M) {
 	testgate.Enter() // one machine-wide test slot, and the -parallel cap (#324)
 	testfix.PreferRealGit()
-	testfix.QuietBackgroundGit()
+	cleanupQuietGit := testfix.QuietBackgroundGit()
 	cleanupReviewBox := hermeticReviewBox()
 	// #303: no test runs the installed weave; a test that reaches the catch-up
 	// installs its own fake.
@@ -184,6 +184,7 @@ func TestMain(m *testing.M) {
 		}
 	}
 	cleanupReviewBox()
+	cleanupQuietGit()
 	os.Exit(exit)
 }
 
