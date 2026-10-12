@@ -118,3 +118,15 @@ Evidence: `make test` ran 12 shards. 5 tests failed: 4 were this change's fixtur
 - **Skeletons:** structure only while `open`; Plan and Done-when content are required from `working` on.
 - **move-detail:** a hidden deprecated alias of `issue publish`. Publish keeps first publication only to finish an incomplete creation (a pre-#308 card, or a failed creation's main stage).
 
+
+### 2026-10-12: M1 review round 1 (FIX-THEN-SHIP)
+- **BR-1 (Important), fixed:** `NeedsSourceCheckout` still said creation needs its source checkout. My scripted edit targeted `receipt.go`, but the function lives in `store.go`, and the replace silently matched nothing. That is the lessons.md rule about asserting a scripted edit's anchor, broken here; the Python edits assert their anchors since. `TestIssueNewStoppedAtMainFinishesFromAnotherCheckout` (main refuses the details' push → reconcile from another branch finishes it) fails with the old line restored.
+- **BR-2 (Important), fixed:** `TestRecoveryLegacyCreationReceiptPointsAtPublish` rewrites a stuck receipt into the pre-#308 shape. Reconcile releases it, names `issue publish`, and leaves main unchanged.
+- **Minors:**
+  - The uncertain-main-push adapter case is covered by the stuck-filing fixture above.
+  - The legacy missing-issues-dir refusal now says what to do in a fresh repository.
+  - The alias calls `guardSpineRepo` as publish does.
+- **Plan deltas:**
+  - Task 2's legacy test is a predicate test (`TestLegacyCreationDetailReceipt`) plus the reconcile test above.
+  - Task 3's `TestIssueNewRefusesWhenCwdIsNotTheRepoRoot` became `TestIssueNewRefusesNestedIssuesTreeUnderAnotherRepo` and `TestLegacyIssueNewRefusesRepoWithoutIssuesDir`, because a cwd==toplevel rule contradicts subdirectory filing.
+  - `NeedsSourceCheckout(creation)` is false.
