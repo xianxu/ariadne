@@ -1,12 +1,12 @@
 ---
 id: 000340
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
-card_mirror: '21805f03d1959df16967a420619371bd757bfd2c' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7a4b734e9888cf5d628becd81174f5d09d6a0259' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T15:55:00-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.24
 ---
 
 # main is red: TestVerbContextsReachTrackerReads refuses #302's AssertCancelEndsReceiveSide (context.Background)
