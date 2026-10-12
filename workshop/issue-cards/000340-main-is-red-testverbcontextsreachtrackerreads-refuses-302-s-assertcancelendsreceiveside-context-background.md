@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000340-main-is-red-testverbcontextsreachtrackerreads-refuses-302-s-assertcancelendsreceiveside-context-background.md
         source_blob: d0c9a05574e62f7c12f12f32000ca4bda95ac923
         destination: workshop/issues/000340-main-is-red-testverbcontextsreachtrackerreads-refuses-302-s-assertcancelendsreceiveside-context-background.md
+        main_commit: 02473921cda0cc76e8c8e26a5297987e198e6f38
 ---
 
 # main is red: TestVerbContextsReachTrackerReads refuses #302's AssertCancelEndsReceiveSide (context.Background)
