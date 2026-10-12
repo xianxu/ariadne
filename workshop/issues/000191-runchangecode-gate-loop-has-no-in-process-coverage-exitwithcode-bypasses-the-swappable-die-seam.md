@@ -73,6 +73,7 @@ deferral note.
 ### 2026-07-29
 
 ### 2026-10-12
+- 2026-10-12: closed — make test: all 12 cmd/sdlc shards green (1088 tests); the one failure was weave/acquire TestRestoreWithRawGitPaths, a git clone context deadline under load (#325 class), which passes alone and is outside this diff. New TestChangeCodeGateLoopUnforcedFailureExits and TestChangeCodeGateLoopForcedFailureContinues drive runChangeCode in-process via expectExit; a break-after-bypass mutation fails the forced test. TestForceAckMatchesGateCatalog, TestGateOrderPlanBeforeEstimate, TestActiveChangeCodeGates and the wiring guards pass unchanged.; review verdict: SHIP
 - Quick flow (well inside the shell: ~10 code lines). `exitWithCode` in `term.go` is now a
   package var like `die`; `die` still exits through it, so it stays the one process-exit seam.
   `expectExit` in `die_test.go` mirrors `expectDie` (panic + recover, returns the code).
