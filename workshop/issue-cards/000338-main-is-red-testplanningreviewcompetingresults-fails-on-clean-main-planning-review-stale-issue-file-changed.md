@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.31
+actual_hours: 0.46
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000338-main-is-red-testplanningreviewcompetingresults-fails-on-clean-main-planning-review-stale-issue-file-changed.md
         main_commit: bf837e55b7cfb4af873529f7a744cc4c8cefabbe
     completion:
-        token: close-4d780b85d31e
+        token: close-2946ee1d8141
         repository: github.com/xianxu/ariadne
-        reviewed_head: 436a1f42e317dc7fd1fe0fb48ea9bf5c4aacec9b
-        evidence_commit: c22cf515569cea196dc45911c366d3fce1e90ac1
+        reviewed_head: de37f528cd778ef486f79f01faa4804515d28ca2
+        evidence_commit: 15abb0a97ede893c5a44a4e393c684031b4b4b34
 ---
 
 # main is red: TestPlanningReviewCompetingResults fails on clean main (planning review stale: issue file changed)
