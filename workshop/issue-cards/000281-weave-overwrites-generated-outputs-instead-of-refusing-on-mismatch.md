@@ -2,7 +2,7 @@
 id: 000281
 status: open
 created: 2026-10-01
-updated: 2026-10-01
+updated: 2026-10-12
 estimate_hours:
 github_issue:
 tracker:
@@ -17,6 +17,14 @@ tracker:
         source_blob: 06024dd0d98d22fce155c1379a9c579515e72982
         destination: workshop/issues/000281-weave-overwrites-generated-outputs-instead-of-refusing-on-mismatch.md
         main_commit: d444b40b7fa0cbb46a6e726e51c1773c4ac164b9
+started: 2026-10-12T16:44:36-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # weave overwrites generated outputs instead of refusing on mismatch
