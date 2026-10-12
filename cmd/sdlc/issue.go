@@ -231,14 +231,20 @@ title overrides it) and the issue body is seeded under ## Problem.`,
 	return cmd
 }
 
-// runIssueNew files an issue in two places (#252): the card is reserved on the
-// tracker branch by its own commit, then the details are written to this
-// checkout. Nothing is published to main — details land there through the
-// branch's own PR, or `sdlc issue move-detail`, and claim waits for that.
+// runIssueNew files an issue on origin in one operation (#308): the card is
+// reserved on the tracker branch, then the details are published to main by a
+// commit of their own. No checkout or branch is written; the details reach a
+// branch with its next main merge. Filed from a numbered slot, the issue is
+// claimed by that slot; otherwise it is left unclaimed.
 func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags, args []string) error {
-	if tracked, err := repositoryTracked(ctx, f.IssuesDir); err != nil {
+	tracked, err := repositoryTracked(ctx, f.IssuesDir)
+	if err != nil {
 		return err
-	} else if !tracked {
+	}
+	if err := issueDirGuard(f.IssuesDir, !tracked); err != nil {
+		return err
+	}
+	if !tracked {
 		return runLegacyIssueNew(stdout, stderr, f, args)
 	}
 	title := ""
@@ -283,7 +289,8 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 		return err
 	}
 	if env.branch == "" {
-		return errors.New("issue new writes details on the current branch; check out a branch first")
+		// Its recovery record is bound to the creating checkout's branch.
+		return errors.New("issue new needs a checked-out branch (its recovery record names one); check out a branch first")
 	}
 	today := time.Now().Format("2006-01-02")
 	render := func(id string) (tracker.Draft, error) {
@@ -305,7 +312,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 			return err
 		}
 		cinfo(stderr, "dry-run — nothing reserved or written")
-		fmt.Fprintf(stdout, "Would reserve: %s (on %s)\nWould create: %s\n", d.CardPath, vocab.Issue().Discovery().Tracker, d.DetailPath)
+		fmt.Fprintf(stdout, "Would reserve: %s (on %s)\nWould publish: %s (on main)\n", d.CardPath, vocab.Issue().Discovery().Tracker, d.DetailPath)
 		fmt.Fprintln(stdout, "─── details ───")
 		fmt.Fprint(stdout, string(d.Detail))
 		return nil
@@ -319,7 +326,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	if err != nil {
 		return err
 	}
-	op := tracker.NewCreationOp(ctx, env.repo, env.checkout(mainView.Ref()), render)
+	op := tracker.NewCreationOp(ctx, env.repo, env.main, env.checkout(mainView.Ref()), render)
 	var r tracker.Receipt
 	// A peer can take the allocated ID between snapshot and candidate; nothing
 	// is published then, so a fresh allocation is safe. Races after the
@@ -344,19 +351,67 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	if err != nil {
 		return err
 	}
-	created := fmt.Sprintf("Reserved #%s on %s; created %s", spec.IssueID, vocab.Issue().Discovery().Tracker, spec.DestinationPath)
+	created := fmt.Sprintf("Filed #%s on origin: card on %s, details %s on main", spec.IssueID, vocab.Issue().Discovery().Tracker, spec.DestinationPath)
 	if ghNum != "" {
 		created += fmt.Sprintf(" (GitHub #%s)", ghNum)
 	}
 	cok(stderr, created)
-	if env.onRest() {
-		cinfo(stderr, "details are uncommitted on the resting branch; the issue is claimable once they land on main — "+
-			"`sdlc issue publish --issue "+issue.CLIRef(spec.IssueID)+"` publishes them")
-	} else if err := commitOnly(env, fmt.Sprintf("#%s: issue: new", issue.CLIRef(spec.IssueID)), spec.DestinationPath); err != nil {
-		return fmt.Errorf("card reserved and details written, but the local commit failed: %w", err)
+	me, err := claimantIdentity(env)
+	switch {
+	case err != nil:
+		cwarn(stderr, fmt.Sprintf("#%s is filed unclaimed: this workspace's identity is unavailable (%v)", issue.CLIRef(spec.IssueID), err))
+	case creatorClaims(me.Workspace):
+		claimAtCreation(env, stderr, spec.IssueID, me)
+	default:
+		cinfo(stderr, fmt.Sprintf("#%s is unclaimed (filed outside a numbered slot); the slot that works it claims it with `sdlc claim --issue %s`", issue.CLIRef(spec.IssueID), issue.CLIRef(spec.IssueID)))
 	}
+	cinfo(stderr, "nothing was written to this checkout; the details reach a branch with its next main merge")
 	fmt.Fprintln(stdout, spec.DestinationPath)
 	return nil
+}
+
+// issueDirGuard refuses to file into a repository that is not the one meant
+// (C5, #308). A relative --issues-dir resolves against git's toplevel, so a
+// subdirectory files into its repository; but a directory that is not itself
+// a repository and sits under one (a home-directory repository) would file
+// into the enclosing one. Refused when the cwd holds its own issues directory
+// that the toplevel's is not, and — where filing writes the checkout (a legacy
+// repository, requireExisting) — when the toplevel has none, since creating
+// it is how the home repository gained issues. A tracked repository writes no
+// checkout, and an untracked home repository never reaches its path. An
+// absolute --issues-dir is explicit and is not second-guessed; outside any
+// repository there is nothing to guard.
+func issueDirGuard(issuesDir string, requireExisting bool) error {
+	if filepath.IsAbs(issuesDir) {
+		return nil
+	}
+	root, err := gitx.RepoTopLevel()
+	if err != nil {
+		return nil
+	}
+	cwd, err := os.Getwd()
+	if err != nil {
+		return err
+	}
+	target := filepath.Join(root, issuesDir)
+	if info, err := os.Stat(target); requireExisting && (err != nil || !info.IsDir()) {
+		return fmt.Errorf("%s has no %s: it is not the repository you mean to file into (you are in %s).\n"+
+			"      cd to the root of that repository, then rerun — nothing was filed", root, issuesDir, cwd)
+	}
+	if local := filepath.Join(cwd, issuesDir); local != target {
+		if info, err := os.Stat(local); err == nil && info.IsDir() && !sameDir(local, target) {
+			return fmt.Errorf("%s has its own %s, but %s is not a repository root: issue new would file into %s instead.\n"+
+				"      cd to the root of the repository you mean to file into, then rerun — nothing was filed", cwd, issuesDir, cwd, root)
+		}
+	}
+	return nil
+}
+
+// sameDir reports whether two paths name one directory (symlinks resolved).
+func sameDir(a, b string) bool {
+	ia, ea := os.Stat(a)
+	ib, eb := os.Stat(b)
+	return ea == nil && eb == nil && os.SameFile(ia, ib)
 }
 
 // ── issue sync ───────────────────────────────────────────────────────────────

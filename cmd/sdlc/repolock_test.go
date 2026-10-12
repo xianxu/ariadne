@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 func TestRepoLockCommandMetadata(t *testing.T) {
@@ -383,7 +384,6 @@ func stubRepoLockAcquire(t *testing.T, fn func(*cobra.Command) (func() error, er
 
 func TestRepoLockConcurrentIssueNewSerializesAllocation(t *testing.T) {
 	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
-	issues := filepath.Join(r.root, "workshop", "issues")
 	lock := newSerializingTestLock()
 	restore := stubRepoLockAcquire(t, lock.acquire)
 	defer restore()
@@ -412,9 +412,11 @@ func TestRepoLockConcurrentIssueNewSerializesAllocation(t *testing.T) {
 		}
 	}
 
-	matches, err := filepath.Glob(filepath.Join(issues, "*.md"))
-	if err != nil {
-		t.Fatal(err)
+	// #308: details are published to main, not written here.
+	listing := strings.TrimSpace(testfix.Capture(t, r.origin, "ls-tree", "--name-only", "main", "workshop/issues/"))
+	var matches []string
+	if listing != "" {
+		matches = strings.Split(listing, "\n")
 	}
 	sort.Strings(matches)
 	if len(matches) != 2 {
