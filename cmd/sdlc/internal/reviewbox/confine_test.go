@@ -137,6 +137,15 @@ func TestConfineInsideCheckout(t *testing.T) {
 			t.Errorf("env lacks %s:\n%s", want, env)
 		}
 	}
+	// Claude Code's Bash rebuilds PATH from the shell snapshot; the shims reach
+	// it only through the env file it sources before each command.
+	out, err := exec.Command("sh", "-c", `PATH=/usr/bin:/bin; . "$1"; command -v git`, "sh", c.envFile()).Output()
+	if err != nil || strings.TrimSpace(string(out)) != filepath.Join(c.BinDir(), "git") {
+		t.Errorf("after the env file, git is %q (%v), want the shim", out, err)
+	}
+	if !strings.Contains(env, "CLAUDE_ENV_FILE="+c.envFile()) {
+		t.Errorf("env lacks CLAUDE_ENV_FILE:\n%s", env)
+	}
 	// A retry resets the checkout, which deletes the base; Prepare restores it.
 	if err := co.Reset(); err != nil {
 		t.Fatal(err)
@@ -232,5 +241,17 @@ func TestMktempShimNamesATemplateInTMPDIR(t *testing.T) {
 		if err != nil || strings.TrimSpace(string(out)) != want {
 			t.Errorf("mktemp %v ran %q (err %v), want %q", args, strings.TrimSpace(string(out)), err, want)
 		}
+	}
+}
+
+func TestClaudeEnvFileSourcesAnInheritedOne(t *testing.T) {
+	dir := t.TempDir()
+	inherited := filepath.Join(dir, "parent.sh")
+	write(t, inherited, "PARENT=yes; export PARENT\n")
+	ours := filepath.Join(dir, "env.sh")
+	write(t, ours, claudeEnvFile("/shim bin", inherited))
+	out, err := exec.Command("sh", "-c", `PATH=/usr/bin:/bin; . "$1"; echo "$PARENT $PATH"`, "sh", ours).Output()
+	if err != nil || strings.TrimSpace(string(out)) != "yes /shim bin:/usr/bin:/bin" {
+		t.Fatalf("sourced env = %q (%v)", out, err)
 	}
 }

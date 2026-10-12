@@ -109,14 +109,33 @@ func (c *Confinement) Prepare() error {
 			return fmt.Errorf("write the reviewer's mktemp shim: %w", err)
 		}
 	}
+	if err := os.WriteFile(c.envFile(), []byte(claudeEnvFile(c.BinDir(), os.Getenv("CLAUDE_ENV_FILE"))), 0o600); err != nil {
+		return fmt.Errorf("write the reviewer's env file: %w", err)
+	}
 	if c.inside {
 		return excludeFromCheckout(c.Root, "/"+confineBaseName+"/")
 	}
 	return nil
 }
 
+func (c *Confinement) envFile() string { return filepath.Join(c.Base, "env.sh") }
+
+// claudeEnvFile is sourced by Claude Code before each Bash command
+// (CLAUDE_ENV_FILE). Its Bash rebuilds PATH from the user's shell snapshot, so
+// a PATH set in the process environment never reaches the reviewer's commands;
+// measured on #339, the shims took effect only through this file. An env file
+// the reviewer inherited is sourced first.
+func claudeEnvFile(bin, inherited string) string {
+	var b strings.Builder
+	if inherited != "" {
+		fmt.Fprintf(&b, "[ -f %[1]s ] && . %[1]s\n", shQuote(inherited))
+	}
+	fmt.Fprintf(&b, "PATH=%s:\"$PATH\"; export PATH\n", shQuote(bin))
+	return b.String()
+}
+
 // Env is what the reviewer's environment overrides (PATH is prepended with
-// BinDir by the dispatcher). Claude Code's Bash takes TMPDIR from
+// BinDir by the dispatcher, and again by the env file for Claude Code). Claude Code's Bash takes TMPDIR from
 // CLAUDE_CODE_TMPDIR, so both point into the base. The ceiling stops git's
 // repository discovery above the root, and above the temp dir, so a scratch
 // directory in TMPDIR is not mistaken for part of the checkout.
@@ -125,6 +144,7 @@ func (c *Confinement) Env() []string {
 	return []string{
 		"TMPDIR=" + tmp, "TMP=" + tmp, "TEMP=" + tmp, "CLAUDE_CODE_TMPDIR=" + tmp,
 		"GIT_CEILING_DIRECTORIES=" + filepath.Dir(c.Root) + string(os.PathListSeparator) + c.Base,
+		"CLAUDE_ENV_FILE=" + c.envFile(),
 	}
 }
 

@@ -80,7 +80,9 @@ func TestDispatchParentDeadlineCannotBecomeVerdict(t *testing.T) {
 	for _, progress := range []bool{false, true} {
 		t.Run(map[bool]string{false: "synchronous", true: "heartbeat"}[progress], func(t *testing.T) {
 			t.Setenv("WF_REVIEW_TIMEOUT", "2h")
-			ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
+			// Long enough for the reviewer's confinement (#339) to be set up,
+			// so the deadline lands while the reviewer runs.
+			ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
 			defer cancel()
 			saved := Run
 			t.Cleanup(func() { Run = saved })
