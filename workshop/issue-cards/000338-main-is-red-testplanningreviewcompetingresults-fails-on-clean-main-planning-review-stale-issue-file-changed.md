@@ -17,6 +17,14 @@ tracker:
         source_blob: 841992fb994146a8575327eab51b8043abf63b62
         destination: workshop/issues/000338-main-is-red-testplanningreviewcompetingresults-fails-on-clean-main-planning-review-stale-issue-file-changed.md
         main_commit: bf837e55b7cfb4af873529f7a744cc4c8cefabbe
+started: 2026-10-12T12:00:04-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # main is red: TestPlanningReviewCompetingResults fails on clean main (planning review stale: issue file changed)
