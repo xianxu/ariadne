@@ -46,6 +46,7 @@ func newIssueMoveDetailCmd() *cobra.Command {
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
+			guardSpineRepo(cmd.ErrOrStderr()) // as publish does
 			if f.Issue <= 0 {
 				return errors.New("--issue is required and must be positive")
 			}

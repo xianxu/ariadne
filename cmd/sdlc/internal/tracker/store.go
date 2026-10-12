@@ -125,11 +125,11 @@ func (r Receipt) Discardable() bool {
 var ErrForeignCheckout = errors.New("operation belongs to another checkout")
 
 // NeedsSourceCheckout reports whether finishing this receipt still performs a
-// local effect: materializing created details or removing a handed-off source.
+// local effect: removing a handed-off source, or committing completion
+// evidence. Creation has none since #308 — both its stages publish to origin —
+// so any checkout of the repository finishes it.
 func (r Receipt) NeedsSourceCheckout() bool {
 	switch r.wire.Operation {
-	case "creation":
-		return r.wire.Stage <= 1
 	case "transfer":
 		return r.wire.Spec.Source == LocalSource && r.wire.Stage <= 3
 	case "completion":

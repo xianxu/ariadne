@@ -169,7 +169,7 @@ func TestLegacyIssueNewRefusesRepoWithoutIssuesDir(t *testing.T) {
 	root := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
 	var out, errs bytes.Buffer
 	err := runIssueNew(context.Background(), &out, &errs, newIssueFlags(), []string{"Home Repo"})
-	if err == nil || !strings.Contains(err.Error(), "has no workshop/issues") {
+	if err == nil || !strings.Contains(err.Error(), "has no workshop/issues, and issue new will not create it") {
 		t.Fatalf("home repository: %v", err)
 	}
 	if _, err := os.Stat(filepath.Join(root, "workshop")); !os.IsNotExist(err) {

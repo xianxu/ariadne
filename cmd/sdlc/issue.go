@@ -395,8 +395,8 @@ func issueDirGuard(issuesDir string, requireExisting bool) error {
 	}
 	target := filepath.Join(root, issuesDir)
 	if info, err := os.Stat(target); requireExisting && (err != nil || !info.IsDir()) {
-		return fmt.Errorf("%s has no %s: it is not the repository you mean to file into (you are in %s).\n"+
-			"      cd to the root of that repository, then rerun — nothing was filed", root, issuesDir, cwd)
+		return fmt.Errorf("%s has no %s, and issue new will not create it there (you are in %s): an enclosing repository (a home directory under git) would gain an issues tree.\n"+
+			"      If %s is the repository you mean, create %s first; otherwise cd to the root of the one you mean. Nothing was filed", root, issuesDir, cwd, root, issuesDir)
 	}
 	if local := filepath.Join(cwd, issuesDir); local != target {
 		if info, err := os.Stat(local); err == nil && info.IsDir() && !sameDir(local, target) {
