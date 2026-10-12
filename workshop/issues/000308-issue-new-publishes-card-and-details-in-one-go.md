@@ -88,7 +88,7 @@ Items, in order:
 
 Durable plan: `workshop/plans/000308-issue-new-publishes-card-and-details-in-one-go-plan.md`.
 
-- [ ] M1 — `issue new` publishes card + details to origin (creation.main stage), claims from a slot `:N`, writes no working tree; status-aware section presence for skeletons; C5 root guard; `move-detail` hidden deprecated alias; F1 regression row
+- [x] M1 — `issue new` publishes card + details to origin (creation.main stage), claims from a slot `:N`, writes no working tree; status-aware section presence for skeletons; C5 root guard; `move-detail` hidden deprecated alias; F1 regression row
 - [ ] M2 — close ticks peer projects through a CAS trunk write to the peer's origin main (symlinks resolved, tl: re-checked); peer projects leave the review snapshot; `--no-project` skips the whole project update
 
 ## Log
@@ -97,6 +97,7 @@ Durable plan: `workshop/plans/000308-issue-new-publishes-card-and-details-in-one
 Filed from the robustness evidence review (ariadne-robustness-1). Absorbs evidence items C1, C2–C5, F1, and #273's remainder. Depends on #307 (slot claimant) and #274 (content-based Behind).
 
 ### 2026-10-12
+- 2026-10-12: closed M1 — make test: 12 shards; 4 fixture fallouts of publish-at-creation fixed, plus 1 load flake (TestCLISignalCancelsOwnedReviewer); a targeted rerun of all 5 is green. Round-1 fixes: BR-1 (creation needs no source checkout; TestIssueNewStoppedAtMainFinishesFromAnotherCheckout fails with the old line restored) and BR-2 (TestRecoveryLegacyCreationReceiptPointsAtPublish); minors fixed. The real-binary slot-fleet e2e TestTrackerFullSlotCycle covers live behaviour: issue new from slot1 leaves the checkout untouched, the details are on main, slot1 holds the claim.; review verdict: SHIP
 Claimed at ariadne:4 (TL dispatch). Design questions went to the TL (ops:0), who chose option (a) for point 3. F1 is already fixed by #322 (`runLandingInstanceGate` diffs merge-base..head), and the tl: skip by #326; both are verified here, not rebuilt.
 
 M1 implemented (commits 3ec07b8b..HEAD):
