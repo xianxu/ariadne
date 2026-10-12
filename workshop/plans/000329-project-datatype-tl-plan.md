@@ -95,9 +95,10 @@ which a TL coordinates cross-issue work:
   - `GuardCtx` gains an `IssueTerminal func(ref) (bool, error)` that is injected from the issue lookup. With it,
     `mvp-landed` checks every `mvp_scope` ref; it refuses on an empty `mvp_scope`, naming the missing field.
   - `--to closed` is refused and points at `sdlc project close`.
-- **D9. Kept as they are:**
-  - `project throughput` (a measurement verb with no forecast dependence after this change);
-  - the close-time project tick and the TL skip (#326).
+- **D9.** `project throughput` and `estimate/throughput.go` (`SpanThroughput`, `ThroughputBaseline`,
+  `ParseBaselineTSV`) are deleted. The blessed baseline's only reader was the #182 calendar forecast, which M1
+  deletes. `brain/.../throughput-baseline.tsv` stays as history, with no writer and no reader (ARCH-FUNERAL). Kept as
+  is: the close-time project tick and the TL skip (#326).
 - **D10. ops conformance.** Run `sdlc project validate` (built from this branch) read-only against ops'
   `ariadne-robustness-1` and `couch-broadcast-web`. Write a patch file for the TL that renames PRD to Charter,
   promotes the trains table and edges to `## Trains`, adds `## Decisions`, and sets `status: executing`. Then run
@@ -128,14 +129,29 @@ authored by the TL. It also ends two writers, the fog ledger and the calendar le
   - set-status `executing→closing` refusing on an open MVP issue;
   - close `closing→closed`;
   - validate refusing `deadline:`.
+**Non-goals:** the Spec's open questions (one file or several as a project grows, where cross-operator allocation
+is negotiated, `mvp_scope` as a cut point on the trains) and any migration of peer files, which goes to the TL as a
+list.
+
+**Envelope (ARCH-CONSTRAINTS):** a forecast does one card lookup per car, the same per-row lookup cost `project
+status` already pays for Breakdown rows: about 50 cars, local git reads, well under a second. `show` and `status`
+print the forecast best-effort; a lookup error becomes a note and never fails the verb.
+
 - [ ] M2 — Trains, find/resolve and forecast:
-  - `internal/project/trains.go` (D4) with table-driven parser tests, including bare `#N` inheritance, parentheses,
-    `/` and `⇒` in a row, and the edges line `A and B ⇒ C/#D`;
-  - `trainforecast.go`, the pure scheduler, with tests for: two parallel trains (critical path = max), a ⇒ edge
-    that serializes across trains, a done car counting 0, the unestimated prior, the range collapsing below 3 rows,
-    and cycle detection;
+  - `internal/project/trains.go` (D4). Test strategy: table-driven over hand-authored markdown (the ops file's real
+    rows among the cases), plus a fuzz seed of malformed rows. The invariant: it never panics, and a malformed row
+    is skipped with a warning.
+  - `trainforecast.go`, the pure scheduler. Test strategy: DAG invariants. The critical path is at least every
+    train's own sum and at most the total; a ⇒ edge never shortens it; low ≤ point ≤ high; a cycle is always
+    reported. Separate cases cover the prior and the collapse below 3 rows.
   - `ProjectMatch` train/car, plus find text and resolve JSON tests (D5);
   - `sdlc project forecast` on a fixture project with a fake lookup and a ledger fixture, printing a range;
   - show/status forecast line.
   
   Then the ops conformance patch (D10).
+
+## Revisions
+
+- 2026-10-12, plan-quality round 1. D1 now states the `done → closed` rename and why archived records need no
+  migration. D9 now deletes `project throughput`, whose only reader goes away. D8 names the lookup seam. Added:
+  non-goals, the envelope, and test strategies instead of a list of cases.
