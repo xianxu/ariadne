@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-09
 updated: 2026-10-12
-estimate_hours:
-card_mirror: '798c4e9910cbddf6fc6a5dc5a3e8086ea4be5df0' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 2.76
+card_mirror: '8f47c0e4c6466e949775b711a6336aafa9e5d0d4' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T11:13:12-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # Split local gates and server CI checks
