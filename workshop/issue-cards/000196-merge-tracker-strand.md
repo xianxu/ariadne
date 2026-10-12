@@ -1,6 +1,6 @@
 ---
 id: 000196
-status: working
+status: codecomplete
 created: 2026-08-20
 updated: 2026-10-12
 estimate_hours:
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.92
+tracker:
+    version: 1
+    completion:
+        token: close-0b3476a2a476
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 7c48c569cd650b3a698f495ac19caacad2a02757
+        evidence_commit: 5744527abdf9616f6db914b2a41c79ab8ff1d850
 ---
 
 # merge: dirty tracker files are exempted from the block but still strand the post-merge switch
