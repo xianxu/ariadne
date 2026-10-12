@@ -1,6 +1,6 @@
 ---
 id: 000196
-status: codecomplete
+status: done
 created: 2026-08-20
 updated: 2026-10-12
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 7c48c569cd650b3a698f495ac19caacad2a02757
         evidence_commit: 5744527abdf9616f6db914b2a41c79ab8ff1d850
+        landed_commit: 89213b48a8ef4bc768739f91d1b5c30b8c0973f7
 ---
 
 # merge: dirty tracker files are exempted from the block but still strand the post-merge switch
