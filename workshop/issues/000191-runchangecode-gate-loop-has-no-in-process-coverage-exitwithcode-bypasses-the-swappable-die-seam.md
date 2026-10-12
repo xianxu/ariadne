@@ -1,12 +1,22 @@
 ---
 id: 000191
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-07-29
-updated: 2026-07-29
+updated: 2026-10-12
 estimate_hours:
-card_mirror: 'e9c44cd9eee897cfbd3c432545ceddd8c0bc4608' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e30d91f5002a6879bad78abe3e7a0f9c3af4343b' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T07:17:25-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "6b73520c", done: "91d89848"}
+actual_hours: 0.17
 ---
 
 # runChangeCode gate loop has no in-process coverage — exitWithCode bypasses the swappable die seam
@@ -54,11 +64,28 @@ deferral note.
 
 ## Plan
 
-- [ ] Promote `exitWithCode` to a swappable var mirroring `die`
-- [ ] Failing test: a forced invocation past a failing gate reaches the NEXT gate
-- [ ] Failing test: an unforced failing gate stops the sequence and exits non-zero
-- [ ] Confirm `TestForceAckMatchesGateCatalog` and the gate-order guard still pass unchanged
+- [x] Promote `exitWithCode` to a swappable var mirroring `die`
+- [x] Failing test: a forced invocation past a failing gate reaches the NEXT gate
+- [x] Failing test: an unforced failing gate stops the sequence and exits non-zero
+- [x] Confirm `TestForceAckMatchesGateCatalog` and the gate-order guard still pass unchanged
 
 ## Log
 
 ### 2026-07-29
+
+### 2026-10-12
+- 2026-10-12: closed — Comment-only fix for the close review Minor: term.go now names the direct os.Exit callers instead of claiming one seam; go build passes. The rest is unchanged from the reviewed close (make test green apart from the load flake in weave/acquire). (fixed-then-ship); review verdict: SHIP
+- 2026-10-12: closed — make test: all 12 cmd/sdlc shards green (1088 tests); the one failure was weave/acquire TestRestoreWithRawGitPaths, a git clone context deadline under load (#325 class), which passes alone and is outside this diff. New TestChangeCodeGateLoopUnforcedFailureExits and TestChangeCodeGateLoopForcedFailureContinues drive runChangeCode in-process via expectExit; a break-after-bypass mutation fails the forced test. TestForceAckMatchesGateCatalog, TestGateOrderPlanBeforeEstimate, TestActiveChangeCodeGates and the wiring guards pass unchanged.; review verdict: SHIP
+- Quick flow (well inside the shell: ~10 code lines). `exitWithCode` in `term.go` is now a
+  package var like `die`; `die` still exits through it, so it stays the one process-exit seam.
+  `expectExit` in `die_test.go` mirrors `expectDie` (panic + recover, returns the code).
+- Tests drive `runChangeCode` itself through `claimedOnBranch` with `--flow full` and only
+  the two estimate gates live (#9 has no estimate and no `## Estimate`, so `estimate` and the
+  next gate `estimate-recon` both fail and print): `TestChangeCodeGateLoopUnforcedFailureExits`
+  (exit 1, `estimate-recon` never runs, checkout unchanged) and
+  `TestChangeCodeGateLoopForcedFailureContinues` (bypass recorded, then the next gate runs, then
+  the dry run gets past the loop).
+- Mutation check: a `break` after the bypass line fails the forced test.
+- `TestForceAckMatchesGateCatalog`, `TestGateOrderPlanBeforeEstimate`, `TestActiveChangeCodeGates`
+  and the wiring guards pass unchanged. Fixed the stale "not in-process drivable (#191)" claims
+  in test comments and `atlas/workflow/sdlc-binary.md` (lesson: grep the name in the same commit).
