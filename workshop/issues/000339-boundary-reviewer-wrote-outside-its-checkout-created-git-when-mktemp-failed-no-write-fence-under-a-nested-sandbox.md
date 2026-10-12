@@ -43,12 +43,14 @@ Check whether the same path affects the plan-quality reviewer and judges.
 
 Durable plan: `workshop/plans/000339-reviewer-confinement-plan.md`. Single pass, one close.
 
-- [ ] Pure pieces: outside-write snapshot diff, git shim (refuses init/clone outside the reviewer's roots)
-- [ ] Confinement: base dir (inside the checkout, else temp), TMPDIR/CLAUDE_CODE_TMPDIR, GIT_CEILING_DIRECTORIES, shim on PATH; setup failure aborts
-- [ ] Dispatch wiring for every judge + incident repro test (forced mktemp failure)
+- [x] Pure pieces: outside-write snapshot diff, git shim (refuses init/clone outside the reviewer's roots)
+- [x] Confinement: base dir (inside the checkout, else temp), TMPDIR/CLAUDE_CODE_TMPDIR, GIT_CEILING_DIRECTORIES, shim on PATH; setup failure aborts
+- [x] Dispatch wiring for every judge + incident repro test (forced mktemp failure)
 - [ ] Atlas/helptext; make test
 
 ## Log
 
 ### 2026-10-12
-- Cause: Claude Code's Bash sets TMPDIR from CLAUDE_CODE_TMPDIR, inherited by the reviewer from the worker's session (/tmp/claude-501); in the nested sandbox mktemp failed there, the reviewer's `cd "$(mktemp -d)"` setup landed in $HOME (cd with an empty argument), and its git init / add -A / commit ran in home. The dispatch gave the reviewer no temp dir of its own, nothing stopped git creating a repository above the checkout, and nothing checked afterward. Plan-quality, estimate-quality and `sdlc judge` share the same dispatch and the same exposure (they run unisolated, in the operator tree).
+- Cause (reproduced): on macOS, `mktemp -d` / `mktemp -t` with no template write under `_CS_DARWIN_USER_TEMP_DIR` (`/var/folders/…/T`) and ignore TMPDIR (man mktemp; run here: "mkdtemp failed on /var/folders/…/T/tmp.…: Operation not permitted" even with TMPDIR set). The reviewer inherits the worker's agent sandbox, which denies that directory, so its `cd $(mktemp -d)` got an empty argument and landed in $HOME, where `git init`, `mkdir scripts/…`, `git add -A`, `git commit -m a` ran. Nothing gave the reviewer a usable temp dir, nothing stopped git creating a repository outside, and nothing checked afterward. Plan-quality, estimate-quality and `sdlc judge` share `judge.Dispatch` and the same exposure (they run in the operator tree, ContainNone, claude's Bash unrestricted).
+- Fix: `reviewbox.Confine`, applied by `judge.Dispatch` to every reviewer. TMPDIR/TMP/TEMP/CLAUDE_CODE_TMPDIR point at a base `tmp/` (inside the review checkout, else `$TMPDIR/sdlc-review-*`), made and proven writable first; a failure aborts with "the review did not run". GIT_CEILING_DIRECTORIES is set; `bin/` on PATH holds a git shim (refuses init/clone outside root+base) and, on macOS, a mktemp shim (no-template calls get a TMPDIR template). Post-run `Check` diffs `.git` in every ancestor and $HOME's non-hidden entries; a difference is a dispatch error. Env goes through the run context, so argv and the `Run` seam are unchanged.
+- Repro tests (`judge/confine_unix_test.go`, a real subprocess fake claude): the incident script (mktemp failing) gets no `~/.git` and the outside write `~/scripts` fails the dispatch, naming the path; an unwritable temp parent aborts before the reviewer runs; plain `mktemp -d` + a scratch repo work in the reviewer's own TMPDIR (red on macOS before the mktemp shim). Mutation: with the shim dropped from PATH, the incident test fails ("created a repository in HOME").

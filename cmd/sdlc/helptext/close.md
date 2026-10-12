@@ -211,6 +211,11 @@ MODES
   fence cannot nest (inside an agent sandbox) the round runs clone-only with a
   warning. A no-verdict retry starts from a reset clone. The round and sidecar record
   `isolation: fenced|checkout`. WF_REVIEW_CHECKOUT_ROOT relocates the clones.
+  Every reviewer (this one, plan-quality and `sdlc judge` alike) also runs
+  confined (#339): its own TMPDIR, made and proven writable first (else the
+  review did not run); git can neither find a repository above its root nor
+  init/clone outside its directories; and a new `.git` above its root or a new
+  entry in $HOME afterward fails the review, naming the paths.
 
   (All lifecycle verbs — claim/start-plan/change-code/milestone-close/close/
    merge/push — also carry the repo guard (#176): they refuse in a brain

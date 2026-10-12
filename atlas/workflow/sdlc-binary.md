@@ -971,6 +971,27 @@ sidecar's `| isolation |` row record `fenced` or `checkout`. Degrading was the
 TL's decision on #204. `--dry-run` prints the wrapped command with a
 `<review-checkout>` placeholder.
 
+**Every reviewer runs confined (#339).** The fence covers the source
+repository only, and some rounds run clone-only, so `judge.Dispatch` confines
+every agent it starts: the boundary review, plan-quality, estimate-quality and
+`sdlc judge` (`reviewbox.Confine`). Before the first attempt it makes a base,
+`<clone>/.sdlc-review/` (excluded from the clone's status), or a fresh
+`$TMPDIR/sdlc-review-*` for agents that run in the caller's checkout. It proves
+`tmp/` writable; a failure means the review did not run. The agent's
+environment (through the run context, so argv and the `Run` seam are
+unchanged) sets `TMPDIR`, `TMP`, `TEMP` and `CLAUDE_CODE_TMPDIR` to `tmp/`, and
+`GIT_CEILING_DIRECTORIES` to the root's parent and the base. `bin/` goes first
+on PATH. It holds a `git` shim that refuses `init` and `clone` outside the root
+and the base. On macOS it also holds a `mktemp` shim: without a template, macOS
+mktemp writes under `_CS_DARWIN_USER_TEMP_DIR` (`/var/folders/…/T`) and ignores
+TMPDIR, and an agent sandbox denies that directory. That is how the #309
+reviewer's `mktemp` failed, landing its `cd` in `$HOME`, where it ran `git
+init` and `git add -A`. After the last attempt, `Confinement.Check` compares a
+snapshot of `.git` in every ancestor of the root and base and of `$HOME`'s
+non-hidden entries. Anything new is a dispatch error that names the paths, so
+the gate halts. The shims stop accidents, not a reviewer that calls the real
+binaries by path. Without an OS fence, the check is what catches the rest.
+
 Lifecycle: `<WF_REVIEW_CHECKOUT_ROOT | user cache dir/sdlc/review-checkouts>/<id>/`
 plus `<id>.lock`.
 - The lock is flocked as `<id>.lock.tmp` and renamed into place, and held for
