@@ -1,6 +1,6 @@
 ---
 id: 000308
-status: codecomplete
+status: done
 created: 2026-10-09
 updated: 2026-10-12
 estimate_hours: 2.88
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 6c63b9a685046aea5e62c469684a60f7a83b60c5
         evidence_commit: b511dc0ee225cae9d52b0b2fd2ffbecf018c4a3b
+        landed_commit: 5b81cb5980aba44751bbcc681605edc1e47a6d51
 ---
 
 # issue new publishes card and details in one go
