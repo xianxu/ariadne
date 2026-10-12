@@ -1,12 +1,12 @@
 ---
 id: 000309
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-09
 updated: 2026-10-12
 estimate_hours: 2.76
-card_mirror: '8f47c0e4c6466e949775b711a6336aafa9e5d0d4' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '4f44968f264add3189c2b3c6eba05de974eef488' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T11:13:12-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 2.25
 ---
 
 # Split local gates and server CI checks
