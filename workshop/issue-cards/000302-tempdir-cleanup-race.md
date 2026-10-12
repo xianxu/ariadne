@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 1.53
+actual_hours: 1.54
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000302-tempdir-cleanup-race.md
         main_commit: ddc102977add38b0242f3bb5cc8b5bd5ec75b426
     completion:
-        token: close-678d1de4a178
+        token: close-b72e9032701e
         repository: github.com/xianxu/ariadne
-        reviewed_head: 6caa63c639fc0859603049140327749f441ee879
-        evidence_commit: cbf53003cf92c265204cc94aa4db1d796a4d4cd2
+        reviewed_head: 47a4e4636218dcd3b3dba7a160a0773a03ea48f5
+        evidence_commit: 88d07bdc3a03f19e9deb88a524419ba05b57191f
 ---
 
 # Test TempDir cleanup race: directory not empty under sharded make test
