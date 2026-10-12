@@ -36,7 +36,8 @@ Side quest from #334's report: pin `gh *` in `TestBaseSettingsExcludedVerbsMatch
 ## Done when
 
 - The rule is in ariadne's AGENTS.md (and wherever the agent-facing Couch skill lives), with the hub's address resolvable from inside any slot.
-- A slot started by the operator, given a small task with no instructions about reporting, reports its outcome to the hub (a live check, recorded in the Log).
+- `couch --send-to hub` from a non-hub slot reaches the hub (a live check, recorded in the Log).
+- Deferred, owned by the TL after the merge and a weave refresh: a slot started by the operator, given a small task with no instructions about reporting, reports its outcome to the hub.
 - The guard test pins `gh *`.
 
 ## Plan
@@ -45,7 +46,12 @@ Side quest from #334's report: pin `gh *` in `TestBaseSettingsExcludedVerbsMatch
 - [x] `construct/local/couch/SKILL.md` points at §15; atlas (`sandbox.md`, `index.md`) updated.
 - [x] Guard test pins `gh *` (green at tip; red when the entry is reverted to bare `gh`).
 - [x] Pair issue filed: pair#463 (`couch --send-to hub`, resolved live), from pair-slot1 and published on pair main.
-- [ ] Live check: an operator-started slot reports its outcome to the hub unprompted (blocked on pair#463; the TL says hold #336 open and close it with this check once pair ships).
+- [x] Live check, part 1: `couch --send-to hub` from ariadne:1 resolved to ops:0 (receipt 5525cb43, after Couch restarted onto pair#463 at 08:31).
+- [ ] Deferred to the TL: an operator-started slot reports on its own (see Revisions).
+
+## Revisions
+
+- 2026-10-12: the Done-when live check is split (TL decision, option A). Part 1, the hub target resolving, is verified here. Part 2, an operator-started slot reporting on its own, needs §15 on main and a weave-refreshed slot. Simulating it here with a nested headless agent was refused by the auto-mode classifier ("Create Unsafe Agents"), and per the TL that refusal was not worked around. The TL owns part 2 after the merge.
 
 ## Log
 
@@ -57,3 +63,4 @@ Side quest from #334's report: pin `gh *` in `TestBaseSettingsExcludedVerbsMatch
 - pair#463 landed (pair PR #254). The live check waits for the operator to restart Couch onto a build with it; the TL messages ariadne:1 after the relaunch. Parked until then.
 - TL evidence (ariadne:2 still sandboxed with a clean message). Measured with no-op probes (`couch --send-to nosuchrepo:9`, `couch --message-status <x>`), one character class at a time. Inside a quoted argument, only substitution openers defeat the exemption: `$(`, `$((`, backticks, `<(`, `>(`. These all pass: `;`, `(`, `#`, `,`, newline, `$VAR`, `${VAR}`, `&|<>`, globs, quotes, backslash. Around the command, any pipe, `;` chain or redirect to a file defeats it, and `2>&1` alone passes. Root cause for ariadne:2 (transcript 4c3ef887, 14:48Z): a trailing `2>&1 | tail -3`, not the message. Its earlier failures were `$(cat <<EOF …)` (10-11) and the same trailing pipe. §15 now states the measured rule. Recommended a pair option to read the message from a file, since agents write markdown code spans (backticks) by habit.
 - Filed pair#486 (`couch --send-to … --message-file PATH`) at the TL's request. §15 names it once it ships, as a follow-up and not a dep of #336.
+- Couch restarted onto pair#463 (08:31). `couch --send-to hub` from ariadne:1 resolved to ops:0 and was queued (5525cb43). Ran `weave compile` in this tree, so §15 is in its CLAUDE.md. My first `weave compile 2>&1 | tail -5` ran sandboxed and failed to write settings.json, a live instance of the rule's trailing-pipe case; the bare rerun applied cleanly.
