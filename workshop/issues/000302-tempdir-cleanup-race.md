@@ -47,8 +47,10 @@ Approach: run the affected tests under `-count=N` in parallel shards with a clea
 
 ## Plan
 
-- [ ] Reproduce under load with a diagnostic cleanup hook; identify the writer.
-- [ ] Fix at the source; verify with repeated sharded runs.
+- [x] Reproduce under load with a diagnostic cleanup hook; identify the writer.
+- [ ] Regression test: a cancelled push through `trackerEnv.gitRaw` leaves no receive-side process (hook pid dies; `testfix.AwaitExit`).
+- [ ] QuietBackgroundGit: template config so receive-side maintenance is off too; test that a local push spawns no `maintenance run`.
+- [ ] Verify with repeated sharded runs (make test, one at a time).
 
 ## Log
 
@@ -60,3 +62,7 @@ Approach: run the affected tests under `-count=N` in parallel shards with a clea
 - Go's RemoveAll reports the deepest dir whose own rmdir failed — so the observed errors (`…/001/.git`, `…/003/origin.git`) mean a new entry appeared *directly* in `.git`/`origin.git` after listing. A maintenance.lock would report `…/objects`, so detached maintenance doesn't fit the observed path by itself.
 - Repro attempts: push→os.RemoveAll loop, 341 iterations at load ~100: 0 failures. `go test -run 'TestIssueNew|TestHandoff|TestTakeover' -count=15` with a diagnostic cleanup hook in newTrackerRepo (runs after TempDir's RemoveAll; dumps leftovers + git procs + lsof): 0 hits.
 - Ruled out: repolock (Release is synchronous, no heartbeat); tracker env/TrunkFile git calls already kill the process group on cancel.
+- **Writer identified: the other end of a local git transport, outliving a cancelled `git`.** Repro ($TMPDIR, alarm-capped): origin with a 2 s pre-receive hook; `git push` started, SIGKILL to the *direct* `git` only (what `exec.CommandContext`'s default Cancel does): `refs/heads/main` appears in origin.git ~1.5 s *after* the push died — receive-pack carried on and wrote. Had TempDir's RemoveAll already taken `refs/`, git recreates it (safe_create_leading_directories) ⇒ `unlinkat …/origin.git: directory not empty`, the observed shape. Same run with SIGKILL to the push's process group: no late write, origin untouched.
+- Before #286 M1 (`f21fbf4a`, 2026-10-08 16:21 — after both sightings) `trackerEnv.gitRaw` used CommandContext's default Cancel (direct child only); M1 moved it to `processgroup.Terminate` (gitx's trunk writes already were). Under sharded load, read/push deadlines fire, so a tracker test's cancelled push left receive-pack writing into the TempDir. That fix is the source fix; nothing pinned it to this mechanism, so #302 adds the regression test. The `.git` (checkout) sighting is the same class on the fetching side; not reproduced individually.
+- Residual hole in #286 M2, measured above: env config is stripped on local transport, so receive-side detached maintenance still runs. Its only write on these repos is nested (`objects/maintenance.lock`), but QuietBackgroundGit claims to cover pushes. Fix: also set `GIT_TEMPLATE_DIR` to a template whose `config` turns off gc.auto / maintenance.auto / receive.autogc — repo-local config survives the strip (verified: 0 maintenance spawns on push vs 1).
+- Post-#286 sightings: none found (ops project log, issues, lessons).
