@@ -1,12 +1,20 @@
 ---
 id: 000339
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
-card_mirror: '8a85d55e10baf188f7cb2599152973a06b242e9a' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'cb46d6266bb8264dafff6bc81a3cbd5effb06650' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T13:20:09-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # boundary reviewer wrote outside its checkout (created ~/.git) when mktemp failed: no write fence under a nested sandbox
