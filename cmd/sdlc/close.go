@@ -938,10 +938,7 @@ func applyClose(stdout, stderr io.Writer, f *closeFlags, res closeResult) {
 	// re-derived on the peer's origin main and published there. The close commit
 	// follows later in the close flow, so a close that dies after this leaves
 	// the tick on the peer; a rerun re-derives it and publishes nothing new.
-	ctx := f.Context
-	if ctx == nil {
-		ctx = context.Background()
-	}
+	ctx := commandContext(f.Context)
 	for _, e := range res.projectEdits {
 		if !e.peer {
 			continue

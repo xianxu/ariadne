@@ -210,6 +210,8 @@ func TestWorkspaceCloseKeepsPrimaryProjectUntouched(t *testing.T) {
 	testfix.Git(t, slot, "checkout", "-b", "slot-issue")
 	peer := initFleetRepo(t, parent, "peer")
 	peerRel := seedPeerProject(t, peer, "ariadne#42")
+	peerOrigin := withOrigin(t, peer)
+	peerBefore := peerState(t, peer, peerRel)
 	primaryHead := testfix.Git(t, primary, "rev-parse", "HEAD")
 	t.Chdir(slot)
 	var out bytes.Buffer
@@ -223,11 +225,15 @@ func TestWorkspaceCloseKeepsPrimaryProjectUntouched(t *testing.T) {
 	if testfix.Git(t, primary, "rev-parse", "HEAD") != primaryHead {
 		t.Fatal("close committed into primary")
 	}
-	for _, path := range []string{filepath.Join(slot, rel), filepath.Join(peer, peerRel)} {
-		b, err := os.ReadFile(path)
-		if err != nil || !bytes.Contains(b, []byte("[x] [ariadne#42]")) {
-			t.Fatalf("project not updated %s: %s %v", path, b, err)
-		}
+	if b, err := os.ReadFile(filepath.Join(slot, rel)); err != nil || !bytes.Contains(b, []byte("[x] [ariadne#42]")) {
+		t.Fatalf("the slot's own project not updated: %s %v", b, err)
+	}
+	// #308: the peer's project is ticked on its origin; its checkout is untouched.
+	if got := originFile(t, peerOrigin, peerRel); !strings.Contains(got, "[x] [ariadne#42]") {
+		t.Fatalf("peer project not updated on its origin:\n%s", got)
+	}
+	if peerState(t, peer, peerRel) != peerBefore {
+		t.Fatal("close touched the peer checkout")
 	}
 	if subject := testfix.Git(t, slot, "log", "-1", "--pretty=%s"); strings.Contains(subject, "close-time update") {
 		t.Fatal("slot auto-committed as peer")
