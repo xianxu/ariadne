@@ -69,6 +69,9 @@ func TestBaseSettingsExcludedVerbsMatchArguments(t *testing.T) {
 			verbs = append(verbs, d.Name())
 		}
 	}
+	// gh is exempt with arguments too: the operator's choice (#334), pinned so
+	// it can't silently regress (#336).
+	verbs = append(verbs, "gh")
 	for _, verb := range verbs {
 		if !excluded[verb+" *"] {
 			t.Errorf("sandbox.excludedCommands lacks %q; agents' `%s …` calls run sandboxed", verb+" *", verb)
