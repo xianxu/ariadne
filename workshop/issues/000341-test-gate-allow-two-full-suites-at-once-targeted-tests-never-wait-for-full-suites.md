@@ -44,23 +44,28 @@ ARCH-CONSTRAINTS: the cap is an operator choice, default 2, measured basis in ##
 ARCH-FUNERAL: the slot files are fixed, N of them, rewritten per run, removed by nothing,
 like today's one file; ARCH-ORDER: flock is the state, released by the kernel on exit).
 
-- [ ] `scripts/test-lock.py`: `WF_TEST_SUITES` slots (default 2). Slot 0 stays
+- [x] `scripts/test-lock.py`: `WF_TEST_SUITES` slots (default 2). Slot 0 stays
   `test-suite.lock` (an older test-lock.py in a not-yet-refreshed checkout contends
   for it, so the cap holds across versions); slot k is `test-suite.lock.<k>`.
   One scan per tick: try each slot non-blocking, keep the first free one, read
   the records of the busy ones. A busy slot held by this make or `WF_TEST_LOCK_HELD_BY`
   means re-entrant (drop any free slot taken). None free: wait, naming every holder.
   The record gains `slot`.
-- [ ] `pkg/testgate`: drop the full-suite probe; a targeted run takes only its own
+- [x] `pkg/testgate`: drop the full-suite probe; a targeted run takes only its own
   `test-gate.<k>.lock` slot. Package doc and messages follow.
-- [ ] Tests, fakes only (private lock files, `sleep` holders):
+- [x] Tests, fakes only (private lock files, `sleep` holders):
   `scripts/test-lock.test.sh` two suites acquire, a third waits naming both and takes
   the freed slot; re-entrancy with the holder on slot 1; `WF_TEST_SUITES=1` keeps the
   single-suite cases. `pkg/testgate`: both suite slots held exclusively, `enter`
   takes a gate slot without waiting.
-- [ ] Atlas (`atlas/workflow/sdlc-binary.md`), `Makefile.workflow` comment, and
+- [x] Atlas (`atlas/workflow/sdlc-binary.md`), `Makefile.workflow` comment, and
   AGENTS.base.md: targeted runs are always fine; at most 2 full suites.
 
 ## Log
 
 ### 2026-10-12
+- Implemented. `scripts/test-lock.test.sh`: 23/23 pass, including two suites acquiring,
+  a third waiting with both holders named and taking the freed slot, re-entrancy with
+  a slot free and on slot 1. `go test ./pkg/testgate`: pass; the new
+  `TestEnterIgnoresFullSuites` holds both suite files exclusively and fails on any wait,
+  so restoring the old suite probe fails it. Holders are `sleep` processes; no load.

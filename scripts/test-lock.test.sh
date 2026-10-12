@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test-lock.test.sh — drives scripts/test-lock.py and its Makefile.workflow wiring (#319).
+# test-lock.test.sh — drives scripts/test-lock.py and its Makefile.workflow wiring (#319, #341).
 # Each case uses a private lock file, so it never touches the real machine-wide lock.
 # Run:  bash scripts/test-lock.test.sh   (exit 0 = all pass)
 set -u
@@ -7,6 +7,8 @@ cd "$(git rev-parse --show-toplevel)"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/test-lock.XXXXXX") || exit 1; trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$tmp"' EXIT
 export WF_TEST_LOCK_FILE="$tmp/lock"
 unset WF_TEST_LOCK WF_TEST_LOCK_TIMEOUT WF_TEST_LOCK_HELD_BY
+# The single-slot cases first; the two-slot default has its own block below.
+export WF_TEST_SUITES=1
 fails=0
 check() { if eval "$2"; then echo "ok   $1"; else echo "FAIL $1"; fails=$((fails + 1)); fi; }
 lock() { python3 scripts/test-lock.py acquire --watch "$1"; }
@@ -18,7 +20,7 @@ sleep 30 & b=$!
 lock $b >"$tmp/b.out" 2>"$tmp/b.err" & waiter=$!
 sleep 1.5
 check "second run waits" 'kill -0 $waiter 2>/dev/null'
-check "waiter names the holder" 'grep -q "held by ariadne (.*), make pid $a" "$tmp/b.err"'
+check "waiter names the holder" 'grep -q "  - ariadne (.*), make pid $a" "$tmp/b.err"'
 kill $a; t0=$(date +%s)
 wait $waiter
 check "holder exit hands the lock over promptly" '[ $(( $(date +%s) - t0 )) -le 2 ] && [ "$(cat "$tmp/b.out")" = acquired ]'
@@ -53,5 +55,22 @@ check "make test fails on a lock wait timeout" '! WF_TEST_LOCK_TIMEOUT=1 make -n
 check "make help does not take the lock" 'WF_TEST_LOCK_TIMEOUT=1 make help >/dev/null 2>&1'
 kill $c; sleep 0.3
 check "make test takes the free lock" 'make -n test >/dev/null 2>&1'
+
+# #341: by default two suites run at once; a third waits naming both holders and
+# takes the slot freed first. A nested run is re-entrant even with a slot free.
+export WF_TEST_LOCK_FILE="$tmp/two"; unset WF_TEST_SUITES
+sleep 30 & p=$!; sleep 30 & q=$!; sleep 30 & r=$!; sleep 30 & s=$!
+slot() { python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["slot"])' "$1"; }
+check "first suite takes slot 0" '[ "$(lock $p)" = acquired ] && [ "$(slot "$tmp/two")" = 0 ]'
+check "nested run with a slot free is re-entrant" '[ "$(WF_TEST_LOCK_HELD_BY=$p lock $s)" = reentrant ]'
+check "second suite runs alongside on slot 1" '[ "$(WF_TEST_LOCK_TIMEOUT=1 lock $q)" = acquired ] && [ "$(slot "$tmp/two.1")" = 1 ]'
+check "nested run under slot 1's holder is re-entrant" '[ "$(WF_TEST_LOCK_HELD_BY=$q lock $s)" = reentrant ]'
+lock $r >"$tmp/r.out" 2>"$tmp/r.err" & third=$!
+sleep 1.5
+check "third suite waits" 'kill -0 $third 2>/dev/null'
+check "the wait names both holders" 'grep -q "one of 2 full-suite slots" "$tmp/r.err" && grep -q "make pid $p" "$tmp/r.err" && grep -q "make pid $q" "$tmp/r.err"'
+kill $p; wait $third
+check "third takes the freed slot 0" '[ "$(cat "$tmp/r.out")" = acquired ] && [ "$(slot "$tmp/two")" = 0 ]'
+check "a bad WF_TEST_SUITES says so and uses 2" '[ "$(WF_TEST_SUITES=x WF_TEST_LOCK_TIMEOUT=1 lock $s 2>"$tmp/x.err")" = timeout ] && grep -q "not a number; using 2" "$tmp/x.err"'
 
 [ $fails -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }
