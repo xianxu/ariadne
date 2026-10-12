@@ -981,7 +981,10 @@ every agent it starts: the boundary review, plan-quality, estimate-quality and
 environment (through the run context, so argv and the `Run` seam are
 unchanged) sets `TMPDIR`, `TMP`, `TEMP` and `CLAUDE_CODE_TMPDIR` to `tmp/`, and
 `GIT_CEILING_DIRECTORIES` to the root's parent and the base. `bin/` goes first
-on PATH. It holds a `git` shim that refuses `init` and `clone` outside the root
+on PATH, in the process environment and in `env.sh`, which `CLAUDE_ENV_FILE`
+names. Claude Code's Bash rebuilds PATH from the user's shell snapshot, so the
+file it sources before each command is the only way the shims reach claude
+(measured on #339). `bin/` holds a `git` shim that refuses `init` and `clone` outside the root
 and the base. On macOS it also holds a `mktemp` shim: without a template, macOS
 mktemp writes under `_CS_DARWIN_USER_TEMP_DIR` (`/var/folders/…/T`) and ignores
 TMPDIR, and an agent sandbox denies that directory. That is how the #309
