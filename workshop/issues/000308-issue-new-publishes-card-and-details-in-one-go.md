@@ -140,3 +140,8 @@ Evidence: `make test` green, 12 shards and 1097 cmd/sdlc tests, 0 failed. Done-w
   - Task 2's legacy test is a predicate test (`TestLegacyCreationDetailReceipt`) plus the reconcile test above.
   - Task 3's `TestIssueNewRefusesWhenCwdIsNotTheRepoRoot` became `TestIssueNewRefusesNestedIssuesTreeUnderAnotherRepo` and `TestLegacyIssueNewRefusesRepoWithoutIssuesDir`, because a cwd==toplevel rule contradicts subdirectory filing.
   - `NeedsSourceCheckout(creation)` is false.
+
+### 2026-10-12: close review round 3 (FIX-THEN-SHIP)
+- **BR-7 (Important), fixed (option: keep the old behaviour):** M2 classed a brain's legacy `data/project` match as a peer, skipped its local write, and then refused it as a brain, so the brain-side tick was silently lost. A legacy match is now not a peer and is written in place for nous to commit, as before. `TestClose_BrainLegacyProjectIsWrittenInPlace` covers it. Rule applied: when replacing a path, list every case the old path handled. The old `planPeerWrites` had a brain row that I dropped.
+- **Minor, fixed:** a peer is always published, and origin's bytes decide whether there is a change, so a stale local copy no longer suppresses the publish. A missing detail block is still judged on the local preview. That is deliberate: authoring the block is a forcing function at close time.
+- **Minor, fixed:** a comment on the main trunk in `peerTrunk`.
