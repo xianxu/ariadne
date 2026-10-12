@@ -63,6 +63,21 @@ merge button; direct pushes to `main` stay open). Making `merge-check` a *requir
 status check — and creating the remote repo — is the `make remote-init` operator verb
 (#52 M2; needs `gh` auth). Mechanism works advisory-only without it.
 
+## Local gates and server CI: the split (#309)
+
+Local sdlc gates do the heavy checks (review, plan quality, tests), because
+ariadne controls the local process. Server CI does cheap deterministic checks,
+and `sdlc merge` will not land over it:
+
+- **Merge reads CI** (`cmd/sdlc/cigate.go`). Both landing paths read the checks
+  GitHub reports on the PR head (`gh pr checks --json`) and refuse unless every
+  one passed or was skipped, naming each failing or pending check. An unknown
+  state or an unreadable list refuses (fail closed). No checks while the head
+  carries `.github/workflows/` is pending; no checks and no workflows passes.
+  The merge is pinned to the read head with `--match-head-commit`. `--no-ci`
+  waives only this gate. gh exits 1 (failing) or 8 (pending) while still
+  printing the JSON, so the adapter reads stdout before the exit status.
+
 ## Not the same as the publish gate or the close review
 
 Three distinct tiers, none an LLM at merge-time (#160):
