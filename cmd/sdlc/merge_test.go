@@ -135,8 +135,8 @@ func TestAssessDirty(t *testing.T) {
 	}
 	for _, tc := range cases {
 		d := assessDirty(statusOf(t, tc.porcelain), "workshop/issues", "workshop/history")
-		if d.Refuse() != tc.wantRefuse {
-			t.Errorf("%s: Refuse()=%v, want %v (assessment=%+v)", tc.name, d.Refuse(), tc.wantRefuse, d)
+		if (len(d.Blocking) > 0) != tc.wantRefuse {
+			t.Errorf("%s: code blocks=%v, want %v (assessment=%+v)", tc.name, len(d.Blocking) > 0, tc.wantRefuse, d)
 		}
 		if len(d.Blocking) != tc.wantBlocking {
 			t.Errorf("%s: len(Blocking)=%d, want %d (%q)", tc.name, len(d.Blocking), tc.wantBlocking, d.Blocking)
@@ -392,6 +392,11 @@ func (r diffRunner) Git(args ...string) ([]byte, error) {
 	*r.calls++
 	if r.err != nil {
 		return nil, r.err
+	}
+	for _, p := range args[7:] { // porcelain paths are root-relative literals (#196 review)
+		if !strings.HasPrefix(p, ":(top,literal)") {
+			return nil, fmt.Errorf("pathspec %q not pinned to the repo root", p)
+		}
 	}
 	return []byte(r.out[args[4]+" "+args[5]]), nil
 }

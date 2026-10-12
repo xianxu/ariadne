@@ -168,3 +168,11 @@ Mutation check: disabling the in-place branch of `mergeRefusal` fails all three
 new refusal tests. The Done-when bullet "stops being left dirty across a branch
 switch" now holds as "is carried across only when git can carry it": a tracker
 file that matches main still rides the switch dirty, which is #82 M2's intent.
+
+Close review round 1 (FIX-THEN-SHIP): BR-1 Important, the stranded and 9b
+messages advised committing, which the resume path refuses (step 4, #148). Both
+now say restore or move aside, and the test pins "do not commit". Minors fixed
+in the same round: the tracker warning names the real reason per topology; the
+code-only `Refuse()` is removed (mergeRefusal is the one decision); pathspecs
+are pinned `:(top,literal)` so a subdirectory run or a glob character can't
+slip a stranding file through (pinned in the unit fake). Lesson added.

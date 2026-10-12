@@ -550,7 +550,7 @@ func TestRunMerge_StrandedAfterMerge_NamesRecovery(t *testing.T) {
 			if !died || gh.prMergeCalls != 1 {
 				t.Fatalf("want a post-merge failure, got died=%v prMergeCalls=%d", died, gh.prMergeCalls)
 			}
-			for _, want := range []string{"IS MERGED on GitHub", "re-run `sdlc merge --yes`", tc.wantBack} {
+			for _, want := range []string{"IS MERGED on GitHub", "`sdlc merge --yes`", "do not commit", tc.wantBack} {
 				if !strings.Contains(msg, want) {
 					t.Errorf("stranded message %q lacks %q", msg, want)
 				}
