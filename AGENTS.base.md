@@ -97,7 +97,9 @@
 - In a Couch slot (the environment has `COUCH_TREE` set), the **hub** is the slot Couch started from, where the TL works. Address it as `couch --send-to hub` (#336). If Couch refuses `hub` (an older Couch, or one started outside a checkout), use the slot that dispatched your work. With neither, these rules don't apply. The hub itself skips them.
 - **Report every item's outcome to the hub**, whoever started the work, the hub by dispatch or the operator by hand: landed (with the PR), blocked (on what), or waiting for the operator (on what). Send one message per outcome, not progress chatter.
 - **Ask the hub, not an in-pane question prompt.** An in-pane prompt blocks silently until Couch's waiting notice. The hub answers what it can and brings the operator in when the call is theirs. Use an in-pane prompt only while the operator is shaping the work live in that slot.
-- **Call `couch` and `sdlc` as a plain leading command** (#334): not after `cd x &&`, not inside `$(…)` or a pipe, and not by full path. Keep `$(` and backticks out of the arguments too, even quoted. Only that form matches the sandbox exemption, and a sandboxed `couch --send-to` can't reach the supervisor's socket.
+- **Call `couch` and `sdlc` as the whole Bash call** (#334, #336). Only that form matches the sandbox exemption, and a sandboxed `couch --send-to` can't reach the supervisor's socket. Measured:
+  - **Nothing before it or after it:** no `cd x &&`, no full path, no `| tail`, no `; …`, no `> file`. A trailing `2>&1` is the one thing that passes.
+  - **No substitution text in an argument, even quoted:** `$(`, `$((`, backticks, `<(` and `>(` all defeat the match. Write a code span in a message as plain words or in single quotes, not in backticks. Any other punctuation in a quoted message is fine: `;`, `(`, `#`, `,`, newlines, `$VAR`, `&`, `|`, `<`, `>`, `*`, quotes.
 
 ## Core Design Principles
 The architectural taste — the `ARCH-*` principles — is single-sourced in a registry and
