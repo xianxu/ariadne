@@ -54,6 +54,7 @@ type mergeFlags struct {
 	Yes        bool
 	NoJudge    bool
 	NoValidate bool
+	NoCI       bool
 	DryRun     bool
 	IssuesDir  string
 	HistoryDir string
@@ -111,6 +112,7 @@ func NewMergeCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.Yes, "yes", false, "skip the final irreversible-merge confirmation AND not-done warn — REQUIRED for non-interactive/agent runs (merge fail-fasts before the publish gate when stdin is not a terminal)")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the pre-merge publish gate — #160 reviewed-HEAD-unchanged invariant (emergency-only)")
 	cmd.Flags().BoolVar(&f.NoValidate, "no-validate", false, "skip the #124 instance-conformance gate (escape hatch — announced loudly)")
+	cmd.Flags().BoolVar(&f.NoCI, "no-ci", false, "skip the #309 CI gate (red or pending checks on the PR head) — for a broken CI system only, announced loudly")
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be operations; do not merge or clean up")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory for archived issues")
@@ -547,8 +549,22 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 	switch decideMergeAction(prNumber, mergedExists, unmergedCount) {
 	case actionMergeOpen:
 		cok(stderr, fmt.Sprintf("Open PR found: #%s", prNumber))
+		// #309: the CI gate reads the checks on the pushed head (step 4 proved
+		// local = origin), and the merge is pinned to that head.
+		head := gitx.Capture("rev-parse", "--verify", remoteRef)
+		prNum, perr := strconv.Atoi(prNumber)
+		if head == "" || perr != nil {
+			die(stderr, fmt.Sprintf("CI gate: cannot pin the merge (head %q, PR %q)", head, prNumber))
+		}
+		gitCall := func(args ...string) (string, error) {
+			out, err := mergeRunner.Git(args...)
+			return string(out), err
+		}
+		if err := runCIGate(ctx, ghClient, repo, prNum, head, gitCall, f.NoCI, stderr); err != nil {
+			die(stderr, err.Error())
+		}
 		cinfo(stderr, fmt.Sprintf("Merging PR #%s (%s) into main via GitHub...", prNumber, branch))
-		if err := ghClient.PRMerge(repo, branch); err != nil {
+		if err := ghClient.PRMerge(repo, branch, head); err != nil {
 			die(stderr, err.Error())
 		}
 		merged = true

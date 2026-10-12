@@ -26,6 +26,14 @@ type landingFakeGH struct {
 	mergeErr   error
 	afterMerge func()
 	queue      bool
+	checks     []prCheck // nil: the stub's green default (#309)
+}
+
+func (g *landingFakeGH) PRChecks(ctx context.Context, repo string, n int) ([]prCheck, error) {
+	if g.checks == nil {
+		return g.stubGH.PRChecks(ctx, repo, n)
+	}
+	return g.checks, nil
 }
 
 func (g *landingFakeGH) LandingPRs(context.Context, string, string) ([]landingPR, error) {
@@ -547,8 +555,8 @@ func (g *landingFakeGH) PRListForBranch(repo, branch string) (string, error) {
 func (g *landingFakeGH) PRMergedForBranch(repo, branch string) (bool, error) {
 	return g.pr.State == "MERGED", nil
 }
-func (g *landingFakeGH) PRMerge(repo, branch string) error {
-	return g.LandingMerge(context.Background(), repo, g.pr.Number, g.pr.HeadOID)
+func (g *landingFakeGH) PRMerge(repo, branch, expectedHead string) error {
+	return g.LandingMerge(context.Background(), repo, g.pr.Number, expectedHead)
 }
 
 func TestLandingDependencyThenParent(t *testing.T) {

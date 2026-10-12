@@ -110,11 +110,27 @@ type e2eGH struct {
 	openPR       string // PRListForBranch result
 	mergedExists bool   // PRMergedForBranch result
 	prMergeCalls int    // how many times PRMerge fired
+	mergedHead   string // the head the last PRMerge was pinned to (#309)
+	checks       []prCheck
+	checksErr    error
+}
+
+// PRChecks answers the CI gate (#309): the stub's green default unless the test
+// set checks or an error.
+func (g *e2eGH) PRChecks(ctx context.Context, repo string, n int) ([]prCheck, error) {
+	if g.checks == nil && g.checksErr == nil {
+		return g.stubGH.PRChecks(ctx, repo, n)
+	}
+	return g.checks, g.checksErr
 }
 
 func (g *e2eGH) PRListForBranch(repo, headRef string) (string, error) { return g.openPR, nil }
 func (g *e2eGH) PRMergedForBranch(repo, headRef string) (bool, error) { return g.mergedExists, nil }
-func (g *e2eGH) PRMerge(repo, branch string) error                    { g.prMergeCalls++; return nil }
+func (g *e2eGH) PRMerge(repo, branch, expectedHead string) error {
+	g.prMergeCalls++
+	g.mergedHead = expectedHead
+	return nil
+}
 
 // swapMergeDeps swaps the package-level seams (ghClient, detectRepo,
 // runPublishGateFn) and restores them on cleanup. gate may be nil to keep the

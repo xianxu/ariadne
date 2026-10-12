@@ -157,6 +157,11 @@ var GateCatalog = []GateSig{
 	{Commands: []string{"merge"}, Flag: "no-validate", Gate: "instance conformance (#124)", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-validate: SKIPPING the instance-conformance gate`,
 		RefusalPat: `instance-conformance gate: \d+ nonconforming`},
+	// #309: red or pending CI on the PR head. Red refusals name the check, not
+	// the flag (a red check wants a fix, not a bypass) → best-effort attribution.
+	{Commands: []string{"merge"}, Flag: "no-ci", Gate: "CI checks on the PR head (#309)", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: false,
+		AckPat:     `--no-ci: SKIPPING the CI gate`,
+		RefusalPat: `CI gate: (PR #\d+ (has|reports)|could not read)`},
 	{Commands: []string{"push"}, Flag: "no-judge", Gate: "publish gate (#160)", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: false,
 		AckPat:     `--no-judge: skipping the pre-push publish gate`,
 		RefusalPat: `publish gate: (\d+ commit\(s\) landed after|the reviewed patch no longer covers HEAD|#\d+ is on the quick flow|#\d+ is codecomplete but)`},
