@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "6b73520c", done: "91d89848"}
 ---
 
 # runChangeCode gate loop has no in-process coverage — exitWithCode bypasses the swappable die seam
