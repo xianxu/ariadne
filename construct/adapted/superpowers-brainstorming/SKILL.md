@@ -38,8 +38,8 @@ You MUST create a task for each of these items and complete them in order:
 5. **Propose 2-3 approaches** — with trade-offs and your recommendation
 6. **Present design** — in sections scaled to their complexity, get user approval after each section
 7. **Write design doc** — save to the `## Spec` section of the issue file (`workshop/issues/<slug>.md`) and commit
-8. **Spec review loop** — dispatch spec-document-reviewer subagent with precisely crafted review context (never your session history); fix issues and re-dispatch until approved (max 5 iterations, then surface to human)
-9. **User reviews written spec** — ask user to review the spec before proceeding
+8. **Optional spec review** — only when the work is broad, ambiguous or high-risk (see "Optional Spec Review" below): dispatch spec-document-reviewer once with precisely crafted review context (never your session history), fold what you accept into the Spec. It is advisory, not a gate
+9. **User approves written spec** — ask the user to review the spec. Their agreement is the design approval; nothing automated replaces or repeats it
 10. **Transition to implementation** — size the work against the quick-flow shell (`sdlc change-code --help` prints the limits). Outside it, invoke writing-plans skill to create implementation plan. Inside it, make `## Done when` concrete and run `sdlc change-code`, which infers the quick flow; a plan is optional there — a very small task writes none, and a short one keeps the design inside the shell's design limit
 
 ## Process Flow
@@ -54,8 +54,8 @@ digraph brainstorming {
     "Present design sections" [shape=box];
     "User approves design?" [shape=diamond];
     "Write design doc" [shape=box];
-    "Spec review loop" [shape=box];
-    "Spec review passed?" [shape=diamond];
+    "Broad, ambiguous or high-risk?" [shape=diamond];
+    "Advisory spec review\n(once, fold findings in)" [shape=box];
     "User reviews spec?" [shape=diamond];
     "Inside the quick-flow shell?" [shape=diamond];
     "Invoke writing-plans skill" [shape=doublecircle];
@@ -70,10 +70,10 @@ digraph brainstorming {
     "Present design sections" -> "User approves design?";
     "User approves design?" -> "Present design sections" [label="no, revise"];
     "User approves design?" -> "Write design doc" [label="yes"];
-    "Write design doc" -> "Spec review loop";
-    "Spec review loop" -> "Spec review passed?";
-    "Spec review passed?" -> "Spec review loop" [label="issues found,\nfix and re-dispatch"];
-    "Spec review passed?" -> "User reviews spec?" [label="approved"];
+    "Write design doc" -> "Broad, ambiguous or high-risk?";
+    "Broad, ambiguous or high-risk?" -> "Advisory spec review\n(once, fold findings in)" [label="yes"];
+    "Broad, ambiguous or high-risk?" -> "User reviews spec?" [label="no"];
+    "Advisory spec review\n(once, fold findings in)" -> "User reviews spec?";
     "User reviews spec?" -> "Write design doc" [label="changes requested"];
     "User reviews spec?" -> "Inside the quick-flow shell?" [label="approved"];
     "Inside the quick-flow shell?" -> "Invoke writing-plans skill" [label="no"];
@@ -134,19 +134,29 @@ digraph brainstorming {
 - Use elements-of-style:writing-clearly-and-concisely skill if available
 - Commit the design document to git
 
-**Spec Review Loop:**
-After writing the spec document:
+**Who approves what (ARCH-DRY: one owner per review boundary):**
 
-1. Dispatch spec-document-reviewer subagent (see spec-document-reviewer-prompt.md)
-2. If Issues Found: fix, re-dispatch, repeat until Approved
-3. If loop exceeds 5 iterations, surface to human for guidance
+- The **user** approves the requirements: their agreement to the written spec is the design gate.
+- `sdlc change-code` owns the mandatory automated review before implementation: its plan-quality judge checks that the plan is executable, and keeps the findings ledger. On the quick flow there is no plan review; the small-diff review runs at close.
+- `sdlc milestone-close` / `sdlc close` own the review of the implementation.
+
+The chain is: brainstorming/spec → durable plan → `change-code` plan-quality gate → code → milestone/close review. The durable plan comes from writing-plans (or, inside the quick-flow shell, is optional); brainstorming adds no automated approval of its own.
+
+**Optional Spec Review:**
+Dispatch spec-document-reviewer (see spec-document-reviewer-prompt.md) only when a fresh reader is likely to catch what you and the user missed:
+
+- the spec spans several subsystems or several issues' worth of scope;
+- requirements stayed ambiguous after the questions, or the user asked for a second read;
+- the change is high-risk: data loss, security, a gate or a base-layer contract other repos inherit.
+
+Run it once. Its output is advice: fold the findings you accept into the `## Spec`, and note any you reject, with the reason, in the issue's `## Log`. The durable issue is then what `change-code` reads, so its plan-quality judge sees the result without a second automated pass. Don't loop it to "Approved", and don't run it just to satisfy this checklist.
 
 **User Review Gate:**
-After the spec review loop passes, ask the user to review the written spec before proceeding:
+After writing the spec (and the optional review, if you ran one), ask the user to review the written spec before proceeding:
 
 > "Spec written and committed to `<path>`. Please review it and let me know if you want to make any changes before we start writing out the implementation plan."
 
-Wait for the user's response. If they request changes, make them and re-run the spec review loop. Only proceed once the user approves.
+Wait for the user's response. If they request changes, make them and ask again. Only proceed once the user approves.
 
 **Implementation:**
 

@@ -175,30 +175,27 @@ git commit -m "feat: add specific feature"
 - Reference relevant skills with @ syntax
 - DRY, YAGNI, TDD, frequent commits
 
-## Plan Review Loop
+## Plan Review
 
-After completing each chunk of the plan:
+The mandatory review of this plan is `sdlc change-code`'s plan-quality gate, not a loop in this skill (ARCH-DRY: one owner per review boundary, one source of truth for its findings). The gate runs deterministic structural checks and a fresh-context plan-quality judge, keeps the findings in its ledger (`workshop/plans/NNNNNN-slug-plan-gate.md`), tracks your dispositions, and refuses implementation until the blockers are answered. Only then does it ask for the estimate.
 
-1. Dispatch plan-document-reviewer subagent (see plan-document-reviewer-prompt.md) with precisely crafted review context — never your session history. This keeps the reviewer focused on the plan, not your thought process.
-   - Provide: chunk content, path to spec document
-2. If ❌ Issues Found:
-   - Fix the issues in the chunk
-   - Re-dispatch reviewer for that chunk
-   - Repeat until ✅ Approved
-3. If ✅ Approved: proceed to next chunk (or execution handoff if last chunk)
+The chain is: brainstorming/spec → durable plan → `change-code` plan-quality gate → code → milestone/close review. The user approves the spec; this skill writes the durable plan.
 
-**Chunk boundaries:** Use `## Chunk N: <name>` headings to delimit chunks. Each chunk should be ≤1000 lines and logically self-contained.
+**Optional editing aid:** while drafting a long or intricate plan, you may dispatch plan-document-reviewer (see plan-document-reviewer-prompt.md) on a chunk, with precisely crafted context (the chunk and the issue's `## Spec`, never your session history). Treat it as an editor, not an approver:
 
-**Review loop guidance:**
-- Same agent that wrote the plan fixes it (preserves context)
-- If loop exceeds 5 iterations, surface to human for guidance
-- Reviewers are advisory - explain disagreements if you believe feedback is incorrect
+- Fold the findings you accept into the plan; note the ones you reject, with the reason, in the issue's `## Log`.
+- Run it at most once per chunk. Don't loop it to "Approved": `change-code` reads the durable plan and reviews it anyway.
+- If a chunk needs a second round, the plan has a design problem; take it to the user.
+
+**Chunk boundaries:** if you use the editing aid, `## Chunk N: <name>` headings delimit what it reads. Each chunk should be ≤1000 lines and logically self-contained.
 
 ## Execution Handoff
 
 After saving the plan:
 
 **"Plan complete and saved to `workshop/plans/<filename>.md`. Ready to execute?"**
+
+Once the user approves it, commit the plan and run `sdlc change-code`. Its plan-quality gate is the review that admits the plan to implementation; answer its findings (fix, or dispute with evidence) until it passes, and only then start executing.
 
 **Execution path:** Defer to AGENTS.md Section 3 (Subagent Strategy) to determine the best approach:
 
