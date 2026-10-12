@@ -25,6 +25,16 @@ type planningCLIResult struct {
 	err    error
 }
 
+// planningAgentEnv runs change-code against the fake reviewer in agentDir,
+// pausing the pause-kind review at barrier. Every planning CLI needs the whole
+// set: without PLANNING_SPINS the paused reviewer's loop test errors and it
+// exits at once (#338).
+func planningAgentEnv(agentDir, pause, barrier string) []string {
+	return append(os.Environ(), "PATH="+agentDir+":"+os.Getenv("PATH"), "PLANNING_PAUSE="+pause, "PLANNING_BARRIER="+barrier,
+		// The paused reviewer gives up after at least a ceiling of 10 ms naps.
+		fmt.Sprintf("PLANNING_SPINS=%d", testfix.HangCeiling/(10*time.Millisecond)))
+}
+
 func startPlanningReviewCLI(t *testing.T, binary, pause string, prepare ...func(string)) (repo, barrier string, finish func() planningCLIResult) {
 	t.Helper()
 	repo, _ = syncRepo(t)
@@ -57,6 +67,7 @@ func startPlanningReviewCLI(t *testing.T, binary, pause string, prepare ...func(
 kind=plan
 case "$*" in *"reviewing an issue's ## Estimate block"*) kind=estimate;; esac
 if [ "$kind" = "$PLANNING_PAUSE" ]; then
+  : "${PLANNING_BARRIER:?}" "${PLANNING_SPINS:?}" # a partial env fails loudly, not as an instant release (#338)
   echo "$kind" > "$PLANNING_BARRIER/ready"
   n=0
   while [ ! -f "$PLANNING_BARRIER/release" ]; do
@@ -77,9 +88,7 @@ fi
 	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Dir = repo
 	cmd.WaitDelay = 2 * time.Second
-	cmd.Env = append(os.Environ(), "PATH="+agentDir+":"+os.Getenv("PATH"), "PLANNING_PAUSE="+pause, "PLANNING_BARRIER="+barrier,
-		// The paused reviewer gives up after at least a ceiling of 10 ms naps.
-		fmt.Sprintf("PLANNING_SPINS=%d", testfix.HangCeiling/(10*time.Millisecond)))
+	cmd.Env = planningAgentEnv(agentDir, pause, barrier)
 	done := make(chan planningCLIResult, 1)
 	go func() { out, err := cmd.CombinedOutput(); done <- planningCLIResult{string(out), err} }()
 	finished := false
@@ -387,12 +396,12 @@ func TestPlanningReviewCompetingResults(t *testing.T) {
 	binary := buildFleetE2EBinary(t)
 	repo, first, finish := startPlanningReviewCLI(t, binary, "plan")
 	second := t.TempDir()
-	ctx, cancel := context.WithTimeout(context.Background(), 25*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*testfix.HangCeiling)
 	defer cancel()
 	cmd := exec.CommandContext(ctx, binary, "change-code", "--issue", "206", "--flow", "full", "--no-structural", "--no-estimate", "--no-estimate-recon", "--agent", "claude", "--worktree", "no", "--force", "cannot waive stale")
 	cmd.Dir = repo
 	cmd.WaitDelay = 2 * time.Second
-	cmd.Env = append(os.Environ(), "PATH="+first+":"+os.Getenv("PATH"), "PLANNING_PAUSE=plan", "PLANNING_BARRIER="+second)
+	cmd.Env = planningAgentEnv(first, "plan", second)
 	done := make(chan planningCLIResult, 1)
 	go func() { out, err := cmd.CombinedOutput(); done <- planningCLIResult{string(out), err} }()
 	completed := false
@@ -402,12 +411,12 @@ func TestPlanningReviewCompetingResults(t *testing.T) {
 		if !completed {
 			select {
 			case <-done:
-			case <-time.After(5 * time.Second):
+			case <-time.After(testfix.HangCeiling):
 				t.Error("competing CLI did not reap")
 			}
 		}
 	}()
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		if _, err := os.Stat(filepath.Join(second, "ready")); err == nil {
 			break
