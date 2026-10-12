@@ -76,3 +76,72 @@ findings:
     detail: |
       cmd/sdlc/internal/gitx/cancel_test.go:14-36 and cmd/sdlc/trackerenv_cancel_test.go:15-35 differ only in the runner call. Extract a testfix helper (e.g. AssertCancelEndsReceiveSide(t, push func(ctx, root, origin string) error)) so each new context-bound runner adds one line, as the atlas rule asks.
 ```
+
+---
+
+## Re-review — 2026-10-12T12:49:15-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 302 — Test TempDir cleanup race: directory not empty under sharded make test |
+| repo | ariadne |
+| issue file | workshop/issues/000302-tempdir-cleanup-race.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | bf837e55b7cfb4af873529f7a744cc4c8cefabbe..47a4e4636218dcd3b3dba7a160a0773a03ea48f5 |
+| command | sdlc close --issue 302 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T12:49:15-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the remaining packages for pushes, then running the new tests.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This change ships. Issue #302 asked for the late writer to be found and fixed where it starts, and the diff does that. The writer is receive-pack, the far end of a local push, which kept writing after a cancelled git returned. The process-group kill from #286 M1 is the actual fix, and this change adds the regression tests that pin it. It also closes a measured gap: git strips the `GIT_CONFIG_*` environment from the receive side of a local push, so the change also sets quiet config through `GIT_TEMPLATE_DIR`. Both prior findings are fixed and I checked them against the code. I ran the three new tests at the pinned head and all pass: `TestQuietBackgroundGitReachesTheReceiveSide`, `TestGitCancelEndsTheReceiveSide` and `TestTrackerGitCancelEndsTheReceiveSide`. The quiet-git test ran its assertion; it did not take its skip branch. So this git does start receive-side maintenance at baseline, and the test is not vacuous. Nothing blocks.
+
+1. **Strengths**
+   - `testfix/blockingorigin.go:24-52`: the pre-receive hook records its pid, then blocks for a fixed time. It gives up after twice `HangCeiling`, which is longer than `AwaitExit` waits. A regression therefore fails the test rather than passing it, and the hook can't hang forever.
+   - `testfix/realgit_test.go:48-73`: the test first proves the problem exists on this git (a plain push does start `maintenance run --auto`), and skips otherwise. Only then does it assert the fix, so the test can't pass vacuously.
+   - `realgit.go:53-60`: the doc comment explains why two mechanisms are needed: git strips the environment config on a local transport, but config stored in the repository survives.
+   - Every package whose tests push into a bare origin now calls `QuietBackgroundGit` in `TestMain` and runs its cleanup after `m.Run`. The one other push I found, in reviewbox `checkout_test.go:98`, is expected to fail, so it needs no hook.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new. One note for the record, not a finding: if a test binary dies before its `cleanupQuietGit()` runs, the template directory is left in `$TMPDIR`. It is a few bytes and the OS temp sweep removes it.
+
+5. **Test coverage**
+   - The two cancel tests now go through one shared helper, `AssertCancelEndsReceiveSide`, and each caller is a single closure.
+   - I did not revert the group kill myself to re-run the sensitivity check. Each run waited 150 s for a slot on the shared test gate, and this round's fixes were a test refactor and a doc edit, not a behaviour change. The issue Log records the check: with the group kill removed, the test fails with "pid … still running after 2m0s".
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** The duplicate test scaffold from BR-2 is now one helper.
+   - **ARCH-PURE: pass.** The change is test infrastructure only.
+   - **ARCH-PURPOSE: pass.** The writer is identified with a reproduction, and the fix is at the source. The atlas rule says any new runner of this kind adds one test.
+   - **ARCH-MOCK: pass.** The tests use real git against local bare origins, which is how this repo already works.
+   - **ARCH-CONSTRAINTS: pass.** Every wait is bounded by `HangCeiling`.
+   - **ARCH-SECURE: pass.** The template directory is created with `MkdirTemp`, and no credentials are involved.
+   - **ARCH-ORDER: pass.** The pid handshake is explicit, the hook blocks until cancel, and the cancel ordering is reproducible.
+   - **ARCH-FUNERAL: pass.** The template directory is removed after `m.Run`, and the hook stops itself on a timer.
+
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      atlas/workflow/sdlc-binary.md:1568-1572 now scopes the rule to runners that push, fetch, or spawn hooks or transports, and exempts read-only git log. Checked: both such runners use processgroup.Terminate (trackerenv.go:114, trunkfile.go:87); trunkfile.go:483 is the exempt git log.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Extracted testfix.AssertCancelEndsReceiveSide (blockingorigin.go:56). gitx/cancel_test.go and trackerenv_cancel_test.go are now single closures, and both pass at head.
+```

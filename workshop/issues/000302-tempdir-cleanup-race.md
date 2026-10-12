@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "0c704fd7", done: "ad3fb0e6"}
+flow: {kind: full, provenance: inferred}
 actual_hours: 1.53
 ---
 
@@ -59,6 +59,8 @@ Approach: run the affected tests under `-count=N` in parallel shards with a clea
 ### 2026-10-08
 
 ### 2026-10-12
+- 2026-10-12: closed — Close-review minors fixed: cancel assertion extracted to testfix.AssertCancelEndsReceiveSide (both runner tests pass); atlas claim narrowed to runners that push, fetch or spawn hooks. Prior evidence stands: writer repro (receive-pack writes ~1.5s after a direct-child kill, nothing after a group kill); the regression test fails without the group kill; make test 6 runs, directory not empty 0/6.; review verdict: SHIP
+- 2026-10-12: flow upgraded quick → full — 107 added lines in code files (limit 100)
 - 2026-10-12: closed — Writer identified with a repro: SIGKILL to only the direct git push leaves receive-pack writing refs into origin ~1.5s later, while a group kill leaves nothing; #286 M1 group kill is the source fix. New regression tests fail without the group kill (pid still running after 2m0s) and pass with it. Receive-side maintenance hole closed via GIT_TEMPLATE_DIR; the test asserts a baseline push spawns maintenance and a quieted one does not. make test after the fix: 6 sharded runs, directory not empty 0/6. The non-race failures were TestPlanningReviewCompetingResults (2x, main is red, #338) and cmd/weave TestCompileCancellationStopsLateGeneratorChild (1x on the merged tree; passes 5/5 alone; the branch has no cmd/weave diff).; review verdict: SHIP
 - Context: #286 M2 (`e0c2e844`, 2026-10-08 16:58) already added `testfix.QuietBackgroundGit` (env `GIT_CONFIG_COUNT`: gc.auto=0, maintenance.auto=false) — landed *after* both observations here, speculatively.
 - Measured hole in it: `GIT_TRACE=1 git push` to a local bare origin runs `unset GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS GIT_PREFIX; git-receive-pack …` (git's local_repo_env strip), and receive-pack then starts `git maintenance run --auto --quiet --detach` in origin.git with no suppressor; trace2 shows the detached child exiting *after* `git push` returns. On these tiny repos it runs no task (foreground run: no files changed); its only write is the transient `objects/maintenance.lock`.
