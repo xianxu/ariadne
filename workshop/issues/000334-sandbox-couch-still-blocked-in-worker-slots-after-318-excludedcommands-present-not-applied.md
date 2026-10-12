@@ -40,8 +40,19 @@ Fix whichever it is in weave's compiled settings (patterns that match how agents
 
 ## Plan
 
-- [ ]
+- [x] Reproduce in this (freshly prepared, auto-mode) session
+- [x] Find the matching rule (docs + the 2.1.296 binary)
+- [x] Guard test `TestBaseSettingsExcludedVerbsMatchArguments`
+- [x] `.claude/settings.ariadne.json`: ariadne + pair binaries as `X *` (TL, 964c47a1, operator-approved)
+- [x] Live check: `weave compile` in ariadne:1, then sandboxed bare calls plus negative controls
+- [x] Atlas: agent-facing rule in `atlas/workflow/sandbox.md`
 
 ## Log
 
 ### 2026-10-11
+- **Reproduced** in ariadne:1 (Claude Code 2.1.296, auto mode, freshly prepared): a bare, leading `couch --broadcast-list --json` → `dial unix /tmp/pair-message-501/….sock: connect: operation not permitted`. It wasn't compound and didn't use a full path.
+- **Cause:** `sandbox.excludedCommands` entries use `Bash(...)` rule syntax; a pattern without a wildcard is an EXACT match. The docs (code.claude.com/docs/en/sandboxing, excludedCommands section) say "`docker` matches only `docker` with no arguments. `docker *` matches `docker` with or without arguments", so `"couch"` exempts only a bare `couch`. It wasn't hypothesis 1 (settings read at start) or 3 (permission mode). Repository entries would be dropped only under an admin-required sandbox (a managed or `--settings` `allowUnsandboxedCommands:false`), which isn't the case here. A `git -c alias…` probe confirmed `git` with arguments also runs sandboxed; `git`/`gh`/`docker`/`npm`/`npx` are left bare, which is a separate decision.
+- The auto-mode classifier refused my edit to the settings file, and the commit of this log, as [Self-Modification]. I stopped and reported. The operator approved exempting all ariadne and pair binaries; the TL committed 964c47a1 (settings + test + atlas note).
+- **Verified live** in ariadne:1: `weave compile` (the sandbox denies writing `.claude/settings.json`; it ran unsandboxed through the permission gate) produced `sdlc *`, `couch *`, … in the compiled settings. In the SAME running session, with no restart, sandboxed bare `couch --broadcast-list --json` → `{"broadcast":null}` and `sdlc state` worked. So excludedCommands edits apply live. Negative controls stayed sandboxed and failed, as the docs say: `cd <other dir> && couch …`, `/…/pair/bin/couch …`, and `X=$(couch …)`. (`cd <cwd> && couch …` passed; a `cd` into the current directory looks like a no-op.) Bypass-permissions mode wasn't tested live (this session is auto); the docs make matching independent of mode, which only changes the approval flow after a match.
+- **Check:** `go test ./cmd/weave/internal/settingsx/ -run TestBaseSettings` passes; it was red on the pre-fix base.
+
