@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "e515125c", done: "6151fd84"}
 ---
 
 # merge: dirty tracker files are exempted from the block but still strand the post-merge switch
