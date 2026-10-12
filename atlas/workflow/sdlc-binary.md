@@ -502,38 +502,35 @@ uses `ActiveOnly` (and drops terminal-status legacy matches so an archived
 `ActiveAndArchive`. A fleet-glob skip-list excludes non-fleet siblings
 (`*.bak`, `worktree`, dot-dirs) that the exact-match resolver was immune to.
 `sdlc close` loops the existing tick/upsert helpers over every match
-(`closeResult.projectEdits []projectEdit`), each carrying its `repoDir` for the
-safe peer-write commit decision below. A **TL-owned** match (frontmatter
+(`closeResult.projectEdits []projectEdit`), each carrying its `repoDir` and,
+for a peer repository, the `peer` mark and the edit's inputs for the origin
+publish below. A **TL-owned** match (frontmatter
 `tl:`, read by `project.TLOwners`, #326) is skipped before it reaches
-`projectEdits`, so the tick, the detail-block gate, the peer-write and the
+`projectEdits`, so the tick, the detail-block gate, the peer publish and the
 review snapshot all pass it by; the close prints an info line naming the TL,
 and the worker reports the landing there. `find`/`resolve` still list it.
 
-### Safe peer-write commit mechanics (`peerwrite.go`, #171 M3)
+### Peer projects publish to their origin (`peerproject.go`, #308)
 
-A close that edits a project file in a *peer* repo must not strand the edit
-uncommitted in that peer's working tree — but blindly committing into someone
-else's checkout is worse. `planPeerWrites(edits, states, curRepoDir,
-closingRef)` is the genuinely-pure decision core: per peer repo it authorizes
-a **scoped auto-commit** only when git state makes the commit unambiguous —
-on `main`, clean index, clean *target files*, and not a brain capture repo
-(`RepoGitState.IsBrain` via `gitx.IsBrainRepo`, #176). Anything else —
-off-main, pre-existing staged changes, pre-existing uncommitted edits to the
-very files being committed (`TargetFilesDirty`, snapshotted BEFORE the close's
-file writes so another session's work is never absorbed), undeterminable
-branch, unknown state, brain — is **report-only**: the file stays written and
-the operator gets the reason plus the exact `cd … && git add … && git commit`
-next action (for a brain: leave it — nous sweeps it). The current repo is always omitted (its edit rides the normal
-close commit), and a report-only outcome never fails the close.
-`readRepoGitState` + `applyPeerWrites` are the thin shell over the shared
-`gitRunner` seam (`runner.go`); the close path owns a package-level
-`closeRunner` and `applyClose(stdout, stderr, gitRunner, …)` runs the
-plan→apply pair after its file writes. The peer commit is scoped by pathspec
-(`git commit -m … -- <files>`) and its message cites the closing ref
-(`project: close-time update (<repo>#<id>)`), so peer history says which close
-produced it. Pinned end-to-end by real multi-repo git fixtures
-(`peerwrite_apply_test.go`), including the cross-repo close case where the
-matched project lives in a different repo than the closing one.
+A close never edits a *peer* repository's checkout: that tree is someone
+else's (the TL's live ops checkout, kink 38), and a local commit there
+diverges it from origin. `projectCloseEdit` (`projecttick.go`) is the one pure
+edit — tick the rows, upsert a milestone's detail block, or refuse a missing
+block with the authoring skeleton. `computeClose` previews it on the local copy
+(messages, the missing-block refusal, the dry run), and `applyClose` writes
+this repository's projects locally (they ride the close commit). Last, after
+the local writes, `publishPeerProject` re-derives the same edit on the peer's
+fetched main and publishes it with one `TrunkFile.Update` compare-and-swap
+commit (`project: close-time update (<repo>#<id>)`) to the upstream of the
+peer's resting branch. The path is symlink-resolved (`peerProjectPath`), so
+the commit changes the real file. A moved origin is re-read and the edit
+recomputed on its bytes, within `TrunkFile`'s bounded attempts. A copy that
+became TL-owned on origin, or whose `tl:` cannot be read, refuses; so does a
+brain, or a peer with no upstream. A refusal is a warning naming the file and
+never fails the close. Peer projects are not in the review snapshot, so a TL's
+mid-review edit cannot void a SHIP (kink 55). `--no-project` skips the whole
+project update; `--force` only waives a missing detail block. Pinned by real
+multi-repo fixtures with bare origins (`peerproject_test.go`).
 - **Read-only ⟹ lock-free by construction.** `resolve`/`open` are never tagged
   `markMutatingCommand`, so `wrapRepoLockCommands` skips them and they never touch
   `.git/sdlc.lock` (proven structurally + under a held lock). That's what makes it

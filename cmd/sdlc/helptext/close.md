@@ -185,8 +185,9 @@ MODES
   So committing `workshop/lessons.md`, `atlas/` and `workshop/plans/` bookkeeping
   during a review is safe. Landing code is not, and the refusal now tells you which
   commits to re-review. Every mutable prose artifact named to the reviewer is
-  separately snapshotted: the **issue file**, any **project file** the close
-  edits (a TL-owned one is skipped and not snapshotted, #326), and the
+  separately snapshotted: the **issue file**, any **project file** in this
+  repository the close edits (a TL-owned one is skipped, #326, and a peer
+  repository's is re-derived at publish time, #308: neither is snapshotted), and the
   canonical durable **plan** (including whether that plan exists). Any edit,
   creation, deletion, or replacement refuses finalization — the review READ that
   prose — so write your `## Log` line AFTER the close, not during it.
@@ -256,13 +257,20 @@ WHAT THE GUARD DEFENDS
     - every project record across the fleet referencing <repo>#<id>
       (each peer's workshop/projects/*.md; the deprecated brain legacy
       home still scans with a migration warning, #171) gets its task row
-      ticked + detail block updated; a PEER repo's edit is committed
-      there only when git state is unambiguous (main, clean), else
-      reported with the exact finish command
+      ticked + detail block updated. A PEER repo's project is never edited
+      in its checkout (#308): the same edit is re-derived on the peer's
+      origin main and published there by one compare-and-swap commit
+      (symlinks resolved; a moved origin is re-read, never overwritten); a
+      refusal (no upstream, a brain, a now TL-owned copy) is a warning with
+      the manual next action, never a failed close. Peer projects are not
+      part of the review snapshot
     - a TL-OWNED project (frontmatter `tl:`, #326) is skipped entirely: no
-      tick, no detail block (so no --no-project refusal), no peer-write, no
-      review snapshot. An info line names it and its TL; report the landing
-      to the TL, who owns the file
+      tick, no detail block (so no missing-block refusal), no peer publish,
+      no review snapshot. An info line names it and its TL; report the
+      landing to the TL, who owns the file
+    - `--no-project` skips the project update entirely: no tick, no detail
+      block, no peer publish (#308). `--force` only waives a missing
+      milestone detail block
 
   BYPASSING A GATE (#67) — each gate has its own --no-<gate> flag, so you
   can waive exactly the one that doesn't apply (and acknowledge it) instead

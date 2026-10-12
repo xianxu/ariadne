@@ -120,7 +120,7 @@ func NewMilestoneCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoLedger, "no-ledger", false, "bypass the boundary gate ledger's open-findings refusal (#194)")
 	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict check")
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
-	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
+	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "skip the project update entirely: no task tick, detail block or peer publish (#308)")
 	cmd.Flags().BoolVar(&f.NoIntegrate, "no-integrate", false, "bypass the integrate gate: main's code landed before the most recent noon must be in the branch (#269)")
 	cmd.Flags().StringVar(&f.Agent, "agent", "", "agent CLI for judge dispatch (claude | codex | gemini)")
 	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "path to the brain repo (for project-file lookup)")
@@ -191,7 +191,7 @@ func runMilestoneClose(stdout, stderr io.Writer, f *milestoneCloseFlags) error {
 		// No review ran, so no ledger round is persisted and no reviewed head is
 		// stamped (#304 D5): the next boundary's window still covers this one's work.
 		cinfo(stderr, "skipping milestone-review per --no-judge (or --force)")
-		applyClose(stdout, stderr, closeRunner, closeF, r)
+		applyClose(stdout, stderr, closeF, r)
 		skipped := reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong, WindowBase: windowBase}
 		emitTrailerBlock(stdout, skipped, "milestone-close")
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, judge.VerdictNotRun); err != nil {
