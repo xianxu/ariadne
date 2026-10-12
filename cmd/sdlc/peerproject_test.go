@@ -397,3 +397,27 @@ func TestClose_BrainLegacyProjectIsWrittenInPlace(t *testing.T) {
 		t.Errorf("a brain legacy project was treated as a peer:\n%s", out.String())
 	}
 }
+
+// BR-8: whether a peer has anything to publish is decided on origin's bytes.
+// A stale local copy that already shows the tick (someone ticked it locally
+// and never pushed) must not suppress the publish origin still needs.
+func TestClose_PeerPublishesWhenOnlyTheLocalCopyIsTicked(t *testing.T) {
+	parent, issuesDir := fleetCloseFixture(t)
+	peer := initFleetRepo(t, parent, "nous")
+	rel := seedPeerProject(t, peer, "ariadne#42")
+	origin := withOrigin(t, peer)
+	raw, _ := os.ReadFile(filepath.Join(peer, rel))
+	ticked := strings.Replace(string(raw), "- [ ] [ariadne#42]", "- [x] [ariadne#42]", 1)
+	if err := os.WriteFile(filepath.Join(peer, rel), []byte(ticked), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, peer, "commit", "-qam", "tick locally, never pushed")
+
+	var out bytes.Buffer
+	if err := runClose(&out, &out, closeFlagsFor42(issuesDir)); err != nil {
+		t.Fatalf("runClose: %v\n%s", err, out.String())
+	}
+	if got := originFile(t, origin, rel); !strings.Contains(got, "- [x] [ariadne#42]") {
+		t.Fatalf("origin still unticked: the stale local copy suppressed the publish\n%s", out.String())
+	}
+}
