@@ -24,6 +24,23 @@ rounds:
       isolation: fenced
       reviewed: 436a1f42e317dc7fd1fe0fb48ea9bf5c4aacec9b
       blocked: false
+    - "n": 2
+      timestamp: "2026-10-12T15:52:59-07:00"
+      dispatched: "2026-10-12T15:49:37-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: 'planningreview_test.go:70 adds : "${PLANNING_BARRIER:?}" "${PLANNING_SPINS:?}" before ready is written; I confirmed it in sh, and the competing test still passes (-count=2).'
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: 'The issue Log''s Evidence line records 3/11 failing before the fix, 10/10 passing after it (-count=10), and a make test run whose only failure is pre-existing #340.'
+          round: 2
+      recipe: fix-review
+      isolation: fenced
+      reviewed: de37f528cd778ef486f79f01faa4804515d28ca2
+      blocked: false
 ---
 
 # Gate ledger — ariadne#338 (boundary-review)
@@ -40,7 +57,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-2** [Minor] `done-when-evidence-unrecorded` Log does not record the 10-run and make test results that Done-when requires
   The Plan's Verify item is checked, but the Log has no line with the run count or the make test outcome.
 
+## Round 2 — 2026-10-12T15:52:59-07:00 (claude) — passed
+
+### Disposed
+
+- BR-1 — addressed — planningreview_test.go:70 adds : "${PLANNING_BARRIER:?}" "${PLANNING_SPINS:?}" before ready is written; I confirmed it in sh, and the competing test still passes (-count=2).
+- BR-2 — addressed — The issue Log's Evidence line records 3/11 failing before the fix, 10/10 passing after it (-count=10), and a make test run whose only failure is pre-existing #340.
+
 ## Open findings
 
-- **BR-1** [Minor] `fixture-env-fails-silently` Fake reviewer exits silently when PLANNING_SPINS is unset instead of failing loudly
-- **BR-2** [Minor] `done-when-evidence-unrecorded` Log does not record the 10-run and make test results that Done-when requires
+(none — every finding has been disposed)

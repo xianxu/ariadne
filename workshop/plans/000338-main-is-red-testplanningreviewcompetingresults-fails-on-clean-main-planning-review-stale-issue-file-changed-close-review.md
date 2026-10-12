@@ -75,3 +75,64 @@ findings:
     detail: |
       The Plan's Verify item is checked, but the Log has no line with the run count or the make test outcome.
 ```
+
+---
+
+## Re-review — 2026-10-12T15:52:59-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 338 — main is red: TestPlanningReviewCompetingResults fails on clean main (planning review stale: issue file changed) |
+| repo | ariadne |
+| issue file | workshop/issues/000338-main-is-red-testplanningreviewcompetingresults-fails-on-clean-main-planning-review-stale-issue-file-changed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 303fb0de85b37ad50c551bf32894675095e67cd1..de37f528cd778ef486f79f01faa4804515d28ca2 |
+| command | sdlc close --issue 338 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-12T15:52:59-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both prior Minor findings are fixed, and this round adds no new defects. It contains only three things: a one-line guard in the fake reviewer script, Log lines in the issue file, and the two generated gate files. `## Spec`, `## Revisions` and `## Done when` are unchanged, so the scope has not changed. There are no conflict resolutions to judge.
+
+1. **Strengths**
+   - **The guard sits before `ready` is written** (`cmd/sdlc/planningreview_test.go:70`). A reviewer with only part of its env now exits before it can signal "paused". That closes the gap the earlier review flagged: the test could not tell a reviewer that had quit from one that was paused. I checked the shell behaviour directly. With either variable unset, `sh` prints `parameter null or not set` and stops before the next line runs.
+   - **The guard only runs when this reviewer is the one meant to pause.** Reviewers that don't pause are unaffected.
+   - **The new Log evidence is specific and complete.** It gives before and after pass counts. It names the one failure left in `make test` and points to the issue tracking it (#340). It also says that an earlier `make test` run doesn't count, and why.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none.
+
+5. **Test coverage notes**
+   - I ran `go test ./cmd/sdlc -run TestPlanningReviewCompetingResults -count=2` on the pinned head. It passed (166s). The guard does not break the normal path.
+   - I didn't remove `PLANNING_SPINS` from the env to watch the guard fail. The fix only makes a broken test setup fail loudly; the product code doesn't change. The direct shell check above already shows the guard works.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** The one guard covers both variables, and the env still comes only from `planningAgentEnv`.
+   - **ARCH-PURE: pass.** This is test-fixture wiring only.
+   - **ARCH-PURPOSE: pass.** The guard covers both variables the pause loop reads (`PLANNING_BARRIER` and `PLANNING_SPINS`), not just the one the finding named. `PLANNING_PAUSE` doesn't need a guard: if it is unset, the pause branch never runs.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      planningreview_test.go:70 adds : "${PLANNING_BARRIER:?}" "${PLANNING_SPINS:?}" before ready is written; I confirmed it in sh, and the competing test still passes (-count=2).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      The issue Log's Evidence line records 3/11 failing before the fix, 10/10 passing after it (-count=10), and a make test run whose only failure is pre-existing #340.
+```
