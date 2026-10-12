@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000335-actual-close-adopted-0-05h-for-an-issue-sdlc-actual-measures-at-2-57h-branch-moved-to-0-for-a-smoke-test.md
         source_blob: 213ab13f7df89340a1d7e26c13d84f3afc5bac55
         destination: workshop/issues/000335-actual-close-adopted-0-05h-for-an-issue-sdlc-actual-measures-at-2-57h-branch-moved-to-0-for-a-smoke-test.md
+        main_commit: 8f9ea913af4e10c119ecf8950e6a1efc1895cc0f
 ---
 
 # actual: close adopted 0.05h for an issue sdlc actual measures at 2.57h (branch moved to :0 for a smoke test)
