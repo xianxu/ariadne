@@ -93,8 +93,9 @@ that declares nothing pays nothing per call.
   and the emitted function run against stub `make`/`go` (prep first, clean
   stdout, a failed prep fails loudly without building).
 - [x] Atlas: `atlas/workflow/base-layer.md` dev-binaries section.
-- [ ] Pair's half (a pair issue, filed by the TL): a `dev-prepare` target, then
-  the live check in a fresh pair slot.
+
+Moved out of scope (see Revisions): pair's half, a `dev-prepare` target filed by
+the TL as a pair issue, carries the live check in a fresh pair slot.
 
 ## Log
 
