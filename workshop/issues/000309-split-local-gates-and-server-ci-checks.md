@@ -51,7 +51,7 @@ Replaces #052 (close it as superseded).
 
 Durable plan: `workshop/plans/000309-split-local-gates-and-server-ci-checks-plan.md`.
 
-- [ ] M1 — `sdlc merge` refuses red or pending CI on the PR head, both landing paths; `--no-ci` bypass
+- [x] M1 — `sdlc merge` refuses red or pending CI on the PR head, both landing paths; `--no-ci` bypass
 - [ ] M2 — `local-gates-guard.yml` on `pull_request_target` with the `local-gates-verified` label; merge-check on push to main; labels in four repos; atlas + AGENTS
 - [ ] After landing: live check with a DO-NOT-MERGE PR; report seeded files to the hub
 
@@ -80,6 +80,7 @@ total: 2.76
 Filed from the robustness evidence review (ariadne-robustness-1). Supersedes #052.
 
 ### 2026-10-12
+- 2026-10-12: closed M1 — Round 2. go test -run CIGate|TestRunMerge|TestLanding|DecideCIGate|ParsePRChecks: ok (399s); merge/tracker/landing/external-merge e2e set: ok (412s); processmanual ok. Mutation: removing either merge path runCIGate call alone fails its per-site test. BR-1 covered by TestRunCIGate lag/move/bound cases and TestRunMerge_LaggingPRHeadRefuses. make test (round 1): all shards pass except TestPlanningReviewCompetingResults, which fails identically on clean origin/main c1afb049 (pre-existing, reported to hub).; review verdict: SHIP
 Claimed at ariadne:2. Measured: merge-check is green on recent PRs in all four repos (no red CI to fix); only pair runs CI on push to main; `sdlc merge` reads no checks on either path. TL answers: label marker default (operator confirming), honest limit goes into the atlas verbatim; I create labels in all four repos, the TL runs the peer weave refreshes; one DO-NOT-MERGE live-check PR after landing is approved; push-to-main trigger approved.
 M1 implemented: `cmd/sdlc/cigate.go` (pure `decideCIGate`, `parsePRChecks`, `runCIGate`), `PRChecks` on the `ghCaller` seam, `PRMerge` pinned with `--match-head-commit`, `--no-ci` in the gate catalog. Mutation-checked: removing either site's `runCIGate` call alone fails `TestRunMerge_RedCIRefusesPreMerge` / `TestLandingRedCIRefusesBeforeMerge`. Revision: dropped "dry-run reports what the gate would say" — neither path's dry-run contacts GitHub for PR state today, and adding that is out of this issue's contour.
 M1 review round 1 (FIX-THEN-SHIP): BR-1 fixed in the class — `runCIGate` brackets the checks read with two PR-head reads and refuses on any mismatch (both paths); tests `TestRunCIGate` (lag, move-during-read, bound green) and `TestRunMerge_LaggingPRHeadRefuses`. Minors fixed: plan Revisions entry, catalog refusal pattern now the `CI gate: ` prefix shared by every refusal, `exitErr` uses strconv.
