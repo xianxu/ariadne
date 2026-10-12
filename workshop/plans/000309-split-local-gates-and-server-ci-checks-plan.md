@@ -28,8 +28,22 @@ when it is red or pending.
   Zero checks while the head tree carries `.github/workflows/` counts as
   pending: GitHub has not registered the suites yet, and clean would be a
   false pass. A repository with no workflows at all passes with a note.
-  The PR head is already pinned (local = remote = PR head, then
-  `--match-head-commit`), so the checks read belong to the head that merges.
+  The checks read must belong to the head that merges. The durable path
+  already pins it (local = remote = PR head, then `--match-head-commit`). The
+  legacy path does not: `realGH.PRMerge` (`ghclient.go`) merges whatever the
+  PR head is. M1 changes the seam to `PRMerge(repo, branch, expectedHead)`,
+  passing `--match-head-commit`, with the head read from `origin/<branch>`
+  after step 4 (which already proves local = remote).
+  **`gh pr checks` exit codes** (gh 2.93): measured 10-12, a PR with no
+  checks prints `no checks reported on the '<branch>' branch` on stderr and
+  exits 1; a green PR prints a JSON array and exits 0. gh documents exit 8 for
+  pending and 1 for failing checks. So the adapter parses stdout first: a JSON
+  array is the answer whatever the exit code; the no-checks message is an
+  empty list; anything else with a non-zero exit is a query failure. Fixtures:
+  the captured pass and no-checks outputs now; the live check captures a real
+  failing and pending output, which then replace the constructed fixtures.
+  A repository whose workflows never trigger on PRs stays pending forever
+  under this rule; the help text says so and names `--no-ci` for that case.
 - **D2. One gate, both paths.** A pure `decideCIGate(checks, hasWorkflows)`
   returns pass, or a refusal carrying its reason class (red, pending,
   unknown, query failed). Both merge paths call one `runCIGate`. The `gh`
@@ -46,15 +60,28 @@ when it is red or pending.
   unlabeled. Only same-repository PRs exist here; the guard does not need
   secrets, so a fork PR gets no extra exposure.
 - **D5. The protected list lives in the guard workflow** (one source, itself
-  protected by `.github/workflows/**`):
-  `.github/workflows/**`, `scripts/run-merge-checks.sh`,
-  `scripts/merge-checks.d/**`, `scripts/ci-setup.sh`, `scripts/pre-merge-checks.sh`,
-  `bootstrap.sh`, `.claude/settings*.json`, `.claude/hooks/**`,
-  `.gemini/settings.json`, `.sdlc/**`, `workshop/review.json`,
-  `construct/base.manifest`, `construct/deps`.
-  Gate CODE (`cmd/sdlc/**`) is deliberately absent: changing it is ariadne's
-  normal work, and the boundary review owns it. The list covers configuration
-  that switches or loosens gates.
+  protected by `.github/workflows/**`). It is derived, not hand-picked, from
+  three sources, swept 10-12:
+  1. `construct/base.manifest` rows whose delivered file runs or configures a
+     merge-blocking check, or the agent's sandbox and permissions:
+     `bootstrap.sh`, `.codex/config.toml`, `.claude/settings*.json` (the
+     symlinked source and the merged target), `scripts/pre-merge-checks.sh`,
+     `scripts/parallel-checks.sh`, `.github/workflows/**`,
+     `scripts/run-merge-checks.sh`, `scripts/merge-checks.d/**`,
+     `.openshell/policy.yaml`;
+  2. repo-root config that sdlc and weave read (grep of `cmd/`, `pkg/` for
+     repo-relative config paths): `.sdlc/**` (fleet, freshness),
+     `workshop/review.json`, `construct/deps`; plus `construct/base.manifest`
+     itself, which chooses what is woven;
+  3. CI-only hooks: `scripts/ci-setup.sh`, `.gemini/settings.json`,
+     `.claude/hooks/**`.
+  Some entries exist only in peer repos or not yet anywhere
+  (`scripts/ci-setup.sh`, `workshop/review.json`, `construct/deps` in
+  ariadne, `.claude/hooks/`); they are listed so the seeded guard covers every
+  consumer. Deliberately absent: gate CODE (`cmd/sdlc/**`, vocabulary `.cue`)
+  — changing it is ariadne's normal work and the boundary review owns it — and
+  build tooling that blocks nothing (`Makefile.workflow`). The atlas records
+  this rule so the next sweep starts from it.
 - **D6. The marker is the PR label `local-gates-verified`**, applied only by
   the operator. No sdlc verb applies it; AGENTS tells agents never to. Honest
   limit (TL, 10-12): agents share the operator's gh identity, so the label is
@@ -86,11 +113,13 @@ and a workflow file; check runs age out under GitHub's retention.
 - [ ] `cmd/sdlc/cigate.go`: `prCheck` type, `ciChecksGH` interface,
   `realGH.PRChecks` (parses `gh pr checks --json`; "no checks reported" is an
   empty list, other failures are errors), pure `decideCIGate`, `runCIGate`.
-- [ ] Tests first (`cigate_test.go`): table over buckets — all pass; one fail
-  named; one pending named; cancel red; unknown bucket refuses; zero checks
-  with workflows pending; zero checks without workflows pass; query error
-  refuses. Each refusal row asserts its own reason (lessons: rejection table).
-  Parser test over real `gh` JSON, including the no-checks message.
+- [ ] Tests first (`cigate_test.go`). Classifier: a table over every bucket
+  plus an unknown one, zero checks with and without workflows, and query
+  failure, each refusal row asserting its own reason. Adapter: fixtures of
+  real `gh` output (pass, no-checks; fail and pending after the live check)
+  across exit codes.
+- [ ] `PRMerge` takes the expected head and passes `--match-head-commit`;
+  argv test; legacy merge reads the head from `origin/<branch>`.
 - [ ] Wire into `runDurableMerge` after the publish gate, before
   `revalidateLanding`; and into `runMerge` before `PRMerge` (open PR only;
   resume of an already-merged PR skips it). Per-site tests: each path refuses
@@ -104,12 +133,14 @@ and a workflow file; check runs age out under GitHub's retention.
 
 - [ ] `.github/workflows/local-gates-guard.yml` per D4–D6, run block in Bash
   with the protected list as a pattern list.
-- [ ] `scripts/test/local-gates-guard.test.sh`: executes the workflow's real
-  run block against a scratch repo (portable-ci.test.sh pattern): untouched →
-  pass; protected path touched → fail naming the path; touched + label →
-  pass; label on an untouched PR → pass; each protected pattern matches a
-  sample path (enumerate from the list, not from examples); a near-miss path
-  (`scripts/merge-checks.d.md`, `cmd/sdlc/x.go`) does not match.
+- [ ] The run block takes PR values only through `env:` (number, base SHA,
+  labels as JSON) and fetches `refs/pull/<N>/head` by number; it never
+  interpolates `${{ github.event.pull_request.head.ref }}` or titles into the
+  script (ARCH-SECURE).
+- [ ] `scripts/test/local-gates-guard.test.sh` executes the workflow's real run
+  block against a scratch repo (portable-ci.test.sh pattern). Matcher: cases
+  generated from the pattern list in the workflow, plus near-miss mutations of
+  each; decision: touched/untouched × labeled/unlabeled.
 - [ ] `merge-check.yml`: add `push: branches: [main]`; range from
   `before`/`after` on push. Extend portable-ci.test.sh for the push event;
   verify duplicate-id is clean on a push range.
@@ -126,8 +157,10 @@ and a workflow file; check runs age out under GitHub's retention.
 
 - [ ] Live check (TL-approved): a throwaway ariadne PR titled
   "DO NOT MERGE: local-gates-guard live check" touching a protected path.
-  Confirm the guard fails, `sdlc merge` refuses naming it; then close the PR
-  and delete its branch. Report seeded files to the hub for the TL's refresh.
+  Confirm the guard fails, `sdlc merge` refuses naming it; capture the real
+  failing and pending `gh pr checks` output as fixtures; add the label and
+  confirm `gh pr checks` reports the re-run (latest run per name), not the
+  earlier failure; then remove the label, close the PR and delete its branch. Report seeded files to the hub for the TL's refresh.
 
 ## Verification
 
@@ -135,3 +168,13 @@ and a workflow file; check runs age out under GitHub's retention.
   `bash scripts/test/local-gates-guard.test.sh`, `bash scripts/test/portable-ci.test.sh`.
 - Full `make test` before each close (one suite at a time; the lock waits).
 - Live: the after-landing check above.
+
+## Revisions
+
+- 2026-10-12, plan-quality round 1: pin the head on the legacy path
+  (PRMerge `--match-head-commit`); parse `gh pr checks` stdout before its exit
+  code, with measured fixtures; D5 derived from three stated sources
+  (adds `.codex/config.toml`, `.openshell/policy.yaml`,
+  `scripts/parallel-checks.sh`); guard run block takes PR values via `env:`;
+  test bullets compressed to strategies; live check confirms re-run
+  supersession.
