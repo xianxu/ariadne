@@ -168,12 +168,8 @@ func TestReviewConcurrencySchedules(t *testing.T) {
 					waits := testfix.NewWatch(repolock.WaitMessagePrefix)
 					independent := make(chan error, 1)
 					go func() {
-						root := buildRoot()
-						root.SetArgs([]string{"issue", "sync", "--issue", "70"})
-						root.SetContext(ctx)
-						root.SetOut(&bytes.Buffer{})
-						root.SetErr(waits)
-						independent <- root.Execute()
+						_, err := executeSDLCTestCommandWith(ctx, waits, "issue", "sync", "--issue", "70")
+						independent <- err
 					}()
 					select {
 					case err := <-independent:

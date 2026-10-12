@@ -81,3 +81,8 @@ Verification (10-12):
 - `make test`: 12 shards over 1086 cmd/sdlc tests and 46 other packages, 0 failed, no `QUARANTINED (#325)` skip; `grep '"#325"'` over Go sources is empty.
 - Process slip: code edits began before `sdlc change-code` (run afterwards; quick flow inferred). Also, a sed line-number edit missed its anchor once (repolock_test.go select at 361, not 360); caught by re-grepping, per the existing lesson on asserting anchors.
 
+Close review round 1 (SHIP, two Minors), both fixed in round:
+- Hang ceiling single source: the constant moved to `testgate.HangCeiling` (`pkg/testgate`, stdlib-only, already the module's test-under-load package), so the weave sites (generator_lifetime ×3, release, staging, runner_setup, plan/publication, runner_owned ×2, acquire's two `ExecGit.Timeout`s) and repolock's tests use it instead of `time.Minute` literals; `testfix.HangCeiling` aliases it.
+- `executeSDLCTestCommandWith(ctx, stderr, args…)` is the one in-process runner; `executeSDLCTestCommand` wraps it and review_concurrency's unrelated sync uses it.
+- While doing this, found that the earlier testgate nested-re-exec edit had missed its anchor (line 35 was a comment; the 10 s was on 36). Now fixed by content. Lesson refined in `workshop/lessons.md`.
+

@@ -1564,8 +1564,8 @@ the known problem (a load-sensitive deadline), so the rest stays covered.
 
 Under load (several slots' suites at once) spawning a binary or running git is
 many times slower, so a test's verdict must not ride on elapsed time. Bound waits
-with `testfix.HangCeiling` (cmd/sdlc's `hangGuard` aliases it): it catches a
-hang, not a slow machine. Prove ordering with an event instead: `testfix.Watch`
+with `testgate.HangCeiling` (`pkg/testgate`, so cmd/weave shares it; cmd/sdlc's
+`testfix.HangCeiling` and `hangGuard` alias it): it catches a hang, not a slow machine. Prove ordering with an event instead: `testfix.Watch`
 signals when a command's output contains a needle, e.g. `repolock.WaitMessagePrefix`
 to fail the moment one command waits for the repo lock behind another (#325).
 

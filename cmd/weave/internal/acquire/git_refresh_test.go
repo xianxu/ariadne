@@ -10,6 +10,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 func refreshGitScript(t *testing.T, script string) string {
@@ -45,7 +47,7 @@ func TestExecGitBoundedStreamsAndCancellation(t *testing.T) {
 			dir := refreshGitScript(t, "while :; do printf '0123456789'"+stream+"; done\n")
 			// The output limit, not the timeout, must stop the endless writer: the
 			// error names which one fired, so no elapsed bound is needed (#325).
-			_, err := (ExecGit{Raw: true, MaxOutputBytes: 64, Timeout: time.Minute}).Run(context.Background(), dir, "probe")
+			_, err := (ExecGit{Raw: true, MaxOutputBytes: 64, Timeout: testgate.HangCeiling}).Run(context.Background(), dir, "probe")
 			if err == nil || !strings.Contains(err.Error(), "output limit") {
 				t.Fatalf("got %v", err)
 			}
@@ -101,7 +103,7 @@ func TestRestoreWithRawGitPaths(t *testing.T) {
 	base := t.TempDir()
 	source := origin(t, base, "layer", "", true)
 	dest := filepath.Join(base, "clone with spaces ")
-	client := Client{Git: ExecGit{Raw: true, Timeout: time.Minute, MaxOutputBytes: 4096}}
+	client := Client{Git: ExecGit{Raw: true, Timeout: testgate.HangCeiling, MaxOutputBytes: 4096}}
 	if err := client.Ensure(context.Background(), dest, source, true); err != nil {
 		t.Fatal(err)
 	}

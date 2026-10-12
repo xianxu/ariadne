@@ -6,8 +6,9 @@
 // (previously copy-pasted across hermeticRepo/initFleetRepo/windowRepo/closeRepo/
 // publishRepo and the internal/gitx + internal/activetime sub-packages).
 //
-// It imports only the standard library and testing, so it introduces no import
-// cycle with any cmd/sdlc package that consumes it.
+// It imports only the standard library, testing and pkg/testgate (itself
+// standard-library only), so it introduces no import cycle with any cmd/sdlc
+// package that consumes it.
 package testfix
 
 import (

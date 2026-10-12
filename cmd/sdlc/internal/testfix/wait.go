@@ -4,16 +4,13 @@ import (
 	"bytes"
 	"strings"
 	"sync"
-	"time"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
-// HangCeiling bounds a wait for an event that a correct program produces
-// promptly. It catches a hang, not a slow machine: with several slots' suites
-// running at once (load ~50), spawning a binary or running git is many times
-// slower, and a deadline of a few seconds turns contention into failures
-// (#325). Assert ordering or concurrency with event evidence (see Watch); this
-// ceiling only keeps a broken run from stalling until go test's own timeout.
-const HangCeiling = 2 * time.Minute
+// HangCeiling is testgate.HangCeiling: the one hang bound for tests, which
+// catches a hang, not a slow machine (#325).
+const HangCeiling = testgate.HangCeiling
 
 // Watch is an io.Writer that keeps what is written to it and closes Seen once
 // the output contains needle. Point a command's stderr at it to fail the

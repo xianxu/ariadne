@@ -33,7 +33,7 @@ func TestHelperReport(t *testing.T) {
 	if os.Getenv("TESTGATE_NESTED") == "1" {
 		// Re-exec this binary as a test helper, inheriting the environment the
 		// way cmd/weave's and judge's subprocess helpers do.
-		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), HangCeiling)
 		defer cancel()
 		child := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestHelperReport$", "-test.v")
 		child.Env = append(os.Environ(), "TESTGATE_NESTED=")
