@@ -89,7 +89,7 @@ Items, in order:
 Durable plan: `workshop/plans/000308-issue-new-publishes-card-and-details-in-one-go-plan.md`.
 
 - [x] M1 — `issue new` publishes card + details to origin (creation.main stage), claims from a slot `:N`, writes no working tree; status-aware section presence for skeletons; C5 root guard; `move-detail` hidden deprecated alias; F1 regression row
-- [ ] M2 — close ticks peer projects through a CAS trunk write to the peer's origin main (symlinks resolved, tl: re-checked); peer projects leave the review snapshot; `--no-project` skips the whole project update
+- [x] M2 — close ticks peer projects through a CAS trunk write to the peer's origin main (symlinks resolved, tl: re-checked); peer projects leave the review snapshot; `--no-project` skips the whole project update
 
 ## Log
 
