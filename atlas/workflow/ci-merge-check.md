@@ -77,6 +77,33 @@ and `sdlc merge` will not land over it:
   The merge is pinned to the read head with `--match-head-commit`. `--no-ci`
   waives only this gate. gh exits 1 (failing) or 8 (pending) while still
   printing the JSON, so the adapter reads stdout before the exit status.
+- **The local-gates guard** (`.github/workflows/local-gates-guard.yml`, seeded).
+  It runs on `pull_request_target`, so main's copy of the guard decides and a
+  PR cannot weaken the guard within itself; it never checks out or runs PR
+  code, only the changed-path list of `refs/pull/<N>/head`, and takes PR values
+  through `env:`. A PR touching a protected path fails unless it carries the
+  `local-gates-verified` label. It also posts a `local-gates-guard/verdict`
+  commit status on the PR head, so `gh pr checks` (and merge's CI gate) see the
+  latest verdict for that head whichever way GitHub attaches the job's check.
+  Tested by executing the real run block: `scripts/test/local-gates-guard.test.sh`.
+- **The label is the operator's marker.** Only the operator applies
+  `local-gates-verified`; no sdlc verb does and agents are told never to. A
+  local-gates change is its own issue with operator-held verification. Honest
+  limit: agents share the operator's gh identity, so the label is an explicit,
+  audited acknowledgment, not a cryptographic one.
+- **How the protected list is derived** (re-sweep from these, don't hand-pick):
+  `construct/base.manifest` rows whose file runs or configures a merge-blocking
+  check, or the agent's sandbox and permissions; repo-root config that sdlc and
+  weave read (`.sdlc/`, `workshop/review.json`, `construct/deps`, the manifest
+  itself); CI-only hooks (`scripts/ci-setup.sh`, `.claude/hooks/`). Gate code
+  (`cmd/sdlc`, vocabulary) is out: changing it is ordinary ariadne work and the
+  boundary review owns it. The list lives once, in the guard workflow.
+- **merge-check runs on push to main too**, over `before..after` (a new ref
+  checks nothing), so main has a CI status of its own.
+- **Not covered:** `sdlc push` lands on main with no PR, so no PR CI gates it;
+  the push run reports after the fact. Branch protection (required checks) is
+  not configured: merge's refusal is the gate for agents, the guard the
+  server's detector.
 
 ## Not the same as the publish gate or the close review
 

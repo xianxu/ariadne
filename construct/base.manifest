@@ -132,6 +132,10 @@ scaffold  scripts/merge-checks.d
 # the eight found. The script resolves sdlc through construct/dev-aliases.sh and
 # builds in the owner, so a derivative without its own cmd/sdlc still runs it.
 symlink   scripts/merge-checks.d/40-duplicate-issue-id.sh
+# The local-gates guard (#309): a PR touching the local gates' configuration
+# fails unless the operator labels it local-gates-verified. Seeded (a workflow),
+# on pull_request_target so main's copy runs and a PR cannot weaken it in itself.
+seed      .github/workflows/local-gates-guard.yml
 
 # ── Construct system ──────────────────────────────────────────────────────────
 # Retired by the weave cutover (#95): sync-local-skills.sh (now the `skill`
