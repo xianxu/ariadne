@@ -1557,6 +1557,18 @@ package needs the same `TestMain`
 fast inner-loop tier is #261; the single git seam it and in-process parallelism
 need is #262.
 
+A package whose tests push into a local bare origin also calls
+`testfix.QuietBackgroundGit()` (cmd/sdlc, gitx, tracker, fleet) and runs the
+returned cleanup after `m.Run`. It turns off git's detached auto-gc and
+auto-maintenance two ways: through `GIT_CONFIG_*` for every git the binary runs,
+and through a `GIT_TEMPLATE_DIR` config for every repository it creates. The
+template is needed because git unsets the config environment for the receive
+side of a local push (#302). Late writers into a temp repo race `t.TempDir`'s
+cleanup ("directory not empty"). The one #302 found was a cancelled git whose
+local-transport far end (receive-pack) kept writing. Every context-bound git
+runner therefore kills the whole process group (`processgroup.Terminate`); a
+new one must too, and `testfix.BlockingOrigin` tests it.
+
 A test known to fail for a tracked reason is quarantined by name:
 `testfix.Quarantine(t, "#N", why)` as its first line skips it with a `QUARANTINED (#N)`
 message naming the owning issue, whose fix deletes the call; `WF_TEST_QUARANTINED=run`

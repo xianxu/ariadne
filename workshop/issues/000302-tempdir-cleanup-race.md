@@ -51,7 +51,7 @@ Approach: run the affected tests under `-count=N` in parallel shards with a clea
 - [x] Reproduce under load with a diagnostic cleanup hook; identify the writer.
 - [x] Regression test: a cancelled push through `trackerEnv.gitRaw` leaves no receive-side process (hook pid dies; `testfix.AwaitExit`).
 - [x] QuietBackgroundGit: template config so receive-side maintenance is off too; test that a local push spawns no `maintenance run`.
-- [ ] Verify with repeated sharded runs (make test, one at a time).
+- [x] Verify with repeated sharded runs (make test, one at a time).
 
 ## Log
 
@@ -69,3 +69,5 @@ Approach: run the affected tests under `-count=N` in parallel shards with a clea
 - Post-#286 sightings: none found (ops project log, issues, lessons).
 - Fix (16ce7f3a): `testfix.BlockingOrigin` (pre-receive hook records pid, blocks) + `TestTrackerGitCancelEndsTheReceiveSide` (cmd/sdlc, trackerEnv.gitRaw) and `TestGitCancelEndsTheReceiveSide` (gitx, executeGitInputContext). Sensitivity: with gitx's group kill removed the test fails — `the receive side outlived the cancelled push: pid … still running after 2m0s`; restored, passes. `QuietBackgroundGit` now also sets GIT_TEMPLATE_DIR (config: gc.auto=0, maintenance.auto=false, receive.autogc=false; empty hooks/ and info/ since tests write there) and returns a cleanup; installed in cmd/sdlc, gitx, tracker, fleet TestMains. `TestQuietBackgroundGitReachesTheReceiveSide` asserts a baseline push spawns receive-side maintenance and a quieted one doesn't.
 - Full `make test` #1 (diag hook in, pre-fix code): no cleanup race in any shard; every shard tripped the hermeticity guard because I committed in this worktree mid-run (HEAD moved + an untracked diag file) — self-inflicted, not a test failure.
+- Verification, `make test` ×5 sequential after the fix (16ce7f3a): `directory not empty` 0/5. Runs 3–5 fully green (wall 360–393 s). Runs 1–2 each failed only `TestPlanningReviewCompetingResults` ("planning review stale: … changed/appeared"; the competing change-code held the repo lock when the first review came back). It is unrelated to this change: it passes 4/4 alone on this branch, and the fix only touches git gc/maintenance config and test helpers. A load-sensitive review-ordering race, reported to the hub as its own item.
+- Atlas: sdlc-binary.md "Running the test suite" gains the QuietBackgroundGit / process-group paragraph.
