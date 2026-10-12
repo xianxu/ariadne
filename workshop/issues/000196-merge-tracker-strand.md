@@ -1,12 +1,20 @@
 ---
 id: 000196
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-10-12
 estimate_hours:
-card_mirror: 'bb05fa53d70f305ea7c91cc948bd96e793c87977' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '42823b6735773ae157ab7b448b76cda47aeb2704' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T07:50:13-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # merge: dirty tracker files are exempted from the block but still strand the post-merge switch
@@ -104,9 +112,37 @@ steps.
 
 ## Plan
 
-- [ ] Design via `sdlc start-plan` before implementing.
+Scope today (2026-10-12): primary and numbered-slot checkouts land through
+`runDurableMerge` (`landing.go`), whose `landingClean` already refuses *any*
+tracked dirt (tracker files included) before the merge, so the hazard is closed
+there. It survives on the legacy `runMerge` path's **in-place** topology
+(reachable as a `dependency` checkout). The linked-worktree topology never
+switches the issue checkout, so its exemption stays.
+
+- [ ] Resolve topology (in-place vs worktree) before step 2, so both dirt guards know it.
+- [ ] One decision for steps 2 and 9b: `mergeRefusal` = Blocking, plus (in-place
+      only) the tracker paths that differ between `main` and `HEAD` or between
+      `main` and `origin/main` (git would refuse them on switch or on pull).
+      Step 9b fetches `origin/main` first; a diff error refuses (fail safe).
+- [ ] Remaining tracker dirt still warns, never blocks (#82 M2 intent).
+- [ ] Post-merge `git switch main` / `git pull` failure: say the PR is merged and
+      this checkout is stranded, and give the recovery (fix the named files, re-run
+      `sdlc merge --yes`, which resumes via #62 M3).
+- [ ] Rewrite `assessDirty`/`Refuse` comments to agree with the behaviour.
+- [ ] Tests: unit for the stranding-path selection; e2e in-place: tracker file
+      that differs on main refuses pre-merge (PRMerge never called); identical
+      tracker file still lands end to end; switch failure after merge names the
+      recovery.
 
 ## Log
+
+### 2026-10-12
+
+Claimed at ariadne:2 (Merge and CI train). The spec's preferred fix, committing
+tracker files at the top of merge, no longer fits: merge requires HEAD synced
+with origin (step 4) and unchanged since close (#160 publish gate), so a commit
+made by merge itself refuses both. Taking the spec's mechanical alternative
+instead (exempt only what git would carry across switch and pull).
 
 ### 2026-08-20
 
