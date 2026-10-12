@@ -1,6 +1,6 @@
 ---
 id: 000325
-status: codecomplete
+status: done
 created: 2026-10-10
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: f48c5d4d54460da13f0f9e9fa95d48f5a637bde8
         evidence_commit: 35b95380bac7cdc8d4081024cafea645f751c22f
+        landed_commit: 0b70b769699b1d88600ccac294a755c499943e98
 ---
 
 # Load-sensitive wall-clock deadlines in tests: replace fixed subprocess deadlines with condition waits
