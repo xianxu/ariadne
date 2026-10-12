@@ -5,6 +5,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -43,10 +44,23 @@ func TestHelperReport(t *testing.T) {
 
 func runHelper(t *testing.T, dir string, env []string, args ...string) string {
 	t.Helper()
+	return runHelperTee(t, dir, env, nil, args...)
+}
+
+// runHelperTee also copies the helper's output to tee as it is written.
+func runHelperTee(t *testing.T, dir string, env []string, tee io.Writer, args ...string) string {
+	t.Helper()
 	cmd := exec.Command(os.Args[0], append([]string{"-test.run=^TestHelperReport$", "-test.v"}, args...)...)
 	cmd.Env = append(os.Environ(), append([]string{"TESTGATE_HELPER=1", "WF_TEST_GATE_DIR=" + dir,
 		"WF_TEST_GATE_SLOTS=1", "WF_TEST_LOCK=", "WF_TEST_LOCK_HELD_BY=", "WF_TEST_GATE_HELD_BY=", "WF_TEST_PARALLEL=", "WF_TEST_LOCK_FILE="}, env...)...)
-	out, err := cmd.CombinedOutput()
+	var buf bytes.Buffer
+	var sink io.Writer = &buf
+	if tee != nil {
+		sink = io.MultiWriter(&buf, tee)
+	}
+	cmd.Stdout, cmd.Stderr = sink, sink
+	err := cmd.Run()
+	out := buf.Bytes()
 	if err != nil {
 		t.Fatalf("helper: %v\n%s", err, out)
 	}
@@ -186,8 +200,34 @@ func TestEnterGoesAheadPastItsBudget(t *testing.T) {
 func TestDirectRunShrinksTimeoutByTheWait(t *testing.T) {
 	dir := t.TempDir()
 	f := holdSlot(t, dir, 0)
-	go func() { time.Sleep(1500 * time.Millisecond); f.Close() }()
-	out := runHelper(t, dir, nil, "-test.timeout=1m")
+	// Release on the helper's own waiting line, not after a sleep: a helper slow
+	// to start under load would find the slot already free (#325).
+	r, w := io.Pipe()
+	queued := make(chan struct{})
+	go func() {
+		var seen bytes.Buffer
+		buf := make([]byte, 4096)
+		for {
+			n, err := r.Read(buf)
+			seen.Write(buf[:n])
+			if strings.Contains(seen.String(), "[test-gate] waiting") {
+				f.Close()
+				close(queued)
+				_, _ = io.Copy(io.Discard, r)
+				return
+			}
+			if err != nil {
+				return
+			}
+		}
+	}()
+	out := runHelperTee(t, dir, nil, w, "-test.timeout=1m")
+	_ = w.Close()
+	select {
+	case <-queued:
+	default:
+		t.Fatalf("the helper never queued:\n%s", out)
+	}
 	if !strings.Contains(out, "slot acquired after") || strings.Contains(out, "timeout=1m0s") || !strings.Contains(out, "timeout=5") {
 		t.Fatalf("want a queued run with a shrunk timeout (5x.xs):\n%s", out)
 	}

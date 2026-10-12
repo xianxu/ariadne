@@ -43,13 +43,11 @@ func TestExecGitBoundedStreamsAndCancellation(t *testing.T) {
 	for _, stream := range []string{"", " >&2"} {
 		t.Run("overflow"+stream, func(t *testing.T) {
 			dir := refreshGitScript(t, "while :; do printf '0123456789'"+stream+"; done\n")
-			start := time.Now()
-			_, err := (ExecGit{Raw: true, MaxOutputBytes: 64, Timeout: 5 * time.Second}).Run(context.Background(), dir, "probe")
+			// The output limit, not the timeout, must stop the endless writer: the
+			// error names which one fired, so no elapsed bound is needed (#325).
+			_, err := (ExecGit{Raw: true, MaxOutputBytes: 64, Timeout: time.Minute}).Run(context.Background(), dir, "probe")
 			if err == nil || !strings.Contains(err.Error(), "output limit") {
 				t.Fatalf("got %v", err)
-			}
-			if time.Since(start) > 3*time.Second {
-				t.Fatal("overflow shutdown was not bounded")
 			}
 		})
 	}
@@ -60,7 +58,9 @@ func TestExecGitBoundedStreamsAndCancellation(t *testing.T) {
 		if err == nil || !errors.Is(err, context.DeadlineExceeded) {
 			t.Fatalf("got %v", err)
 		}
-		if time.Since(start) > 3*time.Second {
+		// Unkilled, the backgrounded sleep holds wait for 30 s; half that is
+		// the bound, so load cannot fail a healthy kill (#325).
+		if time.Since(start) > 15*time.Second {
 			t.Fatal("cancellation shutdown was not bounded")
 		}
 	})
@@ -101,7 +101,7 @@ func TestRestoreWithRawGitPaths(t *testing.T) {
 	base := t.TempDir()
 	source := origin(t, base, "layer", "", true)
 	dest := filepath.Join(base, "clone with spaces ")
-	client := Client{Git: ExecGit{Raw: true, Timeout: time.Second, MaxOutputBytes: 4096}}
+	client := Client{Git: ExecGit{Raw: true, Timeout: time.Minute, MaxOutputBytes: 4096}}
 	if err := client.Ensure(context.Background(), dest, source, true); err != nil {
 		t.Fatal(err)
 	}

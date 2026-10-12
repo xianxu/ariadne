@@ -1562,6 +1562,13 @@ runs quarantined tests anyway. Place it at the failing step when only that step 
 the known problem (a load-sensitive deadline), so the rest stays covered.
 `grep -rn 'testfix.Quarantine(' cmd` lists them (#330).
 
+Under load (several slots' suites at once) spawning a binary or running git is
+many times slower, so a test's verdict must not ride on elapsed time. Bound waits
+with `testfix.HangCeiling` (cmd/sdlc's `hangGuard` aliases it): it catches a
+hang, not a slow machine. Prove ordering with an event instead: `testfix.Watch`
+signals when a command's output contains a needle, e.g. `repolock.WaitMessagePrefix`
+to fail the moment one command waits for the repo lock behind another (#325).
+
 Cancellation tests prove a descendant stopped with `testfix.AwaitExit(pid, ceiling)`,
 which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instead of
 running `ps`: agent sandboxes deny exec of `/bin/ps` (#330). It waits, because a

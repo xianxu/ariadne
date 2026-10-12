@@ -180,8 +180,8 @@ func (l *observedRepoLock) events() []string {
 
 // hangGuard bounds a wait that a passing test never reaches. It only turns a
 // hang into a failure, so it is generous: a tight bound fails healthy tests on
-// a loaded machine (#253, sharded runs).
-const hangGuard = time.Minute
+// a loaded machine (#253, sharded runs; #325).
+const hangGuard = testfix.HangCeiling
 
 func waitForSignal(t *testing.T, ch <-chan struct{}, label string) {
 	t.Helper()

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
@@ -58,7 +60,7 @@ if [ "$kind" = "$PLANNING_PAUSE" ]; then
   echo "$kind" > "$PLANNING_BARRIER/ready"
   n=0
   while [ ! -f "$PLANNING_BARRIER/release" ]; do
-    n=$((n+1)); [ "$n" -lt 2000 ] || exit 1
+    n=$((n+1)); [ "$n" -lt "$PLANNING_SPINS" ] || exit 1
     sleep 0.01
   done
 fi
@@ -71,11 +73,13 @@ fi
 	}
 	args := []string{"change-code", "--issue", "206", "--flow", "full", "--no-structural", "--no-estimate", "--no-estimate-recon", "--agent", "claude", "--worktree", "no", "--force", "test cannot waive stale reviews"}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*testfix.HangCeiling)
 	cmd := exec.CommandContext(ctx, binary, args...)
 	cmd.Dir = repo
 	cmd.WaitDelay = 2 * time.Second
-	cmd.Env = append(os.Environ(), "PATH="+agentDir+":"+os.Getenv("PATH"), "PLANNING_PAUSE="+pause, "PLANNING_BARRIER="+barrier)
+	cmd.Env = append(os.Environ(), "PATH="+agentDir+":"+os.Getenv("PATH"), "PLANNING_PAUSE="+pause, "PLANNING_BARRIER="+barrier,
+		// The paused reviewer gives up after at least a ceiling of 10 ms naps.
+		fmt.Sprintf("PLANNING_SPINS=%d", testfix.HangCeiling/(10*time.Millisecond)))
 	done := make(chan planningCLIResult, 1)
 	go func() { out, err := cmd.CombinedOutput(); done <- planningCLIResult{string(out), err} }()
 	finished := false
@@ -85,12 +89,12 @@ fi
 		if !finished {
 			select {
 			case <-done:
-			case <-time.After(5 * time.Second):
+			case <-time.After(testfix.HangCeiling):
 				t.Error("planning CLI did not reap")
 			}
 		}
 	})
-	deadline := time.Now().Add(15 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	for {
 		if _, err := os.Stat(filepath.Join(barrier, "ready")); err == nil {
 			break
@@ -119,19 +123,33 @@ fi
 }
 
 func TestPlanningReviewConcurrencySchedules(t *testing.T) {
-	testfix.Quarantine(t, "#325", `fixed subprocess deadlines fail under load (3/3 make test runs, ariadne:3, 10-10)`)
 	binary := buildFleetE2EBinary(t)
 	for _, kind := range []string{"plan", "estimate"} {
 		t.Run(kind, func(t *testing.T) {
 			repo, _, finish := startPlanningReviewCLI(t, binary, kind)
-			ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+			// The review is paused, so a lock it kept would make this mutation
+			// wait: the lock's wait line is the evidence, not elapsed time (#325).
+			ctx, cancel := context.WithTimeout(context.Background(), testfix.HangCeiling)
 			defer cancel()
 			// --force: the owned guard on start (#283) is not what this exercises.
 			other := exec.CommandContext(ctx, binary, "issue", "set-status", "working", "--issue", "207", "--force")
 			other.Dir = repo
-			out, err := other.CombinedOutput()
-			if err != nil {
-				t.Errorf("unrelated mutation could not finish during %s review: %v %s", kind, err, out)
+			out := testfix.NewWatch(repolock.WaitMessagePrefix)
+			other.Stdout, other.Stderr = out, out
+			if err := other.Start(); err != nil {
+				t.Fatal(err)
+			}
+			exited := make(chan error, 1)
+			go func() { exited <- other.Wait() }()
+			select {
+			case err := <-exited:
+				if err != nil {
+					t.Errorf("unrelated mutation could not finish during %s review: %v %s", kind, err, out)
+				}
+			case <-out.Seen():
+				cancel()
+				<-exited
+				t.Errorf("unrelated mutation waited for the repo lock during %s review: %s", kind, out)
 			}
 			r := finish()
 			if r.err != nil {

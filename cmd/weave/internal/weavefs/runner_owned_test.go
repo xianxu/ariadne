@@ -40,7 +40,7 @@ func TestOwnedRunnerBoundsBufferedDescendants(t *testing.T) {
 				}
 				_ = staging.Remove(stage)
 			})
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute) // a hang ceiling, not a load budget (#325)
 			defer cancel()
 			var output bytes.Buffer
 			setup, err := staging.AcquireSetup(fixture)
@@ -83,7 +83,7 @@ fi`
 				if !cancelRun && err != nil && !errors.Is(err, exec.ErrWaitDelay) {
 					t.Fatal(err)
 				}
-			case <-time.After(3 * time.Second):
+			case <-time.After(time.Minute):
 				t.Fatal("buffered output kept Wait blocked")
 			}
 			// Positive kernel proof: a live inherited writer would prevent this lock.

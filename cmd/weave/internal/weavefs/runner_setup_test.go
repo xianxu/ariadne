@@ -55,7 +55,7 @@ func TestSetupLeaseSurvivesRunnerParentDeath(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
 			defer cancel()
 			helper := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestSetupRunnerHelper$")
 			helper.Env = append(os.Environ(), "WEAVE_SETUP_RUNNER_HELPER="+env, "WEAVE_SETUP_STAGE="+stage)

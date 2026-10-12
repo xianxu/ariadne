@@ -42,11 +42,11 @@ func TestCancellationKillsDescendants(t *testing.T) {
 		_ = cmd.Process.Kill() // Emergency cleanup if group configuration regresses.
 		select {
 		case <-finished:
-		case <-time.After(2 * time.Second):
+		case <-time.After(testfix.HangCeiling):
 			t.Error("fixture parent did not finish after cleanup")
 		}
 	})
-	deadline := time.Now().Add(3 * time.Second)
+	deadline := time.Now().Add(testfix.HangCeiling)
 	child := 0
 	for time.Now().Before(deadline) {
 		raw, _ := os.ReadFile(ready)
@@ -67,9 +67,11 @@ func TestCancellationKillsDescendants(t *testing.T) {
 		if err == nil {
 			t.Error("cancelled command succeeded")
 		}
-	case <-time.After(4 * time.Second):
+	case <-time.After(testfix.HangCeiling):
 		t.Fatal("cancellation exceeded shutdown bound")
 	}
+	// Five seconds is the shutdown contract itself (WaitDelay 1 s plus the
+	// group kill), not a hang guard; it is the one elapsed bound kept (#325).
 	if time.Since(start) >= 5*time.Second {
 		t.Error("shutdown exceeded five seconds")
 	}
@@ -77,7 +79,7 @@ func TestCancellationKillsDescendants(t *testing.T) {
 		t.Errorf("parent not reaped: %v", err)
 	}
 	// An orphan zombie may await the system reaper, but must not be running.
-	if err := testfix.AwaitExit(child, 2*time.Second); err != nil {
+	if err := testfix.AwaitExit(child, testfix.HangCeiling); err != nil {
 		t.Errorf("descendant survived cancellation: %v", err)
 	}
 }

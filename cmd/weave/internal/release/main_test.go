@@ -33,7 +33,7 @@ func TestReleaseProcess(t *testing.T) {
 
 func await(t *testing.T, predicate func() bool) {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(time.Minute)
 	for time.Now().Before(deadline) {
 		if predicate() {
 			return

@@ -38,12 +38,12 @@ Find tests whose pass/fail depends on a short wall-clock deadline (subprocess ti
 
 Design: the short deadlines in both tests are hang guards standing in for concurrency evidence. The evidence that an unrelated mutation does not wait behind a review is the repo lock's own wait line (`waiting for sdlc repo lock held by …`, printed the moment a second acquirer finds the lock held), so the tests watch for that line and fail on it at once; every deadline left becomes one shared hang ceiling that catches a hang, not a slow machine.
 
-- [ ] `repolock.WaitMessagePrefix`: the wait line's text, single-sourced (ARCH-DRY) so tests key on it
-- [ ] `testfix.HangCeiling` + `testfix.Watch` (an io.Writer that signals when its output contains a needle)
-- [ ] `TestPlanningReviewConcurrencySchedules`: unrelated `set-status` fails on the lock-wait line, not on a 2 s deadline; barrier/CLI/reap bounds use the ceiling; quarantine deleted
-- [ ] `TestReviewConcurrencySchedules`: 20 s start deadline, 3 s unrelated-sync deadline and 7 s termination waits → lock-wait evidence + ceiling; quarantine deleted
-- [ ] Load check: `TestPlanningReviewConcurrencySchedules` 10/10 under a CPU burner (load ~50); mutation check (review holds the lock) fails it
-- [ ] Sweep of other deadline-sensitive tests in `## Log`, each fixed or justified
+- [x] `repolock.WaitMessagePrefix`: the wait line's text, single-sourced (ARCH-DRY) so tests key on it
+- [x] `testfix.HangCeiling` + `testfix.Watch` (an io.Writer that signals when its output contains a needle)
+- [x] `TestPlanningReviewConcurrencySchedules`: unrelated `set-status` fails on the lock-wait line, not on a 2 s deadline; barrier/CLI/reap bounds use the ceiling; quarantine deleted
+- [x] `TestReviewConcurrencySchedules`: 20 s start deadline, 3 s unrelated-sync deadline and 7 s termination waits → lock-wait evidence + ceiling; quarantine deleted
+- [x] Load check: `TestPlanningReviewConcurrencySchedules` 10/10 under a CPU burner (load ~50); mutation check (review holds the lock) fails it
+- [x] Sweep of other deadline-sensitive tests in `## Log`, each fixed or justified
 
 ## Log
 
@@ -71,4 +71,11 @@ Sweep (grep of `time.After`/`WithTimeout`/`Now().Add`/`Since`/`Sleep` across `*_
 | `testgate_test.go` TestDirectRunShrinksTimeoutByTheWait | release after `sleep 1.5s` (helper might not have queued yet) | release on the helper's `[test-gate] waiting` line |
 
 B-class hang guards of 10–15 s on subprocess work became 1 min (weave: generator_lifetime ×3, release, staging, runner_setup, plan/publication) or `hangGuard` (fleet_e2e's git call); testgate's nested re-exec too (its `nested err=<nil>` is asserted). Justified, left as is: fleet_e2e's 30 s binary run; fleet/recordsdeadline (< 5 s around a 500 ms injected deadline) and boundarypush (< 10 s) assert the injected deadline bounded git, so their slack is the margin, not the guard. Late-writer negative checks (sleep 150 ms then assert absent) can only pass falsely under load, never fail. Fake-clock and injected-sleep tests (integrategate, catchup, estimatesource, processmanual, reviewbox, plan/apply, heartbeat, repolock) do not read the wall clock. If one of the B rows flakes it gets the same treatment.
+
+Verification (10-12):
+- Load: 24 busy-loop burners alongside other slots' suites (load 38 → 70): `go test -count=10 -run '^TestPlanningReviewConcurrencySchedules$'` 10/10 PASS (11.6–26.8 s each; the old 2 s bound could not have held).
+- Mutation, planning: `dispatchPlanningReview` keeps the lock through `judge.Dispatch` → both subtests FAIL in ~3 s with `unrelated mutation waited for the repo lock … waiting for sdlc repo lock held by pid …: sdlc change-code`. Restored.
+- Mutation, close: `runCloseWithReviewLocked` takes the locked path for a plain close → `close/unrelated` FAILs with `unrelated operation waited behind external review: waiting for sdlc repo lock held by … sdlc close`. Restored.
+- `make test`: 12 shards over 1086 cmd/sdlc tests and 46 other packages, 0 failed, no `QUARANTINED (#325)` skip; `grep '"#325"'` over Go sources is empty.
+- Process slip: code edits began before `sdlc change-code` (run afterwards; quick flow inferred). Also, a sed line-number edit missed its anchor once (repolock_test.go select at 361, not 360); caught by re-grepping, per the existing lesson on asserting anchors.
 

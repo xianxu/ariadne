@@ -17,6 +17,7 @@ import (
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/judge"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repolock"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
@@ -128,16 +129,10 @@ func TestReviewConcurrencySchedules(t *testing.T) {
 				case <-started:
 				case err := <-done:
 					t.Fatalf("review returned before process start: %v", err)
-				case <-time.After(20 * time.Second):
+				case <-time.After(testfix.HangCeiling):
 					cancel()
 					release()
-					select {
-					case <-done:
-					case <-time.After(7 * time.Second):
-						t.Fatal("review did not stop after start timeout")
-					}
-					// Only this fixed start deadline is load-sensitive; the schedules stay covered.
-					testfix.Quarantine(t, "#325", "reviewer process did not start within 20s (load-sensitive start deadline)")
+					<-done
 					t.Fatal("reviewer process did not start")
 				}
 				switch change {
@@ -168,15 +163,29 @@ func TestReviewConcurrencySchedules(t *testing.T) {
 					if err != nil {
 						t.Fatal(err)
 					}
+					// A lock the review kept would make the sync wait: the lock's
+					// wait line is the evidence, not elapsed time (#325).
+					waits := testfix.NewWatch(repolock.WaitMessagePrefix)
 					independent := make(chan error, 1)
-					go func() { _, _, err := executeSDLCTestCommand("issue", "sync", "--issue", "70"); independent <- err }()
+					go func() {
+						root := buildRoot()
+						root.SetArgs([]string{"issue", "sync", "--issue", "70"})
+						root.SetContext(ctx)
+						root.SetOut(&bytes.Buffer{})
+						root.SetErr(waits)
+						independent <- root.Execute()
+					}()
 					select {
 					case err := <-independent:
 						if err != nil {
 							t.Fatal(err)
 						}
-					case <-time.After(3 * time.Second):
-						t.Fatal("unrelated operation blocked behind external review")
+					case <-waits.Seen():
+						release()
+						<-independent
+						t.Fatalf("unrelated operation waited behind external review: %s", waits)
+					case <-time.After(testfix.HangCeiling):
+						t.Fatal("unrelated operation hung during external review")
 					}
 					select {
 					case err := <-done:
@@ -192,7 +201,7 @@ func TestReviewConcurrencySchedules(t *testing.T) {
 				var err error
 				select {
 				case err = <-done:
-				case <-time.After(7 * time.Second):
+				case <-time.After(testfix.HangCeiling):
 					t.Fatal("review command did not terminate")
 				}
 				if change == "unrelated" {

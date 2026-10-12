@@ -17,7 +17,7 @@ import (
 
 func waitGeneratorFile(t *testing.T, path string) []byte {
 	t.Helper()
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(time.Minute)
 	for time.Now().Before(deadline) {
 		if data, err := os.ReadFile(path); err == nil && len(data) > 0 {
 			return data
@@ -88,7 +88,7 @@ func TestCompileCancellationStopsLateGeneratorChild(t *testing.T) {
 		if err == nil {
 			t.Fatal("cancelled compile succeeded")
 		}
-	case <-time.After(10 * time.Second):
+	case <-time.After(time.Minute):
 		t.Fatal("compile did not return after cancellation")
 	}
 	if err := os.Remove(marker); err != nil {
@@ -135,7 +135,7 @@ func TestCompileParentDeathRetainsStageUntilLateWriterExits(t *testing.T) {
 	waitGeneratorFile(t, filepath.Join(leaf, "child-done"))
 	// The shell exits immediately after the signal; retry until its inherited
 	// resources close, bounded to make leaked ownership fail the test.
-	deadline := time.Now().Add(10 * time.Second)
+	deadline := time.Now().Add(time.Minute)
 	for time.Now().Before(deadline) {
 		if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, io.Discard); err != nil {
 			t.Fatal(err)
