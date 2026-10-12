@@ -55,8 +55,19 @@ func TestBaseSettingsExcludedVerbsMatchArguments(t *testing.T) {
 				"permissions.allow pre-allows it with arguments, so list it as %q", entry, entry+" *")
 		}
 	}
-	// The workbench verbs #318 meant to exempt must actually be exempt.
-	for _, verb := range []string{"sdlc", "couch"} {
+	// Every workbench binary is exempt with arguments: ariadne's own (one per
+	// cmd/ directory) and pair's, which live in a peer repo and are listed here.
+	cmdDirs, err := os.ReadDir(filepath.Join("..", "..", "..", "..", "cmd"))
+	if err != nil {
+		t.Fatalf("read cmd/: %v", err)
+	}
+	verbs := []string{"couch", "pair", "pair-help", "pair-hoprtt", "pair-launch-helper", "pair-notify", "pair-slug"}
+	for _, d := range cmdDirs {
+		if d.IsDir() {
+			verbs = append(verbs, d.Name())
+		}
+	}
+	for _, verb := range verbs {
 		if !excluded[verb+" *"] {
 			t.Errorf("sandbox.excludedCommands lacks %q; agents' `%s …` calls run sandboxed", verb+" *", verb)
 		}

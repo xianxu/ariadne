@@ -10,17 +10,17 @@ Claude Code runs commands in a **permission-controlled sandbox** managed by the 
 
 This sandbox is always active during Claude Code sessions. It cannot be disabled by the agent — the user controls it via `/sandbox` or by approving individual commands.
 
-The policy is single-sourced in `.claude/settings.ariadne.json` (base layer). weave merges it under each repo's `settings.local.json` into `.claude/settings.json`. The workbench's own binaries, ariadne's (`sdlc`, `weave`, `datatype`, `doc-review`, `vocabulary`) and pair's (`couch`, `pair`, `pair-*`), are treated as trusted (#318, #334). They sit in `sandbox.excludedCommands` so they run unsandboxed (couch dials its peer-message socket; sdlc's git writes `.git/config`), and they are in `permissions.allow` as `Bash(sdlc:*)`/`Bash(couch:*)`, so the auto-mode classifier doesn't re-judge them. Each binary keeps its own gates. Regenerating `.claude/settings.json` (`weave compile`/`refresh`) is deliberately left to the operator. It is the harness's permission store, and auto mode refuses an agent rewriting it. Codex's `.codex/config.toml` has no per-command counterpart and needs none.
+The policy is single-sourced in `.claude/settings.ariadne.json` (base layer). weave merges it under each repo's `settings.local.json` into `.claude/settings.json`. The workbench's own binaries, ariadne's (`sdlc`, `weave`, `datatype`, `doc-review`, `vocabulary`) and pair's (`couch`, `pair`, `pair-*`), are treated as trusted (#318, #334). They sit in `sandbox.excludedCommands` so they run unsandboxed (couch dials its peer-message socket; sdlc's git writes `.git/config`), and `sdlc`/`couch` are also in `permissions.allow` (`Bash(sdlc:*)`/`Bash(couch:*)`) so the auto-mode classifier doesn't re-judge them. The other exempt binaries aren't pre-allowed, so the permission flow still gates them. That matters for `weave *`: unsandboxed, `weave compile` can rewrite `.claude/settings.json`, which the sandbox otherwise denies. Each binary keeps its own gates. Regenerating `.claude/settings.json` (`weave compile`/`refresh`) is deliberately left to the operator. It is the harness's permission store, and auto mode refuses an agent rewriting it. Codex's `.codex/config.toml` has no per-command counterpart and needs none.
 
 ### Calling an excluded binary (agent rule, #334)
 
 Run `couch`, `sdlc` and the other workbench binaries as a **plain leading command**: `couch --send-to ops:0 --message …`, never one of these:
 
-- after `cd x &&`, or chained after another command the list doesn't cover
+- after `cd x &&`, or chained or piped with a command the list doesn't cover
 - inside `$(...)` or with a redirect to a file
 - by full path (`~/workspace/pair/bin/couch …`)
 
-Any of those keeps the whole call sandboxed, and couch then fails with `dial unix …: operation not permitted` (verified live 2026-10-11, #334).
+Any of those keeps the whole call sandboxed, and couch then fails with `dial unix …: operation not permitted`. Piping (`sdlc close … | tail`) counts too: `tail` isn't excluded. Verified live on 2026-10-11 (#334): `cd` into another directory, the full path, `$(...)`, and a pipe stayed sandboxed. The redirect form comes from the docs and wasn't tested.
 
 Why: `excludedCommands` entries use `Bash(...)` rule syntax, and Claude Code matches them against the text of the call. A bare word is an **exact** match, so `"couch"` exempts only `couch` typed with no arguments. That's why #318's entries never took effect. The entries are written `X *`. `TestBaseSettingsExcludedVerbsMatchArguments` (`cmd/weave/internal/settingsx`) fails if a verb that `permissions.allow` pre-allows with arguments is excluded only by its bare name. An excluded command still goes through the permission flow, so in auto mode it's in `permissions.allow` to skip the classifier. A recompiled `.claude/settings.json` takes effect in the running session; no restart is needed. `git`, `gh`, `docker`, `npm` and `npx` are still listed by bare name, here and in the user's `~/.claude/settings.json`, so they run sandboxed with arguments; widening them is a separate decision.
 

@@ -38,6 +38,10 @@ Fix whichever it is in weave's compiled settings (patterns that match how agents
 - From a freshly `couch --prepare`d worker slot, `couch --send-to` and `sdlc` run inside the sandbox succeed with no unsandboxed retry, in both bypass-permissions and auto mode.
 - A check covers it (test or documented live check).
 
+## Revisions
+
+- 2026-10-11, close review round 1: the Done-when line "in both bypass-permissions and auto mode" was met live for **auto mode only**. Bypass-permissions is inferred from the docs: matching is independent of mode, and mode only changes the approval flow after a match. It wasn't observed. Scope widened by operator approval (964c47a1) from sdlc/couch to all ariadne (`cmd/*`) and pair binaries.
+
 ## Plan
 
 - [x] Reproduce in this (freshly prepared, auto-mode) session
@@ -55,4 +59,5 @@ Fix whichever it is in weave's compiled settings (patterns that match how agents
 - The auto-mode classifier refused my edit to the settings file, and the commit of this log, as [Self-Modification]. I stopped and reported. The operator approved exempting all ariadne and pair binaries; the TL committed 964c47a1 (settings + test + atlas note).
 - **Verified live** in ariadne:1: `weave compile` (the sandbox denies writing `.claude/settings.json`; it ran unsandboxed through the permission gate) produced `sdlc *`, `couch *`, … in the compiled settings. In the SAME running session, with no restart, sandboxed bare `couch --broadcast-list --json` → `{"broadcast":null}` and `sdlc state` worked. So excludedCommands edits apply live. Negative controls stayed sandboxed and failed, as the docs say: `cd <other dir> && couch …`, `/…/pair/bin/couch …`, and `X=$(couch …)`. (`cd <cwd> && couch …` passed; a `cd` into the current directory looks like a no-op.) Bypass-permissions mode wasn't tested live (this session is auto); the docs make matching independent of mode, which only changes the approval flow after a match.
 - **Check:** `go test ./cmd/weave/internal/settingsx/ -run TestBaseSettings` passes; it was red on the pre-fix base.
+- Close review round 1 (FIX-THEN-SHIP): fixed BR-1 (`atlas/workflow/sdlc-binary.md` said slot agents run sdlc sandboxed, so the review fence was always refused; now that's true only for sandboxed call forms), and the guard test now derives ariadne's binaries from `cmd/*` plus an explicit pair list. Atlas no longer overclaims: redirects are from the docs, while pipes were seen live (`sdlc close … | tail` ran sandboxed). Also updated the `$comment` and the atlas `permissions.allow` line, with an ARCH-SECURE note that `weave *` unsandboxed can rewrite `.claude/settings.json`, gated by the permission flow. Bypass mode is recorded in Revisions.
 
