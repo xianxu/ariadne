@@ -60,6 +60,50 @@ n_gmail="$(printf '%s\n' "$out" | grep -c '^gmail()')"
 assert_contains "cd $WS/ariadne && mkdir -p bin && rm -f bin/sdlc && go build -o bin/sdlc ./cmd/sdlc" "$out" "builds to owner bin/ (rm -f first), owner cmd path"
 assert_contains "$WS/ariadne/bin/sdlc \"\$@\""                                                        "$out" "runs the owner-bin binary with caller args/cwd"
 
+# ── owner-declared preparation step (#299) ───────────────────────────────────
+# prepd declares `dev-prepare:` in Makefile.local (where the base layer's Makefile
+# looks for local rules); nous declares nothing and keeps today's exact form.
+mkdir -p "$WS/prepd/construct"; mkcmd "$WS/prepd/cmd/gen"
+printf '.PHONY: dev-prepare\ndev-prepare: assets/stamp\n' > "$WS/prepd/Makefile.local"
+prep_out="$(bash "$GEN" --workspace "$WS" 2>/dev/null)"
+gen_line="$(printf '%s\n' "$prep_out" | grep '^gen()')"
+assert_contains "cd $WS/prepd && make -s dev-prepare >&2 && mkdir -p bin && rm -f bin/gen && go build -o bin/gen ./cmd/gen" "$gen_line" "a declaring owner runs dev-prepare before go build"
+nous_line="$(printf '%s\n' "$prep_out" | grep '^nous()')"
+[ "$nous_line" = "nous() { ( cd $WS/nous && mkdir -p bin && rm -f bin/nous && go build -o bin/nous ./cmd/nous ) || return; $WS/nous/bin/nous \"\$@\"; }" ] \
+	&& ok "an owner without dev-prepare keeps the exact plain form" || ko "plain form changed: [$nous_line]"
+# A .PHONY mention alone is not a declaration.
+printf '.PHONY: dev-prepare\n' > "$WS/prepd/Makefile.local"
+assert_not_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a .PHONY mention alone does not declare the step"
+printf 'dev-prepare:\n\t@true\n' > "$WS/prepd/Makefile"; rm -f "$WS/prepd/Makefile.local"
+assert_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a dev-prepare rule in Makefile also declares it"
+
+# Run the emitted function against stub make/go: preparation runs first, its
+# stdout stays off the binary's stdout, and a failed step fails the call loudly
+# without building or running.
+STUB="$WS/stubbin"; mkdir -p "$STUB"
+cat > "$STUB/make" <<'STUBEOF'
+#!/bin/sh
+echo "make $*" >> "$TRACE"; echo "prep-chatter"
+[ -z "${MAKE_FAIL:-}" ] || { echo "prep failed" >&2; exit 2; }
+STUBEOF
+cat > "$STUB/go" <<'STUBEOF'
+#!/bin/sh
+echo "go $*" >> "$TRACE"; printf '#!/bin/sh\necho ran "$@"\n' > "$3"; chmod +x "$3"
+STUBEOF
+chmod +x "$STUB/make" "$STUB/go"
+gen_def="$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')"
+export TRACE="$WS/trace"; : > "$TRACE"
+run_out="$(PATH="$STUB:$PATH" bash -c "$gen_def; gen a b" 2>/dev/null)"
+[ "$run_out" = "ran a b" ] && ok "the binary's stdout carries only its own output" || ko "stdout polluted: [$run_out]"
+[ "$(cat "$TRACE")" = "$(printf 'make -s dev-prepare\ngo build -o bin/gen ./cmd/gen')" ] && ok "dev-prepare runs before go build" || ko "order: [$(cat "$TRACE")]"
+: > "$TRACE"; rm -f "$WS/prepd/bin/gen"
+fail_err="$(MAKE_FAIL=1 PATH="$STUB:$PATH" bash -c "$gen_def; gen a" 2>&1 >/dev/null)"; fail_rc=$?
+[ "$fail_rc" -ne 0 ] && ok "a failed dev-prepare fails the call" || ko "failed dev-prepare returned 0"
+assert_contains "prep failed" "$fail_err" "a failed dev-prepare is loud on stderr"
+[ "$(cat "$TRACE")" = "make -s dev-prepare" ] && ok "a failed dev-prepare skips the build" || ko "built after failed prep: [$(cat "$TRACE")]"
+unset TRACE
+rm -rf "$WS/prepd" "$STUB" "$WS/trace"
+
 # ── --list ───────────────────────────────────────────────────────────────────
 list_out="$(bash "$GEN" --workspace "$WS" --list 2>/dev/null)"
 assert_contains "$(printf 'gmail\t%s/nous' "$WS")" "$list_out" "--list maps gmail → nous"

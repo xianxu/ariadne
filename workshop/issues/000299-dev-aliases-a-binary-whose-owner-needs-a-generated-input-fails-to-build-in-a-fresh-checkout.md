@@ -1,12 +1,20 @@
 ---
 id: 000299
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-12
 estimate_hours:
-card_mirror: '7b450e6115728bd86948c3fe109bee1a0c8ebc4f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e042f8e83a9e3f9c58efe79e15805c012dcc2de7' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T16:51:54-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout
@@ -69,7 +77,23 @@ creation.
 
 ## Plan
 
-- [ ]
+Quick flow. Chosen shape: the conventional owner Makefile target `dev-prepare`.
+It reuses make's prerequisites for freshness, so dev-aliases learns no owner's
+build (ARCH-DRY). The step is detected when the aliases are emitted, so an owner
+that declares nothing pays nothing per call.
+
+- [x] `construct/dev-aliases.sh`: `owner_prepares` greps `^dev-prepare:` in the
+  owner's `Makefile`/`Makefile.local`; a declaring owner's function runs `make -s
+  dev-prepare >&2 &&` first (stdout to stderr, so a machine-read binary's stdout
+  stays clean). The plain form is otherwise byte-identical. `--help` now prints
+  the whole header.
+- [x] `construct/scripts/test/dev-aliases.test.sh`: emitted form with and without
+  the rule (exact plain form), a `.PHONY` mention alone is not a declaration,
+  and the emitted function run against stub `make`/`go` (prep first, clean
+  stdout, a failed prep fails loudly without building).
+- [x] Atlas: `atlas/workflow/base-layer.md` dev-binaries section.
+- [ ] Pair's half (a pair issue, filed by the TL): a `dev-prepare` target, then
+  the live check in a fresh pair slot.
 
 ## Log
 
@@ -78,3 +102,23 @@ creation.
 Filed from pair#362's live exercises at the operator's request. The emitter is
 `construct/dev-aliases.sh:221`; pair's generator is `make runtimebundle-generate`
 (`Makefile.local:195`). Details left local for the operator to refine.
+
+### 2026-10-12
+
+Claimed at ariadne:2 (TL dispatch, Weave and environment train). Pair's
+`runtimebundle-generate` is phony, runs `tic`, and publishes with `RemoveAll`
+then `Rename`. Running it on every call would cost that each time, and a
+concurrent `go build` could see the embed tree missing. So pair's `dev-prepare`
+must regenerate only when the tree is missing or stale. The TL chose to file
+pair's half as a pair issue and dispatch it (option a). The new emitter tests
+fail against main's `dev-aliases.sh` (6 of 33) and pass now.
+
+## Revisions
+
+### 2026-10-12 — live check deferred to pair's half
+
+Reason: the Done-when's live check (a fresh pair slot's dev-alias `couch --help`
+succeeding with no manual `make`) needs pair's `dev-prepare`, which the TL files
+in pair and dispatches separately. Delta: #299 closes on the ariadne half and its
+test; the live check moves to the pair issue's Done-when, and the TL tracks it.
+
