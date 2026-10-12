@@ -51,6 +51,12 @@ type ghCaller interface {
 	// Used by `sdlc merge`'s CI gate (cigate.go).
 	PRChecks(ctx context.Context, repo string, number int) ([]prCheck, error)
 
+	// PRHeadOID returns the head commit GitHub currently records for PR
+	// number. `gh pr checks` reads checks of that head, not of a SHA we name,
+	// so the CI gate brackets its read with this to bind the checks to the
+	// head it pins (#309 BR-1).
+	PRHeadOID(ctx context.Context, repo string, number int) (string, error)
+
 	// PRMergedForBranch reports whether a MERGED PR exists for headRef in
 	// repo. `sdlc merge` uses it to detect + resume an interrupted run — PR
 	// merged server-side (irreversible) but the local cleanup never finished —

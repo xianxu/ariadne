@@ -7,6 +7,7 @@ import (
 	"io"
 	"os/exec"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -68,7 +69,7 @@ func TestDecideCIGate(t *testing.T) {
 // non-zero exit produces.
 func exitErr(t *testing.T, code int) error {
 	t.Helper()
-	err := exec.Command("sh", "-c", "exit "+string(rune('0'+code))).Run()
+	err := exec.Command("sh", "-c", "exit "+strconv.Itoa(code)).Run()
 	if err == nil {
 		t.Fatal("no exit error")
 	}
@@ -128,6 +129,16 @@ type checksGH struct {
 	checks []prCheck
 	err    error
 	calls  int
+	heads  []string // successive PRHeadOID answers; exhausted: "h"
+}
+
+func (g *checksGH) PRHeadOID(context.Context, string, int) (string, error) {
+	if len(g.heads) == 0 {
+		return "h", nil
+	}
+	h := g.heads[0]
+	g.heads = g.heads[1:]
+	return h, nil
 }
 
 func (g *checksGH) PRChecks(context.Context, string, int) ([]prCheck, error) {
@@ -160,6 +171,19 @@ func TestRunCIGate(t *testing.T) {
 	if err := runCIGate(ctx, g, "o/r", 3, "h", brokenGit, false, io.Discard); err == nil {
 		t.Fatal("unreadable head tree passed")
 	}
+	// BR-1: GitHub's PR head lags the push, or moves during the read — the
+	// checks belong to another commit, so green is not evidence.
+	green := []prCheck{{Name: "merge-check", Bucket: "pass"}}
+	for _, heads := range [][]string{{"old", "old"}, {"h", "new"}, {"old", "h"}} {
+		g = &checksGH{checks: green, heads: heads}
+		if err := runCIGate(ctx, g, "o/r", 3, "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "another commit") {
+			t.Fatalf("heads %v: %v", heads, err)
+		}
+	}
+	g = &checksGH{checks: green, heads: []string{"h", "h"}}
+	if err := runCIGate(ctx, g, "o/r", 3, "h", withWF, false, io.Discard); err != nil {
+		t.Fatalf("bound green: %v", err)
+	}
 	g = &checksGH{checks: []prCheck{{Name: "local-gates-guard", Bucket: "fail", Link: "https://x/9"}}}
 	if err := runCIGate(ctx, g, "o/r", 3, "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "local-gates-guard") || !strings.Contains(err.Error(), "https://x/9") {
 		t.Fatalf("red: %v", err)
@@ -179,6 +203,19 @@ func TestRunMerge_RedCIRefusesPreMerge(t *testing.T) {
 	}
 	if gh.prMergeCalls != 0 {
 		t.Fatalf("PRMerge called %d times over red CI", gh.prMergeCalls)
+	}
+}
+
+// BR-1 at the legacy site: GitHub still reports the pre-push head, whose
+// checks are green; merge must not read them as the pushed head's.
+func TestRunMerge_LaggingPRHeadRefuses(t *testing.T) {
+	tempRepo(t)
+	gh := &e2eGH{openPR: "42", prHeads: []string{"0123456789012345678901234567890123456789"}}
+	swapMergeDeps(t, gh, nil)
+	f := &mergeFlags{Yes: true, NoJudge: true, IssuesDir: "workshop/issues", HistoryDir: "workshop/history"}
+	msg, died := expectDie(t, func() { runMerge(io.Discard, io.Discard, f) })
+	if !died || !strings.Contains(msg, "another commit") || gh.prMergeCalls != 0 {
+		t.Fatalf("died=%v calls=%d msg=%q", died, gh.prMergeCalls, msg)
 	}
 }
 

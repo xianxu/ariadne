@@ -4,6 +4,7 @@ import (
 	"context"
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -113,6 +114,19 @@ type e2eGH struct {
 	mergedHead   string // the head the last PRMerge was pinned to (#309)
 	checks       []prCheck
 	checksErr    error
+	prHeads      []string // successive PRHeadOID answers; empty: origin/feature, the pushed head
+}
+
+// PRHeadOID plays GitHub's view of the PR head (#309 BR-1): by default the
+// pushed origin/feature, or a scripted sequence to model a lagging head.
+func (g *e2eGH) PRHeadOID(context.Context, string, int) (string, error) {
+	if len(g.prHeads) > 0 {
+		h := g.prHeads[0]
+		g.prHeads = g.prHeads[1:]
+		return h, nil
+	}
+	out, err := exec.Command("git", "rev-parse", "origin/feature").Output()
+	return strings.TrimSpace(string(out)), err
 }
 
 // PRChecks answers the CI gate (#309): the stub's green default unless the test

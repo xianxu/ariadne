@@ -161,7 +161,7 @@ var GateCatalog = []GateSig{
 	// the flag (a red check wants a fix, not a bypass) → best-effort attribution.
 	{Commands: []string{"merge"}, Flag: "no-ci", Gate: "CI checks on the PR head (#309)", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: false,
 		AckPat:     `--no-ci: SKIPPING the CI gate`,
-		RefusalPat: `CI gate: (PR #\d+ (has|reports)|could not read)`},
+		RefusalPat: `CI gate: `}, // every refusal, and only refusals, carry this prefix (cigate.go, merge.go)
 	{Commands: []string{"push"}, Flag: "no-judge", Gate: "publish gate (#160)", Grammar: grammarG3, HasRefusal: true, RefusalNamesFlag: false,
 		AckPat:     `--no-judge: skipping the pre-push publish gate`,
 		RefusalPat: `publish gate: (\d+ commit\(s\) landed after|the reviewed patch no longer covers HEAD|#\d+ is on the quick flow|#\d+ is codecomplete but)`},

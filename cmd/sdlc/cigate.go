@@ -40,6 +40,7 @@ const (
 	ciPending                       // a check has not finished
 	ciNotRegistered                 // no checks yet, but the head carries workflows
 	ciUnknown                       // a bucket this gate does not know
+	ciHeadLag                       // GitHub's PR head is not (or stopped being) the head merge pins
 )
 
 func (r ciReason) passes() bool { return r == ciGreen || r == ciNoWorkflows }
@@ -94,6 +95,8 @@ func (v ciVerdict) refusal(pr int) error {
 		fmt.Fprintf(&b, "CI gate: PR #%d has checks in a state this gate does not know (refusing, fail closed)", pr)
 	case ciNotRegistered:
 		fmt.Fprintf(&b, "CI gate: PR #%d reports no checks yet, but its head carries .github/workflows (GitHub has not registered them)", pr)
+	case ciHeadLag:
+		fmt.Fprintf(&b, "CI gate: PR #%d's head on GitHub is not the pushed head merge pins, so its checks belong to another commit", pr)
 	default:
 		return nil
 	}
@@ -151,6 +154,21 @@ func parsePRChecks(stdout, stderr []byte, runErr error) ([]prCheck, error) {
 	return nil, fmt.Errorf("gh pr checks printed no check list: %q", string(out))
 }
 
+func (realGH) PRHeadOID(ctx context.Context, repo string, number int) (string, error) {
+	if !landingRepoValid(repo) || number <= 0 {
+		return "", fmt.Errorf("ci gate: invalid repository or PR number")
+	}
+	out, err := runLandingGH(ctx, "pr", "view", strconv.Itoa(number), "--repo", repo, "--json", "headRefOid", "--jq", ".headRefOid")
+	if err != nil {
+		return "", err
+	}
+	oid := strings.TrimSpace(string(out))
+	if !landingOIDValid(oid) {
+		return "", fmt.Errorf("gh pr view: malformed head OID %q", oid)
+	}
+	return oid, nil
+}
+
 func (realGH) PRChecks(ctx context.Context, repo string, number int) ([]prCheck, error) {
 	if !landingRepoValid(repo) || number <= 0 {
 		return nil, fmt.Errorf("ci gate: invalid repository or PR number")
@@ -189,9 +207,26 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, head s
 		cwarn(stderr, "⚠️  --no-ci: SKIPPING the CI gate (#309) — landing without reading the PR's checks. Escape hatch for a broken CI system: say why in your log.")
 		return nil
 	}
+	// gh pr checks reads the checks of whatever head GitHub records for the
+	// PR, which can lag a fresh push. Reading that head before and after the
+	// checks binds them to the pinned head; a mismatch is pending (BR-1).
+	unread := func(what string, err error) error {
+		return fmt.Errorf("CI gate: could not read PR #%d's %s (refusing; unread is not green): %w\n  → retry, or --no-ci if the CI system itself is broken", number, what, err)
+	}
+	before, err := gh.PRHeadOID(ctx, repo, number)
+	if err != nil {
+		return unread("head", err)
+	}
 	checks, err := gh.PRChecks(ctx, repo, number)
 	if err != nil {
-		return fmt.Errorf("CI gate: could not read PR #%d's checks (refusing; unread is not green): %w\n  → retry, or --no-ci if the CI system itself is broken", number, err)
+		return unread("checks", err)
+	}
+	after, err := gh.PRHeadOID(ctx, repo, number)
+	if err != nil {
+		return unread("head", err)
+	}
+	if before != head || after != head {
+		return ciVerdict{Reason: ciHeadLag}.refusal(number)
 	}
 	hasWF, err := headHasWorkflows(git, head)
 	if err != nil {
@@ -202,9 +237,9 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, head s
 		return v.refusal(number)
 	}
 	if v.Reason == ciNoWorkflows {
-		cok(stderr, "CI gate: no checks and no workflows on the head — nothing to wait for")
+		cok(stderr, "CI checks: none, and no workflows on the head — nothing to wait for")
 	} else {
-		cok(stderr, fmt.Sprintf("CI gate: %d check(s) green on PR #%d", len(checks), number))
+		cok(stderr, fmt.Sprintf("CI checks: %d green on PR #%d", len(checks), number))
 	}
 	return nil
 }

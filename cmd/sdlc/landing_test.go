@@ -29,6 +29,10 @@ type landingFakeGH struct {
 	checks     []prCheck // nil: the stub's green default (#309)
 }
 
+func (g *landingFakeGH) PRHeadOID(context.Context, string, int) (string, error) {
+	return g.pr.HeadOID, nil
+}
+
 func (g *landingFakeGH) PRChecks(ctx context.Context, repo string, n int) ([]prCheck, error) {
 	if g.checks == nil {
 		return g.stubGH.PRChecks(ctx, repo, n)

@@ -178,3 +178,12 @@ and a workflow file; check runs age out under GitHub's retention.
   `scripts/parallel-checks.sh`); guard run block takes PR values via `env:`;
   test bullets compressed to strategies; live check confirms re-run
   supersession.
+- 2026-10-12, M1 implementation: dropped "dry-run reports what the gate
+  would say" — neither merge path's dry-run contacts GitHub for PR state, and
+  adding it is outside this issue.
+- 2026-10-12, M1 review BR-1: `gh pr checks` reads the checks of GitHub's
+  current PR head, which can lag a push. `runCIGate` now reads the PR head
+  (`gh pr view --json headRefOid`) before and after the checks and refuses
+  unless both equal the pinned head, on both paths. Every CI-gate refusal, and
+  only refusals, starts `CI gate: ` (success lines say `CI checks:`), so the
+  gate catalog matches the prefix.
