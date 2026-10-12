@@ -88,7 +88,7 @@ Items, in order:
 
 Durable plan: `workshop/plans/000308-issue-new-publishes-card-and-details-in-one-go-plan.md`.
 
-- [ ] M1 — `issue new` publishes card + details to origin (creation.main stage), claims from a slot `:N`, writes no working tree; status-aware section presence for skeletons; C5 root guard; `move-detail` hidden deprecated alias; F1 regression row
+- [x] M1 — `issue new` publishes card + details to origin (creation.main stage), claims from a slot `:N`, writes no working tree; status-aware section presence for skeletons; C5 root guard; `move-detail` hidden deprecated alias; F1 regression row
 - [ ] M2 — close ticks peer projects through a CAS trunk write to the peer's origin main (symlinks resolved, tl: re-checked); peer projects leave the review snapshot; `--no-project` skips the whole project update
 
 ## Log
@@ -98,6 +98,16 @@ Filed from the robustness evidence review (ariadne-robustness-1). Absorbs eviden
 
 ### 2026-10-12
 Claimed at ariadne:4 (TL dispatch). Design questions went to the TL (ops:0), who chose option (a) for point 3. F1 is already fixed by #322 (`runLandingInstanceGate` diffs merge-base..head), and the tl: skip by #326; both are verified here, not rebuilt.
+
+M1 implemented (commits 3ec07b8b..HEAD):
+- **Tracker:** `creation.main` replaces `creation.detail` and shares `DetailPublication` with the transfer. A pre-#308 receipt in the retired stage is released, with `issue publish` as the next action.
+- **`runIssueNew`:** writes no checkout. A numbered slot claims through `claimSetDecision` and an `OpClaim` token, and a claim failure is a warning. The detached-HEAD refusal stays, because the receipt names a branch (plan-quality Minor 4, justified).
+- **C5 guard:** the plan's cwd==toplevel rule contradicted the pinned `TestRunIssueNew_FromASubdirectory…`, where a subdirectory files into its repository. It now refuses a cwd holding its own issues tree under another repository, and, in a legacy repository, a toplevel without an issues dir.
+- **Section presence:** status-aware.
+- **`move-detail`:** a hidden alias that keeps the legacy refusal.
+- **Docs:** wording swept, and `TestNoTextSaysIssueNewWritesDetailsLocally` pins it.
+
+Evidence: `make test` ran 12 shards. 5 tests failed: 4 were this change's fixtures (e2e/fetch/legacy alias), fixed; `TestCLISignalCancelsOwnedReviewer` was load-flaky. A targeted rerun of all 5 is green. The live check runs the real binary in the e2e slot fleet instead of filing a scratch issue on ariadne's tracker: `TestTrackerFullSlotCycle` (`issue new` from slot1 leaves the checkout untouched, slot1 holds the claim, and a competing slot2 claim refuses).
 
 ## Revisions
 
