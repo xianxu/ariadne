@@ -278,7 +278,8 @@ func TestCompilePreservesUnownedGeneratedDir(t *testing.T) {
 	}
 }
 
-func TestCompilePreservesEditedGeneratorDestination(t *testing.T) {
+// #281: an edited generated destination converges; the edit is displaced, not lost.
+func TestCompileConvergesEditedGeneratorDestination(t *testing.T) {
 	for _, replacement := range []string{"file", "link"} {
 		t.Run(replacement, func(t *testing.T) {
 			leaf := buildSkillRepoFixture(t)
@@ -301,11 +302,19 @@ func TestCompilePreservesEditedGeneratorDestination(t *testing.T) {
 			} else {
 				mkfile(t, body, "authored edit\n")
 			}
-			if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err == nil {
-				t.Fatal("edited generated destination accepted")
+			out.Reset()
+			if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err != nil {
+				t.Fatalf("edited generated destination refused: %v", err)
 			}
-			if got, err := os.ReadFile(body); err != nil || string(got) != "authored edit\n" {
-				t.Fatalf("edit overwritten: %q %v", got, err)
+			if got, err := os.ReadFile(body); err != nil || string(got) == "authored edit\n" {
+				t.Fatalf("output did not converge: %q %v", got, err)
+			}
+			kept := filepath.Join(leaf, plan.DisplacedRoot, "construct/generated/datatype/SKILL.md")
+			if got, err := os.ReadFile(kept); err != nil || string(got) != "authored edit\n" {
+				t.Fatalf("displaced copy: %q %v", got, err)
+			}
+			if !strings.Contains(out.String(), "edits belong in the layer source it is generated from") {
+				t.Fatalf("warning lacks the edit home:\n%s", out.String())
 			}
 		})
 	}

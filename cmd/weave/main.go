@@ -517,9 +517,11 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 			fmt.Fprint(out, formatActions(mounts))
 			continue
 		}
-		if _, err := plan.ApplyManaged(fs, owner, mounts, plan.ScopeData); err != nil {
+		report, err := plan.ApplyManaged(fs, owner, mounts, plan.ScopeData)
+		if err != nil {
 			return fmt.Errorf("data mounts for %s: %w", owner, err)
 		}
+		printManagedReport(ctx, owner, report, out)
 	}
 	var generated []plan.Action
 	if !dryRun {
@@ -566,14 +568,12 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 			}
 		}
 	}
-	retired, err := plan.ApplyManaged(fs, root, actions, plan.ScopeArtifacts)
+	report, err := plan.ApplyManaged(fs, root, actions, plan.ScopeArtifacts)
 	if err != nil {
 		return fmt.Errorf("apply: %w", err)
 	}
 	fmt.Fprintf(out, "weave: applied %d action(s) to %s\n", len(actions), root)
-	for _, path := range retired {
-		fmt.Fprintf(out, "  retired %s\n", path)
-	}
+	printManagedReport(ctx, root, report, out)
 	var bins []string
 	for _, owner := range restored.Layers {
 		bin := filepath.Join(owner, "bin")
@@ -588,6 +588,38 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 		}
 	}
 	return nil
+}
+
+// printManagedReport says what convergence did to outputs that changed since
+// weave wrote them (#281), and which regenerated outputs Git tracks: a vendored
+// output's new bytes need a commit, not an unexplained dirty tree.
+func printManagedReport(ctx context.Context, root string, report plan.ManagedReport, out io.Writer) {
+	for _, path := range report.Retired {
+		fmt.Fprintf(out, "  retired %s\n", path)
+	}
+	for _, path := range report.Displaced {
+		fmt.Fprintf(out, "weave: warning: overwrote %s, which changed since weave wrote it; old copy at %s; edits belong in %s\n", path, filepath.Join(plan.DisplacedRoot, path), plan.EditHome(path))
+	}
+	for _, path := range report.Abandoned {
+		fmt.Fprintf(out, "weave: warning: left %s in place: weave no longer generates it, and it changed since weave wrote it; delete it or keep it as your own\n", path)
+	}
+	if len(report.Regenerated) == 0 {
+		return
+	}
+	listed, err := setupGitReader{ctx}.GitInDir(root, "ls-files", "-z")
+	if err != nil {
+		fmt.Fprintf(out, "weave: warning: cannot tell whether regenerated outputs are tracked: %v\n", err)
+		return
+	}
+	tracked := map[string]bool{}
+	for _, path := range strings.Split(string(listed), "\x00") {
+		tracked[path] = true
+	}
+	for _, path := range report.Regenerated {
+		if tracked[path] {
+			fmt.Fprintf(out, "weave: regenerated tracked output %s: commit it\n", path)
+		}
+	}
 }
 
 // generateDynamicSkills keeps the leaf cwd for graph reads, but supplies an

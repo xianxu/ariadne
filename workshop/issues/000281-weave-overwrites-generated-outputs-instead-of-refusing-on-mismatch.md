@@ -125,22 +125,30 @@ cross-scope and parent checks:
 
 ## Plan
 
-- [ ] Tests first (`ownership_test.go`): reverted-to-older-write and hand-edit
+- [x] Tests first (`ownership_test.go`): reverted-to-older-write and hand-edit
   both converge, warn, keep the displaced copy, exit 0; a second displacement
   replaces the first; retired mismatched output left and reported once; recorded
   directory and unowned data/staged destinations still refuse with a next action;
   update the existing refusal tests (`TestManagedProtectsEditedActiveOutput`,
   staged/publication permission-edit and link cases) to the convergence rule.
-- [ ] `EditHome` unit test (each family).
-- [ ] Implement `ManagedReport`, displacement and abandoned reporting in
+- [x] `EditHome` unit test (each family).
+- [x] Implement `ManagedReport`, displacement and abandoned reporting in
   `ownership.go`; remove the "preserving authored replacement" refusal.
-- [ ] `compilePrepared` prints displaced/abandoned warnings and the tracked-output
+- [x] `compilePrepared` prints displaced/abandoned warnings and the tracked-output
   commit hint; compile-level tests in `cmd/weave` (git-tracked fixture gets the
   hint; the parley shape: committed stale vocabulary file).
-- [ ] `atlas/workflow/weave.md`: convergence rule replaces "edited outputs remain".
-- [ ] Targeted `go test ./cmd/weave/... ./pkg/weaveownership/...`; full `make test` before close.
+- [x] `atlas/workflow/weave.md`: convergence rule replaces "edited outputs remain".
+- [x] Targeted `go test ./cmd/weave/... ./pkg/weaveownership/...` and the propagate-base tests.
+- [ ] Full `make test` before close.
 
 ## Log
 
 ### 2026-10-01
 - Filed from a parley.nvim slot2 session after weave refused on a reverted vendored vocabulary file. Related, not blocking: #265 (refusal leaves .gitignore half-migrated), #239 (origin of the check), parley.nvim#208 (vendored vocabulary), parley PR #221 (workaround).
+
+### 2026-10-12
+- Implemented in `cmd/weave/internal/plan/ownership.go` (`ManagedReport`, `DisplacedRoot`, `EditHome`) and `cmd/weave/main.go` (`printManagedReport`, used by both the data and artifacts passes).
+- Tests converted from the refusal rule: `TestManagedConvergesChangedRecordedOutput` (reverted + edited, latest-copy replacement), `TestStagedOutputsConvergeEditedAndRefuseUnownedDestinations`, `TestStagedFileModesAreOwnedAndPreserved` (mode edit displaced with its mode), `TestCompileConvergesEditedGeneratorDestination`. New: `TestManagedRefusesDirectoryAtRecordedOutput`, `TestManagedReportsAbandonedOutputOnce`, `TestEditHome`, `TestCompileConvergesRevertedTrackedOutput` (the parley shape: committed stale AGENTS.md gets the commit hint, an untracked regenerated CLAUDE.md does not), abandoned warning asserted in `TestCompileRetiresDisconnectedOutputsPreservesAuthoredFiles`.
+- Mutation checks, each caught: displacement deletes instead of renaming; tracked hint suppressed; abandoned report dropped; a directory displaced instead of refused.
+- Not changed: an unrecorded, occupied, non-staged artifacts destination is still overwritten without a backup (pre-existing behavior; first-inventory migration would otherwise displace every legacy output).
+

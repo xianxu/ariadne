@@ -3,6 +3,7 @@ package plan
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"slices"
@@ -86,25 +87,59 @@ func uniqueIdentities(ids []outputIdentity) []outputIdentity {
 	return out
 }
 
+// DisplacedRoot keeps the latest displaced copy of each recorded output that
+// a compile overwrote (#281); the next displacement of the same path replaces it.
+var DisplacedRoot = filepath.Join(filepath.Dir(InventoryPath), "displaced")
+
+// ManagedReport is what a managed apply did beyond writing its outputs.
+type ManagedReport struct {
+	Retired     []string // unchanged outputs no longer generated, removed
+	Displaced   []string // recorded outputs changed since weave wrote them, moved under DisplacedRoot
+	Abandoned   []string // outputs no longer generated that changed since weave wrote them, left in place
+	Regenerated []string // outputs that existed with other content and were rewritten
+}
+
+// EditHome names where an edit to a generated output belongs, so a warning
+// about a displaced or abandoned output gives the next action. Pure.
+func EditHome(path string) string {
+	for _, face := range TargetAll.Faces() {
+		if path == face.EntryFile {
+			return "AGENTS.local.md"
+		}
+		if strings.HasPrefix(path, face.SkillDir+"/") {
+			return "the skill's source in its owning layer"
+		}
+	}
+	switch {
+	case filepath.Base(path) == "settings.json":
+		return filepath.Join(filepath.Dir(path), "settings.local.json")
+	case strings.HasPrefix(path, walk.GeneratedRel+"/"):
+		return "the layer source it is generated from"
+	}
+	return "the owning layer's manifest source, or a local overlay"
+}
+
 // ApplyManaged records matching old and intended identities before applying.
 // A failed/interrupted Apply leaves that union durable; a later run can retire
 // both untouched old outputs and completed new outputs without the source graph.
 // Only this scope is reconciled; other scope entries remain untouched.
-func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipScope) ([]string, error) {
+// Recorded outputs always converge: a changed one is displaced, not refused.
+func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipScope) (ManagedReport, error) {
+	var report ManagedReport
 	if !validScope(scope) {
-		return nil, fmt.Errorf("invalid ownership scope %q", scope)
+		return report, fmt.Errorf("invalid ownership scope %q", scope)
 	}
 	if err := weavefs.ReclaimPublications(fs, root); err != nil {
-		return nil, err
+		return report, err
 	}
 	old, e := readInventory(fs, root)
 	if e != nil {
-		return nil, e
+		return report, e
 	}
 	// Nothing to apply and nothing of this scope to retire: publish nothing, so a
 	// mount-less data pass leaves an unmigrated repo untouched (#264).
 	if len(actions) == 0 && !slices.ContainsFunc(old, func(id outputIdentity) bool { return id.Scope == scope }) {
-		return nil, nil
+		return report, nil
 	}
 	strict := map[string]bool{}
 	for _, action := range actions {
@@ -116,15 +151,16 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 	}
 	actions, e = materializeManaged(fs, root, actions)
 	if e != nil {
-		return nil, e
+		return report, e
 	}
 	wanted, e := actionIdentities(root, actions, scope)
 	if e != nil {
-		return nil, e
+		return report, e
 	}
 	produced := ProducedPathSet(actions)
-	// Inspect every destination before any output writes. Known edited replacements
-	// are protected; data mounts additionally refuse unowned occupied destinations.
+	// Inspect every destination before any output writes. Changed recorded
+	// outputs are displaced; data mounts and staged outputs refuse unowned
+	// occupied destinations, as does a directory at a recorded path.
 	oldAt := map[string][]outputIdentity{}
 	for _, id := range old {
 		oldAt[id.Path] = append(oldAt[id.Path], id)
@@ -137,96 +173,133 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 		}
 		match, e := observe(fs, root, id)
 		if e != nil {
-			return nil, e
+			return report, e
 		}
 		if match {
 			previous = append(previous, id)
 		}
 	}
+	displace := map[string]bool{}
 	for _, id := range wanted {
 		if e := safeParents(fs, root, id.Path); e != nil {
-			return nil, e
+			return report, e
 		}
 		for _, prev := range oldAt[id.Path] {
 			if prev.Scope != scope {
-				return nil, fmt.Errorf("output %s belongs to %s", id.Path, prev.Scope)
+				return report, fmt.Errorf("output %s belongs to %s", id.Path, prev.Scope)
 			}
 		}
 		p := filepath.Join(root, id.Path)
-		_, statErr := fs.Lstat(p)
+		info, statErr := fs.Lstat(p)
 		if os.IsNotExist(statErr) {
 			continue
 		}
 		if statErr != nil {
-			return nil, statErr
+			return report, statErr
 		}
+		same, e := observe(fs, root, id)
+		if e != nil {
+			return report, e
+		}
+		if same {
+			continue
+		}
+		report.Regenerated = append(report.Regenerated, id.Path)
 		own := false
 		for _, prev := range oldAt[id.Path] {
 			match, e := observe(fs, root, prev)
 			if e != nil {
-				return nil, e
+				return report, e
 			}
 			own = own || match
 		}
-		same, e := observe(fs, root, id)
-		if e != nil {
-			return nil, e
+		recorded := len(oldAt[id.Path]) > 0
+		switch {
+		case own:
+		case recorded && !info.IsDir():
+			displace[id.Path] = true
+		case recorded || scope == ScopeData || strict[id.Path]:
+			return report, fmt.Errorf("%s is occupied by something weave did not write: move it aside and re-run weave compile (edits belong in %s)", p, EditHome(id.Path))
 		}
-		if !own && !same && (scope == ScopeData || strict[id.Path] || len(oldAt[id.Path]) > 0) {
-			return nil, fmt.Errorf("preserving authored replacement at %s", p)
+	}
+	matched := map[string]bool{}
+	for _, id := range previous {
+		matched[id.Path] = true
+	}
+	for _, id := range old {
+		if id.Scope != scope || produced[id.Path] || matched[id.Path] || slices.Contains(report.Abandoned, id.Path) {
+			continue
+		}
+		if _, e := fs.Lstat(filepath.Join(root, id.Path)); e == nil {
+			report.Abandoned = append(report.Abandoned, id.Path)
 		}
 	}
 	next := append(append([]outputIdentity{}, other...), wanted...)
 	gi, e := managedIgnore(fs, root, old, next, scope == ScopeArtifacts)
 	if e != nil {
-		return nil, e
+		return report, e
 	}
 	prepared := append(append(append([]outputIdentity{}, other...), previous...), wanted...)
 	if e = saveInventory(fs, root, prepared); e != nil {
-		return nil, e
+		return report, e
+	}
+	// A rename keeps the displaced bytes, mode and link target exactly.
+	for _, path := range slices.Sorted(maps.Keys(displace)) {
+		dst := filepath.Join(root, DisplacedRoot, path)
+		if e = fs.RemoveAll(dst); e != nil {
+			return report, e
+		}
+		if e = ensureParent(fs, dst); e != nil {
+			return report, e
+		}
+		if e = fs.Rename(filepath.Join(root, path), dst); e != nil {
+			return report, e
+		}
+		report.Displaced = append(report.Displaced, path)
 	}
 	if e = Apply(fs, root, actions); e != nil {
-		return nil, e
+		return report, e
 	}
-	var retired []string
 	for _, id := range previous {
 		if produced[id.Path] {
 			continue
 		}
 		match, e := observe(fs, root, id)
 		if e != nil {
-			return retired, e
+			return report, e
 		}
 		if !match {
 			continue
 		}
 		if e = fs.Remove(filepath.Join(root, id.Path)); e != nil {
-			return retired, e
+			return report, e
 		}
-		retired = append(retired, id.Path)
+		report.Retired = append(report.Retired, id.Path)
 		if e = removeEmptyGeneratedParents(fs, root, id.Path); e != nil {
-			return retired, e
+			return report, e
 		}
 	}
 	if e = writeManagedIgnore(fs, root, gi); e != nil {
-		return retired, e
+		return report, e
 	}
 	// Keep only exact matches for this scope; other scope state is not ours to GC.
 	kept := append([]outputIdentity{}, other...)
 	for _, id := range wanted {
 		match, e := observe(fs, root, id)
 		if e != nil {
-			return retired, e
+			return report, e
 		}
 		if match {
 			kept = append(kept, id)
 		}
 	}
 	if e = saveInventory(fs, root, kept); e != nil {
-		return retired, e
+		return report, e
 	}
-	sort.Strings(retired)
-	return retired, nil
+	sort.Strings(report.Retired)
+	sort.Strings(report.Abandoned)
+	report.Regenerated = slices.Compact(slices.Sorted(slices.Values(report.Regenerated)))
+	return report, nil
 }
 func actionIdentities(root string, actions []Action, scope OwnershipScope) ([]outputIdentity, error) {
 	var out []outputIdentity

@@ -249,6 +249,41 @@ func TestCompileEnsuresGitattributes(t *testing.T) {
 	}
 }
 
+// TestCompileConvergesRevertedTrackedOutput is the parley shape (#281): a
+// vendored generated file goes back to a stale committed copy. Compile overwrites
+// it, keeps the displaced copy, names the edit home, and asks for a commit.
+func TestCompileConvergesRevertedTrackedOutput(t *testing.T) {
+	_, _, derived := buildFixture(t)
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatal(err)
+	}
+	agents := filepath.Join(derived, "AGENTS.md")
+	mkfile(t, agents, "STALE")
+	mkfile(t, filepath.Join(derived, "CLAUDE.md"), "UNTRACKED EDIT")
+	setupGit(t, derived, "init", "-q", "-b", "main")
+	setupGit(t, derived, "add", "-f", "AGENTS.md")
+	setupGit(t, derived, "commit", "-qm", "vendor stale output")
+	out.Reset()
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatalf("compile refused a reverted output: %v", err)
+	}
+	if got, _ := os.ReadFile(agents); string(got) != "BASE PROSE\n\nDERIVED PROSE\n" {
+		t.Fatalf("AGENTS.md did not converge: %q", got)
+	}
+	if got, _ := os.ReadFile(filepath.Join(derived, plan.DisplacedRoot, "AGENTS.md")); string(got) != "STALE" {
+		t.Fatalf("displaced copy %q", got)
+	}
+	for _, want := range []string{"overwrote AGENTS.md", "edits belong in AGENTS.local.md", "regenerated tracked output AGENTS.md: commit it", "overwrote CLAUDE.md"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("output lacks %q:\n%s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "tracked output CLAUDE.md") {
+		t.Errorf("untracked output got the commit hint:\n%s", out.String())
+	}
+}
+
 func TestCompileMultiLayerVisibility(t *testing.T) {
 	// The 𝒜(R) invariant end-to-end (workshop/targets/weave-composition-
 	// algebra.md, #99): a synthetic 3-layer stack — foundation with BOTH an
