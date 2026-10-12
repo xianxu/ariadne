@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-# test-lock.py — machine-wide lock so only one full test suite runs at a time (#319).
+# test-lock.py — machine-wide lock so at most WF_TEST_SUITES full test suites run at
+# once (#319; two by default since #341).
 #
 # Usage (Makefile.workflow runs this at parse time when `test` is a goal):
 #   scripts/test-lock.py acquire --watch <make pid>
@@ -7,13 +8,16 @@
 # Prints one word on stdout for make: acquired | reentrant | skipped | timeout.
 # Waiting and skipping are reported on stderr, naming the holder.
 #
-# The lock is flock(2) on one per-user file. Once held, a forked watcher keeps the
+# The lock is flock(2) on one of N per-user slot files: test-suite.lock (slot 0,
+# the file an older copy of this script contends for, so the cap holds across
+# versions) and test-suite.lock.<k>. Once held, a forked watcher keeps the
 # descriptor open until the watched make exits, so the kernel releases it on any
-# exit, crash or kill. The file holds the holder's JSON record, rewritten per run.
+# exit, crash or kill. Each file holds its holder's JSON record, rewritten per run.
 #
-# WF_TEST_LOCK=off skips the lock; WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait;
-# WF_TEST_LOCK_FILE overrides the path (tests). WF_TEST_LOCK_HELD_BY marks a
-# nested run under a locked make.
+# WF_TEST_SUITES=<n> sets the slot count (default 2); WF_TEST_LOCK=off skips the
+# lock; WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait; WF_TEST_LOCK_FILE
+# overrides slot 0's path (tests). WF_TEST_LOCK_HELD_BY marks a nested run under
+# a locked make.
 
 import argparse
 import fcntl
@@ -33,11 +37,33 @@ def log(msg):
     print(f"[test-lock] {msg}", file=sys.stderr, flush=True)
 
 
-def lock_path():
-    if os.environ.get("WF_TEST_LOCK_FILE"):
-        return os.environ["WF_TEST_LOCK_FILE"]
-    state = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
-    return os.path.join(state, "ariadne", "test-suite.lock")
+def lock_paths():
+    base = os.environ.get("WF_TEST_LOCK_FILE")
+    if not base:
+        state = os.environ.get("XDG_STATE_HOME") or os.path.expanduser("~/.local/state")
+        base = os.path.join(state, "ariadne", "test-suite.lock")
+    try:
+        n = max(1, int(os.environ.get("WF_TEST_SUITES") or 2))
+    except ValueError:
+        log(f"WF_TEST_SUITES={os.environ['WF_TEST_SUITES']!r} is not a number; using 2")
+        n = 2
+    return [base] + [f"{base}.{k}" for k in range(1, n)]
+
+
+def scan(fds):
+    """Takes the first free slot (its index, or None) and reads the busy slots' records."""
+    free, busy = None, []
+    for k, fd in enumerate(fds):
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            busy.append(holder(fd))
+            continue
+        if free is None:
+            free = k
+        else:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    return free, busy
 
 
 def holder(fd):
@@ -79,9 +105,9 @@ def acquire(watch):
     if os.environ.get("WF_TEST_LOCK", "").lower() in ("off", "0", "no"):
         log("WF_TEST_LOCK=off: NOT taking the machine-wide full-suite lock; this run may collide with another")
         return "skipped"
-    path = lock_path()
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o644)
+    paths = lock_paths()
+    os.makedirs(os.path.dirname(paths[0]), exist_ok=True)
+    fds = [os.open(p, os.O_RDWR | os.O_CREAT, 0o644) for p in paths]
     # Makefile.workflow exports the holder's make pid to its children, so a nested
     # `make test` inside a locked run (or make's own restart) passes through.
     held_by = int(os.environ.get("WF_TEST_LOCK_HELD_BY") or 0)
@@ -89,22 +115,29 @@ def acquire(watch):
     start = last = time.time()
     first = True
     while True:
-        try:
-            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            break
-        except BlockingIOError:
-            pass
-        rec = holder(fd)
-        if rec and rec.get("pid") in (watch, held_by):
+        free, busy = scan(fds)
+        # A slot this make (or the make it runs under) already holds makes this a
+        # nested run, even with another slot free.
+        if any(rec and rec.get("pid") in (watch, held_by) for rec in busy):
+            if free is not None:
+                fcntl.flock(fds[free], fcntl.LOCK_UN)
             return "reentrant"
+        if free is not None:
+            break
+        holders = "".join(f"\n  - {describe(rec)}" for rec in busy)
         now = time.time()
         if first or now - last >= REPORT_EVERY:
-            log(f"waiting {int(now - start)}s for the full-suite lock ({path}); held by {describe(rec)}")
+            log(f"waiting {int(now - start)}s for one of {len(fds)} full-suite slots ({paths[0]}*); held by:{holders}")
             first, last = False, now
         if limit and now - start >= limit:
-            log(f"gave up after {int(now - start)}s waiting for the lock held by {describe(rec)} — a lock wait, not a test failure")
+            log(f"gave up after {int(now - start)}s waiting for a full-suite slot — a lock wait, not a test failure; held by:{holders}")
             return "timeout"
         time.sleep(1)
+
+    fd = fds[free]
+    for other in fds:
+        if other != fd:
+            os.close(other)
 
     if first is False:
         log(f"lock acquired after {int(time.time() - start)}s")
@@ -120,7 +153,7 @@ def acquire(watch):
         wait_for_exit(watch)
         os._exit(0)
     top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True).stdout.strip() or os.getcwd()
-    rec = {"repo": os.path.basename(top), "worktree": top, "pid": watch, "holder": child,
+    rec = {"repo": os.path.basename(top), "worktree": top, "pid": watch, "holder": child, "slot": free,
            "started": datetime.now().isoformat(timespec="seconds")}
     os.ftruncate(fd, 0)
     os.pwrite(fd, json.dumps(rec).encode(), 0)

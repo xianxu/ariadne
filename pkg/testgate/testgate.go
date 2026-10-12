@@ -5,9 +5,10 @@
 // when a harness launches, and differs per harness), so the gate sits in the test
 // binary itself: a heavy package calls Enter first in its TestMain.
 //
-// Enter waits while a full suite holds #319's test-suite.lock, then takes one of N
-// machine-wide slots, flock(2) on test-gate.<k>.lock beside it. The descriptor is close-on-exec and held for the life of
-// the process, so the kernel releases the slot however the binary exits. Each slot
+// Enter takes one of N machine-wide slots, flock(2) on test-gate.<k>.lock beside
+// #319's test-suite.lock files. It never waits for a full suite (#341): full
+// suites have their own cap, and a targeted run is small next to one. The
+// descriptor is close-on-exec and held for the life of the process, so the kernel releases the slot however the binary exits. Each slot
 // file holds its holder's record, rewritten on every acquire. Enter also caps
 // -test.parallel unless the run set it, and bounds its wait by the run's
 // -test.timeout (see Enter).
@@ -28,8 +29,8 @@
 // since a helper carries no -test.timeout (#330).
 //
 // In package-list mode `go test` drops a passing binary's output, so the wait lines
-// show only with -v, on a failure, or in local-directory mode. The slot files and
-// test-suite.lock name the holders of a run that looks hung.
+// show only with -v, on a failure, or in local-directory mode. The slot files name
+// the holders of a run that looks hung.
 package testgate
 
 import (
@@ -61,7 +62,6 @@ type config struct {
 	slots       int
 	parallel    string
 	dir         string
-	suiteLock   string        // #319's full-suite lock
 	budget      time.Duration // the most this run may wait before going ahead ungated; 0 = unbounded
 }
 
@@ -90,10 +90,6 @@ func configFromEnv() config {
 			state = filepath.Join(home, ".local", "state")
 		}
 		c.dir = filepath.Join(state, "ariadne")
-	}
-	c.suiteLock = os.Getenv("WF_TEST_LOCK_FILE") // test-lock.py's own override
-	if c.suiteLock == "" {
-		c.suiteLock = filepath.Join(c.dir, "test-suite.lock")
 	}
 	return c
 }
@@ -176,7 +172,7 @@ func enter(c config, stderr io.Writer, sleep func(time.Duration)) (time.Duration
 		}
 		waited := time.Since(start)
 		if last.IsZero() || time.Since(last) >= reportEvery {
-			fmt.Fprintf(stderr, "[test-gate] waiting %ds for one of %d test slots, or a full suite to finish (%s); held by:\n%s",
+			fmt.Fprintf(stderr, "[test-gate] waiting %ds for one of %d test slots (%s); held by:\n%s",
 				int(waited.Seconds()), c.slots, c.dir, holders)
 			last = time.Now()
 		}
@@ -191,13 +187,9 @@ func enter(c config, stderr io.Writer, sleep func(time.Duration)) (time.Duration
 	}
 }
 
-// tryAcquire takes the first free slot without blocking. With none free, or while a
-// full suite runs, it returns the holders' records, one line each, for the wait
-// message.
+// tryAcquire takes the first free slot without blocking. With none free, it returns
+// the holders' records, one line each, for the wait message.
 func tryAcquire(c config) (*os.File, string, error) {
-	if suite, err := suiteRunning(c.suiteLock); err != nil || suite != "" {
-		return nil, suite, err
-	}
 	var holders strings.Builder
 	for k := 0; k < c.slots; k++ {
 		p := filepath.Join(c.dir, fmt.Sprintf("test-gate.%d.lock", k))
@@ -219,35 +211,11 @@ func tryAcquire(c config) (*os.File, string, error) {
 	return nil, holders.String(), nil
 }
 
-// suiteRunning reports a full suite holding #319's lock, which already saturates the
-// machine: a gated binary waits it out. It probes with a shared lock and drops it at
-// once, so a stream of targeted runs can never starve a waiting suite.
-func suiteRunning(path string) (string, error) {
-	f, err := os.OpenFile(path, os.O_RDONLY|os.O_CREATE, 0o644)
-	if err != nil {
-		return "", fmt.Errorf("cannot open %s: %v", path, err)
-	}
-	defer f.Close()
-	err = syscall.Flock(int(f.Fd()), syscall.LOCK_SH|syscall.LOCK_NB)
-	switch {
-	case err == nil:
-		return "", syscall.Flock(int(f.Fd()), syscall.LOCK_UN)
-	case errors.Is(err, syscall.EWOULDBLOCK):
-		rec, _ := io.ReadAll(f)
-		return "  - " + describe(rec) + "\n", nil
-	default:
-		return "", fmt.Errorf("flock %s: %v", path, err)
-	}
-}
-
-// record is a slot's holder; a full suite's record (scripts/test-lock.py) carries
-// worktree instead of dir.
+// record is a slot's holder.
 type record struct {
-	Repo     string `json:"repo,omitempty"` // a suite's; a slot's dir already names it
-	Dir      string `json:"dir"`
-	Worktree string `json:"worktree,omitempty"`
-	PID      int    `json:"pid"`
-	Started  string `json:"started"`
+	Dir     string `json:"dir"`
+	PID     int    `json:"pid"`
+	Started string `json:"started"`
 }
 
 func writeRecord(f *os.File) error {
@@ -264,9 +232,6 @@ func describe(b []byte) string {
 	var r record
 	if json.Unmarshal(b, &r) != nil || r.PID == 0 {
 		return "an unidentified holder (record not yet written)"
-	}
-	if r.Dir == "" {
-		return fmt.Sprintf("the full %s suite (make test) in %s, make pid %d, since %s", r.Repo, r.Worktree, r.PID, r.Started)
 	}
 	return fmt.Sprintf("test binary in %s, pid %d, since %s", r.Dir, r.PID, r.Started)
 }

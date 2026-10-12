@@ -5,10 +5,11 @@
 WF_WORKFLOW_SOURCE_DIR := $(dir $(realpath $(lastword $(MAKEFILE_LIST))))
 WF_HELP_TARGETS := help-workflow
 
-# #319: a full `make test` takes a machine-wide lock so suites from different
-# slots and repos run one at a time. It is taken here, at parse time, because a
-# prerequisite would run after the test target's own prerequisites; $$PPID in
-# $(shell) is this make, whose exit releases the lock. The helper resolves beside
+# #319: a full `make test` takes a machine-wide slot so at most WF_TEST_SUITES
+# (default 2, #341) suites from different slots and repos run at once. It is
+# taken here, at parse time, because a prerequisite would run after the test
+# target's own prerequisites; $$PPID in $(shell) is this make, whose exit
+# releases the lock. The helper resolves beside
 # this file's real path (ariadne's), so a woven repo needs no copy of it.
 # WF_TEST_LOCK=off skips it; WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait.
 # Targeted runs never come here.

@@ -52,7 +52,7 @@ func runHelperTee(t *testing.T, dir string, env []string, tee io.Writer, args ..
 	t.Helper()
 	cmd := exec.Command(os.Args[0], append([]string{"-test.run=^TestHelperReport$", "-test.v"}, args...)...)
 	cmd.Env = append(os.Environ(), append([]string{"TESTGATE_HELPER=1", "WF_TEST_GATE_DIR=" + dir,
-		"WF_TEST_GATE_SLOTS=1", "WF_TEST_LOCK=", "WF_TEST_LOCK_HELD_BY=", "WF_TEST_GATE_HELD_BY=", "WF_TEST_PARALLEL=", "WF_TEST_LOCK_FILE="}, env...)...)
+		"WF_TEST_GATE_SLOTS=1", "WF_TEST_LOCK=", "WF_TEST_LOCK_HELD_BY=", "WF_TEST_GATE_HELD_BY=", "WF_TEST_PARALLEL="}, env...)...)
 	var buf bytes.Buffer
 	var sink io.Writer = &buf
 	if tee != nil {
@@ -121,7 +121,7 @@ func TestEnterTakesAFreeSlot(t *testing.T) {
 	dir := t.TempDir()
 	holdSlot(t, dir, 0)
 	var stderr bytes.Buffer
-	if _, err := enter(config{slots: 2, dir: dir, suiteLock: filepath.Join(dir, "test-suite.lock")}, &stderr, func(time.Duration) { t.Fatal("must not wait") }); err != nil {
+	if _, err := enter(config{slots: 2, dir: dir}, &stderr, func(time.Duration) { t.Fatal("must not wait") }); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { held.Close(); held = nil })
@@ -136,13 +136,13 @@ func TestEnterWaitsLoudlyThenAcquires(t *testing.T) {
 	f := holdSlot(t, dir, 0)
 	var stderr bytes.Buffer
 	sleeps := 0
-	_, err := enter(config{slots: 1, dir: dir, suiteLock: filepath.Join(dir, "test-suite.lock")}, &stderr, func(time.Duration) { sleeps++; f.Close() })
+	_, err := enter(config{slots: 1, dir: dir}, &stderr, func(time.Duration) { sleeps++; f.Close() })
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { held.Close(); held = nil })
 	out := stderr.String()
-	for _, want := range []string{"waiting 0s for one of 1 test slots, or a full suite to finish", "test binary in /w/pair/cmd, pid 4242", "slot acquired after"} {
+	for _, want := range []string{"waiting 0s for one of 1 test slots (", "test binary in /w/pair/cmd, pid 4242", "slot acquired after"} {
 		if !strings.Contains(out, want) {
 			t.Fatalf("stderr missing %q:\n%s", want, out)
 		}
@@ -152,32 +152,28 @@ func TestEnterWaitsLoudlyThenAcquires(t *testing.T) {
 	}
 }
 
-// A running full suite (#319's exclusive lock, as test-lock.py's watcher holds it)
-// holds every gated binary back, even with slots free; its end releases them.
-func TestEnterWaitsOutAFullSuite(t *testing.T) {
+// Running full suites never hold a targeted run back (#341): with both of
+// test-lock.py's suite slots held exclusively, as its watchers hold them, the gate
+// takes a slot at once and leaves the suite files alone.
+func TestEnterIgnoresFullSuites(t *testing.T) {
 	dir := t.TempDir()
-	suite := filepath.Join(dir, "test-suite.lock")
-	f, err := os.OpenFile(suite, os.O_RDWR|os.O_CREATE, 0o644)
-	if err != nil {
-		t.Fatal(err)
+	for _, name := range []string{"test-suite.lock", "test-suite.lock.1"} {
+		f, err := os.OpenFile(filepath.Join(dir, name), os.O_RDWR|os.O_CREATE, 0o644)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+			t.Fatal(err)
+		}
+		t.Cleanup(func() { f.Close() })
 	}
-	if err := syscall.Flock(int(f.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		t.Fatal(err)
-	}
-	f.WriteString(`{"repo": "ariadne", "worktree": "/w/ariadne-slot2", "pid": 2608, "holder": 2654, "started": "2026-10-10T18:05:47"}`)
 	var stderr bytes.Buffer
-	if _, err := enter(config{slots: 3, dir: dir, suiteLock: suite}, &stderr, func(time.Duration) { f.Close() }); err != nil {
+	if _, err := enter(config{slots: 1, dir: dir}, &stderr, func(time.Duration) { t.Fatal("must not wait for a full suite") }); err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { held.Close(); held = nil })
-	if !strings.Contains(stderr.String(), "the full ariadne suite (make test) in /w/ariadne-slot2, make pid 2608") {
-		t.Fatalf("the wait must name the suite:\n%s", stderr.String())
-	}
-	// The probe never keeps the suite lock: a suite can still take it exclusively.
-	g, _ := os.OpenFile(suite, os.O_RDWR, 0)
-	defer g.Close()
-	if err := syscall.Flock(int(g.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		t.Fatalf("a gated binary must not hold the suite lock: %v", err)
+	if held == nil || stderr.Len() != 0 {
+		t.Fatalf("want a gate slot taken silently, got held=%v stderr=%q", held != nil, stderr.String())
 	}
 }
 
@@ -187,7 +183,7 @@ func TestEnterGoesAheadPastItsBudget(t *testing.T) {
 	dir := t.TempDir()
 	holdSlot(t, dir, 0)
 	var stderr bytes.Buffer
-	waited, err := enter(config{slots: 1, dir: dir, suiteLock: filepath.Join(dir, "test-suite.lock"), budget: time.Nanosecond}, &stderr, func(time.Duration) {})
+	waited, err := enter(config{slots: 1, dir: dir, budget: time.Nanosecond}, &stderr, func(time.Duration) {})
 	if err != nil || waited <= 0 || held != nil {
 		t.Fatalf("want a slotless go-ahead, got waited=%v err=%v held=%v", waited, err, held != nil)
 	}
@@ -237,7 +233,7 @@ func TestEnterTimesOutAsALockWait(t *testing.T) {
 	dir := t.TempDir()
 	holdSlot(t, dir, 0)
 	var stderr bytes.Buffer
-	_, err := enter(config{slots: 1, dir: dir, suiteLock: filepath.Join(dir, "test-suite.lock"), timeout: time.Nanosecond}, &stderr, func(time.Duration) {})
+	_, err := enter(config{slots: 1, dir: dir, timeout: time.Nanosecond}, &stderr, func(time.Duration) {})
 	if err == nil || !strings.Contains(err.Error(), "a lock wait, not a test failure") {
 		t.Fatalf("want the timeout refusal, got %v", err)
 	}
@@ -263,9 +259,8 @@ func TestConfigFromEnv(t *testing.T) {
 	t.Setenv("WF_TEST_GATE_SLOTS", "4")
 	t.Setenv("WF_TEST_GATE_DIR", "")
 	t.Setenv("XDG_STATE_HOME", "/state")
-	t.Setenv("WF_TEST_LOCK_FILE", "")
 	c := configFromEnv()
-	if !c.off || c.timeout != 1500*time.Millisecond || c.slots != 4 || c.dir != "/state/ariadne" || c.parallel != "2" || c.suiteLock != "/state/ariadne/test-suite.lock" {
+	if !c.off || c.timeout != 1500*time.Millisecond || c.slots != 4 || c.dir != "/state/ariadne" || c.parallel != "2" {
 		t.Fatalf("configFromEnv = %+v", c)
 	}
 }

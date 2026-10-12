@@ -1,12 +1,12 @@
 ---
 id: 000341
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
-card_mirror: 'e7f337ea9ace5dc95986b1c34344fd5cd4750366' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'b23f53da702a45309e971caca16721f344cfe6d6' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T16:13:39-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,8 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "9096fb8a", done: "021e0f35"}
+actual_hours: 0.06
 ---
 
 # test gate: allow two full suites at once; targeted tests never wait for full suites
@@ -38,8 +40,35 @@ Keep `WF_TEST_LOCK=off` as the logged emergency hatch.
 
 ## Plan
 
-- [ ]
+Design (ARCH-DRY: reuse the one flock mechanism, N files instead of one;
+ARCH-CONSTRAINTS: the cap is an operator choice, default 2, measured basis in ## Problem;
+ARCH-FUNERAL: the slot files are fixed, N of them, rewritten per run, removed by nothing,
+like today's one file; ARCH-ORDER: flock is the state, released by the kernel on exit).
+
+- [x] `scripts/test-lock.py`: `WF_TEST_SUITES` slots (default 2). Slot 0 stays
+  `test-suite.lock` (an older test-lock.py in a not-yet-refreshed checkout contends
+  for it, so the cap holds across versions); slot k is `test-suite.lock.<k>`.
+  One scan per tick: try each slot non-blocking, keep the first free one, read
+  the records of the busy ones. A busy slot held by this make or `WF_TEST_LOCK_HELD_BY`
+  means re-entrant (drop any free slot taken). None free: wait, naming every holder.
+  The record gains `slot`.
+- [x] `pkg/testgate`: drop the full-suite probe; a targeted run takes only its own
+  `test-gate.<k>.lock` slot. Package doc and messages follow.
+- [x] Tests, fakes only (private lock files, `sleep` holders):
+  `scripts/test-lock.test.sh` two suites acquire, a third waits naming both and takes
+  the freed slot; re-entrancy with the holder on slot 1; `WF_TEST_SUITES=1` keeps the
+  single-suite cases. `pkg/testgate`: both suite slots held exclusively, `enter`
+  takes a gate slot without waiting.
+- [x] Atlas (`atlas/workflow/sdlc-binary.md`), `Makefile.workflow` comment, and
+  AGENTS.base.md: targeted runs are always fine; at most 2 full suites.
 
 ## Log
 
 ### 2026-10-12
+- 2026-10-12: closed — Fixed both close-review Minors: test-lock.test.sh greps this checkout name (rerun 23/23 pass); atlas Slots wording; Makefile.workflow comment rewrapped (comment only). (fixed-then-ship); review verdict: SHIP
+- 2026-10-12: closed — scripts/test-lock.test.sh 23/23 (two suites acquire, third waits naming both and takes the freed slot, re-entrant with a slot free and on slot 1, bad WF_TEST_SUITES); go test ./pkg/testgate pass incl. TestEnterIgnoresFullSuites (both suite files held exclusively, any wait fails). make test: all shards green except TestVerbContextsReachTrackerReads, pre-existing red on main from #302, filed as #340. Live: my make test took slot 1 while a pair suite under the old script held slot 0, both running.; review verdict: SHIP
+- Implemented. `scripts/test-lock.test.sh`: 23/23 pass, including two suites acquiring,
+  a third waiting with both holders named and taking the freed slot, re-entrancy with
+  a slot free and on slot 1. `go test ./pkg/testgate`: pass; the new
+  `TestEnterIgnoresFullSuites` holds both suite files exclusively and fails on any wait,
+  so restoring the old suite probe fails it. Holders are `sleep` processes; no load.

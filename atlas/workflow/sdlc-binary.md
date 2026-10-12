@@ -1614,23 +1614,32 @@ which asks the kernel (sysctl `kern.proc.pid` on macOS, `/proc` on Linux) instea
 running `ps`: agent sandboxes deny exec of `/bin/ps` (#330). It waits, because a
 group SIGKILL lands asynchronously after the runner returns.
 
-### One full suite per machine (#319)
+### Two full suites per machine (#319, #341)
+
+The rule: a full `make test` takes one of `WF_TEST_SUITES` (default 2) full-suite
+slots; a targeted run takes one of `WF_TEST_GATE_SLOTS` test-gate slots and never
+waits for a full suite. The two caps are independent. #319 allowed one suite and
+held targeted runs back behind it; at load ~2 with five slots waiting on each
+other's suites, that wasted the machine, so the operator raised it (#341).
 
 A full `make test` in any woven repo (ariadne, pair, parley.nvim, …) first takes
-a machine-wide lock, so suites from parallel slots and repos run one at a time
-instead of oversubscribing the cores. `Makefile.workflow` takes it at parse time
+a machine-wide slot, so suites from parallel slots and repos queue instead of
+oversubscribing the cores. `Makefile.workflow` takes it at parse time
 whenever `test` is a goal, through ariadne's `scripts/test-lock.py`, resolved
 beside `Makefile.workflow`'s real path (so a woven repo needs no copy, and a
 missing helper warns that the run is unlocked):
-`flock` on `${XDG_STATE_HOME:-~/.local/state}/ariadne/test-suite.lock`, held by a
-forked watcher until that `make` exits, so a crash or kill releases it at once.
+`flock` on one of `${XDG_STATE_HOME:-~/.local/state}/ariadne/test-suite.lock`
+(slot 0) and `test-suite.lock.<k>`, held by a forked watcher until that `make`
+exits, so a crash or kill releases it at once. Slot 0 keeps #319's filename, so an
+older `test-lock.py` (a checkout not yet refreshed) still counts against the cap.
 Parse time matters: a prerequisite would run after the test target's own
 prerequisites, which are pair's whole suite. Targeted runs (`go test -run …`, a
 single `make test-*` target) never take it; they go through the test gate below. A nested `make test` under a locked
-run passes through (`WF_TEST_LOCK_HELD_BY`).
+run passes through (`WF_TEST_LOCK_HELD_BY`), even while another slot is free.
 
-While waiting it prints `[test-lock] waiting Ns … held by <repo> (<worktree>),
-make pid P, since T`, repeated every 30s. `WF_TEST_LOCK=off` skips the lock
+While waiting it prints `[test-lock] waiting Ns for one of N full-suite slots …;
+held by:` and one `<repo> (<worktree>), make pid P, since T` line per holder,
+repeated every 30s. `WF_TEST_LOCK=off` skips the lock
 (loudly). `WF_TEST_LOCK_TIMEOUT=<seconds>` bounds the wait and then fails make
 with "full-suite lock not taken (timeout)" — a lock wait, not a test failure.
 Agents running the pre-close suite should run `make test` in the background so a
@@ -1644,10 +1653,9 @@ flags:
 - **Covered packages:** every git-driving `cmd/sdlc` package
   (`TestGitDrivingPackagesPreferRealGit` enforces it), plus `cmd/weave` and weave's
   `refresh` and `acquire`.
-- **Full suite first:** the gate waits while a full suite holds #319's lock. It
-  probes with a shared flock and drops it at once, so targeted runs never starve
-  a waiting suite.
-- **Slots:** it then takes one of `WF_TEST_GATE_SLOTS` slots (default NCPU/4),
+- **Never behind a full suite (#341):** the gate ignores the full-suite slots.
+  A targeted run is small next to a suite, and full suites have their own cap.
+- **Slots:** it takes one of `WF_TEST_GATE_SLOTS` slots (default NCPU/4),
   `test-gate.<k>.lock` beside `test-suite.lock`, each holding its holder's record,
   until the binary exits.
 - **Parallel cap:** it caps `-test.parallel` at `WF_TEST_PARALLEL` (default 2)
@@ -1671,8 +1679,8 @@ flags:
 **Waits are invisible on a pass.** In package-list mode (`go test ./pkg/…`), `go`
 drops a passing binary's output, so the `[test-gate] waiting … held by …` lines
 show only with `-v`, on a failure, or in local-directory mode. A run that looks
-hung is usually queued: `cat ~/.local/state/ariadne/test-gate.*.lock
-~/.local/state/ariadne/test-suite.lock` names the holders. Run long targeted
+hung is usually queued: `cat ~/.local/state/ariadne/test-gate.*.lock` names the
+holders (`test-suite.lock*` name the running full suites). Run long targeted
 batches in the background, like the full suite.
 
 Why in the binary and not the slot env: env is fixed when a harness launches and
