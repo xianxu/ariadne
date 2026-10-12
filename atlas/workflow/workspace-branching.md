@@ -34,7 +34,7 @@ using `git rev-parse --git-path` (MERGE_HEAD, rebase-merge, rebase-apply,
 CHERRY_PICK_HEAD, REVERT_HEAD, sequencer and BISECT_START), not a guessed `.git/`.
 Inside the binaries the marker list is single-sourced as
 `workspace.OperationMarkers` (`pkg/workspace/operation.go`, #289; it also counts
-REBASE_HEAD and BISECT_LOG): sdlc's landing, `move`, `move-detail` and fleet
+REBASE_HEAD and BISECT_LOG): sdlc's landing, `move`, publish's creation finish and fleet
 readiness, and weave's refresh, all check it in the worktree's own git directory —
 `WorktreeGitDir` follows a linked worktree's `gitdir:` pointer, so fleet reads it
 without a git process.
@@ -189,6 +189,12 @@ branch; ordinary feature worktrees are removed. For coordinated Ariadne/Pair
 work, land the Ariadne dependency through its normal SDLC flow first, verify
 Pair against that merged dependency, then land Pair. Driving both from a Pair
 thread does not recursively publish, refresh or clean sibling repositories.
+In that legacy flow a dirty issue or history file is exempt from the dirt
+guards only where git would carry it: a linked feature worktree never switches,
+and an in-place clone refuses before the merge any tracker file that differs
+between `main` and `HEAD` or a fresh `origin/main` (#196). If a local step still
+fails after the server-side merge, the error says the PR is merged and that a
+re-run of `sdlc merge --yes` from the issue branch resumes the cleanup.
 
 Ref-only recovery while already on rest preserves staged, unstaged and untracked
 work there. Active Git operations still refuse; fresh integration and switching

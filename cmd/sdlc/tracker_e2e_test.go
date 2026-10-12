@@ -90,18 +90,21 @@ func TestTrackerFullSlotCycle(t *testing.T) {
 		git(t, slot, "pull", "-q", "--ff-only")
 	}
 
-	// ── new on slot1's rest, details handed to main ──
+	// ── new on slot1's rest: card and details on origin, nothing local (#308) ──
 	mainAt := func() string { return strings.Fields(git(t, primary, "ls-remote", "upstream", "refs/heads/main"))[0] }
+	beforeNew, restHead := mainAt(), git(t, slot1, "rev-parse", "HEAD")
 	mustSlotRun(t, slot1, "issue", "new", "feature x", "--slug", "feature-x")
-	detail2 := onlyIssuePath(t, slot1, "000002")
-	beforeMove := mainAt()
-	mustSlotRun(t, slot1, "issue", "move-detail", "--issue", "2")
-	if mainAt() == beforeMove {
-		t.Fatal("move-detail did not publish the details")
+	if mainAt() == beforeNew {
+		t.Fatal("issue new did not publish the details")
+	}
+	if st := git(t, slot1, "status", "--porcelain", "--untracked-files=all"); st != "" || git(t, slot1, "rev-parse", "HEAD") != restHead {
+		t.Fatalf("issue new wrote slot1's checkout: %q", st)
 	}
 	git(t, slot1, "pull", "-q", "--ff-only")
+	detail2 := onlyIssuePath(t, slot1, "000002")
 
-	// ── claim is card-only; a competing claim refuses ──
+	// ── filed from a numbered slot, slot1 already holds it: a repeat claim is
+	// a card-only no-op, and a competing claim refuses ──
 	beforeClaim := mainAt()
 	mustSlotRun(t, slot1, "claim", "--issue", "2")
 	if mainAt() != beforeClaim {
@@ -125,12 +128,13 @@ func TestTrackerFullSlotCycle(t *testing.T) {
 	git(t, slot1, "add", "cmd/x.go")
 	git(t, slot1, "commit", "-qm", "#2: implement")
 
-	// ── spin-off filed on the branch, handed off while #2's code is unshipped ──
+	// ── spin-off filed from the branch while #2's code is unshipped: published
+	// to main, nothing committed on the branch (#308, TL option a) ──
+	branchHead := git(t, slot1, "rev-parse", "HEAD")
 	mustSlotRun(t, slot1, "issue", "new", "spin off", "--slug", "spin-off")
-	detail3 := onlyIssuePath(t, slot1, "000003")
-	mustSlotRun(t, slot1, "issue", "move-detail", "--issue", "3")
-	if _, err := os.Stat(filepath.Join(slot1, detail3)); !os.IsNotExist(err) {
-		t.Fatalf("the handed-off details stayed on the source branch: %v", err)
+	detail3 := "workshop/issues/000003-spin-off.md"
+	if _, err := os.Stat(filepath.Join(slot1, detail3)); !os.IsNotExist(err) || git(t, slot1, "rev-parse", "HEAD") != branchHead {
+		t.Fatalf("issue new wrote the spin-off onto the issue branch: %v", err)
 	}
 	// Its new owner edits it on main (as its landed PR would).
 	git(t, primary, "pull", "-q", "--ff-only")

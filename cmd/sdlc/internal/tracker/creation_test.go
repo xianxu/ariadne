@@ -28,11 +28,11 @@ func TestCreationReservesBeforeMaterializingAndNeverReallocatesAfterReserve(t *t
 		t.Fatalf("save: %v %v", effects, err)
 	}
 	s, effects, err = StepCreation(s, Event{Kind: EventConfirmed, Binding: s.Binding(), CandidateOID: strings.Repeat("7", 40), ResultCardOID: strings.Repeat("8", 40)})
-	if err != nil || effects[0].Kind != PrepareCandidate || effects[0].Stage != "creation.detail" {
+	if err != nil || effects[0].Kind != PrepareCandidate || effects[0].Stage != "creation.main" {
 		t.Fatalf("reserve: %v %v", effects, err)
 	}
 	if _, _, err := StepCreation(s, Event{Kind: EventRefRace, Binding: s.Binding()}); err == nil {
-		t.Fatal("local materialization must not reallocate")
+		t.Fatal("a race before any push must not reallocate the reserved ID")
 	}
 	if s.Binding().CardOID != strings.Repeat("8", 40) {
 		t.Fatal("reserved generation lost")

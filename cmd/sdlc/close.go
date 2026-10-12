@@ -166,7 +166,7 @@ func NewCloseCmd() *cobra.Command {
 			"the commit window, ticks the issue's ## Plan, flips status, appends a " +
 			"verification log line, and updates the matching brain-side project " +
 			"file (task tick + detail-block field upsert; a TL-owned `tl:` project " +
-			"is skipped). Does NOT commit — the " +
+			"is skipped; a peer repository's is published to its origin). Does NOT commit — the " +
 			"agent commits, usually bundling the close with other work. The main " +
 			"session's helptext package replaces this Long text with the full " +
 			"checkpoint contract once wired up.",
@@ -197,7 +197,7 @@ func NewCloseCmd() *cobra.Command {
 	cmd.Flags().BoolVar(&f.NoLedger, "no-ledger", false, "bypass the boundary gate ledger's open-findings refusal (#194)")
 	cmd.Flags().BoolVar(&f.NoVerdict, "no-verdict", false, "bypass the milestone Review-Verdict trailer check")
 	cmd.Flags().BoolVar(&f.NoPlanCheck, "no-plan-check", false, "bypass the unchecked-## Plan-items refusal")
-	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "bypass the project detail-block update requirement")
+	cmd.Flags().BoolVar(&f.NoProject, "no-project", false, "skip the project update entirely: no task tick, detail block or peer publish (#308)")
 	cmd.Flags().BoolVar(&f.NoDoneWhenFresh, "no-done-when-fresh", false, "quick flow: skip the Done-when freshness check (#231); say why in --verified")
 	cmd.Flags().BoolVar(&f.NoIntegrate, "no-integrate", false, "bypass the integrate gate: main's code landed before the most recent noon must be in the branch (#269)")
 	cmd.Flags().BoolVar(&f.NoJudge, "no-judge", false, "skip the issue boundary review auto-dispatched on full-issue close (#69)")
@@ -385,7 +385,11 @@ type projectEdit struct {
 	path    string // absolute path to the project .md
 	repoDir string // absolute repo root that owns it
 	oldText string // pre-edit content (TOCTOU guard + review snapshot)
-	newText string // post-edit content to write
+	newText string // post-edit content to write (this repository's projects)
+	// peer marks a project in another repository (#308): never written in its
+	// checkout, but re-derived from in on the peer's origin and published there.
+	peer bool
+	in   projectEditInput
 }
 
 // closeResult bundles everything applyClose needs, computed by computeClose
@@ -783,14 +787,25 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 	// `done` project is never re-ticked; the peer-write commit decision is M3.
 	var projectEdits []projectEdit
 
-	overlays, overlayErr := projectWorkspaceRoots(identity)
-	if overlayErr != nil {
-		die(stderr, overlayErr.Error())
+	var matches []project.ProjectMatch
+	var derr error
+	if f.NoProject {
+		// --no-project skips the project update entirely (#308): no tick, no
+		// detail block, no peer publish. It used to waive only the detail block,
+		// so callers who meant "leave the project alone" still got a tick.
+		cinfo(stderr, "--no-project: project update skipped (no tick, detail block or peer publish)")
+	} else {
+		overlays, overlayErr := projectWorkspaceRoots(identity)
+		if overlayErr != nil {
+			die(stderr, overlayErr.Error())
+		}
+		matches, derr = project.DiscoverInRoots(overlays, repoName, issueStr, project.ActiveOnly)
 	}
-	matches, derr := project.DiscoverInRoots(overlays, repoName, issueStr, project.ActiveOnly)
-	if derr != nil {
+	switch {
+	case f.NoProject:
+	case derr != nil:
 		cwarn(stderr, derr.Error()+" — skipping project update")
-	} else if len(matches) == 0 {
+	case len(matches) == 0:
 		cwarn(stderr, fmt.Sprintf("no project across the fleet references %s#%s — skipping project update", repoName, issueStr))
 	}
 	for _, m := range matches {
@@ -818,69 +833,29 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			cinfo(stderr, fmt.Sprintf("project %s is TL-owned (tl: %s) — not ticked; report the landing to the TL", label, strings.Join(owners, ", ")))
 			continue
 		}
-		newPT := pt
-
+		est, _ := issue.GetField(fm, "estimate_hours")
+		in := projectEditInput{RepoName: repoName, IssueStr: issueStr, Actual: f.Actual, Today: today, Est: est,
+			Label: label, WaiveDetailBlock: f.skip("project")}
 		if mode == "milestone" {
-			tickedPT, n := project.TickMilestoneTaskRow(newPT, repoName, issueStr, f.Milestone)
-			newPT = tickedPT
-			if n > 0 {
-				applied = append(applied, fmt.Sprintf("ticked [%s#%s %s] in %s", repoName, issueStr, f.Milestone, label))
-			} else {
-				cwarn(stderr, fmt.Sprintf("no task line for [%s#%s %s] in %s", repoName, issueStr, f.Milestone, label))
-			}
-
-			anchor := project.AnchorFor(repoName, issueStr, f.Milestone)
-			// Order matches close-issue.py: fm_set('actual') then fm_set('closed').
-			// Slice (not map) so iteration order is deterministic.
-			var fields []project.Field
-			if f.Actual != "" {
-				fields = append(fields, project.Field{Name: "actual", Value: f.Actual + "h"})
-			}
-			fields = append(fields, project.Field{Name: "closed", Value: today})
-			updated, found := project.UpsertDetailBlockFields(newPT, anchor, fields)
-			if !found {
-				if !f.skip("project") {
-					title := project.FindTaskTitle(newPT, repoName, issueStr, f.Milestone)
-					est, _ := issue.GetField(fm, "estimate_hours")
-					refLabel := fmt.Sprintf("%s#%s %s", repoName, issueStr, f.Milestone)
-					actualOut := f.Actual + "h"
-					skel, refDef := project.Skeleton{
-						Anchor:    anchor,
-						RefLabel:  refLabel,
-						Title:     title,
-						Est:       est,
-						Actual:    actualOut,
-						ClosedISO: today,
-					}.Render()
-					die(stderr, fmt.Sprintf(
-						"no detail block <a id=\"%s\"> in %s (§5 step 4).\n"+
-							"  Author one before closing — the prose paragraph is load-bearing\n"+
-							"  for future calibration. Insert this skeleton inside ## details:\n\n"+
-							"%s\n"+
-							"  And add this reference definition at the file bottom:\n"+
-							"    %s\n\n"+
-							"  Then re-run. (--no-project, or --force, if it's a track-only milestone with nothing worth recording.)",
-						anchor, label, skel, refDef))
-				}
-				cwarn(stderr, fmt.Sprintf("--no-project (or --force): skipping detail-block update for <a id=\"%s\"> in %s", anchor, label))
-			}
-			if found {
-				newPT = updated
-				applied = append(applied, fmt.Sprintf("updated detail block <a id=\"%s\"> in %s", anchor, label))
-			}
-		} else { // issue close
-			tickedPT, n := project.TickAllTaskRowsForIssue(newPT, repoName, issueStr)
-			newPT = tickedPT
-			if n > 0 {
-				applied = append(applied, fmt.Sprintf("ticked %d remaining task line(s) for %s#%s in %s", n, repoName, issueStr, label))
-			}
-			if n > 1 {
-				cwarn(stderr, fmt.Sprintf("multiple %s#%s task rows ticked at once — confirm individual milestones were genuinely closed (§5 step 1)", repoName, issueStr))
-			}
+			in.Milestone = f.Milestone
+		}
+		newPT, edited, warns, eerr := projectCloseEdit(pt, in)
+		if eerr != nil {
+			die(stderr, eerr.Error())
+		}
+		applied = append(applied, edited...)
+		for _, w := range warns {
+			cwarn(stderr, w)
 		}
 
-		if newPT != pt {
-			projectEdits = append(projectEdits, projectEdit{path: m.Path, repoDir: m.RepoDir, oldText: pt, newText: newPT})
+		// A peer repository's project publishes to its origin (#308); a brain's
+		// legacy data/project home is the exception, written in place as before
+		// for nous to commit on its auto-commit rhythm (a brain is never
+		// published into, #176). A peer is always published: whether there is
+		// anything to change is decided on origin's bytes, not this local copy.
+		peer := m.RepoDir != "" && m.RepoDir != repoTop && !m.Legacy
+		if newPT != pt || peer {
+			projectEdits = append(projectEdits, projectEdit{path: m.Path, repoDir: m.RepoDir, oldText: pt, newText: newPT, peer: peer, in: in})
 		}
 		if shouldNudgeProjectRetro(newPT, today, f.skip("project")) {
 			cwarn(stderr, fmt.Sprintf("project retro is absent or older than 7 days in %s — consider `sdlc project retro`", label))
@@ -927,52 +902,21 @@ func printCloseDryRun(stderr io.Writer, r closeResult) {
 	cinfo(stderr, "DRY=1 — no files written")
 	fmt.Fprintf(os.Stdout, "Would update: %s\n", r.issuePath)
 	for _, e := range r.projectEdits {
+		if e.peer {
+			fmt.Fprintf(os.Stdout, "Would publish to %s's origin main: %s\n", filepath.Base(e.repoDir), e.path)
+			continue
+		}
 		fmt.Fprintf(os.Stdout, "Would update: %s\n", e.path)
 	}
 }
-
-// closeRunner is the close path's gitRunner — the seam M3's peer-write commit
-// shells through. Production is execGitRunner; tests may substitute.
-var closeRunner gitRunner = execGitRunner{}
 
 // applyClose performs the close's writes — issue + project files + the #117
 // calibration ledger — then emits the success messages computeClose deferred
 // (so "flipped → codecomplete" prints only when the flip actually happened). Called
 // only after a finalizing verdict, or on the eager non-review path (#139).
-// Peer-repo project edits then go through the safe peer-write commit decision
-// (#171 M3): scoped commit when the peer is on main with a clean index,
-// report-only otherwise — never failing the close either way.
-func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeResult) {
-	if f.Context != nil {
-		if err := f.Context.Err(); err != nil {
-			die(stderr, fmt.Sprintf("close interrupted: %v", err))
-			return
-		}
-	}
-	// ── Peer-write state snapshot (#171 M3) — BEFORE any file writes ─────────
-	// The current repo's project edit rides the close commit; each PEER repo's
-	// edit is committed there only when git state makes it unambiguous. The
-	// snapshot must precede the writes below so pre-existing dirt on the target
-	// files (another session's uncommitted edits) flips the peer to report-only
-	// instead of being silently absorbed into the scoped commit.
-	peerEdits := map[string][]string{}
-	for _, e := range res.projectEdits {
-		if e.repoDir == "" || e.repoDir == res.repoTop {
-			continue
-		}
-		rel, rerr := filepath.Rel(e.repoDir, e.path)
-		if rerr != nil {
-			rel = e.path
-		}
-		peerEdits[e.repoDir] = append(peerEdits[e.repoDir], rel)
-	}
-	states := map[string]RepoGitState{}
-	for repoDir, files := range peerEdits {
-		states[repoDir] = readRepoGitState(r, repoDir, files)
-	}
-
-	// Peer-state discovery may run Git; cancellation during those reads cannot
-	// authorize the first issue/project write, even on a waived review path.
+// Peer-repo project edits are published to the peer's origin (#308), never
+// written into its checkout — a failure warns and never fails the close.
+func applyClose(stdout, stderr io.Writer, f *closeFlags, res closeResult) {
 	if f.Context != nil {
 		if err := f.Context.Err(); err != nil {
 			die(stderr, fmt.Sprintf("close interrupted: %v", err))
@@ -985,17 +929,34 @@ func applyClose(stdout, stderr io.Writer, r gitRunner, f *closeFlags, res closeR
 		}
 	}
 	for _, e := range res.projectEdits {
+		if e.peer {
+			continue // published to the peer's origin below, never written here
+		}
 		if err := os.WriteFile(e.path, []byte(e.newText), 0o644); err != nil {
 			die(stderr, fmt.Sprintf("write %s: %v", e.path, err))
+		}
+		if e.repoDir != "" && e.repoDir != res.repoTop {
+			cinfo(stderr, fmt.Sprintf("%s is in %s's legacy brain home: written in place, left for nous to commit", filepath.Base(e.path), filepath.Base(e.repoDir)))
 		}
 	}
 	for _, m := range res.appliedMsgs {
 		cok(stderr, m)
 	}
-
-	if len(peerEdits) > 0 {
-		decisions := planPeerWrites(peerEdits, states, res.repoTop, res.repoName+"#"+res.issueStr)
-		applyPeerWrites(r, decisions, stdout, stderr)
+	// Last, once local state is written (#308): each peer project's edit is
+	// re-derived on the peer's origin main and published there. The close commit
+	// follows later in the close flow, so a close that dies after this leaves
+	// the tick on the peer; a rerun re-derives it and publishes nothing new.
+	ctx := commandContext(f.Context)
+	for _, e := range res.projectEdits {
+		if !e.peer {
+			continue
+		}
+		label := filepath.Base(e.repoDir) + "/" + filepath.Base(e.path)
+		if err := publishPeerProject(ctx, e, res.repoName+"#"+res.issueStr); err != nil {
+			cwarn(stderr, fmt.Sprintf("project %s NOT updated on its origin: %v\n      the peer checkout was left untouched; the TL or owner applies the tick there", label, err))
+			continue
+		}
+		cok(stderr, fmt.Sprintf("published %s's close-time update to %s's origin main", label, filepath.Base(e.repoDir)))
 	}
 
 	// ── The cost report (#187 D1–D3) ─────────────────────────────────────────
@@ -1039,7 +1000,7 @@ func runClose(stdout, stderr io.Writer, f *closeFlags) error {
 		printCloseDryRun(stderr, r)
 		return nil
 	}
-	applyClose(stdout, stderr, closeRunner, f, r)
+	applyClose(stdout, stderr, f, r)
 	return nil
 }
 
@@ -1241,7 +1202,7 @@ func runCloseWithReview(stdout, stderr io.Writer, f *closeFlags) error {
 		// Explicit operator skip → finalize (this runs BEFORE dispatch, so only a
 		// dispatch-ERROR VerdictNotRun ever reaches closeVerdictOutcome's halt).
 		cinfo(stderr, "skipping issue boundary review per --no-judge (or --force)")
-		applyClose(stdout, stderr, closeRunner, f, r)
+		applyClose(stdout, stderr, f, r)
 		skipped := reviewResult{Verdict: judge.VerdictNotRun, Reason: "--no-judge", Base: base, Head: head, BaseLong: baseLong}
 		if err := finishBoundaryReview(stdout, stderr, f, skipped); err != nil {
 			return err
@@ -1560,7 +1521,7 @@ func finalizeBoundaryReview(stdout, stderr io.Writer, f *closeFlags, r closeResu
 			return fmt.Errorf("boundary gate: %d open blocking finding(s) despite verdict %s", len(ledger.OpenBlocking), review.Verdict)
 		}
 
-		applyClose(stdout, stderr, closeRunner, f, r)
+		applyClose(stdout, stderr, f, r)
 		emitTrailerBlock(stdout, review, kind)
 		if err := annotateLogLineWithVerdict(f.IssuesDir, f.Issue, f.Milestone, review.Verdict); err != nil {
 			cwarn(stderr, fmt.Sprintf("log-line verdict annotation skipped: %v", err))
@@ -1629,6 +1590,9 @@ func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone, plansDir 
 		supplied = append(supplied, reviewArtifact{path: r.issuePath, present: true, text: r.issueText})
 	}
 	for _, project := range r.projectEdits {
+		if project.peer {
+			continue // re-derived on the peer's origin at publish time (#308)
+		}
 		supplied = append(supplied, reviewArtifact{path: project.path, present: true, text: project.oldText})
 	}
 	root, err := gitx.RepoTopLevel()

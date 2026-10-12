@@ -150,16 +150,15 @@ type Binding struct {
 type EffectKind string
 
 const (
-	PrepareCandidate  EffectKind = "prepare-candidate"
-	PersistReceipt    EffectKind = "persist-receipt"
-	PublishCard       EffectKind = "publish-card"
-	PublishMain       EffectKind = "publish-main"
-	MaterializeDetail EffectKind = "materialize-detail"
-	WriteEvidence     EffectKind = "write-evidence"
-	RemoveSource      EffectKind = "remove-source"
-	RefreshInputs     EffectKind = "refresh-inputs"
-	ProbePublication  EffectKind = "probe-publication"
-	CleanupReceipt    EffectKind = "cleanup-receipt"
+	PrepareCandidate EffectKind = "prepare-candidate"
+	PersistReceipt   EffectKind = "persist-receipt"
+	PublishCard      EffectKind = "publish-card"
+	PublishMain      EffectKind = "publish-main"
+	WriteEvidence    EffectKind = "write-evidence"
+	RemoveSource     EffectKind = "remove-source"
+	RefreshInputs    EffectKind = "refresh-inputs"
+	ProbePublication EffectKind = "probe-publication"
+	CleanupReceipt   EffectKind = "cleanup-receipt"
 )
 
 // Effects contain detached values. CandidateOID identifies the durable intended

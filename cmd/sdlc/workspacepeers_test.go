@@ -170,8 +170,11 @@ func TestPrivateEnvironmentCloseWritesOnlySelectedProjects(t *testing.T) {
 	// The private clone's issue is the same source revision but independent Git
 	// authority. Close should edit the selected host project, not canonical app.
 	rel := seedPeerProject(t, host, "ariadne#42")
+	origin := withOrigin(t, host)
+	testfix.Git(t, slot, "branch", "-q", "--set-upstream-to", "origin/main", "main-slot1")
 	seedPeerProject(t, slot, "ariadne#42")
 	before := testfix.Git(t, host, "rev-parse", "HEAD")
+	slotBefore := peerState(t, slot, rel)
 	t.Chdir(dep)
 	var out bytes.Buffer
 	if err := runClose(&out, &out, closeFlagsFor42(issuesDir)); err != nil {
@@ -181,12 +184,16 @@ func TestPrivateEnvironmentCloseWritesOnlySelectedProjects(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	local, err := os.ReadFile(filepath.Join(slot, rel))
-	if err != nil {
-		t.Fatal(err)
+	if bytes.Contains(global, []byte("[x]")) {
+		t.Fatalf("canonical host project written: %s", global)
 	}
-	if bytes.Contains(global, []byte("[x]")) || !bytes.Contains(local, []byte("[x] [ariadne#42]")) {
-		t.Fatalf("wrong project writes: global=%s local=%s", global, local)
+	// #308: the selected environment's project is another repository's: it is
+	// ticked on that repository's origin, its checkout left as it was.
+	if peerState(t, slot, rel) != slotBefore {
+		t.Fatal("close touched the environment's checkout")
+	}
+	if got := originFile(t, origin, rel); !strings.Contains(got, "[x] [ariadne#42]") {
+		t.Fatalf("selected project not ticked on its origin:\n%s\n%s", got, out.String())
 	}
 	if testfix.Git(t, host, "rev-parse", "HEAD") != before {
 		t.Fatal("canonical host branch changed")

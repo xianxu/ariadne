@@ -835,7 +835,7 @@ func TestClassifyDuplicates_IntroducedIsNotCalledPreExisting(t *testing.T) {
 // to docs/sub/workshop/issues/ and pushed it — a live issue in a directory no
 // gate looks at, whose natural repair (git mv into workshop/issues/)
 // manufactures exactly the collision this issue exists to prevent.
-func TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir(t *testing.T) {
+func TestRunIssueNew_FromASubdirectoryFilesToTheRepoIssueDir(t *testing.T) {
 	r := newTrackerRepo(t, map[string]string{card7Path: openCard7}, nil)
 	sub := filepath.Join(r.root, "docs", "sub")
 	if err := os.MkdirAll(sub, 0o755); err != nil {
@@ -848,8 +848,8 @@ func TestRunIssueNew_FromASubdirectoryWritesToTheRepoIssueDir(t *testing.T) {
 	if err := runIssueNew(context.Background(), &stdout, &stderr, f, []string{"Subdir Run"}); err != nil {
 		t.Fatalf("runIssueNew: %v (stderr: %s)", err, stderr.String())
 	}
-	if _, err := os.Stat(filepath.Join(r.root, "workshop", "issues", "000008-subdir-run.md")); err != nil {
-		t.Errorf("issue not written to the repo's issue dir: %v", err)
+	if r.mainFile("workshop/issues/000008-subdir-run.md") == "" {
+		t.Errorf("issue not published to the repo's issue dir on main")
 	}
 	if _, err := os.Stat(filepath.Join(sub, "workshop", "issues")); err == nil {
 		t.Error("issue written under docs/sub/workshop/issues — a live issue where no gate looks")

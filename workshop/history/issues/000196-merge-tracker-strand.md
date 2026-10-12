@@ -1,12 +1,22 @@
 ---
 id: 000196
-status: open
+status: done
 deps: []
 github_issue:
 created: 2026-08-20
-updated: 2026-08-20
+updated: 2026-10-12
 estimate_hours:
-card_mirror: 'bb05fa53d70f305ea7c91cc948bd96e793c87977' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '081cfdfa4edb911a190b2f1ddea2efd775750407' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T07:50:13-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "e515125c", done: "6151fd84"}
+actual_hours: 0.92
 ---
 
 # merge: dirty tracker files are exempted from the block but still strand the post-merge switch
@@ -104,9 +114,38 @@ steps.
 
 ## Plan
 
-- [ ] Design via `sdlc start-plan` before implementing.
+Scope today (2026-10-12): primary and numbered-slot checkouts land through
+`runDurableMerge` (`landing.go`), whose `landingClean` already refuses *any*
+tracked dirt (tracker files included) before the merge, so the hazard is closed
+there. It survives on the legacy `runMerge` path's **in-place** topology
+(reachable as a `dependency` checkout). The linked-worktree topology never
+switches the issue checkout, so its exemption stays.
+
+- [x] Resolve topology (in-place vs worktree) before step 2, so both dirt guards know it.
+- [x] One decision for steps 2 and 9b: `mergeRefusal` = Blocking, plus (in-place
+      only) the tracker paths that differ between `main` and `HEAD` or between
+      `main` and `origin/main` (git would refuse them on switch or on pull).
+      Step 9b fetches `origin/main` first; a diff error refuses (fail safe).
+- [x] Remaining tracker dirt still warns, never blocks (#82 M2 intent).
+- [x] Post-merge `git switch main` / `git pull` failure: say the PR is merged and
+      this checkout is stranded, and give the recovery (fix the named files, re-run
+      `sdlc merge --yes`, which resumes via #62 M3).
+- [x] Rewrite `assessDirty`/`Refuse` comments to agree with the behaviour.
+- [x] Tests: unit for the stranding-path selection; e2e in-place: tracker file
+      that differs on main refuses pre-merge (PRMerge never called); identical
+      tracker file still lands end to end; switch failure after merge names the
+      recovery.
 
 ## Log
+
+### 2026-10-12
+- 2026-10-12: closed — make test on 505a771a..e1703785: 12 shards, 1092 cmd/sdlc tests + 46 packages, 0 failed. After review round 1 fixes (7c48c569): make test 0 failed except two load-sensitive tests outside merge (TestCLISignalCancelsOwnedReviewer, TestLegacyRepoLockSetStatusMutationWaits; known flake class #325), both pass 3/3 in isolation; merge tests all pass. New e2e: dirty tracker file differing from main refuses pre-merge, PRMerge never called; main moving the file after step 2 refused at 9b after fetch; switch and pull failures after merge name the merged state and the resuming re-run, never a commit. Mutation: disabling the in-place tracker check fails all three new refusal tests.; review verdict: SHIP
+
+Claimed at ariadne:2 (Merge and CI train). The spec's preferred fix, committing
+tracker files at the top of merge, no longer fits: merge requires HEAD synced
+with origin (step 4) and unchanged since close (#160 publish gate), so a commit
+made by merge itself refuses both. Taking the spec's mechanical alternative
+instead (exempt only what git would carry across switch and pull).
 
 ### 2026-08-20
 
@@ -118,3 +157,24 @@ asked "is this file code contention?" — a question about meaning — where `gi
 switch` asks "does this file differ?" — a question about bytes. Both guards in
 merge route through `Refuse()`, so the semantic answer is the only one either
 guard ever consults.
+
+Implemented (`cmd/sdlc/merge.go`): `mergeRefusal` is the single decision for
+steps 2 and 9b. `strandingTracker` asks git's question with two path-limited
+diffs (`main..HEAD` for the switch, `main..origin/main` for the pull; the
+branch's own changes are in the first). The guard skips the diff when there are
+no tracker paths, since a bare `git diff --` lists every file. A stale
+origin/main at step 2 only weakens the early check; 9b fetches first.
+`strandedMessage` covers both post-merge failures; a pull failure in place has
+already switched, so it says `git switch <branch>` before the re-run.
+Mutation check: disabling the in-place branch of `mergeRefusal` fails all three
+new refusal tests. The Done-when bullet "stops being left dirty across a branch
+switch" now holds as "is carried across only when git can carry it": a tracker
+file that matches main still rides the switch dirty, which is #82 M2's intent.
+
+Close review round 1 (FIX-THEN-SHIP): BR-1 Important, the stranded and 9b
+messages advised committing, which the resume path refuses (step 4, #148). Both
+now say restore or move aside, and the test pins "do not commit". Minors fixed
+in the same round: the tracker warning names the real reason per topology; the
+code-only `Refuse()` is removed (mergeRefusal is the one decision); pathspecs
+are pinned `:(top,literal)` so a subdirectory run or a glob character can't
+slip a stranding file through (pinned in the unit fake). Lesson added.

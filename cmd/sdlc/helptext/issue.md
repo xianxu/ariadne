@@ -5,13 +5,15 @@ edits the record itself.
 
 SUBCOMMANDS
 
-  new            Reserve the next ID's card on the tracker and write the details
-                 locally (`--from-github N` seeds it from a GitHub issue)
-  publish        Publish details to main (#284): a first publication (no owner
-                 needed; makes the issue claimable) or a later edit, by
+  new            File an issue on origin in one operation (#308): the card on
+                 the tracker, the details on main; claimed by the creating slot
+                 `repo:N` (N ≥ 1), unclaimed from `:0`; writes no checkout
+                 (`--from-github N` seeds it from a GitHub issue)
+  publish        Publish later edits to details on main (#284), by
                  {{DETAILS_EDITORS}};
-                 one narrow main commit for a set (`--issue 284,285`)
-  move-detail    The first-publication case of `publish`, for one issue
+                 one narrow main commit for a set (`--issue 284,285`). Also
+                 finishes an incomplete creation (a card whose details never
+                 reached main: filed before #308)
   restore        Put main's version of published details back on this branch
                  (`--issue N`): the transfer guard's offer for an edit that is
                  not this workspace's own record (#285)
@@ -90,18 +92,20 @@ details (this file, at the path below) carry Spec, Done when, Plan, Log and
 branch-owned fields, plus a read-only mirror of the card fields that sdlc
 refreshes; a hand edit to a mirrored field is refused with the setter to use.
 
-Details travel with the work: `issue new` writes them in the current checkout
-(a narrow commit on a feature branch; uncommitted on the resting branch), and
-they land on main through the branch's PR or `issue publish` (first
-publication). Only then is the issue claimable. Checkpoint design with ordinary
-git commits on the issue branch.
+Details are published at creation (#308): `issue new` puts them on main in the
+same operation that reserves the card, and writes no checkout; a branch gets
+them with its next main merge (`start-plan` branches from fresh main). The
+issue is claimable at once. Later edits ride the issue branch's PR or
+`issue publish`. Checkpoint design with ordinary git commits on the issue
+branch.
 
 PUBLISHING DETAILS (#284). `sdlc issue publish --issue N[,N…]` is how details
 reach main without shipping a branch. Per issue:
-  - first publication (details not yet on main): `move-detail`'s transfer —
-    the creator's checkout publishes, no owner needed; the filing branch's
+  - finishing an incomplete creation (details not yet on main — an issue
+    filed before #308, whose `issue new` wrote them locally): a receipt-driven
+    transfer from the creator's checkout, no owner needed; the filing branch's
     copy is removed (narrow commit) or the rest fast-forwards, and the card
-    records the handoff.
+    records the handoff. (`move-detail` is a deprecated alias.)
   - republish (details already on main): by {{DETAILS_EDITORS}}.
     The edits (details bodies) are judged against the copy at this checkout's merge base with
     main: main unchanged since → published; already equal → nothing to

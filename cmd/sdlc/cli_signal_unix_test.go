@@ -247,18 +247,11 @@ func TestCLISignalOwnershipKeepsLockUntilUnwind(t *testing.T) {
 	}
 }
 
-type cancelDuringCloseSnapshot struct {
-	gitRunner
-	cancel context.CancelFunc
-}
-
-func (r cancelDuringCloseSnapshot) GitInDir(dir string, args ...string) ([]byte, error) {
-	r.cancel()
-	return r.gitRunner.GitInDir(dir, args...)
-}
-
 func TestCLICancelledCloseBypassDoesNotWrite(t *testing.T) {
-	for _, when := range []string{"before", "during-peer-read"} {
+	// The peer-state read that once ran inside applyClose is gone (#308: peer
+	// projects publish to their origin last), so cancellation is checked once,
+	// before the first write; a peer edit in the result must not be written either.
+	for _, when := range []string{"before"} {
 		t.Run(when, func(t *testing.T) {
 			issues := closeRepo(t, 69)
 			root, _ := os.Getwd()
@@ -270,19 +263,14 @@ func TestCLICancelledCloseBypassDoesNotWrite(t *testing.T) {
 			f.Force = true
 			f.NoActual = true
 			res := closeResult{issuePath: filepath.Join(issues, "000069-x.md"), issueText: before, newIssueText: before + "\nclosed\n", repoTop: root}
-			var runner gitRunner = execGitRunner{}
-			if when == "before" {
-				cancel()
-			} else {
-				peer := testfix.Repo(t, testfix.InitialCommit())
-				path := filepath.Join(peer, "project.md")
-				if err := os.WriteFile(path, []byte("before"), 0600); err != nil {
-					t.Fatal(err)
-				}
-				res.projectEdits = []projectEdit{{path: path, repoDir: peer, oldText: "before", newText: "after"}}
-				runner = cancelDuringCloseSnapshot{gitRunner: runner, cancel: cancel}
+			peer := testfix.Repo(t, testfix.InitialCommit())
+			path := filepath.Join(peer, "project.md")
+			if err := os.WriteFile(path, []byte("before"), 0600); err != nil {
+				t.Fatal(err)
 			}
-			msg, died := expectDie(t, func() { applyClose(io.Discard, io.Discard, runner, f, res) })
+			res.projectEdits = []projectEdit{{path: path, repoDir: peer, oldText: "before", newText: "after", peer: true}}
+			cancel()
+			msg, died := expectDie(t, func() { applyClose(io.Discard, io.Discard, f, res) })
 			if !died || !strings.Contains(msg, "interrupted") {
 				t.Fatalf("cancelled bypass continued: died=%v message=%s", died, msg)
 			}

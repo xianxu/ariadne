@@ -32,9 +32,8 @@ func TestMergeFinishesEarlierExternalMerges(t *testing.T) {
 	// build files, claims, starts, designs, implements and closes one issue.
 	build := func(title, slug, id, file string) (branch, detail string) {
 		mustSlotRun(t, slot1, "issue", "new", title, "--slug", slug)
+		git(t, slot1, "pull", "-q", "--ff-only") // #308: issue new published the details to main
 		detail = onlyIssuePath(t, slot1, id)
-		mustSlotRun(t, slot1, "issue", "move-detail", "--issue", strings.TrimLeft(id, "0"))
-		git(t, slot1, "pull", "-q", "--ff-only")
 		mustSlotRun(t, slot1, "claim", "--issue", strings.TrimLeft(id, "0"))
 		mustSlotRun(t, slot1, "start-plan", "--issue", strings.TrimLeft(id, "0"))
 		branch = git(t, slot1, "branch", "--show-current")

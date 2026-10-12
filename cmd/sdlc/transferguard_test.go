@@ -392,7 +392,7 @@ func TestNoTextSaysOnlyTheOwnerEditsDetails(t *testing.T) {
 	check("recovery table", recovery.Table())
 	// The policy is stated, not merely unrefuted: every help that says who
 	// publishes later edits names the unclaimed case.
-	for _, args := range [][]string{{"issue"}, {"issue", "publish"}, {"issue", "move-detail"}, {"issue", "restore"}} {
+	for _, args := range [][]string{{"issue"}, {"issue", "publish"}, {"issue", "restore"}} { // move-detail: a hidden alias since #308
 		c, _, err := buildRoot().Find(args)
 		if err != nil {
 			t.Fatal(err)
@@ -453,5 +453,49 @@ func TestTransferGuardFollowsTheSlot(t *testing.T) {
 				t.Fatalf("want refusal %q, got %v", c.refuse, err)
 			}
 		})
+	}
+}
+
+// #308: issue new publishes details at creation, so no text may still say it
+// writes them locally, call publishing them a first-publication step or an
+// escape hatch, or offer `move-detail` (a hidden alias now) in visible help.
+func TestNoTextSaysIssueNewWritesDetailsLocally(t *testing.T) {
+	stale := regexp.MustCompile(`(?i)write[s]? the details locally|details stay local|first-publication case|escape hatch, consult the operator|\(first\s+publication\)|a first publication \(no owner`)
+	check := func(where, text string) {
+		t.Helper()
+		if m := stale.FindString(text); m != "" {
+			t.Errorf("%s states the pre-#308 local filing: %q", where, m)
+		}
+	}
+	var walk func(c *cobra.Command)
+	walk = func(c *cobra.Command) {
+		for _, sub := range c.Commands() {
+			walk(sub)
+		}
+		help := c.Short + "\n" + c.Long
+		check("`"+c.CommandPath()+"` help", help)
+		// `sdlc recovery` lists every verb's contract, hidden aliases included.
+		if !c.Hidden && c.Name() != "recovery" && strings.Contains(help, "move-detail") && !strings.Contains(help, "deprecated alias") {
+			t.Errorf("`%s` help offers the retired `move-detail`", c.CommandPath())
+		}
+	}
+	walk(buildRoot())
+	root := repoRootForTest(t)
+	docs, _ := filepath.Glob(filepath.Join(root, "atlas", "workflow", "*.md"))
+	docs = append(docs, filepath.Join(root, "AGENTS.base.md"), filepath.Join(root, "README.md")) // AGENTS.md is compiled from AGENTS.base.md
+	if err := filepath.WalkDir(filepath.Join(root, "cmd", "sdlc", "helptext"), func(p string, d fs.DirEntry, err error) error {
+		if err == nil && !d.IsDir() && strings.HasSuffix(p, ".md") {
+			docs = append(docs, p)
+		}
+		return err
+	}); err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range docs {
+		raw, err := os.ReadFile(p)
+		if err != nil {
+			t.Fatal(err)
+		}
+		check(p, string(raw))
 	}
 }

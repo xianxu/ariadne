@@ -101,9 +101,11 @@ var GateCatalog = []GateSig{
 	{Commands: closeMclose, Flag: "no-plan-check", Gate: "## Plan has no unchecked items", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-plan-check \(or --force\): closing .* with \d+ unchecked`,
 		RefusalPat: `pass --no-plan-check, or --force, to close anyway`},
-	{Commands: closeMclose, Flag: "no-project", Gate: "project detail-block updated", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
-		AckPat:     `--no-project \(or --force\): skipping detail-block`,
-		RefusalPat: `--no-project, or --force, if it's`},
+	// #308: --no-project skips the whole project update (tick, detail block, peer
+	// publish), announced by an info line; --force alone only waives the block.
+	{Commands: closeMclose, Flag: "no-project", Gate: "project update (tick, detail block, peer publish)", Grammar: grammarCinfo, HasRefusal: true, RefusalNamesFlag: true,
+		AckPat:     `--no-project: project update skipped`,
+		RefusalPat: `--no-project. skips the project update entirely`},
 	// #194: the boundary gate ledger's open-findings refusal. It can refuse on a PASSING
 	// verdict (verdict AND ledger must both clear), which is the surprising case an
 	// operator needs a precise flag for rather than reaching for --no-judge.
