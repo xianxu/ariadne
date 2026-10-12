@@ -67,6 +67,7 @@ func startPlanningReviewCLI(t *testing.T, binary, pause string, prepare ...func(
 kind=plan
 case "$*" in *"reviewing an issue's ## Estimate block"*) kind=estimate;; esac
 if [ "$kind" = "$PLANNING_PAUSE" ]; then
+  : "${PLANNING_BARRIER:?}" "${PLANNING_SPINS:?}" # a partial env fails loudly, not as an instant release (#338)
   echo "$kind" > "$PLANNING_BARRIER/ready"
   n=0
   while [ ! -f "$PLANNING_BARRIER/release" ]; do
