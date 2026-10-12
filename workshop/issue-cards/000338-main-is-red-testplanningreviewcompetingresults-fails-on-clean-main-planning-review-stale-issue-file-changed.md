@@ -1,6 +1,6 @@
 ---
 id: 000338
-status: codecomplete
+status: done
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: de37f528cd778ef486f79f01faa4804515d28ca2
         evidence_commit: 15abb0a97ede893c5a44a4e393c684031b4b4b34
+        landed_commit: b29ded0f6c2cb00f0e20c627e1bdb92c9223e7ca
 ---
 
 # main is red: TestPlanningReviewCompetingResults fails on clean main (planning review stale: issue file changed)
