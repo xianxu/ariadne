@@ -17,10 +17,10 @@ actual_hours: 0.17
 tracker:
     version: 1
     completion:
-        token: close-aaac01d9b806
+        token: close-4310deefdd9d
         repository: github.com/xianxu/ariadne
-        reviewed_head: e2ffaca01aba4238a63fc4b8476663263521a812
-        evidence_commit: 67d52456a12daece0b8f56dc3cb1dbc034f4b9d4
+        reviewed_head: 891711ba3f7f864161f4907434d966a65870d527
+        evidence_commit: c81f3d27f3d8092abccbbe63d2beda9c00185d93
 ---
 
 # runChangeCode gate loop has no in-process coverage — exitWithCode bypasses the swappable die seam
