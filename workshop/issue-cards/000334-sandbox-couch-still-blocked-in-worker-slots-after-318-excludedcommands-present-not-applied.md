@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000334-sandbox-couch-still-blocked-in-worker-slots-after-318-excludedcommands-present-not-applied.md
         source_blob: fd4afa101bb055bf814c4ac8ca945057796f8acb
         destination: workshop/issues/000334-sandbox-couch-still-blocked-in-worker-slots-after-318-excludedcommands-present-not-applied.md
+        main_commit: 8b8167b2d93bd93d5f3b0c03e7db2464a0747854
 ---
 
 # sandbox: couch still blocked in worker slots after #318 (excludedCommands present, not applied)
