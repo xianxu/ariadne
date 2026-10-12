@@ -99,6 +99,23 @@ rounds:
       recipe: fix-review
       isolation: fenced
       blocked: true
+    - "n": 4
+      timestamp: "2026-10-12T00:03:54-07:00"
+      dispatched: "2026-10-12T00:03:12-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: Revisions entry (2026-10-12) records gh * (280f2768, operator-approved) and supersedes the Log note; this gate is the re-close.
+          round: 4
+        - id: BR-8
+          disposition: addressed
+          note: 0741bbde updates sandbox.md:25, the settings $comment and the Log Cause line; repo grep finds no stale gh-bare/sandboxed text; lesson states the class rule.
+          round: 4
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 0741bbdeb22667b2f1fc3882d664cb708e514e28
+      blocked: false
 ---
 
 # Gate ledger — ariadne#334 (boundary-review)
@@ -146,7 +163,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Important] `consumer-docs-stale-after-behavior-change` sandbox.md:25 still says gh is listed by bare name and runs sandboxed, after 280f2768 made it "gh *"
   3rd finding in this family. Rule: any commit that changes a setting or test must, in that same commit, grep every place that describes it (atlas, the $comment, the issue Log) and update each one. Measured: 1 atlas sentence plus 1 issue Log line ("git/gh/docker/npm/npx are left bare").
 
+## Round 4 — 2026-10-12T00:03:54-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — Revisions entry (2026-10-12) records gh * (280f2768, operator-approved) and supersedes the Log note; this gate is the re-close.
+- BR-8 — addressed — 0741bbde updates sandbox.md:25, the settings $comment and the Log Cause line; repo grep finds no stale gh-bare/sandboxed text; lesson states the class rule.
+
 ## Open findings
 
-- **BR-7** [Important] `scope-change-after-close` scope changed after close — run a full sdlc close (280f2768 exempts gh with arguments, which no finding asked for)
-- **BR-8** [Important] `consumer-docs-stale-after-behavior-change` sandbox.md:25 still says gh is listed by bare name and runs sandboxed, after 280f2768 made it "gh *"
+(none — every finding has been disposed)

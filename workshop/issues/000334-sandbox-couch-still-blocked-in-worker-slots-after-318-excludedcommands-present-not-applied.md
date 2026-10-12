@@ -55,6 +55,8 @@ Fix whichever it is in weave's compiled settings (patterns that match how agents
 
 ## Log
 
+
+- 2026-10-12: closed — Root cause: excludedCommands is exact-match Bash rule syntax; bare couch exempted only a no-arg call. Fixed as X-star entries for ariadne cmd binaries, pair binaries and gh (operator-approved, Revisions); git/docker/npm/npx stay exact. Live in ariadne:1 (auto mode) after weave compile, same session, no restart: bare couch --broadcast-list --json and sdlc state ran sandbox-free, and a later couch --send-to delivered sandboxed; cd-elsewhere, full-path, command-substitution and pipe forms stayed sandboxed. Bypass mode inferred from docs. TestBaseSettingsExcludedVerbsMatchArguments passes at tip (red pre-fix).; review verdict: SHIP
 ### 2026-10-11
 - 2026-10-11: closed — Root cause: excludedCommands is exact-match Bash(...) syntax; bare 'couch' exempts only a no-arg call. Fixed as 'X *' for ariadne cmd/* + pair binaries (964c47a1, operator-approved). Live in ariadne:1 (auto mode) after weave compile, same session, no restart: sandboxed bare 'couch --broadcast-list --json' -> {"broadcast":null}, 'sdlc state' ok; controls (cd elsewhere &&, full path, $(...), pipe) stay sandboxed. Bypass-permissions mode inferred from docs, not observed (see Revisions). TestBaseSettingsExcludedVerbsMatchArguments passes (red pre-fix); go test ./cmd/weave/... green. Round-1 review findings all fixed.; review verdict: SHIP
 - **Reproduced** in ariadne:1 (Claude Code 2.1.296, auto mode, freshly prepared): a bare, leading `couch --broadcast-list --json` → `dial unix /tmp/pair-message-501/….sock: connect: operation not permitted`. It wasn't compound and didn't use a full path.

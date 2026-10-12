@@ -262,3 +262,69 @@ findings:
     detail: |
       3rd finding in this family. Rule: any commit that changes a setting or test must, in that same commit, grep every place that describes it (atlas, the $comment, the issue Log) and update each one. Measured: 1 atlas sentence plus 1 issue Log line ("git/gh/docker/npm/npx are left bare").
 ```
+
+---
+
+## Re-review — 2026-10-12T00:03:54-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 334 — sandbox: couch still blocked in worker slots after #318 (excludedCommands present, not applied) |
+| repo | ariadne |
+| issue file | workshop/issues/000334-sandbox-couch-still-blocked-in-worker-slots-after-318-excludedcommands-present-not-applied.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8f9ea913af4e10c119ecf8950e6a1efc1895cc0f..0741bbdeb22667b2f1fc3882d664cb708e514e28 |
+| command | sdlc close --issue 334 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-12T00:03:54-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both open findings are fixed, and nothing new blocks shipping. For BR-7, the `gh *` widening now has a dated `## Revisions` entry. It cites 280f2768, the operator's approval and the fact that `git`, `docker`, `npm` and `npx` stay exact matches, and it says it replaces the Log's earlier "left bare" note. This close gate is the full re-close that BR-7 asked for. For BR-8, commit 0741bbde fixed every description of `gh` in one pass: the sentence at `atlas/workflow/sandbox.md:25`, the `$comment` in `.claude/settings.ariadne.json:2`, and the Log's "Cause" line. A grep across `atlas/`, `cmd/`, `.claude/`, AGENTS.md and README.md finds no other text calling `gh` sandboxed or listed by bare name. `go test ./cmd/weave/internal/settingsx/` passes.
+
+1. **Strengths**
+   - The Revisions entry is precise. It names the commit, the approval, what stayed excluded and which Log note it replaces.
+   - BR-8 was fixed as a class, not as the one instance named. A new lesson in `workshop/lessons.md:456-463` states the rule ("grep the name across atlas/, comments and the issue in the commit that changes the behavior"). This answers the repeat-family escalation.
+   - The Log line was amended, not deleted ("were left bare at first … `gh` was later widened"), so the history still reads true.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - No test pins `gh *`. If it were reverted to `"gh"`, `TestBaseSettingsExcludedVerbsMatchArguments` would still pass, because `gh` is neither a workbench binary nor pre-allowed with arguments. It's an operator policy choice, so I'm not raising it as a finding, but a one-line assertion would lock it in.
+   - The issue frontmatter still says `updated: 2026-10-11` after the 10-12 edits.
+
+5. **Test coverage:** the guard test covers the class of bug this issue was about: bare-word entries for workbench binaries and pre-allowed verbs. `gh` falls outside it (see Minor).
+
+6. **Architecture**
+   - ARCH-DRY: pass.
+   - ARCH-PURE: pass. The test is a pure read and parse of the settings file.
+   - ARCH-PURPOSE: pass. The fix was applied across the whole class.
+   - ARCH-MOCK: N/A. These are config and docs changes, with no new external calls.
+   - ARCH-CONSTRAINTS: N/A.
+   - ARCH-SECURE: pass, with a note. `gh *` running outside the sandbox gives `gh` network and credential access without the sandbox fence. That widening was recorded and approved by the operator, and the permission flow still gates each call.
+   - ARCH-ORDER: N/A. Nothing here holds state between events; it's static settings.
+   - ARCH-FUNERAL: N/A. Nothing durable is created besides the review sidecars, which follow the existing plans lifecycle.
+
+7. **Plan revisions:** none needed. Revisions now matches the code.
+
+```findings
+dispose:
+  - id: BR-7
+    disposition: addressed
+    note: |
+      Revisions entry (2026-10-12) records gh * (280f2768, operator-approved) and supersedes the Log note; this gate is the re-close.
+  - id: BR-8
+    disposition: addressed
+    note: |
+      0741bbde updates sandbox.md:25, the settings $comment and the Log Cause line; repo grep finds no stale gh-bare/sandboxed text; lesson states the class rule.
+```
