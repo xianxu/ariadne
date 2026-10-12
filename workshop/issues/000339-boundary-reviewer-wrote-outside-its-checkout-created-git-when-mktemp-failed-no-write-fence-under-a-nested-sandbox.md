@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "622ef2a9", done: "1a2ed4c2"}
 ---
 
 # boundary reviewer wrote outside its checkout (created ~/.git) when mktemp failed: no write fence under a nested sandbox
