@@ -22,6 +22,11 @@ const DefaultStaleDuration = 2 * time.Hour
 const defaultPollInterval = 250 * time.Millisecond
 const metadataInitGrace = 2 * time.Second
 
+// WaitMessagePrefix starts the line an acquirer prints the moment it finds the
+// lock held. Tests key on it as evidence that one command waited behind
+// another (#325).
+const WaitMessagePrefix = "waiting for sdlc repo lock held by"
+
 type Metadata struct {
 	PID       int       `json:"pid"`
 	Hostname  string    `json:"hostname"`
@@ -209,7 +214,7 @@ func Acquire(ctx context.Context, opts Options) (*Lock, error) {
 			return nil, fmt.Errorf("%s", obs.Message)
 		}
 		if !reported && opts.Stderr != nil {
-			fmt.Fprintf(opts.Stderr, "waiting for sdlc repo lock held by %s\n", HolderLine(holder))
+			fmt.Fprintf(opts.Stderr, "%s %s\n", WaitMessagePrefix, HolderLine(holder))
 			reported = true
 		}
 		if !opts.Now().Before(deadline) {
