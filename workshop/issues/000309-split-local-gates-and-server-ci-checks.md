@@ -1,12 +1,20 @@
 ---
 id: 000309
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-09
-updated: 2026-10-09
+updated: 2026-10-12
 estimate_hours:
-card_mirror: 'd1833645db104bd132afaa12323bc41d6a8620d5' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '798c4e9910cbddf6fc6a5dc5a3e8086ea4be5df0' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T11:13:12-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Split local gates and server CI checks
@@ -40,7 +48,16 @@ Replaces #052 (close it as superseded).
 
 ## Plan
 
+Durable plan: `workshop/plans/000309-split-local-gates-and-server-ci-checks-plan.md`.
+
+- [ ] M1 — `sdlc merge` refuses red or pending CI on the PR head, both landing paths; `--no-ci` bypass
+- [ ] M2 — `local-gates-guard.yml` on `pull_request_target` with the `local-gates-verified` label; merge-check on push to main; labels in four repos; atlas + AGENTS
+- [ ] After landing: live check with a DO-NOT-MERGE PR; report seeded files to the hub
+
 ## Log
 
 ### 2026-10-09
 Filed from the robustness evidence review (ariadne-robustness-1). Supersedes #052.
+
+### 2026-10-12
+Claimed at ariadne:2. Measured: merge-check is green on recent PRs in all four repos (no red CI to fix); only pair runs CI on push to main; `sdlc merge` reads no checks on either path. TL answers: label marker default (operator confirming), honest limit goes into the atlas verbatim; I create labels in all four repos, the TL runs the peer weave refreshes; one DO-NOT-MERGE live-check PR after landing is approved; push-to-main trigger approved.
