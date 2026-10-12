@@ -15,6 +15,8 @@ import (
 // sandboxed. A verb the base pre-allows with arguments (`Bash(X:*)` or
 // `Bash(X *)` in permissions.allow) and also excludes from the sandbox is
 // meant to run unsandboxed with arguments, so it must be listed as `X *`.
+// Separately, every workbench binary (one per cmd/ directory, plus pair's,
+// listed below) must be exempt as `X *`.
 func TestBaseSettingsExcludedVerbsMatchArguments(t *testing.T) {
 	path := filepath.Join("..", "..", "..", "..", ".claude", "settings.ariadne.json")
 	raw, err := os.ReadFile(path)
