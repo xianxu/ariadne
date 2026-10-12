@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "82eef468", done: "dd811c20"}
 ---
 
 # dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout
