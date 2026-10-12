@@ -188,3 +188,77 @@ findings:
 ```
 
 {"type":"system","subtype":"permission_denied","tool_name":"Bash","tool_use_id":"toolu_01WG853MK9PKAPhEiHVHMAHe","decision_reason_type":"mode","message":"Permission to use Bash has been denied because Claude Code is running in don't ask mode. IMPORTANT: You *may* attempt to accomplish this action using other tools that might naturally be used to accomplish this goal, e.g. using head instead of cat. But you *should not* attempt to work around this denial in malicious ways, e.g. do not use your ability to run tests to execute non-test actions. You should only try to work around this restriction in reasonable ways that do not attempt to bypass the intent behind this denial. If you believe this capability is essential to complete the user's request, STOP and explain to the user what you were trying to do and why you need this permission. Let the user decide how to proceed.","uuid":"67580499-a78c-42b9-906a-938da1871f1c","session_id":"f6742821-dcb1-47cb-bc12-e6738e5eac13"}
+
+---
+
+## Re-review — 2026-10-12T00:02:24-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 334 — sandbox: couch still blocked in worker slots after #318 (excludedCommands present, not applied) |
+| repo | ariadne |
+| issue file | workshop/issues/000334-sandbox-couch-still-blocked-in-worker-slots-after-318-excludedcommands-present-not-applied.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 0a1a791aa0080c7d83a55979d30cff91f8f441af..280f2768da11124a555909332d1a571fddfafbb8 |
+| command | sdlc close --issue 334 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-12T00:02:24-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+BR-6 is fixed. `atlas/workflow/sandbox.md:25` now describes both checks the guard test makes, the test's header comment (`base_settings_test.go:18-19`) does the same, and the test passes at head. What blocks shipping is commit `280f2768`, which changes `"gh"` to `"gh *"` in `.claude/settings.ariadne.json:100`. That exempts `gh` from the sandbox when it's called with arguments, which widens the trust boundary. No prior finding asked for it, and the issue's own Log and atlas text call widening `git`/`gh`/`docker`/`npm`/`npx` "a separate decision". The fix-review rules say a scope change is not a fix, so this needs a full `sdlc close`. The same commit also leaves the atlas stale: `sandbox.md:25` still says `gh` "is still listed by bare name … so [it runs] sandboxed with arguments".
+
+**1. Strengths**
+- The BR-6 fix covers every description of the test: the atlas line and the header comment. A grep finds no third one.
+- The new atlas note about `$(` inside quoted arguments records a real failure seen on #334's close. It is useful guidance for agents, not new behavior.
+- `go test ./internal/settingsx/ -run TestBaseSettings` passes at head.
+
+**2. Critical:** none.
+
+**3. Important**
+- **The scope changed after close** (`.claude/settings.ariadne.json:100`, commit 280f2768). Exempting `gh *` from the sandbox is new behavior, not a fix. It lets `gh` run unsandboxed with any arguments. The issue's Spec, Revisions and Log don't record the decision; the Log still says "`git`/`gh`/`docker`/`npm`/`npx` are left bare, which is a separate decision". Run a full `sdlc close`, or move it to its own issue, and record the operator's approval in Revisions.
+- **This is the 3rd finding in family `consumer-docs-stale-after-behavior-change`.** `atlas/workflow/sandbox.md:25` still lists `gh` among the commands "still listed by bare name … so they run sandboxed with arguments". The same commit made that false in both `settings.ariadne.json` and `~/.claude/settings.json:77`. The rule covering all three findings: a commit that changes a setting or test must, in the same commit, grep for every place the docs describe it (the atlas, the `$comment`, the issue Log) and update each one. Here that means `sandbox.md:25` and the Log line about leaving `gh` bare. Doing that sweep per commit, rather than per review round, is what stops this family recurring.
+
+**4. Minor:** none.
+
+**5. Test coverage**
+- `TestBaseSettingsExcludedVerbsMatchArguments` passes. The `gh *` change is not guarded, which is fine because nothing requires it. If it stays, decide whether the test should pin it.
+
+**6. Architecture (interdiff only)**
+- **ARCH-DRY:** pass.
+- **ARCH-PURE:** pass. Config and comment changes only.
+- **ARCH-PURPOSE:** flagged. `gh *` goes beyond the issue's purpose, and the atlas sweep missed the `gh` mention.
+
+**7. Plan revisions**
+- If `gh *` stays, add a `## Revisions` entry: "Scope widened after close: `gh` exempted with arguments (`gh *`), operator-approved; supersedes the Log's 'left bare' note." Then run a full close.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      sandbox.md:25 and base_settings_test.go:18-19 now describe both checks (pre-allowed verbs, and X * for every cmd/ and pair binary); test passes at head.
+findings:
+  - id: new
+    severity: Important
+    family: scope-change-after-close
+    title: |
+      scope changed after close — run a full sdlc close (280f2768 exempts gh with arguments, which no finding asked for)
+    detail: |
+      settings.ariadne.json:100 changes "gh" to "gh *", widening the sandbox trust boundary. The issue Log and the atlas call widening git/gh/docker/npm/npx a separate decision, and no Revisions entry records it.
+  - id: new
+    severity: Important
+    family: consumer-docs-stale-after-behavior-change
+    title: |
+      sandbox.md:25 still says gh is listed by bare name and runs sandboxed, after 280f2768 made it "gh *"
+    detail: |
+      3rd finding in this family. Rule: any commit that changes a setting or test must, in that same commit, grep every place that describes it (atlas, the $comment, the issue Log) and update each one. Measured: 1 atlas sentence plus 1 issue Log line ("git/gh/docker/npm/npx are left bare").
+```

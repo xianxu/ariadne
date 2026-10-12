@@ -74,6 +74,31 @@ rounds:
       isolation: checkout
       reviewed: eb685d1185db420c0d754dfa20d5a9042d16fa84
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-12T00:02:25-07:00"
+      dispatched: "2026-10-12T00:01:55-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: sandbox.md:25 and base_settings_test.go:18-19 now describe both checks (pre-allowed verbs, and X * for every cmd/ and pair binary); test passes at head.
+          round: 3
+      findings:
+        - id: BR-7
+          severity: Important
+          title: scope changed after close — run a full sdlc close (280f2768 exempts gh with arguments, which no finding asked for)
+          detail: settings.ariadne.json:100 changes "gh" to "gh *", widening the sandbox trust boundary. The issue Log and the atlas call widening git/gh/docker/npm/npx a separate decision, and no Revisions entry records it.
+          family: scope-change-after-close
+          round: 3
+        - id: BR-8
+          severity: Important
+          title: sandbox.md:25 still says gh is listed by bare name and runs sandboxed, after 280f2768 made it "gh *"
+          detail: '3rd finding in this family. Rule: any commit that changes a setting or test must, in that same commit, grep every place that describes it (atlas, the $comment, the issue Log) and update each one. Measured: 1 atlas sentence plus 1 issue Log line ("git/gh/docker/npm/npx are left bare").'
+          family: consumer-docs-stale-after-behavior-change
+          round: 3
+      recipe: fix-review
+      isolation: fenced
+      blocked: true
 ---
 
 # Gate ledger — ariadne#334 (boundary-review)
@@ -108,6 +133,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Minor] `consumer-docs-stale-after-behavior-change` sandbox.md:25 and the test header describe TestBaseSettingsExcludedVerbsMatchArguments as checking only pre-allowed verbs
   The BR-2 fix added a second check (every cmd/ dir and pair binary must be "X *"), but the atlas line and the test's header comment (base_settings_test.go:11-17) still cover only the first. 2nd finding in this family. Rule: when a fix round changes a test's or binary's behavior, grep its name across atlas/ and code comments and update every description in the same round. Measured: 1 atlas line plus 1 header comment.
 
+## Round 3 — 2026-10-12T00:02:25-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-6 — addressed — sandbox.md:25 and base_settings_test.go:18-19 now describe both checks (pre-allowed verbs, and X * for every cmd/ and pair binary); test passes at head.
+
+### Raised
+
+- **BR-7** [Important] `scope-change-after-close` scope changed after close — run a full sdlc close (280f2768 exempts gh with arguments, which no finding asked for)
+  settings.ariadne.json:100 changes "gh" to "gh *", widening the sandbox trust boundary. The issue Log and the atlas call widening git/gh/docker/npm/npx a separate decision, and no Revisions entry records it.
+- **BR-8** [Important] `consumer-docs-stale-after-behavior-change` sandbox.md:25 still says gh is listed by bare name and runs sandboxed, after 280f2768 made it "gh *"
+  3rd finding in this family. Rule: any commit that changes a setting or test must, in that same commit, grep every place that describes it (atlas, the $comment, the issue Log) and update each one. Measured: 1 atlas sentence plus 1 issue Log line ("git/gh/docker/npm/npx are left bare").
+
 ## Open findings
 
-- **BR-6** [Minor] `consumer-docs-stale-after-behavior-change` sandbox.md:25 and the test header describe TestBaseSettingsExcludedVerbsMatchArguments as checking only pre-allowed verbs
+- **BR-7** [Important] `scope-change-after-close` scope changed after close — run a full sdlc close (280f2768 exempts gh with arguments, which no finding asked for)
+- **BR-8** [Important] `consumer-docs-stale-after-behavior-change` sandbox.md:25 still says gh is listed by bare name and runs sandboxed, after 280f2768 made it "gh *"

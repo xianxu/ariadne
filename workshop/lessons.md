@@ -453,3 +453,11 @@ The simplest durable authority beats a clever scan of consequences.
   Bash stayed unrestricted outside the #204 fence. Rewording the one paragraph
   the review cited left the same claim in four other strings. Grep the diff for
   the word and fix every string in one pass.
+- A settings or test change is documented in more places than the file you
+  edit: the atlas, the file's `$comment`, the test's header, the issue Log. In
+  #334, three review rounds in a row each found one more stale description
+  (an sdlc-binary fence note, the guard-test summary, a "gh stays bare" line).
+  In the commit that changes the behavior, grep the name (`gh`, the test name,
+  the setting key) across `atlas/`, comments and the issue, and fix every hit.
+  Also: write `excludedCommands` entries as `X *`; a bare word matches only the
+  verb with no arguments.
