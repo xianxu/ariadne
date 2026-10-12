@@ -527,7 +527,10 @@ the commit changes the real file. A moved origin is re-read and the edit
 recomputed on its bytes, within `TrunkFile`'s bounded attempts. A copy that
 became TL-owned on origin, or whose `tl:` cannot be read, refuses; so does a
 brain, or a peer with no upstream. A refusal is a warning naming the file and
-never fails the close. Peer projects are not in the review snapshot, so a TL's
+never fails the close. A brain's legacy `data/project` home is the exception:
+it is not a peer, and its tick is written in place, uncommitted, for nous to
+commit on its own rhythm, as before #308. A peer is always published, because
+origin's bytes decide whether there is a change; the local copy only previews. Peer projects are not in the review snapshot, so a TL's
 mid-review edit cannot void a SHIP (kink 55). `--no-project` skips the whole
 project update; `--force` only waives a missing detail block. Pinned by real
 multi-repo fixtures with bare origins (`peerproject_test.go`).

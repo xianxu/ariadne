@@ -53,6 +53,8 @@ func peerTrunk(ctx context.Context, repoDir string) (*gitx.TrunkFile, error) {
 	if err != nil {
 		return nil, err
 	}
+	// The fleet's trunk is main by convention (the resting branch only names
+	// which remote publishes); a peer with another trunk refuses at the fetch.
 	return gitx.NewTrunkFileContext(ctx, repoDir, target.Remote, "main")
 }
 

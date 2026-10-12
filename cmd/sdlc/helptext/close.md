@@ -263,7 +263,8 @@ WHAT THE GUARD DEFENDS
       (symlinks resolved; a moved origin is re-read, never overwritten); a
       refusal (no upstream, a brain, a now TL-owned copy) is a warning with
       the manual next action, never a failed close. Peer projects are not
-      part of the review snapshot
+      part of the review snapshot. A brain's legacy data/project home is
+      written in place, uncommitted, for nous to commit
     - a TL-OWNED project (frontmatter `tl:`, #326) is skipped entirely: no
       tick, no detail block (so no missing-block refusal), no peer publish,
       no review snapshot. An info line names it and its TL; report the

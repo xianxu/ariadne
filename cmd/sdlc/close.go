@@ -848,8 +848,13 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 			cwarn(stderr, w)
 		}
 
-		if newPT != pt {
-			peer := m.RepoDir != "" && m.RepoDir != repoTop
+		// A peer repository's project publishes to its origin (#308); a brain's
+		// legacy data/project home is the exception, written in place as before
+		// for nous to commit on its auto-commit rhythm (a brain is never
+		// published into, #176). A peer is always published: whether there is
+		// anything to change is decided on origin's bytes, not this local copy.
+		peer := m.RepoDir != "" && m.RepoDir != repoTop && !m.Legacy
+		if newPT != pt || peer {
 			projectEdits = append(projectEdits, projectEdit{path: m.Path, repoDir: m.RepoDir, oldText: pt, newText: newPT, peer: peer, in: in})
 		}
 		if shouldNudgeProjectRetro(newPT, today, f.skip("project")) {
@@ -929,6 +934,9 @@ func applyClose(stdout, stderr io.Writer, f *closeFlags, res closeResult) {
 		}
 		if err := os.WriteFile(e.path, []byte(e.newText), 0o644); err != nil {
 			die(stderr, fmt.Sprintf("write %s: %v", e.path, err))
+		}
+		if e.repoDir != "" && e.repoDir != res.repoTop {
+			cinfo(stderr, fmt.Sprintf("%s is in %s's legacy brain home: written in place, left for nous to commit", filepath.Base(e.path), filepath.Base(e.repoDir)))
 		}
 	}
 	for _, m := range res.appliedMsgs {

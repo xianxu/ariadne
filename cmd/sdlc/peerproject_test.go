@@ -355,3 +355,45 @@ func TestPublishPeerProjectRefusesABrain(t *testing.T) {
 		t.Fatalf("brain: %v", err)
 	}
 }
+
+// BR-7: a brain's legacy data/project home keeps its pre-#308 path — the tick
+// is written in place for nous to commit — and is never published to origin.
+func TestClose_BrainLegacyProjectIsWrittenInPlace(t *testing.T) {
+	parent, issuesDir := fleetCloseFixture(t)
+	brain := initFleetRepo(t, parent, "brain")
+	if err := os.MkdirAll(filepath.Join(brain, ".brain"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(brain, ".brain", "config.md"), []byte("brain\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	rel := filepath.Join("data", "project", "metis.md")
+	if err := os.MkdirAll(filepath.Join(brain, filepath.Dir(rel)), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	content := "---\nstatus: executing\n---\n\n# metis\n\n## tasks\n\n- [ ] [ariadne#42] the thing\n"
+	if err := os.WriteFile(filepath.Join(brain, rel), []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	gitIn(t, brain, "add", ".")
+	gitIn(t, brain, "commit", "-q", "-m", "brain: seed")
+	origin := withOrigin(t, brain)
+	head := gitIn(t, brain, "rev-parse", "HEAD")
+
+	var out bytes.Buffer
+	if err := runClose(&out, &out, closeFlagsFor42(issuesDir)); err != nil {
+		t.Fatalf("runClose: %v\n%s", err, out.String())
+	}
+	if raw, _ := os.ReadFile(filepath.Join(brain, rel)); !strings.Contains(string(raw), "- [x] [ariadne#42]") {
+		t.Fatalf("brain legacy project not ticked in place:\n%s\n%s", raw, out.String())
+	}
+	if gitIn(t, brain, "rev-parse", "HEAD") != head {
+		t.Error("close committed into the brain")
+	}
+	if strings.Contains(originFile(t, origin, rel), "- [x]") {
+		t.Error("close published into the brain's origin")
+	}
+	if strings.Contains(out.String(), "NOT updated on its origin") {
+		t.Errorf("a brain legacy project was treated as a peer:\n%s", out.String())
+	}
+}
