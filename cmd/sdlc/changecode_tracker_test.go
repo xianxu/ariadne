@@ -180,3 +180,66 @@ func TestChangeCodeGateRefusalLeavesStaleMirrorOnDisk(t *testing.T) {
 		t.Fatal("refused change-code committed")
 	}
 }
+
+// gateLoopFlags runs change-code's full gate loop with only the two estimate gates
+// live: #9 is seeded without an estimate or an ## Estimate block, so `estimate`
+// fails and so does `estimate-recon`, the gate right after it, which prints its
+// own refusal. That adjacency is what makes "reached the next gate" observable.
+func gateLoopFlags() *changeCodeFlags {
+	f := trackerChangeCodeFlags()
+	f.Flow, f.NoEstimate, f.NoEstimateRecon = "full", false, false
+	return f
+}
+
+// #191: an unforced failing gate stops the sequence and exits non-zero, before the
+// next gate runs and before any side effect.
+func TestChangeCodeGateLoopUnforcedFailureExits(t *testing.T) {
+	r, _, _ := claimedOnBranch(t)
+	head, dirty := r.git("rev-parse", "HEAD"), r.git("status", "--porcelain")
+	var out, errs bytes.Buffer
+	code, exited := expectExit(t, func() { _ = runChangeCode(strings.NewReader(""), &out, &errs, gateLoopFlags()) })
+	if !exited || code != 1 {
+		t.Fatalf("exited=%v code=%d, want exit 1\n%s", exited, code, errs.String())
+	}
+	if !strings.Contains(errs.String(), "estimate gate failed:") {
+		t.Fatalf("the estimate gate did not run:\n%s", errs.String())
+	}
+	if strings.Contains(errs.String(), "estimate-reconciliation gate failed:") {
+		t.Errorf("the gate after the failing one ran:\n%s", errs.String())
+	}
+	if r.git("rev-parse", "HEAD") != head || r.git("status", "--porcelain") != dirty {
+		t.Error("a refused change-code changed the checkout")
+	}
+}
+
+// #191: a forced failing gate records the bypass and continues to the NEXT gate,
+// and the run proceeds past the loop (changecode.go's --force branch).
+func TestChangeCodeGateLoopForcedFailureContinues(t *testing.T) {
+	claimedOnBranch(t)
+	f := gateLoopFlags()
+	f.Force, f.DryRun = "a reason", true
+	var out, errs bytes.Buffer
+	var err error
+	if code, exited := expectExit(t, func() { err = runChangeCode(strings.NewReader(""), &out, &errs, f) }); exited {
+		t.Fatalf("a forced run exited %d:\n%s", code, errs.String())
+	}
+	if err != nil {
+		t.Fatalf("%v\n%s", err, errs.String())
+	}
+	got := errs.String()
+	for _, want := range []string{
+		"estimate gate bypassed (--force: a reason)",
+		"estimate-reconciliation gate failed:",
+		"estimate-recon gate bypassed (--force: a reason)",
+	} {
+		if !strings.Contains(got, want) {
+			t.Errorf("stderr lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Index(got, "estimate gate bypassed") > strings.Index(got, "estimate-reconciliation gate failed:") {
+		t.Errorf("the next gate ran before the bypass was recorded:\n%s", got)
+	}
+	if !strings.Contains(out.String(), "Would create branch") {
+		t.Errorf("the forced run did not proceed past the gate loop:\n%s", out.String())
+	}
+}

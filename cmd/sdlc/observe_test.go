@@ -310,8 +310,8 @@ func TestObserveMilestonesThroughTheRealGates(t *testing.T) {
 	if err := run("change-code", "--issue", "396", "--worktree=no", "--flow", "full", "--no-judge", "--no-structural", "--no-estimate", "--no-estimate-recon"); err != nil {
 		t.Fatalf("change-code: %v", err)
 	}
-	// change-code's plan-quality dispatch exits the process (no in-process
-	// path, #191), so its ledger is written with the gate's own writer: a
+	// change-code's plan-quality dispatch would need a stubbed judge, so its
+	// ledger is written with the gate's own writer instead: a
 	// finding raised, then addressed. (An undisposed one would be inherited by
 	// every boundary, as the gate seeds it — real behavior, not this test's.)
 	planLedger := gatestate.Ledger{Gate: "plan-quality", IssueNum: 396, IDPrefix: "PQ", Rounds: []gatestate.Round{
