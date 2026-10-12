@@ -1,6 +1,6 @@
 ---
 id: 000302
-status: codecomplete
+status: done
 created: 2026-10-08
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 47a4e4636218dcd3b3dba7a160a0773a03ea48f5
         evidence_commit: 88d07bdc3a03f19e9deb88a524419ba05b57191f
+        landed_commit: f0ad603744af371c613193d7a0204763db765b73
 ---
 
 # Test TempDir cleanup race: directory not empty under sharded make test
