@@ -40,8 +40,14 @@ Check whether the same path affects the plan-quality reviewer and judges.
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000339-reviewer-confinement-plan.md`. Single pass, one close.
+
+- [ ] Pure pieces: outside-write snapshot diff, git shim (refuses init/clone outside the reviewer's roots)
+- [ ] Confinement: base dir (inside the checkout, else temp), TMPDIR/CLAUDE_CODE_TMPDIR, GIT_CEILING_DIRECTORIES, shim on PATH; setup failure aborts
+- [ ] Dispatch wiring for every judge + incident repro test (forced mktemp failure)
+- [ ] Atlas/helptext; make test
 
 ## Log
 
 ### 2026-10-12
+- Cause: Claude Code's Bash sets TMPDIR from CLAUDE_CODE_TMPDIR, inherited by the reviewer from the worker's session (/tmp/claude-501); in the nested sandbox mktemp failed there, the reviewer's `cd "$(mktemp -d)"` setup landed in $HOME (cd with an empty argument), and its git init / add -A / commit ran in home. The dispatch gave the reviewer no temp dir of its own, nothing stopped git creating a repository above the checkout, and nothing checked afterward. Plan-quality, estimate-quality and `sdlc judge` share the same dispatch and the same exposure (they run unisolated, in the operator tree).
