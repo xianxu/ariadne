@@ -1,12 +1,20 @@
 ---
 id: 000302
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-12
 estimate_hours:
-card_mirror: 'b181a5617425d8b0ed1e35e7969bdc48fdfb8375' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '685fdb50fe8e74a834d7f3d6c7bd9afc72118c30' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T10:29:38-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Test TempDir cleanup race: directory not empty under sharded make test
@@ -45,3 +53,10 @@ Approach: run the affected tests under `-count=N` in parallel shards with a clea
 ## Log
 
 ### 2026-10-08
+
+### 2026-10-12
+- Context: #286 M2 (`e0c2e844`, 2026-10-08 16:58) already added `testfix.QuietBackgroundGit` (env `GIT_CONFIG_COUNT`: gc.auto=0, maintenance.auto=false) — landed *after* both observations here, speculatively.
+- Measured hole in it: `GIT_TRACE=1 git push` to a local bare origin runs `unset GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS GIT_PREFIX; git-receive-pack …` (git's local_repo_env strip), and receive-pack then starts `git maintenance run --auto --quiet --detach` in origin.git with no suppressor; trace2 shows the detached child exiting *after* `git push` returns. On these tiny repos it runs no task (foreground run: no files changed); its only write is the transient `objects/maintenance.lock`.
+- Go's RemoveAll reports the deepest dir whose own rmdir failed — so the observed errors (`…/001/.git`, `…/003/origin.git`) mean a new entry appeared *directly* in `.git`/`origin.git` after listing. A maintenance.lock would report `…/objects`, so detached maintenance doesn't fit the observed path by itself.
+- Repro attempts: push→os.RemoveAll loop, 341 iterations at load ~100: 0 failures. `go test -run 'TestIssueNew|TestHandoff|TestTakeover' -count=15` with a diagnostic cleanup hook in newTrackerRepo (runs after TempDir's RemoveAll; dumps leftovers + git procs + lsof): 0 hits.
+- Ruled out: repolock (Release is synchronous, no heartbeat); tracker env/TrunkFile git calls already kill the process group on cancel.
