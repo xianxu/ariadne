@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-10
 updated: 2026-10-12
-estimate_hours:
-card_mirror: '5b6d8a9ed85ed2370a6fc1ca258e17a72d36d2f0' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 7.71
+card_mirror: '618c7f6b4d9d0e2d3c36674983df4b898a347446' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T16:34:43-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: full, provenance: inferred}
 ---
 
 # Project datatype: a TL-driven coordination plane (tl: owner, Trains and Decisions sections, lifecycle without a deadline, derived forecast)
@@ -65,6 +66,37 @@ Durable plan: `workshop/plans/000329-project-datatype-tl-plan.md` (decisions D1�
 
 - [ ] M1 — Vocabulary and lifecycle: cue statuses/guards/field ban, set-status and close rework, calendar forecast and fog ledger removal, datatype prose, help and atlas
 - [ ] M2 — Trains parser, find/resolve train and car, `sdlc project forecast` range, ops conformance patch for the TL
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec                 design=1.0 impl=0.1
+item: typed-data-prototype       design=0.8 impl=0.15
+item: cross-cutting-refactor     design=0.5 impl=0.2
+item: cross-cutting-refactor     design=0.5 impl=0.2
+item: greenfield-go-module       design=0.5 impl=0.3
+item: greenfield-go-module       design=0.8 impl=0.3
+item: smaller-go-module          design=0.2 impl=0.15
+item: smaller-go-module          design=0.2 impl=0.15
+item: atlas-docs                 design=0.15 impl=0.08
+item: milestone-review           design=0.0 impl=0.2
+item: milestone-review           design=0.0 impl=0.2
+item: cross-repo-refactor-small  design=0.2 impl=0.1
+design-buffer: 0.15
+total: 7.71
+```
+
+Items, in order:
+1. Spec and plan (done before the estimate).
+2. The vocabulary and datatype prose.
+3. Two refactors: the set-status/close rework, and the deletion sweep of the calendar forecast, fog/calendar ledgers and throughput across about 20 files and tests.
+4. Two greenfield modules: the trains parser, and the scheduler/forecast.
+5. Two small modules: the guards, and find/resolve train/car.
+6. Docs and atlas.
+7. Two milestone reviews.
+8. The ops conformance patch.
 
 ## Log
 
