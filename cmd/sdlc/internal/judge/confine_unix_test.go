@@ -40,9 +40,10 @@ func confinedReviewer(t *testing.T, script string) (home, marker string) {
 	return home, marker
 }
 
-// incidentScript is what the #339 reviewer ran: its temp dir is unusable (an
-// inherited CLAUDE_CODE_TMPDIR the nested sandbox could not write), mktemp
-// fails, `cd` with no argument lands in $HOME, and it builds a scratch repo.
+// incidentScript is what the #339 reviewer ran: mktemp fails (on macOS it
+// wrote under /var/folders, which the inherited agent sandbox denies; here an
+// unusable TMPDIR stands in), `cd` with no argument lands in $HOME, and it
+// builds a scratch repo there.
 const incidentScript = `TMPDIR=/nonexistent/sdlc-339; export TMPDIR
 cd $(mktemp -d 2>/dev/null)
 git init -q . 2>&1

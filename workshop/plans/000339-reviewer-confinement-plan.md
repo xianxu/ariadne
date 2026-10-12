@@ -10,6 +10,8 @@
 
 ## Cause (for the Log)
 
+> Superseded: see Revisions. The measured cause is macOS `mktemp` ignoring TMPDIR; the paragraph below is the pre-implementation hypothesis.
+
 Claude Code's Bash tool sets `TMPDIR` from `CLAUDE_CODE_TMPDIR`, which the reviewer inherited from the worker's own agent session (`/tmp/claude-501`). Inside the nested sandbox, `mktemp -d` failed there; the reviewer's script ran `cd "$(mktemp -d)"`-style setup, and a `cd` with an empty argument lands in `$HOME`. Its next steps (`git init`, writing `scripts/merge-checks.d/50-é.sh`, `git add -A`, `git commit -m a`) then ran in home. Nothing in the dispatch gave the reviewer a temp dir of its own, nothing stopped git from creating a repository in home, and nothing noticed afterward. The prompt and the checkout were sound; the environment was inherited unchecked.
 
 ## Core concepts
@@ -41,29 +43,30 @@ Claude Code's Bash tool sets `TMPDIR` from `CLAUDE_CODE_TMPDIR`, which the revie
 ## Tasks
 
 ### Task 1: pure pieces (snapshot diff, shim)
-- [ ] Failing tests in `reviewbox/confine_test.go`: `Diff` reports a new ancestor `.git` and a new non-hidden home entry, ignores a new dotfile and unchanged state; the shim refuses `git init` with cwd outside roots, `git -C /outside init`, `git init /outside/x`, `git clone src /outside/x`, and passes `git init` / `clone` inside roots and `git status` anywhere through to the fake real git.
-- [ ] Implement `OutsideSnapshot`, `Diff`, `gitShim`; tests green.
+- [x] Failing tests in `reviewbox/confine_test.go`: `Diff` reports a new ancestor `.git` and a new non-hidden home entry, ignores a new dotfile and unchanged state; the shim refuses `git init` with cwd outside roots, `git -C /outside init`, `git init /outside/x`, `git clone src /outside/x`, and passes `git init` / `clone` inside roots and `git status` anywhere through to the fake real git.
+- [x] Implement `OutsideSnapshot`, `Diff`, `gitShim`; tests green.
 
 ### Task 2: Confinement
-- [ ] Failing tests: `Confine` inside a checkout creates `.sdlc-review/{tmp,bin}`, excludes it from `git status`, and `Env` carries the six vars; `Confine` with an unwritable base (parent dir mode 0500) errors and leaves nothing; `Check` errors after a test creates `$HOME/scripts` (HOME pointed at a temp dir) or `<ancestor>/.git`; `prepare` after the base was removed recreates it.
-- [ ] Implement; tests green.
+- [x] Failing tests: `Confine` inside a checkout creates `.sdlc-review/{tmp,bin}`, excludes it from `git status`, and `Env` carries the six vars; `Confine` with an unwritable base (parent dir mode 0500) errors and leaves nothing; `Check` errors after a test creates `$HOME/scripts` (HOME pointed at a temp dir) or `<ancestor>/.git`; `prepare` after the base was removed recreates it.
+- [x] Implement; tests green.
 
 ### Task 3: Dispatch wiring + repro
-- [ ] Failing test in `judge` (real subprocess through `runProcess`, `HOME` set to a temp home, a fake `claude` script on PATH): the fake runs the incident's script, `cd "$(mktemp -d)" && git init && mkdir -p scripts && git add -A && git commit -m a`.
+- [x] Failing test in `judge` (real subprocess through `runProcess`, `HOME` set to a temp home, a fake `claude` script on PATH): the fake runs the incident's script, `cd "$(mktemp -d)" && git init && mkdir -p scripts && git add -A && git commit -m a`.
   - With the base forced unwritable (temp dir parent chmod 0500 via `TMPDIR` for the unisolated case), Dispatch returns an error before launching, and the fake never ran (a marker file is absent).
   - With mktemp itself made to fail inside the reviewer (the fake sets `TMPDIR` to a nonexistent dir, standing in for the inherited bad `CLAUDE_CODE_TMPDIR`), `cd` lands in the temp home, `git init` is refused by the shim, and if the script writes `~/scripts` anyway the post-check makes Dispatch return an error naming it. No `.git` appears in the temp home.
   - A clean fake run returns its verdict text and leaves no base behind.
-- [ ] Wire `Confine` into `Dispatch` (before attempt 1, `prepare` after `BeforeRetry`, `Check` after the last attempt, `Close` deferred); `withEnv` + the `runProcess` overlay; boundary review sets `opts.Checkout = iso.Dir` in `boundaryReviewOptionsFor`.
-- [ ] Targeted tests: `go test ./cmd/sdlc/internal/reviewbox/ ./cmd/sdlc/internal/judge/` and `go test ./cmd/sdlc/ -run 'BoundaryReview|PlanningReview|Judge|ChangeCode'`.
+- [x] Wire `Confine` into `Dispatch` (before attempt 1, `prepare` after `BeforeRetry`, `Check` after the last attempt, `Close` deferred); `withEnv` + the `runProcess` overlay; boundary review sets `opts.Checkout = iso.Dir` in `boundaryReviewOptionsFor`.
+- [x] Targeted tests: `go test ./cmd/sdlc/internal/reviewbox/ ./cmd/sdlc/internal/judge/` and `go test ./cmd/sdlc/ -run 'BoundaryReview|PlanningReview|Judge|ChangeCode'`.
 
 ### Task 4: docs and close
-- [ ] Prompt: no change needed for correctness (the environment now carries the facts); the boundary-tail/code-review text says nothing about temp dirs today.
-- [ ] Atlas: the review-isolation section of `atlas/workflow/sdlc-binary.md` (and `helptext/close.md`'s isolation paragraph) gain the confinement (TMPDIR in the base, git ceiling + shim, post-review outside-write check, applies to every judge). Grep "read-only"/"isolation: checkout" for stale claims (lesson from #310).
-- [ ] Lesson in `workshop/lessons.md` only if not code-enforced (the code now enforces it; likely none).
-- [ ] `make test` before close; main's #338 failure is pre-existing (ariadne:1 fixing).
+- [x] Prompt: no change needed for correctness (the environment now carries the facts); the boundary-tail/code-review text says nothing about temp dirs today.
+- [x] Atlas: the review-isolation section of `atlas/workflow/sdlc-binary.md` (and `helptext/close.md`'s isolation paragraph) gain the confinement (TMPDIR in the base, git ceiling + shim, post-review outside-write check, applies to every judge). Grep "read-only"/"isolation: checkout" for stale claims (lesson from #310).
+- [x] Lesson in `workshop/lessons.md` only if not code-enforced (the code now enforces it; likely none).
+- [x] `make test` before close; main's #338 failure is pre-existing (ariadne:1 fixing).
 
 ## Limits (stated, not hidden)
 
+- The git shim checks the working directory, `--git-dir`/`--work-tree` and GIT_DIR/GIT_WORK_TREE, and every operand of `init`/`clone`, relative or absolute (a clone's existing source excepted).
 - Without an OS fence, a reviewer that calls `/usr/bin/git` directly, or writes files with plain shell commands, is not prevented; the post-check catches a new `.git` above its root or a new non-hidden entry in `$HOME`, which covers this incident's class, not every possible write. Claude Code's Bash may rebuild PATH from the shell snapshot; if so, the shim is bypassed and the ceiling + post-check remain. Task 3's live check (if a real `claude` can run here) records which.
 
 ## Revisions
@@ -73,3 +76,4 @@ Claude Code's Bash tool sets `TMPDIR` from `CLAUDE_CODE_TMPDIR`, which the revie
   - **PATH route.** Claude Code's Bash rebuilds PATH from the shell snapshot, measured live. Delta: the base also holds `env.sh`, named by `CLAUDE_ENV_FILE`, which puts `bin/` first on PATH and sources any inherited env file first. The PATH prepend in the process environment stays in place for codex and gemini.
   - **Signature.** `Confine(root, inside)` dropped `pathPrefix`; `runProcess` prepends `BinDir()` with the existing `binAugmentedEnv`.
   - **Test change.** `TestDispatchParentDeadlineCannotBecomeVerdict` deadline went from 20 ms to 500 ms, because confinement setup comes before the reviewer starts.
+- 2026-10-12, close review round 1 (FIX-THEN-SHIP): BR-1 Important, the shim skipped relative operands and leading `--git-dir`/`--work-tree` (the reviewer created repos outside both ways). Delta: every init/clone operand is resolved against the effective dir, and a path that climbs out of its deepest existing directory counts as outside; git dir and work tree (options and env) are checked. Minors: env.sh re-exports the confinement's variables after an inherited env file; TakeSnapshot fails on an unlistable home; Confine uses the reviewbox git helper; the Cause section is marked superseded.

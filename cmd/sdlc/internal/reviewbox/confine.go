@@ -44,8 +44,8 @@ func Confine(root string, inside bool) (*Confinement, error) {
 		return nil, fmt.Errorf("resolve the reviewer's root: %w", err)
 	}
 	if !inside {
-		if top, err := exec.Command("git", "-C", r, "rev-parse", "--show-toplevel").Output(); err == nil {
-			if t, err := canonicalDir(strings.TrimSpace(string(top))); err == nil {
+		if top, err := gitOutput(r, "rev-parse", "--show-toplevel"); err == nil {
+			if t, err := canonicalDir(top); err == nil {
 				r = t
 			}
 		}
@@ -76,7 +76,10 @@ func Confine(root string, inside bool) (*Confinement, error) {
 		c.Close()
 		return nil, err
 	}
-	c.before = TakeSnapshot(c.watched(), userHome())
+	if c.before, err = TakeSnapshot(c.watched(), userHome()); err != nil {
+		c.Close()
+		return nil, err
+	}
 	return c, nil
 }
 
@@ -109,7 +112,7 @@ func (c *Confinement) Prepare() error {
 			return fmt.Errorf("write the reviewer's mktemp shim: %w", err)
 		}
 	}
-	if err := os.WriteFile(c.envFile(), []byte(claudeEnvFile(c.BinDir(), os.Getenv("CLAUDE_ENV_FILE"))), 0o600); err != nil {
+	if err := os.WriteFile(c.envFile(), []byte(claudeEnvFile(c.BinDir(), os.Getenv("CLAUDE_ENV_FILE"), c.Env())), 0o600); err != nil {
 		return fmt.Errorf("write the reviewer's env file: %w", err)
 	}
 	if c.inside {
@@ -124,11 +127,18 @@ func (c *Confinement) envFile() string { return filepath.Join(c.Base, "env.sh") 
 // (CLAUDE_ENV_FILE). Its Bash rebuilds PATH from the user's shell snapshot, so
 // a PATH set in the process environment never reaches the reviewer's commands;
 // measured on #339, the shims took effect only through this file. An env file
-// the reviewer inherited is sourced first.
-func claudeEnvFile(bin, inherited string) string {
+// the reviewer inherited is sourced first, then the confinement's own
+// variables are exported again so it can't override them.
+func claudeEnvFile(bin, inherited string, env []string) string {
 	var b strings.Builder
 	if inherited != "" {
 		fmt.Fprintf(&b, "[ -f %[1]s ] && . %[1]s\n", shQuote(inherited))
+	}
+	for _, kv := range env {
+		k, v, _ := strings.Cut(kv, "=")
+		if k != "CLAUDE_ENV_FILE" {
+			fmt.Fprintf(&b, "%s=%s; export %s\n", k, shQuote(v), k)
+		}
 	}
 	fmt.Fprintf(&b, "PATH=%s:\"$PATH\"; export PATH\n", shQuote(bin))
 	return b.String()
@@ -152,7 +162,11 @@ func (c *Confinement) Env() []string {
 // that changed since Confine: a new repository above its roots or a new entry
 // in the home directory.
 func (c *Confinement) Check() error {
-	diff := Diff(c.before, TakeSnapshot(c.watched(), userHome()))
+	after, err := TakeSnapshot(c.watched(), userHome())
+	if err != nil {
+		return err
+	}
+	diff := Diff(c.before, after)
 	if len(diff) == 0 {
 		return nil
 	}
@@ -199,22 +213,27 @@ type OutsideSnapshot struct {
 	Names map[string]bool // non-hidden entries of Home
 }
 
-// TakeSnapshot reads the snapshot. Unreadable entries count as absent.
-func TakeSnapshot(dirs []string, home string) OutsideSnapshot {
+// TakeSnapshot reads the snapshot. A home directory it can't name or list is
+// an error: a check that can't see home must not pass silently.
+func TakeSnapshot(dirs []string, home string) (OutsideSnapshot, error) {
 	s := OutsideSnapshot{Repos: map[string]bool{}, Home: home, Names: map[string]bool{}}
 	for _, d := range dirs {
 		_, err := os.Lstat(filepath.Join(d, ".git"))
 		s.Repos[d] = err == nil
 	}
-	if home != "" {
-		entries, _ := os.ReadDir(home)
-		for _, e := range entries {
-			if !strings.HasPrefix(e.Name(), ".") {
-				s.Names[e.Name()] = true
-			}
+	if home == "" {
+		return s, errors.New("the outside-write check cannot locate the home directory")
+	}
+	entries, err := os.ReadDir(home)
+	if err != nil {
+		return s, fmt.Errorf("the outside-write check cannot list the home directory: %w", err)
+	}
+	for _, e := range entries {
+		if !strings.HasPrefix(e.Name(), ".") {
+			s.Names[e.Name()] = true
 		}
 	}
-	return s
+	return s, nil
 }
 
 // Diff lists what appeared between two snapshots, sorted. Pure.
@@ -235,10 +254,12 @@ func Diff(before, after OutsideSnapshot) []string {
 }
 
 // GitShim renders the `git` the reviewer's PATH finds first. It refuses `git
-// init` and `git clone` whose working directory, or any absolute target path,
-// is outside allowed; every other command execs the real git unchanged. It
-// stops an accidental repository in $HOME, not a reviewer that calls the real
-// git by its path; the post-review check covers that.
+// init` and `git clone` whose working directory, git dir or work tree (option
+// or GIT_DIR/GIT_WORK_TREE), or any path operand, relative or absolute, is
+// outside allowed (a clone's existing source is read, not written). Every
+// other command execs the real git unchanged. It stops an accidental
+// repository in $HOME, not a reviewer that calls the real git by its path; the
+// post-review check covers that.
 func GitShim(realGit string, allowed []string) string {
 	var pats []string
 	for _, a := range allowed {
@@ -252,32 +273,47 @@ const gitShimTemplate = `#!/bin/sh
 # the reviewer's own directories. Every other command runs unchanged.
 real=%s
 inside() { case "$1" in %s) return 0 ;; esac; return 1; }
-resolve() { d=$1; while [ ! -d "$d" ]; do d=$(dirname "$d"); done; (cd "$d" && pwd -P); }
+# resolve prints the physical path $1 names (relative to $dir), or nothing when
+# it climbs (..) out of its deepest existing directory.
+resolve() {
+	case "$1" in /*) d=$1 ;; *) d=$dir/$1 ;; esac
+	rest=
+	while [ ! -d "$d" ]; do rest=$(basename "$d")/$rest; d=$(dirname "$d"); done
+	case "/$rest" in */../*) return 0 ;; esac
+	(cd "$d" && pwd -P)
+}
 refuse() { echo "git $sub refused: $1 is outside the reviewer's directories (sdlc #339)" >&2; exit 128; }
-dir=$(pwd -P); sub=; next=
+check() { [ -z "$1" ] || inside "$(resolve "$1")" || refuse "$1"; }
+dir=$(pwd -P); sub=; next=; gitdir=; worktree=
 for a in "$@"; do
 	if [ -n "$sub" ]; then
-		[ "$next" = template ] && { next=; continue; }
+		[ "$next" = skip ] && { next=; continue; }
 		case "$a" in
-		--template) next=template; continue ;;
+		--template) next=skip; continue ;;
 		--template=*) continue ;;
-		--*=/*) p=${a#*=} ;;
-		/*) p=$a ;;
-		*) continue ;;
+		--*=*) p=${a#*=} ;;
+		-*) continue ;;
+		*) p=$a ;;
 		esac
-		[ "$sub" = clone ] && [ -e "$p" ] && continue
-		inside "$(resolve "$p")" || refuse "$p"
+		[ "$sub" = clone ] && [ -e "$p" ] && continue # a source is read, not written
+		check "$p"
 		continue
 	fi
 	case "$next" in
 	C) next=; dir=$(cd "$dir" 2>/dev/null && cd "$a" 2>/dev/null && pwd -P) || exec "$real" "$@"; continue ;;
+	gitdir) next=; gitdir=$a; continue ;;
+	worktree) next=; worktree=$a; continue ;;
 	skip) next=; continue ;;
 	esac
 	case "$a" in
 	-C) next=C ;;
-	-c|--git-dir|--work-tree|--namespace|--config-env) next=skip ;;
+	--git-dir) next=gitdir ;;
+	--git-dir=*) gitdir=${a#*=} ;;
+	--work-tree) next=worktree ;;
+	--work-tree=*) worktree=${a#*=} ;;
+	-c|--namespace|--config-env) next=skip ;;
 	-*) ;;
-	init|clone) sub=$a; inside "$dir" || refuse "$dir" ;;
+	init|clone) sub=$a; check "$dir"; check "$gitdir"; check "$worktree"; check "$GIT_DIR"; check "$GIT_WORK_TREE" ;;
 	*) exec "$real" "$@" ;;
 	esac
 done

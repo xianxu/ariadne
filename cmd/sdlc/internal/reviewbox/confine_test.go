@@ -32,16 +32,34 @@ func TestDiffReportsNewRepositoriesAndHomeEntries(t *testing.T) {
 
 func TestTakeSnapshotIgnoresHiddenHomeEntries(t *testing.T) {
 	home := t.TempDir()
-	before := TakeSnapshot([]string{home}, home)
+	before := snap(t, home)
 	write(t, filepath.Join(home, ".zsh_history"), "x")
-	if d := Diff(before, TakeSnapshot([]string{home}, home)); len(d) != 0 {
+	if d := Diff(before, snap(t, home)); len(d) != 0 {
 		t.Fatalf("a new dotfile was reported: %v", d)
 	}
 	if err := os.Mkdir(filepath.Join(home, ".git"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	if d := Diff(before, TakeSnapshot([]string{home}, home)); len(d) != 1 || !strings.Contains(d[0], "new repository") {
+	if d := Diff(before, snap(t, home)); len(d) != 1 || !strings.Contains(d[0], "new repository") {
 		t.Fatalf("a new home .git was not reported: %v", d)
+	}
+}
+
+func snap(t *testing.T, home string) OutsideSnapshot {
+	t.Helper()
+	s, err := TakeSnapshot([]string{home}, home)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return s
+}
+
+func TestTakeSnapshotFailsWhenHomeCannotBeListed(t *testing.T) {
+	if _, err := TakeSnapshot(nil, filepath.Join(t.TempDir(), "missing")); err == nil {
+		t.Fatal("an unlistable home passed silently")
+	}
+	if _, err := TakeSnapshot(nil, ""); err == nil {
+		t.Fatal("an unknown home passed silently")
 	}
 }
 
@@ -81,6 +99,9 @@ func TestGitShimRefusesRepositoriesOutside(t *testing.T) {
 	if err := os.Mkdir(src, 0o755); err != nil {
 		t.Fatal(err)
 	}
+	if err := os.Mkdir(filepath.Join(root, "a"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 	git := shimEnv(t, root)
 	refused := [][]string{
 		{outside, "init"},
@@ -90,6 +111,13 @@ func TestGitShimRefusesRepositoriesOutside(t *testing.T) {
 		{root, "init", "--separate-git-dir=" + filepath.Join(outside, "g")},
 		{root, "clone", src, filepath.Join(outside, "dst")},
 		{outside, "clone", src},
+		// Relative operands and git dirs are resolved too (#339 close review).
+		{filepath.Join(root, "a"), "init", relTo(t, filepath.Join(root, "a"), filepath.Join(outside, "rel"))},
+		{root, "init", "sub/new/../../../escape"},
+		{root, "--git-dir=" + filepath.Join(outside, "gd"), "init"},
+		{root, "--git-dir", filepath.Join(outside, "gd"), "init"},
+		{root, "--work-tree=" + outside, "init"},
+		{root, "init", "--separate-git-dir=../gd"},
 	}
 	for _, c := range refused {
 		out, err := git(c[0], c[1:]...)
@@ -103,12 +131,34 @@ func TestGitShimRefusesRepositoriesOutside(t *testing.T) {
 		{root, "clone", src, filepath.Join(root, "dst")},
 		{outside, "status"},
 		{outside, "-C", root, "init"},
+		{root, "init", "-b", "main", "sub/x"},
+		{filepath.Join(root, "a"), "init", "../b"},
+		{root, "clone", "--depth=1", src, "dst2"},
 	}
 	for _, c := range allowed {
 		out, err := git(c[0], c[1:]...)
 		if err != nil || !strings.Contains(out, strings.Join(c[1:], " ")) {
 			t.Errorf("git %v in %s: want passed to real git, got err=%v out=%q", c[1:], c[0], err, out)
 		}
+	}
+}
+
+func relTo(t *testing.T, from, to string) string {
+	t.Helper()
+	r, err := filepath.Rel(from, to)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return r
+}
+
+func TestGitShimChecksGitDirEnv(t *testing.T) {
+	root, _ := canonicalDir(t.TempDir())
+	outside, _ := canonicalDir(t.TempDir())
+	git := shimEnv(t, root)
+	t.Setenv("GIT_DIR", filepath.Join(outside, "gd"))
+	if out, err := git(root, "init"); err == nil || !strings.Contains(out, "#339") {
+		t.Fatalf("GIT_DIR outside: err=%v out=%q", err, out)
 	}
 }
 
@@ -247,11 +297,11 @@ func TestMktempShimNamesATemplateInTMPDIR(t *testing.T) {
 func TestClaudeEnvFileSourcesAnInheritedOne(t *testing.T) {
 	dir := t.TempDir()
 	inherited := filepath.Join(dir, "parent.sh")
-	write(t, inherited, "PARENT=yes; export PARENT\n")
+	write(t, inherited, "PARENT=yes; TMPDIR=/inherited; export PARENT TMPDIR\n")
 	ours := filepath.Join(dir, "env.sh")
-	write(t, ours, claudeEnvFile("/shim bin", inherited))
-	out, err := exec.Command("sh", "-c", `PATH=/usr/bin:/bin; . "$1"; echo "$PARENT $PATH"`, "sh", ours).Output()
-	if err != nil || strings.TrimSpace(string(out)) != "yes /shim bin:/usr/bin:/bin" {
+	write(t, ours, claudeEnvFile("/shim bin", inherited, []string{"TMPDIR=/ours", "CLAUDE_ENV_FILE=" + ours}))
+	out, err := exec.Command("sh", "-c", `PATH=/usr/bin:/bin; . "$1"; echo "$PARENT $TMPDIR $PATH"`, "sh", ours).Output()
+	if err != nil || strings.TrimSpace(string(out)) != "yes /ours /shim bin:/usr/bin:/bin" {
 		t.Fatalf("sourced env = %q (%v)", out, err)
 	}
 }
