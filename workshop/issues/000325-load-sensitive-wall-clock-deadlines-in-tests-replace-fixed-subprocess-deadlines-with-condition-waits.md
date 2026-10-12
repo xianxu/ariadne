@@ -51,6 +51,7 @@ Design: the short deadlines in both tests are hang guards standing in for concur
 ### 2026-10-10
 
 ### 2026-10-12 — ariadne:3
+- 2026-10-12: closed — make test rerun after the round-1 Minor fixes (at load ~150): 12 shards/1086 cmd/sdlc tests + 46 pkgs, 0 failed, no #325 quarantine; earlier: planning test 10/10 under CPU burner at load 38-70, both lock-held mutations fail fast on the lock-wait line; review verdict: SHIP
 - 2026-10-12: closed — make test: 12 shards/1086 cmd/sdlc tests + 46 pkgs, 0 failed, no #325 quarantine left; TestPlanningReviewConcurrencySchedules 10/10 under CPU burner at load 38-70; mutations (planning review and close review keep the repo lock) both fail fast on the lock-wait line; sweep in Log; review verdict: SHIP
 
 Shared pieces: `testfix.HangCeiling` (2 min) is the one hang bound for cmd/sdlc tests, and `closereview_test.go`'s `hangGuard` now aliases it (ARCH-DRY). `testfix.Watch` signals when output contains a needle. `repolock.WaitMessagePrefix` single-sources the lock's wait line so tests key on it.

@@ -80,3 +80,79 @@ findings:
     detail: |
       cmd/sdlc/review_concurrency_unix_test.go:170-177 rebuilds the root command by hand. Extending cmd/sdlc/repolock_test.go:504 with a variant that takes a context and a stderr writer would keep one helper. This is the only such copy in the window.
 ```
+
+---
+
+## Re-review — 2026-10-12T09:01:13-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 325 — Load-sensitive wall-clock deadlines in tests: replace fixed subprocess deadlines with condition waits |
+| repo | ariadne |
+| issue file | workshop/issues/000325-load-sensitive-wall-clock-deadlines-in-tests-replace-fixed-subprocess-deadlines-with-condition-waits.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ab362ac4c35f137125f25e36a45f7b994d7493ad..f48c5d4d54460da13f0f9e9fa95d48f5a637bde8 |
+| command | sdlc close --issue 325 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T09:01:13-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Still checking the remaining hang-guard literals and the cancellation test's timing setup.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The change does what #325 asked for. Both concurrency tests now fail on the repo lock's own wait line instead of a short timeout. I checked the wiring: `cmd/sdlc/repolock.go:136` sends the lock's stderr to `cmd.ErrOrStderr()`, so the watched output really does receive that line. Both `#325` quarantines are gone. The other short timeouts are now either one shared 2-minute hang limit or justified in the issue's `## Log`. Both Minors from round 1 are fixed in this window. `go vet` is clean on `cmd/sdlc/...`, `cmd/weave/...` and `pkg/testgate`. The tests in testfix, testgate, repolock, judge and weave/acquire pass at load average about 97. I did not repeat the implementor's mutation runs or the 10/10 load runs. Nothing blocks SHIP. There is one new Minor about duplicated logic, plus some terse notes.
+
+**1. Strengths**
+- `pkg/testgate/ceiling.go:12` is now the one place the hang limit is set. `testfix.HangCeiling` (`wait.go:13`) and `hangGuard` (`closereview_test.go:184`) point at it rather than restating it, and the weave and repolock tests use it directly. No `time.Minute` hang limit is left in the window.
+- `repolock.WaitMessagePrefix` (`repolock.go:28`) holds the wait-line text, and `Acquire` prints it from there (`repolock.go:217`). Tests match on the same constant, so a rewording can't silently make the evidence check pass on nothing.
+- `TestDirectRunShrinksTimeoutByTheWait` releases the slot when the helper prints its own `[test-gate] waiting` line, not after a sleep. It also checks that `queued` happened, so a helper that never queued can't pass by accident.
+- `cancellation_unix_test.go:97` compares elapsed time against the production grace period, measured from `cancel()` after both processes are up. That still proves the injected 50 ms grace governed, without timing process startup.
+- `executeSDLCTestCommandWith` (`cmd/sdlc/repolock_test.go:513`) is the only in-process CLI runner. `executeSDLCTestCommand` is a thin wrapper around it.
+
+**2. Critical findings:** none.
+
+**3. Important findings:** none.
+
+**4. Minor findings**
+- **ARCH-DRY:** `pkg/testgate/testgate_test.go:203-223` hand-writes a pipe reader that collects output and signals once it contains a string. That is what `testfix.Watch` does (`cmd/sdlc/internal/testfix/wait.go:19-51`). pkg/testgate can't import cmd/sdlc's internal packages. Since the hang limit already moved to `pkg/testgate` for exactly this reason, `Watch` could move there too, leaving `testfix` with an alias like the one for `HangCeiling`. Only two instances exist in the window: `testfix.Watch` and the testgate goroutine.
+- Some cleanup waits now have no time limit, so a hang there is only caught by `go test -timeout`. In `review_concurrency_unix_test.go:135` the bare `<-done` after a start timeout used to have a 7 s limit. `:180` waits on `<-independent` after `release()`, and `planningreview_test.go:151` waits on `<-exited` after `cancel()`. These paths only run when the test is already failing, so this is acceptable as is.
+
+**5. Test coverage notes**
+- `TestWatchSignalsOnNeedleAcrossWrites` covers the string split across writes, not signalling early, a second match not closing the channel twice, and the kept output.
+- The mutation checks recorded in the Log (both reviews keep the lock, and both tests fail fast on the wait line) prove both directions of the "Done when" concurrency clause. I accepted the recorded evidence and did not re-run the mutations.
+- The weave/acquire package took about 167 s in total, but every test in it took under 3 s. The time was spent queueing for a test slot at load about 97, not in the larger `ExecGit.Timeout` values.
+
+**6. Architecture notes**
+- ARCH-DRY: pass, apart from the `Watch` Minor above. The hang limit, the wait-line text and the CLI runner each have one source now.
+- ARCH-PURE: pass. The changes are test code. `Watch` is a small, self-contained writer, and its test does no I/O.
+- ARCH-PURPOSE: pass. Every "Done when" clause is delivered (the load check, mutation checks, sweep table and both quarantine deletions). Every site the earlier ceiling finding listed now uses the shared value.
+
+**7. Plan revision recommendations:** none. The plan's checkboxes match the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      repolock_test.go:317,350,363,399 use testfix.HangCeiling; all 9 weave sites and both acquire ExecGit timeouts use testgate.HangCeiling (pkg/testgate/ceiling.go:12); no time.Minute hang ceiling remains in the window.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      executeSDLCTestCommandWith(ctx, w, args) at cmd/sdlc/repolock_test.go:513 is the one runner; executeSDLCTestCommand wraps it and review_concurrency_unix_test.go:171 calls it instead of rebuilding the root.
+findings:
+  - id: new
+    severity: Minor
+    family: event-wait-helper-single-source
+    title: |
+      testgate_test.go hand-rolls a needle-watching pipe reader that duplicates testfix.Watch (ARCH-DRY)
+    detail: |
+      pkg/testgate/testgate_test.go:203-223 collects output and signals on "[test-gate] waiting", the same job as cmd/sdlc/internal/testfix/wait.go:19-51 Watch. The HangCeiling move already set the precedent: move Watch into pkg/testgate and alias it from testfix. Instances in window: 2 (testfix.Watch, the testgate goroutine).
+```
