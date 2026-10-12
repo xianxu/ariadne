@@ -1,12 +1,20 @@
 ---
 id: 000336
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
-card_mirror: 'dcbd1528d76ffab56f6e9a65419c6cee7f5e0c51' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '62cb688a0b715069902000921e6863c37e558392' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T00:10:32-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # agents in a Couch slot report every item's outcome to the hub, and ask the hub instead of an in-pane prompt
@@ -33,8 +41,15 @@ Side quest from #334's report: pin `gh *` in `TestBaseSettingsExcludedVerbsMatch
 
 ## Plan
 
-- [ ]
+- [x] Constitution §15 Couch Slots in `AGENTS.base.md`: hub address, report outcomes, ask the hub, plain leading command (no `$(` or backticks in arguments).
+- [x] `construct/local/couch/SKILL.md` points at §15; atlas (`sandbox.md`, `index.md`) updated.
+- [x] Guard test pins `gh *` (green at tip; red when the entry is reverted to bare `gh`).
+- [ ] Pair issue: Couch resolves `couch --send-to hub` live to the hub slot (awaiting the TL on which checkout files it).
+- [ ] Live check: an operator-started slot reports its outcome to the hub unprompted (blocked on the pair issue; TL asked whether to move it there).
 
 ## Log
 
 ### 2026-10-12
+- Hub address: Couch already knows its hub (pair `cmd/internal/couchcmd/message_service.go` `hubWorktree`, the tree Couch started in; used for the TL's 64-message allowance and waiting notices) but exposes it to no slot: no env var, no query. Decision: pair resolves a reserved `couch --send-to hub` target live in the supervisor. A `COUCH_HUB` env var was rejected, since it goes stale when a detached thread is resumed under a Couch started elsewhere. The rule falls back to the dispatching slot until pair ships it.
+- Discovery: backticks inside a quoted `couch --send-to` message keep the call sandboxed, like `$(` (#334). Two sends to ops:0 failed this way (one with backticks, one with a literal dollar-paren in prose); neither was delivered (receipt unavailable). The rule bans both.
+- Asked the TL (ops:0) which pair checkout files the pair issue, and whether the live check moves into it.
