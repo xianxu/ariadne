@@ -1,6 +1,6 @@
 ---
 id: 000334
-status: codecomplete
+status: done
 created: 2026-10-11
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 0741bbdeb22667b2f1fc3882d664cb708e514e28
         evidence_commit: 7db5c89d72ea949c44416665462acb3919f3cdf3
+        landed_commit: 0ff7be13a65fc483fa791255ed9bca8ee732fb05
 ---
 
 # sandbox: couch still blocked in worker slots after #318 (excludedCommands present, not applied)
