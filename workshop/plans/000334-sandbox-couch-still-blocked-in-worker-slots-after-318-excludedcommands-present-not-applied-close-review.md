@@ -89,3 +89,102 @@ findings:
     title: |
       settings.ariadne.json $comment, and the atlas line on permissions.allow, still describe only sdlc/couch
 ```
+
+---
+
+## Re-review — 2026-10-11T23:59:55-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 334 — sandbox: couch still blocked in worker slots after #318 (excludedCommands present, not applied) |
+| repo | ariadne |
+| issue file | workshop/issues/000334-sandbox-couch-still-blocked-in-worker-slots-after-318-excludedcommands-present-not-applied.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 8f9ea913af4e10c119ecf8950e6a1efc1895cc0f..eb685d1185db420c0d754dfa20d5a9042d16fa84 |
+| command | sdlc close --issue 334 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-11T23:59:55-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I'm checking the guard test by reverting one entry to see it fail, then I'll write up the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** All five round-1 findings are fixed. The root cause is right: Claude Code reads `excludedCommands` entries as `Bash(...)` rules, where a bare word matches only that word with no arguments, so `"couch"` never covered `couch --send-to …`. The fix writes every ariadne and pair binary as `X *` in `.claude/settings.ariadne.json`. The guard test passes at the head commit. One thing I couldn't run: the read-only mode refused my revert-and-retest of the settings file. The test code clearly fails for a bare entry, and the Log reports it was red on the pre-fix base. I found one new Minor issue: the atlas sentence that describes the guard test still covers only its first half. That doesn't block.
+
+**1. Strengths**
+- The cause is backed by the docs' exact-match rule and checked live. The Log has positive calls and three failing negative controls (`cd` into another directory, the full path, `$(...)`). It also explains why a `cd` into the current directory passed.
+- The guard test takes ariadne's binaries from the `cmd/` directories, so a new binary has to be listed as `X *` (`cmd/weave/internal/settingsx/base_settings_test.go:58-74`). It also checks every pre-allowed verb against its exclusion entry.
+- `atlas/workflow/sandbox.md` gives agents a concrete calling rule (plain leading command; no `cd &&`, pipe, `$(...)`, redirect or full path). It says honestly which forms were tested live and which come only from the docs.
+- The trust note is good (ARCH-SECURE): `weave *` runs unsandboxed but isn't pre-allowed, so the permission flow still gates `weave compile` rewriting `.claude/settings.json`.
+
+**2. Critical:** none.
+
+**3. Important:** none.
+
+**4. Minor**
+- `atlas/workflow/sandbox.md:25` says the guard test only checks verbs that `permissions.allow` pre-allows. Since the BR-2 fix, it also requires `X *` for every `cmd/*` binary and the listed pair binaries. The test's own header comment (`base_settings_test.go:11-17`) has the same gap.
+  - This is the 2nd finding in family `consumer-docs-stale-after-behavior-change`, so I'm stating the rule rather than asking for an instance fix: when a fix round changes a test's or binary's behavior, grep its name across `atlas/` and code comments and update every description in that same round.
+  - The sweep here is small: the test name appears in one atlas line plus the test's header comment. The issue file and gate ledger only cite it.
+
+**5. Test coverage**
+- I read the test and ran it at the head commit: it passes.
+- It reads the real shipped `settings.ariadne.json`, with no mocks.
+- Reverting any entry to its bare name, for example `"weave"`, would leave `weave *` missing and trip the second loop. I confirmed this by reading the code; the edit-and-rerun was refused, so it wasn't run here.
+- The live check used `couch --broadcast-list` rather than `--send-to`. Both dial the same socket, so it's adequate evidence.
+
+**6. Architecture (ARCH-*)**
+- **ARCH-DRY:** pass. One source of truth (`settings.ariadne.json`), and the test derives the ariadne list from `cmd/`.
+- **ARCH-PURE:** pass. Config plus a test that reads a file; no logic tangled with IO.
+- **ARCH-PURPOSE:** pass.
+  - The scope covers the whole class: all workbench binaries, not just sdlc and couch.
+  - I swept the docs that consume this: only the `atlas/workflow/sdlc-binary.md` fence note made a claim about how sdlc runs, and it's fixed. `docflow.md`'s `.git/config` note is about docflow's own design and still correct.
+  - `git`, `gh`, `docker`, `npm` and `npx` stay bare on purpose, recorded as a separate decision.
+- **ARCH-MOCK:** pass. No new external call. The live check against the real harness is a one-off Log entry, which is acceptable for a settings change.
+- **ARCH-CONSTRAINTS:** not applicable; static policy only.
+- **ARCH-SECURE:** pass. The trust boundary is widened explicitly, approved by the operator, and the unsandboxed settings rewrite is called out as gated.
+- **ARCH-ORDER:** not applicable; nothing holds state between events. The Log confirms settings apply live without a restart.
+- **ARCH-FUNERAL:** not applicable; creates nothing durable beyond the config entries.
+
+**7. Plan revisions:** none needed. The existing Revisions entry already records that bypass-permissions mode was inferred from the docs rather than tested, and the operator-approved scope widening.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      sdlc-binary.md:963-967 now says the fence can apply for plain sdlc calls, clone-only only for forms that stay sandboxed; matches sandbox.md rule.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      base_settings_test.go:58-74 requires "X *" for every cmd/ dir plus explicit pair list; passes at head; bare entry fails by inspection (revert not runnable in read-only mode).
+  - id: BR-3
+    disposition: addressed
+    note: |
+      sandbox.md:23 now lists cd-other-dir, full path, $(...), pipe as live and says redirect is from the docs; Log records the pipe observation.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Issue Revisions entry records that bypass-permissions was inferred from the docs, not observed.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      $comment and sandbox.md:13 now name all ariadne cmd/ and pair binaries; sdlc/couch singled out only as the pre-allowed pair.
+findings:
+  - id: new
+    severity: Minor
+    family: consumer-docs-stale-after-behavior-change
+    title: |
+      sandbox.md:25 and the test header describe TestBaseSettingsExcludedVerbsMatchArguments as checking only pre-allowed verbs
+    detail: |
+      The BR-2 fix added a second check (every cmd/ dir and pair binary must be "X *"), but the atlas line and the test's header comment (base_settings_test.go:11-17) still cover only the first. 2nd finding in this family. Rule: when a fix round changes a test's or binary's behavior, grep its name across atlas/ and code comments and update every description in the same round. Measured: 1 atlas line plus 1 header comment.
+```
+
+{"type":"system","subtype":"permission_denied","tool_name":"Bash","tool_use_id":"toolu_01WG853MK9PKAPhEiHVHMAHe","decision_reason_type":"mode","message":"Permission to use Bash has been denied because Claude Code is running in don't ask mode. IMPORTANT: You *may* attempt to accomplish this action using other tools that might naturally be used to accomplish this goal, e.g. using head instead of cat. But you *should not* attempt to work around this denial in malicious ways, e.g. do not use your ability to run tests to execute non-test actions. You should only try to work around this restriction in reasonable ways that do not attempt to bypass the intent behind this denial. If you believe this capability is essential to complete the user's request, STOP and explain to the user what you were trying to do and why you need this permission. Let the user decide how to proceed.","uuid":"67580499-a78c-42b9-906a-938da1871f1c","session_id":"f6742821-dcb1-47cb-bc12-e6738e5eac13"}
