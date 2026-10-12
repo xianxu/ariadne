@@ -77,3 +77,64 @@ findings:
     detail: |
       atlas/workflow/sdlc-binary.md:1658 "it then takes one of WF_TEST_GATE_SLOTS slots" followed the removed "wait for a full suite" step; drop "then". Makefile.workflow:9 also has an unwrapped, overlong comment line.
 ```
+
+---
+
+## Re-review — 2026-10-12T16:30:00-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 341 — test gate: allow two full suites at once; targeted tests never wait for full suites |
+| repo | ariadne |
+| issue file | workshop/issues/000341-test-gate-allow-two-full-suites-at-once-targeted-tests-never-wait-for-full-suites.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 2267de44b35cc3304f17975e2d6f3a72e0228b18..822279b2bf80deff628defb8165529060ad13de1 |
+| command | sdlc close --issue 341 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T16:30:00-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both earlier findings are fixed, and the fix diff adds no new defects. It is small: one test line, one atlas word, and a rewrapped comment, plus the gate ledger and review record files. `## Spec`, `## Revisions` and `## Done when` are unchanged, so this is not a scope change, and the window has no conflict resolutions. I ran `bash scripts/test-lock.test.sh` in this review checkout. Its folder is named `087fa04e4cd2d4ce`, not `ariadne`. All 23 cases passed, including "waiter names the holder". The earlier round saw that case fail in a checkout with a non-`ariadne` name, so the old line is the failing case and the fix is what makes it pass.
+
+1. **Strengths**
+   - `scripts/test-lock.test.sh:23` builds the expected repo name the same way the script does. The script uses `os.path.basename` of `git rev-parse --show-toplevel` (`scripts/test-lock.py:155-156`), so the test still checks the repo field instead of dropping it.
+   - `atlas/workflow/sdlc-binary.md:1658` now reads correctly, with the removed step's "then" gone.
+   - `Makefile.workflow:8-15`: the comment is rewrapped to match the lines around it.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor:** none new. One cosmetic point I'm not raising as a finding: the rewrap leaves a short line at `Makefile.workflow:12`, "releases the lock. The helper resolves beside".
+
+5. **Test coverage**
+   - The lock test suite passes in a checkout not named `ariadne`, which is exactly the case BR-1 described.
+   - I searched both test files for other hardcoded `ariadne` names. `scripts/test-lock.test.sh` has none left. The only other hit is `pkg/testgate/testgate_test.go:263` (`/state/ariadne`), which is an input fixture the test sets up itself, not the checkout's name, so it isn't the same problem.
+
+6. **Architecture (interdiff only)**
+   - **ARCH-DRY: pass.** The test takes the name from the same source as the code instead of keeping its own copy.
+   - **ARCH-PURE: pass.** Nothing here adds logic.
+   - **ARCH-PURPOSE: pass.** The fixes cover the whole problem, not just the named line: no other test asserts a hardcoded repo name, and no other "then" was left behind by the removed step.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      test-lock.test.sh:23 now takes the repo name from git rev-parse --show-toplevel, as test-lock.py does; all 23 cases pass in checkout 087fa04e4cd2d4ce, and no other ariadne hardcode is left in the file.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      atlas sdlc-binary.md:1658 drops "then"; Makefile.workflow:8-15 comment rewrapped to the width of the lines around it.
+```
