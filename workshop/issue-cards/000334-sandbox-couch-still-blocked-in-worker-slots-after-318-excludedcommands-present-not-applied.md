@@ -2,7 +2,7 @@
 id: 000334
 status: codecomplete
 created: 2026-10-11
-updated: 2026-10-11
+updated: 2026-10-12
 estimate_hours:
 github_issue:
 started: 2026-10-11T23:35:37-07:00
@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.31
+actual_hours: 0.42
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000334-sandbox-couch-still-blocked-in-worker-slots-after-318-excludedcommands-present-not-applied.md
         main_commit: 8b8167b2d93bd93d5f3b0c03e7db2464a0747854
     completion:
-        token: close-97c7901bfade
+        token: close-04a95fd915fe
         repository: github.com/xianxu/ariadne
-        reviewed_head: eb685d1185db420c0d754dfa20d5a9042d16fa84
-        evidence_commit: c49ed91edfb2de675a6427852bcbe93004e7f168
+        reviewed_head: 0741bbdeb22667b2f1fc3882d664cb708e514e28
+        evidence_commit: 7db5c89d72ea949c44416665462acb3919f3cdf3
 ---
 
 # sandbox: couch still blocked in worker slots after #318 (excludedCommands present, not applied)
