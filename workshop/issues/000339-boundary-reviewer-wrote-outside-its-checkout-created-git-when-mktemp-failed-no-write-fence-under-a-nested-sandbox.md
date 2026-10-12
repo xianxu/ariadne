@@ -1,12 +1,12 @@
 ---
 id: 000339
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
-card_mirror: 'cb46d6266bb8264dafff6bc81a3cbd5effb06650' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'aba272b8db790a5193817a34f02dbc51cdf2e655' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T13:20:09-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.06
 ---
 
 # boundary reviewer wrote outside its checkout (created ~/.git) when mktemp failed: no write fence under a nested sandbox
