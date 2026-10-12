@@ -73,6 +73,20 @@ PUBLISH GATE
   An interrupted landing is completed by re-running merge or `sdlc issue
   recovery reconcile --issue N`.
 
+CI GATE (#309)
+
+  Before the server-side merge, merge reads the checks GitHub reports on the PR
+  head and refuses unless every one passed or was skipped, naming each failing
+  or pending check with its link. An unknown check state or an unreadable
+  check list refuses too. No checks while the head carries .github/workflows
+  is pending (GitHub has not registered them yet); no checks and no workflows
+  passes. The merge is pinned to that head (--match-head-commit), so a push
+  after the read cannot land unchecked. A failing local-gates-guard check
+  means the PR touches the local gates' configuration and needs the
+  operator's `local-gates-verified` label (atlas/workflow/ci-merge-check.md);
+  agents never apply it. --no-ci waives this gate only, for a broken CI
+  system or a repository whose workflows never run on PRs.
+
 FLAGS
 
   --yes                 skip interactive confirmation; required without a TTY

@@ -189,7 +189,16 @@ builds the current candidate CLI; consumer CI uses the published gateway through
 bootstrap. Keep consumer packages in the layer's root `Brewfile`. An optional
 executable `scripts/ci-setup.sh` runs after compilation and before merge checks;
 a missing or non-executable hook is skipped, and a failure stops the job. Checks
-use the materialized local `scripts/run-merge-checks.sh`.
+use the materialized local `scripts/run-merge-checks.sh`. It runs on PRs to
+`main` and on pushes to `main`, so main carries a CI status of its own.
+
+A second seeded workflow, `local-gates-guard.yml`, fails a PR that touches the
+local gates' configuration (merge checks, workflows, hooks, sandbox and review
+config) unless the PR carries the `local-gates-verified` label. Only the
+operator applies that label, after verifying the change; agents never do. Create
+the label once per repository (`gh label create local-gates-verified`). `sdlc
+merge` refuses to land a PR whose checks are red or still pending. See
+`atlas/workflow/ci-merge-check.md`.
 
 ## Preparing a weave release
 

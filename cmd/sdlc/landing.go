@@ -415,6 +415,11 @@ func runDurableMerge(stdout, stderr io.Writer, f *mergeFlags, t landingTarget) e
 				return err
 			}
 		}
+		// #309: refuse red or pending CI on the PR head; LandingMerge pins that head.
+		landingGitCall := func(args ...string) (string, error) { return landingGit(r, t.Root, args...) }
+		if err = runCIGate(ctx, ghClient, t.Repo, pr.Number, targetMain, head, landingGitCall, f.NoCI, stderr); err != nil {
+			return err
+		}
 		if err = revalidateLanding(r, t, branch, head, current); err != nil {
 			return err
 		}
