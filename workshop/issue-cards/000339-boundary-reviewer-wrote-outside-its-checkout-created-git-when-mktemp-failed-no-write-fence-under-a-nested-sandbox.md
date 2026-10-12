@@ -16,6 +16,7 @@ tracker:
         source_path: workshop/issues/000339-boundary-reviewer-wrote-outside-its-checkout-created-git-when-mktemp-failed-no-write-fence-under-a-nested-sandbox.md
         source_blob: 2f886dbdb535c53e85cc358c574a6787f2402a99
         destination: workshop/issues/000339-boundary-reviewer-wrote-outside-its-checkout-created-git-when-mktemp-failed-no-write-fence-under-a-nested-sandbox.md
+        main_commit: e1a463ec6875969047968d05b01e05031f0776af
 ---
 
 # boundary reviewer wrote outside its checkout (created ~/.git) when mktemp failed: no write fence under a nested sandbox
