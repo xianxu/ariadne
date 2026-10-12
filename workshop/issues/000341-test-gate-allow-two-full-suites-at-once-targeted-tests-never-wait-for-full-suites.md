@@ -1,12 +1,12 @@
 ---
 id: 000341
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
-card_mirror: 'e7f337ea9ace5dc95986b1c34344fd5cd4750366' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '13afefa9acb65c11f86dd41e6d104dec0f0fde75' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T16:13:39-07:00
 claimant:
     operator: Xian Xu
@@ -38,7 +38,27 @@ Keep `WF_TEST_LOCK=off` as the logged emergency hatch.
 
 ## Plan
 
-- [ ]
+Design (ARCH-DRY: reuse the one flock mechanism, N files instead of one;
+ARCH-CONSTRAINTS: the cap is an operator choice, default 2, measured basis in ## Problem;
+ARCH-FUNERAL: the slot files are fixed, N of them, rewritten per run, removed by nothing,
+like today's one file; ARCH-ORDER: flock is the state, released by the kernel on exit).
+
+- [ ] `scripts/test-lock.py`: `WF_TEST_SUITES` slots (default 2). Slot 0 stays
+  `test-suite.lock` (an older test-lock.py in a not-yet-refreshed checkout contends
+  for it, so the cap holds across versions); slot k is `test-suite.lock.<k>`.
+  One scan per tick: try each slot non-blocking, keep the first free one, read
+  the records of the busy ones. A busy slot held by this make or `WF_TEST_LOCK_HELD_BY`
+  means re-entrant (drop any free slot taken). None free: wait, naming every holder.
+  The record gains `slot`.
+- [ ] `pkg/testgate`: drop the full-suite probe; a targeted run takes only its own
+  `test-gate.<k>.lock` slot. Package doc and messages follow.
+- [ ] Tests, fakes only (private lock files, `sleep` holders):
+  `scripts/test-lock.test.sh` two suites acquire, a third waits naming both and takes
+  the freed slot; re-entrancy with the holder on slot 1; `WF_TEST_SUITES=1` keeps the
+  single-suite cases. `pkg/testgate`: both suite slots held exclusively, `enter`
+  takes a gate slot without waiting.
+- [ ] Atlas (`atlas/workflow/sdlc-binary.md`), `Makefile.workflow` comment, and
+  AGENTS.base.md: targeted runs are always fine; at most 2 full suites.
 
 ## Log
 
