@@ -3,9 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
-	"os"
 	"os/exec"
-	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -44,11 +42,10 @@ func TestFetchAlias_ThroughTree(t *testing.T) {
 	if err := root.ExecuteContext(context.Background()); err != nil {
 		t.Fatalf("execute fetch alias: %v", err)
 	}
-	data, err := os.ReadFile(filepath.Join(r.root, "workshop/issues/000008-folded-fetch.md"))
-	if err != nil {
-		t.Fatalf("expected created details: %v", err)
+	body := r.mainFile("workshop/issues/000008-folded-fetch.md") // #308: published at creation
+	if body == "" {
+		t.Fatal("expected created details on main")
 	}
-	body := string(data)
 	probIdx, specIdx, ghIdx := strings.Index(body, "## Problem"), strings.Index(body, "## Spec"), strings.Index(body, "GH body text.")
 	if probIdx < 0 || ghIdx < probIdx || ghIdx > specIdx {
 		t.Errorf("GH body should sit under ## Problem:\n%s", body)

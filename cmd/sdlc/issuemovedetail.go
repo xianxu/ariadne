@@ -49,6 +49,11 @@ func newIssueMoveDetailCmd() *cobra.Command {
 			if f.Issue <= 0 {
 				return errors.New("--issue is required and must be positive")
 			}
+			if tracked, err := repositoryTracked(cmd.Context(), f.IssuesDir); err != nil {
+				return err
+			} else if !tracked {
+				return errLegacyOnly("sdlc issue move-detail", "`sdlc issue new` already published the issue; publish later edits with `sdlc issue sync --issue N --push`")
+			}
 			return runTrackedPublish(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), []int{f.Issue}, f.IssuesDir, f.DryRun)
 		},
 	})

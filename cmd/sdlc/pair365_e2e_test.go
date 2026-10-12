@@ -33,9 +33,8 @@ func TestCloseOnARenamedBranchAfterAnOutsideMergeLands(t *testing.T) {
 
 	// The issue is published, claimed and built on its branch in slot1.
 	mustSlotRun(t, slot1, "issue", "new", "message lifecycle", "--slug", "message-lifecycle")
+	git(t, slot1, "pull", "-q", "--ff-only") // #308: issue new published the details to main
 	detail := onlyIssuePath(t, slot1, "000002")
-	mustSlotRun(t, slot1, "issue", "move-detail", "--issue", "2")
-	git(t, slot1, "pull", "-q", "--ff-only")
 	mustSlotRun(t, slot1, "claim", "--issue", "2")
 	mustSlotRun(t, slot1, "start-plan", "--issue", "2")
 	branch := git(t, slot1, "branch", "--show-current")
