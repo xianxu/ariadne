@@ -27,7 +27,15 @@ on:
 
 permissions:
   contents: read
+  issues: read
+  pull-requests: read
   statuses: write
+
+# One decision per PR at a time: a newer event (a push, a label change)
+# cancels the older run, so a stale run cannot post the last verdict.
+concurrency:
+  group: local-gates-guard-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 jobs:
   local-gates-guard:
@@ -43,7 +51,6 @@ jobs:
           PR_NUMBER: ${{ github.event.pull_request.number }}
           BASE_SHA: ${{ github.event.pull_request.base.sha }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
-          PR_LABELS: ${{ toJSON(github.event.pull_request.labels.*.name) }}
         run: |
           set -euo pipefail
           protected=(
@@ -74,7 +81,7 @@ jobs:
           fi
           base="$(git merge-base "$BASE_SHA" "$head")"
           touched=()
-          while IFS= read -r path; do
+          while IFS= read -r -d '' path; do
             [ -n "$path" ] || continue
             for pattern in "${protected[@]}"; do
               if [[ "$path" == $pattern ]]; then
@@ -82,7 +89,7 @@ jobs:
                 break
               fi
             done
-          done < <(git diff --name-only --no-renames "$base" "$head")
+          done < <(git -c core.quotePath=false diff -z --name-only --no-renames "$base" "$head")
           verdict() {
             gh api -X POST "repos/$REPO/statuses/$HEAD_SHA" \
               -f state="$1" -f context=local-gates-guard/verdict -f description="$2" >/dev/null
@@ -94,7 +101,14 @@ jobs:
           fi
           printf 'local-gates-guard: this PR touches local-gates configuration:\n'
           printf '    %s\n' "${touched[@]}"
-          if printf '%s' "$PR_LABELS" | grep -Fq '"local-gates-verified"'; then
+          # Labels are read live at decision time, not from the event payload:
+          # a re-run of an old event, or a removal racing it, must see now.
+          labels="$(gh api "repos/$REPO/issues/$PR_NUMBER/labels" --jq '.[].name')" || {
+            echo "local-gates-guard: could not read the PR's labels" >&2
+            verdict failure "could not read the PR's labels"
+            exit 2
+          }
+          if printf '%s\n' "$labels" | grep -Fxq 'local-gates-verified'; then
             echo "local-gates-guard: operator-verified (label local-gates-verified)"
             verdict success "local-gates change, operator-verified"
             exit 0

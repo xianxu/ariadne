@@ -160,7 +160,9 @@ and a workflow file; check runs age out under GitHub's retention.
   Confirm the guard fails, `sdlc merge` refuses naming it; capture the real
   failing and pending `gh pr checks` output as fixtures; add the label and
   confirm `gh pr checks` reports the re-run (latest run per name), not the
-  earlier failure; then remove the label, close the PR and delete its branch. Report seeded files to the hub for the TL's refresh.
+  earlier failure; check whether the guard's job run shows on main's tip
+  (pull_request_target attaches to the base); then remove the label, close
+  the PR and delete its branch. Report seeded files to the hub for the TL's refresh.
 
 ## Verification
 
@@ -187,3 +189,22 @@ and a workflow file; check runs age out under GitHub's retention.
   unless both equal the pinned head, on both paths. Every CI-gate refusal, and
   only refusals, starts `CI gate: ` (success lines say `CI checks:`), so the
   gate catalog matches the prefix.
+- 2026-10-12, M2 review round 1 — sweep of every M2 decision and bullet
+  against what shipped:
+  - D4 permissions grew: `statuses: write` (the guard posts a
+    `local-gates-guard/verdict` commit status on the PR head, so merge's CI
+    gate sees the verdict whichever SHA GitHub attaches the job's check to),
+    and `issues: read` / `pull-requests: read` for the live label read.
+  - D4 trigger narrowed to PRs targeting `main` (`branches: [main]`).
+  - D4/D6 labels are read live (`gh api .../issues/N/labels`) at decision
+    time, not from the event payload, failing closed (exit 2, failure status)
+    when unreadable; a per-PR `concurrency` group cancels an older run.
+  - New no-op branch: a run whose event head is no longer the PR head exits 0
+    and posts nothing; the run for the newer push decides. Not fail-open: the
+    newer head's own run posts its verdict, and merge's gate reads the head.
+  - Changed paths are read with `-z` and `core.quotePath=false` (BR-5).
+  - D7: merge-check run blocks take event values through `env:` too.
+  - Tests are wired: `scripts/merge-checks.d/20-ci-workflow-tests.sh` runs the
+    guard and portable-ci tests in CI and pre-push (ariadne-local).
+  - README documents the guard, the label and the push run (BR-7).
+  - The live check also confirms whether a failed guard job marks main's tip.

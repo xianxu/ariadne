@@ -30,10 +30,11 @@ with tempfile.TemporaryDirectory(prefix='guard ') as tmp:
     (work/'README').write_text('x\n'); g('add','.',cwd=work); g('commit','-qm','base',cwd=work)
     g('remote','add','origin',str(server),cwd=work); g('push','-q','origin','main',cwd=work)
     base=g('rev-parse','HEAD',cwd=work)
-    (bin_/'gh').write_text('#!/bin/bash\nprintf "%s\\n" "$*" >> "$STATUS_LOG"\n'); (bin_/'gh').chmod(0o755)
+    # gh: labels are read live (GH_LABELS, or GH_LABELS_FAIL); statuses are logged.
+    (bin_/'gh').write_text('#!/bin/bash\nif [ "$1 $2" = "api repos/$REPO/issues/$PR_NUMBER/labels" ]; then [ -z "${GH_LABELS_FAIL:-}" ] || exit 1; printf "%s" "${GH_LABELS:-}"; exit 0; fi\nprintf "%s\\n" "$*" >> "$STATUS_LOG"\n'); (bin_/'gh').chmod(0o755)
     statuses=root/'statuses'
     n=[0]
-    def pr(paths,labels):
+    def pr(paths,labels,extra=None,head_override=None):
         n[0]+=1; num=n[0]
         g('checkout','-q','-B',f'pr{num}',base,cwd=work)
         for p in paths:
@@ -44,7 +45,7 @@ with tempfile.TemporaryDirectory(prefix='guard ') as tmp:
         guard=root/f'guard{num}'; g('clone','-q',str(server),str(guard))
         statuses.write_text('')
         env=dict(os.environ,PATH=f'{bin_}:{os.environ["PATH"]}',STATUS_LOG=str(statuses),GH_TOKEN='t',REPO='o/r',
-                 PR_NUMBER=str(num),BASE_SHA=base,HEAD_SHA=head,PR_LABELS=json.dumps(labels))
+                 PR_NUMBER=str(num),BASE_SHA=base,HEAD_SHA=head_override or head,GH_LABELS='\n'.join(labels)+'\n',**(extra or {}))
         r=subprocess.run(['bash','-c',block],cwd=guard,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
         return r.returncode,r.stdout,statuses.read_text()
 
@@ -54,6 +55,15 @@ with tempfile.TemporaryDirectory(prefix='guard ') as tmp:
         assert code==1 and sample(p) in out and 'state=failure' in st, (p,code,out,st)
         code,out,st=pr([near_miss(p)],[])
         assert code==0 and 'state=success' in st, (p,near_miss(p),code,out)
+    # Paths git would quote without -z (non-ASCII, quotes, backslashes) are still caught.
+    for odd in ['scripts/merge-checks.d/50-é.sh','.github/workflows/a"b.yml','.sdlc/back\\slash.json']:
+        code,out,st=pr([odd],[]); assert code==1 and odd in out and 'state=failure' in st,(odd,code,out)
+    # A label is matched whole, not as a substring.
+    code,out,st=pr(['bootstrap.sh'],['local-gates-verified-not']); assert code==1,out
+    # Labels unreadable: refuse and say so (fail closed).
+    code,out,st=pr(['bootstrap.sh'],['local-gates-verified'],extra={'GH_LABELS_FAIL':'1'}); assert code==2 and 'state=failure' in st,(code,out)
+    # The PR head moved since the event: this run decides nothing and posts nothing.
+    code,out,st=pr(['bootstrap.sh'],[],head_override='0'*40); assert code==0 and 'moved' in out and st=='',(code,out,st)
     # Gate code is not protected.
     code,out,st=pr(['cmd/sdlc/merge.go'],[]); assert code==0,out
     # Decision: touched x labeled.
@@ -67,10 +77,10 @@ with tempfile.TemporaryDirectory(prefix='guard ') as tmp:
     base=g('rev-parse','HEAD',cwd=work)
     n[0]+=1; num=n[0]; g('rm','-q','bootstrap.sh',cwd=work); g('commit','-qm','rm',cwd=work); head=g('rev-parse','HEAD',cwd=work)
     g('push','-q','origin',f'HEAD:refs/pull/{num}/head',cwd=work); guard=root/'guardrm'; g('clone','-q',str(server),str(guard))
-    env=dict(os.environ,PATH=f'{bin_}:{os.environ["PATH"]}',STATUS_LOG=str(statuses),GH_TOKEN='t',REPO='o/r',PR_NUMBER=str(num),BASE_SHA=base,HEAD_SHA=head,PR_LABELS='[]')
+    env=dict(os.environ,PATH=f'{bin_}:{os.environ["PATH"]}',STATUS_LOG=str(statuses),GH_TOKEN='t',REPO='o/r',PR_NUMBER=str(num),BASE_SHA=base,HEAD_SHA=head,GH_LABELS='')
     r=subprocess.run(['bash','-c',block],cwd=guard,env=env,text=True,stdout=subprocess.PIPE,stderr=subprocess.STDOUT)
     assert r.returncode==1 and 'bootstrap.sh' in r.stdout, r.stdout
     # Hostile inputs refuse before any effect.
     env2=dict(env,PR_NUMBER='1; rm -rf /'); r=subprocess.run(['bash','-c',block],cwd=guard,env=env2,text=True,capture_output=True); assert r.returncode==2,r
-print(f'PASS local-gates-guard: {len(patterns)} patterns matched with near misses; label, deletion and input checks')
+print(f'PASS local-gates-guard: {len(patterns)} patterns matched with near misses; quoted paths, live labels, head moved, deletion and input checks')
 PY

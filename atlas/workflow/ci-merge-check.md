@@ -82,10 +82,17 @@ and `sdlc merge` will not land over it:
   PR cannot weaken the guard within itself; it never checks out or runs PR
   code, only the changed-path list of `refs/pull/<N>/head`, and takes PR values
   through `env:`. A PR touching a protected path fails unless it carries the
-  `local-gates-verified` label. It also posts a `local-gates-guard/verdict`
+  `local-gates-verified` label. It reads the changed paths NUL-delimited and
+  unquoted (`-z`, `core.quotePath=false`), so a non-ASCII or quoted path is
+  still matched; it reads the labels live from the API at decision time, not
+  from the event payload, and fails closed when it cannot; one run per PR at a
+  time (`concurrency`, newer cancels older); a run whose event head is no
+  longer the PR head decides nothing. It also posts a `local-gates-guard/verdict`
   commit status on the PR head, so `gh pr checks` (and merge's CI gate) see the
   latest verdict for that head whichever way GitHub attaches the job's check.
-  Tested by executing the real run block: `scripts/test/local-gates-guard.test.sh`.
+  Tested by executing the real run block: `scripts/test/local-gates-guard.test.sh`,
+  run with `portable-ci.test.sh` by ariadne's `merge-checks.d/20-ci-workflow-tests.sh`
+  on every PR and push.
 - **The label is the operator's marker.** Only the operator applies
   `local-gates-verified`; no sdlc verb does and agents are told never to. A
   local-gates change is its own issue with operator-held verification. Honest
