@@ -91,18 +91,18 @@ neither is a live consumer. No Go code, helptext or atlas page restates either l
 `superpowers-subagent-driven-development`'s spec reviewer checks code against spec
 during execution, a different boundary, and stays.
 
-- [ ] Brainstorming: the operator's approval of the written spec is the design gate;
+- [x] Brainstorming: the operator's approval of the written spec is the design gate;
   the spec-document review becomes optional and advisory, with criteria (broad,
   ambiguous or high-risk work); its findings are folded into `## Spec` or noted in
   `## Log`, never re-run to tick a checklist.
-- [ ] Writing-plans: the plan-document review becomes an optional editing aid;
+- [x] Writing-plans: the plan-document review becomes an optional editing aid;
   `sdlc change-code`'s plan-quality gate is named as the one mandatory plan review
   (ARCH-DRY: one owner per boundary, one findings ledger). The handoff runs
   `change-code` before execution.
-- [ ] Mark both reviewer-prompt templates advisory.
-- [ ] Record Conversation 12 in `construct/intents/superpowers.md`.
-- [ ] Name the review chain in `atlas/workflow/issue-lifecycle.md`.
-- [ ] Doc test `cmd/sdlc/skillreviewauthority_test.go`: neither skill carries a
+- [x] Mark both reviewer-prompt templates advisory.
+- [x] Record Conversation 12 in `construct/intents/superpowers.md`.
+- [x] Name the review chain in `atlas/workflow/issue-lifecycle.md`.
+- [x] Doc test `cmd/sdlc/skillreviewauthority_test.go`: neither skill carries a
   mandatory automated approval loop; both name `sdlc change-code` as the plan-review
   owner; the chain is stated.
 
@@ -114,3 +114,14 @@ Task filed from the review of local Superpowers versus SDLC. The desired policy 
 that brainstorming establishes requirements with operator agreement; separate
 automated spec review is optional. `sdlc change-code` remains the mandatory owner
 of plan-quality review before implementation. No implementation changes made.
+
+### 2026-10-12
+
+Claimed at ariadne:2 (TL dispatch, Merge and CI train). Quick flow: prose in two adapted
+skills, their reviewer templates, the intent record (Conversation 12), one atlas line, and
+`cmd/sdlc/skillreviewauthority_test.go`. The test fails against main's skill text (each
+banned loop phrase and each missing authority phrase reports) and passes now. Followed the
+#231 precedent of editing `construct/adapted/` directly with an intent conversation;
+`construct/versions/*` stay frozen. The chain string is identical in both skills so one
+constant pins it (ARCH-DRY). Main is red on #340 (pre-existing, ariadne:1 fixing).
+
