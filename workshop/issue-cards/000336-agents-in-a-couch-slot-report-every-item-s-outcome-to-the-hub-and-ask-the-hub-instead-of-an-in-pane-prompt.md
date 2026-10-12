@@ -1,6 +1,6 @@
 ---
 id: 000336
-status: codecomplete
+status: done
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: b8c75fb0e4dc45ec7e4c93204c7c7d38b8c3eb15
         evidence_commit: f7abba4b054d30f62459bef29e37b76c4341e6c2
+        landed_commit: d98c0c735a3f9e3452c804ece6f0158d47ece45f
 ---
 
 # agents in a Couch slot report every item's outcome to the hub, and ask the hub instead of an in-pane prompt
