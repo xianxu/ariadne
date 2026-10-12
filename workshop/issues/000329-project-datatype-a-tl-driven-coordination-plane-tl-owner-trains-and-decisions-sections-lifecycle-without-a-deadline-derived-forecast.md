@@ -1,12 +1,20 @@
 ---
 id: 000329
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-10
-updated: 2026-10-10
+updated: 2026-10-12
 estimate_hours:
-card_mirror: '038facb89764a6414a5f018915b20e0a0020d622' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5b6d8a9ed85ed2370a6fc1ca258e17a72d36d2f0' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T16:34:43-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Project datatype: a TL-driven coordination plane (tl: owner, Trains and Decisions sections, lifecycle without a deadline, derived forecast)
