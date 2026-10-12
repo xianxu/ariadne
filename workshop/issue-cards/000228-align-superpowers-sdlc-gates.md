@@ -1,6 +1,6 @@
 ---
 id: 000228
-status: codecomplete
+status: done
 created: 2026-09-15
 updated: 2026-10-12
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: dfe05cbd2be40066e4b17bcd0937287e9675fe34
         evidence_commit: 75f73d3285dc44e8af482977de58a9ece828c7f1
+        landed_commit: 72b6c9cab10ef77498a4782ed717d4074a60e007
 ---
 
 # Align local superpowers with SDLC review gates
