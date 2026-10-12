@@ -14,6 +14,8 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
+
+	"github.com/xianxu/ariadne/pkg/testgate"
 )
 
 func TestOwnedRunnerBoundsBufferedDescendants(t *testing.T) {
@@ -40,7 +42,7 @@ func TestOwnedRunnerBoundsBufferedDescendants(t *testing.T) {
 				}
 				_ = staging.Remove(stage)
 			})
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			ctx, cancel := context.WithTimeout(context.Background(), testgate.HangCeiling)
 			defer cancel()
 			var output bytes.Buffer
 			setup, err := staging.AcquireSetup(fixture)
@@ -83,7 +85,7 @@ fi`
 				if !cancelRun && err != nil && !errors.Is(err, exec.ErrWaitDelay) {
 					t.Fatal(err)
 				}
-			case <-time.After(3 * time.Second):
+			case <-time.After(testgate.HangCeiling):
 				t.Fatal("buffered output kept Wait blocked")
 			}
 			// Positive kernel proof: a live inherited writer would prevent this lock.

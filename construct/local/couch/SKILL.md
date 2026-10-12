@@ -16,6 +16,10 @@ Read it fresh each time; do not rely on memory of an earlier version.
 Loading this skill sends nothing and starts no work. Message a peer only when
 your task calls for it, and only as `couch --skill` describes.
 
+**In a Couch slot**, the constitution's §15 (Couch Slots) applies on top of the
+protocol. It covers reporting to and asking the hub, and the exact form of a
+`couch` call that stays outside the sandbox. Read it there; it is not restated here.
+
 **If `couch` is not installed** (`command -v couch` finds nothing), stop. Tell
 the operator that Couch peer messaging is unavailable in this environment
 because the `couch` binary from the pair repository is not on `PATH`. Do not

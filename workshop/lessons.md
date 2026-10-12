@@ -25,6 +25,8 @@ Detailed incidents remain in their owning issue or review artifact.
 - A scripted edit (search and replace) must assert that its anchor matched.
   An unmatched replace silently does nothing, and the work log then claims a
   change that never happened (#279 BR-8).
+  Anchor on content, never on a line number: a `sed -e 'Ns/…/…/'` whose line
+  drifted by one matched nothing, twice in one issue (#325).
 
 - A predicate that collapses several refusals into a bool forces its caller to
   guess the reason, and the guess becomes a wrong message. Return the reason as

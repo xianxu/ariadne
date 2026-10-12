@@ -320,7 +320,7 @@ func runFleetE2ECommand(t *testing.T, binary string, args ...string) (string, st
 func runFleetE2EGit(t *testing.T, dir string, args ...string) []byte {
 	t.Helper()
 
-	result := runFleetE2ESubprocess(t, 15*time.Second, dir, true, "git", args...)
+	result := runFleetE2ESubprocess(t, hangGuard, dir, true, "git", args...)
 	if result.err != nil {
 		t.Fatalf("git -C %q %v: %v\n%s", dir, args, result.err, result.combined)
 	}
