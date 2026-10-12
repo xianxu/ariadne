@@ -63,3 +63,59 @@ findings:
     detail: |
       judge.go:200 exits directly on a judge failure, so the die cleanups are skipped and expectExit cannot swap it. Every other direct os.Exit is a top-level or signal exit: main.go:70, activetime.go:245, repolock.go:242/244. Either scope the comment or route judge.go:200 through exitWithCode.
 ```
+
+---
+
+## Re-review — 2026-10-12T07:46:55-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 191 — runChangeCode gate loop has no in-process coverage — exitWithCode bypasses the swappable die seam |
+| repo | ariadne |
+| issue file | workshop/issues/000191-runchangecode-gate-loop-has-no-in-process-coverage-exitwithcode-bypasses-the-swappable-die-seam.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 4195e0418246f52c5e764292c6ab6914bc871b4d..891711ba3f7f864161f4907434d966a65870d527 |
+| command | sdlc close --issue 191 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T07:46:55-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window is small: a comment change in `cmd/sdlc/term.go` plus two generated ledger and review files under `workshop/plans/`. It addresses BR-1, the only prior finding, by narrowing the comment instead of rerouting `judge.go:200`. The finding explicitly allowed either fix. I checked the comment's new list of direct exits against the tree with a grep for `os.Exit(` over every `.go` file. In the `sdlc` binary, the only non-test direct exits are `main.go:70`, `activetime.go:245`, `internal/repolock/repolock.go:242/244`, `judge.go:200`, and `exitWithCode` itself at `term.go:64`. That is exactly the set the comment now names, so the claim matches the code and nothing is left out. The window adds no behavior and does not change `## Spec`, `## Revisions` or `## Done when`. There are no conflict resolutions to judge. Nothing blocks SHIP.
+
+1. **Strengths**
+   - The comment at `term.go:58-61` now limits "one swappable seam" to a verb's refusal path. It names each remaining direct `os.Exit` by file, so the claim can be checked against the code.
+   - The comment correctly sorts `judge.go` apart from the top-level and signal exits, as the finding did.
+   - Adding a comment to `term.go` does not trip `TestLockedCommandFilesAvoidRawOSExit` (`repolock_test.go:72-93`), because `term.go` is not on that test's file list.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new.
+   - Leaving `judge.go:200` as a direct exit (it skips the die cleanups) is a known choice that the comment now documents. If `judge` ever takes a repo lock, it should move onto `exitWithCode`.
+
+5. **Test coverage notes:** The only code change is a comment, so no regression test is needed. The finding was prose-only, and the grep above confirms the comment's referents.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. Nothing is duplicated.
+   - **ARCH-PURE:** pass. No logic changed.
+   - **ARCH-PURPOSE:** pass. The fix covers the whole class of unscoped "one exit seam" claims. It lists every direct exit in the `sdlc` binary, not only the `judge.go:200` instance the finding named. The other `os.Exit` calls in the repo are in separate binaries (`cmd/weave`, `cmd/datatype`, `cmd/vocabulary`, `cmd/doc-review`, `pkg/testgate`) and in `TestMain` helpers, which are outside this seam's package.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      term.go:58-61 now scopes the claim to a verb's refusal and lists the remaining direct exits (main.go, activetime.go, repolock.go, judge.go). A grep of os.Exit( in non-test cmd/sdlc files finds exactly that set.
+```
