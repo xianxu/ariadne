@@ -64,6 +64,7 @@ like today's one file; ARCH-ORDER: flock is the state, released by the kernel on
 ## Log
 
 ### 2026-10-12
+- 2026-10-12: closed — scripts/test-lock.test.sh 23/23 (two suites acquire, third waits naming both and takes the freed slot, re-entrant with a slot free and on slot 1, bad WF_TEST_SUITES); go test ./pkg/testgate pass incl. TestEnterIgnoresFullSuites (both suite files held exclusively, any wait fails). make test: all shards green except TestVerbContextsReachTrackerReads, pre-existing red on main from #302, filed as #340. Live: my make test took slot 1 while a pair suite under the old script held slot 0, both running.; review verdict: SHIP
 - Implemented. `scripts/test-lock.test.sh`: 23/23 pass, including two suites acquiring,
   a third waiting with both holders named and taking the freed slot, re-entrancy with
   a slot free and on slot 1. `go test ./pkg/testgate`: pass; the new
