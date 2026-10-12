@@ -1,10 +1,19 @@
 ---
 id: 000339
-status: working
+status: codecomplete
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
 github_issue:
+started: 2026-10-12T13:20:09-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
+actual_hours: 1.06
 tracker:
     version: 1
     handoff:
@@ -17,14 +26,11 @@ tracker:
         source_blob: 2f886dbdb535c53e85cc358c574a6787f2402a99
         destination: workshop/issues/000339-boundary-reviewer-wrote-outside-its-checkout-created-git-when-mktemp-failed-no-write-fence-under-a-nested-sandbox.md
         main_commit: e1a463ec6875969047968d05b01e05031f0776af
-started: 2026-10-12T13:20:09-07:00
-claimant:
-    operator: Xian Xu
-    machine: 4716879978a7b90f6b583da1716fd0e9
-    machine_name: MacBook Pro
-    workspace: ariadne:3
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
-    repository: github.com/xianxu/ariadne
+    completion:
+        token: close-e690583e2d0b
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 717a39a265dd89af4772469f88326bafea25b1ec
+        evidence_commit: c3362c2b5b86394159e6f0b12f43e663ad86a16f
 ---
 
 # boundary reviewer wrote outside its checkout (created ~/.git) when mktemp failed: no write fence under a nested sandbox
