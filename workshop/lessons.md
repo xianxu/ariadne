@@ -469,3 +469,9 @@ The simplest durable authority beats a clever scan of consequences.
   the setting key) across `atlas/`, comments and the issue, and fix every hit.
   Also: write `excludedCommands` entries as `X *`; a bare word matches only the
   verb with no arguments.
+- Recovery advice in an error message is a plan the operator will execute, so
+  walk it through the verb's own gates before writing it. #196's first stranded
+  message said "commit the files, then re-run `sdlc merge`". The re-run then
+  refuses at step 4 (branch ahead of origin) or at #148 (a merged PR whose
+  branch has new commits). For each remedy a message names, check that the next
+  verb it points to still accepts the state the remedy leaves.
