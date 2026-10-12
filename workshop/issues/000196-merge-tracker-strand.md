@@ -1,12 +1,12 @@
 ---
 id: 000196
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-08-20
 updated: 2026-10-12
 estimate_hours:
-card_mirror: '42823b6735773ae157ab7b448b76cda47aeb2704' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '6064d1dd103dfac6d1a77407cf5a749057d0b6c4' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T07:50:13-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "e515125c", done: "6151fd84"}
+actual_hours: 0.92
 ---
 
 # merge: dirty tracker files are exempted from the block but still strand the post-merge switch
