@@ -32,6 +32,19 @@ which a TL coordinates cross-issue work:
     - `closing→closed` (event `close`, guard `retro-recorded`, run through `sdlc project close`);
     - `→dropped` from defined (no guard), and from executing or closing (guard `retro-recorded`).
   - `IsExecuting` covers both executing and closing, so close's retro nudge and `close --drop` keep working.
+  - **Renames the terminal `done` to `closed`** (the Spec's word, which the hub confirmed). Archived records stay
+    frozen at `done` (eight across the fleet), and none is migrated, because nothing validates or branches on an
+    archived record's status:
+    - `project validate` and the changed-instance gate read only `workshop/projects/` (`Discovery().Home`);
+    - `find`/`resolve` read `workshop/history/projects/` but match by ref marker only, never by status or schema;
+    - `dropTerminalLegacy`, the one status reader outside the active home, reads the legacy
+      `brain/data/project/`, which is empty since the #171 migration (checked 10-12).
+    
+    So D2's `deadline` ban never sees the two archived records that carry deadline fields
+    (`ariadne/.../project-management-primitive.md`, `metis/.../arena2-playground-s6e7.md`). A test pins this:
+    `project validate` over a fixture with an archived `status: done` record plus `deadline:` passes. Hardcoded
+    `"done"` sites in project code (`project.cue`, `projectsetstatus.go:140`, the comments in `pkg/vocab` and
+    `discover.go`) change to `closed` or go through the vocabulary (`IsTerminal`, or the `close` edge's `To`).
 - **D2. Deadline fields are banned.** In `#Project`, `deadline?: _|_` and `planned_finish?: _|_` make
   `sdlc project validate` flag stale records. The old schema was open, so without the ban validation could not flag
   a stale record (ARCH-DATA: the schema states the invariant). `Metadata.Deadline`/`PlannedFinish`, the `list`
@@ -92,7 +105,10 @@ which a TL coordinates cross-issue work:
   - The retro line drops its deadline clause.
 - **D8. set-status.**
   - The flags `--reality`, `--coverage` and `--planned-finish`, and the commit forecast, go.
-  - `GuardCtx` gains an `IssueTerminal func(ref) (bool, error)` that is injected from the issue lookup. With it,
+  - `GuardCtx` gains an `IssueTerminal func(ref) (bool, error)`, built in `projectsetstatus.go` from the existing
+    cross-repo card resolver `projectIssueLookupFn(ctx, ref, repoDir)` (the var in `projectstatus.go`, which reads
+    tracker cards and details), with `vocab.Issue().IsTerminal`. Tests replace that same var with a map-backed fake
+    (the `projectclose_test.go:56` pattern). The forecast's car hours use the same seam (ARCH-MOCK). With it,
     `mvp-landed` checks every `mvp_scope` ref; it refuses on an empty `mvp_scope`, naming the missing field.
   - `--to closed` is refused and points at `sdlc project close`.
 - **D9.** `project throughput` and `estimate/throughput.go` (`SpanThroughput`, `ThroughputBaseline`,
@@ -153,5 +169,5 @@ print the forecast best-effort; a lookup error becomes a note and never fails th
 ## Revisions
 
 - 2026-10-12, plan-quality round 1. D1 now states the `done → closed` rename and why archived records need no
-  migration. D9 now deletes `project throughput`, whose only reader goes away. D8 names the lookup seam. Added:
+  migration; the first edit attempt failed to apply, and round 2 caught it. D9 now deletes `project throughput`, whose only reader goes away. D8 names the lookup seam. Added:
   non-goals, the envelope, and test strategies instead of a list of cases.
