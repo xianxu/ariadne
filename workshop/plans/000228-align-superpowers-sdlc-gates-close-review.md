@@ -81,3 +81,66 @@ findings:
       after every chunk, while SKILL.md makes it optional, at most once per chunk. The same pattern is
       at spec-document-reviewer-prompt.md:9. Reword both, e.g. "Dispatch (optional) after …".
 ```
+
+---
+
+## Re-review — 2026-10-12T16:47:27-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 228 — Align local superpowers with SDLC review gates |
+| repo | ariadne |
+| issue file | workshop/issues/000228-align-superpowers-sdlc-gates.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 44a185047879f707fdf805044c1ce5f77d2afdf8..dfe05cbd2be40066e4b17bcd0937287e9675fe34 |
+| command | sdlc close --issue 228 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T16:47:27-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Both prior findings are fixed and the new tests pass, so the verdict is SHIP.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This window rewrites the brainstorming and writing-plans skills so each review boundary has one mandatory owner. You approve the spec. `change-code`'s plan-quality gate is the one automated plan review. Milestone and close review the code. The spec and plan reviewers are now optional, advisory aids. I ran the stat and name-status commands, then read the full patch and the issue. The four new tests in `cmd/sdlc/skillreviewauthority_test.go` pass in this checkout. Every `## Done when` clause is delivered. I searched the live tree for the old loop wording; the only remaining hit is `superpowers-subagent-driven-development/SKILL.md:260` "Repeat until approved". That one checks code against the spec during execution, a different boundary, and the plan's shadow sweep explicitly leaves it in place. Nothing blocks SHIP.
+
+1. **Strengths**
+   - `skillreviewauthority_test.go:16` keeps the review chain in one constant, `reviewChain`. Both skills and the atlas are checked against it, so a single wording is enforced.
+   - Each skill is tested both ways: the old approval-loop phrases must be absent, and the new authority statements must be present.
+   - `brainstorming/SKILL.md:146-152` gives concrete criteria for when the optional spec review is worth running, and makes it run once.
+   - In the writing-plans Execution Handoff, `sdlc change-code` runs before execution starts, so the gate cannot be skipped.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor:** none new.
+   - Conversation 12 in `construct/intents/superpowers.md` repeats the chain wording but no test checks it. That is acceptable, because the intents file is a narrative history.
+
+5. **Test coverage**
+   - The tests check document text, which is the right check here: these prompts are what drive agent behaviour.
+   - They are not tied to file locations beyond their relative paths.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** The chain is a single constant enforced across all three live consumers.
+   - **ARCH-PURE: pass.** There is no runtime code in this window.
+   - **ARCH-PURPOSE: pass.** The shadow sweep covers every live consumer: both skills, both reviewer templates and the atlas. The frozen `construct/versions` and upstream `construct/sources` copies are correctly excluded.
+
+7. **Plan revisions:** none needed.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      atlas/workflow/issue-lifecycle.md 3a and the intent's Conversation 12 (narrative and Verify) now read "`change-code` plan-quality gate → code"; TestLifecycleAtlasNamesReviewChain pins the atlas to the reviewChain constant; no "plan-quality → code" remains in the tree.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      spec-document-reviewer-prompt.md:9 reads "Dispatch (optional, once) after" and plan-document-reviewer-prompt.md:9 reads "Dispatch (optional, at most once per chunk) after"; no other "Dispatch after" line remains.
+```
