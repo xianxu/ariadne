@@ -61,7 +61,7 @@ Out of scope: B5 (cutover mismatch in a stale peer checkout). It becomes moot fo
 | `newIssueMoveDetailCmd` | `cmd/sdlc/issuemovedetail.go` | modified (hidden alias) | — |
 
 - **CreationOp**: gains a `main *gitx.TrunkFile`. `creation.main` Prepare reads the detail blob and calls `DetailPublication`. Apply and Probe use the `mainPublisher` + `publishEvent`/`probeEvent` pair `TransferOp` uses. `materialize` and `Checkout.Root` file writes are deleted. Tests: real git with a bare origin (the existing `createop_test.go` / `tracker_e2e_test.go` fixtures), not mocks.
-- **runIssueNew**: (1) `issueDirGuard`; (2) drive creation (reserve, then main); (3) if `creatorClaims`, `cardsPublish(env, []id, operationToken(tracker.OpClaim), nil, decide, nil)` with `claimSetDecision`, and **no** `refreshAfterClaim`/`refreshLocalMirror`; (4) print `Published #N (card + details on origin)` plus `claimed by <slot>` or `unclaimed`. The working tree and branch are never touched: delete the `onRest` hint and `commitOnly`. A claim failure after a successful creation is a warning with the next action (`sdlc claim --issue N`), not a failure, since the issue exists.
+- **runIssueNew**: (1) `issueDirGuard`, run **first**, before the `repositoryTracked` split, so the legacy path (C5's home-repo case) is covered too; (2) drive creation (reserve, then main); (3) if `creatorClaims`, `cardsPublish(env, []id, operationToken(tracker.OpClaim), nil, decide, nil)` with `claimSetDecision`, and **no** `refreshAfterClaim`/`refreshLocalMirror`; (4) print `Published #N (card + details on origin)` plus `claimed by <slot>` or `unclaimed`. The working tree and branch are never touched: delete the `onRest` hint and `commitOnly`. A claim failure after a successful creation is a warning with the next action (`sdlc claim --issue N`), not a failure, since the issue exists.
 - **issueDirGuard**: `root := gitx.RepoTopLevel()`; for a relative `--issues-dir`, require `gitx.InsideRoot(root, dir) == filepath.Clean(dir)`. Otherwise refuse with "issue new files into the repository whose root you run it from: <cwd> is inside <root>, so <dir> would be <rel>; cd to the repository root". Absolute `--issues-dir` is explicit and not checked. Applies to the tracked and legacy paths (C5's emma-private case was the home repo).
 - **publishPeerProject** (M2): `func publishPeerProject(ctx, peerRoot, projectPath string, in projectEditInput) (published bool, err error)`:
   - resolve `EvalSymlinks(projectPath)` and require it inside `EvalSymlinks(peerRoot)` (refuse otherwise);
@@ -70,9 +70,12 @@ Out of scope: B5 (cutover mismatch in a stale peer checkout). It becomes moot fo
   - `Update(rel, "project: close-time update (<repo>#<id>)", transform)`, where `transform(old)` re-checks `project.TLOwners(old)` (refuse if owned now), runs `projectCloseEdit(old)`, and returns the old bytes when unchanged (no commit).
   - Bounded by `maxUpdateAttempts` (3). Every attempt re-derives from fetched bytes, and nothing is a blind replay.
   - The peer's checked-out files and index are never read for writing or touched.
+  - `TLOwners(old)` returning an error refuses (fail closed, matching `close.go:813`).
+  - **Ordering:** `publishPeerProject` runs last in `applyClose`, after the local issue/project writes, so the peer is touched only once local state is written. The close commit itself follows later in the close flow, so a close that dies after the publish leaves the tick on the peer for an issue not yet landed. A retry is safe: the transform re-derives from fetched bytes, and an already-ticked row with present detail fields returns the bytes unchanged (no commit).
   - A refusal or failure is a warning with the manual next action; the close does not fail, the same contract as today's report-only.
 
 ### ARCH notes
+- **ARCH-CONSTRAINTS:** `issue new` makes up to three remote round trips: the card reservation, the main publication, and the claim (from `:N` only). Each is a fetch plus a push, so a few seconds interactively. Each is bounded by `tracker.MaxPublicationAttempts` (allocation races) or the receipt engine's retries. Exhaustion before the main stage leaves a recorded receipt (`issue recovery reconcile`). Exhaustion in the claim is a warning naming `sdlc claim --issue N`; the issue already exists unclaimed. The peer tick is one fetch plus a push per peer project, bounded by `maxUpdateAttempts` (3).
 - **ARCH-FUNERAL:** creates nothing durable beyond what exists: receipts are the existing family, removed on completion, and the peer tick is one commit on the peer's main. `peerwrite.go` and its report-only "left uncommitted" residue are deleted.
 - **ARCH-ORDER:** the CAS transform decides mergeability on fresh bytes. Card then main ordering is unchanged: a card without details is "incomplete creation", which recovery finishes.
 - **ARCH-DRY:** `DetailPublication`, `projectCloseEdit` and `claimSetDecision` are each shared by two callers.
@@ -105,7 +108,7 @@ Out of scope: B5 (cutover mismatch in a stale peer checkout). It becomes moot fo
   - `TestIssueNewFromRestingZeroIsUnclaimed`: the card has no claimant; the resting branch HEAD is unchanged; the tree is clean.
   - `TestIssueNewOnIssueBranchDoesNotCommitThere`: on an issue branch, HEAD and the tree are unchanged.
   - `TestIssueNewRefusesWhenCwdIsNotTheRepoRoot` (nested non-repo dir under a git repo → refusal naming the root; nothing published).
-- [ ] Implement per the integration-point notes. Remove the `onRest` hint and the `commitOnly` call; update `--help` Long text (publishes to origin; claimed from a slot).
+- [ ] Implement per the integration-point notes. Remove the `onRest` hint, the `commitOnly` call, and the `env.branch == ""` refusal (it existed only for the local write; a detached HEAD can file). Stdout contract: it still prints the repo-relative details path, now meaning "where the details are on main". Grep stdout consumers (`skills`, `construct/`, scripts) and update any that open the file locally; update `--help` Long text (publishes to origin; claimed from a slot).
 - [ ] Run targeted tests → PASS. Commit.
 
 ### Task 4: Status-aware section presence (skeletons)
@@ -151,7 +154,7 @@ Out of scope: B5 (cutover mismatch in a stale peer checkout). It becomes moot fo
 ### Task 9: `--no-project` skips the whole project update
 **Files:** `close.go` (flag help at 200; the sweep at 780 returns early when `f.NoProject`; `--force` keeps only waiving the detail-block requirement); the gate catalog entry; `milestoneclose.go` if it shares flags.
 - [ ] Failing test `TestNoProjectSkipsTickAndPeerWrite` (a project with a matching row; `--no-project` → row unticked locally and on the peer's origin; info line says skipped).
-- [ ] Implement; update the help/catalog text and `TestHelpFlags` fixtures. Commit.
+- [ ] Implement; update the help/catalog text and `TestHelpFlags` fixtures. Rewrite the missing-detail-block refusal (`close.go:860`): the precise ways out are authoring the block, or `--no-project` (which now skips the project update entirely, the tick included). Accepted trade-off (TL decision 10-12): a track-only milestone that wants the tick but no prose block authors a one-line block instead of waiving. Commit.
 
 ### Task 10: Close #308
 - [ ] Verify #326 (`tl:` skip) still holds: `go test ./cmd/sdlc/ -run 'TLOwned|ProjectClose'`.
