@@ -1,12 +1,12 @@
 ---
 id: 000341
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
-card_mirror: '13afefa9acb65c11f86dd41e6d104dec0f0fde75' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '17e0af42215719e759820bed8982a68064eafb91' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T16:13:39-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "9096fb8a", done: "021e0f35"}
+actual_hours: 0.05
 ---
 
 # test gate: allow two full suites at once; targeted tests never wait for full suites
