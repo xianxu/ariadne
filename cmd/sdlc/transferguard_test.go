@@ -482,7 +482,7 @@ func TestNoTextSaysIssueNewWritesDetailsLocally(t *testing.T) {
 	walk(buildRoot())
 	root := repoRootForTest(t)
 	docs, _ := filepath.Glob(filepath.Join(root, "atlas", "workflow", "*.md"))
-	docs = append(docs, filepath.Join(root, "AGENTS.base.md"), filepath.Join(root, "AGENTS.md"), filepath.Join(root, "README.md"))
+	docs = append(docs, filepath.Join(root, "AGENTS.base.md"), filepath.Join(root, "README.md")) // AGENTS.md is compiled from AGENTS.base.md
 	if err := filepath.WalkDir(filepath.Join(root, "cmd", "sdlc", "helptext"), func(p string, d fs.DirEntry, err error) error {
 		if err == nil && !d.IsDir() && strings.HasSuffix(p, ".md") {
 			docs = append(docs, p)
