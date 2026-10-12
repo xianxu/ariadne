@@ -1,12 +1,12 @@
 ---
 id: 000336
-status: working
+status: codecomplete
 deps: [pair#463]
 github_issue:
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
-card_mirror: '62cb688a0b715069902000921e6863c37e558392' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'da5868b40c8066f018eb0a8477c61088062d0baa' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T00:10:32-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "3ee4a1c2", done: "dc7bdadd"}
+actual_hours: 1.03
 ---
 
 # agents in a Couch slot report every item's outcome to the hub, and ask the hub instead of an in-pane prompt
