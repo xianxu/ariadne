@@ -54,6 +54,25 @@ Durable plan: `workshop/plans/000309-split-local-gates-and-server-ci-checks-plan
 - [ ] M2 — `local-gates-guard.yml` on `pull_request_target` with the `local-gates-verified` label; merge-check on push to main; labels in four repos; atlas + AGENTS
 - [ ] After landing: live check with a DO-NOT-MERGE PR; report seeded files to the hub
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec                 design=1.0  impl=0.08
+item: smaller-go-module          design=0.06 impl=0.2
+item: skill-or-dispatcher        design=0.2  impl=0.2
+item: real-api-discovery         design=0.0  impl=0.2
+item: cross-repo-refactor-small  design=0.04 impl=0.08
+item: atlas-docs                 design=0.04 impl=0.06
+item: milestone-review           design=0.0  impl=0.2
+item: milestone-review           design=0.0  impl=0.2
+design-buffer: 0.15
+total: 2.76
+```
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.* Items: issue-spec is this session's design and two review rounds; smaller-go-module is the CI gate, the `gh` adapter and the head pin on both merge paths (design ×0.2, the plan resolves it); skill-or-dispatcher is the guard workflow and its executed-run-block test; real-api-discovery covers `gh pr checks` exit codes and `pull_request_target` check reporting; cross-repo-refactor-small is the push trigger, the seed row and the labels in four repos.
+
 ## Log
 
 ### 2026-10-09
