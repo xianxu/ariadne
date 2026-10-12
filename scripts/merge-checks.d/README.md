@@ -37,3 +37,4 @@ exec "$(git rev-parse --show-toplevel)/scripts/review-gate.sh" "$@"
 - **Local**: a `pre-push` hook calls the same runner — so local and server gates never drift.
 
 See `atlas/workflow/ci-merge-check.md` and `workshop/issues/000052`.
+
