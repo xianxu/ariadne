@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 1.12
+actual_hours: 1.73
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000325-load-sensitive-wall-clock-deadlines-in-tests-replace-fixed-subprocess-deadlines-with-condition-waits.md
         main_commit: a535e85d521a01378e3865488e878e6f57092ada
     completion:
-        token: close-de5691c35390
+        token: close-4ff8eb240406
         repository: github.com/xianxu/ariadne
-        reviewed_head: 9933e8dbbb8aabd0ef85c067501b3169bc73c8c7
-        evidence_commit: bf2d8e41e4d3197b0b830d81a3702a29b81efca4
+        reviewed_head: f48c5d4d54460da13f0f9e9fa95d48f5a637bde8
+        evidence_commit: 35b95380bac7cdc8d4081024cafea645f751c22f
 ---
 
 # Load-sensitive wall-clock deadlines in tests: replace fixed subprocess deadlines with condition waits
