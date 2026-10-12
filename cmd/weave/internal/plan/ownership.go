@@ -230,8 +230,11 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 		if id.Scope != scope || produced[id.Path] || matched[id.Path] || slices.Contains(report.Abandoned, id.Path) {
 			continue
 		}
-		if _, e := fs.Lstat(filepath.Join(root, id.Path)); e == nil {
+		_, e := fs.Lstat(filepath.Join(root, id.Path))
+		if e == nil {
 			report.Abandoned = append(report.Abandoned, id.Path)
+		} else if !os.IsNotExist(e) {
+			return report, e
 		}
 	}
 	next := append(append([]outputIdentity{}, other...), wanted...)
