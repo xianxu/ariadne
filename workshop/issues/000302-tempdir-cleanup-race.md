@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "0c704fd7", done: "ad3fb0e6"}
 ---
 
 # Test TempDir cleanup race: directory not empty under sharded make test
