@@ -52,10 +52,11 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
 | `issue lint-ids`  | (new #213)                  | Refuse issue ids reused across a range, and report ids already duplicated within one tree. Read-only; the logic CI's `40-duplicate-issue-id.sh` shells to |
 | `issue validate`  | (new #124)                  | Validate issue file(s) against `#Issue` — frontmatter cue-vet (via `vocabulary validate-instance`) + section presence; multi-target (#133): `<file>...` / `--issue N[,N...]` / `--all` (mutually exclusive). The on-demand surface of the instance-conformance loop |
-| `project new/list/show/validate` | (new #180 M3) | Author and inspect project records. Scaffold sections/status and discovery derive from `#Project`; validation shells to the noun-generic vocabulary validator |
-| `project set-status` | (new #180 M3) | Enforce the project lifecycle and its ordered named guards from `project.cue`; unknown guards fail closed, evidence lands in Log, and `done` remains owned by `project close` |
+| `project new/list/show/validate` | (new #180 M3) | Author and inspect project records. Scaffold sections/status and discovery derive from `#Project`; validation shells to the noun-generic vocabulary validator for frontmatter and checks the scaffold sections itself (#329; the changed-instance gate stays frontmatter-only) |
+| `project set-status` | (new #180 M3; #329) | Enforce the project lifecycle and its ordered named guards from `project.cue` (`trains-present`, `mvp-landed` through the shared card lookup); unknown guards fail closed, and `closed` remains owned by `project close` |
 | `project status/retro` | (new #180 M4) | Derive progress, dependency frontier, remaining effort, and thread components from live issue records; append dated re-forecast checkpoints without overwriting the baseline |
-| `project close` | (new #180 M4) | Require the modeled executing→done (or executing/paused→dropped) edge and a retro, roll Phase-A vs issue actuals into the brain fog ledger unless explicitly bypassed, then archive through `ArchiveSubdir(..., ArchiveProjects)` |
+| `project close` | (new #180 M4; #329) | Require the modeled closing→closed (or executing/closing→dropped) edge and a retro, then archive through `ArchiveSubdir(..., ArchiveProjects)` |
+| `project forecast` | (new #329) | Read-only: the trains' critical path as a range of focused hours, from each car's card and the calibration ledger (below) |
 
 ### Issue reservation, local durability and publication (#244)
 
@@ -564,70 +565,44 @@ Pure core (`parseRef`, `classifyFamily`) is unit-tested with no IO; the IO seams
 `push`/`merge`/`state` archive logic should migrate onto the same `Discovery()`
 accessor — a DRY consolidation, separate from this resolver.
 
-### Project calendar forecast (`throughput.go` + `forecast.go` + `projectforecast.go`, #182)
+### Project trains and forecast (`trains.go` + `trainforecast.go` + `projectforecast.go`, #329)
 
-Bridges effort (hours) to calendar (a date) — a project's load-bearing
-`deadline:` is a date, but both estimators produce hours. The forecast
-**informs, never blocks** (estimation is often wrong and slippage is
-recoverable by means the math can't see), so it's a computed statement
-recorded at the right surfaces, not a gate.
+A project is a TL's coordination plane with no deadline (#329 retired the #182
+calendar forecast, the throughput baseline and the Phase-A fog/calendar
+ledgers along with `deadline:`/`planned_finish:`). The forecast is derived on
+read and never typed in.
 
-- **Measured throughput (`internal/estimate/throughput.go`, M1).** `SpanThroughput`
-  sums the calibration ledger's `actual` hours — **deduped to one row per issue**, since the
-  ledger is written per CLOSE and a re-close carries a cumulative partial sum (#192) — over an
-  operator-**blessed** representative span ÷ span-weeks; the operator picks the span (trailing
-  windows skew under vacations/crunch), the machinery measures the rate.
-  `sdlc project throughput --bless FROM..TO` appends a provenance row
-  (`{span, hours_per_week, rows, ceiling}` — `rows` counts distinct ISSUES since #192;
-  earlier rows counted raw ledger lines and are not comparable) to
-  `brain/data/life/42shots/velocity/throughput-baseline.tsv` (append-only,
-  last = current); the bare form shows the current baseline + a trailing-4wk
-  comparison, never auto-substituted. Reuses the existing `estimate.LedgerRow`
-  parser (one ledger parser, ARCH-DRY).
-- **Pure forecast core (`internal/project/forecast.go`, M2).** `ComputeForecast`
-  divides this project's remaining issue-hours by its share of throughput
-  (baseline h/wk ÷ n active projects) → projected finish. **Unit identity:**
-  numerator (remaining issue-estimates) and denominator (ledger actuals/wk)
-  are both ship wall-clock engineer+AI hours (#118) — no human-hour
-  conversion, and parallelism is already priced into the measured rate, so
-  the attention ceiling is a **warning threshold, not arithmetic**. Paused
-  projects weigh 0 as named risks; a project with neither resolvable board
-  hours nor a Phase-A estimate is `unknown` (weight 0 + warning, never
-  silently dropped). `RenderForecast` is the single one-line statement every
-  consumer prints. No IO in the core; zero remaining / zero baseline → error
-  so callers fall back.
-- **Fleet load assembly (`projectforecast.go`, M2 — the IO seam).**
-  `ListFleetProjects` builds each active project's contention load via the
-  same `computeBoard` the status board uses, reusing
-  `project.ListActiveProjectFiles` — the `DiscoverByIssueRef` fleet walk
-  factored into a shared `walkFleetProjects` (one fleet-walk source,
-  behavior-identical for discovery). A project whose breakdown resolved into
-  issues reads board hours even at 0 remaining (a complete project reads ~0,
-  not the stale PRD number); Phase-A is a fallback only when nothing resolved;
-  a project with 0 remaining or `unknown` load doesn't contend.
-  `loadThroughputBaseline` maps absence AND parse failure to one
-  `errNoBaseline`; `forecastForProject` is the shared assembly the three
-  consumers call.
-- **The three consumers — inform, never block (M3).**
-  1. **`set-status →committed`** computes the forecast, prints the statement,
-     injects it as the `reality-check` evidence when the operator gave no
-     `--reality` (so the existing `evidenceGuard` passes on *having computed* —
-     zero guard/model change), and derives `planned_finish:`. Precedence
-     (`plannedFinishDecision`): explicit `--planned-finish` > a pre-existing
-     value > the derived date, each provenance-noted in the Log. The derived
-     `planned_finish` is applied to the doc **before** the guard loop, because
-     the `baseline-set` guard requires it. No blessed baseline → the legacy
-     `--reality` prose fallback (with a bless hint); it never refuses on the
-     forecast's *answer*, only on the absence of *any* evidence.
-  2. **`project show` / `status`** append the live forecast line
-     (`forecastLine`, best-effort — a read verb never fails on a forecast
-     error; no baseline → a quiet bless hint).
-  3. **`project close`** appends a planned-vs-actual `## Calendar ledger` row
-     (`slip_days = actual − planned`, `n/a` when unset) beside the fog row in
-     the same `estimate-logic-project-v1.md` — the project-level calendar
-     calibration loop, the analogue of the fog factor.
-  `appendProjectLedgerRow` is heading-parameterized (`Fog ledger` |
-  `Calendar ledger`), each error naming its own heading.
+- **Trains parser (`internal/project/trains.go`, pure).** `ParseTrains` reads
+  `## Trains`: a `| Train | Cars… | Slot |` table (a bare `#N` inherits the
+  previous car's repo; parentheses are annotations; every separator means "next
+  car") and `⇒` edge bullets (prose after a colon is the reason; `~` bullets are
+  ignored). A malformed row is skipped with a warning, never a panic (fuzzed).
+  `TrainPlan.Locate` answers "which train, which car" for find/resolve.
+- **Calibration (`internal/estimate/forecastcal.go`, pure).** `CalibrateForecast`
+  takes the newest split row per issue with an estimate (the `ConvergeFactors`
+  eligibility plus `ExcludedFromCalibration`): point multiplier
+  Σ(build+converge)/Σestimate (= estimate ÷ build rate × (1 + k)), range the
+  25th–75th percentile of per-issue multipliers (collapsed below 3 rows), class
+  prior the median estimate.
+- **Scheduler (`internal/project/trainforecast.go`, pure).** `ForecastTrains`
+  builds the car DAG (train order plus in-plan ⇒ edges), computes finish times
+  at low/point/high with Kahn's algorithm, and reports the critical path, the
+  train it ends in and the total remaining. A cycle is an error naming a car.
+  Landed cars count 0; unestimated or unreadable cards take the prior and are
+  named. `RenderTrainForecast` is the one statement every surface prints.
+- **IO seam (`projectforecast.go`).** `forecastForProject` resolves the
+  project's checkout (its repo name for bare refs, its root as the lookup
+  vantage), reads each car through `projectIssueLookupFn` and the ledger
+  through `calibrationLedgerPath` (`WF_CALIB_LEDGER` override). Surfaces:
+  `sdlc project forecast` (errors when there are no trains or no calibration)
+  and `project show`/`status` (`forecastLine`, best-effort and quiet without
+  trains).
+- **Navigation.** `DiscoverInRoots` matches a record that cites the issue as a
+  `[repo#N]` row ref OR carries it as a train car, and fills
+  `ProjectMatch.Train/Car/Cars`; `project find` prints `(train: X, car i/n)` and
+  `resolve --kind project --json` carries `train`/`car`. A train-only match has
+  `RowRef=false`, and the close-time tick skips it with an info line (no row
+  to edit, so no detail block is demanded).
 
 ## Artifact migration (`sdlc migrate`, #179)
 
@@ -1311,6 +1286,11 @@ through change-code's own resolution (`planArtifactPath`, `planQualityPromptInpu
 and never written. A live `judge plan-quality` refuses and points at `change-code`:
 the gate's decision is its ledger's, and an unrecorded review is the stateless
 pre-#187 behavior (#189).
+`planArtifactPath` finds the durable plan by issue id, not exact slug (#235): the one
+`NNNNNN-*-plan.md` in the plans dir, whatever its slug (sidecars excluded by
+`classifyFamily`'s suffix rule), with a note naming the canonical name when it
+differs; two candidates refuse. Change-code, close's measure and review snapshot,
+the review manifest and `judge plan-quality` all read through it.
 Cite the marker (`ARCH-DRY`) in plans/Logs/findings.
 
 **Adding an `ARCH-*` entry** flows into every RUNTIME consumer with no other edit

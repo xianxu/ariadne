@@ -29,7 +29,7 @@ type ProjectModel struct {
 
 // projectCategoryOrder is the project noun's category ordering for AllStatuses:
 // the funnel left-to-right, terminal last.
-var projectCategoryOrder = []string{"forming", "committed", "executing", "terminal"}
+var projectCategoryOrder = []string{"forming", "executing", "terminal"}
 
 var projectModel = mustLoadProject()
 
@@ -54,27 +54,27 @@ func (m *ProjectModel) Sections() []Section { return m.Scaf.Sections }
 
 // InitialStatus returns the status a newly-created project carries — the first
 // member of the `forming` category (the funnel's entry point). Falls back to
-// "ideation" only if a corrupt model defines no forming status (mustLoadProject
+// "defined" only if a corrupt model defines no forming status (mustLoadProject
 // already panics on corrupt JSON, so this is a belt-and-suspenders guard).
 func (m *ProjectModel) InitialStatus() string {
 	forming := m.Categories["forming"]
 	if len(forming) == 0 {
-		return "ideation"
+		return "defined"
 	}
 	return forming[0]
 }
 
-// IsTerminal reports whether s is a closed status (done/dropped).
+// IsTerminal reports whether s is a terminal status (closed/dropped).
 func (m *ProjectModel) IsTerminal(s string) bool { return inCat(m.Categories, "terminal", s) }
 
-// IsExecuting reports whether s is in the live portfolio (executing/paused).
+// IsExecuting reports whether s is live past the charter (executing/closing).
 func (m *ProjectModel) IsExecuting(s string) bool { return inCat(m.Categories, "executing", s) }
 
-// IsForming reports whether s is pre-baseline (ideation/defined).
+// IsForming reports whether s precedes the first dispatched train (defined).
 func (m *ProjectModel) IsForming(s string) bool { return inCat(m.Categories, "forming", s) }
 
 // AllStatuses returns every status, funnel-ordered:
-// forming → committed → executing → terminal.
+// forming → executing → terminal.
 func (m *ProjectModel) AllStatuses() []string {
 	return allStatuses(m.Categories, projectCategoryOrder)
 }

@@ -32,7 +32,7 @@ func TestGateFlagsForCommand(t *testing.T) {
 		"change-code":   {"no-estimate", "no-estimate-recon", "no-judge", "no-structural"},
 		"merge":         {"no-ci", "no-judge", "no-validate"},
 		"push":          {"no-judge", "no-validate"},
-		"project close": {"no-ledger", "no-retro"},
+		"project close": {"no-retro"},
 	}
 	for cmd, want := range cases {
 		got := GateFlagsFor(cmd)

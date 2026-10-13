@@ -812,6 +812,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// Label messages by repo/file so same-named projects in different repos
 		// are distinguishable under fleet-wide multi-match (#171 M2 review).
 		label := m.Repo + "/" + filepath.Base(m.Path)
+		if !m.RowRef {
+			cinfo(stderr, fmt.Sprintf("project %s carries %s#%s only as a train car (%s) — no row to tick", label, repoName, issueStr, m.Train))
+			continue
+		}
 		if m.Legacy {
 			cwarn(stderr, fmt.Sprintf("project %s is in the deprecated brain/data/project home — migrate it to <repo>/workshop/projects (ariadne#171)", label))
 		}
@@ -1022,15 +1026,12 @@ func shouldLogCalibration(f *closeFlags) bool {
 // WF_CALIB_LEDGER is unset AND the resolved ledger dir is absent, it skips with a
 // warning and returns — a missing ledger must NEVER break `sdlc close`.
 func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, issueStr, today string, m closeCostMetrics, fl closeFlowOutcome) {
-	ledgerPath := os.Getenv("WF_CALIB_LEDGER")
-	usingOverride := ledgerPath != ""
-	if !usingOverride {
-		if f.BrainDir == "" {
-			cwarn(stderr, "calibration ledger skipped (no brain dir resolved)")
-			return
-		}
-		ledgerPath = estimate.VelocityPath(f.BrainDir, "calibration-ledger.tsv")
+	usingOverride := os.Getenv("WF_CALIB_LEDGER") != ""
+	if !usingOverride && f.BrainDir == "" {
+		cwarn(stderr, "calibration ledger skipped (no brain dir resolved)")
+		return
 	}
+	ledgerPath := calibrationLedgerPath(f.BrainDir)
 	ledgerDir := filepath.Dir(ledgerPath)
 	if _, err := os.Stat(ledgerDir); err != nil {
 		if !usingOverride {
@@ -1089,7 +1090,7 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		BoundaryDisputed: m.BoundaryDisputed,
 
 		// #231: the flow the issue closed under — quick and upgraded rows carry no
-		// estimate, so drift skips them; throughput keeps their hours.
+		// estimate, so drift and the forecast calibration skip them.
 		FlowKind:       string(fl.flow.Kind()),
 		FlowProvenance: string(fl.flow.Provenance()),
 		FlowUpgraded:   fl.upgraded(),
@@ -1600,7 +1601,10 @@ func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone, plansDir 
 		return closeReviewSnapshot{}, err
 	}
 	var paths []string
-	_, plan := reviewPlanPaths(root, plansDir, r.issuePath)
+	_, plan, err := reviewPlanPaths(root, plansDir, r.issuePath)
+	if err != nil {
+		return closeReviewSnapshot{}, err
+	}
 	if plan != "" {
 		paths = append(paths, plan)
 	}

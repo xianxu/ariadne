@@ -52,8 +52,10 @@ GITHUB REFS
 KINDS
 
   `--kind project` resolves the ref to PROJECT RECORDS instead of the issue
-  family: every project across the fleet whose body contains the reference
-  marker (`[repo#id]` or `[repo#id Mx]`), archive-inclusive
+  family: every project across the fleet that references the issue, either by
+  a row marker (`[repo#id]` or `[repo#id Mx]`) or as a car in its `## Trains`
+  (#329; text mode appends `(train: X, car i/n)`, JSON carries `train` and
+  `car`), archive-inclusive
   (`workshop/projects/` + `workshop/history/projects/` + the deprecated brain
   legacy home, flagged `(legacy)` in text mode, `legacy: true` in JSON). A
   project may live in a different repo than the issue it tracks (ariadne#171).

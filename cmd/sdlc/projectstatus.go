@@ -31,7 +31,7 @@ func newProjectStatusCmd() *cobra.Command {
 		}}
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug")
 	cmd.Flags().StringVar(&f.ProjectsDir, "projects-dir", defaultProjectsDir(), "directory holding project files")
-	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "brain root holding the throughput baseline (for the forecast line)")
+	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "brain root holding the calibration ledger (for the forecast line)")
 	_ = cmd.MarkFlagRequired("slug")
 	return cmd
 }
@@ -54,7 +54,7 @@ func runProjectStatus(ctx context.Context, stdout, _ io.Writer, f *projectStatus
 		return err
 	}
 	fmt.Fprint(stdout, renderBoard(b, projectTodayFn()))
-	if line := forecastLine(ctx, path, f.BrainDir, projectTodayFn()); line != "" {
+	if line := forecastLine(ctx, path, f.BrainDir); line != "" {
 		fmt.Fprintln(stdout, line)
 	}
 	return nil
@@ -81,14 +81,13 @@ type boardRow struct {
 }
 
 type board struct {
-	Name, Status            string
-	Rows                    []boardRow
-	Done, Total             int
-	RemainingHours          float64
-	Deadline, PlannedFinish string
-	Frontier, Blocked       []string
-	Threads                 [][]string
-	LastRetro               string
+	Name, Status      string
+	Rows              []boardRow
+	Done, Total       int
+	RemainingHours    float64
+	Frontier, Blocked []string
+	Threads           [][]string
+	LastRetro         string
 }
 
 func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (board, error) {
@@ -96,7 +95,7 @@ func computeBoard(d *projectdoc.Doc, lookup func(string) (issueMeta, error)) (bo
 	if err != nil {
 		return board{}, err
 	}
-	b := board{Name: metadata.Name, Status: metadata.Status, Deadline: metadata.Deadline, PlannedFinish: metadata.PlannedFinish, Total: len(d.Tasks), LastRetro: projectdoc.LatestRetroDate(d)}
+	b := board{Name: metadata.Name, Status: metadata.Status, Total: len(d.Tasks), LastRetro: projectdoc.LatestRetroDate(d)}
 	metas := map[string]issueMeta{}
 	display := map[string]string{}
 	refIDs := map[string]string{}
@@ -232,15 +231,6 @@ func connectedThreads(order []string, graph map[string]map[string]bool) [][]stri
 func renderBoard(b board, today string) string {
 	var s strings.Builder
 	fmt.Fprintf(&s, "%s — %s\n", b.Name, b.Status)
-	deadline := b.Deadline
-	if deadline != "" {
-		if d, err := time.Parse("2006-01-02", deadline); err == nil {
-			if now, err := time.Parse("2006-01-02", today); err == nil {
-				deadline = fmt.Sprintf("%s (%d days)", deadline, int(d.Sub(now).Hours()/24))
-			}
-		}
-	}
-	fmt.Fprintf(&s, "deadline: %s · planned finish: %s\n", valueOr(deadline, "-"), valueOr(b.PlannedFinish, "-"))
 	fmt.Fprintf(&s, "progress: %d/%d done · Σ remaining ≈ %gh\n", b.Done, b.Total, b.RemainingHours)
 	fmt.Fprintf(&s, "frontier: %s\n", valueOr(strings.Join(b.Frontier, ", "), "-"))
 	fmt.Fprintf(&s, "blocked: %s\n", valueOr(strings.Join(b.Blocked, ", "), "-"))

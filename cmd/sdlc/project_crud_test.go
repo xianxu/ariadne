@@ -126,13 +126,13 @@ func TestRunProjectListAndShow(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	write("alpha", "---\ntype: project\nname: alpha\nstatus: executing\ndeadline: 2026-09-01\n---\n## Breakdown\n- [x] done [ariadne#1]\n- [ ] todo [ariadne#2]\n")
-	write("beta", "---\ntype: project\nname: beta\nstatus: ideation\n---\n## Breakdown\n")
+	write("alpha", "---\ntype: project\nname: alpha\nstatus: executing\ntl: xian-xu@ops:0\n---\n## Breakdown\n- [x] done [ariadne#1]\n- [ ] todo [ariadne#2]\n")
+	write("beta", "---\ntype: project\nname: beta\nstatus: defined\n---\n## Breakdown\n")
 	var out, errOut bytes.Buffer
 	if err := runProjectList(&out, &errOut, &projectListFlags{ProjectsDir: dir}); err != nil {
 		t.Fatal(err)
 	}
-	for _, want := range []string{"alpha  executing  2026-09-01", "beta  ideation  -"} {
+	for _, want := range []string{"alpha  executing  xian-xu@ops:0", "beta  defined  -"} {
 		if !strings.Contains(out.String(), want) {
 			t.Errorf("list missing %q:\n%s", want, out.String())
 		}

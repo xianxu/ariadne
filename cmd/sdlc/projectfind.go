@@ -75,11 +75,14 @@ func discoverProjectsForRef(refStr, root string) ([]projectdoc.ProjectMatch, Art
 }
 
 // printProjectMatches is the shared text renderer for both navigation surfaces
-// (`project find`, `resolve --kind project`): one path per line, legacy (brain)
-// records flagged.
+// (`project find`, `resolve --kind project`): one path per line, with the
+// issue's train and car when a train carries it, legacy (brain) records flagged.
 func printProjectMatches(w io.Writer, matches []projectdoc.ProjectMatch) {
 	for _, m := range matches {
 		line := m.Path
+		if m.Train != "" {
+			line += fmt.Sprintf("  (train: %s, car %d/%d)", m.Train, m.Car, m.Cars)
+		}
 		if m.Legacy {
 			line += " (legacy)"
 		}

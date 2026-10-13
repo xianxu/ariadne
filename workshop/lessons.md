@@ -55,6 +55,9 @@ Detailed incidents remain in their owning issue or review artifact.
   the restore help still told a refused user to claim (#274 BR-1). Then state the
   policy once (a help placeholder) and add a wording test over help, catalog and
   atlas, or the next review finds the next copy (#274 BR-4).
+- Do not `filepath.Glob` a path joined from a directory you did not write: `[`, `*`
+  and `?` in the repository path become wildcards and a present file reads as
+  absent. List the directory and match the base name (#235).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - Scope a guard's failure to the input it actually reads. A fail-closed check that
@@ -493,3 +496,15 @@ The simplest durable authority beats a clever scan of consequences.
   check reads (records, created paths, removed paths), project each into the
   check, and give every projection branch a test that fails with that branch
   disabled. Round 2 found the removed-path branch had no such test.
+- Before writing a matcher for a repository convention (a commit-subject
+  anchor, a branch name, an ID format), grep the internal packages for the
+  existing one. #311 wrote its own `^#N` regex while `gitx.IsShippedWorkSubject`
+  already owned that anchor plus the bookkeeping-verb filter, so the copy
+  would have accepted a range holding only `#N: close` commits.
+- Don't edit or commit in a checkout while its `make test` runs. The cmd/sdlc
+  hermeticity guard compares the repo before and after, so your own edits read
+  as "a test wrote the real repo" and every shard fails although every test
+  passed (#329). Run the full suite only when nothing else writes to the tree.
+- A handoff against a file someone else keeps editing (an ops project's Log)
+  goes stale as a saved patch within hours. Hand off the regeneration script
+  and keep the patch only as a preview (#329 D10).

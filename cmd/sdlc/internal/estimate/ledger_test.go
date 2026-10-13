@@ -29,8 +29,7 @@ func TestFormatRow_Stable(t *testing.T) {
 }
 
 // Appending columns must not break the reader for PRE-EXISTING 10-column rows. Every
-// ledger in the fleet is full of them, and projectthroughput_test.go seeds them as
-// fixtures — a presence check that read the new columns unconditionally would drop the
+// ledger in the fleet is full of them — a presence check that read the new columns unconditionally would drop the
 // entire calibration history rather than just the metrics it lacks.
 func TestParseRowsAcceptsLegacyTenColumnRows(t *testing.T) {
 	legacy := Header() + "\nariadne#1\t2\t1\t1\t3\t0.67\tm\t-\tyes\t2026-01-01\n"
@@ -205,7 +204,7 @@ func TestUpgradeHeaderLeavesCurrentAndForeignHeadersAlone(t *testing.T) {
 	}
 }
 
-// NewestPerIssue is the single shared dedupe rule two readers (SpanThroughput, driftSample)
+// NewestPerIssue is the single shared dedupe rule the ledger readers (driftSample, CalibrateForecast, …)
 // depend on, and its two contract clauses were only covered indirectly — via drift_test.go,
 // where a violation surfaces as "expected drift warning" three files away instead of as a
 // contract breach at the helper (ariadne#192 close review, I5).
@@ -233,7 +232,7 @@ func TestNewestPerIssue_KeepsLastPerIssue(t *testing.T) {
 
 func TestNewestPerIssue_ReversedInputTakesTheOtherEnd(t *testing.T) {
 	// Direction-agnostic by construction: driftSample walks backward taking first-seen while
-	// SpanThroughput walks forward needing last-seen. Reversing the input must move which row
+	// CalibrateForecast walks forward needing last-seen. Reversing the input must move which row
 	// survives — if it doesn't, the helper has baked in an order and one caller is wrong.
 	rows := []LedgerRow{
 		{Issue: "a#1", Actual: 1.0},

@@ -37,15 +37,25 @@ repeated, interrupted or answered by a lost response: ` + "`sdlc help recovery`"
 		},
 	})
 	var issueID int
+	var landed string
 	reconcile := markMutatingCommand(&cobra.Command{
 		Use:   "reconcile",
 		Short: "Resume (or release, when nothing was published) an issue's unfinished operations",
-		Args:  cobra.NoArgs, SilenceErrors: true,
+		Long: `Resume (or release, when nothing was published) an issue's unfinished operations,
+then finish the bookkeeping of closes already on main.
+
+--landed <commit> (#311) completes a codecomplete card that carries no close
+binding (migrated from before the tracker), whose branch the merge detector
+cannot find (renamed, or deleted). The commit must be on main and the work it
+brought in (a PR's merge commit, or a squash commit) must carry a commit whose
+subject cites the issue.`,
+		Args: cobra.NoArgs, SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return runRecoveryReconcile(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), issueID)
+			return runRecoveryReconcileLanded(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), issueID, landed)
 		},
 	})
 	reconcile.Flags().IntVar(&issueID, "issue", 0, "issue ID (required)")
+	reconcile.Flags().StringVar(&landed, "landed", "", "the commit on main that landed an unbound codecomplete card's work; completes it (#311)")
 	cmd.AddCommand(reconcile)
 	return cmd
 }
@@ -74,6 +84,24 @@ func runRecoveryList(ctx context.Context, stdout io.Writer) error {
 		fmt.Fprintf(stdout, "#%s\t%s\t%s\t%s\t%s\t%s\n", spec.IssueID, r.Operation(), r.Stage(), r.Outcome(), spec.Token, where)
 	}
 	return listErr
+}
+
+// runRecoveryReconcileLanded is reconcile, first completing an unbound card
+// from the commit that landed it when --landed names one (#311).
+func runRecoveryReconcileLanded(ctx context.Context, stdout, stderr io.Writer, issueID int, landed string) error {
+	if landed != "" {
+		if issueID <= 0 {
+			return errors.New("--issue is required and must be positive")
+		}
+		env, err := openTracker(ctx)
+		if err != nil {
+			return err
+		}
+		if err := repairLanded(ctx, env, stderr, envOr("WF_ISSUES_DIR", "workshop/issues"), fmt.Sprintf("%06d", issueID), landed); err != nil {
+			return err
+		}
+	}
+	return runRecoveryReconcile(ctx, stdout, stderr, issueID)
 }
 
 // runRecoveryReconcile resumes each of an issue's receipts. Creation cannot

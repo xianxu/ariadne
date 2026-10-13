@@ -332,7 +332,6 @@ sdlc project new --slug example --goal 'Why this exists' --done-when 'A falsifia
 sdlc project list
 sdlc project show --slug example
 sdlc project validate --slug example
-sdlc project set-status --slug example --to defined
 sdlc project status --slug example
 sdlc project retro --slug example --dry-run
 sdlc project retro --slug example
@@ -340,26 +339,21 @@ sdlc project close --slug example
 # Find every project record referencing an issue, fleet-wide (archive-inclusive):
 sdlc project find --issue metis#18
 sdlc resolve --kind project 'metis#18'   # same discovery via the resolver
-# Bridge effort to calendar: bless a measured throughput baseline, then show it:
-sdlc project throughput --bless 2026-06-22..2026-07-19
-sdlc project throughput                  # current baseline + trailing-4wk comparison
-# Once blessed, the forecast (throughput ÷ contention → finish vs deadline)
-# informs — never blocks — at three surfaces:
-sdlc project set-status --slug example --to committed   # computes + derives planned_finish
-sdlc project set-status --slug example --to committed --planned-finish 2026-09-01  # override
-sdlc project show --slug example         # appends the live forecast-vs-deadline line
-# and project close records planned-vs-actual finish in the Calendar ledger.
-# A paused or executing project may be dropped instead of completed:
+# Forecast remaining focused hours from the trains (critical path as a range):
+sdlc project forecast --slug example
+# Lifecycle: defined → executing (needs a train) → closing (every mvp_scope issue landed) → close
+sdlc project set-status --slug example --to executing
+sdlc project set-status --slug example --to closing
+# A live (executing or closing) project may be dropped instead of closed:
 sdlc project close --slug example --drop
-# Explicit escape for a legacy record where neither gate applies:
-sdlc project close --slug legacy-example --no-retro --no-ledger
+# Explicit escape for a record with no retro:
+sdlc project close --slug legacy-example --no-retro
 ```
 
 `set-status` enforces the lifecycle and named guards declared in
 `construct/vocabulary/project.cue`; project completion remains owned by
-`sdlc project close`. When a retro or calibration ledger genuinely does not
-apply, acknowledge that explicitly with `--no-retro` or `--no-ledger`
-(`--force` waives both); ordinary closes should satisfy both gates.
+`sdlc project close`. When a retro genuinely does not apply, acknowledge that
+explicitly with `--no-retro` (`--force` waives it too).
 
 ## License
 

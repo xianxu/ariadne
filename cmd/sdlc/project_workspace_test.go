@@ -6,8 +6,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
-
-	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 )
 
 func projectWorkspaceGit(t *testing.T, dir string, args ...string) {
@@ -84,30 +82,30 @@ func TestProjectWorkspaceFindOrdinarySibling(t *testing.T) {
 	}
 }
 
-func TestProjectWorkspaceForecastOverlaysCurrentCheckout(t *testing.T) {
-	fleet, _, slot := projectWorkspaceFixture(t)
-	writeFleetProject(t, fleet, "ariadne", "primary-only", "executing", "ariadne#18", "100h")
-	sibling := filepath.Join(fleet, "ariadne-sibling")
-	projectWorkspaceGit(t, filepath.Join(fleet, "ariadne"), "worktree", "add", "-b", "ordinary-sibling", sibling)
-	writeFleetProject(t, fleet, "ariadne-sibling", "duplicate", "executing", "ariadne#18", "40h")
-	subject := writeFleetProject(t, filepath.Dir(slot), filepath.Base(slot), "subject", "executing", "ariadne#18", "40h")
-	writeFleetProject(t, filepath.Dir(slot), filepath.Base(slot), "current-other", "executing", "ariadne#19", "40h")
-	writeFleetProject(t, fleet, "metis", "peer", "executing", "metis#18", "40h")
-	baseline := filepath.Join(fleet, "baseline.tsv")
-	if err := os.WriteFile(baseline, []byte(estimate.BaselineHeader()+"\n2026-07-19\ts\te\t40.00\t10\t4\n"), 0644); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("WF_THROUGHPUT_BASELINE", baseline)
+// The forecast resolves cars from the checkout holding the project: a bare #N
+// takes that checkout's canonical repo name (not the slot directory's), and
+// every card lookup runs from that checkout's root.
+func TestProjectWorkspaceForecastResolvesFromCurrentCheckout(t *testing.T) {
+	_, _, slot := projectWorkspaceFixture(t)
+	subject := writeTrainProject(t, slot, "subject", "| Train | Cars, in order | Slot |\n|---|---|---|\n| A | #18 → #19 | :1 |")
+	writeForecastLedger(t)
+	var roots []string
+	stubForecastLookup(t, map[string]issueMeta{"ariadne#18": {Status: "done", EstimateHours: 4}, "ariadne#19": {Status: "open", EstimateHours: 2}}, &roots)
 	d, err := readProject(subject)
 	if err != nil {
 		t.Fatal(err)
 	}
-	f, _, err := forecastForProject(context.Background(), d, subject, "", "2026-09-01")
+	f, _, err := forecastForProject(context.Background(), d, subject, "")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if f.N != 3 {
-		t.Fatalf("want subject + current-other + peer contention, got %+v", f)
+	if f.Remaining != 2 || len(f.Notes) != 0 {
+		t.Fatalf("want only ariadne#19's 2h at ×1 (no notes), got %+v", f)
+	}
+	for _, r := range roots {
+		if r != slot {
+			t.Fatalf("lookup ran from %q, want the slot %q", r, slot)
+		}
 	}
 }
 

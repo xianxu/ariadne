@@ -1,0 +1,96 @@
+diff --git a/teams/devinfra/projects/ariadne-robustness-1/project.md b/teams/devinfra/projects/ariadne-robustness-1/project.md
+index 3a09e4f..c676c90 100644
+--- a/teams/devinfra/projects/ariadne-robustness-1/project.md
++++ b/teams/devinfra/projects/ariadne-robustness-1/project.md
+@@ -3,7 +3,7 @@ type: project
+ name: "ariadne-robustness-1"
+ goal: "Make ariadne's sdlc robust for multi-slot, multi-operator work by fixing the broken windows the claimant and card/details transition exposed."
+ done_when: "Every MVP issue is closed, and a fresh-context audit of 7 days of TTY transcripts after the last one lands (same method as the 2026-10-09 evidence pensive) finds: no recurrence of themes A–D (main integration breaking review/time/publish, card/details seams, writes onto main or peer checkouts, a lost or blocked judge verdict); no routine use of --no-actual, --no-validate, --no-done-when-fresh or WF_REVIEW_TIMEOUT; and no hand repair of git history or tracker cards."
+-status: defined
++status: executing
+ operator: Xian Xu
+ tl: xian-xu@ops:0
+ mvp_scope: [ariadne#339, ariadne#338, ariadne#336, ariadne#334, ariadne#300, ariadne#271, ariadne#189, ariadne#270, ariadne#254, ariadne#304, ariadne#183, ariadne#269, ariadne#303, ariadne#307, ariadne#274, ariadne#308, ariadne#282, ariadne#305, ariadne#240, ariadne#235, ariadne#311, ariadne#202, ariadne#204, ariadne#310, ariadne#196, ariadne#309, ariadne#228, ariadne#234, ariadne#281, ariadne#265, ariadne#230, ariadne#299, ariadne#302, ariadne#191, ariadne#315, ariadne#317, ariadne#318, ariadne#319, ariadne#320, ariadne#321, ariadne#322, ariadne#324, ariadne#325, ariadne#326]
+@@ -23,7 +23,7 @@ claimant-ownership (#283–#287) made the claimant the owner and the lock, and m
+ 
+ This project fixes those seams, using the issues already open plus the few new ones the review produced. **Not in MVP:** the 12 transcript-only findings, which form a second batch for the operator to read before filing (evidence pensive, "The 12 worth filing"). Also out: the ARCH-principle issues (a separate `arch-principles` project) and feature work (#233 review-free flow, #035 postmortem, #123 `state --full`).
+ 
+-## PRD
++## Charter
+ 
+ **Problem.** The evidence pensive (`workshop/pensive/2026-10-09-01-pensive-sdlc-robustness-evidence.md`) is the requirements source; finding IDs (A1, B2, …) refer to it. The costliest patterns:
+ - **Main integration.** Every merge or rebase of main poisons four mechanisms:
+@@ -56,15 +56,11 @@ This project fixes those seams, using the issues already open plus the few new o
+ 
+ **Acceptance:** `done_when`.
+ 
+-## Estimate
++**Sizing.** Estimated per child at its `change-code` (full flow) or none (quick flow). Rough sizing for sequencing only: about 30 issues; several are small mechanical fixes (#189, #196, #299, #254, #311). The heavy items are #304, #308, #274, #307, #270 and #300.
+ 
+-Estimated per child at its `change-code` (full flow) or none (quick flow). Rough sizing for sequencing only: about 30 issues; several are small mechanical fixes (#189, #196, #299, #254, #311). The heavy items are #304, #308, #274, #307, #270 and #300.
++## Trains
+ 
+-## Breakdown
+-
+-Order: judge robustness first, because every close below depends on it. Then the main-integration foundation, then the ownership/tracker model. Review quality, measurement, weave/env and test infrastructure can run in parallel slots once their dependencies land.
+-
+-**Trains (10-10, operator-approved; supersede the order line above).** A train is a chain of issues in one code area,
++Operator-approved 10-10; they supersede the Breakdown's order line. A train is a chain of issues in one code area,
+ run by one slot in order. Groom at every filing and every batch edge (xx-tl "Grooming").
+ 
+ | Train | Cars, in order | Slot |
+@@ -90,6 +86,10 @@ Cross-train edges (⇒ hard, must land first; ~ overlap, coordinate through the
+ - ariadne#196 ~ ariadne#318: merge cleanup needs a `.git/config` write the sandbox blocks (kink 52).
+ - ariadne#308 fixes kink 38 (stray close ticks in the TL's checkout): a TL-side win, so it leads its train's second half.
+ 
++## Breakdown
++
++Order: judge robustness first, because every close below depends on it. Then the main-integration foundation, then the ownership/tracker model. Review quality, measurement, weave/env and test infrastructure can run in parallel slots once their dependencies land.
++
+ **0. Housekeeping**
+ - [x] Close superseded or fixed issues: #220, #221, #222, #219, #210, #306, #223, #096; #198 (folded into #202); #052 (superseded by #309); #197 (folded into #304); #273 (superseded by #308); #251 (fold into #237)
+ - [x] Archive #249/#293's details (wontfix cards with live details)
+@@ -699,3 +699,7 @@ never wrote. ariadne:1 on #265 (weave robustness), re-scoped by what #281 remove
+ Every plan reader finds `NNNNNN-*-plan.md` by id through one lookup; two candidates are refused, sidecars never taken.
+ Advisory not filed: 11 other `filepath.Glob(filepath.Join(dir, …))` sites treat glob metacharacters in a repo path as
+ wildcards (rare; a lessons rule covers new code).
++
++## Decisions
++
++<!-- Cross-issue decisions only, append-only: `- <ISO date> — <decision> (<who decided>): <one line of why>`. Issue-scoped decisions go in the issue's ## Revisions. -->
+diff --git a/teams/devinfra/projects/couch-broadcast-web/project.md b/teams/devinfra/projects/couch-broadcast-web/project.md
+index f8ceeca..a8fbeb4 100644
+--- a/teams/devinfra/projects/couch-broadcast-web/project.md
++++ b/teams/devinfra/projects/couch-broadcast-web/project.md
+@@ -22,7 +22,7 @@ internal viewers (a colleague uses the app through the operator's tab). **Not in
+ participants, customers) and the customer-data privacy they need (masking, throwaway profiles, cloned accounts),
+ canvas/WebGL/video content, and pixel streaming of any kind.
+ 
+-## PRD
++## Charter
+ 
+ ### Who and why
+ 
+@@ -182,9 +182,12 @@ can tell who did what. The viewer's own shell carries input back; the recorded p
+   copy of their data under new credentials, masking by default (inputs always; marked regions), a throwaway browser
+   profile per session, consent on screen, a retention policy.
+ 
+-## Estimate
++**Sizing.** Not yet. Sized after the open questions below settle and the breakdown has issues.
+ 
+-Not yet. Sized after the open questions below settle and the breakdown has issues.
++## Trains
++
++| Train | Cars, in order | Slot |
++|---|---|---|
+ 
+ ## Breakdown
+ 
+@@ -759,3 +762,7 @@ new build maps every known 5xx or logs its cause once on Couch's notice line, so
+ 
+ The operator, on the parley blog: the demo video (poster, play button, caption) is absent in the Safari viewer and the
+ space collapses. pair:6 takes it after #505, ahead of #494; it sweeps the other replaced elements too.
++
++## Decisions
++
++<!-- Cross-issue decisions only, append-only: `- <ISO date> — <decision> (<who decided>): <one line of why>`. Issue-scoped decisions go in the issue's ## Revisions. -->

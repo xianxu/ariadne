@@ -1,28 +1,22 @@
 {
     "categories": {
         "forming": [
-            "ideation",
             "defined"
-        ],
-        "committed": [
-            "committed"
         ],
         "executing": [
             "executing",
-            "paused"
+            "closing"
         ],
         "terminal": [
-            "done",
+            "closed",
             "dropped"
         ]
     },
     "when": {
-        "ideation": "idea captured; PRD not yet written (ideation lives in parley, linked via sources)",
-        "defined": "PRD exists in the project file; not yet committed to a timeline",
-        "committed": "baseline set (deadline + planned finish + parallelism intent); not yet broken down",
-        "executing": "PRD broken down into issues across repos; work in flight",
-        "paused": "execution suspended; committed baseline stays intact",
-        "done": "done_when met; retro + fog-factor ledger row recorded",
+        "defined": "Charter written (problem, cross-issue requirements, done_when, scope); no train dispatched yet",
+        "executing": "the first train is dispatched; the TL grooms Trains and appends Decisions",
+        "closing": "every mvp_scope issue has landed; the done_when audit is the remaining work",
+        "closed": "done_when audit passed; retro recorded and the file archived",
         "dropped": "no longer worth pursuing"
     },
     "discovery": {
@@ -33,10 +27,11 @@
     "scaffold": {
         "sections": [
             {
-                "name": "PRD"
+                "name": "Charter"
             },
             {
-                "name": "Estimate"
+                "name": "Trains",
+                "seed": "| Train | Cars, in order | Slot |\n|---|---|---|"
             },
             {
                 "name": "Breakdown",
@@ -44,71 +39,45 @@
             },
             {
                 "name": "Log"
+            },
+            {
+                "name": "Decisions"
             }
         ]
     },
     "lifecycle": [
         {
-            "from": "ideation",
-            "to": "defined",
-            "event": "define",
-            "guards": [
-                "prd-present"
-            ]
-        },
-        {
             "from": "defined",
-            "to": "committed",
-            "event": "commit",
-            "guards": [
-                "phase-a-estimate",
-                "baseline-set",
-                "reality-check"
-            ]
-        },
-        {
-            "from": "committed",
             "to": "executing",
-            "event": "breakdown",
+            "event": "execute",
             "guards": [
-                "issues-cover-prd"
+                "trains-present"
             ]
         },
         {
             "from": "executing",
-            "to": "done",
+            "to": "closing",
+            "event": "wrap",
+            "guards": [
+                "mvp-landed"
+            ]
+        },
+        {
+            "from": "closing",
+            "to": "executing",
+            "event": "reopen",
+            "guards": []
+        },
+        {
+            "from": "closing",
+            "to": "closed",
             "event": "close",
             "guards": [
-                "retro-recorded",
-                "fog-factor-recorded"
+                "retro-recorded"
             ]
         },
         {
-            "from": "executing",
-            "to": "paused",
-            "event": "pause",
-            "guards": []
-        },
-        {
-            "from": "paused",
-            "to": "executing",
-            "event": "resume",
-            "guards": []
-        },
-        {
-            "from": "ideation",
-            "to": "dropped",
-            "event": "drop",
-            "guards": []
-        },
-        {
             "from": "defined",
-            "to": "dropped",
-            "event": "drop",
-            "guards": []
-        },
-        {
-            "from": "committed",
             "to": "dropped",
             "event": "drop",
             "guards": []
@@ -122,7 +91,7 @@
             ]
         },
         {
-            "from": "paused",
+            "from": "closing",
             "to": "dropped",
             "event": "drop",
             "guards": [
@@ -132,28 +101,22 @@
     ],
     "laws": {
         "documented-value": {
-            "ideation": "idea captured; PRD not yet written (ideation lives in parley, linked via sources)",
-            "defined": "PRD exists in the project file; not yet committed to a timeline",
-            "committed": "baseline set (deadline + planned finish + parallelism intent); not yet broken down",
-            "executing": "PRD broken down into issues across repos; work in flight",
-            "paused": "execution suspended; committed baseline stays intact",
-            "done": "done_when met; retro + fog-factor ledger row recorded",
+            "defined": "Charter written (problem, cross-issue requirements, done_when, scope); no train dispatched yet",
+            "executing": "the first train is dispatched; the TL grooms Trains and appends Decisions",
+            "closing": "every mvp_scope issue has landed; the done_when audit is the remaining work",
+            "closed": "done_when audit passed; retro recorded and the file archived",
             "dropped": "no longer worth pursuing"
         },
         "reachable": {
-            "defined": true,
-            "committed": true,
             "executing": true,
-            "paused": true,
-            "done": true,
+            "closing": true,
+            "closed": true,
             "dropped": true
         },
         "escapable": {
-            "ideation": true,
             "defined": true,
-            "committed": true,
             "executing": true,
-            "paused": true
+            "closing": true
         }
     }
 }

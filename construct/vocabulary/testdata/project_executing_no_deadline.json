@@ -1,0 +1,8 @@
+{
+  "type": "project",
+  "name": "live-tl-project",
+  "goal": "a live executing project driven by a TL, with no deadline",
+  "done_when": "criterion met",
+  "status": "executing",
+  "tl": "xian-xu@ops:0"
+}
