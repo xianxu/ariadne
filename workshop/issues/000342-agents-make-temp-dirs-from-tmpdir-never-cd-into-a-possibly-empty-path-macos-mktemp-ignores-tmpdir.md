@@ -53,7 +53,7 @@ Fix it where agents and scripts learn and run:
   `Makefile.workflow` drift check (2), `scripts/docflow.test.sh`,
   `construct/scripts/test/clone-data-deps.test.sh` (cd into mktemp), and the
   session-retro skill's `/tmp` template.
-- [ ] Atlas note; full suite; close.
+- [x] Atlas note; full suite.
 
 ## Log
 
