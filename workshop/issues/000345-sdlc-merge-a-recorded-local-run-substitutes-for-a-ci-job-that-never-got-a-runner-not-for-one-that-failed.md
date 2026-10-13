@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "76100a65", done: "a03b5fee"}
 ---
 
 # sdlc merge: a recorded local run substitutes for a CI job that never got a runner (not for one that failed)
