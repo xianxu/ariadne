@@ -43,7 +43,24 @@ rounds:
           note: Named functions now have adversarial strategies and mechanical guards, including fuzzing and reproducible recovery sequences.
           round: 2
       blocked: false
-content_hash: 82de980021ee7c409cce19204476c71303574888d619bab466bed6e30d090d63
+    - "n": 3
+      timestamp: "2026-10-13T13:15:35-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Metadata-first selection, a subtree-reader audit, and aggregate-volume regression cover binary sidecar discovery.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: NextAttach defines ownership-aware rollback, restart adoption, retained effects, and uncertain body-write reconciliation.
+          round: 3
+        - id: PQ-3
+          disposition: addressed
+          note: Named functions now have adversarial strategies and mechanical guards instead of prose test-case inventories.
+          round: 3
+      blocked: false
+content_hash: ddf899e28daef5346e78caf447062e48151db633d655b0c6421c81c9b2fe0ee5
 ---
 
 # Gate ledger — ariadne#337 (plan-quality)
@@ -69,6 +86,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-1 — addressed — Metadata-first discovery, a subtree-reader rule, and an aggregate-volume regression cover the affected reader class.
 - PQ-2 — addressed — NextAttach defines ownership-aware rollback, retained state, uncertain-outcome reconciliation, and exact-byte restart adoption.
 - PQ-3 — addressed — Named functions now have adversarial strategies and mechanical guards, including fuzzing and reproducible recovery sequences.
+
+## Round 3 — 2026-10-13T13:15:35-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Metadata-first selection, a subtree-reader audit, and aggregate-volume regression cover binary sidecar discovery.
+- PQ-2 — addressed — NextAttach defines ownership-aware rollback, restart adoption, retained effects, and uncertain body-write reconciliation.
+- PQ-3 — addressed — Named functions now have adversarial strategies and mechanical guards instead of prose test-case inventories.
 
 ## Open findings
 
