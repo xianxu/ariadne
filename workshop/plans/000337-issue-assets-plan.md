@@ -343,3 +343,10 @@ suite before returning to close. No approved feature-scope expansion.
   ExactBytes transactions do not check out assets; the isolated review checkout
   is not an issue lifecycle publication path. Cross-repository migration remains
   refused under the approved scope cut.
+
+- Main integration at fa4a79b51f8ee5df0581da3f104d799bb9b22177 adds
+  completed-issue reopen (`reopendone.go`) and staging/clearing (`stage.go`) to
+  the caller inventory. The shared unarchive helper retains the asset bundle
+  proof. Both new entry points have conversion/hook regressions; retained-branch
+  reopen checks the switched tree before any optional merge. Ephemeral local
+  check worktrees, like review worktrees, do not publish issue lifecycle state.

@@ -59,6 +59,9 @@ refuse converting attributes (`text`, `filter`, `eol`, `working-tree-encoding`,
 also retain the original bytes. Lifecycle checkouts validate both source and
 destination materialization paths before switching or merging, then compare
 materialized evidence with its pinned Git bytes before any local commit.
+Planning, takeover, branch/worktree creation and stage/clear apply the same
+checks. Reopening either abandoned or completed work validates the archived
+source and future live paths before switching, then checks the resulting bytes.
 Post-merge cleanup fetches and pins main, then fast-forwards the resting checkout;
 a diverged resting branch refuses with recovery steps rather than creating a
 local merge of evidence.

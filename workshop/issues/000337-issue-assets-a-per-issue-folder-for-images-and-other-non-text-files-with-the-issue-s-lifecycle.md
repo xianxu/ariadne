@@ -262,6 +262,15 @@ reproduced by reviewer overlays. Correction plan appended; acceptance reopened.
   keeps every pending merge uncommitted until indexed bundles validate, with
   byte-proven duplicate cleanup before the archive becomes the sole index.
 
+- Main integration verification: stage/clear conversion and hook regressions
+  reproduced RED, then passed with existing staging and context guards (26.562s).
+  Completed-issue reopen RED (82.426s) became GREEN (25.174s); retained-branch
+  reopen RED (30.386s) became GREEN (27.223s). A quiet combined body/visibility/
+  reconciliation/recovery/static-guard run passed cmd/sdlc (145.374s) and tracker
+  (4.836s). The broad reopen compatibility run timed out at 600.337s while its
+  fixture scanned real session transcripts under high load; it is not a pass.
+  All code is now frozen for full acceptance, which must start below load 40.
+
 ## Revisions
 
 - 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue

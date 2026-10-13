@@ -753,3 +753,30 @@ func TestReopenVerifiesMaterializedArchiveBytes(t *testing.T) {
 	}
 
 }
+
+func TestReopenKeptBranchVerifiesOtherMaterializedAssets(t *testing.T) {
+	r, _, _ := startedHere(t)
+	data := "other evidence"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "workshop/issues/assets/991111/" + name
+	writeRepoFile(t, r.root, rel, data)
+	writeRepoFile(t, r.root, "workshop/issues/991111-other.md", "# Other\n![evidence](assets/991111/"+name+")\n")
+	r.git("add", ".")
+	r.git("commit", "-qm", "other evidence on kept branch")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	hooks := t.TempDir()
+	if err := os.WriteFile(filepath.Join(hooks, "post-checkout"), []byte("#!/bin/sh\n[ -f '"+rel+"' ] || exit 0\nprintf changed > '"+rel+"'\n"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	r.git("config", "core.hooksPath", hooks)
+	kept := remoteRef(t, r, s09Archive)
+	_, err := reopen9()
+	if err == nil || !strings.Contains(err.Error(), rel) {
+		t.Fatalf("kept branch hook tamper accepted: %v", err)
+	}
+	if r.git("rev-parse", "HEAD") != kept || gitSucceeds(r.root, "rev-parse", "-q", "--verify", "MERGE_HEAD") {
+		t.Fatal("reopen started merging before validating the switched branch")
+	}
+}

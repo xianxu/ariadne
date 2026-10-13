@@ -23,7 +23,7 @@ func runStageTest(t *testing.T, dir, address string, build bool) (string, error)
 func runUnstageTest(t *testing.T, dir, address string) (string, error) {
 	t.Helper()
 	var out bytes.Buffer
-	err := runUnstage(dir, address, false, &out, &out)
+	err := runUnstage(context.Background(), dir, address, false, &out, &out)
 	return out.String(), err
 }
 

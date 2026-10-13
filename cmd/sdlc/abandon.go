@@ -505,6 +505,9 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 		}
 		env.branch = rec.Branch
 	}
+	if err := verifyMaterializedAssets(env.root, env.main.ViewOf(branchHead), issuesDir); err != nil {
+		return err
+	}
 	// 3: merge main, which carries the archive commit.
 	archiveCommit, err := env.git("rev-list", "-1", view.Ref(), "--", archivedRel)
 	if err != nil {
