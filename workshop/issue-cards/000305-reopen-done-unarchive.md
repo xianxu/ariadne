@@ -1,6 +1,6 @@
 ---
 id: 000305
-status: codecomplete
+status: done
 created: 2026-10-08
 updated: 2026-10-13
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 099857eddb368f90bb0df47ec4eb979ffbff1de6
         evidence_commit: da7760112e7005ee26e65de493e11b52d9ef42bf
+        landed_commit: 5a822221f7972eaf283b7b31d9fa9f2ef5ecef0b
 ---
 
 # Reopening a done issue does not un-archive its details
