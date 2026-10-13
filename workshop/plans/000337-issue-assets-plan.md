@@ -350,3 +350,9 @@ suite before returning to close. No approved feature-scope expansion.
   proof. Both new entry points have conversion/hook regressions; retained-branch
   reopen checks the switched tree before any optional merge. Ephemeral local
   check worktrees, like review worktrees, do not publish issue lifecycle state.
+
+- 2026-10-13T23:54Z — Full acceptance after round-2 corrections and current-main
+  integration passed at fbd5498222087c10d2c7b6f6b0822bcf4bc37e00: 1226 command
+  tests, 48 other packages, six shards, zero failures, 818.8s. Start load 39.22;
+  two-slot lock active. All required implementation verification is complete;
+  binary-owned close review and hub SHIP remain pending.

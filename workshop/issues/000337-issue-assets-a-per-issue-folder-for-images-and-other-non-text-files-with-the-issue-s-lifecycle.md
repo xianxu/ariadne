@@ -105,7 +105,7 @@ Approved [implementation plan](../plans/000337-issue-assets-plan.md); next gate 
 - [x] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
 - [x] Bundle publication, ownership, recovery and restore.
 - [x] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
-- [ ] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
+- [x] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
 
 ## Log
 
@@ -270,6 +270,14 @@ reproduced by reviewer overlays. Correction plan appended; acceptance reopened.
   (4.836s). The broad reopen compatibility run timed out at 600.337s while its
   fixture scanned real session transcripts under high load; it is not a pass.
   All code is now frozen for full acceptance, which must start below load 40.
+
+- 2026-10-13T23:54Z — Full acceptance passed at
+  fbd5498222087c10d2c7b6f6b0822bcf4bc37e00: 1226 command tests and 48 other
+  packages, six shards, zero failures, 818.8s. Started at load 39.22 with #346
+  present and both test slots reserved; PAIR_AGENT=claude isolates the known
+  agent-dependent fixtures tracked in #349. Evidence:
+  /tmp/ariadne337-full-round3-20261013.log. Returning to close review for BR-2,
+  BR-5 and BR-6; prior accepted findings remain documented in its sidecar.
 
 ## Revisions
 
