@@ -19,6 +19,8 @@ import (
 //   - deps_substrate_targets (lib-deps.sh): per `substrate` row, repo-root-
 //     relative OR absolute-path resolution, then physical-path canonicalization
 //     (pwd -P) with present-skip — an unresolvable parent is dropped silently.
+//     Extension (#230): a relative row absent beside a linked worktree
+//     resolves against the worktree's primary checkout (Resolver).
 //   - discover_ancestors' two _seen_or_add filters (setup.sh): a candidate
 //     counts as a layer ONLY if it ships construct/base.manifest, and the
 //     target repo is never its own ancestor. construct/deps is the sole edge
@@ -36,10 +38,15 @@ func Walk(fs FS, root string) ([]string, error) {
 // DeclaredSubstrate is one substrate a layer declares (#294), whether or not it
 // is checked out.
 type DeclaredSubstrate struct {
-	Path    string // physical, absolute (substrateTargets' resolution)
-	Owner   string // the layer root whose construct/deps declares it
-	Source  string // the row's source column, "" when absent
-	Present bool   // exists on disk
+	Path     string // physical, absolute (substrateTargets' resolution)
+	Owner    string // the layer root whose construct/deps declares it
+	Declared string // the row's path as written
+	Source   string // the row's source column, "" when absent
+	Present  bool   // exists on disk
+	// Via is the primary checkout the row fell back to (#230), "" when it
+	// resolved beside Owner. NoFallback is why an absent relative row did
+	// not fall back (no anchor, or absent beside the anchor too), "" otherwise.
+	Via, NoFallback string
 }
 
 // DeclaredSubstrates walks construct/deps from root over present layers
@@ -76,6 +83,7 @@ func declaredGraph(fs FS, root string) (map[string][]string, []DeclaredSubstrate
 	seen := map[string]bool{}
 	visited := map[string]bool{}
 	queue := []string{root}
+	resolver := NewResolver(fs)
 
 	for len(queue) > 0 {
 		cur := queue[0]
@@ -85,7 +93,7 @@ func declaredGraph(fs FS, root string) (map[string][]string, []DeclaredSubstrate
 		}
 		visited[cur] = true
 
-		targets, err := substrateTargets(fs, cur)
+		targets, err := substrateTargets(resolver, cur)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -96,10 +104,10 @@ func declaredGraph(fs FS, root string) (map[string][]string, []DeclaredSubstrate
 			if dep == root {
 				continue // target-self-exclusion
 			}
-			present := pathExists(fs, dep)
+			present := target.Probe != Absent // the resolver's Lstat-based probe
 			if !seen[dep] {
 				seen[dep] = true
-				declared = append(declared, DeclaredSubstrate{Path: dep, Owner: cur, Source: target.Source, Present: present})
+				declared = append(declared, DeclaredSubstrate{Path: dep, Owner: cur, Declared: target.Declared, Source: target.Source, Present: present, Via: target.Via, NoFallback: target.NoFallback})
 			}
 			if !hasManifest(fs, dep) {
 				// A declared `substrate` row is a layer edge (ParseDeps yields only
@@ -139,19 +147,25 @@ func (e *NotLayerError) Error() string {
 		filepath.Join(e.Path, "construct", "base.manifest"))
 }
 
-// substrateRow is one resolved `substrate` row.
-type substrateRow struct{ Path, Source string }
+// substrateRow is one resolved `substrate` row: its physical Path, the row's
+// Declared path and Source, and the Resolution's Probe, Via and NoFallback.
+type substrateRow struct {
+	Path, Declared, Source, Via, NoFallback string
+	Probe                                   Probe
+}
 
 // substrateTargets ports lib-deps.sh:deps_substrate_targets — parses
 // repoRoot/construct/deps and resolves each `substrate` row to an absolute,
 // physical-path peer dir, keeping its source column. Relative targets resolve
-// against repoRoot; absolute targets are taken verbatim; the result is
+// against repoRoot, or, when absent there and repoRoot is a linked worktree,
+// against its primary checkout (#230, Resolver); absolute targets are taken
+// verbatim; the result is
 // canonicalized via the parent dir (pwd -P semantics) so an absent peer still
 // resolves syntactically, while an unresolvable parent is dropped
 // (present-skip). The ParseRows grammar is reused — only the resolution is
 // added here.
-func substrateTargets(fs FS, repoRoot string) ([]substrateRow, error) {
-	content, found, err := readDeclaration(fs, filepath.Join(repoRoot, "construct", "deps"))
+func substrateTargets(resolver *Resolver, repoRoot string) ([]substrateRow, error) {
+	content, found, err := readDeclaration(resolver.FS, filepath.Join(repoRoot, "construct", "deps"))
 	if err != nil || !found {
 		return nil, err // no construct/deps ⇒ no edges (lib-deps: [[ -f ]] || return 0)
 	}
@@ -164,19 +178,21 @@ func substrateTargets(fs FS, repoRoot string) ([]substrateRow, error) {
 		if row.Kind != "substrate" {
 			continue
 		}
-		target := row.Path
-		var raw string
-		if filepath.IsAbs(target) {
-			raw = target // raw="$target"
-		} else {
-			raw = filepath.Join(repoRoot, target) // raw="$repo_root/$target"
+		res, err := resolver.Substrate(repoRoot, row.Path)
+		if err != nil {
+			return nil, err
 		}
+		raw := res.Path
 		// parent="$(cd "$(dirname "$raw")" && pwd -P)"; present-skip if empty.
 		parent := physicalOrEmpty(filepath.Dir(raw))
 		if parent == "" {
 			continue // unresolvable parent — skipped silently (present-peers)
 		}
-		out = append(out, substrateRow{Path: filepath.Join(parent, filepath.Base(raw)), Source: row.Source})
+		r := substrateRow{Path: filepath.Join(parent, filepath.Base(raw)), Declared: row.Path, Source: row.Source, Via: res.Via, Probe: res.Probe}
+		if res.NoFallback != nil {
+			r.NoFallback = res.NoFallback.Error()
+		}
+		out = append(out, r)
 	}
 	return out, nil
 }
@@ -211,15 +227,6 @@ func readDeclaration(fs FS, path string) ([]byte, bool, error) {
 // _seen_or_add layer filter).
 func hasManifest(fs FS, dir string) bool {
 	_, err := fs.Stat(filepath.Join(dir, "construct", "base.manifest"))
-	return err == nil
-}
-
-// pathExists reports whether path is present on disk (dir or file). It
-// distinguishes a substrate target that is checked out but not a compilable
-// layer (present, no base.manifest → a #155 loud error) from one that simply
-// isn't present (absent → a silent present-skip).
-func pathExists(fs FS, path string) bool {
-	_, err := fs.Stat(path)
 	return err == nil
 }
 

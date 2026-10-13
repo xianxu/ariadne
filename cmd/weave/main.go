@@ -49,6 +49,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/weave/internal/startup"
 	"github.com/xianxu/ariadne/cmd/weave/internal/walk"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 func main() {
@@ -632,7 +633,7 @@ func printManagedReport(ctx context.Context, leaf, root string, report plan.Mana
 	if len(report.Regenerated) == 0 {
 		return
 	}
-	listed, err := setupGitReader{ctx}.GitInDir(root, "ls-files", "-z")
+	listed, err := workspace.ExecGit{Context: ctx}.GitInDir(root, "ls-files", "-z")
 	if err != nil && strings.Contains(string(listed), "not a git repository") {
 		return // outside a repository nothing is tracked, so nothing needs a commit
 	}

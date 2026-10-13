@@ -426,7 +426,9 @@ func parseSubstrateTargets(depsContent string) []string {
 // ordered, deduped list of upstream repo roots that exist on disk — the
 // dependency path the caller reads live. root itself is excluded. Targets are
 // resolved relative to their DECLARING repo root (the exact resolution #82 M3
-// got wrong), so a 2-hop chain resolves each hop against the right base. Absent
+// got wrong), so a 2-hop chain resolves each hop against the right base, or,
+// for a linked worktree missing the peer, against its primary checkout (#230,
+// layergraph.Resolver — the resolution weave and vocabulary share). Absent
 // peers are skipped (present-walker semantics, like lib-deps.sh — don't abort on
 // a missing sibling). The seen-set also guards against dependency cycles.
 func substrateChain(root string) []string {
@@ -437,6 +439,11 @@ func substrateChain(root string) []string {
 // substrateWalk is substrateChain plus the declared targets that are absent on
 // disk (resolved, deduped), for callers that must not read absence as current.
 func substrateWalk(root string) (order, absent []string) {
+	return substrateWalkWith(root, layergraph.NewResolver(layergraph.OSFS{}))
+}
+
+// substrateWalkWith is substrateWalk over a given resolver (the test seam).
+func substrateWalkWith(root string, resolver *layergraph.Resolver) (order, absent []string) {
 	seen := map[string]bool{}
 	// Seed the cycle-guard with the root's CANONICAL key (EvalSymlinks, matching
 	// how upstream entries are keyed below) so a cycle resolving back to root via
@@ -456,11 +463,13 @@ func substrateWalk(root string) (order, absent []string) {
 			return
 		}
 		for _, target := range parseSubstrateTargets(string(data)) {
-			resolved := target
-			if !filepath.IsAbs(resolved) {
-				resolved = filepath.Join(declRoot, target)
-			}
-			resolved = filepath.Clean(resolved)
+			// The shared resolver (#230): beside declRoot, else beside its
+			// primary checkout when declRoot is a linked worktree.
+			// When Git cannot say whether declRoot is a worktree, the resolver
+			// returns the absent local spelling, which the absent branch below
+			// reports: the walk never resolves a row by a guess.
+			res, _ := resolver.Substrate(declRoot, target)
+			resolved := filepath.Clean(res.Path)
 			if real, err := filepath.EvalSymlinks(resolved); err == nil {
 				resolved = real // canonicalize when the peer exists
 			}

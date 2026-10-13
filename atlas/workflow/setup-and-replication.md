@@ -59,6 +59,53 @@ for humans to add to PATH explicitly. It never edits a shell rc. Compile dry-run
 skips builds, package installation, generators, and writes; generator output and
 retirement are not previewed.
 
+## Linked worktrees
+
+A relative `substrate` row resolves beside the declaring checkout first. When
+nothing is there and the checkout is a linked Git worktree, the same relative
+path is tried beside the repository's primary checkout (Git's primary working
+tree; #230). A feature worktree at `<fleet>/worktree/leaf/<branch>` therefore
+uses `<fleet>/base` for `substrate ../base` without a symlink or a rewritten
+`construct/deps`.
+
+- A target present beside the worktree wins, valid or not: a present target
+  without `construct/base.manifest` is an error, never bypassed. A present but
+  invalid fallback target is the same error.
+- Absolute rows never fall back. Transitive rows resolve against wherever their
+  declaring layer resolved.
+- There is no anchor (`workspace.NoAnchorError`) for a non-Git layer, a
+  subdirectory of a checkout, the primary itself, a worktree of a bare
+  repository, or a numbered-environment checkout whose primary lies outside the
+  environment (slot-local provisioning below applies instead). Read-only walks
+  skip such an absent row and record why (`DeclaredSubstrate.NoFallback`);
+  compile's missing-substrate error names it. A Git failure while finding the
+  anchor is an error, never read as "not a worktree".
+- Presence is judged without following a final symlink: a dangling local
+  symlink is an invalid present target, not a reason to fall back.
+- `weave compile` prints `weave: substrate <row> declared in <worktree> is absent
+  beside this worktree; resolved via primary checkout <primary>: <path>` for
+  each fallback. A row absent beside both refuses before composition writes
+  anything (dependencies already acquired by the same restore stay), instead of
+  cloning a duplicate beside the worktree; inside a numbered environment the
+  environment policy below makes that refusal.
+
+`pkg/workspace.DependencyAnchor` finds the anchor; `layergraph.ChooseSubstrate`
+is the pure selection rule; `layergraph.Resolver` composes them. This is the one
+list of its callers (regenerate it with
+`grep -rn 'NewResolver' --include='*.go' cmd pkg` when one is added or removed):
+
+- `layergraph.Walk` / `DeclaredSubstrates` (`pkg/layergraph/walk.go`), and through
+  them vocabulary, datatype and weave's read-only verbs;
+- weave compile's acquisition, `acquire.Client.Restore`;
+- weave refresh's origin check, `declaredOrigins`;
+- sdlc's substrate walk (`substrateWalk`: start-plan, catchup, propagate-base).
+
+Two row readers keep the owner-relative join because it is provably the
+resolver's answer there: weave's `migrateSourceless` (primary checkout only) and
+sdlc's fleet membership (numbered environment only). `data` rows and the
+bootstrap parser `construct/scripts/lib-deps.sh` keep plain owner-relative
+resolution.
+
 ## Numbered workspace environments
 
 A numbered checkout is nested, for example
