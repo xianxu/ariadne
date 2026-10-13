@@ -91,7 +91,8 @@ emitted form is `X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o
 bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }` (the `rm -f` mirrors the owner
 Makefiles' code-signing-inode safety). An owner whose build needs a generated
 input (pair's gitignored runtime-bundle embed tree) declares a `dev-prepare`
-rule in its `Makefile` or `Makefile.local` (#299); its functions then run `make
+rule in its `Makefile`, `Makefile.workflow` or `Makefile.local` (#299; make
+decides, via `make -q`, whether the rule exists); its functions then run `make
 -s dev-prepare >&2` before `go build`, so a fresh slot builds without a manual
 `make`. A failed step fails the call. The owner keeps the step cheap when its
 inputs are up to date, and owners without the rule keep the plain form. The

@@ -64,22 +64,35 @@ assert_contains "$WS/ariadne/bin/sdlc \"\$@\""                                  
 # prepd declares `dev-prepare:` in Makefile.local (where the base layer's Makefile
 # looks for local rules); nous declares nothing and keeps today's exact form.
 mkdir -p "$WS/prepd/construct"; mkcmd "$WS/prepd/cmd/gen"
-printf '.PHONY: dev-prepare\ndev-prepare: assets/stamp\n' > "$WS/prepd/Makefile.local"
+# Like the base layer's Makefile, the owner's Makefile includes Makefile.local.
+printf -- '-include Makefile.local\n' > "$WS/prepd/Makefile"
+printf '.PHONY: dev-prepare\ndev-prepare: assets/stamp\nassets/stamp:\n' > "$WS/prepd/Makefile.local"
 prep_out="$(bash "$GEN" --workspace "$WS" 2>/dev/null)"
 gen_line="$(printf '%s\n' "$prep_out" | grep '^gen()')"
 assert_contains "cd $WS/prepd && make -s dev-prepare >&2 && mkdir -p bin && rm -f bin/gen && go build -o bin/gen ./cmd/gen" "$gen_line" "a declaring owner runs dev-prepare before go build"
 nous_line="$(printf '%s\n' "$prep_out" | grep '^nous()')"
 [ "$nous_line" = "nous() { ( cd $WS/nous && mkdir -p bin && rm -f bin/nous && go build -o bin/nous ./cmd/nous ) || return; $WS/nous/bin/nous \"\$@\"; }" ] \
 	&& ok "an owner without dev-prepare keeps the exact plain form" || ko "plain form changed: [$nous_line]"
-# A .PHONY mention alone is not a declaration.
-printf '.PHONY: dev-prepare\n' > "$WS/prepd/Makefile.local"
-assert_not_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a .PHONY mention alone does not declare the step"
+# Make decides what declares the step: a rule (here, or via an include) does;
+# an assignment, a target-specific variable or a recipe line that merely
+# mentions the name does not. A rule with a missing prerequisite is declared
+# but broken, so it is emitted and the call fails loudly.
+declares() { bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()' | grep -q 'make -s dev-prepare'; }
+expect_declared() { printf "$1" > "$WS/prepd/Makefile.local"; if declares; then ok "declared: $2"; else ko "should be declared: $2"; fi; }
+expect_plain()    { printf "$1" > "$WS/prepd/Makefile.local"; if declares; then ko "should stay plain: $2"; else ok "plain: $2"; fi; }
+expect_declared 'assets dev-prepare : gen.stamp\ngen.stamp:\n' "a multi-target rule naming dev-prepare"
+expect_declared 'dev-prepare: missing\n' "a rule whose prerequisite has no rule (broken, fails at call)"
+expect_plain 'dev-prepare := x\n' "a := assignment"
+expect_plain 'dev-prepare: V = 1\n' "a target-specific variable"
+expect_plain 'all:\n\t@echo run dev-prepare: now\n' "a recipe line mentioning the name"
+# The base layer's other include: a rule in Makefile.workflow, reached through
+# the owner's Makefile, is declared.
+printf -- '-include Makefile.workflow\n-include Makefile.local\n' > "$WS/prepd/Makefile"
+printf 'dev-prepare:\n\t@true\n' > "$WS/prepd/Makefile.workflow"
+expect_declared '' "a rule in Makefile.workflow, reached through the include"
+rm -f "$WS/prepd/Makefile.workflow"
 printf 'dev-prepare:\n\t@true\n' > "$WS/prepd/Makefile"; rm -f "$WS/prepd/Makefile.local"
 assert_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a dev-prepare rule in Makefile also declares it"
-printf 'dev-prepare := x\n' > "$WS/prepd/Makefile.local"; rm -f "$WS/prepd/Makefile"
-assert_not_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a dev-prepare variable assignment is not a declaration"
-printf 'assets dev-prepare : gen.stamp\n' > "$WS/prepd/Makefile.local"
-assert_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a multi-target rule naming dev-prepare declares it"
 
 # Run the emitted function against stub make/go: preparation runs first, its
 # stdout stays off the binary's stdout, and a failed step fails the call loudly

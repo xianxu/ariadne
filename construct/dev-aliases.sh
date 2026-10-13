@@ -219,13 +219,24 @@ fi
 # emitted sorted by binary name.
 final="$(printf '%s\n' "$candidates" | awk -F'\t' 'NF{last[$1]=$2} END{for (k in last) printf "%s\t%s\n", k, last[k]}' | LC_ALL=C sort)"
 
-# owner_prepares: the owner declares a dev-prepare step (#299). Checked where the
-# base layer's Makefile looks for local rules (it includes Makefile.local, so
-# `make dev-prepare` finds the rule there), so declaring it is one rule. Accepted:
-# a rule line naming dev-prepare among its targets (`dev-prepare: deps`, `a
-# dev-prepare :`). Not a declaration: `.PHONY: dev-prepare`, `dev-prepare := x`.
+# owner_prepares: the owner declares a dev-prepare step (#299) when make itself
+# can build the target `dev-prepare` in the owner's tree. Make is the authority,
+# so includes, multi-target rules and assignments mean what make says they do.
+# A cheap text check runs first, over the files the base layer's Makefile reads
+# (Makefile, Makefile.workflow, Makefile.local), so an owner that never mentions
+# the name pays no make invocation; a rule kept in some other included file
+# needs a mention of the name in one of those three to be found. `make -q` runs
+# no recipe: exit 0/1 (up to date / would run) is declared; exit 2 saying there
+# is no rule for dev-prepare itself is undeclared; any other exit 2 is a
+# declared but broken step, emitted so the call fails loudly rather than
+# silently skipping it.
 owner_prepares() {
-	grep -qsE '^([^#=:]*[[:space:]])?dev-prepare[[:space:]]*:([^=]|$)' "$1/Makefile" "$1/Makefile.local"
+	local err rc
+	grep -qs 'dev-prepare' "$1/Makefile" "$1/Makefile.workflow" "$1/Makefile.local" || return 1
+	err="$(cd "$1" && env -u MAKEFLAGS -u MAKELEVEL make -q dev-prepare 2>&1 >/dev/null)"; rc=$?
+	[ "$rc" -ne 2 ] && return 0
+	case "$err" in *"No rule to make target "?"dev-prepare'"*) return 1 ;; esac
+	return 0
 }
 
 printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
