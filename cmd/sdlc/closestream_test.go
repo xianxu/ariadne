@@ -24,6 +24,7 @@ func judgeStream(t *testing.T, name string) string {
 // then a block-less postscript records that verdict, not "unknown", and its
 // sidecar keeps the findings.
 func TestCloseRecordsTheVerdictBeforeAPostscript(t *testing.T) {
+	pinReviewAgent(t, judge.AgentClaude) // the stream is Claude JSONL
 	stream := judgeStream(t, "postscript.jsonl") // before closeReady changes directory
 	r, _, detailPath := closeReady(t, 340)
 	calls, _ := stubJudgeSeq(t, stream)
@@ -43,6 +44,7 @@ func TestCloseRecordsTheVerdictBeforeAPostscript(t *testing.T) {
 // A reviewer that never gives a verdict is dispatched twice; the close keeps
 // its fail-safe (does not finalize) and the sidecar holds both runs.
 func TestCloseWithoutAVerdictKeepsBothRuns(t *testing.T) {
+	pinReviewAgent(t, judge.AgentClaude) // the stream is Claude JSONL
 	stream := judgeStream(t, "background_wait.jsonl")
 	r, cardPath, detailPath := closeReady(t, 341)
 	calls, _ := stubJudgeSeq(t, stream)
