@@ -6,7 +6,7 @@ github_issue:
 created: 2026-09-18
 updated: 2026-10-12
 estimate_hours: 1.4
-card_mirror: '0d7079ac40a01dfe8d66d4cf19ad0bc859fe414e' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ea7fc0372979b1f47ec184393b5c78261c6f6696' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T17:21:51-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
-actual_hours: 0.19
+actual_hours: 0.22
 ---
 
 # Durable-plan lookup is exact-name: a plan under another slug is invisible
