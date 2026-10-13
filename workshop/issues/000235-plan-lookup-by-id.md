@@ -83,6 +83,26 @@ close's quick-flow measure (`readOptionalPlanFile`), `judge plan-quality
 (`reviewPlanPaths`, which globs under the repository root). The off-slug note is
 printed where the plan is first read: change-code step 2 and `judge plan-quality`.
 
+The id comes from the stem's `NNNNNN-` prefix (`issueIDFromPath`). A stem
+without one keeps today's exact canonical name. The lookup returns an error, and
+every reader propagates it: `readOptionalPlanFile` becomes `(string, error)`, and
+`recordChangeCodeFlow` and close's measure die on it. So an ambiguous plan can
+never quietly read as "no plan".
+
+Tests: the unit-tested core is `pickPlanArtifact`, fed through
+`planArtifactPath` over sets of `NNNNNN-*` names: sidecars (`-plan-gate.md`,
+`-close-gate.md`, `-m1-review.md`, `-close-review.md`), a longer id sharing the
+prefix, and two plans. The guard is that the result is never a non-`-plan.md`
+file and never a silent pick between two plans. The integration tests are
+pair#283's names through `runChangeCode --dry-run`, which shows full inferred
+and the plan text in the plan-quality prompt, and the review manifest finding an
+off-slug plan.
+
+Non-goals: no lookup in the archive or history, and no automatic rename of an
+off-slug plan; the note names the canonical name instead. Docs:
+`helptext/change-code.md` stops saying the plan is found only at
+`<issue>-plan.md`.
+
 ARCH-MOCK/CONSTRAINTS/SECURE/ORDER: N/A. This is a local directory glob with no
 external dependency, a few files per issue, and no state held between events.
 ARCH-FUNERAL: N/A, since it creates nothing durable.
@@ -91,6 +111,24 @@ ARCH-FUNERAL: N/A, since it creates nothing durable.
       manifest through it
 - [ ] Tests: the canonical name, pair#283's off-slug name, two candidates
       refused, sidecars ignored
+
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: smaller-go-module   design=0.2 impl=0.2
+item: issue-spec          design=0.5 impl=0.04
+item: milestone-review    design=0.0 impl=0.14
+item: atlas-docs          design=0.05 impl=0.04
+design-buffer: 0.30
+total: 1.395
+```
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only.* It extends one lookup and reroutes six call
+sites, which matches the well-specced extend row (impl 0.5h × 0.4). The design
+buffer stays at 30% because there is no separate plan doc.
 
 ## Log
 
@@ -111,3 +149,10 @@ Decided the same day: the operator keeps the full-closure declaration ("not wort
 additional rule/risk"). This issue takes the full flow in ariadne. It remains a
 fair example of the class the quick flow targets, just not a candidate for it here.
 
+### 2026-10-12
+
+- Dispatched by the TL (ops:0). Claimed and started on ariadne:2. Pinned
+  `--flow full` per the operator's 2026-09-18 decision above.
+- plan-quality round 1: INFO with 4 Minors (id derivation, the refusal path
+  through readers that can't refuse, test strategy, non-goals and help). All 4
+  are folded into the Plan above.
