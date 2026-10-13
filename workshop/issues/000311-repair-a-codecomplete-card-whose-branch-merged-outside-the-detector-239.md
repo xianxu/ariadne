@@ -1,12 +1,12 @@
 ---
 id: 000311
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-09
 updated: 2026-10-12
 estimate_hours:
-card_mirror: 'dc7035ffcc096d96dcdeb629733c78852195ad44' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '33c017b8674bfa3fe005b1041c08bceae3d057ce' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T18:12:04-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 0.47
 ---
 
 # Repair a codecomplete card whose branch merged outside the detector (#239)
