@@ -63,6 +63,7 @@ Items, in order:
 The rate is the same as #308's (familiar `move` code, real-git fixtures that
 already exist).
 
+## Plan
 
 Durable plan: `workshop/plans/000344-sdlc-stage-0-put-a-slot-s-branch-head-on-0-as-a-detached-commit-for-smoke-testing-instead-of-moving-the-branch-plan.md`.
 
