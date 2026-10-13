@@ -542,3 +542,13 @@ The simplest durable authority beats a clever scan of consequences.
   or clock reads make a proof integration even when its planner is pure (#337 BR-3).
 - A fake external CLI response does not verify production argv against the real
   service. Supply an opt-in read-only conformance check and its cadence (#337 BR-4).
+
+- A caller sweep is not complete until its inventory includes every direct
+  checkout/restore followed by commit. Verify that inventory against code search;
+  shared helper coverage did not imply issue restore used it (#337 BR-2 repeat).
+- Do not strip destination host identity before an authorization query. Ambient
+  CLI host settings can select a different private repository with the same
+  owner/name; test conflicting host settings through the real seam (#337 BR-5).
+- An index remains authoritative when its storage directory is absent. Skipping
+  validation based only on directory history misses body-only dangling links
+  (#337 BR-6).

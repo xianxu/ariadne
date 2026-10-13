@@ -303,3 +303,28 @@ same load/lock conditions and return to the binary-owned close review.
 - BR-4 conformance cadence: TestLiveAssetVisibilityConformance runs for this correction, after RepoVisibility argv/decoder changes or gh upgrades, and optionally in periodic credentials-enabled CI. Normal suites retain the stateful fake and skip the explicit opt-in live query; atlas/workflow/issue-assets.md documents the command.
 
 - 2026-10-13T22:56Z — Corrected acceptance suite passed at ff3e3811b841091430163f44ad2812066ebf0746: 1169 command tests, 47 other packages, six shards, zero failures, 482.1s. Invoked below load40 with both slots reserved. Returning to close for disposition of BR-1 through BR-4.
+
+### 2026-10-13T23:04Z — second close review correction plan
+
+Round 2 accepted BR-1, BR-3 and BR-4, but retained BR-2 and added BR-5/BR-6.
+The repeated materialization finding shows the previous caller inventory was
+incomplete; fix these invariants across the full enumerated class:
+
+- BR-2: every asset checkout/restore followed by a working-tree commit must
+  verify pinned bytes before that commit. Enumerate issue restore, reopen,
+  slot moves, resting fast-forward, restoreToHead/set-aside publication cleanup,
+  first-publication removal, legacy archive preparation and landing cleanup.
+  Git-only ExactBytes transactions remain distinct from materialization.
+  Add a production issue-restore regression with a post-checkout tampering hook.
+- BR-5 / ARCH-SECURE: authorization retains the complete destination host and
+  owner/repository identity through the visibility seam. A conflicting GH_HOST
+  must never select a different repository for attach, publication or recovery.
+  Add explicit-host fake regressions and live conformance under conflicting
+  ambient host settings.
+- BR-6 / ARCH-PURPOSE: the body is authoritative even when no asset folder has
+  ever existed. Publication validation derives requirements from changed bodies
+  as well as asset paths. Reproduce a legacy body-only link to a missing canonical
+  file, then sweep legacy/tracker publication, guards and lifecycle validators.
+
+Keep the acceptance checkbox open, record RED/GREEN evidence and rerun the full
+suite before returning to close. No approved feature-scope expansion.

@@ -111,3 +111,100 @@ findings:
     detail: |
       cmd/sdlc/assetvisibility_test.go:11 supplies canned JSON through a replacement gh executable, and assetpolicy_test.go models visibility with a state file; neither verifies the real RepoVisibility invocation against the host. ARCH-MOCK: add an opt-in read-only live conformance check through the production seam and document when it runs.
 ```
+
+---
+
+## Re-review — 2026-10-13T16:02:44-07:00 (REWORK)
+
+| field | value |
+|-------|-------|
+| issue | 337 — issue assets: a per-issue folder for images and other non-text files, with the issue's lifecycle |
+| repo | ariadne |
+| issue file | workshop/issues/000337-issue-assets-a-per-issue-folder-for-images-and-other-non-text-files-with-the-issue-s-lifecycle.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | f2266a7eea4af6b71969c7b6c02363ed815689c8..64b20a3dc228170515bbddbf087da03fe0e5064a |
+| command | sdlc close --issue 337 |
+| reviewer | codex |
+| isolation | fenced |
+| timestamp | 2026-10-13T16:02:44-07:00 |
+| verdict | REWORK |
+
+## Review
+
+```verdict
+verdict: REWORK
+confidence: high
+```
+
+The destination-policy and reopen fixes have meaningful regression coverage, and the documentation gates are satisfied. Three reproducible defects still block shipping: restore can commit corrupted asset bytes, visibility can come from the wrong host, and legacy publication can skip validation of body-only asset references.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Pinned destination policy now reaches publication and recovery callers. Existing regressions pass; disabling the destination check makes republish, first-publication, legacy and abandonment cases fail.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      Reopen is corrected, but the materialization-class sweep remains incomplete. cmd/sdlc/issuerestore.go:127 checks out assets, then line 136 commits working-tree paths without verifying pinned bytes. A temporary production regression installed a post-checkout hook; restore returned success and committed "hook-tampered" under the original hash filename. ARCH-PURPOSE / ARCH-SECURE: apply exact-byte verification across every materialization caller before committing.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      workshop/plans/000337-issue-assets-plan.md:82 now classifies only planLandingArchive as PURE; line 95 classifies confirmLandingArchive as INTEGRATION. The Revisions correction matches the planner and Git/clock-backed proof implementations.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      TestLiveAssetVisibilityConformance calls the production adapter and fails opted-in prerequisite errors. Atlas documents invocation and cadence. Independently queried visibility was public; the live production test passed against that expectation.
+findings:
+  - id: new
+    severity: Critical
+    family: destination-policy-authority
+    title: |
+      Host visibility can authorize assets using a different repository host
+    detail: |
+      cmd/sdlc/assetpolicy.go:55 strips github.com before cmd/sdlc/ghclient.go:187 invokes gh with bare owner/repo and inherited GH_HOST. A temporary regression showed PRIVATE visibility from an enterprise host authorizing a public GitHub destination; the installed gh independently confirmed this routing in a loopback probe. This is the 2nd finding in family destination-policy-authority. ARCH-SECURE / ARCH-PURPOSE: enforce the rule that authorization retains the complete destination identity through every seam; preserve the hostname and cover conflicting GH_HOST values across admission callers.
+  - id: new
+    severity: Critical
+    family: body-indexed-publication-validation
+    title: |
+      Legacy publication skips missing assets introduced only through the body
+    detail: |
+      cmd/sdlc/transferguard.go:254–259 returns success when asset directories have no branch history. A temporary production regression added a Markdown link to a missing canonical asset without creating an asset directory; guardTransferredDetails accepted it. ARCH-PURPOSE: derive validation requirements from the authoritative body index as well as changed asset paths, and test body-only references through legacy publication.
+```
+
+1. **Strengths**
+
+   - Destination-policy checks use pinned publication bases, including retries and recovery.
+   - The shared bundle model validates canonical names, exact bytes, membership and budgets.
+   - Attachment transitions are encapsulated in the pure core; README and atlas explain the new surface, recovery and history costs.
+
+2. **Critical findings**
+
+   - **BR-2 remains open:** verify restored bytes before `issue restore` commits them.
+   - **Wrong-host authorization:** preserve the fully qualified destination through the visibility seam.
+   - **Legacy validation bypass:** inspect body references even when no asset directory has existed.
+
+3. **Important findings:** None additional.
+
+4. **Minor findings:** None.
+
+5. **Test coverage notes**
+
+   Focused command regressions passed (145.426s), selected internal-package tests passed, and live visibility conformance passed. Disabling the prior fixes made their regression tests fail. Three additional temporary regressions reproduced the remaining defects. All disposable checkouts were removed; the reviewed checkout remains unchanged. I did not rerun the full suite.
+
+6. **Architectural notes**
+
+   - **ARCH-DRY — pass:** shared bundle and attribute helpers.
+   - **ARCH-PURE — pass:** corrected classification and IO-free core.
+   - **ARCH-PURPOSE — flag:** restore and legacy callers leave lifecycle contracts incomplete.
+   - **ARCH-MOCK — pass:** stateful visibility fake plus executable live conformance.
+   - **ARCH-CONSTRAINTS — pass:** explicit byte/count limits and bounded visibility queries.
+   - **ARCH-SECURE — flag:** incomplete host identity and unchecked materialized bytes.
+   - **ARCH-ORDER — pass:** encapsulated attachment transitions and uncertain-outcome reconciliation.
+   - **ARCH-FUNERAL — pass:** asset removal/archive behavior, temporary-file recovery and retained-history costs are documented.
+
+7. **Plan revision recommendations**
+
+   Append `## Revisions` entries establishing complete destination identity as an authorization invariant, enumerating every materialization caller requiring exact-byte verification, and requiring body-driven validation on legacy publication paths. Add the three demonstrated regressions before repeating this boundary review.

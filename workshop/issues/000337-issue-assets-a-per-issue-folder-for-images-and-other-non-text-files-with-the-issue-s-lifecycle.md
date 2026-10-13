@@ -105,7 +105,7 @@ Approved [implementation plan](../plans/000337-issue-assets-plan.md); next gate 
 - [x] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
 - [x] Bundle publication, ownership, recovery and restore.
 - [x] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
-- [x] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
+- [ ] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
 
 ## Log
 
@@ -240,6 +240,15 @@ Log: /tmp/ariadne337-full-final-20261013.log. Checkout stayed unchanged.
 BR-1 through BR-4 corrections and recovery-hint regressions are included;
 returning to the binary-owned close review. Hub SHIP is still required.
 
+### 2026-10-13 — second close review
+
+Round 2 returned REWORK. BR-1, BR-3 and BR-4 were accepted with independently
+verified regressions/conformance. BR-2 remains open because issue restore can
+commit post-checkout-hook-modified bytes. New BR-5 demonstrates GH_HOST selecting
+a different repository's visibility after hostname stripping; BR-6 demonstrates
+legacy body-only missing-asset links bypassing validation. All three were
+reproduced by reviewer overlays. Correction plan appended; acceptance reopened.
+
 ## Revisions
 
 - 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue
@@ -264,3 +273,5 @@ returning to the binary-owned close review. Hub SHIP is still required.
 - 2026-10-13T21:20Z — Clarified the final issue Plan checkbox as acceptance preparation; close and hub-authorized shipping are subsequent workflow gates, so the checkbox does not claim them before they run. Added the attach recovery catalog contract and cancellation threading after full-suite findings, without changing the approved feature scope.
 
 - 2026-10-13T22:06Z — Close review correction plan appended to the durable plan: destination policy authority, all materialization paths, accurate core-concept classification, and live visibility conformance. No feature-scope expansion; acceptance checkbox reopened pending corrected verification.
+
+- 2026-10-13T23:04Z — Round 2 correction plan strengthens complete destination identity, pre-commit materialized-byte verification for every caller, and body-indexed legacy validation. Existing scope retained; repeated class omissions addressed with an explicit caller inventory.
