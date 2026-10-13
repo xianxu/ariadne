@@ -176,17 +176,23 @@ func runProjectShow(ctx context.Context, stdout, _ io.Writer, f *projectShowFlag
 	return nil
 }
 
-// missingProjectSections reports each model scaffold section (#329: Charter,
-// Trains, Breakdown, Log, Decisions) the file lacks. On-demand validation is
+// missingProjectSections reports each required model scaffold section (#329:
+// Charter, Trains, Breakdown, Log, Decisions; none optional today) the file lacks. On-demand validation is
 // full, like `issue validate`; the changed-instance gate stays frontmatter-only.
 func missingProjectSections(path string) []string {
 	d, err := readProject(path)
 	if err != nil {
 		return []string{"  - body: " + err.Error()}
 	}
+	return missingSections(d, vocab.Project().Sections())
+}
+
+// missingSections is the pure check: every non-optional section the model
+// declares must be present.
+func missingSections(d *projectdoc.Doc, secs []vocab.Section) []string {
 	var probs []string
-	for _, sec := range vocab.Project().Sections() {
-		if !d.HasSection(sec.Name) {
+	for _, sec := range secs {
+		if !sec.Optional && !d.HasSection(sec.Name) {
 			probs = append(probs, fmt.Sprintf("  - section: missing `## %s`", sec.Name))
 		}
 	}

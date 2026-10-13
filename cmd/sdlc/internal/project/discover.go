@@ -184,9 +184,10 @@ func walkProjectRoots(roots []ProjectRoot, includeArchive bool, visit func(path,
 	return nil
 }
 
-// DiscoverByIssueRef returns every project record across the fleet whose body
-// contains the marker "[<repoName>#<issueID>" (open-bracket form matches both
-// "[metis#18]" and "[metis#18 M1]"). It always scans each sibling repo's
+// DiscoverByIssueRef returns every project record across the fleet that
+// references the issue, by the rule DiscoverInRoots owns: a `[repo#id…]` row
+// ref, or a car in the record's Trains (#329, filling Train/Car/Cars). It
+// always scans each sibling repo's
 // canonical home (vocab.Project().Discovery().Home) and, when scope is
 // ActiveAndArchive, the derived archive home; it also scans the deprecated
 // brain/data/project/*.md legacy home. Multiple matches are legitimate
@@ -199,6 +200,10 @@ func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope
 	return DiscoverInRoots(roots, repoName, issueID, scope)
 }
 
+// DiscoverInRoots is the single source of the match rule: a record matches when
+// its body holds the marker "[<repoName>#<issueID>" (the open-bracket form
+// matches both "[metis#18]" and "[metis#18 M1]"; RowRef) or its Trains carry
+// the issue as a car (Train/Car/Cars, #329). Either is enough.
 func DiscoverInRoots(roots []ProjectRoot, repoName, issueID string, scope DiscoverScope) ([]ProjectMatch, error) {
 	marker := "[" + repoName + "#" + issueID
 	var out []ProjectMatch

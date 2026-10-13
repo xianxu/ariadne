@@ -233,12 +233,19 @@ func TestResolveRun_KindProjectJSONCarriesTrain(t *testing.T) {
 	if err := json.Unmarshal(buf.Bytes(), &res); err != nil {
 		t.Fatal(err)
 	}
+	sawTrain := false
 	for _, f := range res.Files {
-		if strings.HasSuffix(f.Path, "/t.md") && (f.Train != "Core" || f.Car != 1) {
-			t.Fatalf("train file = %+v", f)
+		if strings.HasSuffix(f.Path, "/t.md") {
+			sawTrain = true
+			if f.Train != "Core" || f.Car != 1 {
+				t.Fatalf("train file = %+v", f)
+			}
 		}
 		if strings.HasSuffix(f.Path, "/p.md") && (f.Train != "" || f.Car != 0) {
 			t.Fatalf("row-only file grew train fields: %+v", f)
 		}
+	}
+	if !sawTrain {
+		t.Fatalf("train-only record missing from JSON: %+v", res.Files)
 	}
 }

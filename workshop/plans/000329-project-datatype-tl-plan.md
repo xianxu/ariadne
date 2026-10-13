@@ -187,3 +187,20 @@ print the forecast best-effort; a lookup error becomes a note and never fails th
   - The cycle error now walks stalled predecessors, so it names a car on the cycle (BR-1).
   - D1's archive test landed as `TestProjectValidationScopeExcludesArchive` (BR-2). It pins that `validate --all`
     and the changed-instance gate never reach `workshop/history/projects/`.
+- 2026-10-12, M2 (review round 3). Each M2 item matched to what was delivered, in both directions:
+  - Promised and delivered:
+    - D5 train and car in find/resolve;
+    - D10 ops conformance as `workshop/plans/000329-ops-conformance.patch`. It was made from ops' current files and
+      passes `git -C ops apply --check`; after it applies, both ops projects pass `sdlc project validate`. The TL
+      applies it in ops and verifies Done-when 4.
+  - Delivered beyond the plan, each because the plan's goal needed it:
+    - **Train-only matching.** The ops trains table cites ariadne#329 with no `[ref]` row, so marker-only discovery
+      could never name its train. `DiscoverInRoots` now matches a row marker or a train car, and is the single source
+      of that rule.
+    - **The close-tick skip for `RowRef=false`.** Without it, a train-only match in a project without `tl:` would
+      demand a detail block at milestone-close.
+    - **Section presence in `project validate`.** Frontmatter alone cannot tell a shipping-plan record from the new
+      shape, and Done-when 4 needs a check. Only non-optional scaffold sections are required (a new `optional` field
+      on `#ScaffoldSection`).
+    - **The `claimant-ownership.md` migration.** ariadne's one live project would otherwise fail the new section
+      check.

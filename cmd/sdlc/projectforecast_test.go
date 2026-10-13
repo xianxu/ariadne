@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
+	projectdoc "github.com/xianxu/ariadne/cmd/sdlc/internal/project"
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
 // writeFleetProject writes a minimal executing project whose Breakdown cites
@@ -183,5 +185,17 @@ func TestProjectValidateChecksSections(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "`## Breakdown`") || strings.Contains(out.String(), "`## Log`") {
 		t.Errorf("present sections reported missing:\n%s", out.String())
+	}
+}
+
+// An optional scaffold section is written by `project new` but not required.
+func TestMissingSectionsSkipsOptional(t *testing.T) {
+	d, err := projectdoc.ParseDoc("---\ntype: project\n---\n## A\n")
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := missingSections(d, []vocab.Section{{Name: "A"}, {Name: "B"}, {Name: "C", Optional: true}})
+	if len(got) != 1 || !strings.Contains(got[0], "`## B`") {
+		t.Fatalf("missing = %v, want only B", got)
 	}
 }

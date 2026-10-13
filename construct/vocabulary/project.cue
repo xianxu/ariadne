@@ -54,8 +54,9 @@ discovery: {
 // grooming), Breakdown (the checkbox list), Log, and Decisions last (append-only,
 // cross-issue only). ──
 #ScaffoldSection: {
-	name:  string
-	seed?: string
+	name:      string
+	seed?:     string
+	optional?: bool // written by `project new`; `project validate` does not require it
 }
 scaffold: sections: [...#ScaffoldSection] & [
 	{name: "Charter"},

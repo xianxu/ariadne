@@ -91,6 +91,39 @@ rounds:
       isolation: checkout
       reviewed: 6d8a469e0a9daac749bfe29a126ef37ef05e25c6
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-12T18:09:51-07:00"
+      dispatched: "2026-10-12T18:03:50-07:00"
+      agent: claude
+      findings:
+        - id: BR-9
+          severity: Important
+          title: M2 has no Revisions entry for unplanned scope, and the D10 patch artifact is not recorded anywhere
+          detail: '2nd finding in this family. Rule: at every milestone close, match each checklist item and D-decision to a delivered artifact and record any difference in Revisions, in both directions. Promised but missing: D10 says to write a patch file for the TL, but no patch is in the range and the Log gives no path, so Done-when 4 cannot be checked. Delivered but unplanned: train-only matching (D5 only said fields are filled for matched files), the close-tick RowRef skip, the project validate section check, and the claimant-ownership.md migration, none recorded in Revisions.'
+          family: plan-code-drift
+          round: 3
+        - id: BR-10
+          severity: Important
+          title: Prose descriptions of the project match rule still say marker-only after train-only matching was added
+          detail: The DiscoverByIssueRef doc comment (discover.go:186-192) and helptext/resolve.md:54-60 both say a match means the body contains the [repo#id] marker. They omit train-car matches and the new train/car JSON fields. Update both, or point both at DiscoverInRoots as the single source of the rule.
+          family: stale-match-rule-restatement
+          round: 3
+        - id: BR-11
+          severity: Minor
+          title: TestResolveRun_KindProjectJSONCarriesTrain does not check that t.md is in the results
+          detail: The loop only checks matching entries, so the test passes if the train-only file is missing from res.Files.
+          family: vacuous-test-assertion
+          round: 3
+        - id: BR-12
+          severity: Minor
+          title: project validate treats every scaffold section as required
+          detail: missingProjectSections iterates over the scaffold Sections(), so a future optional scaffold section would make every existing project fail. Consider a required flag in the model.
+          family: scaffold-as-requirement
+          round: 3
+      boundary: M2
+      recipe: milestone-review
+      isolation: checkout
+      blocked: true
 ---
 
 # Gate ledger — ariadne#329 (boundary-review)
@@ -129,7 +162,24 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `schema-ban-bypassable` deadline ban accepts the sentinel string itself as a valid value
   deadline?: "retired by ariadne#329 ..." rejects every other value, but a record carrying exactly that string validates. The trade-off for a readable cue diagnostic is documented, so this is a note only.
 
+## Round 3 — 2026-10-12T18:09:51-07:00 (claude) — BLOCKED
+
+### Raised
+
+- **BR-9** [Important] `plan-code-drift` M2 has no Revisions entry for unplanned scope, and the D10 patch artifact is not recorded anywhere
+  2nd finding in this family. Rule: at every milestone close, match each checklist item and D-decision to a delivered artifact and record any difference in Revisions, in both directions. Promised but missing: D10 says to write a patch file for the TL, but no patch is in the range and the Log gives no path, so Done-when 4 cannot be checked. Delivered but unplanned: train-only matching (D5 only said fields are filled for matched files), the close-tick RowRef skip, the project validate section check, and the claimant-ownership.md migration, none recorded in Revisions.
+- **BR-10** [Important] `stale-match-rule-restatement` Prose descriptions of the project match rule still say marker-only after train-only matching was added
+  The DiscoverByIssueRef doc comment (discover.go:186-192) and helptext/resolve.md:54-60 both say a match means the body contains the [repo#id] marker. They omit train-car matches and the new train/car JSON fields. Update both, or point both at DiscoverInRoots as the single source of the rule.
+- **BR-11** [Minor] `vacuous-test-assertion` TestResolveRun_KindProjectJSONCarriesTrain does not check that t.md is in the results
+  The loop only checks matching entries, so the test passes if the train-only file is missing from res.Files.
+- **BR-12** [Minor] `scaffold-as-requirement` project validate treats every scaffold section as required
+  missingProjectSections iterates over the scaffold Sections(), so a future optional scaffold section would make every existing project fail. Consider a required flag in the model.
+
 ## Open findings
 
 - **BR-7** [Minor] `untrusted-ledger-values` parseLedgerFloat accepts Inf/NaN, so a hand-edited Inf estimate zeroes the forecast multiplier
 - **BR-8** [Minor] `schema-ban-bypassable` deadline ban accepts the sentinel string itself as a valid value
+- **BR-9** [Important] `plan-code-drift` M2 has no Revisions entry for unplanned scope, and the D10 patch artifact is not recorded anywhere
+- **BR-10** [Important] `stale-match-rule-restatement` Prose descriptions of the project match rule still say marker-only after train-only matching was added
+- **BR-11** [Minor] `vacuous-test-assertion` TestResolveRun_KindProjectJSONCarriesTrain does not check that t.md is in the results
+- **BR-12** [Minor] `scaffold-as-requirement` project validate treats every scaffold section as required

@@ -127,3 +127,9 @@ Items, in order:
   - the current ops `ariadne-robustness-1` and `couch-broadcast-web` lack `## Charter`, `## Trains` and `## Decisions`; their frontmatter conforms;
   - the patched copies conform;
   - `sdlc project forecast` on the patched ariadne-robustness-1 (from a temporary dot-dir checkout, since removed) printed a critical path of 8.7–17.6h, 23.0h across 3 of 8 trains, calibration n=11.
+- M2 review round 3, FIX-THEN-SHIP:
+  - BR-9: the plan's Revisions now match every item to its delivery, and the D10 patch is committed as `workshop/plans/000329-ops-conformance.patch`.
+  - BR-10: the match-rule prose (the `DiscoverByIssueRef` comment, `helptext/resolve.md`) points at `DiscoverInRoots` as the single rule.
+  - Minors:
+    - the resolve JSON test asserts that the train-only record is present;
+    - `#ScaffoldSection.optional`, so validate requires only non-optional sections.
