@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 1.82
+actual_hours: 1.90
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000305-reopen-done-unarchive.md
         main_commit: ea98d0383fdea2673bdee300f76355e787dd4763
     completion:
-        token: close-9245da730a55
+        token: close-06430e572cb5
         repository: github.com/xianxu/ariadne
-        reviewed_head: 225c7da3dc431a9162516d69ca96c27abc413d68
-        evidence_commit: 7ce650bea9eaaf08cf81499a5fdbf68ec5b3a162
+        reviewed_head: 099857eddb368f90bb0df47ec4eb979ffbff1de6
+        evidence_commit: da7760112e7005ee26e65de493e11b52d9ef42bf
 ---
 
 # Reopening a done issue does not un-archive its details
