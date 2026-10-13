@@ -1,12 +1,12 @@
 ---
 id: 000281
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-01
 updated: 2026-10-12
 estimate_hours:
-card_mirror: 'ac5d93851900122653d85b48e1903eb2f393c237' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'fefaa3bd76611381a17e33f0ca28b2a84726d440' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T16:44:36-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.07
 ---
 
 # weave overwrites generated outputs instead of refusing on mismatch
