@@ -23,7 +23,12 @@
 | Refuse when `:0` is dirty | `checkStage`, the same uncommitted-change and operation rules as move |
 | A second stage replaces the first, printing what it replaced | the detached target is leavable (the record or a containing ref) |
 | `--clear`, or any later normal use, returns `:0` to rest | `stage --clear`; `move` accepts a leavable detached target and clears the record. Landing never needs it. |
+| The fleet view of a staged `:0` (plan review PQ-1) | `fleet.TreeRow.Staged` is true when a detached checkout's HEAD is its recorded staged commit. `JudgeCheckout` reports it as the hold `staged` (holds-work: smoke work belonging to another slot), not the `detached` recovery. Any other detached checkout stays needs-recovery. |
 | Retire `move :0` from the smoke procedure | the atlas (workspace-branching) and the move/stage help. The xx-tl skill lives in ops (`~/workspace/ops/skills-draft/xx-tl`), which workers must not edit, so the hub is told what to change. |
+
+**Non-goal (PQ-2):** only `stage`, `stage --clear` and `move` clear the record. A manual `git switch` or another verb in `:0` leaves it stale, which is harmless by construction. The record is trusted only when it equals the detached HEAD exactly, so a stale or hand-edited record never makes another detached commit look leavable, and the fleet calls the checkout staged only on that exact match. The next `stage` overwrites it.
+
+**Effect order:** the record is written only after the switch is verified. A crash in between leaves `:0` at a commit the slot's branch contains, which the ref rule already treats as leavable.
 
 The source slot may be dirty: only its HEAD is staged, and uncommitted changes are reported as not staged. Different repositories refuse, as in move. Slots share one object store, so nothing is fetched.
 
@@ -37,6 +42,7 @@ The source slot may be dirty: only its HEAD is staged, and uncommitted changes a
 | `moveSide.Leavable` | `cmd/sdlc/moveplan.go` | modified |
 | `checkMove` (accepts a leavable detached target) | `cmd/sdlc/moveplan.go` | modified |
 | `buildRevision` (BuildInfo → revision, modified) | `cmd/sdlc/stagebuild.go` | new |
+| `TreeRow.Staged`, `JudgeCheckout` (hold `staged`) | `cmd/sdlc/internal/fleet/types.go`, `slots.go` | modified |
 
 - **checkStage**: every refusal of `stage`; nil means the switch may run. Unit-tested in `stageplan_test.go` on literal facts, with no git.
   - **Refuses:** a different repository; the same slot; no source HEAD; a target Git operation or tracked change; a target on a non-resting branch; a detached target that is not leavable; target untracked files the commit would overwrite (`untrackedCollisions`, reused).
@@ -50,7 +56,7 @@ The source slot may be dirty: only its HEAD is staged, and uncommitted changes a
 | Name | Lives in | Status | Wraps |
 |------|----------|--------|-------|
 | `runStage` / `runUnstage` | `cmd/sdlc/stage.go` | new | `git switch`, `workspace.Resolve` |
-| staged record (`readStaged`/`writeStaged`/`removeStaged`) | `cmd/sdlc/stage.go` | new | a file in the target worktree's git dir |
+| staged record (`fleet.StagedCommit`, `fleet.StagedRecordPath`; writes in `stage.go`) | `cmd/sdlc/internal/fleet/staged.go` | new | a file in the target worktree's git dir (`git rev-parse --git-path sdlc-staged`) |
 | `stageBuild` | `cmd/sdlc/stagebuild.go` | new | `make build`; `buildinfo.ReadFile` (a var, so tests fake it) |
 
 Lifecycle (ARCH lifecycle):
@@ -72,14 +78,8 @@ Real-git tests run on temp fleets (`procedureFixture`), with no network and no r
     - a dirty source warns.
   - `stage --clear` switches the target to its resting branch and removes the record.
   - `move` removes the target's record after a verified move.
-  - Real-git tests (`stage_test.go`):
-    - stage, and the slot keeps its branch;
-    - the slot commits again and re-stages, replacing the first, which is printed;
-    - a dirty `:0` refuses and changes nothing;
-    - `--clear` returns `:0` to rest;
-    - move into a staged `:0` works;
-    - an operator's unreferenced detached commit refuses replace and clear;
-    - the stage survives the slot amending after staging (the record).
+  - Test strategy: a table test over target states (resting, dirty, mid-operation, other branch, detached at a ref-contained commit, detached at the recorded commit, detached and unreferenced) crossed with the verbs (stage, clear, move). Each row asserts the acceptance or the refusal, and that a refused run changed nothing (HEAD, branch, record). Plus one real-git flow: stage, the slot commits and re-stages (replacement printed), the slot keeps its branch, and then `--clear`.
+  - Fleet: inventory sets `Staged`; a `JudgeCheckout` row test covers a staged checkout as hold `staged` and a plain detached one as recovery.
 - [ ] **3. Build.** `stagebuild.go`: `make build` in the target (output to stderr; a failure leaves the stage and reports it), then the `bin/*` revisions. A mismatch or `vcs.modified` warns. Tests: a fake Makefile writes `bin/tool`, a faked reader returns the staged commit (matches) or another one (warns), and a failing build reports and keeps the stage.
 - [ ] **4. Docs.**
   - `helptext/stage.md`, and a pointer from `helptext/move.md`.
