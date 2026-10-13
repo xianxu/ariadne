@@ -1,6 +1,6 @@
 ---
 id: 000230
-status: codecomplete
+status: done
 created: 2026-09-15
 updated: 2026-10-13
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: bd97a3051ab996fff319a7d7dccc138e2cf966cf
         evidence_commit: aba90ac605ce808778db72f5fe8eac672cedc21d
+        landed_commit: 4581c3a857a21725a18039f9c76429fda61d7d15
 ---
 
 # Make Weave dependency resolution worktree-aware
