@@ -86,9 +86,9 @@ Durable plan: `workshop/plans/000230-worktree-dependency-resolution-plan.md`
   non-Git, bare, numbered-environment host, spaces/symlink (Task 2).
 - [x] `layergraph.Resolver` + walk on it; real-worktree tests incl. precedence, invalid
   local, transitive, absolute, spaces, no-anchor present-skip, vocabulary regression (Task 3).
-- [ ] `acquire.Restore` on the resolver: no duplicate clone, fallback notice, anchor
+- [x] `acquire.Restore` on the resolver: no duplicate clone, fallback notice, anchor
   reason in missing errors, compile output preserved on failure (Task 4).
-- [ ] sdlc `substrateWalk` on the resolver (Task 5).
+- [x] sdlc `substrateWalk` on the resolver (Task 5).
 - [ ] Atlas/comments/help sweep; full suite; close (Task 6).
 
 ## Log
@@ -140,6 +140,18 @@ cloning a duplicate beside the worktree — a refinement of the plan's Task 4 (s
 Remaining for Task 4: `restoreSetup` fallback notice, acquire + weave compile tests;
 then Task 5 (sdlc `substrateWalk`) and Task 6 (atlas sweep, full suite, close).
 
+### 2026-10-13 — resumed (ariadne:3)
+
+Merged origin/main (2707b66a, #265 landed; no conflicts). Task 4 finished: compile
+prints one notice per fallback; acquire tests (sourceless and sourced fallback, local
+wins, absent-everywhere refuses in real and dry runs without creating either path) and
+weave compile tests (fallback composes base prose and reports it; a refused compile
+leaves the worktree byte-identical). Task 5: sdlc `substrateWalk` resolves through
+`layergraph.Resolver`. Every new test file was mutation-checked by disabling the anchor:
+all fallback tests went red. Fixture note: `cmd/weave`'s `setupGit` does not isolate the
+global excludes file, so the worktree fixture uses `git add -f`. Atlas: weave.md key
+decision and a *Linked worktrees* section in setup-and-replication.md.
+
 ## Revisions
 
 - 2026-10-12 — the 2026-09-21 entry says a slot falls back to the primary checkout when
@@ -148,3 +160,7 @@ then Task 5 (sdlc `substrateWalk`) and Task 6 (atlas sweep, full suite, close).
   environment whose primary lies outside it gets no fallback (slot-local provisioning
   stays); a feature worktree of an environment's own dependency clone still falls back,
   inside the environment.
+- 2026-10-13 — plan Task 4 refinement: a relative row absent beside both the linked
+  worktree and its primary refuses (`layergraph.FallbackAbsentError`) in real and dry
+  runs, instead of cloning a duplicate beside the worktree (spec 6: an actionable
+  error before compile writes).
