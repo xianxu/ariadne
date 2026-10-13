@@ -367,6 +367,7 @@ func collectInventoryRepo(inventory *Inventory, diagnosticKeys, rowKeys map[stri
 			TreePath:     worktree.Path,
 			Branch:       worktree.Branch,
 			Detached:     worktree.Detached,
+			Staged:       worktree.Detached && facts.Head != "" && StagedCommit(git, worktree.Path) == facts.Head,
 			Bare:         worktree.Bare,
 			Locked:       cloneInventoryString(worktree.Locked),
 			Prunable:     cloneInventoryString(worktree.Prunable),

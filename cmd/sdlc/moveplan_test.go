@@ -51,6 +51,8 @@ func TestCheckMove(t *testing.T) {
 		{"source untracked", func(f *moveFacts) { f.From.Untracked = []string{"tmp"} }, ":1 has untracked files (tmp)"},
 		{"source operation", func(f *moveFacts) { f.From.Operation = "MERGE_HEAD" }, ":1 has a Git operation in progress"},
 		{"destination not resting", func(f *moveFacts) { f.To.Branch = "000002-y" }, "not its resting branch"},
+		{"destination staged (#344)", func(f *moveFacts) { f.To.Branch, f.To.Leavable = "", true }, ""},
+		{"destination detached, unreferenced", func(f *moveFacts) { f.To.Branch = "" }, "in no branch and was not staged by sdlc"},
 		{"destination changes", func(f *moveFacts) { f.To.Changes = change }, ":0 has uncommitted changes"},
 		{"destination operation", func(f *moveFacts) { f.To.Operation = "rebase-merge" }, ":0 has a Git operation in progress"},
 		{"destination collision", func(f *moveFacts) { f.To.Untracked = []string{"scratch", "feature"} }, "would overwrite: feature"},

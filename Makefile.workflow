@@ -206,7 +206,8 @@ weave-drift-check:
 	@owner="$$("construct/dev-aliases.sh" --list 2>/dev/null | awk -F'\t' '$$1=="datatype"{print $$2}')"; \
 	bin="$$owner/bin/datatype"; \
 	if [ ! -x "$$bin" ]; then echo "Error: datatype binary not built at $$bin" >&2; exit 1; fi; \
-	d1="$$(mktemp -d)"; d2="$$(mktemp -d)"; \
+	d1="$$(mktemp -d "$${TMPDIR:-/tmp}/weave-drift.XXXXXX")" || exit 1; \
+	d2="$$(mktemp -d "$${TMPDIR:-/tmp}/weave-drift.XXXXXX")" || exit 1; \
 	trap 'rm -rf "$$d1" "$$d2"' EXIT; \
 	"$$bin" --output "$$d1" && "$$bin" --output "$$d2"; \
 	if ! diff -q "$$d1/SKILL.md" "$$d2/SKILL.md" >/dev/null; then \

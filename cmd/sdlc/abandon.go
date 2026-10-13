@@ -438,40 +438,8 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 		}
 	}
 	// 4: the details and plans come back out of the archive.
-	liveRel := path.Join(issuesDir, base)
-	if archived, err := env.has("HEAD", archivedRel); err != nil {
+	if err := unarchiveIssue(env, base, issuesDir, fmt.Sprintf("#%s: reopen: restore from %s", issueStr, rec.Ref)); err != nil {
 		return err
-	} else if archived {
-		moves := [][2]string{{archivedRel, liveRel}}
-		plans, err := env.git("ls-tree", "--name-only", "HEAD", vocab.ArchiveSubdir(historyDir(), vocab.ArchivePlans)+"/")
-		if err != nil {
-			return err
-		}
-		for _, p := range strings.Fields(plans) {
-			if planArtifactBelongsToIssue(base, path.Base(p)) {
-				moves = append(moves, [2]string{p, path.Join(plansDir(), path.Base(p))})
-			}
-		}
-		var paths []string
-		for _, m := range moves {
-			if live, err := env.has("HEAD", m[1]); err != nil {
-				return err
-			} else if live {
-				if _, err := env.git("rm", "-q", "--", m[1]); err != nil { // the archived copy is newer
-					return err
-				}
-			}
-			if err := os.MkdirAll(filepath.Join(env.root, filepath.FromSlash(path.Dir(m[1]))), 0o755); err != nil {
-				return err // the merge may have removed the last file in it
-			}
-			if _, err := env.git("mv", m[0], m[1]); err != nil {
-				return err
-			}
-			paths = append(paths, m[0], m[1])
-		}
-		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", fmt.Sprintf("#%s: reopen: restore from %s", issueStr, rec.Ref), "--"}, paths...)...); err != nil {
-			return err
-		}
 	}
 	// 5: the branch on the remote, before the card says it is back.
 	if err := pushIssueBranch(env, rec.Branch); err != nil {
@@ -481,21 +449,66 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 	return nil
 }
 
+// unarchiveIssue moves an issue's archived details and plans at HEAD back to
+// their live paths in one commit (#286 D9, #305), carrying any working-tree
+// edit to them; a no-op once they are out.
+func unarchiveIssue(env *trackerEnv, base, issuesDir, message string) error {
+	archivedRel := archiveDestination(historyDir(), vocab.ArchiveIssues, base)
+	if archived, err := env.has("HEAD", archivedRel); err != nil || !archived {
+		return err
+	}
+	moves := [][2]string{{archivedRel, path.Join(issuesDir, base)}}
+	plans, err := env.git("ls-tree", "--name-only", "HEAD", vocab.ArchiveSubdir(historyDir(), vocab.ArchivePlans)+"/")
+	if err != nil {
+		return err
+	}
+	for _, p := range strings.Fields(plans) {
+		if planArtifactBelongsToIssue(base, path.Base(p)) {
+			moves = append(moves, [2]string{p, path.Join(plansDir(), path.Base(p))})
+		}
+	}
+	var paths []string
+	for _, m := range moves {
+		if live, err := env.has("HEAD", m[1]); err != nil {
+			return err
+		} else if live {
+			if _, err := env.git("rm", "-q", "--", m[1]); err != nil { // the archived copy is newer
+				return err
+			}
+		}
+		if err := os.MkdirAll(filepath.Join(env.root, filepath.FromSlash(path.Dir(m[1]))), 0o755); err != nil {
+			return err // the merge may have removed the last file in it
+		}
+		if _, err := env.git("mv", m[0], m[1]); err != nil {
+			return err
+		}
+		paths = append(paths, m[0], m[1])
+	}
+	_, err = env.git(append([]string{"commit", "-q", "--no-verify", "-m", message, "--"}, paths...)...)
+	return err
+}
+
 // finishReopen commits the card mirror the reopen's card write refreshed (as
-// close commits its own), pushes the branch, and drops the archive ref, so a
+// close commits its own), pushes the branch, and drops any archive ref, so a
 // reopen ends clean, on origin, with nothing left in the archive.
-func finishReopen(r *reopenedAbandon, stderr io.Writer, issuesDir string) {
+func finishReopen(r *reopenedIssue, stderr io.Writer, issuesDir string) {
 	env := r.env
 	detailRel := path.Join(issuesDir, path.Base(r.cardPath))
 	if dirty, err := env.git("status", "--porcelain", "--", detailRel); err != nil {
 		cwarn(stderr, fmt.Sprintf("reopen: the details mirror was not checked: %v", err))
 	} else if dirty != "" {
-		if err := commitOnly(env, fmt.Sprintf("#%s: mirror working card", issue.CLIRef(r.id)), detailRel); err != nil {
+		if err := commitOnly(env, mirrorSubject(r.id), detailRel); err != nil {
 			cwarn(stderr, fmt.Sprintf("reopen: the refreshed details mirror was not committed: %v", err))
 		}
 	}
 	boundaryPush(env, stderr, "reopen")
-	dropArchiveRef(env, stderr, r.rec)
+	if r.rec.Ref != "" {
+		dropArchiveRef(env, stderr, r.rec)
+	}
+}
+
+func mirrorSubject(id string) string {
+	return fmt.Sprintf("#%s: mirror working card", issue.CLIRef(id))
 }
 
 // dropArchiveRef deletes a reopened issue's archive ref, leased on the kept

@@ -402,17 +402,21 @@ func TestCompileKilledGeneratorHelper(t *testing.T) {
 	}
 }
 
-func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
-	leaf := buildSkillRepoFixture(t)
+// killOwnerMidGeneration compiles leaf in a helper process whose generator
+// kills it (SIGKILL to the generator's parent, the weave process), then runs
+// tail, and restores the good marker. It returns the leaf and marker paths.
+func killOwnerMidGeneration(t *testing.T, tail string) (leaf, marker string) {
+	t.Helper()
+	leaf = buildSkillRepoFixture(t)
 	base := filepath.Join(filepath.Dir(leaf), "base")
 	pkg := filepath.Join(base, "construct/local/datatype")
 	realDatatypeMarker(t, pkg, "construct/generated/datatype")
-	marker := filepath.Join(pkg, ".dynamic-skill")
+	marker = filepath.Join(pkg, ".dynamic-skill")
 	good, err := os.ReadFile(marker)
 	if err != nil {
 		t.Fatal(err)
 	}
-	killed := append(append([]byte{}, good...), []byte("kill -KILL \"$PPID\"\nexit 0\n")...)
+	killed := append(append([]byte{}, good...), []byte("kill -KILL \"$PPID\"\n"+tail)...)
 	if err := os.WriteFile(marker, killed, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -421,13 +425,16 @@ func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
 	if output, err := child.CombinedOutput(); err == nil {
 		t.Fatalf("helper not killed: %s", output)
 	}
-	body := filepath.Join(leaf, "construct/generated/datatype/SKILL.md")
-	if _, err := os.Lstat(body); !os.IsNotExist(err) {
-		t.Fatalf("dead generator published: %v", err)
-	}
 	if err := os.WriteFile(marker, good, 0755); err != nil {
 		t.Fatal(err)
 	}
+	return leaf, marker
+}
+
+// compileLeavesNoOwnedStage compiles leaf and fails if a generation stage
+// directory remains.
+func compileLeavesNoOwnedStage(t *testing.T, leaf string) {
+	t.Helper()
 	var out bytes.Buffer
 	if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err != nil {
 		t.Fatal(err)
@@ -441,6 +448,16 @@ func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
 			t.Fatalf("owned stage survived retry: %s", entry.Name())
 		}
 	}
+}
+
+func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
+	leaf, marker := killOwnerMidGeneration(t, "exit 0\n")
+	body := filepath.Join(leaf, "construct/generated/datatype/SKILL.md")
+	if _, err := os.Lstat(body); !os.IsNotExist(err) {
+		t.Fatalf("dead generator published: %v", err)
+	}
+	compileLeavesNoOwnedStage(t, leaf)
+	var out bytes.Buffer
 	if err := os.Remove(marker); err != nil {
 		t.Fatal(err)
 	}
@@ -450,6 +467,16 @@ func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
 	if _, err := os.Lstat(body); !os.IsNotExist(err) {
 		t.Fatalf("recovered output did not retire: %v", err)
 	}
+}
+
+// The killed owner's generator closes its output, so the test's wait for the
+// helper returns, but holds the inherited stage lease a moment longer, as an
+// exiting process does between closing fd 1/2 and fd 3 (#343, the flake behind
+// TestCompileRecoversAfterProcessDeathDuringGeneration). The retry must let
+// that lease settle and reclaim the stage.
+func TestCompileReclaimsStageOfAStillExitingGenerator(t *testing.T) {
+	leaf, _ := killOwnerMidGeneration(t, "exec >&- 2>&-\nsleep 0.1\nexit 0\n")
+	compileLeavesNoOwnedStage(t, leaf)
 }
 
 func TestCompilePreservesGeneratedExecutablePermissions(t *testing.T) {

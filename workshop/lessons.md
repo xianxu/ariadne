@@ -58,6 +58,16 @@ Detailed incidents remain in their owning issue or review artifact.
 - Do not `filepath.Glob` a path joined from a directory you did not write: `[`, `*`
   and `?` in the repository path become wildcards and a present file reads as
   absent. List the directory and match the base name (#235).
+- A step that reruns to converge must not lease on local evidence of remote
+  state another flow may have changed since: a remote-tracking ref kept for a
+  branch the landing deleted made every rerun's leased push refuse (#305 BR-1).
+  Refresh the evidence from the remote first, and decide every refusal before
+  the first mutation (switching branches included, BR-3). When a needed
+  mutation (a fast-forward) must come first, every refusal after it names it,
+  through one helper, and checks that do not need it move above it (BR-6).
+  Check a restore's postcondition before publishing or reporting success, and
+  make it test the step's effect, which the wrong starting state cannot
+  already satisfy: a landed branch has the live details too (BR-5, BR-7).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - Scope a guard's failure to the input it actually reads. A fail-closed check that
@@ -204,6 +214,26 @@ Detailed incidents remain in their owning issue or review artifact.
 - Private dependency scans must accept every name acquisition accepts. Global
   fleet backup/dot-directory heuristics are not a private-repository contract.
 
+- A presence probe that follows symlinks reads a dangling link as absent. Once
+  absence triggers a fallback, that silent skip becomes a bypass of an invalid
+  target. Probe presence with Lstat and fail toward present (#230 BR-1).
+- When "no answer" has an expected meaning and a failure meaning (not a worktree
+  vs Git could not say), type the expected one and fail closed on the rest. A
+  caller that treats every error as the expected case acts on a guess (#230 BR-2).
+- When one rule becomes shared (one resolver for every consumer), enumerate the
+  consumers from the input's readers (every caller of the parser), not from the
+  plan's list. weave refresh re-resolved rows itself and broke from a linked
+  worktree after compile was fixed (#230 BR-8).
+- State a list of a component's consumers once, with the grep that regenerates
+  it, and point every other mention at it. Three hand-kept copies of the
+  resolver's callers drifted the moment a fix added one (#230, third finding in
+  the doc-overclaims family).
+- A lint that recognizes a construct by enumerating its contexts (what may
+  precede a command) misses the next context each review. When a review finds a
+  second one, invert the rule: match every occurrence and enumerate only the
+  provable exceptions (#342: if/while/sudo -u/time -p after {, sudo, time, VAR=x).
+- A behavior change to a surface the README documents updates the README, even
+  with no new command: a now-false README sentence is a finding (#230 BR-3).
 - Validate external identifier grammar before interpreting sentinel values. An
   all-zero Git OID is unborn only at a valid hash length; malformed zeros must
   not bypass validation by becoming a null value.
@@ -517,3 +547,9 @@ The simplest durable authority beats a clever scan of consequences.
 - A handoff against a file someone else keeps editing (an ops project's Log)
   goes stale as a saved patch within hours. Hand off the regeneration script
   and keep the patch only as a preview (#329 D10).
+- Every claim a durable contract makes needs a test that proves it: each
+  half of an OR rule, each recovery-catalog field, each ticked plan box. In
+  #344 the ref-containment half of `Leavable` (the half the crash recovery
+  relied on) could be mutated to false with every test still green, and two
+  review rounds found unproven claims in the same family. Before closing,
+  mutate each branch of a new rule once and list the test that fails.

@@ -197,6 +197,21 @@ var Catalog = []Contract{
 		},
 	},
 	{
+		Verbs:         []string{"stage"},
+		Class:         ConvergentRetry,
+		Effects:       "detaches the target slot at this slot's HEAD, verifies it, then writes the target's staged record (#344); --build runs the target's `make build`; --clear returns the target to its resting branch and drops the record.",
+		Evidence:      "`sdlc fleet` (the target's hold `staged`) and `git -C <target> rev-parse HEAD`.",
+		Preconditions: "same repository; the target clean, with no git operation in progress, and resting or detached at a commit a ref contains or sdlc staged.",
+		Repeat:        "the same HEAD again is already staged: nothing switches, and the record is rewritten; a new HEAD replaces the staged one.",
+		LostResponse:  "rerun: a switch whose record was not written leaves the target at a commit this slot's branch contains, which the rerun accepts and records.",
+		Ends:          "a later stage, `sdlc stage --clear` or a move into the target replaces it; landing never needs it.",
+		Proofs: []Proof{
+			{"stages, keeps the branch, replaces and clears", []string{"TestStageKeepsTheBranchAndReplaces"}},
+			{"refusals change nothing", []string{"TestStageRefusalsChangeNothing"}},
+			{"a move replaces a staged slot", []string{"TestMoveReplacesAStagedSlot"}},
+		},
+	},
+	{
 		Verbs:         []string{"move"},
 		Class:         DuplicateSafeRefusal,
 		Effects:       "records the relocation, switches the source slot to rest and the destination to the issue branch, verifies both, then moves the owner on the card (#277).",
@@ -215,7 +230,7 @@ var Catalog = []Contract{
 	{
 		Verbs:         []string{"issue set-status", "set-status", "issue set-title", "issue set-estimate", "issue set-github"},
 		Class:         ConvergentRetry,
-		Effects:       "one compare-and-swap on the card field (entering working also stamps the claimant, #277); a local mirror refresh. Reopening abandoned work (#286) first restores its branch from the archive ref (fetch, branch, merge main, un-archive commit, push), then after the card write commits the mirror, pushes and deletes the ref.",
+		Effects:       "one compare-and-swap on the card field (entering working also stamps the claimant, #277); a local mirror refresh. Reopening abandoned work (#286) first restores its branch from the archive ref (fetch, branch, merge main, un-archive commit, push), then after the card write commits the mirror, pushes and deletes the ref. Reopening a done issue whose details main archived (#305) first cuts the issue branch from main, un-archives the details and plans in one commit and pushes it, then after the card write commits the mirror and pushes.",
 		Evidence:      observeEvidence + ": card.",
 		Preconditions: "the lifecycle guards, including `owned` on start: an unowned open card is claimed first (#283) (--force waives guards, never a foreign owner); done and codecomplete belong to close and merge; wontfix/punt from started work belong to `sdlc abandon` (#286, not waivable).",
 		Repeat:        "\"already has that …\" — no write.",
@@ -224,6 +239,7 @@ var Catalog = []Contract{
 		Proofs: []Proof{
 			{"started work ends only through abandon, and leaves an abandoned status only by the restoring reopen (#286)", []string{"TestSetStatusRedirectsStartedWorkToAbandon", "TestAbandonedWorkLeavesOnlyByReopen"}},
 			{"a reopen restores the branch and un-archives details and plans; a conflict, a failed push, a recreated branch or a lost card write is finished by rerunning (#286)", []string{"TestReopenRestoresAnAbandonedIssue", "TestAbandonKeepsTheBranchsPlans", "TestReopenStopsOnAConflictThenResumes", "TestReopenRerunAfterAFailedPush", "TestReopenRerunVariants"}},
+			{"a done reopen un-archives details and plans onto a pushed branch from main, refuses (no Log entry, a foreign owner, another branch, a dirty tree, a stale local branch, the landed branch itself) before any change, and a failed push, a stale tracking ref or a lost finish is finished by rerunning (#305)", []string{"TestReopenUnarchivesADoneIssue", "TestReopenDoneRerunAfterAFailedPush", "TestReopenDoneWithAStaleTrackingRef", "TestReopenDoneRerunFinishesALostFinish", "TestReopenDoneRefusals", "TestReopenDoneGuardRefusalNamesTheFastForward", "TestReopenDoneDirtyTreeRefusesBeforeTheFastForward", "TestCheckUnarchived"}},
 			{"guards and claimant stamping", []string{"TestStatusDecisionRecordsOrRefusesTheClaimant", "TestCheckTransitionGuards_ReopenNeedsLogEntry"}},
 			{"a lost response is settled by rerunning", []string{"TestSetStatusRerunSettlesALostResponse"}},
 		},

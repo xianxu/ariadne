@@ -59,6 +59,12 @@ TRANSITION GUARDS (refusable with --force)
     rationale; the log is where it lands. Add a line like:
       - YYYY-MM-DD: reopened — <reason>
     or a `### YYYY-MM-DD` subheading under ## Log before re-running.
+    When main has archived the details (#305), write the entry in the
+    archived copy (workshop/history/issues/…), the one change the tree may
+    hold. From the resting branch (fast-forwarded to main) or the issue's
+    branch, the issue branch is cut from main, the details and plans move
+    back out of the archive in one commit, and the branch is pushed before
+    the card reopens. A failed step leaves the card done; rerun.
     The entry edits published details, so it lands only by
     {{DETAILS_EDITORS}} (#285).
 

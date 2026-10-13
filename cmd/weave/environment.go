@@ -2,29 +2,14 @@ package main
 
 import (
 	"context"
-	"fmt"
 	"io"
 	"os"
-	"os/exec"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/acquire"
 	"github.com/xianxu/ariadne/cmd/weave/internal/staging"
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
-
-type setupGitReader struct{ context context.Context }
-
-func (g setupGitReader) GitInDir(dir string, args ...string) ([]byte, error) {
-	// GitReader owns path framing: trailing whitespace can belong to a path.
-	cmd := exec.CommandContext(g.context, "git", args...)
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		return out, fmt.Errorf("git %v in %q: %w", args, dir, err)
-	}
-	return out, nil
-}
 
 // prepareSetup discovers policy once before effects. The caller holds the lease
 // through final composition and cleanup; subprocesses inherit the same open file
@@ -33,7 +18,7 @@ func prepareSetup(ctx context.Context, root string, dryRun bool, out, errOut io.
 	client := acquire.Client{}
 	runner := weavefs.ExecRunner{Context: ctx, Stdout: out, Stderr: errOut}
 	closeSetup := func() error { return nil }
-	env, err := workspace.DiscoverEnvironment(setupGitReader{ctx}, root)
+	env, err := workspace.DiscoverEnvironment(workspace.ExecGit{Context: ctx}, root)
 	if err != nil {
 		return client, runner, closeSetup, err
 	}

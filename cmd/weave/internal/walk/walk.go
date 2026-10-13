@@ -7,7 +7,8 @@
 // — intent/, layer/, and plan/ stay pure; the walk + plan.Apply are the only IO).
 //
 // The transitive construct/deps walk itself — deps_substrate_targets'
-// repo-root-relative + absolute + present-skip resolution and discover_ancestors'
+// repo-root-relative (with #230's linked-worktree fallback) + absolute +
+// present-skip resolution and discover_ancestors'
 // two _seen_or_add filters (a candidate is a layer ONLY if it ships
 // construct/base.manifest; the root is never its own ancestor) — now lives in
 // pkg/layergraph (moved here in #115 M1). This file keeps only the rich
