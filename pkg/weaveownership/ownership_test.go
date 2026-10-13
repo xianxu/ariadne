@@ -129,3 +129,11 @@ func TestMatchingPathsSurfacesReadErrors(t *testing.T) {
 		})
 	}
 }
+
+// #281: displaced copies are flat, so a and a/b never nest in each other.
+func TestDisplacedPathIsFlat(t *testing.T) {
+	a, ab := DisplacedPath("a"), DisplacedPath("a/b")
+	if filepath.Dir(a) != DisplacedRel || filepath.Dir(ab) != DisplacedRel || a == ab {
+		t.Fatalf("%q %q", a, ab)
+	}
+}

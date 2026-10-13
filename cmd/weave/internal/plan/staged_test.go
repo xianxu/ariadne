@@ -46,7 +46,10 @@ func TestStagedOutputsPublishAndRetireAllFiles(t *testing.T) {
 	managedApply(t, root, nil, ScopeArtifacts)
 	managedAbsent(t, root, "construct/generated/vocabulary")
 }
-func TestStagedOutputsProtectEditedAndUnownedDestinations(t *testing.T) {
+
+// #281: a changed recorded staged output converges with a displaced copy; an
+// unowned occupant still refuses, naming the next action.
+func TestStagedOutputsConvergeEditedAndRefuseUnownedDestinations(t *testing.T) {
 	for _, kind := range []string{"file", "link", "unowned"} {
 		t.Run(kind, func(t *testing.T) {
 			root := t.TempDir()
@@ -66,15 +69,29 @@ func TestStagedOutputsProtectEditedAndUnownedDestinations(t *testing.T) {
 			} else {
 				managedWrite(t, root, path, "authored")
 			}
-			if _, err := ApplyManaged(weavefs.OSFS{}, root, actions, ScopeArtifacts); err == nil {
-				t.Fatal("overwrote authored output")
-			}
-			if kind == "link" {
-				if target, err := os.Readlink(filepath.Join(root, path)); err != nil || target != "authored" {
-					t.Fatalf("%q %v", target, err)
+			_, err := ApplyManaged(weavefs.OSFS{}, root, actions, ScopeArtifacts)
+			if kind == "unowned" {
+				if err == nil || !strings.Contains(err.Error(), "move it aside") {
+					t.Fatalf("unowned destination: %v", err)
 				}
-			} else if managedRead(t, root, path) != "authored" {
-				t.Fatal("edited bytes changed")
+				if managedRead(t, root, path) != "authored" {
+					t.Fatal("unowned bytes changed")
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if managedRead(t, root, path) == "authored" {
+				t.Fatal("output did not converge")
+			}
+			kept := filepath.Join(root, DisplacedPath(path))
+			if kind == "link" {
+				if target, err := os.Readlink(kept); err != nil || target != "authored" {
+					t.Fatalf("displaced link %q %v", target, err)
+				}
+			} else if managedRead(t, root, DisplacedPath(path)) != "authored" {
+				t.Fatal("displaced bytes lost")
 			}
 		})
 	}
