@@ -80,3 +80,95 @@ findings:
     detail: |
       closeflow.go:80 and close.go:1603 now pass the ambiguity error up, but no fixture reaches them with two plans; only the shared helpers are tested.
 ```
+
+---
+
+## Re-review — 2026-10-12T18:04:07-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 235 — Durable-plan lookup is exact-name: a plan under another slug is invisible |
+| repo | ariadne |
+| issue file | workshop/issues/000235-plan-lookup-by-id.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | ad739caf8086d16cafcb67f2912bead482a1218e..ab683fcc8743e0185df90f8b49ada6815f700c96 |
+| command | sdlc close --issue 235 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-12T18:04:07-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** #235 does what it set out to do. `planArtifactPath` now finds the durable plan by issue id, using `familyPattern` plus `classifyFamily`'s `-plan.md` rule. The decision is a pure `pickPlanArtifact`, and every reader the Plan listed now goes through this one lookup: change-code's plan read and design checkpoint, `recordChangeCodeFlow`, close's measure and review snapshot, the review manifest, and `judge plan-quality`. When two plans share an id, the error is passed up to every caller, so an ambiguous plan can never be read as "no plan". All three prior Minors are fixed. All seven #235 tests pass and `go vet` is clean. The targeted run also hit one unrelated failure (`TestArchiveDoneIssuesInDir_SweepsPlanArtifacts`): the test reports "no issue tracker is reachable", it is outside the diff, and it is an environment failure in this checkout. I'm raising one new Minor finding, the second in the `path-as-glob-pattern` family. It does not block the boundary.
+
+1. **Strengths**
+   - `cmd/sdlc/changecode.go:601-149` (range): one lookup (`planArtifactPathIn`), one pure decision (`pickPlanArtifact`) and one canonical-name helper (`canonicalPlanPath`). Each fact has one owner (ARCH-DRY, ARCH-PURE).
+   - Sidecars are excluded by the same `classifyFamily` rule that `sdlc resolve` uses, not by a new suffix check. `familyPattern` is shared with `familyFiles` (`resolve.go:250`).
+   - The rule that a lookup must refuse ambiguity rather than pick a plan holds everywhere. `readOptionalPlanFile` now returns `(string, error)`, and every caller dies or returns on that error (`changecode_flow.go:107`, `closeflow.go:80`, `close.go:1603`, `reviewwindow.go:81`, `judge.go:292`).
+   - `TestChangeCodeFindsOffSlugPlan` reproduces pair#283 end to end. It checks that the full flow is inferred, the canonical-name note is printed, the plan reaches the plan-quality prompt and the `judge plan-quality` dry-run, and the design checkpoint commits the plan.
+   - `TestPlanLookupToleratesGlobMetacharacters` uses a directory named `repo[1]*?`, where `[1]` really does fail to match under `filepath.Glob`. That makes it a genuine regression test for BR-2.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - **Second finding in family `path-as-glob-pattern`.** BR-2 was fixed only at the site it named. The diff also adds the general rule to `workshop/lessons.md:54` ("Do not `filepath.Glob` a path joined from a directory you did not write"). But 11 non-test sites in `cmd/sdlc` still do exactly that. One is `familyFiles` (`resolve.go:235`), which this diff touches and the Spec names as the thing to reuse. Others are `actualsplit.go:37`, `issuefiles.go:43,148`, `push.go:320,577`, `setstatus.go:209`, `changecode.go:572`, `issue.go:150` and `project.go:135`.
+     - **The rule:** every "files matching a pattern in directory D" lookup should go through one helper, for example `matchIn(dir, pattern)` built on `os.ReadDir` plus `filepath.Match` against the base name. `planArtifactPathIn` already has the body.
+     - **How to enforce it:** a source-scan test that rejects `filepath.Glob(filepath.Join(`.
+     - **Scope:** out of #235's scope, so file it as a follow-up issue. Fixing one more site would just repeat the instance-only fix.
+
+5. **Test coverage notes**
+   - Every Done-when item is pinned:
+     - the canonical name and the off-slug name
+     - two plans refused, naming both
+     - sidecars and a longer id (`0002830-`) ignored
+     - the pair#283 end-to-end run
+     - the review manifest finding an off-slug plan and refusing two
+   - The death path at `closeflow.go:80` is tested only through `readOptionalPlanFile`'s refusal. It is a one-line `die`, so that is acceptable.
+   - I did not run a revert check for BR-3. Undoing the fix changes `reviewPlanPaths`' return type, so the test would no longer compile, which is evidence enough.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. The canonical name, family pattern and classification each have one source.
+   - ARCH-PURE: pass. `pickPlanArtifact` and `planNameNote` are pure; the directory IO is confined to `planArtifactPathIn`.
+   - ARCH-PURPOSE: pass. All the readers the Plan listed are rerouted, and the shadow sweep found no exact-name readers left. The one gap is the glob-safety rule above, which applies across the codebase, not just to this lookup.
+   - ARCH-MOCK: N/A. The only external interaction is listing a local directory. The existing tests use a temp directory and the tracker fake.
+   - ARCH-CONSTRAINTS: pass. One `ReadDir` of the plans directory per read, a few hundred entries at most.
+   - ARCH-SECURE: pass. Filenames are matched, never interpreted. An ambiguous set fails closed, with a visible error.
+   - ARCH-ORDER: N/A. Nothing is held between events: each call re-reads the directory.
+   - ARCH-FUNERAL: N/A. Nothing durable is created. The note goes to stderr only, and nothing is renamed automatically.
+   - Docs: the atlas (`sdlc-binary.md:1314`) and `helptext/change-code.md` are updated. README has no new surface to cover.
+
+7. **Plan revision recommendations**
+   - Optionally, add a one-line Revisions entry. The Plan says the lookup is "a glob of `plansDir`", but since the close round 1 fix it lists the directory with `ReadDir`. The Log already records this, so it is not urgent.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      canonicalPlanPath (changecode.go) is now the single builder; planArtifactPathIn and planNameNote both call it.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      planArtifactPathIn uses os.ReadDir + filepath.Match on base names; TestPlanLookupToleratesGlobMetacharacters (repo[1]*?) passes and would miss under Glob.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      TestReviewPlanPathsRefusesTwoPlans covers the seam close.go:1603 reads through; closeflow.go:80 dies on readOptionalPlanFile's refusal, which TestReadOptionalPlanFileRefusesAmbiguity pins.
+findings:
+  - id: new
+    severity: Minor
+    family: path-as-glob-pattern
+    title: |
+      Glob-over-joined-directory rule fixed at one site; 11 sibling filepath.Glob(filepath.Join(dir, ...)) sites remain
+    detail: |
+      2nd finding in this family. The rule (now in workshop/lessons.md) is: every directory-scoped pattern lookup goes through one ReadDir+Match helper. Prevalence: 11 non-test sites, including familyFiles at resolve.go:235, which this diff touched. Fix the rule, not another instance: extract the helper from planArtifactPathIn, route all sites through it, and add a source-scan test that rejects filepath.Glob(filepath.Join(. File it as a follow-up; it is outside #235's scope.
+```

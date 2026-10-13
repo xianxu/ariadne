@@ -152,6 +152,7 @@ additional rule/risk"). This issue takes the full flow in ariadne. It remains a
 fair example of the class the quick flow targets, just not a candidate for it here.
 
 ### 2026-10-12
+- 2026-10-12: closed — make test green before the minors round; minors round re-verified with targeted cmd/sdlc runs (plan lookup, review manifest, change-code, close flow, resolve): canonicalPlanPath single source, ReadDir lookup tested under a repo[1]*? path, reviewPlanPaths two-plan refusal; review verdict: SHIP
 - 2026-10-12: closed — make test green (12 shards, 1124 cmd/sdlc tests, 0 failed); planlookup_test.go covers canonical, pair#283 off-slug, sidecars, two-plan refusal, review manifest, and change-code end to end (full inferred, plan in plan-quality prompt and judge dry-run, committed by checkpoint); checkpoint assertion mutation-checked; review verdict: SHIP
 
 - Dispatched by the TL (ops:0). Claimed and started on ariadne:2. Pinned
