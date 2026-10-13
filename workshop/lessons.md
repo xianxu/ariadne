@@ -205,6 +205,10 @@ Detailed incidents remain in their owning issue or review artifact.
   consumers from the input's readers (every caller of the parser), not from the
   plan's list. weave refresh re-resolved rows itself and broke from a linked
   worktree after compile was fixed (#230 BR-8).
+- State a list of a component's consumers once, with the grep that regenerates
+  it, and point every other mention at it. Three hand-kept copies of the
+  resolver's callers drifted the moment a fix added one (#230, third finding in
+  the doc-overclaims family).
 - A behavior change to a surface the README documents updates the README, even
   with no new command: a now-false README sentence is a finding (#230 BR-3).
 - Validate external identifier grammar before interpreting sentinel values. An

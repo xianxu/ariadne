@@ -155,8 +155,7 @@ real temporary-repository conformance tests.
   A relative row absent beside a linked worktree resolves beside the worktree's
   primary checkout (#230; see *Linked worktrees* in
   [setup-and-replication](setup-and-replication.md)). One resolver,
-  `layergraph.Resolver`, serves the walk, compile's acquisition and sdlc's
-  substrate walk.
+  `layergraph.Resolver`, serves every row reader; its callers are listed there.
 - **Hybrid intent vocabulary** — ported file-op verbs (`symlink`/`seed`/
   `scaffold`/`touch`/`merge`) + new semantic `prose` (composes `AGENTS.md`,
   replacing the buggy `@AGENTS.local.md` @-import) and `skill` (served via

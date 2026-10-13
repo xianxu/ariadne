@@ -90,9 +90,20 @@ uses `<fleet>/base` for `substrate ../base` without a symlink or a rewritten
   environment policy below makes that refusal.
 
 `pkg/workspace.DependencyAnchor` finds the anchor; `layergraph.ChooseSubstrate`
-is the pure selection rule; `layergraph.Resolver` composes them for weave's walk
-and acquisition, vocabulary, datatype and sdlc's substrate walk. `data` rows and
-the bootstrap parser `construct/scripts/lib-deps.sh` keep plain owner-relative
+is the pure selection rule; `layergraph.Resolver` composes them. This is the one
+list of its callers (regenerate it with
+`grep -rn 'NewResolver' --include='*.go' cmd pkg` when one is added or removed):
+
+- `layergraph.Walk` / `DeclaredSubstrates` (`pkg/layergraph/walk.go`), and through
+  them vocabulary, datatype and weave's read-only verbs;
+- weave compile's acquisition, `acquire.Client.Restore`;
+- weave refresh's origin check, `declaredOrigins`;
+- sdlc's substrate walk (`substrateWalk`: start-plan, catchup, propagate-base).
+
+Two row readers keep the owner-relative join because it is provably the
+resolver's answer there: weave's `migrateSourceless` (primary checkout only) and
+sdlc's fleet membership (numbered environment only). `data` rows and the
+bootstrap parser `construct/scripts/lib-deps.sh` keep plain owner-relative
 resolution.
 
 ## Numbered workspace environments

@@ -26,8 +26,9 @@ func (GitAnchors) PrimaryCheckout(layer string) (string, error) {
 
 // Resolver resolves substrate rows for one walk: FS probes, plus an anchor
 // looked up only when a relative target is absent, memoized per owner. Every
-// layer-graph consumer resolves through it (ARCH-DRY): this package's walk,
-// weave's acquisition and sdlc's substrate walk.
+// reader that maps a construct/deps row to a path resolves through it
+// (ARCH-DRY); the callers, and the two readers that provably need not, are
+// listed once in atlas/workflow/setup-and-replication.md (Linked worktrees).
 type Resolver struct {
 	FS      FS
 	Anchors Anchors
