@@ -497,7 +497,7 @@ func finishReopen(r *reopenedIssue, stderr io.Writer, issuesDir string) {
 	if dirty, err := env.git("status", "--porcelain", "--", detailRel); err != nil {
 		cwarn(stderr, fmt.Sprintf("reopen: the details mirror was not checked: %v", err))
 	} else if dirty != "" {
-		if err := commitOnly(env, fmt.Sprintf("#%s: mirror working card", issue.CLIRef(r.id)), detailRel); err != nil {
+		if err := commitOnly(env, mirrorSubject(r.id), detailRel); err != nil {
 			cwarn(stderr, fmt.Sprintf("reopen: the refreshed details mirror was not committed: %v", err))
 		}
 	}
@@ -505,6 +505,10 @@ func finishReopen(r *reopenedIssue, stderr io.Writer, issuesDir string) {
 	if r.rec.Ref != "" {
 		dropArchiveRef(env, stderr, r.rec)
 	}
+}
+
+func mirrorSubject(id string) string {
+	return fmt.Sprintf("#%s: mirror working card", issue.CLIRef(id))
 }
 
 // dropArchiveRef deletes a reopened issue's archive ref, leased on the kept

@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
@@ -75,18 +76,32 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 		}
 	}
 	// 1: the issue branch, from main. A local one main contains is the landed
-	// branch (nothing to lose); any other is this reopen's, on a rerun.
+	// branch (nothing to lose); any other is this reopen's, on a rerun, and
+	// must already hold main's archive commit (checked before switching to it).
+	archiveCommit, err := env.git("rev-list", "-1", view.Ref(), "--", archivedRel)
+	if err != nil {
+		return false, err
+	}
+	tip := "HEAD"
 	if env.branch != name {
-		tip, err := env.git("for-each-ref", "--format=%(objectname)", "refs/heads/"+name)
-		if err != nil {
+		if tip, err = env.git("for-each-ref", "--format=%(objectname)", "refs/heads/"+name); err != nil {
 			return false, err
 		}
-		landed := tip == ""
-		if !landed {
-			if landed, err = env.ancestorOf(tip, view.Ref()); err != nil {
-				return false, err
-			}
+	}
+	landed := tip == ""
+	if !landed {
+		if landed, err = env.ancestorOf(tip, view.Ref()); err != nil {
+			return false, err
 		}
+	}
+	if !landed {
+		if merged, err := env.ancestorOf(archiveCommit, tip); err != nil {
+			return false, err
+		} else if !merged {
+			return false, fmt.Errorf("#%s: %s predates main's archive of its details; merge main into it, then rerun", issueStr, name)
+		}
+	}
+	if env.branch != name {
 		if landed {
 			_, err = env.git("switch", "-q", "--no-track", "-C", name, view.Ref())
 		} else {
@@ -97,23 +112,69 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 		}
 		env.branch = name
 	}
-	archiveCommit, err := env.git("rev-list", "-1", view.Ref(), "--", archivedRel)
-	if err != nil {
-		return false, err
-	}
-	if merged, err := env.ancestorOf(archiveCommit, "HEAD"); err != nil {
-		return false, err
-	} else if !merged {
-		return false, fmt.Errorf("#%s: %s predates main's archive of its details; merge main into it, then rerun", issueStr, name)
-	}
 	// 2: the details and plans come back out of the archive.
-	if err := unarchiveIssue(env, base, issuesDir, fmt.Sprintf("#%s: reopen: un-archive", issueStr)); err != nil {
+	if err := unarchiveIssue(env, base, issuesDir, unarchiveSubject(card.ID)); err != nil {
 		return false, err
 	}
 	// 3: the branch on the remote, before the card says it is back.
+	if err := leaseOnRemoteBranch(env, name, view.Ref()); err != nil {
+		return false, err
+	}
 	if err := pushIssueBranch(env, name); err != nil {
 		return false, fmt.Errorf("#%s: pushing %s failed: %w — the card is unchanged; rerun", issueStr, name, err)
 	}
 	cok(stderr, fmt.Sprintf("#%s's details un-archived on %s and pushed", issueStr, name))
 	return true, nil
+}
+
+// leaseOnRemoteBranch points the push lease at what origin holds now for the
+// landed name (BR-1): the tracking ref this checkout kept from before the
+// landing names a branch origin has since deleted or that main contains, and
+// leasing on it would refuse every rerun. A tip that is neither main's nor
+// this reopen's is someone's work; refuse.
+func leaseOnRemoteBranch(env *trackerEnv, name, mainTip string) error {
+	tracking := gitx.RemoteTrackingRef(env.target.Remote, name)
+	remote, err := remoteRefTip(env.git, env.target.Remote, "refs/heads/"+name)
+	if err != nil {
+		return err
+	}
+	if remote == "" {
+		_, err = env.git("update-ref", "-d", tracking)
+		return err
+	}
+	if _, err := env.git("fetch", "-q", env.target.Remote, "+refs/heads/"+name+":"+tracking); err != nil {
+		return err
+	}
+	for _, into := range []string{mainTip, "HEAD"} {
+		if ok, err := env.ancestorOf(remote, into); err != nil || ok {
+			return err
+		}
+	}
+	return fmt.Errorf("%s's %s (%s) holds work neither main nor this reopen has; inspect it before reopening", env.target.Remote, name, shortOID(remote))
+}
+
+func unarchiveSubject(id string) string {
+	return fmt.Sprintf("#%s: reopen: un-archive", issue.CLIRef(id))
+}
+
+// unfinishedDoneReopen recognises a done reopen whose card write landed but
+// whose finish (the mirror commit and push) did not (BR-2): this checkout is on
+// the issue branch with nothing after the un-archive commit but that finish's
+// own mirror commit. nil otherwise, so later work is never swept into it.
+func unfinishedDoneReopen(env *trackerEnv, card tracker.Record) (*reopenedIssue, error) {
+	if env.branch != issue.BranchName(card.Path) {
+		return nil, nil
+	}
+	out, err := env.git("log", "-2", "--format=%s")
+	if err != nil {
+		return nil, err
+	}
+	subjects := strings.Split(out, "\n")
+	if subjects[0] == mirrorSubject(card.ID) {
+		subjects = subjects[1:]
+	}
+	if len(subjects) == 0 || subjects[0] != unarchiveSubject(card.ID) {
+		return nil, nil
+	}
+	return &reopenedIssue{env: env, id: card.ID, cardPath: card.Path}, nil
 }

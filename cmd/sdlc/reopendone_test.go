@@ -8,6 +8,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 )
 
 const (
@@ -133,4 +135,94 @@ func TestReopenDoneRerunAfterAFailedPush(t *testing.T) {
 		t.Fatalf("rerun: %v\n%s", err, out)
 	}
 	assertDoneReopened(t, r, cardPath, detailPath)
+}
+
+// BR-1: a tracking ref this checkout kept for the landed branch, which origin
+// has since deleted, does not make every rerun's leased push refuse.
+func TestReopenDoneWithAStaleTrackingRef(t *testing.T) {
+	r, cardPath, detailPath := doneArchived(t)
+	writeReopenEntry(t, r)
+	r.git("update-ref", "refs/remotes/origin/"+s330Branch, r.git("rev-parse", "refs/heads/"+s330Branch))
+	if out, err := reopen330(); err != nil {
+		t.Fatalf("reopen: %v\n%s", err, out)
+	}
+	assertDoneReopened(t, r, cardPath, detailPath)
+}
+
+// BR-2: a finish lost after the card write (the mirror commit and its push)
+// is resumed by rerunning: the remote branch is gone, as if never pushed.
+func TestReopenDoneRerunFinishesALostFinish(t *testing.T) {
+	r, cardPath, detailPath := doneArchived(t)
+	writeReopenEntry(t, r)
+	if out, err := reopen330(); err != nil {
+		t.Fatalf("reopen: %v\n%s", err, out)
+	}
+	if strings.Contains(r.git("log", "-1", "--format=%s"), "mirror working card") {
+		r.git("reset", "-q", "HEAD~1") // the finish never committed its mirror
+	}
+	r.git("push", "-q", "origin", ":"+s330Branch) // nor pushed
+	if out, err := reopen330(); err != nil {
+		t.Fatalf("rerun: %v\n%s", err, out)
+	}
+	assertDoneReopened(t, r, cardPath, detailPath)
+}
+
+// BR-3, BR-4: each refusal fires before anything changes; --force skips only
+// the Log guard.
+func TestReopenDoneRefusals(t *testing.T) {
+	for name, tc := range map[string]struct {
+		setup func(t *testing.T, r *trackerRepo, cardPath string)
+		want  string
+	}{
+		"another workspace owns it": {func(t *testing.T, r *trackerRepo, cardPath string) {
+			owner, _ := ownerOf(t, r, cardPath)
+			_, them := anotherMachine(t, r, owner)
+			env, err := openTrackerAt(context.Background(), r.root)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if err := env.repo.ChangeCard("000330", cardPath, "fixture", operationToken("set"), func(c []byte) ([]byte, error) {
+				return issue.SetCardClaimant(c, them)
+			}); err != nil {
+				t.Fatal(err)
+			}
+		}, "only that workspace reopens it"},
+		"another branch": {func(t *testing.T, r *trackerRepo, _ string) {
+			r.git("switch", "-q", "-c", "elsewhere")
+		}, "reopen from the resting branch"},
+		"a dirty tree": {func(t *testing.T, r *trackerRepo, _ string) {
+			writeRepoFile(t, r.root, "cmd/a.go", "package a // edited\n")
+		}, "cmd/a.go"},
+		"an unlanded local branch without the archive": {func(t *testing.T, r *trackerRepo, _ string) {
+			r.git("branch", "-f", s330Branch, "HEAD~3")
+			r.git("switch", "-q", s330Branch)
+			r.git("commit", "-q", "--allow-empty", "-m", "#330: stray")
+			r.git("switch", "-q", "main")
+		}, "predates main's archive"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			r, cardPath, _ := doneArchived(t)
+			tc.setup(t, r, cardPath)
+			writeReopenEntry(t, r)
+			branch, head := r.git("branch", "--show-current"), r.git("rev-parse", "HEAD")
+			out, err := reopen330()
+			if err == nil || !strings.Contains(err.Error()+out, tc.want) {
+				t.Fatalf("want a refusal naming %q: %v\n%s", tc.want, err, out)
+			}
+			if r.git("branch", "--show-current") != branch || r.git("rev-parse", "HEAD") != head ||
+				remoteTip(t, r, s330Branch) != "" || !strings.Contains(r.card(cardPath), "status: done") {
+				t.Fatal("a refused reopen changed something")
+			}
+		})
+	}
+	t.Run("--force skips the Log guard", func(t *testing.T) {
+		r, cardPath, detailPath := doneArchived(t)
+		stdout, stderr, err := executeSDLCTestCommand("issue", "set-status", "working", "--issue", "330", "--force")
+		if err != nil {
+			t.Fatalf("forced reopen: %v\n%s%s", err, stdout, stderr)
+		}
+		if !gitSucceeds(r.root, "cat-file", "-e", "HEAD:"+detailPath) || !strings.Contains(r.card(cardPath), "status: working") {
+			t.Fatal("a forced reopen did not un-archive")
+		}
+	})
 }

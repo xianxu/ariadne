@@ -393,8 +393,12 @@ func restoreForReopen(ctx context.Context, stderr io.Writer, f *setStatusFlags) 
 	if status == "working" {
 		// BR-12: a rerun after the reopen's card write (a lost response, an
 		// interruption) finishes it: on the restored branch, with the archive
-		// ref still holding work the branch contains.
-		return unfinishedReopen(env, card)
+		// ref still holding work the branch contains; a done reopen's, on the
+		// branch its un-archive commit tops (#305).
+		if r, err := unfinishedReopen(env, card); err != nil || r != nil {
+			return r, err
+		}
+		return unfinishedDoneReopen(env, card)
 	}
 	if status == "done" {
 		if restored, err := restoreDone(env, stderr, card, f.IssuesDir, f.Force); err != nil || !restored {
