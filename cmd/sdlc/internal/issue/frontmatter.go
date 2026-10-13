@@ -89,7 +89,9 @@ func dropBlockContinuation(fm, name string) string {
 	out := make([]string, 0, len(lines))
 	inBlock := false
 	for _, line := range lines {
-		if inBlock && (strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t")) {
+		// A block value's lines are indented, or (a block sequence, #348) start
+		// with "- " at column one.
+		if inBlock && (strings.HasPrefix(line, " ") || strings.HasPrefix(line, "\t") || strings.HasPrefix(line, "- ") || line == "-") {
 			continue
 		}
 		inBlock = strings.HasPrefix(line, name+":")

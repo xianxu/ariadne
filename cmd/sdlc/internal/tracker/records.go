@@ -47,6 +47,24 @@ var cardOwned = func() map[string]bool {
 	return owned
 }()
 
+// List returns a list-valued field (#348 area) from the half that owns it,
+// decoded; ok is false when absent, null, or unreadable.
+func (r IssueRecord) List(name string) ([]string, bool) {
+	fm := ""
+	switch {
+	case cardOwned[name] && r.Card != nil:
+		fm = r.Card.Card.Frontmatter
+	case cardOwned[name] && r.tracked:
+		return nil, false
+	case r.DetailPath == "" || r.DetailErr != nil:
+		return nil, false
+	default:
+		fm = r.DetailFM
+	}
+	values, ok, err := issue.FieldList(fm, name)
+	return values, ok && err == nil
+}
+
 // Field returns a frontmatter field from the half that owns it. A card-owned
 // field of an issue with a card is never read from the (possibly stale) mirror.
 func (r IssueRecord) Field(name string) (string, bool) {

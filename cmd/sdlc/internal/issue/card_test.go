@@ -54,6 +54,8 @@ func TestParseCardRejectsInvalidSchema(t *testing.T) {
 		"duplicate title":   string(card) + "\n# Another title\n",
 		"duplicate problem": string(card) + "\n## Problem\nOther report\n",
 		"alias":             strings.Replace(string(card), "status: open", "status: &s open\nstarted: *s", 1),
+		"bare CR":           strings.Replace(string(card), "status: open", "status: open\r\r ", 1),
+		"line separator":    strings.Replace(string(card), "status: open", "status: open\u2028", 1),
 	} {
 		t.Run(name, func(t *testing.T) {
 			if _, err := ParseCard([]byte(raw)); err == nil {

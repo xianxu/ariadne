@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/pkg/vocab"
 	"go.yaml.in/yaml/v3"
 )
@@ -149,6 +150,13 @@ func parseCardDocument(raw []byte) (*cardDocument, error) {
 	if err := validateCardYAML(root); err != nil {
 		return nil, err
 	}
+	// Spans index lines split on "\n" by the YAML parser's line numbers. YAML
+	// also breaks lines at "\r", NEL, U+2028 and U+2029, so frontmatter holding
+	// one of those makes the two disagree; refuse it rather than index past the
+	// end (found by FuzzRepoEnumCardShape, #348). sdlc writes "\n" only.
+	if strings.ContainsAny(fm, "\r\u0085\u2028\u2029") {
+		return nil, invalidCard("frontmatter", "contains a line break other than \\n")
+	}
 	d := &cardDocument{fm: fm, body: body, fields: map[string]*yaml.Node{}, spans: map[string]cardSpan{}}
 	lines := strings.Split(fm, "\n")
 	offsets := make([]int, len(lines)+1)
@@ -231,10 +239,61 @@ func validateCardYAML(n *yaml.Node) error {
 
 var cardIDRE = regexp.MustCompile(`^[0-9]{6}$`)
 
+// FieldList decodes a list-valued frontmatter field (#348 area), in flow or
+// block form. ok is false when the field is absent or null; an error means the
+// frontmatter or the value is not a list of strings.
+func FieldList(fm, name string) (values []string, ok bool, err error) {
+	var doc map[string]yaml.Node
+	if err := yaml.Unmarshal([]byte(fm), &doc); err != nil {
+		return nil, false, fmt.Errorf("frontmatter: %w", err)
+	}
+	n, present := doc[name]
+	if !present || (n.Kind == yaml.ScalarNode && n.Tag == "!!null") {
+		return nil, false, nil
+	}
+	if err := n.Decode(&values); err != nil {
+		return nil, false, fmt.Errorf("%s: expected a list of strings: %w", name, err)
+	}
+	return values, true, nil
+}
+
+// validateRepoEnumNode checks a repo-enum card value's SHAPE (#348): null, or a
+// one-line flow sequence of distinct values with the model's syntax, at most
+// the model's item count. Membership in the repository's declaration is never
+// checked here: a value later removed from the declaration must not make the
+// card unreadable. Writers and gates check membership.
+func validateRepoEnumNode(field vocab.CardField, n *yaml.Node) error {
+	if n.Kind == yaml.ScalarNode && n.Tag == "!!null" {
+		return nil
+	}
+	spec := vocab.Issue().RepoEnums.Fields[field.Enum]
+	fail := func(why string) error { return invalidCard(field.Name, why) }
+	if n.Kind != yaml.SequenceNode || n.Style&yaml.FlowStyle == 0 {
+		return fail("expected a one-line flow list like [a/b, c]")
+	}
+	if spec.MaxItems > 0 && len(n.Content) > spec.MaxItems {
+		return fail(fmt.Sprintf("at most %d values", spec.MaxItems))
+	}
+	seen := map[string]bool{}
+	for _, item := range n.Content {
+		if item.Kind != yaml.ScalarNode || item.Tag != "!!str" || !repoenum.ValidValue(spec, item.Value) {
+			return fail(fmt.Sprintf("value %q is not a valid %s", item.Value, field.Enum))
+		}
+		if seen[item.Value] {
+			return fail(fmt.Sprintf("value %q listed twice", item.Value))
+		}
+		seen[item.Value] = true
+	}
+	return nil
+}
+
 func validateCardScalar(field vocab.CardField, n *yaml.Node) error {
 	if field.Kind == "claimant" {
 		_, err := parseClaimant(n)
 		return err
+	}
+	if field.Kind == "repo-enum" {
+		return validateRepoEnumNode(field, n)
 	}
 	fail := func() error { return invalidCard(field.Name, "invalid "+field.Kind+" scalar") }
 	if n.Kind != yaml.ScalarNode {
@@ -274,6 +333,11 @@ func validateCardScalar(field vocab.CardField, n *yaml.Node) error {
 			layout = "2006-01-02"
 		}
 		if _, err := time.Parse(layout, n.Value); err != nil {
+			return fail()
+		}
+	case "enum":
+		// #348: a shared closed enum from the model.
+		if n.Tag != "!!str" || !slices.Contains(vocab.Issue().Enums[field.Enum], n.Value) {
 			return fail()
 		}
 	case "github":
@@ -327,7 +391,7 @@ func sameCardValue(a, b *yaml.Node) bool {
 	if a.Tag != b.Tag || a.Kind != b.Kind {
 		return false
 	}
-	if a.Kind == yaml.MappingNode { // a structured field (#277 claimant)
+	if a.Kind == yaml.MappingNode || a.Kind == yaml.SequenceNode { // structured: #277 claimant, #348 area
 		var av, bv any
 		return a.Decode(&av) == nil && b.Decode(&bv) == nil && reflect.DeepEqual(av, bv)
 	}
