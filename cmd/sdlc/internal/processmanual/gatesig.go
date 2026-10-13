@@ -74,10 +74,9 @@ func init() {
 	}
 }
 
-// GateCatalog — the 19 signature rows over the spine's bypass gates. Row count and
+// GateCatalog — the signature rows over the spine's bypass gates. Row count and
 // flag count are NOT the same number and never were: a flag can appear on more than
-// one command, and `--no-ledger` names two semantically distinct gates (the boundary
-// ledger on close/milestone-close, the fog-factor ledger on project close). Counts here
+// one command (`--no-judge` on five). Counts here
 // are prose — TestGateCatalogMatchesRegisteredFlags is what actually pins the set.
 var GateCatalog = []GateSig{
 	// close / milestone-close — G1 (shared computeClose emits these). ACK = the
@@ -129,9 +128,6 @@ var GateCatalog = []GateSig{
 	{Commands: []string{"project close"}, Flag: "no-retro", Gate: "project retro recorded", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
 		AckPat:     `--no-retro \(or --force\): closing without a recorded project retro`,
 		RefusalPat: `run .*project retro.*, or pass --no-retro \(or --force\)`},
-	{Commands: []string{"project close"}, Flag: "no-ledger", Gate: "fog-factor ledger row", Grammar: grammarG1, HasRefusal: true, RefusalNamesFlag: true,
-		AckPat:     `--no-ledger \(or --force\): skipping fog-factor ledger`,
-		RefusalPat: `or pass --no-ledger \(or --force\)`},
 
 	// change-code — G2, silent unless --force. ACK = "<base> gate[s] bypassed (--force:";
 	// the base differs from the flag (no-judge → plan-quality/estimate-quality).

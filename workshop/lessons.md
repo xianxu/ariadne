@@ -493,3 +493,10 @@ The simplest durable authority beats a clever scan of consequences.
   existing one. #311 wrote its own `^#N` regex while `gitx.IsShippedWorkSubject`
   already owned that anchor plus the bookkeeping-verb filter, so the copy
   would have accepted a range holding only `#N: close` commits.
+- Don't edit or commit in a checkout while its `make test` runs. The cmd/sdlc
+  hermeticity guard compares the repo before and after, so your own edits read
+  as "a test wrote the real repo" and every shard fails although every test
+  passed (#329). Run the full suite only when nothing else writes to the tree.
+- A handoff against a file someone else keeps editing (an ops project's Log)
+  goes stale as a saved patch within hours. Hand off the regeneration script
+  and keep the patch only as a preview (#329 D10).

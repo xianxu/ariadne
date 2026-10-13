@@ -16,13 +16,13 @@ func TestProjectDiscovery(t *testing.T) {
 }
 
 func TestProjectInitialStatus(t *testing.T) {
-	if got := Project().InitialStatus(); got != "ideation" {
+	if got := Project().InitialStatus(); got != "defined" {
 		t.Fatalf("initial = %q", got)
 	}
 }
 
 func TestProjectAllStatuses(t *testing.T) {
-	want := []string{"ideation", "defined", "committed", "executing", "paused", "done", "dropped"}
+	want := []string{"defined", "executing", "closing", "closed", "dropped"}
 	got := Project().AllStatuses()
 	if len(got) != len(want) {
 		t.Fatalf("statuses = %v, want %v", got, want)
@@ -40,13 +40,16 @@ func TestProjectPredicates(t *testing.T) {
 		s                            string
 		forming, executing, terminal bool
 	}{
-		{"ideation", true, false, false},
 		{"defined", true, false, false},
-		{"committed", false, false, false},
 		{"executing", false, true, false},
-		{"paused", false, true, false},
-		{"done", false, false, true},
+		{"closing", false, true, false},
+		{"closed", false, false, true},
 		{"dropped", false, false, true},
+		// retired by #329: no longer statuses at all
+		{"ideation", false, false, false},
+		{"committed", false, false, false},
+		{"paused", false, false, false},
+		{"done", false, false, false},
 	}
 	for _, c := range cases {
 		if m.IsForming(c.s) != c.forming || m.IsExecuting(c.s) != c.executing || m.IsTerminal(c.s) != c.terminal {
@@ -56,30 +59,50 @@ func TestProjectPredicates(t *testing.T) {
 	}
 }
 
-func TestProjectTransitionFor(t *testing.T) {
-	tr := Project().TransitionFor("executing", "done")
-	if tr == nil || tr.Event != "close" {
-		t.Fatalf("executing→done = %+v", tr)
+// TestProjectTransitions pins the #329 funnel: each edge's event and guards.
+func TestProjectTransitions(t *testing.T) {
+	m := Project()
+	cases := []struct {
+		from, to, event string
+		guards          []string
+	}{
+		{"defined", "executing", "execute", []string{"trains-present"}},
+		{"executing", "closing", "wrap", []string{"mvp-landed"}},
+		{"closing", "executing", "reopen", nil},
+		{"closing", "closed", "close", []string{"retro-recorded"}},
+		{"defined", "dropped", "drop", nil},
+		{"executing", "dropped", "drop", []string{"retro-recorded"}},
+		{"closing", "dropped", "drop", []string{"retro-recorded"}},
 	}
-	if len(tr.Guards) != 2 || tr.Guards[0] != "retro-recorded" || tr.Guards[1] != "fog-factor-recorded" {
-		t.Fatalf("close guards = %v", tr.Guards)
+	for _, c := range cases {
+		tr := m.TransitionFor(c.from, c.to)
+		if tr == nil || tr.Event != c.event || strings.Join(tr.Guards, ",") != strings.Join(c.guards, ",") {
+			t.Errorf("%s→%s = %+v, want event %q guards %v", c.from, c.to, tr, c.event, c.guards)
+		}
+	}
+	if len(m.Lifecycle) != len(cases) {
+		t.Errorf("lifecycle has %d edges, want %d", len(m.Lifecycle), len(cases))
+	}
+	// close only from closing: a project wraps (every MVP issue landed) first.
+	if m.CanTransition("executing", "closed") {
+		t.Error("executing→closed must not exist; wrap to closing first")
 	}
 }
 
 func TestProjectTransitionForEventDerivesCloseAndDrop(t *testing.T) {
 	m := Project()
 	closeTr := m.FirstTransitionForEvent("close")
-	if closeTr == nil || m.TransitionForEvent(closeTr.From, "close") == nil {
-		t.Fatal("close event transition not derivable")
+	if closeTr == nil || closeTr.From != "closing" || m.TransitionForEvent(closeTr.From, "close") == nil {
+		t.Fatalf("close event transition = %+v", closeTr)
 	}
-	if tr := m.TransitionForEvent("paused", "drop"); tr == nil || tr.Event != "drop" {
-		t.Fatalf("paused drop transition = %+v", tr)
+	if tr := m.TransitionForEvent("closing", "drop"); tr == nil || tr.Event != "drop" {
+		t.Fatalf("closing drop transition = %+v", tr)
 	}
 }
 
 func TestProjectSections(t *testing.T) {
 	secs := Project().Sections()
-	want := []string{"PRD", "Estimate", "Breakdown", "Log"}
+	want := []string{"Charter", "Trains", "Breakdown", "Log", "Decisions"}
 	if len(secs) != len(want) {
 		t.Fatalf("sections = %+v", secs)
 	}
@@ -91,11 +114,14 @@ func TestProjectSections(t *testing.T) {
 	if secs[2].Seed != "- [ ]" {
 		t.Fatalf("Breakdown seed = %q", secs[2].Seed)
 	}
+	if !strings.HasPrefix(secs[1].Seed, "| Train | Cars, in order | Slot |") {
+		t.Fatalf("Trains seed = %q", secs[1].Seed)
+	}
 }
 
 func TestProjectRenderLifecycleHelp(t *testing.T) {
 	help := Project().RenderLifecycleHelp()
-	for _, frag := range []string{"STATUSES", "LEGAL TRANSITIONS", "ideation", "baseline set"} {
+	for _, frag := range []string{"STATUSES", "LEGAL TRANSITIONS", "closing", "done_when audit"} {
 		if !strings.Contains(help, frag) {
 			t.Fatalf("lifecycle help missing %q:\n%s", frag, help)
 		}

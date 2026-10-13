@@ -10,9 +10,9 @@ import (
 )
 
 func TestRenderRetroEntry(t *testing.T) {
-	b := board{Done: 3, Total: 7, RemainingHours: 22, Deadline: "2026-09-01", Frontier: []string{"ariadne#182", "metis#9"}}
+	b := board{Done: 3, Total: 7, RemainingHours: 22, Frontier: []string{"ariadne#182", "metis#9"}}
 	got := renderRetroEntry(b, "2026-07-20")
-	for _, want := range []string{"### 2026-07-20 — retro", "**board:** 3/7 done · Σ remaining ≈ 22h · deadline 2026-09-01 (43 days) · frontier: ariadne#182, metis#9", "<where we are + what changed + new forecast"} {
+	for _, want := range []string{"### 2026-07-20 — retro", "**board:** 3/7 done · Σ remaining ≈ 22h · frontier: ariadne#182, metis#9", "<where we are + what changed + new forecast"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("retro missing %q:\n%s", want, got)
 		}

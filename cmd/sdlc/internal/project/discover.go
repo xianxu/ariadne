@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -27,6 +28,14 @@ type ProjectMatch struct {
 	RepoDir string // absolute repo root that owns the match
 	Repo    string // repo basename
 	Legacy  bool   // found under the deprecated brain/data/project home
+	// RowRef: the record cites the issue as a `[repo#N…]` row ref. A record
+	// that carries the issue only as a train car (#329) is a match with
+	// RowRef false: navigation reports it, the close tick has no row to edit.
+	RowRef bool
+	// Train/Car/Cars: the train carrying the issue and the car's 1-based
+	// position in it, when one does (#329). Empty Train means no train.
+	Train     string
+	Car, Cars int
 }
 
 // SiblingRepoDirs returns the absolute paths of every directory sibling of
@@ -100,8 +109,8 @@ type CheckoutOverlay struct {
 // canonical home, plus — when includeArchive — the derived archive home; a
 // brain repo (canonical .brain/config.md predicate, #176) contributes only its
 // deprecated data/project legacy home. Non-fleet siblings (.bak, worktree,
-// dot-dirs) are skipped. Both DiscoverByIssueRef and ListActiveProjectFiles
-// drive off this one walk so "where the fleet's projects live" has one source.
+// dot-dirs) are skipped. DiscoverByIssueRef
+// drives off this one walk so "where the fleet's projects live" has one source.
 func walkFleetProjects(parentDir string, includeArchive bool, visit func(path, repoDir, repo string, legacy bool), overlays ...CheckoutOverlay) error {
 	roots, err := fleetProjectRoots(parentDir, overlays...)
 	if err != nil {
@@ -175,9 +184,10 @@ func walkProjectRoots(roots []ProjectRoot, includeArchive bool, visit func(path,
 	return nil
 }
 
-// DiscoverByIssueRef returns every project record across the fleet whose body
-// contains the marker "[<repoName>#<issueID>" (open-bracket form matches both
-// "[metis#18]" and "[metis#18 M1]"). It always scans each sibling repo's
+// DiscoverByIssueRef returns every project record across the fleet that
+// references the issue, by the rule DiscoverInRoots owns: a `[repo#id…]` row
+// ref, or a car in the record's Trains (#329, filling Train/Car/Cars). It
+// always scans each sibling repo's
 // canonical home (vocab.Project().Discovery().Home) and, when scope is
 // ActiveAndArchive, the derived archive home; it also scans the deprecated
 // brain/data/project/*.md legacy home. Multiple matches are legitimate
@@ -190,6 +200,10 @@ func DiscoverByIssueRef(parentDir, repoName, issueID string, scope DiscoverScope
 	return DiscoverInRoots(roots, repoName, issueID, scope)
 }
 
+// DiscoverInRoots is the single source of the match rule: a record matches when
+// its body holds the marker "[<repoName>#<issueID>" (the open-bracket form
+// matches both "[metis#18]" and "[metis#18 M1]"; RowRef) or its Trains carry
+// the issue as a car (Train/Car/Cars, #329). Either is enough.
 func DiscoverInRoots(roots []ProjectRoot, repoName, issueID string, scope DiscoverScope) ([]ProjectMatch, error) {
 	marker := "[" + repoName + "#" + issueID
 	var out []ProjectMatch
@@ -198,10 +212,16 @@ func DiscoverInRoots(roots []ProjectRoot, repoName, issueID string, scope Discov
 		if rerr != nil {
 			return // best-effort, matches FindByIssueRef
 		}
-		if containsIssueMarker(string(data), marker) {
-			out = append(out, ProjectMatch{
-				Path: path, RepoDir: repoDir, Repo: repo, Legacy: legacy,
-			})
+		m := ProjectMatch{Path: path, RepoDir: repoDir, Repo: repo, Legacy: legacy, RowRef: containsIssueMarker(string(data), marker)}
+		if id, aerr := strconv.Atoi(issueID); aerr == nil {
+			if d, perr := ParseDoc(string(data)); perr == nil {
+				if t, car, ok := d.Trains(repo).Locate(IssueRef{Repo: repoName, ID: id}); ok {
+					m.Train, m.Car, m.Cars = t.Name, car, len(t.Cars)
+				}
+			}
+		}
+		if m.RowRef || m.Train != "" {
+			out = append(out, m)
 		}
 	})
 	if err != nil {
@@ -209,51 +229,6 @@ func DiscoverInRoots(roots []ProjectRoot, repoName, issueID string, scope Discov
 	}
 	if scope == ActiveOnly {
 		out = dropTerminalLegacy(out)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
-	return out, nil
-}
-
-// ProjectFile is one active project record's location, from the fleet walk.
-type ProjectFile struct {
-	Path    string
-	RepoDir string
-	Repo    string
-	Legacy  bool // deprecated brain/data/project home
-}
-
-// ListActiveProjectFiles returns every ACTIVE project record across the fleet
-// (canonical home + brain legacy home; NOT the archive — archived/terminal
-// records hold no current load), excluding excludePath (resolved via
-// EvalSymlinks so a symlink to the subject still matches). Reuses the shared
-// walkFleetProjects so the fleet enumeration has one source (#182 M2; the
-// calendar forecast's contention input). Deterministic (sorted by path).
-func ListActiveProjectFiles(parentDir, excludePath string, overlays ...CheckoutOverlay) ([]ProjectFile, error) {
-	roots, err := fleetProjectRoots(parentDir, overlays...)
-	if err != nil {
-		return nil, err
-	}
-	return ListActiveInRoots(roots, excludePath)
-}
-
-func ListActiveInRoots(roots []ProjectRoot, excludePath string) ([]ProjectFile, error) {
-	exclude := excludePath
-	if r, err := filepath.EvalSymlinks(excludePath); err == nil && r != "" {
-		exclude = r
-	}
-	var out []ProjectFile
-	err := walkProjectRoots(roots, false, func(path, repoDir, repo string, legacy bool) {
-		real := path
-		if r, evErr := filepath.EvalSymlinks(path); evErr == nil && r != "" {
-			real = r
-		}
-		if real == exclude {
-			return
-		}
-		out = append(out, ProjectFile{Path: path, RepoDir: repoDir, Repo: repo, Legacy: legacy})
-	})
-	if err != nil {
-		return nil, err
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out, nil

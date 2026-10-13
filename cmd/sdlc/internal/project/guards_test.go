@@ -1,61 +1,89 @@
 package project
 
 import (
+	"errors"
 	"strings"
 	"testing"
+
+	"github.com/xianxu/ariadne/pkg/vocab"
 )
 
-func guardDoc(t *testing.T, fm, prd, estimate, log string) *Doc {
+func guardDoc(t *testing.T, fm, trains, log string) *Doc {
 	t.Helper()
-	d, err := ParseDoc("---\ntype: project\nname: demo\nstatus: ideation\n" + fm + "---\n## PRD\n" + prd + "\n## Estimate\n" + estimate + "\n## Breakdown\n- [ ]\n## Log\n" + log + "\n")
+	d, err := ParseDoc("---\ntype: project\nname: demo\nstatus: executing\n" + fm + "---\n## Charter\nWhy.\n## Trains\n" + trains + "\n## Breakdown\n- [ ]\n## Log\n" + log + "\n## Decisions\n")
 	if err != nil {
 		t.Fatal(err)
 	}
 	return d
 }
 
-func TestProjectGuards(t *testing.T) {
-	guards := Guards()
-	for _, name := range []string{"prd-present", "phase-a-estimate", "baseline-set", "reality-check", "issues-cover-prd", "retro-recorded", "fog-factor-recorded"} {
-		if guards[name] == nil {
-			t.Fatalf("guard %q is not registered", name)
+// Every guard the vocabulary names is registered, and nothing else is: a
+// retired guard left in the registry would be dead code, a missing one a
+// runtime refusal.
+func TestProjectGuardsMatchVocabulary(t *testing.T) {
+	named := map[string]bool{}
+	for _, tr := range vocab.Project().Lifecycle {
+		for _, g := range tr.Guards {
+			named[g] = true
 		}
 	}
-	ctx := GuardCtx{Evidence: map[string]string{}, Today: "2026-07-16"}
-	if err := guards["prd-present"](guardDoc(t, "", "\n", "", ""), ctx); err == nil {
-		t.Error("empty PRD passed")
-	}
-	if err := guards["prd-present"](guardDoc(t, "", "\nA real requirement.\n", "", ""), ctx); err != nil {
-		t.Errorf("prose PRD failed: %v", err)
-	}
-	if err := guards["phase-a-estimate"](guardDoc(t, "", "ok", "\n**phase-a:** 3.5h\n", ""), ctx); err != nil {
-		t.Errorf("phase-a failed: %v", err)
-	}
-	if err := guards["phase-a-estimate"](guardDoc(t, "", "ok", "\n**phase-a:** TBD\n", ""), ctx); err == nil {
-		t.Error("non-numeric phase-a passed")
-	}
-	if err := guards["baseline-set"](guardDoc(t, "deadline: 2026-09-01\nplanned_finish: 2026-08-20\n", "ok", "", ""), ctx); err != nil {
-		t.Errorf("baseline failed: %v", err)
-	}
-	if err := guards["baseline-set"](guardDoc(t, "deadline: 2026-09-01\n", "ok", "", ""), ctx); err == nil {
-		t.Error("partial baseline passed")
-	}
-	for _, name := range []string{"reality-check", "issues-cover-prd"} {
-		if err := guards[name](guardDoc(t, "", "ok", "", ""), ctx); err == nil {
-			t.Errorf("%s passed without evidence", name)
-		}
-		with := GuardCtx{Evidence: map[string]string{name: "checked"}}
-		if err := guards[name](guardDoc(t, "", "ok", "", ""), with); err != nil {
-			t.Errorf("%s rejected evidence: %v", name, err)
+	reg := Guards()
+	for g := range named {
+		if reg[g] == nil {
+			t.Errorf("vocabulary names guard %q but the registry lacks it", g)
 		}
 	}
-	if err := guards["retro-recorded"](guardDoc(t, "", "ok", "", "\n### 2026-07-16 — retro\nLearned.\n"), ctx); err != nil {
+	for g := range reg {
+		if !named[g] {
+			t.Errorf("registry holds guard %q that no transition names", g)
+		}
+	}
+}
+
+func TestTrainsPresentGuard(t *testing.T) {
+	g := Guards()["trains-present"]
+	if err := g(guardDoc(t, "", "| Train | Cars, in order | Slot |\n|---|---|---|", ""), GuardCtx{}); err == nil {
+		t.Error("empty trains table passed")
+	}
+	if err := g(guardDoc(t, "", "| Train | Cars, in order | Slot |\n|---|---|---|\n| A | ariadne#1 | :1 |", ""), GuardCtx{}); err != nil {
+		t.Errorf("one train failed: %v", err)
+	}
+}
+
+func TestMVPLandedGuard(t *testing.T) {
+	g := Guards()["mvp-landed"]
+	terminal := map[string]bool{"ariadne#1": true, "pair#2": false}
+	ctx := GuardCtx{IssueTerminal: func(ref string) (bool, error) {
+		done, ok := terminal[ref]
+		if !ok {
+			return false, errors.New("no such issue")
+		}
+		return done, nil
+	}}
+	if err := g(guardDoc(t, "", "", ""), ctx); err == nil || !strings.Contains(err.Error(), "mvp_scope is empty") {
+		t.Errorf("empty mvp_scope = %v", err)
+	}
+	if err := g(guardDoc(t, "mvp_scope: [ariadne#1, pair#2]\n", "", ""), ctx); err == nil || !strings.Contains(err.Error(), "pair#2") || strings.Contains(err.Error(), "ariadne#1") {
+		t.Errorf("open MVP issue = %v, want only pair#2 named", err)
+	}
+	terminal["pair#2"] = true
+	if err := g(guardDoc(t, "mvp_scope: [ariadne#1, pair#2]\n", "", ""), ctx); err != nil {
+		t.Errorf("all landed = %v", err)
+	}
+	if err := g(guardDoc(t, "mvp_scope: [ariadne#1, gone#3]\n", "", ""), ctx); err == nil || !strings.Contains(err.Error(), "gone#3") {
+		t.Errorf("lookup error = %v, want it surfaced", err)
+	}
+	if err := g(guardDoc(t, "mvp_scope: [ariadne#1]\n", "", ""), GuardCtx{}); err == nil {
+		t.Error("no lookup passed")
+	}
+}
+
+func TestRetroRecordedGuard(t *testing.T) {
+	g := Guards()["retro-recorded"]
+	if err := g(guardDoc(t, "", "", "\n### 2026-07-16 — retro\nLearned.\n"), GuardCtx{}); err != nil {
 		t.Errorf("retro failed: %v", err)
 	}
-	if err := guards["retro-recorded"](guardDoc(t, "", "ok", "", "\n### 2026-07-16\nNot retro.\n"), ctx); err == nil {
+	if err := g(guardDoc(t, "", "", "\n### 2026-07-16\nNot retro.\n"), GuardCtx{}); err == nil {
 		t.Error("non-retro heading passed")
-	}
-	if err := guards["fog-factor-recorded"](guardDoc(t, "", "ok", "", ""), ctx); err == nil || !strings.Contains(err.Error(), "project close") {
-		t.Errorf("fog guard = %v", err)
 	}
 }

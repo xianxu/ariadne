@@ -9,13 +9,12 @@ package projectinvalid
 import "list"
 
 categories: {
-	forming:   ["ideation", "defined"]
-	committed: ["committed"]
-	executing: ["executing", "paused"]
-	terminal:  ["done", "dropped"]
+	forming:   ["defined"]
+	executing: ["executing", "closing"]
+	terminal:  ["closed", "dropped"]
 }
 
-#Status: or(list.Concat([categories.forming, categories.committed, categories.executing, categories.terminal]))
+#Status: or(list.Concat([categories.forming, categories.executing, categories.terminal]))
 
 #Transition: {
 	from:   #Status
@@ -25,5 +24,5 @@ categories: {
 }
 
 lifecycle: [...#Transition] & [
-	{from: "ideation", to: "shipped", event: "define", guards: []}, // "shipped" ∉ #Status → vet must fail HERE
+	{from: "defined", to: "shipped", event: "execute", guards: []}, // "shipped" ∉ #Status → vet must fail HERE
 ]

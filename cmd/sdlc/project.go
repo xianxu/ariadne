@@ -36,7 +36,7 @@ func NewProjectCmd() *cobra.Command {
 	cmd.AddCommand(newProjectRetroCmd())
 	cmd.AddCommand(newProjectCloseCmd())
 	cmd.AddCommand(newProjectFindCmd())
-	cmd.AddCommand(newProjectThroughputCmd())
+	cmd.AddCommand(newProjectForecastCmd())
 	return cmd
 }
 
@@ -88,7 +88,7 @@ func newProjectShowCmd() *cobra.Command {
 		}}
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug")
 	cmd.Flags().StringVar(&f.ProjectsDir, "projects-dir", defaultProjectsDir(), "directory holding project files")
-	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "brain root holding the throughput baseline (for the forecast line)")
+	cmd.Flags().StringVar(&f.BrainDir, "brain-dir", "../brain", "brain root holding the calibration ledger (for the forecast line)")
 	_ = cmd.MarkFlagRequired("slug")
 	return cmd
 }
@@ -170,10 +170,33 @@ func runProjectShow(ctx context.Context, stdout, _ io.Writer, f *projectShowFlag
 		return err
 	}
 	fmt.Fprint(stdout, projectdoc.RenderShow(projectdoc.Summarize(path, d)))
-	if line := forecastLine(ctx, path, f.BrainDir, projectTodayFn()); line != "" {
+	if line := forecastLine(ctx, path, f.BrainDir); line != "" {
 		fmt.Fprintln(stdout, line)
 	}
 	return nil
+}
+
+// missingProjectSections reports each required model scaffold section (#329:
+// Charter, Trains, Breakdown, Log, Decisions; none optional today) the file lacks. On-demand validation is
+// full, like `issue validate`; the changed-instance gate stays frontmatter-only.
+func missingProjectSections(path string) []string {
+	d, err := readProject(path)
+	if err != nil {
+		return []string{"  - body: " + err.Error()}
+	}
+	return missingSections(d, vocab.Project().Sections())
+}
+
+// missingSections is the pure check: every non-optional section the model
+// declares must be present.
+func missingSections(d *projectdoc.Doc, secs []vocab.Section) []string {
+	var probs []string
+	for _, sec := range secs {
+		if !sec.Optional && !d.HasSection(sec.Name) {
+			probs = append(probs, fmt.Sprintf("  - section: missing `## %s`", sec.Name))
+		}
+	}
+	return probs
 }
 
 func runProjectValidate(stdout, stderr io.Writer, f *projectValidateFlags, args []string) error {
@@ -204,9 +227,14 @@ func runProjectValidate(stdout, stderr io.Writer, f *projectValidateFlags, args 
 		if err != nil {
 			return err
 		}
+		var probs []string
 		if !ok {
+			probs = append(probs, strings.TrimRight(out, "\n"))
+		}
+		probs = append(probs, missingProjectSections(path)...)
+		if len(probs) > 0 {
 			bad++
-			fmt.Fprintf(stdout, "%s:\n%s\n", path, out)
+			fmt.Fprintf(stdout, "%s:\n%s\n", path, strings.Join(probs, "\n"))
 		} else {
 			cok(stderr, path+": conforms")
 		}
