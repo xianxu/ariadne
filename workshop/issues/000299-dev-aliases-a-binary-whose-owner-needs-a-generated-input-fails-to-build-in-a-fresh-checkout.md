@@ -1,12 +1,22 @@
 ---
 id: 000299
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-06
-updated: 2026-10-06
+updated: 2026-10-12
 estimate_hours:
-card_mirror: '7b450e6115728bd86948c3fe109bee1a0c8ebc4f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0a0f5aede29715b91816c4bf0b68d753d3237ed9' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T16:51:54-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "82eef468", done: "dd811c20"}
+actual_hours: 0.33
 ---
 
 # dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout
@@ -69,7 +79,24 @@ creation.
 
 ## Plan
 
-- [ ]
+Quick flow. Chosen shape: the conventional owner Makefile target `dev-prepare`.
+It reuses make's prerequisites for freshness, so dev-aliases learns no owner's
+build (ARCH-DRY). The step is detected when the aliases are emitted, so an owner
+that declares nothing pays nothing per call.
+
+- [x] `construct/dev-aliases.sh`: `owner_prepares` greps `^dev-prepare:` in the
+  owner's `Makefile`/`Makefile.local`; a declaring owner's function runs `make -s
+  dev-prepare >&2 &&` first (stdout to stderr, so a machine-read binary's stdout
+  stays clean). The plain form is otherwise byte-identical. `--help` now prints
+  the whole header.
+- [x] `construct/scripts/test/dev-aliases.test.sh`: emitted form with and without
+  the rule (exact plain form), a `.PHONY` mention alone is not a declaration,
+  and the emitted function run against stub `make`/`go` (prep first, clean
+  stdout, a failed prep fails loudly without building).
+- [x] Atlas: `atlas/workflow/base-layer.md` dev-binaries section.
+
+Moved out of scope (see Revisions): pair's half, a `dev-prepare` target filed by
+the TL as a pair issue, carries the live check in a fresh pair slot.
 
 ## Log
 
@@ -78,3 +105,41 @@ creation.
 Filed from pair#362's live exercises at the operator's request. The emitter is
 `construct/dev-aliases.sh:221`; pair's generator is `make runtimebundle-generate`
 (`Makefile.local:195`). Details left local for the operator to refine.
+
+### 2026-10-12
+- 2026-10-12: closed — Round-4 Minor doc-line-wrap fixed as a class: swept every comment line added in the window for more than 80 columns; the two prose paragraphs (dev-aliases.sh header, dev-aliases.test.sh fixture comment) are re-wrapped; the remaining long lines are code examples mirroring the existing form line. dev-aliases.test.sh under /bin/bash 3.2: 40 passed, 0 failed. Live check deferred to the pair half (Revisions). (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-12: closed — Round-3 Minors fixed: the header points at owner_prepares as the one description of detection; detection is cached per owner (counting-make test: one call for an owner with two binaries); the atlas and header note that Makefile parsing must stay cheap; a Revisions entry covers the Plan delta (make -q, .PHONY no-op). dev-aliases.test.sh under /bin/bash 3.2: 40 passed, 0 failed. Real ~/workspace emission byte-identical to main. Live check deferred to the pair half (Revisions). (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-12: closed — Round-2 family owner-declaration-detection-shape fixed as a class: detection asks make (make -q dev-prepare; exit 0/1 declared, exit 2 with no rule for dev-prepare undeclared, other exit 2 declared-but-broken so the call fails loudly), gated by a text mention in Makefile/Makefile.workflow/Makefile.local. Tests: multi-target, include via Makefile.workflow, broken prereq declared; :=, target-specific var and recipe-line mention stay plain. dev-aliases.test.sh 38 passed, 0 failed. Real ~/workspace emission byte-identical to main, same time (about 0.5s). Live check deferred to the pair half (Revisions).; review verdict: SHIP
+- 2026-10-12: closed — Round-1 Minors fixed: detection now accepts multi-target and space-before-colon rules and rejects dev-prepare := assignments (2 new test cases); the accepted shape is documented in the header and atlas, and the atlas line is re-wrapped. dev-aliases.test.sh: 35 passed, 0 failed. Live check deferred to the pair half (Revisions).; review verdict: SHIP
+- 2026-10-12: closed — construct/scripts/test/dev-aliases.test.sh: 33 passed, 0 failed; against main dev-aliases.sh the 6 new cases fail (emitted dev-prepare step, Makefile detection, prep-before-build order, failed prep fails loudly and skips the build). portable-makefile.test.sh passes. Live: emission against the real ~/workspace is byte-identical to main (19 functions, no owner declares dev-prepare yet), so --list consumers (sdlc-install, merge-check 40, Makefile.workflow) are unaffected. Full Go suite not run: the diff touches no Go code. Done-when live check (fresh pair slot couch --help) deferred to the pair half per the TL (see Revisions).; review verdict: SHIP
+
+Claimed at ariadne:2 (TL dispatch, Weave and environment train). Pair's
+`runtimebundle-generate` is phony, runs `tic`, and publishes with `RemoveAll`
+then `Rename`. Running it on every call would cost that each time, and a
+concurrent `go build` could see the embed tree missing. So pair's `dev-prepare`
+must regenerate only when the tree is missing or stale. The TL chose to file
+pair's half as a pair issue and dispatch it (option a). The new emitter tests
+fail against main's `dev-aliases.sh` (6 of 33) and pass now.
+
+## Revisions
+
+### 2026-10-12 — live check deferred to pair's half
+
+Reason: the Done-when's live check (a fresh pair slot's dev-alias `couch --help`
+succeeding with no manual `make`) needs pair's `dev-prepare`, which the TL files
+in pair and dispatches separately. Delta: #299 closes on the ariadne half and its
+test; the live check moves to the pair issue's Done-when, and the TL tracks it.
+
+### 2026-10-12 — detection asks make
+
+Reason: close review round 2 repeated the detection-shape family; a regex over
+Makefile text kept misreading make constructs. Delta to Plan bullets 1-2:
+`owner_prepares` no longer greps `^dev-prepare:`. A text mention of the name in
+`Makefile`/`Makefile.workflow`/`Makefile.local` gates a `make -q dev-prepare`,
+whose answer decides, once per owner. The planned ".PHONY mention alone is not
+a declaration" test is dropped: make treats a bare `.PHONY: dev-prepare` as a
+rule that does nothing, so emitting it is a harmless no-op. The tests instead
+pin make's verdicts (multi-target, include via `Makefile.workflow`, broken
+prerequisite declared; `:=`, target-specific variable, recipe-line mention
+plain) and one detection per owner.
+

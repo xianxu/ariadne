@@ -11,6 +11,18 @@
 #
 #   X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }
 #
+# An owner whose build needs a generated input (a gitignored embed tree, say)
+# declares a `dev-prepare` make rule (#299; what counts as declared is
+# described once, at owner_prepares below). Its functions then run that step
+# first, with make's stdout sent to stderr so the binary's own stdout stays
+# clean; a failed step fails the call:
+#
+#   X() { ( cd OWNER && make -s dev-prepare >&2 && mkdir -p bin && ... ) || return; ...; }
+#
+# The step is the owner's to keep cheap when up to date, and so is parsing its
+# Makefiles, which detection does once per owner whenever the aliases are
+# emitted. An owner that declares nothing keeps the plain form above.
+#
 # The `rm -f bin/X` mirrors the owner Makefiles' code-signing-inode safety. The
 # function only builds + runs — it does NOT manage services (no `launchctl
 # bootout`); use the owner's `make <name>-dev` target for stop-prod-then-serve.
@@ -45,7 +57,7 @@ while [ $# -gt 0 ]; do
 		--strict) strict=1 ;;
 		--workspace) shift; workspace="${1-}"; workspace_set=1 ;;
 		--workspace=*) workspace="${1#*=}"; workspace_set=1 ;;
-		-h|--help) sed -n '2,30p' "$0"; exit 0 ;;
+		-h|--help) awk 'NR==1{next} /^#/{print; next} {exit}' "$0"; exit 0 ;;
 		*) printf 'dev-aliases.sh: unknown arg: %s\n' "$1" >&2; exit 2 ;;
 	esac
 	shift
@@ -209,6 +221,27 @@ fi
 # emitted sorted by binary name.
 final="$(printf '%s\n' "$candidates" | awk -F'\t' 'NF{last[$1]=$2} END{for (k in last) printf "%s\t%s\n", k, last[k]}' | LC_ALL=C sort)"
 
+# owner_prepares: the owner declares a dev-prepare step (#299) when make itself
+# can build the target `dev-prepare` in the owner's tree. Make is the authority,
+# so includes, multi-target rules and assignments mean what make says they do.
+# A cheap text check runs first, over the files the base layer's Makefile reads
+# (Makefile, Makefile.workflow, Makefile.local), so an owner that never mentions
+# the name pays no make invocation; a rule kept in some other included file
+# needs a mention of the name in one of those three to be found. `make -q` runs
+# no recipe: exit 0/1 (up to date / would run) is declared; exit 2 saying there
+# is no rule for dev-prepare itself is undeclared; any other exit 2 is a
+# declared but broken step, emitted so the call fails loudly rather than
+# silently skipping it.
+owner_prepares() {
+	local err rc
+	grep -qs 'dev-prepare' "$1/Makefile" "$1/Makefile.workflow" "$1/Makefile.local" || return 1
+	err="$(cd "$1" && env -u MAKEFLAGS -u MAKELEVEL make -q dev-prepare 2>&1 >/dev/null)"; rc=$?
+	[ "$rc" -ne 2 ] && return 0
+	case "$err" in *"No rule to make target "?"dev-prepare'"*) return 1 ;; esac
+	return 0
+}
+
+prepared="|"
 printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 	[ -n "$bin" ] || continue
 	if [ "$list" -eq 1 ]; then
@@ -218,8 +251,20 @@ printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 		# Build to the owner's bin/ (official path, gitignored — not a temp
 		# dir; safe for service binaries); rm -f first for code-signing-inode
 		# safety; run from the caller's cwd.
-		printf '%s() { ( cd %s && mkdir -p bin && rm -f bin/%s && go build -o bin/%s ./cmd/%s ) || return; %s/bin/%s "$@"; }\n' \
-			"$bin" "$repo_q" "$bin" "$bin" "$bin" "$repo_q" "$bin"
+		prep=""
+		# One detection per owner, not per binary: cache the answer by repo.
+		case "$prepared" in
+			*"|$repo=1|"*) prep="make -s dev-prepare >&2 && " ;;
+			*"|$repo=0|"*) ;;
+			*)
+				if owner_prepares "$repo"; then
+					prep="make -s dev-prepare >&2 && "; prepared="$prepared$repo=1|"
+				else
+					prepared="$prepared$repo=0|"
+				fi ;;
+		esac
+		printf '%s() { ( cd %s && %smkdir -p bin && rm -f bin/%s && go build -o bin/%s ./cmd/%s ) || return; %s/bin/%s "$@"; }\n' \
+			"$bin" "$repo_q" "$prep" "$bin" "$bin" "$bin" "$repo_q" "$bin"
 	fi
 done
 
