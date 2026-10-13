@@ -46,5 +46,6 @@ exemption from #342's template-less `mktemp` check.
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: unclaimed: filed from #342; local-gates change, operator verifies; unclaimed for whoever the hub assigns
 
 Filed by ariadne:3 while working #342, which exempts this one path until this lands.
