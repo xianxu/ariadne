@@ -1,6 +1,6 @@
 ---
 id: 000329
-status: codecomplete
+status: done
 created: 2026-10-10
 updated: 2026-10-12
 estimate_hours: 7.71
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 6c57938b885a945dd12f9269bc7b70dcf40bab52
         evidence_commit: 2a29f8eeaadfdc87733e7fa68e2efdc73028b4e3
+        landed_commit: 626c6d16c6bca983106f01aa5b1fa15011df14c1
 ---
 
 # Project datatype: a TL-driven coordination plane (tl: owner, Trains and Decisions sections, lifecycle without a deadline, derived forecast)
