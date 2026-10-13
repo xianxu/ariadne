@@ -48,6 +48,32 @@ rounds:
       isolation: fenced
       reviewed: 1b95ae894abcc0a48d98c1d677ab4c010d01bdd6
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-12T17:05:09-07:00"
+      dispatched: "2026-10-12T17:03:53-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: owner_prepares now asks make (make -q dev-prepare) behind a grep prefilter; restoring 1b95ae89's version makes 3 new cases fail (target-specific var, recipe line, Makefile.workflow include); head passes 38/38.
+          round: 3
+      findings:
+        - id: BR-4
+          severity: Minor
+          title: Prose about how dev-prepare is detected still describes the old regex
+          detail: 'Instances: (a) the construct/dev-aliases.sh:15 header says "Makefile or Makefile.local" and omits Makefile.workflow, which line 222 and the atlas name; (b) the issue Plan bullet 1 says owner_prepares "greps ^dev-prepare:"; (c) Plan bullet 2 claims a test that a .PHONY mention alone is not a declaration, but none exists and make -q treats a bare .PHONY: dev-prepare as a rule (rc 0, harmless no-op). Rule: describe detection once, in the owner_prepares comment, and point other prose at it; add a Plan revision.'
+          family: doc-restates-detection-rule
+          round: 3
+        - id: BR-5
+          severity: Minor
+          title: make -q runs owner Makefile parse-time side effects at shell startup, once per binary
+          detail: 'Parsing the owner''s Makefiles runs $(shell ...) calls (verified: a touch fired) and can rebuild included makefiles, every time a shell sources the aliases. owner_prepares runs once per binary, not once per owner. Limited to owners whose three files mention dev-prepare. Cache the result per repo in the loop, and note in the atlas that these Makefiles should keep parsing cheap.'
+          family: alias-emission-cost
+          round: 3
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: 31c214bd28e4ac07f4167701fda48c6c3e465aef
+      blocked: false
 ---
 
 # Gate ledger — ariadne#299 (boundary-review)
@@ -76,6 +102,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Minor] `owner-declaration-detection-shape` Text-regex detection of dev-prepare still false-matches recipe lines, `::=`, target-specific vars
   2nd finding in this family. The rule: inferring make declarations by regex over Makefile text leaves gaps however it is patched. Verified matches at construct/dev-aliases.sh:228 for a tab-indented recipe line "@echo run dev-prepare: now", for "dev-prepare ::= x", and for "dev-prepare: V = 1"; each emits `make -s dev-prepare`, which then fails every call. Class fix: query make's own database (make -C owner -pRrq :) for a dev-prepare target with a rule, which also covers Makefile.workflow and other includes. Cheaper fallback: exclude tab-led lines and document ::= and target-specific vars as unsupported.
 
+## Round 3 — 2026-10-12T17:05:09-07:00 (claude) — passed
+
+### Disposed
+
+- BR-3 — addressed — owner_prepares now asks make (make -q dev-prepare) behind a grep prefilter; restoring 1b95ae89's version makes 3 new cases fail (target-specific var, recipe line, Makefile.workflow include); head passes 38/38.
+
+### Raised
+
+- **BR-4** [Minor] `doc-restates-detection-rule` Prose about how dev-prepare is detected still describes the old regex
+  Instances: (a) the construct/dev-aliases.sh:15 header says "Makefile or Makefile.local" and omits Makefile.workflow, which line 222 and the atlas name; (b) the issue Plan bullet 1 says owner_prepares "greps ^dev-prepare:"; (c) Plan bullet 2 claims a test that a .PHONY mention alone is not a declaration, but none exists and make -q treats a bare .PHONY: dev-prepare as a rule (rc 0, harmless no-op). Rule: describe detection once, in the owner_prepares comment, and point other prose at it; add a Plan revision.
+- **BR-5** [Minor] `alias-emission-cost` make -q runs owner Makefile parse-time side effects at shell startup, once per binary
+  Parsing the owner's Makefiles runs $(shell ...) calls (verified: a touch fired) and can rebuild included makefiles, every time a shell sources the aliases. owner_prepares runs once per binary, not once per owner. Limited to owners whose three files mention dev-prepare. Cache the result per repo in the loop, and note in the atlas that these Makefiles should keep parsing cheap.
+
 ## Open findings
 
-- **BR-3** [Minor] `owner-declaration-detection-shape` Text-regex detection of dev-prepare still false-matches recipe lines, `::=`, target-specific vars
+- **BR-4** [Minor] `doc-restates-detection-rule` Prose about how dev-prepare is detected still describes the old regex
+- **BR-5** [Minor] `alias-emission-cost` make -q runs owner Makefile parse-time side effects at shell startup, once per binary

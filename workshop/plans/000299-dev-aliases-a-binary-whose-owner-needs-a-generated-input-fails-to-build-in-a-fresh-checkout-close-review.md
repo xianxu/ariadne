@@ -144,3 +144,93 @@ findings:
     detail: |
       2nd finding in this family. The rule: inferring make declarations by regex over Makefile text leaves gaps however it is patched. Verified matches at construct/dev-aliases.sh:228 for a tab-indented recipe line "@echo run dev-prepare: now", for "dev-prepare ::= x", and for "dev-prepare: V = 1"; each emits `make -s dev-prepare`, which then fails every call. Class fix: query make's own database (make -C owner -pRrq :) for a dev-prepare target with a rule, which also covers Makefile.workflow and other includes. Cheaper fallback: exclude tab-led lines and document ::= and target-specific vars as unsupported.
 ```
+
+---
+
+## Re-review — 2026-10-12T17:05:08-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 299 — dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout |
+| repo | ariadne |
+| issue file | workshop/issues/000299-dev-aliases-a-binary-whose-owner-needs-a-generated-input-fails-to-build-in-a-fresh-checkout.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 007829a6511132af2a116e045a5f595471b758e6..31c214bd28e4ac07f4167701fda48c6c3e465aef |
+| command | sdlc close --issue 299 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-12T17:05:08-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+The one open finding, BR-3, is fixed at the class level. `owner_prepares` (`construct/dev-aliases.sh:233-240`) no longer reads Makefile text with a regex. It asks make itself (`make -q dev-prepare`) whether the owner's tree defines a `dev-prepare` rule. A cheap grep runs first, so owners whose Makefiles never mention the name skip the make call. I tested the fix by putting the previous commit's `dev-aliases.sh` (1b95ae89) back in the checkout. Three of the new cases failed: the target-specific variable, the recipe line, and the rule in Makefile.workflow. With the head version restored, all 38 tests pass under GNU Make 3.81. The emitted-function contract also holds:
+- make's output goes to stderr, so the binary's stdout stays clean;
+- a failed `dev-prepare` fails the call and skips the build;
+- owners without the rule get exactly the old form.
+
+The Done-when's live check (a fresh pair slot running `couch --help`) is formally moved to pair's half in `## Revisions`. Since that is pair's own tree, this is a legitimate split, not under-delivery. The remaining findings are Minor: stale prose about how detection works, and side effects of `make -q`.
+
+1. **Strengths**
+   - `construct/dev-aliases.sh:233-240`: make decides whether the rule exists, so includes, multi-target rules, assignments and target-specific variables all mean what make says they mean. The grep keeps the common no-rule case free.
+   - A rule that exists but has a missing prerequisite is still emitted. The call then fails loudly instead of quietly skipping the step, which keeps the "failed prep fails the call" contract.
+   - `construct/scripts/test/dev-aliases.test.sh:95-121`: the emitted function is actually run against stub `make` and `go`. The tests check stdout cleanliness, that prep runs before the build, and that a failed prep stops the build.
+   - The plain form is pinned byte-for-byte (`nous_line`), so the "today's exact form" clause holds.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **Stale prose about the detection rule (family `doc-restates-detection-rule`).** Text written for the earlier regex no longer matches the code. All instances in this window:
+     - (a) The `dev-aliases.sh:15` header says "in its Makefile or Makefile.local" but leaves out Makefile.workflow. The `owner_prepares` comment at line 222 and the atlas both name all three files.
+     - (b) The issue's Plan bullet 1 still says `owner_prepares` "greps `^dev-prepare:`".
+     - (c) Plan bullet 2 promises a test that "a `.PHONY` mention alone is not a declaration". No such test exists. Under make, `.PHONY: dev-prepare` on its own *does* count as a rule: `make -q` exits 0. That is harmless, since the emitted `make -s dev-prepare` is a no-op, but the claim is false.
+     - Fix: point the header at the `owner_prepares` comment as the one description of the rule, and add a Plan revision for (b) and (c).
+   - **Side effects of `make -q` while aliases are generated.** `make -q` parses the owner's Makefiles every time a shell sources the aliases. That runs `$(shell …)` calls (I verified a `touch` fires) and can rebuild included makefiles. It is limited to owners whose three files mention `dev-prepare`. Worth one sentence in the atlas note that the step should be cheap.
+   - **One make call per binary.** `owner_prepares` runs once per binary, not once per owner, so an owner with N binaries pays for N make calls at shell startup. A per-repo cache inside the loop would fix this.
+   - **`::=` is untested.** The BR-3 text names it, but GNU Make 3.81 doesn't support it, so there is no fixture. Acceptable.
+
+5. **Test coverage:** both sides of each Done-when clause are covered: an owner with the rule versus one without, and prep that succeeds versus prep that fails. Detection is tested for:
+   - a rule declared in Makefile, Makefile.local, or Makefile.workflow (reached through an include);
+   - a multi-target rule;
+   - a rule with a broken prerequisite;
+   - things that must *not* count as a rule: a `:=` assignment, a target-specific variable, and a recipe line that mentions the name.
+
+   The revert experiment confirms these tests fail without the fix.
+
+6. **Architecture**
+   - **ARCH-DRY: pass.** dev-aliases learns nothing about how an owner builds; make's own database is the only authority.
+   - **ARCH-PURE: pass.** The IO is one small detection function plus a string choice in the emit loop. Tests run it through real make against fixtures, which suits a shell emitter.
+   - **ARCH-PURPOSE: pass.** The ariadne mechanism is complete, and pair's adoption is pair-owned and tracked through Revisions. The finding-class sweep also happened: BR-3 was fixed for the whole class by delegating to make, not by patching one regex case.
+
+7. **Plan revisions:** add a `## Revisions` entry stating that detection now asks make (`make -q dev-prepare`, after the grep), not the `^dev-prepare:` grep. It should drop the `.PHONY` test claim, or record that a bare `.PHONY: dev-prepare` counts as a no-op rule.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      owner_prepares now asks make (make -q dev-prepare) behind a grep prefilter; restoring 1b95ae89's version makes 3 new cases fail (target-specific var, recipe line, Makefile.workflow include); head passes 38/38.
+findings:
+  - id: new
+    severity: Minor
+    family: doc-restates-detection-rule
+    title: |
+      Prose about how dev-prepare is detected still describes the old regex
+    detail: |
+      Instances: (a) the construct/dev-aliases.sh:15 header says "Makefile or Makefile.local" and omits Makefile.workflow, which line 222 and the atlas name; (b) the issue Plan bullet 1 says owner_prepares "greps ^dev-prepare:"; (c) Plan bullet 2 claims a test that a .PHONY mention alone is not a declaration, but none exists and make -q treats a bare .PHONY: dev-prepare as a rule (rc 0, harmless no-op). Rule: describe detection once, in the owner_prepares comment, and point other prose at it; add a Plan revision.
+  - id: new
+    severity: Minor
+    family: alias-emission-cost
+    title: |
+      make -q runs owner Makefile parse-time side effects at shell startup, once per binary
+    detail: |
+      Parsing the owner's Makefiles runs $(shell ...) calls (verified: a touch fired) and can rebuild included makefiles, every time a shell sources the aliases. owner_prepares runs once per binary, not once per owner. Limited to owners whose three files mention dev-prepare. Cache the result per repo in the loop, and note in the atlas that these Makefiles should keep parsing cheap.
+```
