@@ -68,18 +68,18 @@ is main's, refreshed through main by `issue publish` and close's archive
 commit. Committed writers (close's mirror commit, archive, publish,
 move-detail) are already placed on the issue branch or main.
 
-- [ ] `refreshLocalMirror` refreshes only on the issue's own branch. Tests:
+- [x] `refreshLocalMirror` refreshes only on the issue's own branch. Tests:
       a setter on another issue's code branch leaves those details untouched
       (B2 d); a claim from another issue's branch leaves the tree clean, so
       start-plan does not refuse (B2 e); the own-branch refresh still happens.
-- [ ] `relocateAfterMove` refreshes the destination mirror after a successful
+- [x] `relocateAfterMove` refreshes the destination mirror after a successful
       relocation (or one already done). Extend `TestMoveRelocatesItsOwner` to
       assert the new claimant and current `card_mirror`; a refusal warns.
-- [ ] B2 c (a `git revert` rolled the mirror back): a reverted mirror is an
+- [x] B2 c (a `git revert` rolled the mirror back): a reverted mirror is an
       older, untouched projection, so the next refresh on the issue branch
       converges it. Test it, and say "never hand-restore; rerun a verb" in the
       claim help.
-- [ ] B2 b (set-title vs unpublished details) needs no code: since #308 the
+- [x] B2 b (set-title vs unpublished details) needs no code: since #308 the
       details are on main from filing, and main's copy refreshes at publish.
       Note it in the Log.
 
@@ -90,6 +90,16 @@ move-detail) are already placed on the issue branch or main.
 - Dispatched by the TL (ops:0) with the 10-09 scope event: broadened from
   move's destination mirror to all mirror placement (B2 b–f in
   `workshop/pensive/2026-10-09-01-pensive-sdlc-robustness-evidence.md`).
+- One choke point: every worktree mirror write is `refreshLocalMirror`, so the
+  placement rule lives there (ARCH-DRY); the committed writers (close's mirror
+  commit, archive, publish) were already placed. Rule: refresh only when the
+  checkout's branch is `issue.BranchName(detailPath)`.
+- B2 b needs no code: since #308 the details are on main from filing, so no
+  "unpublished details" exist for set-title to miss; elsewhere the copy is
+  main's and converges when the branch lands.
+- B2 c: re-running `sdlc claim` (already mine) refreshes, so it is the repair;
+  `TestRevertedMirrorConvergesOnTheNextRefresh` pins it. Claim help says so.
+- Quota hold on 10-12 at 2cf6f8d3; resumed 10-13, merged origin/main.
 
 ### 2026-10-01
 
