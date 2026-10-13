@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "c22bcf4c", done: "fc3510f1"}
 ---
 
 # weave robustness: atomic compile, symlinked Makefile, legacy include, dependency writes
