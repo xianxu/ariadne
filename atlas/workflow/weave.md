@@ -351,6 +351,8 @@ then reclaims it after the writer exits. Before judging a dead owner's lease
 busy, retry waits a bounded settle (`staging.Settle`, shared with cancellation's
 cleanup through `staging.AwaitExclusive`): an exiting producer closes its output
 pipe before its inherited lease, so a waiting caller can retry in between (#343).
+A dead owner's stage whose orphan is still alive costs every reclaim up to that
+settle (1s), serially per such stage, until the orphan exits.
 Published outputs remain intact until ownership-checked publication.
 
 The generator body remains source-owned; final output is leaf-owned and

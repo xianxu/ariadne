@@ -402,17 +402,21 @@ func TestCompileKilledGeneratorHelper(t *testing.T) {
 	}
 }
 
-func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
-	leaf := buildSkillRepoFixture(t)
+// killOwnerMidGeneration compiles leaf in a helper process whose generator
+// kills it (SIGKILL to the generator's parent, the weave process), then runs
+// tail, and restores the good marker. It returns the leaf and marker paths.
+func killOwnerMidGeneration(t *testing.T, tail string) (leaf, marker string) {
+	t.Helper()
+	leaf = buildSkillRepoFixture(t)
 	base := filepath.Join(filepath.Dir(leaf), "base")
 	pkg := filepath.Join(base, "construct/local/datatype")
 	realDatatypeMarker(t, pkg, "construct/generated/datatype")
-	marker := filepath.Join(pkg, ".dynamic-skill")
+	marker = filepath.Join(pkg, ".dynamic-skill")
 	good, err := os.ReadFile(marker)
 	if err != nil {
 		t.Fatal(err)
 	}
-	killed := append(append([]byte{}, good...), []byte("kill -KILL \"$PPID\"\nexit 0\n")...)
+	killed := append(append([]byte{}, good...), []byte("kill -KILL \"$PPID\"\n"+tail)...)
 	if err := os.WriteFile(marker, killed, 0755); err != nil {
 		t.Fatal(err)
 	}
@@ -421,13 +425,16 @@ func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
 	if output, err := child.CombinedOutput(); err == nil {
 		t.Fatalf("helper not killed: %s", output)
 	}
-	body := filepath.Join(leaf, "construct/generated/datatype/SKILL.md")
-	if _, err := os.Lstat(body); !os.IsNotExist(err) {
-		t.Fatalf("dead generator published: %v", err)
-	}
 	if err := os.WriteFile(marker, good, 0755); err != nil {
 		t.Fatal(err)
 	}
+	return leaf, marker
+}
+
+// compileLeavesNoOwnedStage compiles leaf and fails if a generation stage
+// directory remains.
+func compileLeavesNoOwnedStage(t *testing.T, leaf string) {
+	t.Helper()
 	var out bytes.Buffer
 	if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err != nil {
 		t.Fatal(err)
@@ -441,6 +448,16 @@ func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
 			t.Fatalf("owned stage survived retry: %s", entry.Name())
 		}
 	}
+}
+
+func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
+	leaf, marker := killOwnerMidGeneration(t, "exit 0\n")
+	body := filepath.Join(leaf, "construct/generated/datatype/SKILL.md")
+	if _, err := os.Lstat(body); !os.IsNotExist(err) {
+		t.Fatalf("dead generator published: %v", err)
+	}
+	compileLeavesNoOwnedStage(t, leaf)
+	var out bytes.Buffer
 	if err := os.Remove(marker); err != nil {
 		t.Fatal(err)
 	}
@@ -458,40 +475,8 @@ func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
 // TestCompileRecoversAfterProcessDeathDuringGeneration). The retry must let
 // that lease settle and reclaim the stage.
 func TestCompileReclaimsStageOfAStillExitingGenerator(t *testing.T) {
-	leaf := buildSkillRepoFixture(t)
-	base := filepath.Join(filepath.Dir(leaf), "base")
-	pkg := filepath.Join(base, "construct/local/datatype")
-	realDatatypeMarker(t, pkg, "construct/generated/datatype")
-	marker := filepath.Join(pkg, ".dynamic-skill")
-	good, err := os.ReadFile(marker)
-	if err != nil {
-		t.Fatal(err)
-	}
-	lingering := append(append([]byte{}, good...), []byte("kill -KILL \"$PPID\"\nexec >&- 2>&-\nsleep 0.1\nexit 0\n")...)
-	if err := os.WriteFile(marker, lingering, 0755); err != nil {
-		t.Fatal(err)
-	}
-	child := exec.Command(os.Args[0], "-test.run=^TestCompileKilledGeneratorHelper$")
-	child.Env = append(os.Environ(), "WEAVE_KILLED_GENERATOR_FIXTURE="+leaf)
-	if output, err := child.CombinedOutput(); err == nil {
-		t.Fatalf("helper not killed: %s", output)
-	}
-	if err := os.WriteFile(marker, good, 0755); err != nil {
-		t.Fatal(err)
-	}
-	var out bytes.Buffer
-	if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err != nil {
-		t.Fatal(err)
-	}
-	entries, err := os.ReadDir(filepath.Join(leaf, "construct/generated/weave"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, entry := range entries {
-		if entry.IsDir() {
-			t.Fatalf("stage of an exiting generator survived retry: %s", entry.Name())
-		}
-	}
+	leaf, _ := killOwnerMidGeneration(t, "exec >&- 2>&-\nsleep 0.1\nexit 0\n")
+	compileLeavesNoOwnedStage(t, leaf)
 }
 
 func TestCompilePreservesGeneratedExecutablePermissions(t *testing.T) {

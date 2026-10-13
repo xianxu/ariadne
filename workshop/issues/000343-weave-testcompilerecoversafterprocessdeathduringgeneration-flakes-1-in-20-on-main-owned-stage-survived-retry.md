@@ -77,3 +77,8 @@ widened-window end-to-end with a 0.1s tail (10x margin under the settle). With `
 reverted to one `Exclusive`: the exiting-producer unit test fails and the e2e fails 3/3.
 At load under 40 (15:11): original test 100/100, new e2e 50/50, `go test ./cmd/weave/...`
 green. Atlas: weave.md cleanup contract.
+
+Close review (SHIP, round 1) left two advisory Minors, both fixed: the two killed-owner
+tests share `killOwnerMidGeneration` and `compileLeavesNoOwnedStage` (the e2e still fails
+3/3 with the fix reverted); the up-to-Settle cost per stage held by a live orphan is stated
+in `Reclaim` and in atlas weave.md.
