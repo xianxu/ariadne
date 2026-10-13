@@ -123,7 +123,10 @@ func applySeedOnce(fs weavefs.FS, root, src, dst string) error {
 func hasWorkflowInclude(contents string) bool {
 	for _, line := range strings.Split(contents, "\n") {
 		trimmed := strings.TrimSpace(line)
-		if trimmed == workflowInclude || trimmed == "include Makefile.workflow" {
+		// Older roots include the workflow through $(WF_WORKFLOW); a second
+		// include would duplicate its targets (#265).
+		switch strings.TrimPrefix(trimmed, "-") {
+		case "include Makefile.workflow", "include $(WF_WORKFLOW)":
 			return true
 		}
 	}

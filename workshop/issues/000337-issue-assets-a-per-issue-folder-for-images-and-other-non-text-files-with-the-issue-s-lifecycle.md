@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-12
 updated: 2026-10-12
 estimate_hours:
-card_mirror: '59431ccc6a55061fda2fbb08081a20448693dcd2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'ae37fa1a5dadae3e93aa27559a11c08601f1f417' # card fields mirrored from issue-cards; edit via sdlc
 ---
 
 # issue assets: a per-issue folder for images and other non-text files, with the issue's lifecycle
@@ -37,3 +37,12 @@ Unshaped; a starting sketch from parley.nvim's `lua/parley/assets.lua` (#231):
 ### 2026-10-12
 
 Filed from pair#483's shaping (pair:2), at the operator's request. Not a dependency of #483: a submission is written to Couch's store first; attaching it to a ticket is step two.
+
+## Revisions
+
+- 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue
+  (text first in the issue body; only the crops that matter as assets; recordings stay local, never S3 yet). Add a
+  **privacy gate enforced by the binary**, not agent judgment: a per-repo asset policy (`allowed` | `text-only`), defaulting
+  to `text-only` for a public repository (from its host visibility) and to `allowed` for a private one; the attach verb
+  refuses images under `text-only` and says why; the policy and its source are printed by `sdlc issue --help`. The
+  operator changes a repo's policy; agents never do.

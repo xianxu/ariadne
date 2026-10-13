@@ -488,6 +488,14 @@ The simplest durable authority beats a clever scan of consequences.
   ad-hoc probe wrote `~/Makefile` this way, the same failure as #339's reviewer
   creating `~/.git`. Write `D="$(mktemp -d "$TMPDIR/x.XXXXXX")" || exit 1; cd
   "${D:?}"`, and never `cd` to an unchecked variable before writing files.
+- Hoisting the checks of sequential steps ahead of the first step's writes
+  changes what each check reads. In #265, the artifacts check moved before the
+  data pass and read the pre-data inventory, so a path moving from a data mount
+  to a generated output refused forever; the old order had converged it. When
+  you move a check earlier, enumerate what every earlier step changes that the
+  check reads (records, created paths, removed paths), project each into the
+  check, and give every projection branch a test that fails with that branch
+  disabled. Round 2 found the removed-path branch had no such test.
 - Before writing a matcher for a repository convention (a commit-subject
   anchor, a branch name, an ID format), grep the internal packages for the
   existing one. #311 wrote its own `^#N` regex while `gitx.IsShippedWorkSubject`
