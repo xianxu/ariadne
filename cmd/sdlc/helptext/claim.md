@@ -42,9 +42,11 @@ splitting it, revising related issues. `sdlc start-plan --issue N` starts the
 lifecycle (open → working) and creates the issue branch. Claim is a
 compare-and-swap on the card blob it read, published through the resting
 branch's configured upstream remote. Nothing is committed or pushed to main,
-and the resting branch is never edited. In a checkout that holds the details on
-a feature branch, the details' card mirror is refreshed; a hand-edited mirrored
-field is left alone and reported.
+and the resting branch is never edited. On the issue's own branch, the
+details' card mirror is refreshed; anywhere else (another issue's branch, a
+detached HEAD) the checkout is left untouched (#282). A hand-edited mirrored
+field is left alone and reported. A stale or reverted mirror is never restored
+by hand: re-run `sdlc claim --issue N` on the issue branch.
 
 A legacy repository (no `workshop/issue-tracker.json`) has no claimant, so its
 claim does both at once: open → working.
