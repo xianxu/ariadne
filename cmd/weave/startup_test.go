@@ -87,6 +87,9 @@ func TestCompileRetiresDisconnectedOutputsPreservesAuthoredFiles(t *testing.T) {
 	if got, err := os.ReadFile(authored); err != nil || string(got) != "authored replacement\n" {
 		t.Fatalf("authored face changed: %q %v", got, err)
 	}
+	if !strings.Contains(out.String(), "left CLAUDE.md in place") {
+		t.Fatalf("abandoned output not reported:\n%s", out.String())
+	}
 	if _, err := os.Lstat(filepath.Join(leaf, "shared.md")); !os.IsNotExist(err) {
 		t.Fatalf("disconnected generated link survived: %v", err)
 	}

@@ -42,6 +42,10 @@ Detailed incidents remain in their owning issue or review artifact.
 - Ticking a Plan row checks it: every test the row names exists under that
   name and asserts each clause, and a step not yet done (a close) sits in its
   own unticked row (#300, three findings in one family).
+- An effect a function performs before a fallible step belongs in its error
+  too. Returning it only in a result that callers drop on error loses it: weave
+  moved an edited file aside, then failed, and nothing named where it went
+  (#281 BR-1). Wrap every later error with the effect, once, in the function.
 - When delegating to a transaction that keeps partial progress on error (weave
   refresh), read what happened from the state it acts on, not from its exit
   status. A failure can follow real effects (#303 BR-1).
@@ -475,3 +479,9 @@ The simplest durable authority beats a clever scan of consequences.
   refuses at step 4 (branch ahead of origin) or at #148 (a merged PR whose
   branch has new commits). For each remedy a message names, check that the next
   verb it points to still accepts the state the remedy leaves.
+- A scratch directory from a command substitution can come back empty: `mktemp`
+  fails in the sandbox when it falls back to the system temp dir. Then `cd $D`
+  goes to `$HOME` and the next write lands in the operator's home. In #299 an
+  ad-hoc probe wrote `~/Makefile` this way, the same failure as #339's reviewer
+  creating `~/.git`. Write `D="$(mktemp -d "$TMPDIR/x.XXXXXX")" || exit 1; cd
+  "${D:?}"`, and never `cd` to an unchecked variable before writing files.

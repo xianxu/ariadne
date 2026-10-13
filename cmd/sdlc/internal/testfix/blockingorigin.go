@@ -56,7 +56,7 @@ func AssertCancelEndsReceiveSide(t *testing.T, push func(ctx context.Context, ro
 	t.Helper()
 	root := Repo(t, InitialCommit())
 	origin, hookPID := BlockingOrigin(t)
-	ctx, cancel := context.WithCancel(context.Background())
+	ctx, cancel := context.WithCancel(t.Context()) // the caller's context; TestVerbContextsReachTrackerReads refuses a minted root (#340)
 	defer cancel()
 	done := make(chan error, 1)
 	go func() { done <- push(ctx, root, origin) }()

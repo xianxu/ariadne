@@ -48,8 +48,18 @@ rules.
 
 `plan.ApplyManaged` records output identities in
 `construct/generated/weave/ownership.json`, separating data and artifact
-scopes. Removed outputs retire only if their recorded identities still match;
-edited and unrecognized outputs remain. Its managed ignore block follows
+scopes. Recorded outputs always converge (#281): one whose bytes, mode or link
+target changed since weave wrote it is moved to
+`construct/generated/weave/displaced/<escaped path>` (`weaveownership.DisplacedPath`:
+one flat entry per output, so the next displacement replaces it, and it is swept
+when its output leaves the inventory), rewritten, and warned about with its edit home
+(`plan.EditHome`: `AGENTS.local.md`, a sibling `settings.local.json`, or the layer
+source). A failure after a displacement names the copy in its error. Compile refuses only a destination weave did not write (a data mount or
+staged output over an unowned file, or a directory at a recorded path), and the
+refusal names the next action. Removed outputs retire only if their recorded
+identities still match; a changed one is left in place, warned about once, and
+dropped from the inventory. A regenerated output that Git tracks (a vendored
+vocabulary export) gets "regenerated tracked output <path>: commit it". Its managed ignore block follows
 owned runtime outputs without replacing authored ignore rules. Only the
 artifacts pass retires the pre-inventory fixed ignore list, in the write that
 records its replacement, and a pass with nothing to apply or retire writes
@@ -348,7 +358,7 @@ Git-ignored. `cmd/datatype/SKILL.md.tmpl` is datatype's authored prose source.
     derivative serves the dynamic body it materialized in its own tree.
   - **Retirement.** Dropped markers and lowered links are reconciled against
     recorded output identities. Unchanged owned outputs retire; edited or
-    unrecognized contents remain.
+    unrecognized contents remain (a live output converges instead, see above).
   - **Drift guard retired; determinism guard in its place.** The #111 committed-file
     drift guard is GONE — a gitignored, regenerated-every-compile output can't go
     stale (git can't even see it). `make weave-drift-check` now asserts the render is

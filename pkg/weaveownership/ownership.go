@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"os"
 	"path/filepath"
 	"sort"
@@ -43,7 +44,13 @@ const (
 	ScopeArtifacts Scope = "artifacts"
 	ScopeData      Scope = "data"
 	InventoryPath        = RootRel + "/ownership.json"
+	// DisplacedRel holds the latest displaced copy of each live output (#281).
+	DisplacedRel = RootRel + "/displaced"
 )
+
+// DisplacedPath flattens an output path into one escaped entry under
+// DisplacedRel, so copies of a and a/b never nest in or delete each other.
+func DisplacedPath(path string) string { return DisplacedRel + "/" + url.PathEscape(path) }
 
 type Identity struct {
 	Path  string       `json:"path"`

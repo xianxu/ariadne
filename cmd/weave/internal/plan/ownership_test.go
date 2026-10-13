@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"testing"
 
@@ -90,8 +91,8 @@ func TestManagedDataRejectsAuthoredDestinations(t *testing.T) {
 					t.Fatal(e)
 				}
 			}
-			if _, e := ApplyManaged(weavefs.OSFS{}, root, []Action{Symlink{Src: t.TempDir(), Dst: "data"}}, ScopeData); e == nil {
-				t.Fatal("accepted authored destination")
+			if _, e := ApplyManaged(weavefs.OSFS{}, root, []Action{Symlink{Src: t.TempDir(), Dst: "data"}}, ScopeData); e == nil || !strings.Contains(e.Error(), "move it aside") {
+				t.Fatalf("authored destination: %v", e)
 			}
 			if _, e := os.Lstat(dest); e != nil {
 				t.Fatal(e)
@@ -236,15 +237,86 @@ func TestManagedMergeIdentityAndDynamicFiles(t *testing.T) {
 	}
 }
 
-func TestManagedProtectsEditedActiveOutput(t *testing.T) {
+// #281: a recorded output converges whether its bytes went back to an older
+// weave write (parley: a git restore of the committed stale vocabulary file) or
+// were edited by hand. The old bytes move to DisplacedPath, never silently lost.
+func TestManagedConvergesChangedRecordedOutput(t *testing.T) {
+	for _, kind := range []string{"reverted", "edited"} {
+		t.Run(kind, func(t *testing.T) {
+			root := t.TempDir()
+			managedApply(t, root, []Action{WriteFile{Path: "out", Content: "v1"}}, ScopeArtifacts)
+			managedApply(t, root, []Action{WriteFile{Path: "out", Content: "v2"}}, ScopeArtifacts)
+			before := map[string]string{"reverted": "v1", "edited": "authored"}[kind]
+			managedWrite(t, root, "out", before)
+			report, e := ApplyManaged(weavefs.OSFS{}, root, []Action{WriteFile{Path: "out", Content: "v3"}}, ScopeArtifacts)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if managedRead(t, root, "out") != "v3" {
+				t.Fatal("output did not converge")
+			}
+			if got := managedRead(t, root, DisplacedPath("out")); got != before {
+				t.Fatalf("displaced copy %q, want %q", got, before)
+			}
+			if !slices.Equal(report.Displaced, []string{"out"}) || !slices.Equal(report.Regenerated, []string{"out"}) {
+				t.Fatalf("report %+v", report)
+			}
+			// The next displacement of the same path replaces the kept copy.
+			managedWrite(t, root, "out", "second")
+			managedApply(t, root, []Action{WriteFile{Path: "out", Content: "v3"}}, ScopeArtifacts)
+			if got := managedRead(t, root, DisplacedPath("out")); got != "second" {
+				t.Fatalf("displaced copy %q, want the latest", got)
+			}
+		})
+	}
+}
+func TestManagedRefusesDirectoryAtRecordedOutput(t *testing.T) {
 	root := t.TempDir()
 	managedApply(t, root, []Action{WriteFile{Path: "out", Content: "old"}}, ScopeArtifacts)
-	managedWrite(t, root, "out", "authored")
-	if _, e := ApplyManaged(weavefs.OSFS{}, root, []Action{WriteFile{Path: "out", Content: "new"}}, ScopeArtifacts); e == nil {
-		t.Fatal("overwrote authored replacement")
+	if e := os.Remove(filepath.Join(root, "out")); e != nil {
+		t.Fatal(e)
 	}
-	if managedRead(t, root, "out") != "authored" {
-		t.Fatal("edited output changed")
+	managedWrite(t, root, "out/mine", "authored")
+	_, e := ApplyManaged(weavefs.OSFS{}, root, []Action{WriteFile{Path: "out", Content: "new"}}, ScopeArtifacts)
+	if e == nil || !strings.Contains(e.Error(), "move it aside") {
+		t.Fatalf("directory at recorded output: %v", e)
+	}
+	if managedRead(t, root, "out/mine") != "authored" {
+		t.Fatal("directory contents changed")
+	}
+}
+func TestManagedReportsAbandonedOutputOnce(t *testing.T) {
+	root := t.TempDir()
+	managedApply(t, root, []Action{WriteFile{Path: "gone", Content: "generated"}, WriteFile{Path: "kept", Content: "generated"}}, ScopeArtifacts)
+	managedWrite(t, root, "gone", "authored")
+	report, e := ApplyManaged(weavefs.OSFS{}, root, []Action{WriteFile{Path: "kept", Content: "generated"}}, ScopeArtifacts)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if !slices.Equal(report.Abandoned, []string{"gone"}) || len(report.Retired) != 0 {
+		t.Fatalf("report %+v", report)
+	}
+	if managedRead(t, root, "gone") != "authored" {
+		t.Fatal("abandoned output changed")
+	}
+	report, e = ApplyManaged(weavefs.OSFS{}, root, []Action{WriteFile{Path: "kept", Content: "generated"}}, ScopeArtifacts)
+	if e != nil || len(report.Abandoned) != 0 {
+		t.Fatalf("warned again: %+v %v", report, e)
+	}
+}
+func TestEditHome(t *testing.T) {
+	for path, want := range map[string]string{
+		"AGENTS.md":              "AGENTS.local.md",
+		"CLAUDE.md":              "AGENTS.local.md",
+		".claude/settings.json":  ".claude/settings.local.json",
+		".claude/skills/xx-sdlc": "the skill's source in its owning layer",
+		".agents/skills/xx-sdlc": "the skill's source in its owning layer",
+		"construct/generated/vocabulary/issue.json": "the layer source it is generated from",
+		"bin/tool": "the owning layer's manifest source, or a local overlay",
+	} {
+		if got := EditHome(path); got != want {
+			t.Errorf("EditHome(%q) = %q, want %q", path, got, want)
+		}
 	}
 }
 func TestManagedRejectsEscapingAndReservedInventoryPaths(t *testing.T) {
@@ -417,5 +489,52 @@ func TestManagedRetiresOnlyOwnedBlockEntries(t *testing.T) {
 	got = managedRead(t, root, ".gitignore")
 	if strings.Contains(got, "/owned\n") || !strings.Contains(got, "/foreign\n") {
 		t.Fatal(got)
+	}
+}
+
+// #281 BR-1: a failure after a displacement names the copy, so no caller can
+// lose the move on its error path.
+func TestManagedFailureAfterDisplacementNamesCopy(t *testing.T) {
+	root := t.TempDir()
+	managedApply(t, root, []Action{WriteFile{Path: "out", Content: "old"}}, ScopeArtifacts)
+	managedWrite(t, root, "out", "authored")
+	_, e := ApplyManaged(managedFailFS{path: "second"}, root, []Action{WriteFile{Path: "out", Content: "new"}, WriteFile{Path: "second", Content: "x"}}, ScopeArtifacts)
+	if e == nil || !strings.Contains(e.Error(), filepath.Join(root, DisplacedPath("out"))) {
+		t.Fatalf("failure does not name the displaced copy: %v", e)
+	}
+	if managedRead(t, root, DisplacedPath("out")) != "authored" {
+		t.Fatal("displaced copy lost")
+	}
+}
+func TestManagedDataScopeDisplacesChangedMount(t *testing.T) {
+	root := t.TempDir()
+	source := t.TempDir()
+	managedApply(t, root, []Action{Symlink{Src: source, Dst: "data"}}, ScopeData)
+	if e := os.Remove(filepath.Join(root, "data")); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.Symlink("authored", filepath.Join(root, "data")); e != nil {
+		t.Fatal(e)
+	}
+	report, e := ApplyManaged(weavefs.OSFS{}, root, []Action{Symlink{Src: source, Dst: "data"}}, ScopeData)
+	if e != nil || !slices.Equal(report.Displaced, []string{"data"}) {
+		t.Fatalf("report %+v %v", report, e)
+	}
+	if target, e := os.Readlink(filepath.Join(root, DisplacedPath("data"))); e != nil || target != "authored" {
+		t.Fatalf("displaced link %q %v", target, e)
+	}
+}
+
+// ARCH-FUNERAL: a displaced copy lives as long as the output it backs up.
+func TestManagedSweepsDisplacedCopyWithItsOutput(t *testing.T) {
+	root := t.TempDir()
+	managedApply(t, root, []Action{WriteFile{Path: "out", Content: "old"}, WriteFile{Path: "keep", Content: "old"}}, ScopeArtifacts)
+	managedWrite(t, root, "out", "authored")
+	managedWrite(t, root, "keep", "authored")
+	managedApply(t, root, []Action{WriteFile{Path: "out", Content: "old"}, WriteFile{Path: "keep", Content: "old"}}, ScopeArtifacts)
+	managedApply(t, root, []Action{WriteFile{Path: "keep", Content: "old"}}, ScopeArtifacts)
+	managedAbsent(t, root, DisplacedPath("out"))
+	if managedRead(t, root, DisplacedPath("keep")) != "authored" {
+		t.Fatal("live output's copy swept")
 	}
 }

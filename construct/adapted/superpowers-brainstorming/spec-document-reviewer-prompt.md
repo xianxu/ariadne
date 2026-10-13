@@ -2,15 +2,17 @@
 
 Use this template when dispatching a spec document reviewer subagent.
 
+**Advisory, not a gate.** The user's agreement to the spec is the design approval, and `sdlc change-code` runs the mandatory plan-quality review later. Dispatch it once, only under the criteria in SKILL.md ("Optional Spec Review"); fold accepted findings into `## Spec`, log rejected ones in `## Log`.
+
 **Purpose:** Verify the spec is complete, consistent, and ready for implementation planning.
 
-**Dispatch after:** Spec document is written to the `## Spec` section of the issue file (`workshop/issues/<slug>.md`)
+**Dispatch (optional, once) after:** the spec is written to the `## Spec` section of the issue file (`workshop/issues/<slug>.md`)
 
 ```
 Task tool (general-purpose):
   description: "Review spec document"
   prompt: |
-    You are a spec document reviewer. Verify this spec is complete and ready for planning.
+    You are a spec document reviewer. Point out what would make this spec hard to plan from.
 
     **Spec to review:** [SPEC_FILE_PATH]
 
@@ -38,13 +40,13 @@ Task tool (general-purpose):
 
     ## Spec Review
 
-    **Status:** ✅ Approved | ❌ Issues Found
+    **Status:** ✅ No issues | ❌ Issues Found
 
     **Issues (if any):**
     - [Section X]: [specific issue] - [why it matters]
 
     **Recommendations (advisory):**
-    - [suggestions that don't block approval]
+    - [lower-priority suggestions]
 ```
 
 **Reviewer returns:** Status, Issues (if any), Recommendations

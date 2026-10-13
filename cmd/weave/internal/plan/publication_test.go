@@ -127,8 +127,16 @@ func TestStagedFileModesAreOwnedAndPreserved(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := ApplyManaged(weavefs.OSFS{}, root, actions, ScopeArtifacts); err == nil || !strings.Contains(err.Error(), "authored") {
-		t.Fatalf("authored permission edit not protected: %v", err)
+	// #281: a permission edit converges; the displaced copy keeps its mode.
+	managedApply(t, root, actions, ScopeArtifacts)
+	if info, err := os.Stat(filepath.Join(root, "construct/generated/demo/run.sh")); err != nil || info.Mode().Perm() != 0700 {
+		t.Fatalf("mode did not converge: %v %v", info, err)
+	}
+	if info, err := os.Stat(filepath.Join(root, DisplacedPath("construct/generated/demo/run.sh"))); err != nil || info.Mode().Perm() != 0600 {
+		t.Fatalf("displaced mode: %v %v", info, err)
+	}
+	if err := os.Chmod(filepath.Join(root, "construct/generated/demo/run.sh"), 0600); err != nil {
+		t.Fatal(err)
 	}
 	managedApply(t, root, nil, ScopeArtifacts)
 	if _, err := os.Stat(filepath.Join(root, "construct/generated/demo/run.sh")); err != nil {

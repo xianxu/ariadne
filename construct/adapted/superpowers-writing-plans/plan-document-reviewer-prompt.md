@@ -2,15 +2,17 @@
 
 Use this template when dispatching a plan document reviewer subagent.
 
+**Advisory, not a gate.** `sdlc change-code`'s plan-quality gate is the mandatory plan review and owns the findings ledger. Dispatch this at most once per chunk as an editing aid (SKILL.md, "Plan Review"); fold accepted findings into the plan, log rejected ones in the issue's `## Log`.
+
 **Purpose:** Verify the plan chunk is complete, matches the spec, and has proper task decomposition.
 
-**Dispatch after:** Each plan chunk is written
+**Dispatch (optional, at most once per chunk) after:** a plan chunk is written
 
 ```
 Task tool (general-purpose):
   description: "Review plan chunk N"
   prompt: |
-    You are a plan document reviewer. Verify this plan chunk is complete and ready for implementation.
+    You are a plan document reviewer. Point out what would make this plan chunk hard to implement from.
 
     **Plan chunk to review:** [PLAN_FILE_PATH] - Chunk N only
     **Spec for reference:** [SPEC_FILE_PATH]
@@ -40,13 +42,13 @@ Task tool (general-purpose):
 
     ## Plan Review - Chunk N
 
-    **Status:** Approved | Issues Found
+    **Status:** No issues | Issues Found
 
     **Issues (if any):**
     - [Task X, Step Y]: [specific issue] - [why it matters]
 
     **Recommendations (advisory):**
-    - [suggestions that don't block approval]
+    - [lower-priority suggestions]
 ```
 
 **Reviewer returns:** Status, Issues (if any), Recommendations
