@@ -452,6 +452,48 @@ func TestCompileRecoversAfterProcessDeathDuringGeneration(t *testing.T) {
 	}
 }
 
+// The killed owner's generator closes its output, so the test's wait for the
+// helper returns, but holds the inherited stage lease a moment longer, as an
+// exiting process does between closing fd 1/2 and fd 3 (#343, the flake behind
+// TestCompileRecoversAfterProcessDeathDuringGeneration). The retry must let
+// that lease settle and reclaim the stage.
+func TestCompileReclaimsStageOfAStillExitingGenerator(t *testing.T) {
+	leaf := buildSkillRepoFixture(t)
+	base := filepath.Join(filepath.Dir(leaf), "base")
+	pkg := filepath.Join(base, "construct/local/datatype")
+	realDatatypeMarker(t, pkg, "construct/generated/datatype")
+	marker := filepath.Join(pkg, ".dynamic-skill")
+	good, err := os.ReadFile(marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	lingering := append(append([]byte{}, good...), []byte("kill -KILL \"$PPID\"\nexec >&- 2>&-\nsleep 0.1\nexit 0\n")...)
+	if err := os.WriteFile(marker, lingering, 0755); err != nil {
+		t.Fatal(err)
+	}
+	child := exec.Command(os.Args[0], "-test.run=^TestCompileKilledGeneratorHelper$")
+	child.Env = append(os.Environ(), "WEAVE_KILLED_GENERATOR_FIXTURE="+leaf)
+	if output, err := child.CombinedOutput(); err == nil {
+		t.Fatalf("helper not killed: %s", output)
+	}
+	if err := os.WriteFile(marker, good, 0755); err != nil {
+		t.Fatal(err)
+	}
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err != nil {
+		t.Fatal(err)
+	}
+	entries, err := os.ReadDir(filepath.Join(leaf, "construct/generated/weave"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if entry.IsDir() {
+			t.Fatalf("stage of an exiting generator survived retry: %s", entry.Name())
+		}
+	}
+}
+
 func TestCompilePreservesGeneratedExecutablePermissions(t *testing.T) {
 	leaf := buildSkillRepoFixture(t)
 	base := filepath.Join(filepath.Dir(leaf), "base")
