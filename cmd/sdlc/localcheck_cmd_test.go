@@ -51,6 +51,18 @@ func TestLocalCheckCmd(t *testing.T) {
 		t.Fatalf("statuses %v comments %d", ci.statuses, len(ci.comments[5]))
 	}
 
+	// A pushed commit that is not a branch tip (an older commit of the PR) is
+	// refused: merge reads the statuses on the pushed head only.
+	if err := os.WriteFile(filepath.Join(dir, "next.txt"), []byte("y\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	git(t, dir, "add", "-A")
+	git(t, dir, "commit", "-qm", "next")
+	git(t, dir, "push", "-q", "origin", "feature")
+	if err := runLocalCheckCmd(ctx, io.Discard, localCheckFlags{Names: []string{"ok"}, Rev: "HEAD~1"}); err == nil || !strings.Contains(err.Error(), "not the tip of a branch on origin") {
+		t.Fatalf("pushed non-tip: %v", err)
+	}
+
 	// An unpushed commit is refused before anything runs.
 	if err := os.WriteFile(filepath.Join(dir, "local.txt"), []byte("x\n"), 0o644); err != nil {
 		t.Fatal(err)

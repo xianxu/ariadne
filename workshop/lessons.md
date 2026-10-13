@@ -106,6 +106,15 @@ Detailed incidents remain in their owning issue or review artifact.
 - A wait inside a test binary spends `go test`'s timeout: cmd/go kills the binary
   at `-timeout` plus a minute from its start, however long it queued. Bound the
   wait below that and shrink the binary's own timeout by it (#324).
+- Evidence read from a shared list must be matched by provenance, not only by
+  name. `gh pr checks` mixes commit statuses and check runs, so a gate keyed on
+  a check's name accepts any job that happens to carry it. Say which kind of
+  record counts (a commit status: no workflow, no Actions job link) and test a
+  look-alike of the other kind (#345 BR-2).
+- A tightening fix needs a test that the loose version fails. #345 narrowed
+  `--rev` from "any commit on a remote branch" to "a branch tip", but only the
+  unpushed case was tested, which both versions refuse; the pushed-but-not-tip
+  case is the one that tells them apart (#345 BR-3).
 
 ## Paths, processes, and integration
 

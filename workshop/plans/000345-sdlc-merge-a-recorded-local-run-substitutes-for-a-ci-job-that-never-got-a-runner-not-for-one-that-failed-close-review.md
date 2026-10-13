@@ -109,3 +109,92 @@ findings:
     title: |
       e2eGH and landingFakeGH each add delegation boilerplate for the new seam methods; landingFakeGH derefs a nil ci
 ```
+
+---
+
+## Re-review — 2026-10-13T16:17:20-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 345 — sdlc merge: a recorded local run substitutes for a CI job that never got a runner (not for one that failed) |
+| repo | ariadne |
+| issue file | workshop/issues/000345-sdlc-merge-a-recorded-local-run-substitutes-for-a-ci-job-that-never-got-a-runner-not-for-one-that-failed.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | c40e1b7f5ff15d1d81f5311815e8123101104046..34e4cff2380a59d267d3051ff2c25038a01d1197 |
+| command | sdlc close --issue 345 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-13T16:17:20-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Both BR-2 and BR-4 regression tests fail once their fixes are reverted, as they should. Next I'm checking BR-3 (`--rev` must be the branch tip).
+
+BR-3's fix has no test that fails without it: the only test case is a commit that was never pushed, and the old check also refuses that. Now scanning the rest of the diff for anything new.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+Five of the six round-1 findings are fixed, and I checked each against the code rather than the commit message. For the two behavior fixes (BR-2 and BR-4), I reverted each fix in the disposable checkout. The new regression tests failed every time: two `TestDecideCIGateLocalChecks` cases and one `TestRunCIGateLocalChecks` case. With the fixes restored, `go vet` is clean, and the CIGate, LocalCheck, Landing, Merge and Fetch tests pass (341s).
+
+BR-3's fix lacks evidence. I reverted `--rev` to the old `branch -r --contains` check and `TestLocalCheckCmd` still passed. The only test case is a commit that was never pushed, and the old check refuses that too. So nothing tests that a pushed commit which is not a branch tip gets refused. BR-3 is Minor, so it doesn't block. I found nothing new.
+
+1. **Strengths**
+   - `isCommitStatus` (`cmd/sdlc/cigate.go:80-83`) defines a recorded run by where it came from (no workflow, no Actions job link), not by its name. Both of the ways it could be faked are tested (`cigate_test.go:101-103`).
+   - `runCIGate` now runs the cheap required-check test before any inline local run (`cigate.go:441-458`). It also reuses the same `missing` closure after the re-read, so the logic isn't duplicated.
+   - `ciSeamGH` (`cigate_fake_test.go:112-138`) is one nil-safe delegate. It replaced two copies, and the nil-dereference in `landingFakeGH` is gone.
+   - The README paragraph (`README.md:278-284`) matches the code: it describes the recorded pass, "never one that ran and failed", `required`, and merge running a missing check itself (`runCIGate` with a non-nil `run`).
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** BR-3 is still open. It needs a test where a commit was pushed but is no longer a branch tip, for example a pushed HEAD followed by an extra commit that is also pushed, then running with `--rev HEAD~1`.
+
+5. **Test coverage notes**
+   - BR-2 and BR-4 both have regression tests, and I confirmed each one fails once its fix is reverted.
+   - BR-3 has no test that tells the old check from the new one. The test only changed its expected error message (`localcheck_cmd_test.go:61`).
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. The fake duplication is gone, and the required-check test exists once.
+   - **ARCH-PURE:** pass. `decideCIGate` stays pure, and `isCommitStatus` is a pure predicate.
+   - **ARCH-PURPOSE:** pass. A recorded pass now has to be a commit status everywhere it is read, which is only the `recorded` map.
+   - **ARCH-MOCK:** pass. The stateful `ciFakeGH` sits behind the `ghCaller` seam and is shared by the flow fakes.
+   - **ARCH-CONSTRAINTS:** pass. The known refusal now comes before minutes of local runs.
+   - **ARCH-SECURE:** pass. Provenance is tightened. Anyone with write access can still post a status named `sdlc-local/x`, which is the accepted trust model.
+   - **ARCH-ORDER:** pass. Merge reads the checks again after the local runs, and the head-lag test binds them to the pinned head.
+   - **ARCH-FUNERAL:** pass. Log directories are capped at 20, and stale worktrees are swept after 24h.
+
+7. **Plan revision recommendations:** none. The 2026-10-13 Revisions entry already records all four design changes.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      README.md:278-284 names `sdlc local-check run`, .sdlc/local-checks.json and the merge semantics, and links the atlas anchor; matches runCIGate behavior.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      isCommitStatus gates recorded[] (cigate.go:94); reverting it turns both new cigate_test.go provenance cases red.
+  - id: BR-3
+    disposition: not-addressed
+    note: |
+      for-each-ref --points-at fix is in localcheck_cmd.go:96, but reverting to `branch -r --contains` keeps TestLocalCheckCmd green; add a pushed-but-not-tip (HEAD~1) refusal case.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Presence check now precedes inline runs (cigate.go:452-457); reverting it fails "a missing required verdict refuses before any local run" with calls [zellij@h].
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Stray trailing cell removed from the merge row in atlas/workflow/sdlc-binary.md:42.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      e2eGH and landingFakeGH embed one nil-safe ciSeamGH (cigate_fake_test.go:112-138); per-fake delegation and the nil deref are gone.
+```

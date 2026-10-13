@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "76100a65", done: "a03b5fee"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # sdlc merge: a recorded local run substitutes for a CI job that never got a runner (not for one that failed)
@@ -53,6 +53,8 @@ Durable plan: `workshop/plans/000345-sdlc-merge-a-recorded-local-run-substitutes
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — Full make test on 34e4cff2 (review fixes + origin/main with #346): exit 0, all 12 cmd/sdlc shards (1120 tests) and all 46 other packages green. Targeted #345 suites green: parser, runnerless classifier, decideCIGate table incl. provenance (an Actions job named sdlc-local/x is not a recorded run), runCIGate against the stateful ciFakeGH (inline run on the pinned head; head moved, unrecorded pass, head-only declaration, invalid declaration, unreadable job, and a missing required verdict before any run all refuse), runLocalCheck against real git, merge e2e for both Done-when paths (TestRunMerge_RunnerlessJobMergesAfterLocalRun, TestRunMerge_FailedJobStillBlocks) plus the landing path, the verb (--rev must be an origin branch tip). Live: TestLiveJobRunConformance passed against pair jobs 115490631095 (runnerless) and 115497743342 (ran). Round-1 review findings (1 Important, 5 Minor) all fixed. Pair declaration filed as pair#534.; review verdict: FIX-THEN-SHIP
+- 2026-10-13: flow upgraded quick → full — 927 added lines in code files (limit 100); an earlier round of this close already ran the full review
 
 - Measured the runnerless signal: pair run 38453641991 attempt 1, job 115490631095 — check-run `conclusion=cancelled`; jobs API `runner_name=""`, `steps=0`; annotation "not acquired by Runner of type hosted". `gh pr checks` buckets it `cancel`, which `decideCIGate` (cmd/sdlc/cigate.go) reads as red today. Attempt 2 got a runner (14 steps, success).
 - pair `main` has no branch protection, so `sdlc merge`'s CI gate is the only gate; a substitute there is enough.
