@@ -235,11 +235,17 @@ type Mount struct{ Owner, Source, Target string }
 // Recovery is a sourceless substrate row whose source was taken from the
 // primary-side sibling's origin (#296). Callers must report every one.
 type Recovery struct{ Owner, Path, URL, Sibling string }
+
+// Fallback is a relative substrate row absent beside its linked worktree and
+// resolved beside the worktree's primary checkout instead (#230). Callers
+// must report every one.
+type Fallback struct{ Owner, Path, Resolved, Primary string }
 type Result struct {
 	Layers    []string
 	Mounts    []Mount
 	Missing   []string
 	Recovered []Recovery
+	Fallbacks []Fallback
 }
 
 // Restore acquires every declared source, then delegates topology and cycle
@@ -261,6 +267,10 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 	mounts := map[string]string{}
 	queue := []string{root}
 	queued := map[string]bool{root: true}
+	resolver := layergraph.NewResolver(layergraph.OSFS{})
+	if c.Anchors != nil {
+		resolver.Anchors = c.Anchors
+	}
 	for len(queue) > 0 {
 		owner := queue[0]
 		queue = queue[1:]
@@ -281,6 +291,7 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 		}
 		for _, row := range rows {
 			dest := row.Path
+			var noFallback error // why an absent relative row did not fall back (#230)
 			var src Source
 			if row.Source != "" {
 				src, err = sourceAt(row.Source, owner)
@@ -307,7 +318,22 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 				result.Mounts = append(result.Mounts, Mount{Owner: owner, Source: dest, Target: target})
 			} else {
 				if !filepath.IsAbs(dest) {
-					dest = filepath.Join(owner, dest)
+					res, err := resolver.Substrate(owner, dest)
+					if err != nil {
+						return result, err
+					}
+					// Absent beside both a linked worktree and its primary:
+					// refuse rather than clone a duplicate beside the worktree.
+					// A numbered environment's policy owns that refusal itself
+					// (validate below), with its own next action.
+					var absent *layergraph.FallbackAbsentError
+					if errors.As(res.NoFallback, &absent) && c.Policy == nil {
+						return result, fmt.Errorf("missing substrate %s declared in %s: absent beside this worktree (%s) and %s; check it out beside the primary checkout (weave compile there restores it), then retry", row.Path, owner, res.Local, res.NoFallback)
+					}
+					dest, noFallback = res.Path, res.NoFallback
+					if res.Via != "" {
+						result.Fallbacks = append(result.Fallbacks, Fallback{Owner: owner, Path: row.Path, Resolved: canonical(dest), Primary: res.Via})
+					}
 				}
 				if c.Policy != nil {
 					lexical, err := filepath.Abs(dest)
@@ -348,7 +374,11 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 			if os.IsNotExist(statErr) && row.Source == "" {
 				sibling, recovered, err := c.recoverSource(ctx, dest)
 				if err != nil {
-					return result, fmt.Errorf("missing substrate %s declared in %s: record its source in construct/deps (no source declared; %w)", dest, owner, err)
+					err = fmt.Errorf("missing substrate %s declared in %s: record its source in construct/deps (no source declared; %w)", dest, owner, err)
+					if noFallback != nil {
+						err = fmt.Errorf("%w; no worktree fallback: %v", err, noFallback)
+					}
+					return result, err
 				}
 				src = recovered
 				result.Recovered = append(result.Recovered, Recovery{Owner: owner, Path: row.Path, URL: src.URL, Sibling: sibling})

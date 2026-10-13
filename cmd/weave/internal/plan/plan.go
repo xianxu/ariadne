@@ -43,7 +43,8 @@ import (
 //     and self, so the IO walk knows which layer is the self-walk.
 //   - The two _seen_or_add filters (base.manifest-existence, target-self-
 //     exclusion) and substrate path resolution (repo-root-relative + absolute +
-//     present-skip, ported from deps_substrate_targets). All IO concerns.
+//     present-skip, ported from deps_substrate_targets, plus #230's
+//     linked-worktree fallback). All IO concerns.
 func Plan(layers []layer.Layer, entryFiles []string) ([]Action, error) {
 	var actions []Action
 

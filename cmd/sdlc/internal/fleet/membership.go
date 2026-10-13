@@ -61,6 +61,9 @@ func DeclaredMembers(host, envRoot string, read func(dir string) (string, bool, 
 			if row.Kind != "substrate" {
 				continue
 			}
+			// A numbered environment provisions its own dependencies: neither
+			// its host nor its ordinary dependency clones has a worktree anchor,
+			// so the owner-relative join is layergraph.Resolver's answer (#230).
 			lexical := row.Path
 			if !filepath.IsAbs(lexical) {
 				lexical = filepath.Join(dir, lexical)

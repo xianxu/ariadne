@@ -118,7 +118,7 @@ func loadTopology(git GitReader, dir string) (Vantage, []Worktree, error) {
 		return Vantage{}, nil, fmt.Errorf("canonicalize primary worktree %q: %w", worktrees[0].Path, err)
 	}
 	if worktrees[0].Bare {
-		return Vantage{}, nil, fmt.Errorf("git worktree list from %q identifies a bare primary worktree", dir)
+		return Vantage{}, nil, fmt.Errorf("git worktree list from %q identifies a bare primary worktree: %w", dir, ErrBarePrimary)
 	}
 
 	worktreeRoot := ""
