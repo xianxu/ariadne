@@ -12,9 +12,10 @@
 #   X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }
 #
 # An owner whose build needs a generated input (a gitignored embed tree, say)
-# declares a `dev-prepare` make rule (#299; what counts as declared is described
-# once, at owner_prepares below). Its functions then run that step first, with make's stdout sent to stderr so the
-# binary's own stdout stays clean; a failed step fails the call:
+# declares a `dev-prepare` make rule (#299; what counts as declared is
+# described once, at owner_prepares below). Its functions then run that step
+# first, with make's stdout sent to stderr so the binary's own stdout stays
+# clean; a failed step fails the call:
 #
 #   X() { ( cd OWNER && make -s dev-prepare >&2 && mkdir -p bin && ... ) || return; ...; }
 #

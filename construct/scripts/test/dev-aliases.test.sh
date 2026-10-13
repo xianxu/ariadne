@@ -61,8 +61,9 @@ assert_contains "cd $WS/ariadne && mkdir -p bin && rm -f bin/sdlc && go build -o
 assert_contains "$WS/ariadne/bin/sdlc \"\$@\""                                                        "$out" "runs the owner-bin binary with caller args/cwd"
 
 # ── owner-declared preparation step (#299) ───────────────────────────────────
-# prepd declares `dev-prepare:` in Makefile.local (where the base layer's Makefile
-# looks for local rules); nous declares nothing and keeps today's exact form.
+# prepd declares `dev-prepare:` in Makefile.local (where the base layer's
+# Makefile looks for local rules); nous declares nothing and keeps today's
+# exact form.
 mkdir -p "$WS/prepd/construct"; mkcmd "$WS/prepd/cmd/gen"
 # Like the base layer's Makefile, the owner's Makefile includes Makefile.local.
 printf -- '-include Makefile.local\n' > "$WS/prepd/Makefile"
