@@ -244,3 +244,36 @@ func TestReopenDoneGuardRefusalNamesTheFastForward(t *testing.T) {
 		t.Fatal("rest was not fast-forwarded")
 	}
 }
+
+// BR-7: the postcondition fails on the landed branch, which has the live
+// details and no archived copy but not main's archive, and holds after a reopen.
+func TestCheckUnarchived(t *testing.T) {
+	r, _, detailPath := doneArchived(t)
+	archiveCommit := r.git("rev-list", "-1", "origin/main", "--", s330History)
+	r.git("switch", "-q", s330Branch) // the landed branch
+	if err := checkUnarchived(boundaryEnv(t), archiveCommit, detailPath, s330History); err == nil || !strings.Contains(err.Error(), "does not descend") {
+		t.Fatalf("the landed branch passed the postcondition: %v", err)
+	}
+	r.git("switch", "-q", "main")
+	writeReopenEntry(t, r)
+	if out, err := reopen330(); err != nil {
+		t.Fatalf("reopen: %v\n%s", err, out)
+	}
+	if err := checkUnarchived(boundaryEnv(t), archiveCommit, detailPath, s330History); err != nil {
+		t.Fatalf("a reopened branch failed the postcondition: %v", err)
+	}
+}
+
+// BR-6: a dirty tree refuses before the resting branch is fast-forwarded.
+func TestReopenDoneDirtyTreeRefusesBeforeTheFastForward(t *testing.T) {
+	r, _, _ := doneArchived(t)
+	r.git("reset", "-q", "--hard", "HEAD~1") // rest behind main
+	writeRepoFile(t, r.root, "cmd/a.go", "package a // edited\n")
+	head := r.git("rev-parse", "HEAD")
+	if out, err := reopen330(); err == nil || !strings.Contains(err.Error()+out, "cmd/a.go") {
+		t.Fatalf("want a dirty-tree refusal: %v\n%s", err, out)
+	}
+	if r.git("rev-parse", "HEAD") != head {
+		t.Fatal("the refusal came after a fast-forward")
+	}
+}

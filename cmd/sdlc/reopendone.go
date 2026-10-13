@@ -77,6 +77,18 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 			reset = true
 		}
 	}
+	// A dirty tree refuses before the fast-forward; the reopen's own details
+	// edit (archived or live copy) is the one change allowed.
+	entries, err := env.statusEntries(env.root, "--untracked-files=no")
+	if err != nil {
+		return false, err
+	}
+	liveRel := path.Join(issuesDir, base)
+	if blocking := dirtyBesides(entries, archivedRel, liveRel); len(blocking) > 0 {
+		return false, fmt.Errorf("#%s: reopening cuts a branch and needs a clean tree besides its details; commit or discard:\n  %s", issueStr, strings.Join(blocking, "\n  "))
+	}
+	// The archived copy needs rest at main. Every refusal after this
+	// fast-forward names it (BR-6), through after.
 	moved := ""
 	if env.onRest() {
 		before, err := env.git("rev-parse", "HEAD")
@@ -87,34 +99,28 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 			return false, fmt.Errorf("#%s: %s", issueStr, warn)
 		}
 		if before != view.Ref() {
-			moved = fmt.Sprintf(" (%s was fast-forwarded to main, which the archived copy needs)", env.resting)
+			moved = fmt.Sprintf("\n  (%s was fast-forwarded to main, which the archived copy needs; nothing else was changed)", env.resting)
 		}
 	}
+	after := func(err error) (bool, error) { return false, fmt.Errorf("%w%s", err, moved) }
 	// The details are wherever HEAD has them: archived until step 2 commits.
-	detailRel := path.Join(issuesDir, base)
+	detailRel := liveRel
 	if archived, err := env.has("HEAD", archivedRel); err != nil {
-		return false, err
+		return after(err)
 	} else if archived {
 		detailRel = archivedRel
-	}
-	entries, err := env.statusEntries(env.root, "--untracked-files=no")
-	if err != nil {
-		return false, err
-	}
-	if blocking := planningDirtyBlocking(entries, detailRel); len(blocking) > 0 {
-		return false, fmt.Errorf("#%s: reopening cuts a branch and needs a clean tree besides its details (%s); commit or discard:\n  %s", issueStr, detailRel, strings.Join(blocking, "\n  "))
 	}
 	if !force {
 		raw, err := os.ReadFile(filepath.Join(env.root, filepath.FromSlash(detailRel)))
 		if err != nil {
-			return false, err
+			return after(err)
 		}
 		_, body, err := issue.Parse(string(raw))
 		if err != nil {
-			return false, fmt.Errorf("%s is malformed (%v); repair it before reopening", detailRel, err)
+			return after(fmt.Errorf("%s is malformed (%v); repair it before reopening", detailRel, err))
 		}
 		if err := checkTransitionGuards("done", "working", "", body); err != nil {
-			return false, fmt.Errorf("%w\n  Write it in %s; the reopen moves the details back with it. Nothing else was changed%s", err, detailRel, moved)
+			return after(fmt.Errorf("%w\n  Write it in %s; the reopen moves the details back with it", err, detailRel))
 		}
 	}
 	// 1: the issue branch.
@@ -133,13 +139,9 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 	if err := unarchiveIssue(env, base, issuesDir, unarchiveSubject(card.ID)); err != nil {
 		return false, err
 	}
-	// The postcondition, before anything is published (BR-5).
-	if live, err := env.has("HEAD", path.Join(issuesDir, base)); err != nil {
-		return false, err
-	} else if archived, err := env.has("HEAD", archivedRel); err != nil {
-		return false, err
-	} else if !live || archived {
-		return false, fmt.Errorf("#%s: %s does not hold the un-archived details (%s); nothing was pushed", issueStr, name, path.Join(issuesDir, base))
+	// The postcondition, before anything is published (BR-5, BR-7).
+	if err := checkUnarchived(env, archiveCommit, liveRel, archivedRel); err != nil {
+		return false, fmt.Errorf("#%s: %s %w; nothing was pushed", issueStr, name, err)
 	}
 	// 3: the branch on the remote, before the card says it is back.
 	if err := leaseOnRemoteBranch(env, name, view.Ref()); err != nil {
@@ -202,4 +204,40 @@ func unfinishedDoneReopen(env *trackerEnv, card tracker.Record) (*reopenedIssue,
 		return nil, nil
 	}
 	return &reopenedIssue{env: env, id: card.ID, cardPath: card.Path}, nil
+}
+
+// dirtyBesides is the dirty tracked paths that block a reopen: those that
+// would block a plain edit of either copy of its details. Pure.
+func dirtyBesides(entries []gitx.StatusEntry, archivedRel, liveRel string) []string {
+	live := map[string]bool{}
+	for _, p := range planningDirtyBlocking(entries, liveRel) {
+		live[p] = true
+	}
+	var out []string
+	for _, p := range planningDirtyBlocking(entries, archivedRel) {
+		if live[p] {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// checkUnarchived is a done reopen's postcondition (BR-7): HEAD descends from
+// main's archive commit — which a branch from before the landing does not,
+// though it has the live details too — and holds the details live, not
+// archived.
+func checkUnarchived(env *trackerEnv, archiveCommit, liveRel, archivedRel string) error {
+	if holds, err := env.ancestorOf(archiveCommit, "HEAD"); err != nil {
+		return err
+	} else if !holds {
+		return fmt.Errorf("does not descend from main's archive of its details (%s)", shortOID(archiveCommit))
+	}
+	if live, err := env.has("HEAD", liveRel); err != nil {
+		return err
+	} else if archived, err := env.has("HEAD", archivedRel); err != nil {
+		return err
+	} else if !live || archived {
+		return fmt.Errorf("does not hold the un-archived details (%s)", liveRel)
+	}
+	return nil
 }
