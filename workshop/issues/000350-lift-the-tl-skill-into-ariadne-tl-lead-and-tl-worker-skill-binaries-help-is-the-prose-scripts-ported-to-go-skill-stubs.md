@@ -32,8 +32,18 @@ The ops draft stays the editing surface until this lands, then becomes a pointer
 
 ## Plan
 
-- [ ]
+Proposed approach (the implementer refines it into a durable plan; three review boundaries):
+
+- [ ] **M1 — tl-worker.** Inventory every worker-facing rule in the ops draft and in TL dispatches (ops `skills-draft/xx-tl/SKILL.md`, "Running batches" dispatch checklist; recent dispatch messages in ops `teams/devinfra/projects/*/project.md` Logs). Sort each into: base layer (AGENTS §15, any Couch-fleet agent), couch skill (messaging mechanics), or `tl-worker` (TL-run fleet only). New `cmd/tl-worker`: `--help` prints the embedded prose (go:embed of a markdown file under the command, the same shape as `sdlc --help`/`couch --skill`). Skill stub under ariadne's skill delivery (weave) pointing at the binary. Couch-side load: coordinate with pair so `couch --prepare` tells a worker slot to load `tl-worker` (a pair issue, filed by the implementer, if Couch needs a change). Tests: the stub names the binary; `--help` contains each rule; AGENTS §15 and the couch skill aren't contradicted.
+- [ ] **M2 — tl-lead prose.** New `cmd/tl-lead`; `--help` prints the lead prose rewritten from the ops draft as current rules and procedure: the eight-step playbook, talking to the operator, dispatch judgment, product stewardship with the operator's two design rules, the smoke loop via `sdlc stage`, attention and load, the project lifecycle. Every reference in full `repo#NNN` form.
+- [ ] **M3 — Go subcommands; retire Python.** `tl-lead status submit|section|thread|owed|seen|trains` replaces `ss.py`/`tl-status.py` (same session-file format, the operator-lock refusal, the owed/fold bookkeeping); `tl-lead trains` replaces `render-trains.py` using `sdlc`'s project parser (shared package, no second parser). Golden tests against the current ops status file and project files; a lock-refusal test. Then the ops draft becomes a pointer (an ops change the TL makes), and the TL switches its own calls over.
 
 ## Log
 
 ### 2026-10-13
+
+## Revisions
+
+- 2026-10-13 — the operator: **don't copy stories or lessons** into the binaries' prose. The prose states current
+  rules and procedure only; incident history stays in ops learnings, and new kinks are addressed going forward as rule
+  changes in the skill binaries (each fix lands as a prose or code change there), not as narratives.
