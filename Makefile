@@ -5,6 +5,10 @@ REPO_NAME := $(shell git remote get-url origin 2>/dev/null | sed 's|.*/||; s|\.g
 WF_ISSUES_DIR = workshop/issues
 WF_HISTORY_DIR = workshop/history
 
+# The sharded suite (#253, ~12 processes) takes both full-suite slots, so two
+# ariadne suites never run at once (#346).
+WF_TEST_WEIGHT ?= 2
+
 # Owner build declarations are available before generated workflow helpers.
 .DEFAULT_GOAL := help
 -include Makefile.workflow

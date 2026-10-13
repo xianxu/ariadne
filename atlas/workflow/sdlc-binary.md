@@ -1617,6 +1617,24 @@ prerequisites, which are pair's whole suite. Targeted runs (`go test -run …`, 
 single `make test-*` target) never take it; they go through the test gate below. A nested `make test` under a locked
 run passes through (`WF_TEST_LOCK_HELD_BY`), even while another slot is free.
 
+**Weighted suites (#346).** A suite heavier than one slot declares its weight:
+`WF_TEST_WEIGHT ?= N` in the repo's root Makefile, before `Makefile.workflow`
+is included. The default is 1. ariadne declares 2, because its sharded suite
+runs ~12 processes, so it runs alone at the default cap. Two of them at once
+had pushed load to 185.
+
+`Makefile.workflow` passes the weight as `test-lock.py acquire --slots N`,
+clamped to `WF_TEST_SUITES`. The acquisition rules:
+- **All or none.** The N slots are taken in one scan or not at all. A waiter
+  holds no slot, so two heavy waiters cannot deadlock.
+- **One queue head.** While waiting, a run holds `test-suite.lock.queue`.
+  Only that head may take slots, so light suites never overtake the head waiter. The queue is a polled flock, not first-in-first-out, so waiters behind the head race for it.
+- **Records.** The holder's record goes into each slot it holds, with
+  `slots: [...]`.
+
+The wait names each holder once, with `next in line: …` for the queue head.
+It asks for `2 of 2 full-suite slots` for a weight-2 run.
+
 While waiting it prints `[test-lock] waiting Ns for one of N full-suite slots …;
 held by:` and one `<repo> (<worktree>), make pid P, since T` line per holder,
 repeated every 30s. `WF_TEST_LOCK=off` skips the lock
