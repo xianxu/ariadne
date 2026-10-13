@@ -136,6 +136,19 @@ rounds:
       isolation: checkout
       reviewed: 69aa17f639a9ef681c2ddf8396cdbc3d9eadb6ea
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-13T14:53:33-07:00"
+      dispatched: "2026-10-13T14:52:57-07:00"
+      agent: claude
+      dispose:
+        - id: BR-11
+          disposition: addressed
+          note: Caller list single-sourced in atlas setup-and-replication.md:93-107 with regenerating grep; anchor.go:27-31 and weave.md:158 now point to it; grep of NewResolver at head matches all four listed callers.
+          round: 4
+      recipe: fix-review
+      isolation: checkout
+      reviewed: bd97a3051ab996fff319a7d7dccc138e2cf966cf
+      blocked: false
 ---
 
 # Gate ledger — ariadne#230 (boundary-review)
@@ -193,6 +206,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-11** [Minor] `doc-overclaims-behavior` Resolver doc comment and atlas weave.md list its consumers without refresh's declaredOrigins
   This is the 3rd finding in family doc-overclaims-behavior. Rule: any prose that lists a component's consumers or contract must be regenerated from a grep of the component's call sites whenever a fix adds or removes one. Here, grep NewResolver/Resolver.Substrate callers and update both lists in pkg/layergraph/anchor.go:28-30 and atlas/workflow/weave.md:158-159, which still omit cmd/weave/internal/refresh after BR-8.
 
+## Round 4 — 2026-10-13T14:53:33-07:00 (claude) — passed
+
+### Disposed
+
+- BR-11 — addressed — Caller list single-sourced in atlas setup-and-replication.md:93-107 with regenerating grep; anchor.go:27-31 and weave.md:158 now point to it; grep of NewResolver at head matches all four listed callers.
+
 ## Open findings
 
-- **BR-11** [Minor] `doc-overclaims-behavior` Resolver doc comment and atlas weave.md list its consumers without refresh's declaredOrigins
+(none — every finding has been disposed)

@@ -379,3 +379,66 @@ findings:
     detail: |
       This is the 3rd finding in family doc-overclaims-behavior. Rule: any prose that lists a component's consumers or contract must be regenerated from a grep of the component's call sites whenever a fix adds or removes one. Here, grep NewResolver/Resolver.Substrate callers and update both lists in pkg/layergraph/anchor.go:28-30 and atlas/workflow/weave.md:158-159, which still omit cmd/weave/internal/refresh after BR-8.
 ```
+
+---
+
+## Re-review — 2026-10-13T14:53:33-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 230 — Make Weave dependency resolution worktree-aware |
+| repo | ariadne |
+| issue file | workshop/issues/000230-worktree-dependency-resolution.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1bbded1ad105bfae8cb0a7b1460ddb013e87a233..bd97a3051ab996fff319a7d7dccc138e2cf966cf |
+| command | sdlc close --issue 230 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-13T14:53:33-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the last referent (sdlc fleet membership) and then writing up the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**BR-11 is fixed, and the fix covers the whole class of stale caller lists, not just the two spots the finding named.** The resolver's caller list now lives in one place: the "Linked worktrees" section of `atlas/workflow/setup-and-replication.md:93-107`. It comes with the grep that regenerates it. The other two copies now point there instead of repeating it: the `Resolver` doc comment (`pkg/layergraph/anchor.go:27-31`) and `atlas/workflow/weave.md:158`. I ran `grep -rn 'NewResolver' --include='*.go' cmd pkg` at head and got four non-test call sites. Each one matches an entry in the list:
+- `pkg/layergraph/walk.go:86` (Walk / DeclaredSubstrates)
+- `cmd/weave/internal/acquire/acquire.go:270` (`Client.Restore`)
+- `cmd/weave/internal/refresh/refresh.go:30` (`declaredOrigins`, the call site BR-8 added)
+- `cmd/sdlc/startplan.go:442` (`substrateWalk`)
+
+Both listed exceptions also exist: `migrateSourceless` (`cmd/weave/migrate.go:41`) and sdlc's fleet membership. The rest of the window is review artifacts and a lessons entry. Nothing changes code behavior, and `## Spec` / `## Done when` are untouched, so there is no scope change.
+
+1. **Strengths**
+   - The fix replaces three hand-kept copies with one source plus pointers, and records the regenerating grep next to it. This is the rule the family escalation asked for, applied as a rule rather than another single patch.
+   - The `workshop/lessons.md:208-211` entry states that rule in general terms, so the next consumer list in the repo follows it.
+   - The atlas entry also explains why the two owner-relative readers don't need the resolver. That closes the "why doesn't X use it" gap.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new.
+
+5. **Test coverage notes:** the window only changes prose (a doc comment, the atlas and lessons), so no regression test is needed. I checked the corrected passage against the call sites found by the grep. The behavior these docs describe was already pinned by BR-8 / BR-10 tests in earlier rounds.
+
+6. **Architectural notes:**
+   - **ARCH-DRY: pass.** There is one list and the other mentions point to it.
+   - **ARCH-PURE: pass.** No code logic changed.
+   - **ARCH-PURPOSE: pass.** The class was swept: every document that listed the callers was found and fixed, and the grep makes the list reproducible.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-11
+    disposition: addressed
+    note: |
+      Caller list single-sourced in atlas setup-and-replication.md:93-107 with regenerating grep; anchor.go:27-31 and weave.md:158 now point to it; grep of NewResolver at head matches all four listed callers.
+```
