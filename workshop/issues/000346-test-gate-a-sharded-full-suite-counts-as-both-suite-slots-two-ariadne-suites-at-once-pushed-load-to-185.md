@@ -1,12 +1,12 @@
 ---
 id: 000346
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '19ad9672eaa649c50329c0ffaa6e28b5b63692b2' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1a1c9926747e43dbae749a8c0c80f49e6e78b366' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T13:40:11-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "3686a4f9", done: "8536d9ff"}
+actual_hours: 0.09
 ---
 
 # test gate: a sharded full suite counts as both suite slots (two ariadne suites at once pushed load to 185)
