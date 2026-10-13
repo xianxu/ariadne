@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/testfix"
 )
 
 const (
@@ -195,6 +196,15 @@ func TestReopenDoneRefusals(t *testing.T) {
 		"a dirty tree": {func(t *testing.T, r *trackerRepo, _ string) {
 			writeRepoFile(t, r.root, "cmd/a.go", "package a // edited\n")
 		}, "cmd/a.go"},
+		"foreign work on origin's branch": {func(t *testing.T, r *trackerRepo, _ string) {
+			peer := t.TempDir()
+			testfix.Git(t, "", "clone", "-q", r.origin, peer)
+			testfix.Git(t, peer, "config", "user.name", "p")
+			testfix.Git(t, peer, "config", "user.email", "p@p")
+			testfix.Git(t, peer, "switch", "-q", "-c", s330Branch)
+			testfix.Git(t, peer, "commit", "-q", "--allow-empty", "-m", "someone's")
+			testfix.Git(t, peer, "push", "-q", "origin", s330Branch)
+		}, "holds work neither main nor this reopen has"},
 		"the landed branch itself": {func(t *testing.T, r *trackerRepo, _ string) {
 			r.git("switch", "-q", s330Branch)
 		}, "is the landed branch"},
@@ -209,13 +219,13 @@ func TestReopenDoneRefusals(t *testing.T) {
 			r, cardPath, _ := doneArchived(t)
 			tc.setup(t, r, cardPath)
 			writeReopenEntry(t, r)
-			branch, head := r.git("branch", "--show-current"), r.git("rev-parse", "HEAD")
+			branch, head, remote := r.git("branch", "--show-current"), r.git("rev-parse", "HEAD"), remoteTip(t, r, s330Branch)
 			out, err := reopen330()
 			if err == nil || !strings.Contains(err.Error()+out, tc.want) {
 				t.Fatalf("want a refusal naming %q: %v\n%s", tc.want, err, out)
 			}
 			if r.git("branch", "--show-current") != branch || r.git("rev-parse", "HEAD") != head ||
-				remoteTip(t, r, s330Branch) != "" || !strings.Contains(r.card(cardPath), "status: done") {
+				remoteTip(t, r, s330Branch) != remote || !strings.Contains(r.card(cardPath), "status: done") {
 				t.Fatal("a refused reopen changed something")
 			}
 		})

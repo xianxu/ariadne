@@ -77,6 +77,15 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 			reset = true
 		}
 	}
+	// The lease, decided before any change: origin's branch must be main's
+	// or this reopen's (the branch the reopen builds on).
+	ours := view.Ref()
+	if !reset {
+		ours = tip
+	}
+	if err := leaseOnRemoteBranch(env, name, view.Ref(), ours); err != nil {
+		return false, err
+	}
 	// A dirty tree refuses before the fast-forward; the reopen's own details
 	// edit (archived or live copy) is the one change allowed.
 	entries, err := env.statusEntries(env.root, "--untracked-files=no")
@@ -144,9 +153,6 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 		return false, fmt.Errorf("#%s: %s %w; nothing was pushed", issueStr, name, err)
 	}
 	// 3: the branch on the remote, before the card says it is back.
-	if err := leaseOnRemoteBranch(env, name, view.Ref()); err != nil {
-		return false, err
-	}
 	if err := pushIssueBranch(env, name); err != nil {
 		return false, fmt.Errorf("#%s: pushing %s failed: %w — the card is unchanged; rerun", issueStr, name, err)
 	}
@@ -159,7 +165,7 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 // landing names a branch origin has since deleted or that main contains, and
 // leasing on it would refuse every rerun. A tip that is neither main's nor
 // this reopen's is someone's work; refuse.
-func leaseOnRemoteBranch(env *trackerEnv, name, mainTip string) error {
+func leaseOnRemoteBranch(env *trackerEnv, name, mainTip, ours string) error {
 	tracking := gitx.RemoteTrackingRef(env.target.Remote, name)
 	remote, err := remoteRefTip(env.git, env.target.Remote, "refs/heads/"+name)
 	if err != nil {
@@ -172,7 +178,7 @@ func leaseOnRemoteBranch(env *trackerEnv, name, mainTip string) error {
 	if _, err := env.git("fetch", "-q", env.target.Remote, "+refs/heads/"+name+":"+tracking); err != nil {
 		return err
 	}
-	for _, into := range []string{mainTip, "HEAD"} {
+	for _, into := range []string{mainTip, ours} {
 		if ok, err := env.ancestorOf(remote, into); err != nil || ok {
 			return err
 		}
