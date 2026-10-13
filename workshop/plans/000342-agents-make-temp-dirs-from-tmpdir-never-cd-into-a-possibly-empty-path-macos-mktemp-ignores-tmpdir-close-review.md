@@ -152,3 +152,84 @@ findings:
     detail: |
       3rd finding in this family: probed `if mktemp -d; then`, `sudo -u x mktemp -d`, `time -p mktemp -d` and `env -i mktemp -d`, and all report 0 findings. Fix the rule, not more instances: treat a word as a command word when the word before it is a list-opening reserved word, or when it is the first non-option, non-assignment word after a prefix command. That means skipping -opts and NAME=value words in commandPosition (mktemp.go:96) instead of checking only the last field. No tracked site is affected today.
 ```
+
+---
+
+## Re-review — 2026-10-13T16:09:18-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 342 — agents: make temp dirs from $TMPDIR; never cd into a possibly-empty path (macOS mktemp ignores TMPDIR) |
+| repo | ariadne |
+| issue file | workshop/issues/000342-agents-make-temp-dirs-from-tmpdir-never-cd-into-a-possibly-empty-path-macos-mktemp-ignores-tmpdir.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 1e4f9e9c1cf90948354852b7ed7bb5275dbf628f..ad470891aa1ce396f5c1289a8877066cd9b01759 |
+| command | sdlc close --issue 342 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-13T16:09:18-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Probes done; checking whether the backtick-in-double-quotes miss is a regression against the prior head.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+BR-3, the only open prior finding, is fixed. The fix changes the rule itself, as the finding asked. `commandWords` (`pkg/shelllint/mktemp.go:72-95`) now flags every unquoted occurrence of `mktemp` that stands as its own word. It skips four kinds of non-call: quoted literal text, part of a larger word, a `$`/`${}` expansion, and a lookup that only names the command (`command -v`, `which`, `type`, `hash`). That covers `if`, `elif`, `while`, `until`, `sudo -u x`, `time -p` and `env -i` without listing each one.
+
+I put the prior head's `mktemp.go` back in place and ran the tests. The new cases `if opener`, `until opener`, `sudo with an option value`, `time -p` and `which lookup` fail, so the regression tests really depend on the fix. At the pinned head, `go test ./pkg/shelllint/` passes, including the repo-wide test over tracked scripts.
+
+The interdiff makes no Spec, Revisions or Done-when changes. The only additions beyond code and tests are the gate/review artifacts and one entry in `lessons.md`.
+
+The new masking does add one false negative, but it doesn't block shipping. `codeOnly` blanks backquotes inside double quotes, so `` d="`mktemp -d`" `` is no longer flagged. The prior head caught it (I checked: 1 finding before, 0 now). No tracked site uses this form today, so it is Minor.
+
+1. **Strengths**
+   - The rule is inverted as asked (`mktemp.go:72-77`). Calls are flagged by default and only the provable non-calls are listed. The comment states the rule plainly.
+   - `codeOnly` (`mktemp.go:118-171`) keeps `$( … )` inside double quotes as code and handles nesting. These were all flagged correctly: `"$(echo "$(mktemp -d)")"`, `$(echo ')' ; mktemp -d)` and an escaped `\"` before `$(…)`.
+   - There are tests for the exceptions as well as the new catches: `command -v`, `which`, `type`, single-quoted `trap` text and `${mktemp}` (`mktemp_test.go:43-47`). Without these, the broader rule could add false positives unnoticed.
+   - The `lessons.md` entry records the general lesson: invert an enumerated-context rule once a review finds a second missed context.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **This is the 4th finding in family `lint-command-position-coverage`.** `codeOnly` treats `$(` as code inside double quotes but blanks a backquote, so `` d="`mktemp -d`" `` gives 0 findings. The prior head flagged it. The general rule: anything that runs code inside double quotes must stay unmasked, and there are exactly two such forms, `$(…)` and `` `…` ``. In `codeOnly`'s `'"'` branch (`mktemp.go:141-155`), push a backquote context the same way `$(` pushes one, and pop it on the closing backquote. Add a test case for `` "`mktemp -d`" ``.
+   - ARCH-DRY: the file now has three separate quote scanners: `stripComment` (`:52`), `codeOnly` (`:118`) and `arguments` (`:175`). `stripComment` could be built on `codeOnly`'s mask: a `#` at the start of a word in masked code is a comment. Merging them means a quoting fix happens in one place.
+
+5. **Test coverage notes:** Each form BR-3 named has its own case, and those cases fail on the prior code. The only gap in this window is a backquote substitution inside double quotes. A path-qualified call like `/usr/bin/mktemp -d` is also missed, but the prior code missed it too, so the interdiff didn't introduce it.
+
+6. **Architectural notes**
+   - ARCH-DRY: flagged, Minor. Three quote scanners; see above.
+   - ARCH-PURE: pass. Every change is a pure string function, tested with no IO.
+   - ARCH-PURPOSE: pass. The class was fixed by changing the rule rather than adding more instances. The one remaining gap is a masking omission, not another enumerated context.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-3
+    disposition: addressed
+    note: |
+      Rule inverted in commandWords/lookup/codeOnly (mktemp.go:72-171); if/until/sudo -u/time -p/which cases at mktemp_test.go:25-30,44 go red against the prior mktemp.go (verified by swap), green at head.
+findings:
+  - id: new
+    severity: Minor
+    family: lint-command-position-coverage
+    title: |
+      codeOnly masks backquote substitution inside double quotes, so d="`mktemp -d`" is no longer flagged (regression vs prior head)
+    detail: |
+      4th finding in this family. Rule: every code-running construct inside double quotes ($(...) and `...`) stays unmasked. In codeOnly's '"' branch (mktemp.go:141-155), push a backquote context like the $( case and pop it on the closing backquote. Add a "`mktemp -d`" test case. No tracked site is affected.
+  - id: new
+    severity: Minor
+    family: quote-scanner-duplication
+    title: |
+      Three independent quote scanners in mktemp.go (stripComment, codeOnly, arguments)
+    detail: |
+      ARCH-DRY: stripComment could be built on codeOnly's mask (a # at the start of a word in masked code), so quote handling is fixed in one place.
+```

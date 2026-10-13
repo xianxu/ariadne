@@ -48,6 +48,32 @@ rounds:
       isolation: checkout
       reviewed: 7fa5dce54b23874e8b2588dad7a9ff2cc2c30227
       blocked: false
+    - "n": 3
+      timestamp: "2026-10-13T16:09:19-07:00"
+      dispatched: "2026-10-13T16:08:23-07:00"
+      agent: claude
+      dispose:
+        - id: BR-3
+          disposition: addressed
+          note: Rule inverted in commandWords/lookup/codeOnly (mktemp.go:72-171); if/until/sudo -u/time -p/which cases at mktemp_test.go:25-30,44 go red against the prior mktemp.go (verified by swap), green at head.
+          round: 3
+      findings:
+        - id: BR-4
+          severity: Minor
+          title: codeOnly masks backquote substitution inside double quotes, so d="`mktemp -d`" is no longer flagged (regression vs prior head)
+          detail: '4th finding in this family. Rule: every code-running construct inside double quotes ($(...) and `...`) stays unmasked. In codeOnly''s ''"'' branch (mktemp.go:141-155), push a backquote context like the $( case and pop it on the closing backquote. Add a "`mktemp -d`" test case. No tracked site is affected.'
+          family: lint-command-position-coverage
+          round: 3
+        - id: BR-5
+          severity: Minor
+          title: Three independent quote scanners in mktemp.go (stripComment, codeOnly, arguments)
+          detail: 'ARCH-DRY: stripComment could be built on codeOnly''s mask (a # at the start of a word in masked code), so quote handling is fixed in one place.'
+          family: quote-scanner-duplication
+          round: 3
+      recipe: fix-review
+      isolation: checkout
+      reviewed: ad470891aa1ce396f5c1289a8877066cd9b01759
+      blocked: false
 ---
 
 # Gate ledger — ariadne#342 (boundary-review)
@@ -76,6 +102,20 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-3** [Minor] `lint-command-position-coverage` commandPosition still misses reserved-word openers (if/elif/while/until) and option-taking prefixes (sudo -u x, time -p, env -i)
   3rd finding in this family: probed `if mktemp -d; then`, `sudo -u x mktemp -d`, `time -p mktemp -d` and `env -i mktemp -d`, and all report 0 findings. Fix the rule, not more instances: treat a word as a command word when the word before it is a list-opening reserved word, or when it is the first non-option, non-assignment word after a prefix command. That means skipping -opts and NAME=value words in commandPosition (mktemp.go:96) instead of checking only the last field. No tracked site is affected today.
 
+## Round 3 — 2026-10-13T16:09:19-07:00 (claude) — passed
+
+### Disposed
+
+- BR-3 — addressed — Rule inverted in commandWords/lookup/codeOnly (mktemp.go:72-171); if/until/sudo -u/time -p/which cases at mktemp_test.go:25-30,44 go red against the prior mktemp.go (verified by swap), green at head.
+
+### Raised
+
+- **BR-4** [Minor] `lint-command-position-coverage` codeOnly masks backquote substitution inside double quotes, so d="`mktemp -d`" is no longer flagged (regression vs prior head)
+  4th finding in this family. Rule: every code-running construct inside double quotes ($(...) and `...`) stays unmasked. In codeOnly's '"' branch (mktemp.go:141-155), push a backquote context like the $( case and pop it on the closing backquote. Add a "`mktemp -d`" test case. No tracked site is affected.
+- **BR-5** [Minor] `quote-scanner-duplication` Three independent quote scanners in mktemp.go (stripComment, codeOnly, arguments)
+  ARCH-DRY: stripComment could be built on codeOnly's mask (a # at the start of a word in masked code), so quote handling is fixed in one place.
+
 ## Open findings
 
-- **BR-3** [Minor] `lint-command-position-coverage` commandPosition still misses reserved-word openers (if/elif/while/until) and option-taking prefixes (sudo -u x, time -p, env -i)
+- **BR-4** [Minor] `lint-command-position-coverage` codeOnly masks backquote substitution inside double quotes, so d="`mktemp -d`" is no longer flagged (regression vs prior head)
+- **BR-5** [Minor] `quote-scanner-duplication` Three independent quote scanners in mktemp.go (stripComment, codeOnly, arguments)
