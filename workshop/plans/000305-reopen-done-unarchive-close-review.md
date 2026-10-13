@@ -383,3 +383,69 @@ findings:
     detail: |
       3rd in family. Rule (lessons.md): decide every refusal before the first change, or name the change in it. Enumerate the returns after reopendone.go:126 and fix them all; the lease can be decided before the switch against mainTip and the local tip of the branch. Add a refusal test for this path.
 ```
+
+---
+
+## Re-review — 2026-10-13T15:15:35-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 305 — Reopening a done issue does not un-archive its details |
+| repo | ariadne |
+| issue file | workshop/issues/000305-reopen-done-unarchive.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | c40e1b7f5ff15d1d81f5311815e8123101104046..099857eddb368f90bb0df47ec4eb979ffbff1de6 |
+| command | sdlc close --issue 305 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-13T15:15:35-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've confirmed the round-4 fix: with it reverted, the new refusal test fails. Now I'm putting the file back.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: ship it.** The one open finding, BR-8, is fixed and has a test that fails without the fix. Commit 099857ed moves `leaseOnRemoteBranch` up to `cmd/sdlc/reopendone.go:80-88`. It now runs after the branch-state checks and before the dirty-tree check, the fast-forward, the switch and the un-archive commit. The lease is now checked against what this reopen will build on: main's tip when the branch is reset, otherwise the local branch's tip. It no longer checks against the HEAD left by an earlier step. A new refusal case, "foreign work on origin's branch", has a peer clone push a commit to the issue branch on origin. The test now records the remote tip before the run and requires it to be unchanged afterwards, instead of requiring it to be empty. I reverted only the `reopendone.go` part of 099857ed in the disposable checkout and ran that case: it failed with "a refused reopen changed something". With the fix restored, all six `TestReopenDone*` tests pass. Nothing else in the window blocks shipping.
+
+1. **Strengths**
+   - Every refusal in `restoreDone` (`reopendone.go:38-98`) is now decided before anything changes. That covers the foreign owner, the wrong branch, a stale branch from before the archive, the landed branch, a lease conflict and a dirty tree. Only the guard check comes after the resting branch is fast-forwarded, and its refusal says so through `after` (`reopendone.go:114`).
+   - **ARCH-DRY:** `unarchiveIssue` (`abandon.go:452-490`) pulls the un-archive step out of `restoreAbandoned` so the abandon reopen and the done reopen share it. `mirrorSubject` gives the mirror commit message one source, used both when writing it and when recognising it.
+   - The postcondition `checkUnarchived` (`reopendone.go:235`) checks the actual result (HEAD descends from main's archive commit and holds the details live) before anything is pushed.
+   - `TestReopenDoneRefusals` is a table of refusals that all check the same thing: branch, HEAD, origin's branch tip and the card status are all unchanged.
+
+2. **Critical:** none.
+3. **Important:** none.
+4. **Minor**
+   - **ARCH-ORDER (informational, not raised):** the lease check runs `fetch` or `update-ref -d` on the remote-tracking ref before the dirty-tree refusal. That only refreshes a cache of origin's state, so it's harmless. The refusal test doesn't check that ref, which is reasonable.
+   - When `checkUnarchived` fails (`reopendone.go:153`), the error says "nothing was pushed" but doesn't say the branch was switched and an un-archive commit was made. This is a postcondition failure after the changes, not a refusal that could have been decided earlier, so I'm not raising it.
+
+5. **Test coverage**
+   - All six `TestReopenDone*` tests pass, and none of the reopen tests failed.
+   - One test failed: `TestLegacyRepoLockSetStatusMutationWaits`. Its error says the issue tracker named in `workshop/issue-tracker.json` is unreachable. This review checkout has no remotes, `legacymode_test.go` isn't changed in this window, and the error is about tracker reachability, so I believe it's an environment problem. I didn't run that test at base to confirm.
+   - The catalog's list of tests backing the done-reopen claim (`catalog.go:227`) matches the tests that exist.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass (shared `unarchiveIssue`, `mirrorSubject`).
+   - **ARCH-PURE:** pass (`dirtyBesides` is pure; the git calls stay in the thin layer around it).
+   - **ARCH-PURPOSE:** pass. The atlas, help text and recovery catalog are all updated. A README change isn't needed because no new command or flag was added.
+   - **ARCH-MOCK:** pass (tests use real git against a local origin and a peer clone).
+   - **ARCH-CONSTRAINTS:** N/A (an interactive command with a bounded number of git calls).
+   - **ARCH-SECURE:** pass. A malformed details file is refused with a message naming it, and a foreign owner is refused even with `--force`.
+   - **ARCH-ORDER:** pass. All refusals now come before the first change, and a rerun is recognised at each step (`unfinishedDoneReopen`).
+   - **ARCH-FUNERAL:** pass. The only thing created is the issue branch, which the normal merge lifecycle owns. No archive ref is made for a done reopen.
+
+7. **Plan revisions:** none.
+
+```findings
+dispose:
+  - id: BR-8
+    disposition: addressed
+    note: |
+      Lease check moved to reopendone.go:80-88, before the dirty check, fast-forward, switch and un-archive commit; the new TestReopenDoneRefusals case fails when the fix is reverted.
+```

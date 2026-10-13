@@ -118,6 +118,19 @@ rounds:
       isolation: fenced
       reviewed: 225c7da3dc431a9162516d69ca96c27abc413d68
       blocked: false
+    - "n": 5
+      timestamp: "2026-10-13T15:15:35-07:00"
+      dispatched: "2026-10-13T15:05:05-07:00"
+      agent: claude
+      dispose:
+        - id: BR-8
+          disposition: addressed
+          note: Lease check moved to reopendone.go:80-88, before the dirty check, fast-forward, switch and un-archive commit; the new TestReopenDoneRefusals case fails when the fix is reverted.
+          round: 5
+      recipe: milestone-review
+      isolation: fenced
+      reviewed: 099857eddb368f90bb0df47ec4eb979ffbff1de6
+      blocked: false
 ---
 
 # Gate ledger — ariadne#305 (boundary-review)
@@ -177,6 +190,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-8** [Minor] `refuse-before-mutate` Lease refusal for foreign work on origin's branch fires after the switch and un-archive commit, unnamed and untested
   3rd in family. Rule (lessons.md): decide every refusal before the first change, or name the change in it. Enumerate the returns after reopendone.go:126 and fix them all; the lease can be decided before the switch against mainTip and the local tip of the branch. Add a refusal test for this path.
 
+## Round 5 — 2026-10-13T15:15:35-07:00 (claude) — passed
+
+### Disposed
+
+- BR-8 — addressed — Lease check moved to reopendone.go:80-88, before the dirty check, fast-forward, switch and un-archive commit; the new TestReopenDoneRefusals case fails when the fix is reverted.
+
 ## Open findings
 
-- **BR-8** [Minor] `refuse-before-mutate` Lease refusal for foreign work on origin's branch fires after the switch and un-archive commit, unnamed and untested
+(none — every finding has been disposed)

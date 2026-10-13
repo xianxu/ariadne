@@ -75,6 +75,8 @@ unchanged.
 
 
 
+
+- 2026-10-13: closed — make test green at 099857ed (1112 cmd/sdlc tests, 0 failed); round-4 advisory fixed: lease decided before any change, TestReopenDoneRefusals/foreign work on origin branch asserts nothing changes; all earlier round tests and done-when TestReopenUnarchivesADoneIssue green; review verdict: SHIP
 - 2026-10-13: closed — make test green at 225c7da3 (origin/main incl. #346 merged; 1112 cmd/sdlc tests, 0 failed); round 3: BR-7 TestCheckUnarchived (postcondition fails on the landed branch, holds after reopen), BR-6 class TestReopenDoneDirtyTreeRefusesBeforeTheFastForward + TestReopenDoneGuardRefusalNamesTheFastForward; earlier rounds and done-when TestReopenUnarchivesADoneIssue still green; review verdict: SHIP
 - 2026-10-13: flow upgraded quick → full — 327 added lines in code files (limit 100); an earlier round of this close already ran the full review
 ### 2026-10-08
