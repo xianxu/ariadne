@@ -1,12 +1,20 @@
 ---
 id: 000344
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-12
-updated: 2026-10-12
+updated: 2026-10-13
 estimate_hours:
-card_mirror: '18fb6e2d4002deca4f11cd0c71d9a700ce81efbf' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'c9cc50cb925fb780076f54332345882322bfa146' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T14:01:09-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc stage :0: put a slot's branch HEAD on :0 as a detached commit for smoke testing, instead of moving the branch
@@ -30,8 +38,18 @@ The operator (2026-10-12): `sdlc stage :0` (run from the slot holding the branch
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000344-sdlc-stage-0-put-a-slot-s-branch-head-on-0-as-a-detached-commit-for-smoke-testing-instead-of-moving-the-branch-plan.md`.
+
+- [ ] Pure rules: `checkStage`, `checkUnstage`, `moveSide.Leavable`, and move accepting a staged target.
+- [ ] `sdlc stage [:N]` and `--clear`: observe, switch detached, verify, record; move clears the record.
+- [ ] `--build`: `make build` in the target, `bin/*` `vcs.revision` against the staged commit.
+- [ ] Docs: stage/move help, the atlas, and the xx-tl change sent to the hub (it lives in ops).
 
 ## Log
 
 ### 2026-10-12
+
+### 2026-10-13
+
+- Dispatched by the TL (ops:0); claimed in ariadne:4. The diff will leave the
+  quick-flow shell (~200 code lines), so the flow is pinned to full.
