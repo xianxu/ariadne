@@ -55,6 +55,9 @@ func renderInventory(w io.Writer, inventory Inventory) error {
 		state := "branch=" + quote(row.Branch)
 		if row.Detached {
 			state = "detached"
+			if row.Staged {
+				state += "\tstaged"
+			}
 		}
 		if row.Bare {
 			state = "bare"

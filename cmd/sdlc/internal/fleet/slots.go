@@ -81,7 +81,10 @@ func JudgeCheckout(row TreeRow, resting string) MemberVerdict {
 			holds = append(holds, "unlanded-commits")
 		}
 	}
-	if row.Detached {
+	switch {
+	case row.Detached && row.Staged:
+		holds = append(holds, "staged") // another slot's commit, staged for a smoke test (#344)
+	case row.Detached:
 		recovery = append(recovery, "detached")
 	}
 	if row.IssuesError != "" {

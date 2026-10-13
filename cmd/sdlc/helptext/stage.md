@@ -1,0 +1,26 @@
+Put this slot's HEAD on another slot, usually :0, as a detached commit for the
+operator's smoke test (#344). This slot keeps its branch and keeps working; it
+closes and lands from here as usual. Landing never needs the stage cleared.
+
+  sdlc stage                  stage HEAD on :0
+  sdlc stage :2               stage on slot 2
+  sdlc stage --build          then run :0's `make build` and print each bin/*
+                              binary's vcs.revision against the staged commit
+  sdlc stage --clear          return :0 to its resting branch
+  sdlc stage --dry-run        check both slots and print the stage; change nothing
+
+It prints the staged commit, so the TL can verify it in one step. Only HEAD is
+staged: this slot's uncommitted changes are reported, not carried.
+
+The target must be clean (no tracked changes, no Git operation in progress), and
+either on its resting branch or detached at a commit that is safe to leave: one
+a branch or remote ref contains, or the one sdlc last staged there (a per-worktree
+record, trusted only when it equals HEAD exactly). Staging again replaces the
+earlier staged commit and says so. A detached commit no ref contains and sdlc did
+not stage refuses, and so do untracked files the commit would overwrite. Nothing
+is stashed, reset or fetched. Both slots share one repository.
+
+`sdlc move` into a staged slot replaces the stage, too. The fleet view reports a
+staged slot as holding work (`staged`), not as a detached checkout needing
+recovery. Already-running sessions keep the old binary: start a fresh process to
+test the staged build.

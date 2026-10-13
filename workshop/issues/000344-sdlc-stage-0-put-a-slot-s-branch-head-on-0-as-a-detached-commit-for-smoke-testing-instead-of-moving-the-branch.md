@@ -68,10 +68,10 @@ already exist).
 
 Durable plan: `workshop/plans/000344-sdlc-stage-0-put-a-slot-s-branch-head-on-0-as-a-detached-commit-for-smoke-testing-instead-of-moving-the-branch-plan.md`.
 
-- [ ] Pure rules: `checkStage`, `checkUnstage`, `moveSide.Leavable`, and move accepting a staged target.
-- [ ] `sdlc stage [:N]` and `--clear`: observe, switch detached, verify, record; move clears the record.
-- [ ] `--build`: `make build` in the target, `bin/*` `vcs.revision` against the staged commit.
-- [ ] Docs: stage/move help, the atlas, and the xx-tl change sent to the hub (it lives in ops).
+- [x] Pure rules: `checkStage`, `checkUnstage`, `moveSide.Leavable`, and move accepting a staged target.
+- [x] `sdlc stage [:N]` and `--clear`: observe, switch detached, verify, record; move clears the record.
+- [x] `--build`: `make build` in the target, `bin/*` `vcs.revision` against the staged commit.
+- [x] Docs: stage/move help, the atlas, and the xx-tl change sent to the hub (it lives in ops).
 
 ## Log
 
@@ -81,3 +81,17 @@ Durable plan: `workshop/plans/000344-sdlc-stage-0-put-a-slot-s-branch-head-on-0-
 
 - Dispatched by the TL (ops:0); claimed in ariadne:4. The diff will leave the
   quick-flow shell (~200 code lines), so the flow is pinned to full.
+- Plan-quality round 1 raised PQ-1: a staged `:0` read as a detached
+  needs-recovery in the fleet view. It now gets the hold `staged`, from an exact
+  match against the record. PQ-2: the record can go stale, and is trusted only
+  on an exact HEAD match. The effect order was stated, and the test strategy is
+  one table.
+- Mutation-checked:
+  - without the record trust, re-staging after an amend refuses
+    (`TestStageKeepsTheBranchAndReplaces`);
+  - without `TreeRow.Staged`, the fleet hold test fails
+    (`TestMoveReplacesAStagedSlot`).
+- The xx-tl skill lives in ops (`~/workspace/ops/skills-draft/xx-tl`), which
+  workers must not edit. Its manual detached procedure (fetch, then
+  `checkout --detach FETCH_HEAD`, then `checkout main`) is to become
+  `sdlc stage [--build]` / `sdlc stage --clear`; the hub is told at landing.

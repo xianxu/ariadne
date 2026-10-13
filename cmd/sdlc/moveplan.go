@@ -15,6 +15,9 @@ type moveSide struct {
 	Changes                              []gitx.StatusEntry // tracked, staged, submodule
 	Untracked                            []string
 	Operation                            string
+	// Leavable: detached at a commit a ref contains, or at the one sdlc staged
+	// there (#344) — switching away loses nothing.
+	Leavable bool
 }
 
 // moveFacts is everything checkMove decides on. It is compared with
@@ -41,8 +44,10 @@ func checkMove(f moveFacts) error {
 		return fmt.Errorf("%s is detached; switch to the issue branch to move", from.Root)
 	case from.Branch == from.Resting:
 		return fmt.Errorf("%s is on its resting branch %s; there is no issue branch to move", from.Address, from.Resting)
+	case to.Branch == "" && to.Leavable:
+		// a staged smoke test (#344), or another commit a ref keeps: the move replaces it
 	case to.Branch != to.Resting:
-		return fmt.Errorf("%s is on %s, not its resting branch %s; move that branch out first", to.Address, orDetached(to.Branch), to.Resting)
+		return fmt.Errorf("%s is on %s, not its resting branch %s; %s", to.Address, orDetached(to.Branch), to.Resting, outOfTheWay(to))
 	}
 	for _, s := range []moveSide{from, to} {
 		if s.Operation != "" {
@@ -59,6 +64,14 @@ func checkMove(f moveFacts) error {
 		return fmt.Errorf("%s has untracked files that %s would overwrite: %s; move or remove them first", to.Address, from.Branch, strings.Join(c, ", "))
 	}
 	return nil
+}
+
+// outOfTheWay names how to free a slot that is not on its resting branch.
+func outOfTheWay(s moveSide) string {
+	if s.Branch == "" {
+		return "its detached commit is in no branch and was not staged by sdlc; switch it yourself first"
+	}
+	return "move that branch out first"
 }
 
 func orDetached(branch string) string {

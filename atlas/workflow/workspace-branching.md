@@ -81,10 +81,40 @@ The initial branch tip is exactly the captured SHA. Provenance and subsequent
 planning are explicit later commits. No separate slot-to-issue metadata file is
 needed: the canonical issue branch and issue Log provide the association.
 
+## Stage this branch on :0 for a smoke test
+
+Use this when the operator wants to smoke-test a slot's work where their tools
+load from, usually `:0` (the operator's Couch, editor plugins, `sdlc` builds).
+From the slot holding the branch:
+
+```sh
+sdlc stage --dry-run   # check both slots, print the stage
+sdlc stage --build     # :0 detached at this HEAD, then :0's `make build`
+sdlc stage --clear     # later: :0 back to its resting branch
+```
+
+`sdlc stage` (#344) puts this slot's HEAD on the target as a **detached
+commit**. The slot keeps its branch, keeps working, re-stages each new head the
+same way, and closes and lands from its own slot; landing never needs `:0`
+cleared. The behaviour:
+- **Output:** it prints the staged commit; with `--build`, each `bin/*` Go
+  binary's `vcs.revision`, warning on a mismatch. One step verifies it.
+- **Refusals:** a dirty target or one mid-operation; a target on another branch;
+  a detached commit no ref contains and sdlc did not stage. None of them changes
+  anything.
+- **The record:** a per-worktree file (`git rev-parse --git-path sdlc-staged`)
+  names the staged commit. It lets a re-stage, `--clear` or `sdlc move` replace a
+  staged commit the slot has since amended away. It is trusted only when it
+  equals HEAD exactly.
+- **The fleet view** shows a staged slot as the hold `staged`, not as a detached
+  checkout needing recovery.
+
+Running sessions keep the old code; the operator starts a fresh process to test.
+
 ## Move this branch to :N
 
-Use this when the operator wants to test the **current issue branch** in another
-slot, often `:0`, whose runtime or shell points at that checkout. From the slot
+Use this when the work itself should continue in another slot: the branch
+leaves this slot. For a smoke test, stage instead (above). From the slot
 holding the branch:
 
 ```sh
@@ -97,7 +127,8 @@ checks again just before switching, then switches this slot to its resting
 branch and the target to the issue branch. It refuses, changing nothing, when
 either slot has uncommitted changes, dirty submodules or a Git operation in
 progress, when this slot has untracked files, or when the target is not on its
-resting branch or has untracked files the branch would overwrite. Other
+resting branch (a staged target is accepted, and the move replaces the stage) or
+has untracked files the branch would overwrite. Other
 untracked files in the target, such as operator scratch files in `:0`, stay.
 It never stashes, resets, deletes or pushes. `sdlc move --help` has the full
 contract.

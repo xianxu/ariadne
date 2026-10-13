@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/spf13/cobra"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/fleet"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
@@ -94,6 +95,7 @@ func runMove(ctx context.Context, dir, address string, dryRun bool, stdout, stde
 			return fmt.Errorf("both switches ran, but %s is on %s at %s, want %s at %s; inspect it before continuing", check.root, got, head, check.branch, check.head)
 		}
 	}
+	removeStaged(r, to.Root) // a staged smoke test the move replaced (#344)
 	cok(stderr, fmt.Sprintf("%s is on %s in %s; %s is back on %s", branch, to.Address, to.Root, from.Address, from.Resting))
 	relocateAfterMove(ctx, to.Root, branch, stderr)
 	return nil
@@ -287,7 +289,18 @@ func observeMoveSide(r execGitRunner, id workspace.Identity) (moveSide, error) {
 		out, err := r.GitInDir(s.Root, args...)
 		return strings.TrimSpace(string(out)), err
 	})
-	return s, err
+	if err != nil || s.Branch != "" || s.Head == "" {
+		return s, err
+	}
+	s.Leavable = fleet.StagedCommit(r, s.Root) == s.Head
+	if !s.Leavable {
+		refs, err := r.GitInDir(s.Root, "for-each-ref", "--count=1", "--contains", s.Head, "--format=%(refname)", "refs/heads", "refs/remotes")
+		if err != nil {
+			return moveSide{}, fmt.Errorf("git for-each-ref in %s: %v\n%s", s.Root, err, refs)
+		}
+		s.Leavable = strings.TrimSpace(string(refs)) != ""
+	}
+	return s, nil
 }
 
 func splitNonEmpty(s, sep string) []string {
