@@ -204,3 +204,12 @@ print the forecast best-effort; a lookup error becomes a note and never fails th
       on `#ScaffoldSection`).
     - **The `claimant-ownership.md` migration.** ariadne's one live project would otherwise fail the new section
       check.
+- 2026-10-12, after M2 (advisories in round 4):
+  - D10's clauses differ per file:
+    - `ariadne-robustness-1` moves to `status: executing`, with its trains table and edges moved into `## Trains`.
+    - `couch-broadcast-web` stays `defined`. It runs in waves and has no trains, so it gets an empty trains table
+      until the TL authors trains (`trains-present` guards the move to executing). Its Estimate line is kept as
+      `**Sizing.**`, like the other file's.
+  - Because the ops Log grows, a saved patch goes stale. The handoff is therefore the script
+    `workshop/plans/000329-ops-conform.py`, re-run against the current files, with the patch beside it as a
+    reviewable preview.

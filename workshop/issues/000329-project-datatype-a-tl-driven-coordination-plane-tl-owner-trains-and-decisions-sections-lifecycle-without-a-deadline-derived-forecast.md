@@ -134,3 +134,6 @@ Items, in order:
   - Minors:
     - the resolve JSON test asserts that the train-only record is present;
     - `#ScaffoldSection.optional`, so validate requires only non-optional sections.
+- After M2 (SHIP; two advisories fixed in the same round):
+  - D10's per-file differences are recorded in the plan's Revisions.
+  - The ops handoff is now `workshop/plans/000329-ops-conform.py`, re-run against the current files. `000329-ops-conformance.patch` is refreshed beside it: it passes `git -C ops apply --check` again, and both results validate.
