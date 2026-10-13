@@ -1,6 +1,6 @@
 ---
 id: 000344
-status: working
+status: codecomplete
 created: 2026-10-12
 updated: 2026-10-13
 estimate_hours: 1.32
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 1.00
+tracker:
+    version: 1
+    completion:
+        token: close-79ec523bf111
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 911b8afa4437f1ab911c32d2c819d3fb329c9274
+        evidence_commit: f1966e4dc49ff4225456619b34fd3ac5e8bd8e3e
 ---
 
 # sdlc stage :0: put a slot's branch HEAD on :0 as a detached commit for smoke testing, instead of moving the branch
