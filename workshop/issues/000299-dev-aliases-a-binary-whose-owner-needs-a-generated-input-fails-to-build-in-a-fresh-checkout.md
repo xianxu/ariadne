@@ -107,6 +107,7 @@ Filed from pair#362's live exercises at the operator's request. The emitter is
 (`Makefile.local:195`). Details left local for the operator to refine.
 
 ### 2026-10-12
+- 2026-10-12: closed — Round-1 Minors fixed: detection now accepts multi-target and space-before-colon rules and rejects dev-prepare := assignments (2 new test cases); the accepted shape is documented in the header and atlas, and the atlas line is re-wrapped. dev-aliases.test.sh: 35 passed, 0 failed. Live check deferred to the pair half (Revisions).; review verdict: SHIP
 - 2026-10-12: closed — construct/scripts/test/dev-aliases.test.sh: 33 passed, 0 failed; against main dev-aliases.sh the 6 new cases fail (emitted dev-prepare step, Makefile detection, prep-before-build order, failed prep fails loudly and skips the build). portable-makefile.test.sh passes. Live: emission against the real ~/workspace is byte-identical to main (19 functions, no owner declares dev-prepare yet), so --list consumers (sdlc-install, merge-check 40, Makefile.workflow) are unaffected. Full Go suite not run: the diff touches no Go code. Done-when live check (fresh pair slot couch --help) deferred to the pair half per the TL (see Revisions).; review verdict: SHIP
 
 Claimed at ariadne:2 (TL dispatch, Weave and environment train). Pair's

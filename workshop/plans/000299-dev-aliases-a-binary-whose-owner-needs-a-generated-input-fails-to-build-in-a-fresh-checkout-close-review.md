@@ -65,3 +65,82 @@ findings:
     detail: |
       "...keep the plain form. The function only **builds + runs** — it" should be re-wrapped to match the surrounding line width.
 ```
+
+---
+
+## Re-review — 2026-10-12T17:00:14-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 299 — dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout |
+| repo | ariadne |
+| issue file | workshop/issues/000299-dev-aliases-a-binary-whose-owner-needs-a-generated-input-fails-to-build-in-a-fresh-checkout.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 007829a6511132af2a116e045a5f595471b758e6..1b95ae894abcc0a48d98c1d677ab4c010d01bdd6 |
+| command | sdlc close --issue 299 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-12T17:00:14-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both prior findings are fixed, and I checked each against the code. The `dev-prepare` detection regex is wider now. It accepts a rule that names several targets, a space before the colon, and a double-colon rule. It rejects `:=` assignments and `.PHONY` mentions. The accepted shape is documented in the comment above `owner_prepares` (`construct/dev-aliases.sh:222-226`). The atlas paragraph has been re-wrapped. I ran the stat, name-status and full-diff recipes on the pinned window. The test file passes 35/35 at head. To check the regression test, I removed the `([^=]|$)` guard in the disposable checkout and ran the tests again. "A dev-prepare variable assignment is not a declaration" failed. I then restored the file, and the tree is clean. One new Minor finding is left, in the same family as BR-1, and it does not block the ship.
+
+1. **Strengths**
+   - The regex `^([^#=:]*[[:space:]])?dev-prepare[[:space:]]*:([^=]|$)` cannot match `.PHONY:` or comments, because the prefix excludes `:`, `#` and `=`. It also handles `dev-prepare:=x` and `dev-prepare := x` correctly. I probed both directly.
+   - The new multi-target fixture is `assets dev-prepare : gen.stamp` (`dev-aliases.test.sh:83-84`). It covers two of the BR-1 shapes in one line: several targets, and a space before the colon. The old `^dev-prepare:` would fail it.
+   - The `:=` test really pins the guard: removing `([^=]|$)` turns it red.
+   - The header documents the accepted shape and the non-declarations right next to the function, and `--help` prints the whole header through `awk`.
+   - The atlas paragraph (`atlas/workflow/base-layer.md:92-101`) is re-wrapped. Its lines are 75–79 characters, which matches the rest of the paragraph.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - **This is the 2nd finding in family `owner-declaration-detection-shape`.** The rule behind both findings is that the code infers a make declaration by pattern-matching raw Makefile text. Each round of regex patching only narrows the gap. The regex still produces false positives. I tested each of these:
+     - a tab-indented recipe line that contains `dev-prepare:`, e.g. `\t@echo run dev-prepare: now`;
+     - the POSIX simple assignment `dev-prepare ::= x`;
+     - a target-specific variable `dev-prepare: V = 1`, which creates no rule.
+
+     In each case the owner's functions would emit `make -s dev-prepare`. That fails with "No rule to make target", so every call to that owner's binaries would fail.
+
+     The fix that covers the whole class is to ask make itself rather than pattern-match text. For example, `make -C "$1" -pRrq : 2>/dev/null` lists the targets make has parsed (`-p` prints its database; `-q` with the dummy goal `:` builds nothing). Check that list for a `dev-prepare:` target that has a rule. This also covers `Makefile.workflow` and any other include.
+
+     If that costs too much at alias-generation time, a smaller fix is to exclude recipe lines (add `\t` to the prefix class, or skip lines that start with a tab) and record `::=` and target-specific variables as known non-detected cases in the header.
+
+5. **Test coverage notes:** Every shape in the BR-1 list now has a fixture: `.PHONY` only, a rule in `Makefile`, a rule in `Makefile.local`, `:=`, and several targets with a space before the colon. The bare `dev-prepare:=x` case has no test, but the `:=` test already exercises the same guard. Recipe lines, `::=` and target-specific variables have no tests.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** There is still one emitter template; the prefix goes into the same `printf`.
+   - **ARCH-PURE: pass.** `owner_prepares` is a thin filesystem check, and the tests pin its output. Switching to `make -p` would make it IO-heavier, but it would still sit in the same thin shell.
+   - **ARCH-PURPOSE: pass.** This issue delivers ariadne's half: detecting the step and emitting it. Pair's target is separable work, and a Revisions entry already records it.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Regex now accepts multi-target and space-before-colon rules and rejects := (fixtures at dev-aliases.test.sh:79-84). Removing the ([^=]|$) guard turns the := test red. Accepted shape documented in the comment above owner_prepares (construct/dev-aliases.sh:222-226); atlas says "a dev-prepare rule", which is accurate.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      atlas/workflow/base-layer.md:92-101 re-wrapped, lines 75-79 chars, consistent with the paragraph.
+findings:
+  - id: new
+    severity: Minor
+    family: owner-declaration-detection-shape
+    title: |
+      Text-regex detection of dev-prepare still false-matches recipe lines, `::=`, target-specific vars
+    detail: |
+      2nd finding in this family. The rule: inferring make declarations by regex over Makefile text leaves gaps however it is patched. Verified matches at construct/dev-aliases.sh:228 for a tab-indented recipe line "@echo run dev-prepare: now", for "dev-prepare ::= x", and for "dev-prepare: V = 1"; each emits `make -s dev-prepare`, which then fails every call. Class fix: query make's own database (make -C owner -pRrq :) for a dev-prepare target with a rule, which also covers Makefile.workflow and other includes. Cheaper fallback: exclude tab-led lines and document ::= and target-specific vars as unsupported.
+```
