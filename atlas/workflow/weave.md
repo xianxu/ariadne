@@ -347,8 +347,13 @@ a dead parent PID alone is insufficient evidence that a stage is reclaimable.
 Each producer inherits an OS-held stage lease; cleanup requires exclusive
 access after every writer closes it. Cancellation terminates the assigned
 process group. Retry preserves a live descendant’s stage even after weave dies,
-then reclaims it after the writer exits. Published outputs remain intact until
-ownership-checked publication.
+then reclaims it after the writer exits. Before judging a dead owner's lease
+busy, retry waits a bounded settle (`staging.Settle`, shared with cancellation's
+cleanup through `staging.AwaitExclusive`): an exiting producer closes its output
+pipe before its inherited lease, so a waiting caller can retry in between (#343).
+A dead owner's stage whose orphan is still alive costs every reclaim up to that
+settle (1s), serially per such stage, until the orphan exits.
+Published outputs remain intact until ownership-checked publication.
 
 The generator body remains source-owned; final output is leaf-owned and
 Git-ignored. `cmd/datatype/SKILL.md.tmpl` is datatype's authored prose source.
