@@ -49,6 +49,27 @@ Durable plan: `workshop/plans/000348-issues-a-hierarchical-area-path-couch-broad
 - [ ] Help + atlas
 - [ ] Verify, close, merge
 
+## Estimate
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: typed-data-prototype   design=0.2 impl=0.16
+item: greenfield-go-module   design=0.2 impl=0.24
+item: cross-cutting-refactor design=0.1 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.2
+item: smaller-go-module      design=0.05 impl=0.16
+item: smaller-go-module      design=0.05 impl=0.12
+item: atlas-docs             design=0.05 impl=0.06
+item: milestone-review       design=0.0 impl=0.16
+design-buffer: 0.15
+total: 2.11
+```
+
+- Items, in order: model sections + card rows + `#Issue` shape; the pure `repoenum` core; card kinds plus the scalar-assumption class (R1); loader + writers; gates; list query; help/atlas; the close review. Design is at ×0.2 (the plan and R1 pre-resolve the decisions); impl is at 40% of the v2 table midpoints.
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against `baseline-v3.1.md`. Method A only.*
+
 ## Log
 
 ### 2026-10-13
