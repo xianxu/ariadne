@@ -1,6 +1,7 @@
 package estimate
 
 import (
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -268,9 +269,16 @@ func atoiOrZero(s string) int {
 	}
 	return v
 }
+
+// parseLedgerFloat is the parse boundary for every ledger number: a non-finite
+// value (a hand-edited Inf or NaN, which ParseFloat accepts) reads as absent,
+// so no reader has to re-check it.
 func parseLedgerFloat(s string) (float64, bool) {
 	v, err := strconv.ParseFloat(s, 64)
-	return v, err == nil
+	if err != nil || math.IsInf(v, 0) || math.IsNaN(v) {
+		return 0, false
+	}
+	return v, true
 }
 
 // Dash renders an empty ledger cell as "-" (the ledger's absent marker).

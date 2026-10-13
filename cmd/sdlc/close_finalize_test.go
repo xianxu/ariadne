@@ -714,3 +714,44 @@ func TestCloseCommands_TLOwnedProjectUntouched(t *testing.T) {
 		}
 	}
 }
+
+// #329: a project (without tl:) that carries the issue only as a train car has
+// no row to tick, so close and milestone-close leave it byte-identical, demand
+// no detail block for it, and say why.
+func TestCloseCommands_TrainOnlyProjectUntouched(t *testing.T) {
+	commands := map[string][]string{
+		"close":           {"close", "--issue", "69", "--actual", "1", "--verified", "tests pass", "--no-atlas"},
+		"milestone-close": {"milestone-close", "--issue", "69", "--milestone", "M1", "--actual", "1", "--verified", "tests pass", "--no-atlas"},
+	}
+	for name, args := range commands {
+		t.Run(name, func(t *testing.T) {
+			issuesDir := closeRepo(t, 69)
+			brainDir := t.TempDir()
+			repoRoot, _ := os.Getwd()
+			projectDir := filepath.Join(repoRoot, "workshop", "projects")
+			if err := os.MkdirAll(projectDir, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			path := filepath.Join(projectDir, "trains-only.md")
+			text := "---\ntype: project\nname: trains-only\nstatus: executing\n---\n# trains-only\n\n## Trains\n\n| Train | Cars | Slot |\n|---|---|---|\n| Core | " + repoIdentity() + "#69 | :1 |\n"
+			if err := os.WriteFile(path, []byte(text), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			orig := judge.Run
+			t.Cleanup(func() { judge.Run = orig })
+			judge.Run = func(ctx context.Context, onStart func(pid int), name string, args ...string) (judge.ProcessOutput, error) {
+				return judge.ProcessOutput{Stdout: []byte("VERDICT: SHIP (confidence: high)\n\nLooks good.\n")}, nil
+			}
+			_, stderr, err := executeSDLCTestCommand(append(args, "--issues-dir", issuesDir, "--brain-dir", brainDir)...)
+			if err != nil {
+				t.Fatalf("%s refused: %v\n%s", name, err, stderr)
+			}
+			if got, _ := os.ReadFile(path); string(got) != text {
+				t.Fatalf("train-only project changed:\n%s", got)
+			}
+			if !strings.Contains(stderr, "trains-only.md carries") || !strings.Contains(stderr, "only as a train car (Core)") {
+				t.Fatalf("missing train-only info line:\n%s", stderr)
+			}
+		})
+	}
+}

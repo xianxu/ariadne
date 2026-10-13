@@ -812,6 +812,10 @@ func computeClose(stderr io.Writer, f *closeFlags) closeResult {
 		// Label messages by repo/file so same-named projects in different repos
 		// are distinguishable under fleet-wide multi-match (#171 M2 review).
 		label := m.Repo + "/" + filepath.Base(m.Path)
+		if !m.RowRef {
+			cinfo(stderr, fmt.Sprintf("project %s carries %s#%s only as a train car (%s) — no row to tick", label, repoName, issueStr, m.Train))
+			continue
+		}
 		if m.Legacy {
 			cwarn(stderr, fmt.Sprintf("project %s is in the deprecated brain/data/project home — migrate it to <repo>/workshop/projects (ariadne#171)", label))
 		}

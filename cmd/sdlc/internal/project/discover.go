@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -27,6 +28,14 @@ type ProjectMatch struct {
 	RepoDir string // absolute repo root that owns the match
 	Repo    string // repo basename
 	Legacy  bool   // found under the deprecated brain/data/project home
+	// RowRef: the record cites the issue as a `[repo#N…]` row ref. A record
+	// that carries the issue only as a train car (#329) is a match with
+	// RowRef false: navigation reports it, the close tick has no row to edit.
+	RowRef bool
+	// Train/Car/Cars: the train carrying the issue and the car's 1-based
+	// position in it, when one does (#329). Empty Train means no train.
+	Train     string
+	Car, Cars int
 }
 
 // SiblingRepoDirs returns the absolute paths of every directory sibling of
@@ -198,10 +207,16 @@ func DiscoverInRoots(roots []ProjectRoot, repoName, issueID string, scope Discov
 		if rerr != nil {
 			return // best-effort, matches FindByIssueRef
 		}
-		if containsIssueMarker(string(data), marker) {
-			out = append(out, ProjectMatch{
-				Path: path, RepoDir: repoDir, Repo: repo, Legacy: legacy,
-			})
+		m := ProjectMatch{Path: path, RepoDir: repoDir, Repo: repo, Legacy: legacy, RowRef: containsIssueMarker(string(data), marker)}
+		if id, aerr := strconv.Atoi(issueID); aerr == nil {
+			if d, perr := ParseDoc(string(data)); perr == nil {
+				if t, car, ok := d.Trains(repo).Locate(IssueRef{Repo: repoName, ID: id}); ok {
+					m.Train, m.Car, m.Cars = t.Name, car, len(t.Cars)
+				}
+			}
+		}
+		if m.RowRef || m.Train != "" {
+			out = append(out, m)
 		}
 	})
 	if err != nil {

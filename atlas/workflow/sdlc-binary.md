@@ -52,7 +52,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `issue show`      | (new)                       | Issue frontmatter + section headers, no bodies |
 | `issue lint-ids`  | (new #213)                  | Refuse issue ids reused across a range, and report ids already duplicated within one tree. Read-only; the logic CI's `40-duplicate-issue-id.sh` shells to |
 | `issue validate`  | (new #124)                  | Validate issue file(s) against `#Issue` — frontmatter cue-vet (via `vocabulary validate-instance`) + section presence; multi-target (#133): `<file>...` / `--issue N[,N...]` / `--all` (mutually exclusive). The on-demand surface of the instance-conformance loop |
-| `project new/list/show/validate` | (new #180 M3) | Author and inspect project records. Scaffold sections/status and discovery derive from `#Project`; validation shells to the noun-generic vocabulary validator |
+| `project new/list/show/validate` | (new #180 M3) | Author and inspect project records. Scaffold sections/status and discovery derive from `#Project`; validation shells to the noun-generic vocabulary validator for frontmatter and checks the scaffold sections itself (#329; the changed-instance gate stays frontmatter-only) |
 | `project set-status` | (new #180 M3; #329) | Enforce the project lifecycle and its ordered named guards from `project.cue` (`trains-present`, `mvp-landed` through the shared card lookup); unknown guards fail closed, and `closed` remains owned by `project close` |
 | `project status/retro` | (new #180 M4) | Derive progress, dependency frontier, remaining effort, and thread components from live issue records; append dated re-forecast checkpoints without overwriting the baseline |
 | `project close` | (new #180 M4; #329) | Require the modeled closing→closed (or executing/closing→dropped) edge and a retro, then archive through `ArchiveSubdir(..., ArchiveProjects)` |
@@ -597,6 +597,12 @@ read and never typed in.
   `sdlc project forecast` (errors when there are no trains or no calibration)
   and `project show`/`status` (`forecastLine`, best-effort and quiet without
   trains).
+- **Navigation.** `DiscoverInRoots` matches a record that cites the issue as a
+  `[repo#N]` row ref OR carries it as a train car, and fills
+  `ProjectMatch.Train/Car/Cars`; `project find` prints `(train: X, car i/n)` and
+  `resolve --kind project --json` carries `train`/`car`. A train-only match has
+  `RowRef=false`, and the close-time tick skips it with an info line (no row
+  to edit, so no detail block is demanded).
 
 ## Artifact migration (`sdlc migrate`, #179)
 

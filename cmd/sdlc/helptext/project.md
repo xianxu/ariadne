@@ -11,7 +11,7 @@ SUBCOMMANDS
   list           List live projects (name, status, TL)
   show           Print one project's frontmatter, task summary and forecast
   set-status     Move through the guarded lifecycle (except →closed)
-  validate       Validate project frontmatter against #Project
+  validate       Validate frontmatter against #Project and the model's sections
   status         Render the issue-derived progress board and forecast
   retro          Append a retrospective checkpoint
   close          Close or drop the project and archive it

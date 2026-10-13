@@ -162,3 +162,26 @@ func TestProjectValidationScopeExcludesArchive(t *testing.T) {
 		t.Fatalf("live project path gate = %+v %v", g, ok)
 	}
 }
+
+// #329: on-demand `project validate` checks the model's sections too, so a
+// record still shaped as a shipping plan (PRD/Estimate) is named per section.
+func TestProjectValidateChecksSections(t *testing.T) {
+	root := t.TempDir()
+	old := writeProjectFile(t, root, "old", "---\ntype: project\nname: old\ngoal: g\ndone_when: d\nstatus: defined\n---\n## PRD\n## Estimate\n## Breakdown\n## Log\n")
+	orig := validateFrontmatterFn
+	validateFrontmatterFn = func(string, string) (string, bool, error) { return "", true, nil }
+	t.Cleanup(func() { validateFrontmatterFn = orig })
+	var out bytes.Buffer
+	err := runProjectValidate(&out, &bytes.Buffer{}, &projectValidateFlags{}, []string{old})
+	if err == nil {
+		t.Fatal("a PRD/Estimate record conformed")
+	}
+	for _, want := range []string{"missing `## Charter`", "missing `## Trains`", "missing `## Decisions`"} {
+		if !strings.Contains(out.String(), want) {
+			t.Errorf("validate output missing %q:\n%s", want, out.String())
+		}
+	}
+	if strings.Contains(out.String(), "`## Breakdown`") || strings.Contains(out.String(), "`## Log`") {
+		t.Errorf("present sections reported missing:\n%s", out.String())
+	}
+}

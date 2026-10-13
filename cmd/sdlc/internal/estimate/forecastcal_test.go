@@ -2,6 +2,7 @@ package estimate
 
 import (
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -46,5 +47,23 @@ func TestCalibrateForecastCollapsesBelowMinRows(t *testing.T) {
 	}
 	if _, ok := CalibrateForecast(nil); ok {
 		t.Fatal("empty ledger calibrated")
+	}
+}
+
+// A non-finite ledger number reads as absent at the parse boundary: an Inf
+// estimate drops the row, an Inf build zeroes it out of the split rows.
+func TestParseRowsRejectsNonFinite(t *testing.T) {
+	good := splitRow("1", 2, 1, 1)
+	infEst := FormatRow(good)
+	infEst = strings.Replace(infEst, "\t2.00\t", "\tInf\t", 1)
+	rows := ParseRows(Header() + "\n" + FormatRow(good) + "\n" + infEst + "\n")
+	if len(rows) != 1 {
+		t.Fatalf("rows = %d, want the Inf-estimate row dropped", len(rows))
+	}
+	if v, ok := parseLedgerFloat("NaN"); ok || v != 0 {
+		t.Fatalf("NaN parsed as %v", v)
+	}
+	if v, ok := parseLedgerFloat("+Inf"); ok || v != 0 {
+		t.Fatalf("+Inf parsed as %v", v)
 	}
 }

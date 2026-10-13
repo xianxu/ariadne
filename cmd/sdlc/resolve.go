@@ -326,6 +326,8 @@ type resolveFile struct {
 	Path      string `json:"path"`
 	Milestone string `json:"milestone,omitempty"`
 	Legacy    bool   `json:"legacy,omitempty"` // project kind: record found in the deprecated brain home
+	Train     string `json:"train,omitempty"`  // project kind: the train carrying the issue (#329)
+	Car       int    `json:"car,omitempty"`    // project kind: the car's 1-based position in that train
 }
 
 type resolveOpts struct {
@@ -408,7 +410,7 @@ func runResolveProjects(o resolveOpts, root string) error {
 	if o.asJSON {
 		res := resolveResult{Ref: o.ref, Repo: ref.Repo, ID: ref.ID, Files: []resolveFile{}}
 		for _, m := range matches {
-			res.Files = append(res.Files, resolveFile{Kind: "project", Path: m.Path, Legacy: m.Legacy})
+			res.Files = append(res.Files, resolveFile{Kind: "project", Path: m.Path, Legacy: m.Legacy, Train: m.Train, Car: m.Car})
 		}
 		return encodeJSON(o.out, res)
 	}

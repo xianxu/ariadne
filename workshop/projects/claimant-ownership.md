@@ -15,7 +15,7 @@ sources: [workshop/issues/000283-claim-owns-issue-branch.md]
 
 #277 recorded a claimant on every card, but sdlc still reasons about ownership through status (`open` = claimable) and branch names (the transfer guard's "owner"). This project makes the claimant the single owner and lock, ahead of higher concurrency: several slots per operator, and several operators on several machines. **Not in MVP:** leases or heartbeats for stale claims (explicit `reclaim` covers that), and a required GitHub check against merges done outside sdlc (we detect and reconcile instead).
 
-## PRD
+## Charter
 
 **Who owns work.** A claim belongs to a *slot*: a workspace on a machine (repository + machine + worktree), the durable home of one agent's thread of work. It outlives any session: compaction, restarts, a different CLI. The *operator* on the claim is the supervising human, the escalation and grounding point, and is descriptive, not a lock. This intentionally departs from Jira-style person assignment, which combines executor and supervisor in one assignee.
 
@@ -35,9 +35,12 @@ sources: [workshop/issues/000283-claim-owns-issue-branch.md]
 
 **Escape hatch.** Merges done outside sdlc are detected (`sdlc state`) and reconciled.
 
-## Estimate
+**Sizing.** Estimated per child at its `change-code`.
 
-Estimated per child at its `change-code`.
+## Trains
+
+| Train | Cars, in order | Slot |
+|---|---|---|
 
 ## Breakdown
 
@@ -148,3 +151,5 @@ Promoted from #283 after a four-round design discussion with the operator (decis
 [ariadne#284 M4]: #ariadne-284-m4
 [ariadne#286 M1]: #ariadne-286-m1
 [ariadne#286 M2]: #ariadne-286-m2
+
+## Decisions

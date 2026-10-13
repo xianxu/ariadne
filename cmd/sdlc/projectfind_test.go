@@ -179,3 +179,66 @@ func TestResolveRun_DefaultKindUnchangedByProjects(t *testing.T) {
 		t.Fatalf("default resolve leaked project records: %q", buf.String())
 	}
 }
+
+// #329: find and resolve name the train and car carrying the issue. A project
+// that carries the issue only as a train car (no `[ref]` row, the ops shape)
+// is a match too; the close tick sees it as RowRef=false and leaves it alone.
+func TestProjectFind_NamesTrainAndCar(t *testing.T) {
+	root := seedProjectFleet(t)
+	parent := filepath.Dir(root)
+	trains := "---\nstatus: executing\ntl: x@ops:0\n---\n## Trains\n\n| Train | Cars, in order | Slot |\n|---|---|---|\n| Other | pair#1 | :2 |\n| Metis core | metis#17 → #18 (the fix) → #19 | metis:1 |\n"
+	if err := os.WriteFile(filepath.Join(parent, "metis/workshop/projects/t.md"), []byte(trains), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := runProjectFind(&buf, &projectFindFlags{Issue: "metis#18", root: root}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(buf.String(), "metis/workshop/projects/t.md  (train: Metis core, car 2/3)") {
+		t.Fatalf("find missing the train line:\n%s", buf.String())
+	}
+	if strings.Contains(strings.Split(buf.String(), "p.md")[1][:1], "(") {
+		t.Fatalf("a row-only match must print the path alone:\n%s", buf.String())
+	}
+	matches, _, err := discoverProjectsForRef("metis#18", root)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var trainOnly, rowOnly bool
+	for _, m := range matches {
+		if strings.HasSuffix(m.Path, "/t.md") {
+			trainOnly = !m.RowRef && m.Train == "Metis core" && m.Car == 2 && m.Cars == 3
+		}
+		if strings.HasSuffix(m.Path, "/p.md") {
+			rowOnly = m.RowRef && m.Train == ""
+		}
+	}
+	if !trainOnly || !rowOnly {
+		t.Fatalf("matches = %+v", matches)
+	}
+}
+
+func TestResolveRun_KindProjectJSONCarriesTrain(t *testing.T) {
+	root := seedProjectFleet(t)
+	parent := filepath.Dir(root)
+	trains := "---\nstatus: executing\n---\n## Trains\n\n| Train | Cars | Slot |\n|---|---|---|\n| Core | metis#18 → #19 | :1 |\n"
+	if err := os.WriteFile(filepath.Join(parent, "metis/workshop/projects/t.md"), []byte(trains), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var buf bytes.Buffer
+	if err := runResolve(resolveOpts{ref: "metis#18", kind: "project", root: root, asJSON: true, out: &buf}); err != nil {
+		t.Fatal(err)
+	}
+	var res resolveResult
+	if err := json.Unmarshal(buf.Bytes(), &res); err != nil {
+		t.Fatal(err)
+	}
+	for _, f := range res.Files {
+		if strings.HasSuffix(f.Path, "/t.md") && (f.Train != "Core" || f.Car != 1) {
+			t.Fatalf("train file = %+v", f)
+		}
+		if strings.HasSuffix(f.Path, "/p.md") && (f.Train != "" || f.Car != 0) {
+			t.Fatalf("row-only file grew train fields: %+v", f)
+		}
+	}
+}

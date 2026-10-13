@@ -117,3 +117,13 @@ Items, in order:
     - `CalibrateForecast` excludes negative estimate and converge values;
     - `runProjectForecast` takes an injected stderr;
     - the D6 drift is recorded in the plan's Revisions.
+- M2 built:
+  - `find`/`resolve` name the train and car. A record that carries the issue only as a train car matches with `RowRef=false`, so the close tick skips it with an info line and demands no detail block; tests pin find, the JSON and close/milestone-close.
+  - `project validate` checks the scaffold sections.
+  - `workshop/projects/claimant-ownership.md` is migrated (PRD→Charter, Estimate folded in as Sizing, empty Trains, Decisions).
+  - M1 round-2 Minor fixed at the class: `parseLedgerFloat` reads a non-finite value as absent.
+  - The sentinel-string Minor stands as documented: the trade-off buys a diagnostic that names the field.
+- Ops conformance, checked read-only with this branch's binary:
+  - the current ops `ariadne-robustness-1` and `couch-broadcast-web` lack `## Charter`, `## Trains` and `## Decisions`; their frontmatter conforms;
+  - the patched copies conform;
+  - `sdlc project forecast` on the patched ariadne-robustness-1 (from a temporary dot-dir checkout, since removed) printed a critical path of 8.7–17.6h, 23.0h across 3 of 8 trains, calibration n=11.

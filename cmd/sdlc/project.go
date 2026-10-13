@@ -176,6 +176,23 @@ func runProjectShow(ctx context.Context, stdout, _ io.Writer, f *projectShowFlag
 	return nil
 }
 
+// missingProjectSections reports each model scaffold section (#329: Charter,
+// Trains, Breakdown, Log, Decisions) the file lacks. On-demand validation is
+// full, like `issue validate`; the changed-instance gate stays frontmatter-only.
+func missingProjectSections(path string) []string {
+	d, err := readProject(path)
+	if err != nil {
+		return []string{"  - body: " + err.Error()}
+	}
+	var probs []string
+	for _, sec := range vocab.Project().Sections() {
+		if !d.HasSection(sec.Name) {
+			probs = append(probs, fmt.Sprintf("  - section: missing `## %s`", sec.Name))
+		}
+	}
+	return probs
+}
+
 func runProjectValidate(stdout, stderr io.Writer, f *projectValidateFlags, args []string) error {
 	if f.All && (f.Slug != "" || len(args) > 0) || f.Slug != "" && len(args) > 0 {
 		return fmt.Errorf("choose one of <file>, --slug, or --all")
@@ -204,9 +221,14 @@ func runProjectValidate(stdout, stderr io.Writer, f *projectValidateFlags, args 
 		if err != nil {
 			return err
 		}
+		var probs []string
 		if !ok {
+			probs = append(probs, strings.TrimRight(out, "\n"))
+		}
+		probs = append(probs, missingProjectSections(path)...)
+		if len(probs) > 0 {
 			bad++
-			fmt.Fprintf(stdout, "%s:\n%s\n", path, out)
+			fmt.Fprintf(stdout, "%s:\n%s\n", path, strings.Join(probs, "\n"))
 		} else {
 			cok(stderr, path+": conforms")
 		}
