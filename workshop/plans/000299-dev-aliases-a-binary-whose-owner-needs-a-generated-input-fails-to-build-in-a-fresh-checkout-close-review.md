@@ -234,3 +234,85 @@ findings:
     detail: |
       Parsing the owner's Makefiles runs $(shell ...) calls (verified: a touch fired) and can rebuild included makefiles, every time a shell sources the aliases. owner_prepares runs once per binary, not once per owner. Limited to owners whose three files mention dev-prepare. Cache the result per repo in the loop, and note in the atlas that these Makefiles should keep parsing cheap.
 ```
+
+---
+
+## Re-review — 2026-10-12T17:08:47-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 299 — dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout |
+| repo | ariadne |
+| issue file | workshop/issues/000299-dev-aliases-a-binary-whose-owner-needs-a-generated-input-fails-to-build-in-a-fresh-checkout.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 007829a6511132af2a116e045a5f595471b758e6..53766ba99864d585ef99ebd8230aadcab5177c20 |
+| command | sdlc close --issue 299 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-12T17:08:47-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** Both open findings are addressed, and only one Minor finding remains. `owner_prepares` now asks make whether `dev-prepare` is a rule (`make -q`). It runs only when one of the three Makefiles the base layer reads mentions the name, and it runs once per owner. The suite reports 40 passed, 0 failed at the pinned head. I removed the per-owner cache and confirmed the regression test fails without it (`make detections: 2`), then restored the file. Done-when clause 1 is tested both ways: an owner that declares the step gets it in the emitted function, and an owner that declares nothing keeps the exact plain form. The new finding is a doc-comment line that wasn't re-wrapped.
+
+Done-when: current — clause 1 matches what this diff builds and is tested both ways. Clause 2 (the live pair check) was moved to pair's issue by the "live check deferred" Revision. The "detection asks make" Revision changes how the step is detected, not what Done-when requires.
+
+### 1. Strengths
+- **Make decides what counts as a declaration.** `construct/dev-aliases.sh:234-241` treats exit 0 or 1 from `make -q` as declared. Exit 2 with "No rule to make target …dev-prepare'" is undeclared. Any other exit 2 is a declared but broken step, so it is still emitted and the call fails loudly instead of silently skipping it.
+- **The error-message match is narrow.** The single-character `?` matches both make 3.81's backtick and make 4's quote. It doesn't match a missing prerequisite (`` `missing', needed by `dev-prepare' ``) or a target like `x-dev-prepare`.
+- **One detection per owner.** The `prepared` cache (`:243-264`) lives in the same pipeline subshell as the loop, so it works. A test that counts calls to a stub `make` pins it.
+- **The emitted function is actually run in the test.** It runs against stub `make` and `go` (`dev-aliases.test.sh:106-132`). That checks the order (prepare, then build), that the binary's stdout stays clean, and that a failed prepare fails the call without building.
+- **`make` runs with `MAKEFLAGS`/`MAKELEVEL` unset,** so detection isn't affected when the aliases are emitted from inside a make run.
+
+### 2. Critical
+None.
+
+### 3. Important
+None.
+
+### 4. Minor
+- **`construct/dev-aliases.sh:16`: a header comment line is 115 characters long.** The rest of the header wraps at about 80.
+  - **This is the 2nd finding in family `doc-line-wrap`.** The rule: when you edit a prose comment or doc paragraph, re-wrap the whole paragraph to the file's existing width (about 80 columns).
+  - Instances of this family in the window:
+    - (a) `dev-aliases.sh:16`, 115 characters.
+    - (b) `dev-aliases.test.sh:64`, a comment at 83 characters.
+  - The longer code and assertion lines in the test file follow that file's existing style and are not part of this family.
+
+### 5. Test coverage notes
+- Declared and undeclared owners, the exact plain form, multi-target rules, rules reached through an include of `Makefile.workflow`, a broken prerequisite, `:=`, target-specific variables and a recipe line that mentions the name are all covered. So are caching, ordering, clean stdout and a failed prepare.
+- Not covered: a bare `.PHONY: dev-prepare`. The Revision explains this: make treats it as a rule that does nothing, so emitting it is a harmless no-op.
+
+### 6. Architectural notes
+- **ARCH-DRY: pass.** Make itself is the authority on what declares the step; there is no restated parser. The cache key and the emitted `prep` string appear twice inside one `case`, which is acceptable.
+- **ARCH-PURE: pass.** `owner_prepares` is a thin layer over make and is tested through the generator's real output. That fits a shell emitter.
+- **ARCH-PURPOSE: pass.** The ariadne half fully delivers the mechanism. Pair's half is a separable owner adoption that the TL has filed in pair, not the point of this issue being deferred.
+
+### 7. Plan revisions
+None needed. The "detection asks make" Revision already corrects Plan bullets 1-2.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Header now points at owner_prepares (dev-aliases.sh:15-16); the Revision "detection asks make" corrects Plan bullets 1-2 and drops the .PHONY test with its reason.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Per-repo cache in the emit loop (dev-aliases.sh:243-264) with a counting-stub test; removing the cache turns it red (make detections 2). Parse cost is noted in the header.
+findings:
+  - id: new
+    severity: Minor
+    family: doc-line-wrap
+    title: |
+      dev-aliases.sh:16 header comment line is 115 characters long; the header wraps at about 80
+    detail: |
+      2nd finding in family doc-line-wrap. Rule: after editing a prose comment or doc paragraph, re-wrap the whole paragraph to the file's existing width (about 80 columns). Instances in this window: dev-aliases.sh:16 (115 characters); dev-aliases.test.sh:64 (a comment at 83 characters). Long code and assertion lines in the test follow that file's existing style and are excluded.
+```

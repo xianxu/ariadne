@@ -74,6 +74,30 @@ rounds:
       isolation: fenced
       reviewed: 31c214bd28e4ac07f4167701fda48c6c3e465aef
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-12T17:08:47-07:00"
+      dispatched: "2026-10-12T17:07:34-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: Header now points at owner_prepares (dev-aliases.sh:15-16); the Revision "detection asks make" corrects Plan bullets 1-2 and drops the .PHONY test with its reason.
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: Per-repo cache in the emit loop (dev-aliases.sh:243-264) with a counting-stub test; removing the cache turns it red (make detections 2). Parse cost is noted in the header.
+          round: 4
+      findings:
+        - id: BR-6
+          severity: Minor
+          title: dev-aliases.sh:16 header comment line is 115 characters long; the header wraps at about 80
+          detail: '2nd finding in family doc-line-wrap. Rule: after editing a prose comment or doc paragraph, re-wrap the whole paragraph to the file''s existing width (about 80 columns). Instances in this window: dev-aliases.sh:16 (115 characters); dev-aliases.test.sh:64 (a comment at 83 characters). Long code and assertion lines in the test follow that file''s existing style and are excluded.'
+          family: doc-line-wrap
+          round: 4
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: 53766ba99864d585ef99ebd8230aadcab5177c20
+      blocked: false
 ---
 
 # Gate ledger — ariadne#299 (boundary-review)
@@ -115,7 +139,18 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Minor] `alias-emission-cost` make -q runs owner Makefile parse-time side effects at shell startup, once per binary
   Parsing the owner's Makefiles runs $(shell ...) calls (verified: a touch fired) and can rebuild included makefiles, every time a shell sources the aliases. owner_prepares runs once per binary, not once per owner. Limited to owners whose three files mention dev-prepare. Cache the result per repo in the loop, and note in the atlas that these Makefiles should keep parsing cheap.
 
+## Round 4 — 2026-10-12T17:08:47-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — Header now points at owner_prepares (dev-aliases.sh:15-16); the Revision "detection asks make" corrects Plan bullets 1-2 and drops the .PHONY test with its reason.
+- BR-5 — addressed — Per-repo cache in the emit loop (dev-aliases.sh:243-264) with a counting-stub test; removing the cache turns it red (make detections 2). Parse cost is noted in the header.
+
+### Raised
+
+- **BR-6** [Minor] `doc-line-wrap` dev-aliases.sh:16 header comment line is 115 characters long; the header wraps at about 80
+  2nd finding in family doc-line-wrap. Rule: after editing a prose comment or doc paragraph, re-wrap the whole paragraph to the file's existing width (about 80 columns). Instances in this window: dev-aliases.sh:16 (115 characters); dev-aliases.test.sh:64 (a comment at 83 characters). Long code and assertion lines in the test follow that file's existing style and are excluded.
+
 ## Open findings
 
-- **BR-4** [Minor] `doc-restates-detection-rule` Prose about how dev-prepare is detected still describes the old regex
-- **BR-5** [Minor] `alias-emission-cost` make -q runs owner Makefile parse-time side effects at shell startup, once per binary
+- **BR-6** [Minor] `doc-line-wrap` dev-aliases.sh:16 header comment line is 115 characters long; the header wraps at about 80
