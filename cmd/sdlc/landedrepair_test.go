@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
 	"strings"
@@ -112,7 +113,17 @@ func TestReconcileLandedRefuses(t *testing.T) {
 			r.git("commit", "-qm", "#330: unpushed")
 			return r.git("rev-parse", "HEAD")
 		}, "is not on main"},
-		"no issue commit": {"codecomplete", func(_ *trackerRepo, _, unrelated string) string { return unrelated }, "brought in no commit citing #330"},
+		"only bookkeeping": {"codecomplete", func(r *trackerRepo, _, _ string) string {
+			peer := t.TempDir()
+			testfix.Git(t, "", "clone", "-q", r.origin, peer)
+			testfix.Git(t, peer, "config", "user.name", "web")
+			testfix.Git(t, peer, "config", "user.email", "w@w")
+			testfix.Git(t, peer, "commit", "-q", "--allow-empty", "-m", "#330: close")
+			testfix.Git(t, peer, "push", "-q", "origin", "main")
+			r.git("fetch", "-q", "origin")
+			return strings.TrimSpace(testfix.Capture(t, peer, "rev-parse", "HEAD"))
+		}, "brought in no work commit citing #330"},
+		"no issue commit": {"codecomplete", func(_ *trackerRepo, _, unrelated string) string { return unrelated }, "brought in no work commit citing #330"},
 		"unknown commit":  {"codecomplete", func(*trackerRepo, string, string) string { return "deadbeef" }, "no such commit"},
 		"not closed":      {"working", func(_ *trackerRepo, merge, _ string) string { return merge }, "not codecomplete"},
 	}
@@ -135,6 +146,10 @@ func TestReconcileLandedRefuses(t *testing.T) {
 
 // A bound card is left to the settle its binding drives.
 func TestDoneUnboundCardRefusesABoundCard(t *testing.T) {
+	done := []byte("---\nid: '000330'\nstatus: done\nactual_hours: 1\ntracker:\n    version: 1\n    completion:\n        token: close-0123456789ab\n        repository: github.com/test/repo\n        reviewed_head: " + strings.Repeat("a", 40) + "\n        evidence_commit: " + strings.Repeat("b", 40) + "\n---\n\n# x\n\n## Problem\n\nA gap.\n")
+	if _, err := doneUnboundCard(done, "2026-10-12"); !errors.Is(err, tracker.ErrNoChange) {
+		t.Fatalf("a done bound card: got %v, want no change", err)
+	}
 	card := []byte("---\nid: '000330'\nstatus: codecomplete\nactual_hours: 1\ntracker:\n    version: 1\n    completion:\n        token: close-0123456789ab\n        repository: github.com/test/repo\n        reviewed_head: " + strings.Repeat("a", 40) + "\n        evidence_commit: " + strings.Repeat("b", 40) + "\n---\n\n# x\n\n## Problem\n\nA gap.\n")
 	if _, err := doneUnboundCard(card, "2026-10-12"); err == nil || !strings.Contains(err.Error(), "close binding") {
 		t.Fatalf("got %v", err)
@@ -144,11 +159,12 @@ func TestDoneUnboundCardRefusesABoundCard(t *testing.T) {
 func TestCitesIssue(t *testing.T) {
 	for subjects, want := range map[string]bool{
 		"#330: x":                 true,
-		"#000330: x":              true,
 		"other\n#330 M1: x":       true,
 		"#3300: x":                false,
 		"fix #330":                false,
 		"Merge pull request #330": false,
+		"#330: close":             false,
+		"sdlc: #330 implement":    true,
 	} {
 		if got := citesIssue(subjects, "000330"); got != want {
 			t.Errorf("%q: got %v", subjects, got)

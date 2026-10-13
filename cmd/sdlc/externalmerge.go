@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"io"
 	"path"
-	"regexp"
 	"strings"
 	"time"
 
@@ -314,9 +313,14 @@ func reportUnclosedMerge(ctx context.Context, env *trackerEnv, stderr io.Writer,
 // must carry a commit whose subject cites the issue, per the commit
 // convention.
 func repairLanded(ctx context.Context, env *trackerEnv, stderr io.Writer, issuesDir, id, commit string) error {
-	sha, err := env.git("rev-parse", "-q", "--verify", commit+"^{commit}")
-	if err != nil || sha == "" {
+	if have, err := env.gitTest("rev-parse", "-q", "--verify", commit+"^{commit}"); err != nil {
+		return fmt.Errorf("--landed %s: %w", commit, err)
+	} else if !have {
 		return fmt.Errorf("--landed %s: no such commit here (fetch main first)", commit)
+	}
+	sha, err := env.git("rev-parse", commit+"^{commit}")
+	if err != nil {
+		return err
 	}
 	view, err := env.main.Snapshot()
 	if err != nil {
@@ -332,7 +336,7 @@ func repairLanded(ctx context.Context, env *trackerEnv, stderr io.Writer, issues
 		return fmt.Errorf("--landed %s: read the work it brought in: %w", shortOID(sha), err)
 	}
 	if !citesIssue(subjects, id) {
-		return fmt.Errorf("--landed %s brought in no commit citing #%s (a subject starting `#%s:`) — name the commit that landed #%s's work", shortOID(sha), issue.CLIRef(id), issue.CLIRef(id), issue.CLIRef(id))
+		return fmt.Errorf("--landed %s brought in no work commit citing #%s (a subject starting `#%s:`) — name the commit that landed #%s's work", shortOID(sha), issue.CLIRef(id), issue.CLIRef(id), issue.CLIRef(id))
 	}
 	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
 	if err != nil {
@@ -361,11 +365,16 @@ func repairLanded(ctx context.Context, env *trackerEnv, stderr io.Writer, issues
 	return nil
 }
 
-// citesIssue reports whether a subject line (one per line) references issue
-// id the way the commit convention does: `#N` (padded or not) then a non-digit.
+// citesIssue reports whether any subject line (one per line) is implementation
+// work for issue id under the commit convention (gitx.IsShippedWorkSubject): a
+// range of only filing, claiming or closing commits does not bind.
 func citesIssue(subjects, id string) bool {
-	re := regexp.MustCompile(`(?m)^#0*` + regexp.QuoteMeta(issue.CLIRef(id)) + `([^0-9]|$)`)
-	return re.MatchString(subjects)
+	for _, s := range strings.Split(subjects, "\n") {
+		if gitx.IsShippedWorkSubject(issue.CLIRef(id), s) {
+			return true
+		}
+	}
+	return false
 }
 
 // doneUnboundCard is the pure repair: codecomplete → done for a card with no
@@ -376,17 +385,17 @@ func doneUnboundCard(current []byte, today string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, bound, err := issue.CardCompletion(current); err != nil {
-		return nil, err
-	} else if bound {
-		return nil, errors.New("the card carries a close binding; --landed repairs only unbound cards — plain `sdlc issue recovery reconcile` settles a bound close once it is on main")
-	}
 	switch status, _ := issue.GetField(fm, "status"); status {
 	case "done":
 		return nil, tracker.ErrNoChange
 	case "codecomplete":
 	default:
 		return nil, fmt.Errorf("the card is %s, not codecomplete — --landed completes only a closed card (close it first)", status)
+	}
+	if _, bound, err := issue.CardCompletion(current); err != nil {
+		return nil, err
+	} else if bound {
+		return nil, errors.New("the card carries a close binding; --landed repairs only unbound cards — plain `sdlc issue recovery reconcile` settles a bound close once it is on main")
 	}
 	next, err := issue.SetCardField(current, "updated", today)
 	if err == nil {
