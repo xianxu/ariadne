@@ -37,7 +37,17 @@ The operator (2026-10-13): a CI job that **could not get a runner** (no steps ex
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000345-local-check-substitutes-plan.md` (single pass, one close).
+
+- [ ] Declaration parser (`.sdlc/local-checks.json`, strict)
+- [ ] Runnerless classifier (structural: cancelled + no runner + zero steps)
+- [ ] Gate decision with local evidence (`ciLocalNeeded`, `required`)
+- [ ] gh seam (JobRun, PostStatus, PRComment) + stateful `ciFakeGH` + live conformance
+- [ ] Local run shell (detached worktree at the head, test-lock slot, log, status)
+- [ ] Wire into `runCIGate` for both merge paths (inline run, re-read, head pin)
+- [ ] `sdlc local-check run` verb
+- [ ] Atlas + help
+- [ ] Verify, file the pair declaration issue unassigned, close, merge
 
 ## Log
 
@@ -47,6 +57,8 @@ The operator (2026-10-13): a CI job that **could not get a runner** (no steps ex
 - pair `main` has no branch protection, so `sdlc merge`'s CI gate is the only gate; a substitute there is enough.
 - `local-gates-guard` already protects `.sdlc/*` → a declaration there is CI-tamper-guarded (the Revision's "CI is the tamper guard").
 - Draft design (declaration in `.sdlc/local-checks.json`, `sdlc local-check run` posting an `sdlc-local/<name>` commit status on the head, gate accepts it only for runnerless cancels) sent to the hub for review before building.
+
+- Hub approved the design (2026-10-13). (a) The pair declaration is a separate pair issue, filed unassigned at close. (b) merge may run a local check inline, but through the machine-wide suite lock, printing the command and log path first.
 
 ## Revisions
 
