@@ -101,6 +101,15 @@ move-detail) are already placed on the issue branch or main.
 - B2 c: re-running `sdlc claim` (already mine) refreshes, so it is the repair;
   `TestRevertedMirrorConvergesOnTheNextRefresh` pins it. Claim help says so.
 - Quota hold on 10-12 at 2cf6f8d3; resumed 10-13, merged origin/main.
+- Close review round 1 (FIX-THEN-SHIP): BR-1, a worktree refresh after move
+  left the destination dirty, so moving back refused. This settles the Spec's
+  open decision: move commits the refresh narrowly, through close's mirror
+  commit, now generalized as `commitMirror`. The test asserts a clean
+  destination and a move back. BR-2: the non-applicable relocations
+  (unattributed, owned by another slot) now carry details and assert they're
+  untouched. The minors are fixed too: `movedCard` is shared with
+  `moveRelocation` (no repeated cutover/tracker/path logic), and no card
+  means no refresh.
 
 ### 2026-10-01
 

@@ -418,8 +418,9 @@ mirrored field was hand-edited. Refresh points:
 
 | Point | What is refreshed |
 |---|---|
-| `claim`, `start-plan`, `reclaim`, card setters, `move` (the destination, #282) | the checkout's details (worktree), only on the issue's own branch (`issue.BranchName`, #282): never on the resting branch, another issue's code branch or a detached HEAD. A `git revert` that rolls the mirror back leaves an older, untouched projection; re-running `sdlc claim` there converges it, never a hand edit. |
+| `claim`, `start-plan`, `reclaim`, card setters | the checkout's details (worktree), only on the issue's own branch (`issue.BranchName`, #282): never on the resting branch, another issue's code branch or a detached HEAD. A `git revert` that rolls the mirror back leaves an older, untouched projection; re-running `sdlc claim` there converges it, never a hand edit. |
 | `change-code` | the details, committed with the design |
+| `move` (#282) | the destination's details on the issue branch, as one narrow commit (`commitMirror`, shared with close), so the destination stays clean for a move back |
 | `close` / FIX-THEN-SHIP reconcile | a narrow commit after the evidence commit mirrors the codecomplete card. The evidence commit cannot carry it, because the card names that commit. A dirty details file keeps its edit. |
 | merge / push / interrupted-archive recovery | the moved history file, before it is staged |
 | slot-landing archive | `archivedDetails` projects the done card |

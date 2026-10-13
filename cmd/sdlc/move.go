@@ -112,7 +112,7 @@ func relocateAfterMove(ctx context.Context, dest, branch string, stderr io.Write
 	switch {
 	case err == nil:
 		removeRelocation(dest, id)
-		if warn := refreshMovedMirror(ctx, dest, branch); warn != "" {
+		if warn := refreshMovedMirror(ctx, dest, id); warn != "" {
 			cwarn(stderr, warn)
 		}
 	case errors.Is(err, errNoRelocation):
@@ -123,18 +123,50 @@ func relocateAfterMove(ctx context.Context, dest, branch string, stderr io.Write
 	}
 }
 
-// refreshMovedMirror brings the destination's details up to the relocated
-// card (#282), on the branch it now holds. The move is complete; a refusal is
-// a warning.
-func refreshMovedMirror(ctx context.Context, dest, branch string) string {
-	if _, err := os.Stat(filepath.Join(dest, filepath.FromSlash(tracker.CutoverMarkerPath))); err != nil {
-		return "" // a pre-tracker repository has no mirror
+// refreshMovedMirror commits the relocated card's projection into the details
+// the destination's issue branch carries (#282): one narrow commit, so the
+// destination stays clean and the work can move again. The move is complete;
+// a refusal (a hand-edited mirrored field) is a warning.
+func refreshMovedMirror(ctx context.Context, dest, id string) string {
+	env, card, ok, err := movedCard(ctx, dest, id)
+	if err != nil {
+		return fmt.Sprintf("#%s's details mirror was not refreshed after the move: %v", issue.CLIRef(id), err)
+	}
+	if !ok {
+		return ""
+	}
+	rel := path.Join(envOr("WF_ISSUES_DIR", "workshop/issues"), path.Base(card.Path))
+	if env.branch != issue.BranchName(rel) {
+		return "" // only the issue's own branch carries its mirror
+	}
+	if have, err := env.gitTest("cat-file", "-e", "HEAD:"+rel); err != nil || !have {
+		return "" // the branch does not carry the details
+	}
+	if err := commitMirror(env, id, rel, "mirror relocated owner"); err != nil {
+		return fmt.Sprintf("#%s's details mirror was not refreshed after the move: %v", issue.CLIRef(id), err)
+	}
+	return ""
+}
+
+// movedCard reads id's card from dest's tracker; ok is false in a pre-tracker
+// repository or for an issue with no card, where a move has no owner to move.
+func movedCard(ctx context.Context, dest, id string) (*trackerEnv, tracker.Record, bool, error) {
+	if _, err := os.Stat(filepath.Join(dest, filepath.FromSlash(tracker.CutoverMarkerPath))); errors.Is(err, os.ErrNotExist) {
+		return nil, tracker.Record{}, false, nil
 	}
 	env, err := openTrackerAt(ctx, dest)
 	if err != nil {
-		return fmt.Sprintf("%s moved; its details mirror was not refreshed: %v", branch, err)
+		return nil, tracker.Record{}, false, err
 	}
-	return refreshLocalMirror(env, path.Join(envOr("WF_ISSUES_DIR", "workshop/issues"), branch+".md"))
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return nil, tracker.Record{}, false, err
+	}
+	card, err := snap.Require(id)
+	if errors.Is(err, tracker.ErrNoCard) {
+		return nil, tracker.Record{}, false, nil
+	}
+	return env, card, err == nil, err
 }
 
 // errNoRelocation marks a move whose owner update does not apply (the issue is
@@ -145,22 +177,9 @@ var errNoRelocation = errors.New("relocation does not apply")
 // moveRelocation is relocateAfterMove's effect, a variable so a test can fail
 // it after the switches.
 var moveRelocation = func(ctx context.Context, dest, id string) error {
-	if _, err := os.Stat(filepath.Join(dest, filepath.FromSlash(tracker.CutoverMarkerPath))); errors.Is(err, os.ErrNotExist) {
-		return nil // a pre-tracker repository has no owners to move
-	}
-	env, err := openTrackerAt(ctx, dest)
-	if err != nil {
-		return err
-	}
-	snap, err := env.repo.Snapshot()
-	if err != nil {
-		return err
-	}
-	card, err := snap.Require(id)
-	if errors.Is(err, tracker.ErrNoCard) {
-		return nil
-	} else if err != nil {
-		return err
+	env, card, ok, err := movedCard(ctx, dest, id)
+	if err != nil || !ok {
+		return err // a pre-tracker repository, or no card: no owner to move
 	}
 	own, recorded, me, err := ownership(env, card)
 	if err != nil || own == issue.OwnershipMine {
