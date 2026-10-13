@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path"
 	"path/filepath"
 	"reflect"
 	"strings"
@@ -111,12 +112,29 @@ func relocateAfterMove(ctx context.Context, dest, branch string, stderr io.Write
 	switch {
 	case err == nil:
 		removeRelocation(dest, id)
+		if warn := refreshMovedMirror(ctx, dest, branch); warn != "" {
+			cwarn(stderr, warn)
+		}
 	case errors.Is(err, errNoRelocation):
 		removeRelocation(dest, id)
 		cwarn(stderr, fmt.Sprintf("%s moved; #%s's owner is unchanged: %v", branch, id, err))
 	default:
 		cwarn(stderr, fmt.Sprintf("%s moved, but #%s's owner was not updated: %v\n      finish it with `sdlc claim --issue %s` in %s", branch, id, err, issue.CLIRef(id), dest))
 	}
+}
+
+// refreshMovedMirror brings the destination's details up to the relocated
+// card (#282), on the branch it now holds. The move is complete; a refusal is
+// a warning.
+func refreshMovedMirror(ctx context.Context, dest, branch string) string {
+	if _, err := os.Stat(filepath.Join(dest, filepath.FromSlash(tracker.CutoverMarkerPath))); err != nil {
+		return "" // a pre-tracker repository has no mirror
+	}
+	env, err := openTrackerAt(ctx, dest)
+	if err != nil {
+		return fmt.Sprintf("%s moved; its details mirror was not refreshed: %v", branch, err)
+	}
+	return refreshLocalMirror(env, path.Join(envOr("WF_ISSUES_DIR", "workshop/issues"), branch+".md"))
 }
 
 // errNoRelocation marks a move whose owner update does not apply (the issue is

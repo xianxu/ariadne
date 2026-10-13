@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -360,6 +361,7 @@ func cardOwner(t *testing.T, root, cardPath string) (issue.Claimant, bool) {
 // warning toward a plain claim (which takes it over), and no record left behind.
 func TestMoveRelocatesItsOwner(t *testing.T) {
 	roots, cardPath := moveTrackerFixture(t)
+	detailPath := commitMovedDetails(t, roots[1], "")
 	out, err := runMoveTest(t, roots[1], ":0", false)
 	if err != nil {
 		t.Fatalf("move: %v\n%s", err, out)
@@ -370,6 +372,56 @@ func TestMoveRelocatesItsOwner(t *testing.T) {
 	if rec, err := readRelocation(roots[0], "000001"); err != nil || rec != nil {
 		t.Fatalf("move left its record: %+v %v", rec, err)
 	}
+	// #282: the destination's details show the new owner, mirrored from the
+	// current card.
+	local, _ := os.ReadFile(filepath.Join(roots[0], detailPath))
+	env, err := openTrackerAt(context.Background(), roots[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, _ := snap.Card("000001")
+	oid, _ := issue.CardBlobOID(rec.Raw, "sha1")
+	if !strings.Contains(string(local), "worktree: "+canonRoot(roots[0])) || !strings.Contains(string(local), oid) {
+		t.Fatalf("destination mirror not refreshed (want %s):\n%s\n%s", oid, local, out)
+	}
+}
+
+// #282: a hand-edited mirrored field in the moved details refuses the refresh
+// with a warning; the move and the relocation stand.
+func TestMoveWarnsWhenTheDestinationMirrorRefuses(t *testing.T) {
+	roots, cardPath := moveTrackerFixture(t)
+	detailPath := commitMovedDetails(t, roots[1], "status: blocked")
+	out, err := runMoveTest(t, roots[1], ":0", false)
+	if err != nil {
+		t.Fatalf("move failed on a mirror refusal: %v\n%s", err, out)
+	}
+	if owner, _ := cardOwner(t, roots[0], cardPath); owner.Worktree != canonRoot(roots[0]) {
+		t.Fatalf("owner not relocated to :0: %+v\n%s", owner, out)
+	}
+	if !strings.Contains(out, "owned by the card") {
+		t.Fatalf("no refusal warning:\n%s", out)
+	}
+	if local, _ := os.ReadFile(filepath.Join(roots[0], detailPath)); !strings.Contains(string(local), "status: blocked") {
+		t.Fatalf("the refusal rewrote the details:\n%s", local)
+	}
+}
+
+// commitMovedDetails commits #1's details (as filed, optionally with its
+// status hand-edited to edit) on the slot's issue branch.
+func commitMovedDetails(t *testing.T, slot, edit string) string {
+	t.Helper()
+	_, _, detailPath, detail := seededIssue(t, "000001", "procedure")
+	if edit != "" {
+		detail = strings.Replace(detail, "status: open", edit, 1)
+	}
+	procedureWrite(t, slot, detailPath, detail)
+	testfix.Git(t, slot, "add", detailPath)
+	testfix.Git(t, slot, "commit", "-qm", "#1: details")
+	return detailPath
 }
 
 func TestMoveLeavesAnUnattributedIssueUnknown(t *testing.T) {
