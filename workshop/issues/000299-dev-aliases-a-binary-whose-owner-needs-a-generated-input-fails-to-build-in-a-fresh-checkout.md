@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-06
 updated: 2026-10-12
 estimate_hours:
-card_mirror: '05bfcfe1788e4e73021ab04a1c72d997ad68f9a3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '0a0f5aede29715b91816c4bf0b68d753d3237ed9' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T16:51:54-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "82eef468", done: "dd811c20"}
-actual_hours: 0.24
+actual_hours: 0.33
 ---
 
 # dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout
