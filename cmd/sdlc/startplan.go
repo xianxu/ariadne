@@ -426,7 +426,9 @@ func parseSubstrateTargets(depsContent string) []string {
 // ordered, deduped list of upstream repo roots that exist on disk — the
 // dependency path the caller reads live. root itself is excluded. Targets are
 // resolved relative to their DECLARING repo root (the exact resolution #82 M3
-// got wrong), so a 2-hop chain resolves each hop against the right base. Absent
+// got wrong), so a 2-hop chain resolves each hop against the right base, or,
+// for a linked worktree missing the peer, against its primary checkout (#230,
+// layergraph.Resolver — the resolution weave and vocabulary share). Absent
 // peers are skipped (present-walker semantics, like lib-deps.sh — don't abort on
 // a missing sibling). The seen-set also guards against dependency cycles.
 func substrateChain(root string) []string {
@@ -448,6 +450,7 @@ func substrateWalk(root string) (order, absent []string) {
 		rootKey = abs
 	}
 	seen[rootKey] = true
+	resolver := layergraph.NewResolver(layergraph.OSFS{})
 	var walk func(declRoot string)
 	walk = func(declRoot string) {
 		// The shared reader (#289): ordinary file only, bounded, never a FIFO.
@@ -456,11 +459,10 @@ func substrateWalk(root string) (order, absent []string) {
 			return
 		}
 		for _, target := range parseSubstrateTargets(string(data)) {
-			resolved := target
-			if !filepath.IsAbs(resolved) {
-				resolved = filepath.Join(declRoot, target)
-			}
-			resolved = filepath.Clean(resolved)
+			// The shared resolver (#230): beside declRoot, else beside its
+			// primary checkout when declRoot is a linked worktree.
+			res, _ := resolver.Substrate(declRoot, target)
+			resolved := filepath.Clean(res.Path)
 			if real, err := filepath.EvalSymlinks(resolved); err == nil {
 				resolved = real // canonicalize when the peer exists
 			}
