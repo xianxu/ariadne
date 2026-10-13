@@ -1,6 +1,6 @@
 ---
 id: 000345
-status: codecomplete
+status: done
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 34e4cff2380a59d267d3051ff2c25038a01d1197
         evidence_commit: 190b39649bf24ff63202dcfd684385e6afa9d7c8
+        landed_commit: 92ed8b07494ba29695fb6472f9e42e30de9e9c3d
 ---
 
 # sdlc merge: a recorded local run substitutes for a CI job that never got a runner (not for one that failed)
