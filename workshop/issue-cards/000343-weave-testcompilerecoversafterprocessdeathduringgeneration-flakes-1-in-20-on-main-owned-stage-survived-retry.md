@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.29
+actual_hours: 0.30
 tracker:
     version: 1
     completion:
-        token: close-9df057eeeef3
+        token: close-215f0c5ba315
         repository: github.com/xianxu/ariadne
-        reviewed_head: c2585f059c31350ef226d24e7dc7828e9245e005
-        evidence_commit: a6fb7490b3c1b4e7773d3b7d8e60bc0b87ccb97b
+        reviewed_head: 06c9afd08bbc9ca7b05e54601cb285e558076a13
+        evidence_commit: 9b2544e91e1b2c1c70fa6c7c727f9e089b1e9281
 ---
 
 # weave: TestCompileRecoversAfterProcessDeathDuringGeneration flakes ~1 in 20 on main ('owned stage survived retry')
