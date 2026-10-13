@@ -89,7 +89,7 @@ Durable plan: `workshop/plans/000230-worktree-dependency-resolution-plan.md`
 - [x] `acquire.Restore` on the resolver: no duplicate clone, fallback notice, anchor
   reason in missing errors, compile output preserved on failure (Task 4).
 - [x] sdlc `substrateWalk` on the resolver (Task 5).
-- [ ] Atlas/comments/help sweep; full suite; close (Task 6).
+- [x] Atlas/comments sweep (no help text states the resolution); full suite (Task 6).
 
 ## Log
 
