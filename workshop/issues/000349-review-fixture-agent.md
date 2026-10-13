@@ -1,12 +1,12 @@
 ---
 id: 000349
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: 'a84a60b2676475d45313c1c98a7f7515e9fa4872' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'be0c05dfb8418434eca490510501c4eeb5725eaa' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T14:18:20-07:00
 claimant:
     operator: Xian Xu
@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 2.15
 ---
 
 # Pin agent-specific review fixtures instead of inheriting session defaults
