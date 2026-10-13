@@ -1,12 +1,12 @@
 ---
 id: 000230
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-09-15
-updated: 2026-10-12
+updated: 2026-10-13
 estimate_hours:
-card_mirror: 'f699a4b4604203f5e37fdde3a525b377c023ed21' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a982e27389b209cba172dff4b8cfba8e56dbd77f' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T18:45:38-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.52
 ---
 
 # Make Weave dependency resolution worktree-aware
