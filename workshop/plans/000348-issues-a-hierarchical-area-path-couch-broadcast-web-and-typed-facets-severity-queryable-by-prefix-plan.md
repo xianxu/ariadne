@@ -169,7 +169,7 @@ Single pass (one `sdlc close`), plain checkboxes.
 - [ ] Implement, deriving the path regex from the `vocab` spec.
 - [ ] Run → PASS. Commit `#348: repoenum: declaration, ancestor rule, segment prefix`.
 
-### Task 3: Card kinds (shape only)
+### Task 3: Card kinds (shape only) — superseded in part by Revision R1 (sequence class)
 
 **Files:** `cmd/sdlc/internal/issue/card.go`, `card_test.go`, `cardset_test.go`
 
@@ -181,7 +181,7 @@ Single pass (one `sdlc close`), plain checkboxes.
 - [ ] Implement: handle `repo-enum` before the scalar guard (a sequence node) and `enum` in the switch, both reading their sets and syntax from `vocab`.
 - [ ] Commit `#348: card: enum and repo-enum kinds, shape-only`.
 
-### Task 4: Loader + writers
+### Task 4: Loader + writers — see Revision R1 (publish check, declaration rev)
 
 **Files:** create `cmd/sdlc/repoenums.go` (+ test); modify `cmd/sdlc/cardsetters.go`, `cmd/sdlc/issue.go` (new flags, register setters), `cmd/sdlc/internal/issue/scaffold.go` (+ `scaffold_test.go`)
 
@@ -243,3 +243,44 @@ Single pass (one `sdlc close`), plain checkboxes.
 - [ ] Run targeted suites, then, if load < 40 and the suite lock is free, the full `make test` (after merging origin/main).
 - [ ] Manual check in a scratch tracker repo is covered by the `newTrackerRepo` e2e tests. Record that in `--verified`.
 - [ ] `sdlc close --issue 348 --verified '…'` → `sdlc pr` → CI green → `sdlc merge --yes` → report to the hub.
+
+## Revisions
+
+### R1 — 2026-10-13, plan-quality round 1
+
+**PQ-1 (Important), the class "card helpers that assume scalar nodes".** The enumeration below comes from every consumer of `vocab.Issue().CardFields()` plus `sameCardValue`. Each one is fixed in Task 3 and tested with a flow-sequence `area`:
+
+| Site | Problem | Fix |
+|---|---|---|
+| `issue/card.go` `sameCardValue` (used by `mirror.go:79,99`, `migrate.go:68`) | compares `.Value`, which is `""` for any sequence, so all lists compare equal | decode-compare `SequenceNode` like `MappingNode` |
+| `issue/frontmatter.go` `SetField`/`dropBlockContinuation` | does not drop column-one `- item` lines | treat `- ` lines (any indent) directly under the key as continuation |
+| `tracker/records.go` `IssueRecord.Field` | returns the raw line text | add `IssueRecord.List(name) ([]string, bool)` that YAML-decodes the field; `IssueState.Area` uses it |
+| `issue/migrate.go:160+` legacy→card migration kind switch | unknown kinds fall through | `enum`/`repo-enum`: carry a valid-shape value; else drop it with an `infer(...)` note |
+| `issue/card.go` `ParseCard` | scalar-only guard | `repo-enum` handled before the scalar guard |
+
+**Card shape is the flow form only.** A card `area` must be a single-line flow sequence (`area: [a/b, c]`) or null, which matches `SetCardField`'s one-line contract. Block form is refused on cards. Hand-edited legacy frontmatter (checked by the gates) accepts either form, because it is YAML-decoded.
+
+Tests:
+- `TestSameCardValueSequences`;
+- `TestSetFieldDropsBlockSequence`;
+- `TestRefreshMirrorAreaChange`: a card area change updates the details mirror, and an unchanged area is a no-op;
+- `TestMigrateCarriesAreaSeverity`;
+- `TestRecordList`.
+
+**PQ-2 (Minor), test strategy instead of enumerated cases.** Tasks name test functions. Strategy per risky function:
+- `repoenum.Parse`: table tests plus `FuzzParse`. Any input either errors or yields a declaration whose values all pass `ValidPath`, and a JSON round-trip of a parsed declaration re-parses equal.
+- Card `repo-enum` shape: `FuzzRepoEnumCardShape` over arbitrary YAML values for `area:`. ParseCard never panics, and accepted values are flow sequences of valid paths.
+- `Allowed`/`MatchPrefix`: property tests. Every declared value's ancestors are allowed, and `MatchPrefix(p, v)` implies `v` has `p`'s segments as a prefix.
+- The rest are example tests named in each task.
+
+**PQ-3 (Minor), coverage of write paths.**
+- Tracker card values are written only by `issue new` and the two setters, all of which check membership. The #124 gate checks changed details files, whose mirror carries the card values.
+- `issue publish` now also checks the published details' `area`/`severity` against main's declaration before publishing (the Revision's third write site), in `issuepublish.go`. Test: `TestIssuePublish_RefusesUndeclaredArea`.
+- `issue validate` sweeps every card. That covers a declaration that shrank after a write: such values surface at the next validate or touch, by design (see ARCH-ORDER).
+
+**PQ-4 (Minor), declaration rev in legacy repos.** The declaration is always read from main, never from HEAD or the work tree:
+- `origin/main` when that ref exists;
+- else the local `main` ref;
+- else refuse ("no main to read .sdlc/vocabulary.json from").
+
+Test: `TestLoadRepoEnums_NeverReadsHead` (a declaration only on the current branch is ignored).
