@@ -1,6 +1,6 @@
 ---
 id: 000299
-status: codecomplete
+status: done
 created: 2026-10-06
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: e74172d395d8ffa1cc84ecb881edb36f988c70e0
         evidence_commit: 607b3ad6ed7741d742151c83d517d738763587ec
+        landed_commit: e5d4a32c5e68c51bb07818aced75c9b82cf4c01e
 ---
 
 # dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout
