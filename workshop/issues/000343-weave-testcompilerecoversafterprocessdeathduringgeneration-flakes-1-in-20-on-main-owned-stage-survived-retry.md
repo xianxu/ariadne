@@ -42,11 +42,11 @@ as `finishProducers` already does on the normal path, through one shared
 (documented policy); killing it would need recorded process groups plus per-producer leases
 to stay safe from PID reuse, which this race does not need.
 
-- [ ] `staging.AwaitExclusive(stage, within)`; `finishProducers` and `Reclaim` use it.
-- [ ] Unit tests in `staging`: a dead owner's stage whose lease is released during the
+- [x] `staging.AwaitExclusive(stage, within)`; `finishProducers` and `Reclaim` use it.
+- [x] Unit tests in `staging`: a dead owner's stage whose lease is released during the
   settle is reclaimed; one whose lease stays held is preserved after the bound. Both fail
   with the fix reverted.
-- [ ] Remove temporary diagnostics; 100 targeted runs of the original test pass.
+- [x] Remove temporary diagnostics; 100 targeted runs of the original test pass.
 
 ## Log
 
@@ -64,3 +64,14 @@ preserved the stage because a dead owner's producer still held the lease. In the
 the producer is simply exiting: the kernel closes its descriptors in order, the output
 pipe (fd 1/2) before the lease (fd 3), so the waiting test can resume and retry before the
 lease is released.
+
+### 2026-10-13 — fixed (ariadne:3)
+
+`staging.AwaitExclusive(stage, staging.Settle)` (1s, the bound `finishProducers` already
+used) now serves both `Reclaim` (dead owner) and `finishProducers` (cancellation). Tests:
+`TestReclaimWaitsForAnExitingProducer` and `TestReclaimPreservesALiveOrphanAfterTheSettle`
+(staging, in-process flock), plus `TestCompileReclaimsStageOfAStillExitingGenerator`, the
+widened-window end-to-end with a 0.1s tail (10x margin under the settle). With `Reclaim`
+reverted to one `Exclusive`: the exiting-producer unit test fails and the e2e fails 3/3.
+At load under 40 (15:11): original test 100/100, new e2e 50/50, `go test ./cmd/weave/...`
+green. Atlas: weave.md cleanup contract.
