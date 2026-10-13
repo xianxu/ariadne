@@ -139,7 +139,7 @@ cross-scope and parent checks:
   hint; the parley shape: committed stale vocabulary file).
 - [x] `atlas/workflow/weave.md`: convergence rule replaces "edited outputs remain".
 - [x] Targeted `go test ./cmd/weave/... ./pkg/weaveownership/...` and the propagate-base tests.
-- [ ] Full `make test` before close.
+- [x] Full `make test` before close (exit 0, 12 shards; a first run tripped only the hermeticity guard because this session committed mid-run).
 
 ## Log
 
