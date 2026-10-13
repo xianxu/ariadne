@@ -13,14 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.19
+actual_hours: 0.22
 tracker:
     version: 1
     completion:
-        token: close-c16edbf3ed2a
+        token: close-ce6f614c8db6
         repository: github.com/xianxu/ariadne
-        reviewed_head: 1ffc38208e773a21271f8fdf4fd043c4eac152d4
-        evidence_commit: 7d11abadac22ab9bf1c8e18593ca030351b84889
+        reviewed_head: ab683fcc8743e0185df90f8b49ada6815f700c96
+        evidence_commit: b77e92faf20089d42a4ba39b229f6c521c15caa8
 ---
 
 # Durable-plan lookup is exact-name: a plan under another slug is invisible
