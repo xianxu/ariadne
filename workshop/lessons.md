@@ -58,6 +58,16 @@ Detailed incidents remain in their owning issue or review artifact.
 - Do not `filepath.Glob` a path joined from a directory you did not write: `[`, `*`
   and `?` in the repository path become wildcards and a present file reads as
   absent. List the directory and match the base name (#235).
+- A step that reruns to converge must not lease on local evidence of remote
+  state another flow may have changed since: a remote-tracking ref kept for a
+  branch the landing deleted made every rerun's leased push refuse (#305 BR-1).
+  Refresh the evidence from the remote first, and decide every refusal before
+  the first mutation (switching branches included, BR-3). When a needed
+  mutation (a fast-forward) must come first, every refusal after it names it,
+  through one helper, and checks that do not need it move above it (BR-6).
+  Check a restore's postcondition before publishing or reporting success, and
+  make it test the step's effect, which the wrong starting state cannot
+  already satisfy: a landed branch has the live details too (BR-5, BR-7).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - Scope a guard's failure to the input it actually reads. A fail-closed check that
@@ -106,6 +116,15 @@ Detailed incidents remain in their owning issue or review artifact.
 - A wait inside a test binary spends `go test`'s timeout: cmd/go kills the binary
   at `-timeout` plus a minute from its start, however long it queued. Bound the
   wait below that and shrink the binary's own timeout by it (#324).
+- Evidence read from a shared list must be matched by provenance, not only by
+  name. `gh pr checks` mixes commit statuses and check runs, so a gate keyed on
+  a check's name accepts any job that happens to carry it. Say which kind of
+  record counts (a commit status: no workflow, no Actions job link) and test a
+  look-alike of the other kind (#345 BR-2).
+- A tightening fix needs a test that the loose version fails. #345 narrowed
+  `--rev` from "any commit on a remote branch" to "a branch tip", but only the
+  unpushed case was tested, which both versions refuse; the pushed-but-not-tip
+  case is the one that tells them apart (#345 BR-3).
 
 ## Paths, processes, and integration
 
@@ -209,6 +228,10 @@ Detailed incidents remain in their owning issue or review artifact.
   it, and point every other mention at it. Three hand-kept copies of the
   resolver's callers drifted the moment a fix added one (#230, third finding in
   the doc-overclaims family).
+- A lint that recognizes a construct by enumerating its contexts (what may
+  precede a command) misses the next context each review. When a review finds a
+  second one, invert the rule: match every occurrence and enumerate only the
+  provable exceptions (#342: if/while/sudo -u/time -p after {, sudo, time, VAR=x).
 - A behavior change to a surface the README documents updates the README, even
   with no new command: a now-false README sentence is a finding (#230 BR-3).
 - Validate external identifier grammar before interpreting sentinel values. An
@@ -552,3 +575,9 @@ The simplest durable authority beats a clever scan of consequences.
 - An index remains authoritative when its storage directory is absent. Skipping
   validation based only on directory history misses body-only dangling links
   (#337 BR-6).
+- Every claim a durable contract makes needs a test that proves it: each
+  half of an OR rule, each recovery-catalog field, each ticked plan box. In
+  #344 the ref-containment half of `Leavable` (the half the crash recovery
+  relied on) could be mutated to false with every test still green, and two
+  review rounds found unproven claims in the same family. Before closing,
+  mutate each branch of a new rule once and list the test that fails.

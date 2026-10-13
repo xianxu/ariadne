@@ -539,6 +539,24 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 		}
 	}
 	// 4: the details and plans come back out of the archive.
+	if err := unarchiveIssue(env, base, issuesDir, fmt.Sprintf("#%s: reopen: restore from %s", issueStr, rec.Ref)); err != nil {
+		return err
+	}
+	// 5: the branch on the remote, before the card says it is back.
+	if err := pushIssueBranch(env, rec.Branch); err != nil {
+		return fmt.Errorf("#%s: pushing the restored %s failed: %w — the card is unchanged; rerun", issueStr, rec.Branch, err)
+	}
+	cok(stderr, fmt.Sprintf("#%s restored on %s from %s and pushed", issueStr, rec.Branch, rec.Ref))
+	return nil
+}
+
+// unarchiveIssue moves an issue's archived details and plans at HEAD back to
+// their live paths in one commit (#286 D9, #305), carrying any working-tree
+// edit to them; a no-op once they are out.
+func unarchiveIssue(env *trackerEnv, base, issuesDir, message string) error {
+	archivedRel := archiveDestination(historyDir(), vocab.ArchiveIssues, base)
+	liveRel := path.Join(issuesDir, base)
+	id := issueIDPrefix(base)
 	if archived, err := env.has("HEAD", archivedRel); err != nil {
 		return err
 	} else if archived {
@@ -551,15 +569,15 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 		if err != nil {
 			return err
 		}
-		bundle, err := assetFilesFromView(env.main.ViewOf(head), archivedRel, card.ID, raw)
+		bundle, err := assetFilesFromView(env.main.ViewOf(head), archivedRel, id, raw)
 		if err != nil {
 			return err
 		}
-		materialized, err := readAssetFiles(env.root, archivedRel, card.ID)
+		materialized, err := readAssetFiles(env.root, archivedRel, id)
 		if err != nil {
 			return err
 		}
-		actual, err := issueassets.BuildBundle(card.ID, issueAssetBody(raw), materialized)
+		actual, err := issueassets.BuildBundle(id, issueAssetBody(raw), materialized)
 		if err != nil {
 			return fmt.Errorf("restored archive assets: %w; restore the archived bundle from %s before retrying", err, head)
 		}
@@ -580,7 +598,7 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 		}
 		// Validate every asset destination before any restore mutation.
 		for _, m := range moves {
-			if strings.HasPrefix(m[1], path.Join(issuesDir, "assets", card.ID)+"/") {
+			if strings.HasPrefix(m[1], path.Join(issuesDir, "assets", id)+"/") {
 				if err := verifyAssetAttributes(env.ctx, env.root, m[1]); err != nil {
 					return err
 				}
@@ -615,7 +633,7 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 					return err
 				}
 			}
-			if strings.HasPrefix(m[1], path.Join(issuesDir, "assets", card.ID)+"/") {
+			if strings.HasPrefix(m[1], path.Join(issuesDir, "assets", id)+"/") {
 				if err := assetDirectories(env.root, path.Dir(m[1]), true); err != nil {
 					return err
 				}
@@ -628,36 +646,37 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 			}
 			paths = append(paths, m[0], m[1])
 		}
-		if err := verifyAssetBundleOnDisk(env.ctx, env.root, liveRel, card.ID, raw, bundle); err != nil {
+		if err := verifyAssetBundleOnDisk(env.ctx, env.root, liveRel, id, raw, bundle); err != nil {
 			return err
 		}
-		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", fmt.Sprintf("#%s: reopen: restore from %s", issueStr, rec.Ref), "--"}, paths...)...); err != nil {
+		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", message, "--"}, paths...)...); err != nil {
 			return err
 		}
 	}
-	// 5: the branch on the remote, before the card says it is back.
-	if err := pushIssueBranch(env, rec.Branch); err != nil {
-		return fmt.Errorf("#%s: pushing the restored %s failed: %w — the card is unchanged; rerun", issueStr, rec.Branch, err)
-	}
-	cok(stderr, fmt.Sprintf("#%s restored on %s from %s and pushed", issueStr, rec.Branch, rec.Ref))
 	return nil
 }
 
 // finishReopen commits the card mirror the reopen's card write refreshed (as
-// close commits its own), pushes the branch, and drops the archive ref, so a
+// close commits its own), pushes the branch, and drops any archive ref, so a
 // reopen ends clean, on origin, with nothing left in the archive.
-func finishReopen(r *reopenedAbandon, stderr io.Writer, issuesDir string) {
+func finishReopen(r *reopenedIssue, stderr io.Writer, issuesDir string) {
 	env := r.env
 	detailRel := path.Join(issuesDir, path.Base(r.cardPath))
 	if dirty, err := env.git("status", "--porcelain", "--", detailRel); err != nil {
 		cwarn(stderr, fmt.Sprintf("reopen: the details mirror was not checked: %v", err))
 	} else if dirty != "" {
-		if err := commitOnly(env, fmt.Sprintf("#%s: mirror working card", issue.CLIRef(r.id)), detailRel); err != nil {
+		if err := commitOnly(env, mirrorSubject(r.id), detailRel); err != nil {
 			cwarn(stderr, fmt.Sprintf("reopen: the refreshed details mirror was not committed: %v", err))
 		}
 	}
 	boundaryPush(env, stderr, "reopen")
-	dropArchiveRef(env, stderr, r.rec)
+	if r.rec.Ref != "" {
+		dropArchiveRef(env, stderr, r.rec)
+	}
+}
+
+func mirrorSubject(id string) string {
+	return fmt.Sprintf("#%s: mirror working card", issue.CLIRef(id))
 }
 
 // dropArchiveRef deletes a reopened issue's archive ref, leased on the kept

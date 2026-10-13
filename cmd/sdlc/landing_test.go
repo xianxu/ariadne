@@ -17,7 +17,7 @@ import (
 const landingTestBranch = "000001-procedure"
 
 type landingFakeGH struct {
-	stubGH
+	ciSeamGH
 	t          *testing.T
 	remote     string
 	pr         landingPR
@@ -30,11 +30,17 @@ type landingFakeGH struct {
 	checks     []prCheck // nil: the stub's green default (#309)
 }
 
-func (g *landingFakeGH) PRHeadOID(context.Context, string, int) (string, error) {
+func (g *landingFakeGH) PRHeadOID(ctx context.Context, repo string, n int) (string, error) {
+	if g.ci != nil {
+		return g.ci.PRHeadOID(ctx, repo, n)
+	}
 	return g.pr.HeadOID, nil
 }
 
 func (g *landingFakeGH) PRChecks(ctx context.Context, repo string, n int) ([]prCheck, error) {
+	if g.ci != nil {
+		return g.ci.PRChecks(ctx, repo, n)
+	}
 	if g.checks == nil {
 		return g.stubGH.PRChecks(ctx, repo, n)
 	}

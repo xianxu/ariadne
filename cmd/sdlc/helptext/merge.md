@@ -88,6 +88,15 @@ CI GATE (#309)
   agents never apply it. --no-ci waives this gate only, for a broken CI
   system or a repository whose workflows never run on PRs.
 
+  Recorded local checks (#345): a CI job GitHub cancelled before any runner
+  took it (no runner, zero steps) passes when the check main's
+  .sdlc/local-checks.json declares as its substitute has a recorded pass
+  (status sdlc-local/<name>) on the head. A check declared `required` needs
+  that recorded pass whatever CI reports. When one is missing, merge prints
+  the command and log path, runs it under the machine-wide suite lock on the
+  pinned head, records it, and reads the checks again. A job that ran and
+  failed still blocks. See `sdlc local-check run --help`.
+
 FLAGS
 
   --yes                 skip interactive confirmation; required without a TTY

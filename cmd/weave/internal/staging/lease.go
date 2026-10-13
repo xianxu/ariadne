@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"syscall"
+	"time"
 )
 
 var ErrInUse = errors.New("stage still has producer leases")
@@ -19,6 +20,26 @@ func Lease(stage string) (*os.File, error) { return lock(stage, syscall.LOCK_SH)
 // Exclusive proves no inherited writer remains. The caller holds this proof
 // through cleanup and closes it afterward. PID reuse cannot fake this proof.
 func Exclusive(stage string) (*os.File, error) { return lock(stage, syscall.LOCK_EX) }
+
+// Settle bounds how long a dead or signalled producer may take to release its
+// inherited lease. An exiting process closes its descriptors in order, so a
+// parent waiting on its output pipe (fd 1/2) can resume before the lease (fd 3)
+// is released (#343); a live producer keeps it past the bound.
+const Settle = time.Second
+
+// AwaitExclusive is Exclusive retried until within elapses, for a lease whose
+// holders are expected to be exiting. ErrInUse after the bound means a holder
+// is still alive.
+func AwaitExclusive(stage string, within time.Duration) (*os.File, error) {
+	deadline := time.Now().Add(within)
+	for {
+		lease, err := Exclusive(stage)
+		if !errors.Is(err, ErrInUse) || time.Now().After(deadline) {
+			return lease, err
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
 
 func lock(stage string, kind int) (*os.File, error) {
 	path := filepath.Join(stage, "lease")

@@ -209,6 +209,9 @@ type TreeRow struct {
 	TreePath     string             `json:"tree_path"`
 	Branch       string             `json:"branch,omitempty"`
 	Detached     bool               `json:"detached"`
+	// Staged marks a detached checkout at the commit `sdlc stage` recorded
+	// (#344): another slot's smoke test, not a checkout to recover.
+	Staged       bool               `json:"staged,omitempty"`
 	Bare         bool               `json:"bare"`
 	Locked       *string            `json:"locked,omitempty"`
 	Prunable     *string            `json:"prunable,omitempty"`
@@ -257,6 +260,7 @@ func (r *TreeRow) UnmarshalJSON(raw []byte) error {
 		TreePath     string             `json:"tree_path"`
 		Branch       string             `json:"branch,omitempty"`
 		Detached     *bool              `json:"detached"`
+		Staged       bool               `json:"staged,omitempty"`
 		Bare         *bool              `json:"bare"`
 		Locked       *string            `json:"locked,omitempty"`
 		Prunable     *string            `json:"prunable,omitempty"`
@@ -282,6 +286,7 @@ func (r *TreeRow) UnmarshalJSON(raw []byte) error {
 		TreePath:     wire.TreePath,
 		Branch:       wire.Branch,
 		Detached:     *wire.Detached,
+		Staged:       wire.Staged,
 		Bare:         *wire.Bare,
 		Locked:       wire.Locked,
 		Prunable:     wire.Prunable,
@@ -315,6 +320,9 @@ func (r TreeRow) validate() error {
 		}
 	} else if (r.Branch != "") == r.Detached {
 		return errors.New("non-bare tree row requires exactly one of branch or detached")
+	}
+	if r.Staged && !r.Detached {
+		return errors.New("a staged tree row must be detached")
 	}
 	if r.Issues == nil {
 		return errors.New("tree row issues must be non-null")

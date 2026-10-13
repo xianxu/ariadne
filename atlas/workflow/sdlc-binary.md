@@ -40,6 +40,7 @@ recurs at a stage (not by formalizing the SDLC as a state machine).
 | `push`            | `make push`                 | Direct-on-main ship + the #124 instance-conformance gate (`--no-validate`) + pre-flight judges (still available; not the default close path since #51) |
 | `pr`              | `make pull-request`         | PR creation with Fixes-issue body |
 | `merge`           | `make merge`                | PR landing with instance/publish gates and confirmation; :0/:N archive remotely and return to unchanged rest, ordinary worktrees/dependencies retain legacy cleanup |
+| `local-check run` | (new #345)                  | Run checks declared in main's `.sdlc/local-checks.json` on a pushed commit, in a detached worktree under the machine-wide suite lock, and record each as the commit status `sdlc-local/<name>`; merge's CI gate accepts it for a CI job that never got a runner and requires it for `required` checks ([ci-merge-check](ci-merge-check.md#recorded-local-checks-345)) |
 | `milestone-close` | `make close-issue MILESTONE=Mx` | Milestone close + auto-dispatched boundary review (the one reviewer, per-milestone window; #69). THE milestone-close path — `close` refuses `--milestone` (#146); `--no-judge` here is the labeled skip-review escape. |
 | `issue new`       | (new; xx-issues skill prose)| File on origin: the next ID's card on `issue-tracker` and the details on main, writing no checkout; a numbered slot claims what it files (#252, #308; `--from-github N` seeds from GitHub) |
 | `issue move-detail` | (new #252; hidden #308)   | Deprecated alias of `issue publish --issue N`: finishes a pre-#308 creation by publishing its local details to main; net-zero removal on the source |
@@ -353,7 +354,9 @@ tracker through the fleet primary with the same publication identity
 (pure, `slots.go`) judges each member from its facts — including the operation
 in progress, read from the worktree's git directory with no git process
 (`workspace.ActiveOperation`) — and its recorded issue-lookup outcome and
-claims; `AssembleSlots` folds the worst. The inventory JSON is versioned
+claims; `AssembleSlots` folds the worst. A detached member needs recovery
+unless it is staged (#344): `TreeRow.Staged`, set when HEAD equals the
+worktree's `sdlc stage` record (`fleet.StagedCommit`), is the hold `staged`. The inventory JSON is versioned
 (`schema_version` 1). Measured here: 6.3s with 39 slots (+0.4s over #290).
 
 Tracker reads are the inventory's network cost (#290). `repoRecords` is a

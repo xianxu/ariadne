@@ -24,7 +24,7 @@ eq()   { if [[ "$2" == "$3" ]]; then pass "$1"; else fail "$1 (expected '$2', go
 
 # One guarded temp root for every file-touching test. If it can't be made, the
 # file/e2e tiers SKIP (not FAIL) — and crucially nothing ever writes to the host.
-work="$(mktemp -d 2>/dev/null || true)"
+work="$(mktemp -d "${TMPDIR:-/tmp}/docflow-test.XXXXXX" 2>/dev/null || true)"
 have_tmp=1
 [[ -z "$work" || ! -d "$work" ]] && have_tmp=0
 [[ "$have_tmp" -eq 1 ]] && trap 'cd / 2>/dev/null; rm -rf "$work"' EXIT

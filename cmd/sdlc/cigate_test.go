@@ -42,7 +42,7 @@ func TestDecideCIGate(t *testing.T) {
 		{"none and no workflows", nil, false, ciNoWorkflows, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			v := decideCIGate(tc.checks, tc.workflows)
+			v := decideCIGate(ciInputs{Checks: tc.checks, HeadHasWorkflows: tc.workflows})
 			if v.Reason != tc.want {
 				t.Fatalf("reason %d, want %d", v.Reason, tc.want)
 			}
@@ -64,6 +64,67 @@ func TestDecideCIGate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// #345: a recorded local run substitutes only for a job that never got a runner,
+// and a required local check needs its recorded pass whatever CI reports.
+func TestDecideCIGateLocalChecks(t *testing.T) {
+	const label = "couch-zellij-conformance / conformance"
+	job := prCheck{Name: "conformance", Workflow: "couch-zellij-conformance", Bucket: "cancel"}
+	failed := prCheck{Name: "conformance", Workflow: "couch-zellij-conformance", Bucket: "fail"}
+	merge := prCheck{Name: "merge-check", Bucket: "pass"}
+	pending := prCheck{Name: "build", Bucket: "pending"}
+	local := func(name, bucket string) prCheck { return prCheck{Name: localStatusContext(name), Bucket: bucket} }
+	decl := localCheckDecl{Version: 1, Checks: []localCheck{{Name: "zellij", Command: []string{"make"}, Substitutes: []string{label}}}}
+	required := localCheckDecl{Version: 1, Checks: []localCheck{{Name: "e2e", Command: []string{"make"}, Required: true}}}
+	runnerless := map[string]bool{label: true}
+	for _, tc := range []struct {
+		name      string
+		in        ciInputs
+		want      ciReason
+		offenders []string
+		need      []string
+	}{
+		{"runnerless + recorded pass", ciInputs{Checks: []prCheck{merge, job, local("zellij", "pass")}, Local: decl, Runnerless: runnerless}, ciGreen, nil, nil},
+		{"runnerless, nothing recorded", ciInputs{Checks: []prCheck{merge, job}, Local: decl, Runnerless: runnerless}, ciLocalNeeded, nil, []string{"zellij"}},
+		{"ran and cancelled stays red", ciInputs{Checks: []prCheck{job, local("zellij", "pass")}, Local: decl, Runnerless: map[string]bool{}}, ciRed, []string{"conformance"}, nil},
+		{"failed stays red", ciInputs{Checks: []prCheck{failed, local("zellij", "pass")}, Local: decl, Runnerless: runnerless}, ciRed, []string{"conformance"}, nil},
+		{"runnerless with no substitute is red", ciInputs{Checks: []prCheck{job}, Runnerless: runnerless}, ciRed, []string{"conformance"}, nil},
+		{"recorded local failure is red", ciInputs{Checks: []prCheck{job, local("zellij", "fail")}, Local: decl, Runnerless: runnerless}, ciRed, []string{localStatusContext("zellij")}, []string{"zellij"}},
+		{"pending CI outranks a needed local run", ciInputs{Checks: []prCheck{pending, job}, Local: decl, Runnerless: runnerless}, ciPending, []string{"build"}, []string{"zellij"}},
+		{"required, no CI at all", ciInputs{Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
+		{"required, CI not registered yet waits", ciInputs{HeadHasWorkflows: true, Local: required}, ciNotRegistered, nil, nil},
+		{"required, green CI, nothing recorded", ciInputs{Checks: []prCheck{merge}, Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
+		{"required, recorded failure", ciInputs{Checks: []prCheck{merge, local("e2e", "fail")}, Local: required}, ciRed, []string{localStatusContext("e2e")}, []string{"e2e"}},
+		{"required, recorded pass", ciInputs{Checks: []prCheck{merge, local("e2e", "pass")}, Local: required}, ciGreen, nil, nil},
+		// Provenance: only a commit status records a local run, not a check run that carries the name.
+		{"an Actions job named sdlc-local is not a recorded run", ciInputs{Checks: []prCheck{merge, {Name: localStatusContext("e2e"), Workflow: "ci", Bucket: "pass", Link: "https://github.com/o/r/actions/runs/1/job/2"}}, Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
+		{"a check run with an Actions link is not a recorded run", ciInputs{Checks: []prCheck{job, {Name: localStatusContext("zellij"), Bucket: "pass", Link: "https://github.com/o/r/actions/runs/1/job/3"}}, Local: decl, Runnerless: runnerless}, ciLocalNeeded, nil, []string{"zellij"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v := decideCIGate(tc.in)
+			if v.Reason != tc.want {
+				t.Fatalf("reason %d, want %d", v.Reason, tc.want)
+			}
+			var names []string
+			for _, c := range v.Offender {
+				names = append(names, c.Name)
+			}
+			if !reflect.DeepEqual(names, tc.offenders) || !reflect.DeepEqual(v.LocalNeeded, tc.need) {
+				t.Fatalf("offenders %v need %v, want %v %v", names, v.LocalNeeded, tc.offenders, tc.need)
+			}
+			err := v.refusal(7)
+			if (err == nil) != tc.want.passes() {
+				t.Fatalf("refusal %v for reason %d", err, tc.want)
+			}
+			if tc.want == ciLocalNeeded && !strings.Contains(err.Error(), "sdlc local-check run --name "+tc.need[0]) {
+				t.Fatalf("refusal does not name the run: %v", err)
+			}
+		})
+	}
+	if v := decideCIGate(ciInputs{Checks: []prCheck{job, local("zellij", "pass")}, Local: decl, Runnerless: runnerless}); len(v.Substituted) != 1 || !strings.Contains(v.Substituted[0], label) {
+		t.Fatalf("substitution not reported: %v", v.Substituted)
 	}
 }
 
@@ -152,6 +213,9 @@ func TestRunCIGate(t *testing.T) {
 	// tree answers ls-tree: the head's .github/workflows, and main's guard workflow.
 	tree := func(workflows, guard bool) func(args ...string) (string, error) {
 		return func(args ...string) (string, error) {
+			if args[len(args)-1] == localChecksPath {
+				return "", nil // no local-check declaration on main
+			}
 			if args[len(args)-1] == localGatesWorkflow {
 				if guard && args[len(args)-2] == "b" {
 					return localGatesWorkflow + "\n", nil
@@ -169,22 +233,22 @@ func TestRunCIGate(t *testing.T) {
 	ctx := context.Background()
 
 	g := &checksGH{err: errors.New("HTTP 502")}
-	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "could not read") {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, nil, false, io.Discard); err == nil || !strings.Contains(err.Error(), "could not read") {
 		t.Fatalf("query failure: %v", err)
 	}
 	g = &checksGH{err: errors.New("HTTP 502")}
 	var warn bytes.Buffer
-	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, true, &warn); err != nil || g.calls != 0 || !strings.Contains(warn.String(), "--no-ci") {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, nil, true, &warn); err != nil || g.calls != 0 || !strings.Contains(warn.String(), "--no-ci") {
 		t.Fatalf("--no-ci: err %v calls %d warn %q", err, g.calls, warn.String())
 	}
 	g = &checksGH{}
-	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "no checks yet") {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, nil, false, io.Discard); err == nil || !strings.Contains(err.Error(), "no checks yet") {
 		t.Fatalf("unregistered: %v", err)
 	}
-	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", noWF, false, io.Discard); err != nil {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", noWF, nil, false, io.Discard); err != nil {
 		t.Fatalf("no workflows: %v", err)
 	}
-	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", brokenGit, false, io.Discard); err == nil {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", brokenGit, nil, false, io.Discard); err == nil {
 		t.Fatal("unreadable head tree passed")
 	}
 	// BR-1: GitHub's PR head lags the push, or moves during the read — the
@@ -192,26 +256,26 @@ func TestRunCIGate(t *testing.T) {
 	green := []prCheck{{Name: "merge-check", Bucket: "pass"}}
 	for _, heads := range [][]string{{"old", "old"}, {"h", "new"}, {"old", "h"}} {
 		g = &checksGH{checks: green, heads: heads}
-		if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "another commit") {
+		if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, nil, false, io.Discard); err == nil || !strings.Contains(err.Error(), "another commit") {
 			t.Fatalf("heads %v: %v", heads, err)
 		}
 	}
 	g = &checksGH{checks: green, heads: []string{"h", "h"}}
-	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, false, io.Discard); err != nil {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, nil, false, io.Discard); err != nil {
 		t.Fatalf("bound green: %v", err)
 	}
 	// BR-11: while main carries the guard, its verdict must be reported; an
 	// absent verdict is not green, a pending one is pending.
 	g = &checksGH{checks: green}
-	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", guardMain, false, io.Discard); err == nil || !strings.Contains(err.Error(), localGatesVerdict) {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", guardMain, nil, false, io.Discard); err == nil || !strings.Contains(err.Error(), localGatesVerdict) {
 		t.Fatalf("missing verdict: %v", err)
 	}
 	g = &checksGH{checks: append(green, prCheck{Name: localGatesVerdict, Bucket: "pass"})}
-	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", guardMain, false, io.Discard); err != nil {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", guardMain, nil, false, io.Discard); err != nil {
 		t.Fatalf("verdict present: %v", err)
 	}
 	g = &checksGH{checks: append(green, prCheck{Name: localGatesVerdict, Bucket: "pending"})}
-	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", guardMain, false, io.Discard); err == nil || !strings.Contains(err.Error(), "still running") {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", guardMain, nil, false, io.Discard); err == nil || !strings.Contains(err.Error(), "still running") {
 		t.Fatalf("verdict pending: %v", err)
 	}
 	g = &checksGH{checks: green}
@@ -220,11 +284,11 @@ func TestRunCIGate(t *testing.T) {
 			return "", errors.New("bad object")
 		}
 		return "", nil
-	}, false, io.Discard); err == nil {
+	}, nil, false, io.Discard); err == nil {
 		t.Fatal("unreadable main tree passed")
 	}
 	g = &checksGH{checks: []prCheck{{Name: "local-gates-guard", Bucket: "fail", Link: "https://x/9"}}}
-	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, false, io.Discard); err == nil || !strings.Contains(err.Error(), "local-gates-guard") || !strings.Contains(err.Error(), "https://x/9") {
+	if err := runCIGate(ctx, g, "o/r", 3, "b", "h", withWF, nil, false, io.Discard); err == nil || !strings.Contains(err.Error(), "local-gates-guard") || !strings.Contains(err.Error(), "https://x/9") {
 		t.Fatalf("red: %v", err)
 	}
 }

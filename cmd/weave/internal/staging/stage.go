@@ -85,7 +85,11 @@ func Reclaim(destination string) error {
 		if err = syscall.Kill(owner.PID, 0); !errors.Is(err, syscall.ESRCH) {
 			continue
 		}
-		lease, lockErr := Exclusive(stage)
+		// The owner is dead, but its orphaned producer may still be exiting:
+		// let the lease settle before judging it active (#343). Cost: up to
+		// Settle per dead-owner stage whose orphan is still alive, serially;
+		// such stages are rare, and each is reclaimed once its orphan exits.
+		lease, lockErr := AwaitExclusive(stage, Settle)
 		if lockErr != nil {
 			continue
 		} // active/missing/uncertain lease: preserve ownership

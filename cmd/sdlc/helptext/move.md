@@ -1,5 +1,6 @@
-Move this slot's issue branch into another slot, usually :0 for testing, and
-return this slot to its resting branch (#260).
+Move this slot's issue branch into another slot and return this slot to its
+resting branch (#260). For a smoke test on :0, use `sdlc stage` instead (#344):
+it puts this slot's HEAD there detached, and the branch stays here.
 
 OWNERSHIP (#277): a move is the owner (the claimant) relocating its own work
 on this machine. Before switching, move records the relocation locally (the

@@ -122,17 +122,10 @@ func finishProducers(stage string, pgid int) error {
 	if err := syscall.Kill(-pgid, syscall.SIGKILL); err != nil && !errors.Is(err, syscall.ESRCH) {
 		return err
 	}
-	deadline := time.Now().Add(time.Second)
-	for {
-		lease, err = staging.Exclusive(stage)
-		if err == nil {
-			return lease.Close()
-		}
-		if !errors.Is(err, staging.ErrInUse) || time.Now().After(deadline) {
-			return fmt.Errorf("producer lifetime remains uncertain; preserving stage %s: %w", stage, err)
-		}
-		time.Sleep(10 * time.Millisecond)
+	if lease, err = staging.AwaitExclusive(stage, staging.Settle); err != nil {
+		return fmt.Errorf("producer lifetime remains uncertain; preserving stage %s: %w", stage, err)
 	}
+	return lease.Close()
 }
 
 // ensure ExecRunner satisfies Runner at compile time.

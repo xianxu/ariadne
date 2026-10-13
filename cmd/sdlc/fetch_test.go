@@ -39,6 +39,17 @@ func (s stubGH) PRHeadOID(context.Context, string, int) (string, error) {
 }
 func (s stubGH) PRMergedForBranch(repo, headRef string) (bool, error) { return false, nil }
 
+// The #345 methods: a test that reaches them uses ciFakeGH (cigate_fake_test.go).
+func (s stubGH) JobRun(context.Context, string, int64) (jobRun, error) {
+	return jobRun{}, errors.New("stubGH: JobRun not implemented")
+}
+func (s stubGH) PostStatus(context.Context, string, string, string, string, string) error {
+	return errors.New("stubGH: PostStatus not implemented")
+}
+func (s stubGH) PRComment(context.Context, string, int, string) error {
+	return errors.New("stubGH: PRComment not implemented")
+}
+
 // TestFetchAlias_ThroughTree: the hidden `fetch --github-issue N` alias still
 // delegates to `issue new --from-github`, now reserving a tracker card (#252).
 func TestFetchAlias_ThroughTree(t *testing.T) {

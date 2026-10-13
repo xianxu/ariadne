@@ -565,7 +565,9 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		if out, ferr := mergeRunner.Git("fetch", "origin", "+refs/heads/main:refs/remotes/origin/main"); ferr != nil {
 			die(stderr, fmt.Sprintf("CI gate: git fetch origin main: %v\n%s", ferr, out))
 		}
-		if err := runCIGate(ctx, ghClient, repo, prNum, "origin/main", head, gitCall, f.NoCI, stderr); err != nil {
+		root := gitx.Capture("rev-parse", "--show-toplevel")
+		localRun := newLocalCheckRunner(localRunDeps{GH: ghClient, Repo: repo, Root: root, Git: gitCall, PR: prNum, Stderr: stderr})
+		if err := runCIGate(ctx, ghClient, repo, prNum, "origin/main", head, gitCall, localRun, f.NoCI, stderr); err != nil {
 			die(stderr, err.Error())
 		}
 		cinfo(stderr, fmt.Sprintf("Merging PR #%s (%s) into main via GitHub...", prNumber, branch))

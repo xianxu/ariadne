@@ -116,6 +116,43 @@ and `sdlc merge` will not land over it:
   not configured: merge's refusal is the gate for agents, the guard the
   server's detector.
 
+## Recorded local checks (#345)
+
+The operator's stance: for a small team, local runs are the primary verification
+(faster and more controlled on the operator's machine), and CI mainly guards that
+what agents are not supposed to change has not changed. So a local run is
+first-class evidence, recorded on the commit it ran on:
+
+- **Declaration** (`.sdlc/local-checks.json`, parsed strictly in
+  `cmd/sdlc/localchecks.go`). Each check has a `name`, an argv `command`,
+  optional `substitutes` (CI check labels, `workflow / job`), optional
+  `required`, and `timeout_minutes`. The gate reads it from **main's** tree,
+  never the PR head, and `.sdlc/` is under the local-gates guard, so an agent
+  cannot declare its way past a CI job.
+- **Recording** (`sdlc local-check run`, `cmd/sdlc/localcheck_run.go`). It runs
+  in a fresh detached worktree at the exact commit, under one of the
+  machine-wide full-suite slots (the same `scripts/test-lock.py` that
+  `make test` takes, found beside `Makefile.workflow`'s real path; it refuses
+  rather than run unbounded). The log is kept under
+  `<git common dir>/sdlc/local-checks/<sha>/` (newest 20 commits), and the run
+  posts the commit status `sdlc-local/<name>`. A failure also posts a bounded
+  log tail as a PR comment.
+- **Merge** (`decideCIGate`, `runCIGate`). A `cancel` check counts as
+  *runnerless* only when the Actions jobs API reports no runner and zero steps
+  (structural, measured on pair job 115490631095; a live conformance test reads
+  it). A runnerless job with a declared substitute passes on that substitute's
+  recorded pass. A `required` check needs its recorded pass whatever CI says.
+  A job that ran and failed or was cancelled stays red. When a needed run is
+  missing, merge runs it itself through the same path, then re-reads the head
+  and checks (a push during the run, or a pass that never reached GitHub,
+  refuses). Red, unknown and pending CI outrank a needed local run, so nothing
+  runs locally while CI is red or still running.
+- **Trust limit:** anyone with the repository's token can post an
+  `sdlc-local/*` status. That is accepted: the local machine is trusted, and
+  what CI guards is the declaration and the gate code.
+- **Fake:** `ciFakeGH` (`cmd/sdlc/cigate_fake_test.go`) models heads, checks,
+  the status rollup, jobs and comments, behind the same `ghCaller` seam.
+
 ## Not the same as the publish gate or the close review
 
 Three distinct tiers, none an LLM at merge-time (#160):
