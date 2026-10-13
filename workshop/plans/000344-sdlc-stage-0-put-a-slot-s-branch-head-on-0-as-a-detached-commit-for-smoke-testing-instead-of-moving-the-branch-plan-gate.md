@@ -53,7 +53,28 @@ rounds:
           note: Task 2 uses one table strategy (states x verbs, a refused run changes nothing).
           round: 2
       blocked: false
-content_hash: 7406268fca4872ff1ebbcacf6deedc27139412496869a637da70243015e888c2
+    - "n": 3
+      timestamp: "2026-10-13T14:08:16-07:00"
+      agent: claude
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: TreeRow.Staged plus JudgeCheckout hold `staged`; other detached checkouts stay needs-recovery.
+          round: 3
+        - id: PQ-2
+          disposition: addressed
+          note: Explicit non-goal; the record is trusted only on an exact HEAD match.
+          round: 3
+        - id: PQ-3
+          disposition: addressed
+          note: 'The Effect order paragraph: the record is written after the verified switch.'
+          round: 3
+        - id: PQ-4
+          disposition: addressed
+          note: One table-test strategy line plus one real-git flow.
+          round: 3
+      blocked: false
+content_hash: 778ffe0432a7f287e4aab78af78c83c13f16374654795c66a70b4b06235c0f37
 ---
 
 # Gate ledger — ariadne#344 (plan-quality)
@@ -82,6 +103,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - PQ-2 — addressed — Non-goal says the record can go stale and is trusted only on an exact HEAD match.
 - PQ-3 — addressed — Effect order section: the record is written only after a verified switch, with the crash reasoning.
 - PQ-4 — addressed — Task 2 uses one table strategy (states x verbs, a refused run changes nothing).
+
+## Round 3 — 2026-10-13T14:08:16-07:00 (claude) — passed
+
+### Disposed
+
+- PQ-1 — addressed — TreeRow.Staged plus JudgeCheckout hold `staged`; other detached checkouts stay needs-recovery.
+- PQ-2 — addressed — Explicit non-goal; the record is trusted only on an exact HEAD match.
+- PQ-3 — addressed — The Effect order paragraph: the record is written after the verified switch.
+- PQ-4 — addressed — One table-test strategy line plus one real-git flow.
 
 ## Open findings
 
