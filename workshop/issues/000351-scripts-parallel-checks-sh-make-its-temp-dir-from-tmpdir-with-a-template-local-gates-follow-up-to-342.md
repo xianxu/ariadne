@@ -1,12 +1,12 @@
 ---
 id: 000351
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '75f3e2cda2983b430fd3e4d277b2e60a19876e87' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a9f0ed62db56d720938a437f54a6e2140e6752bf' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T15:49:17-07:00
 claimant:
     operator: Xian Xu
@@ -41,7 +41,14 @@ exemption from #342's template-less `mktemp` check.
 
 ## Plan
 
-- [ ] Edit line 144; delete the exemption row in the #342 check; run the check.
+- [x] Line 144: `mktemp -d "${TMPDIR:-/tmp}/parallel-checks.XXXXXX"` with an explicit
+  failure path; the cleanup trap expands `"${OUTDIR:?}"`.
+- [x] Remove the `scripts/parallel-checks.sh` exemption from `pkg/shelllint` (the map
+  stays, empty, for the next rule that lands before a local-gates fix).
+- [x] Folded in (same file, same operator verification): line 108's
+  `pids=("${alive[@]}")` dies under bash 3.2's `set -u` when every running check
+  finishes between polls; now `${alive[@]+"${alive[@]}"}`.
+- [ ] Operator's `local-gates-verified` label on the PR, then merge.
 
 ## Log
 
@@ -49,3 +56,13 @@ exemption from #342's template-less `mktemp` check.
 - 2026-10-13: unclaimed: filed from #342; local-gates change, operator verifies; unclaimed for whoever the hub assigns
 
 Filed by ariadne:3 while working #342, which exempts this one path until this lands.
+
+### 2026-10-13 — ariadne:3
+
+Verified: `go test ./pkg/shelllint` green with no exemption. `TMPDIR=/nonexistent-342
+scripts/parallel-checks.sh --audit` prints "Cannot make a temp dir under
+/nonexistent-342" and exits 1, writing nothing. The success path ran in a scratch repo
+with a stub `pre-merge-checks.sh` (the real checks launch LLM agents, `specs` with write
+tools): it first stopped at line 108 with `alive[@]: unbound variable` (macOS /bin/bash
+3.2.57, empty array under `set -u`, a pre-existing bug the instant stubs make certain);
+fixed, it runs to completion, exit 0, and leaves no `parallel-checks.*` dir in TMPDIR.

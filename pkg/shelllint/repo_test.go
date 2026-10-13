@@ -9,12 +9,10 @@ import (
 	"testing"
 )
 
-// exempt names tracked scripts this repository cannot fix here, each with the
-// issue that does. A local-gates path changes only in its own issue, with the
-// operator's verification (AGENTS §5).
-var exempt = map[string]string{
-	"scripts/parallel-checks.sh": "#351",
-}
+// exempt names tracked scripts this repository cannot fix in the change that
+// adds a rule, each with the issue that does (a local-gates path changes only in
+// its own issue, with the operator's verification, AGENTS §5). Empty since #351.
+var exempt = map[string]string{}
 
 // TestTrackedScriptsMakeTempDirsFromTMPDIR applies MktempFindings to every
 // tracked shell script (#342). An exemption must still have a finding, so it
