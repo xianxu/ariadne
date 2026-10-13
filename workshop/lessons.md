@@ -201,6 +201,10 @@ Detailed incidents remain in their owning issue or review artifact.
 - When "no answer" has an expected meaning and a failure meaning (not a worktree
   vs Git could not say), type the expected one and fail closed on the rest. A
   caller that treats every error as the expected case acts on a guess (#230 BR-2).
+- When one rule becomes shared (one resolver for every consumer), enumerate the
+  consumers from the input's readers (every caller of the parser), not from the
+  plan's list. weave refresh re-resolved rows itself and broke from a linked
+  worktree after compile was fixed (#230 BR-8).
 - A behavior change to a surface the README documents updates the README, even
   with no new command: a now-false README sentence is a finding (#230 BR-3).
 - Validate external identifier grammar before interpreting sentinel values. An

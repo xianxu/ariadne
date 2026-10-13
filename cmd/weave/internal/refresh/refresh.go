@@ -5,11 +5,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"path/filepath"
 	"reflect"
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/acquire"
+	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
 func discoverRefresh(ctx context.Context, root string, c acquire.Client) (acquire.Result, error) {
@@ -22,7 +22,14 @@ func discoverRefresh(ctx context.Context, root string, c acquire.Client) (acquir
 	}
 	return r, nil
 }
-func declaredOrigins(snapshots []Snapshot) error {
+// declaredOrigins checks each sourced substrate's effective origin. A row
+// resolves through layergraph.Resolver, as discovery's Restore did (#230):
+// from a linked worktree, an absent row is the primary checkout's sibling.
+func declaredOrigins(snapshots []Snapshot, anchors layergraph.Anchors) error {
+	resolver := layergraph.NewResolver(layergraph.OSFS{})
+	if anchors != nil {
+		resolver.Anchors = anchors
+	}
 	byPath := map[string]Snapshot{}
 	for _, s := range snapshots {
 		byPath[s.path] = s
@@ -32,11 +39,11 @@ func declaredOrigins(snapshots []Snapshot) error {
 			if row.Kind != "substrate" || row.Source == "" {
 				continue
 			}
-			p := row.Path
-			if !filepath.IsAbs(p) {
-				p = filepath.Join(s.path, p)
+			res, e := resolver.Substrate(s.path, row.Path)
+			if e != nil {
+				return e
 			}
-			p, e := canonical(p)
+			p, e := canonical(res.Path)
 			if e != nil {
 				return e
 			}
@@ -100,7 +107,7 @@ func Run(ctx context.Context, root string, c acquire.Client, rebase bool, out io
 	if len(blockers) > 0 {
 		return errors.Join(blockers...)
 	}
-	if e := declaredOrigins(snapshots); e != nil {
+	if e := declaredOrigins(snapshots, c.Anchors); e != nil {
 		return e
 	}
 	for i := range snapshots {

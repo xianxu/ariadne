@@ -178,6 +178,20 @@ Close review round 1 (FIX-THEN-SHIP, window 08afcec5..d9d786c2): all seven fixed
 - `DeclaredSubstrate.Via/NoFallback` have no production reader yet; DeclaredSubstrates
   itself has none (#294 added it for later use). They stay as provenance on that API.
 
+Close review round 2 (FIX-THEN-SHIP, window 08afcec5..960169b8): round 1's seven
+dispositioned addressed; three new, all fixed.
+- BR-8: weave refresh's `declaredOrigins` re-joined rows beside the worktree (reproduced:
+  ENOENT from a linked worktree). It now resolves through `layergraph.Resolver` with the
+  client's Anchors; `TestRefreshLinkedWorktreeSubstrate`. Class sweep over every
+  `construct/deps` row reader: `migrateSourceless` (primary only) and sdlc fleet membership
+  (numbered environment only) keep the owner-relative join, provably the resolver's answer
+  there, each with a comment.
+- BR-9: plan sites stating the pre-fix contract marked superseded, delta in the plan's
+  Revisions.
+- BR-10: `substrateWalkWith` seam; on a Git failure the resolver returns the absent local
+  spelling and the walk reports it through its ordinary absent branch (deduped);
+  `TestSubstrateWalkAnchorFailureReportsAbsent`, mutation-checked.
+
 ## Revisions
 
 - 2026-10-12 — the 2026-09-21 entry says a slot falls back to the primary checkout when

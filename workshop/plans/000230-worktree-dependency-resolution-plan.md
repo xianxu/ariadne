@@ -59,7 +59,7 @@ under test, and fixes the resolution itself.
    numbered-environment host, Git failure). `Walk` keeps its present-skip for an absent
    row (existing compatibility) and records the reason on `DeclaredSubstrate`;
    `Restore`'s missing-substrate error appends it, so the operator sees why the
-   fallback did not apply.
+   fallback did not apply. *(Superseded: see Revisions, 2026-10-13.)*
 6. **Reporting:** `Restore` returns `Fallbacks`; `weave compile` prints one line per
    fallback (declared row, owner, chosen path, primary). `DeclaredSubstrate.Via` carries
    the same provenance for read-only consumers.
@@ -77,7 +77,7 @@ under test, and fixes the resolution itself.
 | `Probe` | `pkg/layergraph/substrate.go` | new |
 | `Resolution` | `pkg/layergraph/substrate.go` | new |
 | `ChooseSubstrate` | `pkg/layergraph/substrate.go` | new |
-| `DeclaredSubstrate` (+`Declared`, `Via`, `Unanchored`) | `pkg/layergraph/walk.go` | modified |
+| `DeclaredSubstrate` (+`Declared`, `Via`, `Unanchored`) | `pkg/layergraph/walk.go` | modified (field renamed: see Revisions, 2026-10-13) |
 | `acquire.Result` (+`Fallbacks`), `acquire.Fallback` | `cmd/weave/internal/acquire/acquire.go` | modified / new |
 
 - **ChooseSubstrate(owner, target, primary string, probe func(string) Probe) Resolution**
@@ -89,7 +89,7 @@ under test, and fixes the resolution itself.
   - **Future extensions:** a second anchor kind (e.g. an explicit slot map) widens
     `primary` into an ordered anchor list.
 - **Resolution** `{Path, Local, Via string; Probe Probe}` — `Path` is the chosen
-  lexical path, `Via` the primary used (`""` when local).
+  lexical path, `Via` the primary used (`""` when local). *(Superseded: see Revisions, 2026-10-13.)*
 
 ### Integration points
 
@@ -104,14 +104,14 @@ under test, and fixes the resolution itself.
   root, or an error naming why there is none. It first `Lstat`s `dir/.git`: without it
   the layer is not a checkout root (a non-Git layer, or a subdirectory whose enclosing
   repository must not lend its primary) and Git is not run.
-  - **Injected into:** `GitAnchors`; tested with real Git and `workspacetest.Fake`.
+  - **Injected into:** `GitAnchors`; tested with real Git and `workspacetest.Fake`. *(Superseded: see Revisions, 2026-10-13.)*
 - **Resolver** — `Substrate(owner, target) (Resolution, error)` runs the local probe;
   only on `Absent` for a relative row does it ask `Anchors` (memoized per owner for one
-  walk). The returned error is the no-anchor reason, never fatal by itself.
+  walk). The returned error is the no-anchor reason, never fatal by itself. *(Superseded: see Revisions, 2026-10-13.)*
   - **Injected into:** `declaredGraph`, `acquire.Client.Restore` (field `Anchors`,
     default `GitAnchors`), sdlc `substrateWalk`. A test FS may implement `Anchors` itself
     (same optional-interface pattern as `DeclarationReader`), so in-memory fakes stay
-    hermetic.
+    hermetic. *(Superseded: see Revisions, 2026-10-13.)*
 
 **Lifecycle (ARCH-FUNERAL):** creates nothing durable: the per-owner anchor memo lives in
 one `Resolver` value for one walk. The change removes a durable artifact (the duplicate
@@ -270,13 +270,13 @@ func DependencyAnchor(git GitReader, dir string) (string, error) {
   - `…Absolute`: deps row with the absolute path of an absent dir → skipped, no fallback.
   - `…Spaces`: the whole fleet under `my fleet/`.
   - `…NoAnchorKeepsPresentSkip`: leaf primary (not a worktree), base absent → Walk ==
-    `[leaf]`, `DeclaredSubstrate.Unanchored` mentions `primary checkout`.
+    `[leaf]`, `DeclaredSubstrate.Unanchored` mentions `primary checkout`. *(Superseded: see Revisions, 2026-10-13.)*
   - `…Vocabulary` (the parley.nvim#254 regression): `base/construct/vocabulary/issue.cue`
     exists; `MergeByName` over Walk's roots from `br` contains `issue.cue` — the
     resolution `cmd/vocabulary` performs before sdlc's merge validation.
 - [ ] **Step 2:** run `go test ./pkg/layergraph -run 'TestWalkLinkedWorktree'` → FAIL
   (falls into present-skip).
-- [ ] **Step 3: implement** `anchor.go`:
+- [ ] **Step 3: implement** `anchor.go`: *(Superseded: see Revisions, 2026-10-13.)*
 
 ```go
 // Anchors finds a declaring layer's fallback anchor (#230). An error is the
@@ -339,7 +339,7 @@ func (r *Resolver) Substrate(owner, target string) (Resolution, error) {
   calls `res.Substrate(repoRoot, row.Path)`, canonicalizes `Resolution.Path` exactly as
   today (`physicalOrEmpty(parent)`, skip when empty), and carries `Declared`, `Via`,
   `Unanchored` (the error's text, only when the row stayed absent) into
-  `substrateRow`/`DeclaredSubstrate`. The `NotLayerError` check is unchanged and now
+  `substrateRow`/`DeclaredSubstrate`. *(Superseded: see Revisions, 2026-10-13.)* The `NotLayerError` check is unchanged and now
   also covers an invalid fallback target. Update the `Walk` doc comment: relative rows
   fall back to the declaring layer's primary checkout (#230).
 - [ ] **Step 4:** the new tests and the whole package pass:
@@ -421,3 +421,39 @@ if !filepath.IsAbs(dest) {
 - [ ] Issue Log: record the out-of-scope `data` rows and `lib-deps.sh`, and the
   environment refinement (Revisions).
 - [ ] Full suite in the background (`make test`), then `sdlc close`.
+
+## Revisions
+
+### 2026-10-13 — close review rounds 1–2 changed the resolver contract
+
+Reason: close review BR-1, BR-2 (round 1) and BR-8, BR-9, BR-10 (round 2). Delta, which
+supersedes the marked sites above (Decision 5, the entity table, the Resolution entry, the
+Resolver entry, Task 3's `NoAnchorKeepsPresentSkip` row and Step 3 code):
+
+- **No-anchor is typed; Git failure is fatal.** `workspace.DependencyAnchor` returns a
+  `*workspace.NoAnchorError` for the expected absences (no `.git` entry, a `.git`
+  directory, i.e. the primary itself, a subdirectory, a bare primary via
+  `workspace.ErrBarePrimary`, a numbered-environment host). Any other error means Git could
+  not answer. A `.git` directory is answered without running Git.
+- **`Resolver.Substrate(owner, target) (Resolution, error)`:** the error is now only that
+  Git failure (fatal for `Walk`, `Restore` and refresh; with it the Resolution is the
+  absent local spelling, which sdlc's best-effort walk reports absent). The reason an
+  absent relative row did not fall back moved to a new field `Resolution.NoFallback`
+  (`*NoAnchorError` or `*FallbackAbsentError`), set by the Resolver only.
+- **Presence uses `Lstat`** (an FS implementing `Lstat`, else `Stat`, failing toward
+  present), so a dangling local symlink is an invalid present target. The walk takes the
+  resolver's probe instead of the removed `pathExists`.
+- **`DeclaredSubstrate.Unanchored` is `NoFallback`**, covering both reasons.
+- **Restore** refuses an absent-everywhere row only without a numbered-environment
+  policy (the policy owns that refusal inside an environment), and its missing-substrate
+  error ends with `no worktree fallback: <reason>`.
+- **One resolver for every row reader that maps a row to a path:** weave refresh's
+  `declaredOrigins` now resolves through it (BR-8). `migrateSourceless` (primary checkout
+  only) and sdlc fleet membership (numbered environment only) keep the owner-relative
+  join, which is provably the resolver's answer there; each says so in a comment.
+- **`workspace.ExecGit`** takes a context and replaces weave's `setupGitReader`.
+- sdlc's walk gained a test seam, `substrateWalkWith(root, resolver)`.
+- `DependencyAnchor` is tested with real Git plus a failing `GitReader` (not
+  `workspacetest.Fake`). Fakes stay hermetic because `DependencyAnchor` runs Git only for
+  a `.git` file, not because of `Anchors`; an FS implementing `Anchors` is the seam a fake
+  uses to model worktrees, now tested.

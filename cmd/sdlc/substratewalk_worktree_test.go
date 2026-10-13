@@ -1,12 +1,14 @@
 package main
 
 import (
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"reflect"
 	"testing"
 
+	"github.com/xianxu/ariadne/pkg/layergraph"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
@@ -38,5 +40,32 @@ func TestSubstrateWalkLinkedWorktree(t *testing.T) {
 	order, absent := substrateWalk(tree)
 	if !reflect.DeepEqual(order, []string{a}) || len(absent) != 0 {
 		t.Fatalf("substrateWalk = %v, absent %v", order, absent)
+	}
+}
+
+// failingAnchorsFS is an FS whose Anchors cannot answer (Git failed).
+type failingAnchorsFS struct{ layergraph.OSFS }
+
+func (failingAnchorsFS) PrimaryCheckout(string) (string, error) {
+	return "", errors.New("git unavailable")
+}
+
+// When Git cannot say whether a layer is a worktree, the row is reported
+// absent, once, under its local spelling — never resolved by a guess.
+func TestSubstrateWalkAnchorFailureReportsAbsent(t *testing.T) {
+	parent, err := workspace.CanonicalPath(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaf := filepath.Join(parent, "leaf")
+	if err := os.MkdirAll(filepath.Join(leaf, "construct"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(leaf, "construct", "deps"), []byte("substrate ../base\nsubstrate ../base\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	order, absent := substrateWalkWith(leaf, layergraph.NewResolver(failingAnchorsFS{}))
+	if len(order) != 0 || !reflect.DeepEqual(absent, []string{filepath.Join(parent, "base")}) {
+		t.Fatalf("order %v, absent %v", order, absent)
 	}
 }

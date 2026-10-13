@@ -439,6 +439,11 @@ func substrateChain(root string) []string {
 // substrateWalk is substrateChain plus the declared targets that are absent on
 // disk (resolved, deduped), for callers that must not read absence as current.
 func substrateWalk(root string) (order, absent []string) {
+	return substrateWalkWith(root, layergraph.NewResolver(layergraph.OSFS{}))
+}
+
+// substrateWalkWith is substrateWalk over a given resolver (the test seam).
+func substrateWalkWith(root string, resolver *layergraph.Resolver) (order, absent []string) {
 	seen := map[string]bool{}
 	// Seed the cycle-guard with the root's CANONICAL key (EvalSymlinks, matching
 	// how upstream entries are keyed below) so a cycle resolving back to root via
@@ -450,7 +455,6 @@ func substrateWalk(root string) (order, absent []string) {
 		rootKey = abs
 	}
 	seen[rootKey] = true
-	resolver := layergraph.NewResolver(layergraph.OSFS{})
 	var walk func(declRoot string)
 	walk = func(declRoot string) {
 		// The shared reader (#289): ordinary file only, bounded, never a FIFO.
@@ -461,18 +465,10 @@ func substrateWalk(root string) (order, absent []string) {
 		for _, target := range parseSubstrateTargets(string(data)) {
 			// The shared resolver (#230): beside declRoot, else beside its
 			// primary checkout when declRoot is a linked worktree.
-			res, err := resolver.Substrate(declRoot, target)
-			if err != nil {
-				// Git could not say whether declRoot is a worktree: report the
-				// local spelling absent rather than guess (callers must not
-				// read absence as current).
-				res.Path = target
-				if !filepath.IsAbs(target) {
-					res.Path = filepath.Join(declRoot, target)
-				}
-				absent = append(absent, filepath.Clean(res.Path))
-				continue
-			}
+			// When Git cannot say whether declRoot is a worktree, the resolver
+			// returns the absent local spelling, which the absent branch below
+			// reports: the walk never resolves a row by a guess.
+			res, _ := resolver.Substrate(declRoot, target)
 			resolved := filepath.Clean(res.Path)
 			if real, err := filepath.EvalSymlinks(resolved); err == nil {
 				resolved = real // canonicalize when the peer exists

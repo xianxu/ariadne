@@ -76,7 +76,8 @@ func (r *Resolver) probe(p string) Probe {
 // Substrate resolves one row declared by owner. An absent relative row that
 // did not fall back carries the reason in NoFallback; the error return is a
 // failure to find owner's anchor (Git could not answer), which the caller
-// must not read as "not a worktree".
+// must not read as "not a worktree". With that error the Resolution is the
+// absent local spelling, for a caller that reports rather than fails.
 func (r *Resolver) Substrate(owner, target string) (Resolution, error) {
 	if filepath.IsAbs(target) || r.probe(filepath.Join(owner, target)) != Absent {
 		return ChooseSubstrate(owner, target, "", r.probe), nil
@@ -84,7 +85,8 @@ func (r *Resolver) Substrate(owner, target string) (Resolution, error) {
 	a := r.anchor(owner)
 	var none *workspace.NoAnchorError
 	if a.err != nil && !errors.As(a.err, &none) {
-		return Resolution{}, fmt.Errorf("resolve substrate %s declared in %s: find its primary checkout: %w", target, owner, a.err)
+		local := filepath.Join(owner, target)
+		return Resolution{Path: local, Local: local, Probe: Absent}, fmt.Errorf("resolve substrate %s declared in %s: find its primary checkout: %w", target, owner, a.err)
 	}
 	res := ChooseSubstrate(owner, target, a.primary, r.probe)
 	switch {

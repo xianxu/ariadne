@@ -63,6 +63,8 @@ func migrateSourceless(ctx context.Context, fs weavefs.FS, client acquire.Client
 		return nil
 	}
 	for _, row := range sourceless {
+		// root is a primary checkout here, which has no worktree anchor, so
+		// the owner-relative join is layergraph.Resolver's answer too (#230).
 		dir := row.Path
 		if !filepath.IsAbs(dir) {
 			dir = filepath.Join(root, dir)
