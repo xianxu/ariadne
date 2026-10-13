@@ -291,6 +291,7 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 		}
 		for _, row := range rows {
 			dest := row.Path
+			var noFallback error // why an absent relative row did not fall back (#230)
 			var src Source
 			if row.Source != "" {
 				src, err = sourceAt(row.Source, owner)
@@ -317,16 +318,19 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 				result.Mounts = append(result.Mounts, Mount{Owner: owner, Source: dest, Target: target})
 			} else {
 				if !filepath.IsAbs(dest) {
-					res, reason := resolver.Substrate(owner, dest)
+					res, err := resolver.Substrate(owner, dest)
+					if err != nil {
+						return result, err
+					}
 					// Absent beside both a linked worktree and its primary:
 					// refuse rather than clone a duplicate beside the worktree.
 					// A numbered environment's policy owns that refusal itself
 					// (validate below), with its own next action.
 					var absent *layergraph.FallbackAbsentError
-					if errors.As(reason, &absent) && c.Policy == nil {
-						return result, fmt.Errorf("missing substrate %s declared in %s: absent beside this worktree (%s) and %s; check it out beside the primary checkout (weave compile there restores it), then retry", row.Path, owner, res.Local, reason)
+					if errors.As(res.NoFallback, &absent) && c.Policy == nil {
+						return result, fmt.Errorf("missing substrate %s declared in %s: absent beside this worktree (%s) and %s; check it out beside the primary checkout (weave compile there restores it), then retry", row.Path, owner, res.Local, res.NoFallback)
 					}
-					dest = res.Path
+					dest, noFallback = res.Path, res.NoFallback
 					if res.Via != "" {
 						result.Fallbacks = append(result.Fallbacks, Fallback{Owner: owner, Path: row.Path, Resolved: canonical(dest), Primary: res.Via})
 					}
@@ -370,7 +374,11 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 			if os.IsNotExist(statErr) && row.Source == "" {
 				sibling, recovered, err := c.recoverSource(ctx, dest)
 				if err != nil {
-					return result, fmt.Errorf("missing substrate %s declared in %s: record its source in construct/deps (no source declared; %w)", dest, owner, err)
+					err = fmt.Errorf("missing substrate %s declared in %s: record its source in construct/deps (no source declared; %w)", dest, owner, err)
+					if noFallback != nil {
+						err = fmt.Errorf("%w; no worktree fallback: %v", err, noFallback)
+					}
+					return result, err
 				}
 				src = recovered
 				result.Recovered = append(result.Recovered, Recovery{Owner: owner, Path: row.Path, URL: src.URL, Sibling: sibling})

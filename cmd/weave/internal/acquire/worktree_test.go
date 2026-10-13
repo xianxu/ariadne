@@ -2,6 +2,7 @@ package acquire
 
 import (
 	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -95,5 +96,41 @@ func TestRestoreLinkedWorktreeMissingEverywhere(t *testing.T) {
 				t.Fatalf("dryRun=%v: restore created %s", dryRun, p)
 			}
 		}
+	}
+}
+
+type fakeAnchors struct {
+	primary string
+	err     error
+}
+
+func (f fakeAnchors) PrimaryCheckout(string) (string, error) { return f.primary, f.err }
+
+// The reason no fallback applied reaches the missing-substrate error
+// (close review BR-2).
+func TestRestoreMissingNamesNoFallbackReason(t *testing.T) {
+	root := t.TempDir()
+	leaf := filepath.Join(root, "leaf")
+	put(t, filepath.Join(leaf, "construct/deps"), "substrate ../base\n")
+	reason := &workspace.NoAnchorError{Dir: leaf, Reason: "belongs to a repository whose primary worktree is bare"}
+	_, err := Client{Anchors: fakeAnchors{err: reason}}.Restore(context.Background(), leaf, false)
+	if err == nil || !strings.Contains(err.Error(), "record its source") || !strings.Contains(err.Error(), "no worktree fallback: "+reason.Error()) {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+// A failure to find the anchor is not "not a worktree": Restore fails
+// instead of cloning beside what may be a worktree.
+func TestRestoreAnchorFailureFailsClosed(t *testing.T) {
+	root := t.TempDir()
+	src := origin(t, filepath.Join(root, "origins"), "base", "", true)
+	leaf := filepath.Join(root, "leaf")
+	put(t, filepath.Join(leaf, "construct/deps"), "substrate ../base "+src+"\n")
+	_, err := Client{Anchors: fakeAnchors{err: errors.New("git unavailable")}}.Restore(context.Background(), leaf, false)
+	if err == nil || !strings.Contains(err.Error(), "git unavailable") {
+		t.Fatalf("err = %v", err)
+	}
+	if _, err := os.Lstat(filepath.Join(root, "base")); !os.IsNotExist(err) {
+		t.Fatalf("cloned despite the anchor failure: %v", err)
 	}
 }

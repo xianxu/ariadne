@@ -73,16 +73,21 @@ uses `<fleet>/base` for `substrate ../base` without a symlink or a rewritten
   invalid fallback target is the same error.
 - Absolute rows never fall back. Transitive rows resolve against wherever their
   declaring layer resolved.
-- There is no anchor for a non-Git layer, a subdirectory of a checkout, the
-  primary itself, a worktree of a bare repository, or a numbered-environment
-  checkout whose primary lies outside the environment (slot-local provisioning
-  below applies instead). Read-only walks skip such an absent row and record why
-  (`DeclaredSubstrate.Unanchored`).
+- There is no anchor (`workspace.NoAnchorError`) for a non-Git layer, a
+  subdirectory of a checkout, the primary itself, a worktree of a bare
+  repository, or a numbered-environment checkout whose primary lies outside the
+  environment (slot-local provisioning below applies instead). Read-only walks
+  skip such an absent row and record why (`DeclaredSubstrate.NoFallback`);
+  compile's missing-substrate error names it. A Git failure while finding the
+  anchor is an error, never read as "not a worktree".
+- Presence is judged without following a final symlink: a dangling local
+  symlink is an invalid present target, not a reason to fall back.
 - `weave compile` prints `weave: substrate <row> declared in <worktree> is absent
   beside this worktree; resolved via primary checkout <primary>: <path>` for
-  each fallback. A row absent beside both refuses before compile writes
-  anything, instead of cloning a duplicate beside the worktree; inside a
-  numbered environment the environment policy below makes that refusal.
+  each fallback. A row absent beside both refuses before composition writes
+  anything (dependencies already acquired by the same restore stay), instead of
+  cloning a duplicate beside the worktree; inside a numbered environment the
+  environment policy below makes that refusal.
 
 `pkg/workspace.DependencyAnchor` finds the anchor; `layergraph.ChooseSubstrate`
 is the pure selection rule; `layergraph.Resolver` composes them for weave's walk

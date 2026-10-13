@@ -1,14 +1,18 @@
 package layergraph
 
 import (
+	"errors"
 	"fmt"
+	iofs "io/fs"
+	"os"
 	"path/filepath"
 
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
-// Anchors finds a declaring layer's fallback anchor (#230). An error is the
-// reason there is none; resolution then stays local.
+// Anchors finds a declaring layer's fallback anchor (#230). A
+// *workspace.NoAnchorError is the reason there is none, and resolution stays
+// local; any other error is a failure to find out.
 type Anchors interface {
 	PrimaryCheckout(layer string) (string, error)
 }
@@ -45,39 +49,52 @@ func NewResolver(fs FS) *Resolver {
 	return &Resolver{FS: fs, Anchors: a}
 }
 
-// Substrate resolves one row declared by owner. The error is informational:
-// the reason no fallback applied when the local target was absent.
-func (r *Resolver) Substrate(owner, target string) (Resolution, error) {
-	probe := func(p string) Probe {
-		switch {
-		case hasManifest(r.FS, p):
-			return Layer
-		case pathExists(r.FS, p):
-			return NotLayer
-		}
-		return Absent
-	}
-	if filepath.IsAbs(target) || probe(filepath.Join(owner, target)) != Absent {
-		return ChooseSubstrate(owner, target, "", probe), nil
-	}
-	a := r.anchor(owner)
-	res := ChooseSubstrate(owner, target, a.primary, probe)
-	switch {
-	case res.Via != "":
-		return res, nil
-	case a.err != nil:
-		return res, a.err
-	}
-	return res, &FallbackAbsentError{Primary: a.primary, Candidate: filepath.Join(a.primary, target)}
+// lstater is an FS that can stat without following a final symlink.
+type lstater interface {
+	Lstat(path string) (os.FileInfo, error)
 }
 
-// FallbackAbsentError is a relative row absent both beside its linked
-// worktree and beside the worktree's primary checkout (#230). Acquisition
-// refuses it rather than cloning a duplicate beside the worktree.
-type FallbackAbsentError struct{ Primary, Candidate string }
+// probe classifies p. Presence is judged without following a final symlink
+// and fails toward present: a dangling or unreadable local target is an
+// existing invalid target, never a reason to fall back (#230 spec 5).
+func (r *Resolver) probe(p string) Probe {
+	if hasManifest(r.FS, p) {
+		return Layer
+	}
+	var err error
+	if l, ok := r.FS.(lstater); ok {
+		_, err = l.Lstat(p)
+	} else {
+		_, err = r.FS.Stat(p)
+	}
+	if errors.Is(err, iofs.ErrNotExist) {
+		return Absent
+	}
+	return NotLayer
+}
 
-func (e *FallbackAbsentError) Error() string {
-	return fmt.Sprintf("absent beside primary checkout %s too (%s)", e.Primary, e.Candidate)
+// Substrate resolves one row declared by owner. An absent relative row that
+// did not fall back carries the reason in NoFallback; the error return is a
+// failure to find owner's anchor (Git could not answer), which the caller
+// must not read as "not a worktree".
+func (r *Resolver) Substrate(owner, target string) (Resolution, error) {
+	if filepath.IsAbs(target) || r.probe(filepath.Join(owner, target)) != Absent {
+		return ChooseSubstrate(owner, target, "", r.probe), nil
+	}
+	a := r.anchor(owner)
+	var none *workspace.NoAnchorError
+	if a.err != nil && !errors.As(a.err, &none) {
+		return Resolution{}, fmt.Errorf("resolve substrate %s declared in %s: find its primary checkout: %w", target, owner, a.err)
+	}
+	res := ChooseSubstrate(owner, target, a.primary, r.probe)
+	switch {
+	case res.Via != "":
+	case a.err != nil:
+		res.NoFallback = a.err
+	default:
+		res.NoFallback = &FallbackAbsentError{Primary: a.primary, Candidate: filepath.Join(a.primary, target)}
+	}
+	return res, nil
 }
 
 func (r *Resolver) anchor(owner string) anchorResult {
@@ -91,4 +108,13 @@ func (r *Resolver) anchor(owner string) anchorResult {
 	a.primary, a.err = r.Anchors.PrimaryCheckout(owner)
 	r.memo[owner] = a
 	return a
+}
+
+// FallbackAbsentError is a relative row absent both beside its linked
+// worktree and beside the worktree's primary checkout (#230). Acquisition
+// refuses it rather than cloning a duplicate beside the worktree.
+type FallbackAbsentError struct{ Primary, Candidate string }
+
+func (e *FallbackAbsentError) Error() string {
+	return fmt.Sprintf("absent beside primary checkout %s too (%s)", e.Primary, e.Candidate)
 }

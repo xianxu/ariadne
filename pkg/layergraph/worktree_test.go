@@ -176,11 +176,11 @@ func TestWalkNoAnchorKeepsPresentSkip(t *testing.T) {
 		}
 	}
 	declared, err := layergraph.DeclaredSubstrates(layergraph.OSFS{}, f.leaf)
-	if err != nil || len(declared) != 1 || !strings.Contains(declared[0].Unanchored, "primary checkout") {
+	if err != nil || len(declared) != 1 || !strings.Contains(declared[0].NoFallback, "primary checkout") {
 		t.Fatalf("declared %+v, %v", declared, err)
 	}
 	declared, err = layergraph.DeclaredSubstrates(layergraph.OSFS{}, f.tree)
-	if err != nil || len(declared) != 1 || !strings.Contains(declared[0].Unanchored, "too") {
+	if err != nil || len(declared) != 1 || !strings.Contains(declared[0].NoFallback, "too") {
 		t.Fatalf("declared %+v, %v", declared, err)
 	}
 }
@@ -201,5 +201,71 @@ func TestWalkLinkedWorktreeVocabulary(t *testing.T) {
 	}
 	if got["issue"] != filepath.Join(f.base, "construct", "vocabulary", "issue.cue") {
 		t.Fatalf("merged %v", got)
+	}
+}
+
+// A dangling local symlink is an existing invalid target: reported, never
+// bypassed for the primary's sibling (#230 spec 5, close review BR-1).
+func TestWalkLinkedWorktreeDanglingLocalNotBypassed(t *testing.T) {
+	f := newWorktreeFleet(t, "fleet")
+	local := filepath.Join(f.fleet, "worktree", "leaf", "base")
+	if err := os.Symlink(filepath.Join(f.fleet, "gone"), local); err != nil {
+		t.Fatal(err)
+	}
+	_, err := layergraph.Walk(layergraph.OSFS{}, f.tree)
+	var nl *layergraph.NotLayerError
+	if !errors.As(err, &nl) || nl.Path != local {
+		t.Fatalf("err = %v, want NotLayerError for %s", err, local)
+	}
+}
+
+// anchoredFS is an FS supplying its own Anchors, the seam fakes use instead
+// of Git.
+type anchoredFS struct {
+	layergraph.OSFS
+	primary string
+	err     error
+	asked   []string
+}
+
+func (a *anchoredFS) PrimaryCheckout(layer string) (string, error) {
+	a.asked = append(a.asked, layer)
+	return a.primary, a.err
+}
+
+func TestWalkUsesTheFSAnchors(t *testing.T) {
+	root, err := workspace.CanonicalPath(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	// No Git anywhere: the FS's Anchors alone makes leaf a worktree of primary.
+	primary, leaf := filepath.Join(root, "p", "leaf"), filepath.Join(root, "w", "leaf", "br")
+	base := filepath.Join(root, "p", "base")
+	layer(t, base, "")
+	layer(t, leaf, "substrate ../base\n")
+	fs := &anchoredFS{primary: primary}
+	got, err := layergraph.Walk(fs, leaf)
+	if err != nil || !reflect.DeepEqual(got, []string{base, leaf}) || !reflect.DeepEqual(fs.asked, []string{leaf}) {
+		t.Fatalf("Walk = %v, %v; asked %v", got, err, fs.asked)
+	}
+}
+
+// A Git failure finding the anchor fails the walk instead of passing for
+// "not a worktree" (close review BR-2).
+func TestWalkAnchorFailureIsAnError(t *testing.T) {
+	root, err := workspace.CanonicalPath(t.TempDir())
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaf := filepath.Join(root, "leaf")
+	layer(t, leaf, "substrate ../base\n")
+	_, err = layergraph.Walk(&anchoredFS{err: errors.New("git unavailable")}, leaf)
+	if err == nil || !strings.Contains(err.Error(), "git unavailable") {
+		t.Fatalf("err = %v", err)
+	}
+	// An expected absence keeps the present-skip.
+	none := &workspace.NoAnchorError{Dir: leaf, Reason: "is its repository's primary checkout"}
+	if got, err := layergraph.Walk(&anchoredFS{err: none}, leaf); err != nil || !reflect.DeepEqual(got, []string{leaf}) {
+		t.Fatalf("Walk = %v, %v", got, err)
 	}
 }

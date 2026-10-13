@@ -1,6 +1,7 @@
 package workspace_test
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -43,23 +44,27 @@ func TestDependencyAnchor(t *testing.T) {
 				}
 				return
 			}
-			if err == nil || !strings.Contains(err.Error(), c.err) || got != "" {
-				t.Fatalf("got %q, %v; want error containing %q", got, err, c.err)
+			var none *workspace.NoAnchorError
+			if !errors.As(err, &none) || !strings.Contains(err.Error(), c.err) || got != "" {
+				t.Fatalf("got %q, %v; want NoAnchorError containing %q", got, err, c.err)
 			}
 		})
 	}
 }
 
 // A layer that is not a checkout root never runs Git (an enclosing
-// repository must not lend its primary).
+// repository must not lend its primary), nor does one with a .git directory
+// (its own primary checkout).
 func TestDependencyAnchorSkipsGitOutsideCheckouts(t *testing.T) {
 	f := setup(t)
-	f.real.reads = 0
-	if _, err := workspace.DependencyAnchor(f.real, filepath.Join(f.root, "absent")); err == nil {
-		t.Fatal("absent dir anchored")
-	}
-	if f.real.reads != 0 {
-		t.Fatalf("ran Git %d times", f.real.reads)
+	for _, dir := range []string{filepath.Join(f.root, "absent"), f.primary} {
+		f.real.reads = 0
+		if _, err := workspace.DependencyAnchor(f.real, dir); err == nil {
+			t.Fatalf("%s anchored", dir)
+		}
+		if f.real.reads != 0 {
+			t.Fatalf("%s: ran Git %d times", dir, f.real.reads)
+		}
 	}
 }
 
@@ -104,4 +109,23 @@ func TestDependencyAnchorInsideEnvironment(t *testing.T) {
 	if err != nil || got != dep {
 		t.Fatalf("got %q, %v; want %q", got, err, dep)
 	}
+}
+
+// A Git failure is not an expected absence: the caller must not mistake it
+// for "no anchor" and act as if the layer were not a worktree.
+func TestDependencyAnchorGitFailureIsNotNoAnchor(t *testing.T) {
+	f := setup(t)
+	feature := filepath.Join(f.root, "worktree", "repo", "br")
+	git(t, f.primary, "worktree", "add", "-b", "br", feature)
+	_, err := workspace.DependencyAnchor(failingGit{}, feature)
+	var none *workspace.NoAnchorError
+	if err == nil || errors.As(err, &none) {
+		t.Fatalf("err = %v, want a Git failure", err)
+	}
+}
+
+type failingGit struct{}
+
+func (failingGit) GitInDir(string, ...string) ([]byte, error) {
+	return nil, errors.New("git unavailable")
 }

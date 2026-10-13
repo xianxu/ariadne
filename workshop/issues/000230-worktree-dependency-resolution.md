@@ -159,6 +159,25 @@ environment, the new absent-everywhere refusal pre-empted the environment policy
 policy, so the environment's rule and message stand. `go test ./cmd/weave/...` green
 after the fix; the rest of the suite was green.
 
+Close review round 1 (FIX-THEN-SHIP, window 08afcec5..d9d786c2): all seven fixed.
+- BR-1: the resolver judges presence with Lstat and fails toward present; a dangling local
+  symlink is a NotLayerError, not a fallback. The walk uses the resolver's probe instead of
+  re-probing with Stat. Mutation-checked.
+- BR-2: `workspace.NoAnchorError` types the expected absences (non-Git, subdirectory,
+  primary, bare primary via `ErrBarePrimary`, numbered environment); any other anchor error
+  fails the walk and Restore (no clone on a guess); sdlc's walk reports such a row absent.
+  Restore's missing-substrate error ends with `no worktree fallback: <reason>`. Tested
+  through `Client.Anchors` and an FS implementing `Anchors`; fail-closed mutation-checked.
+- BR-3: README section on linked worktrees.
+- Minors: an FS implementing `Anchors` is now tested; `workspace.ExecGit` takes a context
+  and replaces weave's duplicate `setupGitReader`; atlas wording says dependencies acquired
+  earlier in the restore stay; `Unanchored` renamed `NoFallback`.
+- Found while re-running: acquire's policy fakes make `.git` directories that real Git
+  rejects. A `.git` directory is always a repository's own checkout (linked worktrees carry
+  a `.git` file), so DependencyAnchor answers "primary checkout" from the shape without Git.
+- `DeclaredSubstrate.Via/NoFallback` have no production reader yet; DeclaredSubstrates
+  itself has none (#294 added it for later use). They stay as provenance on that API.
+
 ## Revisions
 
 - 2026-10-12 — the 2026-09-21 entry says a slot falls back to the primary checkout when

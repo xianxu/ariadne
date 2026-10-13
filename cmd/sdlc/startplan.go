@@ -461,7 +461,18 @@ func substrateWalk(root string) (order, absent []string) {
 		for _, target := range parseSubstrateTargets(string(data)) {
 			// The shared resolver (#230): beside declRoot, else beside its
 			// primary checkout when declRoot is a linked worktree.
-			res, _ := resolver.Substrate(declRoot, target)
+			res, err := resolver.Substrate(declRoot, target)
+			if err != nil {
+				// Git could not say whether declRoot is a worktree: report the
+				// local spelling absent rather than guess (callers must not
+				// read absence as current).
+				res.Path = target
+				if !filepath.IsAbs(target) {
+					res.Path = filepath.Join(declRoot, target)
+				}
+				absent = append(absent, filepath.Clean(res.Path))
+				continue
+			}
 			resolved := filepath.Clean(res.Path)
 			if real, err := filepath.EvalSymlinks(resolved); err == nil {
 				resolved = real // canonicalize when the peer exists

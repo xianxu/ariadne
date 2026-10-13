@@ -14,9 +14,12 @@ const (
 // Resolution is where one substrate row resolves. Path is lexical; the
 // boundary canonicalizes it. Local is the owner-relative candidate. Via is
 // the primary checkout the row fell back to, "" when it resolved locally.
+// NoFallback, set by Resolver only, says why an absent relative row did not
+// fall back: a *workspace.NoAnchorError or a *FallbackAbsentError.
 type Resolution struct {
 	Path, Local, Via string
 	Probe            Probe
+	NoFallback       error
 }
 
 // ChooseSubstrate is #230's selection rule, pure. A relative target resolves
