@@ -94,6 +94,16 @@ rm -f "$WS/prepd/Makefile.workflow"
 printf 'dev-prepare:\n\t@true\n' > "$WS/prepd/Makefile"; rm -f "$WS/prepd/Makefile.local"
 assert_contains "make -s dev-prepare" "$(bash "$GEN" --workspace "$WS" 2>/dev/null | grep '^gen()')" "a dev-prepare rule in Makefile also declares it"
 
+# Detection runs make once per owner, not once per binary: a counting make
+# stub on PATH sees one call for an owner with two binaries.
+mkcmd "$WS/prepd/cmd/gen2"
+CNT="$WS/stubcount"; mkdir -p "$CNT"
+printf '#!/bin/sh\necho x >> "%s/calls"\nexit 1\n' "$CNT" > "$CNT/make"; chmod +x "$CNT/make"
+two_out="$(PATH="$CNT:$PATH" bash "$GEN" --workspace "$WS" 2>/dev/null)"
+assert_contains "gen2() { ( cd $WS/prepd && make -s dev-prepare" "$two_out" "the owner's second binary gets the cached answer"
+[ "$(wc -l < "$CNT/calls" | tr -d ' ')" = "1" ] && ok "one make detection per owner" || ko "make detections: $(wc -l < "$CNT/calls")"
+rm -rf "$CNT" "$WS/prepd/cmd/gen2"
+
 # Run the emitted function against stub make/go: preparation runs first, its
 # stdout stays off the binary's stdout, and a failed step fails the call loudly
 # without building or running.

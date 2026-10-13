@@ -128,3 +128,16 @@ succeeding with no manual `make`) needs pair's `dev-prepare`, which the TL files
 in pair and dispatches separately. Delta: #299 closes on the ariadne half and its
 test; the live check moves to the pair issue's Done-when, and the TL tracks it.
 
+### 2026-10-12 — detection asks make
+
+Reason: close review round 2 repeated the detection-shape family; a regex over
+Makefile text kept misreading make constructs. Delta to Plan bullets 1-2:
+`owner_prepares` no longer greps `^dev-prepare:`. A text mention of the name in
+`Makefile`/`Makefile.workflow`/`Makefile.local` gates a `make -q dev-prepare`,
+whose answer decides, once per owner. The planned ".PHONY mention alone is not
+a declaration" test is dropped: make treats a bare `.PHONY: dev-prepare` as a
+rule that does nothing, so emitting it is a harmless no-op. The tests instead
+pin make's verdicts (multi-target, include via `Makefile.workflow`, broken
+prerequisite declared; `:=`, target-specific variable, recipe-line mention
+plain) and one detection per owner.
+

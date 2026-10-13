@@ -12,14 +12,15 @@
 #   X() { ( cd OWNER && mkdir -p bin && rm -f bin/X && go build -o bin/X ./cmd/X ) || return; OWNER/bin/X "$@"; }
 #
 # An owner whose build needs a generated input (a gitignored embed tree, say)
-# declares a `dev-prepare` rule in its Makefile or Makefile.local (#299). Its
-# functions then run that step first, with make's stdout sent to stderr so the
+# declares a `dev-prepare` make rule (#299; what counts as declared is described
+# once, at owner_prepares below). Its functions then run that step first, with make's stdout sent to stderr so the
 # binary's own stdout stays clean; a failed step fails the call:
 #
 #   X() { ( cd OWNER && make -s dev-prepare >&2 && mkdir -p bin && ... ) || return; ...; }
 #
-# The step is the owner's to keep cheap when up to date. An owner that declares
-# nothing keeps the plain form above.
+# The step is the owner's to keep cheap when up to date, and so is parsing its
+# Makefiles, which detection does once per owner whenever the aliases are
+# emitted. An owner that declares nothing keeps the plain form above.
 #
 # The `rm -f bin/X` mirrors the owner Makefiles' code-signing-inode safety. The
 # function only builds + runs — it does NOT manage services (no `launchctl
@@ -239,6 +240,7 @@ owner_prepares() {
 	return 0
 }
 
+prepared="|"
 printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 	[ -n "$bin" ] || continue
 	if [ "$list" -eq 1 ]; then
@@ -249,7 +251,17 @@ printf '%s\n' "$final" | while IFS="$(printf '\t')" read -r bin repo; do
 		# dir; safe for service binaries); rm -f first for code-signing-inode
 		# safety; run from the caller's cwd.
 		prep=""
-		owner_prepares "$repo" && prep="make -s dev-prepare >&2 && "
+		# One detection per owner, not per binary: cache the answer by repo.
+		case "$prepared" in
+			*"|$repo=1|"*) prep="make -s dev-prepare >&2 && " ;;
+			*"|$repo=0|"*) ;;
+			*)
+				if owner_prepares "$repo"; then
+					prep="make -s dev-prepare >&2 && "; prepared="$prepared$repo=1|"
+				else
+					prepared="$prepared$repo=0|"
+				fi ;;
+		esac
 		printf '%s() { ( cd %s && %smkdir -p bin && rm -f bin/%s && go build -o bin/%s ./cmd/%s ) || return; %s/bin/%s "$@"; }\n' \
 			"$bin" "$repo_q" "$prep" "$bin" "$bin" "$bin" "$repo_q" "$bin"
 	fi
