@@ -1,0 +1,238 @@
+// localcheck_run.go — the IO shell that runs one declared local check on an
+// exact head and records the outcome (#345). The rules live in localchecks.go.
+package main
+
+import (
+	"bufio"
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"errors"
+	"fmt"
+	"io"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"sort"
+	"strings"
+	"time"
+)
+
+// localRunDeps is what a local run touches: GitHub (to record), git in the
+// repository root (worktree and log location), and where to report.
+type localRunDeps struct {
+	GH     ghCaller
+	Repo   string // owner/name
+	Root   string // the checkout's top level; Makefile.workflow resolves from here
+	Git    func(args ...string) (string, error)
+	PR     int // 0: no PR known, so a failure posts no comment
+	Stderr io.Writer
+	// minute is the unit of timeout_minutes; tests shrink it.
+	minute time.Duration
+}
+
+const (
+	localCheckLogKeep   = 20 // newest per-head log directories kept
+	localCheckStaleAge  = 24 * time.Hour
+	localCheckTmpPrefix = "sdlc-local-"
+	localCheckTailLines = 200
+)
+
+// errUnboundedSuite: the machine-wide suite lock could not be taken, so the
+// check does not run (#319/#341 bound heavy suites machine-wide).
+var errUnboundedSuite = errors.New("refusing to run an unbounded suite")
+
+// runLocalCheck runs c on sha in a fresh detached worktree, under one of the
+// machine-wide suite slots, keeps the log, and posts the outcome as the
+// localStatusContext(c.Name) status on sha. A failed check is a record, not an
+// error; the error is for a run that could not happen or could not be recorded.
+func runLocalCheck(ctx context.Context, d localRunDeps, c localCheck, sha string) (localRunRecord, error) {
+	rec := localRunRecord{Name: c.Name, SHA: sha, Exit: -1}
+	rec.Host, _ = os.Hostname()
+	if d.minute == 0 {
+		d.minute = time.Minute
+	}
+	logDir, err := localCheckLogDir(d)
+	if err != nil {
+		return rec, err
+	}
+	rec.LogPath = filepath.Join(logDir, sha, c.Name+".log")
+	sweepStaleLocalWorktrees(d)
+
+	wt, err := os.MkdirTemp("", localCheckTmpPrefix+"*")
+	if err != nil {
+		return rec, err
+	}
+	defer func() {
+		_, _ = d.Git("worktree", "remove", "--force", wt)
+		_ = os.RemoveAll(wt)
+		_, _ = d.Git("worktree", "prune")
+	}()
+	if out, err := d.Git("worktree", "add", "--detach", wt, sha); err != nil {
+		return rec, fmt.Errorf("local check %s: worktree at %s: %w\n%s", c.Name, sha, err, out)
+	}
+
+	fmt.Fprintf(d.Stderr, "==> local check %s on %s: %s\n    in %s\n    log %s\n", c.Name, abbrevSHA(sha), strings.Join(c.Command, " "), wt, rec.LogPath)
+	heldBy, err := acquireSuiteSlot(ctx, d, wt)
+	if err != nil {
+		return rec, fmt.Errorf("local check %s: %w", c.Name, err)
+	}
+
+	if err := os.MkdirAll(filepath.Dir(rec.LogPath), 0o755); err != nil {
+		return rec, err
+	}
+	logf, err := os.Create(rec.LogPath)
+	if err != nil {
+		return rec, err
+	}
+	runCtx, cancel := context.WithTimeout(ctx, time.Duration(c.TimeoutMinutes)*d.minute)
+	defer cancel()
+	cmd := exec.CommandContext(runCtx, c.Command[0], c.Command[1:]...)
+	cmd.Dir = wt
+	cmd.WaitDelay = 5 * time.Second
+	cmd.Env = os.Environ()
+	if heldBy != "" {
+		cmd.Env = append(cmd.Env, "WF_TEST_LOCK_HELD_BY="+heldBy)
+	}
+	out := io.MultiWriter(logf, d.Stderr)
+	cmd.Stdout, cmd.Stderr = out, out
+	start := time.Now()
+	runErr := cmd.Run()
+	rec.Duration = time.Since(start)
+	_ = logf.Close()
+	var exitErr *exec.ExitError
+	switch {
+	case runCtx.Err() == context.DeadlineExceeded:
+		rec.TimedOut = true
+	case ctx.Err() != nil:
+		return rec, fmt.Errorf("local check %s interrupted: %w", c.Name, ctx.Err())
+	case runErr == nil:
+		rec.Exit = 0
+	case errors.As(runErr, &exitErr):
+		rec.Exit = exitErr.ExitCode()
+	default:
+		fmt.Fprintf(d.Stderr, "local check %s did not start: %v\n", c.Name, runErr)
+	}
+	if rec.LogSHA256, rec.Tail, err = hashAndTail(rec.LogPath, localCheckTailLines); err != nil {
+		return rec, err
+	}
+	pruneLocalCheckLogs(logDir, localCheckLogKeep)
+
+	if err := d.GH.PostStatus(ctx, d.Repo, sha, localStatusContext(c.Name), rec.state(), rec.statusDescription()); err != nil {
+		return rec, fmt.Errorf("local check %s %s but was NOT recorded on %s: %w", c.Name, rec.state(), abbrevSHA(sha), err)
+	}
+	if !rec.passed() && d.PR > 0 {
+		if err := d.GH.PRComment(ctx, d.Repo, d.PR, rec.failureComment()); err != nil {
+			fmt.Fprintf(d.Stderr, "[!] local check %s: failure recorded, but the PR comment failed: %v\n", c.Name, err)
+		}
+	}
+	fmt.Fprintf(d.Stderr, "==> local check %s: %s, recorded as %s on %s\n", c.Name, rec.statusDescription(), localStatusContext(c.Name), abbrevSHA(sha))
+	return rec, nil
+}
+
+// localCheckLogDir is <git common dir>/sdlc/local-checks: never committed, shared
+// by the slot's worktrees, gone with the clone.
+func localCheckLogDir(d localRunDeps) (string, error) {
+	out, err := d.Git("rev-parse", "--git-common-dir")
+	if err != nil {
+		return "", fmt.Errorf("local check: git common dir: %w", err)
+	}
+	dir := strings.TrimSpace(out)
+	if !filepath.IsAbs(dir) {
+		dir = filepath.Join(d.Root, dir)
+	}
+	return filepath.Join(dir, "sdlc", "local-checks"), nil
+}
+
+// acquireSuiteSlot takes one of the machine-wide full-suite slots through the
+// helper Makefile.workflow uses, resolved the same way (beside its real path), so
+// a local check and `make test` share one cap. The slot is held until this
+// process exits. It returns the pid to export as WF_TEST_LOCK_HELD_BY when it
+// took the slot.
+func acquireSuiteSlot(ctx context.Context, d localRunDeps, dir string) (string, error) {
+	mk, err := filepath.EvalSymlinks(filepath.Join(d.Root, "Makefile.workflow"))
+	if err != nil {
+		return "", fmt.Errorf("%w: no Makefile.workflow to find the suite lock from (%v)", errUnboundedSuite, err)
+	}
+	helper := filepath.Join(filepath.Dir(mk), "scripts", "test-lock.py")
+	if _, err := os.Stat(helper); err != nil {
+		return "", fmt.Errorf("%w: suite lock helper missing: %s", errUnboundedSuite, helper)
+	}
+	pid := fmt.Sprint(os.Getpid())
+	cmd := exec.CommandContext(ctx, "python3", helper, "acquire", "--watch", pid)
+	cmd.Dir = dir
+	cmd.Stderr = d.Stderr
+	out, err := cmd.Output()
+	state := strings.TrimSpace(string(out))
+	if err != nil {
+		return "", fmt.Errorf("%w: suite lock helper: %v", errUnboundedSuite, err)
+	}
+	switch state {
+	case "acquired":
+		return pid, nil
+	case "reentrant", "skipped":
+		return "", nil
+	default:
+		return "", fmt.Errorf("%w: suite lock answered %q (see the [test-lock] lines above)", errUnboundedSuite, state)
+	}
+}
+
+// hashAndTail reads the log once: its sha256 and its last n lines.
+func hashAndTail(path string, n int) (string, []string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", nil, err
+	}
+	defer f.Close()
+	h := sha256.New()
+	var tail []string
+	sc := bufio.NewScanner(io.TeeReader(f, h))
+	sc.Buffer(make([]byte, 64<<10), 1<<20)
+	for sc.Scan() {
+		tail = append(tail, sc.Text())
+		if len(tail) > n {
+			tail = tail[1:]
+		}
+	}
+	if err := sc.Err(); err != nil {
+		// An over-long line stops the scan; hash the rest so the digest covers the file.
+		if _, cerr := io.Copy(h, f); cerr != nil {
+			return "", nil, cerr
+		}
+	}
+	return hex.EncodeToString(h.Sum(nil)), tail, nil
+}
+
+// pruneLocalCheckLogs keeps the newest keep per-head directories under dir.
+func pruneLocalCheckLogs(dir string, keep int) {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return
+	}
+	type aged struct {
+		name string
+		mod  time.Time
+	}
+	var dirs []aged
+	for _, e := range entries {
+		if info, err := e.Info(); err == nil && e.IsDir() {
+			dirs = append(dirs, aged{e.Name(), info.ModTime()})
+		}
+	}
+	sort.Slice(dirs, func(i, j int) bool { return dirs[i].mod.After(dirs[j].mod) })
+	for i := keep; i < len(dirs); i++ {
+		_ = os.RemoveAll(filepath.Join(dir, dirs[i].name))
+	}
+}
+
+// sweepStaleLocalWorktrees collects worktrees a killed run left behind: temp
+// directories past the longest possible run, then git's record of them.
+func sweepStaleLocalWorktrees(d localRunDeps) {
+	matches, _ := filepath.Glob(filepath.Join(os.TempDir(), localCheckTmpPrefix+"*"))
+	for _, m := range matches {
+		if info, err := os.Stat(m); err == nil && time.Since(info.ModTime()) > localCheckStaleAge {
+			_ = os.RemoveAll(m)
+		}
+	}
+	_, _ = d.Git("worktree", "prune")
+}
