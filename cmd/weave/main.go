@@ -521,7 +521,7 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 		if err != nil {
 			return fmt.Errorf("data mounts for %s: %w", owner, err)
 		}
-		printManagedReport(ctx, owner, report, out)
+		printManagedReport(ctx, root, owner, report, out)
 	}
 	var generated []plan.Action
 	if !dryRun {
@@ -573,7 +573,7 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 		return fmt.Errorf("apply: %w", err)
 	}
 	fmt.Fprintf(out, "weave: applied %d action(s) to %s\n", len(actions), root)
-	printManagedReport(ctx, root, report, out)
+	printManagedReport(ctx, root, root, report, out)
 	var bins []string
 	for _, owner := range restored.Layers {
 		bin := filepath.Join(owner, "bin")
@@ -592,21 +592,31 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 
 // printManagedReport says what convergence did to outputs that changed since
 // weave wrote them (#281), and which regenerated outputs Git tracks: a vendored
-// output's new bytes need a commit, not an unexplained dirty tree.
-func printManagedReport(ctx context.Context, root string, report plan.ManagedReport, out io.Writer) {
+// output's new bytes need a commit, not an unexplained dirty tree. Paths are
+// leaf-relative; an ancestor owner's (a data pass) are absolute.
+func printManagedReport(ctx context.Context, leaf, root string, report plan.ManagedReport, out io.Writer) {
+	name := func(path string) string {
+		if root == leaf {
+			return path
+		}
+		return filepath.Join(root, path)
+	}
 	for _, path := range report.Retired {
-		fmt.Fprintf(out, "  retired %s\n", path)
+		fmt.Fprintf(out, "  retired %s\n", name(path))
 	}
 	for _, path := range report.Displaced {
-		fmt.Fprintf(out, "weave: warning: overwrote %s, which changed since weave wrote it; old copy at %s; edits belong in %s\n", path, filepath.Join(plan.DisplacedRoot, path), plan.EditHome(path))
+		fmt.Fprintf(out, "weave: warning: overwrote %s, which changed since weave wrote it; old copy at %s; edits belong in %s\n", name(path), name(plan.DisplacedPath(path)), plan.EditHome(path))
 	}
 	for _, path := range report.Abandoned {
-		fmt.Fprintf(out, "weave: warning: left %s in place: weave no longer generates it, and it changed since weave wrote it; delete it or keep it as your own\n", path)
+		fmt.Fprintf(out, "weave: warning: left %s in place: weave no longer generates it, and it changed since weave wrote it; delete it or keep it as your own\n", name(path))
 	}
 	if len(report.Regenerated) == 0 {
 		return
 	}
 	listed, err := setupGitReader{ctx}.GitInDir(root, "ls-files", "-z")
+	if err != nil && strings.Contains(string(listed), "not a git repository") {
+		return // outside a repository nothing is tracked, so nothing needs a commit
+	}
 	if err != nil {
 		fmt.Fprintf(out, "weave: warning: cannot tell whether regenerated outputs are tracked: %v\n", err)
 		return
@@ -617,7 +627,7 @@ func printManagedReport(ctx context.Context, root string, report plan.ManagedRep
 	}
 	for _, path := range report.Regenerated {
 		if tracked[path] {
-			fmt.Fprintf(out, "weave: regenerated tracked output %s: commit it\n", path)
+			fmt.Fprintf(out, "weave: regenerated tracked output %s: commit it\n", name(path))
 		}
 	}
 }

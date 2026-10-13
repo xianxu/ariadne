@@ -309,7 +309,7 @@ func TestCompileConvergesEditedGeneratorDestination(t *testing.T) {
 			if got, err := os.ReadFile(body); err != nil || string(got) == "authored edit\n" {
 				t.Fatalf("output did not converge: %q %v", got, err)
 			}
-			kept := filepath.Join(leaf, plan.DisplacedRoot, "construct/generated/datatype/SKILL.md")
+			kept := filepath.Join(leaf, plan.DisplacedPath("construct/generated/datatype/SKILL.md"))
 			if got, err := os.ReadFile(kept); err != nil || string(got) != "authored edit\n" {
 				t.Fatalf("displaced copy: %q %v", got, err)
 			}

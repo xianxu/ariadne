@@ -239,7 +239,7 @@ func TestManagedMergeIdentityAndDynamicFiles(t *testing.T) {
 
 // #281: a recorded output converges whether its bytes went back to an older
 // weave write (parley: a git restore of the committed stale vocabulary file) or
-// were edited by hand. The old bytes move under DisplacedRoot, never silently lost.
+// were edited by hand. The old bytes move to DisplacedPath, never silently lost.
 func TestManagedConvergesChangedRecordedOutput(t *testing.T) {
 	for _, kind := range []string{"reverted", "edited"} {
 		t.Run(kind, func(t *testing.T) {
@@ -255,7 +255,7 @@ func TestManagedConvergesChangedRecordedOutput(t *testing.T) {
 			if managedRead(t, root, "out") != "v3" {
 				t.Fatal("output did not converge")
 			}
-			if got := managedRead(t, root, filepath.Join(DisplacedRoot, "out")); got != before {
+			if got := managedRead(t, root, DisplacedPath("out")); got != before {
 				t.Fatalf("displaced copy %q, want %q", got, before)
 			}
 			if !slices.Equal(report.Displaced, []string{"out"}) || !slices.Equal(report.Regenerated, []string{"out"}) {
@@ -264,7 +264,7 @@ func TestManagedConvergesChangedRecordedOutput(t *testing.T) {
 			// The next displacement of the same path replaces the kept copy.
 			managedWrite(t, root, "out", "second")
 			managedApply(t, root, []Action{WriteFile{Path: "out", Content: "v3"}}, ScopeArtifacts)
-			if got := managedRead(t, root, filepath.Join(DisplacedRoot, "out")); got != "second" {
+			if got := managedRead(t, root, DisplacedPath("out")); got != "second" {
 				t.Fatalf("displaced copy %q, want the latest", got)
 			}
 		})
@@ -489,5 +489,52 @@ func TestManagedRetiresOnlyOwnedBlockEntries(t *testing.T) {
 	got = managedRead(t, root, ".gitignore")
 	if strings.Contains(got, "/owned\n") || !strings.Contains(got, "/foreign\n") {
 		t.Fatal(got)
+	}
+}
+
+// #281 BR-1: a failure after a displacement names the copy, so no caller can
+// lose the move on its error path.
+func TestManagedFailureAfterDisplacementNamesCopy(t *testing.T) {
+	root := t.TempDir()
+	managedApply(t, root, []Action{WriteFile{Path: "out", Content: "old"}}, ScopeArtifacts)
+	managedWrite(t, root, "out", "authored")
+	_, e := ApplyManaged(managedFailFS{path: "second"}, root, []Action{WriteFile{Path: "out", Content: "new"}, WriteFile{Path: "second", Content: "x"}}, ScopeArtifacts)
+	if e == nil || !strings.Contains(e.Error(), filepath.Join(root, DisplacedPath("out"))) {
+		t.Fatalf("failure does not name the displaced copy: %v", e)
+	}
+	if managedRead(t, root, DisplacedPath("out")) != "authored" {
+		t.Fatal("displaced copy lost")
+	}
+}
+func TestManagedDataScopeDisplacesChangedMount(t *testing.T) {
+	root := t.TempDir()
+	source := t.TempDir()
+	managedApply(t, root, []Action{Symlink{Src: source, Dst: "data"}}, ScopeData)
+	if e := os.Remove(filepath.Join(root, "data")); e != nil {
+		t.Fatal(e)
+	}
+	if e := os.Symlink("authored", filepath.Join(root, "data")); e != nil {
+		t.Fatal(e)
+	}
+	report, e := ApplyManaged(weavefs.OSFS{}, root, []Action{Symlink{Src: source, Dst: "data"}}, ScopeData)
+	if e != nil || !slices.Equal(report.Displaced, []string{"data"}) {
+		t.Fatalf("report %+v %v", report, e)
+	}
+	if target, e := os.Readlink(filepath.Join(root, DisplacedPath("data"))); e != nil || target != "authored" {
+		t.Fatalf("displaced link %q %v", target, e)
+	}
+}
+
+// ARCH-FUNERAL: a displaced copy lives as long as the output it backs up.
+func TestManagedSweepsDisplacedCopyWithItsOutput(t *testing.T) {
+	root := t.TempDir()
+	managedApply(t, root, []Action{WriteFile{Path: "out", Content: "old"}, WriteFile{Path: "keep", Content: "old"}}, ScopeArtifacts)
+	managedWrite(t, root, "out", "authored")
+	managedWrite(t, root, "keep", "authored")
+	managedApply(t, root, []Action{WriteFile{Path: "out", Content: "old"}, WriteFile{Path: "keep", Content: "old"}}, ScopeArtifacts)
+	managedApply(t, root, []Action{WriteFile{Path: "keep", Content: "old"}}, ScopeArtifacts)
+	managedAbsent(t, root, DisplacedPath("out"))
+	if managedRead(t, root, DisplacedPath("keep")) != "authored" {
+		t.Fatal("live output's copy swept")
 	}
 }

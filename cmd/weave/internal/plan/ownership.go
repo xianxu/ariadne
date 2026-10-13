@@ -37,6 +37,9 @@ func observe(fs weavefs.FS, root string, id outputIdentity) (bool, error) {
 	return weaveownership.Matches(fs, root, id)
 }
 func digest(data []byte) string { return weaveownership.Digest(data) }
+
+// DisplacedPath is where a compile keeps the latest displaced copy of an output.
+func DisplacedPath(path string) string { return weaveownership.DisplacedPath(path) }
 func readInventory(fs weavefs.FS, root string) ([]outputIdentity, error) {
 	return weaveownership.Read(fs, root)
 }
@@ -87,14 +90,10 @@ func uniqueIdentities(ids []outputIdentity) []outputIdentity {
 	return out
 }
 
-// DisplacedRoot keeps the latest displaced copy of each recorded output that
-// a compile overwrote (#281); the next displacement of the same path replaces it.
-var DisplacedRoot = filepath.Join(filepath.Dir(InventoryPath), "displaced")
-
 // ManagedReport is what a managed apply did beyond writing its outputs.
 type ManagedReport struct {
 	Retired     []string // unchanged outputs no longer generated, removed
-	Displaced   []string // recorded outputs changed since weave wrote them, moved under DisplacedRoot
+	Displaced   []string // recorded outputs changed since weave wrote them, moved to DisplacedPath
 	Abandoned   []string // outputs no longer generated that changed since weave wrote them, left in place
 	Regenerated []string // outputs that existed with other content and were rewritten
 }
@@ -246,22 +245,34 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 	if e = saveInventory(fs, root, prepared); e != nil {
 		return report, e
 	}
+	// Once an output is displaced, every failure names where it went, so no
+	// caller can drop the move on its error path.
+	fail := func(e error) (ManagedReport, error) {
+		if len(report.Displaced) == 0 {
+			return report, e
+		}
+		copies := make([]string, len(report.Displaced))
+		for i, path := range report.Displaced {
+			copies[i] = filepath.Join(root, DisplacedPath(path))
+		}
+		return report, fmt.Errorf("%w (already displaced: %s)", e, strings.Join(copies, ", "))
+	}
 	// A rename keeps the displaced bytes, mode and link target exactly.
 	for _, path := range slices.Sorted(maps.Keys(displace)) {
-		dst := filepath.Join(root, DisplacedRoot, path)
+		dst := filepath.Join(root, DisplacedPath(path))
 		if e = fs.RemoveAll(dst); e != nil {
-			return report, e
+			return fail(e)
 		}
 		if e = ensureParent(fs, dst); e != nil {
-			return report, e
+			return fail(e)
 		}
 		if e = fs.Rename(filepath.Join(root, path), dst); e != nil {
-			return report, e
+			return fail(e)
 		}
 		report.Displaced = append(report.Displaced, path)
 	}
 	if e = Apply(fs, root, actions); e != nil {
-		return report, e
+		return fail(e)
 	}
 	for _, id := range previous {
 		if produced[id.Path] {
@@ -269,40 +280,68 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 		}
 		match, e := observe(fs, root, id)
 		if e != nil {
-			return report, e
+			return fail(e)
 		}
 		if !match {
 			continue
 		}
 		if e = fs.Remove(filepath.Join(root, id.Path)); e != nil {
-			return report, e
+			return fail(e)
 		}
 		report.Retired = append(report.Retired, id.Path)
 		if e = removeEmptyGeneratedParents(fs, root, id.Path); e != nil {
-			return report, e
+			return fail(e)
 		}
 	}
 	if e = writeManagedIgnore(fs, root, gi); e != nil {
-		return report, e
+		return fail(e)
 	}
 	// Keep only exact matches for this scope; other scope state is not ours to GC.
 	kept := append([]outputIdentity{}, other...)
 	for _, id := range wanted {
 		match, e := observe(fs, root, id)
 		if e != nil {
-			return report, e
+			return fail(e)
 		}
 		if match {
 			kept = append(kept, id)
 		}
 	}
+	if e = sweepDisplaced(fs, root, kept); e != nil {
+		return fail(e)
+	}
 	if e = saveInventory(fs, root, kept); e != nil {
-		return report, e
+		return fail(e)
 	}
 	sort.Strings(report.Retired)
 	sort.Strings(report.Abandoned)
 	report.Regenerated = slices.Compact(slices.Sorted(slices.Values(report.Regenerated)))
 	return report, nil
+}
+
+// sweepDisplaced removes the displaced copy of every output that left the
+// inventory: a copy lives as long as the output it backs up (ARCH-FUNERAL).
+func sweepDisplaced(fs weavefs.FS, root string, live []outputIdentity) error {
+	dir := filepath.Join(root, weaveownership.DisplacedRel)
+	entries, err := fs.ReadDir(dir)
+	if os.IsNotExist(err) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	keep := map[string]bool{}
+	for _, id := range live {
+		keep[filepath.Base(DisplacedPath(id.Path))] = true
+	}
+	for _, entry := range entries {
+		if !keep[entry.Name()] {
+			if err := fs.RemoveAll(filepath.Join(dir, entry.Name())); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 func actionIdentities(root string, actions []Action, scope OwnershipScope) ([]outputIdentity, error) {
 	var out []outputIdentity

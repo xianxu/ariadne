@@ -132,7 +132,7 @@ func TestStagedFileModesAreOwnedAndPreserved(t *testing.T) {
 	if info, err := os.Stat(filepath.Join(root, "construct/generated/demo/run.sh")); err != nil || info.Mode().Perm() != 0700 {
 		t.Fatalf("mode did not converge: %v %v", info, err)
 	}
-	if info, err := os.Stat(filepath.Join(root, DisplacedRoot, "construct/generated/demo/run.sh")); err != nil || info.Mode().Perm() != 0600 {
+	if info, err := os.Stat(filepath.Join(root, DisplacedPath("construct/generated/demo/run.sh"))); err != nil || info.Mode().Perm() != 0600 {
 		t.Fatalf("displaced mode: %v %v", info, err)
 	}
 	if err := os.Chmod(filepath.Join(root, "construct/generated/demo/run.sh"), 0600); err != nil {

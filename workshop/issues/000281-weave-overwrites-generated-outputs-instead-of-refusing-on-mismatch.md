@@ -141,6 +141,16 @@ cross-scope and parent checks:
 - [x] Targeted `go test ./cmd/weave/... ./pkg/weaveownership/...` and the propagate-base tests.
 - [x] Full `make test` before close (exit 0, 12 shards; a first run tripped only the hermeticity guard because this session committed mid-run).
 
+## Revisions
+
+- 2026-10-12, close review round 1 (BR-1..BR-6). Displaced copies are flat
+  (`weaveownership.DisplacedPath`, one escaped entry per output), not a mirror
+  tree, so copies of `a` and `a/b` cannot delete or block each other. A copy is
+  swept when its output leaves the inventory, so the ARCH-FUNERAL bound is the
+  live outputs, not every path ever generated. A failure after a displacement
+  carries the copy's path in its error. Data-pass warnings name the owner root.
+  Outside a Git repository the tracked-output check is silent.
+
 ## Log
 
 ### 2026-10-01
@@ -151,4 +161,5 @@ cross-scope and parent checks:
 - Tests converted from the refusal rule: `TestManagedConvergesChangedRecordedOutput` (reverted + edited, latest-copy replacement), `TestStagedOutputsConvergeEditedAndRefuseUnownedDestinations`, `TestStagedFileModesAreOwnedAndPreserved` (mode edit displaced with its mode), `TestCompileConvergesEditedGeneratorDestination`. New: `TestManagedRefusesDirectoryAtRecordedOutput`, `TestManagedReportsAbandonedOutputOnce`, `TestEditHome`, `TestCompileConvergesRevertedTrackedOutput` (the parley shape: committed stale AGENTS.md gets the commit hint, an untracked regenerated CLAUDE.md does not), abandoned warning asserted in `TestCompileRetiresDisconnectedOutputsPreservesAuthoredFiles`.
 - Mutation checks, each caught: displacement deletes instead of renaming; tracked hint suppressed; abandoned report dropped; a directory displaced instead of refused.
 - Not changed: an unrecorded, occupied, non-staged artifacts destination is still overwritten without a backup (pre-existing behavior; first-inventory migration would otherwise displace every legacy output).
+- Close review round 1, FIX-THEN-SHIP, all six fixed in round: BR-1 (failure after displacement unreported → `ApplyManaged` wraps every later error with the copies, `TestManagedFailureAfterDisplacementNamesCopy`), BR-2 (data-pass path ambiguity → owner-rooted names, `TestPrintManagedReportNamesOwnerAndSkipsNonRepo`), non-git warning noise (same test), `a`/`a/b` collision (flat `DisplacedPath`, `TestDisplacedPathIsFlat`), `DisplacedRel` moved beside `RootRel`, displaced copies swept with their output (`TestManagedSweepsDisplacedCopyWithItsOutput`). Also added the data-scope displacement test the review asked for. Mutation checks caught each fix's removal.
 

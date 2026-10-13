@@ -85,12 +85,12 @@ func TestStagedOutputsConvergeEditedAndRefuseUnownedDestinations(t *testing.T) {
 			if managedRead(t, root, path) == "authored" {
 				t.Fatal("output did not converge")
 			}
-			kept := filepath.Join(root, DisplacedRoot, path)
+			kept := filepath.Join(root, DisplacedPath(path))
 			if kind == "link" {
 				if target, err := os.Readlink(kept); err != nil || target != "authored" {
 					t.Fatalf("displaced link %q %v", target, err)
 				}
-			} else if managedRead(t, root, filepath.Join(DisplacedRoot, path)) != "authored" {
+			} else if managedRead(t, root, DisplacedPath(path)) != "authored" {
 				t.Fatal("displaced bytes lost")
 			}
 		})

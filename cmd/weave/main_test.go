@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -271,7 +272,7 @@ func TestCompileConvergesRevertedTrackedOutput(t *testing.T) {
 	if got, _ := os.ReadFile(agents); string(got) != "BASE PROSE\n\nDERIVED PROSE\n" {
 		t.Fatalf("AGENTS.md did not converge: %q", got)
 	}
-	if got, _ := os.ReadFile(filepath.Join(derived, plan.DisplacedRoot, "AGENTS.md")); string(got) != "STALE" {
+	if got, _ := os.ReadFile(filepath.Join(derived, plan.DisplacedPath("AGENTS.md"))); string(got) != "STALE" {
 		t.Fatalf("displaced copy %q", got)
 	}
 	for _, want := range []string{"overwrote AGENTS.md", "edits belong in AGENTS.local.md", "regenerated tracked output AGENTS.md: commit it", "overwrote CLAUDE.md"} {
@@ -281,6 +282,24 @@ func TestCompileConvergesRevertedTrackedOutput(t *testing.T) {
 	}
 	if strings.Contains(out.String(), "tracked output CLAUDE.md") {
 		t.Errorf("untracked output got the commit hint:\n%s", out.String())
+	}
+}
+
+// #281 BR-2: an ancestor owner's (data pass) warnings name the owner; outside
+// a repository the tracked check stays quiet, since nothing can need a commit.
+func TestPrintManagedReportNamesOwnerAndSkipsNonRepo(t *testing.T) {
+	leaf, owner := t.TempDir(), t.TempDir()
+	t.Setenv("GIT_CEILING_DIRECTORIES", filepath.Dir(owner))
+	var out bytes.Buffer
+	printManagedReport(context.Background(), leaf, owner, plan.ManagedReport{Displaced: []string{"data"}, Regenerated: []string{"data"}}, &out)
+	if want := "overwrote " + filepath.Join(owner, "data") + ","; !strings.Contains(out.String(), want) {
+		t.Errorf("lacks %q:\n%s", want, out.String())
+	}
+	if want := filepath.Join(owner, plan.DisplacedPath("data")); !strings.Contains(out.String(), want) {
+		t.Errorf("lacks %q:\n%s", want, out.String())
+	}
+	if strings.Contains(out.String(), "cannot tell") {
+		t.Errorf("warned outside a repository:\n%s", out.String())
 	}
 }
 

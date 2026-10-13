@@ -50,10 +50,11 @@ rules.
 `construct/generated/weave/ownership.json`, separating data and artifact
 scopes. Recorded outputs always converge (#281): one whose bytes, mode or link
 target changed since weave wrote it is moved to
-`construct/generated/weave/displaced/<path>` (the latest copy per path; the next
-displacement replaces it), rewritten, and warned about with its edit home
+`construct/generated/weave/displaced/<escaped path>` (`weaveownership.DisplacedPath`:
+one flat entry per output, so the next displacement replaces it, and it is swept
+when its output leaves the inventory), rewritten, and warned about with its edit home
 (`plan.EditHome`: `AGENTS.local.md`, a sibling `settings.local.json`, or the layer
-source). Compile refuses only a destination weave did not write (a data mount or
+source). A failure after a displacement names the copy in its error. Compile refuses only a destination weave did not write (a data mount or
 staged output over an unowned file, or a directory at a recorded path), and the
 refusal names the next action. Removed outputs retire only if their recorded
 identities still match; a changed one is left in place, warned about once, and
