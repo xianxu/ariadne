@@ -86,6 +86,8 @@ move-detail) are already placed on the issue branch or main.
 
 ## Log
 
+
+- 2026-10-13: closed — make test green at 395975ae: 12 shards, 1104 cmd/sdlc tests plus 46 packages, 0 failed. Round 1 fixes: move commits the destination mirror narrowly via commitMirror; TestMoveRelocatesItsOwner asserts the refreshed claimant and card_mirror, a clean destination and a move back. TestMoveLeavesAnUnattributedIssueUnknown and TestMoveLeavesAnotherSlotsIssueAndItsDetails assert the details are untouched. Placement tests (TestMirrorRefreshesOnlyOnTheIssueBranch, TestMoveWarnsWhenTheDestinationMirrorRefuses) were mutation-checked against the unfixed code.; review verdict: SHIP
 ### 2026-10-12
 
 - Dispatched by the TL (ops:0) with the 10-09 scope event: broadened from
