@@ -113,5 +113,21 @@ item gets a regression test reproducing the observed failure.
   survived retry: .publication-weave-*"). Likely the killed helper's generator
   grandchild is still alive when the retry reclaims, so the stage is kept as
   owned. Reported to the hub, not fixed here.
+- Close review round 1: REWORK. BR-1 (Critical): the up-front artifacts check
+  read the pre-data inventory, so a path moving from a data mount to a
+  generated output refused on every compile ("belongs to data"); the old order
+  converged it. BR-2 (Important): the exact-path collision loop missed a mount
+  above or below a generated output. One class (family
+  cross-pass-check-ignores-prior-pass-effects): a later pass's check must see
+  what the earlier pass at the same root does. The enumeration of the data
+  pass's effects that an artifacts refusal can read: (1) inventory records,
+  (2) outputs it creates, (3) outputs it retires; displacement lands at a
+  created output and the ignore block refuses nothing new. `CheckManaged` now
+  takes ordered passes and prepares each against the earlier ones (projected
+  records, overlap at/above/below created outputs, retired paths treated as
+  absent, keeping the retired path's own parent check). That replaces the
+  ad hoc loop (ARCH-DRY). Minors: the doc comment now says check skips the
+  stage reclaim; the hoist is moot. Both review findings reproduce as test
+  failures with the projection disabled.
 
 ### 2026-09-28

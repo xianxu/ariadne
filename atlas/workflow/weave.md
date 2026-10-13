@@ -31,9 +31,11 @@ a dry-run report an incomplete preview and never cause a clone or installation.
 
 `weave compile` prepares dependencies, then runs each owner's `make tools`
 foundation-first, runs the leaf's generators into a stage, then checks every
-pass (`plan.CheckManaged`: each owner's data mounts, the leaf's artifacts, and a
-leaf data mount colliding with a generated output) before any pass writes, so a
-refused compile leaves every checkout as it was (#265). Only then does it
+pass before any pass writes (`plan.CheckManaged`), so a refused compile leaves
+every checkout as it was (#265). The leaf's artifacts are checked against the
+state its data pass leaves: the data records it will hold, the paths its mounts
+occupy (a generated output at, above or below a mount refuses), and the mounts
+it retires (a path moving from a mount to a generated output converges). Only then does it
 reconcile data mounts in their declaring owners and compose artifacts in the
 leaf. Ancestor contexts are not
 recursively compiled. Tool declarations live in each owner's authored root

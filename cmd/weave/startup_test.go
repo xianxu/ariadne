@@ -149,14 +149,8 @@ func TestCompileMountsDataPerOwnerAndRetiresRemovedDeclarations(t *testing.T) {
 // legacy ignore list; a generated output's path holds a file weave did not write.
 func TestCompileRefusalLeavesCheckoutUntouched(t *testing.T) {
 	root := t.TempDir()
-	base, leaf, data := filepath.Join(root, "base"), filepath.Join(root, "leaf"), filepath.Join(root, "data")
-	if err := os.MkdirAll(data, 0755); err != nil {
-		t.Fatal(err)
-	}
-	for _, args := range [][]string{{"init", "-q"}, {"remote", "add", "origin", "https://github.com/example/data.git"}} {
-		setupGit(t, data, args...)
-	}
-	mkfile(t, filepath.Join(data, "payload"), "authored data\n")
+	base, leaf := filepath.Join(root, "base"), filepath.Join(root, "leaf")
+	dataRepo(t, root)
 	mkfile(t, filepath.Join(base, "construct/base.manifest"), "skill construct/local\n")
 	mkfile(t, filepath.Join(base, "construct/local/example/.dynamic-skill"), "#!/bin/sh\n# weave-output: argv1\nmkdir -p \"$1\"\nprintf '%s\\n' '---' 'name: example' 'description: generated' '---' 'BODY' > \"$1/SKILL.md\"\n")
 	if err := os.Chmod(filepath.Join(base, "construct/local/example/.dynamic-skill"), 0755); err != nil {
@@ -206,6 +200,23 @@ func TestCompileWritesNothingInMountlessDependency(t *testing.T) {
 // before either writes.
 func TestCompileRefusesDataMountAtGeneratedPath(t *testing.T) {
 	parent, _, derived := buildFixture(t)
+	dataRepo(t, parent)
+	mkfile(t, filepath.Join(derived, "construct/deps"), "substrate ../base\ndata https://github.com/example/data.git shared.md\n")
+	var out bytes.Buffer
+	err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out)
+	if err == nil || !strings.Contains(err.Error(), "artifacts output shared.md overlaps data output shared.md") {
+		t.Fatalf("want a collision refusal, got %v\n%s", err, out.String())
+	}
+	for _, path := range []string{"shared.md", plan.InventoryPath, ".gitignore"} {
+		if _, err := os.Lstat(filepath.Join(derived, path)); !os.IsNotExist(err) {
+			t.Errorf("refused compile wrote %s: %v", path, err)
+		}
+	}
+}
+
+// dataRepo makes a data dependency under parent whose origin the deps rows name.
+func dataRepo(t *testing.T, parent string) {
+	t.Helper()
 	data := filepath.Join(parent, "data")
 	if err := os.MkdirAll(data, 0755); err != nil {
 		t.Fatal(err)
@@ -214,15 +225,50 @@ func TestCompileRefusesDataMountAtGeneratedPath(t *testing.T) {
 		setupGit(t, data, args...)
 	}
 	mkfile(t, filepath.Join(data, "payload"), "authored data\n")
-	mkfile(t, filepath.Join(derived, "construct/deps"), "substrate ../base\ndata https://github.com/example/data.git shared.md\n")
+}
+
+// #265 BR-2: a leaf data mount at a parent of a generated output would make
+// that output's parent a link; the check refuses before the mount is written.
+func TestCompileRefusesDataMountAboveGeneratedOutput(t *testing.T) {
+	parent, base, derived := buildFixture(t)
+	dataRepo(t, parent)
+	mkfile(t, filepath.Join(base, "construct/base.manifest"), "prose AGENTS.local.md\nsymlink docs/shared.md\n")
+	mkfile(t, filepath.Join(base, "docs/shared.md"), "SHARED CONTENT")
+	mkfile(t, filepath.Join(derived, "construct/deps"), "substrate ../base\ndata https://github.com/example/data.git docs\n")
 	var out bytes.Buffer
 	err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out)
-	if err == nil || !strings.Contains(err.Error(), "collides with a generated output") {
-		t.Fatalf("want a collision refusal, got %v\n%s", err, out.String())
+	if err == nil || !strings.Contains(err.Error(), "overlaps data output docs") {
+		t.Fatalf("want an overlap refusal, got %v\n%s", err, out.String())
 	}
-	for _, path := range []string{"shared.md", plan.InventoryPath, ".gitignore"} {
+	for _, path := range []string{"docs", plan.InventoryPath, ".gitignore"} {
 		if _, err := os.Lstat(filepath.Join(derived, path)); !os.IsNotExist(err) {
 			t.Errorf("refused compile wrote %s: %v", path, err)
 		}
+	}
+}
+
+// #265 BR-1: a path that moves from a data mount to a generated output
+// converges, as it did when the data pass applied before the artifacts check:
+// the check sees the data pass retire the mount first.
+func TestCompileMovesPathFromDataMountToGeneratedOutput(t *testing.T) {
+	parent, base, derived := buildFixture(t)
+	dataRepo(t, parent)
+	manifest := filepath.Join(base, "construct/base.manifest")
+	mkfile(t, manifest, "prose AGENTS.local.md\n")
+	mkfile(t, filepath.Join(derived, "construct/deps"), "substrate ../base\ndata https://github.com/example/data.git shared.md\n")
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := os.ReadFile(filepath.Join(derived, "shared.md/payload")); err != nil || string(got) != "authored data\n" {
+		t.Fatalf("data mount = %q %v", got, err)
+	}
+	mkfile(t, manifest, "prose AGENTS.local.md\nsymlink shared.md\n")
+	mkfile(t, filepath.Join(derived, "construct/deps"), "substrate ../base\n")
+	if err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out); err != nil {
+		t.Fatalf("compile refused the move: %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(derived, "shared.md")); err != nil || string(got) != "SHARED CONTENT" {
+		t.Fatalf("generated output = %q %v", got, err)
 	}
 }

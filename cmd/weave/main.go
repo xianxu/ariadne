@@ -565,23 +565,20 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 		}
 	}
 	// Every pass refuses before any pass writes, so a refused compile leaves
-	// each checkout's outputs, inventory and .gitignore as they were (#265).
+	// each checkout's outputs, inventory and .gitignore as they were (#265). The
+	// leaf's artifacts are checked against what its data pass leaves.
+	var leafData []plan.Action
 	for i, owner := range restored.Layers {
-		if err := plan.CheckManaged(fs, owner, data[i], plan.ScopeData); err != nil {
-			return fmt.Errorf("data mounts for %s: %w", owner, err)
-		}
-		if owner != root {
+		if owner == root {
+			leafData = data[i]
 			continue
 		}
-		artifacts := plan.ProducedPathSet(actions)
-		for path := range plan.ProducedPathSet(data[i]) {
-			if artifacts[path] {
-				return fmt.Errorf("data mount %s collides with a generated output", filepath.Join(root, path))
-			}
+		if err := plan.CheckManaged(fs, owner, plan.ManagedPass{Actions: data[i], Scope: plan.ScopeData}); err != nil {
+			return fmt.Errorf("data mounts for %s: %w", owner, err)
 		}
 	}
-	if err := plan.CheckManaged(fs, root, actions, plan.ScopeArtifacts); err != nil {
-		return fmt.Errorf("apply: %w", err)
+	if err := plan.CheckManaged(fs, root, plan.ManagedPass{Actions: leafData, Scope: plan.ScopeData}, plan.ManagedPass{Actions: actions, Scope: plan.ScopeArtifacts}); err != nil {
+		return fmt.Errorf("check %s: %w", root, err)
 	}
 	for i, owner := range restored.Layers {
 		report, err := plan.ApplyManaged(fs, owner, data[i], plan.ScopeData)
