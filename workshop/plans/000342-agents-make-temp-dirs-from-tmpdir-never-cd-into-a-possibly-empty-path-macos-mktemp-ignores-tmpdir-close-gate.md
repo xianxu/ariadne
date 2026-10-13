@@ -74,6 +74,23 @@ rounds:
       isolation: checkout
       reviewed: ad470891aa1ce396f5c1289a8877066cd9b01759
       blocked: false
+    - "n": 4
+      timestamp: "2026-10-13T16:12:13-07:00"
+      dispatched: "2026-10-13T16:11:15-07:00"
+      agent: claude
+      dispose:
+        - id: BR-4
+          disposition: addressed
+          note: lex pushes a backquote context inside double quotes (mktemp.go:94-95), popped by the code branch (:110-111); the "backquotes in double quotes" test fails with the prior mktemp.go swapped in and passes at head; nested cases probed correct.
+          round: 4
+        - id: BR-5
+          disposition: addressed
+          note: stripComment, codeOnly and the old arguments scanner are replaced by one lex (mktemp.go:68-125); masked() and lexed.arguments() read its byte classes; comment cut happens only in code context; tests at mktemp_test.go:49-50 pin it.
+          round: 4
+      recipe: fix-review
+      isolation: checkout
+      reviewed: 7b167cedfd0e447270a97af75cf90db5f372ce71
+      blocked: false
 ---
 
 # Gate ledger — ariadne#342 (boundary-review)
@@ -115,7 +132,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-5** [Minor] `quote-scanner-duplication` Three independent quote scanners in mktemp.go (stripComment, codeOnly, arguments)
   ARCH-DRY: stripComment could be built on codeOnly's mask (a # at the start of a word in masked code), so quote handling is fixed in one place.
 
+## Round 4 — 2026-10-13T16:12:13-07:00 (claude) — passed
+
+### Disposed
+
+- BR-4 — addressed — lex pushes a backquote context inside double quotes (mktemp.go:94-95), popped by the code branch (:110-111); the "backquotes in double quotes" test fails with the prior mktemp.go swapped in and passes at head; nested cases probed correct.
+- BR-5 — addressed — stripComment, codeOnly and the old arguments scanner are replaced by one lex (mktemp.go:68-125); masked() and lexed.arguments() read its byte classes; comment cut happens only in code context; tests at mktemp_test.go:49-50 pin it.
+
 ## Open findings
 
-- **BR-4** [Minor] `lint-command-position-coverage` codeOnly masks backquote substitution inside double quotes, so d="`mktemp -d`" is no longer flagged (regression vs prior head)
-- **BR-5** [Minor] `quote-scanner-duplication` Three independent quote scanners in mktemp.go (stripComment, codeOnly, arguments)
+(none — every finding has been disposed)

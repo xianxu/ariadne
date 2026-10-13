@@ -233,3 +233,75 @@ findings:
     detail: |
       ARCH-DRY: stripComment could be built on codeOnly's mask (a # at the start of a word in masked code), so quote handling is fixed in one place.
 ```
+
+---
+
+## Re-review — 2026-10-13T16:12:13-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 342 — agents: make temp dirs from $TMPDIR; never cd into a possibly-empty path (macOS mktemp ignores TMPDIR) |
+| repo | ariadne |
+| issue file | workshop/issues/000342-agents-make-temp-dirs-from-tmpdir-never-cd-into-a-possibly-empty-path-macos-mktemp-ignores-tmpdir.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 00472964b870f0958ff0fd7328c31b1e0abcd316..7b167cedfd0e447270a97af75cf90db5f372ce71 |
+| command | sdlc close --issue 342 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-13T16:12:13-07:00 |
+| verdict | SHIP |
+
+## Review
+
+I've finished the edge-case probes and am writing up the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both open findings are fixed, and the change introduces no new defect. The fix does more than patch the one case BR-4 named: it replaces the three separate quote scanners in `mktemp.go` (`stripComment`, `codeOnly`, `arguments`) with a single lexer. `lex` (`pkg/shelllint/mktemp.go:68-125`) tags every byte as code, quoted text or a quote character. It also cuts the trailing comment, and both kinds of command substitution count as code even inside double quotes. Masking (`masked`), argument splitting (`arguments`) and comment handling all read from it. `go test ./pkg/shelllint/` passes at the pinned head. With the prior head's `mktemp.go` swapped in, the new `backquotes in double quotes` case fails, so the regression test depends on the fix. The window changes no Spec, Revisions or Done-when text; it only adds the gate and review records.
+
+1. **Strengths**
+   - **One lexer for quoting (`mktemp.go:62-125`).** Quoting rules now live in one place. The `default` branch handles top-level code, `$(` substitutions and backquote substitutions together. The context stack treats `$(…)` and `` `…` `` the same way (`kind` is `'('` or `` '`' ``).
+   - **Comments are cut in code context only (`:105`).** So `#` inside quotes and `${x#…}` are no longer mistaken for comments. The new tests (`mktemp_test.go:49-50`) cover an apostrophe inside a comment and a `#` inside quotes.
+   - **Probes I ran all came out right:**
+     - Flagged (no template):
+       - `` "$(echo "`mktemp -d`")" ``
+       - nested escaped backquotes `` "`echo \`mktemp -d\``" ``
+       - `$((1+2)); mktemp -d`
+       - `d=$(mktemp -d) # mktemp -d` (once only)
+       - Makefile `$$(mktemp -d)`
+     - Not flagged:
+       - a templated `` "`mktemp -d "${TMPDIR:-/tmp}/x.XXXXXX"`" ``
+       - `"$(echo a) # mktemp -d"`
+   - **Signatures:** `commandWords`, `lookup` and `word` keep their logic and now take a `lexed` value instead of a raw string.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - Outside this window, not raised as a finding: `cdIntoMktemp` only matches the `$(` form, so `` cd "`mktemp -d`" `` gets the missing-template finding but not the cd finding. That regex was already there before this window.
+
+5. **Test coverage notes:** BR-4 is covered for backquotes both inside double quotes and unquoted (`mktemp_test.go:31-32`); the quoted case fails on the prior code. BR-5 is a refactor with no behaviour change, and the existing table plus the two new comment/quote cases pin it. The repo-wide test over tracked scripts still passes.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** The three quote scanners became one `lex`; consumers only read its byte classes.
+   - **ARCH-PURE: pass.** Everything is a pure string function, tested with no IO.
+   - **ARCH-PURPOSE: pass.** BR-4 was fixed for the whole class ("everything that runs code inside double quotes stays code"), not just the one site: both `$(` and backquotes push a code context. BR-5 was fixed by merging the scanners, not by touching just one of them.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-4
+    disposition: addressed
+    note: |
+      lex pushes a backquote context inside double quotes (mktemp.go:94-95), popped by the code branch (:110-111); the "backquotes in double quotes" test fails with the prior mktemp.go swapped in and passes at head; nested cases probed correct.
+  - id: BR-5
+    disposition: addressed
+    note: |
+      stripComment, codeOnly and the old arguments scanner are replaced by one lex (mktemp.go:68-125); masked() and lexed.arguments() read its byte classes; comment cut happens only in code context; tests at mktemp_test.go:49-50 pin it.
+```
