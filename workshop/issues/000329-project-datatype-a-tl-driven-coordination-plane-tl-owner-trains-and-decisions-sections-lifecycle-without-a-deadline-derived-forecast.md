@@ -64,8 +64,8 @@ Open (from the note): one file or several as a project grows; where cross-operat
 
 Durable plan: `workshop/plans/000329-project-datatype-tl-plan.md` (decisions D1–D10).
 
-- [ ] M1 — Vocabulary and lifecycle: cue statuses/guards/field ban, set-status and close rework, calendar forecast and fog ledger removal, datatype prose, help and atlas
-- [ ] M2 — Trains parser, find/resolve train and car, `sdlc project forecast` range, ops conformance patch for the TL
+- [ ] M1 — Vocabulary and lifecycle: cue statuses/guards/field ban, set-status and close rework, trains parser, `sdlc project forecast` range (replacing the calendar forecast and fog ledger), datatype prose, help and atlas
+- [ ] M2 — find/resolve name the train and car; ops conformance patch for the TL
 
 ## Estimate
 
@@ -105,3 +105,5 @@ Items, in order:
 ### 2026-10-12
 - Claimed at ariadne:3. The hub confirmed the lifecycle (defined → executing → closing → closed, plus dropped) and that the ops item ships as a patch the TL applies (workers don't edit ops project files).
 - Fleet migration list for the TL: `ideation` in pair couch-slots-v2, parley.nvim parley-packaging and parley-v1-release; deadline fields in metis arena3-rogii-wellbore and ml-research-workflow; no `paused` anywhere.
+- M1 built (e873b94b). The trains parser and forecast moved into M1; see the plan's Revisions. Targeted runs are green: pkg/vocab, internal/project (with fuzz seeds and DAG invariants), internal/estimate, processmanual, cmd/vocabulary (the end-to-end deadline ban), cue vet_test.sh, and the cmd/sdlc project/forecast/retro/close/gate-catalog tests.
+- `atlas/process-manual.md` is generated and refreshed periodically. It still describes the old project help and is left for the next refresh.

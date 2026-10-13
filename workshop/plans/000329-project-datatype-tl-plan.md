@@ -171,3 +171,14 @@ print the forecast best-effort; a lookup error becomes a note and never fails th
 - 2026-10-12, plan-quality round 1. D1 now states the `done → closed` rename and why archived records need no
   migration; the first edit attempt failed to apply, and round 2 caught it. D9 now deletes `project throughput`, whose only reader goes away. D8 names the lookup seam. Added:
   non-goals, the envelope, and test strategies instead of a list of cases.
+- 2026-10-12, during M1. The milestone boundary moved:
+  - The `trains-present` guard needs the trains parser, so the parser moved into M1. The scheduler and
+    `sdlc project forecast` were built in the same pass, because they replace the deleted calendar forecast that
+    `show`/`status` printed.
+  - M1 = vocabulary, lifecycle, the trains parser and the forecast. M2 = find/resolve train and car, plus the ops
+    conformance patch.
+  - D2's ban is a sentinel string, not `_|_`. cue's `_|_` diagnostic names neither the field nor a remedy (measured:
+    `explicit error (_|_ literal) in source:`). The string constraint makes the diagnostic name the field and point
+    at `sdlc project forecast`.
+  - `ListActiveProjectFiles`/`ListActiveInRoots` (whose only reader was the contention forecast) and the
+    `project close --no-ledger` gate row are deleted with what they served.
