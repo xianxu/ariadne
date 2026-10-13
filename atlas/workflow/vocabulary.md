@@ -16,14 +16,15 @@ ariadne#122; the invariant is defended by the `issue-lifecycle` target
   once and the `#`-defs can't drift). Also: `when` (per-status semantics),
   `lifecycle` (the transition table, with *named* guards whose implementations live
   in sdlc), and `laws` (documented-value + reachable/escapable, enforced by `cue vet`).
-- `construct/vocabulary/project.cue` — the `project` noun (#180 M1): the
-  ideation→defined→committed→executing funnel (+paused, done/dropped), commit-time
-  deadline baseline, named guards, per-repo `workshop/projects/` discovery, and the
-  four-section scaffold. `pkg/vocab.Project()` embeds the export and shares the
+- `construct/vocabulary/project.cue` — the `project` noun (#180 M1, pivoted by
+  #329 to a TL coordination plane): the defined→executing→closing→closed funnel
+  (+dropped), no deadline (`deadline`/`planned_finish` are banned in a live record),
+  named guards (`trains-present`, `mvp-landed`, `retro-recorded`), per-repo
+  `workshop/projects/` discovery, and the Charter/Trains/Breakdown/Log/Decisions
+  scaffold. `pkg/vocab.Project()` embeds the export and shares the
   lifecycle helpers with the issue/verdict bindings.
-  Its M4 workflow consumers keep the baseline stored while deriving the live
-  board from referenced issue records; dedicated close runs the model's named
-  retro/fog guards and moves terminal records to the model-derived project
+  Its M4 workflow consumers derive the live board from referenced issue
+  records; dedicated close runs the model's named retro guard and moves terminal records to the model-derived project
   archive rather than hand-maintaining a second portfolio state. Those
   consumers decode typed YAML metadata once, so flow/block lists and quoted
   scalars carry the same semantics the vocabulary validator accepts; numeric

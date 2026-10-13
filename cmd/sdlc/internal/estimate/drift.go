@@ -53,8 +53,8 @@ func driftSample(rows []LedgerRow, n int) []LedgerRow {
 		}
 		eligible = append(eligible, r)
 	}
-	// One dedupe rule, shared with SpanThroughput (ariadne#192 — the two used to disagree
-	// about what an observation is, and only this one was right).
+	// One dedupe rule, shared with every ledger reader (ariadne#192 — readers used to
+	// disagree about what an observation is).
 	deduped := NewestPerIssue(eligible)
 	// Newest-first, capped at n: this function's contract is "the last n distinct issues".
 	out := make([]LedgerRow, 0, n)

@@ -109,13 +109,6 @@ func parseDocBody(fm, body string) *Doc {
 // where a stray fence hiding `## Plan` would disarm the close gates.
 const projectFencePolicy = issue.UnterminatedIsFenced
 
-// SectionLineBounds delegates to the shared implementation (#211), pinning this
-// package's inherited unterminated-fence policy. Kept as a wrapper so callers
-// here don't each have to name the policy.
-func SectionLineBounds(text, name string) (int, int, bool) {
-	return issue.SectionLineBounds(strings.Split(text, "\n"), name, projectFencePolicy)
-}
-
 // FM returns a trimmed frontmatter field value, or an empty string when absent.
 func (d *Doc) FM(field string) string {
 	value, _ := issue.GetField(d.fm, field)

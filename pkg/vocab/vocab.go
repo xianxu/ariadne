@@ -72,6 +72,9 @@ type CardModel struct {
 type Section struct {
 	Name string `json:"name"`
 	Seed string `json:"seed"`
+	// Optional: the scaffold writes the section, but a record may omit it
+	// (#329: project validate requires only the non-optional sections).
+	Optional bool `json:"optional,omitempty"`
 }
 
 // Scaffold is the parsed `scaffold:` block — the on-disk creation-template shape

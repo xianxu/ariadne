@@ -84,15 +84,15 @@ func TestSdlcInvocations(t *testing.T) {
 
 func TestSdlcInvocationsRecognizesTwoWordCatalogCommand(t *testing.T) {
 	lines := []string{
-		mkAssistantBash("tu1", "sdlc project close --slug alpha --no-ledger"),
-		mkUserResult("tu1", "\x1b[1;33m[!]\x1b[0m --no-ledger (or --force): skipping fog-factor ledger"),
+		mkAssistantBash("tu1", "sdlc project close --slug alpha --no-retro"),
+		mkUserResult("tu1", "\x1b[1;33m[!]\x1b[0m --no-retro (or --force): closing without a recorded project retro"),
 	}
 	invs, _ := scanTranscript([]byte(strings.Join(lines, "\n")), map[string]bool{"project close": true})
 	if len(invs) != 1 || invs[0].Verb != "project close" {
 		t.Fatalf("two-word command not recognized: %+v", invs)
 	}
 	events := invocationGateEvents(invs[0])
-	if len(events) != 1 || events[0].Gate != "no-ledger" || events[0].Kind != GateBypass {
+	if len(events) != 1 || events[0].Gate != "no-retro" || events[0].Kind != GateBypass {
 		t.Fatalf("two-word gate output not attributed: %+v", events)
 	}
 }

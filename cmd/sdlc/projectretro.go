@@ -6,7 +6,6 @@ import (
 	"io"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
@@ -64,16 +63,6 @@ func runProjectRetro(ctx context.Context, stdout, _ io.Writer, f *projectRetroFl
 }
 
 func renderRetroEntry(b board, today string) string {
-	days := 0
-	if deadline, err := time.Parse("2006-01-02", b.Deadline); err == nil {
-		if now, err := time.Parse("2006-01-02", today); err == nil {
-			days = int(deadline.Sub(now).Hours() / 24)
-		}
-	}
-	deadline := valueOr(b.Deadline, "-")
-	if b.Deadline != "" {
-		deadline = fmt.Sprintf("%s (%d days)", b.Deadline, days)
-	}
 	frontier := valueOr(strings.Join(b.Frontier, ", "), "-")
-	return fmt.Sprintf("### %s — retro\n\n**board:** %d/%d done · Σ remaining ≈ %gh · deadline %s · frontier: %s\n\n<where we are + what changed + new forecast — replace this line>", today, b.Done, b.Total, b.RemainingHours, deadline, frontier)
+	return fmt.Sprintf("### %s — retro\n\n**board:** %d/%d done · Σ remaining ≈ %gh · frontier: %s\n\n<where we are + what changed + new forecast — replace this line>", today, b.Done, b.Total, b.RemainingHours, frontier)
 }

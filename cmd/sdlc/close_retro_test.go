@@ -12,10 +12,10 @@ func TestShouldNudgeProjectRetro(t *testing.T) {
 	if !shouldNudgeProjectRetro(doc("'executing'", ""), "2026-07-20", false) {
 		t.Error("single-quoted executing status was not YAML-decoded for nudge")
 	}
-	if !shouldNudgeProjectRetro(doc("paused", "### 2026-07-01 — retro"), "2026-07-20", false) {
-		t.Error("paused stale project was not nudged")
+	if !shouldNudgeProjectRetro(doc("closing", "### 2026-07-01 — retro"), "2026-07-20", false) {
+		t.Error("closing stale project was not nudged")
 	}
-	if shouldNudgeProjectRetro(doc("ideation", ""), "2026-07-20", false) {
+	if shouldNudgeProjectRetro(doc("defined", ""), "2026-07-20", false) {
 		t.Error("forming project was nudged")
 	}
 	if shouldNudgeProjectRetro("---\ntype: project\nstatus: executing\n---\n# legacy\n", "2026-07-20", false) {

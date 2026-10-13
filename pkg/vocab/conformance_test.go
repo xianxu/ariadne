@@ -123,11 +123,8 @@ func TestProjectConformance(t *testing.T) {
 		}
 	}
 
-	// The deliberate absence: no paused→done edge (close requires executing).
-	if m.CanTransition("paused", "done") {
-		t.Errorf("model declares paused→done; the design requires resume-first")
-	}
-	if m.TransitionFor("paused", "done") != nil {
-		t.Errorf("TransitionFor(paused, done) must be nil")
+	// The deliberate absence: close only from closing (wrap first).
+	if m.CanTransition("executing", "closed") {
+		t.Errorf("model declares executing→closed; the design requires wrap-first")
 	}
 }

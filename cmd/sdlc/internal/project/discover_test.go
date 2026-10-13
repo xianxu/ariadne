@@ -99,14 +99,16 @@ func TestDiscoverByIssueRef_AllMatchesAcrossPeers(t *testing.T) {
 
 func TestDiscoverByIssueRef_DropsTerminalLegacyUnderActiveOnly(t *testing.T) {
 	parent := t.TempDir()
-	// a DONE brain-legacy record must NOT appear under ActiveOnly (would be
-	// re-ticked by the close gate) but MUST appear under ActiveAndArchive.
-	writeProjectStatus(t, parent, "brain", "data/project", "done-legacy", "done", "[metis#18]")
+	// a terminal brain-legacy record must NOT appear under ActiveOnly (would be
+	// re-ticked by the close gate) but MUST appear under ActiveAndArchive. The
+	// status comes from the vocabulary (`closed` since #329); the fleet's legacy
+	// home has been empty since the #171 migration.
+	writeProjectStatus(t, parent, "brain", "data/project", "done-legacy", "closed", "[metis#18]")
 	markBrain(t, parent, "brain")
 
 	act, _ := DiscoverByIssueRef(parent, "metis", "18", ActiveOnly)
 	if len(act) != 0 {
-		t.Fatalf("done legacy must be dropped under ActiveOnly, got %d: %+v", len(act), act)
+		t.Fatalf("terminal legacy must be dropped under ActiveOnly, got %d: %+v", len(act), act)
 	}
 	all, _ := DiscoverByIssueRef(parent, "metis", "18", ActiveAndArchive)
 	if len(all) != 1 {
@@ -379,12 +381,5 @@ func TestDiscoveryCheckoutOverlay(t *testing.T) {
 		if m.RepoDir == slot && m.Repo != "metis" {
 			t.Fatalf("repo name is not canonical: %+v", m)
 		}
-	}
-	files, err := ListActiveProjectFiles(parent, filepath.Join(slot, "workshop/projects/current.md"), overlay)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(files) != 1 || files[0].Repo != "ariadne" {
-		t.Fatalf("want peer only, got %+v", files)
 	}
 }

@@ -46,7 +46,7 @@ func TestSummarizeAndRender(t *testing.T) {
 type: project
 name: alpha
 status: executing
-deadline: 2026-09-01
+tl: [xian-xu@ops:0, ana@ops:1]
 ---
 ## Breakdown
 - [x] done [ariadne#1]
@@ -59,11 +59,11 @@ deadline: 2026-09-01
 	if s.Name != "alpha" || s.Done != 1 || s.Total != 2 {
 		t.Fatalf("summary = %+v", s)
 	}
-	if got := RenderListRow(s); got != "alpha  executing  2026-09-01\n" {
+	if got := RenderListRow(s); got != "alpha  executing  xian-xu@ops:0, ana@ops:1\n" {
 		t.Fatalf("list row = %q", got)
 	}
 	show := RenderShow(s)
-	for _, want := range []string{"workshop/projects/alpha.md", "status: executing", "tasks: 1/2 done"} {
+	for _, want := range []string{"workshop/projects/alpha.md", "status: executing", "tl: xian-xu@ops:0, ana@ops:1", "tasks: 1/2 done"} {
 		if !strings.Contains(show, want) {
 			t.Errorf("show missing %q:\n%s", want, show)
 		}

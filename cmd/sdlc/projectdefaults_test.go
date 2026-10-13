@@ -119,6 +119,9 @@ func TestProjectDefaultCloseHistory(t *testing.T) {
 
 func TestProjectDefaultsPositionalValidateKeepsCwd(t *testing.T) {
 	t.Chdir(t.TempDir())
+	if err := os.WriteFile("relative.md", []byte("---\ntype: project\n---\n## Charter\n## Trains\n## Breakdown\n## Log\n## Decisions\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
 	original := validateFrontmatterFn
 	t.Cleanup(func() { validateFrontmatterFn = original })
 	var got string
