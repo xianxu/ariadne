@@ -1,6 +1,6 @@
 ---
 id: 000265
-status: codecomplete
+status: done
 created: 2026-09-28
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 23728ab3a28a815633f4ed6a27624a8b4f140719
         evidence_commit: f5a5bfc24d307a6adfbbabcb3323b19623b09e4c
+        landed_commit: 8077d2f76dd2c3f42b567bcf419a4657d5e0cc73
 ---
 
 # weave robustness: atomic compile, symlinked Makefile, legacy include, dependency writes
