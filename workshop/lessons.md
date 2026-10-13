@@ -62,7 +62,11 @@ Detailed incidents remain in their owning issue or review artifact.
   state another flow may have changed since: a remote-tracking ref kept for a
   branch the landing deleted made every rerun's leased push refuse (#305 BR-1).
   Refresh the evidence from the remote first, and decide every refusal before
-  the first mutation (switching branches included, BR-3).
+  the first mutation (switching branches included, BR-3). A mutation a
+  refusal's remedy needs (a fast-forward) may precede it only if the refusal
+  names it (BR-6). Check a restore's postcondition before publishing or
+  reporting success: a no-op step on the wrong starting point "succeeded"
+  without restoring anything (BR-5).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - Scope a guard's failure to the input it actually reads. A fail-closed check that

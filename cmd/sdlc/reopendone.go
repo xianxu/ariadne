@@ -43,9 +43,51 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 	if env.branch != name && !env.onRest() {
 		return false, fmt.Errorf("#%s: reopen from the resting branch (%s) or from %s, not %s", issueStr, env.resting, name, valueOr(env.branch, "a detached HEAD"))
 	}
+	// Every refusal is decided before the first change (BR-3, BR-5). The issue
+	// branch must hold main's archive commit; a local one that lacks it is the
+	// landed branch (main contains it: reset to main from rest, nothing to
+	// lose) or stale work (merge main into it first).
+	archiveCommit, err := env.git("rev-list", "-1", view.Ref(), "--", archivedRel)
+	if err != nil {
+		return false, err
+	}
+	tip := "HEAD"
+	if env.branch != name {
+		if tip, err = env.git("for-each-ref", "--format=%(objectname)", "refs/heads/"+name); err != nil {
+			return false, err
+		}
+	}
+	reset := tip == ""
+	if !reset {
+		holds, err := env.ancestorOf(archiveCommit, tip)
+		if err != nil {
+			return false, err
+		}
+		landed, err := env.ancestorOf(tip, view.Ref())
+		if err != nil {
+			return false, err
+		}
+		switch {
+		case holds:
+		case !landed:
+			return false, fmt.Errorf("#%s: %s predates main's archive of its details; merge main into it, then rerun", issueStr, name)
+		case env.branch == name:
+			return false, fmt.Errorf("#%s: %s is the landed branch, without main's archive of its details; switch to %s and rerun, which cuts it again from main", issueStr, name, env.resting)
+		default:
+			reset = true
+		}
+	}
+	moved := ""
 	if env.onRest() {
+		before, err := env.git("rev-parse", "HEAD")
+		if err != nil {
+			return false, err
+		}
 		if warn := fastForwardRest(env, view.Ref()); warn != "" {
 			return false, fmt.Errorf("#%s: %s", issueStr, warn)
+		}
+		if before != view.Ref() {
+			moved = fmt.Sprintf(" (%s was fast-forwarded to main, which the archived copy needs)", env.resting)
 		}
 	}
 	// The details are wherever HEAD has them: archived until step 2 commits.
@@ -72,37 +114,12 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 			return false, fmt.Errorf("%s is malformed (%v); repair it before reopening", detailRel, err)
 		}
 		if err := checkTransitionGuards("done", "working", "", body); err != nil {
-			return false, fmt.Errorf("%w\n  Write it in %s; the reopen moves the details back with it. Nothing was changed", err, detailRel)
+			return false, fmt.Errorf("%w\n  Write it in %s; the reopen moves the details back with it. Nothing else was changed%s", err, detailRel, moved)
 		}
 	}
-	// 1: the issue branch, from main. A local one main contains is the landed
-	// branch (nothing to lose); any other is this reopen's, on a rerun, and
-	// must already hold main's archive commit (checked before switching to it).
-	archiveCommit, err := env.git("rev-list", "-1", view.Ref(), "--", archivedRel)
-	if err != nil {
-		return false, err
-	}
-	tip := "HEAD"
+	// 1: the issue branch.
 	if env.branch != name {
-		if tip, err = env.git("for-each-ref", "--format=%(objectname)", "refs/heads/"+name); err != nil {
-			return false, err
-		}
-	}
-	landed := tip == ""
-	if !landed {
-		if landed, err = env.ancestorOf(tip, view.Ref()); err != nil {
-			return false, err
-		}
-	}
-	if !landed {
-		if merged, err := env.ancestorOf(archiveCommit, tip); err != nil {
-			return false, err
-		} else if !merged {
-			return false, fmt.Errorf("#%s: %s predates main's archive of its details; merge main into it, then rerun", issueStr, name)
-		}
-	}
-	if env.branch != name {
-		if landed {
+		if reset {
 			_, err = env.git("switch", "-q", "--no-track", "-C", name, view.Ref())
 		} else {
 			_, err = env.git("switch", "-q", name)
@@ -115,6 +132,14 @@ func restoreDone(env *trackerEnv, stderr io.Writer, card tracker.Record, issuesD
 	// 2: the details and plans come back out of the archive.
 	if err := unarchiveIssue(env, base, issuesDir, unarchiveSubject(card.ID)); err != nil {
 		return false, err
+	}
+	// The postcondition, before anything is published (BR-5).
+	if live, err := env.has("HEAD", path.Join(issuesDir, base)); err != nil {
+		return false, err
+	} else if archived, err := env.has("HEAD", archivedRel); err != nil {
+		return false, err
+	} else if !live || archived {
+		return false, fmt.Errorf("#%s: %s does not hold the un-archived details (%s); nothing was pushed", issueStr, name, path.Join(issuesDir, base))
 	}
 	// 3: the branch on the remote, before the card says it is back.
 	if err := leaseOnRemoteBranch(env, name, view.Ref()); err != nil {

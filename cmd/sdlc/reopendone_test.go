@@ -52,7 +52,9 @@ func writeReopenEntry(t *testing.T, r *trackerRepo) {
 	t.Helper()
 	p := filepath.Join(r.root, s330History)
 	raw, err := os.ReadFile(p)
-	if err != nil {
+	if os.IsNotExist(err) {
+		return // a checkout without the archived copy: the refusal precedes the guard
+	} else if err != nil {
 		t.Fatal(err)
 	}
 	line := "- " + time.Now().Format("2006-01-02") + ": reopened — a regression\n"
@@ -193,6 +195,9 @@ func TestReopenDoneRefusals(t *testing.T) {
 		"a dirty tree": {func(t *testing.T, r *trackerRepo, _ string) {
 			writeRepoFile(t, r.root, "cmd/a.go", "package a // edited\n")
 		}, "cmd/a.go"},
+		"the landed branch itself": {func(t *testing.T, r *trackerRepo, _ string) {
+			r.git("switch", "-q", s330Branch)
+		}, "is the landed branch"},
 		"an unlanded local branch without the archive": {func(t *testing.T, r *trackerRepo, _ string) {
 			r.git("branch", "-f", s330Branch, "HEAD~3")
 			r.git("switch", "-q", s330Branch)
@@ -225,4 +230,17 @@ func TestReopenDoneRefusals(t *testing.T) {
 			t.Fatal("a forced reopen did not un-archive")
 		}
 	})
+}
+
+// BR-6: a refusal after the fast-forward the archived copy needs names it.
+func TestReopenDoneGuardRefusalNamesTheFastForward(t *testing.T) {
+	r, _, _ := doneArchived(t)
+	r.git("reset", "-q", "--hard", "HEAD~1") // rest behind main
+	out, err := reopen330()
+	if err == nil || !strings.Contains(err.Error()+out, "fast-forwarded to main") {
+		t.Fatalf("want the guard refusal to name the fast-forward: %v\n%s", err, out)
+	}
+	if r.git("rev-parse", "HEAD") != r.git("rev-parse", "origin/main") {
+		t.Fatal("rest was not fast-forwarded")
+	}
 }
