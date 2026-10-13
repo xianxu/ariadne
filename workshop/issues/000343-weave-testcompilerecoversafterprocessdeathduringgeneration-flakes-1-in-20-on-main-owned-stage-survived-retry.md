@@ -6,7 +6,7 @@ github_issue:
 created: 2026-10-12
 updated: 2026-10-13
 estimate_hours:
-card_mirror: 'ff5297a430b371a67cceeaf29b48fb16661f6aff' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '8511038a791bbaca83fe71a1e7f14ea19fec997e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T14:56:25-07:00
 claimant:
     operator: Xian Xu
@@ -16,7 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: quick, provenance: inferred, spec: "1620eac1", done: "293f1398"}
-actual_hours: 0.29
+actual_hours: 0.30
 ---
 
 # weave: TestCompileRecoversAfterProcessDeathDuringGeneration flakes ~1 in 20 on main ('owned stage survived retry')
