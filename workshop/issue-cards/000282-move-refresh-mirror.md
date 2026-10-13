@@ -1,6 +1,6 @@
 ---
 id: 000282
-status: codecomplete
+status: done
 created: 2026-10-01
 updated: 2026-10-13
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 395975ae0dce0ab03477ed411fff4f78b2cc7c74
         evidence_commit: 9736933fe7724733e527bc959aa5dfc1b2f70473
+        landed_commit: a7ea59ca2f43ab942f0d9821b23cb58a306b8895
 ---
 
 # sdlc move refreshes the destination's details mirror after relocating the owner
