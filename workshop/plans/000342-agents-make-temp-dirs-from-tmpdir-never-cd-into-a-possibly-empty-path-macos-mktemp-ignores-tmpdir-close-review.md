@@ -76,3 +76,79 @@ findings:
     detail: |
       pushd has the same empty-path failure mode as cd; extend the cdIntoMktemp regex at mktemp.go:26 to (cd|pushd).
 ```
+
+---
+
+## Re-review — 2026-10-13T16:06:27-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 342 — agents: make temp dirs from $TMPDIR; never cd into a possibly-empty path (macOS mktemp ignores TMPDIR) |
+| repo | ariadne |
+| issue file | workshop/issues/000342-agents-make-temp-dirs-from-tmpdir-never-cd-into-a-possibly-empty-path-macos-mktemp-ignores-tmpdir.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 16b7779a5eb8240e679146e61466c05a8a0b6a5c..7fa5dce54b23874e8b2588dad7a9ff2cc2c30227 |
+| command | sdlc close --issue 342 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-13T16:06:27-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both prior findings are fixed in this interdiff, and nothing in it is a Critical or Important defect. In `pkg/shelllint/mktemp.go:105-109`, `commandPosition` now accepts `{`, `sudo`, `time`, `env`, `nohup`, `nice` and a trailing `NAME=value` word. The `cdIntoMktemp` regex at `mktemp.go:27` now matches `(cd|pushd)`. The reason text and `atlas/workflow/sandbox.md` were updated to match. There is a unit case for each newly covered form at `mktemp_test.go:21-25`, plus a `${mktemp}` look-alike guard. `go test ./pkg/shelllint/` passes at head. The scope is unchanged: no Spec, Revisions or Done-when edits, and no behaviour beyond what the findings asked for. One new Minor finding, in the same family, is described below.
+
+1. **Strengths**
+   - `mktemp_test.go:21-25`: every form the prior finding named has its own case, so taking out any part of the fix breaks a specific test.
+   - `mktemp_test.go:37`: the "braced variable" case guards against the most likely false positive that accepting `{` could cause.
+   - The fix covers more than the cited prefixes: `env`, `nohup` and `nice` were added too.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **Third finding in the `lint-command-position-coverage` family.** Earlier rounds fixed individual prefixes. I probed the fixed scanner, and these still report 0 findings:
+     - `if mktemp -d; then …` (the list has no `if`, `elif`, `while` or `until`)
+     - `sudo -u x mktemp -d`, `time -p mktemp -d`, `env -i mktemp -d` (a prefix command followed by options)
+
+     Don't add these words one by one. The rule that covers all of them: a word is in command position when the word before it is a shell reserved word that opens a command list (`if elif while until then do else ! { (`), or when it is the first non-option, non-assignment word after a prefix command. To implement that, `commandPosition` should skip `-opt` words (and, for `sudo -u`, their arguments) and `NAME=value` words back to a prefix command or reserved word, rather than checking only the last field.
+
+     There is also a small false-positive edge: `echo "see X=1 mktemp -d"` is flagged, because the assignment check doesn't know it is inside a quoted string. That fails loudly, not silently.
+
+5. **Test coverage notes**
+   - The new cases pin each prefix and `pushd`.
+   - Nothing covers reserved-word openers like `if` and `while`, or prefix commands with options. Those are the forms in the Minor finding.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. `assignment` is a single regex, and the prefix list lives in one switch.
+   - ARCH-PURE: pass. The change only touches pure text functions, tested with no IO.
+   - ARCH-PURPOSE: flagged, Minor. The fix went past the named instances, but the class (command-position recognition) still isn't covered by a stated rule. See the Minor finding.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      commandPosition (mktemp.go:105-109) accepts {, sudo, time, env, nohup, nice and NAME=value; tests at mktemp_test.go:21-24; go test passes.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      cdIntoMktemp regex now (cd|pushd) at mktemp.go:27; reason text + atlas/workflow/sandbox.md updated; test mktemp_test.go:25.
+findings:
+  - id: new
+    severity: Minor
+    family: lint-command-position-coverage
+    title: |
+      commandPosition still misses reserved-word openers (if/elif/while/until) and option-taking prefixes (sudo -u x, time -p, env -i)
+    detail: |
+      3rd finding in this family: probed `if mktemp -d; then`, `sudo -u x mktemp -d`, `time -p mktemp -d` and `env -i mktemp -d`, and all report 0 findings. Fix the rule, not more instances: treat a word as a command word when the word before it is a list-opening reserved word, or when it is the first non-option, non-assignment word after a prefix command. That means skipping -opts and NAME=value words in commandPosition (mktemp.go:96) instead of checking only the last field. No tracked site is affected today.
+```
