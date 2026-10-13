@@ -14,12 +14,16 @@ import (
 // A phony supplemental target handles omission without implicit builds or hiding Makefile errors.
 func Tools(fs weavefs.FS, layers []string, runner weavefs.InputRunner, dryRun bool, out io.Writer) error {
 	for _, dir := range layers {
-		info, err := fs.Stat(filepath.Join(dir, "Makefile"))
+		info, err := fs.Lstat(filepath.Join(dir, "Makefile"))
 		if os.IsNotExist(err) {
 			continue
 		}
 		if err != nil {
 			return fmt.Errorf("read tools Makefile in %s: %w", dir, err)
+		}
+		// A linked Makefile would build another repository's tools here (#265).
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("tools Makefile in %s is a symlink: weave builds each owner's tools from its own Makefile; replace the link with a regular file", dir)
 		}
 		if !info.Mode().IsRegular() {
 			return fmt.Errorf("tools Makefile in %s is not a regular file", dir)

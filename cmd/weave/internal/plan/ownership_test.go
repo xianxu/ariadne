@@ -538,3 +538,21 @@ func TestManagedSweepsDisplacedCopyWithItsOutput(t *testing.T) {
 		t.Fatal("live output's copy swept")
 	}
 }
+
+// #265: a later pass is checked against what an earlier pass at the same root
+// will occupy, including a path below one of its outputs.
+func TestCheckManagedSeesEarlierPassOutputs(t *testing.T) {
+	root, src := t.TempDir(), t.TempDir()
+	data := ManagedPass{Actions: []Action{Symlink{Src: src, Dst: "out/mount"}}, Scope: ScopeData}
+	artifacts := ManagedPass{Actions: []Action{WriteFile{Path: "out", Content: "x"}}, Scope: ScopeArtifacts}
+	err := CheckManaged(weavefs.OSFS{}, root, data, artifacts)
+	if err == nil || !strings.Contains(err.Error(), "artifacts output out overlaps data output out/mount") {
+		t.Fatalf("want an overlap refusal, got %v", err)
+	}
+	if entries, _ := os.ReadDir(root); len(entries) != 0 {
+		t.Fatalf("check wrote %v", entries)
+	}
+	if err := CheckManaged(weavefs.OSFS{}, root, artifacts); err != nil {
+		t.Fatalf("lone pass: %v", err)
+	}
+}
