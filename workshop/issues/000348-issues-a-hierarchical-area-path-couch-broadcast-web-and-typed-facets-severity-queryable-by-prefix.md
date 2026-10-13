@@ -37,7 +37,16 @@ The operator (2026-10-13) leans to a semi-hierarchical scheme over JIRA-style fl
 
 ## Plan
 
-- [ ]
+Durable plan: `workshop/plans/000348-issues-a-hierarchical-area-path-couch-broadcast-web-and-typed-facets-severity-queryable-by-prefix-plan.md` (single pass, one close).
+
+- [ ] Model: `enums`/`repoEnums` sections, area + severity card rows, `#Issue` shape (vocab-embed)
+- [ ] `internal/repoenum`: strict declaration, ancestor rule, segment prefix
+- [ ] Card kinds `enum` / `repo-enum` (shape only in ParseCard)
+- [ ] Loader (`.sdlc/vocabulary.json` at main) + writers: `issue new --area/--severity`, `set-area`, `set-severity`
+- [ ] Gates: #124 instance gate + `issue validate` check membership
+- [ ] `issue list --area <prefix> --severity`; state JSON fields
+- [ ] Help + atlas
+- [ ] Verify, close, merge
 
 ## Log
 
@@ -45,6 +54,7 @@ The operator (2026-10-13) leans to a semi-hierarchical scheme over JIRA-style fl
 
 - Mapped the plumbing. Card fields come from `issue.cue` `card.fields` (kind + setter) and are validated by `validateCardScalar` (scalar-only; `claimant` is the one structured kind). Details carry `target`/`deps`. sdlc reads the model from the embedded `pkg/vocab/issue.json`, so a repo's own vocabulary layer is invisible to it, and the `vocabulary` binary's layer merge is whole-file shadowing. Precedent for shared-shape/repo-values: `fleet-policy.cue` + `.sdlc/fleet.json` + `internal/fleet/load.go`. `issue list` filters only `--status`; legacy repos have no setters.
 - Draft design sent to the hub: a `repoEnums` model section (area: path syntax, multi) + `.sdlc/vocabulary.json` declaration (declared or ancestor-of-declared allowed); area/severity as CARD fields (new kinds path-list, enum; ParseCard checks shape only); membership validated at `issue new` / `set-area` / `set-severity` against main's declaration and in `issue validate` + the #124 gate; `issue list --area` (segment prefix) / `--severity`. Open questions: declaration location (guarded `.sdlc/` vs `workshop/`), severity values, card vs details.
+- Hub approved (2026-10-13): `.sdlc/vocabulary.json` under the local-gates guard (operator governs the taxonomy), severity critical/high/medium/low, card fields, no starter set. An absent file is the empty declaration, so this change adds no guarded file.
 
 ## Revisions
 
