@@ -65,12 +65,12 @@ export GEMINI_CLI_AUTO_APPROVE=true
 # script log to extract output. No re-running commands, no TUI exclusion list.
 set +o noclobber
 if [[ -z "$_BASH_SCRIPT_LOG" ]]; then
-    export _BASH_SCRIPT_LOG=$(mktemp)
+    export _BASH_SCRIPT_LOG=$(mktemp "${TMPDIR:-/tmp}/bash-script-log.XXXXXX")
     exec script -q --flush "$_BASH_SCRIPT_LOG" -c /bin/bash
 fi
 shopt -s extglob
-_bash_last_out=$(mktemp)
-_bash_collect_out=$(mktemp)
+_bash_last_out=$(mktemp "${TMPDIR:-/tmp}/bash-last-out.XXXXXX")
+_bash_collect_out=$(mktemp "${TMPDIR:-/tmp}/bash-collect-out.XXXXXX")
 _bash_collecting=false
 _bash_last_cmd=""
 _bash_cmd_offset=0
