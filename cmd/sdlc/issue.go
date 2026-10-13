@@ -25,6 +25,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/repoenum"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 )
@@ -97,7 +98,7 @@ the fail-closed boundary is the push/merge gate.`,
 		Args:          cobra.ArbitraryArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runIssueValidate(cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args)
+			return runIssueValidate(commandContext(cmd.Context()), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, args)
 		},
 	}
 	cmd.Flags().IntSliceVar(&f.Issues, "issue", nil, "issue ID(s) to validate (comma-separated: --issue 1,2,3)")
@@ -109,7 +110,7 @@ the fail-closed boundary is the push/merge gate.`,
 // runIssueValidate resolves the target file(s), runs full validation on each
 // (frontmatter + sections), and returns a non-nil error iff any file is
 // nonconforming (so the command exits non-zero).
-func runIssueValidate(stdout, stderr io.Writer, f *issueValidateFlags, args []string) error {
+func runIssueValidate(ctx context.Context, stdout, stderr io.Writer, f *issueValidateFlags, args []string) error {
 	files, err := resolveValidateTargets(f, args)
 	if err != nil {
 		return err
@@ -117,9 +118,11 @@ func runIssueValidate(stdout, stderr io.Writer, f *issueValidateFlags, args []st
 	if len(files) == 0 {
 		return fmt.Errorf("no issue files to validate (pass <file>, --issue N, or --all)")
 	}
+	decl, declErr := issueValidateDeclaration(f.IssuesDir)
 	nonconforming := 0
 	for _, file := range files {
 		probs := validateIssueFull(file)
+		probs = append(probs, classificationProblems(decl, declErr, file)...)
 		if len(probs) == 0 {
 			cok(stderr, fmt.Sprintf("%s: conforms", file))
 			continue
@@ -130,10 +133,77 @@ func runIssueValidate(stdout, stderr io.Writer, f *issueValidateFlags, args []st
 			fmt.Fprintln(stdout, "  - "+p)
 		}
 	}
+	if f.All && declErr == nil {
+		// #348: in a tracker repository the cards are the authority for area and
+		// severity, so --all sweeps them too.
+		cards := cardClassificationProblems(ctx, f.IssuesDir, decl)
+		for _, p := range cards {
+			fmt.Fprintln(stdout, "  - "+p)
+		}
+		if len(cards) > 0 {
+			cwarn(stderr, fmt.Sprintf("%d card(s) carry an undeclared or invalid classification", len(cards)))
+			nonconforming += len(cards)
+		}
+	}
 	if nonconforming > 0 {
 		return fmt.Errorf("%d of %d issue file(s) nonconforming", nonconforming, len(files))
 	}
 	return nil
+}
+
+// issueValidateDeclaration reads the repository's declaration (#348) from main
+// for on-demand validation.
+func issueValidateDeclaration(issuesDir string) (repoenum.Declaration, error) {
+	root := repoRootOf(issuesDir)
+	if root == "" {
+		return parseRepoEnums(nil)
+	}
+	git := func(args ...string) (string, error) {
+		out, err := gitx.RunGit(append([]string{"-C", root}, args...)...)
+		return string(out), err
+	}
+	rev, err := repoEnumsMainRev(git)
+	if err != nil {
+		return repoenum.Declaration{}, err
+	}
+	return repoEnumsAtRev(git, rev)
+}
+
+// classificationProblems checks one file's area and severity (#348).
+func classificationProblems(decl repoenum.Declaration, declErr error, file string) []string {
+	data, err := os.ReadFile(file)
+	if err != nil {
+		return nil
+	}
+	if declErr != nil {
+		return []string{"classification: could not read the declaration: " + declErr.Error()}
+	}
+	if err := detailsClassification(decl, file, data); err != nil {
+		return []string{"classification: " + strings.TrimPrefix(err.Error(), file+": ")}
+	}
+	return nil
+}
+
+// cardClassificationProblems checks every card's area and severity (#348).
+func cardClassificationProblems(ctx context.Context, issuesDir string, decl repoenum.Declaration) []string {
+	records, err := loadIssueRecords(ctx, issuesDir, tracker.PreferFresh)
+	if err != nil {
+		return []string{"cards: " + err.Error()}
+	}
+	var out []string
+	for _, r := range records.All() {
+		if r.Card == nil {
+			continue
+		}
+		areas, severity, err := frontmatterClassification(r.Card.Card.Frontmatter)
+		if err == nil {
+			err = checkClassification(decl, areas, severity)
+		}
+		if err != nil {
+			out = append(out, fmt.Sprintf("card #%s: %v", r.ID, err))
+		}
+	}
+	return out
 }
 
 // resolveValidateTargets picks the files to validate from positional <file>

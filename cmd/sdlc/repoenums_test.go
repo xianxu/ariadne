@@ -184,3 +184,29 @@ func TestIssuePublish_RefusesUndeclaredArea(t *testing.T) {
 		t.Fatalf("declared values refused: %v", err)
 	}
 }
+
+// #348: on-demand validation checks each file's classification and, with --all
+// in a tracker repository, every card's (the cards are the authority).
+func TestIssueValidateClassification(t *testing.T) {
+	prev := validateFrontmatterFn
+	validateFrontmatterFn = func(_, _ string) (string, bool, error) { return "", true, nil }
+	t.Cleanup(func() { validateFrontmatterFn = prev })
+	cardPath, card, detailPath, detail := seededIssue(t, "000001", "x")
+	card = strings.Replace(card, "status: open", "status: open\narea: [couch/session]", 1)
+	newTrackerRepo(t, map[string]string{cardPath: card}, map[string]string{".sdlc/vocabulary.json": areaDecl, detailPath: detail})
+
+	var out, errs bytes.Buffer
+	err := runIssueValidate(context.Background(), &out, &errs, &issueValidateFlags{All: true, IssuesDir: "workshop/issues"}, nil)
+	if err == nil || !strings.Contains(out.String(), "card #000001") || !strings.Contains(out.String(), "couch/session") {
+		t.Fatalf("err %v\n%s\n%s", err, out.String(), errs.String())
+	}
+
+	// A file's own classification is checked too.
+	bad := strings.Replace(detail, "status: open", "status: open\nseverity: urgent", 1)
+	writeRepoFile(t, ".", detailPath, bad)
+	out.Reset()
+	err = runIssueValidate(context.Background(), &out, &errs, &issueValidateFlags{IssuesDir: "workshop/issues"}, []string{detailPath})
+	if err == nil || !strings.Contains(out.String(), "urgent") {
+		t.Fatalf("err %v\n%s", err, out.String())
+	}
+}
