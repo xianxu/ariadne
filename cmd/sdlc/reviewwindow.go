@@ -78,7 +78,10 @@ func resolveBoundaryReviewManifest(git boundaryGitRunner, req boundaryReviewMani
 		if err != nil {
 			return judge.ReviewWindowManifest{}, err
 		}
-		m.PlanFile = optionalReviewPlanPath(root, req.PlansDir, m.IssueFile)
+		m.PlanFile, err = optionalReviewPlanPath(root, req.PlansDir, m.IssueFile)
+		if err != nil {
+			return judge.ReviewWindowManifest{}, err
+		}
 	}
 	if _, err := judge.RenderReviewWindow(m); err != nil {
 		return judge.ReviewWindowManifest{}, fmt.Errorf("invalid review window: %w", err)
@@ -137,25 +140,34 @@ func resolveReviewIssuePath(root, issuesDir string, issueNum int) (string, error
 	return rel, nil
 }
 
-func optionalReviewPlanPath(root, plansDir, issueFile string) string {
-	displayPath, statPath := reviewPlanPaths(root, plansDir, issueFile)
-	if displayPath == "" {
-		return ""
+func optionalReviewPlanPath(root, plansDir, issueFile string) (string, error) {
+	displayPath, statPath, err := reviewPlanPaths(root, plansDir, issueFile)
+	if err != nil || displayPath == "" {
+		return "", err
 	}
 	if info, err := os.Stat(statPath); err != nil || info.IsDir() {
-		return ""
+		return "", nil
 	}
-	return displayPath
+	return displayPath, nil
 }
 
-func reviewPlanPaths(root, plansDir, issueFile string) (displayPath, statPath string) {
+// reviewPlanPaths resolves the issue's durable plan through planArtifactPath's
+// id lookup (#235), searching plansDir under root when it is relative.
+func reviewPlanPaths(root, plansDir, issueFile string) (displayPath, statPath string, err error) {
 	if plansDir == "" || issueFile == "" {
-		return "", ""
+		return "", "", nil
 	}
-	displayPath = planArtifactPath(plansDir, strings.TrimSuffix(filepath.Base(issueFile), filepath.Ext(issueFile)))
+	searchDir := plansDir
+	if !filepath.IsAbs(searchDir) {
+		searchDir = filepath.Join(root, searchDir)
+	}
+	displayPath, err = planArtifactPathIn(searchDir, plansDir, strings.TrimSuffix(filepath.Base(issueFile), filepath.Ext(issueFile)))
+	if err != nil {
+		return "", "", fmt.Errorf("resolve review plan: %w", err)
+	}
 	statPath = displayPath
 	if !filepath.IsAbs(statPath) {
 		statPath = filepath.Join(root, statPath)
 	}
-	return displayPath, statPath
+	return displayPath, statPath, nil
 }

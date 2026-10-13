@@ -148,7 +148,14 @@ func runChangeCode(stdin io.Reader, stdout, stderr io.Writer, f *changeCodeFlags
 		gateContent = string(refreshed)
 	}
 
-	planArtifact, err := captureReviewArtifact(planArtifactPath(f.PlansDir, name))
+	planPath, err := planArtifactPath(f.PlansDir, name)
+	if err != nil {
+		return err
+	}
+	if note := planNameNote(f.PlansDir, name, planPath); note != "" {
+		cinfo(stderr, note)
+	}
+	planArtifact, err := captureReviewArtifact(planPath)
 	if err != nil {
 		return fmt.Errorf("read optional plan: %w", err)
 	}
@@ -281,8 +288,12 @@ func checkpointDesign(f *changeCodeFlags, name, issuePath string) error {
 		// A new worktree holds the branch; this checkout's copy stays uncommitted.
 		return fmt.Errorf("this checkout is on %q, not %s", current, name)
 	}
+	planPath, err := planArtifactPath(f.PlansDir, name)
+	if err != nil {
+		return err
+	}
 	var paths []string
-	for _, p := range []string{issuePath, planArtifactPath(f.PlansDir, name), planGatePath(f.PlansDir, filepath.Base(issuePath))} {
+	for _, p := range []string{issuePath, planPath, planGatePath(f.PlansDir, filepath.Base(issuePath))} {
 		if _, err := os.Stat(p); err == nil {
 			paths = append(paths, p)
 		}
@@ -567,23 +578,90 @@ func findIssueFileByName(issuesDir, name string) (string, error) {
 	return "", fmt.Errorf("could not locate issue file for name %q under %s", name, issuesDir)
 }
 
-// readOptionalPlanFile returns the contents of
-// <plansDir>/<name>-plan.md if it exists, else "". Used by the
-// plan-quality judge to consume detailed designs that live outside
-// the issue file.
-func readOptionalPlanFile(plansDir, name string) string {
-	b, err := os.ReadFile(planArtifactPath(plansDir, name))
+// readOptionalPlanFile returns the contents of the issue's durable plan (see
+// planArtifactPath) if it exists, else "". Used by the plan-quality judge to
+// consume detailed designs that live outside the issue file. An ambiguous plan is
+// an error, never "no plan" (#235).
+func readOptionalPlanFile(plansDir, name string) (string, error) {
+	path, err := planArtifactPath(plansDir, name)
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return string(b)
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", nil
+	}
+	return string(b), nil
 }
 
 // planArtifactPath is the durable plan's path for an issue name: the one lookup
 // change-code, close and both manual judges (plan-quality, milestone-review's
-// review window) read the plan through (#189, ARCH-DRY).
-func planArtifactPath(plansDir, name string) string {
+// review window) read the plan through (#189, ARCH-DRY). It finds the plan by the
+// issue's id, not its exact slug (#235): see planArtifactPathIn.
+func planArtifactPath(plansDir, name string) (string, error) {
+	return planArtifactPathIn(plansDir, plansDir, name)
+}
+
+// canonicalPlanPath is the durable plan's canonical name: the issue stem plus
+// -plan.md. The lookup falls back to it and the off-slug note names it.
+func canonicalPlanPath(plansDir, name string) string {
 	return filepath.Join(plansDir, name+"-plan.md")
+}
+
+// planArtifactPathIn lists searchDir (plansDir as seen from the current
+// directory) for the id's family and returns the plan as a path under plansDir.
+// It lists rather than globs, so metacharacters in the directory's path are not
+// wildcards. A name with no NNNNNN- prefix keeps the exact canonical name.
+func planArtifactPathIn(searchDir, plansDir, name string) (string, error) {
+	canonical := canonicalPlanPath(plansDir, name)
+	id := issueIDFromPath(name + ".md") // a stem; the filename parse wants the extension
+	if id == 0 {
+		return canonical, nil
+	}
+	entries, err := os.ReadDir(searchDir)
+	if os.IsNotExist(err) {
+		return canonical, nil
+	}
+	if err != nil {
+		return "", fmt.Errorf("find the durable plan for %s: %w", name, err)
+	}
+	var matches []string
+	for _, e := range entries {
+		if ok, _ := filepath.Match(familyPattern(id), e.Name()); ok && !e.IsDir() {
+			matches = append(matches, e.Name())
+		}
+	}
+	var plans []string
+	for _, a := range classifyFamily(id, matches) {
+		if a.Kind == kindPlan {
+			plans = append(plans, filepath.Join(plansDir, a.Path))
+		}
+	}
+	return pickPlanArtifact(canonical, plans)
+}
+
+// pickPlanArtifact decides among an issue's plan candidates (#235). Pure. None is
+// the canonical path, which readers take as absent; one is the plan, whatever
+// its slug; two or more refuse rather than pick one.
+func pickPlanArtifact(canonical string, plans []string) (string, error) {
+	switch len(plans) {
+	case 0:
+		return canonical, nil
+	case 1:
+		return plans[0], nil
+	}
+	return "", fmt.Errorf("%d durable plans share this issue's id (%s): keep one, named %s",
+		len(plans), strings.Join(plans, ", "), filepath.Base(canonical))
+}
+
+// planNameNote is the one line naming the canonical plan name when the plan was
+// found under another slug (#235), else "".
+func planNameNote(plansDir, name, path string) string {
+	canonical := canonicalPlanPath(plansDir, name)
+	if path == canonical {
+		return ""
+	}
+	return fmt.Sprintf("durable plan found at %s; its canonical name is %s", path, filepath.Base(canonical))
 }
 
 // planningIssueRef labels the issue a planning judge reviews: ariadne#N when the
