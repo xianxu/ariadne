@@ -50,9 +50,9 @@ Makefile, set before `Makefile.workflow` is included (ariadne: 2; default 1).
 Lifecycle: no new durable artifact beyond one queue lock file per machine,
 beside the slot files, rewritten in place and never growing.
 
-- [ ] `test-lock.py --slots N`: atomic multi-slot take, the queue, deduped holders.
-- [ ] `Makefile.workflow` passes `WF_TEST_WEIGHT`; ariadne's Makefile declares 2.
-- [ ] `scripts/test-lock.test.sh`, with fake lock files and `sleep` holders
+- [x] `test-lock.py --slots N`: atomic multi-slot take, the queue, deduped holders.
+- [x] `Makefile.workflow` passes `WF_TEST_WEIGHT`; ariadne's Makefile declares 2.
+- [x] `scripts/test-lock.test.sh`, with fake lock files and `sleep` holders
       only. Cases:
   - a weight-2 suite takes both slots;
   - a weight-1 suite waits behind it, and it waits for a weight-1 suite;
@@ -61,8 +61,16 @@ beside the slot files, rewritten in place and never growing.
   - two weight-2 waiters both finish (no deadlock);
   - the clamp;
   - the make wiring.
-- [ ] Atlas: the sdlc-binary "Two full suites" section.
+- [x] Atlas: the sdlc-binary "Two full suites" section.
 
 ## Log
 
 ### 2026-10-13
+
+- Dispatched by the TL (ops:0); claimed in ariadne:4.
+- `WF_TEST_WEIGHT ?= 2`, not `:=`: an operator's env override (e.g.
+  `WF_TEST_WEIGHT=1`) must win; the make-wiring test caught `:=` beating it.
+- `bash scripts/test-lock.test.sh`: all pass (fake lock files, `sleep`
+  holders, no load). Mutation-checked: letting a non-head waiter take slots
+  fails "a light newcomer queues behind the heavy waiter" and "the heavy
+  waiter takes both slots once free".
