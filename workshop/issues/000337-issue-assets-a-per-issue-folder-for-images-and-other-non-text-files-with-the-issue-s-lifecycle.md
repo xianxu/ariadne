@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-13
-estimate_hours:
-card_mirror: '2fb12787270130defada498e4a08cfe3915b6676' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 3.403
+card_mirror: 'b3805816f8745a7b181430ff1319546b52ba044e' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T13:03:22-07:00
 claimant:
     operator: Xian Xu
@@ -55,6 +55,47 @@ and is explicitly deferred to #347. Agents never change policy to admit bytes.
 - Publication and lifecycle retries preserve exact linked bytes and existing ownership protections, including asset-only changes and legacy repositories.
 - Cross-repo issue migration remains safely refused; its asset support is tracked by dependent #347.
 - The git storage decision is recorded with its reasons.
+
+## Estimate
+
+*Produced via `brain/data/life/42shots/velocity/estimate-logic-v3.1.md` against
+`baseline-v3.1.md`. Method A only. Calibration marked stale by estimate-source;
+values are provisional ship-wall-clock hours.*
+
+Decomposition, before summing: issue shaping uses the low v2 issue-spec design
+0.5 and impl 0.2. Bundle/parser and attachment transition/writer are two new Go
+concerns, each v2 design 1.0 and impl 0.8. Policy/visibility reuses gh and JSON
+rather than a new stack (smaller module design 0.3, impl 0.5). Publication,
+archive, restore/abandon, and bounded discovery are four existing-module
+extensions, each design 0.3, impl 0.5. Docs use design 0.1, impl 0.2; the single
+close boundary uses design 0, impl 0.5. Existing Git transaction/gh libraries
+short-circuit integration; a Markdown parser library may halve the bundle
+primitive's design, but availability has not yet been verified, so the full
+1.0 design basis is retained rather than claiming that discount. No other
+library replaces the new attachment transition.
+
+Apply the accepted plan's 0.2 design discount to implementation components
+(shaping is already its own primitive), v3.1's 0.4 to all impl values, familiar
+Go/Cobra/Git multiplier 1.0, and thorough-plan design buffer 0.15. Rows follow
+that decomposition, in the same order. Design subtotal 1.22; impl subtotal 2.00;
+1.22 × 1.15 + 2.00 = 3.403 hours, recorded as 3.40.
+
+```estimate
+model: estimate-logic-v3.1
+familiarity: 1.0
+item: issue-spec design=0.50 impl=0.08
+item: greenfield-go-module design=0.20 impl=0.32
+item: greenfield-go-module design=0.20 impl=0.32
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: smaller-go-module design=0.06 impl=0.20
+item: atlas-docs design=0.02 impl=0.08
+item: milestone-review design=0.00 impl=0.20
+design-buffer: 0.15
+total: 3.403
+```
 
 ## Plan
 

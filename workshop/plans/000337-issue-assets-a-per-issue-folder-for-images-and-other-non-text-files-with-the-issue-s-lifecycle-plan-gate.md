@@ -26,6 +26,24 @@ rounds:
           family: function-level-test-strategy
           round: 1
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-13T13:13:36-07:00"
+      agent: codex
+      dispose:
+        - id: PQ-1
+          disposition: addressed
+          note: Metadata-first discovery, a subtree-reader rule, and an aggregate-volume regression cover the affected reader class.
+          round: 2
+        - id: PQ-2
+          disposition: addressed
+          note: NextAttach defines ownership-aware rollback, retained state, uncertain-outcome reconciliation, and exact-byte restart adoption.
+          round: 2
+        - id: PQ-3
+          disposition: addressed
+          note: Named functions now have adversarial strategies and mechanical guards, including fuzzing and reproducible recovery sequences.
+          round: 2
+      blocked: false
+content_hash: 82de980021ee7c409cce19204476c71303574888d619bab466bed6e30d090d63
 ---
 
 # Gate ledger — ariadne#337 (plan-quality)
@@ -44,8 +62,14 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **PQ-3** [Important] `function-level-test-strategy` Replace prose test-case inventories with named functions and adversarial strategies
   Tasks 1–3 enumerate test cases (plan:140–149, 160–168, 179–186), while the core table names types and concepts rather than the functions to unit-test. Compress these inventories into named parser, bundle-delta, policy-decision, attachment-transition, publication-decision, and archive-planner functions, each with one strategy line identifying its adversarial input class and mechanical guard; use fuzzing for malformed input and reproducible event-sequence testing for recovery.
 
+## Round 2 — 2026-10-13T13:13:36-07:00 (codex) — passed
+
+### Disposed
+
+- PQ-1 — addressed — Metadata-first discovery, a subtree-reader rule, and an aggregate-volume regression cover the affected reader class.
+- PQ-2 — addressed — NextAttach defines ownership-aware rollback, retained state, uncertain-outcome reconciliation, and exact-byte restart adoption.
+- PQ-3 — addressed — Named functions now have adversarial strategies and mechanical guards, including fuzzing and reproducible recovery sequences.
+
 ## Open findings
 
-- **PQ-1** [Important] `bounded-reader-scope` Adapt existing issue-discovery readers before adding binary subtrees
-- **PQ-2** [Important] `explicit-recovery-transitions` Define attachment failure and restart transitions before implementing the writer
-- **PQ-3** [Important] `function-level-test-strategy` Replace prose test-case inventories with named functions and adversarial strategies
+(none — every finding has been disposed)
