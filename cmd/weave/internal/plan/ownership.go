@@ -153,6 +153,19 @@ func (pass *managedPass) overlap(path string) (string, bool) {
 	return "", false
 }
 
+// retiring is what the pass removes: outputs it wrote last time, unchanged
+// since, that it no longer produces. Commit retires these; a later pass's
+// check takes them as gone.
+func (pass *managedPass) retiring() []outputIdentity {
+	var out []outputIdentity
+	for _, id := range pass.previous {
+		if !pass.produced[id.Path] {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
 // CheckManaged runs the refusals of ApplyManaged for each pass, writing
 // nothing (publication stages are reclaimed only by an apply). Passes share
 // one root and apply in order, so each is checked against the inventory and
@@ -210,8 +223,8 @@ func prepareManaged(fs weavefs.FS, root string, actions []Action, scope Ownershi
 	retired := map[string]bool{}
 	for _, prior := range after {
 		old = append(slices.DeleteFunc(old, func(id outputIdentity) bool { return id.Scope == prior.scope }), prior.wanted...)
-		for _, id := range prior.previous {
-			retired[id.Path] = !prior.produced[id.Path]
+		for _, id := range prior.retiring() {
+			retired[id.Path] = true
 		}
 		for path := range prior.produced {
 			retired[path] = false
@@ -339,7 +352,7 @@ func prepareManaged(fs weavefs.FS, root string, actions []Action, scope Ownershi
 
 func commitManaged(fs weavefs.FS, root string, pass *managedPass) (ManagedReport, error) {
 	actions, wanted, previous, other := pass.actions, pass.wanted, pass.previous, pass.other
-	produced, displace, gi, report := pass.produced, pass.displace, pass.ignore, pass.report
+	displace, gi, report := pass.displace, pass.ignore, pass.report
 	prepared := append(append(append([]outputIdentity{}, other...), previous...), wanted...)
 	if e := saveInventory(fs, root, prepared); e != nil {
 		return report, e
@@ -374,10 +387,7 @@ func commitManaged(fs weavefs.FS, root string, pass *managedPass) (ManagedReport
 	if e = Apply(fs, root, actions); e != nil {
 		return fail(e)
 	}
-	for _, id := range previous {
-		if produced[id.Path] {
-			continue
-		}
+	for _, id := range pass.retiring() {
 		match, e := observe(fs, root, id)
 		if e != nil {
 			return fail(e)

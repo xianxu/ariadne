@@ -272,3 +272,33 @@ func TestCompileMovesPathFromDataMountToGeneratedOutput(t *testing.T) {
 		t.Fatalf("generated output = %q %v", got, err)
 	}
 }
+
+// #265 BR-5: a data mount retired from a path that becomes the parent of a
+// generated output converges: the check takes the retired mount as gone
+// instead of refusing its link as a non-directory parent.
+func TestCompileMovesDataMountToGeneratedParent(t *testing.T) {
+	root := t.TempDir()
+	base, leaf := filepath.Join(root, "base"), filepath.Join(root, "leaf")
+	dataRepo(t, root)
+	mkfile(t, filepath.Join(base, "construct/base.manifest"), "skill construct/local\n")
+	mkfile(t, filepath.Join(leaf, "construct/deps"), "substrate ../base\ndata https://github.com/example/data.git construct/generated/example\n")
+	var out bytes.Buffer
+	if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.ReadFile(filepath.Join(leaf, "construct/generated/example/payload")); err != nil {
+		t.Fatalf("data mount: %v", err)
+	}
+	marker := filepath.Join(base, "construct/local/example/.dynamic-skill")
+	mkfile(t, marker, "#!/bin/sh\n# weave-output: argv1\nmkdir -p \"$1\"\nprintf '%s\\n' '---' 'name: example' 'description: generated' '---' 'BODY' > \"$1/SKILL.md\"\n")
+	if err := os.Chmod(marker, 0755); err != nil {
+		t.Fatal(err)
+	}
+	mkfile(t, filepath.Join(leaf, "construct/deps"), "substrate ../base\n")
+	if err := run(weavefs.OSFS{}, leaf, plan.TargetAll, false, &out); err != nil {
+		t.Fatalf("compile refused the move: %v", err)
+	}
+	if got, err := os.ReadFile(filepath.Join(leaf, "construct/generated/example/SKILL.md")); err != nil || !strings.Contains(string(got), "BODY") {
+		t.Fatalf("generated output = %q %v", got, err)
+	}
+}

@@ -129,5 +129,13 @@ item gets a regression test reproducing the observed failure.
   ad hoc loop (ARCH-DRY). Minors: the doc comment now says check skips the
   stage reclaim; the hoist is moot. Both review findings reproduce as test
   failures with the projection disabled.
+- Close review round 2: FIX-THEN-SHIP, one blocker. BR-5 (Important): no
+  committed test reached the retired-path skip. Coverage of the enumeration
+  above: records (BR-1 test), created output at the path (collision test),
+  above it (BR-2 test), below it (plan-level `TestCheckManagedSeesEarlierPassOutputs`),
+  retired path or ancestor (new `TestCompileMovesDataMountToGeneratedParent`,
+  which fails with the skip disabled: "non-directory parent"). The Minor about
+  the retirement rule being restated is fixed: `managedPass.retiring` is shared
+  by commit and the check.
 
 ### 2026-09-28

@@ -103,3 +103,117 @@ findings:
     detail: |
       main.go:573; hoist above the loop (moot if the collision loop is replaced).
 ```
+
+---
+
+## Re-review — 2026-10-12T18:53:56-07:00 (FIX-THEN-SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 265 — weave robustness: atomic compile, symlinked Makefile, legacy include, dependency writes |
+| repo | ariadne |
+| issue file | workshop/issues/000265-weave-robustness.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 5655861efb765f10a5e5e9bd514dc3743c23fc56..f41a8cafc8f9ef080ee9fa5a996dd192782fb04e |
+| command | sdlc close --issue 265 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T18:53:56-07:00 |
+| verdict | FIX-THEN-SHIP |
+
+## Review
+
+Reviewing the BR-1/BR-2 fixes in `prepareManaged`; next I'll run the suite and revert-test the fixes.
+
+Running the compile tests to separate environment failures from real ones.
+
+BR-1 and BR-2 fixes both go red when reverted. Now checking the issue's plan items against the diff.
+
+Writing a throwaway test to check whether the untested "retired" branch is needed for generated (strict) outputs.
+
+```verdict
+verdict: FIX-THEN-SHIP
+confidence: high
+```
+
+All four Plan items and Done-when criteria are delivered, and both prior blocking findings are fixed with tests that go red when the fix is reverted. Splitting the old apply into a no-write prepare step plus a commit step means the check and the real apply run the same refusals. The new "every pass is checked before any pass writes" ordering keeps a refused compile from touching the checkout. One gap remains, and it is cheap to close. The BR-1 fix has two parts:
+
+1. **Projected inventory:** the earlier pass's data records replace the current ones before the artifacts check runs.
+2. **Retired-path skip:** a path the data pass will retire is treated as already empty.
+
+The committed BR-1 test only needs one of the two to pass. With the retired-path skip disabled, every committed test stays green, yet that skip is what lets a path move from a data mount to a *generated* output. I confirmed this with a throwaway test: it passes at head, and with the skip disabled it fails with a permanent "non-directory parent" refusal. That scenario needs a committed test.
+
+**How the tests were run.** The plain run of `go test ./...` failed all 31 `TestCompile*` tests. That is caused by this review environment, not the code: `GIT_CEILING_DIRECTORIES` covers `.sdlc-review/tmp`, so git can't find a repo above the temp dirs. With TMPDIR moved under the checkout and the ceiling relaxed, the new compile tests pass. All internal packages pass as-is. I made each revert check in the disposable checkout and restored it every time; `git status` is clean.
+
+1. **Strengths**
+   - `ownership.go:184-195`: `ApplyManaged` is now "reclaim stages → prepare → commit", and `CheckManaged` uses the same prepare step. There is one inspection routine instead of a second copy (ARCH-DRY).
+   - `main.go:567-594`: every pass is checked before any pass writes, and the real apply still re-runs prepare against the actual state. If the check's prediction is ever wrong, the worst outcome is a refusal partway through, never a wrong write.
+   - `ownership.go:263-266`: the overlap check (at, above or below an earlier pass's output) replaces the old exact-path loop and covers both directions of BR-2.
+   - `startup_test.go:149-176` checks exactly what Done-when asks for: `.gitignore` byte-identical, no inventory, no mount.
+   - Items 3 and 4 are small and each has a test (`tools.go:17-27`, `apply.go:126-129`).
+
+2. **Critical findings:** none.
+
+3. **Important findings**
+   - `ownership.go:268-273`: the retired-path skip (`within(id.Path, retired)` … `continue`) has no committed test. `TestCompileMovesPathFromDataMountToGeneratedOutput` uses a manifest symlink, which is not a strict output, and the projected inventory alone is enough for that case.
+     - **Failure if the skip regresses:** a leaf with data mounted at `construct/generated/example` that drops the mount and gains a generator writing `construct/generated/example/SKILL.md`. Compile then refuses permanently: "publication path … has non-directory parent". This is the BR-1 failure again, for generated outputs.
+     - **Fix:** commit a compile-level test for that move. The throwaway one I wrote is about 25 lines and modelled on `TestCompileRefusalLeavesCheckoutUntouched`.
+
+4. **Minor findings**
+   - In `prepareManaged`, `retired` is a `map[string]bool` where `false` means "an earlier pass produced this path", and `within` only matches `true` keys. That works, but it's easy to misread; two separate sets would be clearer.
+   - ARCH-DRY: `prepareManaged`'s `after` loop restates `commitManaged`'s retirement rule (a matching previous output that is not produced gets removed). If the commit rule changes, the projection can drift from it. A shared helper or a comment cross-reference would keep them tied together.
+
+5. **Test coverage notes**
+   - BR-1: reverting the projected inventory and the retired-path skip together turns the transition test red ("belongs to data").
+   - BR-2: removing the overlap check turns both compile collision tests red. Removing only the descendant scan turns `TestCheckManagedSeesEarlierPassOutputs` red.
+   - The issue Log says "both review findings reproduce as test failures with the projection disabled". That holds for the projection as a whole, but not for each of its parts (see the Important finding).
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass, apart from the Minor note above.
+   - **ARCH-PURE:** pass. Prepare and commit go through the injected `weavefs.FS`, as before.
+   - **ARCH-PURPOSE:** pass. All four items are delivered.
+   - **ARCH-MOCK:** pass. Tests use temp dirs and local git repos, with no network.
+   - **ARCH-CONSTRAINTS:** pass. Inspecting each pass twice is acknowledged in the Log for a batch step of tens of outputs.
+   - **ARCH-SECURE:** pass. The symlinked-Makefile refusal narrows what gets trusted.
+   - **ARCH-ORDER:** pass. Ordering is now explicit (check every pass → apply data → apply artifacts), and the re-prepare inside apply covers changes made between check and apply.
+   - **ARCH-FUNERAL:** pass. Nothing durable is new; the generation stage, now created before the check, is still removed by the existing `defer`.
+   - A carry-forward outside this diff: moving a path the other way, from an artifact output to a data mount, still fails, because the data pass refuses with "belongs to artifacts" and the artifacts pass never runs. That already happened with the old order. A future issue could give the data pass the same projection, run in reverse.
+
+7. **Plan revision recommendations**
+   - Add a "## Revisions" entry (or Log line) saying that the transition test covers the projected inventory, and that a second test pins the retired-path skip for a mount → generated-output move.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Projected inventory plus retired-path skip; reverting both turns TestCompileMovesPathFromDataMountToGeneratedOutput red. The skip alone is not pinned (new finding).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Overlap check at/above/below replaces the exact-path loop; removing it reddens both compile collision tests, removing the descendant scan reddens TestCheckManagedSeesEarlierPassOutputs.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      ownership.go CheckManaged doc now says publication stages are reclaimed only by an apply.
+  - id: BR-4
+    disposition: addressed
+    note: |
+      Moot: the per-owner loop was replaced by CheckManaged; prepareManaged computes ProducedPathSet once.
+findings:
+  - id: new
+    severity: Important
+    family: fix-branch-without-regression-fixture
+    title: |
+      Retired-path skip in prepareManaged (ownership.go:268-273) is reached by no committed test
+    detail: |
+      Reverting only the within(id.Path, retired) skip leaves every committed test green, because the BR-1 transition test uses a non-strict manifest symlink that the projected inventory alone handles. A throwaway test (data mount at construct/generated/example, then a generator writing construct/generated/example/SKILL.md) passes at head and fails with the skip disabled ("non-directory parent"), so it is a permanent refusal. Commit that compile-level test.
+  - id: new
+    severity: Minor
+    family: loop-invariant-recompute
+    title: |
+      Check-time projection restates commitManaged's retirement rule instead of sharing it
+    detail: |
+      prepareManaged's after loop encodes retire = previous and not produced, the same rule commitManaged applies, so a change to one can drift from the other. Share a helper, or cross-reference the two in a comment. Belongs only loosely to the family (a duplicated derivation, not a recomputation).
+```

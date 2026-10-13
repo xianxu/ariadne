@@ -35,6 +35,43 @@ rounds:
       recipe: small-diff-review
       isolation: checkout
       blocked: true
+    - "n": 2
+      timestamp: "2026-10-12T18:53:56-07:00"
+      dispatched: "2026-10-12T18:40:03-07:00"
+      agent: claude
+      dispose:
+        - id: BR-1
+          disposition: addressed
+          note: Projected inventory plus retired-path skip; reverting both turns TestCompileMovesPathFromDataMountToGeneratedOutput red. The skip alone is not pinned (new finding).
+          round: 2
+        - id: BR-2
+          disposition: addressed
+          note: Overlap check at/above/below replaces the exact-path loop; removing it reddens both compile collision tests, removing the descendant scan reddens TestCheckManagedSeesEarlierPassOutputs.
+          round: 2
+        - id: BR-3
+          disposition: addressed
+          note: ownership.go CheckManaged doc now says publication stages are reclaimed only by an apply.
+          round: 2
+        - id: BR-4
+          disposition: addressed
+          note: 'Moot: the per-owner loop was replaced by CheckManaged; prepareManaged computes ProducedPathSet once.'
+          round: 2
+      findings:
+        - id: BR-5
+          severity: Important
+          title: Retired-path skip in prepareManaged (ownership.go:268-273) is reached by no committed test
+          detail: Reverting only the within(id.Path, retired) skip leaves every committed test green, because the BR-1 transition test uses a non-strict manifest symlink that the projected inventory alone handles. A throwaway test (data mount at construct/generated/example, then a generator writing construct/generated/example/SKILL.md) passes at head and fails with the skip disabled ("non-directory parent"), so it is a permanent refusal. Commit that compile-level test.
+          family: fix-branch-without-regression-fixture
+          round: 2
+        - id: BR-6
+          severity: Minor
+          title: Check-time projection restates commitManaged's retirement rule instead of sharing it
+          detail: prepareManaged's after loop encodes retire = previous and not produced, the same rule commitManaged applies, so a change to one can drift from the other. Share a helper, or cross-reference the two in a comment. Belongs only loosely to the family (a duplicated derivation, not a recomputation).
+          family: loop-invariant-recompute
+          round: 2
+      recipe: milestone-review
+      isolation: checkout
+      blocked: true
 ---
 
 # Gate ledger — ariadne#265 (boundary-review)
@@ -55,9 +92,23 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-4** [Minor] `loop-invariant-recompute` ProducedPathSet(actions) recomputed inside the per-owner loop in compilePrepared
   main.go:573; hoist above the loop (moot if the collision loop is replaced).
 
+## Round 2 — 2026-10-12T18:53:56-07:00 (claude) — BLOCKED
+
+### Disposed
+
+- BR-1 — addressed — Projected inventory plus retired-path skip; reverting both turns TestCompileMovesPathFromDataMountToGeneratedOutput red. The skip alone is not pinned (new finding).
+- BR-2 — addressed — Overlap check at/above/below replaces the exact-path loop; removing it reddens both compile collision tests, removing the descendant scan reddens TestCheckManagedSeesEarlierPassOutputs.
+- BR-3 — addressed — ownership.go CheckManaged doc now says publication stages are reclaimed only by an apply.
+- BR-4 — addressed — Moot: the per-owner loop was replaced by CheckManaged; prepareManaged computes ProducedPathSet once.
+
+### Raised
+
+- **BR-5** [Important] `fix-branch-without-regression-fixture` Retired-path skip in prepareManaged (ownership.go:268-273) is reached by no committed test
+  Reverting only the within(id.Path, retired) skip leaves every committed test green, because the BR-1 transition test uses a non-strict manifest symlink that the projected inventory alone handles. A throwaway test (data mount at construct/generated/example, then a generator writing construct/generated/example/SKILL.md) passes at head and fails with the skip disabled ("non-directory parent"), so it is a permanent refusal. Commit that compile-level test.
+- **BR-6** [Minor] `loop-invariant-recompute` Check-time projection restates commitManaged's retirement rule instead of sharing it
+  prepareManaged's after loop encodes retire = previous and not produced, the same rule commitManaged applies, so a change to one can drift from the other. Share a helper, or cross-reference the two in a comment. Belongs only loosely to the family (a duplicated derivation, not a recomputation).
+
 ## Open findings
 
-- **BR-1** [Critical] `cross-pass-check-ignores-prior-pass-effects` Up-front artifacts check refuses a data-to-artifact path transition the old order converged (permanent, unrecoverable refusal)
-- **BR-2** [Important] `cross-pass-check-ignores-prior-pass-effects` Data-vs-artifact collision guard is exact-path only; parent/child overlaps still commit the data pass before the artifacts refusal
-- **BR-3** [Minor] `doc-claim-overstates-behavior` CheckManaged doc says it runs every refusal ApplyManaged would, but it skips ReclaimPublications
-- **BR-4** [Minor] `loop-invariant-recompute` ProducedPathSet(actions) recomputed inside the per-owner loop in compilePrepared
+- **BR-5** [Important] `fix-branch-without-regression-fixture` Retired-path skip in prepareManaged (ownership.go:268-273) is reached by no committed test
+- **BR-6** [Minor] `loop-invariant-recompute` Check-time projection restates commitManaged's retirement rule instead of sharing it
