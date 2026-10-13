@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "0b544354", done: "86e1e63e"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # weave overwrites generated outputs instead of refusing on mismatch
@@ -157,6 +157,8 @@ cross-scope and parent checks:
 - Filed from a parley.nvim slot2 session after weave refused on a reverted vendored vocabulary file. Related, not blocking: #265 (refusal leaves .gitignore half-migrated), #239 (origin of the check), parley.nvim#208 (vendored vocabulary), parley PR #221 (workaround).
 
 ### 2026-10-12
+- 2026-10-12: closed — make test exit 0 after review round 1 fixes (12 shards, 0 failed). Convergence: TestManagedConvergesChangedRecordedOutput (reverted + edited), TestCompileConvergesRevertedTrackedOutput (parley shape, commit hint only for tracked), TestCompileConvergesEditedGeneratorDestination, TestManagedDataScopeDisplacesChangedMount. Refusals with next action: TestManagedRefusesDirectoryAtRecordedOutput, TestStagedOutputsConvergeEditedAndRefuseUnownedDestinations, TestManagedDataRejectsAuthoredDestinations. Retirement: TestManagedReportsAbandonedOutputOnce, abandoned warning in TestCompileRetiresDisconnectedOutputsPreservesAuthoredFiles. Round-1 fixes: TestManagedFailureAfterDisplacementNamesCopy, TestManagedSweepsDisplacedCopyWithItsOutput, TestDisplacedPathIsFlat, TestPrintManagedReportNamesOwnerAndSkipsNonRepo. Every new guard mutation-checked. atlas/workflow/weave.md updated; preserving authored replacement removed from code. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-12: flow upgraded quick → full — 202 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Implemented in `cmd/weave/internal/plan/ownership.go` (`ManagedReport`, `DisplacedRoot`, `EditHome`) and `cmd/weave/main.go` (`printManagedReport`, used by both the data and artifacts passes).
 - Tests converted from the refusal rule: `TestManagedConvergesChangedRecordedOutput` (reverted + edited, latest-copy replacement), `TestStagedOutputsConvergeEditedAndRefuseUnownedDestinations`, `TestStagedFileModesAreOwnedAndPreserved` (mode edit displaced with its mode), `TestCompileConvergesEditedGeneratorDestination`. New: `TestManagedRefusesDirectoryAtRecordedOutput`, `TestManagedReportsAbandonedOutputOnce`, `TestEditHome`, `TestCompileConvergesRevertedTrackedOutput` (the parley shape: committed stale AGENTS.md gets the commit hint, an untracked regenerated CLAUDE.md does not), abandoned warning asserted in `TestCompileRetiresDisconnectedOutputsPreservesAuthoredFiles`.
 - Mutation checks, each caught: displacement deletes instead of renaming; tracked hint suppressed; abandoned report dropped; a directory displaced instead of refused.
