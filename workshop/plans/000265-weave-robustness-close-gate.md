@@ -72,6 +72,23 @@ rounds:
       recipe: milestone-review
       isolation: checkout
       blocked: true
+    - "n": 3
+      timestamp: "2026-10-12T19:07:28-07:00"
+      dispatched: "2026-10-12T18:56:14-07:00"
+      agent: claude
+      dispose:
+        - id: BR-5
+          disposition: addressed
+          note: TestCompileMovesDataMountToGeneratedParent (cmd/weave/startup_test.go:279) fails with the within(id.Path, retired) skip disabled ("non-directory parent construct/generated/example") and passes at head; verified by revert in the pinned checkout.
+          round: 3
+        - id: BR-6
+          disposition: addressed
+          note: managedPass.retiring() (ownership.go:156) is the single retirement rule, used by prepareManaged's projection (ownership.go:226) and commitManaged's retirement loop (ownership.go:390).
+          round: 3
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: 23728ab3a28a815633f4ed6a27624a8b4f140719
+      blocked: false
 ---
 
 # Gate ledger — ariadne#265 (boundary-review)
@@ -108,7 +125,13 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Minor] `loop-invariant-recompute` Check-time projection restates commitManaged's retirement rule instead of sharing it
   prepareManaged's after loop encodes retire = previous and not produced, the same rule commitManaged applies, so a change to one can drift from the other. Share a helper, or cross-reference the two in a comment. Belongs only loosely to the family (a duplicated derivation, not a recomputation).
 
+## Round 3 — 2026-10-12T19:07:28-07:00 (claude) — passed
+
+### Disposed
+
+- BR-5 — addressed — TestCompileMovesDataMountToGeneratedParent (cmd/weave/startup_test.go:279) fails with the within(id.Path, retired) skip disabled ("non-directory parent construct/generated/example") and passes at head; verified by revert in the pinned checkout.
+- BR-6 — addressed — managedPass.retiring() (ownership.go:156) is the single retirement rule, used by prepareManaged's projection (ownership.go:226) and commitManaged's retirement loop (ownership.go:390).
+
 ## Open findings
 
-- **BR-5** [Important] `fix-branch-without-regression-fixture` Retired-path skip in prepareManaged (ownership.go:268-273) is reached by no committed test
-- **BR-6** [Minor] `loop-invariant-recompute` Check-time projection restates commitManaged's retirement rule instead of sharing it
+(none — every finding has been disposed)

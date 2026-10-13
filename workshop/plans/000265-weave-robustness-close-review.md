@@ -217,3 +217,86 @@ findings:
     detail: |
       prepareManaged's after loop encodes retire = previous and not produced, the same rule commitManaged applies, so a change to one can drift from the other. Share a helper, or cross-reference the two in a comment. Belongs only loosely to the family (a duplicated derivation, not a recomputation).
 ```
+
+---
+
+## Re-review — 2026-10-12T19:07:28-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 265 — weave robustness: atomic compile, symlinked Makefile, legacy include, dependency writes |
+| repo | ariadne |
+| issue file | workshop/issues/000265-weave-robustness.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 5655861efb765f10a5e5e9bd514dc3743c23fc56..23728ab3a28a815633f4ed6a27624a8b4f140719 |
+| command | sdlc close --issue 265 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T19:07:28-07:00 |
+| verdict | SHIP |
+
+## Review
+
+The last commit claims to address BR-5 and BR-6. Let me look at it first, then the full diff.
+
+Now verify BR-5 claim: disable the retired skip and run the new test.
+
+Now revert the skip and confirm the BR-5 test goes red.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both open findings are fixed, and I raised nothing new, so this ships. For BR-5, I disabled the retired-path skip in the pinned checkout. The new `TestCompileMovesDataMountToGeneratedParent` then failed with exactly the reported refusal ("has non-directory parent construct/generated/example"), and it passes with the skip restored. For BR-6, a shared `managedPass.retiring()` helper now holds the retirement rule, and both the check projection and the commit use it. All four Done-when items are covered by tests, and the atlas covers the new compile ordering, the symlinked-Makefile refusal and the `$(WF_WORKFLOW)` recognition.
+
+One test, `TestArchiveCompileNeedsNoGitExecutable`, fails in the review sandbox. It fails the same way at the base commit, so this branch didn't cause it. It's an environment problem: the temp directory sits inside the review tree and the sandbox wraps `git`.
+
+1. **Strengths**
+   - `ownership.go:156-167`: `retiring()` is now the only definition of "previous and not produced". `prepareManaged` (`ownership.go:226`) and `commitManaged` (`ownership.go:390`) both use it, so the check and the commit can't drift apart.
+   - `ownership.go:201-212`: one `prepareManaged` routine does every inspection for both `CheckManaged` and `ApplyManaged`. The checks run before any writes without a second copy of the inspection logic.
+   - `main.go:567-582`: every owner's data pass and the leaf's data and artifacts are checked before the first write. Writes then happen in the same order as before, so a refused compile leaves every checkout untouched.
+   - `startup/tools.go:17-27`: switching to `Lstat` plus an explicit symlink branch gives a clear, actionable message instead of silently building another repo's tools.
+   - The Log (2026-10-12) lists what the data pass changes (records, created paths at/above/below, retired paths) and maps each to a test. That turns the `cross-pass-check-ignores-prior-pass-effects` family into a stated rule, which is also written up in `workshop/lessons.md`.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none filed. One cosmetic point: the atlas paragraph at `atlas/workflow/weave.md:33-41` has one very long line where the text was re-wrapped.
+
+5. **Test coverage notes**
+   - Every branch of the projection now has a test that fails if that branch is disabled:
+     - records: the BR-1 test
+     - a mount at the same path as a generated output: the collision test
+     - a mount above a generated output: the BR-2 test
+     - a mount below a generated output: `TestCheckManagedSeesEarlierPassOutputs`
+     - a retired mount or its parent: the BR-5 test, confirmed red above
+   - `go test ./cmd/weave/...`: every package passes except `cmd/weave`, where the only failure is the environment-related `TestArchiveCompileNeedsNoGitExecutable`.
+   - Running these tests in the review sandbox needed `GIT_CEILING_DIRECTORIES` unset. Without that, most compile tests fail before reaching the code under test.
+
+6. **Architectural notes**
+   - **ARCH-DRY: pass.** The retirement rule and the inspection logic each live in one place.
+   - **ARCH-PURE: pass.** The new decision logic sits in `prepareManaged` behind the injected `weavefs.FS`. Helpers like `within` and `overlap` are pure.
+   - **ARCH-PURPOSE: pass.** All four problems are delivered, including atomic refusal at compile level, not just inside a single pass.
+   - **ARCH-MOCK: pass.** No new external-binary calls. The `make` and `git` call sites are unchanged.
+   - **ARCH-CONSTRAINTS: pass.** Each pass is now inspected twice (once to check, once to apply). The Log notes this and argues it's negligible for a batch compile over tens of outputs.
+   - **ARCH-SECURE: pass.** It now refuses to follow a symlinked Makefile, which tightens trust in a path from another repo. No secrets are involved.
+   - **ARCH-ORDER: pass.** Pass order is explicit: the ordered `after` list in `CheckManaged`. Each later pass's check reads a projection of what the earlier passes leave.
+   - **ARCH-FUNERAL: pass.** Nothing new is created that lasts. `managedPass` lives only in memory, and inventory and stage lifetimes are unchanged.
+   - For future work: the check and the apply still each re-read the inventory. If more passes join the same root, consider having the apply consume the prepared pass from the check, as long as nothing on disk changed between them.
+
+7. **Plan revision recommendations:** none. The plan and Log match the code.
+
+```findings
+dispose:
+  - id: BR-5
+    disposition: addressed
+    note: |
+      TestCompileMovesDataMountToGeneratedParent (cmd/weave/startup_test.go:279) fails with the within(id.Path, retired) skip disabled ("non-directory parent construct/generated/example") and passes at head; verified by revert in the pinned checkout.
+  - id: BR-6
+    disposition: addressed
+    note: |
+      managedPass.retiring() (ownership.go:156) is the single retirement rule, used by prepareManaged's projection (ownership.go:226) and commitManaged's retirement loop (ownership.go:390).
+```

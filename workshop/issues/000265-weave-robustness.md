@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "c22bcf4c", done: "fc3510f1"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # weave robustness: atomic compile, symlinked Makefile, legacy include, dependency writes
@@ -88,6 +88,8 @@ item gets a regression test reproducing the observed failure.
 ## Log
 
 ### 2026-10-12
+- 2026-10-12: closed — go test ./cmd/weave/... ./pkg/weaveownership/... green; regression tests for all four items and every projection branch (records, created output at/above/below, retired path), each failing with its branch disabled; full make test: 2 failures, both pre-existing flakes (fleet TestHangingRemote passes 5/5 alone; weave TestCompileRecoversAfterProcessDeath fails ~1/20 with and without this change); review verdict: SHIP
+- 2026-10-12: flow upgraded quick → full — 172 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Re-scoped after #264 and #281. #264 (`1bc6c5f4`) moved legacy-list
   retirement to the artifacts pass and made a pass with nothing to apply or
   retire write nothing, which fixes item 2 and the original trigger of item 1.
