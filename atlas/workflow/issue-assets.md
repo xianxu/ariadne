@@ -21,8 +21,11 @@ refuse before mutation.
 The command changes the issue body and asset file locally. It prints both paths;
 commit both on the issue branch, or publish with `sdlc issue publish --issue N`.
 A resting branch is never committed on. Publication applies the body and bundle
-together, checks ownership and current destination policy for new bytes, and
-includes binary-only changes in conflict and retry checks.
+together, checks ownership and the policy from the pinned destination commit
+for new bytes on every attempt, and includes binary-only changes in conflict
+and retry checks. A stale local allowance cannot override a destination
+restriction; local restrictions still apply. A policy relaxation in the proposed
+publication cannot authorize its own asset additions.
 
 The default locations are:
 
@@ -52,7 +55,9 @@ refuse converting attributes (`text`, `filter`, `eol`, `working-tree-encoding`,
 `ident`) and implicit newline conversion, naming the affected path and the
 `.gitattributes` override needed. Marking an asset path `-text -filter -ident
 -working-tree-encoding !eol` clears those conversions. Exact publication writes
-also retain the original bytes.
+also retain the original bytes. Lifecycle checkouts validate both source and
+destination materialization paths before switching or merging, then compare
+materialized evidence with its pinned Git bytes.
 
 ## Repository policy and source privacy
 
@@ -119,6 +124,27 @@ and recovery action. A retry may adopt an unlinked file only when its canonical
 name and bytes match that exact request; every other residue requires explicit
 reconciliation. A hard-kill staging leftover has no ownership proof and is
 reported for explicit removal before retry.
+
+## Live visibility conformance
+
+Normal tests use the stateful host fake. After changing the production
+`RepoVisibility` arguments or decoder, or upgrading `gh`, run the opt-in
+read-only check against a repository whose visibility is independently known:
+
+```sh
+SDLC_LIVE_ASSET_VISIBILITY_CONFORMANCE=1 \
+SDLC_LIVE_ASSET_VISIBILITY_GH=/opt/homebrew/bin/gh \
+SDLC_LIVE_ASSET_VISIBILITY_REPO=xianxu/ariadne \
+SDLC_LIVE_ASSET_VISIBILITY_EXPECT=PUBLIC \
+go test ./cmd/sdlc -run '^TestLiveAssetVisibilityConformance$' -count=1 -v
+```
+
+Supply the absolute installed `gh` path on your machine and an accessible
+repository with its known `PUBLIC`, `PRIVATE` or `INTERNAL` visibility. The test
+calls the production adapter with a five-second deadline and existing credentials;
+it writes no repository policy. Opted-in missing prerequisites or host failures
+fail the test. It may also run periodically in credentials-enabled CI; ordinary
+suite runs skip it and remain deterministic.
 
 ## Implementation map
 

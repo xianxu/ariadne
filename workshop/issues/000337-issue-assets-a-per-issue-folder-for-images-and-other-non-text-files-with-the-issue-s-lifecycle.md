@@ -192,6 +192,33 @@ converting bytes during reopen. Correcting both classes across their callers,
 plus the pure/integration table and live visibility conformance coverage. The
 prior full-suite pass remains recorded; acceptance is reopened for these fixes.
 
+### 2026-10-13 — close-review corrections verified
+
+BR-1: RED reproduced stale-local allowance in republish, first publication,
+legacy publication and abandonment, plus a real CAS retry race. New admission
+intersects local restrictions with each attempt's pinned destination policy;
+first-publication recovery uses its prepared candidate's bound base. Added
+recovery, same-candidate relaxation, malformed/missing policy and nonregular
+or oversized policy regressions. Combined asset/attach/context tests pass
+46.623s; all internal/tracker tests pass 74.688s.
+
+BR-2: production RED reproduced archive-only LF-to-CRLF conversion during
+reopen and converting attributes during slot moves. Source/destination
+preflight now covers reopen, slot moves, resting fast-forwards and publication
+cleanup; actual materialized bytes are compared with pinned snapshots.
+Conversion refusal and successful unchanged reopen checks pass 10.328s.
+The broad existing move/reopen run exposed an inactive hook test fixture,
+then the repaired hook-tamper/fast-forward checks passed 5.464s. Custom issue
+roots are preserved and IO refusals name recovery actions.
+
+BR-3: the plan distinguishes pure planLandingArchive from integration
+confirmLandingArchive, and now uses the implemented core type/function names.
+BR-4: TestLiveAssetVisibilityConformance passed through the real production
+adapter (0.40s test, 1.171s package), matching independently observed PUBLIC
+visibility for xianxu/ariadne. Default non-opt-in skip passed separately.
+Atlas documents the explicit read-only invocation and cadence. Full suite and
+another close review remain required for this corrected revision.
+
 ## Revisions
 
 - 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue

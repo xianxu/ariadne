@@ -84,7 +84,7 @@ func archiveIssueOnMain(env *trackerEnv, stderr io.Writer, id, detailRel string,
 				}
 				if successor {
 					replacingEpisode = true
-					if err := requireNewArchiveAssets(env, bundle, *a.Assets); err != nil {
+					if err := requireNewArchiveAssets(env, view, bundle, *a.Assets); err != nil {
 						return gitx.TrunkWrite{}, err
 					}
 					w := gitx.TrunkWrite{Write: assetBundleWrite(*a.Assets, archivedDetail), ExactBytes: true}
@@ -153,7 +153,7 @@ func archiveIssueOnMain(env *trackerEnv, stderr io.Writer, id, detailRel string,
 		if a.Assets != nil {
 			bundle = *a.Assets
 		}
-		if err := requireNewArchiveAssets(env, mainAssets, bundle); err != nil {
+		if err := requireNewArchiveAssets(env, view, mainAssets, bundle); err != nil {
 			return gitx.TrunkWrite{}, err
 		}
 		for dest, data := range assetBundleWrite(bundle, archivedDetail) {
@@ -211,15 +211,11 @@ func archiveIssueOnMain(env *trackerEnv, stderr io.Writer, id, detailRel string,
 
 // Relocation of already-published bytes survives policy tightening. Evidence
 // present only on a kept branch is a new admission to main and rechecks policy.
-func requireNewArchiveAssets(env *trackerEnv, published, next issueassets.Bundle) error {
+func requireNewArchiveAssets(env *trackerEnv, destination *gitx.TrunkView, published, next issueassets.Bundle) error {
 	if len(issueassets.BundleDelta(published, next).Writes) == 0 {
 		return nil
 	}
-	policy, err := resolveAssetPolicy(env.ctx, env.root)
-	if err != nil {
-		return err
-	}
-	return requireAssetPolicy(policy)
+	return requireAssetPublicationPolicy(env.ctx, env.root, destination)
 }
 
 // A reopen restores the kept branch, while main retains the previous episode's

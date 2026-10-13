@@ -75,10 +75,10 @@ reinterpret the existing migrate command as supporting issues.
 
 | Pure entity | Lives in | Status |
 |---|---|---|
-| AssetPolicy / PolicyDecision | cmd/sdlc/internal/issueassets/policy.go | new |
-| AssetRef / Bundle / bundle validation and delta | cmd/sdlc/internal/issueassets/bundle.go | new |
-| Attach transition (prepared, bytes-installed, body-linked) | cmd/sdlc/internal/issueassets/attach.go | new |
-| Publication bundle equality / conflict decision | cmd/sdlc/republish.go | modified |
+| Policy / Decision (`ParsePolicy`, `ResolvePolicy`) | cmd/sdlc/internal/issueassets/policy.go | new |
+| Bundle / Delta (`ParseRefs`, `BuildBundle`, `BundleDelta`) | cmd/sdlc/internal/issueassets/bundle.go | new |
+| AttachState / AttachStage (`PrepareAttach`, `NextAttach`) | cmd/sdlc/internal/issueassets/attach.go | new |
+| Publication conflict decision (`republishDecision`) | cmd/sdlc/republish.go | modified |
 | Landing archive planner (`planLandingArchive`) | cmd/sdlc/landingarchive.go | modified |
 
 An issue owns one bundle with zero to 32 immutable members. Pure functions parse
@@ -299,3 +299,5 @@ The first close returned REWORK. These corrections preserve the approved scope:
 
 After RED/GREEN evidence for behavioral fixes, rerun the full suite with the
 same load/lock conditions and return to the binary-owned close review.
+
+- BR-4 conformance cadence: TestLiveAssetVisibilityConformance runs for this correction, after RepoVisibility argv/decoder changes or gh upgrades, and optionally in periodic credentials-enabled CI. Normal suites retain the stateful fake and skip the explicit opt-in live query; atlas/workflow/issue-assets.md documents the command.

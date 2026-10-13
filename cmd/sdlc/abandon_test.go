@@ -483,6 +483,7 @@ func TestAbandonResumeRefusesAnotherWorkspace(t *testing.T) {
 
 func TestAbandonAndReopenKeepsBranchAssets(t *testing.T) {
 	r, _, _ := startedHere(t)
+	peerAdd(t, r, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
 	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
 	data := "branch evidence"
 	name, _ := issueassets.Name([]byte(data), "png")
@@ -516,6 +517,7 @@ func TestAbandonAndReopenKeepsBranchAssets(t *testing.T) {
 
 func TestAbandonRetryRefusesMissingArchivedAsset(t *testing.T) {
 	r, _, _ := startedHere(t)
+	peerAdd(t, r, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
 	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
 	data := "branch evidence"
 	name, _ := issueassets.Name([]byte(data), "png")
@@ -602,6 +604,7 @@ func TestAbandonAnotherEpisodeReplacesArchivedAssets(t *testing.T) {
 	}
 	writeRepoFile(t, r.root, handoffDetail, string(raw)+"\n![evidence]("+firstRel+")\n")
 	writeRepoFile(t, r.root, "workshop/issues/"+firstRel, "first evidence")
+	peerAdd(t, r, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
 	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
 	r.git("add", ".")
 	r.git("commit", "-qm", "first evidence")
@@ -676,4 +679,77 @@ func TestAbandonSuccessorRefusesChangedCard(t *testing.T) {
 	if r.originMain() != before {
 		t.Fatal("stale generation replaced the archive")
 	}
+}
+
+func TestReopenRefusesArchiveConversionBeforeEffects(t *testing.T) {
+	r, _, _ := startedHere(t)
+	peerAdd(t, r, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	data := "line one\nline two"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "assets/000009/" + name
+	live, archived := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+	body, err := os.ReadFile(filepath.Join(r.root, handoffDetail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, handoffDetail, string(body)+"\n![evidence]("+rel+")\n")
+	writeRepoFile(t, r.root, live, data)
+	writeRepoFile(t, r.root, ".gitattributes", "workshop/issues/assets/** -text\nworkshop/history/issues/assets/** text eol=crlf\n")
+	r.git("add", ".")
+	r.git("commit", "-qm", "evidence and archive conversion")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	before := r.git("rev-parse", "HEAD")
+	branch := r.git("branch", "--show-current")
+	kept := remoteRef(t, r, s09Archive)
+	_, err = reopen9()
+	if err == nil || !strings.Contains(err.Error(), archived) || !strings.Contains(err.Error(), ".gitattributes") {
+		t.Fatalf("archive conversion accepted: %v; restored bytes=%q", err, r.git("show", "HEAD:"+live))
+	}
+	if r.git("rev-parse", "HEAD") != before || r.git("branch", "--show-current") != branch || r.git("status", "--porcelain") != "" || remoteRef(t, r, s09Archive) != kept {
+		t.Fatal("refusal changed checkout or kept reference")
+	}
+}
+
+func TestReopenVerifiesMaterializedArchiveBytes(t *testing.T) {
+	r, _, _ := startedHere(t)
+	peerAdd(t, r, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	writeRepoFile(t, r.root, assetPolicyPath, `{"version":1,"policy":"allowed"}`)
+	data := "line one\nline two"
+	name, _ := issueassets.Name([]byte(data), "png")
+	rel := "assets/000009/" + name
+	live, archived := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+	body, err := os.ReadFile(filepath.Join(r.root, handoffDetail))
+	if err != nil {
+		t.Fatal(err)
+	}
+	writeRepoFile(t, r.root, handoffDetail, string(body)+"\n![evidence]("+rel+")\n")
+	writeRepoFile(t, r.root, live, data)
+	r.git("add", ".")
+	r.git("commit", "-qm", "evidence and archive conversion")
+	if err := abandon9("punt", "later"); err != nil {
+		t.Fatal(err)
+	}
+	hooks := filepath.Join(r.root, ".git", "hooks")
+	r.git("config", "core.hooksPath", hooks)
+	for _, hook := range []string{"post-merge", "post-checkout", "post-commit"} {
+		writeRepoFile(t, r.root, ".git/hooks/"+hook, "#!/bin/sh\n[ -f '"+archived+"' ] || exit 0\nprintf changed > '"+archived+"'\n")
+		if err := os.Chmod(filepath.Join(hooks, hook), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	kept := remoteRef(t, r, s09Archive)
+	_, err = reopen9()
+	if err == nil || !strings.Contains(err.Error(), "restore") || !strings.Contains(err.Error(), "archive") {
+		t.Fatalf("changed archived bytes accepted: %v", err)
+	}
+	if remoteRef(t, r, s09Archive) != kept || remoteTip(t, r, s09Branch) != "" {
+		t.Fatal("refusal changed kept or issue remote references")
+	}
+	if _, err := os.Stat(filepath.Join(r.root, archived)); err != nil {
+		t.Fatal("archive moved before byte validation")
+	}
+
 }

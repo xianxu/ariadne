@@ -190,11 +190,7 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 			continue
 		case publishWrite:
 			if len(issueassets.BundleDelta(it.mainAssets, it.assets).Writes) > 0 {
-				policy, err := resolveAssetPolicy(env.ctx, env.root)
-				if err != nil {
-					return err
-				}
-				if err = requireAssetPolicy(policy); err != nil {
+				if err := requireAssetPublicationPolicy(env.ctx, env.root, view); err != nil {
 					return err
 				}
 			}
@@ -239,11 +235,7 @@ func republishOwnedOnce(env *trackerEnv, stdout, stderr io.Writer, ids []string,
 				}
 				delta := issueassets.BundleDelta(currentAssets, it.assets)
 				if len(delta.Writes) > 0 {
-					policy, err := resolveAssetPolicy(env.ctx, env.root)
-					if err != nil {
-						return gitx.TrunkWrite{}, err
-					}
-					if err = requireAssetPolicy(policy); err != nil {
+					if err := requireAssetPublicationPolicy(env.ctx, env.root, v); err != nil {
 						return gitx.TrunkWrite{}, err
 					}
 				}
@@ -322,6 +314,14 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 	if err != nil {
 		cwarn(stderr, fmt.Sprintf("checkout not finished: reading main failed: %v", err))
 		return
+	}
+	// Restore-to-HEAD and the following main merge both materialize files.
+	// Preflight before setting aside even the first edited issue.
+	for _, it := range items {
+		if err := verifyAssetTransition(env, view.Ref(), path.Dir(it.path)); err != nil {
+			cwarn(stderr, fmt.Sprintf("checkout not finished: %v", err))
+			return
+		}
 	}
 	var ready []republishItem
 	for _, it := range items {
@@ -430,6 +430,9 @@ type movedDetail struct {
 // merge publishes, now based on main; a conflict leaves the markers in the file
 // and refuses with the one remaining step, which runs from that state.
 func bringMainIn(env *trackerEnv, stdout, stderr io.Writer, ids []string, issuesRel, mainRef string, moved []movedDetail) error {
+	if err := verifyAssetTransition(env, mainRef, issuesRel); err != nil {
+		return err
+	}
 	merged := map[string][]byte{}
 	originals := map[string][]byte{}
 	affected := map[string]bool{}

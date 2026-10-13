@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"time"
 
@@ -33,6 +34,10 @@ func resolveAssetPolicy(ctx context.Context, root string) (issueassets.Decision,
 	if !os.IsNotExist(err) {
 		return issueassets.Decision{}, fmt.Errorf("%s: %v; ask the operator to repair %s", p, err, assetPolicyPath)
 	}
+	return resolveAssetHostPolicy(ctx, root)
+}
+
+func resolveAssetHostPolicy(ctx context.Context, root string) (issueassets.Decision, error) {
 	unknown := issueassets.ResolvePolicy(nil, "")
 	unknown.Source = "host visibility unknown"
 	id, err := workspace.Resolve(execGitRunner{}, root, "")
@@ -58,6 +63,85 @@ func resolveAssetPolicy(ctx context.Context, root string) (issueassets.Decision,
 	d := issueassets.ResolvePolicy(nil, strings.ToLower(visibility))
 	d.Source = "host visibility " + strings.ToLower(visibility) + " for " + repo
 	return d, nil
+}
+
+// requireAssetPublicationPolicy intersects local restrictions with the policy at
+// the exact destination base. A stale checkout can restrict publication, never
+// authorize bytes that the destination forbids. Call once per candidate attempt.
+func requireAssetPublicationPolicy(ctx context.Context, root string, destination *gitx.TrunkView) error {
+	local, err := resolveAssetPolicy(ctx, root)
+	if err != nil {
+		return err
+	}
+	if err := requireAssetPolicy(local); err != nil {
+		return err
+	}
+	raw, present, err := destinationAssetPolicy(ctx, root, destination)
+	if err != nil {
+		return err
+	}
+	var policy issueassets.Decision
+	if !present {
+		policy, err = resolveAssetHostPolicy(ctx, root)
+	} else {
+		parsed, parseErr := issueassets.ParsePolicy(raw)
+		if parseErr != nil {
+			return fmt.Errorf("destination %s: %v; ask the operator to repair it", assetPolicyPath, parseErr)
+		}
+		policy = issueassets.ResolvePolicy(&parsed, "")
+		policy.Source = assetPolicyPath
+	}
+	if err != nil {
+		return err
+	}
+	policy.Source = "destination " + destination.Ref() + ": " + policy.Source
+	return requireAssetPolicy(policy)
+}
+
+// Read exact entries, including directories and symlink ancestors. The immutable
+// blob's size is checked before reading, so unrelated evidence is never loaded.
+func destinationAssetPolicy(ctx context.Context, root string, view *gitx.TrunkView) ([]byte, bool, error) {
+	fail := func(err error) ([]byte, bool, error) {
+		return nil, false, fmt.Errorf("cannot read destination %s at %s: %w; fetch that destination and ask the operator to restore a regular, valid policy file before retrying", assetPolicyPath, view.Ref(), err)
+	}
+	for _, p := range []string{"workshop", assetPolicyPath} {
+		raw, _, err := gitx.RunGitContext(ctx, "-C", root, "ls-tree", "-z", "--full-tree", view.Ref(), "--", p)
+		if err != nil {
+			return fail(err)
+		}
+		if len(raw) == 0 {
+			return nil, false, nil
+		}
+		row := strings.TrimSuffix(string(raw), "\x00")
+		header, name, ok := strings.Cut(row, "\t")
+		fields := strings.Fields(header)
+		if !ok || name != p || len(fields) != 3 {
+			return fail(fmt.Errorf("invalid policy tree entry"))
+		}
+		if p == "workshop" {
+			if fields[0] != "040000" || fields[1] != "tree" {
+				return fail(fmt.Errorf("policy parent %s is not a directory", p))
+			}
+			continue
+		}
+		if (fields[0] != "100644" && fields[0] != "100755") || fields[1] != "blob" {
+			return fail(fmt.Errorf("policy is not a regular file"))
+		}
+		sizeRaw, _, err := gitx.RunGitContext(ctx, "-C", root, "cat-file", "-s", fields[2])
+		if err != nil {
+			return fail(err)
+		}
+		size, err := strconv.ParseInt(strings.TrimSpace(string(sizeRaw)), 10, 64)
+		if err != nil || size < 0 || size > 4096 {
+			return fail(fmt.Errorf("policy exceeds the 4096-byte limit or has invalid size"))
+		}
+		content, err := view.ReadBlob(fields[2])
+		if err != nil {
+			return fail(err)
+		}
+		return content, true, nil
+	}
+	return nil, false, nil
 }
 
 func requireAssetPolicy(d issueassets.Decision) error {

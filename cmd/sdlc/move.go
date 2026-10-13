@@ -50,6 +50,18 @@ func runMove(ctx context.Context, dir, address string, dryRun bool, stdout, stde
 		return err
 	}
 	from, to, branch := facts.From, facts.To, facts.From.Branch
+	// Both switches materialize assets under the destination slot's own Git
+	// configuration and the incoming tree's attributes. Inspect before either
+	// checkout or the relocation receipt is written.
+	for _, landing := range []struct{ root, ref string }{{from.Root, from.RestHead}, {to.Root, from.Head}} {
+		reader, err := gitx.NewTrunkFileContext(ctx, landing.root, "origin", "main")
+		if err != nil {
+			return err
+		}
+		if err := verifyAssetMaterialization(ctx, landing.root, reader.ViewOf(landing.ref), envOr("WF_ISSUES_DIR", "workshop/issues")); err != nil {
+			return err
+		}
+	}
 	fmt.Fprintf(stdout, "Move %s from %s to %s\n", branch, from.Address, to.Address)
 	moveReport(stderr, fmt.Sprintf("%s commits not in %s (they stay on %s, but are not in the test)", to.Resting, branch, to.Resting), facts.Parked)
 	moveReport(stderr, fmt.Sprintf("%s commits not on its upstream", to.Resting), facts.Unpublished)
@@ -89,6 +101,13 @@ func runMove(ctx context.Context, dir, address string, dryRun bool, stdout, stde
 		id, err := workspace.Resolve(r, check.root, "")
 		if err != nil {
 			return fmt.Errorf("both switches ran, but verifying %s failed: %w", check.root, err)
+		}
+		reader, err := gitx.NewTrunkFileContext(ctx, check.root, "origin", "main")
+		if err != nil {
+			return err
+		}
+		if err := verifyMaterializedAssets(check.root, reader.ViewOf(check.head), envOr("WF_ISSUES_DIR", "workshop/issues")); err != nil {
+			return fmt.Errorf("both switches ran; %s: %w; then run sdlc claim --issue %s in the destination to finish ownership", check.root, err, issueIDPrefix(branch))
 		}
 		if got, head := workspaceText(id.Branch, "(detached)"), workspaceText(id.Head, ""); got != check.branch || head != check.head {
 			return fmt.Errorf("both switches ran, but %s is on %s at %s, want %s at %s; inspect it before continuing", check.root, got, head, check.branch, check.head)

@@ -35,7 +35,7 @@ type TransferOp struct {
 	root          string
 	branch        string // refs/heads/<name> of the checkout driving this run
 	remove        Remover
-	BeforePublish func(ReceiptSpec) error
+	BeforePublish func(ReceiptSpec, *gitx.TrunkView) error
 }
 
 func NewTransferOp(ctx context.Context, repo *Repository, main *gitx.TrunkFile, root, branch string, remove Remover) *TransferOp {
@@ -129,7 +129,7 @@ func (op *TransferOp) Apply(e Effect, r Receipt) (Event, error) {
 		return publishCardEvent(op.repo, &op.diagnostics, e, spec.CardPath)
 	case PublishMain:
 		if op.BeforePublish != nil {
-			if err := op.BeforePublish(spec); err != nil {
+			if err := op.BeforePublish(spec, op.main.ViewOf(e.Expected.MainBase)); err != nil {
 				return Event{}, err
 			}
 		}

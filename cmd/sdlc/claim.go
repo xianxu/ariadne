@@ -296,8 +296,15 @@ func fastForwardRest(env *trackerEnv, target string) string {
 	if !contained {
 		return fmt.Sprintf("%s not fast-forwarded to main: it has commits main lacks; reconcile them before shaping here", env.resting)
 	}
+	issuesDir := envOr("WF_ISSUES_DIR", "workshop/issues")
+	if err := verifyAssetTransition(env, target, issuesDir); err != nil {
+		return fmt.Sprintf("%s not fast-forwarded to main: %v", env.resting, err)
+	}
 	if _, err := env.git("merge", "-q", "--ff-only", target); err != nil {
 		return fmt.Sprintf("%s not fast-forwarded to main (a local change is in the way): %v", env.resting, err)
+	}
+	if err := verifyMaterializedAssets(env.root, env.main.ViewOf(target), issuesDir); err != nil {
+		return fmt.Sprintf("%s fast-forwarded, but asset verification failed: %v", env.resting, err)
 	}
 	return ""
 }

@@ -206,7 +206,7 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	}
 	sort.Slice(pins, func(i, j int) bool { return pins[i].Path < pins[j].Path })
 	spec.SourceAssets = tracker.FormatEvidenceEntries(pins)
-	if err := checkTransferAssetAdmission(env, spec); err != nil {
+	if err := checkTransferAssetAdmission(env, spec, env.main.ViewOf(pinnedMain)); err != nil {
 		return err
 	}
 	if spec.SourceBase, err = moveSourceBase(env, dest, pinnedMain); err != nil {
@@ -335,6 +335,11 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 				return nil
 			}
 		}
+		if env.onRest() {
+			if err := verifyAssetMaterialization(env.ctx, env.root, env.main.ViewOf(mainCommit), path.Dir(spec.DestinationPath), "HEAD"); err != nil {
+				return err
+			}
+		}
 		pins := append([]tracker.EvidenceEntry{{Path: spec.SourcePath, Blob: spec.SourceBlob}}, spec.AssetEntries()...)
 		// Validate the entire bundle before removing any member.
 		present := map[string]bool{}
@@ -383,7 +388,7 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 			if _, err := env.git("merge", "-q", "--ff-only", mainCommit); err != nil {
 				return fmt.Errorf("fast-forward %s to publication: %w; rerun issue recovery reconcile", env.resting, err)
 			}
-			return nil
+			return verifyMaterializedAssets(env.root, env.main.ViewOf(mainCommit), path.Dir(spec.DestinationPath))
 		}
 		if len(trackedPaths) == 0 {
 			return nil
@@ -396,7 +401,7 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 	}
 }
 
-func checkTransferAssetAdmission(env *trackerEnv, spec tracker.ReceiptSpec) error {
+func checkTransferAssetAdmission(env *trackerEnv, spec tracker.ReceiptSpec, view *gitx.TrunkView) error {
 	if spec.SourceAssets == "" {
 		return nil
 	}
@@ -411,10 +416,6 @@ func checkTransferAssetAdmission(env *trackerEnv, spec tracker.ReceiptSpec) erro
 	if err := requireOwnedToPublish(env, card); err != nil {
 		return err
 	}
-	view, err := env.main.Snapshot()
-	if err != nil {
-		return err
-	}
 	for _, pin := range spec.AssetEntries() {
 		if err := verifyAssetAttributesAt(env.ctx, env.root, pin.Path, view.Ref()); err != nil {
 			return err
@@ -423,15 +424,13 @@ func checkTransferAssetAdmission(env *trackerEnv, spec tracker.ReceiptSpec) erro
 			return err
 		}
 	}
-	policy, err := resolveAssetPolicy(env.ctx, env.root)
-	if err != nil {
-		return err
-	}
-	return requireAssetPolicy(policy)
+	return requireAssetPublicationPolicy(env.ctx, env.root, view)
 }
 func newIssueTransferOp(env *trackerEnv) *tracker.TransferOp {
 	op := tracker.NewTransferOp(env.ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
-	op.BeforePublish = func(spec tracker.ReceiptSpec) error { return checkTransferAssetAdmission(env, spec) }
+	op.BeforePublish = func(spec tracker.ReceiptSpec, view *gitx.TrunkView) error {
+		return checkTransferAssetAdmission(env, spec, view)
+	}
 	return op
 }
 

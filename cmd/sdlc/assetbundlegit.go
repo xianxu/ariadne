@@ -155,11 +155,7 @@ func validateAssetPublication(ctx context.Context, root string, base, next *gitx
 	}
 
 	if needPolicy {
-		policy, err := resolveAssetPolicy(ctx, root)
-		if err != nil {
-			return err
-		}
-		return requireAssetPolicy(policy)
+		return requireAssetPublicationPolicy(ctx, root, base)
 	}
 	return nil
 }
