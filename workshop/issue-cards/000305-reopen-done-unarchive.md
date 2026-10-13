@@ -2,7 +2,7 @@
 id: 000305
 status: open
 created: 2026-10-08
-updated: 2026-10-08
+updated: 2026-10-12
 estimate_hours:
 github_issue:
 tracker:
@@ -17,6 +17,14 @@ tracker:
         source_blob: a2f32e4d2711f06f9ab4a131d5ffc950d66b3e17
         destination: workshop/issues/000305-reopen-done-unarchive.md
         main_commit: ea98d0383fdea2673bdee300f76355e787dd4763
+started: 2026-10-12T18:48:46-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Reopening a done issue does not un-archive its details
