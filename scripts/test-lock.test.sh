@@ -6,7 +6,7 @@ set -u
 cd "$(git rev-parse --show-toplevel)"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/test-lock.XXXXXX") || exit 1; trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$tmp"' EXIT
 export WF_TEST_LOCK_FILE="$tmp/lock"
-unset WF_TEST_LOCK WF_TEST_LOCK_TIMEOUT WF_TEST_LOCK_HELD_BY
+unset WF_TEST_LOCK WF_TEST_LOCK_TIMEOUT WF_TEST_LOCK_HELD_BY WF_TEST_WEIGHT
 # The single-slot cases first; the two-slot default has its own block below.
 export WF_TEST_SUITES=1
 fails=0
@@ -72,5 +72,37 @@ check "the wait names both holders" 'grep -q "one of 2 full-suite slots" "$tmp/r
 kill $p; wait $third
 check "third takes the freed slot 0" '[ "$(cat "$tmp/r.out")" = acquired ] && [ "$(slot "$tmp/two")" = 0 ]'
 check "a bad WF_TEST_SUITES says so and uses 2" '[ "$(WF_TEST_SUITES=x WF_TEST_LOCK_TIMEOUT=1 lock $s 2>"$tmp/x.err")" = timeout ] && grep -q "not a number; using 2" "$tmp/x.err"'
+
+# #346: a weighted suite takes its slots all at once or not at all, waits in the
+# queue holding none, and a heavy waiter is not starved by light newcomers.
+export WF_TEST_LOCK_FILE="$tmp/w"; unset WF_TEST_SUITES
+heavy() { python3 scripts/test-lock.py acquire --watch "$1" --slots 2; }
+free_slot() { python3 -c 'import fcntl,os,sys; fd=os.open(sys.argv[1], os.O_RDWR); fcntl.flock(fd, fcntl.LOCK_EX|fcntl.LOCK_NB)' "$1" 2>/dev/null; }
+release() { kill "$1"; sleep 0.3; }
+sleep 60 & h1=$!; sleep 60 & l1=$!; sleep 60 & h2=$!; sleep 60 & l2=$!; sleep 60 & h3=$!
+check "a weight-2 suite takes both slots" '[ "$(heavy $h1)" = acquired ] && grep -q "\"slots\": \[0, 1\]" "$tmp/w" && grep -q "\"slots\": \[0, 1\]" "$tmp/w.1"'
+check "a light suite waits behind it, naming it once" '[ "$(WF_TEST_LOCK_TIMEOUT=1 lock $l1 2>"$tmp/w1.err")" = timeout ] && [ "$(grep -c "make pid $h1" "$tmp/w1.err")" = 2 ]'
+release $h1
+check "a light suite takes one slot" '[ "$(lock $l1)" = acquired ]'
+heavy $h2 >"$tmp/h2.out" 2>"$tmp/h2.err" & hw=$!
+sleep 1.5
+check "a heavy suite waits for a light one" 'kill -0 $hw 2>/dev/null && grep -q "for 2 of 2 full-suite slots" "$tmp/h2.err"'
+check "the waiter holds no slot (no partial hold)" 'free_slot "$tmp/w.1"'
+check "a light newcomer queues behind the heavy waiter" '[ "$(WF_TEST_LOCK_TIMEOUT=1 lock $l2 2>"$tmp/l2.err")" = timeout ] && grep -q "next in line: .*make pid $h2" "$tmp/l2.err"'
+heavy $h3 >"$tmp/h3.out" 2>/dev/null & hw3=$!
+sleep 1.5
+release $l1; wait $hw
+check "the heavy waiter takes both slots once free" '[ "$(cat "$tmp/h2.out")" = acquired ] && kill -0 $hw3 2>/dev/null'
+release $h2; wait $hw3
+check "a second heavy waiter follows (no deadlock)" '[ "$(cat "$tmp/h3.out")" = acquired ]'
+release $h3
+check "the weight is clamped to the slot count" '[ "$(WF_TEST_SUITES=1 WF_TEST_LOCK_TIMEOUT=1 python3 scripts/test-lock.py acquire --watch $l2 --slots 5)" = acquired ]'
+release $l2
+# Makefile.workflow passes WF_TEST_WEIGHT; ariadne's Makefile declares 2, so its
+# suite waits while a light suite holds one of the two slots.
+sleep 60 & l3=$!
+lock $l3 >/dev/null
+check "make test waits for both slots (ariadne weighs 2)" '! WF_TEST_LOCK_TIMEOUT=1 make -n test >/dev/null 2>"$tmp/mw.err" && grep -q "for 2 of 2" "$tmp/mw.err"'
+check "a weight-1 make test runs alongside" 'WF_TEST_WEIGHT=1 WF_TEST_LOCK_TIMEOUT=1 make -n test >/dev/null 2>&1'
 
 [ $fails -eq 0 ] && echo "all passed" || { echo "$fails failed"; exit 1; }
