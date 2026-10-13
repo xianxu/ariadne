@@ -6,7 +6,7 @@ set -u
 cd "$(git rev-parse --show-toplevel)"
 tmp=$(mktemp -d "${TMPDIR:-/tmp}/test-lock.XXXXXX") || exit 1; trap 'kill $(jobs -p) 2>/dev/null; rm -rf "$tmp"' EXIT
 export WF_TEST_LOCK_FILE="$tmp/lock"
-unset WF_TEST_LOCK WF_TEST_LOCK_TIMEOUT WF_TEST_LOCK_HELD_BY
+unset WF_TEST_LOCK WF_TEST_LOCK_TIMEOUT WF_TEST_LOCK_HELD_BY WF_TEST_WEIGHT
 # The single-slot cases first; the two-slot default has its own block below.
 export WF_TEST_SUITES=1
 fails=0

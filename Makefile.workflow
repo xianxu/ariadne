@@ -13,7 +13,7 @@ WF_HELP_TARGETS := help-workflow
 # this file's real path (ariadne's), so a woven repo needs no copy of it.
 # WF_TEST_LOCK=off skips it; WF_TEST_LOCK_TIMEOUT=<seconds> bounds the wait.
 # A repo whose suite loads the machine like several declares its weight,
-# WF_TEST_WEIGHT := N, before including this file (#346; ariadne's sharded
+# WF_TEST_WEIGHT ?= N, before including this file (#346; ariadne's sharded
 # suite is 2, so it runs alone); the default is 1.
 # Targeted runs never come here.
 WF_TEST_LOCK_HELPER := $(WF_WORKFLOW_SOURCE_DIR)scripts/test-lock.py

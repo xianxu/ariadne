@@ -19,7 +19,8 @@
 # the default cap. N is clamped to the slot count. All N are taken in one scan or
 # none are, so a waiter never holds part of its set. While waiting, a run holds
 # the queue file (<slot 0>.queue); only the queue's head takes slots, so light
-# suites cannot starve a heavy waiter, and the head holds no slot, so two heavy
+# suites never overtake the head waiter (the queue is a polled flock, not
+# FIFO, so the waiters behind it race for it), and the head holds no slot, so two heavy
 # waiters cannot deadlock.
 #
 # WF_TEST_SUITES=<n> sets the slot count (default 2); WF_TEST_LOCK=off skips the

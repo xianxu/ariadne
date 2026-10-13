@@ -67,6 +67,7 @@ beside the slot files, rewritten in place and never growing.
 ## Log
 
 ### 2026-10-13
+- 2026-10-13: closed — make test green at 32a52802 under the new weighted lock (held slots [0,1]): 12 shards, 1104 cmd/sdlc tests plus 46 packages, 0 failed. bash scripts/test-lock.test.sh all pass, with private mktemp lock files and sleep holders only. New cases: a weight-2 take of both slots; a light suite waits behind it and a heavy suite waits for a light one; no partial hold while waiting; a light newcomer queues behind a heavy waiter; two heavy waiters both finish (no deadlock); the clamp; the make wiring with ariadne weight 2 and a WF_TEST_WEIGHT=1 override. Mutation-checked the queue head rule.; review verdict: FIX-THEN-SHIP
 
 - Dispatched by the TL (ops:0); claimed in ariadne:4.
 - `WF_TEST_WEIGHT ?= 2`, not `:=`: an operator's env override (e.g.
@@ -75,3 +76,11 @@ beside the slot files, rewritten in place and never growing.
   holders, no load). Mutation-checked: letting a non-head waiter take slots
   fails "a light newcomer queues behind the heavy waiter" and "the heavy
   waiter takes both slots once free".
+- Close review round 1 (FIX-THEN-SHIP), 4 Minors, all fixed in round:
+  - the `?=` form in the Makefile.workflow comment;
+  - the AGENTS.base.md machine budget names weighted suites;
+  - the "cannot starve" claim narrowed to "never overtake the head waiter",
+    since the queue is a polled flock, not FIFO;
+  - test-lock.test.sh unsets WF_TEST_WEIGHT.
+
+  The lock tests pass again.
