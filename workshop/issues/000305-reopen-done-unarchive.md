@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "d3c7c180", done: "f00e9f64"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Reopening a done issue does not un-archive its details
@@ -72,6 +72,10 @@ unchanged.
 
 ## Log
 
+
+
+- 2026-10-13: closed — make test green at 225c7da3 (origin/main incl. #346 merged; 1112 cmd/sdlc tests, 0 failed); round 3: BR-7 TestCheckUnarchived (postcondition fails on the landed branch, holds after reopen), BR-6 class TestReopenDoneDirtyTreeRefusesBeforeTheFastForward + TestReopenDoneGuardRefusalNamesTheFastForward; earlier rounds and done-when TestReopenUnarchivesADoneIssue still green; review verdict: SHIP
+- 2026-10-13: flow upgraded quick → full — 327 added lines in code files (limit 100); an earlier round of this close already ran the full review
 ### 2026-10-08
 - 2026-10-12: implemented (`cmd/sdlc/reopendone.go`, shared `unarchiveIssue` in abandon.go); `go test -run TestReopen` green. Paused on the TL's quota hold before the help/catalog row, `change-code` and close. Next: help + catalog, then `sdlc change-code --issue 305`, the full suite, then `sdlc close`.
 - 2026-10-13: resumed after the hold; merged origin/main (clean); help + catalog row (`TestReopenUnarchivesADoneIssue`, `TestReopenDoneRerunAfterAFailedPush` as proofs); catalog/help tests green.
