@@ -1,6 +1,6 @@
 ---
 id: 000311
-status: codecomplete
+status: done
 created: 2026-10-09
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: e71649e74406111e46462d76af9be657173b7cba
         evidence_commit: 9ce0e87eb782d373ded8d3c596e7b00b3bdf0327
+        landed_commit: 0dd7980544f92c85d35cdc436e5e36bb8081fe52
 ---
 
 # Repair a codecomplete card whose branch merged outside the detector (#239)
