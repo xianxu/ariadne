@@ -57,12 +57,17 @@ with a deleted branch and with a squash merge:
 
 ## Plan
 
-- [ ] `--landed` on reconcile + pure card transition + range check
-- [ ] tests: renamed branch merged then deleted → done, archived, state clean; refusals (not on main, no issue commit, bound card)
-- [ ] help/atlas mention
+- [x] `--landed` on reconcile + pure card transition + range check
+- [x] tests: renamed branch merged then deleted → done, archived, state clean; refusals (not on main, no issue commit, bound card)
+- [x] help/atlas mention
 - [ ] repair #239 after landing
 
 ## Log
 
 ### 2026-10-09
 Filed from the robustness evidence review (ariadne-robustness-1).
+
+### 2026-10-12
+- Only one unbound codecomplete card on the tracker: #239 (migrated 2026-09-27 by `issue migrate`). Its branch `000239-standalone-weave-restart` is deleted on origin; PR #126 merge commit is `b066449c`, whose `^1..` range carries `#239:` subjects.
+- Implemented `repairLanded` / `doneUnboundCard` / `citesIssue` in `externalmerge.go`, flag in `issuerecovery.go`. Tests: `landedrepair_test.go` (renamed + deleted branch, refusals, bound card, subject matching). Targeted `Recovery|Help|Reconcile|ExternalMerge|Contract` green.
+
