@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:3
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "2ecf1e63", done: "6ada04db"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # agents: make temp dirs from $TMPDIR; never cd into a possibly-empty path (macOS mktemp ignores TMPDIR)
@@ -60,6 +60,8 @@ Fix it where agents and scripts learn and run:
 ### 2026-10-12
 
 ### 2026-10-13 — survey (ariadne:3)
+- 2026-10-13: closed — Full make test green 15:54 (12 shards, 1120 cmd/sdlc tests, 47 other packages incl. new pkg/shelllint, 0 failed). pkg/shelllint: MktempFindings table tests (failing forms + look-alikes) and TestTrackedScriptsMakeTempDirsFromTMPDIR over tracked shell scripts/Makefiles; before the sweep it reported exactly the 8 surveyed sites, after it none; an appended probe=$(mktemp -d) fails it; locally fixing the exempt scripts/parallel-checks.sh (reverted) fails it with remove the exemption. Swept scripts run: colima.test.sh pass (original fails here with mkdtemp failed on /var/folders: Operation not permitted), docflow.test.sh ALL PASS, clone-data-deps.test.sh 9/9, make weave-drift-check OK, setup.sh bash -n. AGENTS.base.md §10 rule composed into AGENTS.md/CLAUDE.md by weave compile. parallel-checks.sh (local-gates path) filed as #351, unclaimed, hub told.; review verdict: SHIP
+- 2026-10-13: flow upgraded quick → full — 159 added lines in code files (limit 100)
 
 Template-less `mktemp` in tracked executables: `.colima/test/colima.test.sh:7`,
 `.openshell/overlay/setup.sh:68,72,73`, `Makefile.workflow:209` (x2),
