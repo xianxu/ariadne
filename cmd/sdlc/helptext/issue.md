@@ -24,9 +24,17 @@ SUBCOMMANDS
   set-title      Retitle an issue card (paths keep their slug)
   set-estimate   Record estimate_hours on the card (`--hours`)
   set-github     Link the card to a GitHub issue (`--number`)
+  set-area       Set the card's areas (`<area>...` | `--clear`); each must be
+                 declared, or an ancestor of a declared one, in main's
+                 {{REPO_ENUMS_PATH}} (#348)
+  set-severity   Set the card's severity (`<level>` | `--clear`):
+                 {{SEVERITY_NAMES}}
   sync           (legacy repositories) commit an issue body; retired in tracker
                  repositories: commit details with git, publish with `publish`
-  list           List issues (ID, status, title), sorted by ID; --status filters
+  list           List issues (ID, status, title), sorted by ID; --status,
+                 --area (a /-path prefix by whole segments) and --severity
+                 filter; severity and area columns appear when a listed issue
+                 has them
   show           Print an issue's frontmatter + section headers (no bodies)
 
 CANONICAL ISSUE FILE
@@ -50,6 +58,17 @@ branch name verbatim, and the branch feeds the orientation slug's left segment.
     started        ISO-8601 stamp at the open→working flip (#116); the
                    active-time window anchor — set by the verb, never
                    hand-edited
+    area           (optional, card) where the issue belongs: a one-line list of
+                   /-paths, e.g. [couch/broadcast/web]. Allowed values are
+                   the repository's: declared in {{REPO_ENUMS_PATH}} on main
+                   (an operator-governed, local-gates-guarded file; an absent
+                   file declares none). Declaring couch/broadcast/web also
+                   allows couch and couch/broadcast. Set with `issue new
+                   --area` or `issue set-area`; checked by the writers, issue
+                   publish, issue validate and the merge/push instance gate
+                   (#348)
+    severity       (optional, card) {{SEVERITY_NAMES}}; set with
+                   `issue new --severity` or `issue set-severity`
     estimate_hours derived after the plan clears plan-quality; required by change-code — not at
                    claim (#113) — on the full flow only. Optional at create.
     flow           the issue's SDLC flow, one line (#231):
