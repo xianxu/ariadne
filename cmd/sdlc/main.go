@@ -154,6 +154,7 @@ func buildRoot() *cobra.Command {
 	add(NewMilestoneCloseCmd(), "milestone-close", "Close one milestone + auto-dispatch its review")
 	add(NewPRCmd(), "pr", "Open a pull request from a feature branch")
 	add(NewMergeCmd(), "merge", "Merge the PR, archive done issues, clean up")
+	add(NewLocalCheckCmd(), "local-check", "Run declared local checks on a pushed head and record them as commit statuses (#345)")
 	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")
 	add(NewWorkspaceCmd(), "workspace", "Resolve Git-verified repository and workspace identity")
 	add(NewMoveCmd(), "move", "Move this slot's issue branch into another slot (default :0)")

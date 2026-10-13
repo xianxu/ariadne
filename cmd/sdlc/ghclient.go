@@ -62,6 +62,17 @@ type ghCaller interface {
 	// merged server-side (irreversible) but the local cleanup never finished —
 	// instead of erroring on "no open PR" (#62 M3).
 	PRMergedForBranch(repo, headRef string) (merged bool, err error)
+
+	// JobRun reads one Actions job, so the CI gate can tell a job that never got
+	// a runner from one that ran (#345, localchecks.go jobRun.runnerless).
+	JobRun(ctx context.Context, repo string, id int64) (jobRun, error)
+
+	// PostStatus records a commit status on sha: how a local run is recorded
+	// as evidence on the exact head (#345, context localStatusContext).
+	PostStatus(ctx context.Context, repo, sha, statusContext, state, description string) error
+
+	// PRComment posts a comment on PR number (#345: a failed local run's tail).
+	PRComment(ctx context.Context, repo string, number int, body string) error
 }
 
 // ghClient is the package-level instance every verb resolves through.

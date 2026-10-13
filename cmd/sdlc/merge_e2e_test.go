@@ -46,6 +46,13 @@ func git(t *testing.T, dir string, args ...string) string {
 // commit and is pushed, so merge's step-3/4 push checks pass.
 func tempRepo(t *testing.T) string {
 	t.Helper()
+	return tempRepoWith(t, nil)
+}
+
+// tempRepoWith is tempRepo with extra files seeded on main (path → body; a
+// path under scripts/ is executable).
+func tempRepoWith(t *testing.T, seed map[string]string) string {
+	t.Helper()
 	dir := t.TempDir()
 	origin := filepath.Join(t.TempDir(), "origin.git")
 	git(t, "", "init", "--bare", "-b", "main", origin)
@@ -75,6 +82,19 @@ func tempRepo(t *testing.T) string {
 	}
 	if err := os.WriteFile(filepath.Join(dir, "README.md"), []byte("seed\n"), 0o644); err != nil {
 		t.Fatal(err)
+	}
+	for rel, body := range seed {
+		p := filepath.Join(dir, rel)
+		mode := os.FileMode(0o644)
+		if strings.HasPrefix(rel, "scripts/") {
+			mode = 0o755
+		}
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte(body), mode); err != nil {
+			t.Fatal(err)
+		}
 	}
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-m", "seed main")
@@ -107,7 +127,7 @@ func tempRepo(t *testing.T) string {
 // no-op methods and overrides the three merge cares about, recording PRMerge
 // calls so a test can assert the irreversible merge did (or did NOT) happen.
 type e2eGH struct {
-	stubGH
+	ciSeamGH
 	openPR       string // PRListForBranch result
 	mergedExists bool   // PRMergedForBranch result
 	prMergeCalls int    // how many times PRMerge fired
@@ -119,7 +139,10 @@ type e2eGH struct {
 
 // PRHeadOID plays GitHub's view of the PR head (#309 BR-1): by default the
 // pushed origin/feature, or a scripted sequence to model a lagging head.
-func (g *e2eGH) PRHeadOID(context.Context, string, int) (string, error) {
+func (g *e2eGH) PRHeadOID(ctx context.Context, repo string, n int) (string, error) {
+	if g.ci != nil {
+		return g.ci.PRHeadOID(ctx, repo, n)
+	}
 	if len(g.prHeads) > 0 {
 		h := g.prHeads[0]
 		g.prHeads = g.prHeads[1:]
@@ -132,6 +155,9 @@ func (g *e2eGH) PRHeadOID(context.Context, string, int) (string, error) {
 // PRChecks answers the CI gate (#309): the stub's green default unless the test
 // set checks or an error.
 func (g *e2eGH) PRChecks(ctx context.Context, repo string, n int) ([]prCheck, error) {
+	if g.ci != nil {
+		return g.ci.PRChecks(ctx, repo, n)
+	}
 	if g.checks == nil && g.checksErr == nil {
 		return g.stubGH.PRChecks(ctx, repo, n)
 	}
