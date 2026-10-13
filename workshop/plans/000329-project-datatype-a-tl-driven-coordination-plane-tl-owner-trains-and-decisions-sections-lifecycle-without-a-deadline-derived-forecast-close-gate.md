@@ -124,6 +124,45 @@ rounds:
       recipe: milestone-review
       isolation: checkout
       blocked: true
+    - "n": 4
+      timestamp: "2026-10-12T18:16:09-07:00"
+      dispatched: "2026-10-12T18:12:41-07:00"
+      agent: claude
+      dispose:
+        - id: BR-9
+          disposition: addressed
+          note: tl-plan.md Revisions 2026-10-12 M2 entry matches D5/D10 to deliveries and lists the four unplanned items; patch committed at workshop/plans/000329-ops-conformance.patch.
+          round: 4
+        - id: BR-10
+          disposition: addressed
+          note: discover.go:187-206 points at DiscoverInRoots as the single rule; helptext/resolve.md:54-58 names row marker OR train car plus train/car JSON; sweep found no remaining marker-only restatement.
+          round: 4
+        - id: BR-11
+          disposition: addressed
+          note: projectfind_test.go now asserts sawTrain, so a missing t.md fails the test.
+          round: 4
+        - id: BR-12
+          disposition: addressed
+          note: 'Section.Optional + #ScaffoldSection.optional; TestMissingSectionsSkipsOptional fails without the !sec.Optional guard in missingSections.'
+          round: 4
+      findings:
+        - id: BR-13
+          severity: Minor
+          title: D10 Revisions omit that the ops patch leaves couch-broadcast-web at status defined and drops its Estimate text
+          detail: 'This is the 3rd finding in family plan-code-drift. The covering rule is the one BR-9 stated: at milestone close, every D-decision clause is matched to the artifact in both directions. D10 says the patch "sets status: executing", but only ariadne-robustness-1 is changed; couch-broadcast-web stays defined (its trains are empty) and its "Not yet. Sized after..." line is deleted rather than kept as Sizing. Record both in the D10 Revisions bullet.'
+          family: plan-code-drift
+          round: 4
+        - id: BR-14
+          severity: Minor
+          title: The ops conformance patch already fails git apply --check against current ops; the appended Decisions hunks no longer match the grown Log tails
+          detail: Run against ~/workspace/ops, git apply --check fails at ariadne-robustness-1:687 and couch-broadcast-web:754, and succeeds with -C1. Tell the TL to apply with --3way or reduced context, or regenerate the patch at handoff.
+          family: stale-handoff-artifact
+          round: 4
+      boundary: M2
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: 2e5ef5a3c43b6528d82b14a8fbadd8a78dcaa9a2
+      blocked: false
 ---
 
 # Gate ledger — ariadne#329 (boundary-review)
@@ -175,11 +214,25 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-12** [Minor] `scaffold-as-requirement` project validate treats every scaffold section as required
   missingProjectSections iterates over the scaffold Sections(), so a future optional scaffold section would make every existing project fail. Consider a required flag in the model.
 
+## Round 4 — 2026-10-12T18:16:09-07:00 (claude) — passed
+
+### Disposed
+
+- BR-9 — addressed — tl-plan.md Revisions 2026-10-12 M2 entry matches D5/D10 to deliveries and lists the four unplanned items; patch committed at workshop/plans/000329-ops-conformance.patch.
+- BR-10 — addressed — discover.go:187-206 points at DiscoverInRoots as the single rule; helptext/resolve.md:54-58 names row marker OR train car plus train/car JSON; sweep found no remaining marker-only restatement.
+- BR-11 — addressed — projectfind_test.go now asserts sawTrain, so a missing t.md fails the test.
+- BR-12 — addressed — Section.Optional + #ScaffoldSection.optional; TestMissingSectionsSkipsOptional fails without the !sec.Optional guard in missingSections.
+
+### Raised
+
+- **BR-13** [Minor] `plan-code-drift` D10 Revisions omit that the ops patch leaves couch-broadcast-web at status defined and drops its Estimate text
+  This is the 3rd finding in family plan-code-drift. The covering rule is the one BR-9 stated: at milestone close, every D-decision clause is matched to the artifact in both directions. D10 says the patch "sets status: executing", but only ariadne-robustness-1 is changed; couch-broadcast-web stays defined (its trains are empty) and its "Not yet. Sized after..." line is deleted rather than kept as Sizing. Record both in the D10 Revisions bullet.
+- **BR-14** [Minor] `stale-handoff-artifact` The ops conformance patch already fails git apply --check against current ops; the appended Decisions hunks no longer match the grown Log tails
+  Run against ~/workspace/ops, git apply --check fails at ariadne-robustness-1:687 and couch-broadcast-web:754, and succeeds with -C1. Tell the TL to apply with --3way or reduced context, or regenerate the patch at handoff.
+
 ## Open findings
 
 - **BR-7** [Minor] `untrusted-ledger-values` parseLedgerFloat accepts Inf/NaN, so a hand-edited Inf estimate zeroes the forecast multiplier
 - **BR-8** [Minor] `schema-ban-bypassable` deadline ban accepts the sentinel string itself as a valid value
-- **BR-9** [Important] `plan-code-drift` M2 has no Revisions entry for unplanned scope, and the D10 patch artifact is not recorded anywhere
-- **BR-10** [Important] `stale-match-rule-restatement` Prose descriptions of the project match rule still say marker-only after train-only matching was added
-- **BR-11** [Minor] `vacuous-test-assertion` TestResolveRun_KindProjectJSONCarriesTrain does not check that t.md is in the results
-- **BR-12** [Minor] `scaffold-as-requirement` project validate treats every scaffold section as required
+- **BR-13** [Minor] `plan-code-drift` D10 Revisions omit that the ops patch leaves couch-broadcast-web at status defined and drops its Estimate text
+- **BR-14** [Minor] `stale-handoff-artifact` The ops conformance patch already fails git apply --check against current ops; the appended Decisions hunks no longer match the grown Log tails

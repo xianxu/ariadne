@@ -111,3 +111,104 @@ findings:
     detail: |
       missingProjectSections iterates over the scaffold Sections(), so a future optional scaffold section would make every existing project fail. Consider a required flag in the model.
 ```
+
+---
+
+## Re-review — 2026-10-12T18:16:09-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 329 — Project datatype: a TL-driven coordination plane (tl: owner, Trains and Decisions sections, lifecycle without a deadline, derived forecast) |
+| repo | ariadne |
+| issue file | workshop/issues/000329-project-datatype-a-tl-driven-coordination-plane-tl-owner-trains-and-decisions-sections-lifecycle-without-a-deadline-derived-forecast.md |
+| boundary | milestone M2 |
+| milestone | M2 |
+| window | 4e488a8fc6a021557e11c0f9f7fb96cfa271bb2d..2e5ef5a3c43b6528d82b14a8fbadd8a78dcaa9a2 |
+| command | sdlc milestone-close --issue 329 --milestone M2 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T18:16:09-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking the issue's M2 plan items next, then verifying the fixes for the prior findings.
+
+Sweeping the remaining match-rule wording, then checking the trains-matching code for edge cases.
+
+Nearly done — checking the ops repo (if present) to verify the patch, then writing up the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Verdict: SHIP.** All four findings from the earlier round are fixed, and the fixes are backed by evidence. The targeted tests pass at the pinned head: `pkg/vocab`, `internal/project`, `internal/estimate`, and `cmd/sdlc` filtered to ProjectFind, KindProject, TrainOnly, TLOwned, ProjectValidate, MissingSections, ProjectDefaults and ParseRows. The matching rule now has one owner, `DiscoverInRoots`, and every written description of the rule I found now matches it: the code comments, `resolve.md`, `project.md` and the atlas. I'm raising two new Minor findings and nothing that blocks:
+- The ops patch no longer applies cleanly to ops as it is today.
+- The D10 Revisions entry doesn't mention two things the patch does differently from the plan for `couch-broadcast-web`.
+
+1. **Strengths**
+   - `DiscoverInRoots` (`cmd/sdlc/internal/project/discover.go:203-226`) is the only place the matching rule lives. `RowRef` and `Train` are set independently, so close, find and resolve all read the same match result.
+   - The close step that ticks project rows skips any record that carries the issue only as a train car (`close.go:815-818`). It runs before the TL and detail-block logic, so a train-only record is never written to and never asks for a detail block. `TestCloseCommands_TrainOnlyProjectUntouched` checks this for both close and milestone-close, byte for byte.
+   - `missingSections` (`project.go:189`) is a pure function and is tested without any IO. The file-reading wrapper around it is thin.
+   - `parseLedgerFloat` now rejects non-finite numbers in one place, at the parse step, so no reader has to re-check (`ledger.go:273-282`).
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings**
+   - **Patch is already stale.** `workshop/plans/000329-ops-conformance.patch` fails `git apply --check` against the current `~/workspace/ops`. Both files' last hunk (the appended `## Decisions`) fails because the ops Log sections have grown since the patch was cut. It does apply with `-C1`. The TL should apply it with `--3way` or reduced context, or the patch should be regenerated just before handoff. A patch whose last hunk depends on the end of a file that is appended to daily will go stale quickly.
+   - **D10 Revisions entry is incomplete.** The patch leaves `couch-broadcast-web` at `status: defined`, while D10 says "sets `status: executing`". It also deletes that file's Estimate text ("Not yet. Sized after…") instead of keeping it as Sizing, which is what it does for `ariadne-robustness-1`. The Revisions entry records neither.
+
+5. **Test coverage notes**
+   - BR-11: the `sawTrain` assertion would now fail if `t.md` were missing.
+   - BR-12: `TestMissingSectionsSkipsOptional` would fail without the `!sec.Optional` guard, because section C would be reported.
+   - Nothing tests that `optional` flows from CUE through `vocabulary export` into the embedded JSON. No section sets it today, so `project.json` is unchanged and that is acceptable for now.
+
+6. **Architecture (each principle)**
+   - **ARCH-DRY: pass.** The match rule is written once.
+   - **ARCH-PURE: pass.**
+   - **ARCH-PURPOSE: pass.** I swept every consumer of `DiscoverByIssueRef`/`DiscoverInRoots` and every written description of the rule; none still says marker-only.
+   - **ARCH-MOCK: N/A.** No new external dependency.
+   - **ARCH-CONSTRAINTS: pass.** Discovery now parses every project file it walks, which is bounded by fleet size and happens off the keystroke path.
+   - **ARCH-SECURE: pass.** If a hand-edited project file fails to parse, matching falls back to the marker alone, and malformed train rows are skipped.
+   - **ARCH-ORDER: N/A.** These are stateless read-and-match functions; no state is held between events.
+   - **ARCH-FUNERAL: pass.** The patch is part of the issue's plans and is archived with them.
+
+7. **Plan revision recommendations:** add one Revisions bullet saying that the D10 patch leaves `couch-broadcast-web` at `defined`, because its trains table is empty and `trains-present` would refuse `executing`. If dropping its Estimate text was intended, say so in the same bullet.
+
+```findings
+dispose:
+  - id: BR-9
+    disposition: addressed
+    note: |
+      tl-plan.md Revisions 2026-10-12 M2 entry matches D5/D10 to deliveries and lists the four unplanned items; patch committed at workshop/plans/000329-ops-conformance.patch.
+  - id: BR-10
+    disposition: addressed
+    note: |
+      discover.go:187-206 points at DiscoverInRoots as the single rule; helptext/resolve.md:54-58 names row marker OR train car plus train/car JSON; sweep found no remaining marker-only restatement.
+  - id: BR-11
+    disposition: addressed
+    note: |
+      projectfind_test.go now asserts sawTrain, so a missing t.md fails the test.
+  - id: BR-12
+    disposition: addressed
+    note: |
+      Section.Optional + #ScaffoldSection.optional; TestMissingSectionsSkipsOptional fails without the !sec.Optional guard in missingSections.
+findings:
+  - id: new
+    severity: Minor
+    family: plan-code-drift
+    title: |
+      D10 Revisions omit that the ops patch leaves couch-broadcast-web at status defined and drops its Estimate text
+    detail: |
+      This is the 3rd finding in family plan-code-drift. The covering rule is the one BR-9 stated: at milestone close, every D-decision clause is matched to the artifact in both directions. D10 says the patch "sets status: executing", but only ariadne-robustness-1 is changed; couch-broadcast-web stays defined (its trains are empty) and its "Not yet. Sized after..." line is deleted rather than kept as Sizing. Record both in the D10 Revisions bullet.
+  - id: new
+    severity: Minor
+    family: stale-handoff-artifact
+    title: |
+      The ops conformance patch already fails git apply --check against current ops; the appended Decisions hunks no longer match the grown Log tails
+    detail: |
+      Run against ~/workspace/ops, git apply --check fails at ariadne-robustness-1:687 and couch-broadcast-web:754, and succeeds with -C1. Tell the TL to apply with --3way or reduced context, or regenerate the patch at handoff.
+```
