@@ -40,14 +40,14 @@ The operator (2026-10-13): a CI job that **could not get a runner** (no steps ex
 
 Durable plan: `workshop/plans/000345-sdlc-merge-a-recorded-local-run-substitutes-for-a-ci-job-that-never-got-a-runner-not-for-one-that-failed-plan.md` (single pass, one close).
 
-- [ ] Declaration parser (`.sdlc/local-checks.json`, strict)
-- [ ] Runnerless classifier (structural: cancelled + no runner + zero steps)
-- [ ] Gate decision with local evidence (`ciLocalNeeded`, `required`)
-- [ ] gh seam (JobRun, PostStatus, PRComment) + stateful `ciFakeGH` + live conformance
-- [ ] Local run shell (detached worktree at the head, test-lock slot, log, status)
-- [ ] Wire into `runCIGate` for both merge paths (inline run, re-read, head pin)
-- [ ] `sdlc local-check run` verb
-- [ ] Atlas + help
+- [x] Declaration parser (`.sdlc/local-checks.json`, strict)
+- [x] Runnerless classifier (structural: cancelled + no runner + zero steps)
+- [x] Gate decision with local evidence (`ciLocalNeeded`, `required`)
+- [x] gh seam (JobRun, PostStatus, PRComment) + stateful `ciFakeGH` + live conformance
+- [x] Local run shell (detached worktree at the head, test-lock slot, log, status)
+- [x] Wire into `runCIGate` for both merge paths (inline run, re-read, head pin)
+- [x] `sdlc local-check run` verb
+- [x] Atlas + help
 - [ ] Verify, file the pair declaration issue unassigned, close, merge
 
 ## Log
@@ -60,6 +60,9 @@ Durable plan: `workshop/plans/000345-sdlc-merge-a-recorded-local-run-substitutes
 - Draft design (declaration in `.sdlc/local-checks.json`, `sdlc local-check run` posting an `sdlc-local/<name>` commit status on the head, gate accepts it only for runnerless cancels) sent to the hub for review before building.
 
 - Hub approved the design (2026-10-13). (a) The pair declaration is a separate pair issue, filed unassigned at close. (b) merge may run a local check inline, but through the machine-wide suite lock, printing the command and log path first.
+- Built (2026-10-13): `localchecks.go` (pure: strict parse, runnerless, records), `localcheck_run.go` (shell: detached worktree, suite lock via `Makefile.workflow`'s helper, log, status), `runCIGate` reads main's declaration and runs a missing check inline, then re-reads (ARCH-ORDER: a push during the run or an unrecorded pass refuses), `sdlc local-check run`. ARCH-DRY: reused `abbrevSHA` and `stubGH`; the status-context check derives from the name regex. ARCH-MOCK: `ciFakeGH` models GitHub's status rollup; `TestLiveJobRunConformance` passed live against pair jobs 115490631095 (runnerless) and 115497743342 (ran).
+- The plan's live `PostStatus` self-test is dropped as redundant: that `gh pr checks` lists commit statuses by context is already load-bearing and live for `local-gates-guard/verdict` (#309), so posting a junk status on this PR would prove nothing new.
+- A background merge/landing run reported all PASS but tripped the hermeticity guard, because I committed in this tree while it ran (HEAD 8477263c → 46bcbfb2, my own commit). Not a leaking test.
 
 ## Revisions
 
