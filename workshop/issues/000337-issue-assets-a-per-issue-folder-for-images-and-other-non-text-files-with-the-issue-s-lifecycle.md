@@ -124,6 +124,22 @@ recordings remain local and expendable. The installed couch skill predates that
 rule. No implementation or tests run yet. ARCH-DRY and ARCH-PURPOSE motivate one
 bundle model across publication, all archive paths, abandon/reopen and restore.
 
+### 2026-10-13 — implementation checkpoint
+
+Change-code accepted the full-flow plan after clean review; estimate-quality noted
+integration/recovery and shipping allocations may be optimistic. Implementation
+is in progress across attach/policy, bounded snapshot readers, and publication
+and archive lifecycle adapters. Pure bundle/transition/policy tests, race tests,
+and four bounded fuzz runs passed. Targeted attach/policy/contract tests passed
+(26.950s), including fixes first demonstrated RED for missing linked bytes,
+symlinked source ancestors, issue ID mismatch, and standalone help recursion.
+Lifecycle RED tests exposed missing archive retry proofs, stray archived members,
+and recreated active bytes; fixes await combined verification. Publication
+receipt tests passed; merged-candidate and recovery coverage is still in progress.
+The full suite has not run: machine load remains above the hub's limit of 40.
+No completion claim; remaining work includes combined quiet-checkout GREEN,
+full suite, binary-owned review, and hub shipping authorization.
+
 ## Revisions
 
 - 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue
