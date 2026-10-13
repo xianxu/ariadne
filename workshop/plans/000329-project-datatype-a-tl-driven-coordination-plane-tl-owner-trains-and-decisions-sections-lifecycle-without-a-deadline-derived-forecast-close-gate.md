@@ -163,6 +163,31 @@ rounds:
       isolation: checkout
       reviewed: 2e5ef5a3c43b6528d82b14a8fbadd8a78dcaa9a2
       blocked: false
+    - "n": 5
+      timestamp: "2026-10-12T18:40:34-07:00"
+      dispatched: "2026-10-12T18:26:43-07:00"
+      agent: claude
+      dispose:
+        - id: BR-7
+          disposition: addressed
+          note: ledger.go:276 rejects Inf/NaN at the parse boundary; forecastcal_test.go:53-67 fails without the guard.
+          round: 5
+        - id: BR-8
+          disposition: withdrawn
+          note: Accepted, documented trade-off for a readable cue diagnostic; Minor note only, nothing to fix.
+          round: 5
+        - id: BR-13
+          disposition: addressed
+          note: Plan Revisions (after M2) record couch stays defined with an empty trains table and keeps Sizing; script output confirms both.
+          round: 5
+        - id: BR-14
+          disposition: addressed
+          note: Handoff is now ops-conform.py; run against current ops, both outputs pass sdlc project validate. The saved patch is stale again but is labeled preview-only.
+          round: 5
+      recipe: milestone-review
+      isolation: checkout
+      reviewed: 6c57938b885a945dd12f9269bc7b70dcf40bab52
+      blocked: false
 ---
 
 # Gate ledger — ariadne#329 (boundary-review)
@@ -230,9 +255,15 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-14** [Minor] `stale-handoff-artifact` The ops conformance patch already fails git apply --check against current ops; the appended Decisions hunks no longer match the grown Log tails
   Run against ~/workspace/ops, git apply --check fails at ariadne-robustness-1:687 and couch-broadcast-web:754, and succeeds with -C1. Tell the TL to apply with --3way or reduced context, or regenerate the patch at handoff.
 
+## Round 5 — 2026-10-12T18:40:34-07:00 (claude) — passed
+
+### Disposed
+
+- BR-7 — addressed — ledger.go:276 rejects Inf/NaN at the parse boundary; forecastcal_test.go:53-67 fails without the guard.
+- BR-8 — withdrawn — Accepted, documented trade-off for a readable cue diagnostic; Minor note only, nothing to fix.
+- BR-13 — addressed — Plan Revisions (after M2) record couch stays defined with an empty trains table and keeps Sizing; script output confirms both.
+- BR-14 — addressed — Handoff is now ops-conform.py; run against current ops, both outputs pass sdlc project validate. The saved patch is stale again but is labeled preview-only.
+
 ## Open findings
 
-- **BR-7** [Minor] `untrusted-ledger-values` parseLedgerFloat accepts Inf/NaN, so a hand-edited Inf estimate zeroes the forecast multiplier
-- **BR-8** [Minor] `schema-ban-bypassable` deadline ban accepts the sentinel string itself as a valid value
-- **BR-13** [Minor] `plan-code-drift` D10 Revisions omit that the ops patch leaves couch-broadcast-web at status defined and drops its Estimate text
-- **BR-14** [Minor] `stale-handoff-artifact` The ops conformance patch already fails git apply --check against current ops; the appended Decisions hunks no longer match the grown Log tails
+(none — every finding has been disposed)

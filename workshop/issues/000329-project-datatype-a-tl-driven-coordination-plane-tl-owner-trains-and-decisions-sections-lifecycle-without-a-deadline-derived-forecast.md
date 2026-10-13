@@ -103,6 +103,7 @@ Items, in order:
 ### 2026-10-10
 
 ### 2026-10-12
+- 2026-10-12: closed — make test green (12 shards, 1089 cmd/sdlc tests + 46 packages) after merging main; M1 and M2 SHIP; ops conformance patch + regen script pass git apply --check against current ops and both results pass sdlc project validate (TL applies, verifies done_when 4); review verdict: SHIP
 - 2026-10-12: closed M2 — round-3 fixes; targeted green: pkg/vocab, cmd/vocabulary, cmd/sdlc -run MissingSections|ResolveRun|ProjectFind|ProjectValidate|Help; vet_test.sh; ops patch committed and apply-checked; review verdict: SHIP
 - 2026-10-12: closed M1 — targeted green after round-1 fixes: internal/{project,estimate}, cmd/sdlc -run ProjectValidationScope|ProjectForecast|ProjectWorkspace|SetStatus|ProjectClose|Calib|Ledger; earlier: pkg/vocab, processmanual, cmd/vocabulary deadline-ban e2e, vet_test.sh; review verdict: SHIP
 - Claimed at ariadne:3. The hub confirmed the lifecycle (defined → executing → closing → closed, plus dropped) and that the ops item ships as a patch the TL applies (workers don't edit ops project files).
