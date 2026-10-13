@@ -275,6 +275,14 @@ refresh remains explicit. Resume interrupted landing with
 See [landing and recovery](atlas/workflow/workspace-branching.md#land-and-retain-the-workspace)
 for evidence checks, legacy dependency behavior and the intentionally old baseline.
 
+Merge refuses red or pending CI on the PR head. A repository can declare local
+checks in `.sdlc/local-checks.json` on main: `sdlc local-check run --name X`
+runs one on a pushed head under the machine-wide suite lock and records it as
+the commit status `sdlc-local/X`. Merge accepts that recorded pass in place of
+a CI job that never got a runner (never one that ran and failed), requires it
+for checks declared `required`, and runs a missing one itself. See
+[recorded local checks](atlas/workflow/ci-merge-check.md#recorded-local-checks-345).
+
 ## Fleet queries
 
 Inspect every Git worktree in the sibling-repository fleet from a caller path,

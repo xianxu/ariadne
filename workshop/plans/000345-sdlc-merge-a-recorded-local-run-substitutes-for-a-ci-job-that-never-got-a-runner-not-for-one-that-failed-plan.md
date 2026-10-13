@@ -244,3 +244,11 @@ Single pass (one `sdlc close`), plain checkboxes.
 - [ ] Evidence for the real-GitHub path: the declaration is read from `origin/main`, so the full real path (status post → merge acceptance) is first exercised by the pair issue. Here the evidence is the fake-backed e2e plus the live jobs-API conformance. In addition, run `realGH.PostStatus` once live against this branch's own PR head with context `sdlc-local/selftest` and confirm `gh pr checks` lists it as a pass (the rollup assumption `ciFakeGH` models). Record all of this in `--verified`.
 - [ ] File the pair issue unassigned: `sdlc issue new` in pair from `:0` semantics (unclaimed), titled "declare couch-zellij-conformance's local substitute in .sdlc/local-checks.json". It covers the docs lines (AGENTS.local/README: which target substitutes, and run it before close when touching Couch session/Zellij code), deps `ariadne#345`, and notes that it needs the operator's `local-gates-verified` label.
 - [ ] `sdlc close --issue 345 --verified '…'`, then `sdlc merge --yes`, then report to the hub.
+
+## Revisions
+
+- 2026-10-13 — boundary review round 1:
+  - Task 9's live `PostStatus` self-test is dropped as redundant. `local-gates-guard/verdict` is already a live commit status that `gh pr checks` lists by context (#309).
+  - `--rev` must be the tip of a branch on origin (`for-each-ref --points-at`), i.e. a pushed head. That is looser than "tip of the current branch", because a recovery may run from a resting branch, and tighter than the first cut's "contained in any remote branch".
+  - A recorded pass counts only from a commit status (no workflow, no Actions job link).
+  - The required-check presence test runs before any inline local run.

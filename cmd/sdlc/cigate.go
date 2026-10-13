@@ -74,6 +74,14 @@ type ciInputs struct {
 	Runnerless       map[string]bool
 }
 
+// isCommitStatus reports whether a check is a commit status rather than a check
+// run: no workflow and no Actions job link. A recorded local run is a commit
+// status, so a CI job that merely carries the sdlc-local/ name is not one.
+func isCommitStatus(c prCheck) bool {
+	_, job := jobIDFromLink(c.Link)
+	return c.Workflow == "" && !job
+}
+
 // decideCIGate is the gate's decision, pure. Red outranks unknown outranks
 // pending outranks a needed local check: the refusal names the most actionable
 // class, and lists every non-green check. An unknown bucket fails closed. A
@@ -83,7 +91,7 @@ type ciInputs struct {
 func decideCIGate(in ciInputs) ciVerdict {
 	recorded := map[string]bool{}
 	for _, c := range in.Checks {
-		if c.Bucket == "pass" {
+		if c.Bucket == "pass" && isCommitStatus(c) {
 			recorded[c.Name] = true
 		}
 	}
@@ -430,6 +438,24 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 	if err != nil {
 		return err
 	}
+	required, err := requiredChecks(git, base)
+	if err != nil {
+		return fmt.Errorf("CI gate: %w", err)
+	}
+	missing := func(checks []prCheck) error {
+		for _, name := range required {
+			if !hasCheck(checks, name) {
+				return ciVerdict{Reason: ciMissing}.refusal(number)
+			}
+		}
+		return nil
+	}
+	// A refusal already known is given before any local run spends minutes.
+	if v.Reason == ciLocalNeeded {
+		if err := missing(checks); err != nil {
+			return err
+		}
+	}
 	if v.Reason == ciLocalNeeded && run != nil {
 		for _, name := range v.LocalNeeded {
 			c, _ := decl.check(name)
@@ -450,14 +476,8 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 	if !v.Reason.passes() {
 		return v.refusal(number)
 	}
-	required, err := requiredChecks(git, base)
-	if err != nil {
-		return fmt.Errorf("CI gate: %w", err)
-	}
-	for _, name := range required {
-		if !hasCheck(checks, name) {
-			return ciVerdict{Reason: ciMissing}.refusal(number)
-		}
+	if err := missing(checks); err != nil {
+		return err
 	}
 	for _, s := range v.Substituted {
 		cwarn(stderr, "CI job never got a runner; accepted the recorded local run instead: "+s)

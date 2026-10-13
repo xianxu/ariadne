@@ -41,7 +41,7 @@ func TestLocalCheckCmd(t *testing.T) {
 	ci := newCIFakeGH()
 	head := strings.TrimSpace(git(t, dir, "rev-parse", "HEAD"))
 	ci.setHead(5, head)
-	swapMergeDeps(t, &e2eGH{openPR: "5", ci: ci}, nil)
+	swapMergeDeps(t, &e2eGH{openPR: "5", ciSeamGH: ciSeamGH{ci: ci}}, nil)
 	ctx := context.Background()
 
 	if err := runLocalCheckCmd(ctx, io.Discard, localCheckFlags{All: true, Rev: "HEAD"}); err == nil || !strings.Contains(err.Error(), "bad") || strings.Contains(err.Error(), "ok (") {
@@ -58,7 +58,7 @@ func TestLocalCheckCmd(t *testing.T) {
 	git(t, dir, "add", "-A")
 	git(t, dir, "commit", "-qm", "local only")
 	var stderr bytes.Buffer
-	if err := runLocalCheckCmd(ctx, &stderr, localCheckFlags{Names: []string{"ok"}, Rev: "HEAD"}); err == nil || !strings.Contains(err.Error(), "not on origin") || stderr.Len() != 0 {
+	if err := runLocalCheckCmd(ctx, &stderr, localCheckFlags{Names: []string{"ok"}, Rev: "HEAD"}); err == nil || !strings.Contains(err.Error(), "not the tip of a branch on origin") || stderr.Len() != 0 {
 		t.Fatalf("unpushed: %v %q", err, stderr.String())
 	}
 }

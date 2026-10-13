@@ -109,6 +109,34 @@ func (g *ciFakeGH) PRComment(_ context.Context, _ string, number int, body strin
 	return nil
 }
 
+// ciSeamGH is what a flow fake embeds instead of stubGH: the #345 methods go to
+// ci when a test sets it, and to stubGH's defaults when not.
+type ciSeamGH struct {
+	stubGH
+	ci *ciFakeGH
+}
+
+func (g ciSeamGH) JobRun(ctx context.Context, repo string, id int64) (jobRun, error) {
+	if g.ci == nil {
+		return g.stubGH.JobRun(ctx, repo, id)
+	}
+	return g.ci.JobRun(ctx, repo, id)
+}
+
+func (g ciSeamGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, desc string) error {
+	if g.ci == nil {
+		return g.stubGH.PostStatus(ctx, repo, sha, statusContext, state, desc)
+	}
+	return g.ci.PostStatus(ctx, repo, sha, statusContext, state, desc)
+}
+
+func (g ciSeamGH) PRComment(ctx context.Context, repo string, n int, body string) error {
+	if g.ci == nil {
+		return g.stubGH.PRComment(ctx, repo, n, body)
+	}
+	return g.ci.PRComment(ctx, repo, n, body)
+}
+
 // fakeJob builds the jobs-API answer: runnerless, or a job that ran n steps.
 func fakeJob(conclusion, runner string, steps int) jobRun {
 	c := conclusion
@@ -285,6 +313,20 @@ func TestRunCIGateLocalChecks(t *testing.T) {
 			t.Fatalf("%v", err)
 		}
 	})
+	t.Run("a missing required verdict refuses before any local run", func(t *testing.T) {
+		g := setup(0, "")
+		var calls []string
+		guarded := func(args ...string) (string, error) {
+			if args[0] == "ls-tree" && args[len(args)-1] == localGatesWorkflow {
+				return localGatesWorkflow + "\n", nil
+			}
+			return tree("b", decl)(args...)
+		}
+		err := runCIGate(ctx, g, "o/r", 3, "b", "h", guarded, runner(g, &calls, "success", nil), false, io.Discard)
+		if err == nil || !strings.Contains(err.Error(), localGatesVerdict) || len(calls) != 0 {
+			t.Fatalf("calls %v err %v", calls, err)
+		}
+	})
 	t.Run("an unreadable job refuses as unread", func(t *testing.T) {
 		g := setup(0, "")
 		g.jobErr = errors.New("HTTP 502")
@@ -315,7 +357,7 @@ func localChecksMergeRepo(t *testing.T, command string, steps int, runner string
 	ci.setHead(42, sha, prCheck{Name: "merge-check", Bucket: "pass"},
 		prCheck{Name: "conformance", Workflow: "couch-zellij-conformance", Bucket: "cancel", Link: "https://github.com/test/repo/actions/runs/1/job/77"})
 	ci.jobs[77] = fakeJob("cancelled", runner, steps)
-	gh := &e2eGH{openPR: "42", ci: ci}
+	gh := &e2eGH{openPR: "42", ciSeamGH: ciSeamGH{ci: ci}}
 	swapMergeDeps(t, gh, nil)
 	return gh, sha
 }

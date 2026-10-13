@@ -127,7 +127,7 @@ func tempRepoWith(t *testing.T, seed map[string]string) string {
 // no-op methods and overrides the three merge cares about, recording PRMerge
 // calls so a test can assert the irreversible merge did (or did NOT) happen.
 type e2eGH struct {
-	stubGH
+	ciSeamGH
 	openPR       string // PRListForBranch result
 	mergedExists bool   // PRMergedForBranch result
 	prMergeCalls int    // how many times PRMerge fired
@@ -135,28 +135,6 @@ type e2eGH struct {
 	checks       []prCheck
 	checksErr    error
 	prHeads      []string // successive PRHeadOID answers; empty: origin/feature, the pushed head
-	ci           *ciFakeGH // when set, GitHub's checks, jobs and statuses (#345)
-}
-
-func (g *e2eGH) JobRun(ctx context.Context, repo string, id int64) (jobRun, error) {
-	if g.ci != nil {
-		return g.ci.JobRun(ctx, repo, id)
-	}
-	return g.stubGH.JobRun(ctx, repo, id)
-}
-
-func (g *e2eGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, desc string) error {
-	if g.ci != nil {
-		return g.ci.PostStatus(ctx, repo, sha, statusContext, state, desc)
-	}
-	return g.stubGH.PostStatus(ctx, repo, sha, statusContext, state, desc)
-}
-
-func (g *e2eGH) PRComment(ctx context.Context, repo string, n int, body string) error {
-	if g.ci != nil {
-		return g.ci.PRComment(ctx, repo, n, body)
-	}
-	return g.stubGH.PRComment(ctx, repo, n, body)
 }
 
 // PRHeadOID plays GitHub's view of the PR head (#309 BR-1): by default the

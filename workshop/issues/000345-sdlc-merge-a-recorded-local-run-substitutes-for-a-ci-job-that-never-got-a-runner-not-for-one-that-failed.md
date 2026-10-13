@@ -65,6 +65,7 @@ Durable plan: `workshop/plans/000345-sdlc-merge-a-recorded-local-run-substitutes
 - A background merge/landing run reported all PASS but tripped the hermeticity guard, because I committed in this tree while it ran (HEAD 8477263c → 46bcbfb2, my own commit). Not a leaking test.
 - Full `make test` on 40debd85: all 12 cmd/sdlc shards green (1116 tests); one failure, `internal/fleet TestHangingRemoteDegradesOnlyItsRepository` (3.6s git deadline under load ~150), passed 5/5 in isolation, and the branch does not touch that package.
 - Filed pair#534 unclaimed (from pair:0, deps ariadne#345): declare `couch-zellij-conformance / conformance` → `make -f Makefile.local test-couch-zellij-live test-native-terminal-ci` in `.sdlc/local-checks.json`, plus the AGENTS.local/README lines; it needs the operator's `local-gates-verified` label.
+- Boundary review round 1: FIX-THEN-SHIP, 1 Important + 5 Minor, all fixed in-round. BR-1: README gains the local-check paragraph. Recorded passes count only from commit statuses (an Actions job named `sdlc-local/x` no longer satisfies; ARCH-SECURE). `--rev` must be an origin branch tip. A missing required verdict refuses before any inline run. Fixed the atlas table cell. The fakes share `ciSeamGH` (nil-safe) instead of per-fake delegation (ARCH-DRY). Targeted suites green (656s).
 
 ## Revisions
 

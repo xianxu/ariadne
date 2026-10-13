@@ -98,6 +98,9 @@ func TestDecideCIGateLocalChecks(t *testing.T) {
 		{"required, green CI, nothing recorded", ciInputs{Checks: []prCheck{merge}, Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
 		{"required, recorded failure", ciInputs{Checks: []prCheck{merge, local("e2e", "fail")}, Local: required}, ciRed, []string{localStatusContext("e2e")}, []string{"e2e"}},
 		{"required, recorded pass", ciInputs{Checks: []prCheck{merge, local("e2e", "pass")}, Local: required}, ciGreen, nil, nil},
+		// Provenance: only a commit status records a local run, not a check run that carries the name.
+		{"an Actions job named sdlc-local is not a recorded run", ciInputs{Checks: []prCheck{merge, {Name: localStatusContext("e2e"), Workflow: "ci", Bucket: "pass", Link: "https://github.com/o/r/actions/runs/1/job/2"}}, Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
+		{"a check run with an Actions link is not a recorded run", ciInputs{Checks: []prCheck{job, {Name: localStatusContext("zellij"), Bucket: "pass", Link: "https://github.com/o/r/actions/runs/1/job/3"}}, Local: decl, Runnerless: runnerless}, ciLocalNeeded, nil, []string{"zellij"}},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			v := decideCIGate(tc.in)

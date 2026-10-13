@@ -36,7 +36,7 @@ func NewLocalCheckCmd() *cobra.Command {
 	}
 	run.Flags().StringSliceVar(&f.Names, "name", nil, "declared check(s) to run (repeatable)")
 	run.Flags().BoolVar(&f.All, "all", false, "run every declared check, in declaration order")
-	run.Flags().StringVar(&f.Rev, "rev", "HEAD", "the commit to run on; it must be pushed (statuses need a commit GitHub has)")
+	run.Flags().StringVar(&f.Rev, "rev", "HEAD", "the commit to run on; it must be the tip of a branch on origin (a pushed PR head)")
 	cmd.AddCommand(run)
 	return cmd
 }
@@ -93,8 +93,8 @@ func runLocalCheckCmd(ctx context.Context, stderr io.Writer, f localCheckFlags) 
 		return fmt.Errorf("local-check run: %s is not a commit: %w", f.Rev, err)
 	}
 	sha := strings.TrimSpace(out)
-	if remote, _ := git("branch", "-r", "--contains", sha); strings.TrimSpace(remote) == "" {
-		return fmt.Errorf("local-check run: %s is not on origin; push it first (a status needs a commit GitHub has)", abbrevSHA(sha))
+	if tips, _ := git("for-each-ref", "--points-at", sha, "--format=%(refname)", "refs/remotes/origin/"); strings.TrimSpace(tips) == "" {
+		return fmt.Errorf("local-check run: %s is not the tip of a branch on origin; push it first (merge reads the statuses on a PR's pushed head)", abbrevSHA(sha))
 	}
 	repo, err := detectRepo()
 	if err != nil {
