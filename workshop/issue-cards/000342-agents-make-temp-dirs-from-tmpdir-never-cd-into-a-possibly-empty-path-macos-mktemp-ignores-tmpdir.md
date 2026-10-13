@@ -1,6 +1,6 @@
 ---
 id: 000342
-status: codecomplete
+status: done
 created: 2026-10-12
 updated: 2026-10-13
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 7b167cedfd0e447270a97af75cf90db5f372ce71
         evidence_commit: 32c0d2d95192889181b80c3302dcbb116318e183
+        landed_commit: 5288a5e081ca1e29fba17aff8b8f180ef172290f
 ---
 
 # agents: make temp dirs from $TMPDIR; never cd into a possibly-empty path (macOS mktemp ignores TMPDIR)
