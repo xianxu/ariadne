@@ -105,7 +105,7 @@ Approved [implementation plan](../plans/000337-issue-assets-plan.md); next gate 
 - [x] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
 - [x] Bundle publication, ownership, recovery and restore.
 - [x] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
-- [x] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
+- [ ] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
 
 ## Log
 
@@ -183,6 +183,15 @@ throughout. Full log: /tmp/ariadne337-full-rerun-20261013.log. Follow-up #349
 is published and unassigned. Entering the binary-owned close review next;
 shipping still requires hub SHIP.
 
+### 2026-10-13 — first close review
+
+The binary-owned close review returned REWORK (BR-1 through BR-4), leaving the
+issue working. Its temporary regressions demonstrated stale checkout policy
+admitting new bytes after destination tightening, and archive-only Git attributes
+converting bytes during reopen. Correcting both classes across their callers,
+plus the pure/integration table and live visibility conformance coverage. The
+prior full-suite pass remains recorded; acceptance is reopened for these fixes.
+
 ## Revisions
 
 - 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue
@@ -205,3 +214,5 @@ shipping still requires hub SHIP.
   approved lifecycle/privacy scope.
 
 - 2026-10-13T21:20Z — Clarified the final issue Plan checkbox as acceptance preparation; close and hub-authorized shipping are subsequent workflow gates, so the checkbox does not claim them before they run. Added the attach recovery catalog contract and cancellation threading after full-suite findings, without changing the approved feature scope.
+
+- 2026-10-13T22:06Z — Close review correction plan appended to the durable plan: destination policy authority, all materialization paths, accurate core-concept classification, and live visibility conformance. No feature-scope expansion; acceptance checkbox reopened pending corrected verification.

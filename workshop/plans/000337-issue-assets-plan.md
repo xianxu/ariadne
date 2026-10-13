@@ -79,7 +79,7 @@ reinterpret the existing migrate command as supporting issues.
 | AssetRef / Bundle / bundle validation and delta | cmd/sdlc/internal/issueassets/bundle.go | new |
 | Attach transition (prepared, bytes-installed, body-linked) | cmd/sdlc/internal/issueassets/attach.go | new |
 | Publication bundle equality / conflict decision | cmd/sdlc/republish.go | modified |
-| Landing archive plan and proof | cmd/sdlc/landingarchive.go | modified |
+| Landing archive planner (`planLandingArchive`) | cmd/sdlc/landingarchive.go | modified |
 
 An issue owns one bundle with zero to 32 immutable members. Pure functions parse
 links/policy, calculate names/paths/limits, and plan exact changes from snapshots.
@@ -92,6 +92,7 @@ Unit tests are colocated and use bytes, without IO mocks.
 | Attach CLI and policy help | cmd/sdlc/issueattach.go; cmd/sdlc/issue.go | new / modified | Cobra, ownership and policy |
 | Visibility query | cmd/sdlc/assetpolicy.go; cmd/sdlc/ghclient.go | new / modified | context-bounded gh query |
 | Publication and ownership | cmd/sdlc/republish.go; cmd/sdlc/issuemovedetail.go; cmd/sdlc/transferguard.go | modified | pinned Git snapshots and TrunkWrite |
+| Archive proof (`confirmLandingArchive`) | cmd/sdlc/landingarchive.go | modified | Git snapshots, tracker state and clock |
 | Restore / abandon / archive | cmd/sdlc/issuerestore.go; cmd/sdlc/landingarchive.go; cmd/sdlc/archivemain.go; cmd/sdlc/abandon.go; cmd/sdlc/push.go; cmd/sdlc/merge.go | modified | existing lifecycle transactions |
 
 Reuse gitx snapshots, ExactBytes, optimistic publication retries and recovery
@@ -275,3 +276,26 @@ Files: `cmd/sdlc/helptext/issue.md`, relevant publish/migrate/recovery help,
   existing lifecycle cases. Use six shards to limit machine contention.
 
 - 2026-10-13T21:57Z — Acceptance suite passed at 35eccf5153f31923d7f2c371ad1a8a618350d8f4 using PAIR_AGENT=claude make test ARGS=--shards 6: six shards, 1155 command tests, 47 other packages, zero failures, 431.2s. Started below load40 and acquired both machine suite slots. Close review and hub SHIP remain pending.
+
+### 2026-10-13T22:06Z — close review correction plan
+
+The first close returned REWORK. These corrections preserve the approved scope:
+
+- BR-1 / ARCH-SECURE: resolve new-byte admission from the pinned destination
+  policy on every transaction attempt, retaining local restrictions. Sweep
+  republish, first publication and receipt recovery, legacy commit publication,
+  transfer validation and abandonment. Regressions must fail when only main's
+  policy tightens and when policy changes during retry.
+- BR-2 / ARCH-PURPOSE: check both source and destination paths before Git
+  materializes lifecycle asset bytes, then compare restored files with the
+  pinned bundle. Cover archive-only conversion during production reopening and
+  inspect all other materialization paths for the same class.
+- BR-3 / ARCH-PURE: corrected the table: planLandingArchive is a pure planner;
+  confirmLandingArchive is integration because it reads Git snapshots and time.
+  The existing integration tests correctly use temporary repositories.
+- BR-4 / ARCH-MOCK: add an opt-in read-only live visibility conformance test
+  through RepoVisibility and document its cadence. Keep the deterministic
+  stateful fake tests for ordinary test runs.
+
+After RED/GREEN evidence for behavioral fixes, rerun the full suite with the
+same load/lock conditions and return to the binary-owned close review.

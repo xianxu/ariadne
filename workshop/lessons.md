@@ -515,3 +515,14 @@ The simplest durable authority beats a clever scan of consequences.
 - Multi-file writes need an explicit distinction between unchanged preflight
   refusal and recoverable post-effect failure. Rollback may remove only bytes
   this attempt owns, while restart must re-establish evidence (#337 PQ-2).
+
+- Authorization for publishing new bytes belongs to the pinned destination
+  snapshot, not a stale working-tree configuration. Re-evaluate on every retry
+  and test remote-only tightening across all admission paths (#337 BR-1).
+- Git can transform bytes at every materialization path, including an archived
+  source later renamed into a safe destination. Check both paths before effects
+  and verify actual restored bytes against pinned content (#337 BR-2).
+- Classify a named function by its actual dependencies: snapshot loading, Git
+  or clock reads make a proof integration even when its planner is pure (#337 BR-3).
+- A fake external CLI response does not verify production argv against the real
+  service. Supply an opt-in read-only conformance check and its cadence (#337 BR-4).
