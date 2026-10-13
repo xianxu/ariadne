@@ -26,9 +26,6 @@ const (
 // mktemp.
 var cdIntoMktemp = regexp.MustCompile(`(^|[\s;(&|])(cd|pushd)\s+"?\$\([^)]*\bmktemp\b`)
 
-// assignment is a NAME=value word, which may prefix a command.
-var assignment = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
-
 // MktempFindings reports each mktemp call without a template argument that
 // contains XXX and is rooted at a variable (${TMPDIR:-/tmp}/…, or a directory
 // already made from it), and each cd into a mktemp substitution. Makefile `$$`
@@ -72,41 +69,106 @@ func stripComment(line string) string {
 	return line
 }
 
-// commandWords returns the offsets where word starts a command: after the
-// start of the line, an opening substitution or subshell, a separator, a brace
-// group, a keyword or prefix command (sudo, time, …), or an env assignment. A
-// word inside a string, an identifier or a ${…} expansion is not one.
+// commandWords returns the offsets of word where it runs as a command. The
+// rule is inverted rather than enumerating what may precede a command (if,
+// sudo -u x, time -p, VAR=x, …): every standalone, unquoted occurrence in code
+// counts, including inside $(…) within double quotes. Literal quoted text, a
+// part of a larger word, a $word or ${word} expansion, and a lookup that only
+// names the command (command -v, which, type, hash) do not.
 func commandWords(code, word string) []int {
+	masked := codeOnly(code)
 	var at []int
 	for i := 0; ; {
-		j := strings.Index(code[i:], word)
+		j := strings.Index(masked[i:], word)
 		if j < 0 {
 			return at
 		}
 		j += i
 		end := j + len(word)
-		if (end == len(code) || strings.ContainsRune(" \t);|&", rune(code[end]))) && commandPosition(code[:j]) {
+		standalone := (j == 0 || !strings.ContainsRune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_$.{/-", rune(masked[j-1]))) &&
+			(end == len(masked) || strings.ContainsRune(" \t);|&`", rune(masked[end])))
+		if standalone && !lookup(strings.Fields(masked[:j])) {
 			at = append(at, j)
 		}
 		i = end
 	}
 }
 
-func commandPosition(before string) bool {
-	trimmed := strings.TrimRight(before, " \t")
-	if trimmed == "" {
-		return true
+// lookup reports whether the words before an occurrence make it an argument
+// that names a command rather than a call.
+func lookup(before []string) bool {
+	n := len(before)
+	if n == 0 {
+		return false
 	}
-	if strings.ContainsRune("(`;|&", rune(trimmed[len(trimmed)-1])) {
+	switch word(before[n-1]) {
+	case "which", "type", "hash":
 		return true
+	case "-v", "-V":
+		return n >= 2 && word(before[n-2]) == "command"
 	}
-	fields := strings.Fields(trimmed)
-	last := fields[len(fields)-1]
-	switch last {
-	case "{", "then", "do", "else", "!", "exec", "command", "sudo", "time", "env", "nohup", "nice":
-		return true
+	return false
+}
+
+// word is a field without what opened it: the text after its last ( or `.
+func word(field string) string {
+	return field[strings.LastIndexAny(field, "(`")+1:]
+}
+
+// codeOnly blanks quoted literal text, keeping command substitutions (which
+// run code even inside double quotes), so offsets match the input.
+func codeOnly(line string) string {
+	out := []byte(line)
+	type ctx struct {
+		kind  byte // 0 code, '"' or '\''
+		depth int  // parentheses inside a $( substitution
 	}
-	return assignment.MatchString(last)
+	stack := []ctx{{}}
+	for i := 0; i < len(line); i++ {
+		top := &stack[len(stack)-1]
+		c := line[i]
+		switch top.kind {
+		case '\'':
+			if c == '\'' {
+				stack = stack[:len(stack)-1]
+			} else {
+				out[i] = ' '
+			}
+		case '"':
+			switch {
+			case c == '"':
+				stack = stack[:len(stack)-1]
+			case c == '\\':
+				out[i] = ' '
+				if i+1 < len(line) {
+					i++
+					out[i] = ' '
+				}
+			case c == '$' && i+1 < len(line) && line[i+1] == '(':
+				stack = append(stack, ctx{depth: 1})
+				i++
+			default:
+				out[i] = ' '
+			}
+		default:
+			switch {
+			case c == '\'' || c == '"':
+				stack = append(stack, ctx{kind: c})
+			case c == '\\':
+				i++
+			case c == '(':
+				top.depth++
+			case c == ')':
+				if top.depth > 0 {
+					top.depth--
+					if top.depth == 0 && len(stack) > 1 {
+						stack = stack[:len(stack)-1]
+					}
+				}
+			}
+		}
+	}
+	return string(out)
 }
 
 // arguments splits what follows a command word up to the end of that command

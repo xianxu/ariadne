@@ -22,6 +22,12 @@ func TestMktempFindings(t *testing.T) {
 		{"after sudo", `sudo mktemp -d`, "template"},
 		{"after time", `time mktemp -d`, "template"},
 		{"after an env assignment", `TMPDIR=/x mktemp -d`, "template"},
+		{"if opener", `if mktemp -d >/dev/null; then :; fi`, "template"},
+		{"while opener", `while d=$(mktemp -d); do break; done`, "template"},
+		{"until opener", `until mktemp -d; do :; done`, "template"},
+		{"sudo with an option value", `sudo -u build mktemp -d`, "template"},
+		{"time -p", `time -p mktemp -d`, "template"},
+		{"env -i", `env -i PATH=/bin mktemp -d`, "template"},
 		{"pushd into substitution", `pushd "$(mktemp -d "${TMPDIR:-/tmp}/p.XXXXXX")"`, "cd"},
 		{"cd into substitution", `ROOT="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/c.XXXXXX")" && pwd -P)"`, "cd"},
 		// Safe.
@@ -34,6 +40,10 @@ func TestMktempFindings(t *testing.T) {
 		{"word in a string", `echo "run mktemp -d to see"`, ""},
 		{"variable invocation", `"$mktemp" -d`, ""},
 		{"identifier", `real_mktemp=1; c.mktemp=2`, ""},
+		{"command -v lookup", `command -v mktemp >/dev/null || exit 1`, ""},
+		{"which lookup", `m=$(which mktemp)`, ""},
+		{"type lookup", `type mktemp`, ""},
+		{"single-quoted text", `trap 'echo use mktemp -d' EXIT`, ""},
 		{"braced variable", `echo "${mktemp} ${mktemp:-x}"`, ""},
 		{"cd into a checked var", `d=$(mktemp -d "${TMPDIR:-/tmp}/x.XXXXXX") || exit 1; cd "${d:?}"`, ""},
 	}

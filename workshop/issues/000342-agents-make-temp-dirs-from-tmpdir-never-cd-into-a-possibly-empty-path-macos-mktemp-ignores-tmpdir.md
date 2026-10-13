@@ -97,3 +97,13 @@ brace group, a prefix command (`sudo`, `time`, `env`, `nohup`, `nice`) or an env
 assignment (`VAR=x mktemp`) is now a command position, and the cd rule covers `pushd`.
 New table rows for each fail without the change; a `${mktemp}` expansion stays clean,
 and the repository scan stays clean.
+
+Close review round 2 (SHIP; "not converging: fix rules, not instances") found more
+missed command positions (if/elif/while/until, `sudo -u x`, `time -p`, `env -i`), the
+same family as round 1. Fixed as a rule: `commandWords` now treats every standalone,
+unquoted `mktemp` in code as a call (`$(…)` inside double quotes is code; literal
+quoted text is not), excepting identifiers, `$mktemp`/`${mktemp}` expansions and the
+lookups that only name it (`command -v`, `which`, `type`, `hash`). The enumerated
+predecessor list and its `VAR=x` regex are gone; the regex had also misread
+`m=$(which mktemp)` as a prefix assignment. New rows for each opener and option form
+fail on the old rule; lookup and single-quoted rows stay clean; repo scan clean.

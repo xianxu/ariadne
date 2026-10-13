@@ -219,6 +219,10 @@ Detailed incidents remain in their owning issue or review artifact.
   it, and point every other mention at it. Three hand-kept copies of the
   resolver's callers drifted the moment a fix added one (#230, third finding in
   the doc-overclaims family).
+- A lint that recognizes a construct by enumerating its contexts (what may
+  precede a command) misses the next context each review. When a review finds a
+  second one, invert the rule: match every occurrence and enumerate only the
+  provable exceptions (#342: if/while/sudo -u/time -p after {, sudo, time, VAR=x).
 - A behavior change to a surface the README documents updates the README, even
   with no new command: a now-false README sentence is a finding (#230 BR-3).
 - Validate external identifier grammar before interpreting sentinel values. An
