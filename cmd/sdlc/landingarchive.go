@@ -13,6 +13,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/vocab"
 	"go.yaml.in/yaml/v3"
@@ -326,7 +327,21 @@ func sameLandingGeneration(original, current string) error {
 	return nil
 }
 
+func landingAssetRelated(name string, selected []landingOwnedIssue, dirs landingArchiveRoots) bool {
+	for _, ref := range selected {
+		base := path.Base(ref.path)
+		for _, dir := range []string{dirs.issues, vocab.ArchiveSubdir(dirs.history, vocab.ArchiveIssues)} {
+			if strings.HasPrefix(name, path.Join(dir, "assets", issueIDPrefix(base))+"/") {
+				return true
+			}
+		}
+	}
+	return false
+}
 func archiveRelated(name string, selected []landingOwnedIssue, dirs landingArchiveRoots) bool {
+	if landingAssetRelated(name, selected, dirs) {
+		return true
+	}
 	for _, ref := range selected {
 		base := path.Base(ref.path)
 		parent := path.Dir(name)
@@ -345,12 +360,34 @@ func archiveSnapshot(root, ref string, selected []landingOwnedIssue, dirs landin
 		return nil, err
 	}
 	for name, b := range tree {
-		if archiveRelated(name, selected, dirs) {
+		if archiveRelated(name, selected, dirs) && !landingAssetRelated(name, selected, dirs) {
 			b.content, err = archiveBlob(root, b)
 			if err != nil {
 				return nil, fmt.Errorf("read %s: %w", name, err)
 			}
 			tree[name] = b
+		}
+	}
+	// Read bounded bundles separately; unrelated asset bytes never enter this snapshot.
+	tf, err := gitx.NewTrunkFile(root, "origin", "main")
+	if err != nil {
+		return nil, err
+	}
+	for _, owned := range selected {
+		for _, detail := range []string{owned.path, archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path))} {
+			b, exists := tree[detail]
+			if !exists {
+				continue
+			}
+			bundle, err := assetFilesFromView(tf.ViewOf(ref), detail, issueIDPrefix(path.Base(owned.path)), b.content)
+			if err != nil {
+				return nil, err
+			}
+			for name, content := range assetBundleWrite(bundle, detail) {
+				b := tree[name]
+				b.content = content
+				tree[name] = b
+			}
 		}
 	}
 	return tree, nil
@@ -359,10 +396,10 @@ func archiveSnapshot(root, ref string, selected []landingOwnedIssue, dirs landin
 // planLandingArchive is pure: derive moves from fresh bytes, preserving bodies
 // while requiring the same issue identity and the codecomplete transition.
 func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnapshot, dirs landingArchiveRoots, date string) (landingArchivePlan, error) {
-	plan := landingArchivePlan{write: gitx.TrunkWrite{Write: map[string][]byte{}}}
+	plan := landingArchivePlan{write: gitx.TrunkWrite{Write: map[string][]byte{}, ExactBytes: true}}
 	add := func(src, dst string, body []byte) error {
 		if _, exists := current[dst]; exists {
-			return fmt.Errorf("archive destination occupied: %s", dst)
+			return fmt.Errorf("archive destination occupied: %s; reconcile or remove that destination before retrying", dst)
 		}
 		if _, exists := plan.write.Write[dst]; exists {
 			return fmt.Errorf("duplicate archive destination: %s", dst)
@@ -392,7 +429,11 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 				return plan, fmt.Errorf("PR-owned plan artifact missing: %s", name)
 			}
 		}
+		archiveAssetPrefix := path.Join(vocab.ArchiveSubdir(dirs.history, vocab.ArchiveIssues), "assets", issueIDPrefix(path.Base(owned.path))) + "/"
 		for name := range current {
+			if strings.HasPrefix(name, archiveAssetPrefix) {
+				return plan, fmt.Errorf("archive asset already exists: %s; reconcile or remove that archived asset before retrying", name)
+			}
 			parent := path.Dir(name)
 			if (parent == dirs.issues || parent == dirs.history || parent == vocab.ArchiveSubdir(dirs.history, vocab.ArchiveIssues)) && issueIDPrefix(path.Base(name)) == issueIDPrefix(path.Base(owned.path)) && name != owned.path {
 				return plan, fmt.Errorf("conflicting issue identity/archive: %s", name)
@@ -404,6 +445,30 @@ func planLandingArchive(selected []landingOwnedIssue, current landingArchiveSnap
 		} else {
 			if done, err = publishedIssueContent(ref.frontmatter, ref.body, date); err != nil {
 				return plan, fmt.Errorf("%s: %w", owned.path, err)
+			}
+		}
+		inventory := map[string][]byte{}
+		assetPrefix := path.Join(path.Dir(owned.path), "assets", issueIDPrefix(path.Base(owned.path))) + "/"
+		for name, asset := range current {
+			if strings.HasPrefix(name, assetPrefix) {
+				if asset.mode != "100644" {
+					return plan, fmt.Errorf("unsafe asset mode at %s: restore a regular asset file", name)
+				}
+				inventory[strings.TrimPrefix(name, path.Dir(owned.path)+"/")] = asset.content
+			}
+		}
+		bundle, err := issueassets.BuildBundle(issueIDPrefix(path.Base(owned.path)), issueAssetBody(b.content), inventory)
+		if err != nil {
+			return plan, err
+		}
+		assetNames := make([]string, 0, len(bundle.Files))
+		for name := range bundle.Files {
+			assetNames = append(assetNames, name)
+		}
+		sort.Strings(assetNames)
+		for _, name := range assetNames {
+			if err := add(path.Join(path.Dir(owned.path), name), path.Join(vocab.ArchiveSubdir(dirs.history, vocab.ArchiveIssues), name), bundle.Files[name]); err != nil {
+				return plan, err
 			}
 		}
 		if err := add(owned.path, archiveDestination(dirs.history, vocab.ArchiveIssues, path.Base(owned.path)), done); err != nil {
@@ -604,6 +669,11 @@ func confirmLandingArchive(ctx context.Context, root, tip, repo string, pr landi
 		currentBlob, exists := current[move.destination]
 		if !exists || currentBlob.oid != archived.oid || currentBlob.mode != archived.mode {
 			return false, fmt.Errorf("archived generation changed at %s", move.destination)
+		}
+	}
+	for _, src := range plan.write.Delete {
+		if _, exists := current[src]; exists {
+			return false, fmt.Errorf("active archive source remains: %s; remove the duplicate active artifact before retrying", src)
 		}
 	}
 	for name := range current {

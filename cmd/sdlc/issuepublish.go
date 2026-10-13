@@ -132,7 +132,13 @@ func publishIssueCommit(stdout, stderr io.Writer, root, source, issuesDir, histo
 	if err := validateCommitSelection(selected, roots); err != nil {
 		return err
 	}
-	result, err := tf.PublishCommit(selected)
+	var changed []string
+	for _, c := range selected.Changes {
+		changed = append(changed, c.Path)
+	}
+	result, err := tf.PublishCommitChecked(selected, func(base, next *gitx.TrunkView) error {
+		return validateAssetPublication(context.Background(), root, base, next, changed, issuesDir, historyDir)
+	})
 	if err != nil {
 		return err
 	}

@@ -164,18 +164,16 @@ func migrationInventory(env *migrateEnv, mainView *gitx.TrunkView) (tracker.Migr
 		if err != nil || !present {
 			return nil, err
 		}
-		files, err := mainView.Files(dir)
+		files, err := mainView.FilesSelected(dir, func(f gitx.TreeFile) bool {
+			_, _, ok := issue.ParseFilename(path.Base(f.Path))
+			return path.Dir(f.Path) == dir && ok
+		})
 		if err != nil {
 			return nil, err
 		}
 		var out []tracker.MigrationFile
 		for _, f := range files {
-			if path.Dir(f.Path) != dir {
-				continue
-			}
-			if _, _, ok := issue.ParseFilename(path.Base(f.Path)); ok {
-				out = append(out, tracker.MigrationFile{Path: f.Path, Raw: f.Content})
-			}
+			out = append(out, tracker.MigrationFile{Path: f.Path, Raw: f.Content})
 		}
 		return out, nil
 	}

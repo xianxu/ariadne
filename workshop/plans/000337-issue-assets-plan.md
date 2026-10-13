@@ -178,14 +178,14 @@ Files: new issueassets core files and colocated tests; new `issueassets.go`,
 `issueattach.go`, `assetpolicy.go` and tests; modify `issue.go`, `ghclient.go`,
 `fetch_test.go` (shared fake), `main.go` only if needed for dynamic help.
 
-- [ ] Write failing tests for the named policy, parser, bundle and attach functions
+- [x] Write failing tests for the named policy, parser, bundle and attach functions
   using the function-level strategies above; run and verify RED.
-- [ ] Implement typed pure policy, bundle parsing, path mapping and `NextAttach`.
-- [ ] Write failing production-command tests and implement thin IO/CLI adapters,
+- [x] Implement typed pure policy, bundle parsing, path mapping and `NextAttach`.
+- [x] Write failing production-command tests and implement thin IO/CLI adapters,
   including policy help through the same resolver and actionable refusals.
-- [ ] Run `go test ./cmd/sdlc/internal/issueassets -count=1` and
+- [x] Run `go test ./cmd/sdlc/internal/issueassets -count=1` and
   `go test ./cmd/sdlc -run 'Test(Asset|IssueAttach)' -count=1`; expect PASS.
-- [ ] Commit and reconcile this plan's entity/file names with the implementation.
+- [x] Commit and reconcile this plan's entity/file names with the implementation.
 
 ## Task 2 — Publication, recovery, ownership and discovery
 
@@ -203,15 +203,15 @@ metadata list before batch cat-file. Preserve 1 MiB/32 MiB reader limits.
 Audit raw subtree readers too; issue discovery reads documents, asset operations
 read the explicitly indexed bounded bundle, never a fleet-wide byte inventory.
 
-- [ ] Write RED tests for the publication/ownership strategies and aggregate reader
+- [x] Write RED tests for the publication/ownership strategies and aggregate reader
   strategy above; include legacy publication and first-publication recovery adapters.
-- [ ] Implement selected metadata-first reads and shared bundle publication read sets,
+- [x] Implement selected metadata-first reads and shared bundle publication read sets,
   exact writes/deletes, ownership rechecks and whole-bundle reconciliation.
-- [ ] Extend restore and resting-branch reconciliation to the same bundle generation;
+- [x] Extend restore and resting-branch reconciliation to the same bundle generation;
   preserve untracked/concurrent user edits rather than overwriting them.
-- [ ] Run `go test ./cmd/sdlc -run 'Test(Asset|IssuePublish|MoveDetail|Republish|Transfer|IssueRestore|Migration|FinishLanded)' -count=1`
+- [x] Run `go test ./cmd/sdlc -run 'Test(Asset|IssuePublish|MoveDetail|Republish|Transfer|IssueRestore|Migration|FinishLanded)' -count=1`
   and `go test ./cmd/sdlc/internal/gitx ./cmd/sdlc/internal/tracker -run 'Test.*(Detail|FilesSelected|Snapshot)' -count=1`; expect PASS.
-- [ ] Commit the publication/discovery integration.
+- [x] Commit the publication/discovery integration.
 
 ## Task 3 — Lifecycle sweep
 
@@ -219,27 +219,27 @@ Files: `landingarchive.go`, `archivemain.go`, `abandon.go`, `push.go`, `merge.go
 shared archive helpers as identified during implementation; `landingarchive_test.go`,
 `archiveartifacts_test.go`, `abandon_test.go`, `migrate_test.go`, slot move tests.
 
-- [ ] Write RED tests using archive generation and transaction strategies above.
-- [ ] Extend pinned archive snapshots/proofs and exact writes/deletes with bundles.
+- [x] Write RED tests using archive generation and transaction strategies above.
+- [x] Extend pinned archive snapshots/proofs and exact writes/deletes with bundles.
   Abandon reads its final assets from the kept branch; restore/reopen uses the
   same generation. Legacy prepared moves include asset members in recovery.
-- [ ] Prove slug rename and slot move preserve links/bytes without a special copy
+- [x] Prove slug rename and slot move preserve links/bytes without a special copy
   path. Preserve cross-repo issue migrate refusal before any mutation.
-- [ ] Run `go test ./cmd/sdlc -run 'Test.*(Asset|Archive|Abandon|Restore|Move|Migrate)' -count=1`; expect PASS.
-- [ ] Commit the lifecycle integration.
+- [x] Run `go test ./cmd/sdlc -run 'Test.*(Asset|Archive|Abandon|Restore|Move|Migrate)' -count=1`; expect PASS.
+- [x] Commit the lifecycle integration.
 
 ## Task 4 — Documentation and acceptance
 
 Files: `cmd/sdlc/helptext/issue.md`, relevant publish/migrate/recovery help,
 `atlas/workflow/issue-assets.md` (new), `atlas/index.md`, `README.md`, issue Log.
 
-- [ ] Document operator-owned policy, visibility source and unknown behavior, limits,
+- [x] Document operator-owned policy, visibility source and unknown behavior, limits,
   immutable plain-Git history cost, attach/publish workflow, private note summaries,
   no recording dependency, archive paths, retry behavior and migration exclusion.
-- [ ] Add a temporary-repository CLI test: text-only refuses, operator fixture policy
+- [x] Add a temporary-repository CLI test: text-only refuses, operator fixture policy
   permits attachment, publish carries bytes, archive resolves the unchanged link,
   restore/slot move retains evidence. Assert exact bytes, paths and refs.
-- [ ] Run focused tests, `git diff --check`, and review final diff against main.
+- [x] Run focused tests, `git diff --check`, and review final diff against main.
 - [ ] Check `uptime`; only with load <40 start `make test` in background. Keep the
   checkout unchanged until the full suite completes; save exact results.
 - [ ] Run `sdlc close --issue 337 --verified '<actual evidence>'`; its boundary review
@@ -258,3 +258,18 @@ Files: `cmd/sdlc/helptext/issue.md`, relevant publish/migrate/recovery help,
   discovery with aggregate-volume verification, explicit NextAttach transitions
   and ownership-aware rollback/restart, and named function-level adversarial test
   strategies in place of prose case inventories. These refine the approved scope.
+
+- 2026-10-13T20:43Z — Implementation evidence refined byte preservation:
+  ordinary Git staging/checkout can apply clean/smudge, encoding or newline
+  conversion. Reuse one conservative attribute preflight at attachment and
+  materialization boundaries; refuse with a path-specific `.gitattributes`
+  remedy rather than create new local commit machinery. Exact publication
+  writes stay unchanged. Abandon also checks newly admitted kept-branch assets
+  before pushing the archive ref and again inside the main publication retry.
+
+- 2026-10-13T20:55Z — Targeted verification used the combined Asset/IssueAttach
+  and bounded-reader group plus all gitx/tracker package tests, then narrower
+  lifecycle regression groups; all passed. The earlier broad command run timed
+  out during transcript discovery under extreme machine load, so it is not
+  acceptance evidence. The upcoming full module suite covers the remaining
+  existing lifecycle cases. Use six shards to limit machine contention.

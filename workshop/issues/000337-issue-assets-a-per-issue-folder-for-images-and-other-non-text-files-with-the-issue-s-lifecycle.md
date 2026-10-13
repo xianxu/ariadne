@@ -102,9 +102,9 @@ total: 3.403
 
 Approved [implementation plan](../plans/000337-issue-assets-plan.md); next gate is change-code.
 
-- [ ] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
-- [ ] Bundle publication, ownership, recovery and restore.
-- [ ] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
+- [x] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
+- [x] Bundle publication, ownership, recovery and restore.
+- [x] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
 - [ ] Documentation, targeted tests, full suite below load 40, close review and shipping on SHIP.
 
 ## Log
@@ -140,6 +140,22 @@ The full suite has not run: machine load remains above the hub's limit of 40.
 No completion claim; remaining work includes combined quiet-checkout GREEN,
 full suite, binary-owned review, and hub shipping authorization.
 
+### 2026-10-13 — integrated regression evidence
+
+Combined asset, attachment, ownership, slot-move, symlink, recovery and bounded
+reader tests passed (145.797s). All internal/tracker and internal/gitx package
+tests passed (21.095s and 39.124s). Explicit CLI attach→publish on a tracker
+resting branch passed (14.838s); slug-rename preservation passed (2.194s).
+Malformed host visibility with duplicate keys first failed RED, then passed
+following strict parsing (1.117s). The lifecycle-focused asset/attribute/privacy
+run passed (63.288s). The older broad command run timed out at 600s while
+scanning live transcript sources under machine load above 300; it also exposed
+macOS path canonicalization and repeated-abandon compatibility regressions.
+Those failures were addressed; the successor compatibility/privacy/generation
+run passed (150.148s). Final card-race/successor/retry checks passed (46.376s), and attribute/legacy-residue/compatibility checks passed (14.353s).
+Full make test and the close review are still required. Core implementation
+checkpoint: c7c74af75d74224df94f7e3d109f90526d6f653b.
+
 ## Revisions
 
 - 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue
@@ -153,3 +169,10 @@ full suite, binary-owned review, and hub shipping authorization.
 - 2026-10-13T20:06Z — Proposed design, pending plan review: plain Git with 1 MiB/file, 8 MiB/issue and 32-file limits; body-indexed immutable content-named assets, shared lifecycle planner, strict operator-owned repository policy, and unknown visibility treated as text-only. Full details and alternatives are in the durable plan; limits remain proposed choices until approved.
 - 2026-10-13T20:09Z — Ops:0 approved plan commit 399e38374dd9d769c9d21748e53b15757ee70b16 and the proposed limits, directing change-code. Added the operator's actionable-refusal requirement: each refusal names the action that clears it. The plan records this addition.
 - 2026-10-13T20:12Z — Plan-quality round 1 refused with PQ-1 (binary subtree readers), PQ-2 (attachment rollback/restart), PQ-3 (function-level test strategy). Verified existing Files consumers, refined the plan across each class, and recorded prevention rules in lessons. No code changes; rerunning plan-quality.
+
+- 2026-10-13T20:43Z — Byte-preservation validation now refuses converting Git
+  attributes with an explicit per-path override; abandon checks new evidence
+  before its archive-ref push. A repeat abandonment after reopening replaces the
+  previous archive only with proof of successor lineage; same-generation retries
+  retain exact-byte proofs. These resolve implementation findings within the
+  approved lifecycle/privacy scope.

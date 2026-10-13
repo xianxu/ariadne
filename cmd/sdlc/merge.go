@@ -762,11 +762,19 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 		// `gh issue close` would be redundant.) Repo param kept in
 		// signature for API symmetry with push's archive helper.
 		_ = repo
+		base := filepath.Base(ref.Path)
+		dest := archiveDestination(historyFull, vocab.ArchiveIssues, base)
+		body, err := os.ReadFile(ref.Path)
+		if err != nil {
+			return moves, err
+		}
+		assetMoves, err := prepareAssetArchive(ctx, mainPath, filepath.Join(issuesDir, base), archiveDestination(historyDir, vocab.ArchiveIssues, base), body, gitSrcUntracked(func(a ...string) ([]byte, error) { return mergeRunner.GitInDir(mainPath, a...) }))
+		if err != nil {
+			return moves, err
+		}
 		if err := os.MkdirAll(issuesSubFull, 0o755); err != nil {
 			return moves, fmt.Errorf("mkdir %s: %v", issuesSubFull, err)
 		}
-		base := filepath.Base(ref.Path)
-		dest := archiveDestination(historyFull, vocab.ArchiveIssues, base)
 		fmt.Fprintf(stderr, "  Moving %s to %s/\n", base, issuesSubRec)
 		if err := os.Rename(ref.Path, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
@@ -779,6 +787,10 @@ func archiveDoneIssuesInDir(ctx context.Context, stderr io.Writer, repo, mainPat
 			IssuePath:   filepath.Join(issuesDir, base),
 			HistoryPath: archiveDestination(historyDir, vocab.ArchiveIssues, base),
 		})
+		if err := finishAssetArchiveMoves(mainPath, assetMoves); err != nil {
+			return moves, err
+		}
+		moves = append(moves, assetMoves...)
 		// Sweep the issue's durable plan + review sidecars to history too (#143).
 		// Rename under mainPath; record mainPath-relative paths for the git add.
 		// An untracked sidecar (#154) stages only its history dest — probe via

@@ -10,8 +10,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"os/exec"
 	"strings"
 )
@@ -20,6 +23,7 @@ import (
 // gh CLI. realGH below is the production implementation; tests
 // substitute stubGH (in fetch_test.go) or richer fakes per-verb.
 type ghCaller interface {
+	RepoVisibility(context.Context, string) (string, error)
 	// TitleAndBody returns the title + body of GitHub issue issueNum
 	// in repo (owner/repo slug). Used by `sdlc issue new --from-github`
 	// (and its `sdlc fetch` alias).
@@ -175,4 +179,48 @@ func (realGH) PRMerge(repo, branch, expectedHead string) error {
 // unchecked (#309).
 func prMergeArgs(repo, branch, expectedHead string) []string {
 	return []string{"pr", "merge", "--repo", repo, "--merge", "--delete-branch", "--match-head-commit", expectedHead, branch}
+}
+
+// RepoVisibility queries only the visibility field; raw host errors may contain
+// credentials and are deliberately not returned to policy help or refusals.
+func (realGH) RepoVisibility(ctx context.Context, repo string) (string, error) {
+	cmd := exec.CommandContext(ctx, "gh", "repo", "view", repo, "--json", "visibility")
+	out, err := cmd.StdoutPipe()
+	if err != nil {
+		return "", fmt.Errorf("visibility unavailable")
+	}
+	if err = cmd.Start(); err != nil {
+		return "", fmt.Errorf("visibility unavailable")
+	}
+	raw, readErr := io.ReadAll(io.LimitReader(out, 4097))
+	if len(raw) > 4096 || readErr != nil {
+		_ = cmd.Process.Kill()
+		_ = cmd.Wait()
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	if err = cmd.Wait(); err != nil {
+		return "", fmt.Errorf("visibility unavailable")
+	}
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	if token, err := dec.Token(); err != nil || token != json.Delim('{') {
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	if key, err := dec.Token(); err != nil || key != "visibility" {
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	var visibility string
+	if err := dec.Decode(&visibility); err != nil || dec.More() {
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	if token, err := dec.Token(); err != nil || token != json.Delim('}') {
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	if _, err := dec.Token(); err != io.EOF {
+		return "", fmt.Errorf("invalid visibility response")
+	}
+	switch visibility {
+	case "PUBLIC", "PRIVATE", "INTERNAL":
+		return visibility, nil
+	}
+	return "", fmt.Errorf("unknown repository visibility")
 }

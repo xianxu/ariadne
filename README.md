@@ -25,6 +25,14 @@ branch, or directly with `sdlc issue publish --issue N` by the owner (anyone,
 while unclaimed: #274) (#284). A resting branch only fast-forwards to main. See
 [issue tracker](atlas/workflow/issue-tracker.md).
 
+Attach evidence with `sdlc issue attach --issue N --file PATH --caption TEXT`,
+then commit both changed paths on the issue branch or use `sdlc issue publish`.
+The issue body indexes a bounded plain-Git bundle that follows publish,
+archive, restore and slot moves. Repository policy is operator-owned;
+public or unknown host visibility defaults to text-only, private to allowed.
+Source material must also be eligible for sharing. See
+[issue assets](atlas/workflow/issue-assets.md) for policy, limits and recovery.
+
 A claim also records its owner on the card (#277): the operator, a fingerprint
 of the machine, and the worktree. Only that workspace continues the issue
 through start-plan, change-code and close. `sdlc unclaim` releases it, handing

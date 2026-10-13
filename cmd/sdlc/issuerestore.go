@@ -74,6 +74,7 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 	// wherever it lives on either side — so the merge keeps main's.
 	names := map[string]bool{}
 	var refs []string
+	restoreIDs := map[string]bool{}
 	for _, c := range changed {
 		if want[c.ID] && !mayRestore(c) {
 			// This workspace's own issue: the edit is its record, which
@@ -82,7 +83,8 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 		}
 	}
 	for _, c := range changed {
-		if want[c.ID] && !names[path.Base(c.Path)] {
+		if want[c.ID] && !restoreIDs[c.ID] {
+			restoreIDs[c.ID] = true
 			names[path.Base(c.Path)] = true
 			refs = append(refs, "#"+issue.CLIRef(c.ID))
 		}
@@ -97,13 +99,21 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 	}
 	var paths []string
 	for _, p := range strings.Split(string(diff), "\x00") {
-		if p != "" && names[path.Base(p)] {
+		if p != "" && (names[path.Base(p)] || restoreIDs[assetIssueID(p)]) {
 			paths = append(paths, p)
 		}
 	}
 	// A dirty file is refused unless it already holds main's version: an
 	// interrupted restore, which the rerun finishes.
 	for _, p := range paths {
+		if assetIssueID(p) != "" {
+			if err := verifyAssetAttributesAt(ctx, env.root, p, mainTip); err != nil {
+				return err
+			}
+			if err := verifyAssetAttributes(ctx, env.root, p); err != nil {
+				return err
+			}
+		}
 		if err := restorable(env, mainTip, p); err != nil {
 			return err
 		}

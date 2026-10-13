@@ -4,6 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
+	"path"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -26,12 +29,13 @@ type Remover func(spec ReceiptSpec, mainCommit string) error
 // unrelated card change (a claim, once details are on main) never strands it.
 type TransferOp struct {
 	diagnostics
-	ctx    context.Context
-	repo   *Repository
-	main   *gitx.TrunkFile
-	root   string
-	branch string // refs/heads/<name> of the checkout driving this run
-	remove Remover
+	ctx           context.Context
+	repo          *Repository
+	main          *gitx.TrunkFile
+	root          string
+	branch        string // refs/heads/<name> of the checkout driving this run
+	remove        Remover
+	BeforePublish func(ReceiptSpec) error
 }
 
 func NewTransferOp(ctx context.Context, repo *Repository, main *gitx.TrunkFile, root, branch string, remove Remover) *TransferOp {
@@ -79,7 +83,27 @@ func (op *TransferOp) Prepare(e Effect, r Receipt) (Event, error) {
 			return Event{}, err
 		}
 		msg := fmt.Sprintf("#%s: issue: initial details\n\nTracker-Operation: %s\nDetail-Handoff: #%s", issue.CLIRef(spec.IssueID), spec.Token, spec.IssueID)
-		c, err = DetailPublication(op.main, spec.DestinationPath, detail, msg)
+		files := map[string][]byte{}
+		for _, e := range spec.AssetEntries() {
+			b, err := gitx.ReadBlob(op.ctx, op.root, e.Blob)
+			if err != nil {
+				return Event{}, err
+			}
+			files[strings.TrimPrefix(e.Path, path.Dir(spec.SourcePath)+"/")] = b
+		}
+		_, body, err := issue.Parse(string(detail))
+		if err != nil {
+			return Event{}, err
+		}
+		bundle, err := issueassets.BuildBundle(spec.IssueID, []byte(body), files)
+		if err != nil {
+			return Event{}, err
+		}
+		writes := map[string][]byte{}
+		for p, b := range bundle.Files {
+			writes[path.Join(path.Dir(spec.DestinationPath), p)] = b
+		}
+		c, err = DetailBundlePublication(op.main, spec.DestinationPath, detail, writes, msg)
 	case "transfer.record":
 		h := op.handoff(spec)
 		h.MainCommit = MainCommit(r)
@@ -104,6 +128,11 @@ func (op *TransferOp) Apply(e Effect, r Receipt) (Event, error) {
 	case PublishCard:
 		return publishCardEvent(op.repo, &op.diagnostics, e, spec.CardPath)
 	case PublishMain:
+		if op.BeforePublish != nil {
+			if err := op.BeforePublish(spec); err != nil {
+				return Event{}, err
+			}
+		}
 		return publishEvent(mainPublisher{op.main}, &op.diagnostics, e, e.Expected.MainBase, confirmedMain(e))
 	case RemoveSource:
 		if err := op.removeSource(r); err != nil {

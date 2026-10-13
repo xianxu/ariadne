@@ -217,3 +217,16 @@ func TestStateJudgesTheNewestBranchTip(t *testing.T) {
 		}
 	}
 }
+
+func TestFinishLandedIgnoresAssetVolume(t *testing.T) {
+	r := newTrackerRepo(t, nil, nil)
+	seedDiscoveryAssets(t, r, "workshop/issues")
+	env, err := openTracker(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	var stderr bytes.Buffer
+	if err := finishLandedLeftovers(env, &stderr, archiveDirs{Issues: "workshop/issues"}); err != nil {
+		t.Fatal(err)
+	}
+}

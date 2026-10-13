@@ -416,7 +416,14 @@ func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f 
 	}
 	mirrors := newArchiveMirrors(ctx, stderr)
 	for _, m := range moves {
-		mirrors.refresh(m.HistoryPath) // #275; idempotent on a retry
+		if isIssuePath(m.IssuePath, f.IssuesDir) {
+			mirrors.refresh(m.HistoryPath)
+		} // assets stay opaque
+		if strings.HasPrefix(m.IssuePath, filepath.Join(f.IssuesDir, "assets")+string(filepath.Separator)) {
+			if err := finishAssetArchiveMoves(".", []preparedArchiveMove{m}); err != nil {
+				return false, err
+			}
+		}
 	}
 	if out, gerr := pushRunner.Git(archiveAddArgs(moves)...); gerr != nil {
 		return false, fmt.Errorf("git add archived paths: %v\n%s", gerr, out)
@@ -457,7 +464,14 @@ func preparedArchiveMoves(ctx context.Context, entries []gitx.StatusEntry, issue
 		return h
 	}
 	var other []string
+	var assetEntries []gitx.StatusEntry
 	for _, e := range entries {
+		assetRoot := filepath.Join(issuesDir, "assets") + string(filepath.Separator)
+		archiveRoot := filepath.Join(vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues), "assets") + string(filepath.Separator)
+		if strings.HasPrefix(e.Path, assetRoot) || strings.HasPrefix(e.Path, archiveRoot) || strings.HasPrefix(e.Orig, assetRoot) {
+			assetEntries = append(assetEntries, e)
+			continue
+		}
 		line := statusLine(e)
 		status, path, dest := strings.TrimSpace(e.XY), e.Path, ""
 		if e.Orig != "" {
@@ -515,6 +529,12 @@ func preparedArchiveMoves(ctx context.Context, entries []gitx.StatusEntry, issue
 		}
 		other = append(other, valueOr(h.srcPath, h.historyPath))
 	}
+	assets, assetOther, err := recoverAssetArchiveMoves(ctx, moves, assetEntries, issuesDir)
+	if err != nil {
+		return nil, nil, err
+	}
+	moves = append(moves, assets...)
+	other = append(other, assetOther...)
 	sort.Slice(moves, func(i, j int) bool { return moves[i].IssuePath < moves[j].IssuePath })
 	sort.Strings(other)
 	return moves, other, nil
@@ -644,6 +664,15 @@ func archiveDoneIssues(ctx context.Context, stderr io.Writer, repo, issuesDir, h
 	var moves []preparedArchiveMove
 	mirrors := newArchiveMirrors(ctx, stderr)
 	for _, ref := range terminalIssueFiles(refs) {
+		dest := archiveDestination(historyDir, vocab.ArchiveIssues, filepath.Base(ref.Path))
+		body, err := os.ReadFile(ref.Path)
+		if err != nil {
+			return moves, err
+		}
+		assetMoves, err := prepareAssetArchive(ctx, ".", ref.Path, dest, body, gitSrcUntracked(pushRunner.Git))
+		if err != nil {
+			return moves, err
+		}
 		// status=done + github_issue: → close GitHub issue first. (#122 carve-out:
 		// literal "done" is value-specific — only done has a GitHub issue to close —
 		// not a category test, so it stays a literal, not vocab.Issue().IsTerminal.)
@@ -655,19 +684,23 @@ func archiveDoneIssues(ctx context.Context, stderr io.Writer, repo, issuesDir, h
 				}
 			}
 		}
+
 		// #181: issue files archive into the issues/ subdir (plans + sidecars
 		// go to plans/ via archivePlanArtifacts); reads stay flat-tolerant.
 		issuesSub := vocab.ArchiveSubdir(historyDir, vocab.ArchiveIssues)
 		if err := os.MkdirAll(issuesSub, 0o755); err != nil {
 			return moves, fmt.Errorf("mkdir %s: %v", issuesSub, err)
 		}
-		dest := archiveDestination(historyDir, vocab.ArchiveIssues, filepath.Base(ref.Path))
 		cinfo(stderr, fmt.Sprintf("Archiving %s to %s/", ref.Path, issuesSub))
 		if err := os.Rename(ref.Path, dest); err != nil {
 			return moves, fmt.Errorf("mv %s → %s: %v", ref.Path, dest, err)
 		}
 		mirrors.refresh(dest)
 		moves = append(moves, preparedArchiveMove{IssuePath: ref.Path, HistoryPath: dest})
+		if err := finishAssetArchiveMoves(".", assetMoves); err != nil {
+			return moves, err
+		}
+		moves = append(moves, assetMoves...)
 		// Sweep the issue's durable plan + review sidecars to history too (#143).
 		// An untracked sidecar (#154) stages only its history dest, not a vanished
 		// source path — probe via `git ls-files` in cwd.

@@ -16,12 +16,14 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"sort"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 	"github.com/xianxu/ariadne/pkg/workspace"
 )
@@ -173,6 +175,40 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 	default:
 		return fmt.Errorf("cannot tell whether %s exists (%v); a read error is not absence — nothing was changed", dest, statErr)
 	}
+	files, err := readAssetFiles(env.root, dest, id)
+	if err != nil {
+		return err
+	}
+	bundle, err := issueassets.BuildBundle(id, issueAssetBody(source), files)
+	if err != nil {
+		return err
+	}
+	var pins []tracker.EvidenceEntry
+	for p, b := range assetBundleWrite(bundle, dest) {
+		if err := verifyAssetAttributes(env.ctx, env.root, p); err != nil {
+			return err
+		}
+		if err := verifyAssetAttributesAt(env.ctx, env.root, p, pinnedMain); err != nil {
+			return err
+		}
+
+		if err := checkMoveSource(env, p, pinnedMain); err != nil {
+			return err
+		}
+		if _, err := moveSourceBase(env, p, pinnedMain); err != nil {
+			return err
+		}
+		oid, err := gitx.WriteBlob(ctx, env.root, b)
+		if err != nil {
+			return err
+		}
+		pins = append(pins, tracker.EvidenceEntry{Path: p, Blob: oid})
+	}
+	sort.Slice(pins, func(i, j int) bool { return pins[i].Path < pins[j].Path })
+	spec.SourceAssets = tracker.FormatEvidenceEntries(pins)
+	if err := checkTransferAssetAdmission(env, spec); err != nil {
+		return err
+	}
 	if spec.SourceBase, err = moveSourceBase(env, dest, pinnedMain); err != nil {
 		return err
 	}
@@ -209,7 +245,7 @@ func runMoveDetail(ctx context.Context, stdout, stderr io.Writer, f *moveDetailF
 			}
 		}
 	}
-	op := tracker.NewTransferOp(ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
+	op := newIssueTransferOp(env)
 	final, err := tracker.Drive(t.Receipt(), tracker.TransferStepper, op, receipts)
 	invalidateIssueRecords(env.ctx)
 	if err != nil {
@@ -290,63 +326,113 @@ func moveSourceBase(env *trackerEnv, dest, pinnedMain string) (string, error) {
 // is success.
 func moveDetailRemover(env *trackerEnv) tracker.Remover {
 	return func(spec tracker.ReceiptSpec, mainCommit string) error {
-		abs := filepath.Join(env.root, filepath.FromSlash(spec.SourcePath))
-		current, err := os.ReadFile(abs)
-		switch {
-		case errors.Is(err, os.ErrNotExist):
-			current = nil
-		case err != nil:
-			return fmt.Errorf("read source %s: %w", spec.SourcePath, err)
-		}
 		if env.onRest() {
-			if done, err := env.gitTest("merge-base", "--is-ancestor", mainCommit, "HEAD"); err != nil {
-				return err
-			} else if done {
-				return nil // already fast-forwarded
-			}
-		}
-		if current != nil {
-			oid, err := gitx.WriteBlob(env.ctx, env.root, current)
+			done, err := env.gitTest("merge-base", "--is-ancestor", mainCommit, "HEAD")
 			if err != nil {
 				return err
 			}
-			if oid != spec.SourceBlob {
-				return fmt.Errorf("%s changed after it was published; it is left untouched. Main has the published copy (%s); reconcile your edits into it, then `sdlc issue recovery reconcile --issue %s`", spec.SourcePath, shortOID(mainCommit), issue.CLIRef(spec.IssueID))
+			if done {
+				return nil
 			}
 		}
-		tracked, err := env.has("HEAD", spec.SourcePath)
-		if err != nil {
-			return err
-		}
-		staged, err := env.git("ls-files", "--cached", "--", spec.SourcePath)
-		if err != nil {
-			return err
-		}
-		if staged != "" {
-			if _, err := env.git("rm", "-q", "--cached", "--", spec.SourcePath); err != nil {
+		pins := append([]tracker.EvidenceEntry{{Path: spec.SourcePath, Blob: spec.SourceBlob}}, spec.AssetEntries()...)
+		// Validate the entire bundle before removing any member.
+		present := map[string]bool{}
+		for _, e := range pins {
+			raw, err := readAssetRegular(env.root, filepath.FromSlash(e.Path), issueassets.MaxFileBytes)
+			if errors.Is(err, os.ErrNotExist) {
+				continue
+			}
+			if err != nil {
 				return err
 			}
-		}
-		if current != nil {
-			if err := os.Remove(abs); err != nil {
+			oid, err := gitx.WriteBlob(env.ctx, env.root, raw)
+			if err != nil {
 				return err
+			}
+			if oid != e.Blob {
+				return fmt.Errorf("%s changed after it was published; left untouched. Main has the pinned bundle (%s); reconcile that file, then run sdlc issue recovery reconcile --issue %s", e.Path, shortOID(mainCommit), issue.CLIRef(spec.IssueID))
+			}
+			present[e.Path] = true
+		}
+		var trackedPaths []string
+		for _, e := range pins {
+			tracked, err := env.has("HEAD", e.Path)
+			if err != nil {
+				return err
+			}
+			if tracked {
+				trackedPaths = append(trackedPaths, e.Path)
+			}
+			staged, err := env.git("ls-files", "--cached", "--", e.Path)
+			if err != nil {
+				return err
+			}
+			if staged != "" {
+				if _, err := env.git("rm", "-q", "--cached", "--", e.Path); err != nil {
+					return err
+				}
+			}
+			if present[e.Path] {
+				if err := os.Remove(filepath.Join(env.root, filepath.FromSlash(e.Path))); err != nil {
+					return err
+				}
 			}
 		}
 		if env.onRest() {
 			if _, err := env.git("merge", "-q", "--ff-only", mainCommit); err != nil {
-				return fmt.Errorf("fast-forward %s to the publication: %w", env.resting, err)
+				return fmt.Errorf("fast-forward %s to publication: %w; rerun issue recovery reconcile", env.resting, err)
 			}
 			return nil
 		}
-		if !tracked {
+		if len(trackedPaths) == 0 {
 			return nil
 		}
 		msg := fmt.Sprintf("#%s: issue: hand off initial details to main\n\nTracker-Operation: %s\nDetail-Handoff: #%s", issue.CLIRef(spec.IssueID), spec.Token, spec.IssueID)
-		if _, err := env.git("commit", "-q", "--no-verify", "-m", msg, "--only", "--", spec.SourcePath); err != nil {
-			return fmt.Errorf("commit source removal: %w", err)
+		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", msg, "--only", "--"}, trackedPaths...)...); err != nil {
+			return fmt.Errorf("commit source removal: %w; rerun issue recovery reconcile", err)
 		}
 		return nil
 	}
+}
+
+func checkTransferAssetAdmission(env *trackerEnv, spec tracker.ReceiptSpec) error {
+	if spec.SourceAssets == "" {
+		return nil
+	}
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		return err
+	}
+	card, err := snap.Require(spec.IssueID)
+	if err != nil {
+		return err
+	}
+	if err := requireOwnedToPublish(env, card); err != nil {
+		return err
+	}
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return err
+	}
+	for _, pin := range spec.AssetEntries() {
+		if err := verifyAssetAttributesAt(env.ctx, env.root, pin.Path, view.Ref()); err != nil {
+			return err
+		}
+		if err := verifyAssetAttributes(env.ctx, env.root, pin.Path); err != nil {
+			return err
+		}
+	}
+	policy, err := resolveAssetPolicy(env.ctx, env.root)
+	if err != nil {
+		return err
+	}
+	return requireAssetPolicy(policy)
+}
+func newIssueTransferOp(env *trackerEnv) *tracker.TransferOp {
+	op := tracker.NewTransferOp(env.ctx, env.repo, env.main, env.root, env.branchRef(), moveDetailRemover(env))
+	op.BeforePublish = func(spec tracker.ReceiptSpec) error { return checkTransferAssetAdmission(env, spec) }
+	return op
 }
 
 // receiptsFor lists this checkout's unfinished operations for one issue.

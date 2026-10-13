@@ -7,6 +7,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -187,6 +188,31 @@ func runAbandon(ctx context.Context, stdout, stderr io.Writer, f *abandonFlags) 
 // keepAbandonedWork commits the abandon note on the issue branch and pushes
 // the tip to the archive ref, returning the record the card will carry.
 func keepAbandonedWork(env *trackerEnv, stderr io.Writer, id, detailRel, as, reason, today string) (issue.Abandoned, error) {
+	// Check admission before even the abandon note or archive-ref push can expose
+	// unpublished branch evidence. archiveIssueOnMain repeats it on each retry.
+	tip, err := env.git("rev-parse", "HEAD")
+	if err != nil {
+		return issue.Abandoned{}, err
+	}
+	raw, err := env.main.ViewOf(tip).Read(detailRel)
+	if err != nil {
+		return issue.Abandoned{}, err
+	}
+	assets, err := assetFilesFromView(env.main.ViewOf(tip), detailRel, id, raw)
+	if err != nil {
+		return issue.Abandoned{}, err
+	}
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return issue.Abandoned{}, err
+	}
+	published, err := publishedAbandonAssets(view, detailRel, id)
+	if err != nil {
+		return issue.Abandoned{}, err
+	}
+	if err := requireNewArchiveAssets(env, published, assets); err != nil {
+		return issue.Abandoned{}, err
+	}
 	issueStr := issue.CLIRef(id)
 	msg := fmt.Sprintf("#%s: log: abandon (%s)", issueStr, as)
 	if subject, err := env.git("log", "-1", "--format=%s"); err != nil {
@@ -263,6 +289,11 @@ func archiveAbandoned(env *trackerEnv, stderr io.Writer, id, detailRel string, f
 		if spec.Plans, err = keptPlans(env, rec, path.Base(detailRel)); err != nil {
 			return err
 		}
+		bundle, err := assetFilesFromView(env.main.ViewOf(rec.Head), detailRel, id, spec.Final)
+		if err != nil {
+			return err
+		}
+		spec.Assets = &bundle
 		spec.Note = ""
 	}
 	return archiveIssueOnMain(env, stderr, id, detailRel, spec)
@@ -443,6 +474,21 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 		return err
 	} else if archived {
 		moves := [][2]string{{archivedRel, liveRel}}
+		head, err := env.git("rev-parse", "HEAD")
+		if err != nil {
+			return err
+		}
+		raw, err := env.main.ViewOf(head).Read(archivedRel)
+		if err != nil {
+			return err
+		}
+		bundle, err := assetFilesFromView(env.main.ViewOf(head), archivedRel, card.ID, raw)
+		if err != nil {
+			return err
+		}
+		for rel := range bundle.Files {
+			moves = append(moves, [2]string{path.Join(path.Dir(archivedRel), rel), path.Join(path.Dir(liveRel), rel)})
+		}
 		plans, err := env.git("ls-tree", "--name-only", "HEAD", vocab.ArchiveSubdir(historyDir(), vocab.ArchivePlans)+"/")
 		if err != nil {
 			return err
@@ -452,12 +498,45 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 				moves = append(moves, [2]string{p, path.Join(plansDir(), path.Base(p))})
 			}
 		}
+		// Validate every asset destination before any restore mutation.
+		for _, m := range moves {
+			if strings.HasPrefix(m[1], path.Join(issuesDir, "assets", card.ID)+"/") {
+				if err := verifyAssetAttributes(env.ctx, env.root, m[1]); err != nil {
+					return err
+				}
+				if err := assetDirectories(env.root, path.Dir(m[1]), false); err != nil && !os.IsNotExist(err) {
+					return err
+				}
+			}
+			if live, err := env.has("HEAD", m[1]); err != nil {
+				return err
+			} else if live {
+				if strings.Contains(m[1], "/assets/") {
+					current, err := env.main.ViewOf(head).Read(m[1])
+					if err != nil {
+						return err
+					}
+					want, err := env.main.ViewOf(head).Read(m[0])
+					if err != nil {
+						return err
+					}
+					if !bytes.Equal(current, want) {
+						return fmt.Errorf("asset destination %s differs from the archive: reconcile that file before reopening", m[1])
+					}
+				}
+			}
+		}
 		var paths []string
 		for _, m := range moves {
 			if live, err := env.has("HEAD", m[1]); err != nil {
 				return err
 			} else if live {
 				if _, err := env.git("rm", "-q", "--", m[1]); err != nil { // the archived copy is newer
+					return err
+				}
+			}
+			if strings.HasPrefix(m[1], path.Join(issuesDir, "assets", card.ID)+"/") {
+				if err := assetDirectories(env.root, path.Dir(m[1]), true); err != nil {
 					return err
 				}
 			}

@@ -104,3 +104,7 @@ func gitInit(t *testing.T, dir, remoteURL string) {
 		}
 	}
 }
+
+func (s stubGH) RepoVisibility(context.Context, string) (string, error) {
+	return "", errors.New("visibility unavailable")
+}

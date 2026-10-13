@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"io"
 	"path"
 	"strings"
@@ -51,6 +52,7 @@ type ReceiptSpec struct {
 	SourceBase      string     `json:"source_base"`
 	SourceHEAD      string     `json:"source_head"`
 	SourceBlob      string     `json:"source_blob"`
+	SourceAssets    string     `json:"source_assets,omitempty"`
 	CardOID         string     `json:"card_oid"`
 	TrackerBase     string     `json:"tracker_base"`
 	MainBase        string     `json:"main_base"`
@@ -99,6 +101,10 @@ const EvidenceRemoved = "-"
 // MaxEvidencePaths bounds a close's evidence file list.
 const MaxEvidencePaths = 64
 
+func (s ReceiptSpec) AssetEntries() []EvidenceEntry {
+	return (ReceiptSpec{EvidencePaths: s.SourceAssets}).EvidenceEntries()
+}
+
 func (s ReceiptSpec) EvidenceEntries() []EvidenceEntry {
 	if s.EvidencePaths == "" {
 		return nil
@@ -143,8 +149,8 @@ const MaxEvidenceMessageBytes = 8 << 10
 // reopened card, changed source or evidence from another repository cannot be
 // substituted merely because its status or contents look compatible.
 type Binding struct {
-	Token, Repository, IssueID, CardOID, SourceHEAD, SourceBlob, ReviewedHEAD, EvidenceOID string
-	Stage, CandidateOID, TrackerBase, MainBase                                             string
+	Token, Repository, IssueID, CardOID, SourceHEAD, SourceBlob, SourceAssets, ReviewedHEAD, EvidenceOID string
+	Stage, CandidateOID, TrackerBase, MainBase                                                           string
 }
 
 type EffectKind string
@@ -277,7 +283,7 @@ func (r Receipt) Outcome() Outcome {
 }
 func (r Receipt) binding() Binding {
 	s := r.wire.Spec
-	b := Binding{Token: s.Token, Repository: s.Repository, IssueID: s.IssueID, CardOID: s.CardOID, SourceHEAD: s.SourceHEAD, SourceBlob: s.SourceBlob, ReviewedHEAD: s.ReviewedHEAD}
+	b := Binding{Token: s.Token, Repository: s.Repository, IssueID: s.IssueID, CardOID: s.CardOID, SourceHEAD: s.SourceHEAD, SourceBlob: s.SourceBlob, SourceAssets: s.SourceAssets, ReviewedHEAD: s.ReviewedHEAD}
 	b.CandidateOID, b.TrackerBase, b.MainBase = r.wire.CandidateOID, s.TrackerBase, s.MainBase
 	b.Stage = "finalize"
 	if r.wire.Stage < len(r.stages()) {
@@ -586,6 +592,24 @@ func validateReceiptSpec(operation string, s ReceiptSpec) error {
 			return errors.New("invalid pinned OID")
 		}
 	}
+	if s.SourceAssets != "" {
+		if operation != "transfer" || len(s.AssetEntries()) > 32 {
+			return errors.New("asset pins belong only to a bounded transfer")
+		}
+		seen := map[string]bool{}
+		dir := path.Join(path.Dir(s.SourcePath), "assets", s.IssueID)
+		for _, e := range s.AssetEntries() {
+			if !validReceiptPath(e.Path) || path.Dir(e.Path) != dir || seen[e.Path] || !validOperationOID(e.Blob, s) {
+				return errors.New("invalid, unpinned or repeated source asset")
+			}
+			relative := strings.TrimPrefix(e.Path, path.Dir(s.SourcePath)+"/")
+			refs, err := issueassets.ParseRefs(s.IssueID, []byte("[asset]("+relative+")"))
+			if err != nil || len(refs) != 1 || refs[0] != relative {
+				return errors.New("invalid canonical source asset path")
+			}
+			seen[e.Path] = true
+		}
+	}
 	if s.Source != LocalSource && s.Source != CardSource {
 		return errors.New("invalid source provenance")
 	}
@@ -759,7 +783,7 @@ func receiptJSONShape(raw []byte) error {
 	if err != nil {
 		return err
 	}
-	if _, err = receiptObject(root["spec"], "token repository issue_id card_path source_path destination_path source_branch source_base source_head source_blob card_oid tracker_base main_base source", "reviewed_head evidence_message evidence_paths"); err != nil {
+	if _, err = receiptObject(root["spec"], "token repository issue_id card_path source_path destination_path source_branch source_base source_head source_blob card_oid tracker_base main_base source", "reviewed_head evidence_message evidence_paths source_assets"); err != nil {
 		return err
 	}
 	var proofs []json.RawMessage
