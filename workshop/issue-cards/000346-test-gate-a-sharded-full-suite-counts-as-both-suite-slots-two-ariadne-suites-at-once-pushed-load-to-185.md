@@ -1,6 +1,6 @@
 ---
 id: 000346
-status: codecomplete
+status: done
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 5b2e260be969a79d7dbb70263b4c8719ca9633c0
         evidence_commit: 92fcf35850579bb4b6656fc07e23a177496d2b4c
+        landed_commit: 3916aff830283244651e04c4558a8231f6488c20
 ---
 
 # test gate: a sharded full suite counts as both suite slots (two ariadne suites at once pushed load to 185)
