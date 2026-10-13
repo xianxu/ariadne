@@ -1,12 +1,20 @@
 ---
 id: 000311
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-09
-updated: 2026-10-09
+updated: 2026-10-12
 estimate_hours:
-card_mirror: '58e51eaff81e61807c448ddfe11397558ecd9e31' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'dc7035ffcc096d96dcdeb629733c78852195ad44' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T18:12:04-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Repair a codecomplete card whose branch merged outside the detector (#239)
@@ -23,12 +31,35 @@ ariadne#239's PR #126 merged, and its details are archived in `workshop/history/
 - Alternatively, record the branch name on the card at start-plan so derivation never guesses. Decide at design.
 - Repair #239 with it.
 
+**Design (2026-10-12).** #239's card is a migrated legacy card: `codecomplete` with
+no completion binding (the only such card on the tracker), and its real branch
+is deleted from the remote. So neither the evidence settle nor the branch
+detector can ever see it, and recording the branch at start-plan would neither
+fix #239 nor cover the #148 rename (a branch renamed after start-plan).
+Chosen: `sdlc issue recovery reconcile --issue N --landed <commit>`, which is git-only, so it works
+with a deleted branch and with a squash merge:
+- `<commit>` must be on main. Its first-parent range (`C^1..C`: a merge's
+  brought-in work, or the commit itself) must carry a commit whose subject
+  references the issue (`#N:` per the commit convention). That binds the
+  commit to the issue without guessing a branch.
+- Only a codecomplete card with **no** completion binding is repaired this way.
+  A bound card's close carries its own evidence, and plain reconcile settles it.
+  A done card is a no-op; any other status refuses.
+- Card → `done` (+ `updated`); reconcile's existing sweep archives live details.
+- Creates nothing durable beyond the one card write (ARCH lifecycle: N/A because
+  no new file family).
+
 ## Done when
 
 - #239's card reads `done`, and `sdlc state` no longer reports it.
 - A test covers a card whose branch name differs from its details slug.
 
 ## Plan
+
+- [ ] `--landed` on reconcile + pure card transition + range check
+- [ ] tests: renamed branch merged then deleted → done, archived, state clean; refusals (not on main, no issue commit, bound card)
+- [ ] help/atlas mention
+- [ ] repair #239 after landing
 
 ## Log
 
