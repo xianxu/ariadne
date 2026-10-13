@@ -326,6 +326,15 @@ unchanged), move the details and plans back out of the archive, push. The card
 write clears the record; the mirror refresh is committed, the branch pushed,
 and the ref deleted (a leftover ref is overwritten by a later abandon).
 
+Reopening a `done` issue (#305, `reopendone.go`) has no kept branch, but the
+un-archive half is shared (`unarchiveIssue`). When main holds the details only
+in history, `restoreDone` refuses a foreign owner, fast-forwards the resting
+branch, checks the reopen's Log entry in the archived copy (the one dirty path
+allowed), cuts the issue branch from main (a leftover local branch main
+contains is reset), moves the details and plans back out in one commit and
+pushes, all before the card write. The landing then un-archives them through
+the transfer guard. The same branch name is safe: `sdlc pr` opens a new PR.
+
 Finishing a pre-#308 creation (the transfer) is add-then-remove relative to a
 merge base without the file, so the source branch's direct, merge-from-main or
 squash landing keeps main's copy and the new owner's edits. The card's
