@@ -488,6 +488,11 @@ The simplest durable authority beats a clever scan of consequences.
   ad-hoc probe wrote `~/Makefile` this way, the same failure as #339's reviewer
   creating `~/.git`. Write `D="$(mktemp -d "$TMPDIR/x.XXXXXX")" || exit 1; cd
   "${D:?}"`, and never `cd` to an unchecked variable before writing files.
+- Before writing a matcher for a repository convention (a commit-subject
+  anchor, a branch name, an ID format), grep the internal packages for the
+  existing one. #311 wrote its own `^#N` regex while `gitx.IsShippedWorkSubject`
+  already owned that anchor plus the bookkeeping-verb filter, so the copy
+  would have accepted a range holding only `#N: close` commits.
 - Don't edit or commit in a checkout while its `make test` runs. The cmd/sdlc
   hermeticity guard compares the repo before and after, so your own edits read
   as "a test wrote the real repo" and every shard fails although every test
