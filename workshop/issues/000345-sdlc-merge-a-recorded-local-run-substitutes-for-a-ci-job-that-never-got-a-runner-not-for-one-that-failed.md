@@ -34,3 +34,11 @@ The operator (2026-10-13): a CI job that **could not get a runner** (no steps ex
 ## Log
 
 ### 2026-10-13
+
+## Revisions
+
+- 2026-10-13 — the operator's stance broadens this: for a small company, **local runs are the primary verification**
+  (faster, more controlled iteration on the operator's Mac); **CI mainly guards that what agents aren't supposed to change
+  hasn't changed** (#309's local-gates-guard, merge-check's integrity checks). So design the recorded local run as first-class
+  evidence for heavy runtime suites, not only as a fallback, and keep CI as the tamper guard. Which jobs stay required on CI
+  is the operator's call per repo.
