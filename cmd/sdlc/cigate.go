@@ -42,6 +42,7 @@ const (
 	ciUnknown                       // a bucket this gate does not know
 	ciHeadLag                       // GitHub's PR head is not (or stopped being) the head merge pins
 	ciMissing                       // a check main requires has not reported on the head
+	ciLocalNeeded                   // a declared local check has no recorded pass on the head (#345)
 )
 
 // localGatesWorkflow is the seeded local-gates guard (#309). It runs main's copy on
@@ -57,28 +58,83 @@ func (r ciReason) passes() bool { return r == ciGreen || r == ciNoWorkflows }
 
 // ciVerdict is decideCIGate's answer: the reason, and the checks behind it.
 type ciVerdict struct {
-	Reason   ciReason
-	Offender []prCheck // the checks that are not green, in report order
+	Reason      ciReason
+	Offender    []prCheck // the checks that are not green, in report order
+	LocalNeeded []string  // declared local checks with no recorded pass on the head (#345)
+	Substituted []string  // "CI label ← local status" pairs the gate accepted (#345)
+}
+
+// ciInputs is everything decideCIGate reads: the checks on the head, whether the
+// head carries workflows, the base's local-check declaration, and which cancelled
+// checks GitHub reports as never having had a runner (by checkLabel).
+type ciInputs struct {
+	Checks           []prCheck
+	HeadHasWorkflows bool
+	Local            localCheckDecl
+	Runnerless       map[string]bool
 }
 
 // decideCIGate is the gate's decision, pure. Red outranks unknown outranks
-// pending: the refusal names the most actionable class, and lists every
-// non-green check. An unknown bucket fails closed.
-func decideCIGate(checks []prCheck, headHasWorkflows bool) ciVerdict {
-	if len(checks) == 0 {
-		if headHasWorkflows {
-			return ciVerdict{Reason: ciNotRegistered}
+// pending outranks a needed local check: the refusal names the most actionable
+// class, and lists every non-green check. An unknown bucket fails closed. A
+// cancelled job that never got a runner, with a declared substitute, is
+// satisfied by a passing recorded local run on the head (#345); a job that ran
+// and was cancelled or failed stays red whatever was recorded locally.
+func decideCIGate(in ciInputs) ciVerdict {
+	recorded := map[string]bool{}
+	for _, c := range in.Checks {
+		if c.Bucket == "pass" {
+			recorded[c.Name] = true
 		}
-		return ciVerdict{Reason: ciNoWorkflows}
 	}
-	v := ciVerdict{Reason: ciGreen}
-	rank := map[ciReason]int{ciGreen: 0, ciPending: 1, ciUnknown: 2, ciRed: 3}
-	for _, c := range checks {
+	var v ciVerdict
+	need := func(name string) {
+		for _, n := range v.LocalNeeded {
+			if n == name {
+				return
+			}
+		}
+		v.LocalNeeded = append(v.LocalNeeded, name)
+	}
+	for _, c := range in.Local.Checks {
+		if c.Required && !recorded[localStatusContext(c.Name)] {
+			need(c.Name)
+		}
+	}
+	if len(in.Checks) == 0 {
+		switch {
+		case in.HeadHasWorkflows:
+			v.Reason, v.LocalNeeded = ciNotRegistered, nil
+		case len(v.LocalNeeded) > 0:
+			v.Reason = ciLocalNeeded
+		default:
+			v.Reason = ciNoWorkflows
+		}
+		return v
+	}
+	rank := map[ciReason]int{ciGreen: 0, ciLocalNeeded: 1, ciPending: 2, ciUnknown: 3, ciRed: 4}
+	raise := func(r ciReason) {
+		if rank[r] > rank[v.Reason] {
+			v.Reason = r
+		}
+	}
+	for _, c := range in.Checks {
 		var r ciReason
 		switch c.Bucket {
 		case "pass", "skipping":
 			continue
-		case "fail", "cancel":
+		case "cancel":
+			label := checkLabel(c)
+			if sub, ok := in.Local.substituteFor(label); ok && in.Runnerless[label] {
+				if recorded[localStatusContext(sub.Name)] {
+					v.Substituted = append(v.Substituted, label+" ← "+localStatusContext(sub.Name))
+				} else {
+					need(sub.Name)
+				}
+				continue
+			}
+			r = ciRed
+		case "fail":
 			r = ciRed
 		case "pending":
 			r = ciPending
@@ -86,9 +142,10 @@ func decideCIGate(checks []prCheck, headHasWorkflows bool) ciVerdict {
 			r = ciUnknown
 		}
 		v.Offender = append(v.Offender, c)
-		if rank[r] > rank[v.Reason] {
-			v.Reason = r
-		}
+		raise(r)
+	}
+	if len(v.LocalNeeded) > 0 {
+		raise(ciLocalNeeded)
 	}
 	return v
 }
@@ -109,6 +166,8 @@ func (v ciVerdict) refusal(pr int) error {
 		fmt.Fprintf(&b, "CI gate: PR #%d has not reported %s, which main's local-gates guard posts on every PR head", pr, localGatesVerdict)
 	case ciHeadLag:
 		fmt.Fprintf(&b, "CI gate: PR #%d's head on GitHub is not the pushed head merge pins, so its checks belong to another commit", pr)
+	case ciLocalNeeded:
+		fmt.Fprintf(&b, "CI gate: PR #%d needs recorded local checks on its head: %s", pr, strings.Join(v.LocalNeeded, ", "))
 	default:
 		return nil
 	}
@@ -119,6 +178,11 @@ func (v ciVerdict) refusal(pr int) error {
 		}
 	}
 	switch v.Reason {
+	case ciLocalNeeded:
+		for _, n := range v.LocalNeeded {
+			fmt.Fprintf(&b, "\n  → sdlc local-check run --name %s", n)
+		}
+		b.WriteString("\n  then re-run `sdlc merge` (" + localChecksPath + " on main declares them).")
 	case ciRed:
 		b.WriteString("\n  → fix the failing check and push (a guard failure on local-gates paths needs the operator's `local-gates-verified` label), then re-run `sdlc merge`.")
 	default:
@@ -257,7 +321,7 @@ func runCIGate(ctx context.Context, gh ghCaller, repo string, number int, base, 
 	if err != nil {
 		return fmt.Errorf("CI gate: %w", err)
 	}
-	v := decideCIGate(checks, hasWF)
+	v := decideCIGate(ciInputs{Checks: checks, HeadHasWorkflows: hasWF})
 	if !v.Reason.passes() {
 		return v.refusal(number)
 	}

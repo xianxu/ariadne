@@ -42,7 +42,7 @@ func TestDecideCIGate(t *testing.T) {
 		{"none and no workflows", nil, false, ciNoWorkflows, nil},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			v := decideCIGate(tc.checks, tc.workflows)
+			v := decideCIGate(ciInputs{Checks: tc.checks, HeadHasWorkflows: tc.workflows})
 			if v.Reason != tc.want {
 				t.Fatalf("reason %d, want %d", v.Reason, tc.want)
 			}
@@ -64,6 +64,64 @@ func TestDecideCIGate(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+// #345: a recorded local run substitutes only for a job that never got a runner,
+// and a required local check needs its recorded pass whatever CI reports.
+func TestDecideCIGateLocalChecks(t *testing.T) {
+	const label = "couch-zellij-conformance / conformance"
+	job := prCheck{Name: "conformance", Workflow: "couch-zellij-conformance", Bucket: "cancel"}
+	failed := prCheck{Name: "conformance", Workflow: "couch-zellij-conformance", Bucket: "fail"}
+	merge := prCheck{Name: "merge-check", Bucket: "pass"}
+	pending := prCheck{Name: "build", Bucket: "pending"}
+	local := func(name, bucket string) prCheck { return prCheck{Name: localStatusContext(name), Bucket: bucket} }
+	decl := localCheckDecl{Version: 1, Checks: []localCheck{{Name: "zellij", Command: []string{"make"}, Substitutes: []string{label}}}}
+	required := localCheckDecl{Version: 1, Checks: []localCheck{{Name: "e2e", Command: []string{"make"}, Required: true}}}
+	runnerless := map[string]bool{label: true}
+	for _, tc := range []struct {
+		name      string
+		in        ciInputs
+		want      ciReason
+		offenders []string
+		need      []string
+	}{
+		{"runnerless + recorded pass", ciInputs{Checks: []prCheck{merge, job, local("zellij", "pass")}, Local: decl, Runnerless: runnerless}, ciGreen, nil, nil},
+		{"runnerless, nothing recorded", ciInputs{Checks: []prCheck{merge, job}, Local: decl, Runnerless: runnerless}, ciLocalNeeded, nil, []string{"zellij"}},
+		{"ran and cancelled stays red", ciInputs{Checks: []prCheck{job, local("zellij", "pass")}, Local: decl, Runnerless: map[string]bool{}}, ciRed, []string{"conformance"}, nil},
+		{"failed stays red", ciInputs{Checks: []prCheck{failed, local("zellij", "pass")}, Local: decl, Runnerless: runnerless}, ciRed, []string{"conformance"}, nil},
+		{"runnerless with no substitute is red", ciInputs{Checks: []prCheck{job}, Runnerless: runnerless}, ciRed, []string{"conformance"}, nil},
+		{"recorded local failure is red", ciInputs{Checks: []prCheck{job, local("zellij", "fail")}, Local: decl, Runnerless: runnerless}, ciRed, []string{localStatusContext("zellij")}, []string{"zellij"}},
+		{"pending CI outranks a needed local run", ciInputs{Checks: []prCheck{pending, job}, Local: decl, Runnerless: runnerless}, ciPending, []string{"build"}, []string{"zellij"}},
+		{"required, no CI at all", ciInputs{Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
+		{"required, CI not registered yet waits", ciInputs{HeadHasWorkflows: true, Local: required}, ciNotRegistered, nil, nil},
+		{"required, green CI, nothing recorded", ciInputs{Checks: []prCheck{merge}, Local: required}, ciLocalNeeded, nil, []string{"e2e"}},
+		{"required, recorded failure", ciInputs{Checks: []prCheck{merge, local("e2e", "fail")}, Local: required}, ciRed, []string{localStatusContext("e2e")}, []string{"e2e"}},
+		{"required, recorded pass", ciInputs{Checks: []prCheck{merge, local("e2e", "pass")}, Local: required}, ciGreen, nil, nil},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			v := decideCIGate(tc.in)
+			if v.Reason != tc.want {
+				t.Fatalf("reason %d, want %d", v.Reason, tc.want)
+			}
+			var names []string
+			for _, c := range v.Offender {
+				names = append(names, c.Name)
+			}
+			if !reflect.DeepEqual(names, tc.offenders) || !reflect.DeepEqual(v.LocalNeeded, tc.need) {
+				t.Fatalf("offenders %v need %v, want %v %v", names, v.LocalNeeded, tc.offenders, tc.need)
+			}
+			err := v.refusal(7)
+			if (err == nil) != tc.want.passes() {
+				t.Fatalf("refusal %v for reason %d", err, tc.want)
+			}
+			if tc.want == ciLocalNeeded && !strings.Contains(err.Error(), "sdlc local-check run --name "+tc.need[0]) {
+				t.Fatalf("refusal does not name the run: %v", err)
+			}
+		})
+	}
+	if v := decideCIGate(ciInputs{Checks: []prCheck{job, local("zellij", "pass")}, Local: decl, Runnerless: runnerless}); len(v.Substituted) != 1 || !strings.Contains(v.Substituted[0], label) {
+		t.Fatalf("substitution not reported: %v", v.Substituted)
 	}
 }
 
