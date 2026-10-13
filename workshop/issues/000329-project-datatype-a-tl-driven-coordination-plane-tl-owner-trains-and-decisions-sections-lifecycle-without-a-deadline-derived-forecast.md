@@ -1,12 +1,12 @@
 ---
 id: 000329
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-10
 updated: 2026-10-12
 estimate_hours: 7.71
-card_mirror: '618c7f6b4d9d0e2d3c36674983df4b898a347446' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '7ede8f88eb636cc778e5a9439e81da610fd0a5fc' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T16:34:43-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.87
 ---
 
 # Project datatype: a TL-driven coordination plane (tl: owner, Trains and Decisions sections, lifecycle without a deadline, derived forecast)
