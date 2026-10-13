@@ -118,27 +118,120 @@ func EditHome(path string) string {
 	return "the owning layer's manifest source, or a local overlay"
 }
 
+// managedPass is a prepared managed apply: every inspection and refusal has
+// run, and nothing has been written.
+type managedPass struct {
+	scope                   OwnershipScope
+	actions                 []Action
+	wanted, previous, other []outputIdentity
+	produced, displace      map[string]bool
+	ignore                  string
+	report                  ManagedReport
+}
+
+// within reports the first of paths that equals path or is its ancestor.
+func within(path string, paths map[string]bool) (string, bool) {
+	for p := path; p != "." && p != string(filepath.Separator); p = filepath.Dir(p) {
+		if paths[p] {
+			return p, true
+		}
+	}
+	return "", false
+}
+
+// overlap reports a path the pass produces at, above or below path: its write
+// there would make path's destination or a parent something weave refuses.
+func (pass *managedPass) overlap(path string) (string, bool) {
+	if p, ok := within(path, pass.produced); ok {
+		return p, true
+	}
+	for p := range pass.produced {
+		if strings.HasPrefix(p, path+string(filepath.Separator)) {
+			return p, true
+		}
+	}
+	return "", false
+}
+
+// retiring is what the pass removes: outputs it wrote last time, unchanged
+// since, that it no longer produces. Commit retires these; a later pass's
+// check takes them as gone.
+func (pass *managedPass) retiring() []outputIdentity {
+	var out []outputIdentity
+	for _, id := range pass.previous {
+		if !pass.produced[id.Path] {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// CheckManaged runs the refusals of ApplyManaged for each pass, writing
+// nothing (publication stages are reclaimed only by an apply). Passes share
+// one root and apply in order, so each is checked against the inventory and
+// outputs the passes before it leave (#265).
+func CheckManaged(fs weavefs.FS, root string, passes ...ManagedPass) error {
+	var after []*managedPass
+	for _, p := range passes {
+		pass, err := prepareManaged(fs, root, p.Actions, p.Scope, after)
+		if err != nil {
+			return err
+		}
+		if pass != nil {
+			after = append(after, pass)
+		}
+	}
+	return nil
+}
+
+// ManagedPass is one scope's actions for CheckManaged.
+type ManagedPass struct {
+	Actions []Action
+	Scope   OwnershipScope
+}
+
 // ApplyManaged records matching old and intended identities before applying.
 // A failed/interrupted Apply leaves that union durable; a later run can retire
 // both untouched old outputs and completed new outputs without the source graph.
 // Only this scope is reconciled; other scope entries remain untouched.
 // Recorded outputs always converge: a changed one is displaced, not refused.
 func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipScope) (ManagedReport, error) {
+	if err := weavefs.ReclaimPublications(fs, root); err != nil {
+		return ManagedReport{}, err
+	}
+	pass, err := prepareManaged(fs, root, actions, scope, nil)
+	if err != nil || pass == nil {
+		return ManagedReport{}, err
+	}
+	return commitManaged(fs, root, pass)
+}
+
+// prepareManaged inspects without writing. A nil pass means there is nothing
+// to do: nothing to apply and nothing of this scope to retire, so a mount-less
+// data pass leaves an unmigrated repo untouched (#264). Each pass in after is
+// taken as applied first: its records replace its scope's, its outputs occupy
+// their paths, and the outputs it retires are gone.
+func prepareManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipScope, after []*managedPass) (*managedPass, error) {
 	var report ManagedReport
 	if !validScope(scope) {
-		return report, fmt.Errorf("invalid ownership scope %q", scope)
-	}
-	if err := weavefs.ReclaimPublications(fs, root); err != nil {
-		return report, err
+		return nil, fmt.Errorf("invalid ownership scope %q", scope)
 	}
 	old, e := readInventory(fs, root)
 	if e != nil {
-		return report, e
+		return nil, e
 	}
-	// Nothing to apply and nothing of this scope to retire: publish nothing, so a
-	// mount-less data pass leaves an unmigrated repo untouched (#264).
+	retired := map[string]bool{}
+	for _, prior := range after {
+		old = append(slices.DeleteFunc(old, func(id outputIdentity) bool { return id.Scope == prior.scope }), prior.wanted...)
+		for _, id := range prior.retiring() {
+			retired[id.Path] = true
+		}
+		for path := range prior.produced {
+			retired[path] = false
+		}
+	}
 	if len(actions) == 0 && !slices.ContainsFunc(old, func(id outputIdentity) bool { return id.Scope == scope }) {
-		return report, nil
+		return nil, nil
 	}
 	strict := map[string]bool{}
 	for _, action := range actions {
@@ -150,11 +243,11 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 	}
 	actions, e = materializeManaged(fs, root, actions)
 	if e != nil {
-		return report, e
+		return nil, e
 	}
 	wanted, e := actionIdentities(root, actions, scope)
 	if e != nil {
-		return report, e
+		return nil, e
 	}
 	produced := ProducedPathSet(actions)
 	// Inspect every destination before any output writes. Changed recorded
@@ -172,7 +265,7 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 		}
 		match, e := observe(fs, root, id)
 		if e != nil {
-			return report, e
+			return nil, e
 		}
 		if match {
 			previous = append(previous, id)
@@ -180,12 +273,24 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 	}
 	displace := map[string]bool{}
 	for _, id := range wanted {
+		for _, prior := range after {
+			if p, ok := prior.overlap(id.Path); ok && prior.scope != scope {
+				return nil, fmt.Errorf("%s output %s overlaps %s output %s", scope, id.Path, prior.scope, p)
+			}
+		}
+		// A retired earlier output leaves nothing here; its own parents still count.
+		if gone, ok := within(id.Path, retired); ok {
+			if e := safeParents(fs, root, gone); e != nil {
+				return nil, e
+			}
+			continue
+		}
 		if e := safeParents(fs, root, id.Path); e != nil {
-			return report, e
+			return nil, e
 		}
 		for _, prev := range oldAt[id.Path] {
 			if prev.Scope != scope {
-				return report, fmt.Errorf("output %s belongs to %s", id.Path, prev.Scope)
+				return nil, fmt.Errorf("output %s belongs to %s", id.Path, prev.Scope)
 			}
 		}
 		p := filepath.Join(root, id.Path)
@@ -194,11 +299,11 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 			continue
 		}
 		if statErr != nil {
-			return report, statErr
+			return nil, statErr
 		}
 		same, e := observe(fs, root, id)
 		if e != nil {
-			return report, e
+			return nil, e
 		}
 		if same {
 			continue
@@ -208,7 +313,7 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 		for _, prev := range oldAt[id.Path] {
 			match, e := observe(fs, root, prev)
 			if e != nil {
-				return report, e
+				return nil, e
 			}
 			own = own || match
 		}
@@ -218,7 +323,7 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 		case recorded && !info.IsDir():
 			displace[id.Path] = true
 		case recorded || scope == ScopeData || strict[id.Path]:
-			return report, fmt.Errorf("%s is occupied by something weave did not write: move it aside and re-run weave compile (edits belong in %s)", p, EditHome(id.Path))
+			return nil, fmt.Errorf("%s is occupied by something weave did not write: move it aside and re-run weave compile (edits belong in %s)", p, EditHome(id.Path))
 		}
 	}
 	matched := map[string]bool{}
@@ -233,18 +338,26 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 		if e == nil {
 			report.Abandoned = append(report.Abandoned, id.Path)
 		} else if !os.IsNotExist(e) {
-			return report, e
+			return nil, e
 		}
 	}
 	next := append(append([]outputIdentity{}, other...), wanted...)
 	gi, e := managedIgnore(fs, root, old, next, scope == ScopeArtifacts)
 	if e != nil {
-		return report, e
+		return nil, e
 	}
+	return &managedPass{scope: scope, actions: actions, wanted: wanted, previous: previous, other: other,
+		produced: produced, displace: displace, ignore: gi, report: report}, nil
+}
+
+func commitManaged(fs weavefs.FS, root string, pass *managedPass) (ManagedReport, error) {
+	actions, wanted, previous, other := pass.actions, pass.wanted, pass.previous, pass.other
+	displace, gi, report := pass.displace, pass.ignore, pass.report
 	prepared := append(append(append([]outputIdentity{}, other...), previous...), wanted...)
-	if e = saveInventory(fs, root, prepared); e != nil {
+	if e := saveInventory(fs, root, prepared); e != nil {
 		return report, e
 	}
+	var e error
 	// Once an output is displaced, every failure names where it went, so no
 	// caller can drop the move on its error path.
 	fail := func(e error) (ManagedReport, error) {
@@ -274,10 +387,7 @@ func ApplyManaged(fs weavefs.FS, root string, actions []Action, scope OwnershipS
 	if e = Apply(fs, root, actions); e != nil {
 		return fail(e)
 	}
-	for _, id := range previous {
-		if produced[id.Path] {
-			continue
-		}
+	for _, id := range pass.retiring() {
 		match, e := observe(fs, root, id)
 		if e != nil {
 			return fail(e)
