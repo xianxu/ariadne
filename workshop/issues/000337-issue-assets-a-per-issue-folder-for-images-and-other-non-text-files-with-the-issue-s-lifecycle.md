@@ -31,6 +31,23 @@ Unshaped; a starting sketch from parley.nvim's `lua/parley/assets.lua` (#231):
 - **Same lifecycle as the issue:** archive to `workshop/history/` moves the folder too; `sdlc migrate` and peer moves carry it; one writer owns create/move/delete (ARCH-DRY).
 - **Git implications (the operator, 10-12):** binary files change how the repos use git: repository size and history weight, diffs, encrypted repos (gcrypt brain), publication through `sdlc issue publish` and the issue-tracker branch (#252). Decide in the design: plain git with size limits, LFS, or keeping bytes outside git with a pointer.
 
+### Approved design — 2026-10-13
+
+The original sketch above is retained as history. The approved design is
+[the durable plan](../plans/000337-issue-assets-plan.md): one body-indexed bundle
+per issue, stored in plain Git with immutable content names, bounded at 1 MiB
+per file, 8 MiB and 32 files per issue. The binary resolves operator-owned
+allowed/text-only policy before attaching; unset policy derives from host
+visibility, with public/unknown becoming text-only. Help prints policy and
+source; every refusal gives its clearing action. Source sharing eligibility
+remains independently required by the Couch rule from pair#526.
+
+Assets move with the issue through all supported in-repo lifecycle paths,
+including publish, archive, restore, abandon/reopen and slot move, using one
+shared bundle model and existing exact-byte Git transactions. Ownership and
+retry proofs cover asset-only changes. Cross-repo migration remains refused
+and is explicitly deferred to #347. Agents never change policy to admit bytes.
+
 ## Done when
 
 - An agent can attach an image or other bounded file through an sdlc verb; the body links it and the bundle follows publish, archive, restore, abandonment/reopen and slot move within the repository.
@@ -41,7 +58,7 @@ Unshaped; a starting sketch from parley.nvim's `lua/parley/assets.lua` (#231):
 
 ## Plan
 
-Draft: [implementation plan](../plans/000337-issue-assets-plan.md), awaiting hub/operator review before building.
+Approved [implementation plan](../plans/000337-issue-assets-plan.md); next gate is change-code.
 
 - [ ] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
 - [ ] Bundle publication, ownership, recovery and restore.
@@ -76,3 +93,4 @@ bundle model across publication, all archive paths, abandon/reopen and restore.
 
 - 2026-10-13T20:06Z — Hub scope direction (ops:0, delivery d0338359-494f-4951-838c-4e18ae676bf6): deliver attach/privacy and the complete in-repository bundle lifecycle; retain migrate's issue-family refusal. Cross-repo issue migration needs the renumbering capability deferred by #179 and is separated into #347, dependent on #337 and left unassigned. This revises the original migrate acceptance criterion explicitly.
 - 2026-10-13T20:06Z — Proposed design, pending plan review: plain Git with 1 MiB/file, 8 MiB/issue and 32-file limits; body-indexed immutable content-named assets, shared lifecycle planner, strict operator-owned repository policy, and unknown visibility treated as text-only. Full details and alternatives are in the durable plan; limits remain proposed choices until approved.
+- 2026-10-13T20:09Z — Ops:0 approved plan commit 399e38374dd9d769c9d21748e53b15757ee70b16 and the proposed limits, directing change-code. Added the operator's actionable-refusal requirement: each refusal names the action that clears it. The plan records this addition.

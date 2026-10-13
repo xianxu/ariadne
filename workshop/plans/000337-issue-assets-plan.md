@@ -10,7 +10,8 @@
 
 ## Approval and scope
 
-Draft for hub/operator review; no implementation authorized by this document alone.
+Approved by ops:0 on 2026-10-13 (receipt a0e515fc-0b1b-4ed6-8d69-c82163b90578),
+including the limits below; implementation remains subject to change-code.
 The hub directed the in-repository scope on 2026-10-13. Cross-repository issue
 migration remains refused, tracked separately by #347, dependent on #337 and on
 implementing the issue-renumbering capability deferred by #179. Do not silently
@@ -60,6 +61,10 @@ reinterpret the existing migrate command as supporting issues.
   Reject foreign issue IDs, traversal, symlinked sources/destinations/ancestors,
   nonregular files, missing linked assets, ambiguous links and destination clashes.
   A refusal leaves body, files, index, and refs unchanged.
+- Every refusal names the specific blocked input and the action that clears it:
+  ask the operator to change the named policy file, remove an asset to fit a
+  budget, reconcile an unlinked file, repair a missing link target, or rerun the
+  named reconciliation verb. Tests assert the actionable remedy, not just failure.
 - Existing published assets may still archive/restore if policy later tightens;
   these move existing evidence, they do not admit new evidence. Publishing new
   asset bytes rechecks current destination policy and ownership. Exact byte and
@@ -206,3 +211,5 @@ Files: `cmd/sdlc/helptext/issue.md`, relevant publish/migrate/recovery help,
 - 2026-10-13 — Initial implementation draft after repository exploration and hub
   scope direction. Cross-repo issue migration is excluded explicitly (#347);
   intra-repo lifecycle includes abandonment and legacy paths to avoid losing bytes.
+- 2026-10-13T20:09Z — Hub approved the draft and limits; added the operator's
+  requirement that every refusal name its clearing action. No scope change.
