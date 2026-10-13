@@ -107,7 +107,10 @@ func runMove(ctx context.Context, dir, address string, dryRun bool, stdout, stde
 			return err
 		}
 		if err := verifyMaterializedAssets(check.root, reader.ViewOf(check.head), envOr("WF_ISSUES_DIR", "workshop/issues")); err != nil {
-			return fmt.Errorf("both switches ran; %s: %w; then run sdlc claim --issue %s in the destination to finish ownership", check.root, err, issueIDPrefix(branch))
+			if issueID, _, ok := issue.ParseFilename(branch + ".md"); ok {
+				return fmt.Errorf("both switches ran; %s: %w; then run sdlc claim --issue %s in the destination to finish ownership", check.root, err, issue.CLIRef(issueID))
+			}
+			return fmt.Errorf("both switches ran; %s: %w", check.root, err)
 		}
 		if got, head := workspaceText(id.Branch, "(detached)"), workspaceText(id.Head, ""); got != check.branch || head != check.head {
 			return fmt.Errorf("both switches ran, but %s is on %s at %s, want %s at %s; inspect it before continuing", check.root, got, head, check.branch, check.head)

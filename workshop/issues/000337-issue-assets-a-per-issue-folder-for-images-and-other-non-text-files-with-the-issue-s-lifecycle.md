@@ -219,6 +219,17 @@ visibility for xianxu/ariadne. Default non-opt-in skip passed separately.
 Atlas documents the explicit read-only invocation and cadence. Full suite and
 another close review remain required for this corrected revision.
 
+### 2026-10-13 — corrected full-suite guard finding
+
+The corrected full run at 123491afad386e9176804b80787335beca29c2c2
+finished in 490.1s: all behavioral tests passed, with only
+TestIssueHintsRenderDecimalIDs failing on the new slot-move recovery hint.
+It used a filename-only ID extractor on a branch name, producing an empty
+claim argument. The hint now parses the branch convention explicitly and
+formats through issue.CLIRef; non-issue branches omit the claim instruction.
+The static guard and both runtime branches failed RED before this fix and
+passed GREEN in 2.132s. Full-suite acceptance will be rerun once more.
+
 ## Revisions
 
 - 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue

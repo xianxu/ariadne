@@ -237,18 +237,34 @@ func TestMoveRefusesAssetMaterializationConversion(t *testing.T) {
 }
 
 func TestMoveVerifiesMaterializedAssetBytes(t *testing.T) {
-	r, _ := moveFixture(t)
-	asset := "workshop/issues/assets/000001/evidence.png"
-	procedureWrite(t, r[1], asset, "original evidence")
-	testfix.Git(t, r[1], "add", ".")
-	testfix.Git(t, r[1], "commit", "-qm", "evidence")
-	hooks := filepath.Join(strings.TrimSpace(testfix.Capture(t, r[0], "rev-parse", "--path-format=absolute", "--git-common-dir")), "hooks")
-	procedureWrite(t, hooks, "post-checkout", "#!/bin/sh\n[ -f '"+asset+"' ] || exit 0\nprintf changed > '"+asset+"'\n")
-	if err := os.Chmod(filepath.Join(hooks, "post-checkout"), 0755); err != nil {
-		t.Fatal(err)
-	}
-	_, err := runMoveTest(t, r[1], ":0", false)
-	if err == nil || !strings.Contains(err.Error(), "both switches ran") || !strings.Contains(err.Error(), asset) || !strings.Contains(err.Error(), "restore") {
-		t.Fatalf("changed evidence accepted: %v", err)
+	for _, branch := range []string{"000001-procedure", "feature-evidence"} {
+		t.Run(branch, func(t *testing.T) {
+
+			r, _ := moveFixture(t)
+			if branch != "000001-procedure" {
+				testfix.Git(t, r[1], "branch", "-m", branch)
+			}
+			asset := "workshop/issues/assets/000001/evidence.png"
+			procedureWrite(t, r[1], asset, "original evidence")
+			testfix.Git(t, r[1], "add", ".")
+			testfix.Git(t, r[1], "commit", "-qm", "evidence")
+			hooks := filepath.Join(strings.TrimSpace(testfix.Capture(t, r[0], "rev-parse", "--path-format=absolute", "--git-common-dir")), "hooks")
+			procedureWrite(t, hooks, "post-checkout", "#!/bin/sh\n[ -f '"+asset+"' ] || exit 0\nprintf changed > '"+asset+"'\n")
+			if err := os.Chmod(filepath.Join(hooks, "post-checkout"), 0755); err != nil {
+				t.Fatal(err)
+			}
+			_, err := runMoveTest(t, r[1], ":0", false)
+			if err == nil || !strings.Contains(err.Error(), "both switches ran") || !strings.Contains(err.Error(), asset) || !strings.Contains(err.Error(), "restore") {
+				t.Fatalf("changed evidence accepted: %v", err)
+			}
+
+			if branch == "000001-procedure" {
+				if !strings.Contains(err.Error(), "--issue 1 in") || strings.Contains(err.Error(), "--issue 000001") {
+					t.Fatalf("nondecimal issue hint: %v", err)
+				}
+			} else if strings.Contains(err.Error(), "sdlc claim") {
+				t.Fatalf("non-issue branch has claim hint: %v", err)
+			}
+		})
 	}
 }
