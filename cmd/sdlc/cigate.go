@@ -266,6 +266,45 @@ func (realGH) PRChecks(ctx context.Context, repo string, number int) ([]prCheck,
 	return parsePRChecks(stdout.Bytes(), stderr.Bytes(), runErr)
 }
 
+func (realGH) JobRun(ctx context.Context, repo string, id int64) (jobRun, error) {
+	if !landingRepoValid(repo) || id <= 0 {
+		return jobRun{}, fmt.Errorf("ci gate: invalid repository or job id")
+	}
+	out, err := runLandingGH(ctx, "api", "repos/"+repo+"/actions/jobs/"+strconv.FormatInt(id, 10))
+	if err != nil {
+		return jobRun{}, err
+	}
+	var j jobRun
+	if err := json.Unmarshal(out, &j); err != nil {
+		return jobRun{}, fmt.Errorf("decode job %d: %w", id, err)
+	}
+	return j, nil
+}
+
+func (realGH) PostStatus(ctx context.Context, repo, sha, statusContext, state, description string) error {
+	if !landingRepoValid(repo) || !landingOIDValid(sha) || !localStatusContextValid(statusContext) || (state != "success" && state != "failure") {
+		return fmt.Errorf("local check: invalid status target %q %q %q %q", repo, sha, statusContext, state)
+	}
+	_, err := runLandingGH(ctx, "api", "-X", "POST", "repos/"+repo+"/statuses/"+sha,
+		"-f", "state="+state, "-f", "context="+statusContext, "-f", "description="+description)
+	return err
+}
+
+func (realGH) PRComment(ctx context.Context, repo string, number int, body string) error {
+	if !landingRepoValid(repo) || number <= 0 {
+		return fmt.Errorf("local check: invalid repository or PR number")
+	}
+	ctx, cancel := context.WithTimeout(ctx, 2*time.Minute)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "gh", "pr", "comment", strconv.Itoa(number), "--repo", repo, "--body-file", "-")
+	cmd.WaitDelay = time.Second
+	cmd.Stdin = strings.NewReader(body)
+	if out, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("gh pr comment: %w: %s", err, strings.TrimSpace(string(out)))
+	}
+	return nil
+}
+
 // requiredChecks names the checks main requires on every PR head: the guard's
 // verdict while main (base) carries the guard workflow.
 func requiredChecks(git func(args ...string) (string, error), base string) ([]string, error) {

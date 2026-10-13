@@ -134,7 +134,15 @@ func (d localCheckDecl) check(name string) (localCheck, bool) {
 
 // localStatusContext is the commit-status context a recorded run posts, and the
 // check name the gate looks for. The one place the string is built.
-func localStatusContext(name string) string { return "sdlc-local/" + name }
+func localStatusContext(name string) string { return localStatusPrefix + name }
+
+const localStatusPrefix = "sdlc-local/"
+
+// localStatusContextValid reports whether s is a context localStatusContext builds.
+func localStatusContextValid(s string) bool {
+	name, ok := strings.CutPrefix(s, localStatusPrefix)
+	return ok && localCheckName.MatchString(name)
+}
 
 // jobRun is the part of GitHub's Actions job object the gate reads.
 type jobRun struct {
