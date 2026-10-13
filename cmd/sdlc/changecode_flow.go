@@ -104,7 +104,11 @@ func recordChangeCodeFlow(stderr io.Writer, f *changeCodeFlags, issuePath, name 
 	if err != nil {
 		die(stderr, fmt.Sprintf("re-read %s to record its flow: %v", issuePath, err))
 	}
-	now, err := decideChangeCodeFlow(string(fresh), readOptionalPlanFile(f.PlansDir, name), f.Flow)
+	plan, err := readOptionalPlanFile(f.PlansDir, name)
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	now, err := decideChangeCodeFlow(string(fresh), plan, f.Flow)
 	if err != nil {
 		die(stderr, err.Error())
 	}

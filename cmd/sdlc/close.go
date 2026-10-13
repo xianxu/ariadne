@@ -1601,7 +1601,10 @@ func captureCloseReviewSnapshot(r closeResult, reviewedSHA, milestone, plansDir 
 		return closeReviewSnapshot{}, err
 	}
 	var paths []string
-	_, plan := reviewPlanPaths(root, plansDir, r.issuePath)
+	_, plan, err := reviewPlanPaths(root, plansDir, r.issuePath)
+	if err != nil {
+		return closeReviewSnapshot{}, err
+	}
 	if plan != "" {
 		paths = append(paths, plan)
 	}

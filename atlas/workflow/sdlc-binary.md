@@ -1286,6 +1286,11 @@ through change-code's own resolution (`planArtifactPath`, `planQualityPromptInpu
 and never written. A live `judge plan-quality` refuses and points at `change-code`:
 the gate's decision is its ledger's, and an unrecorded review is the stateless
 pre-#187 behavior (#189).
+`planArtifactPath` finds the durable plan by issue id, not exact slug (#235): the one
+`NNNNNN-*-plan.md` in the plans dir, whatever its slug (sidecars excluded by
+`classifyFamily`'s suffix rule), with a note naming the canonical name when it
+differs; two candidates refuse. Change-code, close's measure and review snapshot,
+the review manifest and `judge plan-quality` all read through it.
 Cite the marker (`ARCH-DRY`) in plans/Logs/findings.
 
 **Adding an `ARCH-*` entry** flows into every RUNTIME consumer with no other edit

@@ -223,7 +223,7 @@ func canonicalRepoIssueIdentity(repoDir string, id int) string {
 // family is active or (partially) archived. Directories come from the injected
 // Discovery; nothing is hardcoded (ARCH-DRY).
 func familyFiles(repoDir string, d vocab.Discovery, id int) ([]string, error) {
-	pat := fmt.Sprintf("%06d-*.md", id)
+	pat := familyPattern(id)
 	seen := map[string]bool{}
 	var out []string
 	// Archive root kept alongside its per-kind subdirs (#181): reads tolerate
@@ -245,6 +245,12 @@ func familyFiles(repoDir string, d vocab.Discovery, id int) ([]string, error) {
 	}
 	sort.Strings(out)
 	return out, nil
+}
+
+// familyPattern is the glob for id NNNNNN's artifacts in one directory, shared
+// by familyFiles and the durable-plan lookup (#235, ARCH-DRY).
+func familyPattern(id int) string {
+	return fmt.Sprintf("%06d-*.md", id)
 }
 
 // filterMilestone narrows the family to the review sidecar(s) for milestone ms.
