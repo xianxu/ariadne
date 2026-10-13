@@ -1,12 +1,12 @@
 ---
 id: 000344
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-12
 updated: 2026-10-13
 estimate_hours: 1.32
-card_mirror: '51c8337684f3b8095279c4e27ae7a169bf672beb' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'd29e4e7cc326591ede59d7cb5564c8a80d9caadd' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T14:01:09-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: operator}
+actual_hours: 1.00
 ---
 
 # sdlc stage :0: put a slot's branch HEAD on :0 as a detached commit for smoke testing, instead of moving the branch
