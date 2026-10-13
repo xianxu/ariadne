@@ -1,12 +1,20 @@
 ---
 id: 000348
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '436afbbefce8cf2ca12dfefb245165ade972239d' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '3c78a9dbf78e2f8510e9bd56818e7c8a401d51a2' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T16:23:16-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # issues: a hierarchical area path (couch/broadcast/web) and typed facets (severity), queryable by prefix
@@ -34,6 +42,9 @@ The operator (2026-10-13) leans to a semi-hierarchical scheme over JIRA-style fl
 ## Log
 
 ### 2026-10-13
+
+- Mapped the plumbing. Card fields come from `issue.cue` `card.fields` (kind + setter) and are validated by `validateCardScalar` (scalar-only; `claimant` is the one structured kind). Details carry `target`/`deps`. sdlc reads the model from the embedded `pkg/vocab/issue.json`, so a repo's own vocabulary layer is invisible to it, and the `vocabulary` binary's layer merge is whole-file shadowing. Precedent for shared-shape/repo-values: `fleet-policy.cue` + `.sdlc/fleet.json` + `internal/fleet/load.go`. `issue list` filters only `--status`; legacy repos have no setters.
+- Draft design sent to the hub: a `repoEnums` model section (area: path syntax, multi) + `.sdlc/vocabulary.json` declaration (declared or ancestor-of-declared allowed); area/severity as CARD fields (new kinds path-list, enum; ParseCard checks shape only); membership validated at `issue new` / `set-area` / `set-severity` against main's declaration and in `issue validate` + the #124 gate; `issue list --area` (segment prefix) / `--severity`. Open questions: declaration location (guarded `.sdlc/` vs `workshop/`), severity values, card vs details.
 
 ## Revisions
 
