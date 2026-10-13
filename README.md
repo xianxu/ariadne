@@ -117,6 +117,15 @@ is absent, weave recovers the source from the same-named checkout next to the
 primary, prints a notice naming the row to add, and never edits
 `construct/deps`. Without either, record a source to restore a missing checkout.
 
+In a linked Git worktree outside a Couch slot (for example a feature worktree at
+`worktree/<repo>/<branch>`), a relative row whose target is absent beside the
+worktree resolves beside the repository's primary checkout instead, and
+`weave compile` prints `resolved via primary checkout` for it. A target present
+beside the worktree still wins. A dependency absent in both places is refused,
+not cloned beside the worktree: check it out beside the primary (a
+`weave compile` there restores it) and retry. See
+[setup-and-replication](atlas/workflow/setup-and-replication.md#linked-worktrees).
+
 With Homebrew on PATH (macOS or Linux), `weave dependencies` restores transitive sources
 and runs each layer's committed root `Brewfile` through `brew bundle install
 --no-upgrade --file=Brewfile`, foundation-first. Homebrew manages package state;

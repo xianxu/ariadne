@@ -43,6 +43,7 @@ type OSFS struct{}
 func (OSFS) ReadFile(path string) ([]byte, error)       { return os.ReadFile(path) }
 func (OSFS) ReadDir(path string) ([]os.DirEntry, error) { return os.ReadDir(path) }
 func (OSFS) Stat(path string) (os.FileInfo, error)      { return os.Stat(path) }
+func (OSFS) Lstat(path string) (os.FileInfo, error)     { return os.Lstat(path) }
 
 // DeclarationReader is an FS that can read a construct/deps document safely
 // (#294). The walk prefers it; other FS implementations are read with

@@ -14,7 +14,8 @@ import (
 
 // restoreSetup restores root's dependency graph for compile and dependencies,
 // printing what Restore could not do or had to infer. A recovered source is
-// never silent: the notice names the row to record (#296). A real restore then
+// never silent: the notice names the row to record (#296); neither is a
+// worktree's fallback to its primary checkout's sibling (#230). A real restore then
 // migrates the root's sourceless rows.
 func restoreSetup(ctx context.Context, fs weavefs.FS, client acquire.Client, root string, dryRun bool, out io.Writer) (acquire.Result, error) {
 	restored, err := client.Restore(ctx, root, dryRun)
@@ -23,6 +24,9 @@ func restoreSetup(ctx context.Context, fs weavefs.FS, client acquire.Client, roo
 	}
 	for _, r := range restored.Recovered {
 		fmt.Fprintf(out, "weave: substrate %s declared in %s has no source; recovered %s from %s. Record it in construct/deps: substrate %s %s\n", r.Path, r.Owner, r.URL, r.Sibling, r.Path, r.URL)
+	}
+	for _, f := range restored.Fallbacks {
+		fmt.Fprintf(out, "weave: substrate %s declared in %s is absent beside this worktree; resolved via primary checkout %s: %s\n", f.Path, f.Owner, f.Primary, f.Resolved)
 	}
 	if err != nil || dryRun {
 		return restored, err
@@ -59,6 +63,8 @@ func migrateSourceless(ctx context.Context, fs weavefs.FS, client acquire.Client
 		return nil
 	}
 	for _, row := range sourceless {
+		// root is a primary checkout here, which has no worktree anchor, so
+		// the owner-relative join is layergraph.Resolver's answer too (#230).
 		dir := row.Path
 		if !filepath.IsAbs(dir) {
 			dir = filepath.Join(root, dir)

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/xianxu/ariadne/cmd/weave/internal/weavefs"
+	"github.com/xianxu/ariadne/pkg/layergraph"
 )
 
 // GitRunner is the acquisition process boundary. Completed Git failures retain
@@ -31,6 +32,9 @@ type Client struct {
 	MaxLayers int
 	// MaxDeclarationBytes also requires ordinary declaration files when positive.
 	MaxDeclarationBytes int64
+	// Anchors finds a linked worktree's primary checkout for relative
+	// substrate rows (#230); nil uses layergraph.GitAnchors.
+	Anchors layergraph.Anchors
 }
 
 // ExecGit opts into exact stdout and bounded execution for refresh. Zero options
