@@ -1,6 +1,6 @@
 ---
 id: 000235
-status: working
+status: codecomplete
 created: 2026-09-18
 updated: 2026-10-12
 estimate_hours: 1.4
@@ -13,6 +13,14 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
+actual_hours: 0.19
+tracker:
+    version: 1
+    completion:
+        token: close-c16edbf3ed2a
+        repository: github.com/xianxu/ariadne
+        reviewed_head: 1ffc38208e773a21271f8fdf4fd043c4eac152d4
+        evidence_commit: 7d11abadac22ab9bf1c8e18593ca030351b84889
 ---
 
 # Durable-plan lookup is exact-name: a plan under another slug is invisible
