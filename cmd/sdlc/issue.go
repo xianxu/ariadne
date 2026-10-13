@@ -596,8 +596,10 @@ func issueSyncMessage(issue int, what string) string {
 // ── issue list ───────────────────────────────────────────────────────────────
 
 type issueListFlags struct {
-	Status    string
-	IssuesDir string
+	Status     string
+	Areas      []string // #348
+	Severities []string // #348
+	IssuesDir  string
 }
 
 func newIssueListCmd() *cobra.Command {
@@ -605,9 +607,11 @@ func newIssueListCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "list",
 		Short: "List workshop issues (ID, status, title)",
-		Long: `List issues in workshop/issues/ as "ID  STATUS  TITLE", sorted by ID.
-Filter with --status. Broader than 'sdlc state', which surfaces only the
-working set + drift.`,
+		Long: `List issues in workshop/issues/ as "ID  STATUS  TITLE", sorted by ID; when a
+listed issue carries a severity or areas, SEVERITY and AREA columns are added.
+Filter with --status, --area (a /-path prefix by whole segments: couch/broadcast
+matches couch/broadcast/web, not couch/broadcaster) and --severity. Broader
+than 'sdlc state', which surfaces only the working set + drift.`,
 		Args:          cobra.NoArgs,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, _ []string) error {
@@ -615,6 +619,8 @@ working set + drift.`,
 		},
 	}
 	cmd.Flags().StringVar(&f.Status, "status", "", "filter to this status (open|working|blocked|done|wontfix|punt)")
+	cmd.Flags().StringArrayVar(&f.Areas, "area", nil, "filter to issues with an area under this /-path (repeatable; matches by whole segments)")
+	cmd.Flags().StringSliceVar(&f.Severities, "severity", nil, "filter to these severities (comma-separated: "+strings.Join(vocab.Issue().Enums["severity"], ",")+")")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	return cmd
 }
@@ -622,8 +628,9 @@ working set + drift.`,
 // runIssueList reuses state.go's listIssues (which reads + sorts by ID)
 // rather than re-deriving the scan/sort.
 func runIssueList(ctx context.Context, stdout, stderr io.Writer, f *issueListFlags) error {
-	if f.Status != "" && !isValidStatus(f.Status) {
-		die(stderr, fmt.Sprintf("invalid status %q (valid: %s)", f.Status, strings.Join(vocab.Issue().AllStatuses(), ", ")))
+	filter, err := newIssueListFilter(f.Status, f.Areas, f.Severities)
+	if err != nil {
+		die(stderr, err.Error())
 	}
 	issues, stale, err := listIssueStates(ctx, f.IssuesDir)
 	if err != nil {
@@ -632,17 +639,26 @@ func runIssueList(ctx context.Context, stdout, stderr io.Writer, f *issueListFla
 	if stale {
 		cwarn(stderr, staleTrackerNote)
 	}
-	n := 0
+	var shown []IssueState
+	classified := false
 	for _, is := range issues {
-		if f.Status != "" && is.Status != f.Status {
-			continue
+		if filter.matches(is) {
+			shown = append(shown, is)
+			classified = classified || len(is.Area) > 0 || is.Severity != ""
 		}
-		// width 10 fits the longest real status + the "unreadable"
-		// sentinel listIssues emits for broken files.
-		fmt.Fprintf(stdout, "%s  %-10s  %s\n", is.ID, valueOr(is.Status, "?"), is.Title)
-		n++
 	}
-	if n == 0 {
+	for _, is := range shown {
+		// width 10 fits the longest real status + the "unreadable"
+		// sentinel listIssues emits for broken files. The classification
+		// columns (#348) appear only when a listed issue carries one, so
+		// unclassified output is unchanged.
+		if classified {
+			fmt.Fprintf(stdout, "%s  %-10s  %-8s  %-24s  %s\n", is.ID, valueOr(is.Status, "?"), valueOr(is.Severity, "-"), valueOr(strings.Join(is.Area, ","), "-"), is.Title)
+		} else {
+			fmt.Fprintf(stdout, "%s  %-10s  %s\n", is.ID, valueOr(is.Status, "?"), is.Title)
+		}
+	}
+	if len(shown) == 0 {
 		cinfo(stderr, "no issues match")
 	}
 	return nil
