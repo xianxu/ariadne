@@ -105,7 +105,7 @@ Approved [implementation plan](../plans/000337-issue-assets-plan.md); next gate 
 - [x] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
 - [x] Bundle publication, ownership, recovery and restore.
 - [x] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
-- [ ] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
+- [x] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
 
 ## Log
 
@@ -171,6 +171,17 @@ fixtures inheriting PAIR_AGENT=codex despite Claude-specific inputs/assertions;
 all pass with PAIR_AGENT=claude (21.947s and 4.558s). Follow-up #349 tracks
 pinning those fixtures independently. The next full run will explicitly use
 PAIR_AGENT=claude; no test or gate is skipped.
+
+### 2026-10-13 — full-suite acceptance evidence
+
+PAIR_AGENT=claude make test ARGS=--shards 6 passed at committed HEAD
+35eccf5153f31923d7f2c371ad1a8a618350d8f4: all six shards (1155 cmd/sdlc
+tests) and 47 other packages, zero failures, 431.2s test wall time.
+Invocation began at 21:31:57Z with load 33.61, then waited 1082s for both
+machine-wide suite slots; completed 21:57:10Z. The checkout remained unchanged
+throughout. Full log: /tmp/ariadne337-full-rerun-20261013.log. Follow-up #349
+is published and unassigned. Entering the binary-owned close review next;
+shipping still requires hub SHIP.
 
 ## Revisions
 

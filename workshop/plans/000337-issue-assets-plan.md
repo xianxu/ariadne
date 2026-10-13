@@ -240,7 +240,7 @@ Files: `cmd/sdlc/helptext/issue.md`, relevant publish/migrate/recovery help,
   permits attachment, publish carries bytes, archive resolves the unchanged link,
   restore/slot move retains evidence. Assert exact bytes, paths and refs.
 - [x] Run focused tests, `git diff --check`, and review final diff against main.
-- [ ] Check `uptime`; only with load <40 start `make test` in background. Keep the
+- [x] Check `uptime`; only with load <40 start `make test` in background. Keep the
   checkout unchanged until the full suite completes; save exact results.
 - [ ] Run `sdlc close --issue 337 --verified '<actual evidence>'`; its boundary review
   is the one required fresh-eyes review. Resolve findings and log measured results.
@@ -273,3 +273,5 @@ Files: `cmd/sdlc/helptext/issue.md`, relevant publish/migrate/recovery help,
   out during transcript discovery under extreme machine load, so it is not
   acceptance evidence. The upcoming full module suite covers the remaining
   existing lifecycle cases. Use six shards to limit machine contention.
+
+- 2026-10-13T21:57Z — Acceptance suite passed at 35eccf5153f31923d7f2c371ad1a8a618350d8f4 using PAIR_AGENT=claude make test ARGS=--shards 6: six shards, 1155 command tests, 47 other packages, zero failures, 431.2s. Started below load40 and acquired both machine suite slots. Close review and hub SHIP remain pending.
