@@ -301,3 +301,5 @@ After RED/GREEN evidence for behavioral fixes, rerun the full suite with the
 same load/lock conditions and return to the binary-owned close review.
 
 - BR-4 conformance cadence: TestLiveAssetVisibilityConformance runs for this correction, after RepoVisibility argv/decoder changes or gh upgrades, and optionally in periodic credentials-enabled CI. Normal suites retain the stateful fake and skip the explicit opt-in live query; atlas/workflow/issue-assets.md documents the command.
+
+- 2026-10-13T22:56Z — Corrected acceptance suite passed at ff3e3811b841091430163f44ad2812066ebf0746: 1169 command tests, 47 other packages, six shards, zero failures, 482.1s. Invoked below load40 with both slots reserved. Returning to close for disposition of BR-1 through BR-4.

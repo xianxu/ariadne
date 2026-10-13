@@ -105,7 +105,7 @@ Approved [implementation plan](../plans/000337-issue-assets-plan.md); next gate 
 - [x] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
 - [x] Bundle publication, ownership, recovery and restore.
 - [x] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
-- [ ] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
+- [x] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
 
 ## Log
 
@@ -229,6 +229,16 @@ claim argument. The hint now parses the branch convention explicitly and
 formats through issue.CLIRef; non-issue branches omit the claim instruction.
 The static guard and both runtime branches failed RED before this fix and
 passed GREEN in 2.132s. Full-suite acceptance will be rerun once more.
+
+### 2026-10-13 — corrected acceptance suite passed
+
+PAIR_AGENT=claude make test ARGS=--shards 6 passed at
+ff3e3811b841091430163f44ad2812066ebf0746: all six shards, 1169 command
+tests and 47 other packages, zero failures, 482.1s. Invoked at 22:39:57Z
+with load 7.57, acquired both test slots after 483s, completed 22:56:03Z.
+Log: /tmp/ariadne337-full-final-20261013.log. Checkout stayed unchanged.
+BR-1 through BR-4 corrections and recovery-hint regressions are included;
+returning to the binary-owned close review. Hub SHIP is still required.
 
 ## Revisions
 
