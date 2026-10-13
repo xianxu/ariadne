@@ -1,12 +1,20 @@
 ---
 id: 000345
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '5acde55f59388e488f947e803ad994efe3cbb71b' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '1da5f3fb7905297fce4aeb2674bd80eb15b68908' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T12:49:57-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # sdlc merge: a recorded local run substitutes for a CI job that never got a runner (not for one that failed)
@@ -34,6 +42,11 @@ The operator (2026-10-13): a CI job that **could not get a runner** (no steps ex
 ## Log
 
 ### 2026-10-13
+
+- Measured the runnerless signal: pair run 38453641991 attempt 1, job 115490631095 — check-run `conclusion=cancelled`; jobs API `runner_name=""`, `steps=0`; annotation "not acquired by Runner of type hosted". `gh pr checks` buckets it `cancel`, which `decideCIGate` (cmd/sdlc/cigate.go) reads as red today. Attempt 2 got a runner (14 steps, success).
+- pair `main` has no branch protection, so `sdlc merge`'s CI gate is the only gate; a substitute there is enough.
+- `local-gates-guard` already protects `.sdlc/*` → a declaration there is CI-tamper-guarded (the Revision's "CI is the tamper guard").
+- Draft design (declaration in `.sdlc/local-checks.json`, `sdlc local-check run` posting an `sdlc-local/<name>` commit status on the head, gate accepts it only for runnerless cancels) sent to the hub for review before building.
 
 ## Revisions
 
