@@ -551,3 +551,42 @@ func TestArchiveAssetsRefuseArchivedResidueBeforeEffects(t *testing.T) {
 		}
 	}
 }
+
+type archiveAssetTamperRunner struct {
+	execGitRunner
+	destination string
+}
+
+func (r archiveAssetTamperRunner) Git(args ...string) ([]byte, error) {
+	out, err := r.execGitRunner.Git(args...)
+	if err == nil && len(args) > 0 && args[0] == "add" {
+		err = os.WriteFile(r.destination, []byte("tampered after staging"), 0644)
+	}
+	return out, err
+}
+
+func TestArchiveRecoveryVerifiesAssetBytesBeforeCommit(t *testing.T) {
+	root := testfix.Repo(t, testfix.InitialCommit(), testfix.Chdir())
+	name, _ := issueassets.Name([]byte("evidence"), "png")
+	rel := "assets/000143/" + name
+	src, dst := "workshop/issues/"+rel, "workshop/history/issues/"+rel
+	mkArtifact(t, "workshop/issues/000143-x.md", "---\nid: 143\nstatus: done\n---\n![evidence]("+rel+")\n")
+	mkArtifact(t, src, "evidence")
+	testfix.Git(t, root, "add", ".")
+	testfix.Git(t, root, "commit", "-qm", "evidence")
+	head := testfix.Capture(t, root, "rev-parse", "HEAD")
+	var out bytes.Buffer
+	if _, err := archiveDoneIssues(context.Background(), &out, "", "workshop/issues", "workshop/history", "workshop/plans"); err != nil {
+		t.Fatal(err)
+	}
+	old := pushRunner
+	pushRunner = archiveAssetTamperRunner{destination: dst}
+	t.Cleanup(func() { pushRunner = old })
+	_, err := recoverInterruptedArchive(context.Background(), &out, &out, &pushFlags{IssuesDir: "workshop/issues", HistoryDir: "workshop/history", PlansDir: "workshop/plans"})
+	if err == nil || !strings.Contains(err.Error(), "content name") {
+		t.Fatalf("corrupted archive not refused before commit: %v", err)
+	}
+	if testfix.Capture(t, root, "rev-parse", "HEAD") != head {
+		t.Fatal("corrupted archive committed")
+	}
+}

@@ -43,7 +43,7 @@ func TestAssetPolicyVisibilityAndExplicitPolicy(t *testing.T) {
 	ghClient = visibilityGH{file: state}
 	t.Cleanup(func() { ghClient = previous })
 	for _, v := range []string{"PUBLIC", "PRIVATE", "unknown"} {
-		if err := os.WriteFile(state, []byte(`{"example/assets":"`+v+`"}`), 0600); err != nil {
+		if err := os.WriteFile(state, []byte(`{"https://github.com/example/assets":"`+v+`"}`), 0600); err != nil {
 			t.Fatal(err)
 		}
 		got, err := resolveAssetPolicy(context.Background(), root)

@@ -338,12 +338,27 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 		ready = append(ready, it)
 	}
 	restore := func(it republishItem) bool {
+		head, err := env.git("rev-parse", "HEAD")
+		if err != nil {
+			cwarn(stderr, err.Error())
+			return false
+		}
 		paths := assetBundlePaths(it.path, it.assets, it.baseAssets, issueassets.Bundle{Files: it.inventory})
 		for _, p := range paths {
 			if err := restoreToHead(env, p); err != nil {
 				cwarn(stderr, fmt.Sprintf("%s not restored: %v", p, err))
 				return false
 			}
+		}
+		var assetPaths []string
+		for _, p := range paths {
+			if p != it.path {
+				assetPaths = append(assetPaths, p)
+			}
+		}
+		if err := verifyMaterializedAssetPaths(env.root, env.main.ViewOf(head), assetPaths); err != nil {
+			cwarn(stderr, err.Error())
+			return false
 		}
 		return true
 	}
@@ -401,6 +416,10 @@ func finishPublished(env *trackerEnv, stderr io.Writer, items []republishItem) {
 		paths = stagePaths
 		if _, err := env.git(append([]string{"add", "-A", "--"}, paths...)...); err != nil {
 			cwarn(stderr, fmt.Sprintf("%s not staged: %v", it.path, err))
+			continue
+		}
+		if err := verifyAssetBundleOnDisk(env.ctx, env.root, it.path, it.id, it.publish, it.assets); err != nil {
+			cwarn(stderr, err.Error())
 			continue
 		}
 		msg := "#" + issue.CLIRef(it.id) + ": issue: details as published"
@@ -674,8 +693,25 @@ var restoreToHead = func(env *trackerEnv, rel string) error {
 		return err
 	}
 	if inHead {
-		_, err = env.git("checkout", "HEAD", "--", rel)
-		return err
+		head, err := env.git("rev-parse", "HEAD")
+		if err != nil {
+			return err
+		}
+		if assetIssueID(rel) != "" {
+			if err := verifyAssetAttributesAt(env.ctx, env.root, rel, head); err != nil {
+				return err
+			}
+			if err := verifyAssetAttributes(env.ctx, env.root, rel); err != nil {
+				return err
+			}
+		}
+		if _, err = env.git("checkout", head, "--", rel); err != nil {
+			return err
+		}
+		if assetIssueID(rel) != "" {
+			return verifyMaterializedAssetPaths(env.root, env.main.ViewOf(head), []string{rel})
+		}
+		return nil
 	}
 	err = os.Remove(filepath.Join(env.root, filepath.FromSlash(rel)))
 	if errors.Is(err, os.ErrNotExist) {

@@ -234,3 +234,62 @@ func recoverAssetArchiveMoves(ctx context.Context, moves []preparedArchiveMove, 
 	}
 	return assets, other, nil
 }
+
+// Called after staging and immediately before each legacy archive commit.
+// Content-addressed names make this a byte proof even for recovered/untracked
+// evidence: changed bytes cannot retain their original member name.
+func verifyArchivedAssetMoves(ctx context.Context, root string, moves []preparedArchiveMove) error {
+	ids := map[string]bool{}
+	for _, m := range moves {
+		parent := filepath.Dir(m.HistoryPath)
+		id := filepath.Base(parent)
+		if filepath.Base(filepath.Dir(parent)) == "assets" && issueIDPrefix(id+"-asset.md") == id {
+			ids[id] = true
+		}
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	absRoot, err := filepath.Abs(root)
+	if err != nil {
+		return err
+	}
+	if canonical, err := filepath.EvalSymlinks(absRoot); err == nil {
+		absRoot = canonical
+	}
+	for _, m := range moves {
+		id := issueIDPrefix(filepath.Base(m.HistoryPath))
+		if !ids[id] {
+			continue
+		}
+		// The issue body, not a plan sidecar, is the bundle's index.
+		if filepath.Base(filepath.Dir(m.HistoryPath)) != "issues" {
+			continue
+		}
+		rel, err := gitx.InsideRoot(absRoot, m.HistoryPath)
+		if err != nil {
+			return err
+		}
+		body, err := os.ReadFile(filepath.Join(absRoot, filepath.FromSlash(rel)))
+		if err != nil {
+			return fmt.Errorf("read archived body %s: %w; restore that body before retrying", rel, err)
+		}
+		files, err := readAssetFiles(absRoot, rel, id)
+		if err != nil {
+			return err
+		}
+		for p := range files {
+			if err := verifyAssetAttributes(ctx, absRoot, filepath.ToSlash(filepath.Join(filepath.Dir(rel), p))); err != nil {
+				return err
+			}
+		}
+		if _, err := issueassets.BuildBundle(id, issueAssetBody(body), files); err != nil {
+			return fmt.Errorf("verify archived assets beside %s: %w; restore the original asset bytes before retrying", rel, err)
+		}
+		delete(ids, id)
+	}
+	if len(ids) > 0 {
+		return fmt.Errorf("archived assets have no moved issue body; restore their issue body before retrying")
+	}
+	return nil
+}

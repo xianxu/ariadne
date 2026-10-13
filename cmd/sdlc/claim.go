@@ -287,6 +287,9 @@ func fastForwardRest(env *trackerEnv, target string) string {
 		return fmt.Sprintf("%s not fast-forwarded to main: reading HEAD failed: %v", env.resting, err)
 	}
 	if head == target {
+		if err := verifyMaterializedAssets(env.root, env.main.ViewOf(head), envOr("WF_ISSUES_DIR", "workshop/issues")); err != nil {
+			return fmt.Sprintf("%s already matches main, but asset verification failed: %v", env.resting, err)
+		}
 		return ""
 	}
 	contained, err := env.gitTest("merge-base", "--is-ancestor", "HEAD", target)

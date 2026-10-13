@@ -132,6 +132,29 @@ func runIssueRestore(ctx context.Context, stdout, _ io.Writer, nums []int) error
 			return err
 		}
 	}
+	var verifyPaths []string
+	for _, p := range paths {
+		if assetIssueID(p) != "" {
+			verifyPaths = append(verifyPaths, p)
+		}
+	}
+	pinnedAssets, err := assetMaterializationPaths(env.root, view, envOr("WF_ISSUES_DIR", "workshop/issues"))
+	if err != nil {
+		return err
+	}
+	for _, p := range pinnedAssets {
+		if restoreIDs[assetIssueID(p)] {
+			verifyPaths = append(verifyPaths, p)
+		}
+	}
+	for _, p := range verifyPaths {
+		if err := verifyAssetAttributes(ctx, env.root, p); err != nil {
+			return err
+		}
+	}
+	if err := verifyMaterializedAssetPaths(env.root, view, verifyPaths); err != nil {
+		return err
+	}
 	msg := strings.Join(refs, ",") + ": issue: restore main's details"
 	if _, err := env.git(append([]string{"commit", "-q", "-m", msg, "--"}, paths...)...); err != nil {
 		return err

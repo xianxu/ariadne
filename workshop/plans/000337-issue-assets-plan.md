@@ -328,3 +328,18 @@ incomplete; fix these invariants across the full enumerated class:
 
 Keep the acceptance checkbox open, record RED/GREEN evidence and rerun the full
 suite before returning to close. No approved feature-scope expansion.
+
+- Round 2 implementation refinement: first-detail creation/import and persisted creation recovery also validate the body index before card/publication effects; they cannot carry asset links without corresponding bytes. Merge cleanup uses fetch plus pinned fast-forward, consistent with the resting-branch-only-fast-forward constitution, so preflight and byte verification refer to the actual materialized tree.
+
+- Materialization caller inventory (round 2): issue restore (`issuerestore.go`),
+  publication restore/finalization (`republish.go`), abandon/reopen
+  (`abandon.go`), slot moves (`move.go`), resting fast-forward (`claim.go`),
+  initial-detail handoff (`issuemovedetail.go`), planning/takeover
+  (`planningbranch.go`, `handoff.go`), change-code branch/worktree creation
+  (`branchcreate.go`), legacy merge cleanup (`mergematerialization.go`),
+  durable landing return (`landing.go`), and tracker cutover/reconcile
+  (`issuemigrate.go`). Archive staging checks cover both legacy push and merge.
+  Successful retry shortcuts must verify retained bytes too. Git-only
+  ExactBytes transactions do not check out assets; the isolated review checkout
+  is not an issue lifecycle publication path. Cross-repository migration remains
+  refused under the approved scope cut.

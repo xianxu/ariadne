@@ -332,7 +332,11 @@ func moveDetailRemover(env *trackerEnv) tracker.Remover {
 				return err
 			}
 			if done {
-				return nil
+				head, err := env.git("rev-parse", "HEAD")
+				if err != nil {
+					return err
+				}
+				return verifyMaterializedAssets(env.root, env.main.ViewOf(head), path.Dir(spec.DestinationPath))
 			}
 		}
 		if env.onRest() {

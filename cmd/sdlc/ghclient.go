@@ -16,6 +16,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"regexp"
 	"strings"
 )
 
@@ -23,6 +24,8 @@ import (
 // gh CLI. realGH below is the production implementation; tests
 // substitute stubGH (in fetch_test.go) or richer fakes per-verb.
 type ghCaller interface {
+	// RepoVisibility requires a full HTTPS GitHub repository URL; it never
+	// infers the authorization host from GH_HOST or the current checkout.
 	RepoVisibility(context.Context, string) (string, error)
 	// TitleAndBody returns the title + body of GitHub issue issueNum
 	// in repo (owner/repo slug). Used by `sdlc issue new --from-github`
@@ -181,9 +184,14 @@ func prMergeArgs(repo, branch, expectedHead string) []string {
 	return []string{"pr", "merge", "--repo", repo, "--merge", "--delete-branch", "--match-head-commit", expectedHead, branch}
 }
 
+var visibilityRepositoryURL = regexp.MustCompile(`^https://github[.]com/[A-Za-z0-9][A-Za-z0-9_.-]*/[A-Za-z0-9][A-Za-z0-9_.-]*$`)
+
 // RepoVisibility queries only the visibility field; raw host errors may contain
 // credentials and are deliberately not returned to policy help or refusals.
 func (realGH) RepoVisibility(ctx context.Context, repo string) (string, error) {
+	if !visibilityRepositoryURL.MatchString(repo) {
+		return "", fmt.Errorf("visibility repository must include its publication host: use the full https://github.com/owner/repository URL")
+	}
 	cmd := exec.CommandContext(ctx, "gh", "repo", "view", repo, "--json", "visibility")
 	out, err := cmd.StdoutPipe()
 	if err != nil {

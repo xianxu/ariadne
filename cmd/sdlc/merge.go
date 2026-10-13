@@ -597,15 +597,9 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		// idempotent either way. In-place: the merge is server-side, so switch
 		// this checkout back to main (a no-op if a prior run already did) before
 		// pulling the merged result.
-		if inPlace {
-			cinfo(stderr, "Switching to main...")
-			if out, gerr := mergeRunner.Git("switch", "main"); gerr != nil {
-				die(stderr, strandedMessage(branch, fmt.Sprintf("git switch main: %v\n%s", gerr, out), false))
-			}
-		}
-		cinfo(stderr, "Pulling main...")
-		if out, gerr := mergeRunner.GitInDir(mainPath, "pull"); gerr != nil {
-			die(stderr, strandedMessage(branch, fmt.Sprintf("git -C %s pull: %v\n%s", mainPath, gerr, out), inPlace))
+		cinfo(stderr, "Fetching and fast-forwarding main...")
+		if atMain, err := materializeMergedMain(ctx, mergeRunner, mainPath, f.IssuesDir, inPlace); err != nil {
+			die(stderr, strandedMessage(branch, err.Error(), inPlace && atMain))
 		}
 	} else {
 		cwarn(stderr, fmt.Sprintf("No open or merged PR for branch %s", branch))
@@ -665,6 +659,9 @@ func runMerge(stdout, stderr io.Writer, f *mergeFlags) error {
 		commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
 		if cerr != nil {
 			die(stderr, cerr.Error())
+		}
+		if err := verifyArchivedAssetMoves(ctx, mainPath, moves); err != nil {
+			die(stderr, err.Error())
 		}
 		if out, gerr := mergeRunner.GitInDir(mainPath, commitArgs...); gerr != nil {
 			die(stderr, fmt.Sprintf("git -C %s commit: %v\n%s", mainPath, gerr, out))

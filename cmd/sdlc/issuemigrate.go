@@ -590,20 +590,35 @@ func runMigrateReconcile(env *migrateEnv, stdout, stderr io.Writer) error {
 		return fmt.Errorf("cannot reconcile this branch (nothing was changed):\n  %s", strings.Join(refusals, "\n  "))
 	}
 	before := env.head
-	msg := fmt.Sprintf("migrate: bring %s across the issue tracker cutover", env.branch)
-	if out, err := env.git("merge", "--no-ff", "--no-edit", "-m", msg, migration); err != nil {
-		if _, aerr := env.git("merge", "--abort"); aerr != nil {
-			return fmt.Errorf("merging main's migration commit failed (%v), and aborting that merge failed too: %v\n"+
-				"      the checkout is mid-merge: inspect `git status`, then `git merge --abort` by hand", err, aerr)
+	if err := verifyAssetTransition(env.trackerEnv, migration, home); err != nil {
+		return err
+	}
+	// Keep the merge uncommitted until mirror and evidence proofs pass. Aborting
+	// an uncommitted merge restores its parent without creating a rejected commit.
+	rollback := func(cause error) error {
+		if err := verifyAssetTransition(env.trackerEnv, before, home); err != nil {
+			return fmt.Errorf("%v; cannot safely abort the merge: %w; repair the reported asset attributes, inspect git status, then run git merge --abort", cause, err)
 		}
-		return fmt.Errorf("merging main's migration commit conflicts (nothing was changed):\n%s\n"+
-			"      Merge origin/main into this branch yourself, resolve the conflicts, and commit; that brings it across too", out)
+		if _, err := env.git("merge", "--abort"); err != nil {
+			return fmt.Errorf("%v; aborting the merge failed: %w; inspect git status, then run git merge --abort", cause, err)
+		}
+		if err := verifyMaterializedAssets(env.root, env.main.ViewOf(before), home); err != nil {
+			return fmt.Errorf("%v; the merge was aborted but restored assets need repair: %w", cause, err)
+		}
+		return fmt.Errorf("%v; the merge was aborted before committing", cause)
+	}
+	msg := fmt.Sprintf("migrate: bring %s across the issue tracker cutover", env.branch)
+	if out, err := env.git("merge", "--no-ff", "--no-commit", "--no-edit", "-m", msg, migration); err != nil {
+		return rollback(fmt.Errorf("merging main's migration commit conflicts: %w\n%s; merge origin/main yourself and resolve the conflicts to bring this branch across", err, out))
 	}
 	if err := verifyMigratedMirrors(env, home, imported); err != nil {
-		if _, rerr := env.git("reset", "-q", "--hard", before); rerr != nil {
-			return fmt.Errorf("%v\n      undoing the merge failed: %v — the branch holds the merge commit; reset it to %s by hand", err, rerr, shortOID(before))
-		}
-		return fmt.Errorf("%v\n      the merge was undone; nothing was changed", err)
+		return rollback(err)
+	}
+	if err := verifyIndexedAssetBundles(env.trackerEnv, home); err != nil {
+		return rollback(err)
+	}
+	if _, err := env.git("commit", "--no-edit", "-m", msg); err != nil {
+		return fmt.Errorf("committing the verified cutover merge failed: %w; inspect git status and repair the commit failure, or run git merge --abort", err)
 	}
 	cok(stderr, fmt.Sprintf("%s is across the cutover (merged main's migration commit %s)", env.branch, shortOID(migration)))
 	fmt.Fprintln(stdout, migration)

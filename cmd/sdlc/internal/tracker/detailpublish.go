@@ -2,8 +2,12 @@ package tracker
 
 import (
 	"fmt"
+	"path"
+	"strings"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 )
 
 // DetailPublication prepares the main candidate that publishes an issue's
@@ -17,6 +21,9 @@ func DetailPublication(main *gitx.TrunkFile, destination string, detail []byte, 
 
 // DetailBundlePublication publishes one complete first-publication bundle.
 func DetailBundlePublication(main *gitx.TrunkFile, destination string, detail []byte, assets map[string][]byte, msg string) (gitx.Candidate, error) {
+	if err := validateDetailBundle(destination, detail, assets); err != nil {
+		return gitx.Candidate{}, err
+	}
 	return main.PrepareCandidate(msg, func(view *gitx.TrunkView) (gitx.TrunkWrite, error) {
 		present, err := view.Exists(destination)
 		if err != nil {
@@ -38,4 +45,22 @@ func DetailBundlePublication(main *gitx.TrunkFile, destination string, detail []
 		}
 		return gitx.TrunkWrite{Write: writes, ExactBytes: true}, nil
 	})
+}
+
+// validateDetailBundle checks the authoritative Markdown body, excluding its
+// frontmatter. Creation has no assets; transfers pass their pinned member bytes.
+func validateDetailBundle(destination string, detail []byte, assets map[string][]byte) error {
+	id, _, _ := strings.Cut(path.Base(destination), "-")
+	_, body, err := issue.Parse(string(detail))
+	if err != nil {
+		return fmt.Errorf("%s: %w", destination, err)
+	}
+	files := map[string][]byte{}
+	for p, b := range assets {
+		files[strings.TrimPrefix(p, path.Dir(destination)+"/")] = b
+	}
+	if _, err := issueassets.BuildBundle(id, []byte(body), files); err != nil {
+		return fmt.Errorf("%s: %w", destination, err)
+	}
+	return nil
 }

@@ -514,10 +514,27 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 		if merged, err := env.ancestorOf(archiveCommit, "HEAD"); err != nil {
 			return err
 		} else if !merged {
-			if _, err := env.git("merge", "-q", "--no-edit", view.Ref()); err != nil {
+			if _, err := env.git("merge", "-q", "--no-commit", "--no-edit", view.Ref()); err != nil {
 				if rerr := resolveArchiveConflicts(env, base, issuesDir, plansDir()); rerr != nil {
 					return fmt.Errorf("#%s: merging main into %s stopped on a conflict: %v\n      resolve and commit the merge (for the issue's details, keep main's archived copy), then rerun `sdlc issue set-status working --issue %s`; the card is unchanged", issueStr, rec.Branch, rerr, issueStr)
 				}
+			}
+			pending, err := env.gitTest("rev-parse", "-q", "--verify", "MERGE_HEAD")
+			if err != nil {
+				return err
+			}
+			if pending {
+				if err := removeDuplicateReopenAssets(env, base, issuesDir); err != nil {
+					return err
+				}
+				if err := verifyIndexedAssetBundles(env, issuesDir); err != nil {
+					return err
+				}
+				if _, err := env.git("commit", "-q", "--no-verify", "--no-edit"); err != nil {
+					return err
+				}
+			} else if err := verifyMaterializedAssets(env.root, view, issuesDir); err != nil {
+				return err
 			}
 		}
 	}
@@ -611,6 +628,9 @@ func restoreAbandoned(env *trackerEnv, stderr io.Writer, card tracker.Record, re
 			}
 			paths = append(paths, m[0], m[1])
 		}
+		if err := verifyAssetBundleOnDisk(env.ctx, env.root, liveRel, card.ID, raw, bundle); err != nil {
+			return err
+		}
 		if _, err := env.git(append([]string{"commit", "-q", "--no-verify", "-m", fmt.Sprintf("#%s: reopen: restore from %s", issueStr, rec.Ref), "--"}, paths...)...); err != nil {
 			return err
 		}
@@ -677,6 +697,60 @@ func resolveArchiveConflicts(env *trackerEnv, base, issuesDir, plansDir string) 
 	if _, err := env.git(append([]string{"rm", "-q", "--"}, own...)...); err != nil {
 		return err
 	}
-	_, err = env.git("commit", "-q", "--no-verify", "--no-edit")
+	return nil
+}
+
+// A kept branch may introduce active assets which main first saw at archive
+// time. Once the merge removes the active body, remove only proven duplicate
+// members before committing that intermediate tree. The archive remains the
+// single index and source for the following unarchive step.
+func removeDuplicateReopenAssets(env *trackerEnv, base, issuesDir string) error {
+	tree, err := env.git("write-tree")
+	if err != nil {
+		return err
+	}
+	view := env.main.ViewOf(tree)
+	if live, err := view.Exists(path.Join(issuesDir, base)); err != nil || live {
+		return err
+	}
+	id := issueIDPrefix(base)
+	activeDir := path.Join(issuesDir, "assets", id)
+	var active []gitx.TreeFile
+	_, err = view.FilesSelected(activeDir, func(f gitx.TreeFile) bool {
+		active = append(active, f)
+		return false
+	})
+	if err != nil {
+		return err
+	}
+	if len(active) == 0 {
+		return nil
+	}
+	archived := archiveDestination(historyDir(), vocab.ArchiveIssues, base)
+	raw, err := view.Read(archived)
+	if err != nil {
+		return err
+	}
+	bundle, err := assetFilesFromView(view, archived, id, raw)
+	if err != nil {
+		return err
+	}
+	activeBundle, err := assetFilesFromView(view, path.Join(issuesDir, base), id, raw)
+	if err != nil {
+		return err
+	}
+	var paths []string
+	for _, f := range active {
+		member := path.Join("assets", id, path.Base(f.Path))
+		want, ok := bundle.Files[member]
+		if !ok || path.Dir(f.Path) != activeDir || f.Mode != "100644" || !bytes.Equal(activeBundle.Files[member], want) {
+			return fmt.Errorf("active asset %s is not an exact archived duplicate; restore its archived bytes before retrying reopen", f.Path)
+		}
+		paths = append(paths, f.Path)
+	}
+	if err := verifyMaterializedAssetPaths(env.root, view, paths); err != nil {
+		return err
+	}
+	_, err = env.git(append([]string{"rm", "-q", "--"}, paths...)...)
 	return err
 }

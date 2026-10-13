@@ -208,6 +208,9 @@ func runPush(stdout, stderr io.Writer, f *pushFlags) error {
 		if cerr != nil {
 			die(stderr, cerr.Error())
 		}
+		if err := verifyArchivedAssetMoves(ctx, ".", moves); err != nil {
+			die(stderr, err.Error())
+		}
 		if out, gerr := pushRunner.Git(commitArgs...); gerr != nil {
 			die(stderr, fmt.Sprintf("commit archive failed: %v\n%s", gerr, out))
 		}
@@ -431,6 +434,9 @@ func recoverInterruptedArchive(ctx context.Context, stdout, stderr io.Writer, f 
 	commitArgs, cerr := archiveCommitArgs(archiveCommitMessage, moves)
 	if cerr != nil {
 		return false, cerr
+	}
+	if err := verifyArchivedAssetMoves(ctx, ".", moves); err != nil {
+		return false, err
 	}
 	if out, gerr := pushRunner.Git(commitArgs...); gerr != nil {
 		return false, fmt.Errorf("commit archive failed: %v\n%s", gerr, out)

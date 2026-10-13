@@ -52,7 +52,9 @@ func resolveAssetHostPolicy(ctx context.Context, root string) (issueassets.Decis
 	if err != nil || !strings.HasPrefix(target.Repository, "github.com/") {
 		return unknown, nil
 	}
-	repo := strings.TrimPrefix(target.Repository, "github.com/")
+	// Keep the publication host in the gh argument: bare owner/repo would
+	// inherit GH_HOST and could authorize a different repository.
+	repo := "https://" + target.Repository
 	queryCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 	visibility, err := ghClient.RepoVisibility(queryCtx, repo)

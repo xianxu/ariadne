@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"os"
 	"path"
 	"path/filepath"
 	"strings"
@@ -72,7 +73,24 @@ func verifyMaterializedAssets(root string, view *gitx.TrunkView, issuesDir strin
 	if err != nil {
 		return err
 	}
+	return verifyMaterializedAssetPaths(root, view, paths)
+}
+
+// Verify a complete operation's asset pathspec immediately before committing:
+// later checkouts may run hooks that change paths checked earlier in the loop.
+// Missing pinned paths must remain absent (a restore may remove old members).
+func verifyMaterializedAssetPaths(root string, view *gitx.TrunkView, paths []string) error {
 	for _, p := range paths {
+		present, err := view.Exists(p)
+		if err != nil {
+			return fmt.Errorf("read pinned asset %s at %s: %w; fetch that commit before retrying", p, view.Ref(), err)
+		}
+		if !present {
+			if _, err := os.Lstat(filepath.Join(root, filepath.FromSlash(p))); !os.IsNotExist(err) {
+				return fmt.Errorf("asset %s is absent from %s; remove that local asset before retrying", p, view.Ref())
+			}
+			continue
+		}
 		if err := assetDirectories(root, path.Dir(p), false); err != nil {
 			return fmt.Errorf("materialized asset %s: %w; restore its regular directory and file from %s before retrying", p, err, view.Ref())
 		}
@@ -102,6 +120,26 @@ func verifyAssetTransition(env *trackerEnv, target, issuesDir string) error {
 		if err := verifyAssetMaterialization(env.ctx, env.root, env.main.ViewOf(ref), issuesDir, head, target); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func verifyAssetBundleOnDisk(ctx context.Context, root, detailRel, id string, body []byte, want issueassets.Bundle) error {
+	files, err := readAssetFiles(root, detailRel, id)
+	if err != nil {
+		return err
+	}
+	got, err := issueassets.BuildBundle(id, issueAssetBody(body), files)
+	if err != nil {
+		return fmt.Errorf("verify restored bundle beside %s: %w; restore the expected asset bytes before retrying", detailRel, err)
+	}
+	for p := range want.Files {
+		if err := verifyAssetAttributes(ctx, root, path.Join(path.Dir(detailRel), p)); err != nil {
+			return err
+		}
+	}
+	if !assetBundlesEqual(want, got) {
+		return fmt.Errorf("asset bundle beside %s differs from the pinned bytes; restore the expected bundle before retrying", detailRel)
 	}
 	return nil
 }

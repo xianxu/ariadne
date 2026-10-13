@@ -105,7 +105,7 @@ func (op *CreationOp) checkDraft(id string, d Draft) error {
 	if err != nil || baseline != want {
 		return errors.New("draft details do not mirror the draft card")
 	}
-	return nil
+	return validateDetailBundle(d.DetailPath, d.Detail, nil)
 }
 
 func (op *CreationOp) Prepare(e Effect, r Receipt) (Event, error) {
@@ -137,6 +137,16 @@ func (op *CreationOp) Prepare(e Effect, r Receipt) (Event, error) {
 }
 
 func (op *CreationOp) Apply(e Effect, r Receipt) (Event, error) {
+	// Recheck persisted generations too: recovery may resume a candidate prepared
+	// before body-index validation was introduced, without running allocate again.
+	spec := r.Spec()
+	detail, err := gitx.ReadBlob(op.ctx, op.co.Root, spec.SourceBlob)
+	if err != nil {
+		return Event{}, err
+	}
+	if err := validateDetailBundle(spec.DestinationPath, detail, nil); err != nil {
+		return Event{}, err
+	}
 	switch e.Stage {
 	case "creation.reserve":
 		return publishCardEvent(op.repo, &op.diagnostics, e, r.Spec().CardPath)

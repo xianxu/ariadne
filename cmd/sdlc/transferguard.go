@@ -18,6 +18,7 @@ import (
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
+	"github.com/xianxu/ariadne/cmd/sdlc/internal/issueassets"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/tracker"
 )
 
@@ -241,34 +242,73 @@ func assetIssueID(p string) string {
 	return ""
 }
 
-// Legacy repositories have no ownership tracker, but their asset publications
-// obey the same bundle and privacy contract. Repositories whose branch has
-// never touched assets keep the established no-op guard (no upstream required).
+// Legacy repositories have no ownership tracker, but changed bodies still index
+// their bundles even if no asset directory has ever existed. Validate the actual
+// merge whenever a publication target is configured. Remote-less text-only work
+// retains its historical no-op only after checking local body indexes.
 func guardLegacyIssueAssets(ctx context.Context) error {
 	root, err := gitx.RepoTopLevel()
 	if err != nil {
 		return err
 	}
-	probe := &trackerEnv{ctx: ctx, root: root}
 	issues, history := envOr("WF_ISSUES_DIR", "workshop/issues"), envOr("WF_HISTORY_DIR", "workshop/history")
-	touched, err := probe.git("log", "-1", "--format=%H", "HEAD", "--", path.Join(issues, "assets"), path.Join(history, "issues", "assets"))
-	if err != nil {
-		return err
-	}
-	if touched == "" {
-		return nil
-	}
-	env, err := openTracker(ctx)
-	if err != nil {
-		return err
+	env, targetErr := openTracker(ctx)
+	if targetErr != nil {
+		needed, err := legacyAssetValidationNeeded(ctx, root, issues, history)
+		if err != nil {
+			return err
+		}
+		if !needed {
+			return nil
+		}
+		return fmt.Errorf("cannot validate issue assets against the publication destination: %w; configure and fetch the publication target before retrying", targetErr)
 	}
 	view, err := env.main.Snapshot()
 	if err != nil {
-		return err
+		return fmt.Errorf("cannot read the publication destination: %w; fetch the configured main branch before retrying", err)
 	}
 	tree, paths, err := prospectiveAssetChanges(env, view.Ref())
 	if err != nil {
 		return err
 	}
 	return validateAssetPublication(ctx, root, view, env.main.ViewOf(tree), paths, issues, history)
+}
+
+// This fallback examines metadata history and only current issue-body blobs;
+// absence of an asset directory alone says nothing about the body index.
+func legacyAssetValidationNeeded(ctx context.Context, root, issues, history string) (bool, error) {
+	probe := &trackerEnv{ctx: ctx, root: root}
+	touched, err := probe.git("log", "-1", "--format=%H", "HEAD", "--", path.Join(issues, "assets"), path.Join(history, "issues", "assets"))
+	if err != nil {
+		return false, err
+	}
+	tf, err := gitx.NewTrunkFileContext(ctx, root, "origin", "main") // local ViewOf only; no remote operation
+	if err != nil {
+		return false, err
+	}
+	view := tf.ViewOf("HEAD")
+	needed := touched != ""
+	for _, home := range []string{issues, path.Join(history, "issues")} {
+		docs, err := view.FilesSelected(home, func(f gitx.TreeFile) bool {
+			return path.Dir(f.Path) == home && strings.HasSuffix(f.Path, ".md") && issueIDPrefix(path.Base(f.Path)) != ""
+		})
+		if err != nil {
+			return false, fmt.Errorf("cannot read issue body indexes: %w; restore readable issue details before retrying", err)
+		}
+		for _, doc := range docs {
+			id := issueIDPrefix(path.Base(doc.Path))
+			refs, err := issueassets.ParseRefs(id, issueAssetBody(doc.Content))
+			if err != nil {
+				return false, fmt.Errorf("%s: %w", doc.Path, err)
+			}
+			if len(refs) == 0 {
+				continue
+			}
+			needed = true
+			if _, err := assetFilesFromView(view, doc.Path, id, doc.Content); err != nil {
+				return false, fmt.Errorf("%s: %w", doc.Path, err)
+			}
+		}
+	}
+	return needed, nil
 }

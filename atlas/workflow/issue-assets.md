@@ -41,7 +41,8 @@ content with the same extension is idempotent. A slug change does not alter asse
 paths. Custom roots use the same vocabulary archive layout as issue documents.
 Code examples and fenced links do not select assets; foreign issue IDs, encoded
 alternate destinations and traversal refuse. Unlinked files are reported rather
-than silently published.
+than silently published. Missing asset links are rejected even when no asset
+folder has existed, including imported/new issue bodies and legacy publication.
 
 The limits are **1 MiB per file, 8 MiB per issue, and 32 files per issue**. Files
 are never compressed or truncated automatically. These are live-bundle limits:
@@ -57,7 +58,10 @@ refuse converting attributes (`text`, `filter`, `eol`, `working-tree-encoding`,
 -working-tree-encoding !eol` clears those conversions. Exact publication writes
 also retain the original bytes. Lifecycle checkouts validate both source and
 destination materialization paths before switching or merging, then compare
-materialized evidence with its pinned Git bytes.
+materialized evidence with its pinned Git bytes before any local commit.
+Post-merge cleanup fetches and pins main, then fast-forwards the resting checkout;
+a diverged resting branch refuses with recovery steps rather than creating a
+local merge of evidence.
 
 ## Repository policy and source privacy
 
@@ -78,7 +82,8 @@ the operator repairs it. With no policy file, the effective publication host's
 repository visibility supplies the default: private allows attachments; public
 or unknown is text-only. An unsupported host, offline query or unresolved
 identity is unknown. Visibility queries have a five-second bound and no persistent
-cache. Issue help reports the effective policy and its source; help outside a
+cache. Authorization queries retain the complete destination URL; ambient
+`GH_HOST` cannot select another host with the same owner/repository name. Issue help reports the effective policy and its source; help outside a
 repository explains that policy was not resolved.
 
 Text-only refuses **all file attachments**, so changing a MIME type or extension
@@ -141,7 +146,8 @@ go test ./cmd/sdlc -run '^TestLiveAssetVisibilityConformance$' -count=1 -v
 
 Supply the absolute installed `gh` path on your machine and an accessible
 repository with its known `PUBLIC`, `PRIVATE` or `INTERNAL` visibility. The test
-calls the production adapter with a five-second deadline and existing credentials;
+calls the production adapter with a five-second deadline, existing credentials
+and an intentionally conflicting `GH_HOST` to prove explicit-host routing;
 it writes no repository policy. Opted-in missing prerequisites or host failures
 fail the test. It may also run periodically in credentials-enabled CI; ordinary
 suite runs skip it and remain deterministic.

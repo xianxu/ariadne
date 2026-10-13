@@ -249,6 +249,19 @@ a different repository's visibility after hostname stripping; BR-6 demonstrates
 legacy body-only missing-asset links bypassing validation. All three were
 reproduced by reviewer overlays. Correction plan appended; acceptance reopened.
 
+- Round 2 targeted evidence: explicit-host visibility regressions passed (3.503s),
+  and the real read-only GitHub query passed with conflicting GH_HOST (0.37s).
+  Body-index/creation tests passed in cmd/sdlc (21.374s) and tracker (10.734s).
+  Tracker reconciliation conversion/content-name regressions reproduced RED,
+  then passed with existing reconcile tests (14.473s). Planning/handoff hook,
+  conversion and retry tests passed (62.955s); branch/worktree tests passed
+  (5.727s), and the context-threading guard passed (0.289s). Full acceptance
+  awaits integration of newly landed main paths. The restore/reopen/archive and
+  retry regression sweep passed (137.475s); after tightening duplicate cleanup
+  to the bounded reader, the reopen pair passed again (68.677s). Reopen now
+  keeps every pending merge uncommitted until indexed bundles validate, with
+  byte-proven duplicate cleanup before the archive becomes the sole index.
+
 ## Revisions
 
 - 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue
