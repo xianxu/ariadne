@@ -1,12 +1,20 @@
 ---
 id: 000235
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-18
-updated: 2026-09-18
+updated: 2026-10-12
 estimate_hours:
-card_mirror: 'ed6cedf4f7d752eac4a68c0afb184c873054644f' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f3237cefa2a733495e8ec9841c500d8cc311b64d' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T17:21:51-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:2
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Durable-plan lookup is exact-name: a plan under another slug is invisible
@@ -59,6 +67,25 @@ than write a third lookup (ARCH-DRY).
   plan-quality.
 
 ## Plan
+
+Design: `planArtifactPath(plansDir, name)` (`cmd/sdlc/changecode.go`) is already
+the one path every reader goes through (#189). It becomes the id lookup and
+returns `(path, error)`. Its IO is a glob of `plansDir` with the family pattern
+`familyFiles` uses, now one shared `familyPattern(id)` (ARCH-DRY). The plan
+classification is `classifyFamily`'s `-plan.md` rule, so sidecars are excluded
+by the same rule `sdlc resolve` uses. The decision is a pure
+`pickPlanArtifact(canonical, plans)` (ARCH-PURE): none gives the canonical path,
+which readers treat as absent; one gives that plan; two or more refuse, naming
+them. Readers to route (the full enumeration, ARCH-PURPOSE):
+change-code's plan read and its design checkpoint, `recordChangeCodeFlow`,
+close's quick-flow measure (`readOptionalPlanFile`), `judge plan-quality
+--dry-run`, and the review manifest plus close review snapshot
+(`reviewPlanPaths`, which globs under the repository root). The off-slug note is
+printed where the plan is first read: change-code step 2 and `judge plan-quality`.
+
+ARCH-MOCK/CONSTRAINTS/SECURE/ORDER: N/A. This is a local directory glob with no
+external dependency, a few files per issue, and no state held between events.
+ARCH-FUNERAL: N/A, since it creates nothing durable.
 
 - [ ] One id-based plan lookup; route change-code's plan read and the review
       manifest through it
