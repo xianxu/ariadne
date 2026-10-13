@@ -39,6 +39,7 @@ func TestJudgeCheckout(t *testing.T) {
 		{"dirty", with(func(r *TreeRow) { r.Facts.DirtyCount = n(3) }), VerdictNeedsRecovery, "dirty"},
 		{"operation", with(func(r *TreeRow) { r.Facts.Operation = "rebase-merge" }), VerdictNeedsRecovery, "operation:rebase-merge"},
 		{"detached", with(func(r *TreeRow) { r.Branch, r.Detached = "", true }), VerdictNeedsRecovery, "detached"},
+		{"staged (#344)", with(func(r *TreeRow) { r.Branch, r.Detached, r.Staged = "", true, true }), VerdictHoldsWork, "staged"},
 		{"dirty and unlanded", with(func(r *TreeRow) { r.Facts.DirtyCount = n(1); r.Branch = "topic"; r.Facts.Ahead = n(1) }), VerdictNeedsRecovery, "dirty"},
 		{"facts unavailable", with(func(r *TreeRow) { r.Facts = MeasuredFacts{Error: "status failed"} }), VerdictUnknown, "probe:facts"},
 		{"base unavailable", with(func(r *TreeRow) {

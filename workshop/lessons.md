@@ -58,6 +58,16 @@ Detailed incidents remain in their owning issue or review artifact.
 - Do not `filepath.Glob` a path joined from a directory you did not write: `[`, `*`
   and `?` in the repository path become wildcards and a present file reads as
   absent. List the directory and match the base name (#235).
+- A step that reruns to converge must not lease on local evidence of remote
+  state another flow may have changed since: a remote-tracking ref kept for a
+  branch the landing deleted made every rerun's leased push refuse (#305 BR-1).
+  Refresh the evidence from the remote first, and decide every refusal before
+  the first mutation (switching branches included, BR-3). When a needed
+  mutation (a fast-forward) must come first, every refusal after it names it,
+  through one helper, and checks that do not need it move above it (BR-6).
+  Check a restore's postcondition before publishing or reporting success, and
+  make it test the step's effect, which the wrong starting state cannot
+  already satisfy: a landed branch has the live details too (BR-5, BR-7).
 - A guard must fail closed on malformed, unknown, unsupported, and ambiguous input.
   A catalogued flag may waive only the refusal named by that catalog entry.
 - Scope a guard's failure to the input it actually reads. A fail-closed check that
@@ -524,3 +534,9 @@ The simplest durable authority beats a clever scan of consequences.
 - A handoff against a file someone else keeps editing (an ops project's Log)
   goes stale as a saved patch within hours. Hand off the regeneration script
   and keep the patch only as a preview (#329 D10).
+- Every claim a durable contract makes needs a test that proves it: each
+  half of an OR rule, each recovery-catalog field, each ticked plan box. In
+  #344 the ref-containment half of `Leavable` (the half the crash recovery
+  relied on) could be mutated to false with every test still green, and two
+  review rounds found unproven claims in the same family. Before closing,
+  mutate each branch of a new rule once and list the test that fails.

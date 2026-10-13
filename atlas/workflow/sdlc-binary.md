@@ -353,7 +353,9 @@ tracker through the fleet primary with the same publication identity
 (pure, `slots.go`) judges each member from its facts — including the operation
 in progress, read from the worktree's git directory with no git process
 (`workspace.ActiveOperation`) — and its recorded issue-lookup outcome and
-claims; `AssembleSlots` folds the worst. The inventory JSON is versioned
+claims; `AssembleSlots` folds the worst. A detached member needs recovery
+unless it is staged (#344): `TreeRow.Staged`, set when HEAD equals the
+worktree's `sdlc stage` record (`fleet.StagedCommit`), is the hold `staged`. The inventory JSON is versioned
 (`schema_version` 1). Measured here: 6.3s with 39 slots (+0.4s over #290).
 
 Tracker reads are the inventory's network cost (#290). `repoRecords` is a
