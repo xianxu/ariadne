@@ -48,7 +48,7 @@ Durable plan: `workshop/plans/000345-sdlc-merge-a-recorded-local-run-substitutes
 - [x] Wire into `runCIGate` for both merge paths (inline run, re-read, head pin)
 - [x] `sdlc local-check run` verb
 - [x] Atlas + help
-- [ ] Verify, file the pair declaration issue unassigned, close, merge
+- [x] Verify, file the pair declaration issue unassigned, close, merge
 
 ## Log
 
@@ -63,6 +63,8 @@ Durable plan: `workshop/plans/000345-sdlc-merge-a-recorded-local-run-substitutes
 - Built (2026-10-13): `localchecks.go` (pure: strict parse, runnerless, records), `localcheck_run.go` (shell: detached worktree, suite lock via `Makefile.workflow`'s helper, log, status), `runCIGate` reads main's declaration and runs a missing check inline, then re-reads (ARCH-ORDER: a push during the run or an unrecorded pass refuses), `sdlc local-check run`. ARCH-DRY: reused `abbrevSHA` and `stubGH`; the status-context check derives from the name regex. ARCH-MOCK: `ciFakeGH` models GitHub's status rollup; `TestLiveJobRunConformance` passed live against pair jobs 115490631095 (runnerless) and 115497743342 (ran).
 - The plan's live `PostStatus` self-test is dropped as redundant: that `gh pr checks` lists commit statuses by context is already load-bearing and live for `local-gates-guard/verdict` (#309), so posting a junk status on this PR would prove nothing new.
 - A background merge/landing run reported all PASS but tripped the hermeticity guard, because I committed in this tree while it ran (HEAD 8477263c → 46bcbfb2, my own commit). Not a leaking test.
+- Full `make test` on 40debd85: all 12 cmd/sdlc shards green (1116 tests); one failure, `internal/fleet TestHangingRemoteDegradesOnlyItsRepository` (3.6s git deadline under load ~150), passed 5/5 in isolation, and the branch does not touch that package.
+- Filed pair#534 unclaimed (from pair:0, deps ariadne#345): declare `couch-zellij-conformance / conformance` → `make -f Makefile.local test-couch-zellij-live test-native-terminal-ci` in `.sdlc/local-checks.json`, plus the AGENTS.local/README lines; it needs the operator's `local-gates-verified` label.
 
 ## Revisions
 
