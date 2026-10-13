@@ -63,6 +63,10 @@ func TestStageKeepsTheBranchAndReplaces(t *testing.T) {
 	if got := strings.TrimSpace(testfix.Capture(t, roots[1], "branch", "--show-current")); got != "000001-procedure" {
 		t.Fatalf("the slot lost its branch: %q", got)
 	}
+	if out, err = runStageTest(t, roots[1], ":0", false); err != nil || !strings.Contains(out, "already staged on") {
+		t.Fatalf("a repeat at the same HEAD: %v\n%s", err, out)
+	}
+	assertStaged(t, roots[0], selected)
 	// The slot amends: the staged commit is now in no branch, but sdlc staged
 	// it, so staging again replaces it.
 	procedureWrite(t, roots[1], "feature", "amended\n")
@@ -183,4 +187,36 @@ func TestStageBuildReportsRevisions(t *testing.T) {
 		t.Fatalf("a failed build was not reported: %v\n%s", err, out)
 	}
 	assertStaged(t, roots[0], selected)
+}
+
+// #344 (BR-1): a target detached at a commit a ref contains, with no staged
+// record (a crash before the record, or a hand detach), loses nothing when
+// left: stage, --clear and move all accept it.
+func TestStageAcceptsADetachARefKeeps(t *testing.T) {
+	for _, verb := range []string{"stage", "clear", "move"} {
+		t.Run(verb, func(t *testing.T) {
+			roots, selected := moveFixture(t)
+			testfix.Git(t, roots[0], "switch", "-q", "--detach", "main")
+			if got := fleet.StagedCommit(execGitRunner{}, roots[0]); got != "" {
+				t.Fatalf("fixture has a record %q", got)
+			}
+			var out string
+			var err error
+			switch verb {
+			case "stage":
+				if out, err = runStageTest(t, roots[1], ":0", false); err == nil {
+					assertStaged(t, roots[0], selected)
+				}
+			case "clear":
+				if out, err = runUnstageTest(t, roots[1], ":0"); err == nil && strings.TrimSpace(testfix.Capture(t, roots[0], "branch", "--show-current")) != "main" {
+					t.Fatal("--clear did not return :0 to main")
+				}
+			case "move":
+				out, err = runMoveTest(t, roots[1], ":0", false)
+			}
+			if err != nil {
+				t.Fatalf("%s refused a ref-contained detach: %v\n%s", verb, err, out)
+			}
+		})
+	}
 }

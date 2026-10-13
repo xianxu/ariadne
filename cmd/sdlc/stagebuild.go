@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime/debug"
 	"sort"
+	"strings"
 )
 
 // readBuildInfo reads a binary's embedded build info; a variable so tests fake
@@ -34,7 +35,10 @@ func stageBuild(ctx context.Context, root, commit string, stdout, stderr io.Writ
 		}
 		info, err := readBuildInfo(bin)
 		if err != nil {
-			continue // not a Go binary
+			if !notGoBinary(err) {
+				cwarn(stderr, fmt.Sprintf("%s: build info unreadable: %v", filepath.Base(bin), err))
+			}
+			continue
 		}
 		built++
 		rev, modified := buildRevision(info)
@@ -62,6 +66,13 @@ func buildRevision(info *debug.BuildInfo) (rev string, modified bool) {
 		}
 	}
 	return rev, modified
+}
+
+// notGoBinary reports buildinfo's two "not ours" answers (a script, a non-Go
+// executable), which the bin/ scan skips; any other read failure is reported.
+func notGoBinary(err error) bool {
+	msg := err.Error()
+	return strings.Contains(msg, "not a Go executable") || strings.Contains(msg, "unrecognized file format")
 }
 
 func orNone(s string) string {

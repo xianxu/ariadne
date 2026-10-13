@@ -56,7 +56,7 @@ func renderInventory(w io.Writer, inventory Inventory) error {
 		if row.Detached {
 			state = "detached"
 			if row.Staged {
-				state += "\tstaged"
+				state += "\tstaged=true"
 			}
 		}
 		if row.Bare {

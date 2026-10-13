@@ -71,7 +71,7 @@ Durable plan: `workshop/plans/000344-sdlc-stage-0-put-a-slot-s-branch-head-on-0-
 - [x] Pure rules: `checkStage`, `checkUnstage`, `moveSide.Leavable`, and move accepting a staged target.
 - [x] `sdlc stage [:N]` and `--clear`: observe, switch detached, verify, record; move clears the record.
 - [x] `--build`: `make build` in the target, `bin/*` `vcs.revision` against the staged commit.
-- [x] Docs: stage/move help, the atlas, and the xx-tl change sent to the hub (it lives in ops).
+- [x] Docs: the stage/move help and the atlas. The xx-tl change lives in ops, so the hub gets it in the landing report.
 
 ## Log
 
@@ -95,3 +95,10 @@ Durable plan: `workshop/plans/000344-sdlc-stage-0-put-a-slot-s-branch-head-on-0-
   workers must not edit. Its manual detached procedure (fetch, then
   `checkout --detach FETCH_HEAD`, then `checkout main`) is to become
   `sdlc stage [--build]` / `sdlc stage --clear`; the hub is told at landing.
+- Close review round 1 (FIX-THEN-SHIP). BR-1: the ref-containment half of
+  `Leavable` had no test; `TestStageAcceptsADetachARefKeeps` now covers stage,
+  --clear and move. All four Minors are fixed:
+  - fleet render `staged=true`;
+  - a repeat-stage test;
+  - an unreadable build info is reported, and only "not Go" is skipped;
+  - the plan boxes are ticked, and the xx-tl wording is accurate.

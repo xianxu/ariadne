@@ -69,8 +69,8 @@ Real-git tests run on temp fleets (`procedureFixture`), with no network and no r
 
 ## Tasks
 
-- [ ] **1. Pure rules.** `stageplan.go`: `stageFacts`, `checkStage` and `checkUnstage`. `moveSide.Leavable`, and `checkMove` accepting a leavable detached target. `stageplan_test.go` gets one row per refusal and per acceptance; `moveplan_test.go` gets a staged target accepted and an unreferenced detached target refused.
-- [ ] **2. Observe and switch.**
+- [x] **1. Pure rules.** `stageplan.go`: `stageFacts`, `checkStage` and `checkUnstage`. `moveSide.Leavable`, and `checkMove` accepting a leavable detached target. `stageplan_test.go` gets one row per refusal and per acceptance; `moveplan_test.go` gets a staged target accepted and an unreferenced detached target refused.
+- [x] **2. Observe and switch.**
   - `observeMoveSide` sets `Leavable` (for-each-ref `--contains`, or the record).
   - `stage.go`:
     - observe, `checkStage`, re-observe and compare, `git switch --detach`, verify;
@@ -80,8 +80,8 @@ Real-git tests run on temp fleets (`procedureFixture`), with no network and no r
   - `move` removes the target's record after a verified move.
   - Test strategy: a table test over target states (resting, dirty, mid-operation, other branch, detached at a ref-contained commit, detached at the recorded commit, detached and unreferenced) crossed with the verbs (stage, clear, move). Each row asserts the acceptance or the refusal, and that a refused run changed nothing (HEAD, branch, record). Plus one real-git flow: stage, the slot commits and re-stages (replacement printed), the slot keeps its branch, and then `--clear`.
   - Fleet: inventory sets `Staged`; a `JudgeCheckout` row test covers a staged checkout as hold `staged` and a plain detached one as recovery.
-- [ ] **3. Build.** `stagebuild.go`: `make build` in the target (output to stderr; a failure leaves the stage and reports it), then the `bin/*` revisions. A mismatch or `vcs.modified` warns. Tests: a fake Makefile writes `bin/tool`, a faked reader returns the staged commit (matches) or another one (warns), and a failing build reports and keeps the stage.
-- [ ] **4. Docs.**
+- [x] **3. Build.** `stagebuild.go`: `make build` in the target (output to stderr; a failure leaves the stage and reports it), then the `bin/*` revisions. A mismatch or `vcs.modified` warns. Tests: a fake Makefile writes `bin/tool`, a faked reader returns the staged commit (matches) or another one (warns), and a failing build reports and keeps the stage.
+- [x] **4. Docs.**
   - `helptext/stage.md`, and a pointer from `helptext/move.md`.
   - atlas `workspace-branching.md`: a "Stage this branch on :0" section; "Move this branch to :N" drops the smoke-test framing.
   - `sdlc-binary.md` verb list.
