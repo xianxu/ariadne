@@ -60,7 +60,8 @@ reinterpret the existing migrate command as supporting issues.
 - Attach obeys existing issue ownership, mirror validation, and repository lock.
   Reject foreign issue IDs, traversal, symlinked sources/destinations/ancestors,
   nonregular files, missing linked assets, ambiguous links and destination clashes.
-  A refusal leaves body, files, index, and refs unchanged.
+  A preflight refusal leaves body, files, index, and refs unchanged. IO failure
+  after an effect reports its retained state and recovery action as specified below.
 - Every refusal names the specific blocked input and the action that clears it:
   ask the operator to change the named policy file, remove an asset to fit a
   budget, reconcile an unlinked file, repair a missing link target, or rerun the
@@ -112,16 +113,43 @@ ARCH-SECURE: parse files/host responses as untrusted; no agent policy edits. Rea
 and validate all inputs before effects, recheck expected body and ownership under
 lock; compare bytes rather than assume a file stayed unchanged after stat.
 
-ARCH-ORDER: attach's pure transition owns the progression from validated snapshot
-to installed immutable bytes to linked body. An interruption after bytes-install
-leaves a recognizable content-named file; retry validates it and finishes the
-body link, never duplicates a link or overwrites changed prose. Write temporary
-files beside destinations, rename atomically, and remove temporary files on
-ordinary failure. On a hard kill, bounded owned temporary names are reconciled
-on the next attachment; unknown files refuse for inspection, never auto-delete.
-Publish/archive use existing atomic Git commits: unknown push outcome is probed
-against the whole bundle, not body equality. Later changes make stale operations
-refuse. No background work survives command return.
+ARCH-ORDER: `NextAttach(state,event)` is the pure transition authority. States
+are Prepared, InstalledNew, InstalledExisting, Linked, RolledBack, and Retained;
+effects are InstallNoReplace, CompareBodyAndLink, RemoveOwnedBytes, and Report.
+The shell may not advance state directly. Prepared is constructed only after all
+policy/ownership/path/budget checks and records expected body bytes, source digest,
+exact destination, and whether matching destination bytes already existed.
+
+| State + event | Next state and effect |
+|---|---|
+| Prepared + install succeeds newly | InstalledNew; compare expected body and link |
+| Prepared + matching file already exists | InstalledExisting; compare expected body and link |
+| Prepared + install fails | RolledBack; report IO failure, no destination deletion |
+| InstalledNew + body link succeeds | Linked; finish |
+| InstalledExisting + body link succeeds | Linked; finish |
+| InstalledNew + body link fails | request removal only if exact installed bytes remain and current body does not reference them |
+| InstalledExisting + body link fails | Retained; never delete pre-existing bytes |
+| removal confirmed | RolledBack; report failure and rerun action |
+| removal refused/failed/unconfirmed | Retained; report exact path and reconciliation action |
+| Linked + retry | Linked; no duplicate link or byte mutation |
+
+No journal is needed: a restarted request revalidates the current policy, owner,
+body, source digest and destination. An otherwise-unlinked file is adoptable only
+when its canonical content name and bytes exactly equal THIS request's validated
+source; that is sufficient to finish this requested attachment, not authority to
+delete it. Every other unlinked file refuses, naming the path to reconcile. After
+restart, adopted bytes count as pre-existing. A changed body is never overwritten;
+the caller reruns to prepare from its new contents. Ordinary rollback never
+removes bytes another writer linked or modified. A failed body rename that cannot
+be confirmed is reconciled by rereading exact body and destination bytes before
+any cleanup. Tests inject these outcome events through the production transition.
+
+Use atomic no-replace install and atomic body replacement under the repo lock.
+Temporary names are bounded, same-directory staging; ordinary exits remove owned
+temporaries. A hard-kill leftover has no persisted proof of ownership: report its
+exact path for explicit removal before retry, never silently collect arbitrary
+files. No background task survives return. Publish/archive reuse existing atomic
+Git commits and whole-bundle retry proofs; a lost response is not failure evidence.
 
 ARCH-FUNERAL: attach creates bytes, issue readers are last consumers, lifecycle
 archive/restore moves the bundle. Removing a body link removes the current-tree
@@ -131,44 +159,59 @@ The 8 MiB live issue budget is not a total-history bound: replacement accumulate
 history; document that cost and refuse oversized writes. Temporary files end at
 success/failure/reconciliation. No attachment ledger or second persistent index.
 
+## Function-level test strategy
+
+| Function | Strategy and mechanical guard |
+|---|---|
+| `ParsePolicy`, `ResolvePolicy` | Fuzz malformed config/host data and use stateful visibility responses; only typed explicit permission admits bytes and every refusal carries a remedy. |
+| `ParseRefs` | Fuzz Markdown and path encodings with parser seeds; destinations must be actual links within the exact issue prefix, never code examples or traversals. |
+| `BuildBundle`, `BundleDelta` | Property tests over bounded byte maps; output links resolve exactly, unreferenced members never publish, budgets and immutable names hold. |
+| `NextAttach` | Reproducible generated event sequences and injected IO failures; no pre-existing/changed bytes deleted, no stale body overwritten, same-request retries converge. |
+| `republishDecision` / bundle decision | Property tests over local/base/main snapshots; conflict detection covers byte-only change and retry equality covers the whole bundle. |
+| `planLandingArchive`, `confirmLandingArchive` | Generated complete/incomplete bundle snapshots; only an exact archived generation proves completion. |
+| `FilesSelected` (gitx) | Aggregate-volume regression with >32 MiB of unselected asset blobs; filtering must precede content reads and existing limits remain unchanged. |
+| attach/publish/archive/restore production commands | Temporary bare remotes plus injected failures at transaction seams; snapshot files/index/refs before refusal and verify exact content after recovery. |
+
 ## Task 1 — Policy, bundle and attachment
 
 Files: new issueassets core files and colocated tests; new `issueassets.go`,
 `issueattach.go`, `assetpolicy.go` and tests; modify `issue.go`, `ghclient.go`,
 `fetch_test.go` (shared fake), `main.go` only if needed for dynamic help.
 
-- [ ] Write table tests for strict policies; public/private/unknown/error visibility;
-  fenced/example links, ordinary/image/reference-style destinations, duplicate
-  links, traversal, wrong IDs, symlinks, caps and exact cap boundaries.
-- [ ] Run `go test ./cmd/sdlc/internal/issueassets -count=1` and demonstrate RED.
-- [ ] Implement typed pure policy, bundle parsing, path mapping and attach transition.
-- [ ] Add CLI tests proving policy refusal happens before any source copy; renamed
-  images still refuse under text-only; malformed config never falls back to allowed;
-  ownership/refusal leaves all files/refs/index unchanged.
-- [ ] Test permitted image and nonimage attach, identical retry, body race, injected
-  failures before/after install and before body rename, missing bytes and collisions.
-- [ ] Implement the thin IO/CLI adapters and dynamic help using one policy resolver.
-- [ ] Run targeted core and `go test ./cmd/sdlc -run 'Test(Asset|IssueAttach)' -count=1`.
-- [ ] Commit implementation and update this plan with actual file/entity names.
+- [ ] Write failing tests for the named policy, parser, bundle and attach functions
+  using the function-level strategies above; run and verify RED.
+- [ ] Implement typed pure policy, bundle parsing, path mapping and `NextAttach`.
+- [ ] Write failing production-command tests and implement thin IO/CLI adapters,
+  including policy help through the same resolver and actionable refusals.
+- [ ] Run `go test ./cmd/sdlc/internal/issueassets -count=1` and
+  `go test ./cmd/sdlc -run 'Test(Asset|IssueAttach)' -count=1`; expect PASS.
+- [ ] Commit and reconcile this plan's entity/file names with the implementation.
 
-## Task 2 — Publication, recovery and ownership
+## Task 2 — Publication, recovery, ownership and discovery
 
 Files: `republish.go`, `issuemovedetail.go`, `internal/tracker/detailpublish.go`,
-`issuepublish.go`, `issuerestore.go`, `transferguard.go`, `transferverdict.go`;
-their existing tests plus focused bundle integration tests.
+`issuepublish.go`, `issuerestore.go`, `transferguard.go`, `transferverdict.go`,
+`externalmerge.go`, `issuemigrate.go`, `internal/gitx/snapshot.go`;
+existing colocated tests and focused bundle integration tests.
 
-- [ ] Write failing tests for tracker publication (including binary-only changes),
-  legacy commit publication, first-publication recovery, narrow commits and restore.
-- [ ] Add ownership/stale-base tests where body is unchanged and only bytes change.
-  Body and asset admission must not be bypassable through a direct PR/push path.
-- [ ] Extend publication read sets and writes to complete bundles, retaining existing
-  ownership rechecks, filters bypass, receipt proofs and optimistic retry semantics.
-- [ ] Exercise lost-response retry, concurrent source edits, concurrent main edits,
-  untracked assets blocking fast-forward and a later policy tightening. No unrelated
-  files enter the publish commit. Main never receives a body with missing bytes.
-- [ ] Run `go test ./cmd/sdlc -run 'Test(Asset|IssuePublish|MoveDetail|Republish|Transfer|IssueRestore)' -count=1`
-  and `go test ./cmd/sdlc/internal/tracker -run 'Test.*Detail' -count=1`.
-- [ ] Commit the publication integration.
+The reader sweep found four `TrunkView.Files` consumers: issue discovery in
+`finishLandedLeftovers` and `migrationInventory` must select direct Markdown
+children before reading blobs; `archiveIssueOnMain` reads plans only and tracker
+`Reader` reads the card branch only, so neither ingests issue assets. Add
+`FilesSelected(prefix, predicate)` to gitx and derive `Files` from it; filter the
+metadata list before batch cat-file. Preserve 1 MiB/32 MiB reader limits.
+Audit raw subtree readers too; issue discovery reads documents, asset operations
+read the explicitly indexed bounded bundle, never a fleet-wide byte inventory.
+
+- [ ] Write RED tests for the publication/ownership strategies and aggregate reader
+  strategy above; include legacy publication and first-publication recovery adapters.
+- [ ] Implement selected metadata-first reads and shared bundle publication read sets,
+  exact writes/deletes, ownership rechecks and whole-bundle reconciliation.
+- [ ] Extend restore and resting-branch reconciliation to the same bundle generation;
+  preserve untracked/concurrent user edits rather than overwriting them.
+- [ ] Run `go test ./cmd/sdlc -run 'Test(Asset|IssuePublish|MoveDetail|Republish|Transfer|IssueRestore|Migration|FinishLanded)' -count=1`
+  and `go test ./cmd/sdlc/internal/gitx ./cmd/sdlc/internal/tracker -run 'Test.*(Detail|FilesSelected|Snapshot)' -count=1`; expect PASS.
+- [ ] Commit the publication/discovery integration.
 
 ## Task 3 — Lifecycle sweep
 
@@ -176,15 +219,13 @@ Files: `landingarchive.go`, `archivemain.go`, `abandon.go`, `push.go`, `merge.go
 shared archive helpers as identified during implementation; `landingarchive_test.go`,
 `archiveartifacts_test.go`, `abandon_test.go`, `migrate_test.go`, slot move tests.
 
-- [ ] Write failures for archive bytes/path preservation, configured roots, duplicate
-  names across issues, missing member, changed member, incomplete archive proof,
-  collision, and interrupted legacy archive recovery.
+- [ ] Write RED tests using archive generation and transaction strategies above.
 - [ ] Extend pinned archive snapshots/proofs and exact writes/deletes with bundles.
-- [ ] Prove abandon uses kept-branch assets absent from main, restore/reopen preserves
-  exact generation, and retries refuse new conflicts rather than losing evidence.
+  Abandon reads its final assets from the kept branch; restore/reopen uses the
+  same generation. Legacy prepared moves include asset members in recovery.
 - [ ] Prove slug rename and slot move preserve links/bytes without a special copy
-  path. Preserve and test cross-repo issue migrate refusal before any mutation.
-- [ ] Run `go test ./cmd/sdlc -run 'Test.*(Asset|Archive|Abandon|Restore|Move|Migrate)' -count=1`.
+  path. Preserve cross-repo issue migrate refusal before any mutation.
+- [ ] Run `go test ./cmd/sdlc -run 'Test.*(Asset|Archive|Abandon|Restore|Move|Migrate)' -count=1`; expect PASS.
 - [ ] Commit the lifecycle integration.
 
 ## Task 4 — Documentation and acceptance
@@ -213,3 +254,7 @@ Files: `cmd/sdlc/helptext/issue.md`, relevant publish/migrate/recovery help,
   intra-repo lifecycle includes abandonment and legacy paths to avoid losing bytes.
 - 2026-10-13T20:09Z — Hub approved the draft and limits; added the operator's
   requirement that every refusal name its clearing action. No scope change.
+- 2026-10-13T20:12Z — Plan-quality PQ-1/PQ-2/PQ-3: added metadata-first issue
+  discovery with aggregate-volume verification, explicit NextAttach transitions
+  and ownership-aware rollback/restart, and named function-level adversarial test
+  strategies in place of prose case inventories. These refine the approved scope.

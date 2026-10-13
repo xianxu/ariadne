@@ -508,3 +508,10 @@ The simplest durable authority beats a clever scan of consequences.
 - A handoff against a file someone else keeps editing (an ops project's Log)
   goes stale as a saved patch within hours. Hand off the regeneration script
   and keep the patch only as a preview (#329 D10).
+
+- Adding binary sidecars under a document root changes existing subtree-reader
+  workload even if the document parser ignores them. Select document metadata
+  before loading blobs; per-attachment limits do not bound aggregate reads (#337 PQ-1).
+- Multi-file writes need an explicit distinction between unchanged preflight
+  refusal and recoverable post-effect failure. Rollback may remove only bytes
+  this attempt owns, while restart must re-establish evidence (#337 PQ-2).
