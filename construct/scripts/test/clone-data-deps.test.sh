@@ -10,7 +10,8 @@ set -uo pipefail
 ARIADNE_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd -P)"
 CLONE_DD="$ARIADNE_ROOT/construct/scripts/clone-data-deps.sh"
 
-ROOT="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/clonedd.XXXXXX")" && pwd -P)"
+ROOT="$(mktemp -d "${TMPDIR:-/tmp}/clonedd.XXXXXX")" || exit 1
+ROOT="$(cd "${ROOT:?}" && pwd -P)" || exit 1
 trap 'rm -rf "$ROOT"' EXIT
 
 pass=0; fail=0

@@ -38,18 +38,18 @@ Fix it where agents and scripts learn and run:
 
 ## Plan
 
-- [ ] AGENTS rule in `AGENTS.base.md` §10 (the shared base weave composes into every
+- [x] AGENTS rule in `AGENTS.base.md` §10 (the shared base weave composes into every
   repo's AGENTS/CLAUDE files): temp dirs via `mktemp -d "${TMPDIR:-/tmp}/name.XXXXXX"`;
   never `cd`/write into a path from a possibly-empty variable (`"${d:?}"`, `|| exit 1`).
-- [ ] Pure scanner `pkg/shelllint` (`MktempFindings(src) []Finding`), unit-tested on
+- [x] Pure scanner `pkg/shelllint` (`MktempFindings(src) []Finding`), unit-tested on
   the failing forms: no template, `-t prefix`, a literal `/tmp/...XXX` template, a
   Makefile `$$(mktemp -d)`, and `cd` into a `$(mktemp ...)` substitution (bash's
   `cd ""` succeeds and stays put). Comments and quoted text are not code.
-- [ ] Repo test over tracked shell scripts (`.sh`, Makefiles/`.mk`, shell shebangs;
+- [x] Repo test over tracked shell scripts (`.sh`, Makefiles/`.mk`, shell shebangs;
   `workshop/` excluded) that fails on any finding. One exemption,
   `scripts/parallel-checks.sh` (a local-gates path; #351 fixes it with the operator's
   verification); the test fails if an exemption no longer has a finding.
-- [ ] Sweep: `.colima/test/colima.test.sh`, `.openshell/overlay/setup.sh` (3),
+- [x] Sweep: `.colima/test/colima.test.sh`, `.openshell/overlay/setup.sh` (3),
   `Makefile.workflow` drift check (2), `scripts/docflow.test.sh`,
   `construct/scripts/test/clone-data-deps.test.sh` (cd into mktemp), and the
   session-retro skill's `/tmp` template.
@@ -71,3 +71,19 @@ has a template but `cd`s into the substitution: a failed mktemp leaves ROOT = cw
 reproduction of #339 inside a Go string; Go files are not scanned. The check is a Go test
 because `make test` runs only Go and CI's merge-check runs the local gates, which this
 issue must not touch.
+
+### 2026-10-13 — implemented (ariadne:3)
+
+`pkg/shelllint.MktempFindings` (pure, table-tested on every failing form and the
+look-alikes: comments, words in strings, `$mktemp`, identifiers) and
+`TestTrackedScriptsMakeTempDirsFromTMPDIR` over tracked `.sh`/`.bash`/`.zsh`/`.mk`,
+Makefiles and shell shebangs. Before the sweep it reported exactly the eight surveyed
+sites and nothing else. Proofs: an appended `probe=$(mktemp -d)` fails it; fixing the
+exempted `scripts/parallel-checks.sh` locally (reverted, never committed) fails it with
+"remove the exemption". Swept scripts run: `colima.test.sh` passes (the original fails in
+this sandbox with `mkdtemp failed on /var/folders/…: Operation not permitted`, the issue's
+error), `docflow.test.sh` ALL PASS, `clone-data-deps.test.sh` 9/9, `make
+weave-drift-check` OK, `setup.sh` (OpenShell container) `bash -n` only. The rule is in
+`AGENTS.base.md` §10 and `weave compile` composes it into AGENTS.md/CLAUDE.md (the compile
+then hit the sandbox's denial of `.claude/settings.json`, a protected path, unrelated).
+Atlas: sandbox.md *Temp dirs*.

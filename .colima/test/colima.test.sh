@@ -4,7 +4,7 @@
 # each verb builds. No real VM is started.
 set -euo pipefail
 ROOT=$(cd "$(dirname "$0")/../.." && pwd)
-WORK=$(mktemp -d)
+WORK=$(mktemp -d "${TMPDIR:-/tmp}/colima-test.XXXXXX")
 trap 'rm -rf "$WORK"' EXIT
 LOG="$WORK/colima.log"
 

@@ -26,6 +26,18 @@ Why: `excludedCommands` entries use `Bash(...)` rule syntax, and Claude Code mat
 
 **Key distinction**: this is a *policy layer* on the host machine. You're still on the host OS, just with restricted permissions.
 
+### Temp dirs (agent rule, #342)
+
+The sandbox's writable temp space is `$TMPDIR`. On macOS, `mktemp` without a path
+template (`mktemp -d`, `mktemp -t x`) ignores `TMPDIR` and uses the per-user
+`/var/folders/…/T`, which the sandbox denies (`mkdtemp failed … Operation not
+permitted`). A script that then `cd`s into the empty result lands in `$HOME` (or, with
+`cd ""`, stays where it is). The rule is single-sourced in the constitution's §10. In
+ariadne, `pkg/shelllint`'s repository test refuses a template-less `mktemp`, or a `cd`
+into a `$(mktemp …)` substitution, in every tracked shell script and Makefile, with
+named, issue-linked exemptions that fail once stale. Allowing `/var/folders` in the
+sandbox instead would put agent churn back on the journaled Data volume (pair#496).
+
 ## 2. OpenShell Sandbox (`.openshell/`)
 
 A full **containerized development environment** running in Docker via OpenShell. This is a separate Linux machine synced to the repo via mutagen.
