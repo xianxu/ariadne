@@ -299,6 +299,14 @@ reports each with its next action and never writes. `reconcile` and the next
 in a narrow main commit (`archiveIssueOnMain`, shared with abandon), then
 deletes the merged branch on the remote. Squash and rebase merges are not seen.
 
+A codecomplete card with no close binding (migrated from before the tracker)
+whose branch the detector cannot find, because it was renamed or deleted, is
+finished by `reconcile --issue N --landed <commit>` (#311, `repairLanded`). The
+operator names the commit on main that landed the work, such as the PR's merge
+commit. The commit range `C^1..C` must carry a commit whose subject cites `#N:`. The
+pure `doneUnboundCard` moves the card to done, and the sweep above archives the
+details. A bound card is refused, because its own evidence settles it.
+
 ### Abandon and reopen (#286)
 
 `sdlc abandon` (`abandon.go`) ends started work as `wontfix`/`punt` without

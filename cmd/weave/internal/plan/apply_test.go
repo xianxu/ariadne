@@ -784,3 +784,26 @@ func TestMaterializationFailures(t *testing.T) {
 		}
 	}
 }
+
+// #265 item 4: the older indirect include already pulls in the workflow, so
+// adoption leaves the Makefile alone instead of prepending a second include.
+func TestApplySeedOnceRecognizesIndirectWorkflowInclude(t *testing.T) {
+	upstream := t.TempDir()
+	src := filepath.Join(upstream, "Makefile.seed")
+	if err := os.WriteFile(src, []byte("DEFAULT\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, line := range []string{"-include $(WF_WORKFLOW)", "include $(WF_WORKFLOW)", "  -include Makefile.workflow"} {
+		root := t.TempDir()
+		original := "WF_WORKFLOW := $(firstword $(wildcard Makefile.workflow ../ariadne/Makefile.workflow))\n" + line + "\n"
+		if err := os.WriteFile(filepath.Join(root, "Makefile"), []byte(original), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := Apply(weavefs.OSFS{}, root, []Action{SeedOnce{Src: src, Dst: "Makefile"}}); err != nil {
+			t.Fatal(err)
+		}
+		if got, _ := os.ReadFile(filepath.Join(root, "Makefile")); string(got) != original {
+			t.Errorf("%q: Makefile became %q", line, got)
+		}
+	}
+}

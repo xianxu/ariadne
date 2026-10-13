@@ -8,10 +8,12 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"path"
 	"strings"
+	"time"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/gitx"
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/issue"
@@ -300,4 +302,104 @@ func reportUnclosedMerge(ctx context.Context, env *trackerEnv, stderr io.Writer,
 			cwarn(stderr, externalMergeFinding(m).Message)
 		}
 	}
+}
+
+// repairLanded completes a codecomplete card that carries no completion
+// binding (a card migrated from before the tracker) from the commit that
+// landed its work (#311). Nothing else can finish such a card: there is no
+// evidence to settle, and its branch need not match the card's slug (a
+// rename) or still exist. The operator names the commit. It must be on main,
+// and the work it brought in (C^1..C: a merge's side, or the commit itself)
+// must carry a commit whose subject cites the issue, per the commit
+// convention.
+func repairLanded(ctx context.Context, env *trackerEnv, stderr io.Writer, issuesDir, id, commit string) error {
+	if have, err := env.gitTest("rev-parse", "-q", "--verify", commit+"^{commit}"); err != nil {
+		return fmt.Errorf("--landed %s: %w", commit, err)
+	} else if !have {
+		return fmt.Errorf("--landed %s: no such commit here (fetch main first)", commit)
+	}
+	sha, err := env.git("rev-parse", commit+"^{commit}")
+	if err != nil {
+		return err
+	}
+	view, err := env.main.Snapshot()
+	if err != nil {
+		return err
+	}
+	if onMain, err := env.ancestorOf(sha, view.Ref()); err != nil {
+		return err
+	} else if !onMain {
+		return fmt.Errorf("--landed %s is not on main", shortOID(sha))
+	}
+	subjects, err := env.git("log", "--format=%s", sha+"^1.."+sha)
+	if err != nil {
+		return fmt.Errorf("--landed %s: read the work it brought in: %w", shortOID(sha), err)
+	}
+	if !citesIssue(subjects, id) {
+		return fmt.Errorf("--landed %s brought in no work commit citing #%s (a subject starting `#%s:`) — name the commit that landed #%s's work", shortOID(sha), issue.CLIRef(id), issue.CLIRef(id), issue.CLIRef(id))
+	}
+	rs, err := loadIssueRecords(ctx, issuesDir, tracker.Fresh)
+	if err != nil {
+		return err
+	}
+	rec, ok, err := rs.Require(id)
+	if err != nil {
+		return err
+	}
+	if !ok || rec.Card == nil {
+		return fmt.Errorf("#%s has no card on the tracker", issue.CLIRef(id))
+	}
+	today := time.Now().Format("2006-01-02")
+	err = env.repo.ChangeCard(id, rec.Card.Path, "done", operationToken("done"), func(current []byte) ([]byte, error) {
+		return doneUnboundCard(current, today)
+	})
+	invalidateIssueRecords(env.ctx) // the archive sweep that follows must see done
+	if errors.Is(err, tracker.ErrNoChange) {
+		cok(stderr, fmt.Sprintf("#%s is already done", issue.CLIRef(id)))
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("complete #%s: %w", issue.CLIRef(id), err)
+	}
+	cok(stderr, fmt.Sprintf("#%s landed in %s; its card is now done", issue.CLIRef(id), shortOID(sha)))
+	return nil
+}
+
+// citesIssue reports whether any subject line (one per line) is implementation
+// work for issue id under the commit convention (gitx.IsShippedWorkSubject): a
+// range of only filing, claiming or closing commits does not bind.
+func citesIssue(subjects, id string) bool {
+	for _, s := range strings.Split(subjects, "\n") {
+		if gitx.IsShippedWorkSubject(issue.CLIRef(id), s) {
+			return true
+		}
+	}
+	return false
+}
+
+// doneUnboundCard is the pure repair: codecomplete → done for a card with no
+// completion binding. A bound card's close carries its own evidence, and plain
+// reconcile settles it once that is on main; a done card is ErrNoChange.
+func doneUnboundCard(current []byte, today string) ([]byte, error) {
+	fm, _, err := issue.Parse(string(current))
+	if err != nil {
+		return nil, err
+	}
+	switch status, _ := issue.GetField(fm, "status"); status {
+	case "done":
+		return nil, tracker.ErrNoChange
+	case "codecomplete":
+	default:
+		return nil, fmt.Errorf("the card is %s, not codecomplete — --landed completes only a closed card (close it first)", status)
+	}
+	if _, bound, err := issue.CardCompletion(current); err != nil {
+		return nil, err
+	} else if bound {
+		return nil, errors.New("the card carries a close binding; --landed repairs only unbound cards — plain `sdlc issue recovery reconcile` settles a bound close once it is on main")
+	}
+	next, err := issue.SetCardField(current, "updated", today)
+	if err == nil {
+		next, err = issue.SetCardField(next, "status", "done")
+	}
+	return next, err
 }

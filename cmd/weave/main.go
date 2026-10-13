@@ -501,8 +501,8 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 		return fmt.Errorf("select dynamic skills: %w", err)
 	}
 	// Data belongs to each declaring owner, independently of its composed artifacts.
-	for _, owner := range restored.Layers {
-		var mounts []plan.Action
+	data := make([][]plan.Action, len(restored.Layers))
+	for i, owner := range restored.Layers {
 		for _, mount := range restored.Mounts {
 			if mount.Owner != owner {
 				continue
@@ -511,18 +511,14 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 			if err != nil {
 				return err
 			}
-			mounts = append(mounts, plan.Symlink{Src: mount.Source, Dst: dst})
+			data[i] = append(data[i], plan.Symlink{Src: mount.Source, Dst: dst})
 		}
 		if dryRun {
-			fmt.Fprint(out, formatActions(mounts))
-			continue
+			fmt.Fprint(out, formatActions(data[i]))
 		}
-		report, err := plan.ApplyManaged(fs, owner, mounts, plan.ScopeData)
-		if err != nil {
-			return fmt.Errorf("data mounts for %s: %w", owner, err)
-		}
-		printManagedReport(ctx, root, owner, report, out)
 	}
+	// Generators read the layer graph, not data mounts, so they run before any
+	// pass writes; their outputs exist only in the stage until the artifacts pass.
 	var generated []plan.Action
 	if !dryRun {
 		if len(dyns) == 0 {
@@ -567,6 +563,29 @@ func compilePrepared(ctx context.Context, fs weavefs.FS, root string, target pla
 				fmt.Fprintln(out, instruction)
 			}
 		}
+	}
+	// Every pass refuses before any pass writes, so a refused compile leaves
+	// each checkout's outputs, inventory and .gitignore as they were (#265). The
+	// leaf's artifacts are checked against what its data pass leaves.
+	var leafData []plan.Action
+	for i, owner := range restored.Layers {
+		if owner == root {
+			leafData = data[i]
+			continue
+		}
+		if err := plan.CheckManaged(fs, owner, plan.ManagedPass{Actions: data[i], Scope: plan.ScopeData}); err != nil {
+			return fmt.Errorf("data mounts for %s: %w", owner, err)
+		}
+	}
+	if err := plan.CheckManaged(fs, root, plan.ManagedPass{Actions: leafData, Scope: plan.ScopeData}, plan.ManagedPass{Actions: actions, Scope: plan.ScopeArtifacts}); err != nil {
+		return fmt.Errorf("check %s: %w", root, err)
+	}
+	for i, owner := range restored.Layers {
+		report, err := plan.ApplyManaged(fs, owner, data[i], plan.ScopeData)
+		if err != nil {
+			return fmt.Errorf("data mounts for %s: %w", owner, err)
+		}
+		printManagedReport(ctx, root, owner, report, out)
 	}
 	report, err := plan.ApplyManaged(fs, root, actions, plan.ScopeArtifacts)
 	if err != nil {
