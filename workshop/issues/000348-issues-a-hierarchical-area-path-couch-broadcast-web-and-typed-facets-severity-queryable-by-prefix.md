@@ -40,13 +40,13 @@ The operator (2026-10-13) leans to a semi-hierarchical scheme over JIRA-style fl
 
 Durable plan: `workshop/plans/000348-issues-a-hierarchical-area-path-couch-broadcast-web-and-typed-facets-severity-queryable-by-prefix-plan.md` (single pass, one close).
 
-- [ ] Model: `enums`/`repoEnums` sections, area + severity card rows, `#Issue` shape (vocab-embed)
-- [ ] `internal/repoenum`: strict declaration, ancestor rule, segment prefix
-- [ ] Card kinds `enum` / `repo-enum` (shape only in ParseCard)
-- [ ] Loader (`.sdlc/vocabulary.json` at main) + writers: `issue new --area/--severity`, `set-area`, `set-severity`
-- [ ] Gates: #124 instance gate + `issue validate` check membership
-- [ ] `issue list --area <prefix> --severity`; state JSON fields
-- [ ] Help + atlas
+- [x] Model: `enums`/`repoEnums` sections, area + severity card rows, `#Issue` shape (vocab-embed)
+- [x] `internal/repoenum`: strict declaration, ancestor rule, segment prefix
+- [x] Card kinds `enum` / `repo-enum` (shape only in ParseCard)
+- [x] Loader (`.sdlc/vocabulary.json` at main) + writers: `issue new --area/--severity`, `set-area`, `set-severity`
+- [x] Gates: #124 instance gate + `issue validate` check membership
+- [x] `issue list --area <prefix> --severity`; state JSON fields
+- [x] Help + atlas
 - [ ] Verify, close, merge
 
 ## Estimate
@@ -77,6 +77,16 @@ total: 2.11
 - Mapped the plumbing. Card fields come from `issue.cue` `card.fields` (kind + setter) and are validated by `validateCardScalar` (scalar-only; `claimant` is the one structured kind). Details carry `target`/`deps`. sdlc reads the model from the embedded `pkg/vocab/issue.json`, so a repo's own vocabulary layer is invisible to it, and the `vocabulary` binary's layer merge is whole-file shadowing. Precedent for shared-shape/repo-values: `fleet-policy.cue` + `.sdlc/fleet.json` + `internal/fleet/load.go`. `issue list` filters only `--status`; legacy repos have no setters.
 - Draft design sent to the hub: a `repoEnums` model section (area: path syntax, multi) + `.sdlc/vocabulary.json` declaration (declared or ancestor-of-declared allowed); area/severity as CARD fields (new kinds path-list, enum; ParseCard checks shape only); membership validated at `issue new` / `set-area` / `set-severity` against main's declaration and in `issue validate` + the #124 gate; `issue list --area` (segment prefix) / `--severity`. Open questions: declaration location (guarded `.sdlc/` vs `workshop/`), severity values, card vs details.
 - Hub approved (2026-10-13): `.sdlc/vocabulary.json` under the local-gates guard (operator governs the taxonomy), severity critical/high/medium/low, card fields, no starter set. An absent file is the empty declaration, so this change adds no guarded file.
+- Built (2026-10-13), tasks 1–7:
+  - Model: `enums` + `repoEnums` + the `card-enums-declared` law, with vet negatives.
+  - `internal/repoenum`: `FuzzParse` + property tests.
+  - Card kinds: shape-only, plus the scalar-assumption class from R1.
+  - Writers: `issue new` in both modes, `set-area`, `set-severity`, and `issue publish` in both modes.
+  - Gates: the #124 gate reads each issue file once; `issue validate --all` sweeps the cards.
+  - `issue list --area/--severity`, plus `state` JSON.
+  - Help: renders values from the model.
+- Side-quest: `FuzzRepoEnumCardShape` found `ParseCard` panicking (index out of range) on frontmatter holding `\r`/NEL/U+2028/U+2029. YAML counts those as line breaks; the span table splits on `\n` only. Such frontmatter is now refused, and the fuzz seed is kept as a regression test.
+- An absent `.sdlc/vocabulary.json` is the empty declaration, so this change adds no guarded file (ariadne ships no starter set).
 
 ## Revisions
 
