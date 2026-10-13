@@ -1,12 +1,22 @@
 ---
 id: 000282
-status: open
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-01
-updated: 2026-10-01
+updated: 2026-10-13
 estimate_hours:
-card_mirror: '2f8a75b8b8d947d0e77db4076c986aff183f7848' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'e36258cb2faad44a605a2b670cd51928527302ed' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T18:48:26-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:4
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
+    repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "c5d39ef1", done: "619396ab"}
+actual_hours: 0.73
 ---
 
 # sdlc move refreshes the destination's details mirror after relocating the owner
@@ -50,12 +60,71 @@ mirror alone.
 
 ## Plan
 
-- [ ] Refresh the destination mirror in `relocateAfterMove` after a
-      successful `moveRelocation`; extend `TestMoveRelocatesItsOwner`.
+Placement rule (B2, ARCH-DRY): every worktree mirror write goes through
+`refreshLocalMirror` (claim, reclaim, start-plan, the setters, now move). It
+writes only in a checkout on that issue's own branch
+(`issue.BranchName(detailPath)`), the branch `start-plan` creates and whose PR
+carries the details. Any other checkout (a resting branch, which it already
+skipped; another issue's code branch; a detached HEAD) is left alone: its copy
+is main's, refreshed through main by `issue publish` and close's archive
+commit. Committed writers (close's mirror commit, archive, publish,
+move-detail) are already placed on the issue branch or main.
+
+- [x] `refreshLocalMirror` refreshes only on the issue's own branch. Tests:
+      a setter on another issue's code branch leaves those details untouched
+      (B2 d); a claim from another issue's branch leaves the tree clean, so
+      start-plan does not refuse (B2 e); the own-branch refresh still happens.
+- [x] `relocateAfterMove` refreshes the destination mirror after a successful
+      relocation (or one already done). Extend `TestMoveRelocatesItsOwner` to
+      assert the new claimant and current `card_mirror`; a refusal warns.
+- [x] B2 c (a `git revert` rolled the mirror back): a reverted mirror is an
+      older, untouched projection, so the next refresh on the issue branch
+      converges it. Test it, and say "never hand-restore; rerun a verb" in the
+      claim help.
+- [x] B2 b (set-title vs unpublished details) needs no code: since #308 the
+      details are on main from filing, and main's copy refreshes at publish.
+      Note it in the Log.
 
 ## Log
+
+
+- 2026-10-13: closed — make test green at 395975ae: 12 shards, 1104 cmd/sdlc tests plus 46 packages, 0 failed. Round 1 fixes: move commits the destination mirror narrowly via commitMirror; TestMoveRelocatesItsOwner asserts the refreshed claimant and card_mirror, a clean destination and a move back. TestMoveLeavesAnUnattributedIssueUnknown and TestMoveLeavesAnotherSlotsIssueAndItsDetails assert the details are untouched. Placement tests (TestMirrorRefreshesOnlyOnTheIssueBranch, TestMoveWarnsWhenTheDestinationMirrorRefuses) were mutation-checked against the unfixed code.; review verdict: SHIP
+### 2026-10-12
+
+- Dispatched by the TL (ops:0) with the 10-09 scope event: broadened from
+  move's destination mirror to all mirror placement (B2 b–f in
+  `workshop/pensive/2026-10-09-01-pensive-sdlc-robustness-evidence.md`).
+- One choke point: every worktree mirror write is `refreshLocalMirror`, so the
+  placement rule lives there (ARCH-DRY); the committed writers (close's mirror
+  commit, archive, publish) were already placed. Rule: refresh only when the
+  checkout's branch is `issue.BranchName(detailPath)`.
+- B2 b needs no code: since #308 the details are on main from filing, so no
+  "unpublished details" exist for set-title to miss; elsewhere the copy is
+  main's and converges when the branch lands.
+- B2 c: re-running `sdlc claim` (already mine) refreshes, so it is the repair;
+  `TestRevertedMirrorConvergesOnTheNextRefresh` pins it. Claim help says so.
+- Quota hold on 10-12 at 2cf6f8d3; resumed 10-13, merged origin/main.
+- Close review round 1 (FIX-THEN-SHIP): BR-1, a worktree refresh after move
+  left the destination dirty, so moving back refused. This settles the Spec's
+  open decision: move commits the refresh narrowly, through close's mirror
+  commit, now generalized as `commitMirror`. The test asserts a clean
+  destination and a move back. BR-2: the non-applicable relocations
+  (unattributed, owned by another slot) now carry details and assert they're
+  untouched. The minors are fixed too: `movedCard` is shared with
+  `moveRelocation` (no repeated cutover/tracker/path logic), and no card
+  means no refresh.
 
 ### 2026-10-01
 
 - Filed at the operator's request from the #278 smoke test. Kept out of #278,
   which is codecomplete; the gap is #277's.
+
+## Revisions
+
+### 2026-10-12 — scope broadened to all mirror placement
+
+The project's 10-09 scope event folds B2 (b)–(e) into this issue: `set-status`
+rewrote another issue's details on a code branch, `claim` dirtied the tree so
+`start-plan` refused, a `git revert` rolled back the mirror, and `set-title`
+left unpublished details stale. The Plan now fixes placement at the one
+worktree writer rather than adding move's refresh alone.
