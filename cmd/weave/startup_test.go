@@ -200,3 +200,29 @@ func TestCompileWritesNothingInMountlessDependency(t *testing.T) {
 		t.Fatalf("compile changed the dependency's .gitignore: %q -> %q", before, after)
 	}
 }
+
+// #265: a leaf data mount at a generated output's path would be recorded by
+// the data pass and then refused by the artifacts pass; the check catches it
+// before either writes.
+func TestCompileRefusesDataMountAtGeneratedPath(t *testing.T) {
+	parent, _, derived := buildFixture(t)
+	data := filepath.Join(parent, "data")
+	if err := os.MkdirAll(data, 0755); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"remote", "add", "origin", "https://github.com/example/data.git"}} {
+		setupGit(t, data, args...)
+	}
+	mkfile(t, filepath.Join(data, "payload"), "authored data\n")
+	mkfile(t, filepath.Join(derived, "construct/deps"), "substrate ../base\ndata https://github.com/example/data.git shared.md\n")
+	var out bytes.Buffer
+	err := run(weavefs.OSFS{}, derived, plan.TargetAll, false, &out)
+	if err == nil || !strings.Contains(err.Error(), "collides with a generated output") {
+		t.Fatalf("want a collision refusal, got %v\n%s", err, out.String())
+	}
+	for _, path := range []string{"shared.md", plan.InventoryPath, ".gitignore"} {
+		if _, err := os.Lstat(filepath.Join(derived, path)); !os.IsNotExist(err) {
+			t.Errorf("refused compile wrote %s: %v", path, err)
+		}
+	}
+}

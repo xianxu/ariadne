@@ -103,5 +103,15 @@ item gets a regression test reproducing the observed failure.
   Makefile now refuses in `startup.Tools`, which runs before seed-once, so
   `SeedOnceInstruction`'s non-regular advice no longer reaches a linked
   Makefile in compile; it still covers other non-regular paths.
+- Each pass is now inspected twice (check, then apply re-prepares against
+  the state the earlier passes left). Compile is a batch step over tens of
+  outputs, so the extra hashing is negligible (ARCH-CONSTRAINTS).
+- Full `make test`: two failures, both pre-existing flakes.
+  `TestHangingRemoteDegradesOnlyItsRepository` (fleet, untouched) passed 5/5
+  alone. `TestCompileRecoversAfterProcessDeathDuringGeneration` fails about
+  1 in 20 both with and without this branch's compile reorder ("owned stage
+  survived retry: .publication-weave-*"). Likely the killed helper's generator
+  grandchild is still alive when the retry reclaims, so the stage is kept as
+  owned. Reported to the hub, not fixed here.
 
 ### 2026-09-28
