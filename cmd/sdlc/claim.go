@@ -24,6 +24,7 @@ import (
 
 // claimFlags holds the parsed flag values for the claim subcommand.
 type claimFlags struct {
+	Context   context.Context
 	Issue     int
 	IssuesDir string
 	DryRun    bool
@@ -513,7 +514,7 @@ func syncIssuesToMain(stdout, stderr io.Writer, f *claimFlags, r gitRunner, msg 
 		return fmt.Errorf("resolve new issue commit: %w", err)
 	}
 	source := strings.TrimSpace(string(raw))
-	if err := publishIssueCommit(stdout, stderr, paths.Root, source, f.IssuesDir, f.historyDir()); err != nil {
+	if err := publishIssueCommit(f.Context, stdout, stderr, paths.Root, source, f.IssuesDir, f.historyDir()); err != nil {
 		return fmt.Errorf("issue commit %s saved locally; publication failed: %w; retry with sdlc issue publish --commit %s", source, err, source)
 	}
 	return nil

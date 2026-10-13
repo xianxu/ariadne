@@ -488,6 +488,7 @@ func runIssueSync(stdout, stderr io.Writer, f *issueSyncFlags) error {
 	// adds are the subject and the publish choice, both parameters of the shared
 	// helper rather than a second sync path.
 	syncFlags := &claimFlags{
+		Context:   f.Context,
 		Issue:     f.Issue,
 		IssuesDir: f.IssuesDir,
 		DryRun:    f.DryRun,

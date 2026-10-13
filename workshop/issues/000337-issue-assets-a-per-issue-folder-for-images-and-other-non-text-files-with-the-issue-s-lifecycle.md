@@ -105,7 +105,7 @@ Approved [implementation plan](../plans/000337-issue-assets-plan.md); next gate 
 - [x] Typed asset policy, bounded bundle model, attach verb and dynamic policy help.
 - [x] Bundle publication, ownership, recovery and restore.
 - [x] Archive, abandon/reopen, legacy lifecycle and slot-move verification.
-- [ ] Documentation, targeted tests, full suite below load 40, close review and shipping on SHIP.
+- [ ] Documentation and acceptance preparation: targeted tests and full suite started below load 40; then enter the binary-owned close review. Shipping remains subject to hub SHIP.
 
 ## Log
 
@@ -156,6 +156,22 @@ run passed (150.148s). Final card-race/successor/retry checks passed (46.376s), 
 Full make test and the close review are still required. Core implementation
 checkpoint: c7c74af75d74224df94f7e3d109f90526d6f653b.
 
+### 2026-10-13 — full-suite findings and corrections
+
+Full suite at 1c5ef2e12ff6afe9b59fd6bd4731ee40b379fa7a started at
+21:07:58Z with load 36.96 and finished in 485.8s with five failures.
+Two concern this implementation: the new attach verb lacked its recovery
+catalog contract, and legacy publication discarded the caller context.
+A cancellation regression demonstrated the latter pushing despite cancellation;
+context now reaches both the Git transaction and asset policy validation.
+Context/publication/cancellation regressions passed (72.115s); attach and
+recovery-contract checks passed (63.991s), with all recovery package tests
+passing separately (0.077s). The other three failures are existing review
+fixtures inheriting PAIR_AGENT=codex despite Claude-specific inputs/assertions;
+all pass with PAIR_AGENT=claude (21.947s and 4.558s). Follow-up #349 tracks
+pinning those fixtures independently. The next full run will explicitly use
+PAIR_AGENT=claude; no test or gate is skipped.
+
 ## Revisions
 
 - 2026-10-12 — the operator: issue assets are where submitted web-cast note crops (pair#483) land when notes become an issue
@@ -176,3 +192,5 @@ checkpoint: c7c74af75d74224df94f7e3d109f90526d6f653b.
   previous archive only with proof of successor lineage; same-generation retries
   retain exact-byte proofs. These resolve implementation findings within the
   approved lifecycle/privacy scope.
+
+- 2026-10-13T21:20Z — Clarified the final issue Plan checkbox as acceptance preparation; close and hub-authorized shipping are subsequent workflow gates, so the checkbox does not claim them before they run. Added the attach recovery catalog contract and cancellation threading after full-suite findings, without changing the approved feature scope.

@@ -117,7 +117,7 @@ func TestAssetLegacyCommitPublication(t *testing.T) {
 	p := assetFixture(t, r, "000009", "workshop/issues/000009-s09.md")
 	r.git("add", "workshop/issues")
 	r.git("commit", "-qm", "attachment")
-	if err := publishIssueCommit(os.Stdout, os.Stderr, r.root, "HEAD", "workshop/issues", "workshop/history"); err != nil {
+	if err := publishIssueCommit(context.Background(), os.Stdout, os.Stderr, r.root, "HEAD", "workshop/issues", "workshop/history"); err != nil {
 		t.Fatal(err)
 	}
 	if got := r.git("show", r.originMain()+":"+p); got != "image\x00bytes" {

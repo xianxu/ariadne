@@ -430,7 +430,8 @@ func syncLegacyIssue(stderr io.Writer, f *changeCodeFlags, issuePath string) {
 	// under --dry-run: a helper that commits must not depend on a caller's early
 	// return for its dry-run correctness.
 	syncFlags := &claimFlags{
-		Issue: id, IssuesDir: f.IssuesDir, NoStart: true,
+		Context: changeCodeContext(f),
+		Issue:   id, IssuesDir: f.IssuesDir, NoStart: true,
 		DryRun: f.DryRun, AllowNoChanges: true,
 	}
 	msg := issueSyncMessage(id, "spec/plan at change-code")
