@@ -316,3 +316,70 @@ findings:
     detail: |
       2nd finding in family doc-line-wrap. Rule: after editing a prose comment or doc paragraph, re-wrap the whole paragraph to the file's existing width (about 80 columns). Instances in this window: dev-aliases.sh:16 (115 characters); dev-aliases.test.sh:64 (a comment at 83 characters). Long code and assertion lines in the test follow that file's existing style and are excluded.
 ```
+
+---
+
+## Re-review — 2026-10-12T17:11:42-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 299 — dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout |
+| repo | ariadne |
+| issue file | workshop/issues/000299-dev-aliases-a-binary-whose-owner-needs-a-generated-input-fails-to-build-in-a-fresh-checkout.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 007829a6511132af2a116e045a5f595471b758e6..e74172d395d8ffa1cc84ecb881edb36f988c70e0 |
+| command | sdlc close --issue 299 |
+| reviewer | claude |
+| isolation | fenced |
+| timestamp | 2026-10-12T17:11:42-07:00 |
+| verdict | SHIP |
+
+## Review
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+**Summary.** This window adds an owner-declared `dev-prepare` step to `construct/dev-aliases.sh`. Make decides whether the step exists: a quick text check for the name runs first, then `make -q dev-prepare` once per owner. Owners that declare it get `make -s dev-prepare >&2 &&` before `go build`. Owners that don't keep the plain form, unchanged byte for byte. I ran `construct/scripts/test/dev-aliases.test.sh` at the pinned head: 40 passed, 0 failed. The tests cover:
+- the step present and absent, with an exact-match check on the plain form;
+- what make treats as a declaration;
+- the one-detection-per-owner cache;
+- an end-to-end run against stub `make` and `go`: the step runs first, the binary's stdout stays clean, and a failed step fails the call and skips the build.
+
+The one open finding, BR-6, is fixed. Nothing blocks SHIP.
+
+Done-when: current. Clause 1 (the emitter runs a declared step, with tests for both a declaring owner and a non-declaring one) is exactly what this diff builds, and both cases are tested. Clause 2 (pair's half and the live `couch --help` check) was moved to pair's own issue by the 2026-10-12 Revision "live check deferred to pair's half". That Revision is a separate piece of work, not part of what this diff builds.
+
+1. **Strengths**
+   - `construct/dev-aliases.sh:235-242`: detection asks make itself, so includes, multi-target rules and assignments mean what make says they do. A declared step that make can't build is still emitted, so the call fails loudly instead of skipping the step silently. The `?` in the "No rule to make target" pattern accepts both GNU make 3.81's backtick and newer versions' quote.
+   - `construct/dev-aliases.sh:254-265`: the per-owner cache is a delimited string that stays inside the pipeline subshell, which keeps it Bash 3.2-safe. A counting make stub in the test pins it to one call per owner.
+   - `construct/scripts/test/dev-aliases.test.sh:113-131`: the emitted function is actually executed, which checks the order, the stdout redirect and the failure path, not just the emitted text.
+   - Changing `--help` from `sed -n '2,30p'` to an awk read of the header removes a hard-coded line count that the longer header would have broken.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new. The 113- and 90-character header lines (13 and 24) are emitted-form code examples, matching the style already there. Line 63 of the test is a code line, which BR-6 excluded.
+
+5. **Test coverage notes**
+   - Both modes of Done-when clause 1 are exercised.
+   - Make's verdicts are pinned in both directions: declared for a multi-target rule, a rule reached through the `Makefile.workflow` include, and a broken prerequisite; plain for `:=`, a target-specific variable and a recipe-line mention.
+   - Not covered: a host with no `make` at all. Exit code 127 would count as declared and the call would then fail loudly. That matches the "fail loudly" contract, so it is acceptable.
+
+6. **Architectural notes**
+   - ARCH-DRY: pass. Make's own rules are reused rather than re-parsed. The emitted-line string `make -s dev-prepare >&2 && ` appears twice inside one `case`, which is trivial.
+   - ARCH-PURE: pass. This is a small shell glue script. Detection is a single function that the tests exercise through fixture trees.
+   - ARCH-PURPOSE: pass. The ariadne half is delivered completely. Pair's half was split out by an explicit Revision; it is separable work in another repository, not this issue's purpose deferred.
+
+7. **Plan revision recommendations:** none. The "detection asks make" Revision already records how the code departed from Plan bullets 1-2.
+
+```findings
+dispose:
+  - id: BR-6
+    disposition: addressed
+    note: |
+      dev-aliases.sh header paragraph re-wrapped (lines 14-24 now at most 78 columns, apart from the code-example lines); test comment lines 64-65 are now 73-74 columns.
+```

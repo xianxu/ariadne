@@ -98,6 +98,19 @@ rounds:
       isolation: fenced
       reviewed: 53766ba99864d585ef99ebd8230aadcab5177c20
       blocked: false
+    - "n": 5
+      timestamp: "2026-10-12T17:11:43-07:00"
+      dispatched: "2026-10-12T17:10:34-07:00"
+      agent: claude
+      dispose:
+        - id: BR-6
+          disposition: addressed
+          note: dev-aliases.sh header paragraph re-wrapped (lines 14-24 now at most 78 columns, apart from the code-example lines); test comment lines 64-65 are now 73-74 columns.
+          round: 5
+      recipe: small-diff-review
+      isolation: fenced
+      reviewed: e74172d395d8ffa1cc84ecb881edb36f988c70e0
+      blocked: false
 ---
 
 # Gate ledger — ariadne#299 (boundary-review)
@@ -151,6 +164,12 @@ later rounds disposed of them. Generated — edit the gate, not this file.
 - **BR-6** [Minor] `doc-line-wrap` dev-aliases.sh:16 header comment line is 115 characters long; the header wraps at about 80
   2nd finding in family doc-line-wrap. Rule: after editing a prose comment or doc paragraph, re-wrap the whole paragraph to the file's existing width (about 80 columns). Instances in this window: dev-aliases.sh:16 (115 characters); dev-aliases.test.sh:64 (a comment at 83 characters). Long code and assertion lines in the test follow that file's existing style and are excluded.
 
+## Round 5 — 2026-10-12T17:11:43-07:00 (claude) — passed
+
+### Disposed
+
+- BR-6 — addressed — dev-aliases.sh header paragraph re-wrapped (lines 14-24 now at most 78 columns, apart from the code-example lines); test comment lines 64-65 are now 73-74 columns.
+
 ## Open findings
 
-- **BR-6** [Minor] `doc-line-wrap` dev-aliases.sh:16 header comment line is 115 characters long; the header wraps at about 80
+(none — every finding has been disposed)
