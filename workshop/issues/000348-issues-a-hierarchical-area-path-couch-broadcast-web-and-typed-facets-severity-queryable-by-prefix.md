@@ -5,8 +5,8 @@ deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
-estimate_hours:
-card_mirror: '3c78a9dbf78e2f8510e9bd56818e7c8a401d51a2' # card fields mirrored from issue-cards; edit via sdlc
+estimate_hours: 2.11
+card_mirror: '19d09c0066837e047265ef8bfe6782c7c1ceddf3' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T16:23:16-07:00
 claimant:
     operator: Xian Xu
@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:1
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "f365afd7", done: "65e3c3c1"}
+flow: {kind: full, provenance: operator}
 ---
 
 # issues: a hierarchical area path (couch/broadcast/web) and typed facets (severity), queryable by prefix
