@@ -1,12 +1,20 @@
 ---
 id: 000342
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-12
-updated: 2026-10-12
+updated: 2026-10-13
 estimate_hours:
-card_mirror: '3d70e7faaf37670ed043c2f7d3e739bb791cbf83' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5e803bc8e2ec459d0ec3155efd220c32060e251c' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-13T15:47:17-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # agents: make temp dirs from $TMPDIR; never cd into a possibly-empty path (macOS mktemp ignores TMPDIR)
@@ -29,8 +37,36 @@ Fix it where agents and scripts learn and run:
 
 ## Plan
 
-- [ ]
+- [ ] AGENTS rule in `AGENTS.base.md` §10 (the shared base weave composes into every
+  repo's AGENTS/CLAUDE files): temp dirs via `mktemp -d "${TMPDIR:-/tmp}/name.XXXXXX"`;
+  never `cd`/write into a path from a possibly-empty variable (`"${d:?}"`, `|| exit 1`).
+- [ ] Pure scanner `pkg/shelllint` (`MktempFindings(src) []Finding`), unit-tested on
+  the failing forms: no template, `-t prefix`, a literal `/tmp/...XXX` template, a
+  Makefile `$$(mktemp -d)`, and `cd` into a `$(mktemp ...)` substitution (bash's
+  `cd ""` succeeds and stays put). Comments and quoted text are not code.
+- [ ] Repo test over tracked shell scripts (`.sh`, Makefiles/`.mk`, shell shebangs;
+  `workshop/` excluded) that fails on any finding. One exemption,
+  `scripts/parallel-checks.sh` (a local-gates path; #351 fixes it with the operator's
+  verification); the test fails if an exemption no longer has a finding.
+- [ ] Sweep: `.colima/test/colima.test.sh`, `.openshell/overlay/setup.sh` (3),
+  `Makefile.workflow` drift check (2), `scripts/docflow.test.sh`,
+  `construct/scripts/test/clone-data-deps.test.sh` (cd into mktemp), and the
+  session-retro skill's `/tmp` template.
+- [ ] Atlas note; full suite; close.
 
 ## Log
 
 ### 2026-10-12
+
+### 2026-10-13 — survey (ariadne:3)
+
+Template-less `mktemp` in tracked executables: `.colima/test/colima.test.sh:7`,
+`.openshell/overlay/setup.sh:68,72,73`, `Makefile.workflow:209` (x2),
+`scripts/docflow.test.sh:27`, `scripts/parallel-checks.sh:144`. The last is protected by
+`local-gates-guard`, so it is filed as #351 (unclaimed; the operator verifies local-gates
+changes) and exempted by name here. `construct/scripts/test/clone-data-deps.test.sh:13`
+has a template but `cd`s into the substitution: a failed mktemp leaves ROOT = cwd.
+`cmd/sdlc/internal/judge/confine_unix_test.go` holds a deliberate template-less
+reproduction of #339 inside a Go string; Go files are not scanned. The check is a Go test
+because `make test` runs only Go and CI's merge-check runs the local gates, which this
+issue must not touch.
