@@ -18,12 +18,16 @@ type Finding struct {
 const (
 	reasonTemplate = `mktemp without a TMPDIR-rooted template: macOS ignores TMPDIR without one ` +
 		`and writes under /var/folders, which the sandbox denies; use mktemp -d "${TMPDIR:-/tmp}/name.XXXXXX" (#342)`
-	reasonCd = `cd into a mktemp substitution: when mktemp fails, cd "" succeeds and stays in the ` +
+	reasonCd = `cd or pushd into a mktemp substitution: when mktemp fails, cd "" succeeds and stays in the ` +
 		`current directory; assign it, check it (|| exit 1), then cd "${d:?}" (#342)`
 )
 
-// cdIntoMktemp is cd whose argument is a $(...) substitution running mktemp.
-var cdIntoMktemp = regexp.MustCompile(`(^|[\s;(&|])cd\s+"?\$\([^)]*\bmktemp\b`)
+// cdIntoMktemp is cd or pushd whose argument is a $(...) substitution running
+// mktemp.
+var cdIntoMktemp = regexp.MustCompile(`(^|[\s;(&|])(cd|pushd)\s+"?\$\([^)]*\bmktemp\b`)
+
+// assignment is a NAME=value word, which may prefix a command.
+var assignment = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*=`)
 
 // MktempFindings reports each mktemp call without a template argument that
 // contains XXX and is rooted at a variable (${TMPDIR:-/tmp}/…, or a directory
@@ -69,8 +73,9 @@ func stripComment(line string) string {
 }
 
 // commandWords returns the offsets where word starts a command: after the
-// start of the line, an opening substitution or subshell, a separator, or a
-// leading keyword. A word inside a string or an identifier is not one.
+// start of the line, an opening substitution or subshell, a separator, a brace
+// group, a keyword or prefix command (sudo, time, …), or an env assignment. A
+// word inside a string, an identifier or a ${…} expansion is not one.
 func commandWords(code, word string) []int {
 	var at []int
 	for i := 0; ; {
@@ -96,11 +101,12 @@ func commandPosition(before string) bool {
 		return true
 	}
 	fields := strings.Fields(trimmed)
-	switch fields[len(fields)-1] {
-	case "then", "do", "else", "!", "exec", "command":
+	last := fields[len(fields)-1]
+	switch last {
+	case "{", "then", "do", "else", "!", "exec", "command", "sudo", "time", "env", "nohup", "nice":
 		return true
 	}
-	return false
+	return assignment.MatchString(last)
 }
 
 // arguments splits what follows a command word up to the end of that command

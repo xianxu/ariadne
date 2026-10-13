@@ -90,3 +90,9 @@ weave-drift-check` OK, `setup.sh` (OpenShell container) `bash -n` only. The rule
 `AGENTS.base.md` §10 and `weave compile` composes it into AGENTS.md/CLAUDE.md (the compile
 then hit the sandbox's denial of `.claude/settings.json`, a protected path, unrelated).
 Atlas: sandbox.md *Temp dirs*.
+
+Close review (SHIP, round 1) left two advisory Minors, both fixed: `mktemp` after a
+brace group, a prefix command (`sudo`, `time`, `env`, `nohup`, `nice`) or an env
+assignment (`VAR=x mktemp`) is now a command position, and the cd rule covers `pushd`.
+New table rows for each fail without the change; a `${mktemp}` expansion stays clean,
+and the repository scan stays clean.

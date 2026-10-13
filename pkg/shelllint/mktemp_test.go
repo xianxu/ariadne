@@ -18,6 +18,11 @@ func TestMktempFindings(t *testing.T) {
 		{"literal /tmp template", `out="$(mktemp /tmp/s.XXXXXX)"`, "template"},
 		{"command position", `mktemp -d`, "template"},
 		{"after &&", `true && mktemp -d`, "template"},
+		{"after a brace group", `{ mktemp -d; } > out`, "template"},
+		{"after sudo", `sudo mktemp -d`, "template"},
+		{"after time", `time mktemp -d`, "template"},
+		{"after an env assignment", `TMPDIR=/x mktemp -d`, "template"},
+		{"pushd into substitution", `pushd "$(mktemp -d "${TMPDIR:-/tmp}/p.XXXXXX")"`, "cd"},
 		{"cd into substitution", `ROOT="$(cd "$(mktemp -d "${TMPDIR:-/tmp}/c.XXXXXX")" && pwd -P)"`, "cd"},
 		// Safe.
 		{"tmpdir template", `d=$(mktemp -d "${TMPDIR:-/tmp}/x.XXXXXX") || exit 1`, ""},
@@ -29,6 +34,7 @@ func TestMktempFindings(t *testing.T) {
 		{"word in a string", `echo "run mktemp -d to see"`, ""},
 		{"variable invocation", `"$mktemp" -d`, ""},
 		{"identifier", `real_mktemp=1; c.mktemp=2`, ""},
+		{"braced variable", `echo "${mktemp} ${mktemp:-x}"`, ""},
 		{"cd into a checked var", `d=$(mktemp -d "${TMPDIR:-/tmp}/x.XXXXXX") || exit 1; cd "${d:?}"`, ""},
 	}
 	for _, c := range cases {

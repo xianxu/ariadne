@@ -34,7 +34,7 @@ template (`mktemp -d`, `mktemp -t x`) ignores `TMPDIR` and uses the per-user
 permitted`). A script that then `cd`s into the empty result lands in `$HOME` (or, with
 `cd ""`, stays where it is). The rule is single-sourced in the constitution's §10. In
 ariadne, `pkg/shelllint`'s repository test refuses a template-less `mktemp`, or a `cd`
-into a `$(mktemp …)` substitution, in every tracked shell script and Makefile, with
+or `pushd` into a `$(mktemp …)` substitution, in every tracked shell script and Makefile, with
 named, issue-linked exemptions that fail once stale. Allowing `/var/folders` in the
 sandbox instead would put agent churn back on the journaled Data volume (pair#496).
 
