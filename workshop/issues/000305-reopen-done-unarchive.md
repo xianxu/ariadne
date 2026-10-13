@@ -1,12 +1,12 @@
 ---
 id: 000305
-status: working
+status: codecomplete
 deps: []
 github_issue:
 created: 2026-10-08
-updated: 2026-10-12
+updated: 2026-10-13
 estimate_hours:
-card_mirror: 'bbc031aba9c39bcf40a3b44aa9f46f04698ff7c3' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: '5d27c97128c6a7ca87f6a692ce0ed3775792be36' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-12T18:48:46-07:00
 claimant:
     operator: Xian Xu
@@ -16,6 +16,7 @@ claimant:
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
 flow: {kind: full, provenance: inferred}
+actual_hours: 1.82
 ---
 
 # Reopening a done issue does not un-archive its details
