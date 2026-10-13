@@ -602,23 +602,39 @@ func planArtifactPath(plansDir, name string) (string, error) {
 	return planArtifactPathIn(plansDir, plansDir, name)
 }
 
-// planArtifactPathIn globs searchDir (plansDir as seen from the current
+// canonicalPlanPath is the durable plan's canonical name: the issue stem plus
+// -plan.md. The lookup falls back to it and the off-slug note names it.
+func canonicalPlanPath(plansDir, name string) string {
+	return filepath.Join(plansDir, name+"-plan.md")
+}
+
+// planArtifactPathIn lists searchDir (plansDir as seen from the current
 // directory) for the id's family and returns the plan as a path under plansDir.
-// A name with no NNNNNN- prefix keeps the exact canonical name.
+// It lists rather than globs, so metacharacters in the directory's path are not
+// wildcards. A name with no NNNNNN- prefix keeps the exact canonical name.
 func planArtifactPathIn(searchDir, plansDir, name string) (string, error) {
-	canonical := filepath.Join(plansDir, name+"-plan.md")
+	canonical := canonicalPlanPath(plansDir, name)
 	id := issueIDFromPath(name + ".md") // a stem; the filename parse wants the extension
 	if id == 0 {
 		return canonical, nil
 	}
-	matches, err := filepath.Glob(filepath.Join(searchDir, familyPattern(id)))
+	entries, err := os.ReadDir(searchDir)
+	if os.IsNotExist(err) {
+		return canonical, nil
+	}
 	if err != nil {
 		return "", fmt.Errorf("find the durable plan for %s: %w", name, err)
+	}
+	var matches []string
+	for _, e := range entries {
+		if ok, _ := filepath.Match(familyPattern(id), e.Name()); ok && !e.IsDir() {
+			matches = append(matches, e.Name())
+		}
 	}
 	var plans []string
 	for _, a := range classifyFamily(id, matches) {
 		if a.Kind == kindPlan {
-			plans = append(plans, filepath.Join(plansDir, filepath.Base(a.Path)))
+			plans = append(plans, filepath.Join(plansDir, a.Path))
 		}
 	}
 	return pickPlanArtifact(canonical, plans)
@@ -641,7 +657,7 @@ func pickPlanArtifact(canonical string, plans []string) (string, error) {
 // planNameNote is the one line naming the canonical plan name when the plan was
 // found under another slug (#235), else "".
 func planNameNote(plansDir, name, path string) string {
-	canonical := filepath.Join(plansDir, name+"-plan.md")
+	canonical := canonicalPlanPath(plansDir, name)
 	if path == canonical {
 		return ""
 	}

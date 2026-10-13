@@ -170,4 +170,10 @@ fair example of the class the quick flow targets, just not a candidate for it he
   plan infers full, reaches the plan-quality prompt and `judge plan-quality
   --dry-run`, and is committed by the design checkpoint. A mutation check
   confirmed the checkpoint assertion catches an exact-name revert.
+- Close round 1: SHIP with 3 Minors, all fixed in the same round. The canonical
+  name is now one `canonicalPlanPath`. The lookup lists the directory with
+  `ReadDir` and matches names against `familyPattern`, so metacharacters in the
+  repository path are no longer wildcards (tested with `repo[1]*?`). And
+  `TestReviewPlanPathsRefusesTwoPlans` covers the seam close's review snapshot
+  reads through.
 

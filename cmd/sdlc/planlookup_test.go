@@ -186,3 +186,26 @@ func TestChangeCodeFindsOffSlugPlan(t *testing.T) {
 		t.Errorf("design checkpoint carried %q, not the off-slug plan", files)
 	}
 }
+
+// TestPlanLookupToleratesGlobMetacharacters: a repository path containing
+// glob metacharacters still finds the off-slug plan (#235 close review).
+func TestPlanLookupToleratesGlobMetacharacters(t *testing.T) {
+	dir := filepath.Join(t.TempDir(), "repo[1]*?")
+	writePlanFiles(t, dir, pair283OffSlug)
+	got, err := planArtifactPath(dir, pair283Stem)
+	if err != nil || filepath.Base(got) != pair283OffSlug {
+		t.Fatalf("plan = %s, %v; want %s", got, err, pair283OffSlug)
+	}
+}
+
+// TestReviewPlanPathsRefusesTwoPlans: close's review snapshot resolves the
+// plan through reviewPlanPaths, which passes the ambiguity refusal up rather
+// than reading it as no plan.
+func TestReviewPlanPathsRefusesTwoPlans(t *testing.T) {
+	root := t.TempDir()
+	writePlanFiles(t, filepath.Join(root, "workshop/plans"), pair283OffSlug, pair283Stem+"-plan.md")
+	display, stat, err := reviewPlanPaths(root, "workshop/plans", "workshop/issues/"+pair283Stem+".md")
+	if err == nil || !strings.Contains(err.Error(), pair283OffSlug) {
+		t.Fatalf("two plans resolved to %q (%q), %v", display, stat, err)
+	}
+}
