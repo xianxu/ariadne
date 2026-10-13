@@ -14,7 +14,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 | Issue Log section | same file (git) | What happened during the work, narratively? | humans skimming the issue |
 | Plan file (complex case) | `workshop/plans/<N>-*-plan.md` (git) | Detailed implementation breakdown — Core concepts, file structure, bite-sized tasks | execution sessions, milestone reviewers |
 | Target file | `workshop/targets/<slug>.md` (git) | What shape do we defend against drift? | humans + agents reading the system |
-| Project file | per-repo `workshop/projects/<slug>.md` (git); terminal records archive to `workshop/history/projects/` | Committed baseline, scope events, and retros; `sdlc project status` derives live multi-issue progress from referenced issue records | operator + contributors coordinating the project |
+| Project file | per-repo `workshop/projects/<slug>.md` (git); terminal records archive to `workshop/history/projects/` | A TL's coordination plane: Charter, Trains, Decisions and retros, no deadline (#329); `sdlc project status`/`forecast` derive live progress and the critical path from referenced issue records and the calibration ledger | operator + contributors coordinating the project |
 | Calibration ledger | `brain/.../velocity/calibration-ledger.tsv` (git) | **One row per CLOSE, not per issue** (#192 — readers MUST dedupe). How well do estimates match measured actuals, and what did the work cost? (per-issue estimate↔actual + per-model drift, #117/#127; churn / rework / plan-gate round-trips, #187; build vs converge hours at the boundary reviews, #234) | velocity calibration; the estimate shell |
 | Atlas entries | `atlas/**.md` (git) | How is the system built — architectural map | first-level onboarding |
 | Git commits (messages + trailers) | git history (immutable) | What changed, why, and what checkpoint state was crossed? | tooling, history readers, audit |
@@ -48,7 +48,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
   re-close measures a LONGER cumulative window of the same work — so repeat rows are **partial
   sums**, not repeated observations (`ariadne#167`: 7 rows summing 14.57h for work that measured
   2.71h). **Every reader must dedupe per issue**, keeping the newest row —
-  `estimate.NewestPerIssue` is the single implementation. Not doing so inflated the blessed
+  `estimate.NewestPerIssue` is the single implementation. Not doing so inflated the (since-retired, #329)
   throughput baseline 1.41× and every forecast derived from it; the write path is correct and
   the ledger stays append-only, so the dedupe belongs at the read.
 - *What counts as a ref (#190):* a **bare** `#N` is local; `<thisrepo>#N` is local; and
@@ -71,7 +71,7 @@ State and evidence in ariadne are distributed across many surfaces, each tuned f
 - *#231 appended block (indices 20–22):* `flow_kind`, `flow_provenance`, `flow_upgraded` —
   the flow the issue closed under. Quick and upgraded rows carry no estimate, so drift
   excludes them (`LedgerRow.ExcludedFromCalibration`, read by the one `calibratable`
-  test), while throughput keeps their hours. Each appended block is parsed by its OWN
+  test) and the project forecast's calibration excludes them too. Each appended block is parsed by its OWN
   width (`costCols` for #187), so widening the header never zeroes an older row's metrics.
 - *#202 appended block (indices 28–29):* `gate_disputed` (plan gate, beside
   `gate_addressed` / `gate_withdrawn`) and `boundary_disputed` (the boundary review) —

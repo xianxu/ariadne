@@ -1089,7 +1089,7 @@ func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, i
 		BoundaryDisputed: m.BoundaryDisputed,
 
 		// #231: the flow the issue closed under — quick and upgraded rows carry no
-		// estimate, so drift skips them; throughput keeps their hours.
+		// estimate, so drift and the forecast calibration skip them.
 		FlowKind:       string(fl.flow.Kind()),
 		FlowProvenance: string(fl.flow.Provenance()),
 		FlowUpgraded:   fl.upgraded(),

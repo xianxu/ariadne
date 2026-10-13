@@ -648,7 +648,7 @@ func TestCloseCommands_TLOwnedProjectUntouched(t *testing.T) {
 				}
 				ref := repoIdentity() + "#69"
 				tlPath := filepath.Join(projectDir, "tl-run.md")
-				tlText := "---\ntype: project\nname: tl-run\nstatus: ideation\ntl: xian-xu@ops:0\n---\n# tl-run\n\n- [ ] ship [" + ref + "]\n- [ ] M1 [" + ref + " M1]\n"
+				tlText := "---\ntype: project\nname: tl-run\nstatus: executing\ntl: xian-xu@ops:0\n---\n# tl-run\n\n- [ ] ship [" + ref + "]\n- [ ] M1 [" + ref + " M1]\n"
 				plainPath := filepath.Join(projectDir, "roadmap.md")
 				// The plain project carries its M1 detail block, so no --no-project
 				// waiver is needed: the TL project must not trip that gate itself.

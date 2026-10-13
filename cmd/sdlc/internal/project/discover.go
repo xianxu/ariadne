@@ -100,8 +100,8 @@ type CheckoutOverlay struct {
 // canonical home, plus — when includeArchive — the derived archive home; a
 // brain repo (canonical .brain/config.md predicate, #176) contributes only its
 // deprecated data/project legacy home. Non-fleet siblings (.bak, worktree,
-// dot-dirs) are skipped. Both DiscoverByIssueRef and ListActiveProjectFiles
-// drive off this one walk so "where the fleet's projects live" has one source.
+// dot-dirs) are skipped. DiscoverByIssueRef
+// drives off this one walk so "where the fleet's projects live" has one source.
 func walkFleetProjects(parentDir string, includeArchive bool, visit func(path, repoDir, repo string, legacy bool), overlays ...CheckoutOverlay) error {
 	roots, err := fleetProjectRoots(parentDir, overlays...)
 	if err != nil {
@@ -209,51 +209,6 @@ func DiscoverInRoots(roots []ProjectRoot, repoName, issueID string, scope Discov
 	}
 	if scope == ActiveOnly {
 		out = dropTerminalLegacy(out)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
-	return out, nil
-}
-
-// ProjectFile is one active project record's location, from the fleet walk.
-type ProjectFile struct {
-	Path    string
-	RepoDir string
-	Repo    string
-	Legacy  bool // deprecated brain/data/project home
-}
-
-// ListActiveProjectFiles returns every ACTIVE project record across the fleet
-// (canonical home + brain legacy home; NOT the archive — archived/terminal
-// records hold no current load), excluding excludePath (resolved via
-// EvalSymlinks so a symlink to the subject still matches). Reuses the shared
-// walkFleetProjects so the fleet enumeration has one source (#182 M2; the
-// calendar forecast's contention input). Deterministic (sorted by path).
-func ListActiveProjectFiles(parentDir, excludePath string, overlays ...CheckoutOverlay) ([]ProjectFile, error) {
-	roots, err := fleetProjectRoots(parentDir, overlays...)
-	if err != nil {
-		return nil, err
-	}
-	return ListActiveInRoots(roots, excludePath)
-}
-
-func ListActiveInRoots(roots []ProjectRoot, excludePath string) ([]ProjectFile, error) {
-	exclude := excludePath
-	if r, err := filepath.EvalSymlinks(excludePath); err == nil && r != "" {
-		exclude = r
-	}
-	var out []ProjectFile
-	err := walkProjectRoots(roots, false, func(path, repoDir, repo string, legacy bool) {
-		real := path
-		if r, evErr := filepath.EvalSymlinks(path); evErr == nil && r != "" {
-			real = r
-		}
-		if real == exclude {
-			return
-		}
-		out = append(out, ProjectFile{Path: path, RepoDir: repoDir, Repo: repo, Legacy: legacy})
-	})
-	if err != nil {
-		return nil, err
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Path < out[j].Path })
 	return out, nil

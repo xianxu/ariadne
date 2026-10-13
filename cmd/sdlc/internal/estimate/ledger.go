@@ -54,8 +54,7 @@ type LedgerRow struct {
 	// FlowProvenance "inferred" or "operator" (empty when the issue had no flow
 	// record); FlowUpgraded marks a quick issue the close moved to full. Quick and
 	// upgraded rows carry no estimate, so they are not estimate↔actual data points
-	// (see ExcludedFromCalibration) — but their hours are real hours, and
-	// throughput keeps them.
+	// (see ExcludedFromCalibration) — but their hours are real hours.
 	FlowKind       string
 	FlowProvenance string
 	FlowUpgraded   bool
@@ -91,8 +90,8 @@ func (r LedgerRow) HasSplit() bool {
 
 // ExcludedFromCalibration reports a row that is no estimate↔actual data point:
 // a quick-flow close (no estimate at all) or one upgraded from quick (it started
-// without one). Drift and any future est/actual reader skip it; throughput
-// (SpanThroughput) does not (#231).
+// without one). Drift, the project forecast's calibration and any future
+// est/actual reader skip it (#231).
 //
 // A row with no estimate is excluded whatever its flow (#234 E3): a full-flow
 // close that skipped the estimate gate wrote est 0, ratio 0 and passed as a data
@@ -354,8 +353,8 @@ func UpgradeHeader(text string) (string, bool) {
 //     drift sample below its threshold and silently disable the check.
 //
 // Direction-agnostic by construction (last-wins over the given order), because driftSample walks
-// backward taking first-seen while SpanThroughput walks forward needing last-seen — the same rule
-// under opposite traversal.
+// backward taking first-seen while ConvergeFactors and CalibrateForecast keep the last-seen — the
+// same rule under opposite traversal.
 func NewestPerIssue(rows []LedgerRow) []LedgerRow {
 	newest := map[string]int{} // key -> index of its newest row
 	for i, r := range rows {

@@ -1,0 +1,8 @@
+{
+  "type": "project",
+  "name": "live-record-with-deadline",
+  "goal": "a live project still carrying the retired shipping-plan baseline",
+  "done_when": "criterion met",
+  "status": "executing",
+  "deadline": "2026-11-01"
+}

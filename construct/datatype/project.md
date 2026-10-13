@@ -1,21 +1,34 @@
 ---
 type: type
 name: project
-description: Use when starting an execution container — a focused push of work toward a defined MVP, cutting across issues and possibly across products. Triggers on "let's start a project for X", "set up a project file for the launch push", "create a project to track this", "/xx-datatype project". Distinct from product (durable charter) and roadmap (month-level aggregate). One operator per project.
+description: Use when starting a coordination plane for cross-issue work — a TL sequencing and driving several issues, possibly across products, toward a falsifiable done_when. Triggers on "let's start a project for X", "set up a project file for the launch push", "create a project to track this", "/xx-datatype project". Distinct from product (durable charter) and roadmap (month-level aggregate).
 ---
 
 # project
 
-A project is the *execution container* — what we've decided to do for a defined purpose, with an explicit MVP boundary, sequenced top-down. Operator-POV; cuts across issues, products, and repos.
+A project is the **coordination plane** for work that spans issues: a place to discuss cross-issue problems, sequence the work into trains, and drive execution. A TL runs it (ariadne#329). It cuts across issues, products and repos.
 
-A project is forward-looking and time-bounded — it has a `done_when` criterion. When the criterion is met, status flips to `done` and the file archives under `workshop/history/projects/`. When the criterion stops being worth pursuing, status flips to `dropped` (also archival).
+The question a project answers is "what is the right next move across these issues, and who makes it?" It does not answer "will this ship on time?". A project carries **no deadline**. The forecast is derived from the trains and the calibration ledger and is never typed in. When a team needs a date, it sets one against the forecast, and the date never drives status.
 
 Distinct from sibling datatypes:
 
 - `product` — the durable charter ("what is being built"). Static. A project advances one or more products.
 - `roadmap` — month-level aggregate ("what we want true by month T"). A project lives inside a roadmap month.
 
-A project is where the Phase-A calibration loop closes: referenced issues carry measured `actual_hours`, and `sdlc project close` rolls the complete MVP set into the project fog-factor ledger.
+## Layers
+
+| Layer | What | Changes | Where |
+|---|---|---|---|
+| Charter | problem, cross-issue requirements, `done_when`, scope | rarely, by decision | `## Charter` and frontmatter |
+| Plan | trains, cross-train edges, allocation per train | at each grooming | `## Trains`, owned by the TL |
+| Decisions | cross-issue decisions only: dated, who decided, one line of why | append-only | `## Decisions`, end of file |
+| Live | who is doing what now, what needs the operator | constantly | the TL's status file, outside the datatype |
+| Forecast | how much focused work remains on the critical path | derived on read | `sdlc project forecast`, never typed |
+
+**Where a decision goes.**
+- **Issue-scoped** decisions (where an issue stops, how it is built, what it measures) go in that issue's `## Revisions`. The worker writes the entry when the TL hands the decision down.
+- **Cross-issue** decisions (anything that moves work between issues or constrains several) go in the project: requirements in the Charter, the rest in `## Decisions`.
+- **Process** rules (how the TL and workers operate) go in the TL skill, not the project.
 
 ## Frontmatter shape
 
@@ -25,55 +38,82 @@ A project is where the Phase-A calibration loop closes: referenced issues carry 
 | `name` | yes | Slug form, lowercase-hyphenated. Matches the filename without `.md`. |
 | `goal` | yes | One sentence. Why this project exists. |
 | `done_when` | yes | The MVP boundary as a falsifiable criterion. *"What would make me say this project is finished?"* |
-| `status` | yes | See `construct/vocabulary/project.cue` (the schema authority): `ideation` → `defined` → `committed` → `executing` → `done` \| `dropped`, plus `paused`. |
-| `deadline` | required for committed/executing/paused | ISO date. The time-bound baseline set by the `defined` → `committed` transition. Not required for `done` — a record archived from the pre-baseline era may lack it (#171). |
-| `planned_finish` | required for committed/executing/paused | ISO date. The committed forecast paired with `deadline`. Not required for `done` (see `deadline`). |
-| `operator` | optional | Persona / name of the single human running this project. Default = self. **Exactly one** — see Single-operator discipline below. |
-| `tl` | optional | The TL driving the project: a slot handle (`xian-xu@ops:0`) or a list of them. A TL-owned project is written only by its TL: `sdlc close` and `milestone-close` skip it entirely (no tick, no detail block, no review snapshot) and print an info line, so workers report landings to the TL instead (ariadne#326). |
-| `mvp_scope` | optional | List of issue refs (`[<repo>#<id>, ...]`) declared in MVP at project start. Anchors what counts as "done." |
-| `explicitly_out` | optional | List of issue refs deliberately excluded from MVP. The conversation about what's *out* is more useful than the in-list — record it here. |
+| `status` | yes | See `construct/vocabulary/project.cue` (the schema authority): `defined` → `executing` → `closing` → `closed`, or `dropped`. |
+| `tl` | optional | The TL driving the project: a slot handle (`xian-xu@ops:0`), or a list of them where each owns trains. A TL-owned project is written only by its TLs. `sdlc close` and `milestone-close` skip it entirely (no tick, no detail block, no review snapshot) and print an info line, so workers report landings to the TL instead (ariadne#326). |
+| `operator` | optional | The human the project serves. Default = self. |
+| `mvp_scope` | optional | List of issue refs (`[<repo>#<id>, ...]`) in the MVP. The `executing` → `closing` guard requires every one to have landed. |
+| `explicitly_out` | optional | List of issue refs deliberately excluded from the MVP. The conversation about what's *out* is more useful than the in-list. Record it here. |
 | `created` | yes | ISO date. |
 | `updated` | yes | ISO date of the last edit. |
-| `sources` | optional | Lineage — files, parley chat IDs, URLs the agent read when authoring. |
+| `sources` | optional | Lineage: files, parley chat IDs and URLs the agent read when authoring. |
+
+`deadline` and `planned_finish` are **banned** in a live record. The schema rejects them, so `sdlc project validate` flags a record still shaped as a shipping plan. Archived records are frozen history and are never validated.
 
 ## Lifecycle
 
 The schema authority is `construct/vocabulary/project.cue`; this prose explains
 how to author within the model rather than maintaining a second enum.
 
-- `ideation` — idea captured; PRD not yet written (ideation lives in parley, linked via sources)
-- `defined` — PRD exists in the project file; not yet committed to a timeline
-- `committed` — baseline set (deadline + planned finish + parallelism intent); not yet broken down
-- `executing` — PRD broken down into issues across repos; work in flight
-- `paused` — execution suspended; committed baseline stays intact
-- `done` — `done_when` met; retro + fog-factor ledger row recorded
+- `defined` — Charter written (problem, cross-issue requirements, done_when, scope); no train dispatched yet
+- `executing` — the first train is dispatched; the TL grooms Trains and appends Decisions
+- `closing` — every mvp_scope issue has landed; the done_when audit is the remaining work
+- `closed` — done_when audit passed; retro recorded and the file archived
 - `dropped` — no longer worth pursuing
 
-Ordinary transitions go through `sdlc project set-status`; terminal completion
-and post-execution dropping go through `sdlc project close`, which owns the
-retro, calibration, and archive gates.
+Guards:
+- `defined` → `executing` needs a trains table with at least one train (`trains-present`).
+- `executing` → `closing` needs every `mvp_scope` issue in a terminal status (`mvp-landed`).
+- `closing` → `executing` (reopen) is unguarded: new MVP work was filed.
+- `closing` → `closed` and a drop from `executing` or `closing` need a dated retro (`retro-recorded`).
+
+Ordinary transitions go through `sdlc project set-status`. Closing and the
+post-execution drop go through `sdlc project close`, which owns the retro gate
+and the archive move.
+
+## Ownership
+
+- **The TLs own the project file; workers never write it.** A worker reports its landing, and the TL verifies the merge and ticks the row with the PR number.
+- A worker's close neither ticks a TL-owned project nor treats an edit to it as staling the worker's review (ariadne#326).
+- A project without `tl:` is still ticked by the close gate, as before.
 
 ## Body skeleton
 
 An instance of `project` has, in order:
 
 1. `# <name>` — title matching the slug.
-2. **Lede paragraph** — one short paragraph. **Explicitly call out the headline omission** (what's NOT in MVP) — that's the discipline this datatype enforces.
-3. `## PRD` — the product-requirements narrative, grown before the project becomes `defined`.
-4. `## Estimate` — Phase-A estimate, fog multiplier, and sizing basis, completed before commitment.
-5. `## Breakdown` — the committed baseline: deadline rationale, thread assignments, sequencing decisions, and the ordered task list. Per-task detail blocks also live here.
-6. `## Log` — append-only retros, re-forecasts, and project-level scope events. Retro headings use `### <ISO date> — retro`.
-7. *Reference definitions at end of file* — see *Jump-link convention*. One line per task that has a detail block.
+2. **Lede paragraph** — one short paragraph. **Call out the headline omission explicitly** (what's NOT in the MVP).
+3. `## Charter` — the problem, the cross-issue requirements (numbered, so decisions can cite them) and the scope narrative.
+4. `## Trains` — the trains table and the cross-train edge list (grammar below).
+5. `## Breakdown` — the ordered checkbox list of issue rows. A row may carry a short pointer. The detail lives in the issue.
+6. `## Log` — append-only retros, forecasts and project-level events. Retro headings use `### <ISO date> — retro`.
+7. `## Decisions` — append-only, at the end of the file: `- <ISO date> — <decision> (<who decided>): <one line of why>`.
+
+### Trains
+
+A train is a chain of issues in one code area, run in order by one slot. The TL re-grooms the table at every filing and batch edge.
+
+```markdown
+| Train | Cars, in order | Slot |
+|---|---|---|
+| Main integration | ariadne#183 → #269 → #303 | ariadne:4 |
+| Merge and CI | pair#324 ⇒ ariadne#196 → #309 | ariadne:2 (from #196, 10-12) |
+
+- ariadne#183 and ariadne#320 ⇒ ariadne#269/#303 (requirement 6 applies only after 5)
+- ariadne#183 ~ ariadne#234: whichever lands second accounts for the other
+```
+
+Grammar (parsed by `sdlc project forecast`, `find` and the `trains-present` guard):
+- The table header names `Train`, `Cars…` and `Slot` columns.
+- In a cars cell, a bare `#N` inherits the repo of the car before it; the first takes the project's repo. Parenthesized text is an annotation and is ignored. Every separator (`→`, `⇒`, `/`, `,`) means "next car": a train runs serially.
+- An edge is a bullet holding `⇒`: each ref before it is a prerequisite of each ref after it. Prose after a colon is the reason. `~` bullets are overlap notes for the TL, which the forecast ignores.
 
 ### Task line format
 
-Keep one line per task short — **title + ref only**. Nothing else. No inline est, no inline status, no inline blocking reason. Those live in the task's detail block under `## Breakdown`.
+Keep one line per task short — **title + ref only**, plus an optional short pointer after landing (`(PR #190)`).
 
 ```markdown
 - [ ] provider interface skeleton [charon#13 M1]
-- [.] OpenAI provider impl [charon#13 M2]
-- [ ] Anthropic mirror [charon#13 M3]
-- [x] initial provider design sketch [charon#13 sketch]
+- [x] OpenAI provider impl [charon#13 M2] (PR #41)
 - [ ] write release notes
 ```
 
@@ -81,7 +121,7 @@ Keep one line per task short — **title + ref only**. Nothing else. No inline e
 
 - `[ ]` — open / not started
 - `[x]` — done
-- `[.]` — blocked (reason in detail block)
+- `[.]` — blocked (reason in the issue)
 - `[-]` — cancelled / removed from scope mid-project
 
 #### Reference syntax
@@ -90,153 +130,48 @@ Keep one line per task short — **title + ref only**. Nothing else. No inline e
 - `[<repo>#<id> M<N>]` — milestone-level granularity within an issue.
 - Plain text — for items that don't fit any issue tracker (e.g., `write release notes`, `email investors`).
 
-The ordered list is the execution order. Top to bottom. The first `[ ]` task is "what I'm working on next." When something is `[.]` blocked, skip it and pick the next `[ ]`; the blocking detail explains why.
+Scope events for a single issue (broaden, demote, punt) go in that issue's `## Revisions`, not in the project. The project's row keeps pointing at the issue.
 
-### Per-task details
+## Forecast
 
-Optional. A task earns a detail block under `## Breakdown` when it has state worth recording: estimate, started/closed dates, actual hours, blocking reason, prose notes. Open-not-started tasks with no notes need no detail block.
-
-Detail block format:
-
-```markdown
-<a id="charon-13-m2"></a>
-### charon#13 M2 — OpenAI provider impl
-
-**est:** 10–16h
-**status:** blocked — need OpenAI Admin API access verified before mint testing
-**started:** 2026-04-30
-
-(free prose — design notes, partial progress, decisions made during work)
-```
-
-When closed:
-
-```markdown
-<a id="charon-13-sketch"></a>
-### charon#13 sketch — initial provider design
-
-**est:** ~2h
-**actual:** 1h
-**closed:** 2026-04-29
-
-Reused keychain ACL pattern from M4. Anthropic mirror should be straightforward as a result.
-```
-
-Convention:
-- **Heading** = `<ref> — <title>`. Repeating the ref makes `rg <ref>` find both the task line and the detail block.
-- **Bold-labeled fields** for the structured bits: `**est:**`, `**actual:**`, `**status:**`, `**started:**`, `**closed:**`. Free prose follows after a blank line.
-- **`<a id>` anchor** above the heading — see *Jump-link convention*.
-
-Field semantics:
-- `**est:**` — estimate range, mirrors the issue's `estimate_hours` frontmatter when one exists. Free-form (`10–16h`, `~2h`, `medium`).
-- `**actual:**` — actual focused hours spent. **Set on close.** Required for tasks linked to issues — the issue's `actual_hours` is measured and recorded by `sdlc close` (on the issue's card in an issue tracker repository, #252); copy that value here rather than hand-editing the issue. Without this the velocity calibration loop cannot close.
-- `**status:**` — used when state isn't conveyed by the checkbox alone. Common: `blocked — <reason>`, `in progress — <note>`. Drop when the checkbox is sufficient.
-- `**started:**` / `**closed:**` — ISO dates.
-
-#### Logging scope events (broaden / demote / punt)
-
-When a task's scope changes mid-stream — broadens to absorb deferred work, demotes from MVP to a successor project, gets punted — record it in the detail block as an append, **not** as a rewrite. Same posture as plan-doc revisions in ariadne AGENTS.md §1: original intent stays visible.
-
-```markdown
-<a id="charon-15-m4b"></a>
-### charon#15 M4b — catalog revoke dispatcher + list/manage TUI
-
-**est:** 0.4–0.8h (original)
-**actual:** 4h
-**closed:** 2026-05-04
-
-Original M4b: revoke dispatcher only (list_endpoint + revoke_endpoint).
-
-**Scope event 2026-05-03**: broadened to also include picker-row +
-per-provider account list TUI work originally split off from M4
-(see plan doc revision). New est ~3h. Drove the actuals overshoot.
-```
-
-Future calibration cycles depend on being able to compare *original-scope estimate* against *as-shipped scope* — overwriting the original `**est:**` would erase the data point.
-
-### Jump-link convention
-
-The bracketed `[<ref>]` in task lines becomes a clickable link to the corresponding detail block when a reference definition is present at the file bottom. Combination of markdown shortcut-reference links + explicit `<a id>` anchors.
-
-**Slug rule (deterministic, renderer-independent):** lowercase the ref, replace each `#` and whitespace character with `-`. Examples:
-
-- `charon#13 M2` → `charon-13-m2`
-- `charon#13 sketch` → `charon-13-sketch`
-- `metis#40 doc-cleanup` → `metis-40-doc-cleanup`
-
-**Three pieces, in order in the file:**
-
-1. **Task list line** (literal, unchanged): `- [ ] OpenAI provider impl [charon#13 M2]`
-2. **Detail block:**
-   ```
-   <a id="charon-13-m2"></a>
-   ### charon#13 M2 — OpenAI provider impl
-   ...
-   ```
-3. **Reference definition at end of file:**
-   ```
-   [charon#13 M2]: #charon-13-m2
-   ```
-
-Behavior at render time:
-
-- Task with a matching reference definition → `[<ref>]` is a clickable link, jumps to the `<a id>` anchor.
-- Task without a reference definition → `[<ref>]` renders as plain bracketed text. Nothing breaks.
-
-The task line never changes syntax. Slug derives from the ref alone (not the heading text), so renaming the title doesn't break the link. `rg <ref>` is always a working fallback.
-
-### Single-operator discipline
-
-`operator` carries a single persona name. **Exactly one operator per project.** This is the discipline that makes AI-centric flow viable — no synchronization needed, no blocked-on-each-other patterns, throughput is preserved.
-
-If two people need to work on overlapping concerns, split into two projects with a clear interface (e.g., one project produces an artifact, another consumes it). The dispatcher should flag any "we'll split this between A and B" framing as a smell.
-
-For solo founders today, `operator` is optional and defaults to self. Becomes load-bearing when 2+ people share a brain.
+`sdlc project forecast` (also printed by `project show` and `project status`) reads each car's card (status and `estimate_hours`) and the calibration ledger:
+- Each unlanded car is expected to take estimate × Σ(build+converge)/Σestimate, computed over the ledger's split rows. That is the estimate ÷ the calibrated build rate × (1 + converge k) of ariadne#234.
+- The range comes from the 25th–75th percentile of the per-issue multipliers.
+- Trains run in parallel, and ⇒ edges hold a car until its prerequisite lands.
+- The output is the critical path as a range of focused hours, plus the total remaining. It never gives a date.
+- An unestimated car takes the median ledger estimate, and the statement names it.
 
 ## Authoring instructions
 
 When the dispatcher applies this prototype:
 
-1. **Distill before asking.** Pull project name, goal, candidate issues from recent conversation. Pre-fill what's clear; ask only for what's missing.
+1. **Distill before asking.** Pull the project name, goal and candidate issues from the recent conversation. Pre-fill what's clear; ask only for what's missing.
 
 2. **Required fields the dispatcher must resolve before writing:**
    - `name` (slug) — usually obvious from "project for X". Confirm if X has spaces.
-   - `goal` — one sentence. If not extractable, ask.
-   - `done_when` — the MVP boundary. **Force this conversation upfront** even if the user resists; this is the discipline the datatype enforces. Push for a falsifiable criterion ("daily reliance on charon for ≥1 week") not a vague goal ("charon is good").
+   - `goal` — one sentence. If you can't extract it, ask.
+   - `done_when` — the MVP boundary. **Force this conversation upfront**, even if the user resists. Push for a falsifiable criterion ("daily reliance on charon for ≥1 week"), not a vague goal ("charon is good").
 
-3. **Force the MVP scoping conversation.** Ask explicitly: *"What's NOT in this project? What's the smallest version that delivers external value?"* Resolve `mvp_scope` and `explicitly_out` as `[<repo>#<id>, ...]` lists. The conversation about what's *out* is the load-bearing part.
+3. **Force the MVP scoping conversation.** Ask explicitly: *"What's NOT in this project? What's the smallest version that delivers external value?"* Resolve `mvp_scope` and `explicitly_out` as `[<repo>#<id>, ...]` lists.
 
-4. **Confirm operator.** Default to self for solo founders. If the user says "we" or names multiple people, flag the multi-operator smell and suggest splitting.
+4. **Name the TL** (`tl:`) when a TL will drive it. Otherwise leave it out, and the close gate keeps ticking rows.
 
-5. **Build the initial task list in `## Breakdown`, top-down by execution order.**
-   - For tasks already in flight or with known estimates, create detail blocks.
-   - For tasks not yet started, just task lines. Detail blocks are added later as state accumulates.
-   - Pull estimates from the corresponding issue's `estimate_hours` frontmatter when authoring detail blocks.
+5. **Write the Charter, then the Trains.** Group issues into trains by code area, one slot each, and write the ⇒ edges between trains. Breakdown rows follow the trains' order.
 
-6. **Add reference definitions** at the end of the file for each task with a detail block. Slug per the rule above.
-
-7. **Residency:** `workshop/projects/<slug>.md` in the project's
-   **center-of-gravity repo** — the top product repo by default. A soft rule,
-   not an address: every ref inside is a qualified `repo#id`, so the record
+6. **Residency:** `workshop/projects/<slug>.md` in the project's
+   **center-of-gravity repo** — the top product repo by default. This is a soft
+   rule, not an address: every ref inside is a qualified `repo#id`, so the record
    reads identically from any vantage, and tooling discovers it fleet-wide
-   (close gate ticks it wherever it lives; `sdlc project find --issue <ref>` /
-   `sdlc resolve --kind project <ref>` navigate to it). **Never in brain** —
-   brain is capture/measurement, holds no SDLC process artifacts (#171).
+   (`sdlc project find --issue <ref>` / `sdlc resolve --kind project <ref>`
+   navigate to it and name the issue's train and car). **Never in brain** —
+   brain is capture/measurement and holds no SDLC process artifacts (#171).
    **Moving a record** when the center of gravity shifts: `sdlc migrate`
-   relocates it and rewrites refs for the new vantage; frozen terminal records
-   move verbatim instead, keeping qualified refs (the rule the #171 M6
-   migration follows). Terminal records archive to
-   `workshop/history/projects/`.
+   relocates it and rewrites refs for the new vantage. Terminal records archive
+   to `workshop/history/projects/`.
 
-8. **Updates preserve everything else.** Common edits: flipping a checkbox state, adding a detail block, recording `actual:` and `closed:` on completion, adding or removing tasks. Edit in place — never rewrite the file.
+7. **Updates preserve everything else.** Edit in place and never rewrite the file. Decisions and Log only grow.
 
-9. **Velocity calibration loop discipline.** When a task closes (checkbox flips to `[x]` and `actual:` is recorded in the detail block), the dispatcher should also:
-   - Confirm the issue's `actual_hours` was recorded by `sdlc close` (the close gate's ticking does this); never hand-edit it — in an issue tracker repository it lives on the card and the details' mirror refuses edits.
-   - State the calibration analysis ("estimate was X, actual was Y, off by Z×") to the user.
-   Project-level Phase-A calibration is separate: `sdlc project close` requires
-   complete issue actuals and appends the fog-factor row.
-
-10. **Confirm before writing** a new project file: show destination path, lede line, mvp_scope, explicitly_out, initial task list. One round of confirmation.
+8. **Confirm before writing** a new project file: show the destination path, lede line, mvp_scope, explicitly_out and the trains. One round of confirmation.
 
 ## Search recipes
 
@@ -253,29 +188,19 @@ rg -l "^type: project" | xargs rg -l "\[charon#"
 # All open tasks across all active projects
 rg "^- \[ \] " workshop/projects/
 
-# All blocked tasks
-rg "^- \[\.\] " workshop/projects/
+# Which project, train and car carry an issue
+sdlc project find --issue ariadne#329
 
-# Tasks in a specific project, in order
-rg "^- \[" workshop/projects/charon-release-push.md
-
-# All issue refs touched by a project
-rg -o "\[[a-z][a-z0-9-]*#[a-z0-9 -]+\]" workshop/projects/<name>.md | sort -u
-
-# Closed tasks with their actual hours (across projects)
-rg -B1 "^\*\*actual:\*\*" workshop/projects/
-
-# Lede lines for all projects
-rg -A2 "^# " workshop/projects/
+# Cross-issue decisions across projects
+rg -A40 "^## Decisions" workshop/projects/
 ```
 
 ## Rules
 
 - One project per file. Slug, filename, and `name:` field must agree.
-- One operator per project. Multiple operators on one project is a smell — split instead.
 - A project always has a falsifiable `done_when`. "Vague goal" is a planning failure; force the conversation at authoring time.
 - `mvp_scope` and `explicitly_out` together form the MVP commitment. The `out` list is the load-bearing one.
-- Task lines stay short — title + ref only. State and detail belong in `## Breakdown` detail blocks.
-- Reference definitions and detail blocks are paired: when adding a detail block, add the reference definition; when removing one, remove the other.
-- Closing a task records the issue's measured `actual_hours` through `sdlc close` (never by hand). Project close rolls the complete MVP issue set into the Phase-A fog ledger; without both steps, calibration drifts.
-- A project doesn't replace an issue tracker. Issues describe units of work that exist regardless of timing; a project is the operator's view of what's currently in flight. The same issue can appear in multiple projects over its lifetime.
+- No deadline fields. Read the forecast; never type one.
+- Cross-issue decisions go in `## Decisions`; issue-scoped ones go in the issue's `## Revisions`.
+- A TL-owned project is written only by its TLs.
+- A project doesn't replace an issue tracker. Issues describe units of work that exist regardless of timing; a project is the plane coordinating what is currently in flight. The same issue can appear in multiple projects over its lifetime.

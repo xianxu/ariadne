@@ -376,3 +376,57 @@ func TestValidateInstance_FlowRecordCorpus(t *testing.T) {
 		t.Fatal("empty corpus")
 	}
 }
+
+// #329: a live project carrying the retired shipping-plan baseline is rejected
+// and names the field; a TL project without one conforms; and the active
+// corpus (the set the merge gate validates — never the frozen archive, where
+// records keep `status: done` and their old `deadline:`) conforms.
+func TestValidateInstance_ProjectDeadlineBan(t *testing.T) {
+	if _, err := exec.LookPath("cue"); err != nil {
+		t.Skip("cue not on PATH")
+	}
+	schema := schemaT(t, "project")
+	base := "type: project\nname: p\ngoal: g\ndone_when: d\n"
+	cases := []struct {
+		name, fm, wantField string
+		ok                  bool
+	}{
+		{"executing TL project, no deadline", base + "status: executing\ntl: [a@ops:0, b@ops:1]\n", "", true},
+		{"closing project", base + "status: closing\n", "", true},
+		{"deadline banned", base + "status: executing\ndeadline: 2026-11-01\n", "deadline", false},
+		{"planned_finish banned", base + "status: defined\nplanned_finish: 2026-11-01\n", "planned_finish", false},
+		{"retired status", base + "status: committed\n", "status", false},
+		{"retired terminal done", base + "status: done\n", "status", false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			md := filepath.Join(t.TempDir(), "p.md")
+			os.WriteFile(md, []byte("---\n"+c.fm+"---\nbody\n"), 0o644)
+			diags, err := validateInstanceFile(osCue{}, md, schema, "project")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if c.ok != (len(diags) == 0) {
+				t.Fatalf("ok=%v, diags=%v", c.ok, diags)
+			}
+			if !c.ok {
+				found := false
+				for _, d := range diags {
+					if d.Field == c.wantField || strings.Contains(d.Message, c.wantField) {
+						found = true
+					}
+				}
+				if !found {
+					t.Errorf("want a diagnostic naming %q, got %v", c.wantField, diags)
+				}
+			}
+		})
+	}
+	root := repoRootT(t)
+	files, _ := filepath.Glob(filepath.Join(root, "workshop", "projects", "*.md"))
+	for _, f := range files {
+		if diags, err := validateInstanceFile(osCue{}, f, schema, "project"); err != nil || len(diags) > 0 {
+			t.Errorf("%s: active project not conformant: %v %v", filepath.Base(f), err, diags)
+		}
+	}
+}

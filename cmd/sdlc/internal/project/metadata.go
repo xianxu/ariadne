@@ -17,8 +17,6 @@ import (
 type Metadata struct {
 	Name          string   `yaml:"name"`
 	Status        string   `yaml:"status"`
-	Deadline      string   `yaml:"deadline"`
-	PlannedFinish string   `yaml:"planned_finish"`
 	MVPScope      []string `yaml:"mvp_scope"`
 	Deps          []string `yaml:"deps"`
 	EstimateHours any      `yaml:"estimate_hours"`
@@ -84,6 +82,11 @@ func TLOwners(text string) ([]string, error) {
 		}
 		return nil, err
 	}
+	return d.TLOwners()
+}
+
+// TLOwners is TLOwners over an already-parsed doc.
+func (d *Doc) TLOwners() ([]string, error) {
 	var m struct {
 		TL any `yaml:"tl"`
 	}

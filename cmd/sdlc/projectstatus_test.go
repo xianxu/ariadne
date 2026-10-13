@@ -13,7 +13,7 @@ import (
 
 func boardDoc(t *testing.T, tasks string) *projectdoc.Doc {
 	t.Helper()
-	d, err := projectdoc.ParseDoc("---\ntype: project\nname: demo\nstatus: executing\ndeadline: 2026-09-01\nplanned_finish: 2026-08-20\n---\n## Breakdown\n" + tasks + "\n## Log\n### 2026-07-10 — retro\n")
+	d, err := projectdoc.ParseDoc("---\ntype: project\nname: demo\nstatus: executing\n---\n## Breakdown\n" + tasks + "\n## Log\n### 2026-07-10 — retro\n")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -200,7 +200,7 @@ func TestComputeBoardFrontierIncludesUnblockedActiveIssue(t *testing.T) {
 }
 
 func TestRenderBoardIncludesOperationalLines(t *testing.T) {
-	b := board{Name: "demo", Status: "executing", Deadline: "2026-09-01", PlannedFinish: "2026-08-20", Done: 1, Total: 3, RemainingHours: 22, Frontier: []string{"ariadne#2"}, Blocked: []string{"nous#9"}, Threads: [][]string{{"ariadne#2", "ariadne#3"}, {"nous#9"}}, LastRetro: "2026-07-10"}
+	b := board{Name: "demo", Status: "executing", Done: 1, Total: 3, RemainingHours: 22, Frontier: []string{"ariadne#2"}, Blocked: []string{"nous#9"}, Threads: [][]string{{"ariadne#2", "ariadne#3"}, {"nous#9"}}, LastRetro: "2026-07-10"}
 	out := renderBoard(b, "2026-07-20")
 	for _, want := range []string{"demo — executing", "1/3 done", "Σ remaining ≈ 22h", "frontier: ariadne#2", "blocked: nous#9", "threads: 2 — [ariadne#2, ariadne#3] / [nous#9]", "last retro: 2026-07-10 (10 days ago)"} {
 		if !strings.Contains(out, want) {
@@ -210,7 +210,7 @@ func TestRenderBoardIncludesOperationalLines(t *testing.T) {
 }
 
 func TestComputeBoardDecodesQuotedProjectName(t *testing.T) {
-	d, err := projectdoc.ParseDoc("---\nname: 'quoted-demo'\nstatus: ideation\n---\n## Breakdown\n\n## Log\n")
+	d, err := projectdoc.ParseDoc("---\nname: 'quoted-demo'\nstatus: defined\n---\n## Breakdown\n\n## Log\n")
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -1,263 +1,127 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
-	projectdoc "github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 )
 
-// writeFleetProject writes a project record with a status, a task ref, and an
-// optional **phase-a:** line, under <parent>/<repo>/workshop/projects/<name>.md.
-func writeFleetProject(t *testing.T, parent, repo, name, status, taskRef, phaseA string) string {
+// writeFleetProject writes a minimal executing project whose Breakdown cites
+// taskRef, under <parent>/<repo>/workshop/projects/<name>.md.
+func writeFleetProject(t *testing.T, parent, repo, name, status, taskRef, _ string) string {
 	t.Helper()
-	dir := filepath.Join(parent, repo, "workshop", "projects")
+	return writeProjectFile(t, filepath.Join(parent, repo), name, "---\ntype: project\nname: "+name+"\ngoal: g\ndone_when: d\nstatus: "+status+"\n---\n## Charter\nWhy.\n## Trains\n## Breakdown\n- [ ] task ["+taskRef+"]\n## Log\n## Decisions\n")
+}
+
+// writeTrainProject writes an executing project with the given Trains body.
+func writeTrainProject(t *testing.T, repoDir, name, trains string) string {
+	t.Helper()
+	return writeProjectFile(t, repoDir, name, "---\ntype: project\nname: "+name+"\ngoal: g\ndone_when: d\nstatus: executing\ntl: x@ops:0\n---\n## Charter\nWhy.\n## Trains\n"+trains+"\n## Breakdown\n- [ ]\n## Log\n## Decisions\n")
+}
+
+func writeProjectFile(t *testing.T, repoDir, name, body string) string {
+	t.Helper()
+	dir := filepath.Join(repoDir, "workshop", "projects")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
-	est := ""
-	if phaseA != "" {
-		est = "\n## Estimate\n\n**phase-a:** " + phaseA + "\n"
-	}
-	body := "---\ntype: project\nname: " + name + "\ngoal: g\ndone_when: w\nstatus: " + status +
-		"\n---\n\n# " + name + est + "\n\n## Breakdown\n\n- [ ] a task [" + taskRef + "]\n"
-	p := filepath.Join(dir, name+".md")
-	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
+	path := filepath.Join(dir, name+".md")
+	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	return p
+	return path
 }
 
-// stubIssueLookup makes projectIssueLookupFn return a fixed estimate for refs
-// present in the map, and an error otherwise (an unresolvable breakdown row).
-func stubIssueLookup(t *testing.T, estimates map[string]float64) {
+// writeForecastLedger points WF_CALIB_LEDGER at a ledger whose eligible rows
+// all calibrate to multiplier 1 (build + converge == estimate), k = 0.25.
+func writeForecastLedger(t *testing.T) {
+	t.Helper()
+	var b strings.Builder
+	b.WriteString(estimate.Header() + "\n")
+	for _, issue := range []string{"000001", "000002", "000003"} {
+		b.WriteString(estimate.FormatRow(estimate.LedgerRow{Issue: issue, Estimate: 5, Actual: 5, BuildHours: 4, ConvergeHours: 1, SplitSource: "boundary", FlowKind: "full", Date: "2026-10-01"}) + "\n")
+	}
+	path := filepath.Join(t.TempDir(), "calibration-ledger.tsv")
+	if err := os.WriteFile(path, []byte(b.String()), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("WF_CALIB_LEDGER", path)
+}
+
+// stubForecastLookup replaces the shared card resolver with a map-backed fake
+// (the projectclose_test pattern); roots records each lookup's vantage.
+func stubForecastLookup(t *testing.T, metas map[string]issueMeta, roots *[]string) {
 	t.Helper()
 	orig := projectIssueLookupFn
-	t.Cleanup(func() { projectIssueLookupFn = orig })
-	projectIssueLookupFn = func(_ context.Context, ref, _ string) (issueMeta, error) {
-		if h, ok := estimates[ref]; ok {
-			return issueMeta{Identity: ref, Status: "working", EstimateHours: h}, nil
+	projectIssueLookupFn = func(_ context.Context, ref, root string) (issueMeta, error) {
+		if roots != nil {
+			*roots = append(*roots, root)
 		}
-		return issueMeta{}, os.ErrNotExist
+		m, ok := metas[ref]
+		if !ok {
+			return issueMeta{}, os.ErrNotExist
+		}
+		return m, nil
 	}
-}
-
-func TestListFleetProjects(t *testing.T) {
-	parent := t.TempDir()
-	subject := writeFleetProject(t, parent, "ariadne", "subject", "executing", "ariadne#182", "")
-	writeFleetProject(t, parent, "metis", "m", "executing", "metis#2", "")
-	writeFleetProject(t, parent, "nous", "paused-proj", "paused", "nous#9", "")
-	// A sibling whose breakdown row won't resolve but carries a Phase-A total.
-	writeFleetProject(t, parent, "kbench", "phasea-proj", "committed", "kbench#99", "12h")
-	// A sibling with neither resolvable rows nor Phase-A → unknown.
-	writeFleetProject(t, parent, "pair", "mystery", "executing", "pair#404", "")
-
-	stubIssueLookup(t, map[string]float64{
-		"metis#2": 20,
-		"nous#9":  14,
-	})
-
-	loads := ListFleetProjects(context.Background(), parent, subject)
-	byName := map[string]projectdoc.ProjectLoad{}
-	for _, l := range loads {
-		byName[l.Name] = l
-	}
-	if _, ok := byName["subject"]; ok {
-		t.Error("subject excluded")
-	}
-	if m := byName["m"]; m.Status != "executing" || m.RemainingHours != 20 || m.RemainingSource != "board" {
-		t.Errorf("metis load wrong: %+v", m)
-	}
-	if p := byName["paused-proj"]; p.Status != "paused" {
-		t.Errorf("nous paused load wrong: %+v", p)
-	}
-	if pa := byName["phasea-proj"]; pa.RemainingHours != 12 || pa.RemainingSource != "phase-a" {
-		t.Errorf("phase-a fallback wrong: %+v", pa)
-	}
-	if my := byName["mystery"]; my.RemainingSource != "unknown" || my.Warning == "" {
-		t.Errorf("unknown load should carry a warning: %+v", my)
-	}
-}
-
-// TestListFleetProjects_AllTerminalReadsBoardZero pins the M2-review Important:
-// an open project whose breakdown fully resolved to terminal issues reads board
-// source with 0 remaining (NOT the stale Phase-A total), and does not contend.
-func TestListFleetProjects_AllTerminalReadsBoardZero(t *testing.T) {
-	parent := t.TempDir()
-	subject := writeFleetProject(t, parent, "ariadne", "subject", "executing", "ariadne#182", "")
-	// A committed sibling whose one breakdown row resolved to a DONE issue, but
-	// which carries a Phase-A of 12h. Must read board/0, not phase-a/12.
-	writeFleetProject(t, parent, "kbench", "burned-down", "committed", "kbench#1", "12h")
-
-	orig := projectIssueLookupFn
 	t.Cleanup(func() { projectIssueLookupFn = orig })
-	projectIssueLookupFn = func(_ context.Context, ref, _ string) (issueMeta, error) {
-		// kbench#1 resolves to a terminal (done) issue → board remaining 0.
-		return issueMeta{Identity: ref, Status: "done", EstimateHours: 5}, nil
-	}
+}
 
-	loads := ListFleetProjects(context.Background(), parent, subject)
-	var bd projectdoc.ProjectLoad
-	for _, l := range loads {
-		if l.Name == "burned-down" {
-			bd = l
+func TestProjectForecastVerbPrintsRange(t *testing.T) {
+	_, _, slot := projectWorkspaceFixture(t)
+	path := writeTrainProject(t, slot, "fixture", `| Train | Cars, in order | Slot |
+|---|---|---|
+| A | ariadne#1 → #2 | :1 |
+| B | ariadne#3 | :2 |
+
+- ariadne#2 ⇒ ariadne#3`)
+	writeForecastLedger(t)
+	stubForecastLookup(t, map[string]issueMeta{
+		"ariadne#1": {Status: "done", EstimateHours: 9},
+		"ariadne#2": {Status: "working", EstimateHours: 2},
+		"ariadne#3": {Status: "open"}, // unestimated: the 5h prior
+	}, nil)
+	var out bytes.Buffer
+	if err := runProjectForecast(context.Background(), &out, &projectForecastFlags{}, path); err != nil {
+		t.Fatal(err)
+	}
+	got := out.String()
+	for _, want := range []string{"critical path 7.0–7.0h (point 7.0h, ends in train \"B\")", "7.0h remaining across 2 of 2 train(s)", "calibration n=3, ×1.00", "k=0.25", "unestimated, at the 5.0h prior: ariadne#3"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("forecast missing %q:\n%s", want, got)
 		}
 	}
-	if bd.RemainingSource != "board" {
-		t.Errorf("all-terminal project should read board source (not phase-a), got %q", bd.RemainingSource)
-	}
-	if bd.RemainingHours != 0 {
-		t.Errorf("all-terminal project remaining = %v, want 0", bd.RemainingHours)
-	}
-	// And it must not contend: a solo subject's forecast stays N=1.
-	f, err := projectdoc.ComputeForecast(
-		estimate.ThroughputBaseline{HoursPerWeek: 40, Ceiling: 2},
-		projectdoc.ProjectLoad{Name: "subject", Status: "executing", RemainingHours: 40, RemainingSource: "board"},
-		loads, "2026-09-01")
-	if err != nil {
+	// show prints the same statement best-effort.
+	var show bytes.Buffer
+	if err := runProjectShow(context.Background(), &show, nil, &projectShowFlags{Slug: "fixture", ProjectsDir: filepath.Dir(path)}); err != nil {
 		t.Fatal(err)
 	}
-	if f.N != 1 {
-		t.Errorf("burned-down project must not contend: N = %d, want 1", f.N)
+	if !strings.Contains(show.String(), "critical path 7.0–7.0h") || !strings.Contains(show.String(), "tl: x@ops:0") {
+		t.Errorf("show missing the forecast or tl:\n%s", show.String())
 	}
 }
 
-func TestLoadThroughputBaseline_EnvOverride(t *testing.T) {
-	dir := t.TempDir()
-	path := filepath.Join(dir, "baseline.tsv")
-	content := estimate.BaselineHeader() + "\n2026-07-19\t2026-06-22\t2026-07-19\t110.00\t280\t2\n"
-	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
-		t.Fatal(err)
+func TestProjectForecastRefusals(t *testing.T) {
+	_, _, slot := projectWorkspaceFixture(t)
+	noTrains := writeTrainProject(t, slot, "empty", "")
+	writeForecastLedger(t)
+	if err := runProjectForecast(context.Background(), &bytes.Buffer{}, &projectForecastFlags{}, noTrains); err == nil || !strings.Contains(err.Error(), "no trains") {
+		t.Fatalf("no trains = %v", err)
 	}
-	t.Setenv("WF_THROUGHPUT_BASELINE", path)
-	b, err := loadThroughputBaseline("/nonexistent-brain")
-	if err != nil {
-		t.Fatal(err)
+	var show bytes.Buffer
+	if err := runProjectShow(context.Background(), &show, nil, &projectShowFlags{Slug: "empty", ProjectsDir: filepath.Dir(noTrains)}); err != nil || strings.Contains(show.String(), "forecast") {
+		t.Fatalf("show on a trainless project must stay quiet: %v\n%s", err, show.String())
 	}
-	if b.HoursPerWeek != 110.0 {
-		t.Errorf("HoursPerWeek = %.2f, want 110", b.HoursPerWeek)
+	trains := writeTrainProject(t, slot, "trains", "| Train | Cars |\n|-|-|\n| A | ariadne#1 |")
+	t.Setenv("WF_CALIB_LEDGER", filepath.Join(t.TempDir(), "absent.tsv"))
+	if err := runProjectForecast(context.Background(), &bytes.Buffer{}, &projectForecastFlags{}, trains); err == nil || !strings.Contains(err.Error(), "calibration ledger") {
+		t.Fatalf("no ledger = %v", err)
 	}
-}
-
-func TestLoadThroughputBaseline_AbsentIsErrNoBaseline(t *testing.T) {
-	t.Setenv("WF_THROUGHPUT_BASELINE", filepath.Join(t.TempDir(), "missing.tsv"))
-	if _, err := loadThroughputBaseline("/nonexistent"); err != errNoBaseline {
-		t.Errorf("absent baseline should map to errNoBaseline, got %v", err)
+	if err := runProjectForecast(context.Background(), &bytes.Buffer{}, &projectForecastFlags{Slug: "x"}, trains); err == nil {
+		t.Fatal("file and --slug together accepted")
 	}
-}
-
-func TestLoadThroughputBaseline_UnparsableIsErrNoBaseline(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "corrupt.tsv")
-	// header + a row with a bad float column
-	if err := os.WriteFile(path, []byte(estimate.BaselineHeader()+"\n2026-07-19\ts\te\tNOPE\t1\t2\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("WF_THROUGHPUT_BASELINE", path)
-	if _, err := loadThroughputBaseline("/nonexistent"); err != errNoBaseline {
-		t.Errorf("unparsable baseline should map to errNoBaseline, got %v", err)
-	}
-}
-
-// A no-baseline forecastForProject bubbles errNoBaseline so consumers pick
-// their own fallback.
-func TestForecastForProject_NoBaseline(t *testing.T) {
-	parent := t.TempDir()
-	subject := writeFleetProject(t, parent, "ariadne", "subj", "committed", "ariadne#182", "40h")
-	stubIssueLookup(t, map[string]float64{})
-	t.Setenv("WF_THROUGHPUT_BASELINE", filepath.Join(t.TempDir(), "missing.tsv"))
-	d, err := readProject(subject)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, _, ferr := forecastForProject(context.Background(), d, subject, "/nonexistent-brain", "2026-09-01")
-	if ferr != errNoBaseline {
-		t.Errorf("want errNoBaseline, got %v", ferr)
-	}
-}
-
-// TestForecastForProject_RelativePathResolvesVantage pins the verification-caught
-// bug: a relative project path (as the default projects-dir yields) must still
-// resolve the issue-lookup vantage to the real repo root — otherwise the
-// cross-repo lookup silently reads 0 remaining while the board reads correctly.
-func TestForecastForProject_RelativePathResolvesVantage(t *testing.T) {
-	parent := t.TempDir()
-	writeFleetProjectDeadline(t, parent, "ariadne", "subj", "committed", "ariadne#182", "55h", "2026-09-01")
-	stubIssueLookup(t, map[string]float64{})
-	blPath := filepath.Join(t.TempDir(), "baseline.tsv")
-	if err := os.WriteFile(blPath, []byte(estimate.BaselineHeader()+"\n2026-07-19\ts\te\t55.00\t10\t2\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("WF_THROUGHPUT_BASELINE", blPath)
-
-	// chdir into the repo and pass the RELATIVE project path.
-	repoDir := filepath.Join(parent, "ariadne")
-	projectWorkspaceGit(t, repoDir, "init", "-b", "main")
-	cwd, _ := os.Getwd()
-	t.Cleanup(func() { _ = os.Chdir(cwd) })
-	if err := os.Chdir(repoDir); err != nil {
-		t.Fatal(err)
-	}
-	relPath := filepath.Join("workshop", "projects", "subj.md")
-	d, err := readProject(relPath)
-	if err != nil {
-		t.Fatal(err)
-	}
-	f, _, ferr := forecastForProject(context.Background(), d, relPath, "/nonexistent-brain", "2026-09-01")
-	if ferr != nil {
-		t.Fatalf("relative path should forecast (Phase-A 55h): %v", ferr)
-	}
-	// Phase-A 55h ÷ 55h/wk ÷ 1 = +7 days.
-	if f.ProjectedFinish != "2026-09-08" {
-		t.Errorf("ProjectedFinish = %q, want 2026-09-08", f.ProjectedFinish)
-	}
-}
-
-func TestForecastForProject_WithBaseline(t *testing.T) {
-	parent := t.TempDir()
-	// subject committed with a Phase-A of 55h, deadline set; no other projects.
-	subject := writeFleetProjectDeadline(t, parent, "ariadne", "subj", "committed", "ariadne#182", "55h", "2026-09-01")
-	projectWorkspaceGit(t, filepath.Join(parent, "ariadne"), "init", "-b", "main")
-	stubIssueLookup(t, map[string]float64{})
-	blPath := filepath.Join(t.TempDir(), "baseline.tsv")
-	if err := os.WriteFile(blPath, []byte(estimate.BaselineHeader()+"\n2026-07-19\ts\te\t55.00\t10\t2\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("WF_THROUGHPUT_BASELINE", blPath)
-	d, err := readProject(subject)
-	if err != nil {
-		t.Fatal(err)
-	}
-	f, deadline, ferr := forecastForProject(context.Background(), d, subject, "/nonexistent-brain", "2026-09-01")
-	if ferr != nil {
-		t.Fatalf("forecast: %v", ferr)
-	}
-	if deadline != "2026-09-01" {
-		t.Errorf("deadline = %q, want 2026-09-01", deadline)
-	}
-	// 55h ÷ 55h/wk ÷ 1 = 1wk = 7 days → 2026-09-08.
-	if f.ProjectedFinish != "2026-09-08" {
-		t.Errorf("ProjectedFinish = %q, want 2026-09-08", f.ProjectedFinish)
-	}
-	if f.RemainingSource != "phase-a" {
-		t.Errorf("RemainingSource = %q, want phase-a", f.RemainingSource)
-	}
-}
-
-func writeFleetProjectDeadline(t *testing.T, parent, repo, name, status, taskRef, phaseA, deadline string) string {
-	t.Helper()
-	dir := filepath.Join(parent, repo, "workshop", "projects")
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-	est := "\n## Estimate\n\n**phase-a:** " + phaseA + "\n"
-	body := "---\ntype: project\nname: " + name + "\ngoal: g\ndone_when: w\nstatus: " + status +
-		"\ndeadline: " + deadline + "\n---\n\n# " + name + est + "\n\n## Breakdown\n\n- [ ] a task [" + taskRef + "]\n"
-	p := filepath.Join(dir, name+".md")
-	if err := os.WriteFile(p, []byte(body), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return p
 }
