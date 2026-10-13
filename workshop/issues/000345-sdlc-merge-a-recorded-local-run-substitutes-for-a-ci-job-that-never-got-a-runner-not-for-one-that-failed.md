@@ -38,7 +38,7 @@ The operator (2026-10-13): a CI job that **could not get a runner** (no steps ex
 
 ## Plan
 
-Durable plan: `workshop/plans/000345-local-check-substitutes-plan.md` (single pass, one close).
+Durable plan: `workshop/plans/000345-sdlc-merge-a-recorded-local-run-substitutes-for-a-ci-job-that-never-got-a-runner-not-for-one-that-failed-plan.md` (single pass, one close).
 
 - [ ] Declaration parser (`.sdlc/local-checks.json`, strict)
 - [ ] Runnerless classifier (structural: cancelled + no runner + zero steps)
