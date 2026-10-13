@@ -15,6 +15,7 @@ claimant:
     workspace: ariadne:4
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot4/ariadne
     repository: github.com/xianxu/ariadne
+flow: {kind: quick, provenance: inferred, spec: "3686a4f9", done: "8536d9ff"}
 ---
 
 # test gate: a sharded full suite counts as both suite slots (two ariadne suites at once pushed load to 185)
