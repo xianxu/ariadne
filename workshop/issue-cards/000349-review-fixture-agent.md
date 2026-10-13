@@ -1,6 +1,6 @@
 ---
 id: 000349
-status: codecomplete
+status: done
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
@@ -21,6 +21,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: a89beca702b4571da671aa6eb62f5592511d848b
         evidence_commit: a8fcf45853c191fa179ca32c80f1100e6f787109
+        landed_commit: f6774623fcf1d4e44a25780fbf5a4e7061241229
 ---
 
 # Pin agent-specific review fixtures instead of inheriting session defaults
