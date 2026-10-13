@@ -1,12 +1,20 @@
 ---
 id: 000230
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-09-15
-updated: 2026-09-15
+updated: 2026-10-12
 estimate_hours:
-card_mirror: '3e5625c8e92cb0a67b353b87feccd5002cb8ad25' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'f699a4b4604203f5e37fdde3a525b377c023ed21' # card fields mirrored from issue-cards; edit via sdlc
+started: 2026-10-12T18:45:38-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # Make Weave dependency resolution worktree-aware
@@ -69,11 +77,18 @@ tree, not whichever worktree currently has the branch named main checked out.
 
 ## Plan
 
-- [ ] Design and test primary-checkout discovery and deterministic relative-path
-  resolution, including failure behavior and existing present-skip compatibility.
-- [ ] Implement the shared resolver and diagnostics; add native Git-worktree
-  conformance tests and compile-output preservation regressions.
-- [ ] Update atlas/documentation and consumer mappings; verify and review.
+Durable plan: `workshop/plans/000230-worktree-dependency-resolution-plan.md`
+(single pass, one close boundary).
+
+- [ ] Pure `ChooseSubstrate` chooser with table tests (plan Task 1).
+- [ ] `workspace.DependencyAnchor` Git boundary: linked worktree, primary, subdirectory,
+  non-Git, bare, numbered-environment host, spaces/symlink (Task 2).
+- [ ] `layergraph.Resolver` + walk on it; real-worktree tests incl. precedence, invalid
+  local, transitive, absolute, spaces, no-anchor present-skip, vocabulary regression (Task 3).
+- [ ] `acquire.Restore` on the resolver: no duplicate clone, fallback notice, anchor
+  reason in missing errors, compile output preserved on failure (Task 4).
+- [ ] sdlc `substrateWalk` on the resolver (Task 5).
+- [ ] Atlas/comments/help sweep; full suite; close (Task 6).
 
 ## Log
 
@@ -101,3 +116,24 @@ dependency targets, then `weave compile` there. This issue should provide the
 resolver/conformance seam that proves the resulting graph is deterministic and
 that a repeated compile is clean; couch should not grow a second dependency
 linker.
+
+### 2026-10-12 — design (ariadne:3)
+
+Measured before designing: compile now runs through `acquire.Restore` (#296), so in a
+linked worktree it no longer prunes silently — it fails ("record its source") for a
+sourceless row and would clone a duplicate beside the worktree for a sourced one.
+`layergraph.Walk` consumers (vocabulary, datatype) still present-skip. Plan resolves all
+three resolvers (layergraph walk, Restore, sdlc substrateWalk) through one chooser
+(ARCH-DRY) with the Git lookup at one boundary, run lazily (ARCH-PURE).
+
+Out of scope, by decision: `data` rows (weave provisions them as clones; a worktree-local
+clone is redundant, not wrong) and the bash bootstrap parser `lib-deps.sh` (pre-weave).
+
+## Revisions
+
+- 2026-10-12 — the 2026-09-21 entry says a slot falls back to the primary checkout when
+  no slot-local peer exists. Since then numbered environments restrict dependencies to
+  the environment and recover sources slot-locally (#296). So: a vantage in a numbered
+  environment whose primary lies outside it gets no fallback (slot-local provisioning
+  stays); a feature worktree of an environment's own dependency clone still falls back,
+  inside the environment.
