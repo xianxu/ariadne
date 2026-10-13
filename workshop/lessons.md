@@ -479,3 +479,9 @@ The simplest durable authority beats a clever scan of consequences.
   refuses at step 4 (branch ahead of origin) or at #148 (a merged PR whose
   branch has new commits). For each remedy a message names, check that the next
   verb it points to still accepts the state the remedy leaves.
+- A scratch directory from a command substitution can come back empty: `mktemp`
+  fails in the sandbox when it falls back to the system temp dir. Then `cd $D`
+  goes to `$HOME` and the next write lands in the operator's home. In #299 an
+  ad-hoc probe wrote `~/Makefile` this way, the same failure as #339's reviewer
+  creating `~/.git`. Write `D="$(mktemp -d "$TMPDIR/x.XXXXXX")" || exit 1; cd
+  "${D:?}"`, and never `cd` to an unchecked variable before writing files.
