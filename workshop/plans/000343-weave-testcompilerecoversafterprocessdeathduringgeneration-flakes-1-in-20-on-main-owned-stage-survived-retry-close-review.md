@@ -74,3 +74,69 @@ findings:
     detail: |
       The stages are waited on one after another inside the Reclaim loop (stage.go:88), and Reclaim is called from publication.go:34, plan/staged.go:40, release/main.go:65 and acquire/stage.go:9. This is acceptable because the case is rare, but worth a sentence in the atlas or code comment.
 ```
+
+---
+
+## Re-review — 2026-10-13T15:44:07-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 343 — weave: TestCompileRecoversAfterProcessDeathDuringGeneration flakes ~1 in 20 on main ('owned stage survived retry') |
+| repo | ariadne |
+| issue file | workshop/issues/000343-weave-testcompilerecoversafterprocessdeathduringgeneration-flakes-1-in-20-on-main-owned-stage-survived-retry.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 7926a8ae93b9eb36d4d3c138e1adda34bc95c504..06c9afd08bbc9ca7b05e54601cb285e558076a13 |
+| command | sdlc close --issue 343 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-13T15:44:07-07:00 |
+| verdict | SHIP |
+
+## Review
+
+The failures come from the harness environment: the git ceiling and temp-dir settings. I'm retrying with a temp dir outside the checkout.
+
+Both tests pass 5 out of 5 runs. Next I'm checking that the refactored end-to-end test still fails when the Reclaim fix is reverted.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+Both earlier Minor findings are fixed, and the fixes add no new problems. For BR-1, the duplicated killed-owner setup is now two shared helpers in `cmd/weave/dynamic_test.go`. `killOwnerMidGeneration(t, tail)` at line 407 builds the fixture, swaps the marker, kills the child, and restores the marker. `compileLeavesNoOwnedStage(t, leaf)` at line 436 compiles and checks that no stage directory survived. The two tests now differ only in the marker tail, which is what the finding asked for. For BR-2, the latency cost is now written down in two places. One is the code comment at `cmd/weave/internal/staging/stage.go:88-91`. The other is the atlas at `atlas/workflow/weave.md:354-355`. Both match the code: `Settle = time.Second` at `lease.go:28`, and `Reclaim` waits on stages one after another. The window does not touch Spec, Revisions or Done-when, and it has no conflict resolutions to judge.
+
+1. **Strengths**
+   - **Refactor checked by running it.** I ran both refactored tests 5 times with a temp dir outside the checkout and the git ceiling variable unset; they passed every time. Then I temporarily put back the old single `Exclusive(stage)` call in `Reclaim`. `TestCompileReclaimsStageOfAStillExitingGenerator` failed 3 out of 3 runs ("owned stage survived retry"). So the regression test still catches the bug after the refactor. I restored the file afterwards and the tree is clean.
+   - **Behaviour unchanged.** The refactor keeps the original test's behaviour. The order changed slightly: the "dead generator published" check now runs after the marker is restored. That is harmless, because the marker lives in `base` and the checked body lives in `leaf`.
+   - **Docs match the code.** The cost note in the comment and the atlas agree with `AwaitExclusive` and the `Reclaim` loop.
+
+2. **Critical findings:** none.
+
+3. **Important findings:** none.
+
+4. **Minor findings:** none new. The "Rare test flake" note from the earlier close review was never a recorded finding, and this window does not touch it.
+
+5. **Test coverage notes**
+   - Both refactored tests pass.
+   - The end-to-end test fails when the fix is reverted.
+   - In this checkout, the tests only fail under the review harness's `GIT_CEILING_DIRECTORIES` and temp-dir setting. They pass with those removed, so the failures come from the environment, not the code.
+
+6. **Architectural notes**
+   - **ARCH-DRY:** pass. The copied test setup is now one shared helper.
+   - **ARCH-PURE:** pass. Only test helpers and comments changed.
+   - **ARCH-PURPOSE:** pass. BR-1's finding said the two tests were the only copies in the window, and the helper now covers both. BR-2's latency bound is documented both at the code site and in the atlas.
+
+7. **Plan revision recommendations:** none.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      Shared killOwnerMidGeneration(t, tail) + compileLeavesNoOwnedStage(t, leaf) at dynamic_test.go:407/436 now cover both tests; the reverted fix still turns the e2e test red (3/3).
+  - id: BR-2
+    disposition: addressed
+    note: |
+      Cost written down in the stage.go:88-91 comment and atlas/workflow/weave.md:354-355; matches Settle=1s (lease.go:28) and the serial Reclaim loop.
+```

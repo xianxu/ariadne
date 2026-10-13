@@ -54,6 +54,7 @@ to stay safe from PID reuse, which this race does not need.
 ### 2026-10-12
 
 ### 2026-10-13 — reproduced and confirmed (ariadne:3)
+- 2026-10-13: closed — Delta since a6fb7490 is the two advisory minors only: test refactor (killOwnerMidGeneration + compileLeavesNoOwnedStage shared by both killed-owner tests; both pass 10/10; e2e still fails 3/3 with Reclaim reverted to one Exclusive) and a comment in staging.Reclaim + atlas sentence stating the up-to-Settle cost per stage held by a live orphan. go test ./cmd/weave/internal/staging green. Full suite green at c2585f05 (15:14). (fixed-then-ship); review verdict: SHIP
 - 2026-10-13: closed — Cause confirmed: widened-window repro (generator kills parent, closes fd1/2, holds lease fd3 0.3s) failed 5/5 with the flake message; diagnostics each time: owner PID dead (ESRCH), Exclusive = ErrInUse. Fix: Reclaim waits staging.Settle via shared AwaitExclusive (also finishProducers). Revert check: TestReclaimWaitsForAnExitingProducer fails, TestCompileReclaimsStageOfAStillExitingGenerator fails 3/3. At load<40: original TestCompileRecoversAfterProcessDeathDuringGeneration 100/100, new e2e 50/50, go test ./cmd/weave/... green; full make test green 15:14 at c2585f05 (12 shards, 0 failed).; review verdict: SHIP
 
 100 targeted runs at load under 40: 100 pass. The window is tiny and needs load to open
