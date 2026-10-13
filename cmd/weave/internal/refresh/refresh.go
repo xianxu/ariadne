@@ -22,6 +22,7 @@ func discoverRefresh(ctx context.Context, root string, c acquire.Client) (acquir
 	}
 	return r, nil
 }
+
 // declaredOrigins checks each sourced substrate's effective origin. A row
 // resolves through layergraph.Resolver, as discovery's Restore did (#230):
 // from a linked worktree, an absent row is the primary checkout's sibling.
