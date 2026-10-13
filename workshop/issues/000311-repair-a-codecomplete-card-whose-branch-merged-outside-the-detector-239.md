@@ -15,7 +15,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-flow: {kind: quick, provenance: inferred, spec: "acfe02c3", done: "f97daeb7"}
+flow: {kind: full, provenance: inferred}
 ---
 
 # Repair a codecomplete card whose branch merged outside the detector (#239)
@@ -71,6 +71,8 @@ with a deleted branch and with a squash merge:
 Filed from the robustness evidence review (ariadne-robustness-1).
 
 ### 2026-10-12
+- 2026-10-12: closed — make test green (12 shards, 0 failed) before review fixes; after fixes targeted landedrepair + Recovery tests green; landedrepair_test.go covers a renamed+deleted branch merged into main (card done, details archived, gone from state, rerun no-op) and refusals (not on main, bookkeeping-only, no issue commit, unknown commit, not closed, bound card). Done-when item 1 (#239 repair) amended to post-landing in Revisions. (done-when: contract moved since change-code; judged by the close review); review verdict: SHIP
+- 2026-10-12: flow upgraded quick → full — 132 added lines in code files (limit 100); an earlier round of this close already ran the full review
 - Only one unbound codecomplete card on the tracker: #239 (migrated 2026-09-27 by `issue migrate`). Its branch `000239-standalone-weave-restart` is deleted on origin; PR #126 merge commit is `b066449c`, whose `^1..` range carries `#239:` subjects.
 - Implemented `repairLanded` / `doneUnboundCard` / `citesIssue` in `externalmerge.go`, flag in `issuerecovery.go`. Tests: `landedrepair_test.go` (renamed + deleted branch, refusals, bound card, subject matching). Targeted `Recovery|Help|Reconcile|ExternalMerge|Contract` green.
 - Post-landing step (not a close gate; needs the merged binary): `sdlc issue recovery reconcile --issue 239 --landed b066449c`.

@@ -85,3 +85,87 @@ findings:
     title: |
       repairLanded maps any rev-parse error to "no such commit here", hiding git/IO failures
 ```
+
+---
+
+## Re-review — 2026-10-12T18:44:05-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 311 — Repair a codecomplete card whose branch merged outside the detector (#239) |
+| repo | ariadne |
+| issue file | workshop/issues/000311-repair-a-codecomplete-card-whose-branch-merged-outside-the-detector-239.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 612c7ad98089baa6365f3fa3df5a12f56566eba7..e71649e74406111e46462d76af9be657173b7cba |
+| command | sdlc close --issue 311 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-12T18:44:05-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Targeted tests pass (141s). I checked the prior findings against the code and am writing up the verdict.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+This is ready to ship. The round-1 findings are fixed in code. `citesIssue` now delegates to the existing exported `gitx.IsShippedWorkSubject`, so there is one anchor rule and bookkeeping-only ranges no longer count. Done-when item 1 is formally moved to after landing in a `## Revisions` entry. `doneUnboundCard` checks status before the binding, and `rev-parse` failures are now told apart from a missing commit. The targeted run passed in the pinned checkout: `go test -run 'Landed|CitesIssue|DoneUnbound|Recovery|Help|ExternalMerge'` returned `ok` in 141.8s. The only open item is Minor: BR-4's fix has no regression test.
+
+Done-when: current. Item 2 (a test for a card whose branch name differs from its slug) is delivered by `landedFixture` / `TestReconcileLandedRepairsAnUnboundCard`. The 2026-10-12 Revisions entry moves item 1 (#239 repaired) to after landing, because the new flag only exists in the merged binary. That gives a recorded reason and a concrete command (`reconcile --issue 239 --landed b066449c`).
+
+## 1. Strengths
+- `cmd/sdlc/externalmerge.go:368`: `citesIssue` now uses the shared classifier in gitx (`window.go:190`). The test table (`landedrepair_test.go:159`) pins `#330: close` → false and `sdlc: #330 implement` → true, which are the convention's edge cases.
+- `doneUnboundCard` is a pure `[]byte → []byte` transition, tested without IO (`TestDoneUnboundCardRefusesABoundCard`). The IO shell `repairLanded` does the checks in order: commit exists, commit is on main, its range cites the issue, then the card write.
+- `TestReconcileLandedRefuses` checks that every refusal leaves both `origin/main` and the card unchanged, not just that an error comes back.
+- The end-to-end test reproduces #239's actual shape: a renamed branch, merged `--no-ff`, then gone. It also runs the command a second time and asserts nothing changes.
+- The atlas (`issue-tracker.md:302`) and the `reconcile` long help both document the new flag.
+
+## 2. Critical findings
+None.
+
+## 3. Important findings
+None.
+
+## 4. Minor findings
+- BR-4: the fix (`gitTest`, which separates exit 1 from other failures) is correct, but no test drives a git failure other than exit 1 through `repairLanded`.
+- `repairLanded` runs `rev-parse` twice (first `gitTest --verify`, then `git rev-parse`). Capturing the SHA from the first call would save one subprocess. Cosmetic.
+
+## 5. Test coverage notes
+The refusal table covers: not on main, a bookkeeping-only range, an unrelated commit, an unknown commit, and a card that isn't closed. The bound-card and done-bound-card cases are unit tests. A git error other than exit 1 is not covered (BR-4).
+
+## 6. Architecture
+- **ARCH-DRY: pass.** The duplicate regex is gone and the gitx helper is reused.
+- **ARCH-PURE: pass.** `doneUnboundCard` and `citesIssue` are pure; the clock is read in the shell.
+- **ARCH-PURPOSE: pass.** The mechanism is delivered, and repairing #239 itself is a recorded post-landing step.
+- **ARCH-MOCK: pass.** Tests run against temp-repo git, which is the repo's existing convention, and no new external dependency is added.
+- **ARCH-CONSTRAINTS: N/A.** It is a one-shot operator command over a single range.
+- **ARCH-SECURE: pass.** The commit ref is passed as an argv element, an unknown ref is refused visibly, and a git failure now surfaces as an error.
+- **ARCH-ORDER: pass.** The write goes through `ChangeCard` with an operation token, `ErrNoChange` makes reruns idempotent, and the rerun is tested.
+- **ARCH-FUNERAL: pass.** It creates nothing durable except one card write, and the existing sweep archives the details.
+
+## 7. Plan revision recommendations
+None. The Revisions entry already matches the code and the post-landing step.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      citesIssue now calls exported gitx.IsShippedWorkSubject (window.go:190), the anchor plus bookkeeping filter; tests pin the "#330: close" refusal and the "only bookkeeping" range refusal.
+  - id: BR-2
+    disposition: addressed
+    note: |
+      A 2026-10-12 Revisions entry moves item 1 to after landing, with the exact repair command; item 2 is delivered in the window.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      The status switch now runs before CardCompletion; TestDoneUnboundCardRefusesABoundCard asserts ErrNoChange for a bound done card, which would fail under the old order.
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      The code fix (gitTest separates exit 1 from other errors) is correct, but no regression test drives a git failure other than exit 1 through repairLanded. Minor, non-blocking.
+```
