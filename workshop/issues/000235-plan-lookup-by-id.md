@@ -108,9 +108,9 @@ ARCH-MOCK/CONSTRAINTS/SECURE/ORDER: N/A. This is a local directory glob with no
 external dependency, a few files per issue, and no state held between events.
 ARCH-FUNERAL: N/A, since it creates nothing durable.
 
-- [ ] One id-based plan lookup; route change-code's plan read and the review
+- [x] One id-based plan lookup; route change-code's plan read and the review
       manifest through it
-- [ ] Tests: the canonical name, pair#283's off-slug name, two candidates
+- [x] Tests: the canonical name, pair#283's off-slug name, two candidates
       refused, sidecars ignored
 
 ## Estimate
@@ -157,3 +157,15 @@ fair example of the class the quick flow targets, just not a candidate for it he
 - plan-quality round 1: INFO with 4 Minors (id derivation, the refusal path
   through readers that can't refuse, test strategy, non-goals and help). All 4
   are folded into the Plan above.
+- Implemented: `planArtifactPath` → `(path, error)` over `planArtifactPathIn`,
+  `pickPlanArtifact` and `planNameNote` (`cmd/sdlc/changecode.go`), plus
+  `familyPattern` shared with `familyFiles`. All six readers are rerouted. Gotcha:
+  `issueIDFromPath` parses a *filename*, so the stem needs `.md` appended first.
+- Tests (`cmd/sdlc/planlookup_test.go`): the id table (canonical, pair#283's
+  off-slug, none, sidecars only, off-slug among sidecars, two refuse, a stem
+  without an id); `readOptionalPlanFile` refusing ambiguity; the review manifest
+  finding an off-slug plan and refusing two; end to end, a 600-line off-slug
+  plan infers full, reaches the plan-quality prompt and `judge plan-quality
+  --dry-run`, and is committed by the design checkpoint. A mutation check
+  confirmed the checkpoint assertion catches an exact-name revert.
+

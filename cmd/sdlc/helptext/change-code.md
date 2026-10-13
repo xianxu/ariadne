@@ -91,7 +91,7 @@ THE FLOW (#231)
 
     Mx milestone rows in `## Plan`, or a design past the
     shell's design limit (## Spec, ## Plan and the durable
-    plan workshop/plans/<issue>-plan.md, in lines)          → full
+    plan workshop/plans/NNNNNN-*-plan.md, in lines)         → full
     neither                                                  → quick
 
   and records it on the issue as one line,
@@ -150,7 +150,8 @@ THE PLAN GATE (stateful since #187)
 WHEN TO USE
 
   After `sdlc claim --issue N` and after you've written the Plan
-  section (and any separate workshop/plans/NNNN-*-plan.md). This is
+  section (and any separate workshop/plans/NNNNNN-*-plan.md: the plan
+  is found by issue id, whatever its slug; two refuse). This is
   the verb that says "I'm done planning, let's change code." It
   refuses to start if the plan isn't ready — the gates catch the
   most common forms of "code first, plan after" drift.

@@ -77,7 +77,10 @@ func closeFlowStep(stderr io.Writer, f *closeFlags, mode, issuePath, fm, body, w
 		return closeFlowOutcome{flow: fl}
 	}
 	deferred := mode == "issue" && checkQuickDoneWhen(stderr, f, *rec, body)
-	plan := readOptionalPlanFile(f.plansDir(), strings.TrimSuffix(filepath.Base(issuePath), filepath.Ext(issuePath)))
+	plan, err := readOptionalPlanFile(f.plansDir(), strings.TrimSuffix(filepath.Base(issuePath), filepath.Ext(issuePath)))
+	if err != nil {
+		die(stderr, err.Error())
+	}
 	size := measureCloseWindow(stderr, windowBase, windowHead, body, plan)
 	size.EarlierFullReview, size.LedgerErr = earlierFullReview(f.plansDir(), filepath.Base(issuePath), f.Issue, f.Milestone)
 	o := decideCloseFlow(*rec, size)

@@ -289,7 +289,14 @@ func planQualityJudgePrompt(stderr io.Writer, f *judgeFlags) string {
 	if err != nil {
 		die(stderr, fmt.Sprintf("read issue file %s: %v", issuePath, err))
 	}
-	plan, err := captureReviewArtifact(planArtifactPath(f.PlansDir, name))
+	planPath, err := planArtifactPath(f.PlansDir, name)
+	if err != nil {
+		die(stderr, err.Error())
+	}
+	if note := planNameNote(f.PlansDir, name, planPath); note != "" {
+		cinfo(stderr, note)
+	}
+	plan, err := captureReviewArtifact(planPath)
 	if err != nil {
 		die(stderr, err.Error())
 	}
