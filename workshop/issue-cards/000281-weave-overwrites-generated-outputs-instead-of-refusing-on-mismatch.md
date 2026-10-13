@@ -1,6 +1,6 @@
 ---
 id: 000281
-status: codecomplete
+status: done
 created: 2026-10-01
 updated: 2026-10-12
 estimate_hours:
@@ -31,6 +31,7 @@ tracker:
         repository: github.com/xianxu/ariadne
         reviewed_head: 05c14052d6ea17d6aa20274086ca67dfc0ffea40
         evidence_commit: c4ac33667039ba0406c6dba6d584b989d48da789
+        landed_commit: b31ce87b3d88fa995f2ec3152408187b78463bb5
 ---
 
 # weave overwrites generated outputs instead of refusing on mismatch
