@@ -34,3 +34,13 @@ The operator (2026-10-13) leans to a semi-hierarchical scheme over JIRA-style fl
 ## Log
 
 ### 2026-10-13
+
+## Revisions
+
+- 2026-10-13 — the operator: areas are not free paths. **Each repo defines a small set of allowed values**, and a
+  validation gate checks them. Generalize it as a new vocabulary facility: a **repo-defined enum** — a frontmatter field
+  whose type is declared in the shared model (`construct/vocabulary`) but whose allowed values come from the repo's
+  own layer (e.g. `construct/local/vocabulary/<field>.cue` or a small declared file), so ariadne ships the contract
+  and each repo fills it in. Values may still be `/`-paths (`couch/broadcast/web`) for prefix queries. Validation runs
+  where frontmatter is written (`issue new`, setters, `issue publish`) and in the existing validation gates, refusing an
+  undeclared value and naming the declaration to edit. `area` is the first user; `severity` stays a shared enum.
