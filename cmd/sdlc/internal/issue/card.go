@@ -257,6 +257,23 @@ func FieldList(fm, name string) (values []string, ok bool, err error) {
 	return values, true, nil
 }
 
+// FieldString decodes a scalar frontmatter field as YAML (so quoting does not
+// change the value); "" when absent or null.
+func FieldString(fm, name string) (string, error) {
+	var doc map[string]yaml.Node
+	if err := yaml.Unmarshal([]byte(fm), &doc); err != nil {
+		return "", fmt.Errorf("frontmatter: %w", err)
+	}
+	n, present := doc[name]
+	if !present || (n.Kind == yaml.ScalarNode && n.Tag == "!!null") {
+		return "", nil
+	}
+	if n.Kind != yaml.ScalarNode {
+		return "", fmt.Errorf("%s: expected a single value", name)
+	}
+	return n.Value, nil
+}
+
 // validateRepoEnumNode checks a repo-enum card value's SHAPE (#348): null, or a
 // one-line flow sequence of distinct values with the model's syntax, at most
 // the model's item count. Membership in the repository's declaration is never

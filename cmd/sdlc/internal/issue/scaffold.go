@@ -205,6 +205,8 @@ type ScaffoldSpec struct {
 	ProblemBody string   // "" for blank; the GH issue body for --from-github
 	Deps        []string // optional; rendered as deps: [a, b]
 	Target      string   // optional; adds a `target:` line when non-empty
+	Area        []string // optional (#348); adds `area: [a, b]` when non-empty
+	Severity    string   // optional (#348); adds `severity:` when non-empty
 }
 
 // Render returns the canonical new-issue file content (trailing newline
@@ -236,6 +238,12 @@ func Render(s ScaffoldSpec) string {
 	fmt.Fprintf(&b, "created: %s\n", s.Today)
 	fmt.Fprintf(&b, "updated: %s\n", s.Today)
 	b.WriteString("estimate_hours:\n")
+	if len(s.Area) > 0 {
+		fmt.Fprintf(&b, "area: [%s]\n", strings.Join(s.Area, ", "))
+	}
+	if s.Severity != "" {
+		fmt.Fprintf(&b, "severity: %s\n", s.Severity)
+	}
 	b.WriteString("---\n\n")
 	fmt.Fprintf(&b, "# %s\n\n", s.Title)
 

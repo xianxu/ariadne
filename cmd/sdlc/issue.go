@@ -52,6 +52,7 @@ func NewIssueCmd() *cobra.Command {
 	setStatus.Long = renderLong("set-status") // #125: derive the lifecycle facts (not add()-wired)
 	cmd.AddCommand(setStatus)
 	cmd.AddCommand(newIssueSetTitleCmd(), newIssueSetEstimateCmd(), newIssueSetGitHubCmd())
+	cmd.AddCommand(newIssueSetAreaCmd(), newIssueSetSeverityCmd())
 	cmd.AddCommand(newIssueMoveDetailCmd(), newIssueRecoveryCmd(), newIssueMigrateCmd())
 
 	cmd.AddCommand(newIssueSyncCmd())
@@ -194,6 +195,8 @@ type issueNewFlags struct {
 	FromGitHub int
 	Deps       []string
 	Target     string
+	Areas      []string // #348
+	Severity   string   // #348
 	DryRun     bool
 	IssuesDir  string
 	HistoryDir string
@@ -225,6 +228,8 @@ title overrides it) and the issue body is seeded under ## Problem.`,
 	cmd.Flags().IntVar(&f.FromGitHub, "from-github", 0, "derive title + body from this GitHub issue number")
 	cmd.Flags().StringSliceVar(&f.Deps, "deps", nil, "dependency refs, e.g. --deps repo#1,repo#2")
 	cmd.Flags().StringVar(&f.Target, "target", "", "target: frontmatter slug")
+	cmd.Flags().StringArrayVar(&f.Areas, "area", nil, "an area (repeatable): a /-path declared in .sdlc/vocabulary.json on main, or an ancestor of one")
+	cmd.Flags().StringVar(&f.Severity, "severity", "", "severity: "+strings.Join(vocab.Issue().Enums["severity"], " | "))
 	cmd.Flags().BoolVar(&f.DryRun, "dry-run", false, "print would-be path + body; do not write")
 	cmd.Flags().StringVar(&f.IssuesDir, "issues-dir", envOr("WF_ISSUES_DIR", "workshop/issues"), "directory holding issue files")
 	cmd.Flags().StringVar(&f.HistoryDir, "history-dir", envOr("WF_HISTORY_DIR", "workshop/history"), "directory holding archived issues")
@@ -288,6 +293,16 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	if err != nil {
 		return err
 	}
+	if len(f.Areas) > 0 || f.Severity != "" {
+		// #348: checked before anything is reserved.
+		decl, err := readTrackerRepoEnums(env)
+		if err != nil {
+			return err
+		}
+		if err := checkClassification(decl, f.Areas, f.Severity); err != nil {
+			return err
+		}
+	}
 	if env.branch == "" {
 		// Its recovery record is bound to the creating checkout's branch.
 		return errors.New("issue new needs a checked-out branch (its recovery record names one); check out a branch first")
@@ -295,7 +310,7 @@ func runIssueNew(ctx context.Context, stdout, stderr io.Writer, f *issueNewFlags
 	today := time.Now().Format("2006-01-02")
 	render := func(id string) (tracker.Draft, error) {
 		full := issue.Render(issue.ScaffoldSpec{ID: id, Title: title, Today: today, GithubIssue: ghNum,
-			ProblemBody: problemBody, Deps: f.Deps, Target: f.Target})
+			ProblemBody: problemBody, Deps: f.Deps, Target: f.Target, Area: f.Areas, Severity: f.Severity})
 		card, detail, err := issue.SplitCardWithFormat([]byte(full), env.format)
 		if err != nil {
 			return tracker.Draft{}, err

@@ -123,6 +123,24 @@ func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string
 		die(stderr, fmt.Sprintf("issue file already exists: %s", dest))
 	}
 
+	if len(f.Areas) > 0 || f.Severity != "" {
+		// #348: legacy repositories read the declaration from main, never HEAD.
+		git := func(args ...string) (string, error) {
+			out, err := mergeRunner.Git(args...)
+			return string(out), err
+		}
+		rev, err := repoEnumsMainRev(git)
+		if err != nil {
+			return err
+		}
+		decl, err := repoEnumsAtRev(git, rev)
+		if err != nil {
+			return err
+		}
+		if err := checkClassification(decl, f.Areas, f.Severity); err != nil {
+			return err
+		}
+	}
 	rendered := issue.Render(issue.ScaffoldSpec{
 		ID:          nextID,
 		Title:       title,
@@ -131,6 +149,8 @@ func runLegacyIssueNew(stdout, stderr io.Writer, f *issueNewFlags, args []string
 		ProblemBody: problemBody,
 		Deps:        f.Deps,
 		Target:      f.Target,
+		Area:        f.Areas,
+		Severity:    f.Severity,
 	})
 
 	if f.DryRun {
