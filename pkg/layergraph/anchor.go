@@ -68,7 +68,16 @@ func (r *Resolver) Substrate(owner, target string) (Resolution, error) {
 	case a.err != nil:
 		return res, a.err
 	}
-	return res, fmt.Errorf("absent beside primary checkout %s too (%s)", a.primary, filepath.Join(a.primary, target))
+	return res, &FallbackAbsentError{Primary: a.primary, Candidate: filepath.Join(a.primary, target)}
+}
+
+// FallbackAbsentError is a relative row absent both beside its linked
+// worktree and beside the worktree's primary checkout (#230). Acquisition
+// refuses it rather than cloning a duplicate beside the worktree.
+type FallbackAbsentError struct{ Primary, Candidate string }
+
+func (e *FallbackAbsentError) Error() string {
+	return fmt.Sprintf("absent beside primary checkout %s too (%s)", e.Primary, e.Candidate)
 }
 
 func (r *Resolver) anchor(owner string) anchorResult {

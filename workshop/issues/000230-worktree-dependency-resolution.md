@@ -81,10 +81,10 @@ tree, not whichever worktree currently has the branch named main checked out.
 Durable plan: `workshop/plans/000230-worktree-dependency-resolution-plan.md`
 (single pass, one close boundary).
 
-- [ ] Pure `ChooseSubstrate` chooser with table tests (plan Task 1).
-- [ ] `workspace.DependencyAnchor` Git boundary: linked worktree, primary, subdirectory,
+- [x] Pure `ChooseSubstrate` chooser with table tests (plan Task 1).
+- [x] `workspace.DependencyAnchor` Git boundary: linked worktree, primary, subdirectory,
   non-Git, bare, numbered-environment host, spaces/symlink (Task 2).
-- [ ] `layergraph.Resolver` + walk on it; real-worktree tests incl. precedence, invalid
+- [x] `layergraph.Resolver` + walk on it; real-worktree tests incl. precedence, invalid
   local, transitive, absolute, spaces, no-anchor present-skip, vocabulary regression (Task 3).
 - [ ] `acquire.Restore` on the resolver: no duplicate clone, fallback notice, anchor
   reason in missing errors, compile output preserved on failure (Task 4).
@@ -129,6 +129,16 @@ three resolvers (layergraph walk, Restore, sdlc substrateWalk) through one choos
 
 Out of scope, by decision: `data` rows (weave provisions them as clones; a worktree-local
 clone is redundant, not wrong) and the bash bootstrap parser `lib-deps.sh` (pre-weave).
+
+### 2026-10-12 — paused on quota hold (ariadne:3)
+
+Tasks 1–3 done and committed (layergraph tests mutation-checked: disabling the anchor
+reds six walk tests). Task 4 in progress, committed as WIP: `Restore` resolves relative
+substrate rows through `layergraph.Resolver`, records `Result.Fallbacks`, and refuses a
+row absent beside both the worktree and the primary (`FallbackAbsentError`) instead of
+cloning a duplicate beside the worktree — a refinement of the plan's Task 4 (spec 6).
+Remaining for Task 4: `restoreSetup` fallback notice, acquire + weave compile tests;
+then Task 5 (sdlc `substrateWalk`) and Task 6 (atlas sweep, full suite, close).
 
 ## Revisions
 

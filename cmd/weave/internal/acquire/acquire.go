@@ -235,11 +235,17 @@ type Mount struct{ Owner, Source, Target string }
 // Recovery is a sourceless substrate row whose source was taken from the
 // primary-side sibling's origin (#296). Callers must report every one.
 type Recovery struct{ Owner, Path, URL, Sibling string }
+
+// Fallback is a relative substrate row absent beside its linked worktree and
+// resolved beside the worktree's primary checkout instead (#230). Callers
+// must report every one.
+type Fallback struct{ Owner, Path, Resolved, Primary string }
 type Result struct {
 	Layers    []string
 	Mounts    []Mount
 	Missing   []string
 	Recovered []Recovery
+	Fallbacks []Fallback
 }
 
 // Restore acquires every declared source, then delegates topology and cycle
@@ -261,6 +267,10 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 	mounts := map[string]string{}
 	queue := []string{root}
 	queued := map[string]bool{root: true}
+	resolver := layergraph.NewResolver(layergraph.OSFS{})
+	if c.Anchors != nil {
+		resolver.Anchors = c.Anchors
+	}
 	for len(queue) > 0 {
 		owner := queue[0]
 		queue = queue[1:]
@@ -307,7 +317,15 @@ func (c Client) Restore(ctx context.Context, root string, dryRun bool) (Result, 
 				result.Mounts = append(result.Mounts, Mount{Owner: owner, Source: dest, Target: target})
 			} else {
 				if !filepath.IsAbs(dest) {
-					dest = filepath.Join(owner, dest)
+					res, reason := resolver.Substrate(owner, dest)
+					var absent *layergraph.FallbackAbsentError
+					if errors.As(reason, &absent) {
+						return result, fmt.Errorf("missing substrate %s declared in %s: absent beside this worktree (%s) and %s; check it out beside the primary checkout (weave compile there restores it), then retry", row.Path, owner, res.Local, reason)
+					}
+					dest = res.Path
+					if res.Via != "" {
+						result.Fallbacks = append(result.Fallbacks, Fallback{Owner: owner, Path: row.Path, Resolved: canonical(dest), Primary: res.Via})
+					}
 				}
 				if c.Policy != nil {
 					lexical, err := filepath.Abs(dest)
