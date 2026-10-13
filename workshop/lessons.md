@@ -534,3 +534,9 @@ The simplest durable authority beats a clever scan of consequences.
 - A handoff against a file someone else keeps editing (an ops project's Log)
   goes stale as a saved patch within hours. Hand off the regeneration script
   and keep the patch only as a preview (#329 D10).
+- Every claim a durable contract makes needs a test that proves it: each
+  half of an OR rule, each recovery-catalog field, each ticked plan box. In
+  #344 the ref-containment half of `Leavable` (the half the crash recovery
+  relied on) could be mutated to false with every test still green, and two
+  review rounds found unproven claims in the same family. Before closing,
+  mutate each branch of a new rule once and list the test that fails.

@@ -157,6 +157,7 @@ func buildRoot() *cobra.Command {
 	add(NewPushCmd(), "push", "Ship from main (clean tree + pre-merge judges + archive)")
 	add(NewWorkspaceCmd(), "workspace", "Resolve Git-verified repository and workspace identity")
 	add(NewMoveCmd(), "move", "Move this slot's issue branch into another slot (default :0)")
+	add(NewStageCmd(), "stage", "Put this slot's HEAD on another slot (default :0) as a detached commit for a smoke test")
 	add(NewReclaimCmd(), "reclaim", "Operator-directed transfer of an issue's responsibility to this workspace (#278)")
 	add(NewStateCmd(), "state", "Inspect workflow state (branch, working issues, drift)")
 	add(NewFleetCmd(), "fleet", "Inspect fleet worktrees and query prospective admission policy")
