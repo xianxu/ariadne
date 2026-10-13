@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"path/filepath"
 	"strings"
 
 	"github.com/spf13/cobra"
@@ -54,17 +53,22 @@ func runProjectSetStatus(ctx context.Context, stdout, _ io.Writer, f *projectSet
 // projectIssueTerminalFn builds the mvp-landed guard's lookup from the shared
 // cross-repo card resolver (projectIssueLookupFn), resolving refs from the
 // project's own repo root so a bare or peer ref reads the same from any cwd.
+// The checkout is resolved once, on first use (only the wrap edge asks), and
+// its error is returned for every ref.
 func projectIssueTerminalFn(ctx context.Context, projectPath string) func(string) (bool, error) {
+	var root string
+	var rootErr error
+	resolved := false
 	return func(ref string) (bool, error) {
-		abs, err := filepath.Abs(projectPath)
-		if err != nil {
-			return false, err
+		if !resolved {
+			resolved = true
+			identity, err := projectCheckout(projectPath)
+			root, rootErr = identity.WorktreeRoot, err
 		}
-		identity, err := resolveWorkspace(filepath.Dir(abs))
-		if err != nil {
-			return false, err
+		if rootErr != nil {
+			return false, rootErr
 		}
-		meta, err := projectIssueLookupFn(ctx, ref, identity.WorktreeRoot)
+		meta, err := projectIssueLookupFn(ctx, ref, root)
 		if err != nil {
 			return false, err
 		}

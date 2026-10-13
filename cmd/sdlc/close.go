@@ -1022,15 +1022,12 @@ func shouldLogCalibration(f *closeFlags) bool {
 // WF_CALIB_LEDGER is unset AND the resolved ledger dir is absent, it skips with a
 // warning and returns — a missing ledger must NEVER break `sdlc close`.
 func appendCalibrationRow(stderr io.Writer, f *closeFlags, fm, body, repoName, issueStr, today string, m closeCostMetrics, fl closeFlowOutcome) {
-	ledgerPath := os.Getenv("WF_CALIB_LEDGER")
-	usingOverride := ledgerPath != ""
-	if !usingOverride {
-		if f.BrainDir == "" {
-			cwarn(stderr, "calibration ledger skipped (no brain dir resolved)")
-			return
-		}
-		ledgerPath = estimate.VelocityPath(f.BrainDir, "calibration-ledger.tsv")
+	usingOverride := os.Getenv("WF_CALIB_LEDGER") != ""
+	if !usingOverride && f.BrainDir == "" {
+		cwarn(stderr, "calibration ledger skipped (no brain dir resolved)")
+		return
 	}
+	ledgerPath := calibrationLedgerPath(f.BrainDir)
 	ledgerDir := filepath.Dir(ledgerPath)
 	if _, err := os.Stat(ledgerDir); err != nil {
 		if !usingOverride {

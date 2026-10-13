@@ -26,11 +26,12 @@ const MinRangeRows = 3
 // CalibrateForecast reads the ledger rows eligible for an est↔build↔converge
 // comparison: a measured split with positive build, a real estimate, not
 // excluded from calibration, newest row per issue (the ConvergeFactors
-// eligibility plus a usable estimate). ok=false when no row qualifies.
+// eligibility plus a usable estimate). A hand-edited negative estimate or
+// converge is not a data point: it would yield a negative multiplier. ok=false when no row qualifies.
 func CalibrateForecast(rows []LedgerRow) (ForecastCalibration, bool) {
 	var eligible []LedgerRow
 	for _, r := range rows {
-		if r.HasSplit() && r.BuildHours > 0 && !r.ExcludedFromCalibration() {
+		if r.HasSplit() && r.BuildHours > 0 && r.Estimate > 0 && r.ConvergeHours >= 0 && !r.ExcludedFromCalibration() {
 			eligible = append(eligible, r)
 		}
 	}

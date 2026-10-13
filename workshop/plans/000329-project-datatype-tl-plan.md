@@ -182,3 +182,8 @@ print the forecast best-effort; a lookup error becomes a note and never fails th
     at `sdlc project forecast`.
   - `ListActiveProjectFiles`/`ListActiveInRoots` (whose only reader was the contention forecast) and the
     `project close --no-ledger` gate row are deleted with what they served.
+- 2026-10-12, M1 review round 1 (FIX-THEN-SHIP):
+  - D6's `--path P` became a positional `[file]`, matching `sdlc project validate <file>`.
+  - The cycle error now walks stalled predecessors, so it names a car on the cycle (BR-1).
+  - D1's archive test landed as `TestProjectValidationScopeExcludesArchive` (BR-2). It pins that `validate --all`
+    and the changed-instance gate never reach `workshop/history/projects/`.

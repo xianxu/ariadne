@@ -19,7 +19,9 @@ func TestCalibrateForecast(t *testing.T) {
 		splitRow("3", 1, 9, 9),   // superseded: newest-per-issue keeps this one → m = 18
 		{Issue: "4", Estimate: 3, BuildHours: 1, FlowKind: "quick", SplitSource: "boundary"}, // quick: excluded
 		{Issue: "5", Estimate: 3, BuildHours: 1, SplitSource: "manual"},                      // no measured split
-		splitRow("6", 0, 1, 1), // no estimate: excluded
+		splitRow("6", 0, 1, 1),  // no estimate: excluded
+		splitRow("7", -2, 1, 1), // hand-edited negative estimate: excluded
+		splitRow("8", 2, 1, -1), // negative converge: excluded
 	}
 	c, ok := CalibrateForecast(rows)
 	if !ok || c.N != 3 {

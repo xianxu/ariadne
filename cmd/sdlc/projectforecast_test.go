@@ -86,7 +86,7 @@ func TestProjectForecastVerbPrintsRange(t *testing.T) {
 		"ariadne#3": {Status: "open"}, // unestimated: the 5h prior
 	}, nil)
 	var out bytes.Buffer
-	if err := runProjectForecast(context.Background(), &out, &projectForecastFlags{}, path); err != nil {
+	if err := runProjectForecast(context.Background(), &out, &bytes.Buffer{}, &projectForecastFlags{}, path); err != nil {
 		t.Fatal(err)
 	}
 	got := out.String()
@@ -109,7 +109,7 @@ func TestProjectForecastRefusals(t *testing.T) {
 	_, _, slot := projectWorkspaceFixture(t)
 	noTrains := writeTrainProject(t, slot, "empty", "")
 	writeForecastLedger(t)
-	if err := runProjectForecast(context.Background(), &bytes.Buffer{}, &projectForecastFlags{}, noTrains); err == nil || !strings.Contains(err.Error(), "no trains") {
+	if err := runProjectForecast(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, &projectForecastFlags{}, noTrains); err == nil || !strings.Contains(err.Error(), "no trains") {
 		t.Fatalf("no trains = %v", err)
 	}
 	var show bytes.Buffer
@@ -118,10 +118,47 @@ func TestProjectForecastRefusals(t *testing.T) {
 	}
 	trains := writeTrainProject(t, slot, "trains", "| Train | Cars |\n|-|-|\n| A | ariadne#1 |")
 	t.Setenv("WF_CALIB_LEDGER", filepath.Join(t.TempDir(), "absent.tsv"))
-	if err := runProjectForecast(context.Background(), &bytes.Buffer{}, &projectForecastFlags{}, trains); err == nil || !strings.Contains(err.Error(), "calibration ledger") {
+	if err := runProjectForecast(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, &projectForecastFlags{}, trains); err == nil || !strings.Contains(err.Error(), "calibration ledger") {
 		t.Fatalf("no ledger = %v", err)
 	}
-	if err := runProjectForecast(context.Background(), &bytes.Buffer{}, &projectForecastFlags{Slug: "x"}, trains); err == nil {
+	if err := runProjectForecast(context.Background(), &bytes.Buffer{}, &bytes.Buffer{}, &projectForecastFlags{Slug: "x"}, trains); err == nil {
 		t.Fatal("file and --slug together accepted")
+	}
+}
+
+// #329 D1: an archived record keeps `status: done` and its old `deadline:`
+// forever. Neither validation surface may reach it — `project validate --all`
+// walks only the live home, and the changed-instance gate binds the project
+// noun only to the live home — or the frozen archive would start failing.
+func TestProjectValidationScopeExcludesArchive(t *testing.T) {
+	root := t.TempDir()
+	live := writeProjectFile(t, root, "live", "---\ntype: project\nname: live\ngoal: g\ndone_when: d\nstatus: executing\n---\n## Charter\n## Trains\n## Breakdown\n## Log\n## Decisions\n")
+	archDir := filepath.Join(root, "workshop", "history", "projects")
+	if err := os.MkdirAll(archDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(archDir, "old.md"), []byte("---\ntype: project\nname: old\nstatus: done\ndeadline: 2026-01-01\n---\n## PRD\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	var seen []string
+	orig := validateFrontmatterFn
+	validateFrontmatterFn = func(_, file string) (string, bool, error) {
+		seen = append(seen, file)
+		b, _ := os.ReadFile(file)
+		return "deadline: retired", !strings.Contains(string(b), "deadline:"), nil
+	}
+	t.Cleanup(func() { validateFrontmatterFn = orig })
+	if err := runProjectValidate(&bytes.Buffer{}, &bytes.Buffer{}, &projectValidateFlags{All: true, ProjectsDir: filepath.Dir(live)}, nil); err != nil {
+		t.Fatalf("validate --all reached the archive: %v (validated %v)", err, seen)
+	}
+	if len(seen) != 1 || seen[0] != live {
+		t.Fatalf("validated %v, want only the live record", seen)
+	}
+	gates := nounGates("workshop/issues")
+	if _, ok := gateForPath("workshop/history/projects/old.md", gates); ok {
+		t.Fatal("the changed-instance gate binds a noun to the project archive")
+	}
+	if g, ok := gateForPath("workshop/projects/live.md", gates); !ok || g.noun != "project" {
+		t.Fatalf("live project path gate = %+v %v", g, ok)
 	}
 }

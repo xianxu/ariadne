@@ -107,3 +107,12 @@ Items, in order:
 - Fleet migration list for the TL: `ideation` in pair couch-slots-v2, parley.nvim parley-packaging and parley-v1-release; deadline fields in metis arena3-rogii-wellbore and ml-research-workflow; no `paused` anywhere.
 - M1 built (e873b94b). The trains parser and forecast moved into M1; see the plan's Revisions. Targeted runs are green: pkg/vocab, internal/project (with fuzz seeds and DAG invariants), internal/estimate, processmanual, cmd/vocabulary (the end-to-end deadline ban), cue vet_test.sh, and the cmd/sdlc project/forecast/retro/close/gate-catalog tests.
 - `atlas/process-manual.md` is generated and refreshed periodically. It still describes the old project help and is left for the next refresh.
+- M1 review round 1, FIX-THEN-SHIP, every finding fixed:
+  - BR-1: the cycle error names a car on the cycle, with a test where the downstream car comes first.
+  - BR-2: the archive-scope test.
+  - Minors:
+    - close's calibration-row path uses `calibrationLedgerPath` (one rule);
+    - `projectIssueTerminalFn` resolves the checkout once, through the shared `projectCheckout`;
+    - `CalibrateForecast` excludes negative estimate and converge values;
+    - `runProjectForecast` takes an injected stderr;
+    - the D6 drift is recorded in the plan's Revisions.

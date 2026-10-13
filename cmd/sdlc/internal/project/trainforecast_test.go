@@ -82,6 +82,16 @@ func TestForecastTrainsCycleAndEmpty(t *testing.T) {
 	if _, err := ForecastTrains(p, nil, unitCal); err == nil || !strings.Contains(err.Error(), "cycle") {
 		t.Fatalf("cycle = %v", err)
 	}
+	// The first stalled car in order (r#5) is only downstream of the r#3⇄r#4
+	// cycle; the error must name a car on the cycle.
+	down := TrainPlan{
+		Trains: []Train{{Name: "Y", Cars: []IssueRef{r("r", 5)}}, {Name: "X", Cars: []IssueRef{r("r", 3), r("r", 4)}}},
+		Edges:  []Edge{{r("r", 4), r("r", 5)}, {r("r", 4), r("r", 3)}},
+	}
+	_, err := ForecastTrains(down, nil, unitCal)
+	if err == nil || !(strings.Contains(err.Error(), "r#3") || strings.Contains(err.Error(), "r#4")) {
+		t.Fatalf("cycle error = %v, want a car on the r#3⇄r#4 cycle", err)
+	}
 	if _, err := ForecastTrains(TrainPlan{}, nil, unitCal); err == nil {
 		t.Fatal("empty plan forecast")
 	}

@@ -19,6 +19,7 @@ import (
 	"github.com/xianxu/ariadne/cmd/sdlc/internal/estimate"
 	projectdoc "github.com/xianxu/ariadne/cmd/sdlc/internal/project"
 	"github.com/xianxu/ariadne/pkg/vocab"
+	"github.com/xianxu/ariadne/pkg/workspace"
 )
 
 type projectForecastFlags struct{ Slug, ProjectsDir, BrainDir string }
@@ -31,7 +32,7 @@ func newProjectForecastCmd() *cobra.Command {
 			if len(args) == 1 {
 				path = args[0]
 			}
-			return runProjectForecast(cmd.Context(), cmd.OutOrStdout(), &f, path)
+			return runProjectForecast(cmd.Context(), cmd.OutOrStdout(), cmd.ErrOrStderr(), &f, path)
 		}}
 	cmd.Flags().StringVar(&f.Slug, "slug", "", "project slug (or pass the project file)")
 	cmd.Flags().StringVar(&f.ProjectsDir, "projects-dir", defaultProjectsDir(), "directory holding project files")
@@ -39,7 +40,7 @@ func newProjectForecastCmd() *cobra.Command {
 	return cmd
 }
 
-func runProjectForecast(ctx context.Context, stdout io.Writer, f *projectForecastFlags, path string) error {
+func runProjectForecast(ctx context.Context, stdout, stderr io.Writer, f *projectForecastFlags, path string) error {
 	if (path == "") == (f.Slug == "") {
 		return fmt.Errorf("choose one of <file> or --slug")
 	}
@@ -58,7 +59,7 @@ func runProjectForecast(ctx context.Context, stdout io.Writer, f *projectForecas
 		return err
 	}
 	for _, w := range plan.Warnings {
-		cwarn(os.Stderr, w)
+		cwarn(stderr, w)
 	}
 	fmt.Fprintln(stdout, projectdoc.RenderTrainForecast(fc))
 	return nil
@@ -95,11 +96,7 @@ func loadForecastCalibration(brainDir string) (estimate.ForecastCalibration, err
 // project path resolved to absolute (a relative path would resolve to "." and
 // fail every cross-repo lookup); its repo name is the default for a bare #N.
 func forecastForProject(ctx context.Context, d *projectdoc.Doc, projectPath, brainDir string) (projectdoc.TrainForecast, projectdoc.TrainPlan, error) {
-	absPath, err := filepath.Abs(projectPath)
-	if err != nil {
-		return projectdoc.TrainForecast{}, projectdoc.TrainPlan{}, err
-	}
-	identity, err := resolveWorkspace(filepath.Dir(absPath))
+	identity, err := projectCheckout(projectPath)
 	if err != nil {
 		return projectdoc.TrainForecast{}, projectdoc.TrainPlan{}, err
 	}
@@ -132,6 +129,17 @@ func forecastForProject(ctx context.Context, d *projectdoc.Doc, projectPath, bra
 	}
 	fc, err := projectdoc.ForecastTrains(plan, cars, cal)
 	return fc, plan, err
+}
+
+// projectCheckout resolves the workspace holding a project file, from its
+// absolute path (a relative path would resolve to "." and fail every
+// cross-repo lookup). Shared by the forecast and the mvp-landed lookup.
+func projectCheckout(projectPath string) (workspace.Identity, error) {
+	abs, err := filepath.Abs(projectPath)
+	if err != nil {
+		return workspace.Identity{}, err
+	}
+	return resolveWorkspace(filepath.Dir(abs))
 }
 
 // forecastLine renders the forecast for the read verbs (show/status),

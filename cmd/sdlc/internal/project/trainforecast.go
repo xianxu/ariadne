@@ -146,11 +146,7 @@ func ForecastTrains(p TrainPlan, cars map[IssueRef]CarEstimate, cal estimate.For
 		}
 	}
 	if done < len(order) {
-		for _, c := range order {
-			if indeg[c] > 0 {
-				return f, fmt.Errorf("the trains and ⇒ edges form a cycle through %s", c)
-			}
-		}
+		return f, fmt.Errorf("the trains and ⇒ edges form a cycle through %s", carOnCycle(order, preds, indeg))
 	}
 
 	var end IssueRef
@@ -191,6 +187,38 @@ func ForecastTrains(p TrainPlan, cars map[IssueRef]CarEstimate, cal estimate.For
 		f.Notes = append(f.Notes, fmt.Sprintf("card not read, at the %.1fh prior: %s", cal.Prior, strings.Join(missing, ", ")))
 	}
 	return f, nil
+}
+
+// carOnCycle names a car that lies ON a cycle, not merely downstream of one.
+// After Kahn's algorithm stalls, every stalled car has a stalled predecessor
+// (otherwise it would have been released), so walking stalled predecessors from
+// any stalled car must revisit a car; the first revisited car is on the cycle.
+// The smallest predecessor by name is taken at each step, so the answer is
+// deterministic.
+func carOnCycle(order []IssueRef, preds map[IssueRef]map[IssueRef]bool, indeg map[IssueRef]int) IssueRef {
+	var c IssueRef
+	for _, o := range order {
+		if indeg[o] > 0 {
+			c = o
+			break
+		}
+	}
+	seen := map[IssueRef]bool{}
+	for !seen[c] {
+		seen[c] = true
+		var next IssueRef
+		found := false
+		for p := range preds[c] {
+			if indeg[p] > 0 && (!found || p.String() < next.String()) {
+				next, found = p, true
+			}
+		}
+		if !found {
+			return c // unreachable for a stalled car; keeps the walk total
+		}
+		c = next
+	}
+	return c
 }
 
 // RenderTrainForecast is the one-paragraph statement every surface prints.
