@@ -2,7 +2,7 @@
 id: 000265
 status: open
 created: 2026-09-28
-updated: 2026-09-28
+updated: 2026-10-12
 estimate_hours:
 github_issue:
 tracker:
@@ -17,6 +17,14 @@ tracker:
         source_blob: b452cfb519ad7d3d3801e0c0ff570d046481f31d
         destination: workshop/issues/000265-weave-robustness.md
         main_commit: 0186e297fad232b3f8f9a8a44301dfb50e36fa72
+started: 2026-10-12T18:01:21-07:00
+claimant:
+    operator: Xian Xu
+    machine: 4716879978a7b90f6b583da1716fd0e9
+    machine_name: Xian’s MacBook Pro
+    workspace: ariadne:1
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot1/ariadne
+    repository: github.com/xianxu/ariadne
 ---
 
 # weave robustness: atomic compile, symlinked Makefile, legacy include, dependency writes
