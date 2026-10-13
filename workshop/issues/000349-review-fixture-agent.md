@@ -1,19 +1,19 @@
 ---
 id: 000349
-status: open
+status: working
 deps: []
 github_issue:
 created: 2026-10-13
 updated: 2026-10-13
 estimate_hours:
-card_mirror: '89e8a1af70d2799226ba503e61a35647c4565735' # card fields mirrored from issue-cards; edit via sdlc
+card_mirror: 'a84a60b2676475d45313c1c98a7f7515e9fa4872' # card fields mirrored from issue-cards; edit via sdlc
 started: 2026-10-13T14:18:20-07:00
 claimant:
     operator: Xian Xu
     machine: 4716879978a7b90f6b583da1716fd0e9
-    machine_name: Xian’s MacBook Pro
-    workspace: ariadne:5
-    worktree: /Users/xianxu/workspace/worktree/ariadne-slot5/ariadne
+    machine_name: MacBook Pro
+    workspace: ariadne:3
+    worktree: /Users/xianxu/workspace/worktree/ariadne-slot3/ariadne
     repository: github.com/xianxu/ariadne
 ---
 
@@ -39,7 +39,16 @@ Keep production agent resolution and its explicit precedence tests unchanged.
 
 ## Plan
 
-
+- [x] `pinReviewAgent(t, agent)` (`cmd/sdlc/agentpin_test.go`): sets `AGENT_CMD`, the
+  operator override that outranks `PAIR_AGENT` and the reviewer policy, so it pins
+  against any ambient `PAIR_AGENT` or `AGENT_CMD`; only `--agent` is above it. Pin the
+  three named fixtures to `judge.AgentClaude`.
+- [ ] Audit: the whole suite under `PAIR_AGENT=codex`, and again under
+  `AGENT_CMD=codex` (they catch different gaps: a fixture relying on the Claude default,
+  and one that sets `PAIR_AGENT` but not `AGENT_CMD`); pin every further fixture either
+  run exposes.
+- [ ] Production resolution unchanged: its precedence tests (`agent_resolver_test.go`,
+  and the `t.Setenv("AGENT_CMD", "")` + `PAIR_AGENT` tests) stay as they are.
 
 ## Log
 
@@ -49,3 +58,14 @@ Keep production agent resolution and its explicit precedence tests unchanged.
 Filed independently from #337. The source and fixtures match origin/main at
 19dafa47ec755f12dd5a22d3c83a769b76f65a81. All three pass with PAIR_AGENT=claude:
 closestream pair 21.947s; fenced-argv test 4.558s. No fixture changes made here.
+
+### 2026-10-13 — ariadne:3
+
+Reproduced under `PAIR_AGENT=codex`: the two closestream tests reported verdict
+"unknown" / a sidecar without both runs (Claude JSONL fed to a Codex parse), and the
+fenced-argv test got a `codex exec` argv. Precedence (`judge.ResolveReviewerCLI`):
+`--agent`, then `AGENT_CMD`, then the reviewer policy over `MainAgent` (`PAIR_AGENT`,
+then `CODEX_CI`/`CODEX_THREAD_ID`, else Claude). After pinning, the three pass under
+`PAIR_AGENT=codex`, `PAIR_AGENT=claude`, `PAIR_AGENT=claude AGENT_CMD=codex` and
+`PAIR_AGENT=codex AGENT_CMD=gemini`. This slot's ambient env is `PAIR_AGENT=claude`,
+which is why Claude slots never see it.
