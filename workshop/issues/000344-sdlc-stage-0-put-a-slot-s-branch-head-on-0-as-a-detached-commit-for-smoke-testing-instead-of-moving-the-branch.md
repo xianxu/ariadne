@@ -78,6 +78,7 @@ Durable plan: `workshop/plans/000344-sdlc-stage-0-put-a-slot-s-branch-head-on-0-
 ### 2026-10-12
 
 ### 2026-10-13
+- 2026-10-13: closed — make test green at 911b8afa: 12 shards, 1110 cmd/sdlc tests plus 46 packages, 0 failed. Round 1 fixes: TestStageAcceptsADetachARefKeeps covers stage, --clear and move on a ref-contained detach with no record (mutation-checked: all three fail without the for-each-ref rule). The minors: a repeat-stage test, fleet render staged=true, an unreadable build info is reported, and the plan boxes and xx-tl wording are accurate. Earlier evidence stands: the stage, refusal, move, fleet-hold and build tests, and the record-trust and TreeRow.Staged mutation checks.; review verdict: SHIP
 
 - Dispatched by the TL (ops:0); claimed in ariadne:4. The diff will leave the
   quick-flow shell (~200 code lines), so the flow is pinned to full.

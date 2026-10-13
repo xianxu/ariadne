@@ -109,3 +109,95 @@ findings:
     title: |
       The issue checks "xx-tl change sent to the hub", but the Log says the hub is told at landing; the durable plan's task boxes are all unchecked
 ```
+
+---
+
+## Re-review — 2026-10-13T15:15:56-07:00 (SHIP)
+
+| field | value |
+|-------|-------|
+| issue | 344 — sdlc stage :0: put a slot's branch HEAD on :0 as a detached commit for smoke testing, instead of moving the branch |
+| repo | ariadne |
+| issue file | workshop/issues/000344-sdlc-stage-0-put-a-slot-s-branch-head-on-0-as-a-detached-commit-for-smoke-testing-instead-of-moving-the-branch.md |
+| boundary | whole-issue close |
+| milestone | — |
+| window | 19dafa47ec755f12dd5a22d3c83a769b76f65a81..911b8afa4437f1ab911c32d2c819d3fb329c9274 |
+| command | sdlc close --issue 344 |
+| reviewer | claude |
+| isolation | checkout |
+| timestamp | 2026-10-13T15:15:56-07:00 |
+| verdict | SHIP |
+
+## Review
+
+Checking that the targeted stage tests pass, then reverting the BR-1 fix to confirm the new test catches it.
+
+```verdict
+verdict: SHIP
+confidence: high
+```
+
+`sdlc stage` does what the Spec asks. A slot detaches its HEAD on `:0` and keeps its branch. A dirty or mid-operation `:0` is refused, and so is one on another branch or detached at an unreferenced commit. A second stage replaces the first and says what it replaced. `--clear` and `move` both return `:0` to rest and drop the record, and the fleet view reports a staged `:0` as the hold `staged`. BR-1 is fixed and I checked it: I hard-wired the `for-each-ref --contains` result in `cmd/sdlc/move.go:301` to false, and all three subtests of `TestStageAcceptsADetachARefKeeps` (stage, clear, move) failed. With the code restored, every stage and move test passes. BR-3 and BR-5 are addressed. BR-2 and BR-4 have their code fixes, but no test fails without them, so under the claimed-fix rule they stay open as Minors. They don't block. The xx-tl part of "Done when" lives in ops, which workers may not edit, and the issue and plan now say plainly that the hub gets it in the landing report.
+
+1. **Strengths**
+   - `moveSide.Leavable` is one rule shared by stage, `--clear` and move (`cmd/sdlc/move.go:292-303`, `moveplan.go:47`). This follows ARCH-DRY, and the fleet trusts the record only on an exact HEAD match (`fleet/inventory.go:370`).
+   - The effect order is stated and tested. The record is written only after the switch is verified (`stage.go`). The crash-before-record case is now a real-git test that I confirmed goes red when the ref check is removed.
+   - `checkStage`/`checkUnstage` are pure and tested on literal facts (`stageplan_test.go`). The refusal tests assert that HEAD, branch, status and record are all unchanged (`stage_test.go` `slotState`).
+   - `TreeRow.validate` rejects a staged row that is not detached (`types.go:324`), so that invalid state can't be serialised.
+
+2. **Critical:** none.
+
+3. **Important:** none.
+
+4. **Minor**
+   - **Recovery catalog proofs (new).** The `stage` entry's `LostResponse` (`recovery/catalog.go:206`) promises "rerun accepts a switch whose record was not written". Its `Proofs` list doesn't name `TestStageAcceptsADetachARefKeeps`, the one test that proves it.
+   - BR-2 and BR-4 have no regression tests (see the dispositions below).
+
+5. **Test coverage**
+   - Stage, move, fleet and recovery tests pass.
+   - The only failure in the package run was `TestArchiveDoneIssues_MovesAndClosesGH`. It failed on tracker reachability in this environment ("no issue tracker is reachable"), so it is unrelated to this diff.
+   - `notGoBinary` matches on error-message text. That is fragile across Go versions, and nothing tests it.
+
+6. **Architecture**
+   - **ARCH-DRY:** pass. `moveSide`, `observeMoveSide`, `untrackedCollisions` and `outOfTheWay` are reused. `verifySlot` is close to move's own verify loop and could be unified later.
+   - **ARCH-PURE:** pass. The rules are pure, and observe/switch is a thin layer.
+   - **ARCH-PURPOSE:** pass. The xx-tl consumer can't be edited from here, and the hand-off is now recorded accurately.
+   - **ARCH-MOCK:** pass. Tests use real-git temp fleets, and the build-info reader is injected.
+   - **ARCH-CONSTRAINTS:** pass. `for-each-ref --count=1` runs only on detached targets.
+   - **ARCH-SECURE:** pass. The record is trimmed and trusted only on an exact match, and a hand-edited record can't vouch for another commit.
+   - **ARCH-ORDER:** pass. The order is observe, re-observe and compare, switch, verify, then record, and the crash window is tested.
+   - **ARCH-FUNERAL:** pass. The record is one line per worktree, overwritten in place, and removed by `--clear` and `move`. A stale record is harmless.
+
+7. **Plan revisions:** none needed. The plan's boxes and Core concepts table match the code.
+
+```findings
+dispose:
+  - id: BR-1
+    disposition: addressed
+    note: |
+      TestStageAcceptsADetachARefKeeps (stage_test.go:192) goes red in all three subtests when move.go:301's ref check is forced false; verified by mutation in the review checkout.
+  - id: BR-2
+    disposition: not-addressed
+    note: |
+      render.go:59 now emits staged=true, but no render_test row covers a staged row, so nothing fails without the fix; add one row to render_test.go.
+  - id: BR-3
+    disposition: addressed
+    note: |
+      stage_test.go:66-69 asserts "already staged on" and the unchanged stage on a repeat at the same HEAD.
+  - id: BR-4
+    disposition: not-addressed
+    note: |
+      stagebuild.go:37-41 now warns on non-"not Go" errors, but no test fakes readBuildInfo returning another error; the fix is unpinned (and notGoBinary matches on error text).
+  - id: BR-5
+    disposition: addressed
+    note: |
+      Plan task boxes are ticked, and the issue's Docs item now says the xx-tl change lives in ops and goes to the hub in the landing report, matching the Log.
+findings:
+  - id: new
+    severity: Minor
+    family: checklist-claims-match-evidence
+    title: |
+      The stage recovery contract's LostResponse claim does not cite TestStageAcceptsADetachARefKeeps as its proof
+    detail: |
+      This is the 2nd finding in family checklist-claims-match-evidence. The rule: every claim a durable contract makes (plan box, catalog field) names the test that proves it. Sweep the stage Contract in recovery/catalog.go:199-213 so that each of Effects, Repeat, LostResponse and Ends maps to a listed Proof.
+```
