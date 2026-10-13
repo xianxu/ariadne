@@ -9,6 +9,10 @@ nothing. After both switches are verified, move records the destination as the
 issue's owner, if the source slot owned it. A failure leaves the branch moved,
 keeps the record, and names the repair, which is `sdlc claim --issue N` at the
 destination. Move never takes another workspace's issue; that is `sdlc reclaim`.
+Once the owner moves, the destination's details show it: move commits the
+mirror refresh as one narrow commit on the issue branch (#282), so the
+destination stays clean and the branch can move again. A hand-edited mirrored
+field refuses the refresh with a warning; the move stands.
 
   sdlc move                 move to :0
   sdlc move :2              move to slot 2

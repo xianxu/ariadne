@@ -359,11 +359,13 @@ func finishRelocation(stdout, stderr io.Writer, env *trackerEnv, card tracker.Re
 // refreshLocalMirror brings this checkout's copy of an issue's card fields up
 // to the tracker, when the checkout has the details. It never fails a verb that
 // already published: a refusal (hand-edited mirrored field) is reported instead.
-// The resting branch is never edited — a local change there is exactly the
-// divergence the tracker exists to remove; its mirror refreshes when the issue
-// branch is prepared (start-plan) or through main.
+// Only the issue's own branch is edited (#282): its PR carries the details.
+// Anywhere else — the resting branch, another issue's code branch, a detached
+// HEAD — the copy is main's, and a local edit there is a stray change on
+// unrelated work; it refreshes when the issue branch is prepared (start-plan)
+// or through main (publish, close).
 func refreshLocalMirror(env *trackerEnv, detailPath string) string {
-	if env.onRest() {
+	if env.branch == "" || env.branch != issue.BranchName(detailPath) {
 		return ""
 	}
 	return refreshLocalMirrorAt(env, filepath.Join(env.root, filepath.FromSlash(detailPath)))

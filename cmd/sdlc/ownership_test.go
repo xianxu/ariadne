@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
@@ -360,6 +361,7 @@ func cardOwner(t *testing.T, root, cardPath string) (issue.Claimant, bool) {
 // warning toward a plain claim (which takes it over), and no record left behind.
 func TestMoveRelocatesItsOwner(t *testing.T) {
 	roots, cardPath := moveTrackerFixture(t)
+	detailPath := commitMovedDetails(t, roots[1], "")
 	out, err := runMoveTest(t, roots[1], ":0", false)
 	if err != nil {
 		t.Fatalf("move: %v\n%s", err, out)
@@ -370,10 +372,71 @@ func TestMoveRelocatesItsOwner(t *testing.T) {
 	if rec, err := readRelocation(roots[0], "000001"); err != nil || rec != nil {
 		t.Fatalf("move left its record: %+v %v", rec, err)
 	}
+	// #282: the destination's details show the new owner, mirrored from the
+	// current card.
+	local, _ := os.ReadFile(filepath.Join(roots[0], detailPath))
+	env, err := openTrackerAt(context.Background(), roots[0])
+	if err != nil {
+		t.Fatal(err)
+	}
+	snap, err := env.repo.Snapshot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	rec, _ := snap.Card("000001")
+	oid, _ := issue.CardBlobOID(rec.Raw, "sha1")
+	if !strings.Contains(string(local), "worktree: "+canonRoot(roots[0])) || !strings.Contains(string(local), oid) {
+		t.Fatalf("destination mirror not refreshed (want %s):\n%s\n%s", oid, local, out)
+	}
+	// Committed narrowly, so the destination is clean and the work moves back.
+	if st := testfix.Capture(t, roots[0], "status", "--porcelain"); strings.TrimSpace(st) != "" {
+		t.Fatalf("the refresh left the destination dirty:\n%s", st)
+	}
+	if subject := testfix.Capture(t, roots[0], "log", "-1", "--format=%s"); !strings.Contains(subject, "#1: mirror relocated owner") {
+		t.Fatalf("HEAD is not the mirror commit: %s", subject)
+	}
+	if out, err := runMoveTest(t, roots[0], ":1", false); err != nil {
+		t.Fatalf("move back: %v\n%s", err, out)
+	}
+}
+
+// #282: a hand-edited mirrored field in the moved details refuses the refresh
+// with a warning; the move and the relocation stand.
+func TestMoveWarnsWhenTheDestinationMirrorRefuses(t *testing.T) {
+	roots, cardPath := moveTrackerFixture(t)
+	detailPath := commitMovedDetails(t, roots[1], "status: blocked")
+	out, err := runMoveTest(t, roots[1], ":0", false)
+	if err != nil {
+		t.Fatalf("move failed on a mirror refusal: %v\n%s", err, out)
+	}
+	if owner, _ := cardOwner(t, roots[0], cardPath); owner.Worktree != canonRoot(roots[0]) {
+		t.Fatalf("owner not relocated to :0: %+v\n%s", owner, out)
+	}
+	if !strings.Contains(out, "owned by the card") {
+		t.Fatalf("no refusal warning:\n%s", out)
+	}
+	if local, _ := os.ReadFile(filepath.Join(roots[0], detailPath)); !strings.Contains(string(local), "status: blocked") {
+		t.Fatalf("the refusal rewrote the details:\n%s", local)
+	}
+}
+
+// commitMovedDetails commits #1's details (as filed, optionally with its
+// status hand-edited to edit) on the slot's issue branch.
+func commitMovedDetails(t *testing.T, slot, edit string) string {
+	t.Helper()
+	_, _, detailPath, detail := seededIssue(t, "000001", "procedure")
+	if edit != "" {
+		detail = strings.Replace(detail, "status: open", edit, 1)
+	}
+	procedureWrite(t, slot, detailPath, detail)
+	testfix.Git(t, slot, "add", detailPath)
+	testfix.Git(t, slot, "commit", "-qm", "#1: details")
+	return detailPath
 }
 
 func TestMoveLeavesAnUnattributedIssueUnknown(t *testing.T) {
 	roots, cardPath := moveTrackerFixture(t)
+	detailPath := commitMovedDetails(t, roots[1], "")
 	env, err := openTrackerAt(context.Background(), roots[1])
 	if err != nil {
 		t.Fatal(err)
@@ -395,6 +458,44 @@ func TestMoveLeavesAnUnattributedIssueUnknown(t *testing.T) {
 	}
 	if rec, _ := readRelocation(roots[0], "000001"); rec != nil {
 		t.Fatal("a move whose relocation does not apply left its record")
+	}
+	assertMovedDetailsUntouched(t, roots[0], detailPath) // #282
+}
+
+// #282: a card owned by another slot is never relocated by a move, and the
+// moved details keep their mirror.
+func TestMoveLeavesAnotherSlotsIssueAndItsDetails(t *testing.T) {
+	roots, cardPath := moveTrackerFixture(t)
+	detailPath := commitMovedDetails(t, roots[1], "")
+	env, err := openTrackerAt(context.Background(), roots[1])
+	if err != nil {
+		t.Fatal(err)
+	}
+	elsewhere, _ := claimantIdentity(env)
+	elsewhere.Worktree = canonRoot(roots[1]) + "-elsewhere"
+	if err := env.repo.ChangeCard("000001", cardPath, "elsewhere", operationToken("set"), func(c []byte) ([]byte, error) {
+		return issue.SetCardClaimant(c, elsewhere)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	invalidateIssueRecords(context.Background())
+	out, err := runMoveTest(t, roots[1], ":0", false)
+	if err != nil {
+		t.Fatalf("move: %v\n%s", err, out)
+	}
+	if owner, _ := cardOwner(t, roots[0], cardPath); owner.Worktree != elsewhere.Worktree || !strings.Contains(out, "moving never takes ownership") {
+		t.Fatalf("another slot's issue: owner %+v\n%s", owner, out)
+	}
+	assertMovedDetailsUntouched(t, roots[0], detailPath)
+}
+
+func assertMovedDetailsUntouched(t *testing.T, root, detailPath string) {
+	t.Helper()
+	if st := testfix.Capture(t, root, "status", "--porcelain"); strings.TrimSpace(st) != "" {
+		t.Fatalf("details edited:\n%s", st)
+	}
+	if subject := testfix.Capture(t, root, "log", "-1", "--format=%s"); subject != "#1: details\n" && strings.TrimSpace(subject) != "#1: details" {
+		t.Fatalf("a mirror commit was made: %s", subject)
 	}
 }
 

@@ -185,7 +185,7 @@ func commitIndexOnto(env *trackerEnv, withIndex []string, head, message string) 
 // built like the evidence commit so staged unrelated work is untouched. Like
 // every post-publication mirror refresh it never fails the close.
 func commitCloseMirror(env *trackerEnv, stderr io.Writer, id, detailRel string) {
-	if err := closeMirrorCommit(env, id, detailRel); err != nil {
+	if err := commitMirror(env, id, detailRel, "mirror codecomplete card"); err != nil {
 		cwarn(stderr, fmt.Sprintf("#%s: details mirror not refreshed after close: %v", issue.CLIRef(id), err))
 	}
 }
@@ -225,7 +225,11 @@ func retryCloseMirror(env *trackerEnv, stderr io.Writer, id string) {
 	boundaryPush(env, stderr, "close") // reconcile finished this branch's close (#286)
 }
 
-func closeMirrorCommit(env *trackerEnv, id, rel string) error {
+// commitMirror commits the current card's projection into the details at
+// HEAD as one narrow commit on the checked-out branch (subject names why),
+// leaving staged unrelated work untouched: close's mirror commit (#275) and
+// move's relocated owner (#282).
+func commitMirror(env *trackerEnv, id, rel, subject string) error {
 	head, err := env.git("rev-parse", "--verify", "HEAD^{commit}")
 	if err != nil {
 		return err
@@ -258,11 +262,11 @@ func closeMirrorCommit(env *trackerEnv, id, rel string) error {
 	if _, err := env.gitEnv(withIndex, "update-index", "--cacheinfo", "100644,"+blob+","+rel); err != nil {
 		return err
 	}
-	commit, err := commitIndexOnto(env, withIndex, head, fmt.Sprintf("#%s: mirror codecomplete card", issue.CLIRef(id)))
+	commit, err := commitIndexOnto(env, withIndex, head, fmt.Sprintf("#%s: %s", issue.CLIRef(id), subject))
 	if err != nil {
 		return err
 	}
-	if _, err := env.git("update-ref", "-m", "sdlc close mirror", env.branchRef(), commit, head); err != nil {
+	if _, err := env.git("update-ref", "-m", "sdlc "+subject, env.branchRef(), commit, head); err != nil {
 		return err
 	}
 	// The index and worktree follow only where they still hold the old bytes; an
