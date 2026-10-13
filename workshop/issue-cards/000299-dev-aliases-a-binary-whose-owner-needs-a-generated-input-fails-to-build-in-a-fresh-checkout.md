@@ -13,7 +13,7 @@ claimant:
     workspace: ariadne:2
     worktree: /Users/xianxu/workspace/worktree/ariadne-slot2/ariadne
     repository: github.com/xianxu/ariadne
-actual_hours: 0.24
+actual_hours: 0.33
 tracker:
     version: 1
     handoff:
@@ -27,10 +27,10 @@ tracker:
         destination: workshop/issues/000299-dev-aliases-a-binary-whose-owner-needs-a-generated-input-fails-to-build-in-a-fresh-checkout.md
         main_commit: 1b11fc83f9f2ecf656c2e70eadb2aed6a28a7d88
     completion:
-        token: close-23dfb64d0b00
+        token: close-0717ca064890
         repository: github.com/xianxu/ariadne
-        reviewed_head: 53766ba99864d585ef99ebd8230aadcab5177c20
-        evidence_commit: 4bded0c8bfc1528bcbcf43f24df74d32d01b8de4
+        reviewed_head: e74172d395d8ffa1cc84ecb881edb36f988c70e0
+        evidence_commit: 607b3ad6ed7741d742151c83d517d738763587ec
 ---
 
 # dev-aliases: a binary whose owner needs a generated input fails to build in a fresh checkout
